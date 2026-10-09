@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { SessionData } from '@bible/core';
 import { setSessionDirtyCallback } from './helpers/sessionNotifier';
-import { getSessionSerializers } from './helpers/sessionRegistry';
+import { getSessionSerializers, declaredSessionSections } from './helpers/sessionRegistry';
 import React from 'react';
 
 /**
@@ -178,10 +178,8 @@ export const useSessionStore = create<SessionState>((set, get) => ({
         textSettings: get_('textSettings'),
         textSettingsCustomized: get_('textSettingsCustomized'),
         preferences: get_('preferences'),
-        // Task 0065: keyword-mark switches per Bible tab (not yet in core's SessionData.ui type).
-        ...(serializers.has('keywordMarks') ? { keywordMarks: get_('keywordMarks') } : {}),
-        // Task 0069: weights-and-measures preferences (per device).
-        ...(serializers.has('measures') ? { measures: get_('measures') } : {}),
+        // Sections feature modules own (declared on their module entry): serialized, or kept as restored.
+        ...declaredSessionSections(),
         ...get_('fileNotes'),
         // `wordStudyPanels`: per-pane subject/options/filters (see useWordStudyStore).
         ...get_('wordStudy')

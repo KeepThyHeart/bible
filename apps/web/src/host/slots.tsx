@@ -8,6 +8,10 @@
  * - `studyBanners`: rendered above the reader layout by `StudyView`.
  * - `studyPaneSections`: sections in the phone Study pane (`MobileStudyPane`).
  * - `readerOverlays`: rendered inside the reader (`BibleContent`), after the verses.
+ * - `readerToolbarItems`: components at the start of the Bible toolbar's right group.
+ * - `readerPaintControllers`: components the reader mounts with the chapter in view; they
+ *   publish paint layers (`host/readerLayers.ts`) and may render extras (a popup).
+ * - `studySections`: sections in the Study pane's verse area (desktop layout).
  * - `verseDecorators`: per-verse extras for `VerseRenderer` (classes, a rail
  *   control, replacement text). Decorators are plain functions read during
  *   render; a module calls `verseDecorators.invalidate()` when what they return changes.
@@ -17,6 +21,17 @@
 import { h } from 'preact';
 import type { ComponentChildren, ComponentType } from 'preact';
 import { useSyncExternalStore } from 'preact/compat';
+import type { IInterlinearDataProvider } from '../providers/interfaces';
+import type { InterlinearWordData, VerseData } from '../types';
+
+const componentIds = new WeakMap<object, number>();
+let nextComponentId = 0;
+/** A stable React key for a slot component, so removing another item does not remount it. */
+export function componentKey(C: object): number {
+  let id = componentIds.get(C);
+  if (id === undefined) componentIds.set(C, (id = ++nextComponentId));
+  return id;
+}
 
 export interface Slot<T> {
   /** Add an item; dispose the handle to remove it. */
@@ -73,7 +88,7 @@ export function useSlot<T>(slot: Slot<T>): readonly T[] {
 export function SlotOutlet({ slot }: { slot: Slot<ComponentType> }) {
   const items = useSlot(slot);
   if (items.length === 0) return null;
-  return <>{items.map((C, i) => h(C, { key: i }))}</>;
+  return <>{items.map((C) => h(C, { key: componentKey(C) }))}</>;
 }
 
 // --- reader verses ------------------------------------------------------------
@@ -177,7 +192,7 @@ export const studyModes = createSlot<StudyMode>();
 export interface MobileStudySection {
   readonly id: string;
   readonly order: number;
-  readonly Section?: ComponentType;
+  readonly Section?: ComponentType<StudySectionProps>;
   readonly Sheet?: ComponentType<{ onNavigateBible?: () => void }>;
 }
 export const mobileStudySections = createSlot<MobileStudySection>();
@@ -194,3 +209,49 @@ export interface TopicEntityAction {
   readonly run: (entityId: string, name: string, ctx: { mobile: boolean }) => void;
 }
 export const topicEntityActions = createSlot<TopicEntityAction>();
+
+// --- Reader paint and verse-scoped Study sections (task 0127) ---------------------
+
+/** What the Study pane gives a section about the verse in focus. */
+export interface StudySectionProps {
+  /** The focus verse, or null. */
+  verseId: number | null;
+  /** Opens the Settings panel on a section. */
+  onOpenSettings?: (section?: string) => void;
+}
+
+/** A section of the Study pane (desktop layout) that follows the focus verse, between Topics and Synthesis. */
+export interface StudySectionItem {
+  readonly id: string;
+  /** Lower first. */
+  readonly order: number;
+  readonly Section: ComponentType<StudySectionProps>;
+}
+export const studySections = createSlot<StudySectionItem>();
+
+/** What the reader tells a paint controller about the chapter in view. */
+export interface ReaderPaintProps {
+  readonly tabId: string;
+  readonly moduleAbbr: string;
+  readonly moduleId: number | undefined;
+  /** Language of the Bible module text. */
+  readonly language: string | undefined;
+  readonly book: number | null;
+  readonly chapter: number | null;
+  readonly verses: readonly VerseData[];
+  readonly surface: 'standard' | 'reading' | 'study';
+  /** Interlinear rows Study already holds for this chapter. */
+  readonly studyRows?: readonly InterlinearWordData[];
+  /** Server interlinear source for surfaces other than Study. */
+  readonly interlinearProvider?: IInterlinearDataProvider;
+  readonly uiLocale: string;
+  /** The element that wraps the rendered verses (null while the verses are not shown). */
+  readonly container: HTMLElement | null;
+  readonly onOpenSettings?: (section?: string) => void;
+}
+
+/** Mounted by `BibleContent` while the module is active; publishes layers via `publishReaderLayer`. */
+export const readerPaintControllers = createSlot<ComponentType<ReaderPaintProps>>();
+
+/** Components at the start of the Bible toolbar's right group. */
+export const readerToolbarItems = createSlot<ComponentType>();

@@ -1,0 +1,14 @@
+/* Keyword marks (task 0065): the word or verse just stepped to from the Keywords legend. */
+.keyword-step-flash {
+  animation: keyword-step-flash 1.4s ease-out;
+  border-radius: 2px;
+}
+
+@keyframes keyword-step-flash {
+  0%, 60% { box-shadow: 0 0 0 3px rgb(var(--theme-accent-primary-rgb) / 0.55); background-color: rgb(var(--theme-accent-primary-rgb) / 0.25); }
+  100% { box-shadow: 0 0 0 3px transparent; background-color: transparent; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .keyword-step-flash { animation: none; box-shadow: 0 0 0 2px rgb(var(--theme-accent-primary-rgb) / 0.55); }
+}

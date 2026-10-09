@@ -861,20 +861,7 @@
     "open": "词语研究"
   },
   "keywordMarks": {
-    "button": "关键词",
-    "buttonTitle": "关键词标记",
-    "title": "关键词标记",
-    "toggle": "关键词标记",
-    "empty": "本章没有匹配的关键词。",
-    "count": "{count, plural, other {# 处}}",
-    "show": "显示{label}",
-    "hide": "隐藏{label}",
-    "next": "下一处{label}",
-    "prev": "上一处{label}",
-    "approximate": "近似",
-    "approximateHint": "近似：按词形匹配，而非按原文词匹配",
-    "interlinearNote": "Strong 编号标记需要逐字对照译本。",
-    "announce": "{label}，第 {verse} 节，第 {index} 处，共 {total} 处"
+    "title": "关键词标记"
   },
   "audio": {
     "listen": "收听",
@@ -1069,24 +1056,6 @@
       "openAtLogin": "登录时启动（在托盘中）",
       "sendTest": "发送测试通知",
       "general": "常规"
-    }
-  },
-  "measures": {
-    "popup": {
-      "range": "范围",
-      "rangeHint": "取决于所用数值",
-      "verseNote": "本节经文",
-      "usageIllustrative": "举例",
-      "usageFigurative": "比喻",
-      "usageHintIllustrative": "举例的数量；确切数字并非重点",
-      "usageHintFigurative": "比喻用法；数字不应按字面理解",
-      "draft": "草稿 – 尚未审核",
-      "sources": "来源",
-      "units": "单位…"
-    },
-    "study": {
-      "title": "重量、度量衡与货币",
-      "listLabel": "本节经文中的重量、度量衡与货币:{count}"
     }
   },
   "assets": {

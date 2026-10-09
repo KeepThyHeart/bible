@@ -14,6 +14,8 @@ import { readingPlansModule } from './reading-plans/binding';
 import { similarModule } from './similar/binding';
 import { xrefGraphModule } from './xref-graph/binding';
 import { wordStudyModule } from './word-study/binding';
+import { measuresModule } from './measures/binding';
+import { keywordMarksModule } from './keyword-marks/binding';
 import { addDesktopModule, fireStartupFinished, reconcileModules } from './moduleHost';
 import type { DesktopFeatureModule } from './moduleHost';
 
@@ -27,6 +29,8 @@ export const BUILTIN_MODULES: readonly DesktopFeatureModule[] = [
   similarModule,
   xrefGraphModule,
   wordStudyModule,
+  measuresModule,
+  keywordMarksModule,
 ];
 
 let registered = false;

@@ -453,7 +453,7 @@ const StudyModeView: React.FC<StudyModeViewProps> = ({
                         onStrongsClick={onStrongsClick}
                         verseId={verse.verse_id}
                         moduleId={moduleId}
-                        keywordTabId={tabId}
+                        layerTabId={tabId}
                         onWordMouseEnter={hoverTrigger.onWordMouseEnter}
                         onWordMouseLeave={hoverTrigger.onWordMouseLeave}
                       />
@@ -472,7 +472,7 @@ const StudyModeView: React.FC<StudyModeViewProps> = ({
                           verseId={verse.verse_id}
                           verseHTML={verse.text_html || verse.text}
                           moduleId={moduleId}
-                          keywordTabId={tabId}
+                          layerTabId={tabId}
                           surface="study"
                           onWordMouseEnter={hoverTrigger.onWordMouseEnter}
                           onWordMouseLeave={hoverTrigger.onWordMouseLeave}

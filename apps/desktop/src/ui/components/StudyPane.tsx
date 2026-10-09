@@ -17,8 +17,8 @@ import VersePreviewTooltip from './VersePreviewTooltip';
 import DigestDisclaimer from './commentary/DigestDisclaimer';
 import { useModuleProvenance } from './commentary/useModuleProvenance';
 import StudySection from './study/StudySection';
-import MeasuresStudySection from './measures/MeasuresStudySection';
 import { verseActions, verseActionsStore } from '../apps/appHost';
+import { StudyPaneSections } from '../modules/host/slots';
 import { translateWithDefault } from '../utils/translateWithDefault';
 import StudyRichText from './study/StudyRichText';
 import { markdownToPlainText, looksLikeMarkdown } from './study/markdown';
@@ -544,11 +544,11 @@ const StudyPane: React.FC<StudyPaneProps> = ({ panelId: propPanelId, initialVers
               />
             </StudySection>
 
-            {/* Weights, measures and money - hides itself when off or none in the verse */}
-            <MeasuresStudySection
+            {/* Sections feature modules add (each hides itself when it has nothing for the verse) */}
+            <StudyPaneSections
               verseId={currentVerseId}
-              collapsed={!!sectionsCollapsed['measures']}
-              onToggle={() => toggleSection('measures')}
+              sectionsCollapsed={sectionsCollapsed}
+              toggleSection={toggleSection}
             />
 
             {/* Combined Summary - the auto-generated digest, rendered in full */}

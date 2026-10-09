@@ -17,7 +17,7 @@ import { selectVerseActions } from '@bible/core/browser';
 import { appRegistry, verseActions, verseActionsStore } from '../apps/appHost';
 import { withVerseIdsContext } from '../apps/verseContext';
 import { installExtensionVerseActions } from '../apps/verseActions';
-import { VerseMenuItems } from '../modules/host/slots';
+import { VerseMenuItems, WordMenuItems } from '../modules/host/slots';
 import { fireActivation } from '../modules/moduleHost';
 
 /** A selection that is exactly one word (letters, marks, inner apostrophes/hyphens), else null. */
@@ -67,14 +67,12 @@ export interface VerseContextMenuProps {
   onReplaceBookmark?: (pinId: number) => void;
   /** Remove every bookmark on this verse. */
   onRemoveBookmark?: () => void;
-  /** Right-clicked word, for keyword marks (task 0065). Enables "Mark all ...". */
+  /** Right-clicked word; with `wordTabId`, enables the word items feature modules add (`wordMenuItems` slot). */
   wordText?: string;
-  /** Mark every occurrence of the clicked word in the chapter. */
-  onMarkWord?: () => void;
+  /** The Bible tab the right-clicked word belongs to. */
+  wordTabId?: string;
   /** Strong's number of the clicked word, when interlinear rows are available for it. */
   wordStrongs?: string;
-  /** Mark every occurrence of the clicked word's lemma (Strong's number). */
-  onMarkLemma?: () => void;
 }
 
 /**
@@ -118,9 +116,8 @@ const VerseContextMenu: React.FC<VerseContextMenuProps> = ({
   onReplaceBookmark,
   onRemoveBookmark,
   wordText,
-  onMarkWord,
+  wordTabId,
   wordStrongs,
-  onMarkLemma,
 }) => {
   const { t, i18n } = useI18n();
   const uiDir = useDirection();
@@ -692,36 +689,8 @@ const VerseContextMenu: React.FC<VerseContextMenuProps> = ({
         </>
       )}
 
-      {wordText && onMarkWord && (
-        <>
-          <div className="border-t border-border-secondary my-1" role="separator" />
-          <button
-            onClick={() => {
-              onMarkWord();
-              onClose();
-            }}
-            className="w-full px-4 py-2 text-start text-sm hover:bg-background-hover transition-colors flex items-center gap-2 cursor-pointer"
-            role="menuitem"
-            data-testid="menu-mark-word"
-          >
-            <span className="w-4 h-4 shrink-0" aria-hidden="true" />
-            <span>{t('keywords.menu.markWord', { word: wordText })}</span>
-          </button>
-          {wordStrongs && onMarkLemma && (
-            <button
-              onClick={() => {
-                onMarkLemma();
-                onClose();
-              }}
-              className="w-full px-4 py-2 text-start text-sm hover:bg-background-hover transition-colors flex items-center gap-2 cursor-pointer"
-              role="menuitem"
-              data-testid="menu-mark-lemma"
-            >
-              <span className="w-4 h-4 shrink-0" aria-hidden="true" />
-              <span>{t('keywords.menu.markLemma', { strongs: wordStrongs })}</span>
-            </button>
-          )}
-        </>
+      {wordText && wordTabId && (
+        <WordMenuItems tabId={wordTabId} wordText={wordText} wordStrongs={wordStrongs} onClose={onClose} />
       )}
 
       {/* Remove Highlight Option - shown only when right-clicking on highlighted text */}

@@ -1,0 +1,21 @@
+{
+  "$schema": "../schemas/measures.schema.json",
+  "measures": {
+    "popup": {
+      "range": "Rango",
+      "rangeHint": "según el valor usado",
+      "verseNote": "En este versículo",
+      "usageIllustrative": "Ilustrativo",
+      "usageFigurative": "Figurado",
+      "usageHintIllustrative": "Una cantidad de ejemplo; la cifra exacta no es lo importante",
+      "usageHintFigurative": "Uso figurado; la cifra no se debe tomar literalmente",
+      "draft": "Borrador – aún sin revisar",
+      "sources": "Fuentes",
+      "units": "Unidades…"
+    },
+    "study": {
+      "title": "Pesos, medidas y dinero",
+      "listLabel": "Pesos, medidas y dinero en este versículo: {count}"
+    }
+  }
+}

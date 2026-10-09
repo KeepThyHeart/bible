@@ -279,3 +279,11 @@ Both platforms: `onView:<name>` activates a module when a host view with module 
 - **Dialogs and overlays**: `shellOverlays` slot on both platforms (desktop slot added in batch 4). A selected-word menu item on desktop uses the `verseMenuItems` slot, activated by `onView:verseContextMenu`.
 - **Desktop host listeners** (`modules/host/hostListeners.ts`: `verseFollowers`, `libraryChangeListeners`, `verseMenuOpenListeners`) keep follow-the-verse behaviour without the host importing the module. `reader.verseChanged` was not used for Similar because it also fires for previews that the follow-the-verse panes ignore.
 - `DesktopFeatureModule.verseActionHandlers` binds verse-action handlers on desktop.
+## Notes from batch 5 (Measures and Keyword marks, task 0127)
+
+- **Features that paint the reader** register a *reader paint controller* (`readerPaintControllers` slot, web `host/slots.tsx` and desktop `modules/host/slots.tsx`). The reader renders each controller with the chapter's props; the controller runs the feature's hooks and publishes its `LayerDecorations` to a host store (web `host/readerLayers.ts`, desktop `extensions/chapterLayers.ts`). The host merges the published layers by `order`, so it imports no feature code.
+- **Other new generic slots**: `readerToolbarItems` (toolbar button), `studySections` (web) / `studyPaneSections` (desktop) for Study pane sections, and on desktop `wordMenuItems`, `strongsTooltipActions` and `preferencesSectionGlyphs`.
+- **Settings**: defs go in `contributes.settings` (keys unchanged). A section with `parent` is not a tab: it renders inside its parent tab (web `theme`, desktop `advanced`).
+- **Session state on desktop**: `DesktopFeatureModule.sessionKeys` declares the session sections a module owns; with the module off the saved blob is written back unchanged.
+- **No `reader.*` hooks** were needed: both features are driven by the reader's props through the controller slot, which is empty while the module is off.
+- A module with no app, pane or verse action activates from a boot probe (web) or `onView:bible` (desktop), so its toolbar button and marks appear just after the reader.

@@ -1,0 +1,13 @@
+{
+  "measures.popup.range": "परास",
+  "measures.popup.rangeHint": "प्रयुक्त मान के अनुसार",
+  "measures.popup.verseNote": "इस पद में",
+  "measures.popup.usage.illustrative": "उदाहरणात्मक",
+  "measures.popup.usage.figurative": "लाक्षणिक",
+  "measures.popup.usageHint.illustrative": "एक उदाहरण राशि; सटीक आँकड़ा मुख्य बात नहीं है",
+  "measures.popup.usageHint.figurative": "लाक्षणिक रूप में प्रयुक्त; आँकड़ा शाब्दिक अर्थ में नहीं है",
+  "measures.popup.draft": "मसौदा – अभी समीक्षा नहीं हुई",
+  "measures.popup.sources": "स्रोत",
+  "measures.popup.units": "इकाइयाँ…",
+  "measures.study.title": "तौल, माप और धन"
+}

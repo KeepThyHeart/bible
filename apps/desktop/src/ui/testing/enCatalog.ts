@@ -23,8 +23,10 @@
 
 import commands from '../../../locales/en/commands.json';
 import genealogy from '../../../locales/en/genealogy.json';
+import keywords from '../../../locales/en/keywords.json';
 import layout from '../../../locales/en/layout.json';
 import mainProcess from '../../../locales/en/main.json';
+import measures from '../../../locales/en/measures.json';
 import menu from '../../../locales/en/menu.json';
 import meta from '../../../locales/en/meta.json';
 import quizPane from '../../../locales/en/quizPane.json';
@@ -54,8 +56,10 @@ export function loadEnCatalog(): Record<string, string> {
   return {
     ...(commands as Record<string, string>),
     ...(genealogy as Record<string, string>),
+    ...(keywords as Record<string, string>),
     ...(layout as Record<string, string>),
     ...(mainProcess as Record<string, string>),
+    ...(measures as Record<string, string>),
     ...(menu as Record<string, string>),
     ...(meta as Record<string, string>),
     ...(quizPane as Record<string, string>),

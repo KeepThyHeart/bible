@@ -27,6 +27,7 @@ import { PaneType } from '../stores/useTextSettingsStore';
 import { translateWithDefault } from '../utils/translateWithDefault';
 import { modulePoints } from '../modules/moduleHost';
 import { useRegistryItems } from '../modules/host/useRegistry';
+import { preferencesSectionGlyphs, useSlot } from '../modules/host/slots';
 import { SECTION_ICONS } from './PreferencesDialog/sectionDefs';
 import { SettingsGroupSection } from './PreferencesDialog/SettingsGroupSection';
 import { useDialogShell } from './PreferencesDialog/useDialogShell';
@@ -51,12 +52,24 @@ function lazyView(id: string): React.LazyExoticComponent<React.ComponentType<Sec
   return view;
 }
 
-const SectionBody: React.FC<{ section: PreferencesSectionContribution } & SectionViewProps> = ({ section, ...props }) => {
+const OneSectionBody: React.FC<{ section: PreferencesSectionContribution } & SectionViewProps> = ({ section, ...props }) => {
   const View = lazyView(section.id);
   if (View) return <View {...props} />;
   if (section.settingsGroup) return <SettingsGroupSection group={section.settingsGroup} />;
   return null;
 };
+
+/** A section's body, followed by the bodies of the contributed sections that name it as their `parent` (no heading of their own). */
+const SectionBody: React.FC<
+  { section: PreferencesSectionContribution; childSections?: readonly PreferencesSectionContribution[] } & SectionViewProps
+> = ({ section, childSections = [], ...props }) => (
+  <>
+    <OneSectionBody section={section} {...props} />
+    {childSections.map((child) => (
+      <OneSectionBody key={child.id} section={child} {...props} />
+    ))}
+  </>
+);
 
 interface PreferencesDialogProps {
   /** Which section to show initially (default: 'general') */
@@ -86,23 +99,31 @@ const PreferencesDialog: React.FC<PreferencesDialogProps> = ({
     for (const s of contributed) void modulePoints.views.resolve(`preferences:${s.id}`)?.().catch(() => undefined);
   }, [contributed]);
   // Sections of a disabled module are not in the registry; `when` is a cheap data predicate.
+  const glyphItems = useSlot(preferencesSectionGlyphs);
+  const visible = useMemo(
+    () =>
+      contributed.filter((s) => {
+        if (!s.when) return true;
+        try {
+          return whenContext.evaluate(s.when);
+        } catch {
+          return false;
+        }
+      }),
+    [contributed, whenContext],
+  );
+  // Sections with a `parent` are not tabs: they render at the end of their parent's tab.
   const sections = useMemo(
     () =>
-      contributed
-        .filter((s) => {
-          if (!s.when) return true;
-          try {
-            return whenContext.evaluate(s.when);
-          } catch {
-            return false;
-          }
-        })
+      visible
+        .filter((s) => !s.parent)
         .map((s) => ({
           ...s,
           label: 'key' in s.title ? translateWithDefault(t, s.title.key, s.title.fallback) : i18n.resolve(s.title.text),
-          glyph: SECTION_ICONS[s.id],
+          glyph: SECTION_ICONS[s.id] ?? glyphItems.find((g) => g.id === s.id)?.glyph,
+          childSections: visible.filter((c) => c.parent === s.id),
         })),
-    [contributed, whenContext, t, i18n],
+    [visible, glyphItems, t, i18n],
   );
   const [activeSection, setActiveSection] = useState<string>(initialSection || 'general');
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -223,6 +244,7 @@ const PreferencesDialog: React.FC<PreferencesDialogProps> = ({
               <Suspense fallback={null}>
                 <SectionBody
                   section={sections[activeSectionIndex]}
+                  childSections={sections[activeSectionIndex].childSections}
                   initialPane={initialFontPane}
                   initialExpand={initialExtensionTarget}
                 />

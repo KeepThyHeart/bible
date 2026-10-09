@@ -861,20 +861,7 @@
     "open": "‏Word study‏"
   },
   "keywordMarks": {
-    "button": "‏Keywords‏",
-    "buttonTitle": "‏Keyword marks‏",
-    "title": "‏Keyword marks‏",
-    "toggle": "‏Keyword marks‏",
-    "empty": "‏No keywords match in this chapter.‏",
-    "count": "‏{count, plural, one {# occurrence} other {# occurrences}}‏",
-    "show": "‏Show {label}‏",
-    "hide": "‏Hide {label}‏",
-    "next": "‏Next {label}‏",
-    "prev": "‏Previous {label}‏",
-    "approximate": "‏approx.‏",
-    "approximateHint": "‏Approximate: matched by word form, not by original-language word‏",
-    "interlinearNote": "‏Strong's marks need an interlinear translation.‏",
-    "announce": "‏{label}, verse {verse}, {index} of {total}‏"
+    "title": "‏Keyword marks‏"
   },
   "audio": {
     "listen": "‏Listen‏",
@@ -1069,24 +1056,6 @@
       "openAtLogin": "‏Start when I log in (in the tray)‏",
       "sendTest": "‏Send a test notification‏",
       "general": "‏General‏"
-    }
-  },
-  "measures": {
-    "popup": {
-      "range": "‏Range‏",
-      "rangeHint": "‏depending on the value used‏",
-      "verseNote": "‏In this verse‏",
-      "usageIllustrative": "‏Illustrative‏",
-      "usageFigurative": "‏Figurative‏",
-      "usageHintIllustrative": "‏An example amount; the exact figure is not the point‏",
-      "usageHintFigurative": "‏Used figuratively; the figure is not meant literally‏",
-      "draft": "‏Draft – not yet reviewed‏",
-      "sources": "‏Sources‏",
-      "units": "‏Units…‏"
-    },
-    "study": {
-      "title": "‏Weights, measures and money‏",
-      "listLabel": "‏Weights, measures and money in this verse: {count}‏"
     }
   },
   "assets": {

@@ -24,6 +24,9 @@ import type { DesktopAppBinding } from '../apps/appHost';
 import type { ICommandRegistry } from '../services/ICommandRegistry';
 import type { IDisposable } from '../types/Command';
 import { isEnabled } from '../settings/featureFlags';
+import { declareSessionKeys } from '../stores/helpers/sessionRegistry';
+import { preferencesSectionGlyphs, setViewActivator } from './host/slots';
+import type { ReactNode } from 'react';
 
 /** Every contribution point except `apps` and `verseActions` (those live in the app host). */
 export const modulePoints = createStandardPoints();
@@ -78,6 +81,8 @@ appHost.subscribe(() => {
  * - `commands`: the module's command-palette commands. They are registered while
  *   the module is on (palette titles are `ui.json` labels, so they need no module
  *   code); handlers should stay small and import heavy code lazily.
+ * - `sessionKeys`: `sessionData.ui` keys the module owns. Declared whether or not the module is on,
+ *   so a saved value survives the module being switched off (see `sessionRegistry.ts`).
  */
 export interface DesktopFeatureModule {
   readonly manifest: FeatureModuleManifest;
@@ -85,6 +90,9 @@ export interface DesktopFeatureModule {
   readonly apps?: readonly DesktopAppBinding[];
   readonly verseActionHandlers?: readonly { readonly id: string; load(): Promise<VerseActionHandler> }[];
   readonly commands?: (registry: ICommandRegistry) => IDisposable[];
+  /** Sidebar glyphs of the module's preferences sections (by section id); shown while the module is on. */
+  readonly preferencesGlyphs?: Readonly<Record<string, ReactNode>>;
+  readonly sessionKeys?: readonly string[];
 }
 
 interface DesktopRecord {
@@ -108,6 +116,7 @@ export function bindNamespaceLoader(loader: (ns: string) => Promise<void>): void
 }
 
 export function addDesktopModule(entry: DesktopFeatureModule): void {
+  if (entry.sessionKeys) declareSessionKeys(entry.sessionKeys);
   const ns = entry.manifest.contributes.i18nNamespace;
   const binding = entry.binding;
   const load = binding?.load;
@@ -125,7 +134,7 @@ function syncDesktopPieces(): void {
       if (startupFinished && rec.entry.manifest.activationEvents?.includes('onStartupFinished')) {
         void featureModules.activateNow(id, 'onStartupFinished');
       }
-      const { apps = [], verseActionHandlers = [], commands } = rec.entry;
+      const { apps = [], verseActionHandlers = [], commands, preferencesGlyphs = {} } = rec.entry;
       rec.handles = [
         ...apps.map((b) =>
           addAppBinding({
@@ -155,6 +164,7 @@ function syncDesktopPieces(): void {
           }),
         ),
         ...(commands && commandRegistry ? commands(commandRegistry) : []),
+        ...Object.entries(preferencesGlyphs).map(([sectionId, glyph]) => preferencesSectionGlyphs.register({ id: sectionId, glyph })),
       ];
     } else if (!on && rec.handles) {
       for (const d of rec.handles.splice(0)) d.dispose();
@@ -208,6 +218,9 @@ export function fireStartupFinished(): void {
 export function fireActivation(event: string): void {
   void featureModules.fire(event);
 }
+
+// Host views with module slots (the Bible pane, the Study pane) fire `onView:<name>` through this.
+setViewActivator(fireActivation);
 
 if (import.meta.env.DEV && typeof window !== 'undefined') {
   const setOverride = (id: string, on: boolean) => {

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { VerseIdHelper, type InterlinearSpan } from '@bible/core/browser';
-import { interlinearToSpans } from '../../../extensions/keywordMarkLayer';
+import { interlinearToSpans } from '../../../extensions/chapterLayers';
 
 /** Chapter rows per `abbreviation|book|chapter`; a failed fetch is cached as empty so it is not retried per right-click. */
 const rowCache = new Map<string, Promise<InterlinearSpan[]>>();
@@ -29,7 +29,7 @@ async function fetchRows(abbreviation: string, book: number, chapter: number): P
 }
 
 /**
- * Strong's number of a right-clicked word, when the module has interlinear rows for it (keyword marks, task 0065).
+ * Strong's number of a right-clicked word, when the module has interlinear rows for it (for the word items feature modules add).
  * Resolves after the chapter's rows arrive; `undefined` until then and for modules without interlinear data.
  */
 export function useWordStrongs(abbreviation: string | undefined, verseId: number | undefined, wordIndex: number | undefined): string | undefined {

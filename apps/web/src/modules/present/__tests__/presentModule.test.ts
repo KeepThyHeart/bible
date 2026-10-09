@@ -35,7 +35,8 @@ const TOKEN = 'A'.repeat(43);
 
 async function boot(opts: { override?: string; disabled?: string[]; url?: string } = {}) {
   vi.resetModules();
-  localStorage.setItem('kth.modules', opts.override ?? '');
+  // Other modules' boot probes would add their ids to `activate`: these tests are about one module.
+  localStorage.setItem('kth.modules', `${opts.override ?? ''},-measures,-keyword-marks`);
   window.history.replaceState(null, '', opts.url ?? '/');
   if (opts.disabled) {
     const { setClientConfig } = await import('../../../utils/clientConfig');

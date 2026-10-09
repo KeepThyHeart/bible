@@ -861,20 +861,7 @@
     "open": "دراسة الكلمة"
   },
   "keywordMarks": {
-    "button": "الكلمات المفتاحية",
-    "buttonTitle": "علامات الكلمات المفتاحية",
-    "title": "علامات الكلمات المفتاحية",
-    "toggle": "علامات الكلمات المفتاحية",
-    "empty": "لا توجد كلمات مفتاحية مطابقة في هذا الأصحاح.",
-    "count": "{count, plural, one {ورود واحد} two {ورودان} few {# مرات ورود} many {# مرة ورود} other {# مرة ورود}}",
-    "show": "إظهار {label}",
-    "hide": "إخفاء {label}",
-    "next": "{label} التالي",
-    "prev": "{label} السابق",
-    "approximate": "تقريبي",
-    "approximateHint": "تقريبي: المطابقة حسب شكل الكلمة وليس حسب كلمة اللغة الأصلية",
-    "interlinearNote": "علامات أرقام Strong's تتطلب ترجمة بينية.",
-    "announce": "{label}، الآية {verse}، {index} من {total}"
+    "title": "علامات الكلمات المفتاحية"
   },
   "audio": {
     "listen": "استماع",
@@ -1069,24 +1056,6 @@
       "openAtLogin": "التشغيل عند تسجيل الدخول (في علبة النظام)",
       "sendTest": "إرسال إشعار تجريبي",
       "general": "عام"
-    }
-  },
-  "measures": {
-    "popup": {
-      "range": "النطاق",
-      "rangeHint": "بحسب القيمة المعتمدة",
-      "verseNote": "في هذه الآية",
-      "usageIllustrative": "توضيحي",
-      "usageFigurative": "مجازي",
-      "usageHintIllustrative": "مبلغ على سبيل المثال؛ الرقم الدقيق ليس المقصود",
-      "usageHintFigurative": "مستخدم مجازًا؛ الرقم غير مقصود حرفيًّا",
-      "draft": "مسودة – لم تُراجَع بعد",
-      "sources": "المصادر",
-      "units": "الوحدات…"
-    },
-    "study": {
-      "title": "الأوزان والمقاييس والمال",
-      "listLabel": "الأوزان والمقاييس والنقود في هذا العدد: {count}"
     }
   },
   "assets": {

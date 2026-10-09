@@ -1,0 +1,21 @@
+{
+  "$schema": "../schemas/measures.schema.json",
+  "measures": {
+    "popup": {
+      "range": "‏Range‏",
+      "rangeHint": "‏depending on the value used‏",
+      "verseNote": "‏In this verse‏",
+      "usageIllustrative": "‏Illustrative‏",
+      "usageFigurative": "‏Figurative‏",
+      "usageHintIllustrative": "‏An example amount; the exact figure is not the point‏",
+      "usageHintFigurative": "‏Used figuratively; the figure is not meant literally‏",
+      "draft": "‏Draft – not yet reviewed‏",
+      "sources": "‏Sources‏",
+      "units": "‏Units…‏"
+    },
+    "study": {
+      "title": "‏Weights, measures and money‏",
+      "listLabel": "‏Weights, measures and money in this verse: {count}‏"
+    }
+  }
+}

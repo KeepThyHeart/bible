@@ -20,7 +20,6 @@ import {
   createSettingsStore,
   defineSettings,
   mergeSettings,
-  measureSettingsRegistry,
   type SettingChange,
   type ContributionRegistry,
   type SettingsContribution,
@@ -77,22 +76,10 @@ const WEB_OWN_SETTINGS = defineSettings([
     description:
       'How far you must swipe across the Commentary pane before navigating to the previous or next verse.',
   },
-  {
-    key: 'keywordColorSafe',
-    type: 'boolean',
-    default: true,
-    scope: 'device',
-    group: 'keywords',
-    order: 1,
-    labelKey: 'settings.keywords.colorSafe',
-    label: 'Colour-safe keyword marks (extra underline and symbol cues)',
-    descriptionKey: 'settings.keywords.colorSafeHint',
-    description: 'Adds an underline style and a symbol to each keyword mark so they do not rely on colour alone.',
-  },
 ]);
 
-/** The web's own settings plus the weights-and-measures group (task 0069) and Preferences > Apps (task 0080) core declares. */
-export const WEB_SETTINGS = mergeSettings(WEB_OWN_SETTINGS, measureSettingsRegistry, APP_NAV_SETTINGS);
+/** The web's own settings plus Preferences > Apps (task 0080) core declares. Module settings come from `contributedSettings`. */
+export const WEB_SETTINGS = mergeSettings(WEB_OWN_SETTINGS, APP_NAV_SETTINGS);
 
 function readBlob(): Record<string, unknown> {
   try {

@@ -16,7 +16,8 @@ vi.mock('../i18n', async (importOriginal) => ({
 
 async function boot(opts: { override?: string; features?: Record<string, boolean> } = {}) {
   vi.resetModules();
-  localStorage.setItem('kth.modules', opts.override ?? '');
+  // Other modules' boot probes would add their ids to `activate`: these tests are about one module.
+  localStorage.setItem('kth.modules', `${opts.override ?? ''},-measures,-keyword-marks`);
   const { setClientConfig } = await import('../utils/clientConfig');
   setClientConfig({ features: { tagGraph: true, ...opts.features } });
   const { registerBuiltinModules } = await import('./builtinModules');

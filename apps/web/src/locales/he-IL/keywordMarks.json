@@ -1,0 +1,18 @@
+{
+  "$schema": "../schemas/keywordMarks.schema.json",
+  "keywordMarks": {
+    "button": "מילות מפתח",
+    "buttonTitle": "סימוני מילות מפתח",
+    "toggle": "סימוני מילות מפתח",
+    "empty": "אין מילות מפתח תואמות בפרק זה.",
+    "count": "{count, plural, one {הופעה #} two {# הופעות} other {# הופעות}}",
+    "show": "הצגת {label}",
+    "hide": "הסתרת {label}",
+    "next": "{label} הבא",
+    "prev": "{label} הקודם",
+    "approximate": "בקירוב",
+    "approximateHint": "משוער: מותאם לפי צורת המילה ולא לפי מילה בשפת המקור",
+    "interlinearNote": "סימוני Strong דורשים תרגום בין-שורתי.",
+    "announce": "{label}, פסוק {verse}, {index} מתוך {total}"
+  }
+}

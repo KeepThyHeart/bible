@@ -26,6 +26,7 @@ import { readingPlansMainManifest } from './reading-plans/manifest';
 import { xrefGraphMainManifest } from './xref-graph/manifest';
 import { similarMainManifest } from './similar/manifest';
 import { wordStudyMainManifest } from './word-study/manifest';
+import { keywordMarksMainManifest } from './keyword-marks/manifest';
 
 export interface MainModuleEntry {
   readonly manifest: FeatureModuleManifest;
@@ -40,6 +41,7 @@ export const MAIN_MODULES: readonly MainModuleEntry[] = [
   { manifest: xrefGraphMainManifest, load: () => import('./xref-graph') },
   { manifest: similarMainManifest, load: () => import('./similar') },
   { manifest: wordStudyMainManifest, load: () => import('./word-study') },
+  { manifest: keywordMarksMainManifest, load: () => import('./keyword-marks') },
 ];
 
 export interface RegisterMainModulesOptions {

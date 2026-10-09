@@ -4,10 +4,9 @@ import { StudyCrossRefs } from './StudyCrossRefs';
 import { StudySynthesis } from './StudySynthesis';
 import { StudyTopics } from './StudyTopics';
 import { StudyHome } from './StudyHome';
-import { StudyMeasures } from './StudyMeasures';
 import { Suspense, lazy } from 'preact/compat';
 import { useMemo } from 'preact/hooks';
-import { studyModes, useSlot } from '../../host/slots';
+import { studyModes, studySections, useSlot } from '../../host/slots';
 import type { StudyMode } from '../../host/slots';
 import { studyStore } from '../../stores/studyStore';
 import { bibleStore } from '../../stores/bibleStore';
@@ -22,7 +21,7 @@ interface StudyPaneProps {
   onStrongsHover?: (strongsNumber: string, rect: DOMRect) => void;
   onStrongsLeave?: () => void;
   bibleProvider?: IBibleDataProvider;
-  /** Opens the settings dialog (the measures section's "Units..." button). */
+  /** Opens the settings dialog (a module section's deep link). */
   onOpenSettings?: (section?: string) => void;
 }
 
@@ -43,6 +42,7 @@ export function StudyPane({ onStrongsClick, onStrongsHover, onStrongsLeave, bibl
   const openMode = useStore(studyStore, () => studyStore.studyMode);
   const modeFocus = useStore(studyStore, () => studyStore.studyModeFocus);
   const modes = [...useSlot(studyModes)].sort((a, b) => a.order - b.order);
+  const sections = [...useSlot(studySections)].sort((a, b) => a.order - b.order);
   const activeMode = modes.find((m) => m.id === openMode);
 
   // Passage labels
@@ -163,7 +163,7 @@ export function StudyPane({ onStrongsClick, onStrongsHover, onStrongsLeave, bibl
           <StudyTopics onTopicClick={(topicId, module, name, sourceName) => commentaryStore.navigateToTopic(topicId, module, name, sourceName)} />
         </StudySection>
 
-        <StudyMeasures verseId={verseId} onOpenSettings={onOpenSettings} />
+        {sections.map((sec) => <sec.Section key={sec.id} verseId={verseId} onOpenSettings={onOpenSettings} />)}
 
         <StudySynthesis bibleProvider={bibleProvider} />
 

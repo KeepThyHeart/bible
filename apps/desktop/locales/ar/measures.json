@@ -1,0 +1,13 @@
+{
+  "measures.popup.range": "النطاق",
+  "measures.popup.rangeHint": "بحسب القيمة المعتمدة",
+  "measures.popup.verseNote": "في هذه الآية",
+  "measures.popup.usage.illustrative": "توضيحي",
+  "measures.popup.usage.figurative": "مجازي",
+  "measures.popup.usageHint.illustrative": "مبلغ على سبيل المثال؛ الرقم الدقيق ليس المقصود",
+  "measures.popup.usageHint.figurative": "مستخدم مجازًا؛ الرقم غير مقصود حرفيًّا",
+  "measures.popup.draft": "مسودة – لم تُراجَع بعد",
+  "measures.popup.sources": "المصادر",
+  "measures.popup.units": "الوحدات…",
+  "measures.study.title": "الأوزان والمقاييس والمال"
+}

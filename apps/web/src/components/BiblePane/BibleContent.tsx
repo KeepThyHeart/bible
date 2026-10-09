@@ -5,7 +5,9 @@ import { bibleStore } from '../../stores/bibleStore';
 import { commentaryStore } from '../../stores/commentaryStore';
 import { moduleStore } from '../../stores/moduleStore';
 import { audioStore } from '../../stores/audioStore';
-import { SlotOutlet, decorateVerse, readerOverlays, useSlot, verseDecorators } from '../../host/slots';
+import { SlotOutlet, componentKey, decorateVerse, readerOverlays, readerPaintControllers, useSlot, verseDecorators } from '../../host/slots';
+import { useReaderLayers } from '../../host/readerLayers';
+import { resolveChapterLayers } from '../../host/chapterLayers';
 import { emitChapterRendered } from '../../modules/host/readerHooks';
 import { useStore } from '../../hooks/useStore';
 import { useLocalizer } from '../../hooks/useLocalizer';
@@ -17,16 +19,8 @@ import { isSingleChapterBook, formatPassageRef, localizedBookAliases } from '../
 import { getAllBookNames, getLocalizedBookName } from '../../utils/bookNames';
 import { sanitizeHtml } from '../../utils/sanitize';
 import { directionForLanguage, stripBidiControls } from '@bible/core/browser';
-import { useKeywordDecorations } from '../../hooks/useKeywordDecorations';
-import { useMeasureDecorations } from '../../hooks/useMeasureDecorations';
-import { useMeasurePopup } from '../../hooks/useMeasurePopup';
-import { mergeChapterDecorations } from '../../measures/chapterMeasures';
 import type { InterlinearWordData, StrongsEntryData } from '../../types';
 import type { VotdData, IInterlinearDataProvider } from '../../providers/interfaces';
-
-import { KEYWORD_PANE_ID } from '../../keywordMarks/paneId';
-
-export { KEYWORD_PANE_ID };
 
 function VerseOfTheDay() {
   const { t } = useTranslation();
@@ -168,7 +162,7 @@ interface BibleContentProps {
   onStrongsLeave?: () => void;
   onCopyVerse?: (verseId: number) => void;
   onCommentaryVerse?: (verseId: number) => void;
-  /** Opens the Settings panel (optionally on a section); the measures popup's Units button uses it. */
+  /** Opens the Settings panel (optionally on a section); a feature module's popup can deep-link to its section. */
   onOpenSettings?: (section?: string) => void;
 }
 
@@ -221,35 +215,17 @@ export function BibleContent({
   const followAlong = useStore(audioStore, () => audioStore.prefs.followAlong);
 
   const bibleModule = moduleStore.getBibleModules().find(m => m.abbreviation === tab?.moduleAbbr);
-  const keywordDecorations = useKeywordDecorations(KEYWORD_PANE_ID, {
-    moduleAbbr: tab?.moduleAbbr ?? '',
-    moduleId: bibleModule?.module_id,
-    language: bibleModule?.language_code,
-    book: tab?.book ?? null,
-    chapter: tab?.chapter ?? null,
-    verses: tab?.verses ?? NO_VERSES,
-    surface: displayMode,
-    studyRows: displayMode === 'study' ? interlinearWords : undefined,
-    interlinearProvider,
-  });
-  // Weights, measures and money notes (task 0069): a second paint layer, merged
-  // with the keyword layer per verse so the renderer still gets one `resolved`.
-  const measures = useMeasureDecorations({
-    book: tab?.book ?? null,
-    chapter: tab?.chapter ?? null,
-    verses: tab?.verses ?? NO_VERSES,
-    moduleLanguage: bibleModule?.language_code,
-    surface: displayMode,
-    studyRows: displayMode === 'study' ? interlinearWords : undefined,
-    uiLocale: i18n.language || 'en',
-  });
+  // Paint layers (from feature modules) published by the reader
+  // paint controllers of active feature modules, resolved together per verse so the
+  // renderer still gets one `resolved`. No layers (every module off) resolves to an empty map.
+  const paintControllers = useSlot(readerPaintControllers);
+  const layers = useReaderLayers(tab?.id ?? '');
   const mergedResolved = useMemo(
-    () => mergeChapterDecorations(
-      tab?.verses ?? NO_VERSES, keywordDecorations.marks?.layer, keywordDecorations.resolved, measures?.layer, displayMode,
-    ),
-    [tab?.verses, keywordDecorations.marks, keywordDecorations.resolved, measures, displayMode],
+    () => resolveChapterLayers(tab?.verses ?? NO_VERSES, layers, displayMode),
+    [tab?.verses, layers, displayMode],
   );
-  const measurePopup = useMeasurePopup(measures, onOpenSettings);
+  // The element that wraps the verses, handed to the paint controllers (a popup listens there).
+  const [paintContainer, setPaintContainer] = useState<HTMLElement | null>(null);
 
   if (!tab) return <div class="bible-content bible-content--empty">{t('bibleContent.noTabSelected')}</div>;
 
@@ -452,7 +428,7 @@ export function BibleContent({
               <i class="fa-solid fa-spinner fa-spin" /> {t('bibleContent.interlinearLoading')}
             </div>
           ) : (
-            <div dir={contentDir} lang={contentLang} data-content-dir={contentDir} {...measurePopup.handlers}>
+            <div dir={contentDir} lang={contentLang} data-content-dir={contentDir} ref={setPaintContainer}>
             {interlinearUnavailable && studyShowInterlinear && (
               <div class="bible-content__interlinear-status bible-content__interlinear-status--unavailable">
                 <i class="fa-solid fa-circle-info" /> {t('bibleContent.interlinearUnavailable')}
@@ -498,7 +474,24 @@ export function BibleContent({
           )}
         </>
       )}
-      {measurePopup.popup}
+      {paintControllers.map((Controller) => (
+        <Controller
+          key={componentKey(Controller)}
+          tabId={tab.id}
+          moduleAbbr={tab.moduleAbbr}
+          moduleId={bibleModule?.module_id}
+          language={bibleModule?.language_code}
+          book={tab.book ?? null}
+          chapter={tab.chapter ?? null}
+          verses={tab.verses}
+          surface={displayMode}
+          studyRows={displayMode === 'study' ? interlinearWords : undefined}
+          interlinearProvider={interlinearProvider}
+          uiLocale={i18n.language || 'en'}
+          container={paintContainer}
+          onOpenSettings={onOpenSettings}
+        />
+      ))}
       <SlotOutlet slot={readerOverlays} />
       {/* Mobile-only action bar — currently disabled; use context menu instead */}
       <BookChapterPicker

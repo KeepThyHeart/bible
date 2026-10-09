@@ -10,11 +10,34 @@
  *   the word the reader had selected (when exactly one) and the menu's `onClose`. The menu
  *   fires `onView:verseContextMenu` on mount, so an owning module activates and registers.
  * - `shellOverlays`: rendered once by `App`, above everything (a module's dialog).
+ * - `readerPaintControllers` (task 0127): invisible components the Bible pane renders with the
+ *   chapter on screen, so a module can paint it (publish `chapterLayers`) and attach listeners to
+ *   the text container.
+ * - `readerToolbarItems`: buttons at the end of the Bible toolbar's left group.
+ * - `studyPaneSections`: sections inside the Study pane, after Topics.
+ * - `wordMenuItems`: items in the verse context menu for the right-clicked word.
+ * - `strongsTooltipActions`: buttons at the foot of the Strong's preview tooltip.
  *
- * Entry-chunk code: imports nothing but React.
+ * A host view that renders one of these outlets fires `onView:bible`, so a module that lists it in
+ * its activation events loads when the reader first appears.
+ *
+ * - `preferencesSectionGlyphs`: sidebar glyph of a contributed preferences section, registered by the
+ *   module host while the module is on.
+ *
+ * Entry-chunk code: imports React only (the module host injects the activation helper).
  */
-import React, { useSyncExternalStore } from 'react';
-import type { ComponentType } from 'react';
+import React, { useEffect, useSyncExternalStore } from 'react';
+
+const componentIds = new WeakMap<object, number>();
+let nextComponentId = 0;
+/** A stable React key for a slot component, so removing another item does not remount it. */
+export function componentKey(C: object): number {
+  let id = componentIds.get(C);
+  if (id === undefined) componentIds.set(C, (id = ++nextComponentId));
+  return id;
+}
+import type { ComponentType, RefObject } from 'react';
+import type { PaneVerse } from '../../extensions/chapterLayers';
 
 export interface Slot<T> {
   /** Add an item; dispose the handle to remove it. */
@@ -79,8 +102,149 @@ export function ReaderBars(props: ReaderBarProps): React.ReactElement | null {
   if (items.length === 0) return null;
   return (
     <>
-      {items.map((C, i) => (
-        <C key={i} {...props} />
+      {items.map((C) => (
+        <C key={componentKey(C)} {...props} />
+      ))}
+    </>
+  );
+}
+
+let viewActivator: (event: string) => void = () => {};
+
+/** The module host gives the outlets its activation function (keeps this file free of host imports). */
+export function setViewActivator(fn: (event: string) => void): void {
+  viewActivator = fn;
+}
+
+/** Fire `onView:<name>` once when a host view with module slots mounts. */
+function useActivateOnView(name: string): void {
+  useEffect(() => {
+    viewActivator(`onView:${name}`);
+  }, [name]);
+}
+
+export interface PreferencesSectionGlyph {
+  /** The preferences section id. */
+  id: string;
+  glyph: React.ReactNode;
+}
+
+export const preferencesSectionGlyphs = createSlot<PreferencesSectionGlyph>();
+
+/** What the Bible pane tells a paint controller: the chapter on screen in one tab. */
+export interface ReaderPaintProps {
+  tabId: string | undefined;
+  moduleId: number;
+  abbreviation: string | undefined;
+  language: string | undefined;
+  bookNumber: number;
+  chapter: number;
+  verses: readonly PaneVerse[];
+  surface: 'standard' | 'reading' | 'study';
+  uiLocale: string;
+  /** False in views that render no decorations (Parallel). */
+  active: boolean;
+  /** The element holding the rendered verses. */
+  containerRef: RefObject<HTMLElement | null>;
+}
+
+export const readerPaintControllers = createSlot<ComponentType<ReaderPaintProps>>();
+
+/** Renders every controller registered in `readerPaintControllers` (they draw nothing of their own, or a popup). */
+export function ReaderPaintControllers(props: ReaderPaintProps): React.ReactElement | null {
+  useActivateOnView('bible');
+  const items = useSlot(readerPaintControllers);
+  if (items.length === 0) return null;
+  return (
+    <>
+      {items.map((C) => (
+        <C key={componentKey(C)} {...props} />
+      ))}
+    </>
+  );
+}
+
+export interface ReaderToolbarItemProps {
+  /** The Bible tab the toolbar belongs to. */
+  tabId: string;
+}
+
+export const readerToolbarItems = createSlot<ComponentType<ReaderToolbarItemProps>>();
+
+export function ReaderToolbarItems(props: ReaderToolbarItemProps): React.ReactElement | null {
+  useActivateOnView('bible');
+  const items = useSlot(readerToolbarItems);
+  if (items.length === 0) return null;
+  return (
+    <>
+      {items.map((C) => (
+        <C key={componentKey(C)} {...props} />
+      ))}
+    </>
+  );
+}
+
+export interface StudyPaneSectionProps {
+  /** The verse the Study pane is on. */
+  verseId: number | null;
+  sectionsCollapsed: Readonly<Record<string, boolean>>;
+  toggleSection: (key: string) => void;
+}
+
+export const studyPaneSections = createSlot<ComponentType<StudyPaneSectionProps>>();
+
+export function StudyPaneSections(props: StudyPaneSectionProps): React.ReactElement | null {
+  useActivateOnView('bible');
+  const items = useSlot(studyPaneSections);
+  if (items.length === 0) return null;
+  return (
+    <>
+      {items.map((C) => (
+        <C key={componentKey(C)} {...props} />
+      ))}
+    </>
+  );
+}
+
+export interface WordMenuItemProps {
+  /** The Bible tab the menu belongs to. */
+  tabId: string;
+  wordText: string;
+  /** Strong's number of the word, when interlinear rows have one. */
+  wordStrongs?: string;
+  onClose: () => void;
+}
+
+export const wordMenuItems = createSlot<ComponentType<WordMenuItemProps>>();
+
+export function WordMenuItems(props: WordMenuItemProps): React.ReactElement | null {
+  const items = useSlot(wordMenuItems);
+  if (items.length === 0) return null;
+  return (
+    <>
+      {items.map((C) => (
+        <C key={componentKey(C)} {...props} />
+      ))}
+    </>
+  );
+}
+
+export interface StrongsTooltipActionProps {
+  /** The Bible tab the tooltip's verse belongs to. */
+  tabId: string;
+  strongsNumber: string;
+  onClose: () => void;
+}
+
+export const strongsTooltipActions = createSlot<ComponentType<StrongsTooltipActionProps>>();
+
+export function StrongsTooltipActions(props: StrongsTooltipActionProps): React.ReactElement | null {
+  const items = useSlot(strongsTooltipActions);
+  if (items.length === 0) return null;
+  return (
+    <>
+      {items.map((C) => (
+        <C key={componentKey(C)} {...props} />
       ))}
     </>
   );

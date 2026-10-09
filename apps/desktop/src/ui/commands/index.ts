@@ -10,7 +10,6 @@
 import type { ICommandRegistry } from '../services/ICommandRegistry';
 import type { IDisposable } from '../types/Command';
 
-import { registerBibleCommands } from './bibleCommands';
 import { registerCommentaryCommands } from './commentaryCommands';
 import { registerBookCommands } from './bookCommands';
 import { registerDictionaryCommands } from './dictionaryCommands';
@@ -33,7 +32,6 @@ import { registerNetworkCommands } from './networkCommands';
 export function registerBuiltinCommands(registry: ICommandRegistry): IDisposable {
   const all: IDisposable[] = [
     bindModuleCommands(registry), // feature modules' commands follow their modules
-    ...registerBibleCommands(registry),
     ...registerCommentaryCommands(registry),
     ...registerBookCommands(registry),
     ...registerDictionaryCommands(registry),

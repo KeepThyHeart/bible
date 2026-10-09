@@ -1,0 +1,13 @@
+{
+  "measures.popup.range": "טווח",
+  "measures.popup.rangeHint": "בהתאם לערך שנעשה בו שימוש",
+  "measures.popup.verseNote": "בפסוק זה",
+  "measures.popup.usage.illustrative": "להמחשה",
+  "measures.popup.usage.figurative": "ציורי",
+  "measures.popup.usageHint.illustrative": "סכום לדוגמה; המספר המדויק אינו העיקר",
+  "measures.popup.usageHint.figurative": "משמש באופן ציורי; המספר אינו מכוון כפשוטו",
+  "measures.popup.draft": "טיוטה – טרם נבדק",
+  "measures.popup.sources": "מקורות",
+  "measures.popup.units": "יחידות…",
+  "measures.study.title": "משקלות, מידות וכסף"
+}

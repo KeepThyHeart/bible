@@ -1,0 +1,18 @@
+{
+  "$schema": "../schemas/keywordMarks.schema.json",
+  "keywordMarks": {
+    "button": "الكلمات المفتاحية",
+    "buttonTitle": "علامات الكلمات المفتاحية",
+    "toggle": "علامات الكلمات المفتاحية",
+    "empty": "لا توجد كلمات مفتاحية مطابقة في هذا الأصحاح.",
+    "count": "{count, plural, one {ورود واحد} two {ورودان} few {# مرات ورود} many {# مرة ورود} other {# مرة ورود}}",
+    "show": "إظهار {label}",
+    "hide": "إخفاء {label}",
+    "next": "{label} التالي",
+    "prev": "{label} السابق",
+    "approximate": "تقريبي",
+    "approximateHint": "تقريبي: المطابقة حسب شكل الكلمة وليس حسب كلمة اللغة الأصلية",
+    "interlinearNote": "علامات أرقام Strong's تتطلب ترجمة بينية.",
+    "announce": "{label}، الآية {verse}، {index} من {total}"
+  }
+}

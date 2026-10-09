@@ -14,7 +14,7 @@ export const FORBIDDEN = [
   // Feature modules: only the manifest, the binding and what the boot probe needs
   // may be in the entry; everything else loads on activation (task 0123).
   /^src\/modules\/present\/(?!(manifest|binding|runtime)\.ts$|lib\/(controlLink|sessionKey)\.ts$)/,
-  /^src\/modules\/(timeline|genealogy|quiz|similar|xref-graph)\/(?!(manifest|binding)\.ts$)/,
+  /^src\/modules\/(timeline|genealogy|quiz|similar|xref-graph|measures|keyword-marks)\/(?!(manifest|binding)\.ts$)/,
   /^src\/modules\/word-study\/(?!(manifest|binding)\.ts$)/,
 ];
 

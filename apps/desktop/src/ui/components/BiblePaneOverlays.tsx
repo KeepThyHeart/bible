@@ -19,7 +19,7 @@ import { StudyPaneTab } from '../stores/useDictionaryStore';
 import { useI18n } from '../contexts/useI18n';
 import { useEscapeKey } from '../hooks/useOverlayDismissal';
 import { useBookmarkStore } from '../stores/useBookmarkStore';
-import { useKeywordMarkStore } from '../stores/useKeywordMarkStore';
+import { wordMenuItems, useSlot } from '../modules/host/slots';
 import { useWordStrongs } from './bible/hooks/useWordStrongs';
 
 interface BibleTabInfo {
@@ -221,17 +221,18 @@ const BiblePaneOverlays: React.FC<BiblePaneOverlaysProps> = ({
   const removeVerseFromAllCollections = useBookmarkStore(s => s.removeVerseFromAllCollections);
   const loadBookmarks = useBookmarkStore(s => s.loadBookmarks);
 
-  // Keyword marks (task 0065): the right-clicked word, and its Strong's number when interlinear rows have one.
-  const addKeywordMark = useKeywordMarkStore(s => s.addMarkFromWord);
+  // The right-clicked word (for the items feature modules add to the menu), and its Strong's number when
+  // interlinear rows have one. Looked up only while some module offers word items.
+  const hasWordMenuItems = useSlot(wordMenuItems).length > 0;
   const clickedVerseId = contextMenu?.verses[0]?.verse_id;
-  const keywordWord =
-    contextMenu && contextMenu.wordIndex !== undefined && contextMenu.wordText?.trim() && activeTab
+  const menuWord =
+    hasWordMenuItems && contextMenu && contextMenu.wordIndex !== undefined && contextMenu.wordText?.trim() && activeTab
       ? { tabId: activeTab.tabId, text: contextMenu.wordText.trim() }
       : undefined;
   const wordStrongs = useWordStrongs(
-    keywordWord ? activeTab?.abbreviation : undefined,
+    menuWord ? activeTab?.abbreviation : undefined,
     clickedVerseId,
-    keywordWord ? contextMenu?.wordIndex : undefined,
+    menuWord ? contextMenu?.wordIndex : undefined,
   );
 
   /**
@@ -397,10 +398,9 @@ const BiblePaneOverlays: React.FC<BiblePaneOverlaysProps> = ({
           isMultipleVerses={contextMenu.isMultiple}
           markupId={contextMenu.markupId}
           onRemoveHighlight={handleRemoveHighlight}
-          wordText={keywordWord?.text}
-          onMarkWord={keywordWord ? () => { void addKeywordMark(keywordWord.tabId, { text: keywordWord.text }, 'word'); } : undefined}
+          wordText={menuWord?.text}
+          wordTabId={menuWord?.tabId}
           wordStrongs={wordStrongs}
-          onMarkLemma={keywordWord && wordStrongs ? () => { void addKeywordMark(keywordWord.tabId, { text: keywordWord.text, strongs: wordStrongs }, 'strongs'); } : undefined}
           bookmarks={bookmarks}
           isBookmarked={
             contextMenu.verses[0]?.verse_id !== undefined &&

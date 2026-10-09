@@ -302,15 +302,18 @@ function App() {
     return () => window.removeEventListener('open-preferences-fonts', handler);
   }, [openPreferencesToFonts]);
 
-  // Weights-and-measures popup's "Units..." button (task 0069): Preferences at the measures section.
+  // `open-preferences-section` (detail: section id): a feature module opens Preferences at its own
+  // section (the weights-and-measures popup's "Units..." button, ...).
   useEffect(() => {
-    const handler = () => {
-      setPreferencesInitialSection('measures');
+    const handler = (e: Event) => {
+      const section = (e as CustomEvent).detail;
+      if (typeof section !== 'string' || section.length === 0) return;
+      setPreferencesInitialSection(section);
       setPreferencesFontPane(undefined);
       setShowPreferences(true);
     };
-    window.addEventListener('open-preferences-measures', handler);
-    return () => window.removeEventListener('open-preferences-measures', handler);
+    window.addEventListener('open-preferences-section', handler);
+    return () => window.removeEventListener('open-preferences-section', handler);
   }, []);
 
   // `api.ui.openSettings(section?)` (task 0024 round 3, P1.7). Same shape as

@@ -1,0 +1,18 @@
+{
+  "$schema": "../schemas/keywordMarks.schema.json",
+  "keywordMarks": {
+    "button": "Palabras clave",
+    "buttonTitle": "Marcas de palabras clave",
+    "toggle": "Marcas de palabras clave",
+    "empty": "Ninguna palabra clave coincide en este capítulo.",
+    "count": "{count, plural, one {# aparición} other {# apariciones}}",
+    "show": "Mostrar {label}",
+    "hide": "Ocultar {label}",
+    "next": "Siguiente {label}",
+    "prev": "Anterior {label}",
+    "approximate": "aprox.",
+    "approximateHint": "Aproximado: coincide por forma de la palabra, no por la palabra del idioma original",
+    "interlinearNote": "Las marcas de Strong necesitan una traducción interlineal.",
+    "announce": "{label}, versículo {verse}, {index} de {total}"
+  }
+}

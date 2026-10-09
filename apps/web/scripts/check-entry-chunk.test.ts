@@ -61,6 +61,18 @@ describe('checkReport', () => {
     expect(r.offenders.map((o: { module: string }) => o.module)).toEqual(['src/modules/quiz/QuizPane.tsx', 'src/modules/quiz/module.ts']);
   });
 
+  it('allows only the manifest and binding of Measures and Keyword marks in the entry graph', () => {
+    const r = checkReport({ chunks: [
+      entry([
+        'src/main.tsx', 'src/modules/measures/manifest.ts', 'src/modules/measures/binding.ts', 'src/modules/measures/module.tsx',
+        'src/modules/keyword-marks/manifest.ts', 'src/modules/keyword-marks/binding.ts', 'src/modules/keyword-marks/KeywordMarksButton.tsx',
+      ]),
+    ] });
+    expect(r.offenders.map((o: { module: string }) => o.module)).toEqual([
+      'src/modules/measures/module.tsx', 'src/modules/keyword-marks/KeywordMarksButton.tsx',
+    ]);
+  });
+
   it('errors when there is no entry chunk', () => {
     expect(checkReport({ chunks: [] }).ok).toBe(false);
   });

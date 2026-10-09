@@ -21,9 +21,7 @@ import {
   type WordInfo,
 } from '@bible/core/browser';
 import { useVerseDecorationStore } from './verseDecorationStore';
-import { useKeywordMarkStore } from '../stores/useKeywordMarkStore';
-import { useMeasureStore } from '../stores/useMeasureStore';
-import { appendKeywordLayers } from './keywordMarkLayer';
+import { appendLayers, useChapterLayerSlices } from './chapterLayers';
 
 const EMPTY_LAYERS: LayerDecorations[] = [];
 
@@ -32,28 +30,18 @@ export function useResolvedVerseDecorations(
   moduleId: number,
   surface: 'standard' | 'reading' | 'study' | undefined,
   words: Pick<WordInfo, 'text'>[],
-  /** The Bible tab whose keyword marks (task 0065) apply to this verse; omit for none. */
-  keywordTabId?: string,
+  /** The Bible tab whose module-published chapter layers (`chapterLayers.ts`) apply to this verse; omit for none. */
+  layerTabId?: string,
 ): ResolvedVerse | null {
   const extLayers = useVerseDecorationStore((s) =>
     surface ? s.getDecorationsForVerse(verseId, moduleId) : EMPTY_LAYERS,
   );
-  // Keyword marks: this verse's slice of its tab's chapter match (stable
-  // reference until the match is recomputed).
-  const keywordLayers = useKeywordMarkStore((s) => {
-    if (!surface || !keywordTabId) return undefined;
-    const chapter = s.chapters[keywordTabId];
-    return chapter && chapter.input.moduleId === moduleId ? chapter.verseLayers.get(verseId) : undefined;
-  });
-  // Weights, measures and money (task 0069): same tab-keyed slice, below the keyword layers.
-  const measureLayers = useMeasureStore((s) => {
-    if (!surface || !keywordTabId) return undefined;
-    const chapter = s.chapters[keywordTabId];
-    return chapter && chapter.moduleId === moduleId ? chapter.verseLayers.get(verseId) : undefined;
-  });
+  // Layers feature modules publish for this tab's chapter (keyword marks, measures, ...): this verse's
+  // slice of each, in source order, below the extension layers. Reference-stable until a source recomputes.
+  const published = useChapterLayerSlices(surface ? layerTabId : undefined, moduleId, verseId);
   const layers = useMemo(
-    () => appendKeywordLayers(appendKeywordLayers(extLayers, measureLayers), keywordLayers),
-    [extLayers, measureLayers, keywordLayers],
+    () => published.reduce<LayerDecorations[]>((acc, extra) => appendLayers(acc, extra), extLayers),
+    [extLayers, published],
   );
 
   // Registers this verse's rendered words for any sibling verse's cumulative

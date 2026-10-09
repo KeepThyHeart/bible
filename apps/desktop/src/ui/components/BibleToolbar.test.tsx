@@ -9,7 +9,7 @@
  * it had.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { act, render, screen, fireEvent } from '@testing-library/react';
 
 const h = vi.hoisted(() => ({
   state: {
@@ -46,6 +46,7 @@ vi.mock('../stores/useBibleStore', () => ({
 vi.mock('../utils/openModuleManager', () => ({ openModuleManager: vi.fn() }));
 
 import BibleToolbar from './BibleToolbar';
+import { readerToolbarItems } from '../modules/host/slots';
 
 const PANEL = 'bible_1';
 
@@ -211,12 +212,19 @@ describe('BibleToolbar — Interlinear / Notes toggles', () => {
   });
 });
 
-describe('BibleToolbar - keyword marks (task 0065)', () => {
-  it('shows a Keywords toggle for the active tab, off by default', () => {
+describe('BibleToolbar - module toolbar items', () => {
+  it('renders the items feature modules register into the toolbar slot, for the active tab', () => {
+    const reg = readerToolbarItems.register(({ tabId }) => <button data-testid="module-toggle" data-tab={tabId} aria-pressed="false" />);
     render(<BibleToolbar />);
-    const toggle = screen.getByTestId('keywords-toggle');
-    expect(toggle).toHaveAttribute('aria-pressed', 'false');
+    const toggle = screen.getByTestId('module-toggle');
+    expect(toggle).toHaveAttribute('data-tab', 'tab1');
     expect(screen.getByRole('toolbar').contains(toggle)).toBe(true);
+    act(() => reg.dispose());
+    expect(screen.queryByTestId('module-toggle')).toBeNull();
+  });
+
+  it('renders nothing extra while no module registers an item', () => {
+    render(<BibleToolbar />);
+    expect(screen.queryByTestId('keywords-toggle')).toBeNull();
   });
 });
-

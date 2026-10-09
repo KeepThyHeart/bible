@@ -1,0 +1,13 @@
+{
+  "measures.popup.range": "Intervalo",
+  "measures.popup.rangeHint": "conforme o valor usado",
+  "measures.popup.verseNote": "Neste versículo",
+  "measures.popup.usage.illustrative": "Ilustrativo",
+  "measures.popup.usage.figurative": "Figurado",
+  "measures.popup.usageHint.illustrative": "Uma quantia de exemplo; o número exato não é o ponto",
+  "measures.popup.usageHint.figurative": "Uso figurado; o número não deve ser tomado literalmente",
+  "measures.popup.draft": "Rascunho – ainda não revisado",
+  "measures.popup.sources": "Fontes",
+  "measures.popup.units": "Unidades…",
+  "measures.study.title": "Pesos, medidas e dinheiro"
+}

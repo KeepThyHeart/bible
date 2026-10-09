@@ -67,7 +67,6 @@ export const HOST_PREFERENCES_SECTIONS: readonly PreferencesSectionContribution[
   section(35, 'downloads', 'preferencesDialog.sectionDownloads', 'Downloads & storage'),
   section(40, 'extensions', 'preferencesDialog.sectionExtensions', 'Extensions'),
   section(45, 'apps', 'preferencesDialog.sectionApps', 'Apps'),
-  section(50, 'measures', 'preferencesDialog.sectionMeasures', 'Weights and measures'),
   section(55, 'advanced', 'preferencesDialog.sectionAdvanced', 'Advanced'),
   section(60, 'diagnostics', 'preferencesDialog.sectionDiagnostics', 'Diagnostics'),
 ];
@@ -100,7 +99,6 @@ export const hostUiBinding: FeatureModuleBinding = {
     'preferences:downloads': prefsView(() => import('../../components/PreferencesDialog/DownloadsSection').then((m) => ({ default: m.DownloadsSection }))),
     'preferences:extensions': prefsView(() => import('../../components/ExtensionsSection').then((m) => ({ default: m.ExtensionsSection }))),
     'preferences:apps': prefsView(() => import('../../components/PreferencesDialog/AppsSection').then((m) => ({ default: m.AppsSection }))),
-    'preferences:measures': prefsView(() => import('../../components/PreferencesDialog/MeasuresSection').then((m) => ({ default: m.MeasuresSection }))),
     'preferences:advanced': prefsView(() => import('../../components/PreferencesDialog/AdvancedSection').then((m) => ({ default: m.AdvancedSection }))),
     'preferences:diagnostics': prefsView(() => import('../../components/diagnostics/DiagnosticsSettings').then((m) => ({ default: m.default }))),
   },

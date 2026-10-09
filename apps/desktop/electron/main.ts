@@ -14,7 +14,6 @@ import { registerSearchHandlers, closeSearchDb } from './ipc/searchHandlers';
 import { registerSessionHandlers, closeSessionDb } from './ipc/sessionHandlers';
 import { registerNotesHandlers, initializeNotesDatabase, closeNotesDatabase } from './ipc/notesHandlers';
 import { registerCollectionHandlers, closeCollectionService } from './ipc/collectionHandlers';
-import { registerKeywordHandlers, resetKeywordStore } from './ipc/keywordHandlers';
 import { registerNoteDirectionHandlers, resetNoteDirectionStore } from './ipc/noteDirectionHandlers';
 import { registerHighlightHandlers, initializeHighlightRepository, closeHighlightRepository } from './ipc/highlightHandlers';
 import { registerModuleHandlers, closeModuleManager, buildMissingKeywordIndexesInBackground } from './ipc/moduleHandlers';
@@ -626,7 +625,6 @@ const registerAllHandlersOnce = runOnce(() => {
   registerNotesHandlers({ getExtensionHost: () => extensionHost });
   registerCollectionHandlers();
   registerHighlightHandlers();
-  registerKeywordHandlers();
   registerNoteDirectionHandlers();
   registerNotificationHandlers(() => reminderHost);
   registerModuleHandlers(ipcMain);
@@ -1485,7 +1483,6 @@ app.on('quit', () => {
   closeNotesDatabase();
   closeCollectionService();
   closeHighlightRepository();
-  resetKeywordStore();
   resetNoteDirectionStore();
   closeModuleManager();
   closeFeaturePackHandlers();

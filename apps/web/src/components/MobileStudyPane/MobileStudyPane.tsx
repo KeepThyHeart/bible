@@ -3,7 +3,6 @@ import { useTranslation } from 'react-i18next';
 import { StudyVerseHeader } from './StudyVerseHeader';
 import { StudyCrossRefs } from '../StudyPane/StudyCrossRefs';
 import { StudyHome } from '../StudyPane/StudyHome';
-import { StudyMeasures } from '../StudyPane/StudyMeasures';
 import { StudyTopics } from '../StudyPane/StudyTopics';
 import { TopicsBrowser } from '../StudyPane/TopicsBrowser';
 import { mobileStudySections, useSlot } from '../../host/slots';
@@ -172,11 +171,8 @@ export function MobileStudyPane({ providers, onStrongsClick, onStrongsHover, onS
           </div>
         </div>
 
-        {/* Weights, measures and money: hidden when off or none */}
-        <StudyMeasures variant="mobile" verseId={verseId} onOpenSettings={onOpenSettings} compact />
-
         {/* Sections feature modules contribute (family tree, timeline, ...) */}
-        {moduleSections.map((m) => m.Section && <m.Section key={m.id} />)}
+        {moduleSections.map((m) => m.Section && <m.Section key={m.id} verseId={verseId} onOpenSettings={onOpenSettings} />)}
 
         {/* Sections added by active feature modules */}
         <SlotOutlet slot={studyPaneSections} />

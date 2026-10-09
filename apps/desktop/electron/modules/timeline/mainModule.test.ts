@@ -30,6 +30,9 @@ beforeEach(async () => {
   await closeMainModules();
 });
 
+// Only this module: the other migrated modules register their own channels in the production table.
+const TIMELINE_ONLY = MAIN_MODULES.filter((m) => m.manifest.id === 'timeline');
+
 describe('timeline main module', () => {
   it('has a valid manifest and is in the production table', () => {
     expect(validateBuiltinManifest(timelineMainManifest)).toEqual([]);
@@ -39,8 +42,8 @@ describe('timeline main module', () => {
 
   it('registers module:timeline:getDataset, answering null with no dataset installed, and removes it on close', async () => {
     const ipc = fakeIpcMain();
-    await registerMainModules(ipc, deps, { packaged: false, overrideText: '' });
-    expect([...ipc.handlers.keys()].filter((k) => k.startsWith('module:timeline:'))).toEqual(['module:timeline:getDataset']);
+    await registerMainModules(ipc, deps, { packaged: false, overrideText: '', modules: TIMELINE_ONLY });
+    expect([...ipc.handlers.keys()]).toEqual(['module:timeline:getDataset']);
     expect(await ipc.handlers.get('module:timeline:getDataset')!({})).toEqual({ ok: true, value: null });
     await closeMainModules();
     expect(ipc.handlers.size).toBe(0);
@@ -48,7 +51,7 @@ describe('timeline main module', () => {
 
   it('registers nothing when disabled', async () => {
     const ipc = fakeIpcMain();
-    await registerMainModules(ipc, deps, { packaged: false, overrideText: '-timeline' });
-    expect(ipc.handle.mock.calls.filter(([c]) => String(c).startsWith('module:timeline:'))).toEqual([]);
+    await registerMainModules(ipc, deps, { packaged: false, overrideText: '-timeline', modules: TIMELINE_ONLY });
+    expect(ipc.handle).not.toHaveBeenCalled();
   });
 });

@@ -61,7 +61,7 @@ import {
   type KeywordSet,
   type ResolvedVerse,
 } from '@bible/core/browser';
-import { resolveChapterDecorations, verseWordTexts } from '../../keywordMarks/chapterMarks';
+import { resolveChapterLayers, verseWordTexts } from '../../host/chapterLayers';
 import { resetInterlinearWarnings } from '../../utils/interlinearRows';
 
 // ---- helpers -------------------------------------------------------------
@@ -566,7 +566,7 @@ describe('VerseRenderer', () => {
         [SET],
       );
       const layer = toDecorationLayer(result, [SET], { colorSafe: true });
-      return resolveChapterDecorations([verse], layer, surface).get(verse.verse_id);
+      return resolveChapterLayers([verse], [layer], surface).get(verse.verse_id);
     }
 
     for (const mode of ['standard', 'reading'] as const) {

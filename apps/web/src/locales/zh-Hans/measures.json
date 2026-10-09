@@ -1,0 +1,21 @@
+{
+  "$schema": "../schemas/measures.schema.json",
+  "measures": {
+    "popup": {
+      "range": "范围",
+      "rangeHint": "取决于所用数值",
+      "verseNote": "本节经文",
+      "usageIllustrative": "举例",
+      "usageFigurative": "比喻",
+      "usageHintIllustrative": "举例的数量；确切数字并非重点",
+      "usageHintFigurative": "比喻用法；数字不应按字面理解",
+      "draft": "草稿 – 尚未审核",
+      "sources": "来源",
+      "units": "单位…"
+    },
+    "study": {
+      "title": "重量、度量衡与货币",
+      "listLabel": "本节经文中的重量、度量衡与货币:{count}"
+    }
+  }
+}

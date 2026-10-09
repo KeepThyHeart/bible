@@ -6,7 +6,7 @@
  * useStore is mocked to call the selector immediately (no subscription).
  * fetch is stubbed to avoid real network calls.
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, beforeAll } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/preact';
 import { webSettings } from '../../stores/settingsRegistry';
 
@@ -425,5 +425,46 @@ describe('SettingsPanel', () => {
     } finally {
       mockServerOffline.value = false;
     }
+  });
+});
+
+describe('SettingsPanel sections with a parent tab (module fields inside Theme)', () => {
+  const onClose = vi.fn();
+  beforeAll(() => {
+    addBuiltinModule({
+      id: 'fixture-theme-child',
+      platforms: ['web'],
+      contributes: {
+        settings: [{
+          id: 'fixtureTheme',
+          defs: [{
+            key: 'fixtureThemeFlag', type: 'boolean', default: true, scope: 'device', group: 'fixtureTheme', order: 1,
+            labelKey: 'fixture.themeFlag', label: 'Fixture theme flag',
+          }],
+        }],
+        preferencesSections: [
+          { id: 'fixture-child', title: { key: 'fixture.childTitle', fallback: 'Fixture child' }, order: 150, parent: 'theme', settingsGroup: 'fixtureTheme' },
+        ],
+      },
+    });
+    reconcileModules();
+  });
+
+  it('does not add a tab of its own', () => {
+    const { container } = render(<SettingsPanel isOpen={true} onClose={onClose} />);
+    expect(container.querySelector('[data-tab="fixture-child"]')).toBeNull();
+  });
+
+  it('renders inside the Theme tab, with its heading and fields', () => {
+    const { container } = render(<SettingsPanel isOpen={true} onClose={onClose} />);
+    fireEvent.click(container.querySelector<HTMLElement>('[data-tab="theme"]')!);
+    const theme = container.querySelector('[data-section="theme"]')!;
+    expect(theme.textContent).toContain('fixture.childTitle');
+    expect(theme.querySelector('#settings-fixture-child-fixtureThemeFlag, [id^="settings-fixture-child"]')).toBeTruthy();
+  });
+
+  it('a deep link to the section opens the Theme tab', () => {
+    const { container } = render(<SettingsPanel isOpen={true} onClose={onClose} scrollToSection="fixture-child" />);
+    expect(container.querySelector('[data-section="theme"]')).toBeTruthy();
   });
 });

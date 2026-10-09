@@ -1,0 +1,21 @@
+{
+  "$schema": "../schemas/measures.schema.json",
+  "measures": {
+    "popup": {
+      "range": "النطاق",
+      "rangeHint": "بحسب القيمة المعتمدة",
+      "verseNote": "في هذه الآية",
+      "usageIllustrative": "توضيحي",
+      "usageFigurative": "مجازي",
+      "usageHintIllustrative": "مبلغ على سبيل المثال؛ الرقم الدقيق ليس المقصود",
+      "usageHintFigurative": "مستخدم مجازًا؛ الرقم غير مقصود حرفيًّا",
+      "draft": "مسودة – لم تُراجَع بعد",
+      "sources": "المصادر",
+      "units": "الوحدات…"
+    },
+    "study": {
+      "title": "الأوزان والمقاييس والمال",
+      "listLabel": "الأوزان والمقاييس والنقود في هذا العدد: {count}"
+    }
+  }
+}

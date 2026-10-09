@@ -1,0 +1,13 @@
+{
+  "measures.popup.range": "‏Range‏",
+  "measures.popup.rangeHint": "‏depending on the value used‏",
+  "measures.popup.verseNote": "‏In this verse‏",
+  "measures.popup.usage.illustrative": "‏Illustrative‏",
+  "measures.popup.usage.figurative": "‏Figurative‏",
+  "measures.popup.usageHint.illustrative": "‏An example amount; the exact figure is not the point‏",
+  "measures.popup.usageHint.figurative": "‏Used figuratively; the figure is not meant literally‏",
+  "measures.popup.draft": "‏Draft – not yet reviewed‏",
+  "measures.popup.sources": "‏Sources‏",
+  "measures.popup.units": "‏Units…‏",
+  "measures.study.title": "‏Weights, measures and money‏"
+}

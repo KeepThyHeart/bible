@@ -1,0 +1,13 @@
+{
+  "measures.popup.range": "范围",
+  "measures.popup.rangeHint": "取决于所用数值",
+  "measures.popup.verseNote": "本节经文",
+  "measures.popup.usage.illustrative": "示例性",
+  "measures.popup.usage.figurative": "比喻性",
+  "measures.popup.usageHint.illustrative": "示例数额；确切数字并非重点",
+  "measures.popup.usageHint.figurative": "比喻用法；数字并非字面意思",
+  "measures.popup.draft": "草稿 – 尚未审阅",
+  "measures.popup.sources": "来源",
+  "measures.popup.units": "单位…",
+  "measures.study.title": "重量、度量衡与货币"
+}

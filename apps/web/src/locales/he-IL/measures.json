@@ -1,0 +1,21 @@
+{
+  "$schema": "../schemas/measures.schema.json",
+  "measures": {
+    "popup": {
+      "range": "טווח",
+      "rangeHint": "בהתאם לערך שנעשה בו שימוש",
+      "verseNote": "בפסוק זה",
+      "usageIllustrative": "להמחשה",
+      "usageFigurative": "במשמעות מושאלת",
+      "usageHintIllustrative": "סכום לדוגמה; המספר המדויק אינו העיקר",
+      "usageHintFigurative": "בשימוש מושאל; המספר אינו מכוון כפשוטו",
+      "draft": "טיוטה – טרם נבדק",
+      "sources": "מקורות",
+      "units": "יחידות…"
+    },
+    "study": {
+      "title": "משקלות, מידות וכסף",
+      "listLabel": "משקלות, מידות וכסף בפסוק זה: {count}"
+    }
+  }
+}

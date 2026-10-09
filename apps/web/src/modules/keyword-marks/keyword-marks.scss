@@ -1,0 +1,49 @@
+// Keyword marks toolbar button, legend panel and step flash (task 0065; module task 0127).
+
+.bible-toolbar__keywords {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  border-inline-start: 2px solid var(--border-color);
+}
+
+.bible-toolbar__keywords-btn {
+  gap: 6px;
+
+  &--on {
+    color: var(--accent-color);
+    background: var(--bg-tertiary);
+  }
+}
+
+
+.bible-toolbar__keywords-panel {
+  position: absolute;
+  top: 100%;
+  inset-inline-end: 0;
+  z-index: 60;
+  width: 340px;
+  max-width: 92vw;
+  max-height: 70vh;
+  overflow-y: auto;
+  padding: 10px 12px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px var(--dropdown-shadow);
+}
+
+
+// Flash on the word a legend step lands on.
+.keyword-flash {
+  animation: keyword-flash 1.4s ease-out;
+}
+
+@keyframes keyword-flash {
+  0%, 30% { outline: 2px solid var(--accent-color); outline-offset: 2px; background-color: var(--bg-tertiary); }
+  100% { outline: 2px solid transparent; outline-offset: 2px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .keyword-flash { animation-duration: 0.01s; outline: 2px solid var(--accent-color); }
+}

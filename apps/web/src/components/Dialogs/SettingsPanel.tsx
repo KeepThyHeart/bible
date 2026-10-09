@@ -39,12 +39,21 @@ function useSettingsSections(): PreferencesSectionContribution[] {
     modulePoints.preferencesSections.subscribe.bind(modulePoints.preferencesSections),
     modulePoints.preferencesSections.getSnapshot.bind(modulePoints.preferencesSections),
   );
-  return entries.map((e) => e.item).filter((i) => !i.platforms || i.platforms.includes('web'));
+  return entries.map((e) => e.item).filter((i) => (!i.platforms || i.platforms.includes('web')) && !i.parent);
+}
+
+/** Sections that sit inside a tab of their own `parent` (in order), e.g. a module's fields under Theme. */
+function useChildSections(parent: string): PreferencesSectionContribution[] {
+  const entries = useSyncExternalStore(
+    modulePoints.preferencesSections.subscribe.bind(modulePoints.preferencesSections),
+    modulePoints.preferencesSections.getSnapshot.bind(modulePoints.preferencesSections),
+  );
+  return entries.map((e) => e.item).filter((i) => i.parent === parent && (!i.platforms || i.platforms.includes('web')));
 }
 
 function sectionToTab(section?: string): SettingsTab {
   if (section === 'bible-font' || section === 'commentary-font' || section === 'study-font' || section === 'text-size') return 'text-size';
-  if (section === 'theme' || section === 'appearance' || section === 'measures') return 'theme';
+  if (section === 'theme' || section === 'appearance') return 'theme';
   if (section === 'modules') return 'modules';
   if (section === 'gestures') return 'gestures';
   if (section === 'audio') return 'audio';
@@ -53,7 +62,10 @@ function sectionToTab(section?: string): SettingsTab {
   if (section === 'apps') return 'apps';
   if (section === 'about') return 'about';
   // A section contributed by a feature module deep-links by its own id.
-  if (section && modulePoints.preferencesSections.has(section)) return section;
+  if (section && modulePoints.preferencesSections.has(section)) {
+    const parent = modulePoints.preferencesSections.get(section)?.parent;
+    return parent ? sectionToTab(parent) : section;
+  }
   return 'text-size';
 }
 
@@ -174,18 +186,9 @@ export function SettingsPanel({ isOpen, onClose, scrollToSection }: SettingsPane
     isEnabled,
     values: registryValues,
   });
-  const keywordFields = WEB_SETTINGS.toFields('keywords', {
-    translate: (key, fallback) => t(key, fallback),
-    isEnabled,
-    values: registryValues,
-  });
-  const measureFields = WEB_SETTINGS.toFields('measures', {
-    translate: (key, fallback) => t(key, fallback),
-    isEnabled,
-    values: registryValues,
-  });
   const serverOfflineDownloads = useStore(settingsStore, () => settingsStore.serverOfflineDownloads);
   const sections = useSettingsSections();
+  const themeChildren = useChildSections('theme');
   const [activeTab, setActiveTab] = useState<SettingsTab>('text-size');
   const audioEnabled = useStore(audioStore, () => audioStore.enabled);
   const [advancedOpen, setAdvancedOpen] = useState(false);
@@ -572,21 +575,7 @@ export function SettingsPanel({ isOpen, onClose, scrollToSection }: SettingsPane
                   </label>
                   <div class="settings-panel__field-hint">{t('settings.theme.leftHandedHint')}</div>
                 </div>
-                <SettingsForm
-                  fields={keywordFields}
-                  values={registryValues}
-                  idPrefix="settings-keywords"
-                  onChange={(key, value) => { webSettings.set(key, value); }}
-                />
-                <div class="settings-panel__section-header">
-                  <h4 class="settings-panel__section-title" style={{ marginTop: '16px' }}>{t('settings.measures.title')}</h4>
-                </div>
-                <SettingsForm
-                  fields={measureFields}
-                  values={registryValues}
-                  idPrefix="settings-measures"
-                  onChange={(key, value) => { webSettings.set(key, value); }}
-                />
+                {themeChildren.map((sec) => <ContributedSection key={sec.id} section={sec} embedded />)}
               </div>
             )}
 

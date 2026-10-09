@@ -1,0 +1,13 @@
+{
+  "measures.popup.range": "Диапазон",
+  "measures.popup.rangeHint": "в зависимости от принятого значения",
+  "measures.popup.verseNote": "В этом стихе",
+  "measures.popup.usage.illustrative": "Иллюстративно",
+  "measures.popup.usage.figurative": "Образно",
+  "measures.popup.usageHint.illustrative": "Примерная сумма; точная цифра не важна",
+  "measures.popup.usageHint.figurative": "Образное употребление; цифра не буквальна",
+  "measures.popup.draft": "Черновик – ещё не проверено",
+  "measures.popup.sources": "Источники",
+  "measures.popup.units": "Единицы…",
+  "measures.study.title": "Меры, вес и деньги"
+}

@@ -14,8 +14,6 @@ import {
   createSettingsStore,
   defineSettings,
   mergeSettings,
-  measureSettingsRegistry,
-  MEASURE_SETTINGS,
   APP_NAV_SETTINGS,
   type SettingChange,
   type SettingsStore,
@@ -24,9 +22,7 @@ import {
   type AppSwitcherMode,
 } from '@bible/core/browser';
 import { usePreferencesStore } from '../stores/usePreferencesStore';
-import { useKeywordMarkStore } from '../stores/useKeywordMarkStore';
 import { modulePoints } from '../modules/moduleHost';
-import { useMeasureStore } from '../stores/useMeasureStore';
 
 const DESKTOP_OWN_SETTINGS = defineSettings([
   {
@@ -39,15 +35,6 @@ const DESKTOP_OWN_SETTINGS = defineSettings([
     label: 'Allow rearranging panes by drag and drop',
     descriptionKey: 'preferencesDialog.advancedPaneManagerDescription',
     description: 'When off, dragging a pane asks for confirmation before it moves.',
-  },
-  {
-    key: 'keywordColorSafe',
-    type: 'boolean',
-    default: true,
-    scope: 'device',
-    group: 'advanced',
-    labelKey: 'keywords.settings.colorSafe',
-    label: 'Colour-safe marks (extra underline and symbol cues)',
   },
   {
     key: 'readingPlanRolloverHour',
@@ -119,10 +106,8 @@ export function getContributedSettings(): { registry: SettingsRegistry; store: S
   return contributedCache;
 }
 
-/** Desktop's own settings plus the weights-and-measures group (task 0069, declared in core). */
-export const DESKTOP_SETTINGS = mergeSettings(DESKTOP_OWN_SETTINGS, measureSettingsRegistry, APP_NAV_SETTINGS);
-
-const MEASURE_KEYS: ReadonlySet<string> = new Set(MEASURE_SETTINGS.map((d) => d.key));
+/** Desktop's own settings (the weights-and-measures and keyword-mark ones come from their modules). */
+export const DESKTOP_SETTINGS = mergeSettings(DESKTOP_OWN_SETTINGS, APP_NAV_SETTINGS);
 
 function sameIds(a: readonly string[], b: readonly unknown[]): boolean {
   return a.length === b.length && a.every((v, i) => v === b[i]);
@@ -132,20 +117,14 @@ function sameIds(a: readonly string[], b: readonly unknown[]): boolean {
 export const preferencesStoragePort: SettingsStoragePort = {
   read: () => ({
     advancedPaneManagerEnabled: usePreferencesStore.getState().advancedPaneManagerEnabled,
-    keywordColorSafe: useKeywordMarkStore.getState().colorSafe,
     readingPlanRolloverHour: usePreferencesStore.getState().readingPlanRolloverHour,
     readingPlanShowStreak: usePreferencesStore.getState().readingPlanShowStreak,
     appSwitcher: usePreferencesStore.getState().appSwitcher,
     appOrder: usePreferencesStore.getState().appOrder,
     appHidden: usePreferencesStore.getState().appHidden,
-    ...useMeasureStore.getState().values,
   }),
   write: (changes: readonly SettingChange[]) => {
     for (const change of changes) {
-      if (change.key === 'keywordColorSafe' && useKeywordMarkStore.getState().colorSafe !== change.value) {
-        useKeywordMarkStore.getState().setColorSafe(change.value as boolean);
-      }
-      if (MEASURE_KEYS.has(change.key)) useMeasureStore.getState().setValue(change.key, change.value);
       if (
         change.key === 'advancedPaneManagerEnabled' &&
         usePreferencesStore.getState().advancedPaneManagerEnabled !== change.value
@@ -192,14 +171,6 @@ export function getDesktopSettingsStore(): SettingsStore {
       store!.set('appSwitcher', state.appSwitcher);
       store!.set('appOrder', state.appOrder);
       store!.set('appHidden', state.appHidden);
-    });
-    useKeywordMarkStore.subscribe((state) => {
-      store!.set('keywordColorSafe', state.colorSafe);
-    });
-    // Session restore fills the measures values after the store exists.
-    useMeasureStore.subscribe((state, prev) => {
-      if (state.values === prev.values) return;
-      for (const [key, value] of Object.entries(state.values)) store!.set(key, value);
     });
   }
   return store;

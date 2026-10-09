@@ -85,7 +85,7 @@ describe('PreferencesDialog', () => {
   it('renders all section tabs', () => {
     renderWithProviders(<PreferencesDialog onClose={onClose} />);
     const tabs = screen.getAllByRole('tab');
-    expect(tabs).toHaveLength(12);
+    expect(tabs).toHaveLength(11); // 'Weights and measures' comes from the measures module
     // Each tab should have the section label
     expect(tabs[0]).toHaveTextContent('General');
     expect(tabs[1]).toHaveTextContent('Typography');
@@ -96,9 +96,8 @@ describe('PreferencesDialog', () => {
     expect(tabs[6]).toHaveTextContent('Downloads & storage');
     expect(tabs[7]).toHaveTextContent('Extensions');
     expect(tabs[8]).toHaveTextContent('Apps');
-    expect(tabs[9]).toHaveTextContent('Weights and measures');
-    expect(tabs[10]).toHaveTextContent('Advanced');
-    expect(tabs[11]).toHaveTextContent('Diagnostics');
+    expect(tabs[9]).toHaveTextContent('Advanced');
+    expect(tabs[10]).toHaveTextContent('Diagnostics');
   });
 
   it('opens at the Notifications section', async () => {
@@ -187,7 +186,7 @@ describe('PreferencesDialog', () => {
     const tablist = screen.getByRole('tablist');
     expect(tablist).toBeInTheDocument();
     const tabs = screen.getAllByRole('tab');
-    expect(tabs).toHaveLength(12);
+    expect(tabs).toHaveLength(11); // 'Weights and measures' comes from the measures module
   });
 
   it('gives the tablist an accessible name resolved from the catalog', () => {
@@ -232,5 +231,59 @@ describe('PreferencesDialog', () => {
     await user.click(generalButtons[0]);
     expect(screen.getByTestId('general-section')).toBeInTheDocument();
     expect(dialog()).toHaveClass('h-[min(85vh,700px)]');
+  });
+});
+
+describe('PreferencesDialog - sections modules contribute', () => {
+  const onClose = vi.fn();
+  const fixture = {
+    id: 'fx-prefs',
+    platforms: ['desktop'],
+    contributes: {
+      preferencesSections: [
+        { id: 'fx-own', title: { key: 'fx.own', fallback: 'Fixture tab' }, order: 22 },
+        { id: 'fx-child', title: { key: 'fx.child', fallback: 'Fixture child' }, order: 99, parent: 'general' },
+      ],
+    },
+  } as const;
+
+  beforeAll(async () => {
+    const { featureModules, reconcileModules } = await import('../modules/moduleHost');
+    featureModules.add(fixture as never, {
+      id: 'fx-prefs',
+      views: {
+        'preferences:fx-own': async () => ({ default: () => <div data-testid="fx-own-section" /> }),
+        'preferences:fx-child': async () => ({ default: () => <div data-testid="fx-child-section" /> }),
+      },
+    } as never);
+    reconcileModules();
+  });
+
+  it('lists a section as a tab with its glyph, but a section with a parent only inside the parent\'s tab', async () => {
+    const { preferencesSectionGlyphs } = await import('../modules/host/slots');
+    const glyph = preferencesSectionGlyphs.register({ id: 'fx-own', glyph: <svg data-testid="fx-glyph" /> });
+    renderWithProviders(<PreferencesDialog onClose={onClose} />);
+    const labels = screen.getAllByRole('tab').map((t) => t.textContent);
+    expect(labels).toContain('Fixture tab');
+    expect(labels).not.toContain('Fixture child');
+    expect(await screen.findByTestId('fx-child-section')).toBeInTheDocument(); // General is the default tab
+    expect(screen.getByTestId('general-section')).toBeInTheDocument();
+    expect(screen.getByTestId('fx-glyph')).toBeInTheDocument();
+    glyph.dispose();
+  });
+
+  it('shows the child section only in its parent\'s tab', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<PreferencesDialog onClose={onClose} initialSection="fx-own" />);
+    expect(await screen.findByTestId('fx-own-section')).toBeInTheDocument();
+    expect(screen.queryByTestId('fx-child-section')).toBeNull();
+    await user.click(screen.getAllByText('Fonts')[0]);
+    expect(screen.queryByTestId('fx-child-section')).toBeNull();
+  });
+
+  it('opens on an empty body, without crashing, for a section that is not there (module off)', () => {
+    renderWithProviders(<PreferencesDialog onClose={onClose} initialSection="measures" />);
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(screen.queryByTestId('general-section')).toBeNull();
   });
 });

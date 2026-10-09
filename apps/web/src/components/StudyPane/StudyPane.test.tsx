@@ -8,7 +8,7 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/preact';
-import { studyModes } from '../../host/slots';
+import { studyModes, studySections } from '../../host/slots';
 
 // ---- i18n ----------------------------------------------------------------
 vi.mock('react-i18next', () => ({
@@ -41,10 +41,6 @@ vi.mock('./StudyTopics', () => ({
 
 vi.mock('./StudySynthesis', () => ({
   StudySynthesis: () => <div class="study-synthesis-stub" />,
-}));
-
-vi.mock('./StudyMeasures', () => ({
-  StudyMeasures: ({ verseId }: { verseId: number | null }) => <div class="study-measures-stub" data-verse={String(verseId)} />,
 }));
 
 vi.mock('./StudyHome', () => ({
@@ -176,9 +172,23 @@ describe('StudyPane', () => {
     expect(container.querySelector('.study-home-stub')).toBeTruthy();
   });
 
-  it('passes the studied verse to the measures section', () => {
+  it('passes the studied verse to a section a module registered (the studySections slot)', () => {
+    const handle = studySections.register({
+      id: 'fixture',
+      order: 10,
+      Section: ({ verseId }) => <div class="study-fixture-stub" data-verse={String(verseId)} />,
+    });
+    try {
+      const { container } = render(<StudyPane />);
+      expect(container.querySelector('.study-fixture-stub')?.getAttribute('data-verse')).toBe(String(mockVerseId));
+    } finally {
+      handle.dispose();
+    }
+  });
+
+  it('renders no extra section while no module registers one', () => {
     const { container } = render(<StudyPane />);
-    expect(container.querySelector('.study-measures-stub')?.getAttribute('data-verse')).toBe(String(mockVerseId));
+    expect(container.querySelector('.study-fixture-stub')).toBeNull();
   });
 
   // ------------------------------------------------------------------

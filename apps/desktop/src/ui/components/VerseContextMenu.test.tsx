@@ -28,6 +28,7 @@ describe('withVerseMenuContext', () => {
   });
 });
 import { ContextProvider, type AppServices } from '../contexts/ContextProvider';
+import { wordMenuItems } from '../modules/host/slots';
 
 function createMockServices(): AppServices {
   return {
@@ -371,35 +372,33 @@ describe('VerseContextMenu', () => {
     expect(onClose).toHaveBeenCalled();
   });
 
-  describe('keyword marks (task 0065)', () => {
-    it('offers "Mark all" for a right-clicked word and runs it', async () => {
+  describe('word items from feature modules (wordMenuItems slot)', () => {
+    it('renders registered items for a right-clicked word, with the tab, word, Strong\'s number and a close callback', async () => {
       const user = userEvent.setup();
-      const onMarkWord = vi.fn();
+      const reg = wordMenuItems.register(({ tabId, wordText, wordStrongs, onClose: close }) => (
+        <button data-testid="word-item" onClick={close}>{`${tabId}|${wordText}|${wordStrongs ?? ''}`}</button>
+      ));
       renderWithProviders(
         <VerseContextMenu verses={mockVerse} context={mockContext} position={position} onClose={onClose}
-          wordText="faith" onMarkWord={onMarkWord} />,
+          wordText="faith" wordTabId="tab1" wordStrongs="G4102" />,
       );
-      await user.click(screen.getByTestId('menu-mark-word'));
-      expect(onMarkWord).toHaveBeenCalled();
+      expect(screen.getByTestId('word-item')).toHaveTextContent('tab1|faith|G4102');
+      await user.click(screen.getByTestId('word-item'));
       expect(onClose).toHaveBeenCalled();
-      expect(screen.queryByTestId('menu-mark-lemma')).toBeNull();
+      reg.dispose();
     });
 
-    it('offers "Mark lemma" only when the word has a Strong\'s number', async () => {
-      const user = userEvent.setup();
-      const onMarkLemma = vi.fn();
-      renderWithProviders(
-        <VerseContextMenu verses={mockVerse} context={mockContext} position={position} onClose={onClose}
-          wordText="faith" onMarkWord={vi.fn()} wordStrongs="G4102" onMarkLemma={onMarkLemma} />,
-      );
-      await user.click(screen.getByTestId('menu-mark-lemma'));
-      expect(onMarkLemma).toHaveBeenCalled();
-    });
-
-    it('shows neither item when no word was clicked', () => {
+    it('shows nothing when no word was clicked or no module registered an item', () => {
+      const reg = wordMenuItems.register(() => <i data-testid="word-item" />);
       renderWithProviders(
         <VerseContextMenu verses={mockVerse} context={mockContext} position={position} onClose={onClose} />,
       );
+      expect(screen.queryByTestId('word-item')).toBeNull();
+      reg.dispose();
+      renderWithProviders(
+        <VerseContextMenu verses={mockVerse} context={mockContext} position={position} onClose={onClose} wordText="faith" wordTabId="tab1" />,
+      );
+      expect(screen.queryByTestId('word-item')).toBeNull();
       expect(screen.queryByTestId('menu-mark-word')).toBeNull();
     });
   });

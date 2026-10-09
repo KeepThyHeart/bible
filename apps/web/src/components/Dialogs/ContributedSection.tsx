@@ -13,7 +13,8 @@ import { modulePoints } from '../../modules/moduleHost';
 import { contributedSettings, contributedSettingsStore } from '../../stores/settingsRegistry';
 import { isEnabled } from '../../utils/featureFlags';
 
-function GenericGroup({ group, id }: { group: string; id: string }) {
+/** A generic form over one contributed settings group. A module's own section view reuses it for its fields. */
+export function SettingsGroupForm({ group, idPrefix }: { group: string; idPrefix: string }) {
   const { t } = useTranslation();
   const store = contributedSettingsStore(modulePoints.settings);
   const values = useSyncExternalStore(store.subscribe, store.getSnapshot);
@@ -26,13 +27,17 @@ function GenericGroup({ group, id }: { group: string; id: string }) {
     <SettingsForm
       fields={fields}
       values={values}
-      idPrefix={`settings-${id}`}
+      idPrefix={idPrefix}
       onChange={(key, value) => { store.set(key, value); }}
     />
   );
 }
 
-export function ContributedSection({ section }: { section: PreferencesSectionContribution }) {
+/**
+ * `embedded`: the section sits inside another tab (its `parent`), so it renders
+ * only its own view, or a heading and the generic form, and not the tab's wrapper.
+ */
+export function ContributedSection({ section, embedded }: { section: PreferencesSectionContribution; embedded?: boolean }) {
   const { t } = useTranslation();
   const [View, setView] = useState<ComponentType | null>(null);
   useEffect(() => {
@@ -49,10 +54,21 @@ export function ContributedSection({ section }: { section: PreferencesSectionCon
 
   if (View) return <View />;
   const title = 'key' in section.title ? t(section.title.key, section.title.fallback) : '';
+  const form = section.settingsGroup && <SettingsGroupForm group={section.settingsGroup} idPrefix={`settings-${section.id}`} />;
+  if (embedded) {
+    return (
+      <>
+        <div class="settings-panel__section-header">
+          <h4 class="settings-panel__section-title" style={{ marginTop: '16px' }}>{title}</h4>
+        </div>
+        {form}
+      </>
+    );
+  }
   return (
     <div class="settings-panel__section" data-section={section.id}>
       <h4 class="settings-panel__section-title">{title}</h4>
-      {section.settingsGroup && <GenericGroup group={section.settingsGroup} id={section.id} />}
+      {form}
     </div>
   );
 }

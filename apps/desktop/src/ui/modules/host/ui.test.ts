@@ -33,7 +33,8 @@ const MIGRATED_TILES = ['quiz', 'reading-plans'];
 const HOST_TILES = OLD_TILES.filter((t) => !MIGRATED_TILES.includes(t));
 const without = (map: Record<string, string>): Record<string, string> =>
   Object.fromEntries(Object.entries(map).filter(([, v]) => !MIGRATED_TILES.includes(v)));
-const OLD_SECTIONS = ['general', 'typography', 'fonts', 'themes', 'privacy', 'notifications', 'downloads', 'extensions', 'apps', 'measures', 'advanced', 'diagnostics'];
+const OLD_SECTIONS = ['general', 'typography', 'fonts', 'themes', 'privacy', 'notifications', 'downloads', 'extensions', 'apps', 'advanced', 'diagnostics'];
+// The 'measures' section (order 50, between 'apps' and 'advanced') comes from the measures module's manifest.
 
 function host(manifests: FeatureModuleManifest[]) {
   const points = createStandardPoints();

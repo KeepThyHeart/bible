@@ -34,17 +34,3 @@
   // Generated content: never selected or copied with the verse text.
   user-select: none;
 }
-
-// Flash on the word a legend step lands on.
-.keyword-flash {
-  animation: keyword-flash 1.4s ease-out;
-}
-
-@keyframes keyword-flash {
-  0%, 30% { outline: 2px solid var(--accent-color); outline-offset: 2px; background-color: var(--bg-tertiary); }
-  100% { outline: 2px solid transparent; outline-offset: 2px; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .keyword-flash { animation-duration: 0.01s; outline: 2px solid var(--accent-color); }
-}

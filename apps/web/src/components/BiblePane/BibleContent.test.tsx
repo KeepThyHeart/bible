@@ -8,6 +8,7 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/preact';
+import { useLayoutEffect } from 'preact/hooks';
 import type { BibleTab } from '../../stores/bibleStore';
 import { audioStore } from '../../stores/audioStore';
 import type { VerseData } from '../../types';
@@ -28,10 +29,11 @@ vi.mock('react-i18next', () => ({
 vi.mock('./VerseRenderer', () => ({
   // Surfaces `isInRange` and the click callback so the selection wiring can be
   // asserted without rendering the real verse markup.
-  VerseRenderer: ({ verse, isInRange, isPlaying, onVerseClick }: {
+  VerseRenderer: ({ verse, isInRange, isPlaying, resolved, onVerseClick }: {
     verse: VerseData;
     isInRange?: boolean;
     isPlaying?: boolean;
+    resolved?: unknown;
     onVerseClick: (verseId: number, extend: boolean) => void;
   }) => (
     <div
@@ -39,6 +41,7 @@ vi.mock('./VerseRenderer', () => ({
       data-verse-id={verse.verse_id}
       data-in-range={isInRange ? 'true' : 'false'}
       data-playing={isPlaying ? 'true' : 'false'}
+      data-painted={resolved ? 'true' : 'false'}
       onClick={(e) => onVerseClick(verse.verse_id, (e as unknown as MouseEvent).shiftKey)}
     >{verse.text}</div>
   ),
@@ -161,6 +164,12 @@ vi.mock('../../stores/moduleStore', () => ({
 }));
 
 import { BibleContent } from './BibleContent';
+import { readerPaintControllers } from '../../host/slots';
+import type { ReaderPaintProps } from '../../host/slots';
+import { publishReaderLayer, resetReaderLayers } from '../../host/readerLayers';
+import { verseWordTexts } from '../../host/chapterLayers';
+import { matchKeywordMarks, toDecorationLayer, type KeywordSet } from '@bible/core/browser';
+import { act } from '@testing-library/preact';
 
 describe('BibleContent', () => {
   beforeEach(() => {
@@ -473,5 +482,46 @@ describe('BibleContent', () => {
       audioStore.prefs = { ...audioStore.prefs, followAlong: false };
       expect(playingFlags(render(<BibleContent />).container)).toEqual(['false', 'false', 'false']);
     });
+  });
+});
+
+describe('BibleContent reader paint seam (readerPaintControllers slot)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    resetReaderLayers();
+    mockActiveTab = makeTab({ book: 43, chapter: 3, verses: [makeVerse({ verse_id: 43003016, verse: 16, text: 'God loved', text_html: 'God loved' })] });
+  });
+
+  const SET: KeywordSet = {
+    schema: 1, id: 's', name: 's', scope: { kind: 'everywhere' }, updatedAt: '2026-01-01T00:00:00Z',
+    marks: [{ id: 'm', label: 'God', rule: { kind: 'word', forms: ['god'] }, style: { color: 'mark.1', line: 'solid' }, enabled: true }],
+  };
+
+  it('hands the chapter to a controller, resolves the layer it publishes, and drops it when the controller goes', async () => {
+    const seen: ReaderPaintProps[] = [];
+    function Controller(props: ReaderPaintProps) {
+      seen.push(props);
+      const input = { moduleId: 1, language: 'en', verses: props.verses.map((v) => ({ verseId: v.verse_id, words: verseWordTexts(v) })) };
+      const layer = toDecorationLayer(matchKeywordMarks(input, [SET]), [SET], { colorSafe: true, hiddenMarkIds: new Set() });
+      useLayoutEffect(() => { publishReaderLayer(props.tabId, 'fixture', 10, layer); }, [props.tabId]);
+      return <span data-testid="fixture-controller" />;
+    }
+    const { container, queryByTestId } = render(<BibleContent />);
+    expect(container.querySelector('[data-testid="verse-renderer"]')?.getAttribute('data-painted')).toBe('false');
+    const handle = readerPaintControllers.register(Controller);
+    await act(async () => { await Promise.resolve(); });
+    expect(queryByTestId('fixture-controller')).toBeTruthy();
+    expect(seen.at(-1)).toMatchObject({ tabId: mockActiveTab!.id, book: 43, chapter: 3, surface: 'standard' });
+    expect(container.querySelector('[data-testid="verse-renderer"]')?.getAttribute('data-painted')).toBe('true');
+    handle.dispose();
+    publishReaderLayer(mockActiveTab!.id, 'fixture', 10, null);
+    await act(async () => { await Promise.resolve(); });
+    expect(queryByTestId('fixture-controller')).toBeNull();
+    expect(container.querySelector('[data-testid="verse-renderer"]')?.getAttribute('data-painted')).toBe('false');
+  });
+
+  it('renders the reader with no controllers at all', () => {
+    const { container } = render(<BibleContent />);
+    expect(container.querySelectorAll('[data-testid="verse-renderer"]')).toHaveLength(1);
   });
 });

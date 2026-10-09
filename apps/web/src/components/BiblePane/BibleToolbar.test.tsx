@@ -111,6 +111,7 @@ vi.mock('../../stores/moduleStore', () => ({
   },
 }));
 
+import { readerToolbarItems } from '../../host/slots';
 import { BibleToolbar } from './BibleToolbar';
 
 /** The prev/next chapter pair, isolated from the history group's buttons. */
@@ -163,12 +164,22 @@ describe('BibleToolbar', () => {
     expect(select!.value).toBe('standard');
   });
 
-  it('renders the Keywords toggle before the text-settings button', () => {
-    const { container } = render(<BibleToolbar />);
-    const toggle = screen.getByTestId('keyword-marks-toggle');
-    expect(toggle.getAttribute('aria-pressed')).toBe('false');
-    const right = container.querySelector('.bible-toolbar__right')!;
-    expect(right.firstElementChild!.contains(toggle)).toBe(true);
+  it('renders a module toolbar item (readerToolbarItems slot) first in the right group', () => {
+    const handle = readerToolbarItems.register(() => <button data-testid="fixture-toolbar-item">x</button>);
+    const { container, unmount } = render(<BibleToolbar />);
+    try {
+      const item = screen.getByTestId('fixture-toolbar-item');
+      const right = container.querySelector('.bible-toolbar__right')!;
+      expect(right.firstElementChild).toBe(item);
+    } finally {
+      unmount(); // before dispose, so no re-render of a finished test runs into the next one
+      handle.dispose();
+    }
+  });
+
+  it('renders no module item while none is registered', () => {
+    render(<BibleToolbar />);
+    expect(screen.queryByTestId('fixture-toolbar-item')).toBeNull();
   });
 
   it('renders the "Aa" text-settings button', () => {

@@ -5,7 +5,7 @@ import { moduleStore } from '../../stores/moduleStore';
 import { audioStore } from '../../stores/audioStore';
 import { useStore } from '../../hooks/useStore';
 import { TranslationDialog } from './TranslationDialog';
-import { KeywordMarksButton } from './KeywordMarksButton';
+import { SlotOutlet, readerToolbarItems } from '../../host/slots';
 import { Bdi } from '@bible/ui';
 
 interface BibleToolbarProps {
@@ -189,7 +189,7 @@ export function BibleToolbar({ onOpenSettings }: BibleToolbarProps) {
       </div>
 
       <div class="bible-toolbar__right">
-        <KeywordMarksButton />
+        <SlotOutlet slot={readerToolbarItems} />
 
         {audioEnabled && (
           <button

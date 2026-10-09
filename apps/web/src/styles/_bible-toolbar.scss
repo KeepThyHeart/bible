@@ -176,22 +176,7 @@
     }
   }
 
-  // Keyword marks button and its legend panel (task 0065).
-  &__keywords {
-    position: relative;
-    display: flex;
-    align-items: stretch;
-    border-inline-start: 2px solid var(--border-color);
-  }
-
-  &__keywords-btn {
-    gap: 6px;
-
-    &--on {
-      color: var(--accent-color);
-      background: var(--bg-tertiary);
-    }
-  }
+  // Keyword marks button and legend panel styles live with the module (modules/keyword-marks).
 
   &__badge {
     min-width: 1.4em;
@@ -202,22 +187,6 @@
     font-size: calc(11px * var(--ui-font-scale, 1));
     line-height: 1.5;
     text-align: center;
-  }
-
-  &__keywords-panel {
-    position: absolute;
-    top: 100%;
-    inset-inline-end: 0;
-    z-index: 60;
-    width: 340px;
-    max-width: 92vw;
-    max-height: 70vh;
-    overflow-y: auto;
-    padding: 10px 12px;
-    background: var(--bg-primary);
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    box-shadow: 0 8px 24px var(--dropdown-shadow);
   }
 
   @media (max-width: 700px) {

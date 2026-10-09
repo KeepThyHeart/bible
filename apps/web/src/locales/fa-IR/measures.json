@@ -1,0 +1,21 @@
+{
+  "$schema": "../schemas/measures.schema.json",
+  "measures": {
+    "popup": {
+      "range": "بازه",
+      "rangeHint": "بسته به مقدار مورد استفاده",
+      "verseNote": "در این آیه",
+      "usageIllustrative": "تمثیلی",
+      "usageFigurative": "مجازی",
+      "usageHintIllustrative": "مقداری نمونه؛ رقم دقیق مهم نیست",
+      "usageHintFigurative": "به‌طور مجازی به کار رفته؛ رقم به معنای واقعی نیست",
+      "draft": "پیش‌نویس – هنوز بازبینی نشده",
+      "sources": "منابع",
+      "units": "واحدها…"
+    },
+    "study": {
+      "title": "وزن‌ها، اندازه‌ها و پول",
+      "listLabel": "وزن‌ها، اندازه‌ها و پول در این آیه: {count}"
+    }
+  }
+}

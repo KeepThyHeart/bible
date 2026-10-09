@@ -861,20 +861,7 @@
     "open": "לימוד מילים"
   },
   "keywordMarks": {
-    "button": "מילות מפתח",
-    "buttonTitle": "סימוני מילות מפתח",
-    "title": "סימוני מילות מפתח",
-    "toggle": "סימוני מילות מפתח",
-    "empty": "אין מילות מפתח תואמות בפרק זה.",
-    "count": "{count, plural, one {הופעה #} two {# הופעות} other {# הופעות}}",
-    "show": "הצגת {label}",
-    "hide": "הסתרת {label}",
-    "next": "{label} הבא",
-    "prev": "{label} הקודם",
-    "approximate": "בקירוב",
-    "approximateHint": "משוער: מותאם לפי צורת המילה ולא לפי מילה בשפת המקור",
-    "interlinearNote": "סימוני Strong דורשים תרגום בין-שורתי.",
-    "announce": "{label}, פסוק {verse}, {index} מתוך {total}"
+    "title": "סימוני מילות מפתח"
   },
   "audio": {
     "listen": "האזנה",
@@ -1069,24 +1056,6 @@
       "openAtLogin": "הפעלה בכניסה למערכת (במגש המערכת)",
       "sendTest": "שליחת התראת ניסיון",
       "general": "כללי"
-    }
-  },
-  "measures": {
-    "popup": {
-      "range": "טווח",
-      "rangeHint": "בהתאם לערך שנעשה בו שימוש",
-      "verseNote": "בפסוק זה",
-      "usageIllustrative": "להמחשה",
-      "usageFigurative": "במשמעות מושאלת",
-      "usageHintIllustrative": "סכום לדוגמה; המספר המדויק אינו העיקר",
-      "usageHintFigurative": "בשימוש מושאל; המספר אינו מכוון כפשוטו",
-      "draft": "טיוטה – טרם נבדק",
-      "sources": "מקורות",
-      "units": "יחידות…"
-    },
-    "study": {
-      "title": "משקלות, מידות וכסף",
-      "listLabel": "משקלות, מידות וכסף בפסוק זה: {count}"
     }
   },
   "assets": {

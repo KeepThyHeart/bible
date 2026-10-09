@@ -51,7 +51,7 @@ export interface ContextMenuState {
   position: { x: number; y: number };
   isMultiple: boolean;
   markupId?: number;
-  /** Index (in the verse's word space) and text of the word right-clicked, if it was a word (keyword marks, task 0065). */
+  /** Index (in the verse's word space) and text of the word right-clicked, if it was a word (for the word items feature modules add). */
   wordIndex?: number;
   wordText?: string;
 }

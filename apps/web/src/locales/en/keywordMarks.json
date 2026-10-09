@@ -1,0 +1,18 @@
+{
+  "$schema": "../schemas/keywordMarks.schema.json",
+  "keywordMarks": {
+    "button": "Keywords",
+    "buttonTitle": "Keyword marks",
+    "toggle": "Keyword marks",
+    "empty": "No keywords match in this chapter.",
+    "count": "{count, plural, one {# occurrence} other {# occurrences}}",
+    "show": "Show {label}",
+    "hide": "Hide {label}",
+    "next": "Next {label}",
+    "prev": "Previous {label}",
+    "approximate": "approx.",
+    "approximateHint": "Approximate: matched by word form, not by original-language word",
+    "interlinearNote": "Strong's marks need an interlinear translation.",
+    "announce": "{label}, verse {verse}, {index} of {total}"
+  }
+}

@@ -861,20 +861,7 @@
     "open": "مطالعه واژه"
   },
   "keywordMarks": {
-    "button": "کلیدواژه‌ها",
-    "buttonTitle": "علامت‌های کلیدواژه",
-    "title": "علامت‌های کلیدواژه",
-    "toggle": "علامت‌های کلیدواژه",
-    "empty": "در این باب هیچ کلیدواژه‌ای مطابقت ندارد.",
-    "count": "{count, plural, one {# مورد کاربرد} other {# مورد کاربرد}}",
-    "show": "نمایش {label}",
-    "hide": "پنهان کردن {label}",
-    "next": "{label} بعدی",
-    "prev": "{label} قبلی",
-    "approximate": "تقریبی",
-    "approximateHint": "تقریبی: بر اساس شکل واژه تطبیق داده شده، نه بر اساس واژهٔ زبان اصلی",
-    "interlinearNote": "علامت‌های Strong به ترجمهٔ بین‌خطی نیاز دارند.",
-    "announce": "{label}، آیهٔ {verse}، {index} از {total}"
+    "title": "علامت‌های کلیدواژه"
   },
   "audio": {
     "listen": "گوش دادن",
@@ -1069,24 +1056,6 @@
       "openAtLogin": "هنگام ورود من شروع شود (در سینی سیستم)",
       "sendTest": "ارسال اعلان آزمایشی",
       "general": "عمومی"
-    }
-  },
-  "measures": {
-    "popup": {
-      "range": "بازه",
-      "rangeHint": "بسته به مقدار مورد استفاده",
-      "verseNote": "در این آیه",
-      "usageIllustrative": "تمثیلی",
-      "usageFigurative": "مجازی",
-      "usageHintIllustrative": "مقداری نمونه؛ رقم دقیق مهم نیست",
-      "usageHintFigurative": "به‌طور مجازی به کار رفته؛ رقم به معنای واقعی نیست",
-      "draft": "پیش‌نویس – هنوز بازبینی نشده",
-      "sources": "منابع",
-      "units": "واحدها…"
-    },
-    "study": {
-      "title": "وزن‌ها، اندازه‌ها و پول",
-      "listLabel": "وزن‌ها، اندازه‌ها و پول در این آیه: {count}"
     }
   },
   "assets": {
