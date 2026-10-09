@@ -3,16 +3,25 @@
  * pairs, added to the host at boot. Manifests are data; bindings only hold
  * lazy loaders. Add a module here (one line) when it is created.
  */
-import type { FeatureModuleBinding, FeatureModuleManifest } from '@bible/core/browser';
 import { hostPanelsManifest, hostPanelsBinding } from './host/panels';
 import { hostUiModule } from './host/ui';
-import { addBuiltinModule, reconcileModules } from './moduleHost';
 import { genealogyManifest } from './genealogy/manifest';
 import { genealogyBinding } from './genealogy/binding';
 import { timelineManifest } from './timeline/manifest';
 import { timelineBinding } from './timeline/binding';
+import { quizModule } from './quiz/binding';
+import { readingPlansModule } from './reading-plans/binding';
+import { addDesktopModule, fireStartupFinished, reconcileModules } from './moduleHost';
+import type { DesktopFeatureModule } from './moduleHost';
 
-export const BUILTIN_MODULES: ReadonlyArray<readonly [FeatureModuleManifest, FeatureModuleBinding?]> = [[hostPanelsManifest, hostPanelsBinding], hostUiModule, [genealogyManifest, genealogyBinding], [timelineManifest, timelineBinding]];
+export const BUILTIN_MODULES: readonly DesktopFeatureModule[] = [
+  { manifest: hostPanelsManifest, binding: hostPanelsBinding },
+  { manifest: hostUiModule[0], binding: hostUiModule[1] },
+  { manifest: genealogyManifest, binding: genealogyBinding },
+  { manifest: timelineManifest, binding: timelineBinding },
+  quizModule,
+  readingPlansModule,
+];
 
 let registered = false;
 
@@ -20,6 +29,7 @@ let registered = false;
 export function registerBuiltinModules(): void {
   if (registered) return;
   registered = true;
-  for (const [manifest, binding] of BUILTIN_MODULES) addBuiltinModule(manifest, binding);
+  for (const entry of BUILTIN_MODULES) addDesktopModule(entry);
   reconcileModules();
+  fireStartupFinished();
 }

@@ -253,3 +253,19 @@ DATA_CHECKOUT=<checkout with data/> node apps/web/scripts/measure-startup.mjs --
 The JS request count is deterministic, so compare it first. The branch must not fetch a chunk of the migrated
 feature at boot (check the `before` URL list). For timings, use a quiet machine and n ≥ 7. Task 0123's reference:
 pre-modules 544 ms with 21 requests, next/0.2 before the fix 640 ms with 45, after the fix 544 ms with 22.
+
+## Desktop modules (task 0125: Quiz, Reading plans)
+
+The desktop renderer has its own entry type, `DesktopFeatureModule` (`apps/desktop/src/ui/modules/moduleHost.ts`):
+`{ manifest, binding, apps?, commands? }`, one line each in `apps/desktop/src/ui/modules/builtinModules.ts`.
+
+- **Panels and tiles**: `contributes.panelTypes` / `newTabTiles`, with the pane as `views['panel:<type>']` (never also imported statically).
+- **Apps**: `apps` bindings register while the module is on and activate it through `onApp:<id>`. The app View is a React component. Icons are names in `AppIconGlyph`.
+- **Commands**: `commands(registry)` registers the palette commands while the module is on (titles stay in `commands.json`/`ui.json`).
+- **Reader UI**: the `readerBars` slot (`modules/host/slots.tsx`) renders inside the Bible pane. A module that must be present without being opened lists `activationEvents: ['onStartupFinished']`; the host fires it after boot.
+- **Main process**: a `FeatureMainModule` in `apps/desktop/electron/modules/<id>/` plus one `MAIN_MODULES` entry; the renderer uses `createModuleClient`. Channels become `module:<id>:<method>`.
+- **Strings**: the namespace id must be the first segment of the keys it holds (`quizPane.*` is namespace `quizPane`); `binding.load` waits for the namespace. Add the namespace file to `src/ui/testing/enCatalog.ts`.
+- **Settings stored in the preferences blob** stay with the host (moving them would change storage).
+
+Both platforms: `onView:<name>` activates a module when a host view with module slots mounts (the phone Study pane,
+`studyPaneSections`), and `PaneModeContribution.keepMounted` keeps a pane mounted after first open.

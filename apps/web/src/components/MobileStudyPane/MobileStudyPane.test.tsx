@@ -145,6 +145,10 @@ vi.mock('../../utils/syncStatus', () => ({
   }),
 }));
 
+const fireActivation = vi.hoisted(() => vi.fn());
+vi.mock('../../modules/moduleHost', () => ({ fireActivation }));
+
+import { studyPaneSections } from '../../host/slots';
 import { MobileStudyPane } from './MobileStudyPane';
 
 /**
@@ -282,5 +286,22 @@ describe('MobileStudyPane', () => {
         onOpenSettings={vi.fn()}
       />,
     )).not.toThrow();
+  });
+
+  // ---- Sections from feature modules ---------------------------------------
+  it('wakes modules listening for the Study sections on mount', () => {
+    render(<MobileStudyPane providers={mockProviders} />);
+    expect(fireActivation).toHaveBeenCalledWith('onView:studyPane.sections');
+  });
+
+  it('renders the components registered in the studyPaneSections slot, and nothing when empty', () => {
+    const { container, rerender } = render(<MobileStudyPane providers={mockProviders} />);
+    expect(container.querySelector('[data-testid="slot-section"]')).toBeNull();
+    const handle = studyPaneSections.register(() => <div data-testid="slot-section" />);
+    rerender(<MobileStudyPane providers={mockProviders} />);
+    expect(container.querySelector('[data-testid="slot-section"]')).toBeTruthy();
+    handle.dispose();
+    rerender(<MobileStudyPane providers={mockProviders} />);
+    expect(container.querySelector('[data-testid="slot-section"]')).toBeNull();
   });
 });

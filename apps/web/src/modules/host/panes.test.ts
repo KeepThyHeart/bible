@@ -3,9 +3,10 @@ import { createFeatureModuleHost, createStandardPoints, standardPointList, valid
 import type { FeatureModuleManifest } from '@bible/core/browser';
 import { hostPanesModules, CORE_PANE_MODES, resolvePhoneView } from './panes';
 import { timelineModule } from '../timeline/binding';
+import { quizManifest } from '../quiz/manifest';
 
-// The Timeline pane lives in its own module (task 0124); the persisted order still includes it.
-const allPanes = [...hostPanesModules, [timelineModule.manifest, timelineModule.binding] as const];
+// The Timeline and Quiz panes live in their own modules (tasks 0124, 0125); the persisted order still includes them.
+const allPanes = [...hostPanesModules, [timelineModule.manifest, timelineModule.binding] as const, [quizManifest, undefined] as const];
 
 function setup(flags: Record<string, boolean>) {
   const points = createStandardPoints();
@@ -37,12 +38,11 @@ describe('host pane manifests', () => {
     host.reconcile();
     const ids = () => points.paneModes.list().map((p) => p.id);
     expect(ids()).not.toContain('timeline');
-    expect(ids()).not.toContain('quiz');
-    expect(points.views.resolve('pane:quiz')).toBeUndefined();
-    flags.quiz = true;
+    expect(points.views.resolve('pane:timeline')).toBeUndefined();
+    flags.timeline = true;
     host.reconcile();
-    expect(ids()).toContain('quiz');
-    expect(points.views.resolve('pane:quiz')).toBeDefined();
+    expect(ids()).toContain('timeline');
+    expect(points.views.resolve('pane:timeline')).toBeDefined();
   });
 });
 

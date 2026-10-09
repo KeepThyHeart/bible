@@ -12,6 +12,7 @@
 import type { FeatureModuleManifest } from '../core.js';
 import { presentManifest } from './present/manifest.js';
 import { timelineManifest } from './timeline/manifest.js';
+import { quizManifest } from './quiz/manifest.js';
 
 export interface ServerModuleEntry {
   readonly manifest: FeatureModuleManifest;
@@ -28,4 +29,5 @@ export const serverModules: readonly ServerModuleEntry[] = [
     },
   },
   { manifest: timelineManifest, load: async () => { await import('./timeline/timelineRoutes.js'); } },
+  { manifest: quizManifest, load: () => import('./quiz/routes.js') },
 ];

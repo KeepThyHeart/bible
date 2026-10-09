@@ -6,6 +6,7 @@
  *
  * - `shellOverlays`: rendered once by `AppShell`, whichever app is shown.
  * - `studyBanners`: rendered above the reader layout by `StudyView`.
+ * - `studyPaneSections`: sections in the phone Study pane (`MobileStudyPane`).
  * - `readerOverlays`: rendered inside the reader (`BibleContent`), after the verses.
  * - `verseDecorators`: per-verse extras for `VerseRenderer` (classes, a rail
  *   control, replacement text). Decorators are plain functions read during
@@ -109,6 +110,8 @@ export const shellOverlays = createSlot<ComponentType>();
 export const studyBanners = createSlot<ComponentType>();
 export const readerOverlays = createSlot<ComponentType>();
 export const verseDecorators = createSlot<VerseDecorator>();
+/** Extra sections in the phone Study pane, after the built-in ones (the pane fires `onView:studyPane.sections` on mount). */
+export const studyPaneSections = createSlot<ComponentType>();
 
 /**
  * Merge every decorator's output for one verse: classes add up, the first

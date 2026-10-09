@@ -14,14 +14,14 @@ The Quiz pane (`contentType: 'quiz'`) asks questions on a chapter or passage fro
 
 Quiz modules are `module_type: 'quiz'` files named `quiz_*.db` (schema `packages/core/sql/schemas/initial/Quiz.sql`). Every installed one is opened read-only (registry lookup, then `quiz*.db` probing in the user modules and data folders); files that are not readable quiz modules are skipped. `validate-module.js` checks them (`quiz_question` table). The Module Manager lists them under "Quizzes".
 
-## IPC (`electron/ipc/quizHandlers.ts`, renderer side `src/ui/services/quizAPI.ts`)
+## IPC (main module `electron/modules/quiz/`, renderer side `src/ui/modules/quiz/quizAPI.ts` over `createModuleClient<QuizApi>('quiz')`)
 
 | Channel | Purpose |
 |---|---|
-| `quiz:getCatalog` | merged `QuizCatalog` (modules and per-chapter coverage); cached once non-empty |
-| `quiz:getQuestions` | questions overlapping up to 50 passage ranges, over all modules |
-| `quiz:getStats` | per-question stats for up to 2000 keys, as a plain object |
-| `quiz:recordAttempt`, `quiz:recordSession`, `quiz:listSessions` | progress in the user database |
+| `module:quiz:getCatalog` | merged `QuizCatalog` (modules and per-chapter coverage); cached once non-empty |
+| `module:quiz:getQuestions` | questions overlapping up to 50 passage ranges, over all modules |
+| `module:quiz:getStats` | per-question stats for up to 2000 keys, as a plain object |
+| `module:quiz:recordAttempt`, `module:quiz:recordSession`, `module:quiz:listSessions` | progress in the user database |
 
 Inputs are validated (`invalid_input`). The renderer wraps them as `IpcQuizSource` and `IpcQuizProgressStore` and builds a `QuizEngine` over them.
 
@@ -31,5 +31,5 @@ Stored as `user_data_item` rows in the shared user database, owner `app:quiz`: c
 
 ## Pane and commands
 
-- `src/ui/components/QuizPane.tsx` - loads the catalog (error state with retry), offers "This chapter" from the primary Bible panel, shows the last five quizzes, links passages into the reader. "Today's reading" comes from the reading-plan service (`getReadingPlanService().getTodayScope()`): every reading due today across active plans, labelled by its references; hidden when there is no active plan or nothing is due. It refreshes on plan changes (`subscribe`) and when the window regains focus.
+- `src/ui/modules/quiz/QuizPane.tsx` - loads the catalog (error state with retry), offers "This chapter" from the primary Bible panel, shows the last five quizzes, links passages into the reader. "Today's reading" comes from the reading-plan service (`getReadingPlanService().getTodayScope()`): every reading due today across active plans, labelled by its references; hidden when there is no active plan or nothing is due. It refreshes on plan changes (`subscribe`) and when the window regains focus.
 - `quiz.open` - focus or add the Quiz pane. `quiz.thisChapter` ("Quiz me on this chapter") - leaves a request in `useQuizLaunchStore`, which the pane takes once, and opens the pane.

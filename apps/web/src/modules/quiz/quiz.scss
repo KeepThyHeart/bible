@@ -1,0 +1,33 @@
+// Quiz module styles: loaded with the module's chunks (module.ts, the pane and the app), never from main.scss.
+
+// Quiz Pane (right-pane tab and phone full-screen sheet)
+.quiz-pane {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: auto;
+  padding: 12px;
+
+  &--message {
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    gap: 12px;
+    color: var(--text-secondary, #666);
+  }
+}
+
+// The phone sheet gives the quiz the full width.
+.mobile-topics-overlay__body .quiz-pane { padding: 0; }
+
+// The full-width Quiz page.
+.quiz-app {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+  max-width: 860px;
+  width: 100%;
+  margin: 0 auto;
+}

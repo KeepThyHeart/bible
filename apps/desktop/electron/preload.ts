@@ -1,13 +1,6 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron';
 import type { MenuSpec } from './menu/menuSpec';
 import type {
-  QuizCatalog,
-  QuizPassage,
-  QuizFilter,
-  QuizQuestion,
-  QuizItemStat,
-  QuizAttempt,
-  QuizSessionSummary,
   NotificationSettings,
   NotificationDeviceSettings,
   NotificationsViewState,
@@ -225,16 +218,6 @@ export interface ElectronAPI {
     getVersesForEntity: (entityId: string, category: string) => Promise<Result<any[]>>;
     getFacetsForEntity: (entityId: string, category: string) => Promise<Result<any[]>>;
     getGenealogyDataset: () => Promise<Result<any | null>>;
-  };
-
-  // Quiz (task 0074): questions from every installed quiz module; progress in the user database.
-  quiz: {
-    getCatalog: () => Promise<Result<QuizCatalog>>;
-    getQuestions: (passages: QuizPassage[], filter?: QuizFilter) => Promise<Result<QuizQuestion[]>>;
-    getStats: (keys: string[]) => Promise<Result<Record<string, QuizItemStat>>>;
-    recordAttempt: (attempt: QuizAttempt) => Promise<Result<void>>;
-    recordSession: (summary: QuizSessionSummary) => Promise<Result<void>>;
-    listSessions: (limit?: number) => Promise<Result<QuizSessionSummary[]>>;
   };
 
   // Cross-reference methods. Replies use the `Result<T>` envelope;
@@ -925,15 +908,6 @@ const electronAPI: ElectronAPI = {
       ipcRenderer.invoke('tagGraph:getFacetsForEntity', entityId, category),
     getGenealogyDataset: () =>
       ipcRenderer.invoke('tagGraph:getGenealogyDataset'),
-  },
-
-  quiz: {
-    getCatalog: () => ipcRenderer.invoke('quiz:getCatalog'),
-    getQuestions: (passages: QuizPassage[], filter?: QuizFilter) => ipcRenderer.invoke('quiz:getQuestions', passages, filter),
-    getStats: (keys: string[]) => ipcRenderer.invoke('quiz:getStats', keys),
-    recordAttempt: (attempt: QuizAttempt) => ipcRenderer.invoke('quiz:recordAttempt', attempt),
-    recordSession: (summary: QuizSessionSummary) => ipcRenderer.invoke('quiz:recordSession', summary),
-    listSessions: (limit?: number) => ipcRenderer.invoke('quiz:listSessions', limit),
   },
 
   crossReference: {

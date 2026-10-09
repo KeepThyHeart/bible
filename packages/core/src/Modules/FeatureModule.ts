@@ -11,7 +11,8 @@
  *    wrong platform, a required module off) loads no code and registers no
  *    contributions.
  * 2. Code loads on an activation event: `onApp:<id>`, `onCommand:<id>`,
- *    `onVerseAction:<id>`, `onPanel:<type>`, `onSetting:<key>`, or the
+ *    `onVerseAction:<id>`, `onPanel:<type>`, `onSetting:<key>`, `onView:<name>` (a host
+ *    view that has module slots mounted, e.g. the phone Study pane), or the
  *    explicit opt-in `onStartupFinished`. Every contributed app, verse action
  *    and command adds its own event implicitly (`onApp:present`). There is no
  *    `*` and no eager default.
@@ -96,7 +97,7 @@ export const WIRED_CONTRIBUTION_KEYS: readonly ContributesKey[] = [
 // --- Activation events ------------------------------------------------------
 
 /** Event prefixes; the part after the colon is a contributed id, panel type or setting key. */
-export const ACTIVATION_EVENT_PREFIXES = ['onApp:', 'onCommand:', 'onVerseAction:', 'onPanel:', 'onSetting:'] as const;
+export const ACTIVATION_EVENT_PREFIXES = ['onApp:', 'onCommand:', 'onVerseAction:', 'onPanel:', 'onSetting:', 'onView:'] as const;
 
 /** Bare events. Only ever opt-in. */
 export const BARE_ACTIVATION_EVENTS = ['onStartupFinished'] as const;
@@ -107,6 +108,7 @@ export type ActivationEvent =
   | `onVerseAction:${string}`
   | `onPanel:${string}`
   | `onSetting:${string}`
+  | `onView:${string}`
   | (typeof BARE_ACTIVATION_EVENTS)[number];
 
 export function isActivationEvent(value: string): value is ActivationEvent {

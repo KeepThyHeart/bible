@@ -12,14 +12,12 @@ import { registerCrossReferenceHandlers, closeXrefDbs } from './ipc/crossReferen
 import { registerXrefGraphHandlers } from './ipc/xrefGraphHandlers';
 import { registerSimilarHandlers } from './ipc/similarHandlers';
 import { registerTagGraphHandlers, closeTagGraphDb } from './ipc/tagGraphHandlers';
-import { registerQuizHandlers, closeQuizDbs } from './ipc/quizHandlers';
 import { registerSearchHandlers, closeSearchDb } from './ipc/searchHandlers';
 import { registerSessionHandlers, closeSessionDb } from './ipc/sessionHandlers';
 import { registerNotesHandlers, initializeNotesDatabase, closeNotesDatabase } from './ipc/notesHandlers';
 import { registerCollectionHandlers, closeCollectionService } from './ipc/collectionHandlers';
 import { registerKeywordHandlers, resetKeywordStore } from './ipc/keywordHandlers';
 import { registerNoteDirectionHandlers, resetNoteDirectionStore } from './ipc/noteDirectionHandlers';
-import { registerReadingPlanHandlers, resetReadingPlanStore } from './ipc/readingPlanHandlers';
 import { registerHighlightHandlers, initializeHighlightRepository, closeHighlightRepository } from './ipc/highlightHandlers';
 import { registerModuleHandlers, closeModuleManager, buildMissingKeywordIndexesInBackground } from './ipc/moduleHandlers';
 import { configureDesktopKeywordSearch } from './services/KeywordIndexService';
@@ -633,7 +631,6 @@ const registerAllHandlersOnce = runOnce(() => {
   registerHighlightHandlers();
   registerKeywordHandlers();
   registerNoteDirectionHandlers();
-  registerReadingPlanHandlers();
   registerNotificationHandlers(() => reminderHost);
   registerModuleHandlers(ipcMain);
   registerFeaturePackHandlers(ipcMain);
@@ -644,11 +641,10 @@ const registerAllHandlersOnce = runOnce(() => {
   registerXrefGraphHandlers(ipcMain);
   registerSimilarHandlers(ipcMain);
   registerTagGraphHandlers(ipcMain);
-  registerQuizHandlers(ipcMain);
   registerStudyHandlers(ipcMain);
   registerWordStudyHandlers(ipcMain);
-  // Feature modules (task 0113): enabled modules' main-process code, loaded lazily. The table is
-  // empty until features migrate; handlers are registered before the window loads in the common
+  // Feature modules (task 0113): enabled modules' main-process code, loaded lazily. Quiz and
+  // Reading plans live here; handlers are registered before the window loads in the common
   // case, and a failure here must never block startup.
   mainModulesReady = registerMainModules(
     ipcMain,
@@ -1490,7 +1486,6 @@ app.on('quit', () => {
   stopStudyCacheSweep();
   closeStudyCache();
   closeTagGraphDb();
-  closeQuizDbs();
   closeSearchDb();
   closeSessionDb();
   closeNotesDatabase();
@@ -1498,7 +1493,6 @@ app.on('quit', () => {
   closeHighlightRepository();
   resetKeywordStore();
   resetNoteDirectionStore();
-  resetReadingPlanStore();
   closeModuleManager();
   closeFeaturePackHandlers();
 

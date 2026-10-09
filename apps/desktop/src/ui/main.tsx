@@ -14,7 +14,7 @@ import { appHost, appRegistry } from './apps/appHost';
 import { registerBuiltinApps } from './apps/builtinApps';
 import { registerBuiltinModules } from './modules/builtinModules';
 import { bindModuleHostServices } from './modules/host/hostServices';
-import { fireActivation, modulePoints, setWhenEvaluator } from './modules/moduleHost';
+import { bindNamespaceLoader, fireActivation, modulePoints, setWhenEvaluator } from './modules/moduleHost';
 import { bindModuleNamespaces } from './modules/host/i18nNamespaces';
 import { installAppCommands, APP_OPEN_PREFIX } from './apps/appCommands';
 import { installExtensionVerseActions } from './apps/verseActions';
@@ -79,6 +79,7 @@ setWhenEvaluator((expression) => services.whenContext.evaluate(expression));
 registerBuiltinModules();
 const catalogLoader = new LocaleCatalogLoader(services.i18n);
 bindModuleNamespaces(modulePoints.i18nNamespace, catalogLoader);
+bindNamespaceLoader((ns) => catalogLoader.loadNamespace(ns));
 void catalogLoader
   .loadAll()
   .then(() => restorePersistedLocale(services.i18n))

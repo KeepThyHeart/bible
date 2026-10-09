@@ -37,6 +37,8 @@ export interface PaneModeContribution extends ContributionItem {
   readonly restorable?: boolean;
   /** Also a view of the phone layout (default false). */
   readonly phoneView?: boolean;
+  /** Once opened, the pane stays mounted (hidden) while another tab is active, so its state survives tab switches (default false). */
+  readonly keepMounted?: boolean;
 }
 
 /** What a new-tab tile opens. */

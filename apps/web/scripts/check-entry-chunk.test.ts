@@ -54,6 +54,13 @@ describe('checkReport', () => {
     expect(ok.ok).toBe(true);
   });
 
+  it('allows only the Quiz manifest and binding in the entry graph', () => {
+    const r = checkReport({ chunks: [
+      entry(['src/main.tsx', 'src/modules/quiz/manifest.ts', 'src/modules/quiz/binding.ts', 'src/modules/quiz/QuizPane.tsx', 'src/modules/quiz/module.ts']),
+    ] });
+    expect(r.offenders.map((o: { module: string }) => o.module)).toEqual(['src/modules/quiz/QuizPane.tsx', 'src/modules/quiz/module.ts']);
+  });
+
   it('errors when there is no entry chunk', () => {
     expect(checkReport({ chunks: [] }).ok).toBe(false);
   });

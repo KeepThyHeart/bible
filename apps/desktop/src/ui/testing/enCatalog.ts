@@ -27,6 +27,8 @@ import layout from '../../../locales/en/layout.json';
 import mainProcess from '../../../locales/en/main.json';
 import menu from '../../../locales/en/menu.json';
 import meta from '../../../locales/en/meta.json';
+import quizPane from '../../../locales/en/quizPane.json';
+import readingPlans from '../../../locales/en/readingPlans.json';
 import searchBar from '../../../locales/en/searchBar.json';
 import timeline from '../../../locales/en/timeline.json';
 import ui from '../../../locales/en/ui.json';
@@ -53,6 +55,8 @@ export function loadEnCatalog(): Record<string, string> {
     ...(mainProcess as Record<string, string>),
     ...(menu as Record<string, string>),
     ...(meta as Record<string, string>),
+    ...(quizPane as Record<string, string>),
+    ...(readingPlans as Record<string, string>),
     ...(searchBar as Record<string, string>),
     ...(timeline as Record<string, string>),
     ...(ui as Record<string, string>),

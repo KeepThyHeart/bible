@@ -32,6 +32,20 @@ const BUILTIN_GLYPHS: Record<string, React.ReactNode> = {
       <path d="m7 21 5-5 5 5" />
     </>
   ),
+  'circle-question': (
+    <>
+      <circle cx="12" cy="12" r="10" />
+      <path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3" />
+      <path d="M12 17h.01" />
+    </>
+  ),
+  'calendar-check': (
+    <>
+      <rect x="3" y="4" width="18" height="18" rx="2" />
+      <path d="M16 2v4M8 2v4M3 10h18" />
+      <path d="m9 16 2 2 4-4" />
+    </>
+  ),
   /** The generic fallback: a rounded square tile. */
   app: (
     <>

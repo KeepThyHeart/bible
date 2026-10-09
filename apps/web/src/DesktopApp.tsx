@@ -151,12 +151,13 @@ export function DesktopApp({ providers }: DesktopAppProps) {
     commentaryStore.reconcilePaneMode(paneMode, paneAvailable);
   }, [paneMode, shared.rightPaneMode, paneModes, similarAvailable]);
 
-  // Once opened, the Quiz pane stays mounted (hidden) while another tab is active,
-  // so switching tabs does not lose a quiz in progress.
-  const [quizOpened, setQuizOpened] = useState(false);
+  // A pane mode with `keepMounted` stays mounted (hidden) once opened while another tab is
+  // active, so switching tabs does not lose its state (a quiz in progress).
+  const [opened, setOpened] = useState<ReadonlySet<string>>(new Set());
   useEffect(() => {
-    if (paneMode === 'quiz') setQuizOpened(true);
-  }, [paneMode]);
+    if (opened.has(paneMode)) return;
+    if (paneModes.some((m) => m.id === paneMode && m.keepMounted)) setOpened((prev) => new Set(prev).add(paneMode));
+  }, [paneMode, paneModes, opened]);
 
   const showRightPane = !shared.collapsed;
   const paneProps: PaneViewProps = {
@@ -249,9 +250,9 @@ export function DesktopApp({ providers }: DesktopAppProps) {
                 </button>
               </div>
               {paneModes.filter((m) => paneAvailable(m.id)).map((m) =>
-                m.id === 'quiz' ? (
-                  quizOpened || paneMode === 'quiz' ? (
-                    <div key={m.id} class="quiz-pane-host" hidden={paneMode !== 'quiz'}>
+                m.keepMounted ? (
+                  opened.has(m.id) || paneMode === m.id ? (
+                    <div key={m.id} class="pane-keep-mounted" hidden={paneMode !== m.id}>
                       <PaneBody id={m.id} props={paneProps} />
                     </div>
                   ) : null

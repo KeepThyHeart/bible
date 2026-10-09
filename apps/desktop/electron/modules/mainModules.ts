@@ -21,15 +21,19 @@ import {
 import type { FeatureMainModule, MainModuleDeps } from './FeatureMainModule';
 import { createModuleIpc, type IpcMainLike } from './moduleIpc';
 import { timelineMainManifest } from './timeline/manifest';
+import { quizMainManifest } from './quiz/manifest';
+import { readingPlansMainManifest } from './reading-plans/manifest';
 
 export interface MainModuleEntry {
   readonly manifest: FeatureModuleManifest;
   readonly load: () => Promise<{ default: FeatureMainModule }>;
 }
 
-/** Production table: one line per migrated feature. */
+/** Production table: one line per migrated module. */
 export const MAIN_MODULES: readonly MainModuleEntry[] = [
   { manifest: timelineMainManifest, load: () => import('./timeline/module') },
+  { manifest: quizMainManifest, load: () => import('./quiz') },
+  { manifest: readingPlansMainManifest, load: () => import('./reading-plans') },
 ];
 
 export interface RegisterMainModulesOptions {

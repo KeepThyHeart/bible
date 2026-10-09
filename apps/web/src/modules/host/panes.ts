@@ -2,7 +2,7 @@
  * The web right-pane modes as feature-module data (task 0113, phase 1).
  *
  * `hostPanesManifest` declares the panes that exist for everybody; the flagged
- * ones (quiz) are separate small manifests so their flag keeps gating
+ * ones are their own modules (quiz, timeline), so their flag keeps gating
  * exactly the contribution that is flag-specific. Phase 2 splits the rest.
  *
  * Ids are persisted (`rightPaneMode`): never rename. 'search' is not a pane
@@ -11,7 +11,6 @@
  * Entry-chunk code: no component is imported statically; each view is a lazy
  * loader. A view module's default export is a component taking `PaneViewProps`.
  */
-import { createElement } from 'preact';
 import type { FeatureModuleBinding, FeatureModuleManifest } from '@bible/core/browser';
 import type { IDataProviders } from '../../providers/interfaces';
 
@@ -60,14 +59,6 @@ export const hostPanesManifest: FeatureModuleManifest = {
   },
 };
 
-export const quizPaneManifest: FeatureModuleManifest = {
-  id: 'quiz-pane',
-  flag: 'quiz',
-  contributes: { paneModes: [{ id: 'quiz', title: title('quiz', 'Quiz'), order: 50 }] },
-};
-
-type P = PaneViewProps;
-const h = createElement as unknown as (c: unknown, p: unknown) => unknown;
 
 /**
  * The always-there panes have no lazy view: the Study app renders them
@@ -79,18 +70,7 @@ const h = createElement as unknown as (c: unknown, p: unknown) => unknown;
  */
 export const hostPanesBinding: FeatureModuleBinding = { id: 'host-panes' };
 
-export const quizPaneBinding: FeatureModuleBinding = {
-  id: 'quiz-pane',
-  views: {
-    'pane:quiz': () =>
-      import('../../components/QuizPane/QuizPane').then((m) => ({
-        default: (_p: P) => h(m.QuizPane, {}),
-      })),
-  },
-};
-
 /** The entries to add to BUILTIN_MODULES, in order. */
 export const hostPanesModules: ReadonlyArray<readonly [FeatureModuleManifest, FeatureModuleBinding]> = [
   [hostPanesManifest, hostPanesBinding],
-  [quizPaneManifest, quizPaneBinding],
 ];

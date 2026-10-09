@@ -174,78 +174,6 @@
     "similar": "مشابه",
     "wordStudy": "دراسة الكلمة"
   },
-  "quiz": {
-    "title": "اختبار",
-    "intro": "اختبر ما تتذكره وما تفهمه من مقطع.",
-    "scopeHeading": "موضوع الاختبار",
-    "scopeToday": "قراءة اليوم ({label})",
-    "scopeChapter": "هذا الأصحاح ({label})",
-    "scopePassage": "اختيار مقطع",
-    "book": "السفر",
-    "fromChapter": "من الأصحاح",
-    "toChapter": "إلى الأصحاح",
-    "countHeading": "الأسئلة",
-    "difficultyHeading": "الصعوبة",
-    "difficultyMixed": "متنوعة",
-    "difficultyEasy": "سهلة",
-    "difficultyMedium": "متوسطة",
-    "difficultyHard": "صعبة",
-    "start": "ابدأ الاختبار",
-    "noQuestionsHere": "لا توجد أسئلة لـ {label} بعد.",
-    "questionsAvailable": "{count} أسئلة",
-    "loading": "جارٍ تحميل أسئلة الاختبار...",
-    "progress": "السؤال {n} من {total}",
-    "check": "تحقّق",
-    "next": "التالي",
-    "finish": "عرض النتائج",
-    "skip": "تخطَّ",
-    "quit": "إنهاء الاختبار",
-    "showAnswer": "إظهار الإجابة",
-    "yourAnswer": "إجابتك",
-    "answerPlaceholder": "اكتب إجابتك",
-    "modelAnswer": "الإجابة",
-    "selfGradePrompt": "كيف كان أداؤك؟",
-    "gotIt": "أصبت",
-    "partly": "جزئيًا",
-    "missed": "أخطأت",
-    "correct": "صحيح",
-    "incorrect": "ليس تمامًا",
-    "correctAnswerIs": "الإجابة: {answer}",
-    "countAsCorrect": "كنت على صواب",
-    "reflectionHint": "لا توجد إجابة صحيحة أو خاطئة: تأمّل في الأمر، أو اكتب بضع كلمات.",
-    "reflectionPlaceholder": "اكتب بضع كلمات (اختياري)",
-    "continue": "متابعة",
-    "openPassage": "اقرأ {reference}",
-    "kinds": {
-      "recall": "الحفظ",
-      "comprehension": "الفهم",
-      "application": "التطبيق"
-    },
-    "difficultyBadge": {
-      "1": "سهلة",
-      "2": "متوسطة",
-      "3": "صعبة"
-    },
-    "summaryTitle": "النتائج",
-    "score": "{correct} من {graded} صحيحة",
-    "scorePartly": "{partly} جزئيًا",
-    "noneGraded": "لم يُقيَّم أي شيء في هذا الاختبار.",
-    "missedHeading": "للمراجعة",
-    "retryMissed": "أعد الأسئلة التي أخطأت فيها",
-    "newQuiz": "اختبار جديد",
-    "sameAgain": "اختبار آخر في {label}",
-    "historyHeading": "الاختبارات الأخيرة",
-    "historyEntry": "{label}: {correct}/{graded} ({date})",
-    "sourcesHeading": "مصادر الأسئلة",
-    "unreviewed": "مسودة: لم تتم مراجعتها بعد",
-    "textBasis": "صيغت بحسب {translation}",
-    "error": "تعذّر تحميل الاختبار.",
-    "retry": "حاول مرة أخرى",
-    "noModule": "لا توجد أسئلة اختبار مثبَّتة.",
-    "loadError": "تعذّر تحميل الاختبار.",
-    "quizThisChapter": "اختبرني في هذا الأصحاح",
-    "close": "إغلاق"
-  },
   "mobileNav": {
     "home": "الرئيسية",
     "search": "بحث",
@@ -1418,6 +1346,9 @@
     "backToStudy": "العودة إلى الدراسة",
     "home": {
       "title": "التطبيقات"
+    },
+    "quiz": {
+      "title": "اختبار"
     }
   }
 }

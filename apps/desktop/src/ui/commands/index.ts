@@ -17,11 +17,10 @@ import { registerDictionaryCommands } from './dictionaryCommands';
 import { registerNotesCommands } from './notesCommands';
 import { registerBookmarkCommands } from './bookmarkCommands';
 import { registerPrayerCommands } from './prayerCommands';
+import { bindModuleCommands } from '../modules/moduleHost';
 import { registerStudyCommands } from './studyCommands';
 import { registerTopicsCommands } from './topicsCommands';
 import { registerWordStudyCommands } from './wordStudyCommands';
-import { registerReadingPlanCommands } from './readingPlanCommands';
-import { registerQuizCommands } from './quizCommands';
 import { registerSearchCommands } from './searchCommands';
 import { registerViewCommands } from './viewCommands';
 import { registerLayoutCommands } from './layoutCommands';
@@ -36,6 +35,7 @@ import { registerSimilarCommands } from './similarCommands';
 
 export function registerBuiltinCommands(registry: ICommandRegistry): IDisposable {
   const all: IDisposable[] = [
+    bindModuleCommands(registry), // feature modules' commands follow their modules
     ...registerBibleCommands(registry),
     ...registerCommentaryCommands(registry),
     ...registerBookCommands(registry),
@@ -46,8 +46,6 @@ export function registerBuiltinCommands(registry: ICommandRegistry): IDisposable
     ...registerStudyCommands(registry),
     ...registerTopicsCommands(registry),
     ...registerWordStudyCommands(registry),
-    ...registerReadingPlanCommands(registry),
-    ...registerQuizCommands(registry),
     ...registerSearchCommands(registry),
     ...registerViewCommands(registry),
     ...registerLayoutCommands(registry),

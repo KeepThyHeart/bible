@@ -9,11 +9,10 @@ import {
 } from '@bible/core/browser';
 import { validateManifest } from '@bible/core/Extensions/ExtensionManifestValidator';
 import type { FeatureModuleManifest } from '@bible/core/browser';
-import { hostPanelsBinding, hostPanelsManifest } from './panels';
+import { hostPanelsManifest } from './panels';
 import { CORE_PANEL_TYPES } from '../../stores/useLayoutStore';
+import { BUILTIN_MODULES } from '../builtinModules';
 import { sanitizeDockviewState } from '../../services/LayoutStateSanitizer';
-import { genealogyManifest } from '../genealogy/manifest';
-import { timelineManifest } from '../timeline/manifest';
 
 function layoutNaming(types: string[], component = 'panelContent'): SerializedDockview {
   const panels: Record<string, unknown> = {};
@@ -34,15 +33,12 @@ function layoutNaming(types: string[], component = 'panelContent'): SerializedDo
 }
 
 describe('host panel types manifest', () => {
-  // Genealogy and timeline moved into their own modules (task 0124): the 16 persisted ids are the three manifests together.
-  const MOVED = ['genealogy', 'timeline'];
-  it('declares exactly the persisted ids that no module owns, once each', () => {
-    const ids = (hostPanelsManifest.contributes.panelTypes ?? []).map((p) => p.id);
-    const hosted = CORE_PANEL_TYPES.filter((t) => !MOVED.includes(t));
-    expect([...ids].sort()).toEqual([...hosted].sort());
-    expect(Object.keys(hostPanelsBinding.views ?? {}).sort()).toEqual(hosted.map((t) => `panel:${t}`).sort());
-    const owned = [genealogyManifest, timelineManifest].flatMap((m) => (m.contributes.panelTypes ?? []).map((p) => p.id));
-    expect([...ids, ...owned].sort()).toEqual([...CORE_PANEL_TYPES].sort());
+  it('declares, with the feature modules, exactly the 16 persisted ids, once each', () => {
+    // Panel types of migrated features live in their own module manifests (e.g. quiz).
+    const ids = BUILTIN_MODULES.flatMap((m) => (m.manifest.contributes.panelTypes ?? []).map((p) => p.id));
+    expect([...ids].sort()).toEqual([...CORE_PANEL_TYPES].sort());
+    const views = BUILTIN_MODULES.flatMap((m) => Object.keys(m.binding?.views ?? {}).filter((k) => k.startsWith('panel:')));
+    expect(views.sort()).toEqual(CORE_PANEL_TYPES.map((t) => `panel:${t}`).sort());
     expect(hostPanelsManifest.id).toBe('host');
     expect(hostPanelsManifest.flag).toBeUndefined();
     expect(hostPanelsManifest.platforms).toEqual(['desktop']);

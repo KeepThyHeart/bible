@@ -25,9 +25,27 @@ describe('desktop renderer boot with a module disabled', () => {
 
   it('drops the disabled module\'s contributions and keeps the other module\'s', async () => {
     const { modulePoints, featureModules } = await boot('-host');
-    // genealogy and timeline are their own modules, so they stay when `host` is off
-    expect(modulePoints.panelTypes.list().map((p) => p.id)).toEqual(['genealogy', 'timeline']);
+    // Only the host's panel types are gone; migrated feature modules keep theirs.
+    expect(modulePoints.panelTypes.has('bible')).toBe(false);
+    for (const id of ['genealogy', 'timeline', 'reading-plans', 'quiz']) expect(modulePoints.panelTypes.has(id)).toBe(true);
     expect(modulePoints.newTabTiles.list().length).toBeGreaterThan(0);
     expect(featureModules.list().find((m) => m.id === 'host')).toMatchObject({ enabled: false, offReason: 'override' });
+  }, 60_000);
+});
+
+describe('desktop dev runtime off switch', () => {
+  it('window.kthModules.disable removes a module\'s app and commands and enable restores them', async () => {
+    vi.resetModules();
+    const { registerBuiltinModules } = await import('./builtinModules');
+    const host = await import('./moduleHost');
+    const { appRegistry } = await import('../apps/appHost');
+    registerBuiltinModules();
+    expect(appRegistry.has('quiz')).toBe(true);
+    const k = (window as unknown as { kthModules: { disable(id: string): void; enable(id: string): void } }).kthModules;
+    k.disable('quiz');
+    expect(appRegistry.has('quiz')).toBe(false);
+    k.enable('quiz');
+    expect(appRegistry.has('quiz')).toBe(true);
+    expect(host.featureModules.isEnabled('quiz')).toBe(true);
   }, 60_000);
 });

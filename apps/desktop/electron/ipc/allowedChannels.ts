@@ -36,17 +36,6 @@ export const ALLOWED_IPC_CHANNELS = [
   // Per-note default text direction (task 0076)
   'note-direction:get',
   'note-direction:set',
-  // Reading plans (task 0073)
-  'reading-plans:list-plans',
-  'reading-plans:get-plan',
-  'reading-plans:put-plan',
-  'reading-plans:remove-plan',
-  'reading-plans:put-snapshot',
-  'reading-plans:list-enrollments',
-  'reading-plans:put-enrollment',
-  'reading-plans:remove-enrollment',
-  'reading-plans:list-completions',
-  'reading-plans:set-completions',
   // Notes
   'notes:get-by-id',
   'notes:get-all',
@@ -285,13 +274,6 @@ export const TYPED_IPC_CHANNELS = [
   'tagGraph:getVersesForEntity',
   'tagGraph:getFacetsForEntity',
   'tagGraph:getGenealogyDataset',
-  // Quiz (task 0074)
-  'quiz:getCatalog',
-  'quiz:getQuestions',
-  'quiz:getStats',
-  'quiz:recordAttempt',
-  'quiz:recordSession',
-  'quiz:listSessions',
   // Cross-references
   'xref:getAvailable',
   'xref:getGroupsForVerse',

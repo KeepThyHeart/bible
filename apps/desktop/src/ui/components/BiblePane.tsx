@@ -9,7 +9,7 @@ import { BiblePaneProvider } from './BiblePaneContext';
 import BibleToolbar from './BibleToolbar';
 import PreviewBackBar from './bible/PreviewBackBar';
 import BibleVerseList from './BibleVerseList';
-import ReadingPlanBar from './ReadingPlans/ReadingPlanBar';
+import { ReaderBars } from '../modules/host/slots';
 
 // Cross-cutting hooks (live in src/ui/hooks)
 import { useBibleScrolling } from '../hooks/useBibleScrolling';
@@ -253,7 +253,7 @@ const BiblePane: React.FC<BiblePaneProps> = (props) => {
           onDismiss={handleDismissBackBar}
         />
         <BibleToolbar />
-        <ReadingPlanBar currentBook={currentBook} currentChapter={currentChapter} />
+        <ReaderBars currentBook={currentBook} currentChapter={currentChapter} />
         <BibleVerseList />
 
         <BiblePaneOverlays

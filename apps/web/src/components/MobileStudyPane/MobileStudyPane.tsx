@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'preact/hooks';
+import { useEffect, useRef } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { StudyVerseHeader } from './StudyVerseHeader';
 import { StudyCrossRefs } from '../StudyPane/StudyCrossRefs';
@@ -14,15 +14,12 @@ import { useVerseNavigation } from '../../hooks/useVerseNavigation';
 import { formatPassageRef } from '../../constants';
 import { parseVerseId } from '../../utils/verseId';
 import { getSyncStatus } from '../../utils/syncStatus';
-import { isEnabled } from '../../utils/featureFlags';
 import { isTagGraphEnabled } from '../../utils/clientConfig';
-import { Suspense, lazy } from 'preact/compat';
+import { SlotOutlet, studyPaneSections } from '../../host/slots';
+import { fireActivation } from '../../modules/moduleHost';
 import { commentaryStore } from '../../stores/commentaryStore';
 import type { IDataProviders } from '../../providers/interfaces';
 
-// Loaded when their sheet first opens. A static import here would also split them out of
-// the Study chunk (they are lazy pane views too) and fetch them on every boot (task 0123).
-const QuizPane = lazy(() => import('../QuizPane/QuizPane').then((m) => ({ default: m.QuizPane })));
 
 interface MobileStudyPaneProps {
   providers: IDataProviders;
@@ -52,8 +49,6 @@ export function MobileStudyPane({ providers, onStrongsClick, onStrongsHover, onS
   const verseEntities = useStore(studyStore, () => studyStore.verseEntities);
   const topicsLoading = useStore(studyStore, () => studyStore.topicsLoading);
 
-  const showQuiz = isEnabled('quiz');
-  const [quizOpen, setQuizOpen] = useState(false);
 
   // Build verse label
   let verseLabel = '';
@@ -93,6 +88,10 @@ export function MobileStudyPane({ providers, onStrongsClick, onStrongsHover, onS
     bibleStore.navigateToPreview(bookNumber, chapter, verse);
   };
 
+  // Feature modules add their sections through a slot; wake the ones listening for this view.
+  useEffect(() => {
+    fireActivation('onView:studyPane.sections');
+  }, []);
   // Close the overlays on unmount
   const paneRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -179,22 +178,8 @@ export function MobileStudyPane({ providers, onStrongsClick, onStrongsHover, onS
         {/* Sections feature modules contribute (family tree, timeline, ...) */}
         {moduleSections.map((m) => m.Section && <m.Section key={m.id} />)}
 
-        {/* Quiz Section: opens a full-screen sheet that starts a quiz on the current chapter */}
-        {showQuiz && (
-          <div class="mobile-study-section">
-            <div class="mobile-study-section__header">
-              <i class="fa-solid fa-circle-question" /> {t('quiz.title')}
-            </div>
-            <div class="mobile-study-section__content">
-              <button
-                class="mobile-study-section__browse-link"
-                onClick={() => setQuizOpen(true)}
-              >
-                <i class="fa-solid fa-arrow-up-right-from-square" /> {t('quiz.quizThisChapter')}
-              </button>
-            </div>
-          </div>
-        )}
+        {/* Sections added by active feature modules */}
+        <SlotOutlet slot={studyPaneSections} />
 
         {/* Interlinear Section */}
         <div class="mobile-study-section">
@@ -206,23 +191,6 @@ export function MobileStudyPane({ providers, onStrongsClick, onStrongsHover, onS
           </div>
         </div>
       </div>
-
-      {/* Quiz full-screen sheet (mounted only while open: the catalog loads on first open and the quiz starts on the current chapter) */}
-      {showQuiz && quizOpen && (
-        <div class="mobile-topics-overlay">
-          <div class="mobile-topics-overlay__header">
-            <button class="mobile-topics-overlay__close" onClick={() => setQuizOpen(false)} aria-label={t('quiz.close')}>
-              <i class="fa-solid fa-xmark" />
-            </button>
-            <span class="mobile-topics-overlay__title">
-              <span class="mobile-topics-overlay__pane-label">{t('studyPane.study')}</span> {t('quiz.title')}
-            </span>
-          </div>
-          <div class="mobile-topics-overlay__body">
-            <Suspense fallback={null}><QuizPane startOnCurrentChapter onPassageOpened={() => setQuizOpen(false)} /></Suspense>
-          </div>
-        </div>
-      )}
 
       {/* Topics Browser full-screen overlay */}
       {topicsBrowserOpen && (

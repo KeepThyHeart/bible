@@ -174,78 +174,6 @@
     "similar": "相似经文",
     "wordStudy": "词语"
   },
-  "quiz": {
-    "title": "测验",
-    "intro": "检验你对经文段落的记忆与理解。",
-    "scopeHeading": "测验范围",
-    "scopeToday": "今日读经（{label}）",
-    "scopeChapter": "本章（{label}）",
-    "scopePassage": "选择经文段落",
-    "book": "书卷",
-    "fromChapter": "起始章",
-    "toChapter": "结束章",
-    "countHeading": "题数",
-    "difficultyHeading": "难度",
-    "difficultyMixed": "混合",
-    "difficultyEasy": "简单",
-    "difficultyMedium": "中等",
-    "difficultyHard": "困难",
-    "start": "开始测验",
-    "noQuestionsHere": "{label}暂无题目。",
-    "questionsAvailable": "{count} 道题",
-    "loading": "正在加载测验题目...",
-    "progress": "第 {n} 题，共 {total} 题",
-    "check": "核对",
-    "next": "下一题",
-    "finish": "查看结果",
-    "skip": "跳过",
-    "quit": "结束测验",
-    "showAnswer": "显示答案",
-    "yourAnswer": "你的答案",
-    "answerPlaceholder": "输入你的答案",
-    "modelAnswer": "答案",
-    "selfGradePrompt": "你答得怎么样？",
-    "gotIt": "答对了",
-    "partly": "部分正确",
-    "missed": "答错了",
-    "correct": "正确",
-    "incorrect": "不太对",
-    "correctAnswerIs": "答案：{answer}",
-    "countAsCorrect": "我答对了",
-    "reflectionHint": "这里没有对错之分：想一想，或写几句话。",
-    "reflectionPlaceholder": "写几句话（可选）",
-    "continue": "继续",
-    "openPassage": "阅读{reference}",
-    "kinds": {
-      "recall": "记忆",
-      "comprehension": "理解",
-      "application": "应用"
-    },
-    "difficultyBadge": {
-      "1": "简单",
-      "2": "中等",
-      "3": "困难"
-    },
-    "summaryTitle": "结果",
-    "score": "答对 {correct} 题，共 {graded} 题",
-    "scorePartly": "部分正确 {partly} 题",
-    "noneGraded": "本次测验没有评分。",
-    "missedHeading": "待复习",
-    "retryMissed": "重做答错的题",
-    "newQuiz": "新测验",
-    "sameAgain": "再测一次{label}",
-    "historyHeading": "最近的测验",
-    "historyEntry": "{label}：{correct}/{graded}（{date}）",
-    "sourcesHeading": "题目来源",
-    "unreviewed": "草稿：尚未审核",
-    "textBasis": "措辞依据{translation}",
-    "error": "无法加载测验。",
-    "retry": "重试",
-    "noModule": "尚未安装测验题目。",
-    "loadError": "无法加载测验。",
-    "quizThisChapter": "测验本章",
-    "close": "关闭"
-  },
   "mobileNav": {
     "home": "首页",
     "search": "搜索",
@@ -1418,6 +1346,9 @@
     "backToStudy": "返回研读",
     "home": {
       "title": "应用"
+    },
+    "quiz": {
+      "title": "测验"
     }
   }
 }

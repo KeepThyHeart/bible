@@ -28,6 +28,11 @@ const OLD_KEYWORDS: Record<string, string> = {
   genealogy: 'genealogy', family: 'genealogy', timeline: 'timeline', plans: 'reading-plans', plan: 'reading-plans',
   reading: 'reading-plans', quiz: 'quiz',
 };
+/** Tiles that moved into their feature module's own manifest (their tests live with the module). */
+const MIGRATED_TILES = ['quiz', 'reading-plans'];
+const HOST_TILES = OLD_TILES.filter((t) => !MIGRATED_TILES.includes(t));
+const without = (map: Record<string, string>): Record<string, string> =>
+  Object.fromEntries(Object.entries(map).filter(([, v]) => !MIGRATED_TILES.includes(v)));
 const OLD_SECTIONS = ['general', 'typography', 'fonts', 'themes', 'privacy', 'notifications', 'downloads', 'extensions', 'apps', 'measures', 'advanced', 'diagnostics'];
 
 function host(manifests: FeatureModuleManifest[]) {
@@ -46,12 +51,12 @@ describe('host-ui manifest', () => {
   it('registers tiles in the old order with the old keywords and titles', () => {
     const { points } = host([hostUiManifest, genealogyManifest, timelineManifest]);
     const tiles = points.newTabTiles.list();
-    expect(tiles.map((t) => ('panelType' in t.target ? t.target.panelType : ''))).toEqual(OLD_TILES);
-    expect(tiles.map((t) => ('key' in t.title ? OLD_TILE_KEYS[t.title.key] : ''))).toEqual(OLD_TILES);
+    expect(tiles.map((t) => ('panelType' in t.target ? t.target.panelType : ''))).toEqual(HOST_TILES);
+    expect(tiles.map((t) => ('key' in t.title ? OLD_TILE_KEYS[t.title.key] : ''))).toEqual(HOST_TILES);
     const map: Record<string, string> = {};
     for (const t of tiles) for (const k of t.keywords ?? []) map[k] = (t.target as { panelType: string }).panelType;
-    expect(map).toEqual(OLD_KEYWORDS);
-    expect(HOST_NEW_TAB_TILES).toHaveLength(OLD_TILES.length - 2);
+    expect(map).toEqual(without(OLD_KEYWORDS));
+    expect(HOST_NEW_TAB_TILES).toHaveLength(HOST_TILES.length - 2); // genealogy and timeline tiles come from their own modules
   });
 
   it('registers preferences sections in the old order, each with a lazy view', () => {

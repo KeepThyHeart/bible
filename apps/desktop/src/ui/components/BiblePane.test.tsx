@@ -98,7 +98,6 @@ vi.mock('../hooks/useBibleKeyboard', () => ({
 
 // Mock sub-components
 vi.mock('./BibleToolbar', () => ({ default: () => <div data-testid="bible-toolbar">Toolbar</div> }));
-vi.mock('./ReadingPlans/ReadingPlanBar', () => ({ default: () => null }));
 vi.mock('./BibleVerseList', () => ({ default: () => <div data-testid="bible-verse-list">VerseList</div> }));
 vi.mock('./BiblePaneOverlays', () => ({ default: () => <div data-testid="bible-overlays" /> }));
 // Stubbed like the other children: this suite is about what the pane composes,

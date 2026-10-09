@@ -11,7 +11,8 @@ import { createUnavailableRoutes } from './unavailableRoutes';
 import { clearRouteRegistry, getRegisteredRoutes, getRegisteredBodyParsers, listRoutes } from '../routes/routeRegistry';
 import { validateBuiltinManifest } from '../core';
 
-const flags = { isEnabled: () => true };
+// Other flagged modules (quiz) are kept off so these tests see only the Presenter's routes.
+const flags = { isEnabled: (f: string) => f !== 'quiz' };
 
 // Spies on the route files' side effects: module-level registration runs on first import only,
 // so each test resets the module graph and clears the registry.
