@@ -402,13 +402,6 @@ export const TYPED_IPC_CHANNELS = [
   'extensions:catalog:install',
   'extensions:blocklist:list',
   'extensions:blocklist:checkInstalled',
-  // Notifications (task 0083). Main -> renderer events: `notifications:state-changed`, `notifications:open-target`.
-  'notifications:get-state',
-  'notifications:set-settings',
-  'notifications:set-device',
-  'notifications:send-test',
-  'notifications:request-permission',
-  'notifications:take-open-target',
 ] as const;
 
 export type TypedIpcChannel = typeof TYPED_IPC_CHANNELS[number];

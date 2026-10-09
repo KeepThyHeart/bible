@@ -25,7 +25,7 @@ import { useAppServices } from '../contexts/ContextProvider';
 import { useTabKeyboardNav } from '../hooks/useTabKeyboardNav';
 import { PaneType } from '../stores/useTextSettingsStore';
 import { translateWithDefault } from '../utils/translateWithDefault';
-import { modulePoints } from '../modules/moduleHost';
+import { featureModules, modulePoints } from '../modules/moduleHost';
 import { useRegistryItems } from '../modules/host/useRegistry';
 import { preferencesSectionGlyphs, useSlot } from '../modules/host/slots';
 import { SECTION_ICONS } from './PreferencesDialog/sectionDefs';
@@ -46,7 +46,11 @@ function lazyView(id: string): React.LazyExoticComponent<React.ComponentType<Sec
   if (!loader) return undefined;
   let view = lazyViews.get(loader);
   if (!view) {
-    view = React.lazy(loader);
+    // Showing a section fires `onView:preferences.<id>`, so the module that owns it is active (and its strings loaded) first.
+    view = React.lazy(async () => {
+      await featureModules.fire(`onView:preferences.${id}`).catch(() => undefined);
+      return loader();
+    });
     lazyViews.set(loader, view);
   }
   return view;

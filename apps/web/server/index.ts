@@ -10,7 +10,6 @@ import { createServiceWorkerRoutes, pwaShell, readShell } from './middleware/ser
 import { createCompression } from './middleware/compression.js';
 import { createRateLimiter, tierForApiPath } from './middleware/rateLimiter.js';
 import { contentSecurityPolicyDirectives } from './cspDirectives.js';
-import { createAudioRouter } from './routes/audioRoutes.js';
 import { createAssetRouter } from './routes/assetRoutes.js';
 // Side-effect imports: each route file self-registers with the route registry
 import './routes/moduleRoutes.js';
@@ -404,6 +403,8 @@ const routeDeps = {
     // directory from here rather than reaching into DatabaseManager's private
     // field, and the privacy posture so they can honor 'strict'.
     dataDir,
+    // The directory the `audio` module serves at `/audio`.
+    audioDir: siteConfig.audio.dir,
     // Presentation sessions are state this instance owns and must not share:
     // two installs pointed at one content store must not see each other's live
     // sessions. See the dataDir/appStateDir note at the top of this file.
@@ -422,16 +423,9 @@ for (const reg of getRegisteredRoutes()) {
 // Paths of switched-off feature modules answer "not available" (after the password gate).
 app.use(createUnavailableRoutes());
 
-/**
- * Audio Bible files (recordings, TTS engine files) at `/audio`, when enabled.
- * After the password gate above, so they are as private as the rest of the app.
- * Not under `/api`, so the API rate limiter (which counts requests, not bytes)
- * does not apply to bulk media.
- */
-if (siteConfig.audio.enabled) {
-  app.use('/audio', createAudioRouter(siteConfig.audio.dir));
-  logger.info(`Audio Bible enabled; serving ${siteConfig.audio.dir} at /audio`);
-}
+// Audio Bible files (recordings, TTS engine files) are the `audio` server module's `/audio` route
+// (`modules/audio/routes.ts`), mounted above only while the module is on, so as private as the rest
+// of the app (after the password gate) and outside `/api`: the API rate limiter does not count bulk media.
 
 /**
  * Downloadable assets (speech models, data files) at `/assets/v1`. Same position as

@@ -16,6 +16,8 @@ import { xrefGraphModule } from './xref-graph/binding';
 import { wordStudyModule } from './word-study/binding';
 import { measuresModule } from './measures/binding';
 import { keywordMarksModule } from './keyword-marks/binding';
+import { notificationsModule } from './notifications/binding';
+import { downloadsModule } from './downloads/binding';
 import { addDesktopModule, fireStartupFinished, reconcileModules } from './moduleHost';
 import type { DesktopFeatureModule } from './moduleHost';
 
@@ -31,6 +33,8 @@ export const BUILTIN_MODULES: readonly DesktopFeatureModule[] = [
   wordStudyModule,
   measuresModule,
   keywordMarksModule,
+  downloadsModule,
+  notificationsModule,
 ];
 
 let registered = false;

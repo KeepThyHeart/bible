@@ -57,14 +57,11 @@ describe('host-ui manifest', () => {
       ['theme', 'settings.tabs.theme'],
       ['modules', 'settings.tabs.modules'],
       ['gestures', 'settings.tabs.gestures'],
-      ['audio', 'settings.tabs.audio'],
-      ['notifications', 'settings.tabs.notifications'],
-      ['offline', 'settings.tabs.offline'],
       ['apps', 'settings.apps.title'],
       ['about', 'settings.tabs.about'],
     ]);
     expect(HOME_TILES.length).toBe(2);
-    expect(SETTINGS_SECTIONS.length).toBe(9);
+    expect(SETTINGS_SECTIONS.length).toBe(6); // 'offline' comes from the downloads module, 'notifications' and 'audio' from their own
   });
 
   it('a disabled module\'s tiles, sections, status items and settings disappear', () => {

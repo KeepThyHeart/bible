@@ -18,9 +18,7 @@ import { CompanionSlot } from './host/CompanionSlot';
 import { AppSwitchSlot } from './host/AppSwitchSlot';
 import { PaneHeaderButtons } from './host/PaneHeaderButtons';
 import { LazyPane } from './modules/host/LazyPane';
-import { AudioMiniPlayer } from './components/AudioMiniPlayer';
-import { AudioPlayerScreen } from './components/AudioPlayerScreen';
-import { audioStore } from './stores/audioStore';
+import { StudyLayoutOutlet, phoneBackHandlers } from './host/slots';
 import { ContextMenuPopup } from './components/common/ContextMenuPopup';
 import { commentaryStore } from './stores/commentaryStore';
 import { fireActivation } from './modules/moduleHost';
@@ -46,8 +44,6 @@ interface MobileAppProps {
 export function MobileApp({ providers }: MobileAppProps) {
   const shared = useAppShared(providers);
   const { t } = useTranslation();
-  // The audio UI is laid out per form factor: full-screen player and mini-player here.
-  useEffect(() => { audioStore.setLayout('phone'); }, []);
   const paneModes = usePaneModes();
   const phoneViews = new Set(paneModes.filter((m) => m.phoneView).map((m) => m.id));
   const phoneViewKey = [...phoneViews].join(',');
@@ -186,17 +182,13 @@ export function MobileApp({ providers }: MobileAppProps) {
       // Re-push so the next Back press also stays in-app
       window.history.pushState({ mobileBack: true }, '');
 
-      // Priority 0: the full-screen audio player (playback continues)
-      if (audioStore.quickSettingsOpen) {
-        audioStore.closeQuickSettings();
-        return;
-      }
-      if (audioStore.playerOpen) {
-        audioStore.closePlayer();
-        return;
+      // Priority 0: a full-screen layer a module put over the phone layout (for example a media
+      // player; playback continues). A handler consumes the press by returning true.
+      for (const handler of phoneBackHandlers.list()) {
+        if (handler()) return;
       }
 
-      // Then a Study mode's sheet (the family tree; it sits beneath the audio player)
+      // Then a Study mode's sheet (the family tree; it sits beneath such a layer)
       if (studyStore.studyMode) {
         studyStore.closeStudyMode();
         return;
@@ -515,7 +507,7 @@ export function MobileApp({ providers }: MobileAppProps) {
           {navTooltip}
         </div>
       )}
-      <AudioMiniPlayer />
+      <StudyLayoutOutlet layout="phone" placement="dock" onOpenSettings={shared.openSettings} />
       {/* Above the nav, so the presenter's thumb targets are the closest thing to the thumb. */}
       <CompanionSlot compact />
       <nav class={`mobile-nav${leftHanded ? ' mobile-nav--left-handed' : ''}`}>
@@ -537,7 +529,7 @@ export function MobileApp({ providers }: MobileAppProps) {
           </button>
         ))}
       </nav>
-      <AudioPlayerScreen onOpenSettings={shared.openSettings} />
+      <StudyLayoutOutlet layout="phone" placement="overlay" onOpenSettings={shared.openSettings} />
       <DialogLayer
         settingsOpen={shared.settingsOpen}
         setSettingsOpen={shared.setSettingsOpen}
@@ -552,6 +544,7 @@ export function MobileApp({ providers }: MobileAppProps) {
         setStrongsPopup={shared.setStrongsPopup}
         strongsTooltip={shared.strongsTooltip}
       />
+      <StudyLayoutOutlet layout="phone" placement="dialogs" onOpenSettings={shared.openSettings} />
       {contextMenu && (
         <ContextMenuPopup
           x={contextMenu.x}

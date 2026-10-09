@@ -15,6 +15,7 @@ import { timelineManifest } from './timeline/manifest.js';
 import { quizManifest } from './quiz/manifest.js';
 import { wordStudyManifest } from './word-study/manifest.js';
 import { xrefGraphManifest } from './xref-graph/manifest.js';
+import { audioManifest } from './audio/manifest.js';
 
 export interface ServerModuleEntry {
   readonly manifest: FeatureModuleManifest;
@@ -34,4 +35,5 @@ export const serverModules: readonly ServerModuleEntry[] = [
   { manifest: quizManifest, load: () => import('./quiz/routes.js') },
   { manifest: wordStudyManifest, load: () => import('./word-study/routes.js') },
   { manifest: xrefGraphManifest, load: () => import('./xref-graph/routes.js') },
+  { manifest: audioManifest, load: () => import('./audio/routes.js') },
 ];

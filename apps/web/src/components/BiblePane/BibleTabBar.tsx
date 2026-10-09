@@ -15,7 +15,7 @@ import {
 } from '@dnd-kit/sortable';
 import type { Modifier } from '@dnd-kit/core';
 import { SortableTab } from '../common/SortableTab';
-import { audioStore } from '../../stores/audioStore';
+import { PropsSlotOutlet, readerTabBadges } from '../../host/slots';
 import { bibleStore, BibleTab } from '../../stores/bibleStore';
 import { moduleStore } from '../../stores/moduleStore';
 import { useStore } from '../../hooks/useStore';
@@ -156,8 +156,6 @@ export function BibleTabBar({ vertical, hideHome }: BibleTabBarProps) {
   };
 
   const showHome = useStore(bibleStore, () => bibleStore.showHome);
-  // The tab being read to gets a small speaker mark (the reader may have switched to another tab).
-  const audioTabId = useStore(audioStore, () => (audioStore.status === 'idle' ? null : audioStore.playingTabId));
 
   return (
     <div class="bible-tab-bar" ref={barRef}>
@@ -185,7 +183,7 @@ export function BibleTabBar({ vertical, hideHome }: BibleTabBarProps) {
               >
                 <div class="bible-tab-bar__tab-content">
                   <span class="bible-tab-bar__tab-title">
-                    {audioTabId === tab.id && <i class="fa-solid fa-volume-high bible-tab-bar__audio" role="img" aria-label={t('audio.playingTab')} />}
+                    <PropsSlotOutlet slot={readerTabBadges} props={{ tabId: tab.id }} />
                     <Bdi>{title}</Bdi>
                   </span>
                   <span class="bible-tab-bar__tab-subtitle"><Bdi>{subtitle}</Bdi></span>

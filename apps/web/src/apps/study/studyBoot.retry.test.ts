@@ -20,8 +20,7 @@ vi.mock('../../stores/settingsStore', () => ({ settingsStore: { getDefaultBible:
 vi.mock('../../offline/autoDownloadManager', () => ({ initAutoDownload: vi.fn(), runAutoCleanup: vi.fn(async () => {}) }));
 vi.mock('../../offline/sharedInstances', () => ({ offlineStorageManager: {} }));
 vi.mock('../../utils/clientConfig', () => ({ isTagGraphEnabled: () => false }));
-vi.mock('../../utils/featureFlags', () => ({ featureFlags: {} }));
-vi.mock('../../audio/config', () => ({ getAudioConfig: () => null }));
+vi.mock('../../modules/moduleHost', () => ({ fireActivation: vi.fn(), featureModules: { hasSubscribers: () => false } }));
 vi.mock('../../host/preferredBible', () => ({ preferredBible: { setSource: vi.fn() } }));
 vi.mock('../../boot/offlineBible', () => ({ getOfflineBible: vi.fn(async () => ({})) }));
 vi.mock('../../boot/searchProvider', () => ({ getSearchProvider: h.getSearchProvider }));

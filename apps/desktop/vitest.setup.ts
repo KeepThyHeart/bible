@@ -60,20 +60,6 @@ if (hasDom) {
       window: {
         detachPane: vi.fn(),
       },
-      notifications: {
-        getState: vi.fn().mockResolvedValue({
-          settings: { version: 1, enabled: true, quiet: null, sources: {} },
-          sources: [],
-          capabilities: { permission: 'granted', whenClosed: 'background-only', actions: false },
-          timeZone: 'UTC',
-        }),
-        setSettings: vi.fn(),
-        setDevice: vi.fn(),
-        sendTest: vi.fn().mockResolvedValue(undefined),
-        requestPermission: vi.fn().mockResolvedValue('granted'),
-        onStateChanged: vi.fn(() => () => {}),
-        onOpenTarget: vi.fn(() => () => {}),
-      },
     },
     writable: true,
   });

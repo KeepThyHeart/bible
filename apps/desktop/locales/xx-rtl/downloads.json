@@ -1,0 +1,15 @@
+{
+  "downloads.description": "‏Voices and other optional downloads. Each one is checked before it is used. Downloads need web requests to be allowed in Privacy.‏",
+  "downloads.download": "‏Download‏",
+  "downloads.update": "‏Update‏",
+  "downloads.retry": "‏Retry‏",
+  "downloads.cancel": "‏Cancel‏",
+  "downloads.remove": "‏Remove‏",
+  "downloads.queued": "‏Queued‏",
+  "downloads.downloading": "‏{percent}%‏",
+  "downloads.installed": "‏Installed‏",
+  "downloads.total": "‏On this device: {size}‏",
+  "downloads.empty": "‏Nothing to download.‏",
+  "downloads.unverified": "‏unverified‏",
+  "downloads.managedInModuleManager": "‏Managed in Module Manager‏"
+}

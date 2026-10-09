@@ -1,0 +1,15 @@
+{
+  "downloads.description": "Голоса и другие необязательные загрузки. Каждая проверяется перед использованием. Для загрузок нужно разрешить веб-запросы в разделе «Конфиденциальность».",
+  "downloads.download": "Скачать",
+  "downloads.update": "Обновить",
+  "downloads.retry": "Повторить",
+  "downloads.cancel": "Отмена",
+  "downloads.remove": "Удалить",
+  "downloads.queued": "В очереди",
+  "downloads.downloading": "{percent}%",
+  "downloads.installed": "Установлено",
+  "downloads.total": "На этом устройстве: {size}",
+  "downloads.empty": "Нечего скачивать.",
+  "downloads.unverified": "не проверено",
+  "downloads.managedInModuleManager": "Управляется в менеджере модулей"
+}

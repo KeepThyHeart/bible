@@ -1,0 +1,15 @@
+{
+  "downloads.description": "आवाज़ें और अन्य वैकल्पिक डाउनलोड। हर डाउनलोड को उपयोग से पहले जाँचा जाता है। डाउनलोड के लिए गोपनीयता में वेब अनुरोधों की अनुमति होनी चाहिए।",
+  "downloads.download": "डाउनलोड करें",
+  "downloads.update": "अपडेट करें",
+  "downloads.retry": "फिर कोशिश करें",
+  "downloads.cancel": "रद्द करें",
+  "downloads.remove": "हटाएँ",
+  "downloads.queued": "कतार में",
+  "downloads.downloading": "{percent}%",
+  "downloads.installed": "स्थापित",
+  "downloads.total": "इस डिवाइस पर: {size}",
+  "downloads.empty": "डाउनलोड करने के लिए कुछ नहीं है।",
+  "downloads.unverified": "असत्यापित",
+  "downloads.managedInModuleManager": "मॉड्यूल प्रबंधक में प्रबंधित"
+}

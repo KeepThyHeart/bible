@@ -13,25 +13,20 @@ import { moduleStore } from '../../stores/moduleStore';
 import { bibleStore } from '../../stores/bibleStore';
 import { useStore } from '../../hooks/useStore';
 import { useEscapeKey } from '../../hooks/useEscapeKey';
-import { audioStore } from '../../stores/audioStore';
-import { AudioSettingsTab } from './AudioSettingsTab';
-import { NotificationsSettingsTab } from '../../notifications/NotificationsSettingsTab';
 import { AppsSettingsTab } from './AppsSettingsTab';
-import { DownloadsSection } from './DownloadsSection';
-import { OfflinePackSection } from './OfflinePackSection';
 import { useLocalizer } from '../../hooks/useLocalizer';
 import { offlineStorageManager } from '../../offline/sharedInstances';
 import { API_BASE } from '../../utils/apiUrl';
 import { resetAppCache } from '../../utils/appUpdate';
 import { pwaFlag } from '../../utils/clientConfig';
-import type { Localizer, PreferencesSectionContribution } from '@bible/core/browser';
+import type { PreferencesSectionContribution } from '@bible/core/browser';
 import { modulePoints } from '../../modules/moduleHost';
 import { ContributedSection } from './ContributedSection';
 
 type SettingsTab = string;
 
 /** Tabs whose content is rendered inline below; any other contributed section goes through `ContributedSection`. */
-const BUILTIN_TABS = new Set(['text-size', 'theme', 'modules', 'gestures', 'audio', 'notifications', 'offline', 'apps', 'about']);
+const BUILTIN_TABS = new Set(['text-size', 'theme', 'modules', 'gestures', 'apps', 'about']);
 
 /** The tabs, in order, from the `preferencesSections` contribution point (declared by `modules/host/ui.ts`). */
 function useSettingsSections(): PreferencesSectionContribution[] {
@@ -56,9 +51,6 @@ function sectionToTab(section?: string): SettingsTab {
   if (section === 'theme' || section === 'appearance') return 'theme';
   if (section === 'modules') return 'modules';
   if (section === 'gestures') return 'gestures';
-  if (section === 'audio') return 'audio';
-  if (section === 'notifications') return 'notifications';
-  if (section === 'offline') return 'offline';
   if (section === 'apps') return 'apps';
   if (section === 'about') return 'about';
   // A section contributed by a feature module deep-links by its own id.
@@ -67,88 +59,6 @@ function sectionToTab(section?: string): SettingsTab {
     return parent ? sectionToTab(parent) : section;
   }
   return 'text-size';
-}
-
-function formatBytes(bytes: number, localizer: Localizer): string {
-  const fixed1 = (n: number) => localizer.formatNumber(n, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
-  if (bytes < 1024) return `${localizer.formatNumber(bytes)} B`;
-  if (bytes < 1024 * 1024) return `${fixed1(bytes / 1024)} KB`;
-  if (bytes < 1024 * 1024 * 1024) return `${fixed1(bytes / (1024 * 1024))} MB`;
-  return `${fixed1(bytes / (1024 * 1024 * 1024))} GB`;
-}
-
-function OfflineModuleCard({
-  abbreviation,
-  name,
-  sizeBytes,
-  isDownloaded,
-  progress,
-  onDownload,
-  onRemove,
-  badge,
-}: {
-  abbreviation: string;
-  name: string;
-  sizeBytes?: number;
-  isDownloaded: boolean;
-  progress?: { loaded: number; total: number; status: string; error?: string };
-  onDownload: () => void;
-  onRemove: () => void;
-  badge?: string;
-}) {
-  const { t } = useTranslation();
-  const localizer = useLocalizer();
-  const pct = progress && progress.total > 0
-    ? Math.round((progress.loaded / progress.total) * 100)
-    : 0;
-
-  return (
-    <div class="offline-module-card">
-      <div class="offline-module-card__info">
-        <span class="offline-module-card__name">{name}</span>
-        <span class="offline-module-card__meta">
-          {abbreviation}
-          {sizeBytes ? ` - ${formatBytes(sizeBytes, localizer)}` : ''}
-          {badge && <span class="offline-module-card__badge">{badge}</span>}
-        </span>
-      </div>
-      <div class="offline-module-card__actions">
-        {isDownloaded && !progress && (
-          <>
-            <span class="offline-module-card__status offline-module-card__status--downloaded">
-              <i class="fa-solid fa-circle-check" />
-            </span>
-            <button
-              class="offline-module-card__btn offline-module-card__btn--remove"
-              onClick={onRemove}
-              title={t('settings.offline.remove')}
-            >
-              <i class="fa-solid fa-circle-minus" />
-            </button>
-          </>
-        )}
-        {!isDownloaded && !progress && (
-          <button
-            class="offline-module-card__btn offline-module-card__btn--download"
-            onClick={onDownload}
-            title={t('settings.offline.download')}
-          >
-            <i class="fa-solid fa-download" />
-          </button>
-        )}
-        {progress?.status === 'error' && (
-          <span class="offline-module-card__error" title={progress.error}>
-            <i class="fa-solid fa-circle-exclamation" /> {t('settings.offline.failed')}
-          </span>
-        )}
-      </div>
-      {progress?.status === 'downloading' && (
-        <div class="offline-module-card__progress">
-          <div class="offline-module-card__progress-bar" style={{ width: `${pct}%` }} />
-        </div>
-      )}
-    </div>
-  );
 }
 
 interface SettingsPanelProps {
@@ -190,7 +100,6 @@ export function SettingsPanel({ isOpen, onClose, scrollToSection }: SettingsPane
   const sections = useSettingsSections();
   const themeChildren = useChildSections('theme');
   const [activeTab, setActiveTab] = useState<SettingsTab>('text-size');
-  const audioEnabled = useStore(audioStore, () => audioStore.enabled);
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [resettingCache, setResettingCache] = useState(false);
   // Offered whenever the PWA might be in play: on, or unknown (offline boot).
@@ -219,13 +128,7 @@ export function SettingsPanel({ isOpen, onClose, scrollToSection }: SettingsPane
 
   // Offline state
   const offlineEnabled = useStore(offlineStore, () => offlineStore.enabled);
-  const downloadedModules = useStore(offlineStore, () => offlineStore.downloadedModules);
-  const isOnline = useStore(offlineStore, () => offlineStore.isOnline);
-  const storageUsed = useStore(offlineStore, () => offlineStore.storageUsed);
-  const activeDownloads = useStore(offlineStore, () => offlineStore.activeDownloads);
   const availableModules = useStore(moduleStore, () => moduleStore.availableModules);
-  const [semanticAvailable, setSemanticAvailable] = useState(false);
-  const [semanticSize, setSemanticSize] = useState(0);
   const storageManager = offlineStorageManager;
 
   // Get currently active Bible tab abbreviations for offline prioritization
@@ -260,20 +163,6 @@ export function SettingsPanel({ isOpen, onClose, scrollToSection }: SettingsPane
       .catch(() => {});
   }, [isOpen, activeTab]);
 
-  // Fetch storage info and semantic availability when offline tab is shown
-  useEffect(() => {
-    if (!isOpen || activeTab !== 'offline') return;
-    storageManager.getStorageInfo().then(info => {
-      offlineStore.updateStorageInfo(info.used, info.quota);
-    });
-    moduleStore.getSemanticIndexInfo()
-      .then(data => {
-        setSemanticAvailable(data.available);
-        setSemanticSize(data.sizeBytes || 0);
-      })
-      .catch(() => {});
-  }, [isOpen, activeTab]);
-
   // Auto-download currently active Bible tabs when offline mode is first enabled
   const [autoDownloadTriggered, setAutoDownloadTriggered] = useState(false);
   useEffect(() => {
@@ -292,18 +181,6 @@ export function SettingsPanel({ isOpen, onClose, scrollToSection }: SettingsPane
   }, [offlineEnabled]);
 
   if (!isOpen) return null;
-
-  const handleRemove = async (abbreviation: string) => {
-    await storageManager.removeModule(abbreviation);
-  };
-
-  const handleDownloadSemantic = async () => {
-    try {
-      await storageManager.downloadSemanticIndex();
-    } catch (err) {
-      console.error('Semantic download failed:', err);
-    }
-  };
 
   /**
    * The five Advanced sliders, as data.
@@ -364,7 +241,7 @@ export function SettingsPanel({ isOpen, onClose, scrollToSection }: SettingsPane
         <div class="settings-panel__layout">
           {/* Left tab navigation */}
           <div class="settings-panel__sidebar">
-            {sections.filter(item => (item.id !== 'offline' || serverOfflineDownloads) && (item.id !== 'audio' || audioEnabled)).map(item => (
+            {sections.filter(item => (item.id !== 'offline' || serverOfflineDownloads)).map(item => (
               <button
                 key={item.id}
                 class={`settings-panel__tab ${activeTab === item.id ? 'settings-panel__tab--active' : ''}`}
@@ -629,9 +506,6 @@ export function SettingsPanel({ isOpen, onClose, scrollToSection }: SettingsPane
               </div>
             )}
 
-            {activeTab === 'audio' && audioEnabled && <AudioSettingsTab />}
-
-            {activeTab === 'notifications' && <NotificationsSettingsTab />}
 
             {activeTab === 'apps' && <AppsSettingsTab />}
 
@@ -737,58 +611,6 @@ export function SettingsPanel({ isOpen, onClose, scrollToSection }: SettingsPane
                     )}
                   </p>
                 </div>
-              </div>
-            )}
-
-            {activeTab === 'offline' && (
-              <div class="settings-panel__section" data-section="offline">
-                <h4 class="settings-panel__section-title">{t('settings.offline.title')}</h4>
-
-                <div class="offline-status">
-                  <span class={`offline-status__indicator ${isOnline ? 'offline-status__indicator--online' : 'offline-status__indicator--offline'}`} />
-                  <span>{isOnline ? t('settings.offline.online') : t('settings.offline.offline')}</span>
-                  {storageUsed > 0 && (
-                    <span class="offline-status__storage">
-                      {t('settings.offline.storage')} {formatBytes(storageUsed, localizer)}
-                    </span>
-                  )}
-                </div>
-
-                <label class="settings-panel__field settings-panel__field--checkbox">
-                  <input
-                    type="checkbox"
-                    checked={offlineEnabled}
-                    onChange={(e) => offlineStore.setEnabled((e.target as HTMLInputElement).checked)}
-                  />
-                  <span>{t('settings.offline.enableOffline')}</span>
-                </label>
-
-                {offlineEnabled && (
-                  <>
-                    <OfflinePackSection />
-
-                    <h4 class="settings-panel__section-title" style={{ marginTop: '16px' }}>{t('settings.offline.semanticSearch')}</h4>
-                    <div class="offline-modules-list">
-                      {semanticAvailable ? (
-                        <OfflineModuleCard
-                          abbreviation="semantic-index"
-                          name={t('settings.offline.semanticIndex')}
-                          sizeBytes={semanticSize || downloadedModules.find(d => d.abbreviation === 'semantic-index')?.sizeBytes}
-                          isDownloaded={offlineStore.isModuleDownloaded('semantic-index')}
-                          progress={activeDownloads.get('semantic-index')}
-                          onDownload={handleDownloadSemantic}
-                          onRemove={() => handleRemove('semantic-index')}
-                        />
-                      ) : (
-                        <div class="offline-modules-list__empty">
-                          {t('settings.offline.semanticNotAvailable')}
-                        </div>
-                      )}
-                    </div>
-                  </>
-                )}
-
-                <DownloadsSection />
               </div>
             )}
           </div>

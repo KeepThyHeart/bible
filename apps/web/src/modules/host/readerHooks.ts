@@ -15,6 +15,9 @@
  */
 import { featureModules } from '../moduleHost';
 
+/** Fired by Study's boot once the reader's Bible provider exists: modules that live in the reader (Audio) activate on it. */
+export const READER_BOOT_EVENT = 'onView:study.reader';
+
 let lastVerse: string | null = null;
 let lastChapter: string | null = null;
 let lastSelection: string | null = null;

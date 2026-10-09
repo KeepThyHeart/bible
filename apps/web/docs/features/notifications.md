@@ -6,12 +6,12 @@ Reminders while the app is open in a browser tab, built on the shared engine in 
 
 | File | Purpose |
 |---|---|
-| `src/notifications/webReminders.ts` | The host: core `ReminderScheduler` with `createTimeoutTimer()`, a presenter over the Notifications API, a `NotificationsViewState` store (`store.subscribe` / `getSnapshot`), wake listeners. `getWebReminders()` is the singleton, `startWebReminders()` the boot hook, `webCapabilities()` the capability check. |
-| `src/notifications/votdSource.ts` | Rule source `app:verse-of-the-day`: off by default, 08:00 daily, time editable; "Book C:V — text" from the `notifications.votd.body` message (plain text, about 180 characters), target `{kind:'verse'}`, tag `votd`. |
-| `src/notifications/notificationSettings.ts` | `NotificationSettings` in `localStorage` key `bible-notifications` (normalized with core `normalizeNotificationSettings`). |
-| `src/notifications/NotificationsSettingsTab.tsx` | Settings > Notifications tab (see [Settings](settings.md)). |
-| `src/main.tsx` | Starts the host after the stores are ready, through a lazy `import()`, only when `'Notification' in window`. |
-| `src/locales/*/ui.json` | `notifications.*` strings and `settings.tabs.notifications`. |
+| `src/modules/notifications/webReminders.ts` | The host: core `ReminderScheduler` with `createTimeoutTimer()`, a presenter over the Notifications API, a `NotificationsViewState` store (`store.subscribe` / `getSnapshot`), wake listeners. `getWebReminders()` is the singleton, `startWebReminders()` the boot hook, `webCapabilities()` the capability check. |
+| `src/modules/notifications/votdSource.ts` | Rule source `app:verse-of-the-day`: off by default, 08:00 daily, time editable; "Book C:V — text" from the `notifications.votd.body` message (plain text, about 180 characters), target `{kind:'verse'}`, tag `votd`. |
+| `src/modules/notifications/notificationSettings.ts` | `NotificationSettings` in `localStorage` key `bible-notifications` (normalized with core `normalizeNotificationSettings`). |
+| `src/modules/notifications/NotificationsSettingsTab.tsx` | Settings > Notifications tab (see [Settings](settings.md)). |
+| `src/modules/notifications/{manifest,binding,module}.ts` | The `notifications` feature module (task 0128): the manifest contributes the Settings tab (`preferences:notifications` view, order 60) and the `notifications` namespace; the binding's `probe()` asks for activation after first paint, only when `'Notification' in window`; `module.ts` installs the verse-of-the-day fetcher and starts the host (stopped again if the module is switched off at runtime). Off (`kth.modules=-notifications`): no tab, no reminders. |
+| `src/locales/*/notifications.json` | `notifications.*` strings (the tab label `settings.tabs.notifications` stays in `ui.json`). |
 
 ## Behavior
 
@@ -26,4 +26,4 @@ Reminders while the app is open in a browser tab, built on the shared engine in 
 
 ## Tests
 
-`src/notifications/*.test.ts(x)`: capability mapping, presenter and click, settings round trip and corrupt fallback, the VOTD source, the tab (permission button, toggle persists, unsupported), and leader election (fake `navigator.locks`), and `localeKeys.test.ts` for the `notifications.*` keys.
+`src/modules/notifications/*.test.ts(x)`: capability mapping, presenter and click, settings round trip and corrupt fallback, the VOTD source, the tab (permission button, toggle persists, unsupported), and leader election (fake `navigator.locks`), and `localeKeys.test.ts` for the `notifications.*` keys.

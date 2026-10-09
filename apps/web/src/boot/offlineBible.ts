@@ -22,6 +22,14 @@ export function getOfflineBible(ctx: Pick<ShellContext, 'providers'>): Promise<I
   return pending;
 }
 
+/**
+ * The memoised provider if `getOfflineBible` already started building it, else null. For
+ * modules that activate after Study's boot (which always builds it first) and need the same instance.
+ */
+export function peekOfflineBible(): Promise<IBibleDataProvider> | null {
+  return pending;
+}
+
 /** Test hook: forget the memoised provider. */
 export function resetOfflineBibleForTests(): void {
   pending = null;

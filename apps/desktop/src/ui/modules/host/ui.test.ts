@@ -35,6 +35,8 @@ const without = (map: Record<string, string>): Record<string, string> =>
   Object.fromEntries(Object.entries(map).filter(([, v]) => !MIGRATED_TILES.includes(v)));
 const OLD_SECTIONS = ['general', 'typography', 'fonts', 'themes', 'privacy', 'notifications', 'downloads', 'extensions', 'apps', 'advanced', 'diagnostics'];
 // The 'measures' section (order 50, between 'apps' and 'advanced') comes from the measures module's manifest.
+/** Sections that moved into their feature module's manifest (the downloads and notifications modules, task 0128). */
+const HOST_SECTIONS = OLD_SECTIONS.filter((s) => s !== 'downloads' && s !== 'notifications');
 
 function host(manifests: FeatureModuleManifest[]) {
   const points = createStandardPoints();
@@ -62,7 +64,7 @@ describe('host-ui manifest', () => {
 
   it('registers preferences sections in the old order, each with a lazy view', () => {
     const { points } = host([hostUiManifest]);
-    expect(points.preferencesSections.list().map((s) => s.id)).toEqual(OLD_SECTIONS);
+    expect(points.preferencesSections.list().map((s) => s.id)).toEqual(HOST_SECTIONS);
     for (const s of HOST_PREFERENCES_SECTIONS) {
       expect(points.views.resolve(`preferences:${s.id}`)).toBeTypeOf('function');
     }

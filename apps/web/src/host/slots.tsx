@@ -12,6 +12,9 @@
  * - `readerPaintControllers`: components the reader mounts with the chapter in view; they
  *   publish paint layers (`host/readerLayers.ts`) and may render extras (a popup).
  * - `studySections`: sections in the Study pane's verse area (desktop layout).
+ * - `readerToolbarActions`, `readerTabBadges`, `readerTransport`, `readerPaneEffects`: reader chrome (toolbar, tab bar,
+ *   strip under the toolbar, effect-only components); `studyLayoutItems`: per-layout items of the Study app;
+ *   `phoneBackHandlers`, `helpShortcutRows`: the phone Back button and the Help dialog's shortcuts (task 0128).
  * - `verseDecorators`: per-verse extras for `VerseRenderer` (classes, a rail
  *   control, replacement text). Decorators are plain functions read during
  *   render; a module calls `verseDecorators.invalidate()` when what they return changes.
@@ -32,6 +35,7 @@ export function componentKey(C: object): number {
   if (id === undefined) componentIds.set(C, (id = ++nextComponentId));
   return id;
 }
+import type { BibleTab } from '../stores/bibleStore';
 
 export interface Slot<T> {
   /** Add an item; dispose the handle to remove it. */
@@ -255,3 +259,68 @@ export const readerPaintControllers = createSlot<ComponentType<ReaderPaintProps>
 
 /** Components at the start of the Bible toolbar's right group. */
 export const readerToolbarItems = createSlot<ComponentType>();
+// --- Reader chrome, layout items, back handlers (task 0128) -----------------------
+
+/** What the reader toolbar gives an action registered in `readerToolbarActions` (rendered at the right, before the text-size button). */
+export interface ReaderToolbarActionProps {
+  readonly tab: BibleTab;
+}
+export const readerToolbarActions = createSlot<ComponentType<ReaderToolbarActionProps>>();
+
+/** What the tab bar gives a badge registered in `readerTabBadges` (rendered before a tab's title). */
+export interface ReaderTabBadgeProps {
+  readonly tabId: string;
+}
+export const readerTabBadges = createSlot<ComponentType<ReaderTabBadgeProps>>();
+
+/** What the Bible pane gives a strip registered in `readerTransport` (rendered under the toolbar). */
+export interface ReaderTransportProps {
+  readonly onOpenSettings?: (section?: string) => void;
+}
+export const readerTransport = createSlot<ComponentType<ReaderTransportProps>>();
+
+/** What the Bible pane gives an effect-only component in `readerPaneEffects` (mounted once per pane; it renders nothing). */
+export interface ReaderPaneEffectProps {
+  readonly activeTabId: string;
+  /** The element that actually scrolls (on phones, the outer wrapper, not the pane). */
+  readonly getScrollElement: () => HTMLElement | null;
+  /** The element holding the verses (`[data-verse-id]`). */
+  readonly getContainer: () => HTMLElement | null;
+}
+export const readerPaneEffects = createSlot<ComponentType<ReaderPaneEffectProps>>();
+
+/** Which layout of the Study app an item belongs to, and where it sits in it. */
+export interface StudyLayoutItem {
+  readonly layout: 'desktop' | 'phone' | 'both';
+  /** `dock`: in the phone column above the bottom bar; `overlay`: over the layout, before the shared dialogs (phone) or after them (desktop); `dialogs`: right after the shared dialogs. */
+  readonly placement: 'dock' | 'overlay' | 'dialogs';
+  readonly Component: ComponentType<StudyLayoutProps>;
+}
+export interface StudyLayoutProps {
+  readonly onOpenSettings: (section?: string) => void;
+}
+export const studyLayoutItems = createSlot<StudyLayoutItem>();
+
+/** Renders the Study layout items for one layout and placement (`DesktopApp` / `MobileApp`). */
+export function StudyLayoutOutlet({ layout, placement, onOpenSettings }: { layout: 'desktop' | 'phone'; placement: StudyLayoutItem['placement']; onOpenSettings: (section?: string) => void }) {
+  const items = useSlot(studyLayoutItems);
+  const mine = items.filter((i) => i.placement === placement && (i.layout === 'both' || i.layout === layout));
+  if (mine.length === 0) return null;
+  return <>{mine.map((i, n) => h(i.Component, { key: n, onOpenSettings }))}</>;
+}
+
+/** Renders every component of a slot of components that take props. */
+export function PropsSlotOutlet<P extends object>({ slot, props }: { slot: Slot<ComponentType<P>>; props: P }) {
+  const items = useSlot(slot);
+  if (items.length === 0) return null;
+  return <>{items.map((C, i) => h(C as ComponentType<Record<string, unknown>>, { ...(props as Record<string, unknown>), key: i }))}</>;
+}
+
+/**
+ * The phone's Back button: each handler returns true when it consumed the press (closed something of its own).
+ * Asked first, before the host's own steps, while any module registered one.
+ */
+export const phoneBackHandlers = createSlot<() => boolean>();
+
+/** Rows (`<tr>` elements) added to the Help dialog's keyboard shortcuts table. */
+export const helpShortcutRows = createSlot<ComponentType>();

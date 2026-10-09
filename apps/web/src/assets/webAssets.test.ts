@@ -1,9 +1,7 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import type { IAssetManager } from '@bible/core/browser';
 
-vi.mock('../audio/config', () => ({ getAudioConfig: () => null }));
-
-import { createWebStores, getAssetManager, getReadyAssetManager, refreshAssetCatalog, setAssetManagerForTests } from './webAssets';
+import { createWebStores, getAssetManager, getReadyAssetManager, refreshAssetCatalog, registerCatalogSource, setAssetManagerForTests } from './webAssets';
 import { CacheAssetStore } from './CacheAssetStore';
 
 afterEach(() => { setAssetManagerForTests(null); vi.unstubAllGlobals(); });
@@ -49,5 +47,24 @@ describe('webAssets', () => {
     vi.stubGlobal('fetch', vi.fn(async () => { throw new TypeError('down'); }));
     await expect(refreshAssetCatalog()).resolves.toBeUndefined();
     expect(setCatalog).not.toHaveBeenCalled();
+  });
+  it('adds the manifests of registered catalog sources (a module activating late), and drops them on dispose', async () => {
+    const setCatalog = vi.fn();
+    setAssetManagerForTests({ setCatalog } as unknown as IAssetManager);
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('nope', { status: 404 })));
+    const extra = { id: 'voice', kind: 'tts-voice', version: '1', title: 'Voice', license: 'MIT', size: 1, files: [] };
+    const source = vi.fn(async () => [extra]);
+    const handle = registerCatalogSource(source as never);
+    await vi.waitFor(() => expect(setCatalog).toHaveBeenCalled());
+    const ids = (call: number) => (setCatalog.mock.calls as unknown as Array<Array<Array<{ id: string }>>>)[call][0].map((m) => m.id);
+    expect(ids(setCatalog.mock.calls.length - 1)).toEqual(['voice']);
+    setCatalog.mockClear();
+    handle.dispose();
+    await vi.waitFor(() => expect(setCatalog).toHaveBeenCalled());
+    expect(ids(setCatalog.mock.calls.length - 1)).toEqual([]);
+    // A failing source never breaks the catalog.
+    const bad = registerCatalogSource(async () => { throw new Error('down'); });
+    await vi.waitFor(() => expect(setCatalog.mock.calls.length).toBeGreaterThan(1));
+    bad.dispose();
   });
 });

@@ -1,0 +1,42 @@
+{
+  "$schema": "../schemas/notifications.schema.json",
+  "notifications": {
+    "votd": {
+      "label": "每日经文",
+      "description": "每天在您选定的时间送上一节经文。",
+      "title": "每日经文",
+      "body": "{reference}——{text}"
+    },
+    "test": {
+      "title": "测试通知",
+      "body": "通知运行正常。"
+    },
+    "collapsed": "{count, plural, other {有 # 条提醒待查看}}",
+    "scheduledCount": "{count, plural, other {已安排 # 条}}",
+    "labels": {
+      "statusGranted": "已允许通知。",
+      "statusDenied": "通知已被阻止。请在浏览器设置中为此网站允许通知。",
+      "statusPrompt": "尚未允许通知。",
+      "statusUnsupported": "此浏览器或设备无法显示通知。",
+      "allow": "允许通知",
+      "whenClosedFires": "应用在后台运行时，提醒仍会送达。",
+      "whenClosedNever": "仅在应用打开时才会收到提醒。",
+      "whenClosedBackgroundOnly": "仅在应用在浏览器标签页中打开时才会收到提醒，标签页在后台也可以。",
+      "enabled": "显示通知",
+      "quietHours": "免打扰时段",
+      "quietFrom": "从",
+      "quietTo": "到",
+      "quietHelp": "在免打扰时段内到期的通知会等到时段结束后再显示。",
+      "sources": "提醒",
+      "noSources": "目前没有功能使用通知。",
+      "dailyTime": "{source}的时间",
+      "next": "下一次：{time}",
+      "scheduled": "已安排 {count} 条",
+      "device": "窗口关闭时",
+      "tray": "在托盘中继续运行",
+      "openAtLogin": "登录时启动（在托盘中）",
+      "sendTest": "发送测试通知",
+      "general": "常规"
+    }
+  }
+}

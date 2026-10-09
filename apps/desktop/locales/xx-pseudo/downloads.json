@@ -1,0 +1,15 @@
+{
+  "downloads.description": "⟦Ṽøîçéš åñð øţĥéŕ øþţîøñåļ ðøŵñļøåðš. Éåçĥ øñé îš çĥéçķéð ƀéƒøŕé îţ îš üšéð. Ðøŵñļøåðš ñééð ŵéƀ ŕéǫüéšţš ţø ƀé åļļøŵéð îñ Þŕîṽåçý. ······································⟧",
+  "downloads.download": "⟦Ðøŵñļøåð ··⟧",
+  "downloads.update": "⟦Üþðåţé ··⟧",
+  "downloads.retry": "⟦Ŕéţŕý ··⟧",
+  "downloads.cancel": "⟦Çåñçéļ ··⟧",
+  "downloads.remove": "⟦Ŕéɱøṽé ··⟧",
+  "downloads.queued": "⟦Ǫüéüéð ··⟧",
+  "downloads.downloading": "⟦{percent}% ··⟧",
+  "downloads.installed": "⟦Îñšţåļļéð ··⟧",
+  "downloads.total": "⟦Øñ ţĥîš ðéṽîçé: {size} ····⟧",
+  "downloads.empty": "⟦Ñøţĥîñĝ ţø ðøŵñļøåð. ······⟧",
+  "downloads.unverified": "⟦üñṽéŕîƒîéð ···⟧",
+  "downloads.managedInModuleManager": "⟦Ṁåñåĝéð îñ Ṁøðüļé Ṁåñåĝéŕ ·······⟧"
+}

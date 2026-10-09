@@ -4,7 +4,6 @@ import i18n from '../../i18n';
 import { bibleStore } from '../../stores/bibleStore';
 import { commentaryStore } from '../../stores/commentaryStore';
 import { moduleStore } from '../../stores/moduleStore';
-import { audioStore } from '../../stores/audioStore';
 import { SlotOutlet, componentKey, decorateVerse, readerOverlays, readerPaintControllers, useSlot, verseDecorators } from '../../host/slots';
 import { useReaderLayers } from '../../host/readerLayers';
 import { resolveChapterLayers } from '../../host/chapterLayers';
@@ -208,11 +207,6 @@ export function BibleContent({
   const [refError, setRefError] = useState('');
   const refInputRef = useRef<HTMLInputElement>(null);
   const showBookPicker = useStore(bibleStore, () => bibleStore.showBookPicker);
-  // The verse being read aloud: a highlight only, drawn on this tab's verses.
-  // Its own store, so a verse change re-renders this once and a position tick not at all.
-  const followVerseId = useStore(audioStore.follow, () => audioStore.follow.verseId);
-  const followTabId = useStore(audioStore.follow, () => audioStore.follow.tabId);
-  const followAlong = useStore(audioStore, () => audioStore.prefs.followAlong);
 
   const bibleModule = moduleStore.getBibleModules().find(m => m.abbreviation === tab?.moduleAbbr);
   // Paint layers (from feature modules) published by the reader
@@ -439,7 +433,6 @@ export function BibleContent({
                 key={verse.verse_id}
                 verse={verse}
                 isHighlighted={tab.studyVerse === verse.verse_id}
-                isPlaying={followAlong && followTabId === tab.id && followVerseId === verse.verse_id}
                 isSelected={tab.previewVerse != null && (
                   tab.previewVerseEnd
                     ? verse.verse_id >= tab.previewVerse && verse.verse_id <= tab.previewVerseEnd

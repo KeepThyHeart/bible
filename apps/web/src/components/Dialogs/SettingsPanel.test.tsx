@@ -26,9 +26,6 @@ vi.mock('../../hooks/useStore', () => ({
   useStore: (_store: unknown, selector: () => unknown) => selector(),
 }));
 
-// ---- Downloads section (asset manager; covered by DownloadsSection.test) -
-vi.mock('./DownloadsSection', () => ({ DownloadsSection: () => <div data-testid="downloads-section" /> }));
-
 // ---- i18n module ---------------------------------------------------------
 vi.mock('../../i18n', () => ({
   default: { language: 'en', changeLanguage: vi.fn() },
@@ -147,9 +144,11 @@ global.fetch = vi.fn(() => Promise.resolve({ json: () => Promise.resolve([]) }))
 import { SettingsPanel } from './SettingsPanel';
 import { addBuiltinModule, reconcileModules } from '../../modules/moduleHost';
 import { hostUiManifest } from '../../modules/host/ui';
+import { downloadsManifest } from '../../modules/downloads/manifest';
 
 // The tabs/tiles come from the host-ui manifest (production registers it via BUILTIN_MODULES).
 addBuiltinModule(hostUiManifest);
+addBuiltinModule(downloadsManifest); // the 'offline' tab comes from the downloads module
 reconcileModules();
 
 describe('SettingsPanel', () => {
@@ -413,18 +412,6 @@ describe('SettingsPanel', () => {
     const { container } = render(<SettingsPanel isOpen={true} onClose={onClose} />);
     const offlineTab = container.querySelector('[data-tab="offline"]');
     expect(offlineTab).toBeNull();
-  });
-
-  it('shows Downloads & storage at the end of the offline tab', () => {
-    mockServerOffline.value = true;
-    try {
-      const { container } = render(<SettingsPanel isOpen={true} onClose={onClose} />);
-      fireEvent.click(container.querySelector<HTMLElement>('[data-tab="offline"]')!);
-      const section = container.querySelector('[data-section="offline"]')!;
-      expect(section.lastElementChild?.getAttribute('data-testid')).toBe('downloads-section');
-    } finally {
-      mockServerOffline.value = false;
-    }
   });
 });
 

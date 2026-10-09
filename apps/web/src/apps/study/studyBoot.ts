@@ -1,4 +1,3 @@
-import { lazyFeature } from '@bible/core/browser';
 import { bibleStore } from '../../stores/bibleStore';
 import { commentaryStore } from '../../stores/commentaryStore';
 import { studyStore } from '../../stores/studyStore';
@@ -10,8 +9,8 @@ import { eventBus } from '../../events/eventBus';
 import { initAutoDownload, runAutoCleanup } from '../../offline/autoDownloadManager';
 import { offlineStorageManager } from '../../offline/sharedInstances';
 import { isTagGraphEnabled } from '../../utils/clientConfig';
-import { featureFlags } from '../../utils/featureFlags';
-import { getAudioConfig } from '../../audio/config';
+import { fireActivation } from '../../modules/moduleHost';
+import { READER_BOOT_EVENT } from '../../modules/host/readerHooks';
 import { preferredBible } from '../../host/preferredBible';
 import { getOfflineBible } from '../../boot/offlineBible';
 import { getSearchProvider } from '../../boot/searchProvider';
@@ -26,10 +25,6 @@ import type { ShellContext } from '../../boot/shellContext';
 export function withBootTimeout(p: Promise<void>, ms = 8000): Promise<unknown> {
   return Promise.race([p, new Promise<void>(resolve => setTimeout(resolve, ms))]);
 }
-
-// The Audio Bible's code loads once, and only while the `audio` flag is on.
-const loadAudio = lazyFeature(featureFlags, 'audio', () => import('../../audio/initAudio'));
-
 
 /**
  * Study's own boot (the Study binding's `activate`): initialises its stores and
@@ -65,13 +60,10 @@ export async function bootStudy(ctx: ShellContext): Promise<void> {
   dictionaryStore.init(baseUrl);
   searchStore.init(searchProvider);
 
-  // The Audio Bible. Its code is loaded only when the site turned it on.
-  const audioConfig = getAudioConfig();
-  if (audioConfig) {
-    void loadAudio()
-      .then(m => m?.initAudio(audioConfig, offlineBible))
-      .catch(err => console.warn('[Audio] Audio Bible failed to start:', err));
-  }
+  // The reader is about to show: feature modules that live in it and wire themselves to the
+  // offline Bible provider above may activate now.
+  // Fire-and-forget, like their own loading; a module that is off does nothing.
+  fireActivation(READER_BOOT_EVENT);
 
   // Now that the installed translations are known (the shell loaded the
   // manifest), move any tab that names one this server does not have onto the

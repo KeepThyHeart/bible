@@ -1,7 +1,17 @@
 import { describe, it, expect, vi, beforeEach, beforeAll } from 'vitest';
 import { registerHostUiForTests } from '../modules/host/registerHostUiForTests';
 
-beforeAll(() => registerHostUiForTests());
+import { addDesktopModule, reconcileModules } from '../modules/moduleHost';
+import { notificationsModule } from '../modules/notifications/binding';
+import { downloadsModule } from '../modules/downloads/binding';
+
+// The Notifications section comes from its own module (task 0128).
+beforeAll(() => {
+  registerHostUiForTests();
+  addDesktopModule(notificationsModule);
+  addDesktopModule(downloadsModule); // the Downloads section comes from its own module (task 0128)
+  reconcileModules();
+});
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ReactElement } from 'react';
@@ -60,7 +70,7 @@ vi.mock('./PreferencesDialog/ThemesSection', () => ({
 vi.mock('./PreferencesDialog/PrivacySection', () => ({
   PrivacySection: () => <div data-testid="privacy-section">Privacy Content</div>,
 }));
-vi.mock('./PreferencesDialog/NotificationsSection', () => ({
+vi.mock('../modules/notifications/NotificationsSection', () => ({
   NotificationsSection: () => <div data-testid="notifications-section">Notifications Content</div>,
 }));
 vi.mock('./ExtensionsSection', () => ({

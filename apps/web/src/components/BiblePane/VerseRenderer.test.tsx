@@ -123,17 +123,18 @@ describe('VerseRenderer', () => {
     expect(container.querySelector('.verse--study')).toBeTruthy();
   });
 
-  it('marks the verse being read aloud with verse--playing, independently of the selection', () => {
+  it('adds the classes a decoration supplies, independently of the selection', () => {
     const verse = makeVerse({});
-    const { container, rerender } = render(<VerseRenderer verse={verse} {...defaultProps} isPlaying />);
+    const decoration = { classes: ['verse--decorated'] };
+    const { container, rerender } = render(<VerseRenderer verse={verse} {...defaultProps} decoration={decoration} />);
     const el = container.querySelector('.verse')!;
-    expect(el.classList.contains('verse--playing')).toBe(true);
+    expect(el.classList.contains('verse--decorated')).toBe(true);
     expect(el.classList.contains('verse--study')).toBe(false);
-    rerender(<VerseRenderer verse={verse} {...defaultProps} isPlaying isHighlighted />);
-    expect(container.querySelector('.verse')!.classList.contains('verse--playing')).toBe(true);
+    rerender(<VerseRenderer verse={verse} {...defaultProps} decoration={decoration} isHighlighted />);
+    expect(container.querySelector('.verse')!.classList.contains('verse--decorated')).toBe(true);
     expect(container.querySelector('.verse')!.classList.contains('verse--study')).toBe(true);
     rerender(<VerseRenderer verse={verse} {...defaultProps} />);
-    expect(container.querySelector('.verse')!.classList.contains('verse--playing')).toBe(false);
+    expect(container.querySelector('.verse')!.classList.contains('verse--decorated')).toBe(false);
   });
 
   it('applies verse--preview class when isSelected and not highlighted', () => {

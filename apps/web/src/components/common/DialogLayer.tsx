@@ -5,8 +5,6 @@ import { CopyDialog } from '../Dialogs/CopyDialog';
 import { StrongsPopup } from '../Dialogs/StrongsPopup';
 import { StrongsTooltip } from '../Dialogs/StrongsTooltip';
 import { SemanticSearchLoadingOverlay } from './SemanticSearchLoadingOverlay';
-import { AudioGateDialog } from '../audio/AudioGateDialog';
-import { AudioLiveRegion } from '../audio/AudioLiveRegion';
 import type { StrongsEntryData } from '../../types';
 
 interface DialogLayerProps {
@@ -63,8 +61,6 @@ export function DialogLayer({
         position={strongsTooltip?.position ?? null}
       />
       <SemanticSearchLoadingOverlay />
-      <AudioGateDialog />
-      <AudioLiveRegion />
     </>
   );
 }

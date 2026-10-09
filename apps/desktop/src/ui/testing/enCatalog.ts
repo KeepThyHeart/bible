@@ -22,6 +22,7 @@
  */
 
 import commands from '../../../locales/en/commands.json';
+import downloads from '../../../locales/en/downloads.json';
 import genealogy from '../../../locales/en/genealogy.json';
 import keywords from '../../../locales/en/keywords.json';
 import layout from '../../../locales/en/layout.json';
@@ -29,6 +30,7 @@ import mainProcess from '../../../locales/en/main.json';
 import measures from '../../../locales/en/measures.json';
 import menu from '../../../locales/en/menu.json';
 import meta from '../../../locales/en/meta.json';
+import notifications from '../../../locales/en/notifications.json';
 import quizPane from '../../../locales/en/quizPane.json';
 import readingPlans from '../../../locales/en/readingPlans.json';
 import searchBar from '../../../locales/en/searchBar.json';
@@ -55,6 +57,7 @@ export const enLocalizer: Localizer = EnglishLocalizer;
 export function loadEnCatalog(): Record<string, string> {
   return {
     ...(commands as Record<string, string>),
+    ...(downloads as Record<string, string>),
     ...(genealogy as Record<string, string>),
     ...(keywords as Record<string, string>),
     ...(layout as Record<string, string>),
@@ -62,6 +65,7 @@ export function loadEnCatalog(): Record<string, string> {
     ...(measures as Record<string, string>),
     ...(menu as Record<string, string>),
     ...(meta as Record<string, string>),
+    ...(notifications as Record<string, string>),
     ...(quizPane as Record<string, string>),
     ...(readingPlans as Record<string, string>),
     ...(searchBar as Record<string, string>),

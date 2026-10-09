@@ -1,0 +1,15 @@
+{
+  "downloads.description": "صداها و دیگر دانلودهای اختیاری. هر یک پیش از استفاده بررسی می‌شود. دانلودها به مجاز بودن درخواست‌های وب در بخش حریم خصوصی نیاز دارند.",
+  "downloads.download": "دانلود",
+  "downloads.update": "به‌روزرسانی",
+  "downloads.retry": "تلاش دوباره",
+  "downloads.cancel": "لغو",
+  "downloads.remove": "حذف",
+  "downloads.queued": "در صف",
+  "downloads.downloading": "{percent}%",
+  "downloads.installed": "نصب‌شده",
+  "downloads.total": "روی این دستگاه: {size}",
+  "downloads.empty": "چیزی برای دانلود نیست.",
+  "downloads.unverified": "تأییدنشده",
+  "downloads.managedInModuleManager": "در مدیریت ماژول‌ها مدیریت می‌شود"
+}

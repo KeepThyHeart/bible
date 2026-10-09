@@ -31,6 +31,7 @@ import { t } from '../services/MainI18n';
 import type { IRemindersBridge } from '../extensions/api-impl/IExtensionDataBridges';
 import { NotificationStateFile, normalizeDeviceSettings } from './stateFile';
 import type { TrayController } from './tray';
+import { NOTIFICATIONS_OPEN_TARGET_CHANNEL, NOTIFICATIONS_STATE_CHANGED_CHANNEL } from './channels';
 
 export type RemindersBridgePort = IRemindersBridge;
 
@@ -335,7 +336,7 @@ export class ElectronReminderHost {
 
   /**
    * Route a click to the renderer. The target is also kept as pending until the renderer
-   * takes it (`notifications:take-open-target`, called once when its hook subscribes), so
+   * takes it (`takeOpenTarget`, called once when its hook subscribes), so
    * a click that lands while the page is loading is not lost. A renderer that is already
    * loaded gets the event right away and the pending target is cleared.
    */
@@ -345,7 +346,7 @@ export class ElectronReminderHost {
     this.pendingOpenTarget = { target, at: Date.now() };
     const sendNow = (): void => {
       this.pendingOpenTarget = null; // delivered by event: a later take must not route it again
-      wc.send('notifications:open-target', target);
+      wc.send(NOTIFICATIONS_OPEN_TARGET_CHANNEL, target);
     };
     if (wc.isLoading()) {
       await new Promise<void>((resolve) => {
@@ -384,7 +385,7 @@ export class ElectronReminderHost {
   private emitStateChanged(): void {
     const win = this.opts.getMainWindow();
     if (!win || win.isDestroyed()) return;
-    win.webContents.send('notifications:state-changed', this.getViewState());
+    win.webContents.send(NOTIFICATIONS_STATE_CHANGED_CHANNEL, this.getViewState());
   }
 
   capabilities(): ReminderCapabilities {

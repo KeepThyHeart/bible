@@ -4,7 +4,7 @@
 
 Listening to a chapter: pre-generated recordings where an installation has them, and on-device text-to-speech (Piper) for everything else. Both channels sit behind one player and a set of interfaces, so any part that renders, fetches, caches or times audio can be replaced without touching the rest.
 
-**Off by default.** The feature is the shared `audio` flag (`isEnabled('audio')`, `FEATURE_FLAGS`): switched on with `features.audio: true` in `site-config.json`, or `BIBLE_FEATURE_FLAGS=audio` in development. Until then the server mounts no `/audio` route, `/api/config` carries no `audio` block, the client never loads the player, providers or engines (`main.tsx` loads them through `lazyFeature`; the small UI shells stay in the bundle and render nothing), and the strict Content-Security-Policy is unchanged.
+**Off by default.** The feature is the shared `audio` flag (`isEnabled('audio')`, `FEATURE_FLAGS`): switched on with `features.audio: true` in `site-config.json`, or `BIBLE_FEATURE_FLAGS=audio` in development. Until then the server mounts no `/audio` route, `/api/config` carries no `audio` block, the client never loads the player, providers or engines (the `audio` feature module activates on Study's reader boot and only while the flag is on; the host holds no audio UI, only generic slots the module fills), and the strict Content-Security-Policy is unchanged.
 
 **With zero recordings it still works.** No translation has recordings yet. With no recordings and no engine, the Listen button is disabled with a tooltip saying why. With an engine configured, on-device speech plays any translation whose language it has a voice for. A recording, when one exists, is preferred automatically.
 
@@ -130,15 +130,15 @@ Alt+P play/pause, Alt+Left / Alt+Right previous / next verse, Alt+Shift+Left / R
 
 | File | Description |
 |---|---|
-| `routes/audioRoutes.ts` | `/audio`: the two served trees, Range, immutable caching, traversal-safe |
+| `modules/audio/routes.ts`, `modules/audio/manifest.ts` | The `audio` server module (flag `audio`): `/audio`: the two served trees, Range, immutable caching, traversal-safe |
 | `cspDirectives.ts` | `media-src 'self' blob:` (only when audio is on) plus the configured remote origins |
 | `SiteConfig.ts` | `features.audio`, the `audio` getter (dir, client block, external origins) |
 
-### Client, audio layer (`apps/web/src/audio/`)
+### Client, audio layer (`apps/web/src/modules/audio/lib/`)
 
 | File | Description |
 |---|---|
-| `bootstrap.ts`, `initAudio.ts` | Assemble providers, resolver, player and media session from the config; connect them to the stores. `initAudio` is loaded dynamically from `main.tsx` only when the feature is on |
+| `bootstrap.ts`, `initAudio.ts` | Assemble providers, resolver, player and media session from the config; connect them to the stores. `initAudio` is loaded by the module's `activate()` only when the feature is on |
 | `AudioPlayer.ts` | The one player: generation-guarded queue, verse events, seek, chapter end, prefetch. Rules are in its header |
 | `HtmlAudioOutput.ts` | One shared `<audio>` element behind `IAudioOutput` |
 | `RecordedAudioProvider.ts`, `HttpManifestSource.ts`, `CdnAudioLocator.ts` | The recorded channel and its URL scheme |
@@ -157,21 +157,22 @@ Alt+P play/pause, Alt+Left / Alt+Right previous / next verse, Alt+Shift+Left / R
 
 | File | Description |
 |---|---|
-| `src/stores/audioStore.ts` | The store the UI talks to (plus `PositionStore` and `FollowStore`) |
+| `src/modules/audio/audioStore.ts` | The store the UI talks to (plus `PositionStore` and `FollowStore`) |
 | `src/stores/bibleStore.ts` | `navigateTo({ follow, tabId })`: a page turn that leaves the selection, hash and Study panes alone |
-| `src/hooks/useFollowScroll.ts`, `useNowPlaying.ts` | Auto-scroll to the verse being read; the "what is playing" view model |
-| `src/components/BiblePane/BibleToolbar.tsx`, `AudioTransportBar.tsx` (bar style), `src/components/AudioPlayerPopup.tsx` (pop-up style), `BibleTabBar.tsx`, `VerseRenderer.tsx`, `BibleContent.tsx` | Listen button, desktop bar, speaker mark on the tab, `verse--playing` |
-| `src/components/AudioPlayerScreen.tsx`, `AudioMiniPlayer.tsx` | Phone player and mini-player (`MobileApp.tsx` mounts them and puts the player first in the Back-button priority list) |
-| `src/components/audio/` | Shared pieces: status line, transport buttons, progress, verse pane, quick settings, speed picker, source controls, gate dialog, live region, source list hook |
-| `src/components/Dialogs/AudioSettingsTab.tsx` | Settings > Audio |
-| `src/styles/_audio*.scss` | Audio styles split by piece: shared, bar, phone, verses, pop-up, quick settings (theme tokens only) |
-| `src/sw/rules/audio.ts`, `src/utils/swCachePatterns.ts`, `src/audio/cacheNames.ts`, `public/sw-kill.js` | Cache rules for manifests, chapters and engine runtimes (registered in the service-worker cache-rule registry; the page's Cache API names derive from them; the kill switch keeps them on reset) |
+| `src/modules/audio/hooks/useFollowScroll.ts`, `useNowPlaying.ts` | Auto-scroll to the verse being read; the "what is playing" view model |
+| `src/modules/audio/{manifest,binding,module}.ts` | The feature-module contract: manifest (flag, Settings tab, namespace), lazy binding, `activate()` that fills the host slots below |
+| `src/modules/audio/components/ListenButton.tsx`, `TabSpeakerBadge.tsx`, `AudioTransportBar.tsx` (bar style), `AudioPlayerPopup.tsx` (pop-up style), `FollowScrollEffect.tsx`, `HelpShortcutRows.tsx`, `LayoutMarks.tsx`, `src/modules/audio/verseDecorator.ts` | Listen button (`readerToolbarActions`), speaker mark on the tab (`readerTabBadges`), desktop bar (`readerTransport`), follow-along scroll (`readerPaneEffects`), Help rows (`helpShortcutRows`), per-layout items (`studyLayoutItems`), `verse--playing` through `verseDecorators` |
+| `src/modules/audio/components/AudioPlayerScreen.tsx`, `AudioMiniPlayer.tsx` | Phone player and mini-player (`MobileApp.tsx` renders the `studyLayoutItems` slot and asks `phoneBackHandlers` first in its Back-button list; Audio registers a handler that closes the player) |
+| `src/modules/audio/components/` | Shared pieces: status line, transport buttons, progress, verse pane, quick settings, speed picker, source controls, gate dialog, live region, source list hook |
+| `src/modules/audio/components/AudioSettingsTab.tsx` | Settings > Audio (the lazy view `preferences:audio`) |
+| `src/modules/audio/audio.scss`, `styles/_audio*.scss` | Audio styles (imported by the module, not `main.scss`) split by piece: shared, bar, phone, verses, pop-up, quick settings (theme tokens only) |
+| `src/sw/rules/audio.ts`, `src/utils/swCachePatterns.ts`, `src/modules/audio/lib/cacheNames.ts`, `public/sw-kill.js` | Cache rules for manifests, chapters and engine runtimes (registered in the service-worker cache-rule registry; the page's Cache API names derive from them; the kill switch keeps them on reset) |
 | `scripts/fetch-piper-assets.mjs` | Installs the Piper runtime and voices |
 | `e2e/audioFixture.ts`, `e2e/tests/audio-e2e.spec.ts` | Fixture recording of John 3 (KJV) and the specs |
 
 ## Testing
 
-Unit tests sit beside the code and use fakes only (`FakeManifestSource.withChapters` is the fixture manifest; `FakeTtsEngine` stands in for Piper), so everything runs with zero recordings. The Piper handlers are tested with a fake ONNX Runtime and phonemizer, and `PiperEngine` through the real worker protocol. `src/audio/localeKeys.test.ts` checks that every locale key the code uses exists in English and that es and zh-Hans have the same keys and parameters. E2E: `pnpm exec playwright test --config=e2e/playwright.config.ts audio-e2e` (needs a built client and the modules the suite lists; see `e2e/README.md`).
+Unit tests sit beside the code and use fakes only (`FakeManifestSource.withChapters` is the fixture manifest; `FakeTtsEngine` stands in for Piper), so everything runs with zero recordings. The Piper handlers are tested with a fake ONNX Runtime and phonemizer, and `PiperEngine` through the real worker protocol. `src/modules/audio/lib/localeKeys.test.ts` checks that every `audio.*` locale key the code uses exists in English (`locales/<lng>/audio.json`) and that es and zh-Hans have the same keys and parameters. E2E: `pnpm exec playwright test --config=e2e/playwright.config.ts audio-e2e` (needs a built client and the modules the suite lists; see `e2e/README.md`).
 
 ## Not verified here
 

@@ -132,7 +132,7 @@ describe('isApiPath', () => {
 
 describe('audio rules', () => {
   it('resolve to the cache names the page writes to', async () => {
-    const { AUDIO_CACHE_NAMES } = await import('../audio/cacheNames');
+    const { AUDIO_CACHE_NAMES } = await import('../modules/audio/lib/cacheNames');
     const names = Object.values(AUDIO_CACHE_NAMES).sort();
     const fromRules = CACHE_RULES.filter(r => r.owner === 'audio').map(resolveCacheName).sort();
     expect(fromRules).toEqual(names);

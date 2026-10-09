@@ -1,0 +1,15 @@
+{
+  "downloads.description": "الأصوات وغيرها من التنزيلات الاختيارية. يُتحقق من كل تنزيل قبل استخدامه. تتطلب التنزيلات السماح بطلبات الويب في الخصوصية.",
+  "downloads.download": "تنزيل",
+  "downloads.update": "تحديث",
+  "downloads.retry": "إعادة المحاولة",
+  "downloads.cancel": "إلغاء",
+  "downloads.remove": "إزالة",
+  "downloads.queued": "في قائمة الانتظار",
+  "downloads.downloading": "{percent}%",
+  "downloads.installed": "مثبَّت",
+  "downloads.total": "على هذا الجهاز: {size}",
+  "downloads.empty": "لا شيء للتنزيل.",
+  "downloads.unverified": "غير موثَّق",
+  "downloads.managedInModuleManager": "تُدار في مدير الوحدات"
+}

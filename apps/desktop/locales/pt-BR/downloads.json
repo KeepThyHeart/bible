@@ -1,0 +1,15 @@
+{
+  "downloads.description": "Vozes e outros downloads opcionais. Cada um é verificado antes de ser usado. Os downloads exigem que as solicitações web sejam permitidas em Privacidade.",
+  "downloads.download": "Baixar",
+  "downloads.update": "Atualizar",
+  "downloads.retry": "Tentar novamente",
+  "downloads.cancel": "Cancelar",
+  "downloads.remove": "Remover",
+  "downloads.queued": "Na fila",
+  "downloads.downloading": "{percent}%",
+  "downloads.installed": "Instalado",
+  "downloads.total": "Neste dispositivo: {size}",
+  "downloads.empty": "Nada para baixar.",
+  "downloads.unverified": "não verificado",
+  "downloads.managedInModuleManager": "Gerenciado no Gerenciador de módulos"
+}

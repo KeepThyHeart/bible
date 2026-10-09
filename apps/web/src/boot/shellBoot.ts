@@ -8,12 +8,11 @@ import { pwaFlag, pwaUpdateMode, setClientConfig } from '../utils/clientConfig';
 import { applyUpdateIfStale, registerServiceWorker, unregisterServiceWorkers } from '../utils/appUpdate';
 import i18n, { ensureLocaleLoaded } from '../i18n';
 import { installBidiCopy } from '../utils/bidiCopy';
-import { getOfflineBible } from './offlineBible';
 import type { ShellContext } from './shellContext';
 
 /**
  * The app-independent half of boot: locale, health/config/version,
- * service worker, update check, providers, module manifest, theme, reminders.
+ * service worker, update check, providers, module manifest, theme.
  * Resolves to null when boot must stop and render nothing (unauthorized, or the
  * page is being replaced by a fresh build). No app-specific store is touched.
  */
@@ -122,18 +121,6 @@ export async function bootShell(): Promise<ShellContext | null> {
   };
 
   settingsStore.applyTheme();
-
-  // Reminders (tier 1: notifications while a tab is open). The code loads lazily
-  // and only where the browser can show notifications. The verse-of-the-day
-  // provider is resolved at fire time only.
-  if (typeof window !== 'undefined' && 'Notification' in window) {
-    void import('../notifications/webReminders')
-      .then(m => {
-        m.setVerseOfTheDayFetcher(async () => (await getOfflineBible(ctx)).getVerseOfTheDay());
-        return m.startWebReminders();
-      })
-      .catch(err => console.warn('[Notifications] Reminders failed to start:', err));
-  }
 
   // Load module manifest -- in offline mode this may fail, but the app can
   // still render with locally-cached Bible data from OPFS.

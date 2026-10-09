@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
 import React from 'react';
-import { useNotificationOpenTarget } from './hooks/useNotificationOpenTarget';
 import ErrorBoundary from './components/ErrorBoundary';
 import TopSearchBar from './components/TopSearchBar';
 import LayoutDropdown from './components/LayoutDropdown';
@@ -85,10 +84,6 @@ const openAdvancedSearchDialog = () => useSearchStore.getState().openAdvancedDia
 const navigateToVerseInPrimary = (verseId: number) => {
   void openApp('study');
   return useBibleStore.getState().navigateToVerseInPrimary(verseId);
-};
-const navigateToVerseRangeInPrimary = (verseId: number, endVerseId?: number) => {
-  void openApp('study');
-  void useBibleStore.getState().navigateToVerseInPrimary(verseId, endVerseId);
 };
 
 // Install cross-store bridges + when-context publishers once, at module load,
@@ -239,16 +234,18 @@ function App() {
     }
   }, []);
 
-  // Notification clicks (main has already shown and focused the window).
-  const openNotificationPreferences = useCallback(() => {
-    setPreferencesInitialSection('notifications');
-    setPreferencesFontPane(undefined);
-    setShowPreferences(true);
+  // Any module can open Preferences at one of its sections (e.g. the Notifications module on a notification click).
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const section = (e as CustomEvent<string>).detail;
+      if (typeof section !== 'string' || !section) return;
+      setPreferencesInitialSection(section);
+      setPreferencesFontPane(undefined);
+      setShowPreferences(true);
+    };
+    window.addEventListener('open-preferences-section', handler);
+    return () => window.removeEventListener('open-preferences-section', handler);
   }, []);
-  useNotificationOpenTarget({
-    navigateToVerse: navigateToVerseRangeInPrimary,
-    openNotificationPreferences,
-  });
 
   // Listen for menu events
   useEffect(() => {

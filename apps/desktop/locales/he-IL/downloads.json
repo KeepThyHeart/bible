@@ -1,0 +1,15 @@
+{
+  "downloads.description": "קולות והורדות אופציונליות אחרות. כל אחת נבדקת לפני השימוש בה. ההורדות דורשות שבקשות רשת יהיו מותרות בהגדרות הפרטיות.",
+  "downloads.download": "הורד",
+  "downloads.update": "עדכן",
+  "downloads.retry": "נסה שוב",
+  "downloads.cancel": "ביטול",
+  "downloads.remove": "הסר",
+  "downloads.queued": "בתור",
+  "downloads.downloading": "{percent}%",
+  "downloads.installed": "מותקן",
+  "downloads.total": "במכשיר זה: {size}",
+  "downloads.empty": "אין מה להוריד.",
+  "downloads.unverified": "לא מאומת",
+  "downloads.managedInModuleManager": "מנוהל במנהל המודולים"
+}

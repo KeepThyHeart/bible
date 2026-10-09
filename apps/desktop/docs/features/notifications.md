@@ -4,8 +4,8 @@ The desktop side of the shared reminders engine (`packages/core/src/Reminders/`)
 
 ## Preferences > Notifications
 
-- Section id `notifications` in `src/ui/components/PreferencesDialog/sectionDefs.tsx`; body is `PreferencesDialog/NotificationsSection.tsx`.
-- `NotificationsSection` loads `window.electron.notifications.getState()`, subscribes to `onStateChanged` (unsubscribed on unmount) and renders the shared `NotificationPreferences` component from `@bible/ui` with translated labels (`notifications.*` in `locales/*/ui.json`; `{time}`, `{count}` and `{source}` placeholders are passed back verbatim so the component fills them in; the plural "N scheduled" comes from the ICU key `notifications.scheduledCount` via `formatScheduled`). Main-process strings have no ICU, so `main.notifications.collapsed` is phrased without a plural noun ("Reminders waiting: {count}").
+- The `notifications` feature module (task 0128, `src/ui/modules/notifications/`) contributes the section (id `notifications`, order 30; icon in `sectionDefs.tsx`) and the lazy `preferences:notifications` view `NotificationsSection.tsx`. `KTH_MODULES=-notifications` removes the section, the IPC and the click routing; the reminder engine in main still runs (extensions' `api.reminders`, the Bible Memory source).
+- `NotificationsSection` loads `getState()` through the module client (`notificationsAPI.ts`), subscribes to the `state-changed` event (unsubscribed on unmount) and renders the shared `NotificationPreferences` component from `@bible/ui` with translated labels (`notifications.*` in `locales/*/notifications.json`; `{time}`, `{count}` and `{source}` placeholders are passed back verbatim so the component fills them in; the plural "N scheduled" comes from the ICU key `notifications.scheduledCount` via `formatScheduled`). Main-process strings have no ICU, so `main.notifications.collapsed` is phrased without a plural noun ("Reminders waiting: {count}").
 - Settings edits update the view optimistically, then take the state main returns. The device section (tray, start at login) appears only because main reports `state.device`.
 - "Allow notifications" calls `requestPermission` then refreshes; "Send a test notification" calls `sendTest`.
 
@@ -15,7 +15,7 @@ The desktop side of the shared reminders engine (`packages/core/src/Reminders/`)
 
 ## IPC
 
-Invoke channels (`electron/ipc/notificationHandlers.ts`, `Result` envelope, in `allowedChannels.ts`): `notifications:get-state`, `set-settings`, `set-device`, `send-test`, `request-permission`, `take-open-target`. Events to the renderer: `notifications:state-changed`, `notifications:open-target`. `window.electron.notifications` (preload) wraps them.
+Invoke channels (`electron/modules/notifications/index.ts`, a `FeatureMainModule`, `Result` envelope): `module:notifications:getState`, `setSettings`, `setDevice`, `sendTest`, `requestPermission`, `takeOpenTarget`. Events to the renderer, sent by the engine (`electron/notifications/channels.ts`): `module:notifications:event:state-changed`, `module:notifications:event:open-target`. The renderer uses `createModuleClient('notifications')`. The engine is published to the module with `setActiveReminderHost` (called by `main.ts`).
 
 ## Tray, login item, `--hidden`
 
@@ -27,7 +27,7 @@ Both are opt-in, off by default and stored per device in `notifications.json` (n
 
 ## Notification click routing
 
-Main shows and focuses the window, then sends `notifications:open-target` with a `ReminderTarget`. The target is also kept as pending until the renderer calls `notifications:take-open-target` (once, when the hook subscribes), so a click that lands while the page is loading is not lost; a renderer that is already loaded just gets the event, and the wait for `did-finish-load` times out. `src/ui/hooks/useNotificationOpenTarget.ts` (used by `App.tsx`) routes it:
+Main shows and focuses the window, then sends `open-target` with a `ReminderTarget`. The target is also kept as pending until the renderer calls `takeOpenTarget` (once, when the module's routing starts after `onStartupFinished`), so a click that lands while the page is loading is not lost; a renderer that is already loaded just gets the event, and the wait for `did-finish-load` times out. `src/ui/modules/notifications/openTarget.ts` (started by the module's `activate`) routes it; Preferences opens through the generic `open-preferences-section` window event that `App.tsx` listens for:
 
 - `verse` -> `useBibleStore.getState().navigateToVerseInPrimary(verseId, endVerseId)`
 - `route` `settings/notifications` -> opens Preferences at the Notifications section
@@ -39,6 +39,6 @@ Main shows and focuses the window, then sends `notifications:open-target` with a
 
 ## Tests
 
-`electron/notifications/__tests__` (host: firing, click routing, take-open-target, escaping, allowed-extension gating, setSettings before start, power/guard re-arm, state file, login item), `electron/ipc/__tests__/notificationHandlers.test.ts`, `electron/utils/__tests__/runOnce.test.ts` (IPC handlers register once), `NotificationsSection.test.tsx` (fake `window.electron.notifications`), `useNotificationOpenTarget.test.ts`; `vitest.setup.ts` stubs `window.electron.notifications`.
+`electron/notifications/__tests__` (host: firing, click routing, take-open-target, escaping, allowed-extension gating, setSettings before start, power/guard re-arm, state file, login item), `electron/modules/notifications/mainModule.test.ts`, `electron/utils/__tests__/runOnce.test.ts` (IPC handlers register once), `NotificationsSection.test.tsx` (fake `window.electron.modules` bridge), `openTarget.test.ts`, `notificationsModule.test.ts`.
 
 Startup order: the tray is created from `notifications.json` before the user DB opens, so a hidden launch is reachable early. Extension reminders are not vetoed until the extension registry has loaded (`extensionRegistryLoaded`); afterwards remembered `ext:` sources of uninstalled extensions are forgotten. A click target is sent to the renderer once (the pending copy is cleared when sent), and the renderer's hook takes any pending target exactly once on mount.

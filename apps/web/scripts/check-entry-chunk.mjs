@@ -13,9 +13,12 @@ export const FORBIDDEN = [
   /^src\/search\/BrowserSearchProvider\.ts$/,
   // Feature modules: only the manifest, the binding and what the boot probe needs
   // may be in the entry; everything else loads on activation (task 0123).
+  /^src\/modules\/downloads\/(?!(manifest|binding)\.ts$)/,
   /^src\/modules\/present\/(?!(manifest|binding|runtime)\.ts$|lib\/(controlLink|sessionKey)\.ts$)/,
   /^src\/modules\/(timeline|genealogy|quiz|similar|xref-graph|measures|keyword-marks)\/(?!(manifest|binding)\.ts$)/,
   /^src\/modules\/word-study\/(?!(manifest|binding)\.ts$)/,
+  /^src\/modules\/audio\/(?!(manifest|binding)\.ts$)/,
+  /^src\/modules\/notifications\/(?!(manifest|binding)\.ts$)/,
 ];
 
 /** @returns {{ok: boolean, entry: string|null, offenders: {chunk: string, module: string}[], error?: string}} */

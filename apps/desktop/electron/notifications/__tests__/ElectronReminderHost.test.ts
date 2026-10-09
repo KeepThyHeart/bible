@@ -118,7 +118,7 @@ describe('ElectronReminderHost', () => {
     n.emit('click');
     await vi.advanceTimersByTimeAsync(0);
     expect(showWindow).toHaveBeenCalled();
-    expect(win.webContents.send).toHaveBeenCalledWith('notifications:open-target', { kind: 'verse', verseId: expect.any(Number) });
+    expect(win.webContents.send).toHaveBeenCalledWith('module:notifications:event:open-target', { kind: 'verse', verseId: expect.any(Number) });
   });
 
   it('shows the reference only when no text is available', async () => {
@@ -147,7 +147,7 @@ describe('ElectronReminderHost', () => {
     shown()[0].emit('click');
     await vi.advanceTimersByTimeAsync(0);
     expect(onActivation).toHaveBeenCalledWith('acme.mem', { key: 'k1', keys: ['k1'], data: { deck: 1 }, firedAt: dueAt });
-    expect(win.webContents.send).not.toHaveBeenCalledWith('notifications:open-target', expect.anything());
+    expect(win.webContents.send).not.toHaveBeenCalledWith('module:notifications:event:open-target', expect.anything());
   });
 
   it('collapses a multi-day sleep to one notification on resume', async () => {
@@ -231,7 +231,7 @@ describe('ElectronReminderHost', () => {
     expect(shown()).toHaveLength(1);
     expect(shown()[0].opts.title).toBe('Test notification');
     await vi.advanceTimersByTimeAsync(200);
-    expect(win.webContents.send).toHaveBeenCalledWith('notifications:state-changed', expect.objectContaining({ timeZone: expect.any(String) }));
+    expect(win.webContents.send).toHaveBeenCalledWith('module:notifications:event:state-changed', expect.objectContaining({ timeZone: expect.any(String) }));
   });
 
   it('keeps notifications referenced until closed', async () => {
@@ -358,7 +358,7 @@ describe('ElectronReminderHost', () => {
       loaded();
       await vi.advanceTimersByTimeAsync(10);
       await sending;
-      expect(win.webContents.send).toHaveBeenCalledWith('notifications:open-target', target);
+      expect(win.webContents.send).toHaveBeenCalledWith('module:notifications:event:open-target', target);
       expect(host.takeOpenTarget()).toBeNull();
     });
 
@@ -367,7 +367,7 @@ describe('ElectronReminderHost', () => {
       await host.start();
       const target = { kind: 'verse', verseId: 1001001 } as const;
       await host.sendOpenTarget(target, win as never);
-      expect(win.webContents.send).toHaveBeenCalledWith('notifications:open-target', target);
+      expect(win.webContents.send).toHaveBeenCalledWith('module:notifications:event:open-target', target);
       expect(host.takeOpenTarget()).toBeNull();
     });
 

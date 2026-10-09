@@ -1,12 +1,5 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron';
 import type { MenuSpec } from './menu/menuSpec';
-import type {
-  NotificationSettings,
-  NotificationDeviceSettings,
-  NotificationsViewState,
-  ReminderPermission,
-  ReminderTarget,
-} from '@bible/core/browser';
 
 // electron-log/renderer is NOT available in sandboxed preload contexts (Electron
 // sandbox restricts require() to a small set of built-in modules). We try to
@@ -48,12 +41,6 @@ function typedInvoke<T = any>(channel: IpcChannel, ...args: unknown[]): Promise<
 }
 import type { Result } from './ipc/result';
 
-/** Unwrap a `Result<T>` envelope: resolve to the value, reject with the error message. */
-async function unwrapResult<T>(pending: Promise<Result<T>>): Promise<T> {
-  const r = await pending;
-  if (r.ok) return r.value;
-  throw new Error(r.error.message);
-}
 import type { BackupSummary, BackupInspection, BackupApplyResult } from './ipc/backupTypes';
 import type { UpdateCheckInfo, UpdateCheckOutcome } from './services/UpdateCheckService';
 import type {
@@ -538,20 +525,6 @@ export interface ElectronAPI {
     on: (channel: string, handler: (payload: unknown) => void) => () => void;
     send: (channel: string, payload: unknown) => void;
     invoke: <T = unknown>(channel: string, payload: unknown) => Promise<T>;
-  };
-
-  // Notifications and reminders (task 0083). The invoke methods unwrap the
-  // `Result<T>` envelope (resolve to the value, reject on failure).
-  notifications: {
-    getState(): Promise<NotificationsViewState>;
-    setSettings(settings: NotificationSettings): Promise<NotificationsViewState>;
-    setDevice(patch: Partial<NotificationDeviceSettings>): Promise<NotificationsViewState>;
-    sendTest(): Promise<void>;
-    requestPermission(): Promise<ReminderPermission>;
-    /** A click-through that arrived before the renderer subscribed (null when none). */
-    takeOpenTarget(): Promise<ReminderTarget | null>;
-    onStateChanged(cb: (state: NotificationsViewState) => void): () => void;
-    onOpenTarget(cb: (target: ReminderTarget) => void): () => void;
   };
 
   // Diagnostics & issue reporting
@@ -1212,31 +1185,6 @@ const electronAPI: ElectronAPI = {
     },
     invoke: (channel: string, payload: unknown) => {
       return ipcRenderer.invoke(channel, payload);
-    },
-  },
-
-  notifications: {
-    getState: () => unwrapResult<NotificationsViewState>(typedInvoke('notifications:get-state')),
-    setSettings: (settings: NotificationSettings) =>
-      unwrapResult<NotificationsViewState>(typedInvoke('notifications:set-settings', settings)),
-    setDevice: (patch: Partial<NotificationDeviceSettings>) =>
-      unwrapResult<NotificationsViewState>(typedInvoke('notifications:set-device', patch)),
-    sendTest: () => unwrapResult<void>(typedInvoke('notifications:send-test')),
-    requestPermission: () => unwrapResult<ReminderPermission>(typedInvoke('notifications:request-permission')),
-    takeOpenTarget: () => unwrapResult<ReminderTarget | null>(typedInvoke('notifications:take-open-target')),
-    onStateChanged: (cb: (state: NotificationsViewState) => void) => {
-      const wrapped = (_event: unknown, state: NotificationsViewState): void => cb(state);
-      ipcRenderer.on('notifications:state-changed', wrapped);
-      return () => {
-        ipcRenderer.removeListener('notifications:state-changed', wrapped);
-      };
-    },
-    onOpenTarget: (cb: (target: ReminderTarget) => void) => {
-      const wrapped = (_event: unknown, target: ReminderTarget): void => cb(target);
-      ipcRenderer.on('notifications:open-target', wrapped);
-      return () => {
-        ipcRenderer.removeListener('notifications:open-target', wrapped);
-      };
     },
   },
 

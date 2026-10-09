@@ -3,7 +3,8 @@
  * `fetch` for transport. Without the Cache API (old browsers, some private modes) it falls back to
  * the in-memory store, so downloads still work for the session.
  *
- * The catalog is `/assets/v1/index.json` plus Piper's manifests (audio on and Piper configured).
+ * The catalog is `/assets/v1/index.json` plus whatever feature modules add through `registerCatalogSource`
+ * (the Audio module adds Piper's manifests while it is active).
  */
 
 import {
@@ -19,12 +20,9 @@ import type {
   IAssetStore,
   InstallOptions,
   InstalledAsset,
-  TtsEngineConfig,
 } from '@bible/core/browser';
-import { getAudioConfig } from '../audio/config';
 import { CacheAssetRegistryStore, CacheAssetStore } from './CacheAssetStore';
 import { FetchTransport } from './FetchTransport';
-import { loadPiperManifests } from './piperAssets';
 
 const baseUrl = (): string => {
   try {
@@ -87,8 +85,27 @@ export async function getReadyAssetManager(): Promise<IAssetManager> {
   return m;
 }
 
-export function piperConfig(): TtsEngineConfig | undefined {
-  return getAudioConfig()?.engines.find((e) => e.id === 'piper' && e.enabled);
+/** Extra catalog entries from a feature module: `getText` fetches through the shared transport (null on a miss). */
+export type CatalogSource = (
+  getText: (url: string, signal: AbortSignal) => Promise<string | null>,
+  signal: AbortSignal,
+) => Promise<AssetManifest[]>;
+
+const catalogSources = new Set<CatalogSource>();
+
+/**
+ * Add a catalog source; dispose to remove it. Changing the sources after the manager exists
+ * refreshes the catalog once, so a module that activates late still shows its assets.
+ */
+export function registerCatalogSource(source: CatalogSource): { dispose(): void } {
+  catalogSources.add(source);
+  if (manager) void (catalogRefresh ?? Promise.resolve()).then(() => refreshAssetCatalog());
+  return {
+    dispose() {
+      if (!catalogSources.delete(source)) return;
+      if (manager) void (catalogRefresh ?? Promise.resolve()).then(() => refreshAssetCatalog());
+    },
+  };
 }
 
 /** Fetch the catalog and hand it to the manager. Failures leave the previous catalog; never throws. */
@@ -107,10 +124,9 @@ export function refreshAssetCatalog(): Promise<void> {
     } catch {
       indexOk = false;
     }
-    const piper = piperConfig();
-    if (piper) {
+    for (const source of [...catalogSources]) {
       try {
-        const extra = await loadPiperManifests(piper, (u, s) => t.getText(u, s), signal);
+        const extra = await source((u, s) => t.getText(u, s), signal);
         const seen = new Set(manifests.map((x) => x.id));
         manifests.push(...extra.filter((x) => !seen.has(x.id)));
       } catch { /* keep what we have */ }

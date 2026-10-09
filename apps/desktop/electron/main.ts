@@ -23,12 +23,12 @@ import { closeAssetService } from './services/assets/AssetService';
 import { registerFeaturePackHandlers, closeFeaturePackHandlers } from './ipc/featurePackHandlers';
 import { registerI18nHandlers } from './ipc/i18nHandlers';
 import { loadMainCatalogs, t } from './services/MainI18n';
-import { registerNotificationHandlers } from './ipc/notificationHandlers';
 import {
   ElectronReminderHost,
   NotificationStateFile,
   TrayController,
   createVotdSource,
+  setActiveReminderHost,
   setLoginItem,
   isLoginItemSupported,
 } from './notifications';
@@ -626,7 +626,6 @@ const registerAllHandlersOnce = runOnce(() => {
   registerCollectionHandlers();
   registerHighlightHandlers();
   registerNoteDirectionHandlers();
-  registerNotificationHandlers(() => reminderHost);
   registerModuleHandlers(ipcMain);
   registerFeaturePackHandlers(ipcMain);
   registerAssetHandlers(ipcMain);
@@ -1343,6 +1342,8 @@ app.whenReady().then(async () => {
   registerMenuRebuildHandler(() => menuBuilder);
 
   reminderHost = createReminderHost();
+  // The Notifications module's IPC (modules/notifications) reaches the engine through this.
+  setActiveReminderHost(reminderHost);
 
   // Create window first so the user sees the UI shell immediately;
   // background tasks (module detection, notes DB) load after the window appears.

@@ -10,9 +10,9 @@ import { Header } from './components/Header';
 import { ResizeHandle } from './components/common/ResizeHandle';
 import { DialogLayer } from './components/common/DialogLayer';
 import { ContextMenuPopup } from './components/common/ContextMenuPopup';
-import { AudioPlayerPopup } from './components/AudioPlayerPopup';
 import { ConnectionBanner } from './components/ConnectionBanner';
 import { CompanionSlot } from './host/CompanionSlot';
+import { StudyLayoutOutlet } from './host/slots';
 import { UpdateBanner } from './components/UpdateBanner';
 import { commentaryStore } from './stores/commentaryStore';
 import { fireActivation } from './modules/moduleHost';
@@ -25,7 +25,6 @@ import { isTagGraphEnabled } from './utils/clientConfig';
 import { dictionaryStore } from './stores/dictionaryStore';
 import { bibleStore } from './stores/bibleStore';
 import { searchStore } from './stores/searchStore';
-import { audioStore } from './stores/audioStore';
 import { evalVerseWhen, whenKeys } from './host/verseActionWhen';
 import { useReadable } from './host/useReadable';
 import { useAppShared } from './hooks/useAppShared';
@@ -70,8 +69,6 @@ export function DesktopApp({ providers }: DesktopAppProps) {
   const showTagGraph = isTagGraphEnabled();
   const paneModes = usePaneModes();
   const [biblePaneWidth, setBiblePaneWidth] = useState(60);
-  // The audio UI is laid out per form factor: the transport bar docks under the toolbar here.
-  useEffect(() => { audioStore.setLayout('desktop'); }, []);
 
   // Auto-switch to search mode when a search is performed, and force the pane
   // open. Keyed off `searchSeq` as well as `isOpen` so that a second search runs
@@ -261,7 +258,8 @@ export function DesktopApp({ providers }: DesktopAppProps) {
         setStrongsPopup={shared.setStrongsPopup}
         strongsTooltip={shared.strongsTooltip}
       />
-      <AudioPlayerPopup onOpenSettings={shared.openSettings} />
+      <StudyLayoutOutlet layout="desktop" placement="dialogs" onOpenSettings={shared.openSettings} />
+      <StudyLayoutOutlet layout="desktop" placement="overlay" onOpenSettings={shared.openSettings} />
       {contextMenu && (
         <ContextMenuPopup
           x={contextMenu.x}

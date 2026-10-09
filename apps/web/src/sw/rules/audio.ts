@@ -7,7 +7,7 @@ import {
 
 /**
  * Audio Bible (task 0059). The page also stores these through the Cache API
- * (`src/audio/cacheNames.ts` derives the SAME names from these rules), so
+ * (`src/modules/audio/lib/cacheNames.ts` derives the SAME names from these rules), so
  * recordings work offline with the PWA off, and what the page stored answers the
  * worker's requests, Range requests included. No `maxEntries`: the page trims
  * least-recently-played chapters itself. Manifests and audio are immutable (the
