@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Verse Hover demo: a sample article</title>
+<style>
+  body{font:18px/1.6 Georgia,serif;margin:0;background:#fafaf7;color:#222}
+  @media (prefers-color-scheme:dark){body{background:#17181a;color:#e6e6e6}}
+  :root[data-page=dark] body{background:#17181a;color:#e6e6e6}
+  header{background:#2b3a55;color:#fff;padding:1rem 1.25rem}
+  header h1{margin:0;font-size:1.3rem}
+  main{max-width:42rem;margin:0 auto;padding:1rem 1.25rem 3rem}
+  aside{border-inline-start:3px solid #bbb;padding-inline-start:1rem;margin:1.5rem 0;font-size:.95rem}
+  h2{margin-top:2rem}
+  code{background:#0001;padding:0 .3em}
+</style>
+<script>
+  // The demo reads its configuration from ?cfg={json}; real pages use data-vh on the script tag.
+  window.VerseHoverConfig = JSON.parse(new URLSearchParams(location.search).get('cfg') || '{}');
+  if (new URLSearchParams(location.search).get('dark')) document.documentElement.dataset.page = 'dark';
+</script>
+<script src="/dist/verse-hover.min.js" defer></script>
+</head>
+<body>
+<header><h1>Faith for Ordinary Days</h1></header>
+<main id="study">
+<p><em>A short devotional on trust, patience and the plain commands of the gospel.</em></p>
+
+<h2>Where trust begins</h2>
+<p>Most of us learn the gospel in one sentence: "For God so loved the world" (John 3:16). It is worth reading
+the surrounding verses too, so see John 3:14-18 and then compare Romans 5:8, which says the same thing from the
+other side. Paul adds in Rom. 8:28 that all things work together, and in 1 John 4:8 that God is love.</p>
+
+<p>Jesus himself said it plainly in John 14:6. His longer teaching is in Matthew 5:3-12 (the Beatitudes) and, for
+the quiet reader, Psalm 23 is still the best place to start. The shortest letter is Jude 3, and the shortest
+chapter is Psalm 117. Read 2 Timothy 1:7 aloud when you are afraid; read II Corinthians 5:17 when you are tired.</p>
+
+<h2>Lists and chains</h2>
+<p>Memory verses for this month: Rom 3:23; 6:23, 25; Eph 2:8-9. A chapter range works too: Genesis 1-3 is the
+whole beginning. A cross-chapter one: John 3:35-4:3 crosses a chapter break.</p>
+
+<h2>Things that must not be linked</h2>
+<p>I am 5 years old. Is 1 a prime number? No. The job was posted at 3 pm and Job 5 applicants came by, but
+the book of Job is long and so is Numbers. Chapter 3 of the report is on page 45; see 2020 for details. Mark 4 km
+and call me in the morning. <code>John 3:16</code> in code is left alone, as is <a href="#">John 3:16 inside a link</a>.</p>
+
+<aside id="side">
+  <strong>Sidebar:</strong> a second region. Acts 2:38 and Heb 11:1 appear here; with a selector scope configured
+  for <code>#study</code> only this main column is linked.
+</aside>
+
+<p>One more with a version suffix: John 3:16 (ASV) reads a little differently from the King James.</p>
+</main>
+</body>
+</html>

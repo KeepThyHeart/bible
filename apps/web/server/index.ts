@@ -8,6 +8,7 @@ import { DatabaseManager } from './DatabaseManager.js';
 import { createPasswordGate, hashPassword } from './middleware/passwordGate.js';
 import { createServiceWorkerRoutes, pwaShell, readShell } from './middleware/serviceWorker.js';
 import { createCompression } from './middleware/compression.js';
+import { createVerseHoverMount, resolveVerseHoverDist } from './middleware/verseHoverMount.js';
 import { createRateLimiter, tierForApiPath } from './middleware/rateLimiter.js';
 import { contentSecurityPolicyDirectives } from './cspDirectives.js';
 import { createAssetRouter } from './routes/assetRoutes.js';
@@ -281,6 +282,22 @@ if (process.env.DISABLE_RATE_LIMIT === '1') {
     rateLimiter.middleware(tierForApiPath(req.path))(req, res, next));
 }
 
+// verse-hover drop-in (/vh): other sites load it with a plain <script src>. It sits
+// ahead of the gate only when site config says verseHover.public; otherwise it is
+// mounted after the gate like any other path.
+const verseHoverConfig = siteConfig.verseHover;
+const verseHoverMount = createVerseHoverMount({
+  distDir: resolveVerseHoverDist(packageRoot),
+  dataDir: verseHoverConfig.dataDir
+    ? resolve(verseHoverConfig.dataDir)
+    : resolve(dataDir, 'vh-data'),
+});
+if (!verseHoverMount) {
+  logger.info('verse-hover not built (packages/verse-hover/dist missing); /vh not mounted');
+} else if (verseHoverConfig.public) {
+  app.use('/vh', verseHoverMount);
+}
+
 if (!NO_AUTH) {
   app.use(createPasswordGate({ passwordHash: sitePasswordHash, privacyMode }));
 } else {
@@ -288,6 +305,8 @@ if (!NO_AUTH) {
     ? 'Auth disabled (NO_AUTH=1)'
     : 'Auth disabled (auth.enabled is false in site-config.json)');
 }
+
+if (verseHoverMount && !verseHoverConfig.public) app.use('/vh', verseHoverMount);
 
 // Load search pipeline config if available
 let searchPipeline: ISearchPipeline | undefined;

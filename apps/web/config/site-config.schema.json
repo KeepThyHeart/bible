@@ -322,6 +322,22 @@
       },
       "additionalProperties": false
     },
+    "verseHover": {
+      "type": "object",
+      "description": "The verse-hover drop-in served at /vh (needs packages/verse-hover built).",
+      "properties": {
+        "public": {
+          "type": "boolean",
+          "description": "Serve /vh without the password gate so other sites can embed it. When false, /vh is gated like every other path.",
+          "default": false
+        },
+        "dataDir": {
+          "type": "string",
+          "description": "Directory of generated static Bible JSON served at /vh/data. Default: <data dir>/vh-data."
+        }
+      },
+      "additionalProperties": false
+    },
     "privacy": {
       "type": "object",
       "description": "Privacy posture for deployments where minimizing data footprint matters (e.g., users in high-risk regions).",

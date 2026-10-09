@@ -1,0 +1,103 @@
+// Generates src/locales/<id>.generated.ts from the reference engine's locale data
+// (packages/core/src/Reference/locales/<id>.json, owned by task 0077) so that
+// the drop-in and the apps share ONE source of book names. Run: node scripts/gen-locales.mjs
+import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const here = dirname(fileURLToPath(import.meta.url));
+const localesDir = resolve(here, '../../core/src/Reference/locales');
+const outDir = resolve(here, '../src/locales');
+const bookNamesTs = readFileSync(resolve(here, '../../core/src/Data/Core/BookNames.ts'), 'utf8');
+
+/** Chapter counts: parsed from core's MAX_CHAPTERS table (single source of truth). */
+const block = bookNamesTs.match(/MAX_CHAPTERS[^=]*=\s*\{([^}]*)\}/)[1];
+const counts = [];
+for (const m of block.matchAll(/(\d+):\s*(\d+)/g)) counts[Number(m[1]) - 1] = Number(m[2]);
+if (counts.length !== 66 || counts.some((c) => !c)) throw new Error('could not read MAX_CHAPTERS');
+const CHAPTERS = counts.join(',');
+
+const PACKS = {
+  en: {
+    ambiguous: ['is', 'am', 'so', 'ho', 'he', 're', 'la', 'ex', 'pm', 'co', 'pp', 'ml', 'mr', 'job', 'mark', 'acts', 'act', 'numbers',
+      'judges', 'song', 'mat', 'mar', 'dan', 'pro', 'est', 'mic', 'hab', 'gal', 'sos', 'jam', 'no', 'ac'],
+    units: '(?:%|(?:st|nd|rd|th)\\b|(?:km|kg|cm|mm|mg|lbs?|ml|px|mph|kb|mb|gb|am|pm|years?|days?|hours?|minutes?|times|percent|people|items?)\\b)',
+    cues: '(?:\\b(?:see|cf|compare|read|reading|in|from|per|ref|refs|also|and|verse|verses)|[(\\[;])[\\s.:]*$',
+    ui: { loading: 'Loading…', notFound: 'Verse not found', error: 'Could not load the verse', retry: 'Retry', close: 'Close',
+      chapter: 'Open chapter' },
+  },
+  es: {
+    ambiguous: ['ex', 'job', 'no', 'ha', 'fil', 'mar', 'mt', 'dan', 'pro', 'is', 'am', 'he'],
+    units: '(?:%|(?:km|kg|cm|mm|mg|ml|px|mph|kb|mb|gb|a\\u00f1os?|d\\u00edas?|horas?|minutos?|veces|por\\s*ciento|personas)\\b)',
+    cues: '(?:\\b(?:ver|v\\u00e9ase|cf|comp\\u00e1rese|lee|leer|en|de|y)|[(\\[;])[\\s.:]*$',
+    ui: { loading: 'Cargando…', notFound: 'Versículo no encontrado', error: 'No se pudo cargar el versículo', retry: 'Reintentar',
+      close: 'Cerrar', chapter: 'Abrir capítulo', read: 'Leer capítulo', prev: 'Capítulo anterior', next: 'Capítulo siguiente',
+      copy: 'Copiar', book: 'Libro', chap: 'Capítulo' },
+  },
+};
+
+const fold = (s) => s.toLowerCase().normalize('NFD').replace(/\p{M}/gu, '').replace(/\./g, '').replace(/\s+/g, ' ').trim();
+
+function makeNorm(ord) {
+  const keys = Object.keys(ord).sort((a, b) => b.length - a.length);
+  return (s) => {
+    s = fold(s);
+    for (const k of keys) if (s.startsWith(k + ' ')) return ord[k] + s.slice(k.length + 1).replace(/^\s+/, '').replace(/\s+/g, ' ');
+    return s.replace(/^([123])\s(?=\D)/, '$1');
+  };
+}
+
+for (const id of Object.keys(PACKS)) {
+  const data = JSON.parse(readFileSync(resolve(localesDir, `${id}.json`), 'utf8'));
+  const cfg = PACKS[id];
+  const ord = {};
+  for (const [digit, words] of Object.entries(data.ordinals)) for (const w of words) ord[fold(w)] = Number(digit);
+  for (const w of ['1st', '2nd', '3rd']) ord[w] = Number(w[0]);
+  const norm = makeNorm(ord);
+  const books = [];
+  const lines = [];
+  const seen = new Map();
+  const prefer = {};
+  for (const [k, v] of Object.entries(data.ambiguous || {})) prefer[k] = v.prefer;
+  for (let n = 1; n <= 66; n++) {
+    const b = data.books[String(n)];
+    books.push(b.long);
+    const fullKeys = new Set([norm(b.long)]);
+    const abbr = new Set();
+    for (const raw of [b.medium, b.short, ...(b.aliases || [])]) {
+      if (!raw) continue;
+      const key = norm(raw);
+      const base = key.replace(/^\d/, '');
+      if (key === norm(b.long)) continue;
+      // Long spellings (>= 6 letters, e.g. "revelations", "song of songs") count as full names.
+      (base.replace(/\s/g, '').length >= 6 ? fullKeys : abbr).add(key);
+    }
+    fullKeys.delete(norm(b.long)); // the runtime adds each book's own name
+    seen.set(norm(b.long), n);
+    const line = [[...fullKeys], [...abbr]].map((a) => a.filter((k) => {
+      if (!k) return false;
+      const prev = seen.get(k);
+      if (prev && prev !== n) {
+        if (prefer[k] === n) { /* this book wins; the other keeps it too unless removed below */ }
+        else return false;
+      }
+      seen.set(k, n);
+      return true;
+    }).join(','));
+    lines.push(line.join('|'));
+  }
+  // 'prefer' collisions: remove the key from non-preferred books already emitted.
+  for (const [k, n] of Object.entries(prefer)) {
+    lines.forEach((l, i) => {
+      if (i + 1 === n) return;
+      lines[i] = l.split('|').map((part) => part.split(',').filter((x) => x !== k).join(',')).join('|');
+    });
+  }
+  const pack = { id, books, names: lines.join('\n'), ambiguous: cfg.ambiguous, ord, units: cfg.units, cues: cfg.cues, ui: cfg.ui };
+  const body = `// GENERATED by scripts/gen-locales.mjs from packages/core/src/Reference/locales/${id}.json. Do not edit.\n` +
+    `import type { LocalePack } from '../types';\n\nexport const chapters = '${CHAPTERS}';\n\n` +
+    `export const pack: LocalePack = ${JSON.stringify(pack, null, 1).replace(/\n\s*/g, ' ')};\n`;
+  mkdirSync(outDir, { recursive: true });
+  writeFileSync(resolve(outDir, `${id}.generated.ts`), body);
+  console.log(id, 'keys', lines.join(',').split(/[,|\n]/).filter(Boolean).length, 'bytes', body.length);
+}

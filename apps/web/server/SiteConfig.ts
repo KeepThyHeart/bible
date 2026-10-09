@@ -120,6 +120,13 @@ interface UiConfig {
   disabledPanes?: string[];
 }
 
+export interface VerseHoverConfig {
+  /** Serve /vh without the password gate. Default false. */
+  public?: boolean;
+  /** Directory of generated static Bible JSON. Default `<dataDir>/vh-data`. */
+  dataDir?: string;
+}
+
 interface RawSiteConfig {
   $schema?: string;
   auth?: AuthConfig;
@@ -132,6 +139,7 @@ interface RawSiteConfig {
   search?: SearchConfig;
   ui?: UiConfig;
   privacy?: PrivacyConfig;
+  verseHover?: VerseHoverConfig;
   desktopReports?: DesktopReportsConfig;
   repoUrl?: string;
   docsUrl?: string;
@@ -301,6 +309,14 @@ export class SiteConfig {
 
   get ui(): UiConfig {
     return this.raw.ui ?? {};
+  }
+
+  get verseHover(): { public: boolean; dataDir?: string } {
+    const vh = this.raw.verseHover;
+    return {
+      public: vh?.public === true,
+      ...(typeof vh?.dataDir === 'string' && vh.dataDir ? { dataDir: vh.dataDir } : {}),
+    };
   }
 
   get privacy(): { mode: PrivacyMode } {
