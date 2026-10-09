@@ -115,9 +115,9 @@ describe('TYPED_IPC_CHANNELS', () => {
     expect(new Set(TYPED_IPC_CHANNELS).size).toBe(TYPED_IPC_CHANNELS.length);
   });
 
-  it('includes the similar passages channels (task 0070)', () => {
+  it('no longer lists the similar passages channels (task 0126: they are module:similar:*)', () => {
     for (const channel of ['similar:find', 'similar:explain', 'similar:status', 'similar:reset']) {
-      expect(TYPED_IPC_CHANNELS as readonly string[]).toContain(channel);
+      expect(TYPED_IPC_CHANNELS as readonly string[]).not.toContain(channel);
     }
   });
 });

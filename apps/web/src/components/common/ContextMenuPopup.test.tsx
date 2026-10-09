@@ -79,22 +79,40 @@ describe('ContextMenuPopup', () => {
     expect(dividers.length).toBe(1);
   });
 
-  it('calls onAction with "similar" when Find similar passages is clicked', () => {
-    const { onAction } = renderMenu();
+  it('lists the Similar verse action (group study) right after Study and runs it through onVerseAction', () => {
+    const onVerseAction = vi.fn();
+    const { container } = renderMenu({
+      actions: [{ id: 'similar.find', label: 'contextMenu.similar', iconClass: 'fa-solid fa-clone', group: 'study' }],
+      onVerseAction,
+    });
+    const items = Array.from(container.querySelectorAll('.verse-context-menu__item')).map((n) => n.textContent?.trim());
+    expect(items.indexOf('contextMenu.similar')).toBe(items.indexOf('contextMenu.study') + 1);
     fireEvent.click(screen.getByText('contextMenu.similar'));
-    expect(onAction).toHaveBeenCalledWith('similar');
+    expect(onVerseAction).toHaveBeenCalledWith('similar.find');
   });
 
-  it('calls onAction with "connections" when Show connections is clicked', () => {
-    const { onAction } = renderMenu();
-    fireEvent.click(screen.getByText('xrefGraph.showConnections'));
-    expect(onAction).toHaveBeenCalledWith('connections');
+  it('renders `study` group registry actions right after the Study entry, ahead of the divider block', () => {
+    const onVerseAction = vi.fn();
+    const { container } = renderMenu({
+      actions: [
+        { id: 'present.showVerse', label: 'Present', iconClass: 'fa-solid fa-tv' },
+        { id: 'xrefGraph.connections', label: 'Show connections', iconClass: 'fa-solid fa-diagram-project', group: 'study' },
+      ],
+      onVerseAction,
+    });
+    const labels = Array.from(container.querySelectorAll('.verse-context-menu__item')).map((el) => el.textContent?.trim());
+    const study = labels.findIndex((l) => l?.includes('contextMenu.study'));
+    expect(labels[study + 1]).toContain('Show connections');
+    expect(labels[labels.length - 1]).toContain('Present');
+    // One divider after Copy, one before the non-study block.
+    expect(container.querySelectorAll('.verse-context-menu__divider').length).toBe(2);
+    fireEvent.click(screen.getByText('Show connections'));
+    expect(onVerseAction).toHaveBeenCalledWith('xrefGraph.connections');
   });
 
-  it('hides the similar-passages entry when showSimilar is false (mobile)', () => {
-    renderMenu({ showSimilar: false });
-    expect(screen.queryByText('contextMenu.similar')).toBeNull();
-    cleanupAndCheckDefault();
+  it('adds no divider for `study` group actions alone', () => {
+    const { container } = renderMenu({ actions: [{ id: 'xrefGraph.connections', label: 'Show connections', group: 'study' }] });
+    expect(container.querySelectorAll('.verse-context-menu__divider').length).toBe(1);
   });
 
   it('renders registry actions after the built-ins and calls onVerseAction', () => {
@@ -120,9 +138,3 @@ describe('ContextMenuPopup', () => {
     expect(container.querySelectorAll('.verse-context-menu__divider').length).toBe(1);
   });
 });
-
-function cleanupAndCheckDefault() {
-  document.body.innerHTML = '';
-  renderMenu();
-  expect(screen.getByText('contextMenu.similar')).toBeTruthy();
-}

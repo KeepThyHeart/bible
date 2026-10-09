@@ -6,7 +6,7 @@
  */
 import type { IDisposable } from '../types/Command';
 import type { AppServices } from '../contexts/ContextProvider';
-import { translateWithDefault } from '../hooks/useXrefGraphLabels';
+import { translateWithDefault } from '../utils/translateWithDefault';
 import { usePreferencesStore } from '../stores/usePreferencesStore';
 import { appRegistry, openApp } from './appHost';
 import { currentNavItems } from './navPrefs';

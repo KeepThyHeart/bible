@@ -13,6 +13,40 @@
 import { appRegistry } from './appHost';
 
 const getters: Record<string, () => boolean> = {};
+const keyListeners = new Set<() => void>();
+let keyVersion = 0;
+
+/**
+ * Let an ACTIVE module define a `when` key (`similar.available`). Dispose the
+ * handle to remove it (push it to `ctx.subscriptions`); `whenKeys.invalidate()`
+ * tells readers (the verse menu, the pane tabs) that a value changed.
+ */
+export function registerWhenKey(key: string, get: () => boolean): { dispose(): void } {
+  getters[key] = get;
+  whenKeys.invalidate();
+  return {
+    dispose() {
+      if (getters[key] !== get) return;
+      delete getters[key];
+      whenKeys.invalidate();
+    },
+  };
+}
+
+/** A readable that changes whenever a registered key is added, removed or invalidated. */
+export const whenKeys = {
+  getSnapshot: () => keyVersion,
+  subscribe(listener: () => void): () => void {
+    keyListeners.add(listener);
+    return () => {
+      keyListeners.delete(listener);
+    };
+  },
+  invalidate(): void {
+    keyVersion++;
+    for (const fn of [...keyListeners]) fn();
+  },
+};
 
 const LIVE_KEY = /^([a-z][a-z0-9-]*)\.live$/;
 

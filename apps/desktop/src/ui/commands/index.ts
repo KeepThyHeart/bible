@@ -20,7 +20,6 @@ import { registerPrayerCommands } from './prayerCommands';
 import { bindModuleCommands } from '../modules/moduleHost';
 import { registerStudyCommands } from './studyCommands';
 import { registerTopicsCommands } from './topicsCommands';
-import { registerWordStudyCommands } from './wordStudyCommands';
 import { registerSearchCommands } from './searchCommands';
 import { registerViewCommands } from './viewCommands';
 import { registerLayoutCommands } from './layoutCommands';
@@ -30,8 +29,6 @@ import { registerAppCommands } from './appCommands';
 import { registerSearchBarCommands } from './searchBarCommands';
 import { registerDiagnosticsCommands } from './diagnosticsCommands';
 import { registerNetworkCommands } from './networkCommands';
-import { registerXrefGraphCommands } from './xrefGraphCommands';
-import { registerSimilarCommands } from './similarCommands';
 
 export function registerBuiltinCommands(registry: ICommandRegistry): IDisposable {
   const all: IDisposable[] = [
@@ -45,7 +42,6 @@ export function registerBuiltinCommands(registry: ICommandRegistry): IDisposable
     ...registerPrayerCommands(registry),
     ...registerStudyCommands(registry),
     ...registerTopicsCommands(registry),
-    ...registerWordStudyCommands(registry),
     ...registerSearchCommands(registry),
     ...registerViewCommands(registry),
     ...registerLayoutCommands(registry),
@@ -55,8 +51,6 @@ export function registerBuiltinCommands(registry: ICommandRegistry): IDisposable
     ...registerSearchBarCommands(registry),
     ...registerDiagnosticsCommands(registry),
     ...registerNetworkCommands(registry),
-    ...registerXrefGraphCommands(registry),
-    ...registerSimilarCommands(registry),
   ];
   return {
     dispose: () => {

@@ -26,7 +26,7 @@ describe('web app boot with a module disabled', () => {
 
   it('drops the disabled module\'s panes and phone views and keeps the rest', async () => {
     const { modulePoints, featureModules } = await boot('-host-panes');
-    expect(modulePoints.paneModes.list()).toEqual([]);
+    expect(modulePoints.paneModes.list().map((p) => p.id)).toEqual(['wordStudy', 'similar']); // the other modules' panes stay
     expect(modulePoints.newTabTiles.list().length).toBeGreaterThan(0); // host-ui is unaffected
     expect(featureModules.list().find((m) => m.id === 'host-panes')).toMatchObject({ enabled: false, offReason: 'override' });
     // The phone shell then has no study/commentary view: it lands on the reader, not on a blank screen.

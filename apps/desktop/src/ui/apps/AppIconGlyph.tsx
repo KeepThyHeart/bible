@@ -46,6 +46,20 @@ const BUILTIN_GLYPHS: Record<string, React.ReactNode> = {
       <path d="m9 16 2 2 4-4" />
     </>
   ),
+  'diagram-project': (
+    <>
+      <circle cx="6" cy="12" r="2.5" />
+      <circle cx="18" cy="6" r="2.5" />
+      <circle cx="18" cy="18" r="2.5" />
+      <path d="M8.2 11l7.6-3.7M8.2 13l7.6 3.7" />
+    </>
+  ),
+  similar: (
+    <>
+      <path d="M8 7h8M8 12h8M8 17h5" />
+      <rect x="4" y="3" width="16" height="18" rx="2" />
+    </>
+  ),
   /** The generic fallback: a rounded square tile. */
   app: (
     <>

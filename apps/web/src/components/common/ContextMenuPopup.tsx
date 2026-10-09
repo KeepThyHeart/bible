@@ -12,10 +12,8 @@ interface ContextMenuPopupProps {
   y: number;
   menuRef: Ref<HTMLDivElement>;
   onAction: (action: string) => void;
-  /** Hide "Find similar passages" (mobile: its target pane has no Similar section). Default true. */
-  showSimilar?: boolean;
   /** Registry actions (labels already resolved), listed after the built-ins. */
-  actions?: { id: string; label: string; iconClass?: string }[];
+  actions?: { id: string; label: string; iconClass?: string; group?: string }[];
   onVerseAction?: (id: string) => void;
 }
 
@@ -29,7 +27,7 @@ interface ContextMenuPopupProps {
  * cross-references, topics and the rest as sections. Only actions that act on
  * the clicked verse directly (Copy) sit alongside it.
  */
-export function ContextMenuPopup({ x, y, menuRef, onAction, showSimilar = true, actions, onVerseAction }: ContextMenuPopupProps) {
+export function ContextMenuPopup({ x, y, menuRef, onAction, actions, onVerseAction }: ContextMenuPopupProps) {
   const { t } = useTranslation();
   const dir = useDirection();
   // The hook that owns menuRef re-anchors with the measured width; this is the first-paint estimate.
@@ -43,18 +41,16 @@ export function ContextMenuPopup({ x, y, menuRef, onAction, showSimilar = true, 
       <button class="verse-context-menu__item" onClick={() => onAction('study')}>
         <i class="fa-solid fa-microscope" /> {t('contextMenu.study')}
       </button>
-      <button class="verse-context-menu__item" onClick={() => onAction('connections')}>
-        <i class="fa-solid fa-diagram-project" /> {t('xrefGraph.showConnections', { defaultValue: 'Show connections' })}
-      </button>
-      {showSimilar && (
-        <button class="verse-context-menu__item" onClick={() => onAction('similar')}>
-          <i class="fa-solid fa-clone" /> {t('contextMenu.similar')}
+      {/* Contributed `study` group actions sit right after the built-in Study entry (before the divider block). */}
+      {actions?.filter((a) => a.group === 'study').map((a) => (
+        <button key={a.id} class="verse-context-menu__item" data-action-id={a.id} onClick={() => onVerseAction?.(a.id)}>
+          {a.iconClass && <i class={a.iconClass} aria-hidden="true" />} {a.label}
         </button>
-      )}
-      {actions && actions.length > 0 && (
+      ))}
+      {actions && actions.some((a) => a.group !== 'study') && (
         <>
           <div class="verse-context-menu__divider" />
-          {actions.map((a) => (
+          {actions.filter((a) => a.group !== 'study').map((a) => (
             <button key={a.id} class="verse-context-menu__item" data-action-id={a.id} onClick={() => onVerseAction?.(a.id)}>
               {a.iconClass && <i class={a.iconClass} aria-hidden="true" />} {a.label}
             </button>

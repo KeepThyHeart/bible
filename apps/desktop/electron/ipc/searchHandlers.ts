@@ -33,7 +33,7 @@ import {
   applySearchHighlighting as applyHighlighting,
   formatSemanticReference,
 } from './searchHelpers';
-import { resetSimilarPassages } from './similarHandlers';
+import { notifySemanticSearchReset } from './semanticSearchReset';
 import type { ExtensionHost } from '../extensions/ExtensionHost';
 
 /**
@@ -594,7 +594,7 @@ function initializeSemanticSearch(): void {
  * the main process.
  */
 export function resetSemanticSearch(): void {
-  resetSimilarPassages();
+  notifySemanticSearchReset();
   if (semanticSearchService) {
     semanticSearchService.unloadEmbeddings();
     semanticSearchService = null;

@@ -131,12 +131,12 @@ describe.each([
   it('does not run the boot probe: a control link stays in the URL and a follow link is not taken', async () => {
     const control = `/present/c/${SESSION}#t=${TOKEN}&j=ABCDEFGH`;
     const h = await boot({ ...opts, url: control });
-    expect(h.runBootProbes()).toEqual({ initialApp: undefined, busyApps: [], activate: [] });
+    expect(h.runBootProbes()).toEqual({ initialApp: undefined, busyApps: [], activate: ['similar'] });
     expect(window.location.pathname + window.location.hash).toBe(control);
 
     window.history.replaceState(null, '', '/present/f/ABCDEFGH');
     localStorage.setItem(PRESENT_SESSION_KEY, '{}');
-    expect(h.runBootProbes()).toEqual({ initialApp: undefined, busyApps: [], activate: [] });
+    expect(h.runBootProbes()).toEqual({ initialApp: undefined, busyApps: [], activate: ['similar'] });
     const { presentBoot } = await import('../binding');
     expect(presentBoot.followCode).toBeNull();
     expect(presentBoot.adopted).toBeNull();
@@ -168,19 +168,19 @@ describe('the Presenter module: switched off at runtime', () => {
 describe('the Presenter module: boot probe', () => {
   it('a plain load asks for nothing', async () => {
     const h = await boot();
-    expect(h.runBootProbes()).toEqual({ initialApp: undefined, busyApps: [], activate: [] });
+    expect(h.runBootProbes()).toEqual({ initialApp: undefined, busyApps: [], activate: ['similar'] });
   }, 60_000);
 
   it('a follow link opens Study and activates the module', async () => {
     const h = await boot({ url: '/present/f/ABCDEFGH' });
-    expect(h.runBootProbes()).toEqual({ initialApp: 'study', busyApps: [], activate: ['present'] });
+    expect(h.runBootProbes()).toEqual({ initialApp: 'study', busyApps: [], activate: ['present', 'similar'] });
     const { presentBoot } = await import('../binding');
     expect(presentBoot.followCode).toBe('ABCDEFGH');
   }, 60_000);
 
   it('a control link opens the Presenter and scrubs the token from the URL', async () => {
     const h = await boot({ url: `/present/c/${SESSION}#t=${TOKEN}&j=ABCDEFGH` });
-    expect(h.runBootProbes()).toEqual({ initialApp: 'present', busyApps: [], activate: ['present'] });
+    expect(h.runBootProbes()).toEqual({ initialApp: 'present', busyApps: [], activate: ['present', 'similar'] });
     expect(window.location.pathname + window.location.hash).toBe('/#/@present');
     const { presentBoot } = await import('../binding');
     expect(presentBoot.adopted).toMatchObject({ sessionId: SESSION, joinCode: 'ABCDEFGH', controlToken: TOKEN });
@@ -196,7 +196,7 @@ describe('the Presenter module: boot probe', () => {
     const stored = sessionStorage.getItem('kth.present.handoff') as string;
     const h2 = await boot({ url: '/' });
     sessionStorage.setItem('kth.present.handoff', stored);
-    expect(h2.runBootProbes()).toEqual({ initialApp: 'present', busyApps: [], activate: ['present'] });
+    expect(h2.runBootProbes()).toEqual({ initialApp: 'present', busyApps: [], activate: ['present', 'similar'] });
     const { presentBoot } = await import('../binding');
     expect(presentBoot.adopted).toMatchObject({ sessionId: SESSION, controlToken: TOKEN });
     expect(sessionStorage.getItem('kth.present.handoff')).toBeNull();
@@ -207,10 +207,10 @@ describe('the Presenter module: boot probe', () => {
     localStorage.setItem(PRESENT_SESSION_KEY, JSON.stringify({ expiresAt: new Date(Date.now() + 3_600_000).toISOString() }));
     const h = await boot();
     // boot() resets the override key only, so the saved session is still there.
-    expect(h.runBootProbes()).toEqual({ initialApp: undefined, busyApps: ['present'], activate: ['present'] });
+    expect(h.runBootProbes()).toEqual({ initialApp: undefined, busyApps: ['present'], activate: ['present', 'similar'] });
 
     localStorage.setItem(PRESENT_SESSION_KEY, JSON.stringify({ expiresAt: new Date(Date.now() - 1000).toISOString() }));
-    expect(h.runBootProbes()).toEqual({ initialApp: undefined, busyApps: [], activate: [] });
+    expect(h.runBootProbes()).toEqual({ initialApp: undefined, busyApps: [], activate: ['similar'] });
   }, 60_000);
 
   it('activateProbedModules activates the module with the boot-probe reason, loading its code', async () => {

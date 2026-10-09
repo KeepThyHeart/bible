@@ -123,9 +123,10 @@ vi.mock('../../stores/commentaryStore', () => ({
   },
 }));
 
+vi.mock('../../modules/host/usePaneModes', () => ({ usePaneAvailable: () => true }));
 const mockOpenWordStudy = vi.fn();
-vi.mock('../../utils/openWordStudy', () => ({
-  openWordStudy: (t: unknown) => mockOpenWordStudy(t),
+vi.mock('../../host/paneRequests', () => ({
+  openPane: (id: string, t: unknown) => mockOpenWordStudy(id, t),
 }));
 
 import { DictionaryContent } from './DictionaryContent';
@@ -508,7 +509,7 @@ describe('DictionaryContent', () => {
     mockTabState = { ...emptyTabState(), entry: makeEntry({ entry_key: '00025', word: 'agapao' }) };
     const { container } = render(<DictionaryContent tabId="dtab-1" />);
     fireEvent.click(container.querySelector('[data-testid="dictionary-word-study"]')!);
-    expect(mockOpenWordStudy).toHaveBeenCalledWith({ strongs: 'G25' });
+    expect(mockOpenWordStudy).toHaveBeenCalledWith('wordStudy', { strongs: 'G25' });
   });
 
   it('has no Word study button on an ordinary dictionary', () => {

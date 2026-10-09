@@ -1,0 +1,32 @@
+{
+  "$schema": "../schemas/similar.schema.json",
+  "similar": {
+    "moreLikeThis": "更多类似经文",
+    "crossRef": "串珠",
+    "otNtBadge": "旧约 ↔ 新约",
+    "similarInMeaning": "意义相近",
+    "barLabel": "相似度 {step}/{max}",
+    "menu": "更多操作",
+    "empty": "未找到相似经文。",
+    "filters": "相似经文筛选",
+    "back": "返回",
+    "hideKnown": "隐藏已知串珠",
+    "testament": {
+      "label": "约",
+      "any": "全部",
+      "ot": "旧约",
+      "nt": "新约",
+      "other": "另一约"
+    },
+    "similarTo": "与 {reference} 相似",
+    "approximate": "基于所选经文的各节。",
+    "selectVerse": "请选择一节经文以查找相似经文。",
+    "loading": "正在加载相似经文...",
+    "downloading": "正在下载相似经文数据...",
+    "unavailable": "此服务器上没有相似经文数据。",
+    "error": "无法加载相似经文。",
+    "retry": "重试",
+    "showMore": "再显示 10 条",
+    "rangeNeedsLive": "此处没有该经文段落的预先计算结果；请改选单节经文。"
+  }
+}

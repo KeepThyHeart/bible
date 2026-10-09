@@ -34,6 +34,7 @@ import {
 import { useBackupStore } from './stores/useBackupStore';
 import { getIssueReportUrl, getProductName } from './config/appConfig';
 import { useI18n } from './contexts/useI18n';
+import { ShellOverlays } from './modules/host/slots';
 import './styles/highlights.css';
 import './styles/extensionDecorations.css';
 import './styles/dockview-overrides.css';
@@ -45,7 +46,6 @@ import './styles/app-stage.css';
 // has to parse before it can draw anything.
 const LazyDialogs = {
   AdvancedSearchDialog: React.lazy(() => import('./components/AdvancedSearchDialog')),
-  XrefGraphDialog: React.lazy(() => import('./components/XrefGraphDialog')),
   ModuleManagerDialog: React.lazy(() => import('./components/ModuleManagerDialog')),
   PreferencesDialog: React.lazy(() => import('./components/PreferencesDialog')),
   KeyboardShortcutsDialog: React.lazy(() => import('./components/KeyboardShortcutsDialog')),
@@ -62,7 +62,6 @@ const LazyDialogs = {
   ),
 } as const;
 const AdvancedSearchDialog = LazyDialogs.AdvancedSearchDialog;
-const XrefGraphDialog = LazyDialogs.XrefGraphDialog;
 const ModuleManagerDialog = LazyDialogs.ModuleManagerDialog;
 const PreferencesDialog = LazyDialogs.PreferencesDialog;
 const KeyboardShortcutsDialog = LazyDialogs.KeyboardShortcutsDialog;
@@ -503,8 +502,8 @@ function App() {
         {/* Advanced Search Dialog (modal overlay) */}
         <AdvancedSearchDialog />
 
-        {/* Cross-reference graph dialog (modal overlay) */}
-        <XrefGraphDialog />
+        {/* Dialogs that active feature modules contribute (modal overlays) */}
+        <ShellOverlays />
 
         {/* Module Manager Dialog (modal overlay) */}
         {showModuleManager && (

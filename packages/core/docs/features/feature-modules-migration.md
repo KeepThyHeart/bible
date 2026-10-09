@@ -269,3 +269,13 @@ The desktop renderer has its own entry type, `DesktopFeatureModule` (`apps/deskt
 
 Both platforms: `onView:<name>` activates a module when a host view with module slots mounts (the phone Study pane,
 `studyPaneSections`), and `PaneModeContribution.keepMounted` keeps a pane mounted after first open.
+
+## Notes from batch 4 (Similar, Word study, Cross-ref graph, task 0126)
+
+- **Module ids are lowercase-dashed** (`word-study`, `xref-graph`) even when the pane/panel id, i18n namespace, verse-action id and `/api/...` path keep their camelCase persisted form (`wordStudy`, `xrefGraph`). The dev override is `-word-study`; desktop channels are `module:word-study:*`.
+- **Context-menu entries are verse actions** with `group: 'study'`. Both popups render the `study` group where the built-in entries sat (web: after "Study"; desktop: in the cluster after "Add note"); other groups stay in the bottom block. Order within the group is by `order` (Show connections 10, Similar 30).
+- **Conditional entries**: a module defines `when` keys at activation (web `registerWhenKey` in `host/verseActionWhen.ts`; desktop `whenContext`). `PaneModeContribution.when` hides a pane until its key is true (Similar's neighbour table).
+- **Opening a module's pane from host code**: web `openPane(id, subject)` (`host/paneRequests.ts`) and `PaneModeContribution.headerButton` for header buttons; desktop `requestPanel(id, subject)` (`modules/host/panelRequests.ts`). Host call sites never import the module; buttons hide when the module is off.
+- **Dialogs and overlays**: `shellOverlays` slot on both platforms (desktop slot added in batch 4). A selected-word menu item on desktop uses the `verseMenuItems` slot, activated by `onView:verseContextMenu`.
+- **Desktop host listeners** (`modules/host/hostListeners.ts`: `verseFollowers`, `libraryChangeListeners`, `verseMenuOpenListeners`) keep follow-the-verse behaviour without the host importing the module. `reader.verseChanged` was not used for Similar because it also fires for previews that the follow-the-verse panes ignore.
+- `DesktopFeatureModule.verseActionHandlers` binds verse-action handlers on desktop.

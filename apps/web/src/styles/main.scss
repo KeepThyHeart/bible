@@ -52,7 +52,6 @@
 @use 'right-pane';
 @use 'search';
 @use 'strongs';
-@use 'word-study';
 
 // Dialogs & popups
 @use 'settings';
@@ -80,5 +79,3 @@
 @use 'study-pane';
 @use 'mobile-study';
 
-// Cross-reference graph dialog
-@use 'xref-graph';

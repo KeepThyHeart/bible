@@ -7,7 +7,7 @@ import {
   type DictionaryEntrySummary,
   type RecentLookup,
 } from '../stores/useDictionaryStore';
-import { revealWordStudyPanel } from './wordStudy/revealWordStudyPanel';
+import { requestPanel, usePanelAvailable } from '../modules/host/panelRequests';
 import { useDictionaryPanel } from '../stores/hooks/useDictionaryPanel';
 import { DEFAULT_PANEL_ID } from '../stores/helpers/panelStateHelpers';
 import { useTextSettingsStore, getFontFamilyCSS } from '../stores/useTextSettingsStore';
@@ -97,6 +97,7 @@ function formatRecentKey(abbreviation: string, entryKey: string): string {
 
 const DictionaryPane: React.FC<DictionaryPaneProps> = ({ hideTabs = false, panelId = DEFAULT_PANEL_ID }) => {
   const { t } = useI18n();
+  const wordStudyAvailable = usePanelAvailable('wordStudy');
   const {
     availableDictionaries,
     loadingDictionaries,
@@ -683,10 +684,10 @@ const DictionaryPane: React.FC<DictionaryPaneProps> = ({ hideTabs = false, panel
                     .replace('{number}', strongsSearchNumber)}
                 </button>
               )}
-              {strongsSearchNumber && (
+              {strongsSearchNumber && wordStudyAvailable && (
                 <button
                   type="button"
-                  onClick={() => { revealWordStudyPanel({ kind: 'strongs', strongs: strongsSearchNumber }); }}
+                  onClick={() => { requestPanel('wordStudy', { kind: 'strongs', strongs: strongsSearchNumber }); }}
                   className="mt-sm w-full flex items-center justify-center gap-xs px-sm py-xs rounded border border-border text-sm text-accent-strong hover:bg-accent-light hover:border-accent cursor-pointer transition-colors"
                   data-testid="dictionary-word-study"
                 >

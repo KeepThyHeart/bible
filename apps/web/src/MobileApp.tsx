@@ -7,9 +7,7 @@ import { BibleToolbar } from './components/BiblePane/BibleToolbar';
 import { SearchResultsPanel } from './components/Search/SearchResultsPanel';
 import { MobileStudyPane } from './components/MobileStudyPane/MobileStudyPane';
 import { MobileCommentaryView } from './components/MobileStudyPane/MobileCommentaryView';
-import { WordStudyPane } from './components/WordStudy/WordStudyPane';
 import { eventBus } from './events/eventBus';
-import { openWordStudy } from './utils/openWordStudy';
 import { Header } from './components/Header';
 import { ConnectionBanner } from './components/ConnectionBanner';
 import { UpdateBanner } from './components/UpdateBanner';
@@ -18,6 +16,8 @@ import { HomeScreen } from './components/HomeScreen';
 import { DialogLayer } from './components/common/DialogLayer';
 import { CompanionSlot } from './host/CompanionSlot';
 import { AppSwitchSlot } from './host/AppSwitchSlot';
+import { PaneHeaderButtons } from './host/PaneHeaderButtons';
+import { LazyPane } from './modules/host/LazyPane';
 import { AudioMiniPlayer } from './components/AudioMiniPlayer';
 import { AudioPlayerScreen } from './components/AudioPlayerScreen';
 import { audioStore } from './stores/audioStore';
@@ -161,8 +161,8 @@ export function MobileApp({ providers }: MobileAppProps) {
     }
   }, [mobileView]);
 
-  // Word study opens as a full-screen sheet from any entry point (Strong's popup, dictionary entry, header).
-  useEffect(() => eventBus.on('wordstudy:open', () => switchMobileView('wordStudy')), [mobileView, phoneViewKey]);
+  // A pane opened from any entry point (`openPane`: Strong's popup, dictionary entry, header) raises its phone view, when it has one.
+  useEffect(() => eventBus.on('pane:open', ({ paneId }) => { if (phoneViews.has(paneId)) switchMobileView(paneId); }), [mobileView, phoneViewKey]);
 
   // Listen for navigate-to-bible events from commentary pane
   useEffect(() => {
@@ -358,16 +358,28 @@ export function MobileApp({ providers }: MobileAppProps) {
     study: () => (
       <MobileStudyPane providers={providers} onStrongsClick={shared.handleStrongsClick} onStrongsHover={shared.handleStrongsHover} onStrongsLeave={shared.handleStrongsLeave} onOpenSettings={shared.openSettings} onNavigateBible={() => switchMobileView('bible')} />
     ),
-    wordStudy: () => (
-      <WordStudyPane onNavigate={() => switchMobileView('bible')} onOpenStrongsEntry={shared.handleStrongsClick} onClose={() => switchMobileView('bible')} />
-    ),
     commentary: () => (
       <MobileCommentaryView providers={providers} onNavigateBible={() => switchMobileView('bible')} onOpenSettings={shared.openSettings} />
     ),
   };
   const renderPhoneView = (view: string) => {
-    const render = phoneViews.has(view) ? phoneComponents[view] : undefined;
-    if (!render) return null;
+    if (!phoneViews.has(view)) return null;
+    // Built-in phone views are components above; a module's pane is its lazy `pane:<id>` view.
+    const render = phoneComponents[view] ?? (() => (
+      <LazyPane
+        id={view}
+        props={{
+          providers,
+          showTagGraph: false,
+          onStrongsClick: shared.handleStrongsClick,
+          onStrongsHover: shared.handleStrongsHover as never,
+          onStrongsLeave: shared.handleStrongsLeave,
+          onOpenSettings: shared.openSettings as never,
+          onNavigateBible: () => switchMobileView('bible'),
+          onClosePhone: () => switchMobileView('bible'),
+        }}
+      />
+    ));
     return (
       <div class="main-layout__right-pane" style={commentaryStyle}>
         {render() as never}
@@ -442,13 +454,7 @@ export function MobileApp({ providers }: MobileAppProps) {
               >
                 <i class="fa-solid fa-rotate-right" />
               </button>
-              <button
-                class="mobile-landscape-sidebar__action-btn"
-                onClick={() => openWordStudy()}
-                title={t('wordStudy.open')}
-              >
-                <i class="fa-solid fa-language" />
-              </button>
+              <PaneHeaderButtons className="mobile-landscape-sidebar__action-btn" />
               <button
                 class="mobile-landscape-sidebar__action-btn"
                 onClick={() => shared.setHelpOpen(true)}
@@ -545,7 +551,6 @@ export function MobileApp({ providers }: MobileAppProps) {
         strongsPopup={shared.strongsPopup}
         setStrongsPopup={shared.setStrongsPopup}
         strongsTooltip={shared.strongsTooltip}
-        bibleProvider={providers.bible}
       />
       {contextMenu && (
         <ContextMenuPopup
@@ -555,7 +560,6 @@ export function MobileApp({ providers }: MobileAppProps) {
           onAction={handleContextMenuAction}
           actions={verseActionItems}
           onVerseAction={handleVerseAction}
-          showSimilar={false}
         />
       )}
     </div>

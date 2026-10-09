@@ -4,9 +4,11 @@ import type { FeatureModuleManifest } from '@bible/core/browser';
 import { hostPanesModules, CORE_PANE_MODES, resolvePhoneView } from './panes';
 import { timelineModule } from '../timeline/binding';
 import { quizManifest } from '../quiz/manifest';
+import { similarManifest } from '../similar/manifest';
+import { wordStudyManifest } from '../word-study/manifest';
 
-// The Timeline and Quiz panes live in their own modules (tasks 0124, 0125); the persisted order still includes them.
-const allPanes = [...hostPanesModules, [timelineModule.manifest, timelineModule.binding] as const, [quizManifest, undefined] as const];
+// The Timeline, Quiz and Similar panes live in their own modules (tasks 0124, 0125, 0126); the persisted order still includes them.
+const allPanes = [...hostPanesModules, [timelineModule.manifest, timelineModule.binding] as const, [quizManifest, undefined] as const, [similarManifest, undefined] as const, [wordStudyManifest, undefined] as const];
 
 function setup(flags: Record<string, boolean>) {
   const points = createStandardPoints();

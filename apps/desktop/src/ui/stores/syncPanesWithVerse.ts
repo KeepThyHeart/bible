@@ -2,7 +2,7 @@ import { useCommentaryStore } from './useCommentaryStore';
 import { useNotesStore } from './useNotesStore';
 import { useStudyStore } from './useStudyStore';
 import { useTopicsStore } from './useTopicsStore';
-import { useSimilarStore } from './useSimilarStore';
+import { verseFollowers } from '../modules/host/hostListeners';
 
 /**
  * Point every study pane at a verse the reader deliberately chose.
@@ -30,5 +30,6 @@ export function syncPanesWithVerse(verseId: number): void {
   useNotesStore.getState().syncAllPanelsWithVerse(verseId);
   useStudyStore.getState().syncAllPanelsWithVerse(verseId);
   useTopicsStore.getState().syncAllPanelsWithVerse(verseId);
-  useSimilarStore.getState().followVerse(verseId);
+  // Panels contributed by feature modules (Similar, ...) that follow the selected verse.
+  verseFollowers.emit(verseId);
 }

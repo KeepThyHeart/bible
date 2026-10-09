@@ -1,0 +1,32 @@
+{
+  "$schema": "../schemas/similar.schema.json",
+  "similar": {
+    "moreLikeThis": "‏More like this‏",
+    "crossRef": "‏Cross-reference‏",
+    "otNtBadge": "‏OT ↔ NT‏",
+    "similarInMeaning": "‏Similar in meaning‏",
+    "barLabel": "‏Similarity {step} of {max}‏",
+    "menu": "‏More actions‏",
+    "empty": "‏No similar passages found.‏",
+    "filters": "‏Similar passage filters‏",
+    "back": "‏Back‏",
+    "hideKnown": "‏Hide known cross-references‏",
+    "testament": {
+      "label": "‏Testament‏",
+      "any": "‏All‏",
+      "ot": "‏Old Testament‏",
+      "nt": "‏New Testament‏",
+      "other": "‏Opposite testament‏"
+    },
+    "similarTo": "‏Similar to {reference}‏",
+    "approximate": "‏Based on the individual verses of your selection.‏",
+    "selectVerse": "‏Select a verse to find similar passages.‏",
+    "loading": "‏Loading similar passages...‏",
+    "downloading": "‏Downloading similar passages data...‏",
+    "unavailable": "‏Similar passages data is not available on this server.‏",
+    "error": "‏Could not load similar passages.‏",
+    "retry": "‏Try again‏",
+    "showMore": "‏Show 10 more‏",
+    "rangeNeedsLive": "‏This passage has no precomputed matches here; select a single verse instead.‏"
+  }
+}

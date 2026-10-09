@@ -6,6 +6,10 @@
  *
  * - `readerBars`: rendered by the Bible pane between its toolbar and the verses,
  *   given the chapter on screen.
+ * - `verseMenuItems`: rendered by the verse context menu among its study entries, given
+ *   the word the reader had selected (when exactly one) and the menu's `onClose`. The menu
+ *   fires `onView:verseContextMenu` on mount, so an owning module activates and registers.
+ * - `shellOverlays`: rendered once by `App`, above everything (a module's dialog).
  *
  * Entry-chunk code: imports nothing but React.
  */
@@ -77,6 +81,44 @@ export function ReaderBars(props: ReaderBarProps): React.ReactElement | null {
     <>
       {items.map((C, i) => (
         <C key={i} {...props} />
+      ))}
+    </>
+  );
+}
+
+/** What the verse context menu tells a menu item. */
+export interface VerseMenuItemProps {
+  /** The one word the reader had selected when the menu opened, or null. */
+  selectedWord: string | null;
+  onClose: () => void;
+}
+
+export const verseMenuItems = createSlot<ComponentType<VerseMenuItemProps>>();
+
+/** Renders every item registered in `verseMenuItems`. */
+export function VerseMenuItems(props: VerseMenuItemProps): React.ReactElement | null {
+  const items = useSlot(verseMenuItems);
+  if (items.length === 0) return null;
+  return (
+    <>
+      {items.map((C, i) => (
+        <C key={i} {...props} />
+      ))}
+    </>
+  );
+}
+
+/** Overlays an active module shows above the whole app (dialogs); each renders itself only while open. */
+export const shellOverlays = createSlot<ComponentType>();
+
+/** Renders every overlay registered in `shellOverlays`. */
+export function ShellOverlays(): React.ReactElement | null {
+  const items = useSlot(shellOverlays);
+  if (items.length === 0) return null;
+  return (
+    <>
+      {items.map((C, i) => (
+        <C key={i} />
       ))}
     </>
   );

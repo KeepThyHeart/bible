@@ -2,6 +2,19 @@
 
 `src/WordStudy/` (pure, in `@bible/core/browser`), `src/Services/WordStudyService.ts` and `src/Services/WordGroupStore.ts` (also exported from `@bible/core/browser`). Both apps wrap them in their own UI. Read this before changing what a word study can study or how it counts.
 
+## Where the app code lives
+
+Word study is a feature module (id `word-study`, task 0126; see `features/feature-modules-migration.md`). Each app keeps its half in one folder, with a manifest and a lazy binding:
+
+| Half | Folder |
+|---|---|
+| Web client (right-pane tab `wordStudy`, phone view, header button) | `apps/web/src/modules/word-study/` |
+| Web server (`/api/word-study`) | `apps/web/server/modules/word-study/` |
+| Desktop renderer (dockview panel type `wordStudy`) | `apps/desktop/src/ui/modules/word-study/` |
+| Desktop main process (`module:word-study:*` IPC) | `apps/desktop/electron/modules/word-study/` |
+
+Host code opens the pane without importing the module: web through `openPane` in `apps/web/src/host/paneRequests.ts`, desktop through `requestPanel` in `apps/desktop/src/ui/modules/host/panelRequests.ts`. The desktop "Study word" context-menu entry is a `verseMenuItems` slot item (`apps/desktop/src/ui/modules/host/slots.tsx`), because it needs the selected word.
+
 ## What a study is
 
 A study answers "everything about this word" for one installed Bible module: every occurrence, a chart of the forms/renderings, a book distribution, the word family and a semantic-range summary. The subject is one of two kinds:

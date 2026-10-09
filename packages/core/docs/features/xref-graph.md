@@ -34,8 +34,8 @@ Built once per set of installed modules (fingerprint = module abbreviations, ver
 | core (`@bible/core`) | Service, index builder, repository stream. |
 | core browser (`@bible/core/browser`) | Types, weight, canon, packing, ego walk. |
 | `@bible/ui` | `XrefHopper`, `XrefWebView` (d3-force, zoom and pan), `XrefCompassView` (SVG, pure layout in `compass.ts`), `XrefArcView` (canvas), shared hop/strength controls (`controls.tsx`), `useFullscreen` and `FullscreenButton` (shared with the timeline and genealogy views), section colours `--kth-section-0..9`. |
-| web | `/api/xref-graph/*` routes, `XrefGraphProvider` (fetch), dialog opened from the verse context menu and the study pane. |
-| desktop | `xrefGraph:*` IPC, `XrefGraphIpcProvider`, dialog opened from the verse context menu, the study pane and the command palette (`xrefGraph.open`, for the selected verse). |
+| web | Module `xref-graph`: `apps/web/src/modules/xref-graph/` (dialog, store, `XrefGraphProvider` (fetch), labels hook, styles) and `apps/web/server/modules/xref-graph/` (the `/api/xref-graph/*` routes). The dialog is a `shellOverlays` slot item; it opens from the "Show connections" verse action (verse context menu, `study` group) and from the Study pane button, which runs the same action. |
+| desktop | Module `xref-graph`: `apps/desktop/src/ui/modules/xref-graph/` (dialog, store, `XrefGraphIpcProvider`, command) and `apps/desktop/electron/modules/xref-graph/` (main-process half, channels `module:xref-graph:*`). The dialog is a `shellOverlays` slot item; it opens from the same verse action (verse context menu, Study pane) and from the command palette (`xrefGraph.open`, for the selected verse). |
 
 Data source in v1 is TSK (public domain) plus the user's own cross-references (desktop). OpenBible votes, a book ring and an extension read namespace are later.
 

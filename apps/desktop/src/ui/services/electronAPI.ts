@@ -6,9 +6,6 @@
 import type { ElectronAPI } from '../../../electron/preload';
 import type { AssetListSnapshot } from '@bible/core/browser';
 import { unwrap, IpcResultError, type Result } from './ipcResult';
-import type {
-  PassageRange, SimilarOptions,
-} from '../../../electron/ipc/similarTypes';
 
 // Check if running in Electron
 const isElectron = typeof window !== 'undefined' && window.electron !== undefined;
@@ -445,25 +442,6 @@ export const assetsAPI = {
   },
   async refresh() {
     return unwrap(assetsBridge().refresh() as Promise<Result<AssetListSnapshot>>);
-  },
-};
-
-/** Similar passages (task 0070); payload shapes come from the main process. */
-const similarBridge = () => requireElectronAPI().similar;
-
-export const similarAPI = {
-  async find(range: PassageRange, opts?: SimilarOptions, module?: string) {
-    return unwrap(similarBridge().find(range, opts, module));
-  },
-  async explain(a: PassageRange, b: PassageRange, module?: string) {
-    return unwrap(similarBridge().explain(a, b, module));
-  },
-  async status() {
-    return unwrap(similarBridge().status());
-  },
-  /** Drop the main process's cached similar results (after the user's cross-references change). */
-  async reset() {
-    return unwrap(similarBridge().reset());
   },
 };
 

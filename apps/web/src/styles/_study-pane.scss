@@ -2211,3 +2211,23 @@
     font-weight: 600;
   }
 }
+
+// "Show connections" button at the top of the study pane's cross-references section
+.study-crossrefs__connections {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 6px;
+  padding: 5px 14px;
+  font-size: calc(12px * var(--study-font-scale, 1));
+  font-weight: 600;
+  background: var(--bg-secondary, #f0f0f0);
+  border: 1px solid var(--accent-color, #4a7c59);
+  border-radius: 5px;
+  cursor: pointer;
+  color: var(--accent-color, #4a7c59);
+
+  &:hover {
+    background: color-mix(in srgb, var(--accent-color, #4a7c59) 10%, var(--bg-secondary, #f0f0f0));
+  }
+}

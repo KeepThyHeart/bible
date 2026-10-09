@@ -11,7 +11,7 @@ import { chooserIconFor } from './paneIcons';
 import type { DockviewPanelApi } from 'dockview-react';
 import { AppTileGrid } from '@bible/ui';
 import { hasMultipleApps } from '@bible/core/browser';
-import { translateWithDefault } from '../hooks/useXrefGraphLabels';
+import { translateWithDefault } from '../utils/translateWithDefault';
 import { openApp, prefetchApp } from '../apps/appHost';
 import { useNavItems } from '../apps/navPrefs';
 import { toNavEntries } from '../apps/navEntries';
@@ -83,14 +83,19 @@ const NewTabPage: React.FC<NewTabPageProps> = ({ panelId, dockviewPanelApi }) =>
       }),
     [contributedTiles, whenContext],
   );
+  const registeredPanelTypes = useRegistryItems(modulePoints.panelTypes);
   const keywordMap = React.useMemo(() => {
-    const map: Record<string, PanelContentType> = { ...TILELESS_KEYWORDS };
+    // A tile-less keyword works only while the module that owns its panel type is on.
+    const map: Record<string, PanelContentType> = {};
+    for (const [kw, type] of Object.entries(TILELESS_KEYWORDS)) {
+      if (registeredPanelTypes.some((p) => p.id === type)) map[kw] = type;
+    }
     for (const tile of tiles) {
       if (!('panelType' in tile.target)) continue;
       for (const kw of tile.keywords ?? []) map[kw.toLowerCase()] = tile.target.panelType as PanelContentType;
     }
     return map;
-  }, [tiles]);
+  }, [tiles, registeredPanelTypes]);
   const [query, setQuery] = useState('');
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);

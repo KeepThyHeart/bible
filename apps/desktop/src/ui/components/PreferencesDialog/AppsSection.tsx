@@ -15,7 +15,7 @@ import { usePreferencesStore } from '../../stores/usePreferencesStore';
 import { useAppsPreferenceItems } from '../../apps/navPrefs';
 import { resolveLabelRef } from '../../apps/navEntries';
 import { AppIconGlyph } from '../../apps/AppIconGlyph';
-import { translateWithDefault } from '../../hooks/useXrefGraphLabels';
+import { translateWithDefault } from '../../utils/translateWithDefault';
 
 export const AppsSection: React.FC = () => {
   const { t, i18n } = useI18n();

@@ -7,7 +7,7 @@
  * loading state, empty state, cross-reference group rendering, phrase/overall
  * labels, verse list toggle, click callbacks, and splitPhrase logic.
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/preact';
 import type { IBibleDataProvider } from '../../providers/interfaces';
 
@@ -96,11 +96,9 @@ vi.mock('../../stores/bibleStore', () => ({
   },
 }));
 
-const mockXrefOpen = vi.fn();
-vi.mock('../../stores/xrefGraphStore', () => ({
-  xrefGraphStore: { open: (...a: unknown[]) => mockXrefOpen(...a) },
-}));
-
+// "Show connections" is the graph module's verse action: the pane runs it by id without importing the module.
+const mockConnectionsRun = vi.fn();
+import { verseActions } from '../../host/appHost';
 import { StudyCrossRefs } from './StudyCrossRefs';
 
 function makeGroup(overrides: Partial<{
@@ -133,8 +131,19 @@ function makeSepSegment(text: string) {
 }
 
 describe('StudyCrossRefs', () => {
+  const registered: Array<{ dispose(): void }> = [];
+  afterEach(() => {
+    for (const d of registered.splice(0)) d.dispose();
+  });
   beforeEach(() => {
     vi.clearAllMocks();
+    registered.push(
+      verseActions.register(
+        { id: 'xrefGraph.connections', title: { key: 'xrefGraph.showConnections', fallback: 'Show connections' } },
+        { kind: 'builtin', moduleId: 'xref-graph' },
+      ),
+      verseActions.bindHandler({ id: 'xrefGraph.connections', load: async () => ({ run: mockConnectionsRun }) }),
+    );
     mockCrossRefGroups = [];
     mockCrossRefLoading = false;
     mockIsOnline = true;
@@ -414,12 +423,20 @@ describe('StudyCrossRefs', () => {
     expect(seps[0].textContent).toBe('; ');
   });
 
-  it('opens the cross-reference graph for the selected verse', () => {
+  it('opens the cross-reference graph for the selected verse', async () => {
     mockVerseId = 43003016;
     mockCrossRefGroups = [makeGroup()];
     render(<StudyCrossRefs />);
     fireEvent.click(screen.getByText('xrefGraph.showConnections'));
-    expect(mockXrefOpen).toHaveBeenCalledWith(43003016);
+    await waitFor(() => expect(mockConnectionsRun).toHaveBeenCalled());
+    expect(mockConnectionsRun).toHaveBeenCalledWith(expect.objectContaining({ verseId: 43003016, surface: 'study' }));
+  });
+
+  it('hides the graph button while no module contributes the action (module off)', () => {
+    for (const d of registered.splice(0)) d.dispose();
+    mockVerseId = 43003016;
+    render(<StudyCrossRefs />);
+    expect(screen.queryByText('xrefGraph.showConnections')).toBeNull();
   });
 
   it('offers the graph button even when there are no cross-reference groups', () => {

@@ -13,6 +13,8 @@ import type { FeatureModuleManifest } from '../core.js';
 import { presentManifest } from './present/manifest.js';
 import { timelineManifest } from './timeline/manifest.js';
 import { quizManifest } from './quiz/manifest.js';
+import { wordStudyManifest } from './word-study/manifest.js';
+import { xrefGraphManifest } from './xref-graph/manifest.js';
 
 export interface ServerModuleEntry {
   readonly manifest: FeatureModuleManifest;
@@ -30,4 +32,6 @@ export const serverModules: readonly ServerModuleEntry[] = [
   },
   { manifest: timelineManifest, load: async () => { await import('./timeline/timelineRoutes.js'); } },
   { manifest: quizManifest, load: () => import('./quiz/routes.js') },
+  { manifest: wordStudyManifest, load: () => import('./word-study/routes.js') },
+  { manifest: xrefGraphManifest, load: () => import('./xref-graph/routes.js') },
 ];

@@ -33,8 +33,6 @@ const panelTypes: PanelTypeContribution[] = [
   { id: 'search', title: t('paneName.search', 'Search'), order: 50 },
   { id: 'study', title: t('paneName.study', 'Study'), order: 51 },
   { id: 'topics', title: t('paneName.topics', 'Topics'), order: 52 },
-  { id: 'wordStudy', title: t('paneName.wordStudy', 'Word Study'), order: 53 },
-  { id: 'similar', title: t('paneName.similar', 'Similar'), order: 64 },
   { id: 'newtab', title: t('paneName.newTab', 'New Tab'), order: 90 },
 ];
 
@@ -75,7 +73,5 @@ export const hostPanelsBinding: FeatureModuleBinding = {
     'panel:search': () => import('../../components/SearchResultsPane'),
     'panel:study': () => import('../../components/StudyPane'),
     'panel:topics': () => import('../../components/TopicsPane'),
-    'panel:wordStudy': () => import('../../components/wordStudy/WordStudyPane'),
-    'panel:similar': () => import('../../components/SimilarPane'),
   },
 };

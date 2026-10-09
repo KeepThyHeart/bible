@@ -281,16 +281,6 @@ export const TYPED_IPC_CHANNELS = [
   'xref:getEntryCount',
   'xref:getGroupsForRange',
   'xref:getReverseReferencesForRange',
-  // Cross-reference graph (task 0068)
-  'xrefGraph:getEgoGraph',
-  'xrefGraph:getNeighbours',
-  'xrefGraph:getBookMatrix',
-  'xrefGraph:getChapterArcs',
-  // Similar passages (task 0070)
-  'similar:find',
-  'similar:explain',
-  'similar:status',
-  'similar:reset',
   // Search (typed bridge - see also search:* in ALLOWED_IPC_CHANNELS)
   'search:performSearch',
   'search:getSavedSearches',
@@ -314,13 +304,6 @@ export const TYPED_IPC_CHANNELS = [
   'study:getBatchVerseLinks',
   'study:getOverview',
   'study:getCommentaryMentions',
-  // Word study
-  'wordStudy:resolve',
-  'wordStudy:getOverview',
-  'wordStudy:getOccurrences',
-  'wordStudy:listGroups',
-  'wordStudy:saveGroup',
-  'wordStudy:deleteGroup',
   // i18n
   'i18n:listBuiltinCatalogs',
   'i18n:readBuiltinCatalog',

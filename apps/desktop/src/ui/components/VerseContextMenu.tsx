@@ -9,17 +9,16 @@ import { useDirection, Bdi } from '@bible/ui';
 import { useI18n } from '../contexts/useI18n';
 import { useAppServices } from '../contexts/ContextProvider';
 import type { SerializedPinnedItem } from '../services/collectionAPI';
-import { useXrefGraphStore } from '../stores/useXrefGraphStore';
-import { useSimilarStore } from '../stores/useSimilarStore';
-import { useSimilarAvailability } from '../stores/useSimilarAvailability';
-import { translateWithDefault } from '../hooks/useXrefGraphLabels';
+import { AppIconGlyph } from '../apps/AppIconGlyph';
+import { verseMenuOpenListeners } from '../modules/host/hostListeners';
+import { translateWithDefault } from '../utils/translateWithDefault';
 import { BookmarkIcon, BOOKMARK_COLOR } from './shared/icons/BookmarkIcon';
-import { groupFromQuery } from '@bible/core/browser';
 import { selectVerseActions } from '@bible/core/browser';
 import { appRegistry, verseActions, verseActionsStore } from '../apps/appHost';
 import { withVerseIdsContext } from '../apps/verseContext';
 import { installExtensionVerseActions } from '../apps/verseActions';
-import { revealWordStudyPanel } from './wordStudy/revealWordStudyPanel';
+import { VerseMenuItems } from '../modules/host/slots';
+import { fireActivation } from '../modules/moduleHost';
 
 /** A selection that is exactly one word (letters, marks, inner apostrophes/hyphens), else null. */
 export function singleSelectedWord(text: string | undefined | null): string | null {
@@ -128,6 +127,8 @@ const VerseContextMenu: React.FC<VerseContextMenuProps> = ({
   const { whenContext, registry } = useAppServices();
   // Idempotent: main.tsx installs the adapter at boot; this covers any other host of the menu.
   useEffect(() => installExtensionVerseActions({ registry }), [registry]);
+  // Modules with entries that need the selected word register them in `verseMenuItems` once active.
+  useEffect(() => { fireActivation('onView:verseContextMenu'); }, []);
   // The word the reader had selected when the menu opened, if it was exactly one.
   const [selectedWord] = useState(() => singleSelectedWord(
     typeof window !== 'undefined' ? window.getSelection?.()?.toString() : null,
@@ -149,13 +150,22 @@ const VerseContextMenu: React.FC<VerseContextMenuProps> = ({
     showing it would be the wrong answer in the one case the author cared
     enough to write a condition for.
   */
-  const similarAvailable = useSimilarAvailability((s) => s.available);
-  useEffect(() => { void useSimilarAvailability.getState().refresh(); }, []);
+  // Feature modules refresh what their entries' `when` keys depend on (e.g. Similar's data check) each
+  // time the menu opens; the keys changing re-renders the menu.
+  const [, bumpWhen] = React.useReducer((n: number) => n + 1, 0);
+  useEffect(() => {
+    const sub = whenContext.onDidChange(() => bumpWhen());
+    verseMenuOpenListeners.emit();
+    return () => sub.dispose();
+  }, [whenContext]);
   const actionEntries = React.useSyncExternalStore(verseActionsStore.subscribe, verseActionsStore.getSnapshot);
   React.useSyncExternalStore(appRegistry.state.subscribe, appRegistry.state.getSnapshot);
-  const verseActionItems = selectVerseActions(actionEntries, {
+  const allVerseActionItems = selectVerseActions(actionEntries, {
     evalWhen: (expr) => whenContext.evaluate(expr),
   });
+  // `study` group actions render in the study cluster (after Add note); the rest go in the bottom block.
+  const studyActionItems = allVerseActionItems.filter((a) => a.group === 'study');
+  const verseActionItems = allVerseActionItems.filter((a) => a.group !== 'study');
 
   /*
     Actions run through the registry, which loads their handler lazily. A
@@ -427,19 +437,8 @@ const VerseContextMenu: React.FC<VerseContextMenuProps> = ({
         </button>
       )}
 
-      {selectedWord && (
-        <button
-          onClick={() => {
-            onClose();
-            revealWordStudyPanel({ kind: 'group', group: groupFromQuery(selectedWord) });
-          }}
-          className="w-full px-4 py-2 text-start text-sm hover:bg-background-hover transition-colors flex items-center gap-2 cursor-pointer"
-          role="menuitem"
-          data-testid="verse-menu-study-word"
-        >
-          <span>{t('wordStudy.contextMenuStudyWord', { word: selectedWord })}</span>
-        </button>
-      )}
+      {/* Entries from active feature modules that need the selected word (e.g. "Study word 'x'"). */}
+      <VerseMenuItems selectedWord={selectedWord} onClose={onClose} />
 
       {/* Add/Edit Note Option (single verse only) */}
       {versesArray.length === 1 && onAddNote && (
@@ -461,46 +460,28 @@ const VerseContextMenu: React.FC<VerseContextMenuProps> = ({
         </>
       )}
 
-      {/* Cross-reference graph for the right-clicked verse */}
-      {versesArray.length > 0 && (
+      {/* Study-group verse actions (Show connections, Find similar, ...) */}
+      {versesArray.length > 0 && studyActionItems.length > 0 && (
         <>
           <div className="border-t border-border my-1"></div>
-          <button
-            onClick={() => {
-              const verseId = versesArray[0].verse_id;
-              onClose();
-              useXrefGraphStore.getState().openGraph(verseId);
-            }}
-            className="w-full px-4 py-2 text-start text-sm hover:bg-background-hover transition-colors flex items-center gap-2 cursor-pointer"
-            role="menuitem"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-              <circle cx="6" cy="12" r="2.5" strokeWidth={2} />
-              <circle cx="18" cy="6" r="2.5" strokeWidth={2} />
-              <circle cx="18" cy="18" r="2.5" strokeWidth={2} />
-              <path strokeLinecap="round" strokeWidth={2} d="M8.2 11l7.6-3.7M8.2 13l7.6 3.7" />
-            </svg>
-            <span>{translateWithDefault(t, 'xrefGraph.showConnections', 'Show connections')}</span>
-          </button>
-          {similarAvailable && (<button
-            onClick={() => {
-              const first = versesArray[0].verse_id;
-              const last = versesArray[versesArray.length - 1].verse_id;
-              onClose();
-              useSimilarStore.getState().openFor({
-                startVerseId: Math.min(first, last),
-                endVerseId: Math.max(first, last),
-              });
-            }}
-            className="w-full px-4 py-2 text-start text-sm hover:bg-background-hover transition-colors flex items-center gap-2 cursor-pointer"
-            role="menuitem"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h8M8 12h8M8 17h5" />
-              <rect x="4" y="3" width="16" height="18" rx="2" strokeWidth={2} />
-            </svg>
-            <span>{t('ui.verseContextMenu.findSimilar')}</span>
-          </button>)}
+          {studyActionItems.map((action) => (
+            <button
+              key={action.id}
+              onClick={() => {
+                onClose();
+                runVerseAction(action.id, versesArray.map((v) => v.verse_id));
+              }}
+              className="w-full px-4 py-2 text-start text-sm hover:bg-background-hover transition-colors flex items-center gap-2 cursor-pointer"
+              role="menuitem"
+            >
+              {action.icon ? <AppIconGlyph icon={action.icon} size={16} /> : <span className="w-4 h-4 shrink-0" aria-hidden="true" />}
+              <span>
+                {'key' in action.title
+                  ? translateWithDefault(t, action.title.key, action.title.fallback)
+                  : i18n.resolve(action.title.text as never)}
+              </span>
+            </button>
+          ))}
         </>
       )}
 

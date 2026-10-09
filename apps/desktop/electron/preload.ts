@@ -47,10 +47,6 @@ function typedInvoke<T = any>(channel: IpcChannel, ...args: unknown[]): Promise<
   return ipcRenderer.invoke(channel, ...args) as Promise<T>;
 }
 import type { Result } from './ipc/result';
-import type {
-  WordKeyCandidate, WordStudySubject, WordStudyOptions, WordStudyOverview,
-  WordOccurrenceQuery, WordOccurrencePage, WordGroup,
-} from '@bible/core';
 
 /** Unwrap a `Result<T>` envelope: resolve to the value, reject with the error message. */
 async function unwrapResult<T>(pending: Promise<Result<T>>): Promise<T> {
@@ -69,8 +65,6 @@ import type {
 // into the preload bundle - the imports are erased at compile time.
 import type { FeaturePack as FeaturePackListing } from '@bible/core';
 import type { AssetListSnapshot } from '@bible/core/browser';
-import type { SimilarOptions, MatchReason } from '@bible/core/browser';
-import type { SimilarFindResponse, SimilarStatus } from './ipc/similarTypes';
 import type { SemanticPackStatus as FeaturePackStatus } from './services/SemanticPackService';
 import type { ModuleInstallDialogResult } from './ipc/moduleHandlers';
 import type { StudyOverviewPayload } from './services/StudyCacheService';
@@ -233,23 +227,6 @@ export interface ElectronAPI {
     getEntryCount: (abbreviation: string, verseId: number) => Promise<Result<number>>;
   };
 
-  // Cross-reference graph (task 0068). Replies use the `Result<T>` envelope; the payload types are
-  // `XrefGraph`, `XrefEdge[]`, `BookMatrix` and `ChapterArcs` from `@bible/core/browser`.
-  xrefGraph: {
-    getEgoGraph: (anchor: number, opts: { depth: 1 | 2 | 3; maxNodes?: number; minWeight?: number; sources?: string[]; includeUser?: boolean }) => Promise<Result<any>>;
-    getNeighbours: (verseId: number, limit?: number) => Promise<Result<any[]>>;
-    getBookMatrix: () => Promise<Result<number[][]>>;
-    getChapterArcs: () => Promise<Result<any>>;
-  };
-
-  // Similar passages (task 0070). Payload types: `ipc/similarTypes.ts`.
-  similar: {
-    find: (range: { startVerseId: number; endVerseId: number }, opts?: SimilarOptions, module?: string) => Promise<Result<SimilarFindResponse>>;
-    explain: (a: { startVerseId: number; endVerseId: number }, b: { startVerseId: number; endVerseId: number }, module?: string) => Promise<Result<MatchReason[]>>;
-    status: () => Promise<Result<SimilarStatus>>;
-    reset: () => Promise<Result<true>>;
-  };
-
   // Search methods. Replies use the `Result<T>` envelope (item 2.3a of the
   // Apr-14 cleanup); callers should unwrap via `services/ipcResult.ts#unwrap`.
   // The `searchAPI` convenience wrapper in `services/electronAPI.ts` already
@@ -297,16 +274,6 @@ export interface ElectronAPI {
      */
     getOverview: (book: number, chapter: number) => Promise<Result<StudyOverviewPayload>>;
     getCommentaryMentions: (moduleId: number, verseId: number) => Promise<Result<any[]>>;
-  };
-
-  // Word study (Strong's numbers and user word groups). `Result<T>` envelope.
-  wordStudy: {
-    resolve: (query: string) => Promise<Result<WordKeyCandidate[]>>;
-    getOverview: (subject: WordStudySubject, options?: WordStudyOptions) => Promise<Result<WordStudyOverview>>;
-    getOccurrences: (subject: WordStudySubject, query: WordOccurrenceQuery) => Promise<Result<WordOccurrencePage>>;
-    listGroups: () => Promise<Result<WordGroup[]>>;
-    saveGroup: (group: Partial<WordGroup> & { terms: string[] }) => Promise<Result<WordGroup>>;
-    deleteGroup: (id: string) => Promise<Result<boolean>>;
   };
 
   /**
@@ -924,23 +891,6 @@ const electronAPI: ElectronAPI = {
       ipcRenderer.invoke('xref:getEntryCount', abbreviation, verseId)
   },
 
-  xrefGraph: {
-    getEgoGraph: (anchor: number, opts: { depth: 1 | 2 | 3; maxNodes?: number; minWeight?: number; sources?: string[]; includeUser?: boolean }) =>
-      typedInvoke('xrefGraph:getEgoGraph', anchor, opts),
-    getNeighbours: (verseId: number, limit?: number) => typedInvoke('xrefGraph:getNeighbours', verseId, limit),
-    getBookMatrix: () => typedInvoke('xrefGraph:getBookMatrix'),
-    getChapterArcs: () => typedInvoke('xrefGraph:getChapterArcs'),
-  },
-
-  similar: {
-    find: (range: { startVerseId: number; endVerseId: number }, opts?: SimilarOptions, module?: string) =>
-      typedInvoke('similar:find', range, opts, module),
-    explain: (a: { startVerseId: number; endVerseId: number }, b: { startVerseId: number; endVerseId: number }, module?: string) =>
-      typedInvoke('similar:explain', a, b, module),
-    status: () => typedInvoke('similar:status'),
-    reset: () => typedInvoke('similar:reset'),
-  },
-
   search: {
     performSearch: (query: string, options: any) =>
       ipcRenderer.invoke('search:performSearch', query, options),
@@ -997,17 +947,6 @@ const electronAPI: ElectronAPI = {
       typedInvoke('study:getOverview', book, chapter),
     getCommentaryMentions: (moduleId: number, verseId: number) =>
       typedInvoke('study:getCommentaryMentions', moduleId, verseId)
-  },
-
-  wordStudy: {
-    resolve: (query: string) => typedInvoke('wordStudy:resolve', query),
-    getOverview: (subject: WordStudySubject, options?: WordStudyOptions) =>
-      typedInvoke('wordStudy:getOverview', subject, options),
-    getOccurrences: (subject: WordStudySubject, query: WordOccurrenceQuery) =>
-      typedInvoke('wordStudy:getOccurrences', subject, query),
-    listGroups: () => typedInvoke('wordStudy:listGroups'),
-    saveGroup: (group: Partial<WordGroup> & { terms: string[] }) => typedInvoke('wordStudy:saveGroup', group),
-    deleteGroup: (id: string) => typedInvoke('wordStudy:deleteGroup', id)
   },
 
   // Expose ipcRenderer.invoke for notes API. The `channel` param is typed as

@@ -7,7 +7,7 @@ import { verseActions } from '../apps/appHost';
 
 const services: AppServices = {
   registry: {} as AppServices['registry'],
-  whenContext: { evaluate: (e: string) => e === 'yes' } as unknown as AppServices['whenContext'],
+  whenContext: { onDidChange: () => ({ dispose: () => {} }), evaluate: (e: string) => e === 'yes' } as unknown as AppServices['whenContext'],
   keybindings: {} as AppServices['keybindings'],
   i18n: {
     t: (key: string) => key,

@@ -22,6 +22,10 @@ export interface PaneViewProps {
   onStrongsHover: (...args: never[]) => void;
   onStrongsLeave: () => void;
   onOpenSettings: (section?: string) => void;
+  /** Phone layout only: return to the reader (after the pane navigated to a verse). */
+  onNavigateBible?: () => void;
+  /** Phone layout only: close the full-screen pane. */
+  onClosePhone?: () => void;
 }
 
 export type PaneViewComponent = (props: PaneViewProps) => unknown;
@@ -53,8 +57,6 @@ export const hostPanesManifest: FeatureModuleManifest = {
       { id: 'commentary', title: title('commentary', 'Commentary'), order: 20, phoneView: true },
       { id: 'topics', title: title('topics', 'Topics'), order: 30 },
       { id: 'dictionary', title: title('dictionary', 'Dictionary'), order: 60 },
-      { id: 'wordStudy', title: title('wordStudy', 'Word study'), order: 70, phoneView: true },
-      { id: 'similar', title: title('similar', 'Similar'), order: 80 },
     ],
   },
 };

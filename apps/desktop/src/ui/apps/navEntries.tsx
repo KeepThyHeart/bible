@@ -1,6 +1,6 @@
 import type { LabelRef, NavItem } from '@bible/core/browser';
 import type { AppNavEntry } from '@bible/ui';
-import { translateWithDefault } from '../hooks/useXrefGraphLabels';
+import { translateWithDefault } from '../utils/translateWithDefault';
 import type { II18nService } from '../services/II18nService';
 import { AppIconGlyph } from './AppIconGlyph';
 

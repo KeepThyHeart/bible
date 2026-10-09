@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
+import React, { useEffect, useState, useCallback, useRef, useMemo, useSyncExternalStore } from 'react';
 import { useI18n } from '../contexts/useI18n';
 import { useStudyStore } from '../stores/useStudyStore';
 import { useStudyPanel } from '../stores/hooks/useStudyPanel';
@@ -18,8 +18,8 @@ import DigestDisclaimer from './commentary/DigestDisclaimer';
 import { useModuleProvenance } from './commentary/useModuleProvenance';
 import StudySection from './study/StudySection';
 import MeasuresStudySection from './measures/MeasuresStudySection';
-import { useXrefGraphStore } from '../stores/useXrefGraphStore';
-import { translateWithDefault } from '../hooks/useXrefGraphLabels';
+import { verseActions, verseActionsStore } from '../apps/appHost';
+import { translateWithDefault } from '../utils/translateWithDefault';
 import StudyRichText from './study/StudyRichText';
 import { markdownToPlainText, looksLikeMarkdown } from './study/markdown';
 import { crossReferenceModuleLabel } from '../utils/moduleNaming';
@@ -63,6 +63,9 @@ import type { IDockviewPanel } from 'dockview-react';
  * "make everything bigger" slider instead of only responding to one of the
  * two font sliders.
  */
+/** Data id of the Cross-ref graph module's verse action; the button runs it without importing the module. */
+const CONNECTIONS_ACTION = 'xrefGraph.connections';
+
 function uiScaled(px: number): string {
   return `calc(${px}px * var(--ui-font-scale, 1) * var(--global-font-scale, 1))`;
 }
@@ -694,6 +697,9 @@ const CrossReferencesSection: React.FC<{
   onToggle: () => void;
 }> = ({ verseId, xrefGroups, sources, notInstalled, collapsed, onToggle }) => {
   const { t } = useI18n();
+  // "Show connections" is a contributed verse action: the button exists only while some module supplies it.
+  const connectionsAvailable = useSyncExternalStore(verseActionsStore.subscribe, verseActionsStore.getSnapshot)
+    .some((e) => e.item.id === CONNECTIONS_ACTION);
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [tooltipState, setTooltipState] = useState<{
     visible: boolean;
@@ -763,13 +769,17 @@ const CrossReferencesSection: React.FC<{
       collapsed={collapsed}
       onToggle={onToggle}
     >
-      {sorted.length > 0 && verseId !== null && (
+      {connectionsAvailable && sorted.length > 0 && verseId !== null && (
         <div style={{ marginBottom: '6px' }}>
           <button
             type="button"
             className="text-accent hover:text-accent-strong hover:underline"
             style={{ fontSize: uiScaled(12) }}
-            onClick={() => useXrefGraphStore.getState().openGraph(verseId)}
+            onClick={() => {
+              verseActions
+                .run(CONNECTIONS_ACTION, { verseId, verseIds: [verseId], module: '', surface: 'study' })
+                .catch((err: unknown) => console.error(`[StudyPane] verse action '${CONNECTIONS_ACTION}' failed`, err));
+            }}
           >
             {translateWithDefault(t, 'xrefGraph.showConnections', 'Show connections')}
           </button>

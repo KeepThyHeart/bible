@@ -2,7 +2,7 @@ import type { PanelContentType } from '../useLayoutStore';
 import { useBookStore } from '../useBookStore';
 import { useDictionaryStore } from '../useDictionaryStore';
 import { useSearchStore } from '../useSearchStore';
-import { useWordStudyStore } from '../useWordStudyStore';
+import type { IDisposable } from '../../types/Command';
 
 /**
  * Discard the per-panel state belonging to a pane that has actually been closed.
@@ -29,6 +29,22 @@ import { useWordStudyStore } from '../useWordStudyStore';
  * and removal coincide. They are not routed through here yet - see
  * `books.md` / `dictionary.md`.
  */
+/**
+ * Per-panel state owned by a feature module, discarded when a panel of that
+ * type is removed. A module registers one for its content type in `activate()`
+ * (a panel of the type is on screen only while its module is active).
+ */
+const panelDisposers = new Map<string, (panelId: string) => void>();
+
+export function registerPanelDisposer(contentType: string, dispose: (panelId: string) => void): IDisposable {
+  panelDisposers.set(contentType, dispose);
+  return {
+    dispose() {
+      if (panelDisposers.get(contentType) === dispose) panelDisposers.delete(contentType);
+    },
+  };
+}
+
 export function destroyPanelState(
   panelId: string,
   contentType: PanelContentType | undefined
@@ -39,9 +55,9 @@ export function destroyPanelState(
     return;
   }
 
-  if (contentType === 'wordStudy') {
-    // allow-getstate: dockview event callback - runs outside React render
-    useWordStudyStore.getState().destroyPanel(panelId);
+  const moduleDisposer = contentType ? panelDisposers.get(contentType) : undefined;
+  if (moduleDisposer) {
+    moduleDisposer(panelId);
     return;
   }
 

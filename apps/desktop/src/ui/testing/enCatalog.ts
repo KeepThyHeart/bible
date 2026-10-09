@@ -31,6 +31,9 @@ import quizPane from '../../../locales/en/quizPane.json';
 import readingPlans from '../../../locales/en/readingPlans.json';
 import searchBar from '../../../locales/en/searchBar.json';
 import timeline from '../../../locales/en/timeline.json';
+import similar from '../../../locales/en/similar.json';
+import wordStudy from '../../../locales/en/wordStudy.json';
+import xrefGraph from '../../../locales/en/xrefGraph.json';
 import ui from '../../../locales/en/ui.json';
 import { I18nService } from '../services/I18nService';
 import type { II18nService } from '../services/II18nService';
@@ -59,6 +62,9 @@ export function loadEnCatalog(): Record<string, string> {
     ...(readingPlans as Record<string, string>),
     ...(searchBar as Record<string, string>),
     ...(timeline as Record<string, string>),
+    ...(similar as Record<string, string>),
+    ...(wordStudy as Record<string, string>),
+    ...(xrefGraph as Record<string, string>),
     ...(ui as Record<string, string>),
   };
 }

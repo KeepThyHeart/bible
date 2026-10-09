@@ -39,6 +39,10 @@ export interface PaneModeContribution extends ContributionItem {
   readonly phoneView?: boolean;
   /** Once opened, the pane stays mounted (hidden) while another tab is active, so its state survives tab switches (default false). */
   readonly keepMounted?: boolean;
+  /** Context key (`key` or `!key`): the tab exists only while it is true, e.g. a feature detection. Unset: always. */
+  readonly when?: string;
+  /** Web: a header (and phone landscape sidebar) button that opens this pane; its icon is `icon`. Unset: no button. */
+  readonly headerButton?: { readonly title: LabelRef; readonly testId?: string };
 }
 
 /** What a new-tab tile opens. */

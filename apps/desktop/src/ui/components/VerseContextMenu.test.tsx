@@ -4,9 +4,7 @@ import userEvent from '@testing-library/user-event';
 import React from 'react';
 import VerseContextMenu, { withVerseMenuContext } from './VerseContextMenu';
 import type { BibleVerse } from '../services/verseCopyService';
-import { useXrefGraphStore } from '../stores/useXrefGraphStore';
-import { useSimilarStore } from '../stores/useSimilarStore';
-import { useSimilarAvailability } from '../stores/useSimilarAvailability';
+import { verseActions } from '../apps/appHost';
 
 describe('withVerseMenuContext', () => {
   const v = (verseId: number) => ({ verse_id: verseId }) as unknown as BibleVerse;
@@ -34,7 +32,7 @@ import { ContextProvider, type AppServices } from '../contexts/ContextProvider';
 function createMockServices(): AppServices {
   return {
     registry: {} as AppServices['registry'],
-    whenContext: {} as AppServices['whenContext'],
+    whenContext: { onDidChange: () => ({ dispose: vi.fn() }), evaluate: () => false } as unknown as AppServices['whenContext'],
     keybindings: {} as AppServices['keybindings'],
     i18n: {
       t: (key: string) => key,
@@ -107,41 +105,35 @@ describe('VerseContextMenu', () => {
     expect(onClose).toHaveBeenCalled();
   });
 
-  it('opens the cross-reference graph for the right-clicked verse', async () => {
-    useXrefGraphStore.setState({ isOpen: false, anchor: null });
-    renderWithProviders(
-      <VerseContextMenu
-        verses={mockVerse}
-        context={mockContext}
-        position={position}
-        onClose={onClose}
-      />,
-    );
-    await userEvent.click(screen.getByRole('menuitem', { name: 'Show connections' }));
-    expect(onClose).toHaveBeenCalled();
-    expect(useXrefGraphStore.getState()).toMatchObject({ isOpen: true, anchor: 43003016 });
+  it('lists a contributed `study` verse action with its icon in the study cluster and runs it for the verse', async () => {
+    // The graph module contributes "Show connections"; the menu renders any `study` group action there.
+    const run = vi.fn();
+    const disposables = [
+      verseActions.register(
+        { id: 'xrefGraph.connections', title: { key: 'xrefGraph.showConnections', fallback: 'Show connections' }, icon: { kind: 'builtin', name: 'diagram-project' }, order: 10, group: 'study' },
+        { kind: 'builtin', moduleId: 'xref-graph' },
+      ),
+      verseActions.bindHandler({ id: 'xrefGraph.connections', load: async () => ({ run }) }),
+    ];
+    try {
+      renderWithProviders(
+        <VerseContextMenu verses={mockVerse} context={mockContext} position={position} onClose={onClose} />,
+      );
+      const item = screen.getByRole('menuitem', { name: 'Show connections' });
+      expect(item.querySelector('svg[data-icon="diagram-project"]')).not.toBeNull();
+      await userEvent.click(item);
+      expect(onClose).toHaveBeenCalled();
+      await waitFor(() => expect(run).toHaveBeenCalledWith(expect.objectContaining({ verseId: 43003016, verseIds: [43003016] })));
+    } finally {
+      disposables.forEach((d) => d.dispose());
+    }
   });
 
-  it('hides Similar passages when the main process has no data for it', () => {
-    vi.spyOn(useSimilarAvailability.getState(), 'refresh').mockResolvedValue();
-    useSimilarAvailability.setState({ available: false });
+  it('has no "Show connections" entry while no module contributes the action', () => {
     renderWithProviders(
       <VerseContextMenu verses={mockVerse} context={mockContext} position={position} onClose={onClose} />,
     );
-    expect(screen.queryByRole('menuitem', { name: 'ui.verseContextMenu.findSimilar' })).toBeNull();
-  });
-
-  it('opens Similar passages for the right-clicked verse', async () => {
-    vi.spyOn(useSimilarAvailability.getState(), 'refresh').mockResolvedValue();
-    useSimilarAvailability.setState({ available: true });
-    const openFor = vi.spyOn(useSimilarStore.getState(), 'openFor').mockImplementation(() => {});
-    renderWithProviders(
-      <VerseContextMenu verses={mockVerse} context={mockContext} position={position} onClose={onClose} />,
-    );
-    await userEvent.click(screen.getByRole('menuitem', { name: 'ui.verseContextMenu.findSimilar' }));
-    expect(onClose).toHaveBeenCalled();
-    expect(openFor).toHaveBeenCalledWith({ startVerseId: 43003016, endVerseId: 43003016 });
-    openFor.mockRestore();
+    expect(screen.queryByRole('menuitem', { name: 'Show connections' })).toBeNull();
   });
 
   it('shows highlight option when onOpenHighlightMenu is provided', () => {

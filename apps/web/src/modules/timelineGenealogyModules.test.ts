@@ -110,13 +110,13 @@ describe('the dev override switches a flagged-on module off', () => {
     expect(h.modulePoints.paneModes.get('timeline')).toBeUndefined();
     expect(h.modulePoints.views.resolve('pane:timeline')).toBeUndefined();
     expect(JSON.stringify(h.modulePoints.i18nNamespace.list())).not.toContain('"timeline"');
-    expect(h.runBootProbes().activate).toEqual(['genealogy']);
+    expect(h.runBootProbes().activate).toEqual(['genealogy', 'similar']);
   });
 
   it('-genealogy keeps Timeline', async () => {
     const h = await boot({ override: '-genealogy', features: { timeline: true, genealogy: true } });
     expect(h.modulePoints.paneModes.get('timeline')).toBeDefined();
-    expect(h.runBootProbes().activate).toEqual(['timeline']);
+    expect(h.runBootProbes().activate).toEqual(['timeline', 'similar']);
   });
 
   it('a server that reports the module off wins over the flag', async () => {

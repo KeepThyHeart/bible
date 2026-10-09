@@ -11,6 +11,9 @@ import { timelineManifest } from './timeline/manifest';
 import { timelineBinding } from './timeline/binding';
 import { quizModule } from './quiz/binding';
 import { readingPlansModule } from './reading-plans/binding';
+import { similarModule } from './similar/binding';
+import { xrefGraphModule } from './xref-graph/binding';
+import { wordStudyModule } from './word-study/binding';
 import { addDesktopModule, fireStartupFinished, reconcileModules } from './moduleHost';
 import type { DesktopFeatureModule } from './moduleHost';
 
@@ -21,6 +24,9 @@ export const BUILTIN_MODULES: readonly DesktopFeatureModule[] = [
   { manifest: timelineManifest, binding: timelineBinding },
   quizModule,
   readingPlansModule,
+  similarModule,
+  xrefGraphModule,
+  wordStudyModule,
 ];
 
 let registered = false;

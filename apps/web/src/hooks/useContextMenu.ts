@@ -4,12 +4,11 @@ import { selectVerseActions } from '@bible/core/browser';
 import { useDirection } from '@bible/ui';
 import { useViewportPosition } from './useViewportPosition';
 import { bibleStore } from '../stores/bibleStore';
-import { xrefGraphStore } from '../stores/xrefGraphStore';
 import { eventBus } from '../events/eventBus';
 import { parseVerseId } from '../utils/verseId';
 import { appRegistry, verseActions } from '../host/appHost';
 import { resolveLabel } from '../host/appNavEntries';
-import { evalVerseWhen } from '../host/verseActionWhen';
+import { evalVerseWhen, whenKeys } from '../host/verseActionWhen';
 import { useIsActiveApp } from '../host/useIsActiveApp';
 import { useReadable } from '../host/useReadable';
 
@@ -46,7 +45,6 @@ interface ContextMenuTarget {
  */
 export const CONTEXT_MENU_TARGETS: Record<string, ContextMenuTarget> = {
   study: { paneId: 'study', mobileView: 'study', load: 'verse' },
-  similar: { paneId: 'similar', mobileView: 'study', load: 'none' },
 };
 
 export function useContextMenu(
@@ -62,14 +60,17 @@ export function useContextMenu(
   const studyActive = useIsActiveApp('study');
   const contributed = useReadable(verseActions);
   const apps = useReadable(appRegistry.state);
+  // Context keys a module defines (feature detections) change what `when` says.
+  const whenVersion = useReadable(whenKeys);
   const verseActionItems = useMemo(
     () => selectVerseActions(contributed, { evalWhen: evalVerseWhen }).map((a) => ({
       id: a.id,
       label: resolveLabel((k, f) => t(k, f), a.title),
       iconClass: a.icon?.kind === 'builtin' ? `fa-solid ${a.icon.name}` : undefined,
+      group: a.group,
     })),
     // `apps` carries the busy flags that `when` reads.
-    [contributed, apps, i18n?.language, t],
+    [contributed, apps, whenVersion, i18n?.language, t],
   );
   const contextMenuRef = useViewportPosition<HTMLDivElement>(
     // rtl-physical: x is the physical pointer position; the hook converts it to inset-inline-start
@@ -113,12 +114,6 @@ export function useContextMenu(
     if (action === 'copy') {
       bibleStore.adoptPreviewAsStudy(verseId);
       setCopyOpen(true);
-      return;
-    }
-
-    if (action === 'connections') {
-      bibleStore.adoptPreviewAsStudy(verseId);
-      xrefGraphStore.open(verseId);
       return;
     }
 

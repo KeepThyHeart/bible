@@ -48,7 +48,7 @@ vi.mock('../../contexts/ContextProvider', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../contexts/ContextProvider')>()),
   useAppServices: () => ({
     registry: { list: () => [], get: () => undefined, execute: vi.fn() },
-    whenContext: {},
+    whenContext: { onDidChange: () => ({ dispose: () => {} }) },
     keybindings: {},
     i18n: { resolve: (v: unknown) => String(v) },
   }),

@@ -19,7 +19,7 @@ import { ContextProvider, type AppServices } from '../contexts/ContextProvider';
 import { resetModuleProvenanceCache } from './commentary/useModuleProvenance';
 import { enString, enT } from '../testing/enCatalog';
 import { useStudyStore } from '../stores/useStudyStore';
-import { useXrefGraphStore } from '../stores/useXrefGraphStore';
+import { verseActions } from '../apps/appHost';
 
 // Mock useStudyPanel
 const mockUseStudyPanel = vi.fn();
@@ -487,8 +487,34 @@ describe('StudyPane', () => {
       expect(container.textContent).not.toContain('2 Corinthians');
     });
 
-    it('opens the cross-reference graph for the pane verse from "Show connections"', async () => {
-      useXrefGraphStore.setState({ isOpen: false, anchor: null });
+    it('runs the "Show connections" verse action for the pane verse', async () => {
+      // The graph module contributes the action; the pane runs it by id.
+      const run = vi.fn();
+      const disposables = [
+        verseActions.register(
+          { id: 'xrefGraph.connections', title: { key: 'xrefGraph.showConnections', fallback: 'Show connections' }, group: 'study' },
+          { kind: 'builtin', moduleId: 'xref-graph' },
+        ),
+        verseActions.bindHandler({ id: 'xrefGraph.connections', load: async () => ({ run }) }),
+      ];
+      try {
+        stubElectron({
+          xrefModules: [{ abbreviation: 'TSK', name: 'Treasury of Scripture Knowledge' }],
+          xrefGroups: [{
+            group: { group_id: 1, verse_id: JOHN_3_16, phrase: 'Verily.', sort_order: 0 },
+            entries: [{ entry_id: 1, target_verse_id: 43001051, target_verse_end_id: null }],
+          }],
+        });
+        renderWithProviders(<StudyPane panelId="study_default" />);
+        await screen.findByText('"Verily"');
+        await userEvent.click(screen.getByRole('button', { name: 'Show connections' }));
+        await waitFor(() => expect(run).toHaveBeenCalledWith(expect.objectContaining({ verseId: JOHN_3_16, surface: 'study' })));
+      } finally {
+        disposables.forEach((d) => d.dispose());
+      }
+    });
+
+    it('has no "Show connections" button while no module contributes the action', async () => {
       stubElectron({
         xrefModules: [{ abbreviation: 'TSK', name: 'Treasury of Scripture Knowledge' }],
         xrefGroups: [{
@@ -498,8 +524,7 @@ describe('StudyPane', () => {
       });
       renderWithProviders(<StudyPane panelId="study_default" />);
       await screen.findByText('"Verily"');
-      await userEvent.click(screen.getByRole('button', { name: 'Show connections' }));
-      expect(useXrefGraphStore.getState()).toMatchObject({ isOpen: true, anchor: JOHN_3_16 });
+      expect(screen.queryByRole('button', { name: 'Show connections' })).toBeNull();
     });
 
     it('shows every reference, with no "+N more" toggle', async () => {

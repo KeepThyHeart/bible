@@ -40,11 +40,6 @@ const studyActive = vi.hoisted(() => ({ value: true }));
 vi.mock('../host/useIsActiveApp', () => ({ useIsActiveApp: () => studyActive.value }));
 vi.mock('../utils/bootGuard', () => ({ reloadForUpdateOnce: () => false }));
 
-const xrefOpen = vi.fn();
-vi.mock('../stores/xrefGraphStore', () => ({
-  xrefGraphStore: { open: (...a: unknown[]) => xrefOpen(...a) },
-}));
-
 import { useContextMenu } from './useContextMenu';
 import { eventBus } from '../events/eventBus';
 import { verseActions, appRegistry } from '../host/appHost';
@@ -115,7 +110,6 @@ function emittedNames(emit: Harness['emit']): string[] {
 beforeEach(() => {
   vi.restoreAllMocks();
   adoptPreviewAsStudy.mockClear();
-  xrefOpen.mockClear();
 });
 
 describe('useContextMenu — opening the menu', () => {
@@ -283,20 +277,6 @@ describe('useContextMenu — mobile view switching', () => {
   it('is optional — desktop passes no setter and must not throw', () => {
     const { action: fire } = harness({ mobile: false });
     expect(() => fire('study')).not.toThrow();
-  });
-});
-
-describe('useContextMenu - connections action', () => {
-  it('selects the verse, then opens the cross-reference graph on it', () => {
-    const order: string[] = [];
-    adoptPreviewAsStudy.mockImplementationOnce(() => order.push('adopt'));
-    xrefOpen.mockImplementationOnce(() => order.push('open'));
-    const { action, emit } = harness();
-    action('connections');
-    expect(adoptPreviewAsStudy).toHaveBeenCalledWith(VERSE_ID);
-    expect(xrefOpen).toHaveBeenCalledWith(VERSE_ID);
-    expect(order).toEqual(['adopt', 'open']);
-    expect(emittedNames(emit)).not.toContain('pane:show');
   });
 });
 

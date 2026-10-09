@@ -1,4 +1,4 @@
-import { revealWordStudyPanel } from '../wordStudy/revealWordStudyPanel';
+import { requestPanel, usePanelAvailable } from '../../modules/host/panelRequests';
 import React, { useState, useEffect, useMemo } from 'react';
 import { stripOsisTags, truncateAtWordBoundary, UserTextMarkup } from '@bible/core';
 import { dictionaryAPI } from '../../services/electronAPI';
@@ -151,6 +151,7 @@ const StrongsPreviewTooltip: React.FC<{
   keywordTabId?: string;
 }> = ({ strongsNumber, position, onClose, onMouseEnter, keywordTabId }) => {
   const { t } = useI18n();
+  const wordStudyAvailable = usePanelAvailable('wordStudy');
   const addKeywordMark = useKeywordMarkStore((state) => state.addMarkFromWord);
   // Subscribed rather than read via getState(): this is render-time wiring for
   // an action the tooltip owns, and the selector keeps the reference stable.
@@ -331,10 +332,11 @@ const StrongsPreviewTooltip: React.FC<{
           </svg>
           {t('ui.interlinear.searchOccurrences')}
         </button>
+        {wordStudyAvailable && (
         <button
           type="button"
           onClick={() => {
-            revealWordStudyPanel({ kind: 'strongs', strongs: strongsNumber });
+            requestPanel('wordStudy', { kind: 'strongs', strongs: strongsNumber });
             onClose();
           }}
           className="flex-1 flex items-center justify-center gap-1 px-2 py-1 rounded border border-border text-xs text-accent-strong hover:bg-accent-light hover:border-accent cursor-pointer transition-colors"
@@ -342,6 +344,7 @@ const StrongsPreviewTooltip: React.FC<{
         >
           {t('wordStudy.tooltipButton')}
         </button>
+        )}
         </div>
       )}
       {!loading && keywordTabId && (

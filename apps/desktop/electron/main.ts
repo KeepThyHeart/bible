@@ -9,8 +9,6 @@ import { registerDictionaryHandlers, closeDictionaryDbs } from './ipc/dictionary
 import { registerBookHandlers, closeBookDbs } from './ipc/bookHandlers';
 import { registerTopicalIndexHandlers, closeTopicalDbs } from './ipc/topicalIndexHandlers';
 import { registerCrossReferenceHandlers, closeXrefDbs } from './ipc/crossReferenceHandlers';
-import { registerXrefGraphHandlers } from './ipc/xrefGraphHandlers';
-import { registerSimilarHandlers } from './ipc/similarHandlers';
 import { registerTagGraphHandlers, closeTagGraphDb } from './ipc/tagGraphHandlers';
 import { registerSearchHandlers, closeSearchDb } from './ipc/searchHandlers';
 import { registerSessionHandlers, closeSessionDb } from './ipc/sessionHandlers';
@@ -54,7 +52,6 @@ import {
   getDiagnosticsUploader,
 } from './ipc/diagnosticsHandlers';
 import { registerStudyHandlers } from './ipc/studyHandlers';
-import { registerWordStudyHandlers } from './ipc/wordStudyHandlers';
 import { registerNetworkHandlers, initializeNetworkService } from './ipc/networkHandlers';
 import { registerUpdateHandlers, setBlocklistRefresher } from './ipc/updateHandlers';
 import { MenuBuilder, registerMenuRebuildHandler } from './menu/menuBuilder';
@@ -638,11 +635,8 @@ const registerAllHandlersOnce = runOnce(() => {
   registerI18nHandlers(ipcMain);
   registerTopicalIndexHandlers(ipcMain);
   registerCrossReferenceHandlers(ipcMain, { getExtensionHost: () => extensionHost });
-  registerXrefGraphHandlers(ipcMain);
-  registerSimilarHandlers(ipcMain);
   registerTagGraphHandlers(ipcMain);
   registerStudyHandlers(ipcMain);
-  registerWordStudyHandlers(ipcMain);
   // Feature modules (task 0113): enabled modules' main-process code, loaded lazily. Quiz and
   // Reading plans live here; handlers are registered before the window loads in the common
   // case, and a failure here must never block startup.

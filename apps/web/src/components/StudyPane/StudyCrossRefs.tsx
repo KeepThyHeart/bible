@@ -2,7 +2,8 @@ import { useState, useEffect, useCallback, useRef } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { useVersePopup } from '../../hooks/useVersePopup';
 import { studyStore } from '../../stores/studyStore';
-import { xrefGraphStore } from '../../stores/xrefGraphStore';
+import { verseActions } from '../../host/appHost';
+import { useReadable } from '../../host/useReadable';
 import { bibleStore } from '../../stores/bibleStore';
 import { offlineStore } from '../../stores/offlineStore';
 import { useStore } from '../../hooks/useStore';
@@ -11,6 +12,9 @@ import { collapseReferencesStructured } from '../../utils/collapseReferences';
 import { parseVerseId } from '../../utils/verseId';
 import type { IBibleDataProvider } from '../../providers/interfaces';
 import { Bdi } from '@bible/ui';
+
+/** Data id of the graph module's verse action (the Study pane button runs it; the module is not imported). */
+const CONNECTIONS_ACTION = 'xrefGraph.connections';
 
 const TABLE_STORAGE_KEY = 'bible-reader-crossrefs-show-table';
 
@@ -72,6 +76,7 @@ interface StudyCrossRefsProps {
 export function StudyCrossRefs({ bibleProvider }: StudyCrossRefsProps) {
   const { t } = useTranslation();
   const verseId = useStore(studyStore, () => studyStore.verseId);
+  const connectionsAction = useReadable(verseActions).some((e) => e.item.id === CONNECTIONS_ACTION);
   const groups = useStore(studyStore, () => studyStore.crossRefGroups);
   const loading = useStore(studyStore, () => studyStore.crossRefLoading);
   const isOnline = useStore(offlineStore, () => offlineStore.isOnline);
@@ -164,11 +169,16 @@ export function StudyCrossRefs({ bibleProvider }: StudyCrossRefsProps) {
     handleClick(verseId, e, endVerseId);
   };
 
-  const connectionsButton = verseId ? (
+  // The graph module's verse action: the button exists only while the module contributes it.
+  const connectionsButton = verseId && connectionsAction ? (
     <button
       type="button"
       class="study-crossrefs__connections"
-      onClick={() => xrefGraphStore.open(verseId)}
+      onClick={() => {
+        verseActions
+          .run(CONNECTIONS_ACTION, { verseId, verseIds: [verseId], module: bibleStore.getActiveTab()?.moduleAbbr ?? '', surface: 'study' })
+          .catch((err: unknown) => console.error('[verseActions]', CONNECTIONS_ACTION, err));
+      }}
     >
       <i class="fa-solid fa-diagram-project fa-xs" />{' '}
       {t('xrefGraph.showConnections', { defaultValue: 'Show connections' })}

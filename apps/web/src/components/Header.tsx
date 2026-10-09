@@ -7,8 +7,8 @@ import { offlineStore } from '../stores/offlineStore';
 import { useStore } from '../hooks/useStore';
 import { useLocalizer } from '../hooks/useLocalizer';
 import { focusSearchField } from '../utils/focusSearchField';
-import { openWordStudy } from '../utils/openWordStudy';
 import { AppSwitchSlot } from '../host/AppSwitchSlot';
+import { PaneHeaderButtons } from '../host/PaneHeaderButtons';
 import { stripBidiControls } from '@bible/core/browser';
 
 
@@ -333,14 +333,7 @@ export function Header({ onSettingsClick, onHelpClick, onFeedbackClick, onLogoCl
             </div>
           )}
         </div>
-        <button
-          class="header__action-btn"
-          onClick={() => openWordStudy()}
-          title={t('wordStudy.open')}
-          data-testid="header-word-study-btn"
-        >
-          <i class="fa-solid fa-language" />
-        </button>
+        <PaneHeaderButtons className="header__action-btn" />
         {onFeedbackClick && (
           <button
             class="header__action-btn"

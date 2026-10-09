@@ -29,6 +29,23 @@ export function registerSessionRestorer(key: string, fn: SessionRestorer): void 
   restorers.set(key, fn);
 }
 
+/** What a feature module may need from the saved session when its code loads after the session did. */
+export interface StagedSession {
+  readonly ui?: unknown;
+  readonly dockviewState?: unknown;
+}
+
+let staged: StagedSession | null = null;
+
+/** Called once by startup after reading the session: modules restore their own state from it when they load. */
+export function stageSessionForModules(session: StagedSession): void {
+  staged = session;
+}
+
+export function getStagedSession(): StagedSession | null {
+  return staged;
+}
+
 /**
  * Collect serialized state from every registered store.
  * Returns a plain object mapping keys to their serialized data.

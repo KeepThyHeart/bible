@@ -6,7 +6,7 @@
  */
 import React from 'react';
 import { useI18n } from '../contexts/useI18n';
-import { translateWithDefault } from '../hooks/useXrefGraphLabels';
+import { translateWithDefault } from '../utils/translateWithDefault';
 import ExtensionPanelHost from '../components/extensions/ExtensionPanelHost';
 import { AppIconGlyph } from './AppIconGlyph';
 import { appRegistry, openApp } from './appHost';

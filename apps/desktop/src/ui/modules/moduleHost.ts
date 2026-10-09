@@ -18,7 +18,7 @@ import {
   parseFeatureModuleOverrides,
   standardPointList,
 } from '@bible/core/browser';
-import type { Disposable, FeatureModuleBinding, FeatureModuleManifest } from '@bible/core/browser';
+import type { Disposable, FeatureModuleBinding, FeatureModuleManifest, VerseActionHandler } from '@bible/core/browser';
 import { addAppBinding, appHost, appRegistry, verseActions } from '../apps/appHost';
 import type { DesktopAppBinding } from '../apps/appHost';
 import type { ICommandRegistry } from '../services/ICommandRegistry';
@@ -73,6 +73,8 @@ appHost.subscribe(() => {
  *
  * - `apps`: app bindings for `contributes.apps`. Activating one first activates the
  *   module (`onApp:<id>`); a failed module activation fails the app's.
+ * - `verseActionHandlers`: lazy handlers for `contributes.verseActions`; running one first
+ *   activates the module (`onVerseAction:<id>`). Registered only while the module is on.
  * - `commands`: the module's command-palette commands. They are registered while
  *   the module is on (palette titles are `ui.json` labels, so they need no module
  *   code); handlers should stay small and import heavy code lazily.
@@ -81,6 +83,7 @@ export interface DesktopFeatureModule {
   readonly manifest: FeatureModuleManifest;
   readonly binding?: FeatureModuleBinding;
   readonly apps?: readonly DesktopAppBinding[];
+  readonly verseActionHandlers?: readonly { readonly id: string; load(): Promise<VerseActionHandler> }[];
   readonly commands?: (registry: ICommandRegistry) => IDisposable[];
 }
 
@@ -122,7 +125,7 @@ function syncDesktopPieces(): void {
       if (startupFinished && rec.entry.manifest.activationEvents?.includes('onStartupFinished')) {
         void featureModules.activateNow(id, 'onStartupFinished');
       }
-      const { apps = [], commands } = rec.entry;
+      const { apps = [], verseActionHandlers = [], commands } = rec.entry;
       rec.handles = [
         ...apps.map((b) =>
           addAppBinding({
@@ -139,6 +142,15 @@ function syncDesktopPieces(): void {
                   await app.activate?.(ctx);
                 },
               };
+            },
+          }),
+        ),
+        ...verseActionHandlers.map((hb) =>
+          verseActions.bindHandler({
+            id: hb.id,
+            load: async () => {
+              await featureModules.fire(`onVerseAction:${hb.id}`);
+              return hb.load();
             },
           }),
         ),

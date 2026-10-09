@@ -31,8 +31,8 @@ vi.mock('../../stores/commentaryStore', () => ({
 }));
 
 const mockOpenWordStudy = vi.fn();
-vi.mock('../../utils/openWordStudy', () => ({
-  openWordStudy: (t: unknown) => mockOpenWordStudy(t),
+vi.mock('../../host/paneRequests', () => ({
+  openPane: (id: string, t: unknown) => mockOpenWordStudy(id, t),
 }));
 
 import { StrongsPopup } from './StrongsPopup';
@@ -244,7 +244,7 @@ describe('StrongsPopup', () => {
     const onClose = vi.fn();
     render(<StrongsPopup entry={makeEntry()} position={DEFAULT_POSITION} onClose={onClose} />);
     fireEvent.click(screen.getByText('wordStudy.open'));
-    expect(mockOpenWordStudy).toHaveBeenCalledWith({ strongs: 'G25' });
+    expect(mockOpenWordStudy).toHaveBeenCalledWith('wordStudy', { strongs: 'G25' });
     expect(onClose).toHaveBeenCalled();
   });
 

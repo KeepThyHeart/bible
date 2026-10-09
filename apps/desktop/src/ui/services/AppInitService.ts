@@ -18,7 +18,6 @@ import { useBibleStore } from '../stores/useBibleStore';
 import { biblePanelIdsFromLayout } from '../stores/bible/sessionMigration';
 import { useCommentaryStore, type CommentaryModule } from '../stores/useCommentaryStore';
 import { useDictionaryStore } from '../stores/useDictionaryStore';
-import { useWordStudyStore } from '../stores/useWordStudyStore';
 import { useNotesStore } from '../stores/useNotesStore';
 import { useBookmarkStore } from '../stores/useBookmarkStore';
 import { useBookStore } from '../stores/useBookStore';
@@ -32,6 +31,7 @@ import { useFileNotesStore, type RecentFile } from '../stores/useFileNotesStore'
 import { sessionAPI } from './electronAPI';
 import { flushActiveNote } from './activeNoteFlush';
 import { DEFAULT_PANEL_ID, panelIdFromLayout, panelIdsFromLayout } from '../stores/helpers/panelStateHelpers';
+import { stageSessionForModules } from '../stores/helpers/sessionRegistry';
 import { BOOK_DICT_PANEL_TYPES } from '../stores/helpers/bookDictPanelTypes';
 import { DEFAULT_COMMENTARY_PREFERENCE, DEFAULT_VERSE_ID } from '../constants';
 import { isDigestModule } from '../moduleDescriptions';
@@ -280,15 +280,9 @@ export async function initializeApp(
       // per-panel notes navigation state.
       restoreFileNotesFromSession(sessionData.ui, sessionData.dockviewState);
 
-      // Word Study panes: the subject each one was on. The data is fetched
-      // again when the pane mounts.
-      const wordStudyPanelIds = panelIdsFromLayout(sessionData.dockviewState, ['wordStudy']);
-      if (wordStudyPanelIds.length > 0) {
-        useWordStudyStore.getState().restoreFromSession(
-          (sessionData.ui as { wordStudyPanels?: unknown } | undefined)?.wordStudyPanels,
-          wordStudyPanelIds
-        );
-      }
+      // Feature modules restore their own panes' state from the session when their code loads
+      // (a pane opening activates its module): hand them the session blob.
+      stageSessionForModules({ ui: sessionData.ui, dockviewState: sessionData.dockviewState });
 
       // Restore dockview layout if saved.
       if (sessionData.dockviewState) {

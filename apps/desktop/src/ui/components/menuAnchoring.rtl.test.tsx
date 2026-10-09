@@ -6,7 +6,7 @@ import { ContextProvider, type AppServices } from '../contexts/ContextProvider';
 function services(direction: 'ltr' | 'rtl'): AppServices {
   return {
     registry: {} as AppServices['registry'],
-    whenContext: {} as AppServices['whenContext'],
+    whenContext: { onDidChange: () => ({ dispose: () => {} }) } as unknown as AppServices['whenContext'],
     keybindings: {} as AppServices['keybindings'],
     i18n: {
       t: (key: string) => key,

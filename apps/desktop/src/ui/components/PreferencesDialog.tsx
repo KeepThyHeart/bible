@@ -24,7 +24,7 @@ import { useI18n } from '../contexts/useI18n';
 import { useAppServices } from '../contexts/ContextProvider';
 import { useTabKeyboardNav } from '../hooks/useTabKeyboardNav';
 import { PaneType } from '../stores/useTextSettingsStore';
-import { translateWithDefault } from '../hooks/useXrefGraphLabels';
+import { translateWithDefault } from '../utils/translateWithDefault';
 import { modulePoints } from '../modules/moduleHost';
 import { useRegistryItems } from '../modules/host/useRegistry';
 import { SECTION_ICONS } from './PreferencesDialog/sectionDefs';

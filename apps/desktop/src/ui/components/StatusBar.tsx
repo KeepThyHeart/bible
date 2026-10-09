@@ -33,7 +33,7 @@ import {
   useExtensionUiStore,
   type ExtensionStatusBarItem,
 } from '../extensions/extensionUiStore';
-import { translateWithDefault } from '../hooks/useXrefGraphLabels';
+import { translateWithDefault } from '../utils/translateWithDefault';
 import { modulePoints } from '../modules/moduleHost';
 import { useRegistryItems } from '../modules/host/useRegistry';
 

@@ -3,7 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { dictionaryStore } from '../../stores/dictionaryStore';
 import { searchStore } from '../../stores/searchStore';
 import { commentaryStore } from '../../stores/commentaryStore';
-import { openWordStudy } from '../../utils/openWordStudy';
+import { openPane } from '../../host/paneRequests';
+import { usePaneAvailable } from '../../modules/host/usePaneModes';
 import { useStore } from '../../hooks/useStore';
 import { useVersePopup } from '../../hooks/useVersePopup';
 import { processCommentaryLinks } from '../../../../../packages/core/src/Services/CommentaryLinkProcessor';
@@ -32,6 +33,7 @@ interface DictionaryContentProps {
 
 export function DictionaryContent({ tabId, bibleProvider }: DictionaryContentProps) {
   const { t } = useTranslation();
+  const wordStudyAvailable = usePaneAvailable('wordStudy');
   const tab = useStore(dictionaryStore, () => dictionaryStore.tabs.find(t => t.id === tabId));
   const tabState = useStore(dictionaryStore, () => dictionaryStore.getTabState(tabId));
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -222,12 +224,12 @@ export function DictionaryContent({ tabId, bibleProvider }: DictionaryContentPro
               <span>{t('dictionaryContent.searchOccurrences', { number: strongsNumber })}</span>
             </button>
           )}
-          {strongsNumber && (
+          {strongsNumber && wordStudyAvailable && (
             <button
               type="button"
               class="dictionary-content__strongs-search"
               data-testid="dictionary-word-study"
-              onClick={() => openWordStudy({ strongs: strongsNumber })}
+              onClick={() => openPane('wordStudy', { strongs: strongsNumber })}
             >
               <i class="fa-solid fa-language fa-xs" />
               <span>{t('wordStudy.open')}</span>

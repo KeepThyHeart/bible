@@ -1,15 +1,11 @@
 import { useState, useCallback, useEffect } from 'preact/hooks';
-import { Suspense, lazy } from 'preact/compat';
-import type { ComponentType } from 'preact';
 import { useTranslation } from 'react-i18next';
 import { BiblePane } from './components/BiblePane/BiblePane';
 import { CommentaryPane } from './components/CommentaryPane/CommentaryPane';
 import { SearchResultsPanel } from './components/Search/SearchResultsPanel';
 import { StudyPane } from './components/StudyPane/StudyPane';
 import { TopicsPane } from './components/StudyPane/TopicsPane';
-import { SimilarPane } from './components/SimilarPane/SimilarPane';
 import { DictionaryPane } from './components/DictionaryPane/DictionaryPane';
-import { WordStudyPane } from './components/WordStudy/WordStudyPane';
 import { Header } from './components/Header';
 import { ResizeHandle } from './components/common/ResizeHandle';
 import { DialogLayer } from './components/common/DialogLayer';
@@ -19,7 +15,8 @@ import { ConnectionBanner } from './components/ConnectionBanner';
 import { CompanionSlot } from './host/CompanionSlot';
 import { UpdateBanner } from './components/UpdateBanner';
 import { commentaryStore } from './stores/commentaryStore';
-import { modulePoints, fireActivation } from './modules/moduleHost';
+import { fireActivation } from './modules/moduleHost';
+import { LazyPane } from './modules/host/LazyPane';
 import { usePaneModes } from './modules/host/usePaneModes';
 import { resolveLabel } from './host/appNavEntries';
 import type { PaneViewProps } from './modules/host/panes';
@@ -29,8 +26,8 @@ import { dictionaryStore } from './stores/dictionaryStore';
 import { bibleStore } from './stores/bibleStore';
 import { searchStore } from './stores/searchStore';
 import { audioStore } from './stores/audioStore';
-import { similarAvailability } from './similar/similarAvailability';
-import { useStore } from './hooks/useStore';
+import { evalVerseWhen, whenKeys } from './host/verseActionWhen';
+import { useReadable } from './host/useReadable';
 import { useAppShared } from './hooks/useAppShared';
 import { useContextMenu } from './hooks/useContextMenu';
 import type { IDataProviders } from './providers/interfaces';
@@ -53,27 +50,7 @@ const EAGER_PANES: Record<string, (p: PaneViewProps) => unknown> = {
   commentary: (p) => <CommentaryPane bibleProvider={p.providers.bible} onOpenSettings={p.onOpenSettings} />,
   topics: (p) => <TopicsPane topicalProvider={p.providers.topical} tagGraphProvider={p.showTagGraph ? p.providers.tagGraph : undefined} bibleProvider={p.providers.bible} />,
   dictionary: (p) => <DictionaryPane bibleProvider={p.providers.bible} />,
-  wordStudy: (p) => <WordStudyPane onOpenStrongsEntry={p.onStrongsClick} />,
-  similar: (p) => <SimilarPane providers={p.providers} />,
 };
-
-const lazyPanes = new Map<unknown, ComponentType<PaneViewProps>>();
-
-/** A pane that is not eager: its view loader, wrapped once in a lazy component. */
-function LazyPane({ id, props }: { id: string; props: PaneViewProps }) {
-  const loader = modulePoints.views.resolve<{ default: ComponentType<PaneViewProps> }>(`pane:${id}`);
-  if (!loader) return null;
-  let Comp = lazyPanes.get(loader);
-  if (!Comp) {
-    Comp = lazy(loader) as ComponentType<PaneViewProps>;
-    lazyPanes.set(loader, Comp);
-  }
-  return (
-    <Suspense fallback={null}>
-      <Comp {...props} />
-    </Suspense>
-  );
-}
 
 function PaneBody({ id, props }: { id: string; props: PaneViewProps }) {
   const eager = EAGER_PANES[id];
@@ -134,11 +111,9 @@ export function DesktopApp({ providers }: DesktopAppProps) {
   // plugin put any id in rightPaneMode. Resolve to a mode the strip actually has a tab for, rather
   // than rendering a right pane with nothing highlighted and no content —
   // which is what made a remembered Search pane look broken.
-  // Similar passages exist only when the server offers the neighbour table (feature detection).
-  useEffect(() => { void similarAvailability.probe(); }, []);
-  const similarAvailable = useStore(similarAvailability, () => similarAvailability.available);
-  // Similar is also gated on feature detection; every other pane exists exactly when its module does.
-  const paneAvailable = (id: string) => paneModes.some((m) => m.id === id) && (id !== 'similar' || similarAvailable);
+  // A pane exists exactly when its module does, and its `when` context key (a feature detection) holds.
+  const whenVersion = useReadable(whenKeys);
+  const paneAvailable = (id: string) => paneModes.some((m) => m.id === id && (!m.when || evalVerseWhen(m.when)));
   const paneMode = shared.rightPaneMode === 'search'
     ? (shared.searchIsOpen ? 'search' : 'study')
     : paneAvailable(shared.rightPaneMode) ? shared.rightPaneMode : 'study';
@@ -146,10 +121,10 @@ export function DesktopApp({ providers }: DesktopAppProps) {
   useEffect(() => { if (paneMode !== 'search') fireActivation('onPanel:' + paneMode); }, [paneMode]);
 
   // Show the fallback while a pane is unavailable, but keep the saved choice (a disabled module, or
-  // 'similar' before the availability probe answers) and bring it back when the pane returns.
+  // a pane whose feature detection has not answered yet) and bring it back when the pane returns.
   useEffect(() => {
     commentaryStore.reconcilePaneMode(paneMode, paneAvailable);
-  }, [paneMode, shared.rightPaneMode, paneModes, similarAvailable]);
+  }, [paneMode, shared.rightPaneMode, paneModes, whenVersion]);
 
   // A pane mode with `keepMounted` stays mounted (hidden) once opened while another tab is
   // active, so switching tabs does not lose its state (a quiz in progress).
@@ -228,7 +203,7 @@ export function DesktopApp({ providers }: DesktopAppProps) {
                     key={m.id}
                     class={`right-pane-tabs__tab ${paneMode === m.id ? 'right-pane-tabs__tab--active' : ''}`}
                     onClick={() => commentaryStore.setRightPaneMode(m.id)}
-                    data-testid={m.id === 'wordStudy' ? 'right-pane-tab-wordStudy' : undefined}
+                    data-testid={`right-pane-tab-${m.id}`}
                   >
                     {resolveLabel((k, f) => t(k, f), m.title)}
                   </button>
@@ -285,7 +260,6 @@ export function DesktopApp({ providers }: DesktopAppProps) {
         strongsPopup={shared.strongsPopup}
         setStrongsPopup={shared.setStrongsPopup}
         strongsTooltip={shared.strongsTooltip}
-        bibleProvider={providers.bible}
       />
       <AudioPlayerPopup onOpenSettings={shared.openSettings} />
       {contextMenu && (
@@ -296,7 +270,6 @@ export function DesktopApp({ providers }: DesktopAppProps) {
           onAction={handleContextMenuAction}
           actions={verseActionItems}
           onVerseAction={handleVerseAction}
-          showSimilar={similarAvailable}
         />
       )}
     </div>

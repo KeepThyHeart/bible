@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { AppRail, AppStage } from '@bible/ui';
 import { shouldShowRail } from '@bible/core/browser';
 import { useI18n } from '../contexts/useI18n';
-import { translateWithDefault } from '../hooks/useXrefGraphLabels';
+import { translateWithDefault } from '../utils/translateWithDefault';
 import { useExtensionUiStore } from '../extensions/extensionUiStore';
 import { useLayoutStore } from '../stores/useLayoutStore';
 import { appHostStore, getAppView, openApp, prefetchApp } from './appHost';

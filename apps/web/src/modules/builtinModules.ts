@@ -12,6 +12,9 @@ import { presentModule } from './present/binding';
 import { genealogyModule } from './genealogy/binding';
 import { timelineModule } from './timeline/binding';
 import { quizModule } from './quiz/binding';
+import { xrefGraphModule } from './xref-graph/binding';
+import { wordStudyModule } from './word-study/binding';
+import { similarModule } from './similar/binding';
 
 const plain = ([manifest, binding]: readonly [FeatureModuleManifest, FeatureModuleBinding?]): WebFeatureModule => ({ manifest, binding });
 
@@ -22,6 +25,9 @@ export const BUILTIN_MODULES: readonly WebFeatureModule[] = [
   genealogyModule,
   timelineModule,
   quizModule,
+  xrefGraphModule,
+  wordStudyModule,
+  similarModule,
 ];
 
 /** Let modules take handoff secrets out of the URL before anything else runs (see `WebFeatureModule.takeUrl`). */
