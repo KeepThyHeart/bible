@@ -91,12 +91,14 @@ export const DESKTOP_USER_DDL: readonly string[] = [
   VALUES (new.note_id, new.note_id, new.title, new.content, new.tags);
 END`,
   `CREATE TRIGGER IF NOT EXISTS user_note_fts_update AFTER UPDATE ON user_note BEGIN
-  UPDATE user_note_fts
-  SET title = new.title, content = new.content, tags = new.tags
-  WHERE rowid = new.note_id;
+  INSERT INTO user_note_fts(user_note_fts, rowid, note_id, title, content, tags)
+  VALUES ('delete', old.note_id, old.note_id, old.title, old.content, old.tags);
+  INSERT INTO user_note_fts(rowid, note_id, title, content, tags)
+  VALUES (new.note_id, new.note_id, new.title, new.content, new.tags);
 END`,
   `CREATE TRIGGER IF NOT EXISTS user_note_fts_delete AFTER DELETE ON user_note BEGIN
-  DELETE FROM user_note_fts WHERE rowid = old.note_id;
+  INSERT INTO user_note_fts(user_note_fts, rowid, note_id, title, content, tags)
+  VALUES ('delete', old.note_id, old.note_id, old.title, old.content, old.tags);
 END`,
   // --- Text Markup (Highlights) -----------------------------------------
   `CREATE TABLE IF NOT EXISTS user_text_markup (

@@ -60,6 +60,12 @@ describe('shipped cache rules', () => {
     }
   });
 
+  it('never cache the versioned sync API (/api/sync/v1/*)', () => {
+    for (const path of ['/api/sync/v1/info', '/api/sync/v1/changes?since=0', '/api/sync/v1/push', '/base/api/sync/v1/devices']) {
+      expect(cacheRuleFor(CACHE_RULES, u(path)), path).toBeUndefined();
+    }
+  });
+
   it('never cache sync even when a later rule is written far too broadly', () => {
     const broad = rule({ id: 'broad', pattern: /.*/, cacheName: 'broad', allowApi: true });
     // The registry test would reject it, but the run-time guard must hold regardless.

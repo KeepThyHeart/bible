@@ -119,6 +119,19 @@ export function tierForApiPath(path: string): RateLimitTier {
   return TIER_BY_PREFIX[path.split('/')[1] ?? ''] ?? 'default';
 }
 
+/** `/sync/...` relative to the `/api` mount: the sync server has its own limits (packages/sync-server). */
+export function isSyncPath(path: string): boolean {
+  return path === '/sync' || path.startsWith('/sync/');
+}
+
+/**
+ * Paths (relative to `/api`) the global ceiling does not count: the games' own tier (a room's phones
+ * share one address) and the sync API (its own per-IP and per-account limits).
+ */
+export function isGloballyRateLimitExempt(path: string): boolean {
+  return path.startsWith('/games/') || isSyncPath(path);
+}
+
 interface Counter {
   count: number;
   windowStart: number;

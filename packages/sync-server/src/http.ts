@@ -199,7 +199,12 @@ export function authOf(res: Response): AuthedLocals {
   return res.locals.auth as AuthedLocals;
 }
 
-/** Client IP as Express sees it (the host sets `trust proxy`). */
+/**
+ * Client IP as Express sees it (`req.ip`); every rate limit keys on it. The host MUST configure Express
+ * `trust proxy` to match its deployment (e.g. `app.set('trust proxy', 1)` behind one reverse proxy). Without it,
+ * all clients behind the proxy share one bucket; with `trust proxy` set too loosely a client can forge
+ * `X-Forwarded-For` to dodge the limits. The router never reads the header itself.
+ */
 export function clientIp(req: Request): string {
   return req.ip ?? req.socket.remoteAddress ?? 'unknown';
 }

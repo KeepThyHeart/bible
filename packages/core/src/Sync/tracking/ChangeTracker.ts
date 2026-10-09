@@ -9,6 +9,7 @@
  *   local_key    TEXT NOT NULL,        -- pk as text; composite pks joined with char(31)
  *   record_id    TEXT UNIQUE,          -- NULL until assigned (derived ids are assigned at push time)
  *   changed_ms   INTEGER NOT NULL,     -- wall ms of the last local change (set by triggers)
+ *   rev          INTEGER NOT NULL DEFAULT 1, -- bumped by every local change; markSynced(expectRev) clears dirty only if unchanged
  *   hlc          TEXT,                 -- HLC of the version last pushed or applied
  *   server_seq   INTEGER,              -- seq of the server version this row is based on; NULL = never on server
  *   dirty        INTEGER NOT NULL DEFAULT 1,
@@ -36,7 +37,10 @@ export interface TrackedTable {
 
 export interface DirtyRow {
   kind: string; localKey: string; recordId: RecordId | null;
-  changedMs: number; serverSeq: number | null; deleted: boolean; baseJson: string | null;
+  changedMs: number;
+  /** Bumped by every local change to the row; pass it back to `markSynced` as `expectRev`. */
+  rev: number;
+  serverSeq: number | null; deleted: boolean; baseJson: string | null;
 }
 
 export interface ChangeTracker {
@@ -48,8 +52,20 @@ export interface ChangeTracker {
   dirty(limit: number): DirtyRow[];
   pendingCount(): number;
   /** After a successful push or an applied pull. */
-  markSynced(kind: string, localKey: string, v: { recordId: RecordId; serverSeq: number; hlc: HlcString; baseJson: string | null; deleted: boolean }): void;
+  /**
+   * After a successful push or an applied pull. With `expectRev` (the `rev` of the DirtyRow that was pushed) the dirty flag
+   * is cleared ONLY if the row has not changed locally since it was read; otherwise the server version is recorded as the
+   * new base (record id, seq, hlc, base_json) and the row stays dirty (an edit made while the push was in flight is
+   * not lost). A row that was deleted locally in between (and never on the server before) comes back as a dirty tombstone.
+   */
+  markSynced(kind: string, localKey: string, v: { recordId: RecordId; serverSeq: number; hlc: HlcString; baseJson: string | null; deleted: boolean; expectRev?: number }): void;
   assignRecordId(kind: string, localKey: string, recordId: RecordId): void;
+  /**
+   * Mark a key changed by hand, for sources without triggers (adapters: `.bn` files, extension DBs). Same effect as
+   * the triggers: `deleted` forgets a key the server never had and otherwise leaves a dirty tombstone; else the key
+   * becomes a live dirty record. Bumps `rev` and `changed_ms` either way.
+   */
+  touch(kind: string, localKey: string, opts?: { deleted?: boolean }): void;
   lookupByRecordId(recordId: RecordId): { kind: string; localKey: string; deleted: boolean; dirty: boolean; serverSeq: number | null; baseJson: string | null; hlc: HlcString | null } | undefined;
   lookupByLocal(kind: string, localKey: string): { recordId: RecordId | null } | undefined;
   /** Runs `fn` in one transaction with sync_state.applying = '1'; restores '0' even if fn throws (rollback). */
@@ -76,6 +92,7 @@ const SYNC_DDL: readonly string[] = [
   local_key    TEXT NOT NULL,
   record_id    TEXT UNIQUE,
   changed_ms   INTEGER NOT NULL,
+  rev          INTEGER NOT NULL DEFAULT 1,
   hlc          TEXT,
   server_seq   INTEGER,
   dirty        INTEGER NOT NULL DEFAULT 1,
@@ -117,13 +134,13 @@ function triggerNames(table: string): { ai: string; au: string; ad: string } {
 function touchSql(kind: string, key: string): string {
   return `INSERT INTO sync_record (table_name, local_key, changed_ms, dirty, deleted)
     VALUES (${kind}, ${key}, ${NOW_MS}, 1, 0)
-    ON CONFLICT (table_name, local_key) DO UPDATE SET changed_ms = excluded.changed_ms, dirty = 1, deleted = 0;`;
+    ON CONFLICT (table_name, local_key) DO UPDATE SET changed_ms = excluded.changed_ms, rev = rev + 1, dirty = 1, deleted = 0;`;
 }
 
 /** A deleted key: forget it if the server never had it, otherwise leave a dirty tombstone. `cond` narrows both. */
 function removeSql(kind: string, key: string, cond = ''): string {
   return `DELETE FROM sync_record WHERE table_name = ${kind} AND local_key = ${key} AND server_seq IS NULL${cond};
-    UPDATE sync_record SET deleted = 1, dirty = 1, changed_ms = ${NOW_MS}
+    UPDATE sync_record SET deleted = 1, dirty = 1, rev = rev + 1, changed_ms = ${NOW_MS}
       WHERE table_name = ${kind} AND local_key = ${key}${cond};`;
 }
 
@@ -150,7 +167,7 @@ function triggerDdl(t: TrackedTable): string[] {
 }
 
 interface RecordRow {
-  table_name: string; local_key: string; record_id: string | null; changed_ms: number; hlc: string | null;
+  table_name: string; local_key: string; record_id: string | null; changed_ms: number; rev: number; hlc: string | null;
   server_seq: number | null; dirty: number; deleted: number; base_json: string | null;
 }
 
@@ -215,6 +232,7 @@ export function createChangeTracker(sql: ISql): ChangeTracker {
         localKey: r.local_key,
         recordId: r.record_id,
         changedMs: r.changed_ms,
+        rev: r.rev,
         serverSeq: r.server_seq,
         deleted: r.deleted === 1,
         baseJson: r.base_json,
@@ -226,18 +244,59 @@ export function createChangeTracker(sql: ISql): ChangeTracker {
     },
 
     markSynced(kind, localKey, v): void {
-      sql.execute(
-        `INSERT INTO sync_record (table_name, local_key, record_id, changed_ms, hlc, server_seq, dirty, deleted, base_json)
-         VALUES (?, ?, ?, ${NOW_MS}, ?, ?, 0, ?, ?)
-         ON CONFLICT (table_name, local_key) DO UPDATE SET record_id = excluded.record_id, hlc = excluded.hlc,
-           server_seq = excluded.server_seq, dirty = 0, deleted = excluded.deleted, base_json = excluded.base_json`,
-        [kind, localKey, v.recordId, v.hlc, v.serverSeq, v.deleted ? 1 : 0, v.baseJson],
-      );
+      sql.transaction(() => {
+        if (v.expectRev !== undefined) {
+          const cur = sql.queryOne<{ rev: number }>(
+            'SELECT rev FROM sync_record WHERE table_name = ? AND local_key = ?', [kind, localKey]);
+          if (!cur) {
+            if (!v.deleted) {
+              // Deleted locally while the push was in flight and forgotten (it had no server version then): the server
+              // now has it, so keep a dirty tombstone based on the server version.
+              sql.execute(
+                `INSERT INTO sync_record (table_name, local_key, record_id, changed_ms, rev, hlc, server_seq, dirty, deleted, base_json)
+                 VALUES (?, ?, ?, ${NOW_MS}, 1, ?, ?, 1, 1, ?)`,
+                [kind, localKey, v.recordId, v.hlc, v.serverSeq, v.baseJson],
+              );
+              return;
+            }
+          } else if (cur.rev !== v.expectRev) {
+            sql.execute(
+              `UPDATE sync_record SET record_id = ?, hlc = ?, server_seq = ?, base_json = ?
+               WHERE table_name = ? AND local_key = ?`,
+              [v.recordId, v.hlc, v.serverSeq, v.baseJson, kind, localKey],
+            );
+            return;
+          }
+        }
+        sql.execute(
+          `INSERT INTO sync_record (table_name, local_key, record_id, changed_ms, hlc, server_seq, dirty, deleted, base_json)
+           VALUES (?, ?, ?, ${NOW_MS}, ?, ?, 0, ?, ?)
+           ON CONFLICT (table_name, local_key) DO UPDATE SET record_id = excluded.record_id, hlc = excluded.hlc,
+             server_seq = excluded.server_seq, dirty = 0, deleted = excluded.deleted, base_json = excluded.base_json`,
+          [kind, localKey, v.recordId, v.hlc, v.serverSeq, v.deleted ? 1 : 0, v.baseJson],
+        );
+      });
     },
 
     assignRecordId(kind, localKey, recordId): void {
       const r = sql.execute('UPDATE sync_record SET record_id = ? WHERE table_name = ? AND local_key = ?', [recordId, kind, localKey]);
       if (r.changes === 0) throw new Error(`ChangeTracker: no sync record for ${kind} ${JSON.stringify(localKey)}`);
+    },
+
+    touch(kind, localKey, opts): void {
+      if (opts?.deleted) {
+        sql.transaction(() => {
+          sql.execute('DELETE FROM sync_record WHERE table_name = ? AND local_key = ? AND server_seq IS NULL', [kind, localKey]);
+          sql.execute(
+            `UPDATE sync_record SET deleted = 1, dirty = 1, rev = rev + 1, changed_ms = ${NOW_MS}
+             WHERE table_name = ? AND local_key = ?`, [kind, localKey]);
+        });
+        return;
+      }
+      sql.execute(
+        `INSERT INTO sync_record (table_name, local_key, changed_ms, dirty, deleted) VALUES (?, ?, ${NOW_MS}, 1, 0)
+         ON CONFLICT (table_name, local_key) DO UPDATE SET changed_ms = excluded.changed_ms, rev = rev + 1, dirty = 1, deleted = 0`,
+        [kind, localKey]);
     },
 
     lookupByRecordId(recordId) {

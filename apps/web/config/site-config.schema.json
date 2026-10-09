@@ -64,7 +64,10 @@
         },
         "pwaUpdate": {
           "type": "string",
-          "enum": ["silent", "prompt"],
+          "enum": [
+            "silent",
+            "prompt"
+          ],
           "description": "How a newer build reaches a page that stays open. 'silent' reloads by itself; 'prompt' shows a banner and lets the user choose when to reload. A fresh launch always updates silently.",
           "default": "silent"
         },
@@ -81,6 +84,16 @@
         "audio": {
           "type": "boolean",
           "description": "Show the Audio Bible controls (Listen button, player, Audio settings). Needs recordings under <data dir>/audio/v1 and/or a hosted TTS engine; see the audio block.",
+          "default": false
+        },
+        "localUserDb": {
+          "type": "boolean",
+          "description": "Web: keep personal content (notes, highlights, bookmarks) in a local browser database. Required by accounts.",
+          "default": false
+        },
+        "accounts": {
+          "type": "boolean",
+          "description": "Accounts with end-to-end encrypted sync (the sync server at /api/sync/v1 and the account screens). Needs localUserDb. Settings live in the accounts block; see docs/accounts/operator.md.",
           "default": false
         }
       },
@@ -347,6 +360,106 @@
       "type": "string",
       "description": "URL of the external documentation website. When set, the Help dialog shows a prominent link to it; when empty or omitted, no link is shown.",
       "default": ""
+    },
+    "server": {
+      "type": "object",
+      "description": "Settings for the HTTP server itself.",
+      "additionalProperties": false,
+      "properties": {
+        "trustProxy": {
+          "description": "Express 'trust proxy': true, a number of proxy hops, or a subnet list ('loopback, 10.0.0.0/8'). Makes req.ip the real client address behind a reverse proxy (rate limiting). Unset keeps the legacy behaviour (true); set false when the server is exposed directly.",
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "integer",
+              "minimum": 0
+            },
+            {
+              "type": "string"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1
+            }
+          ]
+        }
+      }
+    },
+    "accounts": {
+      "type": "object",
+      "description": "Settings for the sync server. Whether it runs is the features.accounts flag.",
+      "additionalProperties": false,
+      "properties": {
+        "publicUrl": {
+          "type": "string",
+          "description": "Public origin of this site (https://bible.example.org). Required: used for email links and the cookie Origin check. HSTS is sent for the sync API when it is https."
+        },
+        "signupOpen": {
+          "type": "boolean",
+          "default": true,
+          "description": "Allow new sign-ups."
+        },
+        "quotaMB": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "Per-account storage quota in MB (default 50)."
+        },
+        "minAge": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Minimum age to sign up (default 16)."
+        },
+        "termsUrl": {
+          "type": "string"
+        },
+        "privacyUrl": {
+          "type": "string"
+        },
+        "allowedOrigins": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Extra origins allowed to make cookie-authenticated writes (besides publicUrl's)."
+        },
+        "email": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "enum": [
+                "console",
+                "smtp"
+              ],
+              "default": "console",
+              "description": "console prints mail to the server log (development only: it includes sign-in links)."
+            },
+            "host": {
+              "type": "string"
+            },
+            "port": {
+              "type": "integer"
+            },
+            "secure": {
+              "type": "boolean"
+            },
+            "user": {
+              "type": "string"
+            },
+            "pass": {
+              "type": "string"
+            },
+            "from": {
+              "type": "string"
+            }
+          }
+        }
+      }
     }
   },
   "additionalProperties": false,

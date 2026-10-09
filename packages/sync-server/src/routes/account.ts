@@ -1,22 +1,24 @@
 /**
  * Account and session routes (contracts §7, W1-F): GET info | POST prelogin, signup, login, recover, logout |
- * GET account | PUT keys. Email flows (verify-email, reset) are W2-D; records, devices, export and account
- * deletion are W2-C.
+ * GET account | PUT keys. Email flows live in emailFlows.ts; records, devices, export and account
+ * deletion in records.ts, devices.ts and privacy.ts.
  *
  * Enumeration: prelogin answers the same shape for unknown emails (fake, stable salt); login and recover give the
- * same 401 for an unknown email and a wrong key, after the same hash-and-compare work. Signup must say
- * `conflict_email` for a taken address (contract), with a neutral message.
+ * same 401 for an unknown email and a wrong key, after the same hash-and-compare work. Signup for a taken address
+ * answers like a real signup (201, same body shape, decoy token or cookie), creates nothing and mails the owner;
+ * `conflict_email` is no longer returned.
  */
 import { Router, type Request } from 'express';
 import { Crypto, type Sync } from '@bible/core';
 import {
-  ApiHttpError, UNVERIFIED_ACCOUNT_TTL_MS, authOf, clearSessionCookie, clientIp, handler, requireSession,
-  resolveSession, type ServerContext,
+  ApiHttpError, SESSION_TTL_MS, UNVERIFIED_ACCOUNT_TTL_MS, authOf, clearSessionCookie, clientIp, handler,
+  requireSession, resolveSession, setSessionCookie, type ServerContext,
 } from '../http';
-import { enforceLimit } from '../rateLimit';
+import { RATE_LIMITS, enforceLimit } from '../rateLimit';
+import { dispatchMail, duplicateSignupMail } from '../email/messages';
 import { canonicalKdf, fakeKdf } from '../auth/prelogin';
 import { issueSession } from '../auth/sessions';
-import { b64urlToBytes, checkAuthKey, sha256 } from '../auth/tokens';
+import { b64urlToBytes, checkAuthKey, newToken, sha256 } from '../auth/tokens';
 import * as v from '../auth/validate';
 import type { AccountRow } from '../store/SyncStore';
 
@@ -79,31 +81,57 @@ export function accountRoutes(ctx: ServerContext): Router {
     const wantToken = v.optBool(body.wantToken, 'wantToken');
 
     const now = opts.now();
+    // Both branches hash both keys, so the work (and timing) does not tell a new address from a taken one.
+    const authHash = keyHash(material.authKey);
+    const recoveryAuthHash = keyHash(material.recoveryAuthKey);
+    let existing: AccountRow | undefined;
     let account: AccountRow | undefined;
     let session: Sync.SessionResponse | undefined;
     store.transaction(() => {
-      if (store.accounts.byEmail(email)) {
-        throw new ApiHttpError(409, 'conflict_email', 'An account cannot be created with this email address');
+      existing = store.accounts.byEmail(email);
+      // An unverified account past its deadline only awaits the purge: free the address now.
+      if (existing && existing.deleteAfter != null && existing.deleteAfter <= now) {
+        store.accounts.delete(existing.id);
+        existing = undefined;
       }
+      if (existing) return;
       if (store.accounts.byId(accountId)) throw new ApiHttpError(400, 'bad_request', 'accountId already in use');
       try {
         store.accounts.create({
-          id: accountId, email, emailVerified: false, kdf: material.kdf,
-          authHash: keyHash(material.authKey), recoveryAuthHash: keyHash(material.recoveryAuthKey),
+          id: accountId, email, emailVerified: false, kdf: material.kdf, authHash, recoveryAuthHash,
           wrappedAkPassword: material.wrappedAkPassword, wrappedAkRecovery: material.wrappedAkRecovery,
           wrappedIdk: material.wrappedRecordIdKey, currentEpoch: material.currentEpoch, quotaBytes: null,
           createdAt: now, deleteAfter: now + UNVERIFIED_ACCOUNT_TTL_MS,
         });
       } catch (e) {
-        if (isUniqueViolation(e)) {
-          throw new ApiHttpError(409, 'conflict_email', 'An account cannot be created with this email address');
-        }
-        throw e;
+        if (!isUniqueViolation(e)) throw e;
+        existing = store.accounts.byEmail(email);
+        if (!existing) throw new ApiHttpError(400, 'bad_request', 'accountId already in use');
+        return;
       }
       store.keysets.replaceAll(accountId, material.keysets);
       account = store.accounts.byId(accountId)!;
       session = issueSession(ctx, res, { account, device, kind: 'normal', wantToken, userAgent: req.get('user-agent') });
     });
+
+    if (existing) {
+      // No enumeration: answer exactly like a real signup (echoing the request's own material, a random token
+      // that is never stored), create nothing, and tell the owner by mail (at most one per address per hour).
+      if (ctx.limiter.hit(RATE_LIMITS.dupSignupMail, `dupSignup:${email}`).ok) {
+        dispatchMail(ctx, duplicateSignupMail(existing.email, opts.publicUrl));
+      }
+      opts.log('info', 'sync-server: signup for an existing address');
+      const decoy = newToken(opts.random).token;
+      const fake: Sync.SessionResponse = {
+        accountId, emailVerified: false, wrappedAk: material.wrappedAkPassword,
+        wrappedRecordIdKey: material.wrappedRecordIdKey, keysets: material.keysets, currentEpoch: material.currentEpoch,
+      };
+      if (wantToken) fake.token = decoy;
+      else setSessionCookie(ctx, res, decoy, now + SESSION_TTL_MS);
+      res.status(201).json(fake);
+      return;
+    }
+
     opts.log('info', 'sync-server: account created', { accountId });
     for (const listener of ctx.onAccountCreated) {
       try {

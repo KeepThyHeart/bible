@@ -30,17 +30,22 @@ export { createChangeTracker, coreTrackedTables } from './tracking/ChangeTracker
 
 // codecs and merge
 export type {
-  ModuleRefResolver, CodecContext, DecodeResult, RecordCodec, CodecRegistry,
+  ModuleRefResolver, CodecContext, CodecNote, DecodeResult, RecordCodec, CodecRegistry,
 } from './codecs/RecordCodec';
-export { createCoreCodecs, createCodecRegistry } from './codecs/RecordCodec';
-export type { Version, MergeOutcome, MergePolicy } from './merge/MergePolicy';
-export { lwwPolicy, fieldLwwWithBodyCopy, policyFor, keyBetween } from './merge/MergePolicy';
+export { createCoreCodecs, createCodecRegistry, RecordDecodeError } from './codecs/RecordCodec';
+export type {
+  Version, MergeOutcome, MergePolicy, ConflictCopyPolicy, FieldLwwOptions, MergeContext, ExtDbMerge,
+} from './merge/MergePolicy';
+export {
+  lwwPolicy, appendOnlyPolicy, fieldLwwPolicy, fieldLwwWithBodyCopy, policyFor, knownPolicyTypes, mergeOutcomeFor,
+  bindConflictLink, CONFLICT_WINNER_PLACEHOLDER, CONFLICT_LINK_FIELD, keyBetween, isOrderKey, ORDER_KEY_DEVICE_TAG_LENGTH,
+} from './merge/MergePolicy';
 
 // server API
 export { SYNC_API_PREFIX, LIMITS } from './api';
 export type {
   ApiError, ApiErrorCode, InfoResponse, DeviceWire, PreloginRequest, PreloginResponse, SignupRequest, SessionResponse,
-  LoginRequest, RecoverRequest, VerifyEmailRequest, ResetRequest, ResetConfirmRequest, KeysRequest, PullResponse,
+  LoginRequest, RecoverRequest, VerifyEmailRequest, ResetRequest, ResendVerificationRequest, DeviceNameRequest, ResetConfirmRequest, KeysRequest, PullResponse,
   EncryptedRecordWire, PushRecord, PushRequest, PushResponse, AccountResponse, DevicesResponse, DeleteAccountRequest,
   ServerExport,
 } from './api';
@@ -49,14 +54,15 @@ export type {
 export type { ISecretStore, SecretName } from './engine/ISecretStore';
 export { serializeUnlocked, deserializeUnlocked, MemorySecretStore } from './engine/ISecretStore';
 export type { ISyncTransport, HttpClientOptions } from './engine/ISyncTransport';
-export { SyncHttpError } from './engine/ISyncTransport';
+export { SyncHttpError, SyncNetworkError, SyncResponseError } from './engine/ISyncTransport';
 export { SyncApiClient } from './engine/SyncApiClient';
 export type { SyncStatus, SyncStatusStore } from './engine/SyncStatus';
 export { createSyncStatusStore } from './engine/SyncStatus';
-export type { SyncEngineOptions, SyncAdapter, SyncResult, SyncScheduler } from './engine/SyncEngine';
-export { SyncEngine } from './engine/SyncEngine';
+export type { SyncEngineOptions, SyncAdapter, SyncResult, SyncScheduler, SyncTimers, ChangedRow } from './engine/SyncEngine';
+export { SyncEngine, SEAL_LIMIT, SYNC_INTERVAL_MS, DEBOUNCE_MS, MAX_CONFLICT_RETRIES } from './engine/SyncEngine';
 
 // account
-export type { AccountClientDeps } from './account/AccountClient';
-export { AccountClient, WeakPasswordError } from './account/AccountClient';
-export { passwordStrength } from './password';
+export type { AccountClientDeps, AccountErrorCode } from './account/AccountClient';
+export { AccountClient, WeakPasswordError, AccountError, UNSEALED_DEVICE_NAME, loadSyncToken } from './account/AccountClient';
+export type { PasswordScore } from './password';
+export { passwordStrength, emailUserInputs } from './password';

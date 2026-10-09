@@ -41,12 +41,17 @@ export function accountId(v: unknown): string {
   return typeof v === 'string' && HEX32.test(v) ? v : bad('invalid accountId');
 }
 
+export function nameSealed(v: unknown): string {
+  if (typeof v !== 'string' || v.length === 0 || v.length > MAX_NAME_SEALED || !b64urlToBytes(v)) {
+    bad('invalid device name');
+  }
+  return v as string;
+}
+
 export function deviceWire(v: unknown): Sync.DeviceWire {
   const d = obj(v, 'device');
   if (typeof d.id !== 'string' || !HEX16.test(d.id)) bad('invalid device id');
-  if (typeof d.nameSealed !== 'string' || d.nameSealed.length === 0 || d.nameSealed.length > MAX_NAME_SEALED
-    || !b64urlToBytes(d.nameSealed)) bad('invalid device name');
-  return { id: d.id as string, nameSealed: d.nameSealed as string };
+  return { id: d.id as string, nameSealed: nameSealed(d.nameSealed) };
 }
 
 /** b64url of exactly 32 bytes (auth keys). */

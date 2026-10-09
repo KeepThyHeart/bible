@@ -40,7 +40,9 @@ export interface LoginRequest   { email: string; authKey: string; device: Device
 export interface RecoverRequest { email: string; recoveryAuthKey: string; device: DeviceWire; wantToken?: boolean }
 export interface VerifyEmailRequest { token: string }
 export interface ResetRequest  { email: string }                                  // always 204
-export interface ResetConfirmRequest { token: string; material: AccountKeyMaterial; device: DeviceWire; wantToken?: boolean } // wipes records
+export interface ResendVerificationRequest { email: string }                       // always 204; POST resend-verification
+export interface DeviceNameRequest { nameSealed: string }                          // PUT devices/current
+export interface ResetConfirmRequest { token: string; accountId: AccountId; material: AccountKeyMaterial; device: DeviceWire; wantToken?: boolean } // wipes records; the account is re-keyed under the NEW accountId (the wraps' AAD binds it)
 
 export type KeysRequest =
   | { kind: 'password'; currentAuthKey: string; kdf: KdfParamsJson; authKey: string; wrappedAkPassword: WrappedKey; signOutOthers: boolean;

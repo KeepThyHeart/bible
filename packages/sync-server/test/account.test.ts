@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import express from 'express';
 import request from 'supertest';
 import { describe, expect, it, vi } from 'vitest';
 import {
@@ -129,13 +130,12 @@ describe('signup, login, logout', () => {
     expect((await request(t.app).get(`${PREFIX}/account`).set('Authorization', `Bearer ${li.body.token}`)).status).toBe(200);
   });
 
-  it('a taken email is conflict_email with a neutral message; closed signup is signup_closed', async () => {
+  it('a taken email gets the same success response (see emailFlows.test.ts); closed signup is signup_closed', async () => {
     const t = makeServer();
     const { c } = await signup(t);
-    const dup = await request(t.app).post(`${PREFIX}/signup`).send(signupBody({ ...newCreds(), email: c.email.toUpperCase() }));
-    expect(dup.status).toBe(409);
-    expect(dup.body.error).toBe('conflict_email');
-    expect(dup.body.message).not.toMatch(/exist|registered|taken/i);
+    const dup = await request(t.app).post(`${PREFIX}/signup`).send(signupBody({ ...newCreds(), email: c.email.toUpperCase() }, true));
+    expect(dup.status).toBe(201);
+    expect(dup.body.error).toBeUndefined();
     const closed = makeServer({ signupOpen: false });
     const res = await request(closed.app).post(`${PREFIX}/signup`).send(signupBody(newCreds()));
     expect(res.status).toBe(403);
@@ -471,4 +471,31 @@ describe('review hardening', () => {
     expect(res.status).toBe(413);
   });
 });
+});
+
+describe('trust proxy', () => {
+  async function hammer(app: express.Express, ip: string, n: number): Promise<number> {
+    let last = 0;
+    for (let i = 0; i < n; i++) {
+      last = (await request(app).post(`${PREFIX}/prelogin`).set('X-Forwarded-For', ip).send({ email: 'a@example.com' })).status;
+    }
+    return last;
+  }
+  function appFor(trust: boolean): express.Express {
+    const t = makeServer();
+    const app = express();
+    if (trust) app.set('trust proxy', true);
+    app.use(PREFIX, t.server.router);
+    return app;
+  }
+
+  it('rate limits key on req.ip: distinct X-Forwarded-For buckets only with trust proxy', async () => {
+    const trusted = appFor(true);
+    expect(await hammer(trusted, '1.1.1.1', 31)).toBe(429);
+    expect(await hammer(trusted, '2.2.2.2', 1)).toBe(200);
+    const untrusted = appFor(false);
+    expect(await hammer(untrusted, '1.1.1.1', 31)).toBe(429);
+    // The forwarded header is ignored: another claimed address shares the socket's bucket.
+    expect(await hammer(untrusted, '2.2.2.2', 1)).toBe(429);
+  });
 });

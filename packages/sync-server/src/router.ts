@@ -8,8 +8,10 @@ import { Sync } from '@bible/core';
 import { clientIp, errorHandler, handler, originCheck, sendError, type ServerContext } from './http';
 import { enforceLimit } from './rateLimit';
 import { accountRoutes } from './routes/account';
-
-const MiB = 1024 * 1024;
+import { recordRoutes } from './routes/records';
+import { deviceRoutes } from './routes/devices';
+import { privacyRoutes } from './routes/privacy';
+import { emailFlowRoutes } from './routes/emailFlows';
 
 export function buildRouter(ctx: ServerContext): Router {
   const r = Router();
@@ -26,16 +28,15 @@ export function buildRouter(ctx: ServerContext): Router {
   r.use(originCheck(ctx));
   // Small bodies everywhere; only the record push may be large (auth routes never need MBs).
   const smallJson = express.json({ limit: 64 * 1024, strict: true });
-  const pushJson = express.json({ limit: Sync.LIMITS.maxPushBodyBytes + MiB, strict: true });
+  const pushJson = express.json({ limit: Sync.LIMITS.maxPushBodyBytes, strict: true });
   r.use((req, res, next) => (req.path === '/push' ? pushJson : smallJson)(req, res, next));
 
+  // Email flows first: they register the verification mail on ctx.onAccountCreated before any signup.
+  r.use(emailFlowRoutes(ctx));   // POST verify-email, reset, reset/confirm
   r.use(accountRoutes(ctx));
-  // --- W2-C mount lines (records, devices, privacy) ---
-  // r.use(recordRoutes(ctx));     // GET changes, POST push
-  // r.use(deviceRoutes(ctx));     // GET devices, DELETE devices/:id
-  // r.use(privacyRoutes(ctx));    // GET export, DELETE account
-  // --- W2-D mount line (email flows) ---
-  // r.use(emailFlowRoutes(ctx));  // POST verify-email, reset, reset/confirm; pushes into ctx.onAccountCreated
+  r.use(recordRoutes(ctx));      // GET changes, POST push
+  r.use(deviceRoutes(ctx));      // GET devices, DELETE devices/:id
+  r.use(privacyRoutes(ctx));     // GET export, DELETE account
 
   r.use((_req, res) => sendError(res, 404, 'not_found'));
   r.use(errorHandler(ctx));

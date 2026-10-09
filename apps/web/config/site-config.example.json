@@ -13,7 +13,21 @@
     "pwa": false,
     "offlineDownloads": false,
     "offlineAutoDownload": true,
-    "audio": false
+    "audio": false,
+    "localUserDb": false,
+    "accounts": false
+  },
+  "server": {
+    "trustProxy": true
+  },
+  "accounts": {
+    "publicUrl": "https://bible.example.org",
+    "signupOpen": true,
+    "quotaMB": 50,
+    "minAge": 16,
+    "termsUrl": "",
+    "privacyUrl": "",
+    "email": { "kind": "console" }
   },
   "audio": {
     "dir": "audio",

@@ -44,7 +44,16 @@ export function migrateUserSchema(db: ISql): { from: number; to: number } {
   const from = readUserSchemaVersion(db);
   if (from >= USER_SCHEMA_VERSION) return { from, to: from };
   db.transaction(() => {
+    // Older builds updated/deleted the external-content FTS table with a plain UPDATE/DELETE, which corrupts
+    // the index (stale terms, then "database disk image is malformed" on the next note edit). Replace those two
+    // triggers with the 'delete'-command form and rebuild the index once.
+    const hadNotes = db.queryOne<{ n: number }>("SELECT COUNT(*) AS n FROM sqlite_master WHERE name = 'user_note_fts'")!.n > 0;
+    if (hadNotes) {
+      db.execute('DROP TRIGGER IF EXISTS user_note_fts_update');
+      db.execute('DROP TRIGGER IF EXISTS user_note_fts_delete');
+    }
     runDdl(db);
+    if (hadNotes) db.execute("INSERT INTO user_note_fts(user_note_fts) VALUES ('rebuild')");
     stampUserSchemaVersion(db);
   });
   return { from, to: readUserSchemaVersion(db) };

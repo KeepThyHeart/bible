@@ -41,6 +41,8 @@ export const FEATURE_FLAGS = {
   timeline: { default: false, description: 'Timeline view.' },
   genealogy: { default: false, description: 'Genealogy view.', requires: ['tagGraph'] },
   quiz: { default: false, description: 'Quiz on a passage (questions from installed quiz modules).' },
+  localUserDb: { default: false, description: 'Web: keep personal content (notes, highlights, bookmarks) in a local browser database.' },
+  accounts: { default: false, description: 'Accounts with end-to-end encrypted sync. Needs the web local user database.', requires: ['localUserDb'] },
   measureDrafts: { default: false, description: 'Show unreviewed (draft) weights-and-measures notes (review/dev only).' },
 } as const satisfies Record<string, FeatureFlagDef>;
 

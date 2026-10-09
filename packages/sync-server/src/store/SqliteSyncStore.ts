@@ -5,7 +5,7 @@
  */
 import type { ISql, SqlParameter, Sync } from '@bible/core';
 import type {
-  AccountRow, DeviceRow, EmailTokenRow, NewAccount, SessionRow, SyncStore,
+  AccountRow, DeviceDetail, DeviceRow, EmailTokenRow, NewAccount, SessionRow, SyncStore,
 } from './SyncStore';
 import { MIGRATIONS, SCHEMA_VERSION } from './schema';
 
@@ -136,6 +136,9 @@ export function createSqliteSyncStore(sql: ISql): SqliteSyncStore {
         if (sets.length === 0) return;
         run(`UPDATE account SET ${sets.join(', ')} WHERE id = ?`, [...params, id]);
       },
+      rekey(oldId: string, newId: string): void {
+        if (oldId !== newId) run('UPDATE account SET id = ? WHERE id = ?', [newId, oldId]);
+      },
       delete(id: string): void {
         sql.transaction(() => {
           deleteAccountData(id);
@@ -180,6 +183,21 @@ export function createSqliteSyncStore(sql: ISql): SqliteSyncStore {
           'SELECT account_id, id, name_sealed, created_at FROM device WHERE account_id = ? ORDER BY created_at, id',
           [accountId],
         ).map((r) => ({ id: r.id, accountId: r.account_id, nameSealed: r.name_sealed, createdAt: r.created_at }));
+      },
+      listDetailed(accountId: string): DeviceDetail[] {
+        return all<{ id: string; name_sealed: string; created_at: number; last_seen_at: number | null;
+          user_agent: string | null }>(
+          `SELECT d.id AS id, d.name_sealed AS name_sealed, d.created_at AS created_at,
+             (SELECT MAX(s.last_seen_at) FROM session s WHERE s.account_id = d.account_id AND s.device_id = d.id)
+               AS last_seen_at,
+             (SELECT s.user_agent FROM session s WHERE s.account_id = d.account_id AND s.device_id = d.id
+                ORDER BY s.last_seen_at DESC LIMIT 1) AS user_agent
+           FROM device d WHERE d.account_id = ? ORDER BY d.created_at, d.id`,
+          [accountId],
+        ).map((r) => ({
+          id: r.id, accountId, nameSealed: r.name_sealed, createdAt: r.created_at,
+          lastSeenAt: r.last_seen_at ?? r.created_at, userAgent: r.user_agent,
+        }));
       },
       delete(accountId: string, id: string): void {
         sql.transaction(() => {
@@ -274,6 +292,9 @@ export function createSqliteSyncStore(sql: ISql): SqliteSyncStore {
       create(t: EmailTokenRow): void {
         run('INSERT INTO email_token (token_hash, account_id, purpose, expires_at) VALUES (?, ?, ?, ?)',
           [t.tokenHash, t.accountId, t.purpose, t.expiresAt]);
+      },
+      deleteForAccount(accountId: string, purpose: 'verify' | 'reset'): void {
+        run('DELETE FROM email_token WHERE account_id = ? AND purpose = ?', [accountId, purpose]);
       },
       consume(hash: Uint8Array, purpose: 'verify' | 'reset', now: number): EmailTokenRow | undefined {
         return sql.transaction(() => {

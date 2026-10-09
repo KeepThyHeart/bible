@@ -8,7 +8,7 @@ import { DatabaseManager } from './DatabaseManager.js';
 import { createPasswordGate, hashPassword } from './middleware/passwordGate.js';
 import { createServiceWorkerRoutes, pwaShell, readShell } from './middleware/serviceWorker.js';
 import { createCompression } from './middleware/compression.js';
-import { createRateLimiter, tierForApiPath } from './middleware/rateLimiter.js';
+import { createRateLimiter, tierForApiPath, isGloballyRateLimitExempt, isSyncPath } from './middleware/rateLimiter.js';
 import { contentSecurityPolicyDirectives } from './cspDirectives.js';
 import { createAssetRouter } from './routes/assetRoutes.js';
 // Side-effect imports: each route file self-registers with the route registry
@@ -35,6 +35,7 @@ import type { SqliteVectorSearch } from './search/SqliteVectorSearch.js';
 import { logger } from './utils/logger.js';
 import { ServerPluginManager } from './plugins/pluginManager.js';
 import { SiteConfig } from './SiteConfig.js';
+import { applyTrustProxy } from './trustProxy.js';
 
 const PORT = parseInt(process.env.PORT || '3100', 10);
 
@@ -98,7 +99,7 @@ const app = express();
 
 // Trust reverse proxies (nginx, Caddy, etc.) for correct req.ip, req.protocol, etc.
 // Without this, Express misidentifies protocol/IP when behind SSL-terminating proxies.
-app.set('trust proxy', true);
+// Applied below, once the site config is read (`server.trustProxy`; see trustProxy.ts).
 
 // Compress text responses (API JSON, the SPA shell, and the hashed assets).
 // See `middleware/compression.ts` for what it declines and why.
@@ -176,6 +177,10 @@ app.use('/api', (req, res, next) => {
 
 // Unified configuration (site-config.json or legacy fallback)
 const siteConfig = new SiteConfig(dataDir);
+
+// `server.trustProxy` in site-config.json overrides the legacy default (`true`; see trustProxy.ts).
+// Nothing mounted above this line reads req.ip or req.protocol.
+applyTrustProxy(app, siteConfig.trustProxy);
 
 // Apply privacy mode to the logger as early as possible, so any subsequent
 // startup logging honors the configured posture.
@@ -269,7 +274,8 @@ if (process.env.DISABLE_RATE_LIMIT === '1') {
   // The games' own tier covers /api/games: a room's phones share one address and chatter
   // (intents, clock sync), and counting them here would let a few rooms starve the reader.
   const globalLimit = rateLimiter.global();
-  app.use('/api', (req, res, next) => (req.path.startsWith('/games/') ? next() : globalLimit(req, res, next)));
+  // /api/sync has its own per-IP and per-account limits (packages/sync-server) and is exempt here too.
+  app.use('/api', (req, res, next) => (isGloballyRateLimitExempt(req.path) ? next() : globalLimit(req, res, next)));
 
   // ONE tier per request. Mounting `app.use('/api', default)` alongside the
   // prefix mounts did not replace them, it ran in addition to them: Express
@@ -278,7 +284,7 @@ if (process.env.DISABLE_RATE_LIMIT === '1') {
   // and `content` was unreachable — the whole API was effectively capped at
   // the default tier. Selecting the tier here keeps that impossible.
   app.use('/api', (req, res, next) =>
-    rateLimiter.middleware(tierForApiPath(req.path))(req, res, next));
+    (isSyncPath(req.path) ? next() : rateLimiter.middleware(tierForApiPath(req.path))(req, res, next)));
 }
 
 if (!NO_AUTH) {
@@ -412,6 +418,8 @@ const routeDeps = {
     // two installs pointed at one content store must not see each other's live
     // sessions. See the dataDir/appStateDir note at the top of this file.
     appStateDir,
+    // Settings for the `accounts` module (sync server); "enabled" is the feature flag.
+    accountsSettings: siteConfig.accounts,
     hymnDirs,
     // The client build directory (when built), for modules serving its HTML entry points.
     clientDir: existsSync(clientDirPath) ? clientDirPath : undefined,

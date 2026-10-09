@@ -63,19 +63,33 @@ export interface EmailTokenRow {
   expiresAt: number;
 }
 
+/** A device with the activity of its sessions (`lastSeenAt` falls back to `createdAt` when it has none). */
+export interface DeviceDetail extends DeviceRow {
+  lastSeenAt: number;
+  userAgent: string | null;
+}
+
 export interface SyncStore {
   migrate(): void;
   accounts: { create(a: NewAccount): void; byEmail(email: string): AccountRow | undefined; byId(id: string): AccountRow | undefined;
-    update(id: string, patch: Partial<AccountRow>): void; delete(id: string): void };
+    update(id: string, patch: Partial<AccountRow>): void; delete(id: string): void;
+    /** Changes the account's id; the caller must have deleted every child row first (records, keysets, devices, sessions, tokens). */
+    rekey(oldId: string, newId: string): void };
   sessions: { create(s: SessionRow): void; byTokenHash(h: Uint8Array): SessionRow | undefined; touch(h: Uint8Array, at: number): void;
     deleteForDevice(accountId: string, deviceId: string): void; deleteAllExcept(accountId: string, keepHash?: Uint8Array): void;
     /** Drop every recovery-kind session of the account. */
     deleteRecovery(accountId: string): void };
-  devices: { upsert(d: DeviceRow): void; list(accountId: string): DeviceRow[]; delete(accountId: string, id: string): void };
+  devices: { upsert(d: DeviceRow): void; list(accountId: string): DeviceRow[];
+    /** Like `list`, plus the latest session activity per device. */
+    listDetailed(accountId: string): DeviceDetail[];
+    /** Deletes the device and that device's sessions. */
+    delete(accountId: string, id: string): void };
   keysets: { replaceAll(accountId: string, ks: KeysetWire[]): void; list(accountId: string): KeysetWire[] };
   records: { changes(accountId: string, since: number, limit: number): Sync.EncryptedRecordWire[];
     /** One transaction: seq check, quota check, next_seq bump, bytes_used update. */
     push(accountId: string, recs: Sync.PushRecord[], quotaBytes: number): Sync.PushResponse | { error: 'quota_exceeded' };
     count(accountId: string): number; wipe(accountId: string): void };
-  emailTokens: { create(t: EmailTokenRow): void; consume(hash: Uint8Array, purpose: 'verify' | 'reset', now: number): EmailTokenRow | undefined };
+  emailTokens: { create(t: EmailTokenRow): void;
+    /** Drops the account's outstanding tokens of one purpose (a newly issued token replaces older ones). */
+    deleteForAccount(accountId: string, purpose: 'verify' | 'reset'): void; consume(hash: Uint8Array, purpose: 'verify' | 'reset', now: number): EmailTokenRow | undefined };
 }

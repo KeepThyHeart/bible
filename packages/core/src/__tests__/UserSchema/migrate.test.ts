@@ -144,3 +144,33 @@ describe('a database stamped by a newer build', () => {
     expect(readUserSchemaVersion(db)).toBe(9);
   });
 });
+
+describe('note FTS triggers (task 0150)', () => {
+  it('editing and deleting a note keeps the index consistent', () => {
+    const db = new TestSqliteProvider(':memory:');
+    createUserSchema(db);
+    const id = db.execute("INSERT INTO user_note (content) VALUES ('alpha beta')").lastInsertRowId!;
+    db.execute("UPDATE user_note SET content = 'gamma delta' WHERE note_id = ?", [id]);
+    const hit = (q: string): number => db.queryAll('SELECT rowid FROM user_note_fts WHERE user_note_fts MATCH ?', [q]).length;
+    expect(hit('alpha')).toBe(0);
+    expect(hit('gamma')).toBe(1);
+    db.execute("UPDATE user_note SET content = 'epsilon' WHERE note_id = ?", [id]);
+    db.execute('DELETE FROM user_note WHERE note_id = ?', [id]);
+    expect(hit('epsilon')).toBe(0);
+    expect(hit('gamma')).toBe(0);
+  });
+
+  it('a v2 database with the old (index-corrupting) triggers is repaired on migration', () => {
+    const db = new TestSqliteProvider(':memory:');
+    createUserSchema(db);
+    db.execute('DROP TRIGGER user_note_fts_update');
+    db.execute(`CREATE TRIGGER user_note_fts_update AFTER UPDATE ON user_note BEGIN
+      UPDATE user_note_fts SET title = new.title, content = new.content, tags = new.tags WHERE rowid = new.note_id; END`);
+    db.execute("PRAGMA user_version = 2");
+    createUserSchema(db);
+    const id = db.execute("INSERT INTO user_note (content) VALUES ('one')").lastInsertRowId!;
+    db.execute("UPDATE user_note SET content = 'two' WHERE note_id = ?", [id]);
+    db.execute("UPDATE user_note SET content = 'three' WHERE note_id = ?", [id]);
+    expect(db.queryAll("SELECT rowid FROM user_note_fts WHERE user_note_fts MATCH 'three'")).toHaveLength(1);
+  });
+});

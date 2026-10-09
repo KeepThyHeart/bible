@@ -343,3 +343,39 @@ describe('uninstall', () => {
     expect(tracker.pendingCount()).toBe(3);
   });
 });
+
+describe('markSynced with expectRev (edit between read and ack)', () => {
+  beforeEach(() => tracker.install(coreTrackedTables()));
+
+  it('clears dirty when the row is unchanged since it was read', () => {
+    const a = addNote('a');
+    const row = tracker.dirty(10).find((d) => d.localKey === String(a))!;
+    tracker.markSynced('user_note', String(a), { recordId: RID(1), serverSeq: 1, hlc: 'h', baseJson: '{}', deleted: false, expectRev: row.rev });
+    expect(record('user_note', String(a))).toMatchObject({ dirty: 0, server_seq: 1 });
+  });
+
+  it('keeps the row dirty (with the new base) when it was edited after it was read', () => {
+    const a = addNote('a');
+    const row = tracker.dirty(10).find((d) => d.localKey === String(a))!;
+    db.execute('UPDATE user_note SET sort_order = ? WHERE note_id = ?', [5, a]); // same millisecond is fine: rev, not time
+    tracker.markSynced('user_note', String(a), { recordId: RID(1), serverSeq: 7, hlc: 'h', baseJson: '{"v":1}', deleted: false, expectRev: row.rev });
+    expect(record('user_note', String(a))).toMatchObject({ dirty: 1, server_seq: 7, record_id: RID(1) });
+    expect(tracker.dirty(10).find((d) => d.localKey === String(a))).toMatchObject({ serverSeq: 7, baseJson: '{"v":1}' });
+  });
+
+  it('turns a never-pushed row deleted in flight into a dirty tombstone on the new server version', () => {
+    const a = addNote('a');
+    const row = tracker.dirty(10).find((d) => d.localKey === String(a))!;
+    db.execute('DELETE FROM user_note WHERE note_id = ?', [a]);
+    expect(record('user_note', String(a))).toBeUndefined(); // forgotten: the server never had it
+    tracker.markSynced('user_note', String(a), { recordId: RID(2), serverSeq: 3, hlc: 'h', baseJson: '{}', deleted: false, expectRev: row.rev });
+    expect(record('user_note', String(a))).toMatchObject({ dirty: 1, deleted: 1, server_seq: 3 });
+  });
+
+  it('without expectRev the old behaviour stays (ack always clears)', () => {
+    const a = addNote('a');
+    db.execute('UPDATE user_note SET sort_order = ? WHERE note_id = ?', [5, a]);
+    tracker.markSynced('user_note', String(a), { recordId: RID(1), serverSeq: 1, hlc: 'h', baseJson: '{}', deleted: false });
+    expect(record('user_note', String(a))).toMatchObject({ dirty: 0 });
+  });
+});

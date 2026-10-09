@@ -17,6 +17,8 @@ export const RATE_LIMITS = {
   emailAuth: { windowMs: 15 * 60_000, max: 10 },
   /** Emails sent per address (W2-D: verify / reset). */
   emailSend: { windowMs: 60 * 60_000, max: 5 },
+  /** "Someone tried to sign up with your address" notices: one per address per hour (anti mail-bombing). */
+  dupSignupMail: { windowMs: 60 * 60_000, max: 1 },
 } as const satisfies Record<string, RateRule>;
 
 export type RateLimitName = keyof typeof RATE_LIMITS;

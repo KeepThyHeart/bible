@@ -105,7 +105,7 @@ describe('@bible/core/browser barrel', () => {
     // The allow-list is the deliberate part: each entry is a browser-safe
     // library that the Crypto and Backup modules need (Argon2id in WebAssembly;
     // a pure-JS ZIP codec). Anything else fails.
-    const ALLOWED_EXTERNAL = ['hash-wasm', 'fflate'];
+    const ALLOWED_EXTERNAL = ['hash-wasm', 'fflate', '@zxcvbn-ts/core', '@zxcvbn-ts/language-common'];
     const external = [...bare.keys()].filter(s => !s.startsWith('.') && !ALLOWED_EXTERNAL.includes(s));
     expect(external, `Unexpected external imports: ${external.join(', ')}`).toEqual([]);
   });

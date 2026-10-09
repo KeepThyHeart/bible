@@ -120,8 +120,75 @@ interface UiConfig {
   disabledPanes?: string[];
 }
 
+/** The raw `accounts` block: settings only. Whether accounts are on is the `accounts` feature flag. */
+interface AccountsBlockConfig {
+  publicUrl?: string;
+  signupOpen?: boolean;
+  quotaMB?: number;
+  minAge?: number;
+  termsUrl?: string;
+  privacyUrl?: string;
+  /** Extra origins allowed to make cookie-authenticated writes, besides the origin of `publicUrl`. */
+  allowedOrigins?: string[];
+  email?: {
+    kind?: string;
+    host?: string;
+    port?: number;
+    secure?: boolean;
+    user?: string;
+    pass?: string;
+    from?: string;
+  };
+}
+
+/** The `server` block: settings for the HTTP server itself. */
+interface ServerBlockConfig {
+  /** Express `trust proxy` (boolean, hop count, or a subnet list). Unset keeps the legacy behaviour. */
+  trustProxy?: unknown;
+}
+
+/** Normalized `accounts` settings (secrets included: never send to a client, never log). */
+export interface AccountsSettings {
+  publicUrl: string;
+  signupOpen: boolean;
+  quotaBytes?: number;
+  minAge?: number;
+  termsUrl?: string;
+  privacyUrl?: string;
+  allowedOrigins: string[];
+  email: {
+    kind: 'console' | 'smtp';
+    host?: string;
+    port?: number;
+    secure?: boolean;
+    user?: string;
+    pass?: string;
+    from?: string;
+  };
+}
+
+/** Express's `trust proxy` setting. */
+export type TrustProxySetting = boolean | number | string | string[];
+
+/**
+ * Validates a configured `trust proxy` value; undefined for anything else (so a typo never silently
+ * widens trust). Accepts a boolean, a non-negative hop count, a subnet string ("loopback, 10.0.0.0/8")
+ * or a non-empty list of such strings.
+ */
+export function parseTrustProxy(value: unknown): TrustProxySetting | undefined {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'number') return Number.isInteger(value) && value >= 0 ? value : undefined;
+  if (typeof value === 'string') return value.trim() ? value.trim() : undefined;
+  if (Array.isArray(value) && value.length > 0 && value.every((v) => typeof v === 'string' && v.trim())) {
+    return value.map((v: string) => v.trim());
+  }
+  return undefined;
+}
+
 interface RawSiteConfig {
   $schema?: string;
+  server?: ServerBlockConfig;
+  accounts?: AccountsBlockConfig;
   auth?: AuthConfig;
   features?: FeaturesConfig;
   audio?: AudioBlockConfig;
@@ -236,6 +303,41 @@ export class SiteConfig {
       dir: resolve(this.dataDir, typeof block.dir === 'string' && block.dir ? block.dir : 'audio'),
       client,
       externalOrigins: enabled ? AudioBible.audioExternalOrigins(client) : [],
+    };
+  }
+
+  /**
+   * `server.trustProxy`: undefined when not configured or invalid (the host then keeps its legacy
+   * default, see `applyTrustProxy`).
+   */
+  get trustProxy(): TrustProxySetting | undefined {
+    return parseTrustProxy(this.raw.server?.trustProxy);
+  }
+
+  /** `accounts` block, normalized. "Enabled" is the `accounts` feature flag, not a field here. */
+  get accounts(): AccountsSettings {
+    const a = this.raw.accounts ?? {};
+    const str = (v: unknown): string | undefined => (typeof v === 'string' && v.trim() ? v.trim() : undefined);
+    const e = a.email ?? {};
+    return {
+      publicUrl: str(a.publicUrl) ?? '',
+      signupOpen: a.signupOpen !== false,
+      quotaBytes: typeof a.quotaMB === 'number' && a.quotaMB > 0 ? Math.floor(a.quotaMB * 1024 * 1024) : undefined,
+      minAge: typeof a.minAge === 'number' && Number.isInteger(a.minAge) && a.minAge >= 0 ? a.minAge : undefined,
+      termsUrl: str(a.termsUrl),
+      privacyUrl: str(a.privacyUrl),
+      allowedOrigins: Array.isArray(a.allowedOrigins)
+        ? a.allowedOrigins.filter((o): o is string => typeof o === 'string' && !!o.trim()).map((o) => o.trim())
+        : [],
+      email: {
+        kind: e.kind === 'smtp' ? 'smtp' : 'console',
+        host: str(e.host),
+        port: typeof e.port === 'number' ? e.port : undefined,
+        secure: typeof e.secure === 'boolean' ? e.secure : undefined,
+        user: str(e.user),
+        pass: typeof e.pass === 'string' ? e.pass : undefined,
+        from: str(e.from),
+      },
     };
   }
 
