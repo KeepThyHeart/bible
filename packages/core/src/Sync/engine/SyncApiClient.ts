@@ -229,7 +229,8 @@ export class SyncApiClient {
       const token = await auth.token();
       if (token) headers.Authorization = `Bearer ${token}`;
     }
-    const init: RequestInit = {
+    // `cache` is a standard fetch option; typed loosely because the server package type-checks this file without the DOM lib.
+    const init: RequestInit & { cache?: string } = {
       method, headers, credentials: auth.kind === 'cookie' ? 'include' : 'omit', cache: 'no-store',
     };
     if (opts.body !== undefined) init.body = JSON.stringify(opts.body);

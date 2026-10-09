@@ -87,7 +87,8 @@ function atomicWrite(full: string, data: string | Buffer): void {
   let fd: number | undefined;
   try {
     fd = fs.openSync(tmp, 'w', 0o600);
-    fs.writeSync(fd, data);
+    if (typeof data === 'string') fs.writeSync(fd, data);
+    else fs.writeSync(fd, data);
     fs.fsyncSync(fd);
     fs.closeSync(fd);
     fd = undefined;
