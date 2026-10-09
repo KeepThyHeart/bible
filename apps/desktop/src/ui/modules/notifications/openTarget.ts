@@ -4,14 +4,18 @@
  * so it exists only while the Notifications module is on; `App.tsx` knows nothing about it.
  */
 
+import { parseAppLink } from '@bible/core/browser';
 import type { ReminderTarget } from '@bible/core/browser';
 import { openApp } from '../../apps/appHost';
 import { useBibleStore } from '../../stores/useBibleStore';
+import { openMemoryRoute } from '../memory/memoryModule';
 import { notificationsClient } from './notificationsAPI';
 
 export interface NotificationOpenTargetHandlers {
   navigateToVerse(verseId: number, endVerseId?: number): void;
   openNotificationPreferences(): void;
+  /** A desktop app link (`app:<id>[/route]`) was clicked. Optional so older callers keep working. */
+  openAppRoute?(appId: string, route: string): void;
 }
 
 /** The window event the host listens for to open Preferences at a section (`App.tsx`). */
@@ -26,6 +30,9 @@ export function routeNotificationTarget(
     handlers.navigateToVerse(target.verseId, target.endVerseId);
   } else if (target.kind === 'route' && target.route === 'settings/notifications') {
     handlers.openNotificationPreferences();
+  } else if (target.kind === 'route') {
+    const link = parseAppLink(target.route);
+    if (link) handlers.openAppRoute?.(link.segment, link.route);
   }
 }
 
@@ -37,6 +44,13 @@ export const hostOpenTargetHandlers: NotificationOpenTargetHandlers = {
   },
   openNotificationPreferences() {
     window.dispatchEvent(new CustomEvent(OPEN_PREFERENCES_SECTION_EVENT, { detail: 'notifications' }));
+  },
+  openAppRoute(appId, route) {
+    // The route is handed to the app only once it is really open (a failed open must not leave
+    // a pending request that a later, unrelated open would act on).
+    void openApp(appId).then((result) => {
+      if (appId === 'memory' && (result.status === 'activated' || result.status === 'already')) openMemoryRoute(route);
+    });
   },
 };
 

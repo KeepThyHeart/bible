@@ -7,7 +7,7 @@ import type { RestoreMode } from '../../Backup/Restore';
 import { createBackupPayload, readBackupPayload } from '../../Backup/Payload';
 import { once } from '../../Backup/Streams';
 import { NewerFormatError } from '../../Backup/errors';
-import { tableSpec } from '../../Backup/Registry';
+import { tableSpec, USER_SCHEMA_VERSION } from '../../Backup/Registry';
 import { newUserDb, archiveOf, snapshot, canon, MemorySink, wopts } from './restoreHelpers';
 import { seedRich } from './seed';
 import { MemoryFiles, MemoryExtensions } from './memorySources';
@@ -352,7 +352,7 @@ describe('inspect', () => {
     expect(plan.warnings.some((w) => w.code === 'moduleIds')).toBe(true);
     expect(plan.preview!.replace.perTable.find((t) => t.table === 'user_note')).toMatchObject({ cleared: 1, inserted: 4 });
     expect(plan.preview!.merge.perTable.find((t) => t.table === 'user_note')).toMatchObject({ cleared: 0, inserted: 4 });
-    expect(plan.source.userSchemaVersion).toBe(1);
+    expect(plan.source.userSchemaVersion).toBe(USER_SCHEMA_VERSION);
   });
   it('marks sections whose table this database lacks and skips them on apply', async () => {
     const a = newUserDb();
@@ -367,9 +367,9 @@ describe('inspect', () => {
   it('refuses a backup from a newer schema, and unknown section ids on apply', async () => {
     const a = newUserDb();
     const archive = await archiveOf({ sql: a });
-    archive.manifest.userSchemaVersion = 2;
+    archive.manifest.userSchemaVersion = USER_SCHEMA_VERSION + 1;
     expect(() => inspectBackup(archive, { sql: newUserDb() })).toThrow(NewerFormatError);
-    archive.manifest.userSchemaVersion = 1;
+    archive.manifest.userSchemaVersion = USER_SCHEMA_VERSION;
     const plan = inspectBackup(archive, { sql: newUserDb() }, { preview: false });
     await expect(applyRestore(plan, { sql: newUserDb() }, { mode: 'merge', sections: ['nope'] })).rejects.toThrow(RangeError);
   });

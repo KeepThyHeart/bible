@@ -245,7 +245,9 @@ export default defineConfig({
       ...APP_CONFIG_DEFINES,
     },
     build: {
-      externalizeDeps: { exclude: ['@bible/core'], include: ['keytar'] },
+      // `@bible/memory` (task 0114) is bundled for the same reason as `@bible/core`: a
+      // workspace symlink, source-consumed, no runtime dependencies of its own.
+      externalizeDeps: { exclude: ['@bible/core', '@bible/memory'], include: ['keytar'] },
       rollupOptions: {
         input: {
           index: resolve(__dirname, 'electron/main.ts'),

@@ -100,11 +100,11 @@ describe('row upgraders and the version stamp', () => {
     expect(upgradeRow(spec, { name: ' a ' }, 1, 2)).toMatchObject({ name: 'a' });
     expect(upgradeRow(spec, { name: ' a ' }, 2, 2)).toMatchObject({ name: ' a ' });
   });
-  it('the current version is 1 and stamping is monotonic', () => {
-    expect(USER_SCHEMA_VERSION).toBe(1);
+  it('the current version is 2 (memory tables, 0114) and stamping is monotonic', () => {
+    expect(USER_SCHEMA_VERSION).toBe(2);
     expect(readUserSchemaVersion(db)).toBe(0);
     stampUserSchemaVersion(db);
-    expect(readUserSchemaVersion(db)).toBe(1);
+    expect(readUserSchemaVersion(db)).toBe(2);
     db.execute('PRAGMA user_version = 7');
     stampUserSchemaVersion(db);
     expect(readUserSchemaVersion(db)).toBe(7);

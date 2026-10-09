@@ -8,6 +8,7 @@
  */
 import type { ISql } from '@bible/core';
 import { repairUserSchema, Backup } from '@bible/core';
+import { installMemorySchema } from '@bible/memory/schema';
 
 /**
  * Create all user database tables, indexes, triggers, and FTS tables.
@@ -275,6 +276,12 @@ export function initializeUserSchema(db: ISql): void {
   db.execute(
     'CREATE INDEX IF NOT EXISTS idx_user_data_owner_collection ON user_data_item(owner_uuid, collection, sort_order)'
   );
+
+  // --- Scripture memory (task 0114) ---------------------------------------
+  // The built-in memory module's memory_* tables (classified in Backup.USER_TABLES)
+  // and its import bookkeeping. Created unconditionally, not on first use: a
+  // backup holding memory rows must restore on a machine that never opened it.
+  installMemorySchema(db);
 
   // Everything above is CREATE ... IF NOT EXISTS, which is a no-op on a
   // database an older build already created - so an upgraded profile keeps the

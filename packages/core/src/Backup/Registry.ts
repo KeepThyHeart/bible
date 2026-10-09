@@ -14,8 +14,14 @@
  */
 import type { ISql } from '../Data/Core/ISql';
 
-/** Version of the user-table shapes described here. Bump when a column or table changes; add an upgrader. */
-export const USER_SCHEMA_VERSION = 1;
+/**
+ * Version of the user-table shapes described here. Bump when a column or table changes; add an upgrader.
+ *
+ * - 1: the first registry.
+ * - 2: the `memory_*` tables of the built-in Scripture memory module (task 0114). New tables only, so no
+ *   upgrader; the bump stops an older build from restoring a backup whose memory rows it would drop.
+ */
+export const USER_SCHEMA_VERSION = 2;
 
 /**
  * - `content`: what the user wrote or collected; losing it is data loss. Always backed up.
@@ -201,6 +207,62 @@ export const USER_TABLES: readonly TableSpec[] = [
     }],
     identity: contentAll(),
   },
+  // --- Scripture memory (task 0114; DDL in packages/memory/src/core/schema.ts) ---
+  // Desktop only while the web keeps no user content (0063). Ids are local integers; merge remaps them
+  // through the foreign keys below. `memory_push_card` is excluded (see EXCLUDED_TABLES).
+  {
+    name: 'memory_collection', pk: ['id'], autoId: true, cls: 'content', origin: 'desktop',
+    columns: ['id', 'name', 'created_at'],
+    // Lists are matched by name, so merging a backup puts its "Default" passages into the local "Default".
+    fks: [], identity: { kind: 'unique', columns: ['name'], conflict: 'keepLocal' },
+  },
+  {
+    name: 'memory_passage', pk: ['id'], autoId: true, cls: 'content', origin: 'desktop',
+    columns: ['id', 'collection_id', 'module_id', 'start_verse_id', 'end_verse_id', 'reference', 'verse_count', 'added_at',
+      'answer_mode', 'deleted_at', 'recite_on'],
+    fks: [{ column: 'collection_id', table: 'memory_collection', sql: true, onMissing: 'drop' }],
+    // The DDL's unique index: one range per translation per list.
+    identity: { kind: 'unique', columns: ['collection_id', 'module_id', 'start_verse_id', 'end_verse_id'], conflict: 'keepLocal' },
+  },
+  {
+    name: 'memory_card', pk: ['id'], autoId: true, cls: 'content', origin: 'desktop',
+    columns: ['id', 'passage_id', 'rung', 'state', 'interval_step', 'due_at', 'streak', 'last_score', 'progress_reset_at'],
+    fks: [{ column: 'passage_id', table: 'memory_passage', sql: true, onMissing: 'drop' }],
+    // The local schedule stays; the later progress reset wins, so merged-in attempts the user reset stay hidden.
+    identity: { kind: 'unique', columns: ['passage_id', 'rung'], conflict: 'max', maxColumns: ['progress_reset_at'] },
+  },
+  {
+    name: 'memory_attempt', pk: ['id'], autoId: true, cls: 'content', origin: 'desktop',
+    columns: ['id', 'card_id', 'at', 'score', 'correct_first', 'total_steps', 'replay', 'duration_ms', 'tier'],
+    fks: [{ column: 'card_id', table: 'memory_card', sql: true, onMissing: 'drop' }],
+    // Levels are derived from attempts, so merging keeps the union of both histories (identical rows once).
+    identity: contentAll(),
+  },
+  {
+    // Per-word recite detail (verdict letters and counts, never heard text). Content rather than history:
+    // replacing attempts cascades into it, so it must travel with them.
+    name: 'memory_recite_detail', pk: ['attempt_id'], autoId: false, cls: 'content', origin: 'desktop',
+    columns: ['attempt_id', 'card_id', 'at', 'verdicts', 'credits', 'verse_scores', 'extras', 'strictness', 'engine_id', 'model_id'],
+    fks: [
+      { column: 'attempt_id', table: 'memory_attempt', sql: true, onMissing: 'drop' },
+      { column: 'card_id', table: 'memory_card', sql: true, onMissing: 'drop' },
+    ],
+    identity: { kind: 'unique', columns: ['attempt_id'], conflict: 'keepLocal' },
+  },
+  {
+    // Memory preferences (answer mode, sort order, scope, recite and push-card settings). `practiceScope`
+    // holds a list id: kept by replace (ids are preserved), validated on read after a merge.
+    name: 'memory_setting', pk: ['key'], autoId: false, cls: 'workspace', origin: 'desktop',
+    columns: ['key', 'value'],
+    fks: [], identity: { kind: 'unique', columns: ['key'], conflict: 'keepLocal' },
+  },
+  {
+    // Where a paused activity resumes. Restored with the workspace; merging keeps the newer point.
+    name: 'memory_resume_state', pk: ['card_id'], autoId: false, cls: 'workspace', origin: 'desktop',
+    columns: ['card_id', 'cursor', 'correct_first', 'graded_units', 'updated_at', 'tier'],
+    fks: [{ column: 'card_id', table: 'memory_card', sql: true, onMissing: 'drop' }],
+    identity: { kind: 'unique', columns: ['card_id'], conflict: 'newerWins', stamp: 'updated_at' },
+  },
   {
     name: 'extension_storage', pk: ['extension_id', 'key'], autoId: false, cls: 'extension', origin: 'desktop',
     columns: ['extension_id', 'key', 'value', 'updated_at'],
@@ -269,6 +331,11 @@ export const EXCLUDED_TABLES: readonly string[] = [
   'sync_metadata', // device-bound bookkeeping
   'schema_version',
   'schema_migration',
+  // Scripture memory (0114): push-card schedule rows are rebuilt from the plan, and their keys embed this
+  // machine's passage ids; the import record is per machine (a restored backup must not stop this
+  // machine's own one-time import).
+  'memory_push_card',
+  'memory_import',
 ];
 
 /** Shadow tables of the note full-text index, and SQLite's own tables, are derived data. */

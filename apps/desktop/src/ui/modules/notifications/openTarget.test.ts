@@ -28,6 +28,19 @@ describe('routeNotificationTarget', () => {
     expect(h.openNotificationPreferences).toHaveBeenCalledTimes(1);
   });
 
+  it('routes desktop app links to openAppRoute', () => {
+    const openAppRoute = vi.fn();
+    const h = { ...make(), openAppRoute };
+    routeNotificationTarget({ kind: 'route', route: 'app:memory/cards' }, h);
+    routeNotificationTarget({ kind: 'route', route: 'app:memory' }, h);
+    expect(openAppRoute).toHaveBeenNthCalledWith(1, 'memory', 'cards');
+    expect(openAppRoute).toHaveBeenNthCalledWith(2, 'memory', '');
+  });
+
+  it('ignores an app link when no handler is given', () => {
+    expect(() => routeNotificationTarget({ kind: 'route', route: 'app:memory/cards' }, make())).not.toThrow();
+  });
+
   it('ignores unknown routes and extension targets', () => {
     const h = make();
     routeNotificationTarget({ kind: 'route', route: 'nowhere' }, h);

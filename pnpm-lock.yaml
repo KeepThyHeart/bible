@@ -347,6 +347,9 @@ importers:
       '@bible/extension-testing':
         specifier: workspace:*
         version: link:../../packages/extension-testing
+      '@bible/memory':
+        specifier: workspace:*
+        version: link:../../packages/memory
       '@playwright/test':
         specifier: ^1.49.0
         version: 1.63.0
@@ -714,6 +717,33 @@ importers:
       vitest:
         specifier: ^4.1.11
         version: 4.1.11(@types/node@20.19.43)(@vitest/coverage-v8@4.1.11)(@vitest/ui@4.1.11)(happy-dom@20.14.5)(jsdom@29.1.1(@noble/hashes@2.4.0))(vite@7.3.6(@types/node@20.19.43))
+
+  packages/memory:
+    devDependencies:
+      '@bible/core':
+        specifier: workspace:^
+        version: link:../core
+      '@bible/extension-testing':
+        specifier: workspace:^
+        version: link:../extension-testing
+      '@types/better-sqlite3':
+        specifier: ^7.6.11
+        version: 7.6.13
+      '@types/node':
+        specifier: ^20.14.0
+        version: 20.19.43
+      better-sqlite3:
+        specifier: ^12.11.1
+        version: 12.11.1
+      jsdom:
+        specifier: ^27.4.0
+        version: 27.4.0(@noble/hashes@2.4.0)(supports-color@8.1.1)
+      typescript:
+        specifier: ^5.5.0
+        version: 5.9.3
+      vitest:
+        specifier: ^4.1.11
+        version: 4.1.11(@types/node@20.19.43)(@vitest/coverage-v8@4.1.11)(@vitest/ui@4.1.11)(happy-dom@20.14.5)(jsdom@27.4.0(@noble/hashes@2.4.0)(supports-color@8.1.1))(vite@7.3.6(@types/node@20.19.43)(jiti@2.7.0)(lightningcss@1.33.0)(sass@1.104.0)(terser@5.51.2)(tsx@4.23.13))
 
   packages/ui:
     dependencies:

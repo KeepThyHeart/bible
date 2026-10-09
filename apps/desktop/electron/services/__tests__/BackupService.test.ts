@@ -114,7 +114,7 @@ describe('encrypted backup round trip', () => {
     expect(tableRows(b.db, 'extensions')).toEqual([]);
     expect(readFileSync(join(dir, 'b', 'notes', 'Docs/sermon.bn'), 'utf8')).toBe('sermon');
     expect(b.db.prepare("SELECT rowid FROM user_note_fts WHERE user_note_fts MATCH 'grace'").all()).toHaveLength(1);
-    expect(Backup.readUserSchemaVersion(b.sql)).toBe(1);
+    expect(Backup.readUserSchemaVersion(b.sql)).toBe(Backup.USER_SCHEMA_VERSION);
   });
 
   it('honours an extension that opts out of key-value backup, and includes its opted-in database', async () => {

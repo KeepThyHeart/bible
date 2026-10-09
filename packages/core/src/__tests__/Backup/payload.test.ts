@@ -5,6 +5,7 @@ import type { ISql } from '../../Data/Core/ISql';
 import {
   createBackupPayload, readBackupPayload, sectionRows, parseManifest, encodeNdjson, decodeNdjson, writeBackup, FORMAT_VERSION,
 } from '../../Backup/Payload';
+import { USER_SCHEMA_VERSION } from '../../Backup/Registry';
 import { resolveExtensionBackup } from '../../Backup/ExtensionData';
 import { readBackupFile, openBackupFile } from '../../Backup/BackupFile';
 import { sealStream } from '../../Backup/Envelope';
@@ -37,7 +38,7 @@ describe('createBackupPayload', () => {
     expect(warnings).toEqual([]);
     expect(manifest.formatVersion).toBe(FORMAT_VERSION);
     expect(manifest.createdAt).toBe('2026-09-26T14:03:11.000Z');
-    expect(manifest.userSchemaVersion).toBe(1);
+    expect(manifest.userSchemaVersion).toBe(USER_SCHEMA_VERSION);
     const ids = manifest.sections.map((s) => s.id);
     expect(ids).toContain('user.user_note');
     expect(ids).toContain('user.verse_link');
@@ -199,8 +200,8 @@ describe('manifest validation', () => {
   it('refuses newer majors, newer minimum reader versions and newer schema versions', () => {
     expect(() => parse({ ...base(), formatVersion: '2.0', minReaderVersion: '2.0' })).toThrow(NewerFormatError);
     expect(() => parse({ ...base(), minReaderVersion: '1.1' })).toThrow(NewerFormatError);
-    expect(() => parse({ ...base(), userSchemaVersion: 2 })).toThrow(NewerFormatError);
-    expect(() => parse({ ...base(), userSchemaVersion: 2 }, 2)).not.toThrow();
+    expect(() => parse({ ...base(), userSchemaVersion: USER_SCHEMA_VERSION + 1 })).toThrow(NewerFormatError);
+    expect(() => parse({ ...base(), userSchemaVersion: USER_SCHEMA_VERSION + 1 }, USER_SCHEMA_VERSION + 1)).not.toThrow();
   });
   it.each([
     ['wrong format', { format: 'x' }], ['bad version', { formatVersion: 'one' }], ['bad date', { createdAt: 'x' }],

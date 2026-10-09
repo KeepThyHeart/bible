@@ -198,7 +198,7 @@ An extension declares what part of its data is the user's in its manifest (`exte
 
 ## The table registry
 
-`src/Backup/Registry.ts` describes each user table: its columns, primary key, foreign keys (including logical ones such as `verse_link.source_id`, whose target depends on `source_type`), how two rows are recognised as the same when merging, its class, and row upgraders. `USER_SCHEMA_VERSION` (currently `1`) is the version of these shapes and is recorded in every backup. The desktop database also stores it in `PRAGMA user_version`. Drift tests compare the registry with the schema core ships (`UserDatabase.sql`) and with the desktop's own DDL.
+`src/Backup/Registry.ts` describes each user table: its columns, primary key, foreign keys (including logical ones such as `verse_link.source_id`, whose target depends on `source_type`), how two rows are recognised as the same when merging, its class, and row upgraders. `USER_SCHEMA_VERSION` (currently `2`; 2 added the Scripture memory tables, task 0114) is the version of these shapes and is recorded in every backup. The desktop database also stores it in `PRAGMA user_version`. Drift tests compare the registry with the schema core ships (`UserDatabase.sql`) and with the desktop's own DDL.
 
 ## Restore
 

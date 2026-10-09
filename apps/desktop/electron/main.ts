@@ -643,6 +643,16 @@ const registerAllHandlersOnce = runOnce(() => {
       userDataPath: app.getPath('userData'),
       getWindows: () => (mainWindow && !mainWindow.isDestroyed() ? [mainWindow] : []),
       log,
+      getReminderHost: () => reminderHost,
+      getExtensions: () => {
+        const host = extensionHost;
+        if (!host) return null;
+        return {
+          ready: () => extensionRegistryLoaded,
+          isEnabled: (id) => host.listEntries().some((e) => e.id === id && e.entry.enabled),
+          disable: (id) => host.disable(id),
+        };
+      },
     },
     { packaged: app.isPackaged },
   ).catch((error) => log.error('[modules] registerMainModules failed:', error));

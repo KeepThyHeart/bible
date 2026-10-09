@@ -21,7 +21,7 @@
  * renderer client unwraps the envelope, so failures arrive as rejections.
  */
 
-import type { Disposable } from '@bible/core/browser';
+import type { Disposable, ItemSource, ReminderCapabilities, ReminderItem, ReminderPermission } from '@bible/core/browser';
 
 /** Minimal window shape `ModuleIpc.send` needs (a `BrowserWindow` satisfies it). */
 export interface ModuleWindow {
@@ -35,6 +35,26 @@ export interface ModuleLogger {
   error(...args: unknown[]): void;
 }
 
+/** The notification scheduler, for modules that schedule reminders (task 0114: memory push cards). */
+export interface ModuleReminderHost {
+  registerSource(source: ItemSource): () => void;
+  readonly scheduler: {
+    replaceItems(sourceId: string, items: unknown, label?: string): Promise<{ accepted: number }>;
+    listItems(sourceId: string): ReminderItem[];
+  };
+  capabilities(): ReminderCapabilities;
+  requestPermission(): Promise<ReminderPermission>;
+}
+
+/** The slice of the extension host a module may use (task 0114: retiring the memory extension). */
+export interface ModuleExtensionsPort {
+  /** The installed extensions are loaded (before that, `isEnabled` cannot tell "not installed" from "not loaded yet"). */
+  ready(): boolean;
+  /** Installed and enabled. */
+  isEnabled(extensionId: string): boolean;
+  disable(extensionId: string): Promise<void>;
+}
+
 /** What main.ts hands every module. Keep it small; add a member only when a module needs it. */
 export interface MainModuleDeps {
   /** Electron `app.getPath('userData')`. */
@@ -42,6 +62,10 @@ export interface MainModuleDeps {
   /** Windows that should receive module events (usually just the main window). */
   readonly getWindows: () => readonly ModuleWindow[];
   readonly log: ModuleLogger;
+  /** The notification scheduler, once it exists. */
+  readonly getReminderHost?: () => ModuleReminderHost | null;
+  /** The extension host, once it has started (it starts in the background). */
+  readonly getExtensions?: () => ModuleExtensionsPort | null;
 }
 
 /** Namespaced wrapper over ipcMain for one module. Everything registered is removed on dispose. */

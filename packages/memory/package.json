@@ -1,0 +1,60 @@
+{
+  "name": "@bible/memory",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Scripture memory: the built-in memorization feature module (core, storage, and later its UI)",
+  "license": "GPL-3.0-or-later",
+  "author": "Peter Rankin <psrankin@outlook.com>",
+  "exports": {
+    "./core": {
+      "types": "./src/core/index.ts",
+      "default": "./src/core/index.ts"
+    },
+    "./api": {
+      "types": "./src/core/api.ts",
+      "default": "./src/core/api.ts"
+    },
+    "./schema": {
+      "types": "./src/core/schema.ts",
+      "default": "./src/core/schema.ts"
+    },
+    "./manifest": {
+      "types": "./src/manifest.ts",
+      "default": "./src/manifest.ts"
+    },
+    "./package.json": "./package.json",
+    "./ui": {
+      "types": "./src/ui/mount.ts",
+      "default": "./src/ui/mount.ts"
+    },
+    "./status": {
+      "types": "./src/core/status.ts",
+      "default": "./src/core/status.ts"
+    },
+    "./legacy": {
+      "types": "./src/core/legacyImport.ts",
+      "default": "./src/core/legacyImport.ts"
+    },
+    "./maintenance": {
+      "types": "./src/core/maintenance.ts",
+      "default": "./src/core/maintenance.ts"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "ensure-sqlite": "node -e \"try{new (require('better-sqlite3'))(':memory:').close()}catch{process.exit(1)}\" || pnpm rebuild better-sqlite3",
+    "pretest": "pnpm run ensure-sqlite",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "@bible/core": "workspace:^",
+    "@bible/extension-testing": "workspace:^",
+    "@types/better-sqlite3": "^7.6.11",
+    "@types/node": "^20.14.0",
+    "better-sqlite3": "^12.11.1",
+    "jsdom": "^27.4.0",
+    "typescript": "^5.5.0",
+    "vitest": "^4.1.11"
+  }
+}

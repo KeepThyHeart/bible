@@ -22,6 +22,7 @@ import {
   DesktopExtensionData, NotesDirStore, createPreRestoreSnapshot, notesSink, notesSource, readFileStream, writeFileFromStream,
 } from './backup/nodeAdapters';
 import type { ExtensionPort } from './backup/nodeAdapters';
+import { notifyUserDataRestored, notifyUserDataRestoring } from './userDataEvents';
 
 export interface BackupContext {
   sql: ISql;
@@ -207,13 +208,26 @@ export async function applyInspection(ctx: BackupContext, opts: ApplyOptions): P
     }
 
     log.info(`[BackupService] Restoring (mode: ${opts.mode}, ${opts.sections.length} section(s))`);
-    const report = await Backup.applyRestore(plan, targetOf(ctx), { mode: opts.mode, sections: opts.sections });
+    const restoreEvent = { mode: opts.mode, tables: opts.sections.filter((id) => id.startsWith('user.')).map((id) => id.slice(5)) };
+    // Features working over the rows stop first (task 0114: the memory core), so nothing writes
+    // onto restored ids in between.
+    await notifyUserDataRestoring(restoreEvent, (err) => log.warn('[BackupService] a restore listener failed:', err));
+    let report: Awaited<ReturnType<typeof Backup.applyRestore>>;
+    try {
+      report = await Backup.applyRestore(plan, targetOf(ctx), { mode: opts.mode, sections: opts.sections });
+    } catch (err) {
+      // Nothing was written (the restore is all-or-nothing): let the features resume.
+      notifyUserDataRestored({ ...restoreEvent, failed: true }, (e) => log.warn('[BackupService] a restore listener failed:', e));
+      throw err;
+    }
     try {
       repairUserSchema(ctx.sql);
     } catch (err) {
       log.warn('[BackupService] repairUserSchema after restore failed:', err);
     }
     active = null;
+    // Features holding ids or sessions over the restored rows drop them (task 0114: memory).
+    notifyUserDataRestored(restoreEvent, (err) => log.warn('[BackupService] a restore listener failed:', err));
     return { report, snapshotDir };
   } finally {
     entry.busy = false;

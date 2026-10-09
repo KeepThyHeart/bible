@@ -28,6 +28,7 @@ import { similarMainManifest } from './similar/manifest';
 import { wordStudyMainManifest } from './word-study/manifest';
 import { keywordMarksMainManifest } from './keyword-marks/manifest';
 import { notificationsMainManifest } from './notifications/manifest';
+import { memoryManifest } from '@bible/memory/manifest';
 
 export interface MainModuleEntry {
   readonly manifest: FeatureModuleManifest;
@@ -44,6 +45,8 @@ export const MAIN_MODULES: readonly MainModuleEntry[] = [
   { manifest: wordStudyMainManifest, load: () => import('./word-study') },
   { manifest: keywordMarksMainManifest, load: () => import('./keyword-marks') },
   { manifest: notificationsMainManifest, load: () => import('./notifications') },
+  // Scripture memory (0114): registers its handlers at startup; the core loads on the first call.
+  { manifest: memoryManifest, load: () => import('./memory') },
 ];
 
 export interface RegisterMainModulesOptions {
