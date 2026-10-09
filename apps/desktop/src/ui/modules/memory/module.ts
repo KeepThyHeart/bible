@@ -91,7 +91,15 @@ export function activate(ctx: FeatureModuleContext): void {
     if (!warned) console.warn(`[memory] ${what} unavailable:`, error);
     warned = true;
   };
-  const notices = (): void => void collectNotices().catch((error) => warn('notices', error));
+  const notices = (): void => {
+    void (async () => {
+      try {
+        await collectNotices();
+      } catch (error) {
+        warn('notices', error);
+      }
+    })();
+  };
   const onPush = (push: MemoryPush): void => {
     if (push.type === 'status') {
       applyStatus(push.status.due, push.status.waiting);
@@ -111,11 +119,20 @@ export function activate(ctx: FeatureModuleContext): void {
   // Cards come due while the core is not running (it pushes status only while it runs), so the
   // badge is re-read now and then: two COUNTs in main, never a core start.
   const refresh = (): void => {
-    memoryClient
-      .getStatus()
-      .then((s) => applyStatus(s.due, s.waiting))
-      .catch((error) => warn('status', error));
-    notices();
+    // The module bridge is missing outside Electron (and in tests): the client throws synchronously.
+    void (async () => {
+      try {
+        const s = await memoryClient.getStatus();
+        applyStatus(s.due, s.waiting);
+      } catch (error) {
+        warn('status', error);
+      }
+      try {
+        await collectNotices();
+      } catch (error) {
+        warn('notices', error);
+      }
+    })();
   };
   const timer = setTimeout(refresh, INITIAL_STATUS_DELAY_MS);
   const interval = setInterval(refresh, STATUS_REFRESH_MS);
