@@ -1,11 +1,10 @@
 import { app } from 'electron';
-import { join } from 'path';
+import { dirname, join } from 'path';
 import { existsSync, mkdirSync } from 'fs';
 import log from 'electron-log';
 import { EncryptedSqliteProvider } from '../providers/EncryptedSqliteProvider';
 import { getOrCreateEncryptionKey } from '../utils/encryptionKeyManager';
 import { Backup } from '@bible/core';
-import { dirname } from 'path';
 import { createPreRestoreSnapshot } from './backup/nodeAdapters';
 
 /**
@@ -53,7 +52,8 @@ export async function getSharedUserDb(username: string = 'default'): Promise<Enc
       // existing database first; a failed copy only warns.
       try {
         const before = Backup.readUserSchemaVersion(db);
-        if (before > 0 && before < Backup.USER_SCHEMA_VERSION) {
+        const hasUserTables = db.queryOne("SELECT 1 AS x FROM sqlite_master WHERE type='table' AND name='user_note'") !== undefined;
+        if ((before > 0 || hasUserTables) && before < Backup.USER_SCHEMA_VERSION) {
           db.execute('PRAGMA wal_checkpoint(TRUNCATE)');
           createPreRestoreSnapshot({ userDbPath: dbPath, root: join(dirname(dbPath), 'pre-migration'), keep: 3 });
           log.info(`[SharedUserDb] user schema v${before} -> v${Backup.USER_SCHEMA_VERSION}: copied the database first`);

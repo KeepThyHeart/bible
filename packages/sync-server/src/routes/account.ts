@@ -121,7 +121,8 @@ export function accountRoutes(ctx: ServerContext): Router {
     limitEmail(ctx, email);
     const device = v.deviceWire(body.device);
     const wantToken = v.optBool(body.wantToken, 'wantToken');
-    const account = store.accounts.byEmail(email);
+    const found = store.accounts.byEmail(email);
+    const account = found && !(found.deleteAfter != null && found.deleteAfter <= opts.now()) ? found : undefined;
     if (!checkAuthKey(body.authKey, account?.authHash) || !account) {
       throw new ApiHttpError(401, 'unauthorized', BAD_CREDENTIALS);
     }
@@ -137,7 +138,8 @@ export function accountRoutes(ctx: ServerContext): Router {
     limitEmail(ctx, email);
     const device = v.deviceWire(body.device);
     const wantToken = v.optBool(body.wantToken, 'wantToken');
-    const account = store.accounts.byEmail(email);
+    const found = store.accounts.byEmail(email);
+    const account = found && !(found.deleteAfter != null && found.deleteAfter <= opts.now()) ? found : undefined;
     if (!checkAuthKey(body.recoveryAuthKey, account?.recoveryAuthHash) || !account) {
       throw new ApiHttpError(401, 'unauthorized', BAD_CREDENTIALS);
     }
@@ -187,14 +189,22 @@ export function accountRoutes(ctx: ServerContext): Router {
       const authKey = v.key32(body.authKey, 'authKey');
       const wrappedAkPassword = v.wrappedKey(body.wrappedAkPassword, 'wrappedAkPassword');
       const signOutOthers = v.bool(body.signOutOthers, 'signOutOthers');
+      // After a recovery the used code is spent: the same request must install a new one.
+      const newRecovery = recovery
+        ? {
+            recoveryAuthHash: keyHash(v.key32(body.recoveryAuthKey, 'recoveryAuthKey')),
+            wrappedAkRecovery: v.wrappedKey(body.wrappedAkRecovery, 'wrappedAkRecovery'),
+          }
+        : {};
       store.transaction(() => {
-        store.accounts.update(account.id, { kdf, authHash: keyHash(authKey), wrappedAkPassword });
+        store.accounts.update(account.id, { kdf, authHash: keyHash(authKey), wrappedAkPassword, ...newRecovery });
         if (recovery) {
-          // Single use: the client signs in with the new password next.
-          if (signOutOthers) store.sessions.deleteAllExcept(account.id);
-          else store.deleteSession(account.id, session.tokenHash);
-        } else if (signOutOthers) {
-          store.sessions.deleteAllExcept(account.id, session.tokenHash);
+          // Recovery suggests the password was lost or compromised: drop every session.
+          store.sessions.deleteAllExcept(account.id);
+        } else {
+          if (signOutOthers) store.sessions.deleteAllExcept(account.id, session.tokenHash);
+          // A live recovery session must not outlive a password change.
+          store.sessions.deleteRecovery(account.id);
         }
       });
       if (recovery && viaCookie) clearSessionCookie(ctx, res);

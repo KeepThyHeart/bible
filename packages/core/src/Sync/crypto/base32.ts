@@ -6,14 +6,18 @@
 export const CROCKFORD_ALPHABET = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
 
 /** Upper-case char code -> 5-bit value, -1 if invalid. Includes the aliases O->0 and I/L->1. */
-const LOOKUP: Int8Array = (() => {
+// Built on first use, not at module load, so bundlers can drop the whole Sync namespace from entries that never use it.
+let lookupCache: Int8Array | undefined;
+function lookupTable(): Int8Array {
+  if (lookupCache) return lookupCache;
   const t = new Int8Array(128).fill(-1);
   for (let i = 0; i < CROCKFORD_ALPHABET.length; i++) t[CROCKFORD_ALPHABET.charCodeAt(i)] = i;
   t['O'.charCodeAt(0)] = 0;
   t['I'.charCodeAt(0)] = 1;
   t['L'.charCodeAt(0)] = 1;
+  lookupCache = t;
   return t;
-})();
+}
 
 /** Encode bytes (length a multiple of 5) as upper-case Crockford base32, no padding, no separators. */
 export function crockfordEncode(bytes: Uint8Array): string {
@@ -48,7 +52,7 @@ export function crockfordDecode(input: string): Uint8Array {
   for (let i = 0; i < clean.length; i++) {
     let c = clean.charCodeAt(i);
     if (c >= 97 && c <= 122) c -= 32; // a-z -> A-Z
-    const v = c < 128 ? LOOKUP[c] : -1;
+    const v = c < 128 ? lookupTable()[c] : -1;
     if (v < 0) throw new RangeError('Invalid base32 character');
     acc = (acc << 5) | v;
     bits += 5;

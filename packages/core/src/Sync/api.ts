@@ -43,7 +43,9 @@ export interface ResetRequest  { email: string }                                
 export interface ResetConfirmRequest { token: string; material: AccountKeyMaterial; device: DeviceWire; wantToken?: boolean } // wipes records
 
 export type KeysRequest =
-  | { kind: 'password'; currentAuthKey: string; kdf: KdfParamsJson; authKey: string; wrappedAkPassword: WrappedKey; signOutOthers: boolean }
+  | { kind: 'password'; currentAuthKey: string; kdf: KdfParamsJson; authKey: string; wrappedAkPassword: WrappedKey; signOutOthers: boolean;
+      /** Required (and only used) from a recovery session: the used code is replaced in the same request. */
+      recoveryAuthKey?: string; wrappedAkRecovery?: WrappedKey }
   | { kind: 'recovery'; currentAuthKey: string; recoveryAuthKey: string; wrappedAkRecovery: WrappedKey }
   | { kind: 'rotate';   currentAuthKey: string; material: AccountKeyMaterial };    // revokes all other sessions
 // 'currentAuthKey' may instead be proof from a recovery session (server accepts a session created by /recover for 'password').

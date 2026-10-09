@@ -164,6 +164,9 @@ export function createSqliteSyncStore(sql: ISql): SqliteSyncStore {
         if (keepHash) run('DELETE FROM session WHERE account_id = ? AND token_hash <> ?', [accountId, keepHash]);
         else run('DELETE FROM session WHERE account_id = ?', [accountId]);
       },
+      deleteRecovery(accountId: string): void {
+        run("DELETE FROM session WHERE account_id = ? AND kind = 'recovery'", [accountId]);
+      },
     },
 
     devices: {

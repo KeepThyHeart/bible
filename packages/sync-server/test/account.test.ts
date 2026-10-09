@@ -294,12 +294,21 @@ describe('recovery and PUT keys', () => {
 
     const newKey = b64(32);
     const newWrap = b64(60);
+    const base = { kind: 'password', currentAuthKey: '', kdf: kdf(), authKey: newKey, wrappedAkPassword: newWrap, signOutOthers: false };
+    // The spent recovery code must be replaced in the same request.
+    expect((await request(t.app).put(`${PREFIX}/keys`).set(auth).send(base)).status).toBe(400);
+    const newRecKey = b64(32);
     const pw = await request(t.app).put(`${PREFIX}/keys`).set(auth)
-      .send({ kind: 'password', currentAuthKey: '', kdf: kdf(), authKey: newKey, wrappedAkPassword: newWrap, signOutOthers: false });
+      .send({ ...base, recoveryAuthKey: newRecKey, wrappedAkRecovery: b64(60) });
     expect(pw.status).toBe(204);
-    // Single use; the other device's session is kept (signOutOthers false).
+    // Single use, and recovery drops every other session too.
     expect((await request(t.app).put(`${PREFIX}/keys`).set(auth).send({})).status).toBe(401);
-    expect((await request(t.app).get(`${PREFIX}/account`).set('Authorization', `Bearer ${normal}`)).status).toBe(200);
+    expect((await request(t.app).get(`${PREFIX}/account`).set('Authorization', `Bearer ${normal}`)).status).toBe(401);
+    // The code that was just used no longer works; the new one does.
+    expect((await request(t.app).post(`${PREFIX}/recover`)
+      .send({ email: c.email, recoveryAuthKey: c.material.recoveryAuthKey, device: dev2 })).status).toBe(401);
+    expect((await request(t.app).post(`${PREFIX}/recover`)
+      .send({ email: c.email, recoveryAuthKey: newRecKey, device: dev2 })).status).toBe(200);
     expect((await login(t, c)).status).toBe(401);
     const li = await login(t, c, newKey);
     expect(li.status).toBe(200);
@@ -433,4 +442,33 @@ describe('account scoping', () => {
     // A's login with B's key fails.
     expect((await login(t, A.c, B.c.material.authKey)).status).toBe(401);
   });
+
+describe('review hardening', () => {
+  it('login refuses an account past delete_after (same 401 as unknown)', async () => {
+    const t = makeServer();
+    const { c } = await signup(t);
+    expect((await login(t, c)).status).toBe(200);
+    t.clock.advance(8 * 24 * 3600 * 1000); // unverified accounts are deleted after 7 days
+    expect((await login(t, c)).status).toBe(401);
+  });
+
+  it('a normal password change also kills live recovery sessions', async () => {
+    const t = makeServer();
+    const { c, token } = await signup(t);
+    const rc = await request(t.app).post(`${PREFIX}/recover`)
+      .send({ email: c.email, recoveryAuthKey: c.material.recoveryAuthKey, device: newDevice(), wantToken: true });
+    const ok = await request(t.app).put(`${PREFIX}/keys`).set('Authorization', `Bearer ${token}`)
+      .send({ kind: 'password', currentAuthKey: c.material.authKey, kdf: kdf(), authKey: b64(32), wrappedAkPassword: b64(60), signOutOthers: false });
+    expect(ok.status).toBe(204);
+    const again = await request(t.app).put(`${PREFIX}/keys`).set('Authorization', `Bearer ${rc.body.token}`)
+      .send({ kind: 'password', currentAuthKey: '', kdf: kdf(), authKey: b64(32), wrappedAkPassword: b64(60), signOutOthers: false, recoveryAuthKey: b64(32), wrappedAkRecovery: b64(60) });
+    expect(again.status).toBe(401);
+  });
+
+  it('auth routes reject large bodies (small JSON limit)', async () => {
+    const t = makeServer();
+    const res = await request(t.app).post(`${PREFIX}/login`).send({ email: 'a@b.c', pad: 'x'.repeat(100 * 1024) });
+    expect(res.status).toBe(413);
+  });
+});
 });

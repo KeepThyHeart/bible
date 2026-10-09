@@ -24,7 +24,10 @@ export function buildRouter(ctx: ServerContext): Router {
     next();
   }));
   r.use(originCheck(ctx));
-  r.use(express.json({ limit: Sync.LIMITS.maxPushBodyBytes + MiB, strict: true }));
+  // Small bodies everywhere; only the record push may be large (auth routes never need MBs).
+  const smallJson = express.json({ limit: 64 * 1024, strict: true });
+  const pushJson = express.json({ limit: Sync.LIMITS.maxPushBodyBytes + MiB, strict: true });
+  r.use((req, res, next) => (req.path === '/push' ? pushJson : smallJson)(req, res, next));
 
   r.use(accountRoutes(ctx));
   // --- W2-C mount lines (records, devices, privacy) ---

@@ -48,8 +48,17 @@ export function createWasmSql(db: unknown, path: string): ISql {
   let depth = 0;
   let closed = false;
 
-  const rows = (sql: string, params?: Params): SqlRow[] =>
-    handle.exec({ sql, bind: toBind(params), rowMode: 'object', returnValue: 'resultRows' }) as SqlRow[];
+  const rows = (sql: string, params?: Params): SqlRow[] => {
+    const out = handle.exec({ sql, bind: toBind(params), rowMode: 'object', returnValue: 'resultRows' }) as SqlRow[];
+    // oo1 returns 64-bit integers above 2^53 as BigInt; better-sqlite3 (and ISql users) expect numbers.
+    for (const row of out) {
+      for (const k of Object.keys(row)) {
+        const v = (row as Record<string, unknown>)[k];
+        if (typeof v === 'bigint') (row as Record<string, unknown>)[k] = Number(v);
+      }
+    }
+    return out;
+  };
 
   return {
     queryOne<T = SqlRow>(sql: string, params?: Params): T | undefined {

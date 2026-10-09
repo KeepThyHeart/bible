@@ -68,7 +68,9 @@ export interface SyncStore {
   accounts: { create(a: NewAccount): void; byEmail(email: string): AccountRow | undefined; byId(id: string): AccountRow | undefined;
     update(id: string, patch: Partial<AccountRow>): void; delete(id: string): void };
   sessions: { create(s: SessionRow): void; byTokenHash(h: Uint8Array): SessionRow | undefined; touch(h: Uint8Array, at: number): void;
-    deleteForDevice(accountId: string, deviceId: string): void; deleteAllExcept(accountId: string, keepHash?: Uint8Array): void };
+    deleteForDevice(accountId: string, deviceId: string): void; deleteAllExcept(accountId: string, keepHash?: Uint8Array): void;
+    /** Drop every recovery-kind session of the account. */
+    deleteRecovery(accountId: string): void };
   devices: { upsert(d: DeviceRow): void; list(accountId: string): DeviceRow[]; delete(accountId: string, id: string): void };
   keysets: { replaceAll(accountId: string, ks: KeysetWire[]): void; list(accountId: string): KeysetWire[] };
   records: { changes(accountId: string, since: number, limit: number): Sync.EncryptedRecordWire[];
