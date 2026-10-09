@@ -40,7 +40,10 @@ export function createMemoryReminderBridge(host: ModuleReminderHost): MemoryRemi
   const source: ItemSource = {
     id: MEMORY_REMINDER_SOURCE,
     kind: 'items',
-    label: label(),
+    // A getter: main learns the UI language after this registers at startup.
+    get label() {
+      return label();
+    },
     // Push cards are opt-in inside Memory's own settings; the scheduler switch must not hide them twice.
     defaultEnabled: true,
     target: { kind: 'route', route: MEMORY_CARDS_ROUTE },

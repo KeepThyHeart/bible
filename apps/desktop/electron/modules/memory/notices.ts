@@ -7,7 +7,7 @@
  * said "shown". Imports only `ISql`, so the main module can use it without loading the core.
  */
 import type { ISql } from '@bible/core';
-import { LEGACY_EXTENSION_ID } from '@bible/memory/legacy';
+import { LEGACY_EXTENSION_ID } from '@bible/memory/manifest';
 import type { MemoryNotice } from '@bible/memory/api';
 
 export const RETIRED_KEY = `retired:${LEGACY_EXTENSION_ID}`;

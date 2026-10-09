@@ -433,7 +433,7 @@
   "memory.core.somethingWentWrong": "Algo deu errado.",
   "memory.core.loopFindingNext": "Buscando a próxima passagem",
   "memory.core.loopSkippedLanguage": "Uma passagem foi pulada por estar em um idioma que ainda não pode ser recitado em voz alta.",
-  "memory.core.loopRecite": "Recite {reference}",
+  "memory.core.loopRecite": "Recitar {reference}",
   "memory.core.loopTapTalk": "Toque em Falar e recite de memória",
   "memory.core.loopListening": "Ouvindo",
   "memory.core.loopInterrupted": "A escuta foi interrompida.",

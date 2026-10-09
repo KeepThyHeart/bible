@@ -146,7 +146,7 @@ describe('manual merge of the old extension database', () => {
     t.db.exec('INSERT INTO memory_attempt (card_id, at, score, correct_first, total_steps) VALUES (1, 2000, 1, 1, 1)'); // newer than the old 1000
     expect(mergeLegacyMemory(t, { openSource: open(path), now: 77 })).toMatchObject({ advanced: {} });
     expect(t.queryOne('SELECT interval_step, due_at FROM memory_card WHERE id = 1')).toEqual({ interval_step: 3, due_at: 4000 });
-    const t2 = target(); // reset at 900 is only newer than... the old practice at 1000? No: 1000 > 900, so reset 1500 here
+    const t2 = target(); // a local reset (1500) newer than the old practice (1000)
     t2.db.exec('UPDATE memory_card SET progress_reset_at = 1500 WHERE id = 1');
     mergeLegacyMemory(t2, { openSource: open(path), now: 77 });
     expect(t2.queryOne('SELECT interval_step, due_at FROM memory_card WHERE id = 1')).toEqual({ interval_step: 3, due_at: 4000 });

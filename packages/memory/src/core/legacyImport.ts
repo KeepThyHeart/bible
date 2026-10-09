@@ -38,7 +38,8 @@
 import type { ISql, SqlParameter } from '@bible/core';
 
 /** The extension's manifest id; its database directory is named after it. */
-export const LEGACY_EXTENSION_ID = 'ext.bible-app.scripture-memory';
+export { LEGACY_EXTENSION_ID } from '../manifest';
+import { LEGACY_EXTENSION_ID } from '../manifest';
 /** The database name the extension passed to `storage.openDatabase`. */
 export const LEGACY_DB_NAME = 'memory';
 /** The `memory_import.source` key for this import. Stable: it is stored. */

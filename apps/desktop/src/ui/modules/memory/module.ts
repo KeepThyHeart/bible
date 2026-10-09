@@ -81,9 +81,12 @@ export async function collectNotices(client: Pick<typeof memoryClient, 'takeNoti
 }
 
 export function activate(ctx: FeatureModuleContext): void {
+  // Set on dispose: a status or notice reply that arrives after the module was switched off is dropped.
+  let disposed = false;
   ctx.subscriptions.push(startMemoryClickRouting());
 
   const applyStatus = (due: number, waiting: number): void => {
+    if (disposed) return;
     appRegistry.setBadge(MEMORY_APP_ID, badgeFor(due, waiting));
   };
   let warned = false;
@@ -94,7 +97,7 @@ export function activate(ctx: FeatureModuleContext): void {
   const notices = (): void => {
     void (async () => {
       try {
-        await collectNotices();
+        if (!disposed) await collectNotices();
       } catch (error) {
         warn('notices', error);
       }
@@ -128,7 +131,7 @@ export function activate(ctx: FeatureModuleContext): void {
         warn('status', error);
       }
       try {
-        await collectNotices();
+        if (!disposed) await collectNotices();
       } catch (error) {
         warn('notices', error);
       }
@@ -140,6 +143,7 @@ export function activate(ctx: FeatureModuleContext): void {
   document.addEventListener('visibilitychange', notices);
   ctx.subscriptions.push({
     dispose() {
+      disposed = true;
       clearTimeout(timer);
       clearInterval(interval);
       window.removeEventListener('focus', refresh);
