@@ -389,3 +389,10 @@ export * from './Services/Similar';
 // the lazy platform `AppBinding`. Framework-free; views are bound per platform.
 export * from './Modules';
 export * from './Apps';
+
+// --- Accounts and sync (task 0150) ---------------------------------------------
+// End-to-end encrypted sync: contracts, crypto, tracking, engine, account client. Browser-safe.
+export * as Sync from './Sync';
+// Core user schema (one DDL for desktop and web) and the Memory tables it owns.
+export { createUserSchema, migrateUserSchema, USER_SCHEMA_DDL, MEMORY_DDL, MEMORY_TABLES, MEMORY_IMPORT_TABLE, installMemorySchema } from './Data/UserSchema';
+export type { MemoryTable } from './Data/UserSchema';

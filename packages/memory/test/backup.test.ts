@@ -57,7 +57,7 @@ describe('memory tables in backups', () => {
     const a = db();
     seed(a);
     const { archive } = await restore(a, db(), 'replace');
-    expect(archive.manifest.userSchemaVersion).toBe(2);
+    expect(archive.manifest.userSchemaVersion).toBe(Backup.USER_SCHEMA_VERSION);
     const ids = archive.manifest.sections.map((s) => s.id);
     for (const t of BACKED_UP) expect(ids).toContain(`user.${t}`);
     expect(ids.some((id) => id.includes('memory_push_card') || id.includes('memory_import'))).toBe(false);

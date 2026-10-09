@@ -1,7 +1,9 @@
 /**
  * Drift tests for the user-table registry against the schema core ships
- * (`UserDatabase.sql`). The matching test against the desktop's own DDL lives in
- * `apps/desktop/electron/services/__tests__/BackupRegistry.test.ts`.
+ * (`UserDatabase.sql`). Every table is `origin: 'both'` (task 0150), so every registered table must be
+ * in that file. The matching test against the desktop's own DDL lives in
+ * `apps/desktop/electron/services/__tests__/BackupRegistry.test.ts`; the one against `createUserSchema`
+ * is in `UserSchema/userSchema.test.ts`.
  */
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { UserTestHelper } from '../helpers/UserTestHelper';
@@ -23,23 +25,25 @@ describe('registry vs core UserDatabase.sql', () => {
     const unclassified = tablesOf().filter((t) => !isClassified(t));
     expect(unclassified, 'add these tables to USER_TABLES or EXCLUDED_TABLES').toEqual([]);
   });
-  it('has every table core-origin tables claim, with exactly the same columns', () => {
-    for (const spec of USER_TABLES.filter((s) => s.origin !== 'desktop')) {
+  it('has every registered table, with exactly the same columns', () => {
+    for (const spec of USER_TABLES) {
       expect(tablesOf(), spec.name).toContain(spec.name);
       expect(colsOf(spec.name), spec.name).toEqual(spec.columns);
     }
   });
-  it('does not claim a table core lacks as core-origin', () => {
-    const present = new Set(tablesOf());
-    for (const spec of USER_TABLES) {
-      if (spec.origin === 'desktop') expect(present.has(spec.name), `${spec.name} is desktop-only`).toBe(false);
-    }
+  it('marks every table origin both, since every platform creates the whole schema', () => {
+    expect(USER_TABLES.filter((s) => s.origin !== 'both').map((s) => s.name)).toEqual([]);
   });
-  it('lists primary keys that match the DDL for core tables', () => {
-    for (const spec of USER_TABLES.filter((s) => s.origin !== 'desktop')) {
+  it('lists primary keys that match the DDL', () => {
+    for (const spec of USER_TABLES) {
       const pk = db.queryAll<{ name: string; pk: number }>(`PRAGMA table_info("${spec.name}")`).filter((c) => c.pk > 0).sort((a, b) => a.pk - b.pk).map((c) => c.name);
       expect(pk, spec.name).toEqual(spec.pk);
     }
+  });
+  it('no longer has the sync_metadata table, and excludes the tracker bookkeeping tables', () => {
+    expect(tablesOf()).not.toContain('sync_metadata');
+    expect(EXCLUDED_TABLES).not.toContain('sync_metadata');
+    for (const t of ['sync_record', 'sync_state', 'sync_opaque', 'sync_pending']) expect(isClassified(t), t).toBe(true);
   });
 });
 
@@ -100,11 +104,10 @@ describe('row upgraders and the version stamp', () => {
     expect(upgradeRow(spec, { name: ' a ' }, 1, 2)).toMatchObject({ name: 'a' });
     expect(upgradeRow(spec, { name: ' a ' }, 2, 2)).toMatchObject({ name: ' a ' });
   });
-  it('the current version is 2 (memory tables, 0114) and stamping is monotonic', () => {
-    expect(USER_SCHEMA_VERSION).toBe(2);
+  it('stamps the current version, and stamping is monotonic', () => {
     expect(readUserSchemaVersion(db)).toBe(0);
     stampUserSchemaVersion(db);
-    expect(readUserSchemaVersion(db)).toBe(2);
+    expect(readUserSchemaVersion(db)).toBe(USER_SCHEMA_VERSION);
     db.execute('PRAGMA user_version = 7');
     stampUserSchemaVersion(db);
     expect(readUserSchemaVersion(db)).toBe(7);

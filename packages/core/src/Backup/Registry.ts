@@ -20,8 +20,10 @@ import type { ISql } from '../Data/Core/ISql';
  * - 1: the first registry.
  * - 2: the `memory_*` tables of the built-in Scripture memory module (task 0114). New tables only, so no
  *   upgrader; the bump stops an older build from restoring a backup whose memory rows it would drop.
+ * - 3: every user table on every platform (core `createUserSchema`, task 0150); sync bookkeeping excluded.
+ *   New tables only, no upgrader.
  */
-export const USER_SCHEMA_VERSION = 2;
+export const USER_SCHEMA_VERSION = 3;
 
 /**
  * - `content`: what the user wrote or collected; losing it is data loss. Always backed up.
@@ -73,7 +75,10 @@ export interface TableSpec {
   columns: string[];
   /** Columns that some implementations lack (their default applies on restore). */
   optionalColumns?: string[];
-  /** Which implementations create the table. */
+  /**
+   * Which implementations create the table. Every table is `'both'` since core's `createUserSchema` (task 0150)
+   * creates the whole schema on every platform; the other values stay in the type for a future platform-only table.
+   */
   origin: 'both' | 'core' | 'desktop';
   fks: FkSpec[];
   identity: IdentitySpec;
@@ -128,13 +133,13 @@ export const USER_TABLES: readonly TableSpec[] = [
     identity: contentAll(),
   },
   {
-    name: 'note_verse_link', pk: ['link_id'], autoId: true, cls: 'content', origin: 'desktop',
+    name: 'note_verse_link', pk: ['link_id'], autoId: true, cls: 'content', origin: 'both',
     columns: ['link_id', 'note_id', 'verse_id_start', 'verse_id_end', 'link_type', 'word_start', 'word_end', 'metadata'],
     fks: [{ column: 'note_id', table: 'user_note', sql: true, onMissing: 'drop' }],
     identity: contentAll(),
   },
   {
-    name: 'content_verse_link', pk: ['link_id'], autoId: true, cls: 'content', origin: 'desktop',
+    name: 'content_verse_link', pk: ['link_id'], autoId: true, cls: 'content', origin: 'both',
     columns: ['link_id', 'content_type', 'content_id', 'verse_id_start', 'verse_id_end', 'link_type', 'position', 'metadata'],
     // The desktop writes the note id for every content type (note, journal, prayer, document).
     fks: [{ column: 'content_id', table: 'user_note', sql: false, onMissing: 'drop' }],
@@ -147,48 +152,48 @@ export const USER_TABLES: readonly TableSpec[] = [
     identity: contentAll(),
   },
   {
-    name: 'user_cross_reference', pk: ['user_xref_id'], autoId: true, cls: 'content', origin: 'core',
+    name: 'user_cross_reference', pk: ['user_xref_id'], autoId: true, cls: 'content', origin: 'both',
     columns: ['user_xref_id', 'from_verse_id_start', 'from_verse_id_end', 'to_verse_id_start', 'to_verse_id_end', 'notes', 'created_date', 'metadata'],
     fks: [], identity: contentAll(),
   },
   {
-    name: 'reading_plan', pk: ['plan_id'], autoId: true, cls: 'content', origin: 'core',
+    name: 'reading_plan', pk: ['plan_id'], autoId: true, cls: 'content', origin: 'both',
     columns: ['plan_id', 'name', 'description', 'plan_type', 'duration_days', 'is_builtin', 'created_date', 'metadata'],
     fks: [], identity: { kind: 'unique', columns: ['name', 'plan_type', 'is_builtin'], conflict: 'keepLocal' },
   },
   {
-    name: 'reading_plan_day', pk: ['day_id'], autoId: true, cls: 'content', origin: 'core',
+    name: 'reading_plan_day', pk: ['day_id'], autoId: true, cls: 'content', origin: 'both',
     columns: ['day_id', 'plan_id', 'day_number', 'metadata'],
     fks: [{ column: 'plan_id', table: 'reading_plan', sql: true, onMissing: 'drop' }],
     identity: { kind: 'unique', columns: ['plan_id', 'day_number'], conflict: 'keepLocal' },
   },
   {
-    name: 'reading_plan_passage', pk: ['passage_id'], autoId: true, cls: 'content', origin: 'core',
+    name: 'reading_plan_passage', pk: ['passage_id'], autoId: true, cls: 'content', origin: 'both',
     columns: ['passage_id', 'day_id', 'session_name', 'verse_id_start', 'verse_id_end', 'sort_order', 'metadata'],
     fks: [{ column: 'day_id', table: 'reading_plan_day', sql: true, onMissing: 'drop' }],
     identity: contentAll(),
   },
   {
-    name: 'user_reading_progress', pk: ['progress_id'], autoId: true, cls: 'content', origin: 'core',
+    name: 'user_reading_progress', pk: ['progress_id'], autoId: true, cls: 'content', origin: 'both',
     columns: ['progress_id', 'plan_id', 'start_date', 'current_day', 'completed_days', 'notes', 'status',
       'estimated_completion_date', 'streak_days', 'metadata'],
     fks: [{ column: 'plan_id', table: 'reading_plan', sql: true, onMissing: 'drop' }],
     identity: { kind: 'unique', columns: ['plan_id', 'start_date'], conflict: 'keepLocal' },
   },
   {
-    name: 'prayer_item', pk: ['prayer_id'], autoId: true, cls: 'content', origin: 'core',
+    name: 'prayer_item', pk: ['prayer_id'], autoId: true, cls: 'content', origin: 'both',
     columns: ['prayer_id', 'title', 'description', 'category', 'priority', 'status', 'created_date', 'answered_date',
       'reminder_date', 'reminder_recurrence', 'tags', 'linked_verses', 'metadata'],
     fks: [], identity: contentAll(),
   },
   {
-    name: 'prayer_update', pk: ['update_id'], autoId: true, cls: 'content', origin: 'core',
+    name: 'prayer_update', pk: ['update_id'], autoId: true, cls: 'content', origin: 'both',
     columns: ['update_id', 'prayer_id', 'update_text', 'update_date', 'metadata'],
     fks: [{ column: 'prayer_id', table: 'prayer_item', sql: true, onMissing: 'drop' }],
     identity: contentAll(),
   },
   {
-    name: 'journal_entry', pk: ['entry_id'], autoId: true, cls: 'content', origin: 'core',
+    name: 'journal_entry', pk: ['entry_id'], autoId: true, cls: 'content', origin: 'both',
     columns: ['entry_id', 'title', 'content', 'content_format', 'entry_date', 'created_date', 'modified_date', 'tags', 'mood', 'is_encrypted', 'metadata'],
     fks: [], identity: contentAll(),
   },
@@ -198,7 +203,7 @@ export const USER_TABLES: readonly TableSpec[] = [
     fks: [], identity: { kind: 'unique', columns: ['owner_uuid', 'collection', 'item_key'], conflict: 'newerWins', stamp: 'modified_date' },
   },
   {
-    name: 'verse_link', pk: ['link_id'], autoId: true, cls: 'content', origin: 'core',
+    name: 'verse_link', pk: ['link_id'], autoId: true, cls: 'content', origin: 'both',
     columns: ['link_id', 'source_type', 'source_id', 'verse_id_start', 'verse_id_end', 'link_type', 'sort_order', 'context', 'metadata'],
     fks: [{
       column: 'source_id', typeColumn: 'source_type',
@@ -207,17 +212,17 @@ export const USER_TABLES: readonly TableSpec[] = [
     }],
     identity: contentAll(),
   },
-  // --- Scripture memory (task 0114; DDL in packages/memory/src/core/schema.ts) ---
-  // Desktop only while the web keeps no user content (0063). Ids are local integers; merge remaps them
-  // through the foreign keys below. `memory_push_card` is excluded (see EXCLUDED_TABLES).
+  // --- Scripture memory (task 0114; DDL in core Data/UserSchema/memory.ts, re-exported by packages/memory) ---
+  // Created on every platform by `createUserSchema`. Ids are local integers; merge remaps them through the
+  // foreign keys below. `memory_push_card` is excluded (see EXCLUDED_TABLES).
   {
-    name: 'memory_collection', pk: ['id'], autoId: true, cls: 'content', origin: 'desktop',
+    name: 'memory_collection', pk: ['id'], autoId: true, cls: 'content', origin: 'both',
     columns: ['id', 'name', 'created_at'],
     // Lists are matched by name, so merging a backup puts its "Default" passages into the local "Default".
     fks: [], identity: { kind: 'unique', columns: ['name'], conflict: 'keepLocal' },
   },
   {
-    name: 'memory_passage', pk: ['id'], autoId: true, cls: 'content', origin: 'desktop',
+    name: 'memory_passage', pk: ['id'], autoId: true, cls: 'content', origin: 'both',
     columns: ['id', 'collection_id', 'module_id', 'start_verse_id', 'end_verse_id', 'reference', 'verse_count', 'added_at',
       'answer_mode', 'deleted_at', 'recite_on'],
     fks: [{ column: 'collection_id', table: 'memory_collection', sql: true, onMissing: 'drop' }],
@@ -225,14 +230,14 @@ export const USER_TABLES: readonly TableSpec[] = [
     identity: { kind: 'unique', columns: ['collection_id', 'module_id', 'start_verse_id', 'end_verse_id'], conflict: 'keepLocal' },
   },
   {
-    name: 'memory_card', pk: ['id'], autoId: true, cls: 'content', origin: 'desktop',
+    name: 'memory_card', pk: ['id'], autoId: true, cls: 'content', origin: 'both',
     columns: ['id', 'passage_id', 'rung', 'state', 'interval_step', 'due_at', 'streak', 'last_score', 'progress_reset_at'],
     fks: [{ column: 'passage_id', table: 'memory_passage', sql: true, onMissing: 'drop' }],
     // The local schedule stays; the later progress reset wins, so merged-in attempts the user reset stay hidden.
     identity: { kind: 'unique', columns: ['passage_id', 'rung'], conflict: 'max', maxColumns: ['progress_reset_at'] },
   },
   {
-    name: 'memory_attempt', pk: ['id'], autoId: true, cls: 'content', origin: 'desktop',
+    name: 'memory_attempt', pk: ['id'], autoId: true, cls: 'content', origin: 'both',
     columns: ['id', 'card_id', 'at', 'score', 'correct_first', 'total_steps', 'replay', 'duration_ms', 'tier'],
     fks: [{ column: 'card_id', table: 'memory_card', sql: true, onMissing: 'drop' }],
     // Levels are derived from attempts, so merging keeps the union of both histories (identical rows once).
@@ -241,7 +246,7 @@ export const USER_TABLES: readonly TableSpec[] = [
   {
     // Per-word recite detail (verdict letters and counts, never heard text). Content rather than history:
     // replacing attempts cascades into it, so it must travel with them.
-    name: 'memory_recite_detail', pk: ['attempt_id'], autoId: false, cls: 'content', origin: 'desktop',
+    name: 'memory_recite_detail', pk: ['attempt_id'], autoId: false, cls: 'content', origin: 'both',
     columns: ['attempt_id', 'card_id', 'at', 'verdicts', 'credits', 'verse_scores', 'extras', 'strictness', 'engine_id', 'model_id'],
     fks: [
       { column: 'attempt_id', table: 'memory_attempt', sql: true, onMissing: 'drop' },
@@ -252,19 +257,19 @@ export const USER_TABLES: readonly TableSpec[] = [
   {
     // Memory preferences (answer mode, sort order, scope, recite and push-card settings). `practiceScope`
     // holds a list id: kept by replace (ids are preserved), validated on read after a merge.
-    name: 'memory_setting', pk: ['key'], autoId: false, cls: 'workspace', origin: 'desktop',
+    name: 'memory_setting', pk: ['key'], autoId: false, cls: 'workspace', origin: 'both',
     columns: ['key', 'value'],
     fks: [], identity: { kind: 'unique', columns: ['key'], conflict: 'keepLocal' },
   },
   {
     // Where a paused activity resumes. Restored with the workspace; merging keeps the newer point.
-    name: 'memory_resume_state', pk: ['card_id'], autoId: false, cls: 'workspace', origin: 'desktop',
+    name: 'memory_resume_state', pk: ['card_id'], autoId: false, cls: 'workspace', origin: 'both',
     columns: ['card_id', 'cursor', 'correct_first', 'graded_units', 'updated_at', 'tier'],
     fks: [{ column: 'card_id', table: 'memory_card', sql: true, onMissing: 'drop' }],
     identity: { kind: 'unique', columns: ['card_id'], conflict: 'newerWins', stamp: 'updated_at' },
   },
   {
-    name: 'extension_storage', pk: ['extension_id', 'key'], autoId: false, cls: 'extension', origin: 'desktop',
+    name: 'extension_storage', pk: ['extension_id', 'key'], autoId: false, cls: 'extension', origin: 'both',
     columns: ['extension_id', 'key', 'value', 'updated_at'],
     fks: [], identity: { kind: 'unique', columns: ['extension_id', 'key'], conflict: 'newerWins', stamp: 'updated_at' },
   },
@@ -275,46 +280,46 @@ export const USER_TABLES: readonly TableSpec[] = [
     skipInMerge: (row) => row.is_autosave === 1,
   },
   {
-    name: 'user_keybindings', pk: ['command_id', 'key'], autoId: false, cls: 'workspace', origin: 'desktop',
+    name: 'user_keybindings', pk: ['command_id', 'key'], autoId: false, cls: 'workspace', origin: 'both',
     columns: ['command_id', 'key', 'mac', 'when_clause'],
     fks: [], identity: { kind: 'unique', columns: ['command_id', 'key'], conflict: 'keepLocal' },
   },
   {
-    name: 'setting', pk: ['setting_id'], autoId: true, cls: 'workspace', origin: 'core',
+    name: 'setting', pk: ['setting_id'], autoId: true, cls: 'workspace', origin: 'both',
     columns: ['setting_id', 'category', 'key', 'value', 'value_type', 'description', 'metadata'],
     fks: [], identity: { kind: 'unique', columns: ['category', 'key'], conflict: 'keepLocal' },
     skipInMerge: (row) => row.category === 'system',
     keepInReplace: { sql: "category = 'system'", test: (row) => row.category === 'system' },
   },
   {
-    name: 'layout_preset', pk: ['layout_id'], autoId: true, cls: 'workspace', origin: 'core',
+    name: 'layout_preset', pk: ['layout_id'], autoId: true, cls: 'workspace', origin: 'both',
     columns: ['layout_id', 'name', 'description', 'is_stock', 'layout_data', 'created_date', 'metadata'],
     fks: [], identity: contentAll(), skipInMerge: (row) => row.is_stock === 1,
   },
   {
-    name: 'module_display_option', pk: ['option_id'], autoId: true, cls: 'workspace', origin: 'core',
+    name: 'module_display_option', pk: ['option_id'], autoId: true, cls: 'workspace', origin: 'both',
     // module_id is a local install id, not portable across machines (see the restore report warning).
     columns: ['option_id', 'module_id', 'option_key', 'option_value', 'metadata'],
     fks: [], identity: { kind: 'unique', columns: ['module_id', 'option_key'], conflict: 'keepLocal' },
   },
   {
-    name: 'user_profile', pk: ['profile_id'], autoId: false, cls: 'workspace', origin: 'core',
+    name: 'user_profile', pk: ['profile_id'], autoId: false, cls: 'workspace', origin: 'both',
     columns: ['profile_id', 'username', 'display_name', 'email', 'created_date', 'last_login', 'preferences', 'metadata'],
     fks: [], identity: { kind: 'unique', columns: ['profile_id'], conflict: 'keepLocal' }, mergeKeepsLocal: true,
   },
   {
-    name: 'user_search_history', pk: ['search_id'], autoId: true, cls: 'history', origin: 'core',
+    name: 'user_search_history', pk: ['search_id'], autoId: true, cls: 'history', origin: 'both',
     columns: ['search_id', 'query', 'search_type', 'scope', 'module_id', 'result_count', 'search_date', 'metadata'],
     fks: [], identity: contentAll(),
   },
   {
-    name: 'navigation_history', pk: ['nav_id'], autoId: true, cls: 'history', origin: 'core',
+    name: 'navigation_history', pk: ['nav_id'], autoId: true, cls: 'history', origin: 'both',
     columns: ['nav_id', 'session_id', 'tab_id', 'module_id', 'module_type', 'verse_id_start', 'verse_id_end', 'navigation_date', 'metadata'],
     fks: [{ column: 'session_id', table: 'session', sql: true, onMissing: 'drop' }],
     identity: contentAll(),
   },
   {
-    name: 'command_history', pk: ['command_id'], autoId: false, cls: 'history', origin: 'desktop',
+    name: 'command_history', pk: ['command_id'], autoId: false, cls: 'history', origin: 'both',
     columns: ['command_id', 'last_used', 'use_count'],
     fks: [], identity: { kind: 'unique', columns: ['command_id'], conflict: 'max', maxColumns: ['last_used', 'use_count'] },
   },
@@ -328,7 +333,12 @@ export const EXCLUDED_TABLES: readonly string[] = [
   'extensions', // install state and paths of this machine
   'extension_catalog_source', // marketplaces (including the risk-acknowledgement) are a per-machine trust decision
   'extension_blocklist', // refreshed from the network
-  'sync_metadata', // device-bound bookkeeping
+  // Sync bookkeeping (task 0150) is owned by the change tracker, device-bound, and rebuilt by a full sync.
+  // The old `sync_metadata` table is gone.
+  'sync_record',
+  'sync_state',
+  'sync_opaque',
+  'sync_pending',
   'schema_version',
   'schema_migration',
   // Scripture memory (0114): push-card schedule rows are rebuilt from the plan, and their keys embed this

@@ -1,7 +1,7 @@
 // @vitest-environment node
 /**
  * Drift tests: the core table registry against the DDL this app really creates
- * (`initializeUserSchema`, `initializeExtensionSchema`, `ensureContentVerseLinkTable`).
+ * (`initializeUserSchema` -> core `createUserSchema`, `initializeExtensionSchema`, `ensureContentVerseLinkTable`).
  * A table added to the desktop schema without being classified in the registry
  * fails here, which removes the "forgot to add it to the backup list" path.
  * The matching test against core's own `UserDatabase.sql` is in
@@ -34,17 +34,16 @@ describe('desktop schema vs the backup table registry', () => {
   it('classifies every table the desktop creates', () => {
     expect(tables().filter((t) => !Backup.isClassified(t))).toEqual([]);
   });
-  it('matches the columns of every desktop-origin and shared table (optional columns aside)', () => {
-    for (const spec of Backup.USER_TABLES.filter((s) => s.origin !== 'core')) {
+  it('creates every registered table (core builds the whole schema now), with exactly the registry columns', () => {
+    for (const spec of Backup.USER_TABLES) {
       expect(tables(), spec.name).toContain(spec.name);
-      const expected = spec.columns.filter((c) => !(spec.optionalColumns ?? []).includes(c));
-      expect(cols(spec.name), spec.name).toEqual(expected);
+      // A fresh database has the optional columns too (`user_note.sort_order`); only older files lack them.
+      expect(cols(spec.name), spec.name).toEqual(spec.columns);
     }
   });
-  it('does not create a table the registry says only core has', () => {
-    for (const spec of Backup.USER_TABLES.filter((s) => s.origin === 'core')) {
-      expect(tables(), spec.name).not.toContain(spec.name);
-    }
+  it('creates no sync_metadata table, and no tracker table before the tracker is installed', () => {
+    expect(tables()).not.toContain('sync_metadata');
+    expect(tables().filter((t) => t.startsWith('sync_'))).toEqual([]);
   });
   it('stamps the schema version, and never lowers a higher one', () => {
     expect(Backup.readUserSchemaVersion(sql)).toBe(Backup.USER_SCHEMA_VERSION);

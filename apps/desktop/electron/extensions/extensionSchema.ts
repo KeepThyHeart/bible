@@ -91,20 +91,8 @@ export function initializeExtensionSchema(db: ISql): void {
     'CREATE INDEX IF NOT EXISTS idx_extension_blocklist_ext ON extension_blocklist(extension_id)',
   );
 
-  // --- extension_storage: namespaced KV store ---------------------------
-  db.execute(`
-    CREATE TABLE IF NOT EXISTS extension_storage (
-      extension_id TEXT NOT NULL,
-      key          TEXT NOT NULL,
-      value        TEXT NOT NULL,
-      updated_at   INTEGER NOT NULL,
-      PRIMARY KEY (extension_id, key)
-    )
-  `);
-
-  db.execute(
-    'CREATE INDEX IF NOT EXISTS idx_extension_storage_ext ON extension_storage(extension_id)',
-  );
+  // extension_storage (the namespaced KV store) is a core user table now: `createUserSchema` creates it,
+  // so it is tracked and synced with the rest of the user data. See core `Data/UserSchema/ddl.ts`.
 }
 
 /**

@@ -78,7 +78,18 @@ export class UserTestHelper {
       'module_display_option',
       'user_data_item',
       'setting',
-      'sync_metadata',
+      // Tables the desktop created first (now in UserDatabase.sql too), children before parents.
+      'content_verse_link',
+      'user_keybindings',
+      'command_history',
+      'extension_storage',
+      'memory_recite_detail',
+      'memory_resume_state',
+      'memory_attempt',
+      'memory_card',
+      'memory_passage',
+      'memory_collection',
+      'memory_setting',
       'user_profile',
     ];
 

@@ -670,8 +670,8 @@ CREATE INDEX idx_module_option ON module_display_option(module_id, option_key);
 -- so range containment, multi-passage anchoring and reverse lookup ("what user
 -- data touches John 3:16?") all work with no new query code.
 --
--- `sync_metadata` picks these rows up for free: it tracks (table_name,
--- record_id) generically.
+-- Sync (task 0150): the change tracker (`Sync/tracking`) watches this table
+-- with triggers it installs itself; nothing here knows about it.
 --
 -- WHEN NOT TO USE IT: a store with no schema cannot constrain or index anything
 -- inside `value`. It is right for module-owned and experimental data. Once a
@@ -720,6 +720,187 @@ CREATE INDEX idx_user_data_owner_collection
 -- rather than carrying the write cost for one that has not.
 
 -- ============================================================================
+-- 4.8 Tables the desktop created first (now on every platform)
+-- ============================================================================
+-- Core's `createUserSchema` (Data/UserSchema) creates these on the desktop and
+-- on the web, so the two user databases hold the same tables. They are kept in
+-- this file so it stays a complete reference and the backup-registry drift test
+-- can compare every registered table with it. The executable copy is
+-- `Data/UserSchema/ddl.ts` (desktop DDL verbatim); a drift test compares the two.
+
+-- Links from a note to the passages it mentions.
+CREATE TABLE note_verse_link (
+    link_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    note_id INTEGER NOT NULL,
+    verse_id_start INTEGER NOT NULL,
+    verse_id_end INTEGER NOT NULL,                  -- R-1: inclusive; single verse is end = start
+    link_type TEXT DEFAULT 'reference',
+    word_start INTEGER,
+    word_end INTEGER,
+    metadata TEXT,                                  -- JSON: anything not modelled above
+    FOREIGN KEY (note_id) REFERENCES user_note(note_id) ON DELETE CASCADE,
+    CHECK (link_type IN ('reference', 'annotation', 'primary_passage'))
+);
+
+CREATE INDEX idx_note_link_verse_start ON note_verse_link(verse_id_start);
+CREATE INDEX idx_note_link_note ON note_verse_link(note_id);
+
+-- Auto-indexed references from notes (and journal/prayer/document content) to passages.
+CREATE TABLE content_verse_link (
+    link_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    content_type TEXT NOT NULL,
+    content_id INTEGER NOT NULL,                    -- The note id for every content type
+    verse_id_start INTEGER NOT NULL,
+    verse_id_end INTEGER NOT NULL,                  -- R-1: inclusive; single verse is end = start
+    link_type TEXT DEFAULT 'reference',
+    position INTEGER,
+    metadata TEXT,
+    CHECK (content_type IN ('note', 'journal', 'prayer', 'document'))
+);
+
+CREATE INDEX idx_content_verse_link_verse_start ON content_verse_link(verse_id_start);
+CREATE INDEX idx_content_verse_link_verse_end ON content_verse_link(verse_id_end);
+CREATE INDEX idx_content_verse_link_content ON content_verse_link(content_type, content_id);
+
+-- Persisted user key rebinds; registered with source 'user' so they outrank built-in bindings.
+CREATE TABLE user_keybindings (
+    command_id  TEXT NOT NULL,
+    key         TEXT NOT NULL,
+    mac         TEXT,
+    when_clause TEXT,
+    PRIMARY KEY (command_id, key)
+);
+
+-- Recency and frequency of command-palette use.
+CREATE TABLE command_history (
+    command_id TEXT PRIMARY KEY,
+    last_used  INTEGER NOT NULL,
+    use_count  INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE INDEX idx_command_history_last_used ON command_history(last_used DESC);
+
+-- Extensions' namespaced key-value store (tracked for sync as kind `ext.kv`).
+CREATE TABLE extension_storage (
+    extension_id TEXT NOT NULL,
+    key          TEXT NOT NULL,
+    value        TEXT NOT NULL,
+    updated_at   INTEGER NOT NULL,
+    PRIMARY KEY (extension_id, key)
+);
+
+CREATE INDEX idx_extension_storage_ext ON extension_storage(extension_id);
+
+-- Scripture memory (task 0114): the executable copy is `Data/UserSchema/memory.ts`.
+CREATE TABLE memory_collection (
+     id         INTEGER PRIMARY KEY,
+     name       TEXT    NOT NULL,
+     created_at INTEGER NOT NULL
+   );
+
+CREATE TABLE memory_passage (
+     id             INTEGER PRIMARY KEY,
+     collection_id  INTEGER NOT NULL REFERENCES memory_collection(id) ON DELETE CASCADE,
+     module_id      TEXT    NOT NULL,
+     start_verse_id INTEGER NOT NULL,
+     end_verse_id   INTEGER NOT NULL,
+     reference      TEXT    NOT NULL,
+     verse_count    INTEGER NOT NULL,
+     added_at       INTEGER NOT NULL,
+     answer_mode    TEXT,
+     deleted_at     INTEGER,
+     recite_on      INTEGER NOT NULL DEFAULT 0
+   );
+
+CREATE UNIQUE INDEX memory_passage_range_unique
+     ON memory_passage (collection_id, module_id, start_verse_id, end_verse_id);
+
+CREATE INDEX memory_passage_deleted_at ON memory_passage (deleted_at);
+
+CREATE TABLE memory_card (
+     id                INTEGER PRIMARY KEY,
+     passage_id        INTEGER NOT NULL REFERENCES memory_passage(id) ON DELETE CASCADE,
+     rung              TEXT    NOT NULL,
+     state             TEXT    NOT NULL,
+     interval_step     INTEGER NOT NULL DEFAULT -1,
+     due_at            INTEGER,
+     streak            INTEGER NOT NULL DEFAULT 0,
+     last_score        REAL,
+     progress_reset_at INTEGER
+   );
+
+CREATE UNIQUE INDEX memory_card_passage_rung_unique ON memory_card (passage_id, rung);
+
+CREATE INDEX memory_card_due_at ON memory_card (due_at);
+
+CREATE TABLE memory_attempt (
+     id            INTEGER PRIMARY KEY,
+     card_id       INTEGER NOT NULL REFERENCES memory_card(id) ON DELETE CASCADE,
+     at            INTEGER NOT NULL,
+     score         REAL    NOT NULL,
+     correct_first INTEGER NOT NULL,
+     total_steps   INTEGER NOT NULL,
+     replay        INTEGER NOT NULL DEFAULT 0,
+     duration_ms   INTEGER,
+     tier          INTEGER NOT NULL DEFAULT 0
+   );
+
+CREATE INDEX memory_attempt_card_at ON memory_attempt (card_id, at);
+
+CREATE INDEX memory_attempt_at ON memory_attempt (at);
+
+CREATE INDEX memory_attempt_card_tier ON memory_attempt (card_id, tier);
+
+CREATE TABLE memory_setting (
+     key   TEXT PRIMARY KEY,
+     value TEXT NOT NULL
+   );
+
+CREATE TABLE memory_resume_state (
+     card_id       INTEGER PRIMARY KEY REFERENCES memory_card(id) ON DELETE CASCADE,
+     cursor        INTEGER NOT NULL,
+     correct_first INTEGER NOT NULL,
+     graded_units  INTEGER NOT NULL,
+     updated_at    INTEGER NOT NULL,
+     tier          INTEGER NOT NULL DEFAULT 0
+   );
+
+CREATE TABLE memory_recite_detail (
+     attempt_id   INTEGER PRIMARY KEY REFERENCES memory_attempt(id) ON DELETE CASCADE,
+     card_id      INTEGER NOT NULL REFERENCES memory_card(id) ON DELETE CASCADE,
+     at           INTEGER NOT NULL,
+     verdicts     TEXT    NOT NULL,
+     credits      TEXT    NOT NULL,
+     verse_scores TEXT    NOT NULL,
+     extras       INTEGER NOT NULL,
+     strictness   TEXT    NOT NULL,
+     engine_id    TEXT,
+     model_id     TEXT
+   );
+
+CREATE INDEX memory_recite_detail_card_at ON memory_recite_detail (card_id, at);
+
+CREATE TABLE memory_push_card (
+     key        TEXT PRIMARY KEY,
+     passage_id INTEGER NOT NULL REFERENCES memory_passage(id) ON DELETE CASCADE,
+     fire_at    INTEGER NOT NULL,
+     origin     TEXT    NOT NULL,
+     state      TEXT    NOT NULL,
+     updated_at INTEGER NOT NULL
+   );
+
+CREATE INDEX memory_push_card_state_fire ON memory_push_card (state, fire_at);
+
+CREATE TABLE memory_import (
+     source         TEXT    PRIMARY KEY,
+     status         TEXT    NOT NULL,
+     source_version INTEGER,
+     recorded_at    INTEGER NOT NULL,
+     counts         TEXT,
+     detail         TEXT
+   );
+
+-- ============================================================================
 -- 5. Full-Text Search
 -- ============================================================================
 
@@ -758,43 +939,7 @@ CREATE TRIGGER user_note_fts_update AFTER UPDATE ON user_note BEGIN
 END;
 
 -- ============================================================================
--- 6. Sync & Cloud
--- ============================================================================
-
--- One row per synced record, tracking what has changed since the last upload.
--- (table_name, record_id) is a soft polymorphic reference into this same
--- database: no FK is possible against a name held as data, so a row here can
--- outlive the record it describes -- which is exactly what `is_deleted` is for.
-CREATE TABLE sync_metadata (
-    sync_id INTEGER PRIMARY KEY AUTOINCREMENT,      -- Row id. (table_name, record_id) is the real
-                                                    -- identity -- see the UNIQUE below.
-    table_name TEXT NOT NULL,                       -- Which table the tracked record lives in
-    record_id INTEGER NOT NULL,                     -- Its primary key in that table
-    last_modified TEXT NOT NULL,                    -- ISO-8601 UTC of the last local change
-    last_synced TEXT,                               -- ISO-8601 UTC of the last successful sync. NULL =
-                                                    -- never synced. last_modified > last_synced is what
-                                                    -- makes a record pending.
-    sync_hash TEXT,                                 -- Content hash at last sync, so an edit that reverts
-                                                    -- to the synced content is recognised as a no-op
-                                                    -- rather than resent
-    device_id TEXT,                                 -- Which device made the change, for conflict
-                                                    -- resolution and for not echoing a change back to
-                                                    -- its origin
-    is_deleted INTEGER DEFAULT 0,                   -- 1 = a tombstone. The record is gone locally but
-                                                    -- the row remains, because a deletion has to be
-                                                    -- propagated -- an absent row is indistinguishable
-                                                    -- from one never created.
-    metadata TEXT,                                  -- JSON: anything not modelled above
-
-    UNIQUE(table_name, record_id),
-    CHECK (is_deleted IN (0, 1))
-);
-
-CREATE INDEX idx_sync_table_record ON sync_metadata(table_name, record_id);
-CREATE INDEX idx_sync_modified ON sync_metadata(last_modified);
-
--- ============================================================================
--- 7. Schema Bookkeeping
+-- 6. Schema Bookkeeping
 -- ============================================================================
 
 -- @include ../shared/schema_migration.sql

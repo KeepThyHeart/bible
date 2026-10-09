@@ -47,6 +47,7 @@
     "@dnd-kit/utilities": "^3.2.2",
     "@fortawesome/fontawesome-free": "^7.2.0",
     "@huggingface/transformers": "^3.8.1",
+    "@sqlite.org/sqlite-wasm": "3.53.4-build2",
     "better-sqlite3": "^12.11.1",
     "better-sqlite3-web": "npm:better-sqlite3@^12.11.1",
     "compression": "^1.8.1",

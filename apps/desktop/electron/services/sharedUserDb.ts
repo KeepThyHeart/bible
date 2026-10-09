@@ -4,6 +4,9 @@ import { existsSync, mkdirSync } from 'fs';
 import log from 'electron-log';
 import { EncryptedSqliteProvider } from '../providers/EncryptedSqliteProvider';
 import { getOrCreateEncryptionKey } from '../utils/encryptionKeyManager';
+import { Backup } from '@bible/core';
+import { dirname } from 'path';
+import { createPreRestoreSnapshot } from './backup/nodeAdapters';
 
 /**
  * Shared encrypted user database connection singleton.
@@ -46,6 +49,18 @@ export async function getSharedUserDb(username: string = 'default'): Promise<Enc
 
       const encryptionKey = await getOrCreateEncryptionKey();
       const db = new EncryptedSqliteProvider(dbPath, encryptionKey);
+      // Task 0150: the user schema moves to v3 (new tables only). Keep a copy of an
+      // existing database first; a failed copy only warns.
+      try {
+        const before = Backup.readUserSchemaVersion(db);
+        if (before > 0 && before < Backup.USER_SCHEMA_VERSION) {
+          db.execute('PRAGMA wal_checkpoint(TRUNCATE)');
+          createPreRestoreSnapshot({ userDbPath: dbPath, root: join(dirname(dbPath), 'pre-migration'), keep: 3 });
+          log.info(`[SharedUserDb] user schema v${before} -> v${Backup.USER_SCHEMA_VERSION}: copied the database first`);
+        }
+      } catch (e) {
+        log.warn('[SharedUserDb] pre-migration copy failed', e);
+      }
       userDb = db;
 
       log.info('[SharedUserDb] Encrypted user database opened successfully');

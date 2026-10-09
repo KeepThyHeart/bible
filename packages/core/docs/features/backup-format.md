@@ -245,3 +245,4 @@ Restore is two steps. `inspectBackup(archive, target)` maps a verified backup on
 - `hash-wasm` is imported lazily, so nothing is downloaded or compiled until a password is actually hashed.
 - The payload is built in memory before it is encrypted, because the manifest comes first and lists every entry's checksum. Only the encryption layer streams.
 - After a code change that adds a table, add it to `USER_TABLES` (or `EXCLUDED_TABLES`) and bump `USER_SCHEMA_VERSION` with a row upgrader if an existing column changed shape.
+- Task 0150 bumped `USER_SCHEMA_VERSION` to 3: every user table now exists on every platform (core `createUserSchema`); sync bookkeeping tables (`sync_*`) stay excluded. New tables only, no upgrader.

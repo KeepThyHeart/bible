@@ -227,3 +227,10 @@ export * as Reminders from './Reminders';
 // Similar passages (task 0070): browser-safe barrel plus the Node-only vector source.
 export * from './Services/Similar';
 export { createSemanticVectorSource } from './Services/Similar/semanticVectorSource';
+
+// --- Accounts and sync (task 0150) ---------------------------------------------
+// End-to-end encrypted sync: contracts, crypto, tracking, engine, account client. Browser-safe.
+export * as Sync from './Sync';
+// Core user schema (one DDL for desktop and web) and the Memory tables it owns.
+export { createUserSchema, migrateUserSchema, USER_SCHEMA_DDL, MEMORY_DDL, MEMORY_TABLES, MEMORY_IMPORT_TABLE, installMemorySchema } from './Data/UserSchema';
+export type { MemoryTable } from './Data/UserSchema';

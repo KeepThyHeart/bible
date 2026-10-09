@@ -14,10 +14,9 @@ export function newUserDb(withExtensionStorage = true): TestSqliteProvider {
   const schema = loadSchemaSql(path.resolve(__dirname, '../../../sql/schemas/initial/UserDatabase.sql'))
     .split('\n').map((l) => (/^\s*PRAGMA\s/i.test(l) ? `-- ${l}` : l)).join('\n');
   db.exec(schema);
-  if (withExtensionStorage) {
-    db.exec('CREATE TABLE extension_storage (extension_id TEXT NOT NULL, key TEXT NOT NULL, value TEXT NOT NULL, updated_at INTEGER NOT NULL, PRIMARY KEY (extension_id, key));');
-    db.exec('CREATE TABLE user_keybindings (command_id TEXT NOT NULL, key TEXT NOT NULL, mac TEXT, when_clause TEXT, PRIMARY KEY (command_id, key));');
-    db.exec('CREATE TABLE command_history (command_id TEXT PRIMARY KEY, last_used INTEGER NOT NULL, use_count INTEGER NOT NULL DEFAULT 0);');
+  // UserDatabase.sql holds these three too (task 0150); a target that predates them is simulated by dropping them.
+  if (!withExtensionStorage) {
+    for (const t of ['extension_storage', 'user_keybindings', 'command_history']) db.exec(`DROP TABLE ${t};`);
   }
   return db;
 }
