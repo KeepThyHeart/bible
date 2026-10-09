@@ -372,7 +372,14 @@ function writeSnapshot(target: ISql, snapshot: Snapshot, now: number): LegacyImp
       if (bad.length > 0) throw new Error(`Memory import: ${bad.length} broken references in ${t.to}`);
     }
 
-    record(target, 'imported', snapshot.version, now, counts, Object.keys(snapshot.dropped).length > 0 ? { dropped: snapshot.dropped } : undefined);
+    // The import keeps ids, so each imported list maps to itself. Recorded so a later merge can find a
+    // list again after the user renamed it (matching by name alone would duplicate it).
+    const collections: Record<string, number> = {};
+    for (const c of snapshot.rows.get('memory_collection') ?? []) collections[String(c.id)] = Number(c.id);
+    record(target, 'imported', snapshot.version, now, counts, {
+      collections,
+      ...(Object.keys(snapshot.dropped).length > 0 ? { dropped: snapshot.dropped } : {}),
+    });
     return { status: 'imported', sourceVersion: snapshot.version, counts, dropped: snapshot.dropped };
   });
 }
@@ -392,6 +399,8 @@ export type LegacyMergeResult =
       readonly matched: LegacyCounts;
       /** Local passages that were soft-deleted and came back because the old database still has them. */
       readonly revived: number;
+      /** Matched cards that took the old database's schedule because it was practised there more recently. */
+      readonly advanced: LegacyCounts;
     };
 
 /**
@@ -401,11 +410,12 @@ export type LegacyMergeResult =
  * came back later.
  *
  * Same matching rules as merging a backup (the registry's identities), so it
- * is idempotent: lists by name, passages by list + translation + range, cards
+ * is idempotent: lists by the id recorded at import (renames survive) or name, passages by list + translation + range, cards
  * by passage + activity, attempts by all their values. Local rows are never
  * changed, except that a card keeps the later progress reset and a local
  * passage that was soft-deleted is restored when the old database has it
- * live AND practised it after the local removal. New rows get new ids; the saved list scope is translated. Push-card
+ * live AND practised it after the local removal, and a matched card takes the old schedule when the
+ * old database holds practice newer than anything here. New rows get new ids; the saved list scope is translated. Push-card
  * schedules are not copied (they are rebuilt from the plan). One transaction,
  * checked with `foreign_key_check`; the source is only read.
  */
@@ -428,10 +438,33 @@ export function mergeLegacyMemory(target: ISql, opts: LegacyImportOptions): Lega
   return target.transaction(() => mergeSnapshot(target, snap, opts.now));
 }
 
+/** Old-database list id -> local list id, from the import and earlier merges (later records win). */
+function recordedCollectionMap(target: ISql): Map<number, number> {
+  const map = new Map<number, number>();
+  const records = target.queryAll<{ detail: string | null }>(
+    "SELECT detail FROM memory_import WHERE source = ? OR source LIKE ? ORDER BY recorded_at, rowid",
+    [LEGACY_SOURCE_KEY, `${LEGACY_SOURCE_KEY}#merge@%`],
+  );
+  for (const r of records) {
+    if (!r.detail) continue;
+    try {
+      const parsed = JSON.parse(r.detail) as { collections?: Record<string, unknown> };
+      for (const [from, to] of Object.entries(parsed.collections ?? {})) {
+        if (typeof to === 'number') map.set(Number(from), to);
+      }
+    } catch {
+      /* an unreadable record is ignored; name matching still applies */
+    }
+  }
+  return map;
+}
+
 function mergeSnapshot(target: ISql, snap: Snapshot, now: number): LegacyMergeResult {
   const rows = (t: string): Row[] => snap.rows.get(t) ?? [];
   const added: LegacyCounts = {};
   const matched: LegacyCounts = {};
+  /** Matched rows whose values moved forward to the old database's. */
+  const advanced: LegacyCounts = {};
   const bump = (m: LegacyCounts, t: string) => (m[t] = (m[t] ?? 0) + 1);
   const insert = (table: string, row: Row, cols: string[]): number => {
     const r = target.execute(
@@ -444,15 +477,24 @@ function mergeSnapshot(target: ISql, snap: Snapshot, now: number): LegacyMergeRe
   const colsOf = (table: string, without: string[] = []): string[] =>
     Object.keys(LEGACY_TABLES.find((t) => t.to === table)!.columns).filter((c) => !without.includes(c));
 
+  // Lists match by the id recorded when they were first brought over (a rename here must not make
+  // the old database's list look new), and by name otherwise.
+  const knownLists = recordedCollectionMap(target);
   const collections = new Map<unknown, number>();
+  const collectionMap: Record<string, number> = {};
   for (const c of rows('memory_collection')) {
-    const local = target.queryOne<{ id: number }>('SELECT id FROM memory_collection WHERE name = ? ORDER BY id LIMIT 1', [c.name as SqlParameter]);
+    const known = knownLists.get(Number(c.id));
+    const byId = known !== undefined ? target.queryOne<{ id: number }>('SELECT id FROM memory_collection WHERE id = ?', [known]) : undefined;
+    const local =
+      byId ??
+      target.queryOne<{ id: number }>('SELECT id FROM memory_collection WHERE name = ? ORDER BY id LIMIT 1', [c.name as SqlParameter]);
     if (local) {
       collections.set(c.id, local.id);
       bump(matched, 'memory_collection');
     } else {
       collections.set(c.id, insert('memory_collection', c, colsOf('memory_collection', ['id'])));
     }
+    collectionMap[String(c.id)] = collections.get(c.id)!;
   }
 
   let revived = 0;
@@ -479,6 +521,9 @@ function mergeSnapshot(target: ISql, snap: Snapshot, now: number): LegacyMergeRe
 
   const cards = new Map<unknown, number>();
   const newCards = new Set<number>();
+  /** Local card id -> the old database's row, for cards both sides have. */
+  const matchedCards = new Map<number, Row>();
+  const localLatest = new Map<number, number>();
   for (const c of rows('memory_card')) {
     const passageId = passages.get(c.passage_id);
     if (passageId === undefined) continue;
@@ -489,6 +534,9 @@ function mergeSnapshot(target: ISql, snap: Snapshot, now: number): LegacyMergeRe
     if (local) {
       cards.set(c.id, local.id);
       bump(matched, 'memory_card');
+      matchedCards.set(local.id, c);
+      const latest = target.queryOne<{ at: number | null }>('SELECT MAX(at) AS at FROM memory_attempt WHERE card_id = ?', [local.id]);
+      if (latest?.at != null) localLatest.set(local.id, latest.at);
       const theirs = typeof c.progress_reset_at === 'number' ? c.progress_reset_at : null;
       if (theirs !== null && (local.progress_reset_at === null || theirs > local.progress_reset_at)) {
         target.execute('UPDATE memory_card SET progress_reset_at = ? WHERE id = ?', [theirs, local.id]);
@@ -518,6 +566,27 @@ function mergeSnapshot(target: ISql, snap: Snapshot, now: number): LegacyMergeRe
       attempts.set(a.id, id);
       newAttempts.add(id);
     }
+  }
+
+  // A matched card whose old copy was practised after anything here takes the old schedule: the
+  // attempts alone would leave it due when it is not (or not due when it is). Local progress that is
+  // newer, or a reset newer than the old practice, wins.
+  const schedule = ['state', 'interval_step', 'due_at', 'streak', 'last_score'] as const;
+  for (const [localId, theirs] of matchedCards) {
+    const newest = target.queryOne<{ at: number | null }>(
+      `SELECT MAX(a.at) AS at FROM memory_attempt a WHERE a.card_id = ? AND a.id IN (${[...newAttempts].join(',') || 'NULL'})`,
+      [localId],
+    );
+    const theirLatest = newest?.at;
+    if (theirLatest == null || theirs.state === 'new') continue; // practised but never scheduled: nothing to take
+    if (theirLatest <= (localLatest.get(localId) ?? -Infinity)) continue;
+    const reset = target.queryOne<{ progress_reset_at: number | null }>('SELECT progress_reset_at FROM memory_card WHERE id = ?', [localId]);
+    if (reset?.progress_reset_at != null && theirLatest <= reset.progress_reset_at) continue;
+    target.execute(
+      `UPDATE memory_card SET ${schedule.map((c) => `${c} = ?`).join(', ')} WHERE id = ?`,
+      [...schedule.map((c) => theirs[c] as SqlParameter), localId],
+    );
+    bump(advanced, 'memory_card');
   }
 
   // A passage the user removed here comes back only if it was practised after the removal (the
@@ -592,7 +661,7 @@ function mergeSnapshot(target: ISql, snap: Snapshot, now: number): LegacyMergeRe
     if (bad.length > 0) throw new Error(`Memory import: ${bad.length} broken references in ${t.to}`);
   }
 
-  const detail = { added, matched, revived };
+  const detail = { added, matched, revived, advanced, collections: collectionMap };
   target.execute(
     'INSERT INTO memory_import (source, status, source_version, recorded_at, counts, detail) VALUES (?, ?, ?, ?, ?, ?)',
     [`${LEGACY_SOURCE_KEY}#merge@${now}`, 'merged', snap.version, now, JSON.stringify(added), JSON.stringify(detail)],
@@ -606,5 +675,5 @@ function mergeSnapshot(target: ISql, snap: Snapshot, now: number): LegacyMergeRe
     'INSERT OR IGNORE INTO memory_import (source, status, source_version, recorded_at, counts, detail) VALUES (?, ?, ?, ?, ?, ?)',
     [LEGACY_SOURCE_KEY, 'merged', snap.version, now, JSON.stringify(added), null],
   );
-  return { status: 'merged', sourceVersion: snap.version, added, matched, revived };
+  return { status: 'merged', sourceVersion: snap.version, added, matched, revived, advanced };
 }

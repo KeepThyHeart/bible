@@ -7,6 +7,8 @@ export { MemoryService, versesFromMenuArgs } from './service';
 export type { MemoryServiceOptions } from './service';
 
 export * from './api';
+export { englishTranslate, formatMessage, setCoreTranslator, tc } from './messages';
+export type { MessageParams, Translate } from './messages';
 export type * from './ports';
 
 export { installMemorySchema, MEMORY_TABLES, MEMORY_DDL } from './schema';

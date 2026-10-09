@@ -17,6 +17,8 @@
  * wrap in `{ ok: false, error }`.
  */
 
+import { setCoreTranslator, tc } from './messages';
+import type { Translate } from './messages';
 import type {
   BibleBookDto,
   BibleChapterDto,
@@ -127,6 +129,8 @@ export interface MemoryServiceOptions {
   openApp?(): void | Promise<void>;
   /** Open the host's settings (formerly `ui.openSettings`). */
   openSettings?(): void | Promise<void>;
+  /** The host's translator for messages shown to the user (errors, notices, reminder text). Default: English. */
+  t?: Translate;
   now?(): number;
   rng?(): number;
   calendar?: Calendar;
@@ -245,6 +249,7 @@ export class MemoryService implements MemoryApi {
    * everything after it is best effort.
    */
   static async start(opts: MemoryServiceOptions): Promise<MemoryService> {
+    setCoreTranslator(opts.t);
     const svc = new MemoryService(opts);
     await svc.init();
     return svc;

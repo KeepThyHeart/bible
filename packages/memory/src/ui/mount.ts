@@ -34,6 +34,8 @@ import { renderCardStack } from './cardView';
 import { pickFlowTarget } from './suggest';
 import { INITIAL_NAV, navReduce, sameView } from './state';
 import type { Flow, NavAction, NavState } from './state';
+import { setUiTranslator } from './i18n';
+import type { Translate } from './i18n';
 import './memory.css';
 
 export interface MemoryUiOptions {
@@ -47,6 +49,10 @@ export interface MemoryUiOptions {
   activeReference?: string | null;
   /** Clock; default `Date.now`. */
   now?(): number;
+  /** The host's translator (catalog lookup); default: the built-in English. */
+  t?: Translate;
+  /** BCP-47 tag for dates and numbers; default: the runtime's. */
+  locale?: string;
 }
 
 export interface MemoryUiHandle {
@@ -90,6 +96,7 @@ function isRunning(state: ReciteStateView): boolean {
 
 export function mountMemoryUi(container: HTMLElement, options: MemoryUiOptions): MemoryUiHandle {
   const { api } = options;
+  setUiTranslator(options.t, options.locale);
   const now = options.now ?? (() => Date.now());
   const doc = container.ownerDocument;
   const win = doc.defaultView ?? window;

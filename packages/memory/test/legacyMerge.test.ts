@@ -121,6 +121,59 @@ describe('manual merge of the old extension database', () => {
     expect(t.queryOne("SELECT status FROM memory_import WHERE source = 'extension:ext.bible-app.scripture-memory/memory'")).toEqual({ status: 'merged' });
   });
 
+  it('a matched card takes the old schedule when it was practised there after anything here', () => {
+    const path = legacy();
+    const db = new Database(path);
+    db.prepare("UPDATE card SET state = 'learning', interval_step = 4, due_at = 9000, streak = 3, last_score = 0.9, progress_reset_at = NULL WHERE id = 100").run();
+    db.close();
+    const t = target();
+    t.db.exec('UPDATE memory_passage SET deleted_at = NULL WHERE id = 1');
+    t.db.exec('UPDATE memory_card SET progress_reset_at = NULL WHERE id = 1');
+    t.db.exec('INSERT INTO memory_attempt (card_id, at, score, correct_first, total_steps) VALUES (1, 400, 1, 1, 1)');
+    const result = mergeLegacyMemory(t, { openSource: open(path), now: 77 });
+    expect(result).toMatchObject({ status: 'merged', advanced: { memory_card: 1 } });
+    expect(t.queryOne('SELECT state, interval_step, due_at, streak, last_score FROM memory_card WHERE id = 1')).toEqual({
+      state: 'learning', interval_step: 4, due_at: 9000, streak: 3, last_score: 0.9,
+    });
+  });
+
+  it('a matched card keeps newer local progress, or a reset newer than the old practice', () => {
+    const path = legacy();
+    const db = new Database(path);
+    db.prepare("UPDATE card SET state = 'learning', interval_step = 4, due_at = 9000 WHERE id = 100").run();
+    db.close();
+    const t = target();
+    t.db.exec('INSERT INTO memory_attempt (card_id, at, score, correct_first, total_steps) VALUES (1, 2000, 1, 1, 1)'); // newer than the old 1000
+    expect(mergeLegacyMemory(t, { openSource: open(path), now: 77 })).toMatchObject({ advanced: {} });
+    expect(t.queryOne('SELECT interval_step, due_at FROM memory_card WHERE id = 1')).toEqual({ interval_step: 3, due_at: 4000 });
+    const t2 = target(); // reset at 900 is only newer than... the old practice at 1000? No: 1000 > 900, so reset 1500 here
+    t2.db.exec('UPDATE memory_card SET progress_reset_at = 1500 WHERE id = 1');
+    mergeLegacyMemory(t2, { openSource: open(path), now: 77 });
+    expect(t2.queryOne('SELECT interval_step, due_at FROM memory_card WHERE id = 1')).toEqual({ interval_step: 3, due_at: 4000 });
+  });
+
+  it('a list renamed here is still the old database\'s list: no second plan, even after an import', () => {
+    const path = legacy();
+    const t = new TestSql();
+    installMemorySchema(t);
+    expect(importLegacyMemory(t, { openSource: open(path), now: 10 })).toMatchObject({ status: 'imported' });
+    t.execute("UPDATE memory_collection SET name = 'Psalms to learn' WHERE id = 2");
+    const result = mergeLegacyMemory(t, { openSource: open(path), now: 77 });
+    expect(result).toMatchObject({ status: 'merged', matched: { memory_collection: 2, memory_passage: 2 }, added: {} });
+    expect(t.queryAll<{ name: string }>('SELECT name FROM memory_collection ORDER BY id').map((r) => r.name)).toEqual(['Default', 'Psalms to learn']);
+    expect(t.queryOne('SELECT COUNT(*) AS n FROM memory_passage')).toEqual({ n: 2 });
+  });
+
+  it('a list brought over by a merge is found by id after a rename too', () => {
+    const path = legacy();
+    const t = target();
+    mergeLegacyMemory(t, { openSource: open(path), now: 77 });
+    t.execute("UPDATE memory_collection SET name = 'Renamed' WHERE name = 'Psalms'");
+    const again = mergeLegacyMemory(t, { openSource: open(path), now: 78 });
+    expect(again).toMatchObject({ matched: { memory_collection: 2 }, added: {} });
+    expect(t.queryAll<{ name: string }>('SELECT name FROM memory_collection ORDER BY id').map((r) => r.name)).toEqual(['Default', 'Mine', 'Renamed']);
+  });
+
   it('writes nothing when a step fails', () => {
     const path = legacy();
     const t = target();
