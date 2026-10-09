@@ -215,6 +215,8 @@ mac:
     - dmg
     - zip
   category: public.app-category.education
+  extendInfo:
+    NSMicrophoneUsageDescription: Used to hear you recite Scripture aloud. Audio is processed on this device and never leaves it.
 linux:
   target:
     # See electron-builder.yml. AppImage is the portable download; deb upgrades

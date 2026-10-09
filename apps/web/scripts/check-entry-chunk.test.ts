@@ -73,6 +73,20 @@ describe('checkReport', () => {
     ]);
   });
 
+  it('keeps the speech engine, its web port and the dev harness out of the reading entry', () => {
+    const bad = checkReport({ chunks: [entry([
+      'src/main.tsx', 'src/speech/webSpeech.ts', '../../packages/speech/src/engine/WhisperEngine.ts', 'dev/speech/Harness.tsx',
+    ])] });
+    expect(bad.offenders.map((o: { module: string }) => o.module)).toEqual([
+      'src/speech/webSpeech.ts', '../../packages/speech/src/engine/WhisperEngine.ts', 'dev/speech/Harness.tsx',
+    ]);
+    const ok = checkReport({ chunks: [
+      entry(['src/main.tsx']),
+      { fileName: 'assets/speech.js', isEntry: false, facadeModuleId: null, imports: [], modules: ['src/speech/webSpeech.ts', '../../packages/speech/src/index.ts'] },
+    ] });
+    expect(ok.ok).toBe(true);
+  });
+
   it('errors when there is no entry chunk', () => {
     expect(checkReport({ chunks: [] }).ok).toBe(false);
   });

@@ -29,6 +29,7 @@ import { wordStudyMainManifest } from './word-study/manifest';
 import { keywordMarksMainManifest } from './keyword-marks/manifest';
 import { notificationsMainManifest } from './notifications/manifest';
 import { memoryManifest } from '@bible/memory/manifest';
+import { speechMainManifest } from './speech/manifest';
 
 export interface MainModuleEntry {
   readonly manifest: FeatureModuleManifest;
@@ -47,6 +48,8 @@ export const MAIN_MODULES: readonly MainModuleEntry[] = [
   { manifest: notificationsMainManifest, load: () => import('./notifications') },
   // Scripture memory (0114): registers its handlers at startup; the core loads on the first call.
   { manifest: memoryManifest, load: () => import('./memory') },
+  // Speech engine bridge (0151): behind the `recite` flag; the engine itself runs in the renderer.
+  { manifest: speechMainManifest, load: () => import('./speech') },
 ];
 
 export interface RegisterMainModulesOptions {

@@ -358,6 +358,14 @@ export default defineConfig({
       // the client to keep its own copies of these modules. Mirrors the
       // "@bible/core/browser" path mapping in tsconfig.json.
       '@bible/core/browser': resolve(__dirname, '../../packages/core/src/browser.ts'),
+      // Speech engine (task 0151), consumed as source like the entries above. The web app reaches it only
+      // through src/speech/ (never the entry chunk) and the dev harness (dev/speech.html, not built).
+      '@bible/core/speech': resolve(__dirname, '../../packages/core/src/speech/index.ts'),
+      '@bible/core/recite': resolve(__dirname, '../../packages/core/src/recite/index.ts'),
+      '@bible/speech': resolve(__dirname, '../../packages/speech/src/index.ts'),
+      // Dev harness only: the hands-free loop and grading are not on the memory core's public surface.
+      '@bible/memory/recite': resolve(__dirname, '../../packages/memory/src/core/recite'),
+      '@bible/memory/core': resolve(__dirname, '../../packages/memory/src/core/index.ts'),
       // Shared UI kit, consumed as source. Order matters: Vite string aliases
       // match `id === key || id.startsWith(key + '/')` and the first entry wins,
       // so the more specific css entry must precede the bare package entry.

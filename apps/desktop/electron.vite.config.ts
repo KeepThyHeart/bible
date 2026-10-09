@@ -5,6 +5,7 @@ import { resolve } from 'path';
 import { execSync } from 'child_process';
 import { existsSync, readFileSync } from 'fs';
 import { kthKitPlugin } from './scripts/kthKitPlugin.mjs';
+import { ortWasmPlugin } from './scripts/ortWasmPlugin.mjs';
 
 // Capture the current git commit SHA at build time so the About dialog and
 // the diagnostics uploader can name the exact source revision a binary came
@@ -305,7 +306,10 @@ export default defineConfig({
         // Shared UI kit (packages/ui), consumed as source. The css entry must
         // come first: the first matching string alias wins.
         '@bible/ui/css': resolve(__dirname, '../../packages/ui/css'),
-        '@bible/ui': resolve(__dirname, '../../packages/ui/src/index.ts')
+        '@bible/ui': resolve(__dirname, '../../packages/ui/src/index.ts'),
+        // Speech engine (task 0151), consumed as source; the Whisper worker is the `/worker` subpath.
+        '@bible/speech/worker': resolve(__dirname, '../../packages/speech/src/engine/whisperWorker.ts'),
+        '@bible/speech': resolve(__dirname, '../../packages/speech/src/index.ts')
       }
     },
     optimizeDeps: {
@@ -317,7 +321,11 @@ export default defineConfig({
     define: {
       ...APP_CONFIG_DEFINES,
     },
-    plugins: [brandingHtmlPlugin(), react()],
+    // ORT wasm for the speech engine: served in dev, emitted as ort/* in the build (see scripts/ortWasmPlugin.mjs).
+    plugins: [brandingHtmlPlugin(), react(), ortWasmPlugin(__dirname)],
+    // The Whisper engine is a module worker with dynamic imports (code-splitting); Vite's default
+    // worker format (iife) cannot build that, so bundle workers as ES modules.
+    worker: { format: 'es' },
     build: {
       rollupOptions: {
         // Renderer code imports the `@bible/core` barrel, which also re-exports

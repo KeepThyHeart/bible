@@ -101,6 +101,7 @@
     "@bible/core": "workspace:*",
     "@bible/extension-testing": "workspace:*",
     "@bible/memory": "workspace:*",
+    "@bible/speech": "workspace:^",
     "@playwright/test": "^1.49.0",
     "@resvg/resvg-js": "^2.6.2",
     "@tailwindcss/typography": "^0.5.20",

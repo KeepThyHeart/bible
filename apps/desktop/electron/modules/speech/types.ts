@@ -26,3 +26,8 @@ export interface SpeechModuleApi {
 }
 
 export const SPEECH_CALL_EVENT = 'call';
+
+/** Event map for `createModuleClient<SpeechModuleApi, SpeechEvents>('speech')`. */
+export interface SpeechEvents {
+  call: [call: SpeechBridgeCall];
+}

@@ -350,6 +350,9 @@ importers:
       '@bible/memory':
         specifier: workspace:*
         version: link:../../packages/memory
+      '@bible/speech':
+        specifier: workspace:^
+        version: link:../../packages/speech
       '@playwright/test':
         specifier: ^1.49.0
         version: 1.63.0
@@ -453,6 +456,9 @@ importers:
       '@bible/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@bible/speech':
+        specifier: workspace:^
+        version: link:../../packages/speech
       '@dnd-kit/core':
         specifier: ^6.3.1
         version: 6.3.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -547,6 +553,9 @@ importers:
         specifier: ^1.0.0
         version: 1.0.0
     devDependencies:
+      '@bible/memory':
+        specifier: workspace:^
+        version: link:../../packages/memory
       '@playwright/test':
         specifier: ^1.49.0
         version: 1.63.0

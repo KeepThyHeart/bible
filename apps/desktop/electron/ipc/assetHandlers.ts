@@ -40,6 +40,20 @@ export function registerAssetHandlers(_ipc: IpcMain): void {
     return { removed: await getAssetService().remove(id) };
   });
 
+  // Installed file bytes for the speech engine (renderer side). Only `stt-model` assets, only files
+  // the installed manifest lists; the renderer cannot name a path on disk.
+  ipcHandler<[string, string], Uint8Array>('assets:read', async (id, path) => {
+    validateString(id, 'id', 100);
+    validateString(path, 'path', 300);
+    const service = getAssetService();
+    if (!(await service.isReadable(id))) {
+      throw new IpcKnownError('not_found', `Asset "${id}" is not an installed speech model.`);
+    }
+    const bytes = await service.readFile(id, path);
+    if (!bytes) throw new IpcKnownError('not_found', `No installed file "${path}" in asset "${id}".`);
+    return bytes;
+  });
+
   ipcHandler<[], AssetListSnapshot>('assets:refresh', () => getAssetService().refresh());
 
   log.info('[IPC] Asset handlers registered successfully');

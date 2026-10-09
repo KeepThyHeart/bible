@@ -10,6 +10,10 @@
       "types": "./src/index.ts",
       "default": "./src/index.ts"
     },
+    "./models": {
+      "types": "./src/models/whisperModels.ts",
+      "default": "./src/models/whisperModels.ts"
+    },
     "./worker": {
       "types": "./src/engine/whisperWorker.ts",
       "default": "./src/engine/whisperWorker.ts"
