@@ -73,6 +73,22 @@ describe('SpeechService', () => {
     await svc.stopListening(listenId);
   });
 
+  it('holds the no-speech timer while the listener is capturing an utterance', async () => {
+    const { svc, listener } = make();
+    const slow = listener as unknown as { capturing: boolean; listen: FakeListener['listen'] };
+    let n = 0;
+    slow.listen = async () => {
+      if (n++ > 0) return { kind: 'aborted' };
+      slow.capturing = true;
+      await tick(120);
+      slow.capturing = false;
+      return { kind: 'speech', transcript: { text: 'late words', words: [{ text: 'late' }, { text: 'words' }], final: true, engineId: 'f', modelId: 'm', audioMs: 1, decodeMs: 1 } };
+    };
+    const { listenId } = await svc.startListening(dto);
+    const out = await svc.nextUtterance(listenId, { noSpeechTimeoutMs: 30 });
+    expect(out.kind).toBe('speech');
+  });
+
   it('allows one listen at a time and rejects when the model is missing', async () => {
     const { svc } = make();
     const { listenId } = await svc.startListening(dto);

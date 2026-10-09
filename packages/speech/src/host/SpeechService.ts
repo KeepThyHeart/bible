@@ -293,10 +293,17 @@ export class SpeechService implements ISpeechApi {
       };
       if (check()) return;
       s.waiters.add(check);
-      timer = setTimeout(() => {
+      // "Nobody spoke" only counts while nobody is speaking: a non-streaming listener reports an
+      // utterance after it ends, so hold the timer while one is being captured or decoded.
+      const fire = (): void => {
+        if ((this.d.listener as { capturing?: boolean }).capturing && !s.ended) {
+          timer = setTimeout(fire, 250);
+          return;
+        }
         s.waiters.delete(check);
         resolve({ kind: 'no-speech' });
-      }, o.noSpeechTimeoutMs);
+      };
+      timer = setTimeout(fire, o.noSpeechTimeoutMs);
     });
   }
 

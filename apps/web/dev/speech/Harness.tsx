@@ -193,7 +193,7 @@ export function Harness(p: { services: HarnessServices; initialWav?: { url: stri
     try {
       const { listenId } = await service.startListening({ language: 'en', maxDurationMs: 20000, endSilenceMs: 1200 });
       micListen.current = listenId;
-      const o = await service.nextUtterance(listenId, { noSpeechTimeoutMs: 10000 });
+      const o = await service.nextUtterance(listenId, { noSpeechTimeoutMs: 30000 });
       if (o.kind === 'speech') { setMicText(o.transcript.text); setMicMsg(`Heard ${o.transcript.words.length} words in ${Math.round(o.transcript.decodeMs)} ms`); }
       else if (o.kind === 'error') setMicMsg(`${o.code}: ${o.message}`);
       else setMicMsg(o.kind === 'no-speech' ? 'No speech heard' : `Ended (${o.reason})`);
@@ -228,7 +228,7 @@ export function Harness(p: { services: HarnessServices; initialWav?: { url: stri
       const { listenId } = await service.startListening({ language: 'en', bias, maxDurationMs: Math.min(120000, 20000 + words.length * 700), endSilenceMs: 1500 });
       reciteListen.current = listenId;
       for (let first = true; ; first = false) {
-        const o = await service.nextUtterance(listenId, { noSpeechTimeoutMs: first ? 10000 : 2500 });
+        const o = await service.nextUtterance(listenId, { noSpeechTimeoutMs: first ? 30000 : 2500 });
         if (o.kind === 'speech') { heard.push(...o.transcript.words); setRMsg(`Heard ${heard.length} words`); continue; }
         if (o.kind === 'error') setRMsg(`${o.code}: ${o.message}`);
         break;

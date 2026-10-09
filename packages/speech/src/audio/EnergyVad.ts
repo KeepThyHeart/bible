@@ -50,7 +50,7 @@ export class EnergyVad implements IVoiceActivityDetector {
 
     if (this.init.length < INIT_FRAMES) {
       this.init.push(db);
-      this.floor = clamp(this.init.reduce((a, b) => a + b, 0) / this.init.length);
+      this.floor = clamp(Math.min(...this.init)); // the quietest frame so far: robust to speech in the first 200 ms
       return 'silence';
     }
 

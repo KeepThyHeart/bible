@@ -91,6 +91,8 @@ export interface FakeMic extends IMicrophone {
 export interface WavMicOptions {
   /** Frames per real second; 1 = real time. Values above 1 run faster than speech. Default 1. */
   speed?: number;
+  /** Play the clip from its start each time the mic is opened (a person speaking again after the app spoke). Default true. */
+  restartOnOpen?: boolean;
 }
 
 /** @param wav a WAV file; throws on an unsupported encoding. */
@@ -101,14 +103,17 @@ export function wavToMic(wav: ArrayBuffer, o: WavMicOptions = {}): FakeMic {
 
 export function pcmToMic(samples: Float32Array, seconds: number, o: WavMicOptions = {}): FakeMic {
   const speed = Math.max(0.1, o.speed ?? 1);
-  let pos = 0;
+  // 0.6 s of silence ahead of the clip, like a person who starts after pressing the button.
+  const LEAD = 30 * FRAME;
+  let pos = -LEAD;
   return {
     seconds,
     rewind() {
-      pos = 0;
+      pos = -LEAD;
     },
     async open(_opts, signal): Promise<MicStream> {
       if (signal.aborted) throw Object.assign(new Error('aborted'), { name: 'AbortError' });
+      if (o.restartOnOpen ?? true) pos = -LEAD;
       const listeners = new Set<(f: Float32Array) => void>();
       const started = performance.now();
       let sent = 0;
@@ -118,7 +123,7 @@ export function pcmToMic(samples: Float32Array, seconds: number, o: WavMicOption
         const due = Math.floor(((performance.now() - started) * speed) / 20);
         for (; sent < due; sent++) {
           const frame = new Float32Array(FRAME);
-          if (pos < samples.length) frame.set(samples.subarray(pos, pos + FRAME));
+          if (pos >= 0 && pos < samples.length) frame.set(samples.subarray(pos, pos + FRAME));
           pos += FRAME;
           for (const cb of listeners) cb(frame);
         }

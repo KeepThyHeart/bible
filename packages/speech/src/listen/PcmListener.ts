@@ -71,7 +71,22 @@ export class PcmListener implements IListener {
     };
   }
 
+  /**
+   * True from the first detected speech until the transcript is back. The service holds its
+   * "nobody spoke" timer while this is on: the engine is not streaming, so a long utterance
+   * only produces its outcome after the speaker has stopped.
+   */
+  capturing = false;
+
   async listen(o: ListenOptions, signal: AbortSignal): Promise<ListenOutcome> {
+    try {
+      return await this.listenInner(o, signal);
+    } finally {
+      this.capturing = false;
+    }
+  }
+
+  private async listenInner(o: ListenOptions, signal: AbortSignal): Promise<ListenOutcome> {
     if (signal.aborted) return { kind: 'aborted' };
     const { engine } = this.deps;
     const now = this.deps.now ?? Date.now;
@@ -159,6 +174,7 @@ export class PcmListener implements IListener {
           if (preRoll.length > PRE_ROLL_FRAMES + 1) preRoll.shift();
           if (!isSpeech) return;
           speaking = true;
+          this.capturing = true;
           frames = preRoll;
           preRoll = [];
           lastPartialAt = now();
