@@ -12,7 +12,8 @@ const zeroCross = (a: Float32Array) => {
 describe('resampleTo16k', () => {
   it.each([48000, 44100, 22050, 8000])('keeps a 440 Hz tone at %i Hz', (rate) => {
     const out = resampleTo16k(sine(440, rate, rate), rate, createResampleState());
-    expect(Math.abs(out.length - 16000)).toBeLessThanOrEqual(2);
+    expect(16000 - out.length).toBeLessThanOrEqual(40); // the kernel's look-ahead is held back
+    expect(out.length).toBeLessThanOrEqual(16000);
     expect(rms(out)).toBeGreaterThan(0.5 / Math.SQRT2 - 0.04);
     expect(rms(out)).toBeLessThan(0.5 / Math.SQRT2 + 0.02);
     expect(Math.abs(zeroCross(out) - 440)).toBeLessThanOrEqual(2);

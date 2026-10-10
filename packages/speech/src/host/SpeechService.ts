@@ -206,6 +206,7 @@ export class SpeechService implements ISpeechApi {
       throw e instanceof Error && e.message === 'not-ready' ? e : new Error('not-ready');
     }
     if (s.ended) return { listenId: s.id };
+    s.deadline = this.now + o.maxDurationMs; // loading the model is not listening time
     void this.loop(s);
     return { listenId: s.id };
   }
@@ -259,6 +260,7 @@ export class SpeechService implements ISpeechApi {
       if (sounding() || ac.signal.aborted) continue;
       switch (outcome.kind) {
         case 'speech':
+          s.deadline += Math.max(0, outcome.transcript.decodeMs || 0); // decoding is not listening time
           this.push(s, { kind: 'speech', transcript: outcome.transcript });
           break;
         case 'error':

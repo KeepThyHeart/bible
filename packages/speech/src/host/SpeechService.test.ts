@@ -77,8 +77,8 @@ describe('SpeechService', () => {
     const { svc, listener } = make();
     const slow = listener as unknown as { capturing: boolean; listen: FakeListener['listen'] };
     let n = 0;
-    slow.listen = async () => {
-      if (n++ > 0) return { kind: 'aborted' };
+    slow.listen = async (_o, signal) => {
+      if (n++ > 0) return new Promise((r) => signal.addEventListener('abort', () => r({ kind: 'aborted' }), { once: true }));
       slow.capturing = true;
       await tick(120);
       slow.capturing = false;
@@ -87,6 +87,7 @@ describe('SpeechService', () => {
     const { listenId } = await svc.startListening(dto);
     const out = await svc.nextUtterance(listenId, { noSpeechTimeoutMs: 30 });
     expect(out.kind).toBe('speech');
+    await svc.stopListening(listenId);
   });
 
   it('allows one listen at a time and rejects when the model is missing', async () => {
