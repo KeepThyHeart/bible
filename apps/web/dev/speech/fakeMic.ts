@@ -91,7 +91,7 @@ export interface FakeMic extends IMicrophone {
 export interface WavMicOptions {
   /** Frames per real second; 1 = real time. Values above 1 run faster than speech. Default 1. */
   speed?: number;
-  /** Play the clip from its start each time the mic is opened (a person speaking again after the app spoke). Default true. */
+  /** Replay an interrupted clip from its start when the mic is opened again (a person speaking again after the app spoke); a clip that played to its end is not replayed. Default true. */
   restartOnOpen?: boolean;
 }
 
@@ -113,7 +113,7 @@ export function pcmToMic(samples: Float32Array, seconds: number, o: WavMicOption
     },
     async open(_opts, signal): Promise<MicStream> {
       if (signal.aborted) throw Object.assign(new Error('aborted'), { name: 'AbortError' });
-      if (o.restartOnOpen ?? true) pos = -LEAD;
+      if ((o.restartOnOpen ?? true) && pos < samples.length) pos = -LEAD; // a clip that played to its end stays played
       const listeners = new Set<(f: Float32Array) => void>();
       const started = performance.now();
       let sent = 0;
