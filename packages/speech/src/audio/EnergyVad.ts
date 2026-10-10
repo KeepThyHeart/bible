@@ -14,6 +14,7 @@ export interface EnergyVadOptions {
 const INIT_FRAMES = 10; // 200 ms at 20 ms frames
 const FLOOR_MIN = -70;
 const FLOOR_MAX = -30;
+const INIT_FLOOR_MAX = -42; // speech that starts at frame 0 must still clear floor + margin
 const EMA = 0.05;
 
 /** Frame-energy VAD: adaptive noise floor, onset debounce, hangover. Pure and deterministic. */
@@ -50,7 +51,7 @@ export class EnergyVad implements IVoiceActivityDetector {
 
     if (this.init.length < INIT_FRAMES) {
       this.init.push(db);
-      this.floor = clamp(Math.min(...this.init)); // the quietest frame so far: robust to speech in the first 200 ms
+      this.floor = Math.min(INIT_FLOOR_MAX, clamp(Math.min(...this.init))); // the quietest frame so far: robust to speech in the first 200 ms
       return 'silence';
     }
 

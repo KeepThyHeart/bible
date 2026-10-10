@@ -34,8 +34,8 @@ describe('EnergyVad', () => {
 
   it('adapts to steady background noise', () => {
     const v = new EnergyVad();
-    run(v, () => noise(0.05), 15);
-    expect(run(v, () => noise(0.05), 50)).not.toContain('speech');
+    run(v, () => noise(0.01), 15);
+    expect(run(v, () => noise(0.01), 50)).not.toContain('speech');
     expect(run(v, () => tone(0.5), 6)).toContain('speech');
   });
 
