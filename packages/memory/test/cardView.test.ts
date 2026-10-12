@@ -261,4 +261,19 @@ describe('card shortcuts stay inside the Memory app (embedded, no iframe)', () =
     await settle();
     expect(btn(root, 'Knew it').disabled).toBe(false);
   });
+
+  it('ignores body-focused keys while a host popover is open over the app, and acts again once it closes', async () => {
+    const root = renderCardStack(host, stackOf(card(1)));
+    container.appendChild(root);
+    const popover = document.createElement('div');
+    popover.setAttribute('role', 'menu'); // portalled to <body>, outside the Memory app
+    document.body.appendChild(popover);
+    document.body.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true }));
+    await settle();
+    expect(btn(root, 'Knew it').disabled).toBe(true);
+    popover.remove();
+    document.body.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true }));
+    await settle();
+    expect(btn(root, 'Knew it').disabled).toBe(false);
+  });
 });

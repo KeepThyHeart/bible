@@ -10,6 +10,7 @@ import type { MainModuleDeps } from '../FeatureMainModule';
 import type { IRemindersApi, MemoryPush } from '@bible/memory/core';
 import { createDesktopBibleApi } from './desktopBible';
 import { createDesktopSpeech } from './desktopSpeech';
+import { memoryMainT } from './mainT';
 import { legacyMemoryDbPath, startMemoryRuntime, type MemoryRuntime } from './runtime';
 
 export function startDesktopMemory(
@@ -28,6 +29,7 @@ export function startDesktopMemory(
     ...(extras.reminders ? { reminders: extras.reminders } : {}),
     ...(deps.getExtensions ? { getExtensions: deps.getExtensions } : {}),
     emit,
+    t: memoryMainT,
     log: deps.log,
   });
 }

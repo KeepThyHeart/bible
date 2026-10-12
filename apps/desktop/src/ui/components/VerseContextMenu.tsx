@@ -671,14 +671,12 @@ const VerseContextMenu: React.FC<VerseContextMenuProps> = ({
               className="w-full px-4 py-2 text-start text-sm hover:bg-background-hover transition-colors flex items-center gap-2 cursor-pointer"
               role="menuitem"
             >
-              {/*
-                No icon slot. `ContextMenuItemDescriptor.icon` is a string the
-                extension chooses, and rendering arbitrary extension-supplied
-                markup into the app's own menu is exactly the injection this
-                platform is built to avoid. A named-icon vocabulary can be
-                added later; a gap where an icon would be is honest until then.
+{/*
+                Icons come only from a named-icon vocabulary (`AppIconGlyph` maps a builtin name to an
+                inline SVG), never from markup an extension supplies: extension rows carry no icon and
+                keep the blank gap, a module's contribution (Memorize) draws its glyph.
               */}
-              <span className="w-4 h-4 shrink-0" aria-hidden="true" />
+              {action.icon ? <AppIconGlyph icon={action.icon} size={16} /> : <span className="w-4 h-4 shrink-0" aria-hidden="true" />}
               <span>
                 {'key' in action.title
                   ? translateWithDefault(t, action.title.key, action.title.fallback)

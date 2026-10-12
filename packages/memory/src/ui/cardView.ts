@@ -18,16 +18,25 @@ import { button, el, replace } from './dom';
 import { breadcrumb } from './components';
 import type { PanelHost } from './host';
 import { renderPassage } from './scripture';
+import { tr, uiLocale } from './i18n';
 
 const GRADES: { grade: RecallGrade; label: string; key: string }[] = [
-  { grade: 'missed', label: 'Missed', key: '1' },
-  { grade: 'partly', label: 'Partly', key: '2' },
-  { grade: 'knew', label: 'Knew it', key: '3' },
+  { grade: 'missed', get label() { return tr('memory.ui.settings.gradeMissed', 'Missed'); }, key: '1' },
+  { grade: 'partly', get label() { return tr('memory.ui.settings.gradePartly', 'Partly'); }, key: '2' },
+  { grade: 'knew', get label() { return tr('memory.ui.settings.gradeKnew', 'Knew it'); }, key: '3' },
 ];
 
 function timeLabel(at: number | null): string {
-  if (at === null) return 'now';
-  return new Date(at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  if (at === null) return tr('memory.ui.settings.now', 'now');
+  return new Date(at).toLocaleTimeString(uiLocale(), { hour: 'numeric', minute: '2-digit' });
+}
+
+/** An open dialog, menu or popover anywhere in the page (hidden/inert ones do not count). */
+function hasOpenOverlay(doc: Document): boolean {
+  for (const el of doc.querySelectorAll('[role="dialog"],[role="menu"],[role="alertdialog"],[aria-modal="true"]')) {
+    if (!el.closest('[inert],[hidden],[aria-hidden="true"]')) return true;
+  }
+  return false;
 }
 
 export function renderCardStack(host: PanelHost, initial: CardStackView): HTMLElement {
@@ -45,7 +54,7 @@ export function renderCardStack(host: PanelHost, initial: CardStackView): HTMLEl
 
   root.appendChild(
     breadcrumb({
-      crumbs: [{ label: 'Home', onClick: () => host.go({ type: 'goPlan' }) }, { label: 'Memory cards' }],
+      crumbs: [{ label: tr('memory.ui.settings.home', 'Home'), onClick: () => host.go({ type: 'goPlan' }) }, { label: tr('memory.ui.settings.memoryCards', 'Memory cards') }],
     }),
   );
   root.appendChild(body);
@@ -73,6 +82,9 @@ export function renderCardStack(host: PanelHost, initial: CardStackView): HTMLEl
     // Not while one of Memory's own dialogs or menus is open on top of the card.
     if (t instanceof Element && t.closest('[role="dialog"],[role="menu"],[role="alertdialog"]')) return;
     const unfocused = t === null || t === document.body || t === document.documentElement;
+    // Keys with no focused element must not act while any open dialog or menu is on screen: a host
+    // popover (portalled to <body>, so outside this app) or one of Memory's own that left focus on the body.
+    if (unfocused && hasOpenOverlay(document)) return;
     if (!unfocused && !(t instanceof Node && appRoot.contains(t))) return;
     if (t && ['INPUT', 'TEXTAREA', 'SELECT'].includes(t.tagName)) return;
     if (ev.key === ' ' || ev.key === 'Spacebar') {
@@ -170,24 +182,24 @@ export function renderCardStack(host: PanelHost, initial: CardStackView): HTMLEl
       return;
     }
     replace(body, [cardElement(card)]);
-    host.announce(`${handled + 1} of ${handled + stack.cards.length}: ${card.reference}`);
+    host.announce(tr('memory.ui.settings.cardAnnounce', '{n} of {total}: {reference}', { n: handled + 1, total: handled + stack.cards.length, reference: card.reference }));
     (revealButton as HTMLButtonElement | null)?.focus({ preventScroll: true });
   }
 
   function endState(): HTMLElement {
     if (handled === 0) {
       return el('div', { class: 'sm-card-end' }, [
-        el('p', { class: 'sm-card-empty', text: 'No cards waiting.' }),
-        button('Back', () => host.go({ type: 'goPlan' }), { class: 'sm-btn' }),
+        el('p', { class: 'sm-card-empty', text: tr('memory.ui.settings.noCardsWaiting', 'No cards waiting.') }),
+        button(tr('memory.ui.settings.back', 'Back'), () => host.go({ type: 'goPlan' }), { class: 'sm-btn' }),
       ]);
     }
     return el('div', { class: 'sm-card-end' }, [
-      el('p', { class: 'sm-card-empty', text: 'All cards done.' }),
+      el('p', { class: 'sm-card-empty', text: tr('memory.ui.settings.allCardsDone', 'All cards done.') }),
       el('div', { class: 'sm-card-actions' }, [
-        button("Practice what's due", () => void host.startFlow({ kind: 'variety' }), {
+        button(tr('memory.ui.settings.practiceWhatsDue', "Practice what's due"), () => void host.startFlow({ kind: 'variety' }), {
           class: 'sm-btn sm-btn-primary',
         }),
-        button('Back', () => host.go({ type: 'goPlan' }), { class: 'sm-btn' }),
+        button(tr('memory.ui.settings.back', 'Back'), () => host.go({ type: 'goPlan' }), { class: 'sm-btn' }),
       ]),
     ]);
   }
@@ -196,7 +208,7 @@ export function renderCardStack(host: PanelHost, initial: CardStackView): HTMLEl
     const total = handled + stack.cards.length;
     replace(versesBox, []);
 
-    revealButton = button('Show verse (Space)', reveal, { class: 'sm-btn sm-btn-primary sm-btn-large' });
+    revealButton = button(tr('memory.ui.settings.showVerse', 'Show verse (Space)'), reveal, { class: 'sm-btn sm-btn-primary sm-btn-large' });
     gradeButtons = GRADES.map((g) =>
       button(`${g.label} (${g.key})`, () => void grade(g.grade), {
         class: 'sm-btn sm-card-grade',
@@ -205,22 +217,22 @@ export function renderCardStack(host: PanelHost, initial: CardStackView): HTMLEl
       }),
     );
 
-    return el('article', { class: 'sm-card', attrs: { 'aria-label': `Memory card for ${card.reference}` } }, [
+    return el('article', { class: 'sm-card', attrs: { 'aria-label': tr('memory.ui.settings.cardFor', 'Memory card for {reference}', { reference: card.reference }) } }, [
       el('div', { class: 'sm-card-head' }, [
-        el('span', { class: 'sm-card-kind', text: `Memory card · ${timeLabel(card.firedAt)}` }),
-        el('span', { class: 'sm-card-count', text: `${handled + 1} of ${total}` }),
+        el('span', { class: 'sm-card-kind', text: tr('memory.ui.settings.cardKind', 'Memory card · {time}', { time: timeLabel(card.firedAt) }) }),
+        el('span', { class: 'sm-card-count', text: tr('memory.ui.settings.countOf', '{n} of {total}', { n: handled + 1, total }) }),
       ]),
       el('h2', { class: 'sm-card-ref', text: card.reference }),
       card.cue ? el('p', { class: 'sm-card-cue', text: card.cue }) : null,
-      el('p', { class: 'sm-hint', text: 'Say it to yourself, then reveal.' }),
+      el('p', { class: 'sm-hint', text: tr('memory.ui.settings.sayItToYourself', 'Say it to yourself, then reveal.') }),
       revealButton,
       versesBox,
-      el('div', { class: 'sm-card-grades', attrs: { role: 'group', 'aria-label': 'How did it go?' } }, gradeButtons),
+      el('div', { class: 'sm-card-grades', attrs: { role: 'group', 'aria-label': tr('memory.ui.settings.howDidItGo', 'How did it go?') } }, gradeButtons),
       el('div', { class: 'sm-card-actions' }, [
-        button('Practice this passage', () => void host.startSession(card.passageId), {
+        button(tr('memory.ui.settings.practiceThisPassage', 'Practice this passage'), () => void host.startSession(card.passageId), {
           class: 'sm-btn sm-btn-small sm-btn-quiet',
         }),
-        button('Later (1 h)', () => void snooze(card), { class: 'sm-btn sm-btn-small sm-btn-quiet' }),
+        button(tr('memory.ui.settings.later', 'Later (1 h)'), () => void snooze(card), { class: 'sm-btn sm-btn-small sm-btn-quiet' }),
       ]),
     ]);
   }

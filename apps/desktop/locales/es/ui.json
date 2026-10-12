@@ -2281,8 +2281,6 @@
   "apps.devFixture.title": "Aplicación de prueba",
   "apps.memory.title": "Memoria",
   "verseActions.memorize": "Memorizar",
-  "memory.badge.due": "{count, plural, one {# versículo pendiente} other {# versículos pendientes}}",
-  "memory.badge.waiting": "{count, plural, one {# tarjeta esperando} other {# tarjetas esperando}}",
   "preferencesDialog.sectionApps": "Aplicaciones",
   "settings.apps.switcher": "Selector de aplicaciones",
   "settings.apps.switcherHint": "Mostrar la barra de aplicaciones siempre, nunca o solo cuando haya más de una aplicación disponible.",

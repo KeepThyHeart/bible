@@ -2279,8 +2279,6 @@
   "apps.devFixture.title": "Aplicativo de teste",
   "apps.memory.title": "Memorização",
   "verseActions.memorize": "Memorizar",
-  "memory.badge.due": "{count, plural, one {# versículo para revisar} other {# versículos para revisar}}",
-  "memory.badge.waiting": "{count, plural, one {# cartão aguardando} other {# cartões aguardando}}",
   "preferencesDialog.sectionApps": "Aplicativos",
   "settings.apps.switcher": "Seletor de aplicativos",
   "settings.apps.switcherHint": "Mostrar a barra de aplicativos sempre, nunca ou somente quando houver mais de um aplicativo disponível.",

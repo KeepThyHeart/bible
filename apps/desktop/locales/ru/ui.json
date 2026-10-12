@@ -2279,8 +2279,6 @@
   "apps.devFixture.title": "Тестовое приложение",
   "apps.memory.title": "Заучивание",
   "verseActions.memorize": "Заучить",
-  "memory.badge.due": "{count, plural, one {# стих к повторению} few {# стиха к повторению} many {# стихов к повторению} other {# стиха к повторению}}",
-  "memory.badge.waiting": "{count, plural, one {# карточка ждёт ответа} few {# карточки ждут ответа} many {# карточек ждут ответа} other {# карточки ждут ответа}}",
   "preferencesDialog.sectionApps": "Приложения",
   "settings.apps.switcher": "Переключатель приложений",
   "settings.apps.switcherHint": "Показывать панель приложений всегда, никогда или только когда доступно больше одного приложения.",

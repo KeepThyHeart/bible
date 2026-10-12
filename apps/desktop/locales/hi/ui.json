@@ -2279,8 +2279,6 @@
   "apps.devFixture.title": "डेव परीक्षण ऐप",
   "apps.memory.title": "स्मरण",
   "verseActions.memorize": "याद करें",
-  "memory.badge.due": "{count, plural, one {# पद दोहराना है} other {# पद दोहराने हैं}}",
-  "memory.badge.waiting": "{count, plural, one {# कार्ड उत्तर की प्रतीक्षा में} other {# कार्ड उत्तर की प्रतीक्षा में}}",
   "preferencesDialog.sectionApps": "ऐप्स",
   "settings.apps.switcher": "ऐप स्विचर",
   "settings.apps.switcherHint": "ऐप बार को हमेशा, कभी नहीं, या केवल तभी दिखाएँ जब एक से अधिक ऐप उपलब्ध हों।",

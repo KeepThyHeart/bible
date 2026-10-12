@@ -81,6 +81,7 @@ import type { WordRenderer } from './scripture';
 import { resolveWrongPositions, revealedWord } from './stepResult';
 import type { HiddenWords } from './stepResult';
 import { tierLabel } from '../core/ladder';
+import { tr, uiLocale } from './i18n';
 import { listTargets, pickShuffledTarget } from './suggest';
 
 /** How long a wrong pick stays marked before the picker is handed back clean. */
@@ -287,7 +288,8 @@ export class PracticeView {
     // stands in. (The context is still loaded: `refProvideAnswer` needs it to
     // grade and to show the answer after the step.)
     const hidesReference = this.session.rung === 'refprovide' || this.session.rung === 'refmatch';
-    const passageLabel = hidesReference ? 'Passage' : (this.context?.reference || 'Passage');
+    const genericPassage = tr('memory.ui.practice.passage', 'Passage');
+    const passageLabel = hidesReference ? genericPassage : (this.context?.reference || genericPassage);
     const passageId = this.session.passageId;
     const rung = this.session.rung;
 
@@ -298,7 +300,7 @@ export class PracticeView {
         // `main.ts`), so going back picks up later. Each crumb ends the
         // session, then goes where it says.
         crumbs: [
-          { label: 'Home', onClick: () => void this.endSession({ type: 'goPlan' }) },
+          { label: tr('memory.ui.practice.home', 'Home'), onClick: () => void this.endSession({ type: 'goPlan' }) },
           { label: passageLabel, onClick: () => void this.endSession({ type: 'goPassage', passageId, rung }) },
           { label: RUNG_LABEL[rung] },
         ],
@@ -308,9 +310,9 @@ export class PracticeView {
             : null,
           // Only a flow with a rule to re-run has anywhere to skip to.
           this.flow.kind !== 'passage'
-            ? button('Next', () => void this.onNext(), {
+            ? button(tr('memory.ui.practice.next', 'Next'), () => void this.onNext(), {
                 class: 'sm-btn sm-btn-quiet sm-btn-small',
-                attrs: { 'aria-label': 'Skip to the next passage' },
+                attrs: { 'aria-label': tr('memory.ui.practice.skipToNextPassage', 'Skip to the next passage') },
               })
             : null,
         ],
@@ -319,10 +321,14 @@ export class PracticeView {
         this.session.tiers > 1
           ? el('span', {
               class: 'sm-practice-tier',
-              text: `${tierLabel(this.session.rung, this.session.tier)} (Tier ${this.session.tier + 1} of ${this.session.tiers})`,
+              text: tr('memory.ui.practice.tierOf', '{label} (Tier {tier} of {tiers})', {
+                label: tierLabel(this.session.rung, this.session.tier),
+                tier: this.session.tier + 1,
+                tiers: this.session.tiers,
+              }),
             })
           : null,
-        iconButton('🔀', 'Shuffle - practise something else', () => void this.shuffle()),
+        iconButton('🔀', tr('memory.ui.practice.shuffle', 'Shuffle - practise something else'), () => void this.shuffle()),
       ]),
       this.renderActivityTabs(),
       step !== null
@@ -349,7 +355,7 @@ export class PracticeView {
             ),
             el('span', {
               class: 'sm-step-tally',
-              text: `${this.session.correctFirst} right first time`,
+              text: tr('memory.ui.practice.rightFirstTime', '{count} right first time', { count: this.session.correctFirst }),
             }),
           ])
         : null,
@@ -385,7 +391,7 @@ export class PracticeView {
       onSelect: (rung) => {
         if (rung !== this.session.rung) void this.switchActivity(this.session.passageId, rung);
       },
-      ariaLabel: 'Activities for this passage',
+      ariaLabel: tr('memory.ui.practice.activitiesForPassage', 'Activities for this passage'),
     });
   }
 
@@ -439,13 +445,13 @@ export class PracticeView {
       ? all.filter((t) => !(t.passageId === current.passageId && t.rung === current.rung))
       : all;
     if (others.length === 0) {
-      this.host.announce('Nothing else to practise right now.');
+      this.host.announce(tr('memory.ui.practice.nothingElseToPractise', 'Nothing else to practise right now.'));
       return;
     }
 
     const target = pickShuffledTarget(reply.data, now, Math.random, current);
     if (target === null) {
-      this.host.announce('Nothing else to practise right now.');
+      this.host.announce(tr('memory.ui.practice.nothingElseToPractise', 'Nothing else to practise right now.'));
       return;
     }
     void this.switchActivity(target.passageId, target.rung);
@@ -494,7 +500,7 @@ export class PracticeView {
           this.contextEl.appendChild(
             el('p', {
               class: 'sm-context-note',
-              text: 'Start of the passage.',
+              text: tr('memory.ui.practice.startOfPassage', 'Start of the passage.'),
             }),
           );
         }
@@ -525,7 +531,7 @@ export class PracticeView {
           this.contextEl.appendChild(
             el('p', {
               class: 'sm-context-note',
-              text: '… (shown in part - the reference is asked from what is given)',
+              text: tr('memory.ui.practice.shownInPart', '… (shown in part - the reference is asked from what is given)'),
             }),
           );
         }
@@ -651,10 +657,10 @@ export class PracticeView {
     const step = this.session.step;
     if (step === null) {
       this.exerciseEl.appendChild(
-        el('p', { class: 'sm-prompt', text: 'Nothing left to do in this session.' }),
+        el('p', { class: 'sm-prompt', text: tr('memory.ui.practice.nothingLeft', 'Nothing left to do in this session.') }),
       );
       this.actionsEl.appendChild(
-        button('Done', () => void this.endSession(), { class: 'sm-btn sm-btn-primary' }),
+        button(tr('memory.ui.practice.done', 'Done'), () => void this.endSession(), { class: 'sm-btn sm-btn-primary' }),
       );
       return;
     }
@@ -693,12 +699,12 @@ export class PracticeView {
    */
   private renderOrdering(step: OrderingStep): void {
     this.exerciseEl.appendChild(
-      el('h2', { class: 'sm-prompt', text: 'Which verse comes next?' }),
+      el('h2', { class: 'sm-prompt', text: tr('memory.ui.practice.whichVerseNext', 'Which verse comes next?') }),
     );
 
     const list = el('ul', {
       class: 'sm-choices',
-      attrs: { 'aria-label': 'Choose the next verse' },
+      attrs: { 'aria-label': tr('memory.ui.practice.chooseNextVerse', 'Choose the next verse') },
     });
 
     const buttons: HTMLButtonElement[] = [];
@@ -770,7 +776,7 @@ export class PracticeView {
     if (result.correct) {
       this.busy = false;
       choice.classList.add('sm-choice-correct');
-      this.setFeedback('Yes.', 'good');
+      this.setFeedback(tr('memory.ui.practice.yes', 'Yes.'), 'good');
       // A short pause before the next step so the confirmation is actually
       // seen. Without it the screen changes at the same instant as the click
       // and the user cannot tell whether they were right or the picker simply
@@ -788,7 +794,7 @@ export class PracticeView {
     // that, from the user's perspective, has not finished telling them
     // anything yet.
     choice.classList.add('sm-choice-wrong');
-    this.setFeedback('Not that one. Try again.', 'bad');
+    this.setFeedback(tr('memory.ui.practice.notThatOne', 'Not that one. Try again.'), 'bad');
 
     this.after(WRONG_MARK_MS, () => {
       this.busy = false;
@@ -812,12 +818,12 @@ export class PracticeView {
 
   private renderRefMatch(step: RefMatchStep): void {
     this.exerciseEl.appendChild(
-      el('h2', { class: 'sm-prompt', text: 'Which reference is this?' }),
+      el('h2', { class: 'sm-prompt', text: tr('memory.ui.practice.whichReference', 'Which reference is this?') }),
     );
 
     const list = el('ul', {
       class: 'sm-choices sm-choices-compact',
-      attrs: { 'aria-label': 'Choose the reference' },
+      attrs: { 'aria-label': tr('memory.ui.practice.chooseReference', 'Choose the reference') },
     });
     const buttons: HTMLButtonElement[] = [];
 
@@ -864,7 +870,7 @@ export class PracticeView {
     if (reply.result.correct) {
       this.busy = false;
       choice.classList.add('sm-choice-correct');
-      this.setFeedback('Yes.', 'good');
+      this.setFeedback(tr('memory.ui.practice.yes', 'Yes.'), 'good');
       this.after(CORRECT_FLASH_MS, () => this.advance());
       return;
     }
@@ -876,7 +882,7 @@ export class PracticeView {
     // against a step that, from the user's perspective, has not finished
     // telling them anything yet.
     choice.classList.add('sm-choice-wrong');
-    this.setFeedback('Not that one. Try again.', 'bad');
+    this.setFeedback(tr('memory.ui.practice.notThatOne', 'Not that one. Try again.'), 'bad');
     this.after(WRONG_MARK_MS, () => {
       this.busy = false;
       choice.classList.remove('sm-choice-wrong');
@@ -896,19 +902,19 @@ export class PracticeView {
    */
   private renderRefProvide(step: RefProvideStep): void {
     this.exerciseEl.appendChild(
-      el('h2', { class: 'sm-prompt', text: 'What is the reference?' }),
+      el('h2', { class: 'sm-prompt', text: tr('memory.ui.practice.whatReference', 'What is the reference?') }),
     );
 
     const input = el('input', {
       class: 'sm-input sm-ref-input',
       type: 'text',
-      placeholder: 'e.g. John 3:16',
+      placeholder: tr('memory.ui.practice.referencePlaceholder', 'e.g. John 3:16'),
       attrs: {
         autocomplete: 'off',
         autocapitalize: 'off',
         autocorrect: 'off',
         spellcheck: 'false',
-        'aria-label': 'Type the reference',
+        'aria-label': tr('memory.ui.practice.typeReference', 'Type the reference'),
       },
     });
 
@@ -919,7 +925,7 @@ export class PracticeView {
 
     this.exerciseEl.appendChild(input);
     this.actionsEl.appendChild(
-      button('Check', submitText, { class: 'sm-btn sm-btn-primary' }),
+      button(tr('memory.ui.practice.check', 'Check'), submitText, { class: 'sm-btn sm-btn-primary' }),
     );
     focusQuietly(input);
   }
@@ -949,13 +955,13 @@ export class PracticeView {
     // was, still focused, so a near-miss (a typo, a missing colon) can be
     // fixed in place rather than retyped from scratch.
     if (reply.result.unrecognized) {
-      this.setFeedback("I don't recognise that reference — try 'John 3:16'.", 'bad');
+      this.setFeedback(tr('memory.ui.practice.unrecognisedReference', "I don't recognise that reference — try 'John 3:16'."), 'bad');
       focusQuietly(input);
       return;
     }
 
     if (reply.result.correct) {
-      this.setFeedback('Yes.', 'good');
+      this.setFeedback(tr('memory.ui.practice.yes', 'Yes.'), 'good');
       this.after(CORRECT_FLASH_MS, () => this.advance());
       return;
     }
@@ -965,7 +971,12 @@ export class PracticeView {
     // an explicit Next" pattern applies rather than the picker's quick
     // auto-advance, since there is a correct reference to actually read here.
     const correct = this.correctReferenceFor(step);
-    this.setFeedback(correct ? `Not quite — it's ${correct}.` : 'Not quite.', 'bad');
+    this.setFeedback(
+      correct
+        ? tr('memory.ui.practice.notQuiteItsRef', "Not quite — it's {reference}.", { reference: correct })
+        : tr('memory.ui.practice.notQuite', 'Not quite.'),
+      'bad',
+    );
     this.appendAdvanceButton(reply.summary);
   }
 
@@ -1067,7 +1078,10 @@ export class PracticeView {
       }
 
       const position = hidden.hiddenIndices.indexOf(index);
-      const label = `Missing word ${position + 1} of ${hidden.hiddenIndices.length}`;
+      const label = tr('memory.ui.practice.missingWord', 'Missing word {position} of {total}', {
+        position: position + 1,
+        total: hidden.hiddenIndices.length,
+      });
 
       if (answerMode === 'firstLetter') {
         const input = el('input', {
@@ -1098,7 +1112,7 @@ export class PracticeView {
           const next = nextSlotAfter(input);
           fillSlot(input, correct ? correctWord(word, index) : missedWord(word, input.value));
           this.hiddenPending -= 1;
-          this.setFeedback(correct ? null : `Missed: ${word}`, 'bad');
+          this.setFeedback(correct ? null : tr('memory.ui.practice.missedWord', 'Missed: {word}', { word }), 'bad');
           if (this.hiddenPending > 0) {
             focusQuietly(next);
             return;
@@ -1182,7 +1196,10 @@ export class PracticeView {
 
       const key = this.hiddenCounter++;
       const position = hiddenIndices.indexOf(index);
-      const label = `Missing word ${position + 1} of ${hiddenIndices.length}`;
+      const label = tr('memory.ui.practice.missingWord', 'Missing word {position} of {total}', {
+        position: position + 1,
+        total: hiddenIndices.length,
+      });
 
       if (answerMode === 'firstLetter') {
         const input = el('input', {
@@ -1211,7 +1228,7 @@ export class PracticeView {
           const next = nextSlotAfter(input);
           fillSlot(input, correct ? correctWord(word, key) : missedWord(word, input.value));
           this.hiddenPending -= 1;
-          this.setFeedback(correct ? null : `Missed: ${word}`, 'bad');
+          this.setFeedback(correct ? null : tr('memory.ui.practice.missedWord', 'Missed: {word}', { word }), 'bad');
           if (this.hiddenPending > 0) {
             focusQuietly(next);
             return;
@@ -1258,15 +1275,34 @@ export class PracticeView {
     const count = step.blanks.reduce((n, b) => n + b.indices.length, 0);
     const prefix = tierPrefix(this.session.rung, this.session.tier, this.session.tiers);
     const wholePassage = step.verses.length > 1;
-    const scope = wholePassage ? 'across the whole passage' : 'in the highlighted verse';
 
     this.exerciseEl.appendChild(
       el('h2', {
         class: 'sm-prompt',
         text:
           step.answerMode === 'firstLetter'
-            ? `${prefix}Type the first letter of each missing word ${scope}.`
-            : `${prefix}Type the missing ${count === 1 ? 'word' : 'words'} ${scope}.`,
+            ? wholePassage
+              ? tr(
+                  'memory.ui.practice.blanksFirstLetterWhole',
+                  '{prefix}Type the first letter of each missing word across the whole passage.',
+                  { prefix },
+                )
+              : tr(
+                  'memory.ui.practice.blanksFirstLetterVerse',
+                  '{prefix}Type the first letter of each missing word in the highlighted verse.',
+                  { prefix },
+                )
+            : wholePassage
+              ? tr(
+                  'memory.ui.practice.blanksWordsWhole',
+                  '{prefix}Type the missing {count, plural, one {word} other {words}} across the whole passage.',
+                  { prefix, count },
+                )
+              : tr(
+                  'memory.ui.practice.blanksWordsVerse',
+                  '{prefix}Type the missing {count, plural, one {word} other {words}} in the highlighted verse.',
+                  { prefix, count },
+                ),
       }),
     );
 
@@ -1275,8 +1311,11 @@ export class PracticeView {
         el('p', {
           class: 'sm-hint',
           text: wholePassage
-            ? 'No preview this time - a correct letter reveals the word and moves on, verse after verse.'
-            : 'A correct letter reveals the word and moves on.',
+            ? tr(
+                'memory.ui.practice.hintLetterWhole',
+                'No preview this time - a correct letter reveals the word and moves on, verse after verse.',
+              )
+            : tr('memory.ui.practice.hintLetterVerse', 'A correct letter reveals the word and moves on.'),
         }),
       );
       focusQuietly(this.contextEl.querySelector<HTMLInputElement>('.sm-fl'));
@@ -1287,12 +1326,18 @@ export class PracticeView {
       el('p', {
         class: 'sm-hint',
         text: wholePassage
-          ? 'No preview this time - Enter moves to the next blank, across verses in order; Enter on the last one checks the whole passage.'
-          : 'Enter moves to the next blank; Enter on the last one checks your answer.',
+          ? tr(
+              'memory.ui.practice.hintEnterBlankWhole',
+              'No preview this time - Enter moves to the next blank, across verses in order; Enter on the last one checks the whole passage.',
+            )
+          : tr(
+              'memory.ui.practice.hintEnterBlankVerse',
+              'Enter moves to the next blank; Enter on the last one checks your answer.',
+            ),
       }),
     );
     this.actionsEl.appendChild(
-      button('Check', () => void this.submitBlanksHidden(step), { class: 'sm-btn sm-btn-primary' }),
+      button(tr('memory.ui.practice.check', 'Check'), () => void this.submitBlanksHidden(step), { class: 'sm-btn sm-btn-primary' }),
     );
     focusQuietly(this.hiddenInputs[0] ?? null);
   }
@@ -1306,16 +1351,16 @@ export class PracticeView {
     // look different, and the prompt below says so.
     if (step.tier === 0 && this.firstLettersStartedFor !== step) {
       this.exerciseEl.appendChild(
-        el('h2', { class: 'sm-prompt', text: `${prefix}Read the verse, then press Start.` }),
+        el('h2', { class: 'sm-prompt', text: tr('memory.ui.practice.readThenStart', '{prefix}Read the verse, then press Start.', { prefix }) }),
       );
       this.exerciseEl.appendChild(
         el('p', {
           class: 'sm-hint',
-          text: 'Start hides every word so you can recite it from memory.',
+          text: tr('memory.ui.practice.startHint', 'Start hides every word so you can recite it from memory.'),
         }),
       );
       this.actionsEl.appendChild(
-        button('Start', () => this.startFirstLetters(step), { class: 'sm-btn sm-btn-primary' }),
+        button(tr('memory.ui.practice.start', 'Start'), () => this.startFirstLetters(step), { class: 'sm-btn sm-btn-primary' }),
       );
       return;
     }
@@ -1324,7 +1369,10 @@ export class PracticeView {
       this.exerciseEl.appendChild(
         el('h2', {
           class: 'sm-prompt',
-          text: `${prefix}Type the first letter of each word (${step.verse.words.length} in this verse).`,
+          text: tr('memory.ui.practice.typeFirstLetterEachWord', '{prefix}Type the first letter of each word ({count} in this verse).', {
+            prefix,
+            count: step.verse.words.length,
+          }),
         }),
       );
       this.exerciseEl.appendChild(
@@ -1332,8 +1380,14 @@ export class PracticeView {
           class: 'sm-hint',
           text:
             step.tier === 0
-              ? 'A correct letter reveals the whole word. There is one attempt per word.'
-              : 'No preview this time - a correct letter reveals the whole word. There is one attempt per word.',
+              ? tr(
+                  'memory.ui.practice.hintWholeWordEasy',
+                  'A correct letter reveals the whole word. There is one attempt per word.',
+                )
+              : tr(
+                  'memory.ui.practice.hintWholeWordHard',
+                  'No preview this time - a correct letter reveals the whole word. There is one attempt per word.',
+                ),
         }),
       );
       focusQuietly(this.contextEl.querySelector<HTMLInputElement>('.sm-fl'));
@@ -1343,7 +1397,11 @@ export class PracticeView {
     this.exerciseEl.appendChild(
       el('h2', {
         class: 'sm-prompt',
-        text: `${prefix}Type every word in the verse (${step.verse.words.length} words).`,
+        text: tr(
+          'memory.ui.practice.typeEveryWord',
+          '{prefix}Type every word in the verse ({count, plural, one {# word} other {# words}}).',
+          { prefix, count: step.verse.words.length },
+        ),
       }),
     );
     this.exerciseEl.appendChild(
@@ -1351,12 +1409,18 @@ export class PracticeView {
         class: 'sm-hint',
         text:
           step.tier === 0
-            ? 'Enter moves to the next word; Enter on the last one checks your answer.'
-            : 'No preview this time - Enter moves to the next word; Enter on the last one checks your answer.',
+            ? tr(
+                'memory.ui.practice.hintEnterWordEasy',
+                'Enter moves to the next word; Enter on the last one checks your answer.',
+              )
+            : tr(
+                'memory.ui.practice.hintEnterWordHard',
+                'No preview this time - Enter moves to the next word; Enter on the last one checks your answer.',
+              ),
       }),
     );
     this.actionsEl.appendChild(
-      button('Check', () => void this.submitHidden(step), { class: 'sm-btn sm-btn-primary' }),
+      button(tr('memory.ui.practice.check', 'Check'), () => void this.submitHidden(step), { class: 'sm-btn sm-btn-primary' }),
     );
     focusQuietly(this.hiddenInputs[0] ?? null);
   }
@@ -1585,7 +1649,9 @@ export class PracticeView {
   private reportTyped(missed: number, total: number, summary: SessionSummary | null): void {
     const right = Math.max(0, total - missed);
     this.setFeedback(
-      missed === 0 ? `All ${total} correct.` : `${right} of ${total} correct.`,
+      missed === 0
+        ? tr('memory.ui.practice.allCorrect', 'All {total} correct.', { total })
+        : tr('memory.ui.practice.someCorrect', '{right} of {total} correct.', { right, total }),
       missed === 0 ? 'good' : 'bad',
     );
     this.appendAdvanceButton(summary);
@@ -1600,7 +1666,8 @@ export class PracticeView {
    */
   private appendAdvanceButton(summary: SessionSummary | null): void {
     clear(this.actionsEl);
-    const label = summary !== null ? 'Finish' : 'Next';
+    const label =
+      summary !== null ? tr('memory.ui.practice.finish', 'Finish') : tr('memory.ui.practice.next', 'Next');
     const next = button(
       label,
       () => {
@@ -1633,40 +1700,50 @@ export class PracticeView {
 
     this.exerciseEl.appendChild(
       el('div', { class: 'sm-summary' }, [
-        el('h2', { class: 'sm-summary-title', text: `${RUNG_LABEL[summary.rung]} — done` }),
+        el('h2', { class: 'sm-summary-title', text: tr('memory.ui.practice.activityDone', '{activity} — done', { activity: RUNG_LABEL[summary.rung] }) }),
         summary.tiers > 1
           ? el('p', {
               class: 'sm-summary-tier',
-              text: `${tierLabel(summary.rung, summary.tier)} (Tier ${summary.tier + 1} of ${summary.tiers})`,
+              text: tr('memory.ui.practice.tierOf', '{label} (Tier {tier} of {tiers})', {
+                label: tierLabel(summary.rung, summary.tier),
+                tier: summary.tier + 1,
+                tiers: summary.tiers,
+              }),
             })
           : null,
         el('div', { class: 'sm-summary-level' }, [
           levelBoxes(summary.level),
-          el('span', { class: 'sm-summary-level-text', text: `${summary.level}/5` }),
+          el('span', { class: 'sm-summary-level-text', text: tr('memory.ui.practice.levelOutOfFive', '{level}/5', { level: summary.level }) }),
         ]),
         el('p', {
           class: 'sm-summary-detail',
-          text: `${summary.correctFirst} of ${summary.totalSteps} right first time (${formatScore(summary.score)}).`,
+          text: tr('memory.ui.practice.summaryRightFirstTime', '{correct} of {total} right first time ({score}).', {
+            correct: summary.correctFirst,
+            total: summary.totalSteps,
+            score: formatScore(summary.score),
+          }),
         }),
         summary.passageWellLearned
-          ? el('p', { class: 'sm-summary-good', text: 'This passage is well learned.' })
+          ? el('p', { class: 'sm-summary-good', text: tr('memory.ui.practice.wellLearned', 'This passage is well learned.') })
           : null,
         el('p', {
           class: 'sm-summary-detail',
           text:
             summary.nextDueAt !== null
-              ? `Next review ${new Date(summary.nextDueAt).toLocaleDateString()}.`
-              : 'No further review scheduled.',
+              ? tr('memory.ui.practice.nextReview', 'Next review {date}.', {
+                  date: new Date(summary.nextDueAt).toLocaleDateString(uiLocale()),
+                })
+              : tr('memory.ui.practice.noFurtherReview', 'No further review scheduled.'),
         }),
       ]),
     );
 
     this.actionsEl.appendChild(
-      button('Done', () => void this.endSession(), { class: 'sm-btn sm-btn-primary' }),
+      button(tr('memory.ui.practice.done', 'Done'), () => void this.endSession(), { class: 'sm-btn sm-btn-primary' }),
     );
     this.actionsEl.appendChild(
       button(
-        'Practice again',
+        tr('memory.ui.practice.practiceAgain', 'Practice again'),
         () =>
           void this.host.startSession(this.session.passageId, this.session.rung, undefined, undefined, this.flow),
         { class: 'sm-btn' },
@@ -1677,7 +1754,7 @@ export class PracticeView {
     // "just keep going" path so the user is never forced back through the
     // plan list to find whatever else is due.
     this.actionsEl.appendChild(
-      button('Next due', () => void this.startNextDue(), { class: 'sm-btn sm-btn-quiet' }),
+      button(tr('memory.ui.practice.nextDue', 'Next due'), () => void this.startNextDue(), { class: 'sm-btn sm-btn-quiet' }),
     );
   }
 
@@ -1690,7 +1767,7 @@ export class PracticeView {
     }
     const target = pickDueTarget(reply.data, this.host.now());
     if (!target) {
-      this.host.announce('Nothing else is due right now.');
+      this.host.announce(tr('memory.ui.practice.nothingElseDue', 'Nothing else is due right now.'));
       void this.endSession();
       return;
     }
@@ -1845,7 +1922,7 @@ export class PracticeView {
  * rather than on the rung name.
  */
 function tierPrefix(rung: Rung, tier: number, tiers: number): string {
-  return tiers > 1 ? `${tierLabel(rung, tier)} tier: ` : '';
+  return tiers > 1 ? tr('memory.ui.practice.tierPrefix', '{label} tier: ', { label: tierLabel(rung, tier) }) : '';
 }
 
 function stepFraction(stepNumber: number, totalSteps: number): number {
@@ -1925,7 +2002,7 @@ function missedWord(answer: string, typed: string): HTMLElement {
     // is drawn by CSS as a small label absolutely positioned under the slot
     // (`.sm-word-wrong`), so a long wrong answer cannot widen the line; the
     // same text is also on the `title` for hover and in sr-only text.
-    attrs: shown === '' ? {} : { title: `You typed: ${shown}` },
+    attrs: shown === '' ? {} : { title: tr('memory.ui.practice.youTyped', 'You typed: {typed}', { typed: shown }) },
   }, [
     el('span', { class: 'sm-word-answer', text: answer }),
     el('span', { class: 'sm-word-wrong' }, [
@@ -1935,8 +2012,8 @@ function missedWord(answer: string, typed: string): HTMLElement {
       // has to be reconstructed in language for anyone not seeing the colour.
       el('span', { class: 'sm-mark sm-mark-bad', text: '✗', attrs: { 'aria-hidden': 'true' } }),
       shown === ''
-        ? el('span', { class: 'sm-sr-only', text: '(missed)' })
-        : el('span', { class: 'sm-sr-only', text: '(missed, you typed' }),
+        ? el('span', { class: 'sm-sr-only', text: tr('memory.ui.practice.srMissed', '(missed)') })
+        : el('span', { class: 'sm-sr-only', text: tr('memory.ui.practice.srMissedYouTyped', '(missed, you typed') }),
       shown === '' ? null : el('span', { class: 'sm-word-typed', text: shown }),
       shown === '' ? null : el('span', { class: 'sm-sr-only', text: ')' }),
     ]),

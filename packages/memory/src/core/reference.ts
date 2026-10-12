@@ -14,6 +14,7 @@
  * and resolving the two together is the whole job here.
  */
 
+import { tc } from './messages';
 import type { MemoryBibleApi } from './ports';
 
 export interface ResolvedReference {
@@ -58,13 +59,13 @@ export async function resolveReference(
 ): Promise<ResolvedReference> {
   const trimmed = input.trim();
   if (trimmed.length === 0) {
-    throw new ReferenceError('Type a reference, for example "John 3:16-18".');
+    throw new ReferenceError(tc('memory.core.refEmpty', 'Type a reference, for example "John 3:16-18".'));
   }
 
   const parsed = await api.bible.parseReference(trimmed);
   if (!parsed) {
     throw new ReferenceError(
-      `"${trimmed}" is not a reference I recognise. Try something like "John 3:16-18".`,
+      tc('memory.core.refUnrecognised', '"{input}" is not a reference I recognise. Try something like "John 3:16-18".', { input: trimmed }),
     );
   }
 
@@ -78,7 +79,7 @@ export async function resolveReference(
     const chapter = chapters.find((c) => c.chapter === parsed.chapter);
     if (!chapter) {
       throw new ReferenceError(
-        `That book does not have a chapter ${parsed.chapter} in this translation.`,
+        tc('memory.core.refNoChapter', 'That book does not have a chapter {chapter} in this translation.', { chapter: parsed.chapter }),
       );
     }
 
@@ -86,7 +87,7 @@ export async function resolveReference(
       const startVerse = parsed.startVerse ?? 1;
       if (startVerse > chapter.verseCount) {
         throw new ReferenceError(
-          `That chapter only has ${chapter.verseCount} verses.`,
+          tc('memory.core.refChapterVerses', 'That chapter only has {count} verses.', { count: chapter.verseCount }),
         );
       }
       startVerseId = chapter.firstVerseId + (startVerse - 1);
@@ -104,14 +105,13 @@ export async function resolveReference(
   }
 
   if (endVerseId < startVerseId) {
-    throw new ReferenceError('That range ends before it starts.');
+    throw new ReferenceError(tc('memory.core.refRangeBackwards', 'That range ends before it starts.'));
   }
 
   const verseCount = endVerseId - startVerseId + 1;
   if (verseCount > MAX_PASSAGE_VERSES) {
     throw new ReferenceError(
-      `That is ${verseCount} verses. Passages are limited to ${MAX_PASSAGE_VERSES}; ` +
-        `add it in smaller pieces so each one stays practisable.`,
+      tc('memory.core.refTooLong', 'That is {count} verses. Passages are limited to {max}; add it in smaller pieces so each one stays practisable.', { count: verseCount, max: MAX_PASSAGE_VERSES }),
     );
   }
 

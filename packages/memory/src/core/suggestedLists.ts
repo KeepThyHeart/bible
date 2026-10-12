@@ -6,6 +6,8 @@
  * points for users creating their own study plans.
  */
 
+import { tc } from './messages';
+
 export interface SuggestedList {
   /** Unique identifier for the list. */
   key: string;
@@ -27,8 +29,12 @@ export interface SuggestedList {
 export const SUGGESTED_LISTS: readonly SuggestedList[] = [
   {
     key: 'starter',
-    name: 'Beginning Well',
-    blurb: 'Ten verses that carry most of the gospel.',
+    get name() {
+      return tc('memory.core.suggested.starter.name', 'Beginning Well');
+    },
+    get blurb() {
+      return tc('memory.core.suggested.starter.blurb', 'Ten verses that carry most of the gospel.');
+    },
     references: [
       'John 3:16',
       'Romans 3:23',
@@ -44,8 +50,12 @@ export const SUGGESTED_LISTS: readonly SuggestedList[] = [
   },
   {
     key: 'romans-road',
-    name: 'The Romans Road',
-    blurb: 'The classic six-step walk through Romans.',
+    get name() {
+      return tc('memory.core.suggested.romansRoad.name', 'The Romans Road');
+    },
+    get blurb() {
+      return tc('memory.core.suggested.romansRoad.blurb', 'The classic six-step walk through Romans.');
+    },
     references: [
       'Romans 3:10',
       'Romans 3:23',
@@ -57,26 +67,42 @@ export const SUGGESTED_LISTS: readonly SuggestedList[] = [
   },
   {
     key: 'psalm-23',
-    name: 'Psalm 23',
-    blurb: 'The shepherd psalm, whole.',
+    get name() {
+      return tc('memory.core.suggested.psalm23.name', 'Psalm 23');
+    },
+    get blurb() {
+      return tc('memory.core.suggested.psalm23.blurb', 'The shepherd psalm, whole.');
+    },
     references: ['Psalm 23:1-6'],
   },
   {
     key: 'beatitudes',
-    name: 'The Beatitudes',
-    blurb: 'The opening of the Sermon on the Mount.',
+    get name() {
+      return tc('memory.core.suggested.beatitudes.name', 'The Beatitudes');
+    },
+    get blurb() {
+      return tc('memory.core.suggested.beatitudes.blurb', 'The opening of the Sermon on the Mount.');
+    },
     references: ['Matthew 5:3-12'],
   },
   {
     key: 'lords-prayer',
-    name: "The Lord's Prayer",
-    blurb: "Matthew's form, as taught.",
+    get name() {
+      return tc('memory.core.suggested.lordsPrayer.name', 'The Lord\'s Prayer');
+    },
+    get blurb() {
+      return tc('memory.core.suggested.lordsPrayer.blurb', 'Matthew\'s form, as taught.');
+    },
     references: ['Matthew 6:9-13'],
   },
   {
     key: 'anxious-days',
-    name: 'Promises for Anxious Days',
-    blurb: 'Six places to go when the mind will not settle.',
+    get name() {
+      return tc('memory.core.suggested.anxiousDays.name', 'Promises for Anxious Days');
+    },
+    get blurb() {
+      return tc('memory.core.suggested.anxiousDays.blurb', 'Six places to go when the mind will not settle.');
+    },
     references: [
       'Isaiah 41:10',
       'Philippians 4:6-7',
@@ -88,20 +114,32 @@ export const SUGGESTED_LISTS: readonly SuggestedList[] = [
   },
   {
     key: 'fruit',
-    name: 'Fruit of the Spirit',
-    blurb: 'One passage, nine words to keep straight.',
+    get name() {
+      return tc('memory.core.suggested.fruit.name', 'Fruit of the Spirit');
+    },
+    get blurb() {
+      return tc('memory.core.suggested.fruit.blurb', 'One passage, nine words to keep straight.');
+    },
     references: ['Galatians 5:22-23'],
   },
   {
     key: 'psalm-1',
-    name: 'Psalm 1',
-    blurb: 'The two ways.',
+    get name() {
+      return tc('memory.core.suggested.psalm1.name', 'Psalm 1');
+    },
+    get blurb() {
+      return tc('memory.core.suggested.psalm1.blurb', 'The two ways.');
+    },
     references: ['Psalm 1:1-6'],
   },
   {
     key: 'ten-commandments',
-    name: 'The Ten Commandments',
-    blurb: 'Exodus 20, in full.',
+    get name() {
+      return tc('memory.core.suggested.tenCommandments.name', 'The Ten Commandments');
+    },
+    get blurb() {
+      return tc('memory.core.suggested.tenCommandments.blurb', 'Exodus 20, in full.');
+    },
     references: ['Exodus 20:1-17'],
   },
 ];

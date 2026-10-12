@@ -20,6 +20,7 @@
 
 import type { PlanView, ReciteStateView, Rung } from '../core/types';
 import type { PanelHost } from './host';
+import { tr } from './i18n';
 
 /** The six tile ids - see the file header for why `variety` is not a `Rung`. */
 export type ActivityId = 'variety' | 'refmatch' | 'ordering' | 'blanks' | 'firstletters' | 'refprovide';
@@ -44,38 +45,38 @@ export const ACTIVITY_TILES: readonly ActivityTile[] = [
   {
     id: 'variety',
     rung: null,
-    title: 'Variety',
-    subtext: "A mix of activities based on what's next in better learning your verse list.",
+    get title() { return tr('memory.ui.settings.tileVarietyTitle', 'Variety'); },
+    get subtext() { return tr('memory.ui.settings.tileVarietySub', "A mix of activities based on what's next in better learning your verse list."); },
   },
   {
     id: 'refmatch',
     rung: 'refmatch',
-    title: 'Match References',
-    subtext: "Match a passage's text to its reference.",
+    get title() { return tr('memory.ui.settings.tileRefmatchTitle', 'Match References'); },
+    get subtext() { return tr('memory.ui.settings.tileRefmatchSub', "Match a passage's text to its reference."); },
   },
   {
     id: 'ordering',
     rung: 'ordering',
-    title: 'Put in Order',
-    subtext: 'A passage has its verses shuffled, and you put them in order.',
+    get title() { return tr('memory.ui.settings.tileOrderingTitle', 'Put in Order'); },
+    get subtext() { return tr('memory.ui.settings.tileOrderingSub', 'A passage has its verses shuffled, and you put them in order.'); },
   },
   {
     id: 'blanks',
     rung: 'blanks',
-    title: 'Fill in the Blanks',
-    subtext: 'A passage is shown with blanks, and you provide the first letter or the entire word for each blank.',
+    get title() { return tr('memory.ui.settings.tileBlanksTitle', 'Fill in the Blanks'); },
+    get subtext() { return tr('memory.ui.settings.tileBlanksSub', 'A passage is shown with blanks, and you provide the first letter or the entire word for each blank.'); },
   },
   {
     id: 'firstletters',
     rung: 'firstletters',
-    title: 'First Letters',
-    subtext: 'A passage reference is given, and you type the first letter of each word, in order.',
+    get title() { return tr('memory.ui.settings.tileFirstLettersTitle', 'First Letters'); },
+    get subtext() { return tr('memory.ui.settings.tileFirstLettersSub', 'A passage reference is given, and you type the first letter of each word, in order.'); },
   },
   {
     id: 'refprovide',
     rung: 'refprovide',
-    title: 'Provide Reference',
-    subtext: 'The passage text is shown, and you type its reference.',
+    get title() { return tr('memory.ui.settings.tileRefprovideTitle', 'Provide Reference'); },
+    get subtext() { return tr('memory.ui.settings.tileRefprovideSub', 'The passage text is shown, and you type its reference.'); },
   },
 ];
 
@@ -91,9 +92,9 @@ export const ACTIVITY_TILES: readonly ActivityTile[] = [
 export const RECITE_TILE = {
   id: 'recite',
   rung: 'recite',
-  title: 'Recite Aloud',
-  subtext: 'Say a passage aloud from memory and see which words you got.',
-} as const;
+  get title() { return tr('memory.ui.settings.tileReciteTitle', 'Recite Aloud'); },
+  get subtext() { return tr('memory.ui.settings.tileReciteSub', 'Say a passage aloud from memory and see which words you got.'); },
+};
 
 /** The recite tile is offered only when speech is ready. */
 export function reciteTileVisible(plan: PlanView): boolean {
@@ -105,7 +106,7 @@ export function reciteDueEntry(plan: PlanView): { label: string; count: number; 
   if (!reciteTileVisible(plan)) return null;
   const count = plan.reciteDueCount;
   return {
-    label: count > 0 ? `Recite what's due aloud (${count})` : "Recite what's due aloud",
+    label: count > 0 ? tr('memory.ui.settings.reciteDueCount', "Recite what's due aloud ({count})", { count }) : tr('memory.ui.settings.reciteDue', "Recite what's due aloud"),
     count,
     enabled: count > 0,
   };
