@@ -1,6 +1,6 @@
 # Backup Format
 
-**Format version:** 1.0
+**Format version:** 1.1 (container 1.0; payload 1.0, or 1.1 from a database that syncs - see [Sync identities](#sync-identities-payload-11))
 
 The backup format is the file that holds a copy of a person's own data: their notes, highlights, links, collections, study data and the data extensions ask to keep. It is designed to be opened by any future version of the app, to be documented well enough that another program can read it, and to share its cryptography with the rest of `@bible/core`. This document is the public specification; the code is under `src/Crypto/` and `src/Backup/`.
 
@@ -8,7 +8,7 @@ Two files carry the same payload:
 
 | File | What it is |
 |---|---|
-| `.bbk` | The **encrypted backup**: the payload sealed in a streamed, authenticated envelope, unlocked with a password. |
+| `.bbk` | The **encrypted backup**: the payload sealed in a streamed, authenticated envelope, unlocked with a password, the account key or the recovery code. |
 | `.zip` | The **unencrypted export**: the payload itself, a standard ZIP archive. Anyone with the file can read it. |
 
 One reader opens both: the first bytes tell them apart (see [Sniffing](#sniffing)).
@@ -18,13 +18,14 @@ One reader opens both: the first bytes tell them apart (see [Sniffing](#sniffing
 | File | Purpose |
 |---|---|
 | `src/Crypto/` | Browser-safe primitives: Argon2id (`hash-wasm`, loaded lazily), HKDF-SHA-256 and AES-256-GCM over WebCrypto, strict base64url, KDF-parameter validation, an injectable `RandomSource`. |
-| `src/Backup/Envelope.ts` | The `.bbk` container: `sealStream`, `openStream`, `sniff`, `parseHeader`. |
+| `src/Backup/Envelope.ts` | The `.bbk` container: `sealStream`, `openStream`, `sniff`, `parseHeader`; password, account and recovery key slots. |
 | `src/Backup/StrictJson.ts` | A JSON parser that rejects duplicate keys, a byte order mark, trailing content and deep nesting. Used for the header and the manifest. |
 | `src/Backup/Zip.ts` | The ZIP layer (`fflate`): safe-name rules, size and ratio guards, a strict reader. |
 | `src/Backup/Payload.ts` | The payload: `createBackupPayload`, `readBackupPayload`, the manifest, the row encoding. |
 | `src/Backup/BackupFile.ts` | `openBackupFile` / `readBackupFile`: sniff, decrypt if needed, verify. |
 | `src/Backup/Registry.ts` | The user-table registry and `USER_SCHEMA_VERSION`. |
 | `src/Backup/Restore.ts` | `inspectBackup`, `applyRestore`, replace and merge. |
+| `src/Backup/syncIds.ts` | Internal (not exported): carrying sync record ids in a backup and putting them back on restore. |
 | `src/Backup/ExtensionData.ts` | Resolving an extension manifest's `userData` block into what gets backed up. |
 | `src/Backup/errors.ts` | The error classes a UI can tell apart. |
 | `src/__tests__/Backup/`, `src/__tests__/Crypto/` | Known-answer tests, golden files (`fixtures/`), negative tests and property tests. |
@@ -57,15 +58,19 @@ segments   ...        AES-256-GCM: up to `segmentSize` plaintext bytes each, fol
       "kdf": { "id": "argon2id", "v": 19, "m": 65536, "t": 3, "p": 1, "salt": "<16 bytes, base64url>" },
       "nonce": "<12 bytes, base64url>",
       "wrapped": "<48 bytes, base64url>"
-    }
+    },
+    { "type": "account",  "nonce": "<12 bytes>", "wrapped": "<48 bytes>" },
+    { "type": "recovery", "salt": "<16 bytes>", "nonce": "<12 bytes>", "wrapped": "<48 bytes>" }
   ]
 }
 ```
 
+Only the `password` slot is always shown below; `account` and `recovery` slots are optional and described under [Key slots](#key-slots).
+
 - All binary values are **base64url without padding**, and the decoder is strict: only the URL-safe alphabet, no padding, no whitespace, and unused trailing bits must be zero, so each value has exactly one encoding. Every length is checked exactly.
 - The header is parsed with a strict JSON parser (no duplicate keys at any depth, no byte order mark, nothing after the value). The stored bytes are what is authenticated, so writers use a fixed key order and no whitespace, and readers never re-serialise.
-- `segmentSize` is between 4 096 and 4 194 304 bytes (the default is 65 536). `slots` holds 1 to 16 entries; a reader tries at most the first 4 password slots, so one file cannot demand unbounded key derivations.
-- Unknown top-level keys are ignored (they are still covered by the header hash). A slot whose `type` is unknown, or whose `kdf.id` is not `argon2id` or `kdf.v` is not 19, is skipped, not an error.
+- `segmentSize` is between 4 096 and 4 194 304 bytes (the default is 65 536). `slots` holds 1 to 16 entries; a reader tries at most the first 4 slots of the type it is unlocking with, so one file cannot demand unbounded key derivations.
+- Unknown top-level keys are ignored (they are still covered by the header hash). A slot whose `type` is unknown, or whose `kdf.id` is not `argon2id` or `kdf.v` is not 19, is skipped, not an error. `account` and `recovery` slots are checked strictly (exactly the fields shown, exact sizes) when a reader unlocks with that method: a malformed one is damage. When it unlocks another way it does not look at them.
 - A reader checks, in this order, before doing any expensive work: the magic and version, the header length, the JSON, every field's type and size, the algorithm identifiers, and the KDF parameter bounds. Only then does it derive a key.
 
 The header carries only what is needed to derive the key. No date, count or name is visible without the password.
@@ -86,7 +91,24 @@ The header carries only what is needed to derive the key. No date, count or name
 
 `keyCheck` commits the file to one key: AES-GCM does not, so without it a crafted file with several slots could hold slots that unwrap *different* keys and show different plaintexts to different passwords. A reader compares it (in constant time) with the key each slot unwraps and treats a mismatch as a failed slot.
 
-A random file key wrapped in key slots is what lets other ways of unlocking a file be added later (another key, a recovery code) without changing the format: a new slot type wraps the same file key.
+A random file key wrapped in key slots is what lets other ways of unlocking a file be added without changing the format: a slot type wraps the same file key. The account and recovery slots below are exactly that; a file made before they existed is unchanged and still opens.
+
+### Key slots
+
+Every slot wraps the same file key and is checked against `keyCheck`. A reader chooses the slots by the way it is unlocking (password, account key or recovery code) and ignores the rest.
+
+| Slot | Fields | Key-encryption key | AAD of the wrapped key |
+|---|---|---|---|
+| `password` | `kdf`, `nonce`, `wrapped` | `HKDF(Argon2id(password), ∅, "kth-backup-kek-v1")` (above) | `"kth-backup-slot-v1" ‖ SHA-256(preamble)` |
+| `account` | `nonce`, `wrapped` | `HKDF-SHA-256(ikm = account key (32 B), salt = empty, info = "kth-backup-wrap-v1", 32)` | `"kth-backup-slot-v1" ‖ SHA-256(preamble) ‖ 0x00 ‖ "account"` |
+| `recovery` | `salt` (16 B), `nonce`, `wrapped` | `HKDF-SHA-256(ikm = the 20 bytes of the recovery code, salt = slot.salt, info = "kth-backup-recovery-v1", 32)` | the same, ending `‖ "recovery"` |
+
+- **Account slot.** The account key is the 32 random bytes of the signed-in account (see the sync contracts). The slot carries no account identifier, so a file reveals nothing about whose it is; a reader simply tries the account key it holds against up to 4 account slots. No password prompt and no key derivation: the host opens such a file silently when it can, and falls back to the password. A file with only an account slot is refused by the writer: it could never be opened again once the account is gone.
+- **Recovery slot.** The recovery code is the 160-bit code the account shows once at sign-up (32 Crockford base32 characters). It is random, so no Argon2 is needed: the code goes through the same HKDF as above. Any case, dashes and spaces are accepted, and the aliases `O`→`0`, `I`/`L`→`1`. A malformed code counts as a wrong one (`WrongPasswordError`) and the error never echoes it.
+- **Type binding.** The AAD of `account` and `recovery` slots ends with their type, so a slot cannot be passed off as the other. (The `password` AAD is the original one, so old files stay byte-for-byte valid.)
+- **Writer rule.** At least one `password` or `recovery` slot is required. `KeySlotInput` is `{ type: 'password', password, kdf? } | { type: 'account', accountKey } | { type: 'recovery', code }`; `UnlockInput` is `{ password } | { accountKey } | { recoveryCode }`.
+- **Old readers.** They ignore slot types they do not know and open the file with the password slot, as long as one exists. A file written with only an account and a recovery slot cannot be opened by a reader that predates them.
+- The labels `kth-backup-wrap-v1` and `kth-backup-recovery-v1` also exist in `Sync/crypto/labels.ts`; `Backup` keeps its own copies (it never imports `Sync`) and a test builds slots from Sync's labels with `node:crypto` and opens them.
 
 ### Segments
 
@@ -105,8 +127,8 @@ What it guarantees, each covered by a test: truncation at a segment boundary, dr
 | Error | Meaning |
 |---|---|
 | `NotABackupError` | The magic does not match (or the major version is 0). |
-| `NewerFormatError` | Higher major, unknown cipher or payload identifier, no usable password slot, a newer manifest or schema version, or a required section it does not know. |
-| `WrongPasswordError` | Every password slot failed to unwrap the file key. (A tampered slot looks the same; it cannot be told apart without the password.) |
+| `NewerFormatError` | Higher major, unknown cipher or payload identifier, no slot a password could use and no known other slot type, a newer manifest or schema version, or a required section it does not know. |
+| `WrongPasswordError` | Every slot of the kind being tried (password, account key or recovery code) failed to unwrap the file key, or the file has none of that kind, or the recovery code is malformed. (A tampered slot looks the same; it cannot be told apart without the secret.) |
 | `DamagedError` | Anything else: malformed header, KDF parameters outside the bounds, a failed segment tag after a good unlock, a truncated file, a bad checksum, a section without its key column. |
 | `PasswordRequiredError` | The file is encrypted and no password was supplied. |
 
@@ -154,6 +176,20 @@ modules.json                        installed module ids and versions (informati
 - The manifest is parsed with the strict JSON parser. Unknown keys are ignored.
 - What a section says about itself is checked, and its `class` is taken from this version, never from the file: `table` sections must name a registry table other than `extension_storage` and be called `user.<table>` (once), `files` sections are `notes` and `notes.history`, `extKv` and `extDb` sections carry valid extension ids and database names, and each section's `count` must match its entry. A section of another shape is unknown (skipped, or a refusal when `required`).
 
+### Sync identities (payload 1.1)
+
+A database that has synced (it has `sync_record` and a recorded record-id key fingerprint, `sync_state.idk_fp`) writes **format 1.1**; one that has never synced writes 1.0, byte for byte as before. A 1.1 file keeps `minReaderVersion` `1.0`: a 1.0 reader opens it and ignores the additions.
+
+```json
+{ "formatVersion": "1.1", "minReaderVersion": "1.0", "...": "...", "sync": { "idkFp": "<16 hex chars>" } }
+```
+
+- `sync.idkFp` is the fingerprint of the record-id key of the account the file was made under (the same value the sync engine keeps as `idk_fp`). It reveals nothing about the key. It is validated (16 lower-case hex characters) or the manifest is damaged; unknown keys inside `sync` are ignored.
+- The `user/<table>.ndjson` sections of tables whose records have **random** ids (content tables with an autoincrement key and no natural key: notes, notebooks, collections, pins, links, markup, cross references, plans, prayers, journal, verse links, memory collections and attempts) get one extra last column, `sync_id`: the row's record id (32 lower-case hex), or `null` when it has none yet. Tables whose record ids are derived from their content (reading progress, user data items, plan days, memory passages and cards, ...) carry none: the same content gives the same id on any device of the account.
+- Deleted records (tombstones) are not in a backup.
+
+A reader that does not use sync drops the column like any column it does not know (and does not report it).
+
 ### Rows
 
 `user/<table>.ndjson` has one JSON object per line, keys are column names, and the file ends with a newline (an empty table is an empty file). Values are numbers, strings and `null` (a boolean is refused); a key named `__proto__` is refused; a BLOB is `{"$b64": "<base64url>"}`. Nested objects and arrays are not valid column values: JSON columns are stored as text, as in the database.
@@ -193,7 +229,7 @@ An extension declares what part of its data is the user's in its manifest (`exte
 - The **key-value store is included by default** (it is small and it is the user's data); `"backup": false` opts out.
 - A **database is included only when declared** with `"backup": true`, per name (the name passed to `openDatabase()`), because databases are often indexes or caches. The host copies a consistent snapshot, never the live file.
 - **Secrets are never included.**
-- `"sync"` (at both levels) is reserved for a future version; it validates and is ignored.
+- `"sync"` (at both levels) is read by account sync, not by backup: the key-value store of an extension that sets `userData.sync` to `true` is uploaded by sync (the others stay on the device). Whether it is included in a backup is decided by `backup` alone, as above.
 - Data for an extension that is not installed on the restoring machine is restored anyway, keyed by extension id, so installing it later finds its data. No extension code runs during a backup or a restore.
 
 ## The table registry
@@ -214,6 +250,12 @@ Restore is two steps. `inspectBackup(archive, target)` maps a verified backup on
 - A note file that exists and differs is kept as `<name> (restored YYYY-MM-DD).bn`; a copy with identical content from an earlier merge is reused. Names are compared without regard to case or Unicode form, so on Windows and macOS `Foo.bn` and `foo.bn` are one file and never overwrite each other.
 - A child whose parent is not part of the restore is dropped or has the reference cleared, as its table specifies, and the report says how many.
 
+**Restoring into a database that syncs.** A restore is an edit by the user, so the change-tracking triggers stay on and every restored row is uploaded by the next sync. When the file is 1.1 and `sync.idkFp` equals the target's `idk_fp` (same account), the record ids in `sync_id` are used so a restore does not turn every record into a new one. Otherwise (a 1.0 file, another account, a database that never synced) nothing of this applies and a restore behaves as described above.
+
+- **Merge.** A backup row whose `sync_id` is the record id of a live local row of the same table is **that row**: it is reused (foreign keys are mapped to it), never duplicated, whatever its content now is. A row that is inserted takes its `sync_id`; if a local tombstone holds that id the tombstone is adopted (its server version moves to the new row and the tombstone goes), so the row continues that record. An id held by a live row elsewhere, or claimed twice in the file, is taken by at most one row; the others get a fresh identity. Merging the same file twice adds no rows and leaves nothing new to upload.
+- **Replace.** Before anything is deleted the identities of the replaced tables are noted (record id, local key, server version, base). After the rows are inserted: a restored row with a `sync_id` takes that record id and the server version noted for it (unknown to this database: the id alone), and is marked changed; a restored row without one is a new record (no id, no server version), even if an old row used to have its local id; a record that had a server version and is not taken over becomes a **tombstone** to upload, at its old local key or, when a restored row now uses that key, at the synthetic key `U+001F "r:" ‖ record id`; a record the server never saw simply disappears. Replacing a table with natural-key records follows the same rules with no `sync_id`: the restored rows get their ids derived again and adopt the tombstones.
+- A dry run (the preview in `inspectBackup`) runs all of this inside its rolled-back transaction and writes nothing.
+
 **Schema versions.** A backup with a higher `userSchemaVersion` is refused ("update the app"). An older one passes its rows through the registered upgraders, one per version step. Upgraders run first, so they may rename or add columns; then columns the target does not have are dropped and counted, and columns the backup lacks entirely take their defaults. A section for a table whose key column is missing or repeated is refused as damaged. Table names come only from the registry, never from the file.
 
 ## Forward compatibility
@@ -225,7 +267,8 @@ Restore is two steps. `inspectBackup(archive, target)` maps a verified backup on
 | New way to unlock (key slot) | New slot `type` | Ignores slots it does not know; uses a password slot if there is one. |
 | New optional section (a table, extension data) | A section with `required: false` | Skips it and lists it in the report. |
 | Something a reader must understand | `required: true`, or a higher `minReaderVersion` | Refuses. |
-| New column | Higher minor of `formatVersion` | Drops the column and reports it. |
+| New column | Higher minor of `formatVersion` | Drops the column and reports it (`sync_id` of 1.1 is dropped silently). |
+| New manifest block (`sync`) | Higher minor, `minReaderVersion` unchanged | Ignores it. |
 | New header or manifest keys | Any | Ignored (the header is still authenticated as a whole). |
 
 "Preserved" applies to data, not to the file: a reader never rewrites a backup.
@@ -237,6 +280,8 @@ Restore is two steps. `inspectBackup(archive, target)` maps a verified backup on
 - **Independent builder** (`src/__tests__/Backup/envelopeSpec.ts`): assembles a `.bbk` from this specification using only `node:crypto`, so a mistake that is symmetric (wrong on both the write and the read side) is caught.
 - **Fuzzing and review regressions** (`fuzz.test.ts`, `hardening.test.ts`): mutated files must fail with a typed error or open to the original content; hostile manifests, missing keys, deep parent chains, resource limits.
 - **Negative tests**: a flipped bit in every region, truncation at and inside segments, appended data, reordered and spliced segments, hostile headers (duplicate keys, wrong sizes, parameters outside the bounds, oversize lengths) that must fail before any key derivation, and hostile ZIP entries.
+- **Key slots** (`slots.test.ts`, golden file `fixtures/password-account-recovery.bbk`): all three unlock paths, recovery-code spellings, wrong secrets, type binding in the AAD, mixed-up slots failing the key check, strict shapes, the 4-slot limit, and an independent builder using Sync's labels.
+- **Sync identities** (`payload11.test.ts`, `restoreSynced.test.ts`): 1.0 output unchanged when nothing synced, `sync_id` columns, merge twice, tombstone adoption, replace keeping identities and making tombstones (also at the synthetic key, pushed by a real engine), account mismatch behaving as 1.0.
 - **Property tests** (`fast-check`): round trips for lengths clustered on segment boundaries with random chunking; restore and merge over random data graphs (replace reproduces every table; merge into an empty database equals replace apart from ids; merging twice equals merging once; merging never changes an existing row; no reference is left dangling).
 
 ## Gotchas
@@ -245,4 +290,5 @@ Restore is two steps. `inspectBackup(archive, target)` maps a verified backup on
 - `hash-wasm` is imported lazily, so nothing is downloaded or compiled until a password is actually hashed.
 - The payload is built in memory before it is encrypted, because the manifest comes first and lists every entry's checksum. Only the encryption layer streams.
 - After a code change that adds a table, add it to `USER_TABLES` (or `EXCLUDED_TABLES`) and bump `USER_SCHEMA_VERSION` with a row upgrader if an existing column changed shape.
+- A synthetic-key tombstone (replace restore) needs `SyncEngine` to hand `undefined` rather than the synthetic key to `codec.upsert` when a newer remote version of that record arrives; see the note in `restoreSynced.test.ts`.
 - Task 0150 bumped `USER_SCHEMA_VERSION` to 3: every user table now exists on every platform (core `createUserSchema`); sync bookkeeping tables (`sync_*`) stay excluded. New tables only, no upgrader.

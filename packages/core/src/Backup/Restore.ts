@@ -21,6 +21,11 @@
  * changes nothing.
  *
  * Everything runs on `ISql` alone, so it works on any provider.
+ *
+ * Restoring into a database that syncs: the change-tracking triggers stay ON (a restore is a user edit and must be
+ * uploaded). When the backup is format 1.1 and was made under the same record-id key as this database (manifest
+ * `sync.idkFp` equals `sync_state.idk_fp`), the rows' record ids travel in a `sync_id` column and are put back, so
+ * a restore does not turn every record into a new one; see `syncIds.ts`. Otherwise it behaves as for a 1.0 file.
  */
 import type { ISql, SqlParameter } from '../Data/Core/ISql';
 import { b64urlEncode } from '../Crypto';
@@ -31,6 +36,10 @@ import { EXTENSION_DB_NAME_PATTERN, EXTENSION_ID_PATTERN } from './ExtensionData
 import { USER_SCHEMA_VERSION, orderedTables, tableSpec, upgradeRow } from './Registry';
 import type { FkSpec, Row, TableSpec } from './Registry';
 import { checkEntryName } from './Zip';
+import {
+  SYNC_ID_COLUMN, adoptRecordId, carriesSyncId, isRecordId, isTracked, readIdkFingerprint, readLiveRecordIds, rewriteReplaced,
+  snapshotIdentities,
+} from './syncIds';
 
 export type RestoreMode = 'replace' | 'merge';
 
@@ -217,7 +226,7 @@ export function inspectBackup(archive: BackupArchive, target: RestoreTarget, opt
         const spec = tableSpec(name) as TableSpec;
         const known = new Set(spec.columns);
         const backupCols = s.columns ?? [];
-        plan.droppedColumns = backupCols.filter((c) => !live.includes(c) || !known.has(c));
+        plan.droppedColumns = backupCols.filter((c) => c !== SYNC_ID_COLUMN && (!live.includes(c) || !known.has(c)));
         plan.missingColumns = live.filter((c) => !backupCols.includes(c));
         plan.targetRows = sql.queryOne<{ n: number }>(`SELECT COUNT(*) AS n FROM ${q(name)}`)?.n ?? 0;
       }
@@ -396,6 +405,21 @@ interface Ctx {
   ids: Map<string, Map<unknown, unknown>>;
   /** Tables emptied by a replace. */
   cleared: Set<string>;
+  /** Present when the backup's sync identities apply to this database (same record-id key). */
+  sync?: SyncRestore;
+}
+
+interface SyncRestore {
+  /** replace: table -> local key -> `sync_id` of the rows just inserted. */
+  restored: Map<string, Map<string, string>>;
+}
+
+/** The backup's identities apply only to the account that made them: compare the record-id key fingerprints. */
+function syncRestoreFor(sql: ISql, plan: RestorePlan): SyncRestore | undefined {
+  const theirs = plan.archive.manifest.sync?.idkFp;
+  if (theirs === undefined) return undefined;
+  const mine = readIdkFingerprint(sql);
+  return mine !== undefined && mine === theirs ? { restored: new Map() } : undefined;
 }
 
 /**
@@ -498,7 +522,7 @@ function runDatabase(plan: RestorePlan, target: RestoreTarget, opts: RestoreOpti
   if (sel.tables.size === 0 && sel.kv.length === 0) return report;
   if (mode === 'replace') sql.execute('PRAGMA defer_foreign_keys = ON');
 
-  const ctx: Ctx = { sql, archive: plan.archive, mode, report, ids: new Map(), cleared: sel.clear };
+  const ctx: Ctx = { sql, archive: plan.archive, mode, report, ids: new Map(), cleared: sel.clear, sync: syncRestoreFor(sql, plan) };
   const reports = new Map<string, TableReport>();
   const reportFor = (table: string): TableReport => {
     let r = reports.get(table);
@@ -509,6 +533,10 @@ function runDatabase(plan: RestorePlan, target: RestoreTarget, opts: RestoreOpti
     }
     return r;
   };
+
+  // Replace on a synced database: remember who the old rows were before they are deleted (see syncIds.ts).
+  const replacedTracked = mode === 'replace' && ctx.sync ? [...sel.clear].filter((t) => isTracked(sql, t)) : [];
+  const identitiesBefore = snapshotIdentities(sql, replacedTracked);
 
   // 1. replace: empty everything that is being replaced, children first.
   if (mode === 'replace') {
@@ -558,6 +586,9 @@ function runDatabase(plan: RestorePlan, target: RestoreTarget, opts: RestoreOpti
     }
   }
 
+  // 2b. replace on a synced database: put the identities back on the rows that came from the backup.
+  if (ctx.sync && replacedTracked.length > 0) rewriteReplaced(sql, replacedTracked, identitiesBefore, ctx.sync.restored);
+
   // 3. derived data and integrity.
   if (sel.tables.has('user_note') && tableExists(sql, 'user_note_fts')) {
     sql.execute("INSERT INTO user_note_fts(user_note_fts) VALUES('rebuild')");
@@ -584,7 +615,7 @@ function fillSection(spec: TableSpec, section: ManifestSection, ctx: Ctx, tr: Ta
   for (const r of upgraded) for (const k of Object.keys(r)) present.add(k);
   const insertCols = spec.columns.filter((c) => present.has(c) && live.includes(c) && known.has(c));
   for (const c of [...present, ...(section.columns ?? [])]) {
-    if (!insertCols.includes(c) && !report.droppedColumns.some((x) => x.table === spec.name && x.column === c)) {
+    if (c !== SYNC_ID_COLUMN && !insertCols.includes(c) && !report.droppedColumns.some((x) => x.table === spec.name && x.column === c)) {
       report.droppedColumns.push({ table: spec.name, column: c, rows: rowsRaw.length });
     }
   }
@@ -621,6 +652,19 @@ function fillSection(spec: TableSpec, section: ManifestSection, ctx: Ctx, tr: Ta
 
   rows = parentsFirst(spec, rows, tr);
 
+  // 1.1: the backup's record id of each row, by the backup's own primary key (only for tables with random record ids).
+  const syncIds = new Map<unknown, string>();
+  if (ctx.sync && carriesSyncId(spec) && isTracked(sql, spec.name)) {
+    const seen = new Set<string>();
+    for (const up of upgraded) {
+      const id = up[SYNC_ID_COLUMN];
+      if (isRecordId(id) && !seen.has(id)) {
+        seen.add(id);
+        syncIds.set(up[spec.pk[0]], id);
+      }
+    }
+  }
+
   const pk = spec.pk;
   const idMap = ctx.ids.get(spec.name) ?? new Map<unknown, unknown>();
   ctx.ids.set(spec.name, idMap);
@@ -639,12 +683,18 @@ function fillSection(spec: TableSpec, section: ManifestSection, ctx: Ctx, tr: Ta
       tr.nulled += verdict.nulled;
       insertRow(sql, spec.name, insertCols, verdict.row, section.id, i);
       if (spec.autoId) idMap.set(row[pk[0]], row[pk[0]]);
+      const syncId = syncIds.get(row[pk[0]]);
+      if (ctx.sync && syncId !== undefined) {
+        let byKey = ctx.sync.restored.get(spec.name);
+        if (!byKey) ctx.sync.restored.set(spec.name, (byKey = new Map()));
+        byKey.set(String(row[pk[0]]), syncId);
+      }
       tr.inserted++;
     });
     return;
   }
 
-  mergeRows(spec, section, rows, insertCols, ctx, tr, idMap);
+  mergeRows(spec, section, rows, insertCols, ctx, tr, idMap, syncIds);
 }
 
 function insertRow(sql: ISql, table: string, cols: string[], row: Row, sectionId: string, index: number): { id: number } {
@@ -659,7 +709,7 @@ function insertRow(sql: ISql, table: string, cols: string[], row: Row, sectionId
   }
 }
 
-function mergeRows(spec: TableSpec, section: ManifestSection, rows: Row[], insertCols: string[], ctx: Ctx, tr: TableReport, idMap: Map<unknown, unknown>): void {
+function mergeRows(spec: TableSpec, section: ManifestSection, rows: Row[], insertCols: string[], ctx: Ctx, tr: TableReport, idMap: Map<unknown, unknown>, syncIds: Map<unknown, string>): void {
   const sql = ctx.sql;
   if (spec.mergeKeepsLocal) {
     tr.dropped.keptLocal = (tr.dropped.keptLocal ?? 0) + rows.length;
@@ -681,6 +731,30 @@ function mergeRows(spec: TableSpec, section: ManifestSection, rows: Row[], inser
     if (list) list.push(r);
     else local.set(k, [r]);
   }
+  // 1.1: a backup row whose record id is a live local record of this table IS that row. It is reused, and taken out of
+  // the pool so that content matching below cannot pair it with a second backup row.
+  const sameRecord = new Set<unknown>();
+  if (syncIds.size > 0 && spec.autoId) {
+    const live = new Map<string, string>();
+    for (const [localKey, id] of readLiveRecordIds(sql, spec.name)) live.set(id, localKey);
+    for (const raw of rows) {
+      const backupId = raw[pk[0]];
+      const id = syncIds.get(backupId);
+      const localKey = id === undefined ? undefined : live.get(id);
+      if (localKey === undefined) continue;
+      const found = sql.queryOne<Row>(`SELECT ${q(pk[0])} FROM ${q(spec.name)} WHERE ${q(pk[0])} = ?`, [localKey]);
+      if (!found) continue;
+      sameRecord.add(backupId);
+      idMap.set(backupId, found[pk[0]]);
+      for (const list of local.values()) {
+        const at = list.findIndex((r) => r[pk[0]] === found[pk[0]]);
+        if (at >= 0) {
+          list.splice(at, 1);
+          break;
+        }
+      }
+    }
+  }
   const used = new Map<string, number>();
   let haveDefault = false;
   if (spec.defaultFlag && insertCols.includes(spec.defaultFlag)) {
@@ -688,6 +762,10 @@ function mergeRows(spec: TableSpec, section: ManifestSection, rows: Row[], inser
   }
 
   rows.forEach((raw, i) => {
+    if (sameRecord.has(raw[pk[0]])) {
+      tr.matched++;
+      return;
+    }
     if (spec.skipInMerge?.(raw)) {
       tr.dropped.skipped = (tr.dropped.skipped ?? 0) + 1;
       return;
@@ -736,6 +814,8 @@ function mergeRows(spec: TableSpec, section: ManifestSection, rows: Row[], inser
     const { id } = insertRow(sql, spec.name, writeCols, row, section.id, i);
     if (spec.autoId) idMap.set(backupId, id);
     tr.inserted++;
+    const syncId = syncIds.get(backupId);
+    if (syncId !== undefined) adoptRecordId(sql, spec.name, String(id), syncId);
     // A later backup row with the same unique key (which the source database would not allow) maps to this one.
     if (identity.kind === 'unique') {
       const fresh: Row = { ...row };

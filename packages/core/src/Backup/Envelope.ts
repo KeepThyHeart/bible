@@ -15,9 +15,10 @@
  * splicing from another file all fail authentication.
  *
  * Key hierarchy: a random 32-byte *file key* is wrapped by each key slot. A
- * password slot wraps it under `HKDF(Argon2id(password))`. Other slot types can
- * be added later without changing the format; readers ignore slot types they do
- * not know.
+ * password slot wraps it under `HKDF(Argon2id(password))`; an account slot under
+ * `HKDF(accountKey)` (no KDF, no identifier in the header); a recovery slot under
+ * `HKDF(recovery code, salt)`. Other slot types can be added later without
+ * changing the format; readers ignore slot types they do not know.
  *
  * Everything here is browser-safe: WebCrypto plus `hash-wasm` for Argon2id.
  */
@@ -49,6 +50,14 @@ const LABEL_KEK = 'kth-backup-kek-v1';
 const LABEL_SLOT = 'kth-backup-slot-v1';
 const LABEL_STREAM = 'kth-backup-stream-v1';
 const LABEL_COMMIT = 'kth-backup-commit-v1';
+/**
+ * Local copies of Sync's `LABELS.backupAccountSlot` / `LABELS.backupRecoverySlot`: Backup must not import Sync
+ * (a test asserts they are equal). Never change them: files in the wild depend on them.
+ */
+const BACKUP_ACCOUNT_SLOT_LABEL = 'kth-backup-wrap-v1';
+const BACKUP_RECOVERY_SLOT_LABEL = 'kth-backup-recovery-v1';
+/** A recovery code is 160 bits: 32 Crockford base32 characters. */
+const RECOVERY_BYTES = 20;
 
 /** At most this many password slots are tried when opening, so one file cannot demand unbounded key derivations. */
 export const MAX_SLOT_ATTEMPTS = 4;
@@ -56,6 +65,19 @@ export const MAX_SLOT_ATTEMPTS = 4;
 export interface PasswordSlotHeader {
   type: 'password';
   kdf: KdfParamsJson;
+  nonce: string;
+  wrapped: string;
+}
+/** Wraps the file key under a key derived from the account key (no password prompt; the account key is 32 random bytes). */
+export interface AccountSlotHeader {
+  type: 'account';
+  nonce: string;
+  wrapped: string;
+}
+/** Wraps the file key under a key derived from the 160-bit recovery code and a per-slot salt. No Argon2: the code is random. */
+export interface RecoverySlotHeader {
+  type: 'recovery';
+  salt: string;
   nonce: string;
   wrapped: string;
 }
@@ -72,19 +94,31 @@ export interface EnvelopeHeader {
   noncePrefix: string;
   /** Key commitment: HKDF(fileKey, streamSalt, "kth-backup-commit-v1"). Binds every slot to one file key. */
   keyCheck: string;
-  slots: Array<PasswordSlotHeader | UnknownSlotHeader>;
+  slots: Array<PasswordSlotHeader | AccountSlotHeader | RecoverySlotHeader | UnknownSlotHeader>;
   [k: string]: unknown;
 }
 
 /** Derives the 32-byte master secret from a password. Desktop injects one that runs in a worker thread. */
 export type KdfFunction = (password: string, params: KdfParams) => Promise<Uint8Array>;
 
-export interface KeySlotInput {
+export interface PasswordSlotInput {
   type: 'password';
   password: string;
   /** Override the default cost (still bounded by the floor and ceiling). */
   kdf?: Partial<Pick<KdfParams, 'm' | 't' | 'p'>>;
 }
+export interface AccountSlotInput {
+  type: 'account';
+  /** The 32-byte account key of the signed-in account. */
+  accountKey: Uint8Array;
+}
+export interface RecoverySlotInput {
+  type: 'recovery';
+  /** The account's recovery code (any case, dashes and spaces ignored; Crockford aliases accepted). */
+  code: string;
+}
+/** A writer needs at least one `password` or `recovery` slot: an account slot alone would make the file unreadable without the account. */
+export type KeySlotInput = PasswordSlotInput | AccountSlotInput | RecoverySlotInput;
 
 export interface SealOptions {
   segmentSize?: number;
@@ -96,9 +130,8 @@ export interface OpenOptions {
   kdf?: KdfFunction;
 }
 
-export interface UnlockInput {
-  password: string;
-}
+/** How to open a file: with its password, with the account key, or with the recovery code. */
+export type UnlockInput = { password: string } | { accountKey: Uint8Array } | { recoveryCode: string };
 
 export type SniffResult = 'bbk' | 'zip' | 'unknown';
 
@@ -136,6 +169,48 @@ async function kekFromSecret(secret: Uint8Array): Promise<Uint8Array> {
 
 function slotAad(preambleHash: Uint8Array): Uint8Array {
   return concatBytes(utf8Encode(LABEL_SLOT), preambleHash);
+}
+
+/** Account and recovery slots bind their type into the AAD, so a slot cannot be replayed as another type. */
+function typedSlotAad(preambleHash: Uint8Array, type: 'account' | 'recovery'): Uint8Array {
+  return concatBytes(slotAad(preambleHash), Uint8Array.of(0), utf8Encode(type));
+}
+
+const CROCKFORD = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
+
+/**
+ * Parse a recovery code to its 20 bytes: any case, whitespace and dashes ignored, O->0 and I/L->1. Same rules as
+ * Sync's `parseRecoveryCode` (a test keeps them equal), reimplemented here because Backup must not import Sync.
+ * Throws RangeError (never echoing the input) when it is not exactly 32 valid characters.
+ */
+function parseBackupRecoveryCode(input: string): Uint8Array {
+  const clean = String(input).replace(/[\s-]/g, '').toUpperCase();
+  if (clean.length !== RECOVERY_BYTES * 8 / 5) throw new RangeError('A recovery code has 32 characters');
+  const out = new Uint8Array(RECOVERY_BYTES);
+  let o = 0;
+  let acc = 0;
+  let bits = 0;
+  for (let i = 0; i < clean.length; i++) {
+    const ch = clean[i] === 'O' ? '0' : clean[i] === 'I' || clean[i] === 'L' ? '1' : clean[i];
+    const v = CROCKFORD.indexOf(ch);
+    if (v < 0) throw new RangeError('Invalid recovery code character');
+    acc = (acc << 5) | v;
+    bits += 5;
+    if (bits >= 8) {
+      bits -= 8;
+      out[o++] = (acc >>> bits) & 0xff;
+      acc &= (1 << bits) - 1;
+    }
+  }
+  return out;
+}
+
+async function accountKek(accountKey: Uint8Array): Promise<Uint8Array> {
+  return hkdfSha256(accountKey, new Uint8Array(0), BACKUP_ACCOUNT_SLOT_LABEL, 32);
+}
+
+async function recoveryKek(codeBytes: Uint8Array, salt: Uint8Array): Promise<Uint8Array> {
+  return hkdfSha256(codeBytes, salt, BACKUP_RECOVERY_SLOT_LABEL, 32);
 }
 
 const defaultKdf: KdfFunction = (password, params) => argon2id(password, params, 32);
@@ -216,30 +291,68 @@ export async function* sealStream(
     throw new RangeError('segmentSize out of range');
   }
   if (slots.length < 1 || slots.length > MAX_SLOTS) throw new RangeError(`A backup needs between 1 and ${MAX_SLOTS} key slots`);
+  let recoverable = false;
   for (const s of slots) {
-    if (s.type !== 'password' || typeof s.password !== 'string' || s.password.length === 0) {
+    const t = (s as { type?: unknown }).type;
+    if (s && t === 'password' && typeof (s as PasswordSlotInput).password === 'string' && (s as PasswordSlotInput).password.length > 0) {
+      recoverable = true;
+    } else if (s && t === 'account' && (s as AccountSlotInput).accountKey instanceof Uint8Array && (s as AccountSlotInput).accountKey.length === 32) {
+      // valid, but not enough on its own
+    } else if (s && t === 'recovery' && typeof (s as RecoverySlotInput).code === 'string') {
+      parseBackupRecoveryCode((s as RecoverySlotInput).code).fill(0); // RangeError for a malformed code
+      recoverable = true;
+    } else {
       throw new RangeError('Invalid key slot');
     }
   }
+  if (!recoverable) throw new RangeError('A backup needs at least one password or recovery slot');
 
   // Random draws happen in this fixed order so a deterministic RandomSource yields reproducible golden files.
   const fileKey = random.bytes(32);
   const streamSalt = random.bytes(32);
   const noncePrefix = random.bytes(7);
 
-  const slotHeaders: PasswordSlotHeader[] = [];
-  const pending: Array<{ header: PasswordSlotHeader; kdfParams: KdfParams; password: string; nonce: Uint8Array }> = [];
+  type SlotHeader = PasswordSlotHeader | AccountSlotHeader | RecoverySlotHeader;
+  const slotHeaders: SlotHeader[] = [];
+  /** Derives the slot's KEK and its AAD once the preamble hash is known. */
+  const pending: Array<{ header: SlotHeader; nonce: Uint8Array; kek: (preambleHash: Uint8Array) => Promise<{ kek: Uint8Array; aad: Uint8Array }> }> = [];
   for (const s of slots) {
-    const kdfParams: KdfParams = {
-      id: 'argon2id', v: 19,
-      m: s.kdf?.m ?? DEFAULT_KDF.m, t: s.kdf?.t ?? DEFAULT_KDF.t, p: s.kdf?.p ?? DEFAULT_KDF.p,
-      salt: random.bytes(16),
-    };
-    validateKdfParams(kdfParams);
-    const nonce = random.bytes(12);
-    const header: PasswordSlotHeader = { type: 'password', kdf: kdfParamsToJson(kdfParams), nonce: b64urlEncode(nonce), wrapped: '' };
-    slotHeaders.push(header);
-    pending.push({ header, kdfParams, password: s.password, nonce });
+    if (s.type === 'password') {
+      const kdfParams: KdfParams = {
+        id: 'argon2id', v: 19,
+        m: s.kdf?.m ?? DEFAULT_KDF.m, t: s.kdf?.t ?? DEFAULT_KDF.t, p: s.kdf?.p ?? DEFAULT_KDF.p,
+        salt: random.bytes(16),
+      };
+      validateKdfParams(kdfParams);
+      const nonce = random.bytes(12);
+      const header: PasswordSlotHeader = { type: 'password', kdf: kdfParamsToJson(kdfParams), nonce: b64urlEncode(nonce), wrapped: '' };
+      slotHeaders.push(header);
+      const password = s.password;
+      pending.push({ header, nonce, kek: async (h) => ({ kek: await kekFromSecret(await kdf(password, kdfParams)), aad: slotAad(h) }) });
+    } else if (s.type === 'account') {
+      const nonce = random.bytes(12);
+      const header: AccountSlotHeader = { type: 'account', nonce: b64urlEncode(nonce), wrapped: '' };
+      slotHeaders.push(header);
+      const accountKey = s.accountKey;
+      pending.push({ header, nonce, kek: async (h) => ({ kek: await accountKek(accountKey), aad: typedSlotAad(h, 'account') }) });
+    } else {
+      const salt = random.bytes(16);
+      const nonce = random.bytes(12);
+      const header: RecoverySlotHeader = { type: 'recovery', salt: b64urlEncode(salt), nonce: b64urlEncode(nonce), wrapped: '' };
+      slotHeaders.push(header);
+      const code = s.code;
+      pending.push({
+        header, nonce,
+        kek: async (h) => {
+          const bytes = parseBackupRecoveryCode(code);
+          try {
+            return { kek: await recoveryKek(bytes, salt), aad: typedSlotAad(h, 'recovery') };
+          } finally {
+            bytes.fill(0);
+          }
+        },
+      });
+    }
   }
 
   // The header (including each wrapped key) is fixed before any segment is written, but the
@@ -262,8 +375,8 @@ export async function* sealStream(
   const preambleHash = await sha256(preamble);
 
   for (const p of pending) {
-    const kek = await kekFromSecret(await kdf(p.password, p.kdfParams));
-    const wrapped = await aesGcmSealKey(await importAesKey(kek), p.nonce, fileKey, slotAad(preambleHash));
+    const { kek, aad: slotAadBytes } = await p.kek(preambleHash);
+    const wrapped = await aesGcmSealKey(await importAesKey(kek), p.nonce, fileKey, slotAadBytes);
     p.header.wrapped = b64urlEncode(wrapped);
   }
   const headerBytes = utf8Encode(JSON.stringify(headerBase));
@@ -311,6 +424,13 @@ function fixedB64(v: unknown, len: number, what: string): Uint8Array {
   return b;
 }
 
+function exactKeys(o: Record<string, unknown>, keys: string[]): void {
+  const have = Object.keys(o);
+  if (have.length !== keys.length || !keys.every((k) => Object.prototype.hasOwnProperty.call(o, k))) {
+    throw new DamagedError('Malformed header: slot');
+  }
+}
+
 /** Parse and structurally validate a header. Throws `NewerFormatError` for unknown algorithms, `DamagedError` for malformed fields. */
 export function parseHeader(bytes: Uint8Array): EnvelopeHeader {
   let json: unknown;
@@ -337,6 +457,110 @@ export function parseHeader(bytes: Uint8Array): EnvelopeHeader {
     if (!isRecord(s) || typeof s.type !== 'string') throw new DamagedError('Malformed header: slot');
   }
   return json as EnvelopeHeader;
+}
+
+interface SlotCandidate {
+  nonce: Uint8Array;
+  wrapped: Uint8Array;
+  aad: Uint8Array;
+  /** Derive the slot's KEK (the only expensive step: Argon2id for a password slot). */
+  kek: () => Promise<Uint8Array>;
+}
+
+/**
+ * Find the file key: try the slots that match the unlock method (at most `MAX_SLOT_ATTEMPTS`), and accept a
+ * slot only when the key it unwraps matches the header's `keyCheck`. A slot that fails authentication, or
+ * unwraps some other key, simply does not open (it cannot be told apart from a wrong secret).
+ */
+async function unwrapFileKey(
+  header: EnvelopeHeader, unlock: UnlockInput, preambleHash: Uint8Array, streamSalt: Uint8Array, keyCheck: Uint8Array, kdf: KdfFunction,
+): Promise<Uint8Array> {
+  const u = unlock as { password?: unknown; accountKey?: unknown; recoveryCode?: unknown };
+  const method: 'password' | 'account' | 'recovery' =
+    typeof u.password === 'string' ? 'password' : u.accountKey instanceof Uint8Array ? 'account' : typeof u.recoveryCode === 'string' ? 'recovery' : (() => { throw new RangeError('Invalid unlock input'); })();
+
+  const wrongMessage = method === 'password' ? 'Wrong password' : method === 'account' ? 'Wrong account key' : 'Wrong recovery code';
+  const candidates: SlotCandidate[] = [];
+  let recoveryBytes: Uint8Array | null = null;
+  try {
+    for (const slotHeader of header.slots) {
+      const s = slotHeader as Record<string, unknown>;
+      if (s.type !== method) continue;
+      if (candidates.length >= MAX_SLOT_ATTEMPTS) break;
+      if (method === 'password') {
+        const kdfJson = s.kdf as Record<string, unknown> | undefined;
+        if (!isRecord(kdfJson)) throw new DamagedError('Malformed header: kdf');
+        // A KDF this reader does not know is a slot it cannot use (like an unknown slot type), not damage.
+        if (kdfJson.id !== 'argon2id' || kdfJson.v !== 19) continue;
+        let kdfParams: KdfParams;
+        try {
+          kdfParams = kdfParamsFromJson(kdfJson);
+          validateKdfParams(kdfParams);
+        } catch (e) {
+          if (e instanceof KdfParamsError) throw new DamagedError(`Invalid key-derivation parameters: ${e.message}`);
+          throw e;
+        }
+        const password = (unlock as { password: string }).password;
+        candidates.push({
+          nonce: fixedB64(s.nonce, 12, 'slot nonce'),
+          wrapped: fixedB64(s.wrapped, 32 + AES_TAG_LEN, 'wrapped key'),
+          aad: slotAad(preambleHash),
+          kek: async () => kekFromSecret(await kdf(password, kdfParams)),
+        });
+      } else if (method === 'account') {
+        // Shapes are strict, but only for the slots actually being used: an account or recovery slot that is malformed
+        // is damage when unlocking with it, and is ignored when unlocking another way (an unknown slot would be too).
+        exactKeys(s, ['type', 'nonce', 'wrapped']);
+        const accountKey = (unlock as { accountKey: Uint8Array }).accountKey;
+        if (accountKey.length !== 32) throw new RangeError('The account key must be 32 bytes');
+        candidates.push({
+          nonce: fixedB64(s.nonce, 12, 'slot nonce'),
+          wrapped: fixedB64(s.wrapped, 32 + AES_TAG_LEN, 'wrapped key'),
+          aad: typedSlotAad(preambleHash, 'account'),
+          kek: () => accountKek(accountKey),
+        });
+      } else {
+        if (!recoveryBytes) {
+          try {
+            recoveryBytes = parseBackupRecoveryCode((unlock as { recoveryCode: string }).recoveryCode);
+          } catch {
+            throw new WrongPasswordError('Wrong recovery code');
+          }
+        }
+        exactKeys(s, ['type', 'salt', 'nonce', 'wrapped']);
+        const code = recoveryBytes;
+        const salt = fixedB64(s.salt, 16, 'slot salt');
+        candidates.push({
+          nonce: fixedB64(s.nonce, 12, 'slot nonce'),
+          wrapped: fixedB64(s.wrapped, 32 + AES_TAG_LEN, 'wrapped key'),
+          aad: typedSlotAad(preambleHash, 'recovery'),
+          kek: () => recoveryKek(code, salt),
+        });
+      }
+    }
+    if (candidates.length === 0) {
+      // Password: none usable and no other way in is known either = a newer format. Otherwise this is simply the wrong
+      // way to open this file (an account or recovery unlock on a file without such a slot), which the caller handles
+      // like a wrong secret.
+      if (method === 'password' && !header.slots.some((s) => s.type === 'account' || s.type === 'recovery')) {
+        throw new NewerFormatError('This backup cannot be opened with a password by this version of the app.');
+      }
+      throw new WrongPasswordError(wrongMessage);
+    }
+    for (const c of candidates) {
+      const kek = await c.kek();
+      try {
+        const candidate = await aesGcmOpenKey(await importAesKey(kek), c.nonce, c.wrapped, c.aad);
+        // A slot must unwrap the very key the header commits to; another key would let one file hold two different plaintexts.
+        if (bytesEqual(await hkdfSha256(candidate, streamSalt, LABEL_COMMIT, 32), keyCheck)) return candidate;
+      } catch (e) {
+        if (!(e instanceof AuthError)) throw e;
+      }
+    }
+    throw new WrongPasswordError(wrongMessage);
+  } finally {
+    recoveryBytes?.fill(0);
+  }
 }
 
 export interface OpenedEnvelope {
@@ -385,51 +609,11 @@ export async function openStream(
     const headerBytes = reader.take(headerLen);
     const header = parseHeader(headerBytes);
 
-    // Choose usable slots and validate their KDF bounds before any expensive work.
+    // Choose usable slots and validate their parameters before any expensive work.
     const preambleHash = await sha256(preamble);
-    const candidates: Array<{ kdfParams: KdfParams; nonce: Uint8Array; wrapped: Uint8Array }> = [];
-    for (const s of header.slots) {
-      if (s.type !== 'password') continue;
-      const kdfJson = s.kdf as Record<string, unknown> | undefined;
-      if (!isRecord(kdfJson)) throw new DamagedError('Malformed header: kdf');
-      // A KDF this reader does not know is a slot it cannot use (like an unknown slot type), not damage.
-      if (kdfJson.id !== 'argon2id' || kdfJson.v !== 19) continue;
-      let kdfParams: KdfParams;
-      try {
-        kdfParams = kdfParamsFromJson(kdfJson);
-        validateKdfParams(kdfParams);
-      } catch (e) {
-        if (e instanceof KdfParamsError) throw new DamagedError(`Invalid key-derivation parameters: ${e.message}`);
-        throw e;
-      }
-      if (candidates.length >= MAX_SLOT_ATTEMPTS) break;
-      candidates.push({
-        kdfParams,
-        nonce: fixedB64(s.nonce, 12, 'slot nonce'),
-        wrapped: fixedB64(s.wrapped, 32 + AES_TAG_LEN, 'wrapped key'),
-      });
-    }
-    if (candidates.length === 0) {
-      throw new NewerFormatError('This backup cannot be opened with a password by this version of the app.');
-    }
-
     const streamSaltBytes = fixedB64(header.streamSalt, 32, 'streamSalt');
     const keyCheck = fixedB64(header.keyCheck, 32, 'keyCheck');
-    let fileKey: Uint8Array | null = null;
-    for (const c of candidates) {
-      const kek = await kekFromSecret(await kdf(unlock.password, c.kdfParams));
-      try {
-        const candidate = await aesGcmOpenKey(await importAesKey(kek), c.nonce, c.wrapped, slotAad(preambleHash));
-        // A slot must unwrap the very key the header commits to; another key would let one file hold two different plaintexts.
-        if (bytesEqual(await hkdfSha256(candidate, streamSaltBytes, LABEL_COMMIT, 32), keyCheck)) {
-          fileKey = candidate;
-          break;
-        }
-      } catch (e) {
-        if (!(e instanceof AuthError)) throw e;
-      }
-    }
-    if (!fileKey) throw new WrongPasswordError('Wrong password');
+    const fileKey = await unwrapFileKey(header, unlock, preambleHash, streamSaltBytes, keyCheck, kdf);
 
     const aad = await sha256(concatBytes(preamble, headerBytes));
     const streamKey = await importAesKey(
