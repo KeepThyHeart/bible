@@ -11,8 +11,9 @@
  */
 import { readFileSync } from 'fs';
 import { join } from 'path';
+import { PLAIN_URL } from './ports';
 
-const BASE_URL = 'http://localhost:3100';
+const BASE_URL = PLAIN_URL;
 
 interface FixtureConfig {
   modules?: { bibles?: { modules?: Record<string, { active: boolean }> } };

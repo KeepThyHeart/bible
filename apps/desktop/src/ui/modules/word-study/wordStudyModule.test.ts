@@ -4,10 +4,13 @@
  * seams host code uses (panel requests, the verse context menu slot, panel disposal).
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { installModuleBootHooks, trackHost } from '../moduleTestHooks';
 import { validateBuiltinManifest } from '@bible/core/browser';
 import { wordStudyManifest } from './manifest';
 
 const activate = vi.fn();
+
+installModuleBootHooks(() => import('../builtinModules'));
 
 async function boot(override = '', realModule = false) {
   vi.resetModules();
@@ -23,6 +26,7 @@ async function boot(override = '', realModule = false) {
   const { registerBuiltinModules } = await import('../builtinModules');
   const host = await import('../moduleHost');
   registerBuiltinModules();
+  trackHost(host);
   return { ...host, loadSpy };
 }
 

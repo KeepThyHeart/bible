@@ -44,7 +44,11 @@ export function AppStage() {
         remembered.focus();
         return;
       }
-      const wrapper = document.querySelector<HTMLElement>(`[data-app="${CSS.escape(activeId)}"]`);
+      // Compared in JS rather than built into a selector: no escaping needed, and
+      // a frame that fires after jsdom teardown has no CSS global to call.
+      const wrapper = Array.from(document.querySelectorAll<HTMLElement>('[data-app]')).find(
+        (el) => el.dataset.app === activeId,
+      );
       if (!wrapper) return;
       const heading = wrapper.querySelector<HTMLElement>('h1[tabindex="-1"]');
       if (heading) { heading.focus(); return; }

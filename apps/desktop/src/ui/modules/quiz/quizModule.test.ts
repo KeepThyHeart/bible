@@ -3,10 +3,13 @@
  * "on by default loads nothing", the off switch (boot and runtime), activation.
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { installModuleBootHooks, trackHost } from '../moduleTestHooks';
 import { validateBuiltinManifest } from '@bible/core/browser';
 import { quizManifest } from './manifest';
 
 const activate = vi.fn();
+
+installModuleBootHooks(() => import('../builtinModules'));
 
 async function boot(override = '') {
   vi.resetModules();
@@ -19,6 +22,7 @@ async function boot(override = '') {
   const host = await import('../moduleHost');
   const apps = await import('../../apps/appHost');
   registerBuiltinModules();
+  trackHost(host);
   return { ...host, appRegistry: apps.appRegistry, loadSpy };
 }
 

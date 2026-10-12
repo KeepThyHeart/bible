@@ -3,6 +3,8 @@ import path from 'path';
 
 export default defineConfig({
   testDir: './tests',
+  // Builds the shared keyword-search indexes once, so no spec races the app's background build.
+  globalSetup: './globalSetup.ts',
   fullyParallel: true, // Run tests across files in parallel
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,

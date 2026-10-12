@@ -10,7 +10,7 @@
  * here; the box refuses it with a hint.
  */
 
-import { useCallback, useEffect, useRef, useState } from 'preact/hooks';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { ViewerApp } from '../ViewerApp';
 import { CommandBox } from '../command';
@@ -59,7 +59,10 @@ export function SoloApp(props: { session: LocalSession; defaultModule?: string }
   // The wall's keyboard: `/` and Ctrl+K open the box; the clicker layer and
   // `.` reuse the presenter's own key mapping, minus its long-press sections
   // (those read a loaded chapter this page does not have).
-  useEffect(() => {
+  // A layout effect, attached in the same commit that shows the launcher: a
+  // plain effect waits for the next frame, and a `/` pressed in between (a
+  // fast typist, or a busy machine) was lost.
+  useLayoutEffect(() => {
     const onKey = (event: KeyboardEvent): void => {
       if (isTyping(event.target)) return;
       const ctrlK = (event.ctrlKey || event.metaKey) && !event.altKey && event.key.toLowerCase() === 'k';

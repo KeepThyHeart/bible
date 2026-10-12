@@ -50,7 +50,7 @@ export interface ReadingPlanLabelSet {
 }
 
 export function useReadingPlanLabels(): ReadingPlanLabelSet {
-  const { t, locale, localizer } = useI18n();
+  const { t, localizer } = useI18n();
   const [bookNamesReady, setBookNamesReady] = useState(false);
 
   useEffect(() => {
@@ -71,9 +71,9 @@ export function useReadingPlanLabels(): ReadingPlanLabelSet {
 
   const weekdayNames = useMemo(() => {
     // 2023-01-01 was a Sunday.
-    const fmt = new Intl.DateTimeFormat(locale, { weekday: 'short' });
-    return Array.from({ length: 7 }, (_, i) => fmt.format(new Date(2023, 0, 1 + i)));
-  }, [locale]);
+    // Through the localizer: it falls back to English for a tag Intl rejects (the xx-* test locales).
+    return Array.from({ length: 7 }, (_, i) => localizer.formatDate(new Date(2023, 0, 1 + i), { weekday: 'short' }));
+  }, [localizer]);
 
   const formatDate = useCallback((iso: string) => {
     const ms = ReadingPlans.parseIsoDate(iso);

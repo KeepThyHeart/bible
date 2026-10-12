@@ -27,6 +27,8 @@ function makeDb(file: string, moduleType: 'bible' | 'dictionary', rows: number):
   const d = new BetterSqlite3(join(root, 'modules', file));
   d.exec('CREATE TABLE module_info (module_name TEXT); CREATE TABLE schema_version (v INTEGER);');
   d.exec("INSERT INTO module_info VALUES ('x'); INSERT INTO schema_version VALUES (1);");
+  // One transaction: a journal sync per row makes the fixture slow on a busy disk.
+  d.exec('BEGIN');
   if (moduleType === 'bible') {
     d.exec('CREATE TABLE bible_verse (verse_id INTEGER PRIMARY KEY, text TEXT)');
     const ins = d.prepare('INSERT INTO bible_verse (text) VALUES (?)');
@@ -36,6 +38,7 @@ function makeDb(file: string, moduleType: 'bible' | 'dictionary', rows: number):
     const ins = d.prepare('INSERT INTO dictionary_entry (word, definition) VALUES (?, ?)');
     for (let i = 0; i < rows; i++) ins.run(`word${i}`, `definition text ${i}`);
   }
+  d.exec('COMMIT');
   d.close();
 }
 
@@ -81,11 +84,11 @@ beforeAll(() => {
     getModuleMetadataRepo: () => ({ getAll: () => mods }),
     resolveModulePath: (p: string) => join(root, 'modules', p),
   };
-});
+}, 60_000);
 
 afterAll(() => rmSync(root, { recursive: true, force: true }));
 
-describe('offline manifest', () => {
+describe('offline manifest', { timeout: 60_000 }, () => {
   it('404s when the offline features are off', async () => {
     const app = appFor(false);
     expect((await request(app).get('/api/offline/manifest')).status).toBe(404);
@@ -133,7 +136,7 @@ describe('offline manifest', () => {
   });
 });
 
-describe('offline files', () => {
+describe('offline files', { timeout: 60_000 }, () => {
   async function entry(id: string) {
     const res = await request(appFor(true)).get('/api/offline/manifest');
     const a = res.body.assets.find((x: any) => x.id === id);
@@ -190,7 +193,7 @@ describe('offline files', () => {
   });
 });
 
-describe('module downloads honour the settings filter', () => {
+describe('module downloads honour the settings filter', { timeout: 60_000 }, () => {
   it('404s download and download-lite for a hidden module', async () => {
     const app = appFor(true);
     expect((await request(app).get('/api/modules/HID/download')).status).toBe(404);

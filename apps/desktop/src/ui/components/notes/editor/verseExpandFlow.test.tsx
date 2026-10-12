@@ -157,8 +157,10 @@ describe('notes editor verse expansion', () => {
     // flow work without touching anything else first. (The copy mode focuses
     // the reference box instead, because there the passage is what the user
     // came to change.)
+    // Focus lands in an effect after the format list renders, so wait for it rather than read it the
+    // instant the preview appears.
+    await waitFor(() => expect(document.activeElement?.closest('[data-format-id]')).toBeTruthy());
     const focused = document.activeElement as HTMLElement;
-    expect(focused.closest('[data-format-id]')).toBeTruthy();
 
     fireEvent.keyDown(focused, { key: '4' });
     expect((screen.getByRole('radio', { name: /Verse headings/ }) as HTMLInputElement).checked)

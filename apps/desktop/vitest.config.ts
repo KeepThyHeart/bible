@@ -79,7 +79,8 @@ export default defineConfig({
     reporters: ['verbose'],
 
     // Timeout for tests
-    testTimeout: 10000,
+    hookTimeout: 60000,
+    testTimeout: 60000, // generous but bounded: many tests re-import the host graph or run real SQLite and timed out at 10 s on a busy machine
 
     // Watch mode options
     watch: false,

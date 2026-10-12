@@ -21,6 +21,13 @@ async function open(page: Page, hash: string) {
   await waitForVerses(page);
   // The boot shows a default chapter for a moment before the hash's one: play only once it is John 3.
   await expect(page.locator('.verse').first()).toHaveAttribute('data-verse-id', /^43003\d{3}$/, { timeout: 15000 });
+  // At tablet width (<= 1024px) the right pane is a fixed overlay on top of the reader's right
+  // edge, and it covers the toolbar's Listen button. Collapse it, as a reader would, before using the toolbar.
+  const rightPane = page.locator('.main-layout__right-pane');
+  if (await rightPane.count() > 0 && (await rightPane.evaluate(el => getComputedStyle(el).position)) === 'fixed') {
+    await page.locator('.right-pane-tabs__collapse').click();
+    await expect(rightPane).toHaveCount(0);
+  }
 }
 
 const playingVerse = (page: Page) => page.locator('.verse--playing').first();

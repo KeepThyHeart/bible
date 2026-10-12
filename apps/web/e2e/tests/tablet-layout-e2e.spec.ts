@@ -28,7 +28,7 @@ test.describe('Tablet Layout (1024px)', () => {
     // Unconditional: the two guards this replaced meant that if the study tab
     // or the right pane failed to render at tablet width — the exact regression
     // the test is named for — it passed.
-    const studyTab = page.locator('.right-pane-tabs__tab').filter({ hasText: /study/i });
+    const studyTab = page.getByTestId('right-pane-tab-study');
     await expect(studyTab).toBeVisible({ timeout: 10000 });
     await studyTab.click();
 

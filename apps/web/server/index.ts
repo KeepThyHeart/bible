@@ -63,12 +63,13 @@ const packageRoot = existsSync(resolve(currentDir, '../package.json'))
  * because two installs pointed at one content store must not overwrite each
  * other's logs or inherit each other's plugins.
  *
- * `BIBLE_DATA_DIR` overrides the first, as before.  Nothing overrides the
- * second yet; add an env var when a deployment needs one.
+ * `BIBLE_DATA_DIR` overrides the first, as before, and `BIBLE_APP_STATE_DIR` the
+ * second (the e2e suite gives each of its servers a fresh one, so presenter
+ * sessions and logs from earlier runs never pile up in the checkout).
  */
 const dataDir = process.env.BIBLE_DATA_DIR || resolve(packageRoot, '../../data');
 const modulesDir = process.env.BIBLE_MODULES_DIR || resolve(packageRoot, '../../data');
-const appStateDir = resolve(packageRoot, 'data');
+const appStateDir = process.env.BIBLE_APP_STATE_DIR || resolve(packageRoot, 'data');
 
 /**
  * Where the public-domain hymn library is read from, in order of preference.

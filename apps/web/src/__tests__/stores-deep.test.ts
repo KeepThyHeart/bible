@@ -1,4 +1,11 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeAll, beforeEach, vi } from 'vitest';
+
+// The first import of each store transforms its module graph (slow when the machine is busy) and would
+// otherwise be charged to whichever test happens to run first, against the 5 s default. Pay once, here.
+beforeAll(async () => {
+  await import('../stores/offlineStore');
+  await import('../stores/settingsStore');
+}, 120_000);
 
 // =============================================================================
 // 1. SearchStore - Strong's Pattern Detection & refToVerseId

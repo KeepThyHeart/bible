@@ -4,8 +4,8 @@
   "description": "Electron desktop application for Bible study",
   "main": "out/main/index.js",
   "scripts": {
-    "rebuild-native": "pnpm exec electron-rebuild --only better-sqlite3-multiple-ciphers",
-    "rebuild-native:force": "pnpm exec electron-rebuild --only better-sqlite3-multiple-ciphers -f",
+    "rebuild-native": "node scripts/rebuild-native.mjs",
+    "rebuild-native:force": "node scripts/rebuild-native.mjs --force",
     "fonts": "node scripts/fetch-fonts.mjs",
     "icons": "node scripts/generate-icons.js",
     "predev": "pnpm run fonts && pnpm run icons",

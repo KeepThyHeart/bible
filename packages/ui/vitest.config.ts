@@ -6,6 +6,10 @@ const shared = {
   globals: true, // RTL and PTL auto-cleanup hooks need a global afterEach
   setupFiles: ['./vitest.setup.ts'],
   include: ['src/**/*.test.{ts,tsx}', 'css/**/*.test.ts'],
+  // These are real-DOM component tests (userEvent, large pickers, forms). Many take 1-3 s on a quiet machine
+  // and a few over 15 s when it is busy, so the 5 s default timed out heavy-but-correct runs. Generous, bounded.
+  testTimeout: 60_000,
+  hookTimeout: 60_000,
 };
 
 /**

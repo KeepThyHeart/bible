@@ -19,7 +19,7 @@
     "init:modules": "node scripts/init/index.js --catalog --select=starter",
     "init:modules:dev": "node scripts/init/index.js --catalog=https://modules-dev.bible.keepthyheart.com/modules/ --select=starter",
     "init:desktop": "node scripts/init/index.js --target=desktop",
-    "init:electron": "install-electron",
+    "init:electron": "pnpm --filter @bible/desktop exec install-electron",
     "init:check": "node scripts/init/checks.js",
     "verify": "node admin/scripts/verify.js",
     "test:installer": "node admin/scripts/test-installer.js",
