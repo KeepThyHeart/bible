@@ -2214,6 +2214,7 @@
   "preferencesDialog.sectionNotifications": "Уведомления",
   "extensionConsent.permission.notificationsSchedule": "Показывать напоминания в выбранное им время, даже когда приложение работает в фоне.",
   "preferencesDialog.sectionDownloads": "Downloads & storage",
+  "preferencesDialog.sectionSpeech": "Речь",
   "assets.error.offline": "Нет подключения (или веб-доступ отключён).",
   "assets.error.network": "Загрузка прервана. Повторите попытку.",
   "assets.error.http": "Сервер отклонил загрузку.",

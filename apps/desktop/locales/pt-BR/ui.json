@@ -2214,6 +2214,7 @@
   "preferencesDialog.sectionNotifications": "Notificações",
   "extensionConsent.permission.notificationsSchedule": "Mostrar lembretes nos horários que ela escolher, mesmo com o aplicativo em segundo plano.",
   "preferencesDialog.sectionDownloads": "Downloads & storage",
+  "preferencesDialog.sectionSpeech": "Fala",
   "assets.error.offline": "Você está offline (ou o acesso à web está desativado).",
   "assets.error.network": "O download foi interrompido. Tente novamente.",
   "assets.error.http": "O servidor recusou o download.",

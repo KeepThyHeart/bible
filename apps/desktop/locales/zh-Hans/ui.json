@@ -2219,6 +2219,7 @@
   "preferencesDialog.sectionNotifications": "通知",
   "extensionConsent.permission.notificationsSchedule": "在它选定的时间向你显示提醒，即使应用在后台运行。",
   "preferencesDialog.sectionDownloads": "Downloads & storage",
+  "preferencesDialog.sectionSpeech": "语音",
   "assets.error.offline": "您处于离线状态（或网络访问已关闭）。",
   "assets.error.network": "下载已中断，请重试。",
   "assets.error.http": "服务器拒绝了此下载。",

@@ -2200,6 +2200,7 @@
   "preferencesDialog.sectionNotifications": "اعلان‌ها",
   "extensionConsent.permission.notificationsSchedule": "در زمان‌هایی که خود انتخاب می‌کند، حتی وقتی برنامه در پس‌زمینه است، یادآوری‌هایی به شما نشان می‌دهد.",
   "preferencesDialog.sectionDownloads": "دانلودها و فضای ذخیره‌سازی",
+  "preferencesDialog.sectionSpeech": "گفتار",
   "assets.error.offline": "شما آفلاین هستید (یا دسترسی وب خاموش است).",
   "assets.error.network": "دانلود قطع شد. دوباره تلاش کنید.",
   "assets.error.http": "سرور دانلود را نپذیرفت.",

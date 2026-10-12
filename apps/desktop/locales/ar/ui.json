@@ -2214,6 +2214,7 @@
   "preferencesDialog.sectionNotifications": "الإشعارات",
   "extensionConsent.permission.notificationsSchedule": "عرض تذكيرات لك في الأوقات التي يختارها، حتى عندما يكون التطبيق في الخلفية.",
   "preferencesDialog.sectionDownloads": "Downloads & storage",
+  "preferencesDialog.sectionSpeech": "الكلام",
   "assets.error.offline": "أنت غير متصل بالإنترنت (أو أن الوصول إلى الويب متوقف).",
   "assets.error.network": "انقطع التنزيل. حاول مرة أخرى.",
   "assets.error.http": "رفض الخادم التنزيل.",
