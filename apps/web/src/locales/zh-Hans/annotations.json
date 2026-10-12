@@ -1,0 +1,38 @@
+{
+  "annotations": {
+    "close": "关闭",
+    "error": "出了点问题，请重试。",
+    "bookmarkAdded": "已为 {{reference}} 添加书签",
+    "bookmarkRemoved": "已移除 {{reference}} 的书签",
+    "colors": {
+      "yellow": "黄色",
+      "green": "绿色",
+      "blue": "蓝色",
+      "red": "红色",
+      "purple": "紫色",
+      "orange": "橙色"
+    },
+    "highlight": {
+      "title": "高亮",
+      "colour": "高亮颜色",
+      "remove": "移除高亮"
+    },
+    "note": {
+      "heading": "{{reference}} 的笔记",
+      "titleLabel": "标题（可选）",
+      "titlePlaceholder": "添加标题",
+      "textLabel": "笔记",
+      "textPlaceholder": "写下你的笔记",
+      "save": "保存",
+      "cancel": "取消",
+      "delete": "删除笔记",
+      "deleteConfirm": "删除",
+      "confirmDelete": "要删除这条笔记吗？此操作无法撤销。"
+    },
+    "mark": {
+      "editNote": "编辑笔记",
+      "editNoteTitled": "编辑笔记：{{title}}",
+      "bookmarked": "已加书签"
+    }
+  }
+}

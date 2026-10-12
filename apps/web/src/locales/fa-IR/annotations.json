@@ -1,0 +1,38 @@
+{
+  "annotations": {
+    "close": "بستن",
+    "error": "مشکلی پیش آمد. لطفاً دوباره تلاش کنید.",
+    "bookmarkAdded": "نشانک به {{reference}} افزوده شد",
+    "bookmarkRemoved": "نشانک از {{reference}} برداشته شد",
+    "colors": {
+      "yellow": "زرد",
+      "green": "سبز",
+      "blue": "آبی",
+      "red": "قرمز",
+      "purple": "بنفش",
+      "orange": "نارنجی"
+    },
+    "highlight": {
+      "title": "هایلایت",
+      "colour": "رنگ هایلایت",
+      "remove": "حذف هایلایت"
+    },
+    "note": {
+      "heading": "یادداشت برای {{reference}}",
+      "titleLabel": "عنوان (اختیاری)",
+      "titlePlaceholder": "عنوانی بیفزایید",
+      "textLabel": "یادداشت",
+      "textPlaceholder": "یادداشت خود را بنویسید",
+      "save": "ذخیره",
+      "cancel": "انصراف",
+      "delete": "حذف یادداشت",
+      "deleteConfirm": "حذف",
+      "confirmDelete": "این یادداشت حذف شود؟ این کار قابل بازگشت نیست."
+    },
+    "mark": {
+      "editNote": "ویرایش یادداشت",
+      "editNoteTitled": "ویرایش یادداشت: {{title}}",
+      "bookmarked": "نشانک‌گذاری‌شده"
+    }
+  }
+}

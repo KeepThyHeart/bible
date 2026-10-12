@@ -1,0 +1,38 @@
+{
+  "annotations": {
+    "close": "Close",
+    "error": "Something went wrong. Please try again.",
+    "bookmarkAdded": "Bookmarked {{reference}}",
+    "bookmarkRemoved": "Bookmark removed from {{reference}}",
+    "colors": {
+      "yellow": "Yellow",
+      "green": "Green",
+      "blue": "Blue",
+      "red": "Red",
+      "purple": "Purple",
+      "orange": "Orange"
+    },
+    "highlight": {
+      "title": "Highlight",
+      "colour": "Highlight colour",
+      "remove": "Remove highlight"
+    },
+    "note": {
+      "heading": "Note on {{reference}}",
+      "titleLabel": "Title (optional)",
+      "titlePlaceholder": "Add a title",
+      "textLabel": "Note",
+      "textPlaceholder": "Write your note",
+      "save": "Save",
+      "cancel": "Cancel",
+      "delete": "Delete note",
+      "deleteConfirm": "Delete",
+      "confirmDelete": "Delete this note? This cannot be undone."
+    },
+    "mark": {
+      "editNote": "Edit note",
+      "editNoteTitled": "Edit note: {{title}}",
+      "bookmarked": "Bookmarked"
+    }
+  }
+}

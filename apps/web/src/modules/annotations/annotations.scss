@@ -1,0 +1,238 @@
+// ============================================================
+// Annotations: highlight tints, note/bookmark marks, colour popover, note dialog, toast.
+// Colours follow core's HIGHLIGHT_COLOR_HEX (keep in step); logical properties throughout.
+// ============================================================
+
+// Dark themes: the pastel palette is too loud over a dark page, so it is dimmed.
+[data-theme="dark"],
+[data-theme="midnight"],
+[data-theme="slate"],
+[data-theme="sunset"] {
+  --kth-annot-alpha: 0.34;
+}
+
+.verse.kth-annot-hl {
+  --kth-annot-alpha-now: var(--theme-highlight-alpha, var(--kth-annot-alpha, 0.7));
+  --kth-annot-tint: #fff3a3;
+  background: color-mix(in srgb, var(--kth-annot-tint) calc(var(--kth-annot-alpha-now) * 100%), transparent);
+  border-radius: 4px;
+
+  &--yellow { --kth-annot-tint: #fff3a3; }
+  &--green { --kth-annot-tint: #b7e4c7; }
+  &--blue { --kth-annot-tint: #b8ddf5; }
+  &--red { --kth-annot-tint: #f7b7b7; }
+  &--purple { --kth-annot-tint: #d9c2f0; }
+  &--orange { --kth-annot-tint: #fbd1a2; }
+  &--custom { --kth-annot-tint: #fff3a3; }
+
+  // The reader's own selection and hover stay visible on top of a tint.
+  &.verse--study {
+    background: color-mix(in srgb, var(--kth-annot-tint) calc(var(--kth-annot-alpha-now) * 100%), var(--highlight-bg));
+  }
+}
+
+@media (hover: hover) {
+  .verse--block.kth-annot-hl:hover {
+    background: color-mix(in srgb, var(--kth-annot-tint) calc(var(--kth-annot-alpha-now) * 100%), var(--bg-secondary));
+  }
+}
+
+// --- marks (the verse row's last flex item, so the text start does not move) ---
+
+.kth-annot-marks {
+  order: 99;
+  flex: none;
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 2px;
+  margin-inline-start: 6px;
+}
+
+.kth-annot-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--text-secondary);
+  font-size: calc(12px * var(--ui-font-scale, 1));
+
+  &--note {
+    cursor: pointer;
+    color: var(--accent-color);
+
+    &:hover { background: var(--bg-secondary); }
+    &:focus-visible { outline: 2px solid var(--accent-color); outline-offset: 1px; }
+  }
+
+  &--bookmark { cursor: default; color: #c0392b; }
+}
+
+// --- buttons ---
+
+.kth-annot-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: calc(14px * var(--ui-font-scale, 1));
+  cursor: pointer;
+
+  &:hover:not(:disabled) { background: var(--bg-secondary); }
+  &:focus-visible { outline: 2px solid var(--accent-color); outline-offset: 2px; }
+  &:disabled { opacity: 0.5; cursor: default; }
+
+  &--primary {
+    background: var(--accent-color);
+    border-color: var(--accent-color);
+    color: #fff;
+
+    &:hover:not(:disabled) { background: var(--accent-color); filter: brightness(1.1); }
+  }
+
+  &--quiet { border-color: transparent; color: var(--text-secondary); padding-inline: 8px; }
+  &--danger { color: #c0392b; border-color: color-mix(in srgb, #c0392b 40%, var(--border-color)); }
+}
+
+// --- highlight popover ---
+
+.kth-annot-popover {
+  position: fixed;
+  z-index: 110;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  max-width: calc(100vw - 16px);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  box-shadow: 0 8px 28px var(--dropdown-shadow);
+}
+
+// --- note dialog ---
+
+.kth-annot-dialog {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  border-radius: 12px;
+  box-shadow: 0 12px 40px var(--dropdown-shadow);
+  width: 480px;
+  max-width: 92vw;
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+  overflow: auto;
+
+  &__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border-color);
+
+    h3 {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 0;
+      font-size: calc(16px * var(--ui-font-scale, 1));
+
+      i { color: var(--accent-color); }
+    }
+  }
+
+  &__close {
+    border: 0;
+    background: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 6px;
+    border-radius: 6px;
+
+    &:hover { background: var(--bg-secondary); }
+    &:focus-visible { outline: 2px solid var(--accent-color); }
+  }
+
+  &__body {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 16px 18px;
+  }
+
+  &__actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 18px 16px;
+  }
+
+  &__spacer { flex: 1; }
+}
+
+.kth-annot-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+
+  > span { font-size: calc(13px * var(--ui-font-scale, 1)); color: var(--text-secondary); }
+
+  input,
+  textarea {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 8px 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    font: inherit;
+    font-size: calc(15px * var(--ui-font-scale, 1));
+
+    &:focus { outline: 2px solid var(--accent-color); outline-offset: 0; }
+  }
+
+  textarea { resize: vertical; min-height: 120px; }
+}
+
+.kth-annot-error {
+  margin: 0;
+  color: #c0392b;
+  font-size: calc(13px * var(--ui-font-scale, 1));
+}
+
+// --- toast ---
+
+.kth-annot-toast {
+  position: fixed;
+  inset-block-end: 24px;
+  inset-inline-start: 50%;
+  transform: translateX(-50%);
+  z-index: 120;
+  max-width: min(90vw, 420px);
+  padding: 10px 16px;
+  border-radius: 10px;
+  background: var(--text-primary);
+  color: var(--bg-primary);
+  font-size: calc(14px * var(--ui-font-scale, 1));
+  box-shadow: 0 6px 20px var(--dropdown-shadow);
+  pointer-events: none;
+
+  [dir="rtl"] & { transform: translateX(50%); }
+}
+
+@media (max-width: 599px) {
+  .kth-annot-dialog { width: 100%; max-width: 100vw; border-radius: 12px 12px 0 0; align-self: flex-end; }
+  .kth-annot-toast { inset-block-end: 80px; }
+}
