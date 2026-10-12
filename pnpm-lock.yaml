@@ -453,6 +453,9 @@ importers:
       '@bible/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@bible/memory':
+        specifier: workspace:*
+        version: link:../../packages/memory
       '@bible/sync-server':
         specifier: workspace:*
         version: link:../../packages/sync-server

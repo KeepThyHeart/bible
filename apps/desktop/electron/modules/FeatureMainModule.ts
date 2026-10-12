@@ -53,6 +53,8 @@ export interface ModuleExtensionsPort {
   /** Installed and enabled. */
   isEnabled(extensionId: string): boolean;
   disable(extensionId: string): Promise<void>;
+  /** The extension is installed, enabled and its manifest opts its key-value data into sync (`userData.sync: true`). */
+  kvSyncOptIn?(extensionId: string): boolean;
 }
 
 /** What main.ts hands every module. Keep it small; add a member only when a module needs it. */

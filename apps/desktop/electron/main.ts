@@ -651,6 +651,8 @@ const registerAllHandlersOnce = runOnce(() => {
           ready: () => extensionRegistryLoaded,
           isEnabled: (id) => host.listEntries().some((e) => e.id === id && e.entry.enabled),
           disable: (id) => host.disable(id),
+          kvSyncOptIn: (id) =>
+            host.listEntries().some((e) => e.id === id && e.entry.enabled && e.entry.manifest.userData?.sync === true),
         };
       },
     },

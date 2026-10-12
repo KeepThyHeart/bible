@@ -11,4 +11,5 @@ export const LABELS = {
   record: 'kth-rec-v1',                   // AAD prefix of every record blob
   deviceName: 'kth-devname-v1',           // AAD prefix of encrypted device names
   backupAccountSlot: 'kth-backup-wrap-v1',// accountKey -> KEK of a .bbk "account" key slot (W4-C)
+  backupRecoverySlot: 'kth-backup-recovery-v1', // recovery code bytes -> KEK of a .bbk "recovery" key slot (W4-C)
 } as const;
