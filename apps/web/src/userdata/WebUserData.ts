@@ -24,6 +24,7 @@
  * works for the session in memory and reports `persistent: false`.
  */
 import { UserData } from '@bible/core/browser';
+import type { PersistenceStatus, UserDataStore } from './types';
 
 type MemoryUserDb = UserData.MemoryUserDb;
 type UserDataChange = UserData.UserDataChange;
@@ -48,12 +49,7 @@ export interface WebUserDataOptions {
   now?: () => Date;
 }
 
-export interface PersistenceStatus {
-  /** The browser has a storage API at all. */
-  supported: boolean;
-  /** Storage is marked persistent (not evictable under pressure). */
-  persisted: boolean;
-}
+export type { PersistenceStatus } from './types';
 
 interface Block {
   next: number;
@@ -97,7 +93,7 @@ function openDatabase(factory: IDBFactory, name: string): Promise<IDBDatabase> {
   });
 }
 
-export class WebUserData {
+export class WebUserData implements UserDataStore {
   /** The store. Prefer `items` and `links`; the raw db is for backup and tests. */
   readonly db: MemoryUserDb;
   readonly items: MemoryUserDb['items'];

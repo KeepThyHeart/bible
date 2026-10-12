@@ -3,10 +3,10 @@
  * settings surface that will host "Back up / Restore" calls these two functions.
  */
 import { getUserData } from './userData';
-import type { WebUserData } from './WebUserData';
+import type { UserDataStore } from './types';
 
 /** Build the backup and hand it to the browser as a download. Returns the file name. */
-export async function downloadBackup(options: { password?: string; store?: WebUserData; now?: Date } = {}): Promise<string> {
+export async function downloadBackup(options: { password?: string; store?: UserDataStore; now?: Date } = {}): Promise<string> {
   const store = options.store ?? (await getUserData());
   const out = await store.exportBackup({ password: options.password });
   const day = (options.now ?? new Date()).toISOString().slice(0, 10);
@@ -29,7 +29,7 @@ export async function downloadBackup(options: { password?: string; store?: WebUs
 /** Read a chosen `.zip` / `.bbk` and merge (default) or replace into the store. Throws on a damaged file or wrong password. */
 export async function restoreBackupFile(
   file: Blob,
-  options: { password?: string; mode?: 'merge' | 'replace'; store?: WebUserData } = {}
+  options: { password?: string; mode?: 'merge' | 'replace'; store?: UserDataStore } = {}
 ) {
   const store = options.store ?? (await getUserData());
   const bytes = new Uint8Array(await file.arrayBuffer());

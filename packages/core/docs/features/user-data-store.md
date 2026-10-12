@@ -8,7 +8,8 @@ account sync (task 0063) will later sync this one store.
 | Platform | Implementation | Where |
 |---|---|---|
 | Desktop | `UserDataRepository`, `VerseLinkRepository` over `ISql` (better-sqlite3) | `src/Data/Repositories/` |
-| Web | `MemoryUserDb` (same interfaces, in memory) persisted to IndexedDB by `WebUserData` | `src/UserData/`, `apps/web/src/userdata/` |
+| Web (default) | `MemoryUserDb` (same interfaces, in memory) persisted to IndexedDB by `WebUserData` | `src/UserData/`, `apps/web/src/userdata/` |
+| Web (flag `localUserDb`) | the same mirror persisted to the user SQLite database on OPFS by `OpfsUserData` (through the user-DB worker) | `apps/web/src/userdb/` |
 
 Both pass one contract suite, `src/__tests__/contracts/userDataContract.ts`, run by
 `userDataContract.test.ts` (SQLite and memory) and `apps/web/src/userdata/WebUserData.test.ts`
@@ -22,7 +23,11 @@ Both pass one contract suite, `src/__tests__/contracts/userDataContract.ts`, run
 | `src/UserData/UserDataBackup.ts` | `exportUserData` (`.zip`, or `.bbk` with a password) and `importUserData` (merge or replace) in backup format v1. |
 | `src/UserData/LocalStorageMigration.ts` | `migrateLocalStorage`: one-shot, crash-safe copy of legacy `localStorage` keys into the store. |
 | `apps/web/src/userdata/WebUserData.ts` | IndexedDB write-through, multi-tab sync, id blocks, persistence request, memory-only fallback. |
-| `apps/web/src/userdata/userData.ts` | The app's single instance: `getUserData()`. |
+| `apps/web/src/userdata/types.ts` | `UserDataStore`: the surface both web providers implement (`db`, `items`, `links`, `flush`, `onRemoteChange`, backup, ...). Type-only. |
+| `apps/web/src/userdata/userData.ts` | The app's single instance: `getUserData()`. Picks the provider (see "OPFS provider"). |
+| `apps/web/src/userdb/OpfsUserData.ts` | `UserDataStore` over the user-DB worker (flag `localUserDb`). |
+| `apps/web/src/userdb/userDataMirrorRepo.ts` | Worker repo `userDataMirror`: `readSnapshot`, `reserveIds`, `applyChanges`. |
+| `apps/web/src/userdb/importKthUserData.ts` | Worker `import` extension: one-shot copy of the IndexedDB store into the OPFS database. |
 | `apps/web/src/userdata/backupFiles.ts` | `downloadBackup()` and `restoreBackupFile()` (browser file plumbing, no UI). |
 | `apps/web/src/stores/studyHistoryStorage.ts` | The first migrated feature (Study verse history); the worked example below. |
 
@@ -88,6 +93,36 @@ table and nothing here. If you do add a table to the user database (desktop or c
   memory for the session.
 - `requestPersistence()` asks the browser not to evict the origin's storage. Call it after the
   user has saved something worth keeping.
+
+## OPFS provider (flag `localUserDb`)
+
+With the `localUserDb` flag on (and Web Locks, `BroadcastChannel`, `Worker` and OPFS available), `getUserData()`
+returns an `OpfsUserData` instead of a `WebUserData`. Callers see the same `UserDataStore`; the repositories stay
+synchronous because the store is still a `MemoryUserDb` mirror, written through to the worker instead of IndexedDB.
+With the flag off nothing of this loads (both modules are dynamic imports). Any failure to open it (unsupported
+browser, worker error, the 10 s open timeout) logs a `console.warn` and falls back to `WebUserData`.
+
+- **Open**: one-shot import (below), read the snapshot, load the mirror, reserve one id block per table.
+- **Writes**: coalesced per microtask into `userDataMirror.applyChanges`, one SQLite transaction, upserts
+  (`ON CONFLICT ... DO UPDATE`, never `INSERT OR REPLACE`, so ids and links survive an overwrite). `flush()`
+  waits for the chain; failed writes stay queued and are reported by `onError`.
+- **Ids**: `reserveIds(kind, n)` bumps `sqlite_sequence` for `user_data_item` / `verse_link` inside a worker
+  transaction, so a block never overlaps a later insert (another tab, a sync pull). Blocks are 1,000,000 wide,
+  refilled at half. After a wipe the sequences restart; every refresh probes `reserveIds(kind, 0)` and
+  re-reserves blocks that lie beyond the sequence.
+- **Other tabs, sync pulls and wipes** arrive as `changed` events for `user_data_item` / `verse_link`: the store
+  flushes its own writes, re-reads the snapshot, diffs it against the mirror by key / id and applies the
+  difference with `applyRemote`, then calls `onRemoteChange`. A refresh that races a local write is discarded
+  and retried, so a local change is never undone. (Cost: one snapshot read per change event; the data set is small.)
+- **Import from IndexedDB** (`op:'import'`, source `kth-user-data`): runs once, guarded by the marker
+  `setting(web, userData.importedFromIdb)` in the OPFS database. Items and links are copied with their ids, the
+  sequences are raised past them, then the marker is set, all in one transaction. A missing IndexedDB store sets
+  the marker and copies nothing. The import never deletes or changes the IndexedDB store: turning the flag off
+  again gives the old store, frozen at the time of the import. The wipe path (sign-out with "wipe local data",
+  account deletion) deletes the OPFS files *and* the IndexedDB `kth-user-data` / `kth-secrets` databases
+  (`wipeStores.ts`), so a wiped store cannot come back through the import.
+- Tests: the shared contract suite runs against `OpfsUserData` over an in-process worker handler
+  (`apps/web/src/userdb/OpfsUserData.test.ts`).
 
 ## Backup and restore
 
