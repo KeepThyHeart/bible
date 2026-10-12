@@ -169,13 +169,10 @@ const LanguageOption: React.FC<LanguageOptionProps> = ({ info, selected, onSelec
         // component is always user-supplied; `beta` may be either.
         <span
           data-testid={`first-run-language-${info.status}-badge-${info.code}`}
+          title={t('onboarding.language.previewTooltip')}
           className="ms-auto flex-shrink-0 rounded bg-background-hover px-xs text-xs text-text-secondary"
         >
-          {t(
-            info.status === 'beta'
-              ? 'onboarding.language.betaBadge'
-              : 'onboarding.language.draftBadge',
-          )}
+          {t('onboarding.language.previewBadge')}
         </span>
       )}
     </button>

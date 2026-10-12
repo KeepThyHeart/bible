@@ -1,6 +1,6 @@
 {
   "name": "bible",
-  "version": "0.1.0",
+  "version": "1.0.0-rc.1",
   "description": "Bible study software",
   "private": false,
   "workspaces": [

@@ -373,6 +373,19 @@ describe('inspect', () => {
     const plan = inspectBackup(archive, { sql: newUserDb() }, { preview: false });
     await expect(applyRestore(plan, { sql: newUserDb() }, { mode: 'merge', sections: ['nope'] })).rejects.toThrow(RangeError);
   });
+  it('accepts a beta.1 archive (userSchemaVersion 1, no memory sections) with an olderSchema warning, and restores it', async () => {
+    const a = newUserDb();
+    seedRich(a);
+    const archive = await archiveOf({ sql: a });
+    archive.manifest.userSchemaVersion = 1;
+    archive.manifest.sections = archive.manifest.sections.filter((s) => !s.id.startsWith('user.memory_'));
+    const target = newUserDb();
+    const plan = inspectBackup(archive, { sql: target }, { preview: false });
+    expect(plan.source.userSchemaVersion).toBe(1);
+    expect(plan.warnings.find((w) => w.code === 'olderSchema')).toMatchObject({ params: { from: 1, to: USER_SCHEMA_VERSION } });
+    const report = await applyRestore(plan, { sql: target }, { mode: 'replace', sections: defaultSections(plan, 'replace') });
+    expect(report.ok).toBe(true);
+  });
   it('drops columns this database does not have, and counts them', async () => {
     const a = newUserDb();
     a.execute("INSERT INTO user_note (title, content, sort_order) VALUES ('n', 'x', 5)");

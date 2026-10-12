@@ -2,6 +2,8 @@
 
 Scripture memory as a built-in feature module (task 0114). Source-consumed, no build step.
 
+Recite aloud and hands-free mode are off in 1.0: one switch, the `recite` feature flag in @bible/core.
+
 | Export | What |
 |---|---|
 | `@bible/memory/core` | `MemoryService`, the store, scheduler, recite and push-card logic, ports, `createSqlPort`, legacy import |

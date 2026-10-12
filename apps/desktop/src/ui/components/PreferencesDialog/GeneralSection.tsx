@@ -94,10 +94,10 @@ export function selectableLocales(
 const LocaleOption: React.FC<{
   info: LocaleMetadata;
   selected: boolean;
-  draftLabel: string;
-  betaLabel: string;
+  previewLabel: string;
+  previewTooltip: string;
   onSelect: (code: string) => void;
-}> = ({ info, selected, draftLabel, betaLabel, onSelect }) => (
+}> = ({ info, selected, previewLabel, previewTooltip, onSelect }) => (
   <button
     type="button"
     role="radio"
@@ -138,6 +138,7 @@ const LocaleOption: React.FC<{
     {info.status !== 'complete' && (
       <span
         data-testid={`locale-${info.status}-badge-${info.code}`}
+        title={previewTooltip}
         className="flex-shrink-0 text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded"
         style={{
           backgroundColor: 'var(--theme-bg-tertiary)',
@@ -145,7 +146,7 @@ const LocaleOption: React.FC<{
           border: '1px solid var(--theme-border-primary)',
         }}
       >
-        {info.status === 'beta' ? betaLabel : draftLabel}
+        {previewLabel}
       </span>
     )}
     {selected && (
@@ -168,8 +169,8 @@ export const GeneralSection: React.FC = () => {
   const scalePercent = Math.round(globalFontScale * 100);
 
   const localeInfos = selectableLocales(i18n.availableLocaleInfos, locale);
-  const draftLabel = t('preferencesDialog.localeDraftBadge');
-  const betaLabel = t('preferencesDialog.localeBetaBadge');
+  const previewLabel = t('preferencesDialog.localePreviewBadge');
+  const previewTooltip = t('preferencesDialog.localePreviewTooltip');
 
   // Collapsed by default: language is the one setting in this dialog that can
   // make every other setting unreadable, and this section is the first thing
@@ -276,18 +277,17 @@ export const GeneralSection: React.FC = () => {
                   key={info.code}
                   info={info}
                   selected={info.code === locale}
-                  draftLabel={draftLabel}
-                  betaLabel={betaLabel}
+                  previewLabel={previewLabel}
+                  previewTooltip={previewTooltip}
                   onSelect={(code) => { void i18n.setLocale(code); }}
                 />
               ))}
             </div>
             <p className="text-xs mt-2" style={{ color: 'var(--theme-text-muted)' }}>
-              {anyDraftListed
-                ? t('preferencesDialog.languageDraftNote')
-                : anyBetaListed
-                  ? t('preferencesDialog.languageBetaNote')
-                  : t('preferencesDialog.languageMoreComingNote')}
+              {/* Every non-English language is one "Preview" state for 1.0, so the note explains that label. */}
+              {anyDraftListed || anyBetaListed
+                ? `${previewLabel}: ${previewTooltip}`
+                : t('preferencesDialog.languageMoreComingNote')}
             </p>
           </div>
         )}

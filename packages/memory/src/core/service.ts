@@ -73,6 +73,7 @@ import { Session, nextSessionId, MAX_REFERENCE_STEPS } from './session';
 import type { ReferenceCatalog } from './session';
 import { toVerseText, CONTEXT_VERSES } from './verses';
 import { resolveReference, ReferenceError, MAX_PASSAGE_VERSES } from './reference';
+import { reciteEnabled } from './features';
 import { ReciteService } from './recite/service';
 import type { RecordAndScheduleArgs, RecordAndScheduleResult } from './recite/service';
 import {
@@ -627,8 +628,10 @@ export class MemoryService implements MemoryApi {
   getSettings(): Promise<RequestMap['getSettings']> {
     return this.guard('getSettings', async () => ({
       defaultAnswerMode: await this.store.getDefaultAnswerMode(),
-      recite: await this.getRecite().getSettings(),
-      speech: await this.getRecite().probe(true),
+      // Absent while recite is off (see features.ts): the UI then draws no recite block.
+      ...(reciteEnabled()
+        ? { recite: await this.getRecite().getSettings(), speech: await this.getRecite().probe(true) }
+        : {}),
     }));
   }
 
@@ -774,7 +777,10 @@ export class MemoryService implements MemoryApi {
   }
 
   startRecite(args: Req<'startRecite'>): Promise<ReciteStateView> {
-    return this.guard('startRecite', () => this.getRecite().start({ source: args.source, mode: args.mode }));
+    return this.guard('startRecite', () => {
+      if (!reciteEnabled()) throw new Error('Recite aloud is not available in this release.');
+      return this.getRecite().start({ source: args.source, mode: args.mode });
+    });
   }
 
   reciteControl(args: Req<'reciteControl'>): Promise<ReciteStateView> {
@@ -784,7 +790,7 @@ export class MemoryService implements MemoryApi {
   }
 
   getReciteState(): Promise<ReciteStateView | null> {
-    return this.guard('getReciteState', async () => this.getRecite().get());
+    return this.guard('getReciteState', async () => (reciteEnabled() ? this.getRecite().get() : null));
   }
 
   setReciteSettings(args: Req<'setReciteSettings'>): Promise<Record<string, never>> {
@@ -865,6 +871,7 @@ export class MemoryService implements MemoryApi {
   }
 
   async practiceDueAloud(): Promise<{ started: boolean }> {
+    if (!reciteEnabled()) return { started: false };
     const svc = this.getRecite();
     const availability = await svc.probe(true);
     if (availability.state !== 'ready') {
@@ -978,6 +985,7 @@ export class MemoryService implements MemoryApi {
 
   /** Whether the recite rung applies to a passage: listening is usable and a kit exists for its language. */
   private async speechOnFor(availability: SpeechAvailability, moduleId: string): Promise<boolean> {
+    if (!reciteEnabled()) return false;
     if (availability.state !== 'ready' && availability.state !== 'needs-download') return false;
     try {
       return (await moduleKit({ bible: this.host.bible }, moduleId)) !== null;
@@ -1062,7 +1070,8 @@ export class MemoryService implements MemoryApi {
 
     return {
       passage,
-      rungs: inRungOrder(rungs),
+      // Recite cards stay in the data but are not shown while the flag is off.
+      rungs: inRungOrder(reciteEnabled() ? rungs : rungs.filter((r) => r.rung !== 'recite')),
       dueCount,
       bestLevel,
       // Not `bestLevel >= 4` any more: every applicable activity has to be
@@ -1116,7 +1125,7 @@ export class MemoryService implements MemoryApi {
       defaultAnswerMode: await this.store.getDefaultAnswerMode(),
       sortOrder: await this.store.getPassageSortOrder(),
       speech,
-      reciteDueCount: await this.store.reciteDueCount(scope, now),
+      reciteDueCount: reciteEnabled() ? await this.store.reciteDueCount(scope, now) : 0,
     };
   }
 

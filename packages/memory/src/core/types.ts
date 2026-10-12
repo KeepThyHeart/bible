@@ -331,8 +331,8 @@ export interface PlanView {
 /** The user's answer-mode preference, and how it applies. */
 export interface SettingsView {
   defaultAnswerMode: AnswerMode;
-  recite: ReciteSettings;
-  speech: SpeechAvailability;
+  recite?: ReciteSettings;
+  speech?: SpeechAvailability;
 }
 
 // ---------------------------------------------------------------------------

@@ -219,7 +219,7 @@ Testing an Installer
 `admin/scripts/test-installer.js` checks an installer the release build produced (or a downloaded copy) on the platform it is for:
 
 ```bash
-pnpm run test:installer "apps/desktop/dist/Keep Thy Heart Bible Reader-0.1.0.AppImage"
+pnpm run test:installer "apps/desktop/dist/Keep Thy Heart Bible Reader-1.0.0-rc.1.AppImage"
 node admin/scripts/test-installer.js path/to/installer.exe
 ```
 

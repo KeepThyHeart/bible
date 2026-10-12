@@ -20,6 +20,11 @@ vi.mock('react-i18next', () => ({
 }));
 
 const mockServerOffline = vi.hoisted(() => ({ value: false }));
+const mockLocales = vi.hoisted(() => ({
+  value: [
+    { code: 'en', name: 'English', nativeName: 'English', status: 'complete', direction: 'ltr' },
+  ] as Array<{ code: string; name: string; nativeName: string; status: string; direction: string }>,
+}));
 
 // ---- Store mock ----------------------------------------------------------
 vi.mock('../../hooks/useStore', () => ({
@@ -31,9 +36,7 @@ vi.mock('../../i18n', () => ({
   default: { language: 'en', changeLanguage: vi.fn() },
   syncDocumentLang: vi.fn(),
   changeLocale: vi.fn(),
-  selectableLocaleInfos: () => [
-    { code: 'en', name: 'English', nativeName: 'English', status: 'complete', direction: 'ltr' },
-  ],
+  selectableLocaleInfos: () => mockLocales.value,
 }));
 
 // ---- Settings store -------------------------------------------------------
@@ -265,6 +268,30 @@ describe('SettingsPanel', () => {
     const options = container.querySelectorAll('.settings-select option');
     expect(options.length).toBe(1);
     expect(options[0].getAttribute('value')).toBe('en');
+  });
+
+  it('labels every non-complete locale "Preview" from its meta status, and English never', () => {
+    const original = mockLocales.value;
+    mockLocales.value = [
+      ...original,
+      { code: 'es', name: 'Spanish', nativeName: 'Español', status: 'beta', direction: 'ltr' },
+      { code: 'ar', name: 'Arabic', nativeName: 'العربية', status: 'draft', direction: 'rtl' },
+      { code: 'fr', name: 'French', nativeName: 'Français', status: 'complete', direction: 'ltr' },
+    ];
+    try {
+      const { container } = render(<SettingsPanel isOpen={true} onClose={onClose} />);
+      fireEvent.click(container.querySelector<HTMLElement>('[data-tab="about"]')!);
+      const text = (code: string) =>
+        container.querySelector(`.settings-select option[value="${code}"]`)!.textContent;
+      // `t` is mocked to echo the key, so the key proves the Preview label is used.
+      expect(text('es')).toBe('Español (settings.language.localePreviewBadge)');
+      expect(text('ar')).toBe('العربية (settings.language.localePreviewBadge)');
+      expect(text('en')).not.toContain('localePreviewBadge');
+      // A reviewed language is unbadged once its status is `complete`.
+      expect(text('fr')).toBe('Français');
+    } finally {
+      mockLocales.value = original;
+    }
   });
 
   // ------------------------------------------------------------------

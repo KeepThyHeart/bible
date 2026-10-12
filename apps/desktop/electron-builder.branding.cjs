@@ -20,7 +20,7 @@
  * release is unchanged.
  *
  *   BIBLE_PRODUCT_NAME   user-visible product name (default "Keep Thy Heart Bible Reader")
- *   BIBLE_APP_ID         application id / reverse-DNS (default com.bibledesktopapp.app)
+ *   BIBLE_APP_ID         application id / reverse-DNS (default com.keepthyheart.bible.desktop)
  *
  * `BIBLE_PRODUCT_NAME` flows to EVERY name-derived location:
  *   - install directory (NSIS default is the product name)
@@ -76,7 +76,7 @@
  */
 
 const DEFAULT_PRODUCT_NAME = 'Keep Thy Heart Bible Reader';
-const DEFAULT_APP_ID = 'com.bibledesktopapp.app';
+const DEFAULT_APP_ID = 'com.keepthyheart.bible.desktop';
 
 /** Trimmed env value, or undefined when unset/blank. */
 function envStr(name) {
@@ -85,7 +85,6 @@ function envStr(name) {
 }
 
 const productName = envStr('BIBLE_PRODUCT_NAME') || DEFAULT_PRODUCT_NAME;
-const appId = envStr('BIBLE_APP_ID') || DEFAULT_APP_ID;
 
 // --- Optional-signing gates (presence of creds = activate; absence = unsigned) ---
 
@@ -128,6 +127,27 @@ const branding = (() => {
   };
 })();
 
+// appId: BIBLE_APP_ID, else `admin/brand/branding.json` (the single source;
+// DEFAULT_APP_ID is only the fallback when that file is unreadable). Must equal
+// DEFAULT_APP_ID in electron/notifications/appId.ts (checked by
+// `pnpm run branding:check` and the upgrade tests).
+const OFFICIAL_APP_ID = 'com.keepthyheart.bible.desktop';
+const appId = envStr('BIBLE_APP_ID') || (typeof branding.appId === 'string' && branding.appId.trim()) || DEFAULT_APP_ID;
+
+// --- Windows installer identity ---------------------------------------------
+//
+// 0.1.0-beta.1 shipped with appId `com.bibledesktopapp.app`. electron-builder
+// derives the NSIS uninstall-registry GUID from the appId (UUID v5), so
+// changing the appId would give the 1.0 installer a different GUID: it would
+// not find beta.1's uninstall entry, would not uninstall it first, and Apps &
+// Features would list both. Pinning the GUID to beta.1's derived value lets the
+// 1.0 installer upgrade over beta.1 in place. Pinned ONLY for the official
+// build (no BIBLE_APP_ID override and the official appId); neutral-profile and
+// forked builds keep their own derived GUID so they never collide with it.
+// Never change this value.
+const LEGACY_NSIS_GUID = 'd159dead-52c2-56b9-8a81-6c170917f41d';
+const pinLegacyNsisGuid = !envStr('BIBLE_APP_ID') && appId === OFFICIAL_APP_ID;
+
 // --- Electron version ------------------------------------------------------
 //
 // The installers must run the Electron the app is developed and tested on, so
@@ -152,7 +172,7 @@ const electronVersion = (() => {
 // in the repository's node_modules. The mac targets build arm64 and x64, so the
 // last pass leaves its arch behind: on an Apple Silicon Mac the development
 // tree then holds x64 binaries and `npm run dev` cannot load SQLite
-// ("incompatible architecture") until `npm run rebuild-native:force`. After a
+// ("incompatible architecture") until `pnpm --filter @bible/desktop run rebuild-native:force`. After a
 // mac build this puts back the host's Electron build of any binding left for
 // another arch. Not on CI, which has no development tree to keep working.
 const MACHO_CPU_TYPES = { 0x01000007: 'x64', 0x0100000c: 'arm64' }; // <mach/machine.h>
@@ -210,6 +230,7 @@ module.exports = {
   ],
   nsis: {
     shortcutName: productName,
+    ...(pinLegacyNsisGuid ? { guid: LEGACY_NSIS_GUID } : {}),
   },
   win: {
     // Always true: this flag also gates rcedit, which stamps the app icon and

@@ -132,12 +132,12 @@ describe('LanguageFirstRun', () => {
     await screen.findByTestId('first-run-language-dialog');
     await userEvent.click(screen.getByTestId('first-run-language-more'));
 
-    expect(screen.getByTestId('first-run-language-fr')).toHaveTextContent('draft translation');
-    expect(screen.getByTestId('first-run-language-de')).not.toHaveTextContent('draft translation');
-    expect(screen.getByTestId('first-run-language-en')).not.toHaveTextContent('draft translation');
+    expect(screen.getByTestId('first-run-language-fr')).toHaveTextContent('Preview');
+    expect(screen.getByTestId('first-run-language-de')).not.toHaveTextContent('Preview');
+    expect(screen.getByTestId('first-run-language-en')).not.toHaveTextContent('Preview');
   });
 
-  it('marks a beta locale distinctly from a draft one', async () => {
+  it('marks a beta locale with the same Preview label as a draft one', async () => {
     h.locales = [
       ...BUILT_IN,
       { code: 'pt-BR', name: 'Portuguese (Brazil)', nativeName: 'Português (Brasil)', status: 'beta', direction: 'ltr' },
@@ -146,8 +146,7 @@ describe('LanguageFirstRun', () => {
     await screen.findByTestId('first-run-language-dialog');
     await userEvent.click(screen.getByTestId('first-run-language-more'));
 
-    expect(screen.getByTestId('first-run-language-pt-BR')).toHaveTextContent('beta translation');
-    expect(screen.getByTestId('first-run-language-pt-BR')).not.toHaveTextContent('draft translation');
+    expect(screen.getByTestId('first-run-language-pt-BR')).toHaveTextContent('Preview');
   });
 
   it('switches locale and records the answer on continue', async () => {

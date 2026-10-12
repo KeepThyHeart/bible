@@ -6,6 +6,27 @@ import log from 'electron-log';
 
 const KEY_FILENAME = 'encryption-key.enc';
 
+/**
+ * Thrown when `secrets/encryption-key.enc` exists but cannot be decrypted (for
+ * example the user denied a keychain prompt, or the OS keyring changed). The
+ * file is NEVER overwritten in that case: generating a new key would make the
+ * existing encrypted user database permanently unreadable.
+ */
+export class EncryptionKeyUnreadableError extends Error {
+  readonly code = 'ENCRYPTION_KEY_UNREADABLE';
+  constructor(
+    readonly keyFilePath: string,
+    cause?: unknown,
+  ) {
+    super(
+      `The saved encryption key could not be read (${keyFilePath}). Your data is untouched; ` +
+        'a new key was NOT created. Allow keychain/keyring access and restart the app.',
+    );
+    this.name = 'EncryptionKeyUnreadableError';
+    if (cause !== undefined) (this as { cause?: unknown }).cause = cause;
+  }
+}
+
 let cachedKey: string | null = null;
 
 function getKeyFilePath(): string {
@@ -16,6 +37,7 @@ function getKeyFilePath(): string {
   return join(dir, KEY_FILENAME);
 }
 
+/** Returns null only when no key file exists; throws EncryptionKeyUnreadableError when it exists but cannot be read. */
 function readEncryptedKey(): string | null {
   const path = getKeyFilePath();
   if (!existsSync(path)) return null;
@@ -24,7 +46,7 @@ function readEncryptedKey(): string | null {
     return safeStorage.decryptString(blob);
   } catch (err) {
     log.error('[Encryption] Failed to decrypt key file:', err);
-    return null;
+    throw new EncryptionKeyUnreadableError(path, err);
   }
 }
 

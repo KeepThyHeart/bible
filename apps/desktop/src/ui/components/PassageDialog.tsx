@@ -341,13 +341,21 @@ const PassageDialog: React.FC<PassageDialogProps> = ({
    * otherwise parks focus on the first focusable element.
    */
   const focusFormatListOnOpen = !isCopy && !promptForReference;
+  // The format list only exists once there is a passage. If the passage is still resolving at mount (a slow
+  // resolver), the on-open focus below finds nothing, so it is retried once, when the list first appears.
+  const formatListFocusedRef = useRef(false);
+  const focusFormatList = useCallback((): boolean => {
+    const root = dialogRef.current;
+    const target =
+      root?.querySelector<HTMLElement>(`[data-format-id="${formatId}"] input`) ??
+      root?.querySelector<HTMLElement>('[data-format-id] input');
+    if (!target) return false;
+    target.focus();
+    return true;
+  }, [formatId]);
   useEffect(() => {
     if (focusFormatListOnOpen) {
-      const root = dialogRef.current;
-      const target =
-        root?.querySelector<HTMLElement>(`[data-format-id="${formatId}"] input`) ??
-        root?.querySelector<HTMLElement>('[data-format-id] input');
-      target?.focus();
+      formatListFocusedRef.current = focusFormatList();
       return;
     }
     const input = referenceInputRef.current;
@@ -357,6 +365,11 @@ const PassageDialog: React.FC<PassageDialogProps> = ({
     // On open only.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (!focusFormatListOnOpen || formatListFocusedRef.current || !hasPassage) return;
+    formatListFocusedRef.current = focusFormatList();
+  }, [focusFormatListOnOpen, hasPassage, focusFormatList]);
 
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {

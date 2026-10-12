@@ -18,6 +18,7 @@
  * right now - this table only says what the tile is called and what it does.
  */
 
+import { reciteEnabled } from '../core/features';
 import type { PlanView, ReciteStateView, Rung } from '../core/types';
 import type { PanelHost } from './host';
 import { tr } from './i18n';
@@ -98,7 +99,7 @@ export const RECITE_TILE = {
 
 /** The recite tile is offered only when speech is ready. */
 export function reciteTileVisible(plan: PlanView): boolean {
-  return plan.speech.state === 'ready';
+  return reciteEnabled() && plan.speech.state === 'ready';
 }
 
 /** The "Recite what's due aloud" entry: label, due count and whether it can be pressed. */

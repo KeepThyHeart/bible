@@ -40,6 +40,7 @@ import {
 } from './components';
 import { RUNG_BLURB, RUNG_LABEL, formatDue, formatScore, inLadderOrder, isDue, suggestedRungFor } from './format';
 import type { PanelHost } from './host';
+import { reciteEnabled } from '../core/features';
 import { startReciteRun } from './activities';
 import { availabilityBanner, availabilityMessage, permissionSettingsButton } from './settingsView';
 import { tr } from './i18n';
@@ -103,7 +104,7 @@ export function renderPassageScreen(
   const practiceLink = renderPracticeLink(host, pv, suggested);
   if (practiceLink) root.appendChild(practiceLink);
 
-  const applicable = inLadderOrder(pv.rungs).filter((rv) => rv.applicable);
+  const applicable = inLadderOrder(pv.rungs).filter((rv) => rv.applicable && (rv.rung !== 'recite' || reciteEnabled()));
   if (applicable.length > 0) {
     // An explicit tab wins; otherwise the suggested one. A stale `viewRung`
     // naming a rung that is no longer applicable falls back to the first tab.
@@ -123,6 +124,7 @@ export function renderPassageScreen(
 
   for (const rv of inLadderOrder(pv.rungs).filter((r) => !r.applicable)) {
     if (rv.rung === 'recite') {
+      if (!reciteEnabled()) continue;
       // Optional and hidden when unavailable; say why only when speech itself is the reason.
       const why = speech ? availabilityMessage(speech) : null;
       if (why) {

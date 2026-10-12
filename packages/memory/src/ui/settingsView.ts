@@ -8,6 +8,7 @@
  * page could not show "3 passages have their own setting" at all.
  */
 
+import { reciteEnabled } from '../core/features';
 import type { AnswerMode, PlanView, ReciteSettings, SettingsView, SpeechAvailability } from '../core/types';
 import type { PushSettingsView } from '../core/pushTypes';
 import { renderPushSettings } from './pushSettingsView';
@@ -37,7 +38,7 @@ export function renderSettings(
   );
 
   // `recite`/`speech` are absent on a host that predates Recite aloud.
-  if (settings.recite && settings.speech) root.appendChild(renderReciteSettings(host, settings.recite, settings.speech));
+  if (reciteEnabled() && settings.recite && settings.speech) root.appendChild(renderReciteSettings(host, settings.recite, settings.speech));
 
   root.appendChild(renderOverrides(host, plan));
 

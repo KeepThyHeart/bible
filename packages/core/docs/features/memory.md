@@ -5,6 +5,11 @@ reference, recite aloud), spaced-repetition scheduling, lists, hands-free recita
 `bible-memory` extension and is now a built-in feature module and app. The code is in `packages/memory`
 (`@bible/memory`); the desktop wires it in, the web registers it hidden.
 
+**1.0: recite and hands-free are hidden.** "Recite aloud" and hands-free mode stay in the code and its tests, but
+the `recite` feature flag (`FEATURE_FLAGS` in `packages/core/src/Settings/FeatureFlags.ts`) defaults to off, so the exercise picker, passage actions, plan
+tiles, settings block and the start/command entry points leave them out. Turning it on brings them back; the
+recite engine itself is planned for the next release.
+
 | Layer | Where |
 |---|---|
 | Domain, store, scheduler, recite, push cards, `MemoryService` | `packages/memory/src/core/` (platform-free; talks to a `MemorySql` and a `MemoryHostApi`) |

@@ -398,7 +398,7 @@ export function mountMemoryUi(container: HTMLElement, options: MemoryUiOptions):
           passageReply.data,
           settingsReply.data.defaultAnswerMode,
           nav.view.rung,
-          settingsReply.data.speech,
+          settingsReply.data.speech ?? null,
         );
       }
 

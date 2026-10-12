@@ -1,7 +1,7 @@
 {
   "name": "@bible/extension-ui",
   "version": "0.1.0",
-  "description": "Client-side SDK for Bible app extension iframes — verse linking, navigation, popups, and typed host bridge",
+  "description": "[Experimental] Client-side SDK for Bible app extension iframes — verse linking, navigation, popups, and typed host bridge",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
@@ -17,6 +17,7 @@
     "README.md"
   ],
   "keywords": [
+    "experimental",
     "bible",
     "extension",
     "ui",

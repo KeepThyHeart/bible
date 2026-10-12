@@ -38,10 +38,16 @@ const TOUCHPOINTS = [
     ],
   },
   {
+    // The REAL copies (the builder yml files no longer carry it). The first
+    // two default from branding.json at build time but keep this literal as the
+    // fallback; all three must equal branding.json's appId or the Windows
+    // AppUserModelID would no longer match the installer. Verified below.
     key: 'appId',
+    mustContain: true,
     files: [
-      'apps/desktop/electron-builder.yml',
-      'apps/desktop/electron-builder.curated.yml',
+      'apps/desktop/electron-builder.branding.cjs',
+      'apps/desktop/electron.vite.config.ts',
+      'apps/desktop/electron/notifications/appId.ts',
     ],
   },
   {
@@ -88,7 +94,8 @@ console.log('--------------------------------------');
 console.log('These cannot import admin/brand/branding.json. Update them when the value changes.\n');
 
 let missingFiles = 0;
-for (const {key, files} of TOUCHPOINTS) {
+let driftedCopies = 0;
+for (const {key, files, mustContain} of TOUCHPOINTS) {
   const value = branding[key];
   const status = undecided.includes(key) ? 'undecided' : 'settled';
   console.log(`  ${key} (${status}) — "${value}"`);
@@ -99,6 +106,9 @@ for (const {key, files} of TOUCHPOINTS) {
       missingFiles += 1;
     } else if (count > 0) {
       console.log(`      ${String(count).padStart(2)}× ${file}`);
+    } else if (mustContain) {
+      console.log(`      [DRIFT] ${file} does not contain "${value}"`);
+      driftedCopies += 1;
     }
   }
   console.log('');
@@ -107,6 +117,11 @@ for (const {key, files} of TOUCHPOINTS) {
 if (missingFiles > 0) {
   console.log(`Note: ${missingFiles} touchpoint file(s) listed above no longer exist.`);
   console.log('Update the TOUCHPOINTS list in scripts/check-branding.js.\n');
+}
+
+if (driftedCopies > 0) {
+  console.log(`${driftedCopies} copy(ies) no longer match admin/brand/branding.json. Fix them before releasing.\n`);
+  process.exit(1);
 }
 
 if (undecided.length > 0) {
