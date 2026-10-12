@@ -1,12 +1,23 @@
 /**
- * Main-thread promise proxy for the user database. Nothing imports this yet (M1 ships no UI); the first
- * consumer will `await import('./userdb/UserDbClient')` so the worker and sqlite-wasm stay out of the entry chunk.
+ * Main-thread promise proxy for the user database. App code gets the singleton from `client.ts`
+ * (`await import('../userdb/client')`), so the worker and sqlite-wasm stay out of the entry chunk.
+ *
+ * Host APIs (M3): the worker may call back into the leader tab's main thread (`hostCall` event, leader only, never
+ * broadcast). The client runs `hostApis(api)[method](...args)` and answers with `{op:'hostReply'}`.
  */
-import { UserDbError } from './errors';
+import { toWireError, UserDbError } from './errors';
 import { createUserDbNode, type UserDbBackend, type UserDbNode, type UserDbNodeOptions } from './leader';
 import type {
-  UserDbEvent, UserDbRequest, UserDbRequestMessage, UserDbResponse, UserRepoName,
+  HostApiName, UserDbEvent, UserDbRequest, UserDbRequestMessage, UserDbResponse, UserRepoName,
 } from './protocol';
+
+/** A main-thread API the worker may call (`registerHostApi` in client.ts). */
+export type HostApiImpl = Record<string, (...args: unknown[]) => unknown>;
+export type HostApiLookup = (name: HostApiName) => Promise<HostApiImpl | undefined> | HostApiImpl | undefined;
+
+export interface UserDbClientOptions extends Partial<UserDbNodeOptions> {
+  hostApis?: HostApiLookup;
+}
 
 /** The real backend: a dedicated module worker with request ids. */
 export function createWorkerBackend(worker: Worker): UserDbBackend {
@@ -48,12 +59,49 @@ export function createWorkerBackend(worker: Worker): UserDbBackend {
 export class UserDbClient {
   private readonly node: UserDbNode;
 
-  constructor(options: Partial<UserDbNodeOptions> = {}) {
+  private readonly hostApis?: HostApiLookup;
+
+  constructor(options: UserDbClientOptions = {}) {
+    const { hostApis, ...nodeOptions } = options;
+    this.hostApis = hostApis;
     this.node = createUserDbNode({
       createBackend: () =>
         createWorkerBackend(new Worker(new URL('./userDb.worker.ts', import.meta.url), { type: 'module' })),
-      ...options,
+      ...nodeOptions,
     });
+    this.node.onEvent((event) => {
+      if (event.event === 'hostCall') void this.answerHostCall(event);
+    });
+  }
+
+  /** Runs a worker -> main-thread call (only the leader tab receives one) and replies; never throws. */
+  private async answerHostCall(call: Extract<UserDbEvent, { event: 'hostCall' }>): Promise<void> {
+    if (!this.node.isLeader()) return;
+    let reply: Extract<UserDbRequest, { op: 'hostReply' }>;
+    try {
+      const impl = await this.hostApis?.(call.api);
+      const fn = impl && Object.prototype.hasOwnProperty.call(impl, call.method) ? impl[call.method] : undefined;
+      if (typeof fn !== 'function') {
+        reply = {
+          op: 'hostReply', callId: call.callId, ok: false,
+          error: { name: 'UserDbError', message: `Host API ${call.api}.${call.method} is not available`, code: 'host_api_unavailable' },
+        };
+      } else {
+        const value = await fn.apply(impl, Array.isArray(call.args) ? call.args : []);
+        reply = { op: 'hostReply', callId: call.callId, ok: true, value: value === undefined ? null : value };
+      }
+    } catch (e) {
+      reply = { op: 'hostReply', callId: call.callId, ok: false, error: toWireError(e) };
+    }
+    try {
+      await this.node.request(reply);
+    } catch (e) {
+      // A value that cannot be cloned: report it; if the worker went away (leader change, close) this fails too and
+      // the worker's pending call times out on its side.
+      if (reply.ok) {
+        await this.node.request({ op: 'hostReply', callId: call.callId, ok: false, error: toWireError(e) }).catch(() => undefined);
+      }
+    }
   }
 
   request(req: UserDbRequest): Promise<unknown> {

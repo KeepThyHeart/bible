@@ -39,6 +39,11 @@ type ChannelMessage =
   | { t: 'evt'; evt: UserDbEvent }
   | { t: 'hello'; from: string };
 
+/** Backend events that stay in the leader tab: `hostCall` (worker -> leader main thread) is never posted on the channel. */
+export function isLocalOnlyEvent(evt: UserDbEvent): boolean {
+  return evt.event === 'hostCall';
+}
+
 export interface UserDbNodeOptions {
   createBackend: () => UserDbBackend;
   locks?: LocksLike;
@@ -94,6 +99,7 @@ export function createUserDbNode(options: UserDbNodeOptions): UserDbNode {
       if (m.ok) p.resolve(m.value);
       else p.reject(new UserDbError(m.error));
     } else if (m.t === 'evt' && !leader) {
+      if (isLocalOnlyEvent(m.evt)) return; // defence in depth: a follower never acts on a broadcast hostCall
       emitLocal(m.evt);
     } else if (m.t === 'hello' && !leader && m.from !== nodeId) {
       // New leader: whatever we still wait on may have died with the old one.
@@ -108,6 +114,8 @@ export function createUserDbNode(options: UserDbNodeOptions): UserDbNode {
     backendReady = Promise.resolve(b);
     b.onEvent((evt) => {
       emitLocal(evt);
+      // A worker -> main-thread call is for the leader tab only (it may carry user text): never broadcast it.
+      if (isLocalOnlyEvent(evt)) return;
       post({ t: 'evt', evt });
     });
     emitLocal({ event: 'leader', isLeader: true });

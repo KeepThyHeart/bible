@@ -74,6 +74,7 @@ vi.mock('../utils/bookNames', () => ({
 }));
 
 import { Header } from './Header';
+import { headerItems } from '../host/slots';
 
 describe('Header', () => {
   beforeEach(() => {
@@ -91,6 +92,21 @@ describe('Header', () => {
   it('renders the header element', () => {
     const { container } = render(<Header />);
     expect(container.querySelector('.header')).toBeTruthy();
+  });
+
+  it('renders headerItems in the action group, before the refresh button', () => {
+    const Badge = () => <span data-testid="sync-badge" />;
+    const reg = headerItems.register(Badge);
+    try {
+      const { container } = render(<Header />);
+      const badge = screen.getByTestId('sync-badge');
+      const actions = container.querySelector('.header__actions');
+      expect(actions?.contains(badge)).toBe(true);
+      const refresh = actions?.querySelector('[title="header.refresh"]');
+      expect(refresh && badge.compareDocumentPosition(refresh) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    } finally {
+      reg.dispose();
+    }
   });
 
   it('renders the app name', () => {

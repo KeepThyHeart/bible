@@ -10,3 +10,4 @@ export { CollectionRepository } from './CollectionRepository';
 export { UserCrossReferenceRepository } from './UserCrossReferenceRepository';
 export { VerseLinkRepository } from './VerseLinkRepository';
 export { UserDataRepository } from './UserDataRepository';
+export { CollectionService } from '../../Services/CollectionService';

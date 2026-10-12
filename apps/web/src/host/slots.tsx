@@ -5,6 +5,7 @@
  * so deactivating (or switching the module off) removes it again.
  *
  * - `shellOverlays`: rendered once by `AppShell`, whichever app is shown.
+ * - `headerItems`: components in the header's action group (`Header`), before the refresh button.
  * - `studyBanners`: rendered above the reader layout by `StudyView`.
  * - `studyPaneSections`: sections in the phone Study pane (`MobileStudyPane`).
  * - `readerOverlays`: rendered inside the reader (`BibleContent`), after the verses.
@@ -126,6 +127,8 @@ export interface VerseDecoration {
 export type VerseDecorator = (ctx: ReaderVerseContext) => VerseDecoration | null | undefined;
 
 export const shellOverlays = createSlot<ComponentType>();
+/** Components in the app header's action group (`Header`, both layouts), before the refresh button (task 0150: sync badge). */
+export const headerItems = createSlot<ComponentType>();
 export const studyBanners = createSlot<ComponentType>();
 export const readerOverlays = createSlot<ComponentType>();
 export const verseDecorators = createSlot<VerseDecorator>();

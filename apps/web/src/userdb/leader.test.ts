@@ -154,6 +154,51 @@ describe('leader / follower', () => {
     c.close();
   });
 
+  it('hostCall events reach the leader tab only and are never posted on the channel', async () => {
+    const locks = new FakeLocks();
+    const bus = new FakeBus();
+    const posted: unknown[] = [];
+    const log: string[] = [];
+    const backends: Record<string, ReturnType<typeof fakeBackend>> = {};
+    const mk = (id: string) =>
+      createUserDbNode({
+        nodeId: id,
+        locks: locks.forTab(),
+        createChannel: () => {
+          const c = bus.create();
+          const postMessage = c.postMessage.bind(c);
+          c.postMessage = (m: unknown) => {
+            posted.push(m);
+            postMessage(m);
+          };
+          return c;
+        },
+        createBackend: () => (backends[id] = fakeBackend(id, log)),
+      });
+    const a = mk('A');
+    const b = mk('B');
+    await tick();
+    const seenA: UserDbEvent[] = [];
+    const seenB: UserDbEvent[] = [];
+    a.onEvent((e) => seenA.push(e));
+    b.onEvent((e) => seenB.push(e));
+    const hostCall: UserDbEvent = { event: 'hostCall', callId: 1, api: 'memory.bible', method: 'listModules', args: [] };
+    backends.A.emit(hostCall);
+    backends.A.emit({ event: 'changed', tables: ['user_note'] });
+    await tick();
+    expect(seenA).toEqual([hostCall, { event: 'changed', tables: ['user_note'] }]);
+    expect(seenB).toEqual([{ event: 'changed', tables: ['user_note'] }]);
+    expect(posted.some((m) => (m as { evt?: UserDbEvent }).evt?.event === 'hostCall')).toBe(false);
+
+    // A forged broadcast hostCall is ignored by followers.
+    const rogue = bus.create();
+    rogue.postMessage({ t: 'evt', evt: hostCall });
+    await tick();
+    expect(seenB.filter((e) => e.event === 'hostCall')).toEqual([]);
+    a.close();
+    b.close();
+  });
+
   it('requests made before the lock is granted are served once this tab leads', async () => {
     const locks = new FakeLocks();
     const bus = new FakeBus();

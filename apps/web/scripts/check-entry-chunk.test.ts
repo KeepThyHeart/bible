@@ -87,6 +87,28 @@ describe('checkReport', () => {
   });
 });
 
+describe('checkReport for accounts, user DB and Memory (task 0150)', () => {
+  it('fails when the user-DB client or the Memory UI lands in the entry graph', () => {
+    const r = checkReport({ chunks: [entry(['src/main.tsx', 'src/userdb/client.ts', '../../packages/memory/src/ui/mount.ts'])] });
+    expect(r.ok).toBe(false);
+    expect(r.offenders.map((o: { module: string }) => o.module)).toEqual(['src/userdb/client.ts', '../../packages/memory/src/ui/mount.ts']);
+  });
+
+  it('allows only the manifest and binding of the web Memory module and the Memory package manifest', () => {
+    const r = checkReport({ chunks: [
+      entry([
+        'src/main.tsx', 'src/modules/memory/manifest.ts', 'src/modules/memory/binding.ts', '../../packages/memory/src/manifest.ts',
+        'src/modules/memory/module.ts', 'src/modules/memory/MemoryApp.tsx', '../../packages/memory/src/core/api.ts',
+        'src/modules/annotations/manifest.ts', 'src/modules/annotations/binding.ts', 'src/modules/annotations/module.ts',
+      ]),
+    ] });
+    expect(r.offenders.map((o: { module: string }) => o.module)).toEqual([
+      'src/modules/memory/module.ts', 'src/modules/memory/MemoryApp.tsx', '../../packages/memory/src/core/api.ts',
+      'src/modules/annotations/module.ts',
+    ]);
+  });
+});
+
 describe('checkReport for the Games phone page', () => {
   const phone = (modules: string[], imports: string[] = []) => ({
     fileName: 'assets/play.js', isEntry: true, facadeModuleId: 'games/play.html', imports, modules,

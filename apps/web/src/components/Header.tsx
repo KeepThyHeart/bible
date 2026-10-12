@@ -9,6 +9,7 @@ import { useLocalizer } from '../hooks/useLocalizer';
 import { focusSearchField } from '../utils/focusSearchField';
 import { AppSwitchSlot } from '../host/AppSwitchSlot';
 import { PaneHeaderButtons } from '../host/PaneHeaderButtons';
+import { headerItems, SlotOutlet } from '../host/slots';
 import { stripBidiControls } from '@bible/core/browser';
 
 
@@ -289,6 +290,7 @@ export function Header({ onSettingsClick, onHelpClick, onFeedbackClick, onLogoCl
             <span class="header__offline-dot" />
           </span>
         )}
+        <SlotOutlet slot={headerItems} />
         <button
           class="header__action-btn"
           onClick={() => window.location.reload()}

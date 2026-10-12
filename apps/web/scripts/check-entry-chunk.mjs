@@ -24,6 +24,9 @@ export const FORBIDDEN = [
   // Accounts and sync (task 0150): the reading entry holds no user DB, sync or account code.
   /^src\/userdb\//,
   /^src\/modules\/(accounts|annotations)\/(?!(manifest|binding)\.ts$)/,
+  // Memory on web (task 0150 M3): only its manifest and binding; the package's core and UI load with the app.
+  /^src\/modules\/memory\/(?!(manifest|binding)\.ts$)/,
+  /^\.\.\/\.\.\/packages\/memory\/src\/(?!manifest\.ts$)/,
   /^\.\.\/\.\.\/packages\/core\/src\/Sync\//,
   /sqlite-wasm/,
   /@zxcvbn-ts/,
