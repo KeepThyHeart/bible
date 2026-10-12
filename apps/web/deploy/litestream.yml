@@ -1,0 +1,13 @@
+# Litestream replication of the sync database (see docs/accounts/deploy.md).
+# Replace the paths and the bucket with your own; never commit real credentials.
+# Credentials come from the environment (LITESTREAM_ACCESS_KEY_ID and
+# LITESTREAM_SECRET_ACCESS_KEY) or from the instance role, not from this file.
+dbs:
+  - path: /opt/kth-bible/apps/web/data/plugin-data/sync/sync.db
+    replicas:
+      - type: s3
+        bucket: example-kth-sync-backup
+        path: sync
+        region: us-east-1
+        retention: 168h
+        sync-interval: 10s

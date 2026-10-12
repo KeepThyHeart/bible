@@ -15,13 +15,33 @@ export const PASSWORD2 = 'granite-Harbor-sparrow-5038';
 export const PASSWORD3 = 'ember-Meadow-compass-8864';
 export const FLOOR_KDF = { m: 19456, t: 2, p: 1 };
 export const CONSENT = { terms: true, ageConfirmed: true } as const;
-const MODULES = { toPortable: (id: number | string) => ({ 1: 'KJV', 2: 'ESV' } as Record<number, string>)[Number(id)] ?? null,
-  toLocal: (ref: string) => ({ KJV: 1, ESV: 2 } as Record<string, number>)[ref] ?? null };
+/** Portable module reference = the module abbreviation on both platforms. `map` is local install id -> abbreviation (mutable: "install" a module). */
+export function moduleMap(map: Record<number, string>): Sync.ModuleRefResolver & { map: Record<number, string> } {
+  return {
+    map,
+    toPortable: (id) => map[Number(id)] ?? null,
+    toLocal: (ref) => { const hit = Object.entries(map).find(([, abbr]) => abbr === ref); return hit ? Number(hit[0]) : null; },
+  };
+}
+const MODULES = moduleMap({ 1: 'KJV', 2: 'ESV' });
+
+export interface DeviceOptions {
+  modules?: Sync.ModuleRefResolver;
+  pageSize?: number;
+  /** Reuse an existing user DB (an app restart: same data, new process). */
+  sql?: TestSql;
+  /** Default: a fresh MemorySecretStore (also what the desktop uses for "ask for the password each launch"). */
+  secrets?: Sync.ISecretStore;
+  /** Extra codecs beyond the core ones; their tables are tracked via `trackedExtra`. */
+  extraCodecs?: Sync.RecordCodec[];
+  trackedExtra?: Sync.TrackedTable[];
+  pushLimits?: { maxRecords?: number; maxBodyBytes?: number };
+}
 
 export interface Net { t: TestServer & { mail: Mailbox }; baseUrl: string; close(): Promise<void> }
 
-export async function startNet(): Promise<Net> {
-  const t = makeMailServer();
+export async function startNet(over: Parameters<typeof makeMailServer>[0] = {}): Promise<Net> {
+  const t = makeMailServer(over);
   const srv = http.createServer(t.app);
   await new Promise<void>((r) => srv.listen(0, '127.0.0.1', r));
   const baseUrl = `http://127.0.0.1:${(srv.address() as AddressInfo).port}`;
@@ -49,8 +69,11 @@ function fixNoteFtsTriggers(db: TestSql): void {
 }
 
 export class Device {
-  readonly sql = new TestSql();
-  readonly secrets = new Sync.MemorySecretStore();
+  readonly sql: TestSql;
+  readonly secrets: Sync.ISecretStore;
+  readonly opts: DeviceOptions;
+  /** Engine builds so far (a rebuild = a fresh engine instance, as after an app restart or a re-unlock). */
+  engineBuilds = 0;
   readonly status = Sync.createSyncStatusStore({ state: 'signed-out' });
   readonly tracker: Sync.ChangeTracker;
   readonly api: Sync.SyncApiClient;
@@ -58,32 +81,58 @@ export class Device {
   readonly deviceId: string;
   engine: Sync.SyncEngine | null = null;
   wiped = false;
+  /** While true every request fails like a dropped connection. */
+  offline = false;
+  /** Method + path of every request this device made. */
+  readonly requests: string[] = [];
 
-  constructor(net: Net, n: number) {
+  constructor(net: Net, n: number, opts: DeviceOptions = {}) {
+    this.opts = opts;
+    this.sql = opts.sql ?? new TestSql();
+    this.secrets = opts.secrets ?? new Sync.MemorySecretStore();
     this.deviceId = n.toString(16).repeat(16).slice(0, 16);
     createUserSchema(this.sql);
     fixNoteFtsTriggers(this.sql);
     this.tracker = Sync.createChangeTracker(this.sql);
-    this.tracker.install(Sync.coreTrackedTables());
+    this.tracker.install([...Sync.coreTrackedTables(), ...(opts.trackedExtra ?? [])]);
     this.tracker.state.set('device_id', this.deviceId);
     this.api = new Sync.SyncApiClient({
       baseUrl: net.baseUrl,
       auth: { kind: 'bearer', token: () => Sync.loadSyncToken(this.secrets) },
-      fetch: globalThis.fetch,
+      fetch: (async (input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) => {
+        if (this.offline) throw new TypeError('fetch failed');
+        this.requests.push(`${init?.method ?? 'GET'} ${new URL(String(input)).pathname}`);
+        return globalThis.fetch(input, init);
+      }) as typeof fetch,
     });
     this.account = new Sync.AccountClient({
       api: this.api, secrets: this.secrets, status: this.status, deviceId: this.deviceId,
       deviceName: () => `Device ${this.deviceId.slice(0, 2)}`, wantToken: true, kdfCost: FLOOR_KDF,
-      onUnlocked: (u) => {
-        this.engine = new Sync.SyncEngine({
-          sql: this.sql, tracker: this.tracker, codecs: Sync.createCodecRegistry(Sync.createCoreCodecs()),
-          cipher: Sync.createRecordCipher(u), transport: this.api.transport(), unlocked: u,
-          hlc: Sync.createHlc(this.deviceId), status: this.status, modules: MODULES,
-        });
-      },
+      onUnlocked: (u) => { this.buildEngine(u); },
       onSignedOut: () => { this.engine = null; },
       onWipe: async () => { this.wiped = true; },
     });
+  }
+
+  private buildEngine(u: Sync.UnlockedAccount): void {
+    this.engineBuilds++;
+    this.engine = new Sync.SyncEngine({
+      sql: this.sql, tracker: this.tracker,
+      codecs: Sync.createCodecRegistry([...Sync.createCoreCodecs(), ...(this.opts.extraCodecs ?? [])]),
+      cipher: Sync.createRecordCipher(u), transport: this.api.transport(), unlocked: u,
+      hlc: Sync.createHlc(this.deviceId), status: this.status, modules: this.opts.modules ?? MODULES,
+      ...(this.opts.pageSize ? { pageSize: this.opts.pageSize } : {}),
+      ...(this.opts.pushLimits ? { pushLimits: this.opts.pushLimits } : {}),
+    });
+  }
+
+  /** A fresh engine instance for the same unlocked account (retries opaque records, clears per-instance failures). */
+  rebuildEngine(over: Partial<DeviceOptions> = {}): void {
+    Object.assign(this.opts, over);
+    if (over.trackedExtra || over.extraCodecs) this.tracker.install([...Sync.coreTrackedTables(), ...(this.opts.trackedExtra ?? [])]);
+    const u = this.account.unlocked;
+    if (!u) throw new Error('device is not unlocked');
+    this.buildEngine(u);
   }
 
   sync(): Promise<Sync.SyncResult> {
@@ -136,5 +185,15 @@ export function serverCounts(net: Net): Record<string, number> {
   for (const t of ['account', 'keyset', 'device', 'session', 'record', 'email_token']) {
     out[t] = net.t.sql.queryOne<{ n: number }>(`SELECT COUNT(*) AS n FROM ${t}`)!.n;
   }
+  return out;
+}
+
+export function count(d: Device, table: string): number {
+  return d.sql.queryOne<{ n: number }>(`SELECT COUNT(*) AS n FROM ${table}`)!.n;
+}
+/** Live server records per account id. */
+export function recordsByAccount(net: Net): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const r of net.t.sql.queryAll<{ account_id: string; n: number }>('SELECT account_id, COUNT(*) AS n FROM record GROUP BY account_id')) out[r.account_id] = r.n;
   return out;
 }

@@ -662,7 +662,7 @@ describe('SyncEngine: R1 security fixes', () => {
     const u = testAccount();
     const a = makeDevice(server, 1, u);
     let failRemove = true;
-    const codecs = createCoreCodecs().map((c) => (c.kind !== 'user_note' ? c : {
+    const codecs = createCoreCodecs({ extKvSyncs: () => true }).map((c) => (c.kind !== 'user_note' ? c : {
       ...c,
       remove: (key: string, ctx: Parameters<RecordCodec['remove']>[1]) => {
         if (failRemove) throw new Error('disk full');

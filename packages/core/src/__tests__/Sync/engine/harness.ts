@@ -187,7 +187,7 @@ export function makeDevice(server: FakeServer, n: number, u: UnlockedAccount = t
   const status = createSyncStatusStore({ state: 'idle' });
   const timers = new FakeTimers();
   const engine = new SyncEngine({
-    sql: db, tracker, codecs: createCodecRegistry(createCoreCodecs()), cipher, transport: server.transport(), unlocked: u,
+    sql: db, tracker, codecs: createCodecRegistry(createCoreCodecs({ extKvSyncs: () => true })), cipher, transport: server.transport(), unlocked: u,
     hlc, status, modules: MODULES, random: seededRandom(1000 + n), timers, ...extra,
   });
   return { db, tracker, cipher, hlc, status, engine, unlocked: u, timers };
@@ -201,7 +201,7 @@ export function reopenDevice(server: FakeServer, d: Device, n: number, u: Unlock
   const cipher = createRecordCipher(u, deterministicRandom(n + 100));
   const status = createSyncStatusStore({ state: 'idle' });
   const engine = new SyncEngine({
-    sql: d.db, tracker: d.tracker, codecs: createCodecRegistry(createCoreCodecs()), cipher, transport: server.transport(),
+    sql: d.db, tracker: d.tracker, codecs: createCodecRegistry(createCoreCodecs({ extKvSyncs: () => true })), cipher, transport: server.transport(),
     unlocked: u, hlc, status, modules: MODULES, random: seededRandom(2000 + n), timers: d.timers, ...extra,
   });
   return { ...d, cipher, hlc, status, engine, unlocked: u };

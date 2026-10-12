@@ -16,14 +16,19 @@ function splitKey(localKey: string): [string, string] | null {
   return i < 0 ? null : [localKey.slice(0, i), localKey.slice(i + 1)];
 }
 
-export function createExtKvCodec(): RecordCodec {
+/**
+ * `extKvSyncs(extensionId)` is the opt-in predicate (the extension declared `userData.sync: true`). Default: nothing
+ * syncs. When it says no, `encode` returns null, so the engine does not push the row; decode/apply stay ungated
+ * (a record already on the server still lands, and a later opt-in on this device uploads the local rows).
+ */
+export function createExtKvCodec(extKvSyncs: (extensionId: string) => boolean = () => false): RecordCodec {
   return {
     type: 'ext.kv',
     kind: 'ext.kv',
     version: 1,
     encode(localKey, ctx: CodecContext) {
       const parts = splitKey(localKey);
-      if (!parts) return null;
+      if (!parts || !extKvSyncs(parts[0])) return null;
       const row = ctx.sql.queryOne<Row>(
         'SELECT extension_id, key, value, updated_at FROM extension_storage WHERE extension_id = ? AND key = ?', parts);
       if (!row) return null;

@@ -33,7 +33,7 @@ Two switches, both off by default:
 - `publicUrl` is required. It is used for links in emails and for the Origin check that protects cookie-authenticated writes: only the origin of `publicUrl` (plus any explicit `accounts.allowedOrigins`) may write. The request's own Host header is never trusted. If it is missing or invalid the site stays up and `/api/sync/v1/*` answers 503 with the reason (see the server log).
 - Session cookies are `Secure` unless `publicUrl` is plain `http` on `localhost`, `127.0.0.1`, `[::1]` or `*.localhost`.
 - When `publicUrl` is https, responses under `/api/sync/v1` carry `Strict-Transport-Security: max-age=31536000`. Site-wide HSTS (and `includeSubDomains`) belongs to the reverse proxy; the main server leaves it off on purpose so plain-http development keeps working.
-- `quotaMB` is the per-account storage quota (default 50). `minAge` defaults to 16. `signupOpen: false` closes sign-up to new accounts while existing ones keep syncing.
+- `quotaMB` is the per-account storage quota (default 100, the sync server's built-in limit). `minAge` defaults to 16. `signupOpen: false` closes sign-up to new accounts while existing ones keep syncing.
 - Email: `kind: "console"` prints each message, including sign-in and reset links, to the server log, so it is accepted only when `publicUrl` is a loopback `http://` address (development). With any other `publicUrl` the accounts module refuses to start (the API answers 503) until you configure `"smtp"` (works with SES, Postmark or any relay). `smtp` needs `host` and `from`; `port` defaults to 587 (465 when `secure` is true).
 
 ## The site password gate
@@ -73,7 +73,7 @@ An hourly timer (unreferenced, so it never keeps the process alive) removes expi
 
 Can see:
 
-- Email addresses, account creation and last-seen times, device names and when each device last synced.
+- Email addresses, account creation and last-seen times, the list of devices (their names are sealed on the device; the server cannot read them) and when each device last synced.
 - Record counts, sizes, record ids (random-looking, derived with a key the server does not have) and change times.
 - IP addresses of requests, in memory only for rate limiting (and in your reverse proxy's logs, which you control).
 - Metadata of encrypted records that must be visible to route them: the account they belong to and a version number.
@@ -100,3 +100,9 @@ The service worker never caches `/api/sync` or anything under it (`NEVER_CACHE_P
 ## Request size
 
 The record push may be up to 8 MiB. The sync router parses the push body itself (after its per-IP limit and origin check), and the host's 100 kB parser skips that one path; every other route under `/api/sync/v1` and the rest of the site keep small limits. If a reverse proxy sits in front, allow at least 9 MB request bodies for that path (nginx: `client_max_body_size 9m;`).
+
+## See also
+
+- [deploy.md](deploy.md): reverse proxy (Caddy, nginx), TLS, SMTP, Litestream backup and restore, systemd, upgrades.
+- [privacy-notes.md](privacy-notes.md): what the server sees, retention, deletion and export (draft, needs legal review).
+- [user-guide.md](user-guide.md): the user-facing guide (recovery code, devices, start over).

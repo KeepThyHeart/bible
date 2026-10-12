@@ -12,7 +12,7 @@ import { createTableCodec, columnPlan } from '../../../Sync/codecs/tableCodec';
 import { EXT_KV_COLUMN_MAP } from '../../../Sync/codecs/extKv';
 import { US, applyAll, encodeAll, makeSide, moduleResolver, mulberry32, populate, shuffle } from './harness';
 
-const registry = createCodecRegistry(createCoreCodecs());
+const registry = createCodecRegistry(createCoreCodecs({ extKvSyncs: () => true }));
 const MODS_A = moduleResolver({ 1: 'uuid-one', 2: 'ABBR' });
 const MODS_B = moduleResolver({ 11: 'uuid-one', 12: 'ABBR' }); // same modules, other local install ids
 
@@ -302,6 +302,36 @@ describe('upsert / remove', () => {
     expect(c.upsert({ key: 'k', value: 'a' }, undefined, side.ctx)).toBe('k');
     expect(c.upsert({ key: 'k', value: 'b' }, undefined, side.ctx)).toBe('k');
     expect(side.db.queryAll('SELECT * FROM memory_setting')).toEqual([{ key: 'k', value: 'b' }]);
+  });
+});
+
+describe('ext.kv opt-in gate', () => {
+  const seed = (side: ReturnType<typeof makeSide>) => {
+    side.db.execute("INSERT INTO extension_storage (extension_id, key, value, updated_at) VALUES ('on', 'k', '1', 1), ('off', 'k', '2', 2)");
+  };
+
+  it('pushes nothing by default', () => {
+    const side = makeSide(mulberry32(1), MODS_A);
+    seed(side);
+    const kv = createCodecRegistry(createCoreCodecs()).byKind('ext.kv')!;
+    expect(kv.encode(`on${US}k`, side.ctx)).toBeNull();
+    expect(kv.encode(`off${US}k`, side.ctx)).toBeNull();
+  });
+
+  it('encodes only opted-in extensions', () => {
+    const side = makeSide(mulberry32(1), MODS_A);
+    seed(side);
+    const kv = createCodecRegistry(createCoreCodecs({ extKvSyncs: (id) => id === 'on' })).byKind('ext.kv')!;
+    expect(kv.encode(`on${US}k`, side.ctx)).toEqual({ ext: 'on', key: 'k', value: '1', updatedAt: 1 });
+    expect(kv.encode(`off${US}k`, side.ctx)).toBeNull();
+  });
+
+  it('decode and apply are not gated', () => {
+    const side = makeSide(mulberry32(1), MODS_A);
+    const kv = createCodecRegistry(createCoreCodecs()).byKind('ext.kv')!;
+    const r = kv.decode({ ext: 'off', key: 'k', value: 'v', updatedAt: 3 }, side.ctx);
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(kv.upsert(r.row, undefined, side.ctx)).toBe(`off${US}k`);
   });
 });
 

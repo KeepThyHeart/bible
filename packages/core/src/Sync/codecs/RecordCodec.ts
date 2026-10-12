@@ -105,10 +105,13 @@ export interface CodecRegistry {
 
 export { RecordDecodeError };
 
-/** One per synced registry table, generic over TableSpec. */
-export function createCoreCodecs(): RecordCodec[] {
+/**
+ * One per synced registry table, generic over TableSpec. `opts.extKvSyncs` gates `ext.kv` per extension id
+ * (default: no extension's key-value rows are pushed).
+ */
+export function createCoreCodecs(opts?: { extKvSyncs?: (extensionId: string) => boolean }): RecordCodec[] {
   return coreTrackedTables().map((t) => {
-    if (t.kind === 'ext.kv') return createExtKvCodec();
+    if (t.kind === 'ext.kv') return createExtKvCodec(opts?.extKvSyncs);
     const spec = tableSpec(t.table);
     if (!spec) throw new Error(`No registry spec for tracked table ${t.table}`);
     return createTableCodec(spec);
