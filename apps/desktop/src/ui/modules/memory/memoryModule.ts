@@ -148,13 +148,19 @@ export function installMemoryHost(): () => void {
   // badge is re-read now and then: two COUNTs in main, never a core start.
   let warned = false;
   const refresh = (): void => {
-    memoryClient
-      .getStatus()
-      .then((s) => applyStatus(s.due, s.waiting))
-      .catch((error) => {
-        if (!warned) console.warn('[memory] status unavailable:', error);
-        warned = true;
-      });
+    const onError = (error: unknown): void => {
+      if (!warned) console.warn('[memory] status unavailable:', error);
+      warned = true;
+    };
+    try {
+      // The client throws synchronously when the module bridge is missing (not in Electron).
+      memoryClient
+        .getStatus()
+        .then((s) => applyStatus(s.due, s.waiting))
+        .catch(onError);
+    } catch (error) {
+      onError(error);
+    }
   };
   const timer = setTimeout(refresh, INITIAL_STATUS_DELAY_MS);
   const interval = setInterval(refresh, STATUS_REFRESH_MS);
