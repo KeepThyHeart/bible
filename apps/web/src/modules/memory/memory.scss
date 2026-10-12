@@ -1,0 +1,27 @@
+// The Memory page (`#/@memory`): fills the app stage; the UI package styles itself under `.sm-app`.
+.memory-app {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+  width: 100%;
+  background: var(--kth-bg, transparent);
+  color: var(--kth-text, inherit);
+}
+
+.memory-app__title {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.memory-app__host {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}

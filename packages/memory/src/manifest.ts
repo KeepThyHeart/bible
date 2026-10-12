@@ -2,10 +2,11 @@
  * The memory feature module's manifest (task 0114): data only, loaded at boot
  * by every host that lists the module. Code loads on activation.
  *
- * - Desktop only for now: on the web, memory is hidden until user content can
- *   be saved there (accounts, 0063). Enabling it later is a change to
- *   `platforms` here (and the app's own `platforms`); the core and the UI are
- *   platform-free.
+ * - Desktop and web. On desktop this manifest is used as is. On the web it is
+ *   registered by `apps/web/src/modules/memory` (a wrapper manifest) behind the
+ *   `localUserDb` flag, because Memory needs the local user database there. No
+ *   `flag` belongs here: it would switch Memory off on desktop (flag default
+ *   false). The core and the UI are platform-free.
  * - Contributes the Memory app (`app:memory`, `#/@memory`) and the
  *   "Memorize" verse action. The desktop main process serves the core over
  *   `module:memory:*` IPC; its main registry ignores `contributes`.
@@ -22,7 +23,7 @@ export const memoryAppDescriptor: AppDescriptor = {
   title: { key: 'apps.memory.title', fallback: 'Memory' },
   icon: { kind: 'builtin', name: 'brain' },
   order: 30,
-  platforms: ['desktop'],
+  platforms: ['desktop', 'web'],
   lifecycle: { keepAlive: 'while-busy', restore: 'reopen' },
 };
 
@@ -37,7 +38,7 @@ export const memorizeVerseAction: VerseActionContribution = {
 
 export const memoryManifest: FeatureModuleManifest = {
   id: MEMORY_MODULE_ID,
-  platforms: ['desktop'],
+  platforms: ['desktop', 'web'],
   contributes: {
     apps: [memoryAppDescriptor],
     verseActions: [memorizeVerseAction],
