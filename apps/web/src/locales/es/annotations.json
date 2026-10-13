@@ -1,4 +1,5 @@
 {
+  "$schema": "../schemas/annotations.schema.json",
   "annotations": {
     "close": "Cerrar",
     "error": "Algo salió mal. Inténtalo de nuevo.",

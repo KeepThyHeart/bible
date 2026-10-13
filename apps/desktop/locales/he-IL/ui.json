@@ -1764,6 +1764,7 @@
   "preferencesDialog.sectionFonts": "גופנים",
   "preferencesDialog.sectionThemes": "ערכות נושא",
   "preferencesDialog.sectionPrivacy": "פרטיות",
+  "preferencesDialog.sectionAccount": "חשבון וסנכרון",
   "preferencesDialog.allowWebRequestsLabel": "אפשר בקשות אינטרנט",
   "preferencesDialog.allowWebRequestsDescription": "מאפשר ליישום להתחבר לאינטרנט כדי לבדוק עדכונים, לעיין במודולים ולהוריד אותם, ולפתוח קישורים בדפדפן. כבוי כברירת מחדל; הפעלת האפשרות מציגה אישור בפעם הראשונה.",
   "preferencesDialog.sectionExtensions": "תוספים",

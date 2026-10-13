@@ -278,11 +278,39 @@ class ByteReader {
 /**
  * Encrypt a plaintext stream. Returns a lazy async iterable of file bytes:
  * preamble, header, then segments. Nothing is derived until the first pull.
+ *
+ * Account keys are copied at call time (and the copies wiped when the stream ends): the caller may wipe its own key
+ * (sign-out, lock) before the first pull, and the slot must still be wrapped under the real key, never under zeros.
  */
-export async function* sealStream(
+export function sealStream(
   plain: ByteSource,
   slots: KeySlotInput[],
   opts: SealOptions = {}
+): AsyncGenerator<Uint8Array> {
+  const copies: Uint8Array[] = [];
+  const own = Array.isArray(slots)
+    ? slots.map((s) => {
+      if (s && typeof s === 'object' && s.type === 'account' && s.accountKey instanceof Uint8Array) {
+        const accountKey = Uint8Array.from(s.accountKey);
+        copies.push(accountKey);
+        return { ...s, accountKey };
+      }
+      return s;
+    })
+    : slots;
+  return (async function* wiping(): AsyncGenerator<Uint8Array> {
+    try {
+      yield* sealStreamImpl(plain, own, opts);
+    } finally {
+      for (const c of copies) c.fill(0);
+    }
+  })();
+}
+
+async function* sealStreamImpl(
+  plain: ByteSource,
+  slots: KeySlotInput[],
+  opts: SealOptions
 ): AsyncGenerator<Uint8Array> {
   const random = opts.random ?? defaultRandom;
   const kdf = opts.kdf ?? defaultKdf;
@@ -296,7 +324,9 @@ export async function* sealStream(
     const t = (s as { type?: unknown }).type;
     if (s && t === 'password' && typeof (s as PasswordSlotInput).password === 'string' && (s as PasswordSlotInput).password.length > 0) {
       recoverable = true;
-    } else if (s && t === 'account' && (s as AccountSlotInput).accountKey instanceof Uint8Array && (s as AccountSlotInput).accountKey.length === 32) {
+    } else if (s && t === 'account' && (s as AccountSlotInput).accountKey instanceof Uint8Array && (s as AccountSlotInput).accountKey.length === 32
+      && (s as AccountSlotInput).accountKey.some((b) => b !== 0)) {
+      // An all-zero key is a wiped key, never a real one: wrapping under it would let anyone open the file.
       // valid, but not enough on its own
     } else if (s && t === 'recovery' && typeof (s as RecoverySlotInput).code === 'string') {
       parseBackupRecoveryCode((s as RecoverySlotInput).code).fill(0); // RangeError for a malformed code

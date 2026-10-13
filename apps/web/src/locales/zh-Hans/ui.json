@@ -32,7 +32,8 @@
     "more": "更多…",
     "offlineTooltip": "您当前处于离线状态",
     "shortcutHint": "按 / 或 Ctrl+K 进行搜索",
-    "feedback": "发送反馈"
+    "feedback": "发送反馈",
+    "syncStatus": "同步状态"
   },
   "themes": {
     "auto": "自动",
@@ -204,7 +205,8 @@
       "audio": "音频",
       "offline": "离线",
       "about": "关于",
-      "notifications": "通知"
+      "notifications": "通知",
+      "account": "账户"
     },
     "textSize": {
       "decreaseAll": "减小所有字号",
@@ -913,6 +915,15 @@
     },
     "quiz": {
       "title": "测验"
+    },
+    "memory": {
+      "title": "背诵"
     }
+  },
+  "verseActions": {
+    "highlight": "高亮",
+    "note": "添加或编辑笔记",
+    "bookmark": "书签",
+    "memorize": "背诵"
   }
 }

@@ -32,7 +32,8 @@
     "more": "עוד…",
     "offlineTooltip": "אין חיבור לרשת",
     "shortcutHint": "יש ללחוץ על / או על Ctrl+K כדי לחפש",
-    "feedback": "שליחת משוב"
+    "feedback": "שליחת משוב",
+    "syncStatus": "מצב סנכרון"
   },
   "themes": {
     "auto": "אוטומטי",
@@ -204,7 +205,8 @@
       "audio": "שמע",
       "offline": "לא מקוון",
       "about": "אודות",
-      "notifications": "התראות"
+      "notifications": "התראות",
+      "account": "חשבון"
     },
     "textSize": {
       "decreaseAll": "הקטנת כל גודלי הגופן",
@@ -913,6 +915,15 @@
     },
     "quiz": {
       "title": "חידון"
+    },
+    "memory": {
+      "title": "שינון"
     }
+  },
+  "verseActions": {
+    "highlight": "הדגשה",
+    "note": "הוספה או עריכה של הערה",
+    "bookmark": "סימנייה",
+    "memorize": "שינון"
   }
 }

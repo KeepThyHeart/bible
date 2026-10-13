@@ -1760,6 +1760,7 @@
   "preferencesDialog.sectionFonts": "الخطوط",
   "preferencesDialog.sectionThemes": "السمات",
   "preferencesDialog.sectionPrivacy": "الخصوصية",
+  "preferencesDialog.sectionAccount": "الحساب والمزامنة",
   "preferencesDialog.allowWebRequestsLabel": "السماح بطلبات الويب",
   "preferencesDialog.allowWebRequestsDescription": "يتيح للتطبيق الاتصال بالإنترنت للتحقق من التحديثات واستعراض الوحدات وتنزيلها وفتح الروابط في متصفحك. متوقف افتراضيًا؛ وعند تشغيله تظهر رسالة تأكيد في المرة الأولى.",
   "preferencesDialog.sectionExtensions": "الإضافات",

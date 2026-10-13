@@ -1,4 +1,5 @@
 {
+  "$schema": "../schemas/annotations.schema.json",
   "annotations": {
     "close": "بستن",
     "error": "مشکلی پیش آمد. لطفاً دوباره تلاش کنید.",

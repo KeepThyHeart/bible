@@ -32,7 +32,8 @@
     "more": "Más…",
     "offlineTooltip": "Está sin conexión",
     "shortcutHint": "Pulse / o Ctrl+K para buscar",
-    "feedback": "Enviar comentarios"
+    "feedback": "Enviar comentarios",
+    "syncStatus": "Estado de sincronización"
   },
   "themes": {
     "auto": "Automático",
@@ -204,7 +205,8 @@
       "audio": "Audio",
       "offline": "Sin conexión",
       "about": "Acerca de",
-      "notifications": "Notificaciones"
+      "notifications": "Notificaciones",
+      "account": "Cuenta"
     },
     "textSize": {
       "decreaseAll": "Reducir todos los tamaños de fuente",
@@ -913,6 +915,15 @@
     },
     "quiz": {
       "title": "Cuestionario"
+    },
+    "memory": {
+      "title": "Memoria"
     }
+  },
+  "verseActions": {
+    "highlight": "Resaltar",
+    "note": "Añadir o editar nota",
+    "bookmark": "Marcador",
+    "memorize": "Memorizar"
   }
 }

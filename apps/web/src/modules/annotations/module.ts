@@ -16,6 +16,7 @@ import { isUserDbSupported, subscribeChanged } from './annotationApi';
 import { annotationUi } from './annotationUi';
 import { createHighlightDecorator } from './highlightDecorator';
 import { annotationStore } from './instance';
+import { installTintStyle } from './tintStyle';
 import './annotations.scss';
 
 export function activate(ctx: FeatureModuleContext): void {
@@ -26,6 +27,7 @@ export function activate(ctx: FeatureModuleContext): void {
     readerPaintControllers.register(AnnotationPaint),
     verseDecorators.register(createHighlightDecorator(annotationStore)),
     shellOverlays.register(AnnotationOverlay),
+    { dispose: installTintStyle() },
     // Cache changes re-render the verses; the worker's `changed` events (other tabs, sync pulls) refresh the cache.
     { dispose: annotationStore.subscribe(() => verseDecorators.invalidate()) },
     { dispose: annotationStore.listen(subscribeChanged) },

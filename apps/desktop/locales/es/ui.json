@@ -1764,6 +1764,7 @@
   "preferencesDialog.sectionFonts": "Fuentes",
   "preferencesDialog.sectionThemes": "Temas",
   "preferencesDialog.sectionPrivacy": "Privacidad",
+  "preferencesDialog.sectionAccount": "Cuenta y sincronización",
   "preferencesDialog.allowWebRequestsLabel": "Permitir solicitudes web",
   "preferencesDialog.allowWebRequestsDescription": "Permite que la aplicación se conecte a internet para buscar actualizaciones, explorar y descargar módulos, y abrir enlaces en el navegador. Desactivado de forma predeterminada; al activarlo se muestra una confirmación la primera vez.",
   "preferencesDialog.sectionExtensions": "Extensiones",

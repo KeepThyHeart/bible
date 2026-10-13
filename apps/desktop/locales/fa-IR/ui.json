@@ -1764,6 +1764,7 @@
   "preferencesDialog.sectionFonts": "قلم‌ها",
   "preferencesDialog.sectionThemes": "پوسته‌ها",
   "preferencesDialog.sectionPrivacy": "حریم خصوصی",
+  "preferencesDialog.sectionAccount": "حساب و همگام‌سازی",
   "preferencesDialog.allowWebRequestsLabel": "اجازه درخواست‌های وب",
   "preferencesDialog.allowWebRequestsDescription": "به برنامه اجازه می‌دهد برای بررسی به‌روزرسانی‌ها، مرور و دانلود ماژول‌ها و باز کردن پیوندها در مرورگر شما آنلاین شود. به‌طور پیش‌فرض خاموش است؛ روشن کردن آن بار اول یک پیام تأیید نشان می‌دهد.",
   "preferencesDialog.sectionExtensions": "افزونه‌ها",

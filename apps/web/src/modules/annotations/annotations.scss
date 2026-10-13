@@ -1,6 +1,6 @@
 // ============================================================
 // Annotations: highlight tints, note/bookmark marks, colour popover, note dialog, toast.
-// Colours follow core's HIGHLIGHT_COLOR_HEX (keep in step); logical properties throughout.
+// Tint colours are injected from core's HIGHLIGHT_COLOR_HEX by tintStyle.ts (no hex copies here); logical properties throughout.
 // ============================================================
 
 // Dark themes: the pastel palette is too loud over a dark page, so it is dimmed.
@@ -13,17 +13,8 @@
 
 .verse.kth-annot-hl {
   --kth-annot-alpha-now: var(--theme-highlight-alpha, var(--kth-annot-alpha, 0.7));
-  --kth-annot-tint: #fff3a3;
   background: color-mix(in srgb, var(--kth-annot-tint) calc(var(--kth-annot-alpha-now) * 100%), transparent);
   border-radius: 4px;
-
-  &--yellow { --kth-annot-tint: #fff3a3; }
-  &--green { --kth-annot-tint: #b7e4c7; }
-  &--blue { --kth-annot-tint: #b8ddf5; }
-  &--red { --kth-annot-tint: #f7b7b7; }
-  &--purple { --kth-annot-tint: #d9c2f0; }
-  &--orange { --kth-annot-tint: #fbd1a2; }
-  &--custom { --kth-annot-tint: #fff3a3; }
 
   // The reader's own selection and hover stay visible on top of a tint.
   &.verse--study {

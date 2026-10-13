@@ -78,6 +78,9 @@ import type { DeviceId, EncryptedRecord, HlcString, RecordId, RecordPlaintext } 
 import { SyncHttpError, SyncNetworkError, SyncResponseError, type ISyncTransport } from './ISyncTransport';
 import type { SyncStatus, SyncStatusStore } from './SyncStatus';
 
+/** Local key prefix of a tombstone with no local row (backup restore, Backup/syncIds.ts). U+001F never occurs in a real key. */
+const SYNTHETIC_KEY_PREFIX = '\u001fr:';
+
 export interface SyncTimers {
   setTimeout(fn: () => void, ms: number): unknown;
   clearTimeout(handle: unknown): void;
@@ -678,7 +681,9 @@ export class SyncEngine {
 
   /** codec.upsert onto the row's local key; when the codec answers with another key (adopted row), move the bookkeeping. */
   private upsertRow(codec: RecordCodec, data: Row, row: SyncRow | undefined): string {
-    const key = codec.upsert(data, row?.local_key, this.ctx);
+    // A tombstone parked on a synthetic key (backup restore, '\u001fr:<recordId>') has no real row to update: insert.
+    const target = row && !(row.deleted === 1 && row.local_key.startsWith(SYNTHETIC_KEY_PREFIX)) ? row.local_key : undefined;
+    const key = codec.upsert(data, target, this.ctx);
     if (row && key !== row.local_key) {
       this.sql.execute('DELETE FROM sync_record WHERE table_name = ? AND local_key = ?', [row.table_name, row.local_key]);
     }

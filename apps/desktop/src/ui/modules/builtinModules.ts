@@ -19,6 +19,7 @@ import { keywordMarksModule } from './keyword-marks/binding';
 import { notificationsModule } from './notifications/binding';
 import { installMemoryHost, memoryModule } from './memory/memoryModule';
 import { downloadsModule } from './downloads/binding';
+import { accountsModule } from './accounts/binding';
 import { addDesktopModule, fireStartupFinished, reconcileModules } from './moduleHost';
 import type { DesktopFeatureModule } from './moduleHost';
 
@@ -37,6 +38,7 @@ export const BUILTIN_MODULES: readonly DesktopFeatureModule[] = [
   downloadsModule,
   notificationsModule,
   { manifest: memoryModule[0], binding: memoryModule[1] },
+  accountsModule,
 ];
 
 let registered = false;

@@ -25,9 +25,9 @@ export function TextField({ label, value, onChange, type = 'text', autoComplete,
         disabled={disabled}
         required={required}
         maxLength={maxLength}
-        spellCheck={false}
+        {...({ spellCheck: false } as Record<string, unknown>)}
         autoCapitalize="off"
-        onChange={(e) => onChange(e.target.value)}
+        onChange={(e) => onChange(e.currentTarget.value)}
       />
       {hint ? <p id={hintId} className="kth-field__hint">{hint}</p> : null}
     </div>
@@ -40,7 +40,7 @@ export function CheckField({ checked, onChange, children, hint, disabled }: {
   const id = useId();
   return (
     <div className="kth-account__check">
-      <input id={id} type="checkbox" checked={checked} disabled={disabled} onChange={(e) => onChange(e.target.checked)} aria-describedby={hint ? `${id}-hint` : undefined} />
+      <input id={id} type="checkbox" checked={checked} disabled={disabled} onChange={(e) => onChange(e.currentTarget.checked)} aria-describedby={hint ? `${id}-hint` : undefined} />
       <div>
         <label htmlFor={id}>{children}</label>
         {hint ? <p id={`${id}-hint`} className="kth-field__hint">{hint}</p> : null}

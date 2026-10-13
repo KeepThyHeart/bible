@@ -108,6 +108,20 @@ describe('account and recovery key slots', () => {
     expect(await open(file, { accountKey: ACCOUNT_KEY })).toEqual(pattern(100));
   });
 
+  it('the account key is copied when the stream is created: wiping it before the first pull does not weaken the slot', async () => {
+    const key = Uint8Array.from(ACCOUNT_KEY);
+    const stream = sealStream(once(pattern(100)), [{ type: 'account', accountKey: key }, ALL[0]],
+      { segmentSize: 4096, random: deterministicRandom(1), kdf: fastKdf });
+    key.fill(0); // e.g. sign-out wipes the unlocked keys while the backup is queued
+    const file = await collect(stream);
+    expect(await open(file, { accountKey: ACCOUNT_KEY })).toEqual(pattern(100));
+    await expect(open(file, { accountKey: new Uint8Array(32) })).rejects.toThrow(WrongPasswordError);
+  });
+
+  it('an all-zero (wiped) account key is refused by the writer', async () => {
+    await expect(seal([{ type: 'account', accountKey: new Uint8Array(32) }, ALL[0]])).rejects.toThrow(RangeError);
+  });
+
   it('is deterministic for a deterministic random source (password-only output is unchanged by the new slot types)', async () => {
     expect(await seal(ALL, pattern(10), 3)).toEqual(await seal(ALL, pattern(10), 3));
   });

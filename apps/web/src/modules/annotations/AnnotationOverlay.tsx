@@ -54,6 +54,7 @@ function HighlightPopover({ state }: { state: HighlightPopoverState }) {
     const vw = window.innerWidth;
     const vh = window.innerHeight;
     if (!r || r.bottom < 0 || r.top > vh) {
+      // rtl-physical: viewport coordinates from getBoundingClientRect
       setPos({ top: Math.max(8, (vh - h) / 2), left: Math.max(8, (vw - w) / 2) });
       return;
     }
@@ -87,6 +88,7 @@ function HighlightPopover({ state }: { state: HighlightPopoverState }) {
       class="kth-annot-popover"
       role="dialog"
       aria-label={t('annotations.highlight.title')}
+      // rtl-physical: viewport coordinates from getBoundingClientRect (the anchor side is already mirrored above)
       style={{ top: `${pos?.top ?? 0}px`, left: `${pos?.left ?? 0}px`, visibility: pos ? 'visible' : 'hidden' }}
     >
       <Swatch
@@ -111,6 +113,9 @@ function NoteDialog({ state }: { state: NoteDialogState }) {
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  // A new note whose save failed may still have landed (leader handoff mid-request): the retry looks for it first
+  // (notes do not depend on the module, so the lookup passes module 0).
+  const attempted = useRef<string | null>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
   const textRef = useRef<HTMLTextAreaElement>(null);
   const [opener] = useState<Element | null>(() => document.activeElement);
@@ -141,9 +146,17 @@ function NoteDialog({ state }: { state: NoteDialogState }) {
   const save = (e: Event) => {
     e.preventDefault();
     if (empty || busy) return;
-    void run(() => annotationStore.saveNote({
-      id: state.note?.id, start: state.start, end: state.end, title: title.trim() || undefined, content: textToHtml(text),
-    }));
+    const content = textToHtml(text);
+    const cleanTitle = title.trim() || undefined;
+    void run(async () => {
+      let id = state.note?.id;
+      if (id === undefined && attempted.current !== null) {
+        const { notes } = await annotationStore.fetch(0, state.start, state.end);
+        id = notes.find((n) => n.start === state.start && n.end === state.end && n.content === attempted.current)?.id;
+      }
+      if (state.note === null) attempted.current = content;
+      return annotationStore.saveNote({ id, start: state.start, end: state.end, title: cleanTitle, content });
+    });
   };
   const remove = () => {
     if (!state.note) return;

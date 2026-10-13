@@ -32,7 +32,8 @@
     "more": "بیشتر…",
     "offlineTooltip": "شما آفلاین هستید",
     "shortcutHint": "برای جستجو / یا Ctrl+K را فشار دهید",
-    "feedback": "ارسال بازخورد"
+    "feedback": "ارسال بازخورد",
+    "syncStatus": "وضعیت همگام‌سازی"
   },
   "themes": {
     "auto": "خودکار",
@@ -204,7 +205,8 @@
       "audio": "صوت",
       "offline": "آفلاین",
       "about": "درباره",
-      "notifications": "اعلان‌ها"
+      "notifications": "اعلان‌ها",
+      "account": "حساب"
     },
     "textSize": {
       "decreaseAll": "کاهش اندازهٔ همهٔ قلم‌ها",
@@ -913,6 +915,15 @@
     },
     "quiz": {
       "title": "آزمون"
+    },
+    "memory": {
+      "title": "حفظ"
     }
+  },
+  "verseActions": {
+    "highlight": "برجسته‌سازی",
+    "note": "افزودن یا ویرایش یادداشت",
+    "bookmark": "نشانک",
+    "memorize": "حفظ کردن"
   }
 }

@@ -1764,6 +1764,7 @@
   "preferencesDialog.sectionFonts": "字体",
   "preferencesDialog.sectionThemes": "主题",
   "preferencesDialog.sectionPrivacy": "隐私",
+  "preferencesDialog.sectionAccount": "账户与同步",
   "preferencesDialog.allowWebRequestsLabel": "允许网络请求",
   "preferencesDialog.allowWebRequestsDescription": "允许应用联网以检查更新、浏览和下载模块，以及在浏览器中打开链接。默认关闭；首次开启时会显示确认提示。",
   "preferencesDialog.sectionExtensions": "扩展",

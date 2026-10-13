@@ -21,6 +21,7 @@
  * the wording is a deliberate choice, not an implementation detail.
  */
 
+import accounts from '../../../locales/en/accounts.json';
 import commands from '../../../locales/en/commands.json';
 import downloads from '../../../locales/en/downloads.json';
 import genealogy from '../../../locales/en/genealogy.json';
@@ -56,6 +57,7 @@ export const enLocalizer: Localizer = EnglishLocalizer;
  */
 export function loadEnCatalog(): Record<string, string> {
   return {
+    ...(accounts as Record<string, string>),
     ...(commands as Record<string, string>),
     ...(downloads as Record<string, string>),
     ...(genealogy as Record<string, string>),

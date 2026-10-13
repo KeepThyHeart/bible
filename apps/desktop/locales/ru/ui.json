@@ -1760,6 +1760,7 @@
   "preferencesDialog.sectionFonts": "Шрифты",
   "preferencesDialog.sectionThemes": "Темы",
   "preferencesDialog.sectionPrivacy": "Конфиденциальность",
+  "preferencesDialog.sectionAccount": "Аккаунт и синхронизация",
   "preferencesDialog.allowWebRequestsLabel": "Разрешить веб-запросы",
   "preferencesDialog.allowWebRequestsDescription": "Позволяет приложению выходить в сеть: проверять обновления, просматривать и загружать модули, открывать ссылки в браузере. По умолчанию отключено; при первом включении показывается подтверждение.",
   "preferencesDialog.sectionExtensions": "Расширения",

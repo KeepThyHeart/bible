@@ -21,6 +21,8 @@ import { audioModule } from './audio/binding';
 import { downloadsModule } from './downloads/binding';
 import { notificationsModule } from './notifications/binding';
 import { gamesModule } from './games/binding';
+import { annotationsModule } from './annotations/binding';
+import { memoryWebModule } from './memory/binding';
 import { accountsModule } from './accounts/binding';
 
 const plain = ([manifest, binding]: readonly [FeatureModuleManifest, FeatureModuleBinding?]): WebFeatureModule => ({ manifest, binding });
@@ -41,6 +43,8 @@ export const BUILTIN_MODULES: readonly WebFeatureModule[] = [
   downloadsModule,
   notificationsModule,
   gamesModule,
+  annotationsModule,
+  memoryWebModule,
   accountsModule,
 ];
 

@@ -11,7 +11,6 @@ import { idOf, lineAt, lines, markAllClean, newSyncedDb, syncedNote } from './sy
 import type { SyncedDb } from './syncedDb';
 import { FakeServer, addNote, cloneAccount, makeDevice, notes, testAccount } from '../Sync/engine/harness';
 import { fixNoteFtsTriggers } from '../Sync/engine/harness';
-import { SyncEngine } from '../../Sync/engine/SyncEngine';
 
 async function backupOf(s: SyncedDb): Promise<BackupArchive> {
   const { zip } = await createBackupPayload({ sql: s.db }, wopts(false));
@@ -80,6 +79,24 @@ describe('merge into a synced database', () => {
     expect(lineAt(t, 'user_note', row.note_id)).toMatchObject({ record_id: idOf(1), server_seq: 7, hlc: 'hlc-7', dirty: 1, deleted: 0 });
     expect(lines(t, 'user_note').filter((l) => l.deleted === 1)).toEqual([]);
     expect(lines(t, 'user_note').filter((l) => l.record_id === idOf(1))).toHaveLength(1);
+  });
+
+  it('an inserted row that reuses the local key of an unrelated local tombstone parks that tombstone on a synthetic key', async () => {
+    // memory_collection has a plain INTEGER PRIMARY KEY, so a freed key is reused and the insert trigger revives the
+    // tombstone line at that key (with its record id). The tombstone must move aside before the row takes the backup id.
+    const src = newSyncedDb();
+    src.db.execute("INSERT INTO memory_collection (id, name, created_at) VALUES (1, 'Default', 0)");
+    src.tracker.markSynced('memory_collection', '1', { recordId: idOf(1), serverSeq: 1, hlc: 'h1', baseJson: '{}', deleted: false });
+    const archive = await backupOf(src);
+    const t = newSyncedDb();
+    t.db.execute("INSERT INTO memory_collection (id, name, created_at) VALUES (1, 'Gone', 0)");
+    t.tracker.markSynced('memory_collection', '1', { recordId: idOf(7), serverSeq: 7, hlc: 'h7', baseJson: '{}', deleted: false });
+    t.db.execute('DELETE FROM memory_collection WHERE id = 1');
+    expect(lineAt(t, 'memory_collection', 1)).toMatchObject({ record_id: idOf(7), deleted: 1 });
+    await restore(t, archive, 'merge');
+    expect(t.db.queryAll('SELECT id, name FROM memory_collection')).toEqual([{ id: 1, name: 'Default' }]);
+    expect(lineAt(t, 'memory_collection', 1)).toMatchObject({ record_id: idOf(1), server_seq: null, dirty: 1, deleted: 0 });
+    expect(lineAt(t, 'memory_collection', `\u001fr:${idOf(7)}`)).toMatchObject({ record_id: idOf(7), server_seq: 7, dirty: 1, deleted: 1 });
   });
 
   it('a record id claimed by two backup rows, or already used by another kind of record, is taken by at most one', async () => {
@@ -287,39 +304,21 @@ describe('with the sync engine', () => {
     expect(notes(C).map((n) => n.content).sort()).toEqual(['a-note', 'b-note', 'd-note']);
   });
 
-  it('a newer remote edit of that record later inserts a fresh local row (needs the SyncEngine.upsertRow fix, patched in here)', async () => {
-    // SyncEngine.upsertRow hands a tombstone's local key to codec.upsert, which cannot take the synthetic key (the
-    // incoming edit would be kept opaque). The fix: pass `undefined` for such a key; the existing "the codec answered
-    // with another key" code then drops the tombstone line. Until the engine carries it, this test applies the same
-    // change to the prototype for its own duration.
-    const proto = SyncEngine.prototype as unknown as { upsertRow: (codec: any, data: any, row: any) => string };
-    const original = proto.upsertRow;
-    proto.upsertRow = function (this: any, codec, data, row) {
-      if (row?.deleted === 1 && String(row.local_key).startsWith('\u001fr:')) {
-        const key = codec.upsert(data, undefined, this.ctx);
-        this.sql.execute('DELETE FROM sync_record WHERE table_name = ? AND local_key = ?', [row.table_name, row.local_key]);
-        return key;
-      }
-      return original.call(this, codec, data, row);
-    };
-    try {
-      const { server, A, C, sC } = await restoredWithSyntheticTombstone();
-      await A.engine.syncNow();
-      // C still holds c. It edits it (newer than A's delete), then syncs: the edit survives the delete and is pushed.
-      const cLocal = C.db.queryOne<{ note_id: number }>("SELECT note_id FROM user_note WHERE content = 'c-note'")!.note_id;
-      C.db.execute("UPDATE user_note SET content = 'c-note, edited later' WHERE note_id = ?", [cLocal]);
-      C.db.execute('UPDATE sync_record SET changed_ms = ? WHERE table_name = ? AND local_key = ?', [Date.now() + 60_000, 'user_note', String(cLocal)]);
-      await C.engine.syncNow();
-      expect(server.rows.get(sC)).toMatchObject({ deleted: false });
+  it('a newer remote edit of that record later inserts a fresh local row (regression: SyncEngine.upsertRow on a synthetic key)', async () => {
+    const { server, A, C, sC } = await restoredWithSyntheticTombstone();
+    await A.engine.syncNow();
+    // C still holds c. It edits it (newer than A's delete), then syncs: the edit survives the delete and is pushed.
+    const cLocal = C.db.queryOne<{ note_id: number }>("SELECT note_id FROM user_note WHERE content = 'c-note'")!.note_id;
+    C.db.execute("UPDATE user_note SET content = 'c-note, edited later' WHERE note_id = ?", [cLocal]);
+    C.db.execute('UPDATE sync_record SET changed_ms = ? WHERE table_name = ? AND local_key = ?', [Date.now() + 60_000, 'user_note', String(cLocal)]);
+    await C.engine.syncNow();
+    expect(server.rows.get(sC)).toMatchObject({ deleted: false });
 
-      await A.engine.syncNow();
-      expect(notes(A).map((n) => n.content).sort()).toEqual(['a-note', 'b-note', 'c-note, edited later', 'd-note']);
-      const back = A.db.queryOne<{ note_id: number }>("SELECT note_id FROM user_note WHERE content = 'c-note, edited later'")!;
-      expect(A.tracker.lookupByLocal('user_note', String(back.note_id))).toEqual({ recordId: sC });
-      expect(A.db.queryAll('SELECT local_key FROM sync_record WHERE deleted = 1')).toEqual([]);
-      expect(A.tracker.pendingCount()).toBe(0);
-    } finally {
-      proto.upsertRow = original;
-    }
+    await A.engine.syncNow();
+    expect(notes(A).map((n) => n.content).sort()).toEqual(['a-note', 'b-note', 'c-note, edited later', 'd-note']);
+    const back = A.db.queryOne<{ note_id: number }>("SELECT note_id FROM user_note WHERE content = 'c-note, edited later'")!;
+    expect(A.tracker.lookupByLocal('user_note', String(back.note_id))).toEqual({ recordId: sC });
+    expect(A.db.queryAll('SELECT local_key FROM sync_record WHERE deleted = 1')).toEqual([]);
+    expect(A.tracker.pendingCount()).toBe(0);
   });
 });

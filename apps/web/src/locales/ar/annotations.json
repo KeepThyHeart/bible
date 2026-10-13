@@ -1,4 +1,5 @@
 {
+  "$schema": "../schemas/annotations.schema.json",
   "annotations": {
     "close": "إغلاق",
     "error": "حدث خطأ ما. يرجى المحاولة مرة أخرى.",

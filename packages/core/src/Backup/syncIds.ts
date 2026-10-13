@@ -161,23 +161,29 @@ export function rewriteReplaced(sql: ISql, tables: string[], before: Identity[],
  * Give a row that a merge just inserted the record id `id` from the backup. The insert trigger has already created its
  * (dirty, unidentified) line. A local tombstone that holds `id` is adopted: its server version metadata moves to the
  * row and the tombstone goes, so the row is an update of that record rather than a second one. An id held by a live
- * row (or by another kind of record) is left alone: the row keeps a fresh identity. Returns whether the id was taken.
+ * row (or by another kind of record) is left alone: the row gets a fresh identity. Returns whether the id was taken.
  */
 export function adoptRecordId(sql: ISql, table: string, localKey: string, id: string): boolean {
   if (!isRecordId(id)) return false;
   const me = sql.queryOne<Identity>('SELECT * FROM sync_record WHERE table_name = ? AND local_key = ?', [table, localKey]);
   if (!me || me.deleted === 1) return false;
   if (me.record_id === id) return true;
+  if (me.record_id !== null) {
+    // The line inherited the identity of an older row with this local key (a reused rowid revives that row's tombstone
+    // line, record id included); that record is not this row. Release the id first (record_id is UNIQUE), then park the
+    // old record as a tombstone on a synthetic key if the server has it. The row starts as a fresh record.
+    sql.execute(
+      'UPDATE sync_record SET record_id = NULL, server_seq = NULL, hlc = NULL, base_json = NULL, dirty = 1 WHERE table_name = ? AND local_key = ?',
+      [table, localKey]);
+    if (me.server_seq !== null) {
+      sql.execute(
+        `INSERT INTO sync_record (table_name, local_key, record_id, changed_ms, rev, hlc, server_seq, dirty, deleted, base_json)
+         VALUES (?, ?, ?, ${NOW_MS}, ?, ?, ?, 1, 1, ?)`,
+        [table, syntheticKey(me.record_id), me.record_id, me.rev + 1, me.hlc, me.server_seq, me.base_json]);
+    }
+  }
   const holder = sql.queryOne<Identity>('SELECT * FROM sync_record WHERE record_id = ?', [id]);
   if (holder && (holder.table_name !== table || holder.deleted !== 1)) return false;
-  if (me.record_id !== null && me.server_seq !== null) {
-    // The line inherited the identity of an older row with this local key; that record is not this row.
-    sql.execute(
-      `INSERT INTO sync_record (table_name, local_key, record_id, changed_ms, rev, hlc, server_seq, dirty, deleted, base_json)
-       VALUES (?, ?, ?, ${NOW_MS}, ?, ?, ?, 1, 1, ?)`,
-      [table, syntheticKey(me.record_id), me.record_id, me.rev + 1, me.hlc, me.server_seq, me.base_json]);
-  }
-  sql.execute('UPDATE sync_record SET record_id = NULL WHERE table_name = ? AND local_key = ?', [table, localKey]);
   let params: SqlParameter[] = [id, null, null, null, table, localKey];
   if (holder) {
     sql.execute('DELETE FROM sync_record WHERE table_name = ? AND local_key = ?', [holder.table_name, holder.local_key]);

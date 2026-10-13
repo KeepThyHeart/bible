@@ -1764,6 +1764,7 @@
   "preferencesDialog.sectionFonts": "‏Fonts‏",
   "preferencesDialog.sectionThemes": "‏Themes‏",
   "preferencesDialog.sectionPrivacy": "‏Privacy‏",
+  "preferencesDialog.sectionAccount": "‏Account & sync‏",
   "preferencesDialog.allowWebRequestsLabel": "‏Allow web requests‏",
   "preferencesDialog.allowWebRequestsDescription": "‏Lets the app go online to check for updates, browse and download modules, and open links in your browser. Off by default; turning this on shows a confirmation the first time.‏",
   "preferencesDialog.sectionExtensions": "‏Extensions‏",

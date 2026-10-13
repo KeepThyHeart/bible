@@ -229,7 +229,7 @@ An extension declares what part of its data is the user's in its manifest (`exte
 - The **key-value store is included by default** (it is small and it is the user's data); `"backup": false` opts out.
 - A **database is included only when declared** with `"backup": true`, per name (the name passed to `openDatabase()`), because databases are often indexes or caches. The host copies a consistent snapshot, never the live file.
 - **Secrets are never included.**
-- `"sync"` (at both levels) is read by account sync, not by backup: the key-value store of an extension that sets `userData.sync` to `true` is uploaded by sync (the others stay on the device). Whether it is included in a backup is decided by `backup` alone, as above.
+- `"sync"` at the top level of `userData` opts the extension's key-value store in to end-to-end encrypted device sync (default false; see `extension-sync.md`). Per-database `"sync"` is still reserved: it validates and is ignored, and extension databases never sync. Whether data is included in a backup is decided by `backup` alone, as above.
 - Data for an extension that is not installed on the restoring machine is restored anyway, keyed by extension id, so installing it later finds its data. No extension code runs during a backup or a restore.
 
 ## The table registry

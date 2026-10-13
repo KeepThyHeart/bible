@@ -1760,6 +1760,7 @@
   "preferencesDialog.sectionFonts": "फ़ॉन्ट",
   "preferencesDialog.sectionThemes": "थीम",
   "preferencesDialog.sectionPrivacy": "गोपनीयता",
+  "preferencesDialog.sectionAccount": "खाता और सिंक",
   "preferencesDialog.allowWebRequestsLabel": "वेब अनुरोधों की अनुमति दें",
   "preferencesDialog.allowWebRequestsDescription": "ऐप को अपडेट जाँचने, मॉड्यूल ब्राउज़ और डाउनलोड करने, और लिंक आपके ब्राउज़र में खोलने के लिए ऑनलाइन जाने देता है। डिफ़ॉल्ट रूप से बंद रहता है; इसे चालू करने पर पहली बार पुष्टि माँगी जाती है।",
   "preferencesDialog.sectionExtensions": "एक्सटेंशन",

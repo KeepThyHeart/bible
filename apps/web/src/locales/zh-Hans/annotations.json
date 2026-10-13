@@ -1,4 +1,5 @@
 {
+  "$schema": "../schemas/annotations.schema.json",
   "annotations": {
     "close": "关闭",
     "error": "出了点问题，请重试。",
