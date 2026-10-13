@@ -1,4 +1,5 @@
 {
+  "$schema": "../schemas/accounts.schema.json",
   "accounts": {
     "signUp": {
       "strengthScore0": "חלשה מאוד",
