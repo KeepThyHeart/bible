@@ -358,6 +358,8 @@ export default defineConfig({
       // the client to keep its own copies of these modules. Mirrors the
       // "@bible/core/browser" path mapping in tsconfig.json.
       '@bible/core/browser': resolve(__dirname, '../../packages/core/src/browser.ts'),
+      // Memory on web (task 0150) runs @bible/memory in the user-DB worker; it imports the recite subset.
+      '@bible/core/recite': resolve(__dirname, '../../packages/core/src/recite/index.ts'),
       // Shared UI kit, consumed as source. Order matters: Vite string aliases
       // match `id === key || id.startsWith(key + '/')` and the first entry wins,
       // so the more specific css entry must precede the bare package entry.

@@ -1,6 +1,6 @@
 /** W4-D: more end-to-end scenarios for the real core sync client against the real sync server (see world.ts). */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { Sync } from '@bible/core';
+import { Backup, Sync } from '@bible/core';
 import {
   CONSENT, Device, PASSWORD, PASSWORD2, count, freshEmail, mailTo, moduleMap, recordsByAccount, serverCounts, startNet,
   twoDevices, type Net,
@@ -10,6 +10,7 @@ let net: Net;
 beforeEach(async () => { net = await startNet(); });
 afterEach(async () => { await net.close(); });
 const T = 120_000;
+const bopts: Backup.WriteOptions = { includeHistory: false, app: { name: 'Keep Thy Heart', version: '0.1.0', platform: 'test' }, now: () => new Date('2026-09-26T14:03:11Z') };
 const pendingRows = (d: Device): number => count(d, 'sync_pending');
 const opaqueRows = (d: Device): number => count(d, 'sync_opaque');
 
@@ -209,7 +210,33 @@ describe('module references (scenario 6)', () => {
     expect(a.tracker.pendingCount() + b.tracker.pendingCount()).toBe(0);
   }, T);
 
-  it.todo('scenario 7: extension KV opt-in (extension_storage stays local until the extension is opted in) - needs subtask E');
+  it('scenario 7: extension KV opt-in: only an opted-in extension syncs; others never reach the server', async () => {
+    const email = freshEmail();
+    const optedIn = (id: string): boolean => id === 'ext.sync';
+    const a = new Device(net, 0xa1, { extKvSyncs: optedIn });
+    const b = new Device(net, 0xb2, { extKvSyncs: optedIn });
+    await a.account.signUp(email, PASSWORD, CONSENT);
+    await a.api.verifyEmail({ token: (await mailTo(net, email, /Confirm/i)).token });
+    await b.account.signIn(email, PASSWORD);
+
+    a.setExt('ext.sync', 'theme', 'dark');
+    a.setExt('ext.sync', 'size', '12');
+    a.setExt('ext.private', 'secret', 'local only');
+    await a.sync();
+    expect(Object.values(recordsByAccount(net)).reduce((x, y) => x + y, 0)).toBe(2);   // the private extension's row never went up
+    await b.sync();
+    expect(b.ext()).toEqual([{ extension_id: 'ext.sync', key: 'size', value: '12' }, { extension_id: 'ext.sync', key: 'theme', value: 'dark' }]);
+
+    // Updates and deletions of opted-in keys travel; the private extension stays untouched on both sides.
+    b.setExt('ext.sync', 'theme', 'light');
+    b.sql.execute("DELETE FROM extension_storage WHERE extension_id = 'ext.sync' AND key = 'size'");
+    b.setExt('ext.private', 'other', 'b only');
+    await b.sync();
+    await a.sync();
+    expect(a.ext()).toEqual([{ extension_id: 'ext.private', key: 'secret', value: 'local only' }, { extension_id: 'ext.sync', key: 'theme', value: 'light' }]);
+    expect(b.ext().filter((r) => r.extension_id === 'ext.private')).toEqual([{ extension_id: 'ext.private', key: 'other', value: 'b only' }]);
+    expect(Object.values(recordsByAccount(net)).reduce((x, y) => x + y, 0)).toBe(2);   // 'theme' live + the 'size' tombstone
+  }, T);
 });
 
 describe('opaque kinds (scenario 8)', () => {
@@ -335,7 +362,55 @@ describe('account switch (scenario 10)', () => {
     expect(y2.notes().map((n) => n.content)).toEqual(['added after the switch', 'belongs to X']);
   }, T);
 
-  it.todo('scenario 11: backup 1.1 (account slot wraps the key, restore on a signed-in device re-attaches) - needs subtask C');
+  it('scenario 11: backup payload 1.1: replace and merge restores converge on the other device without duplicates', async () => {
+    const { a, b } = await twoDevices(net);
+    a.addNote('one'); a.addNote('two'); a.addNote('three');
+    await a.sync();
+    await b.sync();
+    const backup = async (d: Device) => Backup.readBackupPayload(Backup.once((await Backup.createBackupPayload({ sql: d.sql }, bopts)).zip));
+    const restore = async (d: Device, archive: Backup.BackupArchive, mode: Backup.RestoreMode) => {
+      const plan = Backup.inspectBackup(archive, { sql: d.sql }, { preview: false });
+      return Backup.applyRestore(plan, { sql: d.sql }, { mode, sections: Backup.defaultSections(plan, mode) });
+    };
+    const archive = await backup(a);
+
+    // A edits after the backup: change one, delete another, add a fourth.
+    const n1 = a.notes().find((n) => n.content === 'one')!;
+    const n2 = a.notes().find((n) => n.content === 'two')!;
+    a.setContent(n1.note_id, 'one, edited');
+    a.sql.execute('DELETE FROM user_note WHERE note_id = ?', [n2.note_id]);
+    a.addNote('four');
+    await a.sync();
+    await b.sync();
+    expect(b.notes().map((n) => n.content).sort()).toEqual(['four', 'one, edited', 'three']);
+
+    // Merge restore on A: the deleted note comes back (same record), nothing duplicates, edited one is matched.
+    await restore(a, archive, 'merge');
+    await a.sync(); await b.sync(); await a.sync();
+    expect(new Set(a.notes().map((n) => n.content)).size).toBe(a.notes().length);   // no duplicates
+    expect(a.notes().map((n) => n.content).sort()).toEqual(b.notes().map((n) => n.content).sort());
+    expect(a.notes().map((n) => n.content)).toEqual(expect.arrayContaining(['three', 'two', 'four']));
+
+    // Replace restore on A returns to the backup state; the later changes become deletions on B.
+    await restore(a, archive, 'replace');
+    await a.sync(); await b.sync(); await a.sync();
+    for (const d of [a, b]) expect(d.notes().map((n) => n.content).sort()).toEqual(['one', 'three', 'two']);
+    expect(a.tracker.pendingCount() + b.tracker.pendingCount()).toBe(0);
+    expect(Object.values(recordsByAccount(net))[0]).toBeLessThanOrEqual(5);   // 3 live + tombstones for 'four' (and none duplicated)
+
+    // A device of another account falls back to 1.0 behaviour: rows are inserted as new records of that account.
+    const emailY = freshEmail();
+    const y = new Device(net, 0xd4);
+    await y.account.signUp(emailY, PASSWORD2, CONSENT);
+    await y.api.verifyEmail({ token: (await mailTo(net, emailY, /Confirm/i)).token });
+    y.addNote('y own');
+    await y.sync();
+    await restore(y, archive, 'merge');
+    await y.sync();
+    expect(y.notes().map((n) => n.content).sort()).toEqual(['one', 'three', 'two', 'y own']);
+    await a.sync();
+    expect(a.notes().map((n) => n.content).sort()).toEqual(['one', 'three', 'two']);   // account X never sees Y's data
+  }, T);
 });
 
 describe('storage quota (scenario 12)', () => {

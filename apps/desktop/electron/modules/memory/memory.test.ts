@@ -92,9 +92,9 @@ afterEach(async () => {
 });
 
 describe('memory main module: registration', () => {
-  it('has a valid desktop-only manifest and is in the production table', () => {
+  it('has a valid manifest (desktop, and web behind localUserDb) and is in the production table', () => {
     expect(validateBuiltinManifest(memoryManifest)).toEqual([]);
-    expect(memoryManifest.platforms).toEqual(['desktop']);
+    expect(memoryManifest.platforms).toEqual(['desktop', 'web']); // web registers it behind localUserDb (task 0150)
     expect(MAIN_MODULES.map((m) => m.manifest.id)).toContain('memory');
   });
 

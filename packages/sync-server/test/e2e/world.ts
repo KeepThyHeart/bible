@@ -36,6 +36,8 @@ export interface DeviceOptions {
   extraCodecs?: Sync.RecordCodec[];
   trackedExtra?: Sync.TrackedTable[];
   pushLimits?: { maxRecords?: number; maxBodyBytes?: number };
+  /** Extension key-value opt-in predicate for the core ext.kv codec (default: no extension syncs). */
+  extKvSyncs?: (extensionId: string) => boolean;
 }
 
 export interface Net { t: TestServer & { mail: Mailbox }; baseUrl: string; close(): Promise<void> }
@@ -118,7 +120,7 @@ export class Device {
     this.engineBuilds++;
     this.engine = new Sync.SyncEngine({
       sql: this.sql, tracker: this.tracker,
-      codecs: Sync.createCodecRegistry([...Sync.createCoreCodecs(), ...(this.opts.extraCodecs ?? [])]),
+      codecs: Sync.createCodecRegistry([...Sync.createCoreCodecs(this.opts.extKvSyncs ? { extKvSyncs: this.opts.extKvSyncs } : undefined), ...(this.opts.extraCodecs ?? [])]),
       cipher: Sync.createRecordCipher(u), transport: this.api.transport(), unlocked: u,
       hlc: Sync.createHlc(this.deviceId), status: this.status, modules: this.opts.modules ?? MODULES,
       ...(this.opts.pageSize ? { pageSize: this.opts.pageSize } : {}),
@@ -145,6 +147,15 @@ export class Device {
   }
   addNote(content: string, title = 't'): number {
     return this.sql.execute('INSERT INTO user_note (title, content) VALUES (?, ?)', [title, content]).lastInsertRowId!;
+  }
+  setExt(ext: string, key: string, value: string): void {
+    this.sql.execute(
+      `INSERT INTO extension_storage (extension_id, key, value, updated_at) VALUES (?, ?, ?, ?)
+       ON CONFLICT (extension_id, key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`,
+      [ext, key, value, Date.now()]);
+  }
+  ext(): Array<{ extension_id: string; key: string; value: string }> {
+    return this.sql.queryAll('SELECT extension_id, key, value FROM extension_storage ORDER BY extension_id, key');
   }
   setContent(noteId: number, content: string): void {
     this.sql.execute('UPDATE user_note SET content = ? WHERE note_id = ?', [content, noteId]);

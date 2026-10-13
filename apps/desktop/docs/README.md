@@ -34,6 +34,7 @@ This folder contains feature-oriented documentation for the `@bible/desktop` pac
 | [Notifications](features/notifications.md) | Preferences section, tray, login item and notification click routing for the shared reminders engine |
 | [Module Management](features/module-management.md) | Module browser, download, repository settings, study/starter packs, and the install policy for already-installed modules |
 | [Backup & Restore](features/backup-restore.md) | User data backup and restore with encryption support |
+| [Accounts & Sync](features/accounts-sync.md) | Optional accounts with end-to-end encrypted sync (flag `accounts`) |
 | [Diagnostics & Issue Reporting](features/diagnostics-reporting.md) | Opt-in crash reports and manual issue reports with local queue and background uploader |
 | [Electron Shell](features/electron-shell.md) | Main process, IPC registration, menus, window management, database providers, build-time `BIBLE_*` configuration, and the product mark |
 | [Sidebar & Layout](features/sidebar-layout.md) | dockview pane layout: groups, tab strip, layout presets, collapsing and resizing |
