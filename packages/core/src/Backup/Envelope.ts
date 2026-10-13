@@ -509,6 +509,8 @@ async function unwrapFileKey(
   const method: 'password' | 'account' | 'recovery' =
     typeof u.password === 'string' ? 'password' : u.accountKey instanceof Uint8Array ? 'account' : typeof u.recoveryCode === 'string' ? 'recovery' : (() => { throw new RangeError('Invalid unlock input'); })();
 
+  // Checked before looking at the slots, so the answer does not depend on whether the file has an account slot.
+  if (method === 'account' && (u.accountKey as Uint8Array).length !== 32) throw new RangeError('The account key must be 32 bytes');
   const wrongMessage = method === 'password' ? 'Wrong password' : method === 'account' ? 'Wrong account key' : 'Wrong recovery code';
   const candidates: SlotCandidate[] = [];
   let recoveryBytes: Uint8Array | null = null;
@@ -542,7 +544,6 @@ async function unwrapFileKey(
         // is damage when unlocking with it, and is ignored when unlocking another way (an unknown slot would be too).
         exactKeys(s, ['type', 'nonce', 'wrapped']);
         const accountKey = (unlock as { accountKey: Uint8Array }).accountKey;
-        if (accountKey.length !== 32) throw new RangeError('The account key must be 32 bytes');
         candidates.push({
           nonce: fixedB64(s.nonce, 12, 'slot nonce'),
           wrapped: fixedB64(s.wrapped, 32 + AES_TAG_LEN, 'wrapped key'),
