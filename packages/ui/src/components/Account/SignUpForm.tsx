@@ -4,9 +4,11 @@ import { CheckField, ErrorLine, TextField } from './fields';
 import { DEFAULT_SIGN_UP_LABELS } from './labels';
 import { PasswordStrengthMeter, usePasswordStrength } from './PasswordStrengthMeter';
 import type { SignUpFormProps } from './types';
-import { fill } from './util';
+import { fill, safeLinkUrl } from './util';
 
 export function SignUpForm({ onSubmit, checkStrength, minScore = 3, minAge, termsUrl, privacyUrl, busy = false, error, labels }: SignUpFormProps) {
+  const termsHref = safeLinkUrl(termsUrl);
+  const privacyHref = safeLinkUrl(privacyUrl);
   const l = { ...DEFAULT_SIGN_UP_LABELS, ...labels };
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -35,8 +37,8 @@ export function SignUpForm({ onSubmit, checkStrength, minScore = 3, minAge, term
       <CheckField checked={terms} onChange={setTerms} disabled={busy}>{l.consentTerms}</CheckField>
       {termsUrl || privacyUrl ? (
         <p className="kth-account__links">
-          {termsUrl ? <a href={termsUrl} target="_blank" rel="noreferrer noopener">{l.termsLink}</a> : null}
-          {privacyUrl ? <a href={privacyUrl} target="_blank" rel="noreferrer noopener">{l.privacyLink}</a> : null}
+          {termsUrl ? (termsHref ? <a href={termsHref} target="_blank" rel="noreferrer noopener">{l.termsLink}</a> : <span>{l.termsLink}</span>) : null}
+          {privacyUrl ? (privacyHref ? <a href={privacyHref} target="_blank" rel="noreferrer noopener">{l.privacyLink}</a> : <span>{l.privacyLink}</span>) : null}
         </p>
       ) : null}
       <CheckField checked={age} onChange={setAge} disabled={busy}>{fill(l.ageConfirm, { age: minAge })}</CheckField>

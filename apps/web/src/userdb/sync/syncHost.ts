@@ -479,10 +479,11 @@ export function createSyncHost(o: SyncHostOptions): SyncHost {
     try { url = new URL(str(req.baseUrl, 'baseUrl')); } catch { return bad('baseUrl'); }
     if (url.origin !== o.origin || (url.protocol !== 'https:' && url.protocol !== 'http:')) bad('baseUrl');
     const baseUrl = url.origin + url.pathname.replace(/\/+$/, '');
-    const remember = bool(req.remember, 'remember');
     const incoming = cleanModuleRefs(req.modules);
     await s.ready;
     const previous = s.config;
+    // The persisted choice is authoritative: `remember` only seeds the first configure ever (see `setRemember`).
+    const remember = previous ? previous.remember : req.remember === undefined ? false : bool(req.remember, 'remember');
     // A catalog that is not loaded yet (empty) keeps the last known one.
     const modules = incoming.length > 0 ? incoming : previous?.modules ?? [];
     if (previous) {
@@ -506,6 +507,24 @@ export function createSyncHost(o: SyncHostOptions): SyncHost {
         await ready;
       }
     }
+    return s.status.getSnapshot();
+  }
+
+  /** The user's explicit remember choice. Serialised with `configure`; needs a configuration to persist into. */
+  function setRemember(s: DbState, remember: boolean): Promise<Sync.SyncStatus> {
+    const run = s.configuring.then(() => setRememberNow(s, remember), () => setRememberNow(s, remember));
+    s.configuring = run.catch(() => undefined);
+    return run;
+  }
+
+  async function setRememberNow(s: DbState, remember: boolean): Promise<Sync.SyncStatus> {
+    await s.ready;
+    if (!s.config) throw new SyncHostError('not_configured', 'Sync is not configured');
+    const config: SyncConfig = { ...s.config, remember };
+    writeConfig(s.sql, config);
+    s.config = config;
+    lastConfig = config;
+    await s.secrets.setRemember(remember);
     return s.status.getSnapshot();
   }
 
@@ -621,6 +640,8 @@ export function createSyncHost(o: SyncHostOptions): SyncHost {
     switch (req.action) {
       case 'configure':
         return configure(s, req);
+      case 'setRemember':
+        return setRemember(s, bool(req.remember, 'remember'));
       case 'status':
         await s.ready;
         return s.status.getSnapshot();

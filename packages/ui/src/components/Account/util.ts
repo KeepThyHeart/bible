@@ -18,3 +18,13 @@ export function formatBytes(n: number): string {
   while (v >= 1024 && i < units.length - 1) { v /= 1024; i++; }
   return `${i === 0 ? v : v.toFixed(v < 10 ? 1 : 0)} ${units[i]}`;
 }
+
+/** A server-supplied link is only rendered as one when it is https:, or http: on a loopback host (R2 L4). */
+export function safeLinkUrl(url: string | undefined | null): string | undefined {
+  if (!url) return undefined;
+  let u: URL;
+  try { u = new URL(url); } catch { return undefined; }
+  if (u.protocol === 'https:') return u.href;
+  if (u.protocol === 'http:' && ['localhost', '127.0.0.1', '[::1]'].includes(u.hostname)) return u.href;
+  return undefined;
+}

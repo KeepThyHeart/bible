@@ -37,6 +37,20 @@ describe('userdb client singleton', () => {
     expect(send).toHaveBeenCalledTimes(1);
   });
 
+  it('repo() proxy is not thenable: awaiting it sends no request, real methods still call the worker', async () => {
+    const send = vi.fn(async () => 'v');
+    const client = new UserDbClient({ locks: locks(), createChannel: channel, createBackend: () => backend(send) });
+    await new Promise((r) => setTimeout(r, 0));
+    const proxy = client.repo('annotations');
+    expect((proxy as { then?: unknown }).then).toBeUndefined();
+    expect(await Promise.resolve(proxy)).toBe(proxy);
+    expect(await (async () => proxy)()).toBe(proxy);
+    expect(send).not.toHaveBeenCalled();
+    expect(await proxy.getChapter(1, 1)).toBe('v');
+    expect(send).toHaveBeenCalledWith({ op: 'call', repo: 'annotations', method: 'getChapter', args: [1, 1] });
+    client.close();
+  });
+
   it('times out the first open, closes that client and retries on the next call', async () => {
     let closed = 0;
     let attempts = 0;

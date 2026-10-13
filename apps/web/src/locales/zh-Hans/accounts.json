@@ -187,7 +187,8 @@
       "server_error": "同步服务器出现问题。请稍后重试。",
       "network": "无法连接到同步服务器。",
       "unavailable": "此浏览器目前无法使用账户同步。",
-      "internal": "出了点问题。"
+      "internal": "出了点问题。",
+      "leader_changed": "操作进行时另一个标签页接管了。请检查你的账户，如有需要请重试。"
     },
     "feedback": {
       "straightRow": "键盘上连续的按键很容易被猜到。",

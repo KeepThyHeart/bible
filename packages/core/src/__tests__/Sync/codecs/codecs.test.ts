@@ -326,12 +326,18 @@ describe('ext.kv opt-in gate', () => {
     expect(kv.encode(`off${US}k`, side.ctx)).toBeNull();
   });
 
-  it('decode and apply are not gated', () => {
+  it('apply and remove are gated (R2 L6): a non-opted extension throws RecordDecodeError and nothing is written', () => {
     const side = makeSide(mulberry32(1), MODS_A);
-    const kv = createCodecRegistry(createCoreCodecs()).byKind('ext.kv')!;
+    seed(side);
+    const kv = createCodecRegistry(createCoreCodecs({ extKvSyncs: (id) => id === 'on' })).byKind('ext.kv')!;
     const r = kv.decode({ ext: 'off', key: 'k', value: 'v', updatedAt: 3 }, side.ctx);
     expect(r.ok).toBe(true);
-    if (r.ok) expect(kv.upsert(r.row, undefined, side.ctx)).toBe(`off${US}k`);
+    if (!r.ok) return;
+    expect(() => kv.upsert(r.row, undefined, side.ctx)).toThrow(RecordDecodeError);
+    expect(() => kv.remove(`off${US}k`, side.ctx)).toThrow(RecordDecodeError);
+    expect(side.db.queryAll("SELECT value FROM extension_storage WHERE extension_id = 'off'")).toEqual([{ value: '2' }]);
+    const on = kv.decode({ ext: 'on', key: 'k', value: 'v', updatedAt: 3 }, side.ctx);
+    if (on.ok) expect(kv.upsert(on.row, undefined, side.ctx)).toBe(`on${US}k`);
   });
 });
 

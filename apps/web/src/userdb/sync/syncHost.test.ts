@@ -16,6 +16,7 @@ vi.mock('@bible/core', async () => {
 
 import { Crypto, Sync } from '@bible/core/browser';
 import { IndexedDbSecretStore } from '../IndexedDbSecretStore';
+import type { UserDbRequest } from '../protocol';
 import { deviceNameFromUserAgent, sanitizeSyncError } from './syncHost';
 import {
   CONSENT, PASSWORD, WRONG_PASSWORD, WireFailure, createBrowser, findSecrets, freshEmail, idbNames, loadSqlite,
@@ -79,6 +80,9 @@ async function passwordKeys(w: World, email: string, password: string): Promise<
   const { kdf } = (await res.json()) as { kdf: Sync.KdfParamsJson };
   return Sync.derivePasswordKeys(password, Crypto.kdfParamsFromJson(kdf));
 }
+
+const setRemember = (w: { request(r: UserDbRequest): Promise<unknown> }, remember: boolean) =>
+  w.request({ op: 'sync', action: 'setRemember', remember });
 
 describe('web sync host (integration)', () => {
   it('signUp answers only { recoveryCode }; a second browser signs in and both see each other\'s notes', async () => {
@@ -255,20 +259,39 @@ describe('web sync host (integration)', () => {
     await signUpVerified(w, a, email, true);
     expect((await rawSecretRecords(browser.indexedDB)).length).toBeGreaterThan(0);
 
-    await a.configure({ remember: false });
+    await setRemember(a, false);
     expect((await rawSecretRecords(browser.indexedDB)).filter((k) => String(k).startsWith('value:'))).toEqual([]);
     expect(((await startWorker(sqlite3, browser).sync('status')) as Sync.SyncStatus).state).toBe('locked');
 
-    await a.configure({ remember: true });
+    await setRemember(a, true);
     expect(UNLOCKED).toContain(((await startWorker(sqlite3, browser).sync('status')) as Sync.SyncStatus).state);
 
     // Toggled twice in quick succession (both in flight at once): the second ("do not remember") wins.
-    await a.configure({ remember: false });
-    await Promise.all([a.configure({ remember: true }), a.configure({ remember: false })]);
+    await setRemember(a, false);
+    await Promise.all([setRemember(a, true), setRemember(a, false)]);
     expect((await rawSecretRecords(browser.indexedDB)).filter((k) => String(k).startsWith('value:'))).toEqual([]);
     expect(((await startWorker(sqlite3, browser).sync('status')) as Sync.SyncStatus).state).toBe('locked');
     // The session in this worker is still unlocked (keys in memory).
     expect(await a.account('resume')).toEqual({ resumed: true });
+  }, T);
+
+  it('configure never changes remember after the first one: a stale tab cannot persist keys against the choice', async () => {
+    const w = await setup();
+    const browser = createBrowser(w, 'A');
+    const a = startWorker(sqlite3, browser);
+    await signUpVerified(w, a, freshEmail(), false); // the first configure seeds remember=false
+    expect((await rawSecretRecords(browser.indexedDB)).filter((k) => String(k).startsWith('value:'))).toEqual([]);
+
+    // A tab that still believes remember=true re-sends configure (catalog change): the worker ignores it.
+    await a.configure({ remember: true });
+    await a.configure({ remember: true });
+    expect((await rawSecretRecords(browser.indexedDB)).filter((k) => String(k).startsWith('value:'))).toEqual([]);
+    expect(((await startWorker(sqlite3, browser).sync('status')) as Sync.SyncStatus).state).toBe('locked');
+
+    // Only the explicit action changes it (and the reverse stale `false` cannot undo it).
+    await setRemember(a, true);
+    await a.configure({ remember: false });
+    expect(UNLOCKED).toContain(((await startWorker(sqlite3, browser).sync('status')) as Sync.SyncStatus).state);
   }, T);
 
   it('a local write schedules a debounced push (untracked tables do not)', async () => {

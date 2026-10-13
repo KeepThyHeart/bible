@@ -118,7 +118,14 @@ export class UserDbClient {
 
   /** A typed-by-the-caller facade: `client.repo<IUserNoteRepository>('notes').getAll()` returns promises. */
   repo(name: UserRepoName): Record<string, (...args: unknown[]) => Promise<unknown>> {
-    return new Proxy({}, { get: (_t, method) => (typeof method === 'string' ? (...args: unknown[]) => this.call(name, method, ...args) : undefined) });
+    // `then` (Promise resolution probes it when the proxy is awaited or returned from an async function), `toJSON` and
+    // every Object.prototype name are not repo methods: answer undefined instead of a remote call.
+    return new Proxy({}, {
+      get: (_t, method) =>
+        typeof method === 'string' && method !== 'then' && method !== 'toJSON' && !(method in Object.prototype)
+          ? (...args: unknown[]) => this.call(name, method, ...args)
+          : undefined,
+    });
   }
 
   wipe(): Promise<void> {

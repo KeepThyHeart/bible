@@ -137,6 +137,9 @@ export class WebUserData implements UserDataStore {
       }
     }
     const store = new WebUserData(idb, options);
+    // Another tab deletes or upgrades the database (a wipe): release it at once so the delete is never blocked, and stop
+    // persisting (the in-memory copy stays usable for this visit, but never re-creates wiped data).
+    if (idb) idb.onversionchange = () => store.close();
     if (!idb) {
       // Memory-only: ids still need a source.
       store.blocks.item.push({ next: 1, end: Number.MAX_SAFE_INTEGER });
@@ -149,6 +152,10 @@ export class WebUserData implements UserDataStore {
     if (channelName && typeof BroadcastChannel !== 'undefined') {
       store.channel = new BroadcastChannel(channelName);
       store.channel.onmessage = (ev: MessageEvent) => {
+        if ((ev.data as { close?: unknown } | null)?.close === true) {
+          store.close(); // a wipe in another tab asks us to let go of the database
+          return;
+        }
         const changes = (ev.data as { changes?: UserDataChange[] } | null)?.changes;
         if (!Array.isArray(changes)) return;
         if (hydrated) store.applyRemote(changes);

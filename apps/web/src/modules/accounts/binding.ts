@@ -3,7 +3,7 @@
  * `./module` (or anything from `src/userdb`, `@bible/core` Sync) statically from here: the entry-chunk guard forbids it.
  *
  * The server's e-mails link to `<publicUrl>/account/verify-email#token=...` and `<publicUrl>/account/reset-password#token=...`
- * (`packages/sync-server/src/email/messages.ts`). `takeUrl` keeps the token in memory and rewrites the address bar to `/`
+ * (`packages/sync-server/src/email/messages.ts`). `takeUrl` keeps the token in memory and rewrites the address bar to the app's base path (`/`)
  * before anything else runs, whether or not the module is on; `module.ts` picks it up with `takeAccountHandoff()`.
  */
 import type { WebFeatureModule } from '../moduleHost';
@@ -17,9 +17,20 @@ export interface AccountHandoff {
 
 let handoff: AccountHandoff | null = null;
 
-/** Parse an address (path + hash) into a handoff; null when it is not one of the two e-mail links or has no token. */
-export function parseAccountUrl(pathname: string, hash: string): AccountHandoff | null {
-  const path = pathname.replace(/\/+$/, '');
+/** The deployment's base path (`import.meta.env.BASE_URL`, e.g. `/bible/`); `/` when the app is served from the root. */
+function basePath(): string {
+  const b = (import.meta.env?.BASE_URL as string | undefined) ?? '/';
+  return b.startsWith('/') ? b : '/';
+}
+
+/**
+ * Parse an address (path + hash) into a handoff; null when it is not one of the two e-mail links or has no token.
+ * Under a base path (`BASE_PATH=/bible/`) the links are `/bible/account/...`: the base is stripped before matching.
+ */
+export function parseAccountUrl(pathname: string, hash: string, base: string = basePath()): AccountHandoff | null {
+  const prefix = base.replace(/\/+$/, '');
+  const rel = prefix && (pathname === prefix || pathname.startsWith(`${prefix}/`)) ? pathname.slice(prefix.length) : pathname;
+  const path = rel.replace(/\/+$/, '');
   const kind = path === '/account/verify-email' ? 'verify-email' : path === '/account/reset-password' ? 'reset-password' : null;
   if (!kind) return null;
   const token = new URLSearchParams(hash.replace(/^#/, '')).get('token');
@@ -32,7 +43,7 @@ function takeUrl(): void {
   if (!found) return;
   handoff = found;
   try {
-    history.replaceState(null, '', '/');
+    history.replaceState(null, '', basePath());
   } catch {
     /* the address bar keeps the link; the token is already taken */
   }

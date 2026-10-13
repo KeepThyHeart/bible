@@ -142,6 +142,23 @@ describe('OpfsUserData', () => {
     expect(new Set(rows.map((r) => r.item_id)).size).toBe(rows.length);
   });
 
+  it('drops write-behind that failed before a wipe (it must not be re-written into the fresh database)', async () => {
+    const client = newClient();
+    const a = await open(client);
+    const real = client.call;
+    (a as unknown as { client: { call: typeof real } }).client = {
+      ...client,
+      call: (...args: Parameters<typeof real>) => (args[1] === 'applyChanges' ? Promise.reject(new Error('during wipe')) : real(...args)),
+    } as never;
+    a.items.put(UserDataItem.json(OWNER, 'c', 'doomed', 1));
+    await expect(a.flush()).rejects.toThrow('during wipe');
+    await client.request({ op: 'wipe' });
+    await tick();
+    (a as unknown as { client: unknown }).client = client;
+    await a.flush();
+    expect((await client.call<{ items: unknown[] }>('userDataMirror', 'readSnapshot')).items).toEqual([]);
+  });
+
   it('keeps failed writes queued, reports them and retries', async () => {
     const client = newClient();
     const a = await open(client);

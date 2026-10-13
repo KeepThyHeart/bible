@@ -4,7 +4,8 @@
  * BroadcastChannel 'kth-userdb' and get answers and events back the same way. When the leader's tab closes
  * the lock passes to the next queued tab, which announces itself ('hello'); followers then re-send whatever
  * they were still waiting on (a request that was mid-flight on the old leader is therefore retried, so call
- * sites should treat a repeat of a write as possible: repository writes are keyed upserts).
+ * sites should treat a repeat of a write as possible: repository writes are keyed upserts). Non-idempotent account
+ * operations are not retried: they reject with code `leader_changed` (see `isReplayable`).
  *
  * `locks`, `BroadcastChannel` and the backend are injected so tests can fake them; the defaults are the
  * browser globals. No globals are touched at import time.
@@ -42,6 +43,20 @@ type ChannelMessage =
 /** Backend events that stay in the leader tab: `hostCall` (worker -> leader main thread) is never posted on the channel. */
 export function isLocalOnlyEvent(evt: UserDbEvent): boolean {
   return evt.event === 'hostCall';
+}
+
+/** Account methods whose repeat is harmful (a completed change must not run twice); `signIn` and `resume` are safe. */
+const NON_REPLAYABLE_ACCOUNT_METHODS = new Set([
+  'changePassword', 'regenerateRecoveryCode', 'rotateKeys', 'startOver', 'signUp', 'signInWithRecoveryCode', 'deleteAccount', 'signOut',
+]);
+
+/**
+ * Whether a follower may re-send `req` to a new leader. A non-idempotent account operation that may have completed on
+ * the old leader (its answer died with that tab) is rejected with `leader_changed` instead, so the user checks the
+ * account rather than the password crossing the channel again and the operation running twice.
+ */
+export function isReplayable(req: UserDbRequest): boolean {
+  return !(req.op === 'sync' && req.action === 'account' && NON_REPLAYABLE_ACCOUNT_METHODS.has(String(req.method)));
 }
 
 export interface UserDbNodeOptions {
@@ -85,6 +100,11 @@ export function createUserDbNode(options: UserDbNodeOptions): UserDbNode {
     const m = e.data as ChannelMessage;
     if (!m || closed) return;
     if (m.t === 'req' && leader) {
+      // `hostReply` is only ever valid from this tab's own client (it answers a hostCall that never leaves the leader).
+      if ((m.req as { op?: string } | undefined)?.op === 'hostReply') {
+        post({ t: 'res', to: m.from, id: m.id, ok: false, error: { name: 'Error', message: 'hostReply is not accepted from the channel', code: 'bad_request' } });
+        return;
+      }
       const key = `${m.from}:${m.id}`;
       if (inFlight.has(key)) return;
       inFlight.add(key);
@@ -103,7 +123,14 @@ export function createUserDbNode(options: UserDbNodeOptions): UserDbNode {
       emitLocal(m.evt);
     } else if (m.t === 'hello' && !leader && m.from !== nodeId) {
       // New leader: whatever we still wait on may have died with the old one.
-      for (const [id, p] of pending) post({ t: 'req', from: nodeId, id, req: p.req });
+      for (const [id, p] of pending) {
+        if (isReplayable(p.req)) {
+          post({ t: 'req', from: nodeId, id, req: p.req });
+        } else {
+          pending.delete(id);
+          p.reject(new UserDbError({ name: 'Error', message: 'The sync host changed while this was running; check your account and try again', code: 'leader_changed' }));
+        }
+      }
     }
   });
 

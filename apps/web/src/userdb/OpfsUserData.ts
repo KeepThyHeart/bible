@@ -76,6 +76,7 @@ export class OpfsUserData implements UserDataStore {
     await Promise.all([store.reserve('item'), store.reserve('link')]);
     store.db.subscribe((c) => store.enqueue(c));
     store.offEvents = client.onEvent((e) => {
+      if (e.event === 'changed' && e.wiped) store.pending = []; // changes that failed before a wipe must not resurrect data
       if (e.event === 'changed' && e.tables.some((t) => t === 'user_data_item' || t === 'verse_link')) store.scheduleRefresh();
     });
     return store;

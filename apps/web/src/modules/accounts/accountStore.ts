@@ -60,6 +60,11 @@ export interface AccountStoreDeps {
 
 const SIGNED_OUT: Sync.SyncStatus = { state: 'signed-out', pending: 0, opaque: 0 };
 
+/** The sync server's base: this origin plus the deployment's base path (`import.meta.env.BASE_URL`, no trailing slash). */
+export function defaultBaseUrl(basePath: string = import.meta.env?.BASE_URL ?? '/'): string {
+  return location.origin + basePath.replace(/\/+$/, '');
+}
+
 export class AccountStore {
   private state: AccountState = { available: true, status: SIGNED_OUT, devices: [], dialog: null, busy: false };
   private readonly listeners = new Set<() => void>();
@@ -119,6 +124,7 @@ export class AccountStore {
     this.offEvents = this.transport.onEvent((e) => {
       if (e.event === 'syncStatus') this.onStatus(e.status);
     });
+    try { globalThis.addEventListener?.('storage', this.onStorage as EventListener); } catch { /* no window */ }
     const mods = this.deps.modules;
     if (mods) this.offModules = mods.subscribe(() => { void this.configure(); });
     try {
@@ -129,13 +135,13 @@ export class AccountStore {
     }
   }
 
-  /** Send `configure` with the current catalog; re-sent when the catalog loads or `remember` changes. */
+  /** Send `configure` with the current catalog; re-sent when the catalog loads. `remember` only seeds the first one. */
   private async configure(): Promise<Sync.SyncStatus | null> {
     if (!this.transport) return null;
     try {
       const status = (await this.transport.request({
         op: 'sync', action: 'configure',
-        baseUrl: this.deps.baseUrl ?? location.origin,
+        baseUrl: this.deps.baseUrl ?? defaultBaseUrl(),
         remember: this.remember,
         modules: this.deps.modules?.list() ?? [],
       })) as Sync.SyncStatus;
@@ -147,6 +153,7 @@ export class AccountStore {
   }
 
   dispose(): void {
+    try { globalThis.removeEventListener?.('storage', this.onStorage as EventListener); } catch { /* no window */ }
     this.offEvents?.();
     this.offModules?.();
     this.offEvents = this.offModules = null;
@@ -282,11 +289,20 @@ export class AccountStore {
     });
   }
 
+  /**
+   * The user's sign-in choice. Always sent (the worker's persisted value is authoritative and may differ from this
+   * tab's copy, which another tab can have changed); `configure` never carries a change of it.
+   */
   private async applyRemember(next: boolean): Promise<void> {
-    if (next === this.remember) return;
     this.writeRemember(next);
-    await this.configure(); // the worker moves the stored secrets
+    await this.start();
+    await this.transport?.request({ op: 'sync', action: 'setRemember', remember: next }); // the worker moves the stored secrets
   }
+
+  /** Another tab changed the choice: follow it (display only; the worker already has it). */
+  private onStorage = (e: { key?: string | null }): void => {
+    if (e.key === REMEMBER_KEY || e.key === null) this.remember = this.readRemember();
+  };
 
   recover(v: { email: string; code: string; newPassword: string }): Promise<boolean> {
     return this.run('recover', async () => {

@@ -86,6 +86,37 @@ describe('SyncEngine: basic flow', () => {
   });
 });
 
+describe('SyncEngine: ext.kv opt-in on apply (R2 L6)', () => {
+  const kvRows = (d: Device) => d.db.queryAll<{ extension_id: string; value: string }>('SELECT extension_id, value FROM extension_storage');
+
+  it('a record of a non-opted extension stays opaque (not applied, not re-pushed) and applies once it opts in', async () => {
+    const { server, u, a, b } = pair({}, { codecs: createCodecRegistry(createCoreCodecs({ extKvSyncs: () => false })) });
+    a.db.execute("INSERT INTO extension_storage (extension_id, key, value, updated_at) VALUES ('ext.m', 'k', '\"a\"', 1)");
+    await a.engine.syncNow();
+    const res = await b.engine.syncNow();
+    expect(res.opaque).toBe(1);
+    expect(kvRows(b)).toEqual([]);
+    expect(b.tracker.opaque.all()).toHaveLength(1);
+    await b.engine.syncNow();
+    expect(kvRows(b)).toEqual([]);
+    expect(b.tracker.pendingCount()).toBe(0);
+
+    const b2 = reopenDevice(server, b, 2, u, { codecs: createCodecRegistry(createCoreCodecs({ extKvSyncs: (id) => id === 'ext.m' })) });
+    await b2.engine.syncNow();
+    expect(kvRows(b2)).toEqual([{ extension_id: 'ext.m', value: '"a"' }]);
+    expect(b2.tracker.opaque.all()).toEqual([]);
+  });
+
+  it('a local edit of a non-opted extension is not overwritten by a remote version', async () => {
+    const { a, b } = pair({}, { codecs: createCodecRegistry(createCoreCodecs({ extKvSyncs: () => false })) });
+    a.db.execute("INSERT INTO extension_storage (extension_id, key, value, updated_at) VALUES ('ext.m', 'k', '\"a\"', 1)");
+    b.db.execute("INSERT INTO extension_storage (extension_id, key, value, updated_at) VALUES ('ext.m', 'k', '\"local\"', 2)");
+    await a.engine.syncNow();
+    await b.engine.syncNow();
+    expect(kvRows(b)).toEqual([{ extension_id: 'ext.m', value: '"local"' }]);
+  });
+});
+
 describe('SyncEngine: conflicts', () => {
   it('concurrent note edits: the newer body wins and both devices get the same conflicted copy', async () => {
     const { a, b } = pair();

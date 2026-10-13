@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { UserDbEvent, UserDbRequest } from '../../userdb/protocol';
-import { AccountStore, REMEMBER_KEY, SYNC_THROTTLE_MS } from './accountStore';
+import { AccountStore, defaultBaseUrl, REMEMBER_KEY, SYNC_THROTTLE_MS } from './accountStore';
 import type { AccountsTransport } from './accountStore';
 import { failureToken } from './errors';
 
@@ -131,23 +131,40 @@ describe('sign-up flow', () => {
 });
 
 describe('sign-in', () => {
-  it('persists a changed remember choice and re-configures before signing in', async () => {
+  it('persists a changed remember choice and sends setRemember (not configure) before signing in', async () => {
     const { store, storage, requests } = setup();
     await store.start();
     await store.signIn({ email: 'a@b.c', password: 'pw', remember: true });
     expect(storage.data[REMEMBER_KEY]).toBe('true');
     const order = requests.filter((r) => r.op === 'sync').map((r) => (r as { action: string }).action);
-    expect(order.slice(0, 3)).toEqual(['configure', 'configure', 'account']);
-    expect((requests.filter((r) => r.op === 'sync' && r.action === 'configure')[1] as { remember: boolean }).remember).toBe(true);
+    expect(order.slice(0, 3)).toEqual(['configure', 'setRemember', 'account']);
+    expect(requests).toContainEqual({ op: 'sync', action: 'setRemember', remember: true });
     expect(store.getSnapshot().dialog).toBe('account');
   });
 
-  it('keeps remember off by default (no write, no second configure)', async () => {
-    const { store, storage, requests } = setup();
+  it('a catalog change re-sends configure without changing remember (stale tab cannot override the choice)', async () => {
+    // This tab was loaded with remember=true; another tab since chose false. The worker decides: configure is sent
+    // for the catalog only and no setRemember goes out.
+    const { store, requests } = setup({}, undefined);
+    (store as unknown as { remember: boolean }).remember = true;
     await store.start();
-    await store.signIn({ email: 'a@b.c', password: 'pw', remember: false });
-    expect(storage.data[REMEMBER_KEY]).toBeUndefined();
-    expect(requests.filter((r) => r.op === 'sync' && r.action === 'configure')).toHaveLength(1);
+    await (store as unknown as { configure(): Promise<unknown> }).configure();
+    expect(requests.filter((r) => r.op === 'sync' && r.action === 'setRemember')).toHaveLength(0);
+  });
+
+  it('follows the remember choice another tab stores (storage event)', async () => {
+    const { store, storage } = setup();
+    await store.start();
+    expect(store.rememberChoice).toBe(false);
+    storage.data[REMEMBER_KEY] = 'true';
+    window.dispatchEvent(Object.assign(new Event('storage'), { key: REMEMBER_KEY }));
+    expect(store.rememberChoice).toBe(true);
+    store.dispose();
+  });
+
+  it('defaultBaseUrl keeps the deployment base path', () => {
+    expect(defaultBaseUrl('/bible/')).toBe(location.origin + '/bible');
+    expect(defaultBaseUrl('/')).toBe(location.origin);
   });
 
   it('unlock is a sign-in with the remembered e-mail', async () => {

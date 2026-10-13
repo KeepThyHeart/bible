@@ -89,7 +89,17 @@ describe('importKthUserData', () => {
       d.onsuccess = () => res();
       d.onerror = () => rej(d.error);
     });
-    expect(await client.request(req)).toEqual({ items: 0, links: 0 });
+    expect(await client.request(req)).toMatchObject({ items: 0, links: 0 });
+    expect(((await client.call('userDataMirror', 'readSnapshot')) as { items: unknown[] }).items).toEqual([]);
+  });
+
+  it('after a wipe nothing is imported even though kth-user-data still holds rows (its delete was blocked)', async () => {
+    const idb = new IDBFactory();
+    await seedIdb(idb);
+    const client = clientFor(idb);
+    await client.request(req);
+    await client.request({ op: 'wipe' }); // IndexedDB is NOT deleted here
+    expect(await client.request(req)).toEqual({ items: 0, links: 0, skipped: true });
     expect(((await client.call('userDataMirror', 'readSnapshot')) as { items: unknown[] }).items).toEqual([]);
   });
 

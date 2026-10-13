@@ -22,7 +22,7 @@ describe('SignUpForm', () => {
   it('submits only after strength is checked, consents are ticked and passwords match', async () => {
     const user = userEvent.setup();
     const onSubmit = vi.fn(ok);
-    render(<SignUpForm onSubmit={onSubmit} checkStrength={strong} minAge={16} termsUrl="/t" privacyUrl="/p" />);
+    render(<SignUpForm onSubmit={onSubmit} checkStrength={strong} minAge={16} termsUrl="https://example.org/t" privacyUrl="http://localhost:3000/p" />);
     const submit = screen.getByRole('button', { name: DEFAULT_SIGN_UP_LABELS.submit });
     await fillSignUp(user);
     expect(await screen.findByText('Strong')).toBeInTheDocument();
@@ -33,7 +33,14 @@ describe('SignUpForm', () => {
     expect(submit).toBeEnabled();
     await user.click(submit);
     expect(onSubmit).toHaveBeenCalledWith({ email: 'a@b.co', password: 'correct horse', consentTerms: true, ageConfirmed: true });
-    expect(screen.getByRole('link', { name: 'Terms of Service' })).toHaveAttribute('href', '/t');
+    expect(screen.getByRole('link', { name: 'Terms of Service' })).toHaveAttribute('href', 'https://example.org/t');
+  });
+
+  it('renders only https (or loopback http) terms/privacy URLs as links (R2 L4)', () => {
+    render(<SignUpForm onSubmit={ok} checkStrength={strong} minAge={16} termsUrl="javascript:alert(1)" privacyUrl="http://evil.example/p" />);
+    expect(screen.queryByRole('link')).toBeNull();
+    expect(screen.getByText(DEFAULT_SIGN_UP_LABELS.termsLink)).toBeInTheDocument();
+    expect(screen.getByText(DEFAULT_SIGN_UP_LABELS.privacyLink)).toBeInTheDocument();
   });
 
   it('blocks submit below minScore (default 3) and shows the too-weak hint', async () => {

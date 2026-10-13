@@ -368,8 +368,16 @@ describe('toAccountsError', () => {
       expect((out as IpcKnownError).code).toBe(ipc);
     }
   });
-  it('leaves unknown errors alone', () => {
-    const e = new Error('boom');
-    expect(toAccountsError(e)).toBe(e);
+  it('maps unknown errors to a bare internal error and reports only the error name', () => {
+    const names: string[] = [];
+    const out = toAccountsError(new TypeError('secret-pw'), (n) => names.push(n));
+    expect(out).toBeInstanceOf(IpcKnownError);
+    expect(out.code).toBe('internal');
+    expect(out.message).toBe('internal');
+    expect(out.stack).toBeUndefined();
+    expect(names).toEqual(['TypeError']);
+    expect(JSON.stringify(names)).not.toContain('secret-pw');
+    expect(toAccountsError('secret-pw', (n) => names.push(n)).message).toBe('internal');
+    expect(names[1]).toBe('UnknownError');
   });
 });

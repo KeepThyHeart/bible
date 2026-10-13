@@ -187,7 +187,8 @@
       "server_error": "‏The sync server had a problem. Try again later.‏",
       "network": "‏The sync server cannot be reached.‏",
       "unavailable": "‏Account sync is not available in this browser right now.‏",
-      "internal": "‏Something went wrong.‏"
+      "internal": "‏Something went wrong.‏",
+      "leader_changed": "‏Another tab took over while this was running. Check your account, then try again if needed.‏"
     },
     "feedback": {
       "straightRow": "‏Straight rows of keys are easy to guess.‏",

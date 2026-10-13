@@ -28,8 +28,14 @@ export type HostApiName = 'memory.bible';
 export type UserDbRequest =
   | { op: 'open' }                                          // create/upgrade schema (core createUserSchema)
   | { op: 'call'; repo: UserRepoName; method: string; args: unknown[] }
-  /** Persisted in the worker (`setting` web/sync.*); re-sent when the module catalog loads. */
-  | { op: 'sync'; action: 'configure'; baseUrl: string; remember: boolean; modules: ModuleRef[] }
+  /**
+   * Persisted in the worker (`setting` web/sync.*); re-sent when the module catalog loads. `remember` only seeds the
+   * very first configure: afterwards the worker's persisted choice is authoritative (a stale tab cannot override it),
+   * and only `setRemember` changes it.
+   */
+  | { op: 'sync'; action: 'configure'; baseUrl: string; remember?: boolean; modules: ModuleRef[] }
+  /** The user's explicit "keep me signed in" choice (sign-in form); moves the stored secrets. Answers the status. */
+  | { op: 'sync'; action: 'setRemember'; remember: boolean }
   /** Answers an `AccountResult` (sanitised: never keys). */
   | { op: 'sync'; action: 'account'; method: keyof AccountClientMethods; args: unknown[] }
   | { op: 'sync'; action: 'syncNow' }                       // -> Sync.SyncResult | null (never rejects)
@@ -55,7 +61,7 @@ export type UserRepoName = 'notes' | 'commentaries' | 'markup' | 'collections' |
   | 'userData' | 'memory' | 'annotations' | 'userDataMirror';
 export type UserDbResponse = { id: number; ok: true; value: unknown } | { id: number; ok: false; error: WireErrorShape };
 export type UserDbEvent =
-  | { event: 'changed'; tables: string[] }
+  | { event: 'changed'; tables: string[]; wiped?: true }
   | { event: 'syncStatus'; status: Sync.SyncStatus }
   | { event: 'leader'; isLeader: boolean }
   | { event: 'memoryPush'; push: MemoryPush }

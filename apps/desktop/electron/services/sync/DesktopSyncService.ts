@@ -124,13 +124,23 @@ export function failureOf(err: unknown): AccountsFailure | null {
 
 /**
  * Turn a sync-stack error into the `IpcKnownError` the renderer expects (the message is the `AccountsFailure` token; the
- * renderer localises `accounts.error.<token>`). Anything unrecognised is returned unchanged (it becomes `internal`).
+ * renderer localises `accounts.error.<token>`). Anything unrecognised becomes an error with code `internal` and the bare
+ * message `internal`: the original message and stack never reach the renderer or the log (R2 L3). `onUnknown` receives
+ * only the error's name.
  */
-export function toAccountsError(err: unknown): unknown {
+export function toAccountsError(err: unknown, onUnknown?: (errorName: string) => void): IpcKnownError {
   if (err instanceof IpcKnownError) return err;
   const failure = failureOf(err);
-  if (failure === null || failure === 'internal') return err;
-  return new IpcKnownError(ACCOUNTS_IPC_ERROR_CODES[failure] as Exclude<IpcErrorCode, 'internal'>, failure);
+  if (failure !== null && failure !== 'internal') {
+    return new IpcKnownError(ACCOUNTS_IPC_ERROR_CODES[failure] as Exclude<IpcErrorCode, 'internal'>, failure);
+  }
+  onUnknown?.(err instanceof Error && /^\w{1,64}$/.test(err.name) ? err.name : 'UnknownError');
+  // IpcKnownError's constructor refuses 'internal'; moduleIpc then logs one `warn` line (`internal: internal`) and
+  // sends `{ code: 'internal', message: 'internal' }`, with no stack.
+  const e = new IpcKnownError('unavailable', 'internal');
+  Object.defineProperty(e, 'code', { value: 'internal' });
+  e.stack = undefined;
+  return e;
 }
 
 const SECRET_NAMES: readonly Sync.SecretName[] = ['sync.unlocked', 'sync.token'];

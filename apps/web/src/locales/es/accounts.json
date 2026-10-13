@@ -187,7 +187,8 @@
       "server_error": "El servidor de sincronización tuvo un problema. Inténtalo más tarde.",
       "network": "No se puede conectar con el servidor de sincronización.",
       "unavailable": "La sincronización de cuenta no está disponible ahora en este navegador.",
-      "internal": "Algo salió mal."
+      "internal": "Algo salió mal.",
+      "leader_changed": "Otra pestaña tomó el control mientras esto se ejecutaba. Revisa tu cuenta y vuelve a intentarlo si hace falta."
     },
     "feedback": {
       "straightRow": "Las filas seguidas de teclas son fáciles de adivinar.",

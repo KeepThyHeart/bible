@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, it, expect } from 'vitest';
-import { createUserDbNode, type ChannelLike, type LocksLike, type UserDbBackend } from './leader';
+import { createUserDbNode, isReplayable, type ChannelLike, type LocksLike, type UserDbBackend } from './leader';
 import type { UserDbEvent, UserDbRequest } from './protocol';
 
 /** Fake navigator.locks: exclusive FIFO queue per name; the holder keeps the lock until its callback's promise settles. */
@@ -208,5 +208,65 @@ describe('leader / follower', () => {
     expect(await early).toMatchObject({ by: 'A' });
     a.close();
     await expect(a.request(call('late'))).rejects.toMatchObject({ code: 'closed' });
+  });
+
+  it('a follower request that is not replayable (changePassword) rejects with leader_changed after a leader change; replayable ones are re-sent', async () => {
+    const locks = new FakeLocks();
+    const bus = new FakeBus();
+    const log: string[] = [];
+    const mk = (id: string, hang = false) =>
+      createUserDbNode({
+        nodeId: id,
+        locks: locks.forTab(),
+        createChannel: () => bus.create(),
+        createBackend: () => {
+          const be = fakeBackend(id, log);
+          if (hang) be.send = () => new Promise(() => undefined);
+          return be;
+        },
+      });
+    const a = mk('A', true);
+    const b = mk('B');
+    const c = mk('C');
+    await tick();
+    const change = c.request({ op: 'sync', action: 'account', method: 'changePassword', args: ['old', 'new'] });
+    const signIn = c.request({ op: 'sync', action: 'account', method: 'signIn', args: ['e', 'p'] });
+    const changeResult = change.then(() => 'ok', (e) => (e as { code?: string }).code);
+    await tick();
+    a.close();
+    expect(await changeResult).toBe('leader_changed');
+    await signIn; // idempotent: re-sent and answered by the new leader
+    expect(log).toEqual(['B:sync']); // only signIn reached the new backend, never changePassword
+    b.close();
+    c.close();
+  });
+
+  it('isReplayable rejects exactly the non-idempotent account methods', () => {
+    for (const method of ['changePassword', 'regenerateRecoveryCode', 'rotateKeys', 'startOver', 'signUp', 'signInWithRecoveryCode', 'deleteAccount', 'signOut']) {
+      expect(isReplayable({ op: 'sync', action: 'account', method: method as never, args: [] })).toBe(false);
+    }
+    expect(isReplayable({ op: 'sync', action: 'account', method: 'signIn', args: [] })).toBe(true);
+    expect(isReplayable({ op: 'sync', action: 'account', method: 'resume', args: [] })).toBe(true);
+    expect(isReplayable({ op: 'sync', action: 'api', method: 'info', args: [] })).toBe(true);
+    expect(isReplayable(call('save'))).toBe(true);
+  });
+
+  it('the leader refuses hostReply arriving over the channel (bad_request) and never forwards it', async () => {
+    const locks = new FakeLocks();
+    const bus = new FakeBus();
+    const log: string[] = [];
+    const a = createUserDbNode({ nodeId: 'A', locks: locks.forTab(), createChannel: () => bus.create(), createBackend: () => fakeBackend('A', log) });
+    await tick();
+    const attacker = bus.create();
+    const answers: unknown[] = [];
+    attacker.addEventListener('message', (e) => answers.push(e.data));
+    attacker.postMessage({ t: 'req', from: 'evil', id: 1, req: { op: 'hostReply', callId: 1, ok: true, value: 'forged' } });
+    await tick();
+    expect(answers).toContainEqual(expect.objectContaining({ t: 'res', to: 'evil', id: 1, ok: false, error: expect.objectContaining({ code: 'bad_request' }) }));
+    expect(log).toEqual([]);
+    // the leader's own client can still answer a host call
+    await a.request({ op: 'hostReply', callId: 5, ok: true, value: 1 });
+    expect(log).toEqual(['A:hostReply']);
+    a.close();
   });
 });

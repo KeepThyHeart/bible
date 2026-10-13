@@ -11,6 +11,7 @@ import type { Sync } from '@bible/core/browser';
 import { toWireError, type WireError } from './errors';
 import type { OpenedUserDb } from './openUserDb';
 import type { HostApiName, UserDbEvent, UserDbRequest } from './protocol';
+import { writeImportMarker } from './importKthUserData';
 import { createRepos, disposeRepos, isChangeFreeCall, REPO_TABLES, type RepoBag } from './repos';
 
 /** Calls a main-thread host API (leader tab) from the worker. */
@@ -101,14 +102,28 @@ export function createUserDbHandler(opts: UserDbHandlerOptions): {
   async function wipe(): Promise<void> {
     if (repos) disposeRepos(repos);
     repos = undefined;
-    if (opened) {
-      const pending = opened;
+    {
+      // Open first when this leader never did: the OPFS files of an earlier session must go too.
+      const pending = opened ?? opts.open();
       opened = undefined;
       const db = await pending.catch(() => undefined);
       if (db) await db.wipe();
+      // The import marker lived in the deleted database. Write it into a fresh one before anything that can hang or
+      // fail (the IndexedDB deletes), so a surviving `kth-user-data` can never be imported again.
+      try {
+        const fresh = opts.open();
+        opened = fresh;
+        writeImportMarker((await fresh).sql, 'wiped');
+      } catch {
+        opened = undefined; // the next request reopens; the IndexedDB delete below is the fallback guard
+      }
     }
-    await opts.onWipe?.();
-    opts.emit({ event: 'changed', tables: Object.values(REPO_TABLES).flat() as string[] });
+    try {
+      await opts.onWipe?.();
+    } finally {
+      // `wiped`: tabs drop write-behind they could not deliver before the wipe.
+      opts.emit({ event: 'changed', tables: Object.values(REPO_TABLES).flat() as string[], wiped: true });
+    }
   }
 
   const extCtx = (sql: Sync.ISql): ExtCtx => ({ sql, emit: opts.emit, wipe, hostCall });

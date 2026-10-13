@@ -28,4 +28,21 @@ describe('wipeBrowserStores', () => {
     await expect(wipeBrowserStores(new IDBFactory())).resolves.toBeUndefined();
     await expect(wipeBrowserStores(undefined)).resolves.toBeUndefined();
   });
+
+  it('settles within the timeout (wipe_incomplete) when another connection ignores versionchange', async () => {
+    const idb = new IDBFactory();
+    await create(idb, 'kth-secrets');
+    // A holder that never closes.
+    const held = await new Promise<IDBDatabase>((resolve, reject) => {
+      const req = idb.open('kth-user-data', 1);
+      req.onupgradeneeded = () => req.result.createObjectStore('s');
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+    held.onversionchange = () => undefined;
+    const started = Date.now();
+    await expect(wipeBrowserStores(idb, 50)).rejects.toMatchObject({ code: 'wipe_incomplete' });
+    expect(Date.now() - started).toBeLessThan(2000);
+    held.close();
+  });
 });

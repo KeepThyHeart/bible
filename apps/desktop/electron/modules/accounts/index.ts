@@ -92,7 +92,8 @@ export function createAccountsMainModule(envOverrides: Partial<AccountsMainEnv> 
         try {
           return await call(method, await get(), args);
         } catch (err) {
-          throw (await import('../../services/sync/DesktopSyncService')).toAccountsError(err);
+          throw (await import('../../services/sync/DesktopSyncService')).toAccountsError(err, (name) =>
+            deps.log.warn(`[accounts] ${method} failed (${name})`));
         }
       });
     }

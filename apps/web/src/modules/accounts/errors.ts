@@ -6,7 +6,7 @@
 export const ACCOUNTS_FAILURES = [
   'invalid_credentials', 'invalid_recovery_code', 'damaged_keys', 'crypto', 'not_signed_in', 'weak_password',
   'bad_request', 'unauthorized', 'forbidden', 'not_found', 'conflict_email', 'email_unverified', 'quota_exceeded',
-  'too_large', 'rate_limited', 'signup_closed', 'server_error', 'network', 'unavailable', 'internal',
+  'too_large', 'rate_limited', 'signup_closed', 'server_error', 'network', 'unavailable', 'leader_changed', 'internal',
 ] as const;
 export type AccountsFailureToken = (typeof ACCOUNTS_FAILURES)[number];
 

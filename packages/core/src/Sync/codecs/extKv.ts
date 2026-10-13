@@ -18,8 +18,9 @@ function splitKey(localKey: string): [string, string] | null {
 
 /**
  * `extKvSyncs(extensionId)` is the opt-in predicate (the extension declared `userData.sync: true`). Default: nothing
- * syncs. When it says no, `encode` returns null, so the engine does not push the row; decode/apply stay ungated
- * (a record already on the server still lands, and a later opt-in on this device uploads the local rows).
+ * syncs. When it says no, `encode` returns null, so the engine does not push the row, and `upsert`/`remove` throw
+ * `RecordDecodeError`: the incoming record is kept opaque (not applied, not deleted, not re-pushed) and is applied by
+ * the opaque retry of the next engine run once the extension has opted in (R2 L6).
  */
 export function createExtKvCodec(extKvSyncs: (extensionId: string) => boolean = () => false): RecordCodec {
   return {
@@ -47,6 +48,7 @@ export function createExtKvCodec(extKvSyncs: (extensionId: string) => boolean = 
       if (typeof ext !== 'string' || typeof key !== 'string' || typeof value !== 'string' || typeof at !== 'number') {
         throw new Error('ext.kv: malformed row');
       }
+      if (!extKvSyncs(ext)) throw new RecordDecodeError('ext.kv: extension has not opted in to sync');
       ctx.sql.execute(
         `INSERT INTO extension_storage (extension_id, key, value, updated_at) VALUES (?, ?, ?, ?)
          ON CONFLICT (extension_id, key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`,
@@ -55,6 +57,7 @@ export function createExtKvCodec(extKvSyncs: (extensionId: string) => boolean = 
     },
     remove(localKey, ctx) {
       const parts = splitKey(localKey);
+      if (parts && !extKvSyncs(parts[0])) throw new RecordDecodeError('ext.kv: extension has not opted in to sync');
       if (parts) ctx.sql.execute('DELETE FROM extension_storage WHERE extension_id = ? AND key = ?', parts);
     },
     naturalKey(d) {

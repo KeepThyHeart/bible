@@ -24,6 +24,28 @@ describe('parseAccountUrl', () => {
   });
 });
 
+describe('parseAccountUrl under a base path', () => {
+  it('strips BASE_URL before matching (BASE_PATH=/bible/)', () => {
+    expect(parseAccountUrl('/bible/account/reset-password', '#token=x', '/bible/')).toEqual({ kind: 'reset-password', token: 'x' });
+    expect(parseAccountUrl('/bible/account/verify-email/', '#token=y', '/bible/')?.kind).toBe('verify-email');
+    expect(parseAccountUrl('/account/reset-password', '#token=x', '/bible/')?.kind).toBe('reset-password');
+    expect(parseAccountUrl('/biblex/account/reset-password', '#token=x', '/bible/')).toBeNull();
+  });
+
+  it('takeUrl rewrites the address to the base path, not /', () => {
+    vi.stubEnv('BASE_URL', '/bible/');
+    try {
+      history.replaceState(null, '', '/bible/account/reset-password#token=secret123');
+      accountsModule.takeUrl?.();
+      expect(location.pathname).toBe('/bible/');
+      expect(location.href).not.toContain('secret123');
+      expect(takeAccountHandoff()).toEqual({ kind: 'reset-password', token: 'secret123' });
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+});
+
 describe('takeUrl', () => {
   it('keeps the token in memory and removes it from the address bar', () => {
     history.replaceState(null, '', '/account/reset-password#token=secret123');

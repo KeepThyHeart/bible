@@ -97,7 +97,7 @@ describe('accounts main module', () => {
     s.mod.close?.();
   });
 
-  it('maps failures to IpcKnownError tokens and rethrows unknown errors', async () => {
+  it('maps failures to IpcKnownError tokens and maps unknown errors to a sanitised internal error', async () => {
     const s = setup({ resumeDelayMs: 60_000 });
     const handler = s.handlers.get('signIn')!;
     (s.svc as { fail?: unknown }).fail = new NetworkBlockedError('sync');
@@ -107,9 +107,15 @@ describe('accounts main module', () => {
     expect(err).toBeInstanceOf(IpcKnownError);
     expect(err.message).toBe('rate_limited');
     expect(err.code).toBe(ACCOUNTS_IPC_ERROR_CODES.rate_limited);
-    const boom = new Error('boom');
-    (s.svc as { fail?: unknown }).fail = boom;
-    await expect(handler({})).rejects.toBe(boom);
+    const warn = deps.log.warn as ReturnType<typeof vi.fn>;
+    warn.mockClear();
+    (s.svc as { fail?: unknown }).fail = new Error('secret-pw');
+    const internal = (await (handler({}) as Promise<unknown>).catch((e: unknown) => e)) as IpcKnownError;
+    expect(internal).toBeInstanceOf(IpcKnownError);
+    expect(internal.code).toBe('internal');
+    expect(internal.message).toBe('internal');
+    expect(JSON.stringify(warn.mock.calls)).not.toContain('secret-pw');
+    expect(warn).toHaveBeenCalledWith('[accounts] signIn failed (Error)');
     s.mod.close?.();
   });
 
@@ -150,7 +156,7 @@ describe('accounts main module', () => {
     let n = 0;
     const f = fakeService();
     const s = setup({ resumeDelayMs: 60_000, createService: async () => { if (++n === 1) throw new Error('db'); return f.svc; } });
-    await expect(s.handlers.get('status')!()).rejects.toThrow('db');
+    await expect(s.handlers.get('status')!()).rejects.toMatchObject({ code: 'internal', message: 'internal' });
     expect(await s.handlers.get('devices')!()).toEqual({ ok: 'devices' });
     s.mod.close?.();
   });

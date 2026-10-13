@@ -65,6 +65,15 @@ function readIdb(factory: IDBFactory): Promise<Rows | null> {
   });
 }
 
+/** Marks the one-shot import as done without importing (after a wipe, so a surviving `kth-user-data` is never re-imported). */
+export function writeImportMarker(sql: ExtCtx['sql'], source: string): void {
+  sql.execute(
+    `INSERT INTO setting (category, key, value, value_type) VALUES (?, ?, ?, 'json')
+     ON CONFLICT(category, key) DO UPDATE SET value = excluded.value`,
+    [IMPORT_MARKER.category, IMPORT_MARKER.key, JSON.stringify({ items: 0, links: 0, source })],
+  );
+}
+
 const inFlight = new WeakMap<object, Promise<ImportResult>>();
 
 export function importKthUserData(
