@@ -68,7 +68,8 @@ export interface AccountPanelProps { email: string; status: SyncStatus; usage: {
   onSyncNow(): void; onRevoke(id: string): Promise<void>; onChangePassword(): void; onNewRecoveryCode(): void;
   onSignOut(wipeLocal: boolean): Promise<void>; labels?: Partial<AccountPanelLabels> }
 export interface ChangePasswordFormProps { onSubmit(v: { current: string; next: string; signOutOthers: boolean }): Promise<void>;
-  checkStrength: SignUpFormProps['checkStrength']; busy?: boolean; error?: string; labels?: Partial<ChangePasswordLabels> }
+  checkStrength: SignUpFormProps['checkStrength']; busy?: boolean; error?: string; labels?: Partial<ChangePasswordLabels>;
+  /** Shows a Cancel button when given (added in M3). */ onCancel?(): void }
 export interface PrivacyPanelProps { onExportPlain(): Promise<void>; onExportEncrypted(): Promise<void>; onExportServerData(): Promise<void>;
   onDeleteAccount(password: string): Promise<void>; serverSees: string[]; labels?: Partial<PrivacyPanelLabels> }
 export interface SyncStatusBadgeProps { status: SyncStatus; onClick?(): void; labels?: Partial<SyncStatusLabels> }

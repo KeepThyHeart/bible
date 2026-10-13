@@ -24,7 +24,7 @@ export type ErrorScope = 'signUp' | 'signIn' | 'recover' | 'resetPassword' | 'un
 
 export interface DeviceRow { id: string; name: string; lastSeenAt: string; current: boolean }
 
-export type NoticeId = 'verified' | 'verifyFailed' | 'resent' | 'resetStarted' | 'exported' | 'signedOut';
+export type NoticeId = 'verified' | 'verifyFailed' | 'resent' | 'exported' | 'signedOut';
 
 export interface AccountState {
   /** The worker could be reached (false: unsupported browser, or the worker never opened). */
@@ -299,8 +299,7 @@ export class AccountStore {
   /** "I do not have my code": e-mail a reset link. Always looks successful to the user (no enumeration). */
   requestStartOver(email: string): Promise<boolean> {
     return this.run('recover', async () => {
-      await this.api('reset', email);
-      this.set({ notice: { id: 'resetStarted' } });
+      await this.api('reset', email); // the form itself says "if an account exists, an email is on its way"
     });
   }
 

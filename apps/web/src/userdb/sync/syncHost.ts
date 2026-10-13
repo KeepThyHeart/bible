@@ -201,9 +201,21 @@ class WebSecretStore implements Sync.ISecretStore {
   private readonly memory = new Sync.MemorySecretStore();
   private persistentStore: IndexedDbSecretStore | null = null;
   private persistentUsed: boolean;
+  /**
+   * Every operation runs after the previous one: a `set` landing in the middle of `setRemember` (a sign-in racing a
+   * configure) would otherwise go to the store being emptied, and two overlapping `setRemember` calls (remember
+   * toggled twice quickly) could leave the keys in IndexedDB although the last choice was "do not remember".
+   */
+  private queue: Promise<unknown> = Promise.resolve();
 
   constructor(private readonly idb: IDBFactory, private remember: boolean) {
     this.persistentUsed = remember;
+  }
+
+  private serial<T>(fn: () => Promise<T>): Promise<T> {
+    const run = this.queue.then(fn, fn);
+    this.queue = run.catch(() => undefined);
+    return run;
   }
 
   private get persistent(): IndexedDbSecretStore {
@@ -214,20 +226,28 @@ class WebSecretStore implements Sync.ISecretStore {
   private get active(): Sync.ISecretStore { return this.remember ? this.persistent : this.memory; }
 
   get persistence(): 'persistent' | 'memory' { return this.remember ? 'persistent' : 'memory'; }
-  get(name: Sync.SecretName) { return this.active.get(name); }
-  set(name: Sync.SecretName, value: Uint8Array) { return this.active.set(name, value); }
-  async delete(name: Sync.SecretName): Promise<void> {
-    await this.memory.delete(name);
-    if (this.persistentUsed) await this.persistent.delete(name);
+  get(name: Sync.SecretName) { return this.serial(() => this.active.get(name)); }
+  set(name: Sync.SecretName, value: Uint8Array) { return this.serial(() => this.active.set(name, value)); }
+  delete(name: Sync.SecretName): Promise<void> {
+    return this.serial(async () => {
+      await this.memory.delete(name);
+      if (this.persistentUsed) await this.persistent.delete(name);
+    });
   }
 
   /** Sign-out: every value, and the IndexedDB wrapping key with them. */
-  async deleteAll(): Promise<void> {
-    for (const n of SECRET_NAMES) await this.memory.delete(n);
-    if (this.persistentUsed) await this.persistent.deleteAll();
+  deleteAll(): Promise<void> {
+    return this.serial(async () => {
+      for (const n of SECRET_NAMES) await this.memory.delete(n);
+      if (this.persistentUsed) await this.persistent.deleteAll();
+    });
   }
 
-  async setRemember(on: boolean): Promise<void> {
+  setRemember(on: boolean): Promise<void> {
+    return this.serial(() => this.switchTo(on));
+  }
+
+  private async switchTo(on: boolean): Promise<void> {
     if (on === this.remember) return;
     const from = this.active;
     const to = on ? this.persistent : this.memory;
@@ -267,6 +287,8 @@ interface DbState {
   tracker: Sync.ChangeTracker | null;
   engine: Sync.SyncEngine | null;
   ready: Promise<void>;
+  /** Tail of the configure queue: configures run one at a time, in arrival order. */
+  configuring: Promise<unknown>;
   unsubscribe: () => void;
   disposed: boolean;
 }
@@ -334,7 +356,7 @@ export function createSyncHost(o: SyncHostOptions): SyncHost {
       resolver: createModuleResolver(config?.modules ?? []),
       deviceId: deviceIdFor(sql),
       config, bundle: null, tracker: null, engine: null,
-      ready: Promise.resolve(), unsubscribe: () => undefined, disposed: false,
+      ready: Promise.resolve(), configuring: Promise.resolve(), unsubscribe: () => undefined, disposed: false,
     };
     state = s;
     s.unsubscribe = s.status.subscribe(() => emitStatus(s));
@@ -371,7 +393,7 @@ export function createSyncHost(o: SyncHostOptions): SyncHost {
     const account = new Sync.AccountClient({
       api, secrets: s.secrets, status: s.status, deviceId: s.deviceId, deviceName,
       kdf: o.account?.kdf, kdfCost: o.account?.kdfCost, minStrength: o.account?.minStrength, random: o.account?.random,
-      onUnlocked: (u) => onUnlocked(s, u),
+      onUnlocked: (u) => onUnlocked(s, u, ref.current),
       onSignedOut: () => onSignedOut(s),
       onWipe: () => onWipe(s),
     });
@@ -379,9 +401,9 @@ export function createSyncHost(o: SyncHostOptions): SyncHost {
     s.bundle = ref.current;
   }
 
-  async function onUnlocked(s: DbState, u: Sync.UnlockedAccount): Promise<void> {
-    if (s.disposed) return;
-    const bundle = s.bundle!;
+  async function onUnlocked(s: DbState, u: Sync.UnlockedAccount, bundle: Bundle | null): Promise<void> {
+    // A client replaced by a configure (new baseUrl) while its sign-in was in flight must not start an engine.
+    if (s.disposed || !bundle || s.bundle !== bundle) return;
     try { s.engine?.stop(); } catch { /* see dispose */ }
     const tracker = Sync.createChangeTracker(s.sql);
     tracker.install(TRACKED);
@@ -442,7 +464,17 @@ export function createSyncHost(o: SyncHostOptions): SyncHost {
 
   // --- actions -------------------------------------------------------------------------------------------------
 
-  async function configure(s: DbState, req: Extract<UserDbRequest, { action: 'configure' }>): Promise<Sync.SyncStatus> {
+  /**
+   * One configure at a time: two overlapping ones (the catalog re-sent while the user flips "remember") would
+   * interleave their config writes, remember switches and bundle rebuilds.
+   */
+  function configure(s: DbState, req: Extract<UserDbRequest, { action: 'configure' }>): Promise<Sync.SyncStatus> {
+    const run = s.configuring.then(() => configureNow(s, req), () => configureNow(s, req));
+    s.configuring = run.catch(() => undefined);
+    return run;
+  }
+
+  async function configureNow(s: DbState, req: Extract<UserDbRequest, { action: 'configure' }>): Promise<Sync.SyncStatus> {
     let url: URL;
     try { url = new URL(str(req.baseUrl, 'baseUrl')); } catch { return bad('baseUrl'); }
     if (url.origin !== o.origin || (url.protocol !== 'https:' && url.protocol !== 'http:')) bad('baseUrl');
@@ -498,7 +530,8 @@ export function createSyncHost(o: SyncHostOptions): SyncHost {
       case 'signInWithRecoveryCode':
         return code(await a.signInWithRecoveryCode(str(args[0], 'email'), str(args[1], 'recovery code'), str(args[2], 'password')));
       case 'resume': {
-        if (a.unlocked) return { resumed: true };
+        // Unlocked but the server dropped the session (401 -> locked): the user has to sign in again.
+        if (a.unlocked) return { resumed: s.status.getSnapshot().state !== 'locked' };
         // Never signed in on this database: nothing to resume (and the status stays signed-out, not locked).
         if (readSetting(s.sql, K.signedIn) !== 'true') return { resumed: false };
         return { resumed: await resumeOnce(s) };
@@ -536,6 +569,9 @@ export function createSyncHost(o: SyncHostOptions): SyncHost {
       case 'info':
         return client.info();
       case 'account':
+        // Signed out here: a session cookie left behind by a logout that never reached the server must not show
+        // the previous user's account.
+        if (readSetting(s.sql, K.signedIn) !== 'true') throw new Sync.AccountError('not_signed_in');
         return client.account();
       case 'devices': {
         const u = unlocked();
@@ -549,6 +585,8 @@ export function createSyncHost(o: SyncHostOptions): SyncHost {
         return { devices: out };
       }
       case 'revokeDevice':
+        // Same reason: only a signed-in (unlocked) device may revoke others.
+        unlocked();
         await client.revokeDevice(str(args[0], 'device id'));
         return null;
       case 'exportAll':

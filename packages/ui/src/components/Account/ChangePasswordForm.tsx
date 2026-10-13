@@ -8,7 +8,7 @@ import type { ChangePasswordFormProps } from './types';
 const MIN_SCORE = 3;
 
 /** `onCancel` is an additive prop (frozen props have the `cancel` label but no handler); the button shows only when given. */
-export function ChangePasswordForm({ onSubmit, checkStrength, busy = false, error, labels, onCancel }: ChangePasswordFormProps & { onCancel?(): void }) {
+export function ChangePasswordForm({ onSubmit, checkStrength, busy = false, error, labels, onCancel }: ChangePasswordFormProps) {
   const l = { ...DEFAULT_CHANGE_PASSWORD_LABELS, ...labels };
   const [current, setCurrent] = useState('');
   const [next, setNext] = useState('');

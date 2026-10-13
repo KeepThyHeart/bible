@@ -130,11 +130,16 @@ export interface Browser {
   db: { handle: unknown | null };
   /** Every value a worker of this browser answered, every event and every wire error (structured-cloned). */
   seen: unknown[];
+  /** Route suffixes (e.g. `/logout`) whose requests fail like a dropped connection. */
+  blocked: Set<string>;
 }
 
 export function createBrowser(w: World, name: string): Browser {
   const cookies = new Map<string, string>();
+  const blocked = new Set<string>();
   const doFetch = (async (input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) => {
+    const path = new URL(String(input)).pathname;
+    if ([...blocked].some((b) => path.endsWith(b))) throw new TypeError('fetch failed');
     const headers = new Headers(init?.headers);
     headers.set('Origin', w.origin);
     if (cookies.size > 0) headers.set('Cookie', [...cookies].map(([k, v]) => `${k}=${v}`).join('; '));
@@ -150,7 +155,7 @@ export function createBrowser(w: World, name: string): Browser {
     }
     return res;
   }) as typeof fetch;
-  return { name, origin: w.origin, indexedDB: new IDBFactory(), cookies, fetch: doFetch, db: { handle: null }, seen: [] };
+  return { name, origin: w.origin, indexedDB: new IDBFactory(), cookies, fetch: doFetch, db: { handle: null }, seen: [], blocked };
 }
 
 export interface Worker {
