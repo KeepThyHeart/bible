@@ -3,8 +3,8 @@
   "annotations": {
     "close": "إغلاق",
     "error": "حدث خطأ ما. يرجى المحاولة مرة أخرى.",
-    "bookmarkAdded": "تمت إضافة إشارة مرجعية إلى {{reference}}",
-    "bookmarkRemoved": "أُزيلت الإشارة المرجعية من {{reference}}",
+    "bookmarkAdded": "تمت إضافة إشارة مرجعية إلى {reference}",
+    "bookmarkRemoved": "أُزيلت الإشارة المرجعية من {reference}",
     "colors": {
       "yellow": "أصفر",
       "green": "أخضر",
@@ -19,7 +19,7 @@
       "remove": "إزالة التمييز"
     },
     "note": {
-      "heading": "ملاحظة على {{reference}}",
+      "heading": "ملاحظة على {reference}",
       "titleLabel": "العنوان (اختياري)",
       "titlePlaceholder": "أضف عنوانًا",
       "textLabel": "الملاحظة",
@@ -32,7 +32,7 @@
     },
     "mark": {
       "editNote": "تعديل الملاحظة",
-      "editNoteTitled": "تعديل الملاحظة: {{title}}",
+      "editNoteTitled": "تعديل الملاحظة: {title}",
       "bookmarked": "عليه إشارة مرجعية"
     }
   }

@@ -3,8 +3,8 @@
   "annotations": {
     "close": "بستن",
     "error": "مشکلی پیش آمد. لطفاً دوباره تلاش کنید.",
-    "bookmarkAdded": "نشانک به {{reference}} افزوده شد",
-    "bookmarkRemoved": "نشانک از {{reference}} برداشته شد",
+    "bookmarkAdded": "نشانک به {reference} افزوده شد",
+    "bookmarkRemoved": "نشانک از {reference} برداشته شد",
     "colors": {
       "yellow": "زرد",
       "green": "سبز",
@@ -19,7 +19,7 @@
       "remove": "حذف هایلایت"
     },
     "note": {
-      "heading": "یادداشت برای {{reference}}",
+      "heading": "یادداشت برای {reference}",
       "titleLabel": "عنوان (اختیاری)",
       "titlePlaceholder": "عنوانی بیفزایید",
       "textLabel": "یادداشت",
@@ -32,7 +32,7 @@
     },
     "mark": {
       "editNote": "ویرایش یادداشت",
-      "editNoteTitled": "ویرایش یادداشت: {{title}}",
+      "editNoteTitled": "ویرایش یادداشت: {title}",
       "bookmarked": "نشانک‌گذاری‌شده"
     }
   }

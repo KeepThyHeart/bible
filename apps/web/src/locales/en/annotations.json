@@ -3,8 +3,8 @@
   "annotations": {
     "close": "Close",
     "error": "Something went wrong. Please try again.",
-    "bookmarkAdded": "Bookmarked {{reference}}",
-    "bookmarkRemoved": "Bookmark removed from {{reference}}",
+    "bookmarkAdded": "Bookmarked {reference}",
+    "bookmarkRemoved": "Bookmark removed from {reference}",
     "colors": {
       "yellow": "Yellow",
       "green": "Green",
@@ -19,7 +19,7 @@
       "remove": "Remove highlight"
     },
     "note": {
-      "heading": "Note on {{reference}}",
+      "heading": "Note on {reference}",
       "titleLabel": "Title (optional)",
       "titlePlaceholder": "Add a title",
       "textLabel": "Note",
@@ -32,7 +32,7 @@
     },
     "mark": {
       "editNote": "Edit note",
-      "editNoteTitled": "Edit note: {{title}}",
+      "editNoteTitled": "Edit note: {title}",
       "bookmarked": "Bookmarked"
     }
   }

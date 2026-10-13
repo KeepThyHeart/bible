@@ -3,8 +3,8 @@
   "annotations": {
     "close": "סגירה",
     "error": "משהו השתבש. נסו שוב.",
-    "bookmarkAdded": "נוספה סימנייה ל{{reference}}",
-    "bookmarkRemoved": "הסימנייה הוסרה מ{{reference}}",
+    "bookmarkAdded": "נוספה סימנייה ל{reference}",
+    "bookmarkRemoved": "הסימנייה הוסרה מ{reference}",
     "colors": {
       "yellow": "צהוב",
       "green": "ירוק",
@@ -19,7 +19,7 @@
       "remove": "הסרת הדגשה"
     },
     "note": {
-      "heading": "הערה על {{reference}}",
+      "heading": "הערה על {reference}",
       "titleLabel": "כותרת (לא חובה)",
       "titlePlaceholder": "הוסיפו כותרת",
       "textLabel": "הערה",
@@ -32,7 +32,7 @@
     },
     "mark": {
       "editNote": "עריכת הערה",
-      "editNoteTitled": "עריכת הערה: {{title}}",
+      "editNoteTitled": "עריכת הערה: {title}",
       "bookmarked": "מסומן בסימנייה"
     }
   }

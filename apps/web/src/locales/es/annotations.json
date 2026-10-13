@@ -3,8 +3,8 @@
   "annotations": {
     "close": "Cerrar",
     "error": "Algo salió mal. Inténtalo de nuevo.",
-    "bookmarkAdded": "Marcador añadido en {{reference}}",
-    "bookmarkRemoved": "Marcador quitado de {{reference}}",
+    "bookmarkAdded": "Marcador añadido en {reference}",
+    "bookmarkRemoved": "Marcador quitado de {reference}",
     "colors": {
       "yellow": "Amarillo",
       "green": "Verde",
@@ -19,7 +19,7 @@
       "remove": "Quitar resaltado"
     },
     "note": {
-      "heading": "Nota en {{reference}}",
+      "heading": "Nota en {reference}",
       "titleLabel": "Título (opcional)",
       "titlePlaceholder": "Añade un título",
       "textLabel": "Nota",
@@ -32,7 +32,7 @@
     },
     "mark": {
       "editNote": "Editar nota",
-      "editNoteTitled": "Editar nota: {{title}}",
+      "editNoteTitled": "Editar nota: {title}",
       "bookmarked": "Con marcador"
     }
   }
