@@ -289,7 +289,8 @@ export class PracticeView {
     // grade and to show the answer after the step.)
     const hidesReference = this.session.rung === 'refprovide' || this.session.rung === 'refmatch';
     const genericPassage = tr('memory.ui.practice.passage', 'Passage');
-    const passageLabel = hidesReference ? genericPassage : (this.context?.reference || genericPassage);
+    const translation = this.context?.moduleId ? ` (${this.context.moduleId})` : '';
+    const passageLabel = hidesReference ? genericPassage : (this.context?.reference ? `${this.context.reference}${translation}` : genericPassage);
     const passageId = this.session.passageId;
     const rung = this.session.rung;
 
@@ -1713,7 +1714,7 @@ export class PracticeView {
           : null,
         el('div', { class: 'sm-summary-level' }, [
           levelBoxes(summary.level),
-          el('span', { class: 'sm-summary-level-text', text: tr('memory.ui.practice.levelOutOfFive', '{level}/5', { level: summary.level }) }),
+          el('span', { class: 'sm-summary-level-text', text: tr('memory.ui.practice.levelOutOfFive', 'Level {level} of 5', { level: summary.level }) }),
         ]),
         el('p', {
           class: 'sm-summary-detail',

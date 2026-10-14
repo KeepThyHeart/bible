@@ -20,7 +20,7 @@
 
 import type { PassageSortOrder, PassageView, PlanView } from '../core/types';
 import { append, button, el } from './dom';
-import { activitySquares, breadcrumb, dueBadge, emptyState, icon, listSelector, menu } from './components';
+import { activitySquares, breadcrumb, dueBadge, emptyState, icon, inapplicabilityNote, listSelector, menu } from './components';
 import type { ListSelectorOption } from './components';
 import { sortPassagesByNeed } from './format';
 import { flowUnavailable } from './suggest';
@@ -40,7 +40,7 @@ export function renderPlan(host: PanelHost, plan: PlanView): HTMLElement {
     breadcrumb({
       crumbs: [{ label: tr('memory.ui.plan.home', 'Home') }],
       menu: menu({
-        label: tr('memory.ui.plan.menu', 'Menu'),
+        label: tr('memory.ui.plan.menu', 'Menu: Manage Passages, Analytics, Settings'),
         items: [
           { label: tr('memory.ui.plan.managePassages', 'Manage Passages'), onClick: () => host.go({ type: 'goManagePassages' }) },
           { label: tr('memory.ui.plan.analytics', 'Analytics'), onClick: () => host.go({ type: 'goAnalytics' }) },
@@ -60,7 +60,7 @@ export function renderPlan(host: PanelHost, plan: PlanView): HTMLElement {
     root.appendChild(
       emptyState(
         tr('memory.ui.plan.nothingInPlan', 'Nothing in your plan yet.'),
-        tr('memory.ui.plan.nothingInPlanHint', 'Add a reference above - a single verse, or a range like "Psalm 1:1-6" - and its activities will be built for you.'),
+        tr('memory.ui.plan.nothingInPlanHint', 'Open the menu (the three-line icon at the top) and choose Manage Passages to add a verse or a range like "Psalm 1:1-6"; its activities will be built for you. You can also right-click a verse in the Bible and choose Memorize.'),
       ),
     );
     return root;
@@ -147,13 +147,16 @@ function renderActivityTile(host: PanelHost, plan: PlanView, tile: ActivityTile,
     unavailable === 'locked'
       ? referenceHintText(plan)
       : unavailable === 'empty'
-        ? tr('memory.ui.plan.nothingToPractise', 'Nothing to practise for this activity yet.')
+        ? flow.kind === 'activity' && flow.rung === 'ordering'
+          ? inapplicabilityNote('ordering')
+          : tr('memory.ui.plan.nothingToPractise', 'Nothing to practise for this activity yet.')
         : null;
 
   const tileButton = button(tile.title, () => void host.startFlow(flow), {
     class: 'sm-tile',
     text: '',
     disabled: unavailable !== null,
+    ...(warning === null ? {} : { attrs: { title: warning } }),
   });
 
   append(tileButton, [
@@ -258,7 +261,7 @@ function renderAddAndStart(host: PanelHost): HTMLElement {
 
   if (!reference) {
     return el('div', { class: 'sm-callout' }, [
-      el('p', { class: 'sm-callout-text', text: tr('memory.ui.plan.addVerseToStart', 'Add a verse from Manage Passages to get started.') }),
+      el('p', { class: 'sm-callout-text', text: tr('memory.ui.plan.addVerseToStart', 'Open the menu (the three-line icon at the top) and choose Manage Passages to add your first verse.') }),
     ]);
   }
 

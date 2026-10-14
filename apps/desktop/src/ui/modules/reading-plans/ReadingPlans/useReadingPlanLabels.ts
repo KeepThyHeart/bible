@@ -115,6 +115,7 @@ export function useReadingPlanLabels(): ReadingPlanLabelSet {
     open: t('readingPlans.card.open'),
     markDayRead: t('readingPlans.card.markDayRead'),
     markDayUnread: t('readingPlans.card.markDayUnread'),
+    markDayConfirmText: t('readingPlans.card.markDayConfirm'),
     completed: t('readingPlans.card.completed'),
     notStarted: t('readingPlans.card.notStarted'),
     restDay: t('readingPlans.card.restDay'),

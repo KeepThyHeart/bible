@@ -163,7 +163,7 @@ export function menu(opts: { label: string; items: MenuItem[] }): HTMLElement {
   const trigger = button(opts.label, () => (panel.hidden ? openMenu() : closeMenu()), {
     class: 'sm-btn sm-btn-quiet sm-icon-btn sm-menu-btn',
     text: '',
-    attrs: { 'aria-haspopup': 'menu', 'aria-expanded': 'false', 'aria-label': opts.label },
+    attrs: { 'aria-haspopup': 'menu', 'aria-expanded': 'false', 'aria-label': opts.label, title: opts.label },
   });
   append(trigger, [icon('menu')]);
 
@@ -444,7 +444,7 @@ export function levelBoxes(level: number, opts: { due?: boolean } = {}): HTMLEle
 
   return el(
     'span',
-    { class: `sm-level-boxes${opts.due && level < GREEN_AT ? ' sm-level-boxes-due' : ''}`, attrs: { role: 'img', 'aria-label': label } },
+    { class: `sm-level-boxes${opts.due && level < GREEN_AT ? ' sm-level-boxes-due' : ''}`, attrs: { role: 'img', 'aria-label': label, title: label } },
     boxes,
   );
 }

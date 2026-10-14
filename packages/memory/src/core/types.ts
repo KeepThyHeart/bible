@@ -513,6 +513,8 @@ export interface VerseText {
 export interface PassageContext {
   passageId: number;
   reference: string;
+  /** Abbreviation of the translation the verses come from (the one the passage was recorded against). */
+  moduleId?: string;
   /** Verses before the passage. May be empty at a book boundary. */
   before: VerseText[];
   /** The passage itself. */

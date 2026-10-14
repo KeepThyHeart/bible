@@ -1196,7 +1196,7 @@ export class MemoryService implements MemoryApi {
           label,
         );
 
-    return { passageId, reference: passage.reference, before, verses, after };
+    return { passageId, reference: passage.reference, moduleId: passage.moduleId, before, verses, after };
   }
 
   private async fetchVerses(
