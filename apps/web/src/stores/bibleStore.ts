@@ -628,6 +628,7 @@ class BibleStore extends Store {
     // The history entry for this chapter should name the last verse actually
     // visited in it, not the one the chapter was opened at.
     this.rememberVerseInCurrentEntry(tab);
+    this.updateHash();
     this.notify();
   }
 
@@ -661,6 +662,7 @@ class BibleStore extends Store {
     tab.selectionEndVerse = null;
     tab.studyVerse = verse.verse_id;
     this.rememberVerseInCurrentEntry(tab);
+    this.updateHash();
     this.notify();
   }
 
@@ -1179,14 +1181,19 @@ class BibleStore extends Store {
         noteStudyHash(hash);
         return;
       }
-      // A deep link that names a verse (`#/ASV/43/3/16`) keeps it while that verse
-      // is still the selected one, so a reload lands on it again.
+      // A deep link that names a verse (`#/ASV/43/3/16`) keeps naming one, following
+      // the selection, so a reload lands on the verse the reader is on.
       const current = window.location.hash.match(HASH_PATTERN);
       if (current?.[4]
         && current[1] === tab.moduleAbbr
         && parseInt(current[2], 10) === tab.book
         && parseInt(current[3], 10) === tab.chapter
-        && tab.studyVerse === tab.book * 1000000 + tab.chapter * 1000 + parseInt(current[4], 10)) {
+        && tab.studyVerse !== null
+        && Math.floor(tab.studyVerse / 1000) === tab.book * 1000 + tab.chapter) {
+        const verseHash = `${hash}/${tab.studyVerse % 1000}`;
+        if (window.location.hash !== verseHash) {
+          history.replaceState(null, '', verseHash);
+        }
         return;
       }
       if (window.location.hash !== hash) {
