@@ -249,16 +249,27 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
   }, []);
 
   // "Passage (block)" - the whole passage as one quotation.
-  const openPassageBlock = useCallback(() => {
-    setPassagePrompt({ formatId: 'blockquote', expansionId: newExpansionId() });
+  // The caret when the dialog opened: focus moves into the dialog, and inserting
+  // at whatever selection the editor has afterwards could land elsewhere
+  // (e.g. above the heading the caret was on).
+  const passageSelectionRef = useRef<{ from: number; to: number } | null>(null);
+  const rememberPassageSelection = useCallback(() => {
+    const sel = editorRef.current?.state.selection;
+    passageSelectionRef.current = sel ? { from: sel.from, to: sel.to } : null;
   }, []);
+
+  const openPassageBlock = useCallback(() => {
+    rememberPassageSelection();
+    setPassagePrompt({ formatId: 'blockquote', expansionId: newExpansionId() });
+  }, [rememberPassageSelection]);
 
   // "Passage (verse-by-verse)" - a heading per verse with the verse quoted
   // beneath it. Comment placeholders are also available, as a checkbox on
   // the format itself.
   const openPassageVerses = useCallback(() => {
+    rememberPassageSelection();
     setPassagePrompt({ formatId: 'heading-per-verse', expansionId: newExpansionId() });
-  }, []);
+  }, [rememberPassageSelection]);
 
   const insertImageFromFile = useCallback(async () => {
     try {
@@ -296,6 +307,9 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
           levels: [1, 2, 3],
         },
         codeBlock: false,
+        // Link and Underline are added below with our own options; StarterKit 3 bundles them too.
+        link: false,
+        underline: false,
         code: false,
       }),
       Underline,
@@ -764,7 +778,10 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
   useEffect(() => {
     if (editor && value !== editor.getHTML()) {
       isInternalUpdate.current = true;
-      editor.commands.setContent(value || '');
+      // An external swap of the whole document (switching prayer/note) is not an
+      // edit the user made: keep it out of the undo history, or Ctrl+Z would
+      // bring back the previous document's text and autosave it over this one.
+      editor.chain().setMeta('addToHistory', false).setContent(value || '').run();
       isInternalUpdate.current = false;
     }
   }, [value, editor]);
@@ -780,7 +797,14 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
     (html: string) => {
       setPassagePrompt(null);
       if (editor) {
-        editor.chain().focus().insertContent(html).run();
+        const saved = passageSelectionRef.current;
+        passageSelectionRef.current = null;
+        const size = editor.state.doc.content.size;
+        if (saved && saved.from <= size) {
+          editor.chain().focus().insertContentAt({ from: saved.from, to: Math.min(saved.to, size) }, html).run();
+        } else {
+          editor.chain().focus().insertContent(html).run();
+        }
       }
     },
     [editor],

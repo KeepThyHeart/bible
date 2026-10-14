@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type MutableRefObject } from 'react';
 import * as fileNotesAPI from '../../../../services/fileNotesAPI';
 import { BnFile } from '../../../../services/fileNotesAPI';
 import {
@@ -24,7 +24,9 @@ interface UseNotesInitArgs {
   currentPath: string;
   currentNotePath: string;
   currentNote: BnFile | null;
-  loadDirectory: (path: string) => void;
+  loadDirectory: (path: string) => void | Promise<void>;
+  /** Set by the verse-note opener when it fired before the pane was ready; startup then leaves the view alone. */
+  pendingVerseOpenRef?: MutableRefObject<boolean>;
   setShowSetup: (open: boolean) => void;
   setCurrentNote: (note: BnFile | null) => void;
   setCurrentNotePath: (path: string) => void;
@@ -40,7 +42,7 @@ interface UseNotesInitArgs {
  *  - dynamic dockview tab subtitle following the open note title
  *  - register navigation state (for pop-out *and* for the next restart)
  */
-export function useNotesInit(args: UseNotesInitArgs): void {
+export function useNotesInit(args: UseNotesInitArgs): { restoreDone: boolean } {
   const {
     panelId,
     isDetached,
@@ -54,6 +56,7 @@ export function useNotesInit(args: UseNotesInitArgs): void {
     currentNotePath,
     currentNote,
     loadDirectory,
+    pendingVerseOpenRef,
     setShowSetup,
     setCurrentNote,
     setCurrentNotePath,
@@ -106,8 +109,13 @@ export function useNotesInit(args: UseNotesInitArgs): void {
         const notePath = restore?.currentNotePath;
         const folderPath = restore?.currentPath || '';
 
+        // A verse note requested while this pane was still starting up (e.g. a
+        // freshly created Notes pane) takes over once restoreDone flips; do not
+        // let the folder listing flip the view back to the browser afterwards.
+        if (pendingVerseOpenRef?.current) return;
+
         if (!notePath || restore?.view !== 'editor') {
-          loadDirectory(folderPath);
+          await loadDirectory(folderPath);
           return;
         }
 
@@ -165,6 +173,8 @@ export function useNotesInit(args: UseNotesInitArgs): void {
     if (isDetached || !restoreDone) return;
     setNotesPanelNavState(panelId, { view, sideTab, currentPath, currentNotePath });
   }, [panelId, view, sideTab, currentPath, currentNotePath, isDetached, restoreDone]);
+
+  return { restoreDone };
 }
 
 /**

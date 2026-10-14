@@ -27,7 +27,8 @@ export const useNoteEditorStore = create<NoteEditorState>((set, get) => ({
 
   setContent: (content) => set({ content, isDirty: true }),
 
-  resetContent: (content) => set({ content, isDirty: false }),
+  // Loading another note: the previous note's save time must not carry over.
+  resetContent: (content) => set({ content, isDirty: false, lastSaved: undefined }),
 
   markSaved: () => set({ isDirty: false, lastSaved: new Date().toISOString() }),
 

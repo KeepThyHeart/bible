@@ -34,9 +34,8 @@ const PrayerListItem: React.FC<PrayerListItemProps> = ({ prayer, index, isSelect
 
   const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent selecting the prayer when clicking delete
-    if (confirm(t('prayerListItem.deleteConfirm'))) {
-      onDelete();
-    }
+    // Confirmation is owned by PrayerList (app ConfirmDialog).
+    onDelete();
   };
 
   return (
@@ -84,7 +83,7 @@ const PrayerListItem: React.FC<PrayerListItemProps> = ({ prayer, index, isSelect
       <button
         type="button"
         onClick={handleDelete}
-        className="opacity-0 group-hover:opacity-100 p-1 text-text-muted hover:text-danger transition-opacity"
+        className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 p-1 text-text-muted hover:text-danger transition-opacity"
         title={t('prayerListItem.deleteTitle')}
         aria-label={t('prayerListItem.deleteTitle')}
       >

@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, type MutableRefObject } from 'react';
 import * as fileNotesAPI from '../../../../services/fileNotesAPI';
 import { BnFile } from '../../../../services/fileNotesAPI';
 import { useFileNotesStore } from '../../../../stores/useFileNotesStore';
@@ -13,6 +13,10 @@ interface UseVerseNoteOpenerArgs {
   setCurrentPath: (path: string) => void;
   setView: (view: 'browser' | 'editor') => void;
   setFileError: (msg: string | null) => void;
+  /** False until the pane has finished its startup restore and notes-folder setup. Default: ready. */
+  ready?: boolean;
+  /** Remembers a request that arrived before the pane was ready. */
+  pendingRef?: MutableRefObject<boolean>;
 }
 
 /**
@@ -20,10 +24,16 @@ interface UseVerseNoteOpenerArgs {
  * and listens for the `open-verse-note` window event from the Bible pane.
  */
 export function useVerseNoteOpener(args: UseVerseNoteOpenerArgs): { handleOpenVerseNote: () => Promise<void> } {
-  const { currentVerseId, setCurrentNote, setCurrentNotePath, setCurrentPath, setView, setFileError } = args;
+  const { currentVerseId, setCurrentNote, setCurrentNotePath, setCurrentPath, setView, setFileError, ready = true, pendingRef } = args;
 
   const handleOpenVerseNote = useCallback(async () => {
     if (!currentVerseId) return;
+    if (!ready && pendingRef) {
+      // The pane is still starting (new pane, or the folder-setup dialog is
+      // showing): run this once it is ready instead of racing the startup.
+      pendingRef.current = true;
+      return;
+    }
     const { bookNumber, chapter, verse } = parseVerseId(currentVerseId);
     const bookName = getBookNameFromCache(bookNumber);
     try {
@@ -37,7 +47,14 @@ export function useVerseNoteOpener(args: UseVerseNoteOpenerArgs): { handleOpenVe
     } catch (err: unknown) {
       setFileError(`Failed to open verse note: ${err instanceof Error ? err.message : String(err)}`);
     }
-  }, [currentVerseId, setCurrentNote, setCurrentNotePath, setCurrentPath, setView, setFileError]);
+  }, [currentVerseId, ready, pendingRef, setCurrentNote, setCurrentNotePath, setCurrentPath, setView, setFileError]);
+
+  useEffect(() => {
+    if (ready && pendingRef?.current) {
+      pendingRef.current = false;
+      void handleOpenVerseNote();
+    }
+  }, [ready, pendingRef, handleOpenVerseNote]);
 
   useEffect(() => {
     const handler = () => { handleOpenVerseNote(); };

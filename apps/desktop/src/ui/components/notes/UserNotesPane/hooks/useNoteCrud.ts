@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import * as fileNotesAPI from '../../../../services/fileNotesAPI';
 import { FileEntry, BnFile } from '../../../../services/fileNotesAPI';
+import { useFileNotesStore } from '../../../../stores/useFileNotesStore';
 import { useNoteEditorStore } from '../../../../stores/useNoteEditorStore';
 
 interface UseNoteCrudArgs {
@@ -65,6 +66,7 @@ export function useNoteCrud(args: UseNoteCrudArgs): NoteCrudActions {
         setCurrentNotePath(relativePath.endsWith('.bn') ? relativePath : relativePath + '.bn');
         setView('editor');
         useNoteEditorStore.getState().resetContent(templateContent || ''); // allow-getstate: create-note async callback - imperative store reset outside render
+        useFileNotesStore.getState().addRecentFile(relativePath.endsWith('.bn') ? relativePath : relativePath + '.bn', title); // allow-getstate: create-note async callback - imperative store update outside render
         setShowNewNoteDialog(false);
       } catch (err: unknown) {
         setFileError(`Failed to create note: ${err instanceof Error ? err.message : String(err)}`);

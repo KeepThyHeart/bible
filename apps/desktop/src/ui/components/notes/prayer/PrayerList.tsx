@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { ConfirmDialog } from '../../shared/ConfirmDialog';
 import {
   DndContext,
   closestCenter,
@@ -27,6 +28,8 @@ interface PrayerListProps {
 const PrayerList: React.FC<PrayerListProps> = ({ onSelectPrayer, onCreatePrayer }) => {
   const { t } = useI18n();
   const { prayers, currentPrayerNote, selectedPrayerListId, reorderPrayers, updatePrayer, deletePrayer } = usePrayerStore();
+
+  const [pendingDeleteId, setPendingDeleteId] = useState<number | null>(null);
 
   // KeyboardSensor is deliberate: the previous drag library gave this list
   // keyboard reordering for free, and dropping it would be an accessibility
@@ -112,7 +115,7 @@ const PrayerList: React.FC<PrayerListProps> = ({ onSelectPrayer, onCreatePrayer 
                       index={index}
                       isSelected={isSelected}
                       onSelect={() => handleSelectPrayer(prayer)}
-                      onDelete={() => prayer.noteId != null && deletePrayer(prayer.noteId)}
+                      onDelete={() => prayer.noteId != null && setPendingDeleteId(prayer.noteId)}
                     />
                   );
                 })}
@@ -121,6 +124,22 @@ const PrayerList: React.FC<PrayerListProps> = ({ onSelectPrayer, onCreatePrayer 
           </DndContext>
         )}
       </div>
+
+      <ConfirmDialog
+        open={pendingDeleteId !== null}
+        title={t('prayerListItem.deleteTitle')}
+        message={t('prayerListItem.deleteConfirm')}
+        confirmLabel={t('prayerListItem.deleteConfirmLabel')}
+        destructive
+        onConfirm={() => {
+          const id = pendingDeleteId;
+          setPendingDeleteId(null);
+          if (id !== null) {
+            deletePrayer(id).catch(error => console.error('Failed to delete prayer:', error));
+          }
+        }}
+        onCancel={() => setPendingDeleteId(null)}
+      />
 
       {/* Instructions */}
       {prayers.length > 0 && (

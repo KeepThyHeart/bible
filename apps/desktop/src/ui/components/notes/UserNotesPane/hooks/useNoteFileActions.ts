@@ -2,6 +2,7 @@ import { useCallback, useRef } from 'react';
 import * as fileNotesAPI from '../../../../services/fileNotesAPI';
 import { BnFile } from '../../../../services/fileNotesAPI';
 import { useNoteEditorStore } from '../../../../stores/useNoteEditorStore';
+import { useToastStore } from '../../../../stores/useToastStore';
 import { useFileNotesStore } from '../../../../stores/useFileNotesStore';
 import { htmlToMarkdown } from '../../../../utils/exportNote';
 import { sanitizeHtml } from '../../../../utils/sanitize';
@@ -57,6 +58,11 @@ function buildNoteDocumentHtml(title: string, bodyHtml: string): string {
 /** File-name-safe version of a note title, for the export dialogs' default. */
 function exportFileName(title: string): string {
   return (title || 'note').replace(/[<>:"/\\|?*]/g, '_');
+}
+
+/** Short confirmation after an export wrote a file (failures use the error banner). */
+function notifyExported(filePath: string): void {
+  useToastStore.getState().addToast(`Exported to ${filePath}`, 'info'); // allow-getstate: export async callback - imperative toast outside render
 }
 
 export function useNoteFileActions(args: UseNoteFileActionsArgs): NoteFileActions {
@@ -191,9 +197,10 @@ export function useNoteFileActions(args: UseNoteFileActionsArgs): NoteFileAction
       // `ipcHandler`, so a failure arrives as an `{ ok: false }` envelope. The
       // old check read a `success` field the envelope does not have, which
       // made every export failure silent.
-      await unwrap(
+      const savedTo = await unwrap<string | null | undefined>(
         window.electron.ipcRenderer.invoke('file-notes:export-markdown', exportFileName(currentNote.title), md)
       );
+      if (savedTo) notifyExported(savedTo);
     } catch (err: unknown) {
       setFileError(`Export failed: ${err instanceof Error ? err.message : String(err)}`);
     }
@@ -202,7 +209,7 @@ export function useNoteFileActions(args: UseNoteFileActionsArgs): NoteFileAction
   const handleExportDocx = useCallback(async () => {
     if (!currentNote) return;
     try {
-      await unwrap(
+      const savedTo = await unwrap<string | null | undefined>(
         window.electron.ipcRenderer.invoke(
           'file-notes:export-docx',
           exportFileName(currentNote.title),
@@ -210,6 +217,7 @@ export function useNoteFileActions(args: UseNoteFileActionsArgs): NoteFileAction
           currentNote.title
         )
       );
+      if (savedTo) notifyExported(savedTo);
     } catch (err: unknown) {
       setFileError(`Export failed: ${err instanceof Error ? err.message : String(err)}`);
     }
