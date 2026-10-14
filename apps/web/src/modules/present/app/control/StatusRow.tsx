@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { presentStore } from '../../stores/presentStore';
 import { goLive } from '../presenterSink';
 import { usePresenter } from '../../study/usePresenter';
+import { useStore } from '../../../../hooks/useStore';
 
 /**
  * The short status row at the top of Control: Not live / Live, how many devices
@@ -13,6 +14,7 @@ export function StatusRow(props: { menuOpen: boolean; onToggleMenu: () => void }
   const { t } = useTranslation();
   const view = usePresenter();
   const [confirmEnd, setConfirmEnd] = useState(false);
+  const session = useStore(presentStore, () => presentStore.session);
   const live = view.presenting;
   const connected = view.connection === 'live';
 
@@ -29,6 +31,12 @@ export function StatusRow(props: { menuOpen: boolean; onToggleMenu: () => void }
         >
           <i class="fa-solid fa-tv" aria-hidden="true" />
           {view.viewers}
+        </span>
+      )}
+
+      {live && session?.joinCode && (
+        <span class="pz-status__code" title={t('present.control.joinCodeTip')}>
+          {t('present.control.joinCodeLabel')} <strong>{session.joinCode}</strong>
         </span>
       )}
 

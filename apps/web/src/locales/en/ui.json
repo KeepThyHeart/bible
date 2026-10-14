@@ -70,6 +70,7 @@
     "modeStandard": "Standard",
     "modeReading": "Reading",
     "modeStudy": "Study",
+    "modeHint": "Study view shows Strong's numbers and interlinear words for translations that include them, such as KJV.",
     "recentPassages": "Recent passages",
     "noHistory": "No passages visited yet"
   },
@@ -145,7 +146,7 @@
       "newTestament": "New Testament",
       "bar": "{book} — {count, plural, one {# result} other {# results}}",
       "barEmpty": "{book} — no matches",
-      "captionKeyword": "{count, plural, one {# result, by book. Word-form matches count; approximate spellings do not.} other {# results, by book. Word-form matches count; approximate spellings do not.}}",
+      "captionKeyword": "{count, plural, one {# result, by book. Different forms of the word count; close spellings are listed separately.} other {# results, by book. Different forms of the word count; close spellings are listed separately.}}",
       "captionStrongs": "{count, plural, one {# occurrence below, by book.} other {# occurrences below, by book.}}",
       "captionSemantic": "{count, plural, one {# passage retrieved, by book — not a tally of the whole Bible.} other {# passages retrieved, by book — not a tally of the whole Bible.}}",
       "captionCapped": "Only the results loaded so far are counted; there are more to load.",
@@ -351,9 +352,10 @@
       "title": "About",
       "refreshApp": "Refresh App",
       "resetCache": "Reset app cache",
-      "resetCacheHint": "Clears this app's saved files and the background service worker on this device, then reloads. Use it if the app looks out of date or misbehaves. Your settings, downloaded modules and notes are kept.",
-      "appName": "Bible Study App",
+      "resetCacheHint": "Clears this app's saved files and the background service worker on this device, then reloads. Use it if the app looks out of date or misbehaves. Your settings and downloaded modules are kept.",
+      "appName": "Keep Thy Heart Bible Reader",
       "description": "A modern, open-source Bible study application designed for in-depth Scripture reading and research.",
+      "desktopOnly": "Notes, highlights, bookmarks, Scripture memory, reading plans and prayer lists are available in the desktop app.",
       "license": "Licensed under the <strong>GNU General Public License v3.0</strong> (GPL-3.0).",
       "licenseDetails": "This software is free to use, modify, and distribute under the terms of the GPL v3. Source code and contributions are welcome.",
       "viewOnGithub": "View on GitHub"
@@ -537,6 +539,7 @@
     "verseLevelNotes": "Verse-level notes exist in",
     "passageLevelNotes": "Passage-level notes exist for",
     "noEntriesChapter": "This commentary has no entries for this chapter.",
+    "offlineNotice": "You're offline. Commentary will load again when you reconnect.",
     "about": "About this commentary",
     "aboutName": "Name",
     "aboutAuthor": "Author",
@@ -620,6 +623,8 @@
     "searchAll": "Search all dictionaries...",
     "searching": "Searching...",
     "noDictionaries": "No dictionaries available.",
+    "loadFailed": "Couldn't load the dictionaries. Check your connection.",
+    "retry": "Retry",
     "unstar": "Unstar",
     "star": "Star (pin to top)"
   },
@@ -792,7 +797,7 @@
     "dictionary": "Dict."
   },
   "studyVerseHeader": {
-    "notesFor": "Notes for",
+    "notesFor": "Verse:",
     "unpinVerse": "Unpin verse",
     "pinVerse": "Pin verse",
     "expand": "(expand)",
@@ -846,6 +851,7 @@
   "semanticSearchLoadingOverlay": {
     "dismiss": "Dismiss",
     "loading": "Loading Ideas Search…",
+    "unavailable": "Ideas search isn't available right now.",
     "step": "Step {step} of 3 — {label}"
   },
   "login": {

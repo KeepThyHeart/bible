@@ -597,6 +597,9 @@ export function SettingsPanel({ isOpen, onClose, scrollToSection }: SettingsPane
                   <p class="settings-panel__about-desc">
                     {t('settings.about.description')}
                   </p>
+                  <p class="settings-panel__about-desc">
+                    {t('settings.about.desktopOnly')}
+                  </p>
                   <p class="settings-panel__about-license">
                     <i class="fa-solid fa-scale-balanced" style={{ marginInlineEnd: '6px', opacity: 0.6 }} />
                     <span dangerouslySetInnerHTML={{ __html: t('settings.about.license') }} />

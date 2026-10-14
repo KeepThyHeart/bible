@@ -20,6 +20,7 @@ export function PaneHeaderButtons({ className }: { className: string }) {
           class={className}
           onClick={() => openPane(m.id)}
           title={resolveLabel((k, f) => t(k, f), m.headerButton!.title)}
+          aria-label={resolveLabel((k, f) => t(k, f), m.headerButton!.title)}
           data-testid={m.headerButton!.testId}
         >
           {m.icon ? renderAppIcon(m.icon) : null}

@@ -1179,6 +1179,16 @@ class BibleStore extends Store {
         noteStudyHash(hash);
         return;
       }
+      // A deep link that names a verse (`#/ASV/43/3/16`) keeps it while that verse
+      // is still the selected one, so a reload lands on it again.
+      const current = window.location.hash.match(HASH_PATTERN);
+      if (current?.[4]
+        && current[1] === tab.moduleAbbr
+        && parseInt(current[2], 10) === tab.book
+        && parseInt(current[3], 10) === tab.chapter
+        && tab.studyVerse === tab.book * 1000000 + tab.chapter * 1000 + parseInt(current[4], 10)) {
+        return;
+      }
       if (window.location.hash !== hash) {
         history.replaceState(null, '', hash);
       }
@@ -1214,6 +1224,12 @@ class BibleStore extends Store {
     const book = parseInt(bookStr, 10);
     const chapter = parseInt(chapterStr, 10);
     const verse = verseStr ? parseInt(verseStr, 10) : undefined;
+    // A link naming a book or chapter that cannot exist (`#/ASV/99/1`) is ignored:
+    // the reader stays on the current passage and the URL is put back to match it.
+    if (book < 1 || book > 66 || chapter < 1) {
+      this.updateHash();
+      return;
+    }
     // A link shared from another install can name a translation this one does
     // not have. The passage is still worth opening, in the default Bible.
     const module = settingsStore.resolveInstalledBible(linkedModule);

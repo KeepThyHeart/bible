@@ -37,6 +37,35 @@
     &__search {
       display: none;
     }
+
+    // Keep the whole header inside the viewport on a phone (390px): the logo
+    // gives way (ellipsis) and the action buttons tighten instead of pushing
+    // the last one (Settings) off the right edge.
+    &__logo {
+      min-inline-size: 0;
+      flex: 0 1 auto;
+      overflow: hidden;
+    }
+
+    &__wordmark {
+      min-inline-size: 0;
+    }
+
+    &__wordmark-name,
+    &__wordmark-tagline {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    &__actions {
+      flex-shrink: 0;
+      gap: 0;
+    }
+
+    &__action-btn {
+      padding: 6px 7px;
+    }
   }
 
   .main-layout__bible {

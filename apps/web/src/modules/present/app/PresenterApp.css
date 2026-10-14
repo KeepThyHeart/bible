@@ -183,6 +183,8 @@
 .pz-status__dot { width: 8px; height: 8px; border-radius: 50%; background: var(--pz-live); display: inline-block; margin-inline-end: 4px; }
 .pz-status__viewers { display: inline-flex; align-items: center; gap: 5px; color: var(--text-secondary, var(--text-muted)); }
 .pz-status__viewers--offline { opacity: 0.5; }
+.pz-status__code { font-size: 13px; color: var(--text-secondary, var(--text-muted)); white-space: nowrap; }
+.pz-status__code strong { letter-spacing: 0.08em; color: var(--text-primary, inherit); }
 .pz-status__confirm { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; }
 
 .pz-menu {

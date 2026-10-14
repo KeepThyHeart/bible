@@ -67,6 +67,7 @@ export function PresentBar(props: { compact?: boolean }) {
           disabled={!staged || view.stagedIsLive}
           onClick={() => staged && void presentStore.show(staged.item, staged.index)}
           title={t('present.sendTooltip')}
+          aria-label={staged ? t('present.send', { ref: staged.label }) : t('present.sendTooltip')}
         >
           <i class={`fa-solid ${view.stagedIsLive ? 'fa-check' : 'fa-arrow-up'}`} aria-hidden="true" />
           <span class="present-bar__send-text">
@@ -101,7 +102,8 @@ export function PresentBar(props: { compact?: boolean }) {
             type="button"
             class={`present-bar__btn present-bar__btn--blank ${blanked ? 'present-bar__btn--on' : ''}`}
             onClick={() => void presentStore.toggleBlank()}
-            title={blanked ? t('present.unblank') : t('present.blank')}
+            title={blanked ? t('present.unblankScreen') : t('present.blankScreen')}
+            aria-label={blanked ? t('present.unblankScreen') : t('present.blankScreen')}
             aria-pressed={blanked}
           >
             <i class={`fa-solid ${blanked ? 'fa-eye' : 'fa-eye-slash'}`} aria-hidden="true" />
@@ -116,6 +118,7 @@ export function PresentBar(props: { compact?: boolean }) {
             onPointerEnter={() => prefetchApp('present')}
             onFocus={() => prefetchApp('present')}
             title={t('present.openPresenter')}
+            aria-label={t('present.openPresenter')}
           >
             <i class="fa-solid fa-up-right-from-square" aria-hidden="true" />
             <span class="present-bar__btn-text">{t('present.openPresenterShort')}</span>
