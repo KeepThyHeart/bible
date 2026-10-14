@@ -10,7 +10,7 @@ import { useNoteEditorStore } from '../../stores/useNoteEditorStore';
 import { useFileNotesStore, type NotesSideTab } from '../../stores/useFileNotesStore';
 import { DEFAULT_PANEL_ID } from '../../stores/helpers/panelStateHelpers';
 
-import { VERSE_NOTES_FOLDER, isInVerseNotesFolderPath } from './UserNotesPane/utils';
+import { VERSE_NOTES_FOLDER, isInVerseNotesFolderPath, isAbsolutePath } from './UserNotesPane/utils';
 import { useNotesAutoSave } from './UserNotesPane/hooks/useNotesAutoSave';
 import { useActiveNoteFlush } from './UserNotesPane/hooks/useActiveNoteFlush';
 import { useVerseNavigationListeners } from './UserNotesPane/hooks/useVerseNavigationListeners';
@@ -169,11 +169,15 @@ const UserNotesPane: React.FC<UserNotesPaneProps> = ({
   // edits are saved first - see useNotesAutoSave).
   const [previousNote, setPreviousNote] = useState<{ path: string; title: string } | null>(null);
   const lastOpenedRef = useRef<{ path: string; title: string } | null>(null);
+  const lastNoteObjRef = useRef<unknown>(null);
   useEffect(() => {
     const prev = lastOpenedRef.current;
-    if (prev && prev.path !== currentNotePath && currentNotePath) {
+    // A move/rename changes only the path (same note object): not "another note".
+    if (prev && prev.path !== currentNotePath && currentNotePath && lastNoteObjRef.current !== currentNote
+      && !isAbsolutePath(prev.path)) {
       setPreviousNote(prev);
     }
+    lastNoteObjRef.current = currentNote;
     lastOpenedRef.current = currentNotePath && currentNote
       ? { path: currentNotePath, title: currentNote.title }
       : null;

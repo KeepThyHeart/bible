@@ -5,7 +5,7 @@
 
 export type DesktopOs = 'win' | 'mac' | 'other';
 
-/** The OS the renderer runs on: the preload's `electron.platform`, else the browser's own hint. */
+/** The OS the renderer runs on: the preload's `electron.platform` if present, else the browser's own hint. */
 export function currentOs(): DesktopOs {
   const bridge = (globalThis as { window?: { electron?: { platform?: string } } }).window?.electron;
   const p = bridge?.platform ?? (typeof navigator !== 'undefined' ? navigator.platform : '');

@@ -32,7 +32,7 @@ export function useNotesAutoSave({
   const leavingRef = useRef({ view, currentNote, currentNotePath });
   leavingRef.current = { view, currentNote, currentNotePath };
   useEffect(() => {
-    useNoteEditorStore.getState().setBeforeReplace((unsaved) => { // allow-getstate: effect setup - register imperative saver
+    const saver = (unsaved: string) => {
       const { view: v, currentNote: note, currentNotePath: path } = leavingRef.current;
       if (v !== 'editor' || !note || !path) return;
       const toSave: BnFile = { ...note, content: unsaved };
@@ -45,8 +45,13 @@ export function useNotesAutoSave({
           .getState() // allow-getstate: async error path - imperative toast dispatch outside render
           .addToast('Failed to save note. Your changes may be lost.', 'error');
       });
-    });
-    return () => useNoteEditorStore.getState().setBeforeReplace(undefined); // allow-getstate: effect cleanup
+    };
+    useNoteEditorStore.getState().setBeforeReplace(saver); // allow-getstate: effect setup - register imperative saver
+    return () => {
+      // Clear only our own saver: a newer pane's registration must survive.
+      // allow-getstate: effect cleanup
+      if (useNoteEditorStore.getState()._beforeReplace === saver) useNoteEditorStore.getState().setBeforeReplace(undefined);
+    };
   }, []);
 
   useEffect(() => {

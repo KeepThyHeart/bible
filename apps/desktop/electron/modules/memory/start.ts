@@ -28,12 +28,17 @@ export function startDesktopMemory(
     openReadOnly: (path) => openHardenedExtensionDatabase(path, { readonly: true }),
     bible: createDesktopBibleApi(deps.getWindows),
     // The reader's default translation (KJV when installed), not the first installed module.
-    preferredModule: () =>
-      pickDefaultBible(
-        getSharedModuleMetadataRepo()
-          .getByType('bible')
-          .map((m) => ({ abbreviation: m.abbreviation || m.getAbbreviation() })),
-      ),
+    preferredModule: () => {
+      try {
+        return pickDefaultBible(
+          getSharedModuleMetadataRepo()
+            .getByType('bible')
+            .map((m) => ({ abbreviation: m.abbreviation || m.getAbbreviation() })),
+        );
+      } catch {
+        return null; // fall back to the first installed module
+      }
+    },
     speech: createDesktopSpeech(),
     ...(extras.reminders ? { reminders: extras.reminders } : {}),
     ...(deps.getExtensions ? { getExtensions: deps.getExtensions } : {}),
