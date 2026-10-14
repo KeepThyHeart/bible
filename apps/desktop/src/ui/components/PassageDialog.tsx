@@ -105,6 +105,7 @@ import { useFocusTrap } from '../hooks/useFocusTrap';
 import { PopupPortal } from '../hooks/usePopupPosition';
 import { isTextEntryTarget } from '../utils/textEntry';
 import { sanitizeHtml } from '../utils/sanitize';
+import { useToastStore } from '../stores/useToastStore';
 
 /**
  * Above the notes editor's own fixed-position chrome, which sits at 9998.
@@ -486,6 +487,7 @@ const PassageDialog: React.FC<PassageDialogProps> = ({
 
     const success = await copyToClipboard(plainText, htmlForClipboard);
     if (success) {
+      useToastStore.getState().addToast(t('passageDialog.copiedToast'), 'info', 2500); // allow-getstate: event handler
       onCopied?.();
       onClose();
     } else {

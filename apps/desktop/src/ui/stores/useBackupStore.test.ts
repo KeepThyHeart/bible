@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { useBackupStore } from './useBackupStore';
+import { useBackupStore, BACKUP_TIMEOUT_MS } from './useBackupStore';
 
 type Mock = ReturnType<typeof vi.fn>;
 const ok = <T,>(value: T) => ({ ok: true as const, value });
@@ -57,6 +57,38 @@ describe('creating a backup', () => {
     backup.create.mockResolvedValueOnce(err('internal', 'disk full'));
     await s.startBackup();
     expect(useBackupStore.getState().backupResult).toMatchObject({ failure: { code: 'internal', message: 'disk full' } });
+  });
+
+  it('cancel stops waiting on a backup that never answers, and ignores its late result', async () => {
+    const s = useBackupStore.getState();
+    s.setBackupPassword('long enough password');
+    s.setBackupConfirmPassword('long enough password');
+    let finish: (v: unknown) => void = () => undefined;
+    backup.create.mockReturnValueOnce(new Promise((resolve) => { finish = resolve; }));
+    const running = s.startBackup();
+    expect(useBackupStore.getState().isBackingUp).toBe(true);
+    useBackupStore.getState().cancelBackup();
+    expect(useBackupStore.getState().isBackingUp).toBe(false);
+    finish(ok({ path: '/late.bbk', sizeBytes: 1, createdAt: 'x', sections: 1, warnings: [] }));
+    await running;
+    expect(useBackupStore.getState().backupResult).toBeNull();
+  });
+
+  it('times out with an error instead of staying busy forever', async () => {
+    vi.useFakeTimers();
+    try {
+      const s = useBackupStore.getState();
+      s.setBackupPassword('long enough password');
+      s.setBackupConfirmPassword('long enough password');
+      backup.create.mockReturnValueOnce(new Promise(() => undefined));
+      const running = s.startBackup();
+      await vi.advanceTimersByTimeAsync(BACKUP_TIMEOUT_MS + 1);
+      await running;
+      expect(useBackupStore.getState().isBackingUp).toBe(false);
+      expect(useBackupStore.getState().backupResult).toMatchObject({ failure: { code: 'backup_timeout' } });
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('exports unencrypted with the history option', async () => {

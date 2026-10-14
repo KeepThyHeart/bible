@@ -326,11 +326,6 @@ const LanguageFirstRun: React.FC = () => {
     await fetchPacksFor(selected);
   }, [requestAllow, selected, fetchPacksFor]);
 
-  const handleStayOffline = useCallback(() => {
-    setStep('content');
-    void fetchPacksFor(selected);
-  }, [selected, fetchPacksFor]);
-
   const handleClose = useCallback(() => {
     // Closing from any step is a completed flow. Closing from step 1
     // (Escape, or the close button) still counts as answered: re-asking on
@@ -339,6 +334,11 @@ const LanguageFirstRun: React.FC = () => {
     markLanguageChosen();
     setDismissed(true);
   }, [markLanguageChosen]);
+
+  // "Stay offline" is an explicit answer: do not follow it with a third dialog
+  // that offers to go online again. Modules stay reachable from Tools -> Module
+  // Manager (including installing from a file), so the flow simply ends here.
+  const handleStayOffline = handleClose;
 
   // Skipping step 1 still has to *commit* it: the locale is confirmed, the
   // question is recorded as answered, and the next step is decided exactly as

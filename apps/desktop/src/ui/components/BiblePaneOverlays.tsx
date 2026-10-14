@@ -21,6 +21,7 @@ import { useEscapeKey } from '../hooks/useOverlayDismissal';
 import { useBookmarkStore } from '../stores/useBookmarkStore';
 import { wordMenuItems, useSlot } from '../modules/host/slots';
 import { useWordStrongs } from './bible/hooks/useWordStrongs';
+import { syncPanesWithVerse } from '../stores/syncPanesWithVerse';
 
 interface BibleTabInfo {
   tabId: string;
@@ -269,6 +270,8 @@ const BiblePaneOverlays: React.FC<BiblePaneOverlaysProps> = ({
           setShowBookPicker(false);
           const verseId = (book * 1000000) + (chapter * 1000) + (verse ?? 1);
           useBibleStore.getState().navigateToVerse(panelId, verseId); // allow-getstate: event handler - imperative navigation, no subscription needed
+          // Picking a chapter is the reader choosing a verse, as typing a reference is.
+          syncPanesWithVerse(verseId);
         }}
         currentBook={currentBook}
         currentChapter={currentChapter}

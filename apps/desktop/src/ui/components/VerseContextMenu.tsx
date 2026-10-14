@@ -381,28 +381,39 @@ const VerseContextMenu: React.FC<VerseContextMenuProps> = ({
     position: 'fixed',
     top: position.y,
     insetInlineStart: anchorAtPointer(position.x, 180, typeof window === 'undefined' ? 1024 : window.innerWidth, uiDir, 10).insetInlineStart,
-    zIndex: 9999
+    zIndex: 9999,
+    // Taller than the window (many extension items): scroll instead of clipping.
+    maxHeight: 'calc(100vh - 20px)',
+    overflowY: 'auto',
   };
 
-  // Re-anchor with the measured size to prevent overflow
+  // Re-anchor with the measured size to prevent overflow. Re-run whenever the
+  // menu's size changes: items (bookmarks, module entries) can arrive after mount.
   useEffect(() => {
-    if (menuRef.current) {
-      const rect = menuRef.current.getBoundingClientRect();
+    const node = menuRef.current;
+    if (!node) return;
+    const clamp = () => {
+      const rect = node.getBoundingClientRect();
       const viewportWidth = window.innerWidth;
       const viewportHeight = window.innerHeight;
 
       let adjustedTop = position.y;
       const { insetInlineStart } = anchorAtPointer(position.x, rect.width, viewportWidth, uiDir, 10);
 
-      // Adjust if menu overflows bottom edge
-      if (rect.bottom > viewportHeight) {
+      // Shift up when the menu would overflow the bottom edge.
+      if (adjustedTop + rect.height > viewportHeight - 10) {
         adjustedTop = viewportHeight - rect.height - 10;
       }
       adjustedTop = Math.max(10, adjustedTop);
 
-      menuRef.current.style.top = `${adjustedTop}px`;
-      menuRef.current.style.insetInlineStart = `${insetInlineStart}px`;
-    }
+      node.style.top = `${adjustedTop}px`;
+      node.style.insetInlineStart = `${insetInlineStart}px`;
+    };
+    clamp();
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(clamp);
+    observer.observe(node);
+    return () => observer.disconnect();
   }, [position, uiDir]);
 
   const menu = (
