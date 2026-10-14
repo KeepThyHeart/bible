@@ -800,10 +800,27 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
         const saved = passageSelectionRef.current;
         passageSelectionRef.current = null;
         const size = editor.state.doc.content.size;
-        if (saved && saved.from <= size) {
-          editor.chain().focus().insertContentAt({ from: saved.from, to: Math.min(saved.to, size) }, html).run();
-        } else {
-          editor.chain().focus().insertContent(html).run();
+        const from = saved && saved.from <= size ? saved.from : editor.state.selection.from;
+        const to = saved && saved.from <= size ? Math.min(saved.to, size) : editor.state.selection.to;
+        editor.chain().focus().insertContentAt({ from, to }, html).run();
+        // Typing at the end of the inserted passage (its quote or citation
+        // line) would extend the quoted text. Put the caret in a fresh empty
+        // paragraph after the passage instead. When the insertion point was
+        // the start of a block, the caret sits at the start of that following
+        // block, so the new paragraph goes before it.
+        const $to = editor.state.selection.$to;
+        if ($to.depth > 0) {
+          const atBlockStart = $to.parentOffset === 0 && $to.parent.content.size > 0;
+          const at = atBlockStart ? $to.before(1) : $to.after(1);
+          const inEmptyPara = $to.parent.type.name === 'paragraph' && $to.parent.content.size === 0;
+          if (!inEmptyPara) {
+            editor
+              .chain()
+              .insertContentAt(at, { type: 'paragraph' })
+              .setTextSelection(at + 1)
+              .focus()
+              .run();
+          }
         }
       }
     },

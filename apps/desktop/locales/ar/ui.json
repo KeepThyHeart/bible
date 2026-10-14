@@ -608,6 +608,8 @@
   "userNotesPane.recentTab": "الأخيرة",
   "userNotesPane.renameLabel": "إعادة تسمية",
   "userNotesPane.revealInExplorerLabel": "إظهار في مستكشف الملفات",
+  "userNotesPane.revealInExplorerLabelMac": "إظهار في Finder",
+  "userNotesPane.revealInExplorerLabelOther": "إظهار في مدير الملفات",
   "userNotesPane.rootFolder": "(الجذر)",
   "userNotesPane.saveAsLabel": "حفظ باسم...",
   "userNotesPane.savedStatus": "تم الحفظ",
@@ -663,10 +665,13 @@
   "notesFolderBrowser.filterPlaceholder": "البحث عن ملاحظات في /{path}",
   "notesFolderBrowser.filterPlaceholderHome": "البحث عن ملاحظات في /Home",
   "notesFolderBrowser.menuDelete": "حذف (سلة المحذوفات)",
+  "notesFolderBrowser.menuDeleteTrash": "حذف (سلة المهملات)",
   "notesFolderBrowser.menuExport": "تصدير إلى...",
   "notesFolderBrowser.menuOpen": "فتح",
   "notesFolderBrowser.menuRename": "إعادة تسمية",
   "notesFolderBrowser.menuReveal": "إظهار في مستكشف الملفات",
+  "notesFolderBrowser.menuRevealMac": "إظهار في Finder",
+  "notesFolderBrowser.menuRevealOther": "إظهار في مدير الملفات",
   "notesFolderBrowser.protectedFolder": "مجلد محمي",
   "notesFolderBrowser.relativeTime.justNow": "الآن",
   "notesFolderBrowser.relativeTime.minuteAgo": "قبل دقيقة واحدة",
@@ -2301,5 +2306,8 @@
   "apps.extension.closeApp": "إغلاق {app}",
   "apps.extension.settingsFor": "إعدادات {app}",
   "apps.quiz.title": "اختبار",
-  "apps.readingPlans.title": "خطط القراءة"
+  "apps.readingPlans.title": "خطط القراءة",
+  "userNotesPane.backToNote": "Back to {title}",
+  "commentaryContentArea.loadError": "Could not load this commentary.",
+  "commentaryContentArea.retry": "Retry"
 }

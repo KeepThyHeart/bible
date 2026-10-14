@@ -164,6 +164,21 @@ const UserNotesPane: React.FC<UserNotesPaneProps> = ({
     setSideTab,
   });
 
+  // Opening or creating another note replaces the one in this pane. Remember the
+  // note just left so the editor header can offer a way back to it (its unsaved
+  // edits are saved first - see useNotesAutoSave).
+  const [previousNote, setPreviousNote] = useState<{ path: string; title: string } | null>(null);
+  const lastOpenedRef = useRef<{ path: string; title: string } | null>(null);
+  useEffect(() => {
+    const prev = lastOpenedRef.current;
+    if (prev && prev.path !== currentNotePath && currentNotePath) {
+      setPreviousNote(prev);
+    }
+    lastOpenedRef.current = currentNotePath && currentNote
+      ? { path: currentNotePath, title: currentNote.title }
+      : null;
+  }, [currentNotePath, currentNote]);
+
   // Auto-save
   useNotesAutoSave({ view, currentNote, currentNotePath, setCurrentNote, setIsSaving });
 
@@ -357,6 +372,8 @@ const UserNotesPane: React.FC<UserNotesPaneProps> = ({
                   titleEditable={currentNote.type !== 'verse_note'}
                   onPopOut={handlePopOut}
                   notePath={currentNotePath}
+                  previousNote={previousNote && previousNote.path !== currentNotePath ? previousNote : null}
+                  onBackToPrevious={() => { if (previousNote) void handleOpenNote(previousNote.path); }}
                   // The same four actions the sidebar offers, also in the
                   // editor toolbar - the sidebar is collapsed by default in
                   // the editor, so until now "print this note" was behind a

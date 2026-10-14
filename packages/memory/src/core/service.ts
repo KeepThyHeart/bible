@@ -132,6 +132,12 @@ export interface MemoryServiceOptions {
   openSettings?(): void | Promise<void>;
   /** The host's translator for messages shown to the user (errors, notices, reminder text). Default: English. */
   t?: Translate;
+  /**
+   * The reader's translation (abbreviation), asked each time a passage is
+   * recorded without an explicit module. Null/absent: the first installed
+   * module. Saved passages keep the module they were recorded against.
+   */
+  preferredModule?(): string | null | undefined;
   now?(): number;
   rng?(): number;
   calendar?: Calendar;
@@ -1243,7 +1249,8 @@ export class MemoryService implements MemoryApi {
    * current hosts, but earlier hosts resolve only the abbreviation - their `id`
    * was a registry row number that read back as an empty range.
    */
-  private async activeModuleId(preferred: string | null | undefined = this.preferredModule): Promise<string> {
+  private async activeModuleId(preferred?: string | null): Promise<string> {
+    preferred ??= this.opts.preferredModule?.() ?? this.preferredModule;
     const modules = await this.host.bible.listModules();
     const match = preferred
       ? modules.find((m) => m.abbreviation === preferred || m.id === preferred)
@@ -1280,7 +1287,7 @@ export class MemoryService implements MemoryApi {
     endVerseId = startVerseId,
     preferredModule?: string,
   ): Promise<{ outcome: AddVersesOutcome; passageId: number }> {
-    const moduleId = await this.activeModuleId(preferredModule ?? this.preferredModule);
+    const moduleId = await this.activeModuleId(preferredModule);
     const now = this.now();
     const targetCollectionId = await this.resolveAddTargetCollectionId();
 

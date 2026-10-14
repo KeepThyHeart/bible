@@ -154,7 +154,7 @@ export function BibleToolbar({ onOpenSettings }: BibleToolbarProps) {
         <select
           class="bible-toolbar__mode-select"
           title={t('bibleToolbar.modeHint')}
-          aria-label={t('bibleToolbar.modeHint')}
+          aria-label={t('bibleToolbar.modeLabel')}
           value={displayMode}
           onChange={(e) => { if (tab) bibleStore.setDisplayMode(tab.id, (e.target as HTMLSelectElement).value as 'standard' | 'reading' | 'study'); }}
         >

@@ -3,7 +3,7 @@ import { Store } from './Store';
 import { eventBus } from '../events/eventBus';
 import type { IBibleDataProvider, VotdData } from '../providers/interfaces';
 import type { VerseData, BookTopicsData } from '../types';
-import { formatPassageRef } from '../constants';
+import { formatPassageRef, MAX_CHAPTERS } from '../constants';
 import { triggerAutoDownload } from '../offline/autoDownloadManager';
 import { settingsStore } from './settingsStore';
 import { studyOwnsHash, noteStudyHash } from '../host/hashGate';
@@ -475,7 +475,7 @@ class BibleStore extends Store {
 
       // Push to history
       this.pushHistory({ moduleAbbr: tab.moduleAbbr, book, chapter, verse }, { replace: options?.replace || follow, tab });
-      if (tab.id === this.activeTabId) this.updateHash();
+      if (tab.id === this.activeTabId) this.updateHash(!follow && !!verse);
       this.saveSession();
       this.notify();
 
@@ -1172,7 +1172,8 @@ class BibleStore extends Store {
   }
 
   // URL hash
-  updateHash(): void {
+  /** `withVerse`: the navigation named a verse (reference box), so the URL names it too. */
+  updateHash(withVerse = false): void {
     const tab = this.getActiveTab();
     if (tab?.book && tab.chapter) {
       const hash = `#/${tab.moduleAbbr}/${tab.book}/${tab.chapter}`;
@@ -1184,10 +1185,11 @@ class BibleStore extends Store {
       // A deep link that names a verse (`#/ASV/43/3/16`) keeps naming one, following
       // the selection, so a reload lands on the verse the reader is on.
       const current = window.location.hash.match(HASH_PATTERN);
-      if (current?.[4]
+      const namesVerse = withVerse || (current?.[4]
         && current[1] === tab.moduleAbbr
         && parseInt(current[2], 10) === tab.book
-        && parseInt(current[3], 10) === tab.chapter
+        && parseInt(current[3], 10) === tab.chapter);
+      if (namesVerse
         && tab.studyVerse !== null
         && Math.floor(tab.studyVerse / 1000) === tab.book * 1000 + tab.chapter) {
         const verseHash = `${hash}/${tab.studyVerse % 1000}`;
@@ -1233,7 +1235,7 @@ class BibleStore extends Store {
     const verse = verseStr ? parseInt(verseStr, 10) : undefined;
     // A link naming a book or chapter that cannot exist (`#/ASV/99/1`) is ignored:
     // the reader stays on the current passage and the URL is put back to match it.
-    if (book < 1 || book > 66 || chapter < 1) {
+    if (book < 1 || book > 66 || chapter < 1 || chapter > (MAX_CHAPTERS[book] ?? Infinity)) {
       this.updateHash();
       return;
     }

@@ -27,6 +27,28 @@ export function useNotesAutoSave({
 }: UseNotesAutoSaveArgs): void {
   const autoSaveTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // Opening or creating another note resets the shared editor store; save the
+  // note being left first so its unsaved edits are not dropped.
+  const leavingRef = useRef({ view, currentNote, currentNotePath });
+  leavingRef.current = { view, currentNote, currentNotePath };
+  useEffect(() => {
+    useNoteEditorStore.getState().setBeforeReplace((unsaved) => { // allow-getstate: effect setup - register imperative saver
+      const { view: v, currentNote: note, currentNotePath: path } = leavingRef.current;
+      if (v !== 'editor' || !note || !path) return;
+      const toSave: BnFile = { ...note, content: unsaved };
+      const saving = isAbsolutePath(path)
+        ? fileNotesAPI.saveNoteAbsolute(path, toSave)
+        : fileNotesAPI.saveNote(path, toSave);
+      saving.catch((err: unknown) => {
+        console.error('Saving the previous note failed:', err);
+        useToastStore
+          .getState() // allow-getstate: async error path - imperative toast dispatch outside render
+          .addToast('Failed to save note. Your changes may be lost.', 'error');
+      });
+    });
+    return () => useNoteEditorStore.getState().setBeforeReplace(undefined); // allow-getstate: effect cleanup
+  }, []);
+
   useEffect(() => {
     if (view === 'editor' && currentNote && currentNotePath) {
       autoSaveTimerRef.current = setInterval(async () => {

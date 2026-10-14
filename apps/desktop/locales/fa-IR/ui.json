@@ -608,6 +608,8 @@
   "userNotesPane.recentTab": "اخیر",
   "userNotesPane.renameLabel": "تغییر نام",
   "userNotesPane.revealInExplorerLabel": "نمایش در مدیر فایل",
+  "userNotesPane.revealInExplorerLabelMac": "نمایش در Finder",
+  "userNotesPane.revealInExplorerLabelOther": "نمایش در مدیر فایل",
   "userNotesPane.rootFolder": "(ریشه)",
   "userNotesPane.saveAsLabel": "ذخیره به‌عنوان...",
   "userNotesPane.savedStatus": "ذخیره شد",
@@ -663,10 +665,13 @@
   "notesFolderBrowser.filterPlaceholder": "یافتن یادداشت‌ها در /{path}",
   "notesFolderBrowser.filterPlaceholderHome": "یافتن یادداشت‌ها در /Home",
   "notesFolderBrowser.menuDelete": "حذف (سطل بازیافت)",
+  "notesFolderBrowser.menuDeleteTrash": "حذف (زباله‌دان)",
   "notesFolderBrowser.menuExport": "برون‌بری به...",
   "notesFolderBrowser.menuOpen": "باز کردن",
   "notesFolderBrowser.menuRename": "تغییر نام",
   "notesFolderBrowser.menuReveal": "نمایش در مدیر فایل",
+  "notesFolderBrowser.menuRevealMac": "نمایش در Finder",
+  "notesFolderBrowser.menuRevealOther": "نمایش در مدیر فایل",
   "notesFolderBrowser.protectedFolder": "پوشه محافظت‌شده",
   "notesFolderBrowser.relativeTime.justNow": "همین الان",
   "notesFolderBrowser.relativeTime.minuteAgo": "1 دقیقه پیش",
@@ -2286,5 +2291,8 @@
   "apps.extension.closeApp": "بستن {app}",
   "apps.extension.settingsFor": "تنظیمات {app}",
   "apps.quiz.title": "آزمون",
-  "apps.readingPlans.title": "برنامه‌های مطالعه"
+  "apps.readingPlans.title": "برنامه‌های مطالعه",
+  "userNotesPane.backToNote": "Back to {title}",
+  "commentaryContentArea.loadError": "Could not load this commentary.",
+  "commentaryContentArea.retry": "Retry"
 }

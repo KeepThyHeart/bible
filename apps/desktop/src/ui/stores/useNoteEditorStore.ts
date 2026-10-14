@@ -6,6 +6,15 @@ interface NoteEditorState {
   isDirty: boolean;
   lastSaved?: string;
   _autoSaveTimer?: ReturnType<typeof setInterval>;
+  /**
+   * Called with the unsaved content just before `resetContent` replaces it
+   * (another note is being opened or created), so the pane can save the note
+   * being left instead of silently dropping its edits.
+   */
+  _beforeReplace?: (unsavedContent: string) => void;
+
+  /** Register (or clear) the before-replace saver. */
+  setBeforeReplace: (fn: ((unsavedContent: string) => void) | undefined) => void;
 
   /** Set editor content and mark as dirty */
   setContent: (content: string) => void;
@@ -28,7 +37,19 @@ export const useNoteEditorStore = create<NoteEditorState>((set, get) => ({
   setContent: (content) => set({ content, isDirty: true }),
 
   // Loading another note: the previous note's save time must not carry over.
-  resetContent: (content) => set({ content, isDirty: false, lastSaved: undefined }),
+  resetContent: (content) => {
+    const { isDirty, content: old, _beforeReplace } = get();
+    if (isDirty && _beforeReplace && old !== content) {
+      try {
+        _beforeReplace(old);
+      } catch (error) {
+        console.error('Saving the previous note failed:', error);
+      }
+    }
+    set({ content, isDirty: false, lastSaved: undefined });
+  },
+
+  setBeforeReplace: (fn) => set({ _beforeReplace: fn }),
 
   markSaved: () => set({ isDirty: false, lastSaved: new Date().toISOString() }),
 

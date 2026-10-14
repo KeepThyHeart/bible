@@ -34,7 +34,7 @@ export function parseBlockDirection(value: string | null | undefined): BlockDire
 
 declare module '@tiptap/core' {
   interface Commands<ReturnType> {
-    textDirection: {
+    blockDirection: {
       /** Force every selected block to `ltr` or `rtl`. */
       setBlockDirection: (direction: BlockDirection) => ReturnType;
       /** Return every selected block to automatic (per-paragraph) detection. */
@@ -44,7 +44,7 @@ declare module '@tiptap/core' {
 }
 
 export const TextDirection = Extension.create<{ types: readonly string[] }>({
-  name: 'textDirection',
+  name: 'blockDirection',
 
   addOptions() {
     return { types: TEXT_DIRECTION_TYPES };

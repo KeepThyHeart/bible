@@ -71,6 +71,7 @@
     "modeReading": "Reading",
     "modeStudy": "Study",
     "modeHint": "Study view shows Strong's numbers and interlinear words for translations that include them, such as KJV.",
+    "modeLabel": "Display mode",
     "recentPassages": "Recent passages",
     "noHistory": "No passages visited yet"
   },

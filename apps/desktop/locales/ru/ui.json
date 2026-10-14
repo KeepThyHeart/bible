@@ -608,6 +608,8 @@
   "userNotesPane.recentTab": "Недавние",
   "userNotesPane.renameLabel": "Переименовать",
   "userNotesPane.revealInExplorerLabel": "Показать в Проводнике",
+  "userNotesPane.revealInExplorerLabelMac": "Показать в Finder",
+  "userNotesPane.revealInExplorerLabelOther": "Показать в файловом менеджере",
   "userNotesPane.rootFolder": "(Корень)",
   "userNotesPane.saveAsLabel": "Сохранить как...",
   "userNotesPane.savedStatus": "Сохранено",
@@ -663,10 +665,13 @@
   "notesFolderBrowser.filterPlaceholder": "Найти заметки в /{path}",
   "notesFolderBrowser.filterPlaceholderHome": "Найти заметки в /Home",
   "notesFolderBrowser.menuDelete": "Удалить (в корзину)",
+  "notesFolderBrowser.menuDeleteTrash": "Удалить (в корзину)",
   "notesFolderBrowser.menuExport": "Экспортировать в...",
   "notesFolderBrowser.menuOpen": "Открыть",
   "notesFolderBrowser.menuRename": "Переименовать",
   "notesFolderBrowser.menuReveal": "Показать в Проводнике",
+  "notesFolderBrowser.menuRevealMac": "Показать в Finder",
+  "notesFolderBrowser.menuRevealOther": "Показать в файловом менеджере",
   "notesFolderBrowser.protectedFolder": "Защищённая папка",
   "notesFolderBrowser.relativeTime.justNow": "Только что",
   "notesFolderBrowser.relativeTime.minuteAgo": "1 минуту назад",
@@ -2301,5 +2306,8 @@
   "apps.extension.closeApp": "Закрыть {app}",
   "apps.extension.settingsFor": "Настройки: {app}",
   "apps.quiz.title": "Викторина",
-  "apps.readingPlans.title": "Планы чтения"
+  "apps.readingPlans.title": "Планы чтения",
+  "userNotesPane.backToNote": "Back to {title}",
+  "commentaryContentArea.loadError": "Could not load this commentary.",
+  "commentaryContentArea.retry": "Retry"
 }

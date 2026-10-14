@@ -608,6 +608,8 @@
   "userNotesPane.recentTab": "אחרונים",
   "userNotesPane.renameLabel": "שנה שם",
   "userNotesPane.revealInExplorerLabel": "הצג ב-Explorer",
+  "userNotesPane.revealInExplorerLabelMac": "הצג ב-Finder",
+  "userNotesPane.revealInExplorerLabelOther": "הצג במנהל הקבצים",
   "userNotesPane.rootFolder": "(שורש)",
   "userNotesPane.saveAsLabel": "שמור בשם...",
   "userNotesPane.savedStatus": "נשמר",
@@ -663,10 +665,13 @@
   "notesFolderBrowser.filterPlaceholder": "חיפוש הערות ב-/{path}",
   "notesFolderBrowser.filterPlaceholderHome": "חיפוש הערות ב-/Home",
   "notesFolderBrowser.menuDelete": "מחק (סל המיחזור)",
+  "notesFolderBrowser.menuDeleteTrash": "מחק (פח האשפה)",
   "notesFolderBrowser.menuExport": "ייצא אל...",
   "notesFolderBrowser.menuOpen": "פתח",
   "notesFolderBrowser.menuRename": "שנה שם",
   "notesFolderBrowser.menuReveal": "הצג ב-Explorer",
+  "notesFolderBrowser.menuRevealMac": "הצג ב-Finder",
+  "notesFolderBrowser.menuRevealOther": "הצג במנהל הקבצים",
   "notesFolderBrowser.protectedFolder": "תיקייה מוגנת",
   "notesFolderBrowser.relativeTime.justNow": "הרגע",
   "notesFolderBrowser.relativeTime.minuteAgo": "לפני דקה",
@@ -2286,5 +2291,8 @@
   "apps.extension.closeApp": "סגירת {app}",
   "apps.extension.settingsFor": "הגדרות {app}",
   "apps.quiz.title": "חידון",
-  "apps.readingPlans.title": "תוכניות קריאה"
+  "apps.readingPlans.title": "תוכניות קריאה",
+  "userNotesPane.backToNote": "Back to {title}",
+  "commentaryContentArea.loadError": "Could not load this commentary.",
+  "commentaryContentArea.retry": "Retry"
 }

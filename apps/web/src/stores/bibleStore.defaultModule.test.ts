@@ -209,3 +209,16 @@ describe('a deep link naming a translation that is not installed', () => {
     expect(bibleStore.getActiveTab()?.loadError).toBeUndefined();
   });
 });
+
+describe('a deep link naming a chapter the book does not have', () => {
+  it('is ignored like any other invalid reference, not left loading', async () => {
+    install('ASV');
+    bibleStore.init(provider as never);
+    provider.getChapter.mockClear();
+
+    await bibleStore.navigateFromHash('#/ASV/43/99');
+
+    expect(provider.getChapter).not.toHaveBeenCalled();
+    expect(bibleStore.getActiveTab()?.chapter).not.toBe(99);
+  });
+});

@@ -608,6 +608,8 @@
   "userNotesPane.recentTab": "Recientes",
   "userNotesPane.renameLabel": "Cambiar el nombre",
   "userNotesPane.revealInExplorerLabel": "Mostrar en el Explorador",
+  "userNotesPane.revealInExplorerLabelMac": "Mostrar en el Finder",
+  "userNotesPane.revealInExplorerLabelOther": "Mostrar en el gestor de archivos",
   "userNotesPane.rootFolder": "(Raíz)",
   "userNotesPane.saveAsLabel": "Guardar como...",
   "userNotesPane.savedStatus": "Guardado",
@@ -663,10 +665,13 @@
   "notesFolderBrowser.filterPlaceholder": "Buscar notas en /{path}",
   "notesFolderBrowser.filterPlaceholderHome": "Buscar notas en /Home",
   "notesFolderBrowser.menuDelete": "Eliminar (papelera de reciclaje)",
+  "notesFolderBrowser.menuDeleteTrash": "Eliminar (papelera)",
   "notesFolderBrowser.menuExport": "Exportar a...",
   "notesFolderBrowser.menuOpen": "Abrir",
   "notesFolderBrowser.menuRename": "Cambiar el nombre",
   "notesFolderBrowser.menuReveal": "Mostrar en el Explorador",
+  "notesFolderBrowser.menuRevealMac": "Mostrar en el Finder",
+  "notesFolderBrowser.menuRevealOther": "Mostrar en el gestor de archivos",
   "notesFolderBrowser.protectedFolder": "Carpeta protegida",
   "notesFolderBrowser.relativeTime.justNow": "Ahora mismo",
   "notesFolderBrowser.relativeTime.minuteAgo": "Hace 1 minuto",
@@ -2303,5 +2308,8 @@
   "apps.extension.closeApp": "Cerrar {app}",
   "apps.extension.settingsFor": "Configuración de {app}",
   "apps.quiz.title": "Cuestionario",
-  "apps.readingPlans.title": "Planes de lectura"
+  "apps.readingPlans.title": "Planes de lectura",
+  "userNotesPane.backToNote": "Back to {title}",
+  "commentaryContentArea.loadError": "Could not load this commentary.",
+  "commentaryContentArea.retry": "Retry"
 }

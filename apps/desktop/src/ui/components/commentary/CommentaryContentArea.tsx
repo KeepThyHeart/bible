@@ -25,6 +25,8 @@ interface CommentaryContentAreaProps {
   onNavigatePrev: () => void;
   onNavigateNext: () => void;
   onBrowseAll?: () => void;
+  /** Re-run the failed entry fetch. */
+  onRetry?: () => void;
   /**
    * All entry summaries for this commentary - used to render the empty-verse
    * fallback grid so the user can jump to a verse in the current chapter that
@@ -53,6 +55,7 @@ const CommentaryContentArea: React.FC<CommentaryContentAreaProps> = ({
   onNavigatePrev,
   onNavigateNext,
   onBrowseAll,
+  onRetry,
   entrySummaries,
   onSelectVerse,
 }) => {
@@ -75,8 +78,17 @@ const CommentaryContentArea: React.FC<CommentaryContentAreaProps> = ({
 
   if (error) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <div className="text-danger">{error}</div>
+      <div className="flex flex-col items-center justify-center h-full gap-sm px-md text-center" role="alert">
+        <div className="text-danger" title={error}>{t('commentaryContentArea.loadError')}</div>
+        {onRetry && (
+          <button
+            type="button"
+            onClick={onRetry}
+            className="px-md py-sm bg-control text-text-primary rounded hover:bg-control-hover"
+          >
+            {t('commentaryContentArea.retry')}
+          </button>
+        )}
       </div>
     );
   }

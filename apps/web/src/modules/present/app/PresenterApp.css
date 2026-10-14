@@ -42,7 +42,14 @@
 }
 .pz-appbar__back:hover { background: var(--bg-tertiary); }
 .pz-appbar__service { font-weight: 600; }
-.pz-appbar__spacer { flex: 1; }
+.pz-appbar__spacer { flex: 1; min-inline-size: 0; }
+/* On a phone the service picker gives way (its name truncates) so Help and More stay on screen. */
+.pz-appbar > * { flex-shrink: 0; }
+.pz-appbar > .service-menu { flex-shrink: 1; min-inline-size: 0; }
+.pz-appbar .service-menu__trigger { max-inline-size: 100%; }
+@media (max-width: 480px) {
+  .pz-appbar { gap: 4px; padding-inline: 6px; }
+}
 .pz-appbar__live { color: var(--text-muted); white-space: nowrap; }
 .pz-appbar__live--on { color: var(--pz-live); font-weight: 600; }
 .pz-appbar__menu-wrap { position: relative; }
