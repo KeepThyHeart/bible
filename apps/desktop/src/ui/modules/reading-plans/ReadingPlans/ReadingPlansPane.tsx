@@ -6,6 +6,7 @@ import {
 import { useI18n } from '../../../contexts/useI18n';
 import { getReadingPlanService } from '../readingPlansAPI';
 import { navigateToVerseInPrimary } from '../../../stores/crossStoreBridge';
+import { syncPanesWithVerse } from '../../../stores/syncPanesWithVerse';
 import { openApp } from '../../../apps/appHost';
 import { useReadingPlanStore } from '../useReadingPlanStore';
 import { DESKTOP_SETTINGS, getDesktopSettingsStore } from '../../../settings/desktopSettings';
@@ -142,7 +143,7 @@ const ReadingPlansPane: React.FC = () => {
               labels={labels.todayCard}
               onToggleReading={(index, done) => { if (v.day !== null) void run(() => service.setReadingDone(v.enrollmentId, v.day!, index, done)); }}
               onToggleDay={(done) => { if (v.day !== null) void run(() => service.setDayDone(v.enrollmentId, v.day!, done)); }}
-              onOpenReading={(r) => { navigateToVerseInPrimary(r.start); void openApp('study'); }}
+              onOpenReading={(r) => { navigateToVerseInPrimary(r.start); syncPanesWithVerse(r.start); void openApp('study'); }}
               onOpenPlan={() => go({ kind: 'detail', id: v.enrollmentId, from: 'today' })}
               onShift={() => void run(() => service.shiftSchedule(v.enrollmentId))}
               onSwitchToFlexible={() => void run(() => service.switchToFlexible(v.enrollmentId))}
