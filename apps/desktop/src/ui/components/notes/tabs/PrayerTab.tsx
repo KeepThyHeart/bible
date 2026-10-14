@@ -19,6 +19,7 @@ import { usePrayerStore } from '../../../stores/usePrayerStore';
 import PrayerListItem from '../prayer/PrayerListItem';
 import PrayerEditor from '../prayer/PrayerEditor';
 import TextInputDialog from '../../TextInputDialog';
+import { ConfirmDialog } from '../../shared/ConfirmDialog';
 import PrayerListConfigDialog from '../prayer/PrayerListConfigDialog';
 import { SerializedNote } from '../../../services/notesAPI';
 
@@ -38,6 +39,7 @@ const PrayerTab: React.FC = () => {
     loadPrayerLists
   } = usePrayerStore();
   const [showTitleDialog, setShowTitleDialog] = useState(false);
+  const [pendingDeleteId, setPendingDeleteId] = useState<number | null>(null);
   const [showConfigDialog, setShowConfigDialog] = useState(false);
 
   // "No lists at all" and "a list exists but none is selected" need different
@@ -142,6 +144,19 @@ const PrayerTab: React.FC = () => {
 
   return (
     <>
+      <ConfirmDialog
+        open={pendingDeleteId !== null}
+        title={t('prayerListItem.deleteTitle')}
+        message={t('prayerListItem.deleteConfirm')}
+        confirmLabel={t('prayerListItem.deleteConfirmLabel')}
+        destructive
+        onConfirm={() => {
+          const id = pendingDeleteId;
+          setPendingDeleteId(null);
+          if (id !== null) void handleDeletePrayer(id);
+        }}
+        onCancel={() => setPendingDeleteId(null)}
+      />
       <div data-testid="prayer-pane" className="h-full flex">
         {/* Left panel: Prayer list selector + Prayer list */}
         <div className="w-80 flex flex-col bg-surface border-e border-border">
@@ -259,7 +274,7 @@ const PrayerTab: React.FC = () => {
                             index={index}
                             isSelected={isSelected}
                             onSelect={() => handleSelectPrayer(prayer)}
-                            onDelete={() => handleDeletePrayer(prayer.noteId!)}
+                            onDelete={() => setPendingDeleteId(prayer.noteId!)}
                           />
                         );
                       })}

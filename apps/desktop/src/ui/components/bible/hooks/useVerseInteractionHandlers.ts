@@ -1,4 +1,5 @@
 import React, { useCallback } from 'react';
+import { requestVerseNote } from '../../notes/UserNotesPane/verseNoteRequest';
 import { BibleVerse as BibleVerseCopy, hasTextSelection, getSelectedVerseIds } from '../../../services/verseCopyService';
 import { useNotesStore } from '../../../stores/useNotesStore';
 import { syncPanesWithVerse } from '../../../stores/syncPanesWithVerse';
@@ -93,7 +94,7 @@ export function useVerseInteractionHandlers(args: {
         requestAnimationFrame(() => {
           try {
             syncAllNotesPanelsWithVerse(verseId);
-            window.dispatchEvent(new CustomEvent('open-verse-note'));
+            requestVerseNote(verseId);
           } catch (error) {
             console.error('Failed to open the verse note:', error);
           }

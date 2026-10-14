@@ -1,4 +1,5 @@
 import React from 'react';
+import { requestVerseNote } from './notes/UserNotesPane/verseNoteRequest';
 import { useBibleStore } from '../stores/useBibleStore';
 import { revealNotesPanel } from './bible/revealNotesPanel';
 import VerseContextMenu from './VerseContextMenu';
@@ -434,7 +435,7 @@ const BiblePaneOverlays: React.FC<BiblePaneOverlaysProps> = ({
             requestAnimationFrame(() => {
               requestAnimationFrame(() => {
                 syncAllNotesPanelsWithVerse(verseId);
-                window.dispatchEvent(new CustomEvent('open-verse-note'));
+                requestVerseNote(verseId);
               });
             });
           }}
@@ -570,7 +571,7 @@ const BiblePaneOverlays: React.FC<BiblePaneOverlaysProps> = ({
                 requestAnimationFrame(() => {
                   try {
                     syncAllNotesPanelsWithVerse(verseId);
-                    window.dispatchEvent(new CustomEvent('open-verse-note'));
+                    requestVerseNote(verseId);
                   } catch (error) {
                     console.error('Failed to open the verse note:', error);
                   }
