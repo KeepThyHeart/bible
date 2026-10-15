@@ -23,7 +23,7 @@ interface NoteEditorState {
   /** Set editor content without marking as dirty (used when loading a note) */
   resetContent: (content: string) => void;
   /** Mark the editor as saved (clears dirty flag, updates lastSaved timestamp) */
-  markSaved: () => void;
+  markSaved: (savedContent?: string) => void;
   /** Start auto-save timer that calls saveFn when content is dirty */
   startAutoSave: (saveFn: () => Promise<void>) => void;
   /** Stop the auto-save timer */
@@ -56,7 +56,12 @@ export const useNoteEditorStore = create<NoteEditorState>((set, get) => ({
 
   setBeforeReplace: (fn) => set({ _beforeReplace: fn }),
 
-  markSaved: () => set(state => ({ isDirty: false, baseline: state.content, lastSaved: new Date().toISOString() })),
+  // `savedContent`: what was actually written. Text typed while the save was in
+  // flight stays dirty instead of being marked saved without ever being written.
+  markSaved: (savedContent) => set(state => {
+    const saved = savedContent ?? state.content;
+    return { isDirty: state.content !== saved, baseline: saved, lastSaved: new Date().toISOString() };
+  }),
 
   startAutoSave: (saveFn) => {
     get().stopAutoSave();

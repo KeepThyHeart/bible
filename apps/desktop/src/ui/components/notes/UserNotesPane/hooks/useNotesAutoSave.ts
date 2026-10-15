@@ -104,8 +104,12 @@ export function useNotesAutoSave({
             // never re-created. The main process returns the real written
             // `updated`, which becomes the next baseline.
             const savedUpdated = await saveWithBaseline(currentNotePath, updatedNote);
+            // The note may have been switched away while the save was in flight:
+            // its result is no longer this pane's state.
+            if (leavingRef.current.currentNotePath !== currentNotePath) return;
             setCurrentNote({ ...updatedNote, updated: savedUpdated });
-            store.markSaved();
+            // Text typed during the save is still unsaved: only what was sent is clean.
+            store.markSaved(updatedNote.content);
           } catch (err: unknown) {
             const kind = staleSaveKind(err);
             if (kind) {
@@ -138,15 +142,7 @@ export function useNotesAutoSave({
         }
       };
       autoSaveTimerRef.current = setInterval(saveTick, AUTOSAVE_MS);
-      // Leaving the editor field (click elsewhere, window loses focus) saves at once.
-      const onFocusOut = (e: FocusEvent) => {
-        const el = e.target as HTMLElement | null;
-        if (el && typeof el.closest === 'function' && el.closest('[contenteditable="true"]')) void saveTick();
-      };
-      document.addEventListener('focusout', onFocusOut);
-
       return () => {
-        document.removeEventListener('focusout', onFocusOut);
         if (autoSaveTimerRef.current) {
           clearInterval(autoSaveTimerRef.current);
           autoSaveTimerRef.current = null;

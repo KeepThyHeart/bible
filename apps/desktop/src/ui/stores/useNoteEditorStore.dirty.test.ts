@@ -21,3 +21,15 @@ describe('useNoteEditorStore dirty tracking (soak 0161: opening a note must not 
     expect(useNoteEditorStore.getState().isDirty).toBe(true);
   });
 });
+
+describe('markSaved with the saved content', () => {
+  it('keeps text typed during an in-flight save dirty', () => {
+    useNoteEditorStore.getState().resetContent('<p>a</p>');
+    useNoteEditorStore.getState().setContent('<p>ab</p>');
+    useNoteEditorStore.getState().setContent('<p>abc</p>'); // typed while the save of "ab" is in flight
+    useNoteEditorStore.getState().markSaved('<p>ab</p>');
+    expect(useNoteEditorStore.getState().isDirty).toBe(true);
+    useNoteEditorStore.getState().markSaved('<p>abc</p>');
+    expect(useNoteEditorStore.getState().isDirty).toBe(false);
+  });
+});

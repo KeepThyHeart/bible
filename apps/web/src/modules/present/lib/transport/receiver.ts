@@ -105,8 +105,19 @@ export function openPresentReceiver(joinCode: string, options: { preview?: boole
     // state ever arrived means the code is unknown or expired. A network drop
     // leaves the source CONNECTING and retrying, so it never lands here.
     if (latest === null && source.readyState === 2) {
-      closedByServer = true;
-      emit({ type: 'closed', reason: 'unknown' });
+      // A fatal close is also what a proxy 502 or a captive portal causes: ask
+      // the state endpoint, and only a 404/410 means the code is unknown.
+      void fetch(`${API_BASE}/api/present/j/${encodeURIComponent(joinCode)}/state`)
+        .then(res => {
+          if (closedByServer) return;
+          if (res.status === 404 || res.status === 410) {
+            closedByServer = true;
+            emit({ type: 'closed', reason: 'unknown' });
+          } else {
+            emit({ type: 'reconnecting' });
+          }
+        })
+        .catch(() => emit({ type: 'reconnecting' }));
       return;
     }
     // Deliberately no payload: EventSource is already retrying on its own,

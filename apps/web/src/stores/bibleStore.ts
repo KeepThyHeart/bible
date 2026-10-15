@@ -390,7 +390,7 @@ class BibleStore extends Store {
     chapter: number,
     verse?: number,
     /** `replace` keeps the in-app history page; `urlReplace` also keeps the browser URL entry (programmatic moves such as following the presenter). */
-    options?: { fromLink?: boolean; endVerse?: number; replace?: boolean; urlReplace?: boolean; follow?: boolean; tabId?: string },
+    options?: { fromLink?: boolean; fromHash?: boolean; endVerse?: number; replace?: boolean; urlReplace?: boolean; follow?: boolean; tabId?: string },
   ): Promise<void> {
     const follow = options?.follow === true;
     const tab = options?.tabId ? this.tabs.find(t => t.id === options.tabId) : this.getActiveTab();
@@ -489,7 +489,7 @@ class BibleStore extends Store {
 
       // Push to history
       this.pushHistory({ moduleAbbr: tab.moduleAbbr, book, chapter, verse }, { replace: options?.replace || follow, tab });
-      if (tab.id === this.activeTabId) this.updateHash(!follow && !!verse, !follow && !options?.urlReplace && !this.hashDriven);
+      if (tab.id === this.activeTabId) this.updateHash(!follow && !!verse, !follow && !options?.urlReplace && !options?.fromHash);
       this.saveSession();
       this.notify();
 
@@ -1186,7 +1186,6 @@ class BibleStore extends Store {
   }
 
   /** True while `navigateFromHash` runs: hash writes replace, they do not push. */
-  private hashDriven = false;
 
   /** The text of one verse in a translation, or null when it cannot be read (offline, missing). */
   async getVerseText(moduleAbbr: string, verseId: number): Promise<string | null> {
@@ -1280,8 +1279,8 @@ class BibleStore extends Store {
     }
 
     // The URL already is the user's step (Back, a hand-edit): rewrite it in place, never push.
-    this.hashDriven = true;
-    try { await this.navigateTo(book, chapter, verse); } finally { this.hashDriven = false; }
+    // `replace`: Back/Forward already moved the URL; do not append a duplicate to the tab's own history.
+    await this.navigateTo(book, chapter, verse, { fromHash: true, replace: true });
   }
 
   // Session persistence
