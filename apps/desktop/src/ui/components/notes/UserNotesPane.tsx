@@ -184,7 +184,7 @@ const UserNotesPane: React.FC<UserNotesPaneProps> = ({
   }, [currentNotePath, currentNote]);
 
   // Auto-save
-  useNotesAutoSave({ view, currentNote, currentNotePath, setCurrentNote, setIsSaving });
+  useNotesAutoSave({ view, currentNote, currentNotePath, setCurrentNote, setIsSaving, setFileError });
 
   // Flush the active note to disk on window close / unload (the renderer is
   // destroyed before auto-save's unmount cleanup can run during a real quit).
@@ -227,6 +227,7 @@ const UserNotesPane: React.FC<UserNotesPaneProps> = ({
   } = useNoteCrud({
     currentPath,
     currentNotePath,
+    currentNote,
     loadDirectory,
     setCurrentNote,
     setCurrentNotePath,

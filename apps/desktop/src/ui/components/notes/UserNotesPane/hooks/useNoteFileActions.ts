@@ -8,6 +8,7 @@ import { htmlToMarkdown } from '../../../../utils/exportNote';
 import { sanitizeHtml } from '../../../../utils/sanitize';
 import { IpcResultError, unwrap } from '../../../../services/ipcResult';
 import { escapeHtmlText, isAbsolutePath } from '../utils';
+import { MISSING_MESSAGE } from './noteSave';
 
 interface UseNoteFileActionsArgs {
   currentNote: BnFile | null;
@@ -135,6 +136,11 @@ export function useNoteFileActions(args: UseNoteFileActionsArgs): NoteFileAction
           'This note was changed in another window since you opened it. ' +
             'Save again to overwrite those changes, or use "Save As" to keep both copies.'
         );
+        return;
+      }
+      if (err instanceof IpcResultError && err.code === 'not_found') {
+        // Renamed, moved or trashed since it was opened: never re-create it.
+        setFileError(MISSING_MESSAGE);
         return;
       }
       setFileError(`Could not save: ${err instanceof Error ? err.message : String(err)}`);

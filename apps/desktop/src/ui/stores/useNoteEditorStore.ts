@@ -4,6 +4,8 @@ import { whenContextService } from '../services/WhenContextService';
 interface NoteEditorState {
   content: string;
   isDirty: boolean;
+  /** Content as loaded or last saved; an edit that equals it is not an edit. */
+  baseline?: string;
   lastSaved?: string;
   _autoSaveTimer?: ReturnType<typeof setInterval>;
   /**
@@ -34,7 +36,10 @@ export const useNoteEditorStore = create<NoteEditorState>((set, get) => ({
   lastSaved: undefined,
   _autoSaveTimer: undefined,
 
-  setContent: (content) => set({ content, isDirty: true }),
+  // An update that leaves the text equal to what was loaded or saved (the
+  // editor re-emitting its own document on open) is not an edit: counting it
+  // made merely opening a note rewrite its file.
+  setContent: (content) => set(state => ({ content, isDirty: content !== state.baseline })),
 
   // Loading another note: the previous note's save time must not carry over.
   resetContent: (content) => {
@@ -46,12 +51,12 @@ export const useNoteEditorStore = create<NoteEditorState>((set, get) => ({
         console.error('Saving the previous note failed:', error);
       }
     }
-    set({ content, isDirty: false, lastSaved: undefined });
+    set({ content, baseline: content, isDirty: false, lastSaved: undefined });
   },
 
   setBeforeReplace: (fn) => set({ _beforeReplace: fn }),
 
-  markSaved: () => set({ isDirty: false, lastSaved: new Date().toISOString() }),
+  markSaved: () => set(state => ({ isDirty: false, baseline: state.content, lastSaved: new Date().toISOString() })),
 
   startAutoSave: (saveFn) => {
     get().stopAutoSave();

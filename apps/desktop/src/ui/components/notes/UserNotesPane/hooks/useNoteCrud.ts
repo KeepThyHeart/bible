@@ -3,10 +3,13 @@ import * as fileNotesAPI from '../../../../services/fileNotesAPI';
 import { FileEntry, BnFile } from '../../../../services/fileNotesAPI';
 import { useFileNotesStore } from '../../../../stores/useFileNotesStore';
 import { useNoteEditorStore } from '../../../../stores/useNoteEditorStore';
+import { saveWithBaseline } from './noteSave';
 
 interface UseNoteCrudArgs {
   currentPath: string;
   currentNotePath: string;
+  /** The open note (its `updated` is the save baseline). */
+  currentNote?: BnFile | null;
   loadDirectory: (path: string) => void;
   setCurrentNote: (note: BnFile) => void;
   setCurrentNotePath: (path: string) => void;
@@ -36,6 +39,7 @@ export function useNoteCrud(args: UseNoteCrudArgs): NoteCrudActions {
   const {
     currentPath,
     currentNotePath,
+    currentNote,
     loadDirectory,
     setCurrentNote,
     setCurrentNotePath,
@@ -75,6 +79,43 @@ export function useNoteCrud(args: UseNoteCrudArgs): NoteCrudActions {
     [currentPath, setCurrentNote, setCurrentNotePath, setView, setShowNewNoteDialog, setFileError]
   );
 
+  const norm = (p: string) => p.replace(/\\/g, '/');
+  /** Is the open note this path, or inside this folder? */
+  const affectsOpenNote = (path: string) => {
+    if (!currentNotePath) return false;
+    const open = norm(currentNotePath);
+    const p = norm(path);
+    return open === p || open.startsWith(p + '/');
+  };
+
+  /**
+   * Save the open note's unsaved edits at its CURRENT path before that path
+   * changes or disappears, so neither the pending autosave nor the unmount
+   * flush later writes to (and re-creates) the old file.
+   */
+  const flushOpenNoteFirst = async () => {
+    const store = useNoteEditorStore.getState(); // allow-getstate: async CRUD callback - imperative read of the latest editor state
+    if (!store.isDirty || !currentNote || !currentNotePath) return;
+    const updated = await saveWithBaseline(currentNotePath, { ...currentNote, content: store.content });
+    setCurrentNote({ ...currentNote, content: store.content, updated });
+    store.markSaved();
+  };
+
+  /** After a rename/move succeeded on disk: follow it with the open note and Recent. */
+  const followRename = async (oldPath: string, newPath: string, isDirectory: boolean) => {
+    const base = (p: string) => norm(p).split('/').pop() || '';
+    const retitle = !isDirectory && base(oldPath) !== base(newPath) ? base(newPath).replace(/\.bn$/, '') : undefined;
+    useFileNotesStore.getState().remapRecentPaths(oldPath, newPath, retitle); // allow-getstate: async CRUD callback - imperative store update
+    if (!affectsOpenNote(oldPath)) return;
+    const open = norm(currentNotePath);
+    const nextOpen = norm(newPath) + open.slice(norm(oldPath).length);
+    setCurrentNotePath(nextOpen);
+    if (retitle !== undefined && open === norm(oldPath) && currentNote) {
+      // The main process re-titled the file and kept `updated`.
+      setCurrentNote({ ...currentNote, title: retitle });
+    }
+  };
+
   const handleCreateFolder = useCallback(
     async (name: string) => {
       try {
@@ -101,7 +142,9 @@ export function useNoteCrud(args: UseNoteCrudArgs): NoteCrudActions {
         const newRelPath = parentPath
           ? `${parentPath}/${cleanName}${newExt}`
           : `${cleanName}${newExt}`;
+        if (affectsOpenNote(entry.path)) await flushOpenNoteFirst();
         await fileNotesAPI.renameEntry(entry.path, newRelPath);
+        await followRename(entry.path, newRelPath, entry.isDirectory);
         loadDirectory(currentPath);
         setRenameEntry(null);
       } catch (err: unknown) {
@@ -117,8 +160,9 @@ export function useNoteCrud(args: UseNoteCrudArgs): NoteCrudActions {
       try {
         const fileName = currentNotePath.split(/[/\\]/).pop() || '';
         const newPath = targetFolder ? `${targetFolder}/${fileName}` : fileName;
+        await flushOpenNoteFirst();
         await fileNotesAPI.renameEntry(currentNotePath, newPath);
-        setCurrentNotePath(newPath);
+        await followRename(currentNotePath, newPath, false);
         setCurrentPath(targetFolder);
         setShowMoveDialog(false);
       } catch (err: unknown) {
@@ -133,7 +177,9 @@ export function useNoteCrud(args: UseNoteCrudArgs): NoteCrudActions {
       try {
         const fileName = entry.path.split(/[/\\]/).pop() || entry.name;
         const newPath = targetFolder ? `${targetFolder}/${fileName}` : fileName;
+        if (affectsOpenNote(entry.path)) await flushOpenNoteFirst();
         await fileNotesAPI.renameEntry(entry.path, newPath);
+        await followRename(entry.path, newPath, entry.isDirectory);
         loadDirectory(currentPath);
       } catch (err: unknown) {
         setFileError(`Failed to move: ${err instanceof Error ? err.message : String(err)}`);
@@ -146,6 +192,7 @@ export function useNoteCrud(args: UseNoteCrudArgs): NoteCrudActions {
     async (entry: FileEntry) => {
       try {
         await fileNotesAPI.deleteEntry(entry.path);
+        useFileNotesStore.getState().removeRecentUnder(entry.path); // allow-getstate: async CRUD callback - imperative store update
         loadDirectory(currentPath);
       } catch (err: unknown) {
         setFileError(`Failed to delete: ${err instanceof Error ? err.message : String(err)}`);

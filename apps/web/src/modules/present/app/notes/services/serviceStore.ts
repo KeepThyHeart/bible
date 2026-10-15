@@ -92,6 +92,13 @@ export interface ServiceStoreOptions {
   debounceMs?: number;
   now?: () => number;
   newId?: () => string;
+  /**
+   * Name of a BroadcastChannel shared by every tab of this browser. When set,
+   * a write in one tab is announced and the other tabs reload that service,
+   * so a stale tab does not later overwrite it with its old copy (two
+   * controller tabs would otherwise silently drop each other's items).
+   */
+  channelName?: string;
 }
 
 export interface NewServiceInput {
@@ -123,6 +130,8 @@ export class ServiceStore {
   private readonly debounceMs: number;
   private readonly now: () => number;
   private readonly newId: () => string;
+  private channel: BroadcastChannel | null = null;
+  private remoteListeners = new Set<(id: string) => void>();
   /** True once we had to fall back to memory: the UI may say "not saved on this device". */
   persistent = true;
 
@@ -135,6 +144,57 @@ export class ServiceStore {
       this.persistent = false;
       return createMemoryBackend();
     });
+    if (opts.channelName && typeof BroadcastChannel !== 'undefined') {
+      try {
+        this.channel = new BroadcastChannel(opts.channelName);
+        this.channel.onmessage = (e: MessageEvent) => void this.onRemoteMessage(e.data);
+      } catch {
+        this.channel = null;
+      }
+    }
+  }
+
+  /** Stop listening to other tabs (tests, teardown). */
+  close(): void {
+    this.channel?.close();
+    this.channel = null;
+  }
+
+  /** Called with a service id after another tab changed or deleted it (the local copy is already updated). */
+  onRemoteChange(fn: (id: string) => void): () => void {
+    this.remoteListeners.add(fn);
+    return () => this.remoteListeners.delete(fn);
+  }
+
+  private announce(kind: 'put' | 'delete', id: string): void {
+    try {
+      this.channel?.postMessage({ kind, id });
+    } catch {
+      /* a closed channel must never break saving */
+    }
+  }
+
+  private async onRemoteMessage(data: unknown): Promise<void> {
+    const msg = data as { kind?: string; id?: string } | null;
+    if (!msg?.id || (msg.kind !== 'put' && msg.kind !== 'delete')) return;
+    await this.ready();
+    const id = msg.id;
+    if (msg.kind === 'delete') {
+      this.cancelTimer(id);
+      if (!this.services.delete(id)) return;
+      if (this.lastOpenId === id) this.lastOpenId = null;
+    } else {
+      // Our own unsaved edit in flight wins its turn; it is written on its timer.
+      if (this.timers.has(id)) return;
+      const backend = await this.backendPromise;
+      const all = await this.safe(() => backend.getAll());
+      const fresh = all?.find((x) => x.id === id);
+      const cur = this.services.get(id);
+      if (!fresh || (cur && cur.updatedAt >= fresh.updatedAt)) return;
+      this.services.set(id, fresh);
+    }
+    this.emit();
+    for (const fn of [...this.remoteListeners]) fn(id);
   }
 
   /** Load from storage. Safe to call repeatedly. */
@@ -238,6 +298,7 @@ export class ServiceStore {
     if (!this.services.delete(id)) return;
     const backend = await this.backendPromise;
     await this.safe(() => backend.delete(id));
+    this.announce('delete', id);
     if (this.lastOpenId === id) {
       this.lastOpenId = null;
       void this.persistMeta(LAST_OPEN, null);
@@ -278,6 +339,7 @@ export class ServiceStore {
   private async persist(service: Service): Promise<void> {
     const backend = await this.backendPromise;
     await this.safe(() => backend.put(structuredCloneSafe(service)));
+    this.announce('put', service.id);
   }
 
   private async persistMeta(key: string, value: string | null): Promise<void> {
@@ -305,7 +367,7 @@ let shared: ServiceStore | null = null;
 /** The app-wide store. Flushes pending autosaves when the page is hidden. */
 export function getServiceStore(): ServiceStore {
   if (!shared) {
-    shared = new ServiceStore();
+    shared = new ServiceStore({ channelName: 'bible-present-services' });
     if (typeof window !== 'undefined') {
       window.addEventListener('pagehide', () => void shared?.flush());
     }
