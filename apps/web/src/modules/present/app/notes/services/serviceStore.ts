@@ -188,6 +188,8 @@ export class ServiceStore {
       if (this.timers.has(id)) return;
       const backend = await this.backendPromise;
       const all = await this.safe(() => backend.getAll());
+      // A local edit may have started while we waited on storage: it wins its turn.
+      if (this.timers.has(id)) return;
       const fresh = all?.find((x) => x.id === id);
       const cur = this.services.get(id);
       if (!fresh || (cur && cur.updatedAt >= fresh.updatedAt)) return;

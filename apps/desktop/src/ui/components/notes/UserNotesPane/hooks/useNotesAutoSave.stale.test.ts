@@ -13,6 +13,8 @@ import { useNoteEditorStore } from '../../../../stores/useNoteEditorStore';
 vi.mock('../../../../services/fileNotesAPI', () => ({
   saveNote: vi.fn(),
   saveNoteAbsolute: vi.fn(),
+  readNote: vi.fn(),
+  readNoteAbsolute: vi.fn(),
 }));
 import * as fileNotesAPI from '../../../../services/fileNotesAPI';
 
@@ -49,6 +51,15 @@ describe('useNotesAutoSave stale-save refusals', () => {
     expect(useNoteEditorStore.getState().isDirty).toBe(false);
   });
 
+  it('after a conflict the baseline is re-synced to disk so one "Save again" is enough', async () => {
+    vi.mocked(fileNotesAPI.saveNote).mockRejectedValue(new IpcResultError('conflict', 'x'));
+    vi.mocked(fileNotesAPI.readNote).mockResolvedValue({ ...note, updated: 'U9' });
+    const { setCurrentNote } = mount();
+    await act(async () => { await vi.advanceTimersByTimeAsync(5000); });
+    expect(setCurrentNote).toHaveBeenCalledWith(expect.objectContaining({ updated: 'U9' }));
+    expect(useNoteEditorStore.getState().isDirty).toBe(true);
+  });
+
   it.each([
     ['conflict', /changed in another window/],
     ['not_found', /renamed, moved or deleted/],
@@ -59,7 +70,7 @@ describe('useNotesAutoSave stale-save refusals', () => {
     expect(setFileError).toHaveBeenCalledTimes(1);
     expect(setFileError.mock.calls[0][0]).toMatch(text);
     expect(useNoteEditorStore.getState().isDirty).toBe(true);
-    expect(setCurrentNote).not.toHaveBeenCalled();
+    if (code === 'not_found') expect(setCurrentNote).not.toHaveBeenCalled();
     await act(async () => { await vi.advanceTimersByTimeAsync(15000); });
     expect(fileNotesAPI.saveNote).toHaveBeenCalledTimes(1);
     expect(setFileError).toHaveBeenCalledTimes(1);

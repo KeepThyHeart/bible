@@ -2,6 +2,8 @@ import { useEffect, useRef } from 'react';
 import { BnFile } from '../../../../services/fileNotesAPI';
 import { useNoteEditorStore } from '../../../../stores/useNoteEditorStore';
 import { useToastStore } from '../../../../stores/useToastStore';
+import * as fileNotesAPI from '../../../../services/fileNotesAPI';
+import { isAbsolutePath } from '../utils';
 import { saveWithBaseline, staleSaveKind, saveConflictCopy, CONFLICT_MESSAGE, MISSING_MESSAGE } from './noteSave';
 
 interface UseNotesAutoSaveArgs {
@@ -102,6 +104,18 @@ export function useNotesAutoSave({
             const kind = staleSaveKind(err);
             if (kind) {
               autoSavePausedRef.current = true;
+              if (kind === 'conflict') {
+                // Re-sync the baseline to what is on disk (as a manual Save does),
+                // so the single "Save again" the banner asks for really overwrites.
+                try {
+                  const onDisk = isAbsolutePath(currentNotePath)
+                    ? await fileNotesAPI.readNoteAbsolute(currentNotePath)
+                    : await fileNotesAPI.readNote(currentNotePath);
+                  if (onDisk) setCurrentNote({ ...latest, updated: onDisk.updated });
+                } catch {
+                  /* the banner still stands */
+                }
+              }
               setFileError?.(kind === 'conflict' ? CONFLICT_MESSAGE : MISSING_MESSAGE);
               return;
             }

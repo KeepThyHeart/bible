@@ -5,7 +5,7 @@ import {
   registerActiveNoteFlush,
   clearActiveNoteFlush,
 } from '../../../../services/activeNoteFlush';
-import { saveWithBaseline, staleSaveKind } from './noteSave';
+import { saveWithBaseline, staleSaveKind, saveConflictCopy } from './noteSave';
 
 interface UseActiveNoteFlushArgs {
   view: 'browser' | 'editor';
@@ -50,8 +50,11 @@ export function useActiveNoteFlush({
         // Another window changed the note, or it was renamed/moved/trashed:
         // leave both versions alone rather than overwrite or re-create. Must
         // not throw - this runs while the window is closing.
-        if (!staleSaveKind(err)) throw err;
+        const kind = staleSaveKind(err);
+        if (!kind) throw err;
         console.warn('Skipped saving the active note on close (changed elsewhere):', err);
+        // Keep the text next to the other version instead of losing it.
+        if (kind === 'conflict') await saveConflictCopy(currentNotePath, updatedNote).catch(() => undefined);
       }
     };
 

@@ -43,8 +43,20 @@ describe('useNoteCrud follows the open note', () => {
     expect(api.saveNote).toHaveBeenCalledWith('S/Old.bn', expect.objectContaining({ content: '<p>a edited</p>' }), 'U0');
     expect(api.renameEntry).toHaveBeenCalledWith('S/Old.bn', 'S/New.bn');
     expect(args.setCurrentNotePath).toHaveBeenCalledWith('S/New.bn');
-    expect(args.setCurrentNote).toHaveBeenLastCalledWith(expect.objectContaining({ title: 'New' }));
+    // the baseline must be the one the pre-rename save produced, not the old one
+    expect(args.setCurrentNote).toHaveBeenLastCalledWith(expect.objectContaining({ title: 'New', updated: 'U1', content: '<p>a edited</p>' }));
     expect(useFileNotesStore.getState().recentFiles[0]).toMatchObject({ path: 'S/New.bn', title: 'New' });
+  });
+
+  it('reads the open note at call time, not from a stale render (autosave moved the baseline)', async () => {
+    const { args, hook } = setup();
+    // a later render hands the hook a newer baseline for the same path
+    const newer = { ...note, updated: 'U5' };
+    const r2 = renderHook(() => useNoteCrud({ ...args, currentNote: newer }));
+    useNoteEditorStore.getState().setContent('<p>typed</p>');
+    await r2.result.current.handleMoveCurrentNote('Other');
+    expect(api.saveNote).toHaveBeenCalledWith('S/Old.bn', expect.anything(), 'U5');
+    void hook;
   });
 
   it('a clean note is not saved before the rename', async () => {
