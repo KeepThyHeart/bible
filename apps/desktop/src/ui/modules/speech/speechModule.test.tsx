@@ -33,14 +33,14 @@ describe('speech manifest', () => {
 });
 
 describe('recite flag', () => {
-  it('off by default: no section', async () => {
-    const { modulePoints, featureModules } = await boot('');
+  it('off with -recite: no section', async () => {
+    const { modulePoints, featureModules } = await boot('-recite');
     expect(modulePoints.preferencesSections.has('speech')).toBe(false);
     expect(featureModules.list().find((m) => m.id === 'speech')).toMatchObject({ enabled: false, offReason: 'flag' });
   }, 120_000);
 
   it('on: the section and lazy view exist and no module code ran', async () => {
-    const { modulePoints, moduleTimings } = await boot('recite');
+    const { modulePoints, moduleTimings } = await boot('');
     expect(modulePoints.preferencesSections.has('speech')).toBe(true);
     expect(modulePoints.i18nNamespace.has('speech')).toBe(true);
     expect(modulePoints.views.resolve('preferences:speech')).toBeTypeOf('function');

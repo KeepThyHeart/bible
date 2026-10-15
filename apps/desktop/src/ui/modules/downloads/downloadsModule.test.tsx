@@ -43,7 +43,7 @@ describe('on by default', () => {
   it('keeps the section between Notifications and Extensions, with a lazy view and no code loaded', async () => {
     const { modulePoints, moduleTimings } = await boot('');
     const ids = modulePoints.preferencesSections.list().map((s) => s.id);
-    expect(ids).toEqual(['general', 'typography', 'fonts', 'themes', 'privacy', 'notifications', 'downloads', 'extensions', 'apps', 'measures', 'advanced', 'keyword-marks', 'diagnostics']);
+    expect(ids).toEqual(['general', 'typography', 'fonts', 'themes', 'privacy', 'notifications', 'downloads', 'speech', 'extensions', 'apps', 'measures', 'advanced', 'keyword-marks', 'diagnostics']);
     expect(modulePoints.i18nNamespace.has('downloads')).toBe(true);
     expect(modulePoints.views.resolve('preferences:downloads')).toBeTypeOf('function');
     expect(moduleTimings.list()).toEqual([]);

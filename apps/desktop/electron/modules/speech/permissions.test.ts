@@ -42,10 +42,10 @@ describe('media permission policy', () => {
 });
 
 describe('dev helpers', () => {
-  it('recite flag: off by default and when packaged; KTH_FLAGS in dev', () => {
-    expect(isReciteEnabled(false, {})).toBe(false);
-    expect(isReciteEnabled(false, { KTH_FLAGS: 'recite' })).toBe(true);
-    expect(isReciteEnabled(true, { KTH_FLAGS: 'recite' })).toBe(false);
+  it('recite flag: on by default (1.0); KTH_FLAGS can turn it off in dev only', () => {
+    expect(isReciteEnabled(false, {})).toBe(true);
+    expect(isReciteEnabled(false, { KTH_FLAGS: '-recite' })).toBe(false);
+    expect(isReciteEnabled(true, { KTH_FLAGS: '-recite' })).toBe(true);
   });
 
   it('fake mic switches only in dev with a wav', () => {

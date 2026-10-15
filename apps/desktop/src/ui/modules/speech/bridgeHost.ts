@@ -94,9 +94,14 @@ export function installBridgeHost(
   events: EventBridge = defaultEvents(),
   getService: () => Promise<ISpeechApi> = getSpeechService,
 ): () => void {
-  const off = events.on('speech', SPEECH_CALL_EVENT, (call: SpeechBridgeCall) => {
-    void answer(call, getService).then((result) => client.reply(call.callId, result)).catch(() => undefined);
-  });
-  void Promise.resolve(client.ready()).catch(() => undefined);
+  let off: () => void;
+  try {
+    off = events.on('speech', SPEECH_CALL_EVENT, (call: SpeechBridgeCall) => {
+      void answer(call, getService).then((result) => client.reply(call.callId, result)).catch(() => undefined);
+    });
+    void Promise.resolve(client.ready()).catch(() => undefined);
+  } catch {
+    return () => undefined; // no module bridge (not running in Electron, or in tests): nothing to answer
+  }
   return off;
 }

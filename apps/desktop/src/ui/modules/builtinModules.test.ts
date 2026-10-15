@@ -38,9 +38,9 @@ describe('desktop renderer boot with a module disabled', () => {
 });
 
 describe('speech module (recite flag)', () => {
-  it('is registered but off until the flag is on', async () => {
+  it('is registered and on by default (recite is on in 1.0)', async () => {
     const { featureModules } = await boot('');
-    expect(featureModules.list().find((m) => m.id === 'speech')).toMatchObject({ enabled: false, offReason: 'flag' });
+    expect(featureModules.list().find((m) => m.id === 'speech')).toMatchObject({ enabled: true });
   }, 60_000);
 });
 
