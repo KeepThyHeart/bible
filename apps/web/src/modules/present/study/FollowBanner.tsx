@@ -31,7 +31,7 @@ export function FollowBanner() {
   if (connection === 'closed') {
     return (
       <div class="follow-banner follow-banner--ended" role="status" aria-label={t('present.followBannerLabel')}>
-        <span>{t('present.followEnded')}</span>
+        <span>{t(closedReason === 'unknown' ? 'present.followUnknown' : 'present.followEnded')}</span>
       </div>
     );
   }

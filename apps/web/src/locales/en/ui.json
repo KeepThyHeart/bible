@@ -131,6 +131,7 @@
     "findByMeaning": "to find passages by meaning.",
     "noResults": "No results found.",
     "offlineNotice": "You're offline. Reconnect to search.",
+    "slashDesktopOnly": "Slash commands (like /note or /plan) are only available in the desktop app.",
     "loadingMore": "Loading...",
     "showMore": "Show more results",
     "loadAll": "{count, plural, one {Load all (# more)} other {Load all (# more)}}",

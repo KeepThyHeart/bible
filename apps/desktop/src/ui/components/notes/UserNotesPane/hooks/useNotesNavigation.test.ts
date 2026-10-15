@@ -17,6 +17,8 @@ import { renderHook } from '@testing-library/react';
 import { useNotesNavigation } from './useNotesNavigation';
 import type { BnFile } from '../../../../services/fileNotesAPI';
 
+vi.mock('../../../../contexts/useI18n', () => ({ useI18n: () => ({ t: (k: string) => (k === 'userNotesPane.breadcrumbHome' ? 'Home' : k) }) }));
+
 vi.mock('../../../../services/fileNotesAPI', () => ({
   listDirectory: vi.fn(),
   readNote: vi.fn(),

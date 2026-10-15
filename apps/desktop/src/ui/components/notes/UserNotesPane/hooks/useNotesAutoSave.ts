@@ -17,7 +17,7 @@ interface UseNotesAutoSaveArgs {
 }
 
 /**
- * Auto-save the active note every 5 seconds while the editor view is open,
+ * Auto-save the active note every 2 seconds while the editor view is open,
  * and flush any dirty content immediately when the editor unmounts (navigate
  * away, tab switch, etc.). Mirrors the original inline effect 1:1.
  */
@@ -38,6 +38,8 @@ function reportLeavingFailure(err: unknown, path: string, toSave: BnFile): void 
     : 'Failed to save note. Your changes may be lost.');
 }
 
+const AUTOSAVE_MS = 2000;
+
 export function useNotesAutoSave({
   view,
   currentNote,
@@ -48,6 +50,7 @@ export function useNotesAutoSave({
 }: UseNotesAutoSaveArgs): void {
   const autoSaveTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const autoSavePausedRef = useRef(false);
+  const inFlightRef = useRef(false);
 
   // Opening or creating another note resets the shared editor store; save the
   // note being left first so its unsaved edits are not dropped.
@@ -73,7 +76,10 @@ export function useNotesAutoSave({
   useEffect(() => {
     autoSavePausedRef.current = false;
     if (view === 'editor' && currentNote && currentNotePath) {
-      autoSaveTimerRef.current = setInterval(async () => {
+      const saveTick = async () => {
+        if (inFlightRef.current) return;
+        inFlightRef.current = true;
+        try {
         // allow-getstate: setInterval tick - must read latest store state imperatively
         const store = useNoteEditorStore.getState();
         // The effect's `currentNote` goes stale after the first save; the
@@ -81,7 +87,7 @@ export function useNotesAutoSave({
         const latest = leavingRef.current.currentNote ?? currentNote;
         // Paused after a stale-save refusal until the user's own Save (or Save
         // As) leaves the editor clean, so the banner is not re-raised every
-        // 5 s and nothing overwrites the other window's version meanwhile.
+        // tick and nothing overwrites the other window's version meanwhile.
         if (autoSavePausedRef.current) {
           if (store.isDirty) return;
           autoSavePausedRef.current = false;
@@ -127,9 +133,20 @@ export function useNotesAutoSave({
             setIsSaving(false);
           }
         }
-      }, 5000);
+        } finally {
+          inFlightRef.current = false;
+        }
+      };
+      autoSaveTimerRef.current = setInterval(saveTick, AUTOSAVE_MS);
+      // Leaving the editor field (click elsewhere, window loses focus) saves at once.
+      const onFocusOut = (e: FocusEvent) => {
+        const el = e.target as HTMLElement | null;
+        if (el && typeof el.closest === 'function' && el.closest('[contenteditable="true"]')) void saveTick();
+      };
+      document.addEventListener('focusout', onFocusOut);
 
       return () => {
+        document.removeEventListener('focusout', onFocusOut);
         if (autoSaveTimerRef.current) {
           clearInterval(autoSaveTimerRef.current);
           autoSaveTimerRef.current = null;

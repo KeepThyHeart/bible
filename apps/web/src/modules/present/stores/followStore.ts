@@ -36,7 +36,7 @@ class FollowStore extends Store {
   active = false;
   joinCode: string | null = null;
   connection: FollowConnectionStatus = 'connecting';
-  closedReason: PresentClosedPayload['reason'] | null = null;
+  closedReason: PresentClosedPayload['reason'] | 'unknown' | null = null;
 
   /** What the presenter is currently showing, straight from the stream. */
   wall: PresentState | null = null;

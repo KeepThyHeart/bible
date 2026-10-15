@@ -102,6 +102,7 @@ export function PresentBar(props: { compact?: boolean }) {
             type="button"
             class={`present-bar__btn present-bar__btn--blank ${blanked ? 'present-bar__btn--on' : ''}`}
             onClick={() => void presentStore.toggleBlank()}
+            disabled={!wall}
             title={blanked ? t('present.unblankScreen') : t('present.blankScreen')}
             aria-label={blanked ? t('present.unblankScreen') : t('present.blankScreen')}
             aria-pressed={blanked}

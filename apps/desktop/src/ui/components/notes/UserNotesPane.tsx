@@ -176,12 +176,32 @@ const UserNotesPane: React.FC<UserNotesPaneProps> = ({
     if (prev && prev.path !== currentNotePath && currentNotePath && lastNoteObjRef.current !== currentNote
       && !isAbsolutePath(prev.path)) {
       setPreviousNote(prev);
+    } else if (!prev && currentNotePath && currentNote) {
+      // Arrived from the browser (no note was open): any earlier "back" target is stale.
+      setPreviousNote(null);
     }
     lastNoteObjRef.current = currentNote;
     lastOpenedRef.current = currentNotePath && currentNote
       ? { path: currentNotePath, title: currentNote.title }
       : null;
   }, [currentNotePath, currentNote]);
+
+  // Hide the way back when its note was moved, renamed or deleted meanwhile, and
+  // keep the label equal to the target's real title.
+  const previousPath = previousNote?.path;
+  useEffect(() => {
+    if (!previousPath) return;
+    let cancelled = false;
+    fileNotesAPI.readNote(previousPath).then(
+      note => {
+        if (cancelled) return;
+        if (!note) setPreviousNote(null);
+        else setPreviousNote(p => (p && p.path === previousPath && p.title !== note.title ? { ...p, title: note.title } : p));
+      },
+      () => { if (!cancelled) setPreviousNote(null); }
+    );
+    return () => { cancelled = true; };
+  }, [previousPath, currentNotePath]);
 
   // Auto-save
   useNotesAutoSave({ view, currentNote, currentNotePath, setCurrentNote, setIsSaving, setFileError });

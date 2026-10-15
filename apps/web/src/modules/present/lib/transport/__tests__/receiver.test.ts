@@ -43,6 +43,17 @@ beforeEach(() => {
 });
 
 describe('openPresentReceiver', () => {
+  it('reports an unknown code when the stream fails fatally before any state', () => {
+    const receiver = openPresentReceiver('ZZZZZZZZ');
+    const events: ReceiverEvent[] = [];
+    receiver.subscribe(e => events.push(e));
+    const source = FakeEventSource.instances[0] as FakeEventSource & { readyState: number };
+    source.readyState = 2;
+    source.onerror?.();
+    expect(events).toEqual([{ type: 'closed', reason: 'unknown' }]);
+    receiver.close();
+  });
+
   it('turns a state frame from the stream into a state event', () => {
     const receiver = openPresentReceiver('ABCD2345');
     const events: ReceiverEvent[] = [];

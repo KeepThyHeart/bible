@@ -17,10 +17,10 @@ import type { Modifier } from '@dnd-kit/core';
 import { SortableTab } from '../common/SortableTab';
 import { PropsSlotOutlet, readerTabBadges } from '../../host/slots';
 import { bibleStore, BibleTab } from '../../stores/bibleStore';
-import { moduleStore } from '../../stores/moduleStore';
 import { useStore } from '../../hooks/useStore';
 import { BookChapterPicker } from './BookChapterPicker';
 import { formatPassageRef } from '../../constants';
+import { getLocalizedBookName } from '../../utils/bookNames';
 import { useTranslation } from 'react-i18next';
 import { scrollStart, setScrollStart } from '@bible/core/browser';
 import { useDirection, Bdi } from '@bible/ui';
@@ -119,7 +119,7 @@ export function BibleTabBar({ vertical, hideHome }: BibleTabBarProps) {
 
   const getTabInfo = (tab: BibleTab): { title: string; subtitle: string } => {
     if (!tab.book || !tab.chapter) return { title: 'New Tab', subtitle: tab.moduleAbbr };
-    const title = formatPassageRef(tab.book, tab.chapter, null, moduleStore.getBookName(tab.book));
+    const title = formatPassageRef(tab.book, tab.chapter, null, getLocalizedBookName(tab.book));
     return { title, subtitle: tab.moduleAbbr };
   };
 

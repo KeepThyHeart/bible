@@ -162,6 +162,19 @@ const SESSION_KEY = 'bible-reader-session';
 
 /** `#/MODULE/book/chapter[/verse]` — the shape `updateHash` writes. */
 const HASH_PATTERN = /^#\/([^/]+)\/(\d+)\/(\d+)(?:\/(\d+))?$/;
+
+/**
+ * How to write a reader hash. A user navigation to a different chapter pushes a
+ * history entry (so browser Back/Forward follow it); everything else (verse
+ * selection, restores, redirects, first load with no reader hash yet) replaces.
+ */
+export function hashWriteMode(currentHash: string, newHash: string, userNav: boolean): 'push' | 'replace' {
+  if (!userNav) return 'replace';
+  const cur = currentHash.match(HASH_PATTERN);
+  const next = newHash.match(HASH_PATTERN);
+  if (!cur || !next) return 'replace';
+  return cur[1] === next[1] && cur[2] === next[2] && cur[3] === next[3] ? 'replace' : 'push';
+}
 const STUDY_SETTINGS_KEY = 'bible-reader-study-settings';
 
 let tabCounter = 0;
@@ -475,7 +488,7 @@ class BibleStore extends Store {
 
       // Push to history
       this.pushHistory({ moduleAbbr: tab.moduleAbbr, book, chapter, verse }, { replace: options?.replace || follow, tab });
-      if (tab.id === this.activeTabId) this.updateHash(!follow && !!verse);
+      if (tab.id === this.activeTabId) this.updateHash(!follow && !!verse, !follow && !options?.replace && !this.hashDriven);
       this.saveSession();
       this.notify();
 
@@ -597,7 +610,7 @@ class BibleStore extends Store {
       this.showHome = false;
 
       this.pushHistory({ moduleAbbr: tab.moduleAbbr, book, chapter, verse, fromPreview: true });
-      this.updateHash();
+      this.updateHash(false, true);
       this.saveSession();
       this.notify();
     } catch (error) {
@@ -1171,9 +1184,23 @@ class BibleStore extends Store {
     }
   }
 
+  /** True while `navigateFromHash` runs: hash writes replace, they do not push. */
+  private hashDriven = false;
+
+  /** The text of one verse in a translation, or null when it cannot be read (offline, missing). */
+  async getVerseText(moduleAbbr: string, verseId: number): Promise<string | null> {
+    if (!this.bible) return null;
+    try {
+      const data = await this.bible.getChapter(moduleAbbr, Math.floor(verseId / 1000000), Math.floor((verseId % 1000000) / 1000));
+      return data.verses.find(v => v.verse_id === verseId)?.text ?? null;
+    } catch {
+      return null;
+    }
+  }
+
   // URL hash
   /** `withVerse`: the navigation named a verse (reference box), so the URL names it too. */
-  updateHash(withVerse = false): void {
+  updateHash(withVerse = false, userNav = false): void {
     const tab = this.getActiveTab();
     if (tab?.book && tab.chapter) {
       const hash = `#/${tab.moduleAbbr}/${tab.book}/${tab.chapter}`;
@@ -1194,12 +1221,14 @@ class BibleStore extends Store {
         && Math.floor(tab.studyVerse / 1000) === tab.book * 1000 + tab.chapter) {
         const verseHash = `${hash}/${tab.studyVerse % 1000}`;
         if (window.location.hash !== verseHash) {
-          history.replaceState(null, '', verseHash);
+          if (hashWriteMode(window.location.hash, verseHash, userNav) === 'push') history.pushState(null, '', verseHash);
+          else history.replaceState(null, '', verseHash);
         }
         return;
       }
       if (window.location.hash !== hash) {
-        history.replaceState(null, '', hash);
+        if (hashWriteMode(window.location.hash, hash, userNav) === 'push') history.pushState(null, '', hash);
+        else history.replaceState(null, '', hash);
       }
     }
   }
@@ -1249,7 +1278,9 @@ class BibleStore extends Store {
       tab.moduleName = module;
     }
 
-    await this.navigateTo(book, chapter, verse);
+    // The URL already is the user's step (Back, a hand-edit): rewrite it in place, never push.
+    this.hashDriven = true;
+    try { await this.navigateTo(book, chapter, verse); } finally { this.hashDriven = false; }
   }
 
   // Session persistence

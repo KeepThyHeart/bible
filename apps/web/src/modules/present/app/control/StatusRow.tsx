@@ -33,7 +33,7 @@ export function StatusRow(props: { menuOpen: boolean; onToggleMenu: () => void }
           title={connected ? t('present.viewersTooltip') : t('present.reconnecting')}
         >
           <i class="fa-solid fa-tv" aria-hidden="true" />
-          {view.viewers}
+          {view.wall ? view.viewers : '…'}
         </span>
       )}
 
@@ -56,13 +56,13 @@ export function StatusRow(props: { menuOpen: boolean; onToggleMenu: () => void }
         </button>
       )}
       {live && !confirmEnd && (
-        <button type="button" class="pz-btn" onClick={() => setConfirmEnd(true)}>
+        <button type="button" class="pz-btn" title={t('present.liveNote')} onClick={() => setConfirmEnd(true)}>
           {t('present.control.endLive')}
         </button>
       )}
       {live && confirmEnd && (
         <span class="pz-status__confirm">
-          <span>{t('present.endConfirm')}</span>
+          <span title={t('present.liveNote')}>{t('present.endConfirm')}</span>
           <button type="button" class="pz-btn pz-btn--danger" onClick={() => { setConfirmEnd(false); void presentStore.end(); }}>
             {t('present.endYes')}
           </button>

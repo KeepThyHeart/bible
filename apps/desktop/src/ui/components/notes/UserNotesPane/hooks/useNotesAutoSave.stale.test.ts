@@ -45,7 +45,7 @@ describe('useNotesAutoSave stale-save refusals', () => {
   it('saves with the note baseline as expectedUpdated', async () => {
     vi.mocked(fileNotesAPI.saveNote).mockResolvedValue('U1');
     const { setCurrentNote } = mount();
-    await act(async () => { await vi.advanceTimersByTimeAsync(5000); });
+    await act(async () => { await vi.advanceTimersByTimeAsync(2000); });
     expect(fileNotesAPI.saveNote).toHaveBeenCalledWith('F/T.bn', expect.objectContaining({ content: '<p>a b</p>' }), 'U0');
     expect(setCurrentNote).toHaveBeenCalledWith(expect.objectContaining({ updated: 'U1' }));
     expect(useNoteEditorStore.getState().isDirty).toBe(false);
@@ -55,7 +55,7 @@ describe('useNotesAutoSave stale-save refusals', () => {
     vi.mocked(fileNotesAPI.saveNote).mockRejectedValue(new IpcResultError('conflict', 'x'));
     vi.mocked(fileNotesAPI.readNote).mockResolvedValue({ ...note, updated: 'U9' });
     const { setCurrentNote } = mount();
-    await act(async () => { await vi.advanceTimersByTimeAsync(5000); });
+    await act(async () => { await vi.advanceTimersByTimeAsync(2000); });
     expect(setCurrentNote).toHaveBeenCalledWith(expect.objectContaining({ updated: 'U9' }));
     expect(useNoteEditorStore.getState().isDirty).toBe(true);
   });
@@ -66,12 +66,12 @@ describe('useNotesAutoSave stale-save refusals', () => {
   ] as const)('on %s it keeps the edit, shows the banner once and stops retrying', async (code, text) => {
     vi.mocked(fileNotesAPI.saveNote).mockRejectedValue(new IpcResultError(code, 'x'));
     const { setFileError, setCurrentNote } = mount();
-    await act(async () => { await vi.advanceTimersByTimeAsync(5000); });
+    await act(async () => { await vi.advanceTimersByTimeAsync(2000); });
     expect(setFileError).toHaveBeenCalledTimes(1);
     expect(setFileError.mock.calls[0][0]).toMatch(text);
     expect(useNoteEditorStore.getState().isDirty).toBe(true);
     if (code === 'not_found') expect(setCurrentNote).not.toHaveBeenCalled();
-    await act(async () => { await vi.advanceTimersByTimeAsync(15000); });
+    await act(async () => { await vi.advanceTimersByTimeAsync(6000); });
     expect(fileNotesAPI.saveNote).toHaveBeenCalledTimes(1);
     expect(setFileError).toHaveBeenCalledTimes(1);
   });

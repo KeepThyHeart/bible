@@ -11,6 +11,8 @@ export function Transport() {
   const state = usePresenterState();
   const blanked = state?.display.blanked ?? false;
   const canStep = Boolean(state?.live);
+  // Live but no state yet (e.g. an offline reload): blank/viewers are unknown, not false/0.
+  const unknown = presenterIsLive() && !state;
   // Live, stepping also moves the Bible pane and is throttled; before going live it is the local session.
   const step = (direction: 'next' | 'previous'): void => {
     if (presenterIsLive()) stepWall(direction);
@@ -33,7 +35,8 @@ export function Transport() {
         type="button"
         class={`pz-transport__btn pz-transport__btn--blank ${blanked ? 'pz-transport__btn--on' : ''}`}
         onClick={presenterToggleBlank}
-        title={blanked ? t('present.unblankScreen') : t('present.blankScreen')}
+        disabled={unknown}
+        title={unknown ? t('present.reconnecting') : blanked ? t('present.unblankScreen') : t('present.blankScreen')}
         aria-label={blanked ? t('present.unblankScreen') : t('present.blankScreen')}
         aria-pressed={blanked}
       >

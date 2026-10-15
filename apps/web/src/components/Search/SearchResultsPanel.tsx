@@ -35,6 +35,11 @@ interface SearchResultsPanelProps {
   onOpenStrongsEntry?: (strongsNumber: string) => void;
 }
 
+/** A query typed like a slash command ('/note', '/plan'): those exist only in the desktop app. */
+export function isSlashCommandQuery(query: string): boolean {
+  return /^\/[a-z][\w-]*(\s|$)/i.test(query.trim());
+}
+
 export function SearchResultsPanel({ onNavigate, onOpenStrongsEntry }: SearchResultsPanelProps) {
   const { t } = useTranslation();
   const results = useStore(searchStore, () => searchStore.results);
@@ -363,7 +368,12 @@ export function SearchResultsPanel({ onNavigate, onOpenStrongsEntry }: SearchRes
             <span>{t('search.offlineNotice')}</span>
           </div>
         )}
-        {!loading && query && results.length === 0 && isOnline && !(searchType === 'semantic' && ideasUnavailableShown) && (
+        {!loading && isSlashCommandQuery(query) && (
+          <div class="search-panel-inline__empty" data-testid="slash-hint">
+            {t('search.slashDesktopOnly')}
+          </div>
+        )}
+        {!loading && query && results.length === 0 && isOnline && !isSlashCommandQuery(query) && !(searchType === 'semantic' && ideasUnavailableShown) && (
           <div class="search-panel-inline__empty">
             {searchType === 'keyword' && searchedModule ? (
               <div class="search-panel-inline__no-results">
