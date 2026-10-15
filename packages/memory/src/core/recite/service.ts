@@ -22,7 +22,7 @@ import type { ReciteDetailInput } from '../store';
 import { BIAS_LEVEL, DEFAULT_RECITE_SETTINGS, SETTING_RECITE } from './config';
 import { HandsFreeLoop } from './handsFreeLoop';
 import type { LoopCard, LoopDeps } from './handsFreeLoop';
-import { spokenReference } from './spokenReference';
+import { spokenReference, spokenReferenceWords } from './spokenReference';
 import { probeSpeech, unavailableMessage } from './speechAvailability';
 
 export interface RecordAndScheduleArgs {
@@ -101,6 +101,7 @@ function sanitize(base: ReciteSettings, p: Record<string, unknown>): ReciteSetti
   if ((STRICTNESS as readonly unknown[]).includes(p.strictness)) s.strictness = p.strictness as ReciteSettings['strictness'];
   if (p.promptStyle === 'reference' || p.promptStyle === 'reference+opening') s.promptStyle = p.promptStyle;
   if (p.feedback === 'brief' || p.feedback === 'full') s.feedback = p.feedback;
+  if (p.reciteReference === 'off' || p.reciteReference === 'before' || p.reciteReference === 'after' || p.reciteReference === 'both') s.reciteReference = p.reciteReference;
   if (typeof p.readBack === 'boolean') s.readBack = p.readBack;
   if (typeof p.autoAdvance === 'boolean') s.autoAdvance = p.autoAdvance;
   if (typeof p.voiceCommands === 'boolean') s.voiceCommands = p.voiceCommands;
@@ -279,6 +280,7 @@ export class ReciteService {
       passageId: passage.id,
       reference: passage.reference,
       spokenReference: spokenReference(passage, this.o.bookNames ? this.o.bookNames() : []),
+      referenceWords: spokenReferenceWords(passage, this.o.bookNames ? this.o.bookNames() : []),
       language,
       verses,
       contextWords: context,

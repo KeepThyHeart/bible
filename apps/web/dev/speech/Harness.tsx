@@ -67,10 +67,16 @@ function Graded(p: { passage: Passage; graded: GradedRecitation }) {
         {verses.flatMap((v) => v.words).map((w) => {
           const aw = p.graded.result.words[i];
           const idx = i++;
-          return <span key={idx} class={`w ${aw?.verdict ?? 'missed'}`} data-testid="graded-word" data-verdict={aw?.verdict} data-group={groupOf(aw?.verdict ?? 'missed')}>{w}</span>;
+          const heard = aw && (aw.verdict === 'near' || aw.verdict === 'wrong' || aw.verdict === 'swapped') ? aw.heard : undefined;
+          return (
+            <span key={idx} class={`w ${aw?.verdict ?? 'missed'}`} data-testid="graded-word" data-verdict={aw?.verdict} data-group={groupOf(aw?.verdict ?? 'missed')}>
+              {heard && <i class="said" data-testid="graded-heard">{heard} {'\u2192'} </i>}{w}
+              {aw && aw.verdict !== 'correct' && aw.verdict !== 'variant' && <small class="tag"> ({aw.verdict === 'near' ? 'close' : aw.verdict})</small>}
+            </span>
+          );
         })}
       </div>
-      {extras.length > 0 && <div class="muted">Extra words: {extras.map((e) => e.heard).join(' ')}</div>}
+      {extras.length > 0 && <div class="muted" data-testid="graded-extras">Extra words (not in the text): {extras.map((e) => `+${e.heard}`).join(' ')}</div>}
     </div>
   );
 }
@@ -83,6 +89,7 @@ export function Harness(p: { services: HarnessServices; initialWav?: { url: stri
   const [models, setModels] = useState<SpeechModelInfo[]>([]);
   const [prefsState, setPrefsState] = useState(prefs.get());
   const [progress, setProgress] = useState<Progress>(null);
+  const [sysInfo, setSysInfo] = useState(false);
   const [busyModel, setBusyModel] = useState<string | null>(null);
   const [modelError, setModelError] = useState('');
   const abortModel = useRef<AbortController | null>(null);
@@ -334,17 +341,27 @@ export function Harness(p: { services: HarnessServices; initialWav?: { url: stri
       <h1>Speech harness</h1>
       <p class="sub">On-device speech recognition: Whisper in a worker, nothing leaves this browser.</p>
 
-      <Card title="Device and model" testid="info-card" right={<Pill kind={info.Listening === 'ready' ? 'ok' : info.Listening === 'needs-download' ? 'warn' : 'bad'} testid="listen-status">{info.Listening ?? '...'}</Pill>}>
-        <dl class="grid" data-testid="info">
-          {Object.entries(info).map(([k, v]) => <div key={k}><dt>{k}</dt><dd>{v}</dd></div>)}
-        </dl>
-        <div class="row" style="margin-top:12px">
+      <Card title="Speech model" testid="info-card" right={<div class="row"><Pill kind={info.Listening === 'ready' ? 'ok' : info.Listening === 'needs-download' ? 'warn' : 'bad'} testid="listen-status">{info.Listening ?? '...'}</Pill>
+        <button data-testid="sysinfo-open" onClick={() => setSysInfo(true)}>System information</button></div>}>
+        <div class="row">
           <label>Model <select data-testid="pref-model" value={prefsState.model} onChange={(e) => setPref('model', (e.currentTarget as HTMLSelectElement).value)}>
             <option value="auto">auto</option><option value="base">base</option><option value="tiny">tiny</option></select></label>
           <label>Device <select data-testid="pref-device" value={prefsState.device} onChange={(e) => setPref('device', (e.currentTarget as HTMLSelectElement).value)}>
             <option value="auto">auto</option><option value="webgpu">webgpu</option><option value="wasm">wasm</option></select></label>
         </div>
+        <p class="muted">Leave both on auto unless you are testing: the app picks what suits this device.</p>
       </Card>
+      {sysInfo && (
+        <div class="popup-backdrop" onClick={() => setSysInfo(false)}>
+          <section class="card popup" role="dialog" aria-label="System information" data-testid="sysinfo" onClick={(e) => e.stopPropagation()}>
+            <div class="row spread"><h2>System information</h2><button data-testid="sysinfo-close" onClick={() => setSysInfo(false)}>Close</button></div>
+            <p class="muted">For information only. Nothing here can be changed and there is nothing you need to do.</p>
+            <dl class="grid" data-testid="info">
+              {Object.entries(info).map(([k, v]) => <div key={k}><dt>{k}</dt><dd>{v}</dd></div>)}
+            </dl>
+          </section>
+        </div>
+      )}
 
       <Card title="Model download" testid="models-card">
         <table>

@@ -70,6 +70,27 @@ function expectedWords(state: ReciteStateView): string[] | null {
   return state.verses.flatMap((v) => v.words);
 }
 
+/**
+ * One line that follows the score. "Well learned" is about the passage over time and is only
+ * said alongside a good score: a poor attempt never gets congratulations.
+ */
+export function scoreMessage(result: ReciteResultView): string {
+  const s = result.score;
+  if (s >= 0.995) return tr('memory.ui.settings.msgPerfect', 'Perfect.');
+  if (s >= 0.9) return result.passageWellLearned
+    ? tr('memory.ui.settings.wellLearned', 'Well learned. This passage is solid.')
+    : tr('memory.ui.settings.msgExcellent', 'Excellent. Nearly word-perfect.');
+  if (s >= 0.75) return tr('memory.ui.settings.msgGood', 'Good. A few words to firm up.');
+  if (s >= 0.5) return tr('memory.ui.settings.msgGettingThere', 'Getting there. Check the marked words and try again.');
+  return tr('memory.ui.settings.msgKeepPracticing', 'Keep practicing. Read it over and try again.');
+}
+
+function referenceResultText(ref: { text: string; score: number }): string {
+  if (ref.score >= 0.75) return tr('memory.ui.settings.referenceGood', 'Reference: {text} (said correctly)', { text: ref.text });
+  if (ref.score >= 0.4) return tr('memory.ui.settings.referencePartly', 'Reference: {text} (partly right)', { text: ref.text });
+  return tr('memory.ui.settings.referenceMissed', 'Reference: {text} (not said)', { text: ref.text });
+}
+
 /** The word-by-word diff. Exported for the hands-free summary and tests. */
 export function renderDiff(state: ReciteStateView, result: ReciteResultView): HTMLElement {
   const words = expectedWords(state);
@@ -86,7 +107,8 @@ export function renderDiff(state: ReciteStateView, result: ReciteResultView): HT
       items.push(
         el('span', { class: 'sm-recite-word sm-recite-extra', attrs: { 'data-verdict': 'extra' } }, [
           `+${heard}`,
-          el('span', { class: 'sm-sr-only', text: ` ${tr('memory.ui.settings.extra', '(extra)')}` }),
+          ' ',
+          el('span', { class: 'sm-recite-tag', text: tr('memory.ui.settings.extra', '(extra)') }),
         ]),
         ' ',
       );
@@ -96,13 +118,18 @@ export function renderDiff(state: ReciteStateView, result: ReciteResultView): HT
   pushExtras(-1);
   for (const w of result.words) {
     const text = words?.[w.index] ?? w.heard ?? '…';
-    const label = VERDICT_LABEL[w.verdict];
+    const label = w.peeked ? null : VERDICT_LABEL[w.verdict];
+    // A word that was heard differently shows both: what was said, then the correct word.
+    const differs = !w.peeked && (w.verdict === 'near' || w.verdict === 'wrong' || w.verdict === 'swapped') && w.heard !== undefined && w.heard !== '';
     items.push(
-      el('span', { class: `sm-recite-word sm-recite-${w.verdict}`, attrs: { 'data-verdict': w.verdict } }, [
+      el('span', { class: `sm-recite-word sm-recite-${w.verdict}${w.peeked ? ' sm-recite-peeked' : ''}`, attrs: { 'data-verdict': w.verdict, ...(w.peeked ? { 'data-peeked': '1' } : {}) } }, [
+        differs ? el('span', { class: 'sm-recite-said', text: w.heard! }) : null,
+        differs ? ' \u2192 ' : null,
         text,
         label ? ' ' : null,
         label ? el('span', { class: 'sm-recite-tag', text: `(${label})` }) : null,
-        w.verdict === 'near' && w.heard ? el('span', { class: 'sm-sr-only', text: ` ${tr('memory.ui.settings.heardWord', 'heard {word}', { word: w.heard })}` }) : null,
+        w.peeked ? ' ' : null,
+        w.peeked ? el('span', { class: 'sm-recite-tag', text: `(${tr('memory.ui.settings.notGraded', 'not graded')})` }) : null,
       ]),
       ' ',
     );
@@ -116,13 +143,19 @@ function renderResult(state: ReciteStateView, result: ReciteResultView, cb: Reci
   const now = (cb.now ?? Date.now)();
   const hasNext = state.remaining > 0 || state.source === 'due';
   return el('div', { class: 'sm-recite-result' }, [
-    el('p', { class: 'sm-recite-score' }, [
-      el('span', { class: 'sm-recite-score-num', text: formatScore(result.score) }),
-      el('span', { class: 'sm-recite-level', text: ` ${tr('memory.ui.settings.level', 'Level {level}', { level: result.level })}` }),
-    ]),
+    result.practiceOnly
+      ? el('p', { class: 'sm-recite-learned', text: tr('memory.ui.settings.practiceOnly', 'Practice only: you saw the whole text, so nothing was graded or recorded.') })
+      : el('p', { class: 'sm-recite-score' }, [
+          el('span', { class: 'sm-recite-score-num', text: formatScore(result.score) }),
+          el('span', { class: 'sm-recite-level', text: ` ${tr('memory.ui.settings.level', 'Level {level}', { level: result.level })}` }),
+        ]),
     result.nextDueAt !== null ? el('p', { class: 'sm-hint', text: formatDue(result.nextDueAt, now) }) : null,
-    result.passageWellLearned
-      ? el('p', { class: 'sm-recite-learned', text: tr('memory.ui.settings.wellLearned', 'Well learned. This passage is solid.') })
+    result.practiceOnly ? null : el('p', { class: `sm-recite-learned${result.score < 0.75 ? ' sm-recite-learned-low' : ''}`, attrs: { 'data-testid': 'recite-message' }, text: scoreMessage(result) }),
+    result.reference
+      ? el('p', { class: 'sm-hint', attrs: { 'data-testid': 'recite-reference-result' }, text: referenceResultText(result.reference) })
+      : null,
+    result.words.some((w) => w.peeked) && !result.practiceOnly
+      ? el('p', { class: 'sm-hint', text: tr('memory.ui.settings.peekedNote', 'Words you peeked at are marked "not graded" and left out of the score.') })
       : null,
     renderDiff(state, result),
     result.missedQuote.length > 0
@@ -158,6 +191,12 @@ function talkButton(phase: LoopPhase, cb: ReciteCallbacks): HTMLButtonElement | 
     });
   }
   return null;
+}
+
+function referencePrompt(r: { before: boolean; after: boolean; text: string }): string {
+  if (r.before && r.after) return tr('memory.ui.settings.refBeforeAfter', 'Say the reference ({text}) first and again at the end.', { text: r.text });
+  if (r.before) return tr('memory.ui.settings.refBefore', 'Say the reference ({text}) first.', { text: r.text });
+  return tr('memory.ui.settings.refAfter', 'Say the reference ({text}) at the end.', { text: r.text });
 }
 
 export function createReciteView(initial: ReciteStateView, cb: ReciteCallbacks): ReciteScreen {
@@ -218,6 +257,24 @@ export function createReciteView(initial: ReciteStateView, cb: ReciteCallbacks):
       state.phase === 'error' && !state.error ? errorBanner(tr('memory.ui.settings.wentWrongPeriod', 'Something went wrong.')) : null,
       showVerses
         ? el('p', { class: 'sm-recite-hint-text' }, [state.verses!.flatMap((v) => v.words).join(' ')])
+        : null,
+      state.result === null && state.referenceText
+        ? el('p', { class: 'sm-hint', attrs: { 'data-testid': 'recite-reference-prompt' }, text: referencePrompt(state.referenceText) })
+        : null,
+      state.result === null && state.peekText
+        ? el('p', { class: 'sm-recite-hint-text', attrs: { 'data-testid': 'recite-peek-text' } }, [
+            state.peekText,
+            ' ',
+            el('span', { class: 'sm-recite-tag', text: `(${tr('memory.ui.settings.notGraded', 'not graded')})` }),
+          ])
+        : null,
+      state.phase === 'ready' && !state.heard.length && state.result === null
+        ? el('div', { class: 'sm-exercise-actions sm-recite-peek-row' }, [
+            !state.peeked
+              ? button(tr('memory.ui.settings.peekFirstWords', 'Peek at the first words'), () => cb.onControl('peek'), { class: 'sm-btn sm-btn-small sm-btn-quiet', attrs: { 'data-testid': 'recite-peek' } })
+              : null,
+            button(tr('memory.ui.settings.peekWholeText', 'Show the whole text'), () => cb.onControl('peekAll'), { class: 'sm-btn sm-btn-small sm-btn-quiet', attrs: { 'data-testid': 'recite-peek-all' } }),
+          ])
         : null,
       talk
         ? el('div', { class: 'sm-recite-talk-row' }, [

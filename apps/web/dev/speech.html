@@ -60,6 +60,10 @@
     .w.correct, .w.variant { background: var(--ok-bg); color: var(--ok); }
     .w.near, .w.hinted, .w.swapped { background: var(--warn-bg); color: var(--warn); }
     .w.wrong, .w.missed { background: var(--bad-bg); color: var(--bad); text-decoration: underline wavy; text-underline-offset: 4px; }
+    .w .said { font-style: italic; opacity: .85; }
+    .w .tag { font-size: .8em; font-weight: 600; }
+    .popup-backdrop { position: fixed; inset: 0; background: #0006; display: flex; align-items: center; justify-content: center; z-index: 10; }
+    .popup { max-width: 560px; width: calc(100% - 32px); max-height: 80vh; overflow: auto; }
     .score { font-size: 28px; font-weight: 700; }
     pre { margin: 8px 0 0; padding: 10px 12px; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; overflow: auto; max-height: 260px; font-size: 12px; }
     .err { color: var(--bad); }

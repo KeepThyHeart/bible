@@ -5,11 +5,9 @@ import { FEATURE_FLAGS } from '@bible/core/Settings/FeatureFlags';
  *
  * Recite aloud and hands-free mode sit behind the product feature flag `recite`
  * (`FEATURE_FLAGS` in @bible/core, the same name the speech engine's manifests and
- * `isEnabled('recite')` use). It defaults to OFF for the 1.0 release: the recite engine
- * ships in the next release. All the recite/hands-free code, tests and data stay in
- * place; with the flag off the exercise picker, passage actions, plan tiles, settings
- * block and the start/command entry points are hidden or inert. To bring recite back,
- * set the flag's default to `true` (nothing else needs to change).
+ * `isEnabled('recite')` use). It defaults to ON (desktop, 1.0); the web hosts override it to
+ * off. With the flag off the exercise picker, passage actions, plan tiles, settings
+ * block and the start/command entry points are hidden or inert.
  */
 export const RECITE_ENABLED: boolean = FEATURE_FLAGS.recite.default;
 

@@ -287,6 +287,11 @@ function renderReciteDetail(
         class: 'sm-btn sm-btn-small sm-btn-primary',
         disabled: !ready,
       }),
+      button(tr('memory.ui.plan.reciteHandsFree', 'Hands-free'), () => void startReciteRun(host, { kind: 'passage', passageId: pv.passage.id }, 'handsfree'), {
+        class: 'sm-btn sm-btn-small',
+        disabled: !ready || !speech?.handsFree,
+        attrs: { 'data-testid': 'recite-handsfree', title: tr('memory.ui.plan.reciteHandsFreeHint', 'Speak and listen without touching the screen') },
+      }),
     ]),
   ]);
 

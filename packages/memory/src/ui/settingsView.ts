@@ -234,6 +234,12 @@ export function renderReciteSettings(host: PanelHost, recite: ReciteSettings, sp
       { value: 'reference', label: tr('memory.ui.settings.referenceOnly', 'Reference only') },
       { value: 'reference+opening', label: tr('memory.ui.settings.referenceAndOpeningWords', 'Reference and opening words') },
     ], recite.promptStyle, (v) => v as ReciteSettings['promptStyle'])),
+    field('sm-recite-reference', tr('memory.ui.settings.reciteReference', 'Say the reference'), select('reciteReference', 'sm-recite-reference', [
+      { value: 'off', label: tr('memory.ui.settings.refOff', 'No') },
+      { value: 'before', label: tr('memory.ui.settings.refBeforeOption', 'Before the verse') },
+      { value: 'after', label: tr('memory.ui.settings.refAfterOption', 'After the verse') },
+      { value: 'both', label: tr('memory.ui.settings.refBothOption', 'Before and after') },
+    ], recite.reciteReference, (v) => v as ReciteSettings['reciteReference'])),
     field('sm-recite-feedback', tr('memory.ui.settings.feedback', 'Feedback'), select('feedback', 'sm-recite-feedback', [
       { value: 'brief', label: tr('memory.ui.settings.brief', 'Brief') },
       { value: 'full', label: tr('memory.ui.settings.fullQuoteMissed', 'Full (quote what was missed)') },

@@ -41,7 +41,7 @@ export const FEATURE_FLAGS = {
   timeline: { default: false, description: 'Timeline view.' },
   genealogy: { default: false, description: 'Genealogy view.', requires: ['tagGraph'] },
   quiz: { default: false, description: 'Quiz on a passage (questions from installed quiz modules).' },
-  recite: { default: false, description: 'Recite aloud and hands-free mode in Memory (on-device speech engine).' },
+  recite: { default: true, description: 'Recite aloud and hands-free mode in Memory (on-device speech engine). On in 1.0 on desktop; the web hosts turn it off (read-only for personal content).' },
   measureDrafts: { default: false, description: 'Show unreviewed (draft) weights-and-measures notes (review/dev only).' },
 } as const satisfies Record<string, FeatureFlagDef>;
 

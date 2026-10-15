@@ -787,6 +787,47 @@ describe('ReciteService', () => {
     await t.svc.dispose();
   });
 
+  it('peek shows the opening words, is not graded, and the whole-text peek records nothing', async () => {
+    const t = makeService({ script: [{ say: FULL }] });
+    const v = await t.svc.start({ source: { kind: 'passage', passageId: 1 }, mode: 'tap' });
+    await until(() => t.svc.get()?.phase === 'ready');
+    const peeked = t.svc.control({ reciteId: v.reciteId, action: 'peek' });
+    expect(peeked.peeked).toBe(3);
+    expect(peeked.peekText).toBe('The LORD is');
+    t.svc.control({ reciteId: v.reciteId, action: 'listen' });
+    await until(() => t.svc.get()?.phase === 'feedback');
+    const r = t.svc.get()!.result!;
+    expect(r.words.slice(0, 3).every((w) => w.peeked)).toBe(true);
+    expect(r.words[3].peeked).toBeUndefined();
+    expect(t.attempts[0]).toMatchObject({ totalSteps: 22 });
+    await t.svc.dispose();
+
+    const u = makeService({ script: [{ say: FULL }] });
+    const w = await u.svc.start({ source: { kind: 'passage', passageId: 1 }, mode: 'tap' });
+    await until(() => u.svc.get()?.phase === 'ready');
+    u.svc.control({ reciteId: w.reciteId, action: 'peekAll' });
+    u.svc.control({ reciteId: w.reciteId, action: 'listen' });
+    await until(() => u.svc.get()?.phase === 'feedback');
+    expect(u.svc.get()!.result!.practiceOnly).toBe(true);
+    expect(u.attempts).toHaveLength(0);
+    await u.svc.dispose();
+  });
+
+  it('reference setting: say it before the verse, graded apart from the passage', async () => {
+    const t = makeService({ script: [{ say: `psalm twenty three verses one to two ${FULL}` }] });
+    await t.svc.setSettings({ reciteReference: 'before' });
+    const v = await t.svc.start({ source: { kind: 'passage', passageId: 1 }, mode: 'tap' });
+    await until(() => t.svc.get()?.phase === 'ready');
+    expect(t.svc.get()!.referenceText).toMatchObject({ before: true, after: false });
+    t.svc.control({ reciteId: v.reciteId, action: 'listen' });
+    await until(() => t.svc.get()?.phase === 'feedback');
+    const r = t.svc.get()!.result!;
+    expect(r.score).toBe(1);
+    expect(r.reference?.score).toBeGreaterThan(0.9);
+    expect(r.words).toHaveLength(25);
+    await t.svc.dispose();
+  });
+
   it('passage source runs once; control by id; a wrong id returns the active state', async () => {
     const t = makeService({ script: [{ say: FULL }] });
     const v = await t.svc.start({ source: { kind: 'passage', passageId: 2 }, mode: 'tap' });
