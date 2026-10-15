@@ -541,5 +541,7 @@
   "memory.ui.settings.refAfterOption": "После стиха",
   "memory.ui.settings.refBothOption": "До и после",
   "memory.ui.plan.reciteHandsFree": "Без рук",
-  "memory.ui.plan.reciteHandsFreeHint": "Говорите и слушайте, не касаясь экрана"
+  "memory.ui.plan.reciteHandsFreeHint": "Говорите и слушайте, не касаясь экрана",
+  "memory.core.loopPracticeOnly": "Только практика. Ничего не оценивалось.",
+  "memory.ui.settings.practiceOnlyShort": "Только практика. Ничего не оценивалось."
 }

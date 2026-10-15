@@ -541,5 +541,7 @@
   "memory.ui.settings.refAfterOption": "אחרי הפסוק",
   "memory.ui.settings.refBothOption": "לפני ואחרי",
   "memory.ui.plan.reciteHandsFree": "ללא ידיים",
-  "memory.ui.plan.reciteHandsFreeHint": "דבר והקשב בלי לגעת במסך"
+  "memory.ui.plan.reciteHandsFreeHint": "דבר והקשב בלי לגעת במסך",
+  "memory.core.loopPracticeOnly": "תרגול בלבד. שום דבר לא נבדק.",
+  "memory.ui.settings.practiceOnlyShort": "תרגול בלבד. שום דבר לא נבדק."
 }

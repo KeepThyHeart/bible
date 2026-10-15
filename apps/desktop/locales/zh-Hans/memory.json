@@ -541,5 +541,7 @@
   "memory.ui.settings.refAfterOption": "经文之后",
   "memory.ui.settings.refBothOption": "之前和之后",
   "memory.ui.plan.reciteHandsFree": "免提",
-  "memory.ui.plan.reciteHandsFreeHint": "无需触碰屏幕，说话并聆听"
+  "memory.ui.plan.reciteHandsFreeHint": "无需触碰屏幕，说话并聆听",
+  "memory.core.loopPracticeOnly": "仅练习，未评分。",
+  "memory.ui.settings.practiceOnlyShort": "仅练习，未评分。"
 }

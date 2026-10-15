@@ -541,5 +541,7 @@
   "memory.ui.settings.refAfterOption": "पद के बाद",
   "memory.ui.settings.refBothOption": "पहले और बाद में",
   "memory.ui.plan.reciteHandsFree": "हैंड्स-फ़्री",
-  "memory.ui.plan.reciteHandsFreeHint": "स्क्रीन छुए बिना बोलें और सुनें"
+  "memory.ui.plan.reciteHandsFreeHint": "स्क्रीन छुए बिना बोलें और सुनें",
+  "memory.core.loopPracticeOnly": "केवल अभ्यास। कुछ भी जाँचा नहीं गया।",
+  "memory.ui.settings.practiceOnlyShort": "केवल अभ्यास। कुछ भी जाँचा नहीं गया।"
 }

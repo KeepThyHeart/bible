@@ -147,6 +147,9 @@ export class HandsFreeLoop {
   private readonly exclude: number[] = [];
   private done = 0;
   private skipped = 0;
+  private practiced = 0;
+  /** Reference before/after, fixed when the card's word list was built. */
+  private refFixed = { before: false, after: false };
   private scoreSum = 0;
 
   constructor(private readonly deps: LoopDeps) {
@@ -658,7 +661,8 @@ export class HandsFreeLoop {
       this.fail('record', msg);
       return;
     }
-    if (!practiceOnly) {
+    if (practiceOnly) this.practiced++;
+    else {
       this.done++;
       this.scoreSum += g.attempt.score;
     }
@@ -688,6 +692,7 @@ export class HandsFreeLoop {
 
   private feedbackText(): string {
     const r = this.result as ReciteResultView;
+    if (r.practiceOnly) return tc('memory.core.loopPracticeOnly', 'Practice only. Nothing was graded.');
     if (r.score >= 0.9995) return tc('memory.core.loopPerfect', 'Perfect.');
     const pct = Math.round(r.score * 100);
     return r.missedQuote.length > 0
@@ -771,7 +776,7 @@ export class HandsFreeLoop {
   private async doSummary(gen: number): Promise<void> {
     await this.closeListen();
     if (this.stale(gen)) return;
-    const nothingDue = this.done === 0 && this.skipped === 0 && this.deps.source === 'due';
+    const nothingDue = this.done === 0 && this.skipped === 0 && this.practiced === 0 && this.deps.source === 'due';
     const text =
       this.done > 0
         ? this.done === 1
@@ -841,19 +846,21 @@ export class HandsFreeLoop {
   }
 
   private refMode(): { before: boolean; after: boolean; text: { before: boolean; after: boolean; text: string } | null } {
-    const m = this.deps.settings().reciteReference;
     const c = this.card;
     const words = c?.referenceWords ?? [];
-    const before = (m === 'before' || m === 'both') && words.length > 0;
-    const after = (m === 'after' || m === 'both') && words.length > 0;
+    const { before, after } = this.refFixed;
     return { before, after, text: c && (before || after) ? { before, after, text: words.join(' ') } : null };
   }
 
   /** The expected word list: the passage, with the spoken reference around it when the setting asks. */
   private buildWords(card: LoopCard): void {
     const verse = expectedFor(card.verses).words;
-    const { before, after } = this.refMode();
-    const ref = card.referenceWords ?? [];
+    // The spoken reference is English only (its number words are), and the choice is fixed per card.
+    const m = this.deps.settings().reciteReference;
+    const ref = card.language.toLowerCase().startsWith('en') ? (card.referenceWords ?? []) : [];
+    const before = (m === 'before' || m === 'both') && ref.length > 0;
+    const after = (m === 'after' || m === 'both') && ref.length > 0;
+    this.refFixed = { before, after };
     this.words = [...(before ? ref : []), ...verse, ...(after ? ref : [])];
     this.verseStart = before ? ref.length : 0;
     this.verseEnd = this.verseStart + verse.length;
@@ -883,6 +890,7 @@ export class HandsFreeLoop {
     this.kit = null;
     this.cursor = null;
     this.words = [];
+    this.refFixed = { before: false, after: false };
     this.verseStart = 0;
     this.verseEnd = 0;
     this.peeked = 0;

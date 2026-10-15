@@ -106,7 +106,10 @@ export function gradeRecitation(
     const b = i + 1 < verseStarts.length ? verseStarts[i + 1] : verseWords.length;
     const slice = words.slice(a, b).filter((w) => !w.peeked);
     if (slice.length === 0) return 0;
-    const count = extras.filter((x) => x.afterIndex >= Math.max(a - 1, peekedN - 1) && x.afterIndex < b - 1 + (i + 1 < verseStarts.length ? 0 : 1)).length;
+    const count = extras.filter((x) => {
+      const at = Math.max(0, x.afterIndex);
+      return at >= Math.max(a, peekedN) && at < b;
+    }).length;
     return scoreWords(slice, count, policy);
   });
   const result: RecitationResult = {
@@ -125,8 +128,8 @@ export function gradeRecitation(
   let verdicts = '';
   const credits: number[] = [];
   for (const w of result.words) {
-    verdicts += VERDICT_CHAR[w.verdict];
-    credits.push(round2(w.credit));
+    verdicts += w.peeked ? 'p' : VERDICT_CHAR[w.verdict];
+    credits.push(w.peeked ? 0 : round2(w.credit));
     if (w.credit === 1 && !w.peeked) correctFirst++;
     if (!w.peeked && (w.verdict === 'missed' || w.verdict === 'wrong') && missedQuote.length < MISSED_QUOTE_MAX) {
       const s = stripPunctuation(verseWords[w.index] ?? '');
@@ -144,7 +147,7 @@ export function gradeRecitation(
       verdicts,
       credits,
       verseScores: result.verseScores.map(round2),
-      extras: result.extras.length,
+      extras: gradedExtras,
       strictness,
       engineId: null,
       modelId: null,

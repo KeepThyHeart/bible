@@ -541,5 +541,7 @@
   "memory.ui.settings.refAfterOption": "پس از آیه",
   "memory.ui.settings.refBothOption": "پیش و پس از آیه",
   "memory.ui.plan.reciteHandsFree": "بدون دست",
-  "memory.ui.plan.reciteHandsFreeHint": "بدون لمس صفحه، صحبت کنید و گوش دهید"
+  "memory.ui.plan.reciteHandsFreeHint": "بدون لمس صفحه، صحبت کنید و گوش دهید",
+  "memory.core.loopPracticeOnly": "فقط تمرین. چیزی نمره‌گذاری نشد.",
+  "memory.ui.settings.practiceOnlyShort": "فقط تمرین. چیزی نمره‌گذاری نشد."
 }

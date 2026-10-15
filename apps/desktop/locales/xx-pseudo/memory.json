@@ -541,5 +541,7 @@
   "memory.ui.settings.refAfterOption": "⟦Åƒţéŕ ţĥé ṽéŕšé ····⟧",
   "memory.ui.settings.refBothOption": "⟦Ɓéƒøŕé åñð åƒţéŕ ····⟧",
   "memory.ui.plan.reciteHandsFree": "⟦Ĥåñðš-ƒŕéé ···⟧",
-  "memory.ui.plan.reciteHandsFreeHint": "⟦Šþéåķ åñð ļîšţéñ ŵîţĥøüţ ţøüçĥîñĝ ţĥé šçŕééñ ·············⟧"
+  "memory.ui.plan.reciteHandsFreeHint": "⟦Šþéåķ åñð ļîšţéñ ŵîţĥøüţ ţøüçĥîñĝ ţĥé šçŕééñ ·············⟧",
+  "memory.core.loopPracticeOnly": "⟦Þŕåçţîçé øñļý. Ñøţĥîñĝ ŵåš ĝŕåðéð. ··········⟧",
+  "memory.ui.settings.practiceOnlyShort": "⟦Þŕåçţîçé øñļý. Ñøţĥîñĝ ŵåš ĝŕåðéð. ··········⟧"
 }

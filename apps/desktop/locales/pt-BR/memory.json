@@ -541,5 +541,7 @@
   "memory.ui.settings.refAfterOption": "Depois do versículo",
   "memory.ui.settings.refBothOption": "Antes e depois",
   "memory.ui.plan.reciteHandsFree": "Mãos livres",
-  "memory.ui.plan.reciteHandsFreeHint": "Fale e ouça sem tocar na tela"
+  "memory.ui.plan.reciteHandsFreeHint": "Fale e ouça sem tocar na tela",
+  "memory.core.loopPracticeOnly": "Somente prática. Nada foi avaliado.",
+  "memory.ui.settings.practiceOnlyShort": "Somente prática. Nada foi avaliado."
 }

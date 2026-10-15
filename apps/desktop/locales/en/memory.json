@@ -541,5 +541,7 @@
   "memory.ui.settings.refAfterOption": "After the verse",
   "memory.ui.settings.refBothOption": "Before and after",
   "memory.ui.plan.reciteHandsFree": "Hands-free",
-  "memory.ui.plan.reciteHandsFreeHint": "Speak and listen without touching the screen"
+  "memory.ui.plan.reciteHandsFreeHint": "Speak and listen without touching the screen",
+  "memory.core.loopPracticeOnly": "Practice only. Nothing was graded.",
+  "memory.ui.settings.practiceOnlyShort": "Practice only. Nothing was graded."
 }

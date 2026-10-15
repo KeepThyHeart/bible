@@ -45,7 +45,7 @@ export function phaseAnnouncement(state: ReciteStateView): string {
     case 'listening': return tr('memory.ui.settings.listening', 'Listening');
     case 'hinting': return tr('memory.ui.settings.hereIsHint', 'Here is a hint');
     case 'scoring': return tr('memory.ui.settings.scoring', 'Scoring');
-    case 'feedback': return state.result ? tr('memory.ui.settings.scoredWith', 'Scored {score}', { score: formatScore(state.result.score) }) : tr('memory.ui.settings.scored', 'Scored');
+    case 'feedback': return state.result?.practiceOnly ? tr('memory.ui.settings.practiceOnlyShort', 'Practice only. Nothing was graded.') : state.result ? tr('memory.ui.settings.scoredWith', 'Scored {score}', { score: formatScore(state.result.score) }) : tr('memory.ui.settings.scored', 'Scored');
     case 'paused': return tr('memory.ui.settings.paused', 'Paused');
     case 'summary': return tr('memory.ui.settings.allDone', 'All done');
     case 'done': return tr('memory.ui.settings.allDone', 'All done');

@@ -108,4 +108,11 @@ describe('spoken reference', () => {
     expect(g.result.score).toBe(1);
     expect(g.referenceScore).toBeGreaterThan(0.9);
   });
+  it('digits as the engine writes them: "Genesis 1:1" and per-verse scores unchanged when off', () => {
+    const ref = ['Genesis', 'one', 'one'];
+    const g = gradeRecitation([verse], say(`Genesis 1:1 ${FULL}`), new Set(), 'normal', kit, { refBefore: ref });
+    expect(g.referenceScore).toBe(1);
+    const off = gradeRecitation([verse], say(FULL + ' extra'), new Set(), 'normal', kit);
+    expect(off.detail.extras).toBe(1);
+  });
 });
