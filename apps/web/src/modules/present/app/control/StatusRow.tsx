@@ -4,6 +4,7 @@ import { presentStore } from '../../stores/presentStore';
 import { goLive } from '../presenterSink';
 import { usePresenter } from '../../study/usePresenter';
 import { useStore } from '../../../../hooks/useStore';
+import { offlineStore } from '../../../../stores/offlineStore';
 
 /**
  * The short status row at the top of Control: Not live / Live, how many devices
@@ -16,7 +17,9 @@ export function StatusRow(props: { menuOpen: boolean; onToggleMenu: () => void }
   const [confirmEnd, setConfirmEnd] = useState(false);
   const session = useStore(presentStore, () => presentStore.session);
   const live = view.presenting;
-  const connected = view.connection === 'live';
+  // The stream can take a while to notice a dropped network; the browser knows at once.
+  const online = useStore(offlineStore, () => offlineStore.isOnline);
+  const connected = view.connection === 'live' && online;
 
   return (
     <div class="pz-status">

@@ -399,7 +399,9 @@ const UserNotesPane: React.FC<UserNotesPaneProps> = ({
       <ConfirmDialog
         open={deleteTarget !== null}
         title={t('userNotesPane.deleteConfirm.title')}
-        message={t('userNotesPane.deleteConfirm.message', { name: deleteTarget?.name ?? '' })}
+        message={deleteTarget?.isDirectory
+          ? t('userNotesPane.deleteConfirm.folderMessage', { name: deleteTarget.name })
+          : t('userNotesPane.deleteConfirm.message', { name: deleteTarget?.name ?? '' })}
         confirmLabel={t('userNotesPane.deleteConfirm.confirm')}
         destructive
         onConfirm={() => {

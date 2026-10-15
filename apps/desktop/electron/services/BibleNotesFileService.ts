@@ -261,7 +261,8 @@ export class BibleNotesFileService {
     // Sort: directories first, then files, alphabetically within each group
     result.sort((a, b) => {
       if (a.isDirectory !== b.isDirectory) return a.isDirectory ? -1 : 1;
-      return a.name.localeCompare(b.name);
+      // Natural order: 6:9 before 6:19, chapter 6 before 13.
+      return a.name.localeCompare(b.name, undefined, { numeric: true });
     });
 
     return result;

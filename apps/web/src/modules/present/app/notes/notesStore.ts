@@ -39,6 +39,10 @@ function writePushed(sessionId: string, key: string): void {
   try { localStorage.setItem(pushedKey(sessionId), key); } catch { /* private mode: costs only a re-fetch */ }
 }
 
+function clearPushed(sessionId: string): void {
+  try { localStorage.removeItem(pushedKey(sessionId)); } catch { /* nothing to clean */ }
+}
+
 /** Where the chooser popover is open, and on what. */
 export type ChooserTarget =
   | { mode: 'item'; id: string; anchor: DOMRect }
@@ -508,6 +512,8 @@ class NotesStore extends Store {
       if (sid && reconnected && !this.syncBlocked) void this.reconcile(sid, session!.controlToken);
       return;
     }
+    // That session is over (ended, or replaced): its pushed-notes marker is dead weight.
+    if (this.syncedSession) clearPushed(this.syncedSession);
     this.syncedSession = sid;
     this.syncArmed = false;
     this.syncBlocked = false;

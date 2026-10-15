@@ -354,6 +354,7 @@
       "refreshApp": "Refresh App",
       "resetCache": "Reset app cache",
       "resetCacheHint": "Clears this app's saved files and the background service worker on this device, then reloads. Use it if the app looks out of date or misbehaves. Your settings and downloaded modules are kept.",
+      "resetCacheConfirm": "Reset the app cache? The app reloads and re-downloads its files; your settings and downloaded modules are kept.",
       "appName": "Keep Thy Heart Bible Reader",
       "description": "A modern, open-source Bible study application designed for in-depth Scripture reading and research.",
       "desktopOnly": "Notes, highlights, bookmarks, Scripture memory, reading plans and prayer lists are available in the desktop app.",

@@ -79,4 +79,11 @@ describe('BibleNotesFileService - stale saves and rename', () => {
     svc.rename('F', 'G');
     expect(read('G/n.bn').title).toBe('Title');
   });
+
+  it('lists notes and folders in natural order (soak DS-05)', () => {
+    for (const n of ['6-19', '6-9', '6-34']) svc.saveNote(`Matthew/${n}`, makeNote(n));
+    for (const f of ['13', '6', '1', '24']) svc.createFolder(`Chapters/${f}`);
+    expect(svc.listDirectory('Matthew').map(e => e.name)).toEqual(['6-9', '6-19', '6-34']);
+    expect(svc.listDirectory('Chapters').map(e => e.name)).toEqual(['1', '6', '13', '24']);
+  });
 });

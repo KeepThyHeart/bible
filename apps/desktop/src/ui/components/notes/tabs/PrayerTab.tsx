@@ -147,7 +147,12 @@ const PrayerTab: React.FC = () => {
       <ConfirmDialog
         open={pendingDeleteId !== null}
         title={t('prayerListItem.deleteTitle')}
-        message={t('prayerListItem.deleteConfirm')}
+        message={(() => {
+          const prayer = prayers.find(p => p.noteId === pendingDeleteId);
+          return prayer?.title
+            ? t('prayerListItem.deleteConfirmNamed', { title: prayer.title })
+            : t('prayerListItem.deleteConfirm');
+        })()}
         confirmLabel={t('prayerListItem.deleteConfirmLabel')}
         destructive
         onConfirm={() => {

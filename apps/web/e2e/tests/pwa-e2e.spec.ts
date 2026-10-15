@@ -107,6 +107,7 @@ test.describe('PWA on (features.pwa = true)', () => {
     await page.locator('.settings-panel__tab', { hasText: /about/i }).click();
     const reset = page.locator('[data-testid="reset-app-cache"]');
     await expect(reset).toBeVisible();
+    page.once('dialog', (dialog) => void dialog.accept()); // the reset asks first
     const reloaded = page.waitForEvent('load');
     await reset.click();
     await reloaded;

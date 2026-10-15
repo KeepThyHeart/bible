@@ -582,6 +582,8 @@ export function SettingsPanel({ isOpen, onClose, scrollToSection }: SettingsPane
                       data-testid="reset-app-cache"
                       disabled={resettingCache}
                       onClick={() => {
+                        // Clearing the cache reloads the page: ask first.
+                        if (!window.confirm(t('settings.about.resetCacheConfirm'))) return;
                         setResettingCache(true);
                         void resetAppCache();
                       }}

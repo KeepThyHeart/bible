@@ -352,6 +352,7 @@
       "refreshApp": "רענון היישום",
       "resetCache": "איפוס מטמון היישום",
       "resetCacheHint": "מנקה את הקבצים השמורים של היישום ואת ה-service worker ברקע במכשיר זה, ואז טוען מחדש. מומלץ להשתמש בכך אם היישום נראה מיושן או אינו פועל כראוי. ההגדרות, המודולים שהורדו וההערות נשמרים.",
+      "resetCacheConfirm": "Reset the app cache? The app reloads and re-downloads its files; your settings and downloaded modules are kept.",
       "appName": "יישום לימוד מקרא",
       "description": "יישום מודרני בקוד פתוח ללימוד מקרא, שנועד לקריאה ולמחקר מעמיקים של כתבי הקודש.",
       "license": "ברישיון <strong>GNU General Public License v3.0</strong> (GPL-3.0).",
