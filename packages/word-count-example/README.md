@@ -1,5 +1,7 @@
 # Word Count Extension
 
+> **Experimental.** The extension API and SDK are experimental and **not frozen**: they may change in incompatible ways before a stable release. Pin an exact version and expect to update your extension.
+
 A minimal reference extension that displays a word count for the current Bible chapter in the status bar.
 
 ## What it does
@@ -15,9 +17,9 @@ A minimal reference extension that displays a word count for the current Bible c
 ## Installation (sideload)
 
 1. Copy this `word-count-example/` folder into the app's extensions directory (the folder name there is yours to choose; the app identifies the extension by the `id` in `extension.json`):
-   - Linux: `~/.config/bible-desktop-app/extensions/`
-   - macOS: `~/Library/Application Support/bible-desktop-app/extensions/`
-   - Windows: `%APPDATA%\bible-desktop-app\extensions\`
+   - Linux: `~/.config/@bible/desktop/extensions/`
+   - macOS: `~/Library/Application Support/@bible/desktop/extensions/`
+   - Windows: `%APPDATA%\@bible\desktop\extensions\`
 2. Restart the app (or reload extensions if supported).
 3. The extension activates on startup and shows a "Words: --" item in the status bar.
 

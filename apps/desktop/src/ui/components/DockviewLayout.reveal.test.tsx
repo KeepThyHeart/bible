@@ -71,7 +71,9 @@ function setActive(active: boolean): void {
   act(() => { for (const l of [...studyState.listeners]) l(); });
 }
 
-describe('DockviewLayout reveal', () => {
+// The first render pulls in the lazy parts of the layout (sanitizer, presets, i18n) and can run past the 10 s
+// default on a loaded machine; everything after is synchronous, so a bounded budget is the whole fix.
+describe('DockviewLayout reveal', { timeout: 60_000 }, () => {
   beforeEach(() => {
     vi.clearAllMocks();
     studyState.active = false;

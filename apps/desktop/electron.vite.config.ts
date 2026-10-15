@@ -131,7 +131,7 @@ const APP_CONFIG_DEFINES: Record<string, string> = {
   __BIBLE_ABOUT_TEXT__: JSON.stringify(ABOUT_TEXT),
   __BIBLE_TIMELINE_MIN_SPAN_YEARS__: JSON.stringify(TIMELINE_MIN_SPAN_YEARS),
   // Windows AppUserModelID for notifications; must match electron-builder's appId.
-  __BIBLE_APP_ID__: JSON.stringify(envOrEmpty('BIBLE_APP_ID') || 'com.bibledesktopapp.app'),
+  __BIBLE_APP_ID__: JSON.stringify(envOrEmpty('BIBLE_APP_ID') || brandingValue('appId') || 'com.keepthyheart.bible.desktop'),
 };
 
 /**

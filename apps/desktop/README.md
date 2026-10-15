@@ -246,11 +246,21 @@ The app uses `electron-log` for automatic log file management:
 
 | Platform | Log Location |
 |----------|-------------|
-| Linux    | `~/.config/bible-desktop-app/logs/main.log` |
+| Linux    | `~/.config/@bible/desktop/logs/main.log` |
 | macOS    | `~/Library/Logs/@bible/desktop/main.log` (development and installed builds alike) |
-| Windows  | `%APPDATA%/bible-desktop-app/logs/main.log` |
+| Windows  | `%APPDATA%/@bible/desktop/logs/main.log` |
 
 In dev mode (`pnpm run dev`), logs go to the terminal stdout instead of log files.
+
+## Upgrading from 0.1.0-beta.1
+
+This section doubles as the release-notes text for 1.0.0-rc.1.
+
+Your notes, highlights, bookmarks, settings, layout and modules are kept: they live in your user profile (`~/.config/@bible/desktop` on Linux, `%APPDATA%\@bible\desktop` on Windows, `~/Library/Application Support/@bible/desktop` on macOS), not in the app folder, and the profile location has not changed. This release changes the application ID from `com.bibledesktopapp.app` to `com.keepthyheart.bible.desktop`, which has a few visible effects:
+
+- **macOS:** download the new `.dmg` and replace the app in Applications. The in-app updater cannot install this release over beta.1. When asked to allow access to the "@bible/desktop Safe Storage" keychain item, choose **Always Allow** (if you choose Deny the app cannot open your encrypted notes database and reports an error; nothing is deleted or replaced, so quit, reopen and allow it). macOS also asks again whether the app may send notifications, because notification permission is tied to the application ID.
+- **Windows:** run the new installer, or use the in-app update. The installer keeps beta.1's installer identity (its uninstall entry), so it upgrades beta.1 in place and Settings > Apps shows a single entry. If you pinned the app to the taskbar, unpin it and pin it again, because the old pin points at the previous application ID.
+- **Linux:** install the new `.deb` over the old one, or replace the AppImage. Nothing else changes.
 
 ## Further Documentation
 

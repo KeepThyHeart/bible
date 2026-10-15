@@ -19,6 +19,8 @@
 
 import { test, expect, Page } from '../fixtures/electron.fixture';
 import { selectVerse, ensurePaneOpen } from '../fixtures/test-utils';
+import fs from 'fs';
+import path from 'path';
 
 /**
  * Fixtures, chosen against the dev dataset and qualified by source.
@@ -40,6 +42,15 @@ const TORREYS = 'Torrey';
 const TOPIC_WITH_CHILDREN = { name: 'Levites', source: NAVES };
 /** One in each index, so its detail view carries an "Also in" cross-link. */
 const TOPIC_IN_BOTH_INDEXES = { name: 'Faith', source: TORREYS };
+/** For the cases that need any topic with verses, not a second index. */
+const ANY_TOPIC = { name: 'Faith', source: NAVES };
+
+/**
+ * Torrey's is not in the official catalog (`pnpm run setup --select=tests` cannot install it), so the
+ * cases that need a second index skip, visibly, when it is absent, and the rest run on Nave's alone.
+ */
+const TORREY_INSTALLED = fs.existsSync(path.resolve(__dirname, '../../data/modules/topical_torrey.db'));
+const NEEDS_TORREY = "needs Torrey's Topical Index (data/modules/topical_torrey.db), which the catalog does not offer";
 
 /** The tag graph ships separately; these cases cannot run without it. */
 const TAG_GRAPH_AVAILABLE = false;
@@ -145,8 +156,8 @@ test.describe('Topics Pane', () => {
       await expect(searchInput(window)).toBeVisible();
       await expect(pane(window).getByTestId('topic-browse-filter')).toHaveCount(0);
 
-      // Both Nave's and Torrey's are installed, so the source chips render.
-      await expect(pane(window).getByTestId('topic-source-filter')).toHaveCount(2);
+      // The source chips render only when there is more than one index to choose from.
+      await expect(pane(window).getByTestId('topic-source-filter')).toHaveCount(TORREY_INSTALLED ? 2 : 0);
 
       // The list itself must actually have topics in it, and it is the browse
       // list - not search results - while the box is empty.
@@ -201,22 +212,22 @@ test.describe('Topics Pane', () => {
       // Matched on the stem: Nave's full title is "Naveߴs Topical Bible",
       // whose apostrophe is not the ASCII one.
       expect(rows.some(r => r.includes(NAVES))).toBe(true);
-      expect(rows.some(r => r.includes(TORREYS))).toBe(true);
+      if (TORREY_INSTALLED) expect(rows.some(r => r.includes(TORREYS))).toBe(true);
     });
 
     test('opens the topic detail when a result is clicked', async ({ window }) => {
-      await openTopic(window, TOPIC_IN_BOTH_INDEXES);
+      await openTopic(window, ANY_TOPIC);
 
       await expect(pane(window).getByTestId('topic-verse-count')).toHaveText(/\d+ verses/);
-      // Which of the two indexes this entry belongs to. "Faith" exists in
-      // both and they say different things, so the detail view has to name it.
-      await expect(pane(window).getByTestId('topic-source')).toContainText(TORREYS);
+      // Which index this entry belongs to. "Faith" exists in both Nave's and
+      // Torrey's and they say different things, so the detail view has to name it.
+      await expect(pane(window).getByTestId('topic-source')).toContainText(ANY_TOPIC.source);
     });
   });
 
   test.describe('Topic detail', () => {
     test('shows the verses for a topic and navigates to one', async ({ window }) => {
-      await openTopic(window, TOPIC_IN_BOTH_INDEXES);
+      await openTopic(window, ANY_TOPIC);
 
       const verses = pane(window).getByTestId('topic-verses');
       await expect(verses).toBeVisible({ timeout: 10000 });
@@ -244,6 +255,7 @@ test.describe('Topics Pane', () => {
     });
 
     test('shows "Also in" links for a topic carried by both indexes', async ({ window }) => {
+      test.skip(!TORREY_INSTALLED, NEEDS_TORREY);
       await openTopic(window, TOPIC_IN_BOTH_INDEXES);
 
       const alsoIn = pane(window).getByTestId('topic-also-in');
@@ -252,6 +264,7 @@ test.describe('Topics Pane', () => {
     });
 
     test('follows an "Also in" link to the other index', async ({ window }) => {
+      test.skip(!TORREY_INSTALLED, NEEDS_TORREY);
       const original = await openTopic(window, TOPIC_IN_BOTH_INDEXES);
       const alsoIn = pane(window).getByTestId('topic-also-in');
       await expect(alsoIn).toBeVisible({ timeout: 10000 });
@@ -319,7 +332,7 @@ test.describe('Topics Pane', () => {
       await expect(navBack(window)).toBeDisabled();
       await expect(navForward(window)).toBeDisabled();
 
-      await openTopic(window, TOPIC_IN_BOTH_INDEXES);
+      await openTopic(window, ANY_TOPIC);
 
       await expect(navBack(window)).toBeEnabled();
     });
@@ -327,7 +340,7 @@ test.describe('Topics Pane', () => {
 
   test.describe('Pin', () => {
     test('stops the pane following the Bible selection', async ({ window }) => {
-      await openTopic(window, TOPIC_IN_BOTH_INDEXES);
+      await openTopic(window, ANY_TOPIC);
       const pinned = (await topicName(window).textContent())?.trim() ?? '';
 
       const pinButton = window.locator('button[title*="Pin" i]').first();

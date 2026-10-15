@@ -9,6 +9,7 @@ import { test as base, _electron as electron, ElectronApplication, Page } from '
 import path from 'path';
 import fs from 'fs';
 import os from 'os';
+import { E2E_KEYWORD_INDEX_DIR } from './keywordIndexDir';
 
 // Custom fixture types
 type ElectronFixtures = {
@@ -69,6 +70,8 @@ export const test = base.extend<ElectronFixtures>({
         NODE_ENV: 'test',
         // Use a test-specific user data directory to isolate tests
         ELECTRON_USER_DATA: userDataDir,
+        // Keyword-search indexes: one shared directory, built once by globalSetup.ts.
+        BIBLE_KEYWORD_INDEX_DIR: E2E_KEYWORD_INDEX_DIR,
       },
     });
 

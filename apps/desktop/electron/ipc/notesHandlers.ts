@@ -554,7 +554,10 @@ export function registerNotesHandlers(opts: NotesHandlersOptions = {}): void {
       if (orderA !== orderB) return orderA - orderB;
       const dateA = a.createdDate ? new Date(a.createdDate).getTime() : 0;
       const dateB = b.createdDate ? new Date(b.createdDate).getTime() : 0;
-      return dateB - dateA;
+      // Oldest first, matching the UI (new prayers are appended at the end),
+      // so an unsorted list keeps its creation order after a restart.
+      if (dateA !== dateB) return dateA - dateB;
+      return (a.noteId ?? 0) - (b.noteId ?? 0);
     });
     return sortedNotes.map(serializeNote);
   });

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNotesStore } from '../../stores/useNotesStore';
 import { useNotesPanel } from '../../stores/hooks/useNotesPanel';
 import NotesFolderBrowser from './NotesFolderBrowser';
@@ -10,7 +10,7 @@ import { useNoteEditorStore } from '../../stores/useNoteEditorStore';
 import { useFileNotesStore, type NotesSideTab } from '../../stores/useFileNotesStore';
 import { DEFAULT_PANEL_ID } from '../../stores/helpers/panelStateHelpers';
 
-import { VERSE_NOTES_FOLDER, isInVerseNotesFolderPath } from './UserNotesPane/utils';
+import { VERSE_NOTES_FOLDER, isInVerseNotesFolderPath, isAbsolutePath } from './UserNotesPane/utils';
 import { useNotesAutoSave } from './UserNotesPane/hooks/useNotesAutoSave';
 import { useActiveNoteFlush } from './UserNotesPane/hooks/useActiveNoteFlush';
 import { useVerseNavigationListeners } from './UserNotesPane/hooks/useVerseNavigationListeners';
@@ -25,6 +25,8 @@ import { useMoveDialogFolders } from './UserNotesPane/hooks/useMoveDialogFolders
 import UserNotesSidebar from './UserNotesPane/UserNotesSidebar';
 import UserNotesEditorView from './UserNotesPane/UserNotesEditorView';
 import UserNotesDialogs from './UserNotesPane/UserNotesDialogs';
+import ConfirmDialog from '../shared/ConfirmDialog';
+import { useI18n } from '../../contexts/useI18n';
 
 type NotesView = 'browser' | 'editor';
 
@@ -46,7 +48,10 @@ const UserNotesPane: React.FC<UserNotesPaneProps> = ({
   initialCurrentPath,
   initialCurrentNotePath,
 }) => {
+  const { t } = useI18n();
   const { currentVerseId } = useNotesPanel(panelId);
+  // Entry awaiting delete confirmation (goes to the system trash).
+  const [deleteTarget, setDeleteTarget] = useState<FileEntry | null>(null);
 
   // Panel lifecycle
   const initPanel = useNotesStore(s => s.initPanel);
@@ -55,6 +60,9 @@ const UserNotesPane: React.FC<UserNotesPaneProps> = ({
     initPanel(panelId);
     return () => { destroyPanel(panelId); };
   }, [panelId, initPanel, destroyPanel]);
+
+  // Set when an 'open-verse-note' request arrives before the pane is ready.
+  const pendingVerseOpenRef = useRef(false);
 
   // File-based notes state
   const [view, setView] = useState<NotesView>('browser');
@@ -135,7 +143,8 @@ const UserNotesPane: React.FC<UserNotesPaneProps> = ({
 
   // Mount-time init (including restoring the note this panel was left on) +
   // dynamic subtitle + nav-state registration.
-  useNotesInit({
+  const { restoreDone } = useNotesInit({
+    pendingVerseOpenRef,
     panelId,
     isDetached,
     initialView,
@@ -155,8 +164,47 @@ const UserNotesPane: React.FC<UserNotesPaneProps> = ({
     setSideTab,
   });
 
+  // Opening or creating another note replaces the one in this pane. Remember the
+  // note just left so the editor header can offer a way back to it (its unsaved
+  // edits are saved first - see useNotesAutoSave).
+  const [previousNote, setPreviousNote] = useState<{ path: string; title: string } | null>(null);
+  const lastOpenedRef = useRef<{ path: string; title: string } | null>(null);
+  const lastNoteObjRef = useRef<unknown>(null);
+  useEffect(() => {
+    const prev = lastOpenedRef.current;
+    // A move/rename changes only the path (same note object): not "another note".
+    if (prev && prev.path !== currentNotePath && currentNotePath && lastNoteObjRef.current !== currentNote
+      && !isAbsolutePath(prev.path)) {
+      setPreviousNote(prev);
+    } else if (!prev && currentNotePath && currentNote) {
+      // Arrived from the browser (no note was open): any earlier "back" target is stale.
+      setPreviousNote(null);
+    }
+    lastNoteObjRef.current = currentNote;
+    lastOpenedRef.current = currentNotePath && currentNote
+      ? { path: currentNotePath, title: currentNote.title }
+      : null;
+  }, [currentNotePath, currentNote]);
+
+  // Hide the way back when its note was moved, renamed or deleted meanwhile, and
+  // keep the label equal to the target's real title.
+  const previousPath = previousNote?.path;
+  useEffect(() => {
+    if (!previousPath) return;
+    let cancelled = false;
+    fileNotesAPI.readNote(previousPath).then(
+      note => {
+        if (cancelled) return;
+        if (!note) setPreviousNote(null);
+        else setPreviousNote(p => (p && p.path === previousPath && p.title !== note.title ? { ...p, title: note.title } : p));
+      },
+      () => { if (!cancelled) setPreviousNote(null); }
+    );
+    return () => { cancelled = true; };
+  }, [previousPath, currentNotePath]);
+
   // Auto-save
-  useNotesAutoSave({ view, currentNote, currentNotePath, setCurrentNote, setIsSaving });
+  useNotesAutoSave({ view, currentNote, currentNotePath, setCurrentNote, setIsSaving, setFileError });
 
   // Flush the active note to disk on window close / unload (the renderer is
   // destroyed before auto-save's unmount cleanup can run during a real quit).
@@ -164,6 +212,8 @@ const UserNotesPane: React.FC<UserNotesPaneProps> = ({
 
   // Verse-note open (event from Bible pane)
   useVerseNoteOpener({
+    ready: restoreDone && !showSetup,
+    pendingRef: pendingVerseOpenRef,
     currentVerseId,
     setCurrentNote,
     setCurrentNotePath,
@@ -197,6 +247,7 @@ const UserNotesPane: React.FC<UserNotesPaneProps> = ({
   } = useNoteCrud({
     currentPath,
     currentNotePath,
+    currentNote,
     loadDirectory,
     setCurrentNote,
     setCurrentNotePath,
@@ -231,13 +282,15 @@ const UserNotesPane: React.FC<UserNotesPaneProps> = ({
       <div data-testid="notes-pane" className="h-full flex flex-col min-w-0" style={{ backgroundColor: 'var(--theme-bg-primary)' }}>
         <NotesSetupDialog
           onComplete={(dir) => {
-            setShowSetup(false);
             useFileNotesStore.getState().setNotesDirectory(dir); // allow-getstate: setup-dialog completion callback - imperative store access outside render
             fileNotesAPI.ensureVerseNotesFolder().then(() => {
-              loadDirectory('');
+              // If Add Note started this setup, carry on into its editor
+              // instead of dropping to the folder list.
+              if (!pendingVerseOpenRef.current) loadDirectory('');
+              setShowSetup(false);
             });
           }}
-          onCancel={() => setShowSetup(false)}
+          onCancel={() => { pendingVerseOpenRef.current = false; setShowSetup(false); }}
         />
       </div>
     );
@@ -305,7 +358,7 @@ const UserNotesPane: React.FC<UserNotesPaneProps> = ({
                   }}
                   onDelete={(entry) => {
                     if (entry.path !== VERSE_NOTES_FOLDER) {
-                      handleDelete(entry);
+                      setDeleteTarget(entry);
                     }
                   }}
                   onMove={handleMoveEntry}
@@ -328,7 +381,11 @@ const UserNotesPane: React.FC<UserNotesPaneProps> = ({
                   setEditorContent={setEditorContent}
                   editorIsDirty={editorIsDirty}
                   isSaving={isSaving}
-                  lastSaved={lastSaved}
+                  lastSaved={
+                    // Session save time if saved here, else the note's own saved time on disk;
+                    // hidden for a note that has never been saved since creation.
+                    lastSaved ?? (currentNote.updated && currentNote.updated !== currentNote.created ? currentNote.updated : undefined)
+                  }
                   showEditorSidebar={showEditorSidebar}
                   setShowEditorSidebar={setShowEditorSidebar}
                   breadcrumbs={buildEditorBreadcrumbs()}
@@ -340,6 +397,8 @@ const UserNotesPane: React.FC<UserNotesPaneProps> = ({
                   titleEditable={currentNote.type !== 'verse_note'}
                   onPopOut={handlePopOut}
                   notePath={currentNotePath}
+                  previousNote={previousNote && previousNote.path !== currentNotePath ? previousNote : null}
+                  onBackToPrevious={() => { if (previousNote) void handleOpenNote(previousNote.path); }}
                   // The same four actions the sidebar offers, also in the
                   // editor toolbar - the sidebar is collapsed by default in
                   // the editor, so until now "print this note" was behind a
@@ -356,6 +415,22 @@ const UserNotesPane: React.FC<UserNotesPaneProps> = ({
           </div>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        title={t('userNotesPane.deleteConfirm.title')}
+        message={deleteTarget?.isDirectory
+          ? t('userNotesPane.deleteConfirm.folderMessage', { name: deleteTarget.name })
+          : t('userNotesPane.deleteConfirm.message', { name: deleteTarget?.name ?? '' })}
+        confirmLabel={t('userNotesPane.deleteConfirm.confirm')}
+        destructive
+        onConfirm={() => {
+          const target = deleteTarget;
+          setDeleteTarget(null);
+          if (target) void handleDelete(target);
+        }}
+        onCancel={() => setDeleteTarget(null)}
+      />
 
       <UserNotesDialogs
         showNewNoteDialog={showNewNoteDialog}

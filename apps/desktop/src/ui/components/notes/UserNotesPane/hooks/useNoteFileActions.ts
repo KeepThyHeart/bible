@@ -2,11 +2,13 @@ import { useCallback, useRef } from 'react';
 import * as fileNotesAPI from '../../../../services/fileNotesAPI';
 import { BnFile } from '../../../../services/fileNotesAPI';
 import { useNoteEditorStore } from '../../../../stores/useNoteEditorStore';
+import { useToastStore } from '../../../../stores/useToastStore';
 import { useFileNotesStore } from '../../../../stores/useFileNotesStore';
 import { htmlToMarkdown } from '../../../../utils/exportNote';
 import { sanitizeHtml } from '../../../../utils/sanitize';
 import { IpcResultError, unwrap } from '../../../../services/ipcResult';
 import { escapeHtmlText, isAbsolutePath } from '../utils';
+import { MISSING_MESSAGE } from './noteSave';
 
 interface UseNoteFileActionsArgs {
   currentNote: BnFile | null;
@@ -22,7 +24,7 @@ interface UseNoteFileActionsArgs {
 export interface NoteFileActions {
   handleSaveNote: () => Promise<void>;
   handleSaveAs: () => Promise<void>;
-  handlePrint: () => void;
+  handlePrint: () => Promise<void>;
   handleExportPdf: () => Promise<void>;
   handleExportMarkdown: () => Promise<void>;
   handleExportDocx: () => Promise<void>;
@@ -57,6 +59,11 @@ function buildNoteDocumentHtml(title: string, bodyHtml: string): string {
 /** File-name-safe version of a note title, for the export dialogs' default. */
 function exportFileName(title: string): string {
   return (title || 'note').replace(/[<>:"/\\|?*]/g, '_');
+}
+
+/** Short confirmation after an export wrote a file (failures use the error banner). */
+function notifyExported(filePath: string): void {
+  useToastStore.getState().addToast(`Exported to ${filePath}`, 'info'); // allow-getstate: export async callback - imperative toast outside render
 }
 
 export function useNoteFileActions(args: UseNoteFileActionsArgs): NoteFileActions {
@@ -131,6 +138,11 @@ export function useNoteFileActions(args: UseNoteFileActionsArgs): NoteFileAction
         );
         return;
       }
+      if (err instanceof IpcResultError && err.code === 'not_found') {
+        // Renamed, moved or trashed since it was opened: never re-create it.
+        setFileError(MISSING_MESSAGE);
+        return;
+      }
       setFileError(`Could not save: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setIsSaving(false);
@@ -164,10 +176,18 @@ export function useNoteFileActions(args: UseNoteFileActionsArgs): NoteFileAction
     }
   }, [currentNote, editorContent, setFileError]);
 
-  const handlePrint = useCallback(() => {
+  const handlePrint = useCallback(async () => {
     if (!currentNote) return;
-    void fileNotesAPI.printNote(buildNoteDocumentHtml(currentNote.title, editorContent));
-  }, [currentNote, editorContent]);
+    try {
+      const result = await fileNotesAPI.printNote(buildNoteDocumentHtml(currentNote.title, editorContent));
+      // A dismissed print dialog is `canceled`, not a failure and not a success.
+      if (result && !result.success && !result.canceled) {
+        setFileError(`Print failed: ${result.error ?? 'unknown error'}`);
+      }
+    } catch (err: unknown) {
+      setFileError(`Print failed: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }, [currentNote, editorContent, setFileError]);
 
   const handleExportPdf = useCallback(async () => {
     if (!currentNote) return;
@@ -178,7 +198,7 @@ export function useNoteFileActions(args: UseNoteFileActionsArgs): NoteFileAction
     // This channel answers with `{ success, error }` rather than throwing, so
     // there is nothing to catch - a failed render or a failed write arrives as
     // a message to show.
-    if (!result.success) {
+    if (!result.success && !result.canceled) {
       setFileError(`Export failed: ${result.error ?? 'unknown error'}`);
     }
   }, [currentNote, editorContent, setFileError]);
@@ -191,9 +211,10 @@ export function useNoteFileActions(args: UseNoteFileActionsArgs): NoteFileAction
       // `ipcHandler`, so a failure arrives as an `{ ok: false }` envelope. The
       // old check read a `success` field the envelope does not have, which
       // made every export failure silent.
-      await unwrap(
+      const savedTo = await unwrap<string | null | undefined>(
         window.electron.ipcRenderer.invoke('file-notes:export-markdown', exportFileName(currentNote.title), md)
       );
+      if (savedTo) notifyExported(savedTo);
     } catch (err: unknown) {
       setFileError(`Export failed: ${err instanceof Error ? err.message : String(err)}`);
     }
@@ -202,7 +223,7 @@ export function useNoteFileActions(args: UseNoteFileActionsArgs): NoteFileAction
   const handleExportDocx = useCallback(async () => {
     if (!currentNote) return;
     try {
-      await unwrap(
+      const savedTo = await unwrap<string | null | undefined>(
         window.electron.ipcRenderer.invoke(
           'file-notes:export-docx',
           exportFileName(currentNote.title),
@@ -210,6 +231,7 @@ export function useNoteFileActions(args: UseNoteFileActionsArgs): NoteFileAction
           currentNote.title
         )
       );
+      if (savedTo) notifyExported(savedTo);
     } catch (err: unknown) {
       setFileError(`Export failed: ${err instanceof Error ? err.message : String(err)}`);
     }

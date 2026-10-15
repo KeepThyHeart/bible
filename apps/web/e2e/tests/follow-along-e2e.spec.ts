@@ -34,7 +34,16 @@ async function send(request: APIRequestContext, session: Session, intent: unknow
 
 async function joinFollowing(page: Page, session: Session): Promise<void> {
   await page.goto(`/present/f/${session.joinCode}`);
-  await expect(page.locator('.follow-banner')).toBeVisible({ timeout: 10000 });
+  // The banner waits for the present module and its presenter runtime, two lazy
+  // chunks loaded after the reader is up; on a busy machine (WebKit, the full
+  // suite in parallel) that took longer than 10 s while the page was otherwise fine.
+  await expect(page.locator('.follow-banner')).toBeVisible({ timeout: 30000 });
+  // Every caller has the presenter on John 3:16. The banner can show before the
+  // reader has followed it there, and a test that acted in that gap (pressing
+  // "Stop following") left the reader where it started: wait for both.
+  await expect(page.locator('.follow-banner')).toContainText('John 3:16', { timeout: 15000 });
+  await expect(page.locator('.bible-tab-bar, .mobile-chapter-nav, h2').filter({ hasText: 'John 3' }).first())
+    .toBeVisible({ timeout: 15000 });
 }
 
 test.describe('Follow-along mode', () => {

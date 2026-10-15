@@ -53,6 +53,18 @@ export class NoteConflictError extends Error {
 }
 
 /**
+ * Thrown when a save names a baseline (`expectedUpdated`) but the file is no
+ * longer there: it was renamed, moved or trashed since the editor loaded it.
+ * Writing anyway would silently re-create the old note next to the renamed one.
+ */
+export class NoteMissingError extends Error {
+  constructor(readonly missingPath: string) {
+    super('Note was renamed, moved or deleted since it was opened');
+    this.name = 'NoteMissingError';
+  }
+}
+
+/**
  * Service for managing .bn (Bible Notes) files on the filesystem.
  * Handles read/write, .bak backup history, directory listing, and OS integration.
  */
@@ -249,7 +261,8 @@ export class BibleNotesFileService {
     // Sort: directories first, then files, alphabetically within each group
     result.sort((a, b) => {
       if (a.isDirectory !== b.isDirectory) return a.isDirectory ? -1 : 1;
-      return a.name.localeCompare(b.name);
+      // Natural order: 6:9 before 6:19, chapter 6 before 13.
+      return a.name.localeCompare(b.name, undefined, { numeric: true });
     });
 
     return result;
@@ -283,6 +296,20 @@ export class BibleNotesFileService {
     }
 
     fs.renameSync(oldFull, newFull);
+
+    // Renaming a note file renames the note: keep the stored title in step so
+    // Recent, exports and other readers do not show the old name. A move to
+    // another folder (same file name) leaves the title alone, and `updated`
+    // is kept so another window's conflict baseline stays valid.
+    const oldBase = path.basename(oldFull);
+    const newBase = path.basename(newFull);
+    if (oldBase !== newBase && newBase.endsWith('.bn') && fs.statSync(newFull).isFile()) {
+      const note = this.readNoteAbsolute(newFull);
+      if (note) {
+        note.title = newBase.replace(/\.bn$/, '');
+        this.atomicWrite(newFull, JSON.stringify(note));
+      }
+    }
 
     // Also rename .bak file if it exists
     const oldBak = oldFull + '.bak';
@@ -458,7 +485,9 @@ export class BibleNotesFileService {
    */
   private assertNoConflict(fullPath: string, expectedUpdated: string | undefined): void {
     if (expectedUpdated === undefined) return;
-    if (!fs.existsSync(fullPath)) return;
+    // A baseline means "I loaded this file": if it is gone it was renamed,
+    // moved or trashed, and saving must not bring it back.
+    if (!fs.existsSync(fullPath)) throw new NoteMissingError(fullPath);
 
     const onDisk = this.readNoteAbsolute(fullPath);
     // If the file can't be parsed, don't block the save - atomic writes make a

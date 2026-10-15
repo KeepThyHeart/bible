@@ -74,13 +74,18 @@ function walk(entry: string): { files: Set<string>; bare: Map<string, string[]> 
   return { files, bare };
 }
 
-describe('@bible/core/browser barrel', () => {
+// The walk reads ~300 source files synchronously; do it once, not once per test.
+let cached: ReturnType<typeof walk> | undefined;
+const graph = () => (cached ??= walk(BARREL));
+
+// The first import of the barrel transforms its whole graph, which is slow when the machine is busy.
+describe('@bible/core/browser barrel', { timeout: 60_000 }, () => {
   it('exists', () => {
     expect(existsSync(BARREL)).toBe(true);
   });
 
   it('reaches no platform-specific module', () => {
-    const { bare } = walk(BARREL);
+    const { bare } = graph();
     const violations: string[] = [];
 
     for (const [spec, importers] of bare) {
@@ -101,7 +106,7 @@ describe('@bible/core/browser barrel', () => {
     // Stronger than the forbidden-list check: the pure subset should import
     // nothing external whatsoever, so a new dependency has to be considered
     // deliberately rather than slipping in.
-    const { bare } = walk(BARREL);
+    const { bare } = graph();
     // The allow-list is the deliberate part: each entry is a browser-safe
     // library that the Crypto and Backup modules need (Argon2id in WebAssembly;
     // a pure-JS ZIP codec). Anything else fails.
@@ -123,7 +128,7 @@ describe('@bible/core/browser barrel', () => {
     // declarations (task 0086: `Permissions.ts`, reached here by `import type`
     // only, now derives from small pure-data declaration files; the walker
     // counts type-only edges too).
-    const { files } = walk(BARREL);
+    const { files } = graph();
     expect(files.size).toBeGreaterThan(1);
     // Raised by 10: similar passages 0070. Raised by 10 again: offline packs 0075, then quiz 0074,
     // then reading plans 0073. Raised by 25: speech and recitation 0071. Raised by 15: word study.

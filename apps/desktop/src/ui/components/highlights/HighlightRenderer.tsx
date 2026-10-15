@@ -28,7 +28,7 @@ const EMPTY_HIGHLIGHTS: UserTextMarkup[] = [];
  * for the typical case (a handful of matches), and it is what lets find
  * marks be ordinary render output instead of an imperative DOM pass.
  */
-function useVerseFindState(verseId: number): VerseFindState | undefined {
+export function useVerseFindState(verseId: number): VerseFindState | undefined {
   const isVisible = useFindStore((s) => s.isVisible);
   const matches = useFindStore((s) => s.matches);
   const currentMatchIndex = useFindStore((s) => s.currentMatchIndex);

@@ -8,12 +8,13 @@ import { useAmbientHoverIntent } from '../../hooks/useAmbientHoverIntent';
 import { useHighlightStore } from '../../stores/useHighlightStore';
 import { useSearchStore } from '../../stores/useSearchStore';
 import { StrongsTooltipActions } from '../../modules/host/slots';
-import { HighlightedVerse } from '../highlights/HighlightRenderer';
+import { HighlightedVerse, useVerseFindState } from '../highlights/HighlightRenderer';
 import { useResolvedVerseDecorations } from '../../extensions/useResolvedVerseDecorations';
 import {
   buildInterlinearCells,
   cellsPartitionWordSpace,
   extractWordsWithFormatting,
+  findStateForWord,
   wordRenderAttrs,
   type ResolvedVerse,
   type ResolvedHover,
@@ -574,7 +575,11 @@ const CellEnglish: React.FC<{
     event: React.MouseEvent,
   ) => void;
   onWordMouseLeave?: (verseId: number, wordIndex: number, event: React.MouseEvent) => void;
-}> = ({ cell, verseId, highlights, resolved, onWordMouseEnter, onWordMouseLeave }) => (
+}> = ({ cell, verseId, highlights, resolved, onWordMouseEnter, onWordMouseLeave }) => {
+  // Find-in-page marks, the same as HighlightedVerse paints them: without this
+  // the find bar counted matches in interlinear view but painted none.
+  const find = useVerseFindState(verseId);
+  return (
   <>
     {cell.englishWords.map((word: WordInfo, offset: number) => {
       const wordIndex = cell.wordStart + offset;
@@ -589,6 +594,7 @@ const CellEnglish: React.FC<{
           hasTrailingSpace: word.hasTrailingSpace,
           nextWordIndex: isLastInCell ? null : wordIndex + 1,
           nextWordSourceKeys: isLastInCell ? undefined : resolved?.words.get(wordIndex + 1)?.sourceKeys,
+          find: findStateForWord(find, wordIndex),
         },
         resolved?.words.get(wordIndex),
       );
@@ -615,7 +621,8 @@ const CellEnglish: React.FC<{
       );
     })}
   </>
-);
+  );
+};
 
 /** The Strong's number of one interlinear row, as a clickable chip. */
 const StrongsChip: React.FC<{

@@ -49,7 +49,7 @@ export function BackupRestoreDialog() {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center"
+      className="fixed inset-0 z-[60] flex items-center justify-center"
       style={{ backgroundColor: 'var(--theme-bg-overlay)' }}
     >
       <div
@@ -163,7 +163,7 @@ type Translate = (key: string, params?: Record<string, unknown>) => string;
 function failureText(t: Translate, failure: BackupFailure): string {
   const known = [
     'passwordRequired', 'passwordMismatch', 'passwordTooShort', 'backup_password_required', 'backup_wrong_password',
-    'backup_newer_format', 'backup_damaged', 'backup_not_a_backup', 'backup_restore_failed', 'backup_inspection_expired',
+    'backup_newer_format', 'backup_damaged', 'backup_timeout', 'backup_not_a_backup', 'backup_restore_failed', 'backup_inspection_expired',
   ];
   return known.includes(failure.code) ? t(`backupRestoreDialog.error.${failure.code}`) : failure.message;
 }
@@ -255,6 +255,17 @@ function BackupTab() {
       >
         {store.isBackingUp ? t('backupRestoreDialog.creatingBackup') : t('backupRestoreDialog.createBackup')}
       </button>
+      {busy && (
+        <button
+          type="button"
+          onClick={store.cancelBackup}
+          className="w-full py-2 px-4 rounded text-sm font-medium"
+          style={secondaryButtonStyle}
+          data-testid="backup-cancel"
+        >
+          {t('backupRestoreDialog.cancelBackup')}
+        </button>
+      )}
 
       {store.backupResult && (
         'summary' in store.backupResult ? (

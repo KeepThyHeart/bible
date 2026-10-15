@@ -17,6 +17,8 @@ import { renderHook } from '@testing-library/react';
 import { useNotesNavigation } from './useNotesNavigation';
 import type { BnFile } from '../../../../services/fileNotesAPI';
 
+vi.mock('../../../../contexts/useI18n', () => ({ useI18n: () => ({ t: (k: string) => (k === 'userNotesPane.breadcrumbHome' ? 'Home' : k) }) }));
+
 vi.mock('../../../../services/fileNotesAPI', () => ({
   listDirectory: vi.fn(),
   readNote: vi.fn(),
@@ -162,5 +164,26 @@ describe('useNotesNavigation - requestRenameCurrentNote', () => {
     result.current.requestRenameCurrentNote();
 
     expect(args.setRenameEntry).not.toHaveBeenCalled();
+  });
+});
+
+describe('useNotesNavigation - handleOpenNote with unsaved edits', () => {
+  it('does not reload the disk copy when the open note is re-opened while dirty', async () => {
+    const fileNotesAPI = await import('../../../../services/fileNotesAPI');
+    vi.mocked(fileNotesAPI.readNote).mockClear();
+    const args = baseArgs({ editorIsDirty: true });
+    const { result } = renderHook(() => useNotesNavigation(args));
+    await result.current.handleOpenNote('Documents/My Note.bn');
+    expect(fileNotesAPI.readNote).not.toHaveBeenCalled();
+    expect(args.setCurrentNote).not.toHaveBeenCalled();
+  });
+
+  it('still opens a different note while dirty', async () => {
+    const fileNotesAPI = await import('../../../../services/fileNotesAPI');
+    vi.mocked(fileNotesAPI.readNote).mockResolvedValue(makeNote({ title: 'Other' }));
+    const args = baseArgs({ editorIsDirty: true });
+    const { result } = renderHook(() => useNotesNavigation(args));
+    await result.current.handleOpenNote('Documents/Other.bn');
+    expect(args.setCurrentNote).toHaveBeenCalled();
   });
 });

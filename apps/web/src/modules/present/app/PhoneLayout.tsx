@@ -90,7 +90,7 @@ export function PhoneLayout(props: {
       if (pending.current) { pending.current = null; presenterShow(item); }
     }, ADD_FALLBACK_MS);
     pending.current = { ids: new Set(planItems.map(p => p.id)), item, timer };
-    notesStore.addItem(item, label ?? describeItem(item, 0) ?? t('present.untitledItem'));
+    notesStore.addItem(item, label ?? describeItem(item, item.kind === 'passage' ? item.verseStart ?? 0 : 0) ?? t('present.untitledItem'));
   };
 
   const onDragEnd = (event: DragEndEvent): void => {

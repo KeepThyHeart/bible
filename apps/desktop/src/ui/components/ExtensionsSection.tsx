@@ -420,6 +420,18 @@ export function ExtensionsSection({ initialExpand }: ExtensionsSectionProps): JS
 
   return (
     <div className="space-y-4">
+      <p
+        role="note"
+        data-testid="extensions-experimental-note"
+        className="text-sm rounded px-3 py-2"
+        style={{
+          backgroundColor: 'var(--theme-bg-tertiary)',
+          color: 'var(--theme-text-secondary)',
+          border: '1px solid var(--theme-border-primary)',
+        }}
+      >
+        {t('extensionsSection.experimentalNote')}
+      </p>
       <div
         role="tablist"
         aria-label={t('extensions.tabs.label')}

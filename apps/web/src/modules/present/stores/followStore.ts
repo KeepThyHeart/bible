@@ -36,7 +36,7 @@ class FollowStore extends Store {
   active = false;
   joinCode: string | null = null;
   connection: FollowConnectionStatus = 'connecting';
-  closedReason: PresentClosedPayload['reason'] | null = null;
+  closedReason: PresentClosedPayload['reason'] | 'unknown' | null = null;
 
   /** What the presenter is currently showing, straight from the stream. */
   wall: PresentState | null = null;
@@ -157,7 +157,7 @@ class FollowStore extends Store {
     // very same store -- could otherwise observe the new chapter with the old
     // `lastApplied` still in place and misread this store's own move as drift.
     this.lastApplied = ref;
-    void bibleStore.navigateTo(ref.book, ref.chapter, ref.verse, { replace: true });
+    void bibleStore.navigateTo(ref.book, ref.chapter, ref.verse, { replace: true, urlReplace: true });
   }
 
   /**

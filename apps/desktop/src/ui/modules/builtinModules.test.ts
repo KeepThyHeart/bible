@@ -4,6 +4,9 @@
  * off, the way a developer boots it with `localStorage['kth.modules'] = '-host'`.
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { installModuleBootHooks, trackHost } from './moduleTestHooks';
+
+installModuleBootHooks(() => import('./builtinModules'));
 
 async function boot(override: string) {
   vi.resetModules();
@@ -11,6 +14,7 @@ async function boot(override: string) {
   const { registerBuiltinModules } = await import('./builtinModules');
   const host = await import('./moduleHost');
   registerBuiltinModules();
+  trackHost(host);
   return host;
 }
 

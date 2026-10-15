@@ -4,7 +4,7 @@
   "menu.app.preferences": "Open Preferences",
   "menu.file.title": "File",
   "menu.file.moduleManager": "Open Module Manager",
-  "menu.file.exportNotes": "Export My Notes",
+  "menu.file.exportNotes": "Backup & Restore",
   "menu.edit.title": "Edit",
   "menu.edit.speech": "Speech",
   "menu.edit.findInPane": "Find in Pane",

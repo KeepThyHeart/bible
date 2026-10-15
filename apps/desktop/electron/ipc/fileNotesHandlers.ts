@@ -2,7 +2,7 @@ import { dialog, BrowserWindow } from 'electron';
 import log from 'electron-log/main';
 import { readFile } from 'fs/promises';
 import { extname } from 'path';
-import { BibleNotesFileService, BnFile, NoteConflictError } from '../services/BibleNotesFileService';
+import { BibleNotesFileService, BnFile, NoteConflictError, NoteMissingError } from '../services/BibleNotesFileService';
 import { ipcHandler, IpcKnownError } from './handler-helper';
 import { blessPath, isPathBlessed, isPathWithin } from './blessedPaths';
 import { t } from '../services/MainI18n';
@@ -35,6 +35,9 @@ function getService(): BibleNotesFileService {
 function toConflictError(err: unknown): unknown {
   if (err instanceof NoteConflictError) {
     return new IpcKnownError('conflict', err.message);
+  }
+  if (err instanceof NoteMissingError) {
+    return new IpcKnownError('not_found', err.message);
   }
   return err;
 }
@@ -306,7 +309,7 @@ export function registerFileNotesHandlers(): void {
   // Export note as Markdown - shows save dialog then writes file. When the
   // user cancels the dialog this resolves with no value (cancellation is
   // success, not an error).
-  ipcHandler<[string, string], void>(
+  ipcHandler<[string, string], string | null>(
     'file-notes:export-markdown',
     async (defaultName, markdownContent) => {
       const window = BrowserWindow.getFocusedWindow();
@@ -320,16 +323,17 @@ export function registerFileNotesHandlers(): void {
       });
 
       if (result.canceled || !result.filePath) {
-        return;
+        return null;
       }
 
       const fs = await import('fs');
       fs.writeFileSync(result.filePath, markdownContent, 'utf-8');
+      return result.filePath;
     }
   );
 
   // Export note as DOCX - converts HTML to DOCX and saves via dialog.
-  ipcHandler<[string, string, string], void>(
+  ipcHandler<[string, string, string], string | null>(
     'file-notes:export-docx',
     async (defaultName, htmlContent, noteTitle) => {
       const window = BrowserWindow.getFocusedWindow();
@@ -343,7 +347,7 @@ export function registerFileNotesHandlers(): void {
       });
 
       if (result.canceled || !result.filePath) {
-        return;
+        return null;
       }
 
       const { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType } = await import('docx');
@@ -361,6 +365,7 @@ export function registerFileNotesHandlers(): void {
 
       const buffer = await Packer.toBuffer(doc);
       fs.writeFileSync(result.filePath, buffer);
+      return result.filePath;
     }
   );
 }

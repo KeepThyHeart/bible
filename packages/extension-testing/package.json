@@ -1,7 +1,7 @@
 {
   "name": "@bible/extension-testing",
   "version": "0.1.0",
-  "description": "Testing utilities for Bible app extension developers",
+  "description": "[Experimental] Testing utilities for Bible app extension developers",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
@@ -22,6 +22,7 @@
     "README.md"
   ],
   "keywords": [
+    "experimental",
     "bible",
     "extension",
     "testing",

@@ -191,6 +191,7 @@ const BibleToolbar: React.FC = () => {
           value={displayMode}
           onChange={(e) => handleSetDisplayMode(e.target.value as any)}
           aria-label={t('biblePane.displayModeLabel')}
+          title={t('biblePane.displayModeTooltip')}
           className="text-xs font-medium cursor-pointer text-text-primary outline-none hover:bg-background-active transition-colors"
           style={{
             background: 'none',

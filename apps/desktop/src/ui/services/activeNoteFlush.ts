@@ -33,15 +33,31 @@ export function clearActiveNoteFlush(flush: ActiveNoteFlush): void {
   }
 }
 
+const extraFlushes = new Set<ActiveNoteFlush>();
+
 /**
- * Flush the active note to disk if one is registered. Never throws - a failed
- * note flush must not abort the session save that follows it on close.
+ * Register an additional shutdown flush (e.g. the Prayer editor) that runs
+ * alongside the active `.bn` note flush. Returns the unregister function.
+ */
+export function registerShutdownFlush(flush: ActiveNoteFlush): () => void {
+  extraFlushes.add(flush);
+  return () => {
+    extraFlushes.delete(flush);
+  };
+}
+
+/**
+ * Flush the active note (and any extra registered flushes) to disk. Never
+ * throws - a failed flush must not abort the session save that follows it on
+ * close.
  */
 export async function flushActiveNote(): Promise<void> {
-  if (!activeNoteFlush) return;
-  try {
-    await activeNoteFlush();
-  } catch (err) {
-    console.error('Failed to flush active note before close:', err);
+  const flushes = [...(activeNoteFlush ? [activeNoteFlush] : []), ...extraFlushes];
+  for (const flush of flushes) {
+    try {
+      await flush();
+    } catch (err) {
+      console.error('Failed to flush active note before close:', err);
+    }
   }
 }

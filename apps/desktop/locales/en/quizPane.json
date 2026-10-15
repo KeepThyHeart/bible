@@ -1,5 +1,5 @@
 {
-  "quizPane.openModuleManager": "Open the Module Manager",
+  "quizPane.openModuleManager": "Open the Module Manager to install questions",
   "quizPane.loadError": "The quiz could not be loaded: {message}",
   "quizPane.title": "Quiz",
   "quizPane.intro": "Test what you remember and understand from a passage.",
@@ -57,7 +57,7 @@
   "quizPane.textBasis": "Worded after the {translation}",
   "quizPane.error": "The quiz could not be loaded.",
   "quizPane.retry": "Try again",
-  "quizPane.noModule": "No quiz questions are installed.",
+  "quizPane.noModule": "No quiz questions are installed yet. Quiz questions come from add-on modules; open the Module Manager, find a quiz module and install it (this needs an internet connection).",
   "quizPane.kind.recall": "Recall",
   "quizPane.kind.comprehension": "Understanding",
   "quizPane.kind.application": "Application",

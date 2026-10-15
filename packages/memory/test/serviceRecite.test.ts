@@ -152,8 +152,8 @@ describe('recite through the worker', () => {
     expect(plan.passages[0]!.rungs.find((r) => r.rung === 'recite')?.applicable).toBe(false);
 
     const settings = await call<SettingsView>(channel, { type: 'getSettings' });
-    expect(settings.speech.state).toBe('permission-missing');
-    expect(settings.recite.strictness).toBe('normal');
+    expect(settings.speech!.state).toBe('permission-missing');
+    expect(settings.recite!.strictness).toBe('normal');
 
     await expect(
       call(channel, { type: 'startRecite', source: { kind: 'passage', passageId }, mode: 'tap' }),
@@ -164,8 +164,8 @@ describe('recite through the worker', () => {
     const { channel } = await setup(fakeSpeech());
     await call(channel, { type: 'setReciteSettings', patch: { strictness: 'strict', hintDelayMs: 99999 } });
     const s = await call<SettingsView>(channel, { type: 'getSettings' });
-    expect(s.recite.strictness).toBe('strict');
-    expect(s.recite.hintDelayMs).toBe(30000);
+    expect(s.recite!.strictness).toBe('strict');
+    expect(s.recite!.hintDelayMs).toBe(30000);
   });
 
   it('still starts when the host has no speech (host-too-old)', async () => {

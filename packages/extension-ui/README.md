@@ -1,5 +1,7 @@
 # @bible/extension-ui
 
+> **Experimental.** The extension API and SDK are experimental and **not frozen**: they may change in incompatible ways before a stable release. Pin an exact version and expect to update your extension.
+
 Client-side SDK for Bible app extensions that render their own UI. An extension panel runs in a sandboxed iframe with no direct access to the host, so everything it needs -- navigation, verse popups, theming, network access -- is requested over a typed RPC bridge. This package is that bridge, plus the verse-reference parsing an extension usually wants alongside it.
 
 Extensions that only run headless logic do not need this package; it is for the ones that draw something.

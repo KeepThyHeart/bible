@@ -6,6 +6,8 @@ import {
 import { useI18n } from '../../../contexts/useI18n';
 import { getReadingPlanService } from '../readingPlansAPI';
 import { navigateToVerseInPrimary } from '../../../stores/crossStoreBridge';
+import { syncPanesWithVerse } from '../../../stores/syncPanesWithVerse';
+import { openApp } from '../../../apps/appHost';
 import { useReadingPlanStore } from '../useReadingPlanStore';
 import { DESKTOP_SETTINGS, getDesktopSettingsStore } from '../../../settings/desktopSettings';
 import { isEnabled } from '../../../settings/featureFlags';
@@ -94,6 +96,15 @@ const ReadingPlansPane: React.FC = () => {
     setReadingDays(ALL_DAYS);
   };
 
+  const startRef = React.useRef<HTMLElement | null>(null);
+  useEffect(() => {
+    if (!startKey) return;
+    const el = startRef.current;
+    if (!el) return;
+    el.scrollIntoView?.({ block: 'center', behavior: 'smooth' });
+    el.querySelector<HTMLElement>('input, button')?.focus({ preventScroll: true });
+  }, [startKey]);
+
   const confirmStart = async () => {
     if (!startKey) return;
     const ok = await run(() => service.startPlan(startKey, { startDate, pacing, readingDays }));
@@ -132,7 +143,7 @@ const ReadingPlansPane: React.FC = () => {
               labels={labels.todayCard}
               onToggleReading={(index, done) => { if (v.day !== null) void run(() => service.setReadingDone(v.enrollmentId, v.day!, index, done)); }}
               onToggleDay={(done) => { if (v.day !== null) void run(() => service.setDayDone(v.enrollmentId, v.day!, done)); }}
-              onOpenReading={(r) => navigateToVerseInPrimary(r.start)}
+              onOpenReading={(r) => { navigateToVerseInPrimary(r.start); syncPanesWithVerse(r.start); void openApp('study'); }}
               onOpenPlan={() => go({ kind: 'detail', id: v.enrollmentId, from: 'today' })}
               onShift={() => void run(() => service.shiftSchedule(v.enrollmentId))}
               onSwitchToFlexible={() => void run(() => service.switchToFlexible(v.enrollmentId))}
@@ -183,7 +194,7 @@ const ReadingPlansPane: React.FC = () => {
     if (!plan) return null;
     const name = labels.stockName(plan);
     return (
-      <section className="flex flex-col gap-sm p-md rounded border border-border" aria-label={t('readingPlans.start.title', { name })} data-testid="reading-plans-start">
+      <section ref={startRef} className="flex flex-col gap-sm p-md rounded border border-border" aria-label={t('readingPlans.start.title', { name })} data-testid="reading-plans-start">
         <h3 className="text-sm font-semibold m-0">{t('readingPlans.start.title', { name })}</h3>
         <label className="flex items-center gap-sm text-sm">
           {labels.builder.startDate}

@@ -399,7 +399,24 @@ export class I18nService implements II18nService {
   }
 }
 
+/**
+ * Pre-load fallback: resolve a simple (non-nested) `{n, plural, one {..} other {..}}`
+ * so the raw ICU syntax never shows while the formatter library is still loading.
+ * English-style rules (=N, one, other); the real formatter takes over once loaded.
+ */
+function naivePlural(message: string, params: Record<string, unknown>): string {
+  return message.replace(/\{(\w+),\s*plural,\s*((?:[^{}]|\{[^{}]*\})*)\}/g, (whole, name: string, body: string) => {
+    if (!Object.prototype.hasOwnProperty.call(params, name)) return whole;
+    const n = Number(params[name]);
+    const options = new Map<string, string>();
+    for (const m of body.matchAll(/(=\d+|\w+)\s*\{([^{}]*)\}/g)) options.set(m[1], m[2]);
+    const chosen = options.get(`=${n}`) ?? (n === 1 ? options.get('one') : undefined) ?? options.get('other');
+    return chosen === undefined ? whole : chosen.replace(/#/g, String(n));
+  });
+}
+
 function naiveFormat(message: string, params: Record<string, unknown>): string {
+  message = naivePlural(message, params);
   return message.replace(/\{(\w+)\}/g, (_, k: string) =>
     Object.prototype.hasOwnProperty.call(params, k) ? String(params[k]) : `{${k}}`,
   );

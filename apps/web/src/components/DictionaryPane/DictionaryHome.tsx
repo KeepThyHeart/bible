@@ -10,6 +10,7 @@ export function DictionaryHome() {
   const homeSuggestions = useStore(dictionaryStore, () => dictionaryStore.homeSuggestions);
   const homeSearchLoading = useStore(dictionaryStore, () => dictionaryStore.homeSearchLoading);
   const modules = useStore(dictionaryStore, () => dictionaryStore.modules);
+  const modulesLoadFailed = useStore(dictionaryStore, () => dictionaryStore.modulesLoadFailed);
   const starredModules = useStore(dictionaryStore, () => dictionaryStore.starredModules);
 
 
@@ -102,7 +103,13 @@ export function DictionaryHome() {
               </div>
             );
           })}
-          {modules.length === 0 && (
+          {modules.length === 0 && modulesLoadFailed && (
+            <div class="dictionary-pane__placeholder">
+              {t('dictionaryHome.loadFailed')}{' '}
+              <button type="button" onClick={() => dictionaryStore.retryLoadModules()}>{t('dictionaryHome.retry')}</button>
+            </div>
+          )}
+          {modules.length === 0 && !modulesLoadFailed && (
             <div class="dictionary-pane__placeholder">{t('dictionaryHome.noDictionaries')}</div>
           )}
         </div>

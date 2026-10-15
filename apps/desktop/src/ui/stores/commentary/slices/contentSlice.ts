@@ -1,7 +1,6 @@
 import type { StateCreator } from 'zustand';
 import { commentaryAPI } from '../../../services/electronAPI';
 import { updatePanelState } from '../../helpers/panelStateHelpers';
-import { useToastStore } from '../../useToastStore';
 import { CommentaryState, CommentaryEntry, CommentaryHomeModuleData, createDefaultPanelState } from '../types';
 
 export interface ContentSlice {
@@ -34,7 +33,6 @@ export const createContentSlice: StateCreator<CommentaryState, [], [], ContentSl
       set({ panels: updatePanelState(get().panels, panelId, { entriesByTab: newEntriesMap, loadingByTab: finalLoadingMap }, createDefaultPanelState) });
     } catch (error) {
       console.error(`[CommentaryStore] Error loading ${abbreviation} verse ${verseId}:`, error);
-      useToastStore.getState().addToast('Failed to load commentary.', 'error');
       const ps = get().getPanelState(panelId);
       const finalLoadingMap = new Map(ps.loadingByTab);
       finalLoadingMap.set(abbreviation, false);

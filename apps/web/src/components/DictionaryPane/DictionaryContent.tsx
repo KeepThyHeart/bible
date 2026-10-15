@@ -26,6 +26,13 @@ function strongsNumberFor(moduleAbbr: string, entryKey: string): string | null {
   return `${/hebrew/i.test(moduleAbbr) ? 'H' : 'G'}${digits}`;
 }
 
+/** Heading/link label: a Strong's zero-padded key ("00746") reads as users know it ("G746"). */
+function entryLabel(moduleAbbr: string, word: string | undefined, entryKey: string): string {
+  const text = word || entryKey;
+  if (/^\d+$/.test(text)) return strongsNumberFor(moduleAbbr, text) ?? text;
+  return text;
+}
+
 interface DictionaryContentProps {
   tabId: string;
   bibleProvider?: IBibleDataProvider;
@@ -169,7 +176,7 @@ export function DictionaryContent({ tabId, bibleProvider }: DictionaryContentPro
         {/* Entry content */}
         <div class="dictionary-pane__entry">
           <div class="dictionary-pane__entry-header">
-            <h3 class="dictionary-pane__entry-word">{entry.word}</h3>
+            <h3 class="dictionary-pane__entry-word">{entryLabel(tab.moduleAbbr, entry.word, entry.entry_key)}</h3>
             {entry.transliteration && (
               <span class="dictionary-pane__entry-translit">{entry.transliteration}</span>
             )}
@@ -184,7 +191,7 @@ export function DictionaryContent({ tabId, bibleProvider }: DictionaryContentPro
                 class="dictionary-content__toolbar-btn"
                 disabled={!adjacentPrev}
                 onClick={() => dictionaryStore.navigatePrev(tabId)}
-                title={adjacentPrev ? `${t('dictionaryContent.prevEntry')} ${adjacentPrev.word || adjacentPrev.entry_key}` : t('dictionaryContent.noPrevEntry')}
+                title={adjacentPrev ? `${t('dictionaryContent.prevEntry')} ${entryLabel(tab.moduleAbbr, adjacentPrev.word, adjacentPrev.entry_key)}` : t('dictionaryContent.noPrevEntry')}
               >
                 <i class="fa-solid fa-chevron-left fa-xs kth-rtl-mirror" />
               </button>
@@ -192,7 +199,7 @@ export function DictionaryContent({ tabId, bibleProvider }: DictionaryContentPro
                 class="dictionary-content__toolbar-btn"
                 disabled={!adjacentNext}
                 onClick={() => dictionaryStore.navigateNext(tabId)}
-                title={adjacentNext ? `${t('dictionaryContent.nextEntry')} ${adjacentNext.word || adjacentNext.entry_key}` : t('dictionaryContent.noNextEntry')}
+                title={adjacentNext ? `${t('dictionaryContent.nextEntry')} ${entryLabel(tab.moduleAbbr, adjacentNext.word, adjacentNext.entry_key)}` : t('dictionaryContent.noNextEntry')}
               >
                 <i class="fa-solid fa-chevron-right fa-xs kth-rtl-mirror" />
               </button>
@@ -289,7 +296,7 @@ export function DictionaryContent({ tabId, bibleProvider }: DictionaryContentPro
                   <span class="dictionary-content__bottom-nav-arrow">&#8592;</span>
                   <div>
                     <div class="dictionary-content__bottom-nav-label">{t('dictionaryContent.previous')}</div>
-                    <div class="dictionary-content__bottom-nav-title">{adjacentPrev.word || adjacentPrev.entry_key}</div>
+                    <div class="dictionary-content__bottom-nav-title">{entryLabel(tab.moduleAbbr, adjacentPrev.word, adjacentPrev.entry_key)}</div>
                   </div>
                 </button>
               ) : <div />}
@@ -300,7 +307,7 @@ export function DictionaryContent({ tabId, bibleProvider }: DictionaryContentPro
                 >
                   <div>
                     <div class="dictionary-content__bottom-nav-label">{t('dictionaryContent.next')}</div>
-                    <div class="dictionary-content__bottom-nav-title">{adjacentNext.word || adjacentNext.entry_key}</div>
+                    <div class="dictionary-content__bottom-nav-title">{entryLabel(tab.moduleAbbr, adjacentNext.word, adjacentNext.entry_key)}</div>
                   </div>
                   <span class="dictionary-content__bottom-nav-arrow">&#8594;</span>
                 </button>

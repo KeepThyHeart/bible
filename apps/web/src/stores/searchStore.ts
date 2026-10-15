@@ -549,14 +549,27 @@ class SearchStore extends Store {
       const chapter = Math.floor((vid % 1000000) / 1000);
       const verse = vid % 1000;
       const reference = formatPassageRef(book, chapter, verse || 1);
-      this.results.unshift({
+      const module = bibleStore.getActiveTab()?.moduleAbbr || '';
+      const placeholder: SearchResultData = {
         verseId: vid,
         reference,
         text: '(exact reference match)',
-        module: bibleStore.getActiveTab()?.moduleAbbr || '',
+        module,
         type: 'reference',
-      });
+      } as SearchResultData;
+      this.results.unshift(placeholder);
       this.totalResults += 1;
+      // Show the verse itself: replace the placeholder text once it is read.
+      if (module) {
+        const seq = this.searchSeq;
+        void bibleStore.getVerseText(module, vid).then((text) => {
+          const i = this.results.indexOf(placeholder);
+          if (text && seq === this.searchSeq && i >= 0) {
+            this.results = this.results.map((r, j) => (j === i ? { ...placeholder, text } : r));
+            this.notify();
+          }
+        });
+      }
     }
     // idx === 0 means it's already first — nothing to do
   }

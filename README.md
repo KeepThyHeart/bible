@@ -1,6 +1,6 @@
 Keep Thy Heart Bible Reader
 ===========================
-_Note: This is currently a work in progress, so stay tuned for updates!  I am working on providing beta installers next.  ALSO: I am reworking the module format somewhat before a first beta release, as well as some of the architecture, and so the development clone may be temporarily broken but should be fixed soon._
+_Note: For a pre-release download for Windows, Linux, and Mac, please see the Tags section.  Note that this is still a beta release, and so expect rough edges.  Feel free to file any problems you have in the "Issues" tab above, and you can also e-mail me at keepthyheart@outlook.com with feedback and suggestions!_
 
 > For the word of God is quick, and powerful, and sharper than any twoedged sword, piercing even to the dividing asunder of soul and spirit, and of the joints and marrow, and is a discerner of the thoughts and intents of the heart.  (Hebrews 4:12)
 
@@ -176,7 +176,7 @@ Run from the repository root.
 | `pnpm run init:modules` | Download the `starter` modules from the official catalog, then register them (`init:modules:dev` for the development catalog) |
 | `pnpm run init:desktop` | Build the desktop registry and link its modules directory |
 | `pnpm run init:electron` | Download the Electron binary (skips it when already there) |
-| `pnpm run rebuild-sqlite` | Fetch or rebuild the desktop's SQLite driver for Electron (skips it when already built) |
+| `pnpm run rebuild-sqlite` | Build the desktop's SQLite driver for Electron (it loads the driver in Electron first and rebuilds only when that fails) |
 | `pnpm --filter @bible/core run test` | Unit tests for one workspace (also `@bible/web`, `@bible/desktop`) |
 | `pnpm test` | Build core, then run every workspace's unit tests (slow) |
 | `pnpm run typecheck` | Type-check every workspace |
@@ -219,7 +219,7 @@ Testing an Installer
 `admin/scripts/test-installer.js` checks an installer the release build produced (or a downloaded copy) on the platform it is for:
 
 ```bash
-pnpm run test:installer "apps/desktop/dist/Keep Thy Heart Bible Reader-0.1.0.AppImage"
+pnpm run test:installer "apps/desktop/dist/Keep Thy Heart Bible Reader-1.0.0-rc.1.AppImage"
 node admin/scripts/test-installer.js path/to/installer.exe
 ```
 
@@ -229,7 +229,7 @@ It uses Playwright from the checkout it runs in, so run `pnpm install` there fir
 
 Troubleshooting
 ---------------
-**The desktop app fails with `NODE_MODULE_VERSION` ... was compiled against a different Node.js version.** A native module is built for system Node rather than Electron, typically after `pnpm install` or after `pnpm rebuild better-sqlite3-multiple-ciphers` (which the Node-run desktop unit tests need). `pnpm run rebuild-sqlite` skips modules that look built already, so force it. The same fix applies on a Mac when the driver fails to load with `incompatible architecture (have 'arm64', need 'x86_64')` or the reverse, or is missing altogether: packaging for mac rebuilds it in place for each arch it builds, and puts the host's build back afterwards, but a packaging run that fails or is interrupted part-way leaves the other arch (or nothing) behind.
+**The desktop app fails with `NODE_MODULE_VERSION` ... was compiled against a different Node.js version.** A native module is built for system Node rather than Electron, typically after `pnpm install` or after `pnpm rebuild better-sqlite3-multiple-ciphers` (which the Node-run desktop unit tests need). `pnpm run rebuild-sqlite` notices this and rebuilds (it loads the driver in Electron to check, rather than trusting electron-rebuild's marker file, which survives a `pnpm install`); to rebuild regardless, force it. The same fix applies on a Mac when the driver fails to load with `incompatible architecture (have 'arm64', need 'x86_64')` or the reverse, or is missing altogether: packaging for mac rebuilds it in place for each arch it builds, and puts the host's build back afterwards, but a packaging run that fails or is interrupted part-way leaves the other arch (or nothing) behind.
 
 ```bash
 pnpm --filter @bible/desktop run rebuild-native:force
@@ -254,7 +254,7 @@ pnpm --filter @bible/desktop run rebuild-native:force
 
 **The web app shows no modules, or a module is missing.** Check that it is registered (`pnpm run init`) and listed with `active: true` in the `modules` section of `data/site-config.json`. If a fresh session shows "Failed to load chapter", `ui.defaultModule` names a Bible that is not installed; `pnpm run init` warns about this.
 
-**A port is already in use.** Express uses 3100 (`PORT` overrides it) and Vite uses 5173. The Vite proxy always targets 3100, so in development free that port rather than changing `PORT`. If 5173 is taken, Vite moves to the next free port and prints the URL.
+**A port is already in use.** Express uses 3100 (`PORT` overrides it) and Vite uses 5173. The Vite proxy always targets 3100, so in development free that port rather than changing `PORT`. If 5173 is taken, Vite moves to the next free port and prints the URL. The Playwright e2e suite starts two servers of its own on 3100 and 3101; set `E2E_PORT=3300` to move that pair (3300 and 3301), for example to run two checkouts at once or when an old run left a server behind (see [apps/web/e2e/README.md](apps/web/e2e/README.md)).
 
 Resources:
   - For coding standards, see ./admin/coding-standards.

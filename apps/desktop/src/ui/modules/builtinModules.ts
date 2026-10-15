@@ -17,7 +17,7 @@ import { wordStudyModule } from './word-study/binding';
 import { measuresModule } from './measures/binding';
 import { keywordMarksModule } from './keyword-marks/binding';
 import { notificationsModule } from './notifications/binding';
-import { installMemoryHost, memoryModule } from './memory/memoryModule';
+import { memoryModule } from './memory/memoryModule';
 import { downloadsModule } from './downloads/binding';
 import { speechModule } from './speech/binding';
 import { addDesktopModule, fireStartupFinished, reconcileModules } from './moduleHost';
@@ -38,7 +38,7 @@ export const BUILTIN_MODULES: readonly DesktopFeatureModule[] = [
   downloadsModule,
   speechModule,
   notificationsModule,
-  { manifest: memoryModule[0], binding: memoryModule[1] },
+  memoryModule,
 ];
 
 let registered = false;
@@ -49,6 +49,5 @@ export function registerBuiltinModules(): void {
   registered = true;
   for (const entry of BUILTIN_MODULES) addDesktopModule(entry);
   reconcileModules();
-  installMemoryHost();
   fireStartupFinished();
 }

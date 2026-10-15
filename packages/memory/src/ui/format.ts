@@ -18,6 +18,7 @@
 import type { AnalyticsView, PassageView, PlanView, Rung, RungView } from '../core/types';
 import { RUNG_ORDER } from '../core/types';
 import { TEXT_RECALL_CHAIN, isOptionalRung } from '../core/ladder';
+import { tr, uiLocale } from './i18n';
 
 /**
  * The level at and above which an activity counts as mastered.
@@ -38,22 +39,47 @@ export const MASTERED_LEVEL = 4;
  * for the mechanism, not words a learner needs.
  */
 export const RUNG_LABEL: Readonly<Record<Rung, string>> = {
-  ordering: 'Put in order',
-  refmatch: 'Match the reference',
-  blanks: 'Fill in the blanks',
-  firstletters: 'First letters only',
-  refprovide: 'Name the reference',
-  recite: 'Recite aloud',
+  // Getters, so the label follows a language change instead of being fixed at import.
+  get ordering() {
+    return tr('memory.ui.common.rungOrdering', 'Put in order');
+  },
+  get refmatch() {
+    return tr('memory.ui.common.rungRefmatch', 'Match the reference');
+  },
+  get blanks() {
+    return tr('memory.ui.common.rungBlanks', 'Fill in the blanks');
+  },
+  get firstletters() {
+    return tr('memory.ui.common.rungFirstletters', 'First letters only');
+  },
+  get refprovide() {
+    return tr('memory.ui.common.rungRefprovide', 'Name the reference');
+  },
+  get recite() {
+    return tr('memory.ui.common.rungRecite', 'Recite aloud');
+  },
 };
 
 /** What each activity asks of the user, in one line. */
 export const RUNG_BLURB: Readonly<Record<Rung, string>> = {
-  ordering: 'Choose which verse comes next, with the earlier verses in view.',
-  refmatch: 'Given the words, choose the reference they belong to.',
-  blanks: 'Type the words that have been removed from the passage.',
-  firstletters: 'Every word is hidden. Recall the whole verse.',
-  refprovide: 'Given the words, say which reference they come from.',
-  recite: 'Say the passage aloud from memory. Optional; needs a microphone.',
+  get ordering() {
+    return tr('memory.ui.common.blurbOrdering', 'Choose which verse comes next, with the earlier verses in view.');
+  },
+  get refmatch() {
+    return tr('memory.ui.common.blurbRefmatch', 'Given the words, choose the reference they belong to.');
+  },
+  get blanks() {
+    return tr('memory.ui.common.blurbBlanks', 'Type the words that have been removed from the passage.');
+  },
+  get firstletters() {
+    return tr('memory.ui.common.blurbFirstletters', 'Every word is hidden. Recall the whole verse.');
+  },
+  get refprovide() {
+    return tr('memory.ui.common.blurbRefprovide', 'Given the words, say which reference they come from.');
+  },
+  get recite() {
+    return tr('memory.ui.common.blurbRecite', 'Say the passage aloud from memory. Optional; needs a microphone.');
+  },
 };
 
 // ---------------------------------------------------------------------------
@@ -85,7 +111,7 @@ export function calendarDaysBetween(from: number, to: number): number {
 export function formatShortDate(ms: number, now: number): string {
   const d = new Date(ms);
   const sameYear = d.getFullYear() === new Date(now).getFullYear();
-  return d.toLocaleDateString(undefined, {
+  return d.toLocaleDateString(uiLocale(), {
     day: 'numeric',
     month: 'short',
     ...(sameYear ? {} : { year: 'numeric' }),
@@ -100,14 +126,14 @@ export function formatShortDate(ms: number, now: number): string {
  * an error.
  */
 export function formatDue(dueAt: number | null, now: number): string {
-  if (dueAt === null) return 'Not tried yet';
-  if (dueAt <= now) return 'Due now';
+  if (dueAt === null) return tr('memory.ui.common.notTriedYet', 'Not tried yet');
+  if (dueAt <= now) return tr('memory.ui.common.dueNow', 'Due now');
 
   const days = calendarDaysBetween(now, dueAt);
-  if (days <= 0) return 'Due later today';
-  if (days === 1) return 'Due tomorrow';
-  if (days < 7) return `Due in ${days} days`;
-  return `Due ${formatShortDate(dueAt, now)}`;
+  if (days <= 0) return tr('memory.ui.common.dueLaterToday', 'Due later today');
+  if (days === 1) return tr('memory.ui.common.dueTomorrow', 'Due tomorrow');
+  if (days < 7) return tr('memory.ui.common.dueInDays', '{days, plural, one {Due in # day} other {Due in # days}}', { days });
+  return tr('memory.ui.common.dueOnDate', 'Due {date}', { date: formatShortDate(dueAt, now) });
 }
 
 /** True when an activity is scheduled and its time has come. */
@@ -132,8 +158,8 @@ export function formatScore(score: number | null): string {
 
 /** "Step 3 of 7". Defensive about a zero total so the header never reads "of 0". */
 export function formatStepProgress(stepNumber: number, totalSteps: number): string {
-  if (totalSteps <= 0) return `Step ${stepNumber}`;
-  return `Step ${stepNumber} of ${totalSteps}`;
+  if (totalSteps <= 0) return tr('memory.ui.common.stepNumber', 'Step {step}', { step: stepNumber });
+  return tr('memory.ui.common.stepOfTotal', 'Step {step} of {total}', { step: stepNumber, total: totalSteps });
 }
 
 /** A 0..1 fraction as a percentage clamped to the bar's range. */
@@ -370,5 +396,5 @@ export function calendarWeeks(analytics: AnalyticsView): AnalyticsView['calendar
 
 /** "Tue", "Wed", ... for a calendar day, in the viewer's locale. */
 export function weekdayLabel(dateMs: number): string {
-  return new Date(dateMs).toLocaleDateString(undefined, { weekday: 'short' });
+  return new Date(dateMs).toLocaleDateString(uiLocale(), { weekday: 'short' });
 }

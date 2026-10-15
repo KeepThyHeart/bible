@@ -59,6 +59,18 @@ describe('NotificationPreferences', () => {
     expect(screen.queryByText('Reminders arrive only while the app is open.')).toBeNull();
   });
 
+  it('cannot switch a source on before permission is granted, but says why', () => {
+    const off = { ...votd, enabled: false, nextAt: null };
+    render(
+      <NotificationPreferences
+        state={makeState({ sources: [off], capabilities: { permission: 'prompt', whenClosed: 'never', actions: false } })}
+        onSettingsChange={() => undefined}
+      />,
+    );
+    expect(screen.getByRole('switch', { name: 'Verse of the day' })).toBeDisabled();
+    expect(screen.getAllByText('Notifications are not allowed yet.').length).toBeGreaterThan(1);
+  });
+
   it('calls onRequestPermission', async () => {
     const onRequestPermission = vi.fn();
     const user = userEvent.setup();

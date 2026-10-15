@@ -352,6 +352,7 @@
       "refreshApp": "刷新应用",
       "resetCache": "重置应用缓存",
       "resetCacheHint": "清除此设备上应用保存的文件和后台 service worker，然后重新加载。如果应用显示过时或出现异常，请使用此功能。您的设置、已下载的模块和笔记会保留。",
+      "resetCacheConfirm": "Reset the app cache? The app reloads and re-downloads its files; your settings and downloaded modules are kept.",
       "appName": "圣经研读应用",
       "description": "一款现代化的开源圣经研读应用，专为深入阅读与研究圣经而设计。",
       "license": "采用 <strong>GNU 通用公共许可证 v3.0</strong>（GPL-3.0）授权。",
@@ -362,10 +363,8 @@
       "title": "语言",
       "description": "选择应用界面所使用的语言。",
       "auto": "自动检测",
-      "localeDraftBadge": "草稿——等待社区审校",
-      "localeBetaBadge": "测试版——等待社区审校",
-      "draftNote": "标记为“草稿”的语言由机器翻译生成，尚未经过母语者审校。",
-      "betaNote": "标记为“测试版”的语言由机器翻译生成，内容已完整，但尚未经过母语者审校，欢迎提出更正。",
+      "localePreviewBadge": "预览",
+      "localePreviewTooltip": "机器翻译，尚未经母语人士审校。英语已获得完整支持。",
       "moreComingNote": "更多语言即将推出。只有经过母语者审校的译文才会在此处不带标记地显示。"
     },
     "keywords": {

@@ -87,6 +87,8 @@ let mockTotalResults = 0;
 let mockSearchType: 'keyword' | 'semantic' = 'keyword';
 let mockSearchedModule = 'KJV';
 let mockKeywordMatchCount = 0;
+let mockSemanticInitStatus = 'idle';
+let mockSemanticInitDismissed = false;
 let mockCanLoadMore = false;
 let mockLoadingMore = false;
 let mockStrongsMode = false;
@@ -122,6 +124,8 @@ vi.mock('../../stores/searchStore', () => ({
     get searchType() { return mockSearchType; },
     get searchedModule() { return mockSearchedModule; },
     get keywordMatchCount() { return mockKeywordMatchCount; },
+    get semanticInit() { return { status: mockSemanticInitStatus }; },
+    get semanticInitDismissed() { return mockSemanticInitDismissed; },
     get canLoadMore() { return mockCanLoadMore; },
     get loadingMore() { return mockLoadingMore; },
     get strongsMode() { return mockStrongsMode; },
@@ -192,6 +196,8 @@ describe('SearchResultsPanel', () => {
     mockSearchType = 'keyword';
     mockSearchedModule = 'KJV';
     mockKeywordMatchCount = 0;
+    mockSemanticInitStatus = 'idle';
+    mockSemanticInitDismissed = false;
     mockCanLoadMore = false;
     mockLoadingMore = false;
     mockStrongsMode = false;
@@ -248,6 +254,15 @@ describe('SearchResultsPanel', () => {
     mockIsOnline = true;
     render(<SearchResultsPanel />);
     expect(screen.getByText('search.noResults')).toBeTruthy();
+  });
+
+  it('shows only the unavailable popup, not "no results", when Ideas search failed to start', () => {
+    mockQuery = 'zzznomatch';
+    mockSearchType = 'semantic';
+    mockIsOnline = true;
+    mockSemanticInitStatus = 'error';
+    render(<SearchResultsPanel />);
+    expect(screen.queryByText('search.noResults')).toBeNull();
   });
 
   it('shows no-keyword-results message when keyword search finds nothing', () => {

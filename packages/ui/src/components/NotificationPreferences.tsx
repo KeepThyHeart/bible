@@ -205,13 +205,19 @@ export function NotificationPreferences({
         {state.sources.length === 0 && <p className="kth-field__hint">{l.noSources}</p>}
         {state.sources.map((source) => {
           const blocked = source.allowed === false;
-          const rowOff = off || blocked;
+          // Until the browser grants permission nothing can fire, so a source that is
+          // still off cannot be switched on (the status line says why).
+          const needsPermission = !source.enabled && !unsupported && capabilities.permission !== 'granted';
+          const rowOff = off || blocked || needsPermission;
           const base = `${idPrefix}-src-${source.id.replace(/[^A-Za-z0-9_-]/g, '-')}`;
           return (
             <div key={source.id} className="kth-field" data-source-id={source.id}>
               {sw(base, source.label, source.enabled, rowOff, (v) => setSource(source.id, { enabled: v }))}
               {source.description && (
                 <p id={`${base}-description`} className="kth-field__hint">{source.description}</p>
+              )}
+              {needsPermission && !blocked && (
+                <p id={`${base}-permission`} className="kth-field__hint">{status}</p>
               )}
               {blocked && (
                 <p id={`${base}-blocked`} className="kth-field__hint">{l.blocked}</p>

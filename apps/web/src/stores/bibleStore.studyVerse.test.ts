@@ -135,3 +135,22 @@ describe('bibleStore — study verse on chapter entry', () => {
     });
   });
 });
+
+describe('bibleStore — URL hash for a typed reference', () => {
+  beforeEach(() => {
+    reset([makeVerse(1), makeVerse(2), makeVerse(3)]);
+    window.location.hash = '';
+  });
+
+  it('writes the verse into the hash when navigation names one', async () => {
+    await bibleStore.navigateTo(43, 3, 2);
+    const abbr = bibleStore.getActiveTab()?.moduleAbbr;
+    expect(window.location.hash).toBe(`#/${abbr}/43/3/2`);
+  });
+
+  it('keeps the chapter-only hash when no verse was named', async () => {
+    await bibleStore.navigateTo(43, 3);
+    const abbr = bibleStore.getActiveTab()?.moduleAbbr;
+    expect(window.location.hash).toBe(`#/${abbr}/43/3`);
+  });
+});

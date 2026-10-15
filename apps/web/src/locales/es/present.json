@@ -72,6 +72,8 @@
     "leave": "Dejar de controlar",
     "leaveHint": "Al dejar de controlar, la pantalla se queda como está. Al finalizar, se borra para todos.",
     "end": "Finalizar sesión",
+    "liveNote": "La pantalla sigue activa hasta que la finalices, aunque cierres el navegador.",
+    "followUnknown": "Este código es desconocido o ha caducado.",
     "endConfirm": "¿Finalizar la sesión y borrar la pantalla?",
     "endYes": "Finalizar",
     "hymns": "Himnos",

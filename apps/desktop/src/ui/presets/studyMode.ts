@@ -9,7 +9,9 @@ import type { LayoutPreset } from '../types/LayoutPreset';
  * after, and applying it on a session that has them all must arrange them in
  * this order rather than whatever order they happened to have been opened in.
  */
-const STUDY_COLUMN = ['study', 'commentary', 'topics', 'dictionary', 'notes'] as const;
+// Notes sits third, ahead of Topics and Dictionary: last of five it landed in the
+// tab bar's overflow chevron on default-width layouts, where nobody finds it.
+const STUDY_COLUMN = ['study', 'commentary', 'notes', 'topics', 'dictionary'] as const;
 
 export const STUDY_MODE: LayoutPreset = {
   id: 'study-mode',

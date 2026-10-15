@@ -160,7 +160,7 @@ describe('bucketTabs', () => {
     ];
     const buckets = bucketTabs(STUDY_MODE, tabs);
     expect(buckets.get(1)!.map(t => t.contentType))
-      .toEqual(['study', 'commentary', 'topics', 'dictionary', 'notes']);
+      .toEqual(['study', 'commentary', 'notes', 'topics', 'dictionary']);
   });
 
   it('keeps unlisted types behind the declared ones, in their original order', () => {

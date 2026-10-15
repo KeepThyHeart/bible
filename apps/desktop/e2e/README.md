@@ -51,12 +51,12 @@ The module was compiled against a different Node.js version using NODE_MODULE_VE
 This version of Node.js requires NODE_MODULE_VERSION 130.
 ```
 
-**Automatic:** `pnpm run build:desktop` (and `pnpm run build`) runs `electron-rebuild` via a `postbuild` npm lifecycle hook in `apps/desktop/package.json`. So a normal build should leave native modules in the correct state.
+**Automatic:** `pnpm run build:desktop` (and `pnpm run build`) runs `scripts/rebuild-native.mjs` as a `postbuild` hook in `apps/desktop/package.json`. It loads the driver in Electron and rebuilds it only when that fails, so a normal build leaves native modules in the correct state.
 
 **Manual (if needed):**
 
 ```bash
-cd apps/desktop && pnpm exec electron-rebuild
+pnpm --filter @bible/desktop run rebuild-native:force
 ```
 
 Run this manually if you installed new packages (`pnpm install`) or changed the Node.js version without running a full build.
@@ -71,24 +71,28 @@ xvfb-run pnpm exec playwright test ...
 
 ## Quick Start (from scratch)
 
+From the repository root:
+
 ```bash
 # 1. Install dependencies
 pnpm install
 
-# 2. Place module .db files in apps/desktop/data/modules/
-#    At minimum: bible_kjv.db (or any bible_*.db)
-#    For full tests: also topical_nave.db, topical_torrey.db, xref_tsk.db
-#    Place tag_graph.db in apps/desktop/data/
+# 2. Modules, the desktop registry (apps/desktop/data/main.db, with data/modules linked in),
+#    the Electron binary and the Electron build of the SQLite driver, in one go.
+#    `tests` installs every module a suite names; tag_graph.db is not distributed, and the
+#    specs that need it skip themselves.
+pnpm run setup --select=tests --yes
 
-# 3. Build everything (electron-rebuild runs automatically as postbuild)
-pnpm run build
+# 3. Build core and the desktop app (postbuild checks the SQLite driver loads in Electron)
+pnpm run build:desktop
 
-# 4. Start the app once so main.db is created and the modules are registered
-pnpm run dev
-
-# 5. Run tests
+# 4. Run the tests (on a Linux machine without a display: xvfb-run -a pnpm exec ...)
+cd apps/desktop
 pnpm exec playwright test --config=e2e/playwright.config.ts --reporter=list
 ```
+
+The unit tests (`pnpm test`) need the Node build of the same driver: `pnpm rebuild better-sqlite3-multiple-ciphers`
+switches back, and `pnpm run rebuild-sqlite` returns to the Electron build.
 
 ## Running Tests
 
@@ -166,7 +170,7 @@ The spec's third test is annotated `test.fail()` - it documents a known extensio
 | `commentary.spec.ts` | Any `bible_*.db` + any `commentary_*.db` |
 | `dictionary.spec.ts` | Any `bible_*.db` + any `dictionary_*.db` |
 | `study-pane.spec.ts` | Any `bible_*.db` + `topical_nave.db` + `topical_torrey.db` + `xref_tsk.db` + commentary modules |
-| `topics-pane.spec.ts` | Any `bible_*.db` + `topical_nave.db` + `topical_torrey.db` + `tag_graph.db` (in `data/`) |
+| `topics-pane.spec.ts` | Any `bible_*.db` + `topical_nave.db` + `topical_torrey.db` (optional: the cross-index cases skip without it, and the catalog does not offer it) + `tag_graph.db` (in `data/`) |
 | `interlinear.spec.ts` | A Bible with interlinear data (e.g., `bible_kjv.db` with Strong's) |
 | `search.spec.ts` | Any `bible_*.db` |
 | `highlights.spec.ts` | Any `bible_*.db` |

@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { presentStore } from '../../stores/presentStore';
 import { goLive } from '../presenterSink';
 import { usePresenter } from '../../study/usePresenter';
+import { useStore } from '../../../../hooks/useStore';
+import { offlineStore } from '../../../../stores/offlineStore';
 
 /**
  * The short status row at the top of Control: Not live / Live, how many devices
@@ -13,8 +15,11 @@ export function StatusRow(props: { menuOpen: boolean; onToggleMenu: () => void }
   const { t } = useTranslation();
   const view = usePresenter();
   const [confirmEnd, setConfirmEnd] = useState(false);
+  const session = useStore(presentStore, () => presentStore.session);
   const live = view.presenting;
-  const connected = view.connection === 'live';
+  // The stream can take a while to notice a dropped network; the browser knows at once.
+  const online = useStore(offlineStore, () => offlineStore.isOnline);
+  const connected = view.connection === 'live' && online;
 
   return (
     <div class="pz-status">
@@ -28,7 +33,13 @@ export function StatusRow(props: { menuOpen: boolean; onToggleMenu: () => void }
           title={connected ? t('present.viewersTooltip') : t('present.reconnecting')}
         >
           <i class="fa-solid fa-tv" aria-hidden="true" />
-          {view.viewers}
+          {view.wall ? view.viewers : '…'}
+        </span>
+      )}
+
+      {live && session?.joinCode && (
+        <span class="pz-status__code" title={t('present.control.joinCodeTip')}>
+          {t('present.control.joinCodeLabel')} <strong>{session.joinCode}</strong>
         </span>
       )}
 
@@ -45,13 +56,13 @@ export function StatusRow(props: { menuOpen: boolean; onToggleMenu: () => void }
         </button>
       )}
       {live && !confirmEnd && (
-        <button type="button" class="pz-btn" onClick={() => setConfirmEnd(true)}>
+        <button type="button" class="pz-btn" title={t('present.liveNote')} onClick={() => setConfirmEnd(true)}>
           {t('present.control.endLive')}
         </button>
       )}
       {live && confirmEnd && (
         <span class="pz-status__confirm">
-          <span>{t('present.endConfirm')}</span>
+          <span title={t('present.liveNote')}>{t('present.endConfirm')}</span>
           <button type="button" class="pz-btn pz-btn--danger" onClick={() => { setConfirmEnd(false); void presentStore.end(); }}>
             {t('present.endYes')}
           </button>

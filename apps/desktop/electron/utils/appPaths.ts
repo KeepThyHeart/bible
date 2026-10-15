@@ -145,7 +145,11 @@ export function getFeaturePackRoot(packType: string): string {
  * one of this function's call sites.
  */
 export function getKeywordIndexRoot(): string {
-  const dir = join(getUserDataPath(), 'index', 'keyword');
+  // Test runs only: the e2e suite builds the indexes once (e2e/globalSetup.ts)
+  // in a directory of its own, so its parallel Electron instances neither race
+  // each other's builds nor touch the checkout's data/. Never read when packaged.
+  const testDir = process.env.NODE_ENV === 'test' && !app.isPackaged ? process.env.BIBLE_KEYWORD_INDEX_DIR : undefined;
+  const dir = testDir || join(getUserDataPath(), 'index', 'keyword');
   if (!existsSync(dir)) {
     mkdirSync(dir, { recursive: true });
   }

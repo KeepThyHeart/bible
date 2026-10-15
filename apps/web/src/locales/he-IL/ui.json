@@ -352,6 +352,7 @@
       "refreshApp": "רענון היישום",
       "resetCache": "איפוס מטמון היישום",
       "resetCacheHint": "מנקה את הקבצים השמורים של היישום ואת ה-service worker ברקע במכשיר זה, ואז טוען מחדש. מומלץ להשתמש בכך אם היישום נראה מיושן או אינו פועל כראוי. ההגדרות, המודולים שהורדו וההערות נשמרים.",
+      "resetCacheConfirm": "Reset the app cache? The app reloads and re-downloads its files; your settings and downloaded modules are kept.",
       "appName": "יישום לימוד מקרא",
       "description": "יישום מודרני בקוד פתוח ללימוד מקרא, שנועד לקריאה ולמחקר מעמיקים של כתבי הקודש.",
       "license": "ברישיון <strong>GNU General Public License v3.0</strong> (GPL-3.0).",
@@ -362,10 +363,8 @@
       "title": "שפה",
       "description": "בחירת שפת ממשק היישום.",
       "auto": "זיהוי אוטומטי",
-      "localeDraftBadge": "טיוטה — ממתין לבדיקת הקהילה",
-      "localeBetaBadge": "בטא — ממתין לבדיקת הקהילה",
-      "draftNote": "שפות המסומנות כטיוטה תורגמו באופן אוטומטי וטרם נבדקו על ידי דובר שפת אם.",
-      "betaNote": "שפות המסומנות כבטא תורגמו באופן אוטומטי והתרגום שלהן שלם, אך טרם נבדקו על ידי דובר שפת אם. תיקונים יתקבלו בברכה.",
+      "localePreviewBadge": "תצוגה מקדימה",
+      "localePreviewTooltip": "תרגום מכונה שטרם נבדק על ידי דובר שפת אם. אנגלית נתמכת במלואה.",
       "moreComingNote": "שפות נוספות בדרך. רק תרגומים שנבדקו על ידי דובר שפת אם מוצעים כאן ללא תג."
     },
     "keywords": {

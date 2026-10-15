@@ -8,6 +8,8 @@ import { ReadingPlanDayGrid, WeekdayPicker } from '@bible/ui';
 import { useI18n } from '../../../contexts/useI18n';
 import { getReadingPlanService } from '../readingPlansAPI';
 import { navigateToVerseInPrimary } from '../../../stores/crossStoreBridge';
+import { syncPanesWithVerse } from '../../../stores/syncPanesWithVerse';
+import { openApp } from '../../../apps/appHost';
 import { usePreferencesStore } from '../../../stores/usePreferencesStore';
 import type { ReadingPlanLabelSet } from './useReadingPlanLabels';
 
@@ -141,7 +143,7 @@ const ReadingPlanDetail: React.FC<Props> = ({ enrollmentId, labels, displayName,
                   {readingText(r)}
                 </label>
                 <button type="button" className="kth-btn kth-btn--sm" aria-label={labels.todayCard.openReading(readingText(r))}
-                  onClick={() => navigateToVerseInPrimary(r.start)}>{labels.todayCard.open}</button>
+                  onClick={() => { navigateToVerseInPrimary(r.start); syncPanesWithVerse(r.start); void openApp('study'); }}>{labels.todayCard.open}</button>
               </li>
             ))}
           </ul>

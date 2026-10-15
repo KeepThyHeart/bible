@@ -24,6 +24,10 @@ interface UserNotesEditorViewProps {
   exportActions: NoteExportActions;
   /** Path of the open note relative to the notes root; keys its stored direction. */
   notePath?: string;
+  /** The note this pane showed before the current one, if any. */
+  previousNote?: { path: string; title: string } | null;
+  /** Reopen `previousNote` (the current note is saved first). */
+  onBackToPrevious?: () => void;
 }
 
 /**
@@ -44,6 +48,8 @@ const UserNotesEditorView: React.FC<UserNotesEditorViewProps> = ({
   onPopOut,
   exportActions,
   notePath,
+  previousNote,
+  onBackToPrevious,
 }) => {
   const { t, localizer } = useI18n();
   const [noteDirection, setNoteDirection] = useNoteDirection(notePath);
@@ -120,6 +126,18 @@ const UserNotesEditorView: React.FC<UserNotesEditorViewProps> = ({
             </React.Fragment>
           ))}
         </nav>
+
+        {previousNote && onBackToPrevious && (
+          <button
+            type="button"
+            onClick={onBackToPrevious}
+            className="flex-shrink-0 max-w-[10rem] truncate px-2 py-1 text-xs rounded border border-border-secondary hover:bg-background-hover transition-colors"
+            title={t('userNotesPane.backToNote', { title: previousNote.title })}
+            data-testid="notes-back-to-previous"
+          >
+            {t('userNotesPane.backToNote', { title: previousNote.title })}
+          </button>
+        )}
 
         {/* Auto-save status indicator */}
         {(isSaving || !editorIsDirty) && (

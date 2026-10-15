@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { connectionStore } from '../stores/connectionStore';
+import { connectionStore, CONNECTION_ERROR_NETWORK } from '../stores/connectionStore';
 import { useStore } from '../hooks/useStore';
 
 export function ConnectionBanner() {
@@ -11,7 +11,7 @@ export function ConnectionBanner() {
   return (
     <div class="connection-banner">
       <i class="fa-solid fa-triangle-exclamation" />
-      <span class="connection-banner__message">{error}</span>
+      <span class="connection-banner__message">{error === CONNECTION_ERROR_NETWORK ? t('app.connectError') : error}</span>
       <button
         class="connection-banner__dismiss"
         onClick={() => connectionStore.dismiss()}

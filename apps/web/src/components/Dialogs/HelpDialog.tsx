@@ -107,7 +107,6 @@ export function HelpDialog({ isOpen, onClose, onSendFeedback }: HelpDialogProps)
           <section class="help-dialog__section">
             <h4>{isMobile ? t('readingMobile.title') : t('biblePaneDesktop.title')}</h4>
             <ul>
-              <li>{isMobile ? t('readingMobile.compareTabs') : t('biblePaneDesktop.compareTabs')}</li>
               <li dangerouslySetInnerHTML={{ __html: isMobile ? t('readingMobile.translationSelector') : t('biblePaneDesktop.translationSelector') }} />
               <li dangerouslySetInnerHTML={{ __html: isMobile ? t('readingMobile.displayModes') : t('biblePaneDesktop.displayModes') }} />
               {!isMobile && (
@@ -150,7 +149,7 @@ export function HelpDialog({ isOpen, onClose, onSendFeedback }: HelpDialogProps)
                   <tr><td><kbd>Ctrl+K</kbd></td><td>{t('shortcuts.focusSearch')}</td></tr>
                   <tr><td><kbd>/</kbd></td><td>{t('shortcuts.focusSearchAlt')}</td></tr>
                   <tr><td><kbd>Ctrl+C</kbd></td><td>{t('shortcuts.copyDialog')}</td></tr>
-                  <tr><td><kbd>{t('helpDialog.esc')}</kbd></td><td>{t('shortcuts.closeDialog')}</td></tr>
+                  <tr><td><kbd>{t('shortcuts.esc')}</kbd></td><td>{t('shortcuts.closeDialog')}</td></tr>
                   <SlotOutlet slot={helpShortcutRows} />
                 </tbody>
               </table>
@@ -165,6 +164,7 @@ export function HelpDialog({ isOpen, onClose, onSendFeedback }: HelpDialogProps)
                 : <>{t('settings.descDesktop')}</>
               }
             </p>
+            <p>{t('settings.desktopOnly')}</p>
           </section>
 
         </div>

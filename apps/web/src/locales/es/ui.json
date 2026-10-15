@@ -122,6 +122,7 @@
     "keywordBanner": "{count, plural, one {También hay # coincidencia por palabra clave.} other {También hay # coincidencias por palabra clave.}}",
     "viewInstead": "¿Ver esos en su lugar?",
     "enterSearchTerm": "Escriba un término de búsqueda arriba para encontrar pasajes.",
+    "slashDesktopOnly": "Los comandos con barra (como /note o /plan) solo están disponibles en la aplicación de escritorio.",
     "noKeywordResults": "No se han encontrado resultados para esas palabras clave exactas en <strong>{module}</strong>.",
     "tryIn": "Probar en",
     "orTryIdeas": "O pruebe una",
@@ -352,6 +353,7 @@
       "refreshApp": "Actualizar la aplicación",
       "resetCache": "Restablecer caché de la app",
       "resetCacheHint": "Borra los archivos guardados de esta app y el service worker en segundo plano de este dispositivo, y luego recarga. Úsalo si la app parece desactualizada o falla. Se conservan tus ajustes, módulos descargados y notas.",
+      "resetCacheConfirm": "¿Restablecer la caché de la app? La app se recargará y volverá a descargar sus archivos; se conservan tus ajustes y módulos descargados.",
       "appName": "Aplicación de estudio bíblico",
       "description": "Una aplicación moderna y de código abierto para el estudio de la Biblia, diseñada para la lectura y la investigación de la Escritura en profundidad.",
       "license": "Con licencia <strong>GNU General Public License v3.0</strong> (GPL-3.0).",
@@ -362,10 +364,8 @@
       "title": "Idioma",
       "description": "Elija el idioma de la interfaz de la aplicación.",
       "auto": "Detectar automáticamente",
-      "localeDraftBadge": "Borrador — revisión de la comunidad pendiente",
-      "localeBetaBadge": "Beta — revisión de la comunidad pendiente",
-      "draftNote": "Los idiomas marcados como borrador están traducidos automáticamente y todavía no los ha revisado un hablante nativo.",
-      "betaNote": "Los idiomas marcados como beta están traducidos automáticamente y completos, pero todavía no los ha revisado un hablante nativo. Las correcciones son bienvenidas.",
+      "localePreviewBadge": "Vista previa",
+      "localePreviewTooltip": "Traducción automática, aún sin revisar por un hablante nativo. El inglés cuenta con soporte completo.",
       "moreComingNote": "Habrá más idiomas disponibles próximamente. Aquí solo se ofrecen sin distintivo las traducciones que ha revisado un hablante nativo."
     },
     "keywords": {

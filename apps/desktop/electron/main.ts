@@ -389,6 +389,8 @@ type NoteRenderContents = BrowserWindow['webContents'];
  *  window plumbing they need, rather than through `ipcHandler`. */
 interface NoteRenderResult {
   success: boolean;
+  /** True when the user cancelled the save or print dialog: nothing was written or printed. */
+  canceled?: boolean;
   error?: string;
 }
 
@@ -480,8 +482,13 @@ function registerPrintHandler(): void {
       contents =>
         new Promise<NoteRenderResult>(resolve => {
           contents.print({ silent: false }, (success, failureReason) => {
+            if (success) return resolve({ success: true });
+            // Electron reports a dismissed dialog as failureReason 'cancelled'.
+            const canceled = !failureReason || /cancel/i.test(failureReason);
             resolve(
-              success ? { success: true } : { success: false, error: failureReason || 'Print cancelled' }
+              canceled
+                ? { success: false, canceled: true }
+                : { success: false, error: failureReason }
             );
           });
         })
@@ -494,7 +501,8 @@ function registerPrintHandler(): void {
   // PDF export. The renderer hands over exactly the document it would print,
   // and the save dialog comes first - mirroring `file-notes:export-markdown`,
   // and meaning a cancelled dialog costs no rendering at all. A cancel is
-  // success: the user asked for nothing to happen, and nothing happened.
+  // reported as `{ success: false, canceled: true }` so no caller can mistake
+  // it for a written file.
   ipcMain.handle(
     'notes:export-pdf',
     async (_event, html: string, defaultName: string): Promise<NoteRenderResult> => {
@@ -510,7 +518,7 @@ function registerPrintHandler(): void {
       const saved = parent
         ? await dialog.showSaveDialog(parent, options)
         : await dialog.showSaveDialog(options);
-      if (saved.canceled || !saved.filePath) return { success: true };
+      if (saved.canceled || !saved.filePath) return { success: false, canceled: true };
       const filePath = saved.filePath;
 
       return renderNoteDocument(html, contents => contents.printToPDF({ printBackground: true }))
