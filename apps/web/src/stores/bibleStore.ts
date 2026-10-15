@@ -389,7 +389,8 @@ class BibleStore extends Store {
     book: number,
     chapter: number,
     verse?: number,
-    options?: { fromLink?: boolean; endVerse?: number; replace?: boolean; follow?: boolean; tabId?: string },
+    /** `replace` keeps the in-app history page; `urlReplace` also keeps the browser URL entry (programmatic moves such as following the presenter). */
+    options?: { fromLink?: boolean; endVerse?: number; replace?: boolean; urlReplace?: boolean; follow?: boolean; tabId?: string },
   ): Promise<void> {
     const follow = options?.follow === true;
     const tab = options?.tabId ? this.tabs.find(t => t.id === options.tabId) : this.getActiveTab();
@@ -488,7 +489,7 @@ class BibleStore extends Store {
 
       // Push to history
       this.pushHistory({ moduleAbbr: tab.moduleAbbr, book, chapter, verse }, { replace: options?.replace || follow, tab });
-      if (tab.id === this.activeTabId) this.updateHash(!follow && !!verse, !follow && !options?.replace && !this.hashDriven);
+      if (tab.id === this.activeTabId) this.updateHash(!follow && !!verse, !follow && !options?.urlReplace && !this.hashDriven);
       this.saveSession();
       this.notify();
 
