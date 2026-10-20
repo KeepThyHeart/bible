@@ -289,6 +289,15 @@ export class RemoteSemanticClient {
   private async attempt(url: string, init: RequestInit): Promise<{ json: unknown; rateLimit: RemoteRateLimit }> {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), this.timeoutMs);
+    // The timeout covers the response body too, so it is cleared only when done.
+    try {
+      return await this.attemptInner(url, init, ctrl);
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  private async attemptInner(url: string, init: RequestInit, ctrl: AbortController): Promise<{ json: unknown; rateLimit: RemoteRateLimit }> {
     let res: Response;
     try {
       res = await this.fetchImpl(url, {
@@ -299,17 +308,18 @@ export class RemoteSemanticClient {
         credentials: 'omit',
       });
     } catch (e: any) {
-      clearTimeout(timer);
       const aborted = ctrl.signal.aborted || e?.name === 'AbortError' || e?.name === 'TimeoutError';
       throw new RemoteSemanticError(aborted ? 'timeout' : 'network', 0, aborted ? 'timeout' : 'network', aborted ? 'Request timed out' : String(e?.message ?? e));
     }
-    clearTimeout(timer);
 
     const rateLimit = this.readRateLimit(res);
     this._lastRateLimit = rateLimit;
     if (res.ok) {
       let json: unknown = null;
-      try { json = await res.json(); } catch { throw new RemoteSemanticError('unknown', res.status, 'bad_json', 'Unreadable response'); }
+      try { json = await res.json(); } catch {
+        if (ctrl.signal.aborted) throw new RemoteSemanticError('timeout', 0, 'timeout', 'Request timed out');
+        throw new RemoteSemanticError('unknown', res.status, 'bad_json', 'Unreadable response');
+      }
       return { json, rateLimit };
     }
 
@@ -348,7 +358,7 @@ export class RemoteSemanticClient {
       }
       case 502: case 504: return fail(mk('embedder_error'));
       case 503: {
-        if (code === 'not_ready') return fail(mk('not_ready'));
+        if (code !== 'budget_exhausted') return fail(mk('not_ready'));
         const e = mk('budget_exhausted');
         this.block(retryAfter ?? DEFAULT_BUDGET_BLOCK_SEC, e);
         return fail(e);

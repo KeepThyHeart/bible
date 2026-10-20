@@ -76,7 +76,7 @@ export async function runSemanticSearchEx(
           return {
             results,
             source: 'remote' as const,
-            ...(res.degraded ? { notice: { kind: 'degraded' as const } } : {}),
+            ...(res.degraded || res.routed ? { notice: { kind: 'degraded' as const } } : {}),
             ...(hasRl ? { rateLimit: { limit: rl.limit, remaining: rl.remaining, resetAtMs: rl.resetAtMs } } : {}),
           };
         }

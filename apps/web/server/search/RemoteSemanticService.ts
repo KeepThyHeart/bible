@@ -71,7 +71,7 @@ export class RemoteSemanticService {
     });
 
     const semantic: RemoteSemantic.SemanticMeta = { source: 'remote', rateLimit: res.rateLimit };
-    if (res.degraded) semantic.notice = { kind: 'degraded' };
+    if (res.degraded || res.routed) semantic.notice = { kind: 'degraded' };
 
     return {
       results,

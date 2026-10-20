@@ -218,5 +218,6 @@ function errorFromServerBody(
     if (notice.kind === 'paused') return new E('rate_limited', status, code, undefined, { resetAtMs: notice.resetAtMs });
     if (notice.kind === 'rephrase') return new E('rejected', status, code);
   }
+  if (code === 'CONSENT_REQUIRED') return new E('not_ready', status, code);
   return new E(status === 403 ? 'forbidden' : 'embedder_error', status, code);
 }

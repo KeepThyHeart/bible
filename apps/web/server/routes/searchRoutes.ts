@@ -283,7 +283,7 @@ export function createSearchRoutes(db: DatabaseManager, routeOptions: SearchRout
           }
           if (err instanceof RemoteSemantic.RemoteSemanticError) {
             // Generic body on purpose: no bibsearch URL, key or raw error text leaves the server.
-            console.warn(`[SemanticSearch] remote search failed: ${err.kind}`);
+            console.warn(`[SemanticSearch] remote search failed: ${err.kind}${err.details?.requestId ? ` (request ${err.details.requestId})` : ""}`);
             if (req.timedout) return;
             res.status(503).json({
               error: { code: 'REMOTE_UNAVAILABLE', message: 'Online meaning search is unavailable' },

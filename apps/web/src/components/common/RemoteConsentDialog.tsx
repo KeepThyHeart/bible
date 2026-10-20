@@ -32,7 +32,7 @@ export function RemoteConsentDialog() {
   if (!open) return null;
 
   return (
-    <div class="settings-panel-overlay remote-consent-overlay" onClick={() => remoteConsentStore.decline()}>
+    <div class="settings-panel-overlay remote-consent-overlay">
       <div
         class="remote-consent"
         role="dialog"
