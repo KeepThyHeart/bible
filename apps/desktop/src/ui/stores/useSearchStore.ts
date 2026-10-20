@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { SearchResult, SearchOptions, SavedSearch, StrongsNumberHelper } from '@bible/core';
-import { searchAPI, dictionaryAPI } from '../services/electronAPI';
+import { searchAPI, dictionaryAPI, remoteSemanticAPI } from '../services/electronAPI';
+import type { RemoteSemanticStatus, RemoteConsentChoice, SemanticSearchExReply } from '../services/electronAPI';
 import { resolveOpenModuleAbbreviations, resolveInstalledModuleId, showSearchResultsPanel } from './crossStoreBridge';
 import { whenContextService } from '../services/WhenContextService';
 import { useToastStore } from './useToastStore';
@@ -140,6 +141,16 @@ interface SearchState {
    */
   semanticVisibleCount: number;
 
+  // Online meaning search (task 0190). Null status = not asked yet / not configured.
+  /** Cached status of the remote option; `null` until first read. */
+  remoteSemanticStatus: RemoteSemanticStatus | null;
+  /** True while the first-use consent modal is showing. */
+  consentDialogOpen: boolean;
+  /** Where the last semantic rows came from, and the note about it. */
+  semanticSource: SemanticSearchExReply['source'] | null;
+  semanticNotice: SemanticSearchExReply['notice'] | null;
+  semanticRateLimit: SemanticSearchExReply['rateLimit'] | null;
+
   // Strong's word family state (populated when a Strong's-number query is searched)
   strongsMeta: StrongsSearchMeta | null;
   includeRelatedWords: boolean;
@@ -201,6 +212,12 @@ interface SearchState {
   setSemanticMode: (mode: boolean) => void;
   performSemanticSearch: (query?: string) => Promise<void>;
   checkSemanticAvailability: () => Promise<void>;
+  /** Read (and cache) the remote option's status. Never throws; failure means "not configured". */
+  refreshRemoteSemanticStatus: () => Promise<RemoteSemanticStatus | null>;
+  /** The consent modal's answer: records it, closes the modal and releases the waiting search(es). */
+  answerRemoteConsent: (choice: RemoteConsentChoice) => Promise<void>;
+  /** Preferences toggle: 'declined' withdraws, 'reset' re-enables (asks again on next use). */
+  setRemoteSemanticConsent: (decision: RemoteConsentChoice | 'reset') => Promise<void>;
 
   // Actions - Result paging
   /**
@@ -255,6 +272,9 @@ interface SearchState {
   // Actions - Indexing
   buildIndex: (modules: string[]) => Promise<void>;
 }
+
+/** Searches parked behind the open consent modal; all released by `answerRemoteConsent`. */
+let consentWaiters: Array<() => void> = [];
 
 /** The ceiling an ordinary keyword search is fetched with. */
 export const KEYWORD_DEFAULT_MAX_RESULTS = 200;
@@ -419,6 +439,11 @@ export const useSearchStore = create<SearchState>((set, get) => ({
   semanticAvailable: false,
   autoSwitchedToSemantic: false,
   semanticVisibleCount: SEMANTIC_INITIAL_VISIBLE,
+  remoteSemanticStatus: null,
+  consentDialogOpen: false,
+  semanticSource: null,
+  semanticNotice: null,
+  semanticRateLimit: null,
 
   strongsMeta: null,
   includeRelatedWords: false,
@@ -656,6 +681,8 @@ export const useSearchStore = create<SearchState>((set, get) => ({
   // ========================================================================
 
   checkSemanticAvailability: async () => {
+    // Also (re)reads the online option's status; harmless when it is not configured.
+    await get().refreshRemoteSemanticStatus();
     try {
       const available = await searchAPI.semanticAvailable();
       set({ semanticAvailable: available });
@@ -712,6 +739,44 @@ export const useSearchStore = create<SearchState>((set, get) => ({
     await get().performSearch(display);
   },
 
+  refreshRemoteSemanticStatus: async () => {
+    try {
+      const status = await remoteSemanticAPI.getStatus();
+      set({ remoteSemanticStatus: status });
+      // Drives the Preferences > Search section; absent entirely when not configured.
+      whenContextService.set('remoteSemanticConfigured', status.configured === true);
+      return status;
+    } catch {
+      // Older/absent bridge: behave exactly as before the option existed.
+      set({ remoteSemanticStatus: null });
+      return null;
+    }
+  },
+
+  answerRemoteConsent: async (choice) => {
+    try {
+      const status = await remoteSemanticAPI.setConsent(choice);
+      set({ remoteSemanticStatus: status });
+    } catch (error) {
+      console.error('Failed to record meaning-search consent:', error);
+    }
+    set({ consentDialogOpen: false });
+    const waiters = consentWaiters;
+    consentWaiters = [];
+    waiters.forEach((resolve) => resolve());
+    void get().checkSemanticAvailability();
+  },
+
+  setRemoteSemanticConsent: async (decision) => {
+    try {
+      const status = await remoteSemanticAPI.setConsent(decision);
+      set({ remoteSemanticStatus: status });
+    } catch (error) {
+      console.error('Failed to update meaning-search consent:', error);
+    }
+    await get().checkSemanticAvailability();
+  },
+
   performSemanticSearch: async (query?: string) => {
     const queryToSearch = query || get().query;
 
@@ -722,13 +787,26 @@ export const useSearchStore = create<SearchState>((set, get) => ({
     set({ isSemanticSearching: true });
 
     try {
-      const results = await searchAPI.semanticSearch(queryToSearch, {
+      // First-use consent: nothing is searched (or sent) until the user answers.
+      // Concurrent searches share one modal.
+      const status = get().remoteSemanticStatus ?? (await get().refreshRemoteSemanticStatus());
+      if (status?.configured && status.consent === 'unset') {
+        await new Promise<void>((resolve) => {
+          consentWaiters.push(resolve);
+          if (!get().consentDialogOpen) set({ consentDialogOpen: true });
+        });
+      }
+
+      const reply = await searchAPI.semanticSearchEx(queryToSearch, {
         maxResults: SEMANTIC_FETCH_LIMIT,
         levels: ['verse', 'paragraph'],
       });
 
       set({
-        semanticResults: results,
+        semanticResults: reply.results,
+        semanticSource: reply.source,
+        semanticNotice: reply.notice ?? null,
+        semanticRateLimit: reply.rateLimit ?? null,
         semanticVisibleCount: SEMANTIC_INITIAL_VISIBLE,
         isSemanticSearching: false,
       });
@@ -740,6 +818,9 @@ export const useSearchStore = create<SearchState>((set, get) => ({
       console.error('Semantic search failed:', error);
       set({
         semanticResults: [],
+        semanticSource: null,
+        semanticNotice: null,
+        semanticRateLimit: null,
         semanticVisibleCount: SEMANTIC_INITIAL_VISIBLE,
         isSemanticSearching: false,
       });

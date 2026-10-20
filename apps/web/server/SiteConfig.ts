@@ -10,7 +10,7 @@ import { resolve } from 'path';
 import { existsSync, readFileSync, writeFileSync } from 'fs';
 import { loadSiteSettings, type SiteSettings } from './siteSettings.js';
 import { logger } from './utils/logger.js';
-import { AudioBible } from '@bible/core';
+import { AudioBible, RemoteSemantic } from '@bible/core';
 import type { SearchPipelineConfig, ScoringConfig } from '@bible/core';
 import { createFeatureFlags, parseFlagOverrides, type FeatureFlagName, type FeatureFlags } from './core.js';
 
@@ -92,9 +92,19 @@ interface SearchConfig {
    *  - 'server'  → server builds the embedding pipeline (uses significant RAM)
    *  - 'browser' → clients run search locally (Web Worker + downloaded model/index); server stays lean
    *  - 'off'     → semantic search disabled
+   *  - 'remote'  → the hosted bibsearch service (see `remote`); no pipeline is built here
    * Defaults to 'browser'. The server pipeline is only built when mode === 'server'.
    */
-  mode?: 'server' | 'browser' | 'off';
+  mode?: 'server' | 'browser' | 'off' | 'remote';
+  /** Settings for mode 'remote'. A missing or invalid `url` turns semantic search off. */
+  remote?: { url?: string; via?: 'browser' | 'server'; apiKey?: string };
+}
+
+/** Resolved `search.remote`: `url` has no trailing slash. `via` defaults to 'server'. */
+export interface RemoteSearchSettings {
+  url: string;
+  via: 'browser' | 'server';
+  apiKey?: string;
 }
 
 interface PrivacyConfig {
@@ -172,6 +182,7 @@ export class SiteConfig {
   private _flags: FeatureFlags | undefined;
   private readonly configSource: 'unified' | 'legacy';
   private readonly configPath: string;
+  private warnedBadRemote = false;
 
   constructor(dataDir: string) {
     this.dataDir = dataDir;
@@ -285,7 +296,41 @@ export class SiteConfig {
     };
   }
 
-  get search(): { pipelineConfigPath: string; hybrid: boolean; minScore: number; mode: 'server' | 'browser' | 'off' } {
+  /**
+   * `search.remote` resolved, or null unless mode is 'remote' with a usable http(s) URL.
+   * The URL and key stay on the server when `via` is 'server'.
+   */
+  get searchRemote(): RemoteSearchSettings | null {
+    if (this.raw.search?.mode !== 'remote') return null;
+    const r = this.raw.search.remote;
+    const url = typeof r?.url === 'string' ? r.url.trim() : '';
+    let parsed: URL | null = null;
+    try { parsed = url ? new URL(url) : null; } catch { parsed = null; }
+    if (!parsed || (parsed.protocol !== 'http:' && parsed.protocol !== 'https:')) {
+      if (!this.warnedBadRemote) {
+        this.warnedBadRemote = true;
+        logger.warn("search.mode is 'remote' but search.remote.url is missing or not an http(s) URL; semantic search is off.");
+      }
+      return null;
+    }
+    return {
+      url: url.replace(/\/+$/, ''),
+      via: r?.via === 'browser' ? 'browser' : 'server',
+      apiKey: typeof r?.apiKey === 'string' && r.apiKey ? r.apiKey : undefined,
+    };
+  }
+
+  /** The origin to allow in `connect-src`: only for remote search called from the browser. */
+  get remoteSearchBrowserOrigin(): string | null {
+    const r = this.searchRemote;
+    return r && r.via === 'browser' ? new URL(r.url).origin : null;
+  }
+
+  get search(): { pipelineConfigPath: string; hybrid: boolean; minScore: number; mode: 'server' | 'browser' | 'off' | 'remote' } {
+    const rawMode = this.raw.search?.mode;
+    let mode: 'server' | 'browser' | 'off' | 'remote';
+    if (rawMode === 'remote') mode = this.searchRemote ? 'remote' : 'off';
+    else mode = rawMode === 'server' || rawMode === 'off' ? rawMode : 'browser';
     return {
       pipelineConfigPath: this.raw.search?.pipelineConfigPath ?? 'search-pipeline.json',
       hybrid: this.raw.search?.hybrid === true,
@@ -293,9 +338,7 @@ export class SiteConfig {
         ? this.raw.search.minScore
         : DEFAULT_MIN_SCORE,
       // Default to browser-side search so the server stays lean unless explicitly opted into 'server'.
-      mode: this.raw.search?.mode === 'server' || this.raw.search?.mode === 'off'
-        ? this.raw.search.mode
-        : 'browser',
+      mode,
     };
   }
 
@@ -343,7 +386,23 @@ export class SiteConfig {
 
     // Semantic search mode — tells the client whether to run Ideas Search locally
     // (browser Web Worker) or hit the server pipeline.
-    cfg.search = { semantic: this.search.mode };
+    // In 'remote' mode `remote.via` says who calls bibsearch; the URL and key go to the
+    // browser only for via 'browser' (the server proxy keeps them private otherwise).
+    const remote = this.searchRemote;
+    if (remote) {
+      cfg.search = {
+        semantic: 'remote',
+        remote: {
+          via: remote.via,
+          noticeVersion: RemoteSemantic.REMOTE_SEMANTIC_NOTICE_VERSION,
+          ...(remote.via === 'browser'
+            ? { url: remote.url, ...(remote.apiKey ? { apiKey: remote.apiKey } : {}) }
+            : {}),
+        },
+      };
+    } else {
+      cfg.search = { semantic: this.search.mode };
+    }
 
     // Every feature flag, resolved (site config over defaults). The dev override
     // (`BIBLE_FEATURE_FLAGS`) is included so a developer's flags reach their browser.

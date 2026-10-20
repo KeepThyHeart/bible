@@ -111,6 +111,11 @@ const DIAGNOSTICS_URL = envOrEmpty('BIBLE_DIAGNOSTICS_URL');
 const DIAGNOSTICS_TOKEN = envOrEmpty('BIBLE_DIAGNOSTICS_TOKEN');
 const ABOUT_TEXT = envOrEmpty('BIBLE_ABOUT_TEXT');
 // Timeline minimum framing span in years; empty means the built-in 200.
+// Online meaning search (bibsearch). Both empty = feature absent. These go into
+// the MAIN bundle only (see `MAIN_ONLY_DEFINES`): the renderer and preload never
+// receive them, so the URL and key cannot reach a web page.
+const REMOTE_SEMANTIC_URL = envOrEmpty('BIBLE_REMOTE_SEMANTIC_URL');
+const REMOTE_SEMANTIC_API_KEY = envOrEmpty('BIBLE_REMOTE_SEMANTIC_API_KEY');
 const TIMELINE_MIN_SPAN_YEARS = envOrEmpty('BIBLE_TIMELINE_MIN_SPAN_YEARS');
 
 const APP_CONFIG_DEFINES: Record<string, string> = {
@@ -131,6 +136,11 @@ const APP_CONFIG_DEFINES: Record<string, string> = {
   __BIBLE_TIMELINE_MIN_SPAN_YEARS__: JSON.stringify(TIMELINE_MIN_SPAN_YEARS),
   // Windows AppUserModelID for notifications; must match electron-builder's appId.
   __BIBLE_APP_ID__: JSON.stringify(envOrEmpty('BIBLE_APP_ID') || brandingValue('appId') || 'com.keepthyheart.bible.desktop'),
+};
+
+const MAIN_ONLY_DEFINES: Record<string, string> = {
+  __BIBLE_REMOTE_SEMANTIC_URL__: JSON.stringify(REMOTE_SEMANTIC_URL),
+  __BIBLE_REMOTE_SEMANTIC_API_KEY__: JSON.stringify(REMOTE_SEMANTIC_API_KEY),
 };
 
 /**
@@ -243,6 +253,7 @@ export default defineConfig({
     },
     define: {
       ...APP_CONFIG_DEFINES,
+      ...MAIN_ONLY_DEFINES,
     },
     build: {
       // `@bible/memory` (task 0114) is bundled for the same reason as `@bible/core`: a

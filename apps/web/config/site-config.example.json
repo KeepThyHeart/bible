@@ -63,6 +63,7 @@
   },
   "search": {
     "mode": "browser",
+    "remote": { "url": "https://search.example.org", "via": "server" },
     "pipelineConfigPath": "search-pipeline.json",
     "hybrid": false,
     "minScore": 0.15

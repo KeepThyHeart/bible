@@ -795,4 +795,48 @@ describe('SearchResultsPane', () => {
       expect(mockNavigateToVerse).not.toHaveBeenCalled();
     });
   });
+
+  describe('semantic note (task 0190)', () => {
+    const semanticState = (extra: Record<string, unknown>) =>
+      Object.assign(mockSearchStore, {
+        ...defaultSearchState,
+        resultsForQuery: 'love',
+        isSemanticMode: true,
+        semanticAvailable: true,
+        ...extra,
+      });
+
+    it('shows no note without a notice', () => {
+      semanticState({ semanticNotice: null, semanticSource: 'remote' });
+      renderWithProviders(<SearchResultsPane />);
+      expect(screen.queryByTestId('semantic-note')).toBeNull();
+    });
+
+    it('declined: hints at Preferences > Search', () => {
+      semanticState({ semanticNotice: { kind: 'declined' }, semanticSource: 'local' });
+      renderWithProviders(<SearchResultsPane />);
+      expect(screen.getByTestId('semantic-note')).toHaveTextContent('Preferences > Search');
+    });
+
+    it('degraded: keyword results note', () => {
+      semanticState({ semanticNotice: { kind: 'degraded' }, semanticSource: 'remote' });
+      renderWithProviders(<SearchResultsPane />);
+      expect(screen.getByTestId('semantic-note')).toHaveTextContent('Showing keyword results');
+    });
+
+    it('quota: reset time, and installed pack wording when source is local', () => {
+      semanticState({ semanticNotice: { kind: 'quota', resetAtMs: Date.UTC(2026, 9, 21, 0, 0) }, semanticSource: 'local' });
+      renderWithProviders(<SearchResultsPane />);
+      const note = screen.getByTestId('semantic-note');
+      expect(note).toHaveTextContent('Daily limit for meaning search reached');
+      expect(note).toHaveTextContent('It resets at');
+      expect(note).toHaveTextContent('installed pack');
+    });
+
+    it('unavailable and rephrase have notes', () => {
+      semanticState({ semanticNotice: { kind: 'rephrase' }, semanticSource: 'local' });
+      renderWithProviders(<SearchResultsPane />);
+      expect(screen.getByTestId('semantic-note')).toHaveTextContent('longer or different phrase');
+    });
+  });
 });

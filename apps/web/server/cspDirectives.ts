@@ -13,6 +13,9 @@
  *  - `media-src` and `connect-src` gain the origins the operator explicitly
  *    configured for recordings or engine files (`audio.base`, an engine's
  *    `assetBase`), and no others.
+ *
+ * Remote semantic search with `via: 'browser'` adds one more `connect-src`
+ * origin: the bibsearch service itself. With `via: 'server'` nothing changes.
  */
 
 export interface CspAudioOptions {
@@ -21,7 +24,11 @@ export interface CspAudioOptions {
   externalOrigins: string[];
 }
 
-export function contentSecurityPolicyDirectives(audio: CspAudioOptions = { enabled: false, externalOrigins: [] }) {
+export function contentSecurityPolicyDirectives(
+  audio: CspAudioOptions = { enabled: false, externalOrigins: [] },
+  /** Origin of bibsearch when the browser calls it directly (`search.remote.via: 'browser'`), else null. */
+  remoteSearchOrigin: string | null = null,
+) {
   const external = audio.enabled ? audio.externalOrigins : [];
   const directives: Record<string, Iterable<string> | null> = {
     defaultSrc: ["'self'"],
@@ -41,7 +48,7 @@ export function contentSecurityPolicyDirectives(audio: CspAudioOptions = { enabl
     styleSrc: ["'self'", "'unsafe-inline'"],
     fontSrc: ["'self'"],
     imgSrc: ["'self'", 'data:'],
-    connectSrc: ["'self'", ...external],
+    connectSrc: ["'self'", ...external, ...(remoteSearchOrigin ? [remoteSearchOrigin] : [])],
     // Do NOT include upgrade-insecure-requests: it causes browsers to upgrade HTTP
     // requests to HTTPS, breaking local dev servers that serve over plain HTTP.
     upgradeInsecureRequests: null,

@@ -505,4 +505,72 @@ describe('SiteConfig', () => {
       expect(config.auth.enabled).toBe(true);
     });
   });
+
+  // ── search.mode: remote ─────────────────────────────────────────
+
+  describe('search.mode remote', () => {
+    const write = (search: object) =>
+      writeFileSync(join(tempDir, 'site-config.json'), JSON.stringify({ search }));
+
+    it('defaults via to server and strips trailing slashes', () => {
+      write({ mode: 'remote', remote: { url: 'https://search.example.org/' } });
+      const c = new SiteConfig(tempDir);
+      expect(c.search.mode).toBe('remote');
+      expect(c.searchRemote).toEqual({ url: 'https://search.example.org', via: 'server', apiKey: undefined });
+      expect(c.remoteSearchBrowserOrigin).toBeNull();
+      expect(c.getSearchPipelineConfig()).toBeNull();
+    });
+
+    it('via server keeps the url and key off the client', () => {
+      write({ mode: 'remote', remote: { url: 'http://localhost:8080', via: 'server', apiKey: 'SECRET' } });
+      const cfg = new SiteConfig(tempDir).getClientConfig();
+      expect(cfg.search).toEqual({ semantic: 'remote', remote: { via: 'server', noticeVersion: 1 } });
+      expect(JSON.stringify(cfg)).not.toContain('SECRET');
+      expect(JSON.stringify(cfg)).not.toContain('localhost');
+    });
+
+    it('via browser sends url and key, and exposes the CSP origin', () => {
+      write({ mode: 'remote', remote: { url: 'https://search.example.org/api/', via: 'browser', apiKey: 'K' } });
+      const c = new SiteConfig(tempDir);
+      expect(c.getClientConfig().search).toEqual({
+        semantic: 'remote',
+        remote: { via: 'browser', noticeVersion: 1, url: 'https://search.example.org/api', apiKey: 'K' },
+      });
+      expect(c.remoteSearchBrowserOrigin).toBe('https://search.example.org');
+    });
+
+    it('omits apiKey for via browser when none is set', () => {
+      write({ mode: 'remote', remote: { url: 'https://search.example.org', via: 'browser' } });
+      const remote = (new SiteConfig(tempDir).getClientConfig().search as any).remote;
+      expect(remote).not.toHaveProperty('apiKey');
+    });
+
+    it.each([
+      ['missing remote', undefined],
+      ['empty url', { url: '' }],
+      ['not a url', { url: 'not a url' }],
+      ['non-http scheme', { url: 'ftp://search.example.org' }],
+    ])('degrades to off with %s', (_name, remote) => {
+      write({ mode: 'remote', ...(remote ? { remote } : {}) });
+      const c = new SiteConfig(tempDir);
+      expect(c.searchRemote).toBeNull();
+      expect(c.search.mode).toBe('off');
+      expect(c.remoteSearchBrowserOrigin).toBeNull();
+      expect(c.getClientConfig().search).toEqual({ semantic: 'off' });
+      expect(c.getSearchPipelineConfig()).toBeNull();
+    });
+
+    it('treats an unknown via as server', () => {
+      write({ mode: 'remote', remote: { url: 'https://s.example', via: 'carrier-pigeon' } });
+      expect(new SiteConfig(tempDir).searchRemote?.via).toBe('server');
+    });
+
+    it('ignores the remote block in other modes', () => {
+      write({ mode: 'browser', remote: { url: 'https://s.example', via: 'browser' } });
+      const c = new SiteConfig(tempDir);
+      expect(c.searchRemote).toBeNull();
+      expect(c.remoteSearchBrowserOrigin).toBeNull();
+      expect(c.getClientConfig().search).toEqual({ semantic: 'browser' });
+    });
+  });
 });

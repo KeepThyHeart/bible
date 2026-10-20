@@ -14,6 +14,7 @@ import { registerSearchHandlers, closeSearchDb } from './ipc/searchHandlers';
 import { registerSessionHandlers, closeSessionDb } from './ipc/sessionHandlers';
 import { registerNotesHandlers, initializeNotesDatabase, closeNotesDatabase } from './ipc/notesHandlers';
 import { registerCollectionHandlers, closeCollectionService } from './ipc/collectionHandlers';
+import { registerRemoteSemanticHandlers } from './ipc/remoteSemanticHandlers';
 import { registerNoteDirectionHandlers, resetNoteDirectionStore } from './ipc/noteDirectionHandlers';
 import { registerHighlightHandlers, initializeHighlightRepository, closeHighlightRepository } from './ipc/highlightHandlers';
 import { registerModuleHandlers, closeModuleManager, buildMissingKeywordIndexesInBackground } from './ipc/moduleHandlers';
@@ -634,6 +635,7 @@ const registerAllHandlersOnce = runOnce(() => {
   registerCollectionHandlers();
   registerHighlightHandlers();
   registerNoteDirectionHandlers();
+  registerRemoteSemanticHandlers();
   registerModuleHandlers(ipcMain);
   registerFeaturePackHandlers(ipcMain);
   registerAssetHandlers(ipcMain);

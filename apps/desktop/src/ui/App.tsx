@@ -56,6 +56,7 @@ const LazyDialogs = {
   UpdateCheckDialog: React.lazy(() => import('./components/UpdateCheckDialog')),
   GuidedTour: React.lazy(() => import('./components/onboarding/GuidedTour')),
   LanguageFirstRun: React.lazy(() => import('./components/onboarding/LanguageFirstRun')),
+  RemoteConsentDialog: React.lazy(() => import('./components/RemoteConsentDialog')),
   BackupRestoreDialog: React.lazy(() =>
     import('./components/BackupRestoreDialog').then((m) => ({ default: m.BackupRestoreDialog }))
   ),
@@ -73,6 +74,7 @@ const UpdateCheckDialog = LazyDialogs.UpdateCheckDialog;
 const GuidedTour = LazyDialogs.GuidedTour;
 const LanguageFirstRun = LazyDialogs.LanguageFirstRun;
 const BackupRestoreDialog = LazyDialogs.BackupRestoreDialog;
+const RemoteConsentDialog = LazyDialogs.RemoteConsentDialog;
 
 
 // Tiny accessors for menu/command handlers that need to imperatively trigger a
@@ -518,6 +520,9 @@ function App() {
         {showUpdateCheck && (
           <UpdateCheckDialog onClose={() => setShowUpdateCheck(false)} />
         )}
+
+        {/* Online meaning-search first-use consent (renders nothing unless asked) */}
+        <RemoteConsentDialog />
 
         {/* Backup/Restore Dialog */}
         <BackupRestoreDialog />

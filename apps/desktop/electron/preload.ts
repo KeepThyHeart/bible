@@ -53,13 +53,17 @@ import type {
 import type { FeaturePack as FeaturePackListing } from '@bible/core';
 import type { AssetListSnapshot } from '@bible/core/browser';
 import type { SemanticPackStatus as FeaturePackStatus } from './services/SemanticPackService';
+import type { RemoteSemanticStatus } from './services/RemoteSemanticService';
+import type { SemanticRow, SemanticSearchExResult } from './ipc/semanticSearchEx';
 import type { ModuleInstallDialogResult } from './ipc/moduleHandlers';
 import type { StudyOverviewPayload } from './services/StudyCacheService';
 import type { ModulePackInstallSummary } from './services/ModulePackService';
 import type { ModuleInstallPolicy } from './ipc/moduleHandlers';
 import type { KeywordIndexStatusDto } from './services/KeywordIndexService';
 import type { StarterPack, OfferedStarterPack, CatalogModule } from '@bible/core';
-import { APP_CONFIG, type AppConfig } from './config/appConfig';
+import { APP_CONFIG, toRendererAppConfig, type AppConfig } from './config/appConfig';
+
+export type { RemoteSemanticStatus, SemanticRow, SemanticSearchExResult };
 
 // Define the API interface for type safety
 export interface ElectronAPI {
@@ -230,6 +234,14 @@ export interface ElectronAPI {
     // Semantic search
     semanticAvailable: () => Promise<Result<boolean>>;
     semanticSearch: (query: string, options?: { maxResults?: number; levels?: string[] }) => Promise<Result<any[]>>;
+    /** Online service first (with consent), then the installed pack; see `ipc/semanticSearchEx.ts`. */
+    semanticSearchEx: (query: string, options?: { maxResults?: number; levels?: string[] }) => Promise<Result<SemanticSearchExResult>>;
+  };
+
+  /** Online meaning search: build-time availability and the first-use consent record (task 0190). */
+  remoteSemantic: {
+    getStatus: () => Promise<Result<RemoteSemanticStatus>>;
+    setConsent: (decision: 'granted' | 'declined' | 'reset') => Promise<Result<RemoteSemanticStatus>>;
   };
 
   // Session methods. Replies use the `Result<T>` envelope;
@@ -674,7 +686,8 @@ export interface ElectronAPI {
 const MODULE_IDENT_RE = /^[A-Za-z][A-Za-z0-9_-]*$/;
 
 const electronAPI: ElectronAPI = {
-  appConfig: APP_CONFIG,
+  // The remote-search URL and key stay in the main process.
+  appConfig: toRendererAppConfig(APP_CONFIG),
 
   modules: {
     invoke: (ns: string, method: string, ...args: unknown[]) => {
@@ -885,6 +898,14 @@ const electronAPI: ElectronAPI = {
       ipcRenderer.invoke('search:semanticAvailable'),
     semanticSearch: (query: string, options?: { maxResults?: number; levels?: string[] }) =>
       ipcRenderer.invoke('search:semanticSearch', query, options),
+    semanticSearchEx: (query: string, options?: { maxResults?: number; levels?: string[] }) =>
+      ipcRenderer.invoke('search:semanticSearchEx', query, options),
+  },
+
+  remoteSemantic: {
+    getStatus: () => ipcRenderer.invoke('remoteSemantic:getStatus'),
+    setConsent: (decision: 'granted' | 'declined' | 'reset') =>
+      ipcRenderer.invoke('remoteSemantic:setConsent', decision),
   },
 
   session: {

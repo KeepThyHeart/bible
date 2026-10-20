@@ -2312,5 +2312,21 @@
   "apps.readingPlans.title": "Reading plans",
   "userNotesPane.backToNote": "Back to {title}",
   "commentaryContentArea.loadError": "Could not load this commentary.",
-  "commentaryContentArea.retry": "Retry"
+  "commentaryContentArea.retry": "Retry",
+  "searchResultsPane.semanticNote.declined": "Meaning search is off. You can turn it on in Preferences > Search.",
+  "searchResultsPane.semanticNote.degraded": "Showing keyword results (the meaning service was unavailable).",
+  "searchResultsPane.semanticNote.quota": "Daily limit for meaning search reached. {reset, select, yes {It resets at {time}. } other {}}{source, select, local {Showing results from the installed pack.} other {Showing keyword results.}}",
+  "searchResultsPane.semanticNote.paused": "Online meaning search is paused for now. {reset, select, yes {It resumes at {time}. } other {}}{source, select, local {Showing results from the installed pack.} other {Showing keyword results.}}",
+  "searchResultsPane.semanticNote.unavailable": "Meaning search is unavailable right now. {source, select, local {Showing results from the installed pack.} other {Showing keyword results.}}",
+  "searchResultsPane.semanticNote.rephrase": "Try a longer or different phrase for meaning search. {source, select, local {Showing results from the installed pack.} other {Showing keyword results.}}",
+  "remoteConsent.title": "Meaning-based search uses an online service",
+  "remoteConsent.body": "To find verses by meaning, your search words are sent to our search service, which uses an outside AI provider to work out what they mean. They are sent without your name or account.",
+  "remoteConsent.never": "Your Bible reading, notes and other data are never sent.",
+  "remoteConsent.agree": "Agree and search",
+  "remoteConsent.decline": "Not now",
+  "preferencesDialog.sectionSearch": "Search",
+  "preferencesDialog.remoteSemanticLabel": "Use online meaning search",
+  "preferencesDialog.remoteSemanticUnset": "Not active until you agree on first use",
+  "preferencesDialog.remoteSemanticGranted": "On. You agreed on {date}.",
+  "preferencesDialog.remoteSemanticDeclined": "Off"
 }

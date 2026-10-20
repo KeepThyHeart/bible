@@ -63,6 +63,8 @@ export const HOST_PREFERENCES_SECTIONS: readonly PreferencesSectionContribution[
   section(15, 'fonts', 'preferencesDialog.sectionFonts', 'Fonts'),
   section(20, 'themes', 'preferencesDialog.sectionThemes', 'Themes'),
   section(25, 'privacy', 'preferencesDialog.sectionPrivacy', 'Privacy'),
+  // Only present when the build configures the online meaning-search service (task 0190).
+  { ...section(30, 'search', 'preferencesDialog.sectionSearch', 'Search'), when: 'remoteSemanticConfigured' },
   section(40, 'extensions', 'preferencesDialog.sectionExtensions', 'Extensions'),
   section(45, 'apps', 'preferencesDialog.sectionApps', 'Apps'),
   section(55, 'advanced', 'preferencesDialog.sectionAdvanced', 'Advanced'),
@@ -93,6 +95,7 @@ export const hostUiBinding: FeatureModuleBinding = {
     'preferences:fonts': prefsView(() => import('../../components/PreferencesDialog/FontsSection').then((m) => ({ default: m.FontsSection }))),
     'preferences:themes': prefsView(() => import('../../components/PreferencesDialog/ThemesSection').then((m) => ({ default: m.ThemesSection }))),
     'preferences:privacy': prefsView(() => import('../../components/PreferencesDialog/PrivacySection').then((m) => ({ default: m.PrivacySection }))),
+    'preferences:search': prefsView(() => import('../../components/PreferencesDialog/SearchSection').then((m) => ({ default: m.SearchSection }))),
     'preferences:extensions': prefsView(() => import('../../components/ExtensionsSection').then((m) => ({ default: m.ExtensionsSection }))),
     'preferences:apps': prefsView(() => import('../../components/PreferencesDialog/AppsSection').then((m) => ({ default: m.AppsSection }))),
     'preferences:advanced': prefsView(() => import('../../components/PreferencesDialog/AdvancedSection').then((m) => ({ default: m.AdvancedSection }))),
