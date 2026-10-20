@@ -43,6 +43,9 @@ const test = base.extend<{ stub: Stub; app: ElectronApplication; window: Page }>
     const userDataDir = path.join(os.tmpdir(), 'bible-e2e', `remote-semantic-${testInfo.workerIndex}`);
     fs.rmSync(userDataDir, { recursive: true, force: true });
     fs.mkdirSync(userDataDir, { recursive: true });
+    // The app is offline until the user allows web requests; the stub is a web request.
+    fs.mkdirSync(path.join(userDataDir, 'network'), { recursive: true });
+    fs.writeFileSync(path.join(userDataDir, 'network', 'config.json'), JSON.stringify({ allowNetwork: true }));
     const app = await electron.launch({
       args: ['--password-store=basic', '--no-sandbox', '--disable-dev-shm-usage', MAIN_JS_PATH],
       env: {
@@ -63,6 +66,13 @@ const test = base.extend<{ stub: Stub; app: ElectronApplication; window: Page }>
     if (await dialog.isVisible({ timeout: 5000 }).catch(() => false)) {
       await dialog.getByRole('button').last().click({ force: true });
       await dialog.waitFor({ state: 'hidden', timeout: 10000 }).catch(() => undefined);
+    }
+    // Fresh user data chains first-run dialogs ("Suggested study content", tour banner...); clear them.
+    for (let i = 0; i < 6; i++) {
+      const other = window.locator('[role="dialog"]:not([data-testid="remote-consent-dialog"])').first();
+      if (!(await other.isVisible({ timeout: 1500 }).catch(() => false))) break;
+      await other.getByRole('button').last().click({ force: true }).catch(() => undefined);
+      await window.waitForTimeout(300);
     }
     await use(window);
   },

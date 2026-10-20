@@ -473,7 +473,7 @@ const SearchResultsPane: React.FC<SearchResultsPaneProps> = ({ dockviewPanelApi 
         )}
 
         {/* Online meaning search note (task 0190); renders only when a notice came back. */}
-        {!isLoading && !error && hasQuery && isSemanticMode && semanticNote && (
+        {!isLoading && !error && hasQuery && (isSemanticMode || semanticNotice) && semanticNote && (
           <div
             className="px-md py-sm border-b border-accent-soft text-sm text-text-secondary"
             data-testid="semantic-note"

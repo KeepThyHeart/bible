@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { SearchResult, SearchOptions, SavedSearch, StrongsNumberHelper } from '@bible/core';
+import type { RemoteSemantic } from '@bible/core';
 import { searchAPI, dictionaryAPI, remoteSemanticAPI } from '../services/electronAPI';
 import type { RemoteSemanticStatus, RemoteConsentChoice, SemanticSearchExReply } from '../services/electronAPI';
 import { resolveOpenModuleAbbreviations, resolveInstalledModuleId, showSearchResultsPanel } from './crossStoreBridge';
@@ -539,6 +540,7 @@ export const useSearchStore = create<SearchState>((set, get) => ({
         isSemanticMode: get().autoSwitchedToSemantic ? false : get().isSemanticMode,
         autoSwitchedToSemantic: false,
         semanticResults: [],
+        semanticNotice: null,
         searchOptions: {
           ...get().searchOptions,
           proximityDistance: 0,
@@ -816,10 +818,17 @@ export const useSearchStore = create<SearchState>((set, get) => ({
       showSearchResultsPanel();
     } catch (error) {
       console.error('Semantic search failed:', error);
+      // With the online service configured, "nothing answered" means the user is
+      // on keyword search: leave semantic mode (not persisted) and say why.
+      const st = get().remoteSemanticStatus;
+      const fallbackNotice: RemoteSemantic.SemanticNotice | null = st?.configured
+        ? (st.consent === 'declined' ? { kind: 'declined' } : { kind: 'unavailable' })
+        : null;
       set({
         semanticResults: [],
         semanticSource: null,
-        semanticNotice: null,
+        semanticNotice: fallbackNotice,
+        ...(fallbackNotice ? { isSemanticMode: false, autoSwitchedToSemantic: false } : {}),
         semanticRateLimit: null,
         semanticVisibleCount: SEMANTIC_INITIAL_VISIBLE,
         isSemanticSearching: false,

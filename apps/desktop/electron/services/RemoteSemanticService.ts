@@ -23,6 +23,7 @@ import fs from 'fs';
 import path from 'path';
 import log from 'electron-log';
 import { RemoteSemantic } from '@bible/core';
+import { APP_CONFIG } from '../config/appConfig';
 import { getNetworkGateway, type INetworkGateway } from './NetworkGateway';
 
 export const CONSENT_KEY = 'remoteSemantic.consent';
@@ -183,8 +184,6 @@ export function getRemoteSemanticService(): RemoteSemanticService {
     // Required lazily: keeps `electron`'s `app` out of plain-Node test imports.
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const { app } = require('electron') as typeof import('electron');
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const { APP_CONFIG } = require('../config/appConfig') as typeof import('../config/appConfig');
     singleton = new RemoteSemanticService({
       url: APP_CONFIG.remoteSemantic.url,
       apiKey: APP_CONFIG.remoteSemantic.apiKey,

@@ -125,3 +125,25 @@ describe('performSemanticSearch consent gate', () => {
     expect(useSearchStore.getState().remoteSemanticStatus?.consent).toBe('unset');
   });
 });
+
+describe('when nothing answers a semantic search', () => {
+  it('falls back to keyword mode with the declined hint', async () => {
+    getStatusMock.mockResolvedValue(status('declined'));
+    semanticSearchExMock.mockRejectedValue(new Error('unavailable'));
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    useSearchStore.setState({ isSemanticMode: true });
+    await useSearchStore.getState().performSemanticSearch('love');
+    const s = useSearchStore.getState();
+    expect(s.isSemanticMode).toBe(false);
+    expect(s.semanticNotice).toEqual({ kind: 'declined' });
+  });
+  it('does not touch the mode when remote is not configured', async () => {
+    getStatusMock.mockResolvedValue(status('unset', false));
+    semanticSearchExMock.mockRejectedValue(new Error('unavailable'));
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    useSearchStore.setState({ isSemanticMode: true });
+    await useSearchStore.getState().performSemanticSearch('love');
+    expect(useSearchStore.getState().isSemanticMode).toBe(true);
+    expect(useSearchStore.getState().semanticNotice).toBeNull();
+  });
+});
