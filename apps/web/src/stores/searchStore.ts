@@ -2,7 +2,7 @@ import { Store } from './Store';
 import { bibleStore } from './bibleStore';
 import { parseReference, headerBookAliases } from '../components/Header';
 import { formatPassageRef } from '../constants';
-import { getLocalizer, stripBidiControls } from '@bible/core/browser';
+import { getLocalizer, stripBidiControls, type RemoteSemantic } from '@bible/core/browser';
 import i18n from '../i18n';
 import type { ISearchProvider } from '../providers/interfaces';
 import type { SearchResultData, SearchResultSet, WordFamilyMemberData } from '../types';
@@ -99,6 +99,11 @@ class SearchStore extends Store {
   searchedModule = '';
   /** For semantic searches: number of keyword matches found in parallel */
   keywordMatchCount = 0;
+  /**
+   * Semantic searches only: which provider answered and any note for the user
+   * (online meaning search: keyword fallback, daily limit, declined). Task 0190.
+   */
+  semanticMeta: RemoteSemantic.SemanticMeta | undefined = undefined;
   /** Modules used for the parallel keyword search (needed to switch) */
   private lastKeywordModules: string[] = [];
   /** Translation the current semantic results were hydrated in; see loadMoreSemantic. */
@@ -245,6 +250,7 @@ class SearchStore extends Store {
     this.isOpen = true;
     this.searchedModule = (this.searchType === 'keyword' && modules && modules.length > 0) ? modules[0] : '';
     this.keywordMatchCount = 0;
+    this.semanticMeta = undefined;
     this.lastKeywordModules = modules ?? [];
     // Kept so "load more" hydrates its extra page from the same translation as
     // the first one, rather than silently falling back to KJV halfway down.
@@ -289,6 +295,7 @@ class SearchStore extends Store {
 
         this.results = semanticResult.results;
         this.totalResults = semanticResult.total;
+        this.semanticMeta = semanticResult.semantic;
         // The whole match set, not the page the endpoint happened to return —
         // "N keyword matches" in the banner is a reason to switch modes, and
         // capping it at a page size understated it by orders of magnitude.
@@ -589,6 +596,7 @@ class SearchStore extends Store {
 
       this.results = resultSet.results;
       this.totalResults = resultSet.total;
+      this.semanticMeta = resultSet.semantic;
       // If we got fewer than requested, no more to load
       this.canLoadMore = resultSet.results.length >= this.semanticPageSize;
       this.loadingMore = false;
@@ -672,6 +680,7 @@ class SearchStore extends Store {
   private resetResults(): void {
     this.query = '';
     this.results = [];
+    this.semanticMeta = undefined;
     this.totalResults = 0;
     this.loading = false;
     this.loadingMore = false;

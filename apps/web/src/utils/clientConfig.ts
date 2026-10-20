@@ -12,6 +12,15 @@
  * calls `setClientConfig` sees the documented defaults instead.
  */
 
+/** The online meaning-search (bibsearch) settings the server hands the browser. */
+export interface RemoteSearchConfig {
+  via: 'server' | 'browser';
+  /** Bumped by the server when the consent notice changes. */
+  noticeVersion?: number;
+  url?: string;
+  apiKey?: string;
+}
+
 export interface ClientConfig {
   /** Whether the tag-graph (entities) feature is turned on for this deployment. */
   showTagGraph?: boolean;
@@ -26,7 +35,11 @@ export interface ClientConfig {
   pwaUpdate?: 'silent' | 'prompt';
   offlineDownloads?: boolean;
   offlineAutoDownload?: boolean;
-  search?: { semantic?: 'server' | 'browser' | 'off' };
+  search?: {
+    semantic?: 'server' | 'browser' | 'off' | 'remote';
+    /** Present when `semantic` is 'remote'. `url`/`apiKey` only for `via: 'browser'`. */
+    remote?: RemoteSearchConfig;
+  };
   /** Audio Bible settings; absent unless the operator turned the feature on. */
   audio?: unknown;
   repoUrl?: string;

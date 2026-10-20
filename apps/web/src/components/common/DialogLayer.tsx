@@ -5,6 +5,7 @@ import { CopyDialog } from '../Dialogs/CopyDialog';
 import { StrongsPopup } from '../Dialogs/StrongsPopup';
 import { StrongsTooltip } from '../Dialogs/StrongsTooltip';
 import { SemanticSearchLoadingOverlay } from './SemanticSearchLoadingOverlay';
+import { RemoteConsentDialog } from './RemoteConsentDialog';
 import type { StrongsEntryData } from '../../types';
 
 interface DialogLayerProps {
@@ -61,6 +62,7 @@ export function DialogLayer({
         position={strongsTooltip?.position ?? null}
       />
       <SemanticSearchLoadingOverlay />
+      <RemoteConsentDialog />
     </>
   );
 }

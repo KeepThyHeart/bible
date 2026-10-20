@@ -4,7 +4,8 @@ import { settingsStore } from '../stores/settingsStore';
 import { API_BASE } from '../utils/apiUrl';
 import { navigateToLoginOnce, showBootError } from '../utils/bootGuard';
 import { bootFetch } from '../utils/bootPrefetch';
-import { pwaFlag, pwaUpdateMode, setClientConfig } from '../utils/clientConfig';
+import { remoteConsentStore } from '../search/remote/consentStore';
+import { pwaFlag, pwaUpdateMode, setClientConfig, type RemoteSearchConfig } from '../utils/clientConfig';
 import { applyUpdateIfStale, registerServiceWorker, unregisterServiceWorkers } from '../utils/appUpdate';
 import i18n, { ensureLocaleLoaded } from '../i18n';
 import { installBidiCopy } from '../utils/bidiCopy';
@@ -35,7 +36,8 @@ export async function bootShell(): Promise<ShellContext | null> {
   let offlineAutoDownload = true;
   // Where semantic search runs. Server advertises this via /api/config; default
   // to 'browser' so the app works even if the server declares nothing.
-  let semanticMode: 'server' | 'browser' | 'off' = 'browser';
+  let semanticMode: 'server' | 'browser' | 'off' | 'remote' = 'browser';
+  let remoteSearch: RemoteSearchConfig | undefined;
 
   const healthPromise = bootFetch(`${baseUrl}/api/health`)
     .then(async (res) => {
@@ -89,8 +91,22 @@ export async function bootShell(): Promise<ShellContext | null> {
     if (cfg.ui) settingsStore.applyServerUiConfig(cfg.ui);
     if (cfg.offlineDownloads) settingsStore.setServerOfflineDownloads(true);
     if (cfg.offlineAutoDownload === false) offlineAutoDownload = false;
-    if (cfg.search?.semantic) semanticMode = cfg.search.semantic;
+    if (cfg.search?.semantic === 'remote') {
+      // A remote mode without its settings cannot search; treat it as off.
+      semanticMode = cfg.search.remote ? 'remote' : 'off';
+      remoteSearch = cfg.search.remote;
+    } else if (cfg.search?.semantic) {
+      semanticMode = cfg.search.semantic;
+    }
   }
+
+  // Remote meaning search: tell the consent store before any search can run.
+  // Reads localStorage, sends nothing.
+  remoteConsentStore.configure(
+    semanticMode === 'remote' && remoteSearch
+      ? { via: remoteSearch.via, noticeVersion: remoteSearch.noticeVersion }
+      : null,
+  );
 
   // Service worker first, so a browser running a stale build starts pulling the
   // new worker before any of the app's own code has a chance to misbehave.
@@ -117,6 +133,7 @@ export async function bootShell(): Promise<ShellContext | null> {
     serverStaleDays,
     offlineAutoDownload,
     semanticMode,
+    remoteSearch,
     localeReady,
   };
 

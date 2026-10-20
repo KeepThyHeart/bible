@@ -5,6 +5,7 @@ import { commentaryStore } from '../../stores/commentaryStore';
 import { bibleStore } from '../../stores/bibleStore';
 import { offlineStore } from '../../stores/offlineStore';
 import { useStore } from '../../hooks/useStore';
+import { SemanticNote } from './SemanticNote';
 import { SearchResultItem } from './SearchResultItem';
 import { SearchDistributionChart, type SearchDistributionMode } from './SearchDistributionChart';
 import { parseVerseId } from '../../utils/verseId';
@@ -48,6 +49,7 @@ export function SearchResultsPanel({ onNavigate, onOpenStrongsEntry }: SearchRes
   const totalResults = useStore(searchStore, () => searchStore.totalResults);
   const searchType = useStore(searchStore, () => searchStore.searchType);
   const searchedModule = useStore(searchStore, () => searchStore.searchedModule);
+  const semanticMeta = useStore(searchStore, () => searchStore.semanticMeta);
   const keywordMatchCount = useStore(searchStore, () => searchStore.keywordMatchCount);
   const canLoadMore = useStore(searchStore, () => searchStore.canLoadMore);
   const loadingMore = useStore(searchStore, () => searchStore.loadingMore);
@@ -346,7 +348,8 @@ export function SearchResultsPanel({ onNavigate, onOpenStrongsEntry }: SearchRes
             {t('search.searching')}
           </div>
         )}
-        {!loading && searchType === 'semantic' && keywordMatchCount > 0 && results.length > 0 && (
+        {!loading && searchType === 'semantic' && <SemanticNote meta={semanticMeta} />}
+        {!loading && searchType === 'semantic' && keywordMatchCount > 0 && results.length > 0 && semanticMeta?.source !== 'keyword' && (
           <div class="search-panel-inline__keyword-banner">
             {t('search.keywordBanner', { count: keywordMatchCount })}{' '}
             <button

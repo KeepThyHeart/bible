@@ -921,5 +921,31 @@
     "quiz": {
       "title": "Quiz"
     }
+  },
+  "remoteSemantic": {
+    "consent": {
+      "title": "Meaning-based search uses an online service",
+      "body": "To find verses by meaning, your search words are sent to our search service, which uses an outside AI provider to work out what they mean. They are sent without your name or account.",
+      "ipNotice": "Your IP address is visible to the service, as with any website.",
+      "neverSent": "Your Bible reading, notes and other data are never sent.",
+      "agree": "Agree and search",
+      "decline": "Not now"
+    },
+    "note": {
+      "declined": "Meaning search is off. You can turn it on in Settings.",
+      "degraded": "Showing keyword results (the meaning service was unavailable).",
+      "quota": "Daily limit for meaning search reached. It resets at {time}. Showing keyword results.",
+      "quotaNoTime": "Daily limit for meaning search reached. Showing keyword results.",
+      "paused": "Meaning search is paused for a while. Showing keyword results.",
+      "unavailable": "Meaning search is unavailable right now. Showing keyword results.",
+      "rephrase": "Try a longer or different phrase for meaning search. Showing keyword results."
+    },
+    "settings": {
+      "title": "Search",
+      "toggle": "Use online meaning search",
+      "statusUnset": "Not active until you agree on first use",
+      "statusGranted": "On. You agreed on {date}.",
+      "statusDeclined": "Off"
+    }
   }
 }
