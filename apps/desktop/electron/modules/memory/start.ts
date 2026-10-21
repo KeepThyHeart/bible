@@ -9,6 +9,8 @@ import { openHardenedExtensionDatabase } from '../../extensions/ExtensionSqlGuar
 import type { MainModuleDeps } from '../FeatureMainModule';
 import type { IRemindersApi, MemoryPush } from '@bible/memory/core';
 import { createDesktopBibleApi } from './desktopBible';
+import { pickDefaultBible } from '../../ipc/defaultBible';
+import { getSharedModuleMetadataRepo } from '../../services/sharedMainDb';
 import { createDesktopSpeech } from './desktopSpeech';
 import { memoryMainT } from './mainT';
 import { legacyMemoryDbPath, startMemoryRuntime, type MemoryRuntime } from './runtime';
@@ -25,6 +27,18 @@ export function startDesktopMemory(
     // Read-only, `query_only`, `trusted_schema` off: the file was written by an extension.
     openReadOnly: (path) => openHardenedExtensionDatabase(path, { readonly: true }),
     bible: createDesktopBibleApi(deps.getWindows),
+    // The reader's default translation (KJV when installed), not the first installed module.
+    preferredModule: () => {
+      try {
+        return pickDefaultBible(
+          getSharedModuleMetadataRepo()
+            .getByType('bible')
+            .map((m) => ({ abbreviation: m.abbreviation || m.getAbbreviation() })),
+        );
+      } catch {
+        return null; // fall back to the first installed module
+      }
+    },
     speech: createDesktopSpeech(),
     ...(extras.reminders ? { reminders: extras.reminders } : {}),
     ...(deps.getExtensions ? { getExtensions: deps.getExtensions } : {}),

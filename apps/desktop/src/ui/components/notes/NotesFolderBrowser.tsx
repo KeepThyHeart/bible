@@ -5,6 +5,7 @@ import { RecentFile } from '../../stores/useFileNotesStore';
 import { BreadcrumbSegment } from './NotesBreadcrumb';
 import { useI18n } from '../../contexts/useI18n';
 import { anchorAtPointerX } from '../../utils/overlayPosition';
+import { deleteKey, revealKey } from '../../utils/platformLabels';
 import PaneEmptyState from '../onboarding/PaneEmptyState';
 
 interface NotesFolderBrowserProps {
@@ -636,7 +637,7 @@ const NotesFolderBrowser: React.FC<NotesFolderBrowserProps> = ({
                 onClick={() => onDelete(contextMenu.entry)}
                 className="w-full px-4 py-1.5 text-sm text-start hover:bg-background-hover"
               >
-                {t('notesFolderBrowser.menuDelete')}
+                {t(deleteKey('notesFolderBrowser.menuDelete'))}
               </button>
             </>
           )}
@@ -647,7 +648,7 @@ const NotesFolderBrowser: React.FC<NotesFolderBrowserProps> = ({
               onClick={() => onDelete(contextMenu.entry)}
               className="w-full px-4 py-1.5 text-sm text-start hover:bg-background-hover"
             >
-              {t('notesFolderBrowser.menuDelete')}
+              {t(deleteKey('notesFolderBrowser.menuDelete'))}
             </button>
           )}
           {/* "Move to..." is the discoverable half of a feature that already
@@ -674,7 +675,7 @@ const NotesFolderBrowser: React.FC<NotesFolderBrowserProps> = ({
             onClick={() => onOpenInExplorer(contextMenu.entry.path)}
             className="w-full px-4 py-1.5 text-sm text-start hover:bg-background-hover"
           >
-            {t('notesFolderBrowser.menuReveal')}
+            {t(revealKey('notesFolderBrowser.menuReveal'))}
           </button>
         </div>
       )}

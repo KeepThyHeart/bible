@@ -352,6 +352,7 @@
       "refreshApp": "‏Refresh App‏",
       "resetCache": "‏Reset app cache‏",
       "resetCacheHint": "‏Clears this app's saved files and the background service worker on this device, then reloads. Use it if the app looks out of date or misbehaves. Your settings, downloaded modules and notes are kept.‏",
+      "resetCacheConfirm": "Reset the app cache? The app reloads and re-downloads its files; your settings and downloaded modules are kept.",
       "appName": "‏Bible Study App‏",
       "description": "‏A modern, open-source Bible study application designed for in-depth Scripture reading and research.‏",
       "license": "‏Licensed under the <strong>GNU General Public License v3.0</strong> (GPL-3.0).‏",

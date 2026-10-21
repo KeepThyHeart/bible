@@ -2,7 +2,7 @@ import { dialog, BrowserWindow } from 'electron';
 import log from 'electron-log/main';
 import { readFile } from 'fs/promises';
 import { extname } from 'path';
-import { BibleNotesFileService, BnFile, NoteConflictError } from '../services/BibleNotesFileService';
+import { BibleNotesFileService, BnFile, NoteConflictError, NoteMissingError } from '../services/BibleNotesFileService';
 import { ipcHandler, IpcKnownError } from './handler-helper';
 import { blessPath, isPathBlessed, isPathWithin } from './blessedPaths';
 import { t } from '../services/MainI18n';
@@ -35,6 +35,9 @@ function getService(): BibleNotesFileService {
 function toConflictError(err: unknown): unknown {
   if (err instanceof NoteConflictError) {
     return new IpcKnownError('conflict', err.message);
+  }
+  if (err instanceof NoteMissingError) {
+    return new IpcKnownError('not_found', err.message);
   }
   return err;
 }

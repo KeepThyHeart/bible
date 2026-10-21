@@ -216,15 +216,30 @@ describe('useNoteFileActions - PDF export wiring', () => {
     expect(args.setFileError).toHaveBeenCalledWith(expect.stringContaining('disk full'));
   });
 
-  // A cancelled save dialog answers `{ success: true }`: the user asked for
-  // nothing to happen, and nothing happened. No banner.
+  // A cancelled save dialog answers `{ success: false, canceled: true }`: the
+  // user asked for nothing to happen, and nothing happened. No banner.
   it('says nothing when the save dialog is cancelled', async () => {
+    exportNotePdf.mockResolvedValue({ success: false, canceled: true });
     const args = baseArgs();
     const { result } = renderHook(() => useNoteFileActions(args));
 
     await result.current.handleExportPdf();
 
     expect(args.setFileError).not.toHaveBeenCalled();
+  });
+
+  it('says nothing when the print dialog is cancelled, and reports a real print failure', async () => {
+    const printNote = fileNotesAPI.printNote as ReturnType<typeof vi.fn>;
+    const args = baseArgs();
+    const { result } = renderHook(() => useNoteFileActions(args));
+
+    printNote.mockResolvedValue({ success: false, canceled: true });
+    await result.current.handlePrint();
+    expect(args.setFileError).not.toHaveBeenCalled();
+
+    printNote.mockResolvedValue({ success: false, error: 'no printer' });
+    await result.current.handlePrint();
+    expect(args.setFileError).toHaveBeenCalledWith(expect.stringContaining('no printer'));
   });
 
   it('does nothing at all with no note open', async () => {

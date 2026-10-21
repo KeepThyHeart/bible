@@ -608,6 +608,8 @@
   "userNotesPane.recentTab": "最近",
   "userNotesPane.renameLabel": "重命名",
   "userNotesPane.revealInExplorerLabel": "在文件资源管理器中显示",
+  "userNotesPane.revealInExplorerLabelMac": "在访达中显示",
+  "userNotesPane.revealInExplorerLabelOther": "在文件管理器中显示",
   "userNotesPane.rootFolder": "（根目录）",
   "userNotesPane.saveAsLabel": "另存为...",
   "userNotesPane.savedStatus": "已保存",
@@ -663,10 +665,13 @@
   "notesFolderBrowser.filterPlaceholder": "在 /{path} 中查找笔记",
   "notesFolderBrowser.filterPlaceholderHome": "在 /Home 中查找笔记",
   "notesFolderBrowser.menuDelete": "删除（回收站）",
+  "notesFolderBrowser.menuDeleteTrash": "删除（废纸篓）",
   "notesFolderBrowser.menuExport": "导出到...",
   "notesFolderBrowser.menuOpen": "打开",
   "notesFolderBrowser.menuRename": "重命名",
   "notesFolderBrowser.menuReveal": "在文件资源管理器中显示",
+  "notesFolderBrowser.menuRevealMac": "在访达中显示",
+  "notesFolderBrowser.menuRevealOther": "在文件管理器中显示",
   "notesFolderBrowser.protectedFolder": "受保护的文件夹",
   "notesFolderBrowser.relativeTime.justNow": "刚刚",
   "notesFolderBrowser.relativeTime.minuteAgo": "1 分钟前",
@@ -2303,5 +2308,8 @@
   "apps.extension.closeApp": "关闭{app}",
   "apps.extension.settingsFor": "{app}设置",
   "apps.quiz.title": "测验",
-  "apps.readingPlans.title": "读经计划"
+  "apps.readingPlans.title": "读经计划",
+  "userNotesPane.backToNote": "Back to {title}",
+  "commentaryContentArea.loadError": "Could not load this commentary.",
+  "commentaryContentArea.retry": "Retry"
 }

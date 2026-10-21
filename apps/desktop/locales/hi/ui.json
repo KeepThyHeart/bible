@@ -608,6 +608,8 @@
   "userNotesPane.recentTab": "हाल की",
   "userNotesPane.renameLabel": "नाम बदलें",
   "userNotesPane.revealInExplorerLabel": "एक्सप्लोरर में दिखाएँ",
+  "userNotesPane.revealInExplorerLabelMac": "Finder में दिखाएँ",
+  "userNotesPane.revealInExplorerLabelOther": "फ़ाइल मैनेजर में दिखाएँ",
   "userNotesPane.rootFolder": "(मूल)",
   "userNotesPane.saveAsLabel": "इस रूप में सहेजें...",
   "userNotesPane.savedStatus": "सहेजा गया",
@@ -663,10 +665,13 @@
   "notesFolderBrowser.filterPlaceholder": "/{path} में टिप्पणियाँ खोजें",
   "notesFolderBrowser.filterPlaceholderHome": "/Home में टिप्पणियाँ खोजें",
   "notesFolderBrowser.menuDelete": "हटाएँ (रीसायकल बिन)",
+  "notesFolderBrowser.menuDeleteTrash": "हटाएँ (ट्रैश)",
   "notesFolderBrowser.menuExport": "यहाँ निर्यात करें...",
   "notesFolderBrowser.menuOpen": "खोलें",
   "notesFolderBrowser.menuRename": "नाम बदलें",
   "notesFolderBrowser.menuReveal": "एक्सप्लोरर में दिखाएँ",
+  "notesFolderBrowser.menuRevealMac": "Finder में दिखाएँ",
+  "notesFolderBrowser.menuRevealOther": "फ़ाइल मैनेजर में दिखाएँ",
   "notesFolderBrowser.protectedFolder": "सुरक्षित फ़ोल्डर",
   "notesFolderBrowser.relativeTime.justNow": "अभी-अभी",
   "notesFolderBrowser.relativeTime.minuteAgo": "1 मिनट पहले",
@@ -2301,5 +2306,8 @@
   "apps.extension.closeApp": "{app} बंद करें",
   "apps.extension.settingsFor": "{app} सेटिंग्स",
   "apps.quiz.title": "प्रश्नोत्तरी",
-  "apps.readingPlans.title": "पठन योजनाएँ"
+  "apps.readingPlans.title": "पठन योजनाएँ",
+  "userNotesPane.backToNote": "Back to {title}",
+  "commentaryContentArea.loadError": "Could not load this commentary.",
+  "commentaryContentArea.retry": "Retry"
 }

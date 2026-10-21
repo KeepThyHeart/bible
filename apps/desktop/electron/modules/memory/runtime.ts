@@ -72,6 +72,8 @@ export interface MemoryRuntimeDeps {
   t?: Translate;
   /** Bring the Memory app forward (a notification click while the core runs). */
   openApp?(): void;
+  /** The reader's translation, for passages typed in Manage Passages. */
+  preferredModule?(): string | null | undefined;
   readonly log: ModuleLogger;
   now?(): number;
   /** Retiring re-checks the extension host this often (default `RETIRE_RETRY_MS`). */
@@ -131,6 +133,7 @@ export async function startMemoryRuntime(deps: MemoryRuntimeDeps): Promise<Memor
     ...(deps.t ? { t: deps.t } : {}),
     log: deps.log,
     ...(deps.openApp ? { openApp: deps.openApp } : {}),
+    ...(deps.preferredModule ? { preferredModule: deps.preferredModule } : {}),
     ...(deps.now ? { now: deps.now } : {}),
     legacy: {
       available: legacyAvailable,

@@ -8,6 +8,7 @@ import { htmlToMarkdown } from '../../../../utils/exportNote';
 import { sanitizeHtml } from '../../../../utils/sanitize';
 import { IpcResultError, unwrap } from '../../../../services/ipcResult';
 import { escapeHtmlText, isAbsolutePath } from '../utils';
+import { MISSING_MESSAGE } from './noteSave';
 
 interface UseNoteFileActionsArgs {
   currentNote: BnFile | null;
@@ -23,7 +24,7 @@ interface UseNoteFileActionsArgs {
 export interface NoteFileActions {
   handleSaveNote: () => Promise<void>;
   handleSaveAs: () => Promise<void>;
-  handlePrint: () => void;
+  handlePrint: () => Promise<void>;
   handleExportPdf: () => Promise<void>;
   handleExportMarkdown: () => Promise<void>;
   handleExportDocx: () => Promise<void>;
@@ -137,6 +138,11 @@ export function useNoteFileActions(args: UseNoteFileActionsArgs): NoteFileAction
         );
         return;
       }
+      if (err instanceof IpcResultError && err.code === 'not_found') {
+        // Renamed, moved or trashed since it was opened: never re-create it.
+        setFileError(MISSING_MESSAGE);
+        return;
+      }
       setFileError(`Could not save: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setIsSaving(false);
@@ -170,10 +176,18 @@ export function useNoteFileActions(args: UseNoteFileActionsArgs): NoteFileAction
     }
   }, [currentNote, editorContent, setFileError]);
 
-  const handlePrint = useCallback(() => {
+  const handlePrint = useCallback(async () => {
     if (!currentNote) return;
-    void fileNotesAPI.printNote(buildNoteDocumentHtml(currentNote.title, editorContent));
-  }, [currentNote, editorContent]);
+    try {
+      const result = await fileNotesAPI.printNote(buildNoteDocumentHtml(currentNote.title, editorContent));
+      // A dismissed print dialog is `canceled`, not a failure and not a success.
+      if (result && !result.success && !result.canceled) {
+        setFileError(`Print failed: ${result.error ?? 'unknown error'}`);
+      }
+    } catch (err: unknown) {
+      setFileError(`Print failed: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }, [currentNote, editorContent, setFileError]);
 
   const handleExportPdf = useCallback(async () => {
     if (!currentNote) return;
@@ -184,7 +198,7 @@ export function useNoteFileActions(args: UseNoteFileActionsArgs): NoteFileAction
     // This channel answers with `{ success, error }` rather than throwing, so
     // there is nothing to catch - a failed render or a failed write arrives as
     // a message to show.
-    if (!result.success) {
+    if (!result.success && !result.canceled) {
       setFileError(`Export failed: ${result.error ?? 'unknown error'}`);
     }
   }, [currentNote, editorContent, setFileError]);

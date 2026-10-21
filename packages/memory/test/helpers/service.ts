@@ -28,6 +28,7 @@ export interface StartOptions {
   openSettings?: MemoryServiceOptions['openSettings'];
   log?: MemoryServiceOptions['log'];
   now?: () => number;
+  preferredModule?: MemoryServiceOptions['preferredModule'];
 }
 
 const started: MemoryService[] = [];
@@ -51,6 +52,7 @@ export async function startTestService(o: StartOptions = {}) {
     openSettings: o.openSettings,
     log: o.log ?? quietLog,
     ...(o.now ? { now: o.now } : {}),
+    ...(o.preferredModule ? { preferredModule: o.preferredModule } : {}),
   });
   started.push(svc);
   return {

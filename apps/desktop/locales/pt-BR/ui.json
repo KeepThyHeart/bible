@@ -608,6 +608,8 @@
   "userNotesPane.recentTab": "Recentes",
   "userNotesPane.renameLabel": "Renomear",
   "userNotesPane.revealInExplorerLabel": "Mostrar no Explorador de Arquivos",
+  "userNotesPane.revealInExplorerLabelMac": "Mostrar no Finder",
+  "userNotesPane.revealInExplorerLabelOther": "Mostrar no gerenciador de arquivos",
   "userNotesPane.rootFolder": "(Raiz)",
   "userNotesPane.saveAsLabel": "Salvar como...",
   "userNotesPane.savedStatus": "Salvo",
@@ -663,10 +665,13 @@
   "notesFolderBrowser.filterPlaceholder": "Encontrar notas em /{path}",
   "notesFolderBrowser.filterPlaceholderHome": "Encontrar notas em /Home",
   "notesFolderBrowser.menuDelete": "Excluir (lixeira)",
+  "notesFolderBrowser.menuDeleteTrash": "Excluir (lixeira)",
   "notesFolderBrowser.menuExport": "Exportar para...",
   "notesFolderBrowser.menuOpen": "Abrir",
   "notesFolderBrowser.menuRename": "Renomear",
   "notesFolderBrowser.menuReveal": "Mostrar no Explorador de Arquivos",
+  "notesFolderBrowser.menuRevealMac": "Mostrar no Finder",
+  "notesFolderBrowser.menuRevealOther": "Mostrar no gerenciador de arquivos",
   "notesFolderBrowser.protectedFolder": "Pasta protegida",
   "notesFolderBrowser.relativeTime.justNow": "Agora mesmo",
   "notesFolderBrowser.relativeTime.minuteAgo": "Há 1 minuto",
@@ -2301,5 +2306,8 @@
   "apps.extension.closeApp": "Fechar {app}",
   "apps.extension.settingsFor": "Configurações de {app}",
   "apps.quiz.title": "Questionário",
-  "apps.readingPlans.title": "Planos de leitura"
+  "apps.readingPlans.title": "Planos de leitura",
+  "userNotesPane.backToNote": "Back to {title}",
+  "commentaryContentArea.loadError": "Could not load this commentary.",
+  "commentaryContentArea.retry": "Retry"
 }

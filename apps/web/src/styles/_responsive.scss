@@ -41,9 +41,10 @@
     // Keep the whole header inside the viewport on a phone (390px): the logo
     // gives way (ellipsis) and the action buttons tighten instead of pushing
     // the last one (Settings) off the right edge.
+    // The title keeps priority at large text sizes: it never shrinks below a few characters.
     &__logo {
-      min-inline-size: 0;
-      flex: 0 1 auto;
+      min-inline-size: 6ch;
+      flex: 1 1 auto;
       overflow: hidden;
     }
 
@@ -59,7 +60,9 @@
     }
 
     &__actions {
-      flex-shrink: 0;
+      flex-shrink: 1;
+      min-inline-size: 0;
+      flex-wrap: wrap;
       gap: 0;
     }
 

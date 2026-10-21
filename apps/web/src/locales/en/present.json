@@ -74,6 +74,8 @@
     "leave": "Stop controlling",
     "leaveHint": "Stopping leaves the screen as it is. Ending clears it for everyone.",
     "end": "End session",
+    "liveNote": "The wall stays live until you end it, even if you close the browser.",
+    "followUnknown": "This code is unknown or has expired.",
     "endConfirm": "End the session and clear the screen?",
     "endYes": "End it",
     "hymns": "Hymns",

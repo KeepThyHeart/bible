@@ -10,7 +10,7 @@
 import { describe, it, expect, afterEach } from 'vitest';
 
 import { versesFromMenuArgs } from '../src/core/service';
-import { disposeAll, startTestService, call } from './helpers/service';
+import { disposeAll, startTestService, call, MODULE_KJV } from './helpers/service';
 import type { PlanView } from '../src/core/types';
 
 afterEach(disposeAll);
@@ -98,6 +98,17 @@ describe('MemoryService.addVerses', () => {
     const plan0 = await svc.addVerses({ verseIds: [43003016], module: 'NOPE' });
     const plan = await call<PlanView>(svc, { type: 'getPlan' });
     expect(plan.passages.find((p) => p.passage.id === plan0.passageId)?.passage.moduleId).toBe('KJV');
+  });
+
+  it('records against the reader translation (preferredModule), not the first installed module', async () => {
+    const asv = { ...MODULE_KJV, id: 'ASV', abbreviation: 'ASV', moduleId: 'ASV' };
+    const { svc } = await startTestService({
+      bible: { listModules: async () => [asv, MODULE_KJV] },
+      preferredModule: () => 'KJV',
+    });
+    const r = await svc.addVerses({ verseIds: [43003016] });
+    const plan = await call<PlanView>(svc, { type: 'getPlan' });
+    expect(plan.passages.find((p) => p.passage.id === r.passageId)?.passage.moduleId).toBe('KJV');
   });
 
   it('refuses an empty selection with a readable error', async () => {

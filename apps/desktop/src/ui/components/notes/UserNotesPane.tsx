@@ -10,7 +10,7 @@ import { useNoteEditorStore } from '../../stores/useNoteEditorStore';
 import { useFileNotesStore, type NotesSideTab } from '../../stores/useFileNotesStore';
 import { DEFAULT_PANEL_ID } from '../../stores/helpers/panelStateHelpers';
 
-import { VERSE_NOTES_FOLDER, isInVerseNotesFolderPath } from './UserNotesPane/utils';
+import { VERSE_NOTES_FOLDER, isInVerseNotesFolderPath, isAbsolutePath } from './UserNotesPane/utils';
 import { useNotesAutoSave } from './UserNotesPane/hooks/useNotesAutoSave';
 import { useActiveNoteFlush } from './UserNotesPane/hooks/useActiveNoteFlush';
 import { useVerseNavigationListeners } from './UserNotesPane/hooks/useVerseNavigationListeners';
@@ -164,8 +164,47 @@ const UserNotesPane: React.FC<UserNotesPaneProps> = ({
     setSideTab,
   });
 
+  // Opening or creating another note replaces the one in this pane. Remember the
+  // note just left so the editor header can offer a way back to it (its unsaved
+  // edits are saved first - see useNotesAutoSave).
+  const [previousNote, setPreviousNote] = useState<{ path: string; title: string } | null>(null);
+  const lastOpenedRef = useRef<{ path: string; title: string } | null>(null);
+  const lastNoteObjRef = useRef<unknown>(null);
+  useEffect(() => {
+    const prev = lastOpenedRef.current;
+    // A move/rename changes only the path (same note object): not "another note".
+    if (prev && prev.path !== currentNotePath && currentNotePath && lastNoteObjRef.current !== currentNote
+      && !isAbsolutePath(prev.path)) {
+      setPreviousNote(prev);
+    } else if (!prev && currentNotePath && currentNote) {
+      // Arrived from the browser (no note was open): any earlier "back" target is stale.
+      setPreviousNote(null);
+    }
+    lastNoteObjRef.current = currentNote;
+    lastOpenedRef.current = currentNotePath && currentNote
+      ? { path: currentNotePath, title: currentNote.title }
+      : null;
+  }, [currentNotePath, currentNote]);
+
+  // Hide the way back when its note was moved, renamed or deleted meanwhile, and
+  // keep the label equal to the target's real title.
+  const previousPath = previousNote?.path;
+  useEffect(() => {
+    if (!previousPath) return;
+    let cancelled = false;
+    fileNotesAPI.readNote(previousPath).then(
+      note => {
+        if (cancelled) return;
+        if (!note) setPreviousNote(null);
+        else setPreviousNote(p => (p && p.path === previousPath && p.title !== note.title ? { ...p, title: note.title } : p));
+      },
+      () => { if (!cancelled) setPreviousNote(null); }
+    );
+    return () => { cancelled = true; };
+  }, [previousPath, currentNotePath]);
+
   // Auto-save
-  useNotesAutoSave({ view, currentNote, currentNotePath, setCurrentNote, setIsSaving });
+  useNotesAutoSave({ view, currentNote, currentNotePath, setCurrentNote, setIsSaving, setFileError });
 
   // Flush the active note to disk on window close / unload (the renderer is
   // destroyed before auto-save's unmount cleanup can run during a real quit).
@@ -208,6 +247,7 @@ const UserNotesPane: React.FC<UserNotesPaneProps> = ({
   } = useNoteCrud({
     currentPath,
     currentNotePath,
+    currentNote,
     loadDirectory,
     setCurrentNote,
     setCurrentNotePath,
@@ -357,6 +397,8 @@ const UserNotesPane: React.FC<UserNotesPaneProps> = ({
                   titleEditable={currentNote.type !== 'verse_note'}
                   onPopOut={handlePopOut}
                   notePath={currentNotePath}
+                  previousNote={previousNote && previousNote.path !== currentNotePath ? previousNote : null}
+                  onBackToPrevious={() => { if (previousNote) void handleOpenNote(previousNote.path); }}
                   // The same four actions the sidebar offers, also in the
                   // editor toolbar - the sidebar is collapsed by default in
                   // the editor, so until now "print this note" was behind a
@@ -377,7 +419,9 @@ const UserNotesPane: React.FC<UserNotesPaneProps> = ({
       <ConfirmDialog
         open={deleteTarget !== null}
         title={t('userNotesPane.deleteConfirm.title')}
-        message={t('userNotesPane.deleteConfirm.message', { name: deleteTarget?.name ?? '' })}
+        message={deleteTarget?.isDirectory
+          ? t('userNotesPane.deleteConfirm.folderMessage', { name: deleteTarget.name })
+          : t('userNotesPane.deleteConfirm.message', { name: deleteTarget?.name ?? '' })}
         confirmLabel={t('userNotesPane.deleteConfirm.confirm')}
         destructive
         onConfirm={() => {

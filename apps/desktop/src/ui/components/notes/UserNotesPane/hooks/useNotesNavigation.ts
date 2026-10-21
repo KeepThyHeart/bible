@@ -1,4 +1,5 @@
 import { useCallback } from 'react';
+import { useI18n } from '../../../../contexts/useI18n';
 import * as fileNotesAPI from '../../../../services/fileNotesAPI';
 import { FileEntry, BnFile } from '../../../../services/fileNotesAPI';
 import { useFileNotesStore } from '../../../../stores/useFileNotesStore';
@@ -37,6 +38,7 @@ interface NotesNavigationApi {
  * editor-only helpers (rename-current-note, pop-out) that sit alongside.
  */
 export function useNotesNavigation(args: UseNotesNavigationArgs): NotesNavigationApi {
+  const { t } = useI18n();
   const {
     panelId,
     view,
@@ -66,6 +68,9 @@ export function useNotesNavigation(args: UseNotesNavigationArgs): NotesNavigatio
   }, [setEntries, setCurrentPath, setView, setFileError]);
 
   const handleOpenNote = useCallback(async (relativePath: string) => {
+    // Re-opening the note already open with unsaved edits: keep the editor as it
+    // is. Reading the disk copy would replace the edits with stale text.
+    if (view === 'editor' && editorIsDirty && relativePath === currentNotePath) return;
     try {
       const note = await fileNotesAPI.readNote(relativePath);
       if (note) {
@@ -78,7 +83,7 @@ export function useNotesNavigation(args: UseNotesNavigationArgs): NotesNavigatio
     } catch (err: unknown) {
       setFileError(`Failed to open note: ${err instanceof Error ? err.message : String(err)}`);
     }
-  }, [setCurrentNote, setCurrentNotePath, setView, setFileError]);
+  }, [view, editorIsDirty, currentNotePath, setCurrentNote, setCurrentNotePath, setView, setFileError]);
 
   const handleBreadcrumbNavigate = useCallback((navPath: string) => {
     if (view === 'editor' && editorIsDirty) {
@@ -88,7 +93,7 @@ export function useNotesNavigation(args: UseNotesNavigationArgs): NotesNavigatio
   }, [view, editorIsDirty, handleSaveNote, loadDirectory]);
 
   const buildBreadcrumbs = useCallback((): BreadcrumbSegment[] => {
-    const segments: BreadcrumbSegment[] = [{ label: 'Home', path: '' }];
+    const segments: BreadcrumbSegment[] = [{ label: t('userNotesPane.breadcrumbHome'), path: '' }];
     if (!currentPath) return segments;
     const normalizedPath = currentPath.replace(/\\/g, '/');
     const parts = normalizedPath.split('/').filter(Boolean);
@@ -98,7 +103,7 @@ export function useNotesNavigation(args: UseNotesNavigationArgs): NotesNavigatio
       segments.push({ label: part, path: accumulated });
     }
     return segments;
-  }, [currentPath]);
+  }, [currentPath, t]);
 
   const buildEditorBreadcrumbs = useCallback((): BreadcrumbSegment[] => {
     const base = buildBreadcrumbs();
