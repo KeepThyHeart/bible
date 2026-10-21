@@ -11,6 +11,7 @@ import { SettingsForm } from '@bible/ui';
 import { useI18n } from '../../contexts/useI18n';
 import { DESKTOP_SETTINGS, getDesktopSettingsStore } from '../../settings/desktopSettings';
 import { isEnabled } from '../../settings/featureFlags';
+import { useBackupStore } from '../../stores/useBackupStore';
 
 export const AdvancedSection: React.FC = () => {
   const { t } = useI18n();
@@ -31,6 +32,20 @@ export const AdvancedSection: React.FC = () => {
           store.set(key, value);
         }}
       />
+      <div className="mt-6 pt-4" style={{ borderTop: '1px solid var(--theme-border-primary)' }}>
+        <p className="text-sm mb-2" style={{ color: 'var(--theme-text-secondary)' }}>
+          {t('backupRestoreDialog.preferencesHint')}
+        </p>
+        <button
+          type="button"
+          onClick={() => useBackupStore.getState().openDialog()}
+          className="px-4 py-2 rounded text-sm font-medium"
+          style={{ border: '1px solid var(--theme-accent-primary)', color: 'var(--theme-accent-primary)' }}
+          data-testid="preferences-open-backup"
+        >
+          {t('backupRestoreDialog.openFromPreferences')}
+        </button>
+      </div>
     </div>
   );
 };

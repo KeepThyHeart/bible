@@ -1,4 +1,5 @@
 import React from 'react';
+import { requestVerseNote } from './notes/UserNotesPane/verseNoteRequest';
 import { useBibleStore } from '../stores/useBibleStore';
 import { revealNotesPanel } from './bible/revealNotesPanel';
 import VerseContextMenu from './VerseContextMenu';
@@ -21,6 +22,7 @@ import { useEscapeKey } from '../hooks/useOverlayDismissal';
 import { useBookmarkStore } from '../stores/useBookmarkStore';
 import { wordMenuItems, useSlot } from '../modules/host/slots';
 import { useWordStrongs } from './bible/hooks/useWordStrongs';
+import { syncPanesWithVerse } from '../stores/syncPanesWithVerse';
 
 interface BibleTabInfo {
   tabId: string;
@@ -269,6 +271,8 @@ const BiblePaneOverlays: React.FC<BiblePaneOverlaysProps> = ({
           setShowBookPicker(false);
           const verseId = (book * 1000000) + (chapter * 1000) + (verse ?? 1);
           useBibleStore.getState().navigateToVerse(panelId, verseId); // allow-getstate: event handler - imperative navigation, no subscription needed
+          // Picking a chapter is the reader choosing a verse, as typing a reference is.
+          syncPanesWithVerse(verseId);
         }}
         currentBook={currentBook}
         currentChapter={currentChapter}
@@ -431,7 +435,7 @@ const BiblePaneOverlays: React.FC<BiblePaneOverlaysProps> = ({
             requestAnimationFrame(() => {
               requestAnimationFrame(() => {
                 syncAllNotesPanelsWithVerse(verseId);
-                window.dispatchEvent(new CustomEvent('open-verse-note'));
+                requestVerseNote(verseId);
               });
             });
           }}
@@ -567,7 +571,7 @@ const BiblePaneOverlays: React.FC<BiblePaneOverlaysProps> = ({
                 requestAnimationFrame(() => {
                   try {
                     syncAllNotesPanelsWithVerse(verseId);
-                    window.dispatchEvent(new CustomEvent('open-verse-note'));
+                    requestVerseNote(verseId);
                   } catch (error) {
                     console.error('Failed to open the verse note:', error);
                   }

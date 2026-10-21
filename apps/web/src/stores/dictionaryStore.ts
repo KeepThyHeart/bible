@@ -107,8 +107,20 @@ function emptyTabState(): TabSearchState {
   };
 }
 
+/** Friendly names for the two Strong's lexicons when the module only carries its abbreviation. */
+export function friendlyDictionaryName(abbr: string, name?: string): string {
+  const raw = name && name.trim() ? name : abbr;
+  if (raw.toLowerCase() !== abbr.toLowerCase()) return raw;
+  if (/^strongsgreek$/i.test(abbr)) return "Strong's Greek";
+  if (/^strongshebrew$/i.test(abbr)) return "Strong's Hebrew";
+  return raw;
+}
+
 class DictionaryStore extends Store {
   private baseUrl = '';
+  /** True when the module list fetch failed (offline/server error), so the UI can offer Retry. */
+  modulesLoadFailed = false;
+  private onlineListenerAdded = false;
 
   // Module list
   modules: DictionaryModule[] = [];
@@ -144,18 +156,35 @@ class DictionaryStore extends Store {
       this.activeTabId = DICT_HOME_TAB_ID;
     }
     this.loadModules();
+    if (!this.onlineListenerAdded && typeof window !== 'undefined') {
+      this.onlineListenerAdded = true;
+      window.addEventListener('online', () => {
+        if (!this.modulesLoaded) void this.loadModules();
+      });
+    }
   }
 
   async loadModules(): Promise<void> {
     if (this.modulesLoaded) return;
+    let failed = true;
     try {
       const res = await fetch(`${this.baseUrl}/api/dictionary/available`);
       if (res.ok) {
-        this.modules = await res.json();
+        const list = (await res.json()) as DictionaryModule[];
+        this.modules = list.map(m => ({ ...m, name: friendlyDictionaryName(m.abbreviation, m.name) }));
         this.modulesLoaded = true;
-        this.notify();
+        failed = false;
       }
     } catch { /* ignore */ }
+    this.modulesLoadFailed = failed;
+    this.notify();
+  }
+
+  /** Retry a failed module-list load (Retry button, 'online' event). */
+  retryLoadModules(): void {
+    this.modulesLoadFailed = false;
+    this.notify();
+    void this.loadModules();
   }
 
   // ========================================================================
@@ -585,7 +614,7 @@ class DictionaryStore extends Store {
 
     await this.loadModules();
     const mod = this.modules.find(m => m.abbreviation === dictAbbr);
-    const moduleName = mod?.name ?? dictAbbr;
+    const moduleName = friendlyDictionaryName(dictAbbr, mod?.name);
 
     // skipBrowse: we are heading straight for one entry, and the browse list
     // would otherwise flash a screen of Greek/Hebrew words before it lands.

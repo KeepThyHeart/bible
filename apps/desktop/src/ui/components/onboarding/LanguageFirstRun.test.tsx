@@ -132,12 +132,12 @@ describe('LanguageFirstRun', () => {
     await screen.findByTestId('first-run-language-dialog');
     await userEvent.click(screen.getByTestId('first-run-language-more'));
 
-    expect(screen.getByTestId('first-run-language-fr')).toHaveTextContent('draft translation');
-    expect(screen.getByTestId('first-run-language-de')).not.toHaveTextContent('draft translation');
-    expect(screen.getByTestId('first-run-language-en')).not.toHaveTextContent('draft translation');
+    expect(screen.getByTestId('first-run-language-fr')).toHaveTextContent('Preview');
+    expect(screen.getByTestId('first-run-language-de')).not.toHaveTextContent('Preview');
+    expect(screen.getByTestId('first-run-language-en')).not.toHaveTextContent('Preview');
   });
 
-  it('marks a beta locale distinctly from a draft one', async () => {
+  it('marks a beta locale with the same Preview label as a draft one', async () => {
     h.locales = [
       ...BUILT_IN,
       { code: 'pt-BR', name: 'Portuguese (Brazil)', nativeName: 'Português (Brasil)', status: 'beta', direction: 'ltr' },
@@ -146,8 +146,7 @@ describe('LanguageFirstRun', () => {
     await screen.findByTestId('first-run-language-dialog');
     await userEvent.click(screen.getByTestId('first-run-language-more'));
 
-    expect(screen.getByTestId('first-run-language-pt-BR')).toHaveTextContent('beta translation');
-    expect(screen.getByTestId('first-run-language-pt-BR')).not.toHaveTextContent('draft translation');
+    expect(screen.getByTestId('first-run-language-pt-BR')).toHaveTextContent('Preview');
   });
 
   it('switches locale and records the answer on continue', async () => {
@@ -489,29 +488,15 @@ describe('LanguageFirstRun', () => {
       expect(screen.getByTestId('first-run-network-body')).toBeInTheDocument();
     });
 
-    it('"Stay offline" shows the offline content variant with both actions', async () => {
+    it('"Stay offline" ends the first-run flow without a third dialog', async () => {
       await continueToNetworkStep();
 
       await userEvent.click(screen.getByTestId('first-run-network-stay-offline'));
 
-      expect(await screen.findByTestId('first-run-packs-offline-body')).toBeInTheDocument();
-      expect(screen.getByTestId('first-run-packs-go-online')).toBeInTheDocument();
-      expect(screen.getByTestId('first-run-install-from-file')).toBeInTheDocument();
+      await waitFor(() => expect(screen.queryByTestId('first-run-network-body')).not.toBeInTheDocument());
+      expect(screen.queryByTestId('first-run-packs-offline-body')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('first-run-packs-go-online')).not.toBeInTheDocument();
       expect(setAllowWebRequests).not.toHaveBeenCalled();
-    });
-
-    it('"Install from a file…" reuses the Module Manager\'s own install-from-file dialog', async () => {
-      const installFromFile = vi.fn().mockResolvedValue({ ok: true, value: { kind: 'single', moduleName: 'KJV' } });
-      (window as unknown as { electron: { moduleManager: Record<string, unknown> } }).electron.moduleManager.installFromFile = installFromFile;
-
-      await continueToNetworkStep();
-      await userEvent.click(screen.getByTestId('first-run-network-stay-offline'));
-      await screen.findByTestId('first-run-packs-offline-body');
-
-      await userEvent.click(screen.getByTestId('first-run-install-from-file'));
-
-      expect(installFromFile).toHaveBeenCalled();
-      expect(await screen.findByTestId('first-run-install-from-file-result')).toHaveTextContent('KJV');
     });
   });
 

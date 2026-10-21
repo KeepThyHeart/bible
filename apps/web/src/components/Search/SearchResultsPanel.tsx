@@ -59,6 +59,8 @@ export function SearchResultsPanel({ onNavigate, onOpenStrongsEntry }: SearchRes
   const lastClickedId = useStore(searchStore, () => searchStore.lastClickedId);
   const resultsTruncated = useStore(searchStore, () => searchStore.resultsTruncated);
   const isOnline = useStore(offlineStore, () => offlineStore.isOnline);
+  // Offline with nothing found means the search could not run, not that it found 0.
+  const showCount = isOnline || totalResults > 0;
   const [mobileQuery, setMobileQuery] = useState('');
   const mobileInputRef = useRef<HTMLInputElement>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
@@ -241,12 +243,12 @@ export function SearchResultsPanel({ onNavigate, onOpenStrongsEntry }: SearchRes
             {strongsMode ? (
               <>
                 <i class="fa-solid fa-language" style={{ opacity: 0.5, marginInlineEnd: '6px', fontSize: '0.85em' }} />
-                {query} ({t('search.results', { count: totalResults })})
+                {query}{showCount && <> ({t('search.results', { count: totalResults })})</>}
               </>
             ) : (
               <>
                 <i class={`fa-solid ${searchType === 'semantic' ? 'fa-lightbulb' : 'fa-magnifying-glass'}`} style={{ opacity: 0.5, marginInlineEnd: '6px', fontSize: '0.85em' }} />
-                "{query}" ({t('search.results', { count: totalResults })})
+                "{query}"{showCount && <> ({t('search.results', { count: totalResults })})</>}
               </>
             )}
           </span>

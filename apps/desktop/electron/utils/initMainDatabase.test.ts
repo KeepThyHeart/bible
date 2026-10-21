@@ -609,3 +609,112 @@ describe.skipIf(!nativeSqliteAvailable)('initMainDatabase keyword_index table', 
     }
   });
 });
+
+/**
+ * M1 regression: a main.db already AT the current `_schema` version (5.0.0) but
+ * with the old, narrow module_type CHECK never reaches migration 005, so
+ * timeline/quiz modules could not be registered. The CHECK is now widened by
+ * shape detection, outside the version ladder.
+ */
+describe.skipIf(!nativeSqliteAvailable)('initMainDatabase module_type CHECK widening at current schema version', () => {
+  let tmpDir: string;
+  let dbPath: string;
+
+  beforeEach(() => {
+    tmpDir = mkdtempSync(join(tmpdir(), 'bible-mainDb-m1-'));
+    dbPath = join(tmpDir, 'main.db');
+  });
+
+  afterEach(() => {
+    rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  function seed(checkClause: string): void {
+    const db = new SqliteProvider(dbPath, { readonly: false });
+    db.execute(`
+      CREATE TABLE module_metadata (
+        module_id INTEGER PRIMARY KEY AUTOINCREMENT,
+        module_type TEXT NOT NULL,
+        module_name TEXT NOT NULL,
+        abbreviation TEXT,
+        version TEXT,
+        language_code TEXT,
+        installed_date TEXT DEFAULT CURRENT_TIMESTAMP,
+        last_updated TEXT,
+        database_path TEXT NOT NULL,
+        size_bytes INTEGER,
+        is_indexed INTEGER DEFAULT 0,
+        last_indexed_date TEXT,
+        features TEXT,
+        sword_metadata TEXT,
+        metadata TEXT,
+        repository_id INTEGER,
+        update_available INTEGER DEFAULT 0,
+        last_used_date TEXT,
+        usage_count INTEGER DEFAULT 0,
+        user_hidden INTEGER DEFAULT 0,
+        is_cross_reference_module INTEGER DEFAULT 0,
+        module_uuid TEXT
+        ${checkClause}
+      )
+    `);
+    db.execute(
+      `INSERT INTO module_metadata (module_type, module_name, abbreviation, database_path, module_uuid)
+       VALUES ('bible', 'King James Version', 'KJV', 'modules/bible_kjv.db', 'uuid-kjv')`
+    );
+    db.execute('CREATE TABLE setting (key TEXT PRIMARY KEY, value TEXT NOT NULL, metadata TEXT)');
+    db.execute(`INSERT INTO setting (key, value) VALUES ('_schema', '5.0.0')`);
+    db.execute(
+      `CREATE TABLE module_repository (repository_id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL,
+         url TEXT NOT NULL UNIQUE, type TEXT NOT NULL, is_enabled INTEGER DEFAULT 1)`
+    );
+    db.close();
+  }
+
+  function insertType(db: SqliteProvider, type: string): void {
+    db.execute(
+      `INSERT INTO module_metadata (module_type, module_name, abbreviation, database_path)
+       VALUES (?, ?, ?, ?)`,
+      [type, `${type} module`, type, `modules/${type}.db`]
+    );
+  }
+
+  it('accepts timeline and quiz after init, keeping rows and module_uuid', () => {
+    seed(`, CHECK (module_type IN ('bible', 'commentary', 'dictionary', 'book', 'devotional', 'lexicon', 'topical_index', 'cross_reference', 'tag_graph')), CHECK (is_indexed IN (0, 1))`);
+
+    initializeMainDatabase(dbPath).close();
+
+    const db = new SqliteProvider(dbPath, { readonly: false });
+    try {
+      expect(() => insertType(db, 'timeline')).not.toThrow();
+      expect(() => insertType(db, 'quiz')).not.toThrow();
+      const kjv = db.queryOne<{ module_uuid: string }>(`SELECT module_uuid FROM module_metadata WHERE abbreviation = 'KJV'`);
+      expect(kjv?.module_uuid).toBe('uuid-kjv');
+      expect(db.queryOne<{ value: string }>(`SELECT value FROM setting WHERE key = '_schema'`)?.value).toBe('5.0.0');
+    } finally {
+      db.close();
+    }
+  });
+
+  it('leaves a table with no module_type CHECK (the shipped template shape) untouched', () => {
+    seed('');
+    const before = (() => {
+      const db = new SqliteProvider(dbPath, { readonly: false });
+      try {
+        return db.queryOne<{ sql: string }>(`SELECT sql FROM sqlite_master WHERE name = 'module_metadata'`)?.sql;
+      } finally {
+        db.close();
+      }
+    })();
+
+    initializeMainDatabase(dbPath).close();
+
+    const db = new SqliteProvider(dbPath, { readonly: false });
+    try {
+      expect(db.queryOne<{ sql: string }>(`SELECT sql FROM sqlite_master WHERE name = 'module_metadata'`)?.sql).toBe(before);
+      expect(() => insertType(db, 'quiz')).not.toThrow();
+    } finally {
+      db.close();
+    }
+  });
+});

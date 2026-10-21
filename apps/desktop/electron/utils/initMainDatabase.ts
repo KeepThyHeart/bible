@@ -69,6 +69,7 @@ export function initializeMainDatabase(mainDbPath: string, seedDbPath?: string):
     ensureSchemaUpToDate(db);
   }
 
+  ensureModuleTypeCheck(db);
   ensureModuleUuidColumn(db);
   ensureDefaultRepository(db);
   ensureReferenceData(db, seedDbPath);
@@ -223,6 +224,25 @@ function ensureModuleUuidColumn(db: SqliteProvider): void {
   db.execute(
     `CREATE INDEX IF NOT EXISTS idx_module_metadata_uuid ON module_metadata(module_uuid)`
   );
+}
+
+/**
+ * Widen the `module_metadata.module_type` CHECK on a database that already
+ * reports the current `_schema` version but still carries an older, narrower
+ * CHECK (e.g. one built by `createInitialSchema` before 'timeline'/'quiz' were
+ * added). Migration 005 only runs from `_schema` 4.0.0, so it never sees such
+ * a database. Detected by shape, outside the version ladder: a table with no
+ * `module_type IN (...)` CHECK at all (the shipped template) is left alone.
+ */
+function ensureModuleTypeCheck(db: SqliteProvider): void {
+  const existing = db.queryOne(
+    `SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'module_metadata'`
+  ) as { sql: string } | undefined;
+  if (!existing?.sql) return;
+  if (!/module_type\s+IN\s*\(/i.test(existing.sql)) return;
+  if (MODULE_TYPE_CHECK_VALUES.every(t => existing.sql.includes(`'${t}'`))) return;
+  log.info('[MainDB] module_metadata module_type CHECK is narrower than current, widening');
+  rebuildModuleMetadataWithWidenedCheck(db);
 }
 
 /**
@@ -754,6 +774,11 @@ function rebuildModuleMetadataWithWidenedCheck(db: SqliteProvider): void {
     `SELECT sql FROM sqlite_master WHERE type = 'index' AND tbl_name = 'module_metadata' AND sql IS NOT NULL`
   ) as { sql: string }[];
 
+  // A database that already gained module_uuid must keep it (and its values).
+  const hasUuid = !!db.queryOne(
+    `SELECT name FROM pragma_table_info('module_metadata') WHERE name = 'module_uuid'`
+  );
+
   // PRAGMA foreign_keys is a no-op inside a transaction, so it must be
   // toggled outside the BEGIN/COMMIT the rebuild runs in.
   db.execute('PRAGMA foreign_keys = OFF');
@@ -781,7 +806,7 @@ function rebuildModuleMetadataWithWidenedCheck(db: SqliteProvider): void {
           last_used_date TEXT,
           usage_count INTEGER DEFAULT 0,
           user_hidden INTEGER DEFAULT 0,
-          is_cross_reference_module INTEGER DEFAULT 0,
+          is_cross_reference_module INTEGER DEFAULT 0,${hasUuid ? '\n          module_uuid TEXT,' : ''}
           CHECK (module_type IN (${MODULE_TYPE_CHECK_VALUES.map(t => `'${t}'`).join(', ')})),
           CHECK (is_indexed IN (0, 1))
         )
@@ -792,13 +817,13 @@ function rebuildModuleMetadataWithWidenedCheck(db: SqliteProvider): void {
           module_id, module_type, module_name, abbreviation, version, language_code,
           installed_date, last_updated, database_path, size_bytes, is_indexed,
           last_indexed_date, features, sword_metadata, metadata, repository_id,
-          update_available, last_used_date, usage_count, user_hidden, is_cross_reference_module
+          update_available, last_used_date, usage_count, user_hidden, is_cross_reference_module${hasUuid ? ', module_uuid' : ''}
         )
         SELECT
           module_id, module_type, module_name, abbreviation, version, language_code,
           installed_date, last_updated, database_path, size_bytes, is_indexed,
           last_indexed_date, features, sword_metadata, metadata, repository_id,
-          update_available, last_used_date, usage_count, user_hidden, is_cross_reference_module
+          update_available, last_used_date, usage_count, user_hidden, is_cross_reference_module${hasUuid ? ', module_uuid' : ''}
         FROM module_metadata
       `);
 

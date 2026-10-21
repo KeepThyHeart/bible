@@ -49,6 +49,8 @@ interface BackupStore {
   setBackupConfirmPassword: (password: string) => void;
   setIncludeHistory: (include: boolean) => void;
   startBackup: () => Promise<void>;
+  /** Stop waiting for a backup/export that is stuck (no save dialog, or the user changed their mind). */
+  cancelBackup: () => void;
   startExport: () => Promise<void>;
 
   selectRestoreFile: () => Promise<void>;
@@ -83,8 +85,25 @@ const initialState = {
   restoreResult: null,
 };
 
+/** How long a backup or export may take (including the user at the save dialog) before we stop waiting. */
+export const BACKUP_TIMEOUT_MS = 5 * 60 * 1000;
+
+/** Each run gets a number; a cancelled or timed-out run's late result is ignored. */
+let backupRun = 0;
+
+class BackupTimeoutError extends Error {}
+
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  let timer: ReturnType<typeof setTimeout>;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new BackupTimeoutError('Backup timed out')), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
 function failureOf(error: unknown): BackupFailure {
   if (error instanceof IpcResultError) return { code: error.code, message: error.message };
+  if (error instanceof BackupTimeoutError) return { code: 'backup_timeout', message: error.message };
   return { code: 'internal', message: error instanceof Error ? error.message : String(error) };
 }
 
@@ -99,6 +118,7 @@ export const useBackupStore = create<BackupStore>((set, get) => ({
 
   openDialog: (tab = 'backup') => set({ isDialogOpen: true, activeTab: tab }),
   closeDialog: () => {
+    backupRun++;
     discard(get().inspection?.token);
     set({ ...initialState });
   },
@@ -124,24 +144,41 @@ export const useBackupStore = create<BackupStore>((set, get) => ({
       return;
     }
 
+    const run = ++backupRun;
     set({ isBackingUp: true, backupResult: null });
     try {
-      const summary = await unwrap(window.electron.backup.create({ password: backupPassword, includeHistory }));
+      const summary = await withTimeout(
+        unwrap(window.electron.backup.create({ password: backupPassword, includeHistory })),
+        BACKUP_TIMEOUT_MS,
+      );
+      if (run !== backupRun) return; // cancelled or superseded
       // `null` means the user cancelled the native save dialog.
       set(summary === null
         ? { isBackingUp: false }
         : { backupResult: { summary }, isBackingUp: false, backupPassword: '', backupConfirmPassword: '' });
     } catch (error) {
+      if (run !== backupRun) return;
       set({ backupResult: { failure: failureOf(error) }, isBackingUp: false });
     }
   },
 
+  cancelBackup: () => {
+    backupRun++;
+    set({ isBackingUp: false, isExporting: false });
+  },
+
   startExport: async () => {
+    const run = ++backupRun;
     set({ isExporting: true, exportResult: null });
     try {
-      const summary = await unwrap(window.electron.backup.exportPlain({ includeHistory: get().includeHistory }));
+      const summary = await withTimeout(
+        unwrap(window.electron.backup.exportPlain({ includeHistory: get().includeHistory })),
+        BACKUP_TIMEOUT_MS,
+      );
+      if (run !== backupRun) return;
       set(summary === null ? { isExporting: false } : { exportResult: { summary }, isExporting: false });
     } catch (error) {
+      if (run !== backupRun) return;
       set({ exportResult: { failure: failureOf(error) }, isExporting: false });
     }
   },

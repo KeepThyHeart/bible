@@ -13,6 +13,7 @@ import { resolveLabelRef } from '../../apps/navEntries';
 import { subscribeActiveVerseBroadcast } from '../../extensions/activeVerseBroadcast';
 import { formatVerseReference } from '../../utils/verseReference';
 import { memoryClient } from './memoryClient';
+import { memoryT } from './memoryT';
 import { onMemoryCardsRequest, takePendingMemoryCards } from './memoryModule';
 
 const BACK_BUTTON =
@@ -32,6 +33,8 @@ export const MemoryAppView: React.FC = () => {
     const handle: MemoryUiHandle = mountMemoryUi(container, {
       api: memoryClient,
       subscribe: (listener) => memoryClient.on('push', listener),
+      t: memoryT,
+      locale: i18n.currentLocale,
       initialView: takePendingMemoryCards() ? 'card' : 'plan',
     });
     const offCards = onMemoryCardsRequest(() => handle.showCards());
@@ -41,7 +44,7 @@ export const MemoryAppView: React.FC = () => {
       offCards();
       handle.dispose();
     };
-  }, []);
+  }, [i18n.currentLocale]);
 
   return (
     <section className="flex h-full min-h-0 flex-col bg-background text-text-primary" data-app="memory" aria-labelledby={headingId}>

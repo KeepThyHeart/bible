@@ -11,6 +11,7 @@ import type { SerializedDockview } from 'dockview-react';
 import { validateBuiltinManifest } from '@bible/core/browser';
 import { genealogyManifest } from './genealogy/manifest';
 import { timelineManifest } from './timeline/manifest';
+import { installModuleBootHooks, trackHost } from './moduleTestHooks';
 
 // The panes are stubbed (the heavy parts of the real panes are not the subject).
 vi.mock('./timeline/TimelinePane', () => ({ default: () => <div data-testid="timeline-pane-stub" /> }));
@@ -38,11 +39,24 @@ async function boot(override: string) {
   const services = await import('./host/hostServices');
   const actions = await import('./host/entityActions');
   registerBuiltinModules();
+  trackHost(host);
   const registry = fakeRegistry();
   const loadNamespace = vi.fn().mockResolvedValue(undefined);
   services.bindModuleHostServices({ registry: registry as never, i18n: { loadNamespace } });
   return { ...host, actions, registry, loadNamespace };
 }
+
+// Warm the host graph once, then drain each test's startup activations before the next (see moduleTestHooks).
+installModuleBootHooks(() =>
+  Promise.all([
+    import('./builtinModules'),
+    import('./moduleHost'),
+    import('./host/hostServices'),
+    import('./host/entityActions'),
+    import('../components/PanelContentRenderer'),
+    import('../services/LayoutStateSanitizer'),
+  ]),
+);
 
 beforeEach(() => {
   window.localStorage.clear();

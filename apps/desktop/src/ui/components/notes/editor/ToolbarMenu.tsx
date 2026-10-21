@@ -1,4 +1,4 @@
-import React, { useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import { useDirection } from '../../../contexts/useDirection';
 
 /**
@@ -106,6 +106,31 @@ const ToolbarMenu: React.FC<ToolbarMenuProps> = ({
     // static for as long as it is open, and re-running on every render would
     // loop through its own setState.
   }, [open, uiDir]);
+
+  // The panel is `position: fixed`, so it does not follow its trigger when the
+  // layout changes and used to close only when the pointer left it - a menu the
+  // pointer never entered stayed pinned over the text. Also dismiss on an
+  // outside press, Escape, or a window resize (layout switch).
+  useEffect(() => {
+    if (!open || !onMouseLeave) return;
+    const close = onMouseLeave;
+    const onPointerDown = (e: MouseEvent) => {
+      const target = e.target as Node | null;
+      if (target && anchorRef.current?.contains(target)) return;
+      close();
+    };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') close();
+    };
+    document.addEventListener('mousedown', onPointerDown, true);
+    document.addEventListener('keydown', onKeyDown, true);
+    window.addEventListener('resize', close);
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown, true);
+      document.removeEventListener('keydown', onKeyDown, true);
+      window.removeEventListener('resize', close);
+    };
+  }, [open, onMouseLeave]);
 
   return (
     <div className="relative" ref={anchorRef}>

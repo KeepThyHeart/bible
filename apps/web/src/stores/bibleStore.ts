@@ -628,6 +628,7 @@ class BibleStore extends Store {
     // The history entry for this chapter should name the last verse actually
     // visited in it, not the one the chapter was opened at.
     this.rememberVerseInCurrentEntry(tab);
+    this.updateHash();
     this.notify();
   }
 
@@ -661,6 +662,7 @@ class BibleStore extends Store {
     tab.selectionEndVerse = null;
     tab.studyVerse = verse.verse_id;
     this.rememberVerseInCurrentEntry(tab);
+    this.updateHash();
     this.notify();
   }
 
@@ -1179,6 +1181,21 @@ class BibleStore extends Store {
         noteStudyHash(hash);
         return;
       }
+      // A deep link that names a verse (`#/ASV/43/3/16`) keeps naming one, following
+      // the selection, so a reload lands on the verse the reader is on.
+      const current = window.location.hash.match(HASH_PATTERN);
+      if (current?.[4]
+        && current[1] === tab.moduleAbbr
+        && parseInt(current[2], 10) === tab.book
+        && parseInt(current[3], 10) === tab.chapter
+        && tab.studyVerse !== null
+        && Math.floor(tab.studyVerse / 1000) === tab.book * 1000 + tab.chapter) {
+        const verseHash = `${hash}/${tab.studyVerse % 1000}`;
+        if (window.location.hash !== verseHash) {
+          history.replaceState(null, '', verseHash);
+        }
+        return;
+      }
       if (window.location.hash !== hash) {
         history.replaceState(null, '', hash);
       }
@@ -1214,6 +1231,12 @@ class BibleStore extends Store {
     const book = parseInt(bookStr, 10);
     const chapter = parseInt(chapterStr, 10);
     const verse = verseStr ? parseInt(verseStr, 10) : undefined;
+    // A link naming a book or chapter that cannot exist (`#/ASV/99/1`) is ignored:
+    // the reader stays on the current passage and the URL is put back to match it.
+    if (book < 1 || book > 66 || chapter < 1) {
+      this.updateHash();
+      return;
+    }
     // A link shared from another install can name a translation this one does
     // not have. The passage is still worth opening, in the default Bible.
     const module = settingsStore.resolveInstalledBible(linkedModule);

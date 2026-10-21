@@ -38,9 +38,14 @@ import {
   type MemoryBibleApi,
   type MemoryImportResult,
   type MemoryPush,
+  type Translate,
 } from '@bible/memory/core';
+import { readMemoryStatus } from '@bible/memory/status';
 
 import type { ModuleExtensionsPort, ModuleLogger } from '../FeatureMainModule';
+import { queueNotice, RETIRED_KEY } from './notices';
+
+export { RETIRED_KEY, RETIRED_NOTICE, SKIPPED_NOTICE, SKIPPED_NOTICE_KEY } from './notices';
 
 /** The core is held back because an existing old database could not be imported (message for the user). */
 export class MemoryImportPendingError extends Error {
@@ -63,6 +68,8 @@ export interface MemoryRuntimeDeps {
   /** The extension host, when it is running (retiring the old extension). */
   getExtensions?(): ModuleExtensionsPort | null;
   emit(push: MemoryPush): void;
+  /** Catalog lookup for the messages the core shows (default English). */
+  t?: Translate;
   /** Bring the Memory app forward (a notification click while the core runs). */
   openApp?(): void;
   readonly log: ModuleLogger;
@@ -70,14 +77,6 @@ export interface MemoryRuntimeDeps {
   /** Retiring re-checks the extension host this often (default `RETIRE_RETRY_MS`). */
   readonly retireRetryMs?: number;
 }
-
-/** One-time notices about the move, recorded in `memory_import` so they are shown once per machine. */
-export const RETIRED_KEY = `retired:${LEGACY_EXTENSION_ID}`;
-export const SKIPPED_NOTICE_KEY = `notice:skipped:${LEGACY_EXTENSION_ID}`;
-export const RETIRED_NOTICE =
-  'Scripture Memory is now built in: open it from the Memory app. Your plan and progress were brought over, and the old Scripture Memory extension was turned off.';
-export const SKIPPED_NOTICE =
-  'Your old Scripture Memory extension data was not brought over automatically because Memory already has a plan. To add it, use "Import data from the old Scripture Memory extension" in Memory\'s settings.';
 
 export interface MemoryRuntime {
   readonly service: MemoryService;
@@ -129,6 +128,7 @@ export async function startMemoryRuntime(deps: MemoryRuntimeDeps): Promise<Memor
       ...(deps.reminders ? { reminders: deps.reminders } : {}),
     },
     emit: deps.emit,
+    ...(deps.t ? { t: deps.t } : {}),
     log: deps.log,
     ...(deps.openApp ? { openApp: deps.openApp } : {}),
     ...(deps.now ? { now: deps.now } : {}),
@@ -160,8 +160,8 @@ export async function startMemoryRuntime(deps: MemoryRuntimeDeps): Promise<Memor
     )?.recorded_at;
     if (recordedAt === undefined || (deps.now ? deps.now() : Date.now()) - recordedAt > CATCH_UP_WINDOW_MS) return;
     const r = mergeLegacyMemory(db, { openSource: () => deps.openReadOnly(deps.legacyDbPath), now: deps.now ? deps.now() : Date.now() });
-    if (r.status === 'merged' && Object.keys(r.added).length > 0) {
-      deps.log.info('[memory] brought over recent practice from the old extension:', r.added);
+    if (r.status === 'merged' && (Object.keys(r.added).length > 0 || Object.keys(r.advanced).length > 0)) {
+      deps.log.info('[memory] brought over recent practice from the old extension:', r.added, r.advanced);
       deps.emit({ type: 'planChanged' });
     }
   };
@@ -246,14 +246,18 @@ export function retireLegacyExtension(
             } catch (err) {
               deps.log.warn('[memory] bringing over recent practice from the old extension failed:', err);
             }
-            if (recordOnce(db, RETIRED_KEY, 'disabled', deps.now ? deps.now() : Date.now())) {
-              deps.emit({ type: 'notice', message: RETIRED_NOTICE });
+            const at = deps.now ? deps.now() : Date.now();
+            // Queued, not pushed: the renderer collects it when a window is visible (a hidden or tray
+            // launch must not use it up). The status push tells an open window to look.
+            if (recordOnce(db, RETIRED_KEY, 'disabled', at)) {
+              queueNotice(db, 'retired', at);
+              deps.emit({ type: 'status', status: readMemoryStatus(db, at) });
             }
           })
           .catch((err: unknown) => deps.log.warn('[memory] could not disable the old Scripture Memory extension:', err));
       } else if (status === 'skipped-not-empty') {
         if (!extensions.isEnabled(LEGACY_EXTENSION_ID)) return;
-        if (recordOnce(db, SKIPPED_NOTICE_KEY, 'shown', now)) deps.emit({ type: 'notice', message: SKIPPED_NOTICE });
+        if (queueNotice(db, 'skipped', now)) deps.emit({ type: 'status', status: readMemoryStatus(db, now) });
       }
     } catch (err) {
       deps.log.warn('[memory] could not retire the old Scripture Memory extension:', err);

@@ -644,7 +644,7 @@ const DictionaryPane: React.FC<DictionaryPaneProps> = ({ hideTabs = false, panel
             <div className="mb-lg">
               <h2 className="text-3xl font-bold text-text-heading mb-sm" data-testid="dictionary-entry-key">
                 {currentEntry.entry_key}
-                {currentEntry.word && (
+                {currentEntry.word && currentEntry.word.trim().toLowerCase() !== String(currentEntry.entry_key).trim().toLowerCase() && (
                   <span className="ms-md text-2xl text-text-secondary">
                     {currentEntry.word}
                   </span>
@@ -905,7 +905,7 @@ const DictionaryPane: React.FC<DictionaryPaneProps> = ({ hideTabs = false, panel
                     >
                       <span className="block font-semibold text-text-heading">
                         {entry.entry_key}
-                        {entry.word && <span className="ms-md text-text-secondary">{entry.word}</span>}
+                        {entry.word && entry.word.trim().toLowerCase() !== String(entry.entry_key).trim().toLowerCase() && <span className="ms-md text-text-secondary">{entry.word}</span>}
                       </span>
                       {entry.transliteration && (
                         <span className="block text-sm text-text-secondary italic">{entry.transliteration}</span>

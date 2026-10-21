@@ -101,6 +101,19 @@ function numberingSystemFor(descriptor: LocaleDescriptor | undefined, digitSyste
 }
 
 /**
+ * The tag to hand `Intl` and `toLocale*Case`. The test pseudo-locales (`xx-pseudo`, `xx-rtl`) are not
+ * valid BCP 47 tags, and `Intl` throws a RangeError for them, which took down every pane that formats a
+ * number; those (and any other tag `Intl` rejects) format as English.
+ */
+function intlTagFor(tag: string): string {
+  try {
+    return Intl.getCanonicalLocales(tag)[0] ?? 'en';
+  } catch {
+    return 'en';
+  }
+}
+
+/**
  * Build a locale's identity-and-`Intl` behavior with no hand-authored
  * per-language logic. This is what every planned locale gets automatically
  * (see {@link getLocalizer}), and what a fuller {@link Localizer} for a given
@@ -113,6 +126,7 @@ export function createIntlLocalizer(
   const descriptor = resolveLocaleDescriptor(tag);
   const direction = descriptor?.direction ?? 'ltr';
   const defaultDigitSystem = descriptor?.defaultDigitSystem ?? 'latin';
+  const intlTag = intlTagFor(tag);
 
   return {
     tag,
@@ -122,25 +136,25 @@ export function createIntlLocalizer(
     formatNumber(value, options = {}) {
       const { digitSystem, ...rest } = options;
       const numberingSystem = numberingSystemFor(descriptor, digitSystem ?? defaultDigitSystem);
-      return new Intl.NumberFormat(tag, { numberingSystem, ...rest }).format(value);
+      return new Intl.NumberFormat(intlTag, { numberingSystem, ...rest }).format(value);
     },
 
     formatDate(date, options = {}) {
       const { digitSystem, ...rest } = options;
       const numberingSystem = numberingSystemFor(descriptor, digitSystem ?? defaultDigitSystem);
-      return new Intl.DateTimeFormat(tag, { numberingSystem, ...rest }).format(date);
+      return new Intl.DateTimeFormat(intlTag, { numberingSystem, ...rest }).format(date);
     },
 
     compare(a, b, options) {
-      return new Intl.Collator(tag, options).compare(a, b);
+      return new Intl.Collator(intlTag, options).compare(a, b);
     },
 
     toLocaleUpperCase(value) {
-      return value.toLocaleUpperCase(tag);
+      return value.toLocaleUpperCase(intlTag);
     },
 
     toLocaleLowerCase(value) {
-      return value.toLocaleLowerCase(tag);
+      return value.toLocaleLowerCase(intlTag);
     },
 
     get referenceParserConfig() {

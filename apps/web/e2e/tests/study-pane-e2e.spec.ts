@@ -24,7 +24,7 @@ async function expandSection(page: Page, label: RegExp): Promise<void> {
  */
 async function openStudyOnVerse(page: Page, index = 0): Promise<void> {
   await page.locator('.verse').nth(index).click();
-  await page.locator('.right-pane-tabs__tab').filter({ hasText: /study/i }).click();
+  await page.getByTestId('right-pane-tab-study').click();
   await expect(page.locator('.study-pane')).toBeVisible({ timeout: 15000 });
   await expect(page.locator('.study-pane__passage')).toBeVisible({ timeout: 15000 });
 }
@@ -42,7 +42,7 @@ test.describe('Study Pane', () => {
   });
 
   test('study tab exists and shows study pane', async ({ page }) => {
-    const studyTab = page.locator('.right-pane-tabs__tab').filter({ hasText: /study/i });
+    const studyTab = page.getByTestId('right-pane-tab-study');
     await expect(studyTab).toBeVisible();
     await studyTab.click();
 
@@ -155,7 +155,7 @@ test.describe('Study Pane', () => {
 
   test('navigating to different verse updates study pane', async ({ page }) => {
     // Switch to study pane
-    const studyTab = page.locator('.right-pane-tabs__tab').filter({ hasText: /study/i });
+    const studyTab = page.getByTestId('right-pane-tab-study');
     await studyTab.click();
     await expect(page.locator('.study-pane')).toBeVisible({ timeout: 5000 });
 

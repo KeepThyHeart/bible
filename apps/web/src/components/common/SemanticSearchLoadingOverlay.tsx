@@ -31,6 +31,7 @@ export function SemanticSearchLoadingOverlay() {
   if (!visible) return null;
 
   const isError = init.status === 'error';
+  if (isError && init.detail) console.warn('[ideas-search]', init.detail);
   const info = STAGE_INFO[init.stage] ?? { step: 1, label: 'Preparing…' };
   const pct = typeof init.percent === 'number' ? Math.max(0, Math.min(1, init.percent)) : null;
 
@@ -48,10 +49,7 @@ export function SemanticSearchLoadingOverlay() {
         <>
           <div class="semantic-loading__title">
             <i class="fa-solid fa-triangle-exclamation" style={{ color: '#c53030', marginInlineEnd: '8px' }} />
-            Ideas Search unavailable
-          </div>
-          <div class="semantic-loading__detail">
-            {init.detail || 'Failed to load Ideas Search. Please try again later.'}
+            {t('semanticSearchLoadingOverlay.unavailable')}
           </div>
         </>
       ) : (

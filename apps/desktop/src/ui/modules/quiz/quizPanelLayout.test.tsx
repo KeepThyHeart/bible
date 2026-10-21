@@ -4,6 +4,7 @@
  * still loads and the panel shows the same "unavailable" placeholder as any unknown type.
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { installModuleBootHooks, trackHost } from '../moduleTestHooks';
 import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import { sanitizeDockviewState } from '../../services/LayoutStateSanitizer';
 
@@ -13,12 +14,15 @@ vi.mock('../../contexts/useI18n', () => ({
 vi.mock('./QuizPane', () => ({ default: () => <div data-testid="quiz-pane" /> }));
 vi.doMock('./module', () => ({ activate: vi.fn() }));
 
+installModuleBootHooks(() => import('../builtinModules'));
+
 async function boot(override = '') {
   vi.resetModules();
   window.localStorage.setItem('kth.modules', override);
   const { registerBuiltinModules } = await import('../builtinModules');
   const host = await import('../moduleHost');
   registerBuiltinModules();
+  trackHost(host);
   return host;
 }
 

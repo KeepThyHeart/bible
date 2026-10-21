@@ -197,3 +197,25 @@ describe('NoteEditor - Tab key handling', () => {
     expect(notCanceled).toBe(true);
   });
 });
+
+describe('NoteEditor: swapping the document from outside', () => {
+  it('does not let Ctrl+Z bring back the previous document (prayer undo data-loss, task 0159)', async () => {
+    const onChange = vi.fn();
+    const services = createMockServices();
+    const ui = (value: string) => (
+      <ContextProvider services={services}>
+        <NoteEditor value={value} onChange={onChange} />
+      </ContextProvider>
+    );
+    const { container, rerender } = render(ui('<p>Prayer A text</p>'));
+    await waitFor(() => expect(container.querySelector('.ProseMirror')).toBeTruthy());
+    rerender(ui('<p>Prayer B text</p>'));
+    const root = container.querySelector('.ProseMirror') as HTMLElement;
+    await waitFor(() => expect(root.textContent).toContain('Prayer B text'));
+    onChange.mockClear();
+    fireEvent.keyDown(root, { key: 'z', code: 'KeyZ', ctrlKey: true });
+    expect(root.textContent).toContain('Prayer B text');
+    expect(root.textContent).not.toContain('Prayer A text');
+    expect(onChange).not.toHaveBeenCalled();
+  });
+});

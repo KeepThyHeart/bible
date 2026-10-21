@@ -1,5 +1,7 @@
 # Extensions
 
+> **Experimental.** The extension API and SDK are experimental and **not frozen**: they may change in incompatible ways before a stable release. Pin an exact version and expect to update your extension.
+
 **Last verified:** 2026-09-23
 
 Third-party code runs inside a QuickJS-in-WASM realm hosted by an Electron `utilityProcess`. It never touches the renderer, never gets a Node.js global, and reaches the app only through an RPC surface the host defines. This doc is the file map for finding your way around that surface.

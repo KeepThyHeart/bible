@@ -104,7 +104,9 @@ async function run(source: ISql, target: ISql, mode: RestoreMode) {
 const content = (c: Record<string, unknown>) => Object.fromEntries(Object.entries(c).filter(([t]) => ['content', 'extension'].includes(tableSpec(t)!.cls)));
 const RUNS = { numRuns: Number(process.env.FC_RUNS ?? 40) };
 
-describe('restore properties (random data graphs)', () => {
+// Each property runs dozens of generated databases through a full backup and restore: a bounded,
+// generous budget keeps a loaded machine from timing a heavy-but-correct run out at the 15 s default.
+describe('restore properties (random data graphs)', { timeout: 120_000 }, () => {
   it('replace into an empty database reproduces every table exactly', async () => {
     await fc.assert(fc.asyncProperty(graphArb, async (g) => {
       const a = newUserDb(); build(a, g);

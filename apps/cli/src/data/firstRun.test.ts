@@ -8,7 +8,7 @@
  * absence would silently downgrade proximity search.
  */
 import { afterAll, describe, expect, test } from 'bun:test';
-import { copyFileSync, existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdtempSync, readFileSync, rmSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -24,7 +24,8 @@ import {
 import type { DiscoveredModule, ModuleRoot } from './modules';
 
 const ASSET = join(import.meta.dir, '..', 'assets', 'bible_kjv.db');
-const hasAsset = existsSync(ASSET);
+// A CLI build with no module library writes an empty placeholder here (scripts/build.js); that is no asset.
+const hasAsset = existsSync(ASSET) && statSync(ASSET).size > 0;
 
 const scratch = mkdtempSync(join(tmpdir(), 'firstrun-'));
 afterAll(() => rmSync(scratch, { recursive: true, force: true }));

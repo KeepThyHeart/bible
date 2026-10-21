@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNotesStore } from '../../stores/useNotesStore';
 import { useNotesPanel } from '../../stores/hooks/useNotesPanel';
 import NotesFolderBrowser from './NotesFolderBrowser';
@@ -25,6 +25,8 @@ import { useMoveDialogFolders } from './UserNotesPane/hooks/useMoveDialogFolders
 import UserNotesSidebar from './UserNotesPane/UserNotesSidebar';
 import UserNotesEditorView from './UserNotesPane/UserNotesEditorView';
 import UserNotesDialogs from './UserNotesPane/UserNotesDialogs';
+import ConfirmDialog from '../shared/ConfirmDialog';
+import { useI18n } from '../../contexts/useI18n';
 
 type NotesView = 'browser' | 'editor';
 
@@ -46,7 +48,10 @@ const UserNotesPane: React.FC<UserNotesPaneProps> = ({
   initialCurrentPath,
   initialCurrentNotePath,
 }) => {
+  const { t } = useI18n();
   const { currentVerseId } = useNotesPanel(panelId);
+  // Entry awaiting delete confirmation (goes to the system trash).
+  const [deleteTarget, setDeleteTarget] = useState<FileEntry | null>(null);
 
   // Panel lifecycle
   const initPanel = useNotesStore(s => s.initPanel);
@@ -55,6 +60,9 @@ const UserNotesPane: React.FC<UserNotesPaneProps> = ({
     initPanel(panelId);
     return () => { destroyPanel(panelId); };
   }, [panelId, initPanel, destroyPanel]);
+
+  // Set when an 'open-verse-note' request arrives before the pane is ready.
+  const pendingVerseOpenRef = useRef(false);
 
   // File-based notes state
   const [view, setView] = useState<NotesView>('browser');
@@ -135,7 +143,8 @@ const UserNotesPane: React.FC<UserNotesPaneProps> = ({
 
   // Mount-time init (including restoring the note this panel was left on) +
   // dynamic subtitle + nav-state registration.
-  useNotesInit({
+  const { restoreDone } = useNotesInit({
+    pendingVerseOpenRef,
     panelId,
     isDetached,
     initialView,
@@ -164,6 +173,8 @@ const UserNotesPane: React.FC<UserNotesPaneProps> = ({
 
   // Verse-note open (event from Bible pane)
   useVerseNoteOpener({
+    ready: restoreDone && !showSetup,
+    pendingRef: pendingVerseOpenRef,
     currentVerseId,
     setCurrentNote,
     setCurrentNotePath,
@@ -231,13 +242,15 @@ const UserNotesPane: React.FC<UserNotesPaneProps> = ({
       <div data-testid="notes-pane" className="h-full flex flex-col min-w-0" style={{ backgroundColor: 'var(--theme-bg-primary)' }}>
         <NotesSetupDialog
           onComplete={(dir) => {
-            setShowSetup(false);
             useFileNotesStore.getState().setNotesDirectory(dir); // allow-getstate: setup-dialog completion callback - imperative store access outside render
             fileNotesAPI.ensureVerseNotesFolder().then(() => {
-              loadDirectory('');
+              // If Add Note started this setup, carry on into its editor
+              // instead of dropping to the folder list.
+              if (!pendingVerseOpenRef.current) loadDirectory('');
+              setShowSetup(false);
             });
           }}
-          onCancel={() => setShowSetup(false)}
+          onCancel={() => { pendingVerseOpenRef.current = false; setShowSetup(false); }}
         />
       </div>
     );
@@ -305,7 +318,7 @@ const UserNotesPane: React.FC<UserNotesPaneProps> = ({
                   }}
                   onDelete={(entry) => {
                     if (entry.path !== VERSE_NOTES_FOLDER) {
-                      handleDelete(entry);
+                      setDeleteTarget(entry);
                     }
                   }}
                   onMove={handleMoveEntry}
@@ -328,7 +341,11 @@ const UserNotesPane: React.FC<UserNotesPaneProps> = ({
                   setEditorContent={setEditorContent}
                   editorIsDirty={editorIsDirty}
                   isSaving={isSaving}
-                  lastSaved={lastSaved}
+                  lastSaved={
+                    // Session save time if saved here, else the note's own saved time on disk;
+                    // hidden for a note that has never been saved since creation.
+                    lastSaved ?? (currentNote.updated && currentNote.updated !== currentNote.created ? currentNote.updated : undefined)
+                  }
                   showEditorSidebar={showEditorSidebar}
                   setShowEditorSidebar={setShowEditorSidebar}
                   breadcrumbs={buildEditorBreadcrumbs()}
@@ -356,6 +373,20 @@ const UserNotesPane: React.FC<UserNotesPaneProps> = ({
           </div>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        title={t('userNotesPane.deleteConfirm.title')}
+        message={t('userNotesPane.deleteConfirm.message', { name: deleteTarget?.name ?? '' })}
+        confirmLabel={t('userNotesPane.deleteConfirm.confirm')}
+        destructive
+        onConfirm={() => {
+          const target = deleteTarget;
+          setDeleteTarget(null);
+          if (target) void handleDelete(target);
+        }}
+        onCancel={() => setDeleteTarget(null)}
+      />
 
       <UserNotesDialogs
         showNewNoteDialog={showNewNoteDialog}

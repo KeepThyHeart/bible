@@ -32,6 +32,7 @@ import {
   resolveSearchScope,
   applySearchHighlighting as applyHighlighting,
   formatSemanticReference,
+  applyBeforeQueryResult,
 } from './searchHelpers';
 import { notifySemanticSearchReset } from './semanticSearchReset';
 import type { ExtensionHost } from '../extensions/ExtensionHost';
@@ -217,11 +218,10 @@ export function registerSearchHandlers(_ipcMain: IpcMain, opts: SearchHandlersOp
         },
         ...(options?.scope !== undefined ? { scope: options.scope } : {}),
       });
-      if (transformed) {
-        query = transformed.query;
-        if (transformed.scope !== undefined) {
-          options = { ...options, scope: transformed.scope };
-        }
+      const next = applyBeforeQueryResult(query, options?.scope, transformed);
+      query = next.query;
+      if (next.scope !== options?.scope) {
+        options = { ...options, scope: next.scope };
       }
     }
 

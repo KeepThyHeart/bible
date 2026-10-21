@@ -75,8 +75,9 @@ export function SettingsPanel({ isOpen, onClose, scrollToSection }: SettingsPane
   // on every render, which is cheap (a handful of `meta.json`s) and correct,
   // since react-i18next already re-renders this component on language change.
   const localeOptions = selectableLocaleInfos(i18n.language);
-  const betaBadgeLabel = t('settings.language.localeBetaBadge');
-  const draftBadgeLabel = t('settings.language.localeDraftBadge');
+  // Every locale not at `complete` (English) is machine-drafted and unreviewed:
+  // it gets the same "Preview" label, driven by `meta.json` `locale.status`.
+  const previewBadgeLabel = t('settings.language.localePreviewBadge');
   const anyDraftListed = localeOptions.some((info) => info.status === 'draft');
   const anyBetaListed = localeOptions.some((info) => info.status === 'beta');
   const theme = useStore(settingsStore, () => settingsStore.theme);
@@ -541,22 +542,23 @@ export function SettingsPanel({ isOpen, onClose, scrollToSection }: SettingsPane
                     }}
                   >
                     {localeOptions.map((info) => (
-                      <option key={info.code} value={info.code}>
+                      <option
+                        key={info.code}
+                        value={info.code}
+                        title={info.status !== 'complete' ? t('settings.language.localePreviewTooltip') : undefined}
+                        data-locale-status={info.status}
+                      >
                         {info.code === 'en'
                           ? t('settingsPanel.english')
-                          : info.status === 'beta'
-                            ? `${info.nativeName} (${betaBadgeLabel})`
-                            : info.status === 'draft'
-                              ? `${info.nativeName} (${draftBadgeLabel})`
-                              : info.nativeName}
+                          : info.status !== 'complete'
+                            ? `${info.nativeName} (${previewBadgeLabel})`
+                            : info.nativeName}
                       </option>
                     ))}
                   </select>
-                  {anyDraftListed && (
-                    <p class="settings-panel__hint">{t('settings.language.draftNote')}</p>
-                  )}
-                  {!anyDraftListed && anyBetaListed && (
-                    <p class="settings-panel__hint">{t('settings.language.betaNote')}</p>
+                  {/* Every non-English language is one "Preview" state for 1.0, so the note explains that label. */}
+                  {(anyDraftListed || anyBetaListed) && (
+                    <p class="settings-panel__hint">{`${previewBadgeLabel}: ${t('settings.language.localePreviewTooltip')}`}</p>
                   )}
                   {!anyDraftListed && !anyBetaListed && (
                     <p class="settings-panel__hint">{t('settings.language.moreComingNote')}</p>
@@ -594,6 +596,9 @@ export function SettingsPanel({ isOpen, onClose, scrollToSection }: SettingsPane
                   <p class="settings-panel__about-name">{t('settings.about.appName')}</p>
                   <p class="settings-panel__about-desc">
                     {t('settings.about.description')}
+                  </p>
+                  <p class="settings-panel__about-desc">
+                    {t('settings.about.desktopOnly')}
                   </p>
                   <p class="settings-panel__about-license">
                     <i class="fa-solid fa-scale-balanced" style={{ marginInlineEnd: '6px', opacity: 0.6 }} />

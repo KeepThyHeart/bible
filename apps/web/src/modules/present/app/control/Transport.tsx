@@ -33,8 +33,8 @@ export function Transport() {
         type="button"
         class={`pz-transport__btn pz-transport__btn--blank ${blanked ? 'pz-transport__btn--on' : ''}`}
         onClick={presenterToggleBlank}
-        title={blanked ? t('present.unblank') : t('present.blank')}
-        aria-label={blanked ? t('present.unblank') : t('present.blank')}
+        title={blanked ? t('present.unblankScreen') : t('present.blankScreen')}
+        aria-label={blanked ? t('present.unblankScreen') : t('present.blankScreen')}
         aria-pressed={blanked}
       >
         <i class={`fa-solid ${blanked ? 'fa-eye-slash' : 'fa-eye'}`} aria-hidden="true" />

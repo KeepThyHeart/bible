@@ -336,6 +336,10 @@ const SearchResultsPane: React.FC<SearchResultsPaneProps> = ({ dockviewPanelApi 
       className="h-full flex flex-col"
       style={{ backgroundColor: 'var(--theme-bg-primary)' }}
       aria-labelledby="search-results-heading"
+      onKeyDown={(e) => {
+        // Escape closes the results panel so it cannot linger and take half the Bible pane.
+        if (e.key === 'Escape' && !e.defaultPrevented) handleClose();
+      }}
     >
       {/* Title Bar */}
       <div className="pane-header justify-between px-md py-sm">

@@ -362,10 +362,8 @@
       "title": "Idioma",
       "description": "Elija el idioma de la interfaz de la aplicación.",
       "auto": "Detectar automáticamente",
-      "localeDraftBadge": "Borrador — revisión de la comunidad pendiente",
-      "localeBetaBadge": "Beta — revisión de la comunidad pendiente",
-      "draftNote": "Los idiomas marcados como borrador están traducidos automáticamente y todavía no los ha revisado un hablante nativo.",
-      "betaNote": "Los idiomas marcados como beta están traducidos automáticamente y completos, pero todavía no los ha revisado un hablante nativo. Las correcciones son bienvenidas.",
+      "localePreviewBadge": "Vista previa",
+      "localePreviewTooltip": "Traducción automática, aún sin revisar por un hablante nativo. El inglés cuenta con soporte completo.",
       "moreComingNote": "Habrá más idiomas disponibles próximamente. Aquí solo se ofrecen sin distintivo las traducciones que ha revisado un hablante nativo."
     },
     "keywords": {

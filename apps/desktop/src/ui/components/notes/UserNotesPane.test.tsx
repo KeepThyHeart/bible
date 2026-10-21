@@ -72,7 +72,9 @@ vi.mock('./UserNotesPane/hooks/useNoteCrud', () => ({
   }),
 }));
 vi.mock('./UserNotesPane/hooks/useEditorShortcuts', () => ({ useEditorShortcuts: vi.fn() }));
-vi.mock('./UserNotesPane/hooks/useNotesInit', () => ({ useNotesInit: vi.fn() }));
+vi.mock('./UserNotesPane/hooks/useNotesInit', () => ({ useNotesInit: vi.fn(() => ({ restoreDone: true })) }));
+vi.mock('../../contexts/useI18n', () => ({ useI18n: () => ({ t: (k: string) => k }) }));
+vi.mock('../shared/ConfirmDialog', () => ({ default: () => null }));
 vi.mock('./UserNotesPane/hooks/useVerseNoteOpener', () => ({ useVerseNoteOpener: vi.fn() }));
 vi.mock('./UserNotesPane/hooks/usePopOutListener', () => ({ usePopOutListener: vi.fn() }));
 vi.mock('./UserNotesPane/hooks/useNotesNavigation', () => ({

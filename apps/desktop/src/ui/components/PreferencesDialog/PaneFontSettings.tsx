@@ -184,7 +184,7 @@ export const PaneFontSettings: React.FC<PaneFontSettingsProps> = ({
           {/* Red Letter toggle (Bible pane only) */}
           {paneType === 'bible' && (
             <div>
-              <label className="flex items-center gap-2 cursor-pointer">
+              <label className="flex items-center gap-2 cursor-pointer" title={t('ui.preferences.showRedLetterHint')}>
                 <input
                   type="checkbox"
                   checked={settings.showRedLetter ?? true}
@@ -196,6 +196,9 @@ export const PaneFontSettings: React.FC<PaneFontSettingsProps> = ({
                   {t('ui.preferences.showRedLetter')}
                 </span>
               </label>
+              <p className="text-xs mt-1 ms-6" style={{ color: 'var(--theme-text-secondary)' }}>
+                {t('ui.preferences.showRedLetterHint')}
+              </p>
             </div>
           )}
 

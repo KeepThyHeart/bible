@@ -13,6 +13,8 @@
     "previous": "Previous verse",
     "blank": "Blank",
     "unblank": "Show",
+    "blankScreen": "Blank the screen (hide what is showing)",
+    "unblankScreen": "Show the screen again",
     "viewersTooltip": "Screens and devices connected",
     "reconnecting": "Reconnecting...",
     "runningOrder": "Running order",
@@ -129,7 +131,9 @@
       "quote": "Quote",
       "showNow": "Show now",
       "setupTitle": "Set up your screen",
-      "setupGoLive": "Press Go live to get a join code and set up the screen.",
+      "joinCodeLabel": "Join code",
+      "joinCodeTip": "Give this code to people joining. The QR and Copy link are in the ... menu.",
+      "setupGoLive": "Press Go live to get a join code (shown at the top, with the QR and Copy link in the ... menu) and set up the screen.",
       "setupDone": "Done, hide this",
       "chips": "Highlights",
       "chipReveal": "Show this highlight on the screen (or press H for the next one)",
@@ -139,7 +143,7 @@
     },
     "command": {
       "label": "Command",
-      "placeholder": "John 3:16 · 18 · hymn 23 · grace · .",
+      "placeholder": "Show now: John 3:16 · 18 · hymn 23 · grace · .",
       "placeholderOverlay": "Go to a verse: John 3:16, 18, . to blank",
       "tooltip": "Go to a verse or hymn. Press / to focus.",
       "addToNotes": "Add to notes (Alt+Enter)",
@@ -245,7 +249,7 @@
           "hymn": "Hymn",
           "quote": "Quote"
         },
-        "empty": "Nothing planned yet. Verses, hymns and quotes in your notes appear here.",
+        "empty": "Nothing planned yet. Use Verse, Hymn or Quote below and press Add to build the running order, or type references in your notes. \"Show now\" only puts something on the screen.",
         "highlights": "{count, plural, one {# highlight} other {# highlights}}",
         "removed": "Removed {label}",
         "undo": "Undo"

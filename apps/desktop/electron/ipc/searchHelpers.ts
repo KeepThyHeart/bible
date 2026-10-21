@@ -153,3 +153,29 @@ function parseVerseId(verseId: number): { book: number; chapter: number; verse: 
     verse: verseId % 1000,
   };
 }
+
+/**
+ * Read the result of the `search.beforeQuery` filter back into a query and a scope.
+ *
+ * The channel's payload is `{ query: SearchQueryDto, scope? }`, and a filter with no subscriber (or
+ * subscribers that all pass) hands that payload back unchanged, while a subscriber that rewrites the
+ * query returns a bare `SearchQueryDto`. Both shapes arrive here. Taking `.query` of the unchanged
+ * payload gave the DTO object, not its text, and every desktop search failed with
+ * "query.trim is not a function" once the extension host was running.
+ *
+ * Anything without a string query (a broken extension) leaves the query and scope as they were.
+ */
+export function applyBeforeQueryResult(
+  query: string,
+  scope: string | undefined,
+  transformed: unknown,
+): { query: string; scope: string | undefined } {
+  if (!transformed || typeof transformed !== 'object') return { query, scope };
+  const outer = transformed as { query?: unknown; scope?: unknown };
+  const dto = outer.query && typeof outer.query === 'object'
+    ? (outer.query as { query?: unknown; scope?: unknown })
+    : outer;
+  if (typeof dto.query !== 'string') return { query, scope };
+  const nextScope = typeof dto.scope === 'string' ? dto.scope : scope;
+  return { query: dto.query, scope: nextScope };
+}

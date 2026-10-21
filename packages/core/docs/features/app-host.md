@@ -101,6 +101,8 @@ A feature module is a product feature described like an extension: a data-only `
 
 The host is part of core and tested, but today both apps register Study and the Presenter directly (`registerBuiltinApps()`), without going through it; extension apps use the extension host instead.
 
+Scripture memory ([Memory](memory.md)) is a worked example of a desktop-only module with an app, a verse action (with an icon: the desktop verse menu draws a contribution's `icon` through `AppIconGlyph`; extension rows carry none), a badge, and activation pieces that follow the module on and off at runtime.
+
 ## Adding a built-in app
 
 1. Write the `AppDescriptor` (id, `title` key + fallback, icon, `order` 0-99, `lifecycle`; `platforms` if it is not on both).

@@ -654,9 +654,12 @@ describe('Sandbox Escape: infinite loop', () => {
     });
     await worker.spawn();
 
-    // Wait enough for the heartbeat to fire > 2 times with no reply.
-    // 200 ms gives 40x headroom over the 5 ms interval even under heavy test load.
-    await new Promise((r) => setTimeout(r, 200));
+    // Wait for the watchdog itself, not a guessed delay: a fixed sleep sees too few 5 ms ticks when the
+    // event loop is starved. The kill()'s exit is setImmediate-scheduled, so wait for onExit as well.
+    await vi.waitFor(() => {
+      expect(worker.wasHung()).toBe(true);
+      expect(onExit).toHaveBeenCalled();
+    }, { timeout: 10_000, interval: 5 });
     await flush();
 
     expect(worker.wasHung()).toBe(true);

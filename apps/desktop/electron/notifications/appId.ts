@@ -7,7 +7,7 @@
  */
 declare const __BIBLE_APP_ID__: string | undefined;
 
-export const DEFAULT_APP_ID = 'com.bibledesktopapp.app';
+export const DEFAULT_APP_ID = 'com.keepthyheart.bible.desktop';
 
 const defined = typeof __BIBLE_APP_ID__ === 'string' ? __BIBLE_APP_ID__ : undefined;
 

@@ -1884,7 +1884,7 @@ describe('empty and error states', () => {
 
     // A disabled primary button with no explanation looks broken. The screen
     // points at Manage Passages instead, where the add-passage form now lives.
-    expect(spokenText(root)).toContain('Add a verse from Manage Passages to get started.');
+    expect(spokenText(root)).toContain('choose Manage Passages to add your first verse');
     const labels = Array.from(root.querySelectorAll('button')).map((b) => b.textContent);
     expect(labels.some((l) => (l ?? '').includes('Start practicing'))).toBe(false);
   });

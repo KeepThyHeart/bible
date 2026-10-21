@@ -4,8 +4,11 @@
  * strings) when the section is shown, and is gone with the off switch.
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { installModuleBootHooks, trackHost } from '../moduleTestHooks';
 import { validateBuiltinManifest } from '@bible/core/browser';
 import { downloadsManifest } from './manifest';
+
+installModuleBootHooks(() => import('../builtinModules'));
 
 async function boot(override: string) {
   vi.resetModules();
@@ -14,6 +17,7 @@ async function boot(override: string) {
   const host = await import('../moduleHost');
   const services = await import('../host/hostServices');
   registerBuiltinModules();
+  trackHost(host);
   const loadNamespace = vi.fn().mockResolvedValue(undefined);
   host.bindNamespaceLoader(loadNamespace);
   services.bindModuleHostServices({ registry: { register: vi.fn() } as never, i18n: { loadNamespace } });

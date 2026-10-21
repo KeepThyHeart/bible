@@ -99,19 +99,41 @@ export function initializeUserSchema(db: ISql): void {
     END
   `);
 
-  db.execute(`
+  // user_note_fts is an EXTERNAL-content table: it stores no text of its own,
+  // so a plain UPDATE or DELETE on it cannot remove the old terms from the
+  // index (FTS5 needs the ORIGINAL column values, supplied through the
+  // special 'delete' command). The earlier triggers did exactly that, which
+  // left edited-out words and deleted notes searchable. Same triggers as
+  // core's UserDatabase.sql section 5.1.
+  const ftsTriggers = `
     CREATE TRIGGER IF NOT EXISTS user_note_fts_update AFTER UPDATE ON user_note BEGIN
-      UPDATE user_note_fts
-      SET title = new.title, content = new.content, tags = new.tags
-      WHERE rowid = new.note_id;
-    END
-  `);
-
-  db.execute(`
+      INSERT INTO user_note_fts(user_note_fts, rowid, note_id, title, content, tags)
+      VALUES ('delete', old.note_id, old.note_id, old.title, old.content, old.tags);
+      INSERT INTO user_note_fts(rowid, note_id, title, content, tags)
+      VALUES (new.note_id, new.note_id, new.title, new.content, new.tags);
+    END;
     CREATE TRIGGER IF NOT EXISTS user_note_fts_delete AFTER DELETE ON user_note BEGIN
-      DELETE FROM user_note_fts WHERE rowid = old.note_id;
-    END
-  `);
+      INSERT INTO user_note_fts(user_note_fts, rowid, note_id, title, content, tags)
+      VALUES ('delete', old.note_id, old.note_id, old.title, old.content, old.tags);
+    END;
+  `;
+  // Repair a profile that still has the old triggers (shape-detected, so it
+  // runs once and is a no-op afterwards): swap them and rebuild the index
+  // from user_note, dropping every stale term.
+  const oldUpdateTrigger = db.queryOne(
+    `SELECT sql FROM sqlite_master WHERE type = 'trigger' AND name = 'user_note_fts_update'`
+  ) as { sql: string } | undefined;
+  const needsFtsRepair = !!oldUpdateTrigger?.sql && !/'delete'/.test(oldUpdateTrigger.sql);
+  if (needsFtsRepair) {
+    db.execute('DROP TRIGGER IF EXISTS user_note_fts_update');
+    db.execute('DROP TRIGGER IF EXISTS user_note_fts_delete');
+  }
+  for (const stmt of ftsTriggers.split(/END;\s*/).map(t => t.trim()).filter(Boolean)) {
+    db.execute(`${stmt} END`);
+  }
+  if (needsFtsRepair) {
+    db.execute(`INSERT INTO user_note_fts(user_note_fts) VALUES('rebuild')`);
+  }
 
   // --- Text Markup (Highlights) -----------------------------------------
   db.execute(`

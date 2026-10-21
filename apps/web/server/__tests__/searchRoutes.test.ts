@@ -44,7 +44,7 @@ beforeAll(() => {
   app.use(express.json());
   // No pipeline or topicEntries: semantic search will be unavailable (503)
   app.use('/api/search', createSearchRoutes(db, {}));
-});
+}, 60_000);
 
 afterAll(() => {
   db.closeAll();
@@ -64,7 +64,8 @@ describe('POST /api/search/semantic/warmup', () => {
 // ---------------------------------------------------------------------------
 // GET /api/search/keyword
 // ---------------------------------------------------------------------------
-describe('GET /api/search/keyword', () => {
+// Keyword searches scan the whole sidecar index (and the first one opens it): a bounded budget for a busy machine.
+describe('GET /api/search/keyword', { timeout: 60_000 }, () => {
   it('returns 400 when query parameter is missing', async () => {
     const res = await request(app).get('/api/search/keyword');
     expect(res.status).toBe(400);

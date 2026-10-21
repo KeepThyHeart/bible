@@ -21,6 +21,7 @@ import { initializeUserSchema } from '../../schema/userSchema';
 import type { MainModuleDeps } from '../FeatureMainModule';
 import { MAIN_MODULES, closeMainModules, registerMainModules } from '../mainModules';
 import { createMemoryMainModule, toModuleError, type MemoryMainEnv } from './index';
+import { takePendingNotices } from './notices';
 import { legacyMemoryDbPath, MemoryImportPendingError, RETIRED_NOTICE, SKIPPED_NOTICE, startMemoryRuntime, type MemoryRuntime } from './runtime';
 import { IpcKnownError } from '../../ipc/result';
 
@@ -106,7 +107,7 @@ describe('memory main module: registration', () => {
       packaged: false,
       overrideText: '',
     });
-    expect([...ipc.handlers.keys()].sort()).toEqual(MEMORY_API_METHODS.map((m) => `module:memory:${m}`).sort());
+    expect([...ipc.handlers.keys()].sort()).toEqual([...MEMORY_API_METHODS, 'takeNotices'].map((m) => `module:memory:${m}`).sort());
     expect(start).not.toHaveBeenCalled();
   });
 
@@ -492,13 +493,16 @@ describe('memory runtime: retiring the old extension (M2)', () => {
     const ext = { isEnabled: vi.fn(() => enabled), disable: vi.fn(async () => void (enabled = false)) };
     const first = await startWith(userDb, root, ext);
     expect(ext.disable).toHaveBeenCalledWith('ext.bible-app.scripture-memory');
-    expect(first.pushes.filter((p) => p.type === 'notice')).toEqual([{ type: 'notice', message: RETIRED_NOTICE }]);
+    // Not pushed (a hidden window would lose it): queued until a visible window collects it, once.
+    expect(first.pushes.some((p) => p.type === 'notice')).toBe(false);
+    expect(takePendingNotices(userDb, 1)).toEqual([{ id: 'retired', message: RETIRED_NOTICE }]);
+    expect(takePendingNotices(userDb, 2)).toEqual([]);
     first.rt.dispose();
 
     enabled = true; // the user turned it back on: respected
     const second = await startWith(userDb, root, ext);
     expect(ext.disable).toHaveBeenCalledTimes(1);
-    expect(second.pushes.some((p) => p.type === 'notice')).toBe(false);
+    expect(takePendingNotices(userDb, 3)).toEqual([]);
     second.rt.dispose();
   });
 
@@ -515,7 +519,9 @@ describe('memory runtime: retiring the old extension (M2)', () => {
     const { rt, pushes } = await startWith(userDb, root, ext);
     expect(rt.importResult.status).toBe('skipped-not-empty');
     expect(ext.disable).not.toHaveBeenCalled();
-    expect(pushes.filter((p) => p.type === 'notice')).toEqual([{ type: 'notice', message: SKIPPED_NOTICE }]);
+    expect(pushes.some((p) => p.type === 'notice')).toBe(false);
+    expect(takePendingNotices(userDb, 1)).toEqual([{ id: 'skipped', message: SKIPPED_NOTICE }]);
+    expect(takePendingNotices(userDb, 2)).toEqual([]);
     expect(await rt.service.getImportStatus()).toMatchObject({ status: 'skipped-not-empty', sourceAvailable: true });
 
     const result = await rt.service.importLegacyData();

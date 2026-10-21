@@ -5,6 +5,7 @@
  */
 import type { ComponentProps } from 'react';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { installModuleBootHooks, trackHost } from '../moduleTestHooks';
 import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import { validateBuiltinManifest } from '@bible/core/browser';
 import { readingPlansManifest } from './manifest';
@@ -19,6 +20,8 @@ vi.mock('./ReadingPlans/ReadingPlanBar', () => ({
 }));
 vi.mock('./ReadingPlans/ReadingPlansPane', () => ({ default: () => <div data-testid="plans-pane" /> }));
 
+installModuleBootHooks(() => import('../builtinModules'));
+
 async function boot(override = '') {
   vi.resetModules();
   window.localStorage.setItem('kth.modules', override);
@@ -29,6 +32,7 @@ async function boot(override = '') {
   const apps = await import('../../apps/appHost');
   const slots = await import('../host/slots');
   registerBuiltinModules();
+  trackHost(host);
   return { ...host, appRegistry: apps.appRegistry, readerBars: slots.readerBars, ReaderBars: slots.ReaderBars, loadSpy };
 }
 
