@@ -849,7 +849,7 @@ const ModuleManagerDialog: React.FC<ModuleManagerDialogProps> = ({ onClose, init
               aria-busy={refreshBusy}
               data-testid="module-manager-refresh"
               data-refresh-status={refreshStatus}
-              className="px-4 py-2 text-sm font-medium text-text-primary border border-border rounded hover:bg-background-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              className="px-4 py-2 min-w-[8.5rem] justify-center text-sm font-medium text-text-primary border border-border rounded hover:bg-background-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             >
               <svg
                 className={`w-4 h-4 ${loadingAvailable || refreshBusy ? 'animate-spin' : ''}`}

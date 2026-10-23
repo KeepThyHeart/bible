@@ -18,6 +18,16 @@ function fakeIpc(handler: (args: unknown[], push: (p: IndexProgress) => void) =>
 }
 
 describe('invokeBuildIndex (re-index IPC path)', () => {
+  it('ignores progress that belongs to another module build', async () => {
+    const { ipc } = fakeIpc(async (_a, push) => {
+      push({ module: 'ESV', current: 1, total: 66, bookName: 'Genesis' });
+      push({ module: 'KJV', current: 1, total: 66, bookName: 'Genesis' });
+    });
+    const seen: IndexProgress[] = [];
+    await invokeBuildIndex(ipc, ['KJV'], (p) => seen.push(p));
+    expect(seen.map((p) => p.module)).toEqual(['KJV']);
+  });
+
   it('does not put the callback in the invoke arguments (functions are not cloneable)', async () => {
     const { ipc } = fakeIpc(async (args) => args);
     const seen: IndexProgress[] = [];

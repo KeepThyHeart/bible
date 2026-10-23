@@ -35,7 +35,7 @@ export async function invokeBuildIndex<T = unknown>(
   onProgress?: (progress: IndexProgress) => void
 ): Promise<T> {
   const listener = (_event: unknown, payload: IndexProgress): void => {
-    onProgress?.(payload);
+    if (modules.includes(payload.module)) onProgress?.(payload);
   };
   if (onProgress) ipc.on(INDEX_PROGRESS_CHANNEL, listener);
   try {
