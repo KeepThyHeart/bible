@@ -6,7 +6,8 @@
  */
 import { create } from 'zustand';
 import { ReadingPlans } from '@bible/core/browser';
-import { getReadingPlanService } from './readingPlansAPI';
+import { currentRolloverHour, getReadingPlanService } from './readingPlansAPI';
+import { watchReadingDay } from './readingDayWatcher';
 import { navigateToVerseInPrimary } from '../../stores/crossStoreBridge';
 import { syncPanesWithVerse } from '../../stores/syncPanesWithVerse';
 import { openApp } from '../../apps/appHost';
@@ -42,6 +43,8 @@ interface State {
 let unsubscribe: (() => void) | null = null;
 let subscribedService: ReadingPlans.ReadingPlanService | null = null;
 let loadToken = 0;
+let openedOn = '';
+let stopDayWatch: (() => void) | null = null;
 
 export const useActiveReadingStore = create<State>((set, get) => ({
   ref: null,
@@ -54,6 +57,14 @@ export const useActiveReadingStore = create<State>((set, get) => ({
       subscribedService = service;
       unsubscribe = service.subscribe((e) => { if (e.type === 'changed') void get().refresh(); });
     }
+    // A new reading day ends the reading the user opened yesterday.
+    openedOn = service.today();
+    stopDayWatch ??= watchReadingDay(() => {
+      // Focus ticks too: only a changed reading day ends the reading.
+      if (getReadingPlanService().today() === openedOn) return;
+      loadToken++;
+      set({ ref: null, info: null });
+    }, currentRolloverHour);
     await get().refresh();
   },
   refresh: async () => {
@@ -80,7 +91,8 @@ export const useActiveReadingStore = create<State>((set, get) => ({
         },
       });
     } catch {
-      if (token === loadToken) set({ info: null });
+      // The enrollment is gone (removed) or unreadable: forget the reading.
+      if (token === loadToken) set({ ref: null, info: null });
     }
   },
   setDone: async (done) => {
@@ -105,6 +117,8 @@ export function resetActiveReadingForTests(): void {
   unsubscribe?.();
   unsubscribe = null;
   subscribedService = null;
+  stopDayWatch?.();
+  stopDayWatch = null;
   loadToken++;
   useActiveReadingStore.setState({ ref: null, info: null });
 }

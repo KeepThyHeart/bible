@@ -16,6 +16,7 @@ import { useReadingPlanLabels } from './useReadingPlanLabels';
 interface Props {
   currentBook: number;
   currentChapter: number;
+  displayMode?: string;
 }
 
 /** Chapters whose bar was dismissed this session, as `book:chapter`. */
@@ -28,7 +29,7 @@ export function readingOverlapsChapter(r: ReadingPlans.Reading, book: number, ch
   return r.start <= last && r.end >= first;
 }
 
-const ReadingPlanBar: React.FC<Props> = ({ currentBook, currentChapter }) => {
+const ReadingPlanBar: React.FC<Props> = ({ currentBook, currentChapter, displayMode }) => {
   const { t } = useI18n();
   const labels = useReadingPlanLabels();
   const todays = useReadingPlanStore((s) => s.todays);
@@ -36,6 +37,8 @@ const ReadingPlanBar: React.FC<Props> = ({ currentBook, currentChapter }) => {
   const [, bump] = useState(0);
   // A reading opened from the plan views gets the in-text "end of reading" block (task 0196): no bar for it.
   const active = useActiveReadingStore((s) => s.ref);
+  // The blocks are drawn in Standard and Reading modes only; elsewhere the bar stays the way to mark it.
+  const blocksDrawn = displayMode === undefined || displayMode === 'standard' || displayMode === 'reading';
 
   useEffect(() => { void ensureLoaded(); }, [ensureLoaded]);
 
@@ -44,10 +47,10 @@ const ReadingPlanBar: React.FC<Props> = ({ currentBook, currentChapter }) => {
     return todays.flatMap((view) => {
       if (view.day === null || view.dayDone) return [];
       const hits = view.readings.filter((r) => !r.done && readingOverlapsChapter(r.reading, currentBook, currentChapter)
-        && !(active && active.enrollmentId === view.enrollmentId && active.day === view.day && active.index === r.index));
+        && !(blocksDrawn && active && active.enrollmentId === view.enrollmentId && active.day === view.day && active.index === r.index));
       return hits.length > 0 ? [{ view, hits }] : [];
     });
-  }, [todays, currentBook, currentChapter, active]);
+  }, [todays, currentBook, currentChapter, active, blocksDrawn]);
 
   const key = `${currentBook}:${currentChapter}`;
   if (matches.length === 0 || dismissed.has(key)) return null;

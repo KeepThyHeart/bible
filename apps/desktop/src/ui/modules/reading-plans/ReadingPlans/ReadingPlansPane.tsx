@@ -22,6 +22,7 @@ type View =
   | { kind: 'new' }
   | { kind: 'detail'; id: string; from: 'today' | 'plans' };
 
+const EMPTY_PROGRESS: ReadingPlans.ProgressIndex = new Map();
 const ALL_DAYS: Weekday[] = [0, 1, 2, 3, 4, 5, 6];
 const field = 'px-sm py-xs rounded border border-border bg-transparent';
 const secondary = { color: 'var(--theme-text-secondary)' } as const;
@@ -134,7 +135,7 @@ const ReadingPlansPane: React.FC = () => {
               key={v.enrollmentId}
               view={v}
               plan={detail?.plan}
-              progress={data.progress.get(v.enrollmentId) ?? new Map()}
+              progress={data.progress.get(v.enrollmentId) ?? EMPTY_PROGRESS}
               percent={detail?.stats.percent}
               displayName={displayName(v.planKey, v.planName)}
               labels={labels}

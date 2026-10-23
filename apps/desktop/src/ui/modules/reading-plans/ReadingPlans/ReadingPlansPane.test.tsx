@@ -76,7 +76,8 @@ describe('ReadingPlansPane', () => {
     expect(within(card).getByText('Day 4 of 30')).toBeInTheDocument();
     expect(within(card).getByTestId('behind-chip')).toHaveTextContent('2 days behind');
     const strip = within(card).getByTestId('today-strip');
-    expect(within(strip).getByRole('button', { name: /^Previous reading: .*\(day 3\)/ })).toBeInTheDocument();
+    // Day 3 is the reading before today but it is already an overdue row, so the strip does not repeat it.
+    expect(within(strip).queryByRole('button', { name: /^Previous reading/ })).not.toBeInTheDocument();
     expect(within(strip).getByRole('button', { name: /^Next reading: .*\(day 5\)/ })).toBeInTheDocument();
     // Days 1 and 3 are unread; day 2 was read.
     const toggle = within(card).getByRole('button', { name: '▸ 2 overdue readings' });

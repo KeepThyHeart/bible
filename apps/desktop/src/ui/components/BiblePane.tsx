@@ -253,7 +253,7 @@ const BiblePane: React.FC<BiblePaneProps> = (props) => {
           onDismiss={handleDismissBackBar}
         />
         <BibleToolbar />
-        <ReaderBars currentBook={currentBook} currentChapter={currentChapter} />
+        <ReaderBars currentBook={currentBook} currentChapter={currentChapter} displayMode={displayMode} />
         <BibleVerseList />
 
         <BiblePaneOverlays

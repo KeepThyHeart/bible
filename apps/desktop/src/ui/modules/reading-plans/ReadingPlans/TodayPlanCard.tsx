@@ -87,7 +87,7 @@ const TodayPlanCard: React.FC<Props> = ({
         <button type="button" className={`${linkClass} text-base font-semibold`} onClick={onOpenPlan}>{displayName}</button>
         {day !== null ? <span className="text-sm" style={secondary}>{labels.todayCard.dayOf(day, view.dayCount)}</span> : null}
         {view.behindBy > 0 && !view.completed ? (
-          <span className="text-xs px-xs rounded" role="status" data-testid="behind-chip" style={{ backgroundColor: 'var(--theme-warning-bg, #fdecc8)', color: 'var(--theme-warning-text, #7a4b00)' }}>
+          <span className="text-xs px-xs rounded" data-testid="behind-chip" style={{ backgroundColor: 'var(--theme-warning-bg, #fdecc8)', color: 'var(--theme-warning-text, #7a4b00)' }}>
             {t('readingPlans.today.behindChip', { n: view.behindBy })}
           </span>
         ) : null}
@@ -115,7 +115,7 @@ const TodayPlanCard: React.FC<Props> = ({
             {view.readings.map((r) => readingRow({ day, index: r.index, reading: r.reading }, r.done, `t${r.index}`))}
           </ul>
           <div className="flex justify-between gap-sm" data-testid="today-strip" aria-label={t('readingPlans.today.strip')} role="group">
-            {stepButton(neighbours.previous, 'previous')}
+            {stepButton(neighbours.previous && overdue.some((o) => o.day === neighbours.previous!.day && o.index === neighbours.previous!.index) ? null : neighbours.previous, 'previous')}
             {stepButton(neighbours.next, 'next')}
           </div>
           <div>

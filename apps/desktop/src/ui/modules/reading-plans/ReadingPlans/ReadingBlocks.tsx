@@ -16,7 +16,7 @@ interface BlockProps {
 }
 
 const base: React.CSSProperties = {
-  display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.5rem', textAlign: 'start', textIndent: 0,
+  display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.5rem', textAlign: 'start', textIndent: 0, userSelect: 'none',
   fontSize: '0.8125rem', lineHeight: 1.4, padding: '0.375rem 0.75rem', margin: '0.75rem 0',
   borderInlineStart: '3px solid var(--theme-accent, #3b82f6)', borderRadius: 4,
   backgroundColor: 'var(--theme-bg-secondary)', color: 'var(--theme-text-secondary)', fontFamily: 'var(--ui-font-family, system-ui, sans-serif)',
@@ -31,7 +31,7 @@ export const StartOfReadingBlock: React.FC<BlockProps> = ({ info, inParagraph })
     ? t('readingPlans.reader.startPassage', { plan, day: info.day, n: info.index + 1, count: info.readingCount })
     : t('readingPlans.reader.start', { plan, day: info.day });
   return (
-    <Root style={base} role="note" data-testid="reading-plan-start-block" aria-label={text}>
+    <Root style={base} role="note" data-testid="reading-plan-start-block">
       <span>{text}</span>
     </Root>
   );

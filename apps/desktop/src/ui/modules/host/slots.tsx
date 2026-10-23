@@ -95,6 +95,8 @@ export function useSlot<T>(slot: Slot<T>): readonly T[] {
 export interface ReaderBarProps {
   currentBook: number;
   currentChapter: number;
+  /** The pane's display mode; the verse blocks (task 0196) only draw in 'standard' and 'reading'. */
+  displayMode?: string;
 }
 
 export const readerBars = createSlot<ComponentType<ReaderBarProps>>();
