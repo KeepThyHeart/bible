@@ -17,6 +17,7 @@
   "dependencies": {
     "@bible/core": "workspace:*",
     "@diffusionstudio/piper-wasm": "1.0.0",
+    "@huggingface/transformers": "3.8.1",
     "kokoro-js": "1.2.1",
     "onnxruntime-node": "1.21.0",
     "better-sqlite3": "^12.11.1"

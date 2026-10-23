@@ -70,7 +70,7 @@ function loadPhonemizerFactory(file: string): CreatePhonemizer {
   provide('window', g);
   provide('self', g);
   provide('document', { currentScript: { src: `file://${file}` }, baseURI: `file://${dirname(file)}/` });
-  provide('location', { href: `file://${file}` });
+  provide('location', { href: `file://${file}`, pathname: file });
   try {
     const mod = requireHere(file) as CreatePhonemizer | { default?: CreatePhonemizer };
     const fn = typeof mod === 'function' ? mod : mod.default;

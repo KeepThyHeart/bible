@@ -820,6 +820,9 @@ importers:
       '@diffusionstudio/piper-wasm':
         specifier: 1.0.0
         version: 1.0.0
+      '@huggingface/transformers':
+        specifier: 3.8.1
+        version: 3.8.1(@types/node@20.19.43)
       better-sqlite3:
         specifier: ^12.11.1
         version: 12.11.1

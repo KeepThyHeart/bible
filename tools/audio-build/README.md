@@ -119,3 +119,11 @@ gaps, intro and verse 0, index rebuild, resume and `textHash`, atomic writes, ma
 selection parser and the licence gate. `src/parity/piperParity.test.ts` runs the browser's Piper handler
 and the native Piper engine on the same verses with a recording fake ONNX Runtime and asserts the model
 inputs are identical.
+
+## Measured speed (6 cores, no GPU, one job)
+
+Real-time factor is render time divided by audio length (below 1 is faster than real time). KJV John 3
+(about 4 minutes): Kokoro q8 1.1-1.4 (am_michael 1.15, af_heart 1.10, bf_emma 1.38), Piper
+`en_US-amy-low` 0.04. The whole KJV is about 80 hours of audio, so roughly 90 hours of Kokoro render
+on one job (less with `--jobs`, which shares the six cores: about 0.7 GB per Kokoro job) or about
+3 hours with Piper low.
