@@ -1,6 +1,7 @@
 packages:
   - packages/*
   - apps/*
+  - tools/*
 
 # Replaces the npm "overrides" block that used to live in the root package.json.
 overrides:

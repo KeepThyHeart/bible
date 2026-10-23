@@ -33,7 +33,10 @@
  * loaded by URL (the browser's HTTP cache, or the service worker in a PWA build).
  */
 
-import type { AudioError, IAssetCache, LoadProgress, SynthesisRequest } from '@bible/core/browser';
+import {
+  parsePhonemizerLines, parseVoiceConfig, phonemesToIds, piperPhonemizerArgs, piperScales, piperSilenceSamples, splitSentences,
+  type AudioError, type IAssetCache, type LoadProgress, type PiperVoiceConfig, type SynthesisRequest,
+} from '@bible/core/browser';
 import type { SynthesizeValue, TtsWorkerHandlers } from '../ttsWorkerProtocol';
 import { PIPER_RUNTIME_DIR, PIPER_RUNTIME_FILES, joinUrl } from './piperConfig';
 
@@ -73,83 +76,15 @@ export interface PiperDeps {
   threads?: number;
 }
 
-/** The parts of a voice's `.onnx.json` that inference needs. */
-export interface PiperVoiceConfig {
-  espeakVoice: string;
-  sampleRate: number;
-  noiseScale: number;
-  lengthScale: number;
-  noiseW: number;
-  multiSpeaker: boolean;
-  /** Phoneme character to the model's symbol ids. */
-  phonemeIdMap: Record<string, number[]>;
-}
+// The pure Piper pieces (voice config, phoneme ids, scales) live in core, shared with the native build tool.
+export { parseVoiceConfig, phonemesToIds, splitSentences };
+export type { PiperVoiceConfig };
 
 interface LoadedVoice { session: OrtSessionLike; config: PiperVoiceConfig }
 
 const engineError = (message: string, retryable = true): AudioError => ({ code: 'engine', message, retryable });
 
 const aborted = (): AudioError => ({ code: 'aborted', message: 'Aborted', retryable: false });
-
-const isNumber = (x: unknown): x is number => typeof x === 'number' && Number.isFinite(x);
-
-/** Read the fields inference needs from a voice's JSON, or throw a readable error. */
-export function parseVoiceConfig(json: unknown): PiperVoiceConfig {
-  const j = json as {
-    espeak?: { voice?: unknown };
-    audio?: { sample_rate?: unknown };
-    inference?: { noise_scale?: unknown; length_scale?: unknown; noise_w?: unknown };
-    speaker_id_map?: unknown;
-    phoneme_id_map?: unknown;
-  } | null;
-  const voice = j?.espeak?.voice;
-  const sampleRate = j?.audio?.sample_rate;
-  if (typeof voice !== 'string' || !voice || !isNumber(sampleRate) || sampleRate <= 0) {
-    throw engineError('The voice configuration is not a Piper voice file.', false);
-  }
-  const inf = j?.inference;
-  const map = j?.speaker_id_map;
-  const phonemeIdMap: Record<string, number[]> = {};
-  const raw = j?.phoneme_id_map;
-  if (raw && typeof raw === 'object') {
-    for (const [ph, ids] of Object.entries(raw)) {
-      if (Array.isArray(ids) && ids.every(isNumber)) phonemeIdMap[ph] = ids as number[];
-    }
-  }
-  if (!phonemeIdMap['^'] || !phonemeIdMap['$'] || !phonemeIdMap['_']) {
-    throw engineError('The voice configuration has no phoneme table.', false);
-  }
-  return {
-    espeakVoice: voice,
-    sampleRate,
-    noiseScale: isNumber(inf?.noise_scale) ? inf.noise_scale : 0.667,
-    lengthScale: isNumber(inf?.length_scale) ? inf.length_scale : 1,
-    noiseW: isNumber(inf?.noise_w) ? inf.noise_w : 0.8,
-    multiSpeaker: !!map && typeof map === 'object' && Object.keys(map).length > 0,
-    phonemeIdMap,
-  };
-}
-
-/** The model input for phonemized sentences: per sentence BOS, PAD, (phoneme, PAD)*, EOS. Unknown phonemes are skipped, as Piper does. */
-export function phonemesToIds(sentences: string[][], map: Record<string, number[]>): number[] {
-  const ids: number[] = [];
-  for (const phonemes of sentences) {
-    ids.push(...map['^'], ...map['_']);
-    for (const ph of phonemes) {
-      const mapped = map[ph];
-      if (mapped) ids.push(...mapped, ...map['_']);
-    }
-    ids.push(...map['$']);
-  }
-  return ids;
-}
-
-/** Sentences for the phonemizer, so each gets its own boundaries. Text with no terminator is one sentence. */
-export function splitSentences(text: string): string[] {
-  return text.split(/(?<=[.!?…])\s+/).map(s => s.trim()).filter(Boolean);
-}
-
-const clamp = (n: number, lo: number, hi: number): number => Math.min(hi, Math.max(lo, n));
 
 export function createPiperHandlers(deps: PiperDeps): TtsWorkerHandlers {
   let base: string | null = null;
@@ -271,7 +206,6 @@ export function createPiperHandlers(deps: PiperDeps): TtsWorkerHandlers {
   /** The phonemes of each sentence, in order. */
   function phonemize(text: string, espeakVoice: string): Promise<string[][]> {
     const create = createPhonemizer!;
-    const sentences = splitSentences(text);
     return new Promise<string[][]>((resolve, reject) => {
       const lines: string[] = [];
       const errors: string[] = [];
@@ -284,13 +218,8 @@ export function createPiperHandlers(deps: PiperDeps): TtsWorkerHandlers {
         getPreloadedPackage: name => (name.endsWith('.data') ? phonemizerData : null),
       }).then(mod => {
         // callMain is synchronous and prints while it runs.
-        mod.callMain(['-l', espeakVoice, '--input', JSON.stringify(sentences.map(t => ({ text: t }))), '--espeak_data', '/espeak-ng-data']);
-        const out: string[][] = [];
-        for (const line of lines) {
-          let phonemes: unknown;
-          try { phonemes = (JSON.parse(line) as { phonemes?: unknown }).phonemes; } catch { continue; }
-          if (Array.isArray(phonemes)) out.push(phonemes.filter((p): p is string => typeof p === 'string'));
-        }
+        mod.callMain(piperPhonemizerArgs(espeakVoice, text));
+        const out = parsePhonemizerLines(lines);
         if (out.length === 0) reject(engineError(errors.at(-1) || 'The phonemizer produced no output.'));
         else resolve(out);
       }).catch(reject);
@@ -322,19 +251,18 @@ export function createPiperHandlers(deps: PiperDeps): TtsWorkerHandlers {
       const voice = loaded!;
       if (signal.aborted) throw aborted();
       const text = req.text.trim();
-      if (!text) return { pcm: new Float32Array(Math.round(voice.config.sampleRate * 0.1)), sampleRate: voice.config.sampleRate };
+      if (!text) return { pcm: new Float32Array(piperSilenceSamples(voice.config)), sampleRate: voice.config.sampleRate };
 
       const ids = phonemesToIds(await phonemize(text, voice.config.espeakVoice), voice.config.phonemeIdMap);
       if (signal.aborted) throw aborted();
-      if (ids.length === 0) return { pcm: new Float32Array(Math.round(voice.config.sampleRate * 0.1)), sampleRate: voice.config.sampleRate };
+      if (ids.length === 0) return { pcm: new Float32Array(piperSilenceSamples(voice.config)), sampleRate: voice.config.sampleRate };
 
       const { Tensor } = ort!;
-      const rate = clamp(isNumber(req.rate) && req.rate > 0 ? req.rate : 1, 0.25, 4);
       const c = voice.config;
       const feeds: Record<string, unknown> = {
         input: new Tensor('int64', BigInt64Array.from(ids, n => BigInt(n)), [1, ids.length]),
         input_lengths: new Tensor('int64', BigInt64Array.from([BigInt(ids.length)]), [1]),
-        scales: new Tensor('float32', Float32Array.from([c.noiseScale, c.lengthScale / rate, c.noiseW]), [3]),
+        scales: new Tensor('float32', piperScales(c, req.rate), [3]),
       };
       if (c.multiSpeaker) feeds.sid = new Tensor('int64', BigInt64Array.from([0n]), [1]);
       const result = await voice.session.run(feeds);

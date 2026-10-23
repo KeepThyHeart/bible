@@ -7,16 +7,16 @@
  * square brackets some modules put round supplied words (the words stay), and
  * the small-caps divine name, which TTS engines otherwise spell out.
  *
- * The same rules will run in the production pipeline (a separate project) so
- * recorded and on-device audio say the same words; keep this file free of
- * browser APIs so it can be lifted there unchanged.
+ * It lives in core so the web app (live speech) and the `audio-build` tool
+ * (recordings) say exactly the same words; keep it free of browser and Node
+ * APIs.
  *
  * Only English gets language-specific rewrites (LORD, "1 John" to "First
  * John"); other languages get the language-neutral cleanup and a short chapter
  * announcement where the word for "chapter" is known.
  */
 
-import type { ChapterRef, ITextPreparer, VerseText } from '@bible/core/browser';
+import type { ChapterRef, ITextPreparer, VerseText } from './types';
 
 const NAMED_ENTITIES: Record<string, string> = {
   amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ', ndash: '-', mdash: '-', hellip: '...',

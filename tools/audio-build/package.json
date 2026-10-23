@@ -1,0 +1,36 @@
+{
+  "name": "@bible/audio-build",
+  "version": "0.1.0",
+  "description": "Pre-render Bible chapter recordings (Kokoro, Piper) with verse timings, in the layout the web audio player reads",
+  "license": "GPL-3.0-or-later",
+  "author": "Peter Rankin <psrankin@outlook.com>",
+  "private": true,
+  "bin": {
+    "bible-audio-build": "./bin/bible-audio-build.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "start": "node bin/bible-audio-build.js"
+  },
+  "dependencies": {
+    "@bible/core": "workspace:*",
+    "@diffusionstudio/piper-wasm": "1.0.0",
+    "kokoro-js": "1.2.1",
+    "onnxruntime-node": "1.21.0",
+    "better-sqlite3": "^12.11.1"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.11",
+    "@types/node": "^20.14.0",
+    "typescript": "^5.5.0",
+    "vitest": "^4.1.11"
+  },
+  "files": [
+    "bin",
+    "dist",
+    "README.md",
+    "LICENSE"
+  ]
+}

@@ -5,9 +5,11 @@
   "private": false,
   "workspaces": [
     "packages/*",
-    "apps/*"
+    "apps/*",
+    "tools/*"
   ],
   "scripts": {
+    "audio:build": "pnpm --filter @bible/audio-build exec node bin/bible-audio-build.js",
     "build": "pnpm -r --if-present run build",
     "build:core": "pnpm --filter @bible/core run build",
     "build:desktop": "pnpm run build:core && pnpm --filter @bible/desktop run build",

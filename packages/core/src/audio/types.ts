@@ -180,6 +180,20 @@ export interface ManifestFile {
 /** `[verse, start, end]`, seconds from the start of the file. Psalm titles are verse 0. */
 export type ManifestVerse = [verse: number, start: number, end: number];
 
+/** How a recording was made; the build tool compares it to decide whether a chapter must be rendered again. */
+export interface AudioBuildInfo {
+  engine: string;
+  voice: string;
+  /** Engine model and precision, e.g. `Kokoro-82M-v1.0-ONNX q8`. */
+  model?: string;
+  rate: number;
+  /** Silence after each verse and after the intro, milliseconds. */
+  gapMs: number;
+  introGapMs: number;
+  /** The producing tool and version. */
+  tool?: string;
+}
+
 export interface ChapterManifest {
   schema: typeof CHAPTER_MANIFEST_SCHEMA;
   module: string;
@@ -195,6 +209,27 @@ export interface ChapterManifest {
   /** The spoken "Book, chapter N" lead-in, when the recording has one. */
   intro?: [start: number, end: number];
   verses: ManifestVerse[];
+  /** How the audio was produced (recordings from the build tool). Players ignore it. */
+  build?: AudioBuildInfo;
+}
+
+/** A named, licensed ingredient of a recording (engine, model, voice or the translation's text). */
+export interface AudioCredit {
+  name: string;
+  /** SPDX identifier or a short licence name. */
+  license?: string;
+  url?: string;
+  /** Attribution text the licence asks for. */
+  attribution?: string;
+}
+
+/** Where a narrator's audio came from, with licences. */
+export interface AudioProvenance {
+  engine: AudioCredit;
+  model: AudioCredit;
+  voice: AudioCredit;
+  /** The translation's text. */
+  text?: AudioCredit;
 }
 
 export interface AudioNarrator {
@@ -208,6 +243,8 @@ export interface AudioNarrator {
   books: number[];
   /** Partial books: book number (as a string key) to the chapters recorded. */
   chapters?: Record<string, number[]>;
+  /** Engine, model, voice and text licences (recordings from the build tool). */
+  provenance?: AudioProvenance;
 }
 
 /** `index.json` of one translation: the only mutable file of a published build. */

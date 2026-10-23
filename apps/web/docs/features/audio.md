@@ -69,7 +69,24 @@ Only `v1` and `tts` are served, dotfiles and `..` are refused, a miss is a real 
 
 **Chapter manifest** (`kth-audio-chapter/1`): `{ module, book, chapter, narrator, rev, textHash?, duration, files: [{ codec, mime, path, bytes, sha256? }], intro?: [start, end], verses: [[verse, start, end], ...] }`. `path` is relative to the chapter's directory (`43/003.ogg`). The player uses the first file whose MIME type the browser can play (`canPlayType`), so a build with Ogg Opus first and an MP3 second works on every browser. Psalm titles are verse 0. Validators and JSON Schemas are in `packages/core/src/audio/manifest.ts` and `manifestSchema.ts`; the e2e fixture (`e2e/audioFixture.ts`) is a worked example.
 
-**Generating recordings is out of scope for this feature** (the pipeline is a separate piece of work). Anything that writes files in this layout will be played.
+## Generating recordings
+
+`tools/audio-build` (`@bible/audio-build`, `pnpm audio:build`, README beside it) pre-renders translations into exactly the tree above. It lives in this repo, not in `bible-scripts`, on purpose: the text sent to the engine must be exactly what on-device speech uses, or recordings and live speech would differ and the verse timings would drift. So it shares code with the player instead of copying it: `TextPreparer` and the pure Piper phoneme mapping (`piperPhonemes.ts`) are in `packages/core/src/audio/`, the manifests are built with core's types and checked with core's validators before they are written, text is read with core's `BibleRepository`, and the engines implement core's `ITtsEngine`.
+
+```bash
+pnpm build:core && pnpm --filter @bible/audio-build run build
+pnpm audio:build --module=KJV --engine=kokoro --voice=am_michael --chapters=JHN.3,PSA.23
+pnpm audio:build --module=KJV --engine=piper --voice=en_US-amy-low --books=JHN --formats=opus
+pnpm audio:build --module=KJV --engine=kokoro --dry-run     # list chapters and an estimate, load no model
+```
+
+- **Engines.** Kokoro-82M (Apache-2.0, CPU, q8 by default, `--quantization=fp32` to change) through `kokoro-js` and `onnxruntime-node`, and native Piper with the same voice files as `fetch:piper`, the same espeak-ng phonemizer build and the same phoneme-id mapping as the browser. A test feeds both the browser handler and the native engine the same verses and asserts the model inputs are identical. A third engine is an `EngineDefinition` and one registry line. Models and voices go to `--cache-dir` (default `~/.cache/bible-audio-build`), never into git.
+- **Per chapter.** The intro ("John, chapter 3.", span in `intro`) and each verse (Psalm titles are verse 0) are synthesized on their own and joined with a 350 ms gap (700 ms after the intro, both configurable). `[verse, start, end]` come from sample counts, so they are exact. Ogg Opus (32 kbps mono, preferred) and MP3 (64 kbps mono) are encoded with ffmpeg. The manifest carries `bytes`, `sha256`, `duration`, `textHash` and a `build` record (engine, model, voice, speed, gaps).
+- **Resume.** A chapter is skipped when its manifest validates and its `textHash`, `build` record and files all match; a changed voice (a new narrator), speed, gap, model or text renders again, and `--force` renders everything selected. Files are written under a temp name and renamed, the manifest last, so an interrupted run leaves nothing that looks finished.
+- **Index and licences.** After a run `index.json` is rebuilt from the manifests on disk (`books` for fully recorded books, `chapters` for partial ones; other narrators' entries are kept). Each narrator entry has a `provenance` block: engine, model, voice and the translation's text, with licences and attribution. The tool refuses a module whose metadata does not allow audio derivatives unless `--i-have-rights` is passed.
+- **Speed and memory.** `--jobs` runs worker threads, each with its own model (about 700 MB for Kokoro q8). The real-time factors measured on the development machine are in the tool README.
+
+Anything else that writes files in this layout will be played just the same.
 
 ## On-device speech: Piper
 
@@ -125,6 +142,8 @@ Alt+P play/pause, Alt+Left / Alt+Right previous / next verse, Alt+Shift+Left / R
 | `manifest.ts`, `manifestSchema.ts` | Validators for the index and chapter manifest, timing helpers, JSON Schemas |
 | `config.ts` | `parseAudioSiteConfig` (shared by server and client), `audioExternalOrigins` (for the CSP) |
 | `registry.ts` | `Registry<T>`, the shape of the plugin registries, for providers and engine factories |
+| `TextPreparer.ts` | Verse markup to speakable text; chapter intro ("John, chapter 3.") per language. Shared by live speech and `tools/audio-build` |
+| `piperPhonemes.ts` | The pure Piper pieces: voice config, phonemizer arguments and output, phoneme-to-id mapping, scales. Shared by the browser worker and `tools/audio-build` |
 
 ### Server (`apps/web/server/`)
 
@@ -144,10 +163,9 @@ Alt+P play/pause, Alt+Left / Alt+Right previous / next verse, Alt+Shift+Left / R
 | `RecordedAudioProvider.ts`, `HttpManifestSource.ts`, `CdnAudioLocator.ts` | The recorded channel and its URL scheme |
 | `tts/TtsAudioProvider.ts`, `tts/TtsChapterAudio.ts` | The speech channel: look-ahead queue, one WAV per verse |
 | `tts/WorkerTtsEngine.ts`, `tts/serveTtsWorker.ts`, `tts/ttsWorkerProtocol.ts`, `tts/LazyTtsEngine.ts` | Engine-independent worker plumbing and lazy loading |
-| `tts/piper/` | `PiperEngine`, `piperFactory`, `piperWorker` (entry), `piperHandlers` (the algorithm, dependency-injected for tests), `piperConfig` (file layout) |
+| `tts/piper/` | `PiperEngine`, `piperFactory`, `piperWorker` (entry), `piperHandlers` (the browser wiring, dependency-injected for tests; the pure phoneme mapping is `piperPhonemes.ts` in core), `piperConfig` (file layout) |
 | `AudioSourceResolver.ts` | Which provider and voice plays a translation; `sourceStatus` |
 | `AssetCache.ts`, `cacheNames.ts`, `audioStorage.ts` | Cache API and in-memory `IAssetCache`, cache names shared with the service worker, storage usage and clearing |
-| `TextPreparer.ts` | Verse markup to speakable text; chapter intro ("John, chapter 3.") per language |
 | `MediaSessionBridge.ts` | Lock-screen and media-key controls |
 | `sourceChoice.ts` | Auto / Recorded / Generated over the providers |
 | `audioPrefs.ts`, `audioSettings.ts`, `config.ts`, `registries.ts`, `wav.ts`, `audioShortcuts.ts` | Preferences, client config accessor, registries, WAV encoding, shortcuts |

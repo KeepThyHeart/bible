@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { TextPreparer } from './TextPreparer';
+import { TextPreparer } from '../audio/TextPreparer';
 
 const p = new TextPreparer();
 const v = (text: string, html?: string) => ({ verse: 1, text, html });
