@@ -10,6 +10,7 @@ import { isTextSelectionActive } from '../utils/selectionUtils';
 import { HighlightSelector } from './highlights/HighlightSelector';
 import { HighlightedVerse } from './highlights/HighlightRenderer';
 import BibleHeader from './BibleHeader';
+import ChapterEndLinks from './bible/ChapterEndLinks';
 import { directionForLanguage, resolveVerseDecorations, resolveThemeColor } from '@bible/core/browser';
 import { isPrefaceVerse, getSectionHeading, SectionHeadingBlock, PREFACE_TEXT_CLASSNAME } from './bible/SectionHeading';
 import PaneLoadingSkeleton from './onboarding/PaneLoadingSkeleton';
@@ -65,6 +66,8 @@ const BibleVerseList: React.FC = () => {
     handleMouseUpWithToolbar,
     setShowSelector,
     handleVerseClick,
+    handlePreviousChapter,
+    handleNextChapter,
     handleStrongsClick,
     handleVerseContextMenu,
     handleNoteIndicatorClick,
@@ -568,6 +571,12 @@ const BibleVerseList: React.FC = () => {
                       </div>
                     )}
                   </HighlightSelector>
+                  <ChapterEndLinks
+                    book={currentBook}
+                    chapter={currentChapter}
+                    onPrevious={handlePreviousChapter}
+                    onNext={handleNextChapter}
+                  />
                 </div>
                 </div>
               </>

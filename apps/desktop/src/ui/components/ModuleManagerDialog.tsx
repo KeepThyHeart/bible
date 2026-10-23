@@ -14,6 +14,7 @@ import { TabStrip } from './shared/TabStrip';
 import DownloadProgressPanel from './DownloadProgressPanel';
 import RepositorySettings from './RepositorySettings';
 import FeaturePackPanel from './FeaturePackPanel';
+import { useCatalogRefresh } from './moduleManager/useCatalogRefresh';
 import { OfflinePacksPanel } from './moduleManager/OfflinePacksPanel';
 import ConfirmDialog from './shared/ConfirmDialog';
 import { activateFocusTrap } from '../utils/focusTrap';
@@ -381,9 +382,16 @@ const ModuleManagerDialog: React.FC<ModuleManagerDialogProps> = ({ onClose, init
   };
 
   // Handle refresh catalog
-  const handleRefreshCatalog = async () => {
-    await refreshAllCatalogs();
-  };
+  const { status: refreshStatus, run: handleRefreshCatalog } = useCatalogRefresh(
+    refreshAllCatalogs,
+    () => useModuleStore.getState().error
+  );
+  const refreshBusy = refreshStatus === 'busy';
+  const refreshLabel =
+    refreshStatus === 'busy' ? td('moduleManagerDialog.refreshing', 'Refreshing\u2026')
+    : refreshStatus === 'done' ? td('moduleManagerDialog.refreshed', 'Updated')
+    : refreshStatus === 'error' ? td('moduleManagerDialog.refreshFailed', 'Refresh failed')
+    : t('moduleManagerDialog.refresh');
 
   // Offline banner's "Turn on" - same confirmation-gated path as the menu
   // checkbox and the Preferences toggle (see `useNetworkStore`). A refresh is
@@ -607,7 +615,7 @@ const ModuleManagerDialog: React.FC<ModuleManagerDialogProps> = ({ onClose, init
     },
     {
       id: 'packs',
-      label: td('moduleManager.packs.tab', 'Offline packs'),
+      label: td('moduleManager.packs.tab', 'Bundles'),
       testId: 'module-manager-packs-tab',
     },
     {
@@ -836,12 +844,15 @@ const ModuleManagerDialog: React.FC<ModuleManagerDialogProps> = ({ onClose, init
 
             {/* Refresh Catalog */}
             <button
-              onClick={handleRefreshCatalog}
-              disabled={loadingAvailable}
+              onClick={() => void handleRefreshCatalog()}
+              disabled={loadingAvailable || refreshBusy}
+              aria-busy={refreshBusy}
+              data-testid="module-manager-refresh"
+              data-refresh-status={refreshStatus}
               className="px-4 py-2 text-sm font-medium text-text-primary border border-border rounded hover:bg-background-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             >
               <svg
-                className={`w-4 h-4 ${loadingAvailable ? 'animate-spin' : ''}`}
+                className={`w-4 h-4 ${loadingAvailable || refreshBusy ? 'animate-spin' : ''}`}
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -853,7 +864,7 @@ const ModuleManagerDialog: React.FC<ModuleManagerDialogProps> = ({ onClose, init
                   d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
                 />
               </svg>
-              {t('moduleManagerDialog.refresh')}
+              <span role="status" aria-live="polite">{refreshLabel}</span>
             </button>
 
             {/* Last Updated */}

@@ -1,8 +1,9 @@
 import { useCallback } from 'react';
+import { adjacentChapter } from '../adjacentChapter';
 
 /**
- * Prev / next chapter navigation that wraps to the next book at chapter
- * boundaries and clamps to Genesis / Revelation.
+ * Prev / next chapter navigation that crosses into the neighbouring book at chapter
+ * boundaries (landing on the last chapter going back) and does nothing at Genesis 1 / Revelation 22.
  *
  * Every move here is *sequential* - the reader is paging, not jumping - so the
  * injected `loadChapter` is expected to replace the current navigation-history
@@ -18,17 +19,13 @@ export function useBibleNavigation(args: {
   const { currentBook, currentChapter, loadChapter } = args;
 
   const handlePreviousChapter = useCallback(() => {
-    if (currentChapter > 1) {
-      loadChapter(currentBook, currentChapter - 1);
-    } else if (currentBook > 1) {
-      loadChapter(currentBook - 1, 1);
-    }
+    const target = adjacentChapter(currentBook, currentChapter, 'prev');
+    if (target) loadChapter(target.book, target.chapter);
   }, [currentBook, currentChapter, loadChapter]);
 
   const handleNextChapter = useCallback(() => {
-    if (currentBook <= 66) {
-      loadChapter(currentBook, currentChapter + 1);
-    }
+    const target = adjacentChapter(currentBook, currentChapter, 'next');
+    if (target) loadChapter(target.book, target.chapter);
   }, [currentBook, currentChapter, loadChapter]);
 
   return { handlePreviousChapter, handleNextChapter };

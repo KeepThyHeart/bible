@@ -54,6 +54,23 @@ const BUILTIN_GLYPHS: Record<string, React.ReactNode> = {
       <path d="M8.2 11l7.6-3.7M8.2 13l7.6 3.7" />
     </>
   ),
+  /** Quiz: a checklist (ticked rows). */
+  'list-check': (
+    <>
+      <path d="m3 6 1.5 1.5L7.5 4.5" />
+      <path d="m3 13 1.5 1.5L7.5 11.5" />
+      <path d="m3 20 1.5 1.5L7.5 18.5" />
+      <path d="M11 6h10M11 13h10M11 20h10" />
+    </>
+  ),
+  /** Memory: stacked flashcards. */
+  clone: (
+    <>
+      <rect x="7" y="8" width="14" height="11" rx="2" />
+      <path d="M5 16V7a2 2 0 0 1 2-2h11" />
+      <path d="M3 13V5a2 2 0 0 1 2-2h10" />
+    </>
+  ),
   similar: (
     <>
       <path d="M8 7h8M8 12h8M8 17h5" />

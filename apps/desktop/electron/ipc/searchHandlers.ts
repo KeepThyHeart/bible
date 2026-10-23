@@ -1,4 +1,5 @@
-import { IpcMain } from 'electron';
+import { BrowserWindow, IpcMain } from 'electron';
+import { INDEX_PROGRESS_CHANNEL } from './indexProgress';
 import log from 'electron-log';
 import { ipcHandler, IpcKnownError } from './handler-helper';
 import { SqliteProvider } from '../providers/SqliteProvider';
@@ -396,9 +397,9 @@ export function registerSearchHandlers(_ipcMain: IpcMain, opts: SearchHandlersOp
   });
 
   // Handler: Build index
-  ipcHandler<[string[], ((progress: any) => void)?], void>(
+  ipcHandler<[string[]], void>(
     'search:buildIndex',
-    async (modules, _onProgress) => {
+    async (modules) => {
     if (!searchController || !searchService) {
       throw new IpcKnownError('unavailable', 'Search controller not initialized');
     }
@@ -411,9 +412,12 @@ export function registerSearchHandlers(_ipcMain: IpcMain, opts: SearchHandlersOp
       }
     }
 
-    // Note: Progress callbacks don't work well over IPC
-    // Would need to use IPC events to send progress updates
-    await searchController.buildIndex(modules);
+    // Progress is pushed to the windows as events (a callback cannot cross IPC; see indexProgress.ts).
+    await searchController.buildIndex(modules, (progress) => {
+      for (const win of BrowserWindow.getAllWindows()) {
+        if (!win.isDestroyed()) win.webContents.send(INDEX_PROGRESS_CHANNEL, progress);
+      }
+    });
 
     // Mark each module as indexed in module_metadata table
     for (const moduleAbbr of modules) {

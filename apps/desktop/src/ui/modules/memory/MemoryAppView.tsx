@@ -25,7 +25,7 @@ export const MemoryAppView: React.FC = () => {
   const hostRef = React.useRef<HTMLDivElement>(null);
   const desc = appRegistry.get('memory');
   const title = desc ? resolveLabelRef(desc.title, t, i18n) : translateWithDefault(t, 'apps.memory.title', 'Memory');
-  const icon = desc?.icon ?? { kind: 'builtin' as const, name: 'brain' };
+  const icon = desc?.icon ?? { kind: 'builtin' as const, name: 'clone' };
 
   React.useEffect(() => {
     const container = hostRef.current;

@@ -206,7 +206,7 @@ export function OfflinePacksPanel({ source: sourceProp, installers: installersPr
   const onCancel = useCallback(() => getCurrentPackRun()?.cancel(), []);
 
   const labels: PackBuilderLabels = {
-    title: td('moduleManager.packs.title', 'Offline packs'),
+    title: td('moduleManager.packs.title', 'Install bundles'),
     presetsHeading: td('moduleManager.packs.presetsHeading', 'Start from'),
     groupsHeading: td('moduleManager.packs.groupsHeading', 'Content'),
     empty: td('moduleManager.packs.empty', 'No modules are available. Refresh the catalog first.'),
