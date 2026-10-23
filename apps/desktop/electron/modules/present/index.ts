@@ -46,7 +46,11 @@ const scripture: PresentScripture = {
 
 let screenWindow: BrowserWindow | null = null;
 
-function openScreenWindow(url: string): void {
+function closeScreenWindow(): void {
+  if (screenWindow && !screenWindow.isDestroyed()) screenWindow.close();
+}
+
+function openScreenWindow(url: string, parent?: BrowserWindow): void {
   if (screenWindow && !screenWindow.isDestroyed()) {
     screenWindow.close();
   }
@@ -63,8 +67,11 @@ function openScreenWindow(url: string): void {
     autoHideMenuBar: true,
     backgroundColor: '#0b0d10',
     // A plain web page: no preload, no Node, sandboxed; it must never reach the app's IPC.
-    webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false },
+    // Own non-persistent session; a child of the app window so closing the app closes it too.
+    webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false, partition: 'present-screen' },
+    ...(parent ? { parent } : {}),
   });
+  win.webContents.session.setPermissionRequestHandler((_wc, _perm, cb) => cb(false));
   lockDownNavigation(win.webContents, 'present-screen');
   win.removeMenu();
   void win.loadURL(url);
@@ -76,7 +83,9 @@ function openScreenWindow(url: string): void {
 
 const presentModule: FeatureMainModule = {
   id: 'present',
-  registerIpc(ipc: ModuleIpc) {
+  registerIpc(ipc: ModuleIpc, deps) {
+    const mainWindow = (): BrowserWindow | undefined => deps.getWindows().find((w): w is BrowserWindow => w instanceof BrowserWindow && !w.isDestroyed());
+    let watching: BrowserWindow | undefined;
     const controller = new PresentController(
       { scripture, lanAddresses, qr: (url) => qrSvg(url, { title: 'QR code for the presenter address' }) },
       (status) => ipc.send('changed' satisfies keyof PresentEvents, status),
@@ -85,9 +94,27 @@ const presentModule: FeatureMainModule = {
       ipc.handle(method, fn);
 
     handle('status', () => controller.status());
-    handle('start', (options?: { lan?: boolean }) => controller.start({ lan: options?.lan === true }));
+    handle('start', async (options?: { lan?: boolean }) => {
+      const before = controller.localUrl();
+      const status = await controller.start({ lan: options?.lan === true });
+      // Closing the app window ends the presentation (no orphaned listener).
+      const main = mainWindow();
+      if (main && main !== watching) {
+        watching = main;
+        main.once('closed', () => {
+          watching = undefined;
+          closeScreenWindow();
+          void controller.stop();
+        });
+      }
+      // The address changed (local <-> LAN): bring an open screen window along.
+      if (before && status.server && status.server.url !== before && screenWindow && !screenWindow.isDestroyed()) {
+        void screenWindow.loadURL(status.server.url);
+      }
+      return status;
+    });
     handle('stop', async () => {
-      if (screenWindow && !screenWindow.isDestroyed()) screenWindow.close();
+      closeScreenWindow();
       return controller.stop();
     });
     handle('setPassage', (request: PresentPassageRequest) => controller.setPassage(request));
@@ -104,12 +131,12 @@ const presentModule: FeatureMainModule = {
     handle('openInWindow', () => {
       const url = controller.localUrl();
       if (!url) throw new IpcKnownError('unavailable', 'The presenter is not running');
-      openScreenWindow(url);
+      openScreenWindow(url, mainWindow());
     });
 
     return {
       dispose() {
-        if (screenWindow && !screenWindow.isDestroyed()) screenWindow.close();
+        closeScreenWindow();
         void controller.stop();
       },
     };

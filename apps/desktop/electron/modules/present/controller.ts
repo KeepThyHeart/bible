@@ -52,6 +52,8 @@ export class PresentController {
   private focus = 0;
   /** Monotonic across server restarts, so a screen never sees time go backwards. */
   private version = 0;
+  /** Start/stop run one at a time, so a double click can never leave a second listener behind. */
+  private lifecycle: Promise<unknown> = Promise.resolve();
   private display: PresentDisplay = { fontStep: DEFAULT_FONT_STEP, blanked: false, theme: 'dark' };
 
   constructor(
@@ -77,11 +79,25 @@ export class PresentController {
 
   // -- lifecycle ------------------------------------------------------------
 
-  async start(options: { lan?: boolean } = {}): Promise<PresentStatus> {
+  start(options: { lan?: boolean } = {}): Promise<PresentStatus> {
+    return this.serial(() => this.doStart(options));
+  }
+
+  stop(): Promise<PresentStatus> {
+    return this.serial(() => this.doStop());
+  }
+
+  private serial<T>(fn: () => Promise<T>): Promise<T> {
+    const run = this.lifecycle.then(fn, fn);
+    this.lifecycle = run.catch(() => {});
+    return run;
+  }
+
+  private async doStart(options: { lan?: boolean }): Promise<PresentStatus> {
     const lan = options.lan === true;
     if (this.server?.running) {
       if (this.info?.lan === lan) return this.status();
-      await this.stop(); // switching local <-> LAN: new socket, new token
+      await this.doStop(); // switching local <-> LAN: new socket, new token
     }
     const server = (this.deps.createServer ?? ((o) => new PresenterServer(o)))({
       lan,
@@ -97,7 +113,7 @@ export class PresentController {
     return this.status();
   }
 
-  async stop(): Promise<PresentStatus> {
+  private async doStop(): Promise<PresentStatus> {
     const server = this.server;
     this.server = null;
     this.info = null;
@@ -118,6 +134,8 @@ export class PresentController {
     if (!info) throw new IpcKnownError('not_found', `Unknown book ${book}`);
     const verses = await this.deps.scripture.getChapter(module, book, chapter);
     if (verses.length === 0) throw new IpcKnownError('not_found', `${info.name} ${chapter} is not in ${module}`);
+    const wanted = verses.filter((v) => v.verse >= (verseStart ?? 1) && v.verse <= (verseEnd ?? Number.MAX_SAFE_INTEGER));
+    if (wanted.length === 0) throw new IpcKnownError('invalid_input', 'No such verses in this chapter');
     this.request = { module, book, chapter, ...(verseStart ? { verseStart } : {}), ...(verseEnd ? { verseEnd } : {}) };
     this.chapterVerses = verses;
     this.bookName = info.name;
@@ -128,7 +146,7 @@ export class PresentController {
 
   async step(delta: number): Promise<PresentStatus> {
     if (!this.request || !Number.isFinite(delta)) return this.status();
-    const steps = Math.trunc(delta);
+    const steps = Math.max(-500, Math.min(500, Math.trunc(delta)));
     for (let i = 0; i < Math.abs(steps); i++) {
       const range = this.visible();
       const at = range.findIndex((v) => v.verse === this.focus);

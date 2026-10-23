@@ -134,4 +134,27 @@ describe('PresentController', () => {
     await c.start();
     expect(c.status().snapshot.version).toBeGreaterThanOrEqual(v1);
   });
+
+  it('concurrent start/stop never leaves a listener behind', async () => {
+    const { c } = make();
+    const a = c.start();
+    const b = c.start({ lan: true });
+    const url = (await Promise.all([a, b]))[1].server!.url;
+    expect(c.status().server?.url).toBe(url);
+    const stopping = c.stop();
+    const starting = c.start();
+    await Promise.all([stopping, starting]);
+    await c.stop();
+    expect(c.status().running).toBe(false);
+    await expect(fetchJson(url)).rejects.toThrow();
+  });
+
+  it('rejects a range with no verses and clamps huge steps', async () => {
+    const { c } = make();
+    await expect(c.setPassage({ module: 'KJV', book: 1, chapter: 1, verseStart: 40, verseEnd: 50 })).rejects.toMatchObject({ code: 'invalid_input' });
+    await expect(c.setPassage({ module: 'KJV', book: 1, chapter: 1, verseStart: 3, verseEnd: 2 })).rejects.toMatchObject({ code: 'invalid_input' });
+    await c.setPassage({ module: 'KJV', book: 1, chapter: 1 });
+    await c.step(1e9);
+    expect(c.status().snapshot.live?.reference).toBe('Exodus 1');
+  });
 });

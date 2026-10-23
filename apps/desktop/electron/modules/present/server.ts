@@ -24,6 +24,7 @@ import type { PresentSnapshot } from './types';
 
 export const MAX_VIEWERS = 20;
 export const HEARTBEAT_MS = 15_000;
+const MAX_BUFFERED = 1_000_000;
 
 export interface PresenterServerOptions {
   /** Listen on all interfaces (the local network). Default false: 127.0.0.1 only. */
@@ -98,6 +99,7 @@ export class PresenterServer {
       socket.on('close', () => this.sockets.delete(socket));
     });
     // Slowloris guard: a request line + headers must arrive promptly.
+    server.maxConnections = 64;
     server.headersTimeout = 10_000;
     server.requestTimeout = 10_000;
     this.server = server;
@@ -180,6 +182,7 @@ export class PresenterServer {
         case 'state':
           return this.send(req, res, 'application/json; charset=utf-8', JSON.stringify(this.withViewers(this.snapshot)));
         case 'events':
+          if (req.method === 'HEAD') return this.send(req, res, 'text/event-stream; charset=utf-8', '');
           return this.openStream(req, res);
         default:
           return this.notFound(res);
@@ -228,6 +231,12 @@ export class PresenterServer {
     const data = this.frame(snapshot);
     for (const res of this.streams) {
       try {
+        // A stalled peer must not make us buffer snapshots forever.
+        if (res.writableLength > MAX_BUFFERED) {
+          this.streams.delete(res);
+          res.destroy();
+          continue;
+        }
         res.write(data);
       } catch {
         this.streams.delete(res);

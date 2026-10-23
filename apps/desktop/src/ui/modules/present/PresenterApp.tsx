@@ -53,6 +53,7 @@ export const PresenterApp: React.FC = () => {
   const [error, setError] = React.useState<string | null>(null);
   const [lan, setLan] = React.useState(false);
   const [copied, setCopied] = React.useState(false);
+  const [busy, setBusy] = React.useState(false);
 
   const [bibles, setBibles] = React.useState<BibleOption[]>([]);
   const [books, setBooks] = React.useState<BookOption[]>([]);
@@ -94,11 +95,14 @@ export const PresenterApp: React.FC = () => {
 
   const run = React.useCallback(async (action: () => Promise<PresentStatus | void>) => {
     setError(null);
+    setBusy(true);
     try {
       const next = await action();
       if (next) setStatus(next);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
     }
   }, [setStatus]);
 
@@ -184,8 +188,8 @@ export const PresenterApp: React.FC = () => {
                 <input type="checkbox" checked={lan} onChange={(e) => setLan(e.target.checked)} data-testid="present-lan" />
                 <span>{tr('lanOption', 'Also allow other devices on my local network (a TV or projector computer)')}</span>
               </label>
-              {lan && <p className="m-0 text-sm text-warning" role="note">{tr('lanWarning', 'Anyone on this network who has the address can watch. The address contains a secret; share it only with the device you mean. Nothing is reachable from the internet.')}</p>}
-              <div><button type="button" className={PRIMARY} onClick={() => void run(() => presentClient.start({ lan }))} data-testid="present-start-main">{tr('startShort', 'Start presenting')}</button></div>
+              {lan && <p className="m-0 text-sm text-warning" role="note">{tr('lanWarning', 'Anyone on this network who has the address can watch. The address contains a secret and travels unencrypted; share it only with the device you mean, and avoid public Wi-Fi.')}</p>}
+              <div><button type="button" className={PRIMARY} onClick={() => void run(() => presentClient.start({ lan }))} disabled={busy} data-testid="present-start-main">{tr('startShort', 'Start presenting')}</button></div>
             </div>
           ) : (
             <>
@@ -200,14 +204,14 @@ export const PresenterApp: React.FC = () => {
                     : snapshot.viewerCount === 1 ? tr('oneScreen', '1 screen connected.') : tr('manyScreens', '{n} screens connected.').replace('{n}', String(snapshot.viewerCount))}
                 </p>
                 <label className="flex items-start gap-sm text-sm">
-                  <input type="checkbox" checked={server?.lan ?? false} onChange={(e) => void run(() => presentClient.start({ lan: e.target.checked }))} data-testid="present-lan-live" />
+                  <input type="checkbox" checked={server?.lan ?? false} onChange={(e) => void run(() => presentClient.start({ lan: e.target.checked }))} disabled={busy} data-testid="present-lan-live" />
                   <span>{tr('lanOption', 'Also allow other devices on my local network (a TV or projector computer)')}</span>
                 </label>
                 {server?.lan && (
                   <div className="flex items-start gap-md" data-testid="present-lan-panel">
                     <img src={qrDataUrl(server.qrSvg)} alt={tr('qrAlt', 'QR code for the screen address on the local network')} width={132} height={132} className="rounded bg-white" data-testid="present-qr" />
                     <div className="flex min-w-0 flex-col gap-xs text-sm">
-                      <p className="m-0 text-warning" role="note">{tr('lanWarning', 'Anyone on this network who has the address can watch. The address contains a secret; share it only with the device you mean. Nothing is reachable from the internet.')}</p>
+                      <p className="m-0 text-warning" role="note">{tr('lanWarning', 'Anyone on this network who has the address can watch. The address contains a secret and travels unencrypted; share it only with the device you mean, and avoid public Wi-Fi.')}</p>
                       {server.lanUrls.length === 0
                         ? <p className="m-0 text-text-secondary">{tr('noLan', 'No network connection was found.')}</p>
                         : server.lanUrls.map((u) => <code key={u} className="break-all text-xs" data-testid="present-lan-url">{u}</code>)}

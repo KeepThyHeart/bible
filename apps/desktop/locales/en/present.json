@@ -25,7 +25,7 @@
   "present.introTitle": "Show Scripture on a second screen",
   "present.introBody": "Presenting starts a small web page on this computer. Open it in a browser or a new window on a projector or second display; it follows what you choose here.",
   "present.lanOption": "Also allow other devices on my local network (a TV or projector computer)",
-  "present.lanWarning": "Anyone on this network who has the address can watch. The address contains a secret; share it only with the device you mean. Nothing is reachable from the internet.",
+  "present.lanWarning": "Anyone on this network who has the address can watch. The address contains a secret and travels unencrypted; share it only with the device you mean, and avoid public Wi-Fi.",
   "present.address": "Screen address",
   "present.copied": "Copied",
   "present.copy": "Copy",
