@@ -2141,6 +2141,16 @@ describe('the ordering picker - letter shortcuts', () => {
     expect(submitAnswers()).toEqual([]);
   });
 
+  it('R1: a letter aimed at host chrome outside Memory is not taken as a pick', async () => {
+    const practice = await mountPractice(orderingStep(), { rung: 'ordering' });
+    practice.root.classList.add('sm-app');
+    const hostButton = document.createElement('button');
+    document.body.appendChild(hostButton);
+    press(hostButton, 'a');
+    await settle();
+    expect(submitAnswers()).toEqual([]);
+  });
+
   it('R1: the letter handler is removed when the practice view is destroyed', async () => {
     const practice = await mountPractice(orderingStep(), { rung: 'ordering' });
     practice.destroy();

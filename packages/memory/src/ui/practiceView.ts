@@ -727,7 +727,7 @@ export class PracticeView {
     // Typed steps: a live "Blank 3 of 40" so the user always knows where they are.
     if (typed && this.contextEl.querySelector('input.sm-blank, input.sm-fl') !== null) {
       this.slotTotal = this.contextEl.querySelectorAll('input.sm-blank, input.sm-fl').length;
-      this.slotCounterEl = el('span', { class: 'sm-slot-counter', attrs: { 'aria-hidden': 'true' } });
+      this.slotCounterEl = el('span', { class: 'sm-slot-counter' });
       this.exerciseEl.appendChild(this.slotCounterEl);
       const active = document.activeElement;
       if (active instanceof HTMLInputElement && this.contextEl.contains(active)) this.onSlotFocus(active);
@@ -1054,7 +1054,7 @@ export class PracticeView {
   private correctReferenceFor(step: RefProvideStep): string | null {
     const reference = this.context?.reference ?? null;
     if (reference === null) return null;
-    const match = /^(.+?)\s+(\d+):\d+(?:-\d+)?$/.exec(reference);
+    const match = /^(.+?)\s+(\d+)(?::\d+)?(?:-[\d:]+)?$/.exec(reference);
     const book = match?.[1];
     if (!book) return null;
     // A passage inside one chapter labels its verses with bare numbers ("6"):
@@ -2172,6 +2172,14 @@ function attachLetterKeys(
   const doc = list.ownerDocument;
   const handler = (ev: KeyboardEvent): void => {
     if (!list.isConnected) return;
+    // Memory shares the host's document: only act on keys aimed at the page
+    // itself (nothing focused) or at something inside Memory, never at host
+    // chrome such as the app rail or toolbar.
+    const origin = ev.target;
+    const app = list.closest('.sm-app');
+    const outside =
+      origin instanceof Node && origin !== doc.body && origin !== doc.documentElement && !(app?.contains(origin) ?? true);
+    if (outside) return;
     // A held-down key auto-repeating must not be able to walk through several
     // candidates from one physical press.
     if (ev.repeat || ev.defaultPrevented) return;

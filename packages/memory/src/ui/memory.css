@@ -1497,8 +1497,8 @@
   position: sticky;
   bottom: calc(-1 * var(--sm-main-pad, var(--sm-s4)));
   z-index: 2;
-  margin: 0 calc(-1 * var(--sm-main-pad, var(--sm-s4))) calc(-1 * var(--sm-main-pad, var(--sm-s4)));
-  padding: var(--sm-s3) var(--sm-main-pad, var(--sm-s4));
+  margin: 0 0 calc(-1 * var(--sm-main-pad, var(--sm-s4)));
+  padding: var(--sm-s3) var(--sm-s2);
   background: var(--sm-surface);
   border-top: 1px solid var(--sm-border-strong);
   box-shadow: 0 -4px 10px rgba(0, 0, 0, 0.08);

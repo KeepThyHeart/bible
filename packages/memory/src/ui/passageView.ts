@@ -268,7 +268,7 @@ function renderProgressRow(
   return el('tr', { class: `sm-progress-row${due ? ' sm-activity-due' : ''}` }, [
     name,
     progress,
-    el('td', { class: 'kth-table__cell', attrs: mutedAttr(rv.attempts === 0), text: formatLastPractised(rv.lastPractisedAt, now) }),
+    el('td', { class: 'kth-table__cell', attrs: mutedAttr(rv.attempts === 0), text: (rv.resume && rv.lastPractisedAt == null ? tr('memory.ui.plan.inProgress', 'In progress') : formatLastPractised(rv.lastPractisedAt, now)) }),
     el('td', { class: 'kth-table__cell', attrs: mutedAttr(rv.dueAt === null), text: formatDue(rv.dueAt, now) }),
     el('td', { class: 'kth-table__cell sm-progress-action' }, [actions]),
   ]);

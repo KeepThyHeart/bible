@@ -583,7 +583,7 @@
   font-weight: 600;
 }
 
-/* --- Table (a plain data table: kth-table > thead/tbody; add kth-table__num to right-align numbers) --------------- */
+/* --- Table (a plain data table: kth-table > thead/tbody) --------------- */
 .kth-table {
   inline-size: 100%;
   border-collapse: collapse;

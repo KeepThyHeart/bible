@@ -16,7 +16,7 @@
  * asked this panel to look like the rest of the app in the meantime: a
  * full-width toolbar band, a plain back arrow at the left, and small flat
  * buttons rather than v0's rounded filled ones and text-link "Back to plan".
- * `breadcrumb()` and `.kth-crumbs__link*` in `styles.css` are that local approximation.
+ * `breadcrumb()` now renders the shared kit's `kth-crumbs*` classes (packages/ui/css/kth-classes.css).
  * The proper fix is a shared stylesheet from the host (`ext-ui://host/controls.css`,
  * raised as a separate Bible-repo task per that review) that this panel would
  * then consume instead of maintaining its own copy.

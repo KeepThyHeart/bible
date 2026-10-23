@@ -104,7 +104,7 @@ export function materialRungs(verseCount: number): Rung[] {
  *   - `siblingCount`    - passages in the same collection, including this one.
  *                         Gates `refmatch`, which needs something to be
  *                         confused with.
- *   - `scopeVerseCount` - verses across the whole collection. Gates both
+ *   - `scopeVerseCount` - passages (items) across the whole collection. Gates both
  *                         reference activities at
  *                         `MIN_VERSES_FOR_REFERENCE_ACTIVITIES`.
  *

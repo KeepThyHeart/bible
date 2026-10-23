@@ -533,5 +533,6 @@
   "memory.ui.plan.welcomeText": "Add a verse or passage, then practise it with short activities. Memory schedules your reviews so verses stay learned.",
   "memory.ui.plan.welcomeTip": "Tip: right-click any verse in the Bible and choose Memorize.",
   "memory.ui.practice.blankCounter": "Blank {position} of {total}",
-  "memory.ui.practice.letterHint": "Click an answer, or press its letter (A to {last})."
+  "memory.ui.practice.letterHint": "Click an answer, or press its letter (A to {last}).",
+  "memory.ui.plan.inProgress": "In progress"
 }
