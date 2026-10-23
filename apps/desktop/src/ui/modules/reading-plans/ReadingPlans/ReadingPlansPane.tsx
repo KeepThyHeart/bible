@@ -1,13 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { ReadingPlans } from '@bible/core/browser';
 import {
-  ReadingPlanBuilderForm, ReadingPlanLibrary, ReadingPlanTodayCard, SettingsForm, WeekdayPicker,
+  ReadingPlanBuilderForm, ReadingPlanLibrary, SettingsForm, WeekdayPicker,
 } from '@bible/ui';
 import { useI18n } from '../../../contexts/useI18n';
 import { getReadingPlanService } from '../readingPlansAPI';
-import { navigateToVerseInPrimary } from '../../../stores/crossStoreBridge';
-import { syncPanesWithVerse } from '../../../stores/syncPanesWithVerse';
-import { openApp } from '../../../apps/appHost';
+import { openPlanReading } from '../useActiveReadingStore';
 import { useReadingPlanStore } from '../useReadingPlanStore';
 import { DESKTOP_SETTINGS, getDesktopSettingsStore } from '../../../settings/desktopSettings';
 import { isEnabled } from '../../../settings/featureFlags';
@@ -15,6 +13,7 @@ import { ensureReferenceLocales } from '../../../services/localizedReferencePars
 import { useReadingPlanLabels } from './useReadingPlanLabels';
 import { useReadingPlanData } from './readingPlanData';
 import ReadingPlanDetail from './ReadingPlanDetail';
+import TodayPlanCard from './TodayPlanCard';
 
 type Weekday = ReadingPlans.Weekday;
 type View =
@@ -130,20 +129,18 @@ const ReadingPlansPane: React.FC = () => {
       <div className="flex flex-col gap-md p-md">
         {todays.map((v) => {
           const detail = data.details.get(v.enrollmentId);
-          const plan = detail?.plan;
-          const name = displayName(v.planKey, v.planName);
           return (
-            <ReadingPlanTodayCard
+            <TodayPlanCard
               key={v.enrollmentId}
-              view={{ ...v, planName: name }}
-              formatReading={labels.formatReading}
-              trackName={(id) => labels.trackName(id, plan?.tracks?.find((x) => x.id === id)?.name)}
+              view={v}
+              plan={detail?.plan}
+              progress={data.progress.get(v.enrollmentId) ?? new Map()}
               percent={detail?.stats.percent}
-              catchUp={ReadingPlans.catchUpSuggestion(v.behindBy)}
-              labels={labels.todayCard}
-              onToggleReading={(index, done) => { if (v.day !== null) void run(() => service.setReadingDone(v.enrollmentId, v.day!, index, done)); }}
-              onToggleDay={(done) => { if (v.day !== null) void run(() => service.setDayDone(v.enrollmentId, v.day!, done)); }}
-              onOpenReading={(r) => { navigateToVerseInPrimary(r.start); syncPanesWithVerse(r.start); void openApp('study'); }}
+              displayName={displayName(v.planKey, v.planName)}
+              labels={labels}
+              onToggleReading={(day, index, done) => { void run(() => service.setReadingDone(v.enrollmentId, day, index, done)); }}
+              onToggleDay={(day, done) => { void run(() => service.setDayDone(v.enrollmentId, day, done)); }}
+              onOpenReading={(r) => openPlanReading({ enrollmentId: v.enrollmentId, ...r })}
               onOpenPlan={() => go({ kind: 'detail', id: v.enrollmentId, from: 'today' })}
               onShift={() => void run(() => service.shiftSchedule(v.enrollmentId))}
               onSwitchToFlexible={() => void run(() => service.switchToFlexible(v.enrollmentId))}

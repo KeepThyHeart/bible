@@ -1,6 +1,8 @@
 /**
  * "Today's reading" bar for the Bible pane (task 0073). When an active plan's current day has an
- * unticked reading that overlaps the chapter on screen, a slim bar offers to mark it read. Shows
+ * unticked reading that overlaps the chapter on screen, a slim bar offers to mark it read. Kept for
+ * readers who arrive at the chapter by themselves; a reading opened from the plan views (task 0196) gets
+ * the in-text start / end blocks instead, so the bar skips that one. Shows
  * nothing when there are no plans, so a reader without plans pays one IPC call on mount.
  */
 import React, { useEffect, useMemo, useState } from 'react';
@@ -8,6 +10,7 @@ import { ReadingPlans } from '@bible/core/browser';
 import { useI18n } from '../../../contexts/useI18n';
 import { getReadingPlanService } from '../readingPlansAPI';
 import { useReadingPlanStore } from '../useReadingPlanStore';
+import { useActiveReadingStore } from '../useActiveReadingStore';
 import { useReadingPlanLabels } from './useReadingPlanLabels';
 
 interface Props {
@@ -31,6 +34,8 @@ const ReadingPlanBar: React.FC<Props> = ({ currentBook, currentChapter }) => {
   const todays = useReadingPlanStore((s) => s.todays);
   const ensureLoaded = useReadingPlanStore((s) => s.ensureLoaded);
   const [, bump] = useState(0);
+  // A reading opened from the plan views gets the in-text "end of reading" block (task 0196): no bar for it.
+  const active = useActiveReadingStore((s) => s.ref);
 
   useEffect(() => { void ensureLoaded(); }, [ensureLoaded]);
 
@@ -38,10 +43,11 @@ const ReadingPlanBar: React.FC<Props> = ({ currentBook, currentChapter }) => {
     if (!(currentBook > 0 && currentChapter > 0)) return [];
     return todays.flatMap((view) => {
       if (view.day === null || view.dayDone) return [];
-      const hits = view.readings.filter((r) => !r.done && readingOverlapsChapter(r.reading, currentBook, currentChapter));
+      const hits = view.readings.filter((r) => !r.done && readingOverlapsChapter(r.reading, currentBook, currentChapter)
+        && !(active && active.enrollmentId === view.enrollmentId && active.day === view.day && active.index === r.index));
       return hits.length > 0 ? [{ view, hits }] : [];
     });
-  }, [todays, currentBook, currentChapter]);
+  }, [todays, currentBook, currentChapter, active]);
 
   const key = `${currentBook}:${currentChapter}`;
   if (matches.length === 0 || dismissed.has(key)) return null;

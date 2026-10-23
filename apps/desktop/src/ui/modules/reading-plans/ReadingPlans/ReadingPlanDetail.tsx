@@ -1,15 +1,13 @@
 /**
- * One reading-plan enrollment in detail (task 0073): stats, the day grid with a day's readings,
- * this enrollment's schedule settings, calendar export, pause/resume and remove.
+ * One reading-plan enrollment in detail (task 0073, table task 0196): stats, the full table of days and
+ * passages (check, uncheck and open each), this enrollment's schedule settings, calendar export, pause/resume and remove.
  */
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ReadingPlans } from '@bible/core/browser';
-import { ReadingPlanDayGrid, WeekdayPicker } from '@bible/ui';
+import { WeekdayPicker } from '@bible/ui';
 import { useI18n } from '../../../contexts/useI18n';
 import { getReadingPlanService } from '../readingPlansAPI';
-import { navigateToVerseInPrimary } from '../../../stores/crossStoreBridge';
-import { syncPanesWithVerse } from '../../../stores/syncPanesWithVerse';
-import { openApp } from '../../../apps/appHost';
+import { openPlanReading } from '../useActiveReadingStore';
 import { usePreferencesStore } from '../../../stores/usePreferencesStore';
 import type { ReadingPlanLabelSet } from './useReadingPlanLabels';
 
@@ -32,14 +30,19 @@ const ReadingPlanDetail: React.FC<Props> = ({ enrollmentId, labels, displayName,
   const showStreak = usePreferencesStore((s) => s.readingPlanShowStreak);
   const service = getReadingPlanService();
   const [detail, setDetail] = useState<ReadingPlans.EnrollmentDetail | null>(null);
-  const [selectedDay, setSelectedDay] = useState<number | undefined>(undefined);
-  const [ticked, setTicked] = useState<number[]>([]);
+  const [progress, setProgress] = useState<ReadingPlans.ProgressIndex>(new Map());
+  const [filter, setFilter] = useState<'all' | 'unread'>('all');
+  const todayRowRef = useRef<HTMLTableRowElement | null>(null);
+  const tableBoxRef = useRef<HTMLDivElement | null>(null);
+  const scrolled = useRef(false);
   const [confirming, setConfirming] = useState<'flexible' | 'remove' | null>(null);
   const [alarm, setAlarm] = useState('');
 
   const load = useCallback(async () => {
     try {
-      setDetail(await service.detail(enrollmentId));
+      const [d, completions] = await Promise.all([service.detail(enrollmentId), service.completions(enrollmentId)]);
+      setProgress(ReadingPlans.indexCompletions(completions, enrollmentId));
+      setDetail(d);
     } catch (err) {
       onError(err instanceof Error ? err.message : String(err));
     }
@@ -50,15 +53,15 @@ const ReadingPlanDetail: React.FC<Props> = ({ enrollmentId, labels, displayName,
     return service.subscribe((e) => { if (e.type === 'changed') void load(); });
   }, [service, load]);
 
+  // Bring today's row into view once, when the table first has data.
   useEffect(() => {
-    if (selectedDay === undefined) { setTicked([]); return; }
-    let cancelled = false;
-    service.dayProgress(enrollmentId, selectedDay)
-      .then((p) => { if (!cancelled) setTicked(p); })
-      .catch(() => {});
-    return () => { cancelled = true; };
-    // `detail` changes whenever progress does.
-  }, [service, enrollmentId, selectedDay, detail]);
+    if (!detail || scrolled.current) return;
+    scrolled.current = true;
+    // Scroll the table's own box (not the whole pane) so the plan's stats stay in view above it.
+    const box = tableBoxRef.current;
+    const row = todayRowRef.current;
+    if (box && row) box.scrollTop = Math.max(0, row.offsetTop - box.clientHeight / 2 + row.offsetHeight / 2);
+  }, [detail]);
 
   const run = useCallback(async (fn: () => Promise<unknown>) => {
     try {
@@ -72,7 +75,6 @@ const ReadingPlanDetail: React.FC<Props> = ({ enrollmentId, labels, displayName,
   if (!detail) return <div className="p-md" aria-busy="true" />;
   const { enrollment: e, plan, stats, statuses } = detail;
   const name = displayName(e.planKey, e.planName);
-  const dayReadings = selectedDay !== undefined ? plan.days[selectedDay - 1]?.readings ?? [] : [];
   const readingText = (r: ReadingPlans.Reading) => {
     const prefix = r.track ? `${labels.trackName(r.track, plan.tracks?.find((x) => x.id === r.track)?.name)}: ` : '';
     return `${prefix}${labels.formatReading(r)}`;
@@ -126,31 +128,66 @@ const ReadingPlanDetail: React.FC<Props> = ({ enrollmentId, labels, displayName,
         {showStreak ? <li>{t('readingPlans.detail.streak', { count: stats.streak })}</li> : null}
       </ul>
 
-      <ReadingPlanDayGrid statuses={statuses} selectedDay={selectedDay} onSelectDay={setSelectedDay} labels={labels.dayGrid} />
-
-      {selectedDay !== undefined ? (
-        <section aria-label={t('readingPlans.detail.dayReadings', { day: selectedDay })} className="flex flex-col gap-xs">
-          <h3 className="text-sm font-semibold m-0">{t('readingPlans.detail.dayReadings', { day: selectedDay })}</h3>
-          <ul className="m-0 p-0 list-none flex flex-col gap-xs">
-            {dayReadings.map((r, i) => (
-              <li key={i} className="flex items-center gap-sm">
-                <label className="flex items-center gap-xs flex-1">
-                  <input type="checkbox" checked={ticked.includes(i)}
-                    onChange={(ev) => void run(async () => {
-                      await service.setReadingDone(e.id, selectedDay, i, ev.target.checked);
-                      setTicked(await service.dayProgress(e.id, selectedDay));
-                    })} />
-                  {readingText(r)}
-                </label>
-                <button type="button" className="kth-btn kth-btn--sm" aria-label={labels.todayCard.openReading(readingText(r))}
-                  onClick={() => { navigateToVerseInPrimary(r.start); syncPanesWithVerse(r.start); void openApp('study'); }}>{labels.todayCard.open}</button>
-              </li>
+      <section className="flex flex-col gap-xs" aria-label={t('readingPlans.table.title')}>
+        <div className="flex items-center gap-sm">
+          <h3 className="text-sm font-semibold m-0 flex-1">{t('readingPlans.table.title')}</h3>
+          <div role="group" aria-label={t('readingPlans.table.filter')} className="flex gap-xs">
+            {(['all', 'unread'] as const).map((f) => (
+              <button key={f} type="button" className={`kth-btn kth-btn--sm${filter === f ? ' kth-btn--primary' : ''}`} aria-pressed={filter === f}
+                onClick={() => setFilter(f)}>{t(`readingPlans.table.filter.${f}`)}</button>
             ))}
-          </ul>
-        </section>
-      ) : (
-        <p className="text-sm m-0" style={{ color: 'var(--theme-text-secondary)' }}>{t('readingPlans.detail.selectDay')}</p>
-      )}
+          </div>
+        </div>
+        <div ref={tableBoxRef} className="overflow-auto rounded border border-border relative" style={{ maxHeight: '28rem' }}>
+          <table className="w-full text-sm" style={{ borderCollapse: 'collapse' }} data-testid="reading-plan-table">
+            <thead className="sticky top-0" style={{ backgroundColor: 'var(--theme-bg-secondary)' }}>
+              <tr>
+                <th scope="col" className="text-start p-xs">{t('readingPlans.table.day')}</th>
+                {e.pacing === 'fixed' ? <th scope="col" className="text-start p-xs">{t('readingPlans.table.date')}</th> : null}
+                <th scope="col" className="text-start p-xs">{t('readingPlans.table.readings')}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {plan.days.map((d, i) => {
+                const day = i + 1;
+                const done = progress.get(day);
+                const allDone = ReadingPlans.isDayDone(plan, progress, day);
+                if (filter === 'unread' && allDone) return null;
+                const isToday = day === detail.today.day;
+                const status = statuses[i];
+                return (
+                  <tr key={day} ref={isToday ? todayRowRef : undefined} data-testid="plan-table-row" data-day={day}
+                    data-today={isToday ? 'true' : undefined} aria-current={isToday ? 'date' : undefined}
+                    className="border-t border-border align-top"
+                    style={isToday ? { backgroundColor: 'var(--theme-accent-bg, rgba(59,130,246,0.14))' } : status === 'missed' ? { backgroundColor: 'var(--theme-warning-bg, rgba(250,180,40,0.14))' } : undefined}>
+                    <th scope="row" className="text-start p-xs font-medium whitespace-nowrap">
+                      {day}{isToday ? <span className="text-xs ms-xs" style={{ color: 'var(--theme-accent)' }}>{t('readingPlans.table.today')}</span> : null}
+                    </th>
+                    {e.pacing === 'fixed' ? <td className="p-xs whitespace-nowrap">{labels.formatDate(ReadingPlans.dateForDay(e, day))}</td> : null}
+                    <td className="p-xs">
+                      <ul className="m-0 p-0 list-none flex flex-col gap-xs">
+                        {d.readings.map((r, j) => {
+                          const checked = done?.has(j) ?? false;
+                          const text = readingText(r);
+                          return (
+                            <li key={j} className="flex items-center gap-sm">
+                              <input type="checkbox" checked={checked} aria-label={t('readingPlans.table.markReading', { reading: text, day })}
+                                onChange={(ev) => void run(() => service.setReadingDone(e.id, day, j, ev.target.checked))} />
+                              <button type="button" className="bg-transparent border-0 p-0 text-start cursor-pointer text-accent hover:underline"
+                                style={checked ? { opacity: 0.7 } : undefined} aria-label={labels.todayCard.openReading(text)}
+                                onClick={() => openPlanReading({ enrollmentId: e.id, day, index: j, reading: r })}>{text}</button>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </section>
 
       <section className="flex flex-col gap-sm" aria-label={t('readingPlans.detail.settings')}>
         <h3 className="text-sm font-semibold m-0">{t('readingPlans.detail.settings')}</h3>
