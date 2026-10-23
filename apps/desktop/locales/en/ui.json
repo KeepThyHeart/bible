@@ -2308,6 +2308,7 @@
   "apps.extension.unavailable": "This app is not available right now.",
   "apps.extension.closeApp": "Close {app}",
   "apps.extension.settingsFor": "{app} settings",
+  "apps.present.title": "Presenter",
   "apps.quiz.title": "Quiz",
   "apps.readingPlans.title": "Reading plans",
   "userNotesPane.backToNote": "Back to {title}",

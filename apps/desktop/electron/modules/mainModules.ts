@@ -29,6 +29,7 @@ import { wordStudyMainManifest } from './word-study/manifest';
 import { keywordMarksMainManifest } from './keyword-marks/manifest';
 import { notificationsMainManifest } from './notifications/manifest';
 import { memoryManifest } from '@bible/memory/manifest';
+import { presentMainManifest } from './present/manifest';
 
 export interface MainModuleEntry {
   readonly manifest: FeatureModuleManifest;
@@ -47,6 +48,8 @@ export const MAIN_MODULES: readonly MainModuleEntry[] = [
   { manifest: notificationsMainManifest, load: () => import('./notifications') },
   // Scripture memory (0114): registers its handlers at startup; the core loads on the first call.
   { manifest: memoryManifest, load: () => import('./memory') },
+  // Presenter (0198): handlers only; the screen server starts when the controller presses Start.
+  { manifest: presentMainManifest, load: () => import('./present') },
 ];
 
 export interface RegisterMainModulesOptions {
