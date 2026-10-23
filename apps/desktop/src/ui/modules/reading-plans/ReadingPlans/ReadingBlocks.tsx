@@ -19,7 +19,7 @@ const base: React.CSSProperties = {
   display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.5rem', textAlign: 'start', textIndent: 0,
   fontSize: '0.8125rem', lineHeight: 1.4, padding: '0.375rem 0.75rem', margin: '0.75rem 0',
   borderInlineStart: '3px solid var(--theme-accent, #3b82f6)', borderRadius: 4,
-  backgroundColor: 'var(--theme-bg-secondary)', color: 'var(--theme-text-secondary)', fontFamily: 'var(--font-ui, inherit)',
+  backgroundColor: 'var(--theme-bg-secondary)', color: 'var(--theme-text-secondary)', fontFamily: 'var(--ui-font-family, system-ui, sans-serif)',
 };
 
 export const StartOfReadingBlock: React.FC<BlockProps> = ({ info, inParagraph }) => {
