@@ -252,7 +252,8 @@
   flex: 1 1 auto;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: var(--sm-s4);
+  --sm-main-pad: var(--sm-s4);
+  padding: var(--sm-main-pad);
 }
 
 /* The status line is pinned so a message is not lost below the fold of a long
@@ -308,112 +309,6 @@
 }
 
 /* ==========================================================================
-   Breadcrumb
-
-   Replaces the old toolbar's plain back arrow (Decision 1 of the nav/chrome
-   redesign): a breadcrumb trail satisfies both "a back control that matches
-   the app's visual language" and "a breadcrumb" with one control, and needs
-   no icon shared from the host repo since Home is drawn locally with
-   `components.ts#icon('home')`. Still a local approximation of a look the
-   host serves no button/toolbar tokens for yet (see `components.ts`'s file
-   header) - a full-width band and small flat controls, the same reasoning
-   `.sm-toolbar` used to carry here - once the host does, this block is what
-   gets replaced.
-   ========================================================================== */
-
-.sm-app .sm-crumbs {
-  display: flex;
-  align-items: center;
-  gap: var(--sm-s2);
-  margin: calc(-1 * var(--sm-s4)) calc(-1 * var(--sm-s4)) 0;
-  padding: var(--sm-s2) var(--sm-s4);
-  background: var(--sm-surface);
-  border-bottom: 1px solid var(--sm-border);
-}
-
-.sm-app .sm-crumb-list {
-  display: flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  flex: 1 1 auto;
-  min-width: 0;
-  gap: var(--sm-s1);
-}
-
-.sm-app .sm-crumb-item {
-  display: flex;
-  align-items: baseline;
-  min-width: 0;
-}
-
-.sm-app .sm-crumb-sep {
-  color: var(--sm-text-muted);
-}
-
-/* A crumb that still links back to an earlier screen - flat and quiet, the
-   same treatment every other secondary control in the panel gets
-   (`.sm-btn-quiet`), rather than a distinct back-arrow look of its own. */
-.sm-app .sm-crumb {
-  font: inherit;
-  font-size: var(--sm-control-size);
-  display: inline-flex;
-  align-items: center;
-  gap: 0.3em;
-  padding: var(--sm-s1) var(--sm-s2);
-  margin: calc(-1 * var(--sm-s1)) calc(-1 * var(--sm-s2));
-  border: 0;
-  border-radius: var(--sm-radius);
-  background: transparent;
-  color: var(--sm-accent);
-  cursor: pointer;
-}
-
-.sm-app .sm-crumb:hover {
-  background: var(--sm-accent-light);
-}
-
-/* The final crumb: the screen's own `<h1>` (see `components.ts#breadcrumb`),
-   not a link - there is nowhere further to go from here. Sizing carried over
-   from the old `.sm-toolbar-title` - bumped from 1.05em because a review
-   round found the reference on the passage and practice screens not
-   prominent enough next to the activity name beneath it, once shown smaller
-   and dimmer on its own line (now the `.sm-tab-selected` activity tab, on
-   both screens - see N5). */
-.sm-app .sm-crumb-current {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.3em;
-  min-width: 0;
-  font-size: 1.2em;
-  font-weight: 600;
-  color: var(--sm-heading);
-  overflow-wrap: break-word;
-}
-
-/* The current-page heading is not interactive: panel.ts focuses it
-   programmatically after navigation (and on first load), and :focus-visible
-   matches that, which drew a ring that looked like a persistent "selected"
-   state on Home. Screen readers still get the focus move; sighted users get
-   no ring on a non-control. */
-.sm-app .sm-crumb-current:focus-visible,
-.sm-app .sm-screen-title:focus-visible {
-  outline: none;
-}
-
-.sm-app .sm-crumbs-actions {
-  display: flex;
-  align-items: center;
-  gap: var(--sm-s1);
-  flex: 0 0 auto;
-}
-
-.sm-app .sm-crumbs-meta {
-  color: var(--sm-text-dim);
-  font-size: 0.85em;
-  white-space: nowrap;
-}
-
-/* ==========================================================================
    Hamburger menu (M3, `components.ts#menu()`)
 
    The one floating/popover surface in this file - `.sm-menu-panel` sits
@@ -439,6 +334,12 @@
    `.sm-menu-btn` exists only as the design doc's own named hook for a future
    caller (a test, a later tweak) that wants the trigger without reaching for
    those three classes together. */
+
+.sm-app .sm-menu-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sm-s1);
+}
 
 .sm-app .sm-menu-panel {
   position: absolute;
@@ -503,37 +404,6 @@
    treatment in this file already means something else (a badge, a chosen
    picker card), so a tab needed a look of its own.
    ========================================================================== */
-
-.sm-app .sm-tabs {
-  display: flex;
-  gap: var(--sm-s4);
-  overflow-x: auto;
-  border-bottom: 1px solid var(--sm-border);
-}
-
-.sm-app .sm-tab {
-  font: inherit;
-  font-size: var(--sm-control-size);
-  font-weight: 600;
-  flex: 0 0 auto;
-  padding: var(--sm-s2) var(--sm-s1);
-  margin-bottom: -1px;
-  border: 0;
-  border-bottom: 2px solid transparent;
-  background: transparent;
-  color: var(--sm-text-dim);
-  white-space: nowrap;
-  cursor: pointer;
-}
-
-.sm-app .sm-tab:hover {
-  color: var(--sm-text);
-}
-
-.sm-app .sm-tab-selected {
-  color: var(--sm-heading);
-  border-bottom-color: var(--sm-accent);
-}
 
 /* ==========================================================================
    Buttons and inputs
@@ -1614,6 +1484,54 @@
   flex-wrap: wrap;
 }
 
+/* The exercise dock: prompt, hint, verdict and Check. On a typed step (blanks,
+   first letters) it sticks to the bottom of the scroll area, so on a long
+   passage the Check control and the instructions are never below the fold. */
+.sm-app .sm-dock {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sm-s2);
+}
+
+.sm-app .sm-dock-sticky {
+  position: sticky;
+  bottom: calc(-1 * var(--sm-main-pad, var(--sm-s4)));
+  z-index: 2;
+  margin: 0 calc(-1 * var(--sm-main-pad, var(--sm-s4))) calc(-1 * var(--sm-main-pad, var(--sm-s4)));
+  padding: var(--sm-s3) var(--sm-main-pad, var(--sm-s4));
+  background: var(--sm-surface);
+  border-top: 1px solid var(--sm-border-strong);
+  box-shadow: 0 -4px 10px rgba(0, 0, 0, 0.08);
+}
+
+.sm-app .sm-dock-sticky .sm-prompt {
+  font-size: 1em;
+  margin: 0;
+}
+
+.sm-app .sm-dock-sticky .sm-feedback {
+  min-height: 1.4em;
+}
+
+.sm-app .sm-slot-counter {
+  color: var(--sm-text-dim);
+  font-size: 0.85em;
+}
+
+/* The blank being worked on: heavier underline, tint, and room around it so a
+   scroll-into-view lands it clear of the sticky dock. */
+.sm-app .sm-blank,
+.sm-app .sm-fl {
+  scroll-margin-block: 30vh;
+}
+
+.sm-app .sm-blank:focus,
+.sm-app .sm-fl:focus {
+  border-bottom-width: 3px;
+  box-shadow: 0 0 0 2px var(--sm-accent);
+  border-radius: 3px;
+}
+
 .sm-app .sm-summary {
   border: 1px solid var(--sm-border);
   border-radius: var(--sm-radius-lg);
@@ -2043,11 +1961,8 @@
    passage scrolling sideways. */
 @media (max-width: 30rem) {
   .sm-app .sm-main {
-    padding: var(--sm-s3);
-  }
-
-  .sm-app .sm-crumbs {
-    margin: calc(-1 * var(--sm-s3)) calc(-1 * var(--sm-s3)) 0;
+    --sm-main-pad: var(--sm-s3);
+    padding: var(--sm-main-pad);
   }
 
   .sm-app .sm-row {
@@ -2088,11 +2003,8 @@
    than a scroll. */
 @media (min-width: 52rem) {
   .sm-app .sm-main {
-    padding: var(--sm-s5);
-  }
-
-  .sm-app .sm-crumbs {
-    margin: calc(-1 * var(--sm-s5)) calc(-1 * var(--sm-s5)) 0;
+    --sm-main-pad: var(--sm-s5);
+    padding: var(--sm-main-pad);
   }
 
   .sm-app .sm-choices {
@@ -2370,4 +2282,86 @@
 
 .sm-app .sm-push-number {
   width: 4.5em;
+}
+
+/* ==========================================================================
+   Passage progress table (task 0195): rows = practice types. The table itself
+   is the shared kit's `.kth-table`; only the memory-specific cell content is
+   styled here.
+   ========================================================================== */
+
+.sm-app .sm-progress-wrap {
+  overflow-x: auto;
+}
+
+.sm-app .sm-progress-table {
+  min-width: 34rem;
+}
+
+.sm-app .sm-progress-title {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--sm-s2);
+}
+
+.sm-app .sm-progress-blurb,
+.sm-app .sm-progress-note {
+  color: var(--sm-text-dim);
+  font-size: 0.85em;
+  margin-top: 2px;
+}
+
+.sm-app .sm-progress-row-na {
+  opacity: 0.8;
+}
+
+.sm-app .sm-progress-action {
+  text-align: end;
+  white-space: nowrap;
+}
+
+.sm-app .sm-progress-action .sm-activity-actions {
+  justify-content: flex-end;
+}
+
+/* ==========================================================================
+   First-open welcome and the verse-list picker
+   ========================================================================== */
+
+.sm-app .sm-welcome {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--sm-s3);
+  padding: var(--sm-s5, 1.5rem) 0;
+}
+
+.sm-app .sm-welcome-title {
+  font-size: 1.35em;
+  font-weight: 600;
+  color: var(--sm-heading);
+  margin: 0;
+}
+
+.sm-app .sm-welcome-text {
+  margin: 0;
+  max-width: 36rem;
+  color: var(--sm-text);
+}
+
+.sm-app .sm-welcome-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sm-s2);
+}
+
+.sm-app .sm-list-picker {
+  display: flex;
+  align-items: center;
+  gap: var(--sm-s2);
+}
+
+.sm-app .sm-list-picker .sm-list-selector {
+  margin-bottom: 0;
 }

@@ -134,7 +134,7 @@ describe('breadcrumb()', () => {
     container.appendChild(trail);
 
     expect(trail.tagName).toBe('NAV');
-    expect(trail.classList.contains('sm-crumbs')).toBe(true);
+    expect(trail.classList.contains('kth-crumbs')).toBe(true);
     expect(trail.getAttribute('aria-label')).toBe('Breadcrumb');
     expect(trail.querySelector('ol')).not.toBeNull();
   });
@@ -145,7 +145,7 @@ describe('breadcrumb()', () => {
 
     const current = trail.querySelector('h1')!;
     expect(current).not.toBeNull();
-    expect(current.classList.contains('sm-crumb-current')).toBe(true);
+    expect(current.classList.contains('kth-crumbs__current')).toBe(true);
     expect(current.getAttribute('aria-current')).toBe('page');
     expect(spokenText(current)).toBe('Analytics');
 
@@ -164,7 +164,7 @@ describe('breadcrumb()', () => {
     const trail = breadcrumb({ crumbs });
     container.appendChild(trail);
 
-    const buttons = Array.from(trail.querySelectorAll<HTMLButtonElement>('button.sm-crumb'));
+    const buttons = Array.from(trail.querySelectorAll<HTMLButtonElement>('button.kth-crumbs__link'));
     expect(buttons.length).toBe(2);
     expect(buttons.every((b) => b.type === 'button')).toBe(true);
     expect(spokenText(buttons[1]!)).toBe('Middle');
@@ -182,7 +182,7 @@ describe('breadcrumb()', () => {
 
   it('draws crumb 1 as a house glyph plus the word "Home", whether or not it is also the final crumb', () => {
     const linked = breadcrumb({ crumbs: [{ label: 'Home', onClick: () => {} }, { label: 'Settings' }] });
-    const homeCrumb = linked.querySelector('.sm-crumb')!;
+    const homeCrumb = linked.querySelector('.kth-crumbs__link')!;
     expect(homeCrumb.querySelector('svg.sm-icon-home')).not.toBeNull();
     expect(spokenText(homeCrumb)).toBe('Home');
 
@@ -198,7 +198,7 @@ describe('breadcrumb()', () => {
     const trail = breadcrumb({ crumbs: [{ label: 'Home', onClick: () => {} }, { label: 'Settings' }] });
     container.appendChild(trail);
 
-    const sep = trail.querySelector('.sm-crumb-sep')!;
+    const sep = trail.querySelector('.kth-crumbs__sep')!;
     expect(sep.textContent).toBe('›');
     expect(sep.querySelector('[aria-hidden="true"]')).not.toBeNull();
     // The accessible name of the whole trail skips it entirely.
@@ -415,7 +415,7 @@ describe('tabs()', () => {
     expect(strip.getAttribute('aria-label')).toBe('Letters');
     expect(buttons.map(spokenText)).toEqual(['Alpha', 'Beta', 'Gamma']);
     expect(buttons.map((t) => t.getAttribute('aria-selected'))).toEqual(['false', 'true', 'false']);
-    expect(buttons.map((t) => t.classList.contains('sm-tab-selected'))).toEqual([false, true, false]);
+    expect(buttons.every((t) => t.classList.contains('kth-tabs__tab'))).toBe(true);
     expect(buttons.every((t) => t.type === 'button')).toBe(true);
   });
 

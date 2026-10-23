@@ -325,7 +325,7 @@ describe('derived mastery through the panel protocol', () => {
     expect(rungOf(plan, 'refprovide').tiers).toBe(1);
   });
 
-  it('applies the reference activities once the plan crosses the scope gate', async () => {
+  it('does not let one long passage satisfy the reference-activity minimum (a passage is one item)', async () => {
     const { db, svc } = await activateWithStore();
     await seedPassage(db, {
       verseCount: 3,
@@ -333,7 +333,7 @@ describe('derived mastery through the panel protocol', () => {
       startVerseId: 19023001,
       rungs: [...TEXT_RUNGS, 'refmatch', 'refprovide'],
     });
-    // A second, long passage takes the whole collection past 25 verses.
+    // 30 verses in one passage: still ONE item toward the 25-item minimum.
     await seedPassage(db, {
       verseCount: 30,
       reference: 'Psalm 119:1-30',
@@ -342,6 +342,26 @@ describe('derived mastery through the panel protocol', () => {
     });
 
     const plan = await getPlan(svc);
+    expect(plan.scopeVerseCount).toBe(2);
+    expect(plan.referenceActivitiesUnlocked).toBe(false);
+    expect(rungOf(plan, 'refmatch').applicable).toBe(false);
+    expect(rungOf(plan, 'refprovide').applicable).toBe(false);
+  });
+
+  it('applies the reference activities once 25 passages are in the plan (verses added one by one count each)', async () => {
+    const { db, svc } = await activateWithStore();
+    for (let i = 1; i <= 25; i += 1) {
+      await seedPassage(db, {
+        verseCount: 1,
+        reference: `Psalm 119:${i}`,
+        startVerseId: 19119000 + i,
+        rungs: [...TEXT_RUNGS, 'refmatch', 'refprovide'],
+      });
+    }
+
+    const plan = await getPlan(svc);
+    expect(plan.scopeVerseCount).toBe(25);
+    expect(plan.referenceActivitiesUnlocked).toBe(true);
     expect(rungOf(plan, 'refmatch').applicable).toBe(true);
     expect(rungOf(plan, 'refprovide').applicable).toBe(true);
     // And they now have to be earned on their own merits - nothing in the
@@ -487,17 +507,18 @@ describe('multiple lists through the panel protocol', () => {
 
   it('persists the passage sort order over the protocol, broadcasts planChanged, and reports it on the plan', async () => {
     const t = await startTestService();
-    expect((await deliver<PlanView>(t.svc, { type: 'getPlan' })).sortOrder).toBe('bible');
+    // Default is "Needs work"; a change is remembered.
+    expect((await deliver<PlanView>(t.svc, { type: 'getPlan' })).sortOrder).toBe('need');
 
     const { svc, pushes } = t;
     const before = pushes.length;
-    await deliver(svc, { type: 'setPassageSortOrder', order: 'need' });
+    await deliver(svc, { type: 'setPassageSortOrder', order: 'bible' });
 
     expect(pushes.slice(before)).toContainEqual({ type: 'planChanged' });
-    expect((await deliver<PlanView>(svc, { type: 'getPlan' })).sortOrder).toBe('need');
-
-    await deliver(svc, { type: 'setPassageSortOrder', order: 'bible' });
     expect((await deliver<PlanView>(svc, { type: 'getPlan' })).sortOrder).toBe('bible');
+
+    await deliver(svc, { type: 'setPassageSortOrder', order: 'need' });
+    expect((await deliver<PlanView>(svc, { type: 'getPlan' })).sortOrder).toBe('need');
   });
 
   it('refuses to delete the only list, with a readable error rather than a thrown SQL failure', async () => {
@@ -615,7 +636,7 @@ describe('multiple lists through the panel protocol', () => {
     );
   });
 
-  it('sums verses, not passage rows, in scopeVerseCount and lists[].verseCount', async () => {
+  it('counts passages (not verses) in scopeVerseCount, while lists[].verseCount still sums verses', async () => {
     const { db, svc } = await activateWithStore();
     const plan = await deliver<PlanView>(svc, { type: 'getPlan' });
     const defaultListId = plan.collectionId;
@@ -632,7 +653,7 @@ describe('multiple lists through the panel protocol', () => {
     });
 
     const after = await deliver<PlanView>(svc, { type: 'getPlan' });
-    expect(after.scopeVerseCount).toBe(4);
+    expect(after.scopeVerseCount).toBe(2);
     expect(after.lists.find((l) => l.id === defaultListId)?.verseCount).toBe(4);
   });
 

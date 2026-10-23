@@ -20,7 +20,7 @@
 
 import type { PassageSortOrder, PassageView, PlanView } from '../core/types';
 import { append, button, el } from './dom';
-import { activitySquares, breadcrumb, dueBadge, emptyState, icon, inapplicabilityNote, listSelector, menu } from './components';
+import { activitySquares, breadcrumb, dueBadge, icon, inapplicabilityNote, listSelector, menu } from './components';
 import type { ListSelectorOption } from './components';
 import { sortPassagesByNeed } from './format';
 import { flowUnavailable } from './suggest';
@@ -51,19 +51,13 @@ export function renderPlan(host: PanelHost, plan: PlanView): HTMLElement {
     }),
   );
 
-  if (plan.lists.length > 1) {
-    root.appendChild(renderListPicker(host, plan));
+  if (plan.passages.length === 0) {
+    root.appendChild(renderWelcome(host));
+    return root;
   }
 
-  if (plan.passages.length === 0) {
-    root.appendChild(renderAddAndStart(host));
-    root.appendChild(
-      emptyState(
-        tr('memory.ui.plan.nothingInPlan', 'Nothing in your plan yet.'),
-        tr('memory.ui.plan.nothingInPlanHint', 'Open the menu (the three-line icon at the top) and choose Manage Passages to add a verse or a range like "Psalm 1:1-6"; its activities will be built for you. You can also right-click a verse in the Bible and choose Memorize.'),
-      ),
-    );
-    return root;
+  if (plan.lists.length > 0) {
+    root.appendChild(renderListPicker(host, plan));
   }
 
   const banner = cardsWaitingBanner(host, plan.cardsWaiting ?? 0);
@@ -173,8 +167,8 @@ function referenceHintText(plan: PlanView): string {
   const needed = MIN_VERSES_FOR_REFERENCE_ACTIVITIES;
   const short = Math.max(0, needed - plan.scopeVerseCount);
   return tr(
-    'memory.ui.plan.referenceHint',
-    'Match references and Provide reference need {needed} verses in this list - {short} more to go ({sofar} so far). Add passages in Manage Passages.',
+    'memory.ui.plan.referenceHintPassages',
+    'Match references and Provide reference need {needed} passages in this list - {short} more to go ({sofar} so far). Add passages in Manage Passages.',
     { needed, short, sofar: plan.scopeVerseCount },
   );
 }
@@ -197,7 +191,7 @@ function renderPassageListHeader(host: PanelHost, plan: PlanView): HTMLElement {
 
   const options: { value: PassageSortOrder; label: string }[] = [
     { value: 'bible', label: tr('memory.ui.plan.bibleOrder', 'Bible order') },
-    { value: 'need', label: tr('memory.ui.plan.needsPractice', 'Needs practice') },
+    { value: 'need', label: tr('memory.ui.plan.needsWork', 'Needs work') },
   ];
   for (const opt of options) {
     const optionEl = el('option', { value: opt.value, text: opt.label });
@@ -226,14 +220,14 @@ function renderPassageListHeader(host: PanelHost, plan: PlanView): HTMLElement {
 
 function renderListPicker(host: PanelHost, plan: PlanView): HTMLElement {
   const options: ListSelectorOption[] = [
-    { id: 'all', name: tr('memory.ui.plan.allLists', 'All Lists') },
+    { id: 'all', name: tr('memory.ui.plan.allVerses', 'All verses') },
     ...plan.lists.map((list) => ({ id: list.id, name: list.name })),
   ];
   // `selected` is always read from `plan.scope`, never from local state - the
   // worker owns scope, so a `planChanged` push that rebuilds this whole
   // screen still shows the right selection rather than silently resetting to
-  // "All Lists".
-  return listSelector(options, plan.scope, (id) => {
+  // "All verses".
+  const select = listSelector(options, plan.scope, (id) => {
     void host
       .request({ type: 'setScope', scope: id === 'all' ? { kind: 'all' } : { kind: 'list', id } })
       .then((reply) => {
@@ -241,6 +235,11 @@ function renderListPicker(host: PanelHost, plan: PlanView): HTMLElement {
         else host.announce(reply.error);
       });
   });
+  select.id = 'sm-verse-list';
+  return el('div', { class: 'sm-list-picker' }, [
+    el('label', { class: 'sm-label-inline', text: tr('memory.ui.plan.practiceFrom', 'Practise from'), attrs: { for: 'sm-verse-list' } }),
+    select,
+  ]);
 }
 
 // ---------------------------------------------------------------------------
@@ -248,42 +247,60 @@ function renderListPicker(host: PanelHost, plan: PlanView): HTMLElement {
 // ---------------------------------------------------------------------------
 
 /**
- * On an empty plan, "Practice" becomes a one-click "Add <verse> and start",
- * using whatever the host says the reader is currently looking at. That is
- * the whole point of the worker pushing `activeVerse` in the first place:
- * someone who has just read a verse and reached for this panel should not
- * have to type it back in before they can begin. The full add-passage form
- * (batches, paste handling) lives on the Manage Passages screen now; this is
- * the one thing a brand-new user must still have to press.
+ * What a brand-new user sees: one sentence on what Memory is for, one on what
+ * to do, and the obvious first action as a button - never a pointer to a menu.
+ *
+ * When the reader has a verse open, "Add <verse> and start" is the one-press
+ * path (the whole point of the host pushing `activeVerse`); "Add a passage"
+ * is always offered and opens the Manage Passages form.
  */
-function renderAddAndStart(host: PanelHost): HTMLElement {
+function renderWelcome(host: PanelHost): HTMLElement {
   const reference = host.activeReference;
 
-  if (!reference) {
-    return el('div', { class: 'sm-callout' }, [
-      el('p', { class: 'sm-callout-text', text: tr('memory.ui.plan.addVerseToStart', 'Open the menu (the three-line icon at the top) and choose Manage Passages to add your first verse.') }),
-    ]);
-  }
-
-  const action = button(
-    tr('memory.ui.plan.addAndStart', 'Add {reference} and start', { reference }),
-    () => {
-      action.disabled = true;
-      void host
-        .request({ type: 'addPassage', reference })
-        .then((reply) => {
-          if (!reply.ok) {
-            action.disabled = false;
-            host.announce(reply.error);
-            return;
-          }
-          void host.startSession(reply.data.passage.id);
-        });
-    },
-    { class: 'sm-btn sm-btn-primary sm-btn-block sm-btn-large' },
+  const manage = button(
+    tr('memory.ui.plan.addAPassage', 'Add a passage'),
+    () => host.go({ type: 'goManagePassages' }),
+    { class: reference ? 'sm-btn sm-btn-large' : 'sm-btn sm-btn-primary sm-btn-large' },
   );
 
-  return el('div', { class: 'sm-callout sm-callout-action' }, [action]);
+  const actions: HTMLElement[] = [];
+  if (reference) {
+    const quick = button(
+      tr('memory.ui.plan.addAndStart', 'Add {reference} and start', { reference }),
+      () => {
+        quick.disabled = true;
+        void host
+          .request({ type: 'addPassage', reference })
+          .then((reply) => {
+            if (!reply.ok) {
+              quick.disabled = false;
+              host.announce(reply.error);
+              return;
+            }
+            void host.startSession(reply.data.passage.id);
+          });
+      },
+      { class: 'sm-btn sm-btn-primary sm-btn-large' },
+    );
+    actions.push(quick);
+  }
+  actions.push(manage);
+
+  return el('div', { class: 'sm-welcome' }, [
+    el('h2', { class: 'sm-welcome-title', text: tr('memory.ui.plan.welcomeTitle', 'Learn Scripture by heart') }),
+    el('p', {
+      class: 'sm-welcome-text',
+      text: tr(
+        'memory.ui.plan.welcomeText',
+        'Add a verse or passage, then practise it with short activities. Memory schedules your reviews so verses stay learned.',
+      ),
+    }),
+    el('div', { class: 'sm-welcome-actions' }, actions),
+    el('p', {
+      class: 'sm-hint',
+      text: tr('memory.ui.plan.welcomeTip', 'Tip: right-click any verse in the Bible and choose Memorize.'),
+    }),
+  ]);
 }
 
 // ---------------------------------------------------------------------------

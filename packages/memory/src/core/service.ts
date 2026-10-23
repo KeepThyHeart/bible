@@ -1069,6 +1069,10 @@ export class MemoryService implements MemoryApi {
         tiersPassed: progress.tiersPassed,
         bestScore: progress.bestScore,
         attempts: progress.attempts,
+        lastPractisedAt: (tierRows.get(c.id) ?? []).reduce<number | null>(
+          (latest, r) => (latest === null || r.lastAt > latest ? r.lastAt : latest),
+          null,
+        ),
         nextTier: progress.nextTier,
         ...(optional ? { optional: true as const } : {}),
       });

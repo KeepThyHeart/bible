@@ -98,6 +98,10 @@ export class PracticeView {
   private readonly exerciseEl: HTMLElement;
   private readonly feedbackEl: HTMLElement;
   private readonly actionsEl: HTMLElement;
+  /** Wraps exercise prompt/hint, feedback and actions; sticks to the bottom on typed steps (see `renderExercise`). */
+  private readonly dockEl: HTMLElement;
+  /** Document-level key handlers of the current step (letter picks); removed on re-render and destroy. */
+  private keyCleanups: (() => void)[] = [];
 
   private session: SessionView;
   private context: PassageContext | null = null;
@@ -161,14 +165,13 @@ export class PracticeView {
       attrs: { 'aria-live': 'assertive', role: 'status' },
     });
     this.actionsEl = el('div', { class: 'sm-exercise-actions' });
+    this.dockEl = el('div', { class: 'sm-dock' }, [this.exerciseEl, this.feedbackEl, this.actionsEl]);
 
-    this.root = el('section', { class: 'sm-screen sm-practice' }, [
-      this.headEl,
-      this.contextEl,
-      this.exerciseEl,
-      this.feedbackEl,
-      this.actionsEl,
-    ]);
+    this.root = el('section', { class: 'sm-screen sm-practice' }, [this.headEl, this.contextEl, this.dockEl]);
+
+    // Whichever blank gets focus (typing, Tab, Enter, a click) scrolls into view
+    // and is announced in the dock, so a long passage never loses the user's place.
+    this.contextEl.addEventListener('focusin', (ev) => this.onSlotFocus(ev.target));
   }
 
   /**
@@ -191,6 +194,7 @@ export class PracticeView {
     this.disposed = true;
     this.layoutObserver?.disconnect();
     this.layoutObserver = null;
+    this.clearKeyHandlers();
     for (const id of this.timers) window.clearTimeout(id);
     this.timers.clear();
     this.root.remove();
@@ -307,7 +311,7 @@ export class PracticeView {
         ],
         actions: [
           step !== null
-            ? el('span', { class: 'sm-crumbs-meta', text: formatStepProgress(step.stepNumber, step.totalSteps) })
+            ? el('span', { class: 'kth-crumbs__meta', text: formatStepProgress(step.stepNumber, step.totalSteps) })
             : null,
           // Only a flow with a rule to re-run has anywhere to skip to.
           this.flow.kind !== 'passage'
@@ -645,9 +649,39 @@ export class PracticeView {
     );
   }
 
+  private clearKeyHandlers(): void {
+    for (const off of this.keyCleanups) off();
+    this.keyCleanups = [];
+  }
+
+  /**
+   * Scrolls the focused blank to the middle of the view (clear of the sticky
+   * dock) and says which blank it is, e.g. "Blank 3 of 40".
+   */
+  private onSlotFocus(target: EventTarget | null): void {
+    if (!(target instanceof HTMLInputElement)) return;
+    if (!target.classList.contains('sm-blank') && !target.classList.contains('sm-fl')) return;
+    if (typeof target.scrollIntoView === 'function') target.scrollIntoView({ block: 'center', inline: 'nearest' });
+    const all = Array.from(this.contextEl.querySelectorAll<HTMLInputElement>('input.sm-blank, input.sm-fl'));
+    const position = all.indexOf(target);
+    if (position >= 0 && this.slotCounterEl !== null) {
+      this.slotCounterEl.textContent = tr('memory.ui.practice.blankCounter', 'Blank {position} of {total}', {
+        position: position + 1,
+        total: all.length,
+      });
+    }
+  }
+
+  /** The "Blank 3 of 40" label inside the dock, when the current step has one. */
+  private slotCounterEl: HTMLElement | null = null;
+
   private renderExercise(): void {
     clear(this.exerciseEl);
     clear(this.actionsEl);
+    this.clearKeyHandlers();
+    this.slotCounterEl = null;
+    const typed = this.session.step?.kind === 'blanks' || this.session.step?.kind === 'firstletters';
+    this.dockEl.classList.toggle('sm-dock-sticky', typed);
     this.setFeedback(null);
 
     if (this.summary !== null && this.session.step === null) {
@@ -669,21 +703,29 @@ export class PracticeView {
     switch (step.kind) {
       case 'ordering':
         this.renderOrdering(step);
-        return;
+        break;
       case 'refmatch':
         this.renderRefMatch(step);
-        return;
+        break;
       case 'blanks':
         this.renderBlanks(step);
-        return;
+        break;
       case 'firstletters':
         this.renderFirstLetters(step);
-        return;
+        break;
       case 'refprovide':
         this.renderRefProvide(step);
-        return;
+        break;
       default:
         return;
+    }
+
+    // Typed steps: a live "Blank 3 of 40" so the user always knows where they are.
+    if (typed && this.contextEl.querySelector('input.sm-blank, input.sm-fl') !== null) {
+      this.slotCounterEl = el('span', { class: 'sm-slot-counter', attrs: { 'aria-hidden': 'true' } });
+      this.exerciseEl.appendChild(this.slotCounterEl);
+      const active = document.activeElement;
+      if (active instanceof HTMLInputElement && this.contextEl.contains(active)) this.onSlotFocus(active);
     }
   }
 
@@ -752,9 +794,19 @@ export class PracticeView {
     // A second, independent shortcut on top of the arrows: pressing the
     // candidate's own letter (A, B, C, ...) picks it outright, from anywhere
     // in the list, without first moving focus onto it.
-    attachLetterKeys(list, buttons, () => this.busy);
+    this.keyCleanups.push(attachLetterKeys(list, buttons, () => this.busy));
 
     this.exerciseEl.appendChild(list);
+    this.exerciseEl.appendChild(this.letterHint(buttons.length));
+  }
+
+  /** One line telling the user the letters on the choices are keys too. */
+  private letterHint(count: number): HTMLElement {
+    const last = letterFor(Math.max(0, count - 1));
+    return el('p', {
+      class: 'sm-hint',
+      text: tr('memory.ui.practice.letterHint', 'Click an answer, or press its letter (A to {last}).', { last }),
+    });
   }
 
   private async pickOrdering(
@@ -853,8 +905,9 @@ export class PracticeView {
     // The same shared letter-shortcut helper `renderOrdering` uses - see its
     // own comment on `attachLetterKeys` for why the keydown logic lives in
     // one place rather than being copied here.
-    attachLetterKeys(list, buttons, () => this.busy);
+    this.keyCleanups.push(attachLetterKeys(list, buttons, () => this.busy));
     this.exerciseEl.appendChild(list);
+    this.exerciseEl.appendChild(this.letterHint(buttons.length));
   }
 
   private async pickRefMatch(id: string, choice: HTMLButtonElement): Promise<void> {
@@ -2096,21 +2149,32 @@ function attachLetterKeys(
   list: HTMLElement,
   buttons: HTMLButtonElement[],
   isLocked: () => boolean,
-): void {
-  if (buttons.length === 0) return;
+): () => void {
+  if (buttons.length === 0) return () => undefined;
 
-  list.addEventListener('keydown', (ev) => {
+  // Listens on the document, not on the list: nothing in the picker has focus
+  // when a step is drawn (and none after a mouse click on the passage), so a
+  // handler on the list never saw a keystroke and A-D appeared dead. Scoped to
+  // this list by `isConnected`, and cleaned up when the step is redrawn.
+  const doc = list.ownerDocument;
+  const handler = (ev: KeyboardEvent): void => {
+    if (!list.isConnected) return;
     // A held-down key auto-repeating must not be able to walk through several
     // candidates from one physical press.
-    if (ev.repeat) return;
+    if (ev.repeat || ev.defaultPrevented) return;
     // Ctrl/Alt/Meta combinations are reserved for the browser and the OS
     // (Ctrl+A "select all" is the obvious collision); Shift is left alone
     // because a shifted letter is still the same letter and needs no
     // modifier to be typed.
     if (ev.ctrlKey || ev.metaKey || ev.altKey) return;
 
+    // Never steal letters typed into a field, a select, or an open dialog.
     const target = ev.target;
-    if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) return;
+    if (target instanceof HTMLElement) {
+      const tag = target.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target.isContentEditable) return;
+      if (target.closest('[role="dialog"], [role="menu"]') !== null) return;
+    }
 
     if (isLocked()) return;
 
@@ -2123,6 +2187,9 @@ function attachLetterKeys(
     if (!button) return;
 
     ev.preventDefault();
+    button.focus({ preventScroll: true });
     button.click();
-  });
+  };
+  doc.addEventListener('keydown', handler);
+  return () => doc.removeEventListener('keydown', handler);
 }
