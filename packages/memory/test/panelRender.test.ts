@@ -1111,6 +1111,25 @@ describe('R2: typed steps on a long passage (sticky dock, hint, current blank)',
     expect(dock.contains(practice.root.querySelector('.sm-context'))).toBe(false);
   });
 
+  it('counts first-letter blanks from the start, not from what is left', async () => {
+    const practice = await mountPractice(blanksStep(PSALM_1_2, BLANKED, 'firstLetter'));
+    const first = practice.root.querySelectorAll<HTMLInputElement>('.sm-fl')[0]!; // "his"
+    first.focus();
+    first.value = 'h';
+    first.dispatchEvent(new Event('input'));
+    const left = practice.root.querySelector<HTMLInputElement>('.sm-fl')!;
+    left.focus();
+    expect(practice.root.querySelector('.sm-slot-counter')?.textContent).toBe('Blank 2 of 2');
+  });
+
+  it('Enter on the last empty blank keeps focus in the passage', async () => {
+    const practice = await mountPractice(blanksStep(PSALM_1_2, BLANKED, 'firstLetter'));
+    const slots = Array.from(practice.root.querySelectorAll<HTMLInputElement>('.sm-fl'));
+    slots[1]!.focus();
+    slots[1]!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+    expect(document.activeElement).toBe(slots[0]);
+  });
+
   it('does not stick the dock on choice steps', async () => {
     const practice = await mountPractice(orderingStep(), { rung: 'ordering' });
     expect(practice.root.querySelector('.sm-dock')!.classList.contains('sm-dock-sticky')).toBe(false);
@@ -2637,6 +2656,14 @@ describe('the home screen: title, Practice, the activity picker and the shuffle'
     expect(host.sessionsStarted.length).toBe(1);
   });
 
+
+  it('keeps the list picker on an empty list, so the user can get back to All verses', () => {
+    const plan = { ...planWithPassages([]), scope: 1 } as PlanView;
+    const root = renderPlan(host, plan);
+    container.appendChild(root);
+    expect(root.querySelector('.sm-list-selector')).not.toBeNull();
+    expect(spokenText(root)).toContain('Add a passage');
+  });
 
   it('always shows a labelled verse-list selector, defaulting to "All verses", even for a single-list plan', () => {
     const plan = planWithPassages([passageViewFixture()]);

@@ -663,17 +663,21 @@ export class PracticeView {
     if (!target.classList.contains('sm-blank') && !target.classList.contains('sm-fl')) return;
     if (typeof target.scrollIntoView === 'function') target.scrollIntoView({ block: 'center', inline: 'nearest' });
     const all = Array.from(this.contextEl.querySelectorAll<HTMLInputElement>('input.sm-blank, input.sm-fl'));
-    const position = all.indexOf(target);
-    if (position >= 0 && this.slotCounterEl !== null) {
+    const index = all.indexOf(target);
+    // First-letter mode swaps each answered slot for its word, so the inputs
+    // left are only the remaining ones; `slotTotal` is the count at the start.
+    const total = Math.max(this.slotTotal, all.length);
+    if (index >= 0 && this.slotCounterEl !== null) {
       this.slotCounterEl.textContent = tr('memory.ui.practice.blankCounter', 'Blank {position} of {total}', {
-        position: position + 1,
-        total: all.length,
+        position: total - all.length + index + 1,
+        total,
       });
     }
   }
 
   /** The "Blank 3 of 40" label inside the dock, when the current step has one. */
   private slotCounterEl: HTMLElement | null = null;
+  private slotTotal = 0;
 
   private renderExercise(): void {
     clear(this.exerciseEl);
@@ -722,6 +726,7 @@ export class PracticeView {
 
     // Typed steps: a live "Blank 3 of 40" so the user always knows where they are.
     if (typed && this.contextEl.querySelector('input.sm-blank, input.sm-fl') !== null) {
+      this.slotTotal = this.contextEl.querySelectorAll('input.sm-blank, input.sm-fl').length;
       this.slotCounterEl = el('span', { class: 'sm-slot-counter', attrs: { 'aria-hidden': 'true' } });
       this.exerciseEl.appendChild(this.slotCounterEl);
       const active = document.activeElement;
@@ -1049,9 +1054,13 @@ export class PracticeView {
   private correctReferenceFor(step: RefProvideStep): string | null {
     const reference = this.context?.reference ?? null;
     if (reference === null) return null;
-    const match = /^(.+?)\s+\d+:\d+(?:-\d+)?$/.exec(reference);
+    const match = /^(.+?)\s+(\d+):\d+(?:-\d+)?$/.exec(reference);
     const book = match?.[1];
-    return book ? `${book} ${step.verse.label}` : null;
+    if (!book) return null;
+    // A passage inside one chapter labels its verses with bare numbers ("6"):
+    // the chapter then comes from the passage's own reference.
+    const label = step.verse.label.includes(':') ? step.verse.label : `${match?.[2]}:${step.verse.label}`;
+    return `${book} ${label}`;
   }
 
   // -------------------------------------------------------------------------
@@ -1178,7 +1187,10 @@ export class PracticeView {
           // empty answer for a word the user is still thinking about.
           if (ev.key === 'Enter' && input.value === '') {
             ev.preventDefault();
-            focusQuietly(nextSlotAfter(input));
+            // Past the last slot, wrap to the first one still open rather than
+            // dropping focus to the page.
+            const open = Array.from(this.contextEl.querySelectorAll<HTMLInputElement>('.sm-fl'));
+            focusQuietly(nextSlotAfter(input) ?? open.find((o) => o !== input && o.value === '') ?? input);
           }
         });
         return slot;
@@ -1292,7 +1304,8 @@ export class PracticeView {
         input.addEventListener('keydown', (ev) => {
           if (ev.key === 'Enter' && input.value === '') {
             ev.preventDefault();
-            focusQuietly(nextSlotAfter(input));
+            const open = Array.from(this.contextEl.querySelectorAll<HTMLInputElement>('.sm-fl'));
+            focusQuietly(nextSlotAfter(input) ?? open.find((o) => o !== input && o.value === '') ?? input);
           }
         });
         return slot;
@@ -1413,9 +1426,9 @@ export class PracticeView {
           text: tr('memory.ui.practice.startHint', 'Start hides every word so you can recite it from memory.'),
         }),
       );
-      this.actionsEl.appendChild(
-        button(tr('memory.ui.practice.start', 'Start'), () => this.startFirstLetters(step), { class: 'sm-btn sm-btn-primary' }),
-      );
+      const startButton = button(tr('memory.ui.practice.start', 'Start'), () => this.startFirstLetters(step), { class: 'sm-btn sm-btn-primary' });
+      this.actionsEl.appendChild(startButton);
+      focusQuietly(startButton);
       return;
     }
 

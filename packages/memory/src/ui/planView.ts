@@ -52,6 +52,9 @@ export function renderPlan(host: PanelHost, plan: PlanView): HTMLElement {
   );
 
   if (plan.passages.length === 0) {
+    // Practising from a list that is empty: keep the picker so the user can get
+    // back to "All verses" instead of being stranded on the welcome.
+    if (plan.scope !== 'all' && plan.lists.length > 0) root.appendChild(renderListPicker(host, plan));
     root.appendChild(renderWelcome(host));
     return root;
   }

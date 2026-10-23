@@ -1509,8 +1509,33 @@
   margin: 0;
 }
 
+.sm-app .sm-dock-sticky {
+  gap: var(--sm-s1);
+}
+
+.sm-app .sm-dock-sticky .sm-exercise {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: var(--sm-s3);
+  row-gap: 0;
+}
+
+.sm-app .sm-dock-sticky .sm-exercise .sm-prompt {
+  flex: 1 1 100%;
+}
+
+.sm-app .sm-dock-sticky .sm-exercise .sm-hint {
+  flex: 1 1 auto;
+  margin: 0;
+}
+
 .sm-app .sm-dock-sticky .sm-feedback {
-  min-height: 1.4em;
+  min-height: 0;
+}
+
+.sm-app .sm-dock-sticky .sm-exercise-actions:empty {
+  display: none;
 }
 
 .sm-app .sm-slot-counter {
