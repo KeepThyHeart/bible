@@ -4,6 +4,8 @@ import { spawn } from 'node:child_process';
 import { createWriteStream, existsSync, statSync } from 'node:fs';
 import { mkdir, rename, rm } from 'node:fs/promises';
 import { dirname } from 'node:path';
+import { randomBytes } from 'node:crypto';
+import { threadId } from 'node:worker_threads';
 import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 
@@ -27,7 +29,7 @@ function viaCurl(url: string, tmp: string): Promise<void> {
 export async function ensureDownloaded(url: string, dest: string, log: (m: string) => void = () => {}): Promise<string> {
   if (existsSync(dest) && statSync(dest).size > 0) return dest;
   await mkdir(dirname(dest), { recursive: true });
-  const tmp = `${dest}.tmp-${process.pid}`;
+  const tmp = `${dest}.tmp-${process.pid}-${threadId}-${randomBytes(4).toString('hex')}`;
   let lastError: unknown;
   for (let attempt = 1; attempt <= 3; attempt++) {
     try {

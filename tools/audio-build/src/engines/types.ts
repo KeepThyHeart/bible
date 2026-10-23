@@ -36,5 +36,9 @@ export interface EngineDefinition {
   memoryMbPerJob(ctx: Pick<EngineContext, 'quantization'>): number;
   /** Licence record for the index. May read a cached model card. */
   credits(voiceId: string, ctx: EngineContext): Promise<EngineCredits>;
+  /** Download model files in the main thread before workers start (so they do not race). */
+  prefetch?(voiceId: string, ctx: EngineContext): Promise<void>;
+  /** Typical render time / audio time for one job on a 6-core CPU, for the dry-run estimate. */
+  nominalRtf(ctx: Pick<EngineContext, 'quantization'>): number;
   create(ctx: EngineContext): ITtsEngine;
 }

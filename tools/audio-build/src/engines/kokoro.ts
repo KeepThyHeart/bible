@@ -104,9 +104,7 @@ export class KokoroNodeEngine implements ITtsEngine {
     transformers.env.cacheDir = hfCache;
     // Fetch the model files ourselves (with a curl fallback: Node's fetch cannot always reach the
     // Hugging Face CDN host), into the layout transformers.js reads its cache from.
-    for (const f of kokoroModelFiles(this.ctx.quantization)) {
-      await ensureDownloaded(`https://huggingface.co/${KOKORO_MODEL_ID}/resolve/main/${f}`, join(hfCache, KOKORO_MODEL_ID, f), this.ctx.log);
-    }
+    await fetchKokoroFiles(this.ctx);
     const kokoro = (await import('kokoro-js')) as unknown as KokoroModule;
     onProgress({ phase: 'engine', loaded: 0 });
     const progress_callback = (p: { status?: string; loaded?: number; total?: number }): void => {
@@ -151,6 +149,13 @@ export class KokoroNodeEngine implements ITtsEngine {
   dispose(): void { this.tts = null; }
 }
 
+export async function fetchKokoroFiles(ctx: Pick<EngineContext, 'cacheDir' | 'quantization' | 'log'>): Promise<void> {
+  const hfCache = join(ctx.cacheDir, 'huggingface');
+  for (const f of kokoroModelFiles(ctx.quantization)) {
+    await ensureDownloaded(`https://huggingface.co/${KOKORO_MODEL_ID}/resolve/main/${f}`, join(hfCache, KOKORO_MODEL_ID, f), ctx.log);
+  }
+}
+
 export function checkKokoroVoice(id: string): string | undefined {
   return KOKORO_VOICES.some(x => x.id === id) ? undefined : `"${id}" is not a Kokoro voice. Known: ${KOKORO_VOICES.map(x => x.id).join(', ')}.`;
 }
@@ -166,6 +171,8 @@ export const kokoroDefinition: EngineDefinition = {
   checkVoice: checkKokoroVoice,
   modelLabel,
   memoryMbPerJob: ({ quantization }) => (quantization === 'q8' ? 700 : 1400),
+  prefetch: (_voice, ctx) => fetchKokoroFiles(ctx),
+  nominalRtf: ({ quantization }) => (quantization === 'q8' ? 1.2 : 3),
   async credits(voiceId, ctx): Promise<EngineCredits> {
     return {
       engine: { name: 'kokoro-js with onnxruntime-node', license: 'Apache-2.0', url: 'https://github.com/hexgrad/kokoro' },

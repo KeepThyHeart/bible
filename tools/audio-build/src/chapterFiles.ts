@@ -48,26 +48,22 @@ export async function writeChapter(
 ): Promise<ChapterManifest> {
   const files: ManifestFile[] = [];
   const written: string[] = [];
+  const staged: Array<{ tmp: string; final: string }> = [];
   try {
+    // 1. Encode every format to a temp name; nothing existing is touched yet.
     for (const format of formats) {
       const final = audioPath(layout, id.book, id.chapter, format);
       const tmp = tempPathFor(final);
       await mkdir(dirname(final), { recursive: true });
-      try {
-        await encodePcm(rendered.pcm, rendered.sampleRate, format, tmp, enc);
-        await commitTemp(tmp, final);
-      } catch (e) {
-        await rm(tmp, { force: true });
-        throw e;
-      }
-      written.push(final);
+      staged.push({ tmp, final });
+      await encodePcm(rendered.pcm, rendered.sampleRate, format, tmp, enc);
       const info = FORMAT_INFO[format];
       files.push({
         codec: info.codec,
         mime: info.mime,
         path: relativeAudioPath(id.book, id.chapter, format),
-        bytes: (await stat(final)).size,
-        sha256: await sha256File(final),
+        bytes: (await stat(tmp)).size,
+        sha256: await sha256File(tmp),
       });
     }
     const manifest: ChapterManifest = {
@@ -86,11 +82,15 @@ export async function writeChapter(
     };
     const check = validateChapterManifest(manifest);
     if (!check.ok) throw new ManifestInvalidError(`The manifest for ${id.book}.${id.chapter} is invalid: ${check.errors.join('; ')}`);
+    // 2. Retire the old manifest first, so no manifest ever describes audio that was replaced.
+    await rm(manifestPath(layout, id.book, id.chapter), { force: true });
+    for (const st of staged) { await commitTemp(st.tmp, st.final); written.push(st.final); }
     await writeFileAtomic(manifestPath(layout, id.book, id.chapter), `${JSON.stringify(manifest, null, 2)}\n`);
     return manifest;
   } catch (e) {
     // Leave nothing that looks finished: audio without its manifest is invisible to the player and to resume.
     for (const p of written) await rm(p, { force: true });
+    for (const st of staged) await rm(st.tmp, { force: true });
     throw e;
   }
 }

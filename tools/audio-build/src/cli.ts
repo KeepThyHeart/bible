@@ -98,12 +98,12 @@ export function parseCli(argv: string[], env: NodeJS.ProcessEnv = process.env): 
   };
 }
 
-function printSummary(s: RunSummary, o: BuildOptions, memoryMb: number, out: (m: string) => void): void {
+function printSummary(s: RunSummary, o: BuildOptions, memoryMb: number, nominalRtf: number, out: (m: string) => void): void {
   if (s.dryRun) {
     out(`Dry run: ${s.planned.length} chapter(s) to render, ${s.skipped} up to date or empty.`);
     for (const e of s.planned) out(`  ${e.id.book}.${e.id.chapter}  ~${fmtDuration(e.estimatedSeconds)}  ${e.prepared.verses.length} verses`);
     out(`Estimated audio ${fmtDuration(s.estimatedAudioSeconds)}. Narrator "${s.narrator}". ${o.jobs} job(s) would use about ${memoryMb * o.jobs} MB of memory.`);
-    out('Render time depends on the machine: see the real-time factor a real run prints.');
+    out(`Estimated render time about ${fmtDuration(s.estimatedAudioSeconds * nominalRtf)} with one job (typical real-time factor ${nominalRtf} on 6 cores; more jobs share the cores, so the gain is small). This depends on the machine: a real run prints the measured factor.`);
     return;
   }
   out(`Done: ${s.done} rendered, ${s.skipped} skipped, ${s.failed} failed.`);
@@ -122,7 +122,7 @@ export async function main(argv: string[], io: { out(m: string): void; err(m: st
     try {
       const def = getEngine(options.engine);
       const summary = await runBuild(options, { moduleText, log: io.out });
-      printSummary(summary, options, def.memoryMbPerJob({ quantization: options.quantization }), io.out);
+      printSummary(summary, options, def.memoryMbPerJob({ quantization: options.quantization }), def.nominalRtf({ quantization: options.quantization }), io.out);
       return summary.failed > 0 ? 1 : 0;
     } finally {
       moduleText.close();

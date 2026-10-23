@@ -165,6 +165,7 @@ export async function runBuild(o: BuildOptions, deps: RunDeps): Promise<RunSumma
   };
   if (o.dryRun) return summary;
 
+  await def.prefetch?.(voice, { cacheDir: o.cacheDir, threads: 1, quantization: o.quantization, log });
   const credits = await def.credits(voice, { cacheDir: o.cacheDir, threads: 1, quantization: o.quantization, log });
   const provenance: AudioProvenance = { engine: credits.engine, model: credits.model, voice: credits.voice, text: decision.credit };
 

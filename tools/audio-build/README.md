@@ -127,3 +127,5 @@ Real-time factor is render time divided by audio length (below 1 is faster than 
 `en_US-amy-low` 0.04. The whole KJV is about 80 hours of audio, so roughly 90 hours of Kokoro render
 on one job (less with `--jobs`, which shares the six cores: about 0.7 GB per Kokoro job) or about
 3 hours with Piper low.
+
+Run one build per module at a time: `index.json` is rebuilt without a lock, so two runs finishing together could drop one narrator entry.

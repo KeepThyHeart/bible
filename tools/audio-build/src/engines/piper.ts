@@ -218,6 +218,7 @@ export const piperDefinition: EngineDefinition = {
   checkVoice: id => (isPiperVoiceId(id) ? undefined : `"${id}" is not a Piper voice id (expected e.g. en_US-amy-low).`),
   modelLabel: () => 'Piper VITS onnx',
   memoryMbPerJob: () => 350,
+  nominalRtf: () => 0.05,
   async credits(voiceId, ctx): Promise<EngineCredits> {
     const files = await ensurePiperVoice(ctx.cacheDir, voiceId, ctx.log);
     return {

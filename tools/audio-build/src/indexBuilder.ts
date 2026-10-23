@@ -74,8 +74,12 @@ export async function rebuildIndex(opts: {
   chaptersOfBook: ReadonlyMap<number, readonly number[]>;
 }): Promise<TranslationAudioIndex> {
   const path = indexPath(opts.out, opts.module);
-  const existing = validateAudioIndex(await readJson(path));
-  const narrators: AudioNarrator[] = existing.ok && existing.value && existing.value.module === opts.module ? [...existing.value.narrators] : [];
+  const raw = await readJson(path);
+  const existing = validateAudioIndex(raw);
+  if (raw !== undefined && !(existing.ok && existing.value && existing.value.module === opts.module)) {
+    throw new Error(`${path} exists but is not a valid audio index for ${opts.module}; not overwriting it (it may hold other narrators). Fix or move it and run again.`);
+  }
+  const narrators: AudioNarrator[] = existing.ok && existing.value ? [...existing.value.narrators] : [];
   for (const b of opts.built) {
     const recorded = await scanRecorded(opts.out, opts.module, b.id, b.rev);
     const entry: AudioNarrator = {
@@ -87,7 +91,7 @@ export async function rebuildIndex(opts: {
       ...(b.provenance ? { provenance: b.provenance } : {}),
     };
     const i = narrators.findIndex(n => n.id === b.id);
-    if (recorded.size === 0) { if (i >= 0) narrators.splice(i, 1); continue; }
+    if (recorded.size === 0) { if (i >= 0 && narrators[i].rev === b.rev) narrators.splice(i, 1); continue; }
     if (i >= 0) narrators[i] = entry; else narrators.push(entry);
   }
   const index: TranslationAudioIndex = { schema: AUDIO_INDEX_SCHEMA, module: opts.module, narrators };

@@ -42,6 +42,7 @@ export const fakeDefinition: EngineDefinition = {
   checkVoice: id => (id === 'v1' || id === 'v2' ? undefined : `unknown fake voice ${id}`),
   modelLabel: () => 'fake-model',
   memoryMbPerJob: () => 1,
+  nominalRtf: () => 0.1,
   async credits() {
     return {
       engine: { name: 'Fake engine', license: 'MIT' },
