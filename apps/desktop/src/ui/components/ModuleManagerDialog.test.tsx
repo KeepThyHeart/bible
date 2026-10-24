@@ -160,6 +160,33 @@ describe('ModuleManagerDialog', () => {
       expect(screen.queryByTestId('module-manager-offline-banner')).not.toBeInTheDocument();
     });
 
+    it('Refresh shows a busy state, then "Updated"', async () => {
+      const user = userEvent.setup();
+      let resolve!: () => void;
+      const refreshAllCatalogs = vi.fn(() => new Promise<void>((r) => { resolve = r; }));
+      useModuleStore.setState({ refreshAllCatalogs });
+
+      renderWithProviders(<ModuleManagerDialog onClose={onClose} />);
+      const button = screen.getByTestId('module-manager-refresh');
+      expect(button).toHaveTextContent('Refresh');
+      await user.click(button);
+      expect(button).toBeDisabled();
+      expect(button).toHaveAttribute('data-refresh-status', 'busy');
+      expect(button).toHaveTextContent('Refreshing');
+      resolve();
+      await waitFor(() => expect(button).toHaveTextContent('Updated'));
+      expect(button).not.toBeDisabled();
+    });
+
+    it('Refresh reports a failure', async () => {
+      const user = userEvent.setup();
+      const refreshAllCatalogs = vi.fn(async () => { useModuleStore.setState({ error: 'boom' }); });
+      useModuleStore.setState({ refreshAllCatalogs });
+      renderWithProviders(<ModuleManagerDialog onClose={onClose} />);
+      await user.click(screen.getByTestId('module-manager-refresh'));
+      await waitFor(() => expect(screen.getByTestId('module-manager-refresh')).toHaveAttribute('data-refresh-status', 'error'));
+    });
+
     it('"Turn on" asks the network store, and refreshes on success', async () => {
       const user = userEvent.setup();
       const requestAllow = vi.fn().mockResolvedValue(true);

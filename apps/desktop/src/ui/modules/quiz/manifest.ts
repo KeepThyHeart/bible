@@ -25,7 +25,7 @@ export const quizManifest: FeatureModuleManifest = {
       {
         id: 'quiz',
         title: { key: 'apps.quiz.title', fallback: 'Quiz' },
-        icon: { kind: 'builtin', name: 'circle-question' },
+        icon: { kind: 'builtin', name: 'list-check' },
         order: 20,
         platforms: ['desktop'],
         lifecycle: { keepAlive: 'while-busy', restore: 'default' },

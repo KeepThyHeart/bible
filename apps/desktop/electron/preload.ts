@@ -19,6 +19,8 @@ try {
     debug: console.debug.bind(console),
   };
 }
+import { invokeBuildIndex } from './ipc/indexProgress';
+import type { ProgressIpcRenderer } from './ipc/indexProgress';
 import { ALLOWED_IPC_CHANNELS, AllowedIpcChannel, IpcChannel } from './ipc/allowedChannels';
 
 /**
@@ -876,8 +878,9 @@ const electronAPI: ElectronAPI = {
       ipcRenderer.invoke('search:deleteSavedSearch', searchId),
     getIndexStatus: (modules: string[]) =>
       ipcRenderer.invoke('search:getIndexStatus', modules),
+    // The callback must never cross IPC (functions are not cloneable): progress arrives as pushed events.
     buildIndex: (modules: string[], onProgress?: (progress: any) => void) =>
-      ipcRenderer.invoke('search:buildIndex', modules, onProgress),
+      invokeBuildIndex<Result<void>>(ipcRenderer as unknown as ProgressIpcRenderer, modules, onProgress),
     getBookIndexStatus: (moduleAbbr: string) =>
       ipcRenderer.invoke('search:getBookIndexStatus', moduleAbbr),
     // Semantic search
