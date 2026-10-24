@@ -2218,6 +2218,7 @@
   "preferencesDialog.sectionNotifications": "सूचनाएँ",
   "extensionConsent.permission.notificationsSchedule": "अपने चुने हुए समय पर आपको अनुस्मारक दिखाना, भले ही ऐप पृष्ठभूमि में हो।",
   "preferencesDialog.sectionDownloads": "Downloads & storage",
+  "preferencesDialog.sectionSpeech": "वाक्",
   "assets.error.offline": "आप ऑफ़लाइन हैं (या वेब एक्सेस बंद है)।",
   "assets.error.network": "डाउनलोड बीच में रुक गया। फिर कोशिश करें।",
   "assets.error.http": "सर्वर ने डाउनलोड अस्वीकार कर दिया।",

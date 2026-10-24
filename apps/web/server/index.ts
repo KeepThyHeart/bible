@@ -9,7 +9,7 @@ import { createPasswordGate, hashPassword } from './middleware/passwordGate.js';
 import { createServiceWorkerRoutes, pwaShell, readShell } from './middleware/serviceWorker.js';
 import { createCompression } from './middleware/compression.js';
 import { createRateLimiter, tierForApiPath } from './middleware/rateLimiter.js';
-import { contentSecurityPolicyDirectives } from './cspDirectives.js';
+import { contentSecurityPolicyDirectives, speechModelOrigins } from './cspDirectives.js';
 import { createAssetRouter } from './routes/assetRoutes.js';
 // Side-effect imports: each route file self-registers with the route registry
 import './routes/moduleRoutes.js';
@@ -217,6 +217,10 @@ app.use(helmet({
     directives: contentSecurityPolicyDirectives({
       enabled: siteConfig.audio.enabled,
       externalOrigins: siteConfig.audio.externalOrigins,
+    }, {
+      // On-device speech (recite): model download origins, only while the flag is on.
+      enabled: siteConfig.isEnabled('recite'),
+      externalOrigins: speechModelOrigins(process.env.BIBLE_SPEECH_MODEL_BASE_URL ?? ''),
     }),
   },
   // HSTS is only meaningful for production HTTPS deployments. In local/test

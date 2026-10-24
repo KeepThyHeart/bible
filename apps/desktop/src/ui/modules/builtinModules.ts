@@ -19,6 +19,7 @@ import { keywordMarksModule } from './keyword-marks/binding';
 import { notificationsModule } from './notifications/binding';
 import { memoryModule } from './memory/memoryModule';
 import { downloadsModule } from './downloads/binding';
+import { speechModule } from './speech/binding';
 import { addDesktopModule, fireStartupFinished, reconcileModules } from './moduleHost';
 import type { DesktopFeatureModule } from './moduleHost';
 
@@ -35,6 +36,7 @@ export const BUILTIN_MODULES: readonly DesktopFeatureModule[] = [
   measuresModule,
   keywordMarksModule,
   downloadsModule,
+  speechModule,
   notificationsModule,
   memoryModule,
 ];

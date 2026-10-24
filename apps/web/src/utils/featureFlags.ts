@@ -24,7 +24,8 @@ function siteFlags(): Record<string, unknown> {
   if (typeof cfg.offlineDownloads === 'boolean') legacy.offlineDownloads = cfg.offlineDownloads;
   if (typeof cfg.offlineAutoDownload === 'boolean') legacy.offlineAutoDownload = cfg.offlineAutoDownload;
   const features = cfg.features;
-  return { ...legacy, ...(features && typeof features === 'object' ? (features as Record<string, unknown>) : {}) };
+  // Recite stores personal content (Memory), which the web build does not have until accounts exist.
+  return { recite: false, ...legacy, ...(features && typeof features === 'object' ? (features as Record<string, unknown>) : {}) };
 }
 
 function devOverrides(): Record<string, boolean> {

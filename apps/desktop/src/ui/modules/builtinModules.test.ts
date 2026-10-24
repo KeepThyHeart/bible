@@ -37,6 +37,13 @@ describe('desktop renderer boot with a module disabled', () => {
   }, 60_000);
 });
 
+describe('speech module (recite flag)', () => {
+  it('is registered and on by default (recite is on in 1.0)', async () => {
+    const { featureModules } = await boot('');
+    expect(featureModules.list().find((m) => m.id === 'speech')).toMatchObject({ enabled: true });
+  }, 60_000);
+});
+
 describe('desktop dev runtime off switch', () => {
   it('window.kthModules.disable removes a module\'s app and commands and enable restores them', async () => {
     vi.resetModules();

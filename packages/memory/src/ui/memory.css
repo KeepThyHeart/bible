@@ -2390,3 +2390,7 @@
 .sm-app .sm-list-picker .sm-list-selector {
   margin-bottom: 0;
 }
+.sm-app .sm-recite-said { font-style: italic; opacity: 0.85; }
+.sm-app .sm-recite-peeked { background: var(--sm-info-soft); color: var(--sm-info-text); }
+.sm-app .sm-recite-learned-low { color: var(--sm-text-dim); }
+.sm-app .sm-recite-peek-row { justify-content: center; }

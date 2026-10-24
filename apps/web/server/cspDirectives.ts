@@ -13,6 +13,11 @@
  *  - `media-src` and `connect-src` gain the origins the operator explicitly
  *    configured for recordings or engine files (`audio.base`, an engine's
  *    `assetBase`), and no others.
+ *
+ * The on-device speech engine (feature `recite`, task 0151) downloads its models, once and on request,
+ * from the model host. It changes the policy only when switched on, and then only `connect-src` gains
+ * that host's origins (`speechModelOrigins`). Microphone access and the engine's worker and wasm
+ * need no change: they are same-origin, and `'wasm-unsafe-eval'` is already allowed.
  */
 
 export interface CspAudioOptions {
@@ -21,8 +26,36 @@ export interface CspAudioOptions {
   externalOrigins: string[];
 }
 
-export function contentSecurityPolicyDirectives(audio: CspAudioOptions = { enabled: false, externalOrigins: [] }) {
+export interface CspSpeechOptions {
+  enabled: boolean;
+  /** Origins the model files are fetched from; see `speechModelOrigins`. */
+  externalOrigins: string[];
+}
+
+/** Hugging Face's download host, which redirects `huggingface.co/.../resolve/...` to its CDNs. */
+export const HUGGING_FACE_ORIGINS = ['https://huggingface.co', 'https://cdn-lfs.hf.co', 'https://cas-bridge.xethub.hf.co'];
+
+/**
+ * The origins to allow for a model host (the branding key `speechModelBaseUrl`): empty means the
+ * default (Hugging Face and its CDNs); a mirror needs only its own origin. An unparsable value allows nothing.
+ */
+export function speechModelOrigins(modelBase: string | undefined): string[] {
+  const base = (modelBase ?? '').trim();
+  if (!base) return [...HUGGING_FACE_ORIGINS];
+  try {
+    const u = new URL(base);
+    return u.protocol === 'https:' || u.protocol === 'http:' ? [u.origin] : [];
+  } catch {
+    return [];
+  }
+}
+
+export function contentSecurityPolicyDirectives(
+  audio: CspAudioOptions = { enabled: false, externalOrigins: [] },
+  speech: CspSpeechOptions = { enabled: false, externalOrigins: [] },
+) {
   const external = audio.enabled ? audio.externalOrigins : [];
+  const speechOrigins = speech.enabled ? speech.externalOrigins : [];
   const directives: Record<string, Iterable<string> | null> = {
     defaultSrc: ["'self'"],
     // 'unsafe-inline' is required for the error-fallback inline script in index.html.
@@ -41,7 +74,7 @@ export function contentSecurityPolicyDirectives(audio: CspAudioOptions = { enabl
     styleSrc: ["'self'", "'unsafe-inline'"],
     fontSrc: ["'self'"],
     imgSrc: ["'self'", 'data:'],
-    connectSrc: ["'self'", ...external],
+    connectSrc: ["'self'", ...new Set([...external, ...speechOrigins])],
     // Do NOT include upgrade-insecure-requests: it causes browsers to upgrade HTTP
     // requests to HTTPS, breaking local dev servers that serve over plain HTTP.
     upgradeInsecureRequests: null,

@@ -244,6 +244,11 @@ function renderProgressRow(
         disabled: !reciteReady,
         attrs: aria(tr('memory.ui.plan.recite', 'Recite')),
       }),
+      button(tr('memory.ui.plan.reciteHandsFree', 'Hands-free'), () => void startReciteRun(host, { kind: 'passage', passageId: pv.passage.id }, 'handsfree'), {
+        class: 'sm-btn sm-btn-small',
+        disabled: !reciteReady || !speech?.handsFree,
+        attrs: { ...aria(tr('memory.ui.plan.reciteHandsFree', 'Hands-free')), 'data-testid': 'recite-handsfree', title: tr('memory.ui.plan.reciteHandsFreeHint', 'Speak and listen without touching the screen') },
+      }),
     ]);
   } else if (rv.resume) {
     actions = el('div', { class: 'sm-activity-actions' }, [

@@ -2226,6 +2226,7 @@
   "preferencesDialog.sectionNotifications": "Notifications",
   "extensionConsent.permission.notificationsSchedule": "Show you reminders at times it chooses, even when the app is in the background.",
   "preferencesDialog.sectionDownloads": "Downloads & storage",
+  "preferencesDialog.sectionSpeech": "Speech",
   "assets.error.offline": "You are offline (or web access is off).",
   "assets.error.network": "The download was interrupted. Try again.",
   "assets.error.http": "The server refused the download.",

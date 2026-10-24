@@ -2230,6 +2230,7 @@
   "preferencesDialog.sectionNotifications": "Notificaciones",
   "extensionConsent.permission.notificationsSchedule": "Mostrarte recordatorios en los momentos que elija, incluso con la aplicación en segundo plano.",
   "preferencesDialog.sectionDownloads": "Descargas y almacenamiento",
+  "preferencesDialog.sectionSpeech": "Voz",
   "assets.error.offline": "Sin conexión (o el acceso web está desactivado).",
   "assets.error.network": "La descarga se interrumpió. Inténtelo de nuevo.",
   "assets.error.http": "El servidor rechazó la descarga.",

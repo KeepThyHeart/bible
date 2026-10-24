@@ -107,7 +107,7 @@ export function reciteDueEntry(plan: PlanView): { label: string; count: number; 
   if (!reciteTileVisible(plan)) return null;
   const count = plan.reciteDueCount;
   return {
-    label: count > 0 ? tr('memory.ui.settings.reciteDueCount', "Recite what's due aloud ({count})", { count }) : tr('memory.ui.settings.reciteDue', "Recite what's due aloud"),
+    label: count > 0 ? tr('memory.ui.settings.reciteDueCount', "Hands-free: recite what's due aloud ({count})", { count }) : tr('memory.ui.settings.reciteDue', "Hands-free: recite what's due aloud"),
     count,
     enabled: count > 0,
   };

@@ -500,6 +500,7 @@ export interface ElectronAPI {
     cancel: (id: string) => Promise<Result<{ cancelled: boolean }>>;
     remove: (id: string) => Promise<Result<{ removed: boolean }>>;
     refresh: () => Promise<Result<AssetListSnapshot>>;
+    read: (id: string, path: string) => Promise<Result<Uint8Array>>;
   };
 
   // Optional feature packs (semantic search). A pack is a downloadable
@@ -1157,6 +1158,7 @@ const electronAPI: ElectronAPI = {
     cancel: (id: string) => typedInvoke('assets:cancel', id),
     remove: (id: string) => typedInvoke('assets:remove', id),
     refresh: () => typedInvoke('assets:refresh'),
+    read: (id: string, path: string) => typedInvoke('assets:read', id, path),
   },
 
   featurePacks: {

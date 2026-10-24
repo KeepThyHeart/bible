@@ -37,6 +37,8 @@ import { isExtensionNotifyAllowed as isExtensionNotifyAllowedFor } from './notif
 import { runOnce } from './utils/runOnce';
 import { ensureBibleRepository } from './ipc/bibleHandlers';
 import { registerMainModules, closeMainModules } from './modules/mainModules';
+import { createPermissionHandlers, fakeMicSwitches, isReciteEnabled } from './modules/speech/permissions';
+import { notifySpeechWindowGone } from './modules/speech/hub';
 import { UserDataRepository } from '@bible/core';
 import { NotificationSettingsStore } from '@bible/core/browser';
 import { initializeUserSchema } from './schema/userSchema';
@@ -195,6 +197,13 @@ if (!app.isPackaged) {
 if (!app.isPackaged && process.env.NODE_ENV === 'test') {
   app.commandLine.appendSwitch('disable-dev-shm-usage');
   log.info('Running with --disable-dev-shm-usage flag (test mode)');
+}
+
+// Dev/demo only: replace the microphone with a WAV file (`KTH_FAKE_MIC_WAV`), for repeatable
+// speech e2e runs and demo videos. Never applies to a packaged build.
+for (const [name, value] of fakeMicSwitches(app.isPackaged)) {
+  if (value === undefined) app.commandLine.appendSwitch(name);
+  else app.commandLine.appendSwitch(name, value);
 }
 
 // Allow E2E tests to isolate user data per worker by pointing userData at a
@@ -807,6 +816,28 @@ async function createWindow(): Promise<void> {
     show: false // Show when ready
   });
 
+  // Microphone (0151): audio only, for the main window's own page, with `recite` on. Other
+  // permissions keep Electron's default (granted); the print window and ext-ui frames get no media.
+  {
+    const mainContents = mainWindow.webContents;
+    const devUrl = process.env.ELECTRON_RENDERER_URL;
+    const perms = createPermissionHandlers(
+      {
+        enabled: () => isReciteEnabled(app.isPackaged),
+        isMainContents: (wc) => wc === mainContents,
+        isOwnUrl: (url) =>
+          app.isPackaged || !devUrl ? url.startsWith('file://') : url.startsWith(new URL(devUrl).origin),
+      },
+      true,
+    );
+    mainContents.session.setPermissionRequestHandler((wc, permission, callback, details) =>
+      perms.request(wc, permission, callback, details as unknown as Record<string, unknown>),
+    );
+    mainContents.session.setPermissionCheckHandler((wc, permission, origin, details) =>
+      perms.check(wc, permission, origin, details as unknown as Record<string, unknown>),
+    );
+  }
+
   // Block renderer-initiated navigation away from the app and deny child
   // windows (which would otherwise inherit the preload bridge). See
   // utils/windowSecurity.ts. Installed before the first load so nothing in the
@@ -927,6 +958,7 @@ async function createWindow(): Promise<void> {
   });
 
   mainWindow.on('closed', () => {
+    notifySpeechWindowGone();
     mainWindow = null;
     menuBuilder = null;
     windowStateService = null;

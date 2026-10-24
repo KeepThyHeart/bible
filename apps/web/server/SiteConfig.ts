@@ -254,7 +254,8 @@ export class SiteConfig {
   get flags(): FeatureFlags {
     if (!this._flags) {
       this._flags = createFeatureFlags({
-        site: () => this.raw.features as Record<string, unknown> | undefined,
+        // Recite needs Memory's personal data, which the web build lacks until accounts exist: off unless the site says otherwise.
+        site: () => ({ recite: false, ...(this.raw.features as Record<string, unknown> | undefined) }),
         overrides: () =>
           process.env.NODE_ENV === 'production'
             ? undefined

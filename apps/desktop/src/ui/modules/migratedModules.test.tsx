@@ -32,6 +32,9 @@ function fakeRegistry() {
 }
 
 async function boot(override: string) {
+  // Let activations still in flight from the previous test finish before the module graph is reset;
+  // otherwise a late dynamic import lands in the new graph and registers its action twice.
+  await new Promise((resolve) => setTimeout(resolve, 100));
   vi.resetModules();
   window.localStorage.setItem('kth.modules', override);
   const { registerBuiltinModules } = await import('./builtinModules');

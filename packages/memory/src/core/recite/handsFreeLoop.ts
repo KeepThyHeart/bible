@@ -34,6 +34,8 @@ export interface LoopCard {
   reference: string;
   /** What is read aloud, e.g. "John chapter 3, verses 16 to 18". */
   spokenReference: string;
+  /** The reference as words to be said back ("John three sixteen"), for the optional reference recitation. */
+  referenceWords?: string[];
   /** BCP-47 language of the passage's module. */
   language: string;
   verses: VerseText[];
@@ -118,6 +120,11 @@ export class HandsFreeLoop {
   private card: LoopCard | null = null;
   private kit: ILanguageKit | null = null;
   private words: string[] = [];
+  /** The passage's own words sit at [verseStart, verseEnd) of `words`; spoken-reference words surround them. */
+  private verseStart = 0;
+  private verseEnd = 0;
+  /** Leading passage words shown by Peek (not graded). */
+  private peeked = 0;
   private cursor: ReciteCursor | null = null;
   private hinted = new Set<number>();
   private heardTexts: string[] = [];
@@ -140,6 +147,9 @@ export class HandsFreeLoop {
   private readonly exclude: number[] = [];
   private done = 0;
   private skipped = 0;
+  private practiced = 0;
+  /** Reference before/after, fixed when the card's word list was built. */
+  private refFixed = { before: false, after: false };
   private scoreSum = 0;
 
   constructor(private readonly deps: LoopDeps) {
@@ -167,6 +177,9 @@ export class HandsFreeLoop {
       heard: this.heardTexts.slice(),
       position: this.cursor ? this.cursor.position : -1,
       hinted: Array.from(this.hinted).sort((a, b) => a - b),
+      peeked: this.peeked,
+      peekText: this.peeked > 0 ? this.quote(this.indexRange(this.verseStart, this.peeked)) : null,
+      referenceText: this.refMode().text,
       result: this.result,
       done: this.done,
       remaining: c ? c.remaining : 0,
@@ -216,6 +229,15 @@ export class HandsFreeLoop {
           // in-flight utterance returns, so nothing the user said is dropped.
           if (s === 'ready') this.interrupt();
         }
+        return;
+      }
+      case 'peek':
+      case 'peekAll': {
+        // Tap mode, before reciting: showing words is only fair before the attempt begins.
+        if (handsFree || !this.card || s !== 'ready' || this.heardTexts.length > 0) return;
+        const total = this.verseEnd - this.verseStart;
+        this.peeked = a === 'peekAll' ? total : Math.min(total, Math.max(this.peeked, LOOP.openingWords));
+        this.emitView();
         return;
       }
       case 'repeat': {
@@ -386,7 +408,7 @@ export class HandsFreeLoop {
     this.card = card;
     this.lastLanguage = card.language;
     this.kit = kit;
-    this.words = expectedFor(card.verses).words;
+    this.buildWords(card);
     this.resetCard();
     this.step = this.deps.mode === 'handsfree' ? 'announce' : 'ready';
   }
@@ -412,7 +434,7 @@ export class HandsFreeLoop {
     await this.say(c.spokenReference, c.language);
     if (this.stale(gen)) return;
     if (this.deps.settings().promptStyle === 'reference+opening') {
-      const idx = this.indexRange(0, LOOP.openingWords);
+      const idx = this.indexRange(this.verseStart, LOOP.openingWords);
       if (first) for (const i of idx) this.hinted.add(i);
       await this.say(this.quote(idx), c.language);
     }
@@ -558,7 +580,6 @@ export class HandsFreeLoop {
   private async onNoSpeech(gen: number): Promise<void> {
     const cursor = this.cursor as ReciteCursor;
     const c = this.card as LoopCard;
-    const n = this.words.length;
     if (cursor.furthest < 0) {
       this.noSpeech++;
       if (this.noSpeech === 1) {
@@ -571,7 +592,7 @@ export class HandsFreeLoop {
       this.act('pause');
       return;
     }
-    if (cursor.furthest >= n - LOOP.nearEndWords) {
+    if (cursor.furthest >= this.verseEnd - LOOP.nearEndWords) {
       this.step = 'score';
       return;
     }
@@ -612,12 +633,19 @@ export class HandsFreeLoop {
     this.setPhase('scoring', tc('memory.core.loopScoring', 'Scoring'));
     await this.closeListen();
     if (this.stale(gen)) return;
-    const g = gradeRecitation(c.verses, cursor.heard, this.hinted, this.deps.settings().strictness, kit);
+    const g = gradeRecitation(c.verses, cursor.heard, this.hinted, this.deps.settings().strictness, kit, {
+      refBefore: this.words.slice(0, this.verseStart),
+      refAfter: this.words.slice(this.verseEnd),
+      peeked: this.peeked,
+    });
+    const practiceOnly = g.practiceOnly;
     g.detail.engineId = this.engineId;
     g.detail.modelId = this.modelId;
     let rec: LoopRecorded;
     try {
-      rec = await this.deps.record(c, g, this.startedAt);
+      rec = practiceOnly
+        ? { level: 0, nextDueAt: null, passageWellLearned: false }
+        : await this.deps.record(c, g, this.startedAt);
     } catch (err) {
       const msg = err instanceof Error ? err.message : tc('memory.core.recordFailed', 'Could not save that attempt.');
       if (NO_PLAN.test(msg) || msg === passageGoneText()) {
@@ -633,8 +661,11 @@ export class HandsFreeLoop {
       this.fail('record', msg);
       return;
     }
-    this.done++;
-    this.scoreSum += g.attempt.score;
+    if (practiceOnly) this.practiced++;
+    else {
+      this.done++;
+      this.scoreSum += g.attempt.score;
+    }
     this.exclude.push(c.passageId);
     if (this.stale(gen)) return;
     this.result = {
@@ -642,13 +673,18 @@ export class HandsFreeLoop {
       level: rec.level,
       nextDueAt: rec.nextDueAt,
       words: g.result.words.map((w) =>
-        w.heard !== undefined
-          ? { index: w.index, verdict: w.verdict, heard: w.heard }
-          : { index: w.index, verdict: w.verdict },
+        ({
+          index: w.index,
+          verdict: w.verdict,
+          ...(w.heard !== undefined ? { heard: w.heard } : {}),
+          ...(w.peeked ? { peeked: true } : {}),
+        }),
       ),
       extras: g.result.extras.map((x) => ({ afterIndex: x.afterIndex, heard: x.heard })),
       missedQuote: g.missedQuote,
       passageWellLearned: rec.passageWellLearned,
+      ...(g.referenceScore !== null ? { reference: { text: c.spokenReference, score: g.referenceScore } } : {}),
+      ...(practiceOnly ? { practiceOnly: true } : {}),
     };
     this.feedbackSpoken = false;
     this.step = 'feedback';
@@ -656,6 +692,7 @@ export class HandsFreeLoop {
 
   private feedbackText(): string {
     const r = this.result as ReciteResultView;
+    if (r.practiceOnly) return tc('memory.core.loopPracticeOnly', 'Practice only. Nothing was graded.');
     if (r.score >= 0.9995) return tc('memory.core.loopPerfect', 'Perfect.');
     const pct = Math.round(r.score * 100);
     return r.missedQuote.length > 0
@@ -739,7 +776,7 @@ export class HandsFreeLoop {
   private async doSummary(gen: number): Promise<void> {
     await this.closeListen();
     if (this.stale(gen)) return;
-    const nothingDue = this.done === 0 && this.skipped === 0 && this.deps.source === 'due';
+    const nothingDue = this.done === 0 && this.skipped === 0 && this.practiced === 0 && this.deps.source === 'due';
     const text =
       this.done > 0
         ? this.done === 1
@@ -808,9 +845,32 @@ export class HandsFreeLoop {
     return verses.map((v) => v.words.join(' ')).join(' ');
   }
 
+  private refMode(): { before: boolean; after: boolean; text: { before: boolean; after: boolean; text: string } | null } {
+    const c = this.card;
+    const words = c?.referenceWords ?? [];
+    const { before, after } = this.refFixed;
+    return { before, after, text: c && (before || after) ? { before, after, text: words.join(' ') } : null };
+  }
+
+  /** The expected word list: the passage, with the spoken reference around it when the setting asks. */
+  private buildWords(card: LoopCard): void {
+    const verse = expectedFor(card.verses).words;
+    // The spoken reference is English only (its number words are), and the choice is fixed per card.
+    const m = this.deps.settings().reciteReference;
+    const ref = card.language.toLowerCase().startsWith('en') ? (card.referenceWords ?? []) : [];
+    const before = (m === 'before' || m === 'both') && ref.length > 0;
+    const after = (m === 'after' || m === 'both') && ref.length > 0;
+    this.refFixed = { before, after };
+    this.words = [...(before ? ref : []), ...verse, ...(after ? ref : [])];
+    this.verseStart = before ? ref.length : 0;
+    this.verseEnd = this.verseStart + verse.length;
+  }
+
   private resetCard(): void {
     if (!this.kit || !this.card) return;
+    this.buildWords(this.card);
     this.cursor = new ReciteCursor(this.words, this.kit);
+    this.peeked = 0;
     this.hinted = new Set();
     this.heardTexts = [];
     this.result = null;
@@ -830,6 +890,10 @@ export class HandsFreeLoop {
     this.kit = null;
     this.cursor = null;
     this.words = [];
+    this.refFixed = { before: false, after: false };
+    this.verseStart = 0;
+    this.verseEnd = 0;
+    this.peeked = 0;
     this.hinted = new Set();
     this.heardTexts = [];
     this.result = null;

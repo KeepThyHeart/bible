@@ -129,7 +129,7 @@ describe('activities', () => {
     const h = host();
     const root = renderPlan(h, p);
     expect(root.textContent).toContain(RECITE_TILE.title);
-    const due = [...root.querySelectorAll('button')].find((b) => b.textContent?.includes("Recite what's due aloud"))!;
+    const due = [...root.querySelectorAll('button')].find((b) => b.textContent?.includes("recite what's due aloud"))!;
     due.click();
     await flush();
     expect(h.requests[0]).toEqual({ type: 'startRecite', source: { kind: 'due' }, mode: 'handsfree' });
@@ -137,7 +137,7 @@ describe('activities', () => {
 
     const off = renderPlan(host(), plan({ speech: speech({ state: 'permission-missing' }) }, [pv([rung({ rung: 'ordering' })])]));
     expect(off.textContent).not.toContain(RECITE_TILE.title);
-    expect(off.textContent).not.toContain("Recite what's due aloud");
+    expect(off.textContent).not.toContain("recite what's due aloud");
   });
 });
 

@@ -1,0 +1,16 @@
+export * from './types';
+export type { IModelFileSource } from './engine/modelFiles';
+export { SpeechService } from './host/SpeechService';
+export type { SpeechServiceDeps, SpeechModelInfo } from './host/SpeechService';
+export { createSpeechService } from './host/createSpeechService';
+export type { SpeechServiceOptions } from './host/createSpeechService';
+export { LocalSpeechPrefs, createSpeechPrefs } from './host/prefs';
+export { WhisperEngine } from './engine/WhisperEngine';
+export { PcmListener } from './listen/PcmListener';
+export { WebMicrophone } from './audio/WebMicrophone';
+export { EnergyVad } from './audio/EnergyVad';
+export { WebSpeechSpeaker } from './tts/WebSpeechSpeaker';
+export { TtsEngineSpeaker } from './tts/TtsEngineSpeaker';
+export { playEarcon } from './tts/earcons';
+export { whisperManifests, assetIdFor, WHISPER_MODELS } from './models/whisperModels';
+export { detectDevice, chooseModel, detectEnv } from './models/device';

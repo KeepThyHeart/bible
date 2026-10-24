@@ -347,6 +347,7 @@ export const TYPED_IPC_CHANNELS = [
   'assets:cancel',
   'assets:remove',
   'assets:refresh',
+  'assets:read',
   // Download management
   'download:get-progress',
   'download:get-active',

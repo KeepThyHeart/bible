@@ -21,6 +21,15 @@
       // reaches better-sqlite3 and Node builtins. Mirrored by the Vite alias in
       // vite.config.ts so the type-checker and the bundler agree.
       "@bible/core/browser": ["../../packages/core/src/browser"],
+      // Speech engine (task 0151): the contracts and recitation matching in core, the engine package, and
+      // (dev harness only) the memory core. All consumed as source, mirrored by the aliases in vite.config.ts.
+      "@bible/core/speech": ["../../packages/core/src/speech"],
+      "@bible/core/audio": ["../../packages/core/src/audio"],
+      "@bible/core/assets": ["../../packages/core/src/assets"],
+      "@bible/core/recite": ["../../packages/core/src/recite"],
+      "@bible/speech": ["../../packages/speech/src"],
+      "@bible/memory/recite/*": ["../../packages/memory/src/core/recite/*"],
+      "@bible/memory/core": ["../../packages/memory/src/core"],
       // Shared UI kit, consumed as source (never a built dist). Its CSS is
       // reached through side-effect imports, which need no path entry.
       "@bible/ui": ["../../packages/ui/src"],
@@ -35,7 +44,7 @@
       "react-dom": ["./node_modules/preact/compat/"]
     }
   },
-  "include": ["src/**/*", "server/**/*"],
+  "include": ["src/**/*", "server/**/*", "dev/**/*"],
   // Test files are included on purpose. They were excluded, which meant a
   // mock could drift from the type it stands in for — a test asserting
   // against a shape the real code never produces — without anything noticing.

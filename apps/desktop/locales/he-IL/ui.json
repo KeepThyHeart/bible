@@ -2204,6 +2204,7 @@
   "preferencesDialog.sectionNotifications": "התראות",
   "extensionConsent.permission.notificationsSchedule": "הצגת תזכורות בזמנים שהתוסף בוחר, גם כשהיישום פועל ברקע.",
   "preferencesDialog.sectionDownloads": "הורדות ואחסון",
+  "preferencesDialog.sectionSpeech": "דיבור",
   "assets.error.offline": "אין חיבור לרשת (או שהגישה לאינטרנט כבויה).",
   "assets.error.network": "ההורדה הופסקה. נסה שוב.",
   "assets.error.http": "השרת סירב לבקשת ההורדה.",

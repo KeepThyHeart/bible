@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * The 1.0 behaviour: with RECITE_ENABLED off (src/core/features.ts), recite and
+ * With RECITE_ENABLED off (src/core/features.ts; the web hosts turn it off), recite and
  * hands-free are absent from the exercise picker, passage actions, plan tiles
  * and settings, while the other Memory exercises keep working. The rest of the
  * suite turns the flag on (test/helpers/reciteOn.ts).
@@ -55,11 +55,11 @@ async function setup() {
   return { ...t, passageId };
 }
 
-describe('recite is off by default (1.0)', () => {
-  it('ships with the flag off', () => {
+describe('recite with the flag off', () => {
+  it('ships with the flag on (desktop, 1.0)', () => {
     setReciteEnabledForTests(null);
-    expect(RECITE_ENABLED).toBe(false);
-    expect(reciteEnabled()).toBe(false);
+    expect(RECITE_ENABLED).toBe(true);
+    expect(reciteEnabled()).toBe(true);
   });
 
   it('hides recite from the plan, passage view and settings, and refuses to start', async () => {
