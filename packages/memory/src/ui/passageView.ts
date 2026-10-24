@@ -35,14 +35,12 @@ import {
   levelBoxes,
   modal,
   suggestedBadge,
-  tabs,
-  tierPips,
 } from './components';
-import { RUNG_BLURB, RUNG_LABEL, formatDue, formatScore, inLadderOrder, isDue, suggestedRungFor } from './format';
+import { RUNG_BLURB, RUNG_LABEL, formatDue, formatLastPractised, formatScore, inLadderOrder, isDue, suggestedRungFor } from './format';
 import type { PanelHost } from './host';
 import { reciteEnabled } from '../core/features';
 import { startReciteRun } from './activities';
-import { availabilityBanner, availabilityMessage, permissionSettingsButton } from './settingsView';
+import { availabilityBanner, availabilityMessage } from './settingsView';
 import { tr } from './i18n';
 
 /** Tab/row label: recite is marked optional so nobody thinks it is required. */
@@ -62,11 +60,10 @@ export function renderPassageScreen(
   pv: PassageView,
   defaultAnswerMode: AnswerMode,
   /**
-   * Which activity tab is showing: `state.ts#View`'s `rung`; `null` means the
-   * suggested one (`suggestedRungFor`). Defaults to `null` for callers with no
-   * view state.
+   * Kept for the view state's sake (`state.ts#View`'s `rung`); the screen no
+   * longer has activity tabs, so it is unused.
    */
-  viewRung: Rung | null = null,
+  _viewRung: Rung | null = null,
   /** Speech availability (`SettingsView.speech`); omitted means unknown, which disables Recite. */
   speech: SpeechAvailability | null = null,
 ): HTMLElement {
@@ -104,44 +101,14 @@ export function renderPassageScreen(
   const practiceLink = renderPracticeLink(host, pv, suggested);
   if (practiceLink) root.appendChild(practiceLink);
 
-  const applicable = inLadderOrder(pv.rungs).filter((rv) => rv.applicable && (rv.rung !== 'recite' || reciteEnabled()));
-  if (applicable.length > 0) {
-    // An explicit tab wins; otherwise the suggested one. A stale `viewRung`
-    // naming a rung that is no longer applicable falls back to the first tab.
-    const active = applicable.find((rv) => rv.rung === (viewRung ?? suggested)) ?? applicable[0]!;
-
-    root.appendChild(
-      tabs({
-        items: applicable.map((rv) => ({ value: rv.rung, label: rungTabLabel(rv) })),
-        selected: active.rung,
-        onSelect: (rung) => host.go({ type: 'goPassage', passageId: pv.passage.id, rung }),
-        ariaLabel: tr('memory.ui.plan.activity', 'Activity'),
-      }),
-    );
-
-    root.appendChild(el('div', { class: 'sm-activities' }, [renderActivityDetail(host, pv, active, suggested === active.rung, now, speech)]));
-  }
-
-  for (const rv of inLadderOrder(pv.rungs).filter((r) => !r.applicable)) {
-    if (rv.rung === 'recite') {
-      if (!reciteEnabled()) continue;
-      // Optional and hidden when unavailable; say why only when speech itself is the reason.
-      const why = speech ? availabilityMessage(speech) : null;
-      if (why) {
-        root.appendChild(
-          el('p', { class: 'sm-activity-blurb' }, [el('strong', { text: rungTabLabel(rv) }), tr('memory.ui.plan.colonSuffix', ': {text}', { text: why })]),
-        );
-        const action = speech ? permissionSettingsButton(host, speech) : null;
-        if (action) root.appendChild(action);
-      }
-      continue;
-    }
-    root.appendChild(
-      el('p', { class: 'sm-activity-blurb' }, [
-        el('strong', { text: RUNG_LABEL[rv.rung] }),
-        tr('memory.ui.plan.colonSuffix', ': {text}', { text: inapplicabilityNote(rv.rung) }),
-      ]),
-    );
+  // One table for the whole passage: a row per practice type, so progress is
+  // readable at a glance and every row starts that practice. (This replaced a
+  // strip of one tab per activity, which hid all but one activity's progress.)
+  const rungs = inLadderOrder(pv.rungs).filter((rv) => rv.rung !== 'recite' || reciteEnabled());
+  if (rungs.length > 0) {
+    root.appendChild(renderProgressTable(host, pv, rungs, suggested, now, speech));
+    const recite = rungs.find((rv) => rv.rung === 'recite');
+    if (recite) root.appendChild(renderReciteExtras(host, pv, speech));
   }
 
   return root;
@@ -172,87 +139,147 @@ function renderPracticeLink(host: PanelHost, pv: PassageView, suggested: Rung | 
 }
 
 // ---------------------------------------------------------------------------
-// The selected activity's panel
+// The progress table
 // ---------------------------------------------------------------------------
 
 /**
- * What the progress cell reads: nothing for an untried activity (the empty
- * level boxes already say so), `stepsDone/totalSteps` when paused, otherwise
- * the due date plus the last score when one exists.
+ * What the progress cell says beside the level boxes: where a paused activity
+ * stands, otherwise the last score.
  */
-function progressText(rv: RungView, now: number): string {
-  if (rv.resume) return `${rv.resume.stepsDone}/${rv.resume.totalSteps}`;
-  if (rv.attempts === 0) return '';
-  const parts = [formatDue(rv.dueAt, now)];
-  if (rv.lastScore !== null) parts.push(tr('memory.ui.plan.lastScore', 'Last score {score}', { score: formatScore(rv.lastScore) }));
-  return parts.join(' · ');
+function progressText(rv: RungView): string {
+  if (rv.resume) return tr('memory.ui.plan.pausedAt', 'Paused at {done}/{total}', { done: rv.resume.stepsDone, total: rv.resume.totalSteps });
+  if (rv.attempts === 0 || rv.lastScore === null) return '';
+  return tr('memory.ui.plan.lastScore', 'Last score {score}', { score: formatScore(rv.lastScore) });
 }
 
 /**
- * The selected tab's activity: name, suggested badge, tier pips, level boxes,
- * progress text / schedule, and the Practice (or Restart + Resume) actions.
- * Only applicable activities get a tab; inapplicable ones are explained in
- * one line each below the panel.
+ * The passage's progress table: rows are the practice types, columns are
+ * Progress (level boxes plus a short note), Last practised and Next due, and
+ * each row ends in the button that starts that practice. Activities that do
+ * not apply stay in the table, muted, with the reason in place of the buttons.
  */
-function renderActivityDetail(
+function renderProgressTable(
+  host: PanelHost,
+  pv: PassageView,
+  rungs: RungView[],
+  suggested: Rung | null,
+  now: number,
+  speech: SpeechAvailability | null,
+): HTMLElement {
+  const head = el('tr', {}, [
+    th(tr('memory.ui.plan.colPractice', 'Practice')),
+    th(tr('memory.ui.plan.colProgress', 'Progress')),
+    th(tr('memory.ui.plan.colLastPractised', 'Last practised')),
+    th(tr('memory.ui.plan.colNextDue', 'Next due')),
+    el('th', { class: 'kth-table__head', attrs: { scope: 'col' } }, [
+      el('span', { class: 'kth-visually-hidden', text: tr('memory.ui.plan.colAction', 'Start') }),
+    ]),
+  ]);
+
+  const body = rungs.map((rv) => renderProgressRow(host, pv, rv, rv.rung === suggested, now, speech));
+
+  return el('div', { class: 'sm-progress-wrap' }, [
+    el('table', { class: 'kth-table sm-progress-table' }, [
+      el('caption', {
+        class: 'kth-visually-hidden',
+        text: tr('memory.ui.plan.progressCaption', 'Practice progress for {reference}', { reference: pv.passage.reference }),
+      }),
+      el('thead', {}, [head]),
+      el('tbody', {}, body),
+    ]),
+  ]);
+}
+
+function mutedAttr(muted: boolean): Record<string, string> {
+  return muted ? { 'data-muted': '' } : {};
+}
+
+function th(text: string): HTMLElement {
+  return el('th', { class: 'kth-table__head', text, attrs: { scope: 'col' } });
+}
+
+function renderProgressRow(
   host: PanelHost,
   pv: PassageView,
   rv: RungView,
   isSuggested: boolean,
   now: number,
-  speech: SpeechAvailability | null = null,
+  speech: SpeechAvailability | null,
 ): HTMLElement {
-  if (rv.rung === 'recite') return renderReciteDetail(host, pv, rv, now, speech);
   const due = isDue(rv, now);
-  const classes = ['sm-activity-card'];
-  if (due) classes.push('sm-activity-due');
+  const muted = !rv.applicable && rv.rung !== 'recite';
+  const label = rv.rung === 'recite' ? rungTabLabel(rv) : RUNG_LABEL[rv.rung];
 
-  const header = el('div', { class: 'sm-activity-card-head' }, [
-    isSuggested ? suggestedBadge() : null,
-    tierPips(rv.tiersPassed, rv.tiers),
+  const name = el('td', { class: 'kth-table__cell sm-progress-name', attrs: mutedAttr(muted) }, [
+    el('div', { class: 'sm-progress-title' }, [el('strong', { text: label }), isSuggested ? suggestedBadge() : null]),
+    el('div', { class: 'sm-progress-blurb', text: RUNG_BLURB[rv.rung] }),
   ]);
 
-  const level = el('div', { class: 'sm-activity-level-row' }, [
-    levelBoxes(rv.level, { due }),
-    rv.level === 0 ? null : el('span', { class: 'sm-activity-level-text', text: `${rv.level}/5` }),
+  if (muted) {
+    return el('tr', { class: 'sm-progress-row sm-progress-row-na' }, [
+      name,
+      el('td', { class: 'kth-table__cell', attrs: { colspan: '3', 'data-muted': '' }, text: inapplicabilityNote(rv.rung) }),
+      el('td', { class: 'kth-table__cell' }),
+    ]);
+  }
+
+  const note = progressText(rv);
+  const progress = el('td', { class: 'kth-table__cell' }, [
+    el('div', { class: 'sm-activity-level-row' }, [
+      levelBoxes(rv.level, { due }),
+      rv.level === 0 ? null : el('span', { class: 'sm-activity-level-text', text: `${rv.level}/5` }),
+    ]),
+    note === '' ? null : el('div', { class: 'sm-progress-note', text: note }),
   ]);
 
-  const progress = progressText(rv, now);
-  const actions = rv.resume
-    ? el('div', { class: 'sm-activity-actions' }, [
-        button(tr('memory.ui.plan.restart', 'Restart'), () => void host.startSession(pv.passage.id, rv.rung, true), {
-          class: 'sm-btn sm-btn-small sm-btn-quiet',
-        }),
-        button(tr('memory.ui.plan.resume', 'Resume'), () => void host.startSession(pv.passage.id, rv.rung), {
-          class: 'sm-btn sm-btn-small sm-btn-primary',
-        }),
-      ])
-    : el('div', { class: 'sm-activity-actions' }, [
-        button(tr('memory.ui.plan.practice', 'Practice'), () => void host.startSession(pv.passage.id, rv.rung), {
-          class: 'sm-btn sm-btn-small sm-btn-primary',
-        }),
-      ]);
+  const reciteReady = rv.rung !== 'recite' || (speech !== null && speech.state === 'ready');
+  const startLabel = tr('memory.ui.plan.practice', 'Practice');
+  const aria = (verb: string): Record<string, string> => ({ 'aria-label': `${verb}: ${label}` });
 
-  return el('div', { class: classes.join(' ') }, [
-    header,
-    level,
-    el('p', { class: 'sm-activity-row-progress', text: progress }),
-    actions,
+  let actions: HTMLElement;
+  if (rv.rung === 'recite') {
+    actions = el('div', { class: 'sm-activity-actions' }, [
+      button(tr('memory.ui.plan.recite', 'Recite'), () => void startReciteRun(host, { kind: 'passage', passageId: pv.passage.id }, 'tap'), {
+        class: 'sm-btn sm-btn-small',
+        disabled: !reciteReady,
+        attrs: aria(tr('memory.ui.plan.recite', 'Recite')),
+      }),
+    ]);
+  } else if (rv.resume) {
+    actions = el('div', { class: 'sm-activity-actions' }, [
+      button(tr('memory.ui.plan.restart', 'Restart'), () => void host.startSession(pv.passage.id, rv.rung, true), {
+        class: 'sm-btn sm-btn-small sm-btn-quiet',
+        attrs: aria(tr('memory.ui.plan.restart', 'Restart')),
+      }),
+      button(tr('memory.ui.plan.resume', 'Resume'), () => void host.startSession(pv.passage.id, rv.rung), {
+        class: 'sm-btn sm-btn-small sm-btn-primary',
+        attrs: aria(tr('memory.ui.plan.resume', 'Resume')),
+      }),
+    ]);
+  } else {
+    actions = el('div', { class: 'sm-activity-actions' }, [
+      button(startLabel, () => void host.startSession(pv.passage.id, rv.rung), {
+        class: `sm-btn sm-btn-small${isSuggested || due ? ' sm-btn-primary' : ''}`,
+        attrs: aria(startLabel),
+      }),
+    ]);
+  }
+
+  return el('tr', { class: `sm-progress-row${due ? ' sm-activity-due' : ''}` }, [
+    name,
+    progress,
+    el('td', { class: 'kth-table__cell', attrs: mutedAttr(rv.attempts === 0), text: (rv.resume && rv.lastPractisedAt == null ? tr('memory.ui.plan.inProgress', 'In progress') : formatLastPractised(rv.lastPractisedAt, now)) }),
+    el('td', { class: 'kth-table__cell', attrs: mutedAttr(rv.dueAt === null), text: formatDue(rv.dueAt, now) }),
+    el('td', { class: 'kth-table__cell sm-progress-action' }, [actions]),
   ]);
 }
 
 /**
- * The recite tab: same header/level/progress as any activity, but the action
- * is a Recite button (tap mode; needs speech `ready`, else disabled with the
- * reason) and a toggle to include the passage in "Recite what's due".
+ * Under the table: why Recite is unavailable (when speech is the reason) and
+ * the per-passage switch to include it in "Recite what's due". Per-passage on
+ * purpose: reciting is optional and you may want it for some passages only.
  */
-function renderReciteDetail(
-  host: PanelHost,
-  pv: PassageView,
-  rv: RungView,
-  now: number,
-  speech: SpeechAvailability | null,
-): HTMLElement {
+function renderReciteExtras(host: PanelHost, pv: PassageView, speech: SpeechAvailability | null): HTMLElement {
   const ready = speech !== null && speech.state === 'ready';
   const why = ready ? null : speech ? availabilityMessage(speech) : tr('memory.ui.plan.checkingSpeech', 'Checking whether speech is available.');
 
@@ -274,25 +301,6 @@ function renderReciteDetail(
     });
   });
 
-  const progress = progressText(rv, now);
-  const card = el('div', { class: 'sm-activity-card sm-activity-recite' }, [
-    el('div', { class: 'sm-activity-level-row' }, [
-      levelBoxes(rv.level, { due: isDue(rv, now) }),
-      rv.level === 0 ? null : el('span', { class: 'sm-activity-level-text', text: `${rv.level}/5` }),
-    ]),
-    el('p', { class: 'sm-activity-blurb', text: RUNG_BLURB.recite }),
-    el('p', { class: 'sm-activity-row-progress', text: progress }),
-    el('div', { class: 'sm-activity-actions' }, [
-      button(tr('memory.ui.plan.recite', 'Recite'), () => void startReciteRun(host, { kind: 'passage', passageId: pv.passage.id }, 'tap'), {
-        class: 'sm-btn sm-btn-small sm-btn-primary',
-        disabled: !ready,
-      }),
-    ]),
-  ]);
-
-  // Per-passage on purpose: reciting is optional and you may want it for some
-  // passages and not others. Passages you have already recited join "Recite
-  // what's due" on their own when due; this switch adds one you have not.
   const include = el('div', { class: 'sm-recite-include' }, [
     el('div', { class: 'sm-setting-row' }, [
       checkbox,
@@ -311,7 +319,7 @@ function renderReciteDetail(
       : speech
         ? availabilityBanner(speech, host)
         : el('p', { class: 'sm-banner sm-banner-warn', text: why, attrs: { role: 'status' } });
-  return el('div', { class: 'sm-activity-recite-wrap' }, [notice, card, include]);
+  return el('div', { class: 'sm-activity-recite-wrap' }, [notice, include]);
 }
 
 // ---------------------------------------------------------------------------

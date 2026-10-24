@@ -209,7 +209,7 @@ function stateLabelFor(level: number): string {
 const DEFAULT_ANSWER_MODE: AnswerMode = 'firstLetter';
 const SETTING_DEFAULT_ANSWER_MODE = 'defaultAnswerMode';
 
-const DEFAULT_PASSAGE_SORT_ORDER: PassageSortOrder = 'bible';
+const DEFAULT_PASSAGE_SORT_ORDER: PassageSortOrder = 'need';
 const SETTING_PASSAGE_SORT_ORDER = 'passageSortOrder';
 const SETTING_SCOPE = 'practiceScope';
 
@@ -564,7 +564,7 @@ export class MemoryStore {
 
   async getPassageSortOrder(): Promise<PassageSortOrder> {
     const value = await this.getSetting(SETTING_PASSAGE_SORT_ORDER);
-    return value === 'need' ? 'need' : DEFAULT_PASSAGE_SORT_ORDER;
+    return value === 'bible' || value === 'need' ? value : DEFAULT_PASSAGE_SORT_ORDER;
   }
 
   async setPassageSortOrder(order: PassageSortOrder): Promise<void> {
@@ -1321,6 +1321,14 @@ export function byCard(rows: readonly TierProgressRow[]): Map<number, TierProgre
 /** The collection-wide facts `applicableRungs` reads. */
 export interface ScopeFacts {
   siblingCount: number;
+  /**
+   * How many items the scope holds for the reference activities' minimum
+   * (`MIN_VERSES_FOR_REFERENCE_ACTIVITIES`). Each passage is ONE item, however
+   * many verses it spans: a passage is memorised as a whole, so a 30-verse
+   * chapter must not satisfy the 25-item minimum alone. Verses added one by
+   * one as their own references are separate passages and count one each.
+   * (Name kept for the wire format.)
+   */
   scopeVerseCount: number;
 }
 
@@ -1328,7 +1336,7 @@ export interface ScopeFacts {
 export function scopeOf(passages: readonly Passage[]): ScopeFacts {
   return {
     siblingCount: passages.length,
-    scopeVerseCount: passages.reduce((total, p) => total + p.verseCount, 0),
+    scopeVerseCount: passages.length,
   };
 }
 

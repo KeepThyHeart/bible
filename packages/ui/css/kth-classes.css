@@ -485,6 +485,126 @@
   white-space: nowrap;
 }
 
+/* --- Breadcrumbs (nav.kth-crumbs > ol.kth-crumbs__list > li.kth-crumbs__item > button.kth-crumbs__link | h1.kth-crumbs__current) --- */
+.kth-crumbs {
+  display: flex;
+  align-items: center;
+  gap: var(--kth-space-2);
+  min-inline-size: 0;
+  padding-block: var(--kth-space-1) var(--kth-space-2);
+  border-block-end: 1px solid var(--kth-border);
+  color: var(--kth-text-muted);
+  font-size: var(--kth-font-size-ui);
+}
+.kth-crumbs__list {
+  display: flex;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  align-items: center;
+  min-inline-size: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  gap: var(--kth-space-1);
+}
+.kth-crumbs__item { display: flex; align-items: center; min-inline-size: 0; gap: var(--kth-space-1); }
+/* The separator is a decorative glyph supplied by the list item; it mirrors in RTL. */
+.kth-crumbs__sep { color: var(--kth-border-strong); user-select: none; }
+.kth-crumbs__sep:where(:dir(rtl)) { transform: scaleX(-1); }
+.kth-crumbs__link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--kth-space-1);
+  padding: 2px var(--kth-space-2);
+  border: 0;
+  border-radius: var(--kth-radius);
+  background: transparent;
+  color: var(--kth-text-muted);
+  font: inherit;
+  cursor: pointer;
+}
+.kth-crumbs__link:where(:hover) { background: var(--kth-bg-hover); color: var(--kth-accent); }
+.kth-crumbs__link:where(:focus-visible) { outline: 2px solid var(--kth-focus); outline-offset: 1px; }
+.kth-crumbs__current {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--kth-space-1);
+  min-inline-size: 0;
+  margin: 0;
+  padding-inline: var(--kth-space-2);
+  color: var(--kth-text-heading);
+  font-size: 1.05em;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.kth-crumbs__current:where(:focus-visible) { outline: none; }
+.kth-crumbs__actions { display: flex; flex: 0 0 auto; align-items: center; gap: var(--kth-space-1); }
+.kth-crumbs__meta { color: var(--kth-text-muted); font-size: 0.85em; white-space: nowrap; }
+
+/* --- Back (a quiet "< Back" control; the chevron mirrors in RTL) --------------- */
+.kth-back {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--kth-space-1);
+  padding: 2px var(--kth-space-2);
+  border: 0;
+  border-radius: var(--kth-radius);
+  background: transparent;
+  color: var(--kth-accent);
+  font: inherit;
+  cursor: pointer;
+}
+.kth-back:where(:hover) { background: var(--kth-bg-hover); }
+.kth-back:where(:focus-visible) { outline: 2px solid var(--kth-focus); outline-offset: 1px; }
+.kth-back__icon:where(:dir(rtl)) { transform: scaleX(-1); }
+.kth-back__icon { display: inline-block; }
+
+/* --- Tabs (div[role=tablist].kth-tabs > button.kth-tabs__tab[role=tab][aria-selected]) ---------------- */
+.kth-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--kth-space-1);
+  border-block-end: 1px solid var(--kth-border);
+}
+.kth-tabs__tab {
+  padding: var(--kth-space-1) var(--kth-space-3);
+  border: 0;
+  border-block-end: 2px solid transparent;
+  background: transparent;
+  color: var(--kth-text-muted);
+  font: inherit;
+  cursor: pointer;
+}
+.kth-tabs__tab:where(:hover) { color: var(--kth-text); background: var(--kth-bg-hover); }
+.kth-tabs__tab:where(:focus-visible) { outline: 2px solid var(--kth-focus); outline-offset: -2px; }
+.kth-tabs__tab:where([aria-selected="true"]) {
+  border-block-end-color: var(--kth-accent);
+  color: var(--kth-text-heading);
+  font-weight: 600;
+}
+
+/* --- Table (a plain data table: kth-table > thead/tbody) --------------- */
+.kth-table {
+  inline-size: 100%;
+  border-collapse: collapse;
+  font-size: var(--kth-font-size-ui);
+}
+.kth-table__head {
+  padding: var(--kth-space-1) var(--kth-space-2);
+  border-block-end: 1px solid var(--kth-border-strong);
+  color: var(--kth-text-muted);
+  font-size: 0.85em;
+  font-weight: 600;
+  text-align: start;
+  white-space: nowrap;
+}
+.kth-table__cell {
+  padding: var(--kth-space-2);
+  border-block-end: 1px solid var(--kth-border);
+  vertical-align: middle;
+}
+.kth-table__cell:where([data-muted]) { color: var(--kth-text-muted); }
+
 /* --- Visually hidden (screen-reader only) ------------------------------------ */
 .kth-visually-hidden {
   position: absolute !important;

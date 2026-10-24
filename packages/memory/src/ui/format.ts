@@ -136,6 +136,16 @@ export function formatDue(dueAt: number | null, now: number): string {
   return tr('memory.ui.common.dueOnDate', 'Due {date}', { date: formatShortDate(dueAt, now) });
 }
 
+/** When something was last practised: "Today", "Yesterday", "3 days ago", else a short date; "Not yet" for `null`. */
+export function formatLastPractised(at: number | null | undefined, now: number): string {
+  if (at === null || at === undefined) return tr('memory.ui.common.notPractisedYet', 'Not yet');
+  const days = calendarDaysBetween(at, now);
+  if (days <= 0) return tr('memory.ui.common.practisedToday', 'Today');
+  if (days === 1) return tr('memory.ui.common.practisedYesterday', 'Yesterday');
+  if (days < 7) return tr('memory.ui.common.practisedDaysAgo', '{days} days ago', { days });
+  return formatShortDate(at, now);
+}
+
 /** True when an activity is scheduled and its time has come. */
 export function isDue(rung: RungView, now: number): boolean {
   return rung.applicable && rung.dueAt !== null && rung.dueAt <= now;

@@ -131,6 +131,15 @@ export function mountMemoryUi(container: HTMLElement, options: MemoryUiOptions):
    */
   let renderToken = 0;
 
+  /** The view last painted by `render()`, to tell a new screen from a refresh. */
+  let lastPainted: NavState['view'] | null = null;
+
+  function scrollToTop(): void {
+    for (let node: HTMLElement | null = main; node !== null && node !== doc.body; node = node.parentElement) {
+      if (node.scrollTop !== 0) node.scrollTop = 0;
+    }
+  }
+
   const measurer = new WordMeasurer(doc);
 
   // -------------------------------------------------------------------------
@@ -240,6 +249,8 @@ export function mountMemoryUi(container: HTMLElement, options: MemoryUiOptions):
       clear(main);
       practice = new PracticeView(host, session, sessionFlow);
       practice.mount(main);
+      lastPainted = nav.view;
+      scrollToTop();
       announce('');
     },
 
@@ -310,6 +321,12 @@ export function mountMemoryUi(container: HTMLElement, options: MemoryUiOptions):
 
     clear(main);
     main.appendChild(content);
+
+    // A different screen starts at its top: the scroll offset of the screen
+    // just left (the host's scroller included) would otherwise carry over and
+    // hide the breadcrumbs. A refresh of the same screen keeps its place.
+    if (lastPainted === null || !sameView(lastPainted, nav.view)) scrollToTop();
+    lastPainted = nav.view;
 
     // Move focus to the new screen's heading, so a keyboard or screen-reader
     // user is not left at the top of the document after every navigation.

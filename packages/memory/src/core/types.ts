@@ -240,6 +240,8 @@ export interface RungView {
   bestScore: number | null;
   /** Attempts recorded since the last reset. 0 means "never tried". */
   attempts: number;
+  /** When this activity was last practised (epoch ms, since the last reset); `null`/absent when never. */
+  lastPractisedAt?: number | null;
   /**
    * The tier the next session should serve: the lowest tier not yet passed,
    * or the hardest tier once every tier has been passed. 0-based.

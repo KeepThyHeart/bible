@@ -16,7 +16,7 @@
  * asked this panel to look like the rest of the app in the meantime: a
  * full-width toolbar band, a plain back arrow at the left, and small flat
  * buttons rather than v0's rounded filled ones and text-link "Back to plan".
- * `breadcrumb()` and `.sm-crumb*` in `styles.css` are that local approximation.
+ * `breadcrumb()` now renders the shared kit's `kth-crumbs*` classes (packages/ui/css/kth-classes.css).
  * The proper fix is a shared stylesheet from the host (`ext-ui://host/controls.css`,
  * raised as a separate Bible-repo task per that review) that this panel would
  * then consume instead of maintaining its own copy.
@@ -73,7 +73,7 @@ export function breadcrumb(opts: {
   menu?: HTMLElement;
   actions?: (HTMLElement | null)[];
 }): HTMLElement {
-  const list = el('ol', { class: 'sm-crumb-list' });
+  const list = el('ol', { class: 'kth-crumbs__list' });
 
   opts.crumbs.forEach((crumb, index) => {
     const isFirst = index === 0;
@@ -81,25 +81,25 @@ export function breadcrumb(opts: {
     const content: (Node | string)[] = isFirst ? [icon('home'), crumb.label] : [crumb.label];
 
     const crumbEl: HTMLElement = isLast
-      ? el('h1', { class: 'sm-crumb-current', attrs: { 'aria-current': 'page' } })
-      : button(crumb.label, crumb.onClick ?? (() => {}), { class: 'sm-crumb', text: '' });
+      ? el('h1', { class: 'kth-crumbs__current', attrs: { 'aria-current': 'page' } })
+      : button(crumb.label, crumb.onClick ?? (() => {}), { class: 'kth-crumbs__link', text: '' });
     append(crumbEl, content);
 
-    list.appendChild(el('li', { class: 'sm-crumb-item' }, [crumbEl]));
+    list.appendChild(el('li', { class: 'kth-crumbs__item' }, [crumbEl]));
 
     if (!isLast) {
       list.appendChild(
-        el('li', { class: 'sm-crumb-sep' }, [
+        el('li', { class: 'kth-crumbs__sep' }, [
           el('span', { attrs: { 'aria-hidden': 'true' } }, ['›']),
         ]),
       );
     }
   });
 
-  return el('nav', { class: 'sm-crumbs', attrs: { 'aria-label': tr('memory.ui.common.breadcrumb', 'Breadcrumb') } }, [
+  return el('nav', { class: 'kth-crumbs', attrs: { 'aria-label': tr('memory.ui.common.breadcrumb', 'Breadcrumb') } }, [
     opts.menu ?? null,
     list,
-    el('div', { class: 'sm-crumbs-actions' }, opts.actions ?? []),
+    el('div', { class: 'kth-crumbs__actions' }, opts.actions ?? []),
   ]);
 }
 
@@ -161,11 +161,12 @@ export function menu(opts: { label: string; items: MenuItem[] }): HTMLElement {
   append(panel, itemButtons);
 
   const trigger = button(opts.label, () => (panel.hidden ? openMenu() : closeMenu()), {
-    class: 'sm-btn sm-btn-quiet sm-icon-btn sm-menu-btn',
+    class: 'sm-btn sm-btn-quiet sm-btn-small sm-menu-btn',
     text: '',
     attrs: { 'aria-haspopup': 'menu', 'aria-expanded': 'false', 'aria-label': opts.label, title: opts.label },
   });
-  append(trigger, [icon('menu')]);
+  // Icon plus the word: a bare three-line glyph was not self-evident to a new user.
+  append(trigger, [icon('menu'), el('span', { class: 'sm-menu-btn-label', text: tr('memory.ui.common.menuButton', 'Menu') })]);
 
   // Registered only while the menu is open, and torn down the moment it
   // closes by any route - Escape, an item press, or this handler firing
@@ -283,14 +284,14 @@ export function tabs<T extends string>(opts: {
   ariaLabel?: string;
 }): HTMLElement {
   const list = el('div', {
-    class: 'sm-tabs',
+    class: 'kth-tabs',
     attrs: { role: 'tablist', ...(opts.ariaLabel !== undefined ? { 'aria-label': opts.ariaLabel } : {}) },
   });
 
   const tabButtons = opts.items.map((item) => {
     const isSelected = item.value === opts.selected;
     return button(item.label, () => opts.onSelect(item.value), {
-      class: `sm-tab${isSelected ? ' sm-tab-selected' : ''}`,
+      class: 'kth-tabs__tab',
       attrs: {
         role: 'tab',
         'aria-selected': String(isSelected),
@@ -916,9 +917,9 @@ export function inapplicabilityNote(rung: Rung): string {
     case 'ordering':
       return tr('memory.ui.common.notApplicableOrdering', 'Putting verses in order needs more than one verse.');
     case 'refmatch':
-      return tr('memory.ui.common.notApplicableRefmatch', 'Matching a reference needs {count} verses in this list to tell references apart.', { count: MIN_VERSES_FOR_REFERENCE_ACTIVITIES });
+      return tr('memory.ui.common.notApplicableRefmatchPassages', 'Matching a reference needs {count} passages in this list to tell references apart.', { count: MIN_VERSES_FOR_REFERENCE_ACTIVITIES });
     case 'refprovide':
-      return tr('memory.ui.common.notApplicableRefprovide', 'Naming a reference needs {count} verses in this list to tell references apart.', { count: MIN_VERSES_FOR_REFERENCE_ACTIVITIES });
+      return tr('memory.ui.common.notApplicableRefprovidePassages', 'Naming a reference needs {count} passages in this list to tell references apart.', { count: MIN_VERSES_FOR_REFERENCE_ACTIVITIES });
     default:
       return tr('memory.ui.common.notApplicableDefault', 'This activity does not apply to this passage.');
   }
