@@ -23,7 +23,7 @@ import { VerseIdHelper } from '@bible/core';
 import { useVerseDecorationStore } from '../extensions/verseDecorationStore';
 import { VerseGutter, useHasEnabledDecoratorLayers } from '../extensions/VerseGutterLane';
 import { useVerseHoverTrigger } from '../extensions/useVerseHoverTrigger';
-import { ReaderPaintControllers } from '../modules/host/slots';
+import { ReaderPaintControllers, ReaderVerseBlocks } from '../modules/host/slots';
 
 /**
  * The main content area of the Bible pane: renders verses in reading/standard/study
@@ -421,8 +421,12 @@ const BibleVerseList: React.FC = () => {
                                     // as a literal verse 0 (legacy v1-style data). Style it as
                                     // secondary/italic like a heading rather than body text.
                                     const isPreface = isPrefaceVerse(verse);
+                                    const allIdx = currentVerses.indexOf(verse);
+                                    const prevId = allIdx > 0 ? currentVerses[allIdx - 1].verse_id : null;
+                                    const nextId = allIdx < currentVerses.length - 1 ? currentVerses[allIdx + 1].verse_id : null;
                                     return (
                                       <React.Fragment key={verse.verse_id}>
+                                        <ReaderVerseBlocks verseId={verse.verse_id} prevVerseId={prevId} nextVerseId={nextId} position="before" inParagraph />
                                         <span
                                           ref={isSelected ? selectedVerseRef as any : null}
                                           className={`verse-row ${isSelected ? 'verse-selected' : ''} ${isInRange ? 'verse-in-range' : ''} ${isPreview ? 'verse-preview' : ''} ${isPreface ? PREFACE_TEXT_CLASSNAME : ''}`}
@@ -445,6 +449,7 @@ const BibleVerseList: React.FC = () => {
                                             onWordMouseLeave={hoverTrigger.onWordMouseLeave}
                                           />
                                         </span>
+                                        <ReaderVerseBlocks verseId={verse.verse_id} prevVerseId={prevId} nextVerseId={nextId} position="after" inParagraph />
                                         {vi < para.length - 1 && ' '}
                                       </React.Fragment>
                                     );
@@ -478,8 +483,12 @@ const BibleVerseList: React.FC = () => {
                           // rather than storing them as a separate verse.
                           const sectionHeading = getSectionHeading(verse);
 
+                          const prevId = index > 0 ? currentVerses[index - 1].verse_id : null;
+                          const nextId = index < currentVerses.length - 1 ? currentVerses[index + 1].verse_id : null;
+
                           return (
                             <React.Fragment key={verse.verse_id}>
+                              <ReaderVerseBlocks verseId={verse.verse_id} prevVerseId={prevId} nextVerseId={nextId} position="before" inParagraph={false} />
                               {sectionHeading && (
                                 <SectionHeadingBlock
                                   text={sectionHeading}
@@ -562,6 +571,7 @@ const BibleVerseList: React.FC = () => {
                                   onWordMouseLeave={hoverTrigger.onWordMouseLeave}
                                 />
                               </div>
+                              <ReaderVerseBlocks verseId={verse.verse_id} prevVerseId={prevId} nextVerseId={nextId} position="after" inParagraph={false} />
                             </React.Fragment>
                           );
                         })}

@@ -27,6 +27,8 @@ export {
   COMPLETIONS_COLLECTION, snapshotKey,
 } from './store';
 export type { IReadingPlanStore, CompletionChange } from './store';
+export { flattenPlan, readingNeighbours, overdueReadings, nextReadingAfter, blockPlacement } from './cursor';
+export type { PlanReadingRef } from './cursor';
 export { ReadingPlanService } from './service';
 export type {
   ReadingPlanEvent, ReadingPlanListener, ReadingScope, IReadingScopeProvider, StartPlanOptions, EnrollmentPatch,
