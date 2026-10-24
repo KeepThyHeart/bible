@@ -101,6 +101,10 @@ export const ALLOWED_IPC_CHANNELS = [
   'search:getBookIndexStatus',
   'search:semanticAvailable',
   'search:semanticSearch',
+  // Online meaning search (bibsearch), called from the main process only; task 0190.
+  'search:semanticSearchEx',
+  'remoteSemantic:getStatus',
+  'remoteSemantic:setConsent',
   // Backup/Restore channels
   'backup:create',
   'backup:exportPlain',

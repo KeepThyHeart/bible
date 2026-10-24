@@ -227,3 +227,6 @@ export * as Reminders from './Reminders';
 // Similar passages (task 0070): browser-safe barrel plus the Node-only vector source.
 export * from './Services/Similar';
 export { createSemanticVectorSource } from './Services/Similar/semanticVectorSource';
+
+// Online meaning search client (bibsearch), consent record and fallback chain (task 0190).
+export * as RemoteSemantic from './RemoteSemantic';

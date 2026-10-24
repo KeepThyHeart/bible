@@ -10,6 +10,8 @@ import { createServiceWorkerRoutes, pwaShell, readShell } from './middleware/ser
 import { createCompression } from './middleware/compression.js';
 import { createRateLimiter, tierForApiPath } from './middleware/rateLimiter.js';
 import { contentSecurityPolicyDirectives, speechModelOrigins } from './cspDirectives.js';
+import { RemoteSemanticService } from './search/RemoteSemanticService.js';
+import { RemoteSemantic } from '@bible/core';
 import { createAssetRouter } from './routes/assetRoutes.js';
 // Side-effect imports: each route file self-registers with the route registry
 import './routes/moduleRoutes.js';
@@ -221,7 +223,7 @@ app.use(helmet({
       // On-device speech (recite): model download origins, only while the flag is on.
       enabled: siteConfig.isEnabled('recite'),
       externalOrigins: speechModelOrigins(process.env.BIBLE_SPEECH_MODEL_BASE_URL ?? ''),
-    }),
+    }, siteConfig.remoteSearchBrowserOrigin),
   },
   // HSTS is only meaningful for production HTTPS deployments. In local/test
   // environments the server runs over HTTP, so HSTS would cause browsers to
@@ -314,6 +316,17 @@ if (pipelineConfig) {
     .catch(err => logger.error('Search pipeline init failed:', err.message));
 }
 
+// Remote semantic search through the server (`search.mode: 'remote'`, `via: 'server'`).
+// One client for the whole process, so its blockedUntil pause is shared by all users.
+const remoteSearchSettings = siteConfig.searchRemote;
+const remoteSemanticService = remoteSearchSettings?.via === 'server'
+  ? new RemoteSemanticService(new RemoteSemantic.RemoteSemanticClient({
+      baseUrl: remoteSearchSettings.url,
+      apiKey: remoteSearchSettings.apiKey,
+    }))
+  : undefined;
+if (remoteSemanticService) logger.info('Semantic search: remote (bibsearch) via the server.');
+
 // Read package version once at startup
 const packageVersion = JSON.parse(
   readFileSync(resolve(packageRoot, 'package.json'), 'utf-8')
@@ -389,6 +402,7 @@ const searchRouteOptions = {
   get pipeline() {
     return searchPipeline;
   },
+  remote: remoteSemanticService,
   get scoringConfig() {
     return searchScoringConfig;
   },

@@ -1,4 +1,5 @@
 import type { createServerProviders } from '../providers/ServerDataProvider';
+import type { RemoteSearchConfig } from '../utils/clientConfig';
 
 export type ShellProviders = ReturnType<typeof createServerProviders>;
 
@@ -12,7 +13,9 @@ export interface ShellContext {
   serverOnline: boolean;
   serverStaleDays: number | undefined;
   offlineAutoDownload: boolean;
-  semanticMode: 'server' | 'browser' | 'off';
+  semanticMode: 'server' | 'browser' | 'off' | 'remote';
+  /** Set when `semanticMode` is 'remote'. */
+  remoteSearch?: RemoteSearchConfig;
   /** Resolves once the detected locale's catalogs are loaded; await before first render. */
   localeReady: Promise<void>;
 }

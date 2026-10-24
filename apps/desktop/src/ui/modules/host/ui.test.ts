@@ -36,7 +36,8 @@ const without = (map: Record<string, string>): Record<string, string> =>
 const OLD_SECTIONS = ['general', 'typography', 'fonts', 'themes', 'privacy', 'notifications', 'downloads', 'extensions', 'apps', 'advanced', 'diagnostics'];
 // The 'measures' section (order 50, between 'apps' and 'advanced') comes from the measures module's manifest.
 /** Sections that moved into their feature module's manifest (the downloads and notifications modules, task 0128). */
-const HOST_SECTIONS = OLD_SECTIONS.filter((s) => s !== 'downloads' && s !== 'notifications');
+const HOST_SECTIONS = [...OLD_SECTIONS.filter((s) => s !== 'downloads' && s !== 'notifications')];
+HOST_SECTIONS.splice(HOST_SECTIONS.indexOf('privacy') + 1, 0, 'search'); // task 0190, gated by `when`
 
 function host(manifests: FeatureModuleManifest[]) {
   const points = createStandardPoints();

@@ -67,7 +67,7 @@ interface SearchResultsPaneProps {
  * - Empty/loading/error states
  */
 const SearchResultsPane: React.FC<SearchResultsPaneProps> = ({ dockviewPanelApi }) => {
-  const { t } = useI18n();
+  const { t, localizer } = useI18n();
   const {
     resultsForQuery,
     searchResults,
@@ -89,6 +89,8 @@ const SearchResultsPane: React.FC<SearchResultsPaneProps> = ({ dockviewPanelApi 
     semanticAvailable,
     toggleSemanticMode,
     autoSwitchedToSemantic,
+    semanticSource,
+    semanticNotice,
     // Strong's word family
     strongsMeta,
     includeRelatedWords,
@@ -307,6 +309,24 @@ const SearchResultsPane: React.FC<SearchResultsPaneProps> = ({ dockviewPanelApi 
 
   const isLoading = isSearching || isSemanticSearching;
 
+  const semanticNote = (() => {
+    if (!semanticNotice) return null;
+    const source = semanticSource === 'local' ? 'local' : 'keyword';
+    const resetAtMs = 'resetAtMs' in semanticNotice ? semanticNotice.resetAtMs : undefined;
+    const time = resetAtMs ? localizer.formatDate(new Date(resetAtMs), { timeStyle: 'short' }) : '';
+    const reset = resetAtMs ? 'yes' : 'no';
+    switch (semanticNotice.kind) {
+      case 'declined': return t('searchResultsPane.semanticNote.declined');
+      case 'degraded': return t('searchResultsPane.semanticNote.degraded');
+      case 'quota': return t('searchResultsPane.semanticNote.quota', { reset, time, source });
+      case 'paused': return t('searchResultsPane.semanticNote.paused', { reset, time, source });
+      case 'unavailable': return t('searchResultsPane.semanticNote.unavailable', { source });
+      case 'rephrase': return t('searchResultsPane.semanticNote.rephrase', { source });
+      default: return null;
+    }
+  })();
+
+
   // One whole message per announcement - never a count spliced onto a noun at
   // render time. Both keys are real ICU `{count, plural, ...}` messages in every
   // catalog, so `t()` owns the plural rules; `tf()` must not be used here
@@ -449,6 +469,17 @@ const SearchResultsPane: React.FC<SearchResultsPaneProps> = ({ dockviewPanelApi 
             <div className="text-sm text-center max-w-md">
               {t('searchResultsPane.idleHint')}
             </div>
+          </div>
+        )}
+
+        {/* Online meaning search note (task 0190); renders only when a notice came back. */}
+        {!isLoading && !error && hasQuery && (isSemanticMode || semanticNotice) && semanticNote && (
+          <div
+            className="px-md py-sm border-b border-accent-soft text-sm text-text-secondary"
+            data-testid="semantic-note"
+            role="status"
+          >
+            {semanticNote}
           </div>
         )}
 

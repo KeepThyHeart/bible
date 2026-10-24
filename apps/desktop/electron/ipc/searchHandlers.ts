@@ -21,6 +21,7 @@ import {
   highlightSearchTerms,
   clampSearchQuery,
 } from '@bible/core';
+import type { RemoteSemantic } from '@bible/core';
 import type { SemanticLevel, SemanticQueryModel, ICodecRegistry, IModuleRepositoryFactory } from '@bible/core';
 import { getBibleRepository } from './bibleHandlers';
 import { getDictionaryRepository } from './dictionaryHandlers';
@@ -36,6 +37,9 @@ import {
   applyBeforeQueryResult,
 } from './searchHelpers';
 import { notifySemanticSearchReset } from './semanticSearchReset';
+import { getRemoteSemanticService } from '../services/RemoteSemanticService';
+import { isSemanticOffered, runSemanticSearchEx } from './semanticSearchEx';
+import type { SemanticRow, SemanticSearchExResult } from './semanticSearchEx';
 import type { ExtensionHost } from '../extensions/ExtensionHost';
 
 /**
@@ -461,79 +465,151 @@ export function registerSearchHandlers(_ipcMain: IpcMain, opts: SearchHandlersOp
   // Semantic Search Handlers
   // ===========================================================================
 
-  // Handler: Check if semantic search is available
-  ipcHandler<[], boolean>('search:semanticAvailable', () => {
-    initializeSemanticSearch();
-    return semanticSearchService?.isAvailable() ?? false;
-  });
+  // Handler: Check if semantic search is available. True for an installed
+  // local pack, or (task 0190) a configured online service the user has not
+  // declined - so the toggle is offered and the consent modal can appear.
+  ipcHandler<[], boolean>('search:semanticAvailable', () =>
+    isSemanticOffered(isLocalSemanticAvailable(), getRemoteSemanticService().getStatus())
+  );
 
-
-  // Handler: Perform semantic search
+  // Handler: Perform semantic search (installed local pack only; unchanged)
   ipcHandler<[string, ({ maxResults?: number; levels?: string[] })?], any[]>(
     'search:semanticSearch',
     async (query, options) => {
-    validateString(query, 'search query', 1000);
-    initializeSemanticSearch();
+      validateString(query, 'search query', 1000);
+      return runLocalSemanticSearch(query, options);
+    }
+  );
 
-    if (!semanticSearchService || !semanticSearchService.isAvailable()) {
-      throw new IpcKnownError(
-        'unavailable',
-        'Semantic search index not available. Install the semantic search pack from Module Manager -> Features.'
+  // Handler: semantic search with the online service first (task 0190). Remote
+  // only runs with consent; falls back to the local pack, then 'unavailable'.
+  ipcHandler<[string, ({ maxResults?: number; levels?: string[] })?], SemanticSearchExResult>(
+    'search:semanticSearchEx',
+    async (query, options) => {
+      validateString(query, 'search query', 1000);
+      return runSemanticSearchEx(
+        {
+          service: getRemoteSemanticService(),
+          localAvailable: isLocalSemanticAvailable,
+          runLocal: runLocalSemanticSearch,
+          hydrate: hydrateRemoteHits,
+        },
+        query,
+        options ?? {}
       );
     }
-
-    // Get query embedding, from the model this index was built to match
-    const queryEmbedding = await getQueryEmbedding(query, semanticSearchService.getQueryModel());
-    if (!queryEmbedding) {
-      throw new Error('Failed to generate query embedding');
-    }
-
-    // Search. The similarity floor is the index's own: a truncated or centred
-    // index scores on a different scale from raw full-width cosine.
-    const results = semanticSearchService.search(queryEmbedding, {
-      maxResults: options?.maxResults ?? 20,
-      levels: (options?.levels ?? ['verse', 'paragraph']) as SemanticLevel[],
-      collapsePassages: true,
-    });
-
-    // Resolve references using book repo
-    const bookRepo = getSharedBookRepo();
-    const bookName = (bookNumber: number): string =>
-      bookRepo.getByBookNumber(bookNumber)?.bookName || `Book ${bookNumber}`;
-
-    const resolvedResults = results.map(r => {
-      const reference = formatSemanticReference(r.startVerseId, r.endVerseId, bookName);
-
-      // Get full text from the search Bible for verse-level results
-      let fullText = r.textPreview;
-      if (r.level === 'verse' && bibleRepo) {
-        const verse = bibleRepo.getVerse(r.startVerseId);
-        if (verse) {
-          const { textHtml } = formatVerseText(verse);
-          fullText = textHtml;
-        }
-      }
-
-      return {
-        id: r.id,
-        level: r.level,
-        startVerseId: r.startVerseId,
-        endVerseId: r.endVerseId,
-        reference,
-        text: fullText,
-        textPreview: r.textPreview,
-        similarity: Math.round(r.similarity * 1000) / 1000,
-      };
-    });
-
-    return resolvedResults;
-  }
   );
 }
 
 // ===========================================================================
 // Semantic Search Helpers
 // ===========================================================================
+
+function isLocalSemanticAvailable(): boolean {
+  initializeSemanticSearch();
+  return semanticSearchService?.isAvailable() ?? false;
+}
+
+/** The installed-pack search behind `search:semanticSearch` and the local fallback. */
+async function runLocalSemanticSearch(
+  query: string,
+  options?: { maxResults?: number; levels?: string[] }
+): Promise<SemanticRow[]> {
+  initializeSemanticSearch();
+
+  if (!semanticSearchService || !semanticSearchService.isAvailable()) {
+    throw new IpcKnownError(
+      'unavailable',
+      'Semantic search index not available. Install the semantic search pack from Module Manager -> Features.'
+    );
+  }
+
+  // Get query embedding, from the model this index was built to match
+  const queryEmbedding = await getQueryEmbedding(query, semanticSearchService.getQueryModel());
+  if (!queryEmbedding) {
+    throw new Error('Failed to generate query embedding');
+  }
+
+  // Search. The similarity floor is the index's own: a truncated or centred
+  // index scores on a different scale from raw full-width cosine.
+  const results = semanticSearchService.search(queryEmbedding, {
+    maxResults: options?.maxResults ?? 20,
+    levels: (options?.levels ?? ['verse', 'paragraph']) as SemanticLevel[],
+    collapsePassages: true,
+  });
+
+  // Resolve references using book repo
+  const bookRepo = getSharedBookRepo();
+  const bookName = (bookNumber: number): string =>
+    bookRepo.getByBookNumber(bookNumber)?.bookName || `Book ${bookNumber}`;
+
+  return results.map(r => {
+    const reference = formatSemanticReference(r.startVerseId, r.endVerseId, bookName);
+
+    // Get full text from the search Bible for verse-level results
+    let fullText = r.textPreview;
+    if (r.level === 'verse' && bibleRepo) {
+      const verse = bibleRepo.getVerse(r.startVerseId);
+      if (verse) {
+        const { textHtml } = formatVerseText(verse);
+        fullText = textHtml;
+      }
+    }
+
+    return {
+      id: r.id,
+      level: r.level,
+      startVerseId: r.startVerseId,
+      endVerseId: r.endVerseId,
+      reference,
+      text: fullText,
+      textPreview: r.textPreview,
+      similarity: Math.round(r.similarity * 1000) / 1000,
+    };
+  });
+}
+
+/** Passages longer than this many verses are cut when building a row's text. */
+const REMOTE_MAX_PASSAGE_VERSES = 40;
+const REMOTE_PREVIEW_CHARS = 300;
+
+/**
+ * Turn bibsearch hits (ids and verse ranges only; `include_text=false`) into the
+ * rows the local path returns, using the Bible the search is bound to. A hit
+ * whose verses are not in that Bible is dropped.
+ */
+function hydrateRemoteHits(hits: RemoteSemantic.RemoteHit[]): SemanticRow[] {
+  if (!bibleRepo) initializeSearchServices();
+  const repo = bibleRepo;
+  if (!repo) throw new IpcKnownError('unavailable', 'No Bible is available to show the results in.');
+
+  const bookRepo = getSharedBookRepo();
+  const bookName = (bookNumber: number): string =>
+    bookRepo.getByBookNumber(bookNumber)?.bookName || `Book ${bookNumber}`;
+
+  const rows: SemanticRow[] = [];
+  for (const hit of hits) {
+    const verses = hit.startVerseId === hit.endVerseId
+      ? [repo.getVerse(hit.startVerseId)].filter((v): v is NonNullable<typeof v> => !!v)
+      : repo.getVerseRange(hit.startVerseId, hit.endVerseId).slice(0, REMOTE_MAX_PASSAGE_VERSES);
+    if (verses.length === 0) continue;
+
+    const plain = verses.map(v => v.text).join(' ');
+    const single = hit.startVerseId === hit.endVerseId;
+    const textPreview = plain.length > REMOTE_PREVIEW_CHARS ? `${plain.slice(0, REMOTE_PREVIEW_CHARS).trimEnd()}...` : plain;
+    rows.push({
+      id: hit.id,
+      level: single ? 'verse' : 'paragraph',
+      startVerseId: hit.startVerseId,
+      endVerseId: hit.endVerseId,
+      reference: formatSemanticReference(hit.startVerseId, hit.endVerseId, bookName),
+      text: single ? formatVerseText(verses[0]!).textHtml : plain,
+      textPreview,
+      similarity: Math.round(hit.score * 1000) / 1000,
+    });
+  }
+  return rows;
+}
 
 /**
  * The semantic search service for in-process consumers (similar passages, task 0070), or null

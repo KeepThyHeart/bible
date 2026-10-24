@@ -8,6 +8,8 @@ import { registerRoute } from './routeRegistry.js';
 import type { ServerHookRegistry } from '../plugins/ServerHooks.js';
 import { validateSearchQuery, MAX_SEARCH_QUERY_LENGTH } from '../utils/validation.js';
 import { createSemaphore, QueueFullError } from '../utils/semaphore.js';
+import { RemoteSemantic } from '@bible/core';
+import { RemoteSemanticService, hasRemoteConsent, CONSENT_HEADER } from '../search/RemoteSemanticService.js';
 
 /**
  * Concurrency gate for semantic search.
@@ -48,6 +50,8 @@ const MAX_STRONGS_RESULTS = 5000;
 export interface SearchRouteOptions {
   topicEntries?: Map<string, TopicEntry>;
   pipeline?: ISearchPipeline;
+  /** Set in `search.mode: 'remote'` with `via: 'server'`: semantic search goes to bibsearch instead of `pipeline`. */
+  remote?: RemoteSemanticService;
   scoringConfig?: ScoringConfig;
 }
 
@@ -92,6 +96,11 @@ export function createSearchRoutes(db: DatabaseManager, routeOptions: SearchRout
   // Warm up semantic search pipeline
   router.post('/semantic/warmup', async (_req, res): Promise<void> => {
     try {
+      // Remote mode: nothing to warm, and nothing may be sent to bibsearch before consent.
+      if (routeOptions.remote) {
+        res.json({ status: 'ready' });
+        return;
+      }
       if (!routeOptions.pipeline) {
         res.json({ status: 'unavailable' });
         return;
@@ -212,8 +221,9 @@ export function createSearchRoutes(db: DatabaseManager, routeOptions: SearchRout
         : hybridDefault;
       const modules = req.query.modules ? (req.query.modules as string).split(',') : undefined;
 
+      const remote = routeOptions.remote;
       const pipeline = routeOptions.pipeline;
-      if (!pipeline) {
+      if (!remote && !pipeline) {
         res.status(503).json({ error: { code: 'SERVICE_UNAVAILABLE', message: 'Semantic search not available' }, results: [], total: 0 });
         return;
       }
@@ -241,6 +251,56 @@ export function createSearchRoutes(db: DatabaseManager, routeOptions: SearchRout
         : (db.getDefaultBibleAbbreviation('KJV') ?? 'KJV');
       const hydrationRepo = requestedRepo ?? db.getBibleRepo(hydrationModule);
 
+      if (remote) {
+        // Nothing leaves the server until the user has agreed to the current notice.
+        if (!hasRemoteConsent(req.headers[CONSENT_HEADER])) {
+          res.status(403).json({
+            error: { code: 'CONSENT_REQUIRED', message: 'Online meaning search needs the user to agree to the notice first' },
+            results: [],
+            total: 0,
+          });
+          return;
+        }
+        let remoteResult;
+        try {
+          remoteResult = await semanticGate.run(async () => {
+            if (req.timedout) return null;
+            return remote.search(query, maxResults, {
+              repo: hydrationRepo ?? undefined,
+              module: hydrationModule,
+              bookNames: getBookNames(),
+            });
+          });
+        } catch (err) {
+          if (err instanceof QueueFullError) {
+            res.setHeader('Retry-After', '5');
+            res.status(503).json({
+              error: { code: 'SERVICE_BUSY', message: 'Search is busy, please retry shortly' },
+              results: [],
+              total: 0,
+            });
+            return;
+          }
+          if (err instanceof RemoteSemantic.RemoteSemanticError) {
+            // Generic body on purpose: no bibsearch URL, key or raw error text leaves the server.
+            console.warn(`[SemanticSearch] remote search failed: ${err.kind}${err.details?.requestId ? ` (request ${err.details.requestId})` : ""}`);
+            if (req.timedout) return;
+            res.status(503).json({
+              error: { code: 'REMOTE_UNAVAILABLE', message: 'Online meaning search is unavailable' },
+              results: [],
+              total: 0,
+              semantic: { source: 'remote', notice: RemoteSemantic.noteForRemoteError(err) },
+            });
+            return;
+          }
+          throw err;
+        }
+        if (remoteResult === null || req.timedout) return;
+        res.json(remoteResult);
+        hooks?.fireActions('search:performed', { query, resultCount: remoteResult.total });
+        return;
+      }
+
       let result;
       try {
         result = await semanticGate.run(async () => {
@@ -253,7 +313,7 @@ export function createSearchRoutes(db: DatabaseManager, routeOptions: SearchRout
             maxResults,
             hybrid,
             modules,
-            pipeline,
+            pipeline: pipeline!,
             topicEntries: routeOptions.topicEntries,
             bibleRepo: hydrationRepo ?? undefined,
             bibleModule: hydrationModule,

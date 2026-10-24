@@ -19,6 +19,7 @@ import { offlineStorageManager } from '../../offline/sharedInstances';
 import { API_BASE } from '../../utils/apiUrl';
 import { resetAppCache } from '../../utils/appUpdate';
 import { pwaFlag } from '../../utils/clientConfig';
+import { remoteConsentStore } from '../../search/remote/consentStore';
 import type { PreferencesSectionContribution } from '@bible/core/browser';
 import { modulePoints } from '../../modules/moduleHost';
 import { ContributedSection } from './ContributedSection';
@@ -71,6 +72,9 @@ interface SettingsPanelProps {
 export function SettingsPanel({ isOpen, onClose, scrollToSection }: SettingsPanelProps) {
   const { t } = useTranslation();
   const localizer = useLocalizer();
+  const remoteConsentConfigured = useStore(remoteConsentStore, () => remoteConsentStore.configured);
+  const remoteConsentStatus = useStore(remoteConsentStore, () => remoteConsentStore.status);
+  const remoteConsentAt = useStore(remoteConsentStore, () => remoteConsentStore.decidedAt);
   // Registry-driven language picker (see the "about" tab below): recomputed
   // on every render, which is cheap (a handful of `meta.json`s) and correct,
   // since react-i18next already re-renders this component on language change.
@@ -459,7 +463,32 @@ export function SettingsPanel({ isOpen, onClose, scrollToSection }: SettingsPane
 
             {activeTab === 'modules' && (
               <div class="settings-panel__section" data-section="modules">
-                <h4 class="settings-panel__section-title">{t('settings.modules.commentary')}</h4>
+                {remoteConsentConfigured && (
+                  <>
+                    <h4 class="settings-panel__section-title">{t('remoteSemantic.settings.title')}</h4>
+                    <label class="settings-panel__field settings-panel__field--checkbox">
+                      <input
+                        type="checkbox"
+                        data-testid="remote-semantic-toggle"
+                        checked={remoteConsentStatus !== 'declined'}
+                        onChange={(e) => (e.target as HTMLInputElement).checked
+                          ? remoteConsentStore.reenable()
+                          : remoteConsentStore.withdraw()}
+                      />
+                      <span>{t('remoteSemantic.settings.toggle')}</span>
+                    </label>
+                    <div class="settings-panel__field-hint" data-testid="remote-semantic-status">
+                      {remoteConsentStatus === 'granted'
+                        ? t('remoteSemantic.settings.statusGranted', {
+                            date: remoteConsentAt ? localizer.formatDate(new Date(remoteConsentAt), { dateStyle: 'medium' }) : '',
+                          })
+                        : remoteConsentStatus === 'declined'
+                          ? t('remoteSemantic.settings.statusDeclined')
+                          : t('remoteSemantic.settings.statusUnset')}
+                    </div>
+                  </>
+                )}
+                <h4 class="settings-panel__section-title" style={remoteConsentConfigured ? { marginTop: '16px' } : undefined}>{t('settings.modules.commentary')}</h4>
                 <label class="settings-panel__field settings-panel__field--checkbox">
                   <input
                     type="checkbox"

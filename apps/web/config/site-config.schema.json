@@ -250,10 +250,32 @@
           "enum": [
             "server",
             "browser",
-            "off"
+            "off",
+            "remote"
           ],
-          "description": "Where semantic (Ideas) search runs. 'server': the server builds the embedding pipeline (high RAM). 'browser': clients search locally via a Web Worker and self-hosted model/index, keeping the server lean. 'off': semantic search disabled. The server only builds the in-process pipeline when set to 'server'.",
+          "description": "Where semantic (Ideas) search runs. 'server': the server builds the embedding pipeline (high RAM). 'browser': clients search locally via a Web Worker and self-hosted model/index, keeping the server lean. 'off': semantic search disabled. 'remote': the hosted bibsearch service, configured in 'remote' (users agree to a notice on first use; falls back to keyword search). The server only builds the in-process pipeline when set to 'server'.",
           "default": "browser"
+        },
+        "remote": {
+          "type": "object",
+          "description": "bibsearch service settings, used when mode is 'remote'. With no usable url, semantic search is off.",
+          "properties": {
+            "url": {
+              "type": "string",
+              "description": "Base URL of bibsearch, e.g. https://search.example.org. With via 'server' it may be an internal address. With via 'browser' it must be public, and the site's origin must be in bibsearch's cors.allowed_origins."
+            },
+            "via": {
+              "type": "string",
+              "enum": ["server", "browser"],
+              "default": "server",
+              "description": "Who calls bibsearch. 'server': this server proxies /api/search/semantic (bibsearch sees only the server's IP). 'browser': each browser calls the URL directly (bibsearch sees the user's IP; the URL and apiKey are sent to the browser)."
+            },
+            "apiKey": {
+              "type": "string",
+              "description": "Optional bibsearch API key, sent as X-API-Key. With via 'browser' it is visible to every visitor, so it is not a secret."
+            }
+          },
+          "additionalProperties": false
         },
         "pipelineConfigPath": {
           "type": "string",

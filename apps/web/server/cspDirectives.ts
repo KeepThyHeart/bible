@@ -18,6 +18,9 @@
  * from the model host. It changes the policy only when switched on, and then only `connect-src` gains
  * that host's origins (`speechModelOrigins`). Microphone access and the engine's worker and wasm
  * need no change: they are same-origin, and `'wasm-unsafe-eval'` is already allowed.
+ *
+ * Remote semantic search with `via: 'browser'` adds one more `connect-src`
+ * origin: the bibsearch service itself. With `via: 'server'` nothing changes.
  */
 
 export interface CspAudioOptions {
@@ -53,6 +56,8 @@ export function speechModelOrigins(modelBase: string | undefined): string[] {
 export function contentSecurityPolicyDirectives(
   audio: CspAudioOptions = { enabled: false, externalOrigins: [] },
   speech: CspSpeechOptions = { enabled: false, externalOrigins: [] },
+  /** Origin of bibsearch when the browser calls it directly (`search.remote.via: 'browser'`), else null. */
+  remoteSearchOrigin: string | null = null,
 ) {
   const external = audio.enabled ? audio.externalOrigins : [];
   const speechOrigins = speech.enabled ? speech.externalOrigins : [];
@@ -74,7 +79,7 @@ export function contentSecurityPolicyDirectives(
     styleSrc: ["'self'", "'unsafe-inline'"],
     fontSrc: ["'self'"],
     imgSrc: ["'self'", 'data:'],
-    connectSrc: ["'self'", ...new Set([...external, ...speechOrigins])],
+    connectSrc: ["'self'", ...new Set([...external, ...speechOrigins, ...(remoteSearchOrigin ? [remoteSearchOrigin] : [])])],
     // Do NOT include upgrade-insecure-requests: it causes browsers to upgrade HTTP
     // requests to HTTPS, breaking local dev servers that serve over plain HTTP.
     upgradeInsecureRequests: null,
