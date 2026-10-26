@@ -130,6 +130,10 @@ for (const [via, portOffset] of [['server', 20], ['browser', 21]] as const) {
       await ideasSearch(page, 'comfort when anxious');
       await expect(page.getByTestId('remote-consent-dialog')).toHaveCount(0);
       await expect(page.locator('.search-result-item').first()).toBeVisible({ timeout: 20_000 });
+
+      // A facet row (suffixed id, mapped through passage/start/end) shows as a normal result.
+      await ideasSearch(page, 'creation in the beginning');
+      await expect(page.locator('.search-result-item').first()).toContainText('Genesis 1:1', { timeout: 20_000 });
     });
 
     test('Not now falls back to keyword with the hint and never asks or sends again', async ({ page }) => {

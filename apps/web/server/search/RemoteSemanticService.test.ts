@@ -49,6 +49,19 @@ describe('RemoteSemanticService', () => {
     expect(res.semantic.rateLimit?.remaining).toBe(9);
   });
 
+  it('takes the type from the hit level, else guesses from the range', async () => {
+    const f = fakeFetch({
+      query: 'q', mode: 'semantic', degraded: false,
+      results: [
+        { rank: 1, id: 'KJV.JHN.3.1-36#s0', passage: 'KJV.JHN.3.1-36', level: 'chapter', score: 0.9 },
+        { rank: 2, id: 'KJV.JHN.3.16-17', score: 0.8 },
+        { rank: 3, id: 'KJV.JHN.3.16', level: 'topic', score: 0.7 },
+      ],
+    });
+    const res = await makeService(f).search('new birth', 10, { repo, module: 'KJV', bookNames });
+    expect(res.results.map(r => r.type)).toEqual(['chapter', 'paragraph', 'verse']);
+  });
+
   it('flags degraded responses', async () => {
     const f = fakeFetch({ query: 'q', mode: 'keyword', degraded: true, results: [] });
     const res = await makeService(f).search('some words', 5, { repo, module: 'KJV', bookNames });

@@ -10,6 +10,9 @@ import { useOverlayDismissal } from '../hooks/useOverlayDismissal';
 import { openModuleManager } from '../utils/openModuleManager';
 import { ReaderToolbarItems } from '../modules/host/slots';
 
+/** One shared empty list, so the history selector returns a stable value for a panel without one. */
+const NO_HISTORY: never[] = [];
+
 /**
  * The Bible pane's single control band.
  *
@@ -64,7 +67,7 @@ const BibleToolbar: React.FC = () => {
 
   // The history list and the cursor into it, read as state rather than through
   // getState() so the open menu re-renders when a click navigates.
-  const history = useBibleStore(s => s.panels.get(panelId)?.navigationHistory ?? []);
+  const history = useBibleStore(s => s.panels.get(panelId)?.navigationHistory ?? NO_HISTORY);
   const historyIndex = useBibleStore(s => s.panels.get(panelId)?.historyIndex ?? -1);
 
   if (!activeTab || openTabs.length === 0) return null;

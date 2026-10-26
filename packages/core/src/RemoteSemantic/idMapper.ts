@@ -6,6 +6,8 @@
  *   `KJV.JHN.3.16-17`     a window of verses in one chapter
  *   `KJV.JHN.3.16-4.2`    (tolerated) a window that crosses a chapter
  * `KJV` is the translation the index was built from, `JHN` the USFM book code.
+ * Facet rows carry a suffix (`KJV.GEN.1.1#s0`) that does not parse here; the client
+ * then maps the row through its `passage` id or its numeric range (`passageFromRange`).
  * Core verse ids are `book * 1_000_000 + chapter * 1000 + verse`.
  */
 
@@ -43,4 +45,24 @@ export function parseBibsearchId(id: unknown): MappedPassage | null {
   const endVerseId = VerseIdHelper.calculate(book.bookNumber, endChapter, endVerse);
   if (endVerseId < startVerseId) return null;
   return { id, translation: m[1], startVerseId, endVerseId };
+}
+
+/** True when `n` is an integer core verse id with a canonical book (1-66) and chapter and verse >= 1. */
+function isValidVerseId(n: number): boolean {
+  if (!Number.isInteger(n)) return false;
+  const book = Math.floor(n / 1_000_000);
+  const chapter = Math.floor(n / 1000) % 1000;
+  const verse = n % 1000;
+  return book >= 1 && book <= 66 && chapter >= 1 && verse >= 1;
+}
+
+/**
+ * A passage from a row's numeric `start` / `end` (core verse ids), for facet rows whose
+ * id carries a suffix (`KJV.GEN.1.1#s0`). Returns null unless both name real verses in
+ * order, so topic rows (`start = end = 0`, or no range) are skipped.
+ */
+export function passageFromRange(id: string, start: unknown, end: unknown, translation: string): MappedPassage | null {
+  if (typeof start !== 'number' || typeof end !== 'number') return null;
+  if (!isValidVerseId(start) || !isValidVerseId(end) || end < start) return null;
+  return { id, translation, startVerseId: start, endVerseId: end };
 }

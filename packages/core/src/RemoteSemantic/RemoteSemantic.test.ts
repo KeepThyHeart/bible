@@ -86,6 +86,32 @@ describe('RemoteSemanticClient', () => {
     expect(r.rateLimit.resetAtMs).toBe(1_000_000 + 3_600_000);
   });
 
+  it('maps facet rows through passage, then start/end, and skips topic and bad ranges', async () => {
+    const facetBody = { query: 'q', mode: 'semantic', degraded: false, results: [
+      { rank: 1, id: 'KJV.GEN.1.1#s0', passage: 'KJV.GEN.1.1', start: 1001001, end: 1001001, level: 'verse', facet: 'sub', score: 0.9 },
+      { rank: 2, id: 'opaque-row-7', start: 43003016, end: 43003017, level: 'paragraph', translation: 'KJV', score: 0.8 },
+      { rank: 3, id: 'KJV.PSA.23.1-6#s2', start: 19023001, end: 19023006, level: 'chapter', score: 0.7 },
+      { rank: 4, id: 'KJV.MAT.6.14', score: 0.6 },
+      { rank: 5, id: 'topic.42#s0', start: 0, end: 0, level: 'topic' },
+      { rank: 6, id: 'topic.43', level: 'topic' },
+      { rank: 7, id: 'x#s1', start: 43003017, end: 43003016 },
+      { rank: 8, id: 'x#s2', start: 1001, end: 1001 },
+      { rank: 9, id: 'x#s3', start: 67001001, end: 67001001 },
+      { rank: 10, id: 'x#s4', start: 43003000, end: 43003000 },
+      { rank: 11, id: 'x#s5', start: 43003016.5, end: 43003017 },
+      { rank: 12, id: 'x#s6', start: '43003016', end: '43003016' },
+    ] };
+    const { client } = make([res(200, facetBody)]);
+    const r = await client.search('in the beginning');
+    expect(r.hits.map(h => [h.id, h.startVerseId, h.endVerseId, h.level])).toEqual([
+      ['KJV.GEN.1.1#s0', 1001001, 1001001, 'verse'],
+      ['opaque-row-7', 43003016, 43003017, 'paragraph'],
+      ['KJV.PSA.23.1-6#s2', 19023001, 19023006, 'chapter'],
+      ['KJV.MAT.6.14', 40006014, 40006014, undefined],
+    ]);
+    expect(r.skipped).toBe(8);
+  });
+
   it('sends the configured API key as X-API-Key only', async () => {
     const { client, fetchMock } = make([res(200, OK)], { apiKey: 'pub-key' });
     await client.search('grace and truth');

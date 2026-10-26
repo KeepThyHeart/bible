@@ -66,7 +66,9 @@ export class RemoteSemanticService {
         snippet: text.length > SNIPPET_LENGTH ? text.slice(0, SNIPPET_LENGTH) + '...' : text,
         score: Math.round(hit.score * 1000) / 1000,
         module: hydration.module,
-        type: start === end ? 'verse' : 'paragraph',
+        type: hit.level === 'verse' || hit.level === 'paragraph' || hit.level === 'chapter'
+          ? hit.level
+          : start === end ? 'verse' : 'paragraph',
       };
     });
 

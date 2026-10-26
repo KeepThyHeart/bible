@@ -599,7 +599,9 @@ function hydrateRemoteHits(hits: RemoteSemantic.RemoteHit[]): SemanticRow[] {
     const textPreview = plain.length > REMOTE_PREVIEW_CHARS ? `${plain.slice(0, REMOTE_PREVIEW_CHARS).trimEnd()}...` : plain;
     rows.push({
       id: hit.id,
-      level: single ? 'verse' : 'paragraph',
+      level: hit.level === 'verse' || hit.level === 'paragraph' || hit.level === 'chapter'
+        ? hit.level
+        : single ? 'verse' : 'paragraph',
       startVerseId: hit.startVerseId,
       endVerseId: hit.endVerseId,
       reference: formatSemanticReference(hit.startVerseId, hit.endVerseId, bookName),

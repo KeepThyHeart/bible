@@ -19,7 +19,7 @@
  *    signed-in user's JWT goes later.
  */
 
-import { parseBibsearchId } from './idMapper';
+import { parseBibsearchId, passageFromRange, type MappedPassage } from './idMapper';
 import { checkRemoteQuery, type QueryRule } from './queryGuard';
 
 export type RemoteErrorKind =
@@ -79,6 +79,8 @@ export interface RemoteHit {
   ref?: string;
   startVerseId: number;
   endVerseId: number;
+  /** The row's `level` (`verse` | `paragraph` | `chapter` | `topic`) when bibsearch sent one. */
+  level?: string;
 }
 
 export interface RemoteSearchResponse {
@@ -211,7 +213,7 @@ export class RemoteSemanticClient {
     const hits: RemoteHit[] = [];
     let skipped = 0;
     rows.forEach((row, i) => {
-      const p = parseBibsearchId(row?.id);
+      const p = mapRow(row);
       if (!p) { skipped++; return; }
       hits.push({
         rank: typeof row.rank === 'number' ? row.rank : i + 1,
@@ -220,6 +222,7 @@ export class RemoteSemanticClient {
         ref: typeof row.ref === 'string' ? row.ref : undefined,
         startVerseId: p.startVerseId,
         endVerseId: p.endVerseId,
+        level: typeof row.level === 'string' ? row.level : undefined,
       });
     });
     const routed = o.routed === 'reference' || o.routed === 'one_word' ? o.routed : undefined;
@@ -379,6 +382,24 @@ export class RemoteSemanticClient {
 }
 
 function fail(e: RemoteSemanticError): never { throw e; }
+
+/**
+ * Map one result row to a passage. A facet row (bibsearch returns the best-scoring
+ * facet of a passage) has a suffixed id such as `KJV.GEN.1.1#s0`, so after the id this
+ * tries the row's `passage` id and then its numeric `start` / `end`. The returned `id`
+ * is always the row's own.
+ */
+function mapRow(row: any): MappedPassage | null {
+  const p = parseBibsearchId(row?.id);
+  if (p) return p;
+  if (typeof row?.id !== 'string') return null;
+  const viaPassage = parseBibsearchId(row.passage);
+  if (viaPassage) return { ...viaPassage, id: row.id };
+  const translation = typeof row.translation === 'string'
+    ? row.translation
+    : /^([A-Za-z0-9_]+)\./.exec(row.id)?.[1] ?? '';
+  return passageFromRange(row.id, row.start, row.end, translation);
+}
 
 function numHeader(res: Response, name: string): number | undefined {
   const v = res.headers.get(name);

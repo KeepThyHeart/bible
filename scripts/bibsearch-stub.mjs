@@ -28,6 +28,12 @@ const CANNED = [
   { id: 'KJV.PHP.4.6-7', ref: 'Philippians 4:6-7', words: ['anxious', 'worry', 'peace', 'prayer'] },
   { id: 'KJV.1CO.13.4', ref: '1 Corinthians 13:4', words: ['love', 'patient', 'kind'] },
   { id: 'KJV.ROM.8.28', ref: 'Romans 8:28', words: ['purpose', 'good', 'hardship', 'trust'] },
+  // A facet row: bibsearch returns the best-scoring facet, whose id carries a suffix the
+  // client cannot parse, so it maps through `passage` / `start` / `end` instead.
+  {
+    id: 'KJV.GEN.1.1#s0', ref: 'Genesis 1:1', words: ['creation', 'beginning', 'created', 'heaven'],
+    extra: { passage: 'KJV.GEN.1.1', start: 1001001, end: 1001001, level: 'verse', facet: 'sub' },
+  },
 ];
 
 export function startBibsearchStub({ port = 0, host = '127.0.0.1' } = {}) {
@@ -97,6 +103,7 @@ export function startBibsearchStub({ port = 0, host = '127.0.0.1' } = {}) {
       if (!rows.some((r) => r.hits > 0)) rows = CANNED.map((c) => ({ c, hits: 0 }));
       const results = rows.slice(0, k).map((r, i) => ({
         rank: i + 1, id: r.c.id, score: Math.round((0.82 - i * 0.05) * 1000) / 1000, ref: r.c.ref, translation: 'KJV', lang: 'en',
+        ...r.c.extra,
       }));
       if (url.searchParams.get('include_text') === 'true' || body?.include_text === true) {
         results.forEach((r) => { r.text = 'stub text'; });
