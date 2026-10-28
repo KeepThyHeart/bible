@@ -22,6 +22,14 @@ export interface LoadServerModulesOptions {
   readonly flags: Pick<FeatureFlags, 'isEnabled'>;
   /** Dev override. Default: `BIBLE_MODULES`, ignored when NODE_ENV is production. */
   readonly overrides?: () => Readonly<Record<string, boolean>>;
+  /**
+   * Site config `featureModules`, honoured in every NODE_ENV. Only `false`
+   * entries count: `true` would beat the module's flag and skip its own
+   * requirement check in the host, so it is dropped (a module that is on by
+   * default stays on, one behind a flag stays behind it). The dev override
+   * still wins over these.
+   */
+  readonly featureModules?: Readonly<Record<string, boolean>>;
   /** Module table. Default: the production table. */
   readonly modules?: readonly ServerModuleEntry[];
 }
@@ -34,8 +42,27 @@ export interface ServerModuleHandle {
 
 export const BOOT_EVENT = 'onStartupFinished';
 
-function envOverrides(): Record<string, boolean> {
+/** The `false` entries of a site config `featureModules` object. */
+export function siteDisabledModules(featureModules: Readonly<Record<string, boolean>> | undefined): string[] {
+  return Object.entries(featureModules ?? {}).filter(([, on]) => on === false).map(([id]) => id);
+}
+
+/** The dev-only `BIBLE_MODULES` override (empty in production). */
+export function envOverrides(): Record<string, boolean> {
   return process.env.NODE_ENV === 'production' ? {} : parseFeatureModuleOverrides(process.env.BIBLE_MODULES);
+}
+
+/**
+ * `/api/config` `modules.disabled`: the server modules that are off, plus every id
+ * the site config sets to `false` (so client-only modules go off in the browser too),
+ * except those the dev `BIBLE_MODULES` override turns back on.
+ */
+export function disabledModuleIds(featureModules?: Readonly<Record<string, boolean>>): string[] {
+  const envOn = envOverrides();
+  return [...new Set([
+    ...listServerModules().filter((m) => !m.enabled).map((m) => m.id),
+    ...siteDisabledModules(featureModules).filter((id) => envOn[id] !== true),
+  ])];
 }
 
 let current: { entries: readonly ServerModuleEntry[]; handle: ServerModuleHandle } | undefined;
@@ -47,7 +74,10 @@ export async function loadServerModules(options: LoadServerModulesOptions): Prom
     platform: 'web',
     points: standardPointList(points),
     isFlagEnabled: (f) => options.flags.isEnabled(f),
-    overrides: options.overrides ?? envOverrides,
+    overrides: () => ({
+      ...Object.fromEntries(siteDisabledModules(options.featureModules).map((id) => [id, false])),
+      ...(options.overrides ?? envOverrides)(),
+    }),
     onWarning: (message, error) => logger.warn(error ? `${message}: ${String(error)}` : message),
   });
 

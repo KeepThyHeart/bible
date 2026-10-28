@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { loadServerModules, listServerModules } from './loadServerModules';
+import { loadServerModules, listServerModules, disabledModuleIds } from './loadServerModules';
 import type { ServerModuleEntry } from './serverModules';
 import { registerRoute, listRoutes, clearRouteRegistry, getRegisteredRoutes, unregisterRoutesByModule } from '../routes/routeRegistry';
 import { validateBuiltinManifest } from '../core';
@@ -99,5 +99,58 @@ describe('loadServerModules', () => {
     on = false;
     handle.reconcile();
     expect(listRoutes('eps')).toHaveLength(0);
+  });
+
+  describe('site config featureModules', () => {
+    const inEnv = async (env: Record<string, string>, fn: () => Promise<void>) => {
+      for (const [k, v] of Object.entries(env)) vi.stubEnv(k, v);
+      try { await fn(); } finally { vi.unstubAllEnvs(); }
+    };
+
+    it('false disables the module under NODE_ENV=production and drops its routes', async () => {
+      const e = entry(manifest('zeta'));
+      const other = entry(manifest('eta'));
+      await inEnv({ NODE_ENV: 'production' }, async () => {
+        await loadServerModules({ flags: flagsOn, featureModules: { zeta: false }, modules: [e, other] });
+      });
+      expect(e.load).not.toHaveBeenCalled();
+      expect(other.load).toHaveBeenCalledTimes(1);
+      expect(listRoutes('zeta')).toEqual([]);
+      expect(listServerModules().find((m) => m.id === 'zeta')).toMatchObject({ enabled: false, offReason: 'override' });
+    });
+
+    it('true never bypasses the flag or requires', async () => {
+      const tagGraph = entry(manifest('tag-graph', { flag: 'tagGraph' } as Partial<FeatureModuleManifest>));
+      const gen = entry(manifest('gen', { requires: ['tag-graph'] } as Partial<FeatureModuleManifest>));
+      const flagged = entry(manifest('flagged', { flag: 'quiz' } as Partial<FeatureModuleManifest>));
+      await inEnv({ NODE_ENV: 'production' }, async () => {
+        await loadServerModules({ flags: flagsOff, featureModules: { gen: true, flagged: true, 'tag-graph': true }, modules: [tagGraph, gen, flagged] });
+      });
+      expect(tagGraph.load).not.toHaveBeenCalled();
+      expect(gen.load).not.toHaveBeenCalled();
+      expect(flagged.load).not.toHaveBeenCalled();
+    });
+
+    it('BIBLE_MODULES wins over featureModules in development only', async () => {
+      const e = entry(manifest('theta'));
+      await inEnv({ NODE_ENV: 'development', BIBLE_MODULES: 'theta' }, async () => {
+        await loadServerModules({ flags: flagsOn, featureModules: { theta: false }, modules: [e] });
+      });
+      expect(e.load).toHaveBeenCalledTimes(1);
+      clearRouteRegistry();
+      const f = entry(manifest('theta'));
+      await inEnv({ NODE_ENV: 'production', BIBLE_MODULES: 'theta' }, async () => {
+        await loadServerModules({ flags: flagsOn, featureModules: { theta: false }, modules: [f] });
+      });
+      expect(f.load).not.toHaveBeenCalled();
+    });
+
+    it('/api/config disabled list includes client-only ids set false, once', async () => {
+      const e = entry(manifest('iota', { flag: 'quiz' } as Partial<FeatureModuleManifest>));
+      await inEnv({ NODE_ENV: 'production' }, async () => {
+        await loadServerModules({ flags: flagsOff, featureModules: { iota: false, 'keyword-marks': false, similar: true }, modules: [e] });
+        expect(disabledModuleIds({ iota: false, 'keyword-marks': false, similar: true }).sort()).toEqual(['iota', 'keyword-marks']);
+      });
+    });
   });
 });

@@ -29,7 +29,7 @@ import './routes/studyOverviewRoutes.js';
 import './routes/feedbackRoutes.js';
 import './routes/desktopReportRoutes.js';
 import { getRegisteredRoutes, getRegisteredBodyParsers } from './routes/routeRegistry.js';
-import { loadServerModules, listServerModules } from './modules/loadServerModules.js';
+import { loadServerModules, listServerModules, disabledModuleIds } from './modules/loadServerModules.js';
 import { createUnavailableRoutes } from './modules/unavailableRoutes.js';
 import type { ISearchPipeline, IVectorSearch } from '@bible/core';
 import { createSearchPipelineWithComponents } from './search/SearchPipelineFactory.js';
@@ -235,7 +235,7 @@ app.use(helmet({
 // Feature modules (task 0113): enabled modules' route files import and self-register here
 // (mounting stays below). Loaded this early so a module's body parsers, registered
 // through `registerBodyParser`, go ahead of the global parser.
-await loadServerModules({ flags: siteConfig.flags });
+await loadServerModules({ flags: siteConfig.flags, featureModules: siteConfig.featureModules });
 
 // Body size limits (item #5)
 // A route that carries more than 100 KB (the presenter notes document) gets its own
@@ -375,7 +375,7 @@ app.get('/api/version', (_req, res) => {
 
 app.get('/api/config', (_req, res) => {
   // `modules.disabled`: server feature modules that are off, so the client can treat them as off too.
-  const disabled = listServerModules().filter((m) => !m.enabled).map((m) => m.id);
+  const disabled = disabledModuleIds(siteConfig.featureModules);
   res.json({ ...siteConfig.getClientConfig(), modules: { disabled } });
 });
 
