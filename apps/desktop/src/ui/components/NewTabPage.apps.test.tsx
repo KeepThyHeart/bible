@@ -54,6 +54,21 @@ describe('NewTabPage apps row', () => {
     expect(grid.compareDocumentPosition(paneTile) & Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy();
   });
 
+  it('drops the pane tile of a module that has an app entry (Study), keeping it under Apps only', () => {
+    appRegistry.register(desc('study', 0), { kind: 'builtin', moduleId: 'study' });
+    act(() => { appRegistry.register(desc('fx', 20), { kind: 'builtin', moduleId: 'fx' }); });
+    render(<ContextProvider services={services}><NewTabPage panelId="p" /></ContextProvider>);
+    const grid = screen.getByRole('list', { name: 'Apps' });
+    expect(grid.textContent).toContain('Study');
+    // Only the Apps entry remains; the tab grid has no second "Study" button.
+    expect(screen.getAllByRole('button', { name: 'Study' })).toHaveLength(1);
+  });
+
+  it('keeps the Study pane tile when no Study app exists', () => {
+    render(<ContextProvider services={services}><NewTabPage panelId="p" /></ContextProvider>);
+    expect(screen.getAllByRole('button', { name: 'Study' })).toHaveLength(1);
+  });
+
   describe('tiles that only switch to an app', () => {
     beforeAll(() => {
       featureModules.add(

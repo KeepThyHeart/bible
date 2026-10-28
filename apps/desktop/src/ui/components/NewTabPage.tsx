@@ -86,7 +86,15 @@ const NewTabPage: React.FC<NewTabPageProps> = ({ panelId, dockviewPanelApi }) =>
   // A tile that only switches to an app does not open a tab, so it does not
   // belong in the tab grid. It goes to the Apps group below instead, or is
   // dropped when the app already has its own entry there.
-  const tabTiles = React.useMemo(() => tiles.filter((tile) => !('appId' in tile.target)), [tiles]);
+  // A pane-type tile whose app has its own Apps entry (Study, Quiz, Reading
+  // plans) is dropped too: those live under Apps only (task 0200). Their
+  // keywords still open the pane from the search box.
+  const appIdSet = React.useMemo(() => new Set(appItems.map((a) => a.id)), [appItems]);
+  const keywordTiles = React.useMemo(() => tiles.filter((tile) => !('appId' in tile.target)), [tiles]);
+  const tabTiles = React.useMemo(
+    () => keywordTiles.filter((tile) => !('panelType' in tile.target && appIdSet.has(tile.target.panelType))),
+    [keywordTiles, appIdSet],
+  );
   const registeredPanelTypes = useRegistryItems(modulePoints.panelTypes);
   const keywordMap = React.useMemo(() => {
     // A tile-less keyword works only while the module that owns its panel type is on.
@@ -94,12 +102,12 @@ const NewTabPage: React.FC<NewTabPageProps> = ({ panelId, dockviewPanelApi }) =>
     for (const [kw, type] of Object.entries(TILELESS_KEYWORDS)) {
       if (registeredPanelTypes.some((p) => p.id === type)) map[kw] = type;
     }
-    for (const tile of tabTiles) {
+    for (const tile of keywordTiles) {
       if (!('panelType' in tile.target)) continue;
       for (const kw of tile.keywords ?? []) map[kw.toLowerCase()] = tile.target.panelType as PanelContentType;
     }
     return map;
-  }, [tabTiles, registeredPanelTypes]);
+  }, [keywordTiles, registeredPanelTypes]);
   const appEntries = React.useMemo(() => {
     const entries = toNavEntries(appItems, t, i18n);
     const known = new Set(entries.map((e) => e.id));

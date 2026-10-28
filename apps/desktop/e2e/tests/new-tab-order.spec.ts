@@ -13,6 +13,11 @@ test('New Tab page lists the pane tiles above the Apps group', async ({ window }
     const a = (await apps.first().boundingBox())!;
     expect(a.y).toBeGreaterThan(t.y);
   }
+  // Study, Quiz and Reading plans live under Apps only: no second tab tile for them.
+  const tileGrid = window.locator('.grid.grid-cols-4');
+  for (const name of ['Study', 'Quiz', 'Reading plans']) {
+    await expect(tileGrid.getByRole('button', { name, exact: true })).toHaveCount(0);
+  }
   if (process.env.DEMO_SHOT_DIR) {
     await window.screenshot({ path: path.join(process.env.DEMO_SHOT_DIR, '4-new-tab-order.png') });
   }

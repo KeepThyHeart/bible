@@ -474,27 +474,7 @@ const BiblePaneOverlays: React.FC<BiblePaneOverlaysProps> = ({
               return;
             }
 
-            /*
-              No text selection, but the menu was opened ON a word: mark that
-              word only. Falling through to "the whole verse" here is what made a
-              one-word underline cover every word of the verse (task 0200). A
-              multi-verse passage selection (shift-click) still marks whole verses.
-            */
-            if (!contextMenu.isMultiple && contextMenu.wordIndex !== undefined && contextMenu.verses.length === 1) {
-              setHighlightMenu({
-                visible: true,
-                position: contextMenu.position,
-                selection: {
-                  startVerseId: contextMenu.verses[0].verse_id,
-                  startWordIndex: contextMenu.wordIndex,
-                  endVerseId: undefined,
-                  endWordIndex: contextMenu.wordIndex
-                }
-              });
-              return;
-            }
-
-            // No text selection and no word under the pointer - highlight entire verse(s)
+            // No text selection - highlight the entire verse(s), as a plain right-click means "this verse"
             const verses = contextMenu.verses;
             const firstVerse = verses[0];
             const lastVerse = verses[verses.length - 1];

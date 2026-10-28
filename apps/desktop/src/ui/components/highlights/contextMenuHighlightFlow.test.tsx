@@ -391,8 +391,8 @@ describe('right-click -> Highlight/Underline', () => {
     expect(sent[0].textEnd).toBeUndefined();
   });
 
-  /** Task 0200: right-clicking ON a word with no selection marks that word, not the verse. */
-  it('marks only the right-clicked word when nothing is selected', async () => {
+  /** Task 0200 r2: a plain right-click on a word with no selection still means the whole verse. */
+  it('marks the whole verse when right-clicking a word with nothing selected', async () => {
     render(<Harness />);
     window.getSelection()!.removeAllRanges();
 
@@ -407,8 +407,8 @@ describe('right-click -> Highlight/Underline', () => {
     });
 
     expect(sent).toHaveLength(1);
-    expect(sent[0].textStart).toBe(2);
-    expect(sent[0].textEnd).toBe(2);
+    expect(sent[0].textStart).toBe(0);
+    expect(sent[0].textEnd).toBeUndefined();
     expect(sent[0].verseIdEnd).toBeUndefined();
   });
 });

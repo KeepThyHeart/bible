@@ -21,7 +21,7 @@ async function markedWords(window: Page): Promise<string[]> {
   }, VERSE);
 }
 
-async function openMarkupMenuOnWord(window: Page, wordRe: RegExp, selectFirst: boolean): Promise<void> {
+async function openMarkupMenuOnWord(window: Page, wordRe: RegExp, selectFirst: boolean, noNativeSelection = false): Promise<void> {
   const word = window.locator(`${VERSE} .word`).filter({ hasText: wordRe }).first();
   await expect(word).toBeVisible({ timeout: 10000 });
   const box = (await word.boundingBox())!;
@@ -32,7 +32,16 @@ async function openMarkupMenuOnWord(window: Page, wordRe: RegExp, selectFirst: b
     const sel = await getSelectionInfo(window);
     expect(sel.isCollapsed).toBe(false);
   }
-  await window.mouse.click(x, y, { button: 'right' });
+  if (noNativeSelection) {
+    // Electron's own right-click can select the word under the pointer; send the
+    // contextmenu event ourselves, with the selection cleared, to model "nothing selected".
+    await word.evaluate((el, pt) => {
+      window.getSelection()?.removeAllRanges();
+      el.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: pt.x, clientY: pt.y, button: 2 }));
+    }, { x, y });
+  } else {
+    await window.mouse.click(x, y, { button: 'right' });
+  }
   const menu = window.getByRole('menu');
   await expect(menu).toBeVisible({ timeout: 10000 });
   await menu.getByRole('menuitem', { name: /highlight/i }).first().click({ force: true });
@@ -60,19 +69,44 @@ for (const style of ['solid', 'wavy', 'dotted', 'dashed'] as const) {
   });
 }
 
-test('right-clicking a word with no selection marks only that word', async ({ window }) => {
-  await openMarkupMenuOnWord(window, /^world,?$/i, false);
+test('right-clicking with no selection marks the whole verse', async ({ window }) => {
+  await openMarkupMenuOnWord(window, /^world,?$/i, false, true);
   const dialog = window.getByLabel('Highlight options');
   await dialog.getByRole('radio', { name: /^underline$/i }).click({ force: true });
   await dialog.getByRole('radio', { name: /^wavy$/i }).click({ force: true });
   await dialog.getByRole('button', { name: /apply underline/i }).click({ force: true });
   await expect.poll(async () => (await markedWords(window)).length).toBeGreaterThan(0);
+  const total = await window.locator(`${VERSE} .word`).count();
+  expect(total).toBeGreaterThan(1);
+  await expect.poll(async () => (await markedWords(window)).length).toBe(total);
+});
+
+test('dragging over one word, then right-clicking it, underlines only that word', async ({ window }) => {
+  const word = window.locator(`${VERSE} .word`).filter({ hasText: /^world,?$/i }).first();
+  await expect(word).toBeVisible({ timeout: 10000 });
+  const box = (await word.boundingBox())!;
+  const y = box.y + box.height / 2;
+  await window.mouse.move(box.x + 1, y);
+  await window.mouse.down();
+  await window.mouse.move(box.x + box.width - 2, y, { steps: 6 });
+  await window.mouse.up();
+  expect((await getSelectionInfo(window)).isCollapsed).toBe(false);
+  await window.mouse.click(box.x + box.width / 2, y, { button: 'right' });
+  const menu = window.getByRole('menu');
+  await expect(menu).toBeVisible({ timeout: 10000 });
+  await menu.getByRole('menuitem', { name: /highlight/i }).first().click({ force: true });
+  const dialog = window.getByLabel('Highlight options');
+  await expect(dialog).toBeVisible({ timeout: 10000 });
+  await dialog.getByRole('radio', { name: /^underline$/i }).click({ force: true });
+  await dialog.getByRole('radio', { name: /^wavy$/i }).click({ force: true });
+  await dialog.getByRole('button', { name: /apply underline/i }).click({ force: true });
+  await expect.poll(async () => (await markedWords(window)).length).toBeGreaterThan(0);
   const words = await markedWords(window);
-  expect(words.length).toBe(1);
+  expect(words.map((w) => w.trim().replace(/[,.]$/, '').toLowerCase())).toEqual(['world']);
 });
 
 test('an existing mark is cleared from the context menu in two clicks', async ({ window }) => {
-  await openMarkupMenuOnWord(window, /^world,?$/i, false);
+  await openMarkupMenuOnWord(window, /^world,?$/i, true);
   const dialog = window.getByLabel('Highlight options');
   await dialog.getByRole('radio', { name: /^underline$/i }).click({ force: true });
   await dialog.getByRole('radio', { name: /^wavy$/i }).click({ force: true });
