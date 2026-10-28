@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../fixtures';
 
 test.describe('API E2E Tests', () => {
   test('loads books list', async ({ request }) => {

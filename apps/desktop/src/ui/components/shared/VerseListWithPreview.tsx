@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { formatVerseReference, formatVerseRange, loadBookNamesCache } from '../../utils/verseReference';
 import { bibleAPI } from '../../services/electronAPI';
 import { useBiblePanel } from '../../stores/hooks/useBiblePanel';
@@ -88,7 +88,7 @@ function saveShowVerses(storageKey: string | undefined, value: boolean): void {
  * below it.
  */
 const VerseListWithPreview: React.FC<VerseListWithPreviewProps> = ({
-  verses,
+  verses: versesProp,
   currentVerseId,
   maxVisible = 10,
   onVerseClick,
@@ -101,6 +101,18 @@ const VerseListWithPreview: React.FC<VerseListWithPreviewProps> = ({
   const [showAll, setShowAll] = useState(false);
   const [showVerses, setShowVerses] = useState(() => loadShowVerses(storageKey));
   const [lastClickedKey, setLastClickedKey] = useState<string | null>(null);
+  // One row per range. Callers can hand in the same passage twice (a topic
+  // cites it under two sub-topics); rows are keyed by range, so a repeat would
+  // be a duplicate React key and the warning would flood the console.
+  const verses = useMemo(() => {
+    const seen = new Set<string>();
+    return versesProp.filter(v => {
+      const key = `${v.start_verse_id}-${v.end_verse_id}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [versesProp]);
   const visibleVerses = showAll ? verses : verses.slice(0, maxVisible);
   const hiddenCount = verses.length - visibleVerses.length;
 
@@ -126,6 +138,10 @@ const VerseListWithPreview: React.FC<VerseListWithPreviewProps> = ({
 
   // Fetch verse text for all visible entries. Skipped entirely while the text
   // is hidden - there is no point paying for text nobody asked to see.
+  // Keyed on *which* passages are visible, not how many: opening another topic
+  // whose list is the same length must refetch, or its rows never get text and
+  // read "Loading..." forever.
+  const visibleSignature = visibleVerses.map(v => `${v.start_verse_id}-${v.end_verse_id}`).join(',');
   useEffect(() => {
     if (!showVerses || !activeVersion) return undefined;
     let cancelled = false;
@@ -187,7 +203,8 @@ const VerseListWithPreview: React.FC<VerseListWithPreviewProps> = ({
 
     fetchAll();
     return () => { cancelled = true; };
-  }, [visibleVerses.length, showAll, activeVersion, showVerses]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- visibleSignature stands in for visibleVerses
+  }, [visibleSignature, activeVersion, showVerses]);
 
   const handleRefClick = (v: VerseItem): void => {
     setLastClickedKey(`${v.start_verse_id}-${v.end_verse_id}`);

@@ -479,6 +479,17 @@ describe.skipIf(!testDataAvailable('TopicalIndexRepository (topical_nave.db)', D
     });
   });
 
+  describe('getRecursiveVersesForTopic duplicates', () => {
+    it('returns each passage once, even when several sub-topics cite it', () => {
+      for (const root of repo.getRootTopics()) {
+        const verses = repo.getRecursiveVersesForTopic(root.topicId!);
+        const keys = verses.map(v => `${v.verseIdStart}-${v.verseIdEnd}`);
+        expect(new Set(keys).size).toBe(keys.length);
+        expect(repo.getRecursiveReferenceCount(root.topicId!)).toBe(keys.length);
+      }
+    });
+  });
+
   // ========================================================================
   // getRecursiveVerseCount
   // ========================================================================

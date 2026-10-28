@@ -1,4 +1,5 @@
-import { test, expect, type APIRequestContext, type Page } from '@playwright/test';
+import { test, expect } from '../fixtures';
+import type { APIRequestContext, Page } from '../fixtures';
 
 /**
  * Phone follow-along mode (`/present/f/<code>`): the ordinary reading app,

@@ -24,6 +24,9 @@ const BUILD_BUDGET_MS = 15 * 60_000;
 interface StatusRow { name: string; state: string }
 
 export default async function globalSetup(): Promise<void> {
+  // For a dataset of modules that carry their own FTS tables (a development `data/` dir), where this
+  // wait for sidecar indexes would only ever time out. Set E2E_SKIP_KEYWORD_INDEX_SETUP=1.
+  if (process.env.E2E_SKIP_KEYWORD_INDEX_SETUP === '1') return;
   if (!fs.existsSync(MAIN_JS_PATH)) return; // the fixture reports the missing build itself
   fs.mkdirSync(E2E_KEYWORD_INDEX_DIR, { recursive: true });
   const userDataDir = path.join(os.tmpdir(), 'bible-e2e', 'keyword-index-setup');

@@ -5,7 +5,8 @@
  * default config) next to a local bibsearch stub, so no live service is needed.
  * Chrome desktop only; the consent logic does not depend on the layout.
  */
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect } from '../fixtures';
+import type { Page } from '../fixtures';
 import { spawn, type ChildProcess } from 'node:child_process';
 import { mkdirSync, readdirSync, rmSync, symlinkSync, writeFileSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
