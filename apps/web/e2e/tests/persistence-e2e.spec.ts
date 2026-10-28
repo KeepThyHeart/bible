@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../fixtures';
 import { desktopOnly, navigateTo, waitForVerses, getActiveTabTitle } from '../helpers';
 
 test.describe('Session Persistence', () => {

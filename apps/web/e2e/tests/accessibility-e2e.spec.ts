@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../fixtures';
 import { desktopOnly, navigateTo, waitForVerses } from '../helpers';
 
 test.describe('Accessibility Basics', () => {

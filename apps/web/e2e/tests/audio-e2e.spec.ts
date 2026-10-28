@@ -9,7 +9,8 @@
  *
  * The fixture plays half a second per verse, so the highlight is seen moving.
  */
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect } from '../fixtures';
+import type { Page } from '../fixtures';
 import { FIXTURE_VERSES } from '../audioFixture';
 import { desktopOnly, mobileOnly, waitForVerses } from '../helpers';
 

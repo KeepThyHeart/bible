@@ -11,7 +11,7 @@
  * it passed against the bug. The version below picks its chapters so the offset
  * survives the navigation unless something deliberately resets it.
  */
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../fixtures';
 
 test.describe('Typed passage ranges', () => {
   test.beforeEach(async ({ page }, testInfo) => {

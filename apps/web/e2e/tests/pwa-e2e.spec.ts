@@ -8,7 +8,8 @@
  * Two servers (see playwright.config.ts): 3101 has `features.pwa` on, 3100 has
  * it off. They are separate origins, so no worker leaks between them.
  */
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect } from '../fixtures';
+import type { Page } from '../fixtures';
 import { PLAIN_URL, PWA_URL } from '../ports';
 
 
