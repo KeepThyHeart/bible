@@ -30,7 +30,8 @@ type ElectronFixtures = {
 };
 
 // Path to the built Electron main process
-const MAIN_JS_PATH = path.resolve(__dirname, '../../out/main/index.js');
+// `E2E_MAIN_JS` runs a build made in another folder (for example, to leave `out/` alone).
+const MAIN_JS_PATH = process.env.E2E_MAIN_JS ?? path.resolve(__dirname, '../../out/main/index.js');
 
 /**
  * Extended test with Electron fixtures
@@ -158,7 +159,7 @@ export const test = base.extend<ElectronFixtures>({
  * Tolerant of absence: a spec that seeds `bible.onboarding.languageChosen`, or
  * a future build that drops the dialog, must not start failing here.
  */
-async function dismissFirstRunDialog(window: Page): Promise<void> {
+export async function dismissFirstRunDialog(window: Page): Promise<void> {
   const dialog = window.locator('[data-testid="first-run-language-dialog"]');
 
   const appeared = await dialog

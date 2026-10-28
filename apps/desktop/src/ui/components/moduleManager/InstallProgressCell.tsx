@@ -177,9 +177,9 @@ export const InstallProgressCell: React.FC<InstallProgressCellProps> = ({
   }
 
   if (failed) {
-    const short = job.error && job.error.length > 40 ? `${job.error.slice(0, 40)}…` : (job.error ?? '');
+    const short = job.error ?? '';
     return (
-      <span className="inline-flex items-center gap-2" data-testid={`module-row-install-${abbreviation}-failed`}>
+      <span className="inline-flex min-w-0 items-center gap-2" data-testid={`module-row-install-${abbreviation}-failed`}>
         <button
           ref={anchorRef}
           type="button"
@@ -189,7 +189,7 @@ export const InstallProgressCell: React.FC<InstallProgressCellProps> = ({
           }}
           title={job.error}
           aria-label={td('installProgress.failedAria', 'Install of {name} failed: {error}', { name, error: job.error ?? '' })}
-          className="max-w-[16rem] truncate text-xs text-danger hover:underline"
+          className="max-w-[9rem] truncate text-xs text-danger hover:underline"
         >
           ✕ {short || td('installProgress.failed', 'Install failed')}
         </button>
@@ -200,7 +200,7 @@ export const InstallProgressCell: React.FC<InstallProgressCellProps> = ({
             stop(e);
             onRetry(job.jobId);
           }}
-          className="rounded bg-accent px-2 py-0.5 text-xs font-medium text-text-on-accent transition-colors hover:bg-accent-hover"
+          className="shrink-0 rounded bg-accent px-2 py-0.5 text-xs font-medium text-text-on-accent transition-colors hover:bg-accent-hover"
         >
           {td('installProgress.retry', 'Retry')}
         </button>

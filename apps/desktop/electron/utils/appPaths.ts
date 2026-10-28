@@ -4,13 +4,25 @@ import { existsSync, mkdirSync, copyFileSync } from 'fs';
 import log from 'electron-log';
 
 /**
+ * The data directory of an unpackaged app: `apps/desktop/data/`, or the folder
+ * `BIBLE_DESKTOP_DATA_DIR` names. The override exists so a test or demo that
+ * installs modules writes into a scratch folder instead of the developer's own
+ * `data/` (their `main.db` and installed modules). It is never read by a
+ * packaged app.
+ */
+function devDataDir(): string {
+  const override = process.env.BIBLE_DESKTOP_DATA_DIR;
+  return override && override.trim() ? override : join(__dirname, '..', '..', 'data');
+}
+
+/**
  * Returns the path to the bundled data directory.
  * In development, this is apps/desktop/data/.
  * In production, data is in extraResources at resources/data/.
  */
 export function getDataPath(): string {
   if (process.env.NODE_ENV === 'development' || !app.isPackaged) {
-    return join(__dirname, '..', '..', 'data');
+    return devDataDir();
   }
   return join(process.resourcesPath, 'data');
 }
@@ -59,7 +71,7 @@ export function resolveAppIconPath(): string | undefined {
  */
 export function getUserDataPath(): string {
   if (process.env.NODE_ENV === 'development' || !app.isPackaged) {
-    return join(__dirname, '..', '..', 'data');
+    return devDataDir();
   }
   return join(app.getPath('userData'), 'data');
 }
