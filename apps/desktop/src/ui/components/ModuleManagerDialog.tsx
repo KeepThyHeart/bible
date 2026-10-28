@@ -7,11 +7,10 @@ import { useNetworkStore } from '../stores/useNetworkStore';
 import { moduleAPI } from '../stores/module/moduleAPI';
 import { mergeAndSortModules, getTabTypes, type ModuleRow } from '../stores/module/moduleRows';
 import ModuleTable from './moduleManager/ModuleTable';
-import { findRowDownload } from './moduleManager/ModuleRow';
+import { findRowDownload, findRowInstallJob } from './moduleManager/ModuleRow';
 import ModuleDetailsPanel from './moduleManager/ModuleDetailsPanel';
 import { MODULE_TYPE_LABELS, useTd } from './moduleManager/moduleManagerI18n';
 import { TabStrip } from './shared/TabStrip';
-import DownloadProgressPanel from './DownloadProgressPanel';
 import RepositorySettings from './RepositorySettings';
 import FeaturePackPanel from './FeaturePackPanel';
 import { useCatalogRefresh } from './moduleManager/useCatalogRefresh';
@@ -224,11 +223,18 @@ const ModuleManagerDialog: React.FC<ModuleManagerDialogProps> = ({ onClose, init
     error,
     errorCode,
     activeDownloads,
+    installJobs,
     repositories,
     initialize,
     setActiveTypeTab,
     setInstallFilter,
-    installModule,
+    startInstall,
+    cancelInstall,
+    retryInstall,
+    dismissInstall,
+    refreshInstallJobs,
+    stopInstallPolling,
+    startInstallPolling,
     updateModule,
     uninstallModule,
     refreshAllCatalogs,
@@ -297,6 +303,15 @@ const ModuleManagerDialog: React.FC<ModuleManagerDialogProps> = ({ onClose, init
     };
   }, [stopDownloadPolling]);
 
+  // Installs run in the background and outlive this dialog. On open, pick up any
+  // that are still going (or finished while it was closed); stop polling on close.
+  useEffect(() => {
+    void refreshInstallJobs().then(() => {
+      if (useModuleStore.getState().installJobs.length > 0) startInstallPolling();
+    });
+    return () => stopInstallPolling();
+  }, [refreshInstallJobs, startInstallPolling, stopInstallPolling]);
+
   // Handle keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -358,7 +373,8 @@ const ModuleManagerDialog: React.FC<ModuleManagerDialogProps> = ({ onClose, init
   const handleInstallRow = (row: ModuleRow) => {
     const catalogModule = row.catalogModule;
     if (!catalogModule) return;
-    void runRowAction(row, () => installModule(catalogModule.module_id));
+    // Queued in the background: returns at once, progress shows in the row.
+    void startInstall(catalogModule.module_id);
   };
 
   const handleUpdateRow = (row: ModuleRow) => {
@@ -935,6 +951,10 @@ const ModuleManagerDialog: React.FC<ModuleManagerDialogProps> = ({ onClose, init
                 offline={!allowWebRequests}
                 busyAbbreviations={busyAbbreviations}
                 activeDownloads={activeDownloads}
+                installJobs={installJobs}
+                onCancelInstall={(id) => void cancelInstall(id)}
+                onRetryInstall={(id) => void retryInstall(id)}
+                onDismissInstall={(id) => void dismissInstall(id)}
                 ariaLabel={typeLabel(activeTypeTab)}
                 onSelect={(row) => setSelectedAbbreviation(row.abbreviation)}
                 onInstall={handleInstallRow}
@@ -948,6 +968,7 @@ const ModuleManagerDialog: React.FC<ModuleManagerDialogProps> = ({ onClose, init
                 key={selectedRow.abbreviation}
                 row={selectedRow}
                 activeDownload={findRowDownload(selectedRow, activeDownloads)}
+                installActive={['queued', 'downloading', 'verifying', 'installing'].includes(findRowInstallJob(selectedRow, installJobs)?.stage ?? '')}
                 isOffline={!allowWebRequests}
                 onClose={() => setSelectedAbbreviation(null)}
                 onInstall={handleInstallRow}
@@ -982,9 +1003,6 @@ const ModuleManagerDialog: React.FC<ModuleManagerDialogProps> = ({ onClose, init
           onConfirm={confirmUninstall}
           onCancel={() => setUninstallRequest(null)}
         />
-
-        {/* Downloads Panel (if active downloads exist) */}
-        {activeDownloads.length > 0 && <DownloadProgressPanel />}
 
         {/* Footer */}
         <div className="px-6 py-4 border-t border-border bg-surface-secondary">

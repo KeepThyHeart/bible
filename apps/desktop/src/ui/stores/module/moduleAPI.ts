@@ -10,7 +10,9 @@ import { unwrap } from '../../services/ipcResult';
 import { searchAPI } from '../../services/electronAPI';
 import type { KeywordIndexStatusDto } from '../../../../electron/services/KeywordIndexService';
 
-export type { KeywordIndexStatusDto };
+import type { InstallJob } from '../../../../electron/services/ModuleInstallManager';
+
+export type { KeywordIndexStatusDto, InstallJob };
 
 export const moduleAPI = {
   async init() {
@@ -27,6 +29,21 @@ export const moduleAPI = {
   },
   async installModule(moduleId: string, catalogId?: number) {
     return unwrap(requireElectronAPI().moduleManager.installModule(moduleId, catalogId));
+  },
+  async startInstall(moduleId: string, catalogId?: number): Promise<InstallJob> {
+    return unwrap(requireElectronAPI().moduleManager.startInstall(moduleId, catalogId));
+  },
+  async getInstallJobs(): Promise<InstallJob[]> {
+    return unwrap(requireElectronAPI().moduleManager.getInstallJobs());
+  },
+  async cancelInstall(jobId: number): Promise<boolean> {
+    return unwrap(requireElectronAPI().moduleManager.cancelInstall(jobId));
+  },
+  async retryInstall(jobId: number): Promise<InstallJob | null> {
+    return unwrap(requireElectronAPI().moduleManager.retryInstall(jobId));
+  },
+  async dismissInstall(jobId: number): Promise<void> {
+    return unwrap(requireElectronAPI().moduleManager.dismissInstall(jobId));
   },
   async installFromFile() {
     return unwrap(requireElectronAPI().moduleManager.installFromFile());

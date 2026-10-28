@@ -112,6 +112,7 @@ import type { InstalledSlice } from './slices/installedSlice';
 import type { DetailsSlice } from './slices/detailsSlice';
 import type { DownloadSlice } from './slices/downloadSlice';
 import type { RepositorySlice } from './slices/repositorySlice';
+import type { InstallJobsSlice } from './slices/installJobsSlice';
 
 export type ModuleState =
   LifecycleSlice
@@ -119,4 +120,5 @@ export type ModuleState =
   & InstalledSlice
   & DetailsSlice
   & DownloadSlice
-  & RepositorySlice;
+  & RepositorySlice
+  & InstallJobsSlice;

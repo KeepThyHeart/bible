@@ -42,6 +42,7 @@ function typedInvoke<T = any>(channel: IpcChannel, ...args: unknown[]): Promise<
   return ipcRenderer.invoke(channel, ...args) as Promise<T>;
 }
 import type { Result } from './ipc/result';
+import type { InstallJob } from './services/ModuleInstallManager';
 
 import type { BackupSummary, BackupInspection, BackupApplyResult } from './ipc/backupTypes';
 import type { UpdateCheckInfo, UpdateCheckOutcome } from './services/UpdateCheckService';
@@ -487,6 +488,12 @@ export interface ElectronAPI {
     getKeywordIndexStatus: (moduleId: number) => Promise<Result<KeywordIndexStatusDto>>;
     rebuildKeywordIndex: (moduleId: number) => Promise<Result<KeywordIndexStatusDto>>;
     deleteKeywordIndex: (moduleId: number) => Promise<Result<KeywordIndexStatusDto>>;
+    // Background installs (see ModuleInstallManager): queue one, poll the jobs, cancel/retry/dismiss.
+    startInstall: (moduleId: string, catalogId?: number) => Promise<Result<InstallJob>>;
+    getInstallJobs: () => Promise<Result<InstallJob[]>>;
+    cancelInstall: (jobId: number) => Promise<Result<boolean>>;
+    retryInstall: (jobId: number) => Promise<Result<InstallJob | null>>;
+    dismissInstall: (jobId: number) => Promise<Result<void>>;
     // Download management
     getDownloadProgress: (queueId: number) => Promise<Result<any>>;
     getActiveDownloads: () => Promise<Result<any[]>>;
@@ -1152,6 +1159,12 @@ const electronAPI: ElectronAPI = {
       typedInvoke('module:rebuild-keyword-index', moduleId),
     deleteKeywordIndex: (moduleId: number) =>
       typedInvoke('module:delete-keyword-index', moduleId),
+    startInstall: (moduleId: string, catalogId?: number) =>
+      typedInvoke('module:install-start', moduleId, catalogId),
+    getInstallJobs: () => typedInvoke('module:install-jobs'),
+    cancelInstall: (jobId: number) => typedInvoke('module:install-cancel', jobId),
+    retryInstall: (jobId: number) => typedInvoke('module:install-retry', jobId),
+    dismissInstall: (jobId: number) => typedInvoke('module:install-dismiss', jobId),
     // Download management
     getDownloadProgress: (queueId: number) => typedInvoke('download:get-progress', queueId),
     getActiveDownloads: () => typedInvoke('download:get-active'),

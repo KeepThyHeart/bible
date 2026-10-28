@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { mergeAndSortModules, getTabTypes } from './moduleRows';
+import { mergeAndSortModules, getTabTypes, isRecommendedModule } from './moduleRows';
 import type { CatalogModule, ModuleMetadata } from './types';
 
 describe('moduleRows', () => {
@@ -341,6 +341,23 @@ describe('moduleRows', () => {
         'cross_reference',
         'tag_graph'
       ]);
+    });
+  });
+
+  describe('isRecommendedModule', () => {
+    it('honours the catalog flag', () => {
+      expect(isRecommendedModule(catalogModule({ recommended: true }))).toBe(true);
+      expect(isRecommendedModule(catalogModule({ recommended: false }))).toBe(false);
+      expect(isRecommendedModule(undefined)).toBe(false);
+    });
+
+    it('always recommends the combined commentary summary (SYNTHESIS), listed first among commentaries', () => {
+      const synthesis = catalogModule({
+        module_id: 'syn', module_type: 'commentary', abbreviation: 'SYNTHESIS', name: 'Combined Summary', recommended: false,
+      });
+      const other = catalogModule({ module_id: 'x', module_type: 'commentary', abbreviation: 'ABC', name: 'A Commentary' });
+      expect(isRecommendedModule(synthesis)).toBe(true);
+      expect(mergeAndSortModules([other, synthesis], []).map((r) => r.abbreviation)).toEqual(['SYNTHESIS', 'ABC']);
     });
   });
 });

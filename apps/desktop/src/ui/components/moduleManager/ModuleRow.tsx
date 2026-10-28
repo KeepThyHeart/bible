@@ -1,8 +1,10 @@
 import React from 'react';
-import type { ModuleRow } from '../../stores/module/moduleRows';
+import { isRecommendedModule, type ModuleRow } from '../../stores/module/moduleRows';
 import type { DownloadProgress } from '../../stores/module/types';
 import { useTd } from './moduleManagerI18n';
 import { ProgressRing } from '../shared/ProgressRing';
+import type { InstallJob } from '../../stores/module/moduleAPI';
+import { InstallProgressCell } from './InstallProgressCell';
 
 /** Human-readable byte size ("12.5 MB"); an unknown/zero size renders as an em dash. */
 export function formatFileSize(bytes: number | undefined): string {
@@ -18,6 +20,12 @@ export function formatFileSize(bytes: number | undefined): string {
  * keyed by the catalog module id, which for an installed module being updated
  * differs from its numeric installed id - so both are tried.
  */
+export function findRowInstallJob(row: ModuleRow, jobs: InstallJob[]): InstallJob | undefined {
+  const ids = new Set<string>();
+  if (row.catalogModule) ids.add(String(row.catalogModule.module_id));
+  return jobs.find((j) => ids.has(String(j.moduleId)));
+}
+
 export function findRowDownload(row: ModuleRow, downloads: DownloadProgress[]): DownloadProgress | undefined {
   const ids = new Set<string>([String(row.module_id)]);
   if (row.catalogModule) ids.add(String(row.catalogModule.module_id));
@@ -40,6 +48,11 @@ export interface ModuleTableRowProps {
   offline?: boolean;
   /** Active downloads for this row, if any. */
   activeDownload?: DownloadProgress;
+  /** The background install job for this row, if any (queued, running or failed). */
+  installJob?: InstallJob;
+  onCancelInstall?: (jobId: number) => void;
+  onRetryInstall?: (jobId: number) => void;
+  onDismissInstall?: (jobId: number) => void;
   onSelect: (row: ModuleRow) => void;
   onInstall: (row: ModuleRow) => void;
   onUpdate: (row: ModuleRow) => void;
@@ -57,6 +70,10 @@ export const ModuleTableRow: React.FC<ModuleTableRowProps> = ({
   busy = false,
   offline = false,
   activeDownload,
+  installJob,
+  onCancelInstall,
+  onRetryInstall,
+  onDismissInstall,
   onSelect,
   onInstall,
   onUpdate,
@@ -74,7 +91,7 @@ export const ModuleTableRow: React.FC<ModuleTableRowProps> = ({
 
   const stop = (e: React.SyntheticEvent) => e.stopPropagation();
   // A download in progress also disables the action button
-  const hasActiveDownload = activeDownload && activeDownload.status !== 'completed';
+  const hasActiveDownload = (activeDownload && activeDownload.status !== 'completed') || !!installJob;
   const actionDisabled = busy || offline || hasActiveDownload;
   const actionTitle = offline ? td('moduleTable.offlineHint', 'Network access is off') : undefined;
 
@@ -95,7 +112,7 @@ export const ModuleTableRow: React.FC<ModuleTableRowProps> = ({
         >
           <span className="block text-sm font-medium text-text-heading break-words">
             {row.name}
-            {row.catalogModule?.recommended && (
+            {isRecommendedModule(row.catalogModule) && (
               <span className="ms-2 align-middle text-xs px-1.5 py-0.5 bg-success-soft text-success-text rounded">
                 {td('moduleCard.recommended', 'Recommended')}
               </span>
@@ -115,7 +132,17 @@ export const ModuleTableRow: React.FC<ModuleTableRowProps> = ({
         <div className="flex items-center justify-end gap-2">
           {/* Per-row download progress ring */}
           <span data-testid={`module-row-progress-${abbrev}`} className="inline-flex items-center">
-            {activeDownload && (
+            {installJob && (
+              <InstallProgressCell
+                job={installJob}
+                name={row.name}
+                abbreviation={abbrev}
+                onCancel={(id) => onCancelInstall?.(id)}
+                onRetry={(id) => onRetryInstall?.(id)}
+                onDismiss={(id) => onDismissInstall?.(id)}
+              />
+            )}
+            {!installJob && activeDownload && (
               <>
                 {activeDownload.status === 'failed' ? (
                   <span

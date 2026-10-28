@@ -17,6 +17,7 @@ import {
 import type { StarterPack, OfferedStarterPack, CatalogModule } from '@bible/core';
 import { DownloadService } from '../services/DownloadService';
 import { validateString, validatePositiveInt } from '../utils/validation';
+import { ModuleInstallManager, type InstallJob } from '../services/ModuleInstallManager';
 import { InstallationService } from '../services/InstallationService';
 import { KeywordIndexService, type KeywordIndexStatusDto } from '../services/KeywordIndexService';
 import { ModuleCatalogService, type VouchedKeyApprovalRequest } from '../services/ModuleCatalogService';
@@ -108,6 +109,8 @@ let installationService: InstallationService | null = null;
 // the IPC handlers for it are module-scoped queries with no controller-level
 // state, so they talk to the service directly.
 let keywordIndexService: KeywordIndexService | null = null;
+// Background install queue behind `module:install-start` and friends.
+const installManager = new ModuleInstallManager(() => requireModuleController());
 // Held separately from `catalogController`: the starter-pack queries are
 // catalog-document reads with no controller-level state, so they talk to the
 // service directly rather than widening the controller's surface.
@@ -611,6 +614,40 @@ export function registerModuleHandlers(_ipc: IpcMain): void {
       return { moduleId: result.moduleId, moduleName: result.moduleName };
     }
   );
+
+  // Background installs. `module:install-start` queues the install and returns
+  // at once with the job; the Module Manager polls `module:install-jobs` for
+  // stage/percent/bytes and can cancel, retry or dismiss. See ModuleInstallManager.
+  ipcHandler<[string, number | undefined], InstallJob>(
+    'module:install-start',
+    (moduleId, catalogId) => {
+      validateString(moduleId, 'moduleId', 200);
+      if (catalogId !== undefined) validatePositiveInt(catalogId, 'catalogId');
+      initializeModuleManager();
+      return installManager.enqueue(moduleId, catalogId);
+    }
+  );
+
+  ipcHandler<[], InstallJob[]>('module:install-jobs', () => {
+    initializeModuleManager();
+    return installManager.list();
+  });
+
+  ipcHandler<[number], boolean>('module:install-cancel', (jobId) => {
+    validatePositiveInt(jobId, 'jobId');
+    return installManager.cancel(jobId);
+  });
+
+  ipcHandler<[number], InstallJob | null>('module:install-retry', (jobId) => {
+    validatePositiveInt(jobId, 'jobId');
+    initializeModuleManager();
+    return installManager.retry(jobId) ?? null;
+  });
+
+  ipcHandler<[number], void>('module:install-dismiss', (jobId) => {
+    validatePositiveInt(jobId, 'jobId');
+    installManager.dismiss(jobId);
+  });
 
   // Install module(s) from file (opens file dialog). Accepts multiple plain
   // module files at once, or a single pack archive (.zip/.biblepack)

@@ -31,6 +31,8 @@ interface DownloadState {
   lastProgressTime: number;
   request?: ClientRequest;
   writeStream?: fs.WriteStream;
+  /** Settles the promise `startDownload` returned, so a cancel never leaves its caller hanging. */
+  rejectPending?: (error: Error) => void;
 }
 
 /**
@@ -152,6 +154,7 @@ export class DownloadService implements IDownloadService {
     }
 
     return new Promise<string>((resolve, reject) => {
+      state.rejectPending = reject;
       // Check for successful response
       if (status !== 200 && status !== 206) {
         // 416: the partial is longer than (or unrelated to) the file; drop it so a retry starts clean.
@@ -245,7 +248,18 @@ export class DownloadService implements IDownloadService {
         // buffer absorb bursts (the network is the bottleneck for module
         // downloads). The prior implementation only *counted* bytes and never
         // wrote them, so every completed download was a zero-byte file.
-        writeStream.write(chunk);
+        // Backpressure: a module can be hundreds of MB, and a slow disk (or
+        // several downloads at once) would otherwise queue every chunk in
+        // memory until the process runs out. Pause the response while the
+        // write buffer is full and resume when it drains.
+        const flushed = writeStream.write(chunk);
+        if (!flushed) {
+          const pausable = response as unknown as { pause?: () => void; resume?: () => void };
+          if (typeof pausable.pause === 'function' && typeof pausable.resume === 'function') {
+            pausable.pause();
+            writeStream.once('drain', () => pausable.resume?.());
+          }
+        }
 
         state.bytesDownloaded += chunk.length;
         bytesInInterval += chunk.length;
@@ -400,11 +414,23 @@ export class DownloadService implements IDownloadService {
       }
       this.downloads.delete(queueId);
 
-      // Delete partial file and its validator
-      if (fs.existsSync(state.destination)) {
-        fs.unlinkSync(state.destination);
+      // Delete partial file and its validator. Best effort: a handle that is
+      // still closing (Windows) must not turn a cancel into a thrown error.
+      const destination = state.destination;
+      const discard = (): void => {
+        try {
+          fs.rmSync(destination, { force: true });
+        } catch {
+          /* ignore */
+        }
+        this.removeEtag(destination);
+      };
+      if (state.writeStream && !state.writeStream.closed) {
+        state.writeStream.once('close', discard);
+      } else {
+        discard();
       }
-      this.removeEtag(state.destination);
+      state.rejectPending?.(new Error('Download cancelled'));
     }
   }
 
