@@ -20,7 +20,7 @@ export function SiteBanners() {
           <div key={b.id} class="site-banner" role="status" style={bg ? { background: bg, color: fg } : b.textColor ? { color: b.textColor } : undefined}>
             <span class="site-banner__message">{pickText(b.message, lang)}</span>
             {b.link && (
-              <a class="site-banner__link" href={b.link.url} target="_blank" rel="noopener noreferrer" style={{ color: 'inherit' }}>
+              <a class="site-banner__link" href={b.link.url} target={b.link.url.startsWith('/') ? undefined : '_blank'} rel="noopener noreferrer" style={{ color: 'inherit' }}>
                 {pickText(b.link.label, lang)}
               </a>
             )}

@@ -220,6 +220,7 @@ export class SiteConfig {
   private readonly raw: RawSiteConfig;
   private readonly dataDir: string;
   private _flags: FeatureFlags | undefined;
+  private _banners: SiteBanner[] | undefined;
   private _featureModules: Record<string, boolean> | undefined;
   private readonly configSource: 'unified' | 'legacy';
   private readonly configPath: string;
@@ -356,6 +357,11 @@ export class SiteConfig {
    * http(s) or a site-relative path, is dropped. Text is shown as plain text only.
    */
   get banners(): SiteBanner[] {
+    if (this._banners) return this._banners;
+    return (this._banners = this.parseBanners());
+  }
+
+  private parseBanners(): SiteBanner[] {
     const raw = this.raw.banners;
     if (raw === undefined) return [];
     if (!Array.isArray(raw)) {
@@ -376,9 +382,10 @@ export class SiteConfig {
       if (color) banner.color = color;
       else if (o.color !== undefined) logger.warn(`site-config.json banners[${i}].color is not a plain CSS color; ignoring it.`);
       if (textColor) banner.textColor = textColor;
+      else if (o.textColor !== undefined) logger.warn(`site-config.json banners[${i}].textColor is not a plain CSS color; ignoring it.`);
       const l = o.link as Record<string, unknown> | undefined;
       const label = cleanText(l?.label);
-      if (l && typeof l.url === 'string' && label && /^(https?:\/\/|\/(?!\/))/i.test(l.url.trim())) {
+      if (l && typeof l.url === 'string' && label && /^(https?:\/\/|\/(?![\/\\]))/i.test(l.url.trim())) {
         banner.link = { url: l.url.trim(), label };
       } else if (l !== undefined) {
         logger.warn(`site-config.json banners[${i}].link needs an http(s) or site-relative "url" and a "label"; ignoring it.`);

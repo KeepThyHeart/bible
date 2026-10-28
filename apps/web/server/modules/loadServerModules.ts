@@ -24,8 +24,7 @@ export interface LoadServerModulesOptions {
   readonly overrides?: () => Readonly<Record<string, boolean>>;
   /**
    * Site config `featureModules`, honoured in every NODE_ENV. Only `false`
-   * entries count: `true` would beat the module's flag and skip its own
-   * requirement check in the host, so it is dropped (a module that is on by
+   * entries count: `true` would beat the module's flag in the host, so it is dropped (a module that is on by
    * default stays on, one behind a flag stays behind it). The dev override
    * still wins over these.
    */

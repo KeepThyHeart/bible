@@ -180,7 +180,7 @@ QA site, everything on (no `featureModules` needed; flagged modules need their f
 }
 ```
 
-`ui.disabledPanes` is accepted but does nothing; use `featureModules` instead.
+`downloads` controls the downloads module, not the `features.offlineDownloads` flag. `ui.disabledPanes` is accepted but does nothing; use `featureModules` instead.
 
 #### Site banners (`banners`)
 
@@ -197,7 +197,7 @@ An optional array of strips shown at the top of the app, e.g. a beta notice:
 ```
 
 - `message` (and the link `label`) is a string or a language-code map; the UI language picks the entry, falling back to `en` and then the first one. Text is plain: HTML is shown literally, never rendered.
-- `color` is the background (hex, `rgb()`, `hsl()` or a color name); `textColor` overrides the automatic black/white. `dismissible` (default false) adds a close button; the dismissal is remembered in that browser by `id` (change the id to show it again). `link.url` must be http(s) or start with `/`.
+- `color` is the background (hex, `rgb()`, `hsl()` or a color name); the text is automatically black or white for hex and `rgb()` colors, so set `textColor` with a named or `hsl()` color. `textColor` always overrides. `dismissible` (default false) adds a close button; the dismissal is remembered in that browser by `id` (change the id to show it again). `link.url` must be http(s) or start with `/`.
 - Entries without an `id` or `message` are skipped with a warning. Changes need a server restart.
 
 `docsUrl` is the documentation website the Help dialog links to. It reaches the
