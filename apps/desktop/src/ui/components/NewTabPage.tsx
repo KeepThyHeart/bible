@@ -89,7 +89,8 @@ const NewTabPage: React.FC<NewTabPageProps> = ({ panelId, dockviewPanelApi }) =>
   // A pane-type tile whose app has its own Apps entry (Study, Quiz, Reading
   // plans) is dropped too: those live under Apps only (task 0200). Their
   // keywords still open the pane from the search box.
-  const appIdSet = React.useMemo(() => new Set(appItems.map((a) => a.id)), [appItems]);
+  // Only when the Apps section is shown (more than one app); otherwise the tile stays.
+  const appIdSet = React.useMemo(() => new Set(hasMultipleApps(appItems) ? appItems.map((a) => a.id) : []), [appItems]);
   const keywordTiles = React.useMemo(() => tiles.filter((tile) => !('appId' in tile.target)), [tiles]);
   const tabTiles = React.useMemo(
     () => keywordTiles.filter((tile) => !('panelType' in tile.target && appIdSet.has(tile.target.panelType))),
