@@ -78,6 +78,18 @@ describe('InstallationService - verifying a download before opening it', () => {
     expect(verifyModule).toHaveBeenCalledWith(dbPath);
   });
 
+  it('reports the verifying stage to the caller before it opens the module', async () => {
+    const module = Buffer.from('bytes the catalog signed');
+    fs.writeFileSync(gzPath, gzipSync(module));
+    const stages: string[] = [];
+
+    await service.installModule(gzPath, MODULE_INFO, { sha256: sha256(module), maxBytes: 1_000 }, {
+      onStage: (stage) => stages.push(stage),
+    });
+
+    expect(stages).toEqual(['verifying']);
+  });
+
   it('never deletes a file the user supplied, even one that will not unpack', async () => {
     fs.writeFileSync(gzPath, 'this is not gzip');
 

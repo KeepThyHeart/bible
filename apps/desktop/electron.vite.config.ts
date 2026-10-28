@@ -270,7 +270,10 @@ export default defineConfig({
           // Worker thread that runs Argon2id for backups, so the ~0.5 s key
           // derivation does not block the main process. Emitted next to
           // `out/main/index.js`, where `workerKdf.ts` looks for it.
-          'backup-kdf-worker': resolve(__dirname, 'electron/services/backup/kdfWorker.ts')
+          'backup-kdf-worker': resolve(__dirname, 'electron/services/backup/kdfWorker.ts'),
+          // Worker thread that runs the module conformance gate during an install, so
+          // scanning a large module cannot freeze the app. See `runValidationInWorker.ts`.
+          'module-install-worker': resolve(__dirname, 'electron/services/moduleInstallWorker.ts')
         },
         external: ['better-sqlite3-multiple-ciphers', '@huggingface/transformers', 'onnxruntime-common', 'onnxruntime-node']
       }

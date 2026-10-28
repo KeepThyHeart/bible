@@ -1,5 +1,16 @@
 import type { ModuleType, ModuleMetadata, CatalogModule } from './types';
 import { MODULE_TYPES } from '@bible/core';
+import { isDigestModule } from '@bible/core/browser';
+
+/**
+ * Whether a catalog entry is shown as Recommended: the catalog's own flag, plus
+ * the combined commentary summary (the SYNTHESIS digest), which the app always
+ * recommends - it is the one module that ties the commentaries together - even
+ * if the published catalog entry does not carry the flag.
+ */
+export function isRecommendedModule(module: Pick<CatalogModule, 'recommended' | 'abbreviation'> | undefined): boolean {
+  return !!module && (module.recommended || isDigestModule(module.abbreviation));
+}
 
 /**
  * A merged view of a module: catalog and/or installed, with computed flags.
@@ -98,8 +109,8 @@ export function mergeAndSortModules(
     }
 
     // Within the same type, sort by recommended (true first), then alphabetically by name
-    const recommendedA = a.catalogModule?.recommended ?? false;
-    const recommendedB = b.catalogModule?.recommended ?? false;
+    const recommendedA = isRecommendedModule(a.catalogModule);
+    const recommendedB = isRecommendedModule(b.catalogModule);
 
     if (recommendedA !== recommendedB) {
       return recommendedA ? -1 : 1;

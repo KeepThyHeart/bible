@@ -6,6 +6,7 @@ import { createInstalledSlice } from './slices/installedSlice';
 import { createDetailsSlice } from './slices/detailsSlice';
 import { createDownloadSlice } from './slices/downloadSlice';
 import { createRepositorySlice } from './slices/repositorySlice';
+import { createInstallJobsSlice } from './slices/installJobsSlice';
 
 export const useModuleStore = create<ModuleState>()((...a) => ({
   ...createLifecycleSlice(...a),
@@ -14,4 +15,5 @@ export const useModuleStore = create<ModuleState>()((...a) => ({
   ...createDetailsSlice(...a),
   ...createDownloadSlice(...a),
   ...createRepositorySlice(...a),
+  ...createInstallJobsSlice(...a),
 }));
