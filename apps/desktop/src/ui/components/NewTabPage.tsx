@@ -83,6 +83,19 @@ const NewTabPage: React.FC<NewTabPageProps> = ({ panelId, dockviewPanelApi }) =>
       }),
     [contributedTiles, whenContext],
   );
+  // A tile that only switches to an app does not open a tab, so it does not
+  // belong in the tab grid. It goes to the Apps group below instead, or is
+  // dropped when the app already has its own entry there.
+  // A pane-type tile whose app has its own Apps entry (Study, Quiz, Reading
+  // plans) is dropped too: those live under Apps only (task 0200). Their
+  // keywords still open the pane from the search box.
+  // Only when the Apps section is shown (more than one app); otherwise the tile stays.
+  const appIdSet = React.useMemo(() => new Set(hasMultipleApps(appItems) ? appItems.map((a) => a.id) : []), [appItems]);
+  const keywordTiles = React.useMemo(() => tiles.filter((tile) => !('appId' in tile.target)), [tiles]);
+  const tabTiles = React.useMemo(
+    () => keywordTiles.filter((tile) => !('panelType' in tile.target && appIdSet.has(tile.target.panelType))),
+    [keywordTiles, appIdSet],
+  );
   const registeredPanelTypes = useRegistryItems(modulePoints.panelTypes);
   const keywordMap = React.useMemo(() => {
     // A tile-less keyword works only while the module that owns its panel type is on.
@@ -90,12 +103,27 @@ const NewTabPage: React.FC<NewTabPageProps> = ({ panelId, dockviewPanelApi }) =>
     for (const [kw, type] of Object.entries(TILELESS_KEYWORDS)) {
       if (registeredPanelTypes.some((p) => p.id === type)) map[kw] = type;
     }
-    for (const tile of tiles) {
+    for (const tile of keywordTiles) {
       if (!('panelType' in tile.target)) continue;
       for (const kw of tile.keywords ?? []) map[kw.toLowerCase()] = tile.target.panelType as PanelContentType;
     }
     return map;
-  }, [tiles, registeredPanelTypes]);
+  }, [keywordTiles, registeredPanelTypes]);
+  const appEntries = React.useMemo(() => {
+    const entries = toNavEntries(appItems, t, i18n);
+    const known = new Set(entries.map((e) => e.id));
+    for (const tile of tiles) {
+      if (!('appId' in tile.target) || known.has(tile.target.appId)) continue;
+      known.add(tile.target.appId);
+      const icon = chooserIconFor(tile.id as PanelContentType);
+      entries.push({
+        id: tile.target.appId,
+        title: 'key' in tile.title ? translateWithDefault(t, tile.title.key, tile.title.fallback) : i18n.resolve(tile.title.text),
+        icon: icon ? <span aria-hidden="true">{icon}</span> : null,
+      } as (typeof entries)[number]);
+    }
+    return entries;
+  }, [appItems, tiles, t, i18n]);
   const [query, setQuery] = useState('');
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -267,26 +295,6 @@ const NewTabPage: React.FC<NewTabPageProps> = ({ panelId, dockviewPanelApi }) =>
           </p>
         )}
 
-        {/* Apps (task 0080): their own section above the pane kinds, shown only
-            when there is more than one app to switch to. The pane-type grid
-            below stays exactly as it was. */}
-        {hasMultipleApps(appItems) && (
-          <section className="mt-lg" aria-labelledby={`newtab-apps-${panelId}`}>
-            <h3
-              id={`newtab-apps-${panelId}`}
-              className="text-xs font-semibold text-text-secondary uppercase tracking-wide mb-xs"
-            >
-              {translateWithDefault(t, 'apps.newTab.title', 'Apps')}
-            </h3>
-            <AppTileGrid
-              items={toNavEntries(appItems, t, i18n)}
-              onSelect={(id) => { void openApp(id); }}
-              onPrefetch={prefetchApp}
-              labels={{ gridLabel: translateWithDefault(t, 'apps.newTab.title', 'Apps') }}
-            />
-          </section>
-        )}
-
         {/* A fixed four-column grid, not a wrapping flex row. The tiles are
             deliberately uniform: the pane is a chooser, and ragged rows of
             label-width buttons made the eight kinds read as a sentence rather
@@ -294,7 +302,7 @@ const NewTabPage: React.FC<NewTabPageProps> = ({ panelId, dockviewPanelApi }) =>
             tile size, and each tile stacks its icon over its label so a narrow
             pane shrinks the tiles instead of reflowing the grid. */}
         <div className="grid grid-cols-4 gap-sm mt-lg">
-          {tiles.map((tile) => {
+          {tabTiles.map((tile) => {
             const type = ('panelType' in tile.target ? tile.target.panelType : tile.id) as PanelContentType;
             const label = 'key' in tile.title ? translateWithDefault(t, tile.title.key, tile.title.fallback) : i18n.resolve(tile.title.text);
             // Every tile carries a glyph. The tab strip's iconless rule is
@@ -356,6 +364,26 @@ const NewTabPage: React.FC<NewTabPageProps> = ({ panelId, dockviewPanelApi }) =>
               })}
             </div>
           </>
+        )}
+
+        {/* Apps (task 0080, moved below the tabs by task 0200): the pane kinds are
+            what a new tab is usually for, so they come first; the apps section follows,
+            shown only when there is more than one app to switch to. */}
+        {(hasMultipleApps(appItems) || appEntries.length > appItems.length) && (
+          <section className="mt-lg" aria-labelledby={`newtab-apps-${panelId}`}>
+            <h3
+              id={`newtab-apps-${panelId}`}
+              className="text-xs font-semibold text-text-secondary uppercase tracking-wide mb-xs"
+            >
+              {translateWithDefault(t, 'apps.newTab.title', 'Apps')}
+            </h3>
+            <AppTileGrid
+              items={appEntries}
+              onSelect={(id) => { void openApp(id); }}
+              onPrefetch={prefetchApp}
+              labels={{ gridLabel: translateWithDefault(t, 'apps.newTab.title', 'Apps') }}
+            />
+          </section>
         )}
 
         <p className="text-xs text-text-muted text-center mt-md leading-relaxed">

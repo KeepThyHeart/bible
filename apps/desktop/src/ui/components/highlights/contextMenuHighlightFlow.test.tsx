@@ -179,11 +179,14 @@ const Harness: React.FC = () => {
     const target = event.target as HTMLElement;
     captureWordSelection(target.closest('.pane-content-bible') ?? document);
 
+    // Like the real hook: remember the word right-clicked, when it was one.
+    const idx = target.classList?.contains('word') ? parseInt(target.getAttribute('data-word-index') ?? '', 10) : NaN;
     setContextMenu({
       visible: true,
       verses: [verse],
       position: { x: 10, y: 10 },
       isMultiple: false,
+      ...(Number.isNaN(idx) ? {} : { wordIndex: idx, wordText: target.textContent ?? undefined }),
     } as ContextMenuState);
   };
 
@@ -386,5 +389,26 @@ describe('right-click -> Highlight/Underline', () => {
     expect(sent[0].textStart).toBe(0);
     // Open-ended: to the end of the verse.
     expect(sent[0].textEnd).toBeUndefined();
+  });
+
+  /** Task 0200 r2: a plain right-click on a word with no selection still means the whole verse. */
+  it('marks the whole verse when right-clicking a word with nothing selected', async () => {
+    render(<Harness />);
+    window.getSelection()!.removeAllRanges();
+
+    const word = document.querySelector('[data-testid="verse-1"] .word[data-word-index="2"]') as HTMLElement;
+    expect(word).not.toBeNull();
+    await act(async () => { fireEvent.contextMenu(word); });
+    await act(async () => {
+      fireEvent.click(screen.getByText(enString('ui.verseContextMenu.highlightUnderline')));
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByLabelText('Highlight in Yellow'));
+    });
+
+    expect(sent).toHaveLength(1);
+    expect(sent[0].textStart).toBe(0);
+    expect(sent[0].textEnd).toBeUndefined();
+    expect(sent[0].verseIdEnd).toBeUndefined();
   });
 });

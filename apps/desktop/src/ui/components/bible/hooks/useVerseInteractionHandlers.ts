@@ -125,6 +125,7 @@ export function useVerseInteractionHandlers(args: {
 
     const hasSelection = hasTextSelection();
     let markupId: number | undefined;
+    let markupIds: number[] | undefined;
     // The clicked word, forwarded for keyword marks ("Mark all ...", task 0065).
     let wordIndex: number | undefined;
     let wordText: string | undefined;
@@ -138,7 +139,9 @@ export function useVerseInteractionHandlers(args: {
     if (target.classList?.contains('word') && target.hasAttribute('data-markup-id')) {
       const markupIdStr = target.getAttribute('data-markup-id');
       if (markupIdStr) {
-        markupId = parseInt(markupIdStr, 10);
+        markupIds = markupIdStr.split(',').map((id) => parseInt(id, 10)).filter((id) => !Number.isNaN(id));
+        markupId = markupIds[0];
+        if (markupIds.length === 0) markupIds = undefined;
       }
     }
 
@@ -190,6 +193,7 @@ export function useVerseInteractionHandlers(args: {
       position: { x: event.clientX, y: event.clientY },
       isMultiple,
       markupId,
+      markupIds,
       wordIndex,
       wordText
     });

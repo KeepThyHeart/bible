@@ -81,6 +81,7 @@ export interface BiblePaneOverlaysProps {
     position: { x: number; y: number };
     isMultiple: boolean;
     markupId?: number;
+    markupIds?: number[];
     wordIndex?: number;
     wordText?: string;
   } | null;
@@ -90,6 +91,7 @@ export interface BiblePaneOverlaysProps {
     position: { x: number; y: number };
     isMultiple: boolean;
     markupId?: number;
+    markupIds?: number[];
     wordIndex?: number;
     wordText?: string;
   } | null>>;
@@ -401,7 +403,10 @@ const BiblePaneOverlays: React.FC<BiblePaneOverlaysProps> = ({
           }}
           isMultipleVerses={contextMenu.isMultiple}
           markupId={contextMenu.markupId}
-          onRemoveHighlight={handleRemoveHighlight}
+          onRemoveHighlight={(id) => {
+            // Clear every mark on the clicked word, so "remove" really clears the spot.
+            for (const markId of contextMenu.markupIds ?? [id]) void handleRemoveHighlight(markId);
+          }}
           wordText={menuWord?.text}
           wordTabId={menuWord?.tabId}
           wordStrongs={wordStrongs}
@@ -469,7 +474,7 @@ const BiblePaneOverlays: React.FC<BiblePaneOverlaysProps> = ({
               return;
             }
 
-            // No text selection - highlight entire verse(s)
+            // No text selection - highlight the entire verse(s), as a plain right-click means "this verse"
             const verses = contextMenu.verses;
             const firstVerse = verses[0];
             const lastVerse = verses[verses.length - 1];

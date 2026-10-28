@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../fixtures';
 import { tabletOnly, waitForVerses } from '../helpers';
 
 test.describe('Tablet Layout (1024px)', () => {

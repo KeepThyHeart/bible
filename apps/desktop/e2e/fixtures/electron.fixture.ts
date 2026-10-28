@@ -10,11 +10,23 @@ import path from 'path';
 import fs from 'fs';
 import os from 'os';
 import { E2E_KEYWORD_INDEX_DIR } from './keywordIndexDir';
+import { createConsoleGuard, type ConsoleGuard } from './consoleGuard';
 
 // Custom fixture types
 type ElectronFixtures = {
   electronApp: ElectronApplication;
   window: Page;
+  /**
+   * Console errors, warnings and page errors from every window. Asserted clean
+   * when the test ends (see `failOnConsoleProblems`).
+   */
+  consoleGuard: ConsoleGuard;
+  /**
+   * Fail the test on a console error/warning/page error. On by default; a spec
+   * that provokes an error on purpose opts out with
+   * `test.use({ failOnConsoleProblems: false })` and says why.
+   */
+  failOnConsoleProblems: boolean;
 };
 
 // Path to the built Electron main process
@@ -24,7 +36,15 @@ const MAIN_JS_PATH = path.resolve(__dirname, '../../out/main/index.js');
  * Extended test with Electron fixtures
  */
 export const test = base.extend<ElectronFixtures>({
-  electronApp: async ({}, use, testInfo) => {
+  failOnConsoleProblems: [true, { option: true }],
+
+  consoleGuard: async ({ failOnConsoleProblems }, use) => {
+    const guard = createConsoleGuard();
+    await use(guard);
+    if (failOnConsoleProblems) guard.assertClean();
+  },
+
+  electronApp: async ({ consoleGuard }, use, testInfo) => {
     // Ensure the app is built
     if (!fs.existsSync(MAIN_JS_PATH)) {
       throw new Error(
@@ -74,6 +94,11 @@ export const test = base.extend<ElectronFixtures>({
         BIBLE_KEYWORD_INDEX_DIR: E2E_KEYWORD_INDEX_DIR,
       },
     });
+
+    // Every window, including ones opened later (pop-outs): attach before the
+    // renderer has logged anything.
+    app.windows().forEach(w => consoleGuard.attach(w));
+    app.on('window', w => consoleGuard.attach(w));
 
     await use(app);
 
