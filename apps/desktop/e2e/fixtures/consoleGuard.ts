@@ -31,7 +31,7 @@ export const ALLOWED_CONSOLE_MESSAGES: readonly AllowedConsoleMessage[] = [
   },
   {
     pattern: /Electron Security Warning \(Insecure Content-Security-Policy\)/i,
-    reason: 'Electron prints this when the CSP allows unsafe-eval; only raised for unpackaged runs. Tracked outside this task.',
+    reason: 'The app's own CSP allows unsafe-eval in unpackaged builds (needed by the dev renderer); Electron warns only when unpackaged. Known debt, not fixed by this task.',
   },
 ];
 

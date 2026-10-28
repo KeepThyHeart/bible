@@ -403,7 +403,7 @@ test.describe('Topics Pane', () => {
      */
     async function skipIfModuleDataHasNoPassages(window: Page): Promise<void> {
       const count = (await pane(window).getByTestId('topic-verse-count').textContent()) ?? '';
-      test.fixme(/^\s*0\s/.test(count), `this Nave's module has no passages under this heading (converter data issue): "${count.trim()}"`);
+      test.fixme(/^\s*0(\s|$)/.test(count), `this Nave's module has no passages under this heading (converter data issue): "${count.trim()}"`);
     }
 
     test('Jesus, the Christ > History Of > Facts before the birth of lists its passages', async ({ window }) => {
@@ -434,8 +434,8 @@ test.describe('Topics Pane', () => {
     });
 
     test('opening a second topic does not leave its verse text stuck on "Loading..."', async ({ window }) => {
-      // The Genesis list and the Jericho list are the same length-ish; the text fetch used to key on the
-      // row count, so the second list never fetched.
+      // Smoke check of a topic-to-topic switch; the same-length case that used to stick is pinned by
+      // VerseListWithPreview.test.tsx.
       await openTopic(window, { name: 'Jericho captured', source: NAVES });
       await expectPassagesLoaded(window);
       await navBack(window).click({ force: true });

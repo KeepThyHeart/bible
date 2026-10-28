@@ -1,6 +1,9 @@
 import { test, expect } from '../fixtures';
 import { desktopOnly, navigateTo, waitForVerses } from '../helpers';
 
+// These specs abort /api/bible requests on purpose, and the browser reports each as a console error.
+test.use({ failOnConsoleProblems: false });
+
 test.describe('Error Resilience', () => {
   test.beforeEach(async ({ page }, testInfo) => {
     desktopOnly(testInfo);
