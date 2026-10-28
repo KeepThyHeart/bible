@@ -6,6 +6,7 @@ import { ContextProvider, type AppServices } from '../contexts/ContextProvider';
 import { appRegistry } from '../apps/appHost';
 import { usePreferencesStore } from '../stores/usePreferencesStore';
 import { enT } from '../testing/enCatalog';
+import { featureModules, reconcileModules } from '../modules/moduleHost';
 
 vi.mock('dockview-react', () => ({}));
 
@@ -43,13 +44,44 @@ describe('NewTabPage apps row', () => {
     expect(screen.queryByRole('list', { name: 'Apps' })).toBeNull();
   });
 
-  it('shows an apps tile row above the pane tiles once there are two apps', () => {
+  it('shows the apps tile row below the pane tiles once there are two apps', () => {
     appRegistry.register(desc('study', 0), { kind: 'builtin', moduleId: 'study' });
     render(<ContextProvider services={services}><NewTabPage panelId="p" /></ContextProvider>);
     act(() => { appRegistry.register(desc('fx', 20), { kind: 'builtin', moduleId: 'fx' }); });
     const grid = screen.getByRole('list', { name: 'Apps' });
     expect(grid.querySelectorAll('button')).toHaveLength(2);
     const paneTile = screen.getByRole('button', { name: 'Bible' });
-    expect(grid.compareDocumentPosition(paneTile) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(grid.compareDocumentPosition(paneTile) & Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy();
+  });
+
+  describe('tiles that only switch to an app', () => {
+    beforeAll(() => {
+      featureModules.add(
+        {
+          id: 'app-tile-fixture',
+          platforms: ['desktop'],
+          contributes: {
+            newTabTiles: [
+              { id: 'dup-app', title: { key: 'x.dup', fallback: 'DupApp' }, order: 90, target: { appId: 'study' } },
+              { id: 'extra-app', title: { key: 'x.extra', fallback: 'ExtraApp' }, order: 91, target: { appId: 'extra' } },
+            ],
+          },
+        } as never,
+        { id: 'app-tile-fixture' } as never,
+      );
+      reconcileModules();
+    });
+
+    it('lists them under Apps, not among the tab tiles, and drops duplicates of an existing app entry', () => {
+      appRegistry.register(desc('study', 0), { kind: 'builtin', moduleId: 'study' });
+      render(<ContextProvider services={services}><NewTabPage panelId="p" /></ContextProvider>);
+      const grid = screen.getByRole('list', { name: 'Apps' });
+      // One app plus the extra app-only tile: the section shows although only one real app exists.
+      expect(grid.textContent).toContain('ExtraApp');
+      expect(grid.textContent).not.toContain('DupApp');
+      // Not rendered among the tab tiles either.
+      expect(screen.queryByRole('button', { name: 'DupApp' })).toBeNull();
+      expect(screen.getAllByRole('button', { name: 'ExtraApp' })).toHaveLength(1);
+    });
   });
 });

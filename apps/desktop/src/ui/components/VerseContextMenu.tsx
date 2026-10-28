@@ -663,6 +663,23 @@ const VerseContextMenu: React.FC<VerseContextMenuProps> = ({
         </>
       )}
 
+      {/* Remove option sits right under the apply item: one click clears the mark at this spot (task 0200). */}
+      {markupId !== undefined && onRemoveHighlight && (
+        <button
+          onClick={() => {
+            onRemoveHighlight(markupId);
+            onClose();
+          }}
+          className="w-full px-4 py-2 text-start text-sm hover:bg-background-hover transition-colors flex items-center gap-2 cursor-pointer"
+          role="menuitem"
+        >
+          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M16.24 3.56l4.95 4.94c.78.79.78 2.05 0 2.84L12 20.53a4.008 4.008 0 0 1-5.66 0L2.81 17c-.78-.79-.78-2.05 0-2.84l10.6-10.6c.79-.78 2.05-.78 2.83 0M4.22 15.58l3.54 3.53c.78.79 2.04.79 2.83 0l3.53-3.53-4.95-4.95-4.95 4.95z"/>
+          </svg>
+          <span>{t('ui.verseContextMenu.removeHighlight')}</span>
+        </button>
+      )}
+
       {/*
         Extension-contributed items, beneath the built-ins and separated from
         them. The order is deliberate: the app's own actions are what a reader
@@ -702,22 +719,6 @@ const VerseContextMenu: React.FC<VerseContextMenuProps> = ({
         <WordMenuItems tabId={wordTabId} wordText={wordText} wordStrongs={wordStrongs} onClose={onClose} />
       )}
 
-      {/* Remove Highlight Option - shown only when right-clicking on highlighted text */}
-      {markupId && onRemoveHighlight && (
-        <button
-          onClick={() => {
-            onRemoveHighlight(markupId);
-            onClose();
-          }}
-          className="w-full px-4 py-2 text-start text-sm hover:bg-background-hover transition-colors flex items-center gap-2 cursor-pointer"
-          role="menuitem"
-        >
-          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-            <path d="M16.24 3.56l4.95 4.94c.78.79.78 2.05 0 2.84L12 20.53a4.008 4.008 0 0 1-5.66 0L2.81 17c-.78-.79-.78-2.05 0-2.84l10.6-10.6c.79-.78 2.05-.78 2.83 0M4.22 15.58l3.54 3.53c.78.79 2.04.79 2.83 0l3.53-3.53-4.95-4.95-4.95 4.95z"/>
-          </svg>
-          <span>{t('ui.verseContextMenu.removeHighlight')}</span>
-        </button>
-      )}
     </div>
   );
 
