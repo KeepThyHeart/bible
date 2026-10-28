@@ -120,6 +120,16 @@ describe('ModuleInstallManager', () => {
     expect(manager.list()[0]!.error).toBeUndefined();
   });
 
+  it('reports an install that completed despite a late cancel as done', async () => {
+    const { controller, pending } = fakeController(['a']);
+    const manager = new ModuleInstallManager(() => controller);
+    const job = manager.enqueue('a');
+    manager.cancel(job.jobId);
+    pending[0]!.resolve({ success: true, moduleId: 3 });
+    await flush();
+    expect(manager.list()[0]).toMatchObject({ stage: 'done', installedModuleId: 3 });
+  });
+
   it('refuses to cancel once the install is verifying or installing', () => {
     const { controller, pending, cancelDownload } = fakeController(['a']);
     const manager = new ModuleInstallManager(() => controller);

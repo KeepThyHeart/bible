@@ -22,6 +22,8 @@ export interface InstallJobsSlice {
 const isActive = (job: InstallJob): boolean =>
   job.stage === 'queued' || job.stage === 'downloading' || job.stage === 'verifying' || job.stage === 'installing';
 
+let refreshing = false;
+
 export const createInstallJobsSlice: StateCreator<ModuleState, [], [], InstallJobsSlice> = (set, get) => ({
   installJobs: [],
   installJobsTimer: null,
@@ -39,35 +41,46 @@ export const createInstallJobsSlice: StateCreator<ModuleState, [], [], InstallJo
   },
 
   refreshInstallJobs: async () => {
-    let jobs: InstallJob[];
+    // Never overlap two refreshes: a second would see the same finished job
+    // before the first has reloaded the installed list, and drop it early.
+    if (refreshing) return;
+    refreshing = true;
     try {
-      jobs = await moduleAPI.getInstallJobs();
-    } catch (error) {
-      console.error('[ModuleStore] Error loading install jobs:', error);
-      return;
-    }
-    const before = get().installJobs;
-    const finishedNow = jobs.filter(
-      (job) => job.stage === 'done' && before.find((b) => b.jobId === job.jobId)?.stage !== 'done'
-    );
-    // A cancelled job has nothing to show: drop it. A done job stays listed
-    // (its row keeps the progress cell) until the installed list has been
-    // reloaded, so the row never flashes back to "Install" in between.
-    const cancelled = jobs.filter((job) => job.stage === 'cancelled');
-    set({ installJobs: jobs.filter((job) => job.stage !== 'cancelled') });
+      let jobs: InstallJob[];
+      try {
+        jobs = await moduleAPI.getInstallJobs();
+      } catch (error) {
+        console.error('[ModuleStore] Error loading install jobs:', error);
+        return;
+      }
+      const before = get().installJobs;
+      const finishedNow = jobs.filter(
+        (job) => job.stage === 'done' && before.find((b) => b.jobId === job.jobId)?.stage !== 'done'
+      );
+      // A job started while this list was in flight is not in it yet: keep it.
+      const serverIds = new Set(jobs.map((j) => j.jobId));
+      const startedMeanwhile = get().installJobs.filter((j) => !serverIds.has(j.jobId) && isActive(j));
+      // A cancelled job has nothing to show: drop it. A done job stays listed
+      // (its row keeps the progress cell) until the installed list has been
+      // reloaded, so the row never flashes back to "Install" in between.
+      const cancelled = jobs.filter((job) => job.stage === 'cancelled');
+      set({ installJobs: [...jobs.filter((job) => job.stage !== 'cancelled'), ...startedMeanwhile] });
 
-    if (finishedNow.length > 0) {
-      await get().loadInstalledModules();
+      if (finishedNow.length > 0) {
+        await get().loadInstalledModules();
+      }
+      const done = jobs.filter((job) => job.stage === 'done');
+      if (done.length > 0) {
+        const doneIds = new Set(done.map((j) => j.jobId));
+        set({ installJobs: get().installJobs.filter((j) => !doneIds.has(j.jobId)) });
+      }
+      for (const job of [...cancelled, ...done]) {
+        void moduleAPI.dismissInstall(job.jobId).catch(() => undefined);
+      }
+      if (!get().installJobs.some(isActive)) get().stopInstallPolling();
+    } finally {
+      refreshing = false;
     }
-    const done = jobs.filter((job) => job.stage === 'done');
-    if (done.length > 0) {
-      const doneIds = new Set(done.map((j) => j.jobId));
-      set({ installJobs: get().installJobs.filter((j) => !doneIds.has(j.jobId)) });
-    }
-    for (const job of [...cancelled, ...done]) {
-      void moduleAPI.dismissInstall(job.jobId).catch(() => undefined);
-    }
-    if (!jobs.some(isActive)) get().stopInstallPolling();
   },
 
   cancelInstall: async (jobId) => {

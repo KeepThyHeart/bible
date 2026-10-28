@@ -126,6 +126,18 @@ export class DownloadService implements IDownloadService {
       throw error as Error;
     }
 
+    // Cancelled while the connection was still opening: stop here rather than
+    // receive the whole body only to drop it.
+    if (state.status === 'cancelled') {
+      try {
+        stream.request.abort();
+      } catch {
+        /* ignore */
+      }
+      this.downloads.delete(queueId);
+      throw new Error('Download cancelled');
+    }
+
     return this.consumeStream(state, stream, expectedChecksum, startByte);
   }
 

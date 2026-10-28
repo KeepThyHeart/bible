@@ -10,6 +10,8 @@ import { validateModuleFileForInstall } from './moduleInstallValidation';
 
 export const INSTALL_WORKER_FILE = 'module-install-worker.js';
 
+const VALIDATION_TIMEOUT_MS = 10 * 60_000;
+
 export type ValidationOutcome = { ok: boolean; errors: string[]; warnings: string[] };
 
 export function runValidationInWorker(
@@ -30,27 +32,29 @@ export function runValidationInWorker(
       void worker?.terminate();
       fn();
     };
-    // A worker that cannot start or dies must not make installs impossible.
-    const fallback = (): void => finish(() => {
-      try {
-        resolve(inThread());
-      } catch (e) {
-        reject(e);
-      }
-    });
+    // Only a worker that could not be created at all falls back to this thread.
+    // One that started and then died (out of memory, a native crash) while
+    // reading an untrusted file must fail the install, not repeat the same read
+    // on the main thread where it would take the app down with it.
     try {
       worker = new Worker(workerPath);
     } catch {
-      settled = false;
+      settled = true;
       resolve(inThread());
       return;
     }
+    const timer = setTimeout(() => finish(() => reject(new Error('Module validation timed out'))), VALIDATION_TIMEOUT_MS);
     worker.once('message', (msg: { ok: boolean; result?: ValidationOutcome; message?: string }) => {
+      clearTimeout(timer);
       finish(() => (msg.ok && msg.result ? resolve(msg.result) : reject(new Error(msg.message ?? 'Module validation failed'))));
     });
-    worker.once('error', fallback);
+    worker.once('error', (e) => {
+      clearTimeout(timer);
+      finish(() => reject(new Error(`Module validation stopped unexpectedly: ${e instanceof Error ? e.message : String(e)}`)));
+    });
     worker.once('exit', (code) => {
-      if (code !== 0) fallback();
+      clearTimeout(timer);
+      finish(() => reject(new Error(`Module validation stopped unexpectedly (exit code ${code})`)));
     });
     worker.postMessage({ id: 1, dbPath, canon: [...canon.entries()] });
   });

@@ -309,7 +309,13 @@ const ModuleManagerDialog: React.FC<ModuleManagerDialogProps> = ({ onClose, init
     void refreshInstallJobs().then(() => {
       if (useModuleStore.getState().installJobs.length > 0) startInstallPolling();
     });
-    return () => stopInstallPolling();
+    // Installs outlive the dialog: keep polling while any is active, so the
+    // library is told when one finishes even with the dialog closed.
+    return () => {
+      if (!useModuleStore.getState().installJobs.some((j) => j.stage === 'queued' || j.stage === 'downloading' || j.stage === 'verifying' || j.stage === 'installing')) {
+        stopInstallPolling();
+      }
+    };
   }, [refreshInstallJobs, startInstallPolling, stopInstallPolling]);
 
   // Handle keyboard shortcuts

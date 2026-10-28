@@ -221,11 +221,12 @@ export class ModuleInstallManager {
           if (!state.cancelRequested) this.setStage(state, stage);
         },
       });
-      if (state.cancelRequested) {
-        this.finish(state, 'cancelled');
-      } else if (result.success) {
+      if (result.success) {
+        // Installed and registered: report it even if a cancel arrived too late to stop it.
         job.installedModuleId = result.moduleId;
         this.finish(state, 'done');
+      } else if (state.cancelRequested) {
+        this.finish(state, 'cancelled');
       } else {
         this.finish(state, 'failed', result.error ?? 'Installation failed');
       }

@@ -19,7 +19,8 @@ Related: **starter packs** (language-scoped content recommendations) are typed b
 | `src/ui/components/shared/TabStrip.tsx` | Wraps `hooks/useTabKeyboardNav.ts`: keyboard-navigable tab list with support for grouped tabs (module types + right-aligned Feature packs / Sources) |
 | `src/ui/components/shared/ProgressRing.tsx` | Determinate circular progress when `totalBytes` is known; indeterminate spinner otherwise |
 | `src/ui/components/RepositorySettings.tsx` | Add, remove, enable/disable and re-point module repositories, force a catalog refresh, and a signature badge per catalog (Verified (Keep Thy Heart) / Signed / Unsigned / Signature problem - `undefined` when never fetched) |
-| `src/ui/components/DownloadProgressPanel.tsx` | Progress indicator for module downloads |
+| `src/ui/components/moduleManager/InstallProgressCell.tsx` | Inline install progress ring, details popover and failure/Retry in a module's row |
+| `electron/services/ModuleInstallManager.ts` | Background install queue (stages, cancel, retry) behind `module:install-start` |
 | `src/ui/components/LibraryHome.tsx` | The library landing surface listing installed modules by kind |
 | `src/ui/components/ModuleSelector.tsx` | The shared "pick a module" list used by the Bible/commentary/dictionary/book panes (not the manager dialog) |
 
@@ -68,7 +69,7 @@ Related: **starter packs** (language-scoped content recommendations) are typed b
 | `src/ui/components/moduleManager/ModuleTable.test.tsx`, `ModuleRow.test.tsx`, `ModuleDetailsPanel.test.tsx` | Table rendering, row interaction, details panel with actions |
 | `src/ui/stores/module/moduleAPI.test.ts` | API wrappers including `reindexModule` |
 | `src/ui/stores/__tests__/libraryChanged.test.ts` | Install → `notifyLibraryChanged` → `loadAvailableBibles` + re-seed (Bug B fix) |
-| `src/ui/components/ModuleSelector.test.tsx`, `LibraryHome.test.tsx`, `DownloadProgressPanel.test.tsx` | Remaining module surfaces |
+| `src/ui/components/ModuleSelector.test.tsx`, `LibraryHome.test.tsx` | Remaining module surfaces |
 | `packages/core/src/Data/Core/ModuleVersion.test.ts` | Version ordering, and the orderable/unorderable boundary the install policy depends on |
 | `packages/core/src/Data/Core/StarterPackTypes.test.ts` | Starter-pack catalog validation and language matching |
 

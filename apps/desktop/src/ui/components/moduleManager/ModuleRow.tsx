@@ -15,17 +15,17 @@ export function formatFileSize(bytes: number | undefined): string {
   return `${Math.round((bytes / Math.pow(k, i)) * 100) / 100} ${units[i]}`;
 }
 
-/**
- * The in-flight (not yet completed) download for a row, if any. A download is
- * keyed by the catalog module id, which for an installed module being updated
- * differs from its numeric installed id - so both are tried.
- */
 export function findRowInstallJob(row: ModuleRow, jobs: InstallJob[]): InstallJob | undefined {
   const ids = new Set<string>();
   if (row.catalogModule) ids.add(String(row.catalogModule.module_id));
   return jobs.find((j) => ids.has(String(j.moduleId)));
 }
 
+/**
+ * The in-flight (not yet completed) download for a row, if any. A download is
+ * keyed by the catalog module id, which for an installed module being updated
+ * differs from its numeric installed id - so both are tried.
+ */
 export function findRowDownload(row: ModuleRow, downloads: DownloadProgress[]): DownloadProgress | undefined {
   const ids = new Set<string>([String(row.module_id)]);
   if (row.catalogModule) ids.add(String(row.catalogModule.module_id));
