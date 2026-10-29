@@ -145,6 +145,61 @@ a public deployment:
 
 `features.timeline` and `features.quiz` (both off by default) show the Timeline and Quiz tabs. The Quiz tab needs an installed `quiz` module; the web app keeps quiz progress in memory only and saves nothing in the browser.
 
+#### Turning feature modules off per site (`featureModules`)
+
+Each site reads its own `data/site-config.json` at server start, so a public site and a QA site (separate checkouts or deploys) can differ. `featureModules` maps a module id to a boolean and works in every `NODE_ENV`, production included:
+
+| Id | Feature |
+|---|---|
+| `word-study`, `keyword-marks`, `present`, `games`, `xref-graph`, `measures`, `similar`, `notifications`, `downloads`, `memory` | no flag of their own: on unless `false` here |
+| `timeline`, `quiz`, `genealogy`, `audio` | also behind `features.<id>` (off by default); `genealogy` also needs `features.tagGraph` |
+
+- Only `false` does anything. It switches the module off completely: its API routes are not mounted and its panes, header buttons, settings tabs and menu items do not appear (the server lists it in `/api/config` `modules.disabled`, which the browser obeys, including for client-only modules).
+- `true` (or leaving an id out) keeps the module's normal behaviour. It never bypasses a module's feature flag or requirements: `"genealogy": true` with `tagGraph` off stays off. Turn flagged modules on with `features`.
+- Non-boolean values are ignored with a logged warning; unknown ids log a warning.
+- In development, the `BIBLE_MODULES` environment variable still wins over this key.
+
+Public site, core only:
+
+```json
+{
+  "features": { "timeline": false, "quiz": false, "genealogy": false, "audio": false },
+  "featureModules": {
+    "word-study": false, "keyword-marks": false, "present": false, "games": false,
+    "xref-graph": false, "measures": false
+  }
+}
+```
+
+QA site, everything on (no `featureModules` needed; flagged modules need their flags and data):
+
+```json
+{
+  "features": { "tagGraph": true, "genealogy": true, "timeline": true, "quiz": true, "audio": true },
+  "banners": [{ "id": "qa", "message": "QA site: data may be reset." }]
+}
+```
+
+`downloads` controls the downloads module, not the `features.offlineDownloads` flag. `ui.disabledPanes` is accepted but does nothing; use `featureModules` instead.
+
+#### Site banners (`banners`)
+
+An optional array of strips shown at the top of the app, e.g. a beta notice:
+
+```json
+"banners": [{
+  "id": "beta-2026",
+  "message": { "en": "Beta: things may change.", "es": "Beta: puede haber cambios." },
+  "color": "#b45309",
+  "dismissible": true,
+  "link": { "url": "https://example.com/feedback", "label": { "en": "Send feedback" } }
+}]
+```
+
+- `message` (and the link `label`) is a string or a language-code map; the UI language picks the entry, falling back to `en` and then the first one. Text is plain: HTML is shown literally, never rendered.
+- `color` is the background (hex, `rgb()`, `hsl()` or a color name); the text is automatically black or white for hex and `rgb()` colors, so set `textColor` with a named or `hsl()` color. `textColor` always overrides. `dismissible` (default false) adds a close button; the dismissal is remembered in that browser by `id` (change the id to show it again). `link.url` must be http(s) or start with `/`.
+- Entries without an `id` or `message` are skipped with a warning. Changes need a server restart.
+
 `docsUrl` is the documentation website the Help dialog links to. It reaches the
 browser through `/api/config`, so **the server picks up a change on restart, not
 a rebuild** — there is no build-time equivalent of the desktop app's

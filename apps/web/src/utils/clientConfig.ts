@@ -44,6 +44,8 @@ export interface ClientConfig {
   audio?: unknown;
   repoUrl?: string;
   docsUrl?: string;
+  /** Site banners (site-config `banners`), already validated by the server. */
+  banners?: unknown;
   [key: string]: unknown;
 }
 

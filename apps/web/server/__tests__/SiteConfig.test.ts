@@ -573,4 +573,57 @@ describe('SiteConfig', () => {
       expect(c.getClientConfig().search).toEqual({ semantic: 'browser' });
     });
   });
+
+  describe('featureModules', () => {
+    const write = (featureModules: unknown) =>
+      writeFileSync(join(tempDir, 'site-config.json'), JSON.stringify({ featureModules }));
+
+    it('is empty when absent', () => {
+      writeFileSync(join(tempDir, 'site-config.json'), '{}');
+      expect(new SiteConfig(tempDir).featureModules).toEqual({});
+    });
+
+    it('parses booleans and ignores other values and unknown ids are kept', () => {
+      write({ 'word-study': false, games: true, present: 'no', quiz: 0, 'not-a-module': false });
+      expect(new SiteConfig(tempDir).featureModules).toEqual({ 'word-study': false, games: true, 'not-a-module': false });
+    });
+
+    it('ignores a non-object value', () => {
+      write(['games']);
+      expect(new SiteConfig(tempDir).featureModules).toEqual({});
+    });
+  });
+
+  describe('banners', () => {
+    const write = (banners: unknown) =>
+      writeFileSync(join(tempDir, 'site-config.json'), JSON.stringify({ banners }));
+
+    it('is empty and absent from the client config by default', () => {
+      writeFileSync(join(tempDir, 'site-config.json'), '{}');
+      const c = new SiteConfig(tempDir);
+      expect(c.banners).toEqual([]);
+      expect(c.getClientConfig().banners).toBeUndefined();
+    });
+
+    it('keeps valid banners, skips bad entries, drops unsafe colors and links', () => {
+      write([
+        { id: 'beta', message: { en: 'Beta', es: 'Beta ES' }, color: '#b45309', dismissible: true, link: { url: 'https://x.test/f', label: 'Feedback' } },
+        { message: 'no id' },
+        { id: 'empty', message: '  ' },
+        { id: 'evil', message: '<b>hi</b>', color: 'red; background:url(x)', link: { url: 'javascript:alert(1)', label: 'x' } },
+        'junk',
+      ]);
+      const c = new SiteConfig(tempDir);
+      expect(c.banners).toEqual([
+        { id: 'beta', message: { en: 'Beta', es: 'Beta ES' }, color: '#b45309', dismissible: true, link: { url: 'https://x.test/f', label: 'Feedback' } },
+        { id: 'evil', message: '<b>hi</b>', dismissible: false },
+      ]);
+      expect(c.getClientConfig().banners).toHaveLength(2);
+    });
+
+    it('ignores a non-array value', () => {
+      write({ id: 'x', message: 'y' });
+      expect(new SiteConfig(tempDir).banners).toEqual([]);
+    });
+  });
 });

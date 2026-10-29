@@ -28,6 +28,41 @@
       },
       "additionalProperties": false
     },
+    "banners": {
+      "type": "array",
+      "description": "Banners shown as a strip at the top of the web app, e.g. a beta notice with a feedback link. Messages are plain text (no HTML). Entries without an id or message are skipped with a warning.",
+      "items": {
+        "type": "object",
+        "required": ["id", "message"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "description": "Identifies the banner; a dismissal is remembered per browser by this id. Change the id to show a dismissed banner again." },
+          "message": {
+            "description": "Plain text: a string, or an object of language code -> string. The UI language picks the entry, falling back to \"en\" and then the first entry.",
+            "oneOf": [{ "type": "string" }, { "type": "object", "additionalProperties": { "type": "string" } }]
+          },
+          "color": { "type": "string", "description": "Background color: hex, rgb(), hsl() or a color name. Default: the theme accent." },
+          "textColor": { "type": "string", "description": "Text color. Default: black or white, whichever contrasts with color." },
+          "dismissible": { "type": "boolean", "default": false, "description": "Show a close button. The dismissal is remembered in this browser only." },
+          "link": {
+            "type": "object",
+            "required": ["url", "label"],
+            "additionalProperties": false,
+            "properties": {
+              "url": { "type": "string", "description": "http(s) URL or a site-relative path starting with /." },
+              "label": { "description": "Link text: a string or a language code -> string object.", "oneOf": [{ "type": "string" }, { "type": "object", "additionalProperties": { "type": "string" } }] }
+            }
+          }
+        }
+      },
+      "examples": [[{ "id": "beta-2026", "message": "Beta: things may change.", "color": "#b45309", "dismissible": true, "link": { "url": "https://example.com/feedback", "label": "Send feedback" } }]]
+    },
+    "featureModules": {
+      "type": "object",
+      "description": "Switch web feature modules off for this site, in every NODE_ENV (production included). Module id -> boolean. Only false does anything: it turns the module off completely (its routes are not mounted, and its panes, header buttons, settings tabs and menu items do not appear). true or an omitted id keeps the module's normal behaviour; it never bypasses the module's feature flag (see \"features\") or requirements (genealogy needs tagGraph). Ids: word-study, keyword-marks, present, games, xref-graph, measures, similar, notifications, downloads, timeline, quiz, genealogy, audio, memory. Non-boolean values are ignored with a warning; unknown ids are warned about. The BIBLE_MODULES environment variable still wins in development.",
+      "additionalProperties": { "type": "boolean" },
+      "examples": [{ "word-study": false, "keyword-marks": false, "present": false, "games": false, "xref-graph": false, "measures": false }]
+    },
     "features": {
       "type": "object",
       "description": "Feature flags to enable or disable optional functionality.",

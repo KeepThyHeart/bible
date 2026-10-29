@@ -141,6 +141,10 @@ interface RawSiteConfig {
   offline?: OfflineConfig;
   search?: SearchConfig;
   ui?: UiConfig;
+  /** Feature module id -> boolean. See `SiteConfig.featureModules`. */
+  featureModules?: Record<string, unknown>;
+  /** Site banners. See `SiteConfig.banners`. */
+  banners?: unknown;
   privacy?: PrivacyConfig;
   desktopReports?: DesktopReportsConfig;
   repoUrl?: string;
@@ -161,6 +165,42 @@ interface DesktopReportsConfig {
   token?: string;
 }
 
+/**
+ * Every web feature module id a site config may switch (the manifest ids of
+ * `apps/web/src/modules` and `apps/web/server/modules`). Used only to warn about typos.
+ */
+export const KNOWN_FEATURE_MODULE_IDS: readonly string[] = [
+  'audio', 'downloads', 'games', 'genealogy', 'keyword-marks', 'measures', 'memory',
+  'notifications', 'present', 'quiz', 'similar', 'timeline', 'word-study', 'xref-graph',
+];
+
+/** Text that is one string or a language code -> string map. */
+export type LocalizedText = string | Record<string, string>;
+
+export interface SiteBanner {
+  id: string;
+  message: LocalizedText;
+  /** CSS background color (hex, rgb[a], hsl[a] or a color name). */
+  color?: string;
+  /** CSS text color; the client picks black or white by contrast when absent. */
+  textColor?: string;
+  dismissible: boolean;
+  link?: { url: string; label: LocalizedText };
+}
+
+function cleanText(v: unknown): LocalizedText | undefined {
+  if (typeof v === 'string') return v.trim() ? v : undefined;
+  if (v && typeof v === 'object' && !Array.isArray(v)) {
+    const out: Record<string, string> = {};
+    for (const [k, t] of Object.entries(v)) if (typeof t === 'string' && t.trim()) out[k] = t;
+    return Object.keys(out).length ? out : undefined;
+  }
+  return undefined;
+}
+
+const SAFE_COLOR = /^(#[0-9a-f]{3,8}|(rgb|hsl)a?\([0-9.,%\s/deg-]+\)|[a-z]{3,30})$/i;
+const cleanColor = (v: unknown): string | undefined => (typeof v === 'string' && SAFE_COLOR.test(v.trim()) ? v.trim() : undefined);
+
 // ─── Defaults ───────────────────────────────────────────────────────────
 
 const DEFAULT_STALE_DAYS = 15;
@@ -180,6 +220,8 @@ export class SiteConfig {
   private readonly raw: RawSiteConfig;
   private readonly dataDir: string;
   private _flags: FeatureFlags | undefined;
+  private _banners: SiteBanner[] | undefined;
+  private _featureModules: Record<string, boolean> | undefined;
   private readonly configSource: 'unified' | 'legacy';
   private readonly configPath: string;
   private warnedBadRemote = false;
@@ -279,6 +321,78 @@ export class SiteConfig {
   /** `isEnabled('audio')`: the one way server code asks about a feature. */
   isEnabled(name: FeatureFlagName): boolean {
     return this.flags.isEnabled(name);
+  }
+
+  /**
+   * `featureModules`: module id -> boolean, read once. Non-boolean values are
+   * dropped with a warning; unknown ids are kept (the module table is the judge)
+   * but warned about. Only `false` switches a module off in production; `true`
+   * never overrides a module's own flag or requirements (see `loadServerModules`).
+   */
+  get featureModules(): Record<string, boolean> {
+    if (this._featureModules) return this._featureModules;
+    const out: Record<string, boolean> = {};
+    const raw = this.raw.featureModules;
+    if (raw !== undefined && (typeof raw !== 'object' || raw === null || Array.isArray(raw))) {
+      logger.warn('site-config.json "featureModules" must be an object of module id -> boolean; ignoring it.');
+    } else if (raw) {
+      for (const [id, value] of Object.entries(raw)) {
+        if (typeof value !== 'boolean') {
+          logger.warn(`site-config.json featureModules.${id} is not a boolean; ignoring it.`);
+          continue;
+        }
+        if (!KNOWN_FEATURE_MODULE_IDS.includes(id)) {
+          logger.warn(`site-config.json featureModules.${id}: unknown module id (known: ${KNOWN_FEATURE_MODULE_IDS.join(', ')}).`);
+        }
+        out[id] = value;
+      }
+    }
+    this._featureModules = out;
+    return out;
+  }
+
+  /**
+   * `banners`: validated for the client. Entries without a string `id` or a usable
+   * `message` are skipped with a warning; a bad color, or a link whose URL is not
+   * http(s) or a site-relative path, is dropped. Text is shown as plain text only.
+   */
+  get banners(): SiteBanner[] {
+    if (this._banners) return this._banners;
+    return (this._banners = this.parseBanners());
+  }
+
+  private parseBanners(): SiteBanner[] {
+    const raw = this.raw.banners;
+    if (raw === undefined) return [];
+    if (!Array.isArray(raw)) {
+      logger.warn('site-config.json "banners" must be an array; ignoring it.');
+      return [];
+    }
+    const out: SiteBanner[] = [];
+    raw.forEach((b: unknown, i) => {
+      const o = (b && typeof b === 'object' ? b : {}) as Record<string, unknown>;
+      const message = cleanText(o.message);
+      if (typeof o.id !== 'string' || !o.id.trim() || !message) {
+        logger.warn(`site-config.json banners[${i}] needs a string "id" and a non-empty "message"; skipping it.`);
+        return;
+      }
+      const banner: SiteBanner = { id: o.id, message, dismissible: o.dismissible === true };
+      const color = cleanColor(o.color);
+      const textColor = cleanColor(o.textColor);
+      if (color) banner.color = color;
+      else if (o.color !== undefined) logger.warn(`site-config.json banners[${i}].color is not a plain CSS color; ignoring it.`);
+      if (textColor) banner.textColor = textColor;
+      else if (o.textColor !== undefined) logger.warn(`site-config.json banners[${i}].textColor is not a plain CSS color; ignoring it.`);
+      const l = o.link as Record<string, unknown> | undefined;
+      const label = cleanText(l?.label);
+      if (l && typeof l.url === 'string' && label && /^(https?:\/\/|\/(?![\/\\]))/i.test(l.url.trim())) {
+        banner.link = { url: l.url.trim(), label };
+      } else if (l !== undefined) {
+        logger.warn(`site-config.json banners[${i}].link needs an http(s) or site-relative "url" and a "label"; ignoring it.`);
+      }
+      out.push(banner);
+    });
+    return out;
   }
 
   get modules(): SiteSettings | null {
@@ -424,6 +538,9 @@ export class SiteConfig {
     // Audio Bible: absent unless the operator turned it on, so a default install
     // sends the client nothing new.
     if (this.features.audio) cfg.audio = this.audio.client;
+
+    const banners = this.banners;
+    if (banners.length) cfg.banners = banners;
 
     const staleDays = this.offline.staleDays;
     if (staleDays !== DEFAULT_STALE_DAYS) cfg.staleDays = staleDays;

@@ -1,0 +1,31 @@
+// Operator banners from site-config `banners`.
+.site-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 6px 16px;
+  background: var(--accent-color, #2563eb);
+  color: #fff;
+  font-size: calc(13px * var(--ui-font-scale, 1));
+
+  &__link {
+    text-decoration: underline;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  &__dismiss {
+    background: none;
+    border: none;
+    color: inherit;
+    cursor: pointer;
+    padding: 4px;
+    opacity: 0.8;
+    flex-shrink: 0;
+
+    &:hover {
+      opacity: 1;
+    }
+  }
+}

@@ -10,6 +10,7 @@ import { Header } from './components/Header';
 import { ResizeHandle } from './components/common/ResizeHandle';
 import { DialogLayer } from './components/common/DialogLayer';
 import { ContextMenuPopup } from './components/common/ContextMenuPopup';
+import { SiteBanners } from './components/SiteBanners';
 import { ConnectionBanner } from './components/ConnectionBanner';
 import { CompanionSlot } from './host/CompanionSlot';
 import { StudyLayoutOutlet } from './host/slots';
@@ -161,6 +162,7 @@ export function DesktopApp({ providers }: DesktopAppProps) {
 
   return (
     <div class="app">
+      <SiteBanners />
       <Header
         onSettingsClick={(section) => shared.openSettings(section)}
         onHelpClick={() => shared.setHelpOpen(true)}

@@ -9,6 +9,7 @@ import { MobileStudyPane } from './components/MobileStudyPane/MobileStudyPane';
 import { MobileCommentaryView } from './components/MobileStudyPane/MobileCommentaryView';
 import { eventBus } from './events/eventBus';
 import { Header } from './components/Header';
+import { SiteBanners } from './components/SiteBanners';
 import { ConnectionBanner } from './components/ConnectionBanner';
 import { UpdateBanner } from './components/UpdateBanner';
 // PullToRefresh removed — replaced by a simple scroll wrapper. Refresh is available from Settings.
@@ -466,6 +467,7 @@ export function MobileApp({ providers }: MobileAppProps) {
           </div>
           {/* Center: scrollable content (no tab bars, those are in sidebar) */}
           <div class="mobile-scroll-wrapper">
+            <SiteBanners />
             <ConnectionBanner />
             <UpdateBanner />
             {mobileView === 'home' && <HomeScreen onNavigate={switchMobileView} />}
@@ -485,6 +487,7 @@ export function MobileApp({ providers }: MobileAppProps) {
             onHelpClick={() => shared.setHelpOpen(true)}
             onLogoClick={() => switchMobileView('home')}
           />
+          <SiteBanners />
           <ConnectionBanner />
           <UpdateBanner />
           {mobileView === 'home' && <HomeScreen onNavigate={switchMobileView} />}
