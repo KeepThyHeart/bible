@@ -190,17 +190,22 @@ function quickjsGuestBundlePlugin(): Plugin {
   };
 }
 
+// Accent colour for the boot splash in index.html, as the web app's splash uses.
+const THEME_COLOR = envOrEmpty('BIBLE_THEME_COLOR') || brandingValue('themeColor') || '#2563eb';
+
 /**
- * Replaces `%BIBLE_PRODUCT_NAME%` in the entry HTML files with the configured
- * product name. Runs `pre` so Vite's own `%ENV%` handling never sees (and
- * warns about) the placeholder.
+ * Replaces `%BIBLE_PRODUCT_NAME%` and `%BIBLE_THEME_COLOR%` in the entry HTML
+ * files with the configured values. Runs `pre` so Vite's own `%ENV%` handling
+ * never sees (and warns about) the placeholders.
  */
 function brandingHtmlPlugin(): Plugin {
   return {
     name: 'bible-branding-html',
     enforce: 'pre',
     transformIndexHtml(html: string): string {
-      return html.replace(/%BIBLE_PRODUCT_NAME%/g, PRODUCT_NAME);
+      return html
+        .replace(/%BIBLE_PRODUCT_NAME%/g, PRODUCT_NAME)
+        .replace(/%BIBLE_THEME_COLOR%/g, THEME_COLOR);
     },
   };
 }

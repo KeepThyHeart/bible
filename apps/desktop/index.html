@@ -18,9 +18,32 @@
   <link rel="icon" type="image/svg+xml" href="/resources/icon.svg">
   <!-- Replaced at build time from BIBLE_PRODUCT_NAME; see electron.vite.config.ts -->
   <title>%BIBLE_PRODUCT_NAME%</title>
+  <!-- Boot splash. The main window stays hidden until its first paint
+       (`ready-to-show`), and an empty #root does not count as one, so without
+       this the window shows nothing at all until React has rendered - several
+       seconds under `pnpm dev`. Self-contained: the app's CSS is not loaded
+       yet. Modelled on the web app's splash (apps/web/index.html). React
+       replaces it on first render. -->
+  <style>
+    #boot-splash { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; background: #FFFFFF; color: #555555; font-family: system-ui, sans-serif; }
+    #boot-splash .boot-title { font-size: 1.1rem; }
+    #boot-splash .boot-spinner { width: 48px; height: 48px; border: 3px solid #E0E0E0; border-top-color: %BIBLE_THEME_COLOR%; border-radius: 50%; animation: boot-spin 0.8s linear infinite; }
+    @keyframes boot-spin { to { transform: rotate(360deg); } }
+    @media (prefers-reduced-motion: reduce) { #boot-splash .boot-spinner { animation-duration: 3s; } }
+  </style>
 </head>
 <body>
-  <div id="root"></div>
+  <div id="root">
+    <div id="boot-splash" role="status" aria-busy="true">
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="%BIBLE_THEME_COLOR%" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H19a1 1 0 0 1 1 1v15a1 1 0 0 1-1 1H6.5a2.5 2.5 0 0 0-2.5 2.5z"/>
+        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+        <path d="M12 6v6M9.5 8.5h5"/>
+      </svg>
+      <div class="boot-title">Loading %BIBLE_PRODUCT_NAME%...</div>
+      <div class="boot-spinner"></div>
+    </div>
+  </div>
   <script type="module" src="/src/ui/main.tsx"></script>
 </body>
 </html>

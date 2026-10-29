@@ -94,6 +94,7 @@ A few user-visible values are not finalised yet, so they are supplied by environ
 | Variable | Default | Effect |
 | --- | --- | --- |
 | `BIBLE_PRODUCT_NAME` | `Keep Thy Heart Bible Reader` | Product name used for the window title, the page `<title>`, the app header, the About dialog, and the installer (`productName` / NSIS shortcut). |
+| `BIBLE_THEME_COLOR` | `themeColor` from `admin/brand/branding.json` (`#2563eb`) | Accent colour of the startup splash's icon and spinner. |
 | `BIBLE_ISSUE_REPORT_URL` | *(empty)* | Where the "Report an Issue" command sends the user. Accepts an `https://` issue-tracker URL **or** a `mailto:` address (a subject line with the product name and version is pre-filled for `mailto:`). When empty the command is not registered at all, so it never appears in the command palette or the Help menu - no dead links. |
 | `BIBLE_MODULE_CATALOG_URL` | `moduleRepositoryUrl` from `admin/brand/branding.json` (`https://modules.bible.keepthyheart.com/`), or empty while that key is listed in `_undecided` | Default module catalog/repository URL. When set it is seeded as the official repository on first run and used as the URL placeholder in Repository Settings. It may name a catalog, or a directory serving an `index.json` of catalogs (as the official site root does); each listed catalog is added on refresh. When empty no repository is seeded and the UI explains that modules can be dropped into `data/modules` instead. |
 | `BIBLE_COPYRIGHT_YEAR` | year of the build | Copyright year shown in the About dialog. |
