@@ -273,7 +273,9 @@ const ModuleSelector: React.FC<ModuleSelectorProps> = ({
 
         {/* Footer */}
         {!embedded && (
-          <div className="px-xl py-md border-t border-border flex justify-end">
+          <div className="px-xl py-md border-t border-border flex items-center justify-between gap-md">
+            {/* B-004: nothing here said where more modules come from. */}
+            <span className="text-xs text-text-secondary">{t('ui.moduleSelector.getMoreHint')}</span>
             <button
               className="px-lg py-sm bg-control text-text-primary rounded hover:bg-control-hover"
               onClick={onClose}
