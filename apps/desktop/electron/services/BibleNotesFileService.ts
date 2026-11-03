@@ -75,10 +75,12 @@ export class BibleNotesFileService {
     this.notesDir = notesDir || this.getDefaultNotesDir();
   }
 
-  /** Get the default notes directory: ~/Documents/BibleReader/ */
+  /** Get the default notes directory: ~/Documents/BibleReader/ (or <ELECTRON_USER_DATA>/BibleReader/) */
   getDefaultNotesDir(): string {
-    const documentsDir = app.getPath('documents');
-    return path.join(documentsDir, 'BibleReader');
+    // A profile pointed at a separate user-data dir (tests, QA) keeps its notes there
+    // rather than in the real user's Documents folder.
+    const base = process.env.ELECTRON_USER_DATA || app.getPath('documents');
+    return path.join(base, 'BibleReader');
   }
 
   /** Get the currently configured notes directory */
