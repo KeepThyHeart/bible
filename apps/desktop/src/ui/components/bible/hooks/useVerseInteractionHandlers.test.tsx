@@ -269,3 +269,25 @@ describe('right-click inside an active range acts on the range', () => {
     expect(arg.verses.map((v: { verse: number }) => v.verse)).toEqual([16]);
   });
 });
+
+describe('right-click on a marked verse away from the marked words (B-008)', () => {
+  it('still reports the verse\'s markup ids so Remove is offered', () => {
+    window.getSelection = () => ({ isCollapsed: true, toString: () => '' }) as unknown as Selection;
+    const setContextMenu = vi.fn();
+    const verse = { verse_id: 43003016, book_number: 43, chapter: 3, verse: 16, text: 'x' };
+    const { result } = renderHandlers({ currentVerses: [verse], setContextMenu });
+    const mkEl = (v: string) => ({ getAttribute: () => v });
+    const verseEl = { querySelectorAll: () => [mkEl('5,6'), mkEl('6')] };
+    const event = {
+      preventDefault: vi.fn(), stopPropagation: vi.fn(), clientX: 1, clientY: 1,
+      target: {
+        closest: (sel: string) => (sel === '[data-verse-id]' ? verseEl : null),
+        classList: { contains: () => false }, hasAttribute: () => false,
+      },
+    } as unknown as React.MouseEvent;
+    result.current.handleVerseContextMenu(event, verse);
+    const arg = setContextMenu.mock.calls[0][0];
+    expect(arg.markupId).toBe(5);
+    expect(arg.markupIds).toEqual([5, 6]);
+  });
+});
