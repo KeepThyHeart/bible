@@ -11,6 +11,9 @@ export const ErrorCodes = {
   INVALID_PARAM: 'INVALID_PARAM',
   INTERNAL_ERROR: 'INTERNAL_ERROR',
   MODULE_NOT_FOUND: 'MODULE_NOT_FOUND',
+  RATE_LIMITED: 'RATE_LIMITED',
+  /** A store anonymous callers write to (feedback, desktop reports) is at its size cap. */
+  STORAGE_FULL: 'STORAGE_FULL',
 } as const;
 
 export type ErrorCode = typeof ErrorCodes[keyof typeof ErrorCodes];

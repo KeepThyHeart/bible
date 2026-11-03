@@ -50,6 +50,15 @@ const LOGIN_RATE_LIMIT = {
 };
 const loginAttempts = new Map<string, { count: number; firstAttempt: number }>();
 
+// Entries for addresses that never come back would otherwise stay forever.
+// unref: never keep the process alive for this.
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, record] of loginAttempts) {
+    if (now - record.firstAttempt > LOGIN_RATE_LIMIT.windowMs) loginAttempts.delete(ip);
+  }
+}, LOGIN_RATE_LIMIT.windowMs).unref?.();
+
 function isRateLimited(ip: string): boolean {
   const now = Date.now();
   const record = loginAttempts.get(ip);

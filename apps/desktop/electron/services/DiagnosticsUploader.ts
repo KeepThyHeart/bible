@@ -224,7 +224,8 @@ export class DiagnosticsUploader {
     }
 
     const status = response.status;
-    if (status === 200 || status === 202) {
+    // Any 2xx: the web server's /api/desktop-report answers 201 Created.
+    if (status >= 200 && status <= 299) {
       return { kind: 'sent' };
     } else if (status === 400 || status === 413) {
       return { kind: 'permanent-failure', reason: `HTTP ${status}` };

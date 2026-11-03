@@ -10,11 +10,17 @@ import { validateModuleName } from '../utils/validation.js';
 import { sendError, ErrorCodes } from '../utils/errorResponse.js';
 import type { SiteSettings } from '../siteSettings.js';
 import { isModuleActive, getModuleEntry } from '../siteSettings.js';
+import { isNamedModuleVisible } from '../utils/moduleVisibility.js';
 import { registerRoute } from './routeRegistry.js';
 import type { ServerHookRegistry } from '../plugins/ServerHooks.js';
 
 export function createDictionaryRoutes(db: DatabaseManager, siteSettings: SiteSettings | null, hooks?: ServerHookRegistry): Router {
   const router = Router();
+
+  // Every `/:module/...` route looks its dictionary up here, so one the site has
+  // switched off answers exactly as one that is not installed (an empty result).
+  const visibleRepo = (name: string) =>
+    isNamedModuleVisible(siteSettings, 'dictionaries', name) ? db.getDictionaryRepo(name) : null;
 
   // List available dictionary modules (filtered by settings)
   router.get('/available', (_req, res): void => {
@@ -112,7 +118,7 @@ export function createDictionaryRoutes(db: DatabaseManager, siteSettings: SiteSe
 
       const moduleName = validateModuleName(req.params.module);
       if (!moduleName) { sendError(res, 400, ErrorCodes.INVALID_PARAM, 'Invalid module name'); return; }
-      const repo = db.getDictionaryRepo(moduleName);
+      const repo = visibleRepo(moduleName);
       if (!repo) { res.json([]); return; }
 
       const entries = repo.searchEntries(query, { limit: 30 });
@@ -159,7 +165,7 @@ export function createDictionaryRoutes(db: DatabaseManager, siteSettings: SiteSe
     try {
       const moduleName = validateModuleName(req.params.module);
       if (!moduleName) { sendError(res, 400, ErrorCodes.INVALID_PARAM, 'Invalid module name'); return; }
-      const repo = db.getDictionaryRepo(moduleName);
+      const repo = visibleRepo(moduleName);
       if (!repo) { res.json([]); return; }
 
       const rows = repo.getLetterIndex();
@@ -175,7 +181,7 @@ export function createDictionaryRoutes(db: DatabaseManager, siteSettings: SiteSe
     try {
       const moduleName = validateModuleName(req.params.module);
       if (!moduleName) { sendError(res, 400, ErrorCodes.INVALID_PARAM, 'Invalid module name'); return; }
-      const repo = db.getDictionaryRepo(moduleName);
+      const repo = visibleRepo(moduleName);
       if (!repo) { res.json({ entries: [], total: 0 }); return; }
 
       const letter = (req.query.letter as string) || '';
@@ -199,7 +205,7 @@ export function createDictionaryRoutes(db: DatabaseManager, siteSettings: SiteSe
     try {
       const moduleName = validateModuleName(req.params.module);
       if (!moduleName) { sendError(res, 400, ErrorCodes.INVALID_PARAM, 'Invalid module name'); return; }
-      const repo = db.getDictionaryRepo(moduleName);
+      const repo = visibleRepo(moduleName);
       if (!repo) { res.json({ prev: null, next: null }); return; }
 
       const result = repo.getAdjacentEntries(req.params.key);
@@ -218,7 +224,7 @@ export function createDictionaryRoutes(db: DatabaseManager, siteSettings: SiteSe
     try {
       const moduleName = validateModuleName(req.params.module);
       if (!moduleName) { sendError(res, 400, ErrorCodes.INVALID_PARAM, 'Invalid module name'); return; }
-      const repo = db.getDictionaryRepo(moduleName);
+      const repo = visibleRepo(moduleName);
       if (!repo) { res.json({ count: 0 }); return; }
 
       res.json({ count: repo.getEntryCount() });
@@ -233,7 +239,7 @@ export function createDictionaryRoutes(db: DatabaseManager, siteSettings: SiteSe
     try {
       const moduleName = validateModuleName(req.params.module);
       if (!moduleName) { sendError(res, 400, ErrorCodes.INVALID_PARAM, 'Invalid module name'); return; }
-      const repo = db.getDictionaryRepo(moduleName);
+      const repo = visibleRepo(moduleName);
       if (!repo) {
         sendError(res, 404, ErrorCodes.MODULE_NOT_FOUND, 'Dictionary not found');
         return;

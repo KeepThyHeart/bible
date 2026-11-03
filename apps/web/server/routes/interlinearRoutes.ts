@@ -4,6 +4,8 @@ import type { DatabaseManager } from '../DatabaseManager.js';
 import { validateBookNumber, validateChapter } from '../utils/validation.js';
 import { sendError, ErrorCodes } from '../utils/errorResponse.js';
 import { registerRoute } from './routeRegistry.js';
+import type { SiteSettings } from '../siteSettings.js';
+import { isNamedModuleVisible } from '../utils/moduleVisibility.js';
 import { logger } from '../utils/logger.js';
 
 /** Extract a brief English meaning from a Strong's definition string.
@@ -18,7 +20,7 @@ function extractBriefMeaning(definition: string | undefined): string {
   return match ? match[1].trim() : '';
 }
 
-export function createInterlinearRoutes(db: DatabaseManager): Router {
+export function createInterlinearRoutes(db: DatabaseManager, siteSettings: SiteSettings | null = null): Router {
   const router = Router();
 
   router.get('/:book/:chapter', (req, res): void => {
@@ -30,8 +32,12 @@ export function createInterlinearRoutes(db: DatabaseManager): Router {
 
       // With no module named, a Strong's-tagged Bible: KJV when installed,
       // otherwise whichever tagged Bible is, rather than assuming KJV exists.
-      const moduleName = (req.query.module as string) || db.getDefaultInterlinearBibleAbbreviation('KJV');
-      const repo = moduleName ? db.getBibleRepo(moduleName) : null;
+      // A Bible the site has switched off is treated as unknown when named. The
+      // default is the server's own choice of tagged Bible and is not filtered.
+      const named = typeof req.query.module === 'string' && req.query.module ? req.query.module : null;
+      const moduleName = named ?? db.getDefaultInterlinearBibleAbbreviation('KJV');
+      const hidden = named !== null && !isNamedModuleVisible(siteSettings, 'bibles', named);
+      const repo = moduleName && !hidden ? db.getBibleRepo(moduleName) : null;
 
       // An unresolvable module answers with no words rather than another
       // module's — the client aligns these rows against the *requested*
@@ -124,5 +130,5 @@ export function createInterlinearRoutes(db: DatabaseManager): Router {
 
 registerRoute({
   path: '/api/interlinear',
-  createRoutes: (deps) => createInterlinearRoutes(deps.db),
+  createRoutes: (deps) => createInterlinearRoutes(deps.db, deps.siteSettings),
 });

@@ -8,6 +8,7 @@ import { sendError, ErrorCodes } from '../utils/errorResponse.js';
 import { registerRoute } from './routeRegistry.js';
 import type { ServerHookRegistry } from '../plugins/ServerHooks.js';
 import { isModuleActive, type SiteSettings } from '../siteSettings.js';
+import { moduleVisibilityParam } from '../utils/moduleVisibility.js';
 
 export interface BibleRouteOptions {
   /** `ui.defaultModule` from site-config.json: the Bible a request that names none is answered in. */
@@ -46,6 +47,9 @@ export function createBibleRoutes(db: DatabaseManager, hooks?: ServerHookRegistr
     !options.siteSettings || isModuleActive(options.siteSettings.bibles, abbreviation);
   const defaultBible = (): string | null =>
     db.getDefaultBibleAbbreviation(options.defaultModule, isVisibleBible);
+
+  // A Bible the site has switched off is "not found" here too, not only absent from the list.
+  router.param('module', moduleVisibilityParam(options.siteSettings, 'bibles'));
 
   // Lazy-initialized BibleViewService
   let viewService: InstanceType<typeof BibleViewService> | null = null;

@@ -106,6 +106,14 @@ describe('DiagnosticsUploader', () => {
     expect(queue.read(id)).toBeNull();
   });
 
+  it('201 Created (what the web server answers) counts as sent', async () => {
+    const id = queue.enqueue(mkFeedback());
+    respondWith(() => fetchResult(201));
+    const counts = await uploader.flushNow();
+    expect(counts.sent).toBe(1);
+    expect(queue.read(id)).toBeNull();
+  });
+
   it('400 is a permanent failure: file is deleted and counts.failed is incremented', async () => {
     const id = queue.enqueue(mkFeedback());
     respondWith(() => fetchResult(400));

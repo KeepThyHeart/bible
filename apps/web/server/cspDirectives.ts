@@ -21,7 +21,17 @@
  *
  * Remote semantic search with `via: 'browser'` adds one more `connect-src`
  * origin: the bibsearch service itself. With `via: 'server'` nothing changes.
+ *
+ * Inline scripts are allowed by hash, not by `'unsafe-inline'`: the built HTML
+ * pages carry a few small inline scripts (the brand JSON, the error fallback),
+ * and `inlineScriptHashes` reads their hashes from the build at startup, so an
+ * injected `<script>` cannot run. `'unsafe-inline'` comes back only when there
+ * is no build to read (the Vite dev server serves the pages itself).
  */
+
+import { readdirSync, readFileSync } from 'fs';
+import { createHash } from 'crypto';
+import { join } from 'path';
 
 export interface CspAudioOptions {
   enabled: boolean;
@@ -53,25 +63,57 @@ export function speechModelOrigins(modelBase: string | undefined): string[] {
   }
 }
 
+const INLINE_SCRIPT = /<script\b([^>]*)>([\s\S]*?)<\/script>/gi;
+
+/**
+ * CSP source expressions (`'sha256-...'`) for every inline `<script>` in the
+ * HTML files under `clientDir`, recursively. Scripts with `src` are skipped:
+ * `'self'` covers them. Read once at startup, so a rebuilt client needs a
+ * restart, which every deploy does anyway. Empty when `clientDir` is missing.
+ */
+export function inlineScriptHashes(clientDir: string | undefined): string[] {
+  if (!clientDir) return [];
+  const hashes = new Set<string>();
+  const walk = (dir: string): void => {
+    let entries;
+    try { entries = readdirSync(dir, { withFileTypes: true }); } catch { return; }
+    for (const entry of entries) {
+      const path = join(dir, entry.name);
+      if (entry.isDirectory()) {
+        if (entry.name !== 'assets') walk(path);
+      } else if (entry.name.endsWith('.html')) {
+        for (const [, attrs, body] of readFileSync(path, 'utf-8').matchAll(INLINE_SCRIPT)) {
+          if (/\bsrc\s*=/i.test(attrs)) continue;
+          hashes.add(`'sha256-${createHash('sha256').update(body, 'utf-8').digest('base64')}'`);
+        }
+      }
+    }
+  };
+  walk(clientDir);
+  return [...hashes].sort();
+}
+
 export function contentSecurityPolicyDirectives(
   audio: CspAudioOptions = { enabled: false, externalOrigins: [] },
   speech: CspSpeechOptions = { enabled: false, externalOrigins: [] },
   /** Origin of bibsearch when the browser calls it directly (`search.remote.via: 'browser'`), else null. */
   remoteSearchOrigin: string | null = null,
+  /** From `inlineScriptHashes`; empty falls back to `'unsafe-inline'`. */
+  scriptHashes: string[] = [],
 ) {
   const external = audio.enabled ? audio.externalOrigins : [];
   const speechOrigins = speech.enabled ? speech.externalOrigins : [];
   const directives: Record<string, Iterable<string> | null> = {
     defaultSrc: ["'self'"],
-    // 'unsafe-inline' is required for the error-fallback inline script in index.html.
-    // The hash alternative would require rebuilding the client on every change.
+    // Inline scripts by hash (see the note at the top); 'unsafe-inline' only
+    // when there are no built pages to hash.
     // 'wasm-unsafe-eval' lets WebAssembly compile. Without it the browser
     // refuses to instantiate any wasm module, which kills the wa-sqlite
     // worker behind offline module storage and the in-browser search index
     // ("Refused to compile or instantiate WebAssembly module"). It is the
     // narrow directive for exactly this — it does NOT re-enable eval() for
     // JavaScript, unlike 'unsafe-eval'.
-    scriptSrc: ["'self'", "'unsafe-inline'", "'wasm-unsafe-eval'"],
+    scriptSrc: ["'self'", ...(scriptHashes.length > 0 ? scriptHashes : ["'unsafe-inline'"]), "'wasm-unsafe-eval'"],
     // No external origins: reading fonts are self-hosted under /fonts (see
     // scripts/fetch-fonts.mjs) and Font Awesome is bundled from node_modules
     // (see the comment in src/main.tsx). The Google Fonts and cdnjs
