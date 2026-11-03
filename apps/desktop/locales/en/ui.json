@@ -1578,6 +1578,7 @@
   "ui.preferences.showRedLetterHint": "Red letters mark words spoken by Jesus in the Gospels and elsewhere. Which words count as his is a translation choice, so some passages (for example John 3:13-21) are debated.",
   "ui.verseContextMenu.copyPassage": "Copy Passage...",
   "ui.verseContextMenu.addNote": "Add Note",
+  "ui.verseContextMenu.editNote": "Edit Note",
   "ui.verseContextMenu.highlightUnderline": "Highlight/Underline...",
   "ui.verseContextMenu.removeHighlight": "Remove Highlight/Underline",
   "ui.commentaryPassageHeader.goToVerse": "Go to this verse in the Bible",

@@ -257,6 +257,7 @@ const BiblePane: React.FC<BiblePaneProps> = (props) => {
         <BibleVerseList />
 
         <BiblePaneOverlays
+          versesWithNotes={versesWithNotes}
           showBookPicker={bookPicker.showBookPicker}
           setShowBookPicker={bookPicker.setShowBookPicker}
           currentBook={currentBook}

@@ -44,6 +44,8 @@ interface AvailableBible {
 }
 
 export interface BiblePaneOverlaysProps {
+  /** Verses of the open chapter that have a note (the context menu then says "Edit Note"). */
+  versesWithNotes?: Set<number>;
   // Book/Chapter Picker.
   // One panel shows one passage, so picking a book/chapter always navigates
   // *this* passage. Reading somewhere else alongside it means opening another
@@ -172,6 +174,7 @@ export interface BiblePaneOverlaysProps {
 }
 
 const BiblePaneOverlays: React.FC<BiblePaneOverlaysProps> = ({
+  versesWithNotes,
   showBookPicker,
   setShowBookPicker,
   currentBook,
@@ -430,6 +433,7 @@ const BiblePaneOverlays: React.FC<BiblePaneOverlaysProps> = ({
             if (verseId === undefined) return;
             void removeVerseFromAllCollections(verseId).then(() => loadBookmarks());
           }}
+          hasNote={contextMenu.verses[0]?.verse_id !== undefined && !!versesWithNotes?.has(contextMenu.verses[0].verse_id)}
           onAddNote={() => {
             const verseId = contextMenu.verses[0]?.verse_id;
             if (!verseId) return;

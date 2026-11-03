@@ -50,6 +50,8 @@ export interface VerseContextMenuProps {
   onOpenHighlightMenu?: () => void;
   /** Callback to open/create a verse note */
   onAddNote?: () => void;
+  /** The clicked verse already has a note: label the entry "Edit Note". */
+  hasNote?: boolean;
   /** Markup ID if right-clicking on highlighted text */
   markupId?: number;
   /** Callback to remove a highlight */
@@ -108,6 +110,7 @@ const VerseContextMenu: React.FC<VerseContextMenuProps> = ({
   onOpenCopyOptions,
   onOpenHighlightMenu,
   onAddNote,
+  hasNote,
   markupId,
   onRemoveHighlight,
   bookmarks = [],
@@ -463,7 +466,7 @@ const VerseContextMenu: React.FC<VerseContextMenuProps> = ({
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
             </svg>
-            <span>{t('ui.verseContextMenu.addNote')}</span>
+            <span>{hasNote ? t('ui.verseContextMenu.editNote') : t('ui.verseContextMenu.addNote')}</span>
           </button>
         </>
       )}
