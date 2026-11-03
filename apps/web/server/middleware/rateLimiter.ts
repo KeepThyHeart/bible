@@ -16,6 +16,7 @@
  */
 
 import type { Request, Response, NextFunction } from 'express';
+import { clientKey } from '../utils/clientQuota.js';
 
 export type RateLimitTier = 'search' | 'content' | 'present' | 'games' | 'default';
 
@@ -138,10 +139,6 @@ function sweep(map: Map<string, Counter>, now: number, windowMs: number): void {
   for (const [key, counter] of map) {
     if (now - counter.windowStart >= windowMs) map.delete(key);
   }
-}
-
-function clientKey(req: Request): string {
-  return req.ip || req.socket.remoteAddress || 'unknown';
 }
 
 export interface RateLimiterHandle {
