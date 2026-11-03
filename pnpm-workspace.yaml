@@ -8,7 +8,11 @@ overrides:
   react-dom: 18.3.1
   sharp: ^0.35.4
   vite: ^7.3.6
-  express>qs: ^6.16.0
+  express>qs: ^6.16.1
+  body-parser>qs: ^6.16.1
+  # Security floors (pnpm audit, 2026-11): proxy-addr IP spoofing, body-parser DoS.
+  express>proxy-addr: ^2.0.8
+  express>body-parser: ^1.20.9
 
 # Dependencies whose install scripts may run (replaces npm's "allowScripts").
 # Native addons / binary downloads need them. protobufjs (postinstall is only a

@@ -43,6 +43,10 @@
  *     disk.
  *  3. The size caps below, plus the global `express.json({ limit: '100kb' })`
  *     and the shared rate-limit middleware in `server/index.ts`.
+ *  4. A per-client hourly quota and a cap on the directory as a whole
+ *     (`DesktopReportLimits`). The quota is keyed by address the same way the
+ *     rate limiter is: in memory only, for an hour at most, never written to
+ *     disk or into a report, so the promise above still holds.
  */
 
 import { Router } from 'express';
@@ -50,6 +54,8 @@ import { mkdirSync, writeFileSync } from 'fs';
 import { randomUUID, timingSafeEqual } from 'crypto';
 import { resolve, join } from 'path';
 import { sendError, ErrorCodes } from '../utils/errorResponse.js';
+import { createClientQuota } from '../utils/clientQuota.js';
+import { createDirectoryBudget } from '../utils/directoryBudget.js';
 import { registerRoute } from './routeRegistry.js';
 
 /** Report types the desktop app can send. Anything else is rejected. */
@@ -64,6 +70,23 @@ type ReportType = typeof REPORT_TYPES[number];
 const MAX_DESCRIPTION_LENGTH = 20000;
 const MAX_FIELD_LENGTH = 200;
 const MAX_SERIALISED_BYTES = 64 * 1024;
+
+/** What one client may store, and what the store may hold in total. */
+export interface DesktopReportLimits {
+  perClientPerHour: number;
+  maxFiles: number;
+  maxBytes: number;
+}
+
+/**
+ * The uploader sends queued reports one at a time, and a desktop rarely has more
+ * than a handful queued. The totals hold ~2,000 worst-case (64 KB) reports.
+ */
+export const DEFAULT_DESKTOP_REPORT_LIMITS: DesktopReportLimits = {
+  perClientPerHour: 20,
+  maxFiles: 5000,
+  maxBytes: 128 * 1024 * 1024,
+};
 
 /**
  * Fields copied verbatim from the envelope when present, each a short opaque
@@ -114,12 +137,18 @@ function tokenMatches(expected: string, received: unknown): boolean {
   return timingSafeEqual(a, b);
 }
 
-export function createDesktopReportRoutes(dataDir: string, requiredToken: string): Router {
+export function createDesktopReportRoutes(
+  dataDir: string,
+  requiredToken: string,
+  limits: DesktopReportLimits = DEFAULT_DESKTOP_REPORT_LIMITS,
+): Router {
   const router = Router();
 
   // Created once at factory time, mirroring feedbackRoutes.
   const reportDir = resolve(dataDir, 'desktop-reports');
   mkdirSync(reportDir, { recursive: true });
+  const quota = createClientQuota({ limit: limits.perClientPerHour, windowMs: 60 * 60_000 });
+  const budget = createDirectoryBudget(reportDir, limits);
 
   router.post('/', (req, res): void => {
     try {
@@ -187,8 +216,20 @@ export function createDesktopReportRoutes(dataDir: string, requiredToken: string
       };
 
       const serialised = JSON.stringify(record, null, 2);
-      if (Buffer.byteLength(serialised, 'utf-8') > MAX_SERIALISED_BYTES) {
+      const bytes = Buffer.byteLength(serialised, 'utf-8');
+      if (bytes > MAX_SERIALISED_BYTES) {
         sendError(res, 400, ErrorCodes.INVALID_PARAM, 'Report is too large');
+        return;
+      }
+      if (!budget.hasRoom(bytes)) {
+        console.warn('[desktop-report] store is full; report refused');
+        sendError(res, 503, ErrorCodes.STORAGE_FULL, 'Reports cannot be accepted right now');
+        return;
+      }
+      const retryAfter = quota.take(req);
+      if (retryAfter !== null) {
+        res.setHeader('Retry-After', String(retryAfter));
+        sendError(res, 429, ErrorCodes.RATE_LIMITED, 'Too many reports from this connection');
         return;
       }
 
@@ -200,6 +241,7 @@ export function createDesktopReportRoutes(dataDir: string, requiredToken: string
       // caller sent ever reaches a path.
       const stamp = receivedAt.toISOString().replace(/[:.]/g, '-');
       writeFileSync(join(reportDir, `${stamp}-${record.type}-${id}.json`), serialised, 'utf-8');
+      budget.recordWrite(bytes);
 
       res.status(201).json({ ok: true, id, receivedAt: record.receivedAt });
     } catch (error) {

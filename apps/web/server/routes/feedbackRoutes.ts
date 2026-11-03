@@ -8,6 +8,11 @@
  * in `tierForApiPath()`, so it falls to the `default` tier (120/min) through the
  * single tier middleware in `server/index.ts`. Adding an `app.use` for it would
  * double-charge the request — see `docs/features/server-api.md` "Rate limiting".
+ *
+ * That tier bounds request *rate*, not what reaches disk, and this route is open
+ * to anyone once the site password is off. So a valid submission is also charged
+ * to a per-client hourly quota, and the directory as a whole has a size cap
+ * (`FeedbackLimits`).
  */
 
 import { Router } from 'express';
@@ -15,6 +20,8 @@ import { mkdirSync, writeFileSync } from 'fs';
 import { randomUUID } from 'crypto';
 import { resolve, join } from 'path';
 import { sendError, ErrorCodes } from '../utils/errorResponse.js';
+import { createClientQuota } from '../utils/clientQuota.js';
+import { createDirectoryBudget } from '../utils/directoryBudget.js';
 import { registerRoute } from './routeRegistry.js';
 import type { PrivacyMode } from '../SiteConfig.js';
 
@@ -29,6 +36,25 @@ type FeedbackCategory = typeof CATEGORIES[number];
  */
 const MAX_MESSAGE_LENGTH = 5000;
 const MAX_CONTACT_LENGTH = 200;
+
+/** What one client may store, and what the store may hold in total. */
+export interface FeedbackLimits {
+  perClientPerHour: number;
+  maxFiles: number;
+  maxBytes: number;
+}
+
+/**
+ * A person sending feedback sends one or two messages; ten an hour leaves room
+ * for a shared address (a church or school network) without letting a script
+ * write thousands. The totals are far above any real backlog: at ~5 KB a file
+ * the byte cap is reached only by abuse.
+ */
+export const DEFAULT_FEEDBACK_LIMITS: FeedbackLimits = {
+  perClientPerHour: 10,
+  maxFiles: 5000,
+  maxBytes: 50 * 1024 * 1024,
+};
 
 interface StoredFeedback {
   id: string;
@@ -48,13 +74,19 @@ function isCategory(value: unknown): value is FeedbackCategory {
   return typeof value === 'string' && (CATEGORIES as readonly string[]).includes(value);
 }
 
-export function createFeedbackRoutes(dataDir: string, privacyMode: PrivacyMode): Router {
+export function createFeedbackRoutes(
+  dataDir: string,
+  privacyMode: PrivacyMode,
+  limits: FeedbackLimits = DEFAULT_FEEDBACK_LIMITS,
+): Router {
   const router = Router();
 
   // Created once at factory time rather than per request, mirroring the
   // lite-cache directory in moduleRoutes.
   const feedbackDir = resolve(dataDir, 'feedback');
   mkdirSync(feedbackDir, { recursive: true });
+  const quota = createClientQuota({ limit: limits.perClientPerHour, windowMs: 60 * 60_000 });
+  const budget = createDirectoryBudget(feedbackDir, limits);
 
   router.post('/', (req, res): void => {
     try {
@@ -119,9 +151,26 @@ export function createFeedbackRoutes(dataDir: string, privacyMode: PrivacyMode):
       // server-generated values (an ISO timestamp with the ':' and '.'
       // separators removed, plus a UUID) — nothing the caller sent ever reaches
       // a path, so there is no traversal surface here at all.
+      const serialised = JSON.stringify(record, null, 2);
+      const bytes = Buffer.byteLength(serialised, 'utf-8');
+      // Checked only once the submission is known to be valid, so a rejected
+      // form costs the sender nothing against their quota.
+      if (!budget.hasRoom(bytes)) {
+        console.warn('[feedback] store is full; submission refused');
+        sendError(res, 503, ErrorCodes.STORAGE_FULL, 'Feedback cannot be accepted right now. Please try again later.');
+        return;
+      }
+      const retryAfter = quota.take(req);
+      if (retryAfter !== null) {
+        res.setHeader('Retry-After', String(retryAfter));
+        sendError(res, 429, ErrorCodes.RATE_LIMITED, 'Too much feedback from this connection. Please try again later.');
+        return;
+      }
+
       const stamp = submittedAt.toISOString().replace(/[:.]/g, '-');
       const filePath = join(feedbackDir, `${stamp}-${id}.json`);
-      writeFileSync(filePath, JSON.stringify(record, null, 2), 'utf-8');
+      writeFileSync(filePath, serialised, 'utf-8');
+      budget.recordWrite(bytes);
 
       // Deliberately no path in the response: where submissions live on disk is
       // the operator's business, not the caller's.
