@@ -228,3 +228,17 @@ describe('BibleToolbar - module toolbar items', () => {
     expect(screen.queryByTestId('keywords-toggle')).toBeNull();
   });
 });
+
+describe('BibleToolbar — chapter arrows at the Bible boundaries (B-002)', () => {
+  it('disables Next at Revelation 22 and Prev at Genesis 1', () => {
+    h.ctx.value = makeCtx({ currentBook: 66, currentChapter: 22 });
+    const { unmount } = render(<BibleToolbar />);
+    expect(screen.getByTestId('next-chapter')).toBeDisabled();
+    expect(screen.getByTestId('prev-chapter')).not.toBeDisabled();
+    unmount();
+    h.ctx.value = makeCtx({ currentBook: 1, currentChapter: 1 });
+    render(<BibleToolbar />);
+    expect(screen.getByTestId('prev-chapter')).toBeDisabled();
+    expect(screen.getByTestId('next-chapter')).not.toBeDisabled();
+  });
+});

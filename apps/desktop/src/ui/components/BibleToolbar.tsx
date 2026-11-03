@@ -1,5 +1,6 @@
 import { Bdi } from '@bible/ui';
 import React from 'react';
+import { adjacentChapter } from './bible/adjacentChapter';
 import { useI18n } from '../contexts/useI18n';
 import { useBiblePaneContext } from './BiblePaneContext';
 import { useBibleStore } from '../stores/useBibleStore';
@@ -283,7 +284,7 @@ const BibleToolbar: React.FC = () => {
         {/* Previous Chapter */}
         <button
           onClick={handlePreviousChapter}
-          disabled={isLoading || (currentBook === 1 && currentChapter === 1)}
+          disabled={isLoading || !adjacentChapter(currentBook, currentChapter, 'prev')}
           className="flex items-center px-2.5 hover:bg-background-active disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           style={{ borderInlineStart: '2px solid var(--theme-border-primary)', borderRadius: 0 }}
           title={t('biblePane.previousChapterTitle')}
@@ -297,7 +298,7 @@ const BibleToolbar: React.FC = () => {
         {/* Next Chapter */}
         <button
           onClick={handleNextChapter}
-          disabled={isLoading}
+          disabled={isLoading || !adjacentChapter(currentBook, currentChapter, 'next')}
           className="flex items-center px-2.5 hover:bg-background-active disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           style={{ borderInlineStart: '2px solid var(--theme-border-primary)', borderRadius: 0 }}
           title={t('biblePane.nextChapterTitle')}

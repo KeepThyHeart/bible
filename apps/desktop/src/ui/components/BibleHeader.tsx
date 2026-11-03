@@ -1,4 +1,5 @@
 import React from 'react';
+import { adjacentChapter } from './bible/adjacentChapter';
 import { useI18n } from '../contexts/useI18n';
 import { useBiblePaneContext } from './BiblePaneContext';
 
@@ -22,7 +23,7 @@ const BibleHeader: React.FC = () => {
     <div className="flex items-center justify-between mb-lg border-b border-border pb-sm">
       <button
         onClick={handlePreviousChapter}
-        disabled={isLoading || (currentBook === 1 && currentChapter === 1)}
+        disabled={isLoading || !adjacentChapter(currentBook, currentChapter, 'prev')}
         className="flex items-center px-2 py-1 hover:bg-background-active rounded disabled:opacity-30 disabled:cursor-not-allowed transition-colors flex-shrink-0"
         title={t('biblePane.previousChapterTitle')}
       >
@@ -43,7 +44,7 @@ const BibleHeader: React.FC = () => {
       </h2>
       <button
         onClick={handleNextChapter}
-        disabled={isLoading}
+        disabled={isLoading || !adjacentChapter(currentBook, currentChapter, 'next')}
         className="flex items-center px-2 py-1 hover:bg-background-active rounded disabled:opacity-30 disabled:cursor-not-allowed transition-colors flex-shrink-0"
         title={t('biblePane.nextChapterTitle')}
       >
