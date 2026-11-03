@@ -2816,7 +2816,7 @@ describe('the Manage Passages screen', () => {
     // this is not a failure, and must not end up in the error slot.
     host.handlers.addPassage = () => ({
       ok: true,
-      data: { passage: passageFixture({ reference: 'Psalm 23:1-6' }) },
+      data: { passage: passageFixture({ reference: 'Psalm 23:1-6' }), existed: true },
     });
     const root = renderManagePassages(host, managePlan([]));
     container.appendChild(root);
@@ -2827,18 +2827,23 @@ describe('the Manage Passages screen', () => {
     await settle();
 
     expect(root.querySelector('.sm-error')).toBeNull();
-    expect(host.announcements.some((a) => a.includes('Added'))).toBe(true);
+    // B-026: says so, rather than claiming "Added".
+    expect(host.announcements.some((a) => a.includes('already in your list'))).toBe(true);
+    expect(host.announcements.some((a) => a.includes('Added'))).toBe(false);
   });
 
   // -- removing a passage ----------------------------------------------------
 
-  it('removes a never-practiced passage immediately, with no confirmation step', async () => {
+  it('asks before removing a never-practiced passage too, then removes on confirm (B-025)', async () => {
     host.handlers.removePassage = () => ({ ok: true, data: {} });
     const pv = passageViewFixture({ bestLevel: 0 });
     const root = renderManagePassages(host, managePlan([pv]));
     container.appendChild(root);
 
     root.querySelector<HTMLButtonElement>('.sm-remove button')!.click();
+    expect(host.requests.filter((r) => r.type === 'removePassage')).toEqual([]);
+    expect(spokenText(root)).toContain('Remove this passage from your list?');
+    root.querySelectorAll<HTMLButtonElement>('.sm-remove button')[0]!.click();
     await settle();
 
     expect(host.requests).toContainEqual({ type: 'removePassage', passageId: pv.passage.id });
@@ -2863,6 +2868,7 @@ describe('the Manage Passages screen', () => {
     container.appendChild(root);
 
     root.querySelector<HTMLButtonElement>('.sm-remove button')!.click();
+    root.querySelectorAll<HTMLButtonElement>('.sm-remove button')[0]!.click();
     await settle();
 
     // No list-deleting request of any kind was ever sent - removing a

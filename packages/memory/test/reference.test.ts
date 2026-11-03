@@ -2,6 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import { resolveReference, ReferenceError } from '../src/core/reference';
 import { extractReferenceCandidates } from '../src/ui/referenceInput';
+import { disposeAll, startTestService } from './helpers/service';
 
 const counts: Record<number, number[]> = {
   1: [31, 25, 24],
@@ -78,5 +79,23 @@ describe('resolveReference', () => {
 
   it('still rejects a bare multi-chapter book name', async () => {
     await expect(resolveReference(api(), 'John')).rejects.toBeInstanceOf(ReferenceError);
+  });
+});
+
+describe('addPassage twice (B-026)', () => {
+  it('flags the second add as already in the list', async () => {
+    try {
+      const { svc } = await startTestService({
+        bible: {
+          parseReference: async () => ({ bookNumber: 43, chapter: 3, startVerse: 16, input: 'John 3:16', startVerseId: 43003016 }),
+        },
+      });
+      const first = await svc.addPassage({ reference: 'John 3:16' });
+      const second = await svc.addPassage({ reference: 'John 3:16' });
+      expect(first.existed).toBeUndefined();
+      expect(second.existed).toBe(true);
+    } finally {
+      disposeAll();
+    }
   });
 });

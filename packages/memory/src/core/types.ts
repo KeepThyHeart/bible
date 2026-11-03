@@ -871,7 +871,8 @@ export interface RequestMap {
   setPassageSortOrder: Record<string, never>;
   setPassageAnswerMode: Record<string, never>;
   getContext: PassageContext;
-  addPassage: { passage: Passage };
+  /** `existed`: the reference was already in the target list (nothing new was added). */
+  addPassage: { passage: Passage; existed?: boolean };
   removePassage: Record<string, never>;
   /**
    * The rebuilt plan, so the screen that asked for the reset can redraw from

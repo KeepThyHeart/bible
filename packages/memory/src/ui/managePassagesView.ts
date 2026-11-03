@@ -361,11 +361,11 @@ function renderPassageRow(host: PanelHost, plan: PlanView, pv: PassageView): HTM
 }
 
 /**
- * Removal, carried over from `passageView.ts#renderRemoveControl`'s own
- * rule: only ask for confirmation when the passage has history
- * (`bestLevel > 0`) - a never-attempted passage has nothing a confirmation
- * step would be protecting. T12 removes the original from the passage
- * screen; this is its new, only home.
+ * Removal always asks first (B-025: "Remove…" has an ellipsis, and an instant
+ * removal with only a toast read as a bug). A passage with history says so and
+ * that adding it again restores it; a never-attempted one gets a short
+ * "Remove this passage?". T12 removes the original from the passage screen;
+ * this is its new, only home.
  */
 function renderRemoveControl(host: PanelHost, pv: PassageView): HTMLElement {
   const slot = el('div', { class: 'sm-remove' });
@@ -384,7 +384,7 @@ function renderRemoveControl(host: PanelHost, pv: PassageView): HTMLElement {
 
   const showIdle = (): void => {
     replace(slot, [
-      button(tr('memory.ui.plan.remove', 'Remove…'), hasHistory ? showConfirm : doRemove, {
+      button(tr('memory.ui.plan.remove', 'Remove…'), showConfirm, {
         class: 'sm-btn sm-btn-small sm-btn-danger-quiet',
         attrs: { 'aria-label': tr('memory.ui.plan.removeFromPlan', 'Remove {reference} from the plan', { reference: pv.passage.reference }) },
       }),
@@ -394,7 +394,12 @@ function renderRemoveControl(host: PanelHost, pv: PassageView): HTMLElement {
   function showConfirm(): void {
     replace(slot, [
       el('span', { class: 'sm-remove-confirm', attrs: { role: 'alert' } }, [
-        el('span', { class: 'sm-hint', text: tr('memory.ui.plan.removeConfirm', 'Remove this passage? Its history is kept for 7 days, and adding it again restores it.') }),
+        el('span', {
+          class: 'sm-hint',
+          text: hasHistory
+            ? tr('memory.ui.plan.removeConfirm', 'Remove this passage? Its history is kept for 7 days, and adding it again restores it.')
+            : tr('memory.ui.plan.removeConfirmNew', 'Remove this passage from your list?'),
+        }),
         button(tr('memory.ui.plan.yesRemove', 'Yes, remove'), doRemove, { class: 'sm-btn sm-btn-small sm-btn-danger' }),
         button(tr('memory.ui.plan.cancel', 'Cancel'), showIdle, { class: 'sm-btn sm-btn-small sm-btn-quiet' }),
       ]),
@@ -429,13 +434,17 @@ function renderRemoveControl(host: PanelHost, pv: PassageView): HTMLElement {
 async function addBatch(
   host: PanelHost,
   references: string[],
-): Promise<{ added: Passage[]; failed: { reference: string; error: string }[]; dropped: Passage[] }> {
+): Promise<{ added: Passage[]; failed: { reference: string; error: string }[]; dropped: Passage[]; existing: number }> {
   const addedPassages: Passage[] = [];
+  let existing = 0;
   const failed: { reference: string; error: string }[] = [];
 
   for (const reference of references) {
     const reply = await host.request({ type: 'addPassage', reference });
-    if (reply.ok) addedPassages.push(reply.data.passage);
+    if (reply.ok) {
+      addedPassages.push(reply.data.passage);
+      if (reply.data.existed) existing += 1;
+    }
     else failed.push({ reference, error: reply.error });
   }
 
@@ -459,7 +468,7 @@ async function addBatch(
     else kept.push(passage);
   }
 
-  return { added: kept, failed, dropped };
+  return { added: kept, failed, dropped, existing };
 }
 
 /**
@@ -469,10 +478,14 @@ async function addBatch(
  */
 function announceBatch(
   host: PanelHost,
-  outcome: { added: Passage[]; failed: unknown[]; dropped: Passage[] },
+  outcome: { added: Passage[]; failed: unknown[]; dropped: Passage[]; existing?: number },
 ): void {
   const { added, failed, dropped } = outcome;
   if (added.length === 0) return;
+  if (added.length === 1 && failed.length === 0 && dropped.length === 0 && outcome.existing === 1) {
+    host.announce(tr('memory.ui.plan.alreadyInList', '{reference} is already in your list.', { reference: added[0]!.reference }));
+    return;
+  }
   const mergedNote =
     dropped.length > 0
       ? tr('memory.ui.plan.mergedNote', ' {count, plural, one {# reference} other {# references}} already covered by another passage in this batch.', { count: dropped.length })
