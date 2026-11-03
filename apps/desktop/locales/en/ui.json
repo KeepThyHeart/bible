@@ -1755,6 +1755,7 @@
   "extensionUi.quickPickLabel": "Choose an option",
   "highlightMenu.applyHighlightColor": "Highlight in {color}",
   "highlightMenu.applyUnderline": "Apply underline",
+  "highlightMenu.apply": "Apply",
   "highlightMenu.colorHeading": "Color",
   "highlightMenu.highlightColorHeading": "Highlight color",
   "highlightMenu.label": "Highlight options",
