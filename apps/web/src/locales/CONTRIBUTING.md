@@ -38,6 +38,11 @@ folder.
    `modules.json` and `help.json`. Keep all keys identical to the English
    originals (see "Key Naming Conventions" below).
 
+   `ui.json`'s `app.loading` is also the text of the boot splash shown before
+   any catalog loads. You do not copy it anywhere: the build (`vite.config.ts`,
+   `splashLocalesPlugin`) reads it, plus `meta.json`'s `locale.direction`, from
+   every locale folder and injects it into `index.html`.
+
 3. **Fill in `meta.json`** with this locale's own identity, in place of the
    copied English one:
    ```json

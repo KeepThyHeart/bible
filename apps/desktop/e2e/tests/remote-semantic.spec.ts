@@ -125,10 +125,13 @@ test.describe('Online meaning search', () => {
     expect(stub.requests).toHaveLength(0);
   });
 
-  test('Preferences toggle shows the state and withdrawing stops calls', async ({ window, stub }) => {
+  test('Preferences source shows the state and switching away from online stops calls', async ({ window, stub }) => {
     await openSearchPreferences(window);
-    await expect(window.getByTestId('remote-semantic-toggle')).toBeChecked();
-    await expect(window.getByTestId('remote-semantic-status')).toContainText('Not active until you agree');
+    await expect(window.getByTestId('semantic-source-online')).toBeChecked();
+    await expect(window.getByTestId('remote-semantic-status')).toContainText('asked to agree the first time');
+    // The offline choice is offered even though no pack is installed here.
+    await expect(window.getByTestId('semantic-source-offline')).toBeEnabled();
+    await expect(window.getByTestId('semantic-pack-missing')).toBeVisible();
     await window.keyboard.press('Escape');
 
     await runSemanticSearch(window, 'love');
@@ -136,10 +139,10 @@ test.describe('Online meaning search', () => {
     await expect(window.locator('[data-testid="semantic-result"]').first()).toBeVisible({ timeout: 30000 });
 
     await openSearchPreferences(window);
-    await expect(window.getByTestId('remote-semantic-status')).toContainText('On. You agreed on');
-    await window.getByTestId('remote-semantic-toggle').click();
-    await expect(window.getByTestId('remote-semantic-status')).toHaveText('Off');
-    await expect(window.getByTestId('remote-semantic-toggle')).not.toBeChecked();
+    await expect(window.getByTestId('remote-semantic-status')).toContainText('You agreed on');
+    await window.getByTestId('semantic-source-off').click();
+    await expect(window.getByTestId('semantic-source-off')).toBeChecked();
+    await expect(window.getByTestId('semantic-source-online')).not.toBeChecked();
     await window.keyboard.press('Escape');
 
     stub.clearRequests();

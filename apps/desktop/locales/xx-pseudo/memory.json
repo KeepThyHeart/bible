@@ -533,6 +533,7 @@
   "memory.ui.plan.welcomeTip": "⟦Ţîþ: ŕîĝĥţ-çļîçķ åñý ṽéŕšé îñ ţĥé Ɓîƀļé åñð çĥøøšé Ṁéɱøŕîžé. ··················⟧",
   "memory.ui.practice.blankCounter": "⟦Ɓļåñķ {position} øƒ {total} ···⟧",
   "memory.ui.practice.letterHint": "⟦Çļîçķ åñ åñšŵéŕ, øŕ þŕéšš îţš ļéţţéŕ (Å ţø {last}). ·············⟧",
+  "memory.ui.plan.inProgress": "⟦Îñ þŕøĝŕéšš ···⟧",
   "memory.ui.settings.msgPerfect": "⟦Þéŕƒéçţ. ··⟧",
   "memory.ui.settings.msgExcellent": "⟦Éẋçéļļéñţ. Ñéåŕļý ŵøŕð-þéŕƒéçţ. ·········⟧",
   "memory.ui.settings.msgGood": "⟦Ĝøøð. Å ƒéŵ ŵøŕðš ţø ƒîŕɱ üþ. ········⟧",

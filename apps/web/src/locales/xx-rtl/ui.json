@@ -5,7 +5,8 @@
     "pwaUpdate": "‏A new version of Keep Thy Heart Bible Reader is available. Reload to update?‏",
     "connectError": "‏Unable to connect to the server. Check your network connection and try again.‏",
     "genericError": "‏Something went wrong while starting the app.‏",
-    "tagline": "‏Bible Reader‏"
+    "tagline": "‏Bible Reader‏",
+    "loading": "‏Loading Bible Reader...‏"
   },
   "header": {
     "placeholder": "‏Go to passage or search (e.g. John 3:16, redemption)‏",

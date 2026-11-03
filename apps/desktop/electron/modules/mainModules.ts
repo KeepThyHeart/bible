@@ -19,6 +19,7 @@ import {
   type FeatureModuleManifest,
 } from '@bible/core/browser';
 import type { FeatureMainModule, MainModuleDeps } from './FeatureMainModule';
+import { releaseModuleOverrides } from '../config/releaseProfile';
 import { createModuleIpc, type IpcMainLike } from './moduleIpc';
 import { timelineMainManifest } from './timeline/manifest';
 import { quizMainManifest } from './quiz/manifest';
@@ -100,9 +101,11 @@ export async function registerMainModules(
     overrides: options.packaged ? {} : parseFlagOverrides(options.flagOverrideText ?? process.env.KTH_FLAGS),
   });
   const timeoutMs = options.activationTimeoutMs ?? DEFAULT_MAIN_MODULE_TIMEOUT_MS;
-  const overrides = options.packaged
-    ? {}
-    : parseFeatureModuleOverrides(options.overrideText ?? process.env.KTH_MODULES);
+  // Release-profile removals apply to every build; KTH_MODULES layers on top in unpackaged builds only.
+  const overrides = {
+    ...releaseModuleOverrides(),
+    ...(options.packaged ? {} : parseFeatureModuleOverrides(options.overrideText ?? process.env.KTH_MODULES)),
+  };
   const state: Running = { host: undefined as unknown as FeatureModuleHost, disposables: [], closers: [] };
   state.host = createFeatureModuleHost({
     platform: 'desktop',

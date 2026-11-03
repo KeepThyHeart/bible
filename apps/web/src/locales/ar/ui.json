@@ -5,7 +5,8 @@
     "pwaUpdate": "تتوفر نسخة جديدة من Keep Thy Heart Bible Reader. هل تريد إعادة التحميل للتحديث؟",
     "connectError": "تعذّر الاتصال بالخادم. تحقّق من اتصالك بالشبكة وحاول مرة أخرى.",
     "genericError": "حدث خطأ أثناء تشغيل التطبيق.",
-    "tagline": "Bible Reader"
+    "tagline": "Bible Reader",
+    "loading": "جارٍ تحميل قارئ الكتاب المقدس..."
   },
   "header": {
     "placeholder": "انتقل إلى مقطع أو ابحث (مثل يوحنا 3:16، فداء)",

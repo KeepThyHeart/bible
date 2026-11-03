@@ -389,11 +389,18 @@ export interface SemanticSearchExReply {
 
 export type RemoteConsentChoice = 'granted' | 'declined';
 
+/** Where meaning search runs: the hosted service, the installed pack only, or nowhere. */
+export type SemanticSource = 'online' | 'offline' | 'off';
+
 export interface RemoteSemanticStatus {
   configured: boolean;
   consent: 'granted' | 'declined' | 'unset';
   noticeVersion: number;
   consentedAt?: string;
+  /** Effective source; absent from an older main process (treat as 'online'). */
+  source?: SemanticSource;
+  /** True when the offline meaning-search pack is installed and usable. */
+  localPackInstalled?: boolean;
 }
 
 /** Online meaning-search consent (task 0190). Main enforces it; this only reads and records the user's choice. */
@@ -413,6 +420,15 @@ export const remoteSemanticAPI = {
       remoteSemantic: { setConsent(d: string): Promise<Result<RemoteSemanticStatus>> };
     }).remoteSemantic;
     return unwrap(rs.setConsent(decision));
+  },
+
+  /** Preferences > Search. Resolves to the new status. */
+  async setSource(source: SemanticSource): Promise<RemoteSemanticStatus> {
+    const api = requireElectronAPI();
+    const rs = (api as unknown as {
+      remoteSemantic: { setSource(s: string): Promise<Result<RemoteSemanticStatus>> };
+    }).remoteSemantic;
+    return unwrap(rs.setSource(source));
   },
 };
 

@@ -33,9 +33,10 @@
  *   BIBLE_ABOUT_TEXT - a short paragraph about the app, shown at the
  *                              top of the Help panel. Default EMPTY.
  *   BIBLE_REMOTE_SEMANTIC_URL - `http(s)://` base URL of a bibsearch service
- *                              for online meaning search. Default EMPTY (the
- *                              feature does not exist in the UI). MAIN
- *                              PROCESS ONLY: not handed to the renderer.
+ *                              for online meaning search. Defaults to the
+ *                              hosted service (`DEFAULT_REMOTE_SEMANTIC_URL`);
+ *                              `none` removes the online option from the UI.
+ *                              MAIN PROCESS ONLY: not handed to the renderer.
  *   BIBLE_REMOTE_SEMANTIC_API_KEY - optional `X-API-Key` for that service.
  *                              Default EMPTY. Main process only; see
  *                              `toRendererAppConfig`.
@@ -51,6 +52,13 @@ export const DEFAULT_PRODUCT_NAME = 'Keep Thy Heart Bible Reader';
  * are using.
  */
 export const DEFAULT_DOCS_URL = 'https://docs.bible.keepthyheart.com/desktop/';
+
+/**
+ * Fallback used whenever `BIBLE_REMOTE_SEMANTIC_URL` is not supplied: the
+ * hosted bibsearch service. Anonymous (no API key), limited per IP address by
+ * the service itself. Nothing is sent to it until the user agrees on first use.
+ */
+export const DEFAULT_REMOTE_SEMANTIC_URL = 'https://search.bible.keepthyheart.com';
 
 export interface AppConfig {
   /** User-visible product name (window titles, About dialog, header). */
@@ -160,12 +168,14 @@ function resolveDocsUrl(): string {
 }
 
 /**
- * The online-meaning-search setting. A URL that is not `http(s)://` is treated
- * as not configured (and the key with it): a half-valid setting must not turn
- * the feature on.
+ * The online-meaning-search setting. Unset means the hosted service;
+ * `none` opts a build out. A URL that is not `http(s)://` is treated as not
+ * configured (and the key with it): a half-valid setting must not turn the
+ * feature on.
  */
 function resolveRemoteSemantic(): { url: string; apiKey: string } {
-  const url = normalize(definedRemoteSemanticUrl) ?? fromEnv('BIBLE_REMOTE_SEMANTIC_URL') ?? '';
+  const url =
+    normalize(definedRemoteSemanticUrl) ?? fromEnv('BIBLE_REMOTE_SEMANTIC_URL') ?? DEFAULT_REMOTE_SEMANTIC_URL;
   if (!/^https?:\/\/[^\s/]+/i.test(url)) return { url: '', apiKey: '' };
   const apiKey =
     normalize(definedRemoteSemanticApiKey) ?? fromEnv('BIBLE_REMOTE_SEMANTIC_API_KEY') ?? '';

@@ -1,0 +1,24 @@
+{
+  "_comment": "Release profiles for the desktop build. Select one with BIBLE_RELEASE_PROFILE (the Release workflow sets 'base'); with none set the build is 'full' (everything on). 'disabledModules' are feature-module ids removed from both the renderer and main-process hosts; 'extensions: false' removes the extension host, marketplace and Preferences > Extensions. To re-enable a feature in a later release, delete its id here.",
+  "full": {
+    "disabledModules": [],
+    "extensions": true
+  },
+  "base": {
+    "disabledModules": [
+      "timeline",
+      "genealogy",
+      "quiz",
+      "reading-plans",
+      "xref-graph",
+      "similar",
+      "word-study",
+      "keyword-marks",
+      "measures",
+      "notifications",
+      "memory",
+      "speech"
+    ],
+    "extensions": false
+  }
+}

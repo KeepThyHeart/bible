@@ -515,8 +515,8 @@ describe('LanguageFirstRun', () => {
       source: { catalogId: 1, catalogName: 'Official', verifiedOfficial: true },
     };
     const MODULES = [
-      { module_id: 'ls1910', name: 'Louis Segond 1910', license: 'Public Domain', download_size_bytes: 5_000_000 },
-      { module_id: 'strongsgreek', name: "Strong's Greek", license: 'Public Domain', download_size_bytes: 1_000_000 },
+      { module_id: 'ls1910', abbreviation: 'LS1910', name: 'Louis Segond 1910', license: 'Public Domain', download_size_bytes: 5_000_000 },
+      { module_id: 'strongsgreek', abbreviation: 'StrongsGreek', name: "Strong's Greek", license: 'Public Domain', download_size_bytes: 1_000_000 },
     ];
 
     beforeEach(async () => {
@@ -524,7 +524,7 @@ describe('LanguageFirstRun', () => {
       getStarterPackModules.mockReset().mockResolvedValue({ ok: true, value: { pack: PACK, modules: MODULES } });
       installModule.mockReset().mockResolvedValue(true);
       loadInstalledModules.mockReset().mockResolvedValue(undefined);
-      useModuleStore.setState({ installModule, loadInstalledModules });
+      useModuleStore.setState({ installModule, loadInstalledModules, installedModules: [] });
       (window as unknown as { electron?: unknown }).electron = {
         moduleManager: { getStarterPacks, getStarterPackModules },
       };
@@ -580,6 +580,68 @@ describe('LanguageFirstRun', () => {
       const failed = await screen.findByTestId('first-run-pack-failed-starter-fr');
       expect(failed).toHaveTextContent("Strong's Greek");
       expect(failed).not.toHaveTextContent('Louis Segond 1910');
+    });
+
+    it('shows a module that is already installed, but does not install it again', async () => {
+      useModuleStore.setState({
+        installedModules: [{ module_id: 7, abbreviation: 'ls1910' } as never],
+      });
+      await openPackList();
+
+      const row = await screen.findByTestId('first-run-pack-module-ls1910');
+      expect(row).toHaveTextContent('Already installed');
+      expect(screen.getByTestId('first-run-pack-module-check-ls1910')).not.toBeChecked();
+      expect(screen.getByTestId('first-run-pack-module-check-ls1910')).toBeDisabled();
+
+      await userEvent.click(screen.getByTestId('first-run-pack-install-starter-fr'));
+
+      await waitFor(() => expect(installModule).toHaveBeenCalledTimes(1));
+      expect(installModule).toHaveBeenCalledWith('strongsgreek', 1);
+      expect(await screen.findByTestId('first-run-pack-installed-starter-fr')).toBeInTheDocument();
+    });
+
+    it('holds "Start reading" while installing, with a link to start now', async () => {
+      const pending: Array<(ok: boolean) => void> = [];
+      installModule.mockImplementation(() => new Promise<boolean>((resolve) => pending.push(resolve)));
+      await openPackList();
+      await screen.findByTestId('first-run-pack-module-ls1910');
+
+      await userEvent.click(screen.getByTestId('first-run-pack-install-starter-fr'));
+
+      const busy = await screen.findByTestId('first-run-language-installing');
+      expect(busy).toBeDisabled();
+      expect(busy).toHaveTextContent('Installing… (1 of 2)');
+      expect(screen.queryByTestId('first-run-language-done')).not.toBeInTheDocument();
+      expect(screen.getByTestId('first-run-start-reading-now')).toHaveTextContent(
+        'Start reading now — the rest will keep installing in the background'
+      );
+
+      pending[0](true);
+      await waitFor(() => expect(screen.getByTestId('first-run-language-installing')).toHaveTextContent('Installing… (2 of 2)'));
+      pending[1](true);
+
+      // Finished: the ordinary way out comes back.
+      expect(await screen.findByTestId('first-run-language-done')).toBeEnabled();
+      expect(screen.queryByTestId('first-run-start-reading-now')).not.toBeInTheDocument();
+    });
+
+    it('"Start reading now" closes the dialog and the install carries on', async () => {
+      const pending: Array<(ok: boolean) => void> = [];
+      installModule.mockImplementation(() => new Promise<boolean>((resolve) => pending.push(resolve)));
+      await openPackList();
+      await screen.findByTestId('first-run-pack-module-ls1910');
+      await userEvent.click(screen.getByTestId('first-run-pack-install-starter-fr'));
+
+      await userEvent.click(await screen.findByTestId('first-run-start-reading-now'));
+
+      expect(screen.queryByTestId('first-run-language-dialog')).not.toBeInTheDocument();
+      expect(useOnboardingStore.getState().languageChosen).toBe(true);
+
+      pending[0](true);
+      await waitFor(() => expect(installModule).toHaveBeenCalledTimes(2));
+      expect(installModule).toHaveBeenLastCalledWith('strongsgreek', 1);
+      pending[1](true);
+      await waitFor(() => expect(loadInstalledModules).toHaveBeenCalled());
     });
   });
 });

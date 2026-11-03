@@ -2,17 +2,18 @@
  * Provider order for `search:semanticSearchEx` (task 0190), kept free of
  * Electron and database imports so it is unit-testable.
  *
- *   consent granted + service configured -> remote, then the installed local pack
- *   otherwise                            -> the installed local pack only
- *   nothing answered                     -> throws the 'unavailable' IpcKnownError
- *                                           (the renderer shows keyword results)
+ *   source 'off'                          -> throws 'unavailable' (keyword search only)
+ *   source 'online' + consent granted     -> remote, then the installed local pack
+ *   otherwise ('offline', or no consent)  -> the installed local pack only
+ *   nothing answered                      -> throws the 'unavailable' IpcKnownError
+ *                                            (the renderer shows keyword results)
  *
  * The remote service is only ever touched through `runSemanticChain`, which
  * refuses to call it without consent.
  */
 import { RemoteSemantic } from '@bible/core';
 import { IpcKnownError } from './result';
-import type { RemoteSemanticService } from '../services/RemoteSemanticService';
+import type { RemoteSemanticService, SemanticSource } from '../services/RemoteSemanticService';
 
 /** Same shape as the rows `search:semanticSearch` returns. */
 export interface SemanticRow {
@@ -51,8 +52,11 @@ export interface SemanticSearchExDeps {
 /** True when the semantic toggle should be offered. */
 export function isSemanticOffered(
   localAvailable: boolean,
-  status: { configured: boolean; consent: RemoteSemantic.ConsentStatus },
+  status: { configured: boolean; consent: RemoteSemantic.ConsentStatus; source?: SemanticSource },
 ): boolean {
+  const source = status.source ?? 'online';
+  if (source === 'off') return false;
+  if (source === 'offline') return localAvailable;
   return localAvailable || (status.configured && status.consent !== 'declined');
 }
 
@@ -63,10 +67,14 @@ export async function runSemanticSearchEx(
 ): Promise<SemanticSearchExResult> {
   const status = deps.service.getStatus();
   const levels = options.levels;
+  if (status.source === 'off') {
+    throw new IpcKnownError('unavailable', 'Meaning search is turned off in Preferences > Search.');
+  }
+  const online = status.configured && status.source === 'online';
 
   const outcome = await RemoteSemantic.runSemanticChain<SemanticSearchExResult>({
     consent: status.consent,
-    remote: status.configured
+    remote: online
       ? async () => {
           const res = await deps.service.search(query, { maxResults: options.maxResults });
           let results = deps.hydrate(res.hits);
@@ -104,6 +112,8 @@ export async function runSemanticSearchEx(
     // Something other than the remote answered: say why, when there is a reason.
     const note = RemoteSemantic.noteForRemoteError(outcome.remoteError);
     if (note) result.notice = note;
+    // After "Not now" (which also moved the source to offline), keep pointing
+    // at where it can be changed. A plain offline choice gets no note.
     else if (status.configured && status.consent === 'declined') result.notice = { kind: 'declined' };
   }
   return result;

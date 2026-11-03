@@ -2,13 +2,22 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
-import { resolveAppConfig, toRendererAppConfig, isRemoteSemanticConfigured } from './appConfig';
+import { resolveAppConfig, toRendererAppConfig, isRemoteSemanticConfigured, DEFAULT_REMOTE_SEMANTIC_URL } from './appConfig';
 
 const KEYS = ['BIBLE_REMOTE_SEMANTIC_URL', 'BIBLE_REMOTE_SEMANTIC_API_KEY'];
 afterEach(() => { for (const k of KEYS) delete process.env[k]; });
 
 describe('appConfig remoteSemantic (task 0190)', () => {
-  it('is empty by default', () => {
+  it('defaults to the hosted service, with no key', () => {
+    const c = resolveAppConfig();
+    expect(c.remoteSemantic).toEqual({ url: DEFAULT_REMOTE_SEMANTIC_URL, apiKey: '' });
+    expect(DEFAULT_REMOTE_SEMANTIC_URL).toBe('https://search.bible.keepthyheart.com');
+    expect(isRemoteSemanticConfigured(c)).toBe(true);
+  });
+
+  it('`none` opts the build out', () => {
+    process.env.BIBLE_REMOTE_SEMANTIC_URL = 'none';
+    process.env.BIBLE_REMOTE_SEMANTIC_API_KEY = 'k';
     const c = resolveAppConfig();
     expect(c.remoteSemantic).toEqual({ url: '', apiKey: '' });
     expect(isRemoteSemanticConfigured(c)).toBe(false);

@@ -533,6 +533,7 @@
   "memory.ui.plan.welcomeTip": "‏Tip: right-click any verse in the Bible and choose Memorize.‏",
   "memory.ui.practice.blankCounter": "‏Blank {position} of {total}‏",
   "memory.ui.practice.letterHint": "‏Click an answer, or press its letter (A to {last}).‏",
+  "memory.ui.plan.inProgress": "‏In progress‏",
   "memory.ui.settings.msgPerfect": "‏Perfect.‏",
   "memory.ui.settings.msgExcellent": "‏Excellent. Nearly word-perfect.‏",
   "memory.ui.settings.msgGood": "‏Good. A few words to firm up.‏",

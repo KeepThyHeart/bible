@@ -5,7 +5,8 @@
     "pwaUpdate": "Hay disponible una nueva versión de Keep Thy Heart Bible Reader. ¿Recargar para actualizar?",
     "connectError": "No se ha podido conectar con el servidor. Compruebe su conexión de red e inténtelo de nuevo.",
     "genericError": "Se ha producido un error al iniciar la aplicación.",
-    "tagline": "Lector de la Biblia"
+    "tagline": "Lector de la Biblia",
+    "loading": "Cargando el lector de la Biblia..."
   },
   "header": {
     "placeholder": "Ir a un pasaje o buscar (p. ej., Juan 3:16, redención)",
