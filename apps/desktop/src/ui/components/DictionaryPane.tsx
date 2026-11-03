@@ -80,6 +80,27 @@ function strongsNumberFor(moduleAbbr: string, entryKey: string): string | null {
 const NO_RESULTS: DictionaryEntrySummary[] = [];
 
 /**
+ * Pulls the clean headword out of a raw Strong's definition, which opens
+ * "25 ἀγαπάω ajgapavw agapao {ag-ap-ah'-o} ...": original word, then the
+ * encoded transliteration ("ajgapavw", Strong's own ASCII-ised Greek), then the
+ * readable one and the pronunciation. The `transliteration` column holds the
+ * encoded form, which reads as garbage in a heading (B-018).
+ */
+export function parseStrongsHeadline(definition: string): { word: string; transliteration: string; pronunciation: string } | null {
+  const m = /^\s*\d+\s+(\S+)\s+\S+\s+(\S+)\s+\{([^}]+)\}/.exec(definition ?? '');
+  return m ? { word: m[1], transliteration: m[2], pronunciation: m[3] } : null;
+}
+
+/** Turns "see GREEK for 5368" / "see HEBREW for 430" into clickable cross-references. */
+export function linkStrongsSeeRefs(html: string): string {
+  return html.replace(
+    /see (GREEK|HEBREW) for (\d+)/g,
+    (_all, lang: string, num: string) =>
+      `see <a href="#" class="text-accent-strong underline" data-strongs-ref="${lang === 'GREEK' ? 'G' : 'H'}${num}">${lang} for ${num}</a>`,
+  );
+}
+
+/**
  * What a "Recent" row should call the entry.
  *
  * History stores the dictionary's own key, which for a Strong's lexicon is the
@@ -181,6 +202,7 @@ const DictionaryPane: React.FC<DictionaryPaneProps> = ({ hideTabs = false, panel
   const strongsSearchNumber = activeTab && currentEntry
     ? strongsNumberFor(activeTab.abbreviation, currentEntry.entry_key)
     : null;
+  const strongsHeadline = strongsSearchNumber && currentEntry ? parseStrongsHeadline(currentEntry.definition) : null;
   const isSearching = activeTab ? searchingByTab.get(activeTab.abbreviation) || false : false;
   /** What the Browse dialog lists: search hits while a search is active, else the full list. */
   const browseEntries = browseSearchActive ? searchResults : allEntries;
@@ -643,19 +665,20 @@ const DictionaryPane: React.FC<DictionaryPaneProps> = ({ hideTabs = false, panel
             {/* Entry Header */}
             <div className="mb-lg">
               <h2 className="text-3xl font-bold text-text-heading mb-sm" data-testid="dictionary-entry-key">
-                {currentEntry.entry_key}
-                {currentEntry.word && currentEntry.word.trim().toLowerCase() !== String(currentEntry.entry_key).trim().toLowerCase() && (
+                {strongsSearchNumber ?? currentEntry.entry_key}
+                {(strongsHeadline?.word ?? currentEntry.word) && (strongsHeadline?.word ?? currentEntry.word)!.trim().toLowerCase() !== String(currentEntry.entry_key).trim().toLowerCase() && (
                   <span className="ms-md text-2xl text-text-secondary">
-                    {currentEntry.word}
+                    {strongsHeadline?.word ?? currentEntry.word}
                   </span>
                 )}
               </h2>
 
               {/* Transliteration and pronunciation */}
               <div className="flex items-center gap-md text-sm text-text-secondary mb-sm">
-                {currentEntry.transliteration && (
-                  <span className="italic">{currentEntry.transliteration}</span>
+                {(strongsHeadline?.transliteration ?? currentEntry.transliteration) && (
+                  <span className="italic">{strongsHeadline?.transliteration ?? currentEntry.transliteration}</span>
                 )}
+                {strongsHeadline && <span>{strongsHeadline.pronunciation}</span>}
                 {currentEntry.pronunciation && (
                   <span>/{currentEntry.pronunciation}/</span>
                 )}
@@ -701,7 +724,16 @@ const DictionaryPane: React.FC<DictionaryPaneProps> = ({ hideTabs = false, panel
               <h3 className="text-lg font-semibold text-text-heading mb-md">{t('dictionaryPane.definitionHeading')}</h3>
               <div
                 className="prose prose-lg max-w-none"
-                dangerouslySetInnerHTML={{ __html: sanitizeHtml(dictionaryDefinitionToHtml(currentEntry.definition, currentEntry.newline_handling)) }}
+                onClick={(e) => {
+                  const ref = (e.target as HTMLElement).closest<HTMLElement>('[data-strongs-ref]')?.dataset.strongsRef;
+                  if (!ref) return;
+                  e.preventDefault();
+                  void useDictionaryStore.getState().lookupStrongsNumber(ref, panelId); // allow-getstate: click handler, not render
+                }}
+                dangerouslySetInnerHTML={{ __html: sanitizeHtml((() => {
+                  const html = dictionaryDefinitionToHtml(currentEntry.definition, currentEntry.newline_handling);
+                  return strongsSearchNumber ? linkStrongsSeeRefs(html) : html;
+                })()) }}
               />
             </div>
 
