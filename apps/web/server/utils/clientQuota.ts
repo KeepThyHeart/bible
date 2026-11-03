@@ -14,6 +14,7 @@
  * could pick a fresh address per request and never run out.
  */
 
+import { isIPv6 } from 'node:net';
 import type { Request } from 'express';
 
 export interface ClientQuotaOptions {
@@ -33,8 +34,35 @@ export interface ClientQuota {
   reset(): void;
 }
 
+/**
+ * The key a client is counted under: its IPv4 address, or its IPv6 /64.
+ *
+ * One home or VPS is normally handed a whole /64 (often more), so keying on
+ * the full IPv6 address would let a single caller rotate addresses and never
+ * run out. bibsearch groups IPv6 the same way. IPv4-mapped IPv6 addresses
+ * (`::ffff:1.2.3.4`) count as the IPv4 address.
+ */
 export function clientKey(req: Request): string {
-  return req.ip || req.socket.remoteAddress || 'unknown';
+  return clientKeyFor(req.ip || req.socket.remoteAddress || 'unknown');
+}
+
+export function clientKeyFor(addr: string): string {
+  const mapped = /^::ffff:(\d+\.\d+\.\d+\.\d+)$/i.exec(addr);
+  if (mapped) return mapped[1];
+  if (!isIPv6(addr)) return addr;
+  return `${ipv6Prefix64(addr)}::/64`;
+}
+
+/** The first four hextets of an IPv6 address, expanded, lower case, e.g. `2001:db8:0:0`. */
+function ipv6Prefix64(addr: string): string {
+  const bare = addr.split('%')[0]; // drop a zone id
+  const [head, tail = ''] = bare.split('::');
+  const h = head ? head.split(':') : [];
+  const t = bare.includes('::') && tail ? tail.split(':') : [];
+  // An embedded IPv4 tail (::1.2.3.4 forms) takes two hextets; only the first 64 bits matter here.
+  const tailLen = t.reduce((n, part) => n + (part.includes('.') ? 2 : 1), 0);
+  const groups = bare.includes('::') ? [...h, ...Array(8 - h.length - tailLen).fill('0'), ...t] : h;
+  return groups.slice(0, 4).map((g) => (parseInt(g, 16) || 0).toString(16)).join(':');
 }
 
 export function createClientQuota({ limit, windowMs }: ClientQuotaOptions): ClientQuota {
