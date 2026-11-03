@@ -963,6 +963,13 @@ describe('the ordering picker', () => {
     expect(spokenText(live)).toContain('Not that one');
   });
 
+  it('keeps the wrong mark and "Try again" up for at least 2.5 s so it can be read (B-024)', async () => {
+    const { practice } = await pickWrong();
+    vi.advanceTimersByTime(2_500);
+    expect(markedCandidate(practice.root)).not.toBeNull();
+    expect(spokenText(practice.root.querySelector<HTMLElement>('[aria-live]')!)).toContain('Not that one');
+  });
+
   it('lets the mark expire - it says "not that one", it does not keep a tally', async () => {
     const { practice } = await pickWrong();
     expect(markedCandidate(practice.root)).not.toBeNull();
@@ -971,7 +978,7 @@ describe('the ordering picker', () => {
     // retry would turn a hint into a scoreboard, which is explicitly not what
     // it is for; a second wrong pick would then leave two candidates marked and
     // the picker would look like it was accumulating a verdict.
-    vi.advanceTimersByTime(2_000);
+    vi.advanceTimersByTime(4_000);
 
     expect(markedCandidate(practice.root)).toBeNull();
     const live = practice.root.querySelector<HTMLElement>('[aria-live]')!;
@@ -2201,7 +2208,7 @@ describe('the ordering picker - letter shortcuts', () => {
     expect(host.requests.filter((r) => r.type === 'submitStep').length).toBe(1);
 
     // Once the wrong mark has expired, the same letter works again.
-    vi.advanceTimersByTime(2_000);
+    vi.advanceTimersByTime(4_000);
     await settle();
     press(list, 'b');
     await settle();

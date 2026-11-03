@@ -1342,6 +1342,12 @@
   z-index: 1;
 }
 
+/* Make room under a slot that carries a "you typed" label, so the hung label
+   sits in the line gap instead of on top of the next line of scripture. */
+.sm-app .sm-slot:has(.sm-word-wrong) {
+  margin-bottom: 0.9em;
+}
+
 .sm-app .sm-mark {
   font-weight: 700;
   margin-right: 0.15em;

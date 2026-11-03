@@ -87,7 +87,7 @@ import { tr, uiLocale } from './i18n';
 import { listTargets, pickShuffledTarget } from './suggest';
 
 /** How long a wrong pick stays marked before the picker is handed back clean. */
-const WRONG_MARK_MS = 1400;
+const WRONG_MARK_MS = 3000;
 
 /** How long a correct pick shows as correct before the next step replaces it. */
 const CORRECT_FLASH_MS = 420;
