@@ -84,7 +84,7 @@ const UserNotesEditorView: React.FC<UserNotesEditorViewProps> = ({
 
         {/* Inline breadcrumbs with editable title */}
         <nav
-          className="flex items-center gap-1 text-sm min-w-0 flex-1 overflow-x-auto whitespace-nowrap"
+          className="flex items-center gap-1 text-sm min-w-0 flex-1 overflow-hidden whitespace-nowrap"
           aria-label={t('userNotesPane.breadcrumbLabel')}
         >
           {breadcrumbs.map((seg, i, arr) => (
@@ -98,7 +98,8 @@ const UserNotesEditorView: React.FC<UserNotesEditorViewProps> = ({
                 <button
                   type="button"
                   onClick={() => onBreadcrumbNavigate(seg.path)}
-                  className="text-accent-strong hover:text-accent-strong hover:underline transition-colors"
+                  className="min-w-0 truncate text-accent-strong hover:text-accent-strong hover:underline transition-colors"
+                  title={seg.label}
                 >
                   <Bdi>{seg.label}</Bdi>
                 </button>
