@@ -1,5 +1,6 @@
 import { useRef, useEffect, useMemo, useCallback, useState } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
+import { offlineStore } from '../../stores/offlineStore';
 import { dictionaryStore } from '../../stores/dictionaryStore';
 import { searchStore } from '../../stores/searchStore';
 import { commentaryStore } from '../../stores/commentaryStore';
@@ -40,6 +41,7 @@ interface DictionaryContentProps {
 
 export function DictionaryContent({ tabId, bibleProvider }: DictionaryContentProps) {
   const { t } = useTranslation();
+  const isOnline = useStore(offlineStore, () => offlineStore.isOnline);
   const wordStudyAvailable = usePaneAvailable('wordStudy');
   const tab = useStore(dictionaryStore, () => dictionaryStore.tabs.find(t => t.id === tabId));
   const tabState = useStore(dictionaryStore, () => dictionaryStore.getTabState(tabId));
@@ -166,7 +168,7 @@ export function DictionaryContent({ tabId, bibleProvider }: DictionaryContentPro
                   dead key press. */}
               {!searchLoading && suggestions.length === 0 && (searchError || searchCompleted) && (
                 <div class="dictionary-content__search-dropdown-empty">
-                  {searchError ?? t('dictionaryContent.noResults', { query: searchQuery, module: tab.moduleName })}
+                  {!isOnline ? t('mobileDictionary.offlineNotice') : searchError ?? t('dictionaryContent.noResults', { query: searchQuery, module: tab.moduleName })}
                 </div>
               )}
             </div>
@@ -356,7 +358,7 @@ export function DictionaryContent({ tabId, bibleProvider }: DictionaryContentPro
             ))}
             {!searchLoading && suggestions.length === 0 && (searchError || searchCompleted) && (
               <div class="dictionary-content__search-dropdown-empty">
-                {searchError ?? t('dictionaryContent.noResults', { query: searchQuery, module: tab.moduleName })}
+                {!isOnline ? t('mobileDictionary.offlineNotice') : searchError ?? t('dictionaryContent.noResults', { query: searchQuery, module: tab.moduleName })}
               </div>
             )}
           </div>

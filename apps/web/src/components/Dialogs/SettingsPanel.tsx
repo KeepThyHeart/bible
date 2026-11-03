@@ -511,7 +511,7 @@ export function SettingsPanel({ isOpen, onClose, scrollToSection }: SettingsPane
                     </label>
                   ))
                 ) : (
-                  <div style={{ color: 'var(--text-muted)', fontSize: 'calc(12px * var(--ui-font-scale, 1))' }}>
+                  <div style={{ color: 'var(--text-muted)', fontSize: 'calc(0.75rem * var(--ui-font-scale, 1))' }}>
                     {t('settings.modules.loadingTopical')}
                   </div>
                 )}

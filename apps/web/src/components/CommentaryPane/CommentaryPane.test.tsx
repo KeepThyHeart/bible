@@ -142,6 +142,16 @@ vi.mock('../../stores/settingsStore', () => ({
   },
 }));
 
+
+// The text-size popover has its own tests; here it only has to be present and wired.
+vi.mock('../common/TextSizeButton', async () => {
+  const { h } = await import('preact');
+  return {
+    TextSizeButton: ({ target, className, onMoreOptions }: { target: string; className?: string; onMoreOptions?: () => void }) =>
+      h('button', { class: className, 'data-testid': `text-size-btn-${target}`, onClick: () => onMoreOptions?.() }, 'size'),
+  };
+});
+
 import { CommentaryPane } from './CommentaryPane';
 
 describe('CommentaryPane', () => {
@@ -286,22 +296,18 @@ describe('CommentaryPane', () => {
   });
 
   // ---- Settings button ---------------------------------------------------
-  it('renders the settings (Aa) button when onOpenSettings is provided', () => {
-    const onOpenSettings = vi.fn();
-    const { container } = render(<CommentaryPane onOpenSettings={onOpenSettings} />);
-    expect(container.querySelector('.commentary-passage-header__settings')).toBeTruthy();
-    expect(container.querySelector('.commentary-passage-header__settings')?.textContent).toBe('Aa');
+  it('renders the text-size button, with or without a Settings handler', () => {
+    const { container, unmount } = render(<CommentaryPane onOpenSettings={vi.fn()} />);
+    expect(container.querySelector('[data-testid="text-size-btn-study"]')).toBeTruthy();
+    unmount();
+    const second = render(<CommentaryPane />);
+    expect(second.container.querySelector('[data-testid="text-size-btn-study"]')).toBeTruthy();
   });
 
-  it('does not render the settings button when onOpenSettings is not provided', () => {
-    const { container } = render(<CommentaryPane />);
-    expect(container.querySelector('.commentary-passage-header__settings')).toBeNull();
-  });
-
-  it('calls onOpenSettings with "commentary-font" when Aa button is clicked', () => {
+  it('opens Settings at "commentary-font" from the text-size popover\'s more-options link', () => {
     const onOpenSettings = vi.fn();
     const { container } = render(<CommentaryPane onOpenSettings={onOpenSettings} />);
-    fireEvent.click(container.querySelector('.commentary-passage-header__settings')!);
+    fireEvent.click(container.querySelector('[data-testid="text-size-btn-study"]')!);
     expect(onOpenSettings).toHaveBeenCalledWith('commentary-font');
   });
 

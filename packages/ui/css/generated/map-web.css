@@ -24,6 +24,6 @@
   --kth-input-border: var(--border-color);
   --kth-shadow: 0 4px 12px var(--dropdown-shadow);
   --kth-overlay: var(--overlay-bg);
-  --kth-font-size-ui: var(--ui-font-size, 14px);
+  --kth-font-size-ui: var(--ui-font-size, 1rem);
 }
 /* Not mapped here; contract default applies: --kth-danger, --kth-danger-soft, --kth-success, --kth-warning, --kth-info, --kth-mark-1-rgb, --kth-mark-2-rgb, --kth-mark-3-rgb, --kth-mark-4-rgb, --kth-mark-5-rgb, --kth-mark-6-rgb, --kth-mark-7-rgb, --kth-mark-8-rgb, --kth-font-ui */

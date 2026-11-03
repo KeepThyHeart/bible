@@ -277,12 +277,14 @@ export function BibleContent({
     }
   };
 
+  // The study verse as drawn: none while its highlight is hidden (second click).
+  const shownStudyVerse = tab.studyVerse !== null && tab.hiddenStudyVerse !== tab.studyVerse ? tab.studyVerse : null;
   // Verses between the anchor and the shift-clicked end, excluding the anchor
   // itself — those render faintly to show they are along for the copy.
-  const selectedRange = tab.selectionEndVerse != null && tab.studyVerse != null
+  const selectedRange = tab.selectionEndVerse != null && shownStudyVerse != null
     ? {
-        start: Math.min(tab.studyVerse, tab.selectionEndVerse),
-        end: Math.max(tab.studyVerse, tab.selectionEndVerse),
+        start: Math.min(shownStudyVerse, tab.selectionEndVerse),
+        end: Math.max(shownStudyVerse, tab.selectionEndVerse),
       }
     : null;
 
@@ -432,7 +434,7 @@ export function BibleContent({
               <VerseRenderer
                 key={verse.verse_id}
                 verse={verse}
-                isHighlighted={tab.studyVerse === verse.verse_id}
+                isHighlighted={shownStudyVerse === verse.verse_id}
                 isSelected={tab.previewVerse != null && (
                   tab.previewVerseEnd
                     ? verse.verse_id >= tab.previewVerse && verse.verse_id <= tab.previewVerseEnd
@@ -459,7 +461,7 @@ export function BibleContent({
                   verseId: verse.verse_id,
                   verse: verse.verse,
                   html: verse.text_html,
-                  isActive: tab.studyVerse === verse.verse_id,
+                  isActive: shownStudyVerse === verse.verse_id,
                 })}
               />
             ))}

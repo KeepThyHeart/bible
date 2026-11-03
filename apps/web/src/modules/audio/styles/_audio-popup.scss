@@ -31,7 +31,7 @@
 
   &__title {
     margin: 0;
-    font-size: calc(16px * var(--ui-font-scale, 1));
+    font-size: calc(1rem * var(--ui-font-scale, 1));
     font-weight: 600;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -39,7 +39,7 @@
   }
 
   &__sub {
-    font-size: calc(12px * var(--ui-font-scale, 1));
+    font-size: calc(0.75rem * var(--ui-font-scale, 1));
     color: var(--text-secondary);
     overflow: hidden;
     text-overflow: ellipsis;

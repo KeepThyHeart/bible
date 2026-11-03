@@ -9,7 +9,7 @@
   overflow: hidden;
   transition: height 0.2s ease;
   color: var(--text-muted, #888);
-  font-size: calc(13px * var(--ui-font-scale, 1));
+  font-size: calc(0.8125rem * var(--ui-font-scale, 1));
 
   &--pulling,
   &--refreshing {

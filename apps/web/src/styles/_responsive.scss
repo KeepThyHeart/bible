@@ -32,6 +32,11 @@
   .header {
     gap: 8px;
     padding: 8px 12px;
+    // Grow rather than spill when the two-line wordmark outgrows 48px: at the
+    // 16px default UI text it is ~34px tall against 31px inside the padding,
+    // and more under a larger browser font size.
+    height: auto;
+    min-height: 48px;
 
     // Hide search bar on mobile — the Search tab has its own
     &__search {

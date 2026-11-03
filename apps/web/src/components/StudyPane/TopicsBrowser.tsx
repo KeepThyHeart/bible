@@ -1,5 +1,7 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
+import { useStore } from '../../hooks/useStore';
+import { offlineStore } from '../../stores/offlineStore';
 import { formatPassageRef } from '../../constants';
 import { parseVerseId } from '../../utils/verseId';
 import type {
@@ -100,6 +102,7 @@ export function TopicsBrowser({
   mobile,
 }: TopicsBrowserProps) {
   const { t } = useTranslation();
+  const isOnline = useStore(offlineStore, () => offlineStore.isOnline);
   const entityActions = useSlot(topicEntityActions);
 
   // The request present on the very first render seeds the nav stack, so the
@@ -534,7 +537,7 @@ export function TopicsBrowser({
         {loading && <div class="topics-browser__loading">{t('topicsBrowser.loading')}</div>}
 
         {!loading && verseTopics.length === 0 && verseEntities.length === 0 && (
-          <div class="topics-browser__empty">{t('topicsBrowser.noTopicsVerse')}</div>
+          <div class="topics-browser__empty">{!isOnline ? t('studyTopics.offlineNotice') : t('topicsBrowser.noTopicsVerse')}</div>
         )}
 
         {groupedVerseTopics.length > 0 && (
@@ -626,7 +629,7 @@ export function TopicsBrowser({
 
         {searching && <div class="topics-browser__loading">{t('topicsBrowser.searching')}</div>}
         {!searching && searchResults.length === 0 && entitySearchResults.length === 0 && searchQuery.trim() && (
-          <div class="topics-browser__empty">{t('topicsBrowser.noTopicsSearch', { query: searchQuery })}</div>
+          <div class="topics-browser__empty">{!isOnline ? t('studyTopics.offlineNotice') : t('topicsBrowser.noTopicsSearch', { query: searchQuery })}</div>
         )}
 
         {entitySearchResults.length > 0 && (

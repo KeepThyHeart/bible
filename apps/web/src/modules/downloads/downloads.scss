@@ -8,7 +8,7 @@
   padding: 8px 12px;
   background: var(--bg-secondary);
   border-radius: 6px;
-  font-size: calc(13px * var(--ui-font-scale, 1));
+  font-size: calc(0.8125rem * var(--ui-font-scale, 1));
   margin-bottom: 12px;
 
   &__indicator {
@@ -30,7 +30,7 @@
   &__storage {
     margin-inline-start: auto;
     color: var(--text-muted);
-    font-size: calc(12px * var(--ui-font-scale, 1));
+    font-size: calc(0.75rem * var(--ui-font-scale, 1));
   }
 }
 
@@ -41,7 +41,7 @@
 
   &__empty {
     color: var(--text-muted);
-    font-size: calc(13px * var(--ui-font-scale, 1));
+    font-size: calc(0.8125rem * var(--ui-font-scale, 1));
     padding: 8px 0;
     font-style: italic;
   }
@@ -65,7 +65,7 @@
   }
 
   &__name {
-    font-size: calc(13px * var(--ui-font-scale, 1));
+    font-size: calc(0.8125rem * var(--ui-font-scale, 1));
     font-weight: 500;
     white-space: nowrap;
     overflow: hidden;
@@ -73,7 +73,7 @@
   }
 
   &__meta {
-    font-size: calc(11px * var(--ui-font-scale, 1));
+    font-size: calc(0.6875rem * var(--ui-font-scale, 1));
     color: var(--text-muted);
   }
 
@@ -82,7 +82,7 @@
     margin-inline-start: 6px;
     padding: 1px 6px;
     border-radius: 8px;
-    font-size: calc(10px * var(--ui-font-scale, 1));
+    font-size: calc(0.625rem * var(--ui-font-scale, 1));
     font-weight: 600;
     background: rgba(53, 116, 212, 0.12);
     color: #3574d4;
@@ -98,7 +98,7 @@
   &__status {
     &--downloaded {
       color: #22c55e;
-      font-size: calc(16px * var(--ui-font-scale, 1));
+      font-size: calc(1rem * var(--ui-font-scale, 1));
     }
   }
 
@@ -108,7 +108,7 @@
     border-radius: 4px;
     cursor: pointer;
     padding: 4px 8px;
-    font-size: calc(12px * var(--ui-font-scale, 1));
+    font-size: calc(0.75rem * var(--ui-font-scale, 1));
     color: var(--text-secondary);
     transition: all 0.15s;
 
@@ -137,7 +137,7 @@
 
   &__error {
     color: #ef4444;
-    font-size: calc(12px * var(--ui-font-scale, 1));
+    font-size: calc(0.75rem * var(--ui-font-scale, 1));
   }
 
   &__progress {

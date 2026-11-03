@@ -1,4 +1,5 @@
 import { Store } from './Store';
+import { isServerReachable, onServerReachabilityChange } from '../utils/serverReachability';
 
 const OFFLINE_SETTINGS_KEY = 'bible-reader-offline';
 
@@ -30,7 +31,17 @@ export interface DownloadProgress {
 
 class OfflineStore extends Store {
   enabled = false;
-  isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
+  /** What the browser reports: the device has some network. */
+  private browserOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
+  /**
+   * The device is online *and* the app's server answers. Panes use this to say
+   * "You're offline" instead of claiming there is nothing to show — an empty
+   * result from a server that could not be reached proves nothing. See
+   * utils/serverReachability.ts.
+   */
+  get isOnline(): boolean {
+    return this.browserOnline && isServerReachable();
+  }
   downloadedModules: DownloadedModule[] = [];
   activeDownloads: Map<string, DownloadProgress> = new Map();
   storageUsed = 0;
@@ -42,13 +53,14 @@ class OfflineStore extends Store {
 
     if (typeof window !== 'undefined') {
       window.addEventListener('online', () => {
-        this.isOnline = true;
+        this.browserOnline = true;
         this.notify();
       });
       window.addEventListener('offline', () => {
-        this.isOnline = false;
+        this.browserOnline = false;
         this.notify();
       });
+      onServerReachabilityChange(() => this.notify());
     }
   }
 

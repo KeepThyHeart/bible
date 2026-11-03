@@ -31,7 +31,7 @@ import { bibleStore } from './stores/bibleStore';
 import { searchStore } from './stores/searchStore';
 import { studyStore } from './stores/studyStore';
 import { MAX_CHAPTERS } from './constants';
-import { settingsStore } from './stores/settingsStore';
+import { settingsStore, pxToRem } from './stores/settingsStore';
 import { useStore } from './hooks/useStore';
 import { studyShouldIgnoreBack } from './host/appHost';
 import { useAppShared } from './hooks/useAppShared';
@@ -301,14 +301,14 @@ export function MobileApp({ providers }: MobileAppProps) {
 
   const bibleStyle = {
     fontFamily: shared.fontFamily,
-    fontSize: `${shared.fontSize}px`,
+    fontSize: pxToRem(shared.fontSize),
     lineHeight: String(shared.lineHeight),
     '--heading-font': shared.headingFontFamily,
   } as Record<string, string>;
 
   // The Study text size comes from `--study-font-size` on <html> (see
   // settingsStore.applyStudyFontSize) rather than an inline size here, so the
-  // Study pane's own `calc(Npx * var(--study-font-scale))` rules follow it too.
+  // Study pane's own `calc(<rem> * var(--study-font-scale))` rules follow it too.
   const commentaryStyle = {
     fontFamily: shared.studyFontFamily,
     lineHeight: String(shared.studyLineHeight),

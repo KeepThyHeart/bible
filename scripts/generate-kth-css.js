@@ -86,7 +86,7 @@ const KTH_MAP = {
   '--kth-mark-8-rgb': { web: null, desktop: 'var(--theme-mark-8-rgb)' },
   // Fonts follow each app's live "UI text" setting. Contract defaults remain the fallback.
   '--kth-font-ui':        { web: null, desktop: 'var(--ui-font-family)' },
-  '--kth-font-size-ui':   { web: 'var(--ui-font-size, 14px)', desktop: 'calc(var(--ui-font-size) * var(--global-font-scale, 1))' },
+  '--kth-font-size-ui':   { web: 'var(--ui-font-size, 1rem)', desktop: 'calc(var(--ui-font-size) * var(--global-font-scale, 1))' },
 };
 
 /** Dark variants of contract defaults, emitted into kth-scheme.css for palette isDark themes. */

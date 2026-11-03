@@ -43,7 +43,6 @@ Theme selection, font customization, display options, and offline management, al
 **Theme colours are shared with the desktop app.** The same fifteen themes are also defined in the desktop app's `apps/desktop/src/ui/styles/themes.css`. Twelve are identical in both; light, dark and sepia had drifted into genuinely different colours. `admin/brand/theme-palettes.json` is the one place those colours are written down: a plain string is shared by both apps, while `{ "web": ..., "desktop": ... }` records a colour the two intentionally render differently.
 
 To change a theme colour, edit the palette and run `pnpm run generate:theme-vars` (never edit `_vars.scss` by hand — it is overwritten). `pnpm run check:theme-vars` fails if they are stale, and `themePalette.test.ts` in the desktop package fails if the desktop stylesheet drifts from the palette. To add a theme, add it to the palette and create the matching `theme.json`.
-- **UI Font Size**: 12-20px slider
 
 ### Audio (only when `features.audio` is on)
 An **Audio** tab (`AudioSettingsTab.tsx`, opened with `openSettings('audio')`), built from what the registered providers and engines report: the audio source (Automatic, or a specific provider; unavailable ones are disabled with the reason), a per-translation override, the speech voice list for the active translation's language (download with progress and cancel, use, remove; only for engines that have voices), one speed slider covering the range the sources offer, the "while playing" toggles (highlight the verse being read, scroll to it, continue to the next chapter, announce "Book, chapter N"), and storage (voices and engine, recently played chapters) with Remove and Clear. Preferences are stored under `bible-audio-prefs`, apart from the settings store. See [Audio Bible](audio.md).
@@ -56,7 +55,24 @@ A **Notifications** tab (`src/modules/notifications/NotificationsSettingsTab.tsx
 - **Reset Text Sizes**: `settingsStore.resetTextSettings()` — restores just `fontSize`, `studyFontSize`, `uiFontSize`, `lineHeight`, `studyLineHeight`. Distinct from "Reset All" on the Theme tab, which also throws away the theme and font scheme
 - **Words of Christ in Red**: toggle checkbox
 - **Interlinear Layout**: `stacked` — "Stacked (word columns)", **the default** — or `inline` — "Inline (in parentheses)", prose with each word's original-language form in a parenthetical. Stored as `settingsStore.interlinearLayout` and validated on load (anything else falls back to the default). The same choice is also offered inline, next to each interlinear, by `InterlinearLayoutToggle`. See [Interlinear & Strong's → Layouts](interlinear-strongs.md)
-- **Advanced** (collapsible): Individual sliders for Bible Text (12-48px), Study Text (12-36px), UI Text (10-24px), Bible Line Height (1.2-2.5), Study Line Height (1.2-2.5). Each has a − and a + on either side of the slider, stepping 1px (sizes) or 0.1 (line heights). The five rows are generated from one `advancedTextControls` array in `SettingsPanel.tsx`
+- **Advanced** (collapsible): Individual sliders for Bible Text (12-48px, default 19), Study Text (12-36px, default 17), UI Text (10-24px, default 16), Bible Line Height (1.2-2.5), Study Line Height (1.2-2.5). Each has a − and a + on either side of the slider, stepping 1px (sizes) or 0.1 (line heights). The five rows are generated from one `advancedTextControls` array in `SettingsPanel.tsx`
+
+**Sizes follow the browser's font size.** The three sizes are stored and shown
+as "px at the browser's default 16px root", but published to CSS as rem
+(`pxToRem()` in `settingsStore.ts`: 16 → `1rem`, 19 → `1.1875rem`). A reader who
+raises the browser's default font size therefore gets proportionally larger
+text everywhere; at the default the numbers on the sliders are exact px. The
+stylesheet literals that multiply by the scale variables are rem too
+(`calc(0.8125rem * var(--ui-font-scale, 1))`, written as 13px when the UI text
+was 14px), and `--ui-font-scale` is `uiFontSize / 14`, so each keeps its
+proportion to the UI Text size. Nothing may set a px `font-size` on `html`/`:root`.
+
+**Migration.** Before rem, the defaults were 18 / 15 / 14 px and the stored blob
+had no `textSizeVersion`. On the first load of such a blob, any of the three
+sizes still equal to its old default is moved to the new default (`save()`
+writes every field, so an untouched default is indistinguishable from a chosen
+one); any other value is kept as chosen and renders the same at a 16px root. The
+blob is then stamped `textSizeVersion: 2` so the migration runs once.
 
 **Why the +/- buttons never move.** The row is `label line` + `[−][slider][+]`.
 The value sits in the label line in a fixed-width, tabular-figures cell
@@ -66,7 +82,7 @@ takes the remainder. So nothing about the button positions depends on whether
 the value reads `9px`, `10px` or `100px`.
 
 **Why the dialog does not reflow mid-edit.** Almost every rule in
-`_settings.scss` is `calc(Npx * var(--ui-font-scale))`, so dragging the UI Text
+`_settings.scss` is `calc(<rem> * var(--ui-font-scale))`, so dragging the UI Text
 slider used to resize the panel under the pointer. `SettingsPanel` now pins
 `--ui-font-scale` on the `.settings-panel` element itself to whatever it read
 from `<html>` when the panel opened, re-reading on each open — so a reader who
@@ -80,12 +96,12 @@ edit.
 
 | Property | Meaning |
 |---|---|
-| `--study-font-size` | The px size. `.main-layout__right-pane` sets its `font-size` from it, so everything inheriting (commentary prose, quoted verse text) follows |
-| `--study-font-scale` | `studyFontSize / 15` (the default), so every existing px literal renders unchanged until the reader moves the setting. Study-pane **content** rules multiply by it |
+| `--study-font-size` | The size, in rem. `.main-layout__right-pane` sets its `font-size` from it, so everything inheriting (commentary prose, quoted verse text) follows |
+| `--study-font-scale` | `studyFontSize / 15` (the size the rem literals were authored against), so each keeps its proportion to the Study Text size. Study-pane **content** rules multiply by it |
 
 An inline `font-size` on the right-pane container cannot do this on its own.
 Nearly every element in the Study pane sets an absolute
-`calc(Npx * var(--ui-font-scale))`, which overrides an inherited size everywhere
+`calc(<rem> * var(--ui-font-scale))`, which overrides an inherited size everywhere
 except commentary prose — so "Study Text" would appear to move Commentary and
 nothing else, while "UI Text" moved everything. The variables are the single
 mechanism.

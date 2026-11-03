@@ -64,9 +64,12 @@ export const DEFAULT_SETTINGS = {
   fontFamily: 'Georgia, serif',
   headingFontFamily: 'Georgia, serif',
   studyFontFamily: 'Georgia, serif',
-  fontSize: 18,
-  studyFontSize: 15,
-  uiFontSize: 14,
+  // Text sizes are stored as "px at the browser's default 16px root" and
+  // published to CSS as rem (see `pxToRem`), so they follow the reader's browser
+  // font-size preference: 19 = 1.1875rem, 17 = 1.0625rem, 16 = 1rem.
+  fontSize: 19,
+  studyFontSize: 17,
+  uiFontSize: 16,
   lineHeight: 1.8,
   studyLineHeight: 1.6,
   wordsOfChristInRed: true,
@@ -82,6 +85,38 @@ export const DEFAULT_SETTINGS = {
   interlinearLayout: 'stacked' as InterlinearLayout,
 };
 
+/** The root size the stored text sizes are expressed against (the browser default). */
+export const ROOT_FONT_BASE_PX = 16;
+
+/**
+ * A stored text size as a CSS length relative to the root font size.
+ *
+ * At the browser default (16px) this renders exactly `px` pixels; a reader who
+ * raised their browser's default font size gets proportionally larger text.
+ */
+export function pxToRem(px: number): string {
+  return `${px / ROOT_FONT_BASE_PX}rem`;
+}
+
+/**
+ * The sizes the stylesheets' `calc(<rem> * var(--ui-font-scale, 1))` and
+ * `--study-font-scale` literals were authored against (as px, before they
+ * became rem at 16px = 1rem). The scale is the chosen
+ * size over this baseline, so each element keeps its proportion to the
+ * setting: a `calc(0.8125rem * var(--ui-font-scale, 1))` label (13px when the
+ * UI text was 14px) renders at 13/14 of the UI text size.
+ */
+const UI_SCALE_BASE_PX = 14;
+const STUDY_SCALE_BASE_PX = 15;
+
+/**
+ * Version of the text-size settings in the stored blob. Version 1 (implicit:
+ * no `textSizeVersion` key) used px defaults of 18/15/14; version 2 moved to
+ * rem-based output with defaults of 19/17/16.
+ */
+const TEXT_SIZE_VERSION = 2;
+const LEGACY_TEXT_SIZE_DEFAULTS = { fontSize: 18, studyFontSize: 15, uiFontSize: 14 } as const;
+
 /** Allowed range and click-step for each text-size setting. */
 export const TEXT_SIZE_RANGES = {
   fontSize: { min: 12, max: 48, step: 1 },
@@ -92,6 +127,17 @@ export const TEXT_SIZE_RANGES = {
 } as const;
 
 /** Clamp to a range, rounding line heights back onto their 0.1 grid. */
+/**
+ * The "Text size" steps of the reading panes' Aa popover, as Bible text sizes
+ * (px at a 16px root). Readers see the step number, 1–12, the way e-book
+ * readers number their sizes; step 5 is the default size. Each step scales the
+ * study and interface sizes in proportion, so the interface does not outgrow
+ * the reading text at the top of the range. Exact sizes per area stay in
+ * Settings.
+ */
+export const TEXT_SIZE_STEPS = [13, 15, 16, 17, 19, 21, 23, 26, 29, 32, 36, 40] as const;
+export const DEFAULT_TEXT_SIZE_STEP = TEXT_SIZE_STEPS.indexOf(19 as never) + 1;
+
 function clampTo(range: { min: number; max: number }, value: number): number {
   return Math.round(Math.max(range.min, Math.min(range.max, value)) * 10) / 10;
 }
@@ -242,6 +288,62 @@ class SettingsStore extends Store {
 
   setStudyLineHeight(lineHeight: number): void {
     this.studyLineHeight = clampTo(TEXT_SIZE_RANGES.studyLineHeight, lineHeight);
+    this.save();
+    this.notify();
+  }
+
+  /**
+   * The text-size step (1-based) the Bible text size is at, or nearest to when
+   * it was set to an exact size in Settings.
+   */
+  getTextSizeStep(): number {
+    let best = 0;
+    for (let i = 1; i < TEXT_SIZE_STEPS.length; i++) {
+      if (Math.abs(TEXT_SIZE_STEPS[i] - this.fontSize) < Math.abs(TEXT_SIZE_STEPS[best] - this.fontSize)) best = i;
+    }
+    return best + 1;
+  }
+
+  /** Whether there is a text-size step beyond the current size in that direction. */
+  canStepTextSize(direction: 1 | -1): boolean {
+    return direction > 0
+      ? TEXT_SIZE_STEPS.some((px) => px > this.fontSize)
+      : TEXT_SIZE_STEPS.some((px) => px < this.fontSize);
+  }
+
+  /**
+   * Move to the next text-size step up or down: the next step strictly beyond
+   * the current Bible size, so an exact size set in Settings snaps onto the
+   * scale.
+   */
+  stepTextSize(direction: 1 | -1): void {
+    const target = direction > 0
+      ? TEXT_SIZE_STEPS.findIndex((px) => px > this.fontSize)
+      : TEXT_SIZE_STEPS.reduce((found, px, i) => (px < this.fontSize ? i : found), -1);
+    if (target === -1) return;
+    this.setTextSizeStep(target + 1);
+  }
+
+  /**
+   * Set every text size from step `step` (1-based) alone: the Bible size from
+   * the table, and the study and interface sizes as their defaults scaled by
+   * the same factor, each capped to its range.
+   *
+   * Derived from the step only, never from the sizes before it, so a step
+   * always means the same sizes. Scaling the previous sizes instead made the
+   * result depend on the path: the interface size stops at its maximum on the
+   * way up, and was then scaled down from that cap on the way back, so the
+   * same step showed different interface sizes. Per-area sizes set in Settings
+   * are replaced by the next step; they stay exact until then.
+   */
+  setTextSizeStep(step: number): void {
+    const index = Math.max(1, Math.min(TEXT_SIZE_STEPS.length, Math.round(step))) - 1;
+    const bible = TEXT_SIZE_STEPS[index];
+    const factor = bible / DEFAULT_SETTINGS.fontSize;
+    this.fontSize = clampTo(TEXT_SIZE_RANGES.fontSize, bible);
+    this.studyFontSize = clampTo(TEXT_SIZE_RANGES.studyFontSize, Math.round(DEFAULT_SETTINGS.studyFontSize * factor));
+    this.uiFontSize = clampTo(TEXT_SIZE_RANGES.uiFontSize, Math.round(DEFAULT_SETTINGS.uiFontSize * factor));
+    this.applyFontSizes();
     this.save();
     this.notify();
   }
@@ -424,10 +526,10 @@ class SettingsStore extends Store {
 
   applyUiFontSize(): void {
     if (typeof document === 'undefined') return;
-    document.documentElement.style.setProperty('--ui-font-size', `${this.uiFontSize}px`);
+    document.documentElement.style.setProperty('--ui-font-size', pxToRem(this.uiFontSize));
     document.documentElement.style.setProperty(
       '--ui-font-scale',
-      String(this.uiFontSize / DEFAULT_SETTINGS.uiFontSize),
+      String(this.uiFontSize / UI_SCALE_BASE_PX),
     );
   }
 
@@ -436,21 +538,22 @@ class SettingsStore extends Store {
    *
    * `--study-font-size` is what the Study pane container inherits from (the
    * commentary and Bible-quote prose that sets no size of its own), and
-   * `--study-font-scale` is what the Study pane's own `calc(Npx * scale)` rules
+   * `--study-font-scale` is what the Study pane's own `calc(<rem> * scale)` rules
    * multiply by. Before this existed the size was only an inline `font-size` on
    * the pane, which every absolutely-sized child overrode — so the setting
    * appeared to do nothing outside commentary prose.
    *
-   * The scale is relative to the default study size, so every existing px
-   * literal in the stylesheets keeps rendering at its current size until the
-   * reader actually changes the setting.
+   * The literals are rem (`calc(0.8125rem * scale)`), so they follow the
+   * browser's root font size, and the scale is relative to the size they were
+   * authored against (STUDY_SCALE_BASE_PX), so each keeps its proportion to the
+   * chosen Study Text size.
    */
   applyStudyFontSize(): void {
     if (typeof document === 'undefined') return;
-    document.documentElement.style.setProperty('--study-font-size', `${this.studyFontSize}px`);
+    document.documentElement.style.setProperty('--study-font-size', pxToRem(this.studyFontSize));
     document.documentElement.style.setProperty(
       '--study-font-scale',
-      String(this.studyFontSize / DEFAULT_SETTINGS.studyFontSize),
+      String(this.studyFontSize / STUDY_SCALE_BASE_PX),
     );
   }
 
@@ -479,6 +582,7 @@ class SettingsStore extends Store {
         studyFontSize: this.studyFontSize,
         commentaryFontSize: this.studyFontSize, // backward compat
         uiFontSize: this.uiFontSize,
+        textSizeVersion: TEXT_SIZE_VERSION,
         lineHeight: this.lineHeight,
         studyLineHeight: this.studyLineHeight,
         commentaryLineHeight: this.studyLineHeight, // backward compat
@@ -524,12 +628,29 @@ class SettingsStore extends Store {
         this.interlinearLayout = parsed.interlinearLayout === 'stacked' || parsed.interlinearLayout === 'inline'
           ? parsed.interlinearLayout
           : this.interlinearLayout;
+        if (!(parsed.textSizeVersion >= TEXT_SIZE_VERSION)) this.migrateLegacyTextSizes();
       }
     } catch { /* ignore */ }
     // The swipe settings belong to the registry store; re-read the blob it shares.
     void webSettings.reload();
     this.applyTheme();
     this.applyFontSizes();
+  }
+
+  /**
+   * One-time move from the version-1 defaults (18/15/14 px) to the current ones.
+   *
+   * `save()` writes every field, so a stored 18 cannot be told apart from an
+   * untouched default; a size still on its old default is treated as never
+   * chosen and moved to the new default. Any other value was picked by the
+   * reader and is kept (it now renders as the same px at a 16px root). Saving
+   * stamps `textSizeVersion`, so a reader who later picks 18 on purpose keeps it.
+   */
+  private migrateLegacyTextSizes(): void {
+    for (const key of ['fontSize', 'studyFontSize', 'uiFontSize'] as const) {
+      if (this[key] === LEGACY_TEXT_SIZE_DEFAULTS[key]) this[key] = DEFAULT_SETTINGS[key];
+    }
+    this.save();
   }
 
   getResolvedTheme(): string {

@@ -19,7 +19,7 @@
   background: var(--bg-primary);
   color: var(--text-secondary);
   box-shadow: 0 8px 28px var(--dropdown-shadow);
-  font-size: calc(13px * var(--ui-font-scale, 1));
+  font-size: calc(0.8125rem * var(--ui-font-scale, 1));
   pointer-events: none;
 
   &--error {
@@ -111,7 +111,7 @@
 
   &-title {
     margin: 0 0 8px;
-    font-size: calc(13px * var(--ui-font-scale, 1));
+    font-size: calc(0.8125rem * var(--ui-font-scale, 1));
     font-weight: 600;
     color: var(--text-muted);
     text-align: center;

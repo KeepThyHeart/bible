@@ -7,7 +7,7 @@
   padding: 6px 16px;
   background: var(--accent-color, #2563eb);
   color: #fff;
-  font-size: calc(13px * var(--ui-font-scale, 1));
+  font-size: calc(0.8125rem * var(--ui-font-scale, 1));
 
   &__link {
     text-decoration: underline;

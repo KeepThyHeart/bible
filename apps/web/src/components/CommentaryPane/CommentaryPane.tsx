@@ -1,6 +1,7 @@
 import { useEffect, useRef, useCallback } from 'preact/hooks';
 import { settingsStore } from '../../stores/settingsStore';
 import { useTranslation } from 'react-i18next';
+import { TextSizeButton } from '../common/TextSizeButton';
 import { CommentaryTabBar } from './CommentaryTabBar';
 import { CommentaryContent } from './CommentaryContent';
 import { commentaryStore, HOME_TAB_ID } from '../../stores/commentaryStore';
@@ -241,15 +242,13 @@ export function CommentaryPane({ bibleProvider, onOpenSettings, hideTabBar }: Co
                 </button>
               </>
             )}
-            {onOpenSettings && (
-              <button
-                class="commentary-passage-header__settings"
-                onClick={() => onOpenSettings('commentary-font')}
-                title={t('commentaryPane.textSettings')}
-              >
-                Aa
-              </button>
-            )}
+            {/* Divided from the verse arrows: it is a view option, not navigation. */}
+            <span class="commentary-passage-header__divider" aria-hidden="true" />
+            <TextSizeButton
+              target="study"
+              className="commentary-passage-header__settings"
+              onMoreOptions={onOpenSettings ? () => onOpenSettings('commentary-font') : undefined}
+            />
           </div>
         </div>
         {verseText && (

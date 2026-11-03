@@ -19,7 +19,7 @@
     border-bottom: 1px solid var(--border-color);
 
     h3 {
-      font-size: calc(16px * var(--ui-font-scale, 1));
+      font-size: calc(1rem * var(--ui-font-scale, 1));
       display: flex;
       align-items: center;
     }
@@ -29,7 +29,7 @@
     background: none;
     border: none;
     cursor: pointer;
-    font-size: calc(16px * var(--ui-font-scale, 1));
+    font-size: calc(1rem * var(--ui-font-scale, 1));
     color: var(--text-muted);
     padding: 4px;
 
@@ -44,7 +44,7 @@
     display: flex;
     flex-direction: column;
     gap: 14px;
-    font-size: calc(13.5px * var(--ui-font-scale, 1));
+    font-size: calc(0.84375rem * var(--ui-font-scale, 1));
     color: var(--text-primary);
   }
 

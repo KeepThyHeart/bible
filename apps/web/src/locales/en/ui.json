@@ -228,7 +228,10 @@
       "resetTextSizes": "Reset Text Sizes",
       "resetTextSizesTitle": "Restore the default text sizes and line heights",
       "interlinearStackedShort": "Stacked",
-      "interlinearInlineShort": "Inline"
+      "interlinearInlineShort": "Inline",
+      "popoverTitle": "Text size",
+      "popoverReset": "Reset",
+      "moreOptions": "More text options…"
     },
     "theme": {
       "resetAll": "Reset All",
@@ -581,7 +584,8 @@
     "navigateToAPassageTo": "Navigate to a passage to see commentary.",
     "noCommentaryDataAvailable": "No commentary data available.",
     "noCommentariesHaveContentFor": "No commentaries have content for this verse.",
-    "noContentForThisVerse": "No content for this verse."
+    "noContentForThisVerse": "No content for this verse.",
+    "noCommentaryOn": "No commentary on {passage}"
   },
   "commentaryTabBar": {
     "overview": "Commentary overview",

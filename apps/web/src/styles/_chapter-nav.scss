@@ -16,7 +16,7 @@
     padding: 6px 18px;
     cursor: pointer;
     color: var(--text-primary);
-    font-size: calc(13px * var(--ui-font-scale, 1));
+    font-size: calc(0.8125rem * var(--ui-font-scale, 1));
     transition: background 0.1s;
 
     &:disabled {
@@ -32,7 +32,7 @@
   &__label {
     font-weight: 500;
     color: var(--text-secondary);
-    font-size: calc(13px * var(--ui-font-scale, 1));
+    font-size: calc(0.8125rem * var(--ui-font-scale, 1));
   }
 }
 

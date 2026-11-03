@@ -16,7 +16,7 @@
     padding: 6px 10px;
     cursor: pointer;
     border-inline-end: 1px solid var(--border-color);
-    font-size: calc(12px * var(--ui-font-scale, 1));
+    font-size: calc(0.8125rem * var(--ui-font-scale, 1));
     color: var(--text-secondary);
     transition: background 0.1s;
     border-bottom: 3px solid transparent;
@@ -63,7 +63,7 @@
     cursor: pointer;
     color: var(--text-muted);
     padding: 2px 4px;
-    font-size: calc(10px * var(--ui-font-scale, 1));
+    font-size: calc(0.625rem * var(--ui-font-scale, 1));
     line-height: 1;
     border-radius: 3px;
 
@@ -79,7 +79,7 @@
     cursor: pointer;
     color: var(--text-muted);
     padding: 2px 4px;
-    font-size: calc(10px * var(--ui-font-scale, 1));
+    font-size: calc(0.625rem * var(--ui-font-scale, 1));
     line-height: 1;
     border-radius: 3px;
 
@@ -101,7 +101,7 @@
     cursor: pointer;
     color: var(--text-muted);
     padding: 6px 10px;
-    font-size: calc(13px * var(--ui-font-scale, 1));
+    font-size: calc(0.8125rem * var(--ui-font-scale, 1));
 
     &:hover {
       color: var(--text-primary);
@@ -136,7 +136,7 @@
       border-radius: 5px;
       background: var(--bg-primary);
       color: var(--text-primary);
-      font-size: calc(13px * var(--ui-font-scale, 1));
+      font-size: calc(0.875rem * var(--ui-font-scale, 1));
       outline: none;
 
       &:focus {
@@ -156,7 +156,7 @@
     border: none;
     background: none;
     cursor: pointer;
-    font-size: calc(13px * var(--ui-font-scale, 1));
+    font-size: calc(0.8125rem * var(--ui-font-scale, 1));
     color: var(--text-primary);
     text-align: start;
     border-radius: 5px;
@@ -169,12 +169,12 @@
 
   &__module-name {
     color: var(--text-muted);
-    font-size: calc(12px * var(--ui-font-scale, 1));
+    font-size: calc(0.75rem * var(--ui-font-scale, 1));
   }
 
   &__module-empty {
     padding: 12px 16px;
-    font-size: calc(13px * var(--ui-font-scale, 1));
+    font-size: calc(0.8125rem * var(--ui-font-scale, 1));
     color: var(--text-muted);
     font-style: italic;
   }
@@ -192,7 +192,7 @@
   &__title {
     margin: 0;
     padding: 8px 12px 4px;
-    font-size: calc(14px * var(--ui-font-scale, 1));
+    font-size: calc(0.875rem * var(--ui-font-scale, 1));
     font-weight: 600;
     color: var(--text-secondary, #666);
     text-transform: uppercase;
@@ -221,7 +221,7 @@
     padding: 12px 6px;
     cursor: pointer;
     color: var(--text-secondary);
-    font-size: calc(12px * var(--ui-font-scale, 1));
+    font-size: calc(0.75rem * var(--ui-font-scale, 1));
 
     &:hover {
       color: var(--text-primary);
@@ -317,7 +317,7 @@
   background: color-mix(in srgb, var(--accent-color) 8%, transparent);
   border: 1px solid color-mix(in srgb, var(--accent-color) 20%, transparent);
   border-radius: 6px;
-  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-size: calc(0.75rem * var(--ui-font-scale, 1));
   line-height: 1.5;
   color: var(--text-secondary);
 
@@ -357,7 +357,7 @@
   margin-top: 16px;
   padding-top: 10px;
   border-top: 1px solid var(--border-color);
-  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-size: calc(0.75rem * var(--ui-font-scale, 1));
   color: color-mix(in srgb, var(--text-tertiary) 70%, transparent);
 
   i {
@@ -375,7 +375,7 @@
   border: none;
   padding: 2px 0;
   margin-bottom: 8px;
-  font-size: calc(11.5px * var(--ui-font-scale, 1));
+  font-size: calc(0.75rem * var(--ui-font-scale, 1));
   color: var(--accent-color);
   text-decoration: underline;
   cursor: pointer;
@@ -410,3 +410,12 @@
   }
 }
 
+
+// Separates the text-size button from the verse arrows beside it.
+.commentary-passage-header__divider {
+  align-self: center;
+  width: 1px;
+  height: 1.1em;
+  margin-inline: 4px;
+  background: var(--border-color);
+}

@@ -31,8 +31,8 @@
     text-align: center;
   }
 
-  &__ref-main { font-size: calc(20px * var(--ui-font-scale, 1)); font-weight: 700; }
-  &__ref-sub { font-size: calc(13px * var(--ui-font-scale, 1)); color: var(--text-secondary); }
+  &__ref-main { font-size: calc(1.25rem * var(--ui-font-scale, 1)); font-weight: 700; }
+  &__ref-sub { font-size: calc(0.8125rem * var(--ui-font-scale, 1)); color: var(--text-secondary); }
 
   .audio-verses-wrap { flex: 1; min-block-size: 0; }
   // In a column the progress row keeps its own height (in the bar it is the flexible part of a row).
@@ -74,9 +74,9 @@
     cursor: pointer;
   }
 
-  &__ref { font-weight: 600; font-size: calc(14px * var(--ui-font-scale, 1)); }
+  &__ref { font-weight: 600; font-size: calc(0.875rem * var(--ui-font-scale, 1)); }
   &__chip {
-    font-size: calc(11.5px * var(--ui-font-scale, 1));
+    font-size: calc(0.71875rem * var(--ui-font-scale, 1));
     color: var(--text-secondary);
     white-space: nowrap;
     overflow: hidden;

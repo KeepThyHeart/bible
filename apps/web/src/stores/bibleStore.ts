@@ -30,6 +30,14 @@ export interface BibleTab {
   chapter: number | null;
   /** The verse the study tools are focused on (drives study/commentary panes) */
   studyVerse: number | null;
+  /**
+   * Set to `studyVerse` when the reader clicks the selected verse again: its
+   * highlight is hidden, but the study panes stay on it. Clearing the
+   * selection outright let the panes fall back to "the first visible verse",
+   * so a second click made the focus jump somewhere else. Any other verse
+   * becoming the study verse shows its highlight again automatically.
+   */
+  hiddenStudyVerse?: number | null;
   /** A verse the user is previewing (from a link, search result, or cross-ref click).
    *  Does NOT update study panes — only provides a visual indicator. */
   previewVerse: number | null;
@@ -640,11 +648,13 @@ class BibleStore extends Store {
     tab.previewVerseEnd = null;
     // A plain click starts a fresh selection, so any shift-click extension goes.
     tab.selectionEndVerse = null;
-    // Toggle: clicking the already-selected study verse deselects it
+    // Toggle the highlight of the already-selected verse. The verse stays the
+    // study focus either way; see `hiddenStudyVerse`.
     if (tab.studyVerse === verseId) {
-      tab.studyVerse = null;
+      tab.hiddenStudyVerse = tab.hiddenStudyVerse === verseId ? null : verseId;
     } else {
       tab.studyVerse = verseId;
+      tab.hiddenStudyVerse = null;
     }
     // The history entry for this chapter should name the last verse actually
     // visited in it, not the one the chapter was opened at.
@@ -717,8 +727,11 @@ class BibleStore extends Store {
   extendSelectionTo(verseId: number): void {
     const tab = this.getActiveTab();
     if (!tab) return;
-    if (tab.studyVerse === null) {
-      this.setStudyVerse(verseId);
+    if (tab.studyVerse === null || !this.isStudyVerseShown(tab)) {
+      // No visible anchor to extend from: start a fresh selection here.
+      if (tab.studyVerse === verseId) tab.hiddenStudyVerse = null;
+      else this.setStudyVerse(verseId);
+      this.notify();
       return;
     }
     tab.previewVerse = null;
@@ -732,9 +745,15 @@ class BibleStore extends Store {
    * high regardless of which direction the user shift-clicked. Null when
    * nothing is selected.
    */
+  /** Whether the tab's study verse is drawn as selected (not hidden by a second click). */
+  isStudyVerseShown(tab: BibleTab): boolean {
+    return tab.studyVerse !== null && tab.hiddenStudyVerse !== tab.studyVerse;
+  }
+
   getSelectedRange(): { start: number; end: number } | null {
     const tab = this.getActiveTab();
-    if (!tab?.studyVerse) return null;
+    // A hidden selection is not something to copy or act on.
+    if (!tab?.studyVerse || !this.isStudyVerseShown(tab)) return null;
     const other = tab.selectionEndVerse ?? tab.studyVerse;
     return {
       start: Math.min(tab.studyVerse, other),

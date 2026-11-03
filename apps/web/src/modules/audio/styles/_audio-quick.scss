@@ -4,7 +4,7 @@
   display: inline-flex;
   align-items: center;
   gap: 2px;
-  font-size: calc(13px * var(--ui-font-scale, 1));
+  font-size: calc(0.8125rem * var(--ui-font-scale, 1));
 
   &__btn {
     border: 1px solid var(--border-color);
@@ -24,7 +24,7 @@
   }
 
   &--large {
-    font-size: calc(16px * var(--ui-font-scale, 1));
+    font-size: calc(1rem * var(--ui-font-scale, 1));
     gap: 6px;
 
     .audio-speed__btn { min-inline-size: 72px; min-block-size: 44px; }

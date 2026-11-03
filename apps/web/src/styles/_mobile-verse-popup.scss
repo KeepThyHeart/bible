@@ -27,7 +27,7 @@
   }
 
   &__ref {
-    font-size: calc(13px * var(--ui-font-scale, 1));
+    font-size: calc(0.8125rem * var(--ui-font-scale, 1));
     font-weight: 600;
     color: var(--accent-color);
   }
@@ -41,7 +41,7 @@
     border: 1px solid var(--accent-color);
     border-radius: 5px;
     padding: 5px 12px;
-    font-size: calc(12px * var(--ui-font-scale, 1));
+    font-size: calc(0.75rem * var(--ui-font-scale, 1));
     font-weight: 500;
     cursor: pointer;
     white-space: nowrap;
@@ -53,7 +53,7 @@
   }
 
   &__text {
-    font-size: calc(13px * var(--ui-font-scale, 1));
+    font-size: calc(0.8125rem * var(--ui-font-scale, 1));
     line-height: 1.5;
     color: var(--text-primary);
     overflow-y: auto;

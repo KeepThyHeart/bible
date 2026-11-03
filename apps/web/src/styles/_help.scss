@@ -19,7 +19,7 @@
     border-bottom: 1px solid var(--border-color);
 
     h3 {
-      font-size: calc(16px * var(--ui-font-scale, 1));
+      font-size: calc(1rem * var(--ui-font-scale, 1));
       display: flex;
       align-items: center;
     }
@@ -29,7 +29,7 @@
     background: none;
     border: none;
     cursor: pointer;
-    font-size: calc(16px * var(--ui-font-scale, 1));
+    font-size: calc(1rem * var(--ui-font-scale, 1));
     color: var(--text-muted);
     padding: 4px;
 
@@ -41,7 +41,7 @@
   &__body {
     padding: 20px;
     overflow-y: auto;
-    font-size: calc(13.5px * var(--ui-font-scale, 1));
+    font-size: calc(0.84375rem * var(--ui-font-scale, 1));
     line-height: 1.6;
     color: var(--text-primary);
   }
@@ -63,7 +63,7 @@
     border-bottom: 2px solid transparent;
     background: none;
     color: var(--text-muted);
-    font-size: calc(13px * var(--ui-font-scale, 1));
+    font-size: calc(0.8125rem * var(--ui-font-scale, 1));
     cursor: pointer;
 
     &--active {
@@ -119,7 +119,7 @@
   }
 
   &__link-icon {
-    font-size: calc(16px * var(--ui-font-scale, 1));
+    font-size: calc(1rem * var(--ui-font-scale, 1));
     opacity: 0.85;
   }
 
@@ -132,7 +132,7 @@
 
     small {
       opacity: 0.8;
-      font-size: calc(12px * var(--ui-font-scale, 1));
+      font-size: calc(0.75rem * var(--ui-font-scale, 1));
     }
   }
 
@@ -148,7 +148,7 @@
     }
 
     h4 {
-      font-size: calc(14px * var(--ui-font-scale, 1));
+      font-size: calc(0.875rem * var(--ui-font-scale, 1));
       font-weight: 600;
       color: var(--text-primary);
       margin: 0 0 8px;
@@ -194,7 +194,7 @@
     kbd {
       display: inline-block;
       padding: 2px 7px;
-      font-size: calc(12px * var(--ui-font-scale, 1));
+      font-size: calc(0.75rem * var(--ui-font-scale, 1));
       font-family: monospace;
       background: var(--bg-tertiary);
       border: 1px solid var(--border-color);

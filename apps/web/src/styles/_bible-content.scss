@@ -51,7 +51,7 @@
     padding: 8px 14px;
     border: 1px solid var(--border-color);
     border-radius: 8px;
-    font-size: calc(15px * var(--ui-font-scale, 1));
+    font-size: calc(0.9375rem * var(--ui-font-scale, 1));
     background: var(--bg-primary);
     color: var(--text-primary);
     width: 260px;
@@ -75,7 +75,7 @@
     border: none;
     border-radius: 8px;
     cursor: pointer;
-    font-size: calc(14px * var(--ui-font-scale, 1));
+    font-size: calc(0.875rem * var(--ui-font-scale, 1));
     font-weight: 500;
     display: flex;
     align-items: center;
@@ -178,7 +178,7 @@
     padding: 4px 10px;
     cursor: pointer;
     color: var(--text-primary);
-    font-size: calc(12px * var(--ui-font-scale, 1));
+    font-size: calc(0.75rem * var(--ui-font-scale, 1));
 
     &:disabled {
       opacity: 0.3;
@@ -196,7 +196,7 @@
     gap: 16px;
     padding: 6px 24px;
     border-bottom: 1px solid var(--border-color);
-    font-size: calc(13px * var(--ui-font-scale, 1));
+    font-size: calc(0.8125rem * var(--ui-font-scale, 1));
     color: var(--text-secondary);
 
     // The layout switch is a setting for the interlinear, not a third toggle
@@ -232,7 +232,7 @@
 
   &__interlinear-status {
     padding: 8px 24px;
-    font-size: calc(13px * var(--ui-font-scale, 1));
+    font-size: calc(0.8125rem * var(--ui-font-scale, 1));
     color: var(--text-muted);
     font-style: italic;
     display: flex;

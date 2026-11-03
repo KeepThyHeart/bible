@@ -113,9 +113,12 @@ vi.mock('../../stores/bibleStore', () => ({
   },
 }));
 
+let mockInstalledCommentaries: { abbreviation: string; name: string }[] = [];
+
 vi.mock('../../stores/moduleStore', () => ({
   moduleStore: {
     getBookName: () => 'John',
+    getCommentaryModules: () => mockInstalledCommentaries,
   },
   getCommentaryPopularity: () => ({}),
 }));
@@ -145,6 +148,7 @@ describe('CommentaryHome', () => {
     state.syncedChapter = 3;
     state.liveHighlightedVerse = 43003016;
     state.tabs = [];
+    mockInstalledCommentaries = [];
     state.pinned = false;
     state.pinnedVerse = null;
     state.pinnedBook = null;
@@ -200,6 +204,34 @@ describe('CommentaryHome', () => {
     const { container } = render(<CommentaryHome />);
     expect(container.querySelector('.commentary-content--empty')).toBeNull();
     expect(container.textContent).toContain('MHC');
+  });
+
+  // ------------------------------------------------------------------
+  // Installed commentaries with nothing here are listed, greyed out, so the
+  // Overview's membership does not appear to change at random.
+  // ------------------------------------------------------------------
+  it('lists installed commentaries with no content here as a plain list', () => {
+    state.homeData = makeHomeData({
+      chapterModules: [{ moduleAbbr: 'MHC', moduleName: 'Matthew Henry Commentary', wordCount: 4000 }],
+    });
+    const listedAbbr = state.homeData.verseModules[0]?.moduleAbbr;
+    mockInstalledCommentaries = [
+      { abbreviation: 'Scofield', name: 'Scofield Reference Notes' },
+      { abbreviation: 'MHC', name: 'Matthew Henry Commentary' },
+      ...(listedAbbr ? [{ abbreviation: listedAbbr, name: listedAbbr }] : []),
+    ];
+    const { container } = render(<CommentaryHome />);
+    const section = container.querySelector('[data-testid="commentary-home-no-content"]');
+    expect(section).toBeTruthy();
+    const items = Array.from(section!.querySelectorAll('.commentary-home__no-content-item')).map(el => el.textContent);
+    expect(items).toEqual(['Scofield Reference Notes']);
+  });
+
+  it('still lists them when no commentary has content for the verse', () => {
+    state.homeData = makeHomeData({ verseModules: [], passageModules: [], chapterModules: [] });
+    mockInstalledCommentaries = [{ abbreviation: 'Scofield', name: 'Scofield Reference Notes' }];
+    const { container } = render(<CommentaryHome />);
+    expect(container.querySelector('[data-testid="commentary-home-no-content"]')?.textContent).toContain('Scofield');
   });
 
   it('does not render a chapter section when there are no chapter modules', () => {
