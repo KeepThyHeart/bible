@@ -211,13 +211,26 @@ export function NotificationPreferences({
           const rowOff = off || blocked || needsPermission;
           const base = `${idPrefix}-src-${source.id.replace(/[^A-Za-z0-9_-]/g, '-')}`;
           return (
-            <div key={source.id} className="kth-field" data-source-id={source.id}>
+            <div
+              key={source.id}
+              className={rowOff ? 'kth-field kth-notify-prefs__source kth-notify-prefs__source--disabled' : 'kth-field kth-notify-prefs__source'}
+              data-source-id={source.id}
+              aria-disabled={rowOff || undefined}
+            >
               {sw(base, source.label, source.enabled, rowOff, (v) => setSource(source.id, { enabled: v }))}
               {source.description && (
                 <p id={`${base}-description`} className="kth-field__hint">{source.description}</p>
               )}
               {needsPermission && !blocked && (
-                <p id={`${base}-permission`} className="kth-field__hint">{status}</p>
+                <div className="kth-notify-prefs__needs-permission">
+                  <p id={`${base}-permission`} className="kth-field__hint">{status}</p>
+                  {/* Offer the fix where the reader is looking, not only in General above. */}
+                  {capabilities.permission === 'prompt' && onRequestPermission && (
+                    <button type="button" className="kth-btn" onClick={() => onRequestPermission()}>
+                      {l.allow}
+                    </button>
+                  )}
+                </div>
               )}
               {blocked && (
                 <p id={`${base}-blocked`} className="kth-field__hint">{l.blocked}</p>

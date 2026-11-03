@@ -166,7 +166,6 @@ export function DesktopApp({ providers }: DesktopAppProps) {
       <Header
         onSettingsClick={(section) => shared.openSettings(section)}
         onHelpClick={() => shared.setHelpOpen(true)}
-        onFeedbackClick={() => shared.setFeedbackOpen(true)}
       />
       <ConnectionBanner />
       <UpdateBanner />

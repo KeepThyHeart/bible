@@ -444,6 +444,13 @@ class BibleStore extends Store {
       } else {
         // A passage selection is anchored to verses in the chapter being left.
         tab.selectionEndVerse = null;
+        // A verse past the end of the chapter (e.g. a typed "John 3:45" — John 3
+        // has 36) would select a verse that does not exist: nothing highlights,
+        // nothing scrolls, and the commentary has no entry for it. Land on the
+        // chapter's last verse instead. Gaps inside the chapter (verses a
+        // translation omits) are left alone.
+        const lastVerse = tab.verses.reduce((m, v) => Math.max(m, v.verse_id % 1000), 0);
+        if (verse && lastVerse > 0 && verse > lastVerse) verse = lastVerse;
         if (verse) {
           // Calculate full verseId — select the specific verse
           const verseId = (book * 1000000) + (chapter * 1000) + verse;
@@ -754,6 +761,35 @@ class BibleStore extends Store {
     this.notify();
   }
 
+  /**
+   * Point the commentary at the active tab's selected verse.
+   *
+   * The commentary store is only told about a chapter by explicit events
+   * (`navigateTo`, a verse click, history moves). Switching Bible tabs — or
+   * opening the Commentary pane after one — fired none of them, so the
+   * commentary stayed synced to the *previous* tab's chapter. CommentaryContent
+   * then discarded this tab's selected verse as belonging to another chapter
+   * and showed "Select a verse in the Bible pane" even though one was selected.
+   *
+   * Syncs to the chapter of the selected verse rather than the chapter on
+   * screen: after a preview navigation, or while audio follow-along turns the
+   * page, the selection deliberately stays in the earlier chapter and the
+   * commentary should stay with it. When the commentary is already on that
+   * chapter this is a no-op (`loadForChapter` short-circuits).
+   */
+  syncCommentaryToSelection(): void {
+    const tab = this.getActiveTab();
+    if (!tab) return;
+    this.ensureStudyVerse();
+    let book = tab.book;
+    let chapter = tab.chapter;
+    if (tab.studyVerse) {
+      book = Math.floor(tab.studyVerse / 1000000);
+      chapter = Math.floor((tab.studyVerse % 1000000) / 1000);
+    }
+    if (book && chapter) eventBus.emit('commentary:load-chapter', { book, chapter });
+  }
+
   /** Promote the preview verse to the study focus (no toggle). Used by "Sync" banner buttons. */
   adoptPreviewAsStudy(verseId: number): void {
     const tab = this.getActiveTab();
@@ -923,6 +959,7 @@ class BibleStore extends Store {
 
     if (this.activeTabId === tabId) {
       this.activeTabId = this.tabs[Math.min(idx, this.tabs.length - 1)].id;
+      this.syncCommentaryToSelection();
     }
 
     this.saveSession();
@@ -936,6 +973,9 @@ class BibleStore extends Store {
     if (!tab) return;
 
     this.activeTabId = tabId;
+    // The tab being brought forward may already have a verse selected; the
+    // commentary has to follow it here, since no click will tell it to.
+    this.syncCommentaryToSelection();
     this.updateHash();
     this.saveSession();
     this.notify();

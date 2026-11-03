@@ -89,6 +89,7 @@ const mockAdoptPreviewAsStudy = vi.fn();
 const mockLoadForChapter = vi.fn();
 const mockNavigateTo = vi.fn().mockResolvedValue(undefined);
 const mockKeepTab = vi.fn();
+const mockSyncCommentaryToSelection = vi.fn();
 
 vi.mock('../../stores/commentaryStore', () => ({
   HOME_TAB_ID: 'ctab-home',
@@ -125,6 +126,7 @@ vi.mock('../../stores/bibleStore', () => ({
     }),
     adoptPreviewAsStudy: (id: number) => mockAdoptPreviewAsStudy(id),
     navigateTo: (...args: unknown[]) => mockNavigateTo(...args),
+    syncCommentaryToSelection: () => mockSyncCommentaryToSelection(),
   },
 }));
 
@@ -179,6 +181,20 @@ describe('CommentaryPane', () => {
     const { container } = render(<CommentaryPane />);
     expect(container.querySelector('.commentary-pane__scroll')).toBeNull();
     expect(container.querySelector('.commentary-pane__title')).toBeNull();
+  });
+
+  // ---- Syncing to the Bible tab's selected verse on open -------------------
+  // Opening the pane after a Bible tab switch used to show "Select a verse"
+  // because nothing told the commentary the selection had moved.
+  it('syncs the commentary to the Bible selection when it opens', () => {
+    render(<CommentaryPane />);
+    expect(mockSyncCommentaryToSelection).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not sync while collapsed', () => {
+    mockCollapsed = true;
+    render(<CommentaryPane />);
+    expect(mockSyncCommentaryToSelection).not.toHaveBeenCalled();
   });
 
   // ---- Normal rendering --------------------------------------------------

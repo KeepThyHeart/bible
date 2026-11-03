@@ -27,6 +27,7 @@ import {
   formatVerseFields,
   hasWordsOfChrist,
   getFootnotes,
+  parseStoredVerseFormatting,
   type VerseFormattingData,
 } from '@bible/core/browser';
 
@@ -74,6 +75,7 @@ async function evictIfNeeded(): Promise<void> {
       await sqlite3!.close(handle);
       dbCache.delete(oldest);
       interlinearCache.delete(oldest);
+      postClosed(oldest);
     }
   }
 }
@@ -157,7 +159,10 @@ async function querySingleVerse(db: number, verseId: number): Promise<RawVerseRo
 }
 
 function formatRow(row: RawVerseRow) {
-  const fd: VerseFormattingData | undefined = row.formatting ? JSON.parse(row.formatting) : undefined;
+  // `formatting` is the v2 structured payload ({v, block, spans}); it must be
+  // projected to the legacy keys formatVerseFields reads, as the server's
+  // BibleVerse does. Passing the raw JSON dropped every span (no red letters).
+  const fd: VerseFormattingData | undefined = parseStoredVerseFormatting(row.formatting);
   const { textHtml, isParagraphStart, sectionHeading } = formatVerseFields(row.text, fd);
   const footnotes = getFootnotes(fd);
 
@@ -182,8 +187,43 @@ function formatRow(row: RawVerseRow) {
 
 // ── Message Handler ────────────────────────────────────────────────────────
 
-self.onmessage = async (e: MessageEvent) => {
-  const msg = e.data;
+/**
+ * Messages are handled strictly one at a time.
+ *
+ * wa-sqlite's async (Asyncify) build is not re-entrant: two calls in flight at
+ * once share the wasm stack, and an `await` inside one lets the other run. An
+ * `async` onmessage does exactly that — `preload()` posts an openDb for every
+ * downloaded translation in the same tick — and the interleaved opens could
+ * leave a handle registered under one module pointing at another module's
+ * file. The reader then showed e.g. ASV text labelled KJV (no red letters,
+ * lowercase verse starts) until a hard reload rebuilt the worker.
+ */
+let queue: Promise<void> = Promise.resolve();
+
+self.onmessage = (e: MessageEvent) => {
+  queue = queue.then(() => handleMessage(e.data));
+};
+
+/** The module's own abbreviation, from module_info (null if the table is absent). */
+async function readAbbreviation(db: number): Promise<string | null> {
+  let abbr: string | null = null;
+  try {
+    await sqlite3!.exec(db, 'SELECT abbreviation FROM module_info LIMIT 1', (row) => {
+      abbr = row[0] == null ? null : String(row[0]);
+    });
+  } catch {
+    return null;
+  }
+  return abbr;
+}
+
+/** Tell the proxy a module is no longer open, so it stops routing reads here. */
+function postClosed(module: string): void {
+  self.postMessage({ type: 'dbClosed', module });
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- the protocol above, untyped on the wire
+async function handleMessage(msg: any): Promise<void> {
 
   try {
     switch (msg.type) {
@@ -197,6 +237,12 @@ self.onmessage = async (e: MessageEvent) => {
         }
         // Open OPFS file directly — path matches OfflineStorageManager's storage layout
         const db = await sqlite3!.open_v2(`modules/${moduleName}.db`);
+        // Guard: never serve a file under another module's name.
+        const actual = await readAbbreviation(db);
+        if (actual !== null && actual.toLowerCase() !== moduleName.toLowerCase()) {
+          await sqlite3!.close(db);
+          throw new Error(`modules/${moduleName}.db holds ${actual}, not ${moduleName}`);
+        }
         dbCache.set(moduleName, db);
         touchLru(moduleName);
         await evictIfNeeded();
@@ -220,6 +266,7 @@ self.onmessage = async (e: MessageEvent) => {
       case 'getChapter': {
         const db = getDb(msg.module);
         if (db === undefined) {
+          postClosed(msg.module);
           self.postMessage({ type: 'error', requestId: msg.requestId, message: `Module ${msg.module} not open` });
           return;
         }
@@ -244,6 +291,7 @@ self.onmessage = async (e: MessageEvent) => {
       case 'getVerse': {
         const db = getDb(msg.module);
         if (db === undefined) {
+          postClosed(msg.module);
           self.postMessage({ type: 'error', requestId: msg.requestId, message: `Module ${msg.module} not open` });
           return;
         }
@@ -264,7 +312,8 @@ self.onmessage = async (e: MessageEvent) => {
     if (requestId != null) {
       self.postMessage({ type: 'error', requestId, message });
     } else {
-      self.postMessage({ type: 'error', requestId: -1, message });
+      // Not tied to a request (an openDb): name the module so only its opener rejects.
+      self.postMessage({ type: 'error', requestId: -1, module: msg.module, message });
     }
   }
-};
+}

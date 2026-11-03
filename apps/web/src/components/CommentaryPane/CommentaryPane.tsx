@@ -39,7 +39,13 @@ export function CommentaryPane({ bibleProvider, onOpenSettings, hideTabBar }: Co
   // expanding re-runs this and loads whatever was missed meanwhile. Mounting
   // loads the current chapter for the same reason: the chapter may well have
   // changed while some other pane was up.
+  //
+  // Before that, bring the commentary to the Bible tab's selected verse: a tab
+  // switch (or anything else that moved the selection without a verse click)
+  // may have happened while this pane was not showing, and without this the
+  // pane opens on the old chapter and reads the selection as "no verse".
   useEffect(() => {
+    if (!collapsed) bibleStore.syncCommentaryToSelection();
     commentaryStore.viewMounted(!collapsed);
     return () => commentaryStore.viewMounted(false);
   }, [collapsed]);

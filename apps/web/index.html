@@ -135,8 +135,11 @@
     <div style="font-size:1.2rem;font-weight:600;color:#333">Unable to load %BRAND_PRODUCT_NAME_SHORT%</div>
     <div id="app-error-message" style="font-size:0.95rem;max-width:400px;color:#666"></div>
     <div style="display:flex;gap:0.75rem;margin-top:0.5rem;flex-wrap:wrap;justify-content:center">
-      <button onclick="location.reload()" style="padding:0.7rem 1.5rem;font-size:1rem;background:var(--accent-color, %BRAND_THEME_COLOR%);color:#fff;border:none;border-radius:6px;cursor:pointer">Reload</button>
-      <button onclick="clearAndReload()" style="padding:0.7rem 1.5rem;font-size:1rem;background:#666;color:#fff;border:none;border-radius:6px;cursor:pointer">Clear Cache &amp; Reload</button>
+      <!-- No onclick="" attributes: the CSP's script-src-attr 'none' blocks
+           inline handlers (they logged a violation on every load). The
+           listeners are attached by the boot script below. -->
+      <button type="button" id="app-error-reload" style="padding:0.7rem 1.5rem;font-size:1rem;background:var(--accent-color, %BRAND_THEME_COLOR%);color:#fff;border:none;border-radius:6px;cursor:pointer">Reload</button>
+      <button type="button" id="app-error-clear" style="padding:0.7rem 1.5rem;font-size:1rem;background:#666;color:#fff;border:none;border-radius:6px;cursor:pointer">Clear Cache &amp; Reload</button>
     </div>
     <div style="font-size:0.8rem;color:#999;margin-top:0.5rem">If the problem persists, check your network connection or contact the administrator.</div>
   </div>
@@ -165,6 +168,13 @@
         location.reload();
       }
     }
+
+    (function wireErrorButtons() {
+      var reload = document.getElementById('app-error-reload');
+      if (reload) reload.addEventListener('click', function () { location.reload(); });
+      var clear = document.getElementById('app-error-clear');
+      if (clear) clear.addEventListener('click', clearAndReload);
+    })();
 
     /*
      * Apply the saved theme before the splash paints. settingsStore only sets

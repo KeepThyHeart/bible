@@ -98,17 +98,22 @@
     cursor: pointer;
     text-decoration: none;
 
-    &:hover {
+    transition: background 0.1s, border-color 0.15s;
+
+    // A solid accent fill reads as "hovered/pressed", so cards rest on the
+    // neutral surface and only take on the accent when pointed at.
+    &:hover,
+    &:focus-visible {
+      background: var(--bg-tertiary);
       border-color: var(--accent-color, #2563eb);
     }
 
+    // The User Guide is the lead link: an accent icon and title mark it out
+    // without a filled background.
     &--primary {
-      background: var(--accent-color, #2563eb);
-      border-color: var(--accent-color, #2563eb);
-      color: #fff;
-
-      &:hover {
-        opacity: 0.92;
+      .help-dialog__link-icon,
+      strong {
+        color: var(--accent-color, #2563eb);
       }
     }
   }

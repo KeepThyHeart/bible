@@ -9,6 +9,8 @@
  * is the thin `BibleVerse` adapter over it.
  */
 
+import { parseVerseFormatting } from '../Data/Text/VerseFormatting';
+
 export interface FormattedVerse {
   textHtml: string;
   isParagraphStart: boolean;
@@ -294,4 +296,47 @@ export function getFootnotes(
   fd: VerseFormattingData | undefined,
 ): Array<{ position: number; marker: string; text: string }> {
   return fd?.footnotes ?? [];
+}
+
+/**
+ * Turn a module row's stored formatting JSON into the {@link VerseFormattingData}
+ * that {@link formatVerseFields} reads.
+ *
+ * Module schema v2 stores `bible_verse.formatting` as a structured payload -
+ * `{"v":1,"block":{...},"spans":[{"type":"words_of_christ",...}]}` - not the
+ * legacy flat `formatting_data` keys. The server reaches the legacy shape via
+ * `BibleVerse` (which projects `formatting` down), but a caller holding only the
+ * raw column (the web client's offline wa-sqlite worker) used to pass the parsed
+ * v2 JSON straight in. None of its keys matched, so every span was silently
+ * dropped: no red letters, no divine-name small caps, no paragraph starts or
+ * headings - the verse rendered as bare text. This performs the same projection
+ * `BibleVerse` does; a payload already in the legacy shape is returned as is.
+ */
+export function parseStoredVerseFormatting(raw: string | null | undefined): VerseFormattingData | undefined {
+  if (raw === null || raw === undefined || raw === '') return undefined;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return undefined;
+  }
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return undefined;
+  const obj = parsed as Record<string, unknown>;
+  const isStructured = 'v' in obj || Array.isArray(obj['spans']) || (typeof obj['block'] === 'object' && obj['block'] !== null);
+  if (!isStructured) return obj as VerseFormattingData;
+
+  const formatting = parseVerseFormatting(raw);
+  const fd: VerseFormattingData = {};
+  const block = formatting.block;
+  if (block?.paragraph_start !== undefined) fd.paragraphStart = block.paragraph_start;
+  if (block?.heading !== undefined) fd.sectionHeading = block.heading;
+  const ranges = (type: string): VerseWordRange[] =>
+    (formatting.spans ?? []).filter(s => s.type === type).map(s => ({ start: s.start, end: s.end }));
+  const woc = ranges('words_of_christ');
+  const divine = ranges('divine_name');
+  if (woc.length > 0) fd.wordsOfChrist = woc;
+  if (divine.length > 0) fd.divineName = divine;
+  // Footnotes have no structured representation; keep any a payload carries.
+  if (Array.isArray(obj['footnotes'])) fd.footnotes = obj['footnotes'] as VerseFormattingData['footnotes'];
+  return Object.keys(fd).length > 0 ? fd : undefined;
 }
