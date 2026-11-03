@@ -334,9 +334,18 @@ const SearchResultsPane: React.FC<SearchResultsPaneProps> = ({ dockviewPanelApi 
   // Counts what is on screen, not what is held in the store: with a page of
   // semantic results fetched but only some shown, a header claiming 150 above
   // a list of 30 would be a lie the "Show 120 More" button then contradicts.
+  //
+  // Keyword mode headlines the EXACT matches only (B-017): approximate (fuzzy)
+  // rows sit under their own divider and are not in the chart's count, so
+  // folding them in made "faith hope charity" read "60 results" for 1 verse.
   const countSummary = isSemanticMode
     ? t('searchResultsPane.semanticMatchCount', { count: renderedRowCount })
-    : t('searchResultsPane.resultCount', { count: renderedRowCount });
+    : fuzzyResults.length > 0
+      ? t('searchResultsPane.resultCountWithApproximate', {
+          count: exactAndStemResults.length,
+          approximate: fuzzyResults.length,
+        })
+      : t('searchResultsPane.resultCount', { count: renderedRowCount });
 
   // A search panel outlives the search that opened it: it is part of the saved
   // layout, so it comes back on the next launch with no query behind it.

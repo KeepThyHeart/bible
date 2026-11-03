@@ -39,6 +39,9 @@ const classifierInstance = new ReferenceClassifier();
 function determineMode(input: string): SearchBarMode {
   const trimmed = stripBidiControls(input).trimStart();
   if (trimmed === '') return 'empty';
+  // `/regex/` is a regular-expression search, not a command (B-019): a command
+  // title never ends in a slash.
+  if (/^\/.+\/$/.test(trimmed.trimEnd())) return 'search';
   if (trimmed.startsWith('/')) return 'command';
   if (trimmed.startsWith('?')) return 'search';
   if (classifierInstance.looksLikeReference(trimmed)) return 'reference';
@@ -564,7 +567,13 @@ const TopSearchBar = forwardRef<TopSearchBarHandle>(function TopSearchBar(_props
   // Counting what the pane counts - `semanticResults` in semantic mode - is
   // what keeps the two numbers from contradicting each other.
   // --------------------------------------------------------------------------
-  const badgeCount = isSemanticMode ? semanticResults.length : searchResults.length;
+  // Keyword mode counts exact matches only; approximate (fuzzy) hits are shown
+  // apart in the pane and not counted (B-017). If every hit is approximate the
+  // badge falls back to the total so it does not vanish with results on screen.
+  const exactKeywordCount = searchResults.filter(r => r.type !== 'fuzzy').length;
+  const badgeCount = isSemanticMode
+    ? semanticResults.length
+    : (exactKeywordCount > 0 ? exactKeywordCount : searchResults.length);
 
   const showResultCountBadge =
     isResultsVisible &&
