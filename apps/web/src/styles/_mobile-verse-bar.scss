@@ -25,7 +25,7 @@
     border: none;
     background: none;
     cursor: pointer;
-    font-size: calc(13px * var(--ui-font-scale, 1));
+    font-size: calc(0.8125rem * var(--ui-font-scale, 1));
     color: var(--text-primary);
     border-radius: 7px;
     white-space: nowrap;
@@ -37,7 +37,7 @@
 
     i {
       color: var(--text-muted);
-      font-size: calc(14px * var(--ui-font-scale, 1));
+      font-size: calc(0.875rem * var(--ui-font-scale, 1));
     }
   }
 }

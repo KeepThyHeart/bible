@@ -5,11 +5,15 @@ import { validateBookNumber, validateChapter, validateVerse, validateModuleName 
 import { sendError, ErrorCodes } from '../utils/errorResponse.js';
 import type { SiteSettings } from '../siteSettings.js';
 import { isModuleActive } from '../siteSettings.js';
+import { moduleVisibilityParam } from '../utils/moduleVisibility.js';
 import { registerRoute } from './routeRegistry.js';
 import type { ServerHookRegistry } from '../plugins/ServerHooks.js';
 
 export function createCommentaryRoutes(db: DatabaseManager, siteSettings: SiteSettings | null, hooks?: ServerHookRegistry): Router {
   const router = Router();
+
+  // A commentary the site has switched off is "not found" by name too (`/:module/...`, `/info/:module`).
+  router.param('module', moduleVisibilityParam(siteSettings, 'commentaries'));
 
   /** Filter commentaries by active status in settings */
   const filterActiveCommentaries = (modules: ReturnType<ReturnType<typeof db.getModuleMetadataRepo>['getByType']>) => {

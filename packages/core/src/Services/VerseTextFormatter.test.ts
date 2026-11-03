@@ -8,7 +8,7 @@
  * regression on either read path fails here.
  */
 import { describe, it, expect } from 'vitest';
-import { formatVerseFields, hasWordsOfChrist, getFootnotes } from './VerseTextFormatter';
+import { formatVerseFields, hasWordsOfChrist, getFootnotes, parseStoredVerseFormatting } from './VerseTextFormatter';
 
 describe('formatVerseFields — section headings', () => {
   const heading = (raw: string) => formatVerseFields('body text', { sectionHeading: raw }).sectionHeading;
@@ -174,5 +174,48 @@ describe('formatting-data accessors', () => {
     expect(getFootnotes(undefined)).toEqual([]);
     const notes = [{ position: 3, marker: 'a', text: 'Or: kindness' }];
     expect(getFootnotes({ footnotes: notes })).toEqual(notes);
+  });
+});
+
+describe('parseStoredVerseFormatting (v2 `formatting` column, offline read path)', () => {
+  // Verbatim rows from data/modules/bible_kjv.db (module schema v2).
+  const MATT_5_3 = {
+    text: 'Blessed are the poor in spirit: for theirs is the kingdom of heaven.',
+    formatting: '{"v":1,"spans":[{"type":"words_of_christ","start":0,"end":12},{"type":"supplied","start":1,"end":1}]}',
+  };
+  const JOHN_3_16_FORMATTING = '{"v":1,"block":{"paragraph_start":true},"spans":[{"type":"words_of_christ","start":0,"end":24}]}';
+  const PS_23_1 = {
+    text: 'The Lord is my shepherd; I shall not want.',
+    formatting: '{"v":1,"block":{"heading":"A Psalm of David."},"spans":[{"type":"divine_name","start":1,"end":1},{"type":"supplied","start":2,"end":2}]}',
+  };
+
+  it('keeps red letters for a v2 words_of_christ span (the raw JSON used to drop them)', () => {
+    // Regression: the worker passed JSON.parse(formatting) straight through,
+    // whose `spans` key formatVerseFields does not read.
+    expect(formatVerseFields(MATT_5_3.text, JSON.parse(MATT_5_3.formatting)).textHtml).not.toContain('christ-words');
+
+    const fd = parseStoredVerseFormatting(MATT_5_3.formatting);
+    expect(hasWordsOfChrist(fd)).toBe(true);
+    expect(formatVerseFields(MATT_5_3.text, fd).textHtml).toBe(`<span class="christ-words">${MATT_5_3.text}</span>`);
+  });
+
+  it('projects paragraph starts, headings and divine-name spans', () => {
+    expect(parseStoredVerseFormatting(JOHN_3_16_FORMATTING)).toEqual({
+      paragraphStart: true,
+      wordsOfChrist: [{ start: 0, end: 24 }],
+    });
+    const out = formatVerseFields(PS_23_1.text, parseStoredVerseFormatting(PS_23_1.formatting));
+    expect(out.sectionHeading).toBe('A Psalm of David.');
+    expect(out.textHtml).toContain('<span class="divine-name">Lord</span>');
+  });
+
+  it('passes a legacy formatting_data payload through and tolerates empty/bad input', () => {
+    expect(parseStoredVerseFormatting('{"words_of_christ":[{"start":0,"end":2}]}')).toEqual({
+      words_of_christ: [{ start: 0, end: 2 }],
+    });
+    expect(parseStoredVerseFormatting(null)).toBeUndefined();
+    expect(parseStoredVerseFormatting('')).toBeUndefined();
+    expect(parseStoredVerseFormatting('not json')).toBeUndefined();
+    expect(parseStoredVerseFormatting('{"v":1}')).toBeUndefined();
   });
 });

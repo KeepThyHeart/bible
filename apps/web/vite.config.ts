@@ -514,12 +514,22 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path.replace(new RegExp(`^${basePath.replace(/\/$/, '')}`), ''),
       },
+      // Downloadable asset store (server/routes/assetRoutes.ts). Only `/assets/v1`: the rest of
+      // `/assets/` is Vite's own. Without this the dev server 404'd the catalogue on every load.
+      [`${basePath.replace(/\/$/, '')}/assets/v1`]: {
+        target: 'http://localhost:3100',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(new RegExp(`^${basePath.replace(/\/$/, '')}`), ''),
+      },
     },
   },
   test: {
     environment: 'happy-dom',
     include: ['src/**/*.test.{ts,tsx}', 'server/**/*.test.ts', 'scripts/**/*.test.ts'],
     globals: true,
+    // Node 25+ ships an experimental global `localStorage` that, without --localstorage-file, is undefined and
+    // shadows the DOM environment's own. Turn it off in the workers; Node 24 does not know the flag.
+    execArgv: Number(process.versions.node.split('.')[0]) >= 25 ? ['--no-experimental-webstorage'] : [],
     // Many tests here re-import a module graph (vi.resetModules), open real SQLite fixtures or push megabytes
     // through the cache store; on a busy machine the 5 s default timed out correct runs at random. Generous
     // but bounded: a genuine hang still fails, just after a minute.

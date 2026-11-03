@@ -115,6 +115,7 @@ vi.mock('../../stores/bibleStore', () => ({
     }),
     navigateTo: (...args: unknown[]) => mockBibleNavigateTo(...args),
     adoptPreviewAsStudy: (id: number) => mockAdoptPreviewAsStudy(id),
+    syncCommentaryToSelection: vi.fn(),
   },
 }));
 

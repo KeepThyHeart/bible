@@ -16,7 +16,7 @@
     padding: 16px;
     text-align: center;
     color: var(--text-secondary, #666);
-    font-size: calc(13px * var(--ui-font-scale, 1));
+    font-size: calc(0.8125rem * var(--ui-font-scale, 1));
   }
 
   &__retry {
@@ -34,7 +34,7 @@
   background: none;
   color: var(--text-primary);
   cursor: pointer;
-  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-size: calc(0.75rem * var(--ui-font-scale, 1));
 }
 
 // Family tree sheet: the explorer scrolls/pans itself, so the body must not.

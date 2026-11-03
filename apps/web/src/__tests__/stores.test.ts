@@ -55,7 +55,9 @@ describe('SettingsStore', () => {
   it('has sensible defaults', async () => {
     // Dynamic import to get fresh instance
     const { settingsStore } = await import('../stores/settingsStore');
-    expect(settingsStore.fontSize).toBe(18);
+    expect(settingsStore.fontSize).toBe(19);
+    expect(settingsStore.studyFontSize).toBe(17);
+    expect(settingsStore.uiFontSize).toBe(16);
     expect(settingsStore.lineHeight).toBe(1.8);
     expect(settingsStore.theme).toBe('auto');
   });

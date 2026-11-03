@@ -19,7 +19,7 @@
     &__header {
       padding: 6px 10px;
       font-weight: 600;
-      font-size: calc(13px * var(--ui-font-scale, 1));
+      font-size: calc(0.8125rem * var(--ui-font-scale, 1));
       white-space: nowrap;
       border-bottom: 1px solid var(--border-color);
 
@@ -43,7 +43,7 @@
       cursor: pointer;
       padding: 4px 6px;
       border-radius: 4px;
-      font-size: calc(14px * var(--ui-font-scale, 1));
+      font-size: calc(0.875rem * var(--ui-font-scale, 1));
 
       &:hover {
         background: var(--hover-bg);
@@ -77,7 +77,7 @@
       color: var(--text-color);
       cursor: pointer;
       white-space: nowrap;
-      font-size: calc(13px * var(--ui-font-scale, 1));
+      font-size: calc(0.8125rem * var(--ui-font-scale, 1));
 
       &:hover {
         background: var(--hover-bg);
@@ -193,7 +193,7 @@
       flex: none;
 
       span {
-        font-size: calc(9px * var(--ui-font-scale, 1));
+        font-size: calc(0.5625rem * var(--ui-font-scale, 1));
       }
 
       &--active::before {

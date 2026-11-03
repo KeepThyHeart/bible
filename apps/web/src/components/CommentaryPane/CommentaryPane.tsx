@@ -1,6 +1,7 @@
 import { useEffect, useRef, useCallback } from 'preact/hooks';
 import { settingsStore } from '../../stores/settingsStore';
 import { useTranslation } from 'react-i18next';
+import { TextSizeButton } from '../common/TextSizeButton';
 import { CommentaryTabBar } from './CommentaryTabBar';
 import { CommentaryContent } from './CommentaryContent';
 import { commentaryStore, HOME_TAB_ID } from '../../stores/commentaryStore';
@@ -39,7 +40,13 @@ export function CommentaryPane({ bibleProvider, onOpenSettings, hideTabBar }: Co
   // expanding re-runs this and loads whatever was missed meanwhile. Mounting
   // loads the current chapter for the same reason: the chapter may well have
   // changed while some other pane was up.
+  //
+  // Before that, bring the commentary to the Bible tab's selected verse: a tab
+  // switch (or anything else that moved the selection without a verse click)
+  // may have happened while this pane was not showing, and without this the
+  // pane opens on the old chapter and reads the selection as "no verse".
   useEffect(() => {
+    if (!collapsed) bibleStore.syncCommentaryToSelection();
     commentaryStore.viewMounted(!collapsed);
     return () => commentaryStore.viewMounted(false);
   }, [collapsed]);
@@ -235,15 +242,13 @@ export function CommentaryPane({ bibleProvider, onOpenSettings, hideTabBar }: Co
                 </button>
               </>
             )}
-            {onOpenSettings && (
-              <button
-                class="commentary-passage-header__settings"
-                onClick={() => onOpenSettings('commentary-font')}
-                title={t('commentaryPane.textSettings')}
-              >
-                Aa
-              </button>
-            )}
+            {/* Divided from the verse arrows: it is a view option, not navigation. */}
+            <span class="commentary-passage-header__divider" aria-hidden="true" />
+            <TextSizeButton
+              target="study"
+              className="commentary-passage-header__settings"
+              onMoreOptions={onOpenSettings ? () => onOpenSettings('commentary-font') : undefined}
+            />
           </div>
         </div>
         {verseText && (

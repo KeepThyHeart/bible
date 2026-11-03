@@ -14,7 +14,7 @@
     color: var(--text-muted);
     padding: 3px 5px;
     border-radius: 3px;
-    font-size: calc(11px * var(--ui-font-scale, 1));
+    font-size: calc(0.6875rem * var(--ui-font-scale, 1));
 
     &:hover {
       color: var(--text-primary);
@@ -36,7 +36,7 @@
     opacity: 0.4;
     flex-shrink: 0;
     margin-inline-start: auto;
-    font-size: calc(11px * var(--ui-font-scale, 1));
+    font-size: calc(0.6875rem * var(--ui-font-scale, 1));
     transition: color 0.15s, opacity 0.15s;
 
     &:hover {

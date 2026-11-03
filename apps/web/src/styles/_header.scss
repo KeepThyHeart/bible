@@ -12,7 +12,7 @@
   height: 48px;
 
   &__logo {
-    font-size: calc(17px * var(--ui-font-scale, 1));
+    font-size: calc(1.0625rem * var(--ui-font-scale, 1));
     font-weight: 700;
     color: var(--accent-color);
     white-space: nowrap;
@@ -21,7 +21,7 @@
     gap: 8px;
 
     i {
-      font-size: calc(18px * var(--ui-font-scale, 1));
+      font-size: calc(1.125rem * var(--ui-font-scale, 1));
     }
   }
 
@@ -34,7 +34,7 @@
   }
 
   &__wordmark-tagline {
-    font-size: calc(9.5px * var(--ui-font-scale, 1));
+    font-size: calc(0.59375rem * var(--ui-font-scale, 1));
     font-weight: 500;
     letter-spacing: 0.14em;
     text-transform: uppercase;
@@ -76,7 +76,7 @@
     padding-block: 4px;
     padding-inline: 12px 10px;
     color: var(--text-muted);
-    font-size: calc(14px * var(--ui-font-scale, 1));
+    font-size: calc(0.875rem * var(--ui-font-scale, 1));
     display: flex;
     align-items: center;
     gap: 6px;
@@ -89,7 +89,7 @@
   }
 
   &__search-type-label {
-    font-size: calc(13px * var(--ui-font-scale, 1));
+    font-size: calc(0.8125rem * var(--ui-font-scale, 1));
     color: var(--text-muted);
   }
 
@@ -120,7 +120,7 @@
     background: none;
     border: none;
     cursor: pointer;
-    font-size: calc(14px * var(--ui-font-scale, 1));
+    font-size: calc(0.875rem * var(--ui-font-scale, 1));
     color: var(--text-primary);
     transition: background 0.1s;
     white-space: nowrap;
@@ -157,7 +157,7 @@
     cursor: pointer;
     padding: 4px 10px;
     color: var(--text-muted);
-    font-size: calc(14px * var(--ui-font-scale, 1));
+    font-size: calc(0.875rem * var(--ui-font-scale, 1));
     display: flex;
     align-items: center;
     transition: color 0.15s;
@@ -178,7 +178,7 @@
     box-shadow: 0 8px 32px var(--dropdown-shadow);
     z-index: 120;
     padding: 16px 18px;
-    font-size: calc(13px * var(--ui-font-scale, 1));
+    font-size: calc(0.8125rem * var(--ui-font-scale, 1));
     color: var(--text-primary);
     line-height: 1.5;
 
@@ -202,19 +202,19 @@
 
   &__ideas-help-title {
     font-weight: 700;
-    font-size: calc(15px * var(--ui-font-scale, 1));
+    font-size: calc(0.9375rem * var(--ui-font-scale, 1));
     margin-bottom: 8px;
   }
 
   &__ideas-help-subtitle {
     font-weight: 600;
-    font-size: calc(13px * var(--ui-font-scale, 1));
+    font-size: calc(0.8125rem * var(--ui-font-scale, 1));
     margin-bottom: 4px;
     color: var(--text-secondary);
   }
 
   &__ideas-help-note {
-    font-size: calc(12px * var(--ui-font-scale, 1));
+    font-size: calc(0.75rem * var(--ui-font-scale, 1));
     color: var(--text-muted);
     font-style: italic;
     margin-bottom: 0;
@@ -224,7 +224,7 @@
     padding: 0;
     padding-inline-start: 12px;
     color: var(--text-muted);
-    font-size: calc(13px * var(--ui-font-scale, 1));
+    font-size: calc(0.8125rem * var(--ui-font-scale, 1));
     flex-shrink: 0;
   }
 
@@ -233,14 +233,14 @@
     padding: 7px 10px;
     border: none;
     background: transparent;
-    font-size: calc(14px * var(--ui-font-scale, 1));
+    font-size: calc(0.875rem * var(--ui-font-scale, 1));
     color: var(--text-primary);
     outline: none;
     min-width: 0;
 
     &::placeholder {
       color: var(--text-muted);
-      font-size: calc(13px * var(--ui-font-scale, 1));
+      font-size: calc(0.8125rem * var(--ui-font-scale, 1));
     }
   }
 
@@ -250,7 +250,7 @@
     cursor: pointer;
     padding: 4px 10px;
     color: var(--text-muted);
-    font-size: calc(13px * var(--ui-font-scale, 1));
+    font-size: calc(0.8125rem * var(--ui-font-scale, 1));
     display: flex;
     align-items: center;
 
@@ -276,7 +276,7 @@
     background: var(--bg-secondary);
     color: var(--text-muted);
     font-family: inherit;
-    font-size: calc(11px * var(--ui-font-scale, 1));
+    font-size: calc(0.6875rem * var(--ui-font-scale, 1));
     line-height: 1.5;
     cursor: pointer;
     user-select: none;
@@ -309,7 +309,7 @@
     li {
       padding: 8px 14px;
       cursor: pointer;
-      font-size: calc(14px * var(--ui-font-scale, 1));
+      font-size: calc(0.875rem * var(--ui-font-scale, 1));
       display: flex;
       align-items: center;
       transition: background 0.1s;
@@ -328,21 +328,28 @@
     }
   }
 
+  // Trailing button inside the search field (see Header.tsx): separated from
+  // the text by a hairline rule, and quiet until pointed at.
   &__toc-btn {
+    align-self: stretch;
+    display: flex;
+    align-items: center;
     background: none;
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    padding: 6px 10px;
+    border: none;
+    border-inline-start: 1px solid var(--border-color);
+    border-start-end-radius: 7px;
+    border-end-end-radius: 7px;
+    padding: 0 12px;
     cursor: pointer;
-    font-size: calc(15px * var(--ui-font-scale, 1));
+    font-size: calc(0.875rem * var(--ui-font-scale, 1));
     color: var(--text-secondary);
-    transition: background 0.1s, color 0.1s, border-color 0.15s;
+    transition: background 0.1s, color 0.1s;
     flex-shrink: 0;
 
-    &:hover {
+    &:hover,
+    &:focus-visible {
       background: var(--bg-tertiary);
-      color: var(--text-primary);
-      border-color: var(--accent-color);
+      color: var(--accent-color);
     }
   }
 
@@ -359,7 +366,7 @@
     align-items: center;
     padding: 4px 8px;
     color: var(--text-muted);
-    font-size: calc(14px * var(--ui-font-scale, 1));
+    font-size: calc(0.875rem * var(--ui-font-scale, 1));
   }
 
   &__offline-dot {
@@ -378,7 +385,7 @@
     border-radius: 6px;
     padding: 6px 10px;
     cursor: pointer;
-    font-size: calc(15px * var(--ui-font-scale, 1));
+    font-size: calc(0.9375rem * var(--ui-font-scale, 1));
     color: var(--text-secondary);
     transition: background 0.1s, color 0.1s;
 
@@ -416,7 +423,7 @@
     border: none;
     background: none;
     cursor: pointer;
-    font-size: calc(14px * var(--ui-font-scale, 1));
+    font-size: calc(0.875rem * var(--ui-font-scale, 1));
     color: var(--text-primary);
     border-radius: 6px;
     transition: background 0.1s;
@@ -439,7 +446,7 @@
 
   &__theme-section-label {
     padding: 6px 12px 2px;
-    font-size: calc(11px * var(--ui-font-scale, 1));
+    font-size: calc(0.6875rem * var(--ui-font-scale, 1));
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.04em;

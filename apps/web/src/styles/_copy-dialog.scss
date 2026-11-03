@@ -28,13 +28,13 @@
     justify-content: space-between;
     margin-bottom: 16px;
 
-    h3 { font-size: calc(16px * var(--ui-font-scale, 1)); }
+    h3 { font-size: calc(1rem * var(--ui-font-scale, 1)); }
 
     button {
       background: none;
       border: none;
       cursor: pointer;
-      font-size: calc(18px * var(--ui-font-scale, 1));
+      font-size: calc(1.125rem * var(--ui-font-scale, 1));
       color: var(--text-muted);
 
       &:hover {
@@ -52,7 +52,7 @@
       gap: 4px;
 
       span {
-        font-size: calc(13px * var(--ui-font-scale, 1));
+        font-size: calc(0.8125rem * var(--ui-font-scale, 1));
         color: var(--text-secondary);
       }
 
@@ -62,7 +62,7 @@
         border-radius: 6px;
         background: var(--bg-primary);
         color: var(--text-primary);
-        font-size: calc(14px * var(--ui-font-scale, 1));
+        font-size: calc(0.875rem * var(--ui-font-scale, 1));
         outline: none;
 
         &:focus {
@@ -101,7 +101,7 @@
   }
 
   &__section-heading {
-    font-size: calc(13px * var(--ui-font-scale, 1));
+    font-size: calc(0.8125rem * var(--ui-font-scale, 1));
     font-weight: 600;
     color: var(--text-secondary);
   }
@@ -152,7 +152,7 @@
     border-radius: 4px;
     background: var(--bg-tertiary);
     color: var(--text-secondary);
-    font-size: calc(11px * var(--ui-font-scale, 1));
+    font-size: calc(0.6875rem * var(--ui-font-scale, 1));
     font-weight: 600;
     display: flex;
     align-items: center;
@@ -170,21 +170,21 @@
 
   &__format-name {
     display: block;
-    font-size: calc(13px * var(--ui-font-scale, 1));
+    font-size: calc(0.8125rem * var(--ui-font-scale, 1));
     font-weight: 500;
     color: var(--text-primary);
   }
 
   &__format-desc {
     display: block;
-    font-size: calc(11px * var(--ui-font-scale, 1));
+    font-size: calc(0.6875rem * var(--ui-font-scale, 1));
     color: var(--text-muted);
     line-height: 1.4;
   }
 
   // The badges are decoration until something says what they are for.
   &__format-hint {
-    font-size: calc(11px * var(--ui-font-scale, 1));
+    font-size: calc(0.6875rem * var(--ui-font-scale, 1));
     color: var(--text-muted);
   }
 
@@ -197,7 +197,7 @@
     min-height: 180px;
     max-height: 320px;
     overflow-y: auto;
-    font-size: calc(14px * var(--ui-font-scale, 1));
+    font-size: calc(0.875rem * var(--ui-font-scale, 1));
     line-height: 1.6;
   }
 
@@ -205,7 +205,7 @@
   // text; everything else previews as the block tree the formatter produced.
   &__preview-source {
     white-space: pre-wrap;
-    font-size: calc(13px * var(--ui-font-scale, 1));
+    font-size: calc(0.8125rem * var(--ui-font-scale, 1));
     font-family: inherit;
   }
 
@@ -218,7 +218,7 @@
 
     h1, h2, h3, h4, h5, h6 {
       margin: 12px 0 4px;
-      font-size: calc(14px * var(--ui-font-scale, 1));
+      font-size: calc(0.875rem * var(--ui-font-scale, 1));
       font-weight: 600;
 
       &:first-child { margin-top: 0; }
@@ -254,7 +254,7 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    font-size: calc(13px * var(--ui-font-scale, 1));
+    font-size: calc(0.8125rem * var(--ui-font-scale, 1));
     color: var(--text-secondary);
 
     input[type="checkbox"] {
@@ -267,7 +267,7 @@
       border-radius: 4px;
       background: var(--bg-primary);
       color: var(--text-primary);
-      font-size: calc(12px * var(--ui-font-scale, 1));
+      font-size: calc(0.75rem * var(--ui-font-scale, 1));
       margin-inline-start: auto;
     }
   }
@@ -280,7 +280,7 @@
     border: none;
     border-radius: 6px;
     cursor: pointer;
-    font-size: calc(14px * var(--ui-font-scale, 1));
+    font-size: calc(0.875rem * var(--ui-font-scale, 1));
     font-weight: 500;
     transition: background 0.15s;
 

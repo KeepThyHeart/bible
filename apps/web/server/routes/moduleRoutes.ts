@@ -9,6 +9,7 @@ import type { DatabaseManager } from '../DatabaseManager.js';
 import type { ModuleType, ContentShape } from '@bible/core';
 import { validateModuleName } from '../utils/validation.js';
 import { sendError, ErrorCodes } from '../utils/errorResponse.js';
+import { createClientQuota } from '../utils/clientQuota.js';
 import type { SiteSettings } from '../siteSettings.js';
 import { getSettingsKey, isModuleActive, getModuleEntry, buildDescriptions, buildSortOrders } from '../siteSettings.js';
 import { registerRoute } from './routeRegistry.js';
@@ -321,8 +322,26 @@ export function isModuleVisible(
   return isModuleActive(settings[settingsKey], abbr);
 }
 
+/**
+ * Whole-module downloads per client per hour. A module can run to hundreds of
+ * MB and a Bible's first download builds its lite copy, so the per-minute
+ * `content` tier (600) would let one client pull gigabytes a minute. Taking
+ * every active module offline is a few dozen downloads; this leaves room for
+ * that, a retry, and a few devices behind one address.
+ */
+export const MODULE_DOWNLOADS_PER_HOUR = 100;
+
 export function createModuleRoutes(db: DatabaseManager, siteSettings: SiteSettings | null): Router {
   const router = Router();
+  const downloadQuota = createClientQuota({ limit: MODULE_DOWNLOADS_PER_HOUR, windowMs: 60 * 60_000 });
+  /** Charge one download; answers 429 and returns false when the client is out. */
+  const takeDownload = (req: Request, res: Response): boolean => {
+    const retryAfter = downloadQuota.take(req);
+    if (retryAfter === null) return true;
+    res.setHeader('Retry-After', String(retryAfter));
+    sendError(res, 429, ErrorCodes.RATE_LIMITED, 'Too many downloads from this connection. Please try again later.');
+    return false;
+  };
 
   // Lite Bible copies (see `sendLiteBibleModule`) are cached to disk after
   // first generation, keyed by module name, and shared by `/download` (for a
@@ -420,6 +439,7 @@ export function createModuleRoutes(db: DatabaseManager, siteSettings: SiteSettin
           res.status(404).json({ error: 'Semantic index not available' });
           return;
         }
+        if (!takeDownload(req, res)) return;
         sendDbFile(res, semanticPath, 'semantic_browser.db', req);
         return;
       }
@@ -444,6 +464,7 @@ export function createModuleRoutes(db: DatabaseManager, siteSettings: SiteSettin
         res.status(404).json({ error: 'Module database not found' });
         return;
       }
+      if (!takeDownload(req, res)) return;
 
       // D6: every Bible this server hands out is interlinear-free -- there is
       // no more "full" vs. "lite" Bible file. A Bible module therefore
@@ -489,6 +510,7 @@ export function createModuleRoutes(db: DatabaseManager, siteSettings: SiteSettin
         sendError(res, 404, ErrorCodes.NOT_FOUND, 'Module database not found');
         return;
       }
+      if (!takeDownload(req, res)) return;
 
       const litePath = join(liteCacheDir, `${name.toLowerCase()}-lite.db`);
       sendLiteBibleModule(res, req, mod.moduleType, `${name}-lite.db`, dbPath, litePath);
@@ -522,7 +544,9 @@ export function createModuleRoutes(db: DatabaseManager, siteSettings: SiteSettin
         return abbr?.toLowerCase() === name.toLowerCase();
       });
 
-      if (!mod) {
+      // A module the site has switched off answers exactly like one not installed,
+      // so this route cannot be used to discover hidden modules or their sizes.
+      if (!mod || (siteSettings && !isModuleVisible(siteSettings, mod))) {
         res.json({ available: false });
         return;
       }

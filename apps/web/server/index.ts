@@ -9,7 +9,7 @@ import { createPasswordGate, hashPassword } from './middleware/passwordGate.js';
 import { createServiceWorkerRoutes, pwaShell, readShell } from './middleware/serviceWorker.js';
 import { createCompression } from './middleware/compression.js';
 import { createRateLimiter, tierForApiPath } from './middleware/rateLimiter.js';
-import { contentSecurityPolicyDirectives, speechModelOrigins } from './cspDirectives.js';
+import { contentSecurityPolicyDirectives, speechModelOrigins, inlineScriptHashes } from './cspDirectives.js';
 import { RemoteSemanticService } from './search/RemoteSemanticService.js';
 import { RemoteSemantic } from '@bible/core';
 import { createAssetRouter } from './routes/assetRoutes.js';
@@ -99,9 +99,17 @@ const db = new DatabaseManager(dataDir, modulesDir);
 
 const app = express();
 
-// Trust reverse proxies (nginx, Caddy, etc.) for correct req.ip, req.protocol, etc.
+// Trust the reverse proxy (Apache, nginx, Caddy) for correct req.ip, req.protocol, etc.
 // Without this, Express misidentifies protocol/IP when behind SSL-terminating proxies.
-app.set('trust proxy', true);
+//
+// Only a proxy on this machine is trusted, never `true`. With `true`, req.ip is the
+// leftmost X-Forwarded-For entry, which the client writes itself: anyone could send a
+// fresh address per request and walk past every per-client limit (rate limiter, login
+// lockout, submission and download quotas). With 'loopback', the proxy's own entry
+// (the real client) is used. The server listens on 127.0.0.1 behind the proxy, so its
+// peer is always loopback. TRUST_PROXY overrides this for a proxy on another host
+// (see Express's "trust proxy" setting for the accepted values).
+app.set('trust proxy', process.env.TRUST_PROXY || 'loopback');
 
 // Compress text responses (API JSON, the SPA shell, and the hashed assets).
 // See `middleware/compression.ts` for what it declines and why.
@@ -223,14 +231,24 @@ app.use(helmet({
       // On-device speech (recite): model download origins, only while the flag is on.
       enabled: siteConfig.isEnabled('recite'),
       externalOrigins: speechModelOrigins(process.env.BIBLE_SPEECH_MODEL_BASE_URL ?? ''),
-    }, siteConfig.remoteSearchBrowserOrigin),
+    }, siteConfig.remoteSearchBrowserOrigin, inlineScriptHashes(existsSync(clientDirPath) ? clientDirPath : undefined)),
   },
-  // HSTS is only meaningful for production HTTPS deployments. In local/test
-  // environments the server runs over HTTP, so HSTS would cause browsers to
-  // upgrade future requests to HTTPS and break subsequent page loads.
+  // Helmet would send HSTS on every response, including local/test servers on
+  // plain HTTP, where it would make browsers upgrade later requests to HTTPS and
+  // break page loads. It is sent below only on requests that arrived over HTTPS.
   hsts: false,
   crossOriginEmbedderPolicy: false,  // keep false — enabling it can break WASM
 }));
+
+// HSTS on HTTPS requests only. Behind a TLS-terminating proxy `req.secure`
+// comes from its X-Forwarded-Proto header (trusted per `trust proxy` above), so
+// the proxy must set it: Apache needs `RequestHeader set X-Forwarded-Proto https`
+// in the :443 vhost. Not `includeSubDomains`: that would bind every subdomain of
+// the site's domain, which this app does not control.
+app.use((req, res, next) => {
+  if (req.secure) res.setHeader('Strict-Transport-Security', 'max-age=31536000');
+  next();
+});
 
 // Feature modules (task 0113): enabled modules' route files import and self-register here
 // (mounting stays below). Loaded this early so a module's body parsers, registered

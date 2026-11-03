@@ -100,11 +100,12 @@ describe.skipIf(!hasKjv)('running a search', () => {
     expect(outcome.error).not.toContain('\n');
   });
 
-  test('unsupported syntax such as NEAR/3 is an error, not an empty result', async () => {
+  test('NEAR/3 is not search syntax: its words are searched literally, so nothing matches and nothing throws', async () => {
+    // Core now quotes any term holding punctuation (`escapeFts5Term`), so FTS5 no
+    // longer sees `NEAR/3` as a syntax error and the module is not skipped.
     const outcome = await runSearch('faith NEAR/3 works', target());
     expect(outcome.hits).toHaveLength(0);
-    expect(outcome.error).toContain('Unsupported syntax');
-    expect(outcome.error).not.toContain('\n');
+    expect(outcome.error).toBeUndefined();
   });
 
   test('an unmatched quote is refused before it reaches SQLite', async () => {

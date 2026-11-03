@@ -26,6 +26,7 @@ import { isTagGraphEnabled } from './utils/clientConfig';
 import { dictionaryStore } from './stores/dictionaryStore';
 import { bibleStore } from './stores/bibleStore';
 import { searchStore } from './stores/searchStore';
+import { pxToRem } from './stores/settingsStore';
 import { evalVerseWhen, whenKeys } from './host/verseActionWhen';
 import { useReadable } from './host/useReadable';
 import { useAppShared } from './hooks/useAppShared';
@@ -144,7 +145,7 @@ export function DesktopApp({ providers }: DesktopAppProps) {
 
   const bibleStyle = {
     fontFamily: shared.fontFamily,
-    fontSize: `${shared.fontSize}px`,
+    fontSize: pxToRem(shared.fontSize),
     lineHeight: String(shared.lineHeight),
     '--heading-font': shared.headingFontFamily,
     ...(showRightPane ? { width: `${biblePaneWidth}%`, flex: 'none' } : {}),
@@ -166,7 +167,6 @@ export function DesktopApp({ providers }: DesktopAppProps) {
       <Header
         onSettingsClick={(section) => shared.openSettings(section)}
         onHelpClick={() => shared.setHelpOpen(true)}
-        onFeedbackClick={() => shared.setFeedbackOpen(true)}
       />
       <ConnectionBanner />
       <UpdateBanner />

@@ -91,7 +91,12 @@ describe('games server module', () => {
       mkdirSync(join(dir, 'client', 'games'), { recursive: true });
       writeFileSync(join(dir, 'client', 'games', 'play.html'), '<p>play</p>');
     });
-    afterEach(() => rmSync(dir, { recursive: true, force: true }));
+    afterEach(async () => {
+      // The route opens content.db and keeps it for the process; Windows cannot delete an open file.
+      // Same module instance as the route's (no resetModules between the test and this hook).
+      (await import('./games/content/index')).closeContent();
+      rmSync(dir, { recursive: true, force: true });
+    });
 
     async function mounted() {
       const { registry } = await freshLoad({});

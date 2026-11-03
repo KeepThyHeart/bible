@@ -15,7 +15,7 @@
   &__title {
     margin: 0;
     padding: 8px 12px 0;
-    font-size: calc(14px * var(--ui-font-scale, 1));
+    font-size: calc(0.875rem * var(--ui-font-scale, 1));
     font-weight: 600;
     line-height: 1.1;
     color: var(--text-secondary, #666);
@@ -101,7 +101,7 @@
     padding: 32px 16px;
     text-align: center;
     color: var(--text-muted);
-    font-size: calc(14px * var(--study-font-scale, 1));
+    font-size: calc(0.875rem * var(--study-font-scale, 1));
     font-style: italic;
   }
 }
@@ -115,14 +115,14 @@
     align-items: center;
     gap: 8px;
     padding: 12px 16px 8px;
-    font-size: calc(13px * var(--ui-font-scale, 1));
+    font-size: calc(0.8125rem * var(--ui-font-scale, 1));
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.03em;
     color: var(--text-secondary);
 
     i {
-      font-size: calc(12px * var(--ui-font-scale, 1));
+      font-size: calc(0.75rem * var(--ui-font-scale, 1));
       color: var(--accent-color);
     }
   }
@@ -134,7 +134,7 @@
 
   &__subtitle {
     font-weight: 400;
-    font-size: calc(10px * var(--ui-font-scale, 1));
+    font-size: calc(0.75rem * var(--ui-font-scale, 1));
     text-transform: none;
     letter-spacing: normal;
     color: var(--text-tertiary, #999);
@@ -154,7 +154,7 @@
   &__empty {
     padding: 12px 4px;
     color: var(--text-muted);
-    font-size: calc(13px * var(--study-font-scale, 1));
+    font-size: calc(0.8125rem * var(--study-font-scale, 1));
   }
 
   &__browse-link {
@@ -167,7 +167,7 @@
     background: none;
     color: var(--accent-color);
     font-family: inherit;
-    font-size: calc(13px * var(--ui-font-scale, 1));
+    font-size: calc(0.8125rem * var(--ui-font-scale, 1));
     font-weight: 500;
     cursor: pointer;
     border-radius: 6px;
@@ -221,13 +221,13 @@
   }
 
   &__title {
-    font-size: calc(16px * var(--ui-font-scale, 1));
+    font-size: calc(1rem * var(--ui-font-scale, 1));
     font-weight: 600;
     color: var(--text-primary);
   }
 
   &__pane-label {
-    font-size: calc(11px * var(--ui-font-scale, 1));
+    font-size: calc(0.75rem * var(--ui-font-scale, 1));
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -251,12 +251,12 @@
       // Match mobile study pane section styling for consistency
       &__search-input {
         border-radius: 8px;
-        font-size: calc(14px * var(--ui-font-scale, 1));
+        font-size: calc(0.875rem * var(--ui-font-scale, 1));
         padding: 10px 12px;
       }
 
       &__section-label {
-        font-size: calc(13px * var(--study-font-scale, 1));
+        font-size: calc(0.8125rem * var(--study-font-scale, 1));
         font-weight: 700;
         text-transform: uppercase;
         letter-spacing: 0.03em;
@@ -270,7 +270,7 @@
       padding: 10px 14px;
 
       &__name {
-        font-size: calc(14px * var(--study-font-scale, 1));
+        font-size: calc(0.9375rem * var(--study-font-scale, 1));
       }
     }
   }
@@ -306,7 +306,7 @@
   }
 
   &__ref {
-    font-size: calc(12px * var(--ui-font-scale, 1));
+    font-size: calc(0.8125rem * var(--ui-font-scale, 1));
     font-weight: 400;
     color: var(--text-primary);
     text-decoration: underline;
@@ -335,7 +335,7 @@
     border: none;
     background: none;
     color: var(--text-muted);
-    font-size: calc(12px * var(--ui-font-scale, 1));
+    font-size: calc(0.75rem * var(--ui-font-scale, 1));
     cursor: pointer;
     border-radius: 50%;
     transition: color 0.15s, background 0.15s;
@@ -366,7 +366,7 @@
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    font-size: calc(12px * var(--ui-font-scale, 1));
+    font-size: calc(0.75rem * var(--ui-font-scale, 1));
     color: var(--text-secondary);
     flex: 1;
     min-width: 0;
@@ -376,7 +376,7 @@
     background: none;
     border: none;
     color: var(--text-muted);
-    font-size: calc(12px * var(--ui-font-scale, 1));
+    font-size: calc(0.75rem * var(--ui-font-scale, 1));
     font-family: inherit;
     cursor: pointer;
     padding: 0 2px;
@@ -389,7 +389,7 @@
   }
 
   &__text {
-    font-size: calc(11px * var(--ui-font-scale, 1));
+    font-size: calc(0.8125rem * var(--study-font-scale, 1));
     color: var(--text-secondary);
     line-height: 1.35;
     margin-top: 0;
@@ -413,7 +413,7 @@
     border: none;
     background: none;
     color: var(--text-muted);
-    font-size: calc(14px * var(--ui-font-scale, 1));
+    font-size: calc(0.875rem * var(--ui-font-scale, 1));
     cursor: pointer;
     border-radius: 50%;
     transition: color 0.15s, background 0.15s;
@@ -445,7 +445,7 @@
 
   &__title {
     padding: 10px 14px 6px;
-    font-size: calc(11px * var(--ui-font-scale, 1));
+    font-size: calc(0.75rem * var(--ui-font-scale, 1));
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.05em;
@@ -464,7 +464,7 @@
     cursor: pointer;
     text-align: start;
     color: var(--text-primary);
-    font-size: calc(14px * var(--ui-font-scale, 1));
+    font-size: calc(0.875rem * var(--ui-font-scale, 1));
     transition: background 0.1s;
 
     &:hover, &:active {
@@ -481,7 +481,7 @@
   }
 
   &__time {
-    font-size: calc(12px * var(--ui-font-scale, 1));
+    font-size: calc(0.75rem * var(--ui-font-scale, 1));
     color: var(--text-muted);
     white-space: nowrap;
   }
@@ -490,7 +490,7 @@
     padding: 16px;
     text-align: center;
     color: var(--text-muted);
-    font-size: calc(13px * var(--ui-font-scale, 1));
+    font-size: calc(0.8125rem * var(--ui-font-scale, 1));
   }
 }
 
@@ -501,7 +501,7 @@
   flex-wrap: wrap;
   gap: 2px;
   padding: 10px 16px;
-  font-size: calc(13px * var(--ui-font-scale, 1));
+  font-size: calc(0.8125rem * var(--ui-font-scale, 1));
   border-bottom: 1px solid var(--border-color);
   background: var(--bg-primary);
 
@@ -550,7 +550,7 @@
     background: none;
     cursor: pointer;
     color: var(--text-muted);
-    font-size: calc(11px * var(--ui-font-scale, 1));
+    font-size: calc(0.75rem * var(--ui-font-scale, 1));
     font-family: inherit;
     transition: color 0.15s, background 0.15s;
     position: relative;
@@ -561,7 +561,7 @@
 
     &--home {
       flex: 0.6;
-      font-size: calc(16px * var(--ui-font-scale, 1));
+      font-size: calc(1rem * var(--ui-font-scale, 1));
       color: var(--text-muted);
     }
 
@@ -660,7 +660,7 @@
   }
 
   &__label {
-    font-size: calc(14px * var(--ui-font-scale, 1));
+    font-size: calc(0.875rem * var(--ui-font-scale, 1));
     font-weight: 600;
     color: var(--text-primary);
   }
@@ -694,7 +694,7 @@
 
   &__search-icon {
     color: var(--text-muted);
-    font-size: calc(14px * var(--ui-font-scale, 1));
+    font-size: calc(0.875rem * var(--ui-font-scale, 1));
     flex-shrink: 0;
   }
 
@@ -702,7 +702,7 @@
     flex: 1;
     border: none;
     background: none;
-    font-size: calc(15px * var(--ui-font-scale, 1));
+    font-size: calc(0.9375rem * var(--ui-font-scale, 1));
     font-family: inherit;
     color: var(--text-primary);
     outline: none;
@@ -717,7 +717,7 @@
     border: none;
     background: none;
     color: var(--accent-color);
-    font-size: calc(14px * var(--ui-font-scale, 1));
+    font-size: calc(0.875rem * var(--ui-font-scale, 1));
     font-family: inherit;
     cursor: pointer;
     padding: 4px 8px;
@@ -743,7 +743,7 @@
     cursor: pointer;
     color: var(--text-primary);
     font-family: inherit;
-    font-size: calc(14px * var(--study-font-scale, 1));
+    font-size: calc(0.9375rem * var(--study-font-scale, 1));
 
     &:hover, &:active {
       background: var(--hover-bg, rgba(0, 0, 0, 0.04));
@@ -764,7 +764,7 @@
     display: flex;
     gap: 8px;
     margin-top: 2px;
-    font-size: calc(12px * var(--study-font-scale, 1));
+    font-size: calc(0.75rem * var(--study-font-scale, 1));
     color: var(--text-muted);
   }
 
@@ -778,7 +778,7 @@
 
   &__suggestion-def {
     margin-top: 3px;
-    font-size: calc(12px * var(--study-font-scale, 1));
+    font-size: calc(0.8125rem * var(--study-font-scale, 1));
     color: var(--text-secondary);
     line-height: 1.4;
   }
@@ -790,14 +790,14 @@
   &__loading {
     padding: 20px 16px;
     color: var(--text-muted);
-    font-size: calc(14px * var(--study-font-scale, 1));
+    font-size: calc(0.875rem * var(--study-font-scale, 1));
     text-align: center;
   }
 
   &__empty {
     padding: 20px 16px;
     color: var(--text-muted);
-    font-size: calc(14px * var(--study-font-scale, 1));
+    font-size: calc(0.875rem * var(--study-font-scale, 1));
     text-align: center;
   }
 
@@ -808,7 +808,7 @@
     gap: 12px;
     padding: 48px 16px;
     color: var(--text-muted);
-    font-size: calc(14px * var(--study-font-scale, 1));
+    font-size: calc(0.875rem * var(--study-font-scale, 1));
 
     i {
       font-size: 32px;
@@ -835,7 +835,7 @@
 
   &__filter-icon {
     color: var(--text-muted);
-    font-size: calc(13px * var(--ui-font-scale, 1));
+    font-size: calc(0.8125rem * var(--ui-font-scale, 1));
     flex-shrink: 0;
   }
 
@@ -843,7 +843,7 @@
     flex: 1;
     border: none;
     background: none;
-    font-size: calc(14px * var(--ui-font-scale, 1));
+    font-size: calc(0.875rem * var(--ui-font-scale, 1));
     font-family: inherit;
     color: var(--text-primary);
     outline: none;
@@ -860,7 +860,7 @@
     color: var(--text-muted);
     cursor: pointer;
     padding: 4px;
-    font-size: calc(14px * var(--ui-font-scale, 1));
+    font-size: calc(0.875rem * var(--ui-font-scale, 1));
   }
 
   &__scroll {
@@ -875,14 +875,14 @@
     display: flex;
     align-items: center;
     gap: 5px;
-    font-size: calc(11px * var(--ui-font-scale, 1));
+    font-size: calc(0.75rem * var(--ui-font-scale, 1));
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.04em;
     color: var(--accent-color);
     padding: 8px 4px 4px;
 
-    i { font-size: calc(10px * var(--ui-font-scale, 1)); }
+    i { font-size: calc(0.625rem * var(--ui-font-scale, 1)); }
 
     &--muted {
       color: var(--text-muted);
@@ -941,7 +941,7 @@
   }
 
   &__card-abbr {
-    font-size: calc(15px * var(--study-font-scale, 1));
+    font-size: calc(0.9375rem * var(--study-font-scale, 1));
     font-weight: 700;
     color: var(--text-primary);
   }
@@ -960,7 +960,7 @@
     border: none;
     background: none;
     color: var(--text-muted);
-    font-size: calc(13px * var(--study-font-scale, 1));
+    font-size: calc(0.8125rem * var(--study-font-scale, 1));
     cursor: pointer;
     border-radius: 50%;
     transition: color 0.15s, background 0.15s;
@@ -975,7 +975,7 @@
   }
 
   &__card-name {
-    font-size: calc(12px * var(--study-font-scale, 1));
+    font-size: calc(0.8125rem * var(--study-font-scale, 1));
     color: var(--text-secondary);
     margin-top: 2px;
     white-space: nowrap;
@@ -984,7 +984,7 @@
   }
 
   &__card-words {
-    font-size: calc(11px * var(--study-font-scale, 1));
+    font-size: calc(0.75rem * var(--study-font-scale, 1));
     color: var(--text-muted);
     margin-top: 4px;
   }
@@ -999,7 +999,7 @@
     padding: 24px 16px;
     text-align: center;
     color: var(--text-muted);
-    font-size: calc(14px * var(--study-font-scale, 1));
+    font-size: calc(0.875rem * var(--study-font-scale, 1));
   }
 }
 
@@ -1023,7 +1023,7 @@
     border: none;
     background: none;
     color: var(--accent-color);
-    font-size: calc(14px * var(--ui-font-scale, 1));
+    font-size: calc(0.875rem * var(--ui-font-scale, 1));
     font-family: inherit;
     cursor: pointer;
     padding: 4px 8px;
@@ -1036,7 +1036,7 @@
 
   &__title {
     font-weight: 700;
-    font-size: calc(15px * var(--ui-font-scale, 1));
+    font-size: calc(0.9375rem * var(--ui-font-scale, 1));
     color: var(--text-primary);
   }
 
@@ -1047,7 +1047,7 @@
     border: none;
     background: none;
     font-weight: 700;
-    font-size: calc(15px * var(--ui-font-scale, 1));
+    font-size: calc(0.9375rem * var(--ui-font-scale, 1));
     color: var(--text-primary);
     font-family: inherit;
     cursor: pointer;
@@ -1082,7 +1082,7 @@
     background: none;
     border: none;
     font-family: inherit;
-    font-size: calc(12px * var(--study-font-scale, 1));
+    font-size: calc(0.8125rem * var(--study-font-scale, 1));
     color: var(--accent-color);
     text-decoration: none;
     cursor: pointer;
@@ -1099,7 +1099,7 @@
 
   &__content {
     padding: 14px 16px;
-    font-size: calc(15px * var(--study-font-scale, 1));
+    font-size: calc(0.9375rem * var(--study-font-scale, 1));
     line-height: inherit;
     color: var(--text-primary);
 
@@ -1132,7 +1132,7 @@
   }
 
   &__ref {
-    font-size: calc(12px * var(--study-font-scale, 1));
+    font-size: calc(0.75rem * var(--study-font-scale, 1));
     font-weight: 600;
     color: var(--text-muted);
     margin-bottom: 4px;
@@ -1144,7 +1144,7 @@
     padding: 24px 16px;
     text-align: center;
     color: var(--text-muted);
-    font-size: calc(14px * var(--study-font-scale, 1));
+    font-size: calc(0.875rem * var(--study-font-scale, 1));
   }
 }
 
@@ -1156,7 +1156,7 @@
 }
 
 .settings-panel__field-hint {
-  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-size: calc(0.6875rem * var(--ui-font-scale, 1));
   color: var(--text-muted);
   margin-top: 2px;
   padding-inline-start: 24px;
@@ -1195,7 +1195,7 @@
   }
 
   &__value {
-    font-size: calc(16px * var(--ui-font-scale, 1));
+    font-size: calc(1rem * var(--ui-font-scale, 1));
     font-weight: 600;
     min-width: 48px;
     text-align: center;
@@ -1210,7 +1210,7 @@
   background: none;
   border: none;
   cursor: pointer;
-  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-size: calc(0.75rem * var(--ui-font-scale, 1));
   color: var(--text-muted);
   padding: 8px 0 4px;
   font-family: inherit;
@@ -1246,7 +1246,7 @@
   background: var(--bg-secondary);
   color: var(--text-primary);
   font-family: inherit;
-  font-size: calc(14px * var(--ui-font-scale, 1));
+  font-size: calc(0.875rem * var(--ui-font-scale, 1));
   cursor: pointer;
   transition: background 0.15s, border-color 0.15s;
 

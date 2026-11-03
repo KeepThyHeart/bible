@@ -110,3 +110,49 @@ describe('bibleStore — typed passage ranges', () => {
     expect(bibleStore.getActiveTab()?.selectionEndVerse).toBeNull();
   });
 });
+
+describe('bibleStore — clicking the selected verse again', () => {
+  // A second click used to clear the selection, after which the Overview's
+  // "first visible verse" fallback made the study focus jump elsewhere. Now it
+  // only hides the highlight; the study panes stay on the verse.
+  beforeEach(async () => {
+    reset([makeVerse(1), makeVerse(2), makeVerse(3), makeVerse(16)]);
+    await bibleStore.navigateTo(43, 3);
+    bibleStore.setStudyVerse(43003016);
+  });
+
+  it('hides the highlight but keeps the study verse', () => {
+    bibleStore.setStudyVerse(43003016);
+    const tab = bibleStore.getActiveTab()!;
+    expect(tab.studyVerse).toBe(43003016);
+    expect(bibleStore.isStudyVerseShown(tab)).toBe(false);
+    expect(bibleStore.getSelectedRange()).toBeNull();
+  });
+
+  it('shows it again on a third click, and for any other verse clicked', () => {
+    bibleStore.setStudyVerse(43003016);
+    bibleStore.setStudyVerse(43003016);
+    const tab = bibleStore.getActiveTab()!;
+    expect(bibleStore.isStudyVerseShown(tab)).toBe(true);
+
+    bibleStore.setStudyVerse(43003016);
+    bibleStore.setStudyVerse(43003002);
+    expect(tab.studyVerse).toBe(43003002);
+    expect(bibleStore.isStudyVerseShown(tab)).toBe(true);
+  });
+
+  it('does not let ensureStudyVerse move a hidden selection', () => {
+    bibleStore.setStudyVerse(43003016);
+    bibleStore.ensureStudyVerse();
+    expect(bibleStore.getActiveTab()!.studyVerse).toBe(43003016);
+  });
+
+  it('treats a shift-click on a hidden selection as a fresh selection', () => {
+    bibleStore.setStudyVerse(43003016);
+    bibleStore.extendSelectionTo(43003002);
+    const tab = bibleStore.getActiveTab()!;
+    expect(tab.studyVerse).toBe(43003002);
+    expect(tab.selectionEndVerse).toBeNull();
+    expect(bibleStore.isStudyVerseShown(tab)).toBe(true);
+  });
+});

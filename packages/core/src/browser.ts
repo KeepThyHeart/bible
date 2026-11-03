@@ -128,6 +128,7 @@ export {
   highlightSearchTerms,
   hasWordsOfChrist,
   getFootnotes,
+  parseStoredVerseFormatting,
 } from './Services/VerseTextFormatter';
 export type { FormattedVerse, VerseFormattingData, VerseWordRange } from './Services/VerseTextFormatter';
 

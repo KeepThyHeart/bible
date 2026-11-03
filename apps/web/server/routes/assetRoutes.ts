@@ -12,14 +12,19 @@
  * Only `/v1/...` is claimed. The client build's hashed bundles also live under
  * `/assets/` (Vite's default), so any other path falls through with `next()` to
  * the static handler further down. Inside `/v1` a miss is a plain JSON 404,
- * never the SPA shell. No feature flag: an empty or missing directory just 404s.
+ * never the SPA shell. No feature flag: an empty or missing directory serves an
+ * empty `index.json` and 404s everything else.
  */
 
 import express, { Router } from 'express';
 import type { Request, Response, NextFunction } from 'express';
+import { existsSync } from 'fs';
+import { join } from 'path';
 
 const IMMUTABLE = 'public, max-age=31536000, immutable, no-transform';
 const INDEX_CACHE = 'no-cache, no-transform';
+/** Same schema string as `ASSET_INDEX_SCHEMA` in packages/core/src/assets/types.ts. */
+const EMPTY_INDEX = { schema: 'kth-asset-index/1', assets: [] as const };
 
 export function createAssetRouter(dir: string): Router {
   const router = Router();
@@ -48,6 +53,14 @@ export function createAssetRouter(dir: string): Router {
     const isIndex = segments.length === 2 && segments[1] === 'index.json';
     if (bad || !(isIndex || segments.length >= 5)) {
       res.status(404).json({ error: 'Not found' });
+      return;
+    }
+    // No generated catalogue (scripts/build-asset-index.mjs has not been run, or the store is
+    // empty) means "no assets", not an error. The client fetches the index on every boot and
+    // already reads a 404 as an empty catalogue, but the 404 still showed in every browser
+    // console. Answer the empty catalogue it stands for instead.
+    if (isIndex && !existsSync(join(dir, 'v1', 'index.json'))) {
+      res.set('Cache-Control', INDEX_CACHE).json(EMPTY_INDEX);
       return;
     }
     next();

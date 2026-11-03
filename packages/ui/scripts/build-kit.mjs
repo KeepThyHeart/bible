@@ -8,7 +8,7 @@
 //   - packages/ui kitBundle.test.ts checks size, contents and inputs.
 import { build } from 'esbuild';
 import { readFileSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import { dirname, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export const UI_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -35,7 +35,7 @@ const coreTreeShake = {
         pluginData: 'kth-skip',
       });
       if (r.errors.length || r.warnings.length) return r;
-      if (r.path.startsWith(CORE_SRC + '/') && !CORE_SIDE_EFFECT_FILES.has(r.path)) return { ...r, sideEffects: false };
+      if (r.path.startsWith(CORE_SRC + sep) && !CORE_SIDE_EFFECT_FILES.has(r.path)) return { ...r, sideEffects: false };
       return r;
     });
   },

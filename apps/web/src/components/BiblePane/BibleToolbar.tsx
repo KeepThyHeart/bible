@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
+import { TextSizeButton } from '../common/TextSizeButton';
 import { bibleStore } from '../../stores/bibleStore';
 import { moduleStore } from '../../stores/moduleStore';
 import { useStore } from '../../hooks/useStore';
@@ -177,13 +178,11 @@ export function BibleToolbar({ onOpenSettings }: BibleToolbarProps) {
 
         {/* Actions of active feature modules (for example Listen). */}
         <PropsSlotOutlet slot={readerToolbarActions} props={{ tab }} />
-        <button
-          class="bible-toolbar__btn"
-          onClick={() => onOpenSettings?.('bible-font')}
-          title={t('bibleToolbar.textSettings')}
-        >
-          Aa
-        </button>
+        <TextSizeButton
+          target="bible"
+          className="bible-toolbar__btn"
+          onMoreOptions={onOpenSettings ? () => onOpenSettings('bible-font') : undefined}
+        />
 
         {/* Chapter navigation - far right (hidden on mobile) */}
         <div class="bible-toolbar__nav bible-toolbar__chapter-nav" title={t('bibleToolbar.chapter')}>

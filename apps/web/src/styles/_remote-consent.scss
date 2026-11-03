@@ -18,11 +18,11 @@
   flex-direction: column;
   gap: 12px;
   color: var(--text-primary);
-  font-size: calc(13.5px * var(--ui-font-scale, 1));
+  font-size: calc(0.84375rem * var(--ui-font-scale, 1));
 
   &__title {
     margin: 0;
-    font-size: calc(16px * var(--ui-font-scale, 1));
+    font-size: calc(1rem * var(--ui-font-scale, 1));
   }
 
   &__body {
@@ -64,7 +64,7 @@
   margin-inline: 8px;
   padding: 6px 12px;
   border-inline-start: 3px solid var(--border-color);
-  font-size: calc(12.5px * var(--study-font-scale, 1));
+  font-size: calc(0.78125rem * var(--study-font-scale, 1));
   color: var(--text-secondary);
   line-height: 1.5;
 }

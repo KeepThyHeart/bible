@@ -31,6 +31,12 @@ export class BibleWorkerProxy {
       this.worker.addEventListener('message', (e: MessageEvent) => {
         const msg = e.data;
 
+        if (msg.type === 'dbClosed') {
+          // The worker evicted or lost it: route reads back through openDb.
+          this.openModules.delete(msg.module);
+          return;
+        }
+
         if (msg.type === 'dbReady') {
           this.openModules.add(msg.module);
           // Resolve the opening promise if one exists
@@ -123,7 +129,8 @@ export class BibleWorkerProxy {
           settle();
           this.openModules.add(module);
           resolve();
-        } else if (e.data.type === 'error' && e.data.requestId === -1) {
+        } else if (e.data.type === 'error' && e.data.requestId === -1
+          && (e.data.module === undefined || e.data.module === module)) {
           settle();
           reject(new Error(e.data.message));
         }

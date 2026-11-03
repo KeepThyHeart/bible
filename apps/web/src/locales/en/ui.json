@@ -91,6 +91,7 @@
     "notesUnavailable": "This translation does not include publisher notes.",
     "interlinearLoading": "Loading interlinear data...",
     "interlinearUnavailable": "This translation does not have interlinear data for this passage.",
+    "chapterNotFound": "Reference not found: {ref} does not exist in this translation.",
     "coverageNone": "No content is available in this translation.",
     "coverageNTOnly": "This translation only has content for the New Testament.",
     "coverageOTOnly": "This translation only has content for the Old Testament.",
@@ -228,7 +229,10 @@
       "resetTextSizes": "Reset Text Sizes",
       "resetTextSizesTitle": "Restore the default text sizes and line heights",
       "interlinearStackedShort": "Stacked",
-      "interlinearInlineShort": "Inline"
+      "interlinearInlineShort": "Inline",
+      "popoverTitle": "Text size",
+      "popoverReset": "Reset",
+      "moreOptions": "More text options…"
     },
     "theme": {
       "resetAll": "Reset All",
@@ -581,7 +585,8 @@
     "navigateToAPassageTo": "Navigate to a passage to see commentary.",
     "noCommentaryDataAvailable": "No commentary data available.",
     "noCommentariesHaveContentFor": "No commentaries have content for this verse.",
-    "noContentForThisVerse": "No content for this verse."
+    "noContentForThisVerse": "No content for this verse.",
+    "noCommentaryOn": "No commentary on {passage}"
   },
   "commentaryTabBar": {
     "overview": "Commentary overview",

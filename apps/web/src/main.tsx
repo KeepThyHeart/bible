@@ -1,6 +1,7 @@
 import { render } from 'preact';
 import { isBootLoopTripped, showBootError } from './utils/bootGuard';
 import { runBoot } from './boot/runBoot';
+import { installServerReachabilityMonitor } from './utils/serverReachability';
 
 // Font Awesome is self-hosted (bundled by Vite) rather than loaded from a CDN: browser
 // tracking prevention blocks third-party storage for cdnjs, and a CDN dependency breaks
@@ -18,6 +19,9 @@ import '@bible/ui/css/kth.css';
 
 // index.html's boot-loop detector has already stopped this page and shown the
 // recovery UI -- booting again would just feed the loop it caught.
+// Before boot, so the first API requests already report whether the server answers.
+installServerReachabilityMonitor();
+
 if (isBootLoopTripped()) {
   console.warn('[Boot] Boot-loop detected — app start suppressed');
 } else {

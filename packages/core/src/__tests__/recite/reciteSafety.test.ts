@@ -5,7 +5,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import { readFileSync, existsSync, readdirSync, statSync } from 'fs';
-import { dirname, join, resolve } from 'path';
+import { dirname, join, resolve, sep } from 'path';
 
 const RECITE = resolve(__dirname, '../../recite');
 const BARREL = join(RECITE, 'index.ts');
@@ -64,7 +64,7 @@ describe('recite/ safety', () => {
         expect(imp.spec.startsWith('.'), `${f} imports bare ${imp.spec}`).toBe(true);
         const target = resolveModule(f, imp.spec);
         expect(target, `${f} cannot resolve ${imp.spec}`).not.toBeNull();
-        expect(target!.startsWith(RECITE + '/'), `${f} reaches outside recite/: ${imp.spec}`).toBe(true);
+        expect(target!.startsWith(RECITE + sep), `${f} reaches outside recite/: ${imp.spec}`).toBe(true);
         queue.push(target!);
       }
     }
@@ -77,7 +77,7 @@ describe('recite/ safety', () => {
         if (!imp.typeOnly) continue;
         const target = resolveModule(f, imp.spec);
         expect(target, `${f}: ${imp.spec}`).not.toBeNull();
-        const inside = target!.startsWith(RECITE + '/');
+        const inside = target!.startsWith(RECITE + sep);
         const speechTypes = target === resolve(RECITE, '../speech/types.ts');
         expect(inside || speechTypes, `${f}: ${imp.spec}`).toBe(true);
       }

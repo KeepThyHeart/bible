@@ -19,7 +19,7 @@
   border-radius: 12px;
   box-shadow: 0 12px 40px var(--dropdown-shadow);
   padding: 16px 18px;
-  font-size: calc(13px * var(--ui-font-scale, 1));
+  font-size: calc(0.8125rem * var(--ui-font-scale, 1));
 
   &__close {
     position: absolute;
@@ -39,7 +39,7 @@
     align-items: center;
     gap: 8px;
     font-weight: 600;
-    font-size: calc(14px * var(--ui-font-scale, 1));
+    font-size: calc(0.875rem * var(--ui-font-scale, 1));
     margin-bottom: 6px;
   }
 
@@ -90,7 +90,7 @@
   &__note {
     margin-top: 10px;
     color: var(--text-secondary);
-    font-size: calc(12px * var(--ui-font-scale, 1));
+    font-size: calc(0.75rem * var(--ui-font-scale, 1));
     line-height: 1.4;
   }
 

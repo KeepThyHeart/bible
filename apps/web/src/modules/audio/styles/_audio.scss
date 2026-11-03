@@ -65,7 +65,7 @@
   background: none;
   color: var(--text-primary);
   cursor: pointer;
-  font-size: calc(14px * var(--ui-font-scale, 1));
+  font-size: calc(0.875rem * var(--ui-font-scale, 1));
 
   &:hover:not(:disabled) {
     background: var(--bg-tertiary);
@@ -96,12 +96,12 @@
   &--large {
     min-inline-size: 48px;
     block-size: 48px;
-    font-size: calc(20px * var(--ui-font-scale, 1));
+    font-size: calc(1.25rem * var(--ui-font-scale, 1));
 
     &.audio-btn--primary {
       min-inline-size: 64px;
       block-size: 64px;
-      font-size: calc(24px * var(--ui-font-scale, 1));
+      font-size: calc(1.5rem * var(--ui-font-scale, 1));
     }
   }
 }
@@ -113,7 +113,7 @@
   background: var(--bg-primary);
   color: var(--text-primary);
   cursor: pointer;
-  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-size: calc(0.75rem * var(--ui-font-scale, 1));
   white-space: nowrap;
 
   &:hover {
@@ -215,7 +215,7 @@
   }
 
   &__label {
-    font-size: calc(12px * var(--ui-font-scale, 1));
+    font-size: calc(0.75rem * var(--ui-font-scale, 1));
     color: var(--text-secondary);
     white-space: nowrap;
     font-variant-numeric: tabular-nums;
@@ -230,7 +230,7 @@
   gap: 8px;
   flex-wrap: wrap;
   padding: 4px 12px 6px;
-  font-size: calc(12.5px * var(--ui-font-scale, 1));
+  font-size: calc(0.78125rem * var(--ui-font-scale, 1));
   color: var(--text-secondary);
 
   &__text { flex: 1; min-inline-size: 0; }
@@ -268,7 +268,7 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
-  font-size: calc(13px * var(--ui-font-scale, 1));
+  font-size: calc(0.8125rem * var(--ui-font-scale, 1));
 
   &__row {
     display: flex;
@@ -277,7 +277,7 @@
   }
 
   &__label {
-    font-size: calc(11px * var(--ui-font-scale, 1));
+    font-size: calc(0.6875rem * var(--ui-font-scale, 1));
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.04em;
@@ -297,7 +297,7 @@
 
 .audio-note {
   margin: 0;
-  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-size: calc(0.75rem * var(--ui-font-scale, 1));
   color: var(--text-secondary);
   line-height: 1.4;
 }
@@ -367,10 +367,10 @@
   max-inline-size: 92vw;
   padding: 18px 20px;
 
-  &__title { margin: 0 0 10px; font-size: calc(17px * var(--ui-font-scale, 1)); }
-  &__body { font-size: calc(14px * var(--ui-font-scale, 1)); line-height: 1.5; p { margin: 0 0 8px; } }
+  &__title { margin: 0 0 10px; font-size: calc(1.0625rem * var(--ui-font-scale, 1)); }
+  &__body { font-size: calc(0.875rem * var(--ui-font-scale, 1)); line-height: 1.5; p { margin: 0 0 8px; } }
   &__size { font-weight: 600; }
-  &__hint { color: var(--text-secondary); font-size: calc(12.5px * var(--ui-font-scale, 1)); }
+  &__hint { color: var(--text-secondary); font-size: calc(0.78125rem * var(--ui-font-scale, 1)); }
 
   &__actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
 
@@ -408,14 +408,14 @@
   gap: 14px;
 
   &__group { display: flex; flex-direction: column; gap: 8px; }
-  &__heading { margin: 0; font-size: calc(12px * var(--ui-font-scale, 1)); font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary); }
-  &__hint { margin: 0; font-size: calc(12px * var(--ui-font-scale, 1)); color: var(--text-secondary); line-height: 1.4; }
+  &__heading { margin: 0; font-size: calc(0.75rem * var(--ui-font-scale, 1)); font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary); }
+  &__hint { margin: 0; font-size: calc(0.75rem * var(--ui-font-scale, 1)); color: var(--text-secondary); line-height: 1.4; }
 
   &__toggle {
     display: flex;
     align-items: center;
     gap: 8px;
-    font-size: calc(13.5px * var(--ui-font-scale, 1));
+    font-size: calc(0.84375rem * var(--ui-font-scale, 1));
     cursor: pointer;
 
     input { accent-color: var(--accent-color); inline-size: 16px; block-size: 16px; }
@@ -433,10 +433,10 @@
   }
 
   &__voice-main { flex: 1; min-inline-size: 0; display: flex; flex-direction: column; }
-  &__voice-name { font-weight: 600; font-size: calc(13.5px * var(--ui-font-scale, 1)); }
-  &__voice-meta { font-size: calc(12px * var(--ui-font-scale, 1)); color: var(--text-secondary); }
+  &__voice-name { font-weight: 600; font-size: calc(0.84375rem * var(--ui-font-scale, 1)); }
+  &__voice-meta { font-size: calc(0.75rem * var(--ui-font-scale, 1)); color: var(--text-secondary); }
 
-  &__storage { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: calc(13px * var(--ui-font-scale, 1)); }
+  &__storage { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: calc(0.8125rem * var(--ui-font-scale, 1)); }
   &__btn {
     padding: 4px 12px;
     border: 1px solid var(--border-color);

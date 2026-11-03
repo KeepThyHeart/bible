@@ -28,6 +28,10 @@ export default defineConfig({
     // Enable global test APIs (describe, it, expect, etc.)
     globals: true,
 
+    // Node 25+ ships an experimental global `localStorage` that, without --localstorage-file, is undefined and
+    // shadows jsdom's own. Turn it off in the workers; Node 24 does not know the flag.
+    execArgv: Number(process.versions.node.split('.')[0]) >= 25 ? ['--no-experimental-webstorage'] : [],
+
     // Test environment - use jsdom for DOM-based tests
     environment: 'jsdom',
 

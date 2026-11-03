@@ -90,6 +90,9 @@ export function MobileCommentaryView({ providers, onNavigateBible, onOpenSetting
   // shows one view at a time, so this is when a chapter change is worth
   // spending commentary requests on.
   useEffect(() => {
+    // Follow the Bible tab's selected verse first, in case it moved (e.g. a
+    // tab switch) while this view was not showing.
+    bibleStore.syncCommentaryToSelection();
     commentaryStore.viewMounted(true);
     return () => commentaryStore.viewMounted(false);
   }, []);

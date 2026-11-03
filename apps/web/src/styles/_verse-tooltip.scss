@@ -14,14 +14,14 @@
   pointer-events: none;
 
   &__ref {
-    font-size: calc(12px * var(--ui-font-scale, 1));
+    font-size: calc(0.75rem * var(--ui-font-scale, 1));
     font-weight: 600;
     color: var(--accent-color);
     margin-bottom: 4px;
   }
 
   &__text {
-    font-size: calc(13px * var(--ui-font-scale, 1));
+    font-size: calc(0.8125rem * var(--ui-font-scale, 1));
     line-height: 1.5;
     color: var(--text-primary);
 

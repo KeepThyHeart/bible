@@ -8,7 +8,7 @@ name: cli
 
 on:
   push:
-    branches: [main]
+    branches: [main, qa]
     paths:
       - 'apps/cli/**'
       - 'packages/core/**'

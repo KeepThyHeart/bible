@@ -19,7 +19,7 @@
     white-space: nowrap;
     padding: 6px 14px;
     cursor: pointer;
-    font-size: calc(12px * var(--ui-font-scale, 1));
+    font-size: calc(0.8125rem * var(--ui-font-scale, 1));
     font-weight: 500;
     color: var(--text-secondary);
     background: none;
@@ -49,7 +49,7 @@
   }
 
   &__badge {
-    font-size: calc(10px * var(--ui-font-scale, 1));
+    font-size: calc(0.75rem * var(--ui-font-scale, 1));
     background: var(--accent-color);
     color: #fff;
     padding: 1px 6px;
@@ -72,7 +72,7 @@
     cursor: pointer;
     color: var(--text-muted);
     padding: 6px 8px;
-    font-size: calc(11px * var(--ui-font-scale, 1));
+    font-size: calc(0.6875rem * var(--ui-font-scale, 1));
     margin-inline-start: auto;
     // Stays reachable at the end of the strip when the tabs scroll.
     position: sticky;
@@ -103,6 +103,6 @@
   min-width: 200px;
   border-inline-start: 1px solid var(--border-color);
   overflow: hidden;
-  font-size: var(--study-font-size, 15px);
+  font-size: var(--study-font-size, 1.0625rem);
 }
 
