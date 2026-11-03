@@ -98,13 +98,18 @@ const ParallelBibleView: React.FC<ParallelBibleViewProps> = ({ panelId }) => {
   // clicking a verse after scrolling up yanked the table back down to it. A
   // click sets scrollMode 'nearest' precisely to say "the reader can already
   // see this one"; the single-column view has honoured that all along.
+  //
+  // `versesByVersion` is a dependency because the chapter is fetched by a
+  // separate effect: after a navigation to another chapter the selection (and
+  // this effect) changes first, when the target row does not exist yet, so the
+  // scroll found no ref and never retried (B-016).
   useEffect(() => {
     if (scrollMode !== 'center') return;
     selectedVerseRef.current?.scrollIntoView({
       behavior: 'auto',
       block: 'center'
     });
-  }, [selectedVerseId, scrollTrigger, scrollMode]);
+  }, [selectedVerseId, scrollTrigger, scrollMode, versesByVersion]);
 
   /**
    * Handle verse click. `extend` is the shift key: it widens the passage out
