@@ -122,3 +122,12 @@ describe('UserNotesEditorView - note direction', () => {
     expect(screen.queryByLabelText('editorToolbar.noteDirectionLabel')).not.toBeInTheDocument();
   });
 });
+
+describe('UserNotesEditorView - breadcrumb title (B-011)', () => {
+  it('does not let the current note title shrink/clip next to the Saved badge', () => {
+    renderView({ breadcrumbs: [{ label: 'Home', path: '' }, { label: 'Matthew 6:12', path: 'x.bn' }] });
+    const current = screen.getByText('Matthew 6:12').closest('[aria-current="true"]') as HTMLElement;
+    expect(current.className).toContain('flex-shrink-0');
+    expect(current.className).not.toContain('truncate');
+  });
+});

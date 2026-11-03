@@ -103,7 +103,7 @@ const UserNotesEditorView: React.FC<UserNotesEditorViewProps> = ({
                   <Bdi>{seg.label}</Bdi>
                 </button>
               ) : (
-                <span className="font-medium text-text-heading truncate flex items-center gap-1" aria-current="true">
+                <span className="font-medium text-text-heading flex-shrink-0 flex items-center gap-1" aria-current="true">
                   <Bdi>{seg.label}</Bdi>
                   {/* Edit title icon - verse notes derive their title from the
                       verse reference, so no rename affordance is shown at all
