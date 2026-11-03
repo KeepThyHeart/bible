@@ -91,6 +91,7 @@
     "notesUnavailable": "This translation does not include publisher notes.",
     "interlinearLoading": "Loading interlinear data...",
     "interlinearUnavailable": "This translation does not have interlinear data for this passage.",
+    "chapterNotFound": "Reference not found: {ref} does not exist in this translation.",
     "coverageNone": "No content is available in this translation.",
     "coverageNTOnly": "This translation only has content for the New Testament.",
     "coverageOTOnly": "This translation only has content for the Old Testament.",

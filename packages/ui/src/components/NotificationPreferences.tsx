@@ -144,8 +144,8 @@ export function NotificationPreferences({
         ? l.whenClosedNever
         : l.whenClosedBackgroundOnly;
 
-  const sw = (id: string, label: string, checked: boolean, disabled: boolean, onChange: (v: boolean) => void): ReactNode => (
-    <div className="kth-notify-prefs__switch">
+  const sw = (id: string, label: string, checked: boolean, disabled: boolean, onChange: (v: boolean) => void, dim = false): ReactNode => (
+    <div className={dim ? 'kth-notify-prefs__switch kth-notify-prefs__switch--off' : 'kth-notify-prefs__switch'}>
       <input
         id={id}
         type="checkbox"
@@ -213,11 +213,11 @@ export function NotificationPreferences({
           return (
             <div
               key={source.id}
-              className={rowOff ? 'kth-field kth-notify-prefs__source kth-notify-prefs__source--disabled' : 'kth-field kth-notify-prefs__source'}
+              className="kth-field"
               data-source-id={source.id}
               aria-disabled={rowOff || undefined}
             >
-              {sw(base, source.label, source.enabled, rowOff, (v) => setSource(source.id, { enabled: v }))}
+              {sw(base, source.label, source.enabled, rowOff, (v) => setSource(source.id, { enabled: v }), rowOff)}
               {source.description && (
                 <p id={`${base}-description`} className="kth-field__hint">{source.description}</p>
               )}
@@ -236,7 +236,7 @@ export function NotificationPreferences({
                 <p id={`${base}-blocked`} className="kth-field__hint">{l.blocked}</p>
               )}
               {source.enabled && source.kind === 'rules' && source.userEditable && (
-                <div className="kth-notify-prefs__times">
+                <div className={rowOff ? 'kth-notify-prefs__times kth-notify-prefs__times--off' : 'kth-notify-prefs__times'}>
                   <label htmlFor={`${base}-time`}>{l.dailyTime.replace('{source}', () => source.label)}</label>
                   <input
                     id={`${base}-time`}

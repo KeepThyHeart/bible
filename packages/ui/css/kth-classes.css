@@ -142,9 +142,9 @@
 /* A source that cannot be switched on yet (no permission, notifications off,
    blocked): dim the switch and its label so it reads as unavailable, while the
    hint and any "Allow" button underneath stay at full strength. */
-.kth-notify-prefs__source--disabled > .kth-notify-prefs__switch,
-.kth-notify-prefs__source--disabled > .kth-notify-prefs__times { opacity: 0.5; }
-.kth-notify-prefs__source--disabled > .kth-notify-prefs__switch :is(input, label) { cursor: not-allowed; }
+.kth-notify-prefs__switch--off,
+.kth-notify-prefs__times--off { opacity: 0.5; }
+.kth-notify-prefs__switch--off :is(input, label) { cursor: not-allowed; }
 .kth-notify-prefs__needs-permission {
   display: flex;
   flex-wrap: wrap;

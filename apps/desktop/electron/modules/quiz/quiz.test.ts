@@ -37,7 +37,7 @@ import { loadSchemaSql } from '@bible/core';
 import quizModule from './index';
 import { createModuleIpc } from '../moduleIpc';
 import type { MainModuleDeps } from '../FeatureMainModule';
-import { __resetModuleDatabaseRegistryForTests } from '../../services/ModuleDatabaseRegistry';
+import { __resetModuleDatabaseRegistryForTests, getModuleDatabaseRegistry } from '../../services/ModuleDatabaseRegistry';
 import { makeSql } from '../../services/__tests__/helpers/testSql';
 
 const nativeSqliteAvailable = ((): boolean => {
@@ -151,6 +151,8 @@ describe.skipIf(!nativeSqliteAvailable)('module:quiz:* channels', () => {
     expect(after.value.coverage).toEqual([{ book: 41, chapter: 4, count: 2 }]);
     const qs = await call('quiz:getQuestions', [{ start: 41004001, end: 41004999 }]);
     expect(qs.value).toHaveLength(2);
+    // Release the handle first, as an uninstall does: Windows cannot delete an open file.
+    getModuleDatabaseRegistry().close(join(tmpDir, 'quiz_b.db'));
     rmSync(join(tmpDir, 'quiz_b.db'));
     expect((await call('quiz:getCatalog')).value.modules).toHaveLength(1);
   });

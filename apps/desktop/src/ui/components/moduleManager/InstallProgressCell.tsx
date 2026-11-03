@@ -52,6 +52,7 @@ export const InstallProgressCell: React.FC<InstallProgressCellProps> = ({
     const width = 260;
     setPos({
       top: rect.bottom + 6,
+      // rtl-physical: viewport coordinates from getBoundingClientRect, applied to a position:fixed element
       left: Math.max(8, Math.min(rect.right - width, window.innerWidth - width - 8)),
     });
   }, [open]);
@@ -90,6 +91,7 @@ export const InstallProgressCell: React.FC<InstallProgressCellProps> = ({
           role="dialog"
           aria-label={td('installProgress.detailsAria', 'Install details for {name}', { name })}
           data-testid={`install-popover-${abbreviation}`}
+          // rtl-physical: fixed position from physical viewport coordinates (see useLayoutEffect above)
           style={{ position: 'fixed', top: pos?.top ?? 0, left: pos?.left ?? 0, width: 260, zIndex: 10000 }}
           className="rounded border border-border bg-surface p-3 text-xs shadow-lg"
           onClick={stop}

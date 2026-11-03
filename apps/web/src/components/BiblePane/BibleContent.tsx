@@ -343,8 +343,13 @@ export function BibleContent({
 
   // Determine content to render below the header
   // Treat as loading if we have a book/chapter set but no verses yet and no error
-  const isLoading = tab.loading || !!(tab.book && tab.chapter && tab.verses.length === 0 && !tab.loadError);
+  // coveredBooks is only filled in when a load came back with no verses, so it
+  // distinguishes "finished, nothing there" (e.g. "John 555") from "in flight".
+  const loadedEmpty = !!tab.coveredBooks;
+  const isLoading = tab.loading || !!(tab.book && tab.chapter && tab.verses.length === 0 && !tab.loadError && !loadedEmpty);
   const isEmpty = !isLoading && tab.verses.length === 0;
+  // The module has this book, so the chapter itself is what doesn't exist.
+  const chapterMissing = loadedEmpty && !!tab.book && tab.coveredBooks!.includes(tab.book);
 
   return (
     <div class={`bible-content bible-content--${displayMode}`}>
@@ -372,7 +377,7 @@ export function BibleContent({
       ) : isEmpty ? (
         <div class="bible-content__no-content">
           <i class={`fa-solid ${tab.loadError ? 'fa-triangle-exclamation' : 'fa-circle-info'}`} style={{ fontSize: '1.5em', color: tab.loadError ? 'var(--text-muted)' : 'var(--accent-color)', opacity: 0.6, marginBottom: '8px' }} />
-          <p>{tab.loadError || getCoverageMessage(tab.coveredBooks, t)}</p>
+          <p>{tab.loadError || (chapterMissing ? t('bibleContent.chapterNotFound', { ref: `${bookName} ${tab.chapter}` }) : getCoverageMessage(tab.coveredBooks, t))}</p>
           {tab.loadError && (
             <button
               style={{ marginTop: '12px', padding: '8px 16px', border: '1px solid var(--border-color)', borderRadius: '6px', background: 'var(--bg-secondary)', color: 'var(--accent-color)', cursor: 'pointer' }}

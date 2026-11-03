@@ -121,6 +121,7 @@ export function TextSizeButton({ target, onMoreOptions, className = '' }: TextSi
           aria-label={title}
           data-testid={`text-size-popover-${target}`}
           // Hidden for the one layout pass before its position is known.
+          // rtl-physical: position comes from a physical getBoundingClientRect, so left/top are viewport coordinates
           style={pos ? { top: `${pos.top}px`, left: `${pos.left}px` } : { visibility: 'hidden' }}
         >
           <div class="text-size__row">
