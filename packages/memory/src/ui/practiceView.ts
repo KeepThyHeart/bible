@@ -64,6 +64,8 @@ import type {
   StepAnswer,
   StepResult,
 } from '../core/types';
+import { startReciteRun } from './activities';
+import { reciteEnabled } from '../core/features';
 import { append, button, clear, el, focusQuietly, replace, textNode } from './dom';
 import { breadcrumb, errorBanner, iconButton, levelBoxes, tabs } from './components';
 import {
@@ -114,6 +116,9 @@ export class PracticeView {
    * `renderContext` it needs no `this.interacted` guard for a late arrival.
    */
   private passageView: PassageView | null = null;
+
+  /** Speech is ready, so the strip may show "Recite aloud" (see `loadSpeechReady`). */
+  private reciteReady = false;
 
   /** Guards against a second submission while one is in flight. */
   private busy = false;
@@ -263,6 +268,22 @@ export class PracticeView {
     }
     this.passageView = reply.data;
     this.renderHead();
+    void this.loadSpeechReady();
+  }
+
+  /**
+   * Whether "Recite aloud" can be offered in the tab strip. It is not a
+   * practice session (it has its own run, `startRecite`), so the tab appears
+   * only when speech is ready - the same condition as the passage screen's
+   * Recite button - and then opens the recite flow instead of a session.
+   */
+  private async loadSpeechReady(): Promise<void> {
+    const reply = await this.host.request({ type: 'getSettings' });
+    if (this.disposed || !reply.ok) return;
+    const ready = reciteEnabled() && reply.data.speech?.state === 'ready';
+    if (ready === this.reciteReady) return;
+    this.reciteReady = ready;
+    this.renderHead();
   }
 
   /**
@@ -387,7 +408,9 @@ export class PracticeView {
   private renderActivityTabs(): HTMLElement | null {
     if (this.passageView === null) return null;
 
-    const applicable = inLadderOrder(this.passageView.rungs).filter((rv) => rv.applicable);
+    const applicable = inLadderOrder(this.passageView.rungs).filter(
+      (rv) => rv.applicable && (rv.rung !== 'recite' || this.reciteReady),
+    );
     if (applicable.length <= 1) return null;
 
     return tabs({
@@ -422,6 +445,10 @@ export class PracticeView {
     });
     if (this.disposed) return;
 
+    if (rung === 'recite') {
+      void startReciteRun(this.host, { kind: 'passage', passageId }, 'tap');
+      return;
+    }
     void this.host.startSession(passageId, rung);
   }
 

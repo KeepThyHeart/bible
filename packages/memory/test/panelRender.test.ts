@@ -3160,6 +3160,40 @@ describe('the practice screen: activity tabs, shuffle, and tier display', () => 
     expect(practice.root.querySelectorAll('[aria-current="step"]').length).toBe(1);
   });
 
+  it('offers "Recite aloud" only when speech is ready, and opens the recite flow, not a session (B-023)', async () => {
+    const withRecite = passageViewFixture({
+      rungs: [
+        rungView({ rung: 'ordering', level: 3 }),
+        rungView({ rung: 'blanks', level: 1 }),
+        rungView({ rung: 'recite', level: 0 }),
+      ],
+    });
+    // Speech off: no recite tab.
+    host.handlers.getSettings = () => ({
+      ok: true,
+      data: { defaultAnswerMode: 'firstLetter', recite: RECITE_DEFAULTS, speech: SPEECH_OFF },
+    } as never);
+    let practice = await mountPractice(blanksStep(PSALM_1_2, BLANKED), { rung: 'blanks' }, undefined, { ok: true, data: withRecite });
+    expect(tabs(practice.root).map((t) => t.textContent)).not.toContain(RUNG_LABEL.recite);
+    practice.destroy();
+    container.innerHTML = '';
+
+    // Speech ready: the tab shows and starts a recite run.
+    host.handlers.getSettings = () => ({
+      ok: true,
+      data: { defaultAnswerMode: 'firstLetter', recite: RECITE_DEFAULTS, speech: { ...SPEECH_OFF, state: 'ready' } },
+    } as never);
+    host.handlers.endSession = () => ({ ok: true, data: { summary: null } });
+    host.handlers.startRecite = () => ({ ok: true, data: { reciteId: 7, mode: 'tap' } } as never);
+    practice = await mountPractice(blanksStep(PSALM_1_2, BLANKED), { rung: 'blanks' }, undefined, { ok: true, data: withRecite });
+    const reciteTab = tabs(practice.root).find((t) => t.textContent === RUNG_LABEL.recite)!;
+    expect(reciteTab).toBeTruthy();
+    reciteTab.click();
+    await settle();
+    expect(host.requests.some((r) => r.type === 'startRecite')).toBe(true);
+    expect(host.sessionsStarted.some((s) => s.rung === 'recite')).toBe(false);
+  });
+
   it('shows no tab strip at all when only one activity is applicable', async () => {
     const singlePassageView = passageViewFixture({
       rungs: [rungView({ rung: 'blanks', level: 1 })],
