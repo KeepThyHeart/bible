@@ -172,15 +172,40 @@ export function usePassageResolver({
       // "John" here is unambiguous - unlike in the search box, where it is a
       // word to look for. The help popover beside the field has always
       // advertised it.
-      const parsed = getLocalizedReferenceParser().parse(text, { allowWholeBook: true });
-      // The range maths lives in `resolveReferenceRange`, which is the same one
-      // the notes expansion path uses. Computing it here instead had quietly
-      // broken three of the six forms the help popover promises: "John 3"
-      // fetched only verse 1, "John 3-5" only 3:1, and a whole book was
-      // unreachable, because an absent verse defaulted to a *single* verse
-      // rather than to the end of the span.
-      const range = parsed.isValid ? resolveReferenceRange(parsed) : null;
-      if (!range) {
+      // "Rom 8:28-30, 38-39" / "Rom 8:28-30; 38-39": a list of ranges. A later
+      // piece that is not a reference on its own ("38-39") borrows the book and
+      // chapter of the piece before it (B-020).
+      const parser = getLocalizedReferenceParser();
+      const pieces = text.split(/[,;]/).map(piece => piece.trim()).filter(Boolean);
+      const ranges: Array<{ startId: number; endId: number }> = [];
+      let previous = '';
+      for (const piece of pieces) {
+        let candidate = piece;
+        let parsed = parser.parse(candidate, { allowWholeBook: true });
+        if (!parsed.isValid && previous) {
+          // Prefix up to and including the last ':' ("Rom 8:"), or up to the
+          // chapter number when the previous piece had no verse part.
+          const colon = previous.lastIndexOf(':');
+          const prefix = colon >= 0 ? previous.slice(0, colon + 1) : '';
+          candidate = prefix ? `${prefix}${piece}` : piece;
+          parsed = parser.parse(candidate, { allowWholeBook: true });
+        }
+        // The range maths lives in `resolveReferenceRange`, which is the same one
+        // the notes expansion path uses. Computing it here instead had quietly
+        // broken three of the six forms the help popover promises: "John 3"
+        // fetched only verse 1, "John 3-5" only 3:1, and a whole book was
+        // unreachable, because an absent verse defaulted to a *single* verse
+        // rather than to the end of the span.
+        const range = parsed.isValid ? resolveReferenceRange(parsed) : null;
+        if (!range) {
+          setVerses([]);
+          setStatus('invalid');
+          return;
+        }
+        ranges.push(range);
+        previous = candidate;
+      }
+      if (ranges.length === 0) {
         setVerses([]);
         setStatus('invalid');
         return;
@@ -195,7 +220,8 @@ export function usePassageResolver({
       setStatus('loading');
 
       try {
-        const fetched = await getVersesCached(version, range.startId, range.endId);
+        const parts = await Promise.all(ranges.map(r => getVersesCached(version, r.startId, r.endId)));
+        const fetched = parts.flat();
         if (isCancelled()) return;
         setVerses(fetched);
         setStatus(fetched.length === 0 ? 'notfound' : 'ok');
