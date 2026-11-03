@@ -591,13 +591,13 @@ function renderAddPassage(host: PanelHost): { element: HTMLElement; offerBatch: 
     input.disabled = true;
     replace(errorSlot, []);
 
-    const { added, failed, dropped } = await addBatch(host, references);
+    const { added, failed, dropped, existing } = await addBatch(host, references);
 
     submit.disabled = false;
     input.disabled = false;
 
     if (added.length > 0) input.value = '';
-    announceBatch(host, { added, failed, dropped });
+    announceBatch(host, { added, failed, dropped, existing });
 
     if (failed.length > 0) {
       replace(

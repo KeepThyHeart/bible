@@ -558,5 +558,7 @@
   "memory.ui.plan.reciteHandsFree": "हैंड्स-फ़्री",
   "memory.ui.plan.reciteHandsFreeHint": "स्क्रीन छुए बिना बोलें और सुनें",
   "memory.core.loopPracticeOnly": "केवल अभ्यास। कुछ भी जाँचा नहीं गया।",
-  "memory.ui.settings.practiceOnlyShort": "केवल अभ्यास। कुछ भी जाँचा नहीं गया।"
+  "memory.ui.settings.practiceOnlyShort": "केवल अभ्यास। कुछ भी जाँचा नहीं गया।",
+  "memory.ui.plan.removeConfirmNew": "इस अंश को अपनी सूची से हटाएँ?",
+  "memory.ui.plan.alreadyInList": "{reference} पहले से आपकी सूची में है।"
 }

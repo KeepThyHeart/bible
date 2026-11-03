@@ -558,5 +558,7 @@
   "memory.ui.plan.reciteHandsFree": "Manos libres",
   "memory.ui.plan.reciteHandsFreeHint": "Hable y escuche sin tocar la pantalla",
   "memory.core.loopPracticeOnly": "Solo práctica. No se calificó nada.",
-  "memory.ui.settings.practiceOnlyShort": "Solo práctica. No se calificó nada."
+  "memory.ui.settings.practiceOnlyShort": "Solo práctica. No se calificó nada.",
+  "memory.ui.plan.removeConfirmNew": "¿Quitar este pasaje de tu lista?",
+  "memory.ui.plan.alreadyInList": "{reference} ya está en tu lista."
 }

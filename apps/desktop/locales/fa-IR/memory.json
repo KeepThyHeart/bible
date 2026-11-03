@@ -558,5 +558,7 @@
   "memory.ui.plan.reciteHandsFree": "بدون دست",
   "memory.ui.plan.reciteHandsFreeHint": "بدون لمس صفحه، صحبت کنید و گوش دهید",
   "memory.core.loopPracticeOnly": "فقط تمرین. چیزی نمره‌گذاری نشد.",
-  "memory.ui.settings.practiceOnlyShort": "فقط تمرین. چیزی نمره‌گذاری نشد."
+  "memory.ui.settings.practiceOnlyShort": "فقط تمرین. چیزی نمره‌گذاری نشد.",
+  "memory.ui.plan.removeConfirmNew": "این قطعه از فهرست شما حذف شود؟",
+  "memory.ui.plan.alreadyInList": "{reference} از قبل در فهرست شما هست."
 }

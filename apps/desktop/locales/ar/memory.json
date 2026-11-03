@@ -558,5 +558,7 @@
   "memory.ui.plan.reciteHandsFree": "دون استخدام اليدين",
   "memory.ui.plan.reciteHandsFreeHint": "تحدّث واستمع دون لمس الشاشة",
   "memory.core.loopPracticeOnly": "تدريب فقط. لم يتم تقييم شيء.",
-  "memory.ui.settings.practiceOnlyShort": "تدريب فقط. لم يتم تقييم شيء."
+  "memory.ui.settings.practiceOnlyShort": "تدريب فقط. لم يتم تقييم شيء.",
+  "memory.ui.plan.removeConfirmNew": "إزالة هذا المقطع من قائمتك؟",
+  "memory.ui.plan.alreadyInList": "{reference} موجود بالفعل في قائمتك."
 }

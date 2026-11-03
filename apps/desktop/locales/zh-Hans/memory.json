@@ -558,5 +558,7 @@
   "memory.ui.plan.reciteHandsFree": "免提",
   "memory.ui.plan.reciteHandsFreeHint": "无需触碰屏幕，说话并聆听",
   "memory.core.loopPracticeOnly": "仅练习，未评分。",
-  "memory.ui.settings.practiceOnlyShort": "仅练习，未评分。"
+  "memory.ui.settings.practiceOnlyShort": "仅练习，未评分。",
+  "memory.ui.plan.removeConfirmNew": "要从列表中移除这段经文吗？",
+  "memory.ui.plan.alreadyInList": "{reference} 已在你的列表中。"
 }

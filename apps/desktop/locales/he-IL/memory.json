@@ -558,5 +558,7 @@
   "memory.ui.plan.reciteHandsFree": "ללא ידיים",
   "memory.ui.plan.reciteHandsFreeHint": "דבר והקשב בלי לגעת במסך",
   "memory.core.loopPracticeOnly": "תרגול בלבד. שום דבר לא נבדק.",
-  "memory.ui.settings.practiceOnlyShort": "תרגול בלבד. שום דבר לא נבדק."
+  "memory.ui.settings.practiceOnlyShort": "תרגול בלבד. שום דבר לא נבדק.",
+  "memory.ui.plan.removeConfirmNew": "להסיר את הקטע מהרשימה שלך?",
+  "memory.ui.plan.alreadyInList": "{reference} כבר ברשימה שלך."
 }
