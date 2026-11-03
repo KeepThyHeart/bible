@@ -3,6 +3,7 @@ import { stripBidiControls } from '@bible/core/browser';
 import { useI18n } from '../contexts/useI18n';
 import { useSearchStore, normalizeSearchQuery } from '../stores/useSearchStore';
 import { useBibleStore } from '../stores/useBibleStore';
+import { useLayoutStore } from '../stores/useLayoutStore';
 import { syncPanesWithVerse } from '../stores/syncPanesWithVerse';
 import { useCommands } from '../contexts/useCommands';
 import { useWhenContext } from '../contexts/useWhenContext';
@@ -333,6 +334,9 @@ const TopSearchBar = forwardRef<TopSearchBarHandle>(function TopSearchBar(_props
       console.error('Error navigating to reference:', err, target);
     }
 
+    // Jumping to a typed reference ends the search: don't leave an empty results pane open.
+    // allow-getstate: event handler - imperative action, no subscription needed
+    useLayoutStore.getState().closeSearchResultsPanels();
     clearSearch();
     setIsFocused(false);
     inputRef.current?.blur();
