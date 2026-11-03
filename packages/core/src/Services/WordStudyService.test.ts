@@ -104,6 +104,33 @@ describe('BibleRepository word study queries', () => {
   });
 });
 
+describe('BibleRepository secondary Strong\'s tags (metadata.strongs) (B-015)', () => {
+  function withSecondary(): BibleRepository {
+    const r = makeBible('sec', 'en', true);
+    repos.push(r);
+    const sql = r.getSql() as TestSqliteProvider;
+    sql.execute('INSERT INTO bible_verse (verse_id, text) VALUES (?, ?)', [46013004, 'Charity suffereth long.']);
+    sql.execute(
+      `INSERT INTO interlinear_word (verse_id, word_position_start, word_position_end, strongs_number, gloss, metadata)
+       VALUES (46013004, 0, 0, 'G3588', 'Charity', '{"strongs":"G3588 G26"}')`);
+    return r;
+  }
+  it('counts, searches and lists hits where the number is only a secondary tag', () => {
+    const r = withSecondary();
+    expect(r.searchByStrongsNumber(['G26'])).toEqual([45005008, 46013004]);
+    expect(r.searchByStrongsNumber(['G26'], { startVerseId: 46000000, endVerseId: 46999999 })).toEqual([46013004]);
+    expect(r.countStrongs(['G26'])).toEqual({ occurrences: 2, verses: 2 });
+    expect(r.countStrongsByBook(['G26'])).toEqual({ 45: 1, 46: 1 });
+    expect(r.getStrongsHits(['G26']).map(h => h.verseId)).toEqual([45005008, 46013004]);
+    expect(r.getStrongsGlossCounts(['G26']).map(g => g.gloss).sort()).toEqual(['Charity', 'love']);
+  });
+  it('does not match a number that is only a prefix of a tag', () => {
+    const r = withSecondary();
+    expect(r.searchByStrongsNumber(['G2'])).toEqual([]);
+    expect(r.countStrongs(['G268'])).toEqual({ occurrences: 0, verses: 0 });
+  });
+});
+
 describe('WordStudyService', () => {
   it('resolves numbers, Greek script and transliterations', () => {
     expect(service.resolve('g0025')[0]).toMatchObject({ strongs: 'G25', word: 'ἀγαπάω' });

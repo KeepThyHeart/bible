@@ -957,6 +957,25 @@ export class BibleRepository extends BaseModuleRepository<BibleModuleInfo> imple
   // ========================================================================
 
   /**
+   * WHERE fragment matching any of the Strong's variants as the word's primary tag
+   * (`strongs_number`) or as a secondary tag listed in `metadata.strongs`
+   * (e.g. `{"strongs":"G3588 G26"}`: the article carrying agape's number).
+   * The cheap `instr(metadata, ...)` test keeps the JSON parse to candidate rows.
+   */
+  private strongsMatch(variants: string[]): { clause: string; params: string[] } {
+    const ph = variants.map(() => '?').join(', ');
+    const secondary = variants
+      .map(() => "(instr(metadata, ?) > 0 AND instr(' ' || json_extract(metadata, '$.strongs') || ' ', ?) > 0)")
+      .join(' OR ');
+    const params: string[] = [...variants];
+    for (const v of variants) params.push(v, ` ${v} `);
+    return {
+      clause: `(strongs_number IN (${ph}) OR (metadata IS NOT NULL AND (${secondary})))`,
+      params,
+    };
+  }
+
+  /**
    * Find all verse IDs containing a given Strong's number.
    * Accepts multiple format variants to handle variable zero-padding.
    */
@@ -965,9 +984,9 @@ export class BibleRepository extends BaseModuleRepository<BibleModuleInfo> imple
 
     if (!this.hasInterlinearData()) return [];
 
-    const placeholders = strongsVariants.map(() => '?').join(', ');
-    let query = `SELECT DISTINCT verse_id FROM interlinear_word WHERE strongs_number IN (${placeholders})`;
-    const params: (string | number)[] = [...strongsVariants];
+    const m = this.strongsMatch(strongsVariants);
+    let query = `SELECT DISTINCT verse_id FROM interlinear_word WHERE ${m.clause}`;
+    const params: (string | number)[] = [...m.params];
 
     if (range) {
       query += ' AND verse_id BETWEEN ? AND ?';
@@ -989,12 +1008,12 @@ export class BibleRepository extends BaseModuleRepository<BibleModuleInfo> imple
 
     if (!this.hasInterlinearData()) return [];
 
-    const placeholders = strongsVariants.map(() => '?').join(', ');
+    const m = this.strongsMatch(strongsVariants);
     const rows = this.sql.queryAll<{ gloss: string; cnt: number }>(
       `SELECT gloss, COUNT(*) as cnt FROM interlinear_word
-       WHERE strongs_number IN (${placeholders}) AND gloss IS NOT NULL AND gloss != ''
+       WHERE ${m.clause} AND gloss IS NOT NULL AND gloss != ''
        GROUP BY gloss ORDER BY cnt DESC`,
-      [...strongsVariants]
+      m.params
     );
 
     return rows.map(row => row.gloss);
@@ -1006,22 +1025,22 @@ export class BibleRepository extends BaseModuleRepository<BibleModuleInfo> imple
 
   countStrongs(strongsVariants: string[]): { occurrences: number; verses: number } {
     if (strongsVariants.length === 0 || !this.hasInterlinearData()) return { occurrences: 0, verses: 0 };
-    const ph = strongsVariants.map(() => '?').join(', ');
+    const m = this.strongsMatch(strongsVariants);
     const row = this.sql.queryOne<{ occ: number; verses: number }>(
       `SELECT COUNT(*) AS occ, COUNT(DISTINCT verse_id) AS verses FROM interlinear_word
-       WHERE strongs_number IN (${ph})`,
-      [...strongsVariants]
+       WHERE ${m.clause}`,
+      m.params
     );
     return { occurrences: row?.occ ?? 0, verses: row?.verses ?? 0 };
   }
 
   countStrongsByBook(strongsVariants: string[]): Record<number, number> {
     if (strongsVariants.length === 0 || !this.hasInterlinearData()) return {};
-    const ph = strongsVariants.map(() => '?').join(', ');
+    const m = this.strongsMatch(strongsVariants);
     const rows = this.sql.queryAll<{ book: number; cnt: number }>(
       `SELECT verse_id / 1000000 AS book, COUNT(*) AS cnt FROM interlinear_word
-       WHERE strongs_number IN (${ph}) GROUP BY book ORDER BY book`,
-      [...strongsVariants]
+       WHERE ${m.clause} GROUP BY book ORDER BY book`,
+      m.params
     );
     const out: Record<number, number> = {};
     for (const r of rows) out[r.book] = r.cnt;
@@ -1030,12 +1049,12 @@ export class BibleRepository extends BaseModuleRepository<BibleModuleInfo> imple
 
   getStrongsGlossCounts(strongsVariants: string[]): Array<{ gloss: string; count: number }> {
     if (strongsVariants.length === 0 || !this.hasInterlinearData()) return [];
-    const ph = strongsVariants.map(() => '?').join(', ');
+    const m = this.strongsMatch(strongsVariants);
     return this.sql.queryAll<{ gloss: string; cnt: number }>(
       `SELECT gloss, COUNT(*) AS cnt FROM interlinear_word
-       WHERE strongs_number IN (${ph}) AND gloss IS NOT NULL AND gloss != ''
+       WHERE ${m.clause} AND gloss IS NOT NULL AND gloss != ''
        GROUP BY gloss ORDER BY cnt DESC, gloss`,
-      [...strongsVariants]
+      m.params
     ).map(r => ({ gloss: r.gloss, count: r.cnt }));
   }
 
@@ -1055,13 +1074,13 @@ export class BibleRepository extends BaseModuleRepository<BibleModuleInfo> imple
     options: { range?: { startVerseId: number; endVerseId: number }; offset?: number; limit?: number } = {}
   ): StrongsHit[] {
     if (strongsVariants.length === 0 || !this.hasInterlinearData()) return [];
-    const ph = strongsVariants.map(() => '?').join(', ');
-    const params: (string | number)[] = [...strongsVariants];
+    const m = this.strongsMatch(strongsVariants);
+    const params: (string | number)[] = [...m.params];
     // Modules built before `extra_word_positions` existed still work: single-span hits only.
     const extraCol = this.hasInterlinearExtraColumn() ? 'extra_word_positions' : 'NULL AS extra_word_positions';
     let sql = `SELECT verse_id, word_position_start, word_position_end, ${extraCol},
                       gloss, morphology, original_word
-               FROM interlinear_word WHERE strongs_number IN (${ph})`;
+               FROM interlinear_word WHERE ${m.clause}`;
     if (options.range) {
       sql += ' AND verse_id BETWEEN ? AND ?';
       params.push(options.range.startVerseId, options.range.endVerseId);
