@@ -222,7 +222,7 @@ const VerseContextMenu: React.FC<VerseContextMenuProps> = ({
       // After the panel exists. One frame is enough - it mounts in the very
       // next commit.
       requestAnimationFrame(() => {
-        submenuRef.current?.querySelector<HTMLButtonElement>('[role="menuitem"]')?.focus();
+        submenuRef.current?.querySelector<HTMLButtonElement>('[role="menuitem"]')?.focus({ preventScroll: true });
       });
     }
   };
@@ -387,7 +387,9 @@ const VerseContextMenu: React.FC<VerseContextMenuProps> = ({
     zIndex: 9999,
     // Taller than the window (many extension items): scroll instead of clipping.
     maxHeight: 'calc(100vh - 20px)',
-    overflowY: 'auto',
+    // Only a menu that really overflows scrolls (see `clamp`): a scroll container would
+    // clip the bookmarks flyout and scroll the item labels out of view when it takes focus.
+    overflowY: 'visible',
   };
 
   // Re-anchor with the measured size to prevent overflow. Re-run whenever the
@@ -411,6 +413,7 @@ const VerseContextMenu: React.FC<VerseContextMenuProps> = ({
 
       node.style.top = `${adjustedTop}px`;
       node.style.insetInlineStart = `${insetInlineStart}px`;
+      node.style.overflowY = node.scrollHeight > node.clientHeight + 1 ? 'auto' : 'visible';
     };
     clamp();
     if (typeof ResizeObserver === 'undefined') return;

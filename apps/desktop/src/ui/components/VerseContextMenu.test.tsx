@@ -77,6 +77,13 @@ describe('VerseContextMenu', () => {
     expect(screen.getByRole('menu')).toBeInTheDocument();
   });
 
+  it('is not a scroll container while its content fits, so the bookmarks flyout is not clipped (B-009)', () => {
+    renderWithProviders(
+      <VerseContextMenu verses={mockVerse} context={mockContext} position={position} onClose={onClose} onOpenCopyOptions={onOpenCopyOptions} />,
+    );
+    expect(screen.getByRole('menu').style.overflowY).toBe('visible');
+  });
+
   it('shows Copy Passage option when onOpenCopyOptions is provided', () => {
     renderWithProviders(
       <VerseContextMenu
