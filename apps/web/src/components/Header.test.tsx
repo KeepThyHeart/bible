@@ -74,6 +74,7 @@ vi.mock('../utils/bookNames', () => ({
 }));
 
 import { Header } from './Header';
+import { headerItems } from '../host/slots';
 
 describe('Header', () => {
   beforeEach(() => {
@@ -91,6 +92,29 @@ describe('Header', () => {
   it('renders the header element', () => {
     const { container } = render(<Header />);
     expect(container.querySelector('.header')).toBeTruthy();
+  });
+
+  it('renders headerItems in the action group, before the refresh button', () => {
+    const Badge = () => <span data-testid="sync-badge" />;
+    const reg = headerItems.register(Badge);
+    // The refresh button only shows in an installed (standalone) app window.
+    const matchMedia = window.matchMedia;
+    window.matchMedia = ((q: string) => {
+      const mql = matchMedia.call(window, q);
+      return q === '(display-mode: standalone)' ? Object.create(mql, { matches: { value: true } }) : mql;
+    }) as typeof window.matchMedia;
+    try {
+      const { container } = render(<Header />);
+      const badge = screen.getByTestId('sync-badge');
+      const actions = container.querySelector('.header__actions');
+      expect(actions?.contains(badge)).toBe(true);
+      const refresh = actions?.querySelector('[title="header.refresh"]');
+      expect(refresh).toBeTruthy();
+      expect(refresh && badge.compareDocumentPosition(refresh) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    } finally {
+      window.matchMedia = matchMedia;
+      reg.dispose();
+    }
   });
 
   it('renders the app name', () => {

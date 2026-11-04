@@ -21,6 +21,7 @@ This folder contains feature-oriented documentation for the `@bible/web` package
 | [Bible Pane](features/bible-pane.md) | Core Bible reading and display with multi-tab support, display modes, and navigation |
 | [Interlinear & Strong's](features/interlinear-strongs.md) | Greek/Hebrew interlinear display and Strong's dictionary lookups (child of Bible Pane) |
 | [Commentary](features/commentary.md) | Commentary pane with multi-tab support, pin/unpin, and reference auto-linking |
+| [Accounts operator guide](accounts/operator.md) | Accounts and sync: operator settings, deployment ([deploy](accounts/deploy.md)), privacy notes, user guide |
 | [Search](features/search.md) | Keyword and semantic search with results panel |
 | [Presenter](features/presenter.md) | Full-page Presenter (Notes / Control / Preview), notes smart parsing, command box, simple viewer, phone layout, joining |
 | [Settings & Appearance](features/settings.md) | Theme, font, and display settings with localStorage persistence |

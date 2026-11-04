@@ -110,7 +110,7 @@ describe('@bible/core/browser barrel', { timeout: 60_000 }, () => {
     // The allow-list is the deliberate part: each entry is a browser-safe
     // library that the Crypto and Backup modules need (Argon2id in WebAssembly;
     // a pure-JS ZIP codec). Anything else fails.
-    const ALLOWED_EXTERNAL = ['hash-wasm', 'fflate'];
+    const ALLOWED_EXTERNAL = ['hash-wasm', 'fflate', '@zxcvbn-ts/core', '@zxcvbn-ts/language-common'];
     const external = [...bare.keys()].filter(s => !s.startsWith('.') && !ALLOWED_EXTERNAL.includes(s));
     expect(external, `Unexpected external imports: ${external.join(', ')}`).toEqual([]);
   });
@@ -135,7 +135,9 @@ describe('@bible/core/browser barrel', { timeout: 60_000 }, () => {
     // Raised by 30: the extension API declaration files (task 0086). Raised by 10: the `apps`
     // namespace declaration (task 0080).
     // Raised by 15: feature module contribution points and views (task 0113).
-    expect(files.size).toBeLessThan(310);
+    // Raised by 40: accounts and sync, user schema and repositories (task 0150). Raised by 25 when that
+    // met main's 1.0 additions (online meaning search 0190 and the rest; task 0206).
+    expect(files.size).toBeLessThan(375);
   });
 
   it('exports the highlight palette helpers the shared UI needs', async () => {

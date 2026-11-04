@@ -17,6 +17,7 @@ import { wordStudyManifest } from './word-study/manifest.js';
 import { xrefGraphManifest } from './xref-graph/manifest.js';
 import { audioManifest } from './audio/manifest.js';
 import { gamesManifest } from './games/manifest.js';
+import { accountsManifest } from './accounts/manifest.js';
 
 export interface ServerModuleEntry {
   readonly manifest: FeatureModuleManifest;
@@ -44,4 +45,5 @@ export const serverModules: readonly ServerModuleEntry[] = [
       await import('./games/gamesPages.js');
     },
   },
+  { manifest: accountsManifest, load: () => import('./accounts/routes.js') },
 ];

@@ -1,0 +1,15 @@
+{
+  // Type-checks sources and tests against core *source* (no build needed). The emitting build is tsconfig.build.json.
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "lib": ["ES2022"],
+    "types": ["node", "vitest/globals"],
+    "baseUrl": ".",
+    "paths": {
+      "@bible/core": ["../core/src"],
+      "@bible/core/browser": ["../core/src/browser"]
+    }
+  },
+  "include": ["src/**/*", "test/**/*", "vitest.config.ts"]
+}

@@ -252,7 +252,10 @@ export interface ExtensionRuntimeConfig {
 export interface ExtensionUserDataConfig {
   /** Include the extension's key-value store in backups. Default `true`. */
   backup?: boolean;
-  /** Reserved for a future version; validated and ignored today. */
+  /**
+   * Opt in to syncing this extension's key-value store across the user's devices (end-to-end encrypted).
+   * Default `false`: nothing of the extension syncs. Per-database `sync` is still reserved and ignored.
+   */
   sync?: boolean;
   /**
    * Per-database declarations, keyed by the name passed to `openDatabase()`.

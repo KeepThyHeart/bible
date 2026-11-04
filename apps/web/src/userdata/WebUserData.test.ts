@@ -26,6 +26,23 @@ userDataContract(harness, 'IndexedDB-backed WebUserData', async () => {
 });
 
 describe('WebUserData persistence', () => {
+  it('closes on versionchange (so a wipe elsewhere is never blocked) and stops persisting', async () => {
+    const factory = new IDBFactory();
+    const store = await open(factory);
+    store.items.put(UserDataItem.json(appOwner('t'), 'c', 'a', 1));
+    await store.flush();
+    const deleted = new Promise<void>((resolve, reject) => {
+      const req = factory.deleteDatabase('kth-user-data');
+      req.onsuccess = () => resolve();
+      req.onerror = () => reject(req.error);
+    });
+    await deleted; // would never settle if the store kept its connection
+    store.items.put(UserDataItem.json(appOwner('t'), 'c', 'after', 2));
+    await store.flush();
+    const names = (await factory.databases()).map((d) => d.name);
+    expect(names).not.toContain('kth-user-data'); // nothing re-created the wiped database
+  });
+
   it('survives a reopen: items, links, ids and dates', async () => {
     const factory = new IDBFactory();
     const a = await open(factory);

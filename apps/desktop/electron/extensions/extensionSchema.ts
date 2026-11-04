@@ -9,7 +9,7 @@
  * and per-user isolation come for free from the user-DB lifecycle.
  */
 
-import type { ISql } from '@bible/core';
+import { createUserSchema, type ISql } from '@bible/core';
 
 export function initializeExtensionSchema(db: ISql): void {
   // --- extensions: state of each known extension ------------------------
@@ -91,20 +91,10 @@ export function initializeExtensionSchema(db: ISql): void {
     'CREATE INDEX IF NOT EXISTS idx_extension_blocklist_ext ON extension_blocklist(extension_id)',
   );
 
-  // --- extension_storage: namespaced KV store ---------------------------
-  db.execute(`
-    CREATE TABLE IF NOT EXISTS extension_storage (
-      extension_id TEXT NOT NULL,
-      key          TEXT NOT NULL,
-      value        TEXT NOT NULL,
-      updated_at   INTEGER NOT NULL,
-      PRIMARY KEY (extension_id, key)
-    )
-  `);
-
-  db.execute(
-    'CREATE INDEX IF NOT EXISTS idx_extension_storage_ext ON extension_storage(extension_id)',
-  );
+  // extension_storage (the namespaced KV store) is a core user table now (tracked and synced with the rest
+  // of the user data; see core `Data/UserSchema/ddl.ts`). Idempotent, so the extension host booting before
+  // the session handlers cannot find it missing on a fresh profile.
+  createUserSchema(db);
 }
 
 /**

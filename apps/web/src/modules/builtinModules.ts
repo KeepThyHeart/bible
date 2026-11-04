@@ -21,7 +21,9 @@ import { audioModule } from './audio/binding';
 import { downloadsModule } from './downloads/binding';
 import { notificationsModule } from './notifications/binding';
 import { gamesModule } from './games/binding';
-import { memoryModule } from './memory/binding';
+import { annotationsModule } from './annotations/binding';
+import { memoryWebModule } from './memory/binding';
+import { accountsModule } from './accounts/binding';
 
 const plain = ([manifest, binding]: readonly [FeatureModuleManifest, FeatureModuleBinding?]): WebFeatureModule => ({ manifest, binding });
 
@@ -41,7 +43,9 @@ export const BUILTIN_MODULES: readonly WebFeatureModule[] = [
   downloadsModule,
   notificationsModule,
   gamesModule,
-  memoryModule, // hidden: desktop-only until accounts (see memory/binding.ts)
+  annotationsModule,
+  memoryWebModule, // flag `localUserDb` (off by default): web Memory needs the local user database
+  accountsModule,
 ];
 
 /** Let modules take handoff secrets out of the URL before anything else runs (see `WebFeatureModule.takeUrl`). */

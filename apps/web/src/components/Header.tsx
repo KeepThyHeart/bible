@@ -10,6 +10,7 @@ import { useModalFocus } from '../hooks/useModalFocus';
 import { focusSearchField } from '../utils/focusSearchField';
 import { AppSwitchSlot } from '../host/AppSwitchSlot';
 import { PaneHeaderButtons } from '../host/PaneHeaderButtons';
+import { headerItems, SlotOutlet } from '../host/slots';
 import { stripBidiControls } from '@bible/core/browser';
 
 
@@ -301,6 +302,7 @@ export function Header({ onSettingsClick, onHelpClick, onFeedbackClick, onLogoCl
             <span class="header__offline-dot" />
           </span>
         )}
+        <SlotOutlet slot={headerItems} />
         {/* A browser tab has its own reload button; only an installed
             (standalone) app window lacks one. */}
         {isStandalone && <button

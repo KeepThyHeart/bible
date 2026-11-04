@@ -424,7 +424,10 @@ export default defineConfig({
       // Speech engine (task 0151), consumed as source like the entries above. The web app reaches it only
       // through src/speech/ (never the entry chunk) and the dev harness (dev/speech.html, not built).
       '@bible/core/speech': resolve(__dirname, '../../packages/core/src/speech/index.ts'),
+      // Also used by Memory on web (task 0150), which runs @bible/memory in the user-DB worker.
       '@bible/core/recite': resolve(__dirname, '../../packages/core/src/recite/index.ts'),
+      // Memory's core (in the user-DB worker, task 0150) reads the flag table (memory M3 on main).
+      '@bible/core/Settings/FeatureFlags': resolve(__dirname, '../../packages/core/src/Settings/FeatureFlags.ts'),
       '@bible/speech': resolve(__dirname, '../../packages/speech/src/index.ts'),
       // Dev harness only: the hands-free loop and grading are not on the memory core's public surface.
       '@bible/memory/recite': resolve(__dirname, '../../packages/memory/src/core/recite'),
@@ -436,6 +439,8 @@ export default defineConfig({
       '@bible/ui': resolve(__dirname, '../../packages/ui/src/index.ts'),
     },
   },
+  // sqlite-wasm loads its own worker and wasm by URL; pre-bundling breaks that (task 0150).
+  optimizeDeps: { exclude: ['@sqlite.org/sqlite-wasm'] },
   plugins: [
     brandingPlugin(),
     splashLocalesPlugin(),

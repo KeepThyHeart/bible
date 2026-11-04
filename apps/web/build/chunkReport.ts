@@ -23,7 +23,8 @@ export function chunkReport(): Plugin {
           isEntry: c.isEntry,
           facadeModuleId: c.facadeModuleId ? rel(c.facadeModuleId) : null,
           imports: c.imports,
-          modules: Object.keys(c.modules).map(rel),
+          // Only modules that contribute code: tree-shaken ones (renderedLength 0) ship nothing.
+          modules: Object.entries(c.modules).filter(([, m]) => m.renderedLength > 0).map(([id]) => rel(id)),
         }));
       mkdirSync(join(options.dir, '.vite'), { recursive: true });
       writeFileSync(join(options.dir, '.vite', 'chunk-report.json'), JSON.stringify({ chunks }, null, 2));

@@ -1,0 +1,20 @@
+# Caddy v2 in front of the web server (see docs/accounts/deploy.md).
+# Use with "server": { "trustProxy": 1 } in site-config.json: one proxy hop.
+# Caddy obtains and renews the TLS certificate by itself.
+bible.example.org {
+	encode zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+	}
+
+	# The record push may be up to 8 MiB.
+	@sync path /api/sync/*
+	request_body @sync {
+		max_size 9MB
+	}
+
+	# Caddy sets X-Forwarded-For to the connecting address.
+	reverse_proxy 127.0.0.1:3100
+}

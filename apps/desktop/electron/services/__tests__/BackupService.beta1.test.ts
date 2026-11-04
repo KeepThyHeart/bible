@@ -89,7 +89,10 @@ describe('restoring a beta.1 backup', () => {
     dbs.push(expected);
     loadBeta1UserDb(makeSql(expected));
     for (const t of ['user_commentary', 'user_note', 'note_verse_link', 'content_verse_link', 'user_text_markup', 'collection', 'pinned_item', 'user_keybindings', 'extension_storage']) {
-      expect(rows(db, t), t).toEqual(rows(expected, t));
+      // Compare the beta.1 columns only: the current schema may add columns with defaults (user_note.sort_order, 0150).
+      const cols = (expected.prepare(`SELECT name FROM pragma_table_info('${t}')`).all() as { name: string }[]).map((c) => c.name);
+      const project = (r: unknown) => Object.fromEntries(cols.map((c) => [c, (r as Record<string, unknown>)[c]]));
+      expect(rows(db, t).map(project), t).toEqual(rows(expected, t));
     }
     // Both sessions, including the autosave, came across.
     expect(count(db, 'session')).toBe(2);

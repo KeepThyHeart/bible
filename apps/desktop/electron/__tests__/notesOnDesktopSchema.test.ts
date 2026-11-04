@@ -1,8 +1,10 @@
 // @vitest-environment node
 /**
- * Database-backed notes (prayers, journal entries) on the desktop's own user schema. That schema has no
- * `verse_link` (core-only in the backup registry), and core's UserNoteRepository used to read and write
- * it unconditionally, so creating a prayer on the desktop failed with "no such table: verse_link".
+ * Database-backed notes (prayers, journal entries) on the desktop's own user schema. That schema used to
+ * have no `verse_link`, and core's UserNoteRepository read and wrote it unconditionally, so creating a
+ * prayer on the desktop failed with "no such table: verse_link". Since task 0150 the desktop creates its
+ * user tables with core's `createUserSchema`, which includes `verse_link`; the repository still copes
+ * with a database without it (the second case).
  */
 import { describe, expect, it, vi } from 'vitest';
 import Database from 'better-sqlite3';
@@ -22,22 +24,26 @@ const nativeSqliteAvailable = ((): boolean => {
   }
 })();
 
-describe.skipIf(!nativeSqliteAvailable)('notes on the desktop user schema (no verse_link)', () => {
-  it('creates, reads back, updates and deletes a prayer', () => {
-    const sql = makeSql(new Database(':memory:'));
-    initializeUserSchema(sql);
-    expect(sql.queryOne("SELECT 1 FROM sqlite_master WHERE name = 'verse_link'")).toBeFalsy();
+function prayerRoundTrip(dropVerseLink: boolean): void {
+  const sql = makeSql(new Database(':memory:'));
+  initializeUserSchema(sql);
+  expect(sql.queryOne("SELECT 1 FROM sqlite_master WHERE name = 'verse_link'")).toBeTruthy();
+  if (dropVerseLink) sql.execute('DROP TABLE verse_link');
 
-    const controller = new NotesController(new UserNoteRepository(sql));
-    const created = controller.createNote({ title: 'For the church', content: '', noteType: 'prayer' });
-    expect(created.noteId).toBeGreaterThan(0);
+  const controller = new NotesController(new UserNoteRepository(sql));
+  const created = controller.createNote({ title: 'For the church', content: '', noteType: 'prayer' });
+  expect(created.noteId).toBeGreaterThan(0);
 
-    const read = controller.getNoteById(created.noteId!);
-    expect(read?.title).toBe('For the church');
+  const read = controller.getNoteById(created.noteId!);
+  expect(read?.title).toBe('For the church');
 
-    read!.title = 'For the whole church';
-    expect(controller.updateNote(read!).title).toBe('For the whole church');
+  read!.title = 'For the whole church';
+  expect(controller.updateNote(read!).title).toBe('For the whole church');
 
-    expect(controller.deleteNote(created.noteId!)).toBe(true);
-  });
+  expect(controller.deleteNote(created.noteId!)).toBe(true);
+}
+
+describe.skipIf(!nativeSqliteAvailable)('notes on the desktop user schema', () => {
+  it('creates, reads back, updates and deletes a prayer', () => prayerRoundTrip(false));
+  it('still works on a database without verse_link', () => prayerRoundTrip(true));
 });

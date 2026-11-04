@@ -32,6 +32,7 @@ import { notificationsMainManifest } from './notifications/manifest';
 import { memoryManifest } from '@bible/memory/manifest';
 import { speechMainManifest } from './speech/manifest';
 import { presentMainManifest } from './present/manifest';
+import { accountsMainManifest } from './accounts/manifest';
 
 export interface MainModuleEntry {
   readonly manifest: FeatureModuleManifest;
@@ -54,6 +55,8 @@ export const MAIN_MODULES: readonly MainModuleEntry[] = [
   { manifest: speechMainManifest, load: () => import('./speech') },
   // Presenter (0198): handlers only; the screen server starts when the controller presses Start.
   { manifest: presentMainManifest, load: () => import('./present') },
+  // Accounts + end-to-end encrypted sync (0150): flag `accounts`, off by default.
+  { manifest: accountsMainManifest, load: () => import('./accounts') },
 ];
 
 export interface RegisterMainModulesOptions {

@@ -1,0 +1,18 @@
+{
+  // Emits CommonJS to dist/ so the web server can require() it like core (through a createRequire bridge).
+  // Resolves @bible/core through node_modules, i.e. core's built dist: run `pnpm run build:core` first.
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "CommonJS",
+    "moduleResolution": "node",
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "lib": ["ES2022"],
+    "types": ["node"]
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist", "test/**/*", "src/**/*.test.ts"]
+}

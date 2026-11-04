@@ -30,10 +30,13 @@ import type { ByteSource } from './Streams';
 import { parseStrictJson } from './StrictJson';
 import { checkEntryName, readZip, writeZip, ZipError } from './Zip';
 import type { ZipLimits } from './Zip';
+import { SYNC_ID_COLUMN, carriesSyncId, isIdkFingerprint, readIdkFingerprint, readLiveRecordIds } from './syncIds';
 
 export const BACKUP_FORMAT = 'kth-backup';
 /** Version of the payload layout. Minor bumps add optional data; a major bump means older readers must refuse. */
 export const FORMAT_VERSION = '1.0';
+/** Written instead of `FORMAT_VERSION` when the database has sync identities (manifest `sync`, `sync_id` columns). Readers of 1.0 open it. */
+export const FORMAT_VERSION_SYNC = '1.1';
 export const MIN_READER_VERSION = '1.0';
 const SUPPORTED_MAJOR = 1;
 
@@ -77,6 +80,8 @@ export interface Manifest {
   options: { includeHistory: boolean };
   entries: ManifestEntry[];
   sections: ManifestSection[];
+  /** 1.1, only from a database that has synced: the record-id key fingerprint its `sync_id` columns belong to. */
+  sync?: { idkFp: string };
   [k: string]: unknown;
 }
 
@@ -254,6 +259,9 @@ export async function createBackupPayload(src: BackupSources, o: WriteOptions): 
 
   await addFile('README.txt', utf8Encode(README));
 
+  // A database that has synced carries its record ids (1.1); one that never has produces a 1.0 file, byte for byte as before.
+  const idkFp = readIdkFingerprint(src.sql);
+
   // --- database tables (registry-driven; extension_storage is split per extension below)
   const classes = new Set(exportedClasses(o.includeHistory));
   for (const spec of orderedTables()) {
@@ -264,6 +272,11 @@ export async function createBackupPayload(src: BackupSources, o: WriteOptions): 
     if (columns.length === 0) continue;
     const order = spec.pk.filter((k) => have.has(k)).map((k) => `"${k}"`).join(', ');
     const rows = src.sql.queryAll<Row>(`SELECT ${columns.map((c) => `"${c}"`).join(', ')} FROM "${spec.name}"${order ? ` ORDER BY ${order}` : ''}`);
+    if (idkFp !== undefined && carriesSyncId(spec) && columns.includes(spec.pk[0])) {
+      const ids = readLiveRecordIds(src.sql, spec.name);
+      for (const r of rows) r[SYNC_ID_COLUMN] = ids.get(String(r[spec.pk[0]])) ?? null;
+      columns.push(SYNC_ID_COLUMN);
+    }
     const path = `user/${spec.name}.ndjson`;
     await addFile(path, encodeNdjson(rows, columns));
     sections.push({ id: `user.${spec.name}`, kind: 'table', class: spec.cls, required: false, count: rows.length, table: spec.name, columns, paths: [path] });
@@ -356,7 +369,7 @@ export async function createBackupPayload(src: BackupSources, o: WriteOptions): 
 
   const manifest: Manifest = {
     format: BACKUP_FORMAT,
-    formatVersion: FORMAT_VERSION,
+    formatVersion: idkFp !== undefined ? FORMAT_VERSION_SYNC : FORMAT_VERSION,
     minReaderVersion: MIN_READER_VERSION,
     createdAt: now().toISOString(),
     app: o.app,
@@ -365,6 +378,7 @@ export async function createBackupPayload(src: BackupSources, o: WriteOptions): 
     entries,
     sections,
   };
+  if (idkFp !== undefined) manifest.sync = { idkFp };
   const manifestBytes = utf8Encode(JSON.stringify(manifest, null, 2) + '\n');
   const zip = writeZip([{ name: 'manifest.json', data: manifestBytes }, ...files]);
   return { zip, manifest, warnings };
@@ -436,6 +450,7 @@ export function parseManifest(bytes: Uint8Array, maxSchemaVersion = USER_SCHEMA_
   if (!isRec(json.options) || typeof json.options.includeHistory !== 'boolean') fail('options');
   if (!Array.isArray(json.entries)) return fail('entries');
   if (!Array.isArray(json.sections)) return fail('sections');
+  if (json.sync !== undefined && (!isRec(json.sync) || !isIdkFingerprint(json.sync.idkFp))) fail('sync');
 
   const seenPaths = new Set<string>();
   for (const e of json.entries) {

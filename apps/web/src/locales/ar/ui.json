@@ -33,7 +33,8 @@
     "more": "المزيد…",
     "offlineTooltip": "أنت غير متصل بالإنترنت",
     "shortcutHint": "اضغط / أو Ctrl+K للبحث",
-    "feedback": "إرسال ملاحظات"
+    "feedback": "إرسال ملاحظات",
+    "syncStatus": "حالة المزامنة"
   },
   "themes": {
     "auto": "تلقائي",
@@ -211,7 +212,8 @@
       "audio": "الصوت",
       "offline": "دون اتصال",
       "about": "حول",
-      "notifications": "الإشعارات"
+      "notifications": "الإشعارات",
+      "account": "الحساب"
     },
     "textSize": {
       "decreaseAll": "تصغير كل أحجام الخطوط",
@@ -931,6 +933,9 @@
     },
     "quiz": {
       "title": "اختبار"
+    },
+    "memory": {
+      "title": "الحفظ"
     }
   },
   "remoteSemantic": {
@@ -966,5 +971,11 @@
     "studyPane": "لوحة الدراسة",
     "mobileNav": "التنقل الرئيسي",
     "chapterLoaded": "تم تحميل {ref}"
+  },
+  "verseActions": {
+    "highlight": "تظليل",
+    "note": "إضافة ملاحظة أو تعديلها",
+    "bookmark": "إشارة مرجعية",
+    "memorize": "احفظ"
   }
 }

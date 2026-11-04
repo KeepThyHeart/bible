@@ -1,0 +1,136 @@
+/* Account UI (task 0150): sign-up, sign-in, recovery, account panel, privacy, sync badge.
+   kth-account__* classes over --kth-* tokens only; logical properties only. Works in a dialog or a settings panel. */
+.kth-account {
+  display: flex;
+  flex-direction: column;
+  gap: var(--kth-space-3);
+  box-sizing: border-box;
+  inline-size: 100%;
+  max-inline-size: 28rem;
+  margin-inline: auto;
+  color: var(--kth-text);
+  font-family: var(--kth-font-ui);
+  font-size: var(--kth-font-size-ui);
+  line-height: 1.45;
+}
+.kth-account__title { margin: 0; font-size: 1.25em; font-weight: 600; }
+.kth-account__subtitle { margin: 0 0 var(--kth-space-2); font-size: 1em; font-weight: 600; }
+.kth-account__intro { margin: 0; color: var(--kth-text-muted); }
+.kth-account__muted { color: var(--kth-text-muted); font-size: 0.9em; }
+.kth-account__email { overflow-wrap: anywhere; }
+.kth-account__mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; letter-spacing: 0.05em; }
+.kth-account__section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--kth-space-2);
+  padding-block-start: var(--kth-space-3);
+  border-block-start: 1px solid var(--kth-border);
+}
+.kth-account__stack { display: flex; flex-direction: column; gap: var(--kth-space-2); align-items: stretch; }
+.kth-account__row { display: flex; align-items: center; gap: var(--kth-space-2); margin: 0; }
+.kth-account__row--wrap { flex-wrap: wrap; }
+.kth-account__row--between { justify-content: space-between; }
+.kth-account__actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--kth-space-2); }
+.kth-account__error {
+  margin: 0;
+  padding: var(--kth-space-2) var(--kth-space-3);
+  border: 1px solid var(--kth-danger);
+  border-radius: var(--kth-radius);
+  background: var(--kth-danger-soft);
+  color: var(--kth-danger);
+}
+.kth-account__notice {
+  margin: 0;
+  padding: var(--kth-space-2) var(--kth-space-3);
+  border-inline-start: 3px solid var(--kth-warning);
+  border-radius: var(--kth-radius);
+  background: var(--kth-bg-subtle);
+}
+.kth-account__hint-warn { margin: 0; color: var(--kth-warning); font-size: 0.9em; }
+.kth-account__links { display: flex; flex-wrap: wrap; gap: var(--kth-space-3); margin: 0; font-size: 0.9em; }
+.kth-account__link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--kth-accent);
+  font: inherit;
+  text-align: start;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.kth-account__link:hover { color: var(--kth-accent-hover); }
+.kth-account__link:focus-visible { outline: 2px solid var(--kth-focus); outline-offset: 2px; }
+.kth-account__link:disabled { opacity: 0.5; cursor: not-allowed; }
+.kth-account__check { display: flex; align-items: flex-start; gap: var(--kth-space-2); }
+.kth-account__check input { margin-block-start: 0.25em; flex-shrink: 0; }
+.kth-account__list { margin: 0; padding-inline-start: 1.25em; }
+
+/* Password strength meter */
+.kth-account__strength { display: flex; flex-direction: column; gap: var(--kth-space-1); margin-block-start: calc(var(--kth-space-1) * -1); }
+.kth-account__strength-head { display: flex; justify-content: space-between; gap: var(--kth-space-2); font-size: 0.9em; color: var(--kth-text-muted); }
+.kth-account__strength-text { font-weight: 600; color: var(--kth-text); }
+.kth-account__strength-bar { display: flex; gap: 2px; }
+.kth-account__strength-seg { flex: 1; block-size: 6px; border-radius: 2px; background: var(--kth-border); }
+.kth-account__strength-seg--low { background: var(--kth-warning); }
+.kth-account__strength-seg--ok { background: var(--kth-success); }
+.kth-account__feedback { margin: 0; padding-inline-start: 1.25em; color: var(--kth-text-muted); font-size: 0.9em; }
+
+/* Recovery code */
+.kth-account__code {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--kth-space-2) var(--kth-space-3);
+  margin: 0;
+  padding: var(--kth-space-3);
+  border: 1px dashed var(--kth-border-strong);
+  border-radius: var(--kth-radius);
+  background: var(--kth-bg-subtle);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 1.1em;
+  letter-spacing: 0.08em;
+  user-select: all;
+  direction: ltr;
+}
+.kth-account__code-group { white-space: nowrap; }
+.kth-account__confirm-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(5.5rem, 1fr)); gap: var(--kth-space-2); }
+
+/* Account panel */
+.kth-account__usage { block-size: 8px; border-radius: 4px; background: var(--kth-border); overflow: hidden; }
+.kth-account__usage-fill { display: block; block-size: 100%; background: var(--kth-accent); }
+.kth-account__devices { display: flex; flex-direction: column; margin: 0; padding: 0; list-style: none; }
+.kth-account__device {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--kth-space-2);
+  padding-block: var(--kth-space-2);
+  border-block-end: 1px solid var(--kth-border);
+}
+.kth-account__device-info { display: flex; flex-wrap: wrap; align-items: center; gap: var(--kth-space-1) var(--kth-space-2); min-inline-size: 0; }
+.kth-account__device-name { font-weight: 600; overflow-wrap: anywhere; }
+.kth-account__tag { padding: 0 var(--kth-space-2); border-radius: 999px; background: var(--kth-accent-soft); font-size: 0.8em; line-height: 1.6; }
+
+/* Sync status badge */
+.kth-account__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--kth-space-1);
+  padding: 2px var(--kth-space-2);
+  border: 1px solid var(--kth-border-strong);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--kth-text);
+  font: inherit;
+  font-size: 0.85em;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+button.kth-account__badge { cursor: pointer; }
+.kth-account__badge:focus-visible { outline: 2px solid var(--kth-focus); outline-offset: 2px; }
+.kth-account__badge-dot { inline-size: 8px; block-size: 8px; border-radius: 50%; background: var(--kth-text-muted); }
+.kth-account__badge-pending { color: var(--kth-text-muted); }
+.kth-account__badge-dot--idle { background: var(--kth-success); }
+.kth-account__badge-dot--syncing { background: var(--kth-accent); }
+.kth-account__badge-dot--offline { background: var(--kth-warning); }
+.kth-account__badge-dot--error { background: var(--kth-danger); }

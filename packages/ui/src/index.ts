@@ -174,3 +174,9 @@ export type {
   AppNavBadge, AppNavEntry,
   AppsPreferencesProps, AppsPreferencesLabels, AppsPreferencesItem, AppsPreferencesMode,
 } from './components/apps';
+export {
+  SignUpForm, RecoveryCodeStep, SignInForm, RecoverForm, AccountPanel, ChangePasswordForm, PrivacyPanel, SyncStatusBadge,
+  DEFAULT_SIGN_UP_LABELS, DEFAULT_RECOVERY_CODE_LABELS, DEFAULT_SIGN_IN_LABELS, DEFAULT_RECOVER_LABELS,
+  DEFAULT_ACCOUNT_PANEL_LABELS, DEFAULT_CHANGE_PASSWORD_LABELS, DEFAULT_PRIVACY_LABELS, DEFAULT_SYNC_STATUS_LABELS,
+} from './components/Account';
+export type * from './components/Account/types';

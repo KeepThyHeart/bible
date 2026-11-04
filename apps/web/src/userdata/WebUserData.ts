@@ -24,6 +24,7 @@
  * works for the session in memory and reports `persistent: false`.
  */
 import { UserData } from '@bible/core/browser';
+import type { PersistenceStatus, UserDataStore } from './types';
 
 type MemoryUserDb = UserData.MemoryUserDb;
 type UserDataChange = UserData.UserDataChange;
@@ -48,12 +49,7 @@ export interface WebUserDataOptions {
   now?: () => Date;
 }
 
-export interface PersistenceStatus {
-  /** The browser has a storage API at all. */
-  supported: boolean;
-  /** Storage is marked persistent (not evictable under pressure). */
-  persisted: boolean;
-}
+export type { PersistenceStatus } from './types';
 
 interface Block {
   next: number;
@@ -97,7 +93,7 @@ function openDatabase(factory: IDBFactory, name: string): Promise<IDBDatabase> {
   });
 }
 
-export class WebUserData {
+export class WebUserData implements UserDataStore {
   /** The store. Prefer `items` and `links`; the raw db is for backup and tests. */
   readonly db: MemoryUserDb;
   readonly items: MemoryUserDb['items'];
@@ -141,6 +137,9 @@ export class WebUserData {
       }
     }
     const store = new WebUserData(idb, options);
+    // Another tab deletes or upgrades the database (a wipe): release it at once so the delete is never blocked, and stop
+    // persisting (the in-memory copy stays usable for this visit, but never re-creates wiped data).
+    if (idb) idb.onversionchange = () => store.close();
     if (!idb) {
       // Memory-only: ids still need a source.
       store.blocks.item.push({ next: 1, end: Number.MAX_SAFE_INTEGER });
@@ -153,6 +152,10 @@ export class WebUserData {
     if (channelName && typeof BroadcastChannel !== 'undefined') {
       store.channel = new BroadcastChannel(channelName);
       store.channel.onmessage = (ev: MessageEvent) => {
+        if ((ev.data as { close?: unknown } | null)?.close === true) {
+          store.close(); // a wipe in another tab asks us to let go of the database
+          return;
+        }
         const changes = (ev.data as { changes?: UserDataChange[] } | null)?.changes;
         if (!Array.isArray(changes)) return;
         if (hydrated) store.applyRemote(changes);

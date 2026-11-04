@@ -23,8 +23,6 @@ beforeEach(() => {
   db.execute("INSERT INTO verse_link (source_type, source_id, verse_id_start, verse_id_end) VALUES ('note', 1, 45001001, 45001001)");
   db.execute("INSERT INTO user_search_history (query) VALUES ('grace')");
   db.execute("INSERT INTO session (name, session_data, is_autosave) VALUES ('s', '{}', 0)");
-  // Desktop-only table; the same shape the desktop creates.
-  db.execute('CREATE TABLE extension_storage (extension_id TEXT NOT NULL, key TEXT NOT NULL, value TEXT NOT NULL, updated_at INTEGER NOT NULL, PRIMARY KEY (extension_id, key))');
 });
 afterEach(() => UserTestHelper.cleanup());
 

@@ -1,16 +1,27 @@
 /**
- * Scripture Memory on the web (task 0114 M3): registered, and hidden.
+ * The Memory web binding: entry-chunk code, so only lazy loaders. The module code, the app (and with it
+ * `@bible/memory/ui`), the verse-action handler and the user-DB client all load through dynamic `import()`.
  *
- * The web saves no user content in the browser until accounts exist (0063), and memory is all user
- * content, so the shared manifest's `platforms: ['desktop']` keeps it off here: the host lists the
- * module as off for its platform and registers no app, verse action or strings. Nothing loads.
- *
- * Enabling it later is a manifest change (add `'web'` to `platforms`, here and on the app
- * descriptor) plus this binding gaining `apps`/`verseActionHandlers` over a browser `MemoryApi`
- * (the core and the UI package are platform-free: `MemoryService` over a `MemorySql`, then
- * `mountMemoryUi`). `memoryModule.test.ts` pins the hidden state.
+ * `probe` asks for activation after the first paint: the worker reaches the Bible data through the leader tab's main
+ * thread (`memory.bible`), and any tab may be the leader, so every tab with the module on registers that host API.
  */
-import { memoryManifest } from '@bible/memory/manifest';
 import type { WebFeatureModule } from '../moduleHost';
+import { memoryWebManifest } from './manifest';
 
-export const memoryModule: WebFeatureModule = { manifest: memoryManifest };
+export const memoryWebModule: WebFeatureModule = {
+  manifest: memoryWebManifest,
+  binding: {
+    id: 'memory',
+    load: () => import('./module'),
+  },
+  apps: [
+    {
+      id: 'memory',
+      load: () => import('./MemoryApp').then((m) => ({ View: m.MemoryApp })),
+    },
+  ],
+  verseActionHandlers: [
+    { id: 'memory.memorize', load: () => import('./memorize').then((m) => m.memorizeHandler) },
+  ],
+  probe: () => ({ activate: true }),
+};

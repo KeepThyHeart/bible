@@ -33,7 +33,8 @@
     "more": "‏More…‏",
     "offlineTooltip": "‏You are offline‏",
     "shortcutHint": "‏Press / or Ctrl+K to search‏",
-    "feedback": "‏Send feedback‏"
+    "feedback": "‏Send feedback‏",
+    "syncStatus": "‏Sync status‏"
   },
   "themes": {
     "auto": "‏Auto‏",
@@ -211,7 +212,8 @@
       "audio": "‏Audio‏",
       "offline": "‏Offline‏",
       "about": "‏About‏",
-      "notifications": "‏Notifications‏"
+      "notifications": "‏Notifications‏",
+      "account": "‏Account‏"
     },
     "textSize": {
       "decreaseAll": "‏Decrease all font sizes‏",
@@ -931,6 +933,9 @@
     },
     "quiz": {
       "title": "‏Quiz‏"
+    },
+    "memory": {
+      "title": "‏Memory‏"
     }
   },
   "remoteSemantic": {
@@ -966,5 +971,11 @@
     "studyPane": "‏Study panel‏",
     "mobileNav": "‏Main navigation‏",
     "chapterLoaded": "‏{ref} loaded‏"
+  },
+  "verseActions": {
+    "highlight": "‏Highlight‏",
+    "note": "‏Add or edit note‏",
+    "bookmark": "‏Bookmark‏",
+    "memorize": "‏Memorize‏"
   }
 }

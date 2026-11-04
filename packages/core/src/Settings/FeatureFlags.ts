@@ -42,6 +42,8 @@ export const FEATURE_FLAGS = {
   genealogy: { default: false, description: 'Genealogy view.', requires: ['tagGraph'] },
   quiz: { default: false, description: 'Quiz on a passage (questions from installed quiz modules).' },
   recite: { default: true, description: 'Recite aloud and hands-free mode in Memory (on-device speech engine). On in 1.0 on desktop; the web hosts turn it off (read-only for personal content).' },
+  localUserDb: { default: false, description: 'Web: keep personal content (notes, highlights, bookmarks) in a local browser database.' },
+  accounts: { default: false, description: 'Accounts with end-to-end encrypted sync. Needs the web local user database.', requires: ['localUserDb'] },
   measureDrafts: { default: false, description: 'Show unreviewed (draft) weights-and-measures notes (review/dev only).' },
 } as const satisfies Record<string, FeatureFlagDef>;
 

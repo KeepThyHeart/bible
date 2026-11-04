@@ -9,7 +9,7 @@ import { createPasswordGate, hashPassword } from './middleware/passwordGate.js';
 import { createServiceWorkerRoutes, pwaShell, readShell } from './middleware/serviceWorker.js';
 import { createCompression } from './middleware/compression.js';
 import { createVerseHoverMount, resolveVerseHoverDist } from './middleware/verseHoverMount.js';
-import { createRateLimiter, tierForApiPath } from './middleware/rateLimiter.js';
+import { createRateLimiter, tierForApiPath, isGloballyRateLimitExempt, isSyncPath } from './middleware/rateLimiter.js';
 import { contentSecurityPolicyDirectives, speechModelOrigins, inlineScriptHashes } from './cspDirectives.js';
 import { RemoteSemanticService } from './search/RemoteSemanticService.js';
 import { RemoteSemantic } from '@bible/core';
@@ -29,7 +29,7 @@ import './routes/dictionaryRoutes.js';
 import './routes/studyOverviewRoutes.js';
 import './routes/feedbackRoutes.js';
 import './routes/desktopReportRoutes.js';
-import { getRegisteredRoutes, getRegisteredBodyParsers } from './routes/routeRegistry.js';
+import { getRegisteredRoutes, getRegisteredBodyParsers, getSelfParsedPaths } from './routes/routeRegistry.js';
 import { loadServerModules, listServerModules, disabledModuleIds } from './modules/loadServerModules.js';
 import { createUnavailableRoutes } from './modules/unavailableRoutes.js';
 import type { ISearchPipeline, IVectorSearch } from '@bible/core';
@@ -39,6 +39,7 @@ import { logger } from './utils/logger.js';
 import { sanitizeQuery, clientErrorStatus } from './utils/requestHygiene.js';
 import { ServerPluginManager } from './plugins/pluginManager.js';
 import { SiteConfig } from './SiteConfig.js';
+import { applyTrustProxy } from './trustProxy.js';
 
 const PORT = parseInt(process.env.PORT || '3100', 10);
 
@@ -104,14 +105,10 @@ const app = express();
 // Trust the reverse proxy (Apache, nginx, Caddy) for correct req.ip, req.protocol, etc.
 // Without this, Express misidentifies protocol/IP when behind SSL-terminating proxies.
 //
-// Only a proxy on this machine is trusted, never `true`. With `true`, req.ip is the
-// leftmost X-Forwarded-For entry, which the client writes itself: anyone could send a
-// fresh address per request and walk past every per-client limit (rate limiter, login
-// lockout, submission and download quotas). With 'loopback', the proxy's own entry
-// (the real client) is used. The server listens on 127.0.0.1 behind the proxy, so its
-// peer is always loopback. TRUST_PROXY overrides this for a proxy on another host
-// (see Express's "trust proxy" setting for the accepted values).
-app.set('trust proxy', process.env.TRUST_PROXY || 'loopback');
+// Only a proxy on this machine is trusted by default, never `true` (see trustProxy.ts): with
+// `true`, req.ip is the client-written leftmost X-Forwarded-For entry and every per-client limit
+// could be walked past. Applied below, once the site config is read: `server.trustProxy`, else
+// TRUST_PROXY, else 'loopback'.
 
 // Compress text responses (API JSON, the SPA shell, and the hashed assets).
 // See `middleware/compression.ts` for what it declines and why.
@@ -190,6 +187,10 @@ app.use('/api', (req, res, next) => {
 // Unified configuration (site-config.json or legacy fallback)
 const siteConfig = new SiteConfig(dataDir);
 
+// `server.trustProxy` in site-config.json, else TRUST_PROXY, else 'loopback' (see trustProxy.ts).
+// Nothing mounted above this line reads req.ip or req.protocol.
+applyTrustProxy(app, siteConfig.trustProxy);
+
 // Apply privacy mode to the logger as early as possible, so any subsequent
 // startup logging honors the configured posture.
 const privacyMode = siteConfig.privacy.mode;
@@ -263,7 +264,10 @@ await loadServerModules({ flags: siteConfig.flags, featureModules: siteConfig.fe
 for (const bp of getRegisteredBodyParsers()) {
   app.use(bp.path, express.json({ limit: bp.limit }));
 }
-app.use(express.json({ limit: '100kb' }));
+// Paths that parse their own body (the sync push) skip the general parser.
+const selfParsed = new Set(getSelfParsedPaths());
+const globalJson = express.json({ limit: '100kb' });
+app.use((req, res, next) => (selfParsed.has(req.path) ? next() : globalJson(req, res, next)));
 app.use(express.urlencoded({ extended: true, limit: '50kb' }));
 app.use('/api', sanitizeQuery);
 
@@ -297,7 +301,8 @@ if (process.env.DISABLE_RATE_LIMIT === '1') {
   // The games' own tier covers /api/games: a room's phones share one address and chatter
   // (intents, clock sync), and counting them here would let a few rooms starve the reader.
   const globalLimit = rateLimiter.global();
-  app.use('/api', (req, res, next) => (req.path.startsWith('/games/') ? next() : globalLimit(req, res, next)));
+  // /api/sync has its own per-IP and per-account limits (packages/sync-server) and is exempt here too.
+  app.use('/api', (req, res, next) => (isGloballyRateLimitExempt(req.path) ? next() : globalLimit(req, res, next)));
 
   // ONE tier per request. Mounting `app.use('/api', default)` alongside the
   // prefix mounts did not replace them, it ran in addition to them: Express
@@ -306,7 +311,7 @@ if (process.env.DISABLE_RATE_LIMIT === '1') {
   // and `content` was unreachable — the whole API was effectively capped at
   // the default tier. Selecting the tier here keeps that impossible.
   app.use('/api', (req, res, next) =>
-    rateLimiter.middleware(tierForApiPath(req.path))(req, res, next));
+    (isSyncPath(req.path) ? next() : rateLimiter.middleware(tierForApiPath(req.path))(req, res, next)));
 }
 
 // verse-hover drop-in (/vh): other sites load it with a plain <script src>. It sits
@@ -475,6 +480,10 @@ const routeDeps = {
     // two installs pointed at one content store must not see each other's live
     // sessions. See the dataDir/appStateDir note at the top of this file.
     appStateDir,
+    // Settings for the `accounts` module (sync server); "enabled" is the feature flag.
+    accountsSettings: siteConfig.accounts,
+    // The configured `server.trustProxy` (undefined when unset); the accounts module refuses `true`/unset.
+    trustProxy: siteConfig.trustProxy,
     hymnDirs,
     // The client build directory (when built), for modules serving its HTML entry points.
     clientDir: existsSync(clientDirPath) ? clientDirPath : undefined,
