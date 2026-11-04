@@ -66,6 +66,7 @@ export interface QuizLabels {
   summaryTitle: string;           // "Results"
   score: string;                  // "{correct} of {graded} correct" {correct} {graded}
   scorePartly: string;            // "{partly} partly" {partly}
+  endedEarly: string;             // "Ended early: {count} not answered" {count}
   noneGraded: string;             // "Nothing was graded in this quiz."
   missedHeading: string;          // "To review"
   retryMissed: string;            // "Retry the ones I missed"

@@ -223,6 +223,8 @@ export interface QuizSessionSummary {
   total: number;
   /** Questions that were graded (not reflection, not skipped). */
   graded: number;
+  /** Questions never reached (quiz ended early). Absent on summaries saved before this field. */
+  unanswered?: number;
   correct: number;
   partly: number;
   /** Sum of grade scores / graded, 0..1 (0 when nothing was graded). */

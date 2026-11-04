@@ -63,5 +63,6 @@
   "quizPane.kind.application": "⟦Åþþļîçåţîøñ ···⟧",
   "quizPane.difficultyBadge.1": "⟦Éåšý ··⟧",
   "quizPane.difficultyBadge.2": "⟦Ṁéðîüɱ ··⟧",
-  "quizPane.difficultyBadge.3": "⟦Ĥåŕð ··⟧"
+  "quizPane.difficultyBadge.3": "⟦Ĥåŕð ··⟧",
+  "quizPane.endedEarly": "⟦Éñðéð éåŕļý: {count} ñøţ åñšŵéŕéð ·······⟧"
 }

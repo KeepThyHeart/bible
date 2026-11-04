@@ -63,5 +63,6 @@
   "quizPane.kind.application": "کاربرد",
   "quizPane.difficultyBadge.1": "آسان",
   "quizPane.difficultyBadge.2": "متوسط",
-  "quizPane.difficultyBadge.3": "دشوار"
+  "quizPane.difficultyBadge.3": "دشوار",
+  "quizPane.endedEarly": "زودتر پایان یافت: {count} بدون پاسخ"
 }

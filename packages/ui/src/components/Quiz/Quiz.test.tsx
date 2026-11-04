@@ -275,6 +275,7 @@ describe('QuizPanel running', () => {
     await screen.findByText('Question 1 of 2');
     await userEvent.click(screen.getByRole('button', { name: 'End quiz' }));
     expect(await screen.findByText('Results')).toBeTruthy();
+    expect((await screen.findByTestId('quiz-ended-early')).textContent).toMatch(/not answered/); // B-067
   });
 
   it('B-113: the summary heading takes focus (never <body>)', async () => {

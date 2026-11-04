@@ -58,6 +58,12 @@ export function QuizSummary({
         )}
       </p>
 
+      {(summary.unanswered ?? 0) > 0 ? (
+        <p className="kth-quiz__small" data-testid="quiz-ended-early">
+          {fillLabel(l.endedEarly, { count: summary.unanswered })}
+        </p>
+      ) : null}
+
       {missed.length > 0 ? (
         <div className="kth-quiz__missed">
           <h3 className="kth-quiz__subtitle">{l.missedHeading}</h3>
