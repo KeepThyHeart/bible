@@ -165,4 +165,22 @@ describe('SearchResultItem', () => {
     );
     expect(container.querySelector('[data-result-id="KJV|exact|43003016|43003016"]')).toBeTruthy();
   });
+  // W-034
+  it('is keyboard reachable and opens on Enter / Space, Ctrl+Enter opens a new tab', () => {
+    const onClick = vi.fn();
+    const onCtrlClick = vi.fn();
+    const { container } = render(
+      <SearchResultItem result={makeResult()} onClick={onClick} onCtrlClick={onCtrlClick} />,
+    );
+    const row = container.querySelector('.search-result-item') as HTMLElement;
+    expect(row.getAttribute('role')).toBe('button');
+    expect(row.tabIndex).toBe(0);
+    fireEvent.keyDown(row, { key: 'Enter' });
+    fireEvent.keyDown(row, { key: ' ' });
+    expect(onClick).toHaveBeenCalledTimes(2);
+    fireEvent.keyDown(row, { key: 'Enter', ctrlKey: true });
+    expect(onCtrlClick).toHaveBeenCalledTimes(1);
+    fireEvent.keyDown(row, { key: 'a' });
+    expect(onClick).toHaveBeenCalledTimes(2);
+  });
 });
