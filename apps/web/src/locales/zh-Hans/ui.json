@@ -215,8 +215,8 @@
       "notifications": "通知"
     },
     "textSize": {
-      "decreaseAll": "减小所有字号",
-      "increaseAll": "增大所有字号",
+      "decreaseAll": "缩小文字缩放（圣经、学习和界面文字）",
+      "increaseAll": "放大文字缩放（圣经、学习和界面文字）",
       "christInRed": "基督的话用红色显示",
       "interlinearLayout": "原文对照布局",
       "interlinearInline": "行内（括号中）",
@@ -224,7 +224,7 @@
       "advanced": "高级",
       "bibleText": "圣经正文",
       "studyText": "研经文本",
-      "uiText": "界面文字",
+      "uiText": "界面大小",
       "bibleLineHeight": "圣经行高",
       "studyLineHeight": "研经行高",
       "pxValue": "{size}px",
@@ -234,9 +234,9 @@
       "resetTextSizesTitle": "恢复默认的文字大小与行高",
       "interlinearStackedShort": "堆叠",
       "interlinearInlineShort": "行内",
-      "popoverTitle": "文字大小",
+      "popoverTitle": "文字缩放",
       "popoverReset": "重置",
-      "moreOptions": "更多文字选项…"
+      "moreOptions": "圣经、学习和界面大小…"
     },
     "theme": {
       "resetAll": "全部重置",

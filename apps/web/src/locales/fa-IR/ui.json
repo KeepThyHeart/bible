@@ -215,8 +215,8 @@
       "notifications": "اعلان‌ها"
     },
     "textSize": {
-      "decreaseAll": "کاهش اندازهٔ همهٔ قلم‌ها",
-      "increaseAll": "افزایش اندازهٔ همهٔ قلم‌ها",
+      "decreaseAll": "کاهش مقیاس متن (کتاب مقدس، مطالعه و رابط)",
+      "increaseAll": "افزایش مقیاس متن (کتاب مقدس، مطالعه و رابط)",
       "christInRed": "سخنان عیسی به رنگ سرخ",
       "interlinearLayout": "چیدمان بین‌خطی",
       "interlinearInline": "درون‌خطی (در پرانتز)",
@@ -224,7 +224,7 @@
       "advanced": "پیشرفته",
       "bibleText": "متن کتاب مقدس",
       "studyText": "متن تحقیق",
-      "uiText": "متن رابط",
+      "uiText": "اندازهٔ رابط",
       "bibleLineHeight": "ارتفاع خط کتاب مقدس",
       "studyLineHeight": "ارتفاع خط تحقیق",
       "pxValue": "{size}px",
@@ -234,9 +234,9 @@
       "resetTextSizesTitle": "بازگرداندن اندازهٔ پیش‌فرض متن و ارتفاع خط‌ها",
       "interlinearStackedShort": "روی‌هم",
       "interlinearInlineShort": "درون‌خطی",
-      "popoverTitle": "اندازهٔ متن",
+      "popoverTitle": "مقیاس متن",
       "popoverReset": "بازنشانی",
-      "moreOptions": "گزینه‌های بیشتر متن…"
+      "moreOptions": "اندازه‌های کتاب مقدس، مطالعه و رابط…"
     },
     "theme": {
       "resetAll": "بازنشانی همه",

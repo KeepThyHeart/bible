@@ -215,8 +215,8 @@
       "notifications": "Notifications"
     },
     "textSize": {
-      "decreaseAll": "Decrease all font sizes",
-      "increaseAll": "Increase all font sizes",
+      "decreaseAll": "Decrease text scale (Bible, Study and UI text)",
+      "increaseAll": "Increase text scale (Bible, Study and UI text)",
       "christInRed": "Words of Jesus in Red",
       "interlinearLayout": "Interlinear Layout",
       "interlinearInline": "Inline (in parentheses)",
@@ -224,7 +224,7 @@
       "advanced": "Advanced",
       "bibleText": "Bible Text",
       "studyText": "Study Text",
-      "uiText": "UI Text",
+      "uiText": "UI size",
       "bibleLineHeight": "Bible Line Height",
       "studyLineHeight": "Study Line Height",
       "pxValue": "{size}px",
@@ -234,9 +234,9 @@
       "resetTextSizesTitle": "Restore the default text sizes and line heights",
       "interlinearStackedShort": "Stacked",
       "interlinearInlineShort": "Inline",
-      "popoverTitle": "Text size",
+      "popoverTitle": "Text scale",
       "popoverReset": "Reset",
-      "moreOptions": "More text options…"
+      "moreOptions": "Bible, Study and UI sizes…"
     },
     "theme": {
       "resetAll": "Reset All",

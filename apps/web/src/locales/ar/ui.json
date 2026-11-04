@@ -215,8 +215,8 @@
       "notifications": "الإشعارات"
     },
     "textSize": {
-      "decreaseAll": "تصغير كل أحجام الخطوط",
-      "increaseAll": "تكبير كل أحجام الخطوط",
+      "decreaseAll": "تصغير مقياس النص (الكتاب المقدس والدراسة والواجهة)",
+      "increaseAll": "تكبير مقياس النص (الكتاب المقدس والدراسة والواجهة)",
       "christInRed": "كلمات يسوع بالأحمر",
       "interlinearLayout": "تخطيط النص بين السطور",
       "interlinearInline": "ضمن السطر (بين قوسين)",
@@ -224,7 +224,7 @@
       "advanced": "متقدم",
       "bibleText": "نص الكتاب المقدس",
       "studyText": "نص الدراسة",
-      "uiText": "نص الواجهة",
+      "uiText": "حجم الواجهة",
       "bibleLineHeight": "ارتفاع سطر الكتاب المقدس",
       "studyLineHeight": "ارتفاع سطر الدراسة",
       "pxValue": "{size}px",
@@ -234,9 +234,9 @@
       "resetTextSizesTitle": "استعادة أحجام النص وارتفاعات الأسطر الافتراضية",
       "interlinearStackedShort": "متراصّ",
       "interlinearInlineShort": "ضمن السطر",
-      "popoverTitle": "حجم النص",
+      "popoverTitle": "مقياس النص",
       "popoverReset": "إعادة تعيين",
-      "moreOptions": "مزيد من خيارات النص…"
+      "moreOptions": "أحجام الكتاب المقدس والدراسة والواجهة…"
     },
     "theme": {
       "resetAll": "إعادة تعيين الكل",

@@ -215,8 +215,8 @@
       "notifications": "התראות"
     },
     "textSize": {
-      "decreaseAll": "הקטנת כל גודלי הגופן",
-      "increaseAll": "הגדלת כל גודלי הגופן",
+      "decreaseAll": "הקטנת קנה המידה של הטקסט (מקרא, לימוד וממשק)",
+      "increaseAll": "הגדלת קנה המידה של הטקסט (מקרא, לימוד וממשק)",
       "christInRed": "דברי ישוע באדום",
       "interlinearLayout": "פריסה בין-שורתית",
       "interlinearInline": "בשורה (בסוגריים)",
@@ -224,7 +224,7 @@
       "advanced": "מתקדם",
       "bibleText": "טקסט המקרא",
       "studyText": "טקסט הלימוד",
-      "uiText": "טקסט הממשק",
+      "uiText": "גודל הממשק",
       "bibleLineHeight": "גובה שורה במקרא",
       "studyLineHeight": "גובה שורה בלימוד",
       "pxValue": "{size}px",
@@ -234,9 +234,9 @@
       "resetTextSizesTitle": "שחזור גודלי הטקסט וגובהי השורות המוגדרים כברירת מחדל",
       "interlinearStackedShort": "מוערם",
       "interlinearInlineShort": "בשורה",
-      "popoverTitle": "גודל הטקסט",
+      "popoverTitle": "קנה מידה לטקסט",
       "popoverReset": "אפס",
-      "moreOptions": "אפשרויות טקסט נוספות…"
+      "moreOptions": "גדלי המקרא, הלימוד והממשק…"
     },
     "theme": {
       "resetAll": "איפוס הכול",
