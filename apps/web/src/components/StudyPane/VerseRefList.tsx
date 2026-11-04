@@ -81,12 +81,30 @@ export function VerseRefList({ verses, totalCount, hasMore, onNavigateBible, bib
   const [verseTexts, setVerseTexts] = useState<Map<number, string>>(new Map());
   const [textsLoading, setTextsLoading] = useState(false);
   const prevVersesRef = useRef(verses);
+  const listRef = useRef<HTMLDivElement>(null);
+  const [justAdded, setJustAdded] = useState(0);
 
   // Clear cached texts when verses change
   useEffect(() => {
-    if (prevVersesRef.current !== verses) {
-      setVerseTexts(new Map());
+    const prev = prevVersesRef.current;
+    if (prev !== verses) {
+      // "Load more" appends to the same list: keep the texts already fetched
+      // rather than refetching everything and flashing the old rows (B-099).
+      const appended = verses.length > prev.length && prev.every((v, i) => v.startVerseId === verses[i].startVerseId);
+      if (!appended) setVerseTexts(new Map());
       prevVersesRef.current = verses;
+      if (appended) {
+        const added = verses.length - prev.length;
+        setJustAdded(added);
+        setTimeout(() => setJustAdded(0), 4000);
+        const first = verses[prev.length]?.startVerseId;
+        if (first != null) {
+          requestAnimationFrame(() => {
+            const el = listRef.current?.querySelector<HTMLElement>(`[data-verse-id="${first}"]`);
+            el?.scrollIntoView?.({ block: 'nearest' });
+          });
+        }
+      }
     }
   }, [verses]);
 
@@ -167,7 +185,7 @@ export function VerseRefList({ verses, totalCount, hasMore, onNavigateBible, bib
   const showMore = (hasMore ?? (totalCount != null && totalCount > verses.length)) && remaining > 0;
 
   return (
-    <div class="verse-ref-list">
+    <div class="verse-ref-list" ref={listRef}>
       {/* Compact inline refs (TSK-style collapsed) */}
       <div class="verse-ref-list__compact">
         {collapsedSegments.map((seg, i) => {
@@ -178,6 +196,7 @@ export function VerseRefList({ verses, totalCount, hasMore, onNavigateBible, bib
           return (
             <a
               key={`ref-${seg.verseId}`}
+              data-verse-id={seg.verseId}
               class={`verse-ref-list__ref-link${isLast ? ' verse-ref-list__ref-link--last-clicked' : ''}`}
               href="#"
               onClick={(e) => handleRefClick(seg.verseId, e as any)}
@@ -190,9 +209,13 @@ export function VerseRefList({ verses, totalCount, hasMore, onNavigateBible, bib
         })}
         {showMore && (
           onLoadMore ? (
-            <button class="verse-ref-list__load-more-inline" onClick={onLoadMore} disabled={loadingMore}>
-              {loadingMore ? ` ${t('verseRefList.loading')}` : ` ${t('verseRefList.and')} ${remaining} more — load more`}
-            </button>
+            <>
+              {' '}
+              <button class="verse-ref-list__load-more-inline" onClick={onLoadMore} disabled={loadingMore}>
+                {loadingMore ? t('verseRefList.loading') : `${t('verseRefList.and')} ${remaining} more — load more`}
+              </button>
+              <span class="verse-ref-list__added" role="status" aria-live="polite">{justAdded > 0 ? ` +${justAdded} added` : ''}</span>
+            </>
           ) : (
             <span class="verse-ref-list__more"> {t('verseRefList.and')} {remaining} more</span>
           )
