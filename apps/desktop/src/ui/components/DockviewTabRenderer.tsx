@@ -460,7 +460,7 @@ const DockviewTabRenderer: React.FC<IDockviewPanelHeaderProps> = (props) => {
               lineHeight: 1,
               padding: `${controlScaled(1)} ${controlScaled(5)}`,
               borderRadius: controlScaled(8),
-              background: 'var(--theme-accent-bg, var(--theme-accent))',
+              background: 'var(--theme-accent-bg, var(--theme-accent-primary))',
               color: 'var(--theme-accent-text)',
             }}
           >

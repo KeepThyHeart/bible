@@ -210,7 +210,7 @@ export const MicTest: React.FC = () => {
         style={{ background: 'var(--theme-border, #8884)' }}
         data-testid="speech-mic-meter"
       >
-        <div className="h-2 rounded" style={{ width: `${Math.round(level * 100)}%`, background: 'var(--theme-accent, #3b82f6)' }} />
+        <div className="h-2 rounded" style={{ width: `${Math.round(level * 100)}%`, background: 'var(--theme-accent-primary, #3b82f6)' }} />
       </div>
       {error && <p className="text-sm" role="alert" style={{ color: 'var(--theme-text-secondary)' }}>{error}</p>}
     </div>

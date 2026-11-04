@@ -188,7 +188,7 @@ export const HighlightMenu: React.FC<HighlightMenuProps> = ({
                   className={`w-12 h-12 rounded border-2 highlight-${color} hover:border-accent transition-colors cursor-pointer`}
                   style={{
                     borderColor: selectedMarkupType === 'both' && selectedHighlightColor === color
-                      ? 'var(--theme-accent)'
+                      ? 'var(--theme-accent-primary)'
                       : 'var(--theme-border-secondary)'
                   }}
                   onClick={() => handleColorSelect(color)}

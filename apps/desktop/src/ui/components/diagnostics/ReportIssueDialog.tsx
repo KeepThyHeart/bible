@@ -64,8 +64,8 @@ const PRIMARY_BUTTON_STYLE: React.CSSProperties = {
   fontSize: '0.8125rem',
   borderRadius: 4,
   border: 'none',
-  background: 'var(--theme-accent, #2563eb)',
-  color: '#fff',
+  background: 'var(--theme-accent-primary, #2563eb)',
+  color: 'var(--theme-accent-text, #fff)',
   cursor: 'pointer',
 };
 
@@ -373,7 +373,7 @@ const ReportIssueDialog: React.FC = () => {
                   ...PRIMARY_BUTTON_STYLE,
                   background: sendDisabled
                     ? 'var(--theme-accent-disabled, #94a3b8)'
-                    : 'var(--theme-accent, #2563eb)',
+                    : 'var(--theme-accent-primary, #2563eb)',
                   cursor: sendDisabled ? 'default' : 'pointer',
                 }}
               >

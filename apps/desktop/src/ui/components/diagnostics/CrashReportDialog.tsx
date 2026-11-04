@@ -284,8 +284,8 @@ const CrashReportDialog: React.FC = () => {
               fontSize: '0.8125rem',
               borderRadius: 4,
               border: 'none',
-              background: 'var(--theme-accent, #2563eb)',
-              color: '#fff',
+              background: 'var(--theme-accent-primary, #2563eb)',
+              color: 'var(--theme-accent-text, #fff)',
               cursor: submitting ? 'default' : 'pointer',
             }}
           >

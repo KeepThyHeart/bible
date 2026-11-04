@@ -155,7 +155,7 @@ const ReadingPlanDetail: React.FC<Props> = ({ enrollmentId, labels, displayName,
                     className="border-t border-border align-top"
                     style={isToday ? { backgroundColor: 'var(--theme-accent-bg, rgba(59,130,246,0.14))' } : status === 'missed' ? { backgroundColor: 'var(--theme-warning-bg, rgba(250,180,40,0.14))' } : undefined}>
                     <th scope="row" className="text-start p-xs font-medium whitespace-nowrap">
-                      {day}{isToday ? <span className="text-xs ms-xs" style={{ color: 'var(--theme-accent, #3b82f6)' }}>{t('readingPlans.table.today')}</span> : null}
+                      {day}{isToday ? <span className="text-xs ms-xs" style={{ color: 'var(--theme-accent-primary, #3b82f6)' }}>{t('readingPlans.table.today')}</span> : null}
                     </th>
                     {e.pacing === 'fixed' ? <td className="p-xs whitespace-nowrap">{labels.formatDate(ReadingPlans.dateForDay(e, day))}</td> : null}
                     <td className="p-xs">

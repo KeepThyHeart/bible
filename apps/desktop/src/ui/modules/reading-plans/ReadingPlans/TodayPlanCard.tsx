@@ -101,7 +101,7 @@ const TodayPlanCard: React.FC<Props> = ({
       <div className="flex items-center gap-sm">
         <div className="flex-1 h-1.5 rounded overflow-hidden" style={{ backgroundColor: 'var(--theme-bg-secondary)' }}
           role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(pct)} aria-label={t('readingPlans.today.progress')}>
-          <div style={{ width: `${pct}%`, height: '100%', backgroundColor: 'var(--theme-accent, #3b82f6)' }} />
+          <div style={{ width: `${pct}%`, height: '100%', backgroundColor: 'var(--theme-accent-primary, #3b82f6)' }} />
         </div>
         <span className="text-xs" style={secondary}>{labels.todayCard.percent(Math.round(pct))}</span>
       </div>
