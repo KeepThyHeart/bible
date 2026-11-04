@@ -183,3 +183,38 @@ describe('navigateToVerseInPrimary activates the target pane in dockview', () =>
     await expect(useBibleStore.getState().navigateToVerseInPrimary(JOHN_3_16)).resolves.toBeUndefined();
   });
 });
+
+describe('navigateToVerseInPrimary from an empty New Tab (B-056)', () => {
+  const NEWTAB = 'newtab_1';
+
+  beforeEach(() => {
+    useBibleStore.setState({ panels: new Map(), availableBibles: [KJV], initialLoadComplete: false });
+    useLayoutStore.setState({ panels: new Map(), activePanelId: null, lastActiveBiblePanelId: null, dockviewApi: null });
+    useBibleStore.getState().initPanel(PANEL_FIRST);
+    useBibleStore.getState().openBible(PANEL_FIRST, KJV.abbreviation, KJV.name);
+    useLayoutStore.getState().registerPanel({ panelId: PANEL_FIRST, contentType: 'bible', displayName: 'Bible' });
+    useLayoutStore.getState().registerPanel({ panelId: NEWTAB, contentType: 'newtab', displayName: 'New Tab' });
+  });
+
+  it('opens the passage in place of the New Tab and leaves the first Bible pane alone', async () => {
+    const close = vi.fn();
+    const newTabPanel = { group: { panels: [] as unknown[] }, api: { close, setActive: vi.fn() } };
+    newTabPanel.group.panels.push(newTabPanel);
+    const addPanel = vi.fn().mockReturnValue('bible_new');
+    useLayoutStore.setState({
+      activePanelId: NEWTAB,
+      lastActiveBiblePanelId: PANEL_FIRST,
+      dockviewApi: { getPanel: (id: string) => (id === NEWTAB ? newTabPanel : undefined) } as never,
+      addPanel,
+    });
+
+    await useBibleStore.getState().navigateToVerseInPrimary(JOHN_3_16);
+
+    expect(addPanel).toHaveBeenCalledTimes(1);
+    expect(addPanel.mock.calls[0][0]).toBe('bible');
+    expect(addPanel.mock.calls[0][1]).toBe('KJV|43|3|43003016|standard');
+    expect(addPanel.mock.calls[0][3]).toMatchObject({ referenceGroup: newTabPanel.group, direction: 'within', index: 0 });
+    expect(close).toHaveBeenCalledTimes(1);
+    expect(panelState(PANEL_FIRST).selectedVerseId).not.toBe(JOHN_3_16);
+  });
+});
