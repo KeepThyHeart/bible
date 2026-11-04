@@ -16,7 +16,7 @@
   "layout.expandCollapsed.label": "إظهار الأجزاء المخفية",
   "layout.expandCollapsed.tooltip": "إعادة أجزاء الدراسة المطويّة إلى العرض",
   "layout.expandCollapsed.tooltipNamed": "إعادة: {titles}",
-  "layout.showStudyPanes.label": "Show Study Panes",
+  "layout.showStudyPanes.label": "إظهار لوحات الدراسة",
   "layout.undo.toast": "{count, plural, zero {لم يُعَد ترتيب أي علامة تبويب.} one {أُعيد ترتيب علامة تبويب واحدة.} two {أُعيد ترتيب علامتَي تبويب.} few {أُعيد ترتيب # علامات تبويب.} many {أُعيد ترتيب # علامة تبويب.} other {أُعيد ترتيب # علامة تبويب.}}",
   "layout.undo.button": "تراجع",
   "layout.advancedMode.label": "وضع التخطيط المتقدم",

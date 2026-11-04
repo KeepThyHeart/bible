@@ -102,10 +102,12 @@ const UserNotesEditorView: React.FC<UserNotesEditorViewProps> = ({
                 <button
                   type="button"
                   onClick={() => onBreadcrumbNavigate(seg.path)}
-                  className="min-w-0 truncate text-accent-strong hover:text-accent-strong hover:underline transition-colors"
+                  className="min-w-0 text-accent-strong hover:text-accent-strong hover:underline transition-colors"
                   title={seg.label}
                 >
-                  <Bdi>{seg.label}</Bdi>
+                  {/* dir=auto on the truncating box itself: the ellipsis follows the label's own
+                      direction, not the UI's (RTL UI + Latin folder name cut the wrong end, B-110). */}
+                  <span dir="auto" className="block truncate">{seg.label}</span>
                 </button>
               ) : (
                 <span className="font-medium text-text-heading flex-shrink-0 flex items-center gap-1" aria-current="true">

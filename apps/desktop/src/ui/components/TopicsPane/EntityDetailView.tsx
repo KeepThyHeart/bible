@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { Bdi } from '@bible/ui';
 import { useI18n } from '../../contexts/useI18n';
 import TopicSearchBar from '../shared/TopicSearchBar';
 import TopicCard from '../shared/TopicCard';
@@ -163,7 +164,7 @@ const EntityDetailView: React.FC<EntityDetailViewProps> = ({
                 padding: '3px 8px',
               }}
             >
-              {SOURCE_DISPLAY_NAMES[source] ?? source}
+              <Bdi>{SOURCE_DISPLAY_NAMES[source] ?? source}</Bdi>
             </button>
           ))}
         </div>
