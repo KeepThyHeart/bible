@@ -1513,7 +1513,7 @@
   "ui.keyboardShortcuts.application.preferences": "Preferences",
   "ui.keyboardShortcuts.application.showShortcuts": "Show keyboard shortcuts",
   "ui.keyboardShortcuts.application.commandPalette": "Open the command palette",
-  "ui.keyboardShortcuts.application.switchApp": "Switch app (1, 2 or 3; 0 for the first app)",
+  "ui.keyboardShortcuts.application.switchApp": "Switch app (1 to 9 in your app order; 0 for Study)",
   "ui.keyboardShortcuts.application.closeDialog": "Close dialog",
   "ui.moduleSelector.filterPlaceholder": "Type to filter (e.g., KJV)...",
   "ui.moduleSelector.loading": "Loading...",
