@@ -106,7 +106,7 @@ const TopicSearchBar: React.FC<TopicSearchBarProps> = ({
         style={{
           width: '100%',
           padding: '6px 10px',
-          fontSize: '13px',
+          fontSize: '0.8125rem',
           border: '1px solid var(--theme-border-primary)',
           borderRadius: '6px',
           backgroundColor: 'var(--theme-bg-primary)',

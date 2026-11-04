@@ -44,7 +44,7 @@ const ChevronButton: React.FC<{
       cursor: enabled ? 'pointer' : 'default',
       color: enabled ? 'var(--theme-text-secondary)' : 'var(--theme-text-secondary)',
       opacity: enabled ? 1 : 0.55,
-      fontSize: '18px',
+      fontSize: '1.125rem',
       fontWeight: 300,
       lineHeight: 1,
       flexShrink: 0,
@@ -317,7 +317,7 @@ const DockviewHeaderActions: React.FC<IDockviewHeaderActionsProps> = ({ containe
         background: 'transparent',
         cursor: 'pointer',
         color: 'var(--theme-text-secondary)',
-        fontSize: '18px',
+        fontSize: '1.125rem',
         lineHeight: 1,
       }}
       onMouseEnter={(e) => {
@@ -400,7 +400,7 @@ const DockviewHeaderActions: React.FC<IDockviewHeaderActionsProps> = ({ containe
             background: 'transparent',
             cursor: 'pointer',
             color: 'var(--theme-text-secondary)',
-            fontSize: '12px',
+            fontSize: '0.75rem',
             fontWeight: 600,
             whiteSpace: 'nowrap',
             flexShrink: 0,

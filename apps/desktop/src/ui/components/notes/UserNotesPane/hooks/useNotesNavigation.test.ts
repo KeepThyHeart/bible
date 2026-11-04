@@ -185,5 +185,16 @@ describe('useNotesNavigation - handleOpenNote with unsaved edits', () => {
     const { result } = renderHook(() => useNotesNavigation(args));
     await result.current.handleOpenNote('Documents/Other.bn');
     expect(args.setCurrentNote).toHaveBeenCalled();
+    expect(args.setFileError).toHaveBeenCalledWith(null); // B-144: stale banner cleared
+  });
+
+  it('says so when the clicked note cannot be read, and stays where it is (B-084)', async () => {
+    const fileNotesAPI = await import('../../../../services/fileNotesAPI');
+    vi.mocked(fileNotesAPI.readNote).mockResolvedValue(null as never);
+    const args = baseArgs({ view: 'browser' as never, currentNote: null as never });
+    const { result } = renderHook(() => useNotesNavigation(args));
+    await result.current.handleOpenNote('Documents/Broken.bn');
+    expect(args.setFileError).toHaveBeenCalledWith(expect.stringContaining('could not be read'));
+    expect(args.setCurrentNote).not.toHaveBeenCalled();
   });
 });

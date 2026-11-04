@@ -230,6 +230,11 @@ class SearchStore extends Store {
     return this.search.warmupSemanticSearch();
   }
 
+  /** Run the current search again with the same type and translations (e.g. once the connection is back, B-184). */
+  retryLast(): Promise<void> {
+    return this.performSearch(this.query, this.searchType, this.lastKeywordModules.length > 0 ? this.lastKeywordModules : undefined);
+  }
+
   async performSearch(query: string, type?: 'keyword' | 'semantic', modules?: string[]): Promise<void> {
     if (!this.search || !query.trim()) return;
 
@@ -470,7 +475,8 @@ class SearchStore extends Store {
 
   /** Occurrences still unfetched for the current Strong's search. */
   get strongsRemaining(): number {
-    return Math.max(0, this.strongsTotalAvailable - this.results.length);
+    // The server never returns more than its cap, however many exist.
+    return Math.max(0, Math.min(this.strongsTotalAvailable, STRONGS_MAX_RESULTS) - this.results.length);
   }
 
   /** Load one more page of Strong's occurrences. */

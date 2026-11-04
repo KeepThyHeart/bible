@@ -75,7 +75,7 @@
     border: none;
     border-radius: 8px;
     background: var(--accent-color);
-    color: #fff;
+    color: var(--accent-text, #fff);
     font-size: 14px;
     font-weight: 700;
     cursor: pointer;
@@ -137,7 +137,7 @@
     &--on {
       background: var(--accent-color);
       border-color: var(--accent-color);
-      color: #fff;
+      color: var(--accent-text, #fff);
     }
 
     &--blank {
@@ -281,7 +281,7 @@
     &--active {
       background: var(--accent-color);
       border-color: var(--accent-color);
-      color: #fff;
+      color: var(--accent-text, #fff);
     }
   }
 

@@ -40,7 +40,7 @@ function makeTranscript(say: string | RecognizedWord[]): Transcript {
   };
 }
 
-export type SpeechErrorCode = 'mic-denied' | 'mic-busy' | 'engine' | 'not-ready';
+export type SpeechErrorCode = 'mic-denied' | 'mic-busy' | 'mic-none' | 'engine' | 'not-ready';
 
 export type ScriptItem =
   | { say: string | RecognizedWord[]; duringSpeak?: boolean }
@@ -77,7 +77,7 @@ export class FakeListener implements IListener {
     if (!item) return { kind: 'no-speech' };
     if ('silence' in item) return { kind: 'no-speech' };
     if ('error' in item) {
-      const code = item.error === 'mic-denied' || item.error === 'mic-busy' ? item.error : 'engine';
+      const code = item.error === 'mic-denied' || item.error === 'mic-busy' || item.error === 'mic-none' ? item.error : 'engine';
       return { kind: 'error', code, message: item.error };
     }
     return { kind: 'speech', transcript: makeTranscript(item.say) };

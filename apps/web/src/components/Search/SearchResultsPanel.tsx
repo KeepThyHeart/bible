@@ -4,6 +4,7 @@ import { searchStore, searchResultId } from '../../stores/searchStore';
 import { commentaryStore } from '../../stores/commentaryStore';
 import { bibleStore } from '../../stores/bibleStore';
 import { offlineStore } from '../../stores/offlineStore';
+import { announce } from '../../utils/announcer';
 import { useStore } from '../../hooks/useStore';
 import { SemanticNote } from './SemanticNote';
 import { SearchResultItem } from './SearchResultItem';
@@ -72,8 +73,36 @@ export function SearchResultsPanel({ onNavigate, onOpenStrongsEntry }: SearchRes
   const lastClickedId = useStore(searchStore, () => searchStore.lastClickedId);
   const resultsTruncated = useStore(searchStore, () => searchStore.resultsTruncated);
   const isOnline = useStore(offlineStore, () => offlineStore.isOnline);
+
+  // Announce the outcome of each search to screen readers.
+  useEffect(() => {
+    if (loading || !query) return;
+    announce(results.length === 0 ? t('search.noResults') : t('search.results', { count: totalResults || results.length }));
+  }, [loading, query, results.length === 0, totalResults]);
   // Offline with nothing found means the search could not run, not that it found 0.
-  const showCount = isOnline || totalResults > 0;
+  // While a search runs, the previous count (or an empty "0") is not an answer yet (B-184).
+  const showCount = !loading && (isOnline || totalResults > 0);
+  // A search that could not run offline is run again when the connection returns, rather
+  // than leaving "No results found" under a query nobody has actually answered.
+  const wasOfflineRef = useRef(false);
+  useEffect(() => {
+    if (!isOnline) {
+      wasOfflineRef.current = true;
+      return;
+    }
+    if (!wasOfflineRef.current) return;
+    wasOfflineRef.current = false;
+    if (query && !loading && results.length === 0) void searchStore.retryLast();
+  }, [isOnline]);
+  // Keyword mode headlines the exact matches only: approximate rows sit under
+  // their own divider and are not in the chart, so counting them made a phrase
+  // with one real hit read "(31 results)" (B-168, as B-017 on desktop).
+  const approximateCount = !strongsMode && searchType === 'keyword'
+    ? results.filter(r => r.type === 'fuzzy').length
+    : 0;
+  const headlineCount = approximateCount > 0
+    ? t('search.resultsWithApproximate', { count: Math.max(0, totalResults - approximateCount), approximate: approximateCount })
+    : t('search.results', { count: totalResults });
   const [mobileQuery, setMobileQuery] = useState('');
   const mobileInputRef = useRef<HTMLInputElement>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
@@ -215,13 +244,17 @@ export function SearchResultsPanel({ onNavigate, onOpenStrongsEntry }: SearchRes
           <input
             ref={mobileInputRef}
             type="text"
+            inputMode="search"
+            enterKeyHint="search"
+            autoCapitalize="none"
+            autoCorrect="off"
             class="search-panel-inline__mobile-input"
             placeholder={t('search.placeholder')}
             value={mobileQuery}
             onInput={(e) => setMobileQuery((e.target as HTMLInputElement).value)}
           />
-          <button type="submit" class="search-panel-inline__mobile-submit">
-            <i class="fa-solid fa-magnifying-glass" />
+          <button type="submit" class="search-panel-inline__mobile-submit" aria-label={t('header.search')}>
+            <i class="fa-solid fa-magnifying-glass" aria-hidden="true" />
           </button>
         </form>
         <div class="search-panel-inline__mobile-type">
@@ -256,12 +289,12 @@ export function SearchResultsPanel({ onNavigate, onOpenStrongsEntry }: SearchRes
             {strongsMode ? (
               <>
                 <i class="fa-solid fa-language" style={{ opacity: 0.5, marginInlineEnd: '6px', fontSize: '0.85em' }} />
-                {query}{showCount && <> ({t('search.results', { count: totalResults })})</>}
+                {query}{showCount && <> ({headlineCount})</>}
               </>
             ) : (
               <>
                 <i class={`fa-solid ${searchType === 'semantic' ? 'fa-lightbulb' : 'fa-magnifying-glass'}`} style={{ opacity: 0.5, marginInlineEnd: '6px', fontSize: '0.85em' }} />
-                "{query}"{showCount && <> ({t('search.results', { count: totalResults })})</>}
+                "{query}"{showCount && <> ({headlineCount})</>}
               </>
             )}
           </span>

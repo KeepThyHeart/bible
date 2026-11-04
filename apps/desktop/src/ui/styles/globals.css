@@ -33,9 +33,23 @@
        never imports usePreferencesStore, an early paint) still renders at
        the correct default size instead of collapsing to 0/NaN. */
     --ui-font-scale: 1;
+    /* B-045: one UI scale for the whole chrome. usePreferencesStore writes the
+       real value; 1 until then. */
+    --ui-scale: 1;
+    /* KTH shared components (packages/ui) size chrome in px by default; on
+       desktop they follow the UI scale. Web never sets --ui-scale. */
+    --kth-font-size-ui: 0.875rem;
+    --kth-space-1: 0.25rem;
+    --kth-space-2: 0.5rem;
+    --kth-space-3: 0.75rem;
+    --kth-space-4: 1rem;
   }
 
   html {
+    /* The rem root: every rem-based size in the chrome (Tailwind utilities,
+       headers, menus, dialogs, tabs) scales with the UI size setting, like
+       zoom. Bible/study text stays in px (see .pane-content-*). */
+    font-size: calc(16px * var(--ui-scale, 1));
     background-color: var(--theme-bg-primary);
     color: var(--theme-text-primary);
     @apply overflow-hidden;
@@ -52,11 +66,10 @@
        baseline; elements that need a specific size (pane tabs/headers) still
        override via --ui-control-font-size below, and pane content overrides
        via --bible-* and --study-* variables through .pane-content-*.
-       Global font scale (see GeneralSection.tsx) multiplies in via calc() so
-       a change to --global-font-scale is picked up live without any other
-       variable needing to change. */
+       B-045: the size is rem (13px at the default), so the UI size setting
+       reaches it through the root font size; "UI text" is a relative tweak. */
     font-family: var(--ui-font-family);
-    font-size: calc(var(--ui-font-size) * var(--global-font-scale, 1));
+    font-size: calc(0.8125rem * var(--ui-font-scale, 1));
     line-height: var(--ui-line-height);
   }
 
@@ -107,7 +120,8 @@
   }
 
   .verse-number {
-    @apply text-sm font-bold me-1 inline;
+    @apply font-bold me-1 inline;
+    font-size: 0.7em;
     color: var(--theme-text-secondary);
     /* A bare Latin numeral sitting inside an RTL paragraph is weak-directional:
        the bidi algorithm would otherwise let it merge with adjacent numbers or
@@ -445,8 +459,9 @@
   }
 
   /* Pane chrome text follows Preferences -> General -> "UI Control Font Size"
-     (--ui-control-font-size, default 14px) x --global-font-scale, in the same
-     shape as uiScaled() in StudyPane.tsx.
+     (--ui-control-font-size, default 14px) x --global-font-scale. B-045: that
+     product is --ui-scale, applied once to the rem root (html above), so these
+     rules are plain rem. Do not multiply the variables in again.
 
      `@apply text-sm` / `text-xs` here would fight themes.css's own rule
      setting font-size from --ui-control-font-size on exactly these
@@ -459,12 +474,12 @@
      these. */
   .pane-header-title {
     @apply font-semibold;
-    font-size: calc(var(--ui-control-font-size, 14px) * 1 * var(--global-font-scale, 1));
+    font-size: 0.875rem;
     color: var(--theme-pane-header-text);
   }
 
   .pane-header-subtitle {
-    font-size: calc(var(--ui-control-font-size, 14px) * 0.857 * var(--global-font-scale, 1));
+    font-size: 0.75rem;
     color: var(--theme-pane-header-text-secondary);
   }
 
@@ -491,7 +506,7 @@
      delete them and that guard together. */
   .pane-tab {
     @apply px-4 py-2 font-medium transition-colors whitespace-nowrap flex-shrink-0;
-    font-size: calc(var(--ui-control-font-size, 14px) * 1 * var(--global-font-scale, 1));
+    font-size: 0.875rem;
     color: var(--theme-tab-text);
   }
 
@@ -509,7 +524,7 @@
 
   .pane-tab-compact {
     @apply px-2 py-1 transition-colors;
-    font-size: calc(var(--ui-control-font-size, 14px) * 1 * var(--global-font-scale, 1));
+    font-size: 0.875rem;
     color: var(--theme-tab-text);
   }
 
@@ -905,6 +920,14 @@ select:focus-visible,
 textarea:focus-visible {
   outline: 2px solid var(--theme-border-focus);
   outline-offset: 1px;
+}
+
+/* Native radios and checkboxes without a size class were stuck at the browser's
+   13px at large UI scale (B-107). rem follows --ui-scale; :where() keeps this at
+   zero specificity so any explicit size class still wins. */
+:where(input[type='radio'], input[type='checkbox']) {
+  width: 1rem;
+  height: 1rem;
 }
 
 /* Typed text in plain inputs auto-detects its own direction, while padding and

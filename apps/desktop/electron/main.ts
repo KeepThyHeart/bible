@@ -1,6 +1,6 @@
 import { app, BrowserWindow, ipcMain, dialog } from 'electron';
-import { join } from 'path';
-import { mkdirSync } from 'fs';
+import { join, basename, extname } from 'path';
+import { mkdirSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
 import log from 'electron-log';
 import { registerBibleHandlers, closeBibleDb } from './ipc/bibleHandlers';
@@ -120,6 +120,8 @@ import {
   registerExtUiSchemePrivileged,
 } from './extensions/extUiProtocol';
 import { setActiveHostTheme } from './extensions/hostThemeCss';
+import { isZoomInAlias } from './zoomShortcuts';
+import { clampZoomLevel, readZoomLevel, writeZoomLevel } from './zoomState';
 
 // Configure electron-log
 log.transports.file.level = 'info';
@@ -294,6 +296,23 @@ function getBackupExtensionPort(): ExtensionPort | undefined {
 /**
  * Register window management IPC handlers
  */
+function zoomStatePath(): string {
+  return join(app.getPath('userData'), 'zoom.json');
+}
+
+/** Set, clamp and remember the main window's zoom (B-106). */
+function setMainZoom(level: number): void {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  const clamped = clampZoomLevel(level);
+  mainWindow.webContents.setZoomLevel(clamped);
+  writeZoomLevel(zoomStatePath(), clamped);
+}
+
+function zoomIn(): void {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  setMainZoom(mainWindow.webContents.getZoomLevel() + 0.5);
+}
+
 function registerWindowHandlers(): void {
   // Detach pane to new window
   ipcMain.handle('window:detach-pane', async (_event, paneType: string, initialState: any) => {
@@ -501,6 +520,37 @@ function registerPrintHandler(): void {
       return { success: false, error: describeRenderError(err) };
     });
   });
+
+  // Save a text file the renderer built (reading-plan .ics, keyword-set JSON).
+  // A hidden <a download> click was silently dropped here (B-078); a native save
+  // dialog, like the note exports, always shows the user where the file went.
+  ipcMain.handle(
+    'app:save-text-file',
+    async (_event, defaultName: unknown, content: unknown): Promise<{ success: boolean; canceled?: boolean; filePath?: string; error?: string }> => {
+      if (typeof defaultName !== 'string' || typeof content !== 'string' || content.length > 50 * 1024 * 1024) {
+        return { success: false, error: 'Invalid file' };
+      }
+      const safeName = basename(defaultName).replace(/[\\/:*?"<>|\0]/g, '_') || 'export.txt';
+      const ext = extname(safeName).slice(1);
+      const parent = BrowserWindow.getFocusedWindow();
+      const options = {
+        defaultPath: join(app.getPath('downloads'), safeName),
+        filters: [
+          ...(ext ? [{ name: ext.toUpperCase(), extensions: [ext] }] : []),
+          { name: t('main.filter.allFiles'), extensions: ['*'] }
+        ]
+      };
+      try {
+        const saved = parent ? await dialog.showSaveDialog(parent, options) : await dialog.showSaveDialog(options);
+        if (saved.canceled || !saved.filePath) return { success: false, canceled: true };
+        writeFileSync(saved.filePath, content, 'utf-8');
+        return { success: true, filePath: saved.filePath };
+      } catch (err) {
+        log.error('[IPC] app:save-text-file failed:', err);
+        return { success: false, error: err instanceof Error ? err.message : String(err) };
+      }
+    }
+  );
 
   // PDF export. The renderer hands over exactly the document it would print,
   // and the save dialog comes first - mirroring `file-notes:export-markdown`,
@@ -749,19 +799,14 @@ const registerAllHandlersOnce = runOnce(() => {
     if (!mainWindow || mainWindow.isDestroyed()) return;
     mainWindow.webContents.toggleDevTools();
   });
-  ipcMain.handle('app:zoom-in', () => {
-    if (!mainWindow || mainWindow.isDestroyed()) return;
-    const z = mainWindow.webContents.getZoomLevel();
-    mainWindow.webContents.setZoomLevel(z + 0.5);
-  });
+  ipcMain.handle('app:zoom-in', () => zoomIn());
   ipcMain.handle('app:zoom-out', () => {
     if (!mainWindow || mainWindow.isDestroyed()) return;
-    const z = mainWindow.webContents.getZoomLevel();
-    mainWindow.webContents.setZoomLevel(z - 0.5);
+    setMainZoom(mainWindow.webContents.getZoomLevel() - 0.5);
   });
   ipcMain.handle('app:actual-size', () => {
     if (!mainWindow || mainWindow.isDestroyed()) return;
-    mainWindow.webContents.setZoomLevel(0);
+    setMainZoom(0);
   });
   // `app:open-external` is reachable from the renderer (it's in
   // ALLOWED_IPC_CHANNELS), so the URL is untrusted input: `shell.openExternal`
@@ -881,6 +926,12 @@ async function createWindow(): Promise<void> {
   windowShownOnce = true;
   startedHidden = startHidden;
   pendingMaximize = startHidden && windowState.isMaximized && !windowState.isFullScreen;
+  // Bring back the zoom the user left (B-106).
+  mainWindow.webContents.once('did-finish-load', () => {
+    const level = readZoomLevel(zoomStatePath());
+    if (level !== 0) mainWindow?.webContents.setZoomLevel(level);
+  });
+
   mainWindow.once('ready-to-show', () => {
     // Still hidden: stay so (showMainWindow may already have shown it before the page was ready).
     if (startHidden && !mainWindow?.isVisible()) {
@@ -906,6 +957,14 @@ async function createWindow(): Promise<void> {
   // isClosing prevents re-entrance: preventDefault() keeps the window alive,
   // so without this flag the 'close' event would fire again from destroy().
   let isClosing = false;
+  // Ctrl+Shift+= (key "+") also zooms in; Ctrl+= is the menu accelerator.
+  mainWindow.webContents.on('before-input-event', (event, input) => {
+    if (isZoomInAlias(input)) {
+      event.preventDefault();
+      zoomIn();
+    }
+  });
+
   mainWindow.on('close', async (event) => {
     if (isClosing) return;
 
@@ -1488,6 +1547,15 @@ app.on('second-instance', (_event, argv) => {
   if (argv.includes('--hidden')) return;
   void showMainWindow();
 });
+// SIGTERM/SIGINT (stop scripts, logout) would otherwise end the process without
+// the window 'close' handler saving the session; route them through a normal quit (B-031).
+for (const signal of ['SIGTERM', 'SIGINT'] as const) {
+  process.on(signal, () => {
+    log.info(`[main] ${signal} received; quitting`);
+    app.quit();
+  });
+}
+
 app.on('before-quit', () => {
   quitRequested = true;
   // Persist pending last-used times of the asset registry (best effort; not awaited).

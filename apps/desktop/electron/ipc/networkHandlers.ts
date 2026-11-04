@@ -21,6 +21,14 @@ import log from 'electron-log';
 import { ipcHandler } from './handler-helper';
 import { NetworkConfig } from '../services/NetworkConfig';
 import { initNetworkGateway } from '../services/NetworkGateway';
+import { dialogParent } from '../utils/dialogParent';
+
+/** `dialog.showMessageBox` attached to the main window so it cannot fall behind it (B-087). */
+function showParentedMessageBox(options: Electron.MessageBoxOptions): Promise<Electron.MessageBoxReturnValue> {
+  const parent = dialogParent();
+  return parent ? dialog.showMessageBox(parent, options) : dialog.showMessageBox(options);
+}
+
 
 let config: NetworkConfig | null = null;
 
@@ -62,7 +70,7 @@ export function isNetworkAllowed(): boolean {
  * confident claim is worse than no claim for a user whose safety depends on it.
  */
 async function confirmEnable(): Promise<boolean> {
-  const { response } = await dialog.showMessageBox({
+  const { response } = await showParentedMessageBox({
     type: 'warning',
     buttons: ['Cancel', 'Allow web requests'],
     defaultId: 0,

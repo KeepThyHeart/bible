@@ -20,7 +20,7 @@ const css = readFileSync(CSS_PATH, 'utf8');
 
 const THEME_IDS = [
   'light', 'dark', 'sepia', 'arctic', 'autumn', 'forest', 'lagoon', 'meadow',
-  'midnight', 'ocean', 'parchment', 'rose', 'slate', 'sunrise', 'sunset',
+  'midnight', 'ocean', 'parchment', 'rose', 'slate', 'sunrise', 'sunset', 'high-contrast',
 ];
 
 function themeBlock(theme: string): string {

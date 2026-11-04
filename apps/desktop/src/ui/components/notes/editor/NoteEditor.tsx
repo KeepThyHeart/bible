@@ -50,8 +50,16 @@ import { getLocalizedReferenceParser } from '../../../services/localizedReferenc
 interface NoteEditorProps {
   value: string;
   onChange: (content: string) => void;
+  /**
+   * The editor reshaped the document without any change from the user (it adds a trailing paragraph, normalises
+   * `<b>` to `<strong>`, wraps list items). Reported separately from `onChange` so merely opening a note is not
+   * an edit that rewrites its file (B-085).
+   */
+  onNormalized?: (content: string) => void;
   placeholder?: string;
   readOnly?: boolean;
+  /** Move keyboard focus into the editor when it mounts (a note the user just opened to write in). */
+  autoFocus?: boolean;
   /**
    * Print / PDF / Word / Markdown, passed straight through to the toolbar.
    * Only the notes pane can supply them - they act on the *file* the editor's
@@ -122,8 +130,10 @@ const HOVER_CLOSE_DELAY_MS = 220;
 const NoteEditor: React.FC<NoteEditorProps> = ({
   value,
   onChange,
+  onNormalized,
   placeholder,
   readOnly = false,
+  autoFocus = false,
   exportActions,
   defaultDirection,
 }) => {
@@ -364,14 +374,23 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
     ],
     content: value || '',
     editable: !readOnly,
-    onUpdate: ({ editor }) => {
+    autofocus: autoFocus && !readOnly ? 'end' : false,
+    onUpdate: ({ editor, transaction }) => {
       if (!isInternalUpdate.current) {
         const html = editor.getHTML();
-        onChange(html);
+        // The document changed only through appended transactions (the trailing-paragraph plugin reacting to
+        // a selection or focus change): that is the editor tidying up, not the user writing (B-085).
+        if (!transaction.docChanged && onNormalized) onNormalized(html);
+        else onChange(html);
       }
     },
     editorProps: {
       attributes: {
+        // B-046: a screen reader needs to know this is a multi-line text box
+        // and how to leave it (Tab indents; Escape then Tab moves on).
+        role: 'textbox',
+        'aria-multiline': 'true',
+        'aria-label': t('userNotesPane.editorLabel'),
         class: 'prose prose-sm max-w-none focus:outline-none min-h-full',
         // Note body font-size follows the Typography section's "Study text"
         // slider (--study-font-size) and the "Global Font Scale" slider
@@ -497,6 +516,11 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
 
       if (e.key === 'Escape') {
         tabEscapeArmedRef.current = true;
+        return;
+      }
+      if (e.key === 'Shift' || e.key === 'Control' || e.key === 'Alt' || e.key === 'Meta') {
+        // Pressing a modifier is the first half of Shift+Tab; it must not
+        // disarm the hatch (B-046: Escape then Shift+Tab stayed trapped).
         return;
       }
       if (e.key !== 'Tab') {

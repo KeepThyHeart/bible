@@ -100,6 +100,11 @@ export class I18nService implements II18nService {
   private readonly namespaces = new Set<string>();
   /** `${locale}/${namespace}` files already requested. */
   private readonly namespaceFilesRequested = new Set<string>();
+  private revision = 0;
+
+  get catalogRevision(): number {
+    return this.revision;
+  }
   private readonly namespaceLoads = new Map<string, Promise<void>>();
   private namespaceSource: NamespaceSource | undefined;
 
@@ -231,7 +236,10 @@ export class I18nService implements II18nService {
       }),
     );
     // Strings arrived after something may already have rendered `[key]`: re-render subscribers.
-    if (loaded) this.emitter.fire(this.locale);
+    if (loaded) {
+      this.revision++;
+      this.emitter.fire(this.locale);
+    }
   }
 
   /** The declared namespace of a key (`quiz.title` -> `quiz`) that has not been requested yet, if any. */

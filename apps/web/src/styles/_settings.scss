@@ -90,11 +90,11 @@
 
     &--active {
       background: var(--accent-color);
-      color: #fff;
+      color: var(--accent-text, #fff);
 
       &:hover {
         background: var(--accent-hover);
-        color: #fff;
+        color: var(--accent-text, #fff);
       }
     }
 
@@ -377,6 +377,14 @@
     font-size: calc(1.125rem * var(--ui-font-scale, 1));
     font-weight: 700;
     color: var(--text-primary);
+  }
+
+  // Selectable so the version can be copied into a bug report.
+  &__about-version {
+    font-size: calc(0.8125rem * var(--ui-font-scale, 1));
+    color: var(--text-secondary);
+    user-select: text;
+    -webkit-user-select: text;
   }
 
   &__about-desc {

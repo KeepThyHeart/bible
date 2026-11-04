@@ -35,6 +35,7 @@ import type { ISearchPipeline, IVectorSearch } from '@bible/core';
 import { createSearchPipelineWithComponents } from './search/SearchPipelineFactory.js';
 import type { SqliteVectorSearch } from './search/SqliteVectorSearch.js';
 import { logger } from './utils/logger.js';
+import { sanitizeQuery, clientErrorStatus } from './utils/requestHygiene.js';
 import { ServerPluginManager } from './plugins/pluginManager.js';
 import { SiteConfig } from './SiteConfig.js';
 
@@ -263,6 +264,7 @@ for (const bp of getRegisteredBodyParsers()) {
 }
 app.use(express.json({ limit: '100kb' }));
 app.use(express.urlencoded({ extended: true, limit: '50kb' }));
+app.use('/api', sanitizeQuery);
 
 // Request timeouts on expensive endpoints (item #1).
 //
@@ -336,11 +338,16 @@ if (pipelineConfig) {
 
 // Remote semantic search through the server (`search.mode: 'remote'`, `via: 'server'`).
 // One client for the whole process, so its blockedUntil pause is shared by all users.
+// bibsearch sees only this server's IP, so its per-IP daily quota (and a quota_exceeded 429)
+// is genuinely shared by every user of the site. The pause is therefore capped at 5 minutes:
+// a transient 429/403/503 must not lock everyone out for the whole quota window (B-097);
+// the per-client daily limit in searchRoutes.ts keeps one user from spending the shared quota.
 const remoteSearchSettings = siteConfig.searchRemote;
 const remoteSemanticService = remoteSearchSettings?.via === 'server'
   ? new RemoteSemanticService(new RemoteSemantic.RemoteSemanticClient({
       baseUrl: remoteSearchSettings.url,
       apiKey: remoteSearchSettings.apiKey,
+      maxBlockSec: 300,
     }))
   : undefined;
 if (remoteSemanticService) logger.info('Semantic search: remote (bibsearch) via the server.');
@@ -605,6 +612,13 @@ if (existsSync(clientDir)) {
 // Global error handler — catches unhandled errors in route handlers.
 // Logs full details to the server log file; returns a generic message to the client.
 app.use((err: Error, req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  // A malformed %-escape, bad JSON or oversize body is the caller's mistake:
+  // answer with the status Express chose and skip the stack-trace log.
+  const clientStatus = clientErrorStatus(err);
+  if (clientStatus !== null) {
+    if (!res.headersSent) res.status(clientStatus).json({ error: { code: 'INVALID_PARAM', message: 'Bad request' } });
+    return;
+  }
   logger.error(`${req.method} ${req.path}:`, err);
   res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'An internal server error occurred' } });
 });

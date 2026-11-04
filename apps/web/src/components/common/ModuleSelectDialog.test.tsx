@@ -18,6 +18,10 @@ import { render, fireEvent, act } from '@testing-library/preact';
 import type { ModuleSection } from '../../types';
 import { ModuleSelectDialog } from './ModuleSelectDialog';
 
+vi.mock('react-i18next', () => ({
+  useTranslation: () => ({ t: (key: string) => key, i18n: { language: 'en' } }),
+}));
+
 interface TestModule { abbreviation: string; name: string }
 
 const MODULES: TestModule[] = [

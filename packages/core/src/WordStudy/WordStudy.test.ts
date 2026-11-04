@@ -92,7 +92,7 @@ describe('groupFromQuery exclusions', () => {
 
 describe('renderings', () => {
   it('normalises phrases and picks the head word', () => {
-    expect(normalizeRendering('Thou shalt love,')).toEqual({ phrase: 'thou shalt love', head: 'love' });
+    expect(normalizeRendering('Thou shalt love,')).toEqual({ phrase: 'thou shalt love', head: 'love', display: 'Thou shalt love' });
   });
   it('groups by head with stemming, or by phrase', () => {
     const rows = [
@@ -107,5 +107,15 @@ describe('renderings', () => {
     expect(groupRenderings(rows, 'phrase').length).toBe(5);
     expect(glossMatchesRendering('thou shalt love', head[0].key)).toBe(true);
     expect(glossMatchesRendering('beloved', head[0].key)).toBe(false);
+  });
+});
+
+describe('groupRenderings keeps the source casing for display (B-190)', () => {
+  it('labels "God" as written, merging case variants under the commonest casing', () => {
+    const g = groupRenderings([{ gloss: 'God', count: 5 }, { gloss: 'god', count: 1 }, { gloss: 'O God', count: 2 }], 'phrase');
+    expect(g.map((x) => x.label)).toEqual(['God', 'O God']);
+    expect(g[0].count).toBe(6);
+    expect(g[0].key).toBe('god');
+    expect(glossMatchesRendering('God', 'god', 'phrase')).toBe(true);
   });
 });

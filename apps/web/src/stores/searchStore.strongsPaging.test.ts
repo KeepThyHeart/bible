@@ -43,7 +43,7 @@ function respond(maxResults: number, available: number): StrongsResponse {
   };
 }
 
-const AVAILABLE = 640;
+let AVAILABLE = 640;
 
 let capturedOptions: StrongsOptions[] = [];
 const strongsSearch = vi.fn((_number: string, options?: StrongsOptions): Promise<StrongsSearchResult> => {
@@ -97,6 +97,19 @@ describe('searchStore Strong\'s paging', () => {
     expect(searchStore.results.length).toBe(AVAILABLE);
     expect(searchStore.canLoadMore).toBe(false);
     expect(searchStore.strongsRemaining).toBe(0);
+  });
+
+  it('does not promise occurrences past the server cap (B-164)', async () => {
+    AVAILABLE = 7052;
+    try {
+      await searchStore.performSearch('G3588');
+      expect(searchStore.strongsRemaining).toBe(5000 - 100);
+      await searchStore.loadAllStrongs();
+      expect(searchStore.results.length).toBe(5000);
+      expect(searchStore.strongsRemaining).toBe(0);
+    } finally {
+      AVAILABLE = 640;
+    }
   });
 
   it('re-uses the searched modules when paging', async () => {

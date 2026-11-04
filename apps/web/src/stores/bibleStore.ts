@@ -1,5 +1,6 @@
 // TODO: Just question.  Do any of these stores contain significant logic that ought to be reusable in the core package?  Something that the desktop could reuse (but only if I want to do that)?  But in a way that wouldn't lock the desktop into a certain UI _per se_, so that I wouldn't have to update the underlying core store but could expand upon it?
 import { Store } from './Store';
+import { isServerReachable, onServerReachabilityChange } from '../utils/serverReachability';
 import { eventBus } from '../events/eventBus';
 import type { IBibleDataProvider, VotdData } from '../providers/interfaces';
 import type { VerseData, BookTopicsData } from '../types';
@@ -191,6 +192,14 @@ function newTabId(): string {
   return `tab-${++tabCounter}-${Date.now()}`;
 }
 
+/** Message for a chapter that could not be fetched: offline gets its own wording. */
+function chapterLoadError(): string {
+  const offline = (typeof navigator !== 'undefined' && navigator.onLine === false) || !isServerReachable();
+  return offline
+    ? 'This chapter is not available offline. It will load when you are back online.'
+    : 'Failed to load chapter. Please check your connection and try again.';
+}
+
 class BibleStore extends Store {
   private bible: IBibleDataProvider | null = null;
   /** Cached verse-of-the-day request; see getVerseOfTheDay(). */
@@ -320,6 +329,15 @@ class BibleStore extends Store {
   async getBookTopics(book: number): Promise<BookTopicsData> {
     if (!this.bible) return { topics: [] };
     return this.bible.getBookTopics(book);
+  }
+
+  /** Refetch chapters that failed to load (called when the connection returns). */
+  retryFailedLoads(): void {
+    for (const tab of this.tabs) {
+      if (tab.loadError && tab.book && tab.chapter && !tab.loading) {
+        void this.navigateTo(tab.book, tab.chapter, undefined, { replace: true, urlReplace: true, tabId: tab.id });
+      }
+    }
   }
 
   getActiveTab(): BibleTab | undefined {
@@ -459,6 +477,13 @@ class BibleStore extends Store {
         // translation omits) are left alone.
         const lastVerse = tab.verses.reduce((m, v) => Math.max(m, v.verse_id % 1000), 0);
         if (verse && lastVerse > 0 && verse > lastVerse) verse = lastVerse;
+        // A verse this translation omits (ASV Acts 8:37) is likewise nothing to
+        // highlight, while the study panes would name it: land on the next
+        // verse that is there.
+        if (verse && tab.verses.length > 0 && !tab.verses.some(v => v.verse_id % 1000 === verse)) {
+          const next = tab.verses.map(v => v.verse_id % 1000).filter(n => n > verse!).sort((a, b) => a - b)[0];
+          if (next !== undefined) verse = next;
+        }
         if (verse) {
           // Calculate full verseId — select the specific verse
           const verseId = (book * 1000000) + (chapter * 1000) + verse;
@@ -514,7 +539,11 @@ class BibleStore extends Store {
       cancelLoadingFn();
       console.error('Navigation failed:', error);
       tab.loading = false;
-      tab.loadError = 'Failed to load chapter. Please check your connection and try again.';
+      // The heading already names the new chapter: never leave the old verses under it (B-117/B-138).
+      tab.verses = [];
+      tab.versesModule = undefined;
+      tab.coveredBooks = undefined;
+      tab.loadError = chapterLoadError();
       if (wasShowingHome) {
         this.showHome = false;
       }
@@ -633,7 +662,10 @@ class BibleStore extends Store {
       cancelLoading();
       console.error('Preview navigation failed:', error);
       tab.loading = false;
-      tab.loadError = 'Failed to load chapter. Please check your connection and try again.';
+      tab.verses = [];
+      tab.versesModule = undefined;
+      tab.coveredBooks = undefined;
+      tab.loadError = chapterLoadError();
       this.showHome = false;
       this.notify();
     }
@@ -1035,7 +1067,7 @@ class BibleStore extends Store {
         // verses to render instead.
         tab.verses = [];
         tab.versesModule = undefined;
-        tab.loadError = 'Failed to load chapter. Please check your connection and try again.';
+        tab.loadError = chapterLoadError();
       }
     }
 
@@ -1239,7 +1271,10 @@ class BibleStore extends Store {
     } catch {
       cancelLoading();
       tab.loading = false;
-      tab.loadError = 'Failed to load chapter. Please check your connection and try again.';
+      tab.verses = [];
+      tab.versesModule = undefined;
+      tab.coveredBooks = undefined;
+      tab.loadError = chapterLoadError();
       this.notify();
     }
   }
@@ -1455,6 +1490,12 @@ class BibleStore extends Store {
 }
 
 export const bibleStore = new BibleStore();
+
+// Auto-recover a chapter that failed while offline once the connection returns (B-117/B-138).
+if (typeof window !== 'undefined') {
+  window.addEventListener('online', () => bibleStore.retryFailedLoads());
+  onServerReachabilityChange((reachable) => { if (reachable) bibleStore.retryFailedLoads(); });
+}
 
 // Core events `reader.verseChanged` / `reader.selectionChanged` (task 0123): only while an active feature module listens.
 watchReaderStore(bibleStore);

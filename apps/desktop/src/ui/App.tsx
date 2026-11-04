@@ -5,6 +5,7 @@ import TopSearchBar from './components/TopSearchBar';
 import LayoutDropdown from './components/LayoutDropdown';
 import ExtensionUiHost from './components/extensions/ExtensionUiHost';
 import ToastContainer from './components/ToastContainer';
+import LiveAnnouncer from './components/LiveAnnouncer';
 import DesktopAppStage from './apps/DesktopAppStage';
 import CompanionSlot from './apps/CompanionSlot';
 import { useStudyLayoutBoot } from './apps/useStudyLayoutBoot';
@@ -147,7 +148,7 @@ const AppWordmark: React.FC = () => {
         <span
           className="uppercase"
           style={{
-            fontSize: '9.5px',
+            fontSize: '0.59375rem',
             letterSpacing: '0.14em',
             fontWeight: 600,
             // Same recipe as the web tagline: mostly accent, pulled towards the
@@ -471,8 +472,8 @@ function App() {
       <React.Suspense fallback={null}>
       <div className="flex flex-col h-screen bg-background overflow-hidden" data-testid="app-loaded">
         {/* Top bar */}
-        <header className="border-b border-border px-lg py-sm flex-shrink-0" style={{ backgroundColor: 'var(--theme-pane-header-bg)' }}>
-          <div className="flex items-center gap-lg min-w-0">
+        <header data-kth-region="header" className="border-b border-border px-lg py-sm flex-shrink-0" style={{ backgroundColor: 'var(--theme-pane-header-bg)' }}>
+          <div className="flex flex-wrap items-center gap-x-lg gap-y-sm min-w-0">
             <AppWordmark />
             {studyActive && <LayoutDropdown />}
             <TopSearchBar />
@@ -564,6 +565,7 @@ function App() {
         <ExtensionConsentDialog />
         {/* Toast notifications */}
         <ToastContainer />
+        <LiveAnnouncer />
 
         {/* Diagnostics: crash prompt for main-process errors */}
         <CrashReportDialog />

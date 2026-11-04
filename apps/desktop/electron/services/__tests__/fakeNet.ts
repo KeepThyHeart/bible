@@ -17,12 +17,20 @@ export interface FakeResponseSpec {
   headers?: Record<string, string | string[]>;
   /** Body chunks, emitted one `data` event each. */
   chunks?: Array<string | Buffer>;
+  /**
+   * Emulate real Electron `redirect: 'manual'` behaviour: a 3xx is delivered
+   * as a `redirect` event (absolute URL, resolved against the request URL)
+   * and never as `response`.
+   */
+  viaRedirectEvent?: boolean;
 }
 
 export type FakeRoute = (req: { url: string; method: string }) => FakeResponseSpec;
 
 /** URLs requested since the last `resetFakeNet()`, in order. */
 export const requestedUrls: string[] = [];
+/** Headers set on each request (parallel to `requestedUrls`). */
+export const requestedHeaders: Array<Record<string, string>> = [];
 
 let route: FakeRoute = () => ({ statusCode: 404 });
 let online = true;
@@ -37,6 +45,7 @@ export function setOnline(value: boolean): void {
 
 export function resetFakeNet(): void {
   requestedUrls.length = 0;
+  requestedHeaders.length = 0;
   route = () => ({ statusCode: 404 });
   online = true;
 }
@@ -46,7 +55,10 @@ class FakeClientRequest extends EventEmitter {
   body: Array<string | Buffer> = [];
   aborted = false;
 
-  constructor(private readonly spec: FakeResponseSpec) {
+  constructor(
+    private readonly spec: FakeResponseSpec,
+    private readonly url: string
+  ) {
     super();
   }
 
@@ -67,6 +79,14 @@ class FakeClientRequest extends EventEmitter {
   end(): void {
     setImmediate(() => {
       if (this.aborted) return;
+      if (this.spec.viaRedirectEvent) {
+        const loc = this.spec.headers?.location;
+        const target = new URL(Array.isArray(loc) ? loc[0] : (loc ?? ''), this.url).toString();
+        this.emit('redirect', this.spec.statusCode, 'GET', target, this.spec.headers ?? {});
+        // Real Electron cancels the request unless followRedirect() was called.
+        if (!this.aborted) this.emit('error', new Error('Redirect was cancelled'));
+        return;
+      }
       const response = new EventEmitter() as EventEmitter & {
         statusCode: number;
         headers: Record<string, string | string[]>;
@@ -96,7 +116,9 @@ function fakeRequest(options: string | RequestOptions): FakeClientRequest {
   const method = (typeof options === 'object' && options.method) || 'GET';
   requestedUrls.push(url);
   const spec = route({ url, method });
-  return new FakeClientRequest(spec);
+  const req = new FakeClientRequest(spec, url);
+  requestedHeaders.push(req.headers);
+  return req;
 }
 
 /** Shape compatible with the subset of Electron `net` the gateway uses. */

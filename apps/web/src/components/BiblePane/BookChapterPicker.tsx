@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'preact/hooks';
+import { useState, useEffect, useMemo, useRef } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { BookChapterPicker as SharedBookChapterPicker } from '@bible/ui';
 import type { BookChapterPickerLabels } from '@bible/ui';
@@ -7,6 +7,7 @@ import { getLocalizedBookName } from '../../utils/bookNames';
 import { bibleStore } from '../../stores/bibleStore';
 import { searchStore } from '../../stores/searchStore';
 import { useStore } from '../../hooks/useStore';
+import { useModalFocus } from '../../hooks/useModalFocus';
 import { useLocalizer } from '../../hooks/useLocalizer';
 import { SearchResultItem } from '../Search/SearchResultItem';
 import { TranslationDialog } from './TranslationDialog';
@@ -125,6 +126,9 @@ function PickerDialog({ onClose, onSelect, currentBook, currentChapter, moduleAb
   const localizer = useLocalizer();
   const bookAliases = useMemo(() => localizedBookAliases(localizer), [localizer]);
   const [showTranslationDialog, setShowTranslationDialog] = useState(false);
+  // Mounted only while open: focus returns to whatever opened it when it unmounts (B-156).
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useModalFocus(true, dialogRef);
   // Focus the reference input on desktop-class screens only: on phones it would pop the keyboard.
   const [autoFocusInput] = useState(() => window.innerWidth > 768 && !('ontouchstart' in window));
   const isMobileView = window.innerWidth <= 768 || 'ontouchstart' in window;
@@ -145,7 +149,7 @@ function PickerDialog({ onClose, onSelect, currentBook, currentChapter, moduleAb
 
   return (
     <div class="book-chapter-picker__overlay" onClick={onClose}>
-      <div class="book-chapter-picker" onClick={(e) => e.stopPropagation()}>
+      <div class="book-chapter-picker" ref={dialogRef} role="dialog" aria-modal="true" aria-label={t('bookChapterPicker.goToPassage')} onClick={(e) => e.stopPropagation()}>
         <SharedBookChapterPicker
           current={{ book: currentBook ?? null, chapter: currentChapter }}
           onPick={onSelect}

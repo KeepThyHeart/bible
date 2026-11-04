@@ -669,10 +669,10 @@ export class MemoryService implements MemoryApi {
     return this.guard('getContext', () => this.buildContext(args.passageId, { withholdAfter: false }));
   }
 
-  addPassage(args: Req<'addPassage'>): Promise<{ passage: Passage }> {
+  addPassage(args: Req<'addPassage'>): Promise<{ passage: Passage; existed?: boolean }> {
     return this.guard('addPassage', async () => {
-      const passage = await this.addPassageFromReference(args.reference);
-      return { passage };
+      const { passage, existed } = await this.addPassageFromReference(args.reference);
+      return { passage, ...(existed ? { existed: true } : {}) };
     });
   }
 
@@ -1264,7 +1264,7 @@ export class MemoryService implements MemoryApi {
     return chosen.abbreviation;
   }
 
-  private async addPassageFromReference(reference: string): Promise<Passage> {
+  private async addPassageFromReference(reference: string): Promise<{ passage: Passage; existed: boolean }> {
     const moduleId = await this.activeModuleId();
     const resolved = await resolveReference(this.host, reference, moduleId);
     const now = this.now();
@@ -1282,7 +1282,7 @@ export class MemoryService implements MemoryApi {
 
     if (created || revived) await this.refreshStatus();
     this.planChanged();
-    return passage;
+    return { passage, existed: !created && !revived };
   }
 
   /** The reader path: add whatever verse (or run) the user selected. */

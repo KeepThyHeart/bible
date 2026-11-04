@@ -418,6 +418,8 @@
   "memory.core.listenStartFailed": "‏Could not start listening.‏",
   "memory.core.loopGettingReady": "‏Getting ready‏",
   "memory.core.loopPaused": "‏Paused‏",
+  "memory.core.loopPausedSilence": "‏No speech was heard, so recitation is paused. Press Resume to continue.",
+  "memory.core.loopPausedSilenceTap": "‏No speech was heard. Press Talk to try again.",
   "memory.core.loopFinishingUp": "‏Finishing up‏",
   "memory.core.somethingWentWrong": "‏Something went wrong.‏",
   "memory.core.loopFindingNext": "‏Finding the next passage‏",
@@ -558,5 +560,9 @@
   "memory.ui.plan.reciteHandsFree": "‏Hands-free‏",
   "memory.ui.plan.reciteHandsFreeHint": "‏Speak and listen without touching the screen‏",
   "memory.core.loopPracticeOnly": "‏Practice only. Nothing was graded.‏",
-  "memory.ui.settings.practiceOnlyShort": "‏Practice only. Nothing was graded.‏"
+  "memory.ui.settings.practiceOnlyShort": "‏Practice only. Nothing was graded.‏",
+  "memory.ui.plan.removeConfirmNew": "‏Remove this passage from your list?‏",
+  "memory.ui.plan.alreadyInList": "‏{reference} is already in your list.‏",
+  "memory.ui.plan.reciteHandsFreeNoVoice": "‏Hands-free needs the app to be able to speak, and no text-to-speech voice is available on this computer.‏",
+  "memory.core.micNone": "‏No microphone was found. Connect one and try again.‏"
 }

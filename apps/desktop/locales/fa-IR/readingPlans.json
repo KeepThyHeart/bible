@@ -74,6 +74,7 @@
   "readingPlans.card.open": "باز کردن",
   "readingPlans.card.markDayRead": "علامت‌گذاری روز به‌عنوان خوانده‌شده",
   "readingPlans.card.markDayUnread": "علامت‌گذاری روز به‌عنوان خوانده‌نشده",
+  "readingPlans.card.markDayConfirm": "هیچ‌یک از خواندنی‌های امروز علامت نخورده است. با این حال کل روز به‌عنوان خوانده‌شده علامت بخورد؟",
   "readingPlans.card.completed": "این برنامه به پایان رسید. آفرین!",
   "readingPlans.card.notStarted": "این برنامه هنوز شروع نشده است.",
   "readingPlans.card.restDay": "روز استراحت",
@@ -182,5 +183,6 @@
   "readingPlans.reader.next": "Next reading →",
   "readingPlans.reader.nextNamed": "Next reading: {reading}",
   "readingPlans.reader.lastReading": "That was the last reading of the plan.",
-  "readingPlans.reader.failed": "Could not save. Try again."
+  "readingPlans.reader.failed": "Could not save. Try again.",
+  "readingPlans.today.pastEnd": "مهلت زمان‌بندی‌شدهٔ این برنامه تمام شده است. هر آنچه خوانده نشده معوق به حساب می‌آید؛ برای خواندن با سرعت خودتان به ریتم انعطاف‌پذیر بروید."
 }

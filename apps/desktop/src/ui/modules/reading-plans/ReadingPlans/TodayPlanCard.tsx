@@ -48,7 +48,8 @@ const TodayPlanCard: React.FC<Props> = ({
     () => (plan && view.pacing === 'fixed' ? ReadingPlans.overdueReadings(plan, progress, view.missedDays.filter((d) => d !== day)) : []),
     [plan, progress, view.pacing, view.missedDays, day],
   );
-  const catchUp = ReadingPlans.catchUpSuggestion(view.behindBy);
+  // Past the scheduled end a "read N extra per day" plan makes no sense; say so and offer flexible pacing instead (B-068).
+  const catchUp = view.pastEnd ? null : ReadingPlans.catchUpSuggestion(view.behindBy);
   const restOnly = day === null && view.restDay && !view.completed && !view.notStarted;
   const pct = Math.max(0, Math.min(100, percent ?? 0));
 
@@ -98,9 +99,9 @@ const TodayPlanCard: React.FC<Props> = ({
         ) : null}
       </header>
       <div className="flex items-center gap-sm">
-        <div className="flex-1 h-1.5 rounded overflow-hidden" style={{ backgroundColor: 'var(--theme-bg-secondary)' }}
+        <div className="flex-1 h-1.5 rounded overflow-hidden" style={{ backgroundColor: 'var(--theme-bg-strong)', border: '1px solid var(--theme-border-primary)' }}
           role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(pct)} aria-label={t('readingPlans.today.progress')}>
-          <div style={{ width: `${pct}%`, height: '100%', backgroundColor: 'var(--theme-accent, #3b82f6)' }} />
+          <div style={{ width: `${pct}%`, height: '100%', backgroundColor: 'var(--theme-accent-primary, #3b82f6)' }} />
         </div>
         <span className="text-xs" style={secondary}>{labels.todayCard.percent(Math.round(pct))}</span>
       </div>
@@ -141,6 +142,7 @@ const TodayPlanCard: React.FC<Props> = ({
 
       {view.behindBy > 0 && !view.completed ? (
         <div className="flex flex-col gap-xs">
+          {view.pastEnd ? <p className="m-0 text-xs" style={secondary} data-testid="past-end-note">{t('readingPlans.today.pastEnd')}</p> : null}
           {catchUp ? <p className="m-0 text-xs" style={secondary}>{labels.todayCard.catchUp(catchUp.extraPerDay, catchUp.days)}</p> : null}
           {confirmingFlexible ? (
             <div role="group" aria-label={labels.todayCard.switchToFlexible} className="flex flex-col gap-xs">

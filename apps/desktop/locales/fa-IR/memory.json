@@ -418,6 +418,8 @@
   "memory.core.listenStartFailed": "شروع گوش دادن ممکن نشد.",
   "memory.core.loopGettingReady": "در حال آماده‌سازی",
   "memory.core.loopPaused": "مکث‌شده",
+  "memory.core.loopPausedSilence": "صدایی شنیده نشد، بنابراین بازگویی متوقف شد. برای ادامه روی «ادامه» بزنید.",
+  "memory.core.loopPausedSilenceTap": "صدایی شنیده نشد. برای تلاش دوباره روی «سخن گفتن» بزنید.",
   "memory.core.loopFinishingUp": "در حال پایان‌دادن",
   "memory.core.somethingWentWrong": "مشکلی پیش آمد.",
   "memory.core.loopFindingNext": "در حال یافتن قسمت بعدی",
@@ -558,5 +560,9 @@
   "memory.ui.plan.reciteHandsFree": "بدون دست",
   "memory.ui.plan.reciteHandsFreeHint": "بدون لمس صفحه، صحبت کنید و گوش دهید",
   "memory.core.loopPracticeOnly": "فقط تمرین. چیزی نمره‌گذاری نشد.",
-  "memory.ui.settings.practiceOnlyShort": "فقط تمرین. چیزی نمره‌گذاری نشد."
+  "memory.ui.settings.practiceOnlyShort": "فقط تمرین. چیزی نمره‌گذاری نشد.",
+  "memory.ui.plan.removeConfirmNew": "این قطعه از فهرست شما حذف شود؟",
+  "memory.ui.plan.alreadyInList": "{reference} از قبل در فهرست شما هست.",
+  "memory.ui.plan.reciteHandsFreeNoVoice": "حالت بدون دست به توانایی گفتار برنامه نیاز دارد و هیچ صدای تبدیل متن به گفتار در این رایانه موجود نیست.",
+  "memory.core.micNone": "میکروفونی پیدا نشد. یکی را وصل کنید و دوباره تلاش کنید."
 }

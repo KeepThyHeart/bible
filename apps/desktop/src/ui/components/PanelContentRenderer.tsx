@@ -178,6 +178,10 @@ const PanelContentRenderer: React.FC<IDockviewPanelProps<{
     <div
       className="h-full w-full overflow-hidden"
       data-tour-pane={contentType}
+      data-kth-region="pane"
+      data-panel-id={api.id}
+      role="region"
+      aria-label={api.title || contentType}
       style={{ backgroundColor: 'var(--theme-bg-primary)' }}
     >
       <PaneErrorBoundary paneName={contentType}>

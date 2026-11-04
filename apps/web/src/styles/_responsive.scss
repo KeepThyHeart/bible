@@ -20,6 +20,13 @@
     }
   }
 
+  // The study pane floats over the reader here, so reserve its width: verse text
+  // must not run underneath it (B-116). The pane only exists while expanded.
+  .app:not(.app--mobile) .main-layout:has(> .main-layout__right-pane) > .main-layout__bible {
+    box-sizing: border-box;
+    padding-inline-end: 350px;
+  }
+
   .resize-handle {
     display: none;
   }
@@ -48,6 +55,10 @@
     // the last one (Settings) off the right edge.
     // The title keeps priority at large text sizes: it never shrinks below a few characters.
     &__logo {
+      // The wordmark is branding, not reading text: it stays at the default Aa step's size
+      // (16px UI text over the 14px baseline) at every step, so it still fits beside the
+      // action buttons on a 360px phone (B-184).
+      --ui-font-scale: calc(16 / 14);
       min-inline-size: 6ch;
       flex: 1 1 auto;
       overflow: hidden;
@@ -57,11 +68,12 @@
       min-inline-size: 0;
     }
 
+    // Wrap rather than cut to "Keep ..." when the text size is at its maximum (B-184); the
+    // header already grows to fit.
     &__wordmark-name,
     &__wordmark-tagline {
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
+      white-space: normal;
+      overflow-wrap: normal;
     }
 
     &__actions {
@@ -258,3 +270,41 @@
   }
 }
 
+
+// Touch targets: at least 44x44 CSS px for the phone chrome (B-140).
+.app--mobile {
+  .bible-tab-bar__add,
+  .bible-toolbar__nav-btn,
+  .bible-toolbar__translation-btn,
+  .bible-toolbar__btn,
+  .chapter-nav__btn {
+    min-inline-size: 44px;
+    min-block-size: 44px;
+  }
+
+  // The header row has no room for five 44px-wide buttons at 360px (the fifth wrapped and the
+  // header doubled in height). Keep the visual width and reach 44px with a transparent pseudo-element
+  // that spills into the (padding-free) gap between neighbours.
+  // 44px buttons plus the default 6px padding made the header 61px; trim the padding to hold ~48.
+  .header {
+    padding-block: 2px;
+  }
+
+  // The buttons never wrap; the title (which ellipsizes) gives way instead.
+  .header__actions {
+    flex-wrap: nowrap;
+    flex-shrink: 0;
+  }
+
+  .header__action-btn {
+    position: relative;
+    min-block-size: 44px;
+
+    &::after {
+      content: '';
+      position: absolute;
+      inset-block: 0;
+      inset-inline: -4px;
+    }
+  }
+}

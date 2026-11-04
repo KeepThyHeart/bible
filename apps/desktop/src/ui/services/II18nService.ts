@@ -142,5 +142,11 @@ export interface II18nService {
   /** Where namespace files come from (`LocaleCatalogLoader` installs itself). */
   setNamespaceSource(source: NamespaceSource): void;
 
+  /**
+   * Bumped whenever a lazily loaded namespace adds strings. `useI18n` includes it in its snapshot so components
+   * that already rendered `[key]` re-render once the strings arrive (B-071). Optional: test doubles omit it.
+   */
+  readonly catalogRevision?: number;
+
   onDidChangeLocale: IEvent<LocaleCode>;
 }

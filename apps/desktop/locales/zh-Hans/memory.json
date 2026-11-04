@@ -418,6 +418,8 @@
   "memory.core.listenStartFailed": "无法开始聆听。",
   "memory.core.loopGettingReady": "正在准备",
   "memory.core.loopPaused": "已暂停",
+  "memory.core.loopPausedSilence": "没有听到声音，背诵已暂停。点击“继续”即可恢复。",
+  "memory.core.loopPausedSilenceTap": "没有听到声音。点击“开始说”再试一次。",
   "memory.core.loopFinishingUp": "即将完成",
   "memory.core.somethingWentWrong": "出了点问题。",
   "memory.core.loopFindingNext": "正在查找下一段经文",
@@ -558,5 +560,9 @@
   "memory.ui.plan.reciteHandsFree": "免提",
   "memory.ui.plan.reciteHandsFreeHint": "无需触碰屏幕，说话并聆听",
   "memory.core.loopPracticeOnly": "仅练习，未评分。",
-  "memory.ui.settings.practiceOnlyShort": "仅练习，未评分。"
+  "memory.ui.settings.practiceOnlyShort": "仅练习，未评分。",
+  "memory.ui.plan.removeConfirmNew": "要从列表中移除这段经文吗？",
+  "memory.ui.plan.alreadyInList": "{reference} 已在你的列表中。",
+  "memory.ui.plan.reciteHandsFreeNoVoice": "免提模式需要应用能够朗读，但此电脑上没有可用的文字转语音声音。",
+  "memory.core.micNone": "未找到麦克风。请连接麦克风后重试。"
 }

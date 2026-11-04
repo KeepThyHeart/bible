@@ -483,7 +483,7 @@ class SettingsStore extends Store {
    * no longer installed.
    *
    * The server's configured default (`ui.defaultModule`) when it is installed,
-   * otherwise the first installed Bible, so an install without the configured
+   * otherwise KJV when installed, then the first installed Bible, so an install without the configured
    * translation still opens on text rather than "Failed to load chapter".
    *
    * Until the module list has loaded there is nothing to check against, so the
@@ -497,7 +497,8 @@ class SettingsStore extends Store {
     if (!moduleStore.loaded) return configured ?? LAST_RESORT_BIBLE;
     const installed = moduleStore.getBibleModules();
     const match = configured ? findBible(installed, configured) : undefined;
-    return match?.abbreviation ?? installed[0]?.abbreviation ?? configured ?? LAST_RESORT_BIBLE;
+    // Configured, else KJV (the built-in preference), else whatever is installed first.
+    return match?.abbreviation ?? findBible(installed, 'KJV')?.abbreviation ?? installed[0]?.abbreviation ?? configured ?? LAST_RESORT_BIBLE;
   }
 
   /**
@@ -692,10 +693,27 @@ class SettingsStore extends Store {
     } else {
       el.removeAttribute('data-dark-theme');
     }
+
+    // Keep the browser/Android address bar in step with the theme (B-141).
+    try {
+      const bar = getComputedStyle(el).getPropertyValue('--header-bg').trim()
+        || getComputedStyle(el).getPropertyValue('--bg-primary').trim();
+      const meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
+      if (bar && meta) meta.content = bar;
+    } catch { /* styles unavailable (tests) */ }
   }
 }
 
 export const settingsStore = new SettingsStore();
+
+// "Auto" follows the OS scheme live, not only at load (B-141).
+if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
+  try {
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', () => {
+      if (settingsStore.theme === 'auto') settingsStore.applyTheme();
+    });
+  } catch { /* no matchMedia change events */ }
+}
 
 // Core event `settings.changed` (task 0123): only while an active feature module listens.
 watchSettingsStore(settingsStore, () => Object.fromEntries(WEB_SETTINGS.definitions.map((d) => [d.key, webSettings.get(d.key)])));

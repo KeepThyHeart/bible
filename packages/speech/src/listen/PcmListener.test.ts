@@ -202,6 +202,7 @@ describe('PcmListener', () => {
     [{ name: 'NotAllowedError' }, 'mic-denied'],
     [{ code: 'mic-denied' }, 'mic-denied'],
     [{ code: 'mic-busy' }, 'mic-busy'],
+    [{ name: 'NotFoundError' }, 'mic-none'],
     [new Error('x'), 'mic-busy'],
   ])('maps mic error %j to %s', async (err, code) => {
     const { listener } = setup(err);

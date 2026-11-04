@@ -74,6 +74,7 @@
   "readingPlans.card.open": "打开",
   "readingPlans.card.markDayRead": "标记当天为已读",
   "readingPlans.card.markDayUnread": "标记当天为未读",
+  "readingPlans.card.markDayConfirm": "今天的阅读内容都没有勾选。仍要将整天标记为已读吗？",
   "readingPlans.card.completed": "此计划已完成。做得好！",
   "readingPlans.card.notStarted": "此计划尚未开始。",
   "readingPlans.card.restDay": "休息日",
@@ -182,5 +183,6 @@
   "readingPlans.reader.next": "Next reading →",
   "readingPlans.reader.nextNamed": "Next reading: {reading}",
   "readingPlans.reader.lastReading": "That was the last reading of the plan.",
-  "readingPlans.reader.failed": "Could not save. Try again."
+  "readingPlans.reader.failed": "Could not save. Try again.",
+  "readingPlans.today.pastEnd": "此计划的预定期限已结束。所有未读内容都算逾期；请切换到灵活进度，按自己的节奏阅读。"
 }

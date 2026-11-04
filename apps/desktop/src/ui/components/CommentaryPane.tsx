@@ -831,7 +831,7 @@ const CommentaryTabMenuItem: React.FC<{ label: string; onClick: () => void }> = 
       border: 'none',
       background: 'transparent',
       cursor: 'pointer',
-      fontSize: '13px',
+      fontSize: '0.8125rem',
       color: 'var(--theme-text-primary)',
       textAlign: 'start',
     }}

@@ -39,6 +39,17 @@ export function BibleToolbar({ onOpenSettings }: BibleToolbarProps) {
   // frames — the same reason the translation dialog does it this way.
   const historyOpenRef = useRef(false);
   historyOpenRef.current = showHistory;
+  const historyToggleRef = useRef<HTMLButtonElement>(null);
+  // Escape closes the menu and hands focus back to its button (B-156).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' || !historyOpenRef.current) return;
+      setShowHistory(false);
+      historyToggleRef.current?.focus({ preventScroll: true });
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, []);
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (!historyOpenRef.current) return;
@@ -101,6 +112,7 @@ export function BibleToolbar({ onOpenSettings }: BibleToolbarProps) {
               and the menu says where it is going by name. */}
           <button
             class="bible-toolbar__nav-btn"
+            ref={historyToggleRef}
             onClick={() => setShowHistory(v => !v)}
             // Without this the document-level dismissal below closes the menu a
             // beat before this button's own click would toggle it back open.

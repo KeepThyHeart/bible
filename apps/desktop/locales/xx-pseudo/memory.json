@@ -418,6 +418,8 @@
   "memory.core.listenStartFailed": "⟦Çøüļð ñøţ šţåŕţ ļîšţéñîñĝ. ·······⟧",
   "memory.core.loopGettingReady": "⟦Ĝéţţîñĝ ŕéåðý ···⟧",
   "memory.core.loopPaused": "⟦Þåüšéð ··⟧",
+  "memory.core.loopPausedSilence": "⟦No speech was heard, so recitation is paused. Press Resume to continue.⟧",
+  "memory.core.loopPausedSilenceTap": "⟦No speech was heard. Press Talk to try again.⟧",
   "memory.core.loopFinishingUp": "⟦Ƒîñîšĥîñĝ üþ ···⟧",
   "memory.core.somethingWentWrong": "⟦Šøɱéţĥîñĝ ŵéñţ ŵŕøñĝ. ······⟧",
   "memory.core.loopFindingNext": "⟦Ƒîñðîñĝ ţĥé ñéẋţ þåššåĝé ·······⟧",
@@ -558,5 +560,9 @@
   "memory.ui.plan.reciteHandsFree": "⟦Ĥåñðš-ƒŕéé ···⟧",
   "memory.ui.plan.reciteHandsFreeHint": "⟦Šþéåķ åñð ļîšţéñ ŵîţĥøüţ ţøüçĥîñĝ ţĥé šçŕééñ ·············⟧",
   "memory.core.loopPracticeOnly": "⟦Þŕåçţîçé øñļý. Ñøţĥîñĝ ŵåš ĝŕåðéð. ··········⟧",
-  "memory.ui.settings.practiceOnlyShort": "⟦Þŕåçţîçé øñļý. Ñøţĥîñĝ ŵåš ĝŕåðéð. ··········⟧"
+  "memory.ui.settings.practiceOnlyShort": "⟦Þŕåçţîçé øñļý. Ñøţĥîñĝ ŵåš ĝŕåðéð. ··········⟧",
+  "memory.ui.plan.removeConfirmNew": "⟦Ŕéɱøṽé ţĥîš þåššåĝé ƒŕøɱ ýøüŕ ļîšţ? ··········⟧",
+  "memory.ui.plan.alreadyInList": "⟦{reference} îš åļŕéåðý îñ ýøüŕ ļîšţ. ·······⟧",
+  "memory.ui.plan.reciteHandsFreeNoVoice": "⟦Ĥåñðš-ƒŕéé ñééðš ţĥé åþþ ţø ƀé åƀļé ţø šþéåķ, åñð ñø ţéẋţ-ţø-šþééçĥ ṽøîçé îš åṽåîļåƀļé øñ ţĥîš çøɱþüţéŕ. ·······························⟧",
+  "memory.core.micNone": "⟦Ñø ɱîçŕøþĥøñé ŵåš ƒøüñð. Çøññéçţ øñé åñð ţŕý åĝåîñ. ···············⟧"
 }

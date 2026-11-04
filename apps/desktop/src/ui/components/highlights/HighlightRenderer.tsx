@@ -19,6 +19,22 @@ import { useResolvedVerseDecorations } from '../../extensions/useResolvedVerseDe
  * the store-reading find hook and the `HighlightedVerse` component.
  */
 
+// DOMPurify costs ~5 ms per verse; the same rendered HTML recurs across re-renders,
+// chapter revisits and the many mounted (hidden) Bible panes, so cache by string (B-131/B-133).
+const SANITIZE_CACHE_MAX = 6000;
+const sanitizeCache = new Map<string, string>();
+function sanitizeCached(html: string): string {
+  const hit = sanitizeCache.get(html);
+  if (hit !== undefined) return hit;
+  const safe = sanitizeHtml(html);
+  if (sanitizeCache.size >= SANITIZE_CACHE_MAX) {
+    const oldest = sanitizeCache.keys().next().value;
+    if (oldest !== undefined) sanitizeCache.delete(oldest);
+  }
+  sanitizeCache.set(html, safe);
+  return safe;
+}
+
 // Constant empty array to prevent unnecessary re-renders
 const EMPTY_HIGHLIGHTS: UserTextMarkup[] = [];
 
@@ -83,7 +99,7 @@ interface HighlightedVerseProps {
  * own store subscriptions) as soon as either arrives - it never blocks or
  * delays the initial paint (task 0036, P0.1a).
  */
-export const HighlightedVerse: React.FC<HighlightedVerseProps> = ({
+const HighlightedVerseImpl: React.FC<HighlightedVerseProps> = ({
   verseId,
   verseHTML,
   moduleId,
@@ -118,6 +134,8 @@ export const HighlightedVerse: React.FC<HighlightedVerseProps> = ({
     () => renderVerseWords(verseId, words, highlights, resolved, find),
     [verseId, words, highlights, resolved, find]
   );
+
+  const safeHTML = useMemo(() => sanitizeCached(renderedHTML), [renderedHTML]);
 
   // Handle mouse events on words
   const handleMouseEvent = (
@@ -178,8 +196,11 @@ export const HighlightedVerse: React.FC<HighlightedVerseProps> = ({
       onMouseOver={handleMouseOver}
       onMouseOut={handleMouseOut}
     >
-      <span dangerouslySetInnerHTML={{ __html: sanitizeHtml(renderedHTML) }} />
+      <span dangerouslySetInnerHTML={{ __html: safeHTML }} />
       {suffix}
     </span>
   );
 };
+
+/** React.memo: a store change for another verse or pane must not re-render this one (B-131). */
+export const HighlightedVerse = React.memo(HighlightedVerseImpl);

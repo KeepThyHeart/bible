@@ -74,6 +74,7 @@
   "readingPlans.card.open": "Открыть",
   "readingPlans.card.markDayRead": "Отметить день прочитанным",
   "readingPlans.card.markDayUnread": "Отметить день непрочитанным",
+  "readingPlans.card.markDayConfirm": "Ни одно из сегодняшних чтений не отмечено. Всё равно отметить весь день как прочитанный?",
   "readingPlans.card.completed": "Этот план завершён. Отлично!",
   "readingPlans.card.notStarted": "Этот план ещё не начался.",
   "readingPlans.card.restDay": "День отдыха",
@@ -182,5 +183,6 @@
   "readingPlans.reader.next": "Next reading →",
   "readingPlans.reader.nextNamed": "Next reading: {reading}",
   "readingPlans.reader.lastReading": "That was the last reading of the plan.",
-  "readingPlans.reader.failed": "Could not save. Try again."
+  "readingPlans.reader.failed": "Could not save. Try again.",
+  "readingPlans.today.pastEnd": "Запланированный срок этого плана закончился. Всё непрочитанное считается просроченным; перейдите на гибкий темп, чтобы читать в своём ритме."
 }

@@ -28,6 +28,7 @@ import { syncPanesWithVerse } from './syncPanesWithVerse';
 import { libraryChangeListeners } from '../modules/host/hostListeners';
 import { whenContextService } from '../services/WhenContextService';
 import { useLayoutStore } from './useLayoutStore';
+import { installSearchPanelInvariant } from './searchPanelInvariant';
 import { useSessionStore } from './useSessionStore';
 import { useModuleStore } from './module/useModuleStore';
 import {
@@ -57,6 +58,25 @@ let detachedBibleVerseId: number | null = null;
  */
 async function refreshBibles(): Promise<void> {
   await useBibleStore.getState().loadAvailableBibles();
+
+  // A Bible that was just uninstalled must not keep being shown in open tabs:
+  // move them to the default Bible (B-030). Skipped while the installed list is
+  // empty, which may just mean it failed to load.
+  {
+    const bibleState = useBibleStore.getState();
+    const installed = bibleState.availableBibles;
+    const fallback = installed.find(b => b.abbreviation === bibleState.getDefaultBible()) ?? installed[0];
+    if (fallback) {
+      const isInstalled = (abbr: string): boolean => installed.some(b => b.abbreviation === abbr);
+      for (const [panelId, ps] of bibleState.panels) {
+        for (const tab of ps.openTabs) {
+          if (tab.abbreviation && !isInstalled(tab.abbreviation)) {
+            bibleState.changeTabVersion(panelId, tab.tabId, fallback.abbreviation, fallback.name);
+          }
+        }
+      }
+    }
+  }
 
   // Seed the reading pane only from the true empty state: no Bible open in any
   // panel, and the saved session (which may be about to restore tabs) already
@@ -224,6 +244,8 @@ export function wireStoreSync(): void {
   setShowSearchResultsPanel(() => {
     useLayoutStore.getState().openSearchResultsPanel();
   });
+  // ...and the panel never outlives that search, whichever path cleared it.
+  installSearchPanelInvariant();
 
   // ==========================================================================
   // When-context publishers (reactive subscriptions)

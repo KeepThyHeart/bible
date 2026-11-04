@@ -2,6 +2,7 @@ import React from 'react';
 import { Bdi } from '@bible/ui';
 import { useI18n } from '../../../contexts/useI18n';
 import NoteEditor from '../editor/NoteEditor';
+import { useNoteEditorStore } from '../../../stores/useNoteEditorStore';
 import type { NoteExportActions } from '../editor/EditorToolbar';
 import { BreadcrumbSegment } from '../NotesBreadcrumb';
 import NoteDirectionControl from './NoteDirectionControl';
@@ -29,6 +30,9 @@ interface UserNotesEditorViewProps {
   /** Reopen `previousNote` (the current note is saved first). */
   onBackToPrevious?: () => void;
 }
+
+// allow-getstate: editor callback - imperative store write outside render
+const normalizeEditorContent = (html: string): void => useNoteEditorStore.getState().normalizeContent(html);
 
 /**
  * The editor surface: sidebar toggle + breadcrumb + Tiptap editor + status bar.
@@ -84,7 +88,7 @@ const UserNotesEditorView: React.FC<UserNotesEditorViewProps> = ({
 
         {/* Inline breadcrumbs with editable title */}
         <nav
-          className="flex items-center gap-1 text-sm min-w-0 flex-1 overflow-x-auto whitespace-nowrap"
+          className="flex items-center gap-1 text-sm min-w-0 flex-1 overflow-hidden whitespace-nowrap"
           aria-label={t('userNotesPane.breadcrumbLabel')}
         >
           {breadcrumbs.map((seg, i, arr) => (
@@ -98,12 +102,15 @@ const UserNotesEditorView: React.FC<UserNotesEditorViewProps> = ({
                 <button
                   type="button"
                   onClick={() => onBreadcrumbNavigate(seg.path)}
-                  className="text-accent-strong hover:text-accent-strong hover:underline transition-colors"
+                  className="min-w-0 text-accent-strong hover:text-accent-strong hover:underline transition-colors"
+                  title={seg.label}
                 >
-                  <Bdi>{seg.label}</Bdi>
+                  {/* dir=auto on the truncating box itself: the ellipsis follows the label's own
+                      direction, not the UI's (RTL UI + Latin folder name cut the wrong end, B-110). */}
+                  <span dir="auto" className="block truncate">{seg.label}</span>
                 </button>
               ) : (
-                <span className="font-medium text-text-heading truncate flex items-center gap-1" aria-current="true">
+                <span className="font-medium text-text-heading flex-shrink-0 flex items-center gap-1" aria-current="true">
                   <Bdi>{seg.label}</Bdi>
                   {/* Edit title icon - verse notes derive their title from the
                       verse reference, so no rename affordance is shown at all
@@ -142,7 +149,7 @@ const UserNotesEditorView: React.FC<UserNotesEditorViewProps> = ({
         {/* Auto-save status indicator */}
         {(isSaving || !editorIsDirty) && (
           <span
-            className={`text-xs flex-shrink-0 ${isSaving ? 'text-text-muted' : 'text-success'}`}
+            className={`text-xs flex-shrink-0 ${isSaving ? 'text-text-muted' : 'text-success-text'}`}
             role="status"
             aria-live="polite"
           >
@@ -180,6 +187,8 @@ const UserNotesEditorView: React.FC<UserNotesEditorViewProps> = ({
         <NoteEditor
           value={editorContent}
           onChange={setEditorContent}
+          onNormalized={normalizeEditorContent}
+          autoFocus
           placeholder={t('userNotesPane.startWritingPlaceholder')}
           exportActions={exportActions}
           defaultDirection={noteDirection ?? undefined}

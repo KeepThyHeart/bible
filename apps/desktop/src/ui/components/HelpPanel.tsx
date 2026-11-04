@@ -194,7 +194,7 @@ const HelpPanel: React.FC<HelpPanelProps> = ({ onClose }) => {
       ))}
 
       <div className="border-t border-border my-1" />
-      <div className="px-4 py-1.5 text-[11px] text-text-muted">
+      <div className="px-4 py-1.5 text-[0.6875rem] text-text-muted">
         {appVersion
           ? t('helpPanel.versionLine', { product: getProductName(), version: appVersion, })
           : getProductName()}

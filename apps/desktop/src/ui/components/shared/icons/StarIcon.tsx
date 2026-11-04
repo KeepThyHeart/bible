@@ -47,8 +47,8 @@ export interface StarButtonProps {
 }
 
 const SIZE_CLASSES: Record<'sm' | 'md', { icon: string; padding: string; fontSize: string }> = {
-  sm: { icon: 'w-3 h-3', padding: '4px 8px', fontSize: '12px' },
-  md: { icon: 'w-4 h-4', padding: '6px 10px', fontSize: '14px' },
+  sm: { icon: 'w-3 h-3', padding: '4px 8px', fontSize: '0.75rem' },
+  md: { icon: 'w-4 h-4', padding: '6px 10px', fontSize: '0.875rem' },
 };
 
 /**

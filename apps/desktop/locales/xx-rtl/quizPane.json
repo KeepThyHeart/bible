@@ -63,5 +63,6 @@
   "quizPane.kind.application": "‏Application‏",
   "quizPane.difficultyBadge.1": "‏Easy‏",
   "quizPane.difficultyBadge.2": "‏Medium‏",
-  "quizPane.difficultyBadge.3": "‏Hard‏"
+  "quizPane.difficultyBadge.3": "‏Hard‏",
+  "quizPane.endedEarly": "‏Ended early: {count} not answered‏"
 }

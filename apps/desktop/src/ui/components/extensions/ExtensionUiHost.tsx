@@ -90,7 +90,7 @@ const ExtensionUiHost: React.FC = () => {
                     : 'var(--theme-pane-header-bg)',
               color: 'var(--theme-accent-text)',
               boxShadow: '0 4px 12px rgba(0,0,0,0.25)',
-              fontSize: 14,
+              fontSize: '0.875rem',
               display: 'flex',
               alignItems: 'flex-start',
               gap: 8,
@@ -113,7 +113,7 @@ const ExtensionUiHost: React.FC = () => {
                         borderRadius: 4,
                         padding: '2px 8px',
                         cursor: 'pointer',
-                        fontSize: 12,
+                        fontSize: '0.75rem',
                       }}
                     >
                       {t(action.label)}
@@ -130,7 +130,7 @@ const ExtensionUiHost: React.FC = () => {
                 color: 'inherit',
                 border: 'none',
                 cursor: 'pointer',
-                fontSize: 16,
+                fontSize: '1rem',
                 lineHeight: 1,
               }}
               aria-label={tUi('extensionUi.dismissNotification')}
@@ -225,7 +225,7 @@ const ExtensionModalHost: React.FC = () => {
           aria-describedby="extension-confirm-message"
           style={cardStyle}
         >
-          <h2 id="extension-confirm-title" style={{ marginTop: 0, fontSize: 18, fontWeight: 600 }}>
+          <h2 id="extension-confirm-title" style={{ marginTop: 0, fontSize: '1.125rem', fontWeight: 600 }}>
             {t(modal.opts.title)}
           </h2>
           <p id="extension-confirm-message" style={{ marginBottom: 16 }}>
@@ -291,7 +291,7 @@ const ExtensionModalHost: React.FC = () => {
               padding: '8px 10px',
               border: '1px solid var(--theme-border-primary)',
               borderRadius: 4,
-              fontSize: 14,
+              fontSize: '0.875rem',
             }}
             data-testid="extension-input-field"
           />
@@ -319,7 +319,7 @@ const ExtensionModalHost: React.FC = () => {
         style={{ ...cardStyle, padding: 0 }}
       >
         {modal.opts?.placeholder && (
-          <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--theme-border-primary)', fontSize: 13, opacity: 0.7 }}>
+          <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--theme-border-primary)', fontSize: '0.8125rem', opacity: 0.7 }}>
             {t(modal.opts.placeholder)}
           </div>
         )}
@@ -344,12 +344,12 @@ const ExtensionModalHost: React.FC = () => {
               >
                 <div style={{ fontWeight: 500 }}>{t(item.label)}</div>
                 {item.description && (
-                  <div style={{ fontSize: 12, opacity: 0.7 }}>
+                  <div style={{ fontSize: '0.75rem', opacity: 0.7 }}>
                     {t(item.description)}
                   </div>
                 )}
                 {item.detail && (
-                  <div style={{ fontSize: 11, opacity: 0.5 }}>
+                  <div style={{ fontSize: '0.6875rem', opacity: 0.5 }}>
                     {t(item.detail)}
                   </div>
                 )}

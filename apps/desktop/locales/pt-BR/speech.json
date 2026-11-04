@@ -21,5 +21,7 @@
   "speech.mic.stop": "Parar",
   "speech.mic.level": "Nível do microfone",
   "speech.mic.denied": "O acesso ao microfone foi negado.",
-  "speech.mic.unavailable": "Não foi possível abrir nenhum microfone."
+  "speech.mic.unavailable": "Não foi possível abrir nenhum microfone.",
+  "speech.status.downloading": "Baixando o modelo…",
+  "speech.downloadHint": "O download se conecta uma vez a huggingface.co (e aos servidores de arquivos hf.co) para obter cerca de 44 MB (Tiny) ou 80 MB (Base); as versões para placa de vídeo são maiores. Somente os arquivos do modelo são solicitados. Sua voz e seu texto nunca são enviados."
 }

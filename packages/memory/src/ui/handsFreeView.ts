@@ -57,7 +57,7 @@ export function handsFreePhaseText(state: ReciteStateView): string {
     hinting: tr('memory.ui.settings.hint', 'Hint'),
     scoring: tr('memory.ui.settings.scoring', 'Scoring'),
     feedback: state.result ? tr('memory.ui.settings.scoredWith', 'Scored {score}', { score: formatScore(state.result.score) }) : tr('memory.ui.settings.scored', 'Scored'),
-    paused: tr('memory.ui.settings.paused', 'Paused'),
+    paused: state.message || tr('memory.ui.settings.paused', 'Paused'),
     summary: tr('memory.ui.settings.allDone', 'All done'),
     done: tr('memory.ui.settings.allDone', 'All done'),
     error: state.error?.message ?? tr('memory.ui.settings.wentWrong', 'Something went wrong'),

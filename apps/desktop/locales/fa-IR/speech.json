@@ -21,5 +21,7 @@
   "speech.mic.stop": "توقف",
   "speech.mic.level": "سطح میکروفون",
   "speech.mic.denied": "دسترسی به میکروفون رد شد.",
-  "speech.mic.unavailable": "هیچ میکروفونی باز نشد."
+  "speech.mic.unavailable": "هیچ میکروفونی باز نشد.",
+  "speech.status.downloading": "در حال دانلود مدل…",
+  "speech.downloadHint": "دانلود یک بار به huggingface.co (و سرورهای فایل hf.co آن) وصل می‌شود تا حدود ۴۴ مگابایت (Tiny) یا ۸۰ مگابایت (Base) بگیرد؛ نسخه‌های کارت گرافیک بزرگ‌ترند. فقط فایل‌های مدل درخواست می‌شوند. صدا و متن شما هرگز ارسال نمی‌شود."
 }

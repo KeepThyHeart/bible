@@ -77,9 +77,10 @@ vi.mock('../../contexts/useI18n', () => ({ useI18n: () => ({ t: (k: string) => k
 vi.mock('../shared/ConfirmDialog', () => ({ default: () => null }));
 vi.mock('./UserNotesPane/hooks/useVerseNoteOpener', () => ({ useVerseNoteOpener: vi.fn() }));
 vi.mock('./UserNotesPane/hooks/usePopOutListener', () => ({ usePopOutListener: vi.fn() }));
+const mockLoadDirectory = vi.fn();
 vi.mock('./UserNotesPane/hooks/useNotesNavigation', () => ({
   useNotesNavigation: () => ({
-    loadDirectory: vi.fn(),
+    loadDirectory: mockLoadDirectory,
     handleOpenNote: vi.fn(),
     handleBreadcrumbNavigate: vi.fn(),
     buildBreadcrumbs: () => [{ label: 'Notes', path: '' }],
@@ -112,6 +113,13 @@ describe('UserNotesPane', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockUseNotesPanel.mockReturnValue({ currentVerseId: null });
+  });
+
+  it('re-reads the folder list when the window regains focus (B-083)', () => {
+    render(<UserNotesPane />);
+    mockLoadDirectory.mockClear();
+    window.dispatchEvent(new Event('focus'));
+    expect(mockLoadDirectory).toHaveBeenCalled();
   });
 
   it('renders the notes pane container', () => {

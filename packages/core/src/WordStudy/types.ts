@@ -97,7 +97,7 @@ export interface WordStudyOverview {
   /** Group studies: whether a stemmer was applied for this module's language. */
   stemming?: boolean;
   /** Why the study is empty or limited, for the UI to show. */
-  notice?: 'no-module' | 'not-tagged' | 'no-occurrences';
+  notice?: 'no-module' | 'not-tagged' | 'no-occurrences' | 'unknown-number';
 }
 
 export interface WordOccurrenceQuery {
@@ -122,6 +122,8 @@ export interface WordOccurrenceItem {
   original?: string;
   /** Verse text in the module, for context display. */
   text?: string;
+  /** Character ranges of `text` that are the divine name (shown in small caps). */
+  divine?: Array<{ start: number; end: number }>;
 }
 
 export interface WordOccurrencePage {

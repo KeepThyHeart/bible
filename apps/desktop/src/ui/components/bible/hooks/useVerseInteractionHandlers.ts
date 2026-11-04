@@ -144,6 +144,22 @@ export function useVerseInteractionHandlers(args: {
         if (markupIds.length === 0) markupIds = undefined;
       }
     }
+    // Right-click on the verse number / margin / unmarked word: still offer "Remove"
+    // for any marks inside this verse, so removal does not depend on aiming at marked words.
+    if (markupIds === undefined) {
+      const verseEl = target.closest?.('[data-verse-id]');
+      const ids = new Set<number>();
+      verseEl?.querySelectorAll?.('.word[data-markup-id]').forEach((el: Element) => {
+        for (const part of (el.getAttribute('data-markup-id') ?? '').split(',')) {
+          const n = parseInt(part, 10);
+          if (!Number.isNaN(n)) ids.add(n);
+        }
+      });
+      if (ids.size > 0) {
+        markupIds = [...ids];
+        markupId = markupIds[0];
+      }
+    }
 
     let versesToCopy: BibleVerseCopy[] = [verse];
     let isMultiple = false;

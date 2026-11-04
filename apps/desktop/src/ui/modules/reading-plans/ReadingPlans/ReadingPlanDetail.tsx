@@ -2,6 +2,7 @@
  * One reading-plan enrollment in detail (task 0073, table task 0196): stats, the full table of days and
  * passages (check, uncheck and open each), this enrollment's schedule settings, calendar export, pause/resume and remove.
  */
+import { saveTextFile } from '../../../utils/saveTextFile';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ReadingPlans } from '@bible/core/browser';
 import { WeekdayPicker } from '@bible/ui';
@@ -88,15 +89,8 @@ const ReadingPlanDetail: React.FC<Props> = ({ enrollmentId, labels, displayName,
       title: name,
       ...(alarm ? { alarmTime: alarm } : {}),
     });
-    const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${name.replace(/[^\p{L}\p{N}]+/gu, '-').replace(/^-|-$/g, '') || 'reading-plan'}.ics`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    const filename = `${name.replace(/[^\p{L}\p{N}]+/gu, '-').replace(/^-|-$/g, '') || 'reading-plan'}.ics`;
+    await saveTextFile(filename, ics, 'text/calendar;charset=utf-8');
   };
 
   const setPacing = (pacing: 'flexible' | 'fixed') => {
@@ -161,7 +155,7 @@ const ReadingPlanDetail: React.FC<Props> = ({ enrollmentId, labels, displayName,
                     className="border-t border-border align-top"
                     style={isToday ? { backgroundColor: 'var(--theme-accent-bg, rgba(59,130,246,0.14))' } : status === 'missed' ? { backgroundColor: 'var(--theme-warning-bg, rgba(250,180,40,0.14))' } : undefined}>
                     <th scope="row" className="text-start p-xs font-medium whitespace-nowrap">
-                      {day}{isToday ? <span className="text-xs ms-xs" style={{ color: 'var(--theme-accent, #3b82f6)' }}>{t('readingPlans.table.today')}</span> : null}
+                      {day}{isToday ? <span className="text-xs ms-xs" style={{ color: 'var(--theme-accent-primary, #3b82f6)' }}>{t('readingPlans.table.today')}</span> : null}
                     </th>
                     {e.pacing === 'fixed' ? <td className="p-xs whitespace-nowrap">{labels.formatDate(ReadingPlans.dateForDay(e, day))}</td> : null}
                     <td className="p-xs">

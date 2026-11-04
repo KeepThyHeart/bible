@@ -517,9 +517,10 @@ export class DictionaryRepository extends BaseModuleRepository<DictionaryModuleI
       transliteration: row.transliteration,
       pronunciation: row.pronunciation,
       partOfSpeech: row.part_of_speech,
-      definition: row.definition ?? '',
+      // Compressed modules (Webster 1828) keep prose cells as BLOB frames; decode them (B-049).
+      definition: this.text((row.definition ?? null) as string | Uint8Array | null),
       etymology: row.etymology,
-      usageNotes: row.usage_notes,
+      usageNotes: row.usage_notes == null ? row.usage_notes : this.text(row.usage_notes as string | Uint8Array),
       semanticRange: row.semantic_range,
       relatedWords: parseJsonField<string[]>(row.related_words) ?? [],
       exampleVerses: parseJsonField<ExampleVerse[]>(row.example_verses) ?? [],

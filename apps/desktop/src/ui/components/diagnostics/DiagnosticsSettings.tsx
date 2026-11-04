@@ -271,7 +271,7 @@ const DiagnosticsSettings: React.FC = () => {
       <section>
         <p
           style={{
-            fontSize: 13,
+            fontSize: '0.8125rem',
             marginTop: 0,
             marginBottom: 8,
             color: 'var(--theme-text-secondary)',
@@ -283,7 +283,7 @@ const DiagnosticsSettings: React.FC = () => {
           style={{
             whiteSpace: 'pre-wrap',
             fontFamily: 'inherit',
-            fontSize: 12,
+            fontSize: '0.75rem',
             margin: 0,
             padding: 12,
             backgroundColor: 'var(--theme-bg-tertiary)',
@@ -300,7 +300,7 @@ const DiagnosticsSettings: React.FC = () => {
         <div
           role="alert"
           style={{
-            fontSize: 13,
+            fontSize: '0.8125rem',
             color: 'var(--theme-danger-text)',
             border: '1px solid var(--theme-danger-border)',
             backgroundColor: 'var(--theme-danger-soft)',
@@ -319,7 +319,7 @@ const DiagnosticsSettings: React.FC = () => {
             display: 'flex',
             alignItems: 'center',
             gap: 8,
-            fontSize: 14,
+            fontSize: '0.875rem',
             cursor: config ? 'pointer' : 'default',
           }}
         >
@@ -337,7 +337,7 @@ const DiagnosticsSettings: React.FC = () => {
             display: 'flex',
             alignItems: 'center',
             gap: 8,
-            fontSize: 14,
+            fontSize: '0.875rem',
             cursor: config ? 'pointer' : 'default',
           }}
         >
@@ -357,7 +357,7 @@ const DiagnosticsSettings: React.FC = () => {
           htmlFor="diagnostics-endpoint-url"
           style={{
             display: 'block',
-            fontSize: 14,
+            fontSize: '0.875rem',
             fontWeight: 500,
             marginBottom: 4,
             color: 'var(--theme-text-primary)',
@@ -377,7 +377,7 @@ const DiagnosticsSettings: React.FC = () => {
           style={{
             width: '100%',
             padding: '6px 8px',
-            fontSize: 13,
+            fontSize: '0.8125rem',
             border: '1px solid var(--theme-border-primary)',
             borderRadius: 4,
             backgroundColor: 'var(--theme-bg-primary)',
@@ -389,7 +389,7 @@ const DiagnosticsSettings: React.FC = () => {
           <p
             id="diagnostics-endpoint-hint"
             style={{
-              fontSize: 12,
+              fontSize: '0.75rem',
               marginTop: 4,
               marginBottom: 0,
               color: 'var(--theme-text-secondary)',
@@ -413,7 +413,7 @@ const DiagnosticsSettings: React.FC = () => {
         >
           <h4
             style={{
-              fontSize: 14,
+              fontSize: '0.875rem',
               fontWeight: 600,
               margin: 0,
               color: 'var(--theme-text-primary)',
@@ -426,7 +426,7 @@ const DiagnosticsSettings: React.FC = () => {
             onClick={() => void loadQueue()}
             disabled={queueLoading}
             style={{
-              fontSize: 12,
+              fontSize: '0.75rem',
               padding: '4px 8px',
               background: 'transparent',
               border: '1px solid var(--theme-border-primary)',
@@ -443,7 +443,7 @@ const DiagnosticsSettings: React.FC = () => {
           <div
             role="alert"
             style={{
-              fontSize: 13,
+              fontSize: '0.8125rem',
               color: 'var(--theme-danger-text)',
               marginBottom: 8,
             }}
@@ -472,7 +472,7 @@ const DiagnosticsSettings: React.FC = () => {
                 : undefined
             }
             style={{
-              fontSize: 12,
+              fontSize: '0.75rem',
               padding: '6px 12px',
               background: 'transparent',
               border: '1px solid var(--theme-border-primary)',
@@ -488,7 +488,7 @@ const DiagnosticsSettings: React.FC = () => {
           <span
             aria-live="polite"
             style={{
-              fontSize: 12,
+              fontSize: '0.75rem',
               color: 'var(--theme-text-secondary)',
             }}
           >
@@ -499,7 +499,7 @@ const DiagnosticsSettings: React.FC = () => {
         {queue.length === 0 && !queueLoading ? (
           <p
             style={{
-              fontSize: 13,
+              fontSize: '0.8125rem',
               color: 'var(--theme-text-secondary)',
               fontStyle: 'italic',
               margin: 0,
@@ -539,7 +539,7 @@ const DiagnosticsSettings: React.FC = () => {
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div
                         style={{
-                          fontSize: 13,
+                          fontSize: '0.8125rem',
                           fontWeight: 500,
                           color: 'var(--theme-text-primary)',
                           display: 'flex',
@@ -549,7 +549,7 @@ const DiagnosticsSettings: React.FC = () => {
                       >
                         <span
                           style={{
-                            fontSize: 11,
+                            fontSize: '0.6875rem',
                             padding: '1px 6px',
                             borderRadius: 3,
                             backgroundColor: 'var(--theme-bg-tertiary)',
@@ -563,7 +563,7 @@ const DiagnosticsSettings: React.FC = () => {
                         <span
                           style={{
                             fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
-                            fontSize: 12,
+                            fontSize: '0.75rem',
                             color: 'var(--theme-text-secondary)',
                             overflow: 'hidden',
                             textOverflow: 'ellipsis',
@@ -576,7 +576,7 @@ const DiagnosticsSettings: React.FC = () => {
                       </div>
                       <div
                         style={{
-                          fontSize: 12,
+                          fontSize: '0.75rem',
                           color: 'var(--theme-text-secondary)',
                           marginTop: 2,
                         }}
@@ -597,7 +597,7 @@ const DiagnosticsSettings: React.FC = () => {
                           : t('diagnosticsSettings.viewReportLabel', { id: entry.id })
                       }
                       style={{
-                        fontSize: 12,
+                        fontSize: '0.75rem',
                         padding: '4px 10px',
                         background: 'transparent',
                         border: '1px solid var(--theme-border-primary)',
@@ -613,7 +613,7 @@ const DiagnosticsSettings: React.FC = () => {
                       onClick={() => void handleDelete(entry.id)}
                       aria-label={t('diagnosticsSettings.deleteReportLabel', { id: entry.id })}
                       style={{
-                        fontSize: 12,
+                        fontSize: '0.75rem',
                         padding: '4px 10px',
                         background: 'transparent',
                         border: '1px solid var(--theme-danger-border)',
@@ -637,7 +637,7 @@ const DiagnosticsSettings: React.FC = () => {
                       {expandedLoading ? (
                         <span
                           style={{
-                            fontSize: 12,
+                            fontSize: '0.75rem',
                             color: 'var(--theme-text-secondary)',
                           }}
                         >
@@ -647,7 +647,7 @@ const DiagnosticsSettings: React.FC = () => {
                         <pre
                           style={{
                             margin: 0,
-                            fontSize: 11,
+                            fontSize: '0.6875rem',
                             fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
                             whiteSpace: 'pre-wrap',
                             wordBreak: 'break-word',
@@ -673,7 +673,7 @@ const DiagnosticsSettings: React.FC = () => {
               type="button"
               onClick={() => void handleDeleteAll()}
               style={{
-                fontSize: 12,
+                fontSize: '0.75rem',
                 padding: '6px 12px',
                 background: 'transparent',
                 border: '1px solid var(--theme-danger-border)',

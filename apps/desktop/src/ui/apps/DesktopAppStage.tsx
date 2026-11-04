@@ -1,5 +1,6 @@
-import React, { useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import React, { useEffect, useRef, useSyncExternalStore } from 'react';
 import { AppRail, AppStage } from '@bible/ui';
+import { announce } from '../services/announcer';
 import { shouldShowRail } from '@bible/core/browser';
 import { useI18n } from '../contexts/useI18n';
 import { translateWithDefault } from '../utils/translateWithDefault';
@@ -31,7 +32,6 @@ export const DesktopAppStage: React.FC = () => {
   const stageRef = useRef<HTMLDivElement>(null);
   const lastFocus = useRef(new Map<string, HTMLElement>());
   const prevActive = useRef<string | null>(null);
-  const [announce, setAnnounce] = useState('');
   const { activeId, pendingId, mounted } = snap;
 
   // Remember the last focused element per app.
@@ -56,7 +56,7 @@ export const DesktopAppStage: React.FC = () => {
     useExtensionUiStore.getState().hideVersePopup(); // allow-getstate: effect - imperative popup close
     window.dispatchEvent(new Event(APP_WILL_HIDE_EVENT));
     const desc = railItems.find((i) => i.id === activeId);
-    setAnnounce(
+    announce(
       t('apps.stage.announce', {
         app: desc ? resolveLabelRef(desc.title, t, i18n) : activeId,
       }),
@@ -101,7 +101,6 @@ export const DesktopAppStage: React.FC = () => {
           pendingId={pendingId}
           fallback={null}
         />
-        <div className="sr-only" role="status" aria-live="polite">{announce}</div>
       </div>
     </>
   );

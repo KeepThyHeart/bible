@@ -63,5 +63,6 @@
   "quizPane.kind.application": "Применение",
   "quizPane.difficultyBadge.1": "Лёгкая",
   "quizPane.difficultyBadge.2": "Средняя",
-  "quizPane.difficultyBadge.3": "Трудная"
+  "quizPane.difficultyBadge.3": "Трудная",
+  "quizPane.endedEarly": "Завершено досрочно: без ответа {count}"
 }

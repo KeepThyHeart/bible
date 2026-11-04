@@ -63,5 +63,6 @@
   "quizPane.kind.application": "应用",
   "quizPane.difficultyBadge.1": "简单",
   "quizPane.difficultyBadge.2": "中等",
-  "quizPane.difficultyBadge.3": "困难"
+  "quizPane.difficultyBadge.3": "困难",
+  "quizPane.endedEarly": "提前结束：{count} 题未作答"
 }

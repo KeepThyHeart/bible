@@ -53,6 +53,7 @@
     "focusSearch": "Enfocar la barra de búsqueda",
     "focusSearchAlt": "Enfocar la barra de búsqueda (cuando no se está escribiendo)",
     "copyDialog": "Abrir el cuadro de diálogo de copiar (cuando no hay texto seleccionado)",
+    "esc": "Esc",
     "closeDialog": "Cerrar cualquier cuadro de diálogo o ventana emergente abierta",
     "audioToggle": "Reproducir o pausar la Biblia en audio",
     "audioVerse": "Versículo anterior / siguiente al escuchar",
@@ -61,6 +62,7 @@
   },
   "settings": {
     "title": "Configuración",
+    "desktopOnly": "Las notas, los resaltados, los marcadores, la memorización de Escritura, los planes de lectura y las listas de oración están disponibles en la aplicación de escritorio.",
     "descMobile": "Toque el icono del engranaje para personalizar el tema, la fuente y la configuración sin conexión.",
     "descDesktop": "Haga clic en el icono del engranaje para personalizar el tema, la familia tipográfica, el tamaño de fuente, el interlineado y la configuración del modo sin conexión."
   },

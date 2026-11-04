@@ -67,5 +67,11 @@ export function suggestKeywords(input: ChapterInput, opts: SuggestOptions = {}):
     if (e.count < minCount) continue;
     out.push({ label: displayKeywordLabel(e.caps * 2 > e.count ? e.label.toUpperCase() : [...e.surf.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? e.label, input.language), rule: { kind: 'word', forms: [e.label] }, count: e.count, verses: [...e.verses].sort((a, b) => a - b) });
   }
-  return out.sort((a, b) => b.count - a.count || a.label.localeCompare(b.label)).slice(0, max);
+  // One row per label, case-insensitively: "spirit" and "Spirit" (two Strong's
+  // numbers, or a tagged and an untagged spelling) read as a duplicate (B-021).
+  const seen = new Set<string>();
+  return out
+    .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label))
+    .filter(sug => { const k = sug.label.toLowerCase(); if (seen.has(k)) return false; seen.add(k); return true; })
+    .slice(0, max);
 }

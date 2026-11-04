@@ -96,6 +96,8 @@ function errorText(code: string): string | undefined {
       return tc('memory.core.micDenied', 'The microphone is blocked. Allow microphone access and try again.');
     case 'mic-busy':
       return tc('memory.core.micBusy', 'The microphone is in use by another app.');
+    case 'mic-none':
+      return tc('memory.core.micNone', 'No microphone was found. Connect one and try again.');
     case 'engine':
       return tc('memory.core.speechEngineFailed', 'Speech recognition stopped working. Try again.');
     case 'not-ready':
@@ -141,6 +143,8 @@ export class HandsFreeLoop {
   private hintCount = 0;
   private stall = 0;
   private noSpeech = 0;
+  /** The pause in force came from silence, not from the reader (B-137): the message says why. */
+  private silencePause = false;
   private lostCount = 0;
   private feedbackSpoken = false;
 
@@ -283,7 +287,7 @@ export class HandsFreeLoop {
       case 'pause': {
         if (s === 'announce' || s === 'ready' || s === 'listen' || s === 'feedback' || s === 'fetch') {
           this.step = 'paused';
-          this.setPhase('paused', tc('memory.core.loopPaused', 'Paused'));
+          this.setPhase('paused', this.pausedMessage());
           this.interrupt();
         }
         return;
@@ -309,8 +313,17 @@ export class HandsFreeLoop {
     }
   }
 
+  private pausedMessage(): string {
+    if (!this.silencePause) return tc('memory.core.loopPaused', 'Paused');
+    // Nothing listens while paused, so name the button on screen in each mode.
+    return this.deps.mode === 'handsfree'
+      ? tc('memory.core.loopPausedSilence', 'No speech was heard, so recitation is paused. Press Resume to continue.')
+      : tc('memory.core.loopPausedSilenceTap', 'No speech was heard. Press Talk to try again.');
+  }
+
   private resume(): void {
     this.noSpeech = 0;
+    this.silencePause = false;
     const handsFree = this.deps.mode === 'handsfree';
     this.step = !this.card || this.result ? 'fetch' : handsFree ? 'announce' : 'listen';
     this.interrupt();
@@ -362,7 +375,7 @@ export class HandsFreeLoop {
             await this.doFeedback(gen);
             break;
           case 'paused':
-            this.setPhase('paused', tc('memory.core.loopPaused', 'Paused'));
+            this.setPhase('paused', this.pausedMessage());
             await this.waitWake(gen);
             break;
           case 'summary':
@@ -589,6 +602,7 @@ export class HandsFreeLoop {
         await this.say(sayHint, c.language);
         return;
       }
+      this.silencePause = true;
       this.act('pause');
       return;
     }
@@ -878,6 +892,7 @@ export class HandsFreeLoop {
     this.hintCount = 0;
     this.stall = 0;
     this.noSpeech = 0;
+    this.silencePause = false;
     this.lostCount = 0;
     this.repeatReq = false;
     this.feedbackSpoken = false;

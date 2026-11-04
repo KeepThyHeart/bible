@@ -95,7 +95,7 @@ describe('PreferencesDialog', () => {
   it('renders all section tabs', () => {
     renderWithProviders(<PreferencesDialog onClose={onClose} />);
     const tabs = screen.getAllByRole('tab');
-    expect(tabs).toHaveLength(12); // includes the always-present Search tab
+    expect(tabs).toHaveLength(12); // includes Search; 'Weights and measures' comes from the measures module
     // Each tab should have the section label
     expect(tabs[0]).toHaveTextContent('General');
     expect(tabs[1]).toHaveTextContent('Typography');
@@ -197,7 +197,7 @@ describe('PreferencesDialog', () => {
     const tablist = screen.getByRole('tablist');
     expect(tablist).toBeInTheDocument();
     const tabs = screen.getAllByRole('tab');
-    expect(tabs).toHaveLength(12); // includes the always-present Search tab
+    expect(tabs).toHaveLength(12); // includes Search; 'Weights and measures' comes from the measures module
   });
 
   it('gives the tablist an accessible name resolved from the catalog', () => {
@@ -242,6 +242,15 @@ describe('PreferencesDialog', () => {
     await user.click(generalButtons[0]);
     expect(await screen.findByTestId('general-section')).toBeInTheDocument();
     expect(dialog()).toHaveClass('h-[min(85vh,700px)]');
+  });
+});
+
+describe('PreferencesDialog - section nav at large UI sizes (B-102)', () => {
+  it('lets the section list scroll instead of clipping the last entries', () => {
+    renderWithProviders(<PreferencesDialog onClose={vi.fn()} />);
+    const nav = screen.getByRole('tablist', { name: 'Preferences sections' });
+    expect(nav).toHaveClass('overflow-y-auto');
+    expect(nav).toHaveClass('min-h-0');
   });
 });
 

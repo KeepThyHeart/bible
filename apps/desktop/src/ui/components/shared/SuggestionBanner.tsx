@@ -27,7 +27,7 @@ const SuggestionBanner: React.FC<SuggestionBannerProps> = ({ verseId, messagePre
         padding: '6px 12px',
         backgroundColor: 'var(--theme-accent-bg, rgba(59, 130, 246, 0.1))',
         borderBottom: '1px solid var(--theme-border-primary)',
-        fontSize: '13px',
+        fontSize: '0.8125rem',
         color: 'var(--theme-text-primary)',
         gap: '8px',
         flexShrink: 0,
@@ -41,7 +41,7 @@ const SuggestionBanner: React.FC<SuggestionBannerProps> = ({ verseId, messagePre
           onClick={onGo}
           style={{
             padding: '2px 10px',
-            fontSize: '12px',
+            fontSize: '0.75rem',
             borderRadius: '4px',
             border: 'none',
             backgroundColor: 'var(--theme-accent-primary)',
@@ -55,7 +55,7 @@ const SuggestionBanner: React.FC<SuggestionBannerProps> = ({ verseId, messagePre
           onClick={onDismiss}
           style={{
             padding: '2px 10px',
-            fontSize: '12px',
+            fontSize: '0.75rem',
             borderRadius: '4px',
             border: '1px solid var(--theme-border-primary)',
             backgroundColor: 'transparent',

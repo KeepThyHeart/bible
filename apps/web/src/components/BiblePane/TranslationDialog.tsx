@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { moduleStore } from '../../stores/moduleStore';
 import { useStore } from '../../hooks/useStore';
+import { useModalFocus } from '../../hooks/useModalFocus';
 import { RECOMMENDED_BIBLES, getBibleDescription } from '../../moduleDescriptions';
 import type { ModuleSection } from '../../types';
 
@@ -118,15 +119,18 @@ export function TranslationDialog({ isOpen, onClose, currentAbbr, onSelect }: Tr
     }
   }, [focusedIndex]);
 
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useModalFocus(isOpen, dialogRef);
+
   if (!isOpen) return null;
 
   return (
       <div class="module-dialog-overlay" onClick={() => onClose()}>
-        <div class="module-dialog" onClick={(e) => e.stopPropagation()}>
+        <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="translation-dialog-title" class="module-dialog" onClick={(e) => e.stopPropagation()}>
           <div class="module-dialog__header">
-            <h3>{t('bibleToolbar.selectTranslation')}</h3>
-            <button class="module-dialog__close" onClick={() => onClose()}>
-              <i class="fa-solid fa-xmark" />
+            <h3 id="translation-dialog-title">{t('bibleToolbar.selectTranslation')}</h3>
+            <button class="module-dialog__close" onClick={() => onClose()} aria-label={t('common.close')} title={t('common.close')}>
+              <i class="fa-solid fa-xmark" aria-hidden="true" />
             </button>
           </div>
           <div class="module-dialog__filter">

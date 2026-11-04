@@ -74,11 +74,16 @@ export function useNotesNavigation(args: UseNotesNavigationArgs): NotesNavigatio
     try {
       const note = await fileNotesAPI.readNote(relativePath);
       if (note) {
+        setFileError(null); // B-144: a banner about the previous note does not follow us here
         setCurrentNote(note);
         setCurrentNotePath(relativePath);
         setView('editor');
         useNoteEditorStore.getState().resetContent(note.content || ''); // allow-getstate: open-note async callback - imperative store reset outside render
         useFileNotesStore.getState().addRecentFile(relativePath, note.title); // allow-getstate: open-note async callback - imperative store update outside render
+      } else {
+        // The file exists but is not a readable .bn (truncated JSON, plain text): say so instead of doing nothing
+        // (B-084). The file is left untouched; its .bak, if any, sits beside it.
+        setFileError(`This note could not be read (the file is not valid .bn data): ${relativePath}. The file was not changed; a .bak copy next to it may hold an earlier version.`);
       }
     } catch (err: unknown) {
       setFileError(`Failed to open note: ${err instanceof Error ? err.message : String(err)}`);

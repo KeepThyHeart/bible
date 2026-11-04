@@ -418,6 +418,8 @@
   "memory.core.listenStartFailed": "Не удалось начать прослушивание.",
   "memory.core.loopGettingReady": "Подготовка",
   "memory.core.loopPaused": "Пауза",
+  "memory.core.loopPausedSilence": "Речь не слышна, поэтому чтение приостановлено. Нажмите «Продолжить».",
+  "memory.core.loopPausedSilenceTap": "Речь не слышна. Нажмите «Говорить», чтобы повторить.",
   "memory.core.loopFinishingUp": "Завершение",
   "memory.core.somethingWentWrong": "Что-то пошло не так.",
   "memory.core.loopFindingNext": "Поиск следующего отрывка",
@@ -558,5 +560,9 @@
   "memory.ui.plan.reciteHandsFree": "Без рук",
   "memory.ui.plan.reciteHandsFreeHint": "Говорите и слушайте, не касаясь экрана",
   "memory.core.loopPracticeOnly": "Только практика. Ничего не оценивалось.",
-  "memory.ui.settings.practiceOnlyShort": "Только практика. Ничего не оценивалось."
+  "memory.ui.settings.practiceOnlyShort": "Только практика. Ничего не оценивалось.",
+  "memory.ui.plan.removeConfirmNew": "Убрать этот отрывок из вашего списка?",
+  "memory.ui.plan.alreadyInList": "{reference} уже есть в вашем списке.",
+  "memory.ui.plan.reciteHandsFreeNoVoice": "Для режима без рук приложение должно уметь говорить, а на этом компьютере нет доступного голоса синтеза речи.",
+  "memory.core.micNone": "Микрофон не найден. Подключите микрофон и повторите попытку."
 }

@@ -4,6 +4,7 @@
     "button": "מילות מפתח",
     "buttonTitle": "סימוני מילות מפתח",
     "toggle": "סימוני מילות מפתח",
+    "showMarks": "הצגת סימונים",
     "empty": "אין מילות מפתח תואמות בפרק זה.",
     "count": "{count, plural, one {הופעה #} two {# הופעות} other {# הופעות}}",
     "show": "הצגת {label}",

@@ -703,6 +703,7 @@
 .kth-ws-occ__ref { font-weight: 600; }
 .kth-ws-occ__morph { color: var(--kth-text-muted); font-size: 0.85em; }
 .kth-ws-occ__text { overflow-wrap: anywhere; line-height: 1.5; }
+.kth-ws-occ__divine { font-variant-caps: small-caps; }
 .kth-ws-hit { padding-inline: 1px; border-radius: 2px; background: var(--kth-accent-soft); color: inherit; font-weight: 600; }
 .kth-ws-occurrences__count { color: var(--kth-text-muted); }
 .kth-ws-occurrences__more { align-self: center; }

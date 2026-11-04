@@ -123,4 +123,11 @@ describe('quiz module in the desktop host', () => {
     await b.featureModules.fire('onApp:quiz');
     expect(b.featureModules.isActive('quiz')).toBe(true);
   }, 60_000);
+
+  it('registers its i18n namespace even when the module is switched off, so palette commands do not show raw keys (B-071)', async () => {
+    const { bindNamespaceRegistrar } = await boot('-quiz');
+    const registered: string[] = [];
+    bindNamespaceRegistrar((ns) => registered.push(ns));
+    expect(registered).toContain('quizPane');
+  });
 });

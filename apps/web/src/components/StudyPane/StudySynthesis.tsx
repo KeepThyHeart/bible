@@ -2,6 +2,7 @@ import { useState, useEffect } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { useVersePopup } from '../../hooks/useVersePopup';
 import { commentaryStore } from '../../stores/commentaryStore';
+import { moduleStore } from '../../stores/moduleStore';
 import { studyStore } from '../../stores/studyStore';
 import { useStore } from '../../hooks/useStore';
 import { DIGEST_MODULE_ABBR, getDigestDisplayName } from '../../moduleDescriptions';
@@ -34,6 +35,16 @@ export function StudySynthesis({ bibleProvider }: StudySynthesisProps) {
     if (!book || !chapter) {
       setEntries([]);
       setLoaded(false);
+      return;
+    }
+
+    // Without the digest module installed the request can only 404 (and log a
+    // console error on every chapter load). Only trust the list once it is known.
+    const installed = moduleStore.getCommentaryModules();
+    if (installed.length > 0 && !installed.some(m => m.abbreviation.toLowerCase() === DIGEST_MODULE_ABBR.toLowerCase())) {
+      setEntries([]);
+      setLoading(false);
+      setLoaded(true);
       return;
     }
 

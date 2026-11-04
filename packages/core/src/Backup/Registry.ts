@@ -115,7 +115,9 @@ export const USER_TABLES: readonly TableSpec[] = [
     name: 'collection', pk: ['collection_id'], autoId: true, cls: 'content', origin: 'both',
     columns: ['collection_id', 'parent_collection_id', 'name', 'description', 'color', 'icon', 'created_date', 'modified_date', 'sort_order', 'metadata'],
     fks: [{ column: 'parent_collection_id', table: 'collection', sql: true, onMissing: 'null' }],
-    identity: contentAll(),
+    // Dates and order differ between computers for what is the same collection (every profile creates its own
+    // default bookmarks collection); matching on them made a merge add a second one that no screen shows (B-077).
+    identity: contentAll(['created_date', 'modified_date', 'sort_order']),
   },
   {
     name: 'pinned_item', pk: ['pin_id'], autoId: true, cls: 'content', origin: 'both',
@@ -280,7 +282,7 @@ export const USER_TABLES: readonly TableSpec[] = [
     fks: [], identity: { kind: 'unique', columns: ['command_id', 'key'], conflict: 'keepLocal' },
   },
   {
-    name: 'setting', pk: ['setting_id'], autoId: true, cls: 'workspace', origin: 'core',
+    name: 'setting', pk: ['setting_id'], autoId: true, cls: 'content', origin: 'core',
     columns: ['setting_id', 'category', 'key', 'value', 'value_type', 'description', 'metadata'],
     fks: [], identity: { kind: 'unique', columns: ['category', 'key'], conflict: 'keepLocal' },
     skipInMerge: (row) => row.category === 'system',

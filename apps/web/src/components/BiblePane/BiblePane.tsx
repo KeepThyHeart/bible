@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'preact/hooks';
+import { useTranslation } from 'react-i18next';
 import { BibleTabBar } from './BibleTabBar';
 import { BibleToolbar } from './BibleToolbar';
 import { BackBar } from './BackBar';
@@ -11,6 +12,9 @@ import { moduleStore } from '../../stores/moduleStore';
 import { settingsStore } from '../../stores/settingsStore';
 import { useStore } from '../../hooks/useStore';
 import { PropsSlotOutlet, readerPaneEffects, readerTransport } from '../../host/slots';
+import { announce } from '../../utils/announcer';
+import { getLocalizedBookName } from '../../utils/bookNames';
+import { isSingleChapterBook } from '../../constants';
 import { contentSwipeStep } from '../../utils/contentDirection';
 import type { IInterlinearDataProvider, IStrongsProvider } from '../../providers/interfaces';
 import type { InterlinearWordData, StrongsEntryData } from '../../types';
@@ -39,6 +43,7 @@ export function BiblePane({
   onCommentaryVerse,
   hideBars,
 }: BiblePaneProps) {
+  const { t } = useTranslation();
   const tab = useStore(bibleStore, () => bibleStore.getActiveTab());
   const activeTabId = useStore(bibleStore, () => bibleStore.activeTabId);
   const showHome = useStore(bibleStore, () => bibleStore.showHome);
@@ -172,6 +177,16 @@ export function BiblePane({
     };
     return () => { bibleStore.getScrollTop = null; };
   }, []);
+
+  // Tell screen readers a chapter has loaded (focus stays where it is).
+  const loadedKey = !showHome && tab && !tab.loading && tab.verses.length > 0
+    ? `${tab.moduleAbbr}|${tab.book}|${tab.chapter}` : '';
+  useEffect(() => {
+    if (!loadedKey || !tab?.book) return;
+    const name = getLocalizedBookName(tab.book);
+    const ref = isSingleChapterBook(tab.book) ? name : `${name} ${tab.chapter}`;
+    announce(t('a11y.chapterLoaded', '{ref} loaded', { ref }));
+  }, [loadedKey]);
 
   // Whether the verses are currently replaced by the interlinear spinner.
   // Derived with the same helper BibleContent renders from, so the pane never
@@ -461,6 +476,7 @@ export function BiblePane({
     <div class={`bible-pane ${displayMode === 'reading' ? 'bible-pane--reading' : ''}`}>
       <PropsSlotOutlet slot={readerPaneEffects} props={paneEffectProps} />
       {!hideBars && <BibleTabBar />}
+      {!showHome && <h1 class="sr-only">{t('a11y.readerTitle', 'Bible reader')}</h1>}
       {showHome ? (
         <div class="bible-pane__scroll-container">
           <HomeScreen />

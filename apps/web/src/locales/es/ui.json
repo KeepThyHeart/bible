@@ -51,7 +51,8 @@
     "rose": "Rosa",
     "arctic": "Ártico",
     "autumn": "Otoño",
-    "lagoon": "Laguna"
+    "lagoon": "Laguna",
+    "high-contrast": "Alto contraste"
   },
   "bibleToolbar": {
     "history": "Historial",
@@ -71,6 +72,8 @@
     "modeStandard": "Estándar",
     "modeReading": "Lectura",
     "modeStudy": "Estudio",
+    "modeHint": "La vista de estudio muestra los números de Strong y las palabras interlineales de las traducciones que los incluyen, como KJV.",
+    "modeLabel": "Modo de visualización",
     "recentPassages": "Pasajes recientes",
     "noHistory": "Todavía no se ha visitado ningún pasaje"
   },
@@ -90,6 +93,7 @@
     "notesUnavailable": "Esta traducción no incluye notas del editor.",
     "interlinearLoading": "Cargando los datos interlineales...",
     "interlinearUnavailable": "Esta traducción no tiene datos interlineales para este pasaje.",
+    "chapterNotFound": "Referencia no encontrada: {ref} no existe en esta traducción.",
     "coverageNone": "No hay contenido disponible en esta traducción.",
     "coverageNTOnly": "Esta traducción solo tiene contenido del Nuevo Testamento.",
     "coverageOTOnly": "Esta traducción solo tiene contenido del Antiguo Testamento.",
@@ -119,6 +123,7 @@
     "ideasHint": "La búsqueda de ideas intenta encontrar pasajes por su significado, aunque la redacción sea diferente.",
     "closeSearch": "Cerrar la búsqueda",
     "results": "{count, plural, one {# resultado} other {# resultados}}",
+    "resultsWithApproximate": "{count, plural, one {# resultado} other {# resultados}}, más {approximate} aproximados",
     "searching": "Buscando...",
     "keywordBanner": "{count, plural, one {También hay # coincidencia por palabra clave.} other {También hay # coincidencias por palabra clave.}}",
     "viewInstead": "¿Ver esos en su lugar?",
@@ -227,7 +232,10 @@
       "resetTextSizes": "Restablecer los tamaños de texto",
       "resetTextSizesTitle": "Restaurar los tamaños de texto y el interlineado predeterminados",
       "interlinearStackedShort": "Apilado",
-      "interlinearInlineShort": "En línea"
+      "interlinearInlineShort": "En línea",
+      "popoverTitle": "Tamaño del texto",
+      "popoverReset": "Restablecer",
+      "moreOptions": "Más opciones de texto…"
     },
     "theme": {
       "resetAll": "Restablecer todo",
@@ -356,7 +364,9 @@
       "resetCacheHint": "Borra los archivos guardados de esta app y el service worker en segundo plano de este dispositivo, y luego recarga. Úsalo si la app parece desactualizada o falla. Se conservan tus ajustes, módulos descargados y notas.",
       "resetCacheConfirm": "¿Restablecer la caché de la app? La app se recargará y volverá a descargar sus archivos; se conservan tus ajustes y módulos descargados.",
       "appName": "Aplicación de estudio bíblico",
+      "versionLine": "Versión {version} (compilación {build})",
       "description": "Una aplicación moderna y de código abierto para el estudio de la Biblia, diseñada para la lectura y la investigación de la Escritura en profundidad.",
+      "desktopOnly": "Las notas, los resaltados, los marcadores, la memorización de Escritura, los planes de lectura y las listas de oración están disponibles en la aplicación de escritorio.",
       "license": "Con licencia <strong>GNU General Public License v3.0</strong> (GPL-3.0).",
       "licenseDetails": "Este software se puede usar, modificar y distribuir libremente según los términos de la GPL v3. Se agradecen el código fuente y las contribuciones.",
       "viewOnGithub": "Ver en GitHub"
@@ -540,6 +550,7 @@
     "verseLevelNotes": "Hay notas a nivel de versículo en",
     "passageLevelNotes": "Hay notas a nivel de pasaje para",
     "noEntriesChapter": "Este comentario no tiene entradas para este capítulo.",
+    "offlineNotice": "Está sin conexión. El comentario se cargará de nuevo cuando se restablezca la conexión.",
     "about": "Acerca de este comentario",
     "aboutName": "Nombre",
     "aboutAuthor": "Autor",
@@ -578,7 +589,8 @@
     "navigateToAPassageTo": "Vaya a un pasaje para ver el comentario.",
     "noCommentaryDataAvailable": "No hay datos de comentario disponibles.",
     "noCommentariesHaveContentFor": "Ningún comentario tiene contenido para este versículo.",
-    "noContentForThisVerse": "No hay contenido para este versículo."
+    "noContentForThisVerse": "No hay contenido para este versículo.",
+    "noCommentaryOn": "No hay comentario sobre {passage}"
   },
   "commentaryTabBar": {
     "overview": "Resumen de comentarios",
@@ -623,6 +635,8 @@
     "searchAll": "Buscar en todos los diccionarios...",
     "searching": "Buscando...",
     "noDictionaries": "No hay diccionarios disponibles.",
+    "loadFailed": "No se pudieron cargar los diccionarios. Compruebe su conexión.",
+    "retry": "Reintentar",
     "unstar": "Quitar de destacados",
     "star": "Destacar (fijar arriba)"
   },
@@ -777,7 +791,9 @@
     "topics": "Temas",
     "browseAllTopics": "Explorar todos los temas",
     "interlinear": "Interlineal",
-    "topicsBrowser": "Explorador de temas"
+    "topicsBrowser": "Explorador de temas",
+    "dictionary": "Diccionario",
+    "lookUpWord": "Buscar una palabra o un número de Strong"
   },
   "studyHomePage": {
     "commentarySummary": "Resumen de comentarios",
@@ -849,6 +865,7 @@
   "semanticSearchLoadingOverlay": {
     "dismiss": "Descartar",
     "loading": "Cargando la búsqueda de ideas…",
+    "unavailable": "La búsqueda por ideas no está disponible en este momento.",
     "step": "Paso {step} de 3: {label}"
   },
   "login": {
@@ -915,5 +932,39 @@
     "quiz": {
       "title": "Cuestionario"
     }
+  },
+  "remoteSemantic": {
+    "consent": {
+      "title": "La búsqueda por significado usa un servicio en línea",
+      "body": "Para encontrar versículos por su significado, las palabras de su búsqueda se envían a nuestro servicio de búsqueda, que usa un proveedor externo de inteligencia artificial para determinar qué significan. Se envían sin su nombre ni su cuenta.",
+      "ipNotice": "El servicio ve su dirección IP, como cualquier sitio web.",
+      "neverSent": "Su lectura de la Biblia, sus notas y el resto de sus datos nunca se envían.",
+      "agree": "Aceptar y buscar",
+      "decline": "Ahora no"
+    },
+    "note": {
+      "declined": "La búsqueda por significado está desactivada. Puede activarla en Configuración.",
+      "degraded": "Se muestran resultados por palabras clave (el servicio de significado no estaba disponible).",
+      "quota": "Se alcanzó el límite diario de la búsqueda por significado. Se restablece a las {time}. Se muestran resultados por palabras clave.",
+      "quotaNoTime": "Se alcanzó el límite diario de la búsqueda por significado. Se muestran resultados por palabras clave.",
+      "paused": "La búsqueda por significado está en pausa durante un tiempo. Se muestran resultados por palabras clave.",
+      "unavailable": "La búsqueda por significado no está disponible en este momento. Se muestran resultados por palabras clave.",
+      "rephrase": "Pruebe con una frase más larga o distinta para la búsqueda por significado. Se muestran resultados por palabras clave."
+    },
+    "settings": {
+      "title": "Búsqueda",
+      "toggle": "Usar la búsqueda por significado en línea",
+      "statusUnset": "No activo hasta que acepte en el primer uso",
+      "statusGranted": "Activado. Aceptó el {date}.",
+      "statusDeclined": "Desactivado"
+    }
+  },
+  "a11y": {
+    "skipToContent": "Saltar al contenido",
+    "skipToSearch": "Saltar a la búsqueda",
+    "readerTitle": "Lector de la Biblia",
+    "studyPane": "Panel de estudio",
+    "mobileNav": "Navegación principal",
+    "chapterLoaded": "{ref} cargado"
   }
 }

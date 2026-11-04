@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
+import { announceKey } from '../services/announcer';
 import { useHighlightStore } from '../stores/useHighlightStore';
 import { IPCHighlightRepository } from '../services/highlightsAPI';
 import { HighlightColor, MarkupType, UnderlineStyle, UserTextMarkup } from '@bible/core';
@@ -26,14 +27,13 @@ export function useBibleHighlights(
   bibleTextRef: React.RefObject<HTMLDivElement | null>,
 ) {
   const highlightRepository = useRef<IPCHighlightRepository>(new IPCHighlightRepository()).current;
-  const {
-    loadHighlightsForVerseRange,
-    createHighlight,
-    deleteHighlight,
-    lastUsedColor,
-    setLastUsedColor,
-    recordMarkupStyle,
-  } = useHighlightStore();
+  // Selectors, not the whole store: `loading` flips must not re-render every pane (B-131).
+  const loadHighlightsForVerseRange = useHighlightStore(s => s.loadHighlightsForVerseRange);
+  const createHighlight = useHighlightStore(s => s.createHighlight);
+  const deleteHighlight = useHighlightStore(s => s.deleteHighlight);
+  const lastUsedColor = useHighlightStore(s => s.lastUsedColor);
+  const setLastUsedColor = useHighlightStore(s => s.setLastUsedColor);
+  const recordMarkupStyle = useHighlightStore(s => s.recordMarkupStyle);
 
   // Highlight menu state
   const [highlightMenu, setHighlightMenu] = useState<HighlightMenuState>({
@@ -181,6 +181,7 @@ export function useBibleHighlights(
 
     try {
       await createHighlight(markup as any, highlightRepository);
+      announceKey(markupType === 'underline' ? 'a11y.announce.underlineApplied' : 'a11y.announce.highlightApplied');
       // Only a mark that actually saved is worth offering back.
       recordMarkupStyle({ markupType, color, underlineStyle, underlineColor });
     } catch (error) {
@@ -217,6 +218,7 @@ export function useBibleHighlights(
     }
     try {
       await deleteHighlight(markupId, activeTab.moduleId, highlightRepository);
+      announceKey('a11y.announce.highlightRemoved');
     } catch (error) {
       console.error('[BiblePane] Failed to remove highlight:', error);
     }
@@ -240,6 +242,7 @@ export function useBibleHighlights(
 
     try {
       await createHighlight(markup as any, highlightRepository);
+      announceKey('a11y.announce.highlightApplied');
       recordMarkupStyle({ markupType: 'highlight', color });
     } catch (error) {
       console.error('[BiblePane] Failed to create highlight from floating toolbar:', error);
@@ -271,6 +274,7 @@ export function useBibleHighlights(
 
     try {
       await createHighlight(markup as any, highlightRepository);
+      announceKey('a11y.announce.underlineApplied');
       recordMarkupStyle({
         markupType: 'underline',
         color: lastUsedColor,

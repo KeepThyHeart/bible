@@ -74,6 +74,7 @@
   "readingPlans.card.open": "खोलें",
   "readingPlans.card.markDayRead": "दिन को पढ़ा हुआ चिह्नित करें",
   "readingPlans.card.markDayUnread": "दिन को अपठित चिह्नित करें",
+  "readingPlans.card.markDayConfirm": "आज का कोई भी पठन चिह्नित नहीं है। फिर भी पूरे दिन को पढ़ा हुआ चिह्नित करें?",
   "readingPlans.card.completed": "यह योजना पूरी हो गई है। बहुत बढ़िया!",
   "readingPlans.card.notStarted": "यह योजना अभी शुरू नहीं हुई है।",
   "readingPlans.card.restDay": "विश्राम का दिन",
@@ -182,5 +183,6 @@
   "readingPlans.reader.next": "Next reading →",
   "readingPlans.reader.nextNamed": "Next reading: {reading}",
   "readingPlans.reader.lastReading": "That was the last reading of the plan.",
-  "readingPlans.reader.failed": "Could not save. Try again."
+  "readingPlans.reader.failed": "Could not save. Try again.",
+  "readingPlans.today.pastEnd": "इस योजना की निर्धारित अवधि समाप्त हो गई है। जो पढ़ा नहीं गया वह विलंबित गिना जाता है; अपनी गति से पढ़ने के लिए लचीली गति पर जाएँ।"
 }

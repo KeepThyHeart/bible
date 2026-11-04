@@ -111,7 +111,7 @@ export const ModuleTableRow: React.FC<ModuleTableRowProps> = ({
           className="text-start block w-full min-w-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded"
         >
           <span className="block text-sm font-medium text-text-heading break-words">
-            {row.name}
+            <bdi>{row.name}</bdi>
             {isRecommendedModule(row.catalogModule) && (
               <span className="ms-2 align-middle text-xs px-1.5 py-0.5 bg-success-soft text-success-text rounded">
                 {td('moduleCard.recommended', 'Recommended')}
@@ -124,8 +124,8 @@ export const ModuleTableRow: React.FC<ModuleTableRowProps> = ({
       <td className="px-4 py-2 text-sm text-text-secondary whitespace-nowrap">
         {row.language_code ? row.language_code.toUpperCase() : '—'}
       </td>
-      <td className="px-4 py-2 text-sm text-text-secondary whitespace-nowrap">{versionText}</td>
-      <td className="px-4 py-2 text-sm text-text-secondary whitespace-nowrap">
+      <td dir="ltr" className="px-4 py-2 text-sm text-text-secondary whitespace-nowrap text-start">{versionText}</td>
+      <td dir="ltr" className="px-4 py-2 text-sm text-text-secondary whitespace-nowrap text-start">
         {formatFileSize(row.catalogModule?.download_size_bytes)}
       </td>
       <td className="px-4 py-2 text-sm whitespace-nowrap" data-testid={`module-row-status-${abbrev}`} data-status={status}>

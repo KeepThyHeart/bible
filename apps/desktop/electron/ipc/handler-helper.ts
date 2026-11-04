@@ -127,7 +127,7 @@ function classifyError(channel: string, err: unknown): IpcError {
   // and carry a code the renderer can branch on (e.g. to show an offline
   // banner instead of a generic failure).
   if (err instanceof NetworkBlockedError) {
-    log.warn(`[${channel}] network_blocked: ${err.message}`);
+    log.warn(`[${channel}] network_blocked: ${err.context}`);
     return { code: 'network_blocked', message: err.message };
   }
 

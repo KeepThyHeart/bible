@@ -365,4 +365,26 @@ describe('VerseRefList', () => {
       expect(container.querySelector('.verse-ref-list__load-more-inline')).toBeNull();
     });
   });
+
+  it('scrolls the "+N added" note into view after load more (B-099)', async () => {
+    const orig = Element.prototype.scrollIntoView;
+    const spy = vi.fn();
+    Element.prototype.scrollIntoView = spy;
+    vi.useFakeTimers();
+    try {
+      const a = [{ startVerseId: 43003016 }, { startVerseId: 43003017 }];
+      const props = { totalCount: 50, hasMore: true, onLoadMore: vi.fn() };
+      const { container, rerender } = render(<VerseRefList verses={a} {...props} />);
+      rerender(<VerseRefList verses={[...a, { startVerseId: 43003018 }]} {...props} />);
+      await act(async () => { await vi.advanceTimersByTimeAsync(50); });
+      const note = container.querySelector('.verse-ref-list__added')!;
+      expect(note.textContent).toContain('+1 added');
+      // B-181: it is a screen-reader status, not text to read on the page.
+      expect(note.classList.contains('sr-only')).toBe(true);
+      expect(spy.mock.contexts).toContain(note);
+    } finally {
+      vi.useRealTimers();
+      Element.prototype.scrollIntoView = orig;
+    }
+  });
 });

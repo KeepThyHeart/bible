@@ -48,7 +48,7 @@ describe('WordStudyView', () => {
     expect(screen.getByRole('heading', { name: 'Range of meaning' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Word family' })).toBeInTheDocument();
     expect(screen.getByText('Ref 1')).toBeInTheDocument();
-    expect(screen.getByText('Showing 1 of 3')).toBeInTheDocument();
+    expect(screen.getByText((_, el) => (el?.textContent ?? '').replace(/[\u2068\u2069]/g, '') === 'Showing 1 of 3' && el!.children.length === 0)).toBeInTheDocument();
   });
 
   it('omits family when empty and uses "Forms found" for groups', () => {

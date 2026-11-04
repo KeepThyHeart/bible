@@ -74,6 +74,7 @@
   "readingPlans.card.open": "Abrir",
   "readingPlans.card.markDayRead": "Marcar día como leído",
   "readingPlans.card.markDayUnread": "Marcar día como no leído",
+  "readingPlans.card.markDayConfirm": "No hay ninguna lectura de hoy marcada. ¿Marcar de todos modos todo el día como leído?",
   "readingPlans.card.completed": "Este plan ha terminado. ¡Bien hecho!",
   "readingPlans.card.notStarted": "Este plan aún no ha comenzado.",
   "readingPlans.card.restDay": "Día de descanso",
@@ -182,5 +183,6 @@
   "readingPlans.reader.next": "Next reading →",
   "readingPlans.reader.nextNamed": "Next reading: {reading}",
   "readingPlans.reader.lastReading": "That was the last reading of the plan.",
-  "readingPlans.reader.failed": "Could not save. Try again."
+  "readingPlans.reader.failed": "Could not save. Try again.",
+  "readingPlans.today.pastEnd": "El periodo programado de este plan terminó. Todo lo no leído cuenta como atrasado; cambie al ritmo flexible para leer a su propio paso."
 }

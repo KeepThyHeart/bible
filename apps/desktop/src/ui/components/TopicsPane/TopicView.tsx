@@ -34,7 +34,7 @@ const TopicView: React.FC<TopicViewProps> = ({
 }) => {
   const { t } = useI18n();
   if (loading || !detail) {
-    return <div style={{ textAlign: 'center', padding: '20px', color: 'var(--theme-text-secondary)', fontSize: '13px' }}>{t('topicsPane.loadingTopic')}</div>;
+    return <div style={{ textAlign: 'center', padding: '20px', color: 'var(--theme-text-secondary)', fontSize: '0.8125rem' }}>{t('topicsPane.loadingTopic')}</div>;
   }
 
   return (
@@ -46,7 +46,7 @@ const TopicView: React.FC<TopicViewProps> = ({
 
       {/* Breadcrumb */}
       {detail.parent_chain.length > 0 && (
-        <div data-testid="topic-breadcrumb" style={{ fontSize: '12px', color: 'var(--theme-text-secondary)', marginBottom: '8px', display: 'flex', flexWrap: 'wrap', gap: '2px' }}>
+        <div data-testid="topic-breadcrumb" style={{ fontSize: '0.75rem', color: 'var(--theme-text-secondary)', marginBottom: '8px', display: 'flex', flexWrap: 'wrap', gap: '2px' }}>
           {detail.parent_chain.map((p, i) => (
             <span key={p.topic_id}>
               <span
@@ -65,7 +65,7 @@ const TopicView: React.FC<TopicViewProps> = ({
 
       {/* Topic header */}
       <div style={{ marginBottom: '12px' }}>
-        <h3 data-testid="topic-name" style={{ fontSize: '16px', fontWeight: 600, margin: '0 0 4px 0' }}>{detail.topic.name}</h3>
+        <h3 data-testid="topic-name" style={{ fontSize: '1rem', fontWeight: 600, margin: '0 0 4px 0' }}>{detail.topic.name}</h3>
         {/*
           Which index this is. "Jericho" reads identically in Nave's and in
           Torrey's, and with nothing on the page naming the source a reader had
@@ -75,7 +75,7 @@ const TopicView: React.FC<TopicViewProps> = ({
           the pair reads as "you are here / and also there".
         */}
         {detail.source_name && (
-          <div data-testid="topic-source" style={{ fontSize: '12px', color: 'var(--theme-text-secondary)' }}>
+          <div data-testid="topic-source" style={{ fontSize: '0.75rem', color: 'var(--theme-text-secondary)' }}>
             {t('topicsPane.fromSource', { source: detail.source_name })}
           </div>
         )}
@@ -86,7 +86,7 @@ const TopicView: React.FC<TopicViewProps> = ({
           is countable here is passages; the label names both so the number
           and the list agree.
         */}
-        <div data-testid="topic-verse-count" style={{ fontSize: '12px', color: 'var(--theme-text-secondary)' }}>
+        <div data-testid="topic-verse-count" style={{ fontSize: '0.75rem', color: 'var(--theme-text-secondary)' }}>
           {typeof detail.reference_count === 'number'
             ? detail.reference_count === 1
               ? t('topicsPane.passageCountOne')
@@ -99,7 +99,7 @@ const TopicView: React.FC<TopicViewProps> = ({
 
       {/* Also in */}
       {alsoIn.length > 0 && (
-        <div data-testid="topic-also-in" style={{ fontSize: '12px', color: 'var(--theme-text-secondary)', marginBottom: '12px' }}>
+        <div data-testid="topic-also-in" style={{ fontSize: '0.75rem', color: 'var(--theme-text-secondary)', marginBottom: '12px' }}>
           {t('topicsPane.alsoIn')}{' '}
           {alsoIn.map((a, i) => (
             <span key={`${a.source_abbreviation}-${a.topic_id}`}>
@@ -118,7 +118,7 @@ const TopicView: React.FC<TopicViewProps> = ({
 
       {/* Description */}
       {detail.topic.description && (
-        <div style={{ fontSize: '13px', lineHeight: '1.5', marginBottom: '12px', color: 'var(--theme-text-secondary)' }}>
+        <div style={{ fontSize: '0.8125rem', lineHeight: '1.5', marginBottom: '12px', color: 'var(--theme-text-secondary)' }}>
           {detail.topic.description}
         </div>
       )}
@@ -126,7 +126,7 @@ const TopicView: React.FC<TopicViewProps> = ({
       {/* Sub-topics as cards */}
       {detail.children.length > 0 && (
         <div data-testid="topic-subtopics" style={{ marginBottom: '16px' }}>
-          <div style={{ fontSize: '13px', fontWeight: 600, marginBottom: '8px' }}>{t('topicsPane.subTopics')}</div>
+          <div style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '8px' }}>{t('topicsPane.subTopics')}</div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '8px' }}>
             {detail.children.map(c => (
               <TopicCard
@@ -155,7 +155,7 @@ const TopicView: React.FC<TopicViewProps> = ({
       {/* Verses */}
       {verses.length > 0 && (
         <div data-testid="topic-verses">
-          <div style={{ fontSize: '13px', fontWeight: 600, marginBottom: '4px' }}>{t('topicsPane.verses')}</div>
+          <div style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '4px' }}>{t('topicsPane.verses')}</div>
           <VerseListWithPreview
             verses={verses.map(v => ({ start_verse_id: v.start_verse_id, end_verse_id: v.end_verse_id, context: v.context }))}
             currentVerseId={currentVerseId ?? undefined}

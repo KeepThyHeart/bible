@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useOverlayDismissal } from '../hooks/useOverlayDismissal';
+import { useDockviewTabA11y } from '../hooks/useDockviewTabA11y';
 import { createPortal } from 'react-dom';
 import type { IDockviewPanelHeaderProps } from 'dockview-react';
 import type { PanelContentType } from '../stores/useLayoutStore';
@@ -29,25 +30,16 @@ import { declaredPanelWindowSize } from '../extensions/panelWindowSize';
 import { tabIconFor } from './paneIcons';
 
 /**
- * A literal chrome size, expressed so it still resolves to exactly that
- * literal at the default setting but tracks the "UI Control Font Size" slider
- * and the global font scale.
- *
- * These sizes are inline styles, which outrank any stylesheet - so the CSS
- * rule for `.dockview-tab-content` could not scale the tab strip no matter how
- * it was written, and the slider appeared to do nothing. Scaling each literal
- * by the same ratio also keeps the hierarchy: a 10px subtitle stays visibly
- * smaller than its 14px title at every slider position, which a single
- * inherited font-size would flatten. Same approach as `uiScaled()` in
- * StudyPane.tsx.
+ * A literal chrome size in rem (B-045). The UI size setting scales the rem
+ * root (`--ui-scale` on <html>), so each literal px value is expressed as rem
+ * and follows it with no further multiplication. The sizes are inline styles,
+ * which outrank any stylesheet, so they have to be rem here. Keeping each
+ * literal separate preserves the hierarchy (a 10px subtitle stays smaller than
+ * its 14px title at every scale).
  */
 function controlScaled(px: number): string {
-  const ratio = px / DEFAULT_UI_CONTROL_FONT_SIZE;
-  return `calc(var(--ui-control-font-size, ${DEFAULT_UI_CONTROL_FONT_SIZE}px) * ${ratio} * var(--global-font-scale, 1))`;
+  return `${px / 16}rem`;
 }
-
-/** The slider's default, and the size every literal below is a ratio of. */
-const DEFAULT_UI_CONTROL_FONT_SIZE = 14;
 
 /**
  * Thickness of the rule under the tab strip, defined in
@@ -153,6 +145,7 @@ const DockviewTabRenderer: React.FC<IDockviewPanelHeaderProps> = (props) => {
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const uiDir = useDirection();
   const menuRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
 
   // Subscribe to title changes so the tab re-renders when setTitle() is called
   const [storedTitle, setStoredTitle] = useState(api.title);
@@ -413,12 +406,15 @@ const DockviewTabRenderer: React.FC<IDockviewPanelHeaderProps> = (props) => {
     api.close();
   };
 
+  useDockviewTabA11y(contentRef, api as never, title ?? '', uiDir === 'rtl');
+
   const panelCount = containerApi.panels.length;
   const canPopOut = !!contentType && !!POP_OUT_PANE_TYPE[contentType];
 
   return (
     <>
       <div
+        ref={contentRef}
         className="dockview-tab-content"
         onMouseDown={handleMouseDown}
         onContextMenu={handleContextMenu}
@@ -464,7 +460,7 @@ const DockviewTabRenderer: React.FC<IDockviewPanelHeaderProps> = (props) => {
               lineHeight: 1,
               padding: `${controlScaled(1)} ${controlScaled(5)}`,
               borderRadius: controlScaled(8),
-              background: 'var(--theme-accent-bg, var(--theme-accent))',
+              background: 'var(--theme-accent-primary)',
               color: 'var(--theme-accent-text)',
             }}
           >

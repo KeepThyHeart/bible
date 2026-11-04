@@ -239,6 +239,12 @@ describe('PlanScheduler', () => {
     expect(v.behindBy).toBe(0);
   });
 
+  it('B-068: fixed, long past the end: flagged pastEnd (and not before the end)', () => {
+    const e = enrollment();
+    expect(todayView(plan, e, [done(1)], '2026-12-01').pastEnd).toBe(true);
+    expect(todayView(plan, e, [done(1), done(3)], '2026-10-05').pastEnd).toBeUndefined();
+  });
+
   it('fixed: shows days behind and the missed days', () => {
     const e = enrollment();
     const v = todayView(plan, e, [done(1), done(3)], '2026-10-05'); // day 5 today

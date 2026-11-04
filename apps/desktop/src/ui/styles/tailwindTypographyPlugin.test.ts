@@ -38,3 +38,13 @@ describe('tailwind.config.cjs — typography plugin registration', () => {
     expect(config.plugins).toContain(typographyPlugin);
   });
 });
+
+describe('tailwind.config.cjs — chrome spacing scales with the UI size (B-045)', () => {
+  it('custom spacing xs..xxl are rem, not px', () => {
+    const config = require(tailwindConfigPath);
+    const spacing = config.theme.extend.spacing as Record<string, string>;
+    for (const k of ['xs', 'sm', 'md', 'lg', 'xl', 'xxl']) {
+      expect(spacing[k], k).toMatch(/rem$/);
+    }
+  });
+});

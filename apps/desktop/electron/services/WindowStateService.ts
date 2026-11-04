@@ -189,6 +189,8 @@ export class WindowStateService {
   private readonly enabled: boolean;
   private readonly listDisplayBounds: () => Rect[];
   private saveTimer: ReturnType<typeof setTimeout> | null = null;
+  /** Last restore-size bounds seen while the window was in its normal state (B-088). */
+  private lastNormal: Rect | null = null;
 
   constructor(options: WindowStateServiceOptions = {}) {
     this.enabled = options.enabled ?? process.env.NODE_ENV !== 'test';
@@ -248,7 +250,13 @@ export class WindowStateService {
    * smaller window.
    */
   capture(window: BrowserWindow): WindowState {
-    const bounds = window.getNormalBounds();
+    const live = window.getNormalBounds();
+    const away = window.isMaximized() || window.isFullScreen();
+    // On X11 `getNormalBounds()` of a maximized window can return the maximized rectangle, which then
+    // replaced the real restore size on disk (B-088). Remember the last bounds seen while the window was
+    // neither maximized nor full screen, and use those for the restore size.
+    if (!away) this.lastNormal = { ...live };
+    const bounds = away && this.lastNormal ? this.lastNormal : live;
     return {
       width: bounds.width,
       height: bounds.height,
@@ -266,6 +274,9 @@ export class WindowStateService {
    * - is what keeps the user from watching it paint at 1400x900 and then jump.
    */
   applyAndTrack(window: BrowserWindow, state: WindowState): void {
+    if (state.x !== undefined && state.y !== undefined) {
+      this.lastNormal = { x: state.x, y: state.y, width: state.width, height: state.height };
+    }
     if (state.isFullScreen) {
       window.setFullScreen(true);
     } else if (state.isMaximized) {

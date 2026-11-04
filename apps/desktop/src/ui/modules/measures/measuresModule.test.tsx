@@ -106,7 +106,7 @@ describe('measures module in the desktop host', () => {
     expect(modulePoints.settings.list().some((g) => g.id === 'measures')).toBe(false);
     expect(modulePoints.views.resolve('preferences:measures')).toBeUndefined();
     expect(modulePoints.i18nNamespace.list().some((n) => n.id === 'measures')).toBe(false);
-    expect(slots.preferencesSectionGlyphs.list()).toEqual([]);
+    expect(slots.preferencesSectionGlyphs.list().filter((g) => g.id === 'measures')).toEqual([]);
     expect(mine(slots.readerPaintControllers.list())).toEqual([]);
     expect(slots.studyPaneSections.list()).toEqual([]);
     expect(featureModules.list().find((m) => m.id === 'measures')).toMatchObject({ enabled: false, offReason: 'override' });
@@ -131,7 +131,7 @@ describe('measures module in the desktop host', () => {
     await waitFor(() => expect(mine(slots.readerPaintControllers.list())).toEqual([]));
     expect(slots.studyPaneSections.list()).toEqual([]);
     expect(layers.useChapterLayerStore.getState().tabs.t1).toBeUndefined();
-    expect(slots.preferencesSectionGlyphs.list()).toEqual([]);
+    expect(slots.preferencesSectionGlyphs.list().filter((g) => g.id === 'measures')).toEqual([]);
   }, 60_000);
 });
 

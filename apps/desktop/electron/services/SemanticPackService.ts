@@ -935,9 +935,9 @@ export class SemanticPackService {
           'checksum_mismatch'
         );
       }
-      if (/offline/i.test(message)) {
+      if (/offline|web requests are turned off/i.test(message)) {
         throw new SemanticPackInstallError(
-          'The app is in offline mode, so the semantic search pack cannot be downloaded.',
+          'Web requests are turned off, so the semantic search pack cannot be downloaded. Turn on \u201cAllow web requests\u201d in Preferences > Privacy.',
           'offline'
         );
       }

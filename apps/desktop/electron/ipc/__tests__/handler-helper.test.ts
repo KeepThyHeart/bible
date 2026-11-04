@@ -120,7 +120,7 @@ describe('ipcHandler', () => {
       expect(res.ok).toBe(false);
       if (!res.ok) {
         expect(res.error.code).toBe('network_blocked');
-        expect(res.error.message).toMatch(/refresh all catalogs/);
+        expect(res.error.message).toMatch(/Web requests are turned off/);
       }
     });
 

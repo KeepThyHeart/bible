@@ -77,7 +77,7 @@ const TopicCard: React.FC<TopicCardProps> = ({
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px', minWidth: 0 }}>
           {relationship && (
             <span style={{
-              fontSize: '11px',
+              fontSize: '0.6875rem',
               color: 'var(--theme-text-secondary)',
               fontStyle: 'italic',
               minWidth: 0,
@@ -87,7 +87,7 @@ const TopicCard: React.FC<TopicCardProps> = ({
           )}
           {categoryLabel && (
             <span style={{
-              fontSize: '9px',
+              fontSize: '0.5625rem',
               fontWeight: 600,
               padding: '1px 6px',
               borderRadius: '8px',
@@ -120,7 +120,7 @@ const TopicCard: React.FC<TopicCardProps> = ({
           />
         )}
         <span style={{
-          fontSize: '13px',
+          fontSize: '0.8125rem',
           fontWeight: 600,
           color: 'var(--theme-text-primary)',
           wordBreak: 'break-word',
@@ -132,7 +132,7 @@ const TopicCard: React.FC<TopicCardProps> = ({
       {/* Description excerpt */}
       {description && (
         <span style={{
-          fontSize: '11px',
+          fontSize: '0.6875rem',
           color: 'var(--theme-text-secondary)',
           marginTop: '3px',
           lineHeight: '1.4',
@@ -147,7 +147,7 @@ const TopicCard: React.FC<TopicCardProps> = ({
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px' }}>
           {verseCount !== undefined && verseCount > 0 && (
             <span style={{
-              fontSize: '11px',
+              fontSize: '0.6875rem',
               color: 'var(--theme-text-secondary)',
               backgroundColor: 'var(--theme-bg-secondary, rgba(0,0,0,0.06))',
               padding: '1px 7px',
@@ -163,7 +163,7 @@ const TopicCard: React.FC<TopicCardProps> = ({
           )}
           {childCount !== undefined && childCount > 0 && (
             <span style={{
-              fontSize: '11px',
+              fontSize: '0.6875rem',
               color: 'var(--theme-text-secondary)',
               backgroundColor: 'var(--theme-bg-secondary, rgba(0,0,0,0.06))',
               padding: '1px 7px',

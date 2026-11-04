@@ -76,6 +76,10 @@ export function isApiRequest(input: RequestInfo | URL): boolean {
 
 /** A response that came from something standing in for an absent server. */
 export function isGatewayFailure(res: Response): boolean {
+  // Our own server answers failures it reports itself (e.g. an upstream
+  // bibsearch error) with a JSON body: it is reachable. Gateways, proxies and
+  // CDNs answer 502/503/504 with HTML or nothing.
+  if ((res.headers.get('content-type') ?? '').includes('application/json')) return false;
   if (res.status === 502 || res.status === 503 || res.status === 504) return true;
   // The Vite dev proxy answers 500 with no body and no content type when the
   // backend refuses the connection. The real server's 500s are JSON.

@@ -3,7 +3,7 @@
   "timeline": {
     "title": "Cronología",
     "loading": "Cargando la cronología...",
-    "empty": "No hay ninguna cronología instalada. Instale un módulo de cronología para explorar personas, reyes y acontecimientos por fecha.",
+    "empty": "No hay ninguna cronología disponible en este sitio.",
     "error": "No se pudo cargar la cronología.",
     "retry": "Reintentar",
     "open": "Abrir cronología",

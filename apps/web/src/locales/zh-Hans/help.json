@@ -53,6 +53,7 @@
     "focusSearch": "聚焦搜索栏",
     "focusSearchAlt": "聚焦搜索栏（未在输入时）",
     "copyDialog": "打开复制对话框（未选中文本时）",
+    "esc": "Esc",
     "closeDialog": "关闭任意打开的对话框或弹出窗口",
     "audioToggle": "播放或暂停有声圣经",
     "audioVerse": "收听时上一节 / 下一节",
@@ -61,6 +62,7 @@
   },
   "settings": {
     "title": "设置",
+    "desktopOnly": "笔记、高亮、书签、经文背诵、读经计划和祷告清单可在桌面应用中使用。",
     "descMobile": "点击齿轮图标，可自定义主题、字体和离线设置。",
     "descDesktop": "点击齿轮图标，可自定义主题、字体族、字号、行高和离线模式设置。"
   },

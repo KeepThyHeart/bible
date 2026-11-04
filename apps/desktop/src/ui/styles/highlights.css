@@ -45,10 +45,32 @@
   background-color: rgb(var(--theme-highlight-orange-rgb) / var(--theme-highlight-alpha));
 }
 
-/* Highlighted words keep dark text so the wash stays readable on dark themes,
-   where the surrounding body text is light. */
-[data-theme="dark"] .word[class*="highlight-"] {
-  color: #14142B;
+/* Highlighted words keep the theme's own text colour. The wash is a low-alpha tint of
+   the swatch over the theme background, so on dark themes it stays dark and the light
+   text stays readable; a fixed dark text colour here measured about 2:1 (B-103). The
+   pairs are held to AA by themeContrast.test.ts. */
+
+/* Red-letter words on a highlight wash (themeContrast.test.ts holds these to AA).
+   The theme's red is tuned for the bare page; over a tinted wash it fell to 1.9-3.3:1
+   on the dark themes and 4.47 on Ocean, so a highlighted word of Christ uses a
+   lighter (dark themes) or deeper (Ocean) red of the same hue. */
+[data-theme="dark"] .word.christ-words[class*="highlight-"]:not(.no-red-letter .christ-words) {
+  color: #facbca;
+}
+[data-theme="midnight"] .word.christ-words[class*="highlight-"]:not(.no-red-letter .christ-words) {
+  color: #fcbbbb;
+}
+[data-theme="slate"] .word.christ-words[class*="highlight-"]:not(.no-red-letter .christ-words) {
+  color: #fcc1c1;
+}
+[data-theme="sunset"] .word.christ-words[class*="highlight-"]:not(.no-red-letter .christ-words) {
+  color: #fccaca;
+}
+[data-theme="high-contrast"] .word.christ-words[class*="highlight-"]:not(.no-red-letter .christ-words) {
+  color: #ffa1a1;
+}
+[data-theme="ocean"] .word.christ-words[class*="highlight-"]:not(.no-red-letter .christ-words) {
+  color: #c01d39;
 }
 
 /* Underline styles */
@@ -109,7 +131,8 @@
    nearly invisible against the dark page, so brighten them. Redefining the
    token (rather than the rules that use it) brightens the picker's preview by
    the same amount, so what the reader picks is what they get. */
-[data-theme="dark"] {
+[data-theme="dark"],
+[data-theme="high-contrast"] {
   --underline-color-blue: rgba(120, 160, 255, 1);
   --underline-color-purple: rgba(200, 140, 240, 1);
   --underline-color-green: rgba(80, 200, 110, 1);
@@ -222,12 +245,14 @@
 }
 
 /* Find highlights on dark: dim the wash slightly and darken the text on it */
-[data-theme="dark"] .word.find-match {
+[data-theme="dark"] .word.find-match,
+[data-theme="high-contrast"] .word.find-match {
   background-color: rgba(255, 235, 59, 0.4) !important;
   color: #14142B;
 }
 
-[data-theme="dark"] .word.find-match-current {
+[data-theme="dark"] .word.find-match-current,
+[data-theme="high-contrast"] .word.find-match-current {
   background-color: rgba(255, 152, 0, 0.6) !important;
   color: #14142B;
 }
@@ -254,7 +279,8 @@
   user-select: none;
 }
 
-[data-theme="dark"] .floating-annotation-toolbar {
+[data-theme="dark"] .floating-annotation-toolbar,
+[data-theme="high-contrast"] .floating-annotation-toolbar {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.2);
 }
 
@@ -290,7 +316,7 @@
   border: 1px solid transparent;
   background: transparent;
   color: var(--theme-text-primary);
-  font-size: 13px;
+  font-size: 0.8125rem;
   line-height: 1;
   cursor: pointer;
   transition: border-color 0.1s ease, background-color 0.1s ease;

@@ -126,7 +126,7 @@ export async function startReciteRun(
 ): Promise<ReciteStateView | null> {
   const reply = await host.request({ type: 'startRecite', source, mode });
   if (!reply.ok) {
-    host.announce(reply.error);
+    (host.fail ?? host.announce)(reply.error); // B-136: a refusal (e.g. no TTS voice) must be visible
     return null;
   }
   host.go({ type: 'reciteStarted', reciteId: reply.data.reciteId, mode: reply.data.mode });

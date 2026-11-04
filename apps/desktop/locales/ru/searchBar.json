@@ -1,10 +1,14 @@
 {
   "searchBar.unifiedPlaceholder": "Поиск по Библии, ввод ссылки или / для вызова команд",
   "searchBar.commandMode.label": "Команды",
+  "searchBar.resultCountLabel": "{count} результатов",
   "searchBar.commandMode.empty": "Подходящих команд нет",
   "searchBar.referenceMode.label": "Перейти к ссылке",
   "searchBar.referenceMode.goTo": "Перейти к {reference}",
   "searchBar.emptyState.recentSearches": "Недавние запросы",
   "searchBar.emptyState.recentCommands": "Недавние команды",
-  "searchBar.emptyState.noRecents": "Недавних элементов нет"
+  "searchBar.emptyState.noRecents": "Недавних элементов нет",
+  "searchBar.reference.noChapter": "«{book} {chapter}» — недопустимая ссылка: в книге {book} глав: {count}.",
+  "searchBar.reference.noVerse": "«{book} {chapter}:{verse}» — недопустимая ссылка: в {book} {chapter} стихов: {count}.",
+  "searchBar.reference.needsChapter": "Чтобы ссылка «{book}» была допустимой, нужна глава, например «{book} 1»."
 }

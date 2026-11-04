@@ -173,4 +173,17 @@ describe('BibleNotesFileService — save-conflict false positive', () => {
     fs.writeFileSync(filePath, JSON.stringify(onDisk), 'utf-8');
     expect(() => svc.saveNoteAbsolute(filePath, note, note.updated)).toThrow(NoteConflictError);
   });
+
+  it('an external edit that keeps `updated` unchanged is still a conflict (B-081)', () => {
+    const note = makeNote();
+    const u1 = svc.saveNote('outline', note, undefined);
+    svc.readNote('outline'); // the editor opened it
+    const file = path.join(tmpDir, 'outline.bn');
+    const onDisk = JSON.parse(fs.readFileSync(file, 'utf-8')) as BnFile;
+    onDisk.content = { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'external' }] }] };
+    fs.writeFileSync(file, JSON.stringify(onDisk), 'utf-8'); // `updated` untouched
+    tick();
+    expect(() => svc.saveNote('outline', note, u1)).toThrow(NoteConflictError);
+    expect(fs.readFileSync(file, 'utf-8')).toContain('external');
+  });
 });

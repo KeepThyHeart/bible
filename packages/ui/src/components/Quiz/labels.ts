@@ -49,6 +49,7 @@ export const DEFAULT_QUIZ_LABELS: QuizLabels = {
   summaryTitle: 'Results',
   score: '{correct} of {graded} correct',
   scorePartly: '{partly} partly',
+  endedEarly: 'Ended early: {count} not answered',
   noneGraded: 'Nothing was graded in this quiz.',
   missedHeading: 'To review',
   retryMissed: 'Retry the ones I missed',

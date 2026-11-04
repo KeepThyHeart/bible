@@ -51,7 +51,8 @@
     "rose": "玫瑰",
     "arctic": "北极",
     "autumn": "秋色",
-    "lagoon": "泻湖"
+    "lagoon": "泻湖",
+    "high-contrast": "高对比度"
   },
   "bibleToolbar": {
     "history": "历史记录",
@@ -71,6 +72,8 @@
     "modeStandard": "标准",
     "modeReading": "阅读",
     "modeStudy": "研经",
+    "modeHint": "研经视图会为包含斯特朗编号和逐字对照的译本（如 KJV）显示这些内容。",
+    "modeLabel": "显示模式",
     "recentPassages": "最近查看的经文",
     "noHistory": "尚未浏览过任何经文"
   },
@@ -90,6 +93,7 @@
     "notesUnavailable": "此译本不包含出版方注释。",
     "interlinearLoading": "正在加载原文对照数据…",
     "interlinearUnavailable": "此译本没有该经文的原文对照数据。",
+    "chapterNotFound": "未找到引用：此译本中不存在 {ref}。",
     "coverageNone": "此译本没有可用内容。",
     "coverageNTOnly": "此译本仅包含新约内容。",
     "coverageOTOnly": "此译本仅包含旧约内容。",
@@ -119,6 +123,7 @@
     "ideasHint": "灵感搜索尝试根据含义查找经文，即使措辞不同也能找到。",
     "closeSearch": "关闭搜索",
     "results": "{count} 个结果",
+    "resultsWithApproximate": "{count} 个结果，另有 {approximate} 个近似结果",
     "searching": "正在搜索…",
     "keywordBanner": "另有 {count} 个关键词匹配结果。",
     "viewInstead": "改为查看这些结果？",
@@ -130,6 +135,7 @@
     "findByMeaning": "来根据含义查找经文。",
     "noResults": "未找到结果。",
     "offlineNotice": "您已离线，请重新联网后再搜索。",
+    "slashDesktopOnly": "斜杠命令（如 /note 或 /plan）仅在桌面应用中可用。",
     "loadingMore": "正在加载…",
     "showMore": "显示更多结果",
     "loadAll": "全部加载（还有 {count} 条）",
@@ -226,7 +232,10 @@
       "resetTextSizes": "重置文字大小",
       "resetTextSizesTitle": "恢复默认的文字大小与行高",
       "interlinearStackedShort": "堆叠",
-      "interlinearInlineShort": "行内"
+      "interlinearInlineShort": "行内",
+      "popoverTitle": "文字大小",
+      "popoverReset": "重置",
+      "moreOptions": "更多文字选项…"
     },
     "theme": {
       "resetAll": "全部重置",
@@ -355,7 +364,9 @@
       "resetCacheHint": "清除此设备上应用保存的文件和后台 service worker，然后重新加载。如果应用显示过时或出现异常，请使用此功能。您的设置、已下载的模块和笔记会保留。",
       "resetCacheConfirm": "Reset the app cache? The app reloads and re-downloads its files; your settings and downloaded modules are kept.",
       "appName": "圣经研读应用",
+      "versionLine": "版本 {version}（构建 {build}）",
       "description": "一款现代化的开源圣经研读应用，专为深入阅读与研究圣经而设计。",
+      "desktopOnly": "笔记、高亮、书签、经文背诵、读经计划和祷告清单可在桌面应用中使用。",
       "license": "采用 <strong>GNU 通用公共许可证 v3.0</strong>（GPL-3.0）授权。",
       "licenseDetails": "本软件可依据 GPL v3 条款自由使用、修改和分发。欢迎查看源代码并提交贡献。",
       "viewOnGithub": "在 GitHub 上查看"
@@ -539,6 +550,7 @@
     "verseLevelNotes": "存在逐节注释，见于",
     "passageLevelNotes": "存在段落注释，适用于",
     "noEntriesChapter": "此注释没有本章的条目。",
+    "offlineNotice": "您已离线。重新连接后将再次加载注释。",
     "about": "关于此注释",
     "aboutName": "名称",
     "aboutAuthor": "作者",
@@ -577,7 +589,8 @@
     "navigateToAPassageTo": "跳转到某段经文以查看注释。",
     "noCommentaryDataAvailable": "没有可用的注释数据。",
     "noCommentariesHaveContentFor": "没有注释包含此节经文的内容。",
-    "noContentForThisVerse": "此节经文没有内容。"
+    "noContentForThisVerse": "此节经文没有内容。",
+    "noCommentaryOn": "没有关于 {passage} 的注释"
   },
   "commentaryTabBar": {
     "overview": "注释概览",
@@ -622,6 +635,8 @@
     "searchAll": "搜索所有词典…",
     "searching": "正在搜索…",
     "noDictionaries": "没有可用的词典。",
+    "loadFailed": "无法加载词典。请检查您的网络连接。",
+    "retry": "重试",
     "unstar": "取消星标",
     "star": "加星标（置顶）"
   },
@@ -776,7 +791,9 @@
     "topics": "主题",
     "browseAllTopics": "浏览所有主题",
     "interlinear": "原文对照",
-    "topicsBrowser": "主题浏览器"
+    "topicsBrowser": "主题浏览器",
+    "dictionary": "词典",
+    "lookUpWord": "查找词语或斯特朗编号"
   },
   "studyHomePage": {
     "commentarySummary": "注释摘要",
@@ -848,6 +865,7 @@
   "semanticSearchLoadingOverlay": {
     "dismiss": "关闭",
     "loading": "正在加载灵感搜索…",
+    "unavailable": "想法搜索目前不可用。",
     "step": "第 {step} 步，共 3 步——{label}"
   },
   "login": {
@@ -914,5 +932,39 @@
     "quiz": {
       "title": "测验"
     }
+  },
+  "remoteSemantic": {
+    "consent": {
+      "title": "语义搜索会使用在线服务",
+      "body": "为了按含义查找经文，您的搜索词会发送到我们的搜索服务，该服务借助外部 AI 提供商理解其含义。发送时不包含您的姓名或账户。",
+      "ipNotice": "与任何网站一样，该服务可以看到您的 IP 地址。",
+      "neverSent": "您的圣经阅读记录、笔记和其他数据绝不会被发送。",
+      "agree": "同意并搜索",
+      "decline": "暂不"
+    },
+    "note": {
+      "declined": "语义搜索已关闭。您可以在“设置”中开启。",
+      "degraded": "正在显示关键词结果（语义搜索服务不可用）。",
+      "quota": "已达到语义搜索的每日上限。将于 {time} 重置。正在显示关键词结果。",
+      "quotaNoTime": "已达到语义搜索的每日上限。正在显示关键词结果。",
+      "paused": "语义搜索已暂停一段时间。正在显示关键词结果。",
+      "unavailable": "语义搜索目前不可用。正在显示关键词结果。",
+      "rephrase": "请尝试使用更长或不同的短语进行语义搜索。正在显示关键词结果。"
+    },
+    "settings": {
+      "title": "搜索",
+      "toggle": "使用在线语义搜索",
+      "statusUnset": "在首次使用时同意之前不会启用",
+      "statusGranted": "已开启。您已于 {date} 同意。",
+      "statusDeclined": "关闭"
+    }
+  },
+  "a11y": {
+    "skipToContent": "跳到内容",
+    "skipToSearch": "跳到搜索",
+    "readerTitle": "圣经阅读器",
+    "studyPane": "研经面板",
+    "mobileNav": "主导航",
+    "chapterLoaded": "已加载 {ref}"
   }
 }

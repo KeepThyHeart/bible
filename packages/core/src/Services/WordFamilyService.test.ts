@@ -182,4 +182,23 @@ describe('WordFamilyService', () => {
       expect(info!.gloss).toContain('love');
     });
   });
+
+  describe('function-word hubs (B-164)', () => {
+    const article = { key: '03588', definition: '3588 ὁ oJ ho {ho} \n the definite article:--the, this, that. Compare 3739. \n ' };
+    const others = Array.from({ length: 20 }, (_, i) => ({
+      key: String(4000 + i).padStart(5, '0'),
+      definition: `${4000 + i} λόγος logos${i} lexeme${i} {x} \n a word:--word. Compare 3588. \n `,
+    }));
+    const hubService = new WordFamilyService(createMockDict([article, ...others]), null);
+
+    it('does not list unrelated entries that merely say "Compare" a very common number', () => {
+      const family = hubService.getWordFamily('G3588');
+      expect(family!.members.map(m => m.strongsNumber)).toEqual(['G3588']);
+      expect(hubService.getRelatedNumbers('G3588')).toEqual([]);
+    });
+
+    it('does not pull the hub into the family of an ordinary word that compares with it', () => {
+      expect(hubService.getRelatedNumbers('G4001')).not.toContain('G3588');
+    });
+  });
 });

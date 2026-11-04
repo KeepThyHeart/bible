@@ -202,6 +202,14 @@ describe('ReferenceRun', () => {
     expect(screen.getByRole('button', { name: '+8 more' })).toBeInTheDocument();
   });
 
+  it('isolates the run as an LTR island so RTL prose cannot reorder separators (B-036)', () => {
+    render(<ReferenceRun verseIds={DENSE} maxRefs={null} />);
+    const run = screen.getByTestId('reference-run');
+    expect(run.tagName).toBe('BDI');
+    expect(run.getAttribute('dir')).toBe('ltr');
+    expect(within(run).getAllByRole('button')).toHaveLength(20);
+  });
+
   it('renders every reference and no toggle when maxRefs is null', () => {
     render(<ReferenceRun verseIds={DENSE} maxRefs={null} />);
     expect(screen.getAllByRole('button')).toHaveLength(20);

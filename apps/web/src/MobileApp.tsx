@@ -29,6 +29,7 @@ import { contentSwipeStep } from './utils/contentDirection';
 import { parseVerseId } from './utils/verseId';
 import { bibleStore } from './stores/bibleStore';
 import { searchStore } from './stores/searchStore';
+import { createSearchReturn } from './utils/searchReturn';
 import { studyStore } from './stores/studyStore';
 import { MAX_CHAPTERS } from './constants';
 import { settingsStore, pxToRem } from './stores/settingsStore';
@@ -124,6 +125,13 @@ export function MobileApp({ providers }: MobileAppProps) {
     return () => clearTimeout(timer);
   }, [navTooltip]);
 
+  // A tapped search result remembers where it landed, so Back can show the results again (B-182).
+  const searchReturnRef = useRef(createSearchReturn());
+  const openedFromSearch = () => {
+    searchReturnRef.current.mark(bibleStore.getActiveTab());
+    switchMobileView('bible');
+  };
+
   // Save/restore mobile-scroll-wrapper scroll position when switching views
   const switchMobileView = (wanted: typeof mobileView) => {
     const view = resolvePhoneView(wanted, phoneViews);
@@ -171,17 +179,23 @@ export function MobileApp({ providers }: MobileAppProps) {
   // Mobile hardware Back button support via popstate.
   // We push a dummy history entry so pressing Back fires popstate instead of
   // leaving the app, then route it through the in-app navigation stack.
+  // Seed once (not per view: the handler effect below re-runs on every tab switch, and
+  // seeding there grew the history by an entry per switch, B-100).
   useEffect(() => {
-    // Seed with a dummy entry so the first Back press stays in-app
-    window.history.pushState({ mobileBack: true }, '');
+    if (!window.history.state?.mobileBack) window.history.pushState({ mobileBack: true }, '');
+  }, []);
 
+  useEffect(() => {
     const handlePopState = (_e: PopStateEvent) => {
       // Back out of any other app (it returns to Study, or is that app's own step): the hidden
       // Study must not also take one. (Its dummy entry is still in place.)
       if (studyShouldIgnoreBack()) return;
 
-      // Re-push so the next Back press also stays in-app
-      window.history.pushState({ mobileBack: true }, '');
+      // Whether this press was handled inside the app. If so the dummy entry is
+      // re-pushed so the next Back stays in-app; on Home with nowhere to go it is
+      // not, so the next Back leaves the app (B-100).
+      const stayInApp = () => window.history.pushState({ mobileBack: true }, '');
+      if (!(mobileView === 'home' && !bibleStore.canGoBack())) stayInApp();
 
       // Priority 0: a full-screen layer a module put over the phone layout (for example a media
       // player; playback continues). A handler consumes the press by returning true.
@@ -213,6 +227,12 @@ export function MobileApp({ providers }: MobileAppProps) {
         return;
       }
 
+      // Priority 3b: just opened from a search result: back to the results (B-182)
+      if (mobileView === 'bible' && searchReturnRef.current.take(bibleStore.getActiveTab(), searchStore.isOpen)) {
+        switchMobileView('search');
+        return;
+      }
+
       // Priority 4: Bible has navigation history → go back
       if (mobileView === 'bible' && bibleStore.canGoBack()) {
         bibleStore.goBack();
@@ -225,7 +245,9 @@ export function MobileApp({ providers }: MobileAppProps) {
         return;
       }
 
-      // On home with nowhere to go — let it be (user sees home screen)
+      // On home with nowhere to go: the dummy entry was just popped, so step back once more and
+      // leave the app in this one press rather than needing a second (B-100).
+      window.history.back();
     };
 
     window.addEventListener('popstate', handlePopState);
@@ -470,14 +492,16 @@ export function MobileApp({ providers }: MobileAppProps) {
             <SiteBanners />
             <ConnectionBanner />
             <UpdateBanner />
-            {mobileView === 'home' && <HomeScreen onNavigate={switchMobileView} />}
-            {mobileView === 'bible' && bibleContent}
-            {mobileView === 'search' && (
-              <div class="main-layout__right-pane" style={commentaryStyle}>
-                <SearchResultsPanel onNavigate={() => switchMobileView('bible')} onOpenStrongsEntry={shared.handleStrongsClick} />
-              </div>
-            )}
-            {renderPhoneView(mobileView)}
+            <main class="app-main" id="main-content" tabIndex={-1}>
+              {mobileView === 'home' && <HomeScreen onNavigate={switchMobileView} />}
+              {mobileView === 'bible' && bibleContent}
+              {mobileView === 'search' && (
+                <div class="main-layout__right-pane" style={commentaryStyle}>
+                  <SearchResultsPanel onNavigate={openedFromSearch} onOpenStrongsEntry={shared.handleStrongsClick} />
+                </div>
+              )}
+              {renderPhoneView(mobileView)}
+            </main>
           </div>
         </>
       ) : (
@@ -490,19 +514,21 @@ export function MobileApp({ providers }: MobileAppProps) {
           <SiteBanners />
           <ConnectionBanner />
           <UpdateBanner />
-          {mobileView === 'home' && <HomeScreen onNavigate={switchMobileView} />}
-          {mobileView === 'bible' && (
-            <>
-              <BibleTabBar hideHome />
-              {bibleContent}
-            </>
-          )}
-          {mobileView === 'search' && (
-            <div class="main-layout__right-pane" style={commentaryStyle}>
-              <SearchResultsPanel onNavigate={() => switchMobileView('bible')} onOpenStrongsEntry={shared.handleStrongsClick} />
-            </div>
-          )}
-          {renderPhoneView(mobileView)}
+          <main class="app-main" id="main-content" tabIndex={-1}>
+            {mobileView === 'home' && <HomeScreen onNavigate={switchMobileView} />}
+            {mobileView === 'bible' && (
+              <>
+                <BibleTabBar hideHome />
+                {bibleContent}
+              </>
+            )}
+            {mobileView === 'search' && (
+              <div class="main-layout__right-pane" style={commentaryStyle}>
+                <SearchResultsPanel onNavigate={openedFromSearch} onOpenStrongsEntry={shared.handleStrongsClick} />
+              </div>
+            )}
+            {renderPhoneView(mobileView)}
+          </main>
         </div>
       )}
       {navTooltip && (
@@ -513,7 +539,7 @@ export function MobileApp({ providers }: MobileAppProps) {
       <StudyLayoutOutlet layout="phone" placement="dock" onOpenSettings={shared.openSettings} />
       {/* Above the nav, so the presenter's thumb targets are the closest thing to the thumb. */}
       <CompanionSlot compact />
-      <nav class={`mobile-nav${leftHanded ? ' mobile-nav--left-handed' : ''}`}>
+      <nav class={`mobile-nav${leftHanded ? ' mobile-nav--left-handed' : ''}`} aria-label={t('a11y.mobileNav', 'Main navigation')}>
         {[
           { view: 'home' as const, icon: 'fa-solid fa-house', label: 'mobileNav.home' },
           { view: 'study' as const, icon: 'fa-solid fa-bookmark', label: 'mobileNav.study' },
@@ -525,6 +551,7 @@ export function MobileApp({ providers }: MobileAppProps) {
             key={item.view}
             class={`mobile-nav__btn ${mobileView === item.view ? 'mobile-nav__btn--active' : ''}`}
             onClick={() => switchMobileView(item.view)}
+            aria-current={mobileView === item.view ? 'page' : undefined}
             data-testid={`mobile-nav-${item.view}`}
           >
             <i class={item.icon} />

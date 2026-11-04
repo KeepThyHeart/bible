@@ -3,6 +3,10 @@
 /** Build identifier injected by vite.config.ts; compared against /api/version on boot. */
 declare const __BUILD_ID__: string;
 
+/** Root package.json version and short build sha (or explicit BUILD_ID), shown in Settings > About. */
+declare const __APP_VERSION__: string;
+declare const __APP_BUILD__: string;
+
 /** Timeline minimum framing span in years (build option BIBLE_TIMELINE_MIN_SPAN_YEARS); '' = default. */
 declare const __TIMELINE_MIN_SPAN_YEARS__: string;
 

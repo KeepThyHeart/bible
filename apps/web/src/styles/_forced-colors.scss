@@ -1,0 +1,87 @@
+// Windows High Contrast (`forced-colors: active`). Loaded last in main.scss so these win over
+// the component rules of equal specificity.
+// ------------------------------------------------------------
+// Forced colors. The browser drops our fills, so anything that said "this
+// one" with a background alone needs a border, outline or system colour.
+// ------------------------------------------------------------
+@media (forced-colors: active) {
+  // Controls: a visible edge (outline, so the layout does not move).
+  button,
+  select,
+  input:not([type='checkbox']):not([type='radio']),
+  textarea {
+    outline: 1px solid ButtonBorder;
+    outline-offset: -1px;
+  }
+
+  :is(button, select, input, textarea, a, [tabindex]):focus-visible {
+    outline: 3px solid Highlight;
+    outline-offset: 1px;
+  }
+
+  // Selected / current / active states.
+  :is(button, [role='tab'], [role='option'], [role='radio'], [role='menuitem'], a)[class*='--active'],
+  :is(button, [role='tab'], [role='option'], [role='radio'], [role='menuitem'], a)[class*='--selected'],
+  [aria-selected='true'],
+  [aria-pressed='true'],
+  [aria-checked='true'],
+  [aria-current]:not([aria-current='false']) {
+    outline: 3px solid Highlight;
+    outline-offset: -3px;
+  }
+
+  // Tab strips mark the current tab with an underline.
+  .bible-tab-bar__tab--active,
+  .right-pane-tabs__tab--active,
+  .commentary-tab-bar__tab--active,
+  .study-tab-bar__tab--active {
+    border-bottom: 4px solid Highlight;
+  }
+
+  // Verses: the transparent resting border would otherwise be painted on every verse.
+  .verse {
+    border-color: Canvas;
+  }
+
+  .verse--study,
+  .verse--in-range {
+    border-color: Highlight;
+  }
+
+  .verse--preview,
+  .verse--preview .verse__body {
+    text-decoration-color: Highlight;
+  }
+
+  .verse--follow-live {
+    border-inline-start-color: Highlight;
+  }
+
+  // Search / keyword highlights.
+  mark,
+  .find-match,
+  .find-match-current,
+  .word.ext-deco {
+    forced-color-adjust: none;
+    background-color: Mark;
+    color: MarkText;
+  }
+
+  // Modal surfaces lose their shadow and backdrop contrast: give them an edge.
+  .settings-panel,
+  .help-dialog,
+  .feedback-dialog,
+  .module-dialog,
+  .copy-dialog,
+  .remote-consent-dialog,
+  .header__theme-dropdown,
+  .header__search-type-dropdown,
+  .text-size__popover,
+  .context-menu {
+    border: 2px solid CanvasText;
+  }
+
+  .skip-links__link {
+    border-color: Highlight;
+  }
+}

@@ -105,6 +105,7 @@ import { useFocusTrap } from '../hooks/useFocusTrap';
 import { PopupPortal } from '../hooks/usePopupPosition';
 import { isTextEntryTarget } from '../utils/textEntry';
 import { sanitizeHtml } from '../utils/sanitize';
+import { themeRedLetterPreview } from '../utils/themePassagePreview';
 import { useToastStore } from '../stores/useToastStore';
 
 /**
@@ -441,7 +442,9 @@ const PassageDialog: React.FC<PassageDialogProps> = ({
 
   const previewHtml = useMemo(
     () =>
-      sanitizeHtml(isCopy ? renderCopyOutput(activeVerses) : renderInsertHtml(activeVerses)),
+      themeRedLetterPreview(
+        sanitizeHtml(isCopy ? renderCopyOutput(activeVerses) : renderInsertHtml(activeVerses)),
+      ),
     [isCopy, renderCopyOutput, renderInsertHtml, activeVerses],
   );
 

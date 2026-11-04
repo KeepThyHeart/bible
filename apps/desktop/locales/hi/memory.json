@@ -418,6 +418,8 @@
   "memory.core.listenStartFailed": "सुनना शुरू नहीं हो सका।",
   "memory.core.loopGettingReady": "तैयारी हो रही है",
   "memory.core.loopPaused": "रुका हुआ",
+  "memory.core.loopPausedSilence": "कोई आवाज़ नहीं सुनाई दी, इसलिए पाठ रुका हुआ है। जारी रखने के लिए जारी रखें दबाएँ।",
+  "memory.core.loopPausedSilenceTap": "कोई आवाज़ नहीं सुनाई दी। फिर से कोशिश करने के लिए बोलें दबाएँ।",
   "memory.core.loopFinishingUp": "समाप्त हो रहा है",
   "memory.core.somethingWentWrong": "कुछ गड़बड़ हो गई।",
   "memory.core.loopFindingNext": "अगला अंश खोजा जा रहा है",
@@ -558,5 +560,9 @@
   "memory.ui.plan.reciteHandsFree": "हैंड्स-फ़्री",
   "memory.ui.plan.reciteHandsFreeHint": "स्क्रीन छुए बिना बोलें और सुनें",
   "memory.core.loopPracticeOnly": "केवल अभ्यास। कुछ भी जाँचा नहीं गया।",
-  "memory.ui.settings.practiceOnlyShort": "केवल अभ्यास। कुछ भी जाँचा नहीं गया।"
+  "memory.ui.settings.practiceOnlyShort": "केवल अभ्यास। कुछ भी जाँचा नहीं गया।",
+  "memory.ui.plan.removeConfirmNew": "इस अंश को अपनी सूची से हटाएँ?",
+  "memory.ui.plan.alreadyInList": "{reference} पहले से आपकी सूची में है।",
+  "memory.ui.plan.reciteHandsFreeNoVoice": "हैंड्स-फ़्री के लिए ऐप का बोल पाना ज़रूरी है, और इस कंप्यूटर पर कोई टेक्स्ट-टू-स्पीच आवाज़ उपलब्ध नहीं है।",
+  "memory.core.micNone": "कोई माइक्रोफ़ोन नहीं मिला। एक कनेक्ट करें और फिर से प्रयास करें।"
 }

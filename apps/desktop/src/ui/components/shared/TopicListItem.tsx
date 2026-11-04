@@ -28,7 +28,7 @@ const TopicListItem: React.FC<TopicListItemProps> = ({ topicName, parentPath, so
         backgroundColor: 'transparent',
         color: 'var(--theme-text-primary)',
         cursor: 'pointer',
-        fontSize: '13px',
+        fontSize: '0.8125rem',
         textAlign: 'start',
         gap: '8px',
         borderRadius: '4px',
@@ -47,7 +47,7 @@ const TopicListItem: React.FC<TopicListItemProps> = ({ topicName, parentPath, so
         {parentPath && (
           <span style={{
             display: 'block',
-            fontSize: '11px',
+            fontSize: '0.6875rem',
             color: 'var(--theme-text-secondary)',
             overflow: 'hidden',
             textOverflow: 'ellipsis',
@@ -61,7 +61,7 @@ const TopicListItem: React.FC<TopicListItemProps> = ({ topicName, parentPath, so
       </span>
       {source && (
         <span style={{
-          fontSize: '11px',
+          fontSize: '0.6875rem',
           color: 'var(--theme-text-secondary)',
           flexShrink: 0,
         }}>
@@ -70,7 +70,7 @@ const TopicListItem: React.FC<TopicListItemProps> = ({ topicName, parentPath, so
       )}
       {verseCount !== undefined && verseCount > 0 && (
         <span style={{
-          fontSize: '11px',
+          fontSize: '0.6875rem',
           color: 'var(--theme-text-secondary)',
           backgroundColor: 'var(--theme-bg-secondary, rgba(0,0,0,0.06))',
           padding: '1px 6px',

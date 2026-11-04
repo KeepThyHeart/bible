@@ -355,8 +355,8 @@ export function BibleContent({
     <div class={`bible-content bible-content--${displayMode}`}>
       {/* Chapter heading with nav buttons — always rendered to prevent flicker */}
       <div class="bible-content__chapter-header">
-        <button class="bible-content__nav-btn" disabled={!canGoPrev || isLoading} onClick={goToPrev}>
-          <i class="fa-solid fa-chevron-left kth-rtl-mirror" />
+        <button class="bible-content__nav-btn" disabled={!canGoPrev || isLoading} onClick={goToPrev} aria-label={t('bibleToolbar.prevChapter')}>
+          <i class="fa-solid fa-chevron-left kth-rtl-mirror" aria-hidden="true" />
         </button>
         <h2
           class="bible-content__chapter-title bible-content__chapter-title--tappable"
@@ -365,8 +365,8 @@ export function BibleContent({
         >
           <bdi class="kth-bdi">{isSingleChapterBook(tab.book) ? bookName : `${bookName} ${tab.chapter}`}</bdi> <i class="fa-solid fa-caret-down bible-content__chapter-caret" />
         </h2>
-        <button class="bible-content__nav-btn" disabled={!canGoNext || isLoading} onClick={goToNext}>
-          <i class="fa-solid fa-chevron-right kth-rtl-mirror" />
+        <button class="bible-content__nav-btn" disabled={!canGoNext || isLoading} onClick={goToNext} aria-label={t('bibleToolbar.nextChapter')}>
+          <i class="fa-solid fa-chevron-right kth-rtl-mirror" aria-hidden="true" />
         </button>
       </div>
       {isLoading ? (

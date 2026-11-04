@@ -193,6 +193,10 @@ export class CommandRegistry implements ICommandRegistry {
 
     results.sort((a, b) => {
       if (b.score !== a.score) return b.score - a.score;
+      // Equal scores (an empty query): keep a category together.
+      const ca = a.result.category ?? '\uffff';
+      const cb = b.result.category ?? '\uffff';
+      if (ca !== cb) return ca.localeCompare(cb);
       if (a.result.order !== b.result.order) return a.result.order - b.result.order;
       return a.result.title.localeCompare(b.result.title);
     });
@@ -258,8 +262,15 @@ export class CommandRegistry implements ICommandRegistry {
    * category beats alias.
    */
   private fuzzyScore(query: string, title: string, category: string | undefined, aliases: string[]): number {
-    const q = query;
+    let q = query;
     const t = title.toLowerCase();
+    // The palette shows "Category: Title" (B-072), so a reader types it that way.
+    if (category && q.includes(':')) {
+      q = q.replace(/\s*:\s*/g, ': ');
+      const shown = `${category.toLowerCase()}: ${t}`;
+      if (shown.startsWith(q)) return 90;
+      if (shown.includes(q)) return 40;
+    }
     if (t === q) return 100;
     if (t.startsWith(q)) return 80;
     const tw = t.split(/\s+/);

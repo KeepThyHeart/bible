@@ -17,6 +17,7 @@
  * sending, so the same question got a worse answer depending on which pane you
  * asked it in. Both render this now.
  */
+import { normalizeModuleLabel } from '../../utils/moduleLabel';
 import React from 'react';
 import { useI18n } from '../../contexts/useI18n';
 
@@ -89,7 +90,7 @@ const VerseTopicsList: React.FC<VerseTopicsListProps> = ({
               marginBottom: '4px',
             }}
           >
-            {sourceTopics[0].source_name}
+            <bdi>{normalizeModuleLabel(sourceTopics[0].source_name)}</bdi>
           </div>
 
           {sourceTopics.map(topic => {

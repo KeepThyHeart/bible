@@ -212,7 +212,7 @@ const VerseListWithPreview: React.FC<VerseListWithPreviewProps> = ({
   };
 
   return (
-    <div style={{ fontSize: '13px' }}>
+    <div style={{ fontSize: '0.8125rem' }}>
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '4px' }}>
         <button
           type="button"
@@ -221,7 +221,7 @@ const VerseListWithPreview: React.FC<VerseListWithPreviewProps> = ({
           aria-pressed={showVerses}
           style={{
             padding: '2px 6px',
-            fontSize: '11px',
+            fontSize: '0.6875rem',
             color: 'var(--theme-accent-primary)',
             backgroundColor: 'transparent',
             border: 'none',
@@ -285,7 +285,7 @@ const VerseListWithPreview: React.FC<VerseListWithPreviewProps> = ({
                     style={{
                       color: 'var(--theme-accent-primary)',
                       fontWeight: 600,
-                      fontSize: '12px',
+                      fontSize: '0.75rem',
                       textDecoration: 'none',
                     }}
                     onMouseEnter={(e) => { (e.target as HTMLElement).style.textDecoration = 'underline'; }}
@@ -304,13 +304,13 @@ const VerseListWithPreview: React.FC<VerseListWithPreviewProps> = ({
                           <span style={{ color: 'var(--theme-text-secondary)' }}> ...</span>
                         )}
                         {v.context && (
-                          <span style={{ fontSize: '11px', color: 'var(--theme-text-secondary)', fontStyle: 'italic' }}>
+                          <span style={{ fontSize: '0.6875rem', color: 'var(--theme-text-secondary)', fontStyle: 'italic' }}>
                             {' '}({v.context})
                           </span>
                         )}
                       </span>
                     ) : fetchedVerses === undefined && activeVersion ? (
-                      <span style={{ fontSize: '11px', color: 'var(--theme-text-secondary)' }}>{t('ui.common.loading')}</span>
+                      <span style={{ fontSize: '0.6875rem', color: 'var(--theme-text-secondary)' }}>{t('ui.common.loading')}</span>
                     ) : null}
                   </td>
                 )}
@@ -329,7 +329,7 @@ const VerseListWithPreview: React.FC<VerseListWithPreviewProps> = ({
             data-testid="verse-list-show-all"
             style={{
               padding: '4px 8px',
-              fontSize: '12px',
+              fontSize: '0.75rem',
               color: 'var(--theme-accent-primary)',
               backgroundColor: 'transparent',
               border: 'none',
@@ -347,7 +347,7 @@ const VerseListWithPreview: React.FC<VerseListWithPreviewProps> = ({
             data-testid="verse-list-load-more"
             style={{
               padding: '4px 8px',
-              fontSize: '12px',
+              fontSize: '0.75rem',
               color: 'var(--theme-accent-primary)',
               backgroundColor: 'transparent',
               border: 'none',

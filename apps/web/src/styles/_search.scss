@@ -85,7 +85,7 @@
     padding: 10px 14px;
     border: none;
     background: var(--accent-color);
-    color: #fff;
+    color: var(--accent-text, #fff);
     cursor: pointer;
     font-size: calc(0.875rem * var(--ui-font-scale, 1));
   }
@@ -112,7 +112,7 @@
 
     &--active {
       background: var(--accent-color);
-      color: #fff;
+      color: var(--accent-text, #fff);
       border-color: var(--accent-color);
     }
   }
@@ -317,6 +317,11 @@
 
   &:hover {
     background: var(--bg-secondary);
+  }
+
+  // The divine name (LORD) in small caps, as in the reading pane (B-167).
+  .divine-name {
+    font-variant-caps: small-caps;
   }
 
   &__ref {
@@ -579,6 +584,18 @@
       &:hover {
         background: color-mix(in srgb, var(--text-primary) 10%, transparent);
       }
+    }
+  }
+}
+
+// Soft keyboard up on a phone: the viewport shrinks to ~500px, so give the
+// results the room by folding the hint and the distribution chart away while
+// the search box has focus (B-139).
+@media (max-height: 600px) and (pointer: coarse) {
+  .search-panel-inline:has(.search-panel-inline__mobile-input:focus) {
+    .search-panel-inline__mobile-type-hint,
+    .search-distribution {
+      display: none;
     }
   }
 }

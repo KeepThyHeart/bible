@@ -139,7 +139,7 @@ const LocaleOption: React.FC<{
       <span
         data-testid={`locale-${info.status}-badge-${info.code}`}
         title={previewTooltip}
-        className="flex-shrink-0 text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded"
+        className="flex-shrink-0 text-[0.625rem] font-semibold uppercase tracking-wide px-2 py-0.5 rounded"
         style={{
           backgroundColor: 'var(--theme-bg-tertiary)',
           color: 'var(--theme-text-secondary)',

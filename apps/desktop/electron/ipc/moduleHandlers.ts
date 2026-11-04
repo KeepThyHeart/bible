@@ -38,6 +38,14 @@ import {
   type SkippedPackEntry,
   type ModulePackTrustOptions
 } from '../services/ModulePackService';
+import { dialogParent } from '../utils/dialogParent';
+
+/** `dialog.showMessageBox` attached to the main window so it cannot fall behind it (B-087). */
+function showParentedMessageBox(options: Electron.MessageBoxOptions): Promise<Electron.MessageBoxReturnValue> {
+  const parent = dialogParent();
+  return parent ? dialog.showMessageBox(parent, options) : dialog.showMessageBox(options);
+}
+
 
 /**
  * What to do when the module being installed is already installed.
@@ -125,7 +133,7 @@ async function confirmVouchedCatalogKey(request: VouchedKeyApprovalRequest): Pro
   const chain = request.chain
     .map((link) => `${link.vouchingKey}\n  vouched for ${link.newKey}\n  on ${link.issued}`)
     .join('\n');
-  const { response } = await dialog.showMessageBox({
+  const { response } = await showParentedMessageBox({
     type: 'warning',
     buttons: ['Decline', 'Trust new key'],
     defaultId: 0,
@@ -261,7 +269,9 @@ function requireKeywordIndexService(): KeywordIndexService {
  */
 async function installModuleFromPath(
   filePath: string,
-  policy: ModuleInstallPolicy | boolean = 'replace-always'
+  policy: ModuleInstallPolicy | boolean = 'replace-always',
+  /** True (default) for a file the user picked: it is copied, never moved (B-111). */
+  keepSource = true
 ): Promise<{
   moduleId?: number;
   moduleName?: string;
@@ -336,7 +346,7 @@ async function installModuleFromPath(
 
   // Install the module
   log.info('[ModuleManager] Installing module from file...');
-  const installResult = await svc.installModule(filePath, moduleInfo);
+  const installResult = await svc.installModule(filePath, moduleInfo, undefined, undefined, { keepSource });
   log.info('[ModuleManager] Install result:', installResult);
 
   if (!installResult.success) {
@@ -426,7 +436,7 @@ async function resolvePackFileTrust(filePath: string): Promise<PackFileTrustDeci
   }
 
   if (inspection.status === 'unsigned' || inspection.status === 'untrusted') {
-    const { response } = await dialog.showMessageBox({
+    const { response } = await showParentedMessageBox({
       type: 'warning',
       buttons: ['Cancel', 'Install anyway'],
       defaultId: 0,
@@ -503,7 +513,7 @@ async function installModulePackFromPath(
   const summary = await installModulePack(
     archivePath,
     getModulePackExtractionRoot(),
-    (filePath) => installModuleFromPath(filePath, effectivePolicy),
+    (filePath) => installModuleFromPath(filePath, effectivePolicy, false),
     undefined,
     trust
   );

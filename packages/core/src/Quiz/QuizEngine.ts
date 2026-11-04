@@ -145,8 +145,10 @@ export function summarizeQuiz(quiz: Quiz, grades: QuizGrade[], now: Date): QuizS
   let partly = 0;
   let points = 0;
   const missedKeys: string[] = [];
+  let unanswered = 0;
   for (const item of quiz.items) {
     const g = byKey.get(item.question.key);
+    if (!g) unanswered++;
     if (!g || !isGradedResult(g.result)) continue;
     graded++;
     points += g.score;
@@ -163,6 +165,7 @@ export function summarizeQuiz(quiz: Quiz, grades: QuizGrade[], now: Date): QuizS
     passages: quiz.passages,
     total: quiz.items.length,
     graded,
+    unanswered,
     correct,
     partly,
     score: graded > 0 ? points / graded : 0,

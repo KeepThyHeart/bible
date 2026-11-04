@@ -26,7 +26,7 @@ export function useAppShared(providers: IDataProviders) {
   const [helpOpen, setHelpOpen] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [copyOpen, setCopyOpen] = useState(false);
-  const [strongsPopup, setStrongsPopup] = useState<{ entry: StrongsEntryData; position: { top: number; left: number } } | null>(null);
+  const [strongsPopup, setStrongsPopup] = useState<{ entry: StrongsEntryData; position: { top: number; left: number }; source?: string } | null>(null);
   const [strongsTooltip, setStrongsTooltip] = useState<{ entry: StrongsEntryData; position: { top: number; left: number } } | null>(null);
 
   const activeTab = useStore(bibleStore, () => bibleStore.getActiveTab());
@@ -70,13 +70,14 @@ export function useAppShared(providers: IDataProviders) {
     setStrongsTooltip(null);
   }, [displayMode]);
 
-  const handleStrongsClick = useCallback(async (strongsNumber: string) => {
+  const handleStrongsClick = useCallback(async (strongsNumber: string, source?: string) => {
     try {
       const entry = await providers.strongs.getEntry(strongsNumber);
       setStrongsTooltip(null);
       setStrongsPopup({
         entry,
         position: { top: window.innerHeight / 4, left: window.innerWidth / 4 },
+        source,
       });
     } catch (e) {
       console.error('Failed to load Strong\'s entry:', e);

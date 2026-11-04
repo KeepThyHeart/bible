@@ -385,6 +385,27 @@ describe('derails', () => {
     expect(s.recorded).toHaveLength(1);
   });
 
+  it('B-137: hands-free silence pause names the Resume button (nothing listens while paused) and Resume works', async () => {
+    const s = setup({ script: [{ silence: true }, { silence: true }, { say: FULL }, { silence: true }] });
+    await until(() => s.view().phase === 'paused', 'paused');
+    expect(s.view().message).toMatch(/no speech/i);
+    expect(s.view().message).toMatch(/Press Resume/);
+    expect(s.view().message).not.toMatch(/say/i);
+    s.act('resume');
+    await until(() => s.view().phase === 'done');
+  });
+
+  it('B-137: tap-mode silence pause names the Talk button and Talk resumes', async () => {
+    const s = setup({ mode: 'tap', script: [{ silence: true }, { silence: true }, { say: FULL }, { silence: true }] });
+    await until(() => s.view().phase === 'ready', 'ready');
+    s.act('listen');
+    await until(() => s.view().phase === 'paused', 'paused');
+    expect(s.view().message).toMatch(/Press Talk/);
+    expect(s.view().message).not.toMatch(/Resume|say/);
+    s.act('listen');
+    await until(() => s.view().phase !== 'paused', 'resumed');
+  });
+
   it('stalling mid-passage hints one word, then three, then scores', async () => {
     const s = setup({ script: [{ say: V1 }, { silence: true }, { silence: true }, { silence: true }] , settings: { voiceCommands: false }});
     await until(() => s.view().phase === 'done');
@@ -939,6 +960,15 @@ describe('review fixes', () => {
     expect(s.view().passageId).toBe(1); // kept so the view can retry the same passage
     expect(s.act('stop').phase).toBe('error');
     expect(s.act('listen').phase).toBe('error');
+  });
+
+  it('B-137: a missing microphone says so instead of "in use by another app"', async () => {
+    const s = setup({ mode: 'tap', script: [{ say: V1 }, { error: 'mic-none' }] });
+    await until(() => s.view().phase === 'ready');
+    s.act('listen');
+    await until(() => s.view().phase === 'error');
+    expect(s.view().message).toMatch(/No microphone was found/);
+    expect(s.view().message).not.toMatch(/in use/);
   });
 
   it('6. the summary for a single passage run is not "Nothing is due"', async () => {

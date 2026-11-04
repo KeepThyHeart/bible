@@ -557,7 +557,7 @@ const BibleVerseList: React.FC = () => {
                                         reordered out of its column. */}
                                     <bdi
                                       aria-hidden="true"
-                                      className="text-lg font-bold text-accent inline-block py-1"
+                                      className="text-[0.9em] font-bold text-accent inline-block py-1"
                                     >
                                       {verse.verse}
                                     </bdi>

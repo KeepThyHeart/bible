@@ -160,6 +160,18 @@ describe('DatabaseManager.getDefaultBibleAbbreviation', () => {
     expect(db.getBibleRepo(fallback!)).not.toBeNull();
   });
 
+  it('prefers KJV over the first installed Bible when nothing is configured', () => {
+    const mods = db.getModuleMetadataRepo().getByType('bible').map(m => m.abbreviation || m.getAbbreviation());
+    if (!mods.includes('KJV')) return; // data dir without KJV: nothing to prove
+    expect(db.getDefaultBibleAbbreviation(undefined)).toBe(db.resolveAbbreviation('KJV'));
+    expect(db.getDefaultBibleAbbreviation('NOT_INSTALLED_XYZ')).toBe(db.resolveAbbreviation('KJV'));
+  });
+
+  it('falls back to the first visible Bible when KJV is not visible', () => {
+    const fallback = db.getDefaultBibleAbbreviation(undefined, a => a !== 'KJV');
+    expect(fallback).not.toBe('KJV');
+  });
+
   it('returns null when no installed Bible is acceptable', () => {
     expect(db.getDefaultBibleAbbreviation('NOT_INSTALLED_XYZ', () => false)).toBeNull();
   });

@@ -16,7 +16,7 @@
  *  6. The graded questions are shown in the text's order.
  */
 import type { QuizChoice, QuizDifficulty, QuizItemStat, QuizPassage, QuizQuestion, QuizRequest } from './types';
-import { effectiveAnswerMode } from './grading';
+import { effectiveAnswerMode, normalizeAnswer } from './grading';
 
 export const DEFAULT_QUIZ_COUNT = 5;
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -109,12 +109,17 @@ export function selectQuestions({ candidates, stats, request, rand, now }: Selec
 
   // Rule 1: candidates. De-duplicate by key (several sources may return one question).
   const byKey = new Map<string, QuizQuestion>();
+  // The data can hold the same question under two keys; a quiz must not ask it twice (B-066).
+  const seenPrompts = new Set<string>();
   for (const q of candidates) {
     if (byKey.has(q.key)) continue;
     if (only && !only.has(q.key)) continue;
     if (scope.length > 0 && !q.passages.some((p) => scope.some((s) => passagesOverlap(p, s)))) continue;
     if (request.kinds?.length && !request.kinds.includes(q.kind)) continue;
     if (request.modes?.length && !request.modes.includes(q.mode)) continue;
+    const promptKey = normalizeAnswer(q.prompt);
+    if (promptKey && seenPrompts.has(promptKey)) continue;
+    seenPrompts.add(promptKey);
     byKey.set(q.key, q);
   }
   const all = [...byKey.values()];

@@ -47,8 +47,8 @@
      `controlScaled()` computes; every metric below is that size times the
      ratio its literal pixel value has to the 14px default, so at the default
      setting each one still resolves to exactly the value it replaces. */
-  --app-tab-control-font-size: calc(var(--ui-control-font-size, 14px) * var(--global-font-scale, 1));
-  --app-tab-strip-min-height: calc(var(--app-tab-control-font-size) * 38 / 14);
+  --app-tab-control-font-size: 0.875rem;
+  --app-tab-strip-min-height: 2.375rem;
   /* Weight of the rule under the tab strip, and of each tab's own bottom
      indicator. 4px, matching the web app's `.bible-tab-bar`
      (`inset 0 -4px 0` baseline, 4px active border) - the previous 2px/3px read
@@ -258,8 +258,7 @@
    This is the tab strip the user actually sees. globals.css's `.pane-tab`
    matches nothing that is mounted, so a hard-coded 14px here
    would make Preferences -> General -> "UI Control Font Size" appear to do
-   nothing to tabs. Follow --ui-control-font-size (default 14px) x
-   --global-font-scale instead, matching globals.css's pane-header rules and
+   nothing to tabs. Follow the rem root (--ui-scale, B-045) instead, matching globals.css's pane-header rules and
    uiScaled() in StudyPane.tsx.
 
    No `!important` needed: an inline `fontSize: '14px'` on this same element
@@ -269,7 +268,7 @@
    covers the tab strip's own text and any dockview chrome the renderer does
    not size. */
 .dockview-theme-light.dockview-theme-light .dv-tab .dockview-tab-content {
-  font-size: calc(var(--ui-control-font-size, 14px) * var(--global-font-scale, 1));
+  font-size: 0.875rem;
   font-weight: 600;
 }
 
@@ -422,4 +421,11 @@
 [dir='rtl'] .app-workbench-row,
 .app-workbench-row[dir='rtl'] {
   flex-direction: row-reverse;
+}
+
+/* B-042: dockview sets no focus style on tabs; make keyboard focus visible
+   (inset so the strip's overflow does not clip it). */
+.dv-tab:focus-visible {
+  outline: 2px solid var(--theme-border-focus);
+  outline-offset: -2px;
 }

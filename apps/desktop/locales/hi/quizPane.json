@@ -63,5 +63,6 @@
   "quizPane.kind.application": "अनुप्रयोग",
   "quizPane.difficultyBadge.1": "आसान",
   "quizPane.difficultyBadge.2": "मध्यम",
-  "quizPane.difficultyBadge.3": "कठिन"
+  "quizPane.difficultyBadge.3": "कठिन",
+  "quizPane.endedEarly": "जल्दी समाप्त: {count} अनुत्तरित"
 }

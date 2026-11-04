@@ -382,6 +382,20 @@ describe('StudyCrossRefs', () => {
     expect(provider.getVerse).not.toHaveBeenCalled();
   });
 
+  it('shows the divine name in small caps in Show Verses (B-167)', async () => {
+    mockCrossRefGroups = [
+      makeGroup({ group_id: 1, phrase: null, entries: [{ entry_id: 1, target_verse_id: 1022014, target_verse_end_id: null }] }),
+    ];
+    const provider = makeBibleProvider({
+      '1022014': { verse_id: 1022014, text: 'the Lord it', text_html: '<span class="verse">the <span class="divine-name">Lord</span> it</span>' },
+    });
+    const { container } = render(<StudyCrossRefs bibleProvider={provider} />);
+    fireEvent.click(container.querySelector('.study-crossrefs__table-toggle')!);
+    await waitFor(() => {
+      expect(container.querySelector('.study-crossrefs__vl-text .divine-name')?.textContent).toBe('Lord');
+    });
+  });
+
   it('de-duplicates target verses shared across phrase groups into one batch entry', async () => {
     // Same verse (43001001) appears in two different phrase groups.
     mockCrossRefGroups = [

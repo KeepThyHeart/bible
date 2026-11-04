@@ -64,6 +64,8 @@ import type {
   StepAnswer,
   StepResult,
 } from '../core/types';
+import { startReciteRun } from './activities';
+import { reciteEnabled } from '../core/features';
 import { append, button, clear, el, focusQuietly, replace, textNode } from './dom';
 import { breadcrumb, errorBanner, iconButton, levelBoxes, tabs } from './components';
 import {
@@ -85,7 +87,7 @@ import { tr, uiLocale } from './i18n';
 import { listTargets, pickShuffledTarget } from './suggest';
 
 /** How long a wrong pick stays marked before the picker is handed back clean. */
-const WRONG_MARK_MS = 1400;
+const WRONG_MARK_MS = 3000;
 
 /** How long a correct pick shows as correct before the next step replaces it. */
 const CORRECT_FLASH_MS = 420;
@@ -114,6 +116,9 @@ export class PracticeView {
    * `renderContext` it needs no `this.interacted` guard for a late arrival.
    */
   private passageView: PassageView | null = null;
+
+  /** Speech is ready, so the strip may show "Recite aloud" (see `loadSpeechReady`). */
+  private reciteReady = false;
 
   /** Guards against a second submission while one is in flight. */
   private busy = false;
@@ -263,6 +268,22 @@ export class PracticeView {
     }
     this.passageView = reply.data;
     this.renderHead();
+    void this.loadSpeechReady();
+  }
+
+  /**
+   * Whether "Recite aloud" can be offered in the tab strip. It is not a
+   * practice session (it has its own run, `startRecite`), so the tab appears
+   * only when speech is ready - the same condition as the passage screen's
+   * Recite button - and then opens the recite flow instead of a session.
+   */
+  private async loadSpeechReady(): Promise<void> {
+    const reply = await this.host.request({ type: 'getSettings' });
+    if (this.disposed || !reply.ok) return;
+    const ready = reciteEnabled() && reply.data.speech?.state === 'ready';
+    if (ready === this.reciteReady) return;
+    this.reciteReady = ready;
+    this.renderHead();
   }
 
   /**
@@ -387,7 +408,9 @@ export class PracticeView {
   private renderActivityTabs(): HTMLElement | null {
     if (this.passageView === null) return null;
 
-    const applicable = inLadderOrder(this.passageView.rungs).filter((rv) => rv.applicable);
+    const applicable = inLadderOrder(this.passageView.rungs).filter(
+      (rv) => rv.applicable && (rv.rung !== 'recite' || this.reciteReady),
+    );
     if (applicable.length <= 1) return null;
 
     return tabs({
@@ -422,6 +445,10 @@ export class PracticeView {
     });
     if (this.disposed) return;
 
+    if (rung === 'recite') {
+      void startReciteRun(this.host, { kind: 'passage', passageId }, 'tap');
+      return;
+    }
     void this.host.startSession(passageId, rung);
   }
 
@@ -1701,7 +1728,14 @@ export class PracticeView {
 
     this.session = reply.data.session;
     this.summary = reply.data.summary;
-    this.renderHead();
+    // The head is NOT redrawn here: the session has already advanced, but the review of the
+    // step just graded is still on screen, so "Step N of M" must keep naming that step until
+    // Next/Finish (B-121). advance() and the Finish handler redraw it. The tally does not name
+    // a step, so it is refreshed now.
+    const tally = this.headEl.querySelector('.sm-step-tally');
+    if (tally) {
+      tally.textContent = tr('memory.ui.practice.rightFirstTime', '{count} right first time', { count: this.session.correctFirst });
+    }
     return { result: reply.data.result, summary: reply.data.summary };
   }
 
@@ -1739,6 +1773,7 @@ export class PracticeView {
       label,
       () => {
         if (summary !== null) {
+          this.renderHead();
           this.renderExercise();
           return;
         }
@@ -1823,6 +1858,12 @@ export class PracticeView {
     this.actionsEl.appendChild(
       button(tr('memory.ui.practice.nextDue', 'Next due'), () => void this.startNextDue(), { class: 'sm-btn sm-btn-quiet' }),
     );
+    // B-113: the step controls that had focus are gone; land on the summary heading (never <body>).
+    const heading = this.exerciseEl.querySelector<HTMLElement>('.sm-summary-title');
+    if (heading) {
+      heading.tabIndex = -1;
+      heading.focus({ preventScroll: true });
+    }
   }
 
   private async startNextDue(): Promise<void> {

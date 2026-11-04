@@ -96,7 +96,7 @@ const KeywordsButton: React.FC<{ tabId: string }> = ({ tabId }) => {
           {label}
           {tab.enabled && (
             <span
-              className="ms-1.5 px-1.5 rounded-full text-[10px] leading-4 bg-surface-primary text-text-primary"
+              className="ms-1.5 px-1.5 rounded-full text-[0.625rem] leading-4 bg-surface-primary text-text-primary"
               data-testid="keywords-count"
               aria-label={t('keywords.toolbar.count', { count: total })}
             >

@@ -131,6 +131,10 @@ class WordStudyStore extends Store {
       await this.openStrongs(found[0].strongs);
     } else if (found.length > 1) {
       this.candidates = found;
+      // The previous word's study is not the answer to this query; leaving it
+      // drew it under the "Did you mean" list.
+      this.overview = null;
+      this.occurrences = null;
       this.loading = false;
       this.notify();
     } else {

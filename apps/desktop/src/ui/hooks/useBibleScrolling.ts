@@ -1,5 +1,6 @@
 import { useEffect, useCallback } from 'react';
 import { useBibleStore } from '../stores/useBibleStore';
+import { syncPanesWithVerse } from '../stores/syncPanesWithVerse';
 import { findVerseElement, restartArrivalFlash } from './verseScrollTarget';
 
 /** Bounded retry budget for {@link scrollNearestOnceLaidOut} - see its doc comment. */
@@ -76,6 +77,31 @@ function scrollNearestOnceLaidOut(
 }
 
 /**
+ * 'center'-mode scroll, held back until the scroll container has a size.
+ *
+ * B-027: applying a layout preset rebuilds the dockview grid, so a Bible pane
+ * can mount (and run the scroll effect) while its container is still
+ * zero-sized. `scrollIntoView` on an element inside a zero-height scroller
+ * does nothing, and the effect never ran again, so the pane came back at the
+ * top with the verse selected but off screen. Wait (bounded) for layout first.
+ */
+export function scrollCenterOnceLaidOut(
+  verseEl: HTMLElement,
+  container: HTMLElement | null,
+  retriesLeft = LAYOUT_NOT_READY_MAX_RETRIES * 3,
+): void {
+  if (container) {
+    const rect = container.getBoundingClientRect();
+    if (rect.width === 0 || rect.height === 0) {
+      if (retriesLeft <= 0) return;
+      requestAnimationFrame(() => scrollCenterOnceLaidOut(verseEl, container, retriesLeft - 1));
+      return;
+    }
+  }
+  verseEl.scrollIntoView({ behavior: 'auto', block: 'center' });
+}
+
+/**
  * Manages scroll position save/restore and verse centering for the Bible pane.
  *
  * Responsibilities:
@@ -102,9 +128,15 @@ export function useBibleScrolling(
   isLoading: boolean,
   saveScrollPosition: (scrollTop: number) => void,
   /** The Back button: the visit-stack back (see stores/bible/internals/visitStack.ts). */
-  goBack: () => void,
-  navigateToHistoryEntry: (index: number) => void,
+  goBack: () => void | Promise<void>,
+  navigateToHistoryEntry: (index: number) => void | Promise<void>,
 ) {
+  // Back and the history menu move the Bible pane to a verse the reader chose, so the study panes follow (B-061).
+  const followPanes = useCallback(() => {
+    // allow-getstate: after an async navigation, reads the settled selection
+    const verseId = useBibleStore.getState().getPanelState(panelId).selectedVerseId;
+    if (verseId) syncPanesWithVerse(verseId);
+  }, [panelId]);
 
   // Two scroll modes serve different UX goals:
   // 'center' -- used after navigation (back/forward, search result click) to orient the reader
@@ -148,7 +180,7 @@ export function useBibleScrolling(
       if (!target) return;
 
       if (scrollMode === 'center') {
-        target.scrollIntoView({ behavior: 'auto', block: 'center' });
+        scrollCenterOnceLaidOut(target, bibleTextRef.current);
       } else {
         // 'nearest' mode - only scroll if not fully visible
         scrollNearestOnceLaidOut(target, bibleTextRef.current);
@@ -172,8 +204,8 @@ export function useBibleScrolling(
     if (bibleTextRef.current) {
       saveScrollPosition(bibleTextRef.current.scrollTop);
     }
-    goBack();
-  }, [goBack, saveScrollPosition, bibleTextRef]);
+    void Promise.resolve(goBack()).then(followPanes);
+  }, [goBack, followPanes, saveScrollPosition, bibleTextRef]);
 
   // No goForwardWithScroll: the pane has a Back button and a history menu, and
   // the menu can reach anything ahead of the cursor by name.
@@ -181,8 +213,8 @@ export function useBibleScrolling(
     if (bibleTextRef.current) {
       saveScrollPosition(bibleTextRef.current.scrollTop);
     }
-    navigateToHistoryEntry(index);
-  }, [navigateToHistoryEntry, saveScrollPosition, bibleTextRef]);
+    void Promise.resolve(navigateToHistoryEntry(index)).then(followPanes);
+  }, [navigateToHistoryEntry, followPanes, saveScrollPosition, bibleTextRef]);
 
   return {
     goBackWithScroll,

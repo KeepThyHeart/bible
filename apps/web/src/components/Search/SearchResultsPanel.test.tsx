@@ -105,6 +105,7 @@ let mockIsOnline = true;
 
 const mockClose = vi.fn();
 const mockPerformSearch = vi.fn();
+const mockRetryLast = vi.fn();
 const mockSetSearchType = vi.fn();
 const mockWarmupSemanticSearch = vi.fn(() => Promise.resolve());
 const mockLoadMoreSemantic = vi.fn();
@@ -140,6 +141,7 @@ vi.mock('../../stores/searchStore', () => ({
     get resultsTruncated() { return mockResultsTruncated; },
     close: () => mockClose(),
     performSearch: (...args: unknown[]) => mockPerformSearch(...args),
+    retryLast: () => mockRetryLast(),
     setSearchType: (...args: unknown[]) => mockSetSearchType(...args),
     warmupSemanticSearch: () => mockWarmupSemanticSearch(),
     loadMoreSemantic: () => mockLoadMoreSemantic(),
@@ -279,6 +281,35 @@ describe('SearchResultsPanel', () => {
     mockIsOnline = false;
     render(<SearchResultsPanel />);
     expect(screen.getByText('search.offlineNotice')).toBeTruthy();
+  });
+
+  // B-184
+  it('does not claim "(0 results)" in the header while the search is still running', () => {
+    mockQuery = 'love';
+    mockLoading = true;
+    const { container } = render(<SearchResultsPanel />);
+    expect(container.querySelector('.search-panel-inline__title')?.textContent).not.toContain('search.results');
+  });
+
+  it('searches again when the connection returns after an offline, empty search', () => {
+    mockQuery = 'love';
+    mockIsOnline = false;
+    const { rerender } = render(<SearchResultsPanel />);
+    expect(mockRetryLast).not.toHaveBeenCalled();
+    mockIsOnline = true;
+    rerender(<SearchResultsPanel />);
+    expect(mockRetryLast).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not search again on reconnect when there are results to keep', () => {
+    mockQuery = 'love';
+    mockIsOnline = false;
+    mockResults = [{ verseId: 43003016, module: 'KJV', text: 'x', reference: 'John 3:16' } as SearchResultData];
+    mockTotalResults = 1;
+    const { rerender } = render(<SearchResultsPanel />);
+    mockIsOnline = true;
+    rerender(<SearchResultsPanel />);
+    expect(mockRetryLast).not.toHaveBeenCalled();
   });
 
   // ------------------------------------------------------------------
@@ -678,5 +709,20 @@ describe('SearchResultsPanel', () => {
     ];
     const { container } = render(<SearchResultsPanel />);
     expect(container.querySelector('[data-testid="search-fuzzy-divider"]')).toBeNull();
+  });
+
+  it('headlines only the exact matches and counts approximate ones separately (B-168)', () => {
+    mockQuery = 'mount of the LORD it shall be seen';
+    mockSearchType = 'keyword';
+    mockTotalResults = 3;
+    mockResults = [
+      { verseId: 1022014, reference: 'Genesis 22:14', module: 'KJV', type: 'exact', text: '...' },
+      { verseId: 43003018, reference: 'John 3:18', module: 'KJV', type: 'fuzzy', text: '...' },
+      { verseId: 43003019, reference: 'John 3:19', module: 'KJV', type: 'fuzzy', text: '...' },
+    ];
+    const { container } = render(<SearchResultsPanel />);
+    const title = container.querySelector('.search-panel-inline__title')!.textContent ?? '';
+    expect(title).toContain('search.resultsWithApproximate:1');
+    expect(title).not.toContain('search.results:3');
   });
 });

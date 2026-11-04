@@ -436,6 +436,9 @@ const DockviewLayout: React.FC<DockviewLayoutProps> = ({ savedLayout, layoutDeci
                 });
               }
             }
+            // Search results live only in memory, so a restored search panel would reopen empty
+            // and squeeze the reading area (B-054).
+            useLayoutStore.getState().closeSearchResultsPanels(); // allow-getstate: dockview event callback - runs outside React render
             // A group serialized at zero size was collapsed by Reading Mode. The
             // constraint that let it be zero-width is not part of the
             // serialization, so without this the restored session springs back to
@@ -476,7 +479,10 @@ const DockviewLayout: React.FC<DockviewLayoutProps> = ({ savedLayout, layoutDeci
       // remounts and onReady may not fire again (dockview reuses its instance).
       // Keeping the ref valid ensures the effect can re-set the store API on remount.
       restoredFromSavedRef.current = false;
-      useLayoutStore.setState({ dockviewApi: null, isReady: false, activePanelId: null, lastActiveBiblePanelId: null });
+      // lastActiveBiblePanelId survives the teardown (switching to another app unmounts the layout): navigation
+      // from that app - a reading-plan link - must still land in the Bible tab being read, not the first one
+      // (B-108). A stale id is harmless: every consumer checks the panel still exists.
+      useLayoutStore.setState({ dockviewApi: null, isReady: false, activePanelId: null });
     };
   }, [apiVersion, savedLayout, layoutDecided, handleGatedDrag]);
 

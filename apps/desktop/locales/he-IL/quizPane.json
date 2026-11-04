@@ -63,5 +63,6 @@
   "quizPane.kind.application": "יישום",
   "quizPane.difficultyBadge.1": "קלה",
   "quizPane.difficultyBadge.2": "בינונית",
-  "quizPane.difficultyBadge.3": "קשה"
+  "quizPane.difficultyBadge.3": "קשה",
+  "quizPane.endedEarly": "הסתיים מוקדם: {count} ללא מענה"
 }

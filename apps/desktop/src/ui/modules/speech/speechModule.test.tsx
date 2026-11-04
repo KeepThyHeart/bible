@@ -46,4 +46,10 @@ describe('recite flag', () => {
     expect(modulePoints.views.resolve('preferences:speech')).toBeTypeOf('function');
     expect(moduleTimings.list()).toEqual([]);
   }, 120_000);
+
+  it('on: registers a sidebar glyph for the Speech section (B-006)', async () => {
+    await boot('');
+    const { preferencesSectionGlyphs } = await import('../host/slots');
+    expect(preferencesSectionGlyphs.list().some((g: { id: string }) => g.id === 'speech')).toBe(true);
+  }, 120_000);
 });

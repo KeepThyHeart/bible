@@ -34,10 +34,10 @@ const DockviewWatermark: React.FC<IWatermarkPanelProps> = () => {
       }}
     >
       <div style={{ maxWidth: '460px', textAlign: 'center' }}>
-        <p style={{ fontSize: '14px', marginBottom: '8px', color: 'var(--theme-text-primary)' }}>
+        <p style={{ fontSize: '0.875rem', marginBottom: '8px', color: 'var(--theme-text-primary)' }}>
           {t('dockviewWatermark.emptyMessage')}
         </p>
-        <p style={{ fontSize: '13px', lineHeight: 1.6, color: 'var(--theme-text-secondary)' }}>
+        <p style={{ fontSize: '0.8125rem', lineHeight: 1.6, color: 'var(--theme-text-secondary)' }}>
           {t('onboarding.empty.workspace.description')}
         </p>
       </div>
@@ -75,7 +75,7 @@ const DockviewWatermark: React.FC<IWatermarkPanelProps> = () => {
               backgroundColor: 'transparent',
               color: 'var(--theme-text-primary)',
               cursor: 'pointer',
-              fontSize: '13px',
+              fontSize: '0.8125rem',
             }}
             onMouseEnter={(e) => {
               (e.currentTarget as HTMLElement).style.backgroundColor = 'var(--theme-tab-bg-hover)';

@@ -104,6 +104,69 @@ describe('BibleRepository word study queries', () => {
   });
 });
 
+describe('BibleRepository secondary Strong\'s tags (metadata.strongs) (B-015)', () => {
+  function withSecondary(): BibleRepository {
+    const r = makeBible('sec', 'en', true);
+    repos.push(r);
+    const sql = r.getSql() as TestSqliteProvider;
+    sql.execute('INSERT INTO bible_verse (verse_id, text) VALUES (?, ?)', [46013004, 'Charity suffereth long.']);
+    sql.execute(
+      `INSERT INTO interlinear_word (verse_id, word_position_start, word_position_end, strongs_number, gloss, metadata)
+       VALUES (46013004, 0, 0, 'G3588', 'Charity', '{"strongs":"G3588 G26"}')`);
+    return r;
+  }
+  it('counts, searches and lists hits where the number is only a secondary tag', () => {
+    const r = withSecondary();
+    expect(r.searchByStrongsNumber(['G26'])).toEqual([45005008, 46013004]);
+    expect(r.searchByStrongsNumber(['G26'], { startVerseId: 46000000, endVerseId: 46999999 })).toEqual([46013004]);
+    expect(r.countStrongs(['G26'])).toEqual({ occurrences: 2, verses: 2 });
+    expect(r.countStrongsByBook(['G26'])).toEqual({ 45: 1, 46: 1 });
+    expect(r.getStrongsHits(['G26']).map(h => h.verseId)).toEqual([45005008, 46013004]);
+    expect(r.getStrongsGlossCounts(['G26']).map(g => g.gloss).sort()).toEqual(['Charity', 'love']);
+  });
+  it('does not match a number that is only a prefix of a tag', () => {
+    const r = withSecondary();
+    expect(r.searchByStrongsNumber(['G2'])).toEqual([]);
+    expect(r.countStrongs(['G268'])).toEqual({ occurrences: 0, verses: 0 });
+  });
+  it('matches zero-padded Hebrew secondary tags exactly', () => {
+    const r = withSecondary();
+    (r.getSql() as TestSqliteProvider).execute(
+      `INSERT INTO interlinear_word (verse_id, word_position_start, word_position_end, strongs_number, gloss, metadata)
+       VALUES (43003016, 9, 9, 'H0853', 'obj', '{"strongs":"H0853 H01254"}')`);
+    expect(r.searchByStrongsNumber(['H1254', 'H01254', 'H001254'])).toEqual([43003016]);
+  });
+  it('counts a row whose only tag equals its primary once', () => {
+    const r = withSecondary();
+    (r.getSql() as TestSqliteProvider).execute(
+      `INSERT INTO interlinear_word (verse_id, word_position_start, word_position_end, strongs_number, gloss, metadata)
+       VALUES (43003016, 9, 9, 'G26', 'love', '{"strongs":"G26"}')`);
+    expect(r.countStrongs(['G26']).occurrences).toBe(2 + 1);
+  });
+  it('survives malformed metadata', () => {
+    const r = withSecondary();
+    (r.getSql() as TestSqliteProvider).execute(
+      `INSERT INTO interlinear_word (verse_id, word_position_start, word_position_end, strongs_number, gloss, metadata)
+       VALUES (43014015, 9, 9, 'G26', 'love', 'not json')`);
+    expect(() => r.searchByStrongsNumber(['G26'])).not.toThrow();
+    expect(r.searchByStrongsNumber(['G26'])).toContain(45005008);
+  });
+  it('perf guard: builds the secondary map once and never scans metadata per query', () => {
+    const r = withSecondary();
+    const sql = r.getSql() as TestSqliteProvider;
+    const seen: string[] = [];
+    for (const m of ['queryAll', 'queryOne'] as const) {
+      const orig = (sql as any)[m].bind(sql);
+      (sql as any)[m] = (q: string, p?: unknown[]) => { seen.push(q); return orig(q, p); };
+    }
+    for (const g of [['G26'], ['G25']]) {
+      r.countStrongs(g); r.countStrongsByBook(g); r.getStrongsGlossCounts(g); r.getStrongsHits(g); r.searchByStrongsNumber(g);
+    }
+    expect(seen.filter(q => q.includes('metadata IS NOT NULL')).length).toBe(1);
+    expect(seen.filter(q => !q.includes('metadata IS NOT NULL') && /json_extract|metadata/.test(q))).toEqual([]);
+  });
+});
+
 describe('WordStudyService', () => {
   it('resolves numbers, Greek script and transliterations', () => {
     expect(service.resolve('g0025')[0]).toMatchObject({ strongs: 'G25', word: 'ἀγαπάω' });
@@ -138,7 +201,9 @@ describe('WordStudyService', () => {
   });
 
   it('reports untagged / missing data', () => {
-    expect(service.getOverview({ kind: 'strongs', strongs: 'G9999' }).notice).toBe('no-occurrences');
+    // G9999 is not a Strong's number at all (no dictionary entry); G26 is, it just has no tagged hits here
+    expect(service.getOverview({ kind: 'strongs', strongs: 'G9999' }).notice).toBe('unknown-number');
+    expect(service.getOverview({ kind: 'strongs', strongs: 'G26' }, { module: 'rvr' }).notice).not.toBe('unknown-number');
   });
 
   it('studies a word group in any translation\'s own text', () => {
@@ -180,5 +245,51 @@ describe('WordGroupStore', () => {
     expect(() => store.save({ label: 'x', terms: [' '] })).toThrow();
     expect(store.remove(g.id)).toBe(true);
     expect(store.list()).toEqual([]);
+  });
+});
+
+describe('divine name in word study occurrences (B-167)', () => {
+  it('returns the character range of the divine name in each occurrence text', () => {
+    const r = makeBible('dn', 'en', true);
+    repos.push(r);
+    (r.getSql() as TestSqliteProvider).execute(
+      'UPDATE bible_verse SET formatting = ? WHERE verse_id = 19023001',
+      [JSON.stringify({ v: 1, spans: [{ type: 'divine_name', start: 1, end: 1 }] })]);
+    const svc = new WordStudyService({
+      bibles: () => new Map([['dn', r]]), greek: GREEK, hebrew: null, family: new WordFamilyService(GREEK, null),
+    });
+    const page = svc.getOccurrences({ kind: 'strongs', strongs: 'H7462' }, { module: 'dn' });
+    expect(page.items[0].text).toBe('The LORD is my shepherd; I shall not want.');
+    expect(page.items[0].divine).toEqual([{ start: 4, end: 8 }]);
+    const plain = svc.getOccurrences({ kind: 'strongs', strongs: 'G25' }, { module: 'dn' });
+    expect(plain.items[0].divine).toBeUndefined();
+  });
+});
+
+describe('WordStudyService.resolve tolerates transliteration spellings (B-178)', () => {
+  const HEBREW = dict([
+    ['00430', "430 'elohiym el-o-heem' plural of 433; gods in the ordinary sense:--God, gods."],
+    ['00433', "433 'eloahh el-o'-ah rarely (shortened) 'eloahh; probably prolonged from 410; a deity:--God, god."],
+    ['03068', "3068 Yehovah yeh-ho-vaw' from 1961; self-Existent or Eternal; Jehovah:--Jehovah, the Lord."],
+  ]);
+  const svc = new WordStudyService({
+    bibles: () => new Map(), greek: GREEK, hebrew: HEBREW, family: new WordFamilyService(GREEK, HEBREW),
+  });
+
+  it('finds H430 for "elohim" as it does for the lexicon spelling "elohiym"', () => {
+    expect(svc.resolve('elohiym').map(c => c.strongs)).toContain('H430');
+    expect(svc.resolve('elohim').map(c => c.strongs)).toContain('H430');
+  });
+
+  it('treats y/i, doubled letters and kh/ch as the same', () => {
+    expect(svc.resolve('yehovah').map(c => c.strongs)).toContain('H3068');
+    expect(svc.resolve('iehovah').map(c => c.strongs)).toContain('H3068');
+    expect(svc.resolve('agaape').map(c => c.strongs)).toContain('G26');
+  });
+
+  it('keeps an exact match ahead of looser ones and does not invent matches', () => {
+    expect(svc.resolve('agape')[0].strongs).toBe('G26');
+    expect(svc.resolve('zzz')).toEqual([]);
+    expect(svc.resolve('elohimzz')).toEqual([]);
   });
 });

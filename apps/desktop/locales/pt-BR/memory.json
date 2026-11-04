@@ -418,6 +418,8 @@
   "memory.core.listenStartFailed": "Não foi possível começar a ouvir.",
   "memory.core.loopGettingReady": "Preparando",
   "memory.core.loopPaused": "Em pausa",
+  "memory.core.loopPausedSilence": "Nenhuma fala foi ouvida, então a recitação está em pausa. Toque em Continuar para prosseguir.",
+  "memory.core.loopPausedSilenceTap": "Nenhuma fala foi ouvida. Toque em Falar para tentar de novo.",
   "memory.core.loopFinishingUp": "Finalizando",
   "memory.core.somethingWentWrong": "Algo deu errado.",
   "memory.core.loopFindingNext": "Buscando a próxima passagem",
@@ -558,5 +560,9 @@
   "memory.ui.plan.reciteHandsFree": "Mãos livres",
   "memory.ui.plan.reciteHandsFreeHint": "Fale e ouça sem tocar na tela",
   "memory.core.loopPracticeOnly": "Somente prática. Nada foi avaliado.",
-  "memory.ui.settings.practiceOnlyShort": "Somente prática. Nada foi avaliado."
+  "memory.ui.settings.practiceOnlyShort": "Somente prática. Nada foi avaliado.",
+  "memory.ui.plan.removeConfirmNew": "Remover esta passagem da sua lista?",
+  "memory.ui.plan.alreadyInList": "{reference} já está na sua lista.",
+  "memory.ui.plan.reciteHandsFreeNoVoice": "O modo mãos livres precisa que o aplicativo consiga falar, e nenhuma voz de conversão de texto em fala está disponível neste computador.",
+  "memory.core.micNone": "Nenhum microfone foi encontrado. Conecte um e tente novamente."
 }

@@ -117,6 +117,34 @@ describe('CommandRegistry', () => {
     expect(results.length).toBe(2);
   });
 
+  describe('B-072 category-prefixed queries (as the palette displays them)', () => {
+    beforeEach(() => {
+      const mk = (id: string, title: string, category: string) =>
+        h.registry.register({ id, title, category, handler: vi.fn() });
+      mk('z.1', 'Apply Reading Mode', 'Layout');
+      mk('z.2', 'Apply Quad Layout', 'Layout');
+      mk('z.3', 'Reset', 'Layout');
+      mk('a.1', 'Study', 'Apps');
+      mk('a.2', 'Apply Pending', 'Apps');
+    });
+
+    it('"Layout: Apply" finds the Layout commands whose title starts with Apply, and only those', () => {
+      const ids = h.registry.query('Layout: Apply', h.whenContext.snapshot()).map((r) => r.id).sort();
+      expect(ids).toEqual(['z.1', 'z.2']);
+    });
+
+    it('"Layout:" lists exactly the Layout category', () => {
+      const ids = h.registry.query('Layout:', h.whenContext.snapshot()).map((r) => r.id).sort();
+      expect(ids).toEqual(['z.1', 'z.2', 'z.3']);
+    });
+
+    it('the empty query lists a category together, not interleaved by title', () => {
+      const cats = h.registry.query('', h.whenContext.snapshot()).map((r) => r.category);
+      const changes = cats.filter((c, i) => i > 0 && c !== cats[i - 1]).length;
+      expect(changes).toBe(1);
+    });
+  });
+
   it('hidden commands are not returned by query but are executable', async () => {
     const handler = vi.fn();
     h.registry.register({ id: 'test.foo', title: { key: 'test.foo' }, hidden: true, handler });

@@ -125,7 +125,7 @@ export const SpeechSection: React.FC = () => {
       </label>
 
       <div className="flex items-center gap-3 text-sm" data-testid="speech-model-row">
-        <span className="flex-1" data-testid="speech-status">{t(`speech.status.${state}`)}</span>
+        <span className="flex-1" data-testid="speech-status">{busy ? t('speech.status.downloading') : t(`speech.status.${state}`)}</span>
         {busy ? (
           <>
             {percent !== null && <span data-testid="speech-percent">{t('speech.downloading', { percent })}</span>}
@@ -137,6 +137,9 @@ export const SpeechSection: React.FC = () => {
           <button type="button" data-testid="speech-delete" onClick={() => void remove()}>{t('speech.delete')}</button>
         ) : null}
       </div>
+      {state === 'needs-download' && !busy && (
+        <p className="text-xs" style={secondary} data-testid="speech-download-hint">{t('speech.downloadHint')}</p>
+      )}
       {busy && (
         <progress className="w-full" max={100} value={percent ?? undefined} data-testid="speech-progress" />
       )}
@@ -207,7 +210,7 @@ export const MicTest: React.FC = () => {
         style={{ background: 'var(--theme-border, #8884)' }}
         data-testid="speech-mic-meter"
       >
-        <div className="h-2 rounded" style={{ width: `${Math.round(level * 100)}%`, background: 'var(--theme-accent, #3b82f6)' }} />
+        <div className="h-2 rounded" style={{ width: `${Math.round(level * 100)}%`, background: 'var(--theme-accent-primary, #3b82f6)' }} />
       </div>
       {error && <p className="text-sm" role="alert" style={{ color: 'var(--theme-text-secondary)' }}>{error}</p>}
     </div>

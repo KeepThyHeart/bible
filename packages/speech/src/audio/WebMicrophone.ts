@@ -2,8 +2,9 @@ import type { IMicrophone, MicStream } from '@bible/core/speech';
 import { PCM_WORKLET_NAME, PCM_WORKLET_URL } from './workletUrl';
 
 /** Map a getUserMedia / AudioContext failure to a ListenOutcome error code. */
-export function micErrorCode(err: unknown): 'mic-denied' | 'mic-busy' {
+export function micErrorCode(err: unknown): 'mic-denied' | 'mic-busy' | 'mic-none' {
   const name = (err as { name?: string } | null)?.name;
+  if (name === 'NotFoundError') return 'mic-none'; // no input device at all, not "in use" (B-137)
   return name === 'NotAllowedError' || name === 'SecurityError' ? 'mic-denied' : 'mic-busy';
 }
 

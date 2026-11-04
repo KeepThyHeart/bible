@@ -382,4 +382,16 @@ describe('BibleToolbar', () => {
     render(<BibleToolbar />);
     expect(() => fireEvent.click(screen.getByTestId('text-size-btn-bible'))).not.toThrow();
   });
+
+  // B-156: Escape closes the Recent passages menu and returns focus to its button.
+  it('Escape closes the history menu and focuses its toggle', () => {
+    const { container } = render(<BibleToolbar />);
+    const toggle = container.querySelector<HTMLButtonElement>('[data-testid="history-dropdown-toggle"]')!;
+    fireEvent.click(toggle);
+    expect(container.querySelector('.bible-toolbar__history-menu')).toBeTruthy();
+    document.body.focus();
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(container.querySelector('.bible-toolbar__history-menu')).toBeNull();
+    expect(document.activeElement).toBe(toggle);
+  });
 });

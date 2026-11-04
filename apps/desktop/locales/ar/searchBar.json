@@ -6,5 +6,9 @@
   "searchBar.referenceMode.goTo": "الانتقال إلى {reference}",
   "searchBar.emptyState.recentSearches": "عمليات البحث الأخيرة",
   "searchBar.emptyState.recentCommands": "الأوامر الأخيرة",
-  "searchBar.emptyState.noRecents": "لا توجد عناصر حديثة"
+  "searchBar.emptyState.noRecents": "لا توجد عناصر حديثة",
+  "searchBar.resultCountLabel": "{count} نتيجة",
+  "searchBar.reference.noChapter": "«{book} {chapter}» ليس مرجعًا صالحًا: يحتوي {book} على {count} أصحاحًا.",
+  "searchBar.reference.noVerse": "«{book} {chapter}:{verse}» ليس مرجعًا صالحًا: يحتوي {book} {chapter} على {count} عددًا.",
+  "searchBar.reference.needsChapter": "يحتاج «{book}» إلى رقم أصحاح ليكون مرجعًا صالحًا، مثل «{book} 1»."
 }

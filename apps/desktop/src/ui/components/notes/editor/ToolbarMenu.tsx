@@ -50,7 +50,25 @@ export interface ToolbarMenuProps {
   children: React.ReactNode;
 }
 
-function computeStyle(anchor: DOMRect, panel: DOMRect, dir: 'ltr' | 'rtl'): CSSProperties {
+/**
+ * Where `position: fixed` coordinates are measured from. Normally the viewport, but an ancestor with `transform`,
+ * `filter`, `perspective`, or `contain: layout|paint|strict|content` becomes the containing block for fixed
+ * descendants - the dockview grid sets `contain: layout`, which put this menu a toolbar's-height-plus below its button
+ * (B-188). Returns that ancestor's rect, or null when the viewport is the origin.
+ */
+export function fixedContainingRect(el: HTMLElement | null): DOMRect | null {
+  for (let e = el?.parentElement ?? null; e; e = e.parentElement) {
+    const s = getComputedStyle(e);
+    const contained = /layout|paint|strict|content/.test(s.contain || '');
+    if (contained || (s.transform && s.transform !== 'none') || (s.filter && s.filter !== 'none')
+      || (s.perspective && s.perspective !== 'none') || /transform|filter|perspective/.test(s.willChange || '')) {
+      return e.getBoundingClientRect();
+    }
+  }
+  return null;
+}
+
+export function computeStyle(anchor: DOMRect, panel: DOMRect, dir: 'ltr' | 'rtl', origin: DOMRect | null = null): CSSProperties {
   const vv = typeof window !== 'undefined' ? window.visualViewport : undefined;
   const viewportWidth = vv ? vv.width : window.innerWidth;
   const viewportHeight = vv ? vv.height : window.innerHeight;
@@ -67,7 +85,10 @@ function computeStyle(anchor: DOMRect, panel: DOMRect, dir: 'ltr' | 'rtl'): CSSP
     ? below
     : Math.max(EDGE_PADDING, anchor.top - GAP - panel.height);
 
-  return { position: 'fixed', top, insetInlineStart, maxWidth, visibility: 'visible' };
+  // Fixed offsets are measured from the containing block, not always the viewport.
+  const originTop = origin ? origin.top : 0;
+  const originStart = origin ? (dir === 'rtl' ? viewportWidth - origin.right : origin.left) : 0;
+  return { position: 'fixed', top: top - originTop, insetInlineStart: insetInlineStart - originStart, maxWidth, visibility: 'visible' };
 }
 
 /** Off-screen-but-measurable starting point, before the panel has been placed. */
@@ -101,7 +122,7 @@ const ToolbarMenu: React.FC<ToolbarMenuProps> = ({
     // the panel a row-height below the button that spawned it - the reported
     // "the menu is too low, it's not beside the button".
     const triggerRect = anchor.firstElementChild?.getBoundingClientRect() ?? anchor.getBoundingClientRect();
-    setStyle(computeStyle(triggerRect, panel.getBoundingClientRect(), uiDir));
+    setStyle(computeStyle(triggerRect, panel.getBoundingClientRect(), uiDir, fixedContainingRect(panel)));
     // Placement depends only on the open transition: the panel's contents are
     // static for as long as it is open, and re-running on every render would
     // loop through its own setState.

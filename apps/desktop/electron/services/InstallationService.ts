@@ -20,6 +20,8 @@ import { getSharedUserDb } from './sharedUserDb';
 import { stabilizeModuleLinkage } from './moduleLinkStability';
 import { normalizeRegistryPath } from './moduleRegistryIntegrity';
 import type { KeywordIndexService } from './KeywordIndexService';
+import { ModuleLoader } from './ModuleLoader';
+import { getModuleDatabaseRegistry } from './ModuleDatabaseRegistry';
 
 /**
  * Installation service implementation
@@ -74,7 +76,13 @@ export class InstallationService implements IInstallationService {
     sourcePath: string,
     moduleInfo: Partial<ModuleMetadata>,
     verification?: InstallVerification,
-    hooks?: InstallHooks
+    hooks?: InstallHooks,
+    /**
+     * `keepSource`: the file is the user's own (Upload Module, drag-and-drop),
+     * not a download this app staged. It is copied into the modules folder and
+     * left where it was, so uninstalling never deletes the user's only copy.
+     */
+    options?: { keepSource?: boolean }
   ): Promise<InstallationResult> {
     try {
       hooks?.onStage?.('verifying');
@@ -172,16 +180,32 @@ export class InstallationService implements IInstallationService {
         fs.mkdirSync(parentDir, { recursive: true });
       }
 
-      // Move module to final location
-      try {
-        fs.renameSync(dbPath, destinationPath);
-      } catch (moveError) {
-        // The downloads folder and the modules folder can be on different
-        // volumes (a data directory moved to another drive); rename cannot
-        // cross them, so copy and then remove the source.
-        if ((moveError as NodeJS.ErrnoException).code !== 'EXDEV') throw moveError;
+      const tempDecompressed = dbPath !== sourcePath;
+      if (options?.keepSource) {
+        // The user's own file: copy, never move. Only a decompressed temporary
+        // of ours (and its sidecars) is cleaned up; the chosen file stays.
         await fs.promises.copyFile(dbPath, destinationPath);
-        fs.rmSync(dbPath, { force: true });
+        if (tempDecompressed) {
+          for (const ext of ['', '-wal', '-shm', '-journal']) fs.rmSync(dbPath + ext, { force: true });
+        }
+      } else {
+        // Move module to final location
+        try {
+          fs.renameSync(dbPath, destinationPath);
+        } catch (moveError) {
+          // The downloads folder and the modules folder can be on different
+          // volumes (a data directory moved to another drive); rename cannot
+          // cross them, so copy and then remove the source.
+          if ((moveError as NodeJS.ErrnoException).code !== 'EXDEV') throw moveError;
+          await fs.promises.copyFile(dbPath, destinationPath);
+          fs.rmSync(dbPath, { force: true });
+        }
+
+        // The checks above opened the file at its download path; SQLite may have
+        // left -wal/-shm/-journal there. Only the .db moved, so drop the orphans.
+        for (const ext of ['-wal', '-shm', '-journal']) {
+          fs.rmSync(dbPath + ext, { force: true });
+        }
       }
 
       // Get module size
@@ -326,8 +350,16 @@ export class InstallationService implements IInstallationService {
 
       // Delete module file - resolve relative databasePath against modules base
       const absolutePath = path.resolve(path.dirname(this.modulesBasePath), module.databasePath);
-      if (fs.existsSync(absolutePath)) {
-        fs.unlinkSync(absolutePath);
+      // Close every open handle first (loader caches + registry), or the
+      // removed module keeps being served and -wal/-shm sidecars are orphaned.
+      try {
+        if (module.abbreviation) ModuleLoader.evictEverywhere(module.abbreviation);
+        getModuleDatabaseRegistry().close(absolutePath);
+      } catch (error) {
+        log.warn(`[InstallationService] Failed to close handles for module ${moduleId}:`, error);
+      }
+      for (const suffix of ['', '-wal', '-shm', '-journal']) {
+        fs.rmSync(absolutePath + suffix, { force: true });
       }
 
       // Remove from database

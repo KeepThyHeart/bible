@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'preact/hooks';
+import { useEffect, useRef, useState } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { useEscapeKey } from '../../hooks/useEscapeKey';
+import { useModalFocus } from '../../hooks/useModalFocus';
 import { API_BASE } from '../../utils/apiUrl';
 import { SlotOutlet, helpShortcutRows } from '../../host/slots';
 
@@ -37,17 +38,19 @@ export function HelpDialog({ isOpen, onClose, onSendFeedback }: HelpDialogProps)
       .catch(() => {});
   }, [isOpen]);
 
+  const dialogRef = useRef<HTMLDivElement>(null);
   useEscapeKey(isOpen, onClose);
+  useModalFocus(isOpen, dialogRef);
 
   if (!isOpen) return null;
 
   return (
     <div class="settings-panel-overlay" onClick={onClose}>
-      <div class="help-dialog" onClick={(e) => e.stopPropagation()}>
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="help-dialog-title" class="help-dialog" onClick={(e) => e.stopPropagation()}>
         <div class="help-dialog__header">
-          <h3><i class="fa-solid fa-circle-question" style={{ marginInlineEnd: '8px', opacity: 0.5 }} />{t('title')}</h3>
-          <button class="help-dialog__close" onClick={onClose}>
-            <i class="fa-solid fa-xmark" />
+          <h3 id="help-dialog-title"><i class="fa-solid fa-circle-question" aria-hidden="true" style={{ marginInlineEnd: '8px', opacity: 0.5 }} />{t('title')}</h3>
+          <button class="help-dialog__close" onClick={onClose} aria-label={t('ui:common.close')} title={t('ui:common.close')}>
+            <i class="fa-solid fa-xmark" aria-hidden="true" />
           </button>
         </div>
         <div class="help-dialog__body">

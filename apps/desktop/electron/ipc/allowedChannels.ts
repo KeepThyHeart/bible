@@ -144,6 +144,8 @@ export const ALLOWED_IPC_CHANNELS = [
   // they share, not in fileNotesHandlers.
   'notes:print',
   'notes:export-pdf',
+  // Native save dialog for a text file the renderer built (.ics, keyword sets).
+  'app:save-text-file',
   // App-shell commands invoked by command handlers (about dialog,
   // dev tools toggle, zoom, external links). Routed through
   // ipcRenderer.invoke so they share the existing whitelist.

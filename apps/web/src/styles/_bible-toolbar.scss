@@ -132,11 +132,17 @@
     white-space: nowrap;
     align-items: center;
     transition: background 0.1s;
-    outline: none;
     border-inline-end: 2px solid var(--border-color);
 
     &:hover {
       background: var(--bg-tertiary);
+    }
+
+    // Inset: the toolbar clips overflow and the items abut, so an outside ring
+    // would be cut off or hidden under the next item.
+    &:focus-visible {
+      outline: 2px solid var(--accent-color);
+      outline-offset: -3px;
     }
   }
 

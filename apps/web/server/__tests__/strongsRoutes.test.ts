@@ -106,7 +106,26 @@ describe('Strong\'s Routes — lookup', () => {
     const res = await request(app).get('/api/strongs/G25');
 
     expect(Object.keys(res.body).sort()).toEqual(
-      ['definition', 'etymology', 'partOfSpeech', 'strongsNumber', 'transliteration', 'word'].sort(),
+      ['definition', 'etymology', 'partOfSpeech', 'pronunciation', 'strongsNumber', 'transliteration', 'word'].sort(),
     );
+  });
+
+  // B-177: the popup showed the raw key ("00026") and the font-encoded form ("ajgavph").
+  it('gives the Greek word, transliteration and pronunciation, and a definition without the raw head', async () => {
+    const res = await request(app).get('/api/strongs/G26');
+
+    expect(res.status).toBe(200);
+    expect(res.body.word).toBe('ἀγάπη');
+    expect(res.body.transliteration).toBe('agape');
+    expect(res.body.pronunciation).toBe("ag-ah'-pay");
+    expect(res.body.definition).not.toMatch(/ajgavph|^\s*26\s/);
+  });
+
+  it('gives a Hebrew entry its transliteration rather than its raw key', async () => {
+    const res = await request(app).get('/api/strongs/H430');
+
+    expect(res.status).toBe(200);
+    expect(res.body.word).toBe('elohiym');
+    expect(res.body.pronunciation).toBe("el-o-heem'");
   });
 });

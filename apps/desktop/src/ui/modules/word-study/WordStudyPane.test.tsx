@@ -67,7 +67,7 @@ describe('WordStudyPane', () => {
     await user.type(screen.getByRole('textbox'), 'G25');
     await user.click(screen.getByRole('button', { name: 'Study' }));
 
-    expect(await screen.findByText('142 occurrences in 130 verses')).toBeTruthy();
+    expect(await screen.findByText((_, el) => (el?.textContent ?? '').replace(/[\u2068\u2069]/g, '') === '142 occurrences in 130 verses' && el!.children.length === 0)).toBeTruthy();
     expect(api.getOverview.mock.calls[0][0]).toEqual({ kind: 'strongs', strongs: 'G25' });
     expect(await screen.findByText(/John 3:16/)).toBeTruthy();
   });
@@ -125,7 +125,7 @@ describe('WordStudyPane', () => {
       { wordStudy_t: { subject: { kind: 'strongs', strongs: 'G25' }, options: {}, filters: {} } }, ['wordStudy_t'],
     );
     renderPane();
-    expect(await screen.findByText('142 occurrences in 130 verses')).toBeTruthy();
+    expect(await screen.findByText((_, el) => (el?.textContent ?? '').replace(/[\u2068\u2069]/g, '') === '142 occurrences in 130 verses' && el!.children.length === 0)).toBeTruthy();
   });
 
   it('goes back through the trail', async () => {
@@ -133,7 +133,7 @@ describe('WordStudyPane', () => {
     renderPane();
     await user.type(screen.getByRole('textbox'), 'G25');
     await user.click(screen.getByRole('button', { name: 'Study' }));
-    await screen.findByText('142 occurrences in 130 verses');
+    await screen.findByText((_, el) => (el?.textContent ?? '').replace(/[\u2068\u2069]/g, '') === '142 occurrences in 130 verses' && el!.children.length === 0);
     expect((screen.getByTestId('word-study-back') as HTMLButtonElement).disabled).toBe(true);
     await user.clear(screen.getByRole('textbox'));
     await user.type(screen.getByRole('textbox'), 'G26');

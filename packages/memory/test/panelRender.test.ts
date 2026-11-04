@@ -963,6 +963,13 @@ describe('the ordering picker', () => {
     expect(spokenText(live)).toContain('Not that one');
   });
 
+  it('keeps the wrong mark and "Try again" up for at least 2.5 s so it can be read (B-024)', async () => {
+    const { practice } = await pickWrong();
+    vi.advanceTimersByTime(2_500);
+    expect(markedCandidate(practice.root)).not.toBeNull();
+    expect(spokenText(practice.root.querySelector<HTMLElement>('[aria-live]')!)).toContain('Not that one');
+  });
+
   it('lets the mark expire - it says "not that one", it does not keep a tally', async () => {
     const { practice } = await pickWrong();
     expect(markedCandidate(practice.root)).not.toBeNull();
@@ -971,7 +978,7 @@ describe('the ordering picker', () => {
     // retry would turn a hint into a scoreboard, which is explicitly not what
     // it is for; a second wrong pick would then leave two candidates marked and
     // the picker would look like it was accumulating a verdict.
-    vi.advanceTimersByTime(2_000);
+    vi.advanceTimersByTime(4_000);
 
     expect(markedCandidate(practice.root)).toBeNull();
     const live = practice.root.querySelector<HTMLElement>('[aria-live]')!;
@@ -1245,6 +1252,52 @@ describe('a missed word', () => {
     await settle();
     return practice;
   }
+
+  it('B-121: the step counter keeps naming the graded step until Next is pressed', async () => {
+    const step = blanksStep(PSALM_1_2, BLANKED);
+    host.handlers.submitStep = () => ({
+      ok: true,
+      data: {
+        result: stepResult({ correct: false, wrong: [1], blocking: false, reveal: { words: ['his', 'law'] } }),
+        // The session has already moved on to step 2 of 2.
+        session: session({ ...blanksStep(PSALM_1_2, BLANKED), stepNumber: 2 }),
+        summary: null,
+      },
+    });
+    const practice = await mountPractice(step);
+    const meta = () => practice.root.querySelector('.kth-crumbs__meta')?.textContent ?? '';
+    expect(meta()).toMatch(/1\D+2/);
+    const inputs = Array.from(practice.root.querySelectorAll<HTMLInputElement>('.sm-blank'));
+    inputs[0]!.value = 'his';
+    inputs[1]!.value = 'lore';
+    practice.root.querySelector<HTMLButtonElement>('.sm-exercise-actions button')!.click();
+    await settle();
+    expect(meta()).toMatch(/^\D*1\D+2/);
+    practice.root.querySelector<HTMLButtonElement>('.sm-exercise-actions button')!.click(); // Next
+    await settle();
+    expect(meta()).toMatch(/^\D*2\D+2/);
+  });
+
+  it('B-121: the right-first-time tally updates on submit while the step counter stays', async () => {
+    const step = blanksStep(PSALM_1_2, BLANKED);
+    host.handlers.submitStep = () => ({
+      ok: true,
+      data: {
+        result: stepResult({ correct: true, wrong: [], blocking: false }),
+        session: { ...session({ ...blanksStep(PSALM_1_2, BLANKED), stepNumber: 2 }), correctFirst: 1 },
+        summary: null,
+      },
+    });
+    const practice = await mountPractice(step);
+    const tally = () => practice.root.querySelector('.sm-step-tally')?.textContent ?? '';
+    expect(tally()).toMatch(/^0\b/);
+    const inputs = Array.from(practice.root.querySelectorAll<HTMLInputElement>('.sm-blank'));
+    inputs[0]!.value = 'his';
+    inputs[1]!.value = 'law';
+    practice.root.querySelector<HTMLButtonElement>('.sm-exercise-actions button')!.click();
+    await settle();
+    expect(tally()).toMatch(/^1\b/);
+  });
 
   it('shows the right word and the wrong answer beside it, both readable', async () => {
     const practice = await submitOneWrong();
@@ -2201,7 +2254,7 @@ describe('the ordering picker - letter shortcuts', () => {
     expect(host.requests.filter((r) => r.type === 'submitStep').length).toBe(1);
 
     // Once the wrong mark has expired, the same letter works again.
-    vi.advanceTimersByTime(2_000);
+    vi.advanceTimersByTime(4_000);
     await settle();
     press(list, 'b');
     await settle();
@@ -2816,7 +2869,7 @@ describe('the Manage Passages screen', () => {
     // this is not a failure, and must not end up in the error slot.
     host.handlers.addPassage = () => ({
       ok: true,
-      data: { passage: passageFixture({ reference: 'Psalm 23:1-6' }) },
+      data: { passage: passageFixture({ reference: 'Psalm 23:1-6' }), existed: true },
     });
     const root = renderManagePassages(host, managePlan([]));
     container.appendChild(root);
@@ -2827,18 +2880,23 @@ describe('the Manage Passages screen', () => {
     await settle();
 
     expect(root.querySelector('.sm-error')).toBeNull();
-    expect(host.announcements.some((a) => a.includes('Added'))).toBe(true);
+    // B-026: says so, rather than claiming "Added".
+    expect(host.announcements.some((a) => a.includes('already in your list'))).toBe(true);
+    expect(host.announcements.some((a) => a.includes('Added'))).toBe(false);
   });
 
   // -- removing a passage ----------------------------------------------------
 
-  it('removes a never-practiced passage immediately, with no confirmation step', async () => {
+  it('asks before removing a never-practiced passage too, then removes on confirm (B-025)', async () => {
     host.handlers.removePassage = () => ({ ok: true, data: {} });
     const pv = passageViewFixture({ bestLevel: 0 });
     const root = renderManagePassages(host, managePlan([pv]));
     container.appendChild(root);
 
     root.querySelector<HTMLButtonElement>('.sm-remove button')!.click();
+    expect(host.requests.filter((r) => r.type === 'removePassage')).toEqual([]);
+    expect(spokenText(root)).toContain('Remove this passage from your list?');
+    root.querySelectorAll<HTMLButtonElement>('.sm-remove button')[0]!.click();
     await settle();
 
     expect(host.requests).toContainEqual({ type: 'removePassage', passageId: pv.passage.id });
@@ -2863,6 +2921,7 @@ describe('the Manage Passages screen', () => {
     container.appendChild(root);
 
     root.querySelector<HTMLButtonElement>('.sm-remove button')!.click();
+    root.querySelectorAll<HTMLButtonElement>('.sm-remove button')[0]!.click();
     await settle();
 
     // No list-deleting request of any kind was ever sent - removing a
@@ -3158,6 +3217,40 @@ describe('the practice screen: activity tabs, shuffle, and tier display', () => 
     // would make that query ambiguous, so the tab strip deliberately uses a
     // different value.
     expect(practice.root.querySelectorAll('[aria-current="step"]').length).toBe(1);
+  });
+
+  it('offers "Recite aloud" only when speech is ready, and opens the recite flow, not a session (B-023)', async () => {
+    const withRecite = passageViewFixture({
+      rungs: [
+        rungView({ rung: 'ordering', level: 3 }),
+        rungView({ rung: 'blanks', level: 1 }),
+        rungView({ rung: 'recite', level: 0 }),
+      ],
+    });
+    // Speech off: no recite tab.
+    host.handlers.getSettings = () => ({
+      ok: true,
+      data: { defaultAnswerMode: 'firstLetter', recite: RECITE_DEFAULTS, speech: SPEECH_OFF },
+    } as never);
+    let practice = await mountPractice(blanksStep(PSALM_1_2, BLANKED), { rung: 'blanks' }, undefined, { ok: true, data: withRecite });
+    expect(tabs(practice.root).map((t) => t.textContent)).not.toContain(RUNG_LABEL.recite);
+    practice.destroy();
+    container.innerHTML = '';
+
+    // Speech ready: the tab shows and starts a recite run.
+    host.handlers.getSettings = () => ({
+      ok: true,
+      data: { defaultAnswerMode: 'firstLetter', recite: RECITE_DEFAULTS, speech: { ...SPEECH_OFF, state: 'ready' } },
+    } as never);
+    host.handlers.endSession = () => ({ ok: true, data: { summary: null } });
+    host.handlers.startRecite = () => ({ ok: true, data: { reciteId: 7, mode: 'tap' } } as never);
+    practice = await mountPractice(blanksStep(PSALM_1_2, BLANKED), { rung: 'blanks' }, undefined, { ok: true, data: withRecite });
+    const reciteTab = tabs(practice.root).find((t) => t.textContent === RUNG_LABEL.recite)!;
+    expect(reciteTab).toBeTruthy();
+    reciteTab.click();
+    await settle();
+    expect(host.requests.some((r) => r.type === 'startRecite')).toBe(true);
+    expect(host.sessionsStarted.some((s) => s.rung === 'recite')).toBe(false);
   });
 
   it('shows no tab strip at all when only one activity is applicable', async () => {

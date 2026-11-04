@@ -21,5 +21,7 @@
   "speech.mic.stop": "עצור",
   "speech.mic.level": "עוצמת המיקרופון",
   "speech.mic.denied": "הגישה למיקרופון נדחתה.",
-  "speech.mic.unavailable": "לא ניתן היה לפתוח מיקרופון."
+  "speech.mic.unavailable": "לא ניתן היה לפתוח מיקרופון.",
+  "speech.status.downloading": "מוריד את המודל…",
+  "speech.downloadHint": "ההורדה מתחברת פעם אחת ל-huggingface.co (ולשרתי הקבצים שלו ב-hf.co) כדי להביא כ-44 מ״ב (Tiny) או 80 מ״ב (Base); הגרסאות לכרטיס מסך גדולות יותר. מתבקשים רק קובצי המודל. הקול והטקסט שלכם לעולם אינם נשלחים."
 }

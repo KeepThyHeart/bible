@@ -4,6 +4,7 @@
  * overflow and dockview's root contains layout, so an inline `fixed` overlay would be cut off.
  */
 import React, { useRef, useState } from 'react';
+import { saveTextFile } from '../../utils/saveTextFile';
 import { createPortal } from 'react-dom';
 import { KeywordMarkEditor } from '@bible/ui';
 import { isValidationErrors, displayKeywordLabel, nextFreeColor, type KeywordMark } from '@bible/core/browser';
@@ -78,16 +79,9 @@ export const KeywordEditorDialog: React.FC<{ tabId: string; target: EditTarget; 
   );
 };
 
-/** Trigger a browser download of `text` (no file-dialog IPC exists for keyword sets). */
+/** Save `text` through the native save dialog (a hidden download link does nothing in the desktop app, B-078). */
 export function downloadJson(filename: string, text: string): void {
-  const url = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
+  void saveTextFile(filename, text, 'application/json').catch((err) => console.error('Keyword set export failed:', err));
 }
 
 export const ManageSetsDialog: React.FC<{ onClose: () => void }> = ({ onClose }) => {

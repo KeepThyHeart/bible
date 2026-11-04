@@ -62,7 +62,26 @@ export async function resolveReference(
     throw new ReferenceError(tc('memory.core.refEmpty', 'Type a reference, for example "John 3:16-18".'));
   }
 
-  const parsed = await api.bible.parseReference(trimmed);
+  let parsed = await api.bible.parseReference(trimmed);
+
+  // A bare name only reads as a reference when the book has a single chapter
+  // ("Jude"): the host parser needs a number, so ask it for "Jude 1" and keep
+  // the answer only for such a book. "John" alone stays unrecognised.
+  if (!parsed && /^[^\d:]+$/.test(trimmed)) {
+    const probe = await api.bible.parseReference(`${trimmed} 1`);
+    if (probe && (await api.bible.listChapters(probe.bookNumber, moduleId)).length === 1) {
+      parsed = { bookNumber: probe.bookNumber, chapter: 1, input: trimmed };
+    }
+  }
+
+  // "Philemon 1" in a single-chapter book reads as verse 1 to the host parser
+  // (so that "Jude 5" is verse 5); a lone "1" is far more likely the chapter.
+  if (parsed && parsed.startVerse === 1 && parsed.endVerse === undefined && /^[^\d:]+\s+1$/.test(trimmed)) {
+    if ((await api.bible.listChapters(parsed.bookNumber, moduleId)).length === 1) {
+      parsed = { bookNumber: parsed.bookNumber, chapter: 1, input: parsed.input };
+    }
+  }
+
   if (!parsed) {
     throw new ReferenceError(
       tc('memory.core.refUnrecognised', '"{input}" is not a reference I recognise. Try something like "John 3:16-18".', { input: trimmed }),
@@ -104,11 +123,29 @@ export async function resolveReference(
     }
   }
 
+  // The host parser hands back verse ids for "John 3:999" without checking the
+  // verse exists: bound both ends against the chapter extents (B-038).
+  const extents = await api.bible.listChapters(parsed.bookNumber, moduleId);
+  for (const id of [startVerseId, endVerseId]) {
+    const chapterNo = Math.floor(id / 1000) % 1000;
+    const extent = extents.find((c) => c.chapter === chapterNo);
+    if (!extent) {
+      throw new ReferenceError(
+        tc('memory.core.refNoChapter', 'That book does not have a chapter {chapter} in this translation.', { chapter: chapterNo }),
+      );
+    }
+    if (id < extent.firstVerseId || id > extent.lastVerseId) {
+      throw new ReferenceError(
+        tc('memory.core.refChapterVerses', 'That chapter only has {count} verses.', { count: extent.verseCount }),
+      );
+    }
+  }
+
   if (endVerseId < startVerseId) {
     throw new ReferenceError(tc('memory.core.refRangeBackwards', 'That range ends before it starts.'));
   }
 
-  const verseCount = endVerseId - startVerseId + 1;
+  const verseCount = await countVerses(api, parsed.bookNumber, startVerseId, endVerseId, moduleId);
   if (verseCount > MAX_PASSAGE_VERSES) {
     throw new ReferenceError(
       tc('memory.core.refTooLong', 'That is {count} verses. Passages are limited to {max}; add it in smaller pieces so each one stays practisable.', { count: verseCount, max: MAX_PASSAGE_VERSES }),
@@ -140,4 +177,32 @@ function formatRange(
     return `${parsed.input.trim()} (${verseCount} verses)`;
   }
   return parsed.input.trim();
+}
+
+/**
+ * Verses between two ids, inclusive. Ids are book*1e6 + chapter*1e3 + verse, so
+ * their difference only counts verses inside one chapter; a range that crosses
+ * chapters is summed from the chapter extents.
+ */
+async function countVerses(
+  api: { bible: MemoryBibleApi },
+  bookNumber: number,
+  startVerseId: number,
+  endVerseId: number,
+  moduleId?: string,
+): Promise<number> {
+  const startChapter = Math.floor(startVerseId / 1000) % 1000;
+  const endChapter = Math.floor(endVerseId / 1000) % 1000;
+  if (startChapter === endChapter || Math.floor(startVerseId / 1_000_000) !== Math.floor(endVerseId / 1_000_000)) {
+    return endVerseId - startVerseId + 1;
+  }
+  const chapters = await api.bible.listChapters(bookNumber, moduleId);
+  let count = 0;
+  for (const c of chapters) {
+    if (c.chapter < startChapter || c.chapter > endChapter) continue;
+    const first = Math.max(c.firstVerseId, startVerseId);
+    const last = Math.min(c.lastVerseId, endVerseId);
+    if (last >= first) count += last - first + 1;
+  }
+  return count;
 }

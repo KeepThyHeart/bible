@@ -41,6 +41,7 @@ const TEMPLATED: Record<string, string[]> = {
   openPassage: ['reference'],
   score: ['correct', 'graded'],
   scorePartly: ['partly'],
+  endedEarly: ['count'],
   sameAgain: ['label'],
   historyEntry: ['label', 'correct', 'graded', 'date'],
   textBasis: ['translation'],

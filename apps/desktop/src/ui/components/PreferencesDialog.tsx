@@ -161,7 +161,7 @@ const PreferencesDialog: React.FC<PreferencesDialogProps> = ({
       >
         {/* Left sidebar */}
         <div
-          className="w-52 flex-shrink-0 flex flex-col py-4"
+          className="w-52 max-w-[40%] flex-shrink-0 flex flex-col min-h-0 py-4"
           style={{
             backgroundColor: 'var(--theme-surface-secondary)',
             borderInlineEnd: '1px solid var(--theme-border-primary)'
@@ -176,7 +176,7 @@ const PreferencesDialog: React.FC<PreferencesDialogProps> = ({
           </h2>
 
           <nav
-            className="flex-1 space-y-0.5 px-2"
+            className="flex-1 min-h-0 overflow-y-auto space-y-0.5 px-2"
             role="tablist"
             aria-label={t('preferencesDialog.sectionsNavLabel')}
             aria-orientation="vertical"
@@ -200,7 +200,7 @@ const PreferencesDialog: React.FC<PreferencesDialogProps> = ({
                     ? 'var(--theme-accent-light)'
                     : 'transparent',
                   color: activeSection === section.id
-                    ? 'var(--theme-accent-primary)'
+                    ? 'var(--theme-accent-strong)' // AA on accent-light in every theme (themeContrast.test.ts); accent-primary fell to 3.95-4.24 in ten (B-107)
                     : 'var(--theme-text-secondary)'
                 }}
                 onMouseEnter={(e) => {

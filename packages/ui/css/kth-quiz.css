@@ -45,6 +45,7 @@
 .kth-quiz__choice--selected { border-color: var(--kth-accent); background: var(--kth-accent-soft); }
 .kth-quiz__choice--correct { border-color: var(--kth-success); background: var(--kth-bg-subtle); }
 .kth-quiz__choice--incorrect { border-color: var(--kth-danger); background: var(--kth-danger-soft); }
+.kth-quiz__choice-input { accent-color: var(--kth-accent); }
 .kth-quiz__choice-text { flex: 1; min-inline-size: 0; overflow-wrap: anywhere; }
 .kth-quiz__choice-mark { font-weight: 700; }
 .kth-quiz__choice--correct .kth-quiz__choice-mark { color: var(--kth-success); }

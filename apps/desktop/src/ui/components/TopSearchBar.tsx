@@ -1,8 +1,10 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback, useImperativeHandle, forwardRef } from 'react';
 import { stripBidiControls } from '@bible/core/browser';
 import { useI18n } from '../contexts/useI18n';
+import { describeReferenceProblem, checkChapterVerse, type ReferenceProblem } from '../services/referenceProblem';
 import { useSearchStore, normalizeSearchQuery } from '../stores/useSearchStore';
 import { useBibleStore } from '../stores/useBibleStore';
+import { useLayoutStore } from '../stores/useLayoutStore';
 import { syncPanesWithVerse } from '../stores/syncPanesWithVerse';
 import { useCommands } from '../contexts/useCommands';
 import { useWhenContext } from '../contexts/useWhenContext';
@@ -15,6 +17,43 @@ import type { SearchBarMode } from '../types/SearchBarMode';
 import type { CommandQueryResult } from '../types/Command';
 import TopSearchBarDropdown from './TopSearchBarDropdown';
 import LiveSearchSuggestions from './LiveSearchSuggestions';
+import { focusRegion } from '../services/regionNavigation';
+
+/**
+ * Focus-return rule (B-113, see services/regionNavigation.ts): leaving the
+ * search box never drops focus to <body>. After the new UI renders, focus goes
+ * to the heading of what replaced it, else the Bible pane region.
+ */
+function focusAfterSearch(kind: 'bible' | 'results' | 'back'): void {
+  const run = (attempt = 0): void => {
+    const active = document.activeElement;
+    // The action already put focus somewhere real (a dialog, another pane): leave it.
+    // (Focus the region-rescue code parked on a pane while the results pane was still opening is not "real".)
+    if (active && active !== document.body && !active.closest('header') && !active.closest('[data-kth-region="pane"]')) return;
+    let target: HTMLElement | null = null;
+    if (kind === 'results') {
+      target = document.querySelector<HTMLElement>('[data-tour-pane="search"] [data-pane-focus]');
+      // The results panel opens a moment after the search resolves.
+      if (!target && attempt < 30) {
+        window.setTimeout(() => run(attempt + 1), 100);
+        return;
+      }
+    }
+    if (!target) {
+      const id = useLayoutStore.getState().lastActiveBiblePanelId; // allow-getstate: focus helper outside render
+      target =
+        (id && document.querySelector<HTMLElement>(`[data-panel-id="${id}"] [data-pane-focus]`)) ||
+        document.querySelector<HTMLElement>('[data-tour-pane="bible"] [data-pane-focus]');
+    }
+    if (target) {
+      target.focus();
+      return;
+    }
+    const region = document.querySelector<HTMLElement>('[data-kth-region="pane"]');
+    if (region) focusRegion(region);
+  };
+  requestAnimationFrame(() => requestAnimationFrame(() => run()));
+}
 
 // ============================================================================
 // Module-level singleton - avoids re-creating the classifier on every render.
@@ -38,6 +77,9 @@ const classifierInstance = new ReferenceClassifier();
 function determineMode(input: string): SearchBarMode {
   const trimmed = stripBidiControls(input).trimStart();
   if (trimmed === '') return 'empty';
+  // `/regex/` is a regular-expression search, not a command (B-019): a command
+  // title never ends in a slash.
+  if (/^\/.+\/$/.test(trimmed.trimEnd())) return 'search';
   if (trimmed.startsWith('/')) return 'command';
   if (trimmed.startsWith('?')) return 'search';
   if (classifierInstance.looksLikeReference(trimmed)) return 'reference';
@@ -224,7 +266,7 @@ const TopSearchBar = forwardRef<TopSearchBarHandle>(function TopSearchBar(_props
   }, [liveSuggestions, matchedCommands]);
 
   // --------------------------------------------------------------------------
-  // Global keyboard shortcuts (F6 / Ctrl+L / Ctrl+K)
+  // Global keyboard shortcuts (Ctrl+L / Ctrl+K; F6 is region navigation, see services/regionNavigation.ts)
   //
   // Ctrl+L is the desktop app's own shortcut and the one the badge above
   // advertises. Ctrl+K is kept bound as an alias because the web app uses it
@@ -232,7 +274,7 @@ const TopSearchBar = forwardRef<TopSearchBarHandle>(function TopSearchBar(_props
   // --------------------------------------------------------------------------
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'F6' || ((e.ctrlKey || e.metaKey) && (e.key === 'l' || e.key === 'k'))) {
+      if (((e.ctrlKey || e.metaKey) && (e.key === 'l' || e.key === 'k'))) {
         e.preventDefault();
         hasUserInteracted.current = true;
         inputRef.current?.focus();
@@ -286,9 +328,23 @@ const TopSearchBar = forwardRef<TopSearchBarHandle>(function TopSearchBar(_props
   // `reference` is passed explicitly by the Enter handler, which re-parses the
   // live input; the dropdown's click path has no race and falls back to the
   // memoized value.
+  const reportReferenceProblem = useCallback((problem: ReferenceProblem) => {
+    // Isolate the book name (FSI..PDI) so an Arabic name inside an English-order
+    // sentence, or the reverse, does not scramble the punctuation (B-109).
+    const params: Record<string, unknown> = { ...problem.params };
+    if (typeof params.book === 'string') params.book = `\u2068${params.book}\u2069`;
+    useSearchStore.setState({ error: t(problem.key, params) });
+  }, [t]);
+
   const handleReferenceNavigation = useCallback(async (reference?: ParsedReference) => {
     const target = reference ?? parsedReference;
     if (!target) return;
+
+    const problem = checkChapterVerse(target.book!, target.chapter!, target.verse);
+    if (problem) {
+      reportReferenceProblem(problem);
+      return;
+    }
 
     const validationError = getLocalizedReferenceParser().validate(target);
     if (validationError) {
@@ -333,9 +389,13 @@ const TopSearchBar = forwardRef<TopSearchBarHandle>(function TopSearchBar(_props
       console.error('Error navigating to reference:', err, target);
     }
 
+    // Jumping to a typed reference ends the search: don't leave an empty results pane open.
+    // allow-getstate: event handler - imperative action, no subscription needed
+    useLayoutStore.getState().closeSearchResultsPanels();
     clearSearch();
     setIsFocused(false);
     inputRef.current?.blur();
+    focusAfterSearch('bible');
   }, [parsedReference, navigateToVerse, clearSearch]);
 
   // --------------------------------------------------------------------------
@@ -347,9 +407,16 @@ const TopSearchBar = forwardRef<TopSearchBarHandle>(function TopSearchBar(_props
     } catch (err) {
       console.error('Error executing command:', err);
     }
+    // These two commands exist to put the caret in the box: ending the command by clearing and
+    // blurring it undid them and left focus on <body> (B-072).
+    if (commandId === 'app.focusSearchBar' || commandId === 'app.openCommandMode') {
+      if (commandId === 'app.focusSearchBar') clearSearch();
+      return;
+    }
     clearSearch();
     setIsFocused(false);
     inputRef.current?.blur();
+    focusAfterSearch('back');
   }, [registry, clearSearch]);
 
   // --------------------------------------------------------------------------
@@ -369,6 +436,7 @@ const TopSearchBar = forwardRef<TopSearchBarHandle>(function TopSearchBar(_props
     await performSearch(stripped);
     setIsFocused(false);
     inputRef.current?.blur();
+    focusAfterSearch('results');
   }, [query, performSearch]);
 
   // --------------------------------------------------------------------------
@@ -381,6 +449,7 @@ const TopSearchBar = forwardRef<TopSearchBarHandle>(function TopSearchBar(_props
       clearSearch();
       setIsFocused(false);
       inputRef.current?.blur();
+      focusAfterSearch('bible');
     } catch (err) {
       console.error('Error navigating to suggestion:', err, result);
     }
@@ -424,6 +493,12 @@ const TopSearchBar = forwardRef<TopSearchBarHandle>(function TopSearchBar(_props
     return 0;
   }, [mode, matchedCommands.length, showingSearchSuggestions, liveSuggestions.length]);
 
+  // The listbox is in the DOM only when the dropdown is up and no error panel
+  // replaced it (see the render below); combobox state must match that.
+  const listboxVisible = !error && itemCount > 0 && (
+    (showingDropdown && (mode !== 'command' || matchedCommands.length > 0)) || showingSearchSuggestions
+  );
+
   // --------------------------------------------------------------------------
   // Keyboard handler
   // --------------------------------------------------------------------------
@@ -449,15 +524,33 @@ const TopSearchBar = forwardRef<TopSearchBarHandle>(function TopSearchBar(_props
         // `parsedReference` here could navigate to a *previous* reference.
         const liveReference = parseReference(liveQuery);
         if (liveReference) handleReferenceNavigation(liveReference);
+        else {
+          const problem = describeReferenceProblem(liveQuery);
+          if (problem) reportReferenceProblem(problem);
+        }
       } else if (showingSearchSuggestions && selectedIndex >= 0 && selectedIndex < liveSuggestions.length) {
         handleSelectSuggestion(liveSuggestions[selectedIndex]);
       } else {
-        handleSearch(liveQuery);
+        const problem = describeReferenceProblem(liveQuery);
+        if (problem) {
+          cancelLiveSearch();
+          reportReferenceProblem(problem);
+        } else {
+          handleSearch(liveQuery);
+        }
       }
     } else if (e.key === 'Escape') {
       e.preventDefault();
       clearSearch();
       inputRef.current?.blur();
+      // B-047: blur alone drops focus to <body>. Give it back to where it was
+      // (or, failing that, the selected tab) so keyboard users keep their place.
+      const back = returnFocusRef.current;
+      const target =
+        back && back.isConnected
+          ? back
+          : document.querySelector<HTMLElement>('[role="tab"][aria-selected="true"]');
+      target?.focus();
     } else if (e.key === 'ArrowDown') {
       e.preventDefault();
       if (itemCount > 0) {
@@ -476,7 +569,7 @@ const TopSearchBar = forwardRef<TopSearchBarHandle>(function TopSearchBar(_props
     mode, selectedIndex, matchedCommands, liveSuggestions, itemCount,
     showingSearchSuggestions, handleExecuteCommand, handleReferenceNavigation,
     handleSelectSuggestion, handleSearch, handleTabAutocomplete, clearSearch,
-    resolveLiveQuery, cancelLiveSearch,
+    resolveLiveQuery, cancelLiveSearch, reportReferenceProblem,
   ]);
 
   // --------------------------------------------------------------------------
@@ -487,7 +580,14 @@ const TopSearchBar = forwardRef<TopSearchBarHandle>(function TopSearchBar(_props
     if (error) clearError();
   }, [setQuery, error, clearError]);
 
-  const handleFocus = useCallback(() => {
+  const returnFocusRef = useRef<HTMLElement | null>(null);
+
+  const handleFocus = useCallback((e: React.FocusEvent<HTMLInputElement>) => {
+    // B-047: remember where focus came from so Escape can hand it back.
+    const from = e.relatedTarget;
+    if (from instanceof HTMLElement && !e.currentTarget.contains(from)) {
+      returnFocusRef.current = from;
+    }
     if (hasUserInteracted.current) {
       setIsFocused(true);
     }
@@ -560,7 +660,13 @@ const TopSearchBar = forwardRef<TopSearchBarHandle>(function TopSearchBar(_props
   // Counting what the pane counts - `semanticResults` in semantic mode - is
   // what keeps the two numbers from contradicting each other.
   // --------------------------------------------------------------------------
-  const badgeCount = isSemanticMode ? semanticResults.length : searchResults.length;
+  // Keyword mode counts exact matches only; approximate (fuzzy) hits are shown
+  // apart in the pane and not counted (B-017). If every hit is approximate the
+  // badge falls back to the total so it does not vanish with results on screen.
+  const exactKeywordCount = searchResults.filter(r => r.type !== 'fuzzy').length;
+  const badgeCount = isSemanticMode
+    ? semanticResults.length
+    : (exactKeywordCount > 0 ? exactKeywordCount : searchResults.length);
 
   const showResultCountBadge =
     isResultsVisible &&
@@ -572,7 +678,7 @@ const TopSearchBar = forwardRef<TopSearchBarHandle>(function TopSearchBar(_props
   // Render
   // --------------------------------------------------------------------------
   return (
-    <div className={`flex-1 max-w-2xl relative ${modeClass}`}>
+    <div className={`flex-1 min-w-[14rem] max-w-2xl relative ${modeClass}`}>
       {/* Search Input Container */}
       <div className="relative">
         {/* Mode Icon */}
@@ -603,10 +709,16 @@ const TopSearchBar = forwardRef<TopSearchBarHandle>(function TopSearchBar(_props
           }}
           placeholder={t('searchBar.unifiedPlaceholder')}
           data-testid="search-input"
-          className={`w-full ps-10 pe-24 py-2 text-sm border rounded-lg transition-colors ${
+          className={`w-full ps-10 ${showResultCountBadge ? 'pe-36' : 'pe-28'} py-2 text-sm border rounded-lg transition-colors ${
             ringClass || (error ? 'border-danger' : 'border-border')
           } ${isSearching ? 'bg-surface-secondary' : 'bg-surface'}`}
           aria-busy={isSearching}
+          role="combobox"
+          aria-autocomplete="list"
+          aria-haspopup="listbox"
+          aria-expanded={listboxVisible}
+          aria-controls={listboxVisible ? 'search-listbox' : undefined}
+          aria-activedescendant={listboxVisible && selectedIndex >= 0 && selectedIndex < itemCount ? `search-option-${selectedIndex}` : undefined}
         />
 
         {/* Right Side Icons */}
@@ -621,6 +733,8 @@ const TopSearchBar = forwardRef<TopSearchBarHandle>(function TopSearchBar(_props
             <div
               className="bg-accent text-text-on-accent text-xs font-semibold px-2 py-1 rounded"
               data-testid="search-result-count-badge"
+              role="status"
+              aria-label={t('searchBar.resultCountLabel', { count: badgeCount })}
             >
               {badgeCount}
             </div>
