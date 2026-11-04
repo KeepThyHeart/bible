@@ -13,6 +13,7 @@ import { moduleStore } from '../../stores/moduleStore';
 import { bibleStore } from '../../stores/bibleStore';
 import { useStore } from '../../hooks/useStore';
 import { useEscapeKey } from '../../hooks/useEscapeKey';
+import { useModalFocus } from '../../hooks/useModalFocus';
 import { AppsSettingsTab } from './AppsSettingsTab';
 import { useLocalizer } from '../../hooks/useLocalizer';
 import { offlineStorageManager } from '../../offline/sharedInstances';
@@ -148,7 +149,9 @@ export function SettingsPanel({ isOpen, onClose, scrollToSection }: SettingsPane
     }
   }, [isOpen, scrollToSection]);
 
+  const dialogRef = useRef<HTMLDivElement>(null);
   useEscapeKey(isOpen, onClose);
+  useModalFocus(isOpen, dialogRef);
 
   // Fetch topical modules when modules tab is shown
   useEffect(() => {
@@ -233,14 +236,18 @@ export function SettingsPanel({ isOpen, onClose, scrollToSection }: SettingsPane
   return (
     <div class="settings-panel-overlay" onClick={onClose}>
       <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="settings-panel-title"
         class="settings-panel settings-panel--tabs"
         style={{ '--ui-font-scale': frozenUiScale.current } as Record<string, string>}
         onClick={(e) => e.stopPropagation()}
       >
         <div class="settings-panel__header">
-          <h3><i class="fa-solid fa-gear" style={{ marginInlineEnd: '8px', opacity: 0.5 }} />{t('settings.title')}</h3>
-          <button class="settings-panel__close" onClick={onClose}>
-            <i class="fa-solid fa-xmark" />
+          <h3 id="settings-panel-title"><i class="fa-solid fa-gear" aria-hidden="true" style={{ marginInlineEnd: '8px', opacity: 0.5 }} />{t('settings.title')}</h3>
+          <button class="settings-panel__close" onClick={onClose} aria-label={t('common.close')} title={t('common.close')}>
+            <i class="fa-solid fa-xmark" aria-hidden="true" />
           </button>
         </div>
         <div class="settings-panel__layout">

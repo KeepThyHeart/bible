@@ -1,5 +1,7 @@
 import { useState, useRef, useEffect } from 'preact/hooks';
 import type { ComponentChildren } from 'preact';
+import { useTranslation } from 'react-i18next';
+import { useModalFocus } from '../../hooks/useModalFocus';
 import type { ModuleSection } from '../../types';
 
 /** The minimum a module needs to appear in the dialog. */
@@ -182,6 +184,10 @@ export function ModuleSelectDialog<M extends SelectableModule>({
   applyRef.current = handleApply;
   closeRef.current = handleCancel;
 
+  const { t } = useTranslation();
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useModalFocus(isOpen, dialogRef);
+
   if (!isOpen) return null;
 
   let globalIdx = 0;
@@ -263,11 +269,11 @@ export function ModuleSelectDialog<M extends SelectableModule>({
 
   return (
     <div class="module-dialog-overlay" onClick={handleCancel}>
-      <div class="module-dialog" onClick={(e) => e.stopPropagation()}>
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="module-select-dialog-title" class="module-dialog" onClick={(e) => e.stopPropagation()}>
         <div class="module-dialog__header">
-          <h3>{labels.title}</h3>
-          <button class="module-dialog__close" onClick={handleCancel}>
-            <i class="fa-solid fa-xmark" />
+          <h3 id="module-select-dialog-title">{labels.title}</h3>
+          <button class="module-dialog__close" onClick={handleCancel} aria-label={t('common.close')} title={t('common.close')}>
+            <i class="fa-solid fa-xmark" aria-hidden="true" />
           </button>
         </div>
         <div class="module-dialog__filter">

@@ -954,5 +954,13 @@
       "statusGranted": "On. You agreed on {date}.",
       "statusDeclined": "Off"
     }
+  },
+  "a11y": {
+    "skipToContent": "Skip to content",
+    "skipToSearch": "Skip to search",
+    "readerTitle": "Bible reader",
+    "studyPane": "Study panel",
+    "mobileNav": "Main navigation",
+    "chapterLoaded": "{ref} loaded"
   }
 }

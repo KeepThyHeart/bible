@@ -4,6 +4,7 @@ import { searchStore, searchResultId } from '../../stores/searchStore';
 import { commentaryStore } from '../../stores/commentaryStore';
 import { bibleStore } from '../../stores/bibleStore';
 import { offlineStore } from '../../stores/offlineStore';
+import { announce } from '../../utils/announcer';
 import { useStore } from '../../hooks/useStore';
 import { SemanticNote } from './SemanticNote';
 import { SearchResultItem } from './SearchResultItem';
@@ -72,6 +73,12 @@ export function SearchResultsPanel({ onNavigate, onOpenStrongsEntry }: SearchRes
   const lastClickedId = useStore(searchStore, () => searchStore.lastClickedId);
   const resultsTruncated = useStore(searchStore, () => searchStore.resultsTruncated);
   const isOnline = useStore(offlineStore, () => offlineStore.isOnline);
+
+  // Announce the outcome of each search to screen readers.
+  useEffect(() => {
+    if (loading || !query) return;
+    announce(results.length === 0 ? t('search.noResults') : t('search.results', { count: totalResults || results.length }));
+  }, [loading, query, results.length === 0, totalResults]);
   // Offline with nothing found means the search could not run, not that it found 0.
   const showCount = isOnline || totalResults > 0;
   const [mobileQuery, setMobileQuery] = useState('');
@@ -224,8 +231,8 @@ export function SearchResultsPanel({ onNavigate, onOpenStrongsEntry }: SearchRes
             value={mobileQuery}
             onInput={(e) => setMobileQuery((e.target as HTMLInputElement).value)}
           />
-          <button type="submit" class="search-panel-inline__mobile-submit">
-            <i class="fa-solid fa-magnifying-glass" />
+          <button type="submit" class="search-panel-inline__mobile-submit" aria-label={t('header.search')}>
+            <i class="fa-solid fa-magnifying-glass" aria-hidden="true" />
           </button>
         </form>
         <div class="search-panel-inline__mobile-type">

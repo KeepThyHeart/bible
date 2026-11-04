@@ -231,7 +231,9 @@ export function MobileApp({ providers }: MobileAppProps) {
         return;
       }
 
-      // On home with nowhere to go — let it be (user sees home screen)
+      // On home with nowhere to go: the dummy entry was just popped, so step back once more and
+      // leave the app in this one press rather than needing a second (B-100).
+      window.history.back();
     };
 
     window.addEventListener('popstate', handlePopState);
@@ -476,14 +478,16 @@ export function MobileApp({ providers }: MobileAppProps) {
             <SiteBanners />
             <ConnectionBanner />
             <UpdateBanner />
-            {mobileView === 'home' && <HomeScreen onNavigate={switchMobileView} />}
-            {mobileView === 'bible' && bibleContent}
-            {mobileView === 'search' && (
-              <div class="main-layout__right-pane" style={commentaryStyle}>
-                <SearchResultsPanel onNavigate={() => switchMobileView('bible')} onOpenStrongsEntry={shared.handleStrongsClick} />
-              </div>
-            )}
-            {renderPhoneView(mobileView)}
+            <main class="app-main" id="main-content" tabIndex={-1}>
+              {mobileView === 'home' && <HomeScreen onNavigate={switchMobileView} />}
+              {mobileView === 'bible' && bibleContent}
+              {mobileView === 'search' && (
+                <div class="main-layout__right-pane" style={commentaryStyle}>
+                  <SearchResultsPanel onNavigate={() => switchMobileView('bible')} onOpenStrongsEntry={shared.handleStrongsClick} />
+                </div>
+              )}
+              {renderPhoneView(mobileView)}
+            </main>
           </div>
         </>
       ) : (
@@ -496,19 +500,21 @@ export function MobileApp({ providers }: MobileAppProps) {
           <SiteBanners />
           <ConnectionBanner />
           <UpdateBanner />
-          {mobileView === 'home' && <HomeScreen onNavigate={switchMobileView} />}
-          {mobileView === 'bible' && (
-            <>
-              <BibleTabBar hideHome />
-              {bibleContent}
-            </>
-          )}
-          {mobileView === 'search' && (
-            <div class="main-layout__right-pane" style={commentaryStyle}>
-              <SearchResultsPanel onNavigate={() => switchMobileView('bible')} onOpenStrongsEntry={shared.handleStrongsClick} />
-            </div>
-          )}
-          {renderPhoneView(mobileView)}
+          <main class="app-main" id="main-content" tabIndex={-1}>
+            {mobileView === 'home' && <HomeScreen onNavigate={switchMobileView} />}
+            {mobileView === 'bible' && (
+              <>
+                <BibleTabBar hideHome />
+                {bibleContent}
+              </>
+            )}
+            {mobileView === 'search' && (
+              <div class="main-layout__right-pane" style={commentaryStyle}>
+                <SearchResultsPanel onNavigate={() => switchMobileView('bible')} onOpenStrongsEntry={shared.handleStrongsClick} />
+              </div>
+            )}
+            {renderPhoneView(mobileView)}
+          </main>
         </div>
       )}
       {navTooltip && (
@@ -519,7 +525,7 @@ export function MobileApp({ providers }: MobileAppProps) {
       <StudyLayoutOutlet layout="phone" placement="dock" onOpenSettings={shared.openSettings} />
       {/* Above the nav, so the presenter's thumb targets are the closest thing to the thumb. */}
       <CompanionSlot compact />
-      <nav class={`mobile-nav${leftHanded ? ' mobile-nav--left-handed' : ''}`}>
+      <nav class={`mobile-nav${leftHanded ? ' mobile-nav--left-handed' : ''}`} aria-label={t('a11y.mobileNav', 'Main navigation')}>
         {[
           { view: 'home' as const, icon: 'fa-solid fa-house', label: 'mobileNav.home' },
           { view: 'study' as const, icon: 'fa-solid fa-bookmark', label: 'mobileNav.study' },
@@ -531,6 +537,7 @@ export function MobileApp({ providers }: MobileAppProps) {
             key={item.view}
             class={`mobile-nav__btn ${mobileView === item.view ? 'mobile-nav__btn--active' : ''}`}
             onClick={() => switchMobileView(item.view)}
+            aria-current={mobileView === item.view ? 'page' : undefined}
             data-testid={`mobile-nav-${item.view}`}
           >
             <i class={item.icon} />

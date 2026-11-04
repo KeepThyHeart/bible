@@ -268,7 +268,6 @@
 
 // Touch targets: at least 44x44 CSS px for the phone chrome (B-140).
 .app--mobile {
-  .header__action-btn,
   .bible-tab-bar__add,
   .bible-toolbar__nav-btn,
   .bible-toolbar__translation-btn,
@@ -276,5 +275,31 @@
   .chapter-nav__btn {
     min-inline-size: 44px;
     min-block-size: 44px;
+  }
+
+  // The header row has no room for five 44px-wide buttons at 360px (the fifth wrapped and the
+  // header doubled in height). Keep the visual width and reach 44px with a transparent pseudo-element
+  // that spills into the (padding-free) gap between neighbours.
+  // 44px buttons plus the default 6px padding made the header 61px; trim the padding to hold ~48.
+  .header {
+    padding-block: 2px;
+  }
+
+  // The buttons never wrap; the title (which ellipsizes) gives way instead.
+  .header__actions {
+    flex-wrap: nowrap;
+    flex-shrink: 0;
+  }
+
+  .header__action-btn {
+    position: relative;
+    min-block-size: 44px;
+
+    &::after {
+      content: '';
+      position: absolute;
+      inset-block: 0;
+      inset-inline: -4px;
+    }
   }
 }

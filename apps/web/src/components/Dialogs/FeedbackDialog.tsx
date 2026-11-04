@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'preact/hooks';
+import { useState, useEffect, useRef } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { useEscapeKey } from '../../hooks/useEscapeKey';
+import { useModalFocus } from '../../hooks/useModalFocus';
 import { API_BASE } from '../../utils/apiUrl';
 
 interface FeedbackDialogProps {
@@ -21,7 +22,9 @@ export function FeedbackDialog({ isOpen, onClose }: FeedbackDialogProps) {
   const [contact, setContact] = useState('');
   const [state, setState] = useState<SubmitState>('idle');
 
+  const dialogRef = useRef<HTMLDivElement>(null);
   useEscapeKey(isOpen, onClose);
+  useModalFocus(isOpen, dialogRef);
 
   // Reset only on *open*, never on close: a failed submit leaves the dialog
   // open holding the user's text, and clearing on close would throw away a
@@ -65,10 +68,10 @@ export function FeedbackDialog({ isOpen, onClose }: FeedbackDialogProps) {
 
   return (
     <div class="settings-panel-overlay" onClick={onClose}>
-      <div class="feedback-dialog" onClick={(e) => e.stopPropagation()}>
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="feedback-dialog-title" class="feedback-dialog" onClick={(e) => e.stopPropagation()}>
         <div class="feedback-dialog__header">
-          <h3>
-            <i class="fa-solid fa-comment-dots" style={{ marginInlineEnd: '8px', opacity: 0.5 }} />
+          <h3 id="feedback-dialog-title">
+            <i class="fa-solid fa-comment-dots" aria-hidden="true" style={{ marginInlineEnd: '8px', opacity: 0.5 }} />
             {t('feedbackDialog.title')}
           </h3>
           <button class="feedback-dialog__close" onClick={onClose} title={t('feedbackDialog.close')}>

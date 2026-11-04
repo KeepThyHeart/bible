@@ -19,6 +19,7 @@
 // Base
 @use 'scrollbar';
 @use 'base';
+@use 'a11y';
 @use 'bible-sections';
 
 // Layout & chrome
@@ -76,3 +77,5 @@
 @use 'study-pane';
 @use 'mobile-study';
 
+// Windows High Contrast overrides: keep last
+@use 'forced-colors';
