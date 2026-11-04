@@ -157,7 +157,8 @@
       "captionSemantic": "{count, plural, one {# pasaje recuperado, por libro; no es un recuento de toda la Biblia.} other {# pasajes recuperados, por libro; no es un recuento de toda la Biblia.}}",
       "captionCapped": "Solo se cuentan los resultados cargados hasta ahora; hay más por cargar.",
       "captionCeiling": "{count, plural, one {Solo se cuenta la primera # coincidencia; la búsqueda se detiene ahí.} other {Solo se cuentan las primeras # coincidencias; la búsqueda se detiene ahí.}}"
-    }
+    },
+    "resultsFrom": "Resultados de {modules}"
   },
   "contextMenu": {
     "copyPassage": "Copiar pasaje...",
@@ -214,8 +215,8 @@
       "notifications": "Notificaciones"
     },
     "textSize": {
-      "decreaseAll": "Reducir todos los tamaños de fuente",
-      "increaseAll": "Aumentar todos los tamaños de fuente",
+      "decreaseAll": "Reducir la escala del texto (Biblia, estudio e interfaz)",
+      "increaseAll": "Aumentar la escala del texto (Biblia, estudio e interfaz)",
       "christInRed": "Palabras de Jesús en rojo",
       "interlinearLayout": "Diseño interlineal",
       "interlinearInline": "En línea (entre paréntesis)",
@@ -223,7 +224,7 @@
       "advanced": "Avanzado",
       "bibleText": "Texto bíblico",
       "studyText": "Texto de estudio",
-      "uiText": "Texto de la interfaz",
+      "uiText": "Tamaño de la interfaz",
       "bibleLineHeight": "Interlineado de la Biblia",
       "studyLineHeight": "Interlineado de estudio",
       "pxValue": "{size} px",
@@ -233,9 +234,9 @@
       "resetTextSizesTitle": "Restaurar los tamaños de texto y el interlineado predeterminados",
       "interlinearStackedShort": "Apilado",
       "interlinearInlineShort": "En línea",
-      "popoverTitle": "Tamaño del texto",
+      "popoverTitle": "Escala del texto",
       "popoverReset": "Restablecer",
-      "moreOptions": "Más opciones de texto…"
+      "moreOptions": "Tamaños de Biblia, estudio e interfaz…"
     },
     "theme": {
       "resetAll": "Restablecer todo",
@@ -746,7 +747,8 @@
     "entityUnavailable": "No se ha podido cargar esta entrada.",
     "seeAlso": "Ver",
     "verseTotal": "{count, plural, one {# versículo} other {# versículos}}",
-    "topicHasNoEntries": "Este tema no tiene versículos ni subtemas propios."
+    "topicHasNoEntries": "Este tema no tiene versículos ni subtemas propios.",
+    "directOfTotal": "({direct} directos, {total} en total)"
   },
   "verseRefList": {
     "loading": "cargando...",
@@ -940,7 +942,8 @@
       "ipNotice": "El servicio ve su dirección IP, como cualquier sitio web.",
       "neverSent": "Su lectura de la Biblia, sus notas y el resto de sus datos nunca se envían.",
       "agree": "Aceptar y buscar",
-      "decline": "Ahora no"
+      "decline": "Ahora no",
+      "localOption": "La aplicación de escritorio también puede buscar por significado sin conexión, con un paquete local y sin solicitudes web."
     },
     "note": {
       "declined": "La búsqueda por significado está desactivada. Puede activarla en Configuración.",

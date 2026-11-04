@@ -20,7 +20,6 @@
   "keywords.legend.addSuggestion": "Добавить: {label}",
   "keywords.legend.announce": "{label}, стих {verse}, {index} из {total}",
   "keywords.legend.needsInterlinear": "Для пометок по номерам Стронга нужен подстрочный перевод.",
-  "keywords.settings.colorSafe": "Пометки, безопасные для цветовосприятия (дополнительное подчёркивание и символы)",
   "keywords.menu.markWord": "Пометить все «{word}»",
   "keywords.menu.markLemma": "Пометить лемму {strongs}",
   "keywords.strongs.markInChapter": "Пометить в этой главе",

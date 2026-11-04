@@ -419,7 +419,7 @@ export class BibleSearchService implements ISearchService {
     }
 
     // Parse query to determine search type
-    const parsed = this.parseQuery(query);
+    const parsed = this.parseQuery(query, options);
 
     // The query parser can't detect proximity intent from plain text alone;
     // the advanced search dialog sets proximityDistance explicitly, so we
@@ -492,7 +492,7 @@ export class BibleSearchService implements ISearchService {
     if (results.length === 0) {
       const variantQuery = this.generateCharacterVariantQuery(query);
       if (variantQuery && variantQuery !== query) {
-        const variantParsed = this.parseQuery(variantQuery);
+        const variantParsed = this.parseQuery(variantQuery, options);
         // Re-run the same search type with variant query
         switch (variantParsed.searchType) {
           case 'multi-word':
@@ -590,8 +590,8 @@ export class BibleSearchService implements ISearchService {
    * @param query - The raw search query string
    * @returns Parsed query with detected search type, terms, and type-specific fields
    */
-  parseQuery(query: string): ParsedQuery {
-    return this.parser.parse(query);
+  parseQuery(query: string, options?: Pick<SearchOptions, 'symbolOperators'>): ParsedQuery {
+    return this.parser.parse(query, { symbolOperators: options?.symbolOperators });
   }
 
   // ========================================================================
@@ -1831,7 +1831,7 @@ export class BibleSearchService implements ISearchService {
     options: SearchOptions
   ): Promise<SearchResult[]> {
     // Extract terms from query
-    const parsed = this.parseQuery(query);
+    const parsed = this.parseQuery(query, options);
     const terms = parsed.terms || [];
 
     if (terms.length === 0) return [];

@@ -96,7 +96,7 @@ export function StrongsTooltip({ entry, position }: StrongsTooltipProps) {
     <div ref={tooltipRef} class="strongs-tooltip" style={{ top: `${position.top}px`, left: `${position.left}px` /* rtl-physical: measured viewport position (task 0088) */ }}>
       <div class="strongs-tooltip__header">
         <span class="strongs-tooltip__number">{entry.strongsNumber}</span>
-        <span class="strongs-tooltip__word">{entry.word}</span>
+        <span class="strongs-tooltip__word" {...(entry.strongsNumber?.startsWith('H') ? { lang: 'he', dir: 'rtl' } : {})}>{entry.word}</span>
         {translit && <span class="strongs-tooltip__translit">{translit}</span>}
         {pronunciation && pronunciation !== translit && (
           <span class="strongs-tooltip__pron">[{pronunciation}]</span>

@@ -53,7 +53,7 @@ describe('resolveActiveSetIds', () => {
 
 describe('computeChapterMarks / splitLayerByVerse', () => {
   const input = buildChapterInput(7, 'en', verses);
-  const opts = { colorSafe: true, hiddenMarkIds: [] as string[] };
+  const opts = { hiddenMarkIds: [] as string[] };
 
   it('produces per-verse layers that only target their own verse', () => {
     const marks = computeChapterMarks(input, [userSet], opts);
@@ -86,7 +86,7 @@ describe('computeChapterMarks / splitLayerByVerse', () => {
 describe('legendRowsFor', () => {
   it('lists enabled marks of language-matching sets, zero hits included', () => {
     const input = buildChapterInput(7, 'en', [{ verse_id: V1, text: 'nothing here' }]);
-    const marks = computeChapterMarks(input, [userSet, BUILT_IN_KEYWORD_SETS[1]], { colorSafe: true, hiddenMarkIds: [] });
+    const marks = computeChapterMarks(input, [userSet, BUILT_IN_KEYWORD_SETS[1]], { hiddenMarkIds: [] });
     const rows = legendRowsFor(marks, []);
     expect(rows.map((r) => r.markId)).toEqual(['m-god']); // the Spanish set is skipped for an English chapter
     expect(rows[0].hits).toBe(0);

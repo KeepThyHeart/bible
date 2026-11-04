@@ -157,7 +157,8 @@
       "captionSemantic": "{count, plural, one {קטע # אותר, לפי ספר — אין זה מניין של המקרא כולו.} two {# קטעים אותרו, לפי ספר — אין זה מניין של המקרא כולו.} other {# קטעים אותרו, לפי ספר — אין זה מניין של המקרא כולו.}}",
       "captionCapped": "נספרות רק התוצאות שנטענו עד כה; יש עוד תוצאות לטעינה.",
       "captionCeiling": "{count, plural, one {נספרת רק ההתאמה הראשונה; החיפוש נעצר שם.} two {נספרות רק # ההתאמות הראשונות; החיפוש נעצר שם.} other {נספרות רק # ההתאמות הראשונות; החיפוש נעצר שם.}}"
-    }
+    },
+    "resultsFrom": "תוצאות מתוך {modules}"
   },
   "contextMenu": {
     "copyPassage": "העתקת קטע...",
@@ -214,8 +215,8 @@
       "notifications": "התראות"
     },
     "textSize": {
-      "decreaseAll": "הקטנת כל גודלי הגופן",
-      "increaseAll": "הגדלת כל גודלי הגופן",
+      "decreaseAll": "הקטנת קנה המידה של הטקסט (מקרא, לימוד וממשק)",
+      "increaseAll": "הגדלת קנה המידה של הטקסט (מקרא, לימוד וממשק)",
       "christInRed": "דברי ישוע באדום",
       "interlinearLayout": "פריסה בין-שורתית",
       "interlinearInline": "בשורה (בסוגריים)",
@@ -223,7 +224,7 @@
       "advanced": "מתקדם",
       "bibleText": "טקסט המקרא",
       "studyText": "טקסט הלימוד",
-      "uiText": "טקסט הממשק",
+      "uiText": "גודל הממשק",
       "bibleLineHeight": "גובה שורה במקרא",
       "studyLineHeight": "גובה שורה בלימוד",
       "pxValue": "{size}px",
@@ -233,9 +234,9 @@
       "resetTextSizesTitle": "שחזור גודלי הטקסט וגובהי השורות המוגדרים כברירת מחדל",
       "interlinearStackedShort": "מוערם",
       "interlinearInlineShort": "בשורה",
-      "popoverTitle": "גודל הטקסט",
+      "popoverTitle": "קנה מידה לטקסט",
       "popoverReset": "אפס",
-      "moreOptions": "אפשרויות טקסט נוספות…"
+      "moreOptions": "גדלי המקרא, הלימוד והממשק…"
     },
     "theme": {
       "resetAll": "איפוס הכול",
@@ -746,7 +747,8 @@
     "entityUnavailable": "לא ניתן היה לטעון ערך זה.",
     "seeAlso": "ראו",
     "verseTotal": "{count, plural, one {פסוק #} two {# פסוקים} other {# פסוקים}}",
-    "topicHasNoEntries": "לנושא זה אין פסוקים או תת-נושאים משלו."
+    "topicHasNoEntries": "לנושא זה אין פסוקים או תת-נושאים משלו.",
+    "directOfTotal": "({direct} ישירות, {total} בסך הכול)"
   },
   "verseRefList": {
     "loading": "טוען...",
@@ -940,7 +942,8 @@
       "ipNotice": "כתובת ה-IP שלכם גלויה לשירות, כמו בכל אתר.",
       "neverSent": "קריאת המקרא, ההערות ושאר הנתונים שלכם אינם נשלחים לעולם.",
       "agree": "מסכים/ה וחפש",
-      "decline": "לא עכשיו"
+      "decline": "לא עכשיו",
+      "localOption": "אפליקציית שולחן העבודה יכולה גם לחפש לפי משמעות ללא חיבור, עם חבילת משמעות מקומית וללא בקשות אינטרנט."
     },
     "note": {
       "declined": "חיפוש לפי משמעות כבוי. ניתן להפעיל אותו בהגדרות.",

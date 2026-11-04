@@ -157,7 +157,8 @@
       "captionSemantic": "{count, plural, one {# passage retrieved, by book — not a tally of the whole Bible.} other {# passages retrieved, by book — not a tally of the whole Bible.}}",
       "captionCapped": "Only the results loaded so far are counted; there are more to load.",
       "captionCeiling": "{count, plural, one {Only the first # match is counted; the search stops there.} other {Only the first # matches are counted; the search stops there.}}"
-    }
+    },
+    "resultsFrom": "Results from {modules}"
   },
   "contextMenu": {
     "copyPassage": "Copy Passage...",
@@ -214,8 +215,8 @@
       "notifications": "Notifications"
     },
     "textSize": {
-      "decreaseAll": "Decrease all font sizes",
-      "increaseAll": "Increase all font sizes",
+      "decreaseAll": "Decrease text scale (Bible, Study and UI text)",
+      "increaseAll": "Increase text scale (Bible, Study and UI text)",
       "christInRed": "Words of Jesus in Red",
       "interlinearLayout": "Interlinear Layout",
       "interlinearInline": "Inline (in parentheses)",
@@ -223,7 +224,7 @@
       "advanced": "Advanced",
       "bibleText": "Bible Text",
       "studyText": "Study Text",
-      "uiText": "UI Text",
+      "uiText": "UI size",
       "bibleLineHeight": "Bible Line Height",
       "studyLineHeight": "Study Line Height",
       "pxValue": "{size}px",
@@ -233,9 +234,9 @@
       "resetTextSizesTitle": "Restore the default text sizes and line heights",
       "interlinearStackedShort": "Stacked",
       "interlinearInlineShort": "Inline",
-      "popoverTitle": "Text size",
+      "popoverTitle": "Text scale",
       "popoverReset": "Reset",
-      "moreOptions": "More text options…"
+      "moreOptions": "Bible, Study and UI sizes…"
     },
     "theme": {
       "resetAll": "Reset All",
@@ -746,7 +747,8 @@
     "entityUnavailable": "This entry could not be loaded.",
     "seeAlso": "See",
     "verseTotal": "{count, plural, one {# verse} other {# verses}}",
-    "topicHasNoEntries": "This topic has no verses or sub-topics of its own."
+    "topicHasNoEntries": "This topic has no verses or sub-topics of its own.",
+    "directOfTotal": "({direct} direct, {total} total)"
   },
   "verseRefList": {
     "loading": "loading...",
@@ -940,7 +942,8 @@
       "ipNotice": "Your IP address is visible to the service, as with any website.",
       "neverSent": "Your Bible reading, notes and other data are never sent.",
       "agree": "Agree and search",
-      "decline": "Not now"
+      "decline": "Not now",
+      "localOption": "The desktop app can also search by meaning offline, with a local meaning pack and no web requests."
     },
     "note": {
       "declined": "Meaning search is off. You can turn it on in Settings.",

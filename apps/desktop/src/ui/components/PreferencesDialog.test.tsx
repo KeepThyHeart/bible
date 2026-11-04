@@ -254,6 +254,21 @@ describe('PreferencesDialog - section nav at large UI sizes (B-102)', () => {
   });
 });
 
+describe('PreferencesDialog - section nav alignment (B-201)', () => {
+  it('left-justifies every item (logical start) and aligns the icon to the first line', () => {
+    renderWithProviders(<PreferencesDialog onClose={vi.fn()} />);
+    const tabs = screen.getAllByRole('tab');
+    expect(tabs.length).toBeGreaterThan(1);
+    for (const tab of tabs) {
+      // A <button> centres its text by default; a wrapped second line must start under the first.
+      expect(tab).toHaveClass('text-start');
+      // Top-aligned so a wrapped label keeps the icon beside its first line.
+      expect(tab).toHaveClass('items-start');
+      expect(tab).not.toHaveClass('items-center');
+    }
+  });
+});
+
 describe('PreferencesDialog - sections modules contribute', () => {
   const onClose = vi.fn();
   const fixture = {

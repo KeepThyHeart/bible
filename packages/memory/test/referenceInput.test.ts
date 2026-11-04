@@ -51,6 +51,17 @@ describe('extractReferenceCandidates', () => {
   });
 });
 
+describe('dropContainedRanges across translations (B-123)', () => {
+  it('keeps the same verses in a different translation', () => {
+    const wide = { startVerseId: 43003016, endVerseId: 43003017, moduleId: 'KJV' };
+    const narrowOther = { startVerseId: 43003016, endVerseId: 43003016, moduleId: 'ASV' };
+    const narrowSame = { startVerseId: 43003016, endVerseId: 43003016, moduleId: 'KJV' };
+    const { kept, dropped } = dropContainedRanges([wide, narrowOther, narrowSame]);
+    expect(kept).toEqual([wide, narrowOther]);
+    expect(dropped).toEqual([narrowSame]);
+  });
+});
+
 describe('dropContainedRanges', () => {
   function range(startVerseId: number, endVerseId: number, extra: Record<string, unknown> = {}) {
     return { startVerseId, endVerseId, ...extra };

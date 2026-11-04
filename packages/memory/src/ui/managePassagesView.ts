@@ -19,7 +19,7 @@
 
 import type { ListSummary, Passage, PassageView, PlanView } from '../core/types';
 import { append, button, el, focusQuietly, replace } from './dom';
-import { breadcrumb, emptyState, errorBanner, listSelector, modal } from './components';
+import { breadcrumb, emptyState, errorBanner, listSelector, modal, translationTag } from './components';
 import type { ListSelectorOption } from './components';
 import { dropContainedRanges, extractReferenceCandidates } from './referenceInput';
 import { SUGGESTED_LISTS } from '../core/suggestedLists';
@@ -355,6 +355,7 @@ function renderPassageRow(host: PanelHost, plan: PlanView, pv: PassageView): HTM
 
   return el('li', { class: 'sm-row sm-manage-passage-row' }, [
     el('span', { class: 'sm-row-ref', text: pv.passage.reference }),
+    translationTag(pv.passage.moduleId),
     moveSelect,
     renderRemoveControl(host, pv),
   ]);
@@ -579,6 +580,10 @@ function renderAddPassage(host: PanelHost): { element: HTMLElement; offerBatch: 
     el('label', { class: 'sm-label', text: tr('memory.ui.plan.addPassage', 'Add passage'), attrs: { for: 'sm-add-reference' } }),
     el('div', { class: 'sm-add-row' }, [input, submit]),
     errorSlot,
+    el('p', {
+      class: 'sm-hint',
+      text: tr('memory.ui.plan.addTranslationHint', 'Add a translation after the reference to use it, e.g. Psalm 23:1-3 ASV. Without one, the last translation you chose here (or your default) is used.'),
+    }),
     el('p', {
       class: 'sm-hint',
       text: tr('memory.ui.plan.pasteListHint', 'Paste a list to add several at once - one reference per line.'),

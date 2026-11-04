@@ -49,6 +49,14 @@ function persistPanelVerse(panelId: string, verseId: number | null): void {
   }
 }
 
+/**
+ * Panels whose current verse came from the remembered map rather than from the
+ * Bible pane or the reader. Such a verse is a guess made before the Bible pane
+ * had restored, so the Bible's own verse replaces it when it turns up (B-014).
+ * Any real navigation (`navigateToVerse`) takes the panel off the list.
+ */
+const seededFromMemory = new Set<string>();
+
 /** Test seam: forget every persisted Study verse. */
 export function clearPersistedStudyVerses(): void {
   if (typeof window === 'undefined' || !window.localStorage) return;
@@ -126,7 +134,10 @@ interface StudyStoreState {
   toggleSection: (panelId: string, sectionKey: string) => void;
 }
 
-const panelSlice = createPanelSlice(createDefaultPanelState);
+const panelSlice = createPanelSlice(createDefaultPanelState, {
+  onInit: (panelId: string) => { seededFromMemory.delete(panelId); },
+  onDestroy: (panelId: string) => { seededFromMemory.delete(panelId); },
+});
 
 export const useStudyStore = create<StudyStoreState>((set, get) => ({
   panels: new Map(),
@@ -170,25 +181,35 @@ export const useStudyStore = create<StudyStoreState>((set, get) => ({
   /**
    * Give a newly mounted panel a verse to show.
    *
-   * Preference order: the verse this panel was showing when the app last
-   * closed, then whatever the Bible pane is anchored on. A panel that already
-   * has a verse is left alone, so this is safe to call from an effect that
-   * re-runs as the Bible pane loads.
+   * Preference order (B-014): whatever the Bible pane is anchored on - after a
+   * restart that is the restored chapter, which must win over a stale verse -
+   * then, with no Bible pane, the verse this panel was showing when the app
+   * last closed. A panel with a verse of its own is left alone, so this is safe
+   * to call from an effect that re-runs as the Bible pane loads; only a verse
+   * that was itself seeded from memory is replaced by the Bible's.
    */
   seedInitialVerse: (panelId: string, fallbackVerseId: number | null) => {
     const ps = get().getPanelState(panelId);
-    if (ps.currentVerseId !== null) return;
+    const haveFallback = !!fallbackVerseId && fallbackVerseId > 0;
+    if (ps.currentVerseId !== null) {
+      if (seededFromMemory.has(panelId) && haveFallback && ps.currentVerseId !== fallbackVerseId) {
+        get().navigateToVerse(panelId, fallbackVerseId!);
+      }
+      return;
+    }
 
-    const remembered = readPersistedVerses()[panelId];
-    const verseId = remembered ?? fallbackVerseId;
+    const remembered = haveFallback ? undefined : readPersistedVerses()[panelId];
+    const verseId = haveFallback ? fallbackVerseId : remembered;
     if (!verseId || verseId <= 0) return;
 
     get().navigateToVerse(panelId, verseId);
+    if (remembered) seededFromMemory.add(panelId);
   },
 
   navigateToVerse: (panelId: string, verseId: number) => {
     const ps = get().getPanelState(panelId);
     const entry: StudyNavEntry = { type: 'verse', verseId };
+    seededFromMemory.delete(panelId);
 
     // Truncate forward history and push
     const newStack = [...ps.navStack.slice(0, ps.navIndex + 1), entry];

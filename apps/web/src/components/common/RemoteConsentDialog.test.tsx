@@ -33,6 +33,13 @@ describe('RemoteConsentDialog', () => {
     expect(screen.queryByTestId('remote-consent-dialog')).toBeNull();
   });
 
+  it('tells the user a local meaning pack is the offline alternative (B-003)', async () => {
+    render(<RemoteConsentDialog />);
+    act(() => { void remoteConsentStore.request(); });
+    const dlg = await screen.findByTestId('remote-consent-dialog');
+    expect(dlg.textContent).toContain('remoteSemantic.consent.localOption');
+  });
+
   it('adds the IP sentence for via browser, and Escape means Not now', async () => {
     remoteConsentStore.configure({ via: 'browser', noticeVersion: 1 });
     render(<RemoteConsentDialog />);

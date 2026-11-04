@@ -150,6 +150,12 @@ export const createSessionSlice: StateCreator<BibleState, [], [], SessionSlice> 
         // Ranges are never persisted (see BiblePanelState.selectionEndVerseId),
         // so a restore always starts with a single selected verse.
         selectionEndVerseId: null,
+        // B-055: the scroll offset is not restored; the selected verse is, and
+        // the pane brings it to the middle once the chapter text is up (the
+        // same request a navigation makes - see verseSlice).
+        ...(tab.selectedVerseId
+          ? { scrollMode: 'center' as const, scrollTrigger: get().getPanelState(panelId).scrollTrigger + 1 }
+          : {}),
         studyOptionsByTab: studyOptions,
         // Seeded true in the SAME update that publishes openTabs, so
         // loadingByTab.get(tab.tabId) is never ambiguous with "nothing to
@@ -244,7 +250,9 @@ export const createSessionSlice: StateCreator<BibleState, [], [], SessionSlice> 
 
       // Restore navigation history, synthesising a single entry when the saved
       // history is empty so Back/Forward still behave sensibly.
-      const history = tab.history?.length > 0 ? tab.history : [{
+      // A saved scroll offset would win over the verse in useBibleScrolling.
+      const savedHistory = (tab.history ?? []).map(({ scrollTop: _scrollTop, ...entry }) => entry);
+      const history = savedHistory.length > 0 ? savedHistory : [{
         verseId: tab.selectedVerseId ?? VerseIdHelper.calculate(tab.book, tab.chapter, 1),
         bookNumber: tab.book,
         chapter: tab.chapter,

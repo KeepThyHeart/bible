@@ -20,7 +20,6 @@
   "keywords.legend.addSuggestion": "{label} जोड़ें",
   "keywords.legend.announce": "{label}, पद {verse}, {total} में से {index}",
   "keywords.legend.needsInterlinear": "Strong's चिह्नों के लिए अंतरपंक्ति अनुवाद आवश्यक है।",
-  "keywords.settings.colorSafe": "रंग-सुरक्षित चिह्न (अतिरिक्त रेखांकन और प्रतीक संकेत)",
   "keywords.menu.markWord": "सभी \"{word}\" चिह्नित करें",
   "keywords.menu.markLemma": "मूल शब्द {strongs} चिह्नित करें",
   "keywords.strongs.markInChapter": "इस अध्याय में चिह्नित करें",

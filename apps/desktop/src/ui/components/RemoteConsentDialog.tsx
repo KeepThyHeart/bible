@@ -12,6 +12,7 @@ import { useEffect, useRef } from 'react';
 import { useSearchStore } from '../stores/useSearchStore';
 import { useI18n } from '../contexts/useI18n';
 import { activateFocusTrap } from '../utils/focusTrap';
+import { openModuleManager } from '../utils/openModuleManager';
 
 export function RemoteConsentDialog() {
   const { t } = useI18n();
@@ -69,6 +70,21 @@ export function RemoteConsentDialog() {
         <div id="remote-consent-body" className="p-4 space-y-3 text-sm" style={{ color: 'var(--theme-text-primary)' }}>
           <p>{t('remoteConsent.body')}</p>
           <p>{t('remoteConsent.never')}</p>
+          <p data-testid="remote-consent-local">
+            {t('remoteConsent.local')}{' '}
+            <button
+              type="button"
+              className="underline"
+              style={{ color: 'var(--theme-accent-primary)' }}
+              data-testid="remote-consent-get-pack"
+              onClick={() => {
+                void answer('declined');
+                openModuleManager('features');
+              }}
+            >
+              {t('remoteConsent.getPack')}
+            </button>
+          </p>
         </div>
         <div className="flex justify-end gap-2 p-4" style={{ borderBlockStart: '1px solid var(--theme-border-primary)' }}>
           <button

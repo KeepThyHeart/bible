@@ -68,7 +68,7 @@ describe('KeywordsButton', () => {
     fireEvent.click(screen.getByTestId('keywords-options'));
     const pop = screen.getByTestId('keywords-popover');
     expect(within(pop).getAllByRole('listitem').length).toBeGreaterThan(0);
-    expect(within(pop).getByTestId('keywords-color-safe')).toBeChecked();
+    expect(within(pop).queryByTestId('keywords-color-safe')).toBeNull();
   });
 
   it('toggling a row hides that mark for the tab', () => {

@@ -157,7 +157,8 @@
       "captionSemantic": "共检索到 {count} 处经文，按书卷分布——并非全经的完整统计。",
       "captionCapped": "此处仅统计已加载的结果，还有更多结果未加载。",
       "captionCeiling": "仅统计前 {count} 个匹配项，搜索到此为止。"
-    }
+    },
+    "resultsFrom": "结果来自 {modules}"
   },
   "contextMenu": {
     "copyPassage": "复制经文…",
@@ -214,8 +215,8 @@
       "notifications": "通知"
     },
     "textSize": {
-      "decreaseAll": "减小所有字号",
-      "increaseAll": "增大所有字号",
+      "decreaseAll": "缩小文字缩放（圣经、学习和界面文字）",
+      "increaseAll": "放大文字缩放（圣经、学习和界面文字）",
       "christInRed": "基督的话用红色显示",
       "interlinearLayout": "原文对照布局",
       "interlinearInline": "行内（括号中）",
@@ -223,7 +224,7 @@
       "advanced": "高级",
       "bibleText": "圣经正文",
       "studyText": "研经文本",
-      "uiText": "界面文字",
+      "uiText": "界面大小",
       "bibleLineHeight": "圣经行高",
       "studyLineHeight": "研经行高",
       "pxValue": "{size}px",
@@ -233,9 +234,9 @@
       "resetTextSizesTitle": "恢复默认的文字大小与行高",
       "interlinearStackedShort": "堆叠",
       "interlinearInlineShort": "行内",
-      "popoverTitle": "文字大小",
+      "popoverTitle": "文字缩放",
       "popoverReset": "重置",
-      "moreOptions": "更多文字选项…"
+      "moreOptions": "圣经、学习和界面大小…"
     },
     "theme": {
       "resetAll": "全部重置",
@@ -746,7 +747,8 @@
     "entityUnavailable": "无法加载此条目。",
     "seeAlso": "参见",
     "verseTotal": "{count} 节",
-    "topicHasNoEntries": "此主题本身没有经文或子主题。"
+    "topicHasNoEntries": "此主题本身没有经文或子主题。",
+    "directOfTotal": "（直接 {direct}，共 {total}）"
   },
   "verseRefList": {
     "loading": "正在加载…",
@@ -940,7 +942,8 @@
       "ipNotice": "与任何网站一样，该服务可以看到您的 IP 地址。",
       "neverSent": "您的圣经阅读记录、笔记和其他数据绝不会被发送。",
       "agree": "同意并搜索",
-      "decline": "暂不"
+      "decline": "暂不",
+      "localOption": "桌面版应用也可通过本地语义包离线按含义搜索，不会发出任何网络请求。"
     },
     "note": {
       "declined": "语义搜索已关闭。您可以在“设置”中开启。",

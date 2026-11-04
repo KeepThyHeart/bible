@@ -7,7 +7,7 @@
  * i18n is mocked to return keys as-is.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, act } from '@testing-library/preact';
+import { render, screen, fireEvent, act, waitFor } from '@testing-library/preact';
 import { topicEntityActions } from '../../host/slots';
 
 // ---- i18n ----------------------------------------------------------------
@@ -356,6 +356,30 @@ describe('TopicsBrowser', () => {
     const navBtns = container.querySelectorAll<HTMLButtonElement>('.topics-browser__nav-btn');
     // historyIndex starts at 1 (the requested topic), so back is enabled
     expect(navBtns[1].disabled).toBe(false);
+  });
+
+  it('labels the direct count next to the total for a topic with sub-topics (B-093)', async () => {
+    const topicalProvider = makeTopicalProvider();
+    (topicalProvider.getTopic as ReturnType<typeof vi.fn>).mockResolvedValue({
+      topic: { topic_id: 1, parent_topic_id: null, name: 'Love', description: null, sort_order: 0 },
+      children: [{ topic_id: 2, name: 'Agape', description: null, verse_count: 5 }],
+      parent_chain: [],
+      verse_count: 251,
+      reference_count: 1,
+      direct_reference_count: 0,
+    });
+    // direct 0 < total 1: label appears; the count text is the mocked key, so look for it.
+    let view!: ReturnType<typeof render>;
+    await act(async () => {
+      view = render(
+        <TopicsBrowser
+          {...defaultProps}
+          topicalProvider={topicalProvider}
+          topicRequest={{ topicId: 1, module: 'TSK', topicName: 'Love', token: 1 }}
+        />
+      );
+    });
+    await waitFor(() => expect(view.container.querySelector('[data-testid="topic-direct-count"]')).not.toBeNull());
   });
 
   it('reports the mount request as handled so the store can clear it', async () => {

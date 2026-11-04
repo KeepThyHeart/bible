@@ -947,6 +947,39 @@ describe.skipIf(!KJV_AVAILABLE)('BibleSearchService', () => {
       }
     });
 
+    describe('symbol operators (advanced search, B-017)', () => {
+      const adv: SearchOptions = { ...options, symbolOperators: true };
+
+      it('|| returns the right-hand side too', async () => {
+        const results = await searchService.search('Jerusalem || Zion', adv);
+        expect(results.filter(r => /zion/i.test(r.text) && !/jerusalem/i.test(r.text)).length).toBeGreaterThan(0);
+      });
+
+      it('&& !word excludes the negated word', async () => {
+        const results = await searchService.search('faith && !works', adv);
+        expect(results.length).toBeGreaterThan(0);
+        for (const result of results) {
+          expect(result.text).toMatch(/faith/i);
+          expect(result.text).not.toMatch(/works/i);
+        }
+      });
+
+      it('honours parentheses', async () => {
+        const results = await searchService.search('faith && (hope || love)', adv);
+        expect(results.length).toBeGreaterThan(0);
+        for (const result of results) {
+          expect(result.text).toMatch(/faith/i);
+          expect(result.text).toMatch(/hope|love/i);
+        }
+      });
+
+      it('is inert without the option: the symbols are just text', async () => {
+        const plain = await searchService.search('faith && !works', options);
+        const sym = await searchService.search('faith && !works', adv);
+        expect(sym.length).not.toBe(plain.length);
+      });
+    });
+
     it('honours grouping in a nested expression', async () => {
       const results = await searchService.search('(faith AND (hope OR love))', options);
       expect(results.length).toBeGreaterThan(0);
