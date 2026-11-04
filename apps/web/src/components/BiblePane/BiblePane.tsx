@@ -231,9 +231,16 @@ export function BiblePane({
       // Compute offset relative to the scroll container, then center the verse in view.
       const containerRect = scrollEl.getBoundingClientRect();
       const verseRect = verseEl.getBoundingClientRect();
+      // W-061: at the top of the page, a verse already wholly in view is left where it is. On
+      // the phone the scroll element is .mobile-scroll-wrapper, which also holds the header:
+      // centring verse 1 of a freshly opened chapter scrolled the header partly off the top of
+      // a 320-360px screen although nothing needed revealing.
       const currentScroll = scrollEl.scrollTop;
-      const target = currentScroll + (verseRect.top - containerRect.top) - (scrollEl.clientHeight / 2) + (verseRect.height / 2);
-      scrollEl.scrollTop = Math.max(0, target);
+      const inView = verseRect.top >= containerRect.top && verseRect.top + verseRect.height <= containerRect.top + scrollEl.clientHeight;
+      if (!(currentScroll === 0 && inView)) {
+        const target = currentScroll + (verseRect.top - containerRect.top) - (scrollEl.clientHeight / 2) + (verseRect.height / 2);
+        scrollEl.scrollTop = Math.max(0, target);
+      }
       // Consume only now that the scroll actually happened.
       bibleStore.clearPendingScrollVerse(verseId);
     };

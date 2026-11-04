@@ -76,6 +76,19 @@
       overflow-wrap: normal;
     }
 
+    // W-061: on a 320px phone the wordmark broke over five lines (a 91px header). Below 340px
+    // it drops to the 14px step and the tagline's tracking tightens, so it keeps the same
+    // three lines it has at 360px.
+    @media (max-width: 340px) {
+      &__logo {
+        --ui-font-scale: 1;
+      }
+
+      &__wordmark-tagline {
+        letter-spacing: 0.04em;
+      }
+    }
+
     &__actions {
       flex-shrink: 1;
       min-inline-size: 0;
