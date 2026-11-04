@@ -169,8 +169,14 @@ export function addHistoryEntry(
 
 const SESSION_KEY = 'bible-reader-session';
 
+/** Whether `book`/`chapter` can exist (W-033): book 1-66, chapter 1..MAX_CHAPTERS[book]. */
+function isValidChapter(book: number, chapter: number): boolean {
+  const max = MAX_CHAPTERS[book];
+  return Number.isInteger(book) && Number.isInteger(chapter) && !!max && chapter >= 1 && chapter <= max;
+}
+
 /** `#/MODULE/book/chapter[/verse]` — the shape `updateHash` writes. */
-const HASH_PATTERN = /^#\/([^/]+)\/(\d+)\/(\d+)(?:\/(\d+))?$/;
+const HASH_PATTERN = /^#\/([^/]+)\/(\d+)\/(\d+)(?:\/(\d+))?\/?$/; // trailing slash tolerated (W-025)
 
 /**
  * How to write a reader hash. A user navigation to a different chapter pushes a
@@ -421,6 +427,9 @@ class BibleStore extends Store {
     const follow = options?.follow === true;
     const tab = options?.tabId ? this.tabs.find(t => t.id === options.tabId) : this.getActiveTab();
     if (!tab || !this.bible) return;
+    // W-033: a book/chapter that cannot exist ("Matthew 0", chapter 99) is refused up front --
+    // no API call (it 400s), no history entry, no blank tab left behind.
+    if (!isValidChapter(book, chapter)) return;
 
     // Track whether we need to dismiss home screen after data loads
     const wasShowingHome = follow ? false : this.showHome;
@@ -1071,6 +1080,9 @@ class BibleStore extends Store {
       }
     }
 
+    // W-020: the URL names the translation too, or a reload (or a shared link) goes back to the
+    // module still in the hash. updateHash() replaces the entry (it is not a chapter change).
+    if (tab.id === this.activeTabId) this.updateHash();
     this.saveSession();
     this.notify();
 
@@ -1348,9 +1360,10 @@ class BibleStore extends Store {
       && tab.verses.length > 0;
   }
 
-  async navigateFromHash(hash: string): Promise<void> {
+  /** Resolves true when the hash named a reachable passage and it was opened, false when it was not a reader hash or named a passage that cannot exist (W-025). */
+  async navigateFromHash(hash: string): Promise<boolean> {
     const match = hash.match(HASH_PATTERN);
-    if (!match) return;
+    if (!match) return false;
 
     const [, linkedModule, bookStr, chapterStr, verseStr] = match;
     const book = parseInt(bookStr, 10);
@@ -1358,9 +1371,9 @@ class BibleStore extends Store {
     const verse = verseStr ? parseInt(verseStr, 10) : undefined;
     // A link naming a book or chapter that cannot exist (`#/ASV/99/1`) is ignored:
     // the reader stays on the current passage and the URL is put back to match it.
-    if (book < 1 || book > 66 || chapter < 1 || chapter > (MAX_CHAPTERS[book] ?? Infinity)) {
+    if (!isValidChapter(book, chapter)) {
       this.updateHash();
-      return;
+      return false;
     }
     // A link shared from another install can name a translation this one does
     // not have. The passage is still worth opening, in the default Bible.
@@ -1375,6 +1388,7 @@ class BibleStore extends Store {
     // The URL already is the user's step (Back, a hand-edit): rewrite it in place, never push.
     // `replace`: Back/Forward already moved the URL; do not append a duplicate to the tab's own history.
     await this.navigateTo(book, chapter, verse, { fromHash: true, replace: true });
+    return true;
   }
 
   // Session persistence
@@ -1463,7 +1477,10 @@ class BibleStore extends Store {
   async loadRestoredTabs(): Promise<void> {
     // If any restored tab has a chapter, dismiss the home screen
     if (this.tabs.some(t => t.book && t.chapter)) {
-      this.showHome = false;
+      if (this.showHome) {
+        this.showHome = false;
+        this.notify(); // W-033: the flag flip alone repainted nothing
+      }
     }
     // Load chapter data for all restored tabs that don't already have verses
     for (const tab of this.tabs) {
