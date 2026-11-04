@@ -558,17 +558,17 @@ export class Session implements Executor {
   }
 
   private async narrow(p: Page): Promise<AuditItem[]> {
-    const old = p.viewportSize();
-    const height = old?.height ?? 800;
+    // Electron windows have no emulated viewport (viewportSize() is null): measure it
+    const old = p.viewportSize() ?? await p.evaluate(() => ({ width: innerWidth, height: innerHeight }));
+    const height = old.height;
     await p.setViewportSize({ width: 360, height });
     await this.settle(p, 1500);
     try {
       await this.snap(p);
       const found = await p.evaluate(() => window.__uid.audit(['overflow', 'overlap']));
-      return found.map(it => ({ ...it, kind: 'narrow-' + it.kind }));
+      return [...found.map(it => ({ ...it, kind: 'narrow-' + it.kind })), { kind: 'info-narrow', detail: `checked at 360x${height}, restored ${old.width}x${old.height}` }];
     } finally {
-      if (old) await p.setViewportSize(old);
-      else await p.setViewportSize({ width: 1280, height });
+      await p.setViewportSize(old);
       await this.settle(p, 1500);
       const s = await this.snap(p);
       this.setBase(s);

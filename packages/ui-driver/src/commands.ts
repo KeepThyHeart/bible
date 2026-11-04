@@ -232,7 +232,7 @@ function build(argv: string[]): Command {
       return { name: 'tick', ref: normRef(pos[0]), on: false, ...actOpts(f) };
     }
     case 'check': {
-      const { pos, f } = parseFlags(rest, actSpec(), u());
+      const { pos, f } = parseFlags(rest.map((a) => (a === '--all' ? 'all' : a)), actSpec(), u());
       if (pos.length === 1 && isRef(pos[0])) return { name: 'tick', ref: normRef(pos[0]), on: true, ...actOpts(f) };
       if (Object.keys(f).length) fail();
       if (pos.length === 0) return { name: 'audit', kinds: [...DEFAULT_AUDIT_KINDS] };

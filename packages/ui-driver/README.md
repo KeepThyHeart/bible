@@ -38,7 +38,7 @@ plus errors, no diff) and `--timeout ms` (default 5000).
 |---|---|
 | `start [web\|desktop\|path/to/manifest.json] [--url URL] [--viewport WxH] [--headed] [--keep]` | `--url https://bible.keepthyheart.com` drives the live site **read-only** (only GET/HEAD/OPTIONS go out; others are blocked and listed under `errors`). `--keep` keeps the throwaway profile. |
 | `stop`, `status` | |
-| `snapshot [rN] [--depth N] [--max N] [--visible] [--all]` | `rN` scopes to one element (a native `<select>` then lists its options); `--visible` only what is in the viewport, and only the modal when one is open; long lists show 9 items and a count; 150 lines max unless `--max`/`--all`. |
+| `snapshot [rN] [--depth N] [--max N] [--visible] [--all]` | `rN` scopes to one element (a native `<select>` then lists its options); `--visible` only what is in the viewport, and only the modal dialog when one is open (menus and popovers are not filtered); long lists show 9 items and a count; 150 lines max unless `--max`/`--all`. |
 | `diff` | Changes since the last snapshot or action. Actions already include it. |
 | `find [TEXT] [--role ROLE]` | Search names/values of the whole page without printing it (TEXT optional with `--role`). Cheapest way to get a ref. |
 | `click rN [--right]`, `dblclick rN`, `hover rN` | |
