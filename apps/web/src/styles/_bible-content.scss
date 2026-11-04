@@ -142,7 +142,12 @@
     font-weight: 700;
     color: var(--text-primary);
     font-family: var(--heading-font, inherit);
-    flex: 0 0 auto;
+    // W-046: was `0 0 auto`, so at the largest Bible text size the heading kept its full width
+    // and the next-chapter button painted over its last characters ("Genesis 1" lost the "1").
+    // It may now shrink and wrap, and the nav buttons never shrink.
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow-wrap: anywhere;
 
     &--tappable {
       cursor: pointer;
@@ -172,6 +177,7 @@
   }
 
   &__nav-btn {
+    flex-shrink: 0;
     background: none;
     border: 1px solid var(--border-color);
     border-radius: 5px;

@@ -294,14 +294,21 @@
       margin: 0.4em 0;
     }
 
+    // W-042: links render in the theme's accent colour, which is >= 4.6:1 on the pane
+    // background in every theme (themeContrast.test.ts); the live UI showed them washed out
+    // (1.4-3.3:1) in Dark, Meadow, High Contrast, Midnight, Rose and Sunset. The element-qualified
+    // selector also beats any generic anchor/visited rule.
     .commentary-ref,
-    .scripture-link {
-      color: inherit;
+    .scripture-link,
+    a.scripture-link,
+    a.commentary-ref {
+      color: var(--accent-color);
+      opacity: 1;
       cursor: pointer;
       text-decoration: underline;
 
       &:hover {
-        color: var(--accent-color);
+        color: var(--accent-hover, var(--accent-color));
       }
     }
   }

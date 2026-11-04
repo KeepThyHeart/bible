@@ -708,9 +708,10 @@
     cursor: pointer;
     text-align: start;
     font-size: calc(0.9375rem * var(--study-font-scale, 1));
+    color: var(--text-primary);
     border-bottom: 1px solid var(--border-color, #f0f0f0);
 
-    &:hover { background: var(--hover-bg, #f5f5f5); }
+    &:hover { background: var(--hover-bg, var(--bg-tertiary)); }
   }
 
   &__suggestion-word { font-weight: 500; }
@@ -755,7 +756,7 @@
 
   &__entry-pos {
     font-size: calc(0.75rem * var(--study-font-scale, 1));
-    background: var(--hover-bg, #f0f0f0);
+    background: var(--hover-bg, var(--bg-tertiary));
     padding: 1px 8px;
     border-radius: 10px;
     color: var(--text-secondary, #666);
@@ -764,6 +765,12 @@
   &__entry-definition {
     line-height: 1.6;
     margin-bottom: 12px;
+
+    // W-040: plain / scripture links inside an entry took the UA dark-blue (unreadable on dark themes).
+    a,
+    .scripture-link {
+      color: var(--accent-color);
+    }
 
     .strongs-link {
       color: var(--accent-color, #4a7c59);
@@ -927,7 +934,7 @@
     padding: 6px 10px;
     border: 1px solid var(--border-color, #ddd);
     border-radius: 6px;
-    background: var(--input-bg, #fff);
+    background: var(--input-bg, var(--bg-primary));
     color: var(--text-primary, #333);
     font-size: calc(0.875rem * var(--ui-font-scale, 1));
     margin-bottom: 8px;
@@ -955,15 +962,20 @@
     cursor: pointer;
     text-align: start;
     font-size: calc(0.9375rem * var(--study-font-scale, 1));
+    color: var(--text-primary);
     border-bottom: 1px solid var(--border-color, #f0f0f0);
 
-    &:hover { background: var(--hover-bg, #f5f5f5); }
-    &--highlighted { background: var(--hover-bg, #f5f5f5); }
+    &:hover { background: var(--hover-bg, var(--bg-tertiary)); }
+    &--highlighted { background: var(--hover-bg, var(--bg-tertiary)); }
   }
 
+  // W-043: the headword must keep its width ("L." for Webster's was a 16px sliver beside a long
+  // source name). The headword is sized to its content and only shrinks (to ellipsis) after the
+  // source name has been squeezed to its floor; the source is the part that truncates.
   &__suggestion-word {
     font-weight: 500;
-    flex: 1;
+    flex: 1 0 auto;
+    max-inline-size: 70%;
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -973,7 +985,11 @@
   &__suggestion-source {
     font-size: calc(0.8125rem * var(--study-font-scale, 1));
     color: var(--text-secondary, #aaa);
-    flex-shrink: 0;
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
     margin-inline-start: 12px;
     text-align: end;
   }
@@ -1033,8 +1049,13 @@
     cursor: pointer;
     color: var(--text-muted);
     opacity: 0.3;
-    flex-shrink: 0;
-    padding: 8px;
+    // W-044: a fixed, centred box so the glyph sits inside the card (it was half outside the edge).
+    flex: 0 0 auto;
+    box-sizing: border-box;
+    inline-size: 2.5rem;
+    padding-block: 8px;
+    padding-inline: 0;
+    text-align: center;
     font-size: calc(0.75rem * var(--study-font-scale, 1));
     transition: color 0.15s, opacity 0.15s;
 
@@ -1064,7 +1085,7 @@
     padding: 6px 10px;
     border: 1px solid var(--border-color, #ddd);
     border-radius: 6px;
-    background: var(--input-bg, #fff);
+    background: var(--input-bg, var(--bg-primary));
     color: var(--text-primary, #333);
     font-size: calc(0.875rem * var(--ui-font-scale, 1));
     box-sizing: border-box;
@@ -1100,11 +1121,12 @@
     cursor: pointer;
     text-align: start;
     font-size: calc(0.9375rem * var(--study-font-scale, 1));
+    color: var(--text-primary);
     border-bottom: 1px solid var(--border-color, #f0f0f0);
 
-    &:hover { background: var(--hover-bg, #f5f5f5); }
+    &:hover { background: var(--hover-bg, var(--bg-tertiary)); }
     &:last-child { border-bottom: none; }
-    &--highlighted { background: var(--hover-bg, #f5f5f5); }
+    &--highlighted { background: var(--hover-bg, var(--bg-tertiary)); }
   }
 
   &__search-dropdown-loading {
@@ -1197,7 +1219,7 @@
     font-size: calc(0.875rem * var(--ui-font-scale, 1));
     border: 1px solid var(--border-color, #ddd);
     border-radius: 4px;
-    background: var(--input-bg, #fff);
+    background: var(--input-bg, var(--bg-primary));
     color: var(--text-primary, #333);
     box-sizing: border-box;
 
@@ -1229,8 +1251,9 @@
     border-radius: 6px;
     text-align: start;
     max-width: 45%;
+    color: var(--text-primary);
 
-    &:hover { background: var(--hover-bg, #f5f5f5); }
+    &:hover { background: var(--hover-bg, var(--bg-tertiary)); }
 
     &--next { text-align: end; }
   }
@@ -1272,7 +1295,7 @@
     min-width: 24px;
     text-align: center;
 
-    &:hover { background: var(--hover-bg, #f5f5f5); }
+    &:hover { background: var(--hover-bg, var(--bg-tertiary)); }
 
     &--active {
       background: var(--accent-color, #4a7c59);
@@ -1300,7 +1323,7 @@
     color: var(--text-primary, #333);
     border-bottom: 1px solid var(--border-color, #f0f0f0);
 
-    &:hover { background: var(--hover-bg, #f5f5f5); }
+    &:hover { background: var(--hover-bg, var(--bg-tertiary)); }
   }
 
   &__browse-more {
