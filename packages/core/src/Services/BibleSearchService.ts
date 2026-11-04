@@ -59,6 +59,10 @@ function shipsInModuleIndex(repository: IBibleRepository): boolean {
  * IBibleSearchRepository -- saved searches are the SearchController's business,
  * not this one's.
  */
+/** How many glosses a Strong's result highlights, and how often the build loop yields. */
+const STRONGS_MAX_HIGHLIGHT_GLOSSES = 12;
+const STRONGS_YIELD_EVERY = 25;
+
 export class BibleSearchService implements ISearchService {
   private parser: SearchQueryParser;
   private wordFamilyService: WordFamilyService | null = null;
@@ -1064,6 +1068,25 @@ export class BibleSearchService implements ISearchService {
   }
 
   /**
+   * The renderings to highlight for a Strong's number. A common number (G3588)
+   * has thousands of distinct glosses and building three regexes per gloss per
+   * verse cost ~24 ms a result (B-164), so keep the most frequent distinct ones
+   * (the repository returns them most common first), minus stop words.
+   */
+  private pickHighlightGlosses(glosses: string[]): string[] {
+    const seen = new Set<string>();
+    const picked: string[] = [];
+    for (const gloss of glosses) {
+      const key = gloss.trim().toLowerCase();
+      if (!key || seen.has(key) || ENGLISH_STOP_WORDS.has(key)) continue;
+      seen.add(key);
+      picked.push(gloss.trim());
+      if (picked.length >= STRONGS_MAX_HIGHLIGHT_GLOSSES) break;
+    }
+    return picked;
+  }
+
+  /**
    * Strong's number search: Find all verses with specific Greek/Hebrew word.
    * Searches the interlinear_word table for matching Strong's numbers.
    * Optionally includes word family members (related roots/derivations).
@@ -1102,7 +1125,7 @@ export class BibleSearchService implements ISearchService {
         if (verseIds.length === 0) continue;
 
         // Get glosses for highlighting
-        const glosses = repo.getGlossesForStrongs(variants);
+        const glosses = this.pickHighlightGlosses(repo.getGlossesForStrongs(variants));
 
         // Demote word-family relatives so the exact Strong's number
         // the user searched for sorts above derivations and cognates.
@@ -1113,7 +1136,10 @@ export class BibleSearchService implements ISearchService {
         const limit = options.maxResults || 200;
         const idsToProcess = verseIds.slice(0, limit);
 
+        let built = 0;
         for (const verseId of idsToProcess) {
+          // The server is one thread: let other requests run between batches.
+          if (++built % STRONGS_YIELD_EVERY === 0) await new Promise<void>(resolve => setImmediate(resolve));
           const verse = repo.getVerse(verseId);
           if (!verse) continue;
 
