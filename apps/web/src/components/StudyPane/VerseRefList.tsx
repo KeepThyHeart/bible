@@ -217,7 +217,7 @@ export function VerseRefList({ verses, totalCount, hasMore, onNavigateBible, bib
               <button class="verse-ref-list__load-more-inline" onClick={onLoadMore} disabled={loadingMore}>
                 {loadingMore ? t('verseRefList.loading') : `${t('verseRefList.and')} ${remaining} more — load more`}
               </button>
-              <span class="verse-ref-list__added" ref={addedRef} role="status" aria-live="polite">{justAdded > 0 ? ` +${justAdded} added` : ''}</span>
+              <span class="verse-ref-list__added sr-only" ref={addedRef} role="status" aria-live="polite">{justAdded > 0 ? ` +${justAdded} added` : ''}</span>
             </>
           ) : (
             <span class="verse-ref-list__more"> {t('verseRefList.and')} {remaining} more</span>
