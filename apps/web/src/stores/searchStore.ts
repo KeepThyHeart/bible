@@ -332,8 +332,9 @@ class SearchStore extends Store {
       this.notify();
     } catch (error) {
       if (runId !== this.runId) return;
-      console.error('Search failed:', error);
       const vm = (error as { validationMessage?: unknown } | null)?.validationMessage;
+      // A rejected query (unbalanced quote...) is the user's input, shown in the panel, not an app error.
+      if (typeof vm !== 'string') console.error('Search failed:', error);
       this.searchError = typeof vm === 'string' ? vm : '';
       this.results = [];
       this.totalResults = 0;
@@ -395,9 +396,9 @@ class SearchStore extends Store {
       this.loading = false;
       this.notify();
     } catch (error) {
-      console.error('Strong\'s search failed:', error);
       if (seq !== this.searchSeq) return;
       const vm = (error as { validationMessage?: unknown } | null)?.validationMessage;
+      if (typeof vm !== 'string') console.error('Strong\'s search failed:', error);
       this.searchError = typeof vm === 'string' ? vm : '';
       this.results = [];
       this.totalResults = 0;
