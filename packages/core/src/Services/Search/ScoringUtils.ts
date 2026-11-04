@@ -7,6 +7,7 @@
 
 import type { SearchCandidate } from './SearchTypes';
 import type { ScoringConfig, TopicSourcesConfig } from './SearchPipelineConfig';
+import { isSubFacetId, isSubFacetText } from './FacetClassifier';
 
 /** Default sub-facet damping factor. */
 export const DEFAULT_SUB_FACET_DAMPING = 0.92;
@@ -19,9 +20,6 @@ export const DEFAULT_TOPIC_BOOST = 0.15;
 
 /** Default minimum topic similarity score for expansion. */
 export const DEFAULT_TOPIC_MIN_SCORE = 0.50;
-
-/** Text length threshold to distinguish sub-facets from main facets. */
-const SUB_FACET_MAX_LENGTH = 80;
 
 /** Default topic sources config (all enabled). */
 export const DEFAULT_TOPIC_SOURCES: Required<TopicSourcesConfig> = {
@@ -80,7 +78,7 @@ export function applyMainFacetPreference(
     if (!groups.has(key)) groups.set(key, { bestMain: null, bestSub: null });
     const g = groups.get(key)!;
 
-    const isSub = r.text.length < SUB_FACET_MAX_LENGTH;
+    const isSub = isSubFacetText(r.text);
 
     if (isSub) {
       if (!g.bestSub || r.score > g.bestSub.score) g.bestSub = r;
@@ -132,7 +130,7 @@ export function applyMainFacetPreferencePlain<T extends { id: string; start_vers
     if (!groups.has(key)) groups.set(key, { bestMain: null, bestSub: null });
     const g = groups.get(key)!;
 
-    const isSub = /_s\d$/.test(r.id);
+    const isSub = isSubFacetId(r.id);
 
     if (isSub) {
       if (!g.bestSub || r.score > g.bestSub.score) g.bestSub = r;

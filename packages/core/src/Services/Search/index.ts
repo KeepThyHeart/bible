@@ -56,6 +56,17 @@ export {
 } from './ScoringUtils';
 export type { TopicEntryLike } from './ScoringUtils';
 
+// Facet classification (shared with the bibsearch corpus exporter)
+export {
+  SUB_FACET_MAX_LENGTH,
+  TEXT_FACET_ID_PREFIX,
+  SUB_FACET_ID_PATTERN,
+  isSubFacetId,
+  isSubFacetText,
+  classifyFacet,
+} from './FacetClassifier';
+export type { FacetKind } from './FacetClassifier';
+
 // Score fusion
 export {
   minMaxNormalize,
