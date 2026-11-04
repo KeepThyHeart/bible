@@ -53,6 +53,14 @@ import { IIndexSource } from '../Access/KeywordTypes';
  * console.log(entry?.definition);
  * ```
  */
+/**
+ * W-051: user input inside a LIKE pattern is literal. Unescaped, a search for
+ * `%` matched every entry and `_` any single character. Pair with `ESCAPE '\\'`.
+ */
+function escapeLike(value: string): string {
+  return value.replace(/[\\%_]/g, (c) => `\\${c}`);
+}
+
 export class DictionaryRepository extends BaseModuleRepository<DictionaryModuleInfo> implements IDictionaryRepository {
   private readonly verseLinks: VerseLinkRepository;
 
@@ -210,19 +218,20 @@ export class DictionaryRepository extends BaseModuleRepository<DictionaryModuleI
    */
   searchEntries(query: string, options?: { limit?: number }): DictionaryEntry[] {
     const limit = options?.limit ?? 100;
+    const like = escapeLike(query);
 
     const titleRows = this.sql.queryAll<DictionaryEntryRow>(
       `SELECT * FROM dictionary_entry
-       WHERE word LIKE ? OR entry_key LIKE ?
+       WHERE word LIKE ? ESCAPE '\\' OR entry_key LIKE ? ESCAPE '\\'
        ORDER BY
          CASE
            WHEN LOWER(word) = LOWER(?) OR LOWER(entry_key) = LOWER(?) THEN 0
-           WHEN LOWER(word) LIKE LOWER(? || '%') OR LOWER(entry_key) LIKE LOWER(? || '%') THEN 1
+           WHEN LOWER(word) LIKE LOWER(? || '%') ESCAPE '\\' OR LOWER(entry_key) LIKE LOWER(? || '%') ESCAPE '\\' THEN 1
            ELSE 2
          END,
          entry_key
        LIMIT ?`,
-      [`%${query}%`, `%${query}%`, query, query, query, query, limit]
+      [`%${like}%`, `%${like}%`, query, query, like, like, limit]
     );
 
     const rows = [...titleRows];
@@ -258,20 +267,21 @@ export class DictionaryRepository extends BaseModuleRepository<DictionaryModuleI
    */
   searchByTitle(query: string, options?: { limit?: number }): DictionaryEntry[] {
     const limit = options?.limit ?? 100;
-    const pattern = `%${query}%`;
+    const like = escapeLike(query);
+    const pattern = `%${like}%`;
 
     const rows = this.sql.queryAll<DictionaryEntryRow>(
       `SELECT * FROM dictionary_entry
-       WHERE word LIKE ? OR entry_key LIKE ?
+       WHERE word LIKE ? ESCAPE '\\' OR entry_key LIKE ? ESCAPE '\\'
        ORDER BY
          CASE
            WHEN LOWER(word) = LOWER(?) OR LOWER(entry_key) = LOWER(?) THEN 0
-           WHEN LOWER(word) LIKE LOWER(? || '%') OR LOWER(entry_key) LIKE LOWER(? || '%') THEN 1
+           WHEN LOWER(word) LIKE LOWER(? || '%') ESCAPE '\\' OR LOWER(entry_key) LIKE LOWER(? || '%') ESCAPE '\\' THEN 1
            ELSE 2
          END,
          entry_key
        LIMIT ?`,
-      [pattern, pattern, query, query, query, query, limit]
+      [pattern, pattern, query, query, like, like, limit]
     );
 
     return this.hydrateExampleVerses(rows.map(row => this.mapRowToEntry(row)));
