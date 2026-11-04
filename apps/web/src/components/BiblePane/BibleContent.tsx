@@ -15,7 +15,8 @@ import { InterlinearLayoutToggle } from './InterlinearLayoutToggle';
 import { isInterlinearPending } from './interlinearPending';
 import { BookChapterPicker } from './BookChapterPicker';
 import { isSingleChapterBook, formatPassageRef, localizedBookAliases } from '../../constants';
-import { getAllBookNames, getLocalizedBookName } from '../../utils/bookNames';
+import { getLocalizedBookName } from '../../utils/bookNames';
+import { parseReference } from '../../utils/referenceParse';
 import { sanitizeHtml } from '../../utils/sanitize';
 import { directionForLanguage, stripBidiControls } from '@bible/core/browser';
 import type { InterlinearWordData, StrongsEntryData } from '../../types';
@@ -51,54 +52,7 @@ function VerseOfTheDay() {
 
 const NO_VERSES: never[] = [];
 
-// Books with only one chapter — "Jude 5" means "Jude 1:5", not "Jude chapter 5"
-const SINGLE_CHAPTER_BOOKS = new Set([31, 57, 63, 64, 65]); // Obadiah, Philemon, 2 John, 3 John, Jude
-
-function parseReference(input: string, bookAliases: Record<string, number>): { book: number; chapter: number; verse?: number; endVerse?: number } | null {
-  const trimmed = input.trim();
-  if (!trimmed) return null;
-  const aliasesByBook = new Map<number, string[]>();
-  for (const [alias, bookNum] of Object.entries(bookAliases)) {
-    const list = aliasesByBook.get(bookNum) ?? [];
-    list.push(alias.toLowerCase());
-    aliasesByBook.set(bookNum, list);
-  }
-  const bookEntries = Object.entries(getAllBookNames());
-  for (const [numStr, name] of bookEntries) {
-    const bookNum = parseInt(numStr, 10);
-    const lowerName = name.toLowerCase();
-    const lowerInput = trimmed.toLowerCase();
-    const abbrevs = [lowerName, lowerName.substring(0, 3)];
-    if (/^\d/.test(lowerName)) abbrevs.push(lowerName.replace(' ', ''));
-    abbrevs.push(...(aliasesByBook.get(bookNum) ?? []));
-    // Longest first, so a more specific alias is tried before a shorter one
-    // that happens to be its own prefix.
-    abbrevs.sort((a, b) => b.length - a.length);
-    for (const abbr of abbrevs) {
-      if (lowerInput.startsWith(abbr)) {
-        const rest = trimmed.substring(abbr.length).trim();
-        // Groups: 1 = chapter (or verse in a single-chapter book), 2 = end of a
-        // bare range ("Jude 5-7"), 3 = verse, 4 = end verse ("John 3:16-18").
-        const match = rest.match(/^(\d+)(?:\s*[-–—]\s*(\d+))?(?::(\d+)(?:\s*[-–—]\s*(\d+))?)?$/);
-        if (match) {
-          let chapter = parseInt(match[1], 10);
-          let verse = match[3] ? parseInt(match[3], 10) : undefined;
-          let endVerse = match[4] ? parseInt(match[4], 10) : undefined;
-          // For single-chapter books, "Jude 5" means verse 5, not chapter 5 —
-          // and "Jude 5-7" is a verse range in chapter 1.
-          if (SINGLE_CHAPTER_BOOKS.has(bookNum) && verse === undefined) {
-            verse = chapter;
-            chapter = 1;
-            endVerse = match[2] ? parseInt(match[2], 10) : undefined;
-          }
-          return { book: bookNum, chapter, verse, endVerse };
-        }
-        if (!rest) return { book: bookNum, chapter: 1 };
-      }
-    }
-  }
-  return null;
-}
+// Reference parsing (incl. single-chapter books, W-032) is the shared utils/referenceParse parser.
 
 function getCoverageMessage(coveredBooks: number[] | undefined, t: (key: string, opts?: Record<string, unknown>) => string): string {
   if (!coveredBooks || coveredBooks.length === 0) {
