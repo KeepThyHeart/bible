@@ -257,6 +257,20 @@ describe('CopyDialog', () => {
     expect(container.querySelector('.copy-dialog')).toBeTruthy();
   });
 
+  // W-037: modal focus management.
+  it('moves focus into the dialog, traps Tab and returns focus to the opener on close (W-037)', () => {
+    const opener = document.createElement('button');
+    document.body.appendChild(opener);
+    opener.focus();
+    const view = render(<CopyDialog isOpen={true} onClose={onClose} />);
+    const dialog = view.container.querySelector<HTMLElement>('[role="dialog"]')!;
+    expect(dialog).toBeTruthy();
+    expect(dialog.contains(document.activeElement)).toBe(true);
+    view.rerender(<CopyDialog isOpen={false} onClose={onClose} />);
+    expect(document.activeElement).toBe(opener);
+    opener.remove();
+  });
+
   // ------------------------------------------------------------------
   // Dialog chrome
   // ------------------------------------------------------------------
