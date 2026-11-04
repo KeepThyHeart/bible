@@ -61,11 +61,11 @@ function willUploadFromEnvelope(x: unknown): boolean {
 
 const PRIMARY_BUTTON_STYLE: React.CSSProperties = {
   padding: '6px 14px',
-  fontSize: 13,
+  fontSize: '0.8125rem',
   borderRadius: 4,
   border: 'none',
-  background: 'var(--theme-accent, #2563eb)',
-  color: '#fff',
+  background: 'var(--theme-accent-primary, #2563eb)',
+  color: 'var(--theme-accent-text, #fff)',
   cursor: 'pointer',
 };
 
@@ -210,19 +210,19 @@ const ReportIssueDialog: React.FC = () => {
       >
         <h2
           id="report-issue-dialog-title"
-          style={{ fontSize: 18, fontWeight: 600, marginTop: 0, marginBottom: 12 }}
+          style={{ fontSize: '1.125rem', fontWeight: 600, marginTop: 0, marginBottom: 12 }}
         >
           {t('reportIssueDialog.title')}
         </h2>
 
         {sent ? (
           <div role="status" data-testid="report-issue-success">
-            <p style={{ fontSize: 15, fontWeight: 600, margin: '0 0 8px 0' }}>
+            <p style={{ fontSize: '0.9375rem', fontWeight: 600, margin: '0 0 8px 0' }}>
               {t('reportIssueDialog.successTitle')}
             </p>
             <p
               style={{
-                fontSize: 13,
+                fontSize: '0.8125rem',
                 lineHeight: 1.5,
                 margin: 0,
                 color: 'var(--theme-text-secondary, #555)',
@@ -241,7 +241,7 @@ const ReportIssueDialog: React.FC = () => {
           </div>
         ) : (
           <>
-            <label style={{ display: 'block', fontSize: 13, marginTop: 8 }}>
+            <label style={{ display: 'block', fontSize: '0.8125rem', marginTop: 8 }}>
               {t('reportIssueDialog.descriptionLabel')}
               <textarea
                 value={description}
@@ -254,7 +254,7 @@ const ReportIssueDialog: React.FC = () => {
                   marginTop: 4,
                   padding: 8,
                   fontFamily: 'inherit',
-                  fontSize: 13,
+                  fontSize: '0.8125rem',
                   border: '1px solid var(--theme-border, #ccc)',
                   borderRadius: 4,
                   backgroundColor: 'var(--theme-bg-primary, #fff)',
@@ -271,7 +271,7 @@ const ReportIssueDialog: React.FC = () => {
                 alignItems: 'center',
                 gap: 6,
                 marginTop: 12,
-                fontSize: 13,
+                fontSize: '0.8125rem',
               }}
             >
               <input
@@ -288,7 +288,7 @@ const ReportIssueDialog: React.FC = () => {
                   style={{
                     whiteSpace: 'pre-wrap',
                     fontFamily: 'inherit',
-                    fontSize: 12,
+                    fontSize: '0.75rem',
                     lineHeight: 1.5,
                     margin: 0,
                     color: 'var(--theme-text-secondary, #555)',
@@ -297,7 +297,7 @@ const ReportIssueDialog: React.FC = () => {
                   {getDiagnosticsPrivacyBlurb(t)}
                 </pre>
 
-                <details style={{ marginTop: 8, fontSize: 12 }}>
+                <details style={{ marginTop: 8, fontSize: '0.75rem' }}>
                   <summary style={{ cursor: 'pointer' }}>
                     {t('reportIssueDialog.viewDiagnosticData')}
                   </summary>
@@ -309,7 +309,7 @@ const ReportIssueDialog: React.FC = () => {
                       margin: '8px 0 0 0',
                       backgroundColor: 'var(--theme-bg-secondary, #f5f5f5)',
                       borderRadius: 4,
-                      fontSize: 11,
+                      fontSize: '0.6875rem',
                       whiteSpace: 'pre-wrap',
                       wordBreak: 'break-word',
                     }}
@@ -330,7 +330,7 @@ const ReportIssueDialog: React.FC = () => {
                 style={{
                   marginTop: 12,
                   padding: 8,
-                  fontSize: 13,
+                  fontSize: '0.8125rem',
                   color: 'var(--theme-error-text, #991b1b)',
                   backgroundColor: 'var(--theme-error-bg, #fee2e2)',
                   border: '1px solid var(--theme-error-border, #fecaca)',
@@ -355,7 +355,7 @@ const ReportIssueDialog: React.FC = () => {
                 disabled={submitting}
                 style={{
                   padding: '6px 14px',
-                  fontSize: 13,
+                  fontSize: '0.8125rem',
                   borderRadius: 4,
                   border: '1px solid var(--theme-border, #ccc)',
                   background: 'var(--theme-bg-secondary, #f5f5f5)',
@@ -373,7 +373,7 @@ const ReportIssueDialog: React.FC = () => {
                   ...PRIMARY_BUTTON_STYLE,
                   background: sendDisabled
                     ? 'var(--theme-accent-disabled, #94a3b8)'
-                    : 'var(--theme-accent, #2563eb)',
+                    : 'var(--theme-accent-primary, #2563eb)',
                   cursor: sendDisabled ? 'default' : 'pointer',
                 }}
               >

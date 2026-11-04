@@ -7,12 +7,67 @@
  * Also handles auto-cleanup of modules unused for a configurable number of days
  * (default 15, overridable via `staleDays` in server-config.json).
  * Explicitly downloaded modules (via Settings UI) are never auto-cleaned.
+ *
+ * Only the reader's *working* translations are fetched. A site may offer
+ * dozens, and opening one in passing — a shared link, a quick comparison, a
+ * look through the translation list — must not cost a full download each. So:
+ *   - a translation is downloaded only after {@link MIN_CHAPTER_READS} chapter
+ *     reads in it (counted across visits, in localStorage);
+ *   - at most {@link MAX_AUTO_DOWNLOADS} auto-downloaded translations are kept;
+ *     adding one past that removes the least recently used of them.
  */
 
 import { offlineStore } from '../stores/offlineStore';
 import type { OfflineStorageManager } from '../providers/OfflineStorageManager';
 
 const DEFAULT_STALE_DAYS = 15;
+
+/** Chapter reads in a translation before it is worth keeping a local copy. */
+export const MIN_CHAPTER_READS = 3;
+/** Auto-downloaded translations kept at once (explicit downloads do not count). */
+export const MAX_AUTO_DOWNLOADS = 2;
+
+const READS_KEY = 'bible-reader-auto-download-reads';
+
+function loadReads(): Record<string, number> {
+  try {
+    const raw = localStorage.getItem(READS_KEY);
+    const parsed: unknown = raw ? JSON.parse(raw) : {};
+    return parsed && typeof parsed === 'object' ? parsed as Record<string, number> : {};
+  } catch {
+    return {};
+  }
+}
+
+/** Count one chapter read of `abbreviation`; returns the new total. */
+function countRead(abbreviation: string): number {
+  const reads = loadReads();
+  const next = Math.min((reads[abbreviation] ?? 0) + 1, MIN_CHAPTER_READS);
+  if (next !== reads[abbreviation]) {
+    reads[abbreviation] = next;
+    try { localStorage.setItem(READS_KEY, JSON.stringify(reads)); } catch { /* storage full or blocked */ }
+  }
+  return next;
+}
+
+/** Remove least-recently-used auto downloads until there is room for `keep` more. */
+async function makeRoom(keep: number): Promise<void> {
+  const auto = offlineStore.downloadedModules
+    .filter(m => m.autoDownloaded && m.type === 'bible')
+    .sort((a, b) => lastUsed(a) - lastUsed(b));
+  while (auto.length + keep > MAX_AUTO_DOWNLOADS && auto.length > 0) {
+    const victim = auto.shift()!;
+    try {
+      await storageManager!.removeModule(victim.abbreviation);
+    } catch (err) {
+      console.warn(`[AutoDownload] Failed to remove ${victim.abbreviation}:`, err);
+    }
+  }
+}
+
+function lastUsed(m: { lastUsedAt?: string; downloadedAt: string }): number {
+  return new Date(m.lastUsedAt ?? m.downloadedAt).getTime();
+}
 let staleDays = DEFAULT_STALE_DAYS;
 
 let storageManager: OfflineStorageManager | null = null;
@@ -71,6 +126,8 @@ function whenIdle(fn: () => void, timeoutMs = 5000): void {
 export function triggerAutoDownload(abbreviation: string, name: string): void {
   if (!storageManager) return;
   if (offlineStore.isModuleDownloaded(abbreviation)) return;
+  // Not a working translation (yet): a passing visit costs no download.
+  if (countRead(abbreviation) < MIN_CHAPTER_READS) return;
   if (inProgressDownloads.has(abbreviation)) return;
   if (offlineStore.activeDownloads.has(abbreviation)) return;
 
@@ -85,6 +142,7 @@ export function triggerAutoDownload(abbreviation: string, name: string): void {
       const available = await checkOpfs();
       if (!available) return;
 
+      await makeRoom(1);
       await storageManager!.downloadModuleLite(abbreviation, name);
     } catch {
       // Silent failure — user will just use server API

@@ -4,7 +4,7 @@ import { directionForLanguage } from '@bible/core/browser';
 import { audioStore } from '../audioStore';
 import { bibleStore } from '../../../stores/bibleStore';
 import { moduleStore } from '../../../stores/moduleStore';
-import { settingsStore } from '../../../stores/settingsStore';
+import { settingsStore, pxToRem } from '../../../stores/settingsStore';
 import { useStore } from '../../../hooks/useStore';
 import { useNowPlaying } from '../hooks/useNowPlaying';
 import { useUserScrollIntent } from '../../../hooks/useUserScrollIntent';
@@ -244,7 +244,7 @@ export function AudioVersePane({ variant, now = Date.now }: AudioVersePaneProps)
         dir={contentDir}
         lang={contentLang}
         data-content-dir={contentDir}
-        style={{ fontFamily, lineHeight, fontSize: `${size}px` }}
+        style={{ fontFamily, lineHeight, fontSize: pxToRem(size) }}
         onKeyDown={onKeyDown}
       >
         {ready && <div class="audio-verses__spacer" aria-hidden="true" style={{ blockSize: `${pad.top}px` }} />}

@@ -1,6 +1,6 @@
 Keep Thy Heart Bible Reader
 ===========================
-_Note: This is currently a work in progress, so stay tuned for updates!  I am working on providing beta installers next.  ALSO: I am reworking the module format somewhat before a first beta release, as well as some of the architecture, and so the development clone may be temporarily broken but should be fixed soon._
+_Note: For a pre-release download for Windows, Linux, and Mac, please see the Tags section.  Note that this is still a beta release, and so expect rough edges.  Feel free to file any problems you have in the "Issues" tab above, and you can also e-mail me at keepthyheart@outlook.com with feedback and suggestions!_
 
 > For the word of God is quick, and powerful, and sharper than any twoedged sword, piercing even to the dividing asunder of soul and spirit, and of the joints and marrow, and is a discerner of the thoughts and intents of the heart.  (Hebrews 4:12)
 
@@ -26,8 +26,8 @@ Screenshots and User Documentation
 
 Prerequisites
 -------------
-  - **Node.js 20.19 or newer.** 24 is recommended, and `.nvmrc` pins it, so `nvm install` / `nvm use` (nvm, fnm) pick it up. With nvm-windows, run `nvm install 24` and `nvm use 24`. The init script checks the version and says so if it is too old. macOS ships no Node at all; see [macOS](#macos) below.
-  - **pnpm** 10 or newer (the exact version is pinned by `packageManager` in the root `package.json`; run `corepack enable` once, since Corepack ships with Node.js, and it is picked up automatically) and **git**.
+  - **Node.js 20.19 or newer.** 24 is recommended (CI uses it; 26 also passes the web, desktop and package test suites), and `.nvmrc` pins it, so `nvm install` / `nvm use` (nvm, fnm) pick it up. With nvm-windows, run `nvm install 24` and `nvm use 24`. The init script checks the version and says so if it is too old. macOS ships no Node at all; see [macOS](#macos) below.
+  - **pnpm** 10 or newer (the exact version is pinned by `packageManager` in the root `package.json`; run `corepack enable` once, and it is picked up automatically; Corepack ships with Node.js 24 and older, but not with 25 or newer, where you first run `npm install -g corepack`, or install pnpm directly with `npm install -g pnpm`) and **git**.
   - **Network access on the first run.** Setup downloads modules from the official module catalog and the Electron binary from GitHub, the first `pnpm run dev` / `pnpm run dev:web` downloads the self-hosted fonts, and the first `pnpm run build:web` downloads the search embedding model (about 130 MB) from huggingface.co into `data/models/`.
   - **Native build tools.** The native dependencies (`better-sqlite3`, `better-sqlite3-multiple-ciphers` and others) normally install prebuilt binaries, including the Electron build of `better-sqlite3-multiple-ciphers` that `pnpm run setup` fetches. When no prebuilt binary matches your platform, Node or Electron version, the install compiles it with node-gyp, which needs Python 3 plus a C++ toolchain: Visual Studio Build Tools with the "Desktop development with C++" workload on Windows, the Xcode Command Line Tools on macOS, or `build-essential` on Linux. `keytar` is optional (it is only used to migrate an encryption key from older desktop installs), so a failure to build it, for example for want of `libsecret-1-dev` on Linux, does not stop `pnpm install`. If `pnpm install` sits compiling SQLite for several minutes, see [Troubleshooting](#troubleshooting): a slow DNS lookup of github.com, or broken IPv6 to it, makes every prebuilt download time out. At the time of writing `better-sqlite3-multiple-ciphers` publishes no Electron 44 (ABI 149) binaries for any platform, so `pnpm run rebuild-sqlite` always compiles it (about a minute) and the C++ toolchain is in practice required.
 
@@ -176,7 +176,7 @@ Run from the repository root.
 | `pnpm run init:modules` | Download the `starter` modules from the official catalog, then register them (`init:modules:dev` for the development catalog) |
 | `pnpm run init:desktop` | Build the desktop registry and link its modules directory |
 | `pnpm run init:electron` | Download the Electron binary (skips it when already there) |
-| `pnpm run rebuild-sqlite` | Fetch or rebuild the desktop's SQLite driver for Electron (skips it when already built) |
+| `pnpm run rebuild-sqlite` | Build the desktop's SQLite driver for Electron (it loads the driver in Electron first and rebuilds only when that fails) |
 | `pnpm --filter @bible/core run test` | Unit tests for one workspace (also `@bible/web`, `@bible/desktop`) |
 | `pnpm test` | Build core, then run every workspace's unit tests (slow) |
 | `pnpm run typecheck` | Type-check every workspace |
@@ -219,7 +219,7 @@ Testing an Installer
 `admin/scripts/test-installer.js` checks an installer the release build produced (or a downloaded copy) on the platform it is for:
 
 ```bash
-pnpm run test:installer "apps/desktop/dist/Keep Thy Heart Bible Reader-0.1.0.AppImage"
+pnpm run test:installer "apps/desktop/dist/Keep Thy Heart Bible Reader-1.0.0-rc.1.AppImage"
 node admin/scripts/test-installer.js path/to/installer.exe
 ```
 
@@ -229,7 +229,7 @@ It uses Playwright from the checkout it runs in, so run `pnpm install` there fir
 
 Troubleshooting
 ---------------
-**The desktop app fails with `NODE_MODULE_VERSION` ... was compiled against a different Node.js version.** A native module is built for system Node rather than Electron, typically after `pnpm install` or after `pnpm rebuild better-sqlite3-multiple-ciphers` (which the Node-run desktop unit tests need). `pnpm run rebuild-sqlite` skips modules that look built already, so force it. The same fix applies on a Mac when the driver fails to load with `incompatible architecture (have 'arm64', need 'x86_64')` or the reverse, or is missing altogether: packaging for mac rebuilds it in place for each arch it builds, and puts the host's build back afterwards, but a packaging run that fails or is interrupted part-way leaves the other arch (or nothing) behind.
+**The desktop app fails with `NODE_MODULE_VERSION` ... was compiled against a different Node.js version.** A native module is built for system Node rather than Electron, typically after `pnpm install` or after `pnpm rebuild better-sqlite3-multiple-ciphers` (which the Node-run desktop unit tests need). `pnpm run rebuild-sqlite` notices this and rebuilds (it loads the driver in Electron to check, rather than trusting electron-rebuild's marker file, which survives a `pnpm install`); to rebuild regardless, force it. The same fix applies on a Mac when the driver fails to load with `incompatible architecture (have 'arm64', need 'x86_64')` or the reverse, or is missing altogether: packaging for mac rebuilds it in place for each arch it builds, and puts the host's build back afterwards, but a packaging run that fails or is interrupted part-way leaves the other arch (or nothing) behind.
 
 ```bash
 pnpm --filter @bible/desktop run rebuild-native:force
@@ -254,7 +254,7 @@ pnpm --filter @bible/desktop run rebuild-native:force
 
 **The web app shows no modules, or a module is missing.** Check that it is registered (`pnpm run init`) and listed with `active: true` in the `modules` section of `data/site-config.json`. If a fresh session shows "Failed to load chapter", `ui.defaultModule` names a Bible that is not installed; `pnpm run init` warns about this.
 
-**A port is already in use.** Express uses 3100 (`PORT` overrides it) and Vite uses 5173. The Vite proxy always targets 3100, so in development free that port rather than changing `PORT`. If 5173 is taken, Vite moves to the next free port and prints the URL.
+**A port is already in use.** Express uses 3100 (`PORT` overrides it) and Vite uses 5173. The Vite proxy always targets 3100, so in development free that port rather than changing `PORT`. If 5173 is taken, Vite moves to the next free port and prints the URL. The Playwright e2e suite starts two servers of its own on 3100 and 3101; set `E2E_PORT=3300` to move that pair (3300 and 3301), for example to run two checkouts at once or when an old run left a server behind (see [apps/web/e2e/README.md](apps/web/e2e/README.md)).
 
 Resources:
   - For coding standards, see ./admin/coding-standards.

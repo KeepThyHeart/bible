@@ -16,6 +16,7 @@
  */
 
 import type { Request, Response, NextFunction } from 'express';
+import { clientKey } from '../utils/clientQuota.js';
 
 export type RateLimitTier = 'search' | 'content' | 'present' | 'games' | 'default';
 
@@ -140,10 +141,6 @@ function sweep(map: Map<string, Counter>, now: number, windowMs: number): void {
   }
 }
 
-function clientKey(req: Request): string {
-  return req.ip || req.socket.remoteAddress || 'unknown';
-}
-
 export interface RateLimiterHandle {
   /** Per-tier middleware. Mount on the appropriate route groups. */
   middleware(tier: RateLimitTier): (req: Request, res: Response, next: NextFunction) => void;
@@ -184,6 +181,13 @@ export function createRateLimiter(config: Partial<RateLimitConfig> = {}): RateLi
   // Don't keep the event loop alive just for sweeping.
   sweeper.unref?.();
 
+  /** Standard RateLimit-* headers (IETF draft): the cap, what is left, seconds until the window resets. */
+  function advertise(res: Response, cap: number, count: number, windowStart: number, now: number): void {
+    res.setHeader('RateLimit-Limit', String(cap));
+    res.setHeader('RateLimit-Remaining', String(Math.max(0, cap - count)));
+    res.setHeader('RateLimit-Reset', String(Math.max(1, Math.ceil((windowStart + windowMs - now) / 1000))));
+  }
+
   function reject(res: Response, retrySeconds: number): void {
     res.setHeader('Retry-After', String(retrySeconds));
     res.status(429).json({ error: { code: 'RATE_LIMITED', message: 'Too many requests' } });
@@ -197,6 +201,7 @@ export function createRateLimiter(config: Partial<RateLimitConfig> = {}): RateLi
         const now = Date.now();
         const counter = getCount(map, clientKey(req), now, windowMs);
         counter.count++;
+        advertise(res, cap, counter.count, counter.windowStart, now);
         if (counter.count > cap) {
           const retrySeconds = Math.max(1, Math.ceil((counter.windowStart + windowMs - now) / 1000));
           return reject(res, retrySeconds);
@@ -212,6 +217,7 @@ export function createRateLimiter(config: Partial<RateLimitConfig> = {}): RateLi
           globalCounter = { count: 0, windowStart: now };
         }
         globalCounter.count++;
+        advertise(res, limits.global, globalCounter.count, globalCounter.windowStart, now);
         if (globalCounter.count > limits.global) {
           const retrySeconds = Math.max(1, Math.ceil((globalCounter.windowStart + windowMs - now) / 1000));
           return reject(res, retrySeconds);

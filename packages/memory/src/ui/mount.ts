@@ -34,6 +34,8 @@ import { renderCardStack } from './cardView';
 import { pickFlowTarget } from './suggest';
 import { INITIAL_NAV, navReduce, sameView } from './state';
 import type { Flow, NavAction, NavState } from './state';
+import { setUiTranslator, tr } from './i18n';
+import type { Translate } from './i18n';
 import './memory.css';
 
 export interface MemoryUiOptions {
@@ -47,6 +49,10 @@ export interface MemoryUiOptions {
   activeReference?: string | null;
   /** Clock; default `Date.now`. */
   now?(): number;
+  /** The host's translator (catalog lookup); default: the built-in English. */
+  t?: Translate;
+  /** BCP-47 tag for dates and numbers; default: the runtime's. */
+  locale?: string;
 }
 
 export interface MemoryUiHandle {
@@ -90,6 +96,7 @@ function isRunning(state: ReciteStateView): boolean {
 
 export function mountMemoryUi(container: HTMLElement, options: MemoryUiOptions): MemoryUiHandle {
   const { api } = options;
+  setUiTranslator(options.t, options.locale);
   const now = options.now ?? (() => Date.now());
   const doc = container.ownerDocument;
   const win = doc.defaultView ?? window;
@@ -123,6 +130,15 @@ export function mountMemoryUi(container: HTMLElement, options: MemoryUiOptions):
    * a newer one has been issued in the meantime.
    */
   let renderToken = 0;
+
+  /** The view last painted by `render()`, to tell a new screen from a refresh. */
+  let lastPainted: NavState['view'] | null = null;
+
+  function scrollToTop(): void {
+    for (let node: HTMLElement | null = main; node !== null && node !== doc.body; node = node.parentElement) {
+      if (node.scrollTop !== 0) node.scrollTop = 0;
+    }
+  }
 
   const measurer = new WordMeasurer(doc);
 
@@ -233,6 +249,8 @@ export function mountMemoryUi(container: HTMLElement, options: MemoryUiOptions):
       clear(main);
       practice = new PracticeView(host, session, sessionFlow);
       practice.mount(main);
+      lastPainted = nav.view;
+      scrollToTop();
       announce('');
     },
 
@@ -244,7 +262,7 @@ export function mountMemoryUi(container: HTMLElement, options: MemoryUiOptions):
       }
       const target = pickFlowTarget(reply.data, flow, host.now(), Math.random, exclude);
       if (!target) {
-        announce('Nothing else to practice right now.');
+        announce(tr('memory.ui.settings.nothingElseToPractice', 'Nothing else to practice right now.'));
         return;
       }
       await host.startSession(target.passageId, target.rung, undefined, undefined, flow);
@@ -257,6 +275,7 @@ export function mountMemoryUi(container: HTMLElement, options: MemoryUiOptions):
     },
 
     announce,
+    fail: showError,
   };
 
   // -------------------------------------------------------------------------
@@ -303,6 +322,12 @@ export function mountMemoryUi(container: HTMLElement, options: MemoryUiOptions):
 
     clear(main);
     main.appendChild(content);
+
+    // A different screen starts at its top: the scroll offset of the screen
+    // just left (the host's scroller included) would otherwise carry over and
+    // hide the breadcrumbs. A refresh of the same screen keeps its place.
+    if (lastPainted === null || !sameView(lastPainted, nav.view)) scrollToTop();
+    lastPainted = nav.view;
 
     // Move focus to the new screen's heading, so a keyboard or screen-reader
     // user is not left at the top of the document after every navigation.
@@ -380,7 +405,7 @@ export function mountMemoryUi(container: HTMLElement, options: MemoryUiOptions):
           // Removed elsewhere between the click and the fetch reads the same as
           // any other failure to the core, but this one has a specific,
           // friendlier story: fall back to the plan rather than an error banner.
-          announce('That passage is no longer in your plan.');
+          announce(tr('memory.ui.settings.passageGone', 'That passage is no longer in your plan.'));
           nav = navReduce(nav, { type: 'passageRemoved', passageId });
           const planReply = await host.request({ type: 'getPlan' });
           return planReply.ok ? renderPlan(host, planReply.data) : failure(planReply.error);
@@ -391,7 +416,7 @@ export function mountMemoryUi(container: HTMLElement, options: MemoryUiOptions):
           passageReply.data,
           settingsReply.data.defaultAnswerMode,
           nav.view.rung,
-          settingsReply.data.speech,
+          settingsReply.data.speech ?? null,
         );
       }
 
@@ -430,13 +455,13 @@ export function mountMemoryUi(container: HTMLElement, options: MemoryUiOptions):
       }
 
       default:
-        return failure('Unknown screen.');
+        return failure(tr('memory.ui.settings.unknownScreen', 'Unknown screen.'));
     }
   }
 
   function failure(message: string): HTMLElement {
     return el('section', { class: 'sm-screen' }, [
-      el('h1', { class: 'sm-screen-title', text: 'Scripture Memory' }),
+      el('h1', { class: 'sm-screen-title', text: tr('memory.ui.settings.title', 'Scripture Memory') }),
       errorBanner(message),
     ]);
   }

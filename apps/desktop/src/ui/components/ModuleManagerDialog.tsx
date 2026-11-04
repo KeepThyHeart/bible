@@ -7,13 +7,13 @@ import { useNetworkStore } from '../stores/useNetworkStore';
 import { moduleAPI } from '../stores/module/moduleAPI';
 import { mergeAndSortModules, getTabTypes, type ModuleRow } from '../stores/module/moduleRows';
 import ModuleTable from './moduleManager/ModuleTable';
-import { findRowDownload } from './moduleManager/ModuleRow';
+import { findRowDownload, findRowInstallJob } from './moduleManager/ModuleRow';
 import ModuleDetailsPanel from './moduleManager/ModuleDetailsPanel';
 import { MODULE_TYPE_LABELS, useTd } from './moduleManager/moduleManagerI18n';
 import { TabStrip } from './shared/TabStrip';
-import DownloadProgressPanel from './DownloadProgressPanel';
 import RepositorySettings from './RepositorySettings';
 import FeaturePackPanel from './FeaturePackPanel';
+import { useCatalogRefresh } from './moduleManager/useCatalogRefresh';
 import { OfflinePacksPanel } from './moduleManager/OfflinePacksPanel';
 import ConfirmDialog from './shared/ConfirmDialog';
 import { activateFocusTrap } from '../utils/focusTrap';
@@ -134,7 +134,8 @@ export interface ModuleManagerDialogProps {
    * - an empty study pane sends the user straight to the modules that would
    * fill it. `null` opens on whichever tab was last used (the default).
    */
-  initialModuleType?: ModuleType | null;
+  /** A module type, or another tab such as `features` (Preferences > Search links there). */
+  initialModuleType?: ModuleManagerTab | null;
 }
 
 const INSTALL_FILTERS: Array<{ id: ModuleInstallFilter; key: string; fallback: string }> = [
@@ -223,11 +224,18 @@ const ModuleManagerDialog: React.FC<ModuleManagerDialogProps> = ({ onClose, init
     error,
     errorCode,
     activeDownloads,
+    installJobs,
     repositories,
     initialize,
     setActiveTypeTab,
     setInstallFilter,
-    installModule,
+    startInstall,
+    cancelInstall,
+    retryInstall,
+    dismissInstall,
+    refreshInstallJobs,
+    stopInstallPolling,
+    startInstallPolling,
     updateModule,
     uninstallModule,
     refreshAllCatalogs,
@@ -296,6 +304,21 @@ const ModuleManagerDialog: React.FC<ModuleManagerDialogProps> = ({ onClose, init
     };
   }, [stopDownloadPolling]);
 
+  // Installs run in the background and outlive this dialog. On open, pick up any
+  // that are still going (or finished while it was closed); stop polling on close.
+  useEffect(() => {
+    void refreshInstallJobs().then(() => {
+      if (useModuleStore.getState().installJobs.length > 0) startInstallPolling();
+    });
+    // Installs outlive the dialog: keep polling while any is active, so the
+    // library is told when one finishes even with the dialog closed.
+    return () => {
+      if (!useModuleStore.getState().installJobs.some((j) => j.stage === 'queued' || j.stage === 'downloading' || j.stage === 'verifying' || j.stage === 'installing')) {
+        stopInstallPolling();
+      }
+    };
+  }, [refreshInstallJobs, startInstallPolling, stopInstallPolling]);
+
   // Handle keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -357,7 +380,8 @@ const ModuleManagerDialog: React.FC<ModuleManagerDialogProps> = ({ onClose, init
   const handleInstallRow = (row: ModuleRow) => {
     const catalogModule = row.catalogModule;
     if (!catalogModule) return;
-    void runRowAction(row, () => installModule(catalogModule.module_id));
+    // Queued in the background: returns at once, progress shows in the row.
+    void startInstall(catalogModule.module_id);
   };
 
   const handleUpdateRow = (row: ModuleRow) => {
@@ -381,9 +405,16 @@ const ModuleManagerDialog: React.FC<ModuleManagerDialogProps> = ({ onClose, init
   };
 
   // Handle refresh catalog
-  const handleRefreshCatalog = async () => {
-    await refreshAllCatalogs();
-  };
+  const { status: refreshStatus, run: handleRefreshCatalog } = useCatalogRefresh(
+    refreshAllCatalogs,
+    () => useModuleStore.getState().error
+  );
+  const refreshBusy = refreshStatus === 'busy';
+  const refreshLabel =
+    refreshStatus === 'busy' ? td('moduleManagerDialog.refreshing', 'Refreshing\u2026')
+    : refreshStatus === 'done' ? td('moduleManagerDialog.refreshed', 'Updated')
+    : refreshStatus === 'error' ? td('moduleManagerDialog.refreshFailed', 'Refresh failed')
+    : t('moduleManagerDialog.refresh');
 
   // Offline banner's "Turn on" - same confirmation-gated path as the menu
   // checkbox and the Preferences toggle (see `useNetworkStore`). A refresh is
@@ -607,7 +638,7 @@ const ModuleManagerDialog: React.FC<ModuleManagerDialogProps> = ({ onClose, init
     },
     {
       id: 'packs',
-      label: td('moduleManager.packs.tab', 'Offline packs'),
+      label: td('moduleManager.packs.tab', 'Bundles'),
       testId: 'module-manager-packs-tab',
     },
     {
@@ -836,12 +867,15 @@ const ModuleManagerDialog: React.FC<ModuleManagerDialogProps> = ({ onClose, init
 
             {/* Refresh Catalog */}
             <button
-              onClick={handleRefreshCatalog}
-              disabled={loadingAvailable}
-              className="px-4 py-2 text-sm font-medium text-text-primary border border-border rounded hover:bg-background-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              onClick={() => void handleRefreshCatalog()}
+              disabled={loadingAvailable || refreshBusy}
+              aria-busy={refreshBusy}
+              data-testid="module-manager-refresh"
+              data-refresh-status={refreshStatus}
+              className="px-4 py-2 min-w-[8.5rem] justify-center text-sm font-medium text-text-primary border border-border rounded hover:bg-background-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             >
               <svg
-                className={`w-4 h-4 ${loadingAvailable ? 'animate-spin' : ''}`}
+                className={`w-4 h-4 ${loadingAvailable || refreshBusy ? 'animate-spin' : ''}`}
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -853,7 +887,7 @@ const ModuleManagerDialog: React.FC<ModuleManagerDialogProps> = ({ onClose, init
                   d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
                 />
               </svg>
-              {t('moduleManagerDialog.refresh')}
+              <span role="status" aria-live="polite">{refreshLabel}</span>
             </button>
 
             {/* Last Updated */}
@@ -924,6 +958,10 @@ const ModuleManagerDialog: React.FC<ModuleManagerDialogProps> = ({ onClose, init
                 offline={!allowWebRequests}
                 busyAbbreviations={busyAbbreviations}
                 activeDownloads={activeDownloads}
+                installJobs={installJobs}
+                onCancelInstall={(id) => void cancelInstall(id)}
+                onRetryInstall={(id) => void retryInstall(id)}
+                onDismissInstall={(id) => void dismissInstall(id)}
                 ariaLabel={typeLabel(activeTypeTab)}
                 onSelect={(row) => setSelectedAbbreviation(row.abbreviation)}
                 onInstall={handleInstallRow}
@@ -937,6 +975,7 @@ const ModuleManagerDialog: React.FC<ModuleManagerDialogProps> = ({ onClose, init
                 key={selectedRow.abbreviation}
                 row={selectedRow}
                 activeDownload={findRowDownload(selectedRow, activeDownloads)}
+                installActive={['queued', 'downloading', 'verifying', 'installing'].includes(findRowInstallJob(selectedRow, installJobs)?.stage ?? '')}
                 isOffline={!allowWebRequests}
                 onClose={() => setSelectedAbbreviation(null)}
                 onInstall={handleInstallRow}
@@ -971,9 +1010,6 @@ const ModuleManagerDialog: React.FC<ModuleManagerDialogProps> = ({ onClose, init
           onConfirm={confirmUninstall}
           onCancel={() => setUninstallRequest(null)}
         />
-
-        {/* Downloads Panel (if active downloads exist) */}
-        {activeDownloads.length > 0 && <DownloadProgressPanel />}
 
         {/* Footer */}
         <div className="px-6 py-4 border-t border-border bg-surface-secondary">

@@ -83,6 +83,26 @@ export interface MemoryCommandApi {
 
 export type MemoryApi = MemoryRequestApi & MemoryCommandApi;
 
+/** A one-time notice about the move from the old extension, waiting for a visible window. */
+export interface MemoryNotice {
+  /** `retired`: the old extension was turned off; `skipped`: its data was not brought over (Memory already had a plan). */
+  readonly id: 'retired' | 'skipped';
+  /** English text; the host looks up `memory.notice.<id>` and falls back to this. */
+  readonly message: string;
+}
+
+/**
+ * What the desktop renderer's client offers: the core API plus host-answered methods that need no
+ * running core (served from the user database in main). Not part of `MemoryApi`: the core never
+ * implements them.
+ */
+export interface MemoryMainApi {
+  /** Notices recorded for the user and not shown yet; each is marked shown by this call. */
+  takeNotices(): Promise<MemoryNotice[]>;
+}
+
+export type MemoryClientApi = MemoryApi & MemoryMainApi;
+
 /**
  * What the core pushes to the UI. The extension's `WorkerPush` without
  * `activeVerse` (the UI knows the reader's verse itself), plus a user notice

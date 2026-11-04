@@ -1,0 +1,12 @@
+{
+  "id": "high-contrast",
+  "name": "High Contrast",
+  "group": "core",
+  "order": 16,
+  "isDark": true,
+  "swatch": {
+    "bg": "#000000",
+    "fg": "#ffffff",
+    "accent": "#ffe066"
+  }
+}

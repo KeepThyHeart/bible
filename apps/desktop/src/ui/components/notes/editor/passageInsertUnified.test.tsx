@@ -159,6 +159,25 @@ describe('the toolbar and Tab open the same passage dialog', () => {
     expect(lastHtml(onChange)).not.toContain('”');
   });
 
+  it('leaves the caret in a new empty paragraph after the quote, not inside it', async () => {
+    const { onChange } = await openFromToolbar();
+
+    fireEvent.change(await screen.findByTestId('passage-reference-input'), {
+      target: { value: 'John 3:16' },
+    });
+    await screen.findByTestId('verse-expand-preview', {}, { timeout: 3000 });
+    fireEvent.click(screen.getByRole('button', { name: 'Insert' }));
+
+    await waitFor(() => expect(lastHtml(onChange)).toContain('blockquote'));
+    await waitFor(() => expect(lastHtml(onChange)).toContain('<p></p><p>Writing here</p>'));
+    const pm = document.querySelector('.ProseMirror') as HTMLElement;
+    const kids = Array.from(pm.children) as HTMLElement[];
+    const empty = kids.find((k) => k.tagName === 'P' && k.textContent === '') as HTMLElement;
+    expect(empty).toBeTruthy();
+    expect(empty.closest('blockquote')).toBeNull();
+    expect(kids.indexOf(empty)).toBeGreaterThan(kids.findIndex((k) => k.tagName === 'BLOCKQUOTE'));
+  });
+
   it('offers comment room under each verse for the verse-by-verse layout', async () => {
     getVerses.mockResolvedValue([JOHN_3_16, JOHN_3_17]);
     const { onChange } = await openFromToolbar();

@@ -1,5 +1,7 @@
 # @bible/extension-testing
 
+> **Experimental.** The extension API and SDK are experimental and **not frozen**: they may change in incompatible ways before a stable release. Pin an exact version and expect to update your extension.
+
 Testing utilities for Bible app extensions. Provides a mock host API, a test host that drives the real activation lifecycle, ready-made fixtures, and a smoke harness that exercises every hook an extension declares -- so an extension can be tested with no Electron, no running app and no databases.
 
 ## Usage

@@ -4,6 +4,7 @@
     "button": "Palabras clave",
     "buttonTitle": "Marcas de palabras clave",
     "toggle": "Marcas de palabras clave",
+    "showMarks": "Mostrar marcas",
     "empty": "Ninguna palabra clave coincide en este capítulo.",
     "count": "{count, plural, one {# aparición} other {# apariciones}}",
     "show": "Mostrar {label}",

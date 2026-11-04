@@ -40,7 +40,7 @@ import { loadSchemaSql } from '@bible/core';
 import timelineMainModule from './module';
 import { createModuleIpc } from '../moduleIpc';
 import type { MainModuleDeps } from '../FeatureMainModule';
-import { __resetModuleDatabaseRegistryForTests } from '../../services/ModuleDatabaseRegistry';
+import { __resetModuleDatabaseRegistryForTests, getModuleDatabaseRegistry } from '../../services/ModuleDatabaseRegistry';
 
 const nativeSqliteAvailable = ((): boolean => {
   try {
@@ -120,6 +120,8 @@ describe.skipIf(!nativeSqliteAvailable)('module:timeline:getDataset', () => {
     expect(first.value.items).toHaveLength(1);
     expect(first.value.items[0].passages).toEqual([{ start: 11001001, end: 11002000, primary: true }]);
 
+    // Release the handle first: Windows cannot delete an open file. The cached dataset stays.
+    getModuleDatabaseRegistry().close(join(tmpDir, 'timeline_ussher.db'));
     rmSync(join(tmpDir, 'timeline_ussher.db'));
     const second = await getDataset();
     expect(second.value.items).toHaveLength(1);

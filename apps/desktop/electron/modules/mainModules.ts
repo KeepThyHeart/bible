@@ -19,6 +19,7 @@ import {
   type FeatureModuleManifest,
 } from '@bible/core/browser';
 import type { FeatureMainModule, MainModuleDeps } from './FeatureMainModule';
+import { releaseModuleOverrides } from '../config/releaseProfile';
 import { createModuleIpc, type IpcMainLike } from './moduleIpc';
 import { timelineMainManifest } from './timeline/manifest';
 import { quizMainManifest } from './quiz/manifest';
@@ -29,6 +30,7 @@ import { wordStudyMainManifest } from './word-study/manifest';
 import { keywordMarksMainManifest } from './keyword-marks/manifest';
 import { notificationsMainManifest } from './notifications/manifest';
 import { memoryManifest } from '@bible/memory/manifest';
+import { speechMainManifest } from './speech/manifest';
 
 export interface MainModuleEntry {
   readonly manifest: FeatureModuleManifest;
@@ -47,6 +49,8 @@ export const MAIN_MODULES: readonly MainModuleEntry[] = [
   { manifest: notificationsMainManifest, load: () => import('./notifications') },
   // Scripture memory (0114): registers its handlers at startup; the core loads on the first call.
   { manifest: memoryManifest, load: () => import('./memory') },
+  // Speech engine bridge (0151): behind the `recite` flag; the engine itself runs in the renderer.
+  { manifest: speechMainManifest, load: () => import('./speech') },
 ];
 
 export interface RegisterMainModulesOptions {
@@ -97,9 +101,11 @@ export async function registerMainModules(
     overrides: options.packaged ? {} : parseFlagOverrides(options.flagOverrideText ?? process.env.KTH_FLAGS),
   });
   const timeoutMs = options.activationTimeoutMs ?? DEFAULT_MAIN_MODULE_TIMEOUT_MS;
-  const overrides = options.packaged
-    ? {}
-    : parseFeatureModuleOverrides(options.overrideText ?? process.env.KTH_MODULES);
+  // Release-profile removals apply to every build; KTH_MODULES layers on top in unpackaged builds only.
+  const overrides = {
+    ...releaseModuleOverrides(),
+    ...(options.packaged ? {} : parseFeatureModuleOverrides(options.overrideText ?? process.env.KTH_MODULES)),
+  };
   const state: Running = { host: undefined as unknown as FeatureModuleHost, disposables: [], closers: [] };
   state.host = createFeatureModuleHost({
     platform: 'desktop',

@@ -18,6 +18,8 @@ export interface AlignedWord {
   credit: number;
   /** Index into the heard words that matched. */
   heardIndex?: number;
+  /** The learner had been shown this word before reciting (peek): not graded. */
+  peeked?: boolean;
 }
 
 export interface RecitationResult {

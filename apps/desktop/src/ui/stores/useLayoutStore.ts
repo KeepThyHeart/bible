@@ -134,6 +134,9 @@ interface LayoutState {
    */
   openSearchResultsPanel: () => string | null;
 
+  /** Close every search-results panel (e.g. after the reader jumps to a typed reference). */
+  closeSearchResultsPanels: () => void;
+
   /** Apply a built-in layout preset by id */
   applyPreset: (presetId: string) => Promise<void>;
 
@@ -466,6 +469,12 @@ export const useLayoutStore = create<LayoutState>((set, get) => ({
       : undefined;
 
     return get().addPanel('search', undefined, genericEnglishTitle('search'), position);
+  },
+
+  closeSearchResultsPanels: () => {
+    for (const existing of get().getPanelsByType('search')) {
+      get().removePanel(existing.panelId);
+    }
   },
 
   applyPreset: async (presetId: string) => {

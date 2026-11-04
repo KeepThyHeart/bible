@@ -12,6 +12,7 @@ import {
 } from './PresetApplier';
 import { useLayoutStore, type PanelContentType } from '../stores/useLayoutStore';
 import { genericEnglishTitle } from '../utils/paneNames';
+import { useBibleStore, encodeBibleContentKey } from '../stores/useBibleStore';
 
 /**
  * Applies the built-in layout presets.
@@ -33,6 +34,60 @@ import { genericEnglishTitle } from '../utils/paneNames';
  * Re-applying the preset that is already current deliberately skips the
  * remembered arrangement: that is the "reset this layout" gesture.
  */
+/**
+ * B-027: applying a preset rebuilds the grid with `fromJSON`, which unmounts
+ * every Bible pane; on remount a pane re-seeds from its dockview `contentKey`,
+ * which still names the passage it was *created* with. Re-encode each Bible
+ * panel's live passage into that key first, so the pane comes back where the
+ * reader was (chapter and selected verse), not at its original seed.
+ */
+export function freshenBibleSeeds(snapshot: SerializedDockview): void {
+  const panels = (snapshot as unknown as { panels?: Record<string, { params?: Record<string, unknown> }> }).panels;
+  if (!panels) return;
+  const live = useBibleStore.getState().panels; // allow-getstate: service - imperative store access outside render
+  for (const [id, entry] of Object.entries(panels)) {
+    if (entry.params?.contentType !== 'bible') continue;
+    const ps = live.get(id);
+    const tab = ps?.openTabs[ps.activeTabIndex] ?? ps?.openTabs[0];
+    if (!ps || !tab || !ps.currentBook || !ps.currentChapter) continue;
+    entry.params = {
+      ...entry.params,
+      contentKey: encodeBibleContentKey({
+        abbreviation: tab.abbreviation,
+        book: ps.currentBook,
+        chapter: ps.currentChapter,
+        selectedVerseId: ps.selectedVerseId,
+        displayMode: tab.displayMode,
+      }),
+    };
+  }
+}
+
+/**
+ * B-027: dockview moves each pane's DOM when the grid is rebuilt, and moving a
+ * scrolled element resets its scrollTop to 0 - the pane keeps its selected verse
+ * but is scrolled to the top. The Bible pane's scroll effect only reruns when
+ * its scroll trigger changes, so bump it for every pane that has a selected
+ * verse; the effect then centers the verse once the pane has been laid out.
+ */
+export function recenterBiblePanes(): void {
+  const store = useBibleStore.getState(); // allow-getstate: service - imperative store access outside render
+  const next = new Map(store.panels);
+  let changed = false;
+  for (const [id, ps] of next) {
+    if (!ps.selectedVerseId || ps.openTabs.length === 0) continue;
+    next.set(id, { ...ps, scrollMode: 'center', scrollTrigger: ps.scrollTrigger + 1 });
+    changed = true;
+  }
+  if (changed) useBibleStore.setState({ panels: next });
+}
+
+/** Let dockview finish moving panes, then re-center. */
+function recenterBiblePanesSoon(): void {
+  if (typeof requestAnimationFrame !== 'function') return;
+  requestAnimationFrame(() => requestAnimationFrame(() => recenterBiblePanes()));
+}
+
 export class LayoutPresetService implements ILayoutPresetService {
   private _currentPresetId: string | null = null;
   private _undoSnapshot: SerializedDockview | null = null;
@@ -94,6 +149,7 @@ export class LayoutPresetService implements ILayoutPresetService {
       snapshot = api.toJSON();
     }
 
+    freshenBibleSeeds(snapshot);
     this.rememberCurrent(snapshot);
 
     const reuseRemembered = !options?.forceRebuild && presetId !== this._currentPresetId;
@@ -118,6 +174,7 @@ export class LayoutPresetService implements ILayoutPresetService {
 
     this._undoSnapshot = snapshot;
     this._currentPresetId = presetId;
+    recenterBiblePanesSoon();
   }
 
   /**
@@ -154,6 +211,7 @@ export class LayoutPresetService implements ILayoutPresetService {
 
     this._undoSnapshot = null;
     this._currentPresetId = null;
+    recenterBiblePanesSoon();
     return true;
   }
 

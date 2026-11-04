@@ -34,8 +34,12 @@ const FTS5_RESERVED_WORDS = ['and', 'or', 'not', 'near'];
  */
 export function escapeFts5Term(term: string): string {
   const isReservedWord = FTS5_RESERVED_WORDS.includes(term.toLowerCase());
-  // " ' ( ) : * ^ - all carry meaning in FTS5 query syntax.
-  const needsQuoting = isReservedWord || /["'():*^-]/.test(term);
+  // A bare FTS5 token is letters, digits and underscore (any script). Anything
+  // else is either query syntax (" ' ( ) : * ^ -) or punctuation the parser
+  // rejects as a syntax error, e.g. the comma of "Jesus," when someone types
+  // the topic name "Jesus, the Christ". Quoting is always safe: the tokenizer
+  // still splits and stems a quoted string.
+  const needsQuoting = isReservedWord || /[^\p{L}\p{N}_]/u.test(term);
 
   if (!needsQuoting) return term;
 

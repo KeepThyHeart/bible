@@ -17,6 +17,7 @@ import {
 import type { StarterPack, OfferedStarterPack, CatalogModule } from '@bible/core';
 import { DownloadService } from '../services/DownloadService';
 import { validateString, validatePositiveInt } from '../utils/validation';
+import { ModuleInstallManager, type InstallJob } from '../services/ModuleInstallManager';
 import { InstallationService } from '../services/InstallationService';
 import { KeywordIndexService, type KeywordIndexStatusDto } from '../services/KeywordIndexService';
 import { ModuleCatalogService, type VouchedKeyApprovalRequest } from '../services/ModuleCatalogService';
@@ -37,6 +38,14 @@ import {
   type SkippedPackEntry,
   type ModulePackTrustOptions
 } from '../services/ModulePackService';
+import { dialogParent } from '../utils/dialogParent';
+
+/** `dialog.showMessageBox` attached to the main window so it cannot fall behind it (B-087). */
+function showParentedMessageBox(options: Electron.MessageBoxOptions): Promise<Electron.MessageBoxReturnValue> {
+  const parent = dialogParent();
+  return parent ? dialog.showMessageBox(parent, options) : dialog.showMessageBox(options);
+}
+
 
 /**
  * What to do when the module being installed is already installed.
@@ -108,6 +117,8 @@ let installationService: InstallationService | null = null;
 // the IPC handlers for it are module-scoped queries with no controller-level
 // state, so they talk to the service directly.
 let keywordIndexService: KeywordIndexService | null = null;
+// Background install queue behind `module:install-start` and friends.
+const installManager = new ModuleInstallManager(() => requireModuleController());
 // Held separately from `catalogController`: the starter-pack queries are
 // catalog-document reads with no controller-level state, so they talk to the
 // service directly rather than widening the controller's surface.
@@ -122,7 +133,7 @@ async function confirmVouchedCatalogKey(request: VouchedKeyApprovalRequest): Pro
   const chain = request.chain
     .map((link) => `${link.vouchingKey}\n  vouched for ${link.newKey}\n  on ${link.issued}`)
     .join('\n');
-  const { response } = await dialog.showMessageBox({
+  const { response } = await showParentedMessageBox({
     type: 'warning',
     buttons: ['Decline', 'Trust new key'],
     defaultId: 0,
@@ -258,7 +269,9 @@ function requireKeywordIndexService(): KeywordIndexService {
  */
 async function installModuleFromPath(
   filePath: string,
-  policy: ModuleInstallPolicy | boolean = 'replace-always'
+  policy: ModuleInstallPolicy | boolean = 'replace-always',
+  /** True (default) for a file the user picked: it is copied, never moved (B-111). */
+  keepSource = true
 ): Promise<{
   moduleId?: number;
   moduleName?: string;
@@ -333,7 +346,7 @@ async function installModuleFromPath(
 
   // Install the module
   log.info('[ModuleManager] Installing module from file...');
-  const installResult = await svc.installModule(filePath, moduleInfo);
+  const installResult = await svc.installModule(filePath, moduleInfo, undefined, undefined, { keepSource });
   log.info('[ModuleManager] Install result:', installResult);
 
   if (!installResult.success) {
@@ -423,7 +436,7 @@ async function resolvePackFileTrust(filePath: string): Promise<PackFileTrustDeci
   }
 
   if (inspection.status === 'unsigned' || inspection.status === 'untrusted') {
-    const { response } = await dialog.showMessageBox({
+    const { response } = await showParentedMessageBox({
       type: 'warning',
       buttons: ['Cancel', 'Install anyway'],
       defaultId: 0,
@@ -500,7 +513,7 @@ async function installModulePackFromPath(
   const summary = await installModulePack(
     archivePath,
     getModulePackExtractionRoot(),
-    (filePath) => installModuleFromPath(filePath, effectivePolicy),
+    (filePath) => installModuleFromPath(filePath, effectivePolicy, false),
     undefined,
     trust
   );
@@ -611,6 +624,40 @@ export function registerModuleHandlers(_ipc: IpcMain): void {
       return { moduleId: result.moduleId, moduleName: result.moduleName };
     }
   );
+
+  // Background installs. `module:install-start` queues the install and returns
+  // at once with the job; the Module Manager polls `module:install-jobs` for
+  // stage/percent/bytes and can cancel, retry or dismiss. See ModuleInstallManager.
+  ipcHandler<[string, number | undefined], InstallJob>(
+    'module:install-start',
+    (moduleId, catalogId) => {
+      validateString(moduleId, 'moduleId', 200);
+      if (catalogId !== undefined) validatePositiveInt(catalogId, 'catalogId');
+      initializeModuleManager();
+      return installManager.enqueue(moduleId, catalogId);
+    }
+  );
+
+  ipcHandler<[], InstallJob[]>('module:install-jobs', () => {
+    initializeModuleManager();
+    return installManager.list();
+  });
+
+  ipcHandler<[number], boolean>('module:install-cancel', (jobId) => {
+    validatePositiveInt(jobId, 'jobId');
+    return installManager.cancel(jobId);
+  });
+
+  ipcHandler<[number], InstallJob | null>('module:install-retry', (jobId) => {
+    validatePositiveInt(jobId, 'jobId');
+    initializeModuleManager();
+    return installManager.retry(jobId) ?? null;
+  });
+
+  ipcHandler<[number], void>('module:install-dismiss', (jobId) => {
+    validatePositiveInt(jobId, 'jobId');
+    installManager.dismiss(jobId);
+  });
 
   // Install module(s) from file (opens file dialog). Accepts multiple plain
   // module files at once, or a single pack archive (.zip/.biblepack)

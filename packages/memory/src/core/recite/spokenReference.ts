@@ -7,6 +7,8 @@
  * "1 John" is read "First John" so the voice does not say "one John".
  */
 
+import { numberToWords } from '@bible/core/recite';
+
 const ORDINAL: Record<string, string> = { '1': 'First', '2': 'Second', '3': 'Third' };
 
 const REF_RE = /^(?:(.*?)\s+)?(\d+)(?::(\d+))?(?:\s*[-–—]\s*(?:(\d+):)?(\d+))?$/;
@@ -50,4 +52,44 @@ export function spokenReference(
   return n2 === v1
     ? `${head}chapter ${c1}, verse ${v1}`
     : `${head}chapter ${c1}, verses ${v1} to ${n2}`;
+}
+
+/**
+ * The reference as the words a learner says when reciting it back: "John 3:16" -> John three sixteen
+ * (no "chapter"/"verse": spoken fillers like those are ignored when grading the reference).
+ * Ranges read "sixteen to eighteen".
+ */
+export function spokenReferenceWords(
+  passage: { reference: string },
+  bookNames: ReadonlyArray<string> = [],
+): string[] {
+  const ref = passage.reference.trim();
+  let book = '';
+  let rest = ref;
+  let best = '';
+  for (const name of bookNames) {
+    if (name.length > best.length && ref.startsWith(name + ' ')) best = name;
+  }
+  if (best !== '') {
+    book = best;
+    rest = ref.slice(best.length).trim();
+  }
+  const m = REF_RE.exec(rest);
+  if (!m) return ref.split(/\s+/).filter((w) => w !== '');
+  const [, parsedBook, c1, v1, c2, n2] = m;
+  if (best === '' && parsedBook) book = parsedBook;
+  const num = (n: string): string[] => numberToWords(parseInt(n, 10));
+  const out = spokenBook(book).split(/\s+/).filter((w) => w !== '');
+  out.push(...num(c1));
+  if (v1 === undefined) {
+    if (n2 !== undefined && c2 === undefined) out.push('to', ...num(n2));
+    return out;
+  }
+  out.push(...num(v1));
+  if (n2 !== undefined && !(c2 === undefined && n2 === v1)) {
+    out.push('to');
+    if (c2 !== undefined && c2 !== c1) out.push(...num(c2));
+    out.push(...num(n2));
+  }
+  return out;
 }

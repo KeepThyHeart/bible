@@ -16,6 +16,7 @@ import { IBibleRepository } from '../Data/Repositories/IBibleRepository';
 import { IBibleBookRepository } from '../Data/Repositories/IBibleBookRepository';
 import { SearchResult, SearchOptions, ParsedQuery, Match, MatchType, BooleanExpression, BibleRange } from '../types/search';
 import { VerseId, VerseIdHelper } from '../Data/Core/Types';
+import { divineRangesOfVerse, markUp, type TextRange } from './SearchMarkup';
 import { StrongsNumberHelper } from '../Data/Core/StrongsNumberHelper';
 import { isReadOnlyDatabaseError } from '../Data/Core/Errors';
 import { BibleVerse } from '../Data/Models/Bible/BibleVerse';
@@ -59,6 +60,12 @@ function shipsInModuleIndex(repository: IBibleRepository): boolean {
  * IBibleSearchRepository -- saved searches are the SearchController's business,
  * not this one's.
  */
+const matchRanges = (matches: Match[]): TextRange[] => matches.map(m => ({ start: m.startPos, end: m.endPos }));
+
+/** How many glosses a Strong's result highlights, and how often the build loop yields. */
+const STRONGS_MAX_HIGHLIGHT_GLOSSES = 12;
+const STRONGS_YIELD_EVERY = 25;
+
 export class BibleSearchService implements ISearchService {
   private parser: SearchQueryParser;
   private wordFamilyService: WordFamilyService | null = null;
@@ -337,7 +344,10 @@ export class BibleSearchService implements ISearchService {
 
     const allResults: SearchResult[] = [];
 
+    let handled = 0;
     for (const hit of response.hits) {
+      // One thread serves every visitor: hand it back between batches.
+      if (++handled % 100 === 0) await new Promise<void>(resolve => setImmediate(resolve));
       const abbr = this.abbrForTarget(hit.target);
       if (!abbr) continue; // defensive: every hit's target came from `targets` above
       const repo = modules.get(abbr);
@@ -1064,6 +1074,25 @@ export class BibleSearchService implements ISearchService {
   }
 
   /**
+   * The renderings to highlight for a Strong's number. A common number (G3588)
+   * has thousands of distinct glosses and building three regexes per gloss per
+   * verse cost ~24 ms a result (B-164), so keep the most frequent distinct ones
+   * (the repository returns them most common first), minus stop words.
+   */
+  private pickHighlightGlosses(glosses: string[]): string[] {
+    const seen = new Set<string>();
+    const picked: string[] = [];
+    for (const gloss of glosses) {
+      const key = gloss.trim().toLowerCase();
+      if (!key || seen.has(key) || ENGLISH_STOP_WORDS.has(key)) continue;
+      seen.add(key);
+      picked.push(gloss.trim());
+      if (picked.length >= STRONGS_MAX_HIGHLIGHT_GLOSSES) break;
+    }
+    return picked;
+  }
+
+  /**
    * Strong's number search: Find all verses with specific Greek/Hebrew word.
    * Searches the interlinear_word table for matching Strong's numbers.
    * Optionally includes word family members (related roots/derivations).
@@ -1102,7 +1131,7 @@ export class BibleSearchService implements ISearchService {
         if (verseIds.length === 0) continue;
 
         // Get glosses for highlighting
-        const glosses = repo.getGlossesForStrongs(variants);
+        const glosses = this.pickHighlightGlosses(repo.getGlossesForStrongs(variants));
 
         // Demote word-family relatives so the exact Strong's number
         // the user searched for sorts above derivations and cognates.
@@ -1113,23 +1142,31 @@ export class BibleSearchService implements ISearchService {
         const limit = options.maxResults || 200;
         const idsToProcess = verseIds.slice(0, limit);
 
+        let built = 0;
         for (const verseId of idsToProcess) {
+          // The server is one thread: let other requests run between batches.
+          if (++built % STRONGS_YIELD_EVERY === 0) await new Promise<void>(resolve => setImmediate(resolve));
           const verse = repo.getVerse(verseId);
           if (!verse) continue;
 
           const text = verse.textPlain || verse.text;
-          const highlightedText = glosses.length > 0
-            ? await this.highlightMatches(text, glosses)
-            : text;
-
           const matches: Match[] = glosses.length > 0
             ? this.extractMatches(text, glosses)
             : [];
+          // B-167: where the verse's HTML marks the divine name, keep it in the result.
+          const divine = divineRangesOfVerse(verse, text);
+          const hasDivine = !!divine && divine.length > 0;
+          const highlightedText = hasDivine
+            ? markUp(text, 0, text.length, matchRanges(matches), divine)
+            : glosses.length > 0
+              ? await this.highlightMatches(text, glosses)
+              : text;
 
           let snippet: string | undefined;
           if (text.length > 100 && matches.length > 0) {
             const rawSnippet = this.createSnippet(text, glosses, 120);
-            snippet = await this.highlightMatches(rawSnippet, glosses);
+            snippet = (hasDivine ? this.markUpSnippet(text, rawSnippet, matches, divine) : null)
+              ?? await this.highlightMatches(rawSnippet, glosses);
           }
 
           allResults.push({
@@ -1254,7 +1291,12 @@ export class BibleSearchService implements ISearchService {
     // therefore one `temp.hl` table) instead of paying `CREATE VIRTUAL
     // TABLE` again per verse - see `highlighterFor()`.
     const matches = this.highlighterFor(moduleAbbr, repo).spans(text, query);
-    const highlightedText = this.applyHighlightMarkup(text, matches);
+    // B-167: where the verse's HTML marks the divine name, keep it in the result.
+    const divine = divineRangesOfVerse(verse, text);
+    const hasDivine = !!divine && divine.length > 0;
+    const highlightedText = hasDivine
+      ? markUp(text, 0, text.length, matchRanges(matches), divine)
+      : this.applyHighlightMarkup(text, matches);
 
     // Create a snippet that prioritizes the matched text (for live search display)
     // Only needed for longer verses where matches might not be visible at the start
@@ -1265,7 +1307,8 @@ export class BibleSearchService implements ISearchService {
       const matchedTerms = matches.map(m => m.term);
       const termsForSnippet = matchedTerms.length > 0 ? matchedTerms : searchTerms;
       const rawSnippet = this.createSnippet(text, termsForSnippet, 120);
-      snippet = await this.highlightMatches(rawSnippet, termsForSnippet);
+      snippet = (hasDivine ? this.markUpSnippet(text, rawSnippet, matches, divine) : null)
+        ?? await this.highlightMatches(rawSnippet, termsForSnippet);
     }
 
     return {
@@ -1282,6 +1325,26 @@ export class BibleSearchService implements ISearchService {
       score: 1.0,
       type: matchType,
     };
+  }
+
+  /**
+   * The snippet's pieces (separated by "...") located in the full text, laid
+   * over with match and divine-name markup. Null when a piece cannot be found,
+   * so the caller falls back to the plain highlighter.
+   */
+  private markUpSnippet(text: string, rawSnippet: string, matches: Match[], divine: TextRange[]): string | null {
+    const lead = rawSnippet.startsWith('...') && !text.startsWith('...');
+    const trail = rawSnippet.endsWith('...') && !text.endsWith('...') && rawSnippet.length > 3;
+    const core = rawSnippet.slice(lead ? 3 : 0, trail ? -3 : undefined);
+    const parts: string[] = [];
+    let cursor = 0;
+    for (const piece of core.split('...')) {
+      const at = piece ? text.indexOf(piece, cursor) : -1;
+      if (at < 0) return null;
+      parts.push(markUp(text, at, at + piece.length, matchRanges(matches.filter(m => !ENGLISH_STOP_WORDS.has(m.term.toLowerCase()))), divine));
+      cursor = at + piece.length;
+    }
+    return (lead ? '...' : '') + parts.join('...') + (trail ? '...' : '');
   }
 
   /**
@@ -1846,19 +1909,22 @@ export class BibleSearchService implements ISearchService {
     const significant = terms.filter(t => !BibleSearchService.isStopWord(t));
     const useCoverage = significant.length >= 2;
     const scored = useCoverage ? significant : terms;
-    const required = useCoverage
+    const requiredAll = useCoverage
       ? Math.max(2, Math.ceil(scored.length * BibleSearchService.FUZZY_COVERAGE_RATIO))
       : scored.length;
 
-    const prefixes = scored.map(t => BibleSearchService.stemPrefix(t));
+    // Repeated and surplus terms add nothing to coverage but multiply the
+    // combinations below (a 120-word query ran for minutes, B-169).
+    const prefixes = [...new Set(scored.map(t => BibleSearchService.stemPrefix(t)))]
+      .slice(0, BibleSearchService.FUZZY_MAX_TERMS);
+    const required = Math.min(requiredAll, prefixes.length);
     // Largest combinations first: a verse matching every term is the best
     // approximate match there is, and the per-query row cap (taken in Bible
     // order) must not be spent on smaller combinations before it is found.
     const combos: number[][] = [];
-    for (let size = prefixes.length; size >= required; size--) {
-      combos.push(...BibleSearchService.combinations(prefixes.length, size));
+    for (let size = prefixes.length; size >= required && combos.length < BibleSearchService.FUZZY_MAX_COMBINATIONS; size--) {
+      combos.push(...BibleSearchService.combinations(prefixes.length, size, BibleSearchService.FUZZY_MAX_COMBINATIONS - combos.length));
     }
-    combos.length = Math.min(combos.length, BibleSearchService.FUZZY_MAX_COMBINATIONS);
 
     const existingIds = new Set(existingResults.map(r => r.verseId));
     const found = new Map<string, SearchResult>();
@@ -1905,6 +1971,8 @@ export class BibleSearchService implements ISearchService {
   private static readonly FUZZY_PER_COMBINATION_LIMIT = 100;
   /** Guard against a very long query fanning out into hundreds of queries. */
   private static readonly FUZZY_MAX_COMBINATIONS = 30;
+  /** Distinct significant terms weighed for coverage; the rest of a very long query is ignored. */
+  private static readonly FUZZY_MAX_TERMS = 8;
   /** Words too common in Bible English to say anything about a match, beyond the general list. */
   private static readonly ARCHAIC_STOP_WORDS = new Set([
     'thou', 'thee', 'thy', 'thine', 'ye', 'unto', 'hath', 'doth', 'shalt', 'wilt', 'art', 'o',
@@ -1929,11 +1997,12 @@ export class BibleSearchService implements ISearchService {
   }
 
   /** All k-element index subsets of 0..n-1, in lexicographic order. */
-  private static combinations(n: number, k: number): number[][] {
+  private static combinations(n: number, k: number, limit = Infinity): number[][] {
     const out: number[][] = [];
     const walk = (start: number, chosen: number[]): void => {
+      if (out.length >= limit) return;
       if (chosen.length === k) { out.push([...chosen]); return; }
-      for (let i = start; i < n; i++) {
+      for (let i = start; i < n && out.length < limit; i++) {
         chosen.push(i);
         walk(i + 1, chosen);
         chosen.pop();

@@ -117,9 +117,10 @@ describe('BibleToolbar — navigation history', () => {
 
     const toolbar = screen.getByRole('toolbar');
     const menu = screen.getByRole('menu', { name: '[biblePane.navHistoryHeading]' });
-    // The regression: an in-toolbar menu is invisible, because the toolbar sets
-    // overflow-hidden to keep its buttons from spilling out of a narrow pane.
-    expect(toolbar.className).toContain('overflow-hidden');
+    // The menu stays portalled even though the toolbar no longer clips: it now wraps its
+    // controls onto a second row (B-105) instead of hiding the ones that do not fit.
+    expect(toolbar.className).toContain('flex-wrap');
+    expect(toolbar.className).not.toContain('overflow-hidden');
     expect(toolbar.contains(menu)).toBe(false);
     expect(document.body.contains(menu)).toBe(true);
   });
@@ -226,5 +227,19 @@ describe('BibleToolbar - module toolbar items', () => {
   it('renders nothing extra while no module registers an item', () => {
     render(<BibleToolbar />);
     expect(screen.queryByTestId('keywords-toggle')).toBeNull();
+  });
+});
+
+describe('BibleToolbar — chapter arrows at the Bible boundaries (B-002)', () => {
+  it('disables Next at Revelation 22 and Prev at Genesis 1', () => {
+    h.ctx.value = makeCtx({ currentBook: 66, currentChapter: 22 });
+    const { unmount } = render(<BibleToolbar />);
+    expect(screen.getByTestId('next-chapter')).toBeDisabled();
+    expect(screen.getByTestId('prev-chapter')).not.toBeDisabled();
+    unmount();
+    h.ctx.value = makeCtx({ currentBook: 1, currentChapter: 1 });
+    render(<BibleToolbar />);
+    expect(screen.getByTestId('prev-chapter')).toBeDisabled();
+    expect(screen.getByTestId('next-chapter')).not.toBeDisabled();
   });
 });

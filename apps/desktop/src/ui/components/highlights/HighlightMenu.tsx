@@ -27,6 +27,8 @@ export const HighlightMenu: React.FC<HighlightMenuProps> = ({
   const [selectedMarkupType, setSelectedMarkupType] = useState<MarkupType>('highlight');
   const [selectedUnderlineStyle, setSelectedUnderlineStyle] = useState<UnderlineStyle>('solid');
   const [selectedUnderlineColor, setSelectedUnderlineColor] = useState<HighlightColor>('yellow');
+  // 'both' needs the highlight colour AND the underline choices before anything is applied.
+  const [selectedHighlightColor, setSelectedHighlightColor] = useState<HighlightColor>('yellow');
   const uiDir = useDirection();
   // `x` is the menu's inline-start inset (see anchorAtPointer), not a physical left.
   const [adjustedPosition, setAdjustedPosition] = useState(() => ({
@@ -82,6 +84,10 @@ export const HighlightMenu: React.FC<HighlightMenuProps> = ({
   }, [position, selectedMarkupType, uiDir]); // Re-check when markup type changes since menu height varies
 
   const handleColorSelect = (color: HighlightColor) => {
+    if (selectedMarkupType === 'both') {
+      setSelectedHighlightColor(color);
+      return;
+    }
     onSelectHighlight(
       color,
       selectedMarkupType,
@@ -181,9 +187,12 @@ export const HighlightMenu: React.FC<HighlightMenuProps> = ({
                   type="button"
                   className={`w-12 h-12 rounded border-2 highlight-${color} hover:border-accent transition-colors cursor-pointer`}
                   style={{
-                    borderColor: 'var(--theme-border-secondary)'
+                    borderColor: selectedMarkupType === 'both' && selectedHighlightColor === color
+                      ? 'var(--theme-accent-primary)'
+                      : 'var(--theme-border-secondary)'
                   }}
                   onClick={() => handleColorSelect(color)}
+                  {...(selectedMarkupType === 'both' ? { 'aria-pressed': selectedHighlightColor === color } : {})}
                   /* The swatch carries no text - colour alone is not a name. */
                   title={colorName(color)}
                   aria-label={t('highlightMenu.applyHighlightColor', { color: colorName(color), })}
@@ -251,20 +260,20 @@ export const HighlightMenu: React.FC<HighlightMenuProps> = ({
           </>
         )}
 
-        {/* Apply button for underline-only mode */}
-        {selectedMarkupType === 'underline' && (
-          <div className="mt-4 pt-4 border-t border-border-secondary">
+        {/* Apply button: underline-only and both need an explicit apply (pinned so it is never scrolled out of reach). */}
+        {selectedMarkupType !== 'highlight' && (
+          <div className="sticky bottom-0 -mb-4 mt-4 pt-4 pb-4 border-t border-border-secondary bg-surface-elevated">
             <button
               type="button"
               className="w-full px-4 py-2 text-sm font-medium text-text-on-accent bg-accent rounded hover:bg-accent-hover transition-colors cursor-pointer"
               onClick={() => onSelectHighlight(
-                selectedUnderlineColor,
-                'underline',
+                selectedMarkupType === 'both' ? selectedHighlightColor : selectedUnderlineColor,
+                selectedMarkupType,
                 selectedUnderlineStyle,
                 selectedUnderlineColor
               )}
             >
-              {t('highlightMenu.applyUnderline')}
+              {selectedMarkupType === 'both' ? t('highlightMenu.apply') : t('highlightMenu.applyUnderline')}
             </button>
           </div>
         )}

@@ -29,7 +29,7 @@ function prayerPane(window: Page) {
 
 /** "New Note" in the Notes pane's file browser. */
 function newNoteButton(window: Page) {
-  return notesPane(window).getByRole('button', { name: 'New Note' });
+  return notesPane(window).getByRole('button', { name: 'New Note', exact: true });
 }
 
 test.describe('User Notes', () => {

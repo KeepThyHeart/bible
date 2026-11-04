@@ -67,7 +67,7 @@ export type { XrefCompassViewProps, XrefCompassLabels } from './components/xref/
 export { XrefArcView, DEFAULT_XREF_ARCS_LABELS } from './components/xref/XrefArcView';
 export type { XrefArcViewProps, XrefArcViewLabels } from './components/xref/XrefArcView';
 
-export { DEFAULT_WORD_STUDY_LABELS, fillTemplate } from './components/wordStudyLabels';
+export { DEFAULT_WORD_STUDY_LABELS, fillTemplate, fillTemplateIsolated } from './components/wordStudyLabels';
 export type { WordStudyLabels } from './components/wordStudyLabels';
 export { WordStudyHeader } from './components/WordStudyHeader';
 export type { WordStudyHeaderProps } from './components/WordStudyHeader';

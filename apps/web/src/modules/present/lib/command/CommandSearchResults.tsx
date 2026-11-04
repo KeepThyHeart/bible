@@ -207,9 +207,9 @@ export function CommandSearchResults(props: CommandSearchResultsProps) {
   );
 }
 
-/** Search text arrives with `<mark>` around matches; keep only those, escape the rest. */
+/** Search text arrives with `<mark>` around matches; keep only those (the server marks with strong+u), escape the rest. */
 export function sanitizeMarks(text: string): string {
   return text
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-    .replace(/&lt;(\/?)(mark|b|em)&gt;/gi, '<$1$2>');
+    .replace(/&lt;(\/?)(mark|b|em|strong|u)&gt;/gi, '<$1$2>');
 }

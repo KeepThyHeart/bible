@@ -14,13 +14,15 @@
 import type { AppDescriptor, FeatureModuleManifest, VerseActionContribution } from '@bible/core/browser';
 
 export const MEMORY_MODULE_ID = 'memory';
+/** The old extension this module replaces (its data is imported once; see `legacyImport.ts`). */
+export const LEGACY_EXTENSION_ID = 'ext.bible-app.scripture-memory';
 export const MEMORY_APP_ID = 'memory';
 export const MEMORIZE_ACTION_ID = 'memory.memorize';
 
 export const memoryAppDescriptor: AppDescriptor = {
   id: MEMORY_APP_ID,
   title: { key: 'apps.memory.title', fallback: 'Memory' },
-  icon: { kind: 'builtin', name: 'brain' },
+  icon: { kind: 'builtin', name: 'clone' },
   order: 30,
   platforms: ['desktop'],
   lifecycle: { keepAlive: 'while-busy', restore: 'reopen' },
@@ -29,7 +31,7 @@ export const memoryAppDescriptor: AppDescriptor = {
 export const memorizeVerseAction: VerseActionContribution = {
   id: MEMORIZE_ACTION_ID,
   title: { key: 'verseActions.memorize', fallback: 'Memorize' },
-  icon: { kind: 'builtin', name: 'brain' },
+  icon: { kind: 'builtin', name: 'clone' },
   appId: MEMORY_APP_ID,
   order: 30,
   group: 'app',
@@ -38,8 +40,11 @@ export const memorizeVerseAction: VerseActionContribution = {
 export const memoryManifest: FeatureModuleManifest = {
   id: MEMORY_MODULE_ID,
   platforms: ['desktop'],
+  // Idle after startup: the badge, notices and notification-click routing (`module.ts`).
+  activationEvents: ['onStartupFinished'],
   contributes: {
     apps: [memoryAppDescriptor],
     verseActions: [memorizeVerseAction],
+    i18nNamespace: 'memory',
   },
 };

@@ -174,7 +174,7 @@ describe('Study Mode delivers its whole study column', () => {
     await service.apply(STUDY_MODE.id);
 
     expect(rightColumnTypes())
-      .toEqual(['study', 'commentary', 'topics', 'dictionary', 'notes']);
+      .toEqual(['study', 'commentary', 'notes', 'topics', 'dictionary']);
   });
 
   it('does not duplicate a study pane the session already has', async () => {

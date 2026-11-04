@@ -48,6 +48,7 @@
  * written from it.
  */
 
+import { tc } from './messages';
 import type { Rung } from './types';
 import { RUNG_ORDER } from './types';
 
@@ -103,7 +104,7 @@ export function materialRungs(verseCount: number): Rung[] {
  *   - `siblingCount`    - passages in the same collection, including this one.
  *                         Gates `refmatch`, which needs something to be
  *                         confused with.
- *   - `scopeVerseCount` - verses across the whole collection. Gates both
+ *   - `scopeVerseCount` - passages (items) across the whole collection. Gates both
  *                         reference activities at
  *                         `MIN_VERSES_FOR_REFERENCE_ACTIVITIES`.
  *
@@ -165,17 +166,30 @@ export const TIERS: Readonly<Record<Rung, number>> = {
  * safe accessor for a tier number that has drifted out of range.
  */
 export const TIER_LABEL: Readonly<Record<Rung, readonly string[]>> = {
-  ordering: ['Easier', 'Harder'],
-  refmatch: ['Any book', 'Same genre', 'Same book'],
-  blanks: ['Easier', 'Harder'],
-  firstletters: ['Easier', 'Harder'],
-  refprovide: ['From memory'],
-  recite: ['From memory'],
+  // Getters: the labels are translated when read, so a language change shows at once.
+  get ordering() {
+    return [tc('memory.core.tierEasier', 'Easier'), tc('memory.core.tierHarder', 'Harder')];
+  },
+  get refmatch() {
+    return [tc('memory.core.tierAnyBook', 'Any book'), tc('memory.core.tierSameGenre', 'Same genre'), tc('memory.core.tierSameBook', 'Same book')];
+  },
+  get blanks() {
+    return [tc('memory.core.tierEasier', 'Easier'), tc('memory.core.tierHarder', 'Harder')];
+  },
+  get firstletters() {
+    return [tc('memory.core.tierEasier', 'Easier'), tc('memory.core.tierHarder', 'Harder')];
+  },
+  get refprovide() {
+    return [tc('memory.core.tierFromMemory', 'From memory')];
+  },
+  get recite() {
+    return [tc('memory.core.tierFromMemory', 'From memory')];
+  },
 };
 
 /** The label for one tier, or a bare "Tier n" if the number is out of range. */
 export function tierLabel(rung: Rung, tier: number): string {
-  return TIER_LABEL[rung][tier] ?? `Tier ${tier + 1}`;
+  return TIER_LABEL[rung][tier] ?? tc('memory.core.tierN', 'Tier {n}', { n: tier + 1 });
 }
 
 /**

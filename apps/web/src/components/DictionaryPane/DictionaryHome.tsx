@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { BookOneSvg } from '../common/inlineIcons';
 import { dictionaryStore } from '../../stores/dictionaryStore';
+import { entryLabel } from './entryLabel';
 import { useStore } from '../../hooks/useStore';
 
 export function DictionaryHome() {
@@ -10,6 +11,7 @@ export function DictionaryHome() {
   const homeSuggestions = useStore(dictionaryStore, () => dictionaryStore.homeSuggestions);
   const homeSearchLoading = useStore(dictionaryStore, () => dictionaryStore.homeSearchLoading);
   const modules = useStore(dictionaryStore, () => dictionaryStore.modules);
+  const modulesLoadFailed = useStore(dictionaryStore, () => dictionaryStore.modulesLoadFailed);
   const starredModules = useStore(dictionaryStore, () => dictionaryStore.starredModules);
 
 
@@ -70,7 +72,7 @@ export function DictionaryHome() {
               class={`dictionary-home__suggestion ${i === highlightedIndex ? 'dictionary-home__suggestion--highlighted' : ''}`}
               onClick={() => dictionaryStore.openDictionaryEntry(s.entry_key, s.module_abbr, s.module_name)}
             >
-              <span class="dictionary-home__suggestion-word">{s.word}</span>
+              <span class="dictionary-home__suggestion-word">{entryLabel(s.module_abbr, s.word, s.entry_key)}</span>
               <span class="dictionary-home__suggestion-source">{s.module_name}</span>
             </button>
           ))}
@@ -102,7 +104,13 @@ export function DictionaryHome() {
               </div>
             );
           })}
-          {modules.length === 0 && (
+          {modules.length === 0 && modulesLoadFailed && (
+            <div class="dictionary-pane__placeholder">
+              {t('dictionaryHome.loadFailed')}{' '}
+              <button type="button" onClick={() => dictionaryStore.retryLoadModules()}>{t('dictionaryHome.retry')}</button>
+            </div>
+          )}
+          {modules.length === 0 && !modulesLoadFailed && (
             <div class="dictionary-pane__placeholder">{t('dictionaryHome.noDictionaries')}</div>
           )}
         </div>

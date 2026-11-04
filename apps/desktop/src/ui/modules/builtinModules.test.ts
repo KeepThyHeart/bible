@@ -4,6 +4,9 @@
  * off, the way a developer boots it with `localStorage['kth.modules'] = '-host'`.
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { installModuleBootHooks, trackHost } from './moduleTestHooks';
+
+installModuleBootHooks(() => import('./builtinModules'));
 
 async function boot(override: string) {
   vi.resetModules();
@@ -11,6 +14,7 @@ async function boot(override: string) {
   const { registerBuiltinModules } = await import('./builtinModules');
   const host = await import('./moduleHost');
   registerBuiltinModules();
+  trackHost(host);
   return host;
 }
 
@@ -30,6 +34,13 @@ describe('desktop renderer boot with a module disabled', () => {
     for (const id of ['genealogy', 'timeline', 'reading-plans', 'quiz']) expect(modulePoints.panelTypes.has(id)).toBe(true);
     expect(modulePoints.newTabTiles.list().length).toBeGreaterThan(0);
     expect(featureModules.list().find((m) => m.id === 'host')).toMatchObject({ enabled: false, offReason: 'override' });
+  }, 60_000);
+});
+
+describe('speech module (recite flag)', () => {
+  it('is registered and on by default (recite is on in 1.0)', async () => {
+    const { featureModules } = await boot('');
+    expect(featureModules.list().find((m) => m.id === 'speech')).toMatchObject({ enabled: true });
   }, 60_000);
 });
 

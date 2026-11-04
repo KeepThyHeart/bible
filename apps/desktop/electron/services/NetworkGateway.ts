@@ -33,7 +33,9 @@
  * pure helpers in `utils/networkPolicy.ts`: at most `NETWORK_MAX_REDIRECTS`
  * hops, only http/https targets, and a hard refusal of any https -> http
  * downgrade. Electron's own auto-follow is disabled (`redirect: 'manual'`) so
- * these rules are enforced here rather than trusted to the platform.
+ * these rules are enforced here rather than trusted to the platform. In that
+ * mode Electron reports a 3xx via a `redirect` event (not `response`), which is
+ * handled alongside `response`.
  */
 
 import type { ClientRequest, IncomingMessage, Session } from 'electron';
@@ -49,8 +51,11 @@ export class NetworkBlockedError extends Error {
   // (`network_blocked`), so a caller checking either the thrown error or the
   // IPC `Result<T>` envelope's `error.code` sees the same string.
   readonly code = 'network_blocked' as const;
+  /** What was refused (for logs); the message is the user-facing text (B-160). */
+  readonly context: string;
   constructor(context: string) {
-    super(`Network egress blocked by offline mode: ${context}`);
+    super('Web requests are turned off. Turn on \u201cAllow web requests\u201d in Preferences > Privacy to do this.');
+    this.context = context;
     this.name = 'NetworkBlockedError';
   }
 }
@@ -340,6 +345,62 @@ export class NetworkGateway implements INetworkGateway {
         });
       });
 
+      // Electron's `redirect: 'manual'` mode never emits `response` for a 3xx:
+      // it emits `redirect` and cancels the request ("Redirect was cancelled")
+      // unless `followRedirect()` is called. We deliberately do not call that;
+      // we validate the hop with our own policy and re-issue the request.
+      request.on(
+        'redirect',
+        (
+          statusCode: number,
+          _method: string,
+          redirectUrl: string,
+          responseHeaders: Record<string, string | string[]>
+        ) => {
+          if (!follow) {
+            clearTimer();
+            settle(() =>
+              resolve({
+                status: statusCode,
+                headers: responseHeaders ?? {},
+                url: currentUrl,
+                body: Buffer.alloc(0),
+              })
+            );
+            try {
+              request.abort();
+            } catch {
+              /* ignore */
+            }
+            return;
+          }
+          let nextUrl: string;
+          try {
+            nextUrl = resolveRedirectTarget(currentUrl, redirectUrl, redirectsRemaining);
+          } catch (err) {
+            clearTimer();
+            settle(() => reject(err as Error));
+            try {
+              request.abort();
+            } catch {
+              /* ignore */
+            }
+            return;
+          }
+          clearTimer();
+          settle(() => {
+            this.fetchBufferedFrom(opts, nextUrl, redirectsRemaining - 1)
+              .then(resolve)
+              .catch(reject);
+          });
+          try {
+            request.abort();
+          } catch {
+            /* ignore */
+          }
+        }
+      );
+
       request.on('error', (err: Error) => {
         clearTimer();
         settle(() => reject(err));
@@ -358,7 +419,15 @@ export class NetworkGateway implements INetworkGateway {
 
   downloadStream(opts: DownloadStreamOptions): Promise<DownloadStreamResult> {
     const maxRedirects = opts.maxRedirects ?? NETWORK_MAX_REDIRECTS;
-    return this.downloadStreamFrom(opts, opts.url, maxRedirects);
+    return this.downloadStreamFrom(opts, opts.url, maxRedirects).then((result) => {
+      if (result.url !== opts.url) {
+        // Host only: URLs can carry tokens in their query strings.
+        console.info(
+          `[Network] ${opts.context}: redirected to ${new URL(result.url).host} (HTTP ${result.status})`
+        );
+      }
+      return result;
+    });
   }
 
   private downloadStreamFrom(
@@ -433,6 +502,36 @@ export class NetworkGateway implements INetworkGateway {
             request,
           })
         );
+      });
+
+      // See fetchBufferedFrom: Electron's manual mode reports 3xx through a
+      // `redirect` event (no `response`), so the hop is validated and followed
+      // here. Headers (including Range) are re-sent on the new request.
+      request.on('redirect', (statusCode: number, _method: string, redirectUrl: string) => {
+        const follow = (opts.maxRedirects ?? NETWORK_MAX_REDIRECTS) > 0;
+        let nextUrl: string;
+        try {
+          if (!follow) throw new Error(`Unexpected redirect (HTTP ${statusCode}) from ${currentUrl}`);
+          nextUrl = resolveRedirectTarget(currentUrl, redirectUrl, redirectsRemaining);
+        } catch (err) {
+          settle(() => reject(err as Error));
+          try {
+            request.abort();
+          } catch {
+            /* ignore */
+          }
+          return;
+        }
+        settle(() => {
+          this.downloadStreamFrom(opts, nextUrl, redirectsRemaining - 1)
+            .then(resolve)
+            .catch(reject);
+        });
+        try {
+          request.abort();
+        } catch {
+          /* ignore */
+        }
       });
 
       request.on('error', (err: Error) => {

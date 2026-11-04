@@ -137,6 +137,14 @@ export const useHighlightStore = create<HighlightState>((set, get) => ({
           return end < startVerseId || start > endVerseId;
         });
 
+        // B-131: when the range reloads to the same highlights, keep the old
+        // array so every pane showing this module does not re-render.
+        const inRange = existing.filter(h => !filtered.includes(h));
+        const same =
+          inRange.length === highlights.length &&
+          inRange.every((h, i) => JSON.stringify(h) === JSON.stringify(highlights[i]));
+        if (same) return { loading: false };
+
         newMap.set(moduleId, [...filtered, ...highlights]);
         return { highlightsByModule: newMap, loading: false };
       });

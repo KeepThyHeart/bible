@@ -241,7 +241,7 @@ const CommandList = forwardRef<CommandListRef, CommandListProps>(({ items, comma
         return (
           <React.Fragment key={item.title}>
             {showGroup && (
-              <div className="px-3 pt-2 pb-1 text-[10px] font-semibold text-text-muted uppercase tracking-wider">
+              <div className="px-3 pt-2 pb-1 text-[0.625rem] font-semibold text-text-muted uppercase tracking-wider">
                 {item.group}
               </div>
             )}

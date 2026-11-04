@@ -1,5 +1,6 @@
 import { Bdi } from '@bible/ui';
 import React from 'react';
+import { adjacentChapter } from './bible/adjacentChapter';
 import { useI18n } from '../contexts/useI18n';
 import { useBiblePaneContext } from './BiblePaneContext';
 import { useBibleStore } from '../stores/useBibleStore';
@@ -9,6 +10,9 @@ import ToolbarPopover from './bible/ToolbarPopover';
 import { useOverlayDismissal } from '../hooks/useOverlayDismissal';
 import { openModuleManager } from '../utils/openModuleManager';
 import { ReaderToolbarItems } from '../modules/host/slots';
+
+/** One shared empty list, so the history selector returns a stable value for a panel without one. */
+const NO_HISTORY: never[] = [];
 
 /**
  * The Bible pane's single control band.
@@ -64,20 +68,20 @@ const BibleToolbar: React.FC = () => {
 
   // The history list and the cursor into it, read as state rather than through
   // getState() so the open menu re-renders when a click navigates.
-  const history = useBibleStore(s => s.panels.get(panelId)?.navigationHistory ?? []);
+  const history = useBibleStore(s => s.panels.get(panelId)?.navigationHistory ?? NO_HISTORY);
   const historyIndex = useBibleStore(s => s.panels.get(panelId)?.historyIndex ?? -1);
 
   if (!activeTab || openTabs.length === 0) return null;
 
   return (
     <div
-      className="flex items-stretch justify-between border-b border-border flex-shrink-0 min-w-0 overflow-hidden"
+      className="flex flex-wrap items-stretch justify-between border-b border-border flex-shrink-0 min-w-0"
       style={{ background: 'var(--theme-bg-secondary)', padding: 0 }}
       role="toolbar"
       aria-label={t('biblePane.toolbarLabel')}
     >
       {/* Left: History + Display mode + Parallel */}
-      <div className="flex items-stretch min-w-0 overflow-hidden flex-shrink">
+      <div className="flex flex-wrap items-stretch min-w-0 flex-shrink">
         {/* Back: undoes the last view change, off the visit stack rather than
             the history cursor. See stores/bible/internals/visitStack.ts. */}
         <button
@@ -191,6 +195,7 @@ const BibleToolbar: React.FC = () => {
           value={displayMode}
           onChange={(e) => handleSetDisplayMode(e.target.value as any)}
           aria-label={t('biblePane.displayModeLabel')}
+          title={t('biblePane.displayModeTooltip')}
           className="text-xs font-medium cursor-pointer text-text-primary outline-none hover:bg-background-active transition-colors"
           style={{
             background: 'none',
@@ -279,7 +284,7 @@ const BibleToolbar: React.FC = () => {
         {/* Previous Chapter */}
         <button
           onClick={handlePreviousChapter}
-          disabled={isLoading || (currentBook === 1 && currentChapter === 1)}
+          disabled={isLoading || !adjacentChapter(currentBook, currentChapter, 'prev')}
           className="flex items-center px-2.5 hover:bg-background-active disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           style={{ borderInlineStart: '2px solid var(--theme-border-primary)', borderRadius: 0 }}
           title={t('biblePane.previousChapterTitle')}
@@ -293,7 +298,7 @@ const BibleToolbar: React.FC = () => {
         {/* Next Chapter */}
         <button
           onClick={handleNextChapter}
-          disabled={isLoading}
+          disabled={isLoading || !adjacentChapter(currentBook, currentChapter, 'next')}
           className="flex items-center px-2.5 hover:bg-background-active disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           style={{ borderInlineStart: '2px solid var(--theme-border-primary)', borderRadius: 0 }}
           title={t('biblePane.nextChapterTitle')}

@@ -53,6 +53,7 @@ const mockRegisterPanel = vi.fn();
 const mockUnregisterPanel = vi.fn();
 const mockSetCollapsedGroups = vi.fn();
 const mockRestoreCollapsedGroups = vi.fn();
+const mockCloseSearchResultsPanels = vi.fn();
 const mockSetActivePanelId = vi.fn();
 const mockExpandCollapsedGroups = vi.fn();
 
@@ -75,6 +76,7 @@ vi.mock('../stores/useLayoutStore', () => ({
         setCollapsedGroups: mockSetCollapsedGroups,
         setActivePanelId: mockSetActivePanelId,
         restoreCollapsedGroups: mockRestoreCollapsedGroups,
+        closeSearchResultsPanels: mockCloseSearchResultsPanels,
       }),
       setState: vi.fn(),
     },
@@ -262,6 +264,17 @@ describe('DockviewLayout', () => {
     });
 
     expect(mockRegisterPanel).toHaveBeenCalledTimes(2);
+  });
+
+  it('closes a restored search-results panel: its results are not persisted, so it would reopen empty (B-054)', () => {
+    mockFromJSON.mockImplementation(() => {
+      (mockDockviewApi.panels as any[]).push({ id: 'search_1', params: { contentType: 'search' }, title: 'Search' });
+    });
+    render(<DockviewLayout savedLayout={{ grid: {}, panels: [] }} />);
+    act(() => {
+      capturedOnReady!({ api: mockDockviewApi });
+    });
+    expect(mockCloseSearchResultsPanels).toHaveBeenCalledTimes(1);
   });
 
   // --- Historical-bug recovery: corrupted `contentComponent` from a since-

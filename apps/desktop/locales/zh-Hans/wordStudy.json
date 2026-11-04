@@ -12,6 +12,7 @@
   "wordStudy.label.noticeNoModule": "未安装适合此研究的圣经。",
   "wordStudy.label.noticeNotTagged": "此译本没有斯特朗编号标注。请选择其他译本。",
   "wordStudy.label.noticeNoOccurrences": "此译本中未找到出现处。",
+  "wordStudy.label.noticeUnknownNumber": "没有这个斯特朗编号。",
   "wordStudy.label.renderingsTitle": "如何翻译",
   "wordStudy.label.formsTitle": "找到的形式",
   "wordStudy.label.other": "其他（{count}）",

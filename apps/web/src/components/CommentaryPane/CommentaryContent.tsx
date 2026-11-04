@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'preact/hooks';
+import { useState, useEffect, useCallback, useRef } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { useVersePopup } from '../../hooks/useVersePopup';
 import { commentaryStore, HOME_TAB_ID } from '../../stores/commentaryStore';
@@ -18,6 +18,7 @@ import type { CommentaryModuleInfoData } from '../../types';
 import { CommentaryHome } from './CommentaryHome';
 import { moduleContentAttrs } from '../../utils/contentDirection';
 import { Bdi } from '@bible/ui';
+import { offlineStore } from '../../stores/offlineStore';
 
 interface CommentaryContentProps {
   bibleProvider?: IBibleDataProvider;
@@ -390,6 +391,18 @@ function CommentaryEmptyVerse({ highlightedVerse, syncedBook, syncedChapter, cha
   const { t } = useTranslation();
   const hasChapterContent = chapterVerses && chapterVerses.length > 0;
   const homeData = useStore(commentaryStore, () => commentaryStore.homeData);
+  const isOnline = useStore(offlineStore, () => offlineStore.isOnline);
+
+  // A failed fetch looks like "no entries"; when the browser comes back
+  // online, load this chapter's commentary again.
+  const wasOnlineRef = useRef(isOnline);
+  useEffect(() => {
+    if (isOnline && !wasOnlineRef.current && syncedBook && syncedChapter) {
+      commentaryStore.loadForChapter(syncedBook, syncedChapter);
+      commentaryStore.loadHomeData(syncedBook, syncedChapter);
+    }
+    wasOnlineRef.current = isOnline;
+  }, [isOnline, syncedBook, syncedChapter]);
 
   // Load home data if not already loaded (normally loaded by CommentaryHome, but we need it here too)
   useEffect(() => {
@@ -418,7 +431,9 @@ function CommentaryEmptyVerse({ highlightedVerse, syncedBook, syncedChapter, cha
   return (
     <div class="commentary-content commentary-empty-verse">
       <p class="commentary-empty-verse__message">
-        {t('commentaryContent.noCommentary')}{displayName ? ` in ${displayName}` : ''}.
+        {!isOnline
+          ? t('commentaryContent.offlineNotice')
+          : <>{t('commentaryContent.noCommentary')}{displayName ? ` in ${displayName}` : ''}.</>}
       </p>
 
       {hasOtherContent && (
@@ -475,7 +490,7 @@ function CommentaryEmptyVerse({ highlightedVerse, syncedBook, syncedChapter, cha
         />
       )}
 
-      {!hasChapterContent && chapterVerses !== undefined && (
+      {!hasChapterContent && chapterVerses !== undefined && isOnline && (
         <p class="commentary-empty-verse__no-chapter">
           {t('commentaryContent.noEntriesChapter')}
         </p>

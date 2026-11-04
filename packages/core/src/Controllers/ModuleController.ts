@@ -3,7 +3,7 @@ import { DownloadQueue } from '../Data/Models/Main/DownloadQueue';
 import { IModuleMetadataRepository } from '../Data/Repositories/IModuleMetadataRepository';
 import { IDownloadQueueRepository } from '../Data/Repositories/IDownloadQueueRepository';
 import { IDownloadService } from '../Services/IDownloadService';
-import { IInstallationService } from '../Services/IInstallationService';
+import { IInstallationService, InstallHooks } from '../Services/IInstallationService';
 import { IModuleCatalogService } from '../Services/IModuleCatalogService';
 import {
   CatalogModule,
@@ -93,7 +93,11 @@ export class ModuleController {
    *                    third-party catalog can never satisfy an install the
    *                    user believes is coming from the official one.
    */
-  async installModule(catalogModuleId: string, catalogId?: number): Promise<InstallationResult> {
+  async installModule(
+    catalogModuleId: string,
+    catalogId?: number,
+    hooks?: InstallHooks
+  ): Promise<InstallationResult> {
     try {
       // Get module info from catalog
       const moduleInfo = this.catalogService.getModuleInfo(catalogModuleId, catalogId);
@@ -142,6 +146,8 @@ export class ModuleController {
         moduleId: moduleInfo.module_id,
         moduleName: moduleInfo.name
       });
+      hooks?.onQueued?.(queueEntry.queueId!);
+      hooks?.onStage?.('downloading');
 
       // Determine temp file path. The extension follows what download_url
       // actually names, rather than assuming `.db.gz`: InstallationService's
@@ -170,6 +176,14 @@ export class ModuleController {
           moduleInfo.download_url,
           tempFilePath
         );
+      } catch (downloadError) {
+        // Leave the queue row honest: a failed or cancelled download is not 'pending' forever.
+        try {
+          this.downloadQueueRepo.updateStatus(queueEntry.queueId!, 'failed', (downloadError as Error).message);
+        } catch {
+          /* best effort */
+        }
+        throw downloadError;
       } finally {
         this.queueModules.delete(queueEntry.queueId!);
       }
@@ -198,7 +212,7 @@ export class ModuleController {
             sha256: moduleInfo.checksum.replace('sha256:', ''),
             maxBytes: moduleInfo.installed_size_bytes || undefined,
           }
-        : undefined);
+        : undefined, hooks);
 
       return installResult;
     } catch (error) {

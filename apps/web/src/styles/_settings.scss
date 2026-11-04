@@ -34,7 +34,7 @@
     border-bottom: 1px solid var(--border-color);
 
     h3 {
-      font-size: calc(16px * var(--ui-font-scale, 1));
+      font-size: calc(1rem * var(--ui-font-scale, 1));
       display: flex;
       align-items: center;
     }
@@ -44,7 +44,7 @@
     background: none;
     border: none;
     cursor: pointer;
-    font-size: calc(16px * var(--ui-font-scale, 1));
+    font-size: calc(1rem * var(--ui-font-scale, 1));
     color: var(--text-muted);
     padding: 4px;
 
@@ -78,7 +78,7 @@
     border: none;
     background: none;
     cursor: pointer;
-    font-size: calc(13px * var(--ui-font-scale, 1));
+    font-size: calc(0.8125rem * var(--ui-font-scale, 1));
     color: var(--text-secondary);
     border-radius: 6px;
     text-align: start;
@@ -90,18 +90,18 @@
 
     &--active {
       background: var(--accent-color);
-      color: #fff;
+      color: var(--accent-text, #fff);
 
       &:hover {
         background: var(--accent-hover);
-        color: #fff;
+        color: var(--accent-text, #fff);
       }
     }
 
     i {
       width: 16px;
       text-align: center;
-      font-size: calc(12px * var(--ui-font-scale, 1));
+      font-size: calc(0.75rem * var(--ui-font-scale, 1));
     }
   }
 
@@ -138,7 +138,7 @@
     border: 1px solid var(--border-color);
     border-radius: 4px;
     padding: 3px 8px;
-    font-size: calc(11px * var(--ui-font-scale, 1));
+    font-size: calc(0.6875rem * var(--ui-font-scale, 1));
     color: var(--text-muted);
     cursor: pointer;
 
@@ -149,7 +149,7 @@
   }
 
   &__section-title {
-    font-size: calc(13px * var(--ui-font-scale, 1));
+    font-size: calc(0.8125rem * var(--ui-font-scale, 1));
     font-weight: 600;
     color: var(--text-secondary);
     text-transform: uppercase;
@@ -169,7 +169,7 @@
     gap: 4px;
 
     span {
-      font-size: calc(13px * var(--ui-font-scale, 1));
+      font-size: calc(0.8125rem * var(--ui-font-scale, 1));
       color: var(--text-secondary);
     }
 
@@ -183,7 +183,7 @@
       border-radius: 6px;
       background: var(--bg-primary);
       color: var(--text-primary);
-      font-size: calc(13px * var(--ui-font-scale, 1));
+      font-size: calc(0.8125rem * var(--ui-font-scale, 1));
     }
 
     &--checkbox {
@@ -271,7 +271,7 @@
   }
 
   &__hint {
-    font-size: calc(11px * var(--ui-font-scale, 1)) !important;
+    font-size: calc(0.6875rem * var(--ui-font-scale, 1)) !important;
     color: var(--text-muted) !important;
     font-style: italic;
     line-height: 1.4;
@@ -374,26 +374,34 @@
   }
 
   &__about-name {
-    font-size: calc(18px * var(--ui-font-scale, 1));
+    font-size: calc(1.125rem * var(--ui-font-scale, 1));
     font-weight: 700;
     color: var(--text-primary);
   }
 
+  // Selectable so the version can be copied into a bug report.
+  &__about-version {
+    font-size: calc(0.8125rem * var(--ui-font-scale, 1));
+    color: var(--text-secondary);
+    user-select: text;
+    -webkit-user-select: text;
+  }
+
   &__about-desc {
-    font-size: calc(13px * var(--ui-font-scale, 1));
+    font-size: calc(0.8125rem * var(--ui-font-scale, 1));
     color: var(--text-secondary);
     line-height: 1.5;
   }
 
   &__about-license {
-    font-size: calc(13px * var(--ui-font-scale, 1));
+    font-size: calc(0.8125rem * var(--ui-font-scale, 1));
     color: var(--text-secondary);
     display: flex;
     align-items: center;
   }
 
   &__about-text {
-    font-size: calc(12px * var(--ui-font-scale, 1));
+    font-size: calc(0.75rem * var(--ui-font-scale, 1));
     color: var(--text-muted);
     line-height: 1.5;
   }
@@ -425,7 +433,7 @@
   background: var(--bg-primary);
   color: var(--text-primary);
   font-family: inherit;
-  font-size: calc(13px * var(--ui-font-scale, 1));
+  font-size: calc(0.8125rem * var(--ui-font-scale, 1));
   cursor: pointer;
 
   &:focus-visible {

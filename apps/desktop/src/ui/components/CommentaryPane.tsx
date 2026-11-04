@@ -691,6 +691,11 @@ const CommentaryPane: React.FC<CommentaryPaneProps> = (props) => {
             onNavigatePrev={handleNavigatePrevious}
             onNavigateNext={handleNavigateNext}
             onBrowseAll={handleShowTreeView}
+            onRetry={() => {
+              if (activeTab && currentVerseId) {
+                void useCommentaryStore.getState().loadCommentaryForVerse(panelId, activeTab.abbreviation, currentVerseId); // allow-getstate: retry click handler - imperative store call
+              }
+            }}
             entrySummaries={entrySummaries}
             onSelectVerse={(verseId) => {
               if (activeTab) {
@@ -826,7 +831,7 @@ const CommentaryTabMenuItem: React.FC<{ label: string; onClick: () => void }> = 
       border: 'none',
       background: 'transparent',
       cursor: 'pointer',
-      fontSize: '13px',
+      fontSize: '0.8125rem',
       color: 'var(--theme-text-primary)',
       textAlign: 'start',
     }}

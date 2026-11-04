@@ -22,7 +22,7 @@ export type PresentConnection =
    * rendering it, and nothing on screen changes.
    */
   | { status: 'reconnecting'; state: PresentState }
-  | { status: 'closed'; reason: PresentClosedPayload['reason']; state: PresentState | null };
+  | { status: 'closed'; reason: PresentClosedPayload['reason'] | 'unknown'; state: PresentState | null };
 
 /**
  * `preview` marks a stream as a mirror rather than an audience, keeping the

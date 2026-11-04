@@ -15,6 +15,7 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
+    setupFiles: ['./test/helpers/reciteOn.ts'],
     include: ['test/**/*.test.ts', 'src/**/*.test.ts'],
   },
 });

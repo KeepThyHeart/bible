@@ -1,5 +1,7 @@
 # Extensions and Plugins
 
+> **Experimental.** The extension API and SDK are experimental and **not frozen**: they may change in incompatible ways before a stable release. Pin an exact version and expect to update your extension.
+
 There are **two unrelated extensibility systems** in `@bible/core` with
 confusingly similar names. `src/Extensions/` is the sandboxed, permissioned,
 out-of-process **third-party extension API**. `src/Plugin/` is a small

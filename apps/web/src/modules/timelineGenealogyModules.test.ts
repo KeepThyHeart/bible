@@ -105,6 +105,22 @@ describe('the family tree action', () => {
   });
 });
 
+describe('client-only modules reported off by the server (site config featureModules)', () => {
+  it('a reported client-only id has no pane or header contribution, others stay', async () => {
+    vi.resetModules();
+    localStorage.setItem('kth.modules', '');
+    const { setClientConfig } = await import('../utils/clientConfig');
+    setClientConfig({ features: {}, modules: { disabled: ['similar', 'measures'] } });
+    const { registerBuiltinModules } = await import('./builtinModules');
+    const host = await import('./moduleHost');
+    registerBuiltinModules();
+    expect(host.featureModules.isEnabled('similar')).toBe(false);
+    expect(host.featureModules.isEnabled('measures')).toBe(false);
+    expect(host.modulePoints.paneModes.get('similar')).toBeUndefined();
+    expect(host.featureModules.isEnabled('word-study')).toBe(true);
+  });
+});
+
 describe('the dev override switches a flagged-on module off', () => {
   it('-timeline removes the pane, view and namespace, and leaves Genealogy alone', async () => {
     const h = await boot({ override: '-timeline', features: { timeline: true, genealogy: true } });

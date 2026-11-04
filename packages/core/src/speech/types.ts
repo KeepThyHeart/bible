@@ -122,7 +122,7 @@ export type ListenOutcome =
   | { kind: 'speech'; transcript: Transcript }
   | { kind: 'no-speech' }
   | { kind: 'aborted' }
-  | { kind: 'error'; code: 'mic-denied' | 'mic-busy' | 'engine' | 'network'; message: string };
+  | { kind: 'error'; code: 'mic-denied' | 'mic-busy' | 'mic-none' | 'engine' | 'network'; message: string };
 
 /** The main seam: one utterance in, one transcript out. */
 export interface IListener {

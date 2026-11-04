@@ -95,7 +95,7 @@ describe('PreferencesDialog', () => {
   it('renders all section tabs', () => {
     renderWithProviders(<PreferencesDialog onClose={onClose} />);
     const tabs = screen.getAllByRole('tab');
-    expect(tabs).toHaveLength(11); // 'Weights and measures' comes from the measures module
+    expect(tabs).toHaveLength(12); // includes Search; 'Weights and measures' comes from the measures module
     // Each tab should have the section label
     expect(tabs[0]).toHaveTextContent('General');
     expect(tabs[1]).toHaveTextContent('Typography');
@@ -103,11 +103,12 @@ describe('PreferencesDialog', () => {
     expect(tabs[3]).toHaveTextContent('Themes');
     expect(tabs[4]).toHaveTextContent('Privacy');
     expect(tabs[5]).toHaveTextContent('Notifications');
-    expect(tabs[6]).toHaveTextContent('Downloads & storage');
-    expect(tabs[7]).toHaveTextContent('Extensions');
-    expect(tabs[8]).toHaveTextContent('Apps');
-    expect(tabs[9]).toHaveTextContent('Advanced');
-    expect(tabs[10]).toHaveTextContent('Diagnostics');
+    expect(tabs[6]).toHaveTextContent('Search');
+    expect(tabs[7]).toHaveTextContent('Downloads & storage');
+    expect(tabs[8]).toHaveTextContent('Extensions');
+    expect(tabs[9]).toHaveTextContent('Apps');
+    expect(tabs[10]).toHaveTextContent('Advanced');
+    expect(tabs[11]).toHaveTextContent('Diagnostics');
   });
 
   it('opens at the Notifications section', async () => {
@@ -115,9 +116,9 @@ describe('PreferencesDialog', () => {
     expect(await screen.findByTestId('notifications-section')).toBeInTheDocument();
   });
 
-  it('shows General section by default', () => {
+  it('shows General section by default', async () => {
     renderWithProviders(<PreferencesDialog onClose={onClose} />);
-    expect(screen.getByTestId('general-section')).toBeInTheDocument();
+    expect(await screen.findByTestId('general-section')).toBeInTheDocument();
   });
 
   it('switches to Fonts section when clicked', async () => {
@@ -126,7 +127,7 @@ describe('PreferencesDialog', () => {
     // Click Fonts tab - there will be both the tab button and the header; use getAllByText and click first
     const fontsButtons = screen.getAllByText('Fonts');
     await user.click(fontsButtons[0]);
-    expect(screen.getByTestId('fonts-section')).toBeInTheDocument();
+    expect(await screen.findByTestId('fonts-section')).toBeInTheDocument();
     expect(screen.queryByTestId('general-section')).not.toBeInTheDocument();
   });
 
@@ -135,7 +136,7 @@ describe('PreferencesDialog', () => {
     renderWithProviders(<PreferencesDialog onClose={onClose} />);
     const themesButtons = screen.getAllByText('Themes');
     await user.click(themesButtons[0]);
-    expect(screen.getByTestId('themes-section')).toBeInTheDocument();
+    expect(await screen.findByTestId('themes-section')).toBeInTheDocument();
   });
 
   it('switches to Privacy section when clicked', async () => {
@@ -143,7 +144,7 @@ describe('PreferencesDialog', () => {
     renderWithProviders(<PreferencesDialog onClose={onClose} />);
     const privacyButtons = screen.getAllByText('Privacy');
     await user.click(privacyButtons[0]);
-    expect(screen.getByTestId('privacy-section')).toBeInTheDocument();
+    expect(await screen.findByTestId('privacy-section')).toBeInTheDocument();
   });
 
   it('switches to Extensions section when clicked', async () => {
@@ -151,7 +152,7 @@ describe('PreferencesDialog', () => {
     renderWithProviders(<PreferencesDialog onClose={onClose} />);
     const extButtons = screen.getAllByText('Extensions');
     await user.click(extButtons[0]);
-    expect(screen.getByTestId('extensions-section')).toBeInTheDocument();
+    expect(await screen.findByTestId('extensions-section')).toBeInTheDocument();
   });
 
   it('switches to Diagnostics section when clicked', async () => {
@@ -159,7 +160,7 @@ describe('PreferencesDialog', () => {
     renderWithProviders(<PreferencesDialog onClose={onClose} />);
     const diagButtons = screen.getAllByText('Diagnostics');
     await user.click(diagButtons[0]);
-    expect(screen.getByTestId('diagnostics-section')).toBeInTheDocument();
+    expect(await screen.findByTestId('diagnostics-section')).toBeInTheDocument();
   });
 
   it('calls onClose when Done button is clicked', async () => {
@@ -178,9 +179,9 @@ describe('PreferencesDialog', () => {
     expect(onClose).toHaveBeenCalled();
   });
 
-  it('renders with initialSection set to fonts', () => {
+  it('renders with initialSection set to fonts', async () => {
     renderWithProviders(<PreferencesDialog onClose={onClose} initialSection="fonts" />);
-    expect(screen.getByTestId('fonts-section')).toBeInTheDocument();
+    expect(await screen.findByTestId('fonts-section')).toBeInTheDocument();
     expect(screen.queryByTestId('general-section')).not.toBeInTheDocument();
   });
 
@@ -196,7 +197,7 @@ describe('PreferencesDialog', () => {
     const tablist = screen.getByRole('tablist');
     expect(tablist).toBeInTheDocument();
     const tabs = screen.getAllByRole('tab');
-    expect(tabs).toHaveLength(11); // 'Weights and measures' comes from the measures module
+    expect(tabs).toHaveLength(12); // includes Search; 'Weights and measures' comes from the measures module
   });
 
   it('gives the tablist an accessible name resolved from the catalog', () => {
@@ -213,7 +214,7 @@ describe('PreferencesDialog', () => {
     renderWithProviders(<PreferencesDialog onClose={onClose} />);
     const buttons = screen.getAllByText('Typography');
     await user.click(buttons[0]);
-    expect(screen.getByTestId('typography-section')).toBeInTheDocument();
+    expect(await screen.findByTestId('typography-section')).toBeInTheDocument();
     expect(screen.queryByTestId('general-section')).not.toBeInTheDocument();
   });
 
@@ -227,20 +228,29 @@ describe('PreferencesDialog', () => {
     const dialog = () => container.querySelector('[role="dialog"]');
 
     // General (short section) is shown first.
-    expect(screen.getByTestId('general-section')).toBeInTheDocument();
+    expect(await screen.findByTestId('general-section')).toBeInTheDocument();
     expect(dialog()).toHaveClass('h-[min(85vh,700px)]');
 
     // Switch to Typography (tall section).
     const typographyButtons = screen.getAllByText('Typography');
     await user.click(typographyButtons[0]);
-    expect(screen.getByTestId('typography-section')).toBeInTheDocument();
+    expect(await screen.findByTestId('typography-section')).toBeInTheDocument();
     expect(dialog()).toHaveClass('h-[min(85vh,700px)]');
 
     // Switch back to General (short section) - height class must still be present.
     const generalButtons = screen.getAllByText('General');
     await user.click(generalButtons[0]);
-    expect(screen.getByTestId('general-section')).toBeInTheDocument();
+    expect(await screen.findByTestId('general-section')).toBeInTheDocument();
     expect(dialog()).toHaveClass('h-[min(85vh,700px)]');
+  });
+});
+
+describe('PreferencesDialog - section nav at large UI sizes (B-102)', () => {
+  it('lets the section list scroll instead of clipping the last entries', () => {
+    renderWithProviders(<PreferencesDialog onClose={vi.fn()} />);
+    const nav = screen.getByRole('tablist', { name: 'Preferences sections' });
+    expect(nav).toHaveClass('overflow-y-auto');
+    expect(nav).toHaveClass('min-h-0');
   });
 });
 
@@ -277,7 +287,7 @@ describe('PreferencesDialog - sections modules contribute', () => {
     expect(labels).toContain('Fixture tab');
     expect(labels).not.toContain('Fixture child');
     expect(await screen.findByTestId('fx-child-section')).toBeInTheDocument(); // General is the default tab
-    expect(screen.getByTestId('general-section')).toBeInTheDocument();
+    expect(await screen.findByTestId('general-section')).toBeInTheDocument();
     expect(screen.getByTestId('fx-glyph')).toBeInTheDocument();
     glyph.dispose();
   });

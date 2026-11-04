@@ -6,6 +6,9 @@
  *
  * - `readerBars`: rendered by the Bible pane between its toolbar and the verses,
  *   given the chapter on screen.
+ * - `readerVerseBlocks` (task 0196): rendered by the Bible pane before and after each verse (Standard and
+ *   Reading modes), so a module can put a block at a verse (a reading plan's start / end of reading). Each
+ *   item must return null for the verses it has nothing for; it gets the neighbouring verse ids.
  * - `verseMenuItems`: rendered by the verse context menu among its study entries, given
  *   the word the reader had selected (when exactly one) and the menu's `onClose`. The menu
  *   fires `onView:verseContextMenu` on mount, so an owning module activates and registers.
@@ -92,6 +95,8 @@ export function useSlot<T>(slot: Slot<T>): readonly T[] {
 export interface ReaderBarProps {
   currentBook: number;
   currentChapter: number;
+  /** The pane's display mode; the verse blocks (task 0196) only draw in 'standard' and 'reading'. */
+  displayMode?: string;
 }
 
 export const readerBars = createSlot<ComponentType<ReaderBarProps>>();
@@ -99,6 +104,32 @@ export const readerBars = createSlot<ComponentType<ReaderBarProps>>();
 /** Renders every bar registered in `readerBars`. */
 export function ReaderBars(props: ReaderBarProps): React.ReactElement | null {
   const items = useSlot(readerBars);
+  if (items.length === 0) return null;
+  return (
+    <>
+      {items.map((C) => (
+        <C key={componentKey(C)} {...props} />
+      ))}
+    </>
+  );
+}
+
+/** What the Bible pane tells a verse-block item: the verse being drawn and its neighbours in the chapter on screen. */
+export interface ReaderVerseBlockProps {
+  verseId: number;
+  prevVerseId: number | null;
+  nextVerseId: number | null;
+  /** Drawn before the verse or after it. */
+  position: 'before' | 'after';
+  /** True in Reading mode, where the block sits inside a paragraph (render inline-safe, block-displayed elements). */
+  inParagraph: boolean;
+}
+
+export const readerVerseBlocks = createSlot<ComponentType<ReaderVerseBlockProps>>();
+
+/** Renders every item registered in `readerVerseBlocks`. */
+export function ReaderVerseBlocks(props: ReaderVerseBlockProps): React.ReactElement | null {
+  const items = useSlot(readerVerseBlocks);
   if (items.length === 0) return null;
   return (
     <>

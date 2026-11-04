@@ -14,15 +14,18 @@
 @use '../themes/arctic/vars' as arctic-vars;
 @use '../themes/autumn/vars' as autumn-vars;
 @use '../themes/lagoon/vars' as lagoon-vars;
+@use '../themes/high-contrast/vars' as high-contrast-vars;
 
 // Base
 @use 'scrollbar';
 @use 'base';
+@use 'a11y';
 @use 'bible-sections';
 
 // Layout & chrome
 @use 'header';
 @use 'connection-banner';
+@use 'site-banners';
 @use 'update-banner';
 @use 'error-boundary';
 @use 'app-stage';
@@ -32,6 +35,7 @@
 // Bible
 @use 'bible-tabs';
 @use 'bible-toolbar';
+@use 'text-size';
 @use 'home-screen';
 @use 'bible-content';
 @use 'keyword-marks';
@@ -52,6 +56,7 @@
 @use 'semantic-loading';
 @use 'help';
 @use 'feedback';
+@use 'remote-consent';
 @use 'copy-dialog';
 @use 'context-menu';
 @use 'mobile-verse-bar';
@@ -72,3 +77,5 @@
 @use 'study-pane';
 @use 'mobile-study';
 
+// Windows High Contrast overrides: keep last
+@use 'forced-colors';

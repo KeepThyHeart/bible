@@ -10,7 +10,7 @@
  * integration.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/preact';
+import { render, screen, fireEvent, act } from '@testing-library/preact';
 
 // ---- i18n ----------------------------------------------------------------
 vi.mock('react-i18next', () => ({
@@ -43,6 +43,10 @@ vi.mock('../StudyPane/StudyTopics', () => ({
 }));
 vi.mock('../StudyPane/TopicsBrowser', () => ({
   TopicsBrowser: () => <div data-testid="mock-topics-browser" />,
+}));
+
+vi.mock('./MobileDictionary', () => ({
+  MobileDictionary: () => <div data-testid="mock-mobile-dictionary" />,
 }));
 
 // ---- Hook mocks ----------------------------------------------------------
@@ -148,7 +152,7 @@ vi.mock('../../utils/syncStatus', () => ({
 const fireActivation = vi.hoisted(() => vi.fn());
 vi.mock('../../modules/moduleHost', () => ({ fireActivation }));
 
-import { studyPaneSections } from '../../host/slots';
+import { studyPaneSections, phoneBackHandlers } from '../../host/slots';
 import { MobileStudyPane } from './MobileStudyPane';
 
 /**
@@ -303,5 +307,24 @@ describe('MobileStudyPane', () => {
     handle.dispose();
     rerender(<MobileStudyPane providers={mockProviders} />);
     expect(container.querySelector('[data-testid="slot-section"]')).toBeNull();
+  });
+
+  // ---- Dictionary (B-180) --------------------------------------------------
+  it('offers a dictionary lookup that opens MobileDictionary in an overlay and closes again', () => {
+    const { container } = render(<MobileStudyPane providers={mockProviders} />);
+    expect(container.querySelector('[data-testid="mock-mobile-dictionary"]')).toBeNull();
+    fireEvent.click(container.querySelector('[data-testid="mobile-study-open-dictionary"]')!);
+    expect(container.querySelector('[data-testid="mock-mobile-dictionary"]')).toBeTruthy();
+    fireEvent.click(container.querySelector('.mobile-dictionary-overlay .mobile-topics-overlay__close')!);
+    expect(container.querySelector('[data-testid="mock-mobile-dictionary"]')).toBeNull();
+  });
+
+  it('the phone Back button closes the dictionary overlay', () => {
+    const { container } = render(<MobileStudyPane providers={mockProviders} />);
+    fireEvent.click(container.querySelector('[data-testid="mobile-study-open-dictionary"]')!);
+    let handled = false;
+    act(() => { handled = phoneBackHandlers.list().some((h) => h()); });
+    expect(handled).toBe(true);
+    expect(container.querySelector('[data-testid="mock-mobile-dictionary"]')).toBeNull();
   });
 });

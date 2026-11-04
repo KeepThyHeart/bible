@@ -189,7 +189,7 @@ export function createPresentRoutes(options: PresentRouteOptions): Router {
   function resolveJoin(req: Request, res: Response): PresentSessionRow | null {
     if (joinThrottled(req)) {
       res.setHeader('Retry-After', String(Math.ceil(JOIN_ATTEMPT_WINDOW_MS / 1000)));
-      sendError(res, 429, ErrorCodes.INVALID_PARAM, 'Too many join attempts');
+      sendError(res, 429, ErrorCodes.RATE_LIMITED, 'Too many join attempts');
       return null;
     }
 

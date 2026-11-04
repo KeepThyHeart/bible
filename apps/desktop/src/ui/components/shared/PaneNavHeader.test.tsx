@@ -61,6 +61,15 @@ describe('PaneNavHeader', () => {
     expect(buttons.length).toBeGreaterThanOrEqual(3);
   });
 
+  it('does not mirror the < > glyphs a second time (B-036)', () => {
+    renderWithProviders(
+      <PaneNavHeader canGoBack canGoForward pinned={false} onBack={vi.fn()} onForward={vi.fn()} onTogglePin={vi.fn()} />
+    );
+    for (const id of ['pane-nav-back', 'pane-nav-forward']) {
+      expect(screen.getByTestId(id).querySelector('.rtl-mirror')).toBeNull();
+    }
+  });
+
   it('calls onBack when back button is clicked', async () => {
     const user = userEvent.setup();
     const onBack = vi.fn();

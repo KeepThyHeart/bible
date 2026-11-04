@@ -1,5 +1,6 @@
 import { useRef, useEffect, useMemo, useCallback, useState } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
+import { offlineStore } from '../../stores/offlineStore';
 import { dictionaryStore } from '../../stores/dictionaryStore';
 import { searchStore } from '../../stores/searchStore';
 import { commentaryStore } from '../../stores/commentaryStore';
@@ -12,19 +13,8 @@ import { linkStrongsRefs } from '../../utils/strongsLinks';
 import { sanitizeHtml } from '../../utils/sanitize';
 import { newlinesToLineBreaks, resolveNewlineHandling } from '@bible/core/browser';
 import type { IBibleDataProvider } from '../../providers/interfaces';
+import { entryLabel, strongsNumberFor } from './entryLabel';
 import { moduleContentAttrs } from '../../utils/contentDirection';
-
-/**
- * The Strong's number this entry represents, or null for an ordinary dictionary.
- * Strong's entry keys are 5-digit zero-padded and carry no prefix ("00025"), so
- * the G/H comes from which of the two lexicons the tab is showing.
- */
-function strongsNumberFor(moduleAbbr: string, entryKey: string): string | null {
-  if (!/^strongs/i.test(moduleAbbr)) return null;
-  const digits = entryKey.replace(/\D/g, '').replace(/^0+/, '');
-  if (!digits) return null;
-  return `${/hebrew/i.test(moduleAbbr) ? 'H' : 'G'}${digits}`;
-}
 
 interface DictionaryContentProps {
   tabId: string;
@@ -33,6 +23,7 @@ interface DictionaryContentProps {
 
 export function DictionaryContent({ tabId, bibleProvider }: DictionaryContentProps) {
   const { t } = useTranslation();
+  const isOnline = useStore(offlineStore, () => offlineStore.isOnline);
   const wordStudyAvailable = usePaneAvailable('wordStudy');
   const tab = useStore(dictionaryStore, () => dictionaryStore.tabs.find(t => t.id === tabId));
   const tabState = useStore(dictionaryStore, () => dictionaryStore.getTabState(tabId));
@@ -116,7 +107,7 @@ export function DictionaryContent({ tabId, bibleProvider }: DictionaryContentPro
       const index = highlightedIndex >= 0 && highlightedIndex < suggestions.length
         ? highlightedIndex
         : 0;
-      dictionaryStore.loadEntryInTab(tabId, suggestions[index].entry_key);
+      void dictionaryStore.pickTabSuggestion(tabId, suggestions[index]);
       dictionaryStore.clearTabSuggestions(tabId);
     }
   }, [suggestions, highlightedIndex, tabId]);
@@ -146,9 +137,9 @@ export function DictionaryContent({ tabId, bibleProvider }: DictionaryContentPro
                 <button
                   key={s.entry_key}
                   class={`dictionary-content__search-dropdown-item ${i === highlightedIndex ? 'dictionary-content__search-dropdown-item--highlighted' : ''}`}
-                  onClick={() => dictionaryStore.loadEntryInTab(tabId, s.entry_key)}
+                  onClick={() => dictionaryStore.pickTabSuggestion(tabId, s)}
                 >
-                  <span class="dictionary-pane__suggestion-word">{s.word}</span>
+                  <span class="dictionary-pane__suggestion-word">{s.openStrongs ? s.word : entryLabel(tab.moduleAbbr, s.word, s.entry_key)}</span>
                   {s.transliteration && (
                     <span class="dictionary-pane__suggestion-translit">({s.transliteration})</span>
                   )}
@@ -159,7 +150,7 @@ export function DictionaryContent({ tabId, bibleProvider }: DictionaryContentPro
                   dead key press. */}
               {!searchLoading && suggestions.length === 0 && (searchError || searchCompleted) && (
                 <div class="dictionary-content__search-dropdown-empty">
-                  {searchError ?? t('dictionaryContent.noResults', { query: searchQuery, module: tab.moduleName })}
+                  {!isOnline ? t('mobileDictionary.offlineNotice') : searchError ?? t('dictionaryContent.noResults', { query: searchQuery, module: tab.moduleName })}
                 </div>
               )}
             </div>
@@ -169,7 +160,7 @@ export function DictionaryContent({ tabId, bibleProvider }: DictionaryContentPro
         {/* Entry content */}
         <div class="dictionary-pane__entry">
           <div class="dictionary-pane__entry-header">
-            <h3 class="dictionary-pane__entry-word">{entry.word}</h3>
+            <h3 class="dictionary-pane__entry-word">{entryLabel(tab.moduleAbbr, entry.word, entry.entry_key)}</h3>
             {entry.transliteration && (
               <span class="dictionary-pane__entry-translit">{entry.transliteration}</span>
             )}
@@ -184,7 +175,7 @@ export function DictionaryContent({ tabId, bibleProvider }: DictionaryContentPro
                 class="dictionary-content__toolbar-btn"
                 disabled={!adjacentPrev}
                 onClick={() => dictionaryStore.navigatePrev(tabId)}
-                title={adjacentPrev ? `${t('dictionaryContent.prevEntry')} ${adjacentPrev.word || adjacentPrev.entry_key}` : t('dictionaryContent.noPrevEntry')}
+                title={adjacentPrev ? `${t('dictionaryContent.prevEntry')} ${entryLabel(tab.moduleAbbr, adjacentPrev.word, adjacentPrev.entry_key)}` : t('dictionaryContent.noPrevEntry')}
               >
                 <i class="fa-solid fa-chevron-left fa-xs kth-rtl-mirror" />
               </button>
@@ -192,7 +183,7 @@ export function DictionaryContent({ tabId, bibleProvider }: DictionaryContentPro
                 class="dictionary-content__toolbar-btn"
                 disabled={!adjacentNext}
                 onClick={() => dictionaryStore.navigateNext(tabId)}
-                title={adjacentNext ? `${t('dictionaryContent.nextEntry')} ${adjacentNext.word || adjacentNext.entry_key}` : t('dictionaryContent.noNextEntry')}
+                title={adjacentNext ? `${t('dictionaryContent.nextEntry')} ${entryLabel(tab.moduleAbbr, adjacentNext.word, adjacentNext.entry_key)}` : t('dictionaryContent.noNextEntry')}
               >
                 <i class="fa-solid fa-chevron-right fa-xs kth-rtl-mirror" />
               </button>
@@ -289,7 +280,7 @@ export function DictionaryContent({ tabId, bibleProvider }: DictionaryContentPro
                   <span class="dictionary-content__bottom-nav-arrow">&#8592;</span>
                   <div>
                     <div class="dictionary-content__bottom-nav-label">{t('dictionaryContent.previous')}</div>
-                    <div class="dictionary-content__bottom-nav-title">{adjacentPrev.word || adjacentPrev.entry_key}</div>
+                    <div class="dictionary-content__bottom-nav-title">{entryLabel(tab.moduleAbbr, adjacentPrev.word, adjacentPrev.entry_key)}</div>
                   </div>
                 </button>
               ) : <div />}
@@ -300,7 +291,7 @@ export function DictionaryContent({ tabId, bibleProvider }: DictionaryContentPro
                 >
                   <div>
                     <div class="dictionary-content__bottom-nav-label">{t('dictionaryContent.next')}</div>
-                    <div class="dictionary-content__bottom-nav-title">{adjacentNext.word || adjacentNext.entry_key}</div>
+                    <div class="dictionary-content__bottom-nav-title">{entryLabel(tab.moduleAbbr, adjacentNext.word, adjacentNext.entry_key)}</div>
                   </div>
                   <span class="dictionary-content__bottom-nav-arrow">&#8594;</span>
                 </button>
@@ -336,9 +327,9 @@ export function DictionaryContent({ tabId, bibleProvider }: DictionaryContentPro
               <button
                 key={s.entry_key}
                 class={`dictionary-content__search-dropdown-item ${i === highlightedIndex ? 'dictionary-content__search-dropdown-item--highlighted' : ''}`}
-                onClick={() => dictionaryStore.loadEntryInTab(tabId, s.entry_key)}
+                onClick={() => dictionaryStore.pickTabSuggestion(tabId, s)}
               >
-                <span class="dictionary-pane__suggestion-word">{s.word}</span>
+                <span class="dictionary-pane__suggestion-word">{s.openStrongs ? s.word : entryLabel(tab.moduleAbbr, s.word, s.entry_key)}</span>
                 {s.transliteration && (
                   <span class="dictionary-pane__suggestion-translit">({s.transliteration})</span>
                 )}
@@ -349,7 +340,7 @@ export function DictionaryContent({ tabId, bibleProvider }: DictionaryContentPro
             ))}
             {!searchLoading && suggestions.length === 0 && (searchError || searchCompleted) && (
               <div class="dictionary-content__search-dropdown-empty">
-                {searchError ?? t('dictionaryContent.noResults', { query: searchQuery, module: tab.moduleName })}
+                {!isOnline ? t('mobileDictionary.offlineNotice') : searchError ?? t('dictionaryContent.noResults', { query: searchQuery, module: tab.moduleName })}
               </div>
             )}
           </div>
@@ -387,7 +378,7 @@ export function DictionaryContent({ tabId, bibleProvider }: DictionaryContentPro
               class="dictionary-content__browse-item"
               onClick={() => dictionaryStore.loadEntryInTab(tabId, e.entry_key)}
             >
-              {e.word || e.entry_key}
+              {entryLabel(tab.moduleAbbr, e.word, e.entry_key)}
             </button>
           ))}
           {browseOffset < browseTotal && !browseLoading && (

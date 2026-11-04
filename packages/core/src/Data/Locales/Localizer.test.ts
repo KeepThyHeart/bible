@@ -100,3 +100,16 @@ describe('collation and case (Turkish dotted/dotless I)', () => {
     expect(en.compare('a', 'b')).toBeLessThan(0);
   });
 });
+
+describe('createIntlLocalizer with a tag Intl rejects', () => {
+  it('formats the test pseudo-locales as English instead of throwing', () => {
+    for (const tag of ['xx-rtl', 'xx-pseudo']) {
+      const l = createIntlLocalizer(tag);
+      expect(l.tag).toBe(tag);
+      expect(l.formatNumber(1234)).toBe('1,234');
+      expect(() => l.formatDate(new Date(0))).not.toThrow();
+      expect(l.compare('a', 'b')).toBeLessThan(0);
+      expect(l.toLocaleUpperCase('abc')).toBe('ABC');
+    }
+  });
+});

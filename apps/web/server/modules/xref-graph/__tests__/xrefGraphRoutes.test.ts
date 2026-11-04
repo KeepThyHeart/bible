@@ -6,6 +6,7 @@ import { describe, it, expect } from 'vitest';
 import express from 'express';
 import request from 'supertest';
 import { createXrefGraphRoutes } from '../routes';
+import { createCompression } from '../../../middleware/compression';
 
 const JOHN_3_16 = 43003016;
 const ROM_5_8 = 45005008;
@@ -90,5 +91,14 @@ describe('xref graph routes', () => {
     expect((chapters.body as Buffer).length).toBe((1189 + 2 * 4) * 4);
     const again = await request(app).get('/api/xref-graph/chapters').set('If-None-Match', chapters.headers.etag);
     expect(again.status).toBe(304);
+  });
+
+  it('lets the chapter index be gzipped despite being octet-stream (B-175)', async () => {
+    const db = { getModuleMetadataRepo: () => ({ getByType: () => [{ abbreviation: 'TSK', moduleName: 'Treasury', getAbbreviation: () => 'TSK' }] }), getCrossRefRepo: () => fakeRepo };
+    const app = express();
+    app.use(createCompression());
+    app.use('/api/xref-graph', createXrefGraphRoutes(db as never));
+    const res = await request(app).get('/api/xref-graph/chapters').set('Accept-Encoding', 'gzip');
+    expect(res.headers['content-encoding']).toBe('gzip');
   });
 });

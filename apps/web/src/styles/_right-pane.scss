@@ -7,19 +7,17 @@
   background: var(--bg-secondary);
   border-bottom: 1px solid var(--border-color);
   flex-shrink: 0;
-  // With Quiz, Word study, Similar and Timeline the tabs no longer fit a narrow pane. The strip
-  // scrolls on its own; otherwise focusing an overflowing tab scrolls the whole (overflow: hidden)
-  // pane sideways and clips its content.
-  overflow-x: auto;
-  overflow-y: hidden;
-  scrollbar-width: thin;
+  // With Quiz, Word study, Similar and Timeline the tabs no longer fit a narrow
+  // pane. They wrap onto a second row rather than scroll: every tab stays visible
+  // and keyboard-reachable at any width, with no hidden overflow (B-168).
+  flex-wrap: wrap;
 
   &__tab {
     flex-shrink: 0;
     white-space: nowrap;
-    padding: 6px 14px;
+    padding: 6px 10px;
     cursor: pointer;
-    font-size: calc(12px * var(--ui-font-scale, 1));
+    font-size: calc(0.8125rem * var(--ui-font-scale, 1));
     font-weight: 500;
     color: var(--text-secondary);
     background: none;
@@ -49,9 +47,9 @@
   }
 
   &__badge {
-    font-size: calc(10px * var(--ui-font-scale, 1));
+    font-size: calc(0.75rem * var(--ui-font-scale, 1));
     background: var(--accent-color);
-    color: #fff;
+    color: var(--accent-text, #fff);
     padding: 1px 6px;
     border-radius: 8px;
     font-weight: 600;
@@ -72,11 +70,8 @@
     cursor: pointer;
     color: var(--text-muted);
     padding: 6px 8px;
-    font-size: calc(11px * var(--ui-font-scale, 1));
+    font-size: calc(0.6875rem * var(--ui-font-scale, 1));
     margin-inline-start: auto;
-    // Stays reachable at the end of the strip when the tabs scroll.
-    position: sticky;
-    inset-inline-end: 0;
     flex-shrink: 0;
     background: var(--bg-secondary);
 
@@ -103,6 +98,6 @@
   min-width: 200px;
   border-inline-start: 1px solid var(--border-color);
   overflow: hidden;
-  font-size: var(--study-font-size, 15px);
+  font-size: var(--study-font-size, 1.0625rem);
 }
 

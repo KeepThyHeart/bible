@@ -4,7 +4,7 @@ import tseslint from 'typescript-eslint';
 export default [
   tseslint.configs.base,
   {
-    files: ['src/**/*.{ts,tsx}', 'server/**/*.ts'],
+    files: ['src/**/*.{ts,tsx}', 'server/**/*.ts', 'dev/**/*.{ts,tsx}'],
     plugins: {
       import: importPlugin,
     },
@@ -26,6 +26,9 @@ export default [
           { target: './server/**/*', from: './src/events/**/*',     message: 'Server code must not import client events.' },
           // Client cannot import server code
           { target: './src/**/*', from: './server/**/*', message: 'Client code must not import server modules.' },
+          // The dev harness (dev/) is served by `vite dev` only; nothing shipped may depend on it.
+          { target: './src/**/*', from: './dev/**/*', message: 'Production code must not import the dev harness.' },
+          { target: './server/**/*', from: './dev/**/*', message: 'Production code must not import the dev harness.' },
         ],
       }],
     },

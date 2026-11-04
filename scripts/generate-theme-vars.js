@@ -89,6 +89,16 @@ function resolve(value, app) {
   return value;
 }
 
+function luminance(hex) {
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255)
+    .map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4));
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+function contrast(a, b) {
+  const [x, y] = [luminance(a), luminance(b)].sort((p, q) => q - p);
+  return (x + 0.05) / (y + 0.05);
+}
+
 function renderVars(themeId, theme) {
   const selector = themeId === 'light' ? ':root, [data-theme="light"]' : `[data-theme="${themeId}"]`;
   const lines = [`${selector} {`];
@@ -98,6 +108,12 @@ function renderVars(themeId, theme) {
     const value = resolve(raw, 'web');
     if (value === undefined) continue;
     lines.push(`  --${token}: ${value};`);
+  }
+  // Text on the accent colour (B-115): white unless that falls under 4.5:1 (light accents such
+  // as the high-contrast yellow or the dark themes' sky blue), then near-black.
+  const accent = resolve(theme.colors['accent-color'], 'web');
+  if (typeof accent === 'string' && /^#[0-9a-f]{6}$/i.test(accent) && contrast('#ffffff', accent) < 4.5) {
+    lines.push('  --accent-text: #0b1020;');
   }
   // Decoration colour keys (`accent`, `text*`) resolve to `--theme-*-rgb` triples
   // (core ThemeColorResolver). The web palette is hex, so derive the triples from

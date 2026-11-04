@@ -91,6 +91,8 @@ class NotesStore extends Store {
   private readonly chaptersAsked = new Set<string>();
   private hymnsRequested = false;
   private subscribed = false;
+  /** True while a document from another tab is being applied: it must not be saved back (echo). */
+  private applyingRemote = false;
 
   /** Decoration plugins for the editor. Stable identity: pass as the editor's `plugins` prop. */
   readonly plugins: Plugin[] = createDecorationPlugins({
@@ -128,6 +130,7 @@ class NotesStore extends Store {
       if (!this.subscribed) {
         this.subscribed = true;
         store.subscribe(() => this.syncName());
+        store.onRemoteChange((id) => this.onRemoteService(id));
         presentStore.subscribe(() => this.checkSession());
         subscribePresenter(() => this.onWallChange());
         preferredBible.subscribe(() => this.onModuleMaybeChanged());
@@ -175,6 +178,24 @@ class NotesStore extends Store {
     }
   }
 
+  /** Another tab saved or deleted a service: follow it, never keep (and later overwrite with) a stale copy. */
+  private onRemoteService(id: string): void {
+    if (id !== this.serviceId) return;
+    const remote = getServiceStore().get(id);
+    if (!remote) {
+      void this.onServiceDeleted(id);
+      return;
+    }
+    const mine = this.currentDoc();
+    if (JSON.stringify(remote.doc) === JSON.stringify(mine)) return;
+    this.applyingRemote = true;
+    try {
+      this.applyDoc(remote.doc, false);
+    } finally {
+      this.applyingRemote = false;
+    }
+  }
+
   async openService(id: string): Promise<void> {
     await this.init();
     const store = getServiceStore();
@@ -198,7 +219,7 @@ class NotesStore extends Store {
   onDocChange = (doc: ProseMirrorJSON): void => {
     this.doc = doc;
     if (!this.silent) this.edited = true;
-    if (this.serviceId) getServiceStore().save(this.serviceId, doc);
+    if (this.serviceId && !this.applyingRemote) getServiceStore().save(this.serviceId, doc);
     this.scheduleDetect();
     this.scheduleNotesSync();
   };
@@ -227,7 +248,7 @@ class NotesStore extends Store {
       return;
     }
     this.doc = withIds;
-    if (this.serviceId) getServiceStore().save(this.serviceId, withIds);
+    if (this.serviceId && !this.applyingRemote) getServiceStore().save(this.serviceId, withIds);
     this.notify();
     this.scheduleDetect(0);
     this.scheduleNotesSync();

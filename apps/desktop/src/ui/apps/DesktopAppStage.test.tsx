@@ -7,6 +7,7 @@ vi.mock('./StudyView', () => ({ StudyView: () => <div data-testid="study-view" /
 import { appHost, appRegistry, addAppBinding } from './appHost';
 import { registerBuiltinApps } from './builtinApps';
 import { DesktopAppStage } from './DesktopAppStage';
+import * as announcer from '../services/announcer';
 import { usePreferencesStore } from '../stores/usePreferencesStore';
 
 const services = {
@@ -59,6 +60,7 @@ describe('DesktopAppStage', () => {
       { kind: 'builtin', moduleId: 'fx' },
     );
     addAppBinding({ id: 'fx', load: async () => ({ View: () => <h1 tabIndex={-1}>Fixture app</h1> }) });
+    const announceSpy = vi.spyOn(announcer, 'announce');
     const { container } = mount();
     const study = screen.getByTestId('study-view');
     // With two apps the rail shows on "auto".
@@ -72,7 +74,8 @@ describe('DesktopAppStage', () => {
     expect(studyWrapper.getAttribute('aria-hidden')).toBe('true');
     expect(fxWrapper.hasAttribute('hidden')).toBe(false);
     expect(screen.getByTestId('study-view')).toBe(study); // still mounted, same node
-    expect(screen.getByRole('status').textContent).toContain('apps.stage.announce');
+    // The announcement goes through the one app-wide announcer (B-113), not a local region.
+    expect(announceSpy).toHaveBeenCalledWith(expect.stringContaining('apps.stage.announce'));
 
     await act(async () => { await appHost.activate('study'); });
     expect(studyWrapper.hasAttribute('hidden')).toBe(false);

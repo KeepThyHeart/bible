@@ -45,14 +45,14 @@
   }
 
   &__number {
-    font-size: calc(14px * var(--ui-font-scale, 1));
+    font-size: calc(0.875rem * var(--ui-font-scale, 1));
     font-weight: 700;
     color: var(--accent-color);
     margin-inline-end: 8px;
   }
 
   &__word {
-    font-size: calc(18px * var(--ui-font-scale, 1));
+    font-size: calc(1.125rem * var(--ui-font-scale, 1));
     font-weight: 600;
   }
 
@@ -61,7 +61,7 @@
     border: none;
     cursor: pointer;
     color: var(--text-muted);
-    font-size: calc(14px * var(--ui-font-scale, 1));
+    font-size: calc(0.875rem * var(--ui-font-scale, 1));
 
     &:hover {
       color: var(--text-primary);
@@ -71,26 +71,26 @@
   &__translit {
     font-style: italic;
     color: var(--text-secondary);
-    font-size: calc(13px * var(--ui-font-scale, 1));
+    font-size: calc(0.8125rem * var(--ui-font-scale, 1));
     margin-bottom: 2px;
   }
 
   &__pron {
     font-style: normal;
     color: var(--text-muted);
-    font-size: calc(12px * var(--ui-font-scale, 1));
+    font-size: calc(0.75rem * var(--ui-font-scale, 1));
     margin-inline-start: 4px;
   }
 
   &__pos {
-    font-size: calc(12px * var(--ui-font-scale, 1));
+    font-size: calc(0.75rem * var(--ui-font-scale, 1));
     color: var(--text-muted);
     font-style: italic;
     margin-bottom: 10px;
   }
 
   &__glosses {
-    font-size: calc(14px * var(--ui-font-scale, 1));
+    font-size: calc(0.875rem * var(--ui-font-scale, 1));
     font-weight: 600;
     color: var(--text-primary);
     line-height: 1.5;
@@ -102,13 +102,13 @@
 
   &__def {
     line-height: 1.5;
-    font-size: calc(13px * var(--ui-font-scale, 1));
+    font-size: calc(0.8125rem * var(--ui-font-scale, 1));
     color: var(--text-secondary);
   }
 
   &__etym {
     margin-top: 8px;
-    font-size: calc(12px * var(--ui-font-scale, 1));
+    font-size: calc(0.75rem * var(--ui-font-scale, 1));
     color: var(--text-muted);
     font-style: italic;
   }
@@ -123,7 +123,7 @@
     border-radius: 6px;
     background: var(--bg-secondary);
     color: var(--accent-color);
-    font-size: calc(13px * var(--ui-font-scale, 1));
+    font-size: calc(0.8125rem * var(--ui-font-scale, 1));
     font-weight: 500;
     cursor: pointer;
     transition: background 0.1s, border-color 0.1s;
@@ -157,36 +157,36 @@
   }
 
   &__number {
-    font-size: calc(12px * var(--ui-font-scale, 1));
+    font-size: calc(0.75rem * var(--ui-font-scale, 1));
     font-weight: 700;
     color: var(--accent-color);
   }
 
   &__word {
-    font-size: calc(16px * var(--ui-font-scale, 1));
+    font-size: calc(1rem * var(--ui-font-scale, 1));
     font-weight: 600;
   }
 
   &__translit {
-    font-size: calc(12px * var(--ui-font-scale, 1));
+    font-size: calc(0.75rem * var(--ui-font-scale, 1));
     font-style: italic;
     color: var(--text-secondary);
   }
 
   &__pron {
-    font-size: calc(11px * var(--ui-font-scale, 1));
+    font-size: calc(0.6875rem * var(--ui-font-scale, 1));
     color: var(--text-muted);
   }
 
   &__pos {
-    font-size: calc(11px * var(--ui-font-scale, 1));
+    font-size: calc(0.6875rem * var(--ui-font-scale, 1));
     color: var(--text-muted);
     font-style: italic;
     margin-bottom: 6px;
   }
 
   &__glosses {
-    font-size: calc(13px * var(--ui-font-scale, 1));
+    font-size: calc(0.8125rem * var(--ui-font-scale, 1));
     font-weight: 600;
     color: var(--text-primary);
     line-height: 1.4;
@@ -196,7 +196,7 @@
   }
 
   &__def {
-    font-size: calc(12px * var(--ui-font-scale, 1));
+    font-size: calc(0.75rem * var(--ui-font-scale, 1));
     line-height: 1.4;
     color: var(--text-secondary);
   }

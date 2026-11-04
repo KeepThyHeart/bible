@@ -112,6 +112,16 @@ vi.mock('../../stores/moduleStore', () => ({
 }));
 
 import { readerToolbarItems } from '../../host/slots';
+
+// The text-size popover has its own tests; here it only has to be present and wired.
+vi.mock('../common/TextSizeButton', async () => {
+  const { h } = await import('preact');
+  return {
+    TextSizeButton: ({ target, className, onMoreOptions }: { target: string; className?: string; onMoreOptions?: () => void }) =>
+      h('button', { class: className, 'data-testid': `text-size-btn-${target}`, onClick: () => onMoreOptions?.() }, 'size'),
+  };
+});
+
 import { BibleToolbar } from './BibleToolbar';
 
 /** The prev/next chapter pair, isolated from the history group's buttons. */
@@ -182,9 +192,9 @@ describe('BibleToolbar', () => {
     expect(screen.queryByTestId('fixture-toolbar-item')).toBeNull();
   });
 
-  it('renders the "Aa" text-settings button', () => {
+  it('renders the text-size button', () => {
     render(<BibleToolbar />);
-    expect(screen.getByText('Aa')).toBeTruthy();
+    expect(screen.getByTestId('text-size-btn-bible')).toBeTruthy();
   });
 
   // ------------------------------------------------------------------
@@ -361,15 +371,27 @@ describe('BibleToolbar', () => {
   // ------------------------------------------------------------------
   // Settings button
   // ------------------------------------------------------------------
-  it('calls onOpenSettings with "bible-font" when the Aa button is clicked', () => {
+  it('opens Settings at "bible-font" from the text-size popover\'s more-options link', () => {
     const onOpenSettings = vi.fn();
     render(<BibleToolbar onOpenSettings={onOpenSettings} />);
-    fireEvent.click(screen.getByText('Aa'));
+    fireEvent.click(screen.getByTestId('text-size-btn-bible'));
     expect(onOpenSettings).toHaveBeenCalledWith('bible-font');
   });
 
-  it('does not throw when the Aa button is clicked and onOpenSettings is not provided', () => {
+  it('does not throw when the text-size button is clicked and onOpenSettings is not provided', () => {
     render(<BibleToolbar />);
-    expect(() => fireEvent.click(screen.getByText('Aa'))).not.toThrow();
+    expect(() => fireEvent.click(screen.getByTestId('text-size-btn-bible'))).not.toThrow();
+  });
+
+  // B-156: Escape closes the Recent passages menu and returns focus to its button.
+  it('Escape closes the history menu and focuses its toggle', () => {
+    const { container } = render(<BibleToolbar />);
+    const toggle = container.querySelector<HTMLButtonElement>('[data-testid="history-dropdown-toggle"]')!;
+    fireEvent.click(toggle);
+    expect(container.querySelector('.bible-toolbar__history-menu')).toBeTruthy();
+    document.body.focus();
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(container.querySelector('.bible-toolbar__history-menu')).toBeNull();
+    expect(document.activeElement).toBe(toggle);
   });
 });

@@ -10,6 +10,7 @@ import { Header } from './components/Header';
 import { ResizeHandle } from './components/common/ResizeHandle';
 import { DialogLayer } from './components/common/DialogLayer';
 import { ContextMenuPopup } from './components/common/ContextMenuPopup';
+import { SiteBanners } from './components/SiteBanners';
 import { ConnectionBanner } from './components/ConnectionBanner';
 import { CompanionSlot } from './host/CompanionSlot';
 import { StudyLayoutOutlet } from './host/slots';
@@ -25,6 +26,7 @@ import { isTagGraphEnabled } from './utils/clientConfig';
 import { dictionaryStore } from './stores/dictionaryStore';
 import { bibleStore } from './stores/bibleStore';
 import { searchStore } from './stores/searchStore';
+import { pxToRem } from './stores/settingsStore';
 import { evalVerseWhen, whenKeys } from './host/verseActionWhen';
 import { useReadable } from './host/useReadable';
 import { useAppShared } from './hooks/useAppShared';
@@ -143,7 +145,7 @@ export function DesktopApp({ providers }: DesktopAppProps) {
 
   const bibleStyle = {
     fontFamily: shared.fontFamily,
-    fontSize: `${shared.fontSize}px`,
+    fontSize: pxToRem(shared.fontSize),
     lineHeight: String(shared.lineHeight),
     '--heading-font': shared.headingFontFamily,
     ...(showRightPane ? { width: `${biblePaneWidth}%`, flex: 'none' } : {}),
@@ -161,14 +163,14 @@ export function DesktopApp({ providers }: DesktopAppProps) {
 
   return (
     <div class="app">
+      <SiteBanners />
       <Header
         onSettingsClick={(section) => shared.openSettings(section)}
         onHelpClick={() => shared.setHelpOpen(true)}
-        onFeedbackClick={() => shared.setFeedbackOpen(true)}
       />
       <ConnectionBanner />
       <UpdateBanner />
-      <div class="main-layout">
+      <main class="main-layout" id="main-content" tabIndex={-1}>
         <div class="main-layout__bible" style={bibleStyle}>
           <BiblePane
             interlinearProvider={providers.interlinear}
@@ -193,7 +195,7 @@ export function DesktopApp({ providers }: DesktopAppProps) {
         {showRightPane && (
           <>
             <ResizeHandle onResize={handleResize} />
-            <div class="main-layout__right-pane" style={rightPaneStyle}>
+            <aside class="main-layout__right-pane" style={rightPaneStyle} aria-label={t('a11y.studyPane', 'Study panel')}>
               <div class="right-pane-tabs">
                 {paneModes.filter((m) => paneAvailable(m.id)).map((m) => (
                   <button
@@ -233,7 +235,7 @@ export function DesktopApp({ providers }: DesktopAppProps) {
                 ) : null,
               )}
               {paneMode === 'search' && <SearchResultsPanel onOpenStrongsEntry={handleStrongsClick} />}
-            </div>
+            </aside>
           </>
         )}
         {shared.collapsed && (
@@ -241,7 +243,7 @@ export function DesktopApp({ providers }: DesktopAppProps) {
             <CommentaryPane bibleProvider={providers.bible} />
           </div>
         )}
-      </div>
+      </main>
       {/* Study's companion strip while a session is live; the shortcuts are `PresenterKeys`, mounted by the app shell. */}
       <CompanionSlot />
       <DialogLayer

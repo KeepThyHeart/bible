@@ -9,6 +9,6 @@
 declare const __BIBLE_CLI_VERSION__: string | undefined;
 
 export const VERSION: string =
-  typeof __BIBLE_CLI_VERSION__ === 'string' ? __BIBLE_CLI_VERSION__ : '0.1.0-dev';
+  typeof __BIBLE_CLI_VERSION__ === 'string' ? __BIBLE_CLI_VERSION__ : '1.0.0-rc.1-dev';
 
 export const PRODUCT = 'bible';

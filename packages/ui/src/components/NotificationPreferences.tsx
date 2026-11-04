@@ -144,8 +144,8 @@ export function NotificationPreferences({
         ? l.whenClosedNever
         : l.whenClosedBackgroundOnly;
 
-  const sw = (id: string, label: string, checked: boolean, disabled: boolean, onChange: (v: boolean) => void): ReactNode => (
-    <div className="kth-notify-prefs__switch">
+  const sw = (id: string, label: string, checked: boolean, disabled: boolean, onChange: (v: boolean) => void, dim = false): ReactNode => (
+    <div className={dim ? 'kth-notify-prefs__switch kth-notify-prefs__switch--off' : 'kth-notify-prefs__switch'}>
       <input
         id={id}
         type="checkbox"
@@ -205,19 +205,38 @@ export function NotificationPreferences({
         {state.sources.length === 0 && <p className="kth-field__hint">{l.noSources}</p>}
         {state.sources.map((source) => {
           const blocked = source.allowed === false;
-          const rowOff = off || blocked;
+          // Until the browser grants permission nothing can fire, so a source that is
+          // still off cannot be switched on (the status line says why).
+          const needsPermission = !source.enabled && !unsupported && capabilities.permission !== 'granted';
+          const rowOff = off || blocked || needsPermission;
           const base = `${idPrefix}-src-${source.id.replace(/[^A-Za-z0-9_-]/g, '-')}`;
           return (
-            <div key={source.id} className="kth-field" data-source-id={source.id}>
-              {sw(base, source.label, source.enabled, rowOff, (v) => setSource(source.id, { enabled: v }))}
+            <div
+              key={source.id}
+              className="kth-field"
+              data-source-id={source.id}
+              aria-disabled={rowOff || undefined}
+            >
+              {sw(base, source.label, source.enabled, rowOff, (v) => setSource(source.id, { enabled: v }), rowOff)}
               {source.description && (
                 <p id={`${base}-description`} className="kth-field__hint">{source.description}</p>
+              )}
+              {needsPermission && !blocked && (
+                <div className="kth-notify-prefs__needs-permission">
+                  <p id={`${base}-permission`} className="kth-field__hint">{status}</p>
+                  {/* Offer the fix where the reader is looking, not only in General above. */}
+                  {capabilities.permission === 'prompt' && onRequestPermission && (
+                    <button type="button" className="kth-btn" onClick={() => onRequestPermission()}>
+                      {l.allow}
+                    </button>
+                  )}
+                </div>
               )}
               {blocked && (
                 <p id={`${base}-blocked`} className="kth-field__hint">{l.blocked}</p>
               )}
               {source.enabled && source.kind === 'rules' && source.userEditable && (
-                <div className="kth-notify-prefs__times">
+                <div className={rowOff ? 'kth-notify-prefs__times kth-notify-prefs__times--off' : 'kth-notify-prefs__times'}>
                   <label htmlFor={`${base}-time`}>{l.dailyTime.replace('{source}', () => source.label)}</label>
                   <input
                     id={`${base}-time`}

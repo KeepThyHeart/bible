@@ -1,5 +1,5 @@
 /**
- * Notes commands. Initial population covers the "Export My Notes" menu item.
+ * Notes commands. Initial population covers the "Backup & Restore" menu item (id notes.export).
  * Verse-note-creation, note-editing, and note-deletion commands are TBD -
  * they live in the UserNotesPane component today and will be moved here as
  * those components are migrated to the registry.

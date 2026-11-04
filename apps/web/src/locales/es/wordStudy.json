@@ -22,6 +22,7 @@
       "noticeNoModule": "No hay ninguna Biblia adecuada instalada para este estudio.",
       "noticeNotTagged": "Esta traducción no tiene etiquetas de Strong. Elija otra traducción.",
       "noticeNoOccurrences": "No se encontraron apariciones en esta traducción.",
+      "noticeUnknownNumber": "No existe ese número de Strong.",
       "renderingsTitle": "Cómo se traduce",
       "formsTitle": "Formas encontradas",
       "other": "Otras ({count})",

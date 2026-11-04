@@ -42,7 +42,14 @@
 }
 .pz-appbar__back:hover { background: var(--bg-tertiary); }
 .pz-appbar__service { font-weight: 600; }
-.pz-appbar__spacer { flex: 1; }
+.pz-appbar__spacer { flex: 1; min-inline-size: 0; }
+/* On a phone the service picker gives way (its name truncates) so Help and More stay on screen. */
+.pz-appbar > * { flex-shrink: 0; }
+.pz-appbar > .service-menu { flex-shrink: 1; min-inline-size: 0; }
+.pz-appbar .service-menu__trigger { max-inline-size: 100%; }
+@media (max-width: 480px) {
+  .pz-appbar { gap: 4px; padding-inline: 6px; }
+}
 .pz-appbar__live { color: var(--text-muted); white-space: nowrap; }
 .pz-appbar__live--on { color: var(--pz-live); font-weight: 600; }
 .pz-appbar__menu-wrap { position: relative; }
@@ -183,6 +190,8 @@
 .pz-status__dot { width: 8px; height: 8px; border-radius: 50%; background: var(--pz-live); display: inline-block; margin-inline-end: 4px; }
 .pz-status__viewers { display: inline-flex; align-items: center; gap: 5px; color: var(--text-secondary, var(--text-muted)); }
 .pz-status__viewers--offline { opacity: 0.5; }
+.pz-status__code { font-size: 13px; color: var(--text-secondary, var(--text-muted)); white-space: nowrap; }
+.pz-status__code strong { letter-spacing: 0.08em; color: var(--text-primary, inherit); }
 .pz-status__confirm { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; }
 
 .pz-menu {
@@ -219,7 +228,7 @@
 }
 .pz-btn:hover:not(:disabled) { background: var(--bg-tertiary); }
 .pz-btn:disabled { opacity: 0.5; cursor: default; }
-.pz-btn--primary { background: var(--accent-color); border-color: var(--accent-color); color: #fff; }
+.pz-btn--primary { background: var(--accent-color); border-color: var(--accent-color); color: var(--accent-text, #fff); }
 .pz-btn--primary:hover:not(:disabled) { background: var(--accent-hover, var(--accent-color)); }
 .pz-btn--danger { border-color: #b3261e; color: #b3261e; }
 .pz-btn--icon { padding: 5px 9px; }
@@ -239,7 +248,7 @@
 }
 .pz-transport__btn:hover:not(:disabled) { background: var(--bg-tertiary); }
 .pz-transport__btn:disabled { opacity: 0.45; cursor: default; }
-.pz-transport__btn--on { background: var(--accent-color); border-color: var(--accent-color); color: #fff; }
+.pz-transport__btn--on { background: var(--accent-color); border-color: var(--accent-color); color: var(--accent-text, #fff); }
 
 /* Add row and pickers */
 .pz-addrow { display: flex; flex-direction: column; gap: 8px; }

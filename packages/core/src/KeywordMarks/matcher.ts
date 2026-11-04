@@ -28,6 +28,13 @@ function verseInScope(set: KeywordSet, verseId: number): boolean {
 
 const matchForms = findPhraseMatches;
 
+function withLabelForm(forms: string[], label: string | undefined): string[] {
+  const name = (label ?? '').trim();
+  if (!name) return forms;
+  const key = name.toLowerCase();
+  return forms.some((f) => f.trim().toLowerCase() === key) ? forms : [...forms, name];
+}
+
 function isAnchoredMark(mark: KeywordMark): boolean {
   return mark.rule.kind === 'connective';
 }
@@ -72,7 +79,9 @@ export function matchKeywordMarks(input: ChapterInput, sets: KeywordSet[]): Matc
       if (rule.kind === 'strongs' && !haveRows) needsInterlinear = true;
       if (isAnchoredMark(mark) && !haveRows) wantsInterlinear = true;
       const wanted = rule.kind === 'strongs' ? new Set(rule.numbers.flatMap((n) => normalizeStrongs(n))) : null;
-      const forms = rule.kind === 'word' ? rule.forms
+      // A word mark's Name is matched too, so a name typed without repeating it
+      // under "Word forms" still marks that word.
+      const forms = rule.kind === 'word' ? withLabelForm(rule.forms, mark.label)
         : rule.kind === 'phrase' ? [rule.text]
         : rule.kind === 'connective' ? connectiveForms(rule.category, language) : [];
       const matchCase = (rule.kind === 'word' || rule.kind === 'phrase') && !!rule.matchCase;

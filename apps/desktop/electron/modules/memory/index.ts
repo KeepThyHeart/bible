@@ -27,6 +27,7 @@ import { IpcKnownError } from '../../ipc/result';
 import type { UserDataRestoredEvent } from '../../services/userDataEvents';
 import type { FeatureMainModule, MainModuleDeps, ModuleIpc } from '../FeatureMainModule';
 import { createMemoryReminderBridge, type MemoryReminderBridge } from './reminderSource';
+import { takePendingNotices } from './notices';
 import type { MemoryRuntime } from './runtime';
 
 export type StartMemory = (
@@ -165,6 +166,16 @@ export function createMemoryMainModule(envOverrides: Partial<MemoryMainEnv> = {}
       }
       return runtime;
     };
+
+    // Collected by a visible window; needs no core (the notices sit in the user database).
+    ipc.handle('takeNotices', async () => {
+      try {
+        return takePendingNotices(await env.getUserDb(), now());
+      } catch (err) {
+        deps.log.warn('[memory] notices unavailable:', err);
+        return [];
+      }
+    });
 
     for (const method of MEMORY_API_METHODS) {
       ipc.handle(method, async (...args: unknown[]) => {

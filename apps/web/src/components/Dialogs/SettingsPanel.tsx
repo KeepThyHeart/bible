@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'preact/hooks';
+import { formatVersionLine } from '../../utils/appVersion';
 import { useSyncExternalStore } from 'preact/compat';
 import { SettingsForm } from '@bible/ui';
 import { useTranslation } from 'react-i18next';
@@ -13,12 +14,14 @@ import { moduleStore } from '../../stores/moduleStore';
 import { bibleStore } from '../../stores/bibleStore';
 import { useStore } from '../../hooks/useStore';
 import { useEscapeKey } from '../../hooks/useEscapeKey';
+import { useModalFocus } from '../../hooks/useModalFocus';
 import { AppsSettingsTab } from './AppsSettingsTab';
 import { useLocalizer } from '../../hooks/useLocalizer';
 import { offlineStorageManager } from '../../offline/sharedInstances';
 import { API_BASE } from '../../utils/apiUrl';
 import { resetAppCache } from '../../utils/appUpdate';
 import { pwaFlag } from '../../utils/clientConfig';
+import { remoteConsentStore } from '../../search/remote/consentStore';
 import type { PreferencesSectionContribution } from '@bible/core/browser';
 import { modulePoints } from '../../modules/moduleHost';
 import { ContributedSection } from './ContributedSection';
@@ -71,12 +74,16 @@ interface SettingsPanelProps {
 export function SettingsPanel({ isOpen, onClose, scrollToSection }: SettingsPanelProps) {
   const { t } = useTranslation();
   const localizer = useLocalizer();
+  const remoteConsentConfigured = useStore(remoteConsentStore, () => remoteConsentStore.configured);
+  const remoteConsentStatus = useStore(remoteConsentStore, () => remoteConsentStore.status);
+  const remoteConsentAt = useStore(remoteConsentStore, () => remoteConsentStore.decidedAt);
   // Registry-driven language picker (see the "about" tab below): recomputed
   // on every render, which is cheap (a handful of `meta.json`s) and correct,
   // since react-i18next already re-renders this component on language change.
   const localeOptions = selectableLocaleInfos(i18n.language);
-  const betaBadgeLabel = t('settings.language.localeBetaBadge');
-  const draftBadgeLabel = t('settings.language.localeDraftBadge');
+  // Every locale not at `complete` (English) is machine-drafted and unreviewed:
+  // it gets the same "Preview" label, driven by `meta.json` `locale.status`.
+  const previewBadgeLabel = t('settings.language.localePreviewBadge');
   const anyDraftListed = localeOptions.some((info) => info.status === 'draft');
   const anyBetaListed = localeOptions.some((info) => info.status === 'beta');
   const theme = useStore(settingsStore, () => settingsStore.theme);
@@ -143,7 +150,9 @@ export function SettingsPanel({ isOpen, onClose, scrollToSection }: SettingsPane
     }
   }, [isOpen, scrollToSection]);
 
+  const dialogRef = useRef<HTMLDivElement>(null);
   useEscapeKey(isOpen, onClose);
+  useModalFocus(isOpen, dialogRef);
 
   // Fetch topical modules when modules tab is shown
   useEffect(() => {
@@ -228,14 +237,18 @@ export function SettingsPanel({ isOpen, onClose, scrollToSection }: SettingsPane
   return (
     <div class="settings-panel-overlay" onClick={onClose}>
       <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="settings-panel-title"
         class="settings-panel settings-panel--tabs"
         style={{ '--ui-font-scale': frozenUiScale.current } as Record<string, string>}
         onClick={(e) => e.stopPropagation()}
       >
         <div class="settings-panel__header">
-          <h3><i class="fa-solid fa-gear" style={{ marginInlineEnd: '8px', opacity: 0.5 }} />{t('settings.title')}</h3>
-          <button class="settings-panel__close" onClick={onClose}>
-            <i class="fa-solid fa-xmark" />
+          <h3 id="settings-panel-title"><i class="fa-solid fa-gear" aria-hidden="true" style={{ marginInlineEnd: '8px', opacity: 0.5 }} />{t('settings.title')}</h3>
+          <button class="settings-panel__close" onClick={onClose} aria-label={t('common.close')} title={t('common.close')}>
+            <i class="fa-solid fa-xmark" aria-hidden="true" />
           </button>
         </div>
         <div class="settings-panel__layout">
@@ -458,7 +471,32 @@ export function SettingsPanel({ isOpen, onClose, scrollToSection }: SettingsPane
 
             {activeTab === 'modules' && (
               <div class="settings-panel__section" data-section="modules">
-                <h4 class="settings-panel__section-title">{t('settings.modules.commentary')}</h4>
+                {remoteConsentConfigured && (
+                  <>
+                    <h4 class="settings-panel__section-title">{t('remoteSemantic.settings.title')}</h4>
+                    <label class="settings-panel__field settings-panel__field--checkbox">
+                      <input
+                        type="checkbox"
+                        data-testid="remote-semantic-toggle"
+                        checked={remoteConsentStatus !== 'declined'}
+                        onChange={(e) => (e.target as HTMLInputElement).checked
+                          ? remoteConsentStore.reenable()
+                          : remoteConsentStore.withdraw()}
+                      />
+                      <span>{t('remoteSemantic.settings.toggle')}</span>
+                    </label>
+                    <div class="settings-panel__field-hint" data-testid="remote-semantic-status">
+                      {remoteConsentStatus === 'granted'
+                        ? t('remoteSemantic.settings.statusGranted', {
+                            date: remoteConsentAt ? localizer.formatDate(new Date(remoteConsentAt), { dateStyle: 'medium' }) : '',
+                          })
+                        : remoteConsentStatus === 'declined'
+                          ? t('remoteSemantic.settings.statusDeclined')
+                          : t('remoteSemantic.settings.statusUnset')}
+                    </div>
+                  </>
+                )}
+                <h4 class="settings-panel__section-title" style={remoteConsentConfigured ? { marginTop: '16px' } : undefined}>{t('settings.modules.commentary')}</h4>
                 <label class="settings-panel__field settings-panel__field--checkbox">
                   <input
                     type="checkbox"
@@ -481,7 +519,7 @@ export function SettingsPanel({ isOpen, onClose, scrollToSection }: SettingsPane
                     </label>
                   ))
                 ) : (
-                  <div style={{ color: 'var(--text-muted)', fontSize: 'calc(12px * var(--ui-font-scale, 1))' }}>
+                  <div style={{ color: 'var(--text-muted)', fontSize: 'calc(0.75rem * var(--ui-font-scale, 1))' }}>
                     {t('settings.modules.loadingTopical')}
                   </div>
                 )}
@@ -541,22 +579,23 @@ export function SettingsPanel({ isOpen, onClose, scrollToSection }: SettingsPane
                     }}
                   >
                     {localeOptions.map((info) => (
-                      <option key={info.code} value={info.code}>
+                      <option
+                        key={info.code}
+                        value={info.code}
+                        title={info.status !== 'complete' ? t('settings.language.localePreviewTooltip') : undefined}
+                        data-locale-status={info.status}
+                      >
                         {info.code === 'en'
                           ? t('settingsPanel.english')
-                          : info.status === 'beta'
-                            ? `${info.nativeName} (${betaBadgeLabel})`
-                            : info.status === 'draft'
-                              ? `${info.nativeName} (${draftBadgeLabel})`
-                              : info.nativeName}
+                          : info.status !== 'complete'
+                            ? `${info.nativeName} (${previewBadgeLabel})`
+                            : info.nativeName}
                       </option>
                     ))}
                   </select>
-                  {anyDraftListed && (
-                    <p class="settings-panel__hint">{t('settings.language.draftNote')}</p>
-                  )}
-                  {!anyDraftListed && anyBetaListed && (
-                    <p class="settings-panel__hint">{t('settings.language.betaNote')}</p>
+                  {/* Every non-English language is one "Preview" state for 1.0, so the note explains that label. */}
+                  {(anyDraftListed || anyBetaListed) && (
+                    <p class="settings-panel__hint">{`${previewBadgeLabel}: ${t('settings.language.localePreviewTooltip')}`}</p>
                   )}
                   {!anyDraftListed && !anyBetaListed && (
                     <p class="settings-panel__hint">{t('settings.language.moreComingNote')}</p>
@@ -580,6 +619,8 @@ export function SettingsPanel({ isOpen, onClose, scrollToSection }: SettingsPane
                       data-testid="reset-app-cache"
                       disabled={resettingCache}
                       onClick={() => {
+                        // Clearing the cache reloads the page: ask first.
+                        if (!window.confirm(t('settings.about.resetCacheConfirm'))) return;
                         setResettingCache(true);
                         void resetAppCache();
                       }}
@@ -592,8 +633,14 @@ export function SettingsPanel({ isOpen, onClose, scrollToSection }: SettingsPane
                 )}
                 <div class="settings-panel__about">
                   <p class="settings-panel__about-name">{t('settings.about.appName')}</p>
+                  <p class="settings-panel__about-version" data-testid="app-version">
+                    {formatVersionLine(t('settings.about.versionLine'))}
+                  </p>
                   <p class="settings-panel__about-desc">
                     {t('settings.about.description')}
+                  </p>
+                  <p class="settings-panel__about-desc">
+                    {t('settings.about.desktopOnly')}
                   </p>
                   <p class="settings-panel__about-license">
                     <i class="fa-solid fa-scale-balanced" style={{ marginInlineEnd: '6px', opacity: 0.6 }} />

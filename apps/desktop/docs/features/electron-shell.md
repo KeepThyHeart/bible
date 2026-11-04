@@ -95,6 +95,7 @@ A handful of user-visible values are baked in at build time rather than hard-cod
 | `BIBLE_ISSUE_REPORT_URL` | `issueReportTarget` | "Report an Issue" command and the Help panel's issue row |
 | `BIBLE_MODULE_CATALOG_URL` | `moduleCatalogUrl` | Seeded repository / Repository Settings placeholder |
 | `BIBLE_DOCS_URL` | `docsUrl` | The Help panel's "Documentation website" row, opened via the `app:open-external` IPC. Defaults to `DEFAULT_DOCS_URL` (`https://docs.bible.keepthyheart.com/desktop/`); `none` removes the row |
+| `BIBLE_REMOTE_SEMANTIC_URL` / `BIBLE_REMOTE_SEMANTIC_API_KEY` | `remoteSemantic.url` / `.apiKey` | Online meaning search (see [search.md](search.md)). Defined for the **main bundle only**; the preload hands the renderer `toRendererAppConfig(APP_CONFIG)`, which blanks both. Invalid (non-http(s)) URL = not configured |
 | `BIBLE_ABOUT_TEXT` | `aboutText` | The blurb at the top of the Help panel; passed through untranslated |
 
 Three further build-time variables are read by `electron.vite.config.ts` but do not belong to `AppConfig`: `BIBLE_BUILD_ID` (`__BIBLE_BUILD_ID__`, the source revision attached to diagnostics reports) and `BIBLE_DIAGNOSTICS_URL` / `BIBLE_DIAGNOSTICS_TOKEN`, which land in `electron/config/constants.ts`. See [diagnostics-reporting.md](diagnostics-reporting.md).

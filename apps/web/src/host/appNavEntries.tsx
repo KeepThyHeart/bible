@@ -44,9 +44,13 @@ export function toNavEntries(items: readonly NavItem[], t: Translate): AppNavEnt
 
 export function useNavEntries(items: readonly NavItem[]): AppNavEntry[] {
   const { t, i18n } = useTranslation();
+  // `t` and the language can change before the language's catalog has loaded (a stored non-English
+  // choice at boot), which would freeze English labels in the memo. A catalog key's own text changes
+  // when the catalog arrives, so it is part of the key.
+  const probe = t('apps.rail.label', 'Apps');
   return useMemo(
     () => toNavEntries(items, (key, fallback) => t(key, fallback)),
     // `t` changes identity with the language.
-    [items, i18n?.language, t],
+    [items, i18n?.language, t, probe],
   );
 }

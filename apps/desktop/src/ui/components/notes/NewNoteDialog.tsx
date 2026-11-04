@@ -10,7 +10,12 @@ export interface NoteTemplate {
   content: string;
 }
 
-function buildTemplates(t: (key: string) => string, localizer: Localizer): NoteTemplate[] {
+function escapeHtml(text: string): string {
+  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function buildTemplates(t: (key: string) => string, localizer: Localizer, noteTitle: string): NoteTemplate[] {
+  const typedTitle = escapeHtml(noteTitle.trim());
   const verseStudy =
     '<h2>' + t('newNoteDialog.tplVerseStudy.heading') + '</h2>' +
     '<p><strong>' + t('newNoteDialog.tplVerseStudy.passageLabel') + '</strong> </p>' +
@@ -19,7 +24,7 @@ function buildTemplates(t: (key: string) => string, localizer: Localizer): NoteT
     '<h3>' + t('newNoteDialog.tplVerseStudy.application') + '</h3><p></p>';
 
   const expository =
-    '<h1>' + t('newNoteDialog.tplExpository.title') + '</h1>' +
+    '<h1>' + (typedTitle || t('newNoteDialog.tplExpository.title')) + '</h1>' +
     '<p><strong>' + t('newNoteDialog.tplExpository.textLabel') + '</strong> </p>' +
     '<p><strong>' + t('newNoteDialog.tplExpository.themeLabel') + '</strong> </p>' +
     '<hr><h2>' + t('newNoteDialog.tplExpository.introduction') + '</h2><p></p>' +
@@ -29,7 +34,7 @@ function buildTemplates(t: (key: string) => string, localizer: Localizer): NoteT
     '<h2>' + t('newNoteDialog.tplExpository.conclusion') + '</h2><p></p>';
 
   const topical =
-    '<h1>' + t('newNoteDialog.tplTopical.topicLabel') + '</h1>' +
+    '<h1>' + t('newNoteDialog.tplTopical.topicLabel') + typedTitle + '</h1>' +
     '<h3>' + t('newNoteDialog.tplTopical.keyVerses') + '</h3><ul><li></li></ul>' +
     '<h3>' + t('newNoteDialog.tplTopical.oldTestament') + '</h3><p></p>' +
     '<h3>' + t('newNoteDialog.tplTopical.newTestament') + '</h3><p></p>' +
@@ -98,7 +103,7 @@ const NewNoteDialog: React.FC<NewNoteDialogProps> = ({ isOpen, onConfirm, onCanc
   const [title, setTitle] = useState('');
   const [selectedTemplate, setSelectedTemplate] = useState('blank');
 
-  const templates = useMemo(() => buildTemplates(t, localizer), [t, localizer]);
+  const templates = useMemo(() => buildTemplates(t, localizer, title), [t, localizer, title]);
 
   useEffect(() => {
     if (isOpen) {

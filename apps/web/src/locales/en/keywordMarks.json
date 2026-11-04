@@ -4,6 +4,7 @@
     "button": "Keywords",
     "buttonTitle": "Keyword marks",
     "toggle": "Keyword marks",
+    "showMarks": "Show marks",
     "empty": "No keywords match in this chapter.",
     "count": "{count, plural, one {# occurrence} other {# occurrences}}",
     "show": "Show {label}",

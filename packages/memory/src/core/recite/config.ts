@@ -19,6 +19,7 @@ export const DEFAULT_RECITE_SETTINGS: ReciteSettings = {
   autoAdvance: true,
   voiceCommands: true,
   hintDelayMs: 6000,
+  reciteReference: 'off',
 };
 
 export const LOOP = {

@@ -18,6 +18,7 @@ import type { LoopPhase, ReciteAction, ReciteResultView, ReciteStateView, Recite
 import { type Child, button, el, focusQuietly, replace } from './dom';
 import { breadcrumb, errorBanner } from './components';
 import { formatDue, formatScore } from './format';
+import { tr } from './i18n';
 
 export interface ReciteCallbacks {
   /** Sends a `reciteControl` action. */
@@ -39,33 +40,55 @@ export interface ReciteScreen {
 export function phaseAnnouncement(state: ReciteStateView): string {
   if (state.message) return state.message;
   switch (state.phase) {
-    case 'announcing': return 'Get ready';
-    case 'ready': return 'Ready';
-    case 'listening': return 'Listening';
-    case 'hinting': return 'Here is a hint';
-    case 'scoring': return 'Scoring';
-    case 'feedback': return state.result ? `Scored ${formatScore(state.result.score)}` : 'Scored';
-    case 'paused': return 'Paused';
-    case 'summary': return 'All done';
-    case 'done': return 'All done';
-    case 'error': return state.error?.message ?? 'Something went wrong';
+    case 'announcing': return tr('memory.ui.settings.getReady', 'Get ready');
+    case 'ready': return tr('memory.ui.settings.ready', 'Ready');
+    case 'listening': return tr('memory.ui.settings.listening', 'Listening');
+    case 'hinting': return tr('memory.ui.settings.hereIsHint', 'Here is a hint');
+    case 'scoring': return tr('memory.ui.settings.scoring', 'Scoring');
+    case 'feedback': return state.result?.practiceOnly ? tr('memory.ui.settings.practiceOnlyShort', 'Practice only. Nothing was graded.') : state.result ? tr('memory.ui.settings.scoredWith', 'Scored {score}', { score: formatScore(state.result.score) }) : tr('memory.ui.settings.scored', 'Scored');
+    case 'paused': return tr('memory.ui.settings.paused', 'Paused');
+    case 'summary': return tr('memory.ui.settings.allDone', 'All done');
+    case 'done': return tr('memory.ui.settings.allDone', 'All done');
+    case 'error': return state.error?.message ?? tr('memory.ui.settings.wentWrong', 'Something went wrong');
   }
 }
 
+/** Getters, so the labels follow the UI language at render time rather than at import. */
 export const VERDICT_LABEL: Record<ReciteVerdict, string | null> = {
   correct: null,
   variant: null,
-  near: 'close',
-  swapped: 'swapped',
-  wrong: 'wrong',
-  missed: 'missed',
-  hinted: 'hinted',
+  get near() { return tr('memory.ui.settings.verdictNear', 'close'); },
+  get swapped() { return tr('memory.ui.settings.verdictSwapped', 'swapped'); },
+  get wrong() { return tr('memory.ui.settings.verdictWrong', 'wrong'); },
+  get missed() { return tr('memory.ui.settings.verdictMissed', 'missed'); },
+  get hinted() { return tr('memory.ui.settings.verdictHinted', 'hinted'); },
 };
 
 /** The reference passage's words, flattened in verse order (the worker's indexing). */
 function expectedWords(state: ReciteStateView): string[] | null {
   if (!state.verses) return null;
   return state.verses.flatMap((v) => v.words);
+}
+
+/**
+ * One line that follows the score. "Well learned" is about the passage over time and is only
+ * said alongside a good score: a poor attempt never gets congratulations.
+ */
+export function scoreMessage(result: ReciteResultView): string {
+  const s = result.score;
+  if (s >= 0.995) return tr('memory.ui.settings.msgPerfect', 'Perfect.');
+  if (s >= 0.9) return result.passageWellLearned
+    ? tr('memory.ui.settings.wellLearned', 'Well learned. This passage is solid.')
+    : tr('memory.ui.settings.msgExcellent', 'Excellent. Nearly word-perfect.');
+  if (s >= 0.75) return tr('memory.ui.settings.msgGood', 'Good. A few words to firm up.');
+  if (s >= 0.5) return tr('memory.ui.settings.msgGettingThere', 'Getting there. Check the marked words and try again.');
+  return tr('memory.ui.settings.msgKeepPracticing', 'Keep practicing. Read it over and try again.');
+}
+
+function referenceResultText(ref: { text: string; score: number }): string {
+  if (ref.score >= 0.75) return tr('memory.ui.settings.referenceGood', 'Reference: {text} (said correctly)', { text: ref.text });
+  if (ref.score >= 0.4) return tr('memory.ui.settings.referencePartly', 'Reference: {text} (partly right)', { text: ref.text });
+  return tr('memory.ui.settings.referenceMissed', 'Reference: {text} (not said)', { text: ref.text });
 }
 
 /** The word-by-word diff. Exported for the hands-free summary and tests. */
@@ -84,7 +107,8 @@ export function renderDiff(state: ReciteStateView, result: ReciteResultView): HT
       items.push(
         el('span', { class: 'sm-recite-word sm-recite-extra', attrs: { 'data-verdict': 'extra' } }, [
           `+${heard}`,
-          el('span', { class: 'sm-sr-only', text: ' (extra)' }),
+          ' ',
+          el('span', { class: 'sm-recite-tag', text: tr('memory.ui.settings.extra', '(extra)') }),
         ]),
         ' ',
       );
@@ -94,41 +118,52 @@ export function renderDiff(state: ReciteStateView, result: ReciteResultView): HT
   pushExtras(-1);
   for (const w of result.words) {
     const text = words?.[w.index] ?? w.heard ?? '…';
-    const label = VERDICT_LABEL[w.verdict];
+    const label = w.peeked ? null : VERDICT_LABEL[w.verdict];
+    // A word that was heard differently shows both: what was said, then the correct word.
+    const differs = !w.peeked && (w.verdict === 'near' || w.verdict === 'wrong' || w.verdict === 'swapped') && w.heard !== undefined && w.heard !== '';
     items.push(
-      el('span', { class: `sm-recite-word sm-recite-${w.verdict}`, attrs: { 'data-verdict': w.verdict } }, [
+      el('span', { class: `sm-recite-word sm-recite-${w.verdict}${w.peeked ? ' sm-recite-peeked' : ''}`, attrs: { 'data-verdict': w.verdict, ...(w.peeked ? { 'data-peeked': '1' } : {}) } }, [
+        differs ? el('span', { class: 'sm-recite-said', text: w.heard! }) : null,
+        differs ? ' \u2192 ' : null,
         text,
         label ? ' ' : null,
         label ? el('span', { class: 'sm-recite-tag', text: `(${label})` }) : null,
-        w.verdict === 'near' && w.heard ? el('span', { class: 'sm-sr-only', text: ` heard ${w.heard}` }) : null,
+        w.peeked ? ' ' : null,
+        w.peeked ? el('span', { class: 'sm-recite-tag', text: `(${tr('memory.ui.settings.notGraded', 'not graded')})` }) : null,
       ]),
       ' ',
     );
     pushExtras(w.index);
   }
 
-  return el('p', { class: 'sm-recite-diff', attrs: { 'aria-label': 'Your recitation, word by word' } }, items);
+  return el('p', { class: 'sm-recite-diff', attrs: { 'aria-label': tr('memory.ui.settings.yourRecitation', 'Your recitation, word by word') } }, items);
 }
 
 function renderResult(state: ReciteStateView, result: ReciteResultView, cb: ReciteCallbacks): HTMLElement {
   const now = (cb.now ?? Date.now)();
   const hasNext = state.remaining > 0 || state.source === 'due';
   return el('div', { class: 'sm-recite-result' }, [
-    el('p', { class: 'sm-recite-score' }, [
-      el('span', { class: 'sm-recite-score-num', text: formatScore(result.score) }),
-      el('span', { class: 'sm-recite-level', text: ` Level ${result.level}` }),
-    ]),
+    result.practiceOnly
+      ? el('p', { class: 'sm-recite-learned', text: tr('memory.ui.settings.practiceOnly', 'Practice only: you saw the whole text, so nothing was graded or recorded.') })
+      : el('p', { class: 'sm-recite-score' }, [
+          el('span', { class: 'sm-recite-score-num', text: formatScore(result.score) }),
+          el('span', { class: 'sm-recite-level', text: ` ${tr('memory.ui.settings.level', 'Level {level}', { level: result.level })}` }),
+        ]),
     result.nextDueAt !== null ? el('p', { class: 'sm-hint', text: formatDue(result.nextDueAt, now) }) : null,
-    result.passageWellLearned
-      ? el('p', { class: 'sm-recite-learned', text: 'Well learned. This passage is solid.' })
+    result.practiceOnly ? null : el('p', { class: `sm-recite-learned${result.score < 0.75 ? ' sm-recite-learned-low' : ''}`, attrs: { 'data-testid': 'recite-message' }, text: scoreMessage(result) }),
+    result.reference
+      ? el('p', { class: 'sm-hint', attrs: { 'data-testid': 'recite-reference-result' }, text: referenceResultText(result.reference) })
+      : null,
+    result.words.some((w) => w.peeked) && !result.practiceOnly
+      ? el('p', { class: 'sm-hint', text: tr('memory.ui.settings.peekedNote', 'Words you peeked at are marked "not graded" and left out of the score.') })
       : null,
     renderDiff(state, result),
     result.missedQuote.length > 0
-      ? el('p', { class: 'sm-hint', text: `Missed: “${result.missedQuote.join(' ')}”` })
+      ? el('p', { class: 'sm-hint', text: tr('memory.ui.settings.missedQuote', 'Missed: “{quote}”', { quote: result.missedQuote.join(' ') }) })
       : null,
     el('div', { class: 'sm-exercise-actions' }, [
-      button('Again', () => cb.onControl('again'), { class: 'sm-btn' }),
-      button(hasNext ? 'Next' : 'Done', () => (hasNext ? cb.onControl('next') : cb.onExit()), {
+      button(tr('memory.ui.settings.again', 'Again'), () => cb.onControl('again'), { class: 'sm-btn' }),
+      button(hasNext ? tr('memory.ui.settings.next', 'Next') : tr('memory.ui.settings.done', 'Done'), () => (hasNext ? cb.onControl('next') : cb.onExit()), {
         class: 'sm-btn sm-btn-primary',
       }),
     ]),
@@ -137,25 +172,31 @@ function renderResult(state: ReciteStateView, result: ReciteResultView, cb: Reci
 
 /** "Card 2 of 5" style progress for a due-queue run (never "0 done, 1 to go"). */
 export function progressText(state: ReciteStateView): string {
-  return `Card ${state.done + 1} of ${state.done + state.remaining + 1}`;
+  return tr('memory.ui.settings.cardProgress', 'Card {n} of {total}', { n: state.done + 1, total: state.done + state.remaining + 1 });
 }
 
 function talkButton(phase: LoopPhase, cb: ReciteCallbacks): HTMLButtonElement | null {
   if (phase === 'listening') {
-    return button('Stop', () => cb.onControl('stop'), {
+    return button(tr('memory.ui.settings.stop', 'Stop'), () => cb.onControl('stop'), {
       class: 'sm-btn sm-btn-primary sm-btn-large sm-recite-talk sm-recite-talk-on',
       attrs: { 'aria-keyshortcuts': 'Space' },
     });
   }
   if (phase === 'ready' || phase === 'hinting' || phase === 'paused' || phase === 'announcing' || phase === 'scoring') {
     const enabled = phase === 'ready' || phase === 'hinting' || phase === 'paused';
-    return button('Talk', () => cb.onControl('listen'), {
+    return button(tr('memory.ui.settings.talk', 'Talk'), () => cb.onControl('listen'), {
       class: 'sm-btn sm-btn-primary sm-btn-large sm-recite-talk',
       disabled: !enabled,
       attrs: { 'aria-keyshortcuts': 'Space' },
     });
   }
   return null;
+}
+
+function referencePrompt(r: { before: boolean; after: boolean; text: string }): string {
+  if (r.before && r.after) return tr('memory.ui.settings.refBeforeAfter', 'Say the reference ({text}) first and again at the end.', { text: r.text });
+  if (r.before) return tr('memory.ui.settings.refBefore', 'Say the reference ({text}) first.', { text: r.text });
+  return tr('memory.ui.settings.refAfter', 'Say the reference ({text}) at the end.', { text: r.text });
 }
 
 export function createReciteView(initial: ReciteStateView, cb: ReciteCallbacks): ReciteScreen {
@@ -200,7 +241,7 @@ export function createReciteView(initial: ReciteStateView, cb: ReciteCallbacks):
   function draw(): void {
     root.setAttribute('data-phase', state.phase);
     replace(crumb, [
-      breadcrumb({ crumbs: [{ label: 'Home', onClick: () => cb.onExit() }, { label: 'Recite aloud' }] }),
+      breadcrumb({ crumbs: [{ label: tr('memory.ui.settings.home', 'Home'), onClick: () => cb.onExit() }, { label: tr('memory.ui.settings.reciteAloud', 'Recite aloud') }] }),
     ]);
 
     const talk = talkButton(state.phase, cb);
@@ -213,38 +254,59 @@ export function createReciteView(initial: ReciteStateView, cb: ReciteCallbacks):
         ? el('p', { class: 'sm-hint', text: progressText(state) })
         : null,
       state.error ? errorBanner(state.error.message) : null,
-      state.phase === 'error' && !state.error ? errorBanner('Something went wrong.') : null,
+      state.phase === 'paused' && state.message
+        ? el('p', { class: 'sm-hint', attrs: { 'data-testid': 'recite-pause-message' }, text: state.message })
+        : null,
+      state.phase === 'error' && !state.error ? errorBanner(tr('memory.ui.settings.wentWrongPeriod', 'Something went wrong.')) : null,
       showVerses
         ? el('p', { class: 'sm-recite-hint-text' }, [state.verses!.flatMap((v) => v.words).join(' ')])
+        : null,
+      state.result === null && state.referenceText
+        ? el('p', { class: 'sm-hint', attrs: { 'data-testid': 'recite-reference-prompt' }, text: referencePrompt(state.referenceText) })
+        : null,
+      state.result === null && state.peekText
+        ? el('p', { class: 'sm-recite-hint-text', attrs: { 'data-testid': 'recite-peek-text' } }, [
+            state.peekText,
+            ' ',
+            el('span', { class: 'sm-recite-tag', text: `(${tr('memory.ui.settings.notGraded', 'not graded')})` }),
+          ])
+        : null,
+      state.phase === 'ready' && !state.heard.length && state.result === null
+        ? el('div', { class: 'sm-exercise-actions sm-recite-peek-row' }, [
+            !state.peeked
+              ? button(tr('memory.ui.settings.peekFirstWords', 'Peek at the first words'), () => cb.onControl('peek'), { class: 'sm-btn sm-btn-small sm-btn-quiet', attrs: { 'data-testid': 'recite-peek' } })
+              : null,
+            button(tr('memory.ui.settings.peekWholeText', 'Show the whole text'), () => cb.onControl('peekAll'), { class: 'sm-btn sm-btn-small sm-btn-quiet', attrs: { 'data-testid': 'recite-peek-all' } }),
+          ])
         : null,
       talk
         ? el('div', { class: 'sm-recite-talk-row' }, [
             talk,
             state.phase === 'listening'
-              ? el('span', { class: 'sm-recite-listening', text: 'Listening…' })
+              ? el('span', { class: 'sm-recite-listening', text: tr('memory.ui.settings.listeningEllipsis', 'Listening…') })
               : null,
           ])
         : null,
       !state.result && (state.phase === 'listening' || state.phase === 'hinting' || heardText)
-        ? el('p', { class: 'sm-recite-heard', attrs: { 'aria-label': 'Words heard so far' } }, [
-            heardText || (state.phase === 'listening' ? 'Listening…' : ''),
+        ? el('p', { class: 'sm-recite-heard', attrs: { 'aria-label': tr('memory.ui.settings.wordsHeard', 'Words heard so far') } }, [
+            heardText || (state.phase === 'listening' ? tr('memory.ui.settings.listeningEllipsis', 'Listening…') : ''),
           ])
         : null,
       state.phase === 'listening' || state.phase === 'ready'
         ? el('div', { class: 'sm-exercise-actions' }, [
-            button('Hint', () => cb.onControl('hint'), { class: 'sm-btn sm-btn-small sm-btn-quiet' }),
+            button(tr('memory.ui.settings.hint', 'Hint'), () => cb.onControl('hint'), { class: 'sm-btn sm-btn-small sm-btn-quiet' }),
           ])
         : null,
       state.result ? renderResult(state, state.result, cb) : null,
       state.phase === 'error'
         ? el('div', { class: 'sm-exercise-actions' }, [
-            button('Try again', () => retry(), { class: 'sm-btn' }),
-            button('Back', () => cb.onExit(), { class: 'sm-btn sm-btn-quiet' }),
+            button(tr('memory.ui.settings.tryAgain', 'Try again'), () => retry(), { class: 'sm-btn' }),
+            button(tr('memory.ui.settings.back', 'Back'), () => cb.onExit(), { class: 'sm-btn sm-btn-quiet' }),
           ])
         : null,
       state.phase === 'summary' || state.phase === 'done'
         ? el('div', { class: 'sm-exercise-actions' }, [
-            button('Done', () => cb.onExit(), { class: 'sm-btn sm-btn-primary' }),
+            button(tr('memory.ui.settings.done', 'Done'), () => cb.onExit(), { class: 'sm-btn sm-btn-primary' }),
           ])
         : null,
     ]);

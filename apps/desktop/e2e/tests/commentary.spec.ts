@@ -154,7 +154,10 @@ test.describe('Commentary Pane', () => {
     test('re-runs the Overview for the newly selected verse', async ({ window }) => {
       // Expand a module, then move the selection: the preview must follow the
       // new verse rather than keep showing the previous verse's commentary.
-      const first = moduleRows(window).first();
+      // Barnes, by name: it has a note per verse. The first row is whichever
+      // commentary sorts first (Matthew Henry in the `tests` modules), which
+      // writes one note for John 3:1-21, so its preview rightly stays the same.
+      const first = moduleRows(window).filter({ hasText: 'Barnes' }).first();
       await expect(first).toBeVisible({ timeout: 15000 });
       await first.click({ force: true });
 

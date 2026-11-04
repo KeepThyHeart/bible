@@ -32,7 +32,7 @@
   "productName": "Keep Thy Heart Bible Reader",
   "productNameShort": "Keep Thy Heart",
   "tagline": "An open-source Bible study app for desktop and web",
-  "appId": "com.keepthyheartbiblereader-web.app",
+  "appId": "com.keepthyheart.bible.desktop",
 
   "themeColor": "#2563eb",
   "backgroundColor": "#ffffff",
@@ -46,14 +46,11 @@
   "downloadsUrl": "https://github.com/KeepThyHeart/bible/releases/latest",
   "moduleRepositoryUrl": "https://modules.bible.keepthyheart.com/",
 
-  "supportEmail": "support@bible-study.example.com",
+  "supportEmail": "keepthyheart@outlook.com",
 
   "license": "GPL-3.0-or-later",
   "licenseName": "GNU General Public License v3.0 or later",
   "copyrightHolder": "Peter Rankin <psrankin@outlook.com>",
 
-  "_undecided": [
-    "appId",
-    "supportEmail"
-  ]
+  "_undecided": []
 }

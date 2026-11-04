@@ -12,6 +12,7 @@
  * ladder cannot quietly become a change to persistence.
  */
 
+import { tc } from './messages';
 import type { MemorySql } from './ports';
 import type {
   AnalyticsView,
@@ -208,7 +209,7 @@ function stateLabelFor(level: number): string {
 const DEFAULT_ANSWER_MODE: AnswerMode = 'firstLetter';
 const SETTING_DEFAULT_ANSWER_MODE = 'defaultAnswerMode';
 
-const DEFAULT_PASSAGE_SORT_ORDER: PassageSortOrder = 'bible';
+const DEFAULT_PASSAGE_SORT_ORDER: PassageSortOrder = 'need';
 const SETTING_PASSAGE_SORT_ORDER = 'passageSortOrder';
 const SETTING_SCOPE = 'practiceScope';
 
@@ -456,10 +457,10 @@ export class MemoryStore {
   async deleteCollection(id: number, movePassagesTo: number): Promise<void> {
     const countRow = await this.db.queryOne<{ n: number }>(`SELECT COUNT(*) AS n FROM memory_collection`);
     if ((countRow?.n ?? 0) <= 1) {
-      throw new Error('You cannot delete your only list. Create another list first.');
+      throw new Error(tc('memory.core.cannotDeleteOnlyList', 'You cannot delete your only list. Create another list first.'));
     }
     if (movePassagesTo === id) {
-      throw new Error('Choose a different list to move these passages to.');
+      throw new Error(tc('memory.core.chooseDifferentList', 'Choose a different list to move these passages to.'));
     }
 
     await this.db.transaction(async (tx) => {
@@ -510,7 +511,7 @@ export class MemoryStore {
     collectionId: number,
   ): Promise<{ passage: Passage; moved: boolean }> {
     const passage = await this.getPassage(passageId);
-    if (!passage) throw new Error('That passage no longer exists.');
+    if (!passage) throw new Error(tc('memory.core.passageNoLongerExists', 'That passage no longer exists.'));
     if (passage.collectionId === collectionId) return { passage, moved: false };
 
     const existing = await this.db.queryOne<PassageRow>(
@@ -563,7 +564,7 @@ export class MemoryStore {
 
   async getPassageSortOrder(): Promise<PassageSortOrder> {
     const value = await this.getSetting(SETTING_PASSAGE_SORT_ORDER);
-    return value === 'need' ? 'need' : DEFAULT_PASSAGE_SORT_ORDER;
+    return value === 'bible' || value === 'need' ? value : DEFAULT_PASSAGE_SORT_ORDER;
   }
 
   async setPassageSortOrder(order: PassageSortOrder): Promise<void> {
@@ -1320,6 +1321,14 @@ export function byCard(rows: readonly TierProgressRow[]): Map<number, TierProgre
 /** The collection-wide facts `applicableRungs` reads. */
 export interface ScopeFacts {
   siblingCount: number;
+  /**
+   * How many items the scope holds for the reference activities' minimum
+   * (`MIN_VERSES_FOR_REFERENCE_ACTIVITIES`). Each passage is ONE item, however
+   * many verses it spans: a passage is memorised as a whole, so a 30-verse
+   * chapter must not satisfy the 25-item minimum alone. Verses added one by
+   * one as their own references are separate passages and count one each.
+   * (Name kept for the wire format.)
+   */
   scopeVerseCount: number;
 }
 
@@ -1327,7 +1336,7 @@ export interface ScopeFacts {
 export function scopeOf(passages: readonly Passage[]): ScopeFacts {
   return {
     siblingCount: passages.length,
-    scopeVerseCount: passages.reduce((total, p) => total + p.verseCount, 0),
+    scopeVerseCount: passages.length,
   };
 }
 

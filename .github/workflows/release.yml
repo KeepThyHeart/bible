@@ -159,8 +159,14 @@ jobs:
       - name: Generate main.db template
         run: node scripts/init/index.js --target=desktop --no-modules
 
+      # 'base' ships only the core reader: the optional feature modules and the
+      # extension host are removed at build time. The list lives in
+      # apps/desktop/release-profiles.json; delete an id there to turn that
+      # feature back on in the next release.
       - name: Build installers
         shell: bash
+        env:
+          BIBLE_RELEASE_PROFILE: base
         run: |
           # Unset signing values that are empty (no secret, or not the mac job)
           # so electron-builder sees them as absent. See the job's `env`.

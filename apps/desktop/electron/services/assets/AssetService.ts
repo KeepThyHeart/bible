@@ -6,6 +6,7 @@
  * the unsigned index named by `BIBLE_ASSET_INDEX_URL`.
  */
 
+import { readFile } from 'node:fs/promises';
 import log from 'electron-log';
 import {
   AssetManager,
@@ -26,6 +27,8 @@ export interface AssetServiceDeps {
   gateway: INetworkGateway;
   /** Validated (absolute-url) manifests from the enabled catalogs. */
   getCatalogAssets: () => AssetManifest[];
+  /** Built-in manifests (no catalog needed), e.g. the speech models behind the `recite` flag. */
+  getBuiltinAssets?: () => AssetManifest[] | Promise<AssetManifest[]>;
   /** Env lookup seam (`BIBLE_ASSET_INDEX_URL`). */
   getDevIndexUrl?: () => string | undefined;
   /** Manager overrides for tests. */
@@ -115,6 +118,11 @@ export class AssetService {
         log.warn(`[Assets] could not load dev index ${devUrl}`, e);
       }
     }
+    try {
+      for (const a of (await this.deps.getBuiltinAssets?.()) ?? []) merged.set(a.id, a);
+    } catch (e) {
+      log.warn('[Assets] could not load built-in assets', e);
+    }
     for (const a of this.deps.getCatalogAssets()) merged.set(a.id, a);
     this.manager.setCatalog([...merged.values()]);
   }
@@ -178,6 +186,18 @@ export class AssetService {
     return this.store.pathOf(ref);
   }
 
+  /** True for an installed asset the renderer may read back (speech models only). */
+  async isReadable(id: string): Promise<boolean> {
+    await this.ensureReady();
+    return this.manager.installed(id)?.kind === 'stt-model';
+  }
+
+  /** Bytes of an installed file (via the installed manifest), else null. */
+  async readFile(id: string, path: string): Promise<Uint8Array | null> {
+    const abs = await this.resolvePath(id, path);
+    return abs ? new Uint8Array(await readFile(abs)) : null;
+  }
+
   /** Persist a pending last-used update (call on app quit). */
   async flush(): Promise<void> {
     await this.manager.flush();
@@ -197,6 +217,15 @@ export function getAssetService(): AssetService {
         return catalogs.getAvailableAssets();
       },
       getDevIndexUrl: () => process.env.BIBLE_ASSET_INDEX_URL || undefined,
+      getBuiltinAssets: async () => {
+        // Speech models (0151): only with the `recite` flag. The manifest helper is imported lazily
+        // so nothing of @bible/speech loads otherwise.
+        const { isReciteEnabled } = await import('../../modules/speech/permissions');
+        const { app } = await import('electron');
+        if (!isReciteEnabled(app.isPackaged)) return [];
+        const { whisperManifests } = await import('@bible/speech/models');
+        return whisperManifests(process.env.BIBLE_SPEECH_MODEL_BASE_URL || undefined);
+      },
     });
   }
   return instance;

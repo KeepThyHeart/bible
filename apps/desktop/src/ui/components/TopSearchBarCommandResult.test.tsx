@@ -18,6 +18,7 @@ describe('TopSearchBarCommandResult', () => {
     const onClick = vi.fn();
     render(
       <TopSearchBarCommandResult
+        index={0}
         command={mockCommand}
         isSelected={false}
         onClick={onClick}
@@ -31,6 +32,7 @@ describe('TopSearchBarCommandResult', () => {
     const onClick = vi.fn();
     render(
       <TopSearchBarCommandResult
+        index={0}
         command={mockCommand}
         isSelected={false}
         onClick={onClick}
@@ -44,6 +46,7 @@ describe('TopSearchBarCommandResult', () => {
     const onClick = vi.fn();
     render(
       <TopSearchBarCommandResult
+        index={0}
         command={mockCommand}
         isSelected={false}
         onClick={onClick}
@@ -57,6 +60,7 @@ describe('TopSearchBarCommandResult', () => {
     const onClick = vi.fn();
     render(
       <TopSearchBarCommandResult
+        index={0}
         command={mockCommand}
         isSelected={false}
         onClick={onClick}
@@ -77,6 +81,7 @@ describe('TopSearchBarCommandResult', () => {
 
     render(
       <TopSearchBarCommandResult
+        index={0}
         command={command}
         isSelected={false}
         onClick={onClick}
@@ -98,6 +103,7 @@ describe('TopSearchBarCommandResult', () => {
 
     render(
       <TopSearchBarCommandResult
+        index={0}
         command={command}
         isSelected={false}
         onClick={onClick}
@@ -111,6 +117,7 @@ describe('TopSearchBarCommandResult', () => {
     const onClick = vi.fn();
     const { container } = render(
       <TopSearchBarCommandResult
+        index={0}
         command={mockCommand}
         isSelected={true}
         onClick={onClick}
@@ -125,6 +132,7 @@ describe('TopSearchBarCommandResult', () => {
     const onClick = vi.fn();
     const { container } = render(
       <TopSearchBarCommandResult
+        index={0}
         command={mockCommand}
         isSelected={false}
         onClick={onClick}
@@ -140,6 +148,7 @@ describe('TopSearchBarCommandResult', () => {
     const onClick = vi.fn();
     const { container } = render(
       <TopSearchBarCommandResult
+        index={0}
         command={mockCommand}
         isSelected={false}
         onClick={onClick}
@@ -157,6 +166,7 @@ describe('TopSearchBarCommandResult', () => {
     const onClick = vi.fn();
     const { container } = render(
       <TopSearchBarCommandResult
+        index={0}
         command={mockCommand}
         isSelected={false}
         onClick={onClick}
@@ -173,6 +183,7 @@ describe('TopSearchBarCommandResult', () => {
     const onClick = vi.fn();
     const { container } = render(
       <TopSearchBarCommandResult
+        index={0}
         command={mockCommand}
         isSelected={false}
         onClick={onClick}
@@ -195,6 +206,7 @@ describe('TopSearchBarCommandResult', () => {
 
     render(
       <TopSearchBarCommandResult
+        index={0}
         command={command}
         isSelected={false}
         onClick={onClick}
@@ -209,6 +221,7 @@ describe('TopSearchBarCommandResult', () => {
     const onClick = vi.fn();
     const { container } = render(
       <TopSearchBarCommandResult
+        index={0}
         command={mockCommand}
         isSelected={false}
         onClick={onClick}

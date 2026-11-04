@@ -181,6 +181,9 @@ function describeError(error: unknown): string {
  * `ModuleCatalogService` are constructed there.
  */
 export class KeywordIndexService {
+  /** Tail of the queue of post-install builds (see {@link triggerBuildAfterInstall}). */
+  private postInstallBuilds: Promise<void> = Promise.resolve();
+
   private readonly provider: SidecarFts5Provider;
   private readonly keywordIndexRepo: KeywordIndexRepository;
   private readonly moduleMetadataRepo: ModuleMetadataRepository;
@@ -252,7 +255,15 @@ export class KeywordIndexService {
     module: { moduleType: ModuleType; absoluteDatabasePath: string },
     signal?: AbortSignal
   ): void {
-    void this.runBuild(module, signal).catch((error) => {
+    // One post-install build at a time. Several modules installed in a row would
+    // otherwise run several full-content scans at once on the main thread, each
+    // holding its own database handle; queued, each yields to the event loop
+    // between modules and the app stays responsive.
+    const run = async (): Promise<void> => {
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      await this.runBuild(module, signal);
+    };
+    this.postInstallBuilds = this.postInstallBuilds.then(run).catch((error) => {
       log.error('[KeywordIndexService] Unexpected error building keyword index after install:', error);
     });
   }

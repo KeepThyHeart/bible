@@ -4,7 +4,8 @@
  */
 
 import type { ElectronAPI } from '../../../electron/preload';
-import type { AssetListSnapshot } from '@bible/core/browser';
+import type { AssetListSnapshot, RemoteSemantic } from '@bible/core/browser';
+import type { SemanticResult } from '../stores/useSearchStore';
 import { unwrap, IpcResultError, type Result } from './ipcResult';
 
 // Check if running in Electron
@@ -360,7 +361,75 @@ export const searchAPI = {
   async semanticSearch(query: string, options?: { maxResults?: number; levels?: string[] }) {
     const api = requireElectronAPI();
     return unwrap(api.search.semanticSearch(query, options));
+  },
+
+  /**
+   * Semantic search through the main-process provider chain (remote service when the
+   * user consented, else the installed pack). Also reports where the rows came from.
+   */
+  async semanticSearchEx(query: string, options?: { maxResults?: number; levels?: string[] }) {
+    const api = requireElectronAPI();
+    // TODO(0190): remove cast once preload types land
+    const search = api.search as unknown as {
+      semanticSearchEx(q: string, o?: { maxResults?: number; levels?: string[] }): Promise<Result<SemanticSearchExReply>>;
+    };
+    return unwrap(search.semanticSearchEx(query, options));
   }
+};
+
+/** Row shape shared with `search:semanticSearch`. */
+export type SemanticSearchRow = SemanticResult;
+
+export interface SemanticSearchExReply {
+  results: SemanticSearchRow[];
+  source: 'remote' | 'local';
+  notice?: RemoteSemantic.SemanticNotice;
+  rateLimit?: { limit?: number; remaining?: number; resetAtMs?: number };
+}
+
+export type RemoteConsentChoice = 'granted' | 'declined';
+
+/** Where meaning search runs: the hosted service, the installed pack only, or nowhere. */
+export type SemanticSource = 'online' | 'offline' | 'off';
+
+export interface RemoteSemanticStatus {
+  configured: boolean;
+  consent: 'granted' | 'declined' | 'unset';
+  noticeVersion: number;
+  consentedAt?: string;
+  /** Effective source; absent from an older main process (treat as 'online'). */
+  source?: SemanticSource;
+  /** True when the offline meaning-search pack is installed and usable. */
+  localPackInstalled?: boolean;
+}
+
+/** Online meaning-search consent (task 0190). Main enforces it; this only reads and records the user's choice. */
+export const remoteSemanticAPI = {
+  async getStatus(): Promise<RemoteSemanticStatus> {
+    const api = requireElectronAPI();
+    // TODO(0190): remove cast once preload types land
+    const rs = (api as unknown as { remoteSemantic: { getStatus(): Promise<Result<RemoteSemanticStatus>> } }).remoteSemantic;
+    return unwrap(rs.getStatus());
+  },
+
+  /** 'reset' clears the record (back to 'unset'). Resolves to the new status. */
+  async setConsent(decision: RemoteConsentChoice | 'reset'): Promise<RemoteSemanticStatus> {
+    const api = requireElectronAPI();
+    // TODO(0190): remove cast once preload types land
+    const rs = (api as unknown as {
+      remoteSemantic: { setConsent(d: string): Promise<Result<RemoteSemanticStatus>> };
+    }).remoteSemantic;
+    return unwrap(rs.setConsent(decision));
+  },
+
+  /** Preferences > Search. Resolves to the new status. */
+  async setSource(source: SemanticSource): Promise<RemoteSemanticStatus> {
+    const api = requireElectronAPI();
+    const rs = (api as unknown as {
+      remoteSemantic: { setSource(s: string): Promise<Result<RemoteSemanticStatus>> };
+    }).remoteSemantic;
+    return unwrap(rs.setSource(source));
+  },
 };
 
 /**

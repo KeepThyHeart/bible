@@ -1,6 +1,6 @@
 import { app, BrowserWindow, ipcMain, dialog } from 'electron';
-import { join } from 'path';
-import { mkdirSync } from 'fs';
+import { join, basename, extname } from 'path';
+import { mkdirSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
 import log from 'electron-log';
 import { registerBibleHandlers, closeBibleDb } from './ipc/bibleHandlers';
@@ -10,10 +10,11 @@ import { registerBookHandlers, closeBookDbs } from './ipc/bookHandlers';
 import { registerTopicalIndexHandlers, closeTopicalDbs } from './ipc/topicalIndexHandlers';
 import { registerCrossReferenceHandlers, closeXrefDbs } from './ipc/crossReferenceHandlers';
 import { registerTagGraphHandlers, closeTagGraphDb } from './ipc/tagGraphHandlers';
-import { registerSearchHandlers, closeSearchDb } from './ipc/searchHandlers';
+import { registerSearchHandlers, closeSearchDb, isLocalSemanticAvailable } from './ipc/searchHandlers';
 import { registerSessionHandlers, closeSessionDb } from './ipc/sessionHandlers';
 import { registerNotesHandlers, initializeNotesDatabase, closeNotesDatabase } from './ipc/notesHandlers';
 import { registerCollectionHandlers, closeCollectionService } from './ipc/collectionHandlers';
+import { registerRemoteSemanticHandlers } from './ipc/remoteSemanticHandlers';
 import { registerNoteDirectionHandlers, resetNoteDirectionStore } from './ipc/noteDirectionHandlers';
 import { registerHighlightHandlers, initializeHighlightRepository, closeHighlightRepository } from './ipc/highlightHandlers';
 import { registerModuleHandlers, closeModuleManager, buildMissingKeywordIndexesInBackground } from './ipc/moduleHandlers';
@@ -37,6 +38,8 @@ import { isExtensionNotifyAllowed as isExtensionNotifyAllowedFor } from './notif
 import { runOnce } from './utils/runOnce';
 import { ensureBibleRepository } from './ipc/bibleHandlers';
 import { registerMainModules, closeMainModules } from './modules/mainModules';
+import { createPermissionHandlers, fakeMicSwitches, isReciteEnabled } from './modules/speech/permissions';
+import { notifySpeechWindowGone } from './modules/speech/hub';
 import { UserDataRepository } from '@bible/core';
 import { NotificationSettingsStore } from '@bible/core/browser';
 import { initializeUserSchema } from './schema/userSchema';
@@ -67,7 +70,9 @@ import {
   getUserDataPath,
   resolveAppIconPath,
   resolveMainDbPath,
+  resolveModulePath,
 } from './utils/appPaths';
+import { readModuleFileUuid, repairModuleRegistry } from './services/moduleRegistryIntegrity';
 import { applyWindowSecurity, lockDownNavigation, openExternalUrl } from './utils/windowSecurity';
 import { closeSharedMainDb } from './services/sharedMainDb';
 import { closeStudyCache } from './services/StudyCacheService';
@@ -106,6 +111,7 @@ import { getDictionaryRepository } from './ipc/dictionaryHandlers';
 import { getBookRepository } from './ipc/bookHandlers';
 import { getSharedBookRepo, getSharedModuleMetadataRepo } from './services/sharedMainDb';
 import { registerExtensionHandlers } from './ipc/extensionHandlers';
+import { RELEASE_EXTENSIONS_ENABLED } from './config/releaseProfile';
 import { registerMarketplaceHandlers } from './ipc/marketplaceHandlers';
 import { ExtensionCatalogService } from './extensions/marketplace/ExtensionCatalogService';
 import { ExtensionBlocklistService } from './extensions/marketplace/ExtensionBlocklistService';
@@ -114,6 +120,8 @@ import {
   registerExtUiSchemePrivileged,
 } from './extensions/extUiProtocol';
 import { setActiveHostTheme } from './extensions/hostThemeCss';
+import { isZoomInAlias } from './zoomShortcuts';
+import { clampZoomLevel, readZoomLevel, writeZoomLevel } from './zoomState';
 
 // Configure electron-log
 log.transports.file.level = 'info';
@@ -195,6 +203,13 @@ if (!app.isPackaged) {
 if (!app.isPackaged && process.env.NODE_ENV === 'test') {
   app.commandLine.appendSwitch('disable-dev-shm-usage');
   log.info('Running with --disable-dev-shm-usage flag (test mode)');
+}
+
+// Dev/demo only: replace the microphone with a WAV file (`KTH_FAKE_MIC_WAV`), for repeatable
+// speech e2e runs and demo videos. Never applies to a packaged build.
+for (const [name, value] of fakeMicSwitches(app.isPackaged)) {
+  if (value === undefined) app.commandLine.appendSwitch(name);
+  else app.commandLine.appendSwitch(name, value);
 }
 
 // Allow E2E tests to isolate user data per worker by pointing userData at a
@@ -281,6 +296,23 @@ function getBackupExtensionPort(): ExtensionPort | undefined {
 /**
  * Register window management IPC handlers
  */
+function zoomStatePath(): string {
+  return join(app.getPath('userData'), 'zoom.json');
+}
+
+/** Set, clamp and remember the main window's zoom (B-106). */
+function setMainZoom(level: number): void {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  const clamped = clampZoomLevel(level);
+  mainWindow.webContents.setZoomLevel(clamped);
+  writeZoomLevel(zoomStatePath(), clamped);
+}
+
+function zoomIn(): void {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  setMainZoom(mainWindow.webContents.getZoomLevel() + 0.5);
+}
+
 function registerWindowHandlers(): void {
   // Detach pane to new window
   ipcMain.handle('window:detach-pane', async (_event, paneType: string, initialState: any) => {
@@ -380,6 +412,8 @@ type NoteRenderContents = BrowserWindow['webContents'];
  *  window plumbing they need, rather than through `ipcHandler`. */
 interface NoteRenderResult {
   success: boolean;
+  /** True when the user cancelled the save or print dialog: nothing was written or printed. */
+  canceled?: boolean;
   error?: string;
 }
 
@@ -471,8 +505,13 @@ function registerPrintHandler(): void {
       contents =>
         new Promise<NoteRenderResult>(resolve => {
           contents.print({ silent: false }, (success, failureReason) => {
+            if (success) return resolve({ success: true });
+            // Electron reports a dismissed dialog as failureReason 'cancelled'.
+            const canceled = !failureReason || /cancel/i.test(failureReason);
             resolve(
-              success ? { success: true } : { success: false, error: failureReason || 'Print cancelled' }
+              canceled
+                ? { success: false, canceled: true }
+                : { success: false, error: failureReason }
             );
           });
         })
@@ -482,10 +521,42 @@ function registerPrintHandler(): void {
     });
   });
 
+  // Save a text file the renderer built (reading-plan .ics, keyword-set JSON).
+  // A hidden <a download> click was silently dropped here (B-078); a native save
+  // dialog, like the note exports, always shows the user where the file went.
+  ipcMain.handle(
+    'app:save-text-file',
+    async (_event, defaultName: unknown, content: unknown): Promise<{ success: boolean; canceled?: boolean; filePath?: string; error?: string }> => {
+      if (typeof defaultName !== 'string' || typeof content !== 'string' || content.length > 50 * 1024 * 1024) {
+        return { success: false, error: 'Invalid file' };
+      }
+      const safeName = basename(defaultName).replace(/[\\/:*?"<>|\0]/g, '_') || 'export.txt';
+      const ext = extname(safeName).slice(1);
+      const parent = BrowserWindow.getFocusedWindow();
+      const options = {
+        defaultPath: join(app.getPath('downloads'), safeName),
+        filters: [
+          ...(ext ? [{ name: ext.toUpperCase(), extensions: [ext] }] : []),
+          { name: t('main.filter.allFiles'), extensions: ['*'] }
+        ]
+      };
+      try {
+        const saved = parent ? await dialog.showSaveDialog(parent, options) : await dialog.showSaveDialog(options);
+        if (saved.canceled || !saved.filePath) return { success: false, canceled: true };
+        writeFileSync(saved.filePath, content, 'utf-8');
+        return { success: true, filePath: saved.filePath };
+      } catch (err) {
+        log.error('[IPC] app:save-text-file failed:', err);
+        return { success: false, error: err instanceof Error ? err.message : String(err) };
+      }
+    }
+  );
+
   // PDF export. The renderer hands over exactly the document it would print,
   // and the save dialog comes first - mirroring `file-notes:export-markdown`,
   // and meaning a cancelled dialog costs no rendering at all. A cancel is
-  // success: the user asked for nothing to happen, and nothing happened.
+  // reported as `{ success: false, canceled: true }` so no caller can mistake
+  // it for a written file.
   ipcMain.handle(
     'notes:export-pdf',
     async (_event, html: string, defaultName: string): Promise<NoteRenderResult> => {
@@ -501,7 +572,7 @@ function registerPrintHandler(): void {
       const saved = parent
         ? await dialog.showSaveDialog(parent, options)
         : await dialog.showSaveDialog(options);
-      if (saved.canceled || !saved.filePath) return { success: true };
+      if (saved.canceled || !saved.filePath) return { success: false, canceled: true };
       const filePath = saved.filePath;
 
       return renderNoteDocument(html, contents => contents.printToPDF({ printBackground: true }))
@@ -626,6 +697,7 @@ const registerAllHandlersOnce = runOnce(() => {
   registerCollectionHandlers();
   registerHighlightHandlers();
   registerNoteDirectionHandlers();
+  registerRemoteSemanticHandlers({ localAvailable: isLocalSemanticAvailable });
   registerModuleHandlers(ipcMain);
   registerFeaturePackHandlers(ipcMain);
   registerAssetHandlers(ipcMain);
@@ -727,19 +799,14 @@ const registerAllHandlersOnce = runOnce(() => {
     if (!mainWindow || mainWindow.isDestroyed()) return;
     mainWindow.webContents.toggleDevTools();
   });
-  ipcMain.handle('app:zoom-in', () => {
-    if (!mainWindow || mainWindow.isDestroyed()) return;
-    const z = mainWindow.webContents.getZoomLevel();
-    mainWindow.webContents.setZoomLevel(z + 0.5);
-  });
+  ipcMain.handle('app:zoom-in', () => zoomIn());
   ipcMain.handle('app:zoom-out', () => {
     if (!mainWindow || mainWindow.isDestroyed()) return;
-    const z = mainWindow.webContents.getZoomLevel();
-    mainWindow.webContents.setZoomLevel(z - 0.5);
+    setMainZoom(mainWindow.webContents.getZoomLevel() - 0.5);
   });
   ipcMain.handle('app:actual-size', () => {
     if (!mainWindow || mainWindow.isDestroyed()) return;
-    mainWindow.webContents.setZoomLevel(0);
+    setMainZoom(0);
   });
   // `app:open-external` is reachable from the renderer (it's in
   // ALLOWED_IPC_CHANNELS), so the URL is untrusted input: `shell.openExternal`
@@ -799,6 +866,28 @@ async function createWindow(): Promise<void> {
     show: false // Show when ready
   });
 
+  // Microphone (0151): audio only, for the main window's own page, with `recite` on. Other
+  // permissions keep Electron's default (granted); the print window and ext-ui frames get no media.
+  {
+    const mainContents = mainWindow.webContents;
+    const devUrl = process.env.ELECTRON_RENDERER_URL;
+    const perms = createPermissionHandlers(
+      {
+        enabled: () => isReciteEnabled(app.isPackaged),
+        isMainContents: (wc) => wc === mainContents,
+        isOwnUrl: (url) =>
+          app.isPackaged || !devUrl ? url.startsWith('file://') : url.startsWith(new URL(devUrl).origin),
+      },
+      true,
+    );
+    mainContents.session.setPermissionRequestHandler((wc, permission, callback, details) =>
+      perms.request(wc, permission, callback, details as unknown as Record<string, unknown>),
+    );
+    mainContents.session.setPermissionCheckHandler((wc, permission, origin, details) =>
+      perms.check(wc, permission, origin, details as unknown as Record<string, unknown>),
+    );
+  }
+
   // Block renderer-initiated navigation away from the app and deny child
   // windows (which would otherwise inherit the preload bridge). See
   // utils/windowSecurity.ts. Installed before the first load so nothing in the
@@ -837,6 +926,12 @@ async function createWindow(): Promise<void> {
   windowShownOnce = true;
   startedHidden = startHidden;
   pendingMaximize = startHidden && windowState.isMaximized && !windowState.isFullScreen;
+  // Bring back the zoom the user left (B-106).
+  mainWindow.webContents.once('did-finish-load', () => {
+    const level = readZoomLevel(zoomStatePath());
+    if (level !== 0) mainWindow?.webContents.setZoomLevel(level);
+  });
+
   mainWindow.once('ready-to-show', () => {
     // Still hidden: stay so (showMainWindow may already have shown it before the page was ready).
     if (startHidden && !mainWindow?.isVisible()) {
@@ -862,6 +957,14 @@ async function createWindow(): Promise<void> {
   // isClosing prevents re-entrance: preventDefault() keeps the window alive,
   // so without this flag the 'close' event would fire again from destroy().
   let isClosing = false;
+  // Ctrl+Shift+= (key "+") also zooms in; Ctrl+= is the menu accelerator.
+  mainWindow.webContents.on('before-input-event', (event, input) => {
+    if (isZoomInAlias(input)) {
+      event.preventDefault();
+      zoomIn();
+    }
+  });
+
   mainWindow.on('close', async (event) => {
     if (isClosing) return;
 
@@ -919,6 +1022,7 @@ async function createWindow(): Promise<void> {
   });
 
   mainWindow.on('closed', () => {
+    notifySpeechWindowGone();
     mainWindow = null;
     menuBuilder = null;
     windowStateService = null;
@@ -932,6 +1036,10 @@ async function createWindow(): Promise<void> {
  * host available so the renderer can list extensions.
  */
 async function initializeExtensionHostInBackground(): Promise<void> {
+  if (!RELEASE_EXTENSIONS_ENABLED) {
+    log.info('[Background] Extensions disabled by the release profile; ExtensionHost not started.');
+    return;
+  }
   try {
     log.info('[Background] Booting ExtensionHost...');
     const userDb = await getSharedUserDb();
@@ -1338,6 +1446,13 @@ app.whenReady().then(async () => {
   // All handlers and module detector use this path for main.db
   const mainDbPath = resolveMainDbPath();
   const mainDbInit = initializeMainDatabase(mainDbPath, getBundledMainDbPath());
+  // Before anything lists modules: fold duplicate registrations of one file
+  // into a single row (moving the user's references with it) and normalize
+  // stored paths. Opens the user database only when there is a duplicate.
+  await repairModuleRegistry(mainDbInit, {
+    readFileUuid: (databasePath) => readModuleFileUuid(resolveModulePath(databasePath)),
+    getUserDb: () => getSharedUserDb(),
+  });
   mainDbInit.close(); // Close init connection; handlers open their own
   log.info('Main database schema initialized at:', mainDbPath);
 
@@ -1432,6 +1547,15 @@ app.on('second-instance', (_event, argv) => {
   if (argv.includes('--hidden')) return;
   void showMainWindow();
 });
+// SIGTERM/SIGINT (stop scripts, logout) would otherwise end the process without
+// the window 'close' handler saving the session; route them through a normal quit (B-031).
+for (const signal of ['SIGTERM', 'SIGINT'] as const) {
+  process.on(signal, () => {
+    log.info(`[main] ${signal} received; quitting`);
+    app.quit();
+  });
+}
+
 app.on('before-quit', () => {
   quitRequested = true;
   // Persist pending last-used times of the asset registry (best effort; not awaited).

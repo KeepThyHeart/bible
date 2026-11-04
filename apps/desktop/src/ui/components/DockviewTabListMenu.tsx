@@ -165,7 +165,7 @@ const TabListItem: React.FC<{
         cursor: 'pointer',
         color: 'var(--theme-text-primary)',
         textAlign: 'start',
-        fontSize: '13px',
+        fontSize: '0.8125rem',
       }}
       onMouseEnter={(e) => {
         (e.currentTarget as HTMLElement).style.backgroundColor = 'var(--theme-tab-bg-hover)';
@@ -174,11 +174,11 @@ const TabListItem: React.FC<{
         (e.currentTarget as HTMLElement).style.backgroundColor = 'transparent';
       }}
     >
-      {icon && <span style={{ fontSize: '12px', flexShrink: 0 }}>{icon}</span>}
+      {icon && <span style={{ fontSize: '0.75rem', flexShrink: 0 }}>{icon}</span>}
       <span style={{ display: 'flex', flexDirection: 'column', minWidth: 0, lineHeight: 1.25 }}>
         <span style={{ fontWeight: active ? 600 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
         {subtitle && (
-          <span style={{ fontSize: '11px', color: 'var(--theme-text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{subtitle}</span>
+          <span style={{ fontSize: '0.6875rem', color: 'var(--theme-text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{subtitle}</span>
         )}
       </span>
     </button>

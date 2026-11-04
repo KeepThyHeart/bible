@@ -15,6 +15,7 @@ import {
   resolveSearchScope,
   applySearchHighlighting,
   formatSemanticReference,
+  applyBeforeQueryResult,
   type ScopeModuleInfo,
 } from '../searchHelpers';
 
@@ -266,5 +267,24 @@ describe('formatSemanticReference', () => {
   it('parses the three-part verse id correctly at its boundaries', () => {
     expect(formatSemanticReference(id(19, 119, 176), id(19, 119, 176), bookName)).toBe('Psalms 119:176');
     expect(formatSemanticReference(id(43, 1, 1), id(43, 1, 1), bookName)).toBe('John 1:1');
+  });
+});
+
+describe('applyBeforeQueryResult (search.beforeQuery)', () => {
+  it('reads the unchanged payload (no subscriber) as the original query, not the DTO object', () => {
+    const payload = { query: { query: 'love', scope: 'allBibles' }, scope: 'allBibles' };
+    expect(applyBeforeQueryResult('love', 'allBibles', payload)).toEqual({ query: 'love', scope: 'allBibles' });
+  });
+  it('takes a rewritten DTO from a subscriber, scope included', () => {
+    expect(applyBeforeQueryResult('luv', undefined, { query: 'love', scope: 'currentModule' }))
+      .toEqual({ query: 'love', scope: 'currentModule' });
+  });
+  it('keeps the scope when the DTO names none', () => {
+    expect(applyBeforeQueryResult('a', 'allModules', { query: 'b' })).toEqual({ query: 'b', scope: 'allModules' });
+  });
+  it('ignores a result without a string query', () => {
+    expect(applyBeforeQueryResult('a', 's', undefined)).toEqual({ query: 'a', scope: 's' });
+    expect(applyBeforeQueryResult('a', 's', { query: 42 })).toEqual({ query: 'a', scope: 's' });
+    expect(applyBeforeQueryResult('a', 's', 'cancel')).toEqual({ query: 'a', scope: 's' });
   });
 });

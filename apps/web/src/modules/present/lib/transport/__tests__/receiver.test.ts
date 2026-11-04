@@ -43,6 +43,21 @@ beforeEach(() => {
 });
 
 describe('openPresentReceiver', () => {
+  it.each([[404, [{ type: 'closed', reason: 'unknown' }]], [502, [{ type: 'reconnecting' }]]] as const)(
+    'a fatal stream error before any state with a %i state answer gives %j', async (status, expected) => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ status }));
+    const receiver = openPresentReceiver('ZZZZZZZZ');
+    const events: ReceiverEvent[] = [];
+    receiver.subscribe(e => events.push(e));
+    const source = FakeEventSource.instances[0] as FakeEventSource & { readyState: number };
+    source.readyState = 2;
+    source.onerror?.();
+    await new Promise(r => setTimeout(r, 0));
+    expect(events).toEqual(expected);
+    receiver.close();
+    vi.unstubAllGlobals();
+  });
+
   it('turns a state frame from the stream into a state event', () => {
     const receiver = openPresentReceiver('ABCD2345');
     const events: ReceiverEvent[] = [];

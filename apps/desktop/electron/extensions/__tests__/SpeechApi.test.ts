@@ -3,7 +3,8 @@
  * method checks its permission, then rejects as not available in this build.
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
+import type { ISpeechApi } from '@bible/core/speech';
 
 import type { Extensions } from '@bible/core';
 
@@ -13,7 +14,7 @@ import { SpeechApiImpl, SPEECH_UNAVAILABLE_MESSAGE } from '../api-impl/speechApi
 
 type RpcResponse = Extensions.RpcResponse;
 
-function setup(perms: string[]) {
+function setup(perms: string[], speech?: () => ISpeechApi | null) {
   let hostHandler: ((env: unknown) => void) | null = null;
   const sent: unknown[] = [];
   const hostSide: IRpcTransport = {
@@ -28,7 +29,7 @@ function setup(perms: string[]) {
     },
   };
   const router = new ExtensionRpcRouter(hostSide);
-  new SpeechApiImpl({ extensionId: 'test.speech', router, grant: buildGrant('test.speech', perms) }).attach();
+  new SpeechApiImpl({ extensionId: 'test.speech', router, grant: buildGrant('test.speech', perms), ...(speech ? { speech } : {}) }).attach();
   let n = 0;
   return async (method: string, args: unknown[] = []): Promise<RpcResponse> => {
     const id = `r-${n++}`;
@@ -79,5 +80,45 @@ describe('SpeechApiImpl stub', () => {
 
   it('cancel is an ungated no-op', async () => {
     expect((await setup([])('speech.cancel')).error).toBeUndefined();
+  });
+});
+
+describe('SpeechApiImpl with a service', () => {
+  const service = () =>
+    ({
+      status: vi.fn(async () => ({ granted: { listen: true, speak: true }, listen: 'ready', speak: 'ready', languages: ['en'], engineLabel: 'W', onDevice: true })),
+      speak: vi.fn(async () => ({ completed: true })),
+      earcon: vi.fn(async () => undefined),
+      startListening: vi.fn(async () => ({ listenId: 'l1' })),
+      nextUtterance: vi.fn(async () => ({ kind: 'no-speech' })),
+      stopListening: vi.fn(async () => undefined),
+      cancel: vi.fn(async () => undefined),
+    }) as unknown as ISpeechApi & Record<string, ReturnType<typeof vi.fn>>;
+
+  it('checks the permission first, then forwards', async () => {
+    const svc = service();
+    const denied = setup(['speech:listen'], () => svc);
+    expect((await denied('speech.speak', ['hi'])).error?.message).toMatch(/speech:speak/);
+    expect(svc.speak).not.toHaveBeenCalled();
+    const ok = setup(['speech:listen', 'speech:speak'], () => svc);
+    expect((await ok('speech.speak', ['hi', { language: 'en' }])).result).toEqual({ completed: true });
+    expect(svc.speak).toHaveBeenCalledWith('hi', { language: 'en' });
+    expect((await ok('speech.startListening', [{ language: 'en', maxDurationMs: 5 }])).result).toEqual({ listenId: 'l1' });
+    expect((await ok('speech.nextUtterance', ['l1', { noSpeechTimeoutMs: 5 }])).result).toEqual({ kind: 'no-speech' });
+    await ok('speech.stopListening', ['l1']);
+    expect(svc.stopListening).toHaveBeenCalledWith('l1');
+    await ok('speech.cancel');
+    expect(svc.cancel).toHaveBeenCalled();
+  });
+
+  it('status merges the service status with this extension\'s grants', async () => {
+    const r = await setup(['speech:speak'], service)('speech.status');
+    expect(r.result).toMatchObject({ listen: 'ready', engineLabel: 'W', granted: { listen: false, speak: true } });
+  });
+
+  it('falls back to unavailable when the service getter returns null', async () => {
+    const call = setup(['speech:speak'], () => null);
+    expect((await call('speech.status')).result).toMatchObject({ listen: 'unavailable' });
+    expect((await call('speech.speak', ['x'])).error?.message).toBe(SPEECH_UNAVAILABLE_MESSAGE);
   });
 });

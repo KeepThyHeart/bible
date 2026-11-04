@@ -88,9 +88,26 @@ function noteLinkToVerseLinkRecord(link: VerseLink, noteId: number, sortOrder: n
 export class UserNoteRepository implements IUserNoteRepository {
   /** Access to the unified `verse_link` table. */
   private readonly verseLinks: VerseLinkRepository;
+  /** Whether this database has `verse_link`; looked up once, on first use. */
+  private verseLinkTable: boolean | undefined;
 
   constructor(private sql: ISql) {
     this.verseLinks = new VerseLinkRepository(sql);
+  }
+
+  /**
+   * The desktop's user database has no `verse_link` (the backup registry marks the table core-only; the
+   * desktop indexes note references in its own `content_verse_link`). Without this check every
+   * database-backed note on the desktop - prayers, for one - failed to save with "no such table:
+   * verse_link". There, a note simply carries no `verse_link` rows.
+   */
+  private hasVerseLinkTable(): boolean {
+    if (this.verseLinkTable === undefined) {
+      this.verseLinkTable = !!this.sql.queryOne(
+        "SELECT 1 AS present FROM sqlite_master WHERE type = 'table' AND name = 'verse_link'"
+      );
+    }
+    return this.verseLinkTable;
   }
 
   /**
@@ -490,7 +507,7 @@ export class UserNoteRepository implements IUserNoteRepository {
    * Load the verses linked to a note from the unified `verse_link` table.
    */
   private loadLinkedVerses(note: UserNote): void {
-    if (!note.noteId) return;
+    if (!note.noteId || !this.hasVerseLinkTable()) return;
 
     const links = this.verseLinks
       .getForSource('note', note.noteId)
@@ -503,7 +520,7 @@ export class UserNoteRepository implements IUserNoteRepository {
    */
   private saveLinkedVerses(note: UserNote): void {
     const noteId = note.noteId;
-    if (!noteId) return;
+    if (!noteId || !this.hasVerseLinkTable()) return;
 
     const links = note.getLinkedVerses();
 

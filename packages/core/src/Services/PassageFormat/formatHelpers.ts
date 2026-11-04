@@ -3,6 +3,7 @@
  */
 
 import { PassageVerse, VerseContext } from './types';
+import { versesInChapter } from '../../ReadingPlans/versification';
 import {
   decodeHtmlEntities,
   escapeStrayMarkup,
@@ -144,6 +145,48 @@ export function buildReference(
   return reference;
 }
 
+/** Verses that follow one another (across a chapter end too, by the KJV chapter lengths). */
+function splitIntoRuns(verses: PassageVerse[]): PassageVerse[][] {
+  const runs: PassageVerse[][] = [];
+  for (const v of verses) {
+    const run = runs[runs.length - 1];
+    const prev = run?.[run.length - 1];
+    const follows =
+      prev !== undefined &&
+      prev.book_number === v.book_number &&
+      ((prev.chapter === v.chapter && v.verse === prev.verse + 1) ||
+        (v.chapter === prev.chapter + 1 && v.verse === 1 && prev.verse >= versesInChapter(prev.book_number, prev.chapter)));
+    if (follows) run.push(v);
+    else runs.push([v]);
+  }
+  return runs;
+}
+
+/** "Romans 8:28-30, 38-39", "Romans 8:28-30, 9:1", "Romans 8:28; John 3:16". */
+function formatRuns(runs: PassageVerse[][], context: VerseContext): string {
+  let out = '';
+  let prevEnd: PassageVerse | undefined;
+  for (const run of runs) {
+    const a = run[0];
+    const b = run[run.length - 1];
+    const sameBook = prevEnd !== undefined && prevEnd.book_number === a.book_number;
+    const sameChapter = sameBook && prevEnd!.chapter === a.chapter;
+    const start = sameChapter ? `${a.verse}` : `${a.chapter}:${a.verse}`;
+    let end = '';
+    if (b !== a) end = a.chapter !== b.chapter ? `-${b.chapter}:${b.verse}` : `-${b.verse}`;
+    const body = `${start}${end}`;
+    if (prevEnd === undefined) out = `${bookLabel(a, context)} ${body}`;
+    else if (sameBook) out += `, ${body}`;
+    else out += `; ${bookLabel(a, context)} ${body}`;
+    prevEnd = b;
+  }
+  return out;
+}
+
+function bookLabel(v: PassageVerse, context: VerseContext): string {
+  return context.bookNameFor ? context.bookNameFor(v.book_number) : context.bookName;
+}
+
 /**
  * Build a reference for a passage that may span chapters.
  *
@@ -173,7 +216,10 @@ export function buildPassageReference(
   const last = verses[verses.length - 1];
 
   let reference: string;
-  if (first.chapter !== last.chapter) {
+  const runs = splitIntoRuns(verses);
+  if (runs.length > 1 || first.book_number !== last.book_number) {
+    reference = formatRuns(runs, context);
+  } else if (first.chapter !== last.chapter) {
     reference = `${context.bookName} ${first.chapter}:${first.verse}-${last.chapter}:${last.verse}`;
   } else if (first.verse === last.verse) {
     reference = `${context.bookName} ${first.chapter}:${first.verse}`;

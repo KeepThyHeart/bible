@@ -43,7 +43,10 @@ starts, and the config hands it to the server as `BIBLE_DATA_DIR`:
   auth off and the visible module set. Without this the suite would pass or fail
   according to which modules a developer happened to switch on.
 
-Nothing in `apps/web/data` or the desktop app's `data` is written to.
+Nothing in `apps/web/data` or the desktop app's `data` is written to. What the
+servers write themselves (presenter sessions, logs) goes to `e2e/.data/state-<port>`
+(`BIBLE_APP_STATE_DIR`), emptied at the start of every run, so sessions from earlier
+runs cannot fill the presenter's session cap.
 
 If no registry has installed modules, or the ones the specs name (KJV, ASV,
 Barnes, AmTract) are missing, the run stops before the first test with a message
@@ -91,6 +94,12 @@ script runs in about a second.
   started with some other data directory and build, so the config does not reuse
   it — the run fails instead of testing the wrong thing. Set `PW_REUSE_SERVER=1`
   to point the suite at a server you are running yourself.
+- **Ports.** The suite starts two servers: 3100 (plain) and 3101 (PWA on). Set
+  `E2E_PORT` to move the pair (base port, and base + 1), for example to run two
+  checkouts at once or to step around a stale server: `E2E_PORT=3300 pnpm run test:e2e`.
+  Every URL in the config, `globalSetup.ts` and the specs comes from `ports.ts`.
+  If a run dies with "http://localhost:3100/api/health is already used", an
+  earlier run left its server behind; stop it or pick another `E2E_PORT`.
 - Specs that assert against a scroll container are desktop-only: mobile layouts
   scroll an outer `.mobile-scroll-wrapper` instead.
 - Loading a chapter selects its first verse, so a test that wants to prove

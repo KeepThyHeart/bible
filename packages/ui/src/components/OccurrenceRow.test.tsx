@@ -17,6 +17,14 @@ describe('OccurrenceRow', () => {
     expect(container.querySelector('.kth-ws-occ__text')?.textContent).toBe('For God so loved the world');
   });
 
+  // B-197: the verse text keeps its own direction; inheriting the RTL UI moved an English verse's final period to the left.
+  it('gives the verse text dir="auto" (plain and renderVerse paths)', () => {
+    const a = render(<OccurrenceRow item={item} reference="John 3:16" onOpen={() => {}} />);
+    expect(a.container.querySelector('.kth-ws-occ__text')).toHaveAttribute('dir', 'auto');
+    const b = render(<OccurrenceRow item={item} reference="John 3:16" onOpen={() => {}} renderVerse={() => 'x'} />);
+    expect(b.container.querySelector('.kth-ws-occ__text')).toHaveAttribute('dir', 'auto');
+  });
+
   it('highlightWords handles ranges at the edges and out of range', () => {
     const text = (n: unknown[]) => n.map((x) => (typeof x === 'string' ? x : (x as { props: { children: string } }).props.children)).join('');
     expect(text(highlightWords('a b c', 0, 0))).toBe('a b c');
@@ -31,5 +39,17 @@ describe('OccurrenceRow', () => {
     expect(screen.queryByText(/For God/)).toBeNull();
     await userEvent.setup().click(screen.getByRole('button'));
     expect(onOpen).toHaveBeenCalledWith(item);
+  });
+
+  it('shows the divine name in small caps, inside or outside the match (B-167)', () => {
+    const lord: WordOccurrenceItem = { verseId: 19023001, start: 4, end: 4, form: 'shepherd', text: 'The LORD is my shepherd', divine: [{ start: 4, end: 8 }] };
+    const { container } = render(<OccurrenceRow item={lord} reference="Ps 23:1" onOpen={() => {}} />);
+    const dn = container.querySelectorAll('span.divine-name');
+    expect(dn).toHaveLength(1);
+    expect(dn[0].textContent).toBe('LORD');
+    expect(container.querySelector('mark.kth-ws-hit')?.textContent).toBe('shepherd');
+    expect(container.querySelector('.kth-ws-occ__text')?.textContent).toBe('The LORD is my shepherd');
+    const inside = render(<OccurrenceRow item={{ ...lord, start: 1, end: 1 }} reference="x" onOpen={() => {}} />).container;
+    expect(inside.querySelector('mark.kth-ws-hit span.divine-name')?.textContent).toBe('LORD');
   });
 });

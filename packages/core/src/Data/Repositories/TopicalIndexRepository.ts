@@ -242,6 +242,19 @@ export class TopicalIndexRepository extends BaseModuleRepository<TopicalIndexMod
   }
 
   getRecursiveVersesForTopic(topicId: number, options?: { limit?: number; offset?: number }): TopicVerse[] {
+    return paginate(this.collectRecursiveVerses(topicId), options);
+  }
+
+  /**
+   * Every distinct passage under a topic and its descendants, in verse order.
+   *
+   * Distinct by (start, end): Nave's cites the same passage under several
+   * sub-topics of one parent (Joshua 6, say, under both a topic and its
+   * "Jericho captured" child), and a list showing the same range twice is
+   * both noise and a duplicate-key hazard for any UI keyed on the range. The
+   * first link in verse order wins, so its context is the one kept.
+   */
+  private collectRecursiveVerses(topicId: number): TopicVerse[] {
     const descendants = this.getDescendantTopicIds(topicId);
     if (descendants.length === 0) return [];
 
@@ -250,9 +263,14 @@ export class TopicalIndexRepository extends BaseModuleRepository<TopicalIndexMod
     for (const links of byTopic.values()) {
       for (const link of links) all.push(verseLinkToTopicVerse(link));
     }
-    all.sort((a, b) => a.verseIdStart - b.verseIdStart);
-    return paginate(all, options);
-    
+    all.sort((a, b) => a.verseIdStart - b.verseIdStart || a.verseIdEnd - b.verseIdEnd);
+    const seen = new Set<string>();
+    return all.filter(v => {
+      const key = `${v.verseIdStart}-${v.verseIdEnd}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
   }
 
   /** Topic ids of `topicId` and every descendant, via a recursive CTE. */
@@ -293,15 +311,8 @@ export class TopicalIndexRepository extends BaseModuleRepository<TopicalIndexMod
 
   /** {@link getReferenceCount} across a topic and all its descendants. */
   getRecursiveReferenceCount(topicId: number): number {
-    const descendants = this.getDescendantTopicIds(topicId);
-    if (descendants.length === 0) return 0;
-
-    let total = 0;
-    for (const links of this.verseLinks.getForSources('topic', descendants).values()) {
-      total += links.length;
-    }
-    return total;
-    
+    // Distinct passages, to agree with what getRecursiveVersesForTopic returns.
+    return this.collectRecursiveVerses(topicId).length;
   }
 
   // ========================================================================
@@ -350,15 +361,9 @@ export class TopicalIndexRepository extends BaseModuleRepository<TopicalIndexMod
   }
 
   getRecursiveVerseCount(topicId: number): number {
-    const descendants = this.getDescendantTopicIds(topicId);
-    if (descendants.length === 0) return 0;
-
-    let total = 0;
-    for (const links of this.verseLinks.getForSources('topic', descendants).values()) {
-      for (const link of links) total += link.verseCount();
-    }
-    return total;
-    
+    // Distinct passages, so the figure agrees with the list it describes.
+    return this.collectRecursiveVerses(topicId)
+      .reduce((sum, v) => sum + (v.verseIdEnd - v.verseIdStart + 1), 0);
   }
 
   // ========================================================================

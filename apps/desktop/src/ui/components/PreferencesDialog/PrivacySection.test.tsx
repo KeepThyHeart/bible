@@ -30,6 +30,14 @@ beforeEach(() => {
 });
 
 describe('PrivacySection', () => {
+  it('B-161: lists every online feature under the switch', () => {
+    render(<PrivacySection />);
+    const list = screen.getByTestId('privacy-online-features');
+    for (const k of ['Modules', 'Updates', 'Speech', 'Search', 'Diagnostics', 'Links']) {
+      expect(list).toHaveTextContent(`preferencesDialog.privacyOnline${k}`);
+    }
+  });
+
   it('renders unchecked when the switch is off', () => {
     render(<PrivacySection />);
     expect(screen.getByTestId('privacy-allow-web-requests-checkbox')).not.toBeChecked();

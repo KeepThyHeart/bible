@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { Bdi } from '@bible/ui';
 import { useI18n } from '../../contexts/useI18n';
 import TopicSearchBar from '../shared/TopicSearchBar';
 import TopicCard from '../shared/TopicCard';
@@ -60,7 +61,7 @@ const EntityDetailView: React.FC<EntityDetailViewProps> = ({
   }, [topicLinks]);
 
   if (loading || !entity) {
-    return <div style={{ textAlign: 'center', padding: '20px', color: 'var(--theme-text-secondary)', fontSize: '13px' }}>{t('topicsPane.loadingEntity')}</div>;
+    return <div style={{ textAlign: 'center', padding: '20px', color: 'var(--theme-text-secondary)', fontSize: '0.8125rem' }}>{t('topicsPane.loadingEntity')}</div>;
   }
 
   const catColor = CATEGORY_COLORS[entity.category] ?? 'var(--theme-text-secondary)';
@@ -84,9 +85,9 @@ const EntityDetailView: React.FC<EntityDetailViewProps> = ({
       {/* Entity header */}
       <div style={{ marginBottom: '12px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-          <h3 data-testid="entity-name" style={{ fontSize: '16px', fontWeight: 600, margin: 0 }}>{entity.name}</h3>
+          <h3 data-testid="entity-name" style={{ fontSize: '1rem', fontWeight: 600, margin: 0 }}>{entity.name}</h3>
           <span data-testid="entity-category" style={{
-            fontSize: '10px',
+            fontSize: '0.625rem',
             fontWeight: 600,
             padding: '2px 8px',
             borderRadius: '10px',
@@ -109,7 +110,7 @@ const EntityDetailView: React.FC<EntityDetailViewProps> = ({
               data-testid={action.testId}
               onClick={() => action.run({ id: entity.id, category: entity.category })}
               style={{
-                fontSize: '11px',
+                fontSize: '0.6875rem',
                 color: 'var(--theme-accent-primary)',
                 backgroundColor: 'var(--theme-bg-tertiary)',
                 border: '1px solid var(--theme-border-secondary)',
@@ -125,24 +126,24 @@ const EntityDetailView: React.FC<EntityDetailViewProps> = ({
 
         {/* Aliases */}
         {aliases.length > 0 && (
-          <div data-testid="entity-aliases" style={{ fontSize: '12px', color: 'var(--theme-text-secondary)', marginBottom: '4px' }}>
+          <div data-testid="entity-aliases" style={{ fontSize: '0.75rem', color: 'var(--theme-text-secondary)', marginBottom: '4px' }}>
             {t('entityDetailView.alsoKnownAs', { v1: aliases.join(', ') })}
           </div>
         )}
 
         {/* Category-specific details */}
-        {entity.tribe && <div style={{ fontSize: '12px', color: 'var(--theme-text-secondary)' }}>{t('entityDetailView.tribe', { v1: entity.tribe })}</div>}
-        {entity.nation && <div style={{ fontSize: '12px', color: 'var(--theme-text-secondary)' }}>{t('entityDetailView.nation', { v1: entity.nation })}</div>}
+        {entity.tribe && <div style={{ fontSize: '0.75rem', color: 'var(--theme-text-secondary)' }}>{t('entityDetailView.tribe', { v1: entity.tribe })}</div>}
+        {entity.nation && <div style={{ fontSize: '0.75rem', color: 'var(--theme-text-secondary)' }}>{t('entityDetailView.nation', { v1: entity.nation })}</div>}
         {entity.roles && entity.roles.length > 0 && (
-          <div style={{ fontSize: '12px', color: 'var(--theme-text-secondary)' }}>{t('entityDetailView.roles', { v1: entity.roles.join(', ') })}</div>
+          <div style={{ fontSize: '0.75rem', color: 'var(--theme-text-secondary)' }}>{t('entityDetailView.roles', { v1: entity.roles.join(', ') })}</div>
         )}
-        {entity.modernName && <div style={{ fontSize: '12px', color: 'var(--theme-text-secondary)' }}>{t('entityDetailView.modernName', { v1: entity.modernName })}</div>}
-        {entity.significance && <div style={{ fontSize: '12px', color: 'var(--theme-text-secondary)' }}>{t('entityDetailView.significance', { v1: entity.significance })}</div>}
+        {entity.modernName && <div style={{ fontSize: '0.75rem', color: 'var(--theme-text-secondary)' }}>{t('entityDetailView.modernName', { v1: entity.modernName })}</div>}
+        {entity.significance && <div style={{ fontSize: '0.75rem', color: 'var(--theme-text-secondary)' }}>{t('entityDetailView.significance', { v1: entity.significance })}</div>}
         {entity.traditions && entity.traditions.length > 0 && (
-          <div style={{ fontSize: '12px', color: 'var(--theme-text-secondary)' }}>{t('entityDetailView.traditions', { v1: entity.traditions.join(', ') })}</div>
+          <div style={{ fontSize: '0.75rem', color: 'var(--theme-text-secondary)' }}>{t('entityDetailView.traditions', { v1: entity.traditions.join(', ') })}</div>
         )}
         {entity.attributes && entity.attributes.length > 0 && (
-          <div style={{ fontSize: '12px', color: 'var(--theme-text-secondary)' }}>{t('entityDetailView.attributes', { v1: entity.attributes.join(', ') })}</div>
+          <div style={{ fontSize: '0.75rem', color: 'var(--theme-text-secondary)' }}>{t('entityDetailView.attributes', { v1: entity.attributes.join(', ') })}</div>
         )}
       </div>
 
@@ -154,7 +155,7 @@ const EntityDetailView: React.FC<EntityDetailViewProps> = ({
               key={source}
               onClick={() => onTopicLinkClick(source, links[0].topicId)}
               style={{
-                fontSize: '11px',
+                fontSize: '0.6875rem',
                 color: 'var(--theme-accent-primary)',
                 backgroundColor: 'var(--theme-bg-tertiary)',
                 border: '1px solid var(--theme-border-secondary)',
@@ -163,7 +164,7 @@ const EntityDetailView: React.FC<EntityDetailViewProps> = ({
                 padding: '3px 8px',
               }}
             >
-              {SOURCE_DISPLAY_NAMES[source] ?? source}
+              <Bdi>{SOURCE_DISPLAY_NAMES[source] ?? source}</Bdi>
             </button>
           ))}
         </div>
@@ -171,7 +172,7 @@ const EntityDetailView: React.FC<EntityDetailViewProps> = ({
 
       {/* Notes */}
       {entity.notes && (
-        <div style={{ fontSize: '13px', lineHeight: '1.5', marginBottom: '12px', color: 'var(--theme-text-secondary)' }}>
+        <div style={{ fontSize: '0.8125rem', lineHeight: '1.5', marginBottom: '12px', color: 'var(--theme-text-secondary)' }}>
           {entity.notes}
         </div>
       )}
@@ -179,7 +180,7 @@ const EntityDetailView: React.FC<EntityDetailViewProps> = ({
       {/* Facets (structural subtopic groups) */}
       {facets.length > 0 && (
         <div style={{ marginBottom: '16px' }}>
-          <div style={{ fontSize: '13px', fontWeight: 600, marginBottom: '8px' }}>{t('topicsPane.subtopics')}</div>
+          <div style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '8px' }}>{t('topicsPane.subtopics')}</div>
           {facets.map(facet => {
             const isExpanded = expandedFacets.has(facet.facetId);
             const members = facet.members ?? [];
@@ -187,7 +188,7 @@ const EntityDetailView: React.FC<EntityDetailViewProps> = ({
               <div key={facet.facetId} style={{ marginBottom: '6px' }}>
                 <div
                   style={{
-                    fontSize: '12px',
+                    fontSize: '0.75rem',
                     fontWeight: 500,
                     cursor: 'pointer',
                     userSelect: 'none',
@@ -199,9 +200,9 @@ const EntityDetailView: React.FC<EntityDetailViewProps> = ({
                   }}
                   onClick={() => toggleFacet(facet.facetId)}
                 >
-                  <span style={{ fontSize: '9px', width: '12px' }}>{isExpanded ? '\u25BC' : '\u25B6'}</span>
+                  <span style={{ fontSize: '0.5625rem', width: '12px' }}>{isExpanded ? '\u25BC' : '\u25B6'}</span>
                   {facet.facetDisplayLabel}
-                  <span style={{ fontSize: '11px', color: 'var(--theme-text-tertiary)', marginInlineStart: '4px' }}>
+                  <span style={{ fontSize: '0.6875rem', color: 'var(--theme-text-tertiary)', marginInlineStart: '4px' }}>
                     ({members.length})
                   </span>
                 </div>
@@ -228,7 +229,7 @@ const EntityDetailView: React.FC<EntityDetailViewProps> = ({
       {/* People relationships (family tree) */}
       {relationships.length > 0 && (
         <div style={{ marginBottom: '16px' }}>
-          <div style={{ fontSize: '13px', fontWeight: 600, marginBottom: '8px' }}>{t('topicsPane.familyRelationships')}</div>
+          <div style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '8px' }}>{t('topicsPane.familyRelationships')}</div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '8px' }}>
             {relationships.map(rel => (
               <TopicCard
@@ -253,7 +254,7 @@ const EntityDetailView: React.FC<EntityDetailViewProps> = ({
         return (
           <div key={cat} style={{ marginBottom: '12px' }}>
             <div style={{
-              fontSize: '12px',
+              fontSize: '0.75rem',
               fontWeight: 600,
               color: CATEGORY_COLORS[cat] ?? 'var(--theme-text-secondary)',
               textTransform: 'uppercase',
@@ -280,7 +281,7 @@ const EntityDetailView: React.FC<EntityDetailViewProps> = ({
               <button
                 onClick={() => setShowAllAssocs(true)}
                 style={{
-                  fontSize: '11px',
+                  fontSize: '0.6875rem',
                   color: 'var(--theme-accent-primary)',
                   backgroundColor: 'transparent',
                   border: 'none',
@@ -297,7 +298,7 @@ const EntityDetailView: React.FC<EntityDetailViewProps> = ({
       })}
 
       {associations.length === 0 && facets.length === 0 && (
-        <div style={{ textAlign: 'center', padding: '12px', color: 'var(--theme-text-secondary)', fontSize: '13px' }}>
+        <div style={{ textAlign: 'center', padding: '12px', color: 'var(--theme-text-secondary)', fontSize: '0.8125rem' }}>
           {t('entityDetailView.noAssociationsFoundForThisEntity')}
         </div>
       )}

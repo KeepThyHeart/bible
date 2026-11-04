@@ -94,6 +94,7 @@ export interface StrongsEntryData {
   strongsNumber: string;
   word: string;
   transliteration: string;
+  pronunciation?: string;
   definition: string;
   partOfSpeech: string;
   etymology?: string;
@@ -171,6 +172,8 @@ export type SearchResultType =
   | 'chapter'
   | 'reference';
 
+import type { SemanticMeta } from '../RemoteSemantic/notice';
+
 export interface SearchResultData {
   verseId: number;
   /** For passage/range results (e.g. semantic paragraph matches), the last verse of the range. */
@@ -201,6 +204,12 @@ export interface SearchResultSet {
    * same reason as `totalAvailable`.
    */
   bookCounts?: Record<number, number>;
+  /**
+   * Semantic search only: which provider answered and any note to show
+   * ("keyword results", daily limit reached, meaning search is off). Absent for
+   * keyword searches and for providers that have nothing to say. Task 0190.
+   */
+  semantic?: SemanticMeta;
 }
 
 // Strong's search types

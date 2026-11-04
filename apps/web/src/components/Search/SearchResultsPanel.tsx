@@ -4,7 +4,9 @@ import { searchStore, searchResultId } from '../../stores/searchStore';
 import { commentaryStore } from '../../stores/commentaryStore';
 import { bibleStore } from '../../stores/bibleStore';
 import { offlineStore } from '../../stores/offlineStore';
+import { announce } from '../../utils/announcer';
 import { useStore } from '../../hooks/useStore';
+import { SemanticNote } from './SemanticNote';
 import { SearchResultItem } from './SearchResultItem';
 import { SearchDistributionChart, type SearchDistributionMode } from './SearchDistributionChart';
 import { parseVerseId } from '../../utils/verseId';
@@ -35,6 +37,11 @@ interface SearchResultsPanelProps {
   onOpenStrongsEntry?: (strongsNumber: string) => void;
 }
 
+/** A query typed like a slash command ('/note', '/plan'): those exist only in the desktop app. */
+export function isSlashCommandQuery(query: string): boolean {
+  return /^\/[a-z][\w-]*(\s|$)/i.test(query.trim());
+}
+
 export function SearchResultsPanel({ onNavigate, onOpenStrongsEntry }: SearchResultsPanelProps) {
   const { t } = useTranslation();
   const results = useStore(searchStore, () => searchStore.results);
@@ -43,11 +50,18 @@ export function SearchResultsPanel({ onNavigate, onOpenStrongsEntry }: SearchRes
   const totalResults = useStore(searchStore, () => searchStore.totalResults);
   const searchType = useStore(searchStore, () => searchStore.searchType);
   const searchedModule = useStore(searchStore, () => searchStore.searchedModule);
+  const semanticMeta = useStore(searchStore, () => searchStore.semanticMeta);
   const keywordMatchCount = useStore(searchStore, () => searchStore.keywordMatchCount);
   const canLoadMore = useStore(searchStore, () => searchStore.canLoadMore);
   const loadingMore = useStore(searchStore, () => searchStore.loadingMore);
   const tabs = useStore(bibleStore, () => bibleStore.tabs);
   const activeTabId = useStore(bibleStore, () => bibleStore.activeTabId);
+  // While the "Ideas search unavailable" popup is up it already explains the empty
+  // result; "No results found" under it would be a second, contradictory message.
+  const ideasUnavailableShown = useStore(
+    searchStore,
+    () => searchStore.semanticInit.status === 'error' && !searchStore.semanticInitDismissed,
+  );
   const strongsMode = useStore(searchStore, () => searchStore.strongsMode);
   const strongsEntry = useStore(searchStore, () => searchStore.strongsEntry);
   const wordFamily = useStore(searchStore, () => searchStore.wordFamily);
@@ -59,6 +73,36 @@ export function SearchResultsPanel({ onNavigate, onOpenStrongsEntry }: SearchRes
   const lastClickedId = useStore(searchStore, () => searchStore.lastClickedId);
   const resultsTruncated = useStore(searchStore, () => searchStore.resultsTruncated);
   const isOnline = useStore(offlineStore, () => offlineStore.isOnline);
+
+  // Announce the outcome of each search to screen readers.
+  useEffect(() => {
+    if (loading || !query) return;
+    announce(results.length === 0 ? t('search.noResults') : t('search.results', { count: totalResults || results.length }));
+  }, [loading, query, results.length === 0, totalResults]);
+  // Offline with nothing found means the search could not run, not that it found 0.
+  // While a search runs, the previous count (or an empty "0") is not an answer yet (B-184).
+  const showCount = !loading && (isOnline || totalResults > 0);
+  // A search that could not run offline is run again when the connection returns, rather
+  // than leaving "No results found" under a query nobody has actually answered.
+  const wasOfflineRef = useRef(false);
+  useEffect(() => {
+    if (!isOnline) {
+      wasOfflineRef.current = true;
+      return;
+    }
+    if (!wasOfflineRef.current) return;
+    wasOfflineRef.current = false;
+    if (query && !loading && results.length === 0) void searchStore.retryLast();
+  }, [isOnline]);
+  // Keyword mode headlines the exact matches only: approximate rows sit under
+  // their own divider and are not in the chart, so counting them made a phrase
+  // with one real hit read "(31 results)" (B-168, as B-017 on desktop).
+  const approximateCount = !strongsMode && searchType === 'keyword'
+    ? results.filter(r => r.type === 'fuzzy').length
+    : 0;
+  const headlineCount = approximateCount > 0
+    ? t('search.resultsWithApproximate', { count: Math.max(0, totalResults - approximateCount), approximate: approximateCount })
+    : t('search.results', { count: totalResults });
   const [mobileQuery, setMobileQuery] = useState('');
   const mobileInputRef = useRef<HTMLInputElement>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
@@ -200,13 +244,17 @@ export function SearchResultsPanel({ onNavigate, onOpenStrongsEntry }: SearchRes
           <input
             ref={mobileInputRef}
             type="text"
+            inputMode="search"
+            enterKeyHint="search"
+            autoCapitalize="none"
+            autoCorrect="off"
             class="search-panel-inline__mobile-input"
             placeholder={t('search.placeholder')}
             value={mobileQuery}
             onInput={(e) => setMobileQuery((e.target as HTMLInputElement).value)}
           />
-          <button type="submit" class="search-panel-inline__mobile-submit">
-            <i class="fa-solid fa-magnifying-glass" />
+          <button type="submit" class="search-panel-inline__mobile-submit" aria-label={t('header.search')}>
+            <i class="fa-solid fa-magnifying-glass" aria-hidden="true" />
           </button>
         </form>
         <div class="search-panel-inline__mobile-type">
@@ -241,12 +289,12 @@ export function SearchResultsPanel({ onNavigate, onOpenStrongsEntry }: SearchRes
             {strongsMode ? (
               <>
                 <i class="fa-solid fa-language" style={{ opacity: 0.5, marginInlineEnd: '6px', fontSize: '0.85em' }} />
-                {query} ({t('search.results', { count: totalResults })})
+                {query}{showCount && <> ({headlineCount})</>}
               </>
             ) : (
               <>
                 <i class={`fa-solid ${searchType === 'semantic' ? 'fa-lightbulb' : 'fa-magnifying-glass'}`} style={{ opacity: 0.5, marginInlineEnd: '6px', fontSize: '0.85em' }} />
-                "{query}" ({t('search.results', { count: totalResults })})
+                "{query}"{showCount && <> ({headlineCount})</>}
               </>
             )}
           </span>
@@ -333,7 +381,8 @@ export function SearchResultsPanel({ onNavigate, onOpenStrongsEntry }: SearchRes
             {t('search.searching')}
           </div>
         )}
-        {!loading && searchType === 'semantic' && keywordMatchCount > 0 && results.length > 0 && (
+        {!loading && searchType === 'semantic' && <SemanticNote meta={semanticMeta} />}
+        {!loading && searchType === 'semantic' && keywordMatchCount > 0 && results.length > 0 && semanticMeta?.source !== 'keyword' && (
           <div class="search-panel-inline__keyword-banner">
             {t('search.keywordBanner', { count: keywordMatchCount })}{' '}
             <button
@@ -355,7 +404,12 @@ export function SearchResultsPanel({ onNavigate, onOpenStrongsEntry }: SearchRes
             <span>{t('search.offlineNotice')}</span>
           </div>
         )}
-        {!loading && query && results.length === 0 && isOnline && (
+        {!loading && isSlashCommandQuery(query) && (
+          <div class="search-panel-inline__empty" data-testid="slash-hint">
+            {t('search.slashDesktopOnly')}
+          </div>
+        )}
+        {!loading && query && results.length === 0 && isOnline && !isSlashCommandQuery(query) && !(searchType === 'semantic' && ideasUnavailableShown) && (
           <div class="search-panel-inline__empty">
             {searchType === 'keyword' && searchedModule ? (
               <div class="search-panel-inline__no-results">

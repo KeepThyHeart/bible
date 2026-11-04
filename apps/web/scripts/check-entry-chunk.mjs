@@ -21,6 +21,11 @@ export const FORBIDDEN = [
   /^src\/modules\/notifications\/(?!(manifest|binding)\.ts$)/,
   // Games: only the manifest, the binding and the (import-free) runtime sink.
   /^src\/modules\/games\/(?!(manifest|binding|runtime)\.ts$)/,
+  // The speech engine (task 0151): loaded on first use of recitation, never with the app shell.
+  // `dev/` is the dev-only harness, which `vite build` never reaches.
+  /^src\/speech\//,
+  /(^|\/)packages\/speech\//,
+  /^dev\//,
 ];
 
 /**

@@ -7,7 +7,7 @@ import type {
   WordOccurrencePage,
   WordStudyOverview,
 } from '@bible/core/browser';
-import { fillTemplate, mergeWordStudyLabels } from './wordStudyLabels';
+import { fillTemplate, fillTemplateIsolated, mergeWordStudyLabels } from './wordStudyLabels';
 import type { WordStudyLabels } from './wordStudyLabels';
 import { WordStudyHeader } from './WordStudyHeader';
 import { RenderingChart } from './RenderingChart';
@@ -172,7 +172,7 @@ export function WordStudyView(props: WordStudyViewProps) {
         <section className="kth-ws-occurrences" aria-label={l.occurrencesTitle} aria-busy={occurrencesLoading ? true : undefined}>
           <div className="kth-ws-section-head">
             <h3 className="kth-ws-section-title">{l.occurrencesTitle}</h3>
-            {occurrences && <span className="kth-ws-occurrences__count">{fillTemplate(l.showing, { shown: items.length, total: occurrences.total })}</span>}
+            {occurrences && <span className="kth-ws-occurrences__count">{fillTemplateIsolated(l.showing, { shown: items.length, total: occurrences.total })}</span>}
             {hasFilter && <button type="button" className="kth-btn kth-btn--ghost kth-btn--sm" onClick={() => onFiltersChange({})}>{l.clearFilter}</button>}
           </div>
           {occurrences && items.length === 0 && !occurrencesLoading && <p className="kth-ws-status">{l.noOccurrences}</p>}

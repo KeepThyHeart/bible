@@ -59,6 +59,12 @@ describe('bibleStore — study verse on chapter entry', () => {
       expect(bibleStore.getActiveTab()?.studyVerse).toBe(43003002);
     });
 
+    it('lands on the next verse when the translation omits the one asked for (B-168)', async () => {
+      reset([makeVerse(1), makeVerse(2), makeVerse(4)]); // verse 3 omitted, as Acts 8:37 is in the ASV
+      await bibleStore.navigateTo(43, 3, 3);
+      expect(bibleStore.getActiveTab()?.studyVerse).toBe(43003004);
+    });
+
     it('leaves no verse selected when the chapter came back empty', async () => {
       reset([]);
       await bibleStore.navigateTo(43, 3);
@@ -133,5 +139,24 @@ describe('bibleStore — study verse on chapter entry', () => {
 
       expect(seen).not.toHaveBeenCalled();
     });
+  });
+});
+
+describe('bibleStore — URL hash for a typed reference', () => {
+  beforeEach(() => {
+    reset([makeVerse(1), makeVerse(2), makeVerse(3)]);
+    window.location.hash = '';
+  });
+
+  it('writes the verse into the hash when navigation names one', async () => {
+    await bibleStore.navigateTo(43, 3, 2);
+    const abbr = bibleStore.getActiveTab()?.moduleAbbr;
+    expect(window.location.hash).toBe(`#/${abbr}/43/3/2`);
+  });
+
+  it('keeps the chapter-only hash when no verse was named', async () => {
+    await bibleStore.navigateTo(43, 3);
+    const abbr = bibleStore.getActiveTab()?.moduleAbbr;
+    expect(window.location.hash).toBe(`#/${abbr}/43/3`);
   });
 });

@@ -277,12 +277,14 @@ export function BibleContent({
     }
   };
 
+  // The study verse as drawn: none while its highlight is hidden (second click).
+  const shownStudyVerse = tab.studyVerse !== null && tab.hiddenStudyVerse !== tab.studyVerse ? tab.studyVerse : null;
   // Verses between the anchor and the shift-clicked end, excluding the anchor
   // itself — those render faintly to show they are along for the copy.
-  const selectedRange = tab.selectionEndVerse != null && tab.studyVerse != null
+  const selectedRange = tab.selectionEndVerse != null && shownStudyVerse != null
     ? {
-        start: Math.min(tab.studyVerse, tab.selectionEndVerse),
-        end: Math.max(tab.studyVerse, tab.selectionEndVerse),
+        start: Math.min(shownStudyVerse, tab.selectionEndVerse),
+        end: Math.max(shownStudyVerse, tab.selectionEndVerse),
       }
     : null;
 
@@ -341,15 +343,20 @@ export function BibleContent({
 
   // Determine content to render below the header
   // Treat as loading if we have a book/chapter set but no verses yet and no error
-  const isLoading = tab.loading || !!(tab.book && tab.chapter && tab.verses.length === 0 && !tab.loadError);
+  // coveredBooks is only filled in when a load came back with no verses, so it
+  // distinguishes "finished, nothing there" (e.g. "John 555") from "in flight".
+  const loadedEmpty = !!tab.coveredBooks;
+  const isLoading = tab.loading || !!(tab.book && tab.chapter && tab.verses.length === 0 && !tab.loadError && !loadedEmpty);
   const isEmpty = !isLoading && tab.verses.length === 0;
+  // The module has this book, so the chapter itself is what doesn't exist.
+  const chapterMissing = loadedEmpty && !!tab.book && tab.coveredBooks!.includes(tab.book);
 
   return (
     <div class={`bible-content bible-content--${displayMode}`}>
       {/* Chapter heading with nav buttons — always rendered to prevent flicker */}
       <div class="bible-content__chapter-header">
-        <button class="bible-content__nav-btn" disabled={!canGoPrev || isLoading} onClick={goToPrev}>
-          <i class="fa-solid fa-chevron-left kth-rtl-mirror" />
+        <button class="bible-content__nav-btn" disabled={!canGoPrev || isLoading} onClick={goToPrev} aria-label={t('bibleToolbar.prevChapter')}>
+          <i class="fa-solid fa-chevron-left kth-rtl-mirror" aria-hidden="true" />
         </button>
         <h2
           class="bible-content__chapter-title bible-content__chapter-title--tappable"
@@ -358,8 +365,8 @@ export function BibleContent({
         >
           <bdi class="kth-bdi">{isSingleChapterBook(tab.book) ? bookName : `${bookName} ${tab.chapter}`}</bdi> <i class="fa-solid fa-caret-down bible-content__chapter-caret" />
         </h2>
-        <button class="bible-content__nav-btn" disabled={!canGoNext || isLoading} onClick={goToNext}>
-          <i class="fa-solid fa-chevron-right kth-rtl-mirror" />
+        <button class="bible-content__nav-btn" disabled={!canGoNext || isLoading} onClick={goToNext} aria-label={t('bibleToolbar.nextChapter')}>
+          <i class="fa-solid fa-chevron-right kth-rtl-mirror" aria-hidden="true" />
         </button>
       </div>
       {isLoading ? (
@@ -370,7 +377,7 @@ export function BibleContent({
       ) : isEmpty ? (
         <div class="bible-content__no-content">
           <i class={`fa-solid ${tab.loadError ? 'fa-triangle-exclamation' : 'fa-circle-info'}`} style={{ fontSize: '1.5em', color: tab.loadError ? 'var(--text-muted)' : 'var(--accent-color)', opacity: 0.6, marginBottom: '8px' }} />
-          <p>{tab.loadError || getCoverageMessage(tab.coveredBooks, t)}</p>
+          <p>{tab.loadError || (chapterMissing ? t('bibleContent.chapterNotFound', { ref: `${bookName} ${tab.chapter}` }) : getCoverageMessage(tab.coveredBooks, t))}</p>
           {tab.loadError && (
             <button
               style={{ marginTop: '12px', padding: '8px 16px', border: '1px solid var(--border-color)', borderRadius: '6px', background: 'var(--bg-secondary)', color: 'var(--accent-color)', cursor: 'pointer' }}
@@ -432,7 +439,7 @@ export function BibleContent({
               <VerseRenderer
                 key={verse.verse_id}
                 verse={verse}
-                isHighlighted={tab.studyVerse === verse.verse_id}
+                isHighlighted={shownStudyVerse === verse.verse_id}
                 isSelected={tab.previewVerse != null && (
                   tab.previewVerseEnd
                     ? verse.verse_id >= tab.previewVerse && verse.verse_id <= tab.previewVerseEnd
@@ -459,7 +466,7 @@ export function BibleContent({
                   verseId: verse.verse_id,
                   verse: verse.verse,
                   html: verse.text_html,
-                  isActive: tab.studyVerse === verse.verse_id,
+                  isActive: shownStudyVerse === verse.verse_id,
                 })}
               />
             ))}

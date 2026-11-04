@@ -381,7 +381,7 @@ export function buildDocumentation(t: TFn): DocSection[] {
       { type: 'heading', text: t('documentationDialog.shortcuts.viewHeading') },
       { type: 'shortcut-table', rows: [
         ['Ctrl + 0', t('documentationDialog.shortcuts.resetZoom')],
-        ['Ctrl + Plus', t('documentationDialog.shortcuts.zoomIn')],
+        ['Ctrl + =', t('documentationDialog.shortcuts.zoomIn')],
         ['Ctrl + Minus', t('documentationDialog.shortcuts.zoomOut')],
         ['Ctrl + /', t('documentationDialog.shortcuts.showShortcuts')],
       ]},

@@ -18,6 +18,7 @@
  * Notification text never contains verse text; see `pushCards.ts`.
  */
 
+import { tc } from './messages';
 import { applicableRungs, passageWellLearned } from './ladder';
 import {
   buildReminderItems,
@@ -565,12 +566,12 @@ export class PushController {
   }): Promise<{ nextDueAt: number | null; stack: CardStackView }> {
     const { store } = this.deps;
     const passage = await store.getPassage(req.passageId);
-    if (!passage) throw new Error('That passage is no longer in your plan.');
+    if (!passage) throw new Error(tc('memory.core.passageGone', 'That passage is no longer in your plan.'));
     const now = this.deps.now();
     const score = Object.prototype.hasOwnProperty.call(RECALL_SCORES, req.grade)
       ? RECALL_SCORES[req.grade]
       : undefined;
-    if (score === undefined) throw new Error('Unknown grade.');
+    if (score === undefined) throw new Error(tc('memory.core.unknownGrade', 'Unknown grade.'));
 
     const card = await store.ensureRecallCard(passage.id);
     await store.recordAttempt({

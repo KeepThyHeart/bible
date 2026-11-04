@@ -40,7 +40,7 @@ if ! command -v node >/dev/null 2>&1; then
   fi
 fi
 command -v node >/dev/null 2>&1 || fail "Node.js is not installed. Install Node 24: with nvm, 'nvm install 24'; or see https://nodejs.org/."
-command -v pnpm >/dev/null 2>&1 || fail "pnpm is not on PATH. Run 'corepack enable' (Corepack comes with Node.js), or see https://pnpm.io/installation."
+command -v pnpm >/dev/null 2>&1 || fail "pnpm is not on PATH. Run 'corepack enable' (Corepack comes with Node.js 24 and older; on 25+ run 'npm install -g corepack' first), or see https://pnpm.io/installation."
 
 node -e 'const [a,b]=process.versions.node.split(".").map(Number);process.exit(a>20||(a===20&&b>=19)?0:1)' \
   || fail "Node.js $(node --version) is too old: 20.19 or newer is needed (24 is recommended; 'nvm install 24')."

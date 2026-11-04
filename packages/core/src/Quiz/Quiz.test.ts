@@ -257,6 +257,33 @@ describe('QuizEngine', () => {
     expect(quiz.items.find((i) => i.question.key === 'f1')?.choices).toBeUndefined();
   });
 
+  it('places the correct choice uniformly over many seeds (B-065)', async () => {
+    const pool = [mc('m1', 1, 1, 1), mc('m2', 1, 5, 2), mc('m3', 2, 1, 1), mc('m4', 2, 9, 2), mc('m5', 3, 2, 3), mc('m6', 3, 5, 1)];
+    // A realistic module also holds many free-response questions, which use up random draws first.
+    for (let i = 0; i < 250; i++) pool.push(q(`f${i}`, 1 + (i % 3), 1 + (i % 30), { difficulty: ((i % 3) + 1) as 1 | 2 | 3 }));
+    const engine = new QuizEngine(source(pool), new MemoryQuizProgressStore(), { now: () => NOW });
+    const counts = [0, 0, 0, 0];
+    // Seeds as the app derives them: a clock in milliseconds, quizzes seconds apart.
+    const base = 1_760_000_000_000 % 2147483647;
+    const N = 800;
+    for (let i = 0; i < N; i++) {
+      const quiz = await engine.buildQuiz({ passages: [chaptersPassage(MARK, 1, 3)], label: 'x', count: 15, seed: base + i * 1733 });
+      for (const it of quiz.items.filter((x) => x.choices)) counts[it.choices!.findIndex((c) => c.correct)]++;
+    }
+    const total = counts.reduce((a, b) => a + b, 0);
+    // Expected 25% each; chi-square with 3 dof, p=0.001 critical value 16.27.
+    const chi = counts.reduce((a, c) => a + (c - total / 4) ** 2 / (total / 4), 0);
+    expect(chi, `positions ${counts.join('/')}`).toBeLessThan(16.27);
+  });
+
+  it('never asks the same prompt twice in one quiz (B-066)', async () => {
+    const twin = { ...mc('m1b', 1, 2, 1), prompt: mc('m1', 1, 1, 1).prompt };
+    const engine = new QuizEngine(source([mc('m1', 1, 1, 1), twin, mc('m2', 1, 5, 2)]), new MemoryQuizProgressStore(), { now: () => NOW });
+    const quiz = await engine.buildQuiz({ passages: [chaptersPassage(MARK, 1, 1)], label: 'x', count: 5, seed: 1 });
+    const prompts = quiz.items.map((i) => i.question.prompt);
+    expect(new Set(prompts).size).toBe(prompts.length);
+  });
+
   it('merges several sources, first source winning a key', async () => {
     const a = source([mc('x', 1, 1, 1)]);
     const b = source([{ ...mc('x', 1, 1, 1), prompt: 'other' }, mc('y', 1, 2, 1)]);

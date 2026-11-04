@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useI18n } from '../../../contexts/useI18n';
 import { SerializedNote } from '../../../services/notesAPI';
 import { usePrayerStore } from '../../../stores/usePrayerStore';
+import { registerShutdownFlush } from '../../../services/activeNoteFlush';
 import NoteEditor from '../editor/NoteEditor';
 import ColorSelector, { PrayerColor } from './ColorSelector';
 
@@ -47,6 +48,64 @@ const PrayerEditor: React.FC<PrayerEditorProps> = ({ prayer }) => {
     editorContentRef.current = localContent;
   }, [localContent]);
 
+  // Debounced autosave of the body. Without it the body was only persisted on
+  // unmount / prayer switch / title blur, so a quick quit lost the last edit.
+  const AUTOSAVE_DELAY_MS = 1000;
+  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved'>('idle');
+  const savedContentRef = useRef('');
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const flushContent = useRef(async (): Promise<void> => {});
+  flushContent.current = async () => {
+    if (saveTimerRef.current) {
+      clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = null;
+    }
+    const current = prayerRef.current;
+    const content = editorContentRef.current;
+    if (!current || content === savedContentRef.current) return;
+    savedContentRef.current = content;
+    setSaveState('saving');
+    try {
+      await updatePrayer({
+        ...current,
+        title: titleRef.current,
+        content,
+        metadata: { ...current.metadata, color: colorRef.current }
+      });
+      setSaveState('saved');
+    } catch (error) {
+      savedContentRef.current = '\u0000unsaved';
+      setSaveState('idle');
+      console.error('Failed to auto-save prayer:', error);
+    }
+  };
+
+  const handleContentChange = (value: string) => {
+    editorContentRef.current = value;
+    setLocalContent(value);
+    if (value === savedContentRef.current) return;
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
+      void flushContent.current();
+    }, AUTOSAVE_DELAY_MS);
+  };
+
+  // Flush on window close: the main process destroys the renderer right after
+  // the save-before-close IPC, before React cleanup runs.
+  useEffect(() => {
+    const flush = () => flushContent.current();
+    const unregister = registerShutdownFlush(flush);
+    const onBeforeUnload = () => {
+      void flush();
+    };
+    window.addEventListener('beforeunload', onBeforeUnload);
+    return () => {
+      window.removeEventListener('beforeunload', onBeforeUnload);
+      unregister();
+    };
+  }, []);
+
   // Sync content changes to the store so PrayerList can access it when switching prayers
   // This is debounced to avoid excessive store updates while typing
   useEffect(() => {
@@ -70,6 +129,10 @@ const PrayerEditor: React.FC<PrayerEditorProps> = ({ prayer }) => {
 
     // Cleanup: save when component unmounts (tab change)
     return () => {
+      if (saveTimerRef.current) {
+        clearTimeout(saveTimerRef.current);
+        saveTimerRef.current = null;
+      }
       // Capture at cleanup time since this runs on unmount
       const cleanupPrayer = prayerRef.current;
       const cleanupTitle = titleRef.current;
@@ -107,6 +170,9 @@ const PrayerEditor: React.FC<PrayerEditorProps> = ({ prayer }) => {
       setTitle(prayer.title || '');
       setColor((prayer.metadata?.color as PrayerColor) || 'none');
       setLocalContent(prayer.content || '');
+      editorContentRef.current = prayer.content || '';
+      savedContentRef.current = prayer.content || '';
+      setSaveState('idle');
       currentPrayerId.current = prayer.noteId;
     } else if (prayer && prayer.noteId === currentPrayerId.current) {
       // Re-sync title when the store updates the same prayer (e.g. after switching
@@ -220,6 +286,11 @@ const PrayerEditor: React.FC<PrayerEditorProps> = ({ prayer }) => {
           </div>
           <div id="prayer-autosave-hint" className="text-xs text-text-secondary mt-xs">
             {t('prayerEditor.autoSaveHint')}
+            {saveState !== 'idle' && (
+              <span role="status" className="ms-sm">
+                {saveState === 'saving' ? t('prayerEditor.saving') : t('prayerEditor.saved')}
+              </span>
+            )}
           </div>
         </div>
 
@@ -240,11 +311,14 @@ const PrayerEditor: React.FC<PrayerEditorProps> = ({ prayer }) => {
           change still hold the literal text in their saved content - rewriting
           them would be editing the user's own words, so they are left alone.
         */}
-        <NoteEditor
-          value={localContent}
-          onChange={setLocalContent}
-          placeholder={t('prayerEditor.contentPlaceholder')}
-        />
+        <div className="h-full" onBlur={() => void flushContent.current()}>
+          <NoteEditor
+            key={prayer.noteId}
+            value={localContent}
+            onChange={handleContentChange}
+            placeholder={t('prayerEditor.contentPlaceholder')}
+          />
+        </div>
       </div>
     </div>
   );

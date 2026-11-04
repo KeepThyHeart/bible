@@ -8,10 +8,10 @@
  * Two servers (see playwright.config.ts): 3101 has `features.pwa` on, 3100 has
  * it off. They are separate origins, so no worker leaks between them.
  */
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect } from '../fixtures';
+import type { Page } from '../fixtures';
+import { PLAIN_URL, PWA_URL } from '../ports';
 
-const PWA_URL = 'http://localhost:3101';
-const PLAIN_URL = 'http://localhost:3100';
 
 test.beforeEach(({}, testInfo) => {
   test.skip(testInfo.project.name !== 'desktop-chrome', 'Service-worker specs run on desktop Chromium only');
@@ -108,6 +108,7 @@ test.describe('PWA on (features.pwa = true)', () => {
     await page.locator('.settings-panel__tab', { hasText: /about/i }).click();
     const reset = page.locator('[data-testid="reset-app-cache"]');
     await expect(reset).toBeVisible();
+    page.once('dialog', (dialog) => void dialog.accept()); // the reset asks first
     const reloaded = page.waitForEvent('load');
     await reset.click();
     await reloaded;

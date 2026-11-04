@@ -1,4 +1,11 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeAll, beforeEach, vi } from 'vitest';
+
+// The first import of each store transforms its module graph (slow when the machine is busy) and would
+// otherwise be charged to whichever test happens to run first, against the 5 s default. Pay once, here.
+beforeAll(async () => {
+  await import('../stores/offlineStore');
+  await import('../stores/settingsStore');
+}, 120_000);
 
 // =============================================================================
 // 1. SearchStore - Strong's Pattern Detection & refToVerseId
@@ -358,11 +365,11 @@ describe('SettingsStore - font clamping', () => {
     const { settingsStore } = await import('../stores/settingsStore');
     // Set UI near its max (24)
     settingsStore.setUiFontSize(23);
-    // Bible font at 18 (default), study at 15 (default)
+    // Bible font at 19 (default), study at 17 (default)
     settingsStore.adjustAllFontSizes(5);
     expect(settingsStore.uiFontSize).toBe(24); // clamped
-    expect(settingsStore.fontSize).toBe(23); // 18 + 5
-    expect(settingsStore.studyFontSize).toBe(20); // 15 + 5
+    expect(settingsStore.fontSize).toBe(24); // 19 + 5
+    expect(settingsStore.studyFontSize).toBe(22); // 17 + 5
   });
 });
 
@@ -376,23 +383,27 @@ describe('SettingsStore - study font custom properties', () => {
   it('publishes --study-font-size and --study-font-scale on load', async () => {
     await import('../stores/settingsStore');
     const style = document.documentElement.style;
-    expect(style.getPropertyValue('--study-font-size')).toBe('15px');
-    expect(style.getPropertyValue('--study-font-scale')).toBe('1');
+    // rem, so the size follows the browser's root font size; 17px at a 16px root.
+    expect(style.getPropertyValue('--study-font-size')).toBe('1.0625rem');
+    // Relative to the 15px the stylesheet literals were authored against.
+    expect(style.getPropertyValue('--study-font-scale')).toBe(String(17 / 15));
+    expect(style.getPropertyValue('--ui-font-size')).toBe('1rem');
+    expect(style.getPropertyValue('--ui-font-scale')).toBe(String(16 / 14));
   });
 
   it('updates the study custom properties when the size changes', async () => {
     const { settingsStore } = await import('../stores/settingsStore');
     settingsStore.setStudyFontSize(30);
     const style = document.documentElement.style;
-    expect(style.getPropertyValue('--study-font-size')).toBe('30px');
+    expect(style.getPropertyValue('--study-font-size')).toBe('1.875rem');
     expect(style.getPropertyValue('--study-font-scale')).toBe('2');
   });
 
   it('updates the study custom properties from adjustAllFontSizes', async () => {
     const { settingsStore } = await import('../stores/settingsStore');
-    settingsStore.adjustAllFontSizes(-3);
+    settingsStore.adjustAllFontSizes(-5);
     expect(settingsStore.studyFontSize).toBe(12);
-    expect(document.documentElement.style.getPropertyValue('--study-font-size')).toBe('12px');
+    expect(document.documentElement.style.getPropertyValue('--study-font-size')).toBe('0.75rem');
   });
 });
 
@@ -433,11 +444,11 @@ describe('SettingsStore - resetTextSettings', () => {
     settingsStore.resetTextSettings();
 
     const style = document.documentElement.style;
-    expect(style.getPropertyValue('--study-font-scale')).toBe('1');
-    expect(style.getPropertyValue('--ui-font-scale')).toBe('1');
+    expect(style.getPropertyValue('--study-font-scale')).toBe(String(17 / 15));
+    expect(style.getPropertyValue('--ui-font-scale')).toBe(String(16 / 14));
     const parsed = JSON.parse(localStorage.getItem('bible-reader-settings')!);
-    expect(parsed.studyFontSize).toBe(15);
-    expect(parsed.uiFontSize).toBe(14);
+    expect(parsed.studyFontSize).toBe(17);
+    expect(parsed.uiFontSize).toBe(16);
   });
 });
 
@@ -476,8 +487,42 @@ describe('SettingsStore - save/load persistence', () => {
     localStorage.setItem('bible-reader-settings', 'NOT VALID JSON{{{');
     const { settingsStore } = await import('../stores/settingsStore');
     // Should fall back to defaults without crashing
-    expect(settingsStore.fontSize).toBe(18);
+    expect(settingsStore.fontSize).toBe(19);
     expect(settingsStore.theme).toBe('auto');
+  });
+
+  it('moves sizes still on the old 18/15/14 defaults to the new defaults, once', async () => {
+    localStorage.setItem('bible-reader-settings', JSON.stringify({
+      theme: 'dark', fontSize: 18, studyFontSize: 15, uiFontSize: 14,
+    }));
+    const { settingsStore } = await import('../stores/settingsStore');
+    expect(settingsStore.fontSize).toBe(19);
+    expect(settingsStore.studyFontSize).toBe(17);
+    expect(settingsStore.uiFontSize).toBe(16);
+    expect(settingsStore.theme).toBe('dark');
+    const parsed = JSON.parse(localStorage.getItem('bible-reader-settings')!);
+    expect(parsed.textSizeVersion).toBe(2);
+    expect(parsed.fontSize).toBe(19);
+  });
+
+  it('keeps sizes the reader chose when migrating', async () => {
+    localStorage.setItem('bible-reader-settings', JSON.stringify({
+      fontSize: 22, commentaryFontSize: 15, uiFontSize: 12,
+    }));
+    const { settingsStore } = await import('../stores/settingsStore');
+    expect(settingsStore.fontSize).toBe(22);
+    expect(settingsStore.studyFontSize).toBe(17); // legacy key, old default
+    expect(settingsStore.uiFontSize).toBe(12);
+  });
+
+  it('does not migrate again once the blob is on the current version', async () => {
+    localStorage.setItem('bible-reader-settings', JSON.stringify({
+      textSizeVersion: 2, fontSize: 18, studyFontSize: 15, uiFontSize: 14,
+    }));
+    const { settingsStore } = await import('../stores/settingsStore');
+    expect(settingsStore.fontSize).toBe(18);
+    expect(settingsStore.studyFontSize).toBe(15);
+    expect(settingsStore.uiFontSize).toBe(14);
   });
 });
 

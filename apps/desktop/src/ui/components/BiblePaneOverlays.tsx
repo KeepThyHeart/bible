@@ -1,4 +1,5 @@
 import React from 'react';
+import { requestVerseNote } from './notes/UserNotesPane/verseNoteRequest';
 import { useBibleStore } from '../stores/useBibleStore';
 import { revealNotesPanel } from './bible/revealNotesPanel';
 import VerseContextMenu from './VerseContextMenu';
@@ -21,6 +22,7 @@ import { useEscapeKey } from '../hooks/useOverlayDismissal';
 import { useBookmarkStore } from '../stores/useBookmarkStore';
 import { wordMenuItems, useSlot } from '../modules/host/slots';
 import { useWordStrongs } from './bible/hooks/useWordStrongs';
+import { syncPanesWithVerse } from '../stores/syncPanesWithVerse';
 
 interface BibleTabInfo {
   tabId: string;
@@ -42,6 +44,8 @@ interface AvailableBible {
 }
 
 export interface BiblePaneOverlaysProps {
+  /** Verses of the open chapter that have a note (the context menu then says "Edit Note"). */
+  versesWithNotes?: Set<number>;
   // Book/Chapter Picker.
   // One panel shows one passage, so picking a book/chapter always navigates
   // *this* passage. Reading somewhere else alongside it means opening another
@@ -79,6 +83,7 @@ export interface BiblePaneOverlaysProps {
     position: { x: number; y: number };
     isMultiple: boolean;
     markupId?: number;
+    markupIds?: number[];
     wordIndex?: number;
     wordText?: string;
   } | null;
@@ -88,6 +93,7 @@ export interface BiblePaneOverlaysProps {
     position: { x: number; y: number };
     isMultiple: boolean;
     markupId?: number;
+    markupIds?: number[];
     wordIndex?: number;
     wordText?: string;
   } | null>>;
@@ -168,6 +174,7 @@ export interface BiblePaneOverlaysProps {
 }
 
 const BiblePaneOverlays: React.FC<BiblePaneOverlaysProps> = ({
+  versesWithNotes,
   showBookPicker,
   setShowBookPicker,
   currentBook,
@@ -269,6 +276,8 @@ const BiblePaneOverlays: React.FC<BiblePaneOverlaysProps> = ({
           setShowBookPicker(false);
           const verseId = (book * 1000000) + (chapter * 1000) + (verse ?? 1);
           useBibleStore.getState().navigateToVerse(panelId, verseId); // allow-getstate: event handler - imperative navigation, no subscription needed
+          // Picking a chapter is the reader choosing a verse, as typing a reference is.
+          syncPanesWithVerse(verseId);
         }}
         currentBook={currentBook}
         currentChapter={currentChapter}
@@ -397,7 +406,10 @@ const BiblePaneOverlays: React.FC<BiblePaneOverlaysProps> = ({
           }}
           isMultipleVerses={contextMenu.isMultiple}
           markupId={contextMenu.markupId}
-          onRemoveHighlight={handleRemoveHighlight}
+          onRemoveHighlight={(id) => {
+            // Clear every mark on the clicked word, so "remove" really clears the spot.
+            for (const markId of contextMenu.markupIds ?? [id]) void handleRemoveHighlight(markId);
+          }}
           wordText={menuWord?.text}
           wordTabId={menuWord?.tabId}
           wordStrongs={wordStrongs}
@@ -421,6 +433,7 @@ const BiblePaneOverlays: React.FC<BiblePaneOverlaysProps> = ({
             if (verseId === undefined) return;
             void removeVerseFromAllCollections(verseId).then(() => loadBookmarks());
           }}
+          hasNote={contextMenu.verses[0]?.verse_id !== undefined && !!versesWithNotes?.has(contextMenu.verses[0].verse_id)}
           onAddNote={() => {
             const verseId = contextMenu.verses[0]?.verse_id;
             if (!verseId) return;
@@ -431,7 +444,7 @@ const BiblePaneOverlays: React.FC<BiblePaneOverlaysProps> = ({
             requestAnimationFrame(() => {
               requestAnimationFrame(() => {
                 syncAllNotesPanelsWithVerse(verseId);
-                window.dispatchEvent(new CustomEvent('open-verse-note'));
+                requestVerseNote(verseId);
               });
             });
           }}
@@ -465,7 +478,7 @@ const BiblePaneOverlays: React.FC<BiblePaneOverlaysProps> = ({
               return;
             }
 
-            // No text selection - highlight entire verse(s)
+            // No text selection - highlight the entire verse(s), as a plain right-click means "this verse"
             const verses = contextMenu.verses;
             const firstVerse = verses[0];
             const lastVerse = verses[verses.length - 1];
@@ -567,7 +580,7 @@ const BiblePaneOverlays: React.FC<BiblePaneOverlaysProps> = ({
                 requestAnimationFrame(() => {
                   try {
                     syncAllNotesPanelsWithVerse(verseId);
-                    window.dispatchEvent(new CustomEvent('open-verse-note'));
+                    requestVerseNote(verseId);
                   } catch (error) {
                     console.error('Failed to open the verse note:', error);
                   }

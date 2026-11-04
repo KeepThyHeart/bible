@@ -94,6 +94,22 @@ describe('NotesFolderBrowser context menu', () => {
     expect(screen.queryByRole('menuitem', { name: 'Move to...' })).not.toBeInTheDocument();
   });
 
+  it.each([
+    ['Win32', 'Reveal in Explorer', 'Delete (Recycle Bin)'],
+    ['MacIntel', 'Reveal in Finder', 'Delete (Trash)'],
+    ['Linux x86_64', 'Show in file manager', 'Delete (Trash)'],
+  ])('words reveal and delete for the platform (%s)', (platform, reveal, del) => {
+    const spy = vi.spyOn(window.navigator, 'platform', 'get').mockReturnValue(platform);
+    try {
+      renderBrowser();
+      openContextMenu('Romans 8');
+      expect(screen.getByRole('menuitem', { name: reveal })).toBeInTheDocument();
+      expect(screen.getByRole('menuitem', { name: del })).toBeInTheDocument();
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
   it('no longer shows the dead "Export To..." item', () => {
     renderBrowser();
 
@@ -102,6 +118,6 @@ describe('NotesFolderBrowser context menu', () => {
     expect(screen.queryByRole('menuitem', { name: /Export/i })).not.toBeInTheDocument();
     // The menu is otherwise intact.
     expect(screen.getByRole('menuitem', { name: 'Open' })).toBeInTheDocument();
-    expect(screen.getByRole('menuitem', { name: 'Reveal in Explorer' })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: /^(Reveal in Explorer|Reveal in Finder|Show in file manager)$/ })).toBeInTheDocument();
   });
 });

@@ -50,6 +50,8 @@ export interface VerseContextMenuProps {
   onOpenHighlightMenu?: () => void;
   /** Callback to open/create a verse note */
   onAddNote?: () => void;
+  /** The clicked verse already has a note: label the entry "Edit Note". */
+  hasNote?: boolean;
   /** Markup ID if right-clicking on highlighted text */
   markupId?: number;
   /** Callback to remove a highlight */
@@ -108,6 +110,7 @@ const VerseContextMenu: React.FC<VerseContextMenuProps> = ({
   onOpenCopyOptions,
   onOpenHighlightMenu,
   onAddNote,
+  hasNote,
   markupId,
   onRemoveHighlight,
   bookmarks = [],
@@ -219,7 +222,7 @@ const VerseContextMenu: React.FC<VerseContextMenuProps> = ({
       // After the panel exists. One frame is enough - it mounts in the very
       // next commit.
       requestAnimationFrame(() => {
-        submenuRef.current?.querySelector<HTMLButtonElement>('[role="menuitem"]')?.focus();
+        submenuRef.current?.querySelector<HTMLButtonElement>('[role="menuitem"]')?.focus({ preventScroll: true });
       });
     }
   };
@@ -381,28 +384,42 @@ const VerseContextMenu: React.FC<VerseContextMenuProps> = ({
     position: 'fixed',
     top: position.y,
     insetInlineStart: anchorAtPointer(position.x, 180, typeof window === 'undefined' ? 1024 : window.innerWidth, uiDir, 10).insetInlineStart,
-    zIndex: 9999
+    zIndex: 9999,
+    // Taller than the window (many extension items): scroll instead of clipping.
+    maxHeight: 'calc(100vh - 20px)',
+    // Only a menu that really overflows scrolls (see `clamp`): a scroll container would
+    // clip the bookmarks flyout and scroll the item labels out of view when it takes focus.
+    overflowY: 'visible',
   };
 
-  // Re-anchor with the measured size to prevent overflow
+  // Re-anchor with the measured size to prevent overflow. Re-run whenever the
+  // menu's size changes: items (bookmarks, module entries) can arrive after mount.
   useEffect(() => {
-    if (menuRef.current) {
-      const rect = menuRef.current.getBoundingClientRect();
+    const node = menuRef.current;
+    if (!node) return;
+    const clamp = () => {
+      const rect = node.getBoundingClientRect();
       const viewportWidth = window.innerWidth;
       const viewportHeight = window.innerHeight;
 
       let adjustedTop = position.y;
       const { insetInlineStart } = anchorAtPointer(position.x, rect.width, viewportWidth, uiDir, 10);
 
-      // Adjust if menu overflows bottom edge
-      if (rect.bottom > viewportHeight) {
+      // Shift up when the menu would overflow the bottom edge.
+      if (adjustedTop + rect.height > viewportHeight - 10) {
         adjustedTop = viewportHeight - rect.height - 10;
       }
       adjustedTop = Math.max(10, adjustedTop);
 
-      menuRef.current.style.top = `${adjustedTop}px`;
-      menuRef.current.style.insetInlineStart = `${insetInlineStart}px`;
-    }
+      node.style.top = `${adjustedTop}px`;
+      node.style.insetInlineStart = `${insetInlineStart}px`;
+      node.style.overflowY = node.scrollHeight > node.clientHeight + 1 ? 'auto' : 'visible';
+    };
+    clamp();
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(clamp);
+    observer.observe(node);
+    return () => observer.disconnect();
   }, [position, uiDir]);
 
   const menu = (
@@ -452,7 +469,7 @@ const VerseContextMenu: React.FC<VerseContextMenuProps> = ({
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
             </svg>
-            <span>{t('ui.verseContextMenu.addNote')}</span>
+            <span>{hasNote ? t('ui.verseContextMenu.editNote') : t('ui.verseContextMenu.addNote')}</span>
           </button>
         </>
       )}
@@ -652,6 +669,23 @@ const VerseContextMenu: React.FC<VerseContextMenuProps> = ({
         </>
       )}
 
+      {/* Remove option sits right under the apply item: one click clears the mark at this spot (task 0200). */}
+      {markupId !== undefined && onRemoveHighlight && (
+        <button
+          onClick={() => {
+            onRemoveHighlight(markupId);
+            onClose();
+          }}
+          className="w-full px-4 py-2 text-start text-sm hover:bg-background-hover transition-colors flex items-center gap-2 cursor-pointer"
+          role="menuitem"
+        >
+          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M16.24 3.56l4.95 4.94c.78.79.78 2.05 0 2.84L12 20.53a4.008 4.008 0 0 1-5.66 0L2.81 17c-.78-.79-.78-2.05 0-2.84l10.6-10.6c.79-.78 2.05-.78 2.83 0M4.22 15.58l3.54 3.53c.78.79 2.04.79 2.83 0l3.53-3.53-4.95-4.95-4.95 4.95z"/>
+          </svg>
+          <span>{t('ui.verseContextMenu.removeHighlight')}</span>
+        </button>
+      )}
+
       {/*
         Extension-contributed items, beneath the built-ins and separated from
         them. The order is deliberate: the app's own actions are what a reader
@@ -671,14 +705,12 @@ const VerseContextMenu: React.FC<VerseContextMenuProps> = ({
               className="w-full px-4 py-2 text-start text-sm hover:bg-background-hover transition-colors flex items-center gap-2 cursor-pointer"
               role="menuitem"
             >
-              {/*
-                No icon slot. `ContextMenuItemDescriptor.icon` is a string the
-                extension chooses, and rendering arbitrary extension-supplied
-                markup into the app's own menu is exactly the injection this
-                platform is built to avoid. A named-icon vocabulary can be
-                added later; a gap where an icon would be is honest until then.
+{/*
+                Icons come only from a named-icon vocabulary (`AppIconGlyph` maps a builtin name to an
+                inline SVG), never from markup an extension supplies: extension rows carry no icon and
+                keep the blank gap, a module's contribution (Memorize) draws its glyph.
               */}
-              <span className="w-4 h-4 shrink-0" aria-hidden="true" />
+              {action.icon ? <AppIconGlyph icon={action.icon} size={16} /> : <span className="w-4 h-4 shrink-0" aria-hidden="true" />}
               <span>
                 {'key' in action.title
                   ? translateWithDefault(t, action.title.key, action.title.fallback)
@@ -693,22 +725,6 @@ const VerseContextMenu: React.FC<VerseContextMenuProps> = ({
         <WordMenuItems tabId={wordTabId} wordText={wordText} wordStrongs={wordStrongs} onClose={onClose} />
       )}
 
-      {/* Remove Highlight Option - shown only when right-clicking on highlighted text */}
-      {markupId && onRemoveHighlight && (
-        <button
-          onClick={() => {
-            onRemoveHighlight(markupId);
-            onClose();
-          }}
-          className="w-full px-4 py-2 text-start text-sm hover:bg-background-hover transition-colors flex items-center gap-2 cursor-pointer"
-          role="menuitem"
-        >
-          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-            <path d="M16.24 3.56l4.95 4.94c.78.79.78 2.05 0 2.84L12 20.53a4.008 4.008 0 0 1-5.66 0L2.81 17c-.78-.79-.78-2.05 0-2.84l10.6-10.6c.79-.78 2.05-.78 2.83 0M4.22 15.58l3.54 3.53c.78.79 2.04.79 2.83 0l3.53-3.53-4.95-4.95-4.95 4.95z"/>
-          </svg>
-          <span>{t('ui.verseContextMenu.removeHighlight')}</span>
-        </button>
-      )}
     </div>
   );
 

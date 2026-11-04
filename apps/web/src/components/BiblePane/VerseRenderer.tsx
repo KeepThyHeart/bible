@@ -86,9 +86,9 @@ export function VerseRenderer({
    * copying just that still works exactly as before.
    */
   const handleMouseDown = (e: MouseEvent) => {
-    if (e.shiftKey) e.preventDefault();
+    if (e.shiftKey || e.ctrlKey || e.metaKey) e.preventDefault();
   };
-  const handleClick = (e: MouseEvent) => onVerseClick(verse.verse_id, e.shiftKey);
+  const handleClick = (e: MouseEvent) => onVerseClick(verse.verse_id, e.shiftKey || e.ctrlKey || e.metaKey);
 
   // Get the HTML, optionally stripping christ-words styling, and pull trailing
   // punctuation inside closing tags so it cannot wrap to a line of its own

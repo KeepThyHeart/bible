@@ -78,7 +78,10 @@ test.describe('Search', () => {
       const dialog = await openAdvanced(window);
 
       await dialog.locator('select').first().selectOption('allBibles');
-      await dialog.locator('input[type="text"]').first().fill('love joy peace');
+      // The tab reads KJV, so a hit labelled with any other translation proves the scope reached past it.
+      // "ghost" keeps the result count small (results are one per verse across translations and stop at a
+      // limit) and has ASV hits ("gave up the ghost").
+      await dialog.locator('input[type="text"]').first().fill('ghost');
       await dialog.locator('button', { hasText: 'Search' }).click({ force: true });
 
       await expect(resultsPane(window)).toBeVisible({ timeout: SEARCH_TIMEOUT });
@@ -87,10 +90,8 @@ test.describe('Search', () => {
       // The scope is the point of the test. Asserting only `count > 0` will not do
       // - the default single-module scope satisfies it just as well, so the test
       // would pass whether or not `allBibles` did anything.
-      const modules = new Set(
-        await window.locator('[data-testid="search-result-module"]').allTextContents(),
-      );
-      expect(modules.size).toBeGreaterThan(1);
+      const modules = await window.locator('[data-testid="search-result-module"]').allTextContents();
+      expect(modules.some((m) => m.trim() !== 'KJV')).toBe(true);
     });
   });
 

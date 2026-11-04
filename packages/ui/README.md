@@ -127,6 +127,17 @@ Classes: `kth-swatch-group`, `kth-swatch` (`--sm`). Adopting it in desktop's `Hi
 ``<HighlightSwatch value={...} onChange={({ color }) => ...} colorValue={(c) => `rgb(var(--theme-highlight-${c}-rgb))`} />``, which
 keeps the theme-tinted look; it is not wired yet (the selector's buttons carry app-specific behaviour and styling to port first).
 
+### Navigation and table classes (plain CSS, no component)
+
+Opt-in classes in `css/kth-classes.css` for DOM-built UIs such as the Memory app (task 0195); nothing to import beyond `kth.css`.
+
+| Pieces | Markup |
+|---|---|
+| Breadcrumbs: `kth-crumbs`, `__list`, `__item`, `__sep`, `__link`, `__current`, `__actions`, `__meta` | `nav.kth-crumbs > ol.kth-crumbs__list > li.kth-crumbs__item > button.kth-crumbs__link` ... the last item is `h1.kth-crumbs__current[aria-current="page"]`; separators are `li.kth-crumbs__sep`; the optional `div.kth-crumbs__actions` sits after the list. |
+| Back: `kth-back`, `__icon` | `button.kth-back` with a leading `span.kth-back__icon` chevron (it mirrors in RTL). |
+| Tabs: `kth-tabs`, `__tab` | `div.kth-tabs[role=tablist] > button.kth-tabs__tab[role=tab][aria-selected]`; the selected tab is styled from `aria-selected`. |
+| Table: `kth-table`, `__head`, `__cell` | `table.kth-table > thead > tr > th.kth-table__head`, `td.kth-table__cell`; `data-muted` on a cell dims it. |
+
 ### `Popover`, `HoverCard`, `BottomSheet` (popups)
 
 One popup set for verse previews, Strong's, measures, similar passages and extension hovers. Positioning and hover

@@ -23,7 +23,6 @@
   },
   "biblePaneDesktop": {
     "title": "Bible Pane",
-    "compareTabs": "Open multiple tabs to compare passages side by side.",
     "translationSelector": "Use the <strong>translation selector</strong> to switch Bible versions.",
     "displayModes": "Switch display modes: <strong>Reading</strong> (no verse numbers), <strong>Standard</strong>, or <strong>Study</strong> (with Strong's numbers and interlinear data).",
     "strongsClick": "Click a <strong>Strong's number</strong> in Study mode to view its dictionary entry.",
@@ -31,7 +30,6 @@
   },
   "readingMobile": {
     "title": "Reading",
-    "compareTabs": "Open multiple tabs to compare passages.",
     "translationSelector": "Use the <strong>translation selector</strong> to switch Bible versions.",
     "displayModes": "Switch display modes: <strong>Reading</strong>, <strong>Standard</strong>, or <strong>Study</strong> (with Strong's numbers and interlinear data).",
     "longPress": "Tap and hold a verse to access options like <strong>Copy</strong>."
@@ -46,13 +44,14 @@
     "title": "Commentary & Search",
     "rightPane": "The right pane shows <strong>commentary</strong> for the current passage, updating as you navigate.",
     "switchPanes": "Switch between Commentary and Search results using the tabs at the top of the right pane.",
-    "ctrlClick": "Click <strong>Ctrl+Click</strong> on a search result to open it in a new tab."
+    "ctrlClick": "<strong>Ctrl+Click</strong> a search result to open it in a new tab."
   },
   "shortcuts": {
     "title": "Keyboard Shortcuts",
     "focusSearch": "Focus search bar",
     "focusSearchAlt": "Focus search bar (when not typing)",
     "copyDialog": "Open copy dialog (when no text selected)",
+    "esc": "Esc",
     "closeDialog": "Close any open dialog or popup",
     "audioToggle": "Play or pause the Audio Bible",
     "audioVerse": "Previous / next verse while listening",
@@ -61,8 +60,9 @@
   },
   "settings": {
     "title": "Settings",
-    "descMobile": "Tap the gear icon to customize theme, font, and offline settings.",
-    "descDesktop": "Click the gear icon to customize theme, font family, font size, line height, and offline mode settings."
+    "desktopOnly": "Notes, highlights, bookmarks, Scripture memory, reading plans and prayer lists are available in the desktop app.",
+    "descMobile": "Tap the gear icon to customize theme, font, language and notification settings.",
+    "descDesktop": "Click the gear icon to customize theme, font family, font size, line height, language and notification settings."
   },
   "present": {
     "title": "Presenter help",

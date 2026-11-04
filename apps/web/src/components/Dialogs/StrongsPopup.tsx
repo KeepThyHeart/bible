@@ -10,6 +10,8 @@ interface StrongsPopupProps {
   entry: StrongsEntryData | null;
   position: { top: number; left: number } | null;
   onClose: () => void;
+  /** Opened from the Word study page itself: do not offer a button back to it. */
+  hideWordStudy?: boolean;
 }
 
 /**
@@ -51,7 +53,7 @@ function parseDefinition(raw: string): { glosses: string; description: string; t
   return { glosses: '', description: cleaned, translit, pronunciation };
 }
 
-export function StrongsPopup({ entry, position, onClose }: StrongsPopupProps) {
+export function StrongsPopup({ entry, position, onClose, hideWordStudy }: StrongsPopupProps) {
   const { t } = useTranslation();
   const wordStudyAvailable = usePaneAvailable('wordStudy');
 
@@ -59,6 +61,7 @@ export function StrongsPopup({ entry, position, onClose }: StrongsPopupProps) {
 
   const parsed = parseDefinition(entry.definition);
   const translit = entry.transliteration || parsed.translit;
+  const pronunciation = entry.pronunciation || parsed.pronunciation;
   const pos = entry.partOfSpeech || '';
 
   return (
@@ -88,11 +91,11 @@ export function StrongsPopup({ entry, position, onClose }: StrongsPopupProps) {
         </button>
       </div>
       <div class="strongs-popup__body">
-        {translit && (
+        {(translit || (pronunciation && pronunciation !== translit)) && (
           <div class="strongs-popup__translit">
             {translit}
-            {parsed.pronunciation && parsed.pronunciation !== translit && (
-              <span class="strongs-popup__pron"> [{parsed.pronunciation}]</span>
+            {pronunciation && pronunciation !== translit && (
+              <span class="strongs-popup__pron">{translit ? ' ' : ''}[{pronunciation}]</span>
             )}
           </div>
         )}
@@ -120,7 +123,7 @@ export function StrongsPopup({ entry, position, onClose }: StrongsPopupProps) {
         <i class="fa-solid fa-magnifying-glass" style={{ marginInlineEnd: '4px' }} />
         {t('strongsPopup.searchOccurrences')}
       </button>
-      {wordStudyAvailable && (
+      {wordStudyAvailable && !hideWordStudy && (
         <button
           type="button"
           class="strongs-popup__search-btn"

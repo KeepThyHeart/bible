@@ -25,19 +25,23 @@ export interface UseI18nResult {
 
 export function useI18n(): UseI18nResult {
   const { i18n } = useAppServices();
-  const locale = useSyncExternalStore(
+  // The snapshot also carries the catalog revision: a lazily loaded namespace fires the change event without
+  // changing the locale, and the components that already printed `[key]` must re-render then (B-071).
+  const snapshot = useSyncExternalStore(
     (cb) => {
       const sub = i18n.onDidChangeLocale(cb);
       return () => sub.dispose();
     },
-    () => i18n.currentLocale,
-    () => i18n.currentLocale,
+    () => `${i18n.currentLocale}|${i18n.catalogRevision ?? 0}`,
+    () => `${i18n.currentLocale}|${i18n.catalogRevision ?? 0}`,
   );
+  const locale = i18n.currentLocale;
+  const revision = snapshot.slice(snapshot.lastIndexOf('|') + 1);
   // `t` re-binds when locale changes so memoized consumers recompute strings.
   const t = useCallback(
     (key: string, params?: Record<string, unknown>) => i18n.t(key, params),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [i18n, locale],
+    [i18n, locale, revision],
   );
   const localizer = useMemo(() => getLocalizer(locale), [locale]);
   return { i18n, locale, t, localizer };

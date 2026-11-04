@@ -33,7 +33,7 @@ export type UtteranceOutcomeDto =
   | { kind: 'speech'; transcript: Transcript }
   | { kind: 'no-speech' }
   | { kind: 'ended'; reason: 'max-duration' | 'stopped' | 'aborted' }
-  | { kind: 'error'; code: 'mic-denied' | 'mic-busy' | 'engine' | 'not-ready'; message: string };
+  | { kind: 'error'; code: 'mic-denied' | 'mic-busy' | 'mic-none' | 'engine' | 'not-ready'; message: string };
 
 export interface ISpeechApi {
   /** Ungated: reports what is granted. */

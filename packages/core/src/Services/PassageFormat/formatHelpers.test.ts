@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getVerseTextWithRed, stripHtml, getCleanVerseText, buildReference, truncateForPreview } from './formatHelpers';
+import { getVerseTextWithRed, stripHtml, getCleanVerseText, buildReference, buildPassageReference, truncateForPreview } from './formatHelpers';
 import { PassageVerse, VerseContext } from './types';
 
 describe('formatHelpers', () => {
@@ -192,5 +192,24 @@ describe('formatHelpers', () => {
       expect(result.length).toBe(53); // 50 + '...'
       expect(result.endsWith('...')).toBe(true);
     });
+  });
+});
+
+describe('buildPassageReference lists (B-020)', () => {
+  const v = (book: number, chapter: number, verse: number) =>
+    ({ verse_id: book * 1e6 + chapter * 1000 + verse, book_number: book, chapter, verse, text: 't' });
+  const ctx = { bookName: 'Romans', chapter: 8, translation: 'KJV', bookNameFor: (b: number) => (b === 45 ? 'Romans' : 'John') };
+  it('keeps gaps: Rom 8:28-30, 38-39', () => {
+    const verses = [28, 29, 30, 38, 39].map(n => v(45, 8, n));
+    expect(buildPassageReference(verses, ctx, false)).toBe('Romans 8:28-30, 38-39');
+  });
+  it('a piece in another chapter keeps its chapter', () => {
+    expect(buildPassageReference([v(45, 8, 28), v(45, 9, 1)], ctx, false)).toBe('Romans 8:28, 9:1');
+  });
+  it('names each book', () => {
+    expect(buildPassageReference([v(43, 3, 16), v(45, 8, 28)], ctx, true)).toBe('John 3:16; Romans 8:28 (KJV)');
+  });
+  it('a continuous cross-chapter range stays one range', () => {
+    expect(buildPassageReference([v(43, 3, 35), v(43, 3, 36), v(43, 4, 1)], { ...ctx, bookName: 'John' }, false)).toBe('John 3:35-4:1');
   });
 });

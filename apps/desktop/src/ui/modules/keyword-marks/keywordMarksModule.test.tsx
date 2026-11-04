@@ -5,6 +5,7 @@
  * session / the Advanced tab's child section that name what the module owns.
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { installModuleBootHooks, trackHost } from '../moduleTestHooks';
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import { validateBuiltinManifest } from '@bible/core/browser';
 import { keywordMarksManifest } from './manifest';
@@ -20,6 +21,8 @@ vi.mock('../../contexts/useI18n', () => ({
 }));
 vi.mock('./KeywordsButton', () => ({ default: ({ tabId }: { tabId: string }) => <button data-testid="kw-button">{tabId}</button> }));
 
+installModuleBootHooks(() => import('../builtinModules'));
+
 async function boot(override = '') {
   vi.resetModules();
   window.localStorage.setItem('kth.modules', override);
@@ -30,6 +33,7 @@ async function boot(override = '') {
   const slots = await import('../host/slots');
   const layers = await import('../../extensions/chapterLayers');
   registerBuiltinModules();
+  trackHost(host);
   // Both reader modules activate on the same view event, so each test looks at its own module's items.
   const mine = (items: readonly unknown[]) => items.filter((i) => /Keyword/.test((i as { name?: string }).name ?? ''));
   return { ...host, slots, layers, loadSpy, mine };

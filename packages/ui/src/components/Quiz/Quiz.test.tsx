@@ -1,4 +1,4 @@
-import { cleanup, render, screen, within } from '@testing-library/react';
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { QuizRequest } from '@bible/core/browser';
 import { QuizPanel } from './QuizPanel';
@@ -275,6 +275,15 @@ describe('QuizPanel running', () => {
     await screen.findByText('Question 1 of 2');
     await userEvent.click(screen.getByRole('button', { name: 'End quiz' }));
     expect(await screen.findByText('Results')).toBeTruthy();
+    expect((await screen.findByTestId('quiz-ended-early')).textContent).toMatch(/not answered/); // B-067
+  });
+
+  it('B-113: the summary heading takes focus (never <body>)', async () => {
+    setup({ startRequest: only('m4-mc', 'm4-short') });
+    await screen.findByText('Question 1 of 2');
+    await userEvent.click(screen.getByRole('button', { name: 'End quiz' }));
+    const heading = await screen.findByText('Results');
+    await waitFor(() => expect(document.activeElement).toBe(heading));
   });
 });
 

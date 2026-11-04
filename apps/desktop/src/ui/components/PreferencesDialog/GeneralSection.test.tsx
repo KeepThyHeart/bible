@@ -121,7 +121,7 @@ describe('GeneralSection language picker', () => {
 
     // The user's own catalog is unreviewed too - the badge is not English-only
     // logic and must not disappear along with the shipped drafts.
-    expect(screen.getByTestId('locale-draft-badge-fr')).toBeInTheDocument();
+    expect(screen.getByTestId('locale-draft-badge-fr')).toHaveTextContent('Preview');
     expect(screen.queryByTestId('locale-draft-badge-en')).not.toBeInTheDocument();
   });
 
@@ -133,7 +133,7 @@ describe('GeneralSection language picker', () => {
     await userEvent.click(screen.getByTestId('language-disclosure'));
 
     expect(screen.getByTestId('locale-option-es')).toBeInTheDocument();
-    expect(screen.getByTestId('locale-beta-badge-es')).toBeInTheDocument();
+    expect(screen.getByTestId('locale-beta-badge-es')).toHaveTextContent('Preview');
     expect(screen.queryByTestId('locale-draft-badge-es')).not.toBeInTheDocument();
   });
 

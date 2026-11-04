@@ -1,10 +1,14 @@
 {
   "searchBar.unifiedPlaceholder": "⟦Šéåŕçĥ Ɓîƀļé, éñţéŕ ŕéƒéŕéñçé, øŕ ţýþé / ƒøŕ çøɱɱåñðš ···············⟧",
   "searchBar.commandMode.label": "⟦Çøɱɱåñðš ··⟧",
+  "searchBar.resultCountLabel": "⟦{count} ŕéšüļţš ··⟧",
   "searchBar.commandMode.empty": "⟦Ñø ɱåţçĥîñĝ çøɱɱåñðš ······⟧",
   "searchBar.referenceMode.label": "⟦Ñåṽîĝåţé ţø ŕéƒéŕéñçé ······⟧",
   "searchBar.referenceMode.goTo": "⟦Ĝø ţø {reference} ··⟧",
   "searchBar.emptyState.recentSearches": "⟦Ŕéçéñţ Šéåŕçĥéš ····⟧",
   "searchBar.emptyState.recentCommands": "⟦Ŕéçéñţ Çøɱɱåñðš ····⟧",
-  "searchBar.emptyState.noRecents": "⟦Ñø ŕéçéñţ îţéɱš ····⟧"
+  "searchBar.emptyState.noRecents": "⟦Ñø ŕéçéñţ îţéɱš ····⟧",
+  "searchBar.reference.noChapter": "⟦\"{book} {chapter}\" îš ñøţ å ṽåļîð ŕéƒéŕéñçé: {book} ĥåš {count} çĥåþţéŕš. ·············⟧",
+  "searchBar.reference.noVerse": "⟦\"{book} {chapter}:{verse}\" îš ñøţ å ṽåļîð ŕéƒéŕéñçé: {book} {chapter} ĥåš {count} ṽéŕšéš. ·············⟧",
+  "searchBar.reference.needsChapter": "⟦\"{book}\" ñééðš å çĥåþţéŕ ţø ƀé å ṽåļîð ŕéƒéŕéñçé, ƒøŕ éẋåɱþļé \"{book} 1\". ··················⟧"
 }

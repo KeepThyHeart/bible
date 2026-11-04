@@ -54,7 +54,7 @@ export function registerViewCommands(registry: ICommandRegistry): IDisposable[] 
       id: 'view.zoomIn',
       title: { key: 'view.zoomIn' },
       category: { key: 'view.zoomIn.category' },
-      shortcut: { key: 'Ctrl+Plus', mac: 'Cmd+Plus' },
+      shortcut: { key: 'Ctrl+=', mac: 'Cmd+=' },
       handler: () => dispatchEvent('command:view:zoomIn'),
     }),
     registry.register({

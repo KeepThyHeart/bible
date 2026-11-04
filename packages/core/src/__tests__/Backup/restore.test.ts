@@ -373,6 +373,19 @@ describe('inspect', () => {
     const plan = inspectBackup(archive, { sql: newUserDb() }, { preview: false });
     await expect(applyRestore(plan, { sql: newUserDb() }, { mode: 'merge', sections: ['nope'] })).rejects.toThrow(RangeError);
   });
+  it('accepts a beta.1 archive (userSchemaVersion 1, no memory sections) with an olderSchema warning, and restores it', async () => {
+    const a = newUserDb();
+    seedRich(a);
+    const archive = await archiveOf({ sql: a });
+    archive.manifest.userSchemaVersion = 1;
+    archive.manifest.sections = archive.manifest.sections.filter((s) => !s.id.startsWith('user.memory_'));
+    const target = newUserDb();
+    const plan = inspectBackup(archive, { sql: target }, { preview: false });
+    expect(plan.source.userSchemaVersion).toBe(1);
+    expect(plan.warnings.find((w) => w.code === 'olderSchema')).toMatchObject({ params: { from: 1, to: USER_SCHEMA_VERSION } });
+    const report = await applyRestore(plan, { sql: target }, { mode: 'replace', sections: defaultSections(plan, 'replace') });
+    expect(report.ok).toBe(true);
+  });
   it('drops columns this database does not have, and counts them', async () => {
     const a = newUserDb();
     a.execute("INSERT INTO user_note (title, content, sort_order) VALUES ('n', 'x', 5)");
@@ -466,5 +479,21 @@ describe('extension databases', () => {
     const rRep = await applyRestore(plan, { sql: newUserDb(), extensions: sink }, { mode: 'replace', sections: defaultSections(plan, 'replace') });
     expect(rRep.extDbs.every((e) => e.action === 'written')).toBe(true);
     expect(written.get('ext.a/notes')).toEqual(new Uint8Array([2]));
+  });
+});
+
+describe('merge of the default bookmarks collection (B-077)', () => {
+  it('bookmarks from the backup land in the default collection this computer already has', async () => {
+    const meta = JSON.stringify({ isDefaultBookmarks: true });
+    const a = newUserDb();
+    a.execute("INSERT INTO collection (name, description, created_date, modified_date, metadata) VALUES ('Favorites', 'My favorite verses', '2026-01-01 00:00:00', '2026-01-02 00:00:00', ?)", [meta]);
+    a.execute("INSERT INTO pinned_item (collection_id, item_type, verse_id_start, verse_id_end) VALUES (1, 'verse', 43003012, 43003012)");
+    const b = newUserDb();
+    b.execute("INSERT INTO collection (name, description, created_date, modified_date, metadata) VALUES ('Favorites', 'My favorite verses', '2026-03-05 00:00:00', '2026-03-05 00:00:00', ?)", [meta]);
+    await restore(a, b, 'merge');
+    const s = snapshot(b);
+    expect(s.collection).toHaveLength(1);
+    expect(s.pinned_item).toHaveLength(1);
+    expect(s.pinned_item[0].collection_id).toBe(s.collection[0].collection_id);
   });
 });

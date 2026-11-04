@@ -143,6 +143,7 @@ export const StatusBar: React.FC = () => {
 
   return (
     <footer
+      data-kth-region="status"
       className="flex-shrink-0 border-t border-border bg-surface-secondary flex items-center justify-between gap-2 px-2 h-6 overflow-hidden"
       role="status"
       aria-label={t('ui.statusBar.label')}

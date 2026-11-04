@@ -19,6 +19,8 @@ try {
     debug: console.debug.bind(console),
   };
 }
+import { invokeBuildIndex } from './ipc/indexProgress';
+import type { ProgressIpcRenderer } from './ipc/indexProgress';
 import { ALLOWED_IPC_CHANNELS, AllowedIpcChannel, IpcChannel } from './ipc/allowedChannels';
 
 /**
@@ -40,6 +42,7 @@ function typedInvoke<T = any>(channel: IpcChannel, ...args: unknown[]): Promise<
   return ipcRenderer.invoke(channel, ...args) as Promise<T>;
 }
 import type { Result } from './ipc/result';
+import type { InstallJob } from './services/ModuleInstallManager';
 
 import type { BackupSummary, BackupInspection, BackupApplyResult } from './ipc/backupTypes';
 import type { UpdateCheckInfo, UpdateCheckOutcome } from './services/UpdateCheckService';
@@ -53,13 +56,18 @@ import type {
 import type { FeaturePack as FeaturePackListing } from '@bible/core';
 import type { AssetListSnapshot } from '@bible/core/browser';
 import type { SemanticPackStatus as FeaturePackStatus } from './services/SemanticPackService';
+import type { RemoteSemanticStatus } from './services/RemoteSemanticService';
+import type { RemoteSemanticStatusReply } from './ipc/remoteSemanticHandlers';
+import type { SemanticRow, SemanticSearchExResult } from './ipc/semanticSearchEx';
 import type { ModuleInstallDialogResult } from './ipc/moduleHandlers';
 import type { StudyOverviewPayload } from './services/StudyCacheService';
 import type { ModulePackInstallSummary } from './services/ModulePackService';
 import type { ModuleInstallPolicy } from './ipc/moduleHandlers';
 import type { KeywordIndexStatusDto } from './services/KeywordIndexService';
 import type { StarterPack, OfferedStarterPack, CatalogModule } from '@bible/core';
-import { APP_CONFIG, type AppConfig } from './config/appConfig';
+import { APP_CONFIG, toRendererAppConfig, type AppConfig } from './config/appConfig';
+
+export type { RemoteSemanticStatus, RemoteSemanticStatusReply, SemanticRow, SemanticSearchExResult };
 
 // Define the API interface for type safety
 export interface ElectronAPI {
@@ -230,6 +238,16 @@ export interface ElectronAPI {
     // Semantic search
     semanticAvailable: () => Promise<Result<boolean>>;
     semanticSearch: (query: string, options?: { maxResults?: number; levels?: string[] }) => Promise<Result<any[]>>;
+    /** Online service first (with consent), then the installed pack; see `ipc/semanticSearchEx.ts`. */
+    semanticSearchEx: (query: string, options?: { maxResults?: number; levels?: string[] }) => Promise<Result<SemanticSearchExResult>>;
+  };
+
+  /** Online meaning search: build-time availability and the first-use consent record (task 0190). */
+  remoteSemantic: {
+    getStatus: () => Promise<Result<RemoteSemanticStatusReply>>;
+    setConsent: (decision: 'granted' | 'declined' | 'reset') => Promise<Result<RemoteSemanticStatusReply>>;
+    /** Preferences > Search: where meaning search runs. */
+    setSource: (source: 'online' | 'offline' | 'off') => Promise<Result<RemoteSemanticStatusReply>>;
   };
 
   // Session methods. Replies use the `Result<T>` envelope;
@@ -473,6 +491,12 @@ export interface ElectronAPI {
     getKeywordIndexStatus: (moduleId: number) => Promise<Result<KeywordIndexStatusDto>>;
     rebuildKeywordIndex: (moduleId: number) => Promise<Result<KeywordIndexStatusDto>>;
     deleteKeywordIndex: (moduleId: number) => Promise<Result<KeywordIndexStatusDto>>;
+    // Background installs (see ModuleInstallManager): queue one, poll the jobs, cancel/retry/dismiss.
+    startInstall: (moduleId: string, catalogId?: number) => Promise<Result<InstallJob>>;
+    getInstallJobs: () => Promise<Result<InstallJob[]>>;
+    cancelInstall: (jobId: number) => Promise<Result<boolean>>;
+    retryInstall: (jobId: number) => Promise<Result<InstallJob | null>>;
+    dismissInstall: (jobId: number) => Promise<Result<void>>;
     // Download management
     getDownloadProgress: (queueId: number) => Promise<Result<any>>;
     getActiveDownloads: () => Promise<Result<any[]>>;
@@ -498,6 +522,7 @@ export interface ElectronAPI {
     cancel: (id: string) => Promise<Result<{ cancelled: boolean }>>;
     remove: (id: string) => Promise<Result<{ removed: boolean }>>;
     refresh: () => Promise<Result<AssetListSnapshot>>;
+    read: (id: string, path: string) => Promise<Result<Uint8Array>>;
   };
 
   // Optional feature packs (semantic search). A pack is a downloadable
@@ -674,7 +699,8 @@ export interface ElectronAPI {
 const MODULE_IDENT_RE = /^[A-Za-z][A-Za-z0-9_-]*$/;
 
 const electronAPI: ElectronAPI = {
-  appConfig: APP_CONFIG,
+  // The remote-search URL and key stay in the main process.
+  appConfig: toRendererAppConfig(APP_CONFIG),
 
   modules: {
     invoke: (ns: string, method: string, ...args: unknown[]) => {
@@ -876,8 +902,9 @@ const electronAPI: ElectronAPI = {
       ipcRenderer.invoke('search:deleteSavedSearch', searchId),
     getIndexStatus: (modules: string[]) =>
       ipcRenderer.invoke('search:getIndexStatus', modules),
+    // The callback must never cross IPC (functions are not cloneable): progress arrives as pushed events.
     buildIndex: (modules: string[], onProgress?: (progress: any) => void) =>
-      ipcRenderer.invoke('search:buildIndex', modules, onProgress),
+      invokeBuildIndex<Result<void>>(ipcRenderer as unknown as ProgressIpcRenderer, modules, onProgress),
     getBookIndexStatus: (moduleAbbr: string) =>
       ipcRenderer.invoke('search:getBookIndexStatus', moduleAbbr),
     // Semantic search
@@ -885,6 +912,16 @@ const electronAPI: ElectronAPI = {
       ipcRenderer.invoke('search:semanticAvailable'),
     semanticSearch: (query: string, options?: { maxResults?: number; levels?: string[] }) =>
       ipcRenderer.invoke('search:semanticSearch', query, options),
+    semanticSearchEx: (query: string, options?: { maxResults?: number; levels?: string[] }) =>
+      ipcRenderer.invoke('search:semanticSearchEx', query, options),
+  },
+
+  remoteSemantic: {
+    getStatus: () => ipcRenderer.invoke('remoteSemantic:getStatus'),
+    setConsent: (decision: 'granted' | 'declined' | 'reset') =>
+      ipcRenderer.invoke('remoteSemantic:setConsent', decision),
+    setSource: (source: 'online' | 'offline' | 'off') =>
+      ipcRenderer.invoke('remoteSemantic:setSource', source),
   },
 
   session: {
@@ -1127,6 +1164,12 @@ const electronAPI: ElectronAPI = {
       typedInvoke('module:rebuild-keyword-index', moduleId),
     deleteKeywordIndex: (moduleId: number) =>
       typedInvoke('module:delete-keyword-index', moduleId),
+    startInstall: (moduleId: string, catalogId?: number) =>
+      typedInvoke('module:install-start', moduleId, catalogId),
+    getInstallJobs: () => typedInvoke('module:install-jobs'),
+    cancelInstall: (jobId: number) => typedInvoke('module:install-cancel', jobId),
+    retryInstall: (jobId: number) => typedInvoke('module:install-retry', jobId),
+    dismissInstall: (jobId: number) => typedInvoke('module:install-dismiss', jobId),
     // Download management
     getDownloadProgress: (queueId: number) => typedInvoke('download:get-progress', queueId),
     getActiveDownloads: () => typedInvoke('download:get-active'),
@@ -1154,6 +1197,7 @@ const electronAPI: ElectronAPI = {
     cancel: (id: string) => typedInvoke('assets:cancel', id),
     remove: (id: string) => typedInvoke('assets:remove', id),
     refresh: () => typedInvoke('assets:refresh'),
+    read: (id: string, path: string) => typedInvoke('assets:read', id, path),
   },
 
   featurePacks: {

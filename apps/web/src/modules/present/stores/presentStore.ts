@@ -366,6 +366,13 @@ class PresentStore extends Store {
       if (this.stream !== source) return;
       this.connection = this.wall ? 'reconnecting' : 'connecting';
       this.notify();
+      // The browser gave up (a fatal close never retries): poll the state
+      // endpoint instead, so the blank button and viewer count do not stay
+      // unknown until a reload.
+      if (source.readyState === 2 && !this.wall) {
+        this.stream = null;
+        this.watchWhileRefused(joinCode, true);
+      }
     };
   }
 

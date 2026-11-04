@@ -1,10 +1,14 @@
 {
   "searchBar.unifiedPlaceholder": "बाइबल में खोजें, संदर्भ दर्ज करें, या कमांड के लिए / टाइप करें",
   "searchBar.commandMode.label": "कमांड",
+  "searchBar.resultCountLabel": "{count} परिणाम",
   "searchBar.commandMode.empty": "कोई मिलता-जुलता कमांड नहीं",
   "searchBar.referenceMode.label": "संदर्भ पर जाएँ",
   "searchBar.referenceMode.goTo": "{reference} पर जाएँ",
   "searchBar.emptyState.recentSearches": "हाल की खोजें",
   "searchBar.emptyState.recentCommands": "हाल के कमांड",
-  "searchBar.emptyState.noRecents": "कोई हाल का आइटम नहीं"
+  "searchBar.emptyState.noRecents": "कोई हाल का आइटम नहीं",
+  "searchBar.reference.noChapter": "\"{book} {chapter}\" मान्य संदर्भ नहीं है: {book} में {count} अध्याय हैं।",
+  "searchBar.reference.noVerse": "\"{book} {chapter}:{verse}\" मान्य संदर्भ नहीं है: {book} {chapter} में {count} पद हैं।",
+  "searchBar.reference.needsChapter": "\"{book}\" को मान्य संदर्भ बनाने के लिए अध्याय संख्या चाहिए, उदाहरण के लिए \"{book} 1\"।"
 }

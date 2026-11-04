@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'preact/hooks';
+import { useEffect, useRef, useState } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { useEscapeKey } from '../../hooks/useEscapeKey';
+import { useModalFocus } from '../../hooks/useModalFocus';
 import { API_BASE } from '../../utils/apiUrl';
 import { SlotOutlet, helpShortcutRows } from '../../host/slots';
 
@@ -37,17 +38,19 @@ export function HelpDialog({ isOpen, onClose, onSendFeedback }: HelpDialogProps)
       .catch(() => {});
   }, [isOpen]);
 
+  const dialogRef = useRef<HTMLDivElement>(null);
   useEscapeKey(isOpen, onClose);
+  useModalFocus(isOpen, dialogRef);
 
   if (!isOpen) return null;
 
   return (
     <div class="settings-panel-overlay" onClick={onClose}>
-      <div class="help-dialog" onClick={(e) => e.stopPropagation()}>
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="help-dialog-title" class="help-dialog" onClick={(e) => e.stopPropagation()}>
         <div class="help-dialog__header">
-          <h3><i class="fa-solid fa-circle-question" style={{ marginInlineEnd: '8px', opacity: 0.5 }} />{t('title')}</h3>
-          <button class="help-dialog__close" onClick={onClose}>
-            <i class="fa-solid fa-xmark" />
+          <h3 id="help-dialog-title"><i class="fa-solid fa-circle-question" aria-hidden="true" style={{ marginInlineEnd: '8px', opacity: 0.5 }} />{t('title')}</h3>
+          <button class="help-dialog__close" onClick={onClose} aria-label={t('ui:common.close')} title={t('ui:common.close')}>
+            <i class="fa-solid fa-xmark" aria-hidden="true" />
           </button>
         </div>
         <div class="help-dialog__body">
@@ -107,7 +110,6 @@ export function HelpDialog({ isOpen, onClose, onSendFeedback }: HelpDialogProps)
           <section class="help-dialog__section">
             <h4>{isMobile ? t('readingMobile.title') : t('biblePaneDesktop.title')}</h4>
             <ul>
-              <li>{isMobile ? t('readingMobile.compareTabs') : t('biblePaneDesktop.compareTabs')}</li>
               <li dangerouslySetInnerHTML={{ __html: isMobile ? t('readingMobile.translationSelector') : t('biblePaneDesktop.translationSelector') }} />
               <li dangerouslySetInnerHTML={{ __html: isMobile ? t('readingMobile.displayModes') : t('biblePaneDesktop.displayModes') }} />
               {!isMobile && (
@@ -150,7 +152,7 @@ export function HelpDialog({ isOpen, onClose, onSendFeedback }: HelpDialogProps)
                   <tr><td><kbd>Ctrl+K</kbd></td><td>{t('shortcuts.focusSearch')}</td></tr>
                   <tr><td><kbd>/</kbd></td><td>{t('shortcuts.focusSearchAlt')}</td></tr>
                   <tr><td><kbd>Ctrl+C</kbd></td><td>{t('shortcuts.copyDialog')}</td></tr>
-                  <tr><td><kbd>{t('helpDialog.esc')}</kbd></td><td>{t('shortcuts.closeDialog')}</td></tr>
+                  <tr><td><kbd>{t('shortcuts.esc')}</kbd></td><td>{t('shortcuts.closeDialog')}</td></tr>
                   <SlotOutlet slot={helpShortcutRows} />
                 </tbody>
               </table>
@@ -165,6 +167,7 @@ export function HelpDialog({ isOpen, onClose, onSendFeedback }: HelpDialogProps)
                 : <>{t('settings.descDesktop')}</>
               }
             </p>
+            <p>{t('settings.desktopOnly')}</p>
           </section>
 
         </div>

@@ -90,7 +90,7 @@ export const TabStrip: React.FC<TabStripProps> = ({
   return (
     <div className="px-6 pt-4 border-b border-border">
       <div
-        className="flex gap-1 overflow-x-auto"
+        className="flex flex-wrap gap-1"
         role="tablist"
         aria-label={ariaLabel}
         ref={tablistRef}

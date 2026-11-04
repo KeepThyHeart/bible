@@ -30,7 +30,7 @@ export type ReceiverEvent =
   /** The stream dropped and is retrying. Not `closed`: the server said nothing. */
   | { type: 'reconnecting' }
   /** An explicit statement from the server. The only thing besides `state` that may change what a reader shows. */
-  | { type: 'closed'; reason: PresentClosedPayload['reason'] };
+  | { type: 'closed'; reason: PresentClosedPayload['reason'] | 'unknown' };
 
 export interface PresentReceiver {
   /** Learn about every event as it happens. Returns an unsubscribe. */
@@ -101,6 +101,25 @@ export function openPresentReceiver(joinCode: string, options: { preview?: boole
 
   source.onerror = () => {
     if (closedByServer) return;
+    // A fatal error (the browser gave up: the server answered 404) before any
+    // state ever arrived means the code is unknown or expired. A network drop
+    // leaves the source CONNECTING and retrying, so it never lands here.
+    if (latest === null && source.readyState === 2) {
+      // A fatal close is also what a proxy 502 or a captive portal causes: ask
+      // the state endpoint, and only a 404/410 means the code is unknown.
+      void fetch(`${API_BASE}/api/present/j/${encodeURIComponent(joinCode)}/state`)
+        .then(res => {
+          if (closedByServer) return;
+          if (res.status === 404 || res.status === 410) {
+            closedByServer = true;
+            emit({ type: 'closed', reason: 'unknown' });
+          } else {
+            emit({ type: 'reconnecting' });
+          }
+        })
+        .catch(() => emit({ type: 'reconnecting' }));
+      return;
+    }
     // Deliberately no payload: EventSource is already retrying on its own,
     // and every caller already knows what it last had.
     emit({ type: 'reconnecting' });

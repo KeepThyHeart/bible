@@ -547,8 +547,12 @@ class StudyStore extends Store {
 
   /** Verse history lives in the user-data store (`app:study`), not in localStorage. */
   private saveHistory(): void {
-    void saveVerseHistory(this.verseHistory);
+    // Only after the stored history has been merged in: saving "the stored
+    // list equals mine" before that would delete every older entry.
+    void this.historyReady.then(() => saveVerseHistory(this.verseHistory));
   }
+
+  private historyReady: Promise<void> = Promise.resolve();
 
   private restoreHistory(): void {
     const apply = (loaded: VerseHistoryEntry[], keepLocal: boolean): void => {
@@ -560,7 +564,7 @@ class StudyStore extends Store {
       this.verseHistory = merged;
       this.notify();
     };
-    void loadVerseHistory().then(l => apply(l, true));
+    this.historyReady = loadVerseHistory().then(l => apply(l, true));
     // Another tab's jumps show up here too.
     void getUserData().then(store => store.onRemoteChange(changes => {
       if (changes.some(c => c.type === 'item:put' || c.type === 'item:delete')) void loadVerseHistory().then(l => apply(l, false));

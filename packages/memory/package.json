@@ -22,6 +22,10 @@
       "types": "./src/manifest.ts",
       "default": "./src/manifest.ts"
     },
+    "./messages": {
+      "types": "./src/core/messages.ts",
+      "default": "./src/core/messages.ts"
+    },
     "./package.json": "./package.json",
     "./ui": {
       "types": "./src/ui/mount.ts",

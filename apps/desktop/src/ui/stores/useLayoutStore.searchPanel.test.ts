@@ -211,3 +211,15 @@ describe('openSearchResultsPanel', () => {
     expect(useLayoutStore.getState().openSearchResultsPanel()).toBeNull();
   });
 });
+
+describe('closeSearchResultsPanels (B-001)', () => {
+  it('removes the search panel from dockview and the store', () => {
+    seedPanel(dockview, 'bible_a', 'bible', 'Bible');
+    const searchId = useLayoutStore.getState().openSearchResultsPanel()!;
+    expect(dockview.api.getPanel(searchId)).toBeTruthy();
+    useLayoutStore.getState().closeSearchResultsPanels();
+    expect(dockview.api.getPanel(searchId)).toBeUndefined();
+    expect(useLayoutStore.getState().getPanelsByType('search')).toHaveLength(0);
+    expect(dockview.api.getPanel('bible_a')).toBeTruthy();
+  });
+});

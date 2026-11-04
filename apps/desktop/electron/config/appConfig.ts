@@ -32,6 +32,14 @@
  *                              and must not offer a dead link.
  *   BIBLE_ABOUT_TEXT - a short paragraph about the app, shown at the
  *                              top of the Help panel. Default EMPTY.
+ *   BIBLE_REMOTE_SEMANTIC_URL - `http(s)://` base URL of a bibsearch service
+ *                              for online meaning search. Defaults to the
+ *                              hosted service (`DEFAULT_REMOTE_SEMANTIC_URL`);
+ *                              `none` removes the online option from the UI.
+ *                              MAIN PROCESS ONLY: not handed to the renderer.
+ *   BIBLE_REMOTE_SEMANTIC_API_KEY - optional `X-API-Key` for that service.
+ *                              Default EMPTY. Main process only; see
+ *                              `toRendererAppConfig`.
  */
 
 /** Fallback used whenever `BIBLE_PRODUCT_NAME` is not supplied. */
@@ -44,6 +52,13 @@ export const DEFAULT_PRODUCT_NAME = 'Keep Thy Heart Bible Reader';
  * are using.
  */
 export const DEFAULT_DOCS_URL = 'https://docs.bible.keepthyheart.com/desktop/';
+
+/**
+ * Fallback used whenever `BIBLE_REMOTE_SEMANTIC_URL` is not supplied: the
+ * hosted bibsearch service. Anonymous (no API key), limited per IP address by
+ * the service itself. Nothing is sent to it until the user agrees on first use.
+ */
+export const DEFAULT_REMOTE_SEMANTIC_URL = 'https://search.bible.keepthyheart.com';
 
 export interface AppConfig {
   /** User-visible product name (window titles, About dialog, header). */
@@ -86,6 +101,14 @@ export interface AppConfig {
    * panel shows only its links.
    */
   readonly aboutText: string;
+  /**
+   * Online meaning search (task 0190). Both empty = not configured. This is
+   * read by the MAIN process only: the define is injected into the main bundle
+   * alone and `toRendererAppConfig` blanks it on the way to the renderer, which
+   * learns only whether it is configured, through the
+   * `remoteSemantic:getStatus` IPC call.
+   */
+  readonly remoteSemantic: { readonly url: string; readonly apiKey: string };
 }
 
 // Injected by electron-vite's `define`. Declared as possibly-undefined so the
@@ -99,6 +122,8 @@ declare const __BIBLE_APP_VERSION__: string | undefined;
 declare const __BIBLE_BUILD_ID__: string | undefined;
 declare const __BIBLE_DOCS_URL__: string | undefined;
 declare const __BIBLE_ABOUT_TEXT__: string | undefined;
+declare const __BIBLE_REMOTE_SEMANTIC_URL__: string | undefined;
+declare const __BIBLE_REMOTE_SEMANTIC_API_KEY__: string | undefined;
 
 /** Treat missing / blank / whitespace-only values as "not configured". */
 function normalize(value: string | undefined): string | undefined {
@@ -125,6 +150,10 @@ const definedAppVersion = typeof __BIBLE_APP_VERSION__ === 'string' ? __BIBLE_AP
 const definedBuildId = typeof __BIBLE_BUILD_ID__ === 'string' ? __BIBLE_BUILD_ID__ : undefined;
 const definedDocsUrl = typeof __BIBLE_DOCS_URL__ === 'string' ? __BIBLE_DOCS_URL__ : undefined;
 const definedAboutText = typeof __BIBLE_ABOUT_TEXT__ === 'string' ? __BIBLE_ABOUT_TEXT__ : undefined;
+const definedRemoteSemanticUrl =
+  typeof __BIBLE_REMOTE_SEMANTIC_URL__ === 'string' ? __BIBLE_REMOTE_SEMANTIC_URL__ : undefined;
+const definedRemoteSemanticApiKey =
+  typeof __BIBLE_REMOTE_SEMANTIC_API_KEY__ === 'string' ? __BIBLE_REMOTE_SEMANTIC_API_KEY__ : undefined;
 
 /**
  * The docs site, or '' for a build that has none.
@@ -136,6 +165,29 @@ const definedAboutText = typeof __BIBLE_ABOUT_TEXT__ === 'string' ? __BIBLE_ABOU
 function resolveDocsUrl(): string {
   const configured = normalize(definedDocsUrl) ?? fromEnv('BIBLE_DOCS_URL') ?? DEFAULT_DOCS_URL;
   return configured.toLowerCase() === 'none' ? '' : configured;
+}
+
+/**
+ * The online-meaning-search setting. Unset means the hosted service;
+ * `none` opts a build out. A URL that is not `http(s)://` is treated as not
+ * configured (and the key with it): a half-valid setting must not turn the
+ * feature on.
+ */
+function resolveRemoteSemantic(): { url: string; apiKey: string } {
+  const url =
+    normalize(definedRemoteSemanticUrl) ?? fromEnv('BIBLE_REMOTE_SEMANTIC_URL') ?? DEFAULT_REMOTE_SEMANTIC_URL;
+  if (!/^https?:\/\/[^\s/]+/i.test(url)) return { url: '', apiKey: '' };
+  const apiKey =
+    normalize(definedRemoteSemanticApiKey) ?? fromEnv('BIBLE_REMOTE_SEMANTIC_API_KEY') ?? '';
+  return { url, apiKey };
+}
+
+/**
+ * The config as the renderer may see it: the remote-search URL and key are
+ * blanked. Used by the preload bridge; the main process keeps the real values.
+ */
+export function toRendererAppConfig(config: AppConfig): AppConfig {
+  return { ...config, remoteSemantic: { url: '', apiKey: '' } };
 }
 
 /**
@@ -164,6 +216,7 @@ export function resolveAppConfig(): AppConfig {
       normalize(definedCatalogUrl) ?? fromEnv('BIBLE_MODULE_CATALOG_URL') ?? '',
     docsUrl: resolveDocsUrl(),
     aboutText: normalize(definedAboutText) ?? fromEnv('BIBLE_ABOUT_TEXT') ?? '',
+    remoteSemantic: resolveRemoteSemantic(),
   };
 }
 
@@ -206,4 +259,9 @@ export function isDocsSiteConfigured(config: AppConfig = APP_CONFIG): boolean {
 /** True when a default module catalog URL was baked into this build. */
 export function isModuleCatalogConfigured(config: AppConfig = APP_CONFIG): boolean {
   return config.moduleCatalogUrl !== '';
+}
+
+/** True when a remote semantic search service (URL) was configured for this build. */
+export function isRemoteSemanticConfigured(config: AppConfig = APP_CONFIG): boolean {
+  return config.remoteSemantic.url !== '';
 }

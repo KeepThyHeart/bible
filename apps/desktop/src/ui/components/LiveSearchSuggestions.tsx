@@ -98,12 +98,13 @@ const LiveSearchSuggestions: React.FC<LiveSearchSuggestionsProps> = ({
       </div>
 
       {/* Suggestions List */}
-      <div className="divide-y divide-border">
+      <div id="search-listbox" role="listbox" aria-label={t('liveSearchSuggestions.listLabel')} className="divide-y divide-border">
         {suggestions.map((result, index) => (
           <SuggestionItem
             key={`${result.verseId}-${index}`}
             result={result}
             isSelected={index === selectedIndex}
+            index={index}
             onClick={() => onSelectSuggestion(result)}
           />
         ))}
@@ -131,10 +132,11 @@ const LiveSearchSuggestions: React.FC<LiveSearchSuggestionsProps> = ({
 interface SuggestionItemProps {
   result: SearchResult;
   isSelected: boolean;
+  index: number;
   onClick: () => void;
 }
 
-const SuggestionItem: React.FC<SuggestionItemProps> = ({ result, isSelected, onClick }) => {
+const SuggestionItem: React.FC<SuggestionItemProps> = ({ result, isSelected, index, onClick }) => {
   const { t } = useI18n();
   const itemRef = useRef<HTMLButtonElement>(null);
 
@@ -155,6 +157,10 @@ const SuggestionItem: React.FC<SuggestionItemProps> = ({ result, isSelected, onC
   return (
     <button
       type="button"
+      id={`search-option-${index}`}
+      role="option"
+      aria-selected={isSelected}
+      tabIndex={-1}
       ref={itemRef}
       onMouseDown={(e) => {
         // Use onMouseDown instead of onClick to prevent blur race condition

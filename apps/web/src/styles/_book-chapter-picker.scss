@@ -55,7 +55,7 @@
   }
 
   &__topics-label {
-    font-size: calc(13px * var(--ui-font-scale, 1));
+    font-size: calc(0.8125rem * var(--ui-font-scale, 1));
     font-weight: 700;
     color: var(--text-primary);
     margin-bottom: 8px;
@@ -65,7 +65,7 @@
     margin-top: 16px;
     text-align: center;
     color: var(--text-muted);
-    font-size: calc(12px * var(--ui-font-scale, 1));
+    font-size: calc(0.75rem * var(--ui-font-scale, 1));
   }
 
   &__topic-btn {
@@ -88,12 +88,12 @@
   }
 
   &__topic-title {
-    font-size: calc(13px * var(--ui-font-scale, 1));
+    font-size: calc(0.8125rem * var(--ui-font-scale, 1));
     color: var(--text-primary);
   }
 
   &__topic-ref {
-    font-size: calc(11px * var(--ui-font-scale, 1));
+    font-size: calc(0.6875rem * var(--ui-font-scale, 1));
     color: var(--text-muted);
     white-space: nowrap;
   }
@@ -103,7 +103,7 @@
     padding: 12px 0;
     text-align: center;
     color: var(--text-muted);
-    font-size: calc(13px * var(--ui-font-scale, 1));
+    font-size: calc(0.8125rem * var(--ui-font-scale, 1));
   }
 
   &__search-list {
@@ -137,7 +137,7 @@
   align-items: baseline;
   gap: 8px;
   padding: 0 16px 10px;
-  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-size: calc(0.75rem * var(--ui-font-scale, 1));
   color: var(--text-secondary);
 }
 

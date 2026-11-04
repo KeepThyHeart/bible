@@ -589,7 +589,7 @@ export class SidecarFts5Provider implements IKeywordIndexProvider {
       this.assertIndexDirWritable(target);
       removeFile(partPath);
 
-      this.writeIndexFile(src, partPath, onProgress, signal);
+      await this.writeIndexFile(src, partPath, onProgress, signal);
       fs.renameSync(partPath, finalPath);
 
       this.failures.delete(key);
@@ -613,13 +613,13 @@ export class SidecarFts5Provider implements IKeywordIndexProvider {
     }
   }
 
-  /** Steps 2-5 of `build()`, against the `.part` file. Synchronous: every `ISql` call is. */
-  private writeIndexFile(
+  /** Steps 2-5 of `build()`, against the `.part` file. Each `ISql` call is synchronous; it yields to the event loop between batches. */
+  private async writeIndexFile(
     src: IIndexSource,
     partPath: string,
     onProgress: ((done: number, total: number) => void) | undefined,
     signal: AbortSignal | undefined
-  ): void {
+  ): Promise<void> {
     const target = src.target;
     const db = this.openDatabase(partPath, { readonly: false, create: true });
 
@@ -665,7 +665,12 @@ export class SidecarFts5Provider implements IKeywordIndexProvider {
 
       for (const doc of src.documents()) {
         batch.push(doc);
-        if (batch.length >= SIDECAR_BUILD_BATCH_SIZE) flush();
+        if (batch.length >= SIDECAR_BUILD_BATCH_SIZE) {
+          flush();
+          // Let the host serve other work (IPC, UI) between batches instead of
+          // holding the event loop for the whole build of a large module.
+          await new Promise<void>((resolve) => setImmediate(resolve));
+        }
       }
       flush();
 

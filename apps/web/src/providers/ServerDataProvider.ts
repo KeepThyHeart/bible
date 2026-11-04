@@ -50,7 +50,7 @@ import type {
   TagGraphTopicLinkData,
 } from '../types';
 
-import { connectionStore } from '../stores/connectionStore';
+import { connectionStore, CONNECTION_ERROR_NETWORK } from '../stores/connectionStore';
 import { navigateToLoginOnce, showBootError } from '../utils/bootGuard';
 
 // Module-level flag prevents multiple concurrent 401 responses from each
@@ -95,10 +95,11 @@ async function fetchJson<T>(url: string): Promise<T> {
       }
       throw new Error(`API error ${res.status}: ${body}`);
     }
+    connectionStore.clearNetworkError();
     return res.json();
   } catch (error) {
     if (error instanceof TypeError && (error.message.includes('fetch') || error.message.includes('Load failed') || error.message.includes('network') || error.message.includes('abort'))) {
-      connectionStore.setError('Unable to connect to the server. Please check your connection and try again.');
+      connectionStore.setError(CONNECTION_ERROR_NETWORK);
       throw new Error('Network error: Unable to connect to the server. Please check your connection and try again.');
     }
     throw error;
@@ -119,10 +120,11 @@ async function postJson<T>(url: string, body: unknown): Promise<T> {
       }
       throw new Error(`API error ${res.status}: ${text}`);
     }
+    connectionStore.clearNetworkError();
     return res.json();
   } catch (error) {
     if (error instanceof TypeError && (error.message.includes('fetch') || error.message.includes('Load failed') || error.message.includes('network') || error.message.includes('abort'))) {
-      connectionStore.setError('Unable to connect to the server. Please check your connection and try again.');
+      connectionStore.setError(CONNECTION_ERROR_NETWORK);
       throw new Error('Network error: Unable to connect to the server. Please check your connection and try again.');
     }
     throw error;

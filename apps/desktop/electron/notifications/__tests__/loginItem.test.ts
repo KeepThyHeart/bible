@@ -33,7 +33,8 @@ describe('login item', () => {
     const text = fs.readFileSync(file, 'utf8');
     expect(text).toContain('[Desktop Entry]');
     expect(text).toContain('Name=Keep Thy Heart');
-    expect(text).toContain(`Exec="${process.execPath}" --hidden`);
+    // Desktop Entry quoting escapes backslashes, so a Windows execPath is doubled.
+    expect(text).toContain(`Exec="${process.execPath.replace(/(["`$\\])/g, '\\$1')}" --hidden`);
     expect(text).toContain('X-GNOME-Autostart-enabled=true');
     expect(getLoginItem('linux', 'Keep Thy Heart')).toBe(true);
     setLoginItem(false, { platform: 'linux', appName: 'Keep Thy Heart' });

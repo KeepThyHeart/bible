@@ -51,6 +51,8 @@ export interface ContextMenuState {
   position: { x: number; y: number };
   isMultiple: boolean;
   markupId?: number;
+  /** Every mark on the right-clicked word (a highlight and an underline can be separate marks). */
+  markupIds?: number[];
   /** Index (in the verse's word space) and text of the word right-clicked, if it was a word (for the word items feature modules add). */
   wordIndex?: number;
   wordText?: string;

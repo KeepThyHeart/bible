@@ -30,8 +30,8 @@
           "desktop": "#666666"
         },
         "text-muted": {
-          "web": "#888888",
-          "desktop": "#9ca3af"
+          "web": "#6b6b6b",
+          "desktop": "#696e76"
         },
         "border-color": {
           "web": "#e2e2e2",
@@ -39,7 +39,7 @@
         },
         "accent-color": {
           "web": "#2563eb",
-          "desktop": "#3d78bc"
+          "desktop": "#3a72b3"
         },
         "accent-hover": {
           "web": "#1d4ed8",
@@ -81,8 +81,8 @@
           "desktop": "#a0a0b8"
         },
         "text-muted": {
-          "web": "#777777",
-          "desktop": "#8282a0"
+          "web": "#9a9aaa",
+          "desktop": "#9393ad"
         },
         "border-color": {
           "web": "#2a2a4a",
@@ -144,8 +144,8 @@
           "desktop": "#6b5744"
         },
         "text-muted": {
-          "web": "#8b7355",
-          "desktop": "#8c7c69"
+          "web": "#6e5a42",
+          "desktop": "#716455"
         },
         "border-color": {
           "web": "#c4b99a",
@@ -153,7 +153,7 @@
         },
         "accent-color": {
           "web": "#8b4513",
-          "desktop": "#8b6914"
+          "desktop": "#816113"
         },
         "accent-hover": {
           "web": "#a0522d",
@@ -191,9 +191,9 @@
         "bg-tertiary": "#d0e8f8",
         "text-primary": "#0a2540",
         "text-secondary": "#1a4060",
-        "text-muted": "#4a7090",
+        "text-muted": "#496e8e",
         "border-color": "#b0d0e8",
-        "accent-color": "#0284c7",
+        "accent-color": "#0270a9",
         "accent-hover": "#0369a1",
         "christ-words": "#c41e3a",
         "highlight-bg": "#bae6fd",
@@ -224,9 +224,9 @@
         "bg-tertiary": "#eadece",
         "text-primary": "#2e1a0e",
         "text-secondary": "#5a3820",
-        "text-muted": "#8a6848",
+        "text-muted": "#846445",
         "border-color": "#d0b898",
-        "accent-color": "#b45309",
+        "accent-color": "#ac4f09",
         "accent-hover": "#92400e",
         "christ-words": "#a0342e",
         "highlight-bg": "#f0d8b0",
@@ -257,9 +257,9 @@
         "bg-tertiary": "#d4e3cc",
         "text-primary": "#1b2e1b",
         "text-secondary": "#3a5a3a",
-        "text-muted": "#6b8f6b",
+        "text-muted": "#536f53",
         "border-color": "#b5ccb0",
-        "accent-color": "#2d7a3a",
+        "accent-color": "#2c7638",
         "accent-hover": "#1e5c28",
         "christ-words": "#a0342e",
         "highlight-bg": "#d4edba",
@@ -290,9 +290,9 @@
         "bg-tertiary": "#c8e8e2",
         "text-primary": "#0c2e2a",
         "text-secondary": "#1a4a42",
-        "text-muted": "#4a7a70",
+        "text-muted": "#457269",
         "border-color": "#a0d0c8",
-        "accent-color": "#0e8a7a",
+        "accent-color": "#0c786a",
         "accent-hover": "#0a6e62",
         "christ-words": "#c41e3a",
         "highlight-bg": "#b8e8de",
@@ -315,7 +315,7 @@
       "swatch": {
         "bg": "#f4f8ef",
         "fg": "#1e3018",
-        "accent": "#5a9e2e"
+        "accent": "#437622"
       },
       "colors": {
         "bg-primary": "#f4f8ef",
@@ -323,10 +323,10 @@
         "bg-tertiary": "#dae8cc",
         "text-primary": "#1e3018",
         "text-secondary": "#3a5428",
-        "text-muted": "#6a8a50",
+        "text-muted": "#577242",
         "border-color": "#b8d4a0",
-        "accent-color": "#5a9e2e",
-        "accent-hover": "#488822",
+        "accent-color": "#437622",
+        "accent-hover": "#39641d",
         "christ-words": "#a0342e",
         "highlight-bg": "#d8ecbe",
         "highlight-bg-hover": "#c8e2a8",
@@ -356,7 +356,7 @@
         "bg-tertiary": "#21262d",
         "text-primary": "#c9d1d9",
         "text-secondary": "#8b949e",
-        "text-muted": "#6e7681",
+        "text-muted": "#888f98",
         "border-color": "#30363d",
         "accent-color": "#58a6ff",
         "accent-hover": "#79c0ff",
@@ -389,9 +389,9 @@
         "bg-tertiary": "#c8dce8",
         "text-primary": "#0f2b3c",
         "text-secondary": "#2a5470",
-        "text-muted": "#5b8ba5",
+        "text-muted": "#466b7f",
         "border-color": "#a8c8dc",
-        "accent-color": "#1a6ea0",
+        "accent-color": "#1a6c9e",
         "accent-hover": "#145a84",
         "christ-words": "#c41e3a",
         "highlight-bg": "#c0dff0",
@@ -422,7 +422,7 @@
         "bg-tertiary": "#e2d5ae",
         "text-primary": "#2c2416",
         "text-secondary": "#4a3c26",
-        "text-muted": "#7a6a4a",
+        "text-muted": "#716244",
         "border-color": "#c4b48a",
         "accent-color": "#6b4e2a",
         "accent-hover": "#553c1e",
@@ -488,7 +488,7 @@
         "bg-tertiary": "#2e3848",
         "text-primary": "#cbd5e1",
         "text-secondary": "#94a3b8",
-        "text-muted": "#64748b",
+        "text-muted": "#99a4b3",
         "border-color": "#334155",
         "accent-color": "#38bdf8",
         "accent-hover": "#7dd3fc",
@@ -513,7 +513,7 @@
       "swatch": {
         "bg": "#fef8f0",
         "fg": "#3d2010",
-        "accent": "#d4802a"
+        "accent": "#9c5e1f"
       },
       "colors": {
         "bg-primary": "#fef8f0",
@@ -521,10 +521,10 @@
         "bg-tertiary": "#fbe5c8",
         "text-primary": "#3d2010",
         "text-secondary": "#6b4020",
-        "text-muted": "#9a7050",
+        "text-muted": "#8b6548",
         "border-color": "#e0c8a8",
-        "accent-color": "#d4802a",
-        "accent-hover": "#b86a1e",
+        "accent-color": "#9c5e1f",
+        "accent-hover": "#85501a",
         "christ-words": "#c41e3a",
         "highlight-bg": "#fde8c0",
         "highlight-bg-hover": "#fcdda5",
@@ -554,7 +554,7 @@
         "bg-tertiary": "#4a2035",
         "text-primary": "#f0d0d8",
         "text-secondary": "#c8a0b0",
-        "text-muted": "#987888",
+        "text-muted": "#ab919e",
         "border-color": "#5a2a3d",
         "accent-color": "#e8789a",
         "accent-hover": "#f09ab5",
@@ -569,6 +569,39 @@
         "scrollbar-track": "#2a1520",
         "scrollbar-thumb": "#5a2a3d",
         "scrollbar-thumb-hover": "#7a3a55"
+      }
+    },
+    "high-contrast": {
+      "name": "High Contrast",
+      "group": "core",
+      "order": 16,
+      "isDark": true,
+      "swatch": {
+        "bg": "#000000",
+        "fg": "#ffffff",
+        "accent": "#ffe066"
+      },
+      "colors": {
+        "bg-primary": "#000000",
+        "bg-secondary": "#000000",
+        "bg-tertiary": "#1a1a1a",
+        "text-primary": "#ffffff",
+        "text-secondary": "#ebebeb",
+        "text-muted": "#d6d6d6",
+        "border-color": "#c8c8c8",
+        "accent-color": "#ffe066",
+        "accent-hover": "#ffec99",
+        "christ-words": "#ff8a8a",
+        "highlight-bg": "#333300",
+        "highlight-bg-hover": "#4d4d00",
+        "header-bg": "#0d0d0d",
+        "shadow": "rgba(0, 0, 0, 0.8)",
+        "dropdown-shadow": "rgba(0, 0, 0, 0.9)",
+        "overlay-bg": "rgba(0, 0, 0, 0.8)",
+        "accent-secondary": "#ffd166",
+        "scrollbar-track": "#000000",
+        "scrollbar-thumb": "#a0a0a0",
+        "scrollbar-thumb-hover": "#c8c8c8"
       }
     }
   }

@@ -3,6 +3,7 @@
  * (ungated `status()`), cached for 30 s, refreshed by settings and start.
  */
 
+import { tc } from '../messages';
 import { kitFor } from '@bible/core/recite';
 import type { ILanguageKit } from '@bible/core/recite';
 import type { ISpeechApi } from '@bible/core/speech';
@@ -66,15 +67,15 @@ export function unavailableMessage(a: SpeechAvailability): string {
     case 'ready':
       return '';
     case 'needs-download':
-      return 'The speech model needs to be downloaded first. Open Preferences > Speech.';
+      return tc('memory.core.speechNeedsDownload', 'The speech model needs to be downloaded first. Open Preferences > Speech.');
     case 'unavailable':
-      return 'Speech recognition is not available on this device.';
+      return tc('memory.core.speechUnavailable', 'Speech recognition is not available on this device.');
     case 'permission-missing':
-      return 'Scripture Memory needs microphone access (the speech:listen permission) to listen while you recite. Grant it under Preferences > Extensions > Scripture Memory.';
+      return tc('memory.core.speechPermissionMissing', 'Scripture Memory needs microphone access (the speech:listen permission) to listen while you recite. Grant it under Preferences > Extensions > Scripture Memory.');
     case 'unsupported-language':
-      return 'Reciting aloud does not support this Bible translation’s language yet.';
+      return tc('memory.core.speechUnsupportedLanguage', 'Reciting aloud does not support this Bible translation’s language yet.');
     case 'host-too-old':
-      return 'This version of the app does not support speech. Update it to recite aloud.';
+      return tc('memory.core.speechHostTooOld', 'This version of the app does not support speech. Update it to recite aloud.');
   }
 }
 

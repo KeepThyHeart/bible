@@ -29,7 +29,10 @@ describe('ReadingPlanTodayCard', () => {
     expect(onToggleReading).toHaveBeenCalledWith(0, true);
     await user.click(screen.getAllByRole('button', { name: /^Open / })[0]);
     expect(onOpenReading).toHaveBeenCalledWith(view.readings[0].reading);
+    // Nothing ticked yet: asks before marking the whole day read.
     await user.click(screen.getByRole('button', { name: 'Mark day read' }));
+    expect(onToggleDay).not.toHaveBeenCalled();
+    await user.click(screen.getByRole('button', { name: 'Confirm' }));
     expect(onToggleDay).toHaveBeenCalledWith(true);
     expect(screen.queryByRole('status')).toBeNull();
   });

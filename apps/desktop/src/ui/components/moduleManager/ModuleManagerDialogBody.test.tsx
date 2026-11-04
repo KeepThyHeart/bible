@@ -21,6 +21,7 @@ vi.mock('../../stores/module/moduleAPI', () => ({
     }),
     rebuildKeywordIndex: vi.fn(),
     deleteKeywordIndex: vi.fn(),
+    getInstallJobs: vi.fn().mockResolvedValue([]),
   },
 }));
 
@@ -83,7 +84,7 @@ function renderDialog(initialModuleType?: CatalogModule['module_type'] | null) {
 }
 
 describe('ModuleManagerDialog body (tabs, filter chips, table, details)', () => {
-  const installModule = vi.fn().mockResolvedValue(true);
+  const startInstall = vi.fn().mockResolvedValue(undefined);
   const uninstallModule = vi.fn().mockResolvedValue(true);
 
   beforeEach(() => {
@@ -107,7 +108,9 @@ describe('ModuleManagerDialog body (tabs, filter chips, table, details)', () => 
       startDownloadPolling: vi.fn(),
       stopDownloadPolling: vi.fn(),
       loadInstalledModules: vi.fn().mockResolvedValue(undefined),
-      installModule,
+      installJobs: [],
+      startInstall,
+      refreshInstallJobs: vi.fn().mockResolvedValue(undefined),
       uninstallModule,
     });
   });
@@ -174,8 +177,51 @@ describe('ModuleManagerDialog body (tabs, filter chips, table, details)', () => 
     const user = userEvent.setup();
     renderDialog();
     await user.click(screen.getByTestId('module-row-install-BBB'));
-    expect(installModule).toHaveBeenCalledWith('cat-BBB');
+    expect(startInstall).toHaveBeenCalledWith('cat-BBB');
     expect(screen.queryByTestId('module-details-panel')).not.toBeInTheDocument();
+  });
+
+  it('shows an in-flight install as a small ring in the row, with details and Cancel in a popover', async () => {
+    const user = userEvent.setup();
+    const cancelInstall = vi.fn().mockResolvedValue(undefined);
+    useModuleStore.setState({
+      cancelInstall,
+      installJobs: [
+        {
+          jobId: 1, moduleId: 'cat-BBB', name: 'Beta Bible', abbreviation: 'BBB', stage: 'downloading',
+          percent: 40, bytesDone: 400, bytesTotal: 1000, updatedAt: 0,
+        },
+      ],
+    });
+    renderDialog();
+    // No install button, no separate panel: just the ring in the row.
+    expect(screen.queryByTestId('module-row-install-BBB')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Active downloads/i)).not.toBeInTheDocument();
+    await user.click(screen.getByTestId('module-row-install-ring-BBB'));
+    expect(screen.getByTestId('install-popover-stage')).toHaveTextContent('Downloading');
+    expect(screen.getByTestId('install-popover-percent')).toHaveTextContent('40%');
+    expect(screen.getByTestId('install-popover-bytes')).toHaveTextContent('400 B / 1000 B');
+    await user.click(screen.getByTestId('install-popover-cancel'));
+    expect(cancelInstall).toHaveBeenCalledWith(1);
+  });
+
+  it('shows a failed install inline in its row with a Retry button', async () => {
+    const user = userEvent.setup();
+    const retryInstall = vi.fn().mockResolvedValue(undefined);
+    useModuleStore.setState({
+      retryInstall,
+      installJobs: [
+        {
+          jobId: 2, moduleId: 'cat-BBB', name: 'Beta Bible', abbreviation: 'BBB', stage: 'failed',
+          error: 'Checksum verification failed', bytesDone: 0, updatedAt: 0,
+        },
+      ],
+    });
+    renderDialog();
+    const row = screen.getByTestId('module-row-BBB');
+    expect(row).toHaveTextContent('Checksum verification failed');
+    await user.click(screen.getByTestId('module-row-retry-BBB'));
+    expect(retryInstall).toHaveBeenCalledWith(2);
   });
 
   it('shows the offline banner on the module tabs but not under the Installed filter', async () => {

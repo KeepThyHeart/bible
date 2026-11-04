@@ -25,9 +25,11 @@ vi.mock('../stores/useBibleStore', () => ({
   }),
 }));
 
+const mockCommandQuery = vi.hoisted(() => vi.fn().mockReturnValue([]));
+
 // Mock command hooks
 vi.mock('../contexts/useCommands', () => ({
-  useCommands: () => ({ query: vi.fn().mockReturnValue([]), execute: vi.fn() }),
+  useCommands: () => ({ query: mockCommandQuery, execute: vi.fn() }),
 }));
 
 vi.mock('../contexts/useWhenContext', () => ({
@@ -120,6 +122,39 @@ describe('TopSearchBar', () => {
     expect(screen.getByPlaceholderText('searchBar.unifiedPlaceholder')).toBeInTheDocument();
   });
 
+  it('is a combobox whose listbox state follows the dropdown (B-043)', async () => {
+    const services = createMockServices();
+    mockCommandQuery.mockReturnValue([{ id: 'a', title: 'Alpha' }, { id: 'b', title: 'Beta' }]);
+    Object.assign(mockSearchState, { ...defaultSearchState, query: '/' });
+    const user = userEvent.setup();
+    render(<ContextProvider services={services}><TopSearchBar /></ContextProvider>);
+    const input = screen.getByTestId('search-input');
+    expect(input).toHaveAttribute('role', 'combobox');
+    expect(input).toHaveAttribute('aria-expanded', 'false');
+    await user.click(input);
+    expect(input).toHaveAttribute('aria-expanded', 'true');
+    expect(input).toHaveAttribute('aria-controls', 'search-listbox');
+    await user.keyboard('{ArrowDown}');
+    expect(input.getAttribute('aria-activedescendant')).toMatch(/^search-option-\d+$/);
+    mockCommandQuery.mockReturnValue([]);
+  });
+
+  it('Escape hands focus back to where it came from instead of dropping to body (B-047)', async () => {
+    const user = userEvent.setup();
+    render(
+      <ContextProvider services={createMockServices()}>
+        <button data-testid="opener">Opener</button>
+        <TopSearchBar />
+      </ContextProvider>,
+    );
+    const opener = screen.getByTestId('opener');
+    opener.focus();
+    await user.click(screen.getByTestId('search-input'));
+    expect(screen.getByTestId('search-input')).toHaveFocus();
+    await user.keyboard('{Escape}');
+    expect(opener).toHaveFocus();
+  });
+
   it('shows advanced search button', () => {
     renderWithProviders(<TopSearchBar />);
     expect(screen.getByTestId('search-options-button')).toBeInTheDocument();
@@ -193,6 +228,13 @@ describe('TopSearchBar', () => {
       });
       renderWithProviders(<TopSearchBar />);
       expect(screen.getByTestId('search-result-count-badge')).toHaveTextContent('2');
+      // B-109: the badge, clear button and options need room, or they sit on top of the first typed letters.
+      expect(screen.getByTestId('search-input').className).toContain('pe-36');
+    });
+
+    it('B-045: idle box reserves room for the Ctrl+L chip plus the options button (7rem)', () => {
+      renderWithProviders(<TopSearchBar />);
+      expect(screen.getByTestId('search-input').className).toContain('pe-28');
     });
 
     // The pane counts semantic hits in semantic mode; the badge above it must

@@ -129,7 +129,7 @@ describe('activities', () => {
     const h = host();
     const root = renderPlan(h, p);
     expect(root.textContent).toContain(RECITE_TILE.title);
-    const due = [...root.querySelectorAll('button')].find((b) => b.textContent?.includes("Recite what's due aloud"))!;
+    const due = [...root.querySelectorAll('button')].find((b) => b.textContent?.includes("recite what's due aloud"))!;
     due.click();
     await flush();
     expect(h.requests[0]).toEqual({ type: 'startRecite', source: { kind: 'due' }, mode: 'handsfree' });
@@ -137,17 +137,17 @@ describe('activities', () => {
 
     const off = renderPlan(host(), plan({ speech: speech({ state: 'permission-missing' }) }, [pv([rung({ rung: 'ordering' })])]));
     expect(off.textContent).not.toContain(RECITE_TILE.title);
-    expect(off.textContent).not.toContain("Recite what's due aloud");
+    expect(off.textContent).not.toContain("recite what's due aloud");
   });
 });
 
 describe('passage screen recite row', () => {
   const rungs = [rung({ rung: 'ordering', level: 1 }), rung({ rung: 'recite', optional: true })];
 
-  it('marks recite optional in its tab', () => {
+  it('marks recite optional in its row', () => {
     const root = renderPassageScreen(host(), pv(rungs), 'firstLetter', 'recite', speech());
-    const tab = [...root.querySelectorAll('[role="tab"], button')].find((b) => b.textContent?.includes('Recite aloud'))!;
-    expect(tab.textContent).toContain('(optional)');
+    const row = [...root.querySelectorAll('.sm-progress-row strong')].find((b) => b.textContent?.includes('Recite aloud'))!;
+    expect(row.textContent).toContain('(optional)');
   });
 
   it('Recite starts tap mode when ready', async () => {

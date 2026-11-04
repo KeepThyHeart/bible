@@ -1,3 +1,5 @@
+import { plainTextKeepingDivineName } from '../../utils/divineName';
+import { sanitizeHtml } from '../../utils/sanitize';
 import { useState, useEffect, useCallback, useRef } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { useVersePopup } from '../../hooks/useVersePopup';
@@ -140,7 +142,7 @@ export function StudyCrossRefs({ bibleProvider }: StudyCrossRefsProps) {
         for (const id of ids) {
           const entry = batch.verses[String(id)];
           const text = entry
-            ? (entry.text_html || entry.text || '').replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim()
+            ? plainTextKeepingDivineName(entry.text_html || entry.text || '')
             : '(verse not available)';
           next.set(id, text);
         }
@@ -301,9 +303,10 @@ export function StudyCrossRefs({ bibleProvider }: StudyCrossRefsProps) {
                         >
                           <Bdi>{shortRange(entry.target_verse_id, entry.target_verse_end_id)}</Bdi>
                         </a>
-                        <span class="study-crossrefs__vl-text">
-                          {text !== undefined ? (text || '(no text)') : ''}
-                        </span>
+                        <span
+                          class="study-crossrefs__vl-text"
+                          dangerouslySetInnerHTML={{ __html: sanitizeHtml(text !== undefined ? (text || '(no text)') : '') }}
+                        />
                       </div>
                     );
                   })}

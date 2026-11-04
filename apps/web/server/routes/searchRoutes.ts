@@ -4,10 +4,16 @@ import type { ISearchPipeline, ScoringConfig } from '@bible/core';
 import { sendError, ErrorCodes } from '../utils/errorResponse.js';
 import { VerseIdHelper, StrongsNumberHelper, EnrichmentRepository, SearchOrchestrationService } from '../core.js';
 import type { TopicEntry } from '../search/SqliteVectorSearch.js';
+import { isQuerySyntaxError } from '../utils/requestHygiene.js';
 import { registerRoute } from './routeRegistry.js';
 import type { ServerHookRegistry } from '../plugins/ServerHooks.js';
-import { validateSearchQuery, MAX_SEARCH_QUERY_LENGTH } from '../utils/validation.js';
+import { validateSearchQuery, MAX_SEARCH_QUERY_LENGTH, validateModuleName } from '../utils/validation.js';
 import { createSemaphore, QueueFullError } from '../utils/semaphore.js';
+import { createClientQuota } from '../utils/clientQuota.js';
+import { isNamedModuleVisible } from '../utils/moduleVisibility.js';
+import type { SiteSettings } from '../siteSettings.js';
+import { RemoteSemantic } from '@bible/core';
+import { RemoteSemanticService, hasRemoteConsent, CONSENT_HEADER } from '../search/RemoteSemanticService.js';
 
 /**
  * Concurrency gate for semantic search.
@@ -20,6 +26,31 @@ import { createSemaphore, QueueFullError } from '../utils/semaphore.js';
  */
 const SEMANTIC_CONCURRENCY = 2;
 const SEMANTIC_MAX_QUEUE = 10;
+
+/**
+ * Concurrency gate for keyword search. Each search scans out to
+ * MAX_KEYWORD_RESULTS with fuzzy matching across every requested module, so
+ * unbounded parallel requests could tie the server up; past the queue we shed
+ * load with a 503, as semantic search does.
+ */
+const KEYWORD_CONCURRENCY = 4;
+const KEYWORD_MAX_QUEUE = 32;
+
+/**
+ * Most Bibles one search request may name. The client sends the translations
+ * the reader has open; more than this are dropped rather than refused, so a
+ * reader with many tabs still gets results.
+ */
+const MAX_SEARCH_MODULES = 6;
+
+/**
+ * Online meaning search (`search.mode: 'remote'`) costs a paid embedding call
+ * per query. Each client may run this many a day; repeats of a recent query
+ * are answered from `REMOTE_CACHE_*` below and cost nothing.
+ */
+const REMOTE_SEMANTIC_PER_CLIENT_PER_DAY = 200;
+const REMOTE_CACHE_MAX_ENTRIES = 1000;
+const REMOTE_CACHE_TTL_MS = 60 * 60_000;
 
 /**
  * Keyword result caps.
@@ -48,7 +79,31 @@ const MAX_STRONGS_RESULTS = 5000;
 export interface SearchRouteOptions {
   topicEntries?: Map<string, TopicEntry>;
   pipeline?: ISearchPipeline;
+  /** Set in `search.mode: 'remote'` with `via: 'server'`: semantic search goes to bibsearch instead of `pipeline`. */
+  remote?: RemoteSemanticService;
   scoringConfig?: ScoringConfig;
+  /** Module visibility from settings.json: Bibles switched off are never searched or shown. Omitted = all visible. */
+  siteSettings?: SiteSettings | null;
+}
+
+/**
+ * The `modules=` list, reduced to well-formed names of Bibles the site shows,
+ * de-duplicated and capped. `undefined` when the caller named none; an empty
+ * array when every name it gave was dropped.
+ */
+function requestedModules(raw: unknown, siteSettings: SiteSettings | null | undefined): string[] | undefined {
+  if (typeof raw !== 'string' || raw === '') return undefined;
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const part of raw.split(',')) {
+    const name = validateModuleName(part.trim());
+    if (!name || seen.has(name.toLowerCase())) continue;
+    if (!isNamedModuleVisible(siteSettings, 'bibles', name)) continue;
+    seen.add(name.toLowerCase());
+    out.push(name);
+    if (out.length === MAX_SEARCH_MODULES) break;
+  }
+  return out;
 }
 
 export function createSearchRoutes(db: DatabaseManager, routeOptions: SearchRouteOptions = {}, hybridDefault = false, minScoreDefault = 0.15, hooks?: ServerHookRegistry): Router {
@@ -59,6 +114,14 @@ export function createSearchRoutes(db: DatabaseManager, routeOptions: SearchRout
     concurrency: SEMANTIC_CONCURRENCY,
     maxQueue: SEMANTIC_MAX_QUEUE,
   });
+  const keywordGate = createSemaphore({
+    concurrency: KEYWORD_CONCURRENCY,
+    maxQueue: KEYWORD_MAX_QUEUE,
+  });
+  const remoteQuota = createClientQuota({ limit: REMOTE_SEMANTIC_PER_CLIENT_PER_DAY, windowMs: 24 * 60 * 60_000 });
+  // Recent remote answers, oldest first (a Map keeps insertion order). Results
+  // carry no user data, so one reader's answer can serve the next.
+  const remoteCache = new Map<string, { at: number; result: unknown }>();
 
   // Cache book names for reference resolution (loaded once on first use)
   let bookNames: Map<number, string> | null = null;
@@ -92,6 +155,11 @@ export function createSearchRoutes(db: DatabaseManager, routeOptions: SearchRout
   // Warm up semantic search pipeline
   router.post('/semantic/warmup', async (_req, res): Promise<void> => {
     try {
+      // Remote mode: nothing to warm, and nothing may be sent to bibsearch before consent.
+      if (routeOptions.remote) {
+        res.json({ status: 'ready' });
+        return;
+      }
       if (!routeOptions.pipeline) {
         res.json({ status: 'unavailable' });
         return;
@@ -110,7 +178,13 @@ export function createSearchRoutes(db: DatabaseManager, routeOptions: SearchRout
         return;
       }
 
-      const modules = req.query.modules ? (req.query.modules as string).split(',') : undefined;
+      const modules = requestedModules(req.query.modules, routeOptions.siteSettings);
+      if (modules && modules.length === 0) {
+        // Every Bible named is hidden or malformed: nothing to search, and the
+        // default Bible is not what the caller asked for.
+        res.json({ results: [], total: 0, totalAvailable: 0, bookCounts: {} });
+        return;
+      }
       // Cap the page to prevent resource exhaustion. Garbage or negative input
       // falls back to the first-page default rather than propagating NaN.
       const requestedSize = Number(req.query.pageSize ?? DEFAULT_KEYWORD_PAGE_SIZE);
@@ -133,15 +207,29 @@ export function createSearchRoutes(db: DatabaseManager, routeOptions: SearchRout
       // below has to describe every match, not the handful the caller wants to
       // render. The extra rows cost one bounded SQLite scan and never leave the
       // server unless the caller paged out this far.
-      const results = await searchService.search(query, {
-        modules,
-        maxResults: MAX_KEYWORD_RESULTS,
-        // Approximate matches for a multi-word query must cover a fair share of
-        // its significant terms. The core default lets a verse in on any single
-        // word ("God so loved the world" listed every verse containing "God"),
-        // which the desktop app still relies on; the web app opts in here.
-        fuzzyGate: 'coverage',
-      });
+      let results;
+      try {
+        results = await keywordGate.run(async () => {
+          if (req.timedout) return null;
+          return searchService.search(query, {
+            modules,
+            maxResults: MAX_KEYWORD_RESULTS,
+            // Approximate matches for a multi-word query must cover a fair share of
+            // its significant terms. The core default lets a verse in on any single
+            // word ("God so loved the world" listed every verse containing "God"),
+            // which the desktop app still relies on; the web app opts in here.
+            fuzzyGate: 'coverage',
+          });
+        });
+      } catch (err) {
+        if (err instanceof QueueFullError) {
+          res.setHeader('Retry-After', '5');
+          res.status(503).json({ error: { code: 'SERVICE_BUSY', message: 'Search is busy, please retry shortly' } });
+          return;
+        }
+        throw err;
+      }
+      if (results === null || req.timedout) return;
 
       // `r.type` is the core MatchType — 'exact', 'stem' or 'fuzzy'. It used to
       // be flattened to a constant 'bible' here, which left the browser unable
@@ -192,6 +280,10 @@ export function createSearchRoutes(db: DatabaseManager, routeOptions: SearchRout
 
       hooks?.fireActions('search:performed', { query, resultCount: mappedResults.length });
     } catch (error) {
+      if (isQuerySyntaxError(error)) {
+        if (!res.headersSent) sendError(res, 400, ErrorCodes.INVALID_PARAM, (error as Error).message);
+        return;
+      }
       console.error('Error performing search:', error);
       if (!res.headersSent) sendError(res, 500, ErrorCodes.INTERNAL_ERROR, 'Search failed');
     }
@@ -210,10 +302,14 @@ export function createSearchRoutes(db: DatabaseManager, routeOptions: SearchRout
       const hybrid = req.query.hybrid !== undefined
         ? (req.query.hybrid === '1' || req.query.hybrid === 'true')
         : hybridDefault;
-      const modules = req.query.modules ? (req.query.modules as string).split(',') : undefined;
+      // Hidden Bibles are dropped; an empty list then means "none named" here,
+      // since `modules` only picks the translation hits are shown in.
+      const named = requestedModules(req.query.modules, routeOptions.siteSettings);
+      const modules = named && named.length > 0 ? named : undefined;
 
+      const remote = routeOptions.remote;
       const pipeline = routeOptions.pipeline;
-      if (!pipeline) {
+      if (!remote && !pipeline) {
         res.status(503).json({ error: { code: 'SERVICE_UNAVAILABLE', message: 'Semantic search not available' }, results: [], total: 0 });
         return;
       }
@@ -241,6 +337,78 @@ export function createSearchRoutes(db: DatabaseManager, routeOptions: SearchRout
         : (db.getDefaultBibleAbbreviation('KJV') ?? 'KJV');
       const hydrationRepo = requestedRepo ?? db.getBibleRepo(hydrationModule);
 
+      if (remote) {
+        // Nothing leaves the server until the user has agreed to the current notice.
+        if (!hasRemoteConsent(req.headers[CONSENT_HEADER])) {
+          res.status(403).json({
+            error: { code: 'CONSENT_REQUIRED', message: 'Online meaning search needs the user to agree to the notice first' },
+            results: [],
+            total: 0,
+          });
+          return;
+        }
+        const cacheKey = `${query.trim().toLowerCase()}\u0000${maxResults}\u0000${hydrationModule}`;
+        const cached = remoteCache.get(cacheKey);
+        if (cached && Date.now() - cached.at < REMOTE_CACHE_TTL_MS) {
+          res.json(cached.result);
+          return;
+        }
+        // Charged only for a query that will actually reach bibsearch.
+        const retryAfter = remoteQuota.take(req);
+        if (retryAfter !== null) {
+          res.setHeader('Retry-After', String(retryAfter));
+          res.status(429).json({
+            error: { code: 'RATE_LIMITED', message: 'Daily limit for online meaning search reached on this connection' },
+            results: [],
+            total: 0,
+          });
+          return;
+        }
+        let remoteResult;
+        try {
+          remoteResult = await semanticGate.run(async () => {
+            if (req.timedout) return null;
+            return remote.search(query, maxResults, {
+              repo: hydrationRepo ?? undefined,
+              module: hydrationModule,
+              bookNames: getBookNames(),
+            });
+          });
+        } catch (err) {
+          if (err instanceof QueueFullError) {
+            res.setHeader('Retry-After', '5');
+            res.status(503).json({
+              error: { code: 'SERVICE_BUSY', message: 'Search is busy, please retry shortly' },
+              results: [],
+              total: 0,
+            });
+            return;
+          }
+          if (err instanceof RemoteSemantic.RemoteSemanticError) {
+            // Generic body on purpose: no bibsearch URL, key or raw error text leaves the server.
+            console.warn(`[SemanticSearch] remote search failed: ${err.kind}${err.details?.requestId ? ` (request ${err.details.requestId})` : ""}`);
+            if (req.timedout) return;
+            res.status(503).json({
+              error: { code: 'REMOTE_UNAVAILABLE', message: 'Online meaning search is unavailable' },
+              results: [],
+              total: 0,
+              semantic: { source: 'remote', notice: RemoteSemantic.noteForRemoteError(err) },
+            });
+            return;
+          }
+          throw err;
+        }
+        if (remoteResult === null || req.timedout) return;
+        remoteCache.delete(cacheKey);
+        remoteCache.set(cacheKey, { at: Date.now(), result: remoteResult });
+        if (remoteCache.size > REMOTE_CACHE_MAX_ENTRIES) {
+          remoteCache.delete(remoteCache.keys().next().value as string);
+        }
+        res.json(remoteResult);
+        hooks?.fireActions('search:performed', { query, resultCount: remoteResult.total });
+        return;
+      }
+
       let result;
       try {
         result = await semanticGate.run(async () => {
@@ -253,7 +421,7 @@ export function createSearchRoutes(db: DatabaseManager, routeOptions: SearchRout
             maxResults,
             hybrid,
             modules,
-            pipeline,
+            pipeline: pipeline!,
             topicEntries: routeOptions.topicEntries,
             bibleRepo: hydrationRepo ?? undefined,
             bibleModule: hydrationModule,
@@ -286,7 +454,8 @@ export function createSearchRoutes(db: DatabaseManager, routeOptions: SearchRout
       hooks?.fireActions('search:performed', { query, resultCount: result.total });
     } catch (error: any) {
       console.error('Error performing semantic search:', error?.message || error, error?.stack);
-      if (!res.headersSent) sendError(res, 500, ErrorCodes.INTERNAL_ERROR, `Semantic search failed: ${error?.message}`);
+      // The detail stays in the server log above; callers get no internals.
+      if (!res.headersSent) sendError(res, 500, ErrorCodes.INTERNAL_ERROR, 'Semantic search failed');
     }
   });
 
@@ -309,7 +478,9 @@ export function createSearchRoutes(db: DatabaseManager, routeOptions: SearchRout
       }
 
       const includeRelated = req.query.includeRelated === 'true' || req.query.includeRelated === '1';
-      const modules = req.query.modules ? (req.query.modules as string).split(',') : undefined;
+      // Hidden Bibles dropped, as for keyword search; none left means the default Bible.
+      const named = requestedModules(req.query.modules, routeOptions.siteSettings);
+      const modules = named && named.length > 0 ? named : undefined;
       const scope = req.query.scope ? Number(req.query.scope) : undefined;
       const scopeBook = scope && scope >= 1 && scope <= 66 ? scope : undefined;
 
@@ -454,7 +625,7 @@ registerRoute({
   path: '/api/search',
   createRoutes: (deps) => createSearchRoutes(
     deps.db,
-    deps.extra.searchRouteOptions as SearchRouteOptions,
+    { ...(deps.extra.searchRouteOptions as SearchRouteOptions | undefined), siteSettings: deps.siteSettings },
     deps.extra.hybridDefault as boolean ?? false,
     deps.extra.minScoreDefault as number ?? 0.15,
     deps.extra.hooks as ServerHookRegistry,

@@ -1,9 +1,10 @@
 // TODO: Just question.  Do any of these stores contain significant logic that ought to be reusable in the core package?  Something that the desktop could reuse (but only if I want to do that)?  But in a way that wouldn't lock the desktop into a certain UI _per se_, so that I wouldn't have to update the underlying core store but could expand upon it?
 import { Store } from './Store';
+import { isServerReachable, onServerReachabilityChange } from '../utils/serverReachability';
 import { eventBus } from '../events/eventBus';
 import type { IBibleDataProvider, VotdData } from '../providers/interfaces';
 import type { VerseData, BookTopicsData } from '../types';
-import { formatPassageRef } from '../constants';
+import { formatPassageRef, MAX_CHAPTERS } from '../constants';
 import { triggerAutoDownload } from '../offline/autoDownloadManager';
 import { settingsStore } from './settingsStore';
 import { studyOwnsHash, noteStudyHash } from '../host/hashGate';
@@ -30,6 +31,14 @@ export interface BibleTab {
   chapter: number | null;
   /** The verse the study tools are focused on (drives study/commentary panes) */
   studyVerse: number | null;
+  /**
+   * Set to `studyVerse` when the reader clicks the selected verse again: its
+   * highlight is hidden, but the study panes stay on it. Clearing the
+   * selection outright let the panes fall back to "the first visible verse",
+   * so a second click made the focus jump somewhere else. Any other verse
+   * becoming the study verse shows its highlight again automatically.
+   */
+  hiddenStudyVerse?: number | null;
   /** A verse the user is previewing (from a link, search result, or cross-ref click).
    *  Does NOT update study panes — only provides a visual indicator. */
   previewVerse: number | null;
@@ -162,12 +171,33 @@ const SESSION_KEY = 'bible-reader-session';
 
 /** `#/MODULE/book/chapter[/verse]` — the shape `updateHash` writes. */
 const HASH_PATTERN = /^#\/([^/]+)\/(\d+)\/(\d+)(?:\/(\d+))?$/;
+
+/**
+ * How to write a reader hash. A user navigation to a different chapter pushes a
+ * history entry (so browser Back/Forward follow it); everything else (verse
+ * selection, restores, redirects, first load with no reader hash yet) replaces.
+ */
+export function hashWriteMode(currentHash: string, newHash: string, userNav: boolean): 'push' | 'replace' {
+  if (!userNav) return 'replace';
+  const cur = currentHash.match(HASH_PATTERN);
+  const next = newHash.match(HASH_PATTERN);
+  if (!cur || !next) return 'replace';
+  return cur[1] === next[1] && cur[2] === next[2] && cur[3] === next[3] ? 'replace' : 'push';
+}
 const STUDY_SETTINGS_KEY = 'bible-reader-study-settings';
 
 let tabCounter = 0;
 
 function newTabId(): string {
   return `tab-${++tabCounter}-${Date.now()}`;
+}
+
+/** Message for a chapter that could not be fetched: offline gets its own wording. */
+function chapterLoadError(): string {
+  const offline = (typeof navigator !== 'undefined' && navigator.onLine === false) || !isServerReachable();
+  return offline
+    ? 'This chapter is not available offline. It will load when you are back online.'
+    : 'Failed to load chapter. Please check your connection and try again.';
 }
 
 class BibleStore extends Store {
@@ -301,6 +331,15 @@ class BibleStore extends Store {
     return this.bible.getBookTopics(book);
   }
 
+  /** Refetch chapters that failed to load (called when the connection returns). */
+  retryFailedLoads(): void {
+    for (const tab of this.tabs) {
+      if (tab.loadError && tab.book && tab.chapter && !tab.loading) {
+        void this.navigateTo(tab.book, tab.chapter, undefined, { replace: true, urlReplace: true, tabId: tab.id });
+      }
+    }
+  }
+
   getActiveTab(): BibleTab | undefined {
     return this.tabs.find(t => t.id === this.activeTabId);
   }
@@ -376,7 +415,8 @@ class BibleStore extends Store {
     book: number,
     chapter: number,
     verse?: number,
-    options?: { fromLink?: boolean; endVerse?: number; replace?: boolean; follow?: boolean; tabId?: string },
+    /** `replace` keeps the in-app history page; `urlReplace` also keeps the browser URL entry (programmatic moves such as following the presenter). */
+    options?: { fromLink?: boolean; fromHash?: boolean; endVerse?: number; replace?: boolean; urlReplace?: boolean; follow?: boolean; tabId?: string },
   ): Promise<void> {
     const follow = options?.follow === true;
     const tab = options?.tabId ? this.tabs.find(t => t.id === options.tabId) : this.getActiveTab();
@@ -430,6 +470,20 @@ class BibleStore extends Store {
       } else {
         // A passage selection is anchored to verses in the chapter being left.
         tab.selectionEndVerse = null;
+        // A verse past the end of the chapter (e.g. a typed "John 3:45" — John 3
+        // has 36) would select a verse that does not exist: nothing highlights,
+        // nothing scrolls, and the commentary has no entry for it. Land on the
+        // chapter's last verse instead. Gaps inside the chapter (verses a
+        // translation omits) are left alone.
+        const lastVerse = tab.verses.reduce((m, v) => Math.max(m, v.verse_id % 1000), 0);
+        if (verse && lastVerse > 0 && verse > lastVerse) verse = lastVerse;
+        // A verse this translation omits (ASV Acts 8:37) is likewise nothing to
+        // highlight, while the study panes would name it: land on the next
+        // verse that is there.
+        if (verse && tab.verses.length > 0 && !tab.verses.some(v => v.verse_id % 1000 === verse)) {
+          const next = tab.verses.map(v => v.verse_id % 1000).filter(n => n > verse!).sort((a, b) => a - b)[0];
+          if (next !== undefined) verse = next;
+        }
         if (verse) {
           // Calculate full verseId — select the specific verse
           const verseId = (book * 1000000) + (chapter * 1000) + verse;
@@ -475,7 +529,7 @@ class BibleStore extends Store {
 
       // Push to history
       this.pushHistory({ moduleAbbr: tab.moduleAbbr, book, chapter, verse }, { replace: options?.replace || follow, tab });
-      if (tab.id === this.activeTabId) this.updateHash();
+      if (tab.id === this.activeTabId) this.updateHash(!follow && !!verse, !follow && !options?.urlReplace && !options?.fromHash);
       this.saveSession();
       this.notify();
 
@@ -485,7 +539,11 @@ class BibleStore extends Store {
       cancelLoadingFn();
       console.error('Navigation failed:', error);
       tab.loading = false;
-      tab.loadError = 'Failed to load chapter. Please check your connection and try again.';
+      // The heading already names the new chapter: never leave the old verses under it (B-117/B-138).
+      tab.verses = [];
+      tab.versesModule = undefined;
+      tab.coveredBooks = undefined;
+      tab.loadError = chapterLoadError();
       if (wasShowingHome) {
         this.showHome = false;
       }
@@ -597,14 +655,17 @@ class BibleStore extends Store {
       this.showHome = false;
 
       this.pushHistory({ moduleAbbr: tab.moduleAbbr, book, chapter, verse, fromPreview: true });
-      this.updateHash();
+      this.updateHash(false, true);
       this.saveSession();
       this.notify();
     } catch (error) {
       cancelLoading();
       console.error('Preview navigation failed:', error);
       tab.loading = false;
-      tab.loadError = 'Failed to load chapter. Please check your connection and try again.';
+      tab.verses = [];
+      tab.versesModule = undefined;
+      tab.coveredBooks = undefined;
+      tab.loadError = chapterLoadError();
       this.showHome = false;
       this.notify();
     }
@@ -619,15 +680,18 @@ class BibleStore extends Store {
     tab.previewVerseEnd = null;
     // A plain click starts a fresh selection, so any shift-click extension goes.
     tab.selectionEndVerse = null;
-    // Toggle: clicking the already-selected study verse deselects it
+    // Toggle the highlight of the already-selected verse. The verse stays the
+    // study focus either way; see `hiddenStudyVerse`.
     if (tab.studyVerse === verseId) {
-      tab.studyVerse = null;
+      tab.hiddenStudyVerse = tab.hiddenStudyVerse === verseId ? null : verseId;
     } else {
       tab.studyVerse = verseId;
+      tab.hiddenStudyVerse = null;
     }
     // The history entry for this chapter should name the last verse actually
     // visited in it, not the one the chapter was opened at.
     this.rememberVerseInCurrentEntry(tab);
+    this.updateHash();
     this.notify();
   }
 
@@ -661,6 +725,7 @@ class BibleStore extends Store {
     tab.selectionEndVerse = null;
     tab.studyVerse = verse.verse_id;
     this.rememberVerseInCurrentEntry(tab);
+    this.updateHash();
     this.notify();
   }
 
@@ -694,8 +759,11 @@ class BibleStore extends Store {
   extendSelectionTo(verseId: number): void {
     const tab = this.getActiveTab();
     if (!tab) return;
-    if (tab.studyVerse === null) {
-      this.setStudyVerse(verseId);
+    if (tab.studyVerse === null || !this.isStudyVerseShown(tab)) {
+      // No visible anchor to extend from: start a fresh selection here.
+      if (tab.studyVerse === verseId) tab.hiddenStudyVerse = null;
+      else this.setStudyVerse(verseId);
+      this.notify();
       return;
     }
     tab.previewVerse = null;
@@ -709,9 +777,15 @@ class BibleStore extends Store {
    * high regardless of which direction the user shift-clicked. Null when
    * nothing is selected.
    */
+  /** Whether the tab's study verse is drawn as selected (not hidden by a second click). */
+  isStudyVerseShown(tab: BibleTab): boolean {
+    return tab.studyVerse !== null && tab.hiddenStudyVerse !== tab.studyVerse;
+  }
+
   getSelectedRange(): { start: number; end: number } | null {
     const tab = this.getActiveTab();
-    if (!tab?.studyVerse) return null;
+    // A hidden selection is not something to copy or act on.
+    if (!tab?.studyVerse || !this.isStudyVerseShown(tab)) return null;
     const other = tab.selectionEndVerse ?? tab.studyVerse;
     return {
       start: Math.min(tab.studyVerse, other),
@@ -736,6 +810,35 @@ class BibleStore extends Store {
     if (!tab || tab.studyVerse !== null || tab.verses.length === 0) return;
     tab.studyVerse = tab.verses[0].verse_id;
     this.notify();
+  }
+
+  /**
+   * Point the commentary at the active tab's selected verse.
+   *
+   * The commentary store is only told about a chapter by explicit events
+   * (`navigateTo`, a verse click, history moves). Switching Bible tabs — or
+   * opening the Commentary pane after one — fired none of them, so the
+   * commentary stayed synced to the *previous* tab's chapter. CommentaryContent
+   * then discarded this tab's selected verse as belonging to another chapter
+   * and showed "Select a verse in the Bible pane" even though one was selected.
+   *
+   * Syncs to the chapter of the selected verse rather than the chapter on
+   * screen: after a preview navigation, or while audio follow-along turns the
+   * page, the selection deliberately stays in the earlier chapter and the
+   * commentary should stay with it. When the commentary is already on that
+   * chapter this is a no-op (`loadForChapter` short-circuits).
+   */
+  syncCommentaryToSelection(): void {
+    const tab = this.getActiveTab();
+    if (!tab) return;
+    this.ensureStudyVerse();
+    let book = tab.book;
+    let chapter = tab.chapter;
+    if (tab.studyVerse) {
+      book = Math.floor(tab.studyVerse / 1000000);
+      chapter = Math.floor((tab.studyVerse % 1000000) / 1000);
+    }
+    if (book && chapter) eventBus.emit('commentary:load-chapter', { book, chapter });
   }
 
   /** Promote the preview verse to the study focus (no toggle). Used by "Sync" banner buttons. */
@@ -907,6 +1010,7 @@ class BibleStore extends Store {
 
     if (this.activeTabId === tabId) {
       this.activeTabId = this.tabs[Math.min(idx, this.tabs.length - 1)].id;
+      this.syncCommentaryToSelection();
     }
 
     this.saveSession();
@@ -920,6 +1024,9 @@ class BibleStore extends Store {
     if (!tab) return;
 
     this.activeTabId = tabId;
+    // The tab being brought forward may already have a verse selected; the
+    // commentary has to follow it here, since no click will tell it to.
+    this.syncCommentaryToSelection();
     this.updateHash();
     this.saveSession();
     this.notify();
@@ -960,7 +1067,7 @@ class BibleStore extends Store {
         // verses to render instead.
         tab.verses = [];
         tab.versesModule = undefined;
-        tab.loadError = 'Failed to load chapter. Please check your connection and try again.';
+        tab.loadError = chapterLoadError();
       }
     }
 
@@ -1164,13 +1271,30 @@ class BibleStore extends Store {
     } catch {
       cancelLoading();
       tab.loading = false;
-      tab.loadError = 'Failed to load chapter. Please check your connection and try again.';
+      tab.verses = [];
+      tab.versesModule = undefined;
+      tab.coveredBooks = undefined;
+      tab.loadError = chapterLoadError();
       this.notify();
     }
   }
 
+  /** True while `navigateFromHash` runs: hash writes replace, they do not push. */
+
+  /** The text of one verse in a translation, or null when it cannot be read (offline, missing). */
+  async getVerseText(moduleAbbr: string, verseId: number): Promise<string | null> {
+    if (!this.bible) return null;
+    try {
+      const data = await this.bible.getChapter(moduleAbbr, Math.floor(verseId / 1000000), Math.floor((verseId % 1000000) / 1000));
+      return data.verses.find(v => v.verse_id === verseId)?.text ?? null;
+    } catch {
+      return null;
+    }
+  }
+
   // URL hash
-  updateHash(): void {
+  /** `withVerse`: the navigation named a verse (reference box), so the URL names it too. */
+  updateHash(withVerse = false, userNav = false): void {
     const tab = this.getActiveTab();
     if (tab?.book && tab.chapter) {
       const hash = `#/${tab.moduleAbbr}/${tab.book}/${tab.chapter}`;
@@ -1179,8 +1303,26 @@ class BibleStore extends Store {
         noteStudyHash(hash);
         return;
       }
+      // A deep link that names a verse (`#/ASV/43/3/16`) keeps naming one, following
+      // the selection, so a reload lands on the verse the reader is on.
+      const current = window.location.hash.match(HASH_PATTERN);
+      const namesVerse = withVerse || (current?.[4]
+        && current[1] === tab.moduleAbbr
+        && parseInt(current[2], 10) === tab.book
+        && parseInt(current[3], 10) === tab.chapter);
+      if (namesVerse
+        && tab.studyVerse !== null
+        && Math.floor(tab.studyVerse / 1000) === tab.book * 1000 + tab.chapter) {
+        const verseHash = `${hash}/${tab.studyVerse % 1000}`;
+        if (window.location.hash !== verseHash) {
+          if (hashWriteMode(window.location.hash, verseHash, userNav) === 'push') history.pushState(null, '', verseHash);
+          else history.replaceState(null, '', verseHash);
+        }
+        return;
+      }
       if (window.location.hash !== hash) {
-        history.replaceState(null, '', hash);
+        if (hashWriteMode(window.location.hash, hash, userNav) === 'push') history.pushState(null, '', hash);
+        else history.replaceState(null, '', hash);
       }
     }
   }
@@ -1214,6 +1356,12 @@ class BibleStore extends Store {
     const book = parseInt(bookStr, 10);
     const chapter = parseInt(chapterStr, 10);
     const verse = verseStr ? parseInt(verseStr, 10) : undefined;
+    // A link naming a book or chapter that cannot exist (`#/ASV/99/1`) is ignored:
+    // the reader stays on the current passage and the URL is put back to match it.
+    if (book < 1 || book > 66 || chapter < 1 || chapter > (MAX_CHAPTERS[book] ?? Infinity)) {
+      this.updateHash();
+      return;
+    }
     // A link shared from another install can name a translation this one does
     // not have. The passage is still worth opening, in the default Bible.
     const module = settingsStore.resolveInstalledBible(linkedModule);
@@ -1224,7 +1372,9 @@ class BibleStore extends Store {
       tab.moduleName = module;
     }
 
-    await this.navigateTo(book, chapter, verse);
+    // The URL already is the user's step (Back, a hand-edit): rewrite it in place, never push.
+    // `replace`: Back/Forward already moved the URL; do not append a duplicate to the tab's own history.
+    await this.navigateTo(book, chapter, verse, { fromHash: true, replace: true });
   }
 
   // Session persistence
@@ -1340,6 +1490,12 @@ class BibleStore extends Store {
 }
 
 export const bibleStore = new BibleStore();
+
+// Auto-recover a chapter that failed while offline once the connection returns (B-117/B-138).
+if (typeof window !== 'undefined') {
+  window.addEventListener('online', () => bibleStore.retryFailedLoads());
+  onServerReachabilityChange((reachable) => { if (reachable) bibleStore.retryFailedLoads(); });
+}
 
 // Core events `reader.verseChanged` / `reader.selectionChanged` (task 0123): only while an active feature module listens.
 watchReaderStore(bibleStore);

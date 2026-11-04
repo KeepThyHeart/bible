@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { notesStore } from '../notes/notesStore';
 import { presenterSend, presenterState, usePresenterState } from '../presenterSink';
-import { buildChips, nextChip, type HighlightChip } from './highlightChips';
+import { buildChips, nextChip, type HighlightChip } from './highlightChipModel';
 
 /** The live plan item's note highlights as chips, from the current notes and wall. */
 export function liveChips(): HighlightChip[] {

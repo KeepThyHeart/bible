@@ -45,6 +45,15 @@ describe('VerseContextMenu: verseActions registry', () => {
     expect(screen.queryByRole('menuitem', { name: 'Hidden' })).toBeNull();
   });
 
+  it('draws a contributed action\'s builtin icon in the bottom block, and leaves a gap for rows with none', () => {
+    disposables.push(
+      verseActions.register({ id: 'a.icon', title: { key: 'a.icon', fallback: 'With icon' }, icon: { kind: 'builtin', name: 'brain' }, order: 30, group: 'app' }, { kind: 'builtin', moduleId: 'a' }),
+    );
+    renderMenu();
+    expect(screen.getByRole('menuitem', { name: 'With icon' }).querySelector('svg[data-icon="brain"]')).toBeTruthy();
+    expect(screen.getByRole('menuitem', { name: 'Fallback One' }).querySelector('svg')).toBeNull();
+  });
+
   it('closes the menu and runs the action with the verse context on click', async () => {
     const run = vi.fn().mockResolvedValue(undefined);
     disposables.push(verseActions.bindHandler({ id: 'a.one', load: async () => ({ run }) }));

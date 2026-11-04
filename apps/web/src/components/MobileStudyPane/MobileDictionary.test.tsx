@@ -246,4 +246,29 @@ describe('MobileDictionary', () => {
     expect(action).toBeTruthy();
     expect(action!.querySelector('.fa-xmark')).toBeTruthy();
   });
+
+  // ---- Strong's labels (B-165 helpers, B-180) -------------------------------
+  it('labels a Strong\'s suggestion "G26 ἀγάπη", not the raw key', () => {
+    mockSuggestions = [makeSuggestion('00026', 'ἀγάπη'), makeSuggestion('00430', '00430', 'strongshebrew')];
+    const { container } = render(<MobileDictionary />);
+    fireEvent.input(container.querySelector<HTMLInputElement>('.mobile-dictionary__search-input')!, { target: { value: 'ag' } });
+    const words = [...container.querySelectorAll('.mobile-dictionary__suggestion-word')].map((e) => e.textContent?.trim());
+    expect(words).toEqual(['G26 ἀγάπη', 'H430']);
+  });
+
+  it('headlines a Strong\'s entry "G26 ἀγάπη"', async () => {
+    mockSuggestions = [makeSuggestion('00026', 'ἀγάπη')];
+    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      json: async () => ({ entry_key: '00026', word: 'ἀγάπη', transliteration: 'agape', pronunciation: "ag-ah'-pay", definition: 'love' }),
+    });
+    const { container } = render(<MobileDictionary />);
+    fireEvent.input(container.querySelector<HTMLInputElement>('.mobile-dictionary__search-input')!, { target: { value: 'G26' } });
+    await act(async () => {
+      fireEvent.click(container.querySelector<HTMLButtonElement>('.mobile-dictionary__suggestion')!);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(container.querySelector('.dictionary-pane__entry-word')?.textContent).toBe('G26 ἀγάπη');
+  });
 });

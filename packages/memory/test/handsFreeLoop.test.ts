@@ -385,6 +385,27 @@ describe('derails', () => {
     expect(s.recorded).toHaveLength(1);
   });
 
+  it('B-137: hands-free silence pause names the Resume button (nothing listens while paused) and Resume works', async () => {
+    const s = setup({ script: [{ silence: true }, { silence: true }, { say: FULL }, { silence: true }] });
+    await until(() => s.view().phase === 'paused', 'paused');
+    expect(s.view().message).toMatch(/no speech/i);
+    expect(s.view().message).toMatch(/Press Resume/);
+    expect(s.view().message).not.toMatch(/say/i);
+    s.act('resume');
+    await until(() => s.view().phase === 'done');
+  });
+
+  it('B-137: tap-mode silence pause names the Talk button and Talk resumes', async () => {
+    const s = setup({ mode: 'tap', script: [{ silence: true }, { silence: true }, { say: FULL }, { silence: true }] });
+    await until(() => s.view().phase === 'ready', 'ready');
+    s.act('listen');
+    await until(() => s.view().phase === 'paused', 'paused');
+    expect(s.view().message).toMatch(/Press Talk/);
+    expect(s.view().message).not.toMatch(/Resume|say/);
+    s.act('listen');
+    await until(() => s.view().phase !== 'paused', 'resumed');
+  });
+
   it('stalling mid-passage hints one word, then three, then scores', async () => {
     const s = setup({ script: [{ say: V1 }, { silence: true }, { silence: true }, { silence: true }] , settings: { voiceCommands: false }});
     await until(() => s.view().phase === 'done');
@@ -787,6 +808,47 @@ describe('ReciteService', () => {
     await t.svc.dispose();
   });
 
+  it('peek shows the opening words, is not graded, and the whole-text peek records nothing', async () => {
+    const t = makeService({ script: [{ say: FULL }] });
+    const v = await t.svc.start({ source: { kind: 'passage', passageId: 1 }, mode: 'tap' });
+    await until(() => t.svc.get()?.phase === 'ready');
+    const peeked = t.svc.control({ reciteId: v.reciteId, action: 'peek' });
+    expect(peeked.peeked).toBe(3);
+    expect(peeked.peekText).toBe('The LORD is');
+    t.svc.control({ reciteId: v.reciteId, action: 'listen' });
+    await until(() => t.svc.get()?.phase === 'feedback');
+    const r = t.svc.get()!.result!;
+    expect(r.words.slice(0, 3).every((w) => w.peeked)).toBe(true);
+    expect(r.words[3].peeked).toBeUndefined();
+    expect(t.attempts[0]).toMatchObject({ totalSteps: 22 });
+    await t.svc.dispose();
+
+    const u = makeService({ script: [{ say: FULL }] });
+    const w = await u.svc.start({ source: { kind: 'passage', passageId: 1 }, mode: 'tap' });
+    await until(() => u.svc.get()?.phase === 'ready');
+    u.svc.control({ reciteId: w.reciteId, action: 'peekAll' });
+    u.svc.control({ reciteId: w.reciteId, action: 'listen' });
+    await until(() => u.svc.get()?.phase === 'feedback');
+    expect(u.svc.get()!.result!.practiceOnly).toBe(true);
+    expect(u.attempts).toHaveLength(0);
+    await u.svc.dispose();
+  });
+
+  it('reference setting: say it before the verse, graded apart from the passage', async () => {
+    const t = makeService({ script: [{ say: `psalm twenty three verses one to two ${FULL}` }] });
+    await t.svc.setSettings({ reciteReference: 'before' });
+    const v = await t.svc.start({ source: { kind: 'passage', passageId: 1 }, mode: 'tap' });
+    await until(() => t.svc.get()?.phase === 'ready');
+    expect(t.svc.get()!.referenceText).toMatchObject({ before: true, after: false });
+    t.svc.control({ reciteId: v.reciteId, action: 'listen' });
+    await until(() => t.svc.get()?.phase === 'feedback');
+    const r = t.svc.get()!.result!;
+    expect(r.score).toBe(1);
+    expect(r.reference?.score).toBeGreaterThan(0.9);
+    expect(r.words).toHaveLength(25);
+    await t.svc.dispose();
+  });
+
   it('passage source runs once; control by id; a wrong id returns the active state', async () => {
     const t = makeService({ script: [{ say: FULL }] });
     const v = await t.svc.start({ source: { kind: 'passage', passageId: 2 }, mode: 'tap' });
@@ -898,6 +960,15 @@ describe('review fixes', () => {
     expect(s.view().passageId).toBe(1); // kept so the view can retry the same passage
     expect(s.act('stop').phase).toBe('error');
     expect(s.act('listen').phase).toBe('error');
+  });
+
+  it('B-137: a missing microphone says so instead of "in use by another app"', async () => {
+    const s = setup({ mode: 'tap', script: [{ say: V1 }, { error: 'mic-none' }] });
+    await until(() => s.view().phase === 'ready');
+    s.act('listen');
+    await until(() => s.view().phase === 'error');
+    expect(s.view().message).toMatch(/No microphone was found/);
+    expect(s.view().message).not.toMatch(/in use/);
   });
 
   it('6. the summary for a single passage run is not "Nothing is due"', async () => {

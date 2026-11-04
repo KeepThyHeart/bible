@@ -340,7 +340,7 @@ const SearchDistributionGraph: React.FC<DistributionProps> = (props) => {
       {/* Testament labels, on the same flex proportions as the bars, so "New
           Testament" starts under Matthew and marks the division rather than
           floating at the far end of the row. */}
-      <div className="flex text-[10px] uppercase tracking-wide text-text-muted mt-1">
+      <div className="flex text-[0.625rem] uppercase tracking-wide text-text-muted mt-1">
         <div style={{ flex: `${LAST_OT_BOOK} 1 0%`, minWidth: 0 }} className="truncate">
           {t('searchDistributionGraph.oldTestament')}
         </div>

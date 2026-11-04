@@ -68,7 +68,7 @@ export function PresenterApp() {
 
   // The pickers and command search results call this to put an item into the notes.
   const onAddToNotes = (item: PresentItem, label?: string): void => {
-    notesStore.addItem(item, label ?? describeItem(item, 0) ?? t('present.untitledItem'));
+    notesStore.addItem(item, label ?? describeItem(item, item.kind === 'passage' ? item.verseStart ?? 0 : 0) ?? t('present.untitledItem'));
   };
 
   const layout = layoutForWidth(width);

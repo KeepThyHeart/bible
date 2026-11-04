@@ -1,4 +1,5 @@
-import { test, expect, type Page, type BrowserContext } from '@playwright/test';
+import { test, expect } from '../fixtures';
+import type { Page, BrowserContext } from '../fixtures';
 import { desktopOnly, waitForVerses } from '../helpers';
 
 /**

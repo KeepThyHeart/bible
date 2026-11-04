@@ -25,7 +25,7 @@ import { Bdi } from '@bible/ui';
 import React, { useEffect, useId, useRef, useState } from 'react';
 import { useModuleStore } from '../../stores/useModuleStore';
 import { moduleAPI } from '../../stores/module/moduleAPI';
-import type { ModuleRow } from '../../stores/module/moduleRows';
+import { isRecommendedModule, type ModuleRow } from '../../stores/module/moduleRows';
 import type { DownloadProgress as ActiveDownload } from '../../stores/module/types';
 import { useTd } from './moduleManagerI18n';
 import { ProgressRing } from '../shared/ProgressRing';
@@ -35,6 +35,8 @@ export interface ModuleDetailsPanelProps {
   row: ModuleRow;
   /** The in-flight download for this module, if any. Disables install actions. */
   activeDownload?: ActiveDownload;
+  /** A background install job for this module is queued or running (progress shows in its row only). */
+  installActive?: boolean;
   isOffline: boolean;
   onClose: () => void;
   onInstall: (row: ModuleRow) => void;
@@ -96,6 +98,7 @@ function openExternal(event: React.MouseEvent<HTMLAnchorElement>, url: string): 
 export const ModuleDetailsPanel: React.FC<ModuleDetailsPanelProps> = ({
   row,
   activeDownload,
+  installActive = false,
   isOffline,
   onClose,
   onInstall,
@@ -166,7 +169,7 @@ export const ModuleDetailsPanel: React.FC<ModuleDetailsPanelProps> = ({
   };
 
   // ---- Derived display values ---------------------------------------------
-  const downloading = !!activeDownload && activeDownload.status !== 'failed';
+  const downloading = installActive || (!!activeDownload && activeDownload.status !== 'failed');
   const isInstalled = row.installed;
   const showUpdate = isInstalled && row.updateAvailable;
   const description = catalog?.description || installed?.description;
@@ -307,7 +310,7 @@ export const ModuleDetailsPanel: React.FC<ModuleDetailsPanelProps> = ({
             <span className="text-sm text-text-secondary font-mono" data-testid="module-details-abbreviation">
               <Bdi>{row.abbreviation}</Bdi>
             </span>
-            {catalog?.recommended && (
+            {isRecommendedModule(catalog) && (
               <span className="text-xs px-2 py-0.5 bg-success-soft text-success-text rounded">
                 {tr('moduleDetails.recommended', 'Recommended')}
               </span>

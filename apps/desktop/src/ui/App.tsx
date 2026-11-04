@@ -5,6 +5,7 @@ import TopSearchBar from './components/TopSearchBar';
 import LayoutDropdown from './components/LayoutDropdown';
 import ExtensionUiHost from './components/extensions/ExtensionUiHost';
 import ToastContainer from './components/ToastContainer';
+import LiveAnnouncer from './components/LiveAnnouncer';
 import DesktopAppStage from './apps/DesktopAppStage';
 import CompanionSlot from './apps/CompanionSlot';
 import { useStudyLayoutBoot } from './apps/useStudyLayoutBoot';
@@ -20,7 +21,7 @@ import FindBar from './components/FindBar';
 import { useSessionAutoSave } from './stores/useSessionStore';
 import HeaderActions from './components/HeaderActions';
 import type { PaneType } from './stores/useTextSettingsStore';
-import type { ModuleType } from './stores/useModuleStore';
+import type { ModuleManagerTab } from './stores/module/types';
 import type { OpenModuleManagerDetail } from './utils/openModuleManager';
 import { wireStoreSync } from './stores/storeSync';
 import {
@@ -56,6 +57,7 @@ const LazyDialogs = {
   UpdateCheckDialog: React.lazy(() => import('./components/UpdateCheckDialog')),
   GuidedTour: React.lazy(() => import('./components/onboarding/GuidedTour')),
   LanguageFirstRun: React.lazy(() => import('./components/onboarding/LanguageFirstRun')),
+  RemoteConsentDialog: React.lazy(() => import('./components/RemoteConsentDialog')),
   BackupRestoreDialog: React.lazy(() =>
     import('./components/BackupRestoreDialog').then((m) => ({ default: m.BackupRestoreDialog }))
   ),
@@ -73,6 +75,7 @@ const UpdateCheckDialog = LazyDialogs.UpdateCheckDialog;
 const GuidedTour = LazyDialogs.GuidedTour;
 const LanguageFirstRun = LazyDialogs.LanguageFirstRun;
 const BackupRestoreDialog = LazyDialogs.BackupRestoreDialog;
+const RemoteConsentDialog = LazyDialogs.RemoteConsentDialog;
 
 
 // Tiny accessors for menu/command handlers that need to imperatively trigger a
@@ -145,7 +148,7 @@ const AppWordmark: React.FC = () => {
         <span
           className="uppercase"
           style={{
-            fontSize: '9.5px',
+            fontSize: '0.59375rem',
             letterSpacing: '0.14em',
             fontWeight: 600,
             // Same recipe as the web tagline: mostly accent, pulled towards the
@@ -173,7 +176,7 @@ function App() {
   const setLayoutDecided = useStudyLayoutBoot((s) => s.setLayoutDecided);
   const studyActive = useIsAppActive('study');
   const [showModuleManager, setShowModuleManager] = useState(false);
-  const [moduleManagerFilter, setModuleManagerFilter] = useState<ModuleType | null>(null);
+  const [moduleManagerFilter, setModuleManagerFilter] = useState<ModuleManagerTab | null>(null);
   const [showUpdateCheck, setShowUpdateCheck] = useState(false);
   const [showPreferences, setShowPreferences] = useState(false);
   const [preferencesInitialSection, setPreferencesInitialSection] = useState<string>('general');
@@ -353,6 +356,9 @@ function App() {
       // the user needs (e.g. an empty Commentary pane -> Available > Commentaries).
       const detail = (e as CustomEvent<OpenModuleManagerDetail>).detail;
       setModuleManagerFilter(detail?.moduleType ?? null);
+      // Preferences draws above the manager; a link from it (Search > "install
+      // the pack") must not open the manager underneath.
+      setShowPreferences(false);
       setShowModuleManager(true);
     };
     const checkForUpdates = () => {
@@ -466,8 +472,8 @@ function App() {
       <React.Suspense fallback={null}>
       <div className="flex flex-col h-screen bg-background overflow-hidden" data-testid="app-loaded">
         {/* Top bar */}
-        <header className="border-b border-border px-lg py-sm flex-shrink-0" style={{ backgroundColor: 'var(--theme-pane-header-bg)' }}>
-          <div className="flex items-center gap-lg min-w-0">
+        <header data-kth-region="header" className="border-b border-border px-lg py-sm flex-shrink-0" style={{ backgroundColor: 'var(--theme-pane-header-bg)' }}>
+          <div className="flex flex-wrap items-center gap-x-lg gap-y-sm min-w-0">
             <AppWordmark />
             {studyActive && <LayoutDropdown />}
             <TopSearchBar />
@@ -519,6 +525,9 @@ function App() {
           <UpdateCheckDialog onClose={() => setShowUpdateCheck(false)} />
         )}
 
+        {/* Online meaning-search first-use consent (renders nothing unless asked) */}
+        <RemoteConsentDialog />
+
         {/* Backup/Restore Dialog */}
         <BackupRestoreDialog />
 
@@ -556,6 +565,7 @@ function App() {
         <ExtensionConsentDialog />
         {/* Toast notifications */}
         <ToastContainer />
+        <LiveAnnouncer />
 
         {/* Diagnostics: crash prompt for main-process errors */}
         <CrashReportDialog />

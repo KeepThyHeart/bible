@@ -4,6 +4,7 @@
  * recite settings. No runtime import of the '@bible/core' root.
  */
 
+import { tc } from '../messages';
 import { kitFor } from '@bible/core/recite';
 import type { ISpeechApi } from '@bible/core/speech';
 import type {
@@ -21,7 +22,7 @@ import type { ReciteDetailInput } from '../store';
 import { BIAS_LEVEL, DEFAULT_RECITE_SETTINGS, SETTING_RECITE } from './config';
 import { HandsFreeLoop } from './handsFreeLoop';
 import type { LoopCard, LoopDeps } from './handsFreeLoop';
-import { spokenReference } from './spokenReference';
+import { spokenReference, spokenReferenceWords } from './spokenReference';
 import { probeSpeech, unavailableMessage } from './speechAvailability';
 
 export interface RecordAndScheduleArgs {
@@ -100,6 +101,7 @@ function sanitize(base: ReciteSettings, p: Record<string, unknown>): ReciteSetti
   if ((STRICTNESS as readonly unknown[]).includes(p.strictness)) s.strictness = p.strictness as ReciteSettings['strictness'];
   if (p.promptStyle === 'reference' || p.promptStyle === 'reference+opening') s.promptStyle = p.promptStyle;
   if (p.feedback === 'brief' || p.feedback === 'full') s.feedback = p.feedback;
+  if (p.reciteReference === 'off' || p.reciteReference === 'before' || p.reciteReference === 'after' || p.reciteReference === 'both') s.reciteReference = p.reciteReference;
   if (typeof p.readBack === 'boolean') s.readBack = p.readBack;
   if (typeof p.autoAdvance === 'boolean') s.autoAdvance = p.autoAdvance;
   if (typeof p.voiceCommands === 'boolean') s.voiceCommands = p.voiceCommands;
@@ -161,14 +163,14 @@ export class ReciteService {
     if (avail.state !== 'ready') throw new Error(unavailableMessage(avail));
     const speech = this.o.speech as ISpeechApi;
     if (req.mode === 'handsfree' && !avail.handsFree) {
-      throw new Error('Hands-free recitation needs the app to be able to speak, which is not available right now.');
+      throw new Error(tc('memory.core.handsFreeNeedsSpeak', 'Hands-free recitation needs the app to be able to speak, which is not available right now.'));
     }
     await this.getSettings();
 
     let first: Passage | undefined;
     if (req.source.kind === 'passage') {
       first = await this.o.store.getPassage(req.source.passageId);
-      if (!first) throw new Error('That passage is no longer in your plan.');
+      if (!first) throw new Error(tc('memory.core.passageGone', 'That passage is no longer in your plan.'));
       if (kitFor(await this.languageOf(first)) === null) {
         throw new Error(unavailableMessage({ ...avail, state: 'unsupported-language' }));
       }
@@ -240,7 +242,7 @@ export class ReciteService {
 
   control(req: { reciteId: string; action: ReciteAction }): ReciteStateView {
     const loop = this.loop;
-    if (!loop) throw new Error('That recitation has ended.');
+    if (!loop) throw new Error(tc('memory.core.reciteEnded', 'That recitation has ended.'));
     if (loop.view().reciteId !== req.reciteId) return loop.view();
     return loop.control(req.action);
   }
@@ -278,6 +280,7 @@ export class ReciteService {
       passageId: passage.id,
       reference: passage.reference,
       spokenReference: spokenReference(passage, this.o.bookNames ? this.o.bookNames() : []),
+      referenceWords: spokenReferenceWords(passage, this.o.bookNames ? this.o.bookNames() : []),
       language,
       verses,
       contextWords: context,

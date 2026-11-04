@@ -54,6 +54,10 @@ interface FileNotesState {
   setNotesDirectory: (dir: string) => void;
   addRecentFile: (path: string, title: string) => void;
   removeRecentFile: (path: string) => void;
+  /** A note file or folder was renamed/moved: re-point Recent entries (and re-title a renamed file). */
+  remapRecentPaths: (oldPath: string, newPath: string, newTitle?: string) => void;
+  /** A note file or folder was deleted: drop Recent entries at or under it. */
+  removeRecentUnder: (path: string) => void;
   clearRecentFiles: () => void;
 
   setPanelNavState: (panelId: string, state: NotesPanelNavState) => void;
@@ -150,6 +154,39 @@ export const useFileNotesStore = create<FileNotesState>((set, get) => ({
     set(state => ({
       recentFiles: state.recentFiles.filter(f => f.path !== path)
     }));
+    markSessionDirty();
+  },
+
+  remapRecentPaths: (oldPath, newPath, newTitle) => {
+    const norm = (p: string) => p.replace(/\\/g, '/');
+    const from = norm(oldPath);
+    let changed = false;
+    const next = get().recentFiles.map(f => {
+      const p = norm(f.path);
+      if (p === from) {
+        changed = true;
+        return { ...f, path: newPath, title: newTitle ?? f.title };
+      }
+      if (p.startsWith(from + '/')) {
+        changed = true;
+        return { ...f, path: norm(newPath) + p.slice(from.length) };
+      }
+      return f;
+    });
+    if (!changed) return;
+    set({ recentFiles: next });
+    markSessionDirty();
+  },
+
+  removeRecentUnder: (path) => {
+    const norm = (p: string) => p.replace(/\\/g, '/');
+    const from = norm(path);
+    const next = get().recentFiles.filter(f => {
+      const p = norm(f.path);
+      return p !== from && !p.startsWith(from + '/');
+    });
+    if (next.length === get().recentFiles.length) return;
+    set({ recentFiles: next });
     markSessionDirty();
   },
 

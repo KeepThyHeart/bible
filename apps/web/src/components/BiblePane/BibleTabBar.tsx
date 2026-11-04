@@ -17,10 +17,10 @@ import type { Modifier } from '@dnd-kit/core';
 import { SortableTab } from '../common/SortableTab';
 import { PropsSlotOutlet, readerTabBadges } from '../../host/slots';
 import { bibleStore, BibleTab } from '../../stores/bibleStore';
-import { moduleStore } from '../../stores/moduleStore';
 import { useStore } from '../../hooks/useStore';
 import { BookChapterPicker } from './BookChapterPicker';
 import { formatPassageRef } from '../../constants';
+import { getLocalizedBookName } from '../../utils/bookNames';
 import { useTranslation } from 'react-i18next';
 import { scrollStart, setScrollStart } from '@bible/core/browser';
 import { useDirection, Bdi } from '@bible/ui';
@@ -61,8 +61,17 @@ export function BibleTabBar({ vertical, hideHome }: BibleTabBarProps) {
     if (!barRef.current || !activeTabId) return;
     requestAnimationFrame(() => {
       const activeEl = barRef.current?.querySelector('.bible-tab-bar__tab--active') as HTMLElement | null;
-      if (activeEl) {
-        activeEl.scrollIntoView({ inline: 'nearest', block: 'nearest', behavior: 'smooth' });
+      const bar = barRef.current;
+      if (activeEl && bar) {
+        // Scrolled by hand, not with `scrollIntoView`: Chrome treats that as moving the
+        // keyboard's starting point, so the first Tab on load began in the tab strip
+        // instead of at the skip links / header.
+        const a = activeEl.getBoundingClientRect();
+        const b = bar.getBoundingClientRect();
+        const delta = (lo: number, hi: number, blo: number, bhi: number) => (lo < blo ? lo - blo : hi > bhi ? hi - bhi : 0);
+        const left = delta(a.left, a.right, b.left, b.right);
+        const top = delta(a.top, a.bottom, b.top, b.bottom);
+        if (left || top) bar.scrollBy({ left, top, behavior: 'smooth' });
       }
     });
   }, [activeTabId, tabs.length]);
@@ -119,7 +128,7 @@ export function BibleTabBar({ vertical, hideHome }: BibleTabBarProps) {
 
   const getTabInfo = (tab: BibleTab): { title: string; subtitle: string } => {
     if (!tab.book || !tab.chapter) return { title: 'New Tab', subtitle: tab.moduleAbbr };
-    const title = formatPassageRef(tab.book, tab.chapter, null, moduleStore.getBookName(tab.book));
+    const title = formatPassageRef(tab.book, tab.chapter, null, getLocalizedBookName(tab.book));
     return { title, subtitle: tab.moduleAbbr };
   };
 

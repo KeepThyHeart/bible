@@ -38,7 +38,9 @@ export default defineConfig({
     reporters: ['verbose'],
 
     // Timeout for tests (longer for database tests)
-    testTimeout: 15000,
+    // Generous but bounded: tests that import the whole barrel (a first transform of ~400 files) or run property
+    // loops over real SQLite took 12-17 s on a busy machine, past the old 15 s.
+    testTimeout: 60000,
 
     // Watch mode options
     watch: false,

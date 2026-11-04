@@ -128,6 +128,7 @@ export {
   highlightSearchTerms,
   hasWordsOfChrist,
   getFootnotes,
+  parseStoredVerseFormatting,
 } from './Services/VerseTextFormatter';
 export type { FormattedVerse, VerseFormattingData, VerseWordRange } from './Services/VerseTextFormatter';
 
@@ -299,7 +300,7 @@ export { primaryLanguage } from './Text';
 // re-exports normalizeToken/tokenizePhrase/primaryLanguage from here, so those are
 // left out of this list to avoid duplicate `export *` names.
 export {
-  canonicalLanguage, tokenizeVerseWords, foldWord, foldLemma, trimEdgePunctuation,
+  canonicalLanguage, tokenizeVerseWords, foldWord, foldLemma, looseTranslit, trimEdgePunctuation,
   normalizeArchaic, ARCHAIC_EN,
   porterStem, getStemmer, hasStemmer, registerStemmer,
   getStopWords, registerStopWords, isStopWord,
@@ -389,3 +390,6 @@ export * from './Services/Similar';
 // the lazy platform `AppBinding`. Framework-free; views are bound per platform.
 export * from './Modules';
 export * from './Apps';
+
+// Online meaning search client (bibsearch), consent record and fallback chain (task 0190).
+export * as RemoteSemantic from './RemoteSemantic';

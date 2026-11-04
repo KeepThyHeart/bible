@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
+import { offlineStore } from '../../stores/offlineStore';
 import { commentaryStore } from '../../stores/commentaryStore';
 import { bibleStore } from '../../stores/bibleStore';
 import { moduleStore, getCommentaryPopularity } from '../../stores/moduleStore';
@@ -40,8 +41,45 @@ interface CommentaryHomeProps {
   bibleProvider?: IBibleDataProvider;
 }
 
+/**
+ * Installed commentaries with nothing on this passage, as a plain list at the
+ * bottom of the Overview.
+ *
+ * Without them the list's membership changed from verse to verse with no
+ * explanation: a commentary that covers only some passages (Scofield, Wesley)
+ * seemed to appear out of nowhere, as if it had just been installed.
+ */
+function NoContentSection({ title, modules }: { title: string; modules: { moduleAbbr: string; moduleName: string }[] }) {
+  if (modules.length === 0) return null;
+  return (
+    <div class="commentary-home__section" data-testid="commentary-home-no-content">
+      <div class="commentary-home__section-title">
+        <i class="fa-solid fa-bookmark" />
+        {title}
+      </div>
+      <ul class="commentary-home__no-content-list">
+        {modules.map(m => (
+          <li key={m.moduleAbbr} class="commentary-home__no-content-item">
+            {isDigestModule(m.moduleAbbr) ? getDigestDisplayName() : m.moduleName || m.moduleAbbr}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+/** Installed, unmuted commentaries absent from every list the Overview shows. */
+function commentariesWithoutContent(listed: Iterable<string>, muted: Set<string>): { moduleAbbr: string; moduleName: string }[] {
+  const seen = new Set(listed);
+  return moduleStore.getCommentaryModules()
+    .filter(m => !seen.has(m.abbreviation) && !muted.has(m.abbreviation))
+    .map(m => ({ moduleAbbr: m.abbreviation, moduleName: m.name || m.abbreviation }))
+    .sort((a, b) => a.moduleAbbr.localeCompare(b.moduleAbbr));
+}
+
 export function CommentaryHome({ bibleProvider }: CommentaryHomeProps) {
   const { t } = useTranslation();
+  const isOnline = useStore(offlineStore, () => offlineStore.isOnline);
   const localizer = useLocalizer();
   const homeData = useStore(commentaryStore, () => commentaryStore.homeData);
   const homeLoading = useStore(commentaryStore, () => commentaryStore.homeLoading);
@@ -111,7 +149,7 @@ export function CommentaryHome({ bibleProvider }: CommentaryHomeProps) {
   if (!homeData) {
     return (
       <div class="commentary-content commentary-content--empty">
-        <p>{t('commentaryHome.noCommentaryDataAvailable')}</p>
+        <p>{!isOnline ? t('commentaryContent.offlineNotice') : t('commentaryHome.noCommentaryDataAvailable')}</p>
       </div>
     );
   }
@@ -127,7 +165,13 @@ export function CommentaryHome({ bibleProvider }: CommentaryHomeProps) {
     return (
       <div class="commentary-content commentary-content--empty">
         {verseNum
-          ? <p>{t('commentaryHome.noCommentariesHaveContentFor')}</p>
+          ? <>
+              <p>{t('commentaryHome.noCommentariesHaveContentFor')}</p>
+              <NoContentSection
+                title={t('commentaryHome.noCommentaryOn', { passage: `${bookName} ${syncedChapter}:${verseNum}` })}
+                modules={commentariesWithoutContent([], mutedModules)}
+              />
+            </>
           : <div class="commentary-content commentary-content--loading">
               <i class="fa-solid fa-spinner fa-spin" style={{ marginInlineEnd: '8px' }} />
               Loading commentaries...
@@ -343,6 +387,11 @@ export function CommentaryHome({ bibleProvider }: CommentaryHomeProps) {
     .filter(matchesFilter)
     .sort(bySecondarySection);
 
+  const filteredNoContent = commentariesWithoutContent(
+    [...homeData.verseModules, ...passageModulesRaw, ...chapterModulesRaw].map(m => m.moduleAbbr),
+    mutedModules,
+  ).filter(m => matchesFilter({ ...m, wordCount: 0 } as CommentaryHomeModule));
+
   // Normalize bar width: 2000 words = 100% bar
   const barNormWords = 2000;
 
@@ -523,7 +572,15 @@ export function CommentaryHome({ bibleProvider }: CommentaryHomeProps) {
         </div>
       )}
 
-      {filter && filteredVerse.length === 0 && filteredPassage.length === 0 && filteredChapter.length === 0 && filteredMuted.length === 0 && (
+      {/* Below the commentaries that have something, above the muted ones. */}
+      <NoContentSection
+        title={t('commentaryHome.noCommentaryOn', {
+          passage: verseNum ? `${bookName} ${syncedChapter}:${verseNum}` : `${bookName} ${syncedChapter}`,
+        })}
+        modules={filteredNoContent}
+      />
+
+      {filter && filteredVerse.length === 0 && filteredPassage.length === 0 && filteredChapter.length === 0 && filteredMuted.length === 0 && filteredNoContent.length === 0 && (
         <div class="commentary-content commentary-content--empty">
           <p>{t('commentaryHome.noMatchingCommentaries')}</p>
         </div>

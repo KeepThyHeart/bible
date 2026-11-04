@@ -79,6 +79,18 @@ function strongsNumberFor(moduleAbbr: string, entryKey: string): string | null {
 
 const NO_RESULTS: DictionaryEntrySummary[] = [];
 
+export { parseStrongsHeadline, stripStrongsHeadline } from '../services/strongsHeadline';
+import { parseStrongsHeadline, stripStrongsHeadline } from '../services/strongsHeadline';
+
+/** Turns "see GREEK for 5368" / "see HEBREW for 430" into clickable cross-references. */
+export function linkStrongsSeeRefs(html: string): string {
+  return html.replace(
+    /see (GREEK|HEBREW) for (\d+)/g,
+    (_all, lang: string, num: string) =>
+      `see <a href="#" class="text-accent-strong underline" data-strongs-ref="${lang === 'GREEK' ? 'G' : 'H'}${num}">${lang} for ${num}</a>`,
+  );
+}
+
 /**
  * What a "Recent" row should call the entry.
  *
@@ -181,6 +193,7 @@ const DictionaryPane: React.FC<DictionaryPaneProps> = ({ hideTabs = false, panel
   const strongsSearchNumber = activeTab && currentEntry
     ? strongsNumberFor(activeTab.abbreviation, currentEntry.entry_key)
     : null;
+  const strongsHeadline = strongsSearchNumber && currentEntry ? parseStrongsHeadline(currentEntry.definition) : null;
   const isSearching = activeTab ? searchingByTab.get(activeTab.abbreviation) || false : false;
   /** What the Browse dialog lists: search hits while a search is active, else the full list. */
   const browseEntries = browseSearchActive ? searchResults : allEntries;
@@ -643,19 +656,20 @@ const DictionaryPane: React.FC<DictionaryPaneProps> = ({ hideTabs = false, panel
             {/* Entry Header */}
             <div className="mb-lg">
               <h2 className="text-3xl font-bold text-text-heading mb-sm" data-testid="dictionary-entry-key">
-                {currentEntry.entry_key}
-                {currentEntry.word && (
+                {strongsSearchNumber ?? currentEntry.entry_key}
+                {(strongsHeadline?.word ?? currentEntry.word) && (strongsHeadline?.word ?? currentEntry.word)!.trim().toLowerCase() !== String(currentEntry.entry_key).trim().toLowerCase() && (
                   <span className="ms-md text-2xl text-text-secondary">
-                    {currentEntry.word}
+                    {strongsHeadline?.word ?? currentEntry.word}
                   </span>
                 )}
               </h2>
 
               {/* Transliteration and pronunciation */}
               <div className="flex items-center gap-md text-sm text-text-secondary mb-sm">
-                {currentEntry.transliteration && (
-                  <span className="italic">{currentEntry.transliteration}</span>
+                {(strongsHeadline?.transliteration ?? currentEntry.transliteration) && (
+                  <span className="italic">{strongsHeadline?.transliteration ?? currentEntry.transliteration}</span>
                 )}
+                {strongsHeadline && <span>{strongsHeadline.pronunciation}</span>}
                 {currentEntry.pronunciation && (
                   <span>/{currentEntry.pronunciation}/</span>
                 )}
@@ -701,7 +715,16 @@ const DictionaryPane: React.FC<DictionaryPaneProps> = ({ hideTabs = false, panel
               <h3 className="text-lg font-semibold text-text-heading mb-md">{t('dictionaryPane.definitionHeading')}</h3>
               <div
                 className="prose prose-lg max-w-none"
-                dangerouslySetInnerHTML={{ __html: sanitizeHtml(dictionaryDefinitionToHtml(currentEntry.definition, currentEntry.newline_handling)) }}
+                onClick={(e) => {
+                  const ref = (e.target as HTMLElement).closest<HTMLElement>('[data-strongs-ref]')?.dataset.strongsRef;
+                  if (!ref) return;
+                  e.preventDefault();
+                  void useDictionaryStore.getState().lookupStrongsNumber(ref, panelId); // allow-getstate: click handler, not render
+                }}
+                dangerouslySetInnerHTML={{ __html: sanitizeHtml((() => {
+                  const html = dictionaryDefinitionToHtml(strongsSearchNumber ? stripStrongsHeadline(currentEntry.definition) : currentEntry.definition, currentEntry.newline_handling);
+                  return strongsSearchNumber ? linkStrongsSeeRefs(html) : html;
+                })()) }}
               />
             </div>
 
@@ -905,7 +928,7 @@ const DictionaryPane: React.FC<DictionaryPaneProps> = ({ hideTabs = false, panel
                     >
                       <span className="block font-semibold text-text-heading">
                         {entry.entry_key}
-                        {entry.word && <span className="ms-md text-text-secondary">{entry.word}</span>}
+                        {entry.word && entry.word.trim().toLowerCase() !== String(entry.entry_key).trim().toLowerCase() && <span className="ms-md text-text-secondary">{entry.word}</span>}
                       </span>
                       {entry.transliteration && (
                         <span className="block text-sm text-text-secondary italic">{entry.transliteration}</span>

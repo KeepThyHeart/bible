@@ -98,6 +98,9 @@ const ToolbarPopover: React.FC<ToolbarPopoverProps> = ({
         insetInlineStart: placement.insetInlineStart,
         insetInlineEnd: placement.insetInlineEnd,
         minWidth,
+        // B-130: a long list (hundreds of bookmarks) scrolls inside the window.
+        maxHeight: Math.max(120, window.innerHeight - placement.top - 8),
+        overflowY: 'auto',
         backgroundColor: 'var(--theme-surface-elevated)',
       }}
       role={role}

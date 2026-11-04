@@ -14,6 +14,8 @@ export interface ReadingPlanTodayCardLabels {
   open: string;
   markDayRead: string;
   markDayUnread: string;
+  /** Confirmation shown when the day is marked read with no reading ticked. */
+  markDayConfirmText: string;
   completed: string;
   notStarted: string;
   restDay: string;
@@ -40,6 +42,7 @@ export const DEFAULT_READING_PLAN_TODAY_CARD_LABELS: ReadingPlanTodayCardLabels 
   open: 'Open',
   markDayRead: 'Mark day read',
   markDayUnread: 'Mark day unread',
+  markDayConfirmText: 'None of today\'s readings are ticked. Mark the whole day read anyway?',
   completed: 'This plan is finished. Well done!',
   notStarted: 'This plan has not started yet.',
   restDay: 'Rest day',
@@ -81,6 +84,7 @@ export function ReadingPlanTodayCard({
 }: ReadingPlanTodayCardProps) {
   const L = { ...DEFAULT_READING_PLAN_TODAY_CARD_LABELS, ...labels };
   const [confirming, setConfirming] = useState(false);
+  const [confirmingDay, setConfirmingDay] = useState(false);
   const showBehind = view.behindBy > 0 && !view.completed && !view.notStarted;
   const restOnly = view.day === null && view.restDay && !view.completed && !view.notStarted;
 
@@ -147,9 +151,24 @@ export function ReadingPlanTodayCard({
             })}
           </ul>
           <div className="kth-rp-card__footer">
-            <button type="button" className="kth-btn kth-btn--sm" onClick={() => onToggleDay(!view.dayDone)}>
-              {view.dayDone ? L.markDayUnread : L.markDayRead}
-            </button>
+            {confirmingDay ? (
+              <div role="group" aria-label={L.markDayRead}>
+                <p className="kth-rp-behind__hint">{L.markDayConfirmText}</p>
+                <div className="kth-rp-behind__actions">
+                  <button type="button" className="kth-btn kth-btn--sm kth-btn--primary"
+                    onClick={() => { setConfirmingDay(false); onToggleDay(true); }}>{L.confirm}</button>
+                  <button type="button" className="kth-btn kth-btn--sm" onClick={() => setConfirmingDay(false)}>{L.cancel}</button>
+                </div>
+              </div>
+            ) : (
+              <button type="button" className="kth-btn kth-btn--sm" onClick={() => {
+                if (view.dayDone) { onToggleDay(false); return; }
+                if (view.readings.some((r) => r.done)) { onToggleDay(true); return; }
+                setConfirmingDay(true);
+              }}>
+                {view.dayDone ? L.markDayUnread : L.markDayRead}
+              </button>
+            )}
           </div>
         </>
       ) : null}

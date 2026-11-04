@@ -79,6 +79,7 @@ export const englishKit: ILanguageKit = {
     const out: string[] = [];
     const pieces = text
       .replace(/[‘’‛ʼ`´]/g, "'")
+      .replace(/(\d)[:.](\d)/g, '$1 $2') // "3:16" is chapter and verse, two numbers
       .split(/[\s‐-―−-]+/);
     for (let i = 0; i < pieces.length; i++) {
       const p = pieces[i];

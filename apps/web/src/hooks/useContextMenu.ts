@@ -112,7 +112,11 @@ export function useContextMenu(
     setContextMenu(null);
 
     if (action === 'copy') {
-      bibleStore.adoptPreviewAsStudy(verseId);
+      // Right-clicking inside a shift-click selection copies that whole
+      // passage; adopting the clicked verse would collapse it to one verse.
+      const range = bibleStore.getSelectedRange();
+      const inRange = !!range && range.start !== range.end && verseId >= range.start && verseId <= range.end;
+      if (!inRange) bibleStore.adoptPreviewAsStudy(verseId);
       setCopyOpen(true);
       return;
     }

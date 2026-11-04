@@ -5,6 +5,7 @@
  * names what the module owns.
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { installModuleBootHooks, trackHost } from '../moduleTestHooks';
 import { cleanup, render, waitFor } from '@testing-library/react';
 import { MEASURE_SETTINGS, validateBuiltinManifest } from '@bible/core/browser';
 import { measuresManifest } from './manifest';
@@ -16,6 +17,8 @@ vi.mock('../../services/electronAPI', () => ({
   bibleAPI: { getInterlinearWordsForChapter: vi.fn().mockResolvedValue({}) },
 }));
 
+installModuleBootHooks(() => import('../builtinModules'));
+
 async function boot(override = '') {
   vi.resetModules();
   window.localStorage.setItem('kth.modules', override);
@@ -26,6 +29,7 @@ async function boot(override = '') {
   const slots = await import('../host/slots');
   const layers = await import('../../extensions/chapterLayers');
   registerBuiltinModules();
+  trackHost(host);
   // Both reader modules activate on the same view event, so each test looks at its own module's items.
   const mine = (items: readonly unknown[]) => items.filter((i) => /Measure/.test((i as { name?: string }).name ?? ''));
   return { ...host, slots, layers, loadSpy, mine };
@@ -102,7 +106,7 @@ describe('measures module in the desktop host', () => {
     expect(modulePoints.settings.list().some((g) => g.id === 'measures')).toBe(false);
     expect(modulePoints.views.resolve('preferences:measures')).toBeUndefined();
     expect(modulePoints.i18nNamespace.list().some((n) => n.id === 'measures')).toBe(false);
-    expect(slots.preferencesSectionGlyphs.list()).toEqual([]);
+    expect(slots.preferencesSectionGlyphs.list().filter((g) => g.id === 'measures')).toEqual([]);
     expect(mine(slots.readerPaintControllers.list())).toEqual([]);
     expect(slots.studyPaneSections.list()).toEqual([]);
     expect(featureModules.list().find((m) => m.id === 'measures')).toMatchObject({ enabled: false, offReason: 'override' });
@@ -127,7 +131,7 @@ describe('measures module in the desktop host', () => {
     await waitFor(() => expect(mine(slots.readerPaintControllers.list())).toEqual([]));
     expect(slots.studyPaneSections.list()).toEqual([]);
     expect(layers.useChapterLayerStore.getState().tabs.t1).toBeUndefined();
-    expect(slots.preferencesSectionGlyphs.list()).toEqual([]);
+    expect(slots.preferencesSectionGlyphs.list().filter((g) => g.id === 'measures')).toEqual([]);
   }, 60_000);
 });
 

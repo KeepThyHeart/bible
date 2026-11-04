@@ -3,7 +3,7 @@ import type { Plugin } from 'vite';
 import preact from '@preact/preset-vite';
 import { VitePWA } from 'vite-plugin-pwa';
 import { execSync } from 'child_process';
-import { existsSync, readFileSync } from 'fs';
+import { existsSync, readdirSync, readFileSync } from 'fs';
 import { resolve } from 'path';
 import { chunkReport } from './build/chunkReport';
 
@@ -31,6 +31,18 @@ function resolveBuildId(): string {
 }
 
 const buildId = resolveBuildId();
+
+/** Short git sha for display in Settings > About (no timestamp suffix); an explicit BUILD_ID is shown as is. */
+function resolveBuildSha(): string {
+  if (process.env.BUILD_ID) return process.env.BUILD_ID;
+  try {
+    return execSync('git rev-parse --short HEAD', { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim();
+  } catch {
+    return 'dev';
+  }
+}
+
+const appVersion: string = JSON.parse(readFileSync(resolve(__dirname, '../../package.json'), 'utf8')).version ?? '0.0.0';
 
 /**
  * Brand strings -- product name, tagline, theme colour -- are substituted into
@@ -121,6 +133,55 @@ function brandingPlugin(): Plugin {
   };
 }
 
+/**
+ * The boot splash in index.html is shown before i18next or any catalog has
+ * loaded, so it cannot use `t()`. Instead the build reads `app.loading` and the
+ * direction from every shipped locale folder and injects them as
+ * `%LOCALE_SPLASH_JSON%`, keyed by lower-cased tag (`fa-ir`) and by primary
+ * subtag (`fa`, first folder wins). A new language therefore needs only its
+ * locale files -- no second edit in index.html. `xx-*` pseudo-locales are
+ * dev-only, matching src/i18n.ts.
+ */
+function loadSplashStrings(dev: boolean): Record<string, { text: string; dir: string }> {
+  const localesDir = resolve(__dirname, 'src/locales');
+  const out: Record<string, { text: string; dir: string }> = {};
+  const tags = readdirSync(localesDir, { withFileTypes: true })
+    .filter((d) => d.isDirectory() && d.name !== 'schemas' && d.name !== 'en')
+    .map((d) => d.name)
+    .filter((tag) => dev || !tag.toLowerCase().startsWith('xx-'))
+    .sort();
+  for (const tag of tags) {
+    const uiPath = resolve(localesDir, tag, 'ui.json');
+    if (!existsSync(uiPath)) continue;
+    const text = JSON.parse(readFileSync(uiPath, 'utf-8'))?.app?.loading;
+    if (typeof text !== 'string' || !text) continue;
+    const metaPath = resolve(localesDir, tag, 'meta.json');
+    const meta = existsSync(metaPath) ? JSON.parse(readFileSync(metaPath, 'utf-8')) : {};
+    const entry = { text, dir: meta['locale.direction'] === 'rtl' ? 'rtl' : 'ltr' };
+    const lower = tag.toLowerCase();
+    out[lower] = entry;
+    const primary = lower.split('-')[0];
+    if (!(primary in out)) out[primary] = entry;
+  }
+  return out;
+}
+
+function splashLocalesPlugin(): Plugin {
+  let dev = false;
+  return {
+    name: 'splash-locales-index-html',
+    configResolved(config) {
+      dev = config.command === 'serve';
+    },
+    transformIndexHtml: {
+      order: 'pre',
+      handler: (html: string) =>
+        html.replace('%LOCALE_SPLASH_JSON%', () =>
+          JSON.stringify(loadSplashStrings(dev)).replace(/</g, '\\u003c')
+        ),
+    },
+  };
+}
 
 /*
  * The client build ALWAYS contains both workers: the real `sw.js` (built from
@@ -347,6 +408,8 @@ export default defineConfig({
   base: basePath,
   define: {
     __BUILD_ID__: JSON.stringify(buildId),
+    __APP_VERSION__: JSON.stringify(appVersion),
+    __APP_BUILD__: JSON.stringify(resolveBuildSha()),
     // Timeline minimum framing span in years (empty = built-in 200); see README "Build options".
     __TIMELINE_MIN_SPAN_YEARS__: JSON.stringify(process.env.BIBLE_TIMELINE_MIN_SPAN_YEARS?.trim() ?? ''),
   },
@@ -358,6 +421,14 @@ export default defineConfig({
       // the client to keep its own copies of these modules. Mirrors the
       // "@bible/core/browser" path mapping in tsconfig.json.
       '@bible/core/browser': resolve(__dirname, '../../packages/core/src/browser.ts'),
+      // Speech engine (task 0151), consumed as source like the entries above. The web app reaches it only
+      // through src/speech/ (never the entry chunk) and the dev harness (dev/speech.html, not built).
+      '@bible/core/speech': resolve(__dirname, '../../packages/core/src/speech/index.ts'),
+      '@bible/core/recite': resolve(__dirname, '../../packages/core/src/recite/index.ts'),
+      '@bible/speech': resolve(__dirname, '../../packages/speech/src/index.ts'),
+      // Dev harness only: the hands-free loop and grading are not on the memory core's public surface.
+      '@bible/memory/recite': resolve(__dirname, '../../packages/memory/src/core/recite'),
+      '@bible/memory/core': resolve(__dirname, '../../packages/memory/src/core/index.ts'),
       // Shared UI kit, consumed as source. Order matters: Vite string aliases
       // match `id === key || id.startsWith(key + '/')` and the first entry wins,
       // so the more specific css entry must precede the bare package entry.
@@ -367,6 +438,7 @@ export default defineConfig({
   },
   plugins: [
     brandingPlugin(),
+    splashLocalesPlugin(),
     basePathPlugin(),
     presentViewerDevPlugin(),
     presentWatchDevPlugin(),
@@ -506,12 +578,27 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path.replace(new RegExp(`^${basePath.replace(/\/$/, '')}`), ''),
       },
+      // Downloadable asset store (server/routes/assetRoutes.ts). Only `/assets/v1`: the rest of
+      // `/assets/` is Vite's own. Without this the dev server 404'd the catalogue on every load.
+      [`${basePath.replace(/\/$/, '')}/assets/v1`]: {
+        target: 'http://localhost:3100',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(new RegExp(`^${basePath.replace(/\/$/, '')}`), ''),
+      },
     },
   },
   test: {
     environment: 'happy-dom',
     include: ['src/**/*.test.{ts,tsx}', 'server/**/*.test.ts', 'scripts/**/*.test.ts'],
     globals: true,
+    // Node 25+ ships an experimental global `localStorage` that, without --localstorage-file, is undefined and
+    // shadows the DOM environment's own. Turn it off in the workers; Node 24 does not know the flag.
+    execArgv: Number(process.versions.node.split('.')[0]) >= 25 ? ['--no-experimental-webstorage'] : [],
+    // Many tests here re-import a module graph (vi.resetModules), open real SQLite fixtures or push megabytes
+    // through the cache store; on a busy machine the 5 s default timed out correct runs at random. Generous
+    // but bounded: a genuine hang still fails, just after a minute.
+    testTimeout: 60_000,
+    hookTimeout: 60_000,
     // v0.2 modules ship no FTS5 table: build the test data's sidecar keyword
     // indexes once before the server route tests search them.
     globalSetup: ['server/__tests__/keywordIndexGlobalSetup.ts'],

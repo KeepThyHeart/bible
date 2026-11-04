@@ -495,34 +495,37 @@ function scanModules(modulesRoot, log) {
 /**
  * Write one module's registry row.
  *
- * Identity is `module_uuid` where there is one: an abbreviation is a display
- * string that two publishers can collide on and that changes when an edition is
- * renamed, whereas the uuid is fixed for the life of the module.  Keying on it
- * means re-running after replacing a module file updates the row in place
- * rather than leaving a duplicate behind under the old name.
+ * One file is one module, so the row is found first by `database_path`, the
+ * file it points at, whatever uuid it carries.  Matching on the uuid first used
+ * to register a module file a second time whenever it was regenerated with a
+ * fresh uuid: the uuid matched nothing, so a new row went in beside the old one
+ * for the same file, and every picker listed the module twice.  The row takes
+ * the file's current uuid.
  *
- * But `module_uuid` was added to the registry later than the rows it now
- * identifies, and an install predating it has the column NULL on every row.
- * Matching on the uuid alone would find nothing there and insert a second row
- * for every module already registered -- so an older row is matched on its
- * `database_path` instead, which is the file it points at, and the uuid is
- * backfilled from the module while we are there.  A second run then matches on
- * the uuid like any other.
+ * Failing a path match, the uuid finds a module whose file was renamed: an
+ * abbreviation is a display string two publishers can collide on, whereas the
+ * uuid is fixed for the life of the module.
  */
 function upsertModule(db, module, log) {
   const { info, file, size } = module;
   const databasePath = path.posix.join('modules', file);
   const now = new Date().toISOString();
 
+  // Rows written by older app builds on Windows can hold `modules\x.db`.
   const existing =
-    db.prepare('SELECT module_id, abbreviation, module_uuid FROM module_metadata WHERE module_uuid = ?')
-      .get(info.module_uuid)
-    ?? db.prepare(
+    db.prepare(
       `SELECT module_id, abbreviation, module_uuid FROM module_metadata
-        WHERE database_path = ? AND (module_uuid IS NULL OR module_uuid = '')`
-    ).get(databasePath);
+        WHERE REPLACE(database_path, '\\', '/') = ? ORDER BY module_id DESC`
+    ).get(databasePath)
+    ?? db.prepare('SELECT module_id, abbreviation, module_uuid FROM module_metadata WHERE module_uuid = ?')
+      .get(info.module_uuid);
 
   if (existing) {
+    // module_uuid is UNIQUE: if a different row already holds this uuid (a
+    // duplicate left by an older run), keep this row's uuid and leave the merge
+    // to the app's start-up registry repair, which also moves user references.
+    const uuidHolder = db.prepare('SELECT module_id FROM module_metadata WHERE module_uuid = ?').get(info.module_uuid);
+    const uuid = uuidHolder && uuidHolder.module_id !== existing.module_id ? existing.module_uuid : info.module_uuid;
     db.prepare(
       `UPDATE module_metadata
           SET module_type = ?, module_name = ?, abbreviation = ?, version = ?,
@@ -531,10 +534,10 @@ function upsertModule(db, module, log) {
         WHERE module_id = ?`
     ).run(
       info.module_type, info.full_name, info.abbreviation, info.content_version ?? null,
-      info.language_code ?? 'en', databasePath, size, now, info.module_uuid, existing.module_id
+      info.language_code ?? 'en', databasePath, size, now, uuid, existing.module_id
     );
     if (existing.abbreviation !== info.abbreviation) {
-      log.info(`  ${existing.abbreviation} -> ${info.abbreviation} (renamed; matched on uuid)`);
+      log.info(`  ${existing.abbreviation} -> ${info.abbreviation} (renamed)`);
     }
     if (!existing.module_uuid) return 'backfilled';
     return 'updated';

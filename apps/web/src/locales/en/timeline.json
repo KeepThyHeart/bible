@@ -3,7 +3,7 @@
   "timeline": {
     "title": "Timeline",
     "loading": "Loading timeline...",
-    "empty": "No timeline is installed. Install a timeline module to explore people, kings and events by date.",
+    "empty": "No timeline is available on this site.",
     "error": "The timeline could not be loaded.",
     "retry": "Try again",
     "open": "Open timeline",

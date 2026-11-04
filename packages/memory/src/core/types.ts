@@ -240,6 +240,8 @@ export interface RungView {
   bestScore: number | null;
   /** Attempts recorded since the last reset. 0 means "never tried". */
   attempts: number;
+  /** When this activity was last practised (epoch ms, since the last reset); `null`/absent when never. */
+  lastPractisedAt?: number | null;
   /**
    * The tier the next session should serve: the lowest tier not yet passed,
    * or the hardest tier once every tier has been passed. 0-based.
@@ -331,8 +333,8 @@ export interface PlanView {
 /** The user's answer-mode preference, and how it applies. */
 export interface SettingsView {
   defaultAnswerMode: AnswerMode;
-  recite: ReciteSettings;
-  speech: SpeechAvailability;
+  recite?: ReciteSettings;
+  speech?: SpeechAvailability;
 }
 
 // ---------------------------------------------------------------------------
@@ -367,7 +369,11 @@ export interface ReciteSettings {
   autoAdvance: boolean;
   voiceCommands: boolean;
   hintDelayMs: number;
+  /** Say the reference before and/or after the passage, the traditional way (graded leniently). */
+  reciteReference: ReciteReferenceMode;
 }
+
+export type ReciteReferenceMode = 'off' | 'before' | 'after' | 'both';
 
 export type LoopPhase =
   | 'announcing'
@@ -387,10 +393,14 @@ export interface ReciteResultView {
   score: number;
   level: number;
   nextDueAt: number | null;
-  words: { index: number; verdict: ReciteVerdict; heard?: string }[];
+  words: { index: number; verdict: ReciteVerdict; heard?: string; peeked?: boolean }[];
   extras: { afterIndex: number; heard: string }[];
   missedQuote: string[];
   passageWellLearned: boolean;
+  /** How the spoken reference went (only when the setting asked for it). Lenient: never costs the verse score. */
+  reference?: { text: string; score: number };
+  /** Every word was peeked at: nothing was graded and nothing was recorded. */
+  practiceOnly?: boolean;
 }
 
 export interface ReciteStateView {
@@ -407,6 +417,12 @@ export interface ReciteStateView {
   /** Last matched expected word index, -1 at the start. */
   position: number;
   hinted: number[];
+  /** Words revealed by Peek before reciting (they are marked "not graded"), 0 when none. */
+  peeked: number;
+  /** The peeked words, for display; null when nothing was peeked. */
+  peekText: string | null;
+  /** The spoken reference expected before / after the passage, when the setting asks for it. */
+  referenceText: { before: boolean; after: boolean; text: string } | null;
   result: ReciteResultView | null;
   done: number;
   remaining: number;
@@ -424,7 +440,11 @@ export type ReciteAction =
   | 'next'
   | 'pause'
   | 'resume'
-  | 'stop';
+  | 'stop'
+  /** Show the first few words before reciting (tap mode). */
+  | 'peek'
+  /** Show the whole passage before reciting (tap mode). */
+  | 'peekAll';
 
 /** One calendar day on the Analytics practice calendar. */
 export interface CalendarDay {
@@ -513,6 +533,8 @@ export interface VerseText {
 export interface PassageContext {
   passageId: number;
   reference: string;
+  /** Abbreviation of the translation the verses come from (the one the passage was recorded against). */
+  moduleId?: string;
   /** Verses before the passage. May be empty at a book boundary. */
   before: VerseText[];
   /** The passage itself. */
@@ -849,7 +871,8 @@ export interface RequestMap {
   setPassageSortOrder: Record<string, never>;
   setPassageAnswerMode: Record<string, never>;
   getContext: PassageContext;
-  addPassage: { passage: Passage };
+  /** `existed`: the reference was already in the target list (nothing new was added). */
+  addPassage: { passage: Passage; existed?: boolean };
   removePassage: Record<string, never>;
   /**
    * The rebuilt plan, so the screen that asked for the reset can redraw from

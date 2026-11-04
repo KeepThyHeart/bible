@@ -145,6 +145,21 @@ describe('NoteEditor - Tab key handling', () => {
     expect(onChange).not.toHaveBeenCalled();
   });
 
+  it('Escape then Shift+Tab also leaves: pressing Shift itself must not disarm the hatch (B-046)', async () => {
+    const { onChange } = renderEditor({ value: '<p>Hello world</p>' });
+    await waitFor(() => getEditableDiv());
+    const editable = getEditableDiv();
+    editable.focus();
+
+    fireEvent.keyDown(editable, { key: 'Escape', code: 'Escape' });
+    // A real Shift+Tab sends a keydown for Shift first.
+    fireEvent.keyDown(editable, { key: 'Shift', code: 'ShiftLeft', shiftKey: true });
+    onChange.mockClear();
+    const notCanceled = fireEvent.keyDown(editable, { key: 'Tab', code: 'Tab', shiftKey: true });
+
+    expect(notCanceled).toBe(true);
+  });
+
   it('traps Tab again on the next press after the escape hatch is consumed', async () => {
     const { onChange } = renderEditor({ value: '<p>Hello world</p>' });
     await waitFor(() => getEditableDiv());
@@ -195,5 +210,43 @@ describe('NoteEditor - Tab key handling', () => {
     // Our handler did not call preventDefault - TipTap's built-in list
     // sink/lift-list-item shortcut (or the browser default) is left to run.
     expect(notCanceled).toBe(true);
+  });
+});
+
+describe('NoteEditor: swapping the document from outside', () => {
+  it('does not let Ctrl+Z bring back the previous document (prayer undo data-loss, task 0159)', async () => {
+    const onChange = vi.fn();
+    const services = createMockServices();
+    const ui = (value: string) => (
+      <ContextProvider services={services}>
+        <NoteEditor value={value} onChange={onChange} />
+      </ContextProvider>
+    );
+    const { container, rerender } = render(ui('<p>Prayer A text</p>'));
+    await waitFor(() => expect(container.querySelector('.ProseMirror')).toBeTruthy());
+    rerender(ui('<p>Prayer B text</p>'));
+    const root = container.querySelector('.ProseMirror') as HTMLElement;
+    await waitFor(() => expect(root.textContent).toContain('Prayer B text'));
+    onChange.mockClear();
+    fireEvent.keyDown(root, { key: 'z', code: 'KeyZ', ctrlKey: true });
+    expect(root.textContent).toContain('Prayer B text');
+    expect(root.textContent).not.toContain('Prayer A text');
+    expect(onChange).not.toHaveBeenCalled();
+  });
+});
+
+describe('NoteEditor - accessibility (B-046)', () => {
+  it('has a textbox role, an accessible name, and takes focus when autoFocus is set', async () => {
+    render(
+      <ContextProvider services={createMockServices()}>
+        <NoteEditor value="<p>Hello</p>" onChange={vi.fn()} autoFocus />
+      </ContextProvider>,
+    );
+    await waitFor(() => expect(getEditableDiv()).toBeInTheDocument());
+    const el = getEditableDiv();
+    expect(el.getAttribute('role')).toBe('textbox');
+    expect(el.getAttribute('aria-multiline')).toBe('true');
+    expect(el.getAttribute('aria-label')).toBe('userNotesPane.editorLabel');
+    await waitFor(() => expect(document.activeElement).toBe(el));
   });
 });

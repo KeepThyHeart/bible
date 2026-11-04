@@ -27,7 +27,7 @@ export const KeywordWordMenuItems: React.FC<WordMenuItemProps> = ({ tabId, wordT
         data-testid="menu-mark-word"
       >
         <span className="w-4 h-4 shrink-0" aria-hidden="true" />
-        <span>{t('keywords.menu.markWord', { word: wordText })}</span>
+        <span>{t('keywords.menu.markWord', { word: wordText.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, '') })}</span>
       </button>
       {wordStrongs && (
         <button

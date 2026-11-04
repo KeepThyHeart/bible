@@ -157,12 +157,11 @@ describe('ExtensionWorkerProcess', () => {
     });
     await w.spawn();
 
-    // Wait long enough for >2 ticks to elapse without any heartbeat reply.
-    await new Promise((r) => setTimeout(r, 50));
-    // Allow the kill()'s setImmediate-scheduled exit to flush.
-    await new Promise((r) => setImmediate(r));
-
-    expect(w.wasHung()).toBe(true);
-    expect(onExit).toHaveBeenCalled();
+    // Wait for the condition, not a guessed delay: a fixed 50 ms sleep can see fewer than 3 ticks when
+    // the event loop is starved. The kill()'s exit is setImmediate-scheduled, so wait for onExit too.
+    await vi.waitFor(() => {
+      expect(w.wasHung()).toBe(true);
+      expect(onExit).toHaveBeenCalled();
+    }, { timeout: 10_000, interval: 5 });
   });
 });

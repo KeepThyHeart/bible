@@ -265,6 +265,7 @@ function notifyMainOfTheme(theme: ThemeId): void {
 function applyGlobalFontScaleToDOM(scale: number): void {
   if (typeof document !== 'undefined') {
     document.documentElement.style.setProperty('--global-font-scale', String(scale));
+    applyUiScaleToDOM();
   }
 }
 
@@ -274,7 +275,33 @@ function applyGlobalFontScaleToDOM(scale: number): void {
 function applyUiControlFontSizeToDOM(size: number): void {
   if (typeof document !== 'undefined') {
     document.documentElement.style.setProperty('--ui-control-font-size', `${size}px`);
+    applyUiScaleToDOM();
   }
+}
+
+/**
+ * B-045: the single UI scale. `--ui-scale` = (UI control font size / 14) x
+ * global font scale, clamped to 0.7-2. globals.css sets the root font size to
+ * `16px * --ui-scale`, so every rem-based size in the chrome scales together.
+ */
+const UI_SCALE_MIN = 0.7;
+const UI_SCALE_MAX = 2;
+const UI_CONTROL_FONT_SIZE_DEFAULT = 14;
+
+function applyUiScaleToDOM(): void {
+  if (typeof document === 'undefined') return;
+  // Both inputs are read back from the root so either setter can refresh the
+  // product without knowing the other value.
+  const style = document.documentElement.style;
+  const num = (name: string, fallback: number) => {
+    const v = parseFloat(style.getPropertyValue(name));
+    return Number.isFinite(v) ? v : fallback;
+  };
+  const uiControlFontSize = num('--ui-control-font-size', UI_CONTROL_FONT_SIZE_DEFAULT);
+  const globalFontScale = num('--global-font-scale', 1);
+  const raw = (uiControlFontSize / UI_CONTROL_FONT_SIZE_DEFAULT) * globalFontScale;
+  const scale = Math.min(UI_SCALE_MAX, Math.max(UI_SCALE_MIN, Math.round(raw * 1000) / 1000));
+  document.documentElement.style.setProperty('--ui-scale', String(scale));
 }
 
 /**

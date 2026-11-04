@@ -205,8 +205,16 @@ export const ReferenceRun: React.FC<{
 
   if (refCount === 0) return null;
 
+  // B-036(c): a reference list is a Latin/numeric island in RTL prose. Without
+  // isolation the "; " separators and ranges attach to the wrong neighbour
+  // ("1Jn 1:1 ;He 1:10"). Isolate the run as LTR unless a label is itself RTL.
+  const hasRtlLabel = visible.some(
+    (segment) => segment.type === 'ref' && /[\u0590-\u08FF\uFB1D-\uFDFF\uFE70-\uFEFF]/.test(segment.label),
+  );
+
   return (
     <>
+      <bdi dir={hasRtlLabel ? 'auto' : 'ltr'} data-testid="reference-run">
       {visible.map((segment, index) =>
         segment.type === 'sep' ? (
           <span key={`sep-${index}`}>{segment.text}</span>
@@ -223,6 +231,7 @@ export const ReferenceRun: React.FC<{
           </button>
         ),
       )}
+      </bdi>
       {(hiddenCount > 0 || expanded) && (
         <>
           {' '}

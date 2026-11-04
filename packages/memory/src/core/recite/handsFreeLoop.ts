@@ -12,6 +12,7 @@
  * is written to a message, a spoken prompt or the graded `detail`.
  */
 
+import { tc } from '../messages';
 import { ReciteCursor, biasFor } from '@bible/core/recite';
 import type { BiasLevel, ILanguageKit, LoopCommand, RecognizedWord } from '@bible/core/recite';
 import type { ISpeechApi } from '@bible/core/speech';
@@ -33,6 +34,8 @@ export interface LoopCard {
   reference: string;
   /** What is read aloud, e.g. "John chapter 3, verses 16 to 18". */
   spokenReference: string;
+  /** The reference as words to be said back ("John three sixteen"), for the optional reference recitation. */
+  referenceWords?: string[];
   /** BCP-47 language of the passage's module. */
   language: string;
   verses: VerseText[];
@@ -76,6 +79,7 @@ type Step =
   | 'end';
 
 const NO_PLAN = /no longer in your plan/i;
+const passageGoneText = (): string => tc('memory.core.passageGone', 'That passage is no longer in your plan.');
 
 const COMMAND_ACTION: Partial<Record<LoopCommand, ReciteAction>> = {
   repeat: 'repeat',
@@ -86,12 +90,22 @@ const COMMAND_ACTION: Partial<Record<LoopCommand, ReciteAction>> = {
   pause: 'pause',
 };
 
-const ERROR_TEXT: Record<string, string> = {
-  'mic-denied': 'The microphone is blocked. Allow microphone access and try again.',
-  'mic-busy': 'The microphone is in use by another app.',
-  engine: 'Speech recognition stopped working. Try again.',
-  'not-ready': 'Speech recognition is not ready yet. Check the speech settings.',
-};
+function errorText(code: string): string | undefined {
+  switch (code) {
+    case 'mic-denied':
+      return tc('memory.core.micDenied', 'The microphone is blocked. Allow microphone access and try again.');
+    case 'mic-busy':
+      return tc('memory.core.micBusy', 'The microphone is in use by another app.');
+    case 'mic-none':
+      return tc('memory.core.micNone', 'No microphone was found. Connect one and try again.');
+    case 'engine':
+      return tc('memory.core.speechEngineFailed', 'Speech recognition stopped working. Try again.');
+    case 'not-ready':
+      return tc('memory.core.speechNotReady', 'Speech recognition is not ready yet. Check the speech settings.');
+    default:
+      return undefined;
+  }
+}
 
 export class HandsFreeLoop {
   private gen = 0;
@@ -108,6 +122,11 @@ export class HandsFreeLoop {
   private card: LoopCard | null = null;
   private kit: ILanguageKit | null = null;
   private words: string[] = [];
+  /** The passage's own words sit at [verseStart, verseEnd) of `words`; spoken-reference words surround them. */
+  private verseStart = 0;
+  private verseEnd = 0;
+  /** Leading passage words shown by Peek (not graded). */
+  private peeked = 0;
   private cursor: ReciteCursor | null = null;
   private hinted = new Set<number>();
   private heardTexts: string[] = [];
@@ -124,12 +143,17 @@ export class HandsFreeLoop {
   private hintCount = 0;
   private stall = 0;
   private noSpeech = 0;
+  /** The pause in force came from silence, not from the reader (B-137): the message says why. */
+  private silencePause = false;
   private lostCount = 0;
   private feedbackSpoken = false;
 
   private readonly exclude: number[] = [];
   private done = 0;
   private skipped = 0;
+  private practiced = 0;
+  /** Reference before/after, fixed when the card's word list was built. */
+  private refFixed = { before: false, after: false };
   private scoreSum = 0;
 
   constructor(private readonly deps: LoopDeps) {
@@ -140,7 +164,7 @@ export class HandsFreeLoop {
 
   start(): void {
     if (this.run) return;
-    this.message = 'Getting ready';
+    this.message = tc('memory.core.loopGettingReady', 'Getting ready');
     this.run = this.drive();
   }
 
@@ -157,6 +181,9 @@ export class HandsFreeLoop {
       heard: this.heardTexts.slice(),
       position: this.cursor ? this.cursor.position : -1,
       hinted: Array.from(this.hinted).sort((a, b) => a - b),
+      peeked: this.peeked,
+      peekText: this.peeked > 0 ? this.quote(this.indexRange(this.verseStart, this.peeked)) : null,
+      referenceText: this.refMode().text,
       result: this.result,
       done: this.done,
       remaining: c ? c.remaining : 0,
@@ -208,6 +235,15 @@ export class HandsFreeLoop {
         }
         return;
       }
+      case 'peek':
+      case 'peekAll': {
+        // Tap mode, before reciting: showing words is only fair before the attempt begins.
+        if (handsFree || !this.card || s !== 'ready' || this.heardTexts.length > 0) return;
+        const total = this.verseEnd - this.verseStart;
+        this.peeked = a === 'peekAll' ? total : Math.min(total, Math.max(this.peeked, LOOP.openingWords));
+        this.emitView();
+        return;
+      }
       case 'repeat': {
         if (s === 'feedback') {
           this.feedbackSpoken = false;
@@ -251,7 +287,7 @@ export class HandsFreeLoop {
       case 'pause': {
         if (s === 'announce' || s === 'ready' || s === 'listen' || s === 'feedback' || s === 'fetch') {
           this.step = 'paused';
-          this.setPhase('paused', 'Paused');
+          this.setPhase('paused', this.pausedMessage());
           this.interrupt();
         }
         return;
@@ -270,15 +306,24 @@ export class HandsFreeLoop {
           return;
         }
         this.step = 'summary';
-        this.setPhase('summary', 'Finishing up');
+        this.setPhase('summary', tc('memory.core.loopFinishingUp', 'Finishing up'));
         this.interrupt();
         return;
       }
     }
   }
 
+  private pausedMessage(): string {
+    if (!this.silencePause) return tc('memory.core.loopPaused', 'Paused');
+    // Nothing listens while paused, so name the button on screen in each mode.
+    return this.deps.mode === 'handsfree'
+      ? tc('memory.core.loopPausedSilence', 'No speech was heard, so recitation is paused. Press Resume to continue.')
+      : tc('memory.core.loopPausedSilenceTap', 'No speech was heard. Press Talk to try again.');
+  }
+
   private resume(): void {
     this.noSpeech = 0;
+    this.silencePause = false;
     const handsFree = this.deps.mode === 'handsfree';
     this.step = !this.card || this.result ? 'fetch' : handsFree ? 'announce' : 'listen';
     this.interrupt();
@@ -330,7 +375,7 @@ export class HandsFreeLoop {
             await this.doFeedback(gen);
             break;
           case 'paused':
-            this.setPhase('paused', 'Paused');
+            this.setPhase('paused', this.pausedMessage());
             await this.waitWake(gen);
             break;
           case 'summary':
@@ -339,7 +384,7 @@ export class HandsFreeLoop {
         }
       }
     } catch (err) {
-      this.fail('internal', err instanceof Error ? err.message : 'Something went wrong.');
+      this.fail('internal', err instanceof Error ? err.message : tc('memory.core.somethingWentWrong', 'Something went wrong.'));
     } finally {
       await this.closeListen();
     }
@@ -358,7 +403,7 @@ export class HandsFreeLoop {
 
   private async doFetch(gen: number): Promise<void> {
     // Not 'ready': there is no card to talk to yet.
-    this.setPhase('announcing', 'Finding the next passage');
+    this.setPhase('announcing', tc('memory.core.loopFindingNext', 'Finding the next passage'));
     const card = await this.deps.nextCard(this.exclude.slice());
     if (this.stale(gen)) return;
     if (!card) {
@@ -368,7 +413,7 @@ export class HandsFreeLoop {
     const kit = this.deps.kitFor(card.language);
     if (!kit) {
       this.exclude.push(card.passageId);
-      this.notice = 'Skipped a passage in a language that cannot be recited aloud yet.';
+      this.notice = tc('memory.core.loopSkippedLanguage', 'Skipped a passage in a language that cannot be recited aloud yet.');
       this.message = this.notice;
       this.emitView();
       return;
@@ -376,7 +421,7 @@ export class HandsFreeLoop {
     this.card = card;
     this.lastLanguage = card.language;
     this.kit = kit;
-    this.words = expectedFor(card.verses).words;
+    this.buildWords(card);
     this.resetCard();
     this.step = this.deps.mode === 'handsfree' ? 'announce' : 'ready';
   }
@@ -398,18 +443,18 @@ export class HandsFreeLoop {
   private async sayPrompt(gen: number, first: boolean): Promise<void> {
     const c = this.card;
     if (!c) return;
-    this.setPhase('announcing', `Recite ${c.reference}`);
+    this.setPhase('announcing', tc('memory.core.loopRecite', 'Recite {reference}', { reference: c.reference }));
     await this.say(c.spokenReference, c.language);
     if (this.stale(gen)) return;
     if (this.deps.settings().promptStyle === 'reference+opening') {
-      const idx = this.indexRange(0, LOOP.openingWords);
+      const idx = this.indexRange(this.verseStart, LOOP.openingWords);
       if (first) for (const i of idx) this.hinted.add(i);
       await this.say(this.quote(idx), c.language);
     }
   }
 
   private async doReady(gen: number): Promise<void> {
-    this.setPhase('ready', 'Tap Talk and recite from memory');
+    this.setPhase('ready', tc('memory.core.loopTapTalk', 'Tap Talk and recite from memory'));
     if (this.hintReq > 0) {
       await this.giveHint(this.hintReq, gen);
       this.hintReq = 0;
@@ -437,10 +482,10 @@ export class HandsFreeLoop {
       this.repeatReq = false;
       await this.sayPrompt(gen, false);
       if (this.stale(gen)) return;
-      this.setPhase('listening', 'Listening');
+      this.setPhase('listening', tc('memory.core.loopListening', 'Listening'));
     }
     if (!this.listenId) {
-      this.setPhase('listening', 'Listening');
+      this.setPhase('listening', tc('memory.core.loopListening', 'Listening'));
       let id: string;
       try {
         const bias = biasFor(this.words, c.contextWords, this.kit, this.deps.biasLevel, this.deps.rng);
@@ -461,7 +506,7 @@ export class HandsFreeLoop {
       this.listenId = id;
     }
     const id = this.listenId;
-    if (this.phase !== 'listening') this.setPhase('listening', 'Listening');
+    if (this.phase !== 'listening') this.setPhase('listening', tc('memory.core.loopListening', 'Listening'));
     const noSpeechTimeoutMs =
       cursor.furthest < 0 ? LOOP.noSpeechStartMs : this.deps.settings().hintDelayMs;
     let out;
@@ -494,11 +539,11 @@ export class HandsFreeLoop {
         if (out.reason === 'max-duration') {
           this.step = 'score';
         } else {
-          this.fail('aborted', 'Listening was interrupted.');
+          this.fail('aborted', tc('memory.core.loopInterrupted', 'Listening was interrupted.'));
         }
         return;
       case 'error':
-        this.fail(out.code, ERROR_TEXT[out.code] ?? out.message);
+        this.fail(out.code, errorText(out.code) ?? out.message);
         return;
     }
   }
@@ -527,10 +572,11 @@ export class HandsFreeLoop {
       const idx = this.indexRange(cursor.position + 1, LOOP.pickUpWords);
       if (idx.length > 0) {
         for (const i of idx) this.hinted.add(i);
-        this.setPhase('hinting', `Let's pick up from: ${this.quote(idx)}`);
-        await this.say(`Let's pick up from: ${this.quote(idx)}`, c.language);
+        const pickUp = tc('memory.core.loopPickUp', 'Let\'s pick up from: {quote}', { quote: this.quote(idx) });
+        this.setPhase('hinting', pickUp);
+        await this.say(pickUp, c.language);
         if (this.stale(gen)) return;
-        this.setPhase('listening', 'Listening');
+        this.setPhase('listening', tc('memory.core.loopListening', 'Listening'));
       }
     }
   }
@@ -547,19 +593,20 @@ export class HandsFreeLoop {
   private async onNoSpeech(gen: number): Promise<void> {
     const cursor = this.cursor as ReciteCursor;
     const c = this.card as LoopCard;
-    const n = this.words.length;
     if (cursor.furthest < 0) {
       this.noSpeech++;
       if (this.noSpeech === 1) {
-        this.message = 'Say hint, repeat, or skip.';
+        const sayHint = tc('memory.core.loopSayHint', 'Say hint, repeat, or skip.');
+        this.message = sayHint;
         this.emitView();
-        await this.say('Say hint, repeat, or skip.', c.language);
+        await this.say(sayHint, c.language);
         return;
       }
+      this.silencePause = true;
       this.act('pause');
       return;
     }
-    if (cursor.furthest >= n - LOOP.nearEndWords) {
+    if (cursor.furthest >= this.verseEnd - LOOP.nearEndWords) {
       this.step = 'score';
       return;
     }
@@ -570,7 +617,7 @@ export class HandsFreeLoop {
     }
     await this.giveHint(this.stall === 1 ? 1 : LOOP.hintWordsLater, gen);
     if (this.stale(gen)) return;
-    this.setPhase('listening', 'Listening');
+    this.setPhase('listening', tc('memory.core.loopListening', 'Listening'));
   }
 
   /** Speak (hands-free) and show the next `n` words after the matched position. */
@@ -582,10 +629,11 @@ export class HandsFreeLoop {
     if (idx.length === 0) return;
     for (const i of idx) this.hinted.add(i);
     const text = this.quote(idx);
-    this.setPhase('hinting', `Hint: ${text}`);
+    const hintText = tc('memory.core.loopHint', 'Hint: {text}', { text });
+    this.setPhase('hinting', hintText);
     await this.say(text, c.language);
     if (this.stale(gen)) return;
-    this.setPhase('listening', `Hint: ${text}`);
+    this.setPhase('listening', hintText);
   }
 
   private async doScore(gen: number): Promise<void> {
@@ -596,18 +644,25 @@ export class HandsFreeLoop {
       this.step = 'fetch';
       return;
     }
-    this.setPhase('scoring', 'Scoring');
+    this.setPhase('scoring', tc('memory.core.loopScoring', 'Scoring'));
     await this.closeListen();
     if (this.stale(gen)) return;
-    const g = gradeRecitation(c.verses, cursor.heard, this.hinted, this.deps.settings().strictness, kit);
+    const g = gradeRecitation(c.verses, cursor.heard, this.hinted, this.deps.settings().strictness, kit, {
+      refBefore: this.words.slice(0, this.verseStart),
+      refAfter: this.words.slice(this.verseEnd),
+      peeked: this.peeked,
+    });
+    const practiceOnly = g.practiceOnly;
     g.detail.engineId = this.engineId;
     g.detail.modelId = this.modelId;
     let rec: LoopRecorded;
     try {
-      rec = await this.deps.record(c, g, this.startedAt);
+      rec = practiceOnly
+        ? { level: 0, nextDueAt: null, passageWellLearned: false }
+        : await this.deps.record(c, g, this.startedAt);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Could not save that attempt.';
-      if (NO_PLAN.test(msg)) {
+      const msg = err instanceof Error ? err.message : tc('memory.core.recordFailed', 'Could not save that attempt.');
+      if (NO_PLAN.test(msg) || msg === passageGoneText()) {
         if (this.stale(gen)) return;
         this.exclude.push(c.passageId);
         this.clearCard();
@@ -620,8 +675,11 @@ export class HandsFreeLoop {
       this.fail('record', msg);
       return;
     }
-    this.done++;
-    this.scoreSum += g.attempt.score;
+    if (practiceOnly) this.practiced++;
+    else {
+      this.done++;
+      this.scoreSum += g.attempt.score;
+    }
     this.exclude.push(c.passageId);
     if (this.stale(gen)) return;
     this.result = {
@@ -629,13 +687,18 @@ export class HandsFreeLoop {
       level: rec.level,
       nextDueAt: rec.nextDueAt,
       words: g.result.words.map((w) =>
-        w.heard !== undefined
-          ? { index: w.index, verdict: w.verdict, heard: w.heard }
-          : { index: w.index, verdict: w.verdict },
+        ({
+          index: w.index,
+          verdict: w.verdict,
+          ...(w.heard !== undefined ? { heard: w.heard } : {}),
+          ...(w.peeked ? { peeked: true } : {}),
+        }),
       ),
       extras: g.result.extras.map((x) => ({ afterIndex: x.afterIndex, heard: x.heard })),
       missedQuote: g.missedQuote,
       passageWellLearned: rec.passageWellLearned,
+      ...(g.referenceScore !== null ? { reference: { text: c.spokenReference, score: g.referenceScore } } : {}),
+      ...(practiceOnly ? { practiceOnly: true } : {}),
     };
     this.feedbackSpoken = false;
     this.step = 'feedback';
@@ -643,11 +706,12 @@ export class HandsFreeLoop {
 
   private feedbackText(): string {
     const r = this.result as ReciteResultView;
-    if (r.score >= 0.9995) return 'Perfect.';
+    if (r.practiceOnly) return tc('memory.core.loopPracticeOnly', 'Practice only. Nothing was graded.');
+    if (r.score >= 0.9995) return tc('memory.core.loopPerfect', 'Perfect.');
     const pct = Math.round(r.score * 100);
     return r.missedQuote.length > 0
-      ? `${pct} percent. You missed: ${r.missedQuote.join(' ')}.`
-      : `${pct} percent.`;
+      ? tc('memory.core.loopScoreMissed', '{pct} percent. You missed: {missed}.', { pct, missed: r.missedQuote.join(' ') })
+      : tc('memory.core.loopScore', '{pct} percent.', { pct });
   }
 
   private async doFeedback(gen: number): Promise<void> {
@@ -726,13 +790,15 @@ export class HandsFreeLoop {
   private async doSummary(gen: number): Promise<void> {
     await this.closeListen();
     if (this.stale(gen)) return;
-    const nothingDue = this.done === 0 && this.skipped === 0 && this.deps.source === 'due';
+    const nothingDue = this.done === 0 && this.skipped === 0 && this.practiced === 0 && this.deps.source === 'due';
     const text =
       this.done > 0
-        ? `All done. ${this.done} ${this.done === 1 ? 'passage' : 'passages'}, average ${Math.round((this.scoreSum / this.done) * 100)} percent.`
+        ? this.done === 1
+          ? tc('memory.core.loopSummaryOne', 'All done. {done} passage, average {avg} percent.', { done: this.done, avg: Math.round((this.scoreSum / this.done) * 100) })
+          : tc('memory.core.loopSummaryMany', 'All done. {done} passages, average {avg} percent.', { done: this.done, avg: Math.round((this.scoreSum / this.done) * 100) })
         : nothingDue
-          ? 'Nothing is due to recite right now.'
-          : 'All done.';
+          ? tc('memory.core.nothingDueToRecite', 'Nothing is due to recite right now.')
+          : tc('memory.core.loopAllDone', 'All done.');
     const language = this.card ? this.card.language : this.lastLanguage;
     // Privacy: drop the card, heard words and result before the final summary.
     this.clearCard();
@@ -793,9 +859,32 @@ export class HandsFreeLoop {
     return verses.map((v) => v.words.join(' ')).join(' ');
   }
 
+  private refMode(): { before: boolean; after: boolean; text: { before: boolean; after: boolean; text: string } | null } {
+    const c = this.card;
+    const words = c?.referenceWords ?? [];
+    const { before, after } = this.refFixed;
+    return { before, after, text: c && (before || after) ? { before, after, text: words.join(' ') } : null };
+  }
+
+  /** The expected word list: the passage, with the spoken reference around it when the setting asks. */
+  private buildWords(card: LoopCard): void {
+    const verse = expectedFor(card.verses).words;
+    // The spoken reference is English only (its number words are), and the choice is fixed per card.
+    const m = this.deps.settings().reciteReference;
+    const ref = card.language.toLowerCase().startsWith('en') ? (card.referenceWords ?? []) : [];
+    const before = (m === 'before' || m === 'both') && ref.length > 0;
+    const after = (m === 'after' || m === 'both') && ref.length > 0;
+    this.refFixed = { before, after };
+    this.words = [...(before ? ref : []), ...verse, ...(after ? ref : [])];
+    this.verseStart = before ? ref.length : 0;
+    this.verseEnd = this.verseStart + verse.length;
+  }
+
   private resetCard(): void {
     if (!this.kit || !this.card) return;
+    this.buildWords(this.card);
     this.cursor = new ReciteCursor(this.words, this.kit);
+    this.peeked = 0;
     this.hinted = new Set();
     this.heardTexts = [];
     this.result = null;
@@ -803,6 +892,7 @@ export class HandsFreeLoop {
     this.hintCount = 0;
     this.stall = 0;
     this.noSpeech = 0;
+    this.silencePause = false;
     this.lostCount = 0;
     this.repeatReq = false;
     this.feedbackSpoken = false;
@@ -815,6 +905,10 @@ export class HandsFreeLoop {
     this.kit = null;
     this.cursor = null;
     this.words = [];
+    this.refFixed = { before: false, after: false };
+    this.verseStart = 0;
+    this.verseEnd = 0;
+    this.peeked = 0;
     this.hinted = new Set();
     this.heardTexts = [];
     this.result = null;
@@ -841,7 +935,7 @@ export class HandsFreeLoop {
 
   private failListen(code: string, err: unknown): void {
     const msg = err instanceof Error ? err.message : '';
-    this.fail(code, ERROR_TEXT[code] ?? (msg || 'Could not start listening.'));
+    this.fail(code, errorText(code) ?? (msg || tc('memory.core.listenStartFailed', 'Could not start listening.')));
   }
 
   private emitView(): void {

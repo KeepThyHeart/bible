@@ -245,6 +245,7 @@ const CommentarySinglePanel: React.FC<CommentarySinglePanelProps> = ({
           error={error}
           onNavigatePrev={handleNavigatePrev}
           onNavigateNext={handleNavigateNext}
+          onRetry={() => { if (currentVerseId) void loadForVerse(currentVerseId); }}
           entrySummaries={entrySummaries}
           onSelectVerse={(verseId) => {
             setPinned(false);

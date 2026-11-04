@@ -84,7 +84,7 @@ const UserNotesDialogs: React.FC<UserNotesDialogsProps> = ({
 
       <TextInputDialog
         isOpen={!!renameEntry}
-        title={`Rename ${renameEntry?.isDirectory ? 'Folder' : 'Note'}`}
+        title={renameEntry?.isDirectory ? t('userNotesPane.renameFolderDialogTitle') : t('userNotesPane.renameNoteDialogTitle')}
         label={t('userNotesPane.newNameLabel')}
         initialValue={renameEntry?.name ?? ''}
         onConfirm={(newName) => { if (renameEntry) onRename(renameEntry, newName); }}

@@ -18,7 +18,7 @@ import {
   __setNetForTests,
   type NetworkConfigLike,
 } from '../NetworkGateway';
-import { fakeNet, requestedUrls, resetFakeNet, setFakeRoute } from './fakeNet';
+import { fakeNet, requestedHeaders, requestedUrls, resetFakeNet, setFakeRoute } from './fakeNet';
 
 let allowNetwork = true;
 const config: NetworkConfigLike = { get: () => ({ allowNetwork }) };
@@ -262,5 +262,90 @@ describe('NetworkGateway — downloadStream', () => {
     const result = await gw.downloadStream({ url: 'https://cdn.example/module.db', context: 'download' });
     expect(result.status).toBe(200);
     expect(requestedUrls).toHaveLength(2);
+  });
+});
+
+describe('NetworkGateway — Electron manual-redirect `redirect` event (B-134)', () => {
+  const HF = 'https://huggingface.co/onnx-community/whisper-base/resolve/abc/config.json';
+
+  it('downloadStream follows a 307 with a RELATIVE Location delivered as a redirect event', async () => {
+    setFakeRoute((req) =>
+      req.url.includes('/api/resolve-cache/')
+        ? { statusCode: 206, chunks: ['tail'] }
+        : {
+            statusCode: 307,
+            headers: { location: '/api/resolve-cache/models/whisper-base/abc/config.json' },
+            viaRedirectEvent: true,
+          }
+    );
+    const result = await makeGateway().downloadStream({
+      url: HF,
+      headers: { Range: 'bytes=100-' },
+      context: 'download',
+    });
+    expect(result.status).toBe(206);
+    expect(result.url).toBe(
+      'https://huggingface.co/api/resolve-cache/models/whisper-base/abc/config.json'
+    );
+    expect(requestedUrls).toHaveLength(2);
+    // Range-resume survives the hop.
+    expect(requestedHeaders[1]?.Range).toBe('bytes=100-');
+  });
+
+  it('downloadStream refuses a downgrade and a redirect loop on the event path', async () => {
+    setFakeRoute(() => ({
+      statusCode: 307,
+      headers: { location: 'http://cdn.example/x' },
+      viaRedirectEvent: true,
+    }));
+    await expect(
+      makeGateway().downloadStream({ url: 'https://cdn.example/x', context: 'download' })
+    ).rejects.toThrow(/downgrade/);
+
+    resetFakeNet();
+    setFakeRoute(() => ({
+      statusCode: 302,
+      headers: { location: '/loop' },
+      viaRedirectEvent: true,
+    }));
+    await expect(
+      makeGateway().downloadStream({ url: 'https://cdn.example/loop', context: 'download' })
+    ).rejects.toThrow(/Too many redirects/);
+    expect(requestedUrls).toHaveLength(NETWORK_MAX_REDIRECTS + 1);
+  });
+
+  it('fetchBuffered follows the redirect event, and returns it verbatim with maxRedirects 0', async () => {
+    setFakeRoute((req) =>
+      req.url.endsWith('/final')
+        ? { statusCode: 200, chunks: ['ok'] }
+        : { statusCode: 307, headers: { location: '/final' }, viaRedirectEvent: true }
+    );
+    const gw = makeGateway();
+    const res = await gw.fetchBuffered({
+      url: 'https://a.example/start',
+      maxResponseBytes: 100,
+      context: 't',
+    });
+    expect(res.body.toString()).toBe('ok');
+
+    resetFakeNet();
+    setFakeRoute(() => ({ statusCode: 307, headers: { location: '/final' }, viaRedirectEvent: true }));
+    const raw = await gw.fetchBuffered({
+      url: 'https://a.example/start',
+      maxResponseBytes: 100,
+      maxRedirects: 0,
+      context: 't',
+    });
+    expect(raw.status).toBe(307);
+    expect(requestedUrls).toHaveLength(1);
+  });
+});
+
+describe('NetworkBlockedError wording (B-160)', () => {
+  it('has user-facing text (no raw "egress" jargon) and keeps the context for logs', () => {
+    const e = new NetworkBlockedError('asset download');
+    expect(e.message).toMatch(/Web requests are turned off/);
+    expect(e.message).not.toMatch(/egress|offline mode/i);
+    expect(e.context).toBe('asset download');
   });
 });

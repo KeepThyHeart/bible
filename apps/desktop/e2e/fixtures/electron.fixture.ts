@@ -9,21 +9,43 @@ import { test as base, _electron as electron, ElectronApplication, Page } from '
 import path from 'path';
 import fs from 'fs';
 import os from 'os';
+import { E2E_KEYWORD_INDEX_DIR } from './keywordIndexDir';
+import { createConsoleGuard, type ConsoleGuard } from './consoleGuard';
 
 // Custom fixture types
 type ElectronFixtures = {
   electronApp: ElectronApplication;
   window: Page;
+  /**
+   * Console errors, warnings and page errors from every window. Asserted clean
+   * when the test ends (see `failOnConsoleProblems`).
+   */
+  consoleGuard: ConsoleGuard;
+  /**
+   * Fail the test on a console error/warning/page error. On by default; a spec
+   * that provokes an error on purpose opts out with
+   * `test.use({ failOnConsoleProblems: false })` and says why.
+   */
+  failOnConsoleProblems: boolean;
 };
 
 // Path to the built Electron main process
-const MAIN_JS_PATH = path.resolve(__dirname, '../../out/main/index.js');
+// `E2E_MAIN_JS` runs a build made in another folder (for example, to leave `out/` alone).
+const MAIN_JS_PATH = process.env.E2E_MAIN_JS ?? path.resolve(__dirname, '../../out/main/index.js');
 
 /**
  * Extended test with Electron fixtures
  */
 export const test = base.extend<ElectronFixtures>({
-  electronApp: async ({}, use, testInfo) => {
+  failOnConsoleProblems: [true, { option: true }],
+
+  consoleGuard: async ({ failOnConsoleProblems }, use) => {
+    const guard = createConsoleGuard();
+    await use(guard);
+    if (failOnConsoleProblems) guard.assertClean();
+  },
+
+  electronApp: async ({ consoleGuard }, use, testInfo) => {
     // Ensure the app is built
     if (!fs.existsSync(MAIN_JS_PATH)) {
       throw new Error(
@@ -69,8 +91,19 @@ export const test = base.extend<ElectronFixtures>({
         NODE_ENV: 'test',
         // Use a test-specific user data directory to isolate tests
         ELECTRON_USER_DATA: userDataDir,
+        // Keyword-search indexes: one shared directory, built once by globalSetup.ts.
+        BIBLE_KEYWORD_INDEX_DIR: E2E_KEYWORD_INDEX_DIR,
+        // No online meaning search: a build defaults to the hosted service, and
+        // its first-use consent modal would interrupt the semantic-search specs.
+        // remote-semantic.spec.ts launches its own instance against a stub.
+        BIBLE_REMOTE_SEMANTIC_URL: 'none',
       },
     });
+
+    // Every window, including ones opened later (pop-outs): attach before the
+    // renderer has logged anything.
+    app.windows().forEach(w => consoleGuard.attach(w));
+    app.on('window', w => consoleGuard.attach(w));
 
     await use(app);
 
@@ -130,7 +163,7 @@ export const test = base.extend<ElectronFixtures>({
  * Tolerant of absence: a spec that seeds `bible.onboarding.languageChosen`, or
  * a future build that drops the dialog, must not start failing here.
  */
-async function dismissFirstRunDialog(window: Page): Promise<void> {
+export async function dismissFirstRunDialog(window: Page): Promise<void> {
   const dialog = window.locator('[data-testid="first-run-language-dialog"]');
 
   const appeared = await dialog

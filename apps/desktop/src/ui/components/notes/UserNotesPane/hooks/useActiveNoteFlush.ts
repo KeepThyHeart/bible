@@ -1,12 +1,11 @@
 import { useEffect } from 'react';
-import * as fileNotesAPI from '../../../../services/fileNotesAPI';
 import { BnFile } from '../../../../services/fileNotesAPI';
 import { useNoteEditorStore } from '../../../../stores/useNoteEditorStore';
 import {
   registerActiveNoteFlush,
   clearActiveNoteFlush,
 } from '../../../../services/activeNoteFlush';
-import { isAbsolutePath } from '../utils';
+import { saveWithBaseline, staleSaveKind, saveConflictCopy } from './noteSave';
 
 interface UseActiveNoteFlushArgs {
   view: 'browser' | 'editor';
@@ -43,11 +42,20 @@ export function useActiveNoteFlush({
       };
       // See useNotesAutoSave for why the baseline must come from the main
       // process's returned value rather than a client-side timestamp guess.
-      const savedUpdated = isAbsolutePath(currentNotePath)
-        ? await fileNotesAPI.saveNoteAbsolute(currentNotePath, updatedNote)
-        : await fileNotesAPI.saveNote(currentNotePath, updatedNote);
-      setCurrentNote({ ...updatedNote, updated: savedUpdated });
-      store.markSaved();
+      try {
+        const savedUpdated = await saveWithBaseline(currentNotePath, updatedNote);
+        setCurrentNote({ ...updatedNote, updated: savedUpdated });
+        store.markSaved();
+      } catch (err: unknown) {
+        // Another window changed the note, or it was renamed/moved/trashed:
+        // leave both versions alone rather than overwrite or re-create. Must
+        // not throw - this runs while the window is closing.
+        const kind = staleSaveKind(err);
+        if (!kind) throw err;
+        console.warn('Skipped saving the active note on close (changed elsewhere):', err);
+        // Keep the text next to the other version instead of losing it.
+        if (kind === 'conflict') await saveConflictCopy(currentNotePath, updatedNote).catch(() => undefined);
+      }
     };
 
     registerActiveNoteFlush(flush);

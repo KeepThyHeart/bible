@@ -13,6 +13,17 @@ export interface InstallVerification {
   maxBytes?: number;
 }
 
+/** The stages of a download-and-install, in order. */
+export type InstallStage = 'downloading' | 'verifying' | 'installing';
+
+/** Optional observers for a long install: purely informational, never change its outcome. */
+export interface InstallHooks {
+  /** A new stage began. */
+  onStage?: (stage: InstallStage) => void;
+  /** The download queue entry for this install was created (so it can be cancelled by id). */
+  onQueued?: (queueId: number) => void;
+}
+
 /**
  * Installation service interface
  * Handles module installation, verification, and removal
@@ -29,7 +40,8 @@ export interface IInstallationService {
   installModule(
     sourcePath: string,
     moduleInfo: Partial<ModuleMetadata>,
-    verification?: InstallVerification
+    verification?: InstallVerification,
+    hooks?: InstallHooks
   ): Promise<InstallationResult>;
 
   /**

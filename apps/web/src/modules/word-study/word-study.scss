@@ -17,7 +17,7 @@
   &__title {
     flex: 1;
     margin: 0;
-    font-size: calc(14px * var(--ui-font-scale, 1));
+    font-size: calc(0.875rem * var(--ui-font-scale, 1));
     font-weight: 600;
   }
 
@@ -25,6 +25,9 @@
     flex: 1;
     overflow-y: auto;
     padding: 8px 12px 12px;
+    // The kth-ws-* panel sizes itself from --kth-font-size-ui (the UI size); it is reading
+    // content here, so it follows the Study Text size like the other study panes.
+    --kth-font-size-ui: var(--study-font-size, 1.0625rem);
   }
 
   &__prompt {

@@ -5,6 +5,7 @@ import { RecentFile } from '../../stores/useFileNotesStore';
 import { BreadcrumbSegment } from './NotesBreadcrumb';
 import { useI18n } from '../../contexts/useI18n';
 import { anchorAtPointerX } from '../../utils/overlayPosition';
+import { deleteKey, revealKey } from '../../utils/platformLabels';
 import PaneEmptyState from '../onboarding/PaneEmptyState';
 
 interface NotesFolderBrowserProps {
@@ -320,6 +321,26 @@ const NotesFolderBrowser: React.FC<NotesFolderBrowserProps> = ({
   }, [entries, onMove]);
 
   // Render a file/folder entry row
+  /**
+   * Verse notes are stored as `Verse Notes/<Book>/<chapter>/<verse>.bn`, so the
+   * bare file name is just "4". Show "Psalm 23:4" (localized book name) instead.
+   */
+  const entryDisplayName = (entry: FileEntry): string => {
+    if (entry.isDirectory) return entry.name;
+    const parts = entry.path.replace(/\\/g, '/').split('/').filter(Boolean);
+    if (parts.length !== 4 || parts[0] !== verseNotesFolderPath) return entry.name;
+    const [, bookFolder, chapter] = parts;
+    const verse = parts[3].replace(/\.bn$/i, '');
+    if (!/^\d+$/.test(chapter) || !/^\d+$/.test(verse)) return entry.name;
+    const bookNumber =
+      localizer.referenceParserConfig?.bookNames?.get(bookFolder.toLowerCase()) ??
+      ENGLISH_BOOK_NAMES.get(bookFolder.toLowerCase());
+    const bookName = bookNumber !== undefined
+      ? (localizer.referenceParserConfig?.displayNames?.[bookNumber - 1] ?? getBookName(bookNumber))
+      : bookFolder;
+    return `${bookName} ${chapter}:${verse}`;
+  };
+
   const renderEntry = (entry: FileEntry) => (
     <button
       key={entry.path}
@@ -352,7 +373,7 @@ const NotesFolderBrowser: React.FC<NotesFolderBrowserProps> = ({
         </svg>
       )}
       <div className="flex-1 min-w-0">
-        <div dir="auto" className="text-sm font-medium text-text-heading truncate">{entry.name}</div>
+        <div dir="auto" className="text-sm font-medium text-text-heading truncate">{entryDisplayName(entry)}</div>
       </div>
       {/* The lock badge above is decorative; state it in words for non-sighted users. */}
       {entry.isDirectory && isProtectedEntry(entry) && (
@@ -616,7 +637,7 @@ const NotesFolderBrowser: React.FC<NotesFolderBrowserProps> = ({
                 onClick={() => onDelete(contextMenu.entry)}
                 className="w-full px-4 py-1.5 text-sm text-start hover:bg-background-hover"
               >
-                {t('notesFolderBrowser.menuDelete')}
+                {t(deleteKey('notesFolderBrowser.menuDelete'))}
               </button>
             </>
           )}
@@ -627,7 +648,7 @@ const NotesFolderBrowser: React.FC<NotesFolderBrowserProps> = ({
               onClick={() => onDelete(contextMenu.entry)}
               className="w-full px-4 py-1.5 text-sm text-start hover:bg-background-hover"
             >
-              {t('notesFolderBrowser.menuDelete')}
+              {t(deleteKey('notesFolderBrowser.menuDelete'))}
             </button>
           )}
           {/* "Move to..." is the discoverable half of a feature that already
@@ -654,7 +675,7 @@ const NotesFolderBrowser: React.FC<NotesFolderBrowserProps> = ({
             onClick={() => onOpenInExplorer(contextMenu.entry.path)}
             className="w-full px-4 py-1.5 text-sm text-start hover:bg-background-hover"
           >
-            {t('notesFolderBrowser.menuReveal')}
+            {t(revealKey('notesFolderBrowser.menuReveal'))}
           </button>
         </div>
       )}

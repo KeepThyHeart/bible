@@ -1,0 +1,133 @@
+// ============================================================
+// Text size button and popover (components/common/TextSizeButton.tsx)
+// ============================================================
+
+.text-size {
+  &__button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    &[aria-expanded='true'] {
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+    }
+  }
+
+  // "Aa" set as type, not as a label: a book serif with a full-size capital
+  // and a clearly smaller lowercase, the way reading apps draw their text
+  // settings. The toolbar's sans at label weight read as a word.
+  &__glyph {
+    font-family: Georgia, 'Iowan Old Style', 'Palatino Linotype', 'Times New Roman', serif;
+    font-size: 1.2em;
+    font-weight: 400;
+    line-height: 1;
+    letter-spacing: -0.02em;
+
+    &::first-letter {
+      font-size: 1.2em;
+    }
+  }
+
+  // Fixed on screen and fixed in size (rem, not the app's --ui-font-scale), so
+  // it holds still while the text behind it grows or shrinks.
+  &__popover {
+    position: fixed;
+    z-index: 1000;
+    width: 16rem;
+    padding: 0.75rem;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    box-shadow: 0 8px 24px var(--dropdown-shadow);
+    font-family: var(--ui-font-family, inherit);
+    font-size: 0.9375rem;
+    font-weight: normal;
+    line-height: 1.4;
+    white-space: normal;
+    text-align: start;
+  }
+
+  &__row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+  }
+
+  &__label {
+    font-weight: 600;
+  }
+
+  &__stepper {
+    display: flex;
+    align-items: stretch;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+
+  &__step {
+    width: 2.5rem;
+    height: 2.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: none;
+    background: none;
+    color: var(--text-primary);
+    font-size: 0.875rem;
+    cursor: pointer;
+
+    &:hover:not(:disabled),
+    &:focus-visible {
+      background: var(--bg-tertiary);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--accent-color);
+      outline-offset: -2px;
+    }
+
+    &:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+  }
+
+  &__value {
+    min-width: 2.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-variant-numeric: tabular-nums;
+    border-inline: 1px solid var(--border-color);
+  }
+
+  &__footer {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-block-start: 0.625rem;
+    padding-block-start: 0.5rem;
+    border-block-start: 1px solid var(--border-color);
+  }
+
+  &__link {
+    padding: 0.25rem 0;
+    border: none;
+    background: none;
+    color: var(--accent-color);
+    cursor: pointer;
+    font: inherit;
+
+    &:hover:not(:disabled) { text-decoration: underline; }
+
+    &:disabled {
+      color: var(--text-muted);
+      cursor: default;
+    }
+  }
+}

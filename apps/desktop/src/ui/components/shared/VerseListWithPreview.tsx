@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { formatVerseReference, formatVerseRange, loadBookNamesCache } from '../../utils/verseReference';
 import { bibleAPI } from '../../services/electronAPI';
 import { useBiblePanel } from '../../stores/hooks/useBiblePanel';
@@ -88,7 +88,7 @@ function saveShowVerses(storageKey: string | undefined, value: boolean): void {
  * below it.
  */
 const VerseListWithPreview: React.FC<VerseListWithPreviewProps> = ({
-  verses,
+  verses: versesProp,
   currentVerseId,
   maxVisible = 10,
   onVerseClick,
@@ -101,6 +101,18 @@ const VerseListWithPreview: React.FC<VerseListWithPreviewProps> = ({
   const [showAll, setShowAll] = useState(false);
   const [showVerses, setShowVerses] = useState(() => loadShowVerses(storageKey));
   const [lastClickedKey, setLastClickedKey] = useState<string | null>(null);
+  // One row per range. Callers can hand in the same passage twice (a topic
+  // cites it under two sub-topics); rows are keyed by range, so a repeat would
+  // be a duplicate React key and the warning would flood the console.
+  const verses = useMemo(() => {
+    const seen = new Set<string>();
+    return versesProp.filter(v => {
+      const key = `${v.start_verse_id}-${v.end_verse_id}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [versesProp]);
   const visibleVerses = showAll ? verses : verses.slice(0, maxVisible);
   const hiddenCount = verses.length - visibleVerses.length;
 
@@ -126,6 +138,10 @@ const VerseListWithPreview: React.FC<VerseListWithPreviewProps> = ({
 
   // Fetch verse text for all visible entries. Skipped entirely while the text
   // is hidden - there is no point paying for text nobody asked to see.
+  // Keyed on *which* passages are visible, not how many: opening another topic
+  // whose list is the same length must refetch, or its rows never get text and
+  // read "Loading..." forever.
+  const visibleSignature = visibleVerses.map(v => `${v.start_verse_id}-${v.end_verse_id}`).join(',');
   useEffect(() => {
     if (!showVerses || !activeVersion) return undefined;
     let cancelled = false;
@@ -187,7 +203,8 @@ const VerseListWithPreview: React.FC<VerseListWithPreviewProps> = ({
 
     fetchAll();
     return () => { cancelled = true; };
-  }, [visibleVerses.length, showAll, activeVersion, showVerses]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- visibleSignature stands in for visibleVerses
+  }, [visibleSignature, activeVersion, showVerses]);
 
   const handleRefClick = (v: VerseItem): void => {
     setLastClickedKey(`${v.start_verse_id}-${v.end_verse_id}`);
@@ -195,7 +212,7 @@ const VerseListWithPreview: React.FC<VerseListWithPreviewProps> = ({
   };
 
   return (
-    <div style={{ fontSize: '13px' }}>
+    <div style={{ fontSize: '0.8125rem' }}>
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '4px' }}>
         <button
           type="button"
@@ -204,7 +221,7 @@ const VerseListWithPreview: React.FC<VerseListWithPreviewProps> = ({
           aria-pressed={showVerses}
           style={{
             padding: '2px 6px',
-            fontSize: '11px',
+            fontSize: '0.6875rem',
             color: 'var(--theme-accent-primary)',
             backgroundColor: 'transparent',
             border: 'none',
@@ -268,7 +285,7 @@ const VerseListWithPreview: React.FC<VerseListWithPreviewProps> = ({
                     style={{
                       color: 'var(--theme-accent-primary)',
                       fontWeight: 600,
-                      fontSize: '12px',
+                      fontSize: '0.75rem',
                       textDecoration: 'none',
                     }}
                     onMouseEnter={(e) => { (e.target as HTMLElement).style.textDecoration = 'underline'; }}
@@ -287,13 +304,13 @@ const VerseListWithPreview: React.FC<VerseListWithPreviewProps> = ({
                           <span style={{ color: 'var(--theme-text-secondary)' }}> ...</span>
                         )}
                         {v.context && (
-                          <span style={{ fontSize: '11px', color: 'var(--theme-text-secondary)', fontStyle: 'italic' }}>
+                          <span style={{ fontSize: '0.6875rem', color: 'var(--theme-text-secondary)', fontStyle: 'italic' }}>
                             {' '}({v.context})
                           </span>
                         )}
                       </span>
                     ) : fetchedVerses === undefined && activeVersion ? (
-                      <span style={{ fontSize: '11px', color: 'var(--theme-text-secondary)' }}>{t('ui.common.loading')}</span>
+                      <span style={{ fontSize: '0.6875rem', color: 'var(--theme-text-secondary)' }}>{t('ui.common.loading')}</span>
                     ) : null}
                   </td>
                 )}
@@ -312,7 +329,7 @@ const VerseListWithPreview: React.FC<VerseListWithPreviewProps> = ({
             data-testid="verse-list-show-all"
             style={{
               padding: '4px 8px',
-              fontSize: '12px',
+              fontSize: '0.75rem',
               color: 'var(--theme-accent-primary)',
               backgroundColor: 'transparent',
               border: 'none',
@@ -330,7 +347,7 @@ const VerseListWithPreview: React.FC<VerseListWithPreviewProps> = ({
             data-testid="verse-list-load-more"
             style={{
               padding: '4px 8px',
-              fontSize: '12px',
+              fontSize: '0.75rem',
               color: 'var(--theme-accent-primary)',
               backgroundColor: 'transparent',
               border: 'none',

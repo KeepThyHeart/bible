@@ -6,6 +6,7 @@ import SearchResultsPane from './SearchResultsPane';
 import { ContextProvider, type AppServices } from '../contexts/ContextProvider';
 import { IntlMessageFormat } from 'intl-messageformat';
 import enUi from '../../../locales/en/ui.json';
+import { useNetworkStore } from '../stores/useNetworkStore';
 
 // Mock stores
 const mockSearchStore: Record<string, any> = {};
@@ -793,6 +794,72 @@ describe('SearchResultsPane', () => {
       expect(scrollIntoView).toHaveBeenCalledWith({ block: 'nearest' });
       // A bar must never move the Bible pane: a mis-click costs nothing.
       expect(mockNavigateToVerse).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('semantic note (task 0190)', () => {
+    const semanticState = (extra: Record<string, unknown>) =>
+      Object.assign(mockSearchStore, {
+        ...defaultSearchState,
+        resultsForQuery: 'love',
+        isSemanticMode: true,
+        semanticAvailable: true,
+        ...extra,
+      });
+
+    it('shows no note without a notice', () => {
+      semanticState({ semanticNotice: null, semanticSource: 'remote' });
+      renderWithProviders(<SearchResultsPane />);
+      expect(screen.queryByTestId('semantic-note')).toBeNull();
+    });
+
+    it('declined: hints at Preferences > Search', () => {
+      semanticState({ semanticNotice: { kind: 'declined' }, semanticSource: 'local' });
+      renderWithProviders(<SearchResultsPane />);
+      expect(screen.getByTestId('semantic-note')).toHaveTextContent('Preferences > Search');
+    });
+
+    it('degraded: keyword results note', () => {
+      semanticState({ semanticNotice: { kind: 'degraded' }, semanticSource: 'remote' });
+      renderWithProviders(<SearchResultsPane />);
+      expect(screen.getByTestId('semantic-note')).toHaveTextContent('Showing keyword results');
+    });
+
+    it('quota: reset time, and installed pack wording when source is local', () => {
+      semanticState({ semanticNotice: { kind: 'quota', resetAtMs: Date.UTC(2026, 9, 21, 0, 0) }, semanticSource: 'local' });
+      renderWithProviders(<SearchResultsPane />);
+      const note = screen.getByTestId('semantic-note');
+      expect(note).toHaveTextContent('Daily limit for meaning search reached');
+      expect(note).toHaveTextContent('It resets at');
+      expect(note).toHaveTextContent('installed pack');
+    });
+
+    it('B-159: unavailable with web requests off names the cause and offers Turn on', async () => {
+      const requestAllow = vi.fn().mockResolvedValue(true);
+      const performSemanticSearch = vi.fn();
+      useNetworkStore.setState({ allowWebRequests: false, loaded: true, requestAllow });
+      semanticState({ semanticNotice: { kind: 'unavailable' }, semanticSource: null, isSemanticMode: false, performSemanticSearch });
+      renderWithProviders(<SearchResultsPane />);
+      const note = screen.getByTestId('semantic-note');
+      expect(note).toHaveTextContent('which are off');
+      expect(note).not.toHaveTextContent('unavailable right now');
+      await userEvent.click(screen.getByTestId('semantic-note-turn-on'));
+      expect(requestAllow).toHaveBeenCalledWith(true);
+      expect(performSemanticSearch).toHaveBeenCalledWith('love');
+    });
+
+    it('unavailable with web requests on keeps the generic note and no Turn on', () => {
+      useNetworkStore.setState({ allowWebRequests: true, loaded: true });
+      semanticState({ semanticNotice: { kind: 'unavailable' }, semanticSource: null });
+      renderWithProviders(<SearchResultsPane />);
+      expect(screen.getByTestId('semantic-note')).toHaveTextContent('unavailable right now');
+      expect(screen.queryByTestId('semantic-note-turn-on')).toBeNull();
+    });
+
+    it('unavailable and rephrase have notes', () => {
+      semanticState({ semanticNotice: { kind: 'rephrase' }, semanticSource: 'local' });
+      renderWithProviders(<SearchResultsPane />);
+      expect(screen.getByTestId('semantic-note')).toHaveTextContent('longer or different phrase');
     });
   });
 });

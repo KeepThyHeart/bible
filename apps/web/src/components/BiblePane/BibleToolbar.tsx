@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
+import { TextSizeButton } from '../common/TextSizeButton';
 import { bibleStore } from '../../stores/bibleStore';
 import { moduleStore } from '../../stores/moduleStore';
 import { useStore } from '../../hooks/useStore';
@@ -38,6 +39,17 @@ export function BibleToolbar({ onOpenSettings }: BibleToolbarProps) {
   // frames — the same reason the translation dialog does it this way.
   const historyOpenRef = useRef(false);
   historyOpenRef.current = showHistory;
+  const historyToggleRef = useRef<HTMLButtonElement>(null);
+  // Escape closes the menu and hands focus back to its button (B-156).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' || !historyOpenRef.current) return;
+      setShowHistory(false);
+      historyToggleRef.current?.focus({ preventScroll: true });
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, []);
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (!historyOpenRef.current) return;
@@ -100,6 +112,7 @@ export function BibleToolbar({ onOpenSettings }: BibleToolbarProps) {
               and the menu says where it is going by name. */}
           <button
             class="bible-toolbar__nav-btn"
+            ref={historyToggleRef}
             onClick={() => setShowHistory(v => !v)}
             // Without this the document-level dismissal below closes the menu a
             // beat before this button's own click would toggle it back open.
@@ -153,6 +166,8 @@ export function BibleToolbar({ onOpenSettings }: BibleToolbarProps) {
         {/* Display mode dropdown */}
         <select
           class="bible-toolbar__mode-select"
+          title={t('bibleToolbar.modeHint')}
+          aria-label={t('bibleToolbar.modeLabel')}
           value={displayMode}
           onChange={(e) => { if (tab) bibleStore.setDisplayMode(tab.id, (e.target as HTMLSelectElement).value as 'standard' | 'reading' | 'study'); }}
         >
@@ -175,13 +190,11 @@ export function BibleToolbar({ onOpenSettings }: BibleToolbarProps) {
 
         {/* Actions of active feature modules (for example Listen). */}
         <PropsSlotOutlet slot={readerToolbarActions} props={{ tab }} />
-        <button
-          class="bible-toolbar__btn"
-          onClick={() => onOpenSettings?.('bible-font')}
-          title={t('bibleToolbar.textSettings')}
-        >
-          Aa
-        </button>
+        <TextSizeButton
+          target="bible"
+          className="bible-toolbar__btn"
+          onMoreOptions={onOpenSettings ? () => onOpenSettings('bible-font') : undefined}
+        />
 
         {/* Chapter navigation - far right (hidden on mobile) */}
         <div class="bible-toolbar__nav bible-toolbar__chapter-nav" title={t('bibleToolbar.chapter')}>

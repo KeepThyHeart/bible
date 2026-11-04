@@ -1,4 +1,5 @@
 import { Store } from './Store';
+import { onServerReachabilityChange } from '../utils/serverReachability';
 import { modulePoints } from '../modules/moduleHost';
 import { CORE_PANE_MODES } from '../modules/host/panes';
 import { eventBus } from '../events/eventBus';
@@ -606,7 +607,8 @@ class CommentaryStore extends Store {
       const data = await this.provider!.getChapterOverview(book, chapter);
       this.chapterOverviewCache.set(key, data);
     } catch {
-      // silent failure
+      // Not fetched, so not "done": let the next call (e.g. after reconnecting) retry.
+      if (this._chapterOverviewKey === key) this._chapterOverviewKey = '';
     } finally {
       this._chapterOverviewPromise = null;
     }
@@ -872,6 +874,26 @@ class CommentaryStore extends Store {
       this.saveSession();
       this.notify();
     }
+  }
+
+  /**
+   * The server is reachable again after a spell of being unreachable: reload
+   * the synced chapter's commentary. What failed while offline was never
+   * cached, but the views are showing empty/offline states and nothing else
+   * would ask again until the reader moved.
+   */
+  refreshAfterReconnect(): void {
+    const book = this.syncedBook;
+    const chapter = this.syncedChapter;
+    if (!book || !chapter) return;
+    // homeDataKey is `${book}-${chapter}-${verse}`; keep the verse it was for.
+    const verseText = this.homeDataKey.split('-')[2];
+    const verse = verseText ? Number(verseText) : undefined;
+    this.syncedBook = null;
+    this.syncedChapter = null;
+    void this._loadChapter(book, chapter).then(() => {
+      void this.loadHomeData(book, chapter, verse);
+    });
   }
 
   async loadForChapter(book: number, chapter: number): Promise<void> {
@@ -1516,3 +1538,8 @@ class CommentaryStore extends Store {
 }
 
 export const commentaryStore = new CommentaryStore();
+
+// Coming back from unreachable: refetch what the offline spell left empty.
+onServerReachabilityChange((reachable) => {
+  if (reachable) commentaryStore.refreshAfterReconnect();
+});

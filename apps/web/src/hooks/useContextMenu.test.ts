@@ -27,6 +27,7 @@ vi.mock('../stores/bibleStore', () => ({
       return adoptPreviewAsStudy;
     },
     getActiveTab: () => ({ moduleAbbr: 'KJV' }),
+    getSelectedRange: () => null,
   },
 }));
 

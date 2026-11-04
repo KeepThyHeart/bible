@@ -6,6 +6,7 @@ import { settingsStore } from '../stores/settingsStore';
 import { offlineStore } from '../stores/offlineStore';
 import { useStore } from '../hooks/useStore';
 import { useLocalizer } from '../hooks/useLocalizer';
+import { useModalFocus } from '../hooks/useModalFocus';
 import { focusSearchField } from '../utils/focusSearchField';
 import { AppSwitchSlot } from '../host/AppSwitchSlot';
 import { PaneHeaderButtons } from '../host/PaneHeaderButtons';
@@ -39,6 +40,8 @@ export function Header({ onSettingsClick, onHelpClick, onFeedbackClick, onLogoCl
   const [showSearchTypeDropdown, setShowSearchTypeDropdown] = useState(false);
   const [showIdeasHelp, setShowIdeasHelp] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const themeDialogRef = useRef<HTMLDivElement>(null);
+  useModalFocus(showThemeDropdown, themeDialogRef);
 
   const searchType = useStore(searchStore, () => searchStore.searchType);
   const searchQuery = useStore(searchStore, () => searchStore.query);
@@ -46,6 +49,10 @@ export function Header({ onSettingsClick, onHelpClick, onFeedbackClick, onLogoCl
   const offlineEnabled = useStore(offlineStore, () => offlineStore.enabled);
   const localizer = useLocalizer();
   const bookAliases = useMemo(() => headerBookAliases(localizer), [localizer]);
+  const isStandalone = useMemo(
+    () => typeof window !== 'undefined' && !!window.matchMedia?.('(display-mode: standalone)').matches,
+    [],
+  );
 
   // Sync search box when a search is performed externally (e.g., Strong's click)
   useEffect(() => {
@@ -151,6 +158,7 @@ export function Header({ onSettingsClick, onHelpClick, onFeedbackClick, onLogoCl
     { value: 'arctic', label: 'themes.arctic', icon: 'fa-palette' },
     { value: 'autumn', label: 'themes.autumn', icon: 'fa-palette' },
     { value: 'lagoon', label: 'themes.lagoon', icon: 'fa-palette' },
+    { value: 'high-contrast', label: 'themes.high-contrast', icon: 'fa-palette' },
   ] as const;
 
   return (
@@ -165,7 +173,7 @@ export function Header({ onSettingsClick, onHelpClick, onFeedbackClick, onLogoCl
           <span class="header__wordmark-tagline">{t('app.tagline')}</span>
         </span>
       </div>
-      <form class="header__search" onSubmit={handleSubmit} action="javascript:void(0)">
+      <form class="header__search" onSubmit={handleSubmit}>
         <div class="header__search-type-wrapper">
           <button
             type="button"
@@ -271,15 +279,19 @@ export function Header({ onSettingsClick, onHelpClick, onFeedbackClick, onLogoCl
             )}
           </div>
         )}
+        {/* Go to Passage lives inside the field as its trailing button: the
+            field already takes references, so the picker is the same job
+            done by browsing instead of typing. */}
+        <button
+          type="button"
+          class="header__toc-btn"
+          onClick={() => bibleStore.openBookPicker()}
+          title={t('bookChapterPicker.goToPassage')}
+          aria-label={t('bookChapterPicker.goToPassage')}
+        >
+          <i class="fa-solid fa-book-open" />
+        </button>
       </form>
-      <button
-        type="button"
-        class="header__toc-btn"
-        onClick={() => bibleStore.openBookPicker()}
-        title={t('header.toc')}
-      >
-        <i class="fa-solid fa-list" />
-      </button>
       <div class="header__actions">
         {/* The app switcher: the wide-screen rail covers it, so this shows on phones and when the rail is off. */}
         <AppSwitchSlot className="header__action-btn header__app-switch" />
@@ -289,13 +301,15 @@ export function Header({ onSettingsClick, onHelpClick, onFeedbackClick, onLogoCl
             <span class="header__offline-dot" />
           </span>
         )}
-        <button
+        {/* A browser tab has its own reload button; only an installed
+            (standalone) app window lacks one. */}
+        {isStandalone && <button
           class="header__action-btn"
           onClick={() => window.location.reload()}
           title={t('header.refresh')}
         >
           <i class="fa-solid fa-rotate-right" />
-        </button>
+        </button>}
         <div class="header__theme-wrapper">
           <button
             class="header__action-btn"
@@ -306,6 +320,10 @@ export function Header({ onSettingsClick, onHelpClick, onFeedbackClick, onLogoCl
           </button>
           {showThemeDropdown && (
             <div class="header__theme-dropdown"
+              ref={themeDialogRef}
+              role="dialog"
+              aria-modal="true"
+              aria-label={t('header.theme')}
               onMouseLeave={() => setShowThemeDropdown(false)}
             >
               {themeOptions.slice(0, 3).map(opt => (

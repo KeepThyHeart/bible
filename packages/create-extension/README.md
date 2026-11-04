@@ -1,5 +1,7 @@
 # @bible/create-extension
 
+> **Experimental.** The extension API and SDK are experimental and **not frozen**: they may change in incompatible ways before a stable release. Pin an exact version and expect to update your extension.
+
 Scaffolds a new Bible app extension project from a single command. It writes a complete, buildable starting point -- manifest, TypeScript config, bundler config, entry point and a passing test -- so a new extension runs in the app without any further setup.
 
 ## Usage

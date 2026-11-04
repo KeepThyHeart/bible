@@ -63,5 +63,6 @@
   "quizPane.kind.application": "التطبيق",
   "quizPane.difficultyBadge.1": "سهلة",
   "quizPane.difficultyBadge.2": "متوسطة",
-  "quizPane.difficultyBadge.3": "صعبة"
+  "quizPane.difficultyBadge.3": "صعبة",
+  "quizPane.endedEarly": "أُنهي مبكرًا: {count} دون إجابة"
 }

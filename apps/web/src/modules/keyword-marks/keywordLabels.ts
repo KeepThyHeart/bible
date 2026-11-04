@@ -6,7 +6,7 @@ export function legendLabels(t: TFunction): Partial<KeywordLegendLabels> {
   const k = (key: string, opts?: Record<string, unknown>) => t(`keywordMarks.${key}`, opts) as string;
   return {
     title: k('title'),
-    toggle: k('toggle'),
+    toggle: k('showMarks'),
     empty: k('empty'),
     count: (count) => k('count', { count }),
     show: (label) => k('show', { label }),

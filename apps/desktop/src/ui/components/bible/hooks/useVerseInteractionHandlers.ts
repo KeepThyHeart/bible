@@ -1,4 +1,5 @@
 import React, { useCallback } from 'react';
+import { requestVerseNote } from '../../notes/UserNotesPane/verseNoteRequest';
 import { BibleVerse as BibleVerseCopy, hasTextSelection, getSelectedVerseIds } from '../../../services/verseCopyService';
 import { useNotesStore } from '../../../stores/useNotesStore';
 import { syncPanesWithVerse } from '../../../stores/syncPanesWithVerse';
@@ -93,7 +94,7 @@ export function useVerseInteractionHandlers(args: {
         requestAnimationFrame(() => {
           try {
             syncAllNotesPanelsWithVerse(verseId);
-            window.dispatchEvent(new CustomEvent('open-verse-note'));
+            requestVerseNote(verseId);
           } catch (error) {
             console.error('Failed to open the verse note:', error);
           }
@@ -124,6 +125,7 @@ export function useVerseInteractionHandlers(args: {
 
     const hasSelection = hasTextSelection();
     let markupId: number | undefined;
+    let markupIds: number[] | undefined;
     // The clicked word, forwarded for keyword marks ("Mark all ...", task 0065).
     let wordIndex: number | undefined;
     let wordText: string | undefined;
@@ -137,7 +139,25 @@ export function useVerseInteractionHandlers(args: {
     if (target.classList?.contains('word') && target.hasAttribute('data-markup-id')) {
       const markupIdStr = target.getAttribute('data-markup-id');
       if (markupIdStr) {
-        markupId = parseInt(markupIdStr, 10);
+        markupIds = markupIdStr.split(',').map((id) => parseInt(id, 10)).filter((id) => !Number.isNaN(id));
+        markupId = markupIds[0];
+        if (markupIds.length === 0) markupIds = undefined;
+      }
+    }
+    // Right-click on the verse number / margin / unmarked word: still offer "Remove"
+    // for any marks inside this verse, so removal does not depend on aiming at marked words.
+    if (markupIds === undefined) {
+      const verseEl = target.closest?.('[data-verse-id]');
+      const ids = new Set<number>();
+      verseEl?.querySelectorAll?.('.word[data-markup-id]').forEach((el: Element) => {
+        for (const part of (el.getAttribute('data-markup-id') ?? '').split(',')) {
+          const n = parseInt(part, 10);
+          if (!Number.isNaN(n)) ids.add(n);
+        }
+      });
+      if (ids.size > 0) {
+        markupIds = [...ids];
+        markupId = markupIds[0];
       }
     }
 
@@ -189,6 +209,7 @@ export function useVerseInteractionHandlers(args: {
       position: { x: event.clientX, y: event.clientY },
       isMultiple,
       markupId,
+      markupIds,
       wordIndex,
       wordText
     });

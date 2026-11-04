@@ -195,6 +195,8 @@ export async function ensureVerseNotesFolder(): Promise<void> {
  */
 export interface NoteRenderResult {
   success: boolean;
+  /** The user cancelled the save or print dialog: nothing happened, and it is not an error. */
+  canceled?: boolean;
   error?: string;
 }
 
@@ -202,7 +204,7 @@ export interface NoteRenderResult {
  * Render the note's standalone HTML document to a PDF the user picks a path
  * for. `html` is the same document `notes:print` is given, so a PDF and a
  * printout of one note are the same page. A cancelled save dialog comes back
- * as `{ success: true }` - nothing was asked for and nothing happened.
+ * as `{ success: false, canceled: true }`.
  */
 export async function exportNotePdf(html: string, defaultName: string): Promise<NoteRenderResult> {
   return window.electron.ipcRenderer.invoke<NoteRenderResult>('notes:export-pdf', html, defaultName);

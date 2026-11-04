@@ -17,7 +17,7 @@
   }
 
   &__title {
-    font-size: calc(13px * var(--ui-font-scale, 1));
+    font-size: calc(0.8125rem * var(--ui-font-scale, 1));
     font-weight: 500;
     color: var(--text-secondary);
   }
@@ -26,7 +26,7 @@
     background: none;
     border: none;
     cursor: pointer;
-    font-size: calc(14px * var(--ui-font-scale, 1));
+    font-size: calc(0.875rem * var(--ui-font-scale, 1));
     color: var(--text-muted);
 
     &:hover {
@@ -77,7 +77,7 @@
     border: none;
     background: transparent;
     color: var(--text-primary);
-    font-size: calc(15px * var(--ui-font-scale, 1));
+    font-size: calc(0.9375rem * var(--ui-font-scale, 1));
     outline: none;
   }
 
@@ -85,9 +85,9 @@
     padding: 10px 14px;
     border: none;
     background: var(--accent-color);
-    color: #fff;
+    color: var(--accent-text, #fff);
     cursor: pointer;
-    font-size: calc(14px * var(--ui-font-scale, 1));
+    font-size: calc(0.875rem * var(--ui-font-scale, 1));
   }
 
   &__mobile-type {
@@ -106,19 +106,19 @@
     border-radius: 6px;
     background: var(--bg-secondary);
     color: var(--text-secondary);
-    font-size: calc(13px * var(--ui-font-scale, 1));
+    font-size: calc(0.8125rem * var(--ui-font-scale, 1));
     cursor: pointer;
     transition: background 0.1s, color 0.1s, border-color 0.1s;
 
     &--active {
       background: var(--accent-color);
-      color: #fff;
+      color: var(--accent-text, #fff);
       border-color: var(--accent-color);
     }
   }
 
   &__mobile-type-hint {
-    font-size: calc(12px * var(--ui-font-scale, 1));
+    font-size: calc(0.75rem * var(--ui-font-scale, 1));
     color: var(--text-muted);
     line-height: 1.4;
     padding: 0 2px;
@@ -135,7 +135,7 @@
   }
 
   &__suggestions-row {
-    font-size: calc(13px * var(--study-font-scale, 1));
+    font-size: calc(0.8125rem * var(--study-font-scale, 1));
     color: var(--text-secondary);
   }
 
@@ -161,7 +161,7 @@
     background: var(--bg-secondary);
     border: 1px solid var(--border-color);
     border-radius: 6px;
-    font-size: calc(12.5px * var(--study-font-scale, 1));
+    font-size: calc(0.8125rem * var(--study-font-scale, 1));
     color: var(--text-secondary);
     line-height: 1.5;
   }
@@ -177,7 +177,7 @@
     border-radius: 6px;
     background: var(--bg-secondary);
     color: var(--text-secondary);
-    font-size: calc(13px * var(--ui-font-scale, 1));
+    font-size: calc(0.8125rem * var(--ui-font-scale, 1));
     cursor: pointer;
     transition: background 0.15s, border-color 0.15s;
 
@@ -210,23 +210,23 @@
 
   &__number {
     font-weight: 700;
-    font-size: calc(14px * var(--ui-font-scale, 1));
+    font-size: calc(0.875rem * var(--ui-font-scale, 1));
     color: var(--accent-color);
   }
 
   &__word {
-    font-size: calc(16px * var(--ui-font-scale, 1));
+    font-size: calc(1rem * var(--ui-font-scale, 1));
     color: var(--text-primary);
   }
 
   &__translit {
-    font-size: calc(13px * var(--ui-font-scale, 1));
+    font-size: calc(0.8125rem * var(--ui-font-scale, 1));
     color: var(--text-secondary);
     font-style: italic;
   }
 
   &__gloss {
-    font-size: calc(13px * var(--ui-font-scale, 1));
+    font-size: calc(0.8125rem * var(--ui-font-scale, 1));
     color: var(--text-secondary);
   }
 
@@ -235,7 +235,7 @@
     padding: 0;
     border: none;
     background: none;
-    font-size: calc(12px * var(--ui-font-scale, 1));
+    font-size: calc(0.75rem * var(--ui-font-scale, 1));
     font-family: inherit;
     color: var(--accent-color);
     text-decoration: underline;
@@ -257,7 +257,7 @@
   }
 
   &__family-label {
-    font-size: calc(12px * var(--ui-font-scale, 1));
+    font-size: calc(0.75rem * var(--ui-font-scale, 1));
     color: var(--text-muted);
     margin-inline-end: 6px;
   }
@@ -278,7 +278,7 @@
     border-radius: 12px;
     background: var(--bg-secondary);
     color: var(--text-secondary);
-    font-size: calc(12px * var(--ui-font-scale, 1));
+    font-size: calc(0.75rem * var(--ui-font-scale, 1));
     cursor: pointer;
     transition: background 0.1s, border-color 0.1s;
 
@@ -290,7 +290,7 @@
   }
 
   &__pill-count {
-    font-size: calc(11px * var(--ui-font-scale, 1));
+    font-size: calc(0.75rem * var(--ui-font-scale, 1));
     color: var(--text-muted);
   }
 
@@ -298,7 +298,7 @@
     display: flex;
     align-items: center;
     gap: 6px;
-    font-size: calc(12.5px * var(--ui-font-scale, 1));
+    font-size: calc(0.8125rem * var(--ui-font-scale, 1));
     color: var(--text-secondary);
     cursor: pointer;
 
@@ -319,6 +319,11 @@
     background: var(--bg-secondary);
   }
 
+  // The divine name (LORD) in small caps, as in the reading pane (B-167).
+  .divine-name {
+    font-variant-caps: small-caps;
+  }
+
   &__ref {
     display: flex;
     align-items: center;
@@ -329,18 +334,18 @@
   &__reference {
     font-weight: 600;
     color: var(--accent-color);
-    font-size: calc(13px * var(--study-font-scale, 1));
+    font-size: calc(0.8125rem * var(--study-font-scale, 1));
   }
 
   &__title {
-    font-size: calc(12.5px * var(--study-font-scale, 1));
+    font-size: calc(0.9375rem * var(--study-font-scale, 1));
     color: var(--text-primary);
     font-weight: 500;
     margin-bottom: 2px;
   }
 
   &__module {
-    font-size: calc(11px * var(--study-font-scale, 1));
+    font-size: calc(0.75rem * var(--study-font-scale, 1));
     color: var(--text-muted);
     background: var(--bg-tertiary);
     padding: 1px 6px;
@@ -348,7 +353,7 @@
   }
 
   &__text {
-    font-size: calc(13px * var(--study-font-scale, 1));
+    font-size: calc(0.9375rem * var(--study-font-scale, 1));
     line-height: 1.5;
     color: var(--text-secondary);
 
@@ -476,7 +481,7 @@
     background: var(--bg-tertiary);
     color: var(--text-primary);
     box-shadow: 0 2px 6px var(--shadow);
-    font-size: calc(11px * var(--ui-font-scale, 1));
+    font-size: calc(0.75rem * var(--ui-font-scale, 1));
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -490,7 +495,7 @@
 
   &__testament {
     min-width: 0;
-    font-size: calc(10px * var(--ui-font-scale, 1));
+    font-size: calc(0.6875rem * var(--ui-font-scale, 1));
     line-height: 1.4;
     color: var(--text-muted);
     text-transform: uppercase;
@@ -502,7 +507,7 @@
 
   &__caption {
     margin-top: 4px;
-    font-size: calc(10.5px * var(--ui-font-scale, 1));
+    font-size: calc(0.75rem * var(--ui-font-scale, 1));
     line-height: 1.45;
     color: var(--text-muted);
   }
@@ -538,7 +543,7 @@
 
   &__label {
     display: block;
-    font-size: calc(12px * var(--study-font-scale, 1));
+    font-size: calc(0.75rem * var(--study-font-scale, 1));
     font-weight: 600;
     color: var(--warn-text);
   }
@@ -546,7 +551,7 @@
   &__hint {
     display: block;
     margin-top: 2px;
-    font-size: calc(11px * var(--study-font-scale, 1));
+    font-size: calc(0.75rem * var(--study-font-scale, 1));
     line-height: 1.45;
     color: var(--text-muted);
   }
@@ -554,7 +559,7 @@
 
 .search-result-item {
   &__match-type {
-    font-size: calc(10.5px * var(--study-font-scale, 1));
+    font-size: calc(0.75rem * var(--study-font-scale, 1));
     padding: 1px 6px;
     border-radius: 3px;
     background: var(--warn-soft);
@@ -579,6 +584,18 @@
       &:hover {
         background: color-mix(in srgb, var(--text-primary) 10%, transparent);
       }
+    }
+  }
+}
+
+// Soft keyboard up on a phone: the viewport shrinks to ~500px, so give the
+// results the room by folding the hint and the distribution chart away while
+// the search box has focus (B-139).
+@media (max-height: 600px) and (pointer: coarse) {
+  .search-panel-inline:has(.search-panel-inline__mobile-input:focus) {
+    .search-panel-inline__mobile-type-hint,
+    .search-distribution {
+      display: none;
     }
   }
 }

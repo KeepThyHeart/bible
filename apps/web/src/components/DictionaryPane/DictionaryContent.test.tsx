@@ -98,6 +98,7 @@ vi.mock('../../stores/dictionaryStore', () => ({
     getTabState: () => mockTabState,
     setTabSearchQuery: (id: string, q: string) => mockSetTabSearchQuery(id, q),
     loadEntryInTab: (id: string, key: string) => mockLoadEntryInTab(id, key),
+    pickTabSuggestion: (id: string, s: { entry_key: string }) => mockLoadEntryInTab(id, s.entry_key),
     clearTabSuggestions: (id: string) => mockClearTabSuggestions(id),
     navigatePrev: (id: string) => mockNavigatePrev(id),
     navigateNext: (id: string) => mockNavigateNext(id),

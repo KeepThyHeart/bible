@@ -5,6 +5,7 @@ import { CopyDialog } from '../Dialogs/CopyDialog';
 import { StrongsPopup } from '../Dialogs/StrongsPopup';
 import { StrongsTooltip } from '../Dialogs/StrongsTooltip';
 import { SemanticSearchLoadingOverlay } from './SemanticSearchLoadingOverlay';
+import { RemoteConsentDialog } from './RemoteConsentDialog';
 import type { StrongsEntryData } from '../../types';
 
 interface DialogLayerProps {
@@ -17,7 +18,7 @@ interface DialogLayerProps {
   setFeedbackOpen: (open: boolean) => void;
   copyOpen: boolean;
   setCopyOpen: (open: boolean) => void;
-  strongsPopup: { entry: StrongsEntryData; position: { top: number; left: number } } | null;
+  strongsPopup: { entry: StrongsEntryData; position: { top: number; left: number }; source?: string } | null;
   setStrongsPopup: (value: null) => void;
   strongsTooltip: { entry: StrongsEntryData; position: { top: number; left: number } } | null;
 }
@@ -54,6 +55,7 @@ export function DialogLayer({
       <StrongsPopup
         entry={strongsPopup?.entry ?? null}
         position={strongsPopup?.position ?? null}
+        hideWordStudy={strongsPopup?.source === 'wordStudy'}
         onClose={() => setStrongsPopup(null)}
       />
       <StrongsTooltip
@@ -61,6 +63,7 @@ export function DialogLayer({
         position={strongsTooltip?.position ?? null}
       />
       <SemanticSearchLoadingOverlay />
+      <RemoteConsentDialog />
     </>
   );
 }

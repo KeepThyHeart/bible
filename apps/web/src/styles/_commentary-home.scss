@@ -18,7 +18,7 @@
     border-radius: 6px;
     background: var(--bg-secondary);
     color: var(--text-primary);
-    font-size: calc(13px * var(--ui-font-scale, 1));
+    font-size: calc(0.875rem * var(--ui-font-scale, 1));
     outline: none;
     box-sizing: border-box;
 
@@ -39,7 +39,7 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    font-size: calc(13px * var(--ui-font-scale, 1));
+    font-size: calc(0.8125rem * var(--ui-font-scale, 1));
     font-weight: 600;
     color: var(--text-secondary);
     margin-bottom: 12px;
@@ -48,7 +48,7 @@
 
     i {
       color: var(--accent-color);
-      font-size: calc(12px * var(--ui-font-scale, 1));
+      font-size: calc(0.75rem * var(--ui-font-scale, 1));
     }
   }
 
@@ -67,7 +67,7 @@
     border-radius: 6px;
     cursor: pointer;
     color: var(--text-secondary);
-    font-size: calc(12px * var(--ui-font-scale, 1));
+    font-size: calc(0.8125rem * var(--ui-font-scale, 1));
     padding: 5px 8px;
     white-space: nowrap;
 
@@ -78,7 +78,7 @@
   }
 
   &__sort-label {
-    font-size: calc(12px * var(--ui-font-scale, 1));
+    font-size: calc(0.75rem * var(--ui-font-scale, 1));
   }
 
   &__sort-menu {
@@ -103,7 +103,7 @@
     border: none;
     cursor: pointer;
     color: var(--text-secondary);
-    font-size: calc(12px * var(--ui-font-scale, 1));
+    font-size: calc(0.8125rem * var(--ui-font-scale, 1));
     padding: 6px 12px;
     text-align: start;
 
@@ -141,7 +141,7 @@
 
   &__item-module {
     font-weight: 600;
-    font-size: calc(13px * var(--ui-font-scale, 1));
+    font-size: calc(0.9375rem * var(--study-font-scale, 1));
     color: var(--accent-color);
     white-space: nowrap;
   }
@@ -160,13 +160,13 @@
   }
 
   &__item-name {
-    font-size: calc(12px * var(--ui-font-scale, 1));
+    font-size: calc(0.8125rem * var(--study-font-scale, 1));
     color: var(--text-secondary);
     flex: 1;
   }
 
   &__item-words {
-    font-size: calc(11px * var(--ui-font-scale, 1));
+    font-size: calc(0.75rem * var(--study-font-scale, 1));
     color: var(--text-muted);
     white-space: nowrap;
     margin-inline-start: auto;
@@ -214,7 +214,7 @@
     border-radius: 4px;
     color: var(--accent-color);
     cursor: pointer;
-    font-size: calc(11px * var(--ui-font-scale, 1));
+    font-size: calc(0.75rem * var(--ui-font-scale, 1));
     padding: 3px 8px;
 
     &:hover:not(:disabled) {
@@ -232,21 +232,35 @@
   &__inline-loading {
     padding: 12px 0;
     color: var(--text-muted);
-    font-size: calc(12px * var(--ui-font-scale, 1));
+    font-size: calc(0.75rem * var(--ui-font-scale, 1));
   }
 
   &__inline-empty {
     padding: 12px 0;
     color: var(--text-muted);
-    font-size: calc(12px * var(--ui-font-scale, 1));
+    font-size: calc(0.75rem * var(--ui-font-scale, 1));
     font-style: italic;
   }
 
   &__inline-content .commentary-entry__ref {
     color: var(--accent-secondary);
-    font-size: calc(12px * var(--ui-font-scale, 1));
+    font-size: calc(0.75rem * var(--study-font-scale, 1));
     font-weight: 600;
   }
 }
 
 // ============================================================
+
+// Installed commentaries with nothing on this passage: a plain bulleted list,
+// so the Overview's membership does not seem to change at random.
+.commentary-home__no-content-list {
+  list-style: disc;
+  margin: 0;
+  padding-inline-start: 1.5em;
+  color: var(--text-secondary);
+  font-size: calc(0.9375rem * var(--study-font-scale, 1));
+}
+
+.commentary-home__no-content-item {
+  padding-block: 2px;
+}

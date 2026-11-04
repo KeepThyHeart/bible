@@ -101,6 +101,11 @@ export const ALLOWED_IPC_CHANNELS = [
   'search:getBookIndexStatus',
   'search:semanticAvailable',
   'search:semanticSearch',
+  // Online meaning search (bibsearch), called from the main process only; task 0190.
+  'search:semanticSearchEx',
+  'remoteSemantic:getStatus',
+  'remoteSemantic:setConsent',
+  'remoteSemantic:setSource',
   // Backup/Restore channels
   'backup:create',
   'backup:exportPlain',
@@ -139,6 +144,8 @@ export const ALLOWED_IPC_CHANNELS = [
   // they share, not in fileNotesHandlers.
   'notes:print',
   'notes:export-pdf',
+  // Native save dialog for a text file the renderer built (.ics, keyword sets).
+  'app:save-text-file',
   // App-shell commands invoked by command handlers (about dialog,
   // dev tools toggle, zoom, external links). Routed through
   // ipcRenderer.invoke so they share the existing whitelist.
@@ -319,6 +326,11 @@ export const TYPED_IPC_CHANNELS = [
   'module:get-starter-packs',
   'module:get-starter-pack-modules',
   'module:install',
+  'module:install-start',
+  'module:install-jobs',
+  'module:install-cancel',
+  'module:install-retry',
+  'module:install-dismiss',
   'module:install-from-file',
   'module:install-from-path',
   'module:install-pack-from-path',
@@ -347,6 +359,7 @@ export const TYPED_IPC_CHANNELS = [
   'assets:cancel',
   'assets:remove',
   'assets:refresh',
+  'assets:read',
   // Download management
   'download:get-progress',
   'download:get-active',

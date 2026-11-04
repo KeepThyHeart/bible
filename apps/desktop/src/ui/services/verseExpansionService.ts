@@ -276,6 +276,7 @@ export function buildVerseContext(verses: CachedVerse[], translation: string): V
     bookName: getLocalizedReferenceParser().getBookName(first.book_number),
     chapter: first.chapter,
     translation,
+    bookNameFor: (book: number) => getLocalizedReferenceParser().getBookName(book),
   };
 }
 

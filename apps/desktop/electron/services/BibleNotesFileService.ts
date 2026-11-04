@@ -1,5 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
+import * as crypto from 'crypto';
 import { app, shell } from 'electron';
 import log from 'electron-log';
 import { NOTES_BACKUP_INTERVAL_MS } from '../config/constants';
@@ -53,6 +54,18 @@ export class NoteConflictError extends Error {
 }
 
 /**
+ * Thrown when a save names a baseline (`expectedUpdated`) but the file is no
+ * longer there: it was renamed, moved or trashed since the editor loaded it.
+ * Writing anyway would silently re-create the old note next to the renamed one.
+ */
+export class NoteMissingError extends Error {
+  constructor(readonly missingPath: string) {
+    super('Note was renamed, moved or deleted since it was opened');
+    this.name = 'NoteMissingError';
+  }
+}
+
+/**
  * Service for managing .bn (Bible Notes) files on the filesystem.
  * Handles read/write, .bak backup history, directory listing, and OS integration.
  */
@@ -63,10 +76,12 @@ export class BibleNotesFileService {
     this.notesDir = notesDir || this.getDefaultNotesDir();
   }
 
-  /** Get the default notes directory: ~/Documents/BibleReader/ */
+  /** Get the default notes directory: ~/Documents/BibleReader/ (or <ELECTRON_USER_DATA>/BibleReader/) */
   getDefaultNotesDir(): string {
-    const documentsDir = app.getPath('documents');
-    return path.join(documentsDir, 'BibleReader');
+    // A profile pointed at a separate user-data dir (tests, QA) keeps its notes there
+    // rather than in the real user's Documents folder.
+    const base = process.env.ELECTRON_USER_DATA || app.getPath('documents');
+    return path.join(base, 'BibleReader');
   }
 
   /** Get the currently configured notes directory */
@@ -200,9 +215,26 @@ export class BibleNotesFileService {
    * Read a .bn file by absolute path
    */
   readNoteAbsolute(absolutePath: string): BnFile | null {
+    return this.readNoteTracked(absolutePath, true);
+  }
+
+  /**
+   * Content fingerprint of every note as this service last read (to open) or
+   * wrote it. A save compares the file on disk against it, so an edit made
+   * outside the app (Dropbox, a text editor) to a note that is open is
+   * detected as a conflict even though it did not change `updated` (B-081).
+   */
+  private readonly knownHash = new Map<string, string>();
+
+  private static hashOf(raw: string): string {
+    return crypto.createHash('sha1').update(raw).digest('hex');
+  }
+
+  private readNoteTracked(absolutePath: string, track: boolean): BnFile | null {
     try {
       if (!fs.existsSync(absolutePath)) return null;
       const raw = fs.readFileSync(absolutePath, 'utf-8');
+      if (track) this.knownHash.set(absolutePath, BibleNotesFileService.hashOf(raw));
       return JSON.parse(raw) as BnFile;
     } catch (err) {
       log.error(`Failed to read .bn file at ${absolutePath}:`, err);
@@ -249,7 +281,8 @@ export class BibleNotesFileService {
     // Sort: directories first, then files, alphabetically within each group
     result.sort((a, b) => {
       if (a.isDirectory !== b.isDirectory) return a.isDirectory ? -1 : 1;
-      return a.name.localeCompare(b.name);
+      // Natural order: 6:9 before 6:19, chapter 6 before 13.
+      return a.name.localeCompare(b.name, undefined, { numeric: true });
     });
 
     return result;
@@ -283,6 +316,20 @@ export class BibleNotesFileService {
     }
 
     fs.renameSync(oldFull, newFull);
+
+    // Renaming a note file renames the note: keep the stored title in step so
+    // Recent, exports and other readers do not show the old name. A move to
+    // another folder (same file name) leaves the title alone, and `updated`
+    // is kept so another window's conflict baseline stays valid.
+    const oldBase = path.basename(oldFull);
+    const newBase = path.basename(newFull);
+    if (oldBase !== newBase && newBase.endsWith('.bn') && fs.statSync(newFull).isFile()) {
+      const note = this.readNoteTracked(newFull, false);
+      if (note) {
+        note.title = newBase.replace(/\.bn$/, '');
+        this.atomicWrite(newFull, JSON.stringify(note));
+      }
+    }
 
     // Also rename .bak file if it exists
     const oldBak = oldFull + '.bak';
@@ -383,7 +430,7 @@ export class BibleNotesFileService {
 
     // If note already exists, read and return it
     if (fs.existsSync(fullPath)) {
-      const existing = this.readNoteAbsolute(fullPath);
+      const existing = this.readNoteTracked(fullPath, false);
       if (existing) return { note: existing, relativePath };
     }
 
@@ -458,14 +505,24 @@ export class BibleNotesFileService {
    */
   private assertNoConflict(fullPath: string, expectedUpdated: string | undefined): void {
     if (expectedUpdated === undefined) return;
-    if (!fs.existsSync(fullPath)) return;
+    // A baseline means "I loaded this file": if it is gone it was renamed,
+    // moved or trashed, and saving must not bring it back.
+    if (!fs.existsSync(fullPath)) throw new NoteMissingError(fullPath);
 
-    const onDisk = this.readNoteAbsolute(fullPath);
+    const onDisk = this.readNoteTracked(fullPath, false);
     // If the file can't be parsed, don't block the save - atomic writes make a
     // truncated read unlikely, and refusing to save an unreadable file would
     // strand the user's edits.
     if (onDisk && onDisk.updated !== expectedUpdated) {
       throw new NoteConflictError(onDisk.updated, expectedUpdated);
+    }
+    // Same `updated` but different bytes than we last saw: edited outside the app.
+    const known = this.knownHash.get(fullPath);
+    if (onDisk && known !== undefined) {
+      const raw = fs.readFileSync(fullPath, 'utf-8');
+      if (BibleNotesFileService.hashOf(raw) !== known) {
+        throw new NoteConflictError(onDisk.updated, expectedUpdated);
+      }
     }
   }
 
@@ -566,5 +623,6 @@ export class BibleNotesFileService {
       fs.closeSync(fd);
     }
     fs.renameSync(tmpPath, fullPath);
+    this.knownHash.set(fullPath, BibleNotesFileService.hashOf(data));
   }
 }

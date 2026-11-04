@@ -3,6 +3,7 @@ import { VerseIdHelper } from '@bible/core';
 import { setExtraReferenceLocales } from '../../../services/localizedReferenceParser';
 import { bibleAPI } from '../../../services/electronAPI';
 import { pickDefaultBible } from '../../../../../electron/ipc/defaultBible';
+import { encodeBibleContentKey } from '../contentKey';
 import { DEFAULT_PANEL_ID, updatePanelState } from '../../helpers/panelStateHelpers';
 import { useLayoutStore } from '../../useLayoutStore';
 import {
@@ -268,6 +269,34 @@ export const createSharedSlice: StateCreator<BibleState, [], [], SharedSlice> = 
     // clicked into the Bible pane).
     const layoutState = useLayoutStore.getState(); // allow-getstate: store action - reads latest layout focus tracking, not a render
     const lastActiveBibleId = layoutState.lastActiveBiblePanelId;
+
+    // An empty New Tab is the pane the reader is looking at: open the passage in it, as the New Tab
+    // page's own input does, instead of overwriting the first Bible pane (B-056).
+    const activeId = layoutState.activePanelId;
+    if (activeId && layoutState.panels.get(activeId)?.contentType === 'newtab' && layoutState.dockviewApi) {
+      const abbreviation = get().getDefaultBible();
+      const newTab = layoutState.dockviewApi.getPanel(activeId);
+      if (abbreviation && newTab) {
+        const { bookNumber, chapter } = VerseIdHelper.parse(verseId);
+        const bookName = await bibleAPI.getBookName(bookNumber);
+        const index = newTab.group.panels.indexOf(newTab);
+        const createdId = layoutState.addPanel(
+          'bible',
+          encodeBibleContentKey({ abbreviation, book: bookNumber, chapter, selectedVerseId: verseId }),
+          `${bookName} ${chapter}`,
+          { referenceGroup: newTab.group, direction: 'within', ...(index >= 0 ? { index } : {}) },
+          abbreviation,
+        );
+        if (createdId) {
+          newTab.api.close();
+          if (endVerseId !== undefined && endVerseId !== verseId) {
+            await new Promise(resolve => setTimeout(resolve, 50)); // let the new pane initialise its store state
+            get().extendSelectionTo(createdId, endVerseId);
+          }
+          return;
+        }
+      }
+    }
 
     let targetPanelId: string;
     if (lastActiveBibleId && panels.has(lastActiveBibleId)) {

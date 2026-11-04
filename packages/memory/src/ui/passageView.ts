@@ -35,17 +35,17 @@ import {
   levelBoxes,
   modal,
   suggestedBadge,
-  tabs,
-  tierPips,
 } from './components';
-import { RUNG_BLURB, RUNG_LABEL, countLabel, formatDue, formatScore, inLadderOrder, isDue, suggestedRungFor } from './format';
+import { RUNG_BLURB, RUNG_LABEL, formatDue, formatLastPractised, formatScore, inLadderOrder, isDue, suggestedRungFor } from './format';
 import type { PanelHost } from './host';
+import { reciteEnabled } from '../core/features';
 import { startReciteRun } from './activities';
-import { availabilityBanner, availabilityMessage, permissionSettingsButton } from './settingsView';
+import { availabilityBanner, availabilityMessage } from './settingsView';
+import { tr } from './i18n';
 
 /** Tab/row label: recite is marked optional so nobody thinks it is required. */
 export function rungTabLabel(rv: RungView): string {
-  return rv.optional === true || rv.rung === 'recite' ? `${RUNG_LABEL[rv.rung]} (optional)` : RUNG_LABEL[rv.rung];
+  return rv.optional === true || rv.rung === 'recite' ? tr('memory.ui.plan.rungOptional', '{rung} (optional)', { rung: RUNG_LABEL[rv.rung] }) : RUNG_LABEL[rv.rung];
 }
 
 /**
@@ -60,11 +60,10 @@ export function renderPassageScreen(
   pv: PassageView,
   defaultAnswerMode: AnswerMode,
   /**
-   * Which activity tab is showing: `state.ts#View`'s `rung`; `null` means the
-   * suggested one (`suggestedRungFor`). Defaults to `null` for callers with no
-   * view state.
+   * Kept for the view state's sake (`state.ts#View`'s `rung`); the screen no
+   * longer has activity tabs, so it is unused.
    */
-  viewRung: Rung | null = null,
+  _viewRung: Rung | null = null,
   /** Speech availability (`SettingsView.speech`); omitted means unknown, which disables Recite. */
   speech: SpeechAvailability | null = null,
 ): HTMLElement {
@@ -73,14 +72,14 @@ export function renderPassageScreen(
 
   const settingsToggle = button('⚙', () => openSettingsModal(host, pv, defaultAnswerMode), {
     class: 'sm-btn sm-btn-quiet sm-btn-small sm-icon-btn',
-    attrs: { 'aria-label': 'Passage settings', title: 'Passage settings' },
+    attrs: { 'aria-label': tr('memory.ui.plan.passageSettings', 'Passage settings'), title: tr('memory.ui.plan.passageSettings', 'Passage settings') },
   });
 
   root.appendChild(
     breadcrumb({
-      crumbs: [{ label: 'Home', onClick: () => host.go({ type: 'goPlan' }) }, { label: pv.passage.reference }],
+      crumbs: [{ label: tr('memory.ui.plan.home', 'Home'), onClick: () => host.go({ type: 'goPlan' }) }, { label: pv.passage.reference }],
       actions: [
-        button('Show in Bible', () => host.openInBible(pv.passage.startVerseId), {
+        button(tr('memory.ui.plan.showInBible', 'Show in Bible'), () => host.openInBible(pv.passage.startVerseId), {
           class: 'sm-btn sm-btn-quiet sm-btn-small',
         }),
         settingsToggle,
@@ -90,9 +89,9 @@ export function renderPassageScreen(
 
   root.appendChild(
     el('p', { class: 'sm-subhead' }, [
-      el('span', { text: countLabel(pv.passage.verseCount, 'verse') }),
+      el('span', { text: tr('memory.ui.plan.verseCount', '{count, plural, one {# verse} other {# verses}}', { count: pv.passage.verseCount }) }),
       pv.wellLearned
-        ? el('span', { class: 'sm-badge sm-badge-learned', text: 'Well learned' })
+        ? el('span', { class: 'sm-badge sm-badge-learned', text: tr('memory.ui.plan.wellLearned', 'Well learned') })
         : null,
     ]),
   );
@@ -102,43 +101,14 @@ export function renderPassageScreen(
   const practiceLink = renderPracticeLink(host, pv, suggested);
   if (practiceLink) root.appendChild(practiceLink);
 
-  const applicable = inLadderOrder(pv.rungs).filter((rv) => rv.applicable);
-  if (applicable.length > 0) {
-    // An explicit tab wins; otherwise the suggested one. A stale `viewRung`
-    // naming a rung that is no longer applicable falls back to the first tab.
-    const active = applicable.find((rv) => rv.rung === (viewRung ?? suggested)) ?? applicable[0]!;
-
-    root.appendChild(
-      tabs({
-        items: applicable.map((rv) => ({ value: rv.rung, label: rungTabLabel(rv) })),
-        selected: active.rung,
-        onSelect: (rung) => host.go({ type: 'goPassage', passageId: pv.passage.id, rung }),
-        ariaLabel: 'Activity',
-      }),
-    );
-
-    root.appendChild(el('div', { class: 'sm-activities' }, [renderActivityDetail(host, pv, active, suggested === active.rung, now, speech)]));
-  }
-
-  for (const rv of inLadderOrder(pv.rungs).filter((r) => !r.applicable)) {
-    if (rv.rung === 'recite') {
-      // Optional and hidden when unavailable; say why only when speech itself is the reason.
-      const why = speech ? availabilityMessage(speech) : null;
-      if (why) {
-        root.appendChild(
-          el('p', { class: 'sm-activity-blurb' }, [el('strong', { text: rungTabLabel(rv) }), `: ${why}`]),
-        );
-        const action = speech ? permissionSettingsButton(host, speech) : null;
-        if (action) root.appendChild(action);
-      }
-      continue;
-    }
-    root.appendChild(
-      el('p', { class: 'sm-activity-blurb' }, [
-        el('strong', { text: RUNG_LABEL[rv.rung] }),
-        `: ${inapplicabilityNote(rv.rung)}`,
-      ]),
-    );
+  // One table for the whole passage: a row per practice type, so progress is
+  // readable at a glance and every row starts that practice. (This replaced a
+  // strip of one tab per activity, which hid all but one activity's progress.)
+  const rungs = inLadderOrder(pv.rungs).filter((rv) => rv.rung !== 'recite' || reciteEnabled());
+  if (rungs.length > 0) {
+    root.appendChild(renderProgressTable(host, pv, rungs, suggested, now, speech));
+    const recite = rungs.find((rv) => rv.rung === 'recite');
+    if (recite) root.appendChild(renderReciteExtras(host, pv, speech));
   }
 
   return root;
@@ -163,95 +133,160 @@ export function renderPassageScreen(
 function renderPracticeLink(host: PanelHost, pv: PassageView, suggested: Rung | null): HTMLElement | null {
   if (suggested === null) return null; // No applicable activity at all - unreachable in practice.
 
-  return button('Practice Passage', () => void host.startSession(pv.passage.id, suggested), {
+  return button(tr('memory.ui.plan.practicePassage', 'Practice Passage'), () => void host.startSession(pv.passage.id, suggested), {
     class: 'sm-btn sm-btn-quiet sm-passage-practice-link',
   });
 }
 
 // ---------------------------------------------------------------------------
-// The selected activity's panel
+// The progress table
 // ---------------------------------------------------------------------------
 
 /**
- * What the progress cell reads: nothing for an untried activity (the empty
- * level boxes already say so), `stepsDone/totalSteps` when paused, otherwise
- * the due date plus the last score when one exists.
+ * What the progress cell says beside the level boxes: where a paused activity
+ * stands, otherwise the last score.
  */
-function progressText(rv: RungView, now: number): string {
-  if (rv.resume) return `${rv.resume.stepsDone}/${rv.resume.totalSteps}`;
-  if (rv.attempts === 0) return '';
-  const parts = [formatDue(rv.dueAt, now)];
-  if (rv.lastScore !== null) parts.push(`Last score ${formatScore(rv.lastScore)}`);
-  return parts.join(' · ');
+function progressText(rv: RungView): string {
+  if (rv.resume) return tr('memory.ui.plan.pausedAt', 'Paused at {done}/{total}', { done: rv.resume.stepsDone, total: rv.resume.totalSteps });
+  if (rv.attempts === 0 || rv.lastScore === null) return '';
+  return tr('memory.ui.plan.lastScore', 'Last score {score}', { score: formatScore(rv.lastScore) });
 }
 
 /**
- * The selected tab's activity: name, suggested badge, tier pips, level boxes,
- * progress text / schedule, and the Practice (or Restart + Resume) actions.
- * Only applicable activities get a tab; inapplicable ones are explained in
- * one line each below the panel.
+ * The passage's progress table: rows are the practice types, columns are
+ * Progress (level boxes plus a short note), Last practised and Next due, and
+ * each row ends in the button that starts that practice. Activities that do
+ * not apply stay in the table, muted, with the reason in place of the buttons.
  */
-function renderActivityDetail(
+function renderProgressTable(
+  host: PanelHost,
+  pv: PassageView,
+  rungs: RungView[],
+  suggested: Rung | null,
+  now: number,
+  speech: SpeechAvailability | null,
+): HTMLElement {
+  const head = el('tr', {}, [
+    th(tr('memory.ui.plan.colPractice', 'Practice')),
+    th(tr('memory.ui.plan.colProgress', 'Progress')),
+    th(tr('memory.ui.plan.colLastPractised', 'Last practised')),
+    th(tr('memory.ui.plan.colNextDue', 'Next due')),
+    el('th', { class: 'kth-table__head', attrs: { scope: 'col' } }, [
+      el('span', { class: 'kth-visually-hidden', text: tr('memory.ui.plan.colAction', 'Start') }),
+    ]),
+  ]);
+
+  const body = rungs.map((rv) => renderProgressRow(host, pv, rv, rv.rung === suggested, now, speech));
+
+  return el('div', { class: 'sm-progress-wrap' }, [
+    el('table', { class: 'kth-table sm-progress-table' }, [
+      el('caption', {
+        class: 'kth-visually-hidden',
+        text: tr('memory.ui.plan.progressCaption', 'Practice progress for {reference}', { reference: pv.passage.reference }),
+      }),
+      el('thead', {}, [head]),
+      el('tbody', {}, body),
+    ]),
+  ]);
+}
+
+function mutedAttr(muted: boolean): Record<string, string> {
+  return muted ? { 'data-muted': '' } : {};
+}
+
+function th(text: string): HTMLElement {
+  return el('th', { class: 'kth-table__head', text, attrs: { scope: 'col' } });
+}
+
+function renderProgressRow(
   host: PanelHost,
   pv: PassageView,
   rv: RungView,
   isSuggested: boolean,
   now: number,
-  speech: SpeechAvailability | null = null,
+  speech: SpeechAvailability | null,
 ): HTMLElement {
-  if (rv.rung === 'recite') return renderReciteDetail(host, pv, rv, now, speech);
   const due = isDue(rv, now);
-  const classes = ['sm-activity-card'];
-  if (due) classes.push('sm-activity-due');
+  const muted = !rv.applicable && rv.rung !== 'recite';
+  const label = rv.rung === 'recite' ? rungTabLabel(rv) : RUNG_LABEL[rv.rung];
 
-  const header = el('div', { class: 'sm-activity-card-head' }, [
-    isSuggested ? suggestedBadge() : null,
-    tierPips(rv.tiersPassed, rv.tiers),
+  const name = el('td', { class: 'kth-table__cell sm-progress-name', attrs: mutedAttr(muted) }, [
+    el('div', { class: 'sm-progress-title' }, [el('strong', { text: label }), isSuggested ? suggestedBadge() : null]),
+    el('div', { class: 'sm-progress-blurb', text: RUNG_BLURB[rv.rung] }),
   ]);
 
-  const level = el('div', { class: 'sm-activity-level-row' }, [
-    levelBoxes(rv.level, { due }),
-    rv.level === 0 ? null : el('span', { class: 'sm-activity-level-text', text: `${rv.level}/5` }),
+  if (muted) {
+    return el('tr', { class: 'sm-progress-row sm-progress-row-na' }, [
+      name,
+      el('td', { class: 'kth-table__cell', attrs: { colspan: '3', 'data-muted': '' }, text: inapplicabilityNote(rv.rung) }),
+      el('td', { class: 'kth-table__cell' }),
+    ]);
+  }
+
+  const note = progressText(rv);
+  const progress = el('td', { class: 'kth-table__cell' }, [
+    el('div', { class: 'sm-activity-level-row' }, [
+      levelBoxes(rv.level, { due }),
+      rv.level === 0 ? null : el('span', { class: 'sm-activity-level-text', text: `${rv.level}/5` }),
+    ]),
+    note === '' ? null : el('div', { class: 'sm-progress-note', text: note }),
   ]);
 
-  const progress = progressText(rv, now);
-  const actions = rv.resume
-    ? el('div', { class: 'sm-activity-actions' }, [
-        button('Restart', () => void host.startSession(pv.passage.id, rv.rung, true), {
-          class: 'sm-btn sm-btn-small sm-btn-quiet',
-        }),
-        button('Resume', () => void host.startSession(pv.passage.id, rv.rung), {
-          class: 'sm-btn sm-btn-small sm-btn-primary',
-        }),
-      ])
-    : el('div', { class: 'sm-activity-actions' }, [
-        button('Practice', () => void host.startSession(pv.passage.id, rv.rung), {
-          class: 'sm-btn sm-btn-small sm-btn-primary',
-        }),
-      ]);
+  const reciteReady = rv.rung !== 'recite' || (speech !== null && speech.state === 'ready');
+  const startLabel = tr('memory.ui.plan.practice', 'Practice');
+  const aria = (verb: string): Record<string, string> => ({ 'aria-label': `${verb}: ${label}` });
 
-  return el('div', { class: classes.join(' ') }, [
-    header,
-    level,
-    el('p', { class: 'sm-activity-row-progress', text: progress }),
-    actions,
+  let actions: HTMLElement;
+  if (rv.rung === 'recite') {
+    actions = el('div', { class: 'sm-activity-actions' }, [
+      button(tr('memory.ui.plan.recite', 'Recite'), () => void startReciteRun(host, { kind: 'passage', passageId: pv.passage.id }, 'tap'), {
+        class: 'sm-btn sm-btn-small',
+        disabled: !reciteReady,
+        attrs: aria(tr('memory.ui.plan.recite', 'Recite')),
+      }),
+      button(tr('memory.ui.plan.reciteHandsFree', 'Hands-free'), () => void startReciteRun(host, { kind: 'passage', passageId: pv.passage.id }, 'handsfree'), {
+        class: 'sm-btn sm-btn-small',
+        disabled: !reciteReady || !speech?.handsFree,
+        attrs: { ...aria(tr('memory.ui.plan.reciteHandsFree', 'Hands-free')), 'data-testid': 'recite-handsfree', title: !speech?.handsFree && reciteReady ? tr('memory.ui.plan.reciteHandsFreeNoVoice', 'Hands-free needs the app to be able to speak, and no text-to-speech voice is available on this computer.') : tr('memory.ui.plan.reciteHandsFreeHint', 'Speak and listen without touching the screen') },
+      }),
+    ]);
+  } else if (rv.resume) {
+    actions = el('div', { class: 'sm-activity-actions' }, [
+      button(tr('memory.ui.plan.restart', 'Restart'), () => void host.startSession(pv.passage.id, rv.rung, true), {
+        class: 'sm-btn sm-btn-small sm-btn-quiet',
+        attrs: aria(tr('memory.ui.plan.restart', 'Restart')),
+      }),
+      button(tr('memory.ui.plan.resume', 'Resume'), () => void host.startSession(pv.passage.id, rv.rung), {
+        class: 'sm-btn sm-btn-small sm-btn-primary',
+        attrs: aria(tr('memory.ui.plan.resume', 'Resume')),
+      }),
+    ]);
+  } else {
+    actions = el('div', { class: 'sm-activity-actions' }, [
+      button(startLabel, () => void host.startSession(pv.passage.id, rv.rung), {
+        class: `sm-btn sm-btn-small${isSuggested || due ? ' sm-btn-primary' : ''}`,
+        attrs: aria(startLabel),
+      }),
+    ]);
+  }
+
+  return el('tr', { class: `sm-progress-row${due ? ' sm-activity-due' : ''}` }, [
+    name,
+    progress,
+    el('td', { class: 'kth-table__cell', attrs: mutedAttr(rv.attempts === 0), text: (rv.resume && rv.lastPractisedAt == null ? tr('memory.ui.plan.inProgress', 'In progress') : formatLastPractised(rv.lastPractisedAt, now)) }),
+    el('td', { class: 'kth-table__cell', attrs: mutedAttr(rv.dueAt === null), text: formatDue(rv.dueAt, now) }),
+    el('td', { class: 'kth-table__cell sm-progress-action' }, [actions]),
   ]);
 }
 
 /**
- * The recite tab: same header/level/progress as any activity, but the action
- * is a Recite button (tap mode; needs speech `ready`, else disabled with the
- * reason) and a toggle to include the passage in "Recite what's due".
+ * Under the table: why Recite is unavailable (when speech is the reason) and
+ * the per-passage switch to include it in "Recite what's due". Per-passage on
+ * purpose: reciting is optional and you may want it for some passages only.
  */
-function renderReciteDetail(
-  host: PanelHost,
-  pv: PassageView,
-  rv: RungView,
-  now: number,
-  speech: SpeechAvailability | null,
-): HTMLElement {
+function renderReciteExtras(host: PanelHost, pv: PassageView, speech: SpeechAvailability | null): HTMLElement {
   const ready = speech !== null && speech.state === 'ready';
-  const why = ready ? null : speech ? availabilityMessage(speech) : 'Checking whether speech is available.';
+  const why = ready ? null : speech ? availabilityMessage(speech) : tr('memory.ui.plan.checkingSpeech', 'Checking whether speech is available.');
 
   const checkbox = el('input', {
     id: 'sm-recite-on',
@@ -271,34 +306,15 @@ function renderReciteDetail(
     });
   });
 
-  const progress = progressText(rv, now);
-  const card = el('div', { class: 'sm-activity-card sm-activity-recite' }, [
-    el('div', { class: 'sm-activity-level-row' }, [
-      levelBoxes(rv.level, { due: isDue(rv, now) }),
-      rv.level === 0 ? null : el('span', { class: 'sm-activity-level-text', text: `${rv.level}/5` }),
-    ]),
-    el('p', { class: 'sm-activity-blurb', text: RUNG_BLURB.recite }),
-    el('p', { class: 'sm-activity-row-progress', text: progress }),
-    el('div', { class: 'sm-activity-actions' }, [
-      button('Recite', () => void startReciteRun(host, { kind: 'passage', passageId: pv.passage.id }, 'tap'), {
-        class: 'sm-btn sm-btn-small sm-btn-primary',
-        disabled: !ready,
-      }),
-    ]),
-  ]);
-
-  // Per-passage on purpose: reciting is optional and you may want it for some
-  // passages and not others. Passages you have already recited join "Recite
-  // what's due" on their own when due; this switch adds one you have not.
   const include = el('div', { class: 'sm-recite-include' }, [
     el('div', { class: 'sm-setting-row' }, [
       checkbox,
-      el('label', { text: 'Add this passage to "Recite what\'s due"', attrs: { for: 'sm-recite-on' } }),
+      el('label', { text: tr('memory.ui.plan.addToReciteDue', 'Add this passage to "Recite what\'s due"'), attrs: { for: 'sm-recite-on' } }),
     ]),
     el('p', {
       class: 'sm-hint',
       id: 'sm-recite-on-hint',
-      text: 'Reciting is optional and never holds back this passage. Once you have recited it, it comes up when due without this.',
+      text: tr('memory.ui.plan.recitingOptionalHint', 'Reciting is optional and never holds back this passage. Once you have recited it, it comes up when due without this.'),
     }),
   ]);
 
@@ -308,7 +324,7 @@ function renderReciteDetail(
       : speech
         ? availabilityBanner(speech, host)
         : el('p', { class: 'sm-banner sm-banner-warn', text: why, attrs: { role: 'status' } });
-  return el('div', { class: 'sm-activity-recite-wrap' }, [notice, card, include]);
+  return el('div', { class: 'sm-activity-recite-wrap' }, [notice, include]);
 }
 
 // ---------------------------------------------------------------------------
@@ -332,7 +348,7 @@ function openSettingsModal(host: PanelHost, pv: PassageView, defaultAnswerMode: 
   const resetProgress = renderResetProgress(host, pv, closeModal);
 
   const handle = modal({
-    title: 'Passage settings',
+    title: tr('memory.ui.plan.passageSettings', 'Passage settings'),
     body: [answerRow, resetProgress],
     onClose: () => handle.element.remove(),
   });
@@ -354,14 +370,14 @@ function renderAnswerModeControl(
   const select = el('select', {
     class: 'sm-select',
     id: 'sm-answer-mode',
-    attrs: { 'aria-label': 'Answer with' },
+    attrs: { 'aria-label': tr('memory.ui.plan.answerWith', 'Answer with') },
   }) as HTMLSelectElement;
 
-  const defaultLabel = defaultAnswerMode === 'fullWord' ? 'full word' : 'first letter';
+  const defaultLabel = defaultAnswerMode === 'fullWord' ? tr('memory.ui.plan.fullWordLower', 'full word') : tr('memory.ui.plan.firstLetterLower', 'first letter');
   const options: { value: '' | AnswerMode; label: string }[] = [
-    { value: '', label: `Default (${defaultLabel})` },
-    { value: 'firstLetter', label: 'First letter' },
-    { value: 'fullWord', label: 'Full word, exact spelling' },
+    { value: '', label: tr('memory.ui.plan.defaultAnswerMode', 'Default ({mode})', { mode: defaultLabel }) },
+    { value: 'firstLetter', label: tr('memory.ui.plan.firstLetter', 'First letter') },
+    { value: 'fullWord', label: tr('memory.ui.plan.fullWordExact', 'Full word, exact spelling') },
   ];
 
   for (const opt of options) {
@@ -389,7 +405,7 @@ function renderAnswerModeControl(
   });
 
   return el('div', { class: 'sm-answer-row' }, [
-    el('label', { class: 'sm-label-inline', text: 'Answer with', attrs: { for: 'sm-answer-mode' } }),
+    el('label', { class: 'sm-label-inline', text: tr('memory.ui.plan.answerWith', 'Answer with'), attrs: { for: 'sm-answer-mode' } }),
     select,
     errorSlot,
   ]);
@@ -408,9 +424,9 @@ function renderResetProgress(host: PanelHost, pv: PassageView, closeModal: () =>
 
   const showIdle = (): void => {
     replace(slot, [
-      button('Reset progress for this passage', showConfirm, {
+      button(tr('memory.ui.plan.resetProgress', 'Reset progress for this passage'), showConfirm, {
         class: 'sm-btn sm-btn-small sm-btn-danger-quiet',
-        attrs: { 'aria-label': `Reset all progress for ${pv.passage.reference}` },
+        attrs: { 'aria-label': tr('memory.ui.plan.resetAllProgressFor', 'Reset all progress for {reference}', { reference: pv.passage.reference }) },
       }),
     ]);
   };
@@ -418,9 +434,9 @@ function renderResetProgress(host: PanelHost, pv: PassageView, closeModal: () =>
   function showConfirm(): void {
     replace(slot, [
       el('span', { class: 'sm-remove-confirm', attrs: { role: 'alert' } }, [
-        el('span', { class: 'sm-hint', text: 'Reset all progress on this passage? This cannot be undone.' }),
-        button('Yes, reset', doReset, { class: 'sm-btn sm-btn-small sm-btn-danger' }),
-        button('Cancel', showIdle, { class: 'sm-btn sm-btn-small sm-btn-quiet' }),
+        el('span', { class: 'sm-hint', text: tr('memory.ui.plan.resetConfirm', 'Reset all progress on this passage? This cannot be undone.') }),
+        button(tr('memory.ui.plan.yesReset', 'Yes, reset'), doReset, { class: 'sm-btn sm-btn-small sm-btn-danger' }),
+        button(tr('memory.ui.plan.cancel', 'Cancel'), showIdle, { class: 'sm-btn sm-btn-small sm-btn-quiet' }),
       ]),
     ]);
   }
@@ -431,7 +447,7 @@ function renderResetProgress(host: PanelHost, pv: PassageView, closeModal: () =>
         replace(slot, [errorBanner(reply.error)]);
         return;
       }
-      host.announce(`Reset progress for ${pv.passage.reference}.`);
+      host.announce(tr('memory.ui.plan.resetDone', 'Reset progress for {reference}.', { reference: pv.passage.reference }));
       closeModal();
       host.reload();
     });

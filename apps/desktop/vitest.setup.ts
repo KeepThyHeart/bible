@@ -14,7 +14,12 @@ const hasDom = typeof globalThis.window !== 'undefined';
 
 if (hasDom) {
   await import('@testing-library/jest-dom/vitest');
-  const { cleanup } = await import('@testing-library/react');
+  const { cleanup, configure } = await import('@testing-library/react');
+
+  // findBy*/waitFor give up after 1 s by default. A busy machine routinely needs longer (a lazy import, a
+  // resolver, the first render of a heavy tree), and the failure then reads as a missing element. Waits return
+  // the moment the condition holds, so a generous ceiling costs nothing when the machine is quiet.
+  configure({ asyncUtilTimeout: 10_000 });
 
   // Automatic cleanup after each test
   afterEach(() => {

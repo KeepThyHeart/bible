@@ -81,6 +81,9 @@ export function createXrefGraphRoutes(db: Pick<DatabaseManager, 'getModuleMetada
       res.set('Cache-Control', 'public, max-age=3600');
       if (req.headers['if-none-match'] === etag) { res.status(304).end(); return; }
       res.type('application/octet-stream');
+      // Octet-stream is normally skipped by the compression middleware, but this is
+      // 2.2 MB of repetitive arc records that gzip to under a third (B-175).
+      res.locals.compressible = true;
       res.send(Buffer.from(encodeChapterArcs(index.arcs)));
     } catch (error) { fail(res, error, 'the chapter index'); }
   });

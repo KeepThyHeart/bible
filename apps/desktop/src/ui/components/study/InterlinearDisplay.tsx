@@ -1,3 +1,4 @@
+import { parseStrongsHeadline } from '../../services/strongsHeadline';
 import { requestPanel, usePanelAvailable } from '../../modules/host/panelRequests';
 import React, { useState, useEffect, useMemo } from 'react';
 import { stripOsisTags, truncateAtWordBoundary, UserTextMarkup } from '@bible/core';
@@ -8,12 +9,13 @@ import { useAmbientHoverIntent } from '../../hooks/useAmbientHoverIntent';
 import { useHighlightStore } from '../../stores/useHighlightStore';
 import { useSearchStore } from '../../stores/useSearchStore';
 import { StrongsTooltipActions } from '../../modules/host/slots';
-import { HighlightedVerse } from '../highlights/HighlightRenderer';
+import { HighlightedVerse, useVerseFindState } from '../highlights/HighlightRenderer';
 import { useResolvedVerseDecorations } from '../../extensions/useResolvedVerseDecorations';
 import {
   buildInterlinearCells,
   cellsPartitionWordSpace,
   extractWordsWithFormatting,
+  findStateForWord,
   wordRenderAttrs,
   type ResolvedVerse,
   type ResolvedHover,
@@ -234,6 +236,7 @@ const StrongsPreviewTooltip: React.FC<{
   let pronunciation = '';
   let partOfSpeech: string | undefined;
 
+  const headline = definition ? parseStrongsHeadline(definition.definition) : null;
   if (definition) {
     const parsed = parseStrongsDefinition(definition.definition);
     glosses = truncateAtWordBoundary(parsed.glosses, GLOSS_PREVIEW_LENGTH).text;
@@ -241,6 +244,12 @@ const StrongsPreviewTooltip: React.FC<{
 
     transliteration = definition.transliteration;
     pronunciation = definition.pronunciation ?? '';
+    // The raw entry stores the key as `word` and Strong's encoded ASCII ("ajgapavw")
+    // as the transliteration; the definition's own opening line has the clean ones (B-018).
+    if (headline) {
+      transliteration = headline.transliteration;
+      pronunciation = headline.pronunciation;
+    }
     if (!transliteration) {
       // Fall back to extracting "NUMBER GREEK translit {pron}" from the raw
       // definition when the dictionary repository didn't populate the field.
@@ -281,8 +290,8 @@ const StrongsPreviewTooltip: React.FC<{
         <div className="text-sm" data-testid="strongs-tooltip-content">
           <div className="font-semibold text-text-primary mb-1">
             {strongsNumber}
-            {definition.word && (
-              <span className="ms-2 text-text-secondary font-normal">{definition.word}</span>
+            {(headline?.word ?? definition.word) && (
+              <span className="ms-2 text-text-secondary font-normal">{headline?.word ?? definition.word}</span>
             )}
             {transliteration && (
               <span className="ms-2 text-text-secondary font-normal italic" data-testid="strongs-tooltip-translit">
@@ -574,7 +583,11 @@ const CellEnglish: React.FC<{
     event: React.MouseEvent,
   ) => void;
   onWordMouseLeave?: (verseId: number, wordIndex: number, event: React.MouseEvent) => void;
-}> = ({ cell, verseId, highlights, resolved, onWordMouseEnter, onWordMouseLeave }) => (
+}> = ({ cell, verseId, highlights, resolved, onWordMouseEnter, onWordMouseLeave }) => {
+  // Find-in-page marks, the same as HighlightedVerse paints them: without this
+  // the find bar counted matches in interlinear view but painted none.
+  const find = useVerseFindState(verseId);
+  return (
   <>
     {cell.englishWords.map((word: WordInfo, offset: number) => {
       const wordIndex = cell.wordStart + offset;
@@ -589,6 +602,7 @@ const CellEnglish: React.FC<{
           hasTrailingSpace: word.hasTrailingSpace,
           nextWordIndex: isLastInCell ? null : wordIndex + 1,
           nextWordSourceKeys: isLastInCell ? undefined : resolved?.words.get(wordIndex + 1)?.sourceKeys,
+          find: findStateForWord(find, wordIndex),
         },
         resolved?.words.get(wordIndex),
       );
@@ -615,7 +629,8 @@ const CellEnglish: React.FC<{
       );
     })}
   </>
-);
+  );
+};
 
 /** The Strong's number of one interlinear row, as a clickable chip. */
 const StrongsChip: React.FC<{

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { createRateLimiter, DEFAULT_RATE_LIMITS, tierForApiPath } from '../middleware/rateLimiter';
-import { mockRequest, mockResponse, mockNext, type MockNext } from './expressMocks';
+import { mockRequest, mockResponse, mockNext, headerCalls, type MockNext } from './expressMocks';
 
 describe('rateLimiter middleware', () => {
   // `MockNext`, not `NextFunction`: the assertions below read `next.mock.calls`
@@ -989,5 +989,23 @@ describe('rateLimiter middleware', () => {
       limiter.middleware(tierForApiPath('/config'))(mockRequest(), res, next);
       expect(res.status).not.toHaveBeenCalled();
     });
+  });
+});
+
+describe('rate limit headers (B-176)', () => {
+  it('reports limit, remaining and reset on allowed and rejected responses', () => {
+    const limiter = createRateLimiter({ default: 2, windowMs: 60_000 });
+    const middleware = limiter.middleware('default');
+    const first = mockResponse();
+    middleware(mockRequest(), first, mockNext());
+    expect(headerCalls(first, 'RateLimit-Limit')[0]?.[1]).toBe('2');
+    expect(headerCalls(first, 'RateLimit-Remaining')[0]?.[1]).toBe('1');
+    expect(Number(headerCalls(first, 'RateLimit-Reset')[0]?.[1])).toBeGreaterThan(0);
+    middleware(mockRequest(), mockResponse(), mockNext());
+    const blocked = mockResponse();
+    middleware(mockRequest(), blocked, mockNext());
+    expect(blocked.status).toHaveBeenCalledWith(429);
+    expect(headerCalls(blocked, 'RateLimit-Remaining')[0]?.[1]).toBe('0');
+    expect(headerCalls(blocked, 'Retry-After')).toHaveLength(1);
   });
 });

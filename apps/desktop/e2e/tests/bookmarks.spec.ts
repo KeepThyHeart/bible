@@ -69,7 +69,17 @@ async function expectBookmarked(
 async function openManager(window: Page): Promise<void> {
   await window.locator(RIBBON).click({ force: true });
   await window.locator('[data-testid="bookmark-manage"]').click({ force: true });
-  await expect(window.locator(MANAGE)).toBeVisible({ timeout: 10000 });
+  const dialog = window.locator(MANAGE);
+  await expect(dialog).toBeVisible({ timeout: 10000 });
+  // Settled, not merely visible: the dialog takes focus and reloads the list as it opens, and the
+  // jump-list popover it came from hands focus back as it closes. Under load those landed after the
+  // test's next click, so an inline rename that had just opened lost focus (blur commits and closes
+  // it) and its input was gone before the test could see it.
+  await expect(dialog.locator('[data-testid^="bookmark-row-"]').first()).toBeVisible({ timeout: 10000 });
+  await expect.poll(
+    () => dialog.evaluate((el) => el.contains(globalThis.document.activeElement)),
+    { timeout: 10000 },
+  ).toBe(true);
 }
 
 test.describe('Saving', () => {

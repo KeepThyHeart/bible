@@ -47,6 +47,8 @@ Keyword and semantic search across Bible modules, with results displayed in the 
 | `server/search/UsearchVectorSearch.ts` | **Preferred.** HNSW approximate nearest neighbor via `usearch` (<1ms search, ~260MB RAM: mmap'd index plus a ~207MB in-heap metadata Map) |
 | `server/search/ApiReranker.ts` | Reranking via Jina/Cohere API |
 | `server/search/NoOpReranker.ts` | Pass-through reranker (uses embedding scores as-is) |
+| `server/search/RemoteSemanticService.ts` | `search.mode: 'remote'` with `via: 'server'`: calls bibsearch through the shared `RemoteSemantic.RemoteSemanticClient` and hydrates the hits (by `startVerseId`/`endVerseId`) in the reader's translation. Also `hasRemoteConsent()` for the `X-Remote-Search-Consent` header. Tests alongside, plus `server/__tests__/searchRoutes.remote.test.ts` |
+| `server/cspDirectives.ts` | The CSP; gains the bibsearch origin in `connect-src` only for remote search with `via: 'browser'` |
 | `server/search/index.ts` | Re-exports all search implementations |
 | `server/DatabaseManager.ts` | Loads `semantic_nomic-v1.5.db` for semantic search service |
 | `server/__tests__/filterTopicEntries.test.ts` | Tests for topic source filtering (`filterTopicEntries`, `resolveTopicSources`) |
@@ -254,6 +256,42 @@ panel stays open) and waits for the next explicit submit, so the term can be
 reworded first. Switching back to keyword still re-runs the query. Covered by
 `searchStore.ideasMode.test.ts`.
 
+## Remote semantic search (bibsearch)
+
+`search.mode: "remote"` uses the hosted bibsearch service (task 0111) for Ideas search instead of an in-process or in-browser pipeline. The server builds no ONNX or vector pipeline in this mode.
+
+```json
+"search": {
+  "mode": "remote",
+  "remote": { "url": "https://search.example.org", "via": "server", "apiKey": "optional" }
+}
+```
+
+- `url` is required and has no default. A missing or non-http(s) `url` logs a warning and the mode behaves as `off`.
+- `via` is `"server"` (default) or `"browser"`. `apiKey` is optional and is sent as `X-API-Key`.
+- `/api/config` reports `search: { semantic: 'remote', remote: { via, noticeVersion } }`. For `via: "browser"` it also carries `url` and `apiKey` (so the key is visible to every visitor and is not a secret). For `via: "server"` the URL and key never reach the browser.
+
+### `via: "server"` (default)
+
+`GET /api/search/semantic` proxies to bibsearch (`server/search/RemoteSemanticService.ts`, one client per process so a 429/503/403 pause is shared). Internal or localhost URLs work. Every web user then shares the web server's IP as far as bibsearch is concerned, so give the server an `apiKey` (or raise bibsearch's anonymous tier), or the per-IP limits will be hit quickly.
+
+Request: the normal `q`, `maxResults` (cap 50) and `modules` parameters plus the header `X-Remote-Search-Consent: <notice version>`. Without the current version the route answers `403 {error:{code:'CONSENT_REQUIRED'}, results:[], total:0}` and sends nothing to bibsearch. Success: `{results, total, timings, semantic:{source:'remote', notice?:{kind:'degraded'}, rateLimit}}`. Failure of the service: `503 {error:{code:'REMOTE_UNAVAILABLE'}, results:[], total:0, semantic:{source:'remote', notice}}`, where `notice` is `quota`, `paused`, `unavailable` or `rephrase`, so the browser can fall back to keyword search and show the note. `POST /api/search/semantic/warmup` does nothing in this mode.
+
+### `via: "browser"`
+
+The browser calls bibsearch directly (`RemoteSemanticClient` with `credentials: 'omit'`).
+
+- The site's exact origin (`https://bible.example.org`, no trailing slash) must be in bibsearch's `cors.allowed_origins`, and bibsearch reloaded. A request with `X-API-Key` triggers a preflight, which bibsearch answers. An unlisted origin fails as a generic network error and the app falls back to keyword search.
+- The CSP `connect-src` gains exactly the bibsearch origin (and nothing else, and only in this mode).
+- bibsearch sees each user's IP. The consent notice says so.
+
+### Privacy and consent
+
+- The first semantic search shows a notice (search words go to an outside AI provider, without name or account; with `via: "browser"` also that the IP is visible). Nothing is sent before the user agrees: no search, no `/v1/info` probe, no warm-up. The server enforces this with the consent header.
+- Bumping `RemoteSemantic.REMOTE_SEMANTIC_NOTICE_VERSION` asks everyone again.
+- Requests to bibsearch are anonymous: the server builds a fresh request and forwards no IP, cookies, headers or identity, only the configured `X-API-Key`. Error responses to the browser never contain the key, the bibsearch URL or raw error bodies.
+- Fallback on every failure is keyword search.
+
 ## Key Behaviors
 
 - Click result navigates to verse in current module
@@ -282,7 +320,7 @@ reworded first. Switching back to keyword still re-runs the query. Covered by
 - **Semantic requests are gated** to 2 concurrent with a 10-deep queue (`server/utils/semaphore.ts`); overflow returns 503 `SERVICE_BUSY` with `Retry-After` rather than queueing behind the 15s timeout
 - Compact index: 128d int8 mean-centered embeddings (~48 MB vectors vs ~1.1 GB for 768d float32)
 - Browser-side Ideas Search: runs ONNX q8 model + int8 vector search in a Web Worker. One-time download of ~180 MB (model + vectors + metadata)
-- **Search mode is server-controlled** via `search.mode` in `site-config.json` (or `searchMode` in legacy `server-config.json`): `'server'` (server builds the embedding pipeline — high RAM), `'browser'` (**default** — clients search locally, server stays lean), or `'off'`. The server only builds the in-process pipeline when mode is `'server'`; the mode is advertised to clients via `/api/config` (`search.semantic`). `main.tsx` selects `BrowserSearchProvider` when the server declares `'browser'`, else honors the per-user `settingsStore.browserSemanticSearch` opt-in.
+- **Search mode is server-controlled** via `search.mode` in `site-config.json` (or `searchMode` in legacy `server-config.json`): `'server'` (server builds the embedding pipeline — high RAM), `'browser'` (**default** — clients search locally, server stays lean), `'off'`, or `'remote'` (the hosted bibsearch service, see "Remote semantic search" below). The server only builds the in-process pipeline when mode is `'server'`; the mode is advertised to clients via `/api/config` (`search.semantic`). `main.tsx` selects `BrowserSearchProvider` when the server declares `'browser'`, else honors the per-user `settingsStore.browserSemanticSearch` opt-in.
 - **Self-hosting the ONNX Runtime backend**: the model is only half the download. transformers.js also pulls ort's wasm backend (`ort-wasm-simd-threaded.jsep.mjs` and its 21 MB `.wasm`) from `https://cdn.jsdelivr.net/npm/@huggingface/transformers@<version>/dist/` unless `env.backends.onnx.wasm.wasmPaths` says otherwise. Our CSP is `default-src 'self'`, so that import is refused and the pipeline fails with `no available backend found. ERR: [wasm] TypeError: Failed to fetch dynamically imported module: https://cdn.jsdelivr.net/...`, surfaced as the "Ideas Search unavailable" overlay. `ortWasmPlugin` in `vite.config.ts` emits both files to `dist/client/ort/` (and serves them from `node_modules` in dev); `main.tsx` passes `${baseUrl}/ort/` down through `BrowserSearchProvider` → `BrowserSearchProxy` → the worker's `init` message. `numThreads` is pinned to 1 because COEP is deliberately off, so there is no `SharedArrayBuffer` for the threaded build to use. **If the transformers.js version changes, the file names must still match** — they are hard-coded in the plugin, which warns rather than failing the build when they do not.
 - **Self-hosted model**: the browser worker loads the ONNX model from `/data/models/` on our own server (via transformers.js `env.remoteHost`), not the HuggingFace CDN — offline-capable and no external dependency. `BrowserSearchProvider` receives the model host (`${baseUrl}/data/models`) and passes it through the proxy to the worker.
 - Server serves data files at `/data/` route for browser-side access (vectors, metadata, and the model under `/data/models/`)

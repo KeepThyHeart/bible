@@ -179,3 +179,16 @@ describe('compileKeywordQuery', () => {
     });
   });
 });
+
+describe('escapeFts5Term punctuation', () => {
+  it('quotes terms carrying punctuation FTS5 would reject, such as a trailing comma', () => {
+    expect(escapeFts5Term('Jesus,')).toBe('"Jesus,"');
+    expect(escapeFts5Term('Christ.')).toBe('"Christ."');
+    expect(escapeFts5Term('what?')).toBe('"what?"');
+  });
+
+  it('leaves plain words, including non-Latin ones, unquoted', () => {
+    expect(escapeFts5Term('walking')).toBe('walking');
+    expect(escapeFts5Term('Ἰησοῦς')).toBe('Ἰησοῦς');
+  });
+});

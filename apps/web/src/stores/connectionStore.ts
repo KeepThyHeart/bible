@@ -1,5 +1,8 @@
 import { Store } from './Store';
 
+/** `error` value meaning "cannot reach the server": the banner shows it in the UI language. */
+export const CONNECTION_ERROR_NETWORK = 'network';
+
 class ConnectionStore extends Store {
   error: string | null = null;
   private dismissTimer: ReturnType<typeof setTimeout> | null = null;
@@ -15,7 +18,13 @@ class ConnectionStore extends Store {
     }, 15000);
   }
 
+  /** A request just succeeded: a stale "cannot connect" banner no longer applies. */
+  clearNetworkError(): void {
+    if (this.error === CONNECTION_ERROR_NETWORK) this.dismiss();
+  }
+
   dismiss(): void {
+    if (this.error === null && !this.dismissTimer) return;
     this.error = null;
     if (this.dismissTimer) {
       clearTimeout(this.dismissTimer);
@@ -26,3 +35,8 @@ class ConnectionStore extends Store {
 }
 
 export const connectionStore = new ConnectionStore();
+
+// Back online: the banner about the lost connection is over.
+if (typeof window !== 'undefined') {
+  window.addEventListener('online', () => connectionStore.clearNetworkError());
+}

@@ -10,7 +10,7 @@ import { resolve } from 'path';
 import { existsSync, readFileSync, writeFileSync } from 'fs';
 import { loadSiteSettings, type SiteSettings } from './siteSettings.js';
 import { logger } from './utils/logger.js';
-import { AudioBible } from '@bible/core';
+import { AudioBible, RemoteSemantic } from '@bible/core';
 import type { SearchPipelineConfig, ScoringConfig } from '@bible/core';
 import { createFeatureFlags, parseFlagOverrides, type FeatureFlagName, type FeatureFlags } from './core.js';
 
@@ -92,9 +92,19 @@ interface SearchConfig {
    *  - 'server'  → server builds the embedding pipeline (uses significant RAM)
    *  - 'browser' → clients run search locally (Web Worker + downloaded model/index); server stays lean
    *  - 'off'     → semantic search disabled
+   *  - 'remote'  → the hosted bibsearch service (see `remote`); no pipeline is built here
    * Defaults to 'browser'. The server pipeline is only built when mode === 'server'.
    */
-  mode?: 'server' | 'browser' | 'off';
+  mode?: 'server' | 'browser' | 'off' | 'remote';
+  /** Settings for mode 'remote'. A missing or invalid `url` turns semantic search off. */
+  remote?: { url?: string; via?: 'browser' | 'server'; apiKey?: string };
+}
+
+/** Resolved `search.remote`: `url` has no trailing slash. `via` defaults to 'server'. */
+export interface RemoteSearchSettings {
+  url: string;
+  via: 'browser' | 'server';
+  apiKey?: string;
 }
 
 interface PrivacyConfig {
@@ -131,6 +141,10 @@ interface RawSiteConfig {
   offline?: OfflineConfig;
   search?: SearchConfig;
   ui?: UiConfig;
+  /** Feature module id -> boolean. See `SiteConfig.featureModules`. */
+  featureModules?: Record<string, unknown>;
+  /** Site banners. See `SiteConfig.banners`. */
+  banners?: unknown;
   privacy?: PrivacyConfig;
   desktopReports?: DesktopReportsConfig;
   repoUrl?: string;
@@ -151,6 +165,42 @@ interface DesktopReportsConfig {
   token?: string;
 }
 
+/**
+ * Every web feature module id a site config may switch (the manifest ids of
+ * `apps/web/src/modules` and `apps/web/server/modules`). Used only to warn about typos.
+ */
+export const KNOWN_FEATURE_MODULE_IDS: readonly string[] = [
+  'audio', 'downloads', 'games', 'genealogy', 'keyword-marks', 'measures', 'memory',
+  'notifications', 'present', 'quiz', 'similar', 'timeline', 'word-study', 'xref-graph',
+];
+
+/** Text that is one string or a language code -> string map. */
+export type LocalizedText = string | Record<string, string>;
+
+export interface SiteBanner {
+  id: string;
+  message: LocalizedText;
+  /** CSS background color (hex, rgb[a], hsl[a] or a color name). */
+  color?: string;
+  /** CSS text color; the client picks black or white by contrast when absent. */
+  textColor?: string;
+  dismissible: boolean;
+  link?: { url: string; label: LocalizedText };
+}
+
+function cleanText(v: unknown): LocalizedText | undefined {
+  if (typeof v === 'string') return v.trim() ? v : undefined;
+  if (v && typeof v === 'object' && !Array.isArray(v)) {
+    const out: Record<string, string> = {};
+    for (const [k, t] of Object.entries(v)) if (typeof t === 'string' && t.trim()) out[k] = t;
+    return Object.keys(out).length ? out : undefined;
+  }
+  return undefined;
+}
+
+const SAFE_COLOR = /^(#[0-9a-f]{3,8}|(rgb|hsl)a?\([0-9.,%\s/deg-]+\)|[a-z]{3,30})$/i;
+const cleanColor = (v: unknown): string | undefined => (typeof v === 'string' && SAFE_COLOR.test(v.trim()) ? v.trim() : undefined);
+
 // ─── Defaults ───────────────────────────────────────────────────────────
 
 const DEFAULT_STALE_DAYS = 15;
@@ -170,8 +220,11 @@ export class SiteConfig {
   private readonly raw: RawSiteConfig;
   private readonly dataDir: string;
   private _flags: FeatureFlags | undefined;
+  private _banners: SiteBanner[] | undefined;
+  private _featureModules: Record<string, boolean> | undefined;
   private readonly configSource: 'unified' | 'legacy';
   private readonly configPath: string;
+  private warnedBadRemote = false;
 
   constructor(dataDir: string) {
     this.dataDir = dataDir;
@@ -254,7 +307,8 @@ export class SiteConfig {
   get flags(): FeatureFlags {
     if (!this._flags) {
       this._flags = createFeatureFlags({
-        site: () => this.raw.features as Record<string, unknown> | undefined,
+        // Recite needs Memory's personal data, which the web build lacks until accounts exist: off unless the site says otherwise.
+        site: () => ({ recite: false, ...(this.raw.features as Record<string, unknown> | undefined) }),
         overrides: () =>
           process.env.NODE_ENV === 'production'
             ? undefined
@@ -267,6 +321,78 @@ export class SiteConfig {
   /** `isEnabled('audio')`: the one way server code asks about a feature. */
   isEnabled(name: FeatureFlagName): boolean {
     return this.flags.isEnabled(name);
+  }
+
+  /**
+   * `featureModules`: module id -> boolean, read once. Non-boolean values are
+   * dropped with a warning; unknown ids are kept (the module table is the judge)
+   * but warned about. Only `false` switches a module off in production; `true`
+   * never overrides a module's own flag or requirements (see `loadServerModules`).
+   */
+  get featureModules(): Record<string, boolean> {
+    if (this._featureModules) return this._featureModules;
+    const out: Record<string, boolean> = {};
+    const raw = this.raw.featureModules;
+    if (raw !== undefined && (typeof raw !== 'object' || raw === null || Array.isArray(raw))) {
+      logger.warn('site-config.json "featureModules" must be an object of module id -> boolean; ignoring it.');
+    } else if (raw) {
+      for (const [id, value] of Object.entries(raw)) {
+        if (typeof value !== 'boolean') {
+          logger.warn(`site-config.json featureModules.${id} is not a boolean; ignoring it.`);
+          continue;
+        }
+        if (!KNOWN_FEATURE_MODULE_IDS.includes(id)) {
+          logger.warn(`site-config.json featureModules.${id}: unknown module id (known: ${KNOWN_FEATURE_MODULE_IDS.join(', ')}).`);
+        }
+        out[id] = value;
+      }
+    }
+    this._featureModules = out;
+    return out;
+  }
+
+  /**
+   * `banners`: validated for the client. Entries without a string `id` or a usable
+   * `message` are skipped with a warning; a bad color, or a link whose URL is not
+   * http(s) or a site-relative path, is dropped. Text is shown as plain text only.
+   */
+  get banners(): SiteBanner[] {
+    if (this._banners) return this._banners;
+    return (this._banners = this.parseBanners());
+  }
+
+  private parseBanners(): SiteBanner[] {
+    const raw = this.raw.banners;
+    if (raw === undefined) return [];
+    if (!Array.isArray(raw)) {
+      logger.warn('site-config.json "banners" must be an array; ignoring it.');
+      return [];
+    }
+    const out: SiteBanner[] = [];
+    raw.forEach((b: unknown, i) => {
+      const o = (b && typeof b === 'object' ? b : {}) as Record<string, unknown>;
+      const message = cleanText(o.message);
+      if (typeof o.id !== 'string' || !o.id.trim() || !message) {
+        logger.warn(`site-config.json banners[${i}] needs a string "id" and a non-empty "message"; skipping it.`);
+        return;
+      }
+      const banner: SiteBanner = { id: o.id, message, dismissible: o.dismissible === true };
+      const color = cleanColor(o.color);
+      const textColor = cleanColor(o.textColor);
+      if (color) banner.color = color;
+      else if (o.color !== undefined) logger.warn(`site-config.json banners[${i}].color is not a plain CSS color; ignoring it.`);
+      if (textColor) banner.textColor = textColor;
+      else if (o.textColor !== undefined) logger.warn(`site-config.json banners[${i}].textColor is not a plain CSS color; ignoring it.`);
+      const l = o.link as Record<string, unknown> | undefined;
+      const label = cleanText(l?.label);
+      if (l && typeof l.url === 'string' && label && /^(https?:\/\/|\/(?![\/\\]))/i.test(l.url.trim())) {
+        banner.link = { url: l.url.trim(), label };
+      } else if (l !== undefined) {
+        logger.warn(`site-config.json banners[${i}].link needs an http(s) or site-relative "url" and a "label"; ignoring it.`);
+      }
+      out.push(banner);
+    });
+    return out;
   }
 
   get modules(): SiteSettings | null {
@@ -285,7 +411,41 @@ export class SiteConfig {
     };
   }
 
-  get search(): { pipelineConfigPath: string; hybrid: boolean; minScore: number; mode: 'server' | 'browser' | 'off' } {
+  /**
+   * `search.remote` resolved, or null unless mode is 'remote' with a usable http(s) URL.
+   * The URL and key stay on the server when `via` is 'server'.
+   */
+  get searchRemote(): RemoteSearchSettings | null {
+    if (this.raw.search?.mode !== 'remote') return null;
+    const r = this.raw.search.remote;
+    const url = typeof r?.url === 'string' ? r.url.trim() : '';
+    let parsed: URL | null = null;
+    try { parsed = url ? new URL(url) : null; } catch { parsed = null; }
+    if (!parsed || (parsed.protocol !== 'http:' && parsed.protocol !== 'https:')) {
+      if (!this.warnedBadRemote) {
+        this.warnedBadRemote = true;
+        logger.warn("search.mode is 'remote' but search.remote.url is missing or not an http(s) URL; semantic search is off.");
+      }
+      return null;
+    }
+    return {
+      url: url.replace(/\/+$/, ''),
+      via: r?.via === 'browser' ? 'browser' : 'server',
+      apiKey: typeof r?.apiKey === 'string' && r.apiKey ? r.apiKey : undefined,
+    };
+  }
+
+  /** The origin to allow in `connect-src`: only for remote search called from the browser. */
+  get remoteSearchBrowserOrigin(): string | null {
+    const r = this.searchRemote;
+    return r && r.via === 'browser' ? new URL(r.url).origin : null;
+  }
+
+  get search(): { pipelineConfigPath: string; hybrid: boolean; minScore: number; mode: 'server' | 'browser' | 'off' | 'remote' } {
+    const rawMode = this.raw.search?.mode;
+    let mode: 'server' | 'browser' | 'off' | 'remote';
+    if (rawMode === 'remote') mode = this.searchRemote ? 'remote' : 'off';
+    else mode = rawMode === 'server' || rawMode === 'off' ? rawMode : 'browser';
     return {
       pipelineConfigPath: this.raw.search?.pipelineConfigPath ?? 'search-pipeline.json',
       hybrid: this.raw.search?.hybrid === true,
@@ -293,9 +453,7 @@ export class SiteConfig {
         ? this.raw.search.minScore
         : DEFAULT_MIN_SCORE,
       // Default to browser-side search so the server stays lean unless explicitly opted into 'server'.
-      mode: this.raw.search?.mode === 'server' || this.raw.search?.mode === 'off'
-        ? this.raw.search.mode
-        : 'browser',
+      mode,
     };
   }
 
@@ -343,7 +501,23 @@ export class SiteConfig {
 
     // Semantic search mode — tells the client whether to run Ideas Search locally
     // (browser Web Worker) or hit the server pipeline.
-    cfg.search = { semantic: this.search.mode };
+    // In 'remote' mode `remote.via` says who calls bibsearch; the URL and key go to the
+    // browser only for via 'browser' (the server proxy keeps them private otherwise).
+    const remote = this.searchRemote;
+    if (remote) {
+      cfg.search = {
+        semantic: 'remote',
+        remote: {
+          via: remote.via,
+          noticeVersion: RemoteSemantic.REMOTE_SEMANTIC_NOTICE_VERSION,
+          ...(remote.via === 'browser'
+            ? { url: remote.url, ...(remote.apiKey ? { apiKey: remote.apiKey } : {}) }
+            : {}),
+        },
+      };
+    } else {
+      cfg.search = { semantic: this.search.mode };
+    }
 
     // Every feature flag, resolved (site config over defaults). The dev override
     // (`BIBLE_FEATURE_FLAGS`) is included so a developer's flags reach their browser.
@@ -364,6 +538,9 @@ export class SiteConfig {
     // Audio Bible: absent unless the operator turned it on, so a default install
     // sends the client nothing new.
     if (this.features.audio) cfg.audio = this.audio.client;
+
+    const banners = this.banners;
+    if (banners.length) cfg.banners = banners;
 
     const staleDays = this.offline.staleDays;
     if (staleDays !== DEFAULT_STALE_DAYS) cfg.staleDays = staleDays;

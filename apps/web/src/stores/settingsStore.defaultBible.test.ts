@@ -52,6 +52,23 @@ describe('settingsStore.getDefaultBible', () => {
     expect(settingsStore.getDefaultBible()).toBe('ASV');
   });
 
+  it('prefers KJV over the first installed Bible when none is configured', () => {
+    install(module('ASV'), module('KJV'), module('WEB'));
+    expect(settingsStore.getDefaultBible()).toBe('KJV');
+  });
+
+  it('prefers KJV when the configured default is not installed', () => {
+    settingsStore.serverDefaultModule = 'NOPE';
+    install(module('ASV'), module('KJV'));
+    expect(settingsStore.getDefaultBible()).toBe('KJV');
+  });
+
+  it('keeps an installed configured default over KJV', () => {
+    settingsStore.serverDefaultModule = 'ASV';
+    install(module('ASV'), module('KJV'));
+    expect(settingsStore.getDefaultBible()).toBe('ASV');
+  });
+
   it('never picks a module that is not a Bible', () => {
     install(module('Barnes', 'commentary'), module('ASV'));
     expect(settingsStore.getDefaultBible()).toBe('ASV');

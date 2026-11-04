@@ -14,7 +14,7 @@ import { appHost, appRegistry } from './apps/appHost';
 import { registerBuiltinApps } from './apps/builtinApps';
 import { registerBuiltinModules } from './modules/builtinModules';
 import { bindModuleHostServices } from './modules/host/hostServices';
-import { bindNamespaceLoader, fireActivation, modulePoints, setWhenEvaluator } from './modules/moduleHost';
+import { bindNamespaceLoader, bindNamespaceRegistrar, fireActivation, modulePoints, setWhenEvaluator } from './modules/moduleHost';
 import { bindModuleNamespaces } from './modules/host/i18nNamespaces';
 import { installAppCommands, APP_OPEN_PREFIX } from './apps/appCommands';
 import { installExtensionVerseActions } from './apps/verseActions';
@@ -27,6 +27,8 @@ import enCommands from '../../locales/en/commands.json';
 import enLayout from '../../locales/en/layout.json';
 import enSearchBar from '../../locales/en/searchBar.json';
 import enMenu from '../../locales/en/menu.json';
+import { installRegionNavigation, setPanelActivator } from './services/regionNavigation';
+import { useLayoutStore } from './stores/useLayoutStore';
 import { installStripBidiOnCopy } from './utils/stripBidiOnCopy';
 import './styles/globals.css';
 import './styles/highlights.css';
@@ -79,6 +81,7 @@ setWhenEvaluator((expression) => services.whenContext.evaluate(expression));
 registerBuiltinModules();
 const catalogLoader = new LocaleCatalogLoader(services.i18n);
 bindModuleNamespaces(modulePoints.i18nNamespace, catalogLoader);
+bindNamespaceRegistrar((ns) => catalogLoader.registerLazyNamespace(ns));
 bindNamespaceLoader((ns) => catalogLoader.loadNamespace(ns));
 void catalogLoader
   .loadAll()
@@ -120,6 +123,12 @@ services.i18n.onDidChangeLocale((locale) => {
 // dispatch through the registry. The disposable is leaked deliberately -
 // the listener lives for the renderer's lifetime.
 services.keybindings.attachToWindow(window);
+
+// F6 / Shift+F6 move between header, rail, panes and status bar (B-113).
+installRegionNavigation(document);
+setPanelActivator((panelId) => {
+  useLayoutStore.getState().dockviewApi?.getPanel(panelId)?.api.setActive(); // allow-getstate: keyboard handler, outside render
+});
 
 // Diagnostics: forward unhandled renderer errors and promise
 // rejections to the main-process DiagnosticsService. The ErrorBoundary and
@@ -228,6 +237,8 @@ electronMenuBridge?.onCommandExecute((commandId: string) => {
 // those other surfaces show - including a change broadcast from another
 // window (`network:changed`, subscribed inside the store's `load()`).
 useNetworkStore.subscribe(() => pushMenuSpec());
+services.whenContext.set('webRequestsAllowed', useNetworkStore.getState().allowWebRequests);
+useNetworkStore.subscribe((s) => services.whenContext.set('webRequestsAllowed', s.allowWebRequests));
 // View > Apps follows the registry and the user's order/hide preferences.
 appRegistry.state.subscribe(() => pushMenuSpec());
 usePreferencesStore.subscribe((s, prev) => {

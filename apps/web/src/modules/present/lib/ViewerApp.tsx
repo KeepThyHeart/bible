@@ -589,7 +589,9 @@ function ClosedScreen(props: { reason: string }): preact.JSX.Element {
     ? 'This session is not accepting new viewers.'
     : props.reason === 'full'
       ? 'This session is full.'
-      : 'The session has ended.';
+      : props.reason === 'unknown'
+        ? 'Unknown or expired code. Check the code and try again.'
+        : 'The session has ended.';
   return (
     <div class="pv-lobby">
       <p class="pv-lobby-hint">{message}</p>

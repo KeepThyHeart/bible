@@ -7,7 +7,7 @@ import userEvent from '@testing-library/user-event';
 import type React from 'react';
 import NewTabPage from './NewTabPage';
 import { useLayoutStore } from '../stores/useLayoutStore';
-import { useBibleStore } from '../stores/useBibleStore';
+import { useBibleStore, DEFAULT_PANEL_ID } from '../stores/useBibleStore';
 import { ContextProvider, type AppServices } from '../contexts/ContextProvider';
 import { chooserIconFor, tabIconFor, ICONLESS_TAB_CONTENT_TYPES } from './paneIcons';
 import { enT } from '../testing/enCatalog';
@@ -229,6 +229,39 @@ describe('NewTabPage', () => {
     await user.keyboard('{Enter}');
 
     expect(addPanel.mock.calls[0][1]).toBe('ASV|43|3|43003016|standard');
+  });
+
+  // B-028: the Bible tile opens the passage being read, not a blank default.
+  it('opens the Bible tile at the current passage', async () => {
+    const addPanel = vi.fn().mockReturnValue('bible_new');
+    useLayoutStore.setState({ dockviewApi: fakeDockview(), addPanel });
+    useBibleStore.setState({
+      panels: new Map([[DEFAULT_PANEL_ID, {
+        currentBook: 45, currentChapter: 8, currentBookName: 'Romans', selectedVerseId: 45008028, openTabs: [],
+      } as never]]),
+    });
+    const user = userEvent.setup();
+    renderPage(<NewTabPage panelId="test-panel" dockviewPanelApi={{} as never} />);
+    await user.click(screen.getByRole('button', { name: /^Bible$/i }));
+    expect(addPanel.mock.calls[0][0]).toBe('bible');
+    expect(addPanel.mock.calls[0][1]).toBe('KJV|45|8|45008028|standard');
+  });
+
+  // B-108: with two Bible tabs, the tile follows the tab being read, not the first one.
+  it('opens the Bible tile at the passage of the last active Bible pane', async () => {
+    const addPanel = vi.fn().mockReturnValue('bible_new');
+    useLayoutStore.setState({ dockviewApi: fakeDockview(), addPanel, lastActiveBiblePanelId: 'bible_mark' });
+    useBibleStore.setState({
+      panels: new Map([
+        [DEFAULT_PANEL_ID, { currentBook: 43, currentChapter: 15, currentBookName: 'John', selectedVerseId: 43015001, openTabs: [] } as never],
+        ['bible_mark', { currentBook: 41, currentChapter: 4, currentBookName: 'Mark', selectedVerseId: 41004001, openTabs: [] } as never],
+      ]),
+    });
+    const user = userEvent.setup();
+    renderPage(<NewTabPage panelId="test-panel" dockviewPanelApi={{} as never} />);
+    await user.click(screen.getByRole('button', { name: /^Bible$/i }));
+    expect(addPanel.mock.calls[0][1]).toBe('KJV|41|4|41004001|standard');
+    useLayoutStore.setState({ lastActiveBiblePanelId: null });
   });
 
   it('renders the pane-arrangement hint at the bottom', () => {

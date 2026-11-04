@@ -1,0 +1,311 @@
+{
+  "format": "kth-backup",
+  "formatVersion": "1.0",
+  "minReaderVersion": "1.0",
+  "createdAt": "2026-10-07T12:00:00.000Z",
+  "app": {
+    "name": "Keep Thy Heart",
+    "version": "0.1.0-beta.1",
+    "platform": "linux"
+  },
+  "userSchemaVersion": 1,
+  "options": {
+    "includeHistory": false
+  },
+  "entries": [
+    {
+      "path": "README.txt",
+      "size": 523,
+      "sha256": "f4f0684a38cd2914d574e7f7d97f7bee84422069f27264843f1e06705e6ae235"
+    },
+    {
+      "path": "user/user_commentary.ndjson",
+      "size": 180,
+      "sha256": "4fd49e56f06ff3610ee9c114d79f0efed72671b45fac0cef2a339f82d5a3020f"
+    },
+    {
+      "path": "user/user_note.ndjson",
+      "size": 1183,
+      "sha256": "89ba1fc76325a5f12d1cf53143c12a487a95fd6345a9cffa4b1db6efee2535a3"
+    },
+    {
+      "path": "user/collection.ndjson",
+      "size": 218,
+      "sha256": "2692be453b656547cc5c39520d72c01258f1010b4f3384f6cf74ba2b5d4a9ea3"
+    },
+    {
+      "path": "user/pinned_item.ndjson",
+      "size": 511,
+      "sha256": "557efdf4a4a08b0f13629b05f1d722b759da523eb9427de54e56df79452c962a"
+    },
+    {
+      "path": "user/note_verse_link.ndjson",
+      "size": 156,
+      "sha256": "1168350826531e6920049891e5450d77039c5cf67ccdc59a7d5341df57fe7de6"
+    },
+    {
+      "path": "user/content_verse_link.ndjson",
+      "size": 157,
+      "sha256": "1b372acdc8507aad99eba216a7c12b60c280d9f76ddd3f321c7efee90bdae627"
+    },
+    {
+      "path": "user/user_text_markup.ndjson",
+      "size": 392,
+      "sha256": "a21db71852ceb3ba3f0a947f2bda903fd63f84fd74e2f181dd98bb035cc02ad9"
+    },
+    {
+      "path": "user/session.ndjson",
+      "size": 5129,
+      "sha256": "ce504095559ae6688a16a11134fb2ae8f14647f2bb9afa7c9c9a4e448ba6da2a"
+    },
+    {
+      "path": "user/user_keybindings.ndjson",
+      "size": 74,
+      "sha256": "b841a067ce6ab1dc6d6828d121efd47fe58d5789083c8839a64a9f76ed0517db"
+    },
+    {
+      "path": "notes/Docs/sermon.bn",
+      "size": 26,
+      "sha256": "3fa5a968f66f661b62acea1bbd7c70a5fd9aecc0b02c21b6bf280adf5a361218"
+    },
+    {
+      "path": "extensions/ext.bible-app.word-count/kv.ndjson",
+      "size": 104,
+      "sha256": "08b59af117d2d6fd2b1fa4204df9e8d3ca75632b4c6878572b7e8714bf7228b0"
+    }
+  ],
+  "sections": [
+    {
+      "id": "user.user_commentary",
+      "kind": "table",
+      "class": "content",
+      "required": false,
+      "count": 1,
+      "table": "user_commentary",
+      "columns": [
+        "user_commentary_id",
+        "name",
+        "description",
+        "created_date",
+        "modified_date",
+        "is_default",
+        "color",
+        "metadata"
+      ],
+      "paths": [
+        "user/user_commentary.ndjson"
+      ]
+    },
+    {
+      "id": "user.user_note",
+      "kind": "table",
+      "class": "content",
+      "required": false,
+      "count": 3,
+      "table": "user_note",
+      "columns": [
+        "note_id",
+        "user_commentary_id",
+        "parent_note_id",
+        "verse_id_start",
+        "verse_id_end",
+        "title",
+        "content",
+        "content_format",
+        "note_type",
+        "document_type",
+        "visibility",
+        "created_date",
+        "modified_date",
+        "tags",
+        "series_name",
+        "entry_date",
+        "metadata"
+      ],
+      "paths": [
+        "user/user_note.ndjson"
+      ]
+    },
+    {
+      "id": "user.collection",
+      "kind": "table",
+      "class": "content",
+      "required": false,
+      "count": 1,
+      "table": "collection",
+      "columns": [
+        "collection_id",
+        "parent_collection_id",
+        "name",
+        "description",
+        "color",
+        "icon",
+        "created_date",
+        "modified_date",
+        "sort_order",
+        "metadata"
+      ],
+      "paths": [
+        "user/collection.ndjson"
+      ]
+    },
+    {
+      "id": "user.pinned_item",
+      "kind": "table",
+      "class": "content",
+      "required": false,
+      "count": 2,
+      "table": "pinned_item",
+      "columns": [
+        "pin_id",
+        "collection_id",
+        "item_type",
+        "verse_id_start",
+        "verse_id_end",
+        "reference_id",
+        "reference_text",
+        "module_id",
+        "title",
+        "notes",
+        "created_date",
+        "sort_order",
+        "metadata"
+      ],
+      "paths": [
+        "user/pinned_item.ndjson"
+      ]
+    },
+    {
+      "id": "user.note_verse_link",
+      "kind": "table",
+      "class": "content",
+      "required": false,
+      "count": 1,
+      "table": "note_verse_link",
+      "columns": [
+        "link_id",
+        "note_id",
+        "verse_id_start",
+        "verse_id_end",
+        "link_type",
+        "word_start",
+        "word_end",
+        "metadata"
+      ],
+      "paths": [
+        "user/note_verse_link.ndjson"
+      ]
+    },
+    {
+      "id": "user.content_verse_link",
+      "kind": "table",
+      "class": "content",
+      "required": false,
+      "count": 1,
+      "table": "content_verse_link",
+      "columns": [
+        "link_id",
+        "content_type",
+        "content_id",
+        "verse_id_start",
+        "verse_id_end",
+        "link_type",
+        "position",
+        "metadata"
+      ],
+      "paths": [
+        "user/content_verse_link.ndjson"
+      ]
+    },
+    {
+      "id": "user.user_text_markup",
+      "kind": "table",
+      "class": "content",
+      "required": false,
+      "count": 2,
+      "table": "user_text_markup",
+      "columns": [
+        "markup_id",
+        "module_id",
+        "verse_id_start",
+        "verse_id_end",
+        "text_start",
+        "text_end",
+        "color",
+        "note_id",
+        "created_date",
+        "metadata"
+      ],
+      "paths": [
+        "user/user_text_markup.ndjson"
+      ]
+    },
+    {
+      "id": "user.session",
+      "kind": "table",
+      "class": "workspace",
+      "required": false,
+      "count": 2,
+      "table": "session",
+      "columns": [
+        "session_id",
+        "name",
+        "description",
+        "created_date",
+        "modified_date",
+        "last_opened",
+        "is_autosave",
+        "is_default",
+        "session_data",
+        "metadata"
+      ],
+      "paths": [
+        "user/session.ndjson"
+      ]
+    },
+    {
+      "id": "user.user_keybindings",
+      "kind": "table",
+      "class": "workspace",
+      "required": false,
+      "count": 1,
+      "table": "user_keybindings",
+      "columns": [
+        "command_id",
+        "key",
+        "mac",
+        "when_clause"
+      ],
+      "paths": [
+        "user/user_keybindings.ndjson"
+      ]
+    },
+    {
+      "id": "notes",
+      "kind": "files",
+      "class": "content",
+      "required": false,
+      "count": 1,
+      "paths": [
+        "notes/Docs/sermon.bn"
+      ]
+    },
+    {
+      "id": "ext.ext.bible-app.word-count.kv",
+      "kind": "extKv",
+      "class": "extension",
+      "required": false,
+      "count": 1,
+      "ext": "ext.bible-app.word-count",
+      "columns": [
+        "extension_id",
+        "key",
+        "value",
+        "updated_at"
+      ],
+      "paths": [
+        "extensions/ext.bible-app.word-count/kv.ndjson"
+      ]
+    }
+  ]
+}

@@ -4,6 +4,8 @@ import { useBibleStore, DEFAULT_PANEL_ID } from '../stores/useBibleStore';
 import { syncPanesWithVerse } from '../stores/syncPanesWithVerse';
 import { SearchResult, truncateAtWordBoundary, VerseIdHelper } from '@bible/core';
 import { Bdi } from '@bible/ui';
+import { announce } from '../services/announcer';
+import { useNetworkStore } from '../stores/useNetworkStore';
 import { useI18n } from '../contexts/useI18n';
 import { useBibleModuleLanguage } from '../hooks/useBibleModuleLanguage';
 import { contentDirAttrs } from '../utils/contentDirection';
@@ -67,7 +69,7 @@ interface SearchResultsPaneProps {
  * - Empty/loading/error states
  */
 const SearchResultsPane: React.FC<SearchResultsPaneProps> = ({ dockviewPanelApi }) => {
-  const { t } = useI18n();
+  const { t, localizer } = useI18n();
   const {
     resultsForQuery,
     searchResults,
@@ -89,6 +91,8 @@ const SearchResultsPane: React.FC<SearchResultsPaneProps> = ({ dockviewPanelApi 
     semanticAvailable,
     toggleSemanticMode,
     autoSwitchedToSemantic,
+    semanticSource,
+    semanticNotice,
     // Strong's word family
     strongsMeta,
     includeRelatedWords,
@@ -100,6 +104,11 @@ const SearchResultsPane: React.FC<SearchResultsPaneProps> = ({ dockviewPanelApi 
     lastClickedId,
     setLastClickedId,
   } = useSearchStore();
+
+  const allowWebRequests = useNetworkStore(s => s.allowWebRequests);
+  const networkLoaded = useNetworkStore(s => s.loaded);
+  const requestAllow = useNetworkStore(s => s.requestAllow);
+  const performSemanticSearch = useSearchStore(s => s.performSemanticSearch);
 
   const navigateToVerse = useBibleStore(s => s.navigateToVerseInPrimary);
   const biblePanels = useBibleStore(s => s.panels);
@@ -241,6 +250,7 @@ const SearchResultsPane: React.FC<SearchResultsPaneProps> = ({ dockviewPanelApi 
     try {
       await navigateToVerse(result.verseId);
       syncPanesWithVerse(result.verseId);
+      announce(t('a11y.announce.resultOpened', { reference: result.reference }));
     } catch (error) {
       console.error('Error navigating to verse:', error, result);
     }
@@ -307,6 +317,35 @@ const SearchResultsPane: React.FC<SearchResultsPaneProps> = ({ dockviewPanelApi 
 
   const isLoading = isSearching || isSemanticSearching;
 
+  // Offline banner's "Turn on": same confirmation-gated path as the Module Manager
+  // banner; once confirmed, retry the meaning search that just failed.
+  const semanticOffline = semanticNotice?.kind === 'unavailable' && networkLoaded && !allowWebRequests;
+  const handleTurnOnNetwork = async () => {
+    if (await requestAllow(true) && resultsForQuery) void performSemanticSearch(resultsForQuery);
+  };
+
+  const semanticNote = (() => {
+    if (!semanticNotice) return null;
+    const source = semanticSource === 'local' ? 'local' : 'keyword';
+    const resetAtMs = 'resetAtMs' in semanticNotice ? semanticNotice.resetAtMs : undefined;
+    const time = resetAtMs ? localizer.formatDate(new Date(resetAtMs), { timeStyle: 'short' }) : '';
+    const reset = resetAtMs ? 'yes' : 'no';
+    switch (semanticNotice.kind) {
+      case 'declined': return t('searchResultsPane.semanticNote.declined');
+      case 'degraded': return t('searchResultsPane.semanticNote.degraded');
+      case 'quota': return t('searchResultsPane.semanticNote.quota', { reset, time, source });
+      case 'paused': return t('searchResultsPane.semanticNote.paused', { reset, time, source });
+      case 'unavailable':
+        // B-159: with the master switch off the reason is known; say it instead of "unavailable right now".
+        return networkLoaded && !allowWebRequests
+          ? t('searchResultsPane.semanticNote.offline', { source })
+          : t('searchResultsPane.semanticNote.unavailable', { source });
+      case 'rephrase': return t('searchResultsPane.semanticNote.rephrase', { source });
+      default: return null;
+    }
+  })();
+
+
   // One whole message per announcement - never a count spliced onto a noun at
   // render time. Both keys are real ICU `{count, plural, ...}` messages in every
   // catalog, so `t()` owns the plural rules; `tf()` must not be used here
@@ -314,9 +353,18 @@ const SearchResultsPane: React.FC<SearchResultsPaneProps> = ({ dockviewPanelApi 
   // Counts what is on screen, not what is held in the store: with a page of
   // semantic results fetched but only some shown, a header claiming 150 above
   // a list of 30 would be a lie the "Show 120 More" button then contradicts.
+  //
+  // Keyword mode headlines the EXACT matches only (B-017): approximate (fuzzy)
+  // rows sit under their own divider and are not in the chart's count, so
+  // folding them in made "faith hope charity" read "60 results" for 1 verse.
   const countSummary = isSemanticMode
     ? t('searchResultsPane.semanticMatchCount', { count: renderedRowCount })
-    : t('searchResultsPane.resultCount', { count: renderedRowCount });
+    : fuzzyResults.length > 0
+      ? t('searchResultsPane.resultCountWithApproximate', {
+          count: exactAndStemResults.length,
+          approximate: fuzzyResults.length,
+        })
+      : t('searchResultsPane.resultCount', { count: renderedRowCount });
 
   // A search panel outlives the search that opened it: it is part of the saved
   // layout, so it comes back on the next launch with no query behind it.
@@ -336,6 +384,10 @@ const SearchResultsPane: React.FC<SearchResultsPaneProps> = ({ dockviewPanelApi 
       className="h-full flex flex-col"
       style={{ backgroundColor: 'var(--theme-bg-primary)' }}
       aria-labelledby="search-results-heading"
+      onKeyDown={(e) => {
+        // Escape closes the results panel so it cannot linger and take half the Bible pane.
+        if (e.key === 'Escape' && !e.defaultPrevented) handleClose();
+      }}
     >
       {/* Title Bar */}
       <div className="pane-header justify-between px-md py-sm">
@@ -347,7 +399,7 @@ const SearchResultsPane: React.FC<SearchResultsPaneProps> = ({ dockviewPanelApi 
 
           {/* Query Display */}
           <div className="flex-1 min-w-0">
-            <h2 id="search-results-heading" className="pane-header-title truncate">
+            <h2 id="search-results-heading" tabIndex={-1} data-pane-focus className="pane-header-title truncate">
               {headingText}
             </h2>
             {!isLoading && !error && hasQuery && (
@@ -445,6 +497,27 @@ const SearchResultsPane: React.FC<SearchResultsPaneProps> = ({ dockviewPanelApi 
             <div className="text-sm text-center max-w-md">
               {t('searchResultsPane.idleHint')}
             </div>
+          </div>
+        )}
+
+        {/* Online meaning search note (task 0190); renders only when a notice came back. */}
+        {!isLoading && !error && hasQuery && (isSemanticMode || semanticNotice) && semanticNote && (
+          <div
+            className="px-md py-sm border-b border-accent-soft text-sm text-text-secondary"
+            data-testid="semantic-note"
+            role="status"
+          >
+            {semanticNote}
+            {semanticOffline && (
+              <button
+                type="button"
+                onClick={() => void handleTurnOnNetwork()}
+                data-testid="semantic-note-turn-on"
+                className="ms-2 text-accent-strong hover:text-accent-strong underline cursor-pointer"
+              >
+                {t('searchResultsPane.semanticNote.turnOn')}
+              </button>
+            )}
           </div>
         )}
 

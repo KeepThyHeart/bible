@@ -1,0 +1,65 @@
+// ============================================================
+// Accessibility helpers: screen-reader-only text, skip links, and the
+// Windows High Contrast (`forced-colors: active`) pass.
+// ============================================================
+
+.sr-only {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+// First tab stops. Off-screen until focused, then pinned top-start above everything.
+.skip-links {
+  position: fixed;
+  inset-block-start: 0;
+  inset-inline-start: 0;
+  z-index: 1000;
+  display: flex;
+  gap: 8px;
+  padding: 8px;
+
+  &__link {
+    position: absolute;
+    inset-inline-start: 0;
+    inset-block-start: 0;
+    transform: translateY(-200%);
+    padding: 8px 14px;
+    border-radius: 6px;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    border: 2px solid var(--accent-color);
+    font-size: calc(0.875rem * var(--ui-font-scale, 1));
+    font-weight: 600;
+    text-decoration: none;
+    white-space: nowrap;
+
+    &:focus-visible {
+      position: static;
+      transform: none;
+      outline: 2px solid var(--accent-color);
+      outline-offset: 2px;
+    }
+  }
+}
+
+// Mobile <main> wraps the views without taking part in the layout.
+.app-main {
+  display: contents;
+}
+
+// The programmatic focus target of the skip link: no ring on the whole pane.
+#main-content:focus {
+  outline: none;
+}
+
+// The dialog box itself takes focus when a dialog opens; it is not a control, so no ring.
+[role='dialog'][tabindex='-1']:focus {
+  outline: none;
+}

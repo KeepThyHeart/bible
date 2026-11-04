@@ -123,6 +123,20 @@ function asConcreteFactory<K extends keyof ModuleRepositoryByType>(
 export class ModuleLoader<K extends keyof ModuleRepositoryByType> {
   private core: CoreModuleLoader<ConcreteModuleRepositoryByType[K]>;
 
+  /** Every loader created in this process, so an uninstall can drop a module from all of them. */
+  private static readonly instances = new Set<{ evict(abbreviation: string): void }>();
+
+  /** Evict `abbreviation` from every loader (closes connections). Used when a module is uninstalled. */
+  static evictEverywhere(abbreviation: string): void {
+    for (const l of ModuleLoader.instances) {
+      try {
+        l.evict(abbreviation);
+      } catch {
+        // best effort
+      }
+    }
+  }
+
   /**
    * @param moduleType - Expected module type string (e.g., 'bible', 'commentary')
    * @param repoType - Which `ModuleRepositoryByType` key this loader
@@ -146,6 +160,7 @@ export class ModuleLoader<K extends keyof ModuleRepositoryByType> {
     // DB connection - whether opened via abbreviation (this class) or
     // numeric moduleId (studyHandlers) - shares a single handle owned by the
     // registry.
+    ModuleLoader.instances.add(this);
     const store = new SqliteModuleStore(createRegistrySqlFactory(moduleType));
 
     this.core = new CoreModuleLoader<ConcreteModuleRepositoryByType[K]>({

@@ -3,12 +3,22 @@
  * loads nothing", the off switch (boot and runtime), activation, the verse action, the
  * availability key and the follow-the-verse listener.
  */
-import { describe, it, expect, beforeAll, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeAll, beforeEach, afterEach, vi } from 'vitest';
 import { validateBuiltinManifest } from '@bible/core/browser';
 import { similarManifest } from './manifest';
 
 const status = vi.hoisted(() => vi.fn());
 vi.mock('./similarAPI', () => ({ similarAPI: { status, find: vi.fn(), explain: vi.fn(), reset: vi.fn() } }));
+
+// Startup activations are fire-and-forget (idle callback). One still loading when a test ends would finish
+// after the next test's vi.resetModules() and register into ITS fresh registries (the "already registered"
+// and leaked-entity-action failures), so every test drains the host it booted before the next begins.
+let lastHost: { fire(event: string): Promise<void> } | null = null;
+afterEach(async () => {
+  const host = lastHost;
+  lastHost = null;
+  await host?.fire('onStartupFinished');
+});
 
 async function boot(override = '') {
   vi.resetModules();
@@ -22,6 +32,7 @@ async function boot(override = '') {
   const store = await import('./useSimilarStore');
   const { whenContextService } = await import('../../services/WhenContextService');
   registerBuiltinModules();
+  lastHost = host.featureModules;
   return { ...host, verseActions: apps.verseActions, loadSpy, listeners, store, whenContextService };
 }
 
@@ -40,6 +51,10 @@ function fakeCommandRegistry() {
 }
 
 const tick = () => new Promise((r) => setTimeout(r, 20));
+
+/** Boot's startup activation is fire-and-forget (idle callback): wait for it instead of guessing a delay. */
+const untilActive = (featureModules: { isActive(id: string): boolean }) =>
+  vi.waitFor(() => expect(featureModules.isActive('similar')).toBe(true), { timeout: 20_000 });
 
 // Warm the transform cache once: the first import of the host graph is slow on a cold or busy machine.
 beforeAll(async () => {
@@ -80,8 +95,7 @@ describe('similar module in the desktop host', () => {
 
   it('activates after startup, detects availability and sets the when-context key', async () => {
     const { featureModules, whenContextService } = await boot('');
-    await tick();
-    expect(featureModules.isActive('similar')).toBe(true);
+    await untilActive(featureModules);
     await vi.waitFor(() => expect(whenContextService.get('similarAvailable')).toBe(true));
     expect(status).toHaveBeenCalled();
   }, 120_000);
@@ -104,11 +118,11 @@ describe('similar module in the desktop host', () => {
   }, 120_000);
 
   it('registers its command while on and removes everything when switched off at runtime', async () => {
-    const { modulePoints, verseActions, reconcileModules, bindModuleCommands, listeners, store } = await boot('');
+    const { modulePoints, verseActions, reconcileModules, bindModuleCommands, listeners, store, featureModules } = await boot('');
     const { registry, ids } = fakeCommandRegistry();
     bindModuleCommands(registry);
     expect(ids()).toEqual(['similar.open']);
-    await tick();
+    await untilActive(featureModules);
     const follow = vi.spyOn(store.useSimilarStore.getState(), 'followVerse');
     listeners.verseFollowers.emit(43003016);
     expect(follow).toHaveBeenCalledWith(43003016);
@@ -127,7 +141,9 @@ describe('similar module in the desktop host', () => {
   }, 120_000);
 
   it('refreshes availability when the library changes or the verse menu opens', async () => {
-    const { listeners } = await boot('');
+    const { listeners, featureModules } = await boot('');
+    await untilActive(featureModules);
+    await vi.waitFor(() => expect(status).toHaveBeenCalled(), { timeout: 20_000 });
     await tick();
     status.mockClear();
     listeners.libraryChangeListeners.emit();

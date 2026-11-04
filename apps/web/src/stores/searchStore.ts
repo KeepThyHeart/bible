@@ -2,7 +2,7 @@ import { Store } from './Store';
 import { bibleStore } from './bibleStore';
 import { parseReference, headerBookAliases } from '../components/Header';
 import { formatPassageRef } from '../constants';
-import { getLocalizer, stripBidiControls } from '@bible/core/browser';
+import { getLocalizer, stripBidiControls, type RemoteSemantic } from '@bible/core/browser';
 import i18n from '../i18n';
 import type { ISearchProvider } from '../providers/interfaces';
 import type { SearchResultData, SearchResultSet, WordFamilyMemberData } from '../types';
@@ -99,6 +99,11 @@ class SearchStore extends Store {
   searchedModule = '';
   /** For semantic searches: number of keyword matches found in parallel */
   keywordMatchCount = 0;
+  /**
+   * Semantic searches only: which provider answered and any note for the user
+   * (online meaning search: keyword fallback, daily limit, declined). Task 0190.
+   */
+  semanticMeta: RemoteSemantic.SemanticMeta | undefined = undefined;
   /** Modules used for the parallel keyword search (needed to switch) */
   private lastKeywordModules: string[] = [];
   /** Translation the current semantic results were hydrated in; see loadMoreSemantic. */
@@ -225,6 +230,11 @@ class SearchStore extends Store {
     return this.search.warmupSemanticSearch();
   }
 
+  /** Run the current search again with the same type and translations (e.g. once the connection is back, B-184). */
+  retryLast(): Promise<void> {
+    return this.performSearch(this.query, this.searchType, this.lastKeywordModules.length > 0 ? this.lastKeywordModules : undefined);
+  }
+
   async performSearch(query: string, type?: 'keyword' | 'semantic', modules?: string[]): Promise<void> {
     if (!this.search || !query.trim()) return;
 
@@ -245,6 +255,7 @@ class SearchStore extends Store {
     this.isOpen = true;
     this.searchedModule = (this.searchType === 'keyword' && modules && modules.length > 0) ? modules[0] : '';
     this.keywordMatchCount = 0;
+    this.semanticMeta = undefined;
     this.lastKeywordModules = modules ?? [];
     // Kept so "load more" hydrates its extra page from the same translation as
     // the first one, rather than silently falling back to KJV halfway down.
@@ -289,6 +300,7 @@ class SearchStore extends Store {
 
         this.results = semanticResult.results;
         this.totalResults = semanticResult.total;
+        this.semanticMeta = semanticResult.semantic;
         // The whole match set, not the page the endpoint happened to return —
         // "N keyword matches" in the banner is a reason to switch modes, and
         // capping it at a page size understated it by orders of magnitude.
@@ -463,7 +475,8 @@ class SearchStore extends Store {
 
   /** Occurrences still unfetched for the current Strong's search. */
   get strongsRemaining(): number {
-    return Math.max(0, this.strongsTotalAvailable - this.results.length);
+    // The server never returns more than its cap, however many exist.
+    return Math.max(0, Math.min(this.strongsTotalAvailable, STRONGS_MAX_RESULTS) - this.results.length);
   }
 
   /** Load one more page of Strong's occurrences. */
@@ -549,14 +562,27 @@ class SearchStore extends Store {
       const chapter = Math.floor((vid % 1000000) / 1000);
       const verse = vid % 1000;
       const reference = formatPassageRef(book, chapter, verse || 1);
-      this.results.unshift({
+      const module = bibleStore.getActiveTab()?.moduleAbbr || '';
+      const placeholder: SearchResultData = {
         verseId: vid,
         reference,
         text: '(exact reference match)',
-        module: bibleStore.getActiveTab()?.moduleAbbr || '',
+        module,
         type: 'reference',
-      });
+      } as SearchResultData;
+      this.results.unshift(placeholder);
       this.totalResults += 1;
+      // Show the verse itself: replace the placeholder text once it is read.
+      if (module) {
+        const seq = this.searchSeq;
+        void bibleStore.getVerseText(module, vid).then((text) => {
+          const i = this.results.indexOf(placeholder);
+          if (text && seq === this.searchSeq && i >= 0) {
+            this.results = this.results.map((r, j) => (j === i ? { ...placeholder, text } : r));
+            this.notify();
+          }
+        });
+      }
     }
     // idx === 0 means it's already first — nothing to do
   }
@@ -576,6 +602,7 @@ class SearchStore extends Store {
 
       this.results = resultSet.results;
       this.totalResults = resultSet.total;
+      this.semanticMeta = resultSet.semantic;
       // If we got fewer than requested, no more to load
       this.canLoadMore = resultSet.results.length >= this.semanticPageSize;
       this.loadingMore = false;
@@ -659,6 +686,7 @@ class SearchStore extends Store {
   private resetResults(): void {
     this.query = '';
     this.results = [];
+    this.semanticMeta = undefined;
     this.totalResults = 0;
     this.loading = false;
     this.loadingMore = false;

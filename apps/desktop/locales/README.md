@@ -75,7 +75,7 @@ The app loads catalogs from two places and merges them, user over built-in:
 | Source | Path |
 |---|---|
 | Built-in (ships with the app) | this folder |
-| User-supplied | `<userData>/locales/` - e.g. `%APPDATA%/bible-desktop-app/locales/` on Windows |
+| User-supplied | `<userData>/locales/` - e.g. `%APPDATA%/@bible/desktop/locales/` on Windows |
 
 That means you can test a translation without rebuilding: drop `es/ui.json` into the user folder and restart.
 

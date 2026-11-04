@@ -46,6 +46,7 @@ import {
   WorkspaceApiImpl,
 } from './api-impl';
 import { SpeechApiImpl } from './api-impl/speechApiImpl';
+import { scopedSpeech } from '../modules/speech/hub';
 import type { ExtensionRpcRouter } from './ExtensionRpcRouter';
 import { buildGrant } from './ExtensionPermissionGuard';
 import { createDeclaredMethodGuard } from './DeclaredApiGuard';
@@ -250,12 +251,12 @@ export function attachApiImpls(
     }
   }
 
-  // Speech. A stub in this build: `speech.status` is ungated and reports
-  // `unavailable`; the rest check their permission, then reject. Attached
+  // Speech. Forwards to the renderer engine through the speech hub when the `recite` flag has it
+  // running; otherwise `speech.status` reports `unavailable` and the rest reject after their permission check. Attached
   // whenever desktop serves the namespace, so the proxy never answers
   // `Unknown RPC method`.
   if (isAvailable('speech')) {
-    new SpeechApiImpl({ extensionId, router, grant }).attach();
+    new SpeechApiImpl({ extensionId, router, grant, speech: () => scopedSpeech(extensionId) }).attach();
   }
 
   // Background tasks. Gated on the declared availability (the `tasks`

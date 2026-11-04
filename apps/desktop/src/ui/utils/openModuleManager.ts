@@ -1,5 +1,6 @@
 /**
- * Open the Module Manager, optionally pre-filtered to a single module type.
+ * Open the Module Manager, optionally on one tab: a module type (pre-filtered)
+ * or another tab such as `features`.
  *
  * Panes call this from their empty states so a user with no module of
  * a given type is taken straight to the place they can install one - filtered to
@@ -10,13 +11,13 @@
  * and is honored by `App.tsx` (which forwards it to `ModuleManagerDialog`).
  */
 
-import type { ModuleType } from '../stores/useModuleStore';
+import type { ModuleManagerTab } from '../stores/module/types';
 
 export interface OpenModuleManagerDetail {
-  moduleType?: ModuleType;
+  moduleType?: ModuleManagerTab;
 }
 
-export function openModuleManager(moduleType?: ModuleType): void {
+export function openModuleManager(moduleType?: ModuleManagerTab): void {
   window.dispatchEvent(
     new CustomEvent<OpenModuleManagerDetail>('command:module:openManager', {
       detail: moduleType ? { moduleType } : {},

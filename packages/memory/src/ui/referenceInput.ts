@@ -43,7 +43,7 @@ const BOOK_SHAPE = String.raw`(?:[1-3]|I{1,3})\s?[A-Z][a-zA-Z]+|Song of (?:Solom
  * and the line falls through to the whole-line candidate instead.
  */
 const REFERENCE_SHAPE = new RegExp(
-  String.raw`\b(?:${BOOK_SHAPE})\s+\d{1,3}(?::\d{1,3}(?:-\d{1,3})?)?(?!\.\d)\b`,
+  String.raw`\b(?:${BOOK_SHAPE})\s+\d{1,3}(?::\d{1,3}(?:-\d{1,3}(?::\d{1,3})?)?)?(?!\.\d)\b`,
   'g',
 );
 

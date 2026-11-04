@@ -28,15 +28,27 @@ describe('installAppCommands', () => {
     usePreferencesStore.setState({ appOrder: [], appHidden: [] });
   });
 
-  it('registers app.open.<id> with Ctrl+Shift+<slot> by order, plus app.goToStudy on Ctrl+Shift+0', () => {
+  it('registers app.open.<id> with Ctrl+Shift+<slot> by order; Study also takes Ctrl+Shift+0 without a duplicate palette entry', () => {
     appRegistry.register(desc('study', 0), { kind: 'builtin', moduleId: 'study' });
     appRegistry.register(desc('b', 20), { kind: 'builtin', moduleId: 'b' });
     const reg = fakeRegistry();
     installAppCommands({ registry: reg as never, i18n: i18n as never });
-    expect(reg.cmds.get('app.open.study')!.shortcut).toEqual({ key: 'Ctrl+Shift+1', mac: 'Cmd+Shift+1' });
+    expect(reg.cmds.get('app.open.study')!.shortcut).toEqual([
+      { key: 'Ctrl+Shift+1', mac: 'Cmd+Shift+1' },
+      { key: 'Ctrl+Shift+0', mac: 'Cmd+Shift+0' },
+    ]);
     expect(reg.cmds.get('app.open.b')!.shortcut).toEqual({ key: 'Ctrl+Shift+2', mac: 'Cmd+Shift+2' });
-    expect(reg.cmds.get('app.goToStudy')!.shortcut).toEqual({ key: 'Ctrl+Shift+0', mac: 'Cmd+Shift+0' });
+    // B-032: one "Apps: Study" palette entry, not two.
+    expect(reg.cmds.has('app.goToStudy')).toBe(false);
+    expect([...reg.cmds.values()].filter((c) => c.title === 'STUDY')).toHaveLength(1);
     expect(reg.cmds.get('app.open.b')!.title).toBe('B');
+  });
+
+  it('falls back to app.goToStudy when Study is not a listed app', () => {
+    appRegistry.register(desc('b', 20), { kind: 'builtin', moduleId: 'b' });
+    const reg = fakeRegistry();
+    installAppCommands({ registry: reg as never, i18n: i18n as never });
+    expect(reg.cmds.get('app.goToStudy')!.shortcut).toEqual({ key: 'Ctrl+Shift+0', mac: 'Cmd+Shift+0' });
   });
 
   it('disposes the command of an unregistered app and follows the user order', () => {
@@ -48,7 +60,7 @@ describe('installAppCommands', () => {
     expect(reg.cmds.get('app.open.b')!.shortcut!.key).toBe('Ctrl+Shift+1');
     b.dispose();
     expect(reg.cmds.has('app.open.b')).toBe(false);
-    expect(reg.cmds.get('app.open.study')!.shortcut!.key).toBe('Ctrl+Shift+1');
+    expect((reg.cmds.get('app.open.study')!.shortcut as unknown as Array<{ key: string }>)[0].key).toBe('Ctrl+Shift+1');
     handle.dispose();
     expect(reg.cmds.size).toBe(0);
   });

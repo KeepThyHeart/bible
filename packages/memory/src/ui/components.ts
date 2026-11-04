@@ -16,7 +16,7 @@
  * asked this panel to look like the rest of the app in the meantime: a
  * full-width toolbar band, a plain back arrow at the left, and small flat
  * buttons rather than v0's rounded filled ones and text-link "Back to plan".
- * `breadcrumb()` and `.sm-crumb*` in `styles.css` are that local approximation.
+ * `breadcrumb()` now renders the shared kit's `kth-crumbs*` classes (packages/ui/css/kth-classes.css).
  * The proper fix is a shared stylesheet from the host (`ext-ui://host/controls.css`,
  * raised as a separate Bible-repo task per that review) that this panel would
  * then consume instead of maintaining its own copy.
@@ -24,13 +24,13 @@
 
 import type { Rung, RungView } from '../core/types';
 import { append, button, el, focusQuietly } from './dom';
+import { tr } from './i18n';
 import { MIN_VERSES_FOR_REFERENCE_ACTIVITIES } from '../core/ladder';
 import {
   MASTERED_LEVEL,
   RUNG_LABEL,
   carriesDownFrom,
   clampPercent,
-  countLabel,
   formatDue,
   formatScore,
   inLadderOrder,
@@ -73,7 +73,7 @@ export function breadcrumb(opts: {
   menu?: HTMLElement;
   actions?: (HTMLElement | null)[];
 }): HTMLElement {
-  const list = el('ol', { class: 'sm-crumb-list' });
+  const list = el('ol', { class: 'kth-crumbs__list' });
 
   opts.crumbs.forEach((crumb, index) => {
     const isFirst = index === 0;
@@ -81,25 +81,25 @@ export function breadcrumb(opts: {
     const content: (Node | string)[] = isFirst ? [icon('home'), crumb.label] : [crumb.label];
 
     const crumbEl: HTMLElement = isLast
-      ? el('h1', { class: 'sm-crumb-current', attrs: { 'aria-current': 'page' } })
-      : button(crumb.label, crumb.onClick ?? (() => {}), { class: 'sm-crumb', text: '' });
+      ? el('h1', { class: 'kth-crumbs__current', attrs: { 'aria-current': 'page' } })
+      : button(crumb.label, crumb.onClick ?? (() => {}), { class: 'kth-crumbs__link', text: '' });
     append(crumbEl, content);
 
-    list.appendChild(el('li', { class: 'sm-crumb-item' }, [crumbEl]));
+    list.appendChild(el('li', { class: 'kth-crumbs__item' }, [crumbEl]));
 
     if (!isLast) {
       list.appendChild(
-        el('li', { class: 'sm-crumb-sep' }, [
+        el('li', { class: 'kth-crumbs__sep' }, [
           el('span', { attrs: { 'aria-hidden': 'true' } }, ['›']),
         ]),
       );
     }
   });
 
-  return el('nav', { class: 'sm-crumbs', attrs: { 'aria-label': 'Breadcrumb' } }, [
+  return el('nav', { class: 'kth-crumbs', attrs: { 'aria-label': tr('memory.ui.common.breadcrumb', 'Breadcrumb') } }, [
     opts.menu ?? null,
     list,
-    el('div', { class: 'sm-crumbs-actions' }, opts.actions ?? []),
+    el('div', { class: 'kth-crumbs__actions' }, opts.actions ?? []),
   ]);
 }
 
@@ -161,11 +161,12 @@ export function menu(opts: { label: string; items: MenuItem[] }): HTMLElement {
   append(panel, itemButtons);
 
   const trigger = button(opts.label, () => (panel.hidden ? openMenu() : closeMenu()), {
-    class: 'sm-btn sm-btn-quiet sm-icon-btn sm-menu-btn',
+    class: 'sm-btn sm-btn-quiet sm-btn-small sm-menu-btn',
     text: '',
-    attrs: { 'aria-haspopup': 'menu', 'aria-expanded': 'false', 'aria-label': opts.label },
+    attrs: { 'aria-haspopup': 'menu', 'aria-expanded': 'false', 'aria-label': opts.label, title: opts.label },
   });
-  append(trigger, [icon('menu')]);
+  // Icon plus the word: a bare three-line glyph was not self-evident to a new user.
+  append(trigger, [icon('menu'), el('span', { class: 'sm-menu-btn-label', text: tr('memory.ui.common.menuButton', 'Menu') })]);
 
   // Registered only while the menu is open, and torn down the moment it
   // closes by any route - Escape, an item press, or this handler firing
@@ -283,14 +284,14 @@ export function tabs<T extends string>(opts: {
   ariaLabel?: string;
 }): HTMLElement {
   const list = el('div', {
-    class: 'sm-tabs',
+    class: 'kth-tabs',
     attrs: { role: 'tablist', ...(opts.ariaLabel !== undefined ? { 'aria-label': opts.ariaLabel } : {}) },
   });
 
   const tabButtons = opts.items.map((item) => {
     const isSelected = item.value === opts.selected;
     return button(item.label, () => opts.onSelect(item.value), {
-      class: `sm-tab${isSelected ? ' sm-tab-selected' : ''}`,
+      class: 'kth-tabs__tab',
       attrs: {
         role: 'tab',
         'aria-selected': String(isSelected),
@@ -399,13 +400,13 @@ export function dueBadge(dueCount: number): HTMLElement | null {
   return el('span', {
     class: 'sm-badge sm-badge-due',
     text: String(dueCount),
-    attrs: { 'aria-label': `${countLabel(dueCount, 'activity', 'activities')} due` },
+    attrs: { 'aria-label': tr('memory.ui.common.activitiesDue', '{count, plural, one {# activity due} other {# activities due}}', { count: dueCount }) },
   });
 }
 
 /** "Suggested" - the badge on the activity `suggestedRungFor` picked. */
 export function suggestedBadge(): HTMLElement {
-  return el('span', { class: 'sm-badge sm-badge-suggested', text: 'Suggested' });
+  return el('span', { class: 'sm-badge sm-badge-suggested', text: tr('memory.ui.common.suggested', 'Suggested') });
 }
 
 // ---------------------------------------------------------------------------
@@ -437,12 +438,14 @@ export function levelBoxes(level: number, opts: { due?: boolean } = {}): HTMLEle
 
   const label =
     level === 0
-      ? 'not tried yet'
-      : `level ${level} of ${LEVEL_MAX}${opts.due ? ', due for review' : ''}`;
+      ? tr('memory.ui.common.levelNotTried', 'not tried yet')
+      : opts.due
+        ? tr('memory.ui.common.levelOfMaxDue', 'level {level} of {max}, due for review', { level, max: LEVEL_MAX })
+        : tr('memory.ui.common.levelOfMax', 'level {level} of {max}', { level, max: LEVEL_MAX });
 
   return el(
     'span',
-    { class: `sm-level-boxes${opts.due && level < GREEN_AT ? ' sm-level-boxes-due' : ''}`, attrs: { role: 'img', 'aria-label': label } },
+    { class: `sm-level-boxes${opts.due && level < GREEN_AT ? ' sm-level-boxes-due' : ''}`, attrs: { role: 'img', 'aria-label': label, title: label } },
     boxes,
   );
 }
@@ -452,10 +455,10 @@ export function levelBoxes(level: number, opts: { due?: boolean } = {}): HTMLEle
  * accessible label.
  */
 function squareStatusWord(rv: RungView, carried: boolean): string {
-  if (rv.level >= MASTERED_LEVEL) return 'well learned';
-  if (carried) return 'learned via a harder activity';
-  if (rv.level > 0) return 'in progress';
-  return 'not started';
+  if (rv.level >= MASTERED_LEVEL) return tr('memory.ui.common.statusWellLearned', 'well learned');
+  if (carried) return tr('memory.ui.common.statusLearnedViaHarder', 'learned via a harder activity');
+  if (rv.level > 0) return tr('memory.ui.common.statusInProgress', 'in progress');
+  return tr('memory.ui.common.statusNotStarted', 'not started');
 }
 
 /**
@@ -482,7 +485,7 @@ export function activitySquares(rungs: RungView[]): HTMLElement {
         rv.level >= MASTERED_LEVEL ? 'done' : carried ? 'carried' : rv.level > 0 ? 'partial' : 'new';
       return el('span', {
         class: `sm-activity-square sm-activity-square-${status}`,
-        title: `${RUNG_LABEL[rv.rung]}: ${squareStatusWord(rv, carried)}`,
+        title: tr('memory.ui.common.rungStatus', '{rung}: {status}', { rung: RUNG_LABEL[rv.rung], status: squareStatusWord(rv, carried) }),
         attrs: { 'aria-hidden': 'true' },
       });
     }),
@@ -565,7 +568,7 @@ export function modal(opts: ModalOptions): ModalHandle {
   modalIdSeq += 1;
   const titleId = `sm-modal-title-${modalIdSeq}`;
 
-  const closeButton = iconButton('✕', 'Close', () => closeModal());
+  const closeButton = iconButton('✕', tr('memory.ui.common.close', 'Close'), () => closeModal());
   const header = el('div', { class: 'sm-modal-header' }, [
     el('h2', { class: 'sm-modal-title', id: titleId, text: opts.title }),
     closeButton,
@@ -678,7 +681,7 @@ export function tierPips(tiersPassed: number, tiers: number): HTMLElement {
     'span',
     {
       class: 'sm-tier-pips',
-      attrs: { role: 'img', 'aria-label': `${tiersPassed} of ${countLabel(tiers, 'tier')} passed` },
+      attrs: { role: 'img', 'aria-label': tr('memory.ui.common.tiersPassed', '{passed} of {tiers, plural, one {# tier} other {# tiers}} passed', { passed: tiersPassed, tiers }) },
     },
     pips,
   );
@@ -706,7 +709,7 @@ export function listSelector(
 ): HTMLSelectElement {
   const select = el('select', {
     class: 'sm-select sm-list-selector',
-    attrs: { 'aria-label': 'List' },
+    attrs: { 'aria-label': tr('memory.ui.common.list', 'List') },
   }) as HTMLSelectElement;
 
   for (const opt of options) {
@@ -757,7 +760,7 @@ export function activityRow(opts: ActivityRowOptions): HTMLElement {
     tierPips(opts.tiersPassed, opts.tiers),
     levelBoxes(opts.level, { due: opts.due }),
     el('span', { class: 'sm-activity-row-schedule', text: opts.scheduleText ?? '' }),
-    iconButton('▶', opts.playLabel ?? `Practice ${RUNG_LABEL[opts.rung]}`, opts.onPlay),
+    iconButton('▶', opts.playLabel ?? tr('memory.ui.common.practiceRung', 'Practice {rung}', { rung: RUNG_LABEL[opts.rung] }), opts.onPlay),
   ]);
 }
 
@@ -765,7 +768,7 @@ function squaresLabel(applicable: RungView[], allRungs: RungView[]): string {
   return applicable
     .map((rv) => {
       const carried = rv.level < MASTERED_LEVEL && carriesDownFrom(allRungs, rv.rung);
-      return `${RUNG_LABEL[rv.rung]}: ${squareStatusWord(rv, carried)}`;
+      return tr('memory.ui.common.rungStatus', '{rung}: {status}', { rung: RUNG_LABEL[rv.rung], status: squareStatusWord(rv, carried) });
     })
     .join('; ');
 }
@@ -797,8 +800,8 @@ export function statTile(value: string, caption: string): HTMLElement {
 /** "Due in 3 days · last score 82%" - the line under a passage-screen activity. */
 export function scheduleLine(rung: { dueAt: number | null; lastScore: number | null; streak: number }, now: number): HTMLElement {
   const parts: string[] = [formatDue(rung.dueAt, now)];
-  if (rung.lastScore !== null) parts.push(`Last score ${formatScore(rung.lastScore)}`);
-  if (rung.streak > 0) parts.push(countLabel(rung.streak, 'pass', 'passes') + ' in a row');
+  if (rung.lastScore !== null) parts.push(tr('memory.ui.common.lastScore', 'Last score {score}', { score: formatScore(rung.lastScore) }));
+  if (rung.streak > 0) parts.push(tr('memory.ui.common.passesInARow', '{count, plural, one {# pass in a row} other {# passes in a row}}', { count: rung.streak }));
   return el('p', { class: 'sm-schedule', text: parts.join(' · ') });
 }
 
@@ -912,12 +915,12 @@ export function icon(name: IconName): SVGSVGElement {
 export function inapplicabilityNote(rung: Rung): string {
   switch (rung) {
     case 'ordering':
-      return 'Putting verses in order needs more than one verse.';
+      return tr('memory.ui.common.notApplicableOrdering', 'Putting verses in order needs more than one verse.');
     case 'refmatch':
-      return `Matching a reference needs ${MIN_VERSES_FOR_REFERENCE_ACTIVITIES} verses in this list to tell references apart.`;
+      return tr('memory.ui.common.notApplicableRefmatchPassages', 'Matching a reference needs {count} passages in this list to tell references apart.', { count: MIN_VERSES_FOR_REFERENCE_ACTIVITIES });
     case 'refprovide':
-      return `Naming a reference needs ${MIN_VERSES_FOR_REFERENCE_ACTIVITIES} verses in this list to tell references apart.`;
+      return tr('memory.ui.common.notApplicableRefprovidePassages', 'Naming a reference needs {count} passages in this list to tell references apart.', { count: MIN_VERSES_FOR_REFERENCE_ACTIVITIES });
     default:
-      return 'This activity does not apply to this passage.';
+      return tr('memory.ui.common.notApplicableDefault', 'This activity does not apply to this passage.');
   }
 }

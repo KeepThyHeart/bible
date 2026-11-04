@@ -24,6 +24,7 @@ import type { DesktopAppBinding } from '../apps/appHost';
 import type { ICommandRegistry } from '../services/ICommandRegistry';
 import type { IDisposable } from '../types/Command';
 import { isEnabled } from '../settings/featureFlags';
+import { releaseModuleOverrides } from '../../../electron/config/releaseProfile';
 import { declareSessionKeys } from '../stores/helpers/sessionRegistry';
 import { preferencesSectionGlyphs, setViewActivator } from './host/slots';
 import type { ReactNode } from 'react';
@@ -34,12 +35,14 @@ export const moduleTimings = createModuleTimingLog();
 
 const OVERRIDE_KEY = 'kth.modules';
 
+/** Release-profile removals always apply; the dev localStorage override layers on top in development only. */
 function devOverrides(): Record<string, boolean> {
-  if (!import.meta.env.DEV) return {};
+  const fromProfile = releaseModuleOverrides();
+  if (!import.meta.env.DEV) return fromProfile;
   try {
-    return parseFeatureModuleOverrides(window.localStorage.getItem(OVERRIDE_KEY));
+    return { ...fromProfile, ...parseFeatureModuleOverrides(window.localStorage.getItem(OVERRIDE_KEY)) };
   } catch {
-    return {};
+    return fromProfile;
   }
 }
 
@@ -115,9 +118,25 @@ export function bindNamespaceLoader(loader: (ns: string) => Promise<void>): void
   namespaceLoader = loader;
 }
 
+let namespaceRegistrar: ((ns: string) => void) | null = null;
+
+/**
+ * Register every built-in module's i18n namespace with the catalog loader, enabled or not. A module hidden in
+ * Preferences > Apps still has palette commands and panes that can be opened, and those must not read as raw
+ * keys (B-071); the contribution registry only lists namespaces of ENABLED modules.
+ */
+export function bindNamespaceRegistrar(register: (ns: string) => void): void {
+  namespaceRegistrar = register;
+  for (const { entry } of desktopRecords.values()) {
+    const ns = entry.manifest.contributes.i18nNamespace;
+    if (ns) register(ns);
+  }
+}
+
 export function addDesktopModule(entry: DesktopFeatureModule): void {
   if (entry.sessionKeys) declareSessionKeys(entry.sessionKeys);
   const ns = entry.manifest.contributes.i18nNamespace;
+  if (ns) namespaceRegistrar?.(ns);
   const binding = entry.binding;
   const load = binding?.load;
   featureModules.add(

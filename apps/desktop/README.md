@@ -49,6 +49,21 @@ In dev mode, logs go to the terminal where you launched the command. The rendere
 pnpm run build:core && pnpm run dev
 ```
 
+### Installing a packaged dev build (Linux, Windows)
+
+`pnpm run dev` hides bugs that only exist in a packaged app: asar paths, `process.resourcesPath`, unpacked native modules, data under `userData` rather than the checkout. To run the real packaged app without building an installer, run this from the repository root:
+
+```bash
+pnpm run install:local                     # build, package (electron-builder --dir), install
+pnpm run install:local --profile=curated   # package with another config: code-only (default), lean, curated
+pnpm run install:local --skip-build        # re-package the existing out/ only
+pnpm run uninstall:local                   # remove it (user data is kept)
+```
+
+Run `install:local` again to update in place. Quit the app first, including the tray icon; the script refuses to run while the app is open. It installs per user, with no sudo or admin rights. On Linux the app goes in `~/.local/opt/`, with a menu entry, an icon and a `~/.local/bin` symlink. On Windows it goes in `%LOCALAPPDATA%\Programs\`, with a Start Menu shortcut.
+
+The install uses a **dev identity**: "Keep Thy Heart Bible Reader (Dev)" with appId `com.keepthyheart.bible.desktop.dev`. Its user data is in `~/.config/Keep Thy Heart Bible Reader (Dev)` (`%APPDATA%\…` on Windows), separate from both `pnpm run dev` and any release installed on the machine. Set `BIBLE_PRODUCT_NAME` / `BIBLE_APP_ID` to use another identity; the official one is refused. To debug, launch it with `--inspect=9229` (main process) or `--remote-debugging-port=9222` (renderer). On systems that restrict unprivileged user namespaces (Ubuntu 24.04+), the script prints the `chmod 4755` command that `chrome-sandbox` needs.
+
 ## Building and Packaging
 
 ```bash
@@ -94,12 +109,15 @@ A few user-visible values are not finalised yet, so they are supplied by environ
 | Variable | Default | Effect |
 | --- | --- | --- |
 | `BIBLE_PRODUCT_NAME` | `Keep Thy Heart Bible Reader` | Product name used for the window title, the page `<title>`, the app header, the About dialog, and the installer (`productName` / NSIS shortcut). |
+| `BIBLE_THEME_COLOR` | `themeColor` from `admin/brand/branding.json` (`#2563eb`) | Accent colour of the startup splash's icon and spinner. |
 | `BIBLE_ISSUE_REPORT_URL` | *(empty)* | Where the "Report an Issue" command sends the user. Accepts an `https://` issue-tracker URL **or** a `mailto:` address (a subject line with the product name and version is pre-filled for `mailto:`). When empty the command is not registered at all, so it never appears in the command palette or the Help menu - no dead links. |
 | `BIBLE_MODULE_CATALOG_URL` | `moduleRepositoryUrl` from `admin/brand/branding.json` (`https://modules.bible.keepthyheart.com/`), or empty while that key is listed in `_undecided` | Default module catalog/repository URL. When set it is seeded as the official repository on first run and used as the URL placeholder in Repository Settings. It may name a catalog, or a directory serving an `index.json` of catalogs (as the official site root does); each listed catalog is added on refresh. When empty no repository is seeded and the UI explains that modules can be dropped into `data/modules` instead. |
 | `BIBLE_COPYRIGHT_YEAR` | year of the build | Copyright year shown in the About dialog. |
 | `BIBLE_APP_VERSION` | `version` from `package.json` | Version embedded in the `mailto:` issue-report subject, and shown at the foot of the Help panel. |
 | `BIBLE_DOCS_URL` | `https://docs.bible.keepthyheart.com/desktop/` | Documentation website. The Help panel offers a "Documentation website" row that opens it in the OS browser. Set it to `none` for a build with no docs site: the row is then omitted entirely - same rule as the issue tracker, no dead links. |
 | `BIBLE_ABOUT_TEXT` | *(empty)* | A sentence or two about this build, shown at the top of the Help panel. Passed through as written and **not** translated, since it arrives as one already-authored string. |
+| `BIBLE_REMOTE_SEMANTIC_URL` | `https://search.bible.keepthyheart.com` | Base `http(s)://` URL of a bibsearch service for online meaning search. `none` (or any non-http/https value) removes the online choice from the UI. Preferences > Search offers Online (the default, inactive until the user agrees on first use), On this computer (the installed pack; offered even before it is installed) and Off. Main process only: never handed to the renderer. The e2e fixtures set `none`. See `docs/features/search.md`. |
+| `BIBLE_REMOTE_SEMANTIC_API_KEY` | *(empty)* | Optional `X-API-Key` sent to that service. Not a secret, but kept in the main process (baked into the main bundle only). |
 | `BIBLE_TIMELINE_MIN_SPAN_YEARS` | `200` | Timeline explorer: the minimum span, in years, framed when a search result is chosen or the timeline follows the reading passage (centred on the event). Longer events get 1.5x their length, coarse-dated items (century or millennium precision) may be framed wider, and the view never exceeds the dataset. Empty, zero or non-numeric values fall back to 200. Renderer-only: read directly from the define in `src/ui/modules/timeline/TimelinePane.tsx`, not via `appConfig.ts` or the preload bridge, and no `process.env` fallback at run time. The web app takes the same variable. |
 
 Example:
@@ -246,11 +264,21 @@ The app uses `electron-log` for automatic log file management:
 
 | Platform | Log Location |
 |----------|-------------|
-| Linux    | `~/.config/bible-desktop-app/logs/main.log` |
+| Linux    | `~/.config/@bible/desktop/logs/main.log` |
 | macOS    | `~/Library/Logs/@bible/desktop/main.log` (development and installed builds alike) |
-| Windows  | `%APPDATA%/bible-desktop-app/logs/main.log` |
+| Windows  | `%APPDATA%/@bible/desktop/logs/main.log` |
 
 In dev mode (`pnpm run dev`), logs go to the terminal stdout instead of log files.
+
+## Upgrading from 0.1.0-beta.1
+
+This section doubles as the release-notes text for 1.0.0-rc.1.
+
+Your notes, highlights, bookmarks, settings, layout and modules are kept: they live in your user profile (`~/.config/@bible/desktop` on Linux, `%APPDATA%\@bible\desktop` on Windows, `~/Library/Application Support/@bible/desktop` on macOS), not in the app folder, and the profile location has not changed. This release changes the application ID from `com.bibledesktopapp.app` to `com.keepthyheart.bible.desktop`, which has a few visible effects:
+
+- **macOS:** download the new `.dmg` and replace the app in Applications. The in-app updater cannot install this release over beta.1. When asked to allow access to the "@bible/desktop Safe Storage" keychain item, choose **Always Allow** (if you choose Deny the app cannot open your encrypted notes database and reports an error; nothing is deleted or replaced, so quit, reopen and allow it). macOS also asks again whether the app may send notifications, because notification permission is tied to the application ID.
+- **Windows:** run the new installer, or use the in-app update. The installer keeps beta.1's installer identity (its uninstall entry), so it upgrades beta.1 in place and Settings > Apps shows a single entry. If you pinned the app to the taskbar, unpin it and pin it again, because the old pin points at the previous application ID.
+- **Linux:** install the new `.deb` over the old one, or replace the AppImage. Nothing else changes.
 
 ## Further Documentation
 

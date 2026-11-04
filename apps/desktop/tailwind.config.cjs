@@ -175,12 +175,12 @@ module.exports = {
         DEFAULT: themeColor('accent-primary')
       },
       spacing: {
-        'xs': '4px',
-        'sm': '8px',
-        'md': '16px',
-        'lg': '24px',
-        'xl': '32px',
-        'xxl': '48px'
+        'xs': '0.25rem',
+        'sm': '0.5rem',
+        'md': '1rem',
+        'lg': '1.5rem',
+        'xl': '2rem',
+        'xxl': '3rem'
       }
     }
   },

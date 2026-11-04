@@ -14,7 +14,7 @@ interface WordStudyPaneProps {
   /** Called after an occurrence is opened, so a full-screen layout (mobile) can return to the Bible view. */
   onNavigate?: () => void;
   /** Open the full dictionary entry for a Strong's number; each layout supplies its own route. */
-  onOpenStrongsEntry?: (strongs: string) => void;
+  onOpenStrongsEntry?: (strongs: string, source?: string) => void;
   /** Mobile sheet: shows a close button. */
   onClose?: () => void;
 }
@@ -95,7 +95,7 @@ export function WordStudyPane({ onNavigate, onOpenStrongsEntry, onClose }: WordS
         formatBook={formatBook}
         formatReference={formatReference}
         onSearchAll={strongs ? () => searchStore.performSearch(strongs) : undefined}
-        onOpenInDictionary={strongs && onOpenStrongsEntry ? () => onOpenStrongsEntry(strongs) : undefined}
+        onOpenInDictionary={strongs && onOpenStrongsEntry ? () => onOpenStrongsEntry(strongs, 'wordStudy') : undefined}
         query={query}
         onQueryChange={(q) => s.setQuery(q)}
         onSubmitQuery={(q) => void s.submit(q)}

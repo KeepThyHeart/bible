@@ -9,7 +9,9 @@ import { createPasswordGate, hashPassword } from './middleware/passwordGate.js';
 import { createServiceWorkerRoutes, pwaShell, readShell } from './middleware/serviceWorker.js';
 import { createCompression } from './middleware/compression.js';
 import { createRateLimiter, tierForApiPath } from './middleware/rateLimiter.js';
-import { contentSecurityPolicyDirectives } from './cspDirectives.js';
+import { contentSecurityPolicyDirectives, speechModelOrigins, inlineScriptHashes } from './cspDirectives.js';
+import { RemoteSemanticService } from './search/RemoteSemanticService.js';
+import { RemoteSemantic } from '@bible/core';
 import { createAssetRouter } from './routes/assetRoutes.js';
 // Side-effect imports: each route file self-registers with the route registry
 import './routes/moduleRoutes.js';
@@ -27,12 +29,13 @@ import './routes/studyOverviewRoutes.js';
 import './routes/feedbackRoutes.js';
 import './routes/desktopReportRoutes.js';
 import { getRegisteredRoutes, getRegisteredBodyParsers } from './routes/routeRegistry.js';
-import { loadServerModules, listServerModules } from './modules/loadServerModules.js';
+import { loadServerModules, listServerModules, disabledModuleIds } from './modules/loadServerModules.js';
 import { createUnavailableRoutes } from './modules/unavailableRoutes.js';
 import type { ISearchPipeline, IVectorSearch } from '@bible/core';
 import { createSearchPipelineWithComponents } from './search/SearchPipelineFactory.js';
 import type { SqliteVectorSearch } from './search/SqliteVectorSearch.js';
 import { logger } from './utils/logger.js';
+import { sanitizeQuery, clientErrorStatus } from './utils/requestHygiene.js';
 import { ServerPluginManager } from './plugins/pluginManager.js';
 import { SiteConfig } from './SiteConfig.js';
 
@@ -63,12 +66,13 @@ const packageRoot = existsSync(resolve(currentDir, '../package.json'))
  * because two installs pointed at one content store must not overwrite each
  * other's logs or inherit each other's plugins.
  *
- * `BIBLE_DATA_DIR` overrides the first, as before.  Nothing overrides the
- * second yet; add an env var when a deployment needs one.
+ * `BIBLE_DATA_DIR` overrides the first, as before, and `BIBLE_APP_STATE_DIR` the
+ * second (the e2e suite gives each of its servers a fresh one, so presenter
+ * sessions and logs from earlier runs never pile up in the checkout).
  */
 const dataDir = process.env.BIBLE_DATA_DIR || resolve(packageRoot, '../../data');
 const modulesDir = process.env.BIBLE_MODULES_DIR || resolve(packageRoot, '../../data');
-const appStateDir = resolve(packageRoot, 'data');
+const appStateDir = process.env.BIBLE_APP_STATE_DIR || resolve(packageRoot, 'data');
 
 /**
  * Where the public-domain hymn library is read from, in order of preference.
@@ -96,9 +100,17 @@ const db = new DatabaseManager(dataDir, modulesDir);
 
 const app = express();
 
-// Trust reverse proxies (nginx, Caddy, etc.) for correct req.ip, req.protocol, etc.
+// Trust the reverse proxy (Apache, nginx, Caddy) for correct req.ip, req.protocol, etc.
 // Without this, Express misidentifies protocol/IP when behind SSL-terminating proxies.
-app.set('trust proxy', true);
+//
+// Only a proxy on this machine is trusted, never `true`. With `true`, req.ip is the
+// leftmost X-Forwarded-For entry, which the client writes itself: anyone could send a
+// fresh address per request and walk past every per-client limit (rate limiter, login
+// lockout, submission and download quotas). With 'loopback', the proxy's own entry
+// (the real client) is used. The server listens on 127.0.0.1 behind the proxy, so its
+// peer is always loopback. TRUST_PROXY overrides this for a proxy on another host
+// (see Express's "trust proxy" setting for the accepted values).
+app.set('trust proxy', process.env.TRUST_PROXY || 'loopback');
 
 // Compress text responses (API JSON, the SPA shell, and the hashed assets).
 // See `middleware/compression.ts` for what it declines and why.
@@ -216,19 +228,33 @@ app.use(helmet({
     directives: contentSecurityPolicyDirectives({
       enabled: siteConfig.audio.enabled,
       externalOrigins: siteConfig.audio.externalOrigins,
-    }),
+    }, {
+      // On-device speech (recite): model download origins, only while the flag is on.
+      enabled: siteConfig.isEnabled('recite'),
+      externalOrigins: speechModelOrigins(process.env.BIBLE_SPEECH_MODEL_BASE_URL ?? ''),
+    }, siteConfig.remoteSearchBrowserOrigin, inlineScriptHashes(existsSync(clientDirPath) ? clientDirPath : undefined)),
   },
-  // HSTS is only meaningful for production HTTPS deployments. In local/test
-  // environments the server runs over HTTP, so HSTS would cause browsers to
-  // upgrade future requests to HTTPS and break subsequent page loads.
+  // Helmet would send HSTS on every response, including local/test servers on
+  // plain HTTP, where it would make browsers upgrade later requests to HTTPS and
+  // break page loads. It is sent below only on requests that arrived over HTTPS.
   hsts: false,
   crossOriginEmbedderPolicy: false,  // keep false — enabling it can break WASM
 }));
 
+// HSTS on HTTPS requests only. Behind a TLS-terminating proxy `req.secure`
+// comes from its X-Forwarded-Proto header (trusted per `trust proxy` above), so
+// the proxy must set it: Apache needs `RequestHeader set X-Forwarded-Proto https`
+// in the :443 vhost. Not `includeSubDomains`: that would bind every subdomain of
+// the site's domain, which this app does not control.
+app.use((req, res, next) => {
+  if (req.secure) res.setHeader('Strict-Transport-Security', 'max-age=31536000');
+  next();
+});
+
 // Feature modules (task 0113): enabled modules' route files import and self-register here
 // (mounting stays below). Loaded this early so a module's body parsers, registered
 // through `registerBodyParser`, go ahead of the global parser.
-await loadServerModules({ flags: siteConfig.flags });
+await loadServerModules({ flags: siteConfig.flags, featureModules: siteConfig.featureModules });
 
 // Body size limits (item #5)
 // A route that carries more than 100 KB (the presenter notes document) gets its own
@@ -238,6 +264,7 @@ for (const bp of getRegisteredBodyParsers()) {
 }
 app.use(express.json({ limit: '100kb' }));
 app.use(express.urlencoded({ extended: true, limit: '50kb' }));
+app.use('/api', sanitizeQuery);
 
 // Request timeouts on expensive endpoints (item #1).
 //
@@ -309,6 +336,22 @@ if (pipelineConfig) {
     .catch(err => logger.error('Search pipeline init failed:', err.message));
 }
 
+// Remote semantic search through the server (`search.mode: 'remote'`, `via: 'server'`).
+// One client for the whole process, so its blockedUntil pause is shared by all users.
+// bibsearch sees only this server's IP, so its per-IP daily quota (and a quota_exceeded 429)
+// is genuinely shared by every user of the site. The pause is therefore capped at 5 minutes:
+// a transient 429/403/503 must not lock everyone out for the whole quota window (B-097);
+// the per-client daily limit in searchRoutes.ts keeps one user from spending the shared quota.
+const remoteSearchSettings = siteConfig.searchRemote;
+const remoteSemanticService = remoteSearchSettings?.via === 'server'
+  ? new RemoteSemanticService(new RemoteSemantic.RemoteSemanticClient({
+      baseUrl: remoteSearchSettings.url,
+      apiKey: remoteSearchSettings.apiKey,
+      maxBlockSec: 300,
+    }))
+  : undefined;
+if (remoteSemanticService) logger.info('Semantic search: remote (bibsearch) via the server.');
+
 // Read package version once at startup
 const packageVersion = JSON.parse(
   readFileSync(resolve(packageRoot, 'package.json'), 'utf-8')
@@ -357,7 +400,7 @@ app.get('/api/version', (_req, res) => {
 
 app.get('/api/config', (_req, res) => {
   // `modules.disabled`: server feature modules that are off, so the client can treat them as off too.
-  const disabled = listServerModules().filter((m) => !m.enabled).map((m) => m.id);
+  const disabled = disabledModuleIds(siteConfig.featureModules);
   res.json({ ...siteConfig.getClientConfig(), modules: { disabled } });
 });
 
@@ -384,6 +427,7 @@ const searchRouteOptions = {
   get pipeline() {
     return searchPipeline;
   },
+  remote: remoteSemanticService,
   get scoringConfig() {
     return searchScoringConfig;
   },
@@ -568,6 +612,13 @@ if (existsSync(clientDir)) {
 // Global error handler — catches unhandled errors in route handlers.
 // Logs full details to the server log file; returns a generic message to the client.
 app.use((err: Error, req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  // A malformed %-escape, bad JSON or oversize body is the caller's mistake:
+  // answer with the status Express chose and skip the stack-trace log.
+  const clientStatus = clientErrorStatus(err);
+  if (clientStatus !== null) {
+    if (!res.headersSent) res.status(clientStatus).json({ error: { code: 'INVALID_PARAM', message: 'Bad request' } });
+    return;
+  }
   logger.error(`${req.method} ${req.path}:`, err);
   res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'An internal server error occurred' } });
 });

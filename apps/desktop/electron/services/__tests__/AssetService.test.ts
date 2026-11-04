@@ -21,7 +21,7 @@ const manifest: AssetManifest = {
   files: [{ path: 'd.bin', url: 'https://cdn.test/demo/d.bin', size: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex') }],
 };
 
-async function setup(devIndex?: string) {
+async function setup(devIndex?: string, extra: Partial<ConstructorParameters<typeof AssetService>[0]> = {}) {
   const root = await fsp.mkdtemp(join(tmpdir(), 'assetsvc-'));
   dirs.push(root);
   const gateway = new FakeNetworkGateway();
@@ -38,6 +38,7 @@ async function setup(devIndex?: string) {
   const svc = new AssetService({
     root, gateway,
     getCatalogAssets: () => [manifest],
+    ...extra,
     getDevIndexUrl: () => (devIndex ? 'https://dev.test/assets/v1/index.json' : undefined),
   });
   return { svc, root };
@@ -76,5 +77,20 @@ describe('AssetService', () => {
     const { svc } = await setup(dev);
     const entries = (await svc.list()).entries;
     expect(entries.map((e) => [e.id, e.title])).toEqual([['demo', 'Demo'], ['devonly', 'Demo']]);
+  });
+
+  it('offers built-in manifests without a catalog, and reads only installed stt-model files', async () => {
+    const stt: AssetManifest = { ...manifest, id: 'whisper-test', kind: 'stt-model' };
+    const { svc } = await setup(undefined, { getCatalogAssets: () => [], getBuiltinAssets: async () => [stt, manifest] });
+    expect(await svc.knows('whisper-test')).toBe(true);
+    expect(await svc.isReadable('whisper-test')).toBe(false);
+    expect(await svc.readFile('whisper-test', 'd.bin')).toBeNull();
+    await svc.install('whisper-test');
+    expect(await svc.isReadable('whisper-test')).toBe(true);
+    expect(Buffer.from((await svc.readFile('whisper-test', 'd.bin')) as Uint8Array)).toEqual(bytes);
+    expect(await svc.readFile('whisper-test', '../x')).toBeNull();
+    // A non-model asset is installed but not readable through assets:read.
+    await svc.install('demo');
+    expect(await svc.isReadable('demo')).toBe(false);
   });
 });

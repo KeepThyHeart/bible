@@ -62,3 +62,18 @@ describe('EntityDetailView entity actions', () => {
     expect(screen.queryByTestId('fixture-action')).toBeNull();
   });
 });
+
+describe('EntityDetailView topic links (B-110)', () => {
+  it('bidi-isolates the source name so RTL does not scramble "Nave\'s Topical Bible"', () => {
+    render(
+      <EntityDetailView
+        entity={{ id: 'abraham', name: 'Abraham', category: 'people' }}
+        associations={[]} relationships={[]} aliases={[]} facets={[]} loading={false}
+        topicLinks={[{ entityId: 'abraham', entityCategory: 'people', sourceModule: 'topical_nave', topicId: 1, matchType: 'exact' }]}
+        onEntityClick={vi.fn()} onSearchSelect={vi.fn()} onTopicLinkClick={vi.fn()}
+      />
+    );
+    const label = screen.getByText("Nave's Topical Bible");
+    expect(label.tagName).toBe('BDI');
+  });
+});

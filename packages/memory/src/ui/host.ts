@@ -92,4 +92,7 @@ export interface PanelHost {
 
   /** Shows a transient message in the panel's status line. */
   announce(message: string): void;
+
+  /** Like `announce`, but styled as an error (stays red until it times out). Optional for stubs. */
+  fail?(message: string): void;
 }

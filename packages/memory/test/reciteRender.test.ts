@@ -89,6 +89,18 @@ describe('tap-to-talk view', () => {
     expect(c.onControl).toHaveBeenLastCalledWith('stop');
   });
 
+  it('B-137: the tap view shows the pause message visibly, and clears it when listening resumes', () => {
+    const screen = createReciteView(state(), cbs());
+    container.appendChild(screen.element);
+    const msg = 'No speech was heard. Press Talk to try again.';
+    screen.update(state({ phase: 'paused', message: msg }));
+    const visible = screen.element.querySelector('[data-testid="recite-pause-message"]');
+    expect(visible?.textContent).toBe(msg);
+    expect(visible?.closest('[aria-live]')).toBeNull();
+    screen.update(state({ phase: 'listening', message: 'Listening' }));
+    expect(screen.element.querySelector('[data-testid="recite-pause-message"]')).toBeNull();
+  });
+
   it('keeps one live region across updates and announces the score', () => {
     const screen = createReciteView(state(), cbs());
     container.appendChild(screen.element);

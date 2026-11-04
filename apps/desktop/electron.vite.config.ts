@@ -5,6 +5,7 @@ import { resolve } from 'path';
 import { execSync } from 'child_process';
 import { existsSync, readFileSync } from 'fs';
 import { kthKitPlugin } from './scripts/kthKitPlugin.mjs';
+import { ortWasmPlugin } from './scripts/ortWasmPlugin.mjs';
 
 // Capture the current git commit SHA at build time so the About dialog and
 // the diagnostics uploader can name the exact source revision a binary came
@@ -111,9 +112,33 @@ const DIAGNOSTICS_URL = envOrEmpty('BIBLE_DIAGNOSTICS_URL');
 const DIAGNOSTICS_TOKEN = envOrEmpty('BIBLE_DIAGNOSTICS_TOKEN');
 const ABOUT_TEXT = envOrEmpty('BIBLE_ABOUT_TEXT');
 // Timeline minimum framing span in years; empty means the built-in 200.
+// Online meaning search (bibsearch). Empty URL = the hosted service
+// (`DEFAULT_REMOTE_SEMANTIC_URL` in appConfig.ts); `none` = feature absent. These go into
+// the MAIN bundle only (see `MAIN_ONLY_DEFINES`): the renderer and preload never
+// receive them, so the URL and key cannot reach a web page.
+const REMOTE_SEMANTIC_URL = envOrEmpty('BIBLE_REMOTE_SEMANTIC_URL');
+const REMOTE_SEMANTIC_API_KEY = envOrEmpty('BIBLE_REMOTE_SEMANTIC_API_KEY');
 const TIMELINE_MIN_SPAN_YEARS = envOrEmpty('BIBLE_TIMELINE_MIN_SPAN_YEARS');
 
+// Release profile (see release-profiles.json): which optional features this build ships.
+// No profile = 'full' = nothing disabled. An unknown name fails the build rather than
+// silently shipping everything.
+function resolveReleaseProfile(): { disabledModules: string[]; extensions: boolean } {
+  const name = envOrEmpty('BIBLE_RELEASE_PROFILE');
+  if (!name) return { disabledModules: [], extensions: true };
+  const profiles = JSON.parse(readFileSync(resolve(__dirname, 'release-profiles.json'), 'utf8')) as Record<
+    string,
+    { disabledModules?: string[]; extensions?: boolean }
+  >;
+  const profile = name.startsWith('_') ? undefined : profiles[name];
+  if (!profile) throw new Error(`Unknown BIBLE_RELEASE_PROFILE "${name}" (see release-profiles.json)`);
+  return { disabledModules: profile.disabledModules ?? [], extensions: profile.extensions !== false };
+}
+const RELEASE_PROFILE = resolveReleaseProfile();
+
 const APP_CONFIG_DEFINES: Record<string, string> = {
+  __BIBLE_DISABLED_MODULES__: JSON.stringify(RELEASE_PROFILE.disabledModules.join(',')),
+  __BIBLE_EXTENSIONS__: JSON.stringify(RELEASE_PROFILE.extensions ? 'on' : 'off'),
   __BIBLE_PRODUCT_NAME__: JSON.stringify(PRODUCT_NAME),
   __BIBLE_ISSUE_REPORT_URL__: JSON.stringify(ISSUE_REPORT_URL),
   __BIBLE_MODULE_CATALOG_URL__: JSON.stringify(MODULE_CATALOG_URL),
@@ -130,7 +155,12 @@ const APP_CONFIG_DEFINES: Record<string, string> = {
   __BIBLE_ABOUT_TEXT__: JSON.stringify(ABOUT_TEXT),
   __BIBLE_TIMELINE_MIN_SPAN_YEARS__: JSON.stringify(TIMELINE_MIN_SPAN_YEARS),
   // Windows AppUserModelID for notifications; must match electron-builder's appId.
-  __BIBLE_APP_ID__: JSON.stringify(envOrEmpty('BIBLE_APP_ID') || 'com.bibledesktopapp.app'),
+  __BIBLE_APP_ID__: JSON.stringify(envOrEmpty('BIBLE_APP_ID') || brandingValue('appId') || 'com.keepthyheart.bible.desktop'),
+};
+
+const MAIN_ONLY_DEFINES: Record<string, string> = {
+  __BIBLE_REMOTE_SEMANTIC_URL__: JSON.stringify(REMOTE_SEMANTIC_URL),
+  __BIBLE_REMOTE_SEMANTIC_API_KEY__: JSON.stringify(REMOTE_SEMANTIC_API_KEY),
 };
 
 /**
@@ -179,17 +209,22 @@ function quickjsGuestBundlePlugin(): Plugin {
   };
 }
 
+// Accent colour for the boot splash in index.html, as the web app's splash uses.
+const THEME_COLOR = envOrEmpty('BIBLE_THEME_COLOR') || brandingValue('themeColor') || '#2563eb';
+
 /**
- * Replaces `%BIBLE_PRODUCT_NAME%` in the entry HTML files with the configured
- * product name. Runs `pre` so Vite's own `%ENV%` handling never sees (and
- * warns about) the placeholder.
+ * Replaces `%BIBLE_PRODUCT_NAME%` and `%BIBLE_THEME_COLOR%` in the entry HTML
+ * files with the configured values. Runs `pre` so Vite's own `%ENV%` handling
+ * never sees (and warns about) the placeholders.
  */
 function brandingHtmlPlugin(): Plugin {
   return {
     name: 'bible-branding-html',
     enforce: 'pre',
     transformIndexHtml(html: string): string {
-      return html.replace(/%BIBLE_PRODUCT_NAME%/g, PRODUCT_NAME);
+      return html
+        .replace(/%BIBLE_PRODUCT_NAME%/g, PRODUCT_NAME)
+        .replace(/%BIBLE_THEME_COLOR%/g, THEME_COLOR);
     },
   };
 }
@@ -243,6 +278,7 @@ export default defineConfig({
     },
     define: {
       ...APP_CONFIG_DEFINES,
+      ...MAIN_ONLY_DEFINES,
     },
     build: {
       // `@bible/memory` (task 0114) is bundled for the same reason as `@bible/core`: a
@@ -258,7 +294,10 @@ export default defineConfig({
           // Worker thread that runs Argon2id for backups, so the ~0.5 s key
           // derivation does not block the main process. Emitted next to
           // `out/main/index.js`, where `workerKdf.ts` looks for it.
-          'backup-kdf-worker': resolve(__dirname, 'electron/services/backup/kdfWorker.ts')
+          'backup-kdf-worker': resolve(__dirname, 'electron/services/backup/kdfWorker.ts'),
+          // Worker thread that runs the module conformance gate during an install, so
+          // scanning a large module cannot freeze the app. See `runValidationInWorker.ts`.
+          'module-install-worker': resolve(__dirname, 'electron/services/moduleInstallWorker.ts')
         },
         external: ['better-sqlite3-multiple-ciphers', '@huggingface/transformers', 'onnxruntime-common', 'onnxruntime-node']
       }
@@ -305,7 +344,10 @@ export default defineConfig({
         // Shared UI kit (packages/ui), consumed as source. The css entry must
         // come first: the first matching string alias wins.
         '@bible/ui/css': resolve(__dirname, '../../packages/ui/css'),
-        '@bible/ui': resolve(__dirname, '../../packages/ui/src/index.ts')
+        '@bible/ui': resolve(__dirname, '../../packages/ui/src/index.ts'),
+        // Speech engine (task 0151), consumed as source; the Whisper worker is the `/worker` subpath.
+        '@bible/speech/worker': resolve(__dirname, '../../packages/speech/src/engine/whisperWorker.ts'),
+        '@bible/speech': resolve(__dirname, '../../packages/speech/src/index.ts')
       }
     },
     optimizeDeps: {
@@ -317,7 +359,11 @@ export default defineConfig({
     define: {
       ...APP_CONFIG_DEFINES,
     },
-    plugins: [brandingHtmlPlugin(), react()],
+    // ORT wasm for the speech engine: served in dev, emitted as ort/* in the build (see scripts/ortWasmPlugin.mjs).
+    plugins: [brandingHtmlPlugin(), react(), ortWasmPlugin(__dirname)],
+    // The Whisper engine is a module worker with dynamic imports (code-splitting); Vite's default
+    // worker format (iife) cannot build that, so bundle workers as ES modules.
+    worker: { format: 'es' },
     build: {
       rollupOptions: {
         // Renderer code imports the `@bible/core` barrel, which also re-exports

@@ -14,3 +14,4 @@ export { LocalOnnxReranker } from './LocalOnnxReranker.js';
 export { NoOpReranker } from './NoOpReranker.js';
 export { SearchPipeline } from './SearchPipeline.js';
 export { createSearchPipeline } from './SearchPipelineFactory.js';
+export { RemoteSemanticService, hasRemoteConsent, CONSENT_HEADER } from './RemoteSemanticService.js';

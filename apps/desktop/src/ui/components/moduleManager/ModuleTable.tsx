@@ -1,7 +1,8 @@
 import React from 'react';
 import type { ModuleRow } from '../../stores/module/moduleRows';
 import type { ModuleInstallFilter, ModuleType, DownloadProgress } from '../../stores/module/types';
-import { ModuleTableRow, findRowDownload } from './ModuleRow';
+import { ModuleTableRow, findRowDownload, findRowInstallJob } from './ModuleRow';
+import type { InstallJob } from '../../stores/module/moduleAPI';
 import { useTd } from './moduleManagerI18n';
 
 /**
@@ -47,6 +48,11 @@ export interface ModuleTableProps {
   busyAbbreviations?: ReadonlySet<string>;
   /** Active downloads to show per-row progress. */
   activeDownloads?: DownloadProgress[];
+  /** Background install jobs; each shows as a small progress cell in its row. */
+  installJobs?: InstallJob[];
+  onCancelInstall?: (jobId: number) => void;
+  onRetryInstall?: (jobId: number) => void;
+  onDismissInstall?: (jobId: number) => void;
   ariaLabel?: string;
   onSelect: (row: ModuleRow) => void;
   onInstall: (row: ModuleRow) => void;
@@ -55,6 +61,7 @@ export interface ModuleTableProps {
 
 const EMPTY_SET: ReadonlySet<string> = new Set();
 const EMPTY_DOWNLOADS: DownloadProgress[] = [];
+const EMPTY_JOBS: InstallJob[] = [];
 
 /** Compact table of one module type's rows (name + abbreviation, language, version, size, status). */
 export const ModuleTable: React.FC<ModuleTableProps> = ({
@@ -67,6 +74,10 @@ export const ModuleTable: React.FC<ModuleTableProps> = ({
   offline = false,
   busyAbbreviations = EMPTY_SET,
   activeDownloads = EMPTY_DOWNLOADS,
+  installJobs = EMPTY_JOBS,
+  onCancelInstall,
+  onRetryInstall,
+  onDismissInstall,
   ariaLabel,
   onSelect,
   onInstall,
@@ -151,6 +162,10 @@ export const ModuleTable: React.FC<ModuleTableProps> = ({
               busy={busyAbbreviations.has(row.abbreviation)}
               offline={offline}
               activeDownload={findRowDownload(row, activeDownloads)}
+              installJob={findRowInstallJob(row, installJobs)}
+              onCancelInstall={onCancelInstall}
+              onRetryInstall={onRetryInstall}
+              onDismissInstall={onDismissInstall}
               onSelect={onSelect}
               onInstall={onInstall}
               onUpdate={onUpdate}

@@ -4,7 +4,7 @@ import { describe, it, expect, vi } from 'vitest';
 vi.mock('../../../../../i18n', () => ({ default: {} }));
 
 import type { NoteHighlight } from '../../notes/types';
-import { buildChips, nextChip } from '../highlightChips';
+import { buildChips, nextChip } from '../highlightChipModel';
 import { planTarget, resolvePresenterKey } from '../presenterKeys';
 
 const hl = (id: string, blockPos: number, from: number, extra: Partial<NoteHighlight> = {}): NoteHighlight => ({

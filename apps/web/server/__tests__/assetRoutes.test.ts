@@ -101,9 +101,13 @@ describe('asset routes', () => {
     expect(res.text).toBe('client bundle');
   });
 
-  it('404s everywhere when the directory is missing', async () => {
+  it('serves an empty catalogue and 404s files when the directory is missing', async () => {
     const a = express();
     a.use('/assets', createAssetRouter(join(root, 'does-not-exist')));
-    expect((await request(a).get('/assets/v1/index.json')).status).toBe(404);
+    const idx = await request(a).get('/assets/v1/index.json');
+    expect(idx.status).toBe(200);
+    expect(idx.body).toEqual({ schema: 'kth-asset-index/1', assets: [] });
+    expect(idx.headers['cache-control']).toBe('no-cache, no-transform');
+    expect((await request(a).get('/assets/v1/tts-voice/v1/1/voice.onnx')).status).toBe(404);
   });
 });

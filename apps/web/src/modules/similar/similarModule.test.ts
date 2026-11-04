@@ -4,7 +4,7 @@
  * the verse-menu entry only while the neighbour table is offered. Each test boots a
  * fresh module graph, like builtinModules.test.ts.
  */
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeAll, beforeEach, vi } from 'vitest';
 import { validateBuiltinManifest } from '@bible/core/browser';
 import { similarManifest } from './manifest';
 
@@ -40,6 +40,17 @@ async function boot(override = '') {
   registerBuiltinModules();
   return { ...host, when, verseActions };
 }
+
+// The first import of the host graph is slow on a cold or busy machine: pay for it once, here,
+// so the first test is not the one that runs into the 5 s default.
+beforeAll(async () => {
+  await import('../builtinModules');
+  await import('../moduleHost');
+  await import('../../host/verseActionWhen');
+  await import('../../host/appHost');
+  await import('../../stores/bibleStore');
+  await import('../../events/eventBus');
+}, 120_000);
 
 beforeEach(() => {
   localStorage.clear();

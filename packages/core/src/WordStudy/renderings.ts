@@ -31,17 +31,20 @@ const LEADING_STOP = new Set([
 ]);
 
 /** phrase: lowercased, punctuation trimmed. head: the first content word. */
-export function normalizeRendering(gloss: string): { phrase: string; head: string } {
+export function normalizeRendering(gloss: string): { phrase: string; head: string; display: string } {
+  const trim = (w: string) => w.replace(/^[^\p{L}\p{N}\p{M}]+|[^\p{L}\p{N}\p{M}]+$/gu, '');
+  // `display` keeps the source casing ("God"); grouping still uses the lowercased phrase (B-190).
+  const display = gloss.replace(/[‘’]/g, "'").split(/\s+/).map(trim).filter(Boolean).join(' ');
   const words = gloss
     .toLowerCase()
     .replace(/[‘’]/g, "'")
     .split(/\s+/)
-    .map(w => w.replace(/^[^\p{L}\p{N}\p{M}]+|[^\p{L}\p{N}\p{M}]+$/gu, ''))
+    .map(trim)
     .filter(Boolean);
   const phrase = words.join(' ');
   const content = words.filter(w => !LEADING_STOP.has(w));
   const head = content.length ? content[0] : (words[words.length - 1] ?? '');
-  return { phrase, head };
+  return { phrase, head, display };
 }
 
 /**
@@ -62,11 +65,15 @@ export function groupRenderings(
     return stem ? stem(f) : f;
   };
   const groups = new Map<string, { phrases: Map<string, number>; total: number }>();
+  const casings = new Map<string, Map<string, number>>(); // phrase -> source casing -> count
   let total = 0;
   for (const r of rows) {
     const key = keyOf(r.gloss);
     if (!key) continue;
-    const phrase = normalizeRendering(r.gloss).phrase;
+    const { phrase, display } = normalizeRendering(r.gloss);
+    const c = casings.get(phrase) ?? new Map<string, number>();
+    c.set(display, (c.get(display) ?? 0) + r.count);
+    casings.set(phrase, c);
     const g = groups.get(key) ?? { phrases: new Map(), total: 0 };
     g.phrases.set(phrase, (g.phrases.get(phrase) ?? 0) + r.count);
     g.total += r.count;
@@ -75,7 +82,9 @@ export function groupRenderings(
   }
   const out: RenderingGroup[] = [];
   for (const [key, g] of groups) {
-    const members = [...g.phrases].map(([phrase, count]) => ({ phrase, count }))
+    const shown = (phrase: string): string =>
+      [...(casings.get(phrase) ?? [])].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0]?.[0] ?? phrase;
+    const members = [...g.phrases].map(([phrase, count]) => ({ phrase: shown(phrase), count }))
       .sort((a, b) => b.count - a.count || a.phrase.localeCompare(b.phrase));
     // The base form labels a merged group: the shortest phrase (love, not thou shalt love).
     const label = mode === 'head'

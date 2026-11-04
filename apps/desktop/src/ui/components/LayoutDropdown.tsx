@@ -87,11 +87,12 @@ const LayoutDropdown: React.FC = () => {
                 key={preset.id}
                 onClick={() => handleApply(preset.id)}
                 className={`w-full text-start px-3 py-2 hover:bg-background-hover transition-colors ${isCurrent ? 'bg-accent-light' : ''}`}
+                aria-current={isCurrent ? 'true' : undefined}
                 data-testid={`layout-preset-${preset.id}`}
               >
                 <div className="flex items-center gap-2">
                   {isCurrent && (
-                    <svg className="w-4 h-4 text-accent flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-4 h-4 text-accent flex-shrink-0" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
                   )}

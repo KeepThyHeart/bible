@@ -30,3 +30,4 @@ resources/icon.ico
 # the fake extension id as the directory name (e.g. ext.a/db/). Pure test
 # leakage, regenerated on every run.
 ext.*/
+.fixture-build/

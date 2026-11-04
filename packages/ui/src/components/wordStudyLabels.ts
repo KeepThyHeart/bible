@@ -18,6 +18,7 @@ export interface WordStudyLabels {
   noticeNoModule: string;
   noticeNotTagged: string;
   noticeNoOccurrences: string;
+  noticeUnknownNumber: string;
   renderingsTitle: string;
   formsTitle: string;
   /** `{count}` = number of rolled-up entries */
@@ -70,6 +71,7 @@ export const DEFAULT_WORD_STUDY_LABELS: WordStudyLabels = {
   noticeNoModule: 'No suitable Bible is installed for this study.',
   noticeNotTagged: "This translation has no Strong's tagging. Pick another translation.",
   noticeNoOccurrences: 'No occurrences found in this translation.',
+  noticeUnknownNumber: "No such Strong's number.",
   renderingsTitle: 'How it is rendered',
   formsTitle: 'Forms found',
   other: 'Other ({count})',
@@ -107,6 +109,14 @@ export const DEFAULT_WORD_STUDY_LABELS: WordStudyLabels = {
 /** Replace `{name}` placeholders; unknown names are left as written. */
 export function fillTemplate(template: string, values: Record<string, string | number>): string {
   return template.replace(/\{(\w+)\}/g, (m, k: string) => (k in values ? String(values[k]) : m));
+}
+
+/**
+ * Like `fillTemplate`, but wraps each filled value in a bidi first-strong isolate (U+2068 ... U+2069), so a number or
+ * Strong's id in an RTL sentence keeps its own direction and does not reorder the words around it (B-186).
+ */
+export function fillTemplateIsolated(template: string, values: Record<string, string | number>): string {
+  return template.replace(/\{(\w+)\}/g, (m, k: string) => (k in values ? `\u2068${String(values[k])}\u2069` : m));
 }
 
 export function mergeWordStudyLabels(labels?: Partial<WordStudyLabels>): WordStudyLabels {

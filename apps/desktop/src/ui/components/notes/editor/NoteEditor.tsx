@@ -50,8 +50,16 @@ import { getLocalizedReferenceParser } from '../../../services/localizedReferenc
 interface NoteEditorProps {
   value: string;
   onChange: (content: string) => void;
+  /**
+   * The editor reshaped the document without any change from the user (it adds a trailing paragraph, normalises
+   * `<b>` to `<strong>`, wraps list items). Reported separately from `onChange` so merely opening a note is not
+   * an edit that rewrites its file (B-085).
+   */
+  onNormalized?: (content: string) => void;
   placeholder?: string;
   readOnly?: boolean;
+  /** Move keyboard focus into the editor when it mounts (a note the user just opened to write in). */
+  autoFocus?: boolean;
   /**
    * Print / PDF / Word / Markdown, passed straight through to the toolbar.
    * Only the notes pane can supply them - they act on the *file* the editor's
@@ -122,8 +130,10 @@ const HOVER_CLOSE_DELAY_MS = 220;
 const NoteEditor: React.FC<NoteEditorProps> = ({
   value,
   onChange,
+  onNormalized,
   placeholder,
   readOnly = false,
+  autoFocus = false,
   exportActions,
   defaultDirection,
 }) => {
@@ -249,16 +259,27 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
   }, []);
 
   // "Passage (block)" - the whole passage as one quotation.
-  const openPassageBlock = useCallback(() => {
-    setPassagePrompt({ formatId: 'blockquote', expansionId: newExpansionId() });
+  // The caret when the dialog opened: focus moves into the dialog, and inserting
+  // at whatever selection the editor has afterwards could land elsewhere
+  // (e.g. above the heading the caret was on).
+  const passageSelectionRef = useRef<{ from: number; to: number } | null>(null);
+  const rememberPassageSelection = useCallback(() => {
+    const sel = editorRef.current?.state.selection;
+    passageSelectionRef.current = sel ? { from: sel.from, to: sel.to } : null;
   }, []);
+
+  const openPassageBlock = useCallback(() => {
+    rememberPassageSelection();
+    setPassagePrompt({ formatId: 'blockquote', expansionId: newExpansionId() });
+  }, [rememberPassageSelection]);
 
   // "Passage (verse-by-verse)" - a heading per verse with the verse quoted
   // beneath it. Comment placeholders are also available, as a checkbox on
   // the format itself.
   const openPassageVerses = useCallback(() => {
+    rememberPassageSelection();
     setPassagePrompt({ formatId: 'heading-per-verse', expansionId: newExpansionId() });
-  }, []);
+  }, [rememberPassageSelection]);
 
   const insertImageFromFile = useCallback(async () => {
     try {
@@ -296,6 +317,9 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
           levels: [1, 2, 3],
         },
         codeBlock: false,
+        // Link and Underline are added below with our own options; StarterKit 3 bundles them too.
+        link: false,
+        underline: false,
         code: false,
       }),
       Underline,
@@ -350,14 +374,23 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
     ],
     content: value || '',
     editable: !readOnly,
-    onUpdate: ({ editor }) => {
+    autofocus: autoFocus && !readOnly ? 'end' : false,
+    onUpdate: ({ editor, transaction }) => {
       if (!isInternalUpdate.current) {
         const html = editor.getHTML();
-        onChange(html);
+        // The document changed only through appended transactions (the trailing-paragraph plugin reacting to
+        // a selection or focus change): that is the editor tidying up, not the user writing (B-085).
+        if (!transaction.docChanged && onNormalized) onNormalized(html);
+        else onChange(html);
       }
     },
     editorProps: {
       attributes: {
+        // B-046: a screen reader needs to know this is a multi-line text box
+        // and how to leave it (Tab indents; Escape then Tab moves on).
+        role: 'textbox',
+        'aria-multiline': 'true',
+        'aria-label': t('userNotesPane.editorLabel'),
         class: 'prose prose-sm max-w-none focus:outline-none min-h-full',
         // Note body font-size follows the Typography section's "Study text"
         // slider (--study-font-size) and the "Global Font Scale" slider
@@ -483,6 +516,11 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
 
       if (e.key === 'Escape') {
         tabEscapeArmedRef.current = true;
+        return;
+      }
+      if (e.key === 'Shift' || e.key === 'Control' || e.key === 'Alt' || e.key === 'Meta') {
+        // Pressing a modifier is the first half of Shift+Tab; it must not
+        // disarm the hatch (B-046: Escape then Shift+Tab stayed trapped).
         return;
       }
       if (e.key !== 'Tab') {
@@ -764,7 +802,10 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
   useEffect(() => {
     if (editor && value !== editor.getHTML()) {
       isInternalUpdate.current = true;
-      editor.commands.setContent(value || '');
+      // An external swap of the whole document (switching prayer/note) is not an
+      // edit the user made: keep it out of the undo history, or Ctrl+Z would
+      // bring back the previous document's text and autosave it over this one.
+      editor.chain().setMeta('addToHistory', false).setContent(value || '').run();
       isInternalUpdate.current = false;
     }
   }, [value, editor]);
@@ -780,7 +821,31 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
     (html: string) => {
       setPassagePrompt(null);
       if (editor) {
-        editor.chain().focus().insertContent(html).run();
+        const saved = passageSelectionRef.current;
+        passageSelectionRef.current = null;
+        const size = editor.state.doc.content.size;
+        const from = saved && saved.from <= size ? saved.from : editor.state.selection.from;
+        const to = saved && saved.from <= size ? Math.min(saved.to, size) : editor.state.selection.to;
+        editor.chain().focus().insertContentAt({ from, to }, html).run();
+        // Typing at the end of the inserted passage (its quote or citation
+        // line) would extend the quoted text. Put the caret in a fresh empty
+        // paragraph after the passage instead. When the insertion point was
+        // the start of a block, the caret sits at the start of that following
+        // block, so the new paragraph goes before it.
+        const $to = editor.state.selection.$to;
+        if ($to.depth > 0) {
+          const atBlockStart = $to.parentOffset === 0 && $to.parent.content.size > 0;
+          const at = atBlockStart ? $to.before(1) : $to.after(1);
+          const inEmptyPara = $to.parent.type.name === 'paragraph' && $to.parent.content.size === 0;
+          if (!inEmptyPara) {
+            editor
+              .chain()
+              .insertContentAt(at, { type: 'paragraph' })
+              .setTextSelection(at + 1)
+              .focus()
+              .run();
+          }
+        }
       }
     },
     [editor],

@@ -12,6 +12,7 @@
   "wordStudy.label.noticeNoModule": "לא מותקן תרגום מקרא מתאים ללימוד זה.",
   "wordStudy.label.noticeNotTagged": "בתרגום זה אין תיוג מספרי סטרונג. יש לבחור תרגום אחר.",
   "wordStudy.label.noticeNoOccurrences": "לא נמצאו הופעות בתרגום זה.",
+  "wordStudy.label.noticeUnknownNumber": "אין מספר סטרונג כזה.",
   "wordStudy.label.renderingsTitle": "כיצד היא מתורגמת",
   "wordStudy.label.formsTitle": "צורות שנמצאו",
   "wordStudy.label.other": "אחר ({count})",

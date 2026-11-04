@@ -1,3 +1,4 @@
+import { announceKey } from '../services/announcer';
 import { useEffect } from 'react';
 import { useNotesStore } from '../stores/useNotesStore';
 import { hasTextSelection, copyToClipboard } from '../services/verseCopyService';
@@ -279,6 +280,7 @@ export function useBibleKeyboard({
 
         createHighlight(markup as any, highlightRepository)
           .then(() => {
+            announceKey('a11y.announce.highlightApplied');
             window.getSelection()?.removeAllRanges();
             dismissFloatingToolbar();
           })
@@ -311,6 +313,7 @@ export function useBibleKeyboard({
 
         createHighlight(markup as any, highlightRepository)
           .then(() => {
+            announceKey('a11y.announce.underlineApplied');
             window.getSelection()?.removeAllRanges();
             dismissFloatingToolbar();
           })

@@ -157,16 +157,16 @@ const CrashReportDialog: React.FC = () => {
       >
         <h2
           id="crash-report-dialog-title"
-          style={{ fontSize: 18, fontWeight: 600, marginTop: 0, marginBottom: 12 }}
+          style={{ fontSize: '1.125rem', fontWeight: 600, marginTop: 0, marginBottom: 12 }}
         >
           {t('crashReportDialog.somethingWentWrong')}
         </h2>
-        <p style={{ fontSize: 14, lineHeight: 1.6, marginTop: 0 }}>
+        <p style={{ fontSize: '0.875rem', lineHeight: 1.6, marginTop: 0 }}>
           {t('crashReportDialog.description')}
         </p>
         <p
           style={{
-            fontSize: 13,
+            fontSize: '0.8125rem',
             fontFamily: 'monospace',
             padding: 8,
             backgroundColor: 'var(--theme-bg-secondary, #f5f5f5)',
@@ -183,7 +183,7 @@ const CrashReportDialog: React.FC = () => {
           style={{
             whiteSpace: 'pre-wrap',
             fontFamily: 'inherit',
-            fontSize: 12,
+            fontSize: '0.75rem',
             lineHeight: 1.5,
             margin: '12px 0',
             color: 'var(--theme-text-secondary, #555)',
@@ -192,7 +192,7 @@ const CrashReportDialog: React.FC = () => {
           {getDiagnosticsPrivacyBlurb(t)}
         </pre>
 
-        <label style={{ display: 'block', fontSize: 13, marginTop: 12 }}>
+        <label style={{ display: 'block', fontSize: '0.8125rem', marginTop: 12 }}>
           Describe what happened (optional):
           <textarea
             value={description}
@@ -204,7 +204,7 @@ const CrashReportDialog: React.FC = () => {
               marginTop: 4,
               padding: 6,
               fontFamily: 'inherit',
-              fontSize: 13,
+              fontSize: '0.8125rem',
               border: '1px solid var(--theme-border, #ccc)',
               borderRadius: 4,
               backgroundColor: 'var(--theme-bg-primary, #fff)',
@@ -215,7 +215,7 @@ const CrashReportDialog: React.FC = () => {
           />
         </label>
 
-        <details style={{ marginTop: 12, fontSize: 12 }}>
+        <details style={{ marginTop: 12, fontSize: '0.75rem' }}>
           <summary style={{ cursor: 'pointer' }}>{t('crashReportDialog.viewRawReport')}</summary>
           <pre
             style={{
@@ -225,7 +225,7 @@ const CrashReportDialog: React.FC = () => {
               margin: '8px 0 0 0',
               backgroundColor: 'var(--theme-bg-secondary, #f5f5f5)',
               borderRadius: 4,
-              fontSize: 11,
+              fontSize: '0.6875rem',
               whiteSpace: 'pre-wrap',
               wordBreak: 'break-word',
             }}
@@ -240,7 +240,7 @@ const CrashReportDialog: React.FC = () => {
             alignItems: 'center',
             gap: 6,
             marginTop: 12,
-            fontSize: 13,
+            fontSize: '0.8125rem',
           }}
         >
           <input
@@ -265,7 +265,7 @@ const CrashReportDialog: React.FC = () => {
             disabled={submitting}
             style={{
               padding: '6px 14px',
-              fontSize: 13,
+              fontSize: '0.8125rem',
               borderRadius: 4,
               border: '1px solid var(--theme-border, #ccc)',
               background: 'var(--theme-bg-secondary, #f5f5f5)',
@@ -281,11 +281,11 @@ const CrashReportDialog: React.FC = () => {
             disabled={submitting}
             style={{
               padding: '6px 14px',
-              fontSize: 13,
+              fontSize: '0.8125rem',
               borderRadius: 4,
               border: 'none',
-              background: 'var(--theme-accent, #2563eb)',
-              color: '#fff',
+              background: 'var(--theme-accent-primary, #2563eb)',
+              color: 'var(--theme-accent-text, #fff)',
               cursor: submitting ? 'default' : 'pointer',
             }}
           >

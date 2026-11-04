@@ -17,7 +17,8 @@
  * point: an Arabic UI wrapped around LTR scripture must flip the chrome and
  * leave the text alone.
  */
-import { test, expect, type Locator, type Page } from '@playwright/test';
+import { test, expect } from '../fixtures';
+import type { Locator, Page } from '../fixtures';
 import { navigateTo, waitForVerses } from '../helpers';
 
 const LANGS = ['en', 'ar'] as const;
