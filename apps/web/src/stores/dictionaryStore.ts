@@ -116,6 +116,16 @@ export function friendlyDictionaryName(abbr: string, name?: string): string {
   return raw;
 }
 
+/** "G26" typed in the Hebrew lexicon (or "H430" in the Greek): the number in its own lexicon's form, else null. */
+function otherLexiconNumber(moduleAbbr: string, query: string): string | null {
+  if (!/^strongs(greek|hebrew)$/i.test(moduleAbbr)) return null;
+  const m = /^\s*([GgHh])\s*0*(\d{1,5})([A-Za-z])?\s*$/.exec(query);
+  if (!m) return null;
+  const prefix = m[1].toUpperCase();
+  if (prefix === (/hebrew/i.test(moduleAbbr) ? 'H' : 'G')) return null;
+  return `${prefix}${m[2]}${(m[3] ?? '').toUpperCase()}`;
+}
+
 class DictionaryStore extends Store {
   private baseUrl = '';
   /** True when the module list fetch failed (offline/server error), so the UI can offer Retry. */
@@ -409,6 +419,15 @@ class DictionaryStore extends Store {
     this.notify();
 
     this.tabSearchTimers.set(tabId, setTimeout(async () => {
+      // "G26" in the Hebrew lexicon (or "H430" in the Greek) can only mean the
+      // other one: open that entry rather than searching the wrong lexicon.
+      const other = otherLexiconNumber(tab.moduleAbbr, query);
+      if (other) {
+        this.tabSearchTimers.delete(tabId);
+        this.clearTabSuggestions(tabId);
+        await this.openStrongs(other);
+        return;
+      }
       try {
         const res = await fetch(
           `${this.baseUrl}/api/dictionary/${tab.moduleAbbr}/search?q=${encodeURIComponent(query.trim())}`

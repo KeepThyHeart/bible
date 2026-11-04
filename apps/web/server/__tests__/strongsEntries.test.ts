@@ -28,3 +28,11 @@ describe('Strong\'s dictionary keys (B-165)', () => {
     expect(parseStrongsHead("430 'elohiym el-o-heem' plural of 433; gods", 'H')).toMatchObject({ transliteration: 'elohiym' });
   });
 });
+
+describe('Strong\'s Hebrew body (B-165 remainder)', () => {
+  it('drops the raw "N translit pron" opening line from the body', () => {
+    const h = parseStrongsHead("430 'elohiym el-o-heem' plural of 433; gods", 'H');
+    expect(h?.body).toBe('plural of 433; gods');
+    expect(parseStrongsHead("7225 re'shiyth ray-sheeth' from the same as 7218; first", 'H')?.body).toBe('from the same as 7218; first');
+  });
+});

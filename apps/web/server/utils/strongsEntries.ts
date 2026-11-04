@@ -28,7 +28,7 @@ export interface StrongsHead {
   word: string;
   transliteration: string;
   pronunciation: string;
-  /** The definition without its raw opening line (Greek only; Hebrew has no clean boundary). */
+  /** The definition without its raw opening line (Hebrew: after the transliteration and pronunciation words). */
   body: string;
 }
 
@@ -52,7 +52,7 @@ export function parseStrongsHead(definition: string, language: 'G' | 'H'): Stron
       body: def.slice(m[0].length),
     };
   }
-  const m = /^\s*\d+\s+(\S+)\s+(\S+)/.exec(def);
+  const m = /^\s*\d+\s+(\S+)\s+(\S+)\s*/.exec(def);
   if (!m) return null;
-  return { word: '', transliteration: m[1].replace(/^'/, ''), pronunciation: m[2].replace(/[;,]$/, ''), body: def };
+  return { word: '', transliteration: m[1].replace(/^'/, ''), pronunciation: m[2].replace(/[;,]$/, ''), body: def.slice(m[0].length) };
 }

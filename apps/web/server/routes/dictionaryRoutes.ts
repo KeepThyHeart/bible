@@ -291,7 +291,7 @@ export function createDictionaryRoutes(db: DatabaseManager, siteSettings: SiteSe
         transliteration: head ? (head.word ? head.transliteration : undefined) : entry.transliteration,
         pronunciation: head ? head.pronunciation : entry.pronunciation,
         part_of_speech: entry.partOfSpeech,
-        definition: lang === 'G' && head ? head.body : entry.definition,
+        definition: head ? head.body : entry.definition,
         etymology: entry.etymology,
         usage_notes: entry.usageNotes,
         semantic_range: entry.semanticRange,
