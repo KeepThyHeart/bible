@@ -26,14 +26,13 @@ export function useBibleHighlights(
   bibleTextRef: React.RefObject<HTMLDivElement | null>,
 ) {
   const highlightRepository = useRef<IPCHighlightRepository>(new IPCHighlightRepository()).current;
-  const {
-    loadHighlightsForVerseRange,
-    createHighlight,
-    deleteHighlight,
-    lastUsedColor,
-    setLastUsedColor,
-    recordMarkupStyle,
-  } = useHighlightStore();
+  // Selectors, not the whole store: `loading` flips must not re-render every pane (B-131).
+  const loadHighlightsForVerseRange = useHighlightStore(s => s.loadHighlightsForVerseRange);
+  const createHighlight = useHighlightStore(s => s.createHighlight);
+  const deleteHighlight = useHighlightStore(s => s.deleteHighlight);
+  const lastUsedColor = useHighlightStore(s => s.lastUsedColor);
+  const setLastUsedColor = useHighlightStore(s => s.setLastUsedColor);
+  const recordMarkupStyle = useHighlightStore(s => s.recordMarkupStyle);
 
   // Highlight menu state
   const [highlightMenu, setHighlightMenu] = useState<HighlightMenuState>({
