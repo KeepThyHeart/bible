@@ -74,6 +74,7 @@
   "readingPlans.card.open": "פתח",
   "readingPlans.card.markDayRead": "סמן יום כנקרא",
   "readingPlans.card.markDayUnread": "סמן יום כלא נקרא",
+  "readingPlans.card.markDayConfirm": "אף אחת מקריאות היום לא סומנה. לסמן בכל זאת את היום כולו כנקרא?",
   "readingPlans.card.completed": "התוכנית הסתיימה. כל הכבוד!",
   "readingPlans.card.notStarted": "התוכנית טרם החלה.",
   "readingPlans.card.restDay": "יום מנוחה",

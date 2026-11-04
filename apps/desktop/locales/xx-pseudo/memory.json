@@ -558,5 +558,8 @@
   "memory.ui.plan.reciteHandsFree": "⟦Ĥåñðš-ƒŕéé ···⟧",
   "memory.ui.plan.reciteHandsFreeHint": "⟦Šþéåķ åñð ļîšţéñ ŵîţĥøüţ ţøüçĥîñĝ ţĥé šçŕééñ ·············⟧",
   "memory.core.loopPracticeOnly": "⟦Þŕåçţîçé øñļý. Ñøţĥîñĝ ŵåš ĝŕåðéð. ··········⟧",
-  "memory.ui.settings.practiceOnlyShort": "⟦Þŕåçţîçé øñļý. Ñøţĥîñĝ ŵåš ĝŕåðéð. ··········⟧"
+  "memory.ui.settings.practiceOnlyShort": "⟦Þŕåçţîçé øñļý. Ñøţĥîñĝ ŵåš ĝŕåðéð. ··········⟧",
+  "memory.ui.plan.removeConfirmNew": "⟦Ŕéɱøṽé ţĥîš þåššåĝé ƒŕøɱ ýøüŕ ļîšţ? ··········⟧",
+  "memory.ui.plan.alreadyInList": "⟦{reference} îš åļŕéåðý îñ ýøüŕ ļîšţ. ·······⟧",
+  "memory.ui.plan.reciteHandsFreeNoVoice": "⟦Ĥåñðš-ƒŕéé ñééðš ţĥé åþþ ţø ƀé åƀļé ţø šþéåķ, åñð ñø ţéẋţ-ţø-šþééçĥ ṽøîçé îš åṽåîļåƀļé øñ ţĥîš çøɱþüţéŕ. ·······························⟧"
 }

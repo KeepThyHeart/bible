@@ -560,5 +560,6 @@
   "memory.core.loopPracticeOnly": "فقط تمرین. چیزی نمره‌گذاری نشد.",
   "memory.ui.settings.practiceOnlyShort": "فقط تمرین. چیزی نمره‌گذاری نشد.",
   "memory.ui.plan.removeConfirmNew": "این قطعه از فهرست شما حذف شود؟",
-  "memory.ui.plan.alreadyInList": "{reference} از قبل در فهرست شما هست."
+  "memory.ui.plan.alreadyInList": "{reference} از قبل در فهرست شما هست.",
+  "memory.ui.plan.reciteHandsFreeNoVoice": "حالت بدون دست به توانایی گفتار برنامه نیاز دارد و هیچ صدای تبدیل متن به گفتار در این رایانه موجود نیست."
 }

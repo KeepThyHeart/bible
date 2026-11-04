@@ -74,6 +74,7 @@
   "readingPlans.card.open": "Abrir",
   "readingPlans.card.markDayRead": "Marcar dia como lido",
   "readingPlans.card.markDayUnread": "Marcar dia como não lido",
+  "readingPlans.card.markDayConfirm": "Nenhuma das leituras de hoje está marcada. Marcar o dia inteiro como lido mesmo assim?",
   "readingPlans.card.completed": "Este plano foi concluído. Muito bem!",
   "readingPlans.card.notStarted": "Este plano ainda não começou.",
   "readingPlans.card.restDay": "Dia de descanso",

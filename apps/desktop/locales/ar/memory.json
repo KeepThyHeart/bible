@@ -560,5 +560,6 @@
   "memory.core.loopPracticeOnly": "تدريب فقط. لم يتم تقييم شيء.",
   "memory.ui.settings.practiceOnlyShort": "تدريب فقط. لم يتم تقييم شيء.",
   "memory.ui.plan.removeConfirmNew": "إزالة هذا المقطع من قائمتك؟",
-  "memory.ui.plan.alreadyInList": "{reference} موجود بالفعل في قائمتك."
+  "memory.ui.plan.alreadyInList": "{reference} موجود بالفعل في قائمتك.",
+  "memory.ui.plan.reciteHandsFreeNoVoice": "يحتاج وضع التحدث دون استخدام اليدين إلى قدرة التطبيق على النطق، ولا يتوفر صوت لتحويل النص إلى كلام على هذا الكمبيوتر."
 }

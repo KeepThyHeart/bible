@@ -1,10 +1,14 @@
 {
   "searchBar.unifiedPlaceholder": "جستجو در کتاب مقدس، وارد کردن ارجاع، یا تایپ / برای فرمان‌ها",
   "searchBar.commandMode.label": "فرمان‌ها",
+  "searchBar.resultCountLabel": "{count} نتیجه",
   "searchBar.commandMode.empty": "فرمان منطبقی یافت نشد",
   "searchBar.referenceMode.label": "رفتن به ارجاع",
   "searchBar.referenceMode.goTo": "رفتن به {reference}",
   "searchBar.emptyState.recentSearches": "جستجوهای اخیر",
   "searchBar.emptyState.recentCommands": "فرمان‌های اخیر",
-  "searchBar.emptyState.noRecents": "مورد اخیری وجود ندارد"
+  "searchBar.emptyState.noRecents": "مورد اخیری وجود ندارد",
+  "searchBar.reference.noChapter": "«{book} {chapter}» ارجاع معتبری نیست: {book} دارای {count} باب است.",
+  "searchBar.reference.noVerse": "«{book} {chapter}:{verse}» ارجاع معتبری نیست: {book} {chapter} دارای {count} آیه است.",
+  "searchBar.reference.needsChapter": "«{book}» برای معتبر بودن ارجاع به شماره باب نیاز دارد، برای مثال «{book} 1»."
 }

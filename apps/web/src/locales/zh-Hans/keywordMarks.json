@@ -4,6 +4,7 @@
     "button": "关键词",
     "buttonTitle": "关键词标记",
     "toggle": "关键词标记",
+    "showMarks": "显示标记",
     "empty": "本章没有匹配的关键词。",
     "count": "{count, plural, other {# 处}}",
     "show": "显示{label}",
