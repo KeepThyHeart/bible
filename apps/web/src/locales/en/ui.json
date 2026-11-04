@@ -157,7 +157,8 @@
       "captionSemantic": "{count, plural, one {# passage retrieved, by book — not a tally of the whole Bible.} other {# passages retrieved, by book — not a tally of the whole Bible.}}",
       "captionCapped": "Only the results loaded so far are counted; there are more to load.",
       "captionCeiling": "{count, plural, one {Only the first # match is counted; the search stops there.} other {Only the first # matches are counted; the search stops there.}}"
-    }
+    },
+    "resultsFrom": "Results from {modules}"
   },
   "contextMenu": {
     "copyPassage": "Copy Passage...",

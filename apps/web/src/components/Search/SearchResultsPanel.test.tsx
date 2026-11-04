@@ -86,6 +86,7 @@ let mockQuery = '';
 let mockTotalResults = 0;
 let mockSearchType: 'keyword' | 'semantic' = 'keyword';
 let mockSearchedModule = 'KJV';
+let mockSearchedModules: string[] = [];
 let mockKeywordMatchCount = 0;
 let mockSemanticInitStatus = 'idle';
 let mockSemanticInitDismissed = false;
@@ -124,6 +125,7 @@ vi.mock('../../stores/searchStore', () => ({
     get totalResults() { return mockTotalResults; },
     get searchType() { return mockSearchType; },
     get searchedModule() { return mockSearchedModule; },
+    get searchedModules() { return mockSearchedModules; },
     get keywordMatchCount() { return mockKeywordMatchCount; },
     get semanticInit() { return { status: mockSemanticInitStatus }; },
     get semanticInitDismissed() { return mockSemanticInitDismissed; },
@@ -197,6 +199,7 @@ describe('SearchResultsPanel', () => {
     mockTotalResults = 0;
     mockSearchType = 'keyword';
     mockSearchedModule = 'KJV';
+    mockSearchedModules = [];
     mockKeywordMatchCount = 0;
     mockSemanticInitStatus = 'idle';
     mockSemanticInitDismissed = false;
@@ -724,5 +727,20 @@ describe('SearchResultsPanel', () => {
     const title = container.querySelector('.search-panel-inline__title')!.textContent ?? '';
     expect(title).toContain('search.resultsWithApproximate:1');
     expect(title).not.toContain('search.results:3');
+  });
+
+  it('names the translation the results were run in when the reader is now in another (B-005)', () => {
+    mockQuery = 'love';
+    mockSearchedModules = ['ASV'];
+    render(<SearchResultsPanel onNavigate={onNavigate} />);
+    // The open tab is KJV; the results came from ASV.
+    expect(screen.getByTestId('search-results-translation-note').textContent).toBe('search.resultsFrom');
+  });
+
+  it('shows no translation note while the results match the open translation', () => {
+    mockQuery = 'love';
+    mockSearchedModules = ['KJV'];
+    render(<SearchResultsPanel onNavigate={onNavigate} />);
+    expect(screen.queryByTestId('search-results-translation-note')).toBeNull();
   });
 });

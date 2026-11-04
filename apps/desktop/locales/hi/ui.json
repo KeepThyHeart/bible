@@ -2410,5 +2410,6 @@
   "preferencesDialog.privacyOnlineLinks": "लिंक को आपके ब्राउज़र में खोलना।",
   "preferencesDialog.privacyOnlineFooter": "स्विच बंद होने पर इनमें से कुछ भी इंटरनेट से नहीं जुड़ता।",
   "remoteConsent.local": "क्या आप सब कुछ इसी डिवाइस पर रखना चाहते हैं? स्थानीय अर्थ पैक ऑफ़लाइन काम करता है और कोई वेब अनुरोध नहीं करता।",
-  "remoteConsent.getPack": "स्थानीय अर्थ पैक प्राप्त करें"
+  "remoteConsent.getPack": "स्थानीय अर्थ पैक प्राप्त करें",
+  "searchResultsPane.resultsFrom": "{modules} से परिणाम"
 }

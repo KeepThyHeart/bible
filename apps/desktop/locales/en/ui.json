@@ -2395,5 +2395,6 @@
   "preferencesDialog.privacyOnlineLinks": "Opening links in your browser.",
   "preferencesDialog.privacyOnlineFooter": "With the switch off, none of these connect to the internet.",
   "remoteConsent.local": "Prefer to keep everything on this device? A local meaning pack works offline and makes no web requests.",
-  "remoteConsent.getPack": "Get the local meaning pack"
+  "remoteConsent.getPack": "Get the local meaning pack",
+  "searchResultsPane.resultsFrom": "Results from {modules}"
 }

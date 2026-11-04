@@ -3,7 +3,7 @@ import { SearchResult, SearchOptions, SavedSearch, StrongsNumberHelper } from '@
 import type { RemoteSemantic } from '@bible/core';
 import { searchAPI, dictionaryAPI, remoteSemanticAPI } from '../services/electronAPI';
 import type { RemoteSemanticStatus, RemoteConsentChoice, SemanticSearchExReply, SemanticSource } from '../services/electronAPI';
-import { resolveOpenModuleAbbreviations, resolveInstalledModuleId, showSearchResultsPanel } from './crossStoreBridge';
+import { resolveOpenModuleAbbreviations, resolveActiveBibleModule, resolveInstalledModuleId, showSearchResultsPanel } from './crossStoreBridge';
 import { whenContextService } from '../services/WhenContextService';
 import { useToastStore } from './useToastStore';
 import { moduleAPI } from './module/moduleAPI';
@@ -77,6 +77,12 @@ interface SearchState {
   query: string;
   resultsForQuery: string; // The query that the current searchResults are for (not the live input)
   searchResults: SearchResult[];
+  /**
+   * The translation(s) the current keyword results were run in (B-005). The
+   * results stay when the reader switches translation; the pane names these so
+   * they are not mistaken for the new one.
+   */
+  searchedModules: string[];
   isSearching: boolean;
   error: string | null;
 
@@ -366,6 +372,7 @@ function emptyResultsPatch(): Partial<SearchState> {
   return {
     resultsForQuery: '',
     searchResults: [],
+    searchedModules: [],
     keywordResultLimit: KEYWORD_DEFAULT_MAX_RESULTS,
     isShowingAllKeywordResults: false,
     keywordIndexNotice: null,
@@ -426,6 +433,7 @@ export const useSearchStore = create<SearchState>((set, get) => ({
   query: '',
   resultsForQuery: '',
   searchResults: [],
+  searchedModules: [],
   isSearching: false,
   error: null,
   keywordResultLimit: KEYWORD_DEFAULT_MAX_RESULTS,
@@ -526,11 +534,15 @@ export const useSearchStore = create<SearchState>((set, get) => ({
       const requestedLimit = get().searchOptions.maxResults ?? KEYWORD_DEFAULT_MAX_RESULTS;
       const searchOptions = buildKeywordRequestOptions(get(), queryToSearch, requestedLimit);
 
+      const searchedModules = searchOptions.modules && searchOptions.modules.length > 0
+        ? [...searchOptions.modules]
+        : (resolveActiveBibleModule() ? [resolveActiveBibleModule() as string] : []);
       const results = await searchAPI.performSearch(queryToSearch, searchOptions);
 
       // Reset proximity distance after search completes (per user requirement)
       set({
         searchResults: results,
+        searchedModules,
         resultsForQuery: queryToSearch,
         isResultsVisible: true,
         isSearching: false,
@@ -654,6 +666,7 @@ export const useSearchStore = create<SearchState>((set, get) => ({
       query: '',
       resultsForQuery: '',
       searchResults: [],
+      searchedModules: [],
       liveSuggestions: [],
       liveSearchQuery: '',
       isResultsVisible: false,
@@ -925,6 +938,7 @@ export const useSearchStore = create<SearchState>((set, get) => ({
 
       set((state) => ({
         searchResults: results,
+        searchedModules: [moduleAbbr],
         resultsForQuery: queryToSearch,
         query: queryToSearch,
         isResultsVisible: true,

@@ -2395,5 +2395,6 @@
   "preferencesDialog.privacyOnlineLinks": "פתיחת קישורים בדפדפן שלכם.",
   "preferencesDialog.privacyOnlineFooter": "כשהמתג כבוי, אף אחד מאלה אינו מתחבר לאינטרנט.",
   "remoteConsent.local": "מעדיפים לשמור הכול במכשיר הזה? חבילת משמעות מקומית פועלת ללא חיבור ואינה שולחת בקשות אינטרנט.",
-  "remoteConsent.getPack": "קבלת חבילת המשמעות המקומית"
+  "remoteConsent.getPack": "קבלת חבילת המשמעות המקומית",
+  "searchResultsPane.resultsFrom": "תוצאות מתוך {modules}"
 }

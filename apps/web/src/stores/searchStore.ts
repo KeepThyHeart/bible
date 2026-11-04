@@ -106,6 +106,9 @@ class SearchStore extends Store {
   semanticMeta: RemoteSemantic.SemanticMeta | undefined = undefined;
   /** Modules used for the parallel keyword search (needed to switch) */
   private lastKeywordModules: string[] = [];
+
+  /** The translation(s) the current results were run in (B-005): results stay when the reader switches translation. */
+  get searchedModules(): string[] { return this.lastKeywordModules; }
   /** Translation the current semantic results were hydrated in; see loadMoreSemantic. */
   private lastSemanticModules: string[] = [];
   /**

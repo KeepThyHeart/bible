@@ -50,6 +50,7 @@ export function SearchResultsPanel({ onNavigate, onOpenStrongsEntry }: SearchRes
   const totalResults = useStore(searchStore, () => searchStore.totalResults);
   const searchType = useStore(searchStore, () => searchStore.searchType);
   const searchedModule = useStore(searchStore, () => searchStore.searchedModule);
+  const searchedModules = useStore(searchStore, () => searchStore.searchedModules);
   const semanticMeta = useStore(searchStore, () => searchStore.semanticMeta);
   const keywordMatchCount = useStore(searchStore, () => searchStore.keywordMatchCount);
   const canLoadMore = useStore(searchStore, () => searchStore.canLoadMore);
@@ -236,6 +237,12 @@ export function SearchResultsPanel({ onNavigate, onOpenStrongsEntry }: SearchRes
     );
   };
 
+  // The results stay when the reader switches translation (B-005): name the one they were run in.
+  const activeModuleAbbr = tabs.find((tab) => tab.id === activeTabId)?.moduleAbbr;
+  const translationNote = !strongsMode && searchedModules.length > 0 && activeModuleAbbr && !searchedModules.includes(activeModuleAbbr)
+    ? t('search.resultsFrom', { modules: searchedModules.join(', ') })
+    : null;
+
   return (
     <div class="search-panel-inline">
       {/* Mobile search bar — hidden on desktop via CSS */}
@@ -298,6 +305,9 @@ export function SearchResultsPanel({ onNavigate, onOpenStrongsEntry }: SearchRes
               </>
             )}
           </span>
+          {translationNote && (
+            <span class="search-panel-inline__translation-note" data-testid="search-results-translation-note">{translationNote}</span>
+          )}
           <button class="search-panel-inline__close" onClick={handleClose} title={t('search.closeSearch')}>
             <i class="fa-solid fa-xmark" />
           </button>

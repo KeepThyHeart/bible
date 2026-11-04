@@ -157,7 +157,8 @@
       "captionSemantic": "{count, plural, one {# pasaje recuperado, por libro; no es un recuento de toda la Biblia.} other {# pasajes recuperados, por libro; no es un recuento de toda la Biblia.}}",
       "captionCapped": "Solo se cuentan los resultados cargados hasta ahora; hay más por cargar.",
       "captionCeiling": "{count, plural, one {Solo se cuenta la primera # coincidencia; la búsqueda se detiene ahí.} other {Solo se cuentan las primeras # coincidencias; la búsqueda se detiene ahí.}}"
-    }
+    },
+    "resultsFrom": "Resultados de {modules}"
   },
   "contextMenu": {
     "copyPassage": "Copiar pasaje...",

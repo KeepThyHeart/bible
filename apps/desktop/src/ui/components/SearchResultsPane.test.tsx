@@ -112,6 +112,19 @@ describe('SearchResultsPane', () => {
 
   // The panel is part of the saved layout, so it comes back on the next launch
   // with no query behind it. That state must not read as "0 results for ''".
+  it('names the translation the results were run in once the reader switches (B-005)', () => {
+    const panel = (abbr: string) => ({ openTabs: [{ abbreviation: abbr }], activeTabIndex: 0 });
+    Object.assign(mockSearchStore, { ...defaultSearchState, resultsForQuery: 'love', searchedModules: ['KJV'] });
+    mockBiblePanels = new Map([['default', panel('ASV')]]);
+    const { unmount } = renderWithProviders(<SearchResultsPane />);
+    expect(screen.getByTestId('search-results-translation-note').textContent).toBe('Results from KJV');
+    unmount();
+    // Same translation as the reader's: no note.
+    mockBiblePanels = new Map([['default', panel('KJV')]]);
+    renderWithProviders(<SearchResultsPane />);
+    expect(screen.queryByTestId('search-results-translation-note')).toBeNull();
+  });
+
   it('shows an idle prompt, not a zero-result heading, when no search has run', () => {
     renderWithProviders(<SearchResultsPane />);
     expect(screen.getByTestId('search-results-idle')).toBeInTheDocument();

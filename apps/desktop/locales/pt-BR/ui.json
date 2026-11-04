@@ -2410,5 +2410,6 @@
   "preferencesDialog.privacyOnlineLinks": "Abrir links no seu navegador.",
   "preferencesDialog.privacyOnlineFooter": "Com a chave desativada, nenhum destes recursos se conecta à internet.",
   "remoteConsent.local": "Prefere manter tudo neste dispositivo? Um pacote local de significado funciona offline e não faz requisições web.",
-  "remoteConsent.getPack": "Obter o pacote local de significado"
+  "remoteConsent.getPack": "Obter o pacote local de significado",
+  "searchResultsPane.resultsFrom": "Resultados de {modules}"
 }

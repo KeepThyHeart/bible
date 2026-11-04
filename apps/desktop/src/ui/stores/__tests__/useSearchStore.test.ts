@@ -165,5 +165,17 @@ describe('useSearchStore - result interaction', () => {
       expect(state.retriedModules).toEqual([]);
       expect(state.lastClickedId).toBeNull();
     });
+
+    it('records the translation(s) the results were run in (B-005)', async () => {
+      performSearchMock.mockResolvedValue([]);
+      await useSearchStore.getState().performSearch('grace');
+      // No bridge wired in a unit test and no explicit modules: empty, never stale.
+      expect(useSearchStore.getState().searchedModules).toEqual([]);
+      useSearchStore.setState({ searchOptions: { ...useSearchStore.getState().searchOptions, modules: ['KJV'] } });
+      await useSearchStore.getState().performSearch('grace');
+      expect(useSearchStore.getState().searchedModules).toEqual(['KJV']);
+      await useSearchStore.getState().retrySearchInModule('ASV');
+      expect(useSearchStore.getState().searchedModules).toEqual(['ASV']);
+    });
   });
 });

@@ -101,6 +101,7 @@ const SearchResultsPane: React.FC<SearchResultsPaneProps> = ({ dockviewPanelApi 
     // Result interaction (retry-in-translation, last-clicked marker)
     retriedModules,
     retrySearchInModule,
+    searchedModules,
     lastClickedId,
     setLastClickedId,
   } = useSearchStore();
@@ -413,6 +414,12 @@ const SearchResultsPane: React.FC<SearchResultsPaneProps> = ({ dockviewPanelApi 
                 <span role="status" aria-live="polite" aria-atomic="true">
                   {countSummary}
                 </span>
+                {/* The results stay when the translation changes (B-005): say which one they came from. */}
+                {!isSemanticMode && searchedModules && searchedModules.length > 0 && primaryAbbr && !searchedModules.includes(primaryAbbr) && (
+                  <span data-testid="search-results-translation-note" className="text-text-secondary">
+                    {t('searchResultsPane.resultsFrom', { modules: searchedModules.join(', ') })}
+                  </span>
+                )}
                 {/* Semantic Search Toggle Link */}
                 {semanticAvailable && (
                   <button

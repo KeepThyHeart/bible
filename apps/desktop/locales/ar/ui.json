@@ -2410,5 +2410,6 @@
   "preferencesDialog.privacyOnlineLinks": "فتح الروابط في متصفحك.",
   "preferencesDialog.privacyOnlineFooter": "عند إيقاف المفتاح لا يتصل أي من هذه بالإنترنت.",
   "remoteConsent.local": "هل تفضل إبقاء كل شيء على هذا الجهاز؟ تعمل حزمة المعنى المحلية دون اتصال ولا ترسل أي طلبات عبر الويب.",
-  "remoteConsent.getPack": "الحصول على حزمة المعنى المحلية"
+  "remoteConsent.getPack": "الحصول على حزمة المعنى المحلية",
+  "searchResultsPane.resultsFrom": "نتائج من {modules}"
 }
