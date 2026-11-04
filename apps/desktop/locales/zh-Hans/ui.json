@@ -1506,6 +1506,8 @@
   "ui.preferences.themeMidnightDescription": "适合深夜阅读的深炭灰色调",
   "ui.preferences.themeLagoonLabel": "泻湖",
   "ui.preferences.themeLagoonDescription": "取材于静谧水面的清凉青蓝色调",
+  "ui.preferences.themeHighContrastLabel": "高对比度",
+  "ui.preferences.themeHighContrastDescription": "黑色背景、白色文字和黄色强调色，可读性最佳",
   "ui.preferences.themeOceanLabel": "海洋",
   "ui.preferences.themeOceanDescription": "取材于开阔海面的宁静蓝色调",
   "ui.preferences.themeSunsetLabel": "日落",

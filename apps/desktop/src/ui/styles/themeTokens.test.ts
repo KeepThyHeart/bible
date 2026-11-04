@@ -61,9 +61,9 @@ const REQUIRED_LITERAL_TOKENS = [
 ];
 
 describe('themeTokens.ts <-> themes.css structural agreement', () => {
-  it('THEME_TOKENS has exactly 15 themes (3 core + 12 ported from web) with unique ids', () => {
-    expect(THEME_TOKENS).toHaveLength(15);
-    expect(new Set(THEME_IDS).size).toBe(15);
+  it('THEME_TOKENS has exactly 16 themes (3 core + 12 ported from web + high-contrast) with unique ids', () => {
+    expect(THEME_TOKENS).toHaveLength(16);
+    expect(new Set(THEME_IDS).size).toBe(16);
   });
 
   it.each(THEME_TOKENS.map((t) => t.id))('themes.css has a [data-theme="%s"] block', (id) => {

@@ -58,7 +58,7 @@
   --theme-text-primary-rgb: 44 44 44;
   --theme-text-secondary-rgb: 102 102 102;
   --theme-text-heading-rgb: 0 0 0;
-  --theme-text-muted-rgb: 156 163 175;
+  --theme-text-muted-rgb: 105 110 118;
   --theme-text-inverse-rgb: 255 255 255;
 
   /* Borders */
@@ -66,7 +66,7 @@
   --theme-border-secondary-rgb: 209 213 219;
   /* Matches --theme-accent-primary below; 4.55:1 on white, comfortably past
      the 3:1 WCAG 2.4.11 needs for a focus indicator. */
-  --theme-border-focus-rgb: 61 120 188;
+  --theme-border-focus-rgb: 58 114 179;
 
   /* Accent
      Was #4A90E2. Against white that is 3.29:1, which fails WCAG AA twice over:
@@ -82,7 +82,7 @@
 
      Revert these two lines to `74 144 226` / `58 123 200` to restore the
      original brand blue - at the cost of the AA failure. */
-  --theme-accent-primary-rgb: 61 120 188;
+  --theme-accent-primary-rgb: 58 114 179;
   --theme-accent-hover-rgb: 52 102 159;
   --theme-accent-strong-rgb: 29 78 143;
   --theme-accent-text-rgb: 255 255 255;
@@ -94,7 +94,7 @@
   --theme-input-bg-rgb: 255 255 255;
   --theme-input-border-rgb: 209 213 219;
   --theme-input-text-rgb: 44 44 44;
-  --theme-input-placeholder-rgb: 156 163 175;
+  --theme-input-placeholder-rgb: 105 110 118;
 
   /* Neutral (secondary) controls / buttons */
   --theme-control-bg-rgb: 229 231 235;
@@ -133,10 +133,10 @@
   --theme-pane-header-bg: #F3F4F6;
   --theme-pane-header-border: #E5E7EB;
   --theme-pane-header-text: #374151;
-  --theme-pane-header-text-secondary: #6B7280;
+  --theme-pane-header-text-secondary: #696e76;
 
   /* Tabs */
-  --theme-tab-text: #6B7280;
+  --theme-tab-text: #676e7c;
   --theme-tab-text-hover: #111827;
   --theme-tab-bg-hover: #E5E7EB;
   --theme-tab-active-text: #111827;
@@ -178,7 +178,7 @@
   --theme-mark-8-rgb: 102 102 102;
 
   /* Footnote / cross-reference markers */
-  --theme-footnote-color: #D97706;
+  --theme-footnote-color: #a95d05;
   --theme-crossref-color: #2563EB;
 
   /* Color-coded range slider track */
@@ -211,7 +211,7 @@
   --theme-text-primary-rgb: 224 224 224;
   --theme-text-secondary-rgb: 160 160 184;
   --theme-text-heading-rgb: 240 240 255;
-  --theme-text-muted-rgb: 130 130 160;
+  --theme-text-muted-rgb: 147 147 173;
   --theme-text-inverse-rgb: 26 26 46;
 
   /* Borders */
@@ -234,7 +234,7 @@
   --theme-input-bg-rgb: 35 35 71;
   --theme-input-border-rgb: 74 74 112;
   --theme-input-text-rgb: 224 224 224;
-  --theme-input-placeholder-rgb: 130 130 160;
+  --theme-input-placeholder-rgb: 147 147 173;
 
   /* Neutral (secondary) controls / buttons */
   --theme-control-bg-rgb: 45 45 85;
@@ -273,7 +273,7 @@
   --theme-pane-header-bg: #232347;
   --theme-pane-header-border: #3A3A5C;
   --theme-pane-header-text: #C8C8E0;
-  --theme-pane-header-text-secondary: #8888A8;
+  --theme-pane-header-text-secondary: #9393ad;
 
   /* Tabs */
   --theme-tab-text: #A8A8C8;
@@ -351,16 +351,16 @@
   --theme-text-primary-rgb: 62 44 28;
   --theme-text-secondary-rgb: 107 87 68;
   --theme-text-heading-rgb: 44 26 14;
-  --theme-text-muted-rgb: 140 124 105;
+  --theme-text-muted-rgb: 113 100 85;
   --theme-text-inverse-rgb: 245 240 232;
 
   /* Borders */
   --theme-border-primary-rgb: 212 197 169;
   --theme-border-secondary-rgb: 196 180 148;
-  --theme-border-focus-rgb: 139 105 20;
+  --theme-border-focus-rgb: 129 97 19;
 
   /* Accent */
-  --theme-accent-primary-rgb: 139 105 20;
+  --theme-accent-primary-rgb: 129 97 19;
   --theme-accent-hover-rgb: 122 92 16;
   --theme-accent-strong-rgb: 92 68 8;
   --theme-accent-text-rgb: 255 255 255;
@@ -372,7 +372,7 @@
   --theme-input-bg-rgb: 250 246 238;
   --theme-input-border-rgb: 196 180 148;
   --theme-input-text-rgb: 62 44 28;
-  --theme-input-placeholder-rgb: 140 124 105;
+  --theme-input-placeholder-rgb: 113 100 85;
 
   /* Neutral (secondary) controls / buttons */
   --theme-control-bg-rgb: 228 220 200;
@@ -411,15 +411,15 @@
   --theme-pane-header-bg: #EDE6D6;
   --theme-pane-header-border: #D4C5A9;
   --theme-pane-header-text: #4A3828;
-  --theme-pane-header-text-secondary: #7A6652;
+  --theme-pane-header-text-secondary: #716455;
 
   /* Tabs */
-  --theme-tab-text: #7A6652;
+  --theme-tab-text: #766350;
   --theme-tab-text-hover: #2C1A0E;
   --theme-tab-bg-hover: #DDD4BE;
   --theme-tab-active-text: #2C1A0E;
   --theme-tab-active-bg: #F5F0E8;
-  --theme-tab-active-border: #8B6914;
+  --theme-tab-active-border: #816113;
 
   /* Study mode */
   --theme-study-controls-bg: #EDE6D6;
@@ -456,12 +456,12 @@
   --theme-mark-8-rgb: 102 102 102;
 
   /* Footnote / cross-reference markers */
-  --theme-footnote-color: #B45309;
+  --theme-footnote-color: #a64c08;
   --theme-crossref-color: #6B4C0A;
 
   /* Range slider */
   --theme-range-track: #D4C5A9;
-  --theme-range-thumb: #8B6914;
+  --theme-range-thumb: #816113;
 
   /* Sepia is a light theme, so the light-mode highlight alphas apply */
   --theme-highlight-alpha: 0.4;
@@ -497,16 +497,16 @@
   --theme-text-primary-rgb: 10 37 64;
   --theme-text-secondary-rgb: 26 64 96;
   --theme-text-heading-rgb: 9 31 54;
-  --theme-text-muted-rgb: 74 112 144;
+  --theme-text-muted-rgb: 73 110 142;
   --theme-text-inverse-rgb: 240 248 255;
 
   /* Borders */
   --theme-border-primary-rgb: 176 208 232;
   --theme-border-secondary-rgb: 162 191 213;
-  --theme-border-focus-rgb: 2 132 199;
+  --theme-border-focus-rgb: 2 112 169;
 
   /* Accent */
-  --theme-accent-primary-rgb: 2 132 199;
+  --theme-accent-primary-rgb: 2 112 169;
   --theme-accent-hover-rgb: 3 105 161;
   --theme-accent-strong-rgb: 3 89 137;
   --theme-accent-text-rgb: 255 255 255;
@@ -518,7 +518,7 @@
   --theme-input-bg-rgb: 240 248 255;
   --theme-input-border-rgb: 162 191 213;
   --theme-input-text-rgb: 10 37 64;
-  --theme-input-placeholder-rgb: 74 112 144;
+  --theme-input-placeholder-rgb: 73 110 142;
 
   /* Neutral (secondary) controls / buttons */
   --theme-control-bg-rgb: 208 232 248;
@@ -551,7 +551,7 @@
   --theme-pane-header-bg: rgb(224 240 251);
   --theme-pane-header-border: rgb(176 208 232);
   --theme-pane-header-text: rgb(26 64 96);
-  --theme-pane-header-text-secondary: rgb(74 112 144);
+  --theme-pane-header-text-secondary: #496e8e;
 
   /* Tabs */
   --theme-tab-text: rgb(26 64 96);
@@ -559,7 +559,7 @@
   --theme-tab-bg-hover: rgb(216 236 250);
   --theme-tab-active-text: rgb(10 37 64);
   --theme-tab-active-bg: rgb(240 248 255);
-  --theme-tab-active-border: rgb(2 132 199);
+  --theme-tab-active-border: #0270a9;
 
   /* Study mode */
   --theme-study-controls-bg: rgb(224 240 251);
@@ -596,12 +596,12 @@
   --theme-mark-8-rgb: 102 102 102;
 
   /* Footnote / cross-reference markers */
-  --theme-footnote-color: rgb(217 119 6);
+  --theme-footnote-color: #a15804;
   --theme-crossref-color: rgb(37 99 235);
 
   /* Color-coded range slider track */
   --theme-range-track: rgb(162 191 213);
-  --theme-range-thumb: rgb(2 132 199);
+  --theme-range-thumb: #0270a9;
 
   /* Text annotation highlight alpha (see highlights.css) */
   --theme-highlight-alpha: 0.4;
@@ -637,16 +637,16 @@
   --theme-text-primary-rgb: 46 26 14;
   --theme-text-secondary-rgb: 90 56 32;
   --theme-text-heading-rgb: 39 22 12;
-  --theme-text-muted-rgb: 138 104 72;
+  --theme-text-muted-rgb: 132 100 69;
   --theme-text-inverse-rgb: 250 246 240;
 
   /* Borders */
   --theme-border-primary-rgb: 208 184 152;
   --theme-border-secondary-rgb: 191 169 140;
-  --theme-border-focus-rgb: 180 83 9;
+  --theme-border-focus-rgb: 172 79 9;
 
   /* Accent */
-  --theme-accent-primary-rgb: 180 83 9;
+  --theme-accent-primary-rgb: 172 79 9;
   --theme-accent-hover-rgb: 146 64 14;
   --theme-accent-strong-rgb: 124 54 12;
   --theme-accent-text-rgb: 255 255 255;
@@ -658,7 +658,7 @@
   --theme-input-bg-rgb: 250 246 240;
   --theme-input-border-rgb: 191 169 140;
   --theme-input-text-rgb: 46 26 14;
-  --theme-input-placeholder-rgb: 138 104 72;
+  --theme-input-placeholder-rgb: 132 100 69;
 
   /* Neutral (secondary) controls / buttons */
   --theme-control-bg-rgb: 234 222 206;
@@ -691,7 +691,7 @@
   --theme-pane-header-bg: rgb(244 236 224);
   --theme-pane-header-border: rgb(208 184 152);
   --theme-pane-header-text: rgb(90 56 32);
-  --theme-pane-header-text-secondary: rgb(138 104 72);
+  --theme-pane-header-text-secondary: #846445;
 
   /* Tabs */
   --theme-tab-text: rgb(90 56 32);
@@ -699,7 +699,7 @@
   --theme-tab-bg-hover: rgb(239 229 215);
   --theme-tab-active-text: rgb(46 26 14);
   --theme-tab-active-bg: rgb(250 246 240);
-  --theme-tab-active-border: rgb(180 83 9);
+  --theme-tab-active-border: #ac4f09;
 
   /* Study mode */
   --theme-study-controls-bg: rgb(244 236 224);
@@ -736,12 +736,12 @@
   --theme-mark-8-rgb: 102 102 102;
 
   /* Footnote / cross-reference markers */
-  --theme-footnote-color: rgb(217 119 6);
+  --theme-footnote-color: #9f5704;
   --theme-crossref-color: rgb(37 99 235);
 
   /* Color-coded range slider track */
   --theme-range-track: rgb(191 169 140);
-  --theme-range-thumb: rgb(180 83 9);
+  --theme-range-thumb: #ac4f09;
 
   /* Text annotation highlight alpha (see highlights.css) */
   --theme-highlight-alpha: 0.4;
@@ -777,16 +777,16 @@
   --theme-text-primary-rgb: 27 46 27;
   --theme-text-secondary-rgb: 58 90 58;
   --theme-text-heading-rgb: 23 39 23;
-  --theme-text-muted-rgb: 107 143 107;
+  --theme-text-muted-rgb: 83 111 83;
   --theme-text-inverse-rgb: 240 245 237;
 
   /* Borders */
   --theme-border-primary-rgb: 181 204 176;
   --theme-border-secondary-rgb: 167 188 162;
-  --theme-border-focus-rgb: 45 122 58;
+  --theme-border-focus-rgb: 44 118 56;
 
   /* Accent */
-  --theme-accent-primary-rgb: 45 122 58;
+  --theme-accent-primary-rgb: 44 118 56;
   --theme-accent-hover-rgb: 30 92 40;
   --theme-accent-strong-rgb: 26 78 34;
   --theme-accent-text-rgb: 255 255 255;
@@ -798,7 +798,7 @@
   --theme-input-bg-rgb: 240 245 237;
   --theme-input-border-rgb: 167 188 162;
   --theme-input-text-rgb: 27 46 27;
-  --theme-input-placeholder-rgb: 107 143 107;
+  --theme-input-placeholder-rgb: 83 111 83;
 
   /* Neutral (secondary) controls / buttons */
   --theme-control-bg-rgb: 212 227 204;
@@ -831,7 +831,7 @@
   --theme-pane-header-bg: rgb(227 237 222);
   --theme-pane-header-border: rgb(181 204 176);
   --theme-pane-header-text: rgb(58 90 58);
-  --theme-pane-header-text-secondary: rgb(107 143 107);
+  --theme-pane-header-text-secondary: #536f53;
 
   /* Tabs */
   --theme-tab-text: rgb(58 90 58);
@@ -839,7 +839,7 @@
   --theme-tab-bg-hover: rgb(220 232 213);
   --theme-tab-active-text: rgb(27 46 27);
   --theme-tab-active-bg: rgb(240 245 237);
-  --theme-tab-active-border: rgb(45 122 58);
+  --theme-tab-active-border: #2c7638;
 
   /* Study mode */
   --theme-study-controls-bg: rgb(227 237 222);
@@ -876,12 +876,12 @@
   --theme-mark-8-rgb: 102 102 102;
 
   /* Footnote / cross-reference markers */
-  --theme-footnote-color: rgb(217 119 6);
+  --theme-footnote-color: #9d5604;
   --theme-crossref-color: rgb(37 99 235);
 
   /* Color-coded range slider track */
   --theme-range-track: rgb(167 188 162);
-  --theme-range-thumb: rgb(45 122 58);
+  --theme-range-thumb: #2c7638;
 
   /* Text annotation highlight alpha (see highlights.css) */
   --theme-highlight-alpha: 0.4;
@@ -917,16 +917,16 @@
   --theme-text-primary-rgb: 12 46 42;
   --theme-text-secondary-rgb: 26 74 66;
   --theme-text-heading-rgb: 10 39 36;
-  --theme-text-muted-rgb: 74 122 112;
+  --theme-text-muted-rgb: 69 114 105;
   --theme-text-inverse-rgb: 239 250 248;
 
   /* Borders */
   --theme-border-primary-rgb: 160 208 200;
   --theme-border-secondary-rgb: 147 191 184;
-  --theme-border-focus-rgb: 14 138 122;
+  --theme-border-focus-rgb: 12 120 106;
 
   /* Accent */
-  --theme-accent-primary-rgb: 14 138 122;
+  --theme-accent-primary-rgb: 12 120 106;
   --theme-accent-hover-rgb: 10 110 98;
   --theme-accent-strong-rgb: 9 94 83;
   --theme-accent-text-rgb: 255 255 255;
@@ -938,7 +938,7 @@
   --theme-input-bg-rgb: 239 250 248;
   --theme-input-border-rgb: 147 191 184;
   --theme-input-text-rgb: 12 46 42;
-  --theme-input-placeholder-rgb: 74 122 112;
+  --theme-input-placeholder-rgb: 69 114 105;
 
   /* Neutral (secondary) controls / buttons */
   --theme-control-bg-rgb: 200 232 226;
@@ -971,7 +971,7 @@
   --theme-pane-header-bg: rgb(221 242 238);
   --theme-pane-header-border: rgb(160 208 200);
   --theme-pane-header-text: rgb(26 74 66);
-  --theme-pane-header-text-secondary: rgb(74 122 112);
+  --theme-pane-header-text-secondary: #457269;
 
   /* Tabs */
   --theme-tab-text: rgb(26 74 66);
@@ -979,7 +979,7 @@
   --theme-tab-bg-hover: rgb(211 237 232);
   --theme-tab-active-text: rgb(12 46 42);
   --theme-tab-active-bg: rgb(239 250 248);
-  --theme-tab-active-border: rgb(14 138 122);
+  --theme-tab-active-border: #0c786a;
 
   /* Study mode */
   --theme-study-controls-bg: rgb(221 242 238);
@@ -1016,12 +1016,12 @@
   --theme-mark-8-rgb: 102 102 102;
 
   /* Footnote / cross-reference markers */
-  --theme-footnote-color: rgb(217 119 6);
+  --theme-footnote-color: #a15804;
   --theme-crossref-color: rgb(37 99 235);
 
   /* Color-coded range slider track */
   --theme-range-track: rgb(147 191 184);
-  --theme-range-thumb: rgb(14 138 122);
+  --theme-range-thumb: #0c786a;
 
   /* Text annotation highlight alpha (see highlights.css) */
   --theme-highlight-alpha: 0.4;
@@ -1057,18 +1057,18 @@
   --theme-text-primary-rgb: 30 48 24;
   --theme-text-secondary-rgb: 58 84 40;
   --theme-text-heading-rgb: 26 41 20;
-  --theme-text-muted-rgb: 106 138 80;
+  --theme-text-muted-rgb: 87 114 66;
   --theme-text-inverse-rgb: 244 248 239;
 
   /* Borders */
   --theme-border-primary-rgb: 184 212 160;
   --theme-border-secondary-rgb: 169 195 147;
-  --theme-border-focus-rgb: 90 158 46;
+  --theme-border-focus-rgb: 67 118 34;
 
   /* Accent */
-  --theme-accent-primary-rgb: 90 158 46;
-  --theme-accent-hover-rgb: 72 136 34;
-  --theme-accent-strong-rgb: 61 116 29;
+  --theme-accent-primary-rgb: 67 118 34;
+  --theme-accent-hover-rgb: 57 100 29;
+  --theme-accent-strong-rgb: 54 103 26;
   --theme-accent-text-rgb: 255 255 255;
 
   /* Christ's words (red letter) */
@@ -1078,7 +1078,7 @@
   --theme-input-bg-rgb: 244 248 239;
   --theme-input-border-rgb: 169 195 147;
   --theme-input-text-rgb: 30 48 24;
-  --theme-input-placeholder-rgb: 106 138 80;
+  --theme-input-placeholder-rgb: 87 114 66;
 
   /* Neutral (secondary) controls / buttons */
   --theme-control-bg-rgb: 218 232 204;
@@ -1111,7 +1111,7 @@
   --theme-pane-header-bg: rgb(232 240 222);
   --theme-pane-header-border: rgb(184 212 160);
   --theme-pane-header-text: rgb(58 84 40);
-  --theme-pane-header-text-secondary: rgb(106 138 80);
+  --theme-pane-header-text-secondary: #577242;
 
   /* Tabs */
   --theme-tab-text: rgb(58 84 40);
@@ -1119,7 +1119,7 @@
   --theme-tab-bg-hover: rgb(225 236 213);
   --theme-tab-active-text: rgb(30 48 24);
   --theme-tab-active-bg: rgb(244 248 239);
-  --theme-tab-active-border: rgb(90 158 46);
+  --theme-tab-active-border: #437622;
 
   /* Study mode */
   --theme-study-controls-bg: rgb(232 240 222);
@@ -1156,12 +1156,12 @@
   --theme-mark-8-rgb: 102 102 102;
 
   /* Footnote / cross-reference markers */
-  --theme-footnote-color: rgb(217 119 6);
+  --theme-footnote-color: #9f5704;
   --theme-crossref-color: rgb(37 99 235);
 
   /* Color-coded range slider track */
   --theme-range-track: rgb(169 195 147);
-  --theme-range-thumb: rgb(90 158 46);
+  --theme-range-thumb: #437622;
 
   /* Text annotation highlight alpha (see highlights.css) */
   --theme-highlight-alpha: 0.4;
@@ -1197,7 +1197,7 @@
   --theme-text-primary-rgb: 201 209 217;
   --theme-text-secondary-rgb: 139 148 158;
   --theme-text-heading-rgb: 206 214 221;
-  --theme-text-muted-rgb: 110 118 129;
+  --theme-text-muted-rgb: 136 143 152;
   --theme-text-inverse-rgb: 13 17 23;
 
   /* Borders */
@@ -1209,7 +1209,7 @@
   --theme-accent-primary-rgb: 88 166 255;
   --theme-accent-hover-rgb: 121 192 255;
   --theme-accent-strong-rgb: 141 201 255;
-  --theme-accent-text-rgb: 255 255 255;
+  --theme-accent-text-rgb: 13 17 23;
 
   /* Christ's words (red letter) */
   --theme-christ-rgb: 248 113 113;
@@ -1218,12 +1218,12 @@
   --theme-input-bg-rgb: 13 17 23;
   --theme-input-border-rgb: 69 74 80;
   --theme-input-text-rgb: 201 209 217;
-  --theme-input-placeholder-rgb: 110 118 129;
+  --theme-input-placeholder-rgb: 136 143 152;
 
   /* Neutral (secondary) controls / buttons */
   --theme-control-bg-rgb: 33 38 45;
   --theme-control-hover-rgb: 51 55 62;
-  --theme-control-text-rgb: 139 148 158;
+  --theme-control-text-rgb: 154 162 171;
 
   /* Status colors reused wholesale from the dark theme */
   --theme-danger-rgb: 239 68 68;
@@ -1251,7 +1251,7 @@
   --theme-pane-header-bg: rgb(22 27 34);
   --theme-pane-header-border: rgb(48 54 61);
   --theme-pane-header-text: rgb(139 148 158);
-  --theme-pane-header-text-secondary: rgb(110 118 129);
+  --theme-pane-header-text-secondary: #888f98;
 
   /* Tabs */
   --theme-tab-text: rgb(139 148 158);
@@ -1337,16 +1337,16 @@
   --theme-text-primary-rgb: 15 43 60;
   --theme-text-secondary-rgb: 42 84 112;
   --theme-text-heading-rgb: 13 37 51;
-  --theme-text-muted-rgb: 91 139 165;
+  --theme-text-muted-rgb: 70 107 127;
   --theme-text-inverse-rgb: 238 244 248;
 
   /* Borders */
   --theme-border-primary-rgb: 168 200 220;
   --theme-border-secondary-rgb: 155 184 202;
-  --theme-border-focus-rgb: 26 110 160;
+  --theme-border-focus-rgb: 26 108 158;
 
   /* Accent */
-  --theme-accent-primary-rgb: 26 110 160;
+  --theme-accent-primary-rgb: 26 108 158;
   --theme-accent-hover-rgb: 20 90 132;
   --theme-accent-strong-rgb: 17 77 112;
   --theme-accent-text-rgb: 255 255 255;
@@ -1358,7 +1358,7 @@
   --theme-input-bg-rgb: 238 244 248;
   --theme-input-border-rgb: 155 184 202;
   --theme-input-text-rgb: 15 43 60;
-  --theme-input-placeholder-rgb: 91 139 165;
+  --theme-input-placeholder-rgb: 70 107 127;
 
   /* Neutral (secondary) controls / buttons */
   --theme-control-bg-rgb: 200 220 232;
@@ -1391,7 +1391,7 @@
   --theme-pane-header-bg: rgb(220 233 242);
   --theme-pane-header-border: rgb(168 200 220);
   --theme-pane-header-text: rgb(42 84 112);
-  --theme-pane-header-text-secondary: rgb(91 139 165);
+  --theme-pane-header-text-secondary: #466b7f;
 
   /* Tabs */
   --theme-tab-text: rgb(42 84 112);
@@ -1399,7 +1399,7 @@
   --theme-tab-bg-hover: rgb(210 227 237);
   --theme-tab-active-text: rgb(15 43 60);
   --theme-tab-active-bg: rgb(238 244 248);
-  --theme-tab-active-border: rgb(26 110 160);
+  --theme-tab-active-border: #1a6c9e;
 
   /* Study mode */
   --theme-study-controls-bg: rgb(220 233 242);
@@ -1436,12 +1436,12 @@
   --theme-mark-8-rgb: 102 102 102;
 
   /* Footnote / cross-reference markers */
-  --theme-footnote-color: rgb(217 119 6);
+  --theme-footnote-color: #9a5404;
   --theme-crossref-color: rgb(37 99 235);
 
   /* Color-coded range slider track */
   --theme-range-track: rgb(155 184 202);
-  --theme-range-thumb: rgb(26 110 160);
+  --theme-range-thumb: #1a6c9e;
 
   /* Text annotation highlight alpha (see highlights.css) */
   --theme-highlight-alpha: 0.4;
@@ -1477,7 +1477,7 @@
   --theme-text-primary-rgb: 44 36 22;
   --theme-text-secondary-rgb: 74 60 38;
   --theme-text-heading-rgb: 37 31 19;
-  --theme-text-muted-rgb: 122 106 74;
+  --theme-text-muted-rgb: 113 98 68;
   --theme-text-inverse-rgb: 245 237 213;
 
   /* Borders */
@@ -1498,7 +1498,7 @@
   --theme-input-bg-rgb: 245 237 213;
   --theme-input-border-rgb: 180 166 127;
   --theme-input-text-rgb: 44 36 22;
-  --theme-input-placeholder-rgb: 122 106 74;
+  --theme-input-placeholder-rgb: 113 98 68;
 
   /* Neutral (secondary) controls / buttons */
   --theme-control-bg-rgb: 226 213 174;
@@ -1531,7 +1531,7 @@
   --theme-pane-header-bg: rgb(237 227 196);
   --theme-pane-header-border: rgb(196 180 138);
   --theme-pane-header-text: rgb(74 60 38);
-  --theme-pane-header-text-secondary: rgb(122 106 74);
+  --theme-pane-header-text-secondary: #716244;
 
   /* Tabs */
   --theme-tab-text: rgb(74 60 38);
@@ -1546,13 +1546,13 @@
   --theme-study-controls-border: rgb(180 166 127);
 
   /* Links in commentary (uses --theme-info, matching the light/dark pattern) */
-  --theme-link-color: rgb(37 99 235);
+  --theme-link-color: #225bd8;
   --theme-link-color-hover: rgb(30 64 175);
   --theme-link-underline: rgb(37 99 235 / 0.4);
   --theme-link-underline-hover: rgb(37 99 235 / 0.8);
 
   /* Strongs numbers */
-  --theme-strongs-color: rgb(37 99 235);
+  --theme-strongs-color: #225bd8;
   --theme-strongs-color-hover: rgb(30 64 175);
 
   /* Morphology colors reused wholesale from the light theme */
@@ -1576,8 +1576,8 @@
   --theme-mark-8-rgb: 102 102 102;
 
   /* Footnote / cross-reference markers */
-  --theme-footnote-color: rgb(217 119 6);
-  --theme-crossref-color: rgb(37 99 235);
+  --theme-footnote-color: #975304;
+  --theme-crossref-color: #225bd8;
 
   /* Color-coded range slider track */
   --theme-range-track: rgb(180 166 127);
@@ -1716,7 +1716,7 @@
   --theme-mark-8-rgb: 102 102 102;
 
   /* Footnote / cross-reference markers */
-  --theme-footnote-color: rgb(217 119 6);
+  --theme-footnote-color: #9f5704;
   --theme-crossref-color: rgb(37 99 235);
 
   /* Color-coded range slider track */
@@ -1757,7 +1757,7 @@
   --theme-text-primary-rgb: 203 213 225;
   --theme-text-secondary-rgb: 148 163 184;
   --theme-text-heading-rgb: 208 217 228;
-  --theme-text-muted-rgb: 100 116 139;
+  --theme-text-muted-rgb: 153 164 179;
   --theme-text-inverse-rgb: 30 37 48;
 
   /* Borders */
@@ -1769,7 +1769,7 @@
   --theme-accent-primary-rgb: 56 189 248;
   --theme-accent-hover-rgb: 125 211 252;
   --theme-accent-strong-rgb: 145 218 252;
-  --theme-accent-text-rgb: 255 255 255;
+  --theme-accent-text-rgb: 17 17 17;
 
   /* Christ's words (red letter) */
   --theme-christ-rgb: 248 113 113;
@@ -1778,12 +1778,12 @@
   --theme-input-bg-rgb: 30 37 48;
   --theme-input-border-rgb: 71 84 102;
   --theme-input-text-rgb: 203 213 225;
-  --theme-input-placeholder-rgb: 100 116 139;
+  --theme-input-placeholder-rgb: 153 164 179;
 
   /* Neutral (secondary) controls / buttons */
   --theme-control-bg-rgb: 46 56 72;
   --theme-control-hover-rgb: 63 72 87;
-  --theme-control-text-rgb: 148 163 184;
+  --theme-control-text-rgb: 173 185 201;
 
   /* Status colors reused wholesale from the dark theme */
   --theme-danger-rgb: 239 68 68;
@@ -1811,7 +1811,7 @@
   --theme-pane-header-bg: rgb(37 45 58);
   --theme-pane-header-border: rgb(51 65 85);
   --theme-pane-header-text: rgb(148 163 184);
-  --theme-pane-header-text-secondary: rgb(100 116 139);
+  --theme-pane-header-text-secondary: #99a4b3;
 
   /* Tabs */
   --theme-tab-text: rgb(148 163 184);
@@ -1864,7 +1864,7 @@
   --theme-range-thumb: rgb(56 189 248);
 
   /* Text annotation highlight alpha (see highlights.css) */
-  --theme-highlight-alpha: 0.3;
+  --theme-highlight-alpha: 0.25;
   --theme-highlight-preview-alpha: 0.18;
 }
 
@@ -1897,18 +1897,18 @@
   --theme-text-primary-rgb: 61 32 16;
   --theme-text-secondary-rgb: 107 64 32;
   --theme-text-heading-rgb: 52 27 14;
-  --theme-text-muted-rgb: 154 112 80;
+  --theme-text-muted-rgb: 139 101 72;
   --theme-text-inverse-rgb: 254 248 240;
 
   /* Borders */
   --theme-border-primary-rgb: 224 200 168;
   --theme-border-secondary-rgb: 206 184 155;
-  --theme-border-focus-rgb: 212 128 42;
+  --theme-border-focus-rgb: 156 94 31;
 
   /* Accent */
-  --theme-accent-primary-rgb: 212 128 42;
-  --theme-accent-hover-rgb: 184 106 30;
-  --theme-accent-strong-rgb: 156 90 26;
+  --theme-accent-primary-rgb: 156 94 31;
+  --theme-accent-hover-rgb: 133 80 26;
+  --theme-accent-strong-rgb: 137 79 23;
   --theme-accent-text-rgb: 255 255 255;
 
   /* Christ's words (red letter) */
@@ -1918,7 +1918,7 @@
   --theme-input-bg-rgb: 254 248 240;
   --theme-input-border-rgb: 206 184 155;
   --theme-input-text-rgb: 61 32 16;
-  --theme-input-placeholder-rgb: 154 112 80;
+  --theme-input-placeholder-rgb: 139 101 72;
 
   /* Neutral (secondary) controls / buttons */
   --theme-control-bg-rgb: 251 229 200;
@@ -1951,7 +1951,7 @@
   --theme-pane-header-bg: rgb(253 240 222);
   --theme-pane-header-border: rgb(224 200 168);
   --theme-pane-header-text: rgb(107 64 32);
-  --theme-pane-header-text-secondary: rgb(154 112 80);
+  --theme-pane-header-text-secondary: #8b6548;
 
   /* Tabs */
   --theme-tab-text: rgb(107 64 32);
@@ -1959,7 +1959,7 @@
   --theme-tab-bg-hover: rgb(252 235 211);
   --theme-tab-active-text: rgb(61 32 16);
   --theme-tab-active-bg: rgb(254 248 240);
-  --theme-tab-active-border: rgb(212 128 42);
+  --theme-tab-active-border: #9c5e1f;
 
   /* Study mode */
   --theme-study-controls-bg: rgb(253 240 222);
@@ -1996,12 +1996,12 @@
   --theme-mark-8-rgb: 102 102 102;
 
   /* Footnote / cross-reference markers */
-  --theme-footnote-color: rgb(217 119 6);
+  --theme-footnote-color: #a45a05;
   --theme-crossref-color: rgb(37 99 235);
 
   /* Color-coded range slider track */
   --theme-range-track: rgb(206 184 155);
-  --theme-range-thumb: rgb(212 128 42);
+  --theme-range-thumb: #9c5e1f;
 
   /* Text annotation highlight alpha (see highlights.css) */
   --theme-highlight-alpha: 0.4;
@@ -2037,7 +2037,7 @@
   --theme-text-primary-rgb: 240 208 216;
   --theme-text-secondary-rgb: 200 160 176;
   --theme-text-heading-rgb: 242 213 220;
-  --theme-text-muted-rgb: 152 120 136;
+  --theme-text-muted-rgb: 171 145 158;
   --theme-text-inverse-rgb: 42 21 32;
 
   /* Borders */
@@ -2049,7 +2049,7 @@
   --theme-accent-primary-rgb: 232 120 154;
   --theme-accent-hover-rgb: 240 154 181;
   --theme-accent-strong-rgb: 242 169 192;
-  --theme-accent-text-rgb: 255 255 255;
+  --theme-accent-text-rgb: 42 21 32;
 
   /* Christ's words (red letter) */
   --theme-christ-rgb: 248 113 113;
@@ -2058,7 +2058,7 @@
   --theme-input-bg-rgb: 42 21 32;
   --theme-input-border-rgb: 107 63 80;
   --theme-input-text-rgb: 240 208 216;
-  --theme-input-placeholder-rgb: 152 120 136;
+  --theme-input-placeholder-rgb: 171 145 158;
 
   /* Neutral (secondary) controls / buttons */
   --theme-control-bg-rgb: 74 32 53;
@@ -2091,7 +2091,7 @@
   --theme-pane-header-bg: rgb(58 26 42);
   --theme-pane-header-border: rgb(90 42 61);
   --theme-pane-header-text: rgb(200 160 176);
-  --theme-pane-header-text-secondary: rgb(152 120 136);
+  --theme-pane-header-text-secondary: #ab919e;
 
   /* Tabs */
   --theme-tab-text: rgb(200 160 176);
@@ -2146,6 +2146,98 @@
   /* Text annotation highlight alpha (see highlights.css) */
   --theme-highlight-alpha: 0.3;
   --theme-highlight-preview-alpha: 0.18;
+}
+
+/* High Contrast (B-044): dark, black ground, 7:1+ text, 3:1+ borders, yellow accent.
+   Generated from the audit in the QA work dir; every text pair is >= 7:1. */
+[data-theme="high-contrast"] {
+  --theme-bg-primary-rgb: 0 0 0;
+  --theme-bg-secondary-rgb: 0 0 0;
+  --theme-bg-tertiary-rgb: 26 26 26;
+  --theme-bg-hover-rgb: 38 38 38;
+  --theme-bg-active-rgb: 51 51 51;
+  --theme-bg-strong-rgb: 64 64 64;
+  --theme-surface-primary-rgb: 0 0 0;
+  --theme-surface-secondary-rgb: 13 13 13;
+  --theme-surface-elevated-rgb: 20 20 20;
+  --theme-text-primary-rgb: 255 255 255;
+  --theme-text-secondary-rgb: 235 235 235;
+  --theme-text-heading-rgb: 255 255 255;
+  --theme-text-muted-rgb: 214 214 214;
+  --theme-text-inverse-rgb: 0 0 0;
+  --theme-border-primary-rgb: 200 200 200;
+  --theme-border-secondary-rgb: 160 160 160;
+  --theme-border-focus-rgb: 255 224 102;
+  --theme-accent-primary-rgb: 255 224 102;
+  --theme-accent-hover-rgb: 255 236 153;
+  --theme-accent-strong-rgb: 255 224 102;
+  --theme-accent-text-rgb: 0 0 0;
+  --theme-christ-rgb: 255 138 138;
+  --theme-input-bg-rgb: 0 0 0;
+  --theme-input-border-rgb: 200 200 200;
+  --theme-input-text-rgb: 255 255 255;
+  --theme-input-placeholder-rgb: 214 214 214;
+  --theme-control-bg-rgb: 26 26 26;
+  --theme-control-hover-rgb: 51 51 51;
+  --theme-control-text-rgb: 255 255 255;
+  --theme-danger-rgb: 255 107 107;
+  --theme-danger-hover-rgb: 255 140 140;
+  --theme-danger-soft-rgb: 51 0 0;
+  --theme-danger-text-rgb: 255 153 153;
+  --theme-danger-border-rgb: 255 107 107;
+  --theme-success-rgb: 94 224 138;
+  --theme-success-soft-rgb: 0 38 13;
+  --theme-success-text-rgb: 130 240 165;
+  --theme-success-border-rgb: 94 224 138;
+  --theme-warning-rgb: 255 209 102;
+  --theme-warning-soft-rgb: 45 32 0;
+  --theme-warning-text-rgb: 255 224 140;
+  --theme-warning-border-rgb: 255 209 102;
+  --theme-info-rgb: 138 200 255;
+  --theme-info-soft-rgb: 0 26 51;
+  --theme-info-text-rgb: 170 215 255;
+  --theme-info-border-rgb: 138 200 255;
+  --theme-bg-overlay: rgb(0 0 0 / 0.75);
+  --theme-pane-header-bg: rgb(13 13 13);
+  --theme-pane-header-border: rgb(200 200 200);
+  --theme-pane-header-text: rgb(255 255 255);
+  --theme-pane-header-text-secondary: rgb(214 214 214);
+  --theme-tab-text: rgb(235 235 235);
+  --theme-tab-text-hover: rgb(255 255 255);
+  --theme-tab-bg-hover: rgb(38 38 38);
+  --theme-tab-active-text: rgb(255 255 255);
+  --theme-tab-active-bg: rgb(0 0 0);
+  --theme-tab-active-border: rgb(255 224 102);
+  --theme-study-controls-bg: rgb(13 13 13);
+  --theme-study-controls-border: rgb(200 200 200);
+  --theme-link-color: rgb(138 200 255);
+  --theme-link-color-hover: rgb(190 225 255);
+  --theme-link-underline: rgb(138 200 255 / 0.9);
+  --theme-link-underline-hover: rgb(190 225 255);
+  --theme-strongs-color: rgb(138 200 255);
+  --theme-strongs-color-hover: rgb(190 225 255);
+  --theme-morph-verb: #8AC8FF;
+  --theme-morph-verb-rgb: 138 200 255;
+  --theme-morph-noun: #5EE08A;
+  --theme-morph-noun-rgb: 94 224 138;
+  --theme-morph-adjective: #D9A6FF;
+  --theme-morph-adjective-rgb: 217 166 255;
+  --theme-morph-pronoun: #FFB066;
+  --theme-morph-pronoun-rgb: 255 176 102;
+  --theme-mark-1-rgb: 86 180 233;
+  --theme-mark-2-rgb: 255 160 64;
+  --theme-mark-3-rgb: 0 210 160;
+  --theme-mark-4-rgb: 230 150 200;
+  --theme-mark-5-rgb: 240 228 66;
+  --theme-mark-6-rgb: 140 200 255;
+  --theme-mark-7-rgb: 190 160 255;
+  --theme-mark-8-rgb: 200 200 200;
+  --theme-footnote-color: rgb(255 209 102);
+  --theme-crossref-color: rgb(138 200 255);
+  --theme-range-track: rgb(160 160 160);
+  --theme-range-thumb: rgb(255 224 102);
+  --theme-highlight-alpha: 0.3;
+  --theme-highlight-preview-alpha: 0.2;
 }
 
 /* ============================================================
@@ -2274,6 +2366,7 @@
    near-black page, and a saturated fill would fight the text. */
 [data-theme="dark"],
 [data-theme="midnight"],
+[data-theme="high-contrast"],
 [data-theme="slate"],
 [data-theme="sunset"] {
   --theme-verse-select-rgb: 250 204 21;

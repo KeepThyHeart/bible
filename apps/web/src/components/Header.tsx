@@ -155,6 +155,7 @@ export function Header({ onSettingsClick, onHelpClick, onFeedbackClick, onLogoCl
     { value: 'arctic', label: 'themes.arctic', icon: 'fa-palette' },
     { value: 'autumn', label: 'themes.autumn', icon: 'fa-palette' },
     { value: 'lagoon', label: 'themes.lagoon', icon: 'fa-palette' },
+    { value: 'high-contrast', label: 'themes.high-contrast', icon: 'fa-palette' },
   ] as const;
 
   return (

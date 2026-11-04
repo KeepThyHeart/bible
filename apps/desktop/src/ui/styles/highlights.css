@@ -47,7 +47,8 @@
 
 /* Highlighted words keep dark text so the wash stays readable on dark themes,
    where the surrounding body text is light. */
-[data-theme="dark"] .word[class*="highlight-"] {
+[data-theme="dark"] .word[class*="highlight-"],
+[data-theme="high-contrast"] .word[class*="highlight-"] {
   color: #14142B;
 }
 
@@ -109,7 +110,8 @@
    nearly invisible against the dark page, so brighten them. Redefining the
    token (rather than the rules that use it) brightens the picker's preview by
    the same amount, so what the reader picks is what they get. */
-[data-theme="dark"] {
+[data-theme="dark"],
+[data-theme="high-contrast"] {
   --underline-color-blue: rgba(120, 160, 255, 1);
   --underline-color-purple: rgba(200, 140, 240, 1);
   --underline-color-green: rgba(80, 200, 110, 1);
@@ -222,12 +224,14 @@
 }
 
 /* Find highlights on dark: dim the wash slightly and darken the text on it */
-[data-theme="dark"] .word.find-match {
+[data-theme="dark"] .word.find-match,
+[data-theme="high-contrast"] .word.find-match {
   background-color: rgba(255, 235, 59, 0.4) !important;
   color: #14142B;
 }
 
-[data-theme="dark"] .word.find-match-current {
+[data-theme="dark"] .word.find-match-current,
+[data-theme="high-contrast"] .word.find-match-current {
   background-color: rgba(255, 152, 0, 0.6) !important;
   color: #14142B;
 }
@@ -254,7 +258,8 @@
   user-select: none;
 }
 
-[data-theme="dark"] .floating-annotation-toolbar {
+[data-theme="dark"] .floating-annotation-toolbar,
+[data-theme="high-contrast"] .floating-annotation-toolbar {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.2);
 }
 

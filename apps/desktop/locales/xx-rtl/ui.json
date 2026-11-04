@@ -1545,6 +1545,8 @@
   "ui.preferences.themeMidnightDescription": "‏Deep charcoal tones for late-night reading‏",
   "ui.preferences.themeLagoonLabel": "‏Lagoon‏",
   "ui.preferences.themeLagoonDescription": "‏Cool teal tones inspired by tranquil waters‏",
+  "ui.preferences.themeHighContrastLabel": "High Contrast",
+  "ui.preferences.themeHighContrastDescription": "Black ground, white text and a yellow accent for maximum readability",
   "ui.preferences.themeOceanLabel": "‏Ocean‏",
   "ui.preferences.themeOceanDescription": "‏Calming blues inspired by open water‏",
   "ui.preferences.themeSunsetLabel": "‏Sunset‏",

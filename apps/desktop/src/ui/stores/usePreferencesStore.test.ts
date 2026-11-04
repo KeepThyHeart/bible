@@ -137,9 +137,9 @@ describe('DEFAULT_TYPOGRAPHY', () => {
 });
 
 describe('AVAILABLE_THEMES', () => {
-  it('is generated from THEME_TOKENS and includes every theme (3 core + 12 ported)', () => {
+  it('is generated from THEME_TOKENS and includes every theme (3 core + 12 ported + high-contrast)', () => {
     expect(AVAILABLE_THEMES).toHaveLength(THEME_TOKENS.length);
-    expect(AVAILABLE_THEMES.length).toBe(15);
+    expect(AVAILABLE_THEMES.length).toBe(16);
     const ids = AVAILABLE_THEMES.map((t) => t.id);
     expect(new Set(ids).size).toBe(ids.length); // no duplicate ids
     expect(ids).toEqual(expect.arrayContaining(['light', 'dark', 'sepia']));

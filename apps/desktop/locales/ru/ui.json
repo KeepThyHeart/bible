@@ -1506,6 +1506,8 @@
   "ui.preferences.themeMidnightDescription": "Глубокие угольные тона для чтения поздней ночью",
   "ui.preferences.themeLagoonLabel": "Лагуна",
   "ui.preferences.themeLagoonDescription": "Прохладные бирюзовые тона, навеянные тихими водами",
+  "ui.preferences.themeHighContrastLabel": "Высокий контраст",
+  "ui.preferences.themeHighContrastDescription": "Чёрный фон, белый текст и жёлтый акцент для максимальной читаемости",
   "ui.preferences.themeOceanLabel": "Океан",
   "ui.preferences.themeOceanDescription": "Успокаивающие синие тона, навеянные открытой водой",
   "ui.preferences.themeSunsetLabel": "Закат",

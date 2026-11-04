@@ -1506,6 +1506,8 @@
   "ui.preferences.themeMidnightDescription": "رنگ‌های ذغالی عمیق برای خواندن در دل شب",
   "ui.preferences.themeLagoonLabel": "تالاب",
   "ui.preferences.themeLagoonDescription": "رنگ‌های فیروزه‌ای خنک الهام‌گرفته از آب‌های آرام",
+  "ui.preferences.themeHighContrastLabel": "کنتراست بالا",
+  "ui.preferences.themeHighContrastDescription": "زمینه سیاه، متن سفید و تأکید زرد برای بیشترین خوانایی",
   "ui.preferences.themeOceanLabel": "اقیانوس",
   "ui.preferences.themeOceanDescription": "آبی‌های آرام‌بخش الهام‌گرفته از آب‌های گسترده",
   "ui.preferences.themeSunsetLabel": "غروب",

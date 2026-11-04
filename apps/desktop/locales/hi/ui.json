@@ -1506,6 +1506,8 @@
   "ui.preferences.themeMidnightDescription": "देर रात पढ़ने के लिए गहरे चारकोल रंग",
   "ui.preferences.themeLagoonLabel": "लैगून",
   "ui.preferences.themeLagoonDescription": "शांत जल से प्रेरित ठंडे हरे-नीले रंग",
+  "ui.preferences.themeHighContrastLabel": "उच्च कंट्रास्ट",
+  "ui.preferences.themeHighContrastDescription": "अधिकतम पठनीयता के लिए काली पृष्ठभूमि, सफ़ेद पाठ और पीला उभार",
   "ui.preferences.themeOceanLabel": "सागर",
   "ui.preferences.themeOceanDescription": "खुले जल से प्रेरित सुकून देने वाले नीले रंग",
   "ui.preferences.themeSunsetLabel": "सूर्यास्त",

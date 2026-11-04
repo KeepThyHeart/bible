@@ -10,7 +10,7 @@
   --_kth-gen-zilpah: #7c5cb0;
   --_kth-gen-gold: #c9a227;
 }
-:where([data-theme="dark"], [data-theme="midnight"], [data-theme="slate"], [data-theme="sunset"]) {
+:where([data-theme="dark"], [data-theme="midnight"], [data-theme="high-contrast"], [data-theme="slate"], [data-theme="sunset"]) {
   --_kth-gen-leah: #e07fa6;
   --_kth-gen-rachel: #6fa8e6;
   --_kth-gen-bilhah: #5cc3c9;

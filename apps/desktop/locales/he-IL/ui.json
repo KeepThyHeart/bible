@@ -1508,6 +1508,8 @@
   "ui.preferences.themeMidnightDescription": "גווני פחם עמוקים לקריאה בשעות הלילה המאוחרות",
   "ui.preferences.themeLagoonLabel": "לגונה",
   "ui.preferences.themeLagoonDescription": "גווני טורקיז קרירים בהשראת מים שקטים",
+  "ui.preferences.themeHighContrastLabel": "ניגודיות גבוהה",
+  "ui.preferences.themeHighContrastDescription": "רקע שחור, טקסט לבן וגוון צהוב לקריאות מרבית",
   "ui.preferences.themeOceanLabel": "אוקיינוס",
   "ui.preferences.themeOceanDescription": "גווני כחול מרגיעים בהשראת מים פתוחים",
   "ui.preferences.themeSunsetLabel": "שקיעה",

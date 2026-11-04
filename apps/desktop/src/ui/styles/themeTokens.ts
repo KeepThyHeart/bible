@@ -71,7 +71,8 @@ export type ThemeId =
   | 'rose'
   | 'slate'
   | 'sunrise'
-  | 'sunset';
+  | 'sunset'
+  | 'high-contrast';
 
 export interface ThemePreviewSwatch {
   bg: string;
@@ -175,7 +176,7 @@ export const THEME_TOKENS: readonly ThemeToken[] = [
     isDark: false,
     labelKey: 'ui.preferences.themeMeadowLabel',
     descriptionKey: 'ui.preferences.themeMeadowDescription',
-    preview: { bg: '#f4f8ef', text: '#1e3018', accent: '#5a9e2e', border: '#b8d4a0' }
+    preview: { bg: '#f4f8ef', text: '#1e3018', accent: '#437622', border: '#b8d4a0' }
   },
   {
     id: 'slate',
@@ -199,7 +200,7 @@ export const THEME_TOKENS: readonly ThemeToken[] = [
     isDark: false,
     labelKey: 'ui.preferences.themeSunriseLabel',
     descriptionKey: 'ui.preferences.themeSunriseDescription',
-    preview: { bg: '#fef8f0', text: '#3d2010', accent: '#d4802a', border: '#e0c8a8' }
+    preview: { bg: '#fef8f0', text: '#3d2010', accent: '#9c5e1f', border: '#e0c8a8' }
   },
   {
     id: 'arctic',
@@ -224,6 +225,14 @@ export const THEME_TOKENS: readonly ThemeToken[] = [
     labelKey: 'ui.preferences.themeAutumnLabel',
     descriptionKey: 'ui.preferences.themeAutumnDescription',
     preview: { bg: '#faf6f0', text: '#2e1a0e', accent: '#b45309', border: '#d0b898' }
+  },
+  {
+    id: 'high-contrast',
+    order: 16,
+    isDark: true,
+    labelKey: 'ui.preferences.themeHighContrastLabel',
+    descriptionKey: 'ui.preferences.themeHighContrastDescription',
+    preview: { bg: '#000000', text: '#FFFFFF', accent: '#FFE066', border: '#C8C8C8' }
   }
 ];
 

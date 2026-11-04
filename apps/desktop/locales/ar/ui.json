@@ -1508,6 +1508,8 @@
   "ui.preferences.themeMidnightDescription": "درجات فحمية داكنة للقراءة في وقت متأخر من الليل",
   "ui.preferences.themeLagoonLabel": "البحيرة",
   "ui.preferences.themeLagoonDescription": "درجات فيروزية باردة مستوحاة من المياه الهادئة",
+  "ui.preferences.themeHighContrastLabel": "تباين عالٍ",
+  "ui.preferences.themeHighContrastDescription": "خلفية سوداء ونص أبيض ولون مميز أصفر لأقصى قدر من الوضوح",
   "ui.preferences.themeOceanLabel": "المحيط",
   "ui.preferences.themeOceanDescription": "زُرقة مهدّئة مستوحاة من المياه المفتوحة",
   "ui.preferences.themeSunsetLabel": "الغروب",

@@ -1506,6 +1506,8 @@
   "ui.preferences.themeMidnightDescription": "Tons profundos de carvão para leitura noturna",
   "ui.preferences.themeLagoonLabel": "Lagoa",
   "ui.preferences.themeLagoonDescription": "Tons frescos de verde-azulado inspirados em águas tranquilas",
+  "ui.preferences.themeHighContrastLabel": "Alto contraste",
+  "ui.preferences.themeHighContrastDescription": "Fundo preto, texto branco e destaque amarelo para máxima legibilidade",
   "ui.preferences.themeOceanLabel": "Oceano",
   "ui.preferences.themeOceanDescription": "Azuis calmantes inspirados em águas abertas",
   "ui.preferences.themeSunsetLabel": "Pôr do sol",
