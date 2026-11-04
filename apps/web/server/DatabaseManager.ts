@@ -386,6 +386,8 @@ export class DatabaseManager {
     isVisible: (abbreviation: string) => boolean = () => true,
   ): string | null {
     if (preferred && this.getBibleRepo(preferred)) return this.resolveAbbreviation(preferred);
+    // Nothing configured (or not installed): KJV is the built-in preference.
+    if (isVisible('KJV') && this.getBibleRepo('KJV')) return this.resolveAbbreviation('KJV');
     for (const module of this.getModuleMetadataRepo().getByType('bible')) {
       const abbreviation = module.abbreviation || module.getAbbreviation();
       if (abbreviation && isVisible(abbreviation) && this.getBibleRepo(abbreviation)) return abbreviation;
