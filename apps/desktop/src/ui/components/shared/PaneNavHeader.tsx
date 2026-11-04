@@ -60,8 +60,10 @@ const PaneNavHeader: React.FC<PaneNavHeaderProps> = ({
         onClick={onBack}
         disabled={!canGoBack}
         title={t('ui.paneNav.goBack')}
+        aria-label={t('ui.paneNav.goBack')}
       >
-        &lt;
+        {/* B-036: logical arrow - mirrored in RTL so Back points the way the text reads */}
+        <span aria-hidden="true" className="rtl-mirror">&lt;</span>
       </button>
       <button
         className="control-nav-button"
@@ -69,8 +71,9 @@ const PaneNavHeader: React.FC<PaneNavHeaderProps> = ({
         onClick={onForward}
         disabled={!canGoForward}
         title={t('ui.paneNav.goForward')}
+        aria-label={t('ui.paneNav.goForward')}
       >
-        &gt;
+        <span aria-hidden="true" className="rtl-mirror">&gt;</span>
       </button>
       {onHome && (
         <button

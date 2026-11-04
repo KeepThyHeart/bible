@@ -124,8 +124,8 @@ export const ModuleTableRow: React.FC<ModuleTableRowProps> = ({
       <td className="px-4 py-2 text-sm text-text-secondary whitespace-nowrap">
         {row.language_code ? row.language_code.toUpperCase() : '—'}
       </td>
-      <td className="px-4 py-2 text-sm text-text-secondary whitespace-nowrap">{versionText}</td>
-      <td className="px-4 py-2 text-sm text-text-secondary whitespace-nowrap">
+      <td dir="ltr" className="px-4 py-2 text-sm text-text-secondary whitespace-nowrap text-start">{versionText}</td>
+      <td dir="ltr" className="px-4 py-2 text-sm text-text-secondary whitespace-nowrap text-start">
         {formatFileSize(row.catalogModule?.download_size_bytes)}
       </td>
       <td className="px-4 py-2 text-sm whitespace-nowrap" data-testid={`module-row-status-${abbrev}`} data-status={status}>
