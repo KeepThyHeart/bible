@@ -38,6 +38,14 @@ import {
   type SkippedPackEntry,
   type ModulePackTrustOptions
 } from '../services/ModulePackService';
+import { dialogParent } from '../utils/dialogParent';
+
+/** `dialog.showMessageBox` attached to the main window so it cannot fall behind it (B-087). */
+function showParentedMessageBox(options: Electron.MessageBoxOptions): Promise<Electron.MessageBoxReturnValue> {
+  const parent = dialogParent();
+  return parent ? dialog.showMessageBox(parent, options) : dialog.showMessageBox(options);
+}
+
 
 /**
  * What to do when the module being installed is already installed.
@@ -125,7 +133,7 @@ async function confirmVouchedCatalogKey(request: VouchedKeyApprovalRequest): Pro
   const chain = request.chain
     .map((link) => `${link.vouchingKey}\n  vouched for ${link.newKey}\n  on ${link.issued}`)
     .join('\n');
-  const { response } = await dialog.showMessageBox({
+  const { response } = await showParentedMessageBox({
     type: 'warning',
     buttons: ['Decline', 'Trust new key'],
     defaultId: 0,
@@ -428,7 +436,7 @@ async function resolvePackFileTrust(filePath: string): Promise<PackFileTrustDeci
   }
 
   if (inspection.status === 'unsigned' || inspection.status === 'untrusted') {
-    const { response } = await dialog.showMessageBox({
+    const { response } = await showParentedMessageBox({
       type: 'warning',
       buttons: ['Cancel', 'Install anyway'],
       defaultId: 0,
