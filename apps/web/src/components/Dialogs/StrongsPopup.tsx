@@ -59,6 +59,7 @@ export function StrongsPopup({ entry, position, onClose }: StrongsPopupProps) {
 
   const parsed = parseDefinition(entry.definition);
   const translit = entry.transliteration || parsed.translit;
+  const pronunciation = entry.pronunciation || parsed.pronunciation;
   const pos = entry.partOfSpeech || '';
 
   return (
@@ -91,8 +92,8 @@ export function StrongsPopup({ entry, position, onClose }: StrongsPopupProps) {
         {translit && (
           <div class="strongs-popup__translit">
             {translit}
-            {parsed.pronunciation && parsed.pronunciation !== translit && (
-              <span class="strongs-popup__pron"> [{parsed.pronunciation}]</span>
+            {pronunciation && pronunciation !== translit && (
+              <span class="strongs-popup__pron"> [{pronunciation}]</span>
             )}
           </div>
         )}

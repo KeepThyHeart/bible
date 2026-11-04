@@ -266,4 +266,15 @@ describe('StrongsPopup', () => {
     );
     expect(container.querySelector('.strongs-popup__glosses')).toBeNull();
   });
+
+  it('shows the pronunciation the server parsed from the entry head (B-177)', () => {
+    const { container } = render(
+      <StrongsPopup
+        entry={makeEntry({ strongsNumber: 'G26', pronunciation: "ag-ah'-pay", definition: 'love' })}
+        position={DEFAULT_POSITION}
+        onClose={vi.fn()}
+      />,
+    );
+    expect(container.querySelector('.strongs-popup__pron')?.textContent).toContain("ag-ah'-pay");
+  });
 });
