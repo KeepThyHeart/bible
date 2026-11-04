@@ -2381,5 +2381,6 @@
   "searchResultsPane.resultCountWithApproximate": "{count, plural, one {נמצאה תוצאה אחת} two {נמצאו # תוצאות} other {נמצאו # תוצאות}}, בתוספת {approximate} משוערות",
   "liveSearchSuggestions.listLabel": "הצעות חיפוש",
   "userNotesPane.editorLabel": "טקסט ההערה. Tab יוצר הזחה; לחצו Escape ואז Tab כדי לצאת מהעורך.",
-  "ui.verseContextMenu.editNote": "עריכת הערה"
+  "ui.verseContextMenu.editNote": "עריכת הערה",
+  "a11y.announce.resultOpened": "{reference} נפתח"
 }

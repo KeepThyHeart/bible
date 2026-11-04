@@ -53,9 +53,13 @@ function regionOf(el: Element | null): HTMLElement | null {
   return (el?.closest(REGION_SELECTOR) as HTMLElement | null) ?? null;
 }
 
-export function focusRegion(region: HTMLElement): void {
+/**
+ * `rescue` = focus was lost (not moved by the user): skip the F6 memory (which can
+ * hold a stale marker such as a note indicator) and never jump into the search box.
+ */
+export function focusRegion(region: HTMLElement, rescue = false): void {
   const remembered = lastFocus.get(region);
-  if (remembered && remembered.isConnected && region.contains(remembered)) {
+  if (!rescue && remembered && remembered.isConnected && region.contains(remembered)) {
     remembered.focus();
     return;
   }
@@ -65,7 +69,7 @@ export function focusRegion(region: HTMLElement): void {
     return;
   }
   const kind = region.getAttribute('data-kth-region') ?? (region.matches('nav.app-rail') ? 'rail' : '');
-  if (kind === 'header') {
+  if (kind === 'header' && !rescue) {
     const input = region.querySelector<HTMLInputElement>('input');
     if (input) {
       input.focus();
@@ -134,9 +138,24 @@ export function installRegionNavigation(doc: Document = document): () => void {
   // Browsers do not reliably fire focusout when the focused node is removed,
   // so watch the DOM: focus on body + the last focused node gone = rescue.
   let tracked: { el: Element; region: HTMLElement | null } | null = null;
+  // The few elements focused before it: a closed menu's trigger is the right place to return to.
+  let history: Element[] = [];
   const trackFocus = (e: FocusEvent): void => {
     const t = e.target as Element | null;
-    if (t && t !== doc.body) tracked = { el: t, region: regionOf(t) };
+    if (t && t !== doc.body) {
+      tracked = { el: t, region: regionOf(t) };
+      history = [...history.filter((h) => h !== t), t].slice(-6);
+    }
+  };
+  const focusInvoker = (snap: { el: Element; region: HTMLElement | null }): boolean => {
+    for (let i = history.length - 1; i >= 0; i--) {
+      const h = history[i];
+      if (h === snap.el || !h.isConnected || !(h instanceof HTMLElement)) continue;
+      if (regionOf(h) !== snap.region || h.closest('[hidden],[inert],[aria-hidden="true"]')) continue;
+      h.focus();
+      return doc.activeElement === h;
+    }
+    return false;
   };
   const rescue = (): void => {
     const snap = tracked;
@@ -155,7 +174,8 @@ export function installRegionNavigation(doc: Document = document): () => void {
              doc.querySelector<HTMLElement>('[data-kth-region="pane"]'));
         if (!fallback) return;
         tracked = null;
-        focusRegion(fallback);
+        if (snap.region?.isConnected && focusInvoker(snap)) return;
+        focusRegion(fallback, true);
       }
     });
   };
@@ -176,7 +196,7 @@ export function installRegionNavigation(doc: Document = document): () => void {
       const fallback =
         doc.querySelector<HTMLElement>('[data-tour-pane="bible"][data-kth-region]') ??
         doc.querySelector<HTMLElement>('[data-kth-region="pane"]');
-      if (fallback) focusRegion(fallback);
+      if (fallback) focusRegion(fallback, true);
     });
   });
   observer.observe(doc.body, { childList: true, subtree: true });

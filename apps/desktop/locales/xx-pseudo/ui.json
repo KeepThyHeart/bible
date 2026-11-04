@@ -2381,5 +2381,6 @@
   "a11y.announce.highlightRemoved": "⟦Ĥîĝĥļîĝĥţ ŕéɱøṽéð ·····⟧",
   "a11y.announce.themeChanged": "⟦Ţĥéɱé: {theme} ··⟧",
   "ui.keyboardShortcuts.navigation.nextRegion": "⟦Ñéẋţ ŕéĝîøñ (ĥéåðéŕ, åþþš, þåñéš, šţåţüš) ············⟧",
-  "ui.keyboardShortcuts.navigation.previousRegion": "⟦Þŕéṽîøüš ŕéĝîøñ ····⟧"
+  "ui.keyboardShortcuts.navigation.previousRegion": "⟦Þŕéṽîøüš ŕéĝîøñ ····⟧",
+  "a11y.announce.resultOpened": "⟦Øþéñéð {reference} ··⟧"
 }

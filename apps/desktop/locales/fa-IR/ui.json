@@ -2381,5 +2381,6 @@
   "a11y.announce.highlightRemoved": "هایلایت حذف شد",
   "a11y.announce.themeChanged": "زمینه: {theme}",
   "ui.keyboardShortcuts.navigation.nextRegion": "ناحیهٔ بعدی (سرصفحه، برنامه‌ها، پنل‌ها، وضعیت)",
-  "ui.keyboardShortcuts.navigation.previousRegion": "ناحیهٔ قبلی"
+  "ui.keyboardShortcuts.navigation.previousRegion": "ناحیهٔ قبلی",
+  "a11y.announce.resultOpened": "{reference} باز شد"
 }

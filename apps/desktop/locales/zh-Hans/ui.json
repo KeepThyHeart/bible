@@ -2398,5 +2398,6 @@
   "a11y.announce.highlightRemoved": "已移除高亮",
   "a11y.announce.themeChanged": "主题：{theme}",
   "ui.keyboardShortcuts.navigation.nextRegion": "下一区域（标题栏、应用、窗格、状态栏）",
-  "ui.keyboardShortcuts.navigation.previousRegion": "上一区域"
+  "ui.keyboardShortcuts.navigation.previousRegion": "上一区域",
+  "a11y.announce.resultOpened": "已打开 {reference}"
 }

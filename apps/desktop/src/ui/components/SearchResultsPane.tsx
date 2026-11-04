@@ -4,6 +4,7 @@ import { useBibleStore, DEFAULT_PANEL_ID } from '../stores/useBibleStore';
 import { syncPanesWithVerse } from '../stores/syncPanesWithVerse';
 import { SearchResult, truncateAtWordBoundary, VerseIdHelper } from '@bible/core';
 import { Bdi } from '@bible/ui';
+import { announce } from '../services/announcer';
 import { useI18n } from '../contexts/useI18n';
 import { useBibleModuleLanguage } from '../hooks/useBibleModuleLanguage';
 import { contentDirAttrs } from '../utils/contentDirection';
@@ -243,6 +244,7 @@ const SearchResultsPane: React.FC<SearchResultsPaneProps> = ({ dockviewPanelApi 
     try {
       await navigateToVerse(result.verseId);
       syncPanesWithVerse(result.verseId);
+      announce(t('a11y.announce.resultOpened', { reference: result.reference }));
     } catch (error) {
       console.error('Error navigating to verse:', error, result);
     }

@@ -29,7 +29,8 @@ function focusAfterSearch(kind: 'bible' | 'results' | 'back'): void {
   const run = (attempt = 0): void => {
     const active = document.activeElement;
     // The action already put focus somewhere real (a dialog, another pane): leave it.
-    if (active && active !== document.body && !active.closest('header')) return;
+    // (Focus the region-rescue code parked on a pane while the results pane was still opening is not "real".)
+    if (active && active !== document.body && !active.closest('header') && !active.closest('[data-kth-region="pane"]')) return;
     let target: HTMLElement | null = null;
     if (kind === 'results') {
       target = document.querySelector<HTMLElement>('[data-tour-pane="search"] [data-pane-focus]');

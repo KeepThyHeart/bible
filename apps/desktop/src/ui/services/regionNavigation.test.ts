@@ -84,4 +84,26 @@ describe('region navigation (B-113)', () => {
     await new Promise((r) => requestAnimationFrame(() => r(null)));
     expect(document.activeElement?.id).toBe('h');
   });
+
+  it('B-158: a rescue ignores the F6 memory (stale marker) and lands on the pane heading', () => {
+    document.getElementById('b1')!.focus(); // remembered for the pane
+    (document.activeElement as HTMLElement).blur();
+    focusRegion(document.querySelector('[data-panel-id=p1]') as HTMLElement, true);
+    expect(active()).toBe('h');
+  });
+
+  it('B-113: a rescue never drops focus into the search box', () => {
+    document.querySelector('[data-kth-region=header]')!.insertAdjacentHTML('afterbegin', '<button id="logo">Home</button>');
+    focusRegion(document.querySelector('[data-kth-region=header]') as HTMLElement, true);
+    expect(active()).not.toBe('q');
+  });
+
+  it('B-113: removing the focused menu item returns focus to its trigger, not the search box', async () => {
+    document.querySelector('[data-kth-region=header]')!.insertAdjacentHTML('beforeend', '<button id="lay">Layout</button><div id="menu"><button id="pre">Preset</button></div>');
+    document.getElementById('lay')!.focus();
+    document.getElementById('pre')!.focus();
+    document.getElementById('menu')!.remove();
+    await new Promise((r) => setTimeout(r, 80));
+    expect(active()).toBe('lay');
+  });
 });

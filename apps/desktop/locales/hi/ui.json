@@ -2396,5 +2396,6 @@
   "a11y.announce.highlightRemoved": "हाइलाइट हटाया गया",
   "a11y.announce.themeChanged": "थीम: {theme}",
   "ui.keyboardShortcuts.navigation.nextRegion": "अगला क्षेत्र (हेडर, ऐप, पेन, स्थिति)",
-  "ui.keyboardShortcuts.navigation.previousRegion": "पिछला क्षेत्र"
+  "ui.keyboardShortcuts.navigation.previousRegion": "पिछला क्षेत्र",
+  "a11y.announce.resultOpened": "{reference} खुला"
 }

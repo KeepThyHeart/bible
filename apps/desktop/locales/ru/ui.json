@@ -2396,5 +2396,6 @@
   "a11y.announce.highlightRemoved": "Выделение снято",
   "a11y.announce.themeChanged": "Тема: {theme}",
   "ui.keyboardShortcuts.navigation.nextRegion": "Следующая область (заголовок, приложения, панели, строка состояния)",
-  "ui.keyboardShortcuts.navigation.previousRegion": "Предыдущая область"
+  "ui.keyboardShortcuts.navigation.previousRegion": "Предыдущая область",
+  "a11y.announce.resultOpened": "Открыто: {reference}"
 }

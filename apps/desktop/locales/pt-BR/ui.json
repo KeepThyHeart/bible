@@ -2396,5 +2396,6 @@
   "a11y.announce.highlightRemoved": "Destaque removido",
   "a11y.announce.themeChanged": "Tema: {theme}",
   "ui.keyboardShortcuts.navigation.nextRegion": "Próxima região (cabeçalho, aplicativos, painéis, status)",
-  "ui.keyboardShortcuts.navigation.previousRegion": "Região anterior"
+  "ui.keyboardShortcuts.navigation.previousRegion": "Região anterior",
+  "a11y.announce.resultOpened": "Aberto: {reference}"
 }

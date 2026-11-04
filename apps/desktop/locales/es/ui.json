@@ -2398,5 +2398,6 @@
   "searchResultsPane.resultCountWithApproximate": "{count, plural, one {# resultado encontrado} other {# resultados encontrados}}, más {approximate} aproximados",
   "liveSearchSuggestions.listLabel": "Sugerencias de búsqueda",
   "userNotesPane.editorLabel": "Texto de la nota. Tab sangra; pulsa Escape y luego Tab para salir del editor.",
-  "ui.verseContextMenu.editNote": "Editar nota"
+  "ui.verseContextMenu.editNote": "Editar nota",
+  "a11y.announce.resultOpened": "Abierto: {reference}"
 }

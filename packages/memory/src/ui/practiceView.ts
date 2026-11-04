@@ -1850,6 +1850,12 @@ export class PracticeView {
     this.actionsEl.appendChild(
       button(tr('memory.ui.practice.nextDue', 'Next due'), () => void this.startNextDue(), { class: 'sm-btn sm-btn-quiet' }),
     );
+    // B-113: the step controls that had focus are gone; land on the summary heading (never <body>).
+    const heading = this.exerciseEl.querySelector<HTMLElement>('.sm-summary-title');
+    if (heading) {
+      heading.tabIndex = -1;
+      heading.focus({ preventScroll: true });
+    }
   }
 
   private async startNextDue(): Promise<void> {

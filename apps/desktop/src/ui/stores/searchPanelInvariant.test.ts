@@ -10,7 +10,7 @@ const tick = () => new Promise<void>(r => queueMicrotask(r));
 
 beforeEach(() => {
   close = vi.fn();
-  useSearchStore.setState({ resultsForQuery: 'love', isSearching: false, isSemanticSearching: false });
+  useSearchStore.setState({ query: 'love', resultsForQuery: 'love', isSearching: false, isSemanticSearching: false });
   useLayoutStore.setState({
     panels: new Map(),
     closeSearchResultsPanels: close as never,
@@ -37,21 +37,30 @@ describe('a Search panel never outlives its search (B-001/054/145/147)', () => {
   });
 
   it('B-145/R45-7: a panel that appears with no query (reading-plan link, restore) is closed', async () => {
-    useSearchStore.setState({ resultsForQuery: '' });
+    useSearchStore.setState({ query: '', resultsForQuery: '' });
     addPanel();
     await tick(); await tick();
     expect(close).toHaveBeenCalledTimes(1);
   });
 
   it('B-147: a layout preset / reset that includes a search slot is closed', async () => {
-    useSearchStore.setState({ resultsForQuery: '' });
+    useSearchStore.setState({ query: '', resultsForQuery: '' });
     useLayoutStore.setState({ panels: new Map([['b', { panelId: 'b', contentType: 'bible' } as never], ['s1', searchPanel]]) });
     await tick(); await tick();
     expect(close).toHaveBeenCalledTimes(1);
   });
 
+  it('B-001/B-145 reopened: typing one more character after a search keeps the pane', async () => {
+    addPanel();
+    useSearchStore.setState({ searchResults: [{ verseId: 1 }] as never });
+    useSearchStore.getState().setQuery('loves');
+    await tick(); await tick();
+    expect(useSearchStore.getState().resultsForQuery).toBe('');
+    expect(close).not.toHaveBeenCalled();
+  });
+
   it('a search in flight keeps it', async () => {
-    useSearchStore.setState({ resultsForQuery: '', isSearching: true });
+    useSearchStore.setState({ query: '', resultsForQuery: '', isSearching: true });
     addPanel();
     await tick(); await tick();
     expect(close).not.toHaveBeenCalled();

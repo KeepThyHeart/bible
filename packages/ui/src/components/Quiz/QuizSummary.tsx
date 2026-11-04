@@ -1,5 +1,5 @@
 /** The end of a quiz: score, the questions to review, and what to do next. */
-import { useId } from 'react';
+import { useEffect, useId, useRef } from 'react';
 import { expectedAnswer } from '@bible/core/browser';
 import type { Quiz, QuizSessionSummary } from '@bible/core/browser';
 import { defaultQuizReference, fillLabel, mergeQuizLabels } from './labels';
@@ -35,9 +35,14 @@ export function QuizSummary({
   const missed = quiz.items.filter((it) => summary.missedKeys.includes(it.question.key));
   const label = quiz.label ?? '';
   const titleId = useId();
+  const titleRef = useRef<HTMLHeadingElement>(null);
+  // The question controls that had focus are gone: land on the summary heading, never <body>.
+  useEffect(() => {
+    titleRef.current?.focus({ preventScroll: true });
+  }, []);
   return (
     <section className={className ? `kth-quiz__summary ${className}` : 'kth-quiz__summary'} aria-labelledby={titleId}>
-      <h2 id={titleId} className="kth-quiz__title">
+      <h2 id={titleId} ref={titleRef} tabIndex={-1} className="kth-quiz__title">
         {l.summaryTitle}
       </h2>
       <p className="kth-quiz__score">

@@ -2396,5 +2396,6 @@
   "searchResultsPane.resultCountWithApproximate": "{count, plural, zero {لم يُعثر على نتائج} one {نتيجة واحدة} two {نتيجتان} few {# نتائج} many {# نتيجة} other {# نتيجة}}، بالإضافة إلى {approximate} تقريبية",
   "liveSearchSuggestions.listLabel": "اقتراحات البحث",
   "userNotesPane.editorLabel": "نص الملاحظة. مفتاح Tab يزيح السطر؛ اضغط Escape ثم Tab لمغادرة المحرر.",
-  "ui.verseContextMenu.editNote": "تعديل الملاحظة"
+  "ui.verseContextMenu.editNote": "تعديل الملاحظة",
+  "a11y.announce.resultOpened": "تم فتح {reference}"
 }

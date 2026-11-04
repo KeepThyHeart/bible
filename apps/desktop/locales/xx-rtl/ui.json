@@ -2381,5 +2381,6 @@
   "a11y.announce.highlightRemoved": "‏Highlight removed‏",
   "a11y.announce.themeChanged": "‏Theme: {theme}‏",
   "ui.keyboardShortcuts.navigation.nextRegion": "‏Next region (header, apps, panes, status)‏",
-  "ui.keyboardShortcuts.navigation.previousRegion": "‏Previous region‏"
+  "ui.keyboardShortcuts.navigation.previousRegion": "‏Previous region‏",
+  "a11y.announce.resultOpened": "‏Opened {reference}‏"
 }

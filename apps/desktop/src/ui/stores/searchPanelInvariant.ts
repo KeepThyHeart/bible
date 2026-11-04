@@ -15,7 +15,11 @@ import { useSearchStore } from './useSearchStore';
 
 export function searchPanelIsOrphaned(): boolean {
   const s = useSearchStore.getState();
-  const hasSearch = s.resultsForQuery.trim().length > 0 || s.isSearching || s.isSemanticSearching;
+  // Text still in the box counts: typing after a search empties the results
+  // (useSearchStore.setQuery) but must not close the pane the user opened.
+  // Every path that ends a search (Esc, a typed reference, a pick) clears the box too.
+  const hasSearch =
+    s.resultsForQuery.trim().length > 0 || s.query.trim().length > 0 || s.isSearching || s.isSemanticSearching;
   return !hasSearch && useLayoutStore.getState().getPanelsByType('search').length > 0;
 }
 
