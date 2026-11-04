@@ -12,6 +12,7 @@ import type { SiteSettings } from '../siteSettings.js';
 import { isModuleActive, getModuleEntry } from '../siteSettings.js';
 import { isNamedModuleVisible } from '../utils/moduleVisibility.js';
 import { strongsLanguageOf, parseStrongsKeyInput, parseStrongsHead } from '../utils/strongsEntries.js';
+import { clampInt } from '../utils/requestHygiene.js';
 import { registerRoute } from './routeRegistry.js';
 import type { ServerHookRegistry } from '../plugins/ServerHooks.js';
 
@@ -53,7 +54,7 @@ export function createDictionaryRoutes(db: DatabaseManager, siteSettings: SiteSe
       const query = (req.query.q as string) || '';
       if (!query) { res.json([]); return; }
       const prefer = (req.query.prefer as string) || '';
-      const limit = Math.min(parseInt(req.query.limit as string) || 40, 100);
+      const limit = clampInt(req.query.limit, 40, 1, 100);
 
       const allDicts = db.getAllDictionaryRepos().filter(d => {
         if (!siteSettings?.dictionaries) return true;
@@ -214,8 +215,8 @@ export function createDictionaryRoutes(db: DatabaseManager, siteSettings: SiteSe
       if (!repo) { res.json({ entries: [], total: 0 }); return; }
 
       const letter = (req.query.letter as string) || '';
-      const limit = Math.min(parseInt(req.query.limit as string) || 50, 200);
-      const offset = parseInt(req.query.offset as string) || 0;
+      const limit = clampInt(req.query.limit, 50, 1, 200);
+      const offset = clampInt(req.query.offset, 0, 0, 10_000_000);
 
       const result = repo.browseByLetter(letter || null, limit, offset);
       res.json({
