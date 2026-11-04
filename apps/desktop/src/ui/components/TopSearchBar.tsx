@@ -467,6 +467,10 @@ const TopSearchBar = forwardRef<TopSearchBarHandle>(function TopSearchBar(_props
         // `parsedReference` here could navigate to a *previous* reference.
         const liveReference = parseReference(liveQuery);
         if (liveReference) handleReferenceNavigation(liveReference);
+        else {
+          const problem = describeReferenceProblem(liveQuery);
+          if (problem) reportReferenceProblem(problem);
+        }
       } else if (showingSearchSuggestions && selectedIndex >= 0 && selectedIndex < liveSuggestions.length) {
         handleSelectSuggestion(liveSuggestions[selectedIndex]);
       } else {
