@@ -121,6 +121,7 @@ import {
 } from './extensions/extUiProtocol';
 import { setActiveHostTheme } from './extensions/hostThemeCss';
 import { isZoomInAlias } from './zoomShortcuts';
+import { clampZoomLevel, readZoomLevel, writeZoomLevel } from './zoomState';
 
 // Configure electron-log
 log.transports.file.level = 'info';
@@ -295,10 +296,21 @@ function getBackupExtensionPort(): ExtensionPort | undefined {
 /**
  * Register window management IPC handlers
  */
+function zoomStatePath(): string {
+  return join(app.getPath('userData'), 'zoom.json');
+}
+
+/** Set, clamp and remember the main window's zoom (B-106). */
+function setMainZoom(level: number): void {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  const clamped = clampZoomLevel(level);
+  mainWindow.webContents.setZoomLevel(clamped);
+  writeZoomLevel(zoomStatePath(), clamped);
+}
+
 function zoomIn(): void {
   if (!mainWindow || mainWindow.isDestroyed()) return;
-  const z = mainWindow.webContents.getZoomLevel();
-  mainWindow.webContents.setZoomLevel(z + 0.5);
+  setMainZoom(mainWindow.webContents.getZoomLevel() + 0.5);
 }
 
 function registerWindowHandlers(): void {
@@ -790,12 +802,11 @@ const registerAllHandlersOnce = runOnce(() => {
   ipcMain.handle('app:zoom-in', () => zoomIn());
   ipcMain.handle('app:zoom-out', () => {
     if (!mainWindow || mainWindow.isDestroyed()) return;
-    const z = mainWindow.webContents.getZoomLevel();
-    mainWindow.webContents.setZoomLevel(z - 0.5);
+    setMainZoom(mainWindow.webContents.getZoomLevel() - 0.5);
   });
   ipcMain.handle('app:actual-size', () => {
     if (!mainWindow || mainWindow.isDestroyed()) return;
-    mainWindow.webContents.setZoomLevel(0);
+    setMainZoom(0);
   });
   // `app:open-external` is reachable from the renderer (it's in
   // ALLOWED_IPC_CHANNELS), so the URL is untrusted input: `shell.openExternal`
@@ -915,6 +926,12 @@ async function createWindow(): Promise<void> {
   windowShownOnce = true;
   startedHidden = startHidden;
   pendingMaximize = startHidden && windowState.isMaximized && !windowState.isFullScreen;
+  // Bring back the zoom the user left (B-106).
+  mainWindow.webContents.once('did-finish-load', () => {
+    const level = readZoomLevel(zoomStatePath());
+    if (level !== 0) mainWindow?.webContents.setZoomLevel(level);
+  });
+
   mainWindow.once('ready-to-show', () => {
     // Still hidden: stay so (showMainWindow may already have shown it before the page was ready).
     if (startHidden && !mainWindow?.isVisible()) {
