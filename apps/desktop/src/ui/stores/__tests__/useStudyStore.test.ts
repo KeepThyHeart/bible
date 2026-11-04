@@ -121,16 +121,52 @@ describe('useStudyStore', () => {
       expect(panelState().currentVerseId).toBe(JOHN_3_16);
     });
 
-    it('prefers the verse the panel was last showing', () => {
+    it('uses the remembered verse only when there is no Bible pane to follow', () => {
       useStudyStore.getState().initPanel(PANEL);
       useStudyStore.getState().navigateToVerse(PANEL, ROM_8_28);
 
       // Simulate a relaunch: same panel id, fresh store.
       useStudyStore.setState({ panels: new Map() });
       useStudyStore.getState().initPanel(PANEL);
-      useStudyStore.getState().seedInitialVerse(PANEL, JOHN_3_16);
+      useStudyStore.getState().seedInitialVerse(PANEL, null);
 
       expect(panelState().currentVerseId).toBe(ROM_8_28);
+    });
+
+    // B-014: a restored Bible chapter wins over the verse remembered for the Study pane.
+    it('prefers the restored Bible verse over the remembered one', () => {
+      useStudyStore.getState().initPanel(PANEL);
+      useStudyStore.getState().navigateToVerse(PANEL, ROM_8_28);
+
+      useStudyStore.setState({ panels: new Map() });
+      useStudyStore.getState().initPanel(PANEL);
+      useStudyStore.getState().seedInitialVerse(PANEL, JOHN_3_16);
+
+      expect(panelState().currentVerseId).toBe(JOHN_3_16);
+    });
+
+    it('replaces a remembered verse seeded before the Bible pane had restored', () => {
+      useStudyStore.getState().initPanel(PANEL);
+      useStudyStore.getState().navigateToVerse(PANEL, ROM_8_28);
+
+      useStudyStore.setState({ panels: new Map() });
+      useStudyStore.getState().initPanel(PANEL);
+      useStudyStore.getState().seedInitialVerse(PANEL, null); // Bible not there yet
+      expect(panelState().currentVerseId).toBe(ROM_8_28);
+      useStudyStore.getState().seedInitialVerse(PANEL, JOHN_3_16); // Bible restored
+      expect(panelState().currentVerseId).toBe(JOHN_3_16);
+    });
+
+    it('does not override a verse the reader chose after the remembered seed', () => {
+      useStudyStore.getState().initPanel(PANEL);
+      useStudyStore.getState().navigateToVerse(PANEL, ROM_8_28);
+
+      useStudyStore.setState({ panels: new Map() });
+      useStudyStore.getState().initPanel(PANEL);
+      useStudyStore.getState().seedInitialVerse(PANEL, null);
+      useStudyStore.getState().navigateToVerse(PANEL, GEN_1_1);
+      useStudyStore.getState().seedInitialVerse(PANEL, JOHN_3_16);
+      expect(panelState().currentVerseId).toBe(GEN_1_1);
     });
 
     it('leaves a populated panel alone', () => {
@@ -169,8 +205,8 @@ describe('useStudyStore', () => {
       useStudyStore.setState({ panels: new Map() });
       useStudyStore.getState().initPanel('a');
       useStudyStore.getState().initPanel('b');
-      useStudyStore.getState().seedInitialVerse('a', JOHN_3_16);
-      useStudyStore.getState().seedInitialVerse('b', JOHN_3_16);
+      useStudyStore.getState().seedInitialVerse('a', null);
+      useStudyStore.getState().seedInitialVerse('b', null);
 
       expect(panelState('a').currentVerseId).toBe(GEN_1_1);
       expect(panelState('b').currentVerseId).toBe(ROM_8_28);
