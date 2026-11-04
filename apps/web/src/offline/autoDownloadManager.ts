@@ -50,15 +50,54 @@ function countRead(abbreviation: string): number {
   return next;
 }
 
-/** Remove least-recently-used auto downloads until there is room for `keep` more. */
-async function makeRoom(keep: number): Promise<void> {
+/**
+ * W-024: when each auto-downloaded translation was last evicted to stay inside
+ * the budget (ms epoch, in localStorage). A translation evicted within
+ * {@link EVICTION_COOLDOWN_MS} is not fetched again. The read count is capped
+ * and never decays, so without this a reader using more translations than the
+ * budget (three tabs: KJV, ASV, WEB) re-downloaded ~2 MB on every chapter move
+ * in whichever one had just been evicted, evicting another in turn.
+ * Product question: is 7 days the right cool-down (vs. e.g. reads re-accumulating)?
+ */
+const EVICTIONS_KEY = 'bible-reader-auto-download-evictions';
+export const EVICTION_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000;
+
+function loadEvictions(): Record<string, number> {
+  try {
+    const raw = localStorage.getItem(EVICTIONS_KEY);
+    const parsed: unknown = raw ? JSON.parse(raw) : {};
+    return parsed && typeof parsed === 'object' ? parsed as Record<string, number> : {};
+  } catch {
+    return {};
+  }
+}
+
+function recordEviction(abbreviation: string): void {
+  const ev = loadEvictions();
+  ev[abbreviation] = Date.now();
+  try { localStorage.setItem(EVICTIONS_KEY, JSON.stringify(ev)); } catch { /* storage full or blocked */ }
+}
+
+function recentlyEvicted(abbreviation: string): boolean {
+  const at = loadEvictions()[abbreviation];
+  return typeof at === 'number' && Date.now() - at < EVICTION_COOLDOWN_MS;
+}
+
+/**
+ * Remove least-recently-used auto downloads until at most
+ * {@link MAX_AUTO_DOWNLOADS} remain. Runs only after a new download succeeded
+ * (W-024: a failed download must not cost a good copy); `except` is the one
+ * just added.
+ */
+async function enforceBudget(except: string): Promise<void> {
   const auto = offlineStore.downloadedModules
-    .filter(m => m.autoDownloaded && m.type === 'bible')
+    .filter(m => m.autoDownloaded && m.type === 'bible' && m.abbreviation !== except)
     .sort((a, b) => lastUsed(a) - lastUsed(b));
-  while (auto.length + keep > MAX_AUTO_DOWNLOADS && auto.length > 0) {
+  while (auto.length + 1 > MAX_AUTO_DOWNLOADS && auto.length > 0) {
     const victim = auto.shift()!;
     try {
       await storageManager!.removeModule(victim.abbreviation);
+      recordEviction(victim.abbreviation);
     } catch (err) {
       console.warn(`[AutoDownload] Failed to remove ${victim.abbreviation}:`, err);
     }
@@ -128,6 +167,7 @@ export function triggerAutoDownload(abbreviation: string, name: string): void {
   if (offlineStore.isModuleDownloaded(abbreviation)) return;
   // Not a working translation (yet): a passing visit costs no download.
   if (countRead(abbreviation) < MIN_CHAPTER_READS) return;
+  if (recentlyEvicted(abbreviation)) return; // W-024
   if (inProgressDownloads.has(abbreviation)) return;
   if (offlineStore.activeDownloads.has(abbreviation)) return;
 
@@ -142,8 +182,9 @@ export function triggerAutoDownload(abbreviation: string, name: string): void {
       const available = await checkOpfs();
       if (!available) return;
 
-      await makeRoom(1);
       await storageManager!.downloadModuleLite(abbreviation, name);
+      // Only now that the new copy is in place (W-024).
+      await enforceBudget(abbreviation);
     } catch {
       // Silent failure — user will just use server API
     } finally {
