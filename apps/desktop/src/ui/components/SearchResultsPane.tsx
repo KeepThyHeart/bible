@@ -5,6 +5,7 @@ import { syncPanesWithVerse } from '../stores/syncPanesWithVerse';
 import { SearchResult, truncateAtWordBoundary, VerseIdHelper } from '@bible/core';
 import { Bdi } from '@bible/ui';
 import { announce } from '../services/announcer';
+import { useNetworkStore } from '../stores/useNetworkStore';
 import { useI18n } from '../contexts/useI18n';
 import { useBibleModuleLanguage } from '../hooks/useBibleModuleLanguage';
 import { contentDirAttrs } from '../utils/contentDirection';
@@ -103,6 +104,11 @@ const SearchResultsPane: React.FC<SearchResultsPaneProps> = ({ dockviewPanelApi 
     lastClickedId,
     setLastClickedId,
   } = useSearchStore();
+
+  const allowWebRequests = useNetworkStore(s => s.allowWebRequests);
+  const networkLoaded = useNetworkStore(s => s.loaded);
+  const requestAllow = useNetworkStore(s => s.requestAllow);
+  const performSemanticSearch = useSearchStore(s => s.performSemanticSearch);
 
   const navigateToVerse = useBibleStore(s => s.navigateToVerseInPrimary);
   const biblePanels = useBibleStore(s => s.panels);
@@ -311,6 +317,13 @@ const SearchResultsPane: React.FC<SearchResultsPaneProps> = ({ dockviewPanelApi 
 
   const isLoading = isSearching || isSemanticSearching;
 
+  // Offline banner's "Turn on": same confirmation-gated path as the Module Manager
+  // banner; once confirmed, retry the meaning search that just failed.
+  const semanticOffline = semanticNotice?.kind === 'unavailable' && networkLoaded && !allowWebRequests;
+  const handleTurnOnNetwork = async () => {
+    if (await requestAllow(true) && resultsForQuery) void performSemanticSearch(resultsForQuery);
+  };
+
   const semanticNote = (() => {
     if (!semanticNotice) return null;
     const source = semanticSource === 'local' ? 'local' : 'keyword';
@@ -322,7 +335,11 @@ const SearchResultsPane: React.FC<SearchResultsPaneProps> = ({ dockviewPanelApi 
       case 'degraded': return t('searchResultsPane.semanticNote.degraded');
       case 'quota': return t('searchResultsPane.semanticNote.quota', { reset, time, source });
       case 'paused': return t('searchResultsPane.semanticNote.paused', { reset, time, source });
-      case 'unavailable': return t('searchResultsPane.semanticNote.unavailable', { source });
+      case 'unavailable':
+        // B-159: with the master switch off the reason is known; say it instead of "unavailable right now".
+        return networkLoaded && !allowWebRequests
+          ? t('searchResultsPane.semanticNote.offline', { source })
+          : t('searchResultsPane.semanticNote.unavailable', { source });
       case 'rephrase': return t('searchResultsPane.semanticNote.rephrase', { source });
       default: return null;
     }
@@ -491,6 +508,16 @@ const SearchResultsPane: React.FC<SearchResultsPaneProps> = ({ dockviewPanelApi 
             role="status"
           >
             {semanticNote}
+            {semanticOffline && (
+              <button
+                type="button"
+                onClick={() => void handleTurnOnNetwork()}
+                data-testid="semantic-note-turn-on"
+                className="ms-2 text-accent-strong hover:text-accent-strong underline cursor-pointer"
+              >
+                {t('searchResultsPane.semanticNote.turnOn')}
+              </button>
+            )}
           </div>
         )}
 

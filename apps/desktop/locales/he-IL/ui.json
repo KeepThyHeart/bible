@@ -2382,5 +2382,7 @@
   "liveSearchSuggestions.listLabel": "הצעות חיפוש",
   "userNotesPane.editorLabel": "טקסט ההערה. Tab יוצר הזחה; לחצו Escape ואז Tab כדי לצאת מהעורך.",
   "ui.verseContextMenu.editNote": "עריכת הערה",
-  "a11y.announce.resultOpened": "{reference} נפתח"
+  "a11y.announce.resultOpened": "{reference} נפתח",
+  "searchResultsPane.semanticNote.offline": "חיפוש לפי משמעות דורש בקשות רשת, והן כבויות. {source, select, local {מוצגות תוצאות מהחבילה המותקנת.} other {מוצגות תוצאות מילות מפתח.}}",
+  "searchResultsPane.semanticNote.turnOn": "הפעלת בקשות רשת"
 }

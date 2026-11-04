@@ -2397,5 +2397,7 @@
   "liveSearchSuggestions.listLabel": "اقتراحات البحث",
   "userNotesPane.editorLabel": "نص الملاحظة. مفتاح Tab يزيح السطر؛ اضغط Escape ثم Tab لمغادرة المحرر.",
   "ui.verseContextMenu.editNote": "تعديل الملاحظة",
-  "a11y.announce.resultOpened": "تم فتح {reference}"
+  "a11y.announce.resultOpened": "تم فتح {reference}",
+  "searchResultsPane.semanticNote.offline": "يحتاج البحث بالمعنى إلى طلبات الويب، وهي متوقفة. {source, select, local {يتم عرض النتائج من الحزمة المثبّتة.} other {يتم عرض نتائج الكلمات المفتاحية.}}",
+  "searchResultsPane.semanticNote.turnOn": "تشغيل طلبات الويب"
 }

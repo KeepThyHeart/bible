@@ -2397,5 +2397,7 @@
   "a11y.announce.themeChanged": "Tema: {theme}",
   "ui.keyboardShortcuts.navigation.nextRegion": "Próxima região (cabeçalho, aplicativos, painéis, status)",
   "ui.keyboardShortcuts.navigation.previousRegion": "Região anterior",
-  "a11y.announce.resultOpened": "Aberto: {reference}"
+  "a11y.announce.resultOpened": "Aberto: {reference}",
+  "searchResultsPane.semanticNote.offline": "A busca por significado precisa de solicitações da web, que estão desativadas. {source, select, local {Mostrando resultados do pacote instalado.} other {Mostrando resultados por palavra-chave.}}",
+  "searchResultsPane.semanticNote.turnOn": "Ativar solicitações da web"
 }

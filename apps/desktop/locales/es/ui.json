@@ -2399,5 +2399,7 @@
   "liveSearchSuggestions.listLabel": "Sugerencias de búsqueda",
   "userNotesPane.editorLabel": "Texto de la nota. Tab sangra; pulsa Escape y luego Tab para salir del editor.",
   "ui.verseContextMenu.editNote": "Editar nota",
-  "a11y.announce.resultOpened": "Abierto: {reference}"
+  "a11y.announce.resultOpened": "Abierto: {reference}",
+  "searchResultsPane.semanticNote.offline": "La búsqueda por significado necesita solicitudes web, que están desactivadas. {source, select, local {Se muestran resultados del paquete instalado.} other {Se muestran resultados por palabras clave.}}",
+  "searchResultsPane.semanticNote.turnOn": "Activar solicitudes web"
 }

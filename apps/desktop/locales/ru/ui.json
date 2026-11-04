@@ -2397,5 +2397,7 @@
   "a11y.announce.themeChanged": "Тема: {theme}",
   "ui.keyboardShortcuts.navigation.nextRegion": "Следующая область (заголовок, приложения, панели, строка состояния)",
   "ui.keyboardShortcuts.navigation.previousRegion": "Предыдущая область",
-  "a11y.announce.resultOpened": "Открыто: {reference}"
+  "a11y.announce.resultOpened": "Открыто: {reference}",
+  "searchResultsPane.semanticNote.offline": "Для поиска по смыслу нужны веб-запросы, а они отключены. {source, select, local {Показаны результаты из установленного пакета.} other {Показаны результаты поиска по словам.}}",
+  "searchResultsPane.semanticNote.turnOn": "Включить веб-запросы"
 }

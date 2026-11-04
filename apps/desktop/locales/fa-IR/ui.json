@@ -2382,5 +2382,7 @@
   "a11y.announce.themeChanged": "زمینه: {theme}",
   "ui.keyboardShortcuts.navigation.nextRegion": "ناحیهٔ بعدی (سرصفحه، برنامه‌ها، پنل‌ها، وضعیت)",
   "ui.keyboardShortcuts.navigation.previousRegion": "ناحیهٔ قبلی",
-  "a11y.announce.resultOpened": "{reference} باز شد"
+  "a11y.announce.resultOpened": "{reference} باز شد",
+  "searchResultsPane.semanticNote.offline": "جستجوی معنایی به درخواست‌های وب نیاز دارد که خاموش است. {source, select, local {نتایج بستهٔ نصب‌شده نمایش داده می‌شود.} other {نتایج کلیدواژه نمایش داده می‌شود.}}",
+  "searchResultsPane.semanticNote.turnOn": "روشن کردن درخواست‌های وب"
 }

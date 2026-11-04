@@ -2382,5 +2382,7 @@
   "a11y.announce.themeChanged": "⟦Ţĥéɱé: {theme} ··⟧",
   "ui.keyboardShortcuts.navigation.nextRegion": "⟦Ñéẋţ ŕéĝîøñ (ĥéåðéŕ, åþþš, þåñéš, šţåţüš) ············⟧",
   "ui.keyboardShortcuts.navigation.previousRegion": "⟦Þŕéṽîøüš ŕéĝîøñ ····⟧",
-  "a11y.announce.resultOpened": "⟦Øþéñéð {reference} ··⟧"
+  "a11y.announce.resultOpened": "⟦Øþéñéð {reference} ··⟧",
+  "searchResultsPane.semanticNote.offline": "⟦Ṁéåñîñĝ šéåŕçĥ ñééðš ŵéƀ ŕéǫüéšţš, ŵĥîçĥ åŕé øƒƒ. {source, select, local {Showing results from the installed pack.} other {Showing keyword results.}} ·················⟧",
+  "searchResultsPane.semanticNote.turnOn": "⟦Ţüŕñ øñ ŵéƀ ŕéǫüéšţš ······⟧"
 }

@@ -2399,5 +2399,7 @@
   "a11y.announce.themeChanged": "主题：{theme}",
   "ui.keyboardShortcuts.navigation.nextRegion": "下一区域（标题栏、应用、窗格、状态栏）",
   "ui.keyboardShortcuts.navigation.previousRegion": "上一区域",
-  "a11y.announce.resultOpened": "已打开 {reference}"
+  "a11y.announce.resultOpened": "已打开 {reference}",
+  "searchResultsPane.semanticNote.offline": "语义搜索需要网络请求，但目前已关闭。{source, select, local {正在显示已安装数据包的结果。} other {正在显示关键词结果。}}",
+  "searchResultsPane.semanticNote.turnOn": "开启网络请求"
 }

@@ -2397,5 +2397,7 @@
   "a11y.announce.themeChanged": "थीम: {theme}",
   "ui.keyboardShortcuts.navigation.nextRegion": "अगला क्षेत्र (हेडर, ऐप, पेन, स्थिति)",
   "ui.keyboardShortcuts.navigation.previousRegion": "पिछला क्षेत्र",
-  "a11y.announce.resultOpened": "{reference} खुला"
+  "a11y.announce.resultOpened": "{reference} खुला",
+  "searchResultsPane.semanticNote.offline": "अर्थ खोज के लिए वेब अनुरोध चाहिए, जो बंद हैं। {source, select, local {इंस्टॉल किए गए पैक के परिणाम दिखाए जा रहे हैं।} other {कीवर्ड परिणाम दिखाए जा रहे हैं।}}",
+  "searchResultsPane.semanticNote.turnOn": "वेब अनुरोध चालू करें"
 }

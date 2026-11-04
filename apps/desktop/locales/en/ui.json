@@ -2382,5 +2382,7 @@
   "a11y.announce.themeChanged": "Theme: {theme}",
   "ui.keyboardShortcuts.navigation.nextRegion": "Next region (header, apps, panes, status)",
   "ui.keyboardShortcuts.navigation.previousRegion": "Previous region",
-  "a11y.announce.resultOpened": "Opened {reference}"
+  "a11y.announce.resultOpened": "Opened {reference}",
+  "searchResultsPane.semanticNote.offline": "Meaning search needs web requests, which are off. {source, select, local {Showing results from the installed pack.} other {Showing keyword results.}}",
+  "searchResultsPane.semanticNote.turnOn": "Turn on web requests"
 }
