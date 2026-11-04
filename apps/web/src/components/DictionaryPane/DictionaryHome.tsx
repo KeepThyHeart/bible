@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { BookOneSvg } from '../common/inlineIcons';
 import { dictionaryStore } from '../../stores/dictionaryStore';
+import { entryLabel } from './entryLabel';
 import { useStore } from '../../hooks/useStore';
 
 export function DictionaryHome() {
@@ -71,7 +72,7 @@ export function DictionaryHome() {
               class={`dictionary-home__suggestion ${i === highlightedIndex ? 'dictionary-home__suggestion--highlighted' : ''}`}
               onClick={() => dictionaryStore.openDictionaryEntry(s.entry_key, s.module_abbr, s.module_name)}
             >
-              <span class="dictionary-home__suggestion-word">{s.word}</span>
+              <span class="dictionary-home__suggestion-word">{entryLabel(s.module_abbr, s.word, s.entry_key)}</span>
               <span class="dictionary-home__suggestion-source">{s.module_name}</span>
             </button>
           ))}

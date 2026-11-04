@@ -82,6 +82,20 @@ describe('wordStudyStore submit', () => {
     expect(wordStudyStore.subject).toEqual({ kind: 'strongs', strongs: 'G26' });
   });
 
+  it('the pick list replaces the previous word\'s result instead of sitting above it (B-168)', async () => {
+    provider.getOverview.mockResolvedValue(overview('G25'));
+    await wordStudyStore.submit('G25');
+    expect(wordStudyStore.overview).not.toBeNull();
+    provider.resolve.mockResolvedValue([
+      { strongs: 'G26', language: 'Greek', gloss: 'love' },
+      { strongs: 'G27', language: 'Greek', gloss: 'beloved' },
+    ]);
+    await wordStudyStore.submit('agape');
+    expect(wordStudyStore.candidates).toHaveLength(2);
+    expect(wordStudyStore.overview).toBeNull();
+    expect(wordStudyStore.occurrences).toBeNull();
+  });
+
   it('no candidates makes a word group', async () => {
     await wordStudyStore.submit('grace');
     expect(wordStudyStore.subject?.kind).toBe('group');

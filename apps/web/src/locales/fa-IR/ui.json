@@ -123,6 +123,7 @@
     "ideasHint": "جستجوی مفهومی می‌کوشد قسمت‌ها را بر اساس معنا پیدا کند، حتی اگر عبارت‌بندی متفاوت باشد.",
     "closeSearch": "بستن جستجو",
     "results": "{count, plural, one {# نتیجه} other {# نتیجه}}",
+    "resultsWithApproximate": "{count, plural, one {# نتیجه} other {# نتیجه}}، به‌علاوهٔ {approximate} تقریبی",
     "searching": "در حال جستجو...",
     "keywordBanner": "{count, plural, one {# تطابق کلیدواژه نیز وجود دارد.} other {# تطابق کلیدواژه نیز وجود دارد.}}",
     "viewInstead": "به جای آن‌ها این‌ها نمایش داده شوند؟",

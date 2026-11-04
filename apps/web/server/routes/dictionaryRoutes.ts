@@ -11,6 +11,8 @@ import { sendError, ErrorCodes } from '../utils/errorResponse.js';
 import type { SiteSettings } from '../siteSettings.js';
 import { isModuleActive, getModuleEntry } from '../siteSettings.js';
 import { isNamedModuleVisible } from '../utils/moduleVisibility.js';
+import { strongsLanguageOf, parseStrongsKeyInput, parseStrongsHead } from '../utils/strongsEntries.js';
+import { clampInt } from '../utils/requestHygiene.js';
 import { registerRoute } from './routeRegistry.js';
 import type { ServerHookRegistry } from '../plugins/ServerHooks.js';
 
@@ -52,7 +54,7 @@ export function createDictionaryRoutes(db: DatabaseManager, siteSettings: SiteSe
       const query = (req.query.q as string) || '';
       if (!query) { res.json([]); return; }
       const prefer = (req.query.prefer as string) || '';
-      const limit = Math.min(parseInt(req.query.limit as string) || 40, 100);
+      const limit = clampInt(req.query.limit, 40, 1, 100);
 
       const allDicts = db.getAllDictionaryRepos().filter(d => {
         if (!siteSettings?.dictionaries) return true;
@@ -64,7 +66,26 @@ export function createDictionaryRoutes(db: DatabaseManager, siteSettings: SiteSe
       interface RawHit { entry_key: string; word: string; transliteration?: string; definition?: string; part_of_speech?: string; module_abbr: string; module_name: string; }
       const hits: RawHit[] = [];
 
+      const numberQuery = parseStrongsKeyInput(query);
       for (const { abbreviation, name, repo } of allDicts) {
+        const lang = strongsLanguageOf(abbreviation);
+        // "G26" / "H430" / "26" name an entry directly; the prefix picks the lexicon.
+        if (lang && numberQuery && (!numberQuery.prefix || numberQuery.prefix === lang)) {
+          const direct = repo.getEntryByKey(numberQuery.key);
+          if (direct) {
+            const head = parseStrongsHead(direct.definition ?? '', lang);
+            hits.push({
+              entry_key: direct.entryKey,
+              word: head?.word || head?.transliteration || direct.entryKey,
+              transliteration: head?.word ? head.transliteration : undefined,
+              definition: (head?.body ?? direct.definition)?.substring(0, 200),
+              part_of_speech: undefined,
+              module_abbr: abbreviation,
+              module_name: name,
+            });
+          }
+          continue;
+        }
         const entries = repo.searchByTitle(query, { limit: 30 });
         for (const e of entries) {
           hits.push({
@@ -121,17 +142,26 @@ export function createDictionaryRoutes(db: DatabaseManager, siteSettings: SiteSe
       const repo = visibleRepo(moduleName);
       if (!repo) { res.json([]); return; }
 
-      const entries = repo.searchEntries(query, { limit: 30 });
-      const lowerQuery = query.toLowerCase();
+      const lang = strongsLanguageOf(moduleName);
+      const numberQuery = lang ? parseStrongsKeyInput(query) : null;
+      let entries = repo.searchEntries(query, { limit: 30 });
+      if (numberQuery && (!numberQuery.prefix || numberQuery.prefix === lang)) {
+        const direct = repo.getEntryByKey(numberQuery.key);
+        entries = direct ? [direct, ...entries.filter(e => e.entryKey !== direct.entryKey)] : entries;
+      }
+      const lowerQuery = (numberQuery ? numberQuery.key : query).toLowerCase();
 
       // Sort by title match quality: exact > starts-with > contains > alphabetical
-      const mapped = entries.map(e => ({
-        entry_key: e.entryKey,
-        word: e.word,
-        transliteration: e.transliteration,
-        definition: e.definition?.substring(0, 200),
-        part_of_speech: e.partOfSpeech,
-      }));
+      const mapped = entries.map(e => {
+        const head = lang ? parseStrongsHead(e.definition ?? '', lang) : null;
+        return {
+          entry_key: e.entryKey,
+          word: head ? (head.word || head.transliteration) : e.word,
+          transliteration: head ? (head.word ? head.transliteration : undefined) : e.transliteration,
+          definition: (head?.body ?? e.definition)?.substring(0, 200),
+          part_of_speech: e.partOfSpeech,
+        };
+      });
 
       mapped.sort((a, b) => {
         const aWord = (a.word ?? a.entry_key).toLowerCase();
@@ -185,8 +215,8 @@ export function createDictionaryRoutes(db: DatabaseManager, siteSettings: SiteSe
       if (!repo) { res.json({ entries: [], total: 0 }); return; }
 
       const letter = (req.query.letter as string) || '';
-      const limit = Math.min(parseInt(req.query.limit as string) || 50, 200);
-      const offset = parseInt(req.query.offset as string) || 0;
+      const limit = clampInt(req.query.limit, 50, 1, 200);
+      const offset = clampInt(req.query.offset, 0, 0, 10_000_000);
 
       const result = repo.browseByLetter(letter || null, limit, offset);
       res.json({
@@ -245,19 +275,23 @@ export function createDictionaryRoutes(db: DatabaseManager, siteSettings: SiteSe
         return;
       }
 
-      const entry = repo.getEntryByKey(req.params.key);
+      const lang = strongsLanguageOf(moduleName);
+      const parsedKey = lang ? parseStrongsKeyInput(req.params.key) : null;
+      const entry = repo.getEntryByKey(parsedKey?.key ?? req.params.key)
+        ?? repo.getEntryByKey(req.params.key);
       if (!entry) {
         sendError(res, 404, ErrorCodes.NOT_FOUND, 'Entry not found');
         return;
       }
 
+      const head = lang ? parseStrongsHead(entry.definition ?? '', lang) : null;
       let entries = [{
         entry_key: entry.entryKey,
-        word: entry.word,
-        transliteration: entry.transliteration,
-        pronunciation: entry.pronunciation,
+        word: head ? (head.word || head.transliteration) : entry.word,
+        transliteration: head ? (head.word ? head.transliteration : undefined) : entry.transliteration,
+        pronunciation: head ? head.pronunciation : entry.pronunciation,
         part_of_speech: entry.partOfSpeech,
-        definition: entry.definition,
+        definition: head ? head.body : entry.definition,
         etymology: entry.etymology,
         usage_notes: entry.usageNotes,
         semantic_range: entry.semanticRange,

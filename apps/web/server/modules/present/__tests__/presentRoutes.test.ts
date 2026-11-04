@@ -122,6 +122,7 @@ describe('GET /api/present/j/:joinCode/state', () => {
     const res = await request(app).get('/api/present/j/ZZZZZZZZ/state');
     expect(res.status).toBe(429);
     expect(res.headers['retry-after']).toBeTruthy();
+    expect(res.body.error.code).toBe('RATE_LIMITED'); // B-176: same code as every other 429
   });
 
   it('does not count a correct code against the guess limit', async () => {

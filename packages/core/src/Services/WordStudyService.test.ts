@@ -201,7 +201,9 @@ describe('WordStudyService', () => {
   });
 
   it('reports untagged / missing data', () => {
-    expect(service.getOverview({ kind: 'strongs', strongs: 'G9999' }).notice).toBe('no-occurrences');
+    // G9999 is not a Strong's number at all (no dictionary entry); G26 is, it just has no tagged hits here
+    expect(service.getOverview({ kind: 'strongs', strongs: 'G9999' }).notice).toBe('unknown-number');
+    expect(service.getOverview({ kind: 'strongs', strongs: 'G26' }, { module: 'rvr' }).notice).not.toBe('unknown-number');
   });
 
   it('studies a word group in any translation\'s own text', () => {
@@ -243,5 +245,23 @@ describe('WordGroupStore', () => {
     expect(() => store.save({ label: 'x', terms: [' '] })).toThrow();
     expect(store.remove(g.id)).toBe(true);
     expect(store.list()).toEqual([]);
+  });
+});
+
+describe('divine name in word study occurrences (B-167)', () => {
+  it('returns the character range of the divine name in each occurrence text', () => {
+    const r = makeBible('dn', 'en', true);
+    repos.push(r);
+    (r.getSql() as TestSqliteProvider).execute(
+      'UPDATE bible_verse SET formatting = ? WHERE verse_id = 19023001',
+      [JSON.stringify({ v: 1, spans: [{ type: 'divine_name', start: 1, end: 1 }] })]);
+    const svc = new WordStudyService({
+      bibles: () => new Map([['dn', r]]), greek: GREEK, hebrew: null, family: new WordFamilyService(GREEK, null),
+    });
+    const page = svc.getOccurrences({ kind: 'strongs', strongs: 'H7462' }, { module: 'dn' });
+    expect(page.items[0].text).toBe('The LORD is my shepherd; I shall not want.');
+    expect(page.items[0].divine).toEqual([{ start: 4, end: 8 }]);
+    const plain = svc.getOccurrences({ kind: 'strongs', strongs: 'G25' }, { module: 'dn' });
+    expect(plain.items[0].divine).toBeUndefined();
   });
 });

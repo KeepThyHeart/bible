@@ -30,6 +30,36 @@ export function highlightWords(text: string, start: number, end: number): ReactN
   return out;
 }
 
+/**
+ * Like {@link highlightWords}, with each character range of `divine` wrapped in
+ * `<span class="divine-name">` (small caps, as in the reader). Split at every
+ * boundary so the span nests cleanly inside the `<mark>`.
+ */
+export function highlightWithDivineName(text: string, start: number, end: number, divine: Array<{ start: number; end: number }>): ReactNode[] {
+  const spans = [...text.matchAll(/\S+/g)];
+  const first = spans[start];
+  const last = spans[Math.min(end, spans.length - 1)];
+  const hit = first && last && last.index! + last[0].length > first.index! ? { start: first.index!, end: last.index! + last[0].length } : null;
+  const cuts = new Set<number>([0, text.length]);
+  for (const r of [...divine, ...(hit ? [hit] : [])]) { cuts.add(Math.max(0, r.start)); cuts.add(Math.min(text.length, r.end)); }
+  const points = [...cuts].sort((a, b) => a - b);
+  const covers = (r: { start: number; end: number } | undefined, a: number, b: number) => !!r && r.start <= a && r.end >= b;
+  const pieces = points.slice(0, -1).map((a, i) => {
+    const b = points[i + 1];
+    let node: ReactNode = text.slice(a, b);
+    if (divine.some(r => covers(r, a, b))) node = <span key={`d${a}`} className="divine-name">{node}</span>;
+    return { a, b, node, inHit: covers(hit ?? undefined, a, b) };
+  });
+  const out: ReactNode[] = [];
+  for (let i = 0; i < pieces.length;) {
+    if (!pieces[i].inHit) { out.push(pieces[i].node); i++; continue; }
+    const group: ReactNode[] = [];
+    while (i < pieces.length && pieces[i].inHit) group.push(pieces[i++].node);
+    out.push(<mark key={`h${out.length}`} className="kth-ws-hit">{group}</mark>);
+  }
+  return out;
+}
+
 export function OccurrenceRow({ item, reference, onOpen, renderVerse }: OccurrenceRowProps) {
   return (
     <button type="button" className="kth-ws-occ" onClick={() => onOpen(item)}>
@@ -41,7 +71,9 @@ export function OccurrenceRow({ item, reference, onOpen, renderVerse }: Occurren
       {renderVerse ? (
         <span className="kth-ws-occ__text">{renderVerse(item)}</span>
       ) : item.text ? (
-        <span className="kth-ws-occ__text">{highlightWords(item.text, item.start, item.end)}</span>
+        <span className="kth-ws-occ__text">
+          {item.divine?.length ? highlightWithDivineName(item.text, item.start, item.end, item.divine) : highlightWords(item.text, item.start, item.end)}
+        </span>
       ) : null}
     </button>
   );

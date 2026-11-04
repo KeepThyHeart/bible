@@ -679,4 +679,19 @@ describe('SearchResultsPanel', () => {
     const { container } = render(<SearchResultsPanel />);
     expect(container.querySelector('[data-testid="search-fuzzy-divider"]')).toBeNull();
   });
+
+  it('headlines only the exact matches and counts approximate ones separately (B-168)', () => {
+    mockQuery = 'mount of the LORD it shall be seen';
+    mockSearchType = 'keyword';
+    mockTotalResults = 3;
+    mockResults = [
+      { verseId: 1022014, reference: 'Genesis 22:14', module: 'KJV', type: 'exact', text: '...' },
+      { verseId: 43003018, reference: 'John 3:18', module: 'KJV', type: 'fuzzy', text: '...' },
+      { verseId: 43003019, reference: 'John 3:19', module: 'KJV', type: 'fuzzy', text: '...' },
+    ];
+    const { container } = render(<SearchResultsPanel />);
+    const title = container.querySelector('.search-panel-inline__title')!.textContent ?? '';
+    expect(title).toContain('search.resultsWithApproximate:1');
+    expect(title).not.toContain('search.results:3');
+  });
 });

@@ -81,6 +81,15 @@ export function SearchResultsPanel({ onNavigate, onOpenStrongsEntry }: SearchRes
   }, [loading, query, results.length === 0, totalResults]);
   // Offline with nothing found means the search could not run, not that it found 0.
   const showCount = isOnline || totalResults > 0;
+  // Keyword mode headlines the exact matches only: approximate rows sit under
+  // their own divider and are not in the chart, so counting them made a phrase
+  // with one real hit read "(31 results)" (B-168, as B-017 on desktop).
+  const approximateCount = !strongsMode && searchType === 'keyword'
+    ? results.filter(r => r.type === 'fuzzy').length
+    : 0;
+  const headlineCount = approximateCount > 0
+    ? t('search.resultsWithApproximate', { count: Math.max(0, totalResults - approximateCount), approximate: approximateCount })
+    : t('search.results', { count: totalResults });
   const [mobileQuery, setMobileQuery] = useState('');
   const mobileInputRef = useRef<HTMLInputElement>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
@@ -267,12 +276,12 @@ export function SearchResultsPanel({ onNavigate, onOpenStrongsEntry }: SearchRes
             {strongsMode ? (
               <>
                 <i class="fa-solid fa-language" style={{ opacity: 0.5, marginInlineEnd: '6px', fontSize: '0.85em' }} />
-                {query}{showCount && <> ({t('search.results', { count: totalResults })})</>}
+                {query}{showCount && <> ({headlineCount})</>}
               </>
             ) : (
               <>
                 <i class={`fa-solid ${searchType === 'semantic' ? 'fa-lightbulb' : 'fa-magnifying-glass'}`} style={{ opacity: 0.5, marginInlineEnd: '6px', fontSize: '0.85em' }} />
-                "{query}"{showCount && <> ({t('search.results', { count: totalResults })})</>}
+                "{query}"{showCount && <> ({headlineCount})</>}
               </>
             )}
           </span>

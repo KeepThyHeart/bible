@@ -4,6 +4,7 @@ import type { ISearchPipeline, ScoringConfig } from '@bible/core';
 import { sendError, ErrorCodes } from '../utils/errorResponse.js';
 import { VerseIdHelper, StrongsNumberHelper, EnrichmentRepository, SearchOrchestrationService } from '../core.js';
 import type { TopicEntry } from '../search/SqliteVectorSearch.js';
+import { isQuerySyntaxError } from '../utils/requestHygiene.js';
 import { registerRoute } from './routeRegistry.js';
 import type { ServerHookRegistry } from '../plugins/ServerHooks.js';
 import { validateSearchQuery, MAX_SEARCH_QUERY_LENGTH, validateModuleName } from '../utils/validation.js';
@@ -279,6 +280,10 @@ export function createSearchRoutes(db: DatabaseManager, routeOptions: SearchRout
 
       hooks?.fireActions('search:performed', { query, resultCount: mappedResults.length });
     } catch (error) {
+      if (isQuerySyntaxError(error)) {
+        if (!res.headersSent) sendError(res, 400, ErrorCodes.INVALID_PARAM, (error as Error).message);
+        return;
+      }
       console.error('Error performing search:', error);
       if (!res.headersSent) sendError(res, 500, ErrorCodes.INTERNAL_ERROR, 'Search failed');
     }

@@ -22,6 +22,7 @@
       "noticeNoModule": "尚未安装适合此研究的圣经。",
       "noticeNotTagged": "此译本没有斯特朗编号标注,请选择其他译本。",
       "noticeNoOccurrences": "在此译本中未找到出现处。",
+      "noticeUnknownNumber": "没有这个斯特朗编号。",
       "renderingsTitle": "译法",
       "formsTitle": "找到的词形",
       "other": "其他({count})",

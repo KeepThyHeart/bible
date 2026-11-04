@@ -42,6 +42,8 @@ interface HomeSuggestion {
 /** Per-tab search result (within one dictionary) */
 interface TabSuggestion {
   entry_key: string;
+  /** Set on the "Open G26 in Strong's Greek" suggestion: the number to open in the other lexicon. */
+  openStrongs?: string;
   word: string;
   transliteration?: string;
   definition?: string;
@@ -114,6 +116,16 @@ export function friendlyDictionaryName(abbr: string, name?: string): string {
   if (/^strongsgreek$/i.test(abbr)) return "Strong's Greek";
   if (/^strongshebrew$/i.test(abbr)) return "Strong's Hebrew";
   return raw;
+}
+
+/** "G26" typed in the Hebrew lexicon (or "H430" in the Greek): the number in its own lexicon's form, else null. */
+function otherLexiconNumber(moduleAbbr: string, query: string): string | null {
+  if (!/^strongs(greek|hebrew)$/i.test(moduleAbbr)) return null;
+  const m = /^\s*([GgHh])\s*0*(\d{1,5})([A-Za-z])?\s*$/.exec(query);
+  if (!m) return null;
+  const prefix = m[1].toUpperCase();
+  if (prefix === (/hebrew/i.test(moduleAbbr) ? 'H' : 'G')) return null;
+  return `${prefix}${m[2]}${(m[3] ?? '').toUpperCase()}`;
 }
 
 class DictionaryStore extends Store {
@@ -409,6 +421,24 @@ class DictionaryStore extends Store {
     this.notify();
 
     this.tabSearchTimers.set(tabId, setTimeout(async () => {
+      // "G26" in the Hebrew lexicon (or "H430" in the Greek) can only mean the
+      // other one: offer to open it. Never navigate on the pause itself, or a
+      // slow typist entering "G2" then "6" is thrown to G2 half-way.
+      const other = otherLexiconNumber(tab.moduleAbbr, query);
+      if (other) {
+        const toHebrew = other.startsWith('H');
+        state.suggestions = [{
+          entry_key: other,
+          openStrongs: other,
+          word: `Open ${other} in ${friendlyDictionaryName(toHebrew ? 'strongshebrew' : 'strongsgreek')}`,
+        }];
+        state.searchError = null;
+        state.searchLoading = false;
+        state.searchCompleted = true;
+        this.tabSearchTimers.delete(tabId);
+        this.notify();
+        return;
+      }
       try {
         const res = await fetch(
           `${this.baseUrl}/api/dictionary/${tab.moduleAbbr}/search?q=${encodeURIComponent(query.trim())}`
@@ -432,6 +462,16 @@ class DictionaryStore extends Store {
       this.tabSearchTimers.delete(tabId);
       this.notify();
     }, 300));
+  }
+
+  /** Open a picked suggestion: an entry in this tab, or (cross-lexicon) the number in the other lexicon. */
+  async pickTabSuggestion(tabId: string, s: TabSuggestion): Promise<void> {
+    if (s.openStrongs) {
+      this.clearTabSuggestions(tabId);
+      await this.openStrongs(s.openStrongs);
+      return;
+    }
+    await this.loadEntryInTab(tabId, s.entry_key);
   }
 
   /** Dismiss the search dropdown without loading an entry */

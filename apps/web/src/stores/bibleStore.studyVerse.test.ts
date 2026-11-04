@@ -59,6 +59,12 @@ describe('bibleStore — study verse on chapter entry', () => {
       expect(bibleStore.getActiveTab()?.studyVerse).toBe(43003002);
     });
 
+    it('lands on the next verse when the translation omits the one asked for (B-168)', async () => {
+      reset([makeVerse(1), makeVerse(2), makeVerse(4)]); // verse 3 omitted, as Acts 8:37 is in the ASV
+      await bibleStore.navigateTo(43, 3, 3);
+      expect(bibleStore.getActiveTab()?.studyVerse).toBe(43003004);
+    });
+
     it('leaves no verse selected when the chapter came back empty', async () => {
       reset([]);
       await bibleStore.navigateTo(43, 3);

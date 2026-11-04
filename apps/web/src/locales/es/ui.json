@@ -123,6 +123,7 @@
     "ideasHint": "La búsqueda de ideas intenta encontrar pasajes por su significado, aunque la redacción sea diferente.",
     "closeSearch": "Cerrar la búsqueda",
     "results": "{count, plural, one {# resultado} other {# resultados}}",
+    "resultsWithApproximate": "{count, plural, one {# resultado} other {# resultados}}, más {approximate} aproximados",
     "searching": "Buscando...",
     "keywordBanner": "{count, plural, one {También hay # coincidencia por palabra clave.} other {También hay # coincidencias por palabra clave.}}",
     "viewInstead": "¿Ver esos en su lugar?",

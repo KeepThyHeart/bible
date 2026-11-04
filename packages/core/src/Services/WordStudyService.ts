@@ -10,6 +10,7 @@
  * Both produce the same {@link WordStudyOverview} shape so the UI is shared.
  */
 
+import { divineRangesOfVerse } from './SearchMarkup';
 import { IBibleRepository } from '../Data/Repositories/IBibleRepository';
 import { IDictionaryRepository } from '../Data/Repositories/IDictionaryRepository';
 import { StrongsNumberHelper } from '../Data/Core/StrongsNumberHelper';
@@ -190,7 +191,10 @@ export class WordStudyService {
       entry, modules, module: chosen?.module, moduleLanguage: chosen?.languageCode,
       totals: { occurrences: 0, verses: 0 }, bookCounts: {}, forms: [], morphology: [], family: [],
       semanticRange: null,
-      ...(chosen ? {} : { notice: (this.anyTagged() ? 'no-occurrences' : 'not-tagged') as 'no-occurrences' | 'not-tagged' }),
+      ...(chosen ? {} : { notice: (this.anyTagged()
+        // A lexicon is installed and has no such entry: the number does not exist (G9999), as opposed to one with no hits here.
+        ? (this.dictFor(display) && !entry ? 'unknown-number' : 'no-occurrences')
+        : 'not-tagged') as 'no-occurrences' | 'not-tagged' | 'unknown-number' }),
     };
     base.family = this.family(display, chosen?.module);
     if (!chosen) return base;
@@ -290,7 +294,12 @@ export class WordStudyService {
     const total = items.length;
     const page = items.slice(offset, offset + limit);
     const texts = repo.getVerseTexts([...new Set(page.map(i => i.verseId))]);
-    for (const it of page) it.text = texts.get(it.verseId)?.text;
+    for (const it of page) {
+      const verse = texts.get(it.verseId);
+      it.text = verse?.text;
+      const divine = verse && it.text ? divineRangesOfVerse(verse, it.text) : null;
+      if (divine && divine.length > 0) it.divine = divine;
+    }
     return { total, items: page };
   }
 

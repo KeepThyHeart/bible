@@ -123,6 +123,7 @@
     "ideasHint": "灵感搜索尝试根据含义查找经文，即使措辞不同也能找到。",
     "closeSearch": "关闭搜索",
     "results": "{count} 个结果",
+    "resultsWithApproximate": "{count} 个结果，另有 {approximate} 个近似结果",
     "searching": "正在搜索…",
     "keywordBanner": "另有 {count} 个关键词匹配结果。",
     "viewInstead": "改为查看这些结果？",

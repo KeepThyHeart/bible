@@ -15,7 +15,7 @@ export function WordStudyHeader({ overview, onModuleChange, onSearchAll, onOpenI
   const l = mergeWordStudyLabels(labels);
   const { subject, entry, modules, totals, notice } = overview;
   const noticeText =
-    notice === 'no-module' ? l.noticeNoModule : notice === 'not-tagged' ? l.noticeNotTagged : notice === 'no-occurrences' ? l.noticeNoOccurrences : '';
+    notice === 'no-module' ? l.noticeNoModule : notice === 'not-tagged' ? l.noticeNotTagged : notice === 'no-occurrences' ? l.noticeNoOccurrences : notice === 'unknown-number' ? l.noticeUnknownNumber : '';
   const selectId = `${id}-module`;
   return (
     <header className="kth-ws-header">
@@ -51,7 +51,7 @@ export function WordStudyHeader({ overview, onModuleChange, onSearchAll, onOpenI
           </>
         )}
         {onSearchAll && <button type="button" className="kth-btn kth-btn--sm" onClick={onSearchAll}>{l.searchAll}</button>}
-        {onOpenInDictionary && <button type="button" className="kth-btn kth-btn--sm" onClick={onOpenInDictionary}>{l.openInDictionary}</button>}
+        {onOpenInDictionary && notice !== 'unknown-number' && <button type="button" className="kth-btn kth-btn--sm" onClick={onOpenInDictionary}>{l.openInDictionary}</button>}
       </div>
     </header>
   );

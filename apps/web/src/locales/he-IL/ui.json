@@ -123,6 +123,7 @@
     "ideasHint": "חיפוש רעיונות מנסה למצוא קטעים לפי משמעות, גם אם הניסוח שונה.",
     "closeSearch": "סגירת החיפוש",
     "results": "{count, plural, one {תוצאה #} two {# תוצאות} other {# תוצאות}}",
+    "resultsWithApproximate": "{count, plural, one {תוצאה #} two {# תוצאות} other {# תוצאות}}, ועוד {approximate} משוערות",
     "searching": "מחפש...",
     "keywordBanner": "{count, plural, one {יש גם התאמת מילת מפתח #.} two {יש גם # התאמות מילת מפתח.} other {יש גם # התאמות מילת מפתח.}}",
     "viewInstead": "להציג אותן במקום זאת?",

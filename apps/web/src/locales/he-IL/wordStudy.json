@@ -22,6 +22,7 @@
       "noticeNoModule": "לא הותקן תרגום מקרא מתאים ללימוד זה.",
       "noticeNotTagged": "בתרגום זה אין תיוג מספרי Strong. יש לבחור תרגום אחר.",
       "noticeNoOccurrences": "לא נמצאו מופעים בתרגום זה.",
+      "noticeUnknownNumber": "אין מספר סטרונג כזה.",
       "renderingsTitle": "איך מתורגמת המילה",
       "formsTitle": "צורות שנמצאו",
       "other": "אחר ({count})",
