@@ -7,5 +7,8 @@
   "searchBar.emptyState.recentSearches": "Búsquedas recientes",
   "searchBar.emptyState.recentCommands": "Comandos recientes",
   "searchBar.emptyState.noRecents": "No hay elementos recientes",
-  "searchBar.resultCountLabel": "{count} resultados"
+  "searchBar.resultCountLabel": "{count} resultados",
+  "searchBar.reference.noChapter": "\"{book} {chapter}\" no es una referencia válida: {book} tiene {count} capítulos.",
+  "searchBar.reference.noVerse": "\"{book} {chapter}:{verse}\" no es una referencia válida: {book} {chapter} tiene {count} versículos.",
+  "searchBar.reference.needsChapter": "\"{book}\" necesita un capítulo para ser una referencia válida, por ejemplo \"{book} 1\"."
 }

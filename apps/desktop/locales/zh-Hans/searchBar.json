@@ -6,5 +6,8 @@
   "searchBar.referenceMode.goTo": "跳转到 {reference}",
   "searchBar.emptyState.recentSearches": "最近的搜索",
   "searchBar.emptyState.recentCommands": "最近的命令",
-  "searchBar.emptyState.noRecents": "没有最近的项目"
+  "searchBar.emptyState.noRecents": "没有最近的项目",
+  "searchBar.reference.noChapter": "“{book} {chapter}”不是有效的经文引用：{book}共有 {count} 章。",
+  "searchBar.reference.noVerse": "“{book} {chapter}:{verse}”不是有效的经文引用：{book} {chapter} 共有 {count} 节。",
+  "searchBar.reference.needsChapter": "“{book}”需要章数才是有效的经文引用，例如“{book} 1”。"
 }

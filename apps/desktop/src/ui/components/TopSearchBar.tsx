@@ -34,7 +34,7 @@ function focusAfterSearch(kind: 'bible' | 'results' | 'back'): void {
     if (kind === 'results') {
       target = document.querySelector<HTMLElement>('[data-tour-pane="search"] [data-pane-focus]');
       // The results panel opens a moment after the search resolves.
-      if (!target && attempt < 12) {
+      if (!target && attempt < 30) {
         window.setTimeout(() => run(attempt + 1), 100);
         return;
       }
@@ -329,7 +329,11 @@ const TopSearchBar = forwardRef<TopSearchBarHandle>(function TopSearchBar(_props
   // live input; the dropdown's click path has no race and falls back to the
   // memoized value.
   const reportReferenceProblem = useCallback((problem: ReferenceProblem) => {
-    useSearchStore.setState({ error: t(problem.key, problem.params) });
+    // Isolate the book name (FSI..PDI) so an Arabic name inside an English-order
+    // sentence, or the reverse, does not scramble the punctuation (B-109).
+    const params: Record<string, unknown> = { ...problem.params };
+    if (typeof params.book === 'string') params.book = `\u2068${params.book}\u2069`;
+    useSearchStore.setState({ error: t(problem.key, params) });
   }, [t]);
 
   const handleReferenceNavigation = useCallback(async (reference?: ParsedReference) => {
