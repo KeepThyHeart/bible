@@ -1477,6 +1477,8 @@
   "ui.keyboardShortcuts.view.devTools": "Mostrar u ocultar las herramientas de desarrollo",
   "ui.keyboardShortcuts.application.preferences": "Preferencias",
   "ui.keyboardShortcuts.application.showShortcuts": "Mostrar los atajos de teclado",
+  "ui.keyboardShortcuts.application.commandPalette": "Abrir la paleta de comandos",
+  "ui.keyboardShortcuts.application.switchApp": "Cambiar de aplicación (1, 2 o 3; 0 para la primera)",
   "ui.keyboardShortcuts.application.closeDialog": "Cerrar el cuadro de diálogo",
   "ui.moduleSelector.filterPlaceholder": "Escriba para filtrar (por ejemplo: KJV)...",
   "ui.moduleSelector.loading": "Cargando...",

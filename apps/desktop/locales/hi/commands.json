@@ -58,6 +58,7 @@
   "app.focusSearchBar": "खोज पट्टी पर जाएँ",
   "app.openCommandMode": "कमांड पैलेट खोलें",
   "network.toggleWebRequests": "वेब अनुरोधों की अनुमति दें",
+  "network.disableWebRequests": "वेब अनुरोध अवरुद्ध करें",
   "network.toggleWebRequests.category": "गोपनीयता",
   "bookmarks.manage": "बुकमार्क प्रबंधित करें",
   "bookmarks.manage.category": "बुकमार्क",

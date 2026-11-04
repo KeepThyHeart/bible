@@ -58,6 +58,7 @@
   "app.focusSearchBar": "מקד את סרגל החיפוש",
   "app.openCommandMode": "פתח את לוח הפקודות",
   "network.toggleWebRequests": "אפשר בקשות אינטרנט",
+  "network.disableWebRequests": "חסום בקשות אינטרנט",
   "network.toggleWebRequests.category": "פרטיות",
   "bookmarks.manage": "ניהול סימניות",
   "bookmarks.manage.category": "סימניות",

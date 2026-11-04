@@ -58,6 +58,7 @@
   "app.focusSearchBar": "التركيز على شريط البحث",
   "app.openCommandMode": "فتح لوحة الأوامر",
   "network.toggleWebRequests": "السماح بطلبات الويب",
+  "network.disableWebRequests": "حظر طلبات الويب",
   "network.toggleWebRequests.category": "الخصوصية",
   "bookmarks.manage": "إدارة العلامات المرجعية",
   "bookmarks.manage.category": "العلامات المرجعية",

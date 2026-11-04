@@ -30,6 +30,24 @@ export function registerNetworkCommands(registry: ICommandRegistry): IDisposable
       id: 'network.toggleWebRequests',
       title: { key: 'network.toggleWebRequests' },
       category: { key: 'network.toggleWebRequests.category' },
+      // B-032: the Privacy menu checkbox drives this command in both
+      // directions, so it must stay executable; the palette shows the two
+      // state-specific entries below instead.
+      hidden: true,
+      handler: () => dispatchAppEvent('command:network:toggleWebRequests'),
+    }),
+    registry.register({
+      id: 'network.allowWebRequests',
+      title: { key: 'network.toggleWebRequests' },
+      category: { key: 'network.toggleWebRequests.category' },
+      when: '!webRequestsAllowed',
+      handler: () => dispatchAppEvent('command:network:toggleWebRequests'),
+    }),
+    registry.register({
+      id: 'network.disableWebRequests',
+      title: { key: 'network.disableWebRequests' },
+      category: { key: 'network.toggleWebRequests.category' },
+      when: 'webRequestsAllowed',
       handler: () => dispatchAppEvent('command:network:toggleWebRequests'),
     }),
   ];

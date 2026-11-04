@@ -1470,6 +1470,8 @@
   "ui.keyboardShortcuts.view.devTools": "הפעל/כבה כלי פיתוח",
   "ui.keyboardShortcuts.application.preferences": "העדפות",
   "ui.keyboardShortcuts.application.showShortcuts": "הצג קיצורי מקשים",
+  "ui.keyboardShortcuts.application.commandPalette": "פתיחת לוח הפקודות",
+  "ui.keyboardShortcuts.application.switchApp": "החלפת יישום (1, 2 או 3; 0 ליישום הראשון)",
   "ui.keyboardShortcuts.application.closeDialog": "סגור תיבת דו-שיח",
   "ui.moduleSelector.filterPlaceholder": "הקלד כדי לסנן (למשל KJV)...",
   "ui.moduleSelector.loading": "טוען...",

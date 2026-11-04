@@ -1470,6 +1470,8 @@
   "ui.keyboardShortcuts.view.devTools": "تبديل أدوات المطور",
   "ui.keyboardShortcuts.application.preferences": "التفضيلات",
   "ui.keyboardShortcuts.application.showShortcuts": "عرض اختصارات لوحة المفاتيح",
+  "ui.keyboardShortcuts.application.commandPalette": "فتح لوحة الأوامر",
+  "ui.keyboardShortcuts.application.switchApp": "تبديل التطبيق (1 أو 2 أو 3؛ 0 للتطبيق الأول)",
   "ui.keyboardShortcuts.application.closeDialog": "إغلاق مربع الحوار",
   "ui.moduleSelector.filterPlaceholder": "اكتب للتصفية (مثل: KJV)...",
   "ui.moduleSelector.loading": "جارٍ التحميل...",

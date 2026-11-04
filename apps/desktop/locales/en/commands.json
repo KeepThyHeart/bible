@@ -62,6 +62,7 @@
   "app.focusSearchBar": "Focus Search Bar",
   "app.openCommandMode": "Open Command Palette",
   "network.toggleWebRequests": "Allow Web Requests",
+  "network.disableWebRequests": "Block Web Requests",
   "network.toggleWebRequests.category": "Privacy",
   "bookmarks.manage": "Manage Bookmarks",
   "bookmarks.manage.category": "Bookmarks",

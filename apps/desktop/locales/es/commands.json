@@ -58,6 +58,7 @@
   "app.focusSearchBar": "Enfocar la barra de búsqueda",
   "app.openCommandMode": "Abrir la paleta de comandos",
   "network.toggleWebRequests": "Permitir solicitudes web",
+  "network.disableWebRequests": "Bloquear solicitudes web",
   "network.toggleWebRequests.category": "Privacidad",
   "bookmarks.manage": "Gestionar marcadores",
   "bookmarks.manage.category": "Marcadores",

@@ -228,6 +228,8 @@ electronMenuBridge?.onCommandExecute((commandId: string) => {
 // those other surfaces show - including a change broadcast from another
 // window (`network:changed`, subscribed inside the store's `load()`).
 useNetworkStore.subscribe(() => pushMenuSpec());
+services.whenContext.set('webRequestsAllowed', useNetworkStore.getState().allowWebRequests);
+useNetworkStore.subscribe((s) => services.whenContext.set('webRequestsAllowed', s.allowWebRequests));
 // View > Apps follows the registry and the user's order/hide preferences.
 appRegistry.state.subscribe(() => pushMenuSpec());
 usePreferencesStore.subscribe((s, prev) => {
