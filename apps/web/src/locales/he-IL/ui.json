@@ -790,7 +790,9 @@
     "topics": "נושאים",
     "browseAllTopics": "עיון בכל הנושאים",
     "interlinear": "בין-שורתי",
-    "topicsBrowser": "דפדפן נושאים"
+    "topicsBrowser": "דפדפן נושאים",
+    "dictionary": "מילון",
+    "lookUpWord": "חיפוש מילה או מספר סטרונג"
   },
   "studyHomePage": {
     "commentarySummary": "סיכום פירושים",

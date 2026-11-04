@@ -1,11 +1,12 @@
-import { useEffect, useRef } from 'preact/hooks';
+import { useEffect, useRef, useState } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { StudyVerseHeader } from './StudyVerseHeader';
 import { StudyCrossRefs } from '../StudyPane/StudyCrossRefs';
 import { StudyHome } from '../StudyPane/StudyHome';
 import { StudyTopics } from '../StudyPane/StudyTopics';
 import { TopicsBrowser } from '../StudyPane/TopicsBrowser';
-import { mobileStudySections, useSlot } from '../../host/slots';
+import { MobileDictionary } from './MobileDictionary';
+import { mobileStudySections, phoneBackHandlers, useSlot } from '../../host/slots';
 import { studyStore } from '../../stores/studyStore';
 import { bibleStore } from '../../stores/bibleStore';
 import { useStore } from '../../hooks/useStore';
@@ -91,6 +92,17 @@ export function MobileStudyPane({ providers, onStrongsClick, onStrongsHover, onS
   useEffect(() => {
     fireActivation('onView:studyPane.sections');
   }, []);
+  // The dictionary is a full-screen overlay like the Topics browser; the phone Back button closes it.
+  const [dictionaryOpen, setDictionaryOpen] = useState(false);
+  useEffect(() => {
+    if (!dictionaryOpen) return;
+    const handle = phoneBackHandlers.register(() => {
+      setDictionaryOpen(false);
+      return true;
+    });
+    return () => handle.dispose();
+  }, [dictionaryOpen]);
+
   // Close the overlays on unmount
   const paneRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -171,6 +183,22 @@ export function MobileStudyPane({ providers, onStrongsClick, onStrongsHover, onS
           </div>
         </div>
 
+        {/* Dictionary: Strong's and the other lexicons, by number or word */}
+        <div class="mobile-study-section">
+          <div class="mobile-study-section__header">
+            <i class="fa-solid fa-book-open" /> {t('mobileStudyPane.dictionary')}
+          </div>
+          <div class="mobile-study-section__content">
+            <button
+              class="mobile-study-section__browse-link"
+              data-testid="mobile-study-open-dictionary"
+              onClick={() => setDictionaryOpen(true)}
+            >
+              <i class="fa-solid fa-magnifying-glass" /> {t('mobileStudyPane.lookUpWord')}
+            </button>
+          </div>
+        </div>
+
         {/* Sections feature modules contribute (family tree, timeline, ...) */}
         {moduleSections.map((m) => m.Section && <m.Section key={m.id} verseId={verseId} onOpenSettings={onOpenSettings} />)}
 
@@ -215,6 +243,27 @@ export function MobileStudyPane({ providers, onStrongsClick, onStrongsHover, onS
               onTopicRequestHandled={() => studyStore.consumePendingTopicNav()}
               mobile
             />
+          </div>
+        </div>
+      )}
+
+      {/* Dictionary full-screen overlay */}
+      {dictionaryOpen && (
+        <div class="mobile-topics-overlay mobile-dictionary-overlay">
+          <div class="mobile-topics-overlay__header">
+            <button
+              class="mobile-topics-overlay__close"
+              aria-label={t('common.close')}
+              onClick={() => setDictionaryOpen(false)}
+            >
+              <i class="fa-solid fa-xmark" />
+            </button>
+            <span class="mobile-topics-overlay__title">
+              <span class="mobile-topics-overlay__pane-label">{t('studyPane.study')}</span> {t('mobileStudyPane.dictionary')}
+            </span>
+          </div>
+          <div class="mobile-topics-overlay__body">
+            <MobileDictionary bibleProvider={providers.bible} />
           </div>
         </div>
       )}

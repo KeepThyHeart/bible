@@ -790,7 +790,9 @@
     "topics": "Temas",
     "browseAllTopics": "Explorar todos los temas",
     "interlinear": "Interlineal",
-    "topicsBrowser": "Explorador de temas"
+    "topicsBrowser": "Explorador de temas",
+    "dictionary": "Diccionario",
+    "lookUpWord": "Buscar una palabra o un número de Strong"
   },
   "studyHomePage": {
     "commentarySummary": "Resumen de comentarios",

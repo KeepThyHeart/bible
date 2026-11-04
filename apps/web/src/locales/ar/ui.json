@@ -790,7 +790,9 @@
     "topics": "المواضيع",
     "browseAllTopics": "تصفح كل الموضوعات",
     "interlinear": "بين السطور",
-    "topicsBrowser": "متصفح الموضوعات"
+    "topicsBrowser": "متصفح الموضوعات",
+    "dictionary": "القاموس",
+    "lookUpWord": "ابحث عن كلمة أو رقم سترونغ"
   },
   "studyHomePage": {
     "commentarySummary": "ملخص التفسير",
