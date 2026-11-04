@@ -199,7 +199,14 @@ interface SearchState {
 
   // Actions - Search
   setQuery: (query: string) => void;
-  performSearch: (query?: string) => Promise<void>;
+  /**
+   * Run a keyword search. `symbolOperators` (set only by the Advanced Search
+   * dialog, B-017) reads `&&`, `||`, `!` and parentheses as boolean operators
+   * for this query; every ordinary search clears it.
+   */
+  performSearch: (query?: string, opts?: { symbolOperators?: boolean }) => Promise<void>;
+  /** Whether the current results were run with symbol operators on (re-fetches keep it). */
+  symbolOperators: boolean;
   performLiveSearch: (query: string) => Promise<void>;
   clearSearch: () => void;
   /**
@@ -331,11 +338,12 @@ const DEFAULT_SEARCH_OPTIONS: SearchOptions = {
  * different search rather than more of the same one.
  */
 function buildKeywordRequestOptions(
-  state: Pick<SearchState, 'searchOptions' | 'includeRelatedWords'>,
+  state: Pick<SearchState, 'searchOptions' | 'includeRelatedWords'> & { symbolOperators?: boolean },
   query: string,
   maxResults: number,
 ): SearchOptions {
   let options: SearchOptions = { ...state.searchOptions, maxResults };
+  if (state.symbolOperators) options = { ...options, symbolOperators: true };
   if (state.searchOptions.scope === 'allOpenModules') {
     options = { ...options, modules: resolveOpenModuleAbbreviations() };
   }
@@ -469,6 +477,7 @@ export const useSearchStore = create<SearchState>((set, get) => ({
   indexingProgress: null,
 
   searchOptions: DEFAULT_SEARCH_OPTIONS,
+  symbolOperators: false,
 
   savedSearches: [],
   isLoadingSavedSearches: false,
@@ -502,7 +511,7 @@ export const useSearchStore = create<SearchState>((set, get) => ({
     set({ query });
   },
 
-  performSearch: async (query?: string) => {
+  performSearch: async (query?: string, opts?: { symbolOperators?: boolean }) => {
     const queryToSearch = query || get().query;
 
     if (!queryToSearch.trim()) {
@@ -514,6 +523,7 @@ export const useSearchStore = create<SearchState>((set, get) => ({
       isSearching: true,
       error: null,
       query: queryToSearch,
+      symbolOperators: !!opts?.symbolOperators,
       // A brand-new top-level query invalidates any "already tried this
       // translation" / "last visited result" bookkeeping from the previous one.
       retriedModules: [],
@@ -929,6 +939,7 @@ export const useSearchStore = create<SearchState>((set, get) => ({
       const requestedLimit = get().searchOptions.maxResults ?? KEYWORD_DEFAULT_MAX_RESULTS;
       const searchOptions = {
         ...get().searchOptions,
+        ...(get().symbolOperators ? { symbolOperators: true } : {}),
         maxResults: requestedLimit,
         scope: 'allOpenModules',
         openModules: [moduleAbbr],

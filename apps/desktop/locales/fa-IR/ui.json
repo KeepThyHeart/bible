@@ -2396,5 +2396,6 @@
   "preferencesDialog.privacyOnlineFooter": "وقتی کلید خاموش است، هیچ‌یک از این‌ها به اینترنت متصل نمی‌شوند.",
   "remoteConsent.local": "ترجیح می‌دهید همه‌چیز روی همین دستگاه بماند؟ بستهٔ معنایی محلی آفلاین کار می‌کند و هیچ درخواست وبی ارسال نمی‌کند.",
   "remoteConsent.getPack": "دریافت بستهٔ معنایی محلی",
-  "searchResultsPane.resultsFrom": "نتایج از {modules}"
+  "searchResultsPane.resultsFrom": "نتایج از {modules}",
+  "advancedSearchDialog.operatorsHint": "عملگرها: && (و)، || (یا)، ! (نه)، با پرانتز، مثلاً محبت && !(نفرت || خشم). واژه‌های AND، OR و NOT همچنان واژهٔ معمولی‌اند."
 }

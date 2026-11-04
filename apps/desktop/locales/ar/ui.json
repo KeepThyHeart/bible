@@ -2411,5 +2411,6 @@
   "preferencesDialog.privacyOnlineFooter": "عند إيقاف المفتاح لا يتصل أي من هذه بالإنترنت.",
   "remoteConsent.local": "هل تفضل إبقاء كل شيء على هذا الجهاز؟ تعمل حزمة المعنى المحلية دون اتصال ولا ترسل أي طلبات عبر الويب.",
   "remoteConsent.getPack": "الحصول على حزمة المعنى المحلية",
-  "searchResultsPane.resultsFrom": "نتائج من {modules}"
+  "searchResultsPane.resultsFrom": "نتائج من {modules}",
+  "advancedSearchDialog.operatorsHint": "العوامل: && (و)، || (أو)، ! (ليس)، مع الأقواس، مثل محبة && !(بغض || غضب). تبقى الكلمات AND وOR وNOT كلمات عادية."
 }

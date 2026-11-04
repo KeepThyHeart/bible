@@ -21,12 +21,30 @@ import { KeywordQuery } from '../Data/Access/KeywordTypes';
  * - "hope" and "love" within 50 words of each other
  * - NOT containing both "peace" AND "despair"
  */
+/** Options for {@link SearchQueryParser.parse}. */
+export interface ParseOptions {
+  /**
+   * Recognise `&&` (and), `||` (or) and `!` (not), with parentheses, as boolean
+   * operators. Off by default: ordinary search treats those characters as text.
+   */
+  symbolOperators?: boolean;
+}
+
+/** Operator tokens in symbol mode. */
+const SYMBOL_OPERATORS = { AND: '&&', OR: '||', NOT: '!' } as const;
+
+interface Cursor {
+  index: number;
+  /** Symbol mode: operators are `&&` `||` `!`, and the words AND/OR/NOT are plain words. */
+  symbols: boolean;
+}
+
 export class SearchQueryParser {
   /**
    * Main parsing method
    * Analyzes query and determines search type and components
    */
-  parse(query: string): ParsedQuery {
+  parse(query: string, options: ParseOptions = {}): ParsedQuery {
     const trimmedQuery = query.trim();
 
     if (!trimmedQuery) {
@@ -95,6 +113,17 @@ export class SearchQueryParser {
           term: fuzzyMatch[1],
           distance: 2, // Default Levenshtein distance
         },
+      };
+    }
+
+    // Symbol operators (&&, ||, !), advanced search only (B-017). Words AND/OR/NOT
+    // stay ordinary words in this mode, so "faith and works && love" searches the
+    // word "and" like any other.
+    if (options.symbolOperators && this.hasSymbolOperators(trimmedQuery)) {
+      return {
+        originalQuery: trimmedQuery,
+        searchType: 'boolean',
+        boolean: this.parseBooleanExpression(trimmedQuery, true),
       };
     }
 
@@ -246,16 +275,16 @@ export class SearchQueryParser {
    * Leaves stay strings so that the common `(faith AND works)` shape still
    * yields `left: 'faith'`, `right: 'works'`.
    */
-  private parseBooleanExpression(query: string): BooleanExpression {
-    const tokens = this.tokenizeBoolean(query);
-    const cursor = { index: 0 };
+  private parseBooleanExpression(query: string, symbols = false): BooleanExpression {
+    const tokens = symbols ? this.tokenizeSymbols(query) : this.tokenizeBoolean(query);
+    const cursor: Cursor = { index: 0, symbols };
     const parsed = tokens.length > 0 ? this.parseOrExpression(tokens, cursor) : '';
 
     // Trailing tokens mean unbalanced parentheses or a stray operator. Rather
     // than throw at the user, fall back to treating the whole query as one
     // leaf, which is what an ordinary multi-word search would have done.
     if (cursor.index < tokens.length) {
-      return { operator: 'AND', left: this.stripGrouping(query) };
+      return { operator: 'AND', left: this.stripGrouping(query, symbols) };
     }
 
     return typeof parsed === 'string' ? { operator: 'AND', left: parsed } : parsed;
@@ -288,17 +317,57 @@ export class SearchQueryParser {
     return tokens;
   }
 
-  private isOperator(token: string | undefined, operator: string): boolean {
-    return token !== undefined && token.toUpperCase() === operator;
+  private isOperator(token: string | undefined, operator: 'AND' | 'OR' | 'NOT', symbols: boolean): boolean {
+    if (token === undefined) return false;
+    return symbols ? token === SYMBOL_OPERATORS[operator] : token.toUpperCase() === operator;
+  }
+
+  /** True when the query holds at least one symbol operator outside quotes. */
+  private hasSymbolOperators(query: string): boolean {
+    return this.tokenizeSymbols(query).some(
+      (t) => t === SYMBOL_OPERATORS.AND || t === SYMBOL_OPERATORS.OR || t === SYMBOL_OPERATORS.NOT
+    );
+  }
+
+  /**
+   * Tokenizer for symbol mode: parentheses, quoted phrases (kept whole, so a
+   * `&&` inside quotes is text), the operators `&&` and `||`, a `!` that begins
+   * a token (`!hate`, `! hate`, `!(a b)`), and bare words. A `!`, `&` or `|`
+   * inside or at the end of a word stays part of it ("wait!").
+   */
+  private tokenizeSymbols(query: string): string[] {
+    const tokens: string[] = [];
+    let i = 0;
+    const n = query.length;
+    while (i < n) {
+      const ch = query[i];
+      if (/\s/.test(ch)) { i++; continue; }
+      if (ch === '(' || ch === ')') { tokens.push(ch); i++; continue; }
+      if (ch === '"') {
+        const close = query.indexOf('"', i + 1);
+        const end = close === -1 ? n : close + 1;
+        tokens.push(query.slice(i, end));
+        i = end;
+        continue;
+      }
+      if (query.startsWith('&&', i)) { tokens.push('&&'); i += 2; continue; }
+      if (query.startsWith('||', i)) { tokens.push('||'); i += 2; continue; }
+      if (ch === '!') { tokens.push('!'); i++; continue; }
+      let j = i;
+      while (j < n && !/[\s()"]/.test(query[j]) && !query.startsWith('&&', j) && !query.startsWith('||', j)) j++;
+      tokens.push(query.slice(i, j));
+      i = j;
+    }
+    return tokens;
   }
 
   private parseOrExpression(
     tokens: string[],
-    cursor: { index: number }
+    cursor: Cursor
   ): BooleanExpression | string {
     let left = this.parseAndExpression(tokens, cursor);
 
-    while (this.isOperator(tokens[cursor.index], 'OR')) {
+    while (this.isOperator(tokens[cursor.index], 'OR', cursor.symbols)) {
       cursor.index++;
       const right = this.parseAndExpression(tokens, cursor);
       left = { operator: 'OR', left, right };
@@ -309,15 +378,15 @@ export class SearchQueryParser {
 
   private parseAndExpression(
     tokens: string[],
-    cursor: { index: number }
+    cursor: Cursor
   ): BooleanExpression | string {
     let left = this.parseUnaryExpression(tokens, cursor);
 
     // `a NOT b` is the binary exclusion form, which FTS5 supports directly.
     // It sits at the same precedence as AND so that `a AND b NOT c` groups
     // left to right, the way a reader expects.
-    while (this.isOperator(tokens[cursor.index], 'AND') || this.isOperator(tokens[cursor.index], 'NOT')) {
-      const operator = tokens[cursor.index].toUpperCase() as 'AND' | 'NOT';
+    while (this.isOperator(tokens[cursor.index], 'AND', cursor.symbols) || this.isOperator(tokens[cursor.index], 'NOT', cursor.symbols)) {
+      const operator: 'AND' | 'NOT' = this.isOperator(tokens[cursor.index], 'AND', cursor.symbols) ? 'AND' : 'NOT';
       cursor.index++;
       const right = this.parseUnaryExpression(tokens, cursor);
       left = { operator, left, right };
@@ -328,9 +397,9 @@ export class SearchQueryParser {
 
   private parseUnaryExpression(
     tokens: string[],
-    cursor: { index: number }
+    cursor: Cursor
   ): BooleanExpression | string {
-    if (this.isOperator(tokens[cursor.index], 'NOT')) {
+    if (this.isOperator(tokens[cursor.index], 'NOT', cursor.symbols)) {
       cursor.index++;
       return { operator: 'NOT', left: this.parseUnaryExpression(tokens, cursor) };
     }
@@ -340,7 +409,7 @@ export class SearchQueryParser {
 
   private parsePrimaryExpression(
     tokens: string[],
-    cursor: { index: number }
+    cursor: Cursor
   ): BooleanExpression | string {
     if (tokens[cursor.index] === '(') {
       cursor.index++;
@@ -355,7 +424,7 @@ export class SearchQueryParser {
     while (cursor.index < tokens.length) {
       const token = tokens[cursor.index];
       if (token === '(' || token === ')') break;
-      if (this.isOperator(token, 'AND') || this.isOperator(token, 'OR') || this.isOperator(token, 'NOT')) break;
+      if (this.isOperator(token, 'AND', cursor.symbols) || this.isOperator(token, 'OR', cursor.symbols) || this.isOperator(token, 'NOT', cursor.symbols)) break;
       words.push(token);
       cursor.index++;
     }
@@ -364,8 +433,11 @@ export class SearchQueryParser {
   }
 
   /** Remove grouping characters for the give-up path, where they cannot help. */
-  private stripGrouping(query: string): string {
-    return query.replace(/[()]/g, ' ').replace(/\s+/g, ' ').trim();
+  private stripGrouping(query: string, symbols = false): string {
+    const plain = symbols
+      ? this.tokenizeSymbols(query).filter((t) => t !== '(' && t !== ')' && t !== '&&' && t !== '||' && t !== '!').join(' ')
+      : query.replace(/[()]/g, ' ');
+    return plain.replace(/\s+/g, ' ').trim();
   }
 
   /**

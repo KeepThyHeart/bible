@@ -2411,5 +2411,6 @@
   "preferencesDialog.privacyOnlineFooter": "Когда переключатель выключен, ничто из этого не выходит в интернет.",
   "remoteConsent.local": "Хотите, чтобы всё оставалось на этом устройстве? Локальный пакет смыслового поиска работает офлайн и не делает веб-запросов.",
   "remoteConsent.getPack": "Получить локальный пакет смыслового поиска",
-  "searchResultsPane.resultsFrom": "Результаты из {modules}"
+  "searchResultsPane.resultsFrom": "Результаты из {modules}",
+  "advancedSearchDialog.operatorsHint": "Операторы: && (и), || (или), ! (не), со скобками, например любовь && !(ненависть || гнев). Слова AND, OR и NOT остаются обычными словами."
 }

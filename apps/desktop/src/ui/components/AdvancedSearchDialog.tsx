@@ -173,7 +173,7 @@ const AdvancedSearchDialog: React.FC = () => {
     });
 
     // Perform search with new query and options
-    await performSearch(localQuery);
+    await performSearch(localQuery, { symbolOperators: true });
 
     // Close dialog and restore focus
     closeAdvancedDialog();
@@ -256,7 +256,7 @@ const AdvancedSearchDialog: React.FC = () => {
               </label>
               <input
                 id="adv-search-query"
-                aria-describedby="adv-search-query-hint"
+                aria-describedby="adv-search-query-hint adv-search-operators-hint"
                 type="text"
                 value={localQuery}
                 onChange={(e) => setLocalQuery(e.target.value)}
@@ -265,6 +265,9 @@ const AdvancedSearchDialog: React.FC = () => {
               />
               <div id="adv-search-query-hint" className={hintClass}>
                 {t('advancedSearchDialog.queryHint')}
+              </div>
+              <div id="adv-search-operators-hint" className={hintClass} data-testid="adv-search-operators-hint">
+                {t('advancedSearchDialog.operatorsHint')}
               </div>
             </div>
 

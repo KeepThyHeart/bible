@@ -2413,5 +2413,6 @@
   "preferencesDialog.privacyOnlineFooter": "Con el interruptor desactivado, ninguna de estas funciones se conecta a internet.",
   "remoteConsent.local": "¿Prefiere mantener todo en este dispositivo? Un paquete local de significado funciona sin conexión y no hace solicitudes web.",
   "remoteConsent.getPack": "Obtener el paquete local de significado",
-  "searchResultsPane.resultsFrom": "Resultados de {modules}"
+  "searchResultsPane.resultsFrom": "Resultados de {modules}",
+  "advancedSearchDialog.operatorsHint": "Operadores: && (y), || (o), ! (no), con paréntesis, p. ej. amor && !(odio || ira). Las palabras AND, OR y NOT siguen siendo palabras normales."
 }

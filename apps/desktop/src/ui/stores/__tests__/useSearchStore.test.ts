@@ -166,6 +166,14 @@ describe('useSearchStore - result interaction', () => {
       expect(state.lastClickedId).toBeNull();
     });
 
+    it('sends symbolOperators only for the advanced dialog search, and clears it for the next ordinary one (B-017)', async () => {
+      performSearchMock.mockResolvedValue([]);
+      await useSearchStore.getState().performSearch('a && b', { symbolOperators: true });
+      expect(performSearchMock.mock.calls.at(-1)?.[1]).toMatchObject({ symbolOperators: true });
+      await useSearchStore.getState().performSearch('a && b');
+      expect(performSearchMock.mock.calls.at(-1)?.[1].symbolOperators).toBeUndefined();
+    });
+
     it('records the translation(s) the results were run in (B-005)', async () => {
       performSearchMock.mockResolvedValue([]);
       await useSearchStore.getState().performSearch('grace');
