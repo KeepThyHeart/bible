@@ -70,6 +70,8 @@ export function SearchResultsPanel({ onNavigate, onOpenStrongsEntry }: SearchRes
   const groupedCounts = useStore(searchStore, () => searchStore.groupedCounts);
   const strongsRemaining = useStore(searchStore, () => searchStore.strongsRemaining);
   const bookCounts = useStore(searchStore, () => searchStore.bookCounts);
+  const searchError = useStore(searchStore, () => searchStore.searchError);
+  const strongsTotalAvailable = useStore(searchStore, () => searchStore.strongsTotalAvailable);
   const keywordRemaining = useStore(searchStore, () => searchStore.keywordRemaining);
   const lastClickedId = useStore(searchStore, () => searchStore.lastClickedId);
   const resultsTruncated = useStore(searchStore, () => searchStore.resultsTruncated);
@@ -104,6 +106,13 @@ export function SearchResultsPanel({ onNavigate, onOpenStrongsEntry }: SearchRes
   const headlineCount = approximateCount > 0
     ? t('search.resultsWithApproximate', { count: Math.max(0, totalResults - approximateCount), approximate: approximateCount })
     : t('search.results', { count: totalResults });
+  // W-052: in Strong's mode `totalResults` is the page size. Use the true occurrence count when the
+  // server gave one; otherwise, while more can be loaded, show no count rather than a wrong one.
+  const strongsCount = strongsTotalAvailable > 0 ? strongsTotalAvailable : totalResults;
+  const strongsHeadline = t('search.results', { count: strongsCount });
+  const showStrongsCount = showCount && (strongsTotalAvailable > 0 || !canLoadMore);
+  // W-053: a phrase search is typed with its own quotes; do not wrap them in a second pair.
+  const quotedByUser = query.length > 1 && query.startsWith('"') && query.endsWith('"');
   const [mobileQuery, setMobileQuery] = useState('');
   const mobileInputRef = useRef<HTMLInputElement>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
@@ -206,7 +215,8 @@ export function SearchResultsPanel({ onNavigate, onOpenStrongsEntry }: SearchRes
     const activeModule = bibleStore.getActiveTab()?.moduleAbbr;
     const modules = activeModule ? [activeModule] : undefined;
     searchStore.performSearch(trimmed, undefined, modules);
-    mobileInputRef.current?.blur();
+    // W-039: blur only to dismiss a phone's soft keyboard; on desktop it dropped focus to <body>.
+    if (window.innerWidth <= 768) mobileInputRef.current?.blur();
   };
 
   // Fuzzy rows are partitioned out here rather than trusted to arrive last.
@@ -292,23 +302,24 @@ export function SearchResultsPanel({ onNavigate, onOpenStrongsEntry }: SearchRes
 
       {query && (
         <div class="search-panel-inline__header">
-          <span class="search-panel-inline__title">
+          {/* W-045: a long unbroken query wraps instead of pushing the close button off-screen. */}
+          <span class="search-panel-inline__title" style={{ minWidth: 0, overflowWrap: 'anywhere' }}>
             {strongsMode ? (
               <>
                 <i class="fa-solid fa-language" style={{ opacity: 0.5, marginInlineEnd: '6px', fontSize: '0.85em' }} />
-                {query}{showCount && <> ({headlineCount})</>}
+                {query}{showStrongsCount && <> ({strongsHeadline})</>}
               </>
             ) : (
               <>
                 <i class={`fa-solid ${searchType === 'semantic' ? 'fa-lightbulb' : 'fa-magnifying-glass'}`} style={{ opacity: 0.5, marginInlineEnd: '6px', fontSize: '0.85em' }} />
-                "{query}"{showCount && <> ({headlineCount})</>}
+                {quotedByUser ? query : `"${query}"`}{showCount && <> ({headlineCount})</>}
               </>
             )}
           </span>
           {translationNote && (
             <span class="search-panel-inline__translation-note" data-testid="search-results-translation-note">{translationNote}</span>
           )}
-          <button class="search-panel-inline__close" onClick={handleClose} title={t('search.closeSearch')}>
+          <button class="search-panel-inline__close" style={{ flexShrink: 0 }} onClick={handleClose} title={t('search.closeSearch')}>
             <i class="fa-solid fa-xmark" />
           </button>
         </div>
@@ -409,7 +420,13 @@ export function SearchResultsPanel({ onNavigate, onOpenStrongsEntry }: SearchRes
             {t('search.enterSearchTerm')}
           </div>
         )}
-        {!loading && query && results.length === 0 && !isOnline && (
+        {/* W-035: the server rejected the query (unmatched quote or parenthesis); say so, as text. */}
+        {!loading && query && results.length === 0 && searchError && (
+          <div class="search-panel-inline__empty" role="alert" data-testid="search-query-error">
+            {searchError}
+          </div>
+        )}
+        {!loading && query && results.length === 0 && !isOnline && !searchError && (
           <div class="search-panel-inline__empty">
             <span>{t('search.offlineNotice')}</span>
           </div>
@@ -419,7 +436,7 @@ export function SearchResultsPanel({ onNavigate, onOpenStrongsEntry }: SearchRes
             {t('search.slashDesktopOnly')}
           </div>
         )}
-        {!loading && query && results.length === 0 && isOnline && !isSlashCommandQuery(query) && !(searchType === 'semantic' && ideasUnavailableShown) && (
+        {!loading && query && results.length === 0 && isOnline && !searchError && !isSlashCommandQuery(query) && !(searchType === 'semantic' && ideasUnavailableShown) && (
           <div class="search-panel-inline__empty">
             {searchType === 'keyword' && searchedModule ? (
               <div class="search-panel-inline__no-results">
