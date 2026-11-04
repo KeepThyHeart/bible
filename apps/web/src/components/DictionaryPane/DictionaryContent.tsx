@@ -13,26 +13,8 @@ import { linkStrongsRefs } from '../../utils/strongsLinks';
 import { sanitizeHtml } from '../../utils/sanitize';
 import { newlinesToLineBreaks, resolveNewlineHandling } from '@bible/core/browser';
 import type { IBibleDataProvider } from '../../providers/interfaces';
+import { entryLabel, strongsNumberFor } from './entryLabel';
 import { moduleContentAttrs } from '../../utils/contentDirection';
-
-/**
- * The Strong's number this entry represents, or null for an ordinary dictionary.
- * Strong's entry keys are 5-digit zero-padded and carry no prefix ("00025"), so
- * the G/H comes from which of the two lexicons the tab is showing.
- */
-function strongsNumberFor(moduleAbbr: string, entryKey: string): string | null {
-  if (!/^strongs/i.test(moduleAbbr)) return null;
-  const digits = entryKey.replace(/\D/g, '').replace(/^0+/, '');
-  if (!digits) return null;
-  return `${/hebrew/i.test(moduleAbbr) ? 'H' : 'G'}${digits}`;
-}
-
-/** Heading/link label: a Strong's zero-padded key ("00746") reads as users know it ("G746"). */
-function entryLabel(moduleAbbr: string, word: string | undefined, entryKey: string): string {
-  const text = word || entryKey;
-  if (/^\d+$/.test(text)) return strongsNumberFor(moduleAbbr, text) ?? text;
-  return text;
-}
 
 interface DictionaryContentProps {
   tabId: string;
@@ -157,7 +139,7 @@ export function DictionaryContent({ tabId, bibleProvider }: DictionaryContentPro
                   class={`dictionary-content__search-dropdown-item ${i === highlightedIndex ? 'dictionary-content__search-dropdown-item--highlighted' : ''}`}
                   onClick={() => dictionaryStore.loadEntryInTab(tabId, s.entry_key)}
                 >
-                  <span class="dictionary-pane__suggestion-word">{s.word}</span>
+                  <span class="dictionary-pane__suggestion-word">{entryLabel(tab.moduleAbbr, s.word, s.entry_key)}</span>
                   {s.transliteration && (
                     <span class="dictionary-pane__suggestion-translit">({s.transliteration})</span>
                   )}
@@ -347,7 +329,7 @@ export function DictionaryContent({ tabId, bibleProvider }: DictionaryContentPro
                 class={`dictionary-content__search-dropdown-item ${i === highlightedIndex ? 'dictionary-content__search-dropdown-item--highlighted' : ''}`}
                 onClick={() => dictionaryStore.loadEntryInTab(tabId, s.entry_key)}
               >
-                <span class="dictionary-pane__suggestion-word">{s.word}</span>
+                <span class="dictionary-pane__suggestion-word">{entryLabel(tab.moduleAbbr, s.word, s.entry_key)}</span>
                 {s.transliteration && (
                   <span class="dictionary-pane__suggestion-translit">({s.transliteration})</span>
                 )}
@@ -396,7 +378,7 @@ export function DictionaryContent({ tabId, bibleProvider }: DictionaryContentPro
               class="dictionary-content__browse-item"
               onClick={() => dictionaryStore.loadEntryInTab(tabId, e.entry_key)}
             >
-              {e.word || e.entry_key}
+              {entryLabel(tab.moduleAbbr, e.word, e.entry_key)}
             </button>
           ))}
           {browseOffset < browseTotal && !browseLoading && (
