@@ -364,6 +364,7 @@
       "resetCacheHint": "Borra los archivos guardados de esta app y el service worker en segundo plano de este dispositivo, y luego recarga. Úsalo si la app parece desactualizada o falla. Se conservan tus ajustes, módulos descargados y notas.",
       "resetCacheConfirm": "¿Restablecer la caché de la app? La app se recargará y volverá a descargar sus archivos; se conservan tus ajustes y módulos descargados.",
       "appName": "Aplicación de estudio bíblico",
+      "versionLine": "Versión {version} (compilación {build})",
       "description": "Una aplicación moderna y de código abierto para el estudio de la Biblia, diseñada para la lectura y la investigación de la Escritura en profundidad.",
       "desktopOnly": "Las notas, los resaltados, los marcadores, la memorización de Escritura, los planes de lectura y las listas de oración están disponibles en la aplicación de escritorio.",
       "license": "Con licencia <strong>GNU General Public License v3.0</strong> (GPL-3.0).",

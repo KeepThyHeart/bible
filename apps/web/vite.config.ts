@@ -32,6 +32,18 @@ function resolveBuildId(): string {
 
 const buildId = resolveBuildId();
 
+/** Short git sha for display in Settings > About (no timestamp suffix); an explicit BUILD_ID is shown as is. */
+function resolveBuildSha(): string {
+  if (process.env.BUILD_ID) return process.env.BUILD_ID;
+  try {
+    return execSync('git rev-parse --short HEAD', { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim();
+  } catch {
+    return 'dev';
+  }
+}
+
+const appVersion: string = JSON.parse(readFileSync(resolve(__dirname, '../../package.json'), 'utf8')).version ?? '0.0.0';
+
 /**
  * Brand strings -- product name, tagline, theme colour -- are substituted into
  * index.html at build time rather than hard-coded there. The same sentence had
@@ -396,6 +408,8 @@ export default defineConfig({
   base: basePath,
   define: {
     __BUILD_ID__: JSON.stringify(buildId),
+    __APP_VERSION__: JSON.stringify(appVersion),
+    __APP_BUILD__: JSON.stringify(resolveBuildSha()),
     // Timeline minimum framing span in years (empty = built-in 200); see README "Build options".
     __TIMELINE_MIN_SPAN_YEARS__: JSON.stringify(process.env.BIBLE_TIMELINE_MIN_SPAN_YEARS?.trim() ?? ''),
   },

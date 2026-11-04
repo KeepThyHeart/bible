@@ -379,6 +379,14 @@
     color: var(--text-primary);
   }
 
+  // Selectable so the version can be copied into a bug report.
+  &__about-version {
+    font-size: calc(0.8125rem * var(--ui-font-scale, 1));
+    color: var(--text-secondary);
+    user-select: text;
+    -webkit-user-select: text;
+  }
+
   &__about-desc {
     font-size: calc(0.8125rem * var(--ui-font-scale, 1));
     color: var(--text-secondary);
