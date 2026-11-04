@@ -86,6 +86,16 @@ describe('RemoteSemanticClient', () => {
     expect(r.rateLimit.resetAtMs).toBe(1_000_000 + 3_600_000);
   });
 
+  it('never sends a non-finite k (W-010)', async () => {
+    for (const [given, sent] of [[NaN, 'k=10'], [Infinity, 'k=10'], [-Infinity, 'k=10'], [0, 'k=1'], [-5, 'k=1'], [7.9, 'k=7'], [500, 'k=100']] as const) {
+      const { client, fetchMock } = make([res(200, OK)]);
+      await client.search('forgiving those who wrong you', { k: given });
+      const url = String(fetchMock.mock.calls[0][0]);
+      expect(url, `k=${given}`).toContain(sent + '&');
+      expect(url).not.toContain('NaN');
+    }
+  });
+
   it('maps facet rows through passage, then start/end, and skips topic and bad ranges', async () => {
     const facetBody = { query: 'q', mode: 'semantic', degraded: false, results: [
       { rank: 1, id: 'KJV.GEN.1.1#s0', passage: 'KJV.GEN.1.1', start: 1001001, end: 1001001, level: 'verse', facet: 'sub', score: 0.9 },

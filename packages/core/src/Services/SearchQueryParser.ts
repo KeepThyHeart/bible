@@ -28,7 +28,36 @@ export interface ParseOptions {
    * operators. Off by default: ordinary search treats those characters as text.
    */
   symbolOperators?: boolean;
+  /**
+   * Accept `/pattern/` as a regular-expression search. On by default (the
+   * desktop app offers it); `false` makes such a query throw a
+   * {@link SearchQueryRejectedError} instead (W-001: on a shared server a
+   * user-supplied pattern such as `/^(\w+\s?)*$/` backtracks catastrophically
+   * against every verse and hangs the event loop).
+   */
+  allowRegex?: boolean;
 }
+
+/** Message of the error a `/pattern/` query raises when `allowRegex` is false. */
+export const PATTERN_SEARCH_DISABLED_MESSAGE = 'Pattern (regular expression) search is not available here';
+
+/**
+ * A well-formed query this caller has chosen not to run (W-001). Distinct from
+ * the syntax errors `validate()` reports, so a server can answer it with a 400
+ * by `code` rather than by matching message text.
+ */
+export class SearchQueryRejectedError extends Error {
+  readonly code = 'SEARCH_QUERY_REJECTED';
+  constructor(message: string) {
+    super(message);
+    this.name = 'SearchQueryRejectedError';
+  }
+}
+
+/** `~N` + `v` at the end of a query (verse proximity); see `matchProximitySuffix` (W-008). */
+const VERSE_PROXIMITY_SUFFIX = /~(\d+)v$/i;
+/** `~N` or `~Nw` at the end of a query (word proximity). */
+const WORD_PROXIMITY_SUFFIX = /~(\d+)w?$/i;
 
 /** Operator tokens in symbol mode. */
 const SYMBOL_OPERATORS = { AND: '&&', OR: '||', NOT: '!' } as const;
@@ -64,6 +93,9 @@ export class SearchQueryParser {
     // Check for regex pattern (enclosed in forward slashes)
     const regexMatch = trimmedQuery.match(/^\/(.+)\/$/);
     if (regexMatch) {
+      if (options.allowRegex === false) {
+        throw new SearchQueryRejectedError(PATTERN_SEARCH_DISABLED_MESSAGE);
+      }
       return {
         originalQuery: trimmedQuery,
         searchType: 'regex',
@@ -72,10 +104,10 @@ export class SearchQueryParser {
     }
 
     // Check for verse proximity search (~Nv)
-    const verseProximityMatch = trimmedQuery.match(/(.+?)\s+~(\d+)v$/i);
+    const verseProximityMatch = this.matchProximitySuffix(trimmedQuery, VERSE_PROXIMITY_SUFFIX);
     if (verseProximityMatch) {
-      const terms = this.extractTerms(verseProximityMatch[1]);
-      const distance = parseInt(verseProximityMatch[2], 10);
+      const terms = this.extractTerms(verseProximityMatch.head);
+      const distance = parseInt(verseProximityMatch.distance, 10);
 
       return {
         originalQuery: trimmedQuery,
@@ -88,10 +120,10 @@ export class SearchQueryParser {
     }
 
     // Check for word proximity search (~N or ~Nw)
-    const proximityMatch = trimmedQuery.match(/(.+?)\s+~(\d+)w?$/i);
+    const proximityMatch = this.matchProximitySuffix(trimmedQuery, WORD_PROXIMITY_SUFFIX);
     if (proximityMatch) {
-      const terms = this.extractTerms(proximityMatch[1]);
-      const distance = parseInt(proximityMatch[2], 10);
+      const terms = this.extractTerms(proximityMatch.head);
+      const distance = parseInt(proximityMatch.distance, 10);
 
       return {
         originalQuery: trimmedQuery,
@@ -218,6 +250,36 @@ export class SearchQueryParser {
           `"${parsed.searchType}" search has no KeywordQuery equivalent - it is not a single full-text query`
         );
     }
+  }
+
+  /**
+   * Split `<terms> <whitespace> ~N` (with the unit `suffix` allows) into the
+   * terms and the distance, or null when the query does not end that way.
+   *
+   * W-008: this was `/(.+?)\s+~(\d+)v$/` (and `...w?$`). Unanchored, with a
+   * lazy group and `\s+` both able to take the same spaces, it backtracked
+   * cubically on a run of whitespace: "a" + 510 spaces + "b" took ~190 ms a
+   * regex. The suffix is now found on its own (one `~`, its digits, the unit,
+   * end of input: linear), and the rest is plain string work that gives the
+   * same answer the old regex did:
+   * - the `~` must follow whitespace (`\s+`);
+   * - the head is everything before that whitespace run (the lazy group
+   *   stopped as early as `\s+~N$` let it, i.e. before the whole run);
+   * - `.` never matched a line terminator, so the old match began after the
+   *   head's last one, and only that last line's words were the terms.
+   */
+  private matchProximitySuffix(query: string, suffix: RegExp): { head: string; distance: string } | null {
+    const match = suffix.exec(query);
+    if (!match || match.index === 0 || !/\s/.test(query[match.index - 1])) return null;
+    const trimmedHead = query.slice(0, match.index).trimEnd();
+    let lineStart = 0;
+    for (let i = trimmedHead.length - 1; i >= 0; i--) {
+      const ch = trimmedHead[i];
+      if (ch === '\n' || ch === '\r' || ch === ' ' || ch === ' ') { lineStart = i + 1; break; }
+    }
+    const head = trimmedHead.slice(lineStart);
+    if (head.length === 0) return null;
+    return { head, distance: match[1] };
   }
 
   /**
@@ -480,7 +542,7 @@ export class SearchQueryParser {
    * Validate search query
    * Returns error message if invalid, undefined if valid
    */
-  validate(query: string): string | undefined {
+  validate(query: string, options: ParseOptions = {}): string | undefined {
     if (!query || query.trim().length === 0) {
       return 'Search query cannot be empty';
     }
@@ -502,9 +564,10 @@ export class SearchQueryParser {
       return 'Unmatched opening parenthesis';
     }
 
-    // Check for invalid regex
+    // Check for invalid regex. Not when patterns are refused outright: parse()
+    // then rejects the query whatever it holds (W-001).
     const regexMatch = query.match(/^\/(.+)\/$/);
-    if (regexMatch) {
+    if (regexMatch && options.allowRegex !== false) {
       try {
         new RegExp(regexMatch[1]);
       } catch (e) {
