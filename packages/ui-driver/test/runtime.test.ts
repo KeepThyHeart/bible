@@ -268,6 +268,15 @@ describe('audit', () => {
     expect(items).toContainEqual(expect.objectContaining({ kind: 'covered', ref: byRole(s, 'button')[0].ref }));
   });
 
+  it('does not report content scrolled under a fixed bottom bar', async () => {
+    await page.setViewportSize({ width: 1280, height: 720 });
+    await load(`<button style="position:absolute;left:10px;top:690px;width:100px;height:40px">Row</button>
+      <nav style="position:fixed;left:0;right:0;bottom:0;height:50px;background:#ccc"><button>Home</button></nav>`);
+    await snap();
+    const items = await audit('overlap');
+    expect(items.filter((i: { kind: string }) => i.kind === 'covered' || i.kind === 'overlap')).toEqual([]);
+  });
+
   it('does not report a clear button as covered', async () => {
     await load(`<button>Free</button>`);
     await snap();

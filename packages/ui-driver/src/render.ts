@@ -99,7 +99,7 @@ export function headerLine(s: PageSnapshot): string {
     const u = new URL(s.url);
     path = u.protocol === 'file:' ? u.pathname.split('/').slice(-2).join('/') + u.hash : u.pathname + u.search + u.hash;
   } catch { /* keep the raw url */ }
-  return `page ${q(s.title)} ${path} ${s.vw}x${s.vh}` + (s.focus !== 'body' ? ` focus=${s.focus}` : '');
+  return `page ${q(s.title)} ${path} ${s.vw}x${s.vh}` + (s.focus !== 'body' ? ` focus=${s.focus}` : '') + (s.modalOnly ? ' (modal only; snapshot without --visible for the rest)' : '');
 }
 
 export function renderSnapshot(s: PageSnapshot, opts: RenderOpts = {}): string {

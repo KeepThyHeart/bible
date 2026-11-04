@@ -38,9 +38,9 @@ plus errors, no diff) and `--timeout ms` (default 5000).
 |---|---|
 | `start [web\|desktop\|path/to/manifest.json] [--url URL] [--viewport WxH] [--headed] [--keep]` | `--url https://bible.keepthyheart.com` drives the live site **read-only** (only GET/HEAD/OPTIONS go out; others are blocked and listed under `errors`). `--keep` keeps the throwaway profile. |
 | `stop`, `status` | |
-| `snapshot [rN] [--depth N] [--max N] [--visible] [--all]` | `rN` scopes to one element; `--visible` only what is in the viewport; long lists show 9 items and a count; 150 lines max unless `--max`/`--all`. |
+| `snapshot [rN] [--depth N] [--max N] [--visible] [--all]` | `rN` scopes to one element (a native `<select>` then lists its options); `--visible` only what is in the viewport, and only the modal when one is open; long lists show 9 items and a count; 150 lines max unless `--max`/`--all`. |
 | `diff` | Changes since the last snapshot or action. Actions already include it. |
-| `find TEXT [--role ROLE]` | Search names/values of the whole page without printing it. Cheapest way to get a ref. |
+| `find [TEXT] [--role ROLE]` | Search names/values of the whole page without printing it (TEXT optional with `--role`). Cheapest way to get a ref. |
 | `click rN [--right]`, `dblclick rN`, `hover rN` | |
 | `type rN TEXT [--enter]`, `fill rN TEXT [--enter]` | `type` sends keystrokes and appends; `fill` replaces. |
 | `press KEY`, `press rN KEY` | Playwright key names: `Enter`, `Escape`, `Tab`, `Control+k`. |
@@ -51,7 +51,7 @@ plus errors, no diff) and `--timeout ms` (default 5000).
 | `resize WxH` | |
 | `wait TEXT`, `wait gone TEXT\|rN`, `wait rN`, `wait idle`, `wait url TEXT`, `wait MS` | Replies with the diff, like an action. |
 | `errors [--all] [--warn] [--clear]` | New since the last `errors` unless `--all`. |
-| `check [names overflow overlap focus i18n narrow tab all]` | Without kinds: the cheap five. `narrow` re-checks layout at 360 px wide and restores; `tab` presses Tab 30 times and reports the order, invisible stops and traps. Both change state. |
+| `check [names overflow overlap focus i18n narrow tab all]` | Without kinds: the cheap five. `narrow` re-checks layout at 360 px wide and restores; `tab` presses Tab until focus wraps (max 80) and reports the order, invisible stops and traps, then puts focus back. `narrow` and `tab` change layout/focus while they run. |
 | `screenshot [rN] [--full] [--path P]` | Returns the path; read the image only when you need to see it. |
 | `log [--tail N]`, `log --playwright [--path P]` | The session transcript, or a Playwright spec that replays it (review locators before committing it as a test). |
 | `pages`, `page N` | Popups and extra windows. |
@@ -91,27 +91,43 @@ Refs stay the same while an element exists, and also when the framework re-rende
 equivalent element (same role, name and parent). A ref whose element is gone gives
 `stale ref r12 (was button "Save"): element gone; run snapshot`.
 
-## Sample session (web, 8 commands, ~900 tokens of replies in all)
+## Sample session (web, recorded; ~450 tokens of replies in all)
 
 ```
 $ drive start web
-started web http://127.0.0.1:39207 (local server, fixture data) in 8.3s
+started web http://127.0.0.1:40625 (local server, fixture data) in 4.0s (session default)
+page "Keep Thy Heart Bible Reader" /#/KJV/1/1 1280x800
 $ drive find Theme
 [r12] button "Theme"  < [r8] banner
 $ drive click r12
-focus: body → r177
-+ [r177] dialog "Theme" focused modal (+4 inside)
-    [r178] button "Light"
-    [r179] button "Dark"
-    [r180] button "Sepia"
+focus: body → r83
++ [r83] dialog "Theme" focused modal (+4 inside)
+    [r84] button "Light"
+    [r85] button "Dark"
+    [r86] button "Sepia"
 $ drive click r179
-- [r177] dialog "Theme" focused modal (+4 inside)
+stale ref r179: element gone; run snapshot
+$ drive fill r10 love one another --enter
+focus: r83 → body
+~ "19 results" (was "Genesis 1 loaded")
+~ [r10] textbox "Press / or Ctrl+K to search": ="" → ="love one another"
+~ [r11] button: name "Go to Passage" → ""
++ [r88] button "Go to Passage"
+~ [r83] dialog "Theme": -focused
+~ [r66] complementary "Study panel": 2 changed, +22, -11; first: [r89] button "Search"
 $ drive check
-check: 1 issue
+check: 2 issues
 unnamed 1: [r11] button has no accessible name
+modal-background 1: [r83] dialog "Theme" modal 57 controls behind the open modal are not inert/aria-hidden (screen readers still reach them)
+$ drive errors
+none new
 $ drive log --playwright
-wrote /tmp/bible-ui-driver/default/repro.spec.ts (6 steps; review locators before committing)
+wrote $DRIVE_DIR/repro.spec.ts (7 steps; review locators before committing)
+$ drive stop
+stopped session default (7 commands; transcript $DRIVE_DIR/transcript.jsonl)
 ```
+
+(`r179` was a typo; it now answers `unknown ref r179 (refs so far: r1..r87)`. A ref whose element is gone answers `stale ref r12 (was button "Save")`.)
 
 ## When to use a screenshot instead
 

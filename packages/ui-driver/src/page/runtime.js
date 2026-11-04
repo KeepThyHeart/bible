@@ -29,6 +29,10 @@
   let scopedWalk = false;
   let walks = 0;
   let visibleOnly = false;
+  let scopeRoot = null;
+  /** Refs emitted by the last full walk: what audits look at (an older ref may sit under aria-hidden). */
+  let lastSeen = new Set();
+  let walkClaimed = new Set();
 
   const INTERACTIVE = new Set([
     'button', 'link', 'textbox', 'searchbox', 'combobox', 'checkbox', 'radio', 'switch', 'slider',
@@ -269,7 +273,8 @@
   function refFor(el, sig, claimed) {
     let r = byEl.get(el);
     if (r && refs.get(r) && refs.get(r).deref() === el) {
-      if (!scopedWalk) sigOf.set(r, sig);
+      if (!scopedWalk) { sigOf.delete(r); sigOf.set(r, sig); }
+      claimed.add(r);
       return r;
     }
     const cands = seedSigs.get(sig);
@@ -293,6 +298,7 @@
   function walk(rootEl) {
     const active = deepActive();
     const claimed = new Set();
+    walkClaimed = claimed;
     // sig counts per parent so equal siblings get distinct signatures
     function visit(el, parentRef, out, sibCounts) {
       if (el.nodeType === 3) {
@@ -342,8 +348,9 @@
         const kids = [];
         visitChildren(el, ref, kids, new Map());
         if (kids.length) node.children = kids;
-      } else if (el.tagName === 'SELECT' && node.states && node.states.includes('expanded')) {
-        // closed native selects: options are not listed (value shows the choice)
+      } else if (el.tagName === 'SELECT' && el === scopeRoot) {
+        // native selects list their options only when snapshotted on their own
+        node.children = Array.from(el.options).slice(0, 50).map((o) => ({ role: 'option', name: clip(squash(o.label), NAME_MAX), ...(o.selected ? { states: ['selected'] } : {}) }));
       }
       out.push(node);
     }
@@ -409,13 +416,13 @@
   function snap(opts) {
     opts = opts || {};
     if (opts.nextRef && opts.nextRef > counter) counter = opts.nextRef;
-    if (opts.seed && walks === 0) seed(opts.seed);
-    else {
-      // adoption candidates: refs from the previous walk in this document
-      const m = {};
-      for (const [r, s] of sigOf) m[r] = s;
-      seed(m);
-    }
+    // Node's memory seeds a fresh document (after a reload) once.
+    if (opts.seed && walks === 0) for (const r in opts.seed) if (!sigOf.has(r)) sigOf.set(r, opts.seed[r]);
+    // Adoption candidates: every ref seen in this session, not only the last walk, so an
+    // element that was briefly absent (a view re-rendering) gets its old ref back.
+    const m = {};
+    for (const [r, s] of sigOf) m[r] = s;
+    seed(m);
     let rootEl = document.documentElement;
     if (opts.scope) {
       const el = resolveRaw(opts.scope);
@@ -425,9 +432,22 @@
     walks++;
     visibleOnly = !!opts.visible;
     scopedWalk = !!opts.scope || visibleOnly;
-    if (!scopedWalk) sigOf.clear();
-    const root = walk(rootEl);
+    scopeRoot = opts.scope ? rootEl : null;
+    let root = null;
+    let behind = 0;
+    if (visibleOnly && !opts.scope) {
+      const modal = openModal();
+      if (modal) {
+        root = walk(modal);
+        behind = 1;
+      }
+    }
+    if (!root) root = walk(rootEl);
+    if (!scopedWalk) lastSeen = walkClaimed;
     scopedWalk = false;
+    if (sigOf.size > 4000) {
+      for (const r of sigOf.keys()) { if (sigOf.size <= 3000) break; if (isDead(r)) sigOf.delete(r); }
+    }
     // keep sigs of refs not seen this walk (e.g. outside the scope) for adoption
     const sigs = {};
     for (const [r, s] of sigOf) sigs[r] = s;
@@ -435,7 +455,7 @@
     const focus = a && a !== document.body && a !== document.documentElement ? (byEl.get(a) || 'unref') : 'body';
     return {
       url: location.href, title: document.title, vw: innerWidth, vh: innerHeight,
-      focus, root, nextRef: counter, sigs,
+      focus, root, nextRef: counter, sigs, ...(behind ? { modalOnly: true } : {}),
     };
   }
 
@@ -484,6 +504,10 @@
     if (cls.length) d += '.' + cls.join('.');
     const tid = el.getAttribute('data-testid');
     if (tid) d += '[testid=' + tid + ']';
+    for (let a = el.parentElement, i = 0; a && i < 8; a = a.parentElement, i++) {
+      const ar = byEl.get(a);
+      if (ar && resolveRaw(ar) === a) return d + ' in ' + describe(a);
+    }
     return d;
   }
 
@@ -551,8 +575,9 @@
 
   function liveRefEls() {
     const out = [];
-    for (const [r, w] of refs) {
-      const el = w.deref();
+    for (const r of lastSeen) {
+      const w = refs.get(r);
+      const el = w && w.deref();
       if (el && el.isConnected && !hidden(el)) out.push([r, el]);
     }
     return out;
@@ -570,6 +595,31 @@
       return m;
     }
     return null;
+  }
+
+  /** The nearest fixed or sticky ancestor (or self), else null. Cached per audit. */
+  let pinCache = new WeakMap();
+  function pinned(el) {
+    if (pinCache.has(el)) return pinCache.get(el);
+    let res = null;
+    for (let a = el; a && a !== document.documentElement; a = a.parentElement) {
+      const pos = getComputedStyle(a).position;
+      if (pos === 'fixed' || pos === 'sticky') { res = a; break; }
+    }
+    pinCache.set(el, res);
+    return res;
+  }
+
+  /** Line boxes cut to the visible (clipped) rect. */
+  function cut(list, c) {
+    return list.map((r) => ({ left: Math.max(r.left, c.left), right: Math.min(r.right, c.right), top: Math.max(r.top, c.top), bottom: Math.min(r.bottom, c.bottom) }))
+      .map((r) => ({ ...r, width: r.right - r.left, height: r.bottom - r.top }))
+      .filter((r) => r.width > 1 && r.height > 1);
+  }
+
+  function boxes(el) {
+    const list = Array.from(el.getClientRects()).filter((r) => r.width > 1 && r.height > 1);
+    return list.length ? list : [el.getBoundingClientRect()];
   }
 
   /** The element's rect cut by every ancestor that clips overflow; null when nothing is left. */
@@ -593,6 +643,7 @@
   const EN_WORDS = new Set(['the', 'and', 'of', 'to', 'your', 'with', 'for', 'this', 'that', 'is', 'are', 'you', 'not', 'from', 'settings', 'search', 'open', 'close', 'cancel', 'save', 'delete', 'loading', 'please', 'select', 'show', 'hide']);
 
   function audit(kinds) {
+    pinCache = new WeakMap();
     const want = new Set(kinds);
     const items = [];
     const vw = document.documentElement.clientWidth || innerWidth;
@@ -661,14 +712,24 @@
       const topmost = [];
       let n = 0;
       for (const [r, el, b] of inView) {
-        const cx = Math.min(Math.max(b.left + b.width / 2, 0), vw - 1);
-        const cy = Math.min(Math.max(b.top + b.height / 2, 0), vh - 1);
+        // first line box: the centre of a wrapped inline element's bounding box can sit on other text
+        const fb = boxes(el)[0];
+        const cx = Math.min(Math.max(Math.max(fb.left, b.left) + Math.min(fb.width, b.width) / 2, 0), vw - 1);
+        const cy = Math.min(Math.max(Math.max(fb.top, b.top) + Math.min(fb.height, b.height) / 2, 0), vh - 1);
         let hit = document.elementFromPoint(cx, cy);
         while (hit && hit.shadowRoot) { const inner = hit.shadowRoot.elementFromPoint(cx, cy); if (!inner || inner === hit) break; hit = inner; }
         if (!hit || hit === el || el.contains(hit) || hit.contains(el) ||
           (el.labels && Array.from(el.labels).some((l) => l.contains(hit))) || (hit.tagName === 'LABEL' && hit.control === el)) {
           topmost.push([r, el, b]);
           continue;
+        }
+        // scrolling content passing under fixed/sticky chrome is normal
+        // (a small fixed bar); a fixed layer over most of the screen (a scrim) is reported
+        const pin = pinned(hit);
+        if (pin && !pinned(el)) {
+          const pr = pin.getBoundingClientRect();
+          const bar = pr.width >= 0.9 * vw || pr.height >= 0.9 * vh;
+          if (bar && pr.width * pr.height < 0.4 * vw * vh) continue;
         }
         if (n++ < 15) items.push({ kind: 'covered', ref: r, detail: 'center hit ' + describe(hit) });
       }
@@ -678,10 +739,21 @@
         for (let j = i + 1; j < topmost.length && m < 10; j++) {
           const [ra, ea, a] = topmost[i]; const [rb, eb, bb] = topmost[j];
           if (ea.contains(eb) || eb.contains(ea)) continue;
-          const w = Math.min(a.right, bb.right) - Math.max(a.left, bb.left);
-          const h = Math.min(a.bottom, bb.bottom) - Math.max(a.top, bb.top);
-          if (w <= 1 || h <= 1) continue;
-          const area = w * h;
+          if (pinned(ea) !== pinned(eb)) {
+            const pin = pinned(ea) || pinned(eb);
+            const pr = pin.getBoundingClientRect();
+            if ((pr.width >= 0.9 * vw || pr.height >= 0.9 * vh) && pr.width * pr.height < 0.4 * vw * vh) continue;
+          }
+          // per line box: wrapped inline elements have rects that do not overlap although their bounding boxes do
+          let area = 0;
+          const ra2 = cut(boxes(ea), a); const rb2 = cut(boxes(eb), bb);
+          for (const x of ra2) for (const y of rb2) {
+            const w = Math.min(x.right, y.right) - Math.max(x.left, y.left);
+            const h = Math.min(x.bottom, y.bottom) - Math.max(x.top, y.top);
+            // lines of adjacent inline text overlap a little vertically (content box > line height): not a bug
+            if (w > 1 && h > 0.5 * Math.min(x.height, y.height)) area += w * h;
+          }
+          if (!area) continue;
           const small = Math.min(a.width * a.height, bb.width * bb.height);
           if (area / small < 0.25) continue;
           items.push({ kind: 'overlap', ref: ra, detail: Math.round(100 * area / small) + '% with [' + rb + ']' });

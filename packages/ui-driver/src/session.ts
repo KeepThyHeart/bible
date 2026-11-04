@@ -100,6 +100,10 @@ export class Session implements Executor {
     if (app) await app.close().catch(() => undefined);
   }
 
+  private name(): string {
+    return path.basename(this.sessionDir);
+  }
+
   private page(): Page | undefined {
     return this.pages[this.cur];
   }
@@ -118,7 +122,7 @@ export class Session implements Executor {
       case 'stop': {
         const n = this.transcript?.entries().length ?? 0;
         await this.shutdown();
-        return ok(`stopped (${n} commands; transcript ${path.join(this.sessionDir, 'transcript.jsonl')})`);
+        return ok(`stopped session ${this.name()} (${n} commands; transcript ${path.join(this.sessionDir, 'transcript.jsonl')})`);
       }
       case 'status': return ok(this.status());
       case 'snapshot': return this.snapshotCmd(cmd);
@@ -239,15 +243,20 @@ export class Session implements Executor {
     await this.settle(p, 2000);
     const s = await this.snap(p);
     this.setBase(s);
-    return ok(`started ${app.info} in ${((Date.now() - t0) / 1000).toFixed(1)}s\n${headerLine(s)}`);
+    const modal = await p.evaluate(() => {
+      const m = document.querySelector('dialog[open], [aria-modal="true"]');
+      return m ? window.__uid.describe(window.__uid.refOf(m) ?? '') : null;
+    }).catch(() => null);
+    return ok(`started ${app.info} in ${((Date.now() - t0) / 1000).toFixed(1)}s (session ${this.name()})\n${headerLine(s)}` +
+      (modal ? `\n! modal open: ${modal}` : ''));
   }
 
   private status(): string {
-    if (!this.app) return 'idle: drive start web|desktop';
+    if (!this.app) return `session ${this.name()} idle: drive start web|desktop`;
     const p = this.page();
     const n = this.transcript?.entries().length ?? 0;
     const errs = this.errors.since(this.errMarkCmd).length;
-    return `running ${this.app.info}; page ${this.cur}/${this.pages.length} ${p ? shortUrl(p.url()) : '-'}; ${n} commands; ${errs} new errors`;
+    return `session ${this.name()} running ${this.app.info}; page ${this.cur}/${this.pages.length} ${p ? shortUrl(p.url()) : '-'}; ${n} commands; ${errs} new errors`;
   }
 
   // ------------------------------------------------------------------ snapshots
@@ -300,6 +309,7 @@ export class Session implements Executor {
     const el = h.asElement();
     if (!el) {
       await h.dispose();
+      if (!this.lines.has(ref) && Number(ref.slice(1)) >= this.nextRef) throw new Fail(`unknown ref ${ref} (refs so far: r1..r${this.nextRef - 1}); run snapshot or find`);
       throw new Fail(`stale ref ${ref}${this.was(ref)}: element gone; run snapshot`);
     }
     return el as ElementHandle<Element>;
@@ -534,9 +544,10 @@ export class Session implements Executor {
       list.push(it);
       by.set(it.kind, list);
     }
-    if (!items.length) return ok(`check: clean (${kinds.join(' ')})`);
-    const lines = [`check: ${items.length} issue${items.length > 1 ? 's' : ''}`];
+    const issues = items.filter(it => !it.kind.startsWith('info-')).length;
+    const lines = [issues ? `check: ${issues} issue${issues > 1 ? 's' : ''}` : `check: clean (${kinds.join(' ')})`];
     for (const [kind, list] of by) {
+      if (kind.startsWith('info-')) { lines.push(`${kind.slice(5)}: ${list.map(it => it.detail).join('; ')}`); continue; }
       const shown = list.slice(0, 5).map(it => {
         const who = it.ref ? `[${it.ref}]${this.lines.get(it.ref) ? ' ' + this.lines.get(it.ref)!.replace(/^\[r\d+\] /, '').slice(0, 40) : ''}` : it.el ?? '';
         return who ? `${who} ${it.detail}` : it.detail;
@@ -564,11 +575,17 @@ export class Session implements Executor {
     }
   }
 
+  /**
+   * Presses Tab until focus wraps (up to 80 presses) and reports the order as info,
+   * plus invisible stops and short cycles outside a modal (traps). Focus is put back.
+   */
   private async tabWalk(p: Page): Promise<AuditItem[]> {
+    const before = await p.evaluate(() => window.__uid.focusRef());
     await p.evaluate(() => { (document.activeElement as HTMLElement | null)?.blur?.(); });
     const stops: string[] = [];
     const items: AuditItem[] = [];
-    for (let i = 0; i < 30; i++) {
+    let wrapped = false;
+    for (let i = 0; i < 80; i++) {
       await p.keyboard.press('Tab');
       const f = await p.evaluate(() => {
         const a = document.activeElement as HTMLElement | null;
@@ -578,22 +595,24 @@ export class Session implements Executor {
         if (!ref) { window.__uid.snap({}); ref = window.__uid.refOf(a); }
         return { ref: ref ?? window.__uid.describeAt(b.left + 1, b.top + 1), vis: a.checkVisibility() && b.width > 0 && b.height > 0 };
       });
+      if (stops.length && (f.ref === stops[0] || (f.ref === 'body' && stops.some(x => x !== 'body')))) { wrapped = true; break; }
       if (!f.vis) items.push({ kind: 'tab-hidden', detail: `stop ${i + 1} is invisible: ${f.ref}` });
       stops.push(f.ref);
     }
     const distinct = new Set(stops);
-    // period of the tail of the sequence: a short cycle while more is focusable is a trap
-    let period = 0;
-    for (let k = 1; k <= 10; k++) {
-      const tail = stops.slice(-k * 2);
-      if (tail.length === k * 2 && tail.slice(0, k).join() === tail.slice(k).join()) { period = k; break; }
+    if (!wrapped) {
+      let period = 0;
+      for (let k = 1; k <= 10; k++) {
+        const tail = stops.slice(-k * 2);
+        if (tail.length === k * 2 && tail.slice(0, k).join() === tail.slice(k).join()) { period = k; break; }
+      }
+      const modal = await p.evaluate(() => !!document.querySelector('dialog[open]:modal, [aria-modal="true"]'));
+      if (period && period <= 3 && !modal) items.push({ kind: 'tab-trap', detail: `Tab cycles over ${stops.slice(-period).join(' ')}` });
     }
-    const modal = await p.evaluate(() => !!document.querySelector('dialog[open]:modal, [aria-modal="true"]'));
-    if (period && period <= 3 && !modal) {
-      items.push({ kind: 'tab-trap', detail: `Tab cycles over ${stops.slice(-period).join(' ')}` });
-    }
-    if (distinct.size === 1 && stops[0] === 'body') items.push({ kind: 'tab-none', detail: 'Tab never focuses anything' });
-    items.push({ kind: 'tab-order', detail: `${distinct.size} stops: ${[...distinct].slice(0, 12).join(' ')}${distinct.size > 12 ? ' …' : ''}` });
+    if (distinct.size === 0 || (distinct.size === 1 && stops[0] === 'body')) items.push({ kind: 'tab-none', detail: 'Tab never focuses anything' });
+    const order = [...distinct].filter(x => x !== 'body');
+    items.push({ kind: 'info-tab', detail: `${order.length} stops${wrapped ? ', wraps' : ' (stopped at 80, no wrap)'}: ${order.slice(0, 15).join(' ')}${order.length > 15 ? ' …' : ''}` });
+    if (/^r\d+$/.test(before)) await p.evaluate((r) => (window.__uid.resolve(r) as HTMLElement | null)?.focus?.(), before).catch(() => undefined);
     const s = await this.snap(p);
     this.setBase(s);
     return items;

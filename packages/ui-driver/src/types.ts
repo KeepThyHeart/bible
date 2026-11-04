@@ -124,6 +124,8 @@ export interface PageSnapshot {
   nextRef: number;
   /** ref -> signature for every ref in this walk; seeds re-adoption after a reload. */
   sigs: Record<string, string>;
+  /** `--visible` with a modal open: only the modal was walked. */
+  modalOnly?: boolean;
 }
 
 /** How a ref'd element can be found again by a Playwright script. */

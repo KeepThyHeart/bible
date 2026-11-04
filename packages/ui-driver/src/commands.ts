@@ -19,7 +19,7 @@ const USAGE: Record<string, string> = {
   help: 'help [CMD]',
   snapshot: 'snapshot [rN] [--depth N] [--max N] [--visible] [--all]   (snap, s)',
   diff: 'diff',
-  find: 'find TEXT... [--role ROLE]',
+  find: 'find [TEXT...] [--role ROLE]   (TEXT optional with --role)',
   click: `click rN [--right] ${ACT}`,
   dblclick: `dblclick rN ${ACT}`,
   hover: `hover rN ${ACT}`,
@@ -191,7 +191,7 @@ function build(argv: string[]): Command {
     }
     case 'find': {
       const { pos, f } = parseFlags(rest, { role: 'str' }, u());
-      need(pos.length > 0);
+      need(pos.length > 0 || !!f.role);
       const c: Extract<Command, { name: 'find' }> = { name: 'find', text: pos.join(' ') };
       if (f.role) c.role = String(f.role);
       return c;

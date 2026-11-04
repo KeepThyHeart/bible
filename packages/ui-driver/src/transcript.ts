@@ -132,7 +132,11 @@ function step(e: TranscriptEntry, target: ReproTarget): string[] {
     }
     case 'goto': {
       const url = pos[0] ?? '';
-      const abs = /^[a-z][a-z0-9+.-]*:/i.test(url) || target.kind !== 'web' ? url : new URL(url, target.baseUrl).href;
+      if (target.kind !== 'web') return [`await page.goto(${j(url)});`];
+      const abs = /^[a-z][a-z0-9+.-]*:/i.test(url) ? url : new URL(url, target.baseUrl).href;
+      // same origin: relative to BASE, so the spec runs against any server
+      const origin = new URL(target.baseUrl).origin;
+      if (abs.startsWith(origin)) return [`await page.goto(BASE + ${j(abs.slice(origin.length) || '/')});`];
       return [`await page.goto(${j(abs)});`];
     }
     case 'back':
@@ -177,7 +181,9 @@ export function toPlaywright(entries: TranscriptEntry[], target: ReproTarget): s
   if (target.kind === 'web') {
     out.push(`import { test, expect } from '@playwright/test';`, '');
     if (target.viewport) out.push(`test.use({ viewport: { width: ${target.viewport.width}, height: ${target.viewport.height} } });`, '');
-    out.push(`test('ui-driver repro', async ({ page }) => {`, `  await page.goto(${j(target.baseUrl)});`, ...body.map(l => l.slice(2)), `});`);
+    out.push(`// Recorded against ${target.baseUrl}; set BASE_URL to run against another server.`,
+      `const BASE = process.env.BASE_URL ?? ${j(new URL(target.baseUrl).origin)};`, '');
+    out.push(`test('ui-driver repro', async ({ page }) => {`, `  await page.goto(BASE + ${j(new URL(target.baseUrl).pathname + new URL(target.baseUrl).search + new URL(target.baseUrl).hash)});`, ...body.map(l => l.slice(2)), `});`);
   } else {
     const oldProfile = target.env.ELECTRON_USER_DATA;
     out.push(

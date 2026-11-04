@@ -83,7 +83,8 @@ describe('toPlaywright', () => {
     for (const part of [
       "import { test, expect } from '@playwright/test';",
       'test.use({ viewport: { width: 1200, height: 800 } });',
-      'await page.goto("http://127.0.0.1:5173");',
+      'const BASE = process.env.BASE_URL ?? "http://127.0.0.1:5173";',
+      'await page.goto(BASE + "/");',
       '// snapshot: page "Read" 40 nodes',
       'await page.getByRole("button", { name: "Save", exact: true }).click();',
       'click({ button: "right" })',
@@ -101,7 +102,7 @@ describe('toPlaywright', () => {
       'await page.mouse.wheel(0, 600);',
       'await page.mouse.wheel(0, -600);',
       'scrollIntoViewIfNeeded()',
-      'await page.goto("http://127.0.0.1:5173/read/John.3");',
+      'await page.goto(BASE + "/read/John.3");',
       'await page.goto("https://example.com/x");',
       'goBack()',
       'goForward()',
