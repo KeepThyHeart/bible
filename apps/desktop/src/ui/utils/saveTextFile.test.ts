@@ -2,7 +2,8 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { saveTextFile } from './saveTextFile';
 
 describe('saveTextFile (B-078)', () => {
-  afterEach(() => { delete (window as unknown as { electron?: unknown }).electron; });
+  const original = (window as unknown as { electron?: unknown }).electron;
+  afterEach(() => { (window as unknown as { electron?: unknown }).electron = original; });
 
   it('asks main for a native save dialog instead of clicking a hidden link', async () => {
     const invoke = vi.fn().mockResolvedValue({ success: true, filePath: '/x/plan.ics' });
