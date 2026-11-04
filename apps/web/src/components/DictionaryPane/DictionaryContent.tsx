@@ -107,7 +107,7 @@ export function DictionaryContent({ tabId, bibleProvider }: DictionaryContentPro
       const index = highlightedIndex >= 0 && highlightedIndex < suggestions.length
         ? highlightedIndex
         : 0;
-      dictionaryStore.loadEntryInTab(tabId, suggestions[index].entry_key);
+      void dictionaryStore.pickTabSuggestion(tabId, suggestions[index]);
       dictionaryStore.clearTabSuggestions(tabId);
     }
   }, [suggestions, highlightedIndex, tabId]);
@@ -137,9 +137,9 @@ export function DictionaryContent({ tabId, bibleProvider }: DictionaryContentPro
                 <button
                   key={s.entry_key}
                   class={`dictionary-content__search-dropdown-item ${i === highlightedIndex ? 'dictionary-content__search-dropdown-item--highlighted' : ''}`}
-                  onClick={() => dictionaryStore.loadEntryInTab(tabId, s.entry_key)}
+                  onClick={() => dictionaryStore.pickTabSuggestion(tabId, s)}
                 >
-                  <span class="dictionary-pane__suggestion-word">{entryLabel(tab.moduleAbbr, s.word, s.entry_key)}</span>
+                  <span class="dictionary-pane__suggestion-word">{s.openStrongs ? s.word : entryLabel(tab.moduleAbbr, s.word, s.entry_key)}</span>
                   {s.transliteration && (
                     <span class="dictionary-pane__suggestion-translit">({s.transliteration})</span>
                   )}
@@ -327,9 +327,9 @@ export function DictionaryContent({ tabId, bibleProvider }: DictionaryContentPro
               <button
                 key={s.entry_key}
                 class={`dictionary-content__search-dropdown-item ${i === highlightedIndex ? 'dictionary-content__search-dropdown-item--highlighted' : ''}`}
-                onClick={() => dictionaryStore.loadEntryInTab(tabId, s.entry_key)}
+                onClick={() => dictionaryStore.pickTabSuggestion(tabId, s)}
               >
-                <span class="dictionary-pane__suggestion-word">{entryLabel(tab.moduleAbbr, s.word, s.entry_key)}</span>
+                <span class="dictionary-pane__suggestion-word">{s.openStrongs ? s.word : entryLabel(tab.moduleAbbr, s.word, s.entry_key)}</span>
                 {s.transliteration && (
                   <span class="dictionary-pane__suggestion-translit">({s.transliteration})</span>
                 )}

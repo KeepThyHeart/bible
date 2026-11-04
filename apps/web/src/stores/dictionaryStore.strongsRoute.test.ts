@@ -16,11 +16,16 @@ describe('dictionary tab search routes a Strong\'s number to its own lexicon', (
   });
   afterEach(() => vi.useRealTimers());
 
-  it('G26 typed in the Hebrew tab opens Strong\'s Greek G26', async () => {
+  it('G26 typed in the Hebrew tab offers "Open G26 in Strong\'s Greek" and opens it only when picked', async () => {
     dictionaryStore.addTab('StrongsHebrew', 'Strong\'s Hebrew');
     const hebrewId = dictionaryStore.activeTabId;
     dictionaryStore.setTabSearchQuery(hebrewId, 'G26');
     await vi.advanceTimersByTimeAsync(400);
+    // Nothing navigates on the pause alone
+    expect(dictionaryStore.activeTabId).toBe(hebrewId);
+    const top = dictionaryStore.getTabState(hebrewId).suggestions[0];
+    expect(top.word).toBe("Open G26 in Strong's Greek");
+    await dictionaryStore.pickTabSuggestion(hebrewId, top);
     const active = dictionaryStore.tabs.find(t => t.id === dictionaryStore.activeTabId)!;
     expect(active.moduleAbbr.toLowerCase()).toBe('strongsgreek');
     const urls = (globalThis.fetch as any).mock.calls.map((c: any[]) => String(c[0]));
@@ -28,11 +33,27 @@ describe('dictionary tab search routes a Strong\'s number to its own lexicon', (
     expect(urls.some((u: string) => /entry\/00026/.test(u))).toBe(true);
   });
 
-  it('H430 typed in the Greek tab opens Strong\'s Hebrew', async () => {
+  it('slow typing of G2..6 does not hijack the tab at G2', async () => {
+    dictionaryStore.addTab('StrongsHebrew', 'Strong\'s Hebrew');
+    const hebrewId = dictionaryStore.activeTabId;
+    dictionaryStore.setTabSearchQuery(hebrewId, 'G2');
+    await vi.advanceTimersByTimeAsync(500);
+    expect(dictionaryStore.activeTabId).toBe(hebrewId);
+    expect(dictionaryStore.getTabState(hebrewId).searchQuery).toBe('G2');
+    dictionaryStore.setTabSearchQuery(hebrewId, 'G26');
+    await vi.advanceTimersByTimeAsync(500);
+    expect(dictionaryStore.activeTabId).toBe(hebrewId);
+    expect(dictionaryStore.getTabState(hebrewId).suggestions[0].word).toBe("Open G26 in Strong's Greek");
+  });
+
+  it('H430 typed in the Greek tab offers the Hebrew lexicon', async () => {
     dictionaryStore.addTab('StrongsGreek', 'Strong\'s Greek');
     const greekId = dictionaryStore.activeTabId;
     dictionaryStore.setTabSearchQuery(greekId, 'h430');
     await vi.advanceTimersByTimeAsync(400);
+    const top = dictionaryStore.getTabState(greekId).suggestions[0];
+    expect(top.word).toBe("Open H430 in Strong's Hebrew");
+    await dictionaryStore.pickTabSuggestion(greekId, top);
     const active = dictionaryStore.tabs.find(t => t.id === dictionaryStore.activeTabId)!;
     expect(active.moduleAbbr.toLowerCase()).toBe('strongshebrew');
   });

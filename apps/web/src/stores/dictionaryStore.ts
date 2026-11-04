@@ -42,6 +42,8 @@ interface HomeSuggestion {
 /** Per-tab search result (within one dictionary) */
 interface TabSuggestion {
   entry_key: string;
+  /** Set on the "Open G26 in Strong's Greek" suggestion: the number to open in the other lexicon. */
+  openStrongs?: string;
   word: string;
   transliteration?: string;
   definition?: string;
@@ -420,12 +422,21 @@ class DictionaryStore extends Store {
 
     this.tabSearchTimers.set(tabId, setTimeout(async () => {
       // "G26" in the Hebrew lexicon (or "H430" in the Greek) can only mean the
-      // other one: open that entry rather than searching the wrong lexicon.
+      // other one: offer to open it. Never navigate on the pause itself, or a
+      // slow typist entering "G2" then "6" is thrown to G2 half-way.
       const other = otherLexiconNumber(tab.moduleAbbr, query);
       if (other) {
+        const toHebrew = other.startsWith('H');
+        state.suggestions = [{
+          entry_key: other,
+          openStrongs: other,
+          word: `Open ${other} in ${friendlyDictionaryName(toHebrew ? 'strongshebrew' : 'strongsgreek')}`,
+        }];
+        state.searchError = null;
+        state.searchLoading = false;
+        state.searchCompleted = true;
         this.tabSearchTimers.delete(tabId);
-        this.clearTabSuggestions(tabId);
-        await this.openStrongs(other);
+        this.notify();
         return;
       }
       try {
@@ -451,6 +462,16 @@ class DictionaryStore extends Store {
       this.tabSearchTimers.delete(tabId);
       this.notify();
     }, 300));
+  }
+
+  /** Open a picked suggestion: an entry in this tab, or (cross-lexicon) the number in the other lexicon. */
+  async pickTabSuggestion(tabId: string, s: TabSuggestion): Promise<void> {
+    if (s.openStrongs) {
+      this.clearTabSuggestions(tabId);
+      await this.openStrongs(s.openStrongs);
+      return;
+    }
+    await this.loadEntryInTab(tabId, s.entry_key);
   }
 
   /** Dismiss the search dropdown without loading an entry */
