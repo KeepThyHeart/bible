@@ -226,7 +226,12 @@ export function createDictionaryRoutes(db: DatabaseManager, siteSettings: SiteSe
 
       const result = repo.browseByLetter(letter || null, limit, offset);
       res.json({
-        entries: result.entries.map(e => ({ entry_key: e.entryKey, word: e.word })),
+        // Strong's rows keep the number in the word column; the head of the definition has the word (B-179).
+        entries: result.entries.map(e => {
+          const lang = strongsLanguageOf(moduleName);
+          const head = lang ? parseStrongsHead(repo.getEntryByKey(e.entryKey)?.definition ?? '', lang) : null;
+          return { entry_key: e.entryKey, word: head ? (head.word || head.transliteration) : e.word };
+        }),
         total: result.total,
         letter: letter || null,
       });

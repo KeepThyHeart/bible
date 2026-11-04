@@ -320,3 +320,14 @@ describe('Dictionary Routes - tolerant Strong\'s transliteration search', () => 
     expect(res.body.some((e: { entry_key: string; module_abbr: string }) => e.entry_key === '00430' && /hebrew/i.test(e.module_abbr))).toBe(true);
   });
 });
+
+// B-179: the Hebrew browse list showed bare H1, H2, H3 (the word column is the key).
+describe('Dictionary Routes - Strong\'s browse labels', () => {
+  it('gives Hebrew browse rows their transliteration', async () => {
+    const res = await request(app).get('/api/dictionary/strongshebrew/browse?limit=5');
+    expect(res.status).toBe(200);
+    expect(res.body.entries[0].entry_key).toBe('00001');
+    expect(res.body.entries[0].word).not.toBe('00001');
+    expect(res.body.entries.every((e: { word: string }) => !/^\d+$/.test(e.word))).toBe(true);
+  });
+});
