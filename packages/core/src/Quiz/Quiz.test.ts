@@ -276,6 +276,14 @@ describe('QuizEngine', () => {
     expect(chi, `positions ${counts.join('/')}`).toBeLessThan(16.27);
   });
 
+  it('never asks the same prompt twice in one quiz (B-066)', async () => {
+    const twin = { ...mc('m1b', 1, 2, 1), prompt: mc('m1', 1, 1, 1).prompt };
+    const engine = new QuizEngine(source([mc('m1', 1, 1, 1), twin, mc('m2', 1, 5, 2)]), new MemoryQuizProgressStore(), { now: () => NOW });
+    const quiz = await engine.buildQuiz({ passages: [chaptersPassage(MARK, 1, 1)], label: 'x', count: 5, seed: 1 });
+    const prompts = quiz.items.map((i) => i.question.prompt);
+    expect(new Set(prompts).size).toBe(prompts.length);
+  });
+
   it('merges several sources, first source winning a key', async () => {
     const a = source([mc('x', 1, 1, 1)]);
     const b = source([{ ...mc('x', 1, 1, 1), prompt: 'other' }, mc('y', 1, 2, 1)]);
