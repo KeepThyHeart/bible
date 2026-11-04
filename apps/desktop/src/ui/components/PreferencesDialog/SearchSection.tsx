@@ -17,6 +17,7 @@
 
 import React, { useEffect } from 'react';
 import { useI18n } from '../../contexts/useI18n';
+import { useNetworkStore } from '../../stores/useNetworkStore';
 import { useSearchStore } from '../../stores/useSearchStore';
 import { openModuleManager } from '../../utils/openModuleManager';
 import type { SemanticSource } from '../../services/electronAPI';
@@ -26,6 +27,7 @@ export const SearchSection: React.FC = () => {
   const status = useSearchStore((s) => s.remoteSemanticStatus);
   const refresh = useSearchStore((s) => s.refreshRemoteSemanticStatus);
   const setSource = useSearchStore((s) => s.setSemanticSource);
+  const { allowWebRequests } = useNetworkStore();
 
   useEffect(() => {
     void refresh();
@@ -87,15 +89,26 @@ export const SearchSection: React.FC = () => {
               'online',
               t('preferencesDialog.semanticOnline'),
               t('preferencesDialog.semanticOnlineHelp'),
-              onlineStatus ? (
-                <span
-                  className="block text-xs mt-0.5"
-                  style={{ color: 'var(--theme-text-secondary)' }}
-                  data-testid="remote-semantic-status"
-                >
-                  {onlineStatus}
-                </span>
-              ) : null,
+              <>
+                {onlineStatus ? (
+                  <span
+                    className="block text-xs mt-0.5"
+                    style={{ color: 'var(--theme-text-secondary)' }}
+                    data-testid="remote-semantic-status"
+                  >
+                    {onlineStatus}
+                  </span>
+                ) : null}
+                {!allowWebRequests ? (
+                  <span
+                    className="block text-xs mt-0.5"
+                    style={{ color: 'var(--theme-text-secondary)' }}
+                    data-testid="semantic-web-off"
+                  >
+                    {t('preferencesDialog.semanticWebOff')}
+                  </span>
+                ) : null}
+              </>,
             )}
           {option(
             'offline',

@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { SearchSection } from './SearchSection';
 
 let status: unknown = null;
+let allowWeb = true;
 const setSource = vi.fn();
 const refresh = vi.fn();
 const openModuleManager = vi.fn();
@@ -18,6 +19,9 @@ vi.mock('../../stores/useSearchStore', () => ({
   useSearchStore: (sel: (s: unknown) => unknown) =>
     sel({ remoteSemanticStatus: status, refreshRemoteSemanticStatus: refresh, setSemanticSource: setSource }),
 }));
+vi.mock('../../stores/useNetworkStore', () => ({
+  useNetworkStore: () => ({ allowWebRequests: allowWeb }),
+}));
 vi.mock('../../utils/openModuleManager', () => ({ openModuleManager: (...a: unknown[]) => openModuleManager(...a) }));
 
 const st = (extra = {}) => ({
@@ -25,12 +29,26 @@ const st = (extra = {}) => ({
 });
 
 beforeEach(() => {
+  allowWeb = true;
   setSource.mockReset();
   refresh.mockReset();
   openModuleManager.mockReset();
 });
 
 describe('SearchSection', () => {
+  it('B-161: says so on the Online option while web requests are off', () => {
+    status = st();
+    allowWeb = false;
+    render(<SearchSection />);
+    expect(screen.getByTestId('semantic-web-off')).toHaveTextContent('semanticWebOff');
+  });
+
+  it('B-161: no web-off note while web requests are on', () => {
+    status = st();
+    render(<SearchSection />);
+    expect(screen.queryByTestId('semantic-web-off')).toBeNull();
+  });
+
   it('offers online, on this computer and off; online is the default', () => {
     status = st();
     render(<SearchSection />);
