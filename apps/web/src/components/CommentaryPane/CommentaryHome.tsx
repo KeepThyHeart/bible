@@ -4,6 +4,7 @@ import { offlineStore } from '../../stores/offlineStore';
 import { commentaryStore } from '../../stores/commentaryStore';
 import { bibleStore } from '../../stores/bibleStore';
 import { moduleStore, getCommentaryPopularity } from '../../stores/moduleStore';
+import { getLocalizedBookName } from '../../utils/bookNames';
 import { useStore } from '../../hooks/useStore';
 import { useLocalizer } from '../../hooks/useLocalizer';
 import { useVersePopup } from '../../hooks/useVersePopup';
@@ -154,7 +155,7 @@ export function CommentaryHome({ bibleProvider }: CommentaryHomeProps) {
     );
   }
 
-  const bookName = moduleStore.getBookName(syncedBook) || `Book ${syncedBook}`;
+  const bookName = getLocalizedBookName(syncedBook);
   const verseNum = highlightedVerse
     ? highlightedVerse - (syncedBook * 1000000) - (syncedChapter * 1000)
     : null;

@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useVersePopup } from '../../hooks/useVersePopup';
 import { commentaryStore, HOME_TAB_ID } from '../../stores/commentaryStore';
 import { bibleStore } from '../../stores/bibleStore';
-import { moduleStore } from '../../stores/moduleStore';
+import { getLocalizedBookName } from '../../utils/bookNames';
 import { settingsStore } from '../../stores/settingsStore';
 import { useStore } from '../../hooks/useStore';
 import { processCommentaryLinks } from '../../../../../packages/core/src/Services/CommentaryLinkProcessor';
@@ -225,7 +225,7 @@ export function CommentaryContent({ bibleProvider }: CommentaryContentProps) {
       {pinned && (() => {
         const bibleTab = bibleStore.getActiveTab();
         if (!bibleTab?.book || !bibleTab?.chapter) return null;
-        const bibleBookName = moduleStore.getBookName(bibleTab.book);
+        const bibleBookName = getLocalizedBookName(bibleTab.book);
         const currentVerse = bibleTab.previewVerse ?? bibleTab.studyVerse;
         const bibleVerse = currentVerse ? currentVerse % 1000 : null;
         const bibleRef = bibleVerse
