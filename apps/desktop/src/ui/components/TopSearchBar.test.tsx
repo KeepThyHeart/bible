@@ -232,6 +232,11 @@ describe('TopSearchBar', () => {
       expect(screen.getByTestId('search-input').className).toContain('pe-36');
     });
 
+    it('B-045: idle box reserves room for the Ctrl+L chip plus the options button (7rem)', () => {
+      renderWithProviders(<TopSearchBar />);
+      expect(screen.getByTestId('search-input').className).toContain('pe-28');
+    });
+
     // The pane counts semantic hits in semantic mode; the badge above it must
     // count the same thing rather than the keyword set left underneath.
     it('counts semantic results while in semantic mode', () => {

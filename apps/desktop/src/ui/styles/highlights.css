@@ -50,6 +50,29 @@
    text stays readable; a fixed dark text colour here measured about 2:1 (B-103). The
    pairs are held to AA by themeContrast.test.ts. */
 
+/* Red-letter words on a highlight wash (themeContrast.test.ts holds these to AA).
+   The theme's red is tuned for the bare page; over a tinted wash it fell to 1.9-3.3:1
+   on the dark themes and 4.47 on Ocean, so a highlighted word of Christ uses a
+   lighter (dark themes) or deeper (Ocean) red of the same hue. */
+[data-theme="dark"] .word.christ-words[class*="highlight-"]:not(.no-red-letter .christ-words) {
+  color: #facbca;
+}
+[data-theme="midnight"] .word.christ-words[class*="highlight-"]:not(.no-red-letter .christ-words) {
+  color: #fcbbbb;
+}
+[data-theme="slate"] .word.christ-words[class*="highlight-"]:not(.no-red-letter .christ-words) {
+  color: #fcc1c1;
+}
+[data-theme="sunset"] .word.christ-words[class*="highlight-"]:not(.no-red-letter .christ-words) {
+  color: #fccaca;
+}
+[data-theme="high-contrast"] .word.christ-words[class*="highlight-"]:not(.no-red-letter .christ-words) {
+  color: #ffa1a1;
+}
+[data-theme="ocean"] .word.christ-words[class*="highlight-"]:not(.no-red-letter .christ-words) {
+  color: #c01d39;
+}
+
 /* Underline styles */
 .word.underline-solid {
   text-decoration-line: underline !important;

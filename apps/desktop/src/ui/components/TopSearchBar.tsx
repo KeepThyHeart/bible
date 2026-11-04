@@ -704,7 +704,7 @@ const TopSearchBar = forwardRef<TopSearchBarHandle>(function TopSearchBar(_props
           }}
           placeholder={t('searchBar.unifiedPlaceholder')}
           data-testid="search-input"
-          className={`w-full ps-10 ${showResultCountBadge ? 'pe-36' : 'pe-24'} py-2 text-sm border rounded-lg transition-colors ${
+          className={`w-full ps-10 ${showResultCountBadge ? 'pe-36' : 'pe-28'} py-2 text-sm border rounded-lg transition-colors ${
             ringClass || (error ? 'border-danger' : 'border-border')
           } ${isSearching ? 'bg-surface-secondary' : 'bg-surface'}`}
           aria-busy={isSearching}

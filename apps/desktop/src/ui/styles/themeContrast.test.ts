@@ -95,6 +95,8 @@ const RULES: Array<[string, string[], number]> = [
   ['text-primary', Object.keys(HL).map((k) => '@hl-' + k), 4.5],
   // What the user sees on a highlighted word (B-103): the verse text colour, or a fixed override in highlights.css.
   ['@word-on-highlight', Object.keys(HL).map((k) => '@hl-' + k), 4.5],
+  // Red-letter words on a highlighted word: the theme's christ colour, or the override in highlights.css.
+  ['@christ-on-highlight', Object.keys(HL).map((k) => '@hl-' + k), 4.5],
   // Notes "Saved" status label sits on the pane background (it used the raw success colour, below AA).
   ['success-text', ['bg-primary', 'bg-secondary', 'surface-elevated'], 4.5]
 ];
@@ -111,6 +113,18 @@ function wordOnHighlight(id: string, t: Record<string, RGB>): RGB {
     if (c) return parseHex(c[1]);
   }
   return t['text-primary'];
+}
+
+/** Colour of red-letter text inside a highlight: a per-theme override from highlights.css, else the theme's christ colour. */
+function christOnHighlight(id: string, t: Record<string, RGB>): RGB {
+  const re = /((?:\[data-theme="[a-z0-9-]+"\][^{},]*christ-words[^{},]*,?\s*|\[data-theme="[a-z0-9-]+"\][^{},]*highlight-[^{},]*,?\s*)+)\{([^}]*)\}/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(highlightsCss))) {
+    if (!m[1].includes(`[data-theme="${id}"]`) || !m[1].includes('christ-words')) continue;
+    const c = /(?:^|[;\s])color:\s*(#[0-9a-fA-F]{3,6})/.exec(m[2]);
+    if (c) return parseHex(c[1]);
+  }
+  return t['christ'];
 }
 
 function resolveBg(t: Record<string, RGB> & { _alpha?: number }, k: string): RGB | undefined {
@@ -133,7 +147,7 @@ describe('theme contrast (WCAG AA)', () => {
     const fails: string[] = [];
     for (const [fg, bgs, min] of RULES) {
       for (const b of bgs) {
-        const F = fg === '@word-on-highlight' ? wordOnHighlight(id, t) : t[fg];
+        const F = fg === '@word-on-highlight' ? wordOnHighlight(id, t) : fg === '@christ-on-highlight' ? christOnHighlight(id, t) : t[fg];
         const B = resolveBg(t, b);
         if (!F || !B) continue;
         const r = ratio(F, B);

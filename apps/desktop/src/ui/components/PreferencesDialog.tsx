@@ -200,7 +200,7 @@ const PreferencesDialog: React.FC<PreferencesDialogProps> = ({
                     ? 'var(--theme-accent-light)'
                     : 'transparent',
                   color: activeSection === section.id
-                    ? 'var(--theme-accent-primary)'
+                    ? 'var(--theme-accent-strong)' // AA on accent-light in every theme (themeContrast.test.ts); accent-primary fell to 3.95-4.24 in ten (B-107)
                     : 'var(--theme-text-secondary)'
                 }}
                 onMouseEnter={(e) => {
