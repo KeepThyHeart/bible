@@ -1488,6 +1488,15 @@ app.on('second-instance', (_event, argv) => {
   if (argv.includes('--hidden')) return;
   void showMainWindow();
 });
+// SIGTERM/SIGINT (stop scripts, logout) would otherwise end the process without
+// the window 'close' handler saving the session; route them through a normal quit (B-031).
+for (const signal of ['SIGTERM', 'SIGINT'] as const) {
+  process.on(signal, () => {
+    log.info(`[main] ${signal} received; quitting`);
+    app.quit();
+  });
+}
+
 app.on('before-quit', () => {
   quitRequested = true;
   // Persist pending last-used times of the asset registry (best effort; not awaited).

@@ -33,6 +33,10 @@ interface SessionState {
   updateSessionData: (partialData: Partial<SessionData>) => void;
 }
 
+/** Quiet period after the first change before the session is written (B-031). */
+const DIRTY_SAVE_DEBOUNCE_MS = 1500;
+let dirtySaveTimer: ReturnType<typeof setTimeout> | undefined;
+
 export const useSessionStore = create<SessionState>((set, get) => ({
   // Initial state
   currentSessionId: null,
@@ -139,6 +143,14 @@ export const useSessionStore = create<SessionState>((set, get) => ({
    */
   markDirty: () => {
     set({ isDirty: true });
+    // Do not wait for the 30 s interval: a layout change followed by a quick
+    // stop would otherwise restore the previous layout (B-031).
+    if (dirtySaveTimer === undefined && get().autoSaveEnabled && get().currentSessionId) {
+      dirtySaveTimer = setTimeout(() => {
+        dirtySaveTimer = undefined;
+        void get().saveCurrentSession();
+      }, DIRTY_SAVE_DEBOUNCE_MS);
+    }
   },
 
   /**
