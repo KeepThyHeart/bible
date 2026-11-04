@@ -1730,7 +1730,12 @@ export class PracticeView {
     this.summary = reply.data.summary;
     // The head is NOT redrawn here: the session has already advanced, but the review of the
     // step just graded is still on screen, so "Step N of M" must keep naming that step until
-    // Next/Finish (B-121). advance() and the Finish handler redraw it.
+    // Next/Finish (B-121). advance() and the Finish handler redraw it. The tally does not name
+    // a step, so it is refreshed now.
+    const tally = this.headEl.querySelector('.sm-step-tally');
+    if (tally) {
+      tally.textContent = tr('memory.ui.practice.rightFirstTime', '{count} right first time', { count: this.session.correctFirst });
+    }
     return { result: reply.data.result, summary: reply.data.summary };
   }
 

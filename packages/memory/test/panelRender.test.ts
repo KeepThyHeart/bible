@@ -1278,6 +1278,27 @@ describe('a missed word', () => {
     expect(meta()).toMatch(/^\D*2\D+2/);
   });
 
+  it('B-121: the right-first-time tally updates on submit while the step counter stays', async () => {
+    const step = blanksStep(PSALM_1_2, BLANKED);
+    host.handlers.submitStep = () => ({
+      ok: true,
+      data: {
+        result: stepResult({ correct: true, wrong: [], blocking: false }),
+        session: { ...session({ ...blanksStep(PSALM_1_2, BLANKED), stepNumber: 2 }), correctFirst: 1 },
+        summary: null,
+      },
+    });
+    const practice = await mountPractice(step);
+    const tally = () => practice.root.querySelector('.sm-step-tally')?.textContent ?? '';
+    expect(tally()).toMatch(/^0\b/);
+    const inputs = Array.from(practice.root.querySelectorAll<HTMLInputElement>('.sm-blank'));
+    inputs[0]!.value = 'his';
+    inputs[1]!.value = 'law';
+    practice.root.querySelector<HTMLButtonElement>('.sm-exercise-actions button')!.click();
+    await settle();
+    expect(tally()).toMatch(/^1\b/);
+  });
+
   it('shows the right word and the wrong answer beside it, both readable', async () => {
     const practice = await submitOneWrong();
     const text = spokenText(workingVerse(practice.root));
