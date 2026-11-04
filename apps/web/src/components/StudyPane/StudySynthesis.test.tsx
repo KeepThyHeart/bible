@@ -97,6 +97,11 @@ vi.mock('../../stores/commentaryStore', () => ({
   },
 }));
 
+let mockInstalled: Array<{ abbreviation: string }> = [];
+vi.mock('../../stores/moduleStore', () => ({
+  moduleStore: { getCommentaryModules: () => mockInstalled },
+}));
+
 import { StudySynthesis } from './StudySynthesis';
 
 type EntryData = { entry_id: number; content: string; verse_id_start: number; verse_id_end: number | null };
@@ -120,6 +125,17 @@ describe('StudySynthesis', () => {
     // Default: no entries
     mockFetchModuleEntries.mockResolvedValue([]);
     mockGetContentFormat.mockReturnValue('html');
+  });
+
+  it('does not ask for the digest when the installed commentaries do not include it (B-168)', async () => {
+    mockInstalled = [{ abbreviation: 'Barnes' }];
+    try {
+      render(<StudySynthesis />);
+      await act(async () => { await Promise.resolve(); });
+      expect(mockFetchModuleEntries).not.toHaveBeenCalled();
+    } finally {
+      mockInstalled = [];
+    }
   });
 
   // ------------------------------------------------------------------

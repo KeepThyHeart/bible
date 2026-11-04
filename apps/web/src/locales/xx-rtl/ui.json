@@ -123,6 +123,7 @@
     "ideasHint": "‏Ideas search tries to find passages by meaning, even if the wording is different.‏",
     "closeSearch": "‏Close search‏",
     "results": "‏{count, plural, one {# result} other {# results}}‏",
+    "resultsWithApproximate": "‏{count, plural, one {# result} other {# results}}, plus {approximate} approximate‏",
     "searching": "‏Searching...‏",
     "keywordBanner": "‏{count, plural, one {There is also # keyword match.} other {There are also # keyword matches.}}‏",
     "viewInstead": "‏View those instead?‏",
