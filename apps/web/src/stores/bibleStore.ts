@@ -477,6 +477,13 @@ class BibleStore extends Store {
         // translation omits) are left alone.
         const lastVerse = tab.verses.reduce((m, v) => Math.max(m, v.verse_id % 1000), 0);
         if (verse && lastVerse > 0 && verse > lastVerse) verse = lastVerse;
+        // A verse this translation omits (ASV Acts 8:37) is likewise nothing to
+        // highlight, while the study panes would name it: land on the next
+        // verse that is there.
+        if (verse && tab.verses.length > 0 && !tab.verses.some(v => v.verse_id % 1000 === verse)) {
+          const next = tab.verses.map(v => v.verse_id % 1000).filter(n => n > verse!).sort((a, b) => a - b)[0];
+          if (next !== undefined) verse = next;
+        }
         if (verse) {
           // Calculate full verseId — select the specific verse
           const verseId = (book * 1000000) + (chapter * 1000) + verse;
