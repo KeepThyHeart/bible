@@ -336,11 +336,16 @@ if (pipelineConfig) {
 
 // Remote semantic search through the server (`search.mode: 'remote'`, `via: 'server'`).
 // One client for the whole process, so its blockedUntil pause is shared by all users.
+// bibsearch sees only this server's IP, so its per-IP daily quota (and a quota_exceeded 429)
+// is genuinely shared by every user of the site. The pause is therefore capped at 5 minutes:
+// a transient 429/403/503 must not lock everyone out for the whole quota window (B-097);
+// the per-client daily limit in searchRoutes.ts keeps one user from spending the shared quota.
 const remoteSearchSettings = siteConfig.searchRemote;
 const remoteSemanticService = remoteSearchSettings?.via === 'server'
   ? new RemoteSemanticService(new RemoteSemantic.RemoteSemanticClient({
       baseUrl: remoteSearchSettings.url,
       apiKey: remoteSearchSettings.apiKey,
+      maxBlockSec: 300,
     }))
   : undefined;
 if (remoteSemanticService) logger.info('Semantic search: remote (bibsearch) via the server.');
