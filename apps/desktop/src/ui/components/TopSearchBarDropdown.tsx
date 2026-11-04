@@ -61,12 +61,13 @@ const TopSearchBarDropdown: React.FC<TopSearchBarDropdownProps> = ({
         <div className="px-3 py-2 text-xs font-semibold text-text-secondary border-b border-border bg-surface-secondary">
           {t('searchBar.commandMode.label')}
         </div>
-        <div className="divide-y divide-border">
+        <div id="search-listbox" role="listbox" aria-label={t('searchBar.commandMode.label')} className="divide-y divide-border">
           {commands.map((cmd, index) => (
             <TopSearchBarCommandResult
               key={cmd.id}
               command={cmd}
               isSelected={index === selectedIndex}
+              index={index}
               onClick={() => onSelectCommand?.(cmd.id)}
             />
           ))}
@@ -91,12 +92,14 @@ const TopSearchBarDropdown: React.FC<TopSearchBarDropdownProps> = ({
 
     return (
       <div data-testid="search-dropdown" className="absolute top-full mt-1 w-full bg-surface-elevated border border-border rounded-lg shadow-lg z-50">
+        <div id="search-listbox" role="listbox" aria-label={t('searchBar.commandMode.label')}>
         <TopSearchBarReferenceHint
           referenceText={referenceText}
           referenceTarget={referenceTarget}
           isSelected={selectedIndex === 0}
           onClick={() => onSelectReference?.()}
         />
+        </div>
         <div className="px-3 py-2 border-t border-border text-xs text-text-secondary text-center bg-surface-secondary">
           {tElements(t, 'searchBar.hintNavigateToReference', {
             key: <Kbd>{t('searchBar.enterKey')}</Kbd>,

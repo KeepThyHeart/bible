@@ -442,6 +442,12 @@ const TopSearchBar = forwardRef<TopSearchBarHandle>(function TopSearchBar(_props
     return 0;
   }, [mode, matchedCommands.length, showingSearchSuggestions, liveSuggestions.length]);
 
+  // The listbox is in the DOM only when the dropdown is up and no error panel
+  // replaced it (see the render below); combobox state must match that.
+  const listboxVisible = !error && itemCount > 0 && (
+    (showingDropdown && (mode !== 'command' || matchedCommands.length > 0)) || showingSearchSuggestions
+  );
+
   // --------------------------------------------------------------------------
   // Keyboard handler
   // --------------------------------------------------------------------------
@@ -641,6 +647,12 @@ const TopSearchBar = forwardRef<TopSearchBarHandle>(function TopSearchBar(_props
             ringClass || (error ? 'border-danger' : 'border-border')
           } ${isSearching ? 'bg-surface-secondary' : 'bg-surface'}`}
           aria-busy={isSearching}
+          role="combobox"
+          aria-autocomplete="list"
+          aria-haspopup="listbox"
+          aria-expanded={listboxVisible}
+          aria-controls={listboxVisible ? 'search-listbox' : undefined}
+          aria-activedescendant={listboxVisible && selectedIndex >= 0 && selectedIndex < itemCount ? `search-option-${selectedIndex}` : undefined}
         />
 
         {/* Right Side Icons */}
@@ -655,6 +667,8 @@ const TopSearchBar = forwardRef<TopSearchBarHandle>(function TopSearchBar(_props
             <div
               className="bg-accent text-text-on-accent text-xs font-semibold px-2 py-1 rounded"
               data-testid="search-result-count-badge"
+              role="status"
+              aria-label={t('searchBar.resultCountLabel', { count: badgeCount })}
             >
               {badgeCount}
             </div>

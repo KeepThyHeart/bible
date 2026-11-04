@@ -4,6 +4,8 @@ import type { CommandQueryResult } from '../types/Command';
 interface TopSearchBarCommandResultProps {
   command: CommandQueryResult;
   isSelected: boolean;
+  /** Position in the listbox; gives the option the id the input's aria-activedescendant points at. */
+  index: number;
   onClick: () => void;
 }
 
@@ -14,11 +16,16 @@ interface TopSearchBarCommandResultProps {
 const TopSearchBarCommandResult: React.FC<TopSearchBarCommandResultProps> = ({
   command,
   isSelected,
+  index,
   onClick,
 }) => {
   return (
     <button
       type="button"
+      id={`search-option-${index}`}
+      role="option"
+      aria-selected={isSelected}
+      tabIndex={-1}
       onMouseDown={(e) => {
         e.preventDefault();
         onClick();

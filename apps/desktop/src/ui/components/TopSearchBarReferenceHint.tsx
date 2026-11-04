@@ -24,6 +24,10 @@ const TopSearchBarReferenceHint: React.FC<TopSearchBarReferenceHintProps> = ({
   return (
     <button
       type="button"
+      id="search-option-0"
+      role="option"
+      aria-selected={isSelected}
+      tabIndex={-1}
       onMouseDown={(e) => {
         e.preventDefault();
         onClick();

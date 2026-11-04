@@ -25,9 +25,11 @@ vi.mock('../stores/useBibleStore', () => ({
   }),
 }));
 
+const mockCommandQuery = vi.hoisted(() => vi.fn().mockReturnValue([]));
+
 // Mock command hooks
 vi.mock('../contexts/useCommands', () => ({
-  useCommands: () => ({ query: vi.fn().mockReturnValue([]), execute: vi.fn() }),
+  useCommands: () => ({ query: mockCommandQuery, execute: vi.fn() }),
 }));
 
 vi.mock('../contexts/useWhenContext', () => ({
@@ -118,6 +120,23 @@ describe('TopSearchBar', () => {
   it('shows placeholder text', () => {
     renderWithProviders(<TopSearchBar />);
     expect(screen.getByPlaceholderText('searchBar.unifiedPlaceholder')).toBeInTheDocument();
+  });
+
+  it('is a combobox whose listbox state follows the dropdown (B-043)', async () => {
+    const services = createMockServices();
+    mockCommandQuery.mockReturnValue([{ id: 'a', title: 'Alpha' }, { id: 'b', title: 'Beta' }]);
+    Object.assign(mockSearchState, { ...defaultSearchState, query: '/' });
+    const user = userEvent.setup();
+    render(<ContextProvider services={services}><TopSearchBar /></ContextProvider>);
+    const input = screen.getByTestId('search-input');
+    expect(input).toHaveAttribute('role', 'combobox');
+    expect(input).toHaveAttribute('aria-expanded', 'false');
+    await user.click(input);
+    expect(input).toHaveAttribute('aria-expanded', 'true');
+    expect(input).toHaveAttribute('aria-controls', 'search-listbox');
+    await user.keyboard('{ArrowDown}');
+    expect(input.getAttribute('aria-activedescendant')).toMatch(/^search-option-\d+$/);
+    mockCommandQuery.mockReturnValue([]);
   });
 
   it('shows advanced search button', () => {

@@ -408,6 +408,7 @@
   "liveSearchSuggestions.emptyPrompt": "Type a Bible reference or search term and press Enter",
   "liveSearchSuggestions.topResults": "First matches",
   "liveSearchSuggestions.enterKey": "Enter",
+  "liveSearchSuggestions.listLabel": "Search suggestions",
   "liveSearchSuggestions.hints": "{navKeys} to navigate, {enterKey} to select or search",
   "liveSearchSuggestions.fuzzy": "Fuzzy",
   "liveSearchSuggestions.searching": "Searching for \"{query}\"...",
