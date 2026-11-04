@@ -258,7 +258,10 @@ const NewTabPage: React.FC<NewTabPageProps> = ({ panelId, dockviewPanelApi }) =>
       // B-028: a new Bible pane opens where the reader is (so two translations
       // or passages sit side by side), not on the app's blank default.
       const panels = useBibleStore.getState().panels; // allow-getstate: event handler - imperative store access outside render
-      const here = panels.get(DEFAULT_PANEL_ID) ?? panels.values().next().value;
+      // The Bible pane the reader was last on (this New Tab is not one), not the app's first/default pane (B-108).
+      const lastBibleId = useLayoutStore.getState().lastActiveBiblePanelId; // allow-getstate: event handler - imperative store access outside render
+      const here = (lastBibleId ? panels.get(lastBibleId) : undefined)
+        ?? panels.get(DEFAULT_PANEL_ID) ?? panels.values().next().value;
       if (here?.currentBook && here.currentChapter && here.currentBookName) {
         openPassage(here.currentBook, here.currentChapter, here.currentBookName, here.selectedVerseId ?? undefined);
         return;

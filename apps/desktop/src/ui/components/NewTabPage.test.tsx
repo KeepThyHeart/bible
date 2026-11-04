@@ -247,6 +247,23 @@ describe('NewTabPage', () => {
     expect(addPanel.mock.calls[0][1]).toBe('KJV|45|8|45008028|standard');
   });
 
+  // B-108: with two Bible tabs, the tile follows the tab being read, not the first one.
+  it('opens the Bible tile at the passage of the last active Bible pane', async () => {
+    const addPanel = vi.fn().mockReturnValue('bible_new');
+    useLayoutStore.setState({ dockviewApi: fakeDockview(), addPanel, lastActiveBiblePanelId: 'bible_mark' });
+    useBibleStore.setState({
+      panels: new Map([
+        [DEFAULT_PANEL_ID, { currentBook: 43, currentChapter: 15, currentBookName: 'John', selectedVerseId: 43015001, openTabs: [] } as never],
+        ['bible_mark', { currentBook: 41, currentChapter: 4, currentBookName: 'Mark', selectedVerseId: 41004001, openTabs: [] } as never],
+      ]),
+    });
+    const user = userEvent.setup();
+    renderPage(<NewTabPage panelId="test-panel" dockviewPanelApi={{} as never} />);
+    await user.click(screen.getByRole('button', { name: /^Bible$/i }));
+    expect(addPanel.mock.calls[0][1]).toBe('KJV|41|4|41004001|standard');
+    useLayoutStore.setState({ lastActiveBiblePanelId: null });
+  });
+
   it('renders the pane-arrangement hint at the bottom', () => {
     renderPage(<NewTabPage panelId="test-panel" />);
     expect(screen.getByText(/dragged by their tab/i)).toBeInTheDocument();
