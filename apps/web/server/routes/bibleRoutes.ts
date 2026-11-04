@@ -8,7 +8,7 @@ import { sendError, ErrorCodes } from '../utils/errorResponse.js';
 import { registerRoute } from './routeRegistry.js';
 import type { ServerHookRegistry } from '../plugins/ServerHooks.js';
 import { isModuleActive, type SiteSettings } from '../siteSettings.js';
-import { moduleVisibilityParam } from '../utils/moduleVisibility.js';
+import { moduleVisibilityParam, isNamedModuleVisible } from '../utils/moduleVisibility.js';
 
 export interface BibleRouteOptions {
   /** `ui.defaultModule` from site-config.json: the Bible a request that names none is answered in. */
@@ -81,7 +81,17 @@ export function createBibleRoutes(db: DatabaseManager, hooks?: ServerHookRegistr
     try {
       // Only an unnamed module falls back. A caller asking for a particular one
       // is told when it is missing, not quietly handed another translation.
-      const moduleAbbr = (req.query.module as string) || defaultBible();
+      // W-005/W-006: `?module=` bypasses router.param, so validate it and apply
+      // the same visibility rule here. No client sends it today (ServerDataProvider).
+      const requested = typeof req.query.module === 'string' ? req.query.module : '';
+      if (requested) {
+        if (!validateModuleName(requested)) { sendError(res, 400, ErrorCodes.INVALID_PARAM, 'Invalid module name'); return; }
+        if (!isNamedModuleVisible(options.siteSettings, 'bibles', requested)) {
+          sendError(res, 404, ErrorCodes.MODULE_NOT_FOUND, `Module not found: ${requested}`);
+          return;
+        }
+      }
+      const moduleAbbr = requested || defaultBible();
       if (!moduleAbbr) {
         sendError(res, 404, ErrorCodes.MODULE_NOT_FOUND, 'No Bible module is installed');
         return;
