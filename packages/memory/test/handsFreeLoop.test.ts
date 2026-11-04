@@ -941,6 +941,15 @@ describe('review fixes', () => {
     expect(s.act('listen').phase).toBe('error');
   });
 
+  it('B-137: a missing microphone says so instead of "in use by another app"', async () => {
+    const s = setup({ mode: 'tap', script: [{ say: V1 }, { error: 'mic-none' }] });
+    await until(() => s.view().phase === 'ready');
+    s.act('listen');
+    await until(() => s.view().phase === 'error');
+    expect(s.view().message).toMatch(/No microphone was found/);
+    expect(s.view().message).not.toMatch(/in use/);
+  });
+
   it('6. the summary for a single passage run is not "Nothing is due"', async () => {
     const s = setup({ mode: 'handsfree', cards: [] });
     await until(() => s.view().phase === 'done');

@@ -561,5 +561,6 @@
   "memory.ui.settings.practiceOnlyShort": "תרגול בלבד. שום דבר לא נבדק.",
   "memory.ui.plan.removeConfirmNew": "להסיר את הקטע מהרשימה שלך?",
   "memory.ui.plan.alreadyInList": "{reference} כבר ברשימה שלך.",
-  "memory.ui.plan.reciteHandsFreeNoVoice": "מצב ללא ידיים דורש שהיישום יוכל לדבר, ואין קול להקראת טקסט זמין במחשב זה."
+  "memory.ui.plan.reciteHandsFreeNoVoice": "מצב ללא ידיים דורש שהיישום יוכל לדבר, ואין קול להקראת טקסט זמין במחשב זה.",
+  "memory.core.micNone": "לא נמצא מיקרופון. חברו מיקרופון ונסו שוב."
 }

@@ -561,5 +561,6 @@
   "memory.ui.settings.practiceOnlyShort": "Somente prática. Nada foi avaliado.",
   "memory.ui.plan.removeConfirmNew": "Remover esta passagem da sua lista?",
   "memory.ui.plan.alreadyInList": "{reference} já está na sua lista.",
-  "memory.ui.plan.reciteHandsFreeNoVoice": "O modo mãos livres precisa que o aplicativo consiga falar, e nenhuma voz de conversão de texto em fala está disponível neste computador."
+  "memory.ui.plan.reciteHandsFreeNoVoice": "O modo mãos livres precisa que o aplicativo consiga falar, e nenhuma voz de conversão de texto em fala está disponível neste computador.",
+  "memory.core.micNone": "Nenhum microfone foi encontrado. Conecte um e tente novamente."
 }

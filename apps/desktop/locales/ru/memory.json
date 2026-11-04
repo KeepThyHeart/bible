@@ -561,5 +561,6 @@
   "memory.ui.settings.practiceOnlyShort": "Только практика. Ничего не оценивалось.",
   "memory.ui.plan.removeConfirmNew": "Убрать этот отрывок из вашего списка?",
   "memory.ui.plan.alreadyInList": "{reference} уже есть в вашем списке.",
-  "memory.ui.plan.reciteHandsFreeNoVoice": "Для режима без рук приложение должно уметь говорить, а на этом компьютере нет доступного голоса синтеза речи."
+  "memory.ui.plan.reciteHandsFreeNoVoice": "Для режима без рук приложение должно уметь говорить, а на этом компьютере нет доступного голоса синтеза речи.",
+  "memory.core.micNone": "Микрофон не найден. Подключите микрофон и повторите попытку."
 }

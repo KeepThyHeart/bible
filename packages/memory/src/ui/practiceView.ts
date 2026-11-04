@@ -1728,7 +1728,9 @@ export class PracticeView {
 
     this.session = reply.data.session;
     this.summary = reply.data.summary;
-    this.renderHead();
+    // The head is NOT redrawn here: the session has already advanced, but the review of the
+    // step just graded is still on screen, so "Step N of M" must keep naming that step until
+    // Next/Finish (B-121). advance() and the Finish handler redraw it.
     return { result: reply.data.result, summary: reply.data.summary };
   }
 
@@ -1766,6 +1768,7 @@ export class PracticeView {
       label,
       () => {
         if (summary !== null) {
+          this.renderHead();
           this.renderExercise();
           return;
         }

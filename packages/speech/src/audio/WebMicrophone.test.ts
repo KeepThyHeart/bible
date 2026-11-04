@@ -74,7 +74,7 @@ describe('WebMicrophone', () => {
       ['SecurityError', 'mic-denied'],
       ['NotReadableError', 'mic-busy'],
       ['OverconstrainedError', 'mic-busy'],
-      ['NotFoundError', 'mic-busy'],
+      ['NotFoundError', 'mic-none'],
     ] as const) {
       gum.mockRejectedValueOnce(Object.assign(new Error('x'), { name }));
       const err = await new WebMicrophone().open(opts, new AbortController().signal).catch((e) => e);

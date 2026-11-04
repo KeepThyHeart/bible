@@ -561,5 +561,6 @@
   "memory.ui.settings.practiceOnlyShort": "केवल अभ्यास। कुछ भी जाँचा नहीं गया।",
   "memory.ui.plan.removeConfirmNew": "इस अंश को अपनी सूची से हटाएँ?",
   "memory.ui.plan.alreadyInList": "{reference} पहले से आपकी सूची में है।",
-  "memory.ui.plan.reciteHandsFreeNoVoice": "हैंड्स-फ़्री के लिए ऐप का बोल पाना ज़रूरी है, और इस कंप्यूटर पर कोई टेक्स्ट-टू-स्पीच आवाज़ उपलब्ध नहीं है।"
+  "memory.ui.plan.reciteHandsFreeNoVoice": "हैंड्स-फ़्री के लिए ऐप का बोल पाना ज़रूरी है, और इस कंप्यूटर पर कोई टेक्स्ट-टू-स्पीच आवाज़ उपलब्ध नहीं है।",
+  "memory.core.micNone": "कोई माइक्रोफ़ोन नहीं मिला। एक कनेक्ट करें और फिर से प्रयास करें।"
 }

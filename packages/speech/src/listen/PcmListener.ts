@@ -34,10 +34,11 @@ const defaultTimer = (fn: () => void, ms: number): (() => void) => {
   return () => clearTimeout(h);
 };
 
-function micErrorCode(e: unknown): 'mic-denied' | 'mic-busy' {
+function micErrorCode(e: unknown): 'mic-denied' | 'mic-busy' | 'mic-none' {
   const x = e as { code?: string; name?: string } | null;
-  if (x?.code === 'mic-denied' || x?.code === 'mic-busy') return x.code;
-  if (x?.name === 'mic-denied' || x?.name === 'mic-busy') return x.name;
+  if (x?.code === 'mic-denied' || x?.code === 'mic-busy' || x?.code === 'mic-none') return x.code;
+  if (x?.name === 'mic-denied' || x?.name === 'mic-busy' || x?.name === 'mic-none') return x.name;
+  if (x?.name === 'NotFoundError') return 'mic-none';
   return x?.name === 'NotAllowedError' || x?.name === 'SecurityError' ? 'mic-denied' : 'mic-busy';
 }
 

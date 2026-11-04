@@ -1253,6 +1253,31 @@ describe('a missed word', () => {
     return practice;
   }
 
+  it('B-121: the step counter keeps naming the graded step until Next is pressed', async () => {
+    const step = blanksStep(PSALM_1_2, BLANKED);
+    host.handlers.submitStep = () => ({
+      ok: true,
+      data: {
+        result: stepResult({ correct: false, wrong: [1], blocking: false, reveal: { words: ['his', 'law'] } }),
+        // The session has already moved on to step 2 of 2.
+        session: session({ ...blanksStep(PSALM_1_2, BLANKED), stepNumber: 2 }),
+        summary: null,
+      },
+    });
+    const practice = await mountPractice(step);
+    const meta = () => practice.root.querySelector('.kth-crumbs__meta')?.textContent ?? '';
+    expect(meta()).toMatch(/1\D+2/);
+    const inputs = Array.from(practice.root.querySelectorAll<HTMLInputElement>('.sm-blank'));
+    inputs[0]!.value = 'his';
+    inputs[1]!.value = 'lore';
+    practice.root.querySelector<HTMLButtonElement>('.sm-exercise-actions button')!.click();
+    await settle();
+    expect(meta()).toMatch(/^\D*1\D+2/);
+    practice.root.querySelector<HTMLButtonElement>('.sm-exercise-actions button')!.click(); // Next
+    await settle();
+    expect(meta()).toMatch(/^\D*2\D+2/);
+  });
+
   it('shows the right word and the wrong answer beside it, both readable', async () => {
     const practice = await submitOneWrong();
     const text = spokenText(workingVerse(practice.root));

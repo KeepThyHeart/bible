@@ -96,6 +96,8 @@ function errorText(code: string): string | undefined {
       return tc('memory.core.micDenied', 'The microphone is blocked. Allow microphone access and try again.');
     case 'mic-busy':
       return tc('memory.core.micBusy', 'The microphone is in use by another app.');
+    case 'mic-none':
+      return tc('memory.core.micNone', 'No microphone was found. Connect one and try again.');
     case 'engine':
       return tc('memory.core.speechEngineFailed', 'Speech recognition stopped working. Try again.');
     case 'not-ready':
