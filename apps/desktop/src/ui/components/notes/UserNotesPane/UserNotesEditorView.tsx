@@ -143,7 +143,7 @@ const UserNotesEditorView: React.FC<UserNotesEditorViewProps> = ({
         {/* Auto-save status indicator */}
         {(isSaving || !editorIsDirty) && (
           <span
-            className={`text-xs flex-shrink-0 ${isSaving ? 'text-text-muted' : 'text-success'}`}
+            className={`text-xs flex-shrink-0 ${isSaving ? 'text-text-muted' : 'text-success-text'}`}
             role="status"
             aria-live="polite"
           >

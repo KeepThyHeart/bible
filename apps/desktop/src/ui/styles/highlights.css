@@ -45,12 +45,10 @@
   background-color: rgb(var(--theme-highlight-orange-rgb) / var(--theme-highlight-alpha));
 }
 
-/* Highlighted words keep dark text so the wash stays readable on dark themes,
-   where the surrounding body text is light. */
-[data-theme="dark"] .word[class*="highlight-"],
-[data-theme="high-contrast"] .word[class*="highlight-"] {
-  color: #14142B;
-}
+/* Highlighted words keep the theme's own text colour. The wash is a low-alpha tint of
+   the swatch over the theme background, so on dark themes it stays dark and the light
+   text stays readable; a fixed dark text colour here measured about 2:1 (B-103). The
+   pairs are held to AA by themeContrast.test.ts. */
 
 /* Underline styles */
 .word.underline-solid {
