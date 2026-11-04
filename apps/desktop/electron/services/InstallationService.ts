@@ -186,6 +186,12 @@ export class InstallationService implements IInstallationService {
         fs.rmSync(dbPath, { force: true });
       }
 
+      // The checks above opened the file at its download path; SQLite may have
+      // left -wal/-shm/-journal there. Only the .db moved, so drop the orphans.
+      for (const ext of ['-wal', '-shm', '-journal']) {
+        fs.rmSync(dbPath + ext, { force: true });
+      }
+
       // Get module size
       const sizeBytes = await this.getModuleSize(destinationPath);
 
