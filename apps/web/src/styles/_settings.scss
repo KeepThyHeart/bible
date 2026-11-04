@@ -139,7 +139,8 @@
     border-radius: 4px;
     padding: 3px 8px;
     font-size: calc(0.6875rem * var(--ui-font-scale, 1));
-    color: var(--text-muted);
+    // W-070: --text-muted on the rose theme is 4.11:1 here; --text-secondary clears 4.5.
+    color: var(--text-secondary);
     cursor: pointer;
 
     &:hover {
