@@ -627,7 +627,7 @@ const TopSearchBar = forwardRef<TopSearchBarHandle>(function TopSearchBar(_props
   // Render
   // --------------------------------------------------------------------------
   return (
-    <div className={`flex-1 max-w-2xl relative ${modeClass}`}>
+    <div className={`flex-1 min-w-[14rem] max-w-2xl relative ${modeClass}`}>
       {/* Search Input Container */}
       <div className="relative">
         {/* Mode Icon */}

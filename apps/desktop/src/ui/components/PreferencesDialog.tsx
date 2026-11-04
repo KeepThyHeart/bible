@@ -161,7 +161,7 @@ const PreferencesDialog: React.FC<PreferencesDialogProps> = ({
       >
         {/* Left sidebar */}
         <div
-          className="w-52 flex-shrink-0 flex flex-col py-4"
+          className="w-52 max-w-[40%] flex-shrink-0 flex flex-col min-h-0 py-4"
           style={{
             backgroundColor: 'var(--theme-surface-secondary)',
             borderInlineEnd: '1px solid var(--theme-border-primary)'
@@ -176,7 +176,7 @@ const PreferencesDialog: React.FC<PreferencesDialogProps> = ({
           </h2>
 
           <nav
-            className="flex-1 space-y-0.5 px-2"
+            className="flex-1 min-h-0 overflow-y-auto space-y-0.5 px-2"
             role="tablist"
             aria-label={t('preferencesDialog.sectionsNavLabel')}
             aria-orientation="vertical"

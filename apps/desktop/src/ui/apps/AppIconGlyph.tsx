@@ -98,6 +98,8 @@ export function hasBuiltinGlyph(name: string): boolean {
 }
 
 export const AppIconGlyph: React.FC<{ icon: AppIcon; size?: number }> = ({ icon, size = 20 }) => {
+  // rem, not px: the rail icons follow the UI size (--ui-scale on the root, B-045/B-107).
+  const dim = `${size / 16}rem`;
   const src = icon.kind === 'image' ? icon.src : null;
   const [failedSrc, setFailedSrc] = useState<string | null>(null);
   useEffect(() => setFailedSrc(null), [src]);
@@ -110,7 +112,7 @@ export const AppIconGlyph: React.FC<{ icon: AppIcon; size?: number }> = ({ icon,
         width={size}
         height={size}
         draggable={false}
-        style={{ width: size, height: size, objectFit: 'contain' }}
+        style={{ width: dim, height: dim, objectFit: 'contain' }}
         onError={() => setFailedSrc(icon.src)}
       />
     );
@@ -118,7 +120,7 @@ export const AppIconGlyph: React.FC<{ icon: AppIcon; size?: number }> = ({ icon,
   const name = icon.kind === 'builtin' ? icon.name : 'app';
   const glyph = hasBuiltinGlyph(name) ? BUILTIN_GLYPHS[name] : BUILTIN_GLYPHS.app;
   return (
-    <svg {...SVG_PROPS} width={size} height={size} data-icon={hasBuiltinGlyph(name) ? name : 'app'}>
+    <svg {...SVG_PROPS} width={dim} height={dim} data-icon={hasBuiltinGlyph(name) ? name : 'app'}>
       {glyph}
     </svg>
   );

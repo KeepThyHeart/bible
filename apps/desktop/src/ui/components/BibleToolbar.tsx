@@ -75,13 +75,13 @@ const BibleToolbar: React.FC = () => {
 
   return (
     <div
-      className="flex items-stretch justify-between border-b border-border flex-shrink-0 min-w-0 overflow-hidden"
+      className="flex flex-wrap items-stretch justify-between border-b border-border flex-shrink-0 min-w-0"
       style={{ background: 'var(--theme-bg-secondary)', padding: 0 }}
       role="toolbar"
       aria-label={t('biblePane.toolbarLabel')}
     >
       {/* Left: History + Display mode + Parallel */}
-      <div className="flex items-stretch min-w-0 overflow-hidden flex-shrink">
+      <div className="flex flex-wrap items-stretch min-w-0 flex-shrink">
         {/* Back: undoes the last view change, off the visit stack rather than
             the history cursor. See stores/bible/internals/visitStack.ts. */}
         <button

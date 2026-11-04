@@ -472,7 +472,7 @@ function App() {
       <div className="flex flex-col h-screen bg-background overflow-hidden" data-testid="app-loaded">
         {/* Top bar */}
         <header className="border-b border-border px-lg py-sm flex-shrink-0" style={{ backgroundColor: 'var(--theme-pane-header-bg)' }}>
-          <div className="flex items-center gap-lg min-w-0">
+          <div className="flex flex-wrap items-center gap-x-lg gap-y-sm min-w-0">
             <AppWordmark />
             {studyActive && <LayoutDropdown />}
             <TopSearchBar />

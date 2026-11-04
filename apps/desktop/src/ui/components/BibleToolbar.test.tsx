@@ -117,9 +117,10 @@ describe('BibleToolbar — navigation history', () => {
 
     const toolbar = screen.getByRole('toolbar');
     const menu = screen.getByRole('menu', { name: '[biblePane.navHistoryHeading]' });
-    // The regression: an in-toolbar menu is invisible, because the toolbar sets
-    // overflow-hidden to keep its buttons from spilling out of a narrow pane.
-    expect(toolbar.className).toContain('overflow-hidden');
+    // The menu stays portalled even though the toolbar no longer clips: it now wraps its
+    // controls onto a second row (B-105) instead of hiding the ones that do not fit.
+    expect(toolbar.className).toContain('flex-wrap');
+    expect(toolbar.className).not.toContain('overflow-hidden');
     expect(toolbar.contains(menu)).toBe(false);
     expect(document.body.contains(menu)).toBe(true);
   });

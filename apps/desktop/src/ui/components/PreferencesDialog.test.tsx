@@ -245,6 +245,15 @@ describe('PreferencesDialog', () => {
   });
 });
 
+describe('PreferencesDialog - section nav at large UI sizes (B-102)', () => {
+  it('lets the section list scroll instead of clipping the last entries', () => {
+    renderWithProviders(<PreferencesDialog onClose={vi.fn()} />);
+    const nav = screen.getByRole('tablist', { name: 'Preferences sections' });
+    expect(nav).toHaveClass('overflow-y-auto');
+    expect(nav).toHaveClass('min-h-0');
+  });
+});
+
 describe('PreferencesDialog - sections modules contribute', () => {
   const onClose = vi.fn();
   const fixture = {

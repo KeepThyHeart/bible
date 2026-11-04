@@ -14,4 +14,9 @@ describe('app icons (task 0197)', () => {
   it('the Memory app uses the stacked-cards glyph, not the fallback tile', () => {
     expect(memoryAppDescriptor.icon).toEqual({ kind: 'builtin', name: 'clone' });
   });
+
+  it('sizes the glyph in rem so rail icons follow the UI size (B-107)', () => {
+    const { container } = render(<AppIconGlyph icon={{ kind: 'builtin', name: 'clone' }} />);
+    expect(container.querySelector('svg')?.getAttribute('width')).toBe('1.25rem');
+  });
 });
