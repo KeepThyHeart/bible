@@ -576,9 +576,13 @@ class BibleStore extends Store {
       tab.versesModule = undefined;
       tab.coveredBooks = undefined;
       tab.loadError = chapterLoadError();
-      // W-069: the commentary pane follows the chapter even when its text could
-      // not load (offline), instead of keeping the previous passage's header.
-      if (!follow) eventBus.emit('commentary:load-chapter', { book, chapter });
+      // W-069: offline, the commentary pane follows the chapter even though its
+      // text could not load, instead of keeping the previous passage's header.
+      // Only offline: online, a commentary request that succeeds would clear the
+      // connection banner this failure just raised.
+      if (!follow && typeof navigator !== 'undefined' && navigator.onLine === false) {
+        eventBus.emit('commentary:load-chapter', { book, chapter });
+      }
       if (wasShowingHome) {
         this.showHome = false;
       }
