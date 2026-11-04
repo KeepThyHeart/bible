@@ -29,7 +29,8 @@
  *    )}
  */
 
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { activateFocusTrap } from '../utils/focusTrap';
 import { useI18n } from '../contexts/useI18n';
 import { buildDocumentation } from './DocumentationDialog/content';
 import { DocumentationHeader } from './DocumentationDialog/Header';
@@ -64,6 +65,15 @@ const DocumentationDialog: React.FC<DocumentationDialogProps> = ({ onClose }) =>
   );
 
   useDialogKeyboard(dialogRef, searchInputRef, onClose);
+
+  // B-112: modal focus - start in the search box, keep Tab inside, give focus
+  // back to the invoker on close.
+  useEffect(() => {
+    const node = dialogRef.current;
+    if (!node) return;
+    const handle = activateFocusTrap(node, { initialFocus: searchInputRef.current });
+    return () => handle.release();
+  }, []);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-background-overlay">

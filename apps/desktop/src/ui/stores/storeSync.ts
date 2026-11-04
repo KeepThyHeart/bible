@@ -28,6 +28,7 @@ import { syncPanesWithVerse } from './syncPanesWithVerse';
 import { libraryChangeListeners } from '../modules/host/hostListeners';
 import { whenContextService } from '../services/WhenContextService';
 import { useLayoutStore } from './useLayoutStore';
+import { installSearchPanelInvariant } from './searchPanelInvariant';
 import { useSessionStore } from './useSessionStore';
 import { useModuleStore } from './module/useModuleStore';
 import {
@@ -243,6 +244,8 @@ export function wireStoreSync(): void {
   setShowSearchResultsPanel(() => {
     useLayoutStore.getState().openSearchResultsPanel();
   });
+  // ...and the panel never outlives that search, whichever path cleared it.
+  installSearchPanelInvariant();
 
   // ==========================================================================
   // When-context publishers (reactive subscriptions)
