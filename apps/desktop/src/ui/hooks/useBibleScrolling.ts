@@ -76,6 +76,31 @@ function scrollNearestOnceLaidOut(
 }
 
 /**
+ * 'center'-mode scroll, held back until the scroll container has a size.
+ *
+ * B-027: applying a layout preset rebuilds the dockview grid, so a Bible pane
+ * can mount (and run the scroll effect) while its container is still
+ * zero-sized. `scrollIntoView` on an element inside a zero-height scroller
+ * does nothing, and the effect never ran again, so the pane came back at the
+ * top with the verse selected but off screen. Wait (bounded) for layout first.
+ */
+export function scrollCenterOnceLaidOut(
+  verseEl: HTMLElement,
+  container: HTMLElement | null,
+  retriesLeft = LAYOUT_NOT_READY_MAX_RETRIES * 3,
+): void {
+  if (container) {
+    const rect = container.getBoundingClientRect();
+    if (rect.width === 0 || rect.height === 0) {
+      if (retriesLeft <= 0) return;
+      requestAnimationFrame(() => scrollCenterOnceLaidOut(verseEl, container, retriesLeft - 1));
+      return;
+    }
+  }
+  verseEl.scrollIntoView({ behavior: 'auto', block: 'center' });
+}
+
+/**
  * Manages scroll position save/restore and verse centering for the Bible pane.
  *
  * Responsibilities:
@@ -148,7 +173,7 @@ export function useBibleScrolling(
       if (!target) return;
 
       if (scrollMode === 'center') {
-        target.scrollIntoView({ behavior: 'auto', block: 'center' });
+        scrollCenterOnceLaidOut(target, bibleTextRef.current);
       } else {
         // 'nearest' mode - only scroll if not fully visible
         scrollNearestOnceLaidOut(target, bibleTextRef.current);
