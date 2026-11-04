@@ -29,6 +29,11 @@ export interface VerseContext {
   bookAbbreviation?: string;
   chapter: number;
   translation: string;
+  /**
+   * Book name by number, for a passage that lists ranges from several books
+   * ("Romans 8:28; John 3:16"). Without it every verse is named `bookName`.
+   */
+  bookNameFor?: (bookNumber: number) => string;
 }
 
 /**

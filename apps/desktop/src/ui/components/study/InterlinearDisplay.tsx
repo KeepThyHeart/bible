@@ -1,3 +1,4 @@
+import { parseStrongsHeadline } from '../../services/strongsHeadline';
 import { requestPanel, usePanelAvailable } from '../../modules/host/panelRequests';
 import React, { useState, useEffect, useMemo } from 'react';
 import { stripOsisTags, truncateAtWordBoundary, UserTextMarkup } from '@bible/core';
@@ -235,6 +236,7 @@ const StrongsPreviewTooltip: React.FC<{
   let pronunciation = '';
   let partOfSpeech: string | undefined;
 
+  const headline = definition ? parseStrongsHeadline(definition.definition) : null;
   if (definition) {
     const parsed = parseStrongsDefinition(definition.definition);
     glosses = truncateAtWordBoundary(parsed.glosses, GLOSS_PREVIEW_LENGTH).text;
@@ -242,6 +244,12 @@ const StrongsPreviewTooltip: React.FC<{
 
     transliteration = definition.transliteration;
     pronunciation = definition.pronunciation ?? '';
+    // The raw entry stores the key as `word` and Strong's encoded ASCII ("ajgapavw")
+    // as the transliteration; the definition's own opening line has the clean ones (B-018).
+    if (headline) {
+      transliteration = headline.transliteration;
+      pronunciation = headline.pronunciation;
+    }
     if (!transliteration) {
       // Fall back to extracting "NUMBER GREEK translit {pron}" from the raw
       // definition when the dictionary repository didn't populate the field.
@@ -282,8 +290,8 @@ const StrongsPreviewTooltip: React.FC<{
         <div className="text-sm" data-testid="strongs-tooltip-content">
           <div className="font-semibold text-text-primary mb-1">
             {strongsNumber}
-            {definition.word && (
-              <span className="ms-2 text-text-secondary font-normal">{definition.word}</span>
+            {(headline?.word ?? definition.word) && (
+              <span className="ms-2 text-text-secondary font-normal">{headline?.word ?? definition.word}</span>
             )}
             {transliteration && (
               <span className="ms-2 text-text-secondary font-normal italic" data-testid="strongs-tooltip-translit">

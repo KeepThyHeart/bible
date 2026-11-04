@@ -179,15 +179,18 @@ export function usePassageResolver({
       const pieces = text.split(/[,;]/).map(piece => piece.trim()).filter(Boolean);
       const ranges: Array<{ startId: number; endId: number }> = [];
       let previous = '';
+      let previousBook = 0;
       for (const piece of pieces) {
         let candidate = piece;
         let parsed = parser.parse(candidate, { allowWholeBook: true });
         if (!parsed.isValid && previous) {
           // Prefix up to and including the last ':' ("Rom 8:"), or up to the
           // chapter number when the previous piece had no verse part.
+          // A piece with its own chapter ("9:1") borrows only the book.
           const colon = previous.lastIndexOf(':');
           const prefix = colon >= 0 ? previous.slice(0, colon + 1) : '';
-          candidate = prefix ? `${prefix}${piece}` : piece;
+          const prevBook = previousBook ? parser.getBookName(previousBook) : '';
+          candidate = piece.includes(':') && prevBook ? `${prevBook} ${piece}` : prefix ? `${prefix}${piece}` : piece;
           parsed = parser.parse(candidate, { allowWholeBook: true });
         }
         // The range maths lives in `resolveReferenceRange`, which is the same one
@@ -204,6 +207,7 @@ export function usePassageResolver({
         }
         ranges.push(range);
         previous = candidate;
+        previousBook = parsed.book ?? 0;
       }
       if (ranges.length === 0) {
         setVerses([]);
