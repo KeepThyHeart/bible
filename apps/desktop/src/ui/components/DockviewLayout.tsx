@@ -479,7 +479,10 @@ const DockviewLayout: React.FC<DockviewLayoutProps> = ({ savedLayout, layoutDeci
       // remounts and onReady may not fire again (dockview reuses its instance).
       // Keeping the ref valid ensures the effect can re-set the store API on remount.
       restoredFromSavedRef.current = false;
-      useLayoutStore.setState({ dockviewApi: null, isReady: false, activePanelId: null, lastActiveBiblePanelId: null });
+      // lastActiveBiblePanelId survives the teardown (switching to another app unmounts the layout): navigation
+      // from that app - a reading-plan link - must still land in the Bible tab being read, not the first one
+      // (B-108). A stale id is harmless: every consumer checks the panel still exists.
+      useLayoutStore.setState({ dockviewApi: null, isReady: false, activePanelId: null });
     };
   }, [apiVersion, savedLayout, layoutDecided, handleGatedDrag]);
 
