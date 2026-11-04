@@ -6,6 +6,7 @@ import { settingsStore } from '../stores/settingsStore';
 import { offlineStore } from '../stores/offlineStore';
 import { useStore } from '../hooks/useStore';
 import { useLocalizer } from '../hooks/useLocalizer';
+import { useModalFocus } from '../hooks/useModalFocus';
 import { focusSearchField } from '../utils/focusSearchField';
 import { AppSwitchSlot } from '../host/AppSwitchSlot';
 import { PaneHeaderButtons } from '../host/PaneHeaderButtons';
@@ -39,6 +40,8 @@ export function Header({ onSettingsClick, onHelpClick, onFeedbackClick, onLogoCl
   const [showSearchTypeDropdown, setShowSearchTypeDropdown] = useState(false);
   const [showIdeasHelp, setShowIdeasHelp] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const themeDialogRef = useRef<HTMLDivElement>(null);
+  useModalFocus(showThemeDropdown, themeDialogRef);
 
   const searchType = useStore(searchStore, () => searchStore.searchType);
   const searchQuery = useStore(searchStore, () => searchStore.query);
@@ -317,6 +320,10 @@ export function Header({ onSettingsClick, onHelpClick, onFeedbackClick, onLogoCl
           </button>
           {showThemeDropdown && (
             <div class="header__theme-dropdown"
+              ref={themeDialogRef}
+              role="dialog"
+              aria-modal="true"
+              aria-label={t('header.theme')}
               onMouseLeave={() => setShowThemeDropdown(false)}
             >
               {themeOptions.slice(0, 3).map(opt => (
