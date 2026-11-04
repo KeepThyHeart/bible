@@ -169,7 +169,13 @@ export function BibleToolbar({ onOpenSettings }: BibleToolbarProps) {
           title={t('bibleToolbar.modeHint')}
           aria-label={t('bibleToolbar.modeLabel')}
           value={displayMode}
-          onChange={(e) => { if (tab) bibleStore.setDisplayMode(tab.id, (e.target as HTMLSelectElement).value as 'standard' | 'reading' | 'study'); }}
+          onChange={(e) => {
+            if (!tab) return;
+            bibleStore.setDisplayMode(tab.id, (e.target as HTMLSelectElement).value as 'standard' | 'reading' | 'study');
+            // W-056: the new layout is taller (Study interlinear), so the selected verse lands far below the
+            // old scroll offset; ask the pane to bring it back into view like a navigation does.
+            if (tab.studyVerse) bibleStore.scrollToVerse(tab.studyVerse);
+          }}
         >
           {(['standard', 'reading', 'study'] as const).map(mode => (
             <option key={mode} value={mode}>{t('bibleToolbar.mode' + mode.charAt(0).toUpperCase() + mode.slice(1))}</option>
