@@ -849,7 +849,7 @@
   "onboarding.empty.dictionary.hint": "Una vez abierto, se puede buscar por palabra o por número Strong, como G25.",
   "onboarding.empty.dictionary.action": "Seleccionar un diccionario",
   "onboarding.empty.dictionaryEntry.title": "Consultar una palabra en {dictionary}",
-  "onboarding.empty.dictionaryEntry.description": "Al escribir en el cuadro de arriba, las entradas coincidentes van apareciendo, de modo que basta con recordar la palabra a medias. Los números Strong también funcionan: pruebe G25 o H430.",
+  "onboarding.empty.dictionaryEntry.description": "Escriba una palabra o un número Strong en el cuadro de arriba y pulse Intro para buscarla: pruebe G25 o H430.",
   "onboarding.empty.dictionaryEntry.action": "Ver todas las entradas",
   "onboarding.empty.notes.title": "Un lugar donde escribir",
   "onboarding.empty.notes.description": "Las notas son archivos corrientes en una carpeta elegida por usted, así que los bosquejos de sermón, la preparación de clases y las entradas del diario siguen siendo suyos: legibles y respaldados fuera de esta aplicación.",

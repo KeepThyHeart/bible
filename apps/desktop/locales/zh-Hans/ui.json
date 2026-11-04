@@ -851,7 +851,7 @@
   "onboarding.empty.dictionary.hint": "打开词典后，可以按字词搜索，也可以按斯特朗编号搜索，例如 G25。",
   "onboarding.empty.dictionary.action": "选择词典",
   "onboarding.empty.dictionaryEntry.title": "在《{dictionary}》中查一个字词",
-  "onboarding.empty.dictionaryEntry.description": "在上面的框中输入，匹配的词条会随着输入逐渐出现，因此只记得大概的拼写也够用。斯特朗编号同样有效——试试 G25 或 H430。",
+  "onboarding.empty.dictionaryEntry.description": "在上面的框中输入词语或斯特朗编号，然后按 Enter 查找——试试 G25 或 H430。",
   "onboarding.empty.dictionaryEntry.action": "浏览全部词条",
   "onboarding.empty.notes.title": "写点东西的地方",
   "onboarding.empty.notes.description": "笔记就是你所选文件夹中的普通文件，所以讲道大纲、备课内容和日志条目始终属于你——在本应用之外也能读取和备份。",

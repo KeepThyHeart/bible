@@ -851,7 +851,7 @@
   "onboarding.empty.dictionary.hint": "Com um dicionário aberto, você pode pesquisar pela palavra ou pelo número Strong, como G25.",
   "onboarding.empty.dictionary.action": "Escolher um dicionário",
   "onboarding.empty.dictionaryEntry.title": "Consultar uma palavra em {dictionary}",
-  "onboarding.empty.dictionaryEntry.description": "Digite na caixa acima e os verbetes correspondentes vão aparecendo enquanto você digita, então basta lembrar a grafia pela metade. Números Strong também funcionam — experimente G25 ou H430.",
+  "onboarding.empty.dictionaryEntry.description": "Digite uma palavra ou um número Strong na caixa acima e pressione Enter para pesquisar — experimente G25 ou H430.",
   "onboarding.empty.dictionaryEntry.action": "Ver todos os verbetes",
   "onboarding.empty.notes.title": "Um lugar para escrever",
   "onboarding.empty.notes.description": "As notas são arquivos comuns em uma pasta escolhida por você, então esboços de sermão, preparo de aulas e entradas do diário continuam seus — legíveis e com backup fora deste aplicativo.",

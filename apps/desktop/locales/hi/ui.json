@@ -851,7 +851,7 @@
   "onboarding.empty.dictionary.hint": "शब्दकोश खुलने के बाद आप शब्द से या स्ट्रॉन्ग संख्या से खोज सकते हैं, जैसे G25।",
   "onboarding.empty.dictionary.action": "शब्दकोश चुनें",
   "onboarding.empty.dictionaryEntry.title": "{dictionary} में कोई शब्द देखिए",
-  "onboarding.empty.dictionaryEntry.description": "ऊपर के बॉक्स में टाइप कीजिए और मेल खाती प्रविष्टियाँ टाइप करते-करते दिखने लगेंगी, इसलिए आधी-अधूरी याद रही वर्तनी भी काफ़ी है। स्ट्रॉन्ग संख्याएँ भी चलती हैं — G25 या H430 आज़माइए।",
+  "onboarding.empty.dictionaryEntry.description": "ऊपर के बॉक्स में कोई शब्द या स्ट्रॉन्ग संख्या टाइप करके खोजने के लिए Enter दबाइए — G25 या H430 आज़माइए।",
   "onboarding.empty.dictionaryEntry.action": "सभी प्रविष्टियाँ देखें",
   "onboarding.empty.notes.title": "लिखने की जगह",
   "onboarding.empty.notes.description": "टिप्पणियाँ आपकी चुनी हुई फ़ोल्डर में साधारण फ़ाइलें होती हैं, इसलिए उपदेश की रूपरेखा, पाठ की तैयारी और डायरी प्रविष्टियाँ आपकी ही रहती हैं — इस ऐप्लिकेशन के बाहर भी पढ़ने योग्य और सुरक्षित।",

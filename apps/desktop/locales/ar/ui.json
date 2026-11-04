@@ -849,7 +849,7 @@
   "onboarding.empty.dictionary.hint": "بعد فتح قاموس يمكنك البحث بالكلمة أو برقم سترونج، مثل G25.",
   "onboarding.empty.dictionary.action": "اختيار قاموس",
   "onboarding.empty.dictionaryEntry.title": "ابحث عن كلمة في {dictionary}",
-  "onboarding.empty.dictionaryEntry.description": "اكتب في المربع أعلاه فتظهر المداخل المطابقة أثناء الكتابة، حتى إن لم تتذكر الهجاء كاملًا. وأرقام سترونج تعمل أيضًا — جرِّب G25 أو H430.",
+  "onboarding.empty.dictionaryEntry.description": "اكتب كلمة أو رقم سترونج في المربع أعلاه ثم اضغط Enter للبحث عنها — جرِّب G25 أو H430.",
   "onboarding.empty.dictionaryEntry.action": "استعراض كل المداخل",
   "onboarding.empty.notes.title": "مكان للكتابة",
   "onboarding.empty.notes.description": "الملاحظات ملفات عادية في مجلد اخترته أنت، فتبقى مخططات العظات وتحضير الدروس ومدخلات المذكرات ملكك — قابلة للقراءة ومحفوظة خارج هذا التطبيق.",

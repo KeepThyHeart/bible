@@ -851,7 +851,7 @@
   "onboarding.empty.dictionary.hint": "‏Once one is open you can search by English word or by Strong’s number, such as G25.‏",
   "onboarding.empty.dictionary.action": "‏Choose a dictionary‏",
   "onboarding.empty.dictionaryEntry.title": "‏Look up a word in {dictionary}‏",
-  "onboarding.empty.dictionaryEntry.description": "‏Type into the box above and matching entries appear as you type, so a half-remembered spelling is enough. Strong’s numbers work too — try G25 or H430.‏",
+  "onboarding.empty.dictionaryEntry.description": "‏Type a word or a Strong’s number into the box above and press Enter to look it up — try G25 or H430.‏",
   "onboarding.empty.dictionaryEntry.action": "‏Browse all entries‏",
   "onboarding.empty.notes.title": "‏Somewhere to write‏",
   "onboarding.empty.notes.description": "‏Notes are ordinary files in a folder you chose, so sermon outlines, lesson prep and journal entries stay yours — readable and backed up outside this app.‏",

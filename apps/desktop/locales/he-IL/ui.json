@@ -849,7 +849,7 @@
   "onboarding.empty.dictionary.hint": "לאחר פתיחת מילון ניתן לחפש לפי מילה באנגלית או לפי מספר סטרונג, כגון G25.",
   "onboarding.empty.dictionary.action": "בחר מילון",
   "onboarding.empty.dictionaryEntry.title": "חיפוש מילה ב-{dictionary}",
-  "onboarding.empty.dictionaryEntry.description": "יש להקליד בתיבה שלמעלה, וערכים תואמים יופיעו תוך כדי ההקלדה, כך שאיות שנזכר חלקית מספיק. מספרי סטרונג עובדים גם הם — ניתן לנסות G25 או H430.",
+  "onboarding.empty.dictionaryEntry.description": "יש להקליד מילה או מספר סטרונג בתיבה שלמעלה וללחוץ Enter כדי לחפש — ניתן לנסות G25 או H430.",
   "onboarding.empty.dictionaryEntry.action": "עיין בכל הערכים",
   "onboarding.empty.notes.title": "מקום לכתוב בו",
   "onboarding.empty.notes.description": "הערות הן קבצים רגילים בתיקייה שבחרת, כך שמתווי דרשות, הכנת שיעורים ורשומות יומן נשארים שלך — קריאים ומגובים גם מחוץ ליישום זה.",

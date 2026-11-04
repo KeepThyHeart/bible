@@ -851,7 +851,7 @@
   "onboarding.empty.dictionary.hint": "پس از باز شدن یکی، می‌توانید بر اساس کلمه انگلیسی یا شماره استرانگ، مانند G25، جستجو کنید.",
   "onboarding.empty.dictionary.action": "انتخاب فرهنگ لغت",
   "onboarding.empty.dictionaryEntry.title": "جستجوی یک کلمه در {dictionary}",
-  "onboarding.empty.dictionaryEntry.description": "در کادر بالا تایپ کنید تا مدخل‌های منطبق هنگام تایپ ظاهر شوند، بنابراین املای نیمه‌به‌یادمانده کافی است. شماره‌های استرانگ هم کار می‌کنند — G25 یا H430 را امتحان کنید.",
+  "onboarding.empty.dictionaryEntry.description": "در کادر بالا یک واژه یا شماره استرانگ تایپ کنید و برای جستجو Enter بزنید — G25 یا H430 را امتحان کنید.",
   "onboarding.empty.dictionaryEntry.action": "مرور همه مدخل‌ها",
   "onboarding.empty.notes.title": "جایی برای نوشتن",
   "onboarding.empty.notes.description": "یادداشت‌ها فایل‌های معمولی در پوشه‌ای هستند که انتخاب کرده‌اید، بنابراین طرح موعظه‌ها، آماده‌سازی درس‌ها و مطالب دفتر خاطرات از آنِ شما می‌مانند — قابل خواندن و پشتیبان‌گیری در بیرون از این برنامه.",

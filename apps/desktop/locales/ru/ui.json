@@ -851,7 +851,7 @@
   "onboarding.empty.dictionary.hint": "Когда словарь открыт, искать можно по слову или по номеру Стронга, например G25.",
   "onboarding.empty.dictionary.action": "Выбрать словарь",
   "onboarding.empty.dictionaryEntry.title": "Найдите слово в словаре «{dictionary}»",
-  "onboarding.empty.dictionaryEntry.description": "Начните вводить в поле выше — подходящие статьи появляются по мере набора, так что достаточно и приблизительного написания. Номера Стронга тоже работают: попробуйте G25 или H430.",
+  "onboarding.empty.dictionaryEntry.description": "Введите слово или номер Стронга в поле выше и нажмите Enter, чтобы найти статью: попробуйте G25 или H430.",
   "onboarding.empty.dictionaryEntry.action": "Просмотреть все статьи",
   "onboarding.empty.notes.title": "Место для записей",
   "onboarding.empty.notes.description": "Заметки — это обычные файлы в выбранной вами папке, поэтому планы проповедей, подготовка уроков и записи дневника остаются вашими: читаемыми и сохранёнными вне этого приложения.",
