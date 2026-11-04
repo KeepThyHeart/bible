@@ -63,6 +63,8 @@ export function speechModelOrigins(modelBase: string | undefined): string[] {
   }
 }
 
+/** A comment may mention `<script>` literally; it must not start a match (B-098). */
+const HTML_COMMENT = /<!--[\s\S]*?-->/g;
 const INLINE_SCRIPT = /<script\b([^>]*)>([\s\S]*?)<\/script>/gi;
 
 /**
@@ -82,7 +84,7 @@ export function inlineScriptHashes(clientDir: string | undefined): string[] {
       if (entry.isDirectory()) {
         if (entry.name !== 'assets') walk(path);
       } else if (entry.name.endsWith('.html')) {
-        for (const [, attrs, body] of readFileSync(path, 'utf-8').matchAll(INLINE_SCRIPT)) {
+        for (const [, attrs, body] of readFileSync(path, 'utf-8').replace(HTML_COMMENT, '').matchAll(INLINE_SCRIPT)) {
           if (/\bsrc\s*=/i.test(attrs)) continue;
           hashes.add(`'sha256-${createHash('sha256').update(body, 'utf-8').digest('base64')}'`);
         }
