@@ -922,6 +922,14 @@ textarea:focus-visible {
   outline-offset: 1px;
 }
 
+/* Native radios and checkboxes without a size class were stuck at the browser's
+   13px at large UI scale (B-107). rem follows --ui-scale; :where() keeps this at
+   zero specificity so any explicit size class still wins. */
+:where(input[type='radio'], input[type='checkbox']) {
+  width: 1rem;
+  height: 1rem;
+}
+
 /* Typed text in plain inputs auto-detects its own direction, while padding and
    icons keep following the inherited UI direction (an empty `dir="auto"` input
    would resolve to LTR in Chromium, which is why the attribute is not used). */
