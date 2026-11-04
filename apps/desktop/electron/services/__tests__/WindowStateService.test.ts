@@ -274,6 +274,18 @@ describe('WindowStateService', () => {
       });
     });
 
+    it('keeps the restore size when the platform reports the maximized rectangle as normal bounds (B-088)', () => {
+      const win = new FakeWindow();
+      const svc = service();
+      svc.applyAndTrack(win.asBrowserWindow(), { width: 900, height: 650, x: 40, y: 30, isMaximized: true, isFullScreen: false });
+      // X11: while maximized, "normal" bounds are the screen-filling rectangle.
+      win.normalBounds = { x: 0, y: 36, width: 1920, height: 866 };
+      win.emit('unmaximize');
+      win.maximized = true;
+      win.emit('maximize');
+      expect(readState()).toMatchObject({ width: 900, height: 650, x: 40, y: 30, isMaximized: true });
+    });
+
     it('debounces resize and move rather than writing on every event', () => {
       vi.useFakeTimers();
       const win = new FakeWindow();
