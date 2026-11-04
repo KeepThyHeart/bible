@@ -97,7 +97,7 @@ const BrowseView: React.FC<BrowseViewProps> = ({
                 }}
                 style={{
                   padding: '3px 10px',
-                  fontSize: '12px',
+                  fontSize: '0.75rem',
                   borderRadius: '12px',
                   border: '1px solid var(--theme-border-primary)',
                   backgroundColor: isActive ? 'var(--theme-accent-primary)' : 'transparent',
@@ -124,7 +124,7 @@ const BrowseView: React.FC<BrowseViewProps> = ({
           style={{
             width: '100%',
             padding: '10px 12px',
-            fontSize: '15px',
+            fontSize: '0.9375rem',
             border: '1px solid var(--theme-border-primary)',
             borderRadius: '8px',
             backgroundColor: 'var(--theme-bg-primary)',
@@ -138,7 +138,7 @@ const BrowseView: React.FC<BrowseViewProps> = ({
       {/* Which list is on screen, so the reader knows the browse list is the
           top level of the index rather than everything it holds. */}
       {!loading && topics.length > 0 && (
-        <div style={{ fontSize: '11px', color: 'var(--theme-text-secondary)', margin: '0 0 6px 2px' }}>
+        <div style={{ fontSize: '0.6875rem', color: 'var(--theme-text-secondary)', margin: '0 0 6px 2px' }}>
           {searching
             ? t('topicsPane.searchResultsFor', { query: searchQuery.trim() })
             : t('topicsPane.browsingTopLevel')}
@@ -163,7 +163,7 @@ const BrowseView: React.FC<BrowseViewProps> = ({
         ))}
       </div>
 
-      {loading && <div style={{ textAlign: 'center', padding: '12px', color: 'var(--theme-text-secondary)', fontSize: '13px' }}>{t('topicsPane.loading')}</div>}
+      {loading && <div style={{ textAlign: 'center', padding: '12px', color: 'var(--theme-text-secondary)', fontSize: '0.8125rem' }}>{t('topicsPane.loading')}</div>}
 
       {!loading && hasMore && topics.length > 0 && (
         <button
@@ -173,7 +173,7 @@ const BrowseView: React.FC<BrowseViewProps> = ({
             display: 'block',
             width: '100%',
             padding: '8px',
-            fontSize: '12px',
+            fontSize: '0.75rem',
             color: 'var(--theme-accent-primary)',
             backgroundColor: 'transparent',
             border: 'none',
@@ -187,7 +187,7 @@ const BrowseView: React.FC<BrowseViewProps> = ({
 
       {!loading && topics.length === 0 && (
         searching ? (
-          <div data-testid="topic-search-empty" style={{ textAlign: 'center', padding: '20px', color: 'var(--theme-text-secondary)', fontSize: '13px' }}>
+          <div data-testid="topic-search-empty" style={{ textAlign: 'center', padding: '20px', color: 'var(--theme-text-secondary)', fontSize: '0.8125rem' }}>
             {t('topicsPane.noTopicsMatchSearch', { query: searchQuery.trim() })}
           </div>
         ) : availableModules.length === 0 ? (
@@ -252,7 +252,7 @@ const BrowseTopicRow: React.FC<BrowseTopicRowProps> = ({ topic, subtopicLabel, o
         backgroundColor: 'transparent',
         color: 'var(--theme-text-primary)',
         cursor: 'pointer',
-        fontSize: '13px',
+        fontSize: '0.8125rem',
         textAlign: 'start',
         gap: '8px',
         borderRadius: '4px',
@@ -269,7 +269,7 @@ const BrowseTopicRow: React.FC<BrowseTopicRowProps> = ({ topic, subtopicLabel, o
             data-testid={topic.parent_path ? 'topic-list-item-path' : 'topic-list-item-subtopics'}
             style={{
               display: 'block',
-              fontSize: '11px',
+              fontSize: '0.6875rem',
               color: 'var(--theme-text-secondary)',
               overflow: 'hidden',
               textOverflow: 'ellipsis',
@@ -282,12 +282,12 @@ const BrowseTopicRow: React.FC<BrowseTopicRowProps> = ({ topic, subtopicLabel, o
           </span>
         )}
       </span>
-      <span style={{ fontSize: '11px', color: 'var(--theme-text-secondary)', flexShrink: 0 }}>
+      <span style={{ fontSize: '0.6875rem', color: 'var(--theme-text-secondary)', flexShrink: 0 }}>
         ({topic.source_name})
       </span>
       {topic.verse_count > 0 && (
         <span style={{
-          fontSize: '11px',
+          fontSize: '0.6875rem',
           color: 'var(--theme-text-secondary)',
           backgroundColor: 'var(--theme-bg-secondary, rgba(0,0,0,0.06))',
           padding: '1px 6px',
@@ -299,7 +299,7 @@ const BrowseTopicRow: React.FC<BrowseTopicRowProps> = ({ topic, subtopicLabel, o
       )}
       {/* A disclosure cue, so "has sub-topics" reads at a glance as well as
           from the count line. */}
-      <span aria-hidden="true" style={{ fontSize: '12px', color: 'var(--theme-text-secondary)', flexShrink: 0, opacity: subtopicLabel ? 0.8 : 0 }}>
+      <span aria-hidden="true" style={{ fontSize: '0.75rem', color: 'var(--theme-text-secondary)', flexShrink: 0, opacity: subtopicLabel ? 0.8 : 0 }}>
         ›
       </span>
     </button>

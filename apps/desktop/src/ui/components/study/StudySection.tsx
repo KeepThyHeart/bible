@@ -60,7 +60,7 @@ const StudySection: React.FC<StudySectionProps> = ({
         aria-hidden="true"
         className="rtl-mirror"
         style={{
-          fontSize: '10px',
+          fontSize: '0.625rem',
           width: '12px',
           flexShrink: 0,
           color: 'var(--theme-accent-primary)',
@@ -71,7 +71,7 @@ const StudySection: React.FC<StudySectionProps> = ({
       <span style={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1 }}>
         <span
           style={{
-            fontSize: '12px',
+            fontSize: '0.75rem',
             fontWeight: 700,
             textTransform: 'uppercase',
             letterSpacing: '0.5px',
@@ -87,7 +87,7 @@ const StudySection: React.FC<StudySectionProps> = ({
         {subtitle && (
           <span
             style={{
-              fontSize: '10px',
+              fontSize: '0.625rem',
               fontWeight: 400,
               lineHeight: 1.3,
               color: 'var(--theme-text-secondary)',

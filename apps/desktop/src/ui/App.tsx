@@ -147,7 +147,7 @@ const AppWordmark: React.FC = () => {
         <span
           className="uppercase"
           style={{
-            fontSize: '9.5px',
+            fontSize: '0.59375rem',
             letterSpacing: '0.14em',
             fontWeight: 600,
             // Same recipe as the web tagline: mostly accent, pulled towards the

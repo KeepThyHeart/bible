@@ -31,14 +31,14 @@ const RelatedTagGraphSection: React.FC<RelatedTagGraphSectionProps> = ({ associa
   return (
     <div data-testid="topic-tag-graph" style={{ marginBottom: '16px' }}>
       <div
-        style={{ fontSize: '13px', fontWeight: 600, marginBottom: '6px', cursor: 'pointer', userSelect: 'none', display: 'flex', alignItems: 'center', gap: '4px' }}
+        style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '6px', cursor: 'pointer', userSelect: 'none', display: 'flex', alignItems: 'center', gap: '4px' }}
         onClick={() => setExpanded(!expanded)}
       >
-        <span style={{ fontSize: '10px' }}>{expanded ? '\u25BC' : '\u25B6'}</span>
+        <span style={{ fontSize: '0.625rem' }}>{expanded ? '\u25BC' : '\u25B6'}</span>
         {t('relatedTagGraph.heading')}
         <span
           data-testid="view-entity"
-          style={{ fontSize: '11px', color: 'var(--theme-accent-primary)', fontWeight: 400, marginInlineStart: '4px', cursor: 'pointer' }}
+          style={{ fontSize: '0.6875rem', color: 'var(--theme-accent-primary)', fontWeight: 400, marginInlineStart: '4px', cursor: 'pointer' }}
           onClick={(e) => { e.stopPropagation(); onEntityClick(mapping.entityId, mapping.entityCategory); }}
         >
           {t('relatedTagGraph.viewEntity')}
@@ -54,7 +54,7 @@ const RelatedTagGraphSection: React.FC<RelatedTagGraphSectionProps> = ({ associa
         return (
           <div key={cat} data-testid="tag-graph-category" style={{ marginBottom: '10px' }}>
             <div data-testid="tag-graph-category-label" style={{
-              fontSize: '11px',
+              fontSize: '0.6875rem',
               fontWeight: 600,
               color: CATEGORY_COLORS[cat] ?? 'var(--theme-text-secondary)',
               textTransform: 'uppercase',
@@ -81,7 +81,7 @@ const RelatedTagGraphSection: React.FC<RelatedTagGraphSectionProps> = ({ associa
               <button
                 onClick={() => setShowAll(true)}
                 style={{
-                  fontSize: '11px',
+                  fontSize: '0.6875rem',
                   color: 'var(--theme-accent-primary)',
                   backgroundColor: 'transparent',
                   border: 'none',

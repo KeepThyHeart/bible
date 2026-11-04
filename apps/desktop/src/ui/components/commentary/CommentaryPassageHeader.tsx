@@ -37,7 +37,7 @@ const CommentaryPassageHeader: React.FC<CommentaryPassageHeaderProps> = ({
         {currentVerseId && (
           <span
             className="font-semibold text-text-primary cursor-pointer hover:text-accent transition-colors"
-            style={{ fontSize: '13px' }}
+            style={{ fontSize: '0.8125rem' }}
             onClick={() => {
               useBibleStore.getState().navigateToVerseInPrimary(currentVerseId); // allow-getstate: event handler - imperative navigation, no subscription needed
             }}
@@ -58,7 +58,7 @@ const CommentaryPassageHeader: React.FC<CommentaryPassageHeaderProps> = ({
       <button
         onClick={() => window.dispatchEvent(new CustomEvent('open-preferences-fonts', { detail: 'commentary' }))}
         className="text-text-secondary hover:text-text-primary hover:bg-background-hover transition-colors font-semibold rounded"
-        style={{ padding: '2px 8px', border: '1px solid var(--theme-border-primary)', fontSize: '13px' }}
+        style={{ padding: '2px 8px', border: '1px solid var(--theme-border-primary)', fontSize: '0.8125rem' }}
         title={t('ui.commentaryPassageHeader.textSettings')}
       >
         Aa

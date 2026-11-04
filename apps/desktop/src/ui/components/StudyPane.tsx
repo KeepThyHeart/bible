@@ -57,17 +57,15 @@ import type { IDockviewPanel } from 'dockview-react';
  * default "UI text" size, mirroring the web app's own `--ui-font-scale`
  * (apps/web/src/stores/settingsStore.ts + _study-pane.scss's
  * `calc(Npx * var(--ui-font-scale, 1))` pattern, used throughout that file).
- * `--global-font-scale` is desktop-only and already multiplies every other
- * pane's content (see the `.pane-content-*` rules in globals.css) - chaining
- * it in here keeps this pane's chrome consistent with the rest of the app's
- * "make everything bigger" slider instead of only responding to one of the
- * two font sliders.
+ * B-045: the literals are rem, so they follow the UI size (`--ui-scale`, which
+ * folds in the global font scale) through the rem root; `--ui-font-scale` is
+ * the separate "UI text" tweak on top.
  */
 /** Data id of the Cross-ref graph module's verse action; the button runs it without importing the module. */
 const CONNECTIONS_ACTION = 'xrefGraph.connections';
 
 function uiScaled(px: number): string {
-  return `calc(${px}px * var(--ui-font-scale, 1) * var(--global-font-scale, 1))`;
+  return `calc(${px / 16}rem * var(--ui-font-scale, 1))`;
 }
 
 interface StudyPaneProps {
@@ -855,7 +853,7 @@ const ModuleProvenanceBadge: React.FC<{ moduleAbbreviation: string }> = ({ modul
   return (
     <span
       data-testid="study-provenance-badge"
-      className="flex-shrink-0 rounded bg-info-soft px-1.5 py-0.5 text-[10px] font-medium text-info-text"
+      className="flex-shrink-0 rounded bg-info-soft px-1.5 py-0.5 text-[0.625rem] font-medium text-info-text"
     >
       {t(MODULE_PROVENANCE_TEXT[kind].collapsedKey)}
     </span>

@@ -307,7 +307,7 @@ describe('StudyPane', () => {
       const hint = screen.getByText(enString('studyPane.emptyHint'));
 
       expect(title.style.fontSize).toContain('var(--ui-font-scale');
-      expect(title.style.fontSize).toContain('var(--global-font-scale');
+      expect(title.style.fontSize).toContain('rem'); // B-045: scaled by the rem root
       expect(hint.style.fontSize).toContain('var(--ui-font-scale');
       expect(hint.style.fontSize).not.toMatch(/^\d+px$/);
     });
@@ -331,7 +331,6 @@ describe('StudyPane', () => {
 
       for (const el of [noTopics, noCommentaries, noCrossReferences]) {
         expect(el.style.fontSize).toContain('var(--ui-font-scale');
-        expect(el.style.fontSize).toContain('var(--global-font-scale');
       }
     });
 

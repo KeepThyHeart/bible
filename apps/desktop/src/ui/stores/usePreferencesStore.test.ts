@@ -59,6 +59,29 @@ describe('usePreferencesStore - DOM application', () => {
     expect(document.documentElement.style.getPropertyValue('--ui-control-font-size')).toBe('18px');
   });
 
+  it('B-045: --ui-scale = (UI control size / 14) x global font scale, clamped to 0.7-2', () => {
+    const get = () => document.documentElement.style.getPropertyValue('--ui-scale');
+    const st = usePreferencesStore.getState();
+    st.setUiControlFontSize(14);
+    st.setGlobalFontScale(1);
+    expect(get()).toBe('1');
+    st.setUiControlFontSize(20);
+    st.setGlobalFontScale(1.5);
+    expect(get()).toBe('2'); // 2.14 clamped
+    st.setUiControlFontSize(7);
+    st.setGlobalFontScale(0.7);
+    expect(get()).toBe('0.7'); // 0.35 clamped
+    st.setUiControlFontSize(14);
+    st.setGlobalFontScale(1.25);
+    expect(get()).toBe('1.25');
+  });
+
+  it('B-045: loadFromSession applies --ui-scale', () => {
+    document.documentElement.style.removeProperty('--ui-scale');
+    usePreferencesStore.getState().loadFromSession({ globalFontScale: 1.5, uiControlFontSize: 14 } as never);
+    expect(document.documentElement.style.getPropertyValue('--ui-scale')).toBe('1.5');
+  });
+
   it('setTypography writes every --bible-*/--study-*/--ui-* custom property live', () => {
     usePreferencesStore.getState().setTypography({
       bibleFontSize: 28,

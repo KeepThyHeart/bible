@@ -276,7 +276,7 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
           aria-label={t('editorToolbar.subscriptTitle')}
           aria-pressed={editor.isActive('subscript')}
         >
-          <span className="text-xs w-4 h-4 flex items-center justify-center" aria-hidden="true">X<sub className="text-[8px]">2</sub></span>
+          <span className="text-xs w-4 h-4 flex items-center justify-center" aria-hidden="true">X<sub className="text-[0.5rem]">2</sub></span>
         </button>
 
         {/* Superscript */}
@@ -288,7 +288,7 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
           aria-label={t('editorToolbar.superscriptTitle')}
           aria-pressed={editor.isActive('superscript')}
         >
-          <span className="text-xs w-4 h-4 flex items-center justify-center" aria-hidden="true">X<sup className="text-[8px]">2</sup></span>
+          <span className="text-xs w-4 h-4 flex items-center justify-center" aria-hidden="true">X<sup className="text-[0.5rem]">2</sup></span>
         </button>
 
         <div className="w-px h-5 bg-border-secondary mx-1" />
@@ -720,7 +720,7 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
         </button>
 
         {/* Word/Character Count - end-aligned */}
-        <div className="ms-auto text-[10px] text-text-muted flex items-center gap-2 pe-1">
+        <div className="ms-auto text-[0.625rem] text-text-muted flex items-center gap-2 pe-1">
           <span>{t('editorToolbar.wordCount', { count: words })}</span>
           <span>{t('editorToolbar.charCount', { count: characters })}</span>
         </div>

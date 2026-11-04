@@ -151,8 +151,8 @@ const ThemePreviewPane: React.FC = () => {
         "...but have <translated fragment>.".
       */}
       <div className="px-4 py-3" style={{ fontFamily: 'Georgia, serif' }}>
-        <p style={{ color: 'var(--theme-text-primary)', fontSize: '16px', lineHeight: 1.7 }}>
-          <span style={{ color: 'var(--theme-text-secondary)', fontWeight: 'bold', fontSize: '12px', marginInlineEnd: '4px' }}>16</span>
+        <p style={{ color: 'var(--theme-text-primary)', fontSize: '1rem', lineHeight: 1.7 }}>
+          <span style={{ color: 'var(--theme-text-secondary)', fontWeight: 'bold', fontSize: '0.75rem', marginInlineEnd: '4px' }}>16</span>
           {tElements(t, 'ui.preferences.themePreviewLine1', {
             link: (
               <span style={{ color: 'var(--theme-link-color)', textDecoration: 'underline', cursor: 'pointer' }}>
@@ -161,8 +161,8 @@ const ThemePreviewPane: React.FC = () => {
             ),
           })}
         </p>
-        <p className="mt-2" style={{ color: 'var(--theme-text-primary)', fontSize: '16px', lineHeight: 1.7 }}>
-          <span style={{ color: 'var(--theme-text-secondary)', fontWeight: 'bold', fontSize: '12px', marginInlineEnd: '4px' }}>17</span>
+        <p className="mt-2" style={{ color: 'var(--theme-text-primary)', fontSize: '1rem', lineHeight: 1.7 }}>
+          <span style={{ color: 'var(--theme-text-secondary)', fontWeight: 'bold', fontSize: '0.75rem', marginInlineEnd: '4px' }}>17</span>
           {t('ui.preferences.themePreviewLine2')}
         </p>
       </div>

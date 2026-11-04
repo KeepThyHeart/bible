@@ -43,7 +43,7 @@ const VerseTopicsView: React.FC<VerseTopicsViewProps> = ({
         marginBottom: '12px',
         backgroundColor: 'var(--theme-bg-secondary, rgba(0,0,0,0.03))',
         borderRadius: '6px',
-        fontSize: '14px',
+        fontSize: '0.875rem',
       }}>
         <span style={{ fontWeight: 500 }}>
           {t('topicsPane.topicsForVerse', { reference: label })}
@@ -51,7 +51,7 @@ const VerseTopicsView: React.FC<VerseTopicsViewProps> = ({
         <button
           onClick={onBrowse}
           style={{
-            fontSize: '12px',
+            fontSize: '0.75rem',
             border: 'none',
             backgroundColor: 'transparent',
             color: 'var(--theme-accent-primary)',
@@ -63,13 +63,13 @@ const VerseTopicsView: React.FC<VerseTopicsViewProps> = ({
       </div>
 
       {loading ? (
-        <div style={{ textAlign: 'center', padding: '20px', color: 'var(--theme-text-secondary)', fontSize: '13px' }}>{t('topicsPane.loading')}</div>
+        <div style={{ textAlign: 'center', padding: '20px', color: 'var(--theme-text-secondary)', fontSize: '0.8125rem' }}>{t('topicsPane.loading')}</div>
       ) : (
         <VerseTopicsList
           topics={topics}
           onTopicClick={onTopicClick}
           emptyState={
-            <div style={{ textAlign: 'center', padding: '20px', color: 'var(--theme-text-secondary)', fontSize: '13px' }}>
+            <div style={{ textAlign: 'center', padding: '20px', color: 'var(--theme-text-secondary)', fontSize: '0.8125rem' }}>
               {t('topicsPane.noTopicsForVerse')}
             </div>
           }

@@ -74,7 +74,7 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
           >
             <h1
               style={{
-                fontSize: '24px',
+                fontSize: '1.5rem',
                 fontWeight: 600,
                 marginBottom: '12px',
                 color: 'var(--theme-text-heading, #111)',
@@ -84,7 +84,7 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
             </h1>
             <p
               style={{
-                fontSize: '14px',
+                fontSize: '0.875rem',
                 lineHeight: 1.6,
                 marginBottom: '24px',
                 color: 'var(--theme-text-secondary, #666)',
@@ -101,7 +101,7 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
                 borderRadius: '6px',
                 backgroundColor: 'var(--theme-bg-secondary, #f5f5f5)',
                 border: '1px solid var(--theme-border, #e0e0e0)',
-                fontSize: '13px',
+                fontSize: '0.8125rem',
                 color: 'var(--theme-text-secondary, #666)',
               }}
             >
@@ -112,7 +112,7 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
                   wordBreak: 'break-word',
                   margin: 0,
                   fontFamily: 'monospace',
-                  fontSize: '12px',
+                  fontSize: '0.75rem',
                 }}
               >
                 {this.state.error?.message}
@@ -122,7 +122,7 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
               onClick={this.handleReload}
               style={{
                 padding: '10px 24px',
-                fontSize: '14px',
+                fontSize: '0.875rem',
                 fontWeight: 500,
                 borderRadius: '6px',
                 border: 'none',

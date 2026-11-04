@@ -95,7 +95,7 @@ const CollapsedPanesRevealBar: React.FC<CollapsedPanesRevealBarProps> = ({
         color: 'var(--theme-accent-primary)',
         cursor: 'pointer',
         padding: '12px 4px',
-        fontSize: '12px',
+        fontSize: '0.75rem',
         fontWeight: 600,
         letterSpacing: '0.02em',
       }}

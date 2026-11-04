@@ -2665,18 +2665,18 @@ html {
   --ui-font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
-/* Apply UI control font size to interface elements. Multiplied by
-   --global-font-scale (General section's Global Font Scale slider) so that
-   slider - documented as adjusting "all content pane font sizes
-   proportionally... useful for accessibility" - actually reaches UI chrome
-   too, not just Bible/Study pane text. See globals.css's .pane-content-*
-   rules for the equivalent on pane content. */
+/* Interface elements follow the UI scale through the rem root (html in
+   globals.css, B-045): 0.875rem is 14px at scale 1. The scale variables are
+   not multiplied in again here. */
 .pane-header,
 .pane-header-title,
-.pane-header-subtitle,
 .pane-tab,
 .pane-tab-compact {
-  font-size: calc(var(--ui-control-font-size) * var(--global-font-scale, 1));
+  font-size: 0.875rem;
+}
+
+.pane-header-subtitle {
+  font-size: 0.75rem;
 }
 
 /* -------------------------------------------------------------------------

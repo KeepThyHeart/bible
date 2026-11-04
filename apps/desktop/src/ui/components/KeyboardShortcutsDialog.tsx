@@ -94,7 +94,7 @@ titleKey: 'ui.keyboardShortcuts.category.editing',
   {
 titleKey: 'ui.keyboardShortcuts.category.view',
     shortcuts: [
-      { descriptionKey: 'ui.keyboardShortcuts.view.zoomIn', keys: 'Mod+Plus' },
+      { descriptionKey: 'ui.keyboardShortcuts.view.zoomIn', keys: 'Mod+=' },
       { descriptionKey: 'ui.keyboardShortcuts.view.zoomOut', keys: 'Mod+Minus' },
       { descriptionKey: 'ui.keyboardShortcuts.view.resetZoom', keys: 'Mod+0' },
       { descriptionKey: 'ui.keyboardShortcuts.view.devTools', keys: 'Mod+Shift+I' },

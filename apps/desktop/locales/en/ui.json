@@ -1266,7 +1266,7 @@
   "preferencesDialog.textSizeHeading": "Text Size",
   "preferencesDialog.typographyIntro": "Fine-grained control over text sizes, line heights, and font families for the Bible text, study panes, and interface controls. Changes apply immediately.",
   "preferencesDialog.typographyPreviewLine": "For God so loved the world, that he gave his only begotten Son.",
-  "preferencesDialog.uiControlFontSizeDescription": "Adjusts the font size of tabs, menus, buttons, and other interface controls.",
+  "preferencesDialog.uiControlFontSizeDescription": "Scales the whole interface: header, toolbars, menus, tabs, dialogs. Bible text has its own size.",
   "preferencesDialog.uiControlFontSizeLabel": "UI Control Font Size: {size}px",
   "topicsPane.searchPlaceholder": "Search topics...",
   "topicsPane.browsingTopLevel": "Main topics — open one to see its sub-topics",

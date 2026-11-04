@@ -34,7 +34,7 @@ type LoadState =
 
 const centered: React.CSSProperties = {
   display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%',
-  padding: '20px', textAlign: 'center', fontSize: '13px', color: 'var(--theme-text-secondary)',
+  padding: '20px', textAlign: 'center', fontSize: '0.8125rem', color: 'var(--theme-text-secondary)',
 };
 
 /**

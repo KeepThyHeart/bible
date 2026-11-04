@@ -64,7 +64,7 @@ export const VerseGutter: React.FC<VerseGutterProps> = ({ verseId, moduleId, sur
         <GutterIcon key={`${mark.layerKey}-${i}`} mark={mark} />
       ))}
       {gutterOverflow > 0 && (
-        <span className="verse-gutter-overflow text-[10px] text-text-muted" title={`+${gutterOverflow} more`}>
+        <span className="verse-gutter-overflow text-[0.625rem] text-text-muted" title={`+${gutterOverflow} more`}>
           +{gutterOverflow}
         </span>
       )}

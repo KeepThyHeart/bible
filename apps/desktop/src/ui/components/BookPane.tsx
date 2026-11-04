@@ -536,7 +536,7 @@ const BookPane: React.FC<BookPaneProps> = (props) => {
               */}
               <span
                 aria-hidden="true"
-                className="text-[11px] leading-none select-none"
+                className="text-[0.6875rem] leading-none select-none"
                 data-testid={`book-tab-icon-${unified.type}`}
               >
                 {BOOK_PANE_TAB_ICONS[unified.type === 'dictionary' ? 'dictionary' : 'book']}

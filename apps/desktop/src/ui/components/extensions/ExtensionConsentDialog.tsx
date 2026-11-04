@@ -71,7 +71,7 @@ const TrustBanner: React.FC<{
         style={{
           margin: '0 0 16px',
           padding: 10,
-          fontSize: 13,
+          fontSize: '0.8125rem',
           borderRadius: 6,
           border: '1px solid var(--theme-border-primary)',
         }}
@@ -99,7 +99,7 @@ const TrustBanner: React.FC<{
       style={{
         margin: '0 0 16px',
         padding: 12,
-        fontSize: 13,
+        fontSize: '0.8125rem',
         borderRadius: 6,
         border: '1px solid var(--theme-danger-border)',
         background: 'var(--theme-danger-soft)',
@@ -199,10 +199,10 @@ const ExtensionConsentDialog: React.FC = () => {
           boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
         }}
       >
-        <h2 id="extension-consent-title" style={{ marginTop: 0, fontSize: 20, fontWeight: 700 }}>
+        <h2 id="extension-consent-title" style={{ marginTop: 0, fontSize: '1.25rem', fontWeight: 700 }}>
           Install &ldquo;{displayName}&rdquo;?
         </h2>
-        <p style={{ marginTop: 4, marginBottom: 16, opacity: 0.75, fontSize: 13 }}>
+        <p style={{ marginTop: 4, marginBottom: 16, opacity: 0.75, fontSize: '0.8125rem' }}>
           {m.id} v{m.version}
           {m.publisher ? ` · ${m.publisher}` : ''}
         </p>
@@ -213,15 +213,15 @@ const ExtensionConsentDialog: React.FC = () => {
         />
 
         {description && (
-          <p style={{ marginBottom: 16, fontSize: 14 }}>{description}</p>
+          <p style={{ marginBottom: 16, fontSize: '0.875rem' }}>{description}</p>
         )}
 
-        <h3 style={{ fontSize: 14, fontWeight: 600, marginTop: 8, marginBottom: 8 }}>
+        <h3 style={{ fontSize: '0.875rem', fontWeight: 600, marginTop: 8, marginBottom: 8 }}>
           {t('extensionConsentDialog.thisExtensionIsRequesting')}
         </h3>
 
         {pending.requestedPermissions.length === 0 ? (
-          <p style={{ fontSize: 13, opacity: 0.7 }}>{t('extensionConsentDialog.noAdditionalPermissionsRequested')}</p>
+          <p style={{ fontSize: '0.8125rem', opacity: 0.7 }}>{t('extensionConsentDialog.noAdditionalPermissionsRequested')}</p>
         ) : (
           <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
             {pending.requestedPermissions.map((p) => {
@@ -250,21 +250,21 @@ const ExtensionConsentDialog: React.FC = () => {
                       style={{ marginTop: 3 }}
                     />
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontWeight: 600, fontSize: 13 }}>
+                      <div style={{ fontWeight: 600, fontSize: '0.8125rem' }}>
                         {p}
                         {isHighRisk && (
                           <span
                             style={{
                               color: 'var(--theme-danger-text)',
                               marginInlineStart: 8,
-                              fontSize: 11,
+                              fontSize: '0.6875rem',
                             }}
                           >
                             {t('extensionConsentDialog.sensitive')}
                           </span>
                         )}
                       </div>
-                      <div style={{ fontSize: 12, opacity: 0.8, marginTop: 2 }}>
+                      <div style={{ fontSize: '0.75rem', opacity: 0.8, marginTop: 2 }}>
                         {permissionDescription(t, p)}
                       </div>
                     </div>
@@ -277,10 +277,10 @@ const ExtensionConsentDialog: React.FC = () => {
 
         {pending.networkHosts.length > 0 && (
           <div style={{ marginTop: 12 }}>
-            <h4 style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>
+            <h4 style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: 4 }}>
               {t('extensionConsentDialog.networkHostsTheExtensionMayContact')}
             </h4>
-            <ul style={{ fontSize: 12, paddingInlineStart: 18 }}>
+            <ul style={{ fontSize: '0.75rem', paddingInlineStart: 18 }}>
               {pending.networkHosts.map((h, idx) => (
                 <li key={idx}>
                   <code>{h.host}</code>

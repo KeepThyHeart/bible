@@ -120,6 +120,7 @@ import {
   registerExtUiSchemePrivileged,
 } from './extensions/extUiProtocol';
 import { setActiveHostTheme } from './extensions/hostThemeCss';
+import { isZoomInAlias } from './zoomShortcuts';
 
 // Configure electron-log
 log.transports.file.level = 'info';
@@ -294,6 +295,12 @@ function getBackupExtensionPort(): ExtensionPort | undefined {
 /**
  * Register window management IPC handlers
  */
+function zoomIn(): void {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  const z = mainWindow.webContents.getZoomLevel();
+  mainWindow.webContents.setZoomLevel(z + 0.5);
+}
+
 function registerWindowHandlers(): void {
   // Detach pane to new window
   ipcMain.handle('window:detach-pane', async (_event, paneType: string, initialState: any) => {
@@ -749,11 +756,7 @@ const registerAllHandlersOnce = runOnce(() => {
     if (!mainWindow || mainWindow.isDestroyed()) return;
     mainWindow.webContents.toggleDevTools();
   });
-  ipcMain.handle('app:zoom-in', () => {
-    if (!mainWindow || mainWindow.isDestroyed()) return;
-    const z = mainWindow.webContents.getZoomLevel();
-    mainWindow.webContents.setZoomLevel(z + 0.5);
-  });
+  ipcMain.handle('app:zoom-in', () => zoomIn());
   ipcMain.handle('app:zoom-out', () => {
     if (!mainWindow || mainWindow.isDestroyed()) return;
     const z = mainWindow.webContents.getZoomLevel();
@@ -906,6 +909,14 @@ async function createWindow(): Promise<void> {
   // isClosing prevents re-entrance: preventDefault() keeps the window alive,
   // so without this flag the 'close' event would fire again from destroy().
   let isClosing = false;
+  // Ctrl+Shift+= (key "+") also zooms in; Ctrl+= is the menu accelerator.
+  mainWindow.webContents.on('before-input-event', (event, input) => {
+    if (isZoomInAlias(input)) {
+      event.preventDefault();
+      zoomIn();
+    }
+  });
+
   mainWindow.on('close', async (event) => {
     if (isClosing) return;
 

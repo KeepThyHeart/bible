@@ -346,7 +346,7 @@ const CommentaryHomeModule: React.FC<{
           {provenanceKind && (
             <span
               data-testid="commentary-home-provenance-badge"
-              className="flex-shrink-0 rounded bg-info-soft px-1.5 py-0.5 text-[10px] font-medium text-info-text"
+              className="flex-shrink-0 rounded bg-info-soft px-1.5 py-0.5 text-[0.625rem] font-medium text-info-text"
             >
               {t(MODULE_PROVENANCE_TEXT[provenanceKind].collapsedKey)}
             </span>
@@ -374,7 +374,7 @@ const CommentaryHomeModule: React.FC<{
             {/* The digest module never shows its raw DB name ("Commentary Synthesis") - see docs/features/study-topics.md. */}
             {!isDigestModule(module.abbreviation) && module.name !== module.abbreviation ? module.name : ''}
           </span>
-          <span className="text-[11px] flex-shrink-0 ms-auto whitespace-nowrap" style={{ color: 'var(--theme-text-muted, #999)', position: 'relative', top: '-5px' }}>
+          <span className="text-[0.6875rem] flex-shrink-0 ms-auto whitespace-nowrap" style={{ color: 'var(--theme-text-muted, #999)', position: 'relative', top: '-5px' }}>
             {localizer.formatNumber(module.totalWordCount)} words
           </span>
         </div>
@@ -390,7 +390,7 @@ const CommentaryHomeModule: React.FC<{
               {!isMutedSection && (
                 <button
                   onClick={(e) => { e.stopPropagation(); onTogglePromote(); }}
-                  className={`text-[11px] px-1.5 py-0.5 rounded transition-colors ${
+                  className={`text-[0.6875rem] px-1.5 py-0.5 rounded transition-colors ${
                     isPromoted ? 'text-accent' : 'text-text-muted hover:text-text-primary hover:bg-background-hover'
                   }`}
                   title={isPromoted ? t('commentaryHome.unfavoriteTitle') : t('commentaryHome.favoriteTitle')}
@@ -404,7 +404,7 @@ const CommentaryHomeModule: React.FC<{
               {/* Mute button - muting requires confirmation, unmuting does not */}
               <button
                 onClick={handleMuteClick}
-                className="text-[11px] px-1.5 py-0.5 rounded text-text-muted hover:text-text-primary hover:bg-background-hover transition-colors"
+                className="text-[0.6875rem] px-1.5 py-0.5 rounded text-text-muted hover:text-text-primary hover:bg-background-hover transition-colors"
                 title={isMuted ? t('commentaryHome.unmuteTitle') : t('commentaryHome.muteTitle')}
               >
                 {isMuted ? t('commentaryHome.unmuteLabel') : t('commentaryHome.muteLabel')}
@@ -424,7 +424,7 @@ const CommentaryHomeModule: React.FC<{
             {/* Add to tabs button */}
             {isTabOpen ? (
               <button
-                className="text-[11px] px-2 py-0.5 rounded border text-text-muted cursor-default opacity-70"
+                className="text-[0.6875rem] px-2 py-0.5 rounded border text-text-muted cursor-default opacity-70"
                 style={{ borderColor: 'var(--theme-border-primary)' }}
                 disabled
               >
@@ -433,7 +433,7 @@ const CommentaryHomeModule: React.FC<{
             ) : (
               <button
                 onClick={(e) => { e.stopPropagation(); onOpenTab(); }}
-                className="text-[11px] px-2 py-0.5 rounded border border-accent text-accent hover:bg-accent/10 transition-colors"
+                className="text-[0.6875rem] px-2 py-0.5 rounded border border-accent text-accent hover:bg-accent/10 transition-colors"
                 title={t('commentaryHome.addToTabsTitle')}
               >
                 {t('commentaryHome.addToTabs')}
@@ -573,7 +573,7 @@ const HomeEntryPreview: React.FC<{
   return (
     <div className="relative">
       {entry.entry_level !== 'verse' && (
-        <span className="inline-block px-1 py-0.5 bg-background-tertiary text-[10px] text-text-secondary rounded mb-1">
+        <span className="inline-block px-1 py-0.5 bg-background-tertiary text-[0.625rem] text-text-secondary rounded mb-1">
           {entry.entry_level}
         </span>
       )}
