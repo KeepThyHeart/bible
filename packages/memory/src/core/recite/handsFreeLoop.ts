@@ -314,9 +314,11 @@ export class HandsFreeLoop {
   }
 
   private pausedMessage(): string {
-    return this.silencePause
-      ? tc('memory.core.loopPausedSilence', 'No speech was heard, so recitation is paused. Say "resume" or press Resume to continue.')
-      : tc('memory.core.loopPaused', 'Paused');
+    if (!this.silencePause) return tc('memory.core.loopPaused', 'Paused');
+    // Nothing listens while paused, so name the button on screen in each mode.
+    return this.deps.mode === 'handsfree'
+      ? tc('memory.core.loopPausedSilence', 'No speech was heard, so recitation is paused. Press Resume to continue.')
+      : tc('memory.core.loopPausedSilenceTap', 'No speech was heard. Press Talk to try again.');
   }
 
   private resume(): void {

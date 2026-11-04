@@ -36,6 +36,12 @@ beforeEach(() => {
 });
 
 describe('SearchSection', () => {
+  it('B-107: radios do not shrink beside long help text', () => {
+    status = st();
+    render(<SearchSection />);
+    expect(screen.getByTestId('semantic-source-online').className).toMatch(/\bshrink-0\b/);
+  });
+
   it('B-161: says so on the Online option while web requests are off', () => {
     status = st();
     allowWeb = false;

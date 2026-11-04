@@ -58,7 +58,7 @@ export const SearchSection: React.FC = () => {
         value={value}
         checked={current === value}
         onChange={() => void setSource(value)}
-        className="w-4 h-4 mt-0.5"
+        className="w-4 h-4 mt-0.5 shrink-0"
         style={{ accentColor: 'var(--theme-accent-primary)' }}
         data-testid={`semantic-source-${value}`}
       />
