@@ -76,3 +76,5 @@
 @use 'study-pane';
 @use 'mobile-study';
 
+// Windows High Contrast overrides: keep last
+@use 'forced-colors';
