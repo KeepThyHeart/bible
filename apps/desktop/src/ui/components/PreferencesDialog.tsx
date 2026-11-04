@@ -192,7 +192,7 @@ const PreferencesDialog: React.FC<PreferencesDialogProps> = ({
                 aria-controls={`preferences-panel-${section.id}`}
                 tabIndex={activeSection === section.id ? 0 : -1}
                 onClick={() => setActiveSection(section.id)}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors ${
+                className={`w-full flex items-start text-start gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors [&>svg]:shrink-0 ${
                   activeSection === section.id ? 'font-semibold' : ''
                 }`}
                 style={{
