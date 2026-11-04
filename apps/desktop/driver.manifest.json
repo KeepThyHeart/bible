@@ -1,0 +1,21 @@
+{
+  "app": "desktop",
+  "kind": "electron",
+  "description": "Bible desktop app (Electron) with a throwaway user-data dir",
+  "build": {
+    "requires": ["out/main/index.js"],
+    "hint": "pnpm run build:desktop"
+  },
+  "electron": {
+    "main": "out/main/index.js",
+    "args": ["--password-store=basic", "--no-sandbox", "--disable-dev-shm-usage"],
+    "env": {
+      "NODE_ENV": "test",
+      "ELECTRON_USER_DATA": "${profile}/user-data",
+      "BIBLE_KEYWORD_INDEX_DIR": "${tmp}/bible-ui-driver-keyword-index",
+      "BIBLE_REMOTE_SEMANTIC_URL": "none"
+    },
+    "readySelector": "[data-testid=\"app-loaded\"]",
+    "timeout": 60000
+  }
+}
