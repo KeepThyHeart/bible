@@ -261,7 +261,9 @@ function requireKeywordIndexService(): KeywordIndexService {
  */
 async function installModuleFromPath(
   filePath: string,
-  policy: ModuleInstallPolicy | boolean = 'replace-always'
+  policy: ModuleInstallPolicy | boolean = 'replace-always',
+  /** True (default) for a file the user picked: it is copied, never moved (B-111). */
+  keepSource = true
 ): Promise<{
   moduleId?: number;
   moduleName?: string;
@@ -336,7 +338,7 @@ async function installModuleFromPath(
 
   // Install the module
   log.info('[ModuleManager] Installing module from file...');
-  const installResult = await svc.installModule(filePath, moduleInfo);
+  const installResult = await svc.installModule(filePath, moduleInfo, undefined, undefined, { keepSource });
   log.info('[ModuleManager] Install result:', installResult);
 
   if (!installResult.success) {
@@ -503,7 +505,7 @@ async function installModulePackFromPath(
   const summary = await installModulePack(
     archivePath,
     getModulePackExtractionRoot(),
-    (filePath) => installModuleFromPath(filePath, effectivePolicy),
+    (filePath) => installModuleFromPath(filePath, effectivePolicy, false),
     undefined,
     trust
   );

@@ -47,4 +47,23 @@ describe('InstallationService - sidecar files after install (new minor bug)', ()
     expect(fs.existsSync(dbPath)).toBe(false);
     for (const ext of ['-wal', '-shm', '-journal']) expect(fs.existsSync(dbPath + ext)).toBe(false);
   });
+
+  it('keepSource copies a user-chosen file and leaves it in place (B-111)', async () => {
+    const dbPath = path.join(root, 'downloads', 'mine.db');
+    fs.writeFileSync(dbPath, 'module bytes');
+
+    const result = await service.installModule(
+      dbPath,
+      { moduleType: 'bible' as const, moduleName: 'Test', abbreviation: 'TEST',
+        moduleUuid: '00000000-0000-0000-0000-000000000002' },
+      undefined,
+      undefined,
+      { keepSource: true }
+    );
+
+    expect(result.success).toBe(true);
+    expect(fs.existsSync(dbPath)).toBe(true);
+    expect(fs.readFileSync(dbPath, 'utf8')).toBe('module bytes');
+    expect(fs.existsSync(path.join(root, 'modules', 'bible_test.db'))).toBe(true);
+  });
 });
