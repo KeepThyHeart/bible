@@ -436,6 +436,9 @@ const DockviewLayout: React.FC<DockviewLayoutProps> = ({ savedLayout, layoutDeci
                 });
               }
             }
+            // Search results live only in memory, so a restored search panel would reopen empty
+            // and squeeze the reading area (B-054).
+            useLayoutStore.getState().closeSearchResultsPanels(); // allow-getstate: dockview event callback - runs outside React render
             // A group serialized at zero size was collapsed by Reading Mode. The
             // constraint that let it be zero-width is not part of the
             // serialization, so without this the restored session springs back to
