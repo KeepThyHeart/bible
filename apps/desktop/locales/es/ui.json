@@ -610,9 +610,9 @@
   "userNotesPane.renameNoteDialogTitle": "Cambiar el nombre de la nota",
   "userNotesPane.renameFolderDialogTitle": "Cambiar el nombre de la carpeta",
   "userNotesPane.breadcrumbHome": "Inicio",
-  "userNotesPane.deleteConfirm.title": "\u00bfEliminar este elemento?",
-  "userNotesPane.deleteConfirm.message": "\u00ab{name}\u00bb se mover\u00e1 a la papelera del sistema (la Papelera de reciclaje en Windows), desde donde puedes restaurarlo.",
-  "userNotesPane.deleteConfirm.folderMessage": "La carpeta \u00ab{name}\u00bb y todas las notas que contiene se mover\u00e1n a la papelera del sistema (la Papelera de reciclaje en Windows), desde donde puedes restaurarlas.",
+  "userNotesPane.deleteConfirm.title": "¿Eliminar este elemento?",
+  "userNotesPane.deleteConfirm.message": "«{name}» se moverá a la papelera del sistema (la Papelera de reciclaje en Windows), desde donde puedes restaurarlo.",
+  "userNotesPane.deleteConfirm.folderMessage": "La carpeta «{name}» y todas las notas que contiene se moverán a la papelera del sistema (la Papelera de reciclaje en Windows), desde donde puedes restaurarlas.",
   "userNotesPane.deleteConfirm.confirm": "Mover a la papelera",
   "userNotesPane.revealInExplorerLabel": "Mostrar en el Explorador",
   "userNotesPane.revealInExplorerLabelMac": "Mostrar en el Finder",
@@ -2322,5 +2322,10 @@
   "apps.readingPlans.title": "Planes de lectura",
   "userNotesPane.backToNote": "Back to {title}",
   "commentaryContentArea.loadError": "Could not load this commentary.",
-  "commentaryContentArea.retry": "Retry"
+  "commentaryContentArea.retry": "Retry",
+  "preferencesDialog.sectionSearch": "Búsqueda",
+  "searchResultsPane.resultCountWithApproximate": "{count, plural, one {# resultado encontrado} other {# resultados encontrados}}, más {approximate} aproximados",
+  "liveSearchSuggestions.listLabel": "Sugerencias de búsqueda",
+  "userNotesPane.editorLabel": "Texto de la nota. Tab sangra; pulsa Escape y luego Tab para salir del editor.",
+  "ui.verseContextMenu.editNote": "Editar nota"
 }

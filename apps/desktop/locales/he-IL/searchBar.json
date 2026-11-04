@@ -6,5 +6,6 @@
   "searchBar.referenceMode.goTo": "עבור אל {reference}",
   "searchBar.emptyState.recentSearches": "חיפושים אחרונים",
   "searchBar.emptyState.recentCommands": "פקודות אחרונות",
-  "searchBar.emptyState.noRecents": "אין פריטים אחרונים"
+  "searchBar.emptyState.noRecents": "אין פריטים אחרונים",
+  "searchBar.resultCountLabel": "{count} תוצאות"
 }

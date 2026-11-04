@@ -2298,5 +2298,10 @@
   "apps.readingPlans.title": "תוכניות קריאה",
   "userNotesPane.backToNote": "Back to {title}",
   "commentaryContentArea.loadError": "Could not load this commentary.",
-  "commentaryContentArea.retry": "Retry"
+  "commentaryContentArea.retry": "Retry",
+  "preferencesDialog.sectionSearch": "חיפוש",
+  "searchResultsPane.resultCountWithApproximate": "{count, plural, one {נמצאה תוצאה אחת} two {נמצאו # תוצאות} other {נמצאו # תוצאות}}, בתוספת {approximate} משוערות",
+  "liveSearchSuggestions.listLabel": "הצעות חיפוש",
+  "userNotesPane.editorLabel": "טקסט ההערה. Tab יוצר הזחה; לחצו Escape ואז Tab כדי לצאת מהעורך.",
+  "ui.verseContextMenu.editNote": "עריכת הערה"
 }

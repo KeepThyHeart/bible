@@ -6,5 +6,6 @@
   "searchBar.referenceMode.goTo": "Ir a {reference}",
   "searchBar.emptyState.recentSearches": "Búsquedas recientes",
   "searchBar.emptyState.recentCommands": "Comandos recientes",
-  "searchBar.emptyState.noRecents": "No hay elementos recientes"
+  "searchBar.emptyState.noRecents": "No hay elementos recientes",
+  "searchBar.resultCountLabel": "{count} resultados"
 }

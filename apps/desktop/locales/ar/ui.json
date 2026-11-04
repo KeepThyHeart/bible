@@ -2151,7 +2151,7 @@
   "backupRestoreDialog.restoreFileErrors": "{count, plural, zero {لا ملفات تعذّرت كتابتها.} one {تعذّرت كتابة ملف واحد.} two {تعذّرت كتابة ملفين.} few {تعذّرت كتابة # ملفات.} many {تعذّرت كتابة # ملفًا.} other {تعذّرت كتابة # ملف.}} بياناتك لم تتغير في قاعدة البيانات؛ راجع نسخة الأمان.",
   "backupRestoreDialog.warning.dependentRemoved": "ستُزال العناصر في {table} التي تتبع البيانات المستبدلة.",
   "backupRestoreDialog.warning.dependentDetached": "ستبقى العناصر في {table} التي تشير إلى البيانات المستبدلة لكن لن تكون مرتبطة بها بعد الآن.",
-  "preferencesDialog.sectionMeasures": "Weights and measures",
+  "preferencesDialog.sectionMeasures": "الأوزان والمقاييس",
   "settings.measures.enabled": "ملاحظات الأوزان والمقاييس والنقود",
   "settings.measures.enabled.description": "تمييز الوحدات القديمة في النص وعرض ما يعادلها اليوم.",
   "settings.measures.display": "العرض في النص",
@@ -2220,7 +2220,7 @@
   "readingPlans.settings.showStreak": "إظهار تتابع القراءة",
   "preferencesDialog.sectionNotifications": "الإشعارات",
   "extensionConsent.permission.notificationsSchedule": "عرض تذكيرات لك في الأوقات التي يختارها، حتى عندما يكون التطبيق في الخلفية.",
-  "preferencesDialog.sectionDownloads": "Downloads & storage",
+  "preferencesDialog.sectionDownloads": "التنزيلات والتخزين",
   "preferencesDialog.sectionSpeech": "الكلام",
   "assets.error.offline": "أنت غير متصل بالإنترنت (أو أن الوصول إلى الويب متوقف).",
   "assets.error.network": "انقطع التنزيل. حاول مرة أخرى.",
@@ -2313,5 +2313,10 @@
   "apps.readingPlans.title": "خطط القراءة",
   "userNotesPane.backToNote": "Back to {title}",
   "commentaryContentArea.loadError": "Could not load this commentary.",
-  "commentaryContentArea.retry": "Retry"
+  "commentaryContentArea.retry": "Retry",
+  "preferencesDialog.sectionSearch": "البحث",
+  "searchResultsPane.resultCountWithApproximate": "{count, plural, zero {لم يُعثر على نتائج} one {نتيجة واحدة} two {نتيجتان} few {# نتائج} many {# نتيجة} other {# نتيجة}}، بالإضافة إلى {approximate} تقريبية",
+  "liveSearchSuggestions.listLabel": "اقتراحات البحث",
+  "userNotesPane.editorLabel": "نص الملاحظة. مفتاح Tab يزيح السطر؛ اضغط Escape ثم Tab لمغادرة المحرر.",
+  "ui.verseContextMenu.editNote": "تعديل الملاحظة"
 }
