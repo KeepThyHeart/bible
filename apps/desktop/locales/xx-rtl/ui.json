@@ -2173,7 +2173,7 @@
   "backupRestoreDialog.mergeExplain": "‏Adds the backup to your data. Nothing you have is changed or removed, and items you already have are not duplicated.‏",
   "backupRestoreDialog.replaceExplain": "‏Replaces the selected data with the backup. A safety copy of your current data is saved first.‏",
   "backupRestoreDialog.whatToRestore": "‏What to restore‏",
-  "backupRestoreDialog.group.content": "‏Notes, highlights, links, collections and study data‏",
+  "backupRestoreDialog.group.content": "‏Notes, highlights, bookmarks, links, collections, study data and saved options‏",
   "backupRestoreDialog.group.extension": "‏Extension data‏",
   "backupRestoreDialog.group.workspace": "‏Saved sessions, layouts and keyboard shortcuts‏",
   "backupRestoreDialog.group.history": "‏Search and navigation history‏",

@@ -481,3 +481,19 @@ describe('extension databases', () => {
     expect(written.get('ext.a/notes')).toEqual(new Uint8Array([2]));
   });
 });
+
+describe('merge of the default bookmarks collection (B-077)', () => {
+  it('bookmarks from the backup land in the default collection this computer already has', async () => {
+    const meta = JSON.stringify({ isDefaultBookmarks: true });
+    const a = newUserDb();
+    a.execute("INSERT INTO collection (name, description, created_date, modified_date, metadata) VALUES ('Favorites', 'My favorite verses', '2026-01-01 00:00:00', '2026-01-02 00:00:00', ?)", [meta]);
+    a.execute("INSERT INTO pinned_item (collection_id, item_type, verse_id_start, verse_id_end) VALUES (1, 'verse', 43003012, 43003012)");
+    const b = newUserDb();
+    b.execute("INSERT INTO collection (name, description, created_date, modified_date, metadata) VALUES ('Favorites', 'My favorite verses', '2026-03-05 00:00:00', '2026-03-05 00:00:00', ?)", [meta]);
+    await restore(a, b, 'merge');
+    const s = snapshot(b);
+    expect(s.collection).toHaveLength(1);
+    expect(s.pinned_item).toHaveLength(1);
+    expect(s.pinned_item[0].collection_id).toBe(s.collection[0].collection_id);
+  });
+});
