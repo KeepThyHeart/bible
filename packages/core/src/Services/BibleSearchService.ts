@@ -341,7 +341,10 @@ export class BibleSearchService implements ISearchService {
 
     const allResults: SearchResult[] = [];
 
+    let handled = 0;
     for (const hit of response.hits) {
+      // One thread serves every visitor: hand it back between batches.
+      if (++handled % 100 === 0) await new Promise<void>(resolve => setImmediate(resolve));
       const abbr = this.abbrForTarget(hit.target);
       if (!abbr) continue; // defensive: every hit's target came from `targets` above
       const repo = modules.get(abbr);
@@ -1872,19 +1875,22 @@ export class BibleSearchService implements ISearchService {
     const significant = terms.filter(t => !BibleSearchService.isStopWord(t));
     const useCoverage = significant.length >= 2;
     const scored = useCoverage ? significant : terms;
-    const required = useCoverage
+    const requiredAll = useCoverage
       ? Math.max(2, Math.ceil(scored.length * BibleSearchService.FUZZY_COVERAGE_RATIO))
       : scored.length;
 
-    const prefixes = scored.map(t => BibleSearchService.stemPrefix(t));
+    // Repeated and surplus terms add nothing to coverage but multiply the
+    // combinations below (a 120-word query ran for minutes, B-169).
+    const prefixes = [...new Set(scored.map(t => BibleSearchService.stemPrefix(t)))]
+      .slice(0, BibleSearchService.FUZZY_MAX_TERMS);
+    const required = Math.min(requiredAll, prefixes.length);
     // Largest combinations first: a verse matching every term is the best
     // approximate match there is, and the per-query row cap (taken in Bible
     // order) must not be spent on smaller combinations before it is found.
     const combos: number[][] = [];
-    for (let size = prefixes.length; size >= required; size--) {
-      combos.push(...BibleSearchService.combinations(prefixes.length, size));
+    for (let size = prefixes.length; size >= required && combos.length < BibleSearchService.FUZZY_MAX_COMBINATIONS; size--) {
+      combos.push(...BibleSearchService.combinations(prefixes.length, size, BibleSearchService.FUZZY_MAX_COMBINATIONS - combos.length));
     }
-    combos.length = Math.min(combos.length, BibleSearchService.FUZZY_MAX_COMBINATIONS);
 
     const existingIds = new Set(existingResults.map(r => r.verseId));
     const found = new Map<string, SearchResult>();
@@ -1931,6 +1937,8 @@ export class BibleSearchService implements ISearchService {
   private static readonly FUZZY_PER_COMBINATION_LIMIT = 100;
   /** Guard against a very long query fanning out into hundreds of queries. */
   private static readonly FUZZY_MAX_COMBINATIONS = 30;
+  /** Distinct significant terms weighed for coverage; the rest of a very long query is ignored. */
+  private static readonly FUZZY_MAX_TERMS = 8;
   /** Words too common in Bible English to say anything about a match, beyond the general list. */
   private static readonly ARCHAIC_STOP_WORDS = new Set([
     'thou', 'thee', 'thy', 'thine', 'ye', 'unto', 'hath', 'doth', 'shalt', 'wilt', 'art', 'o',
@@ -1955,11 +1963,12 @@ export class BibleSearchService implements ISearchService {
   }
 
   /** All k-element index subsets of 0..n-1, in lexicographic order. */
-  private static combinations(n: number, k: number): number[][] {
+  private static combinations(n: number, k: number, limit = Infinity): number[][] {
     const out: number[][] = [];
     const walk = (start: number, chosen: number[]): void => {
+      if (out.length >= limit) return;
       if (chosen.length === k) { out.push([...chosen]); return; }
-      for (let i = start; i < n; i++) {
+      for (let i = start; i < n && out.length < limit; i++) {
         chosen.push(i);
         walk(i + 1, chosen);
         chosen.pop();
