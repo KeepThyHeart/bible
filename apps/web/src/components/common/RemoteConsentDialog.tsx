@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { useStore } from '../../hooks/useStore';
 import { useEscapeKey } from '../../hooks/useEscapeKey';
+import { useModalFocus } from '../../hooks/useModalFocus';
 import { remoteConsentStore } from '../../search/remote/consentStore';
 
 /**
@@ -13,27 +14,30 @@ export function RemoteConsentDialog() {
   const { t } = useTranslation();
   const open = useStore(remoteConsentStore, () => remoteConsentStore.dialogOpen);
   const via = useStore(remoteConsentStore, () => remoteConsentStore.via);
-  const agreeRef = useRef<HTMLButtonElement>(null);
-  const previousFocus = useRef<Element | null>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const declineRef = useRef<HTMLButtonElement>(null);
 
   useEscapeKey(open, () => remoteConsentStore.decline());
 
-  // Focus the primary button on open; give focus back on close.
+  // W-029/W-036: Tab stays inside the dialog and focus goes back to whatever opened it.
+  useModalFocus(open, dialogRef);
+
+  // Initial focus on "Not now", the option that does not consent: Enter or Space on
+  // open must not grant by accident.
   useEffect(() => {
-    if (!open) return;
-    previousFocus.current = document.activeElement;
-    agreeRef.current?.focus();
-    return () => {
-      const el = previousFocus.current;
-      if (el instanceof HTMLElement) el.focus();
-    };
+    if (open) declineRef.current?.focus();
   }, [open]);
 
   if (!open) return null;
 
   return (
-    <div class="settings-panel-overlay remote-consent-overlay">
+    <div
+      class="settings-panel-overlay remote-consent-overlay"
+      // W-029: a click on the backdrop itself (not the dialog) means "Not now", as documented above.
+      onClick={(e) => { if (e.target === e.currentTarget) remoteConsentStore.decline(); }}
+    >
       <div
+        ref={dialogRef}
         class="remote-consent"
         role="dialog"
         aria-modal="true"
@@ -56,6 +60,7 @@ export function RemoteConsentDialog() {
           <button
             type="button"
             class="remote-consent__btn"
+            ref={declineRef}
             data-testid="remote-consent-decline"
             onClick={() => remoteConsentStore.decline()}
           >
@@ -63,7 +68,6 @@ export function RemoteConsentDialog() {
           </button>
           <button
             type="button"
-            ref={agreeRef}
             class="remote-consent__btn remote-consent__btn--primary"
             data-testid="remote-consent-agree"
             onClick={() => remoteConsentStore.grant()}
