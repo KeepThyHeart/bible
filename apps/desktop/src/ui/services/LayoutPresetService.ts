@@ -12,6 +12,7 @@ import {
 } from './PresetApplier';
 import { useLayoutStore, type PanelContentType } from '../stores/useLayoutStore';
 import { genericEnglishTitle } from '../utils/paneNames';
+import { useBibleStore, encodeBibleContentKey } from '../stores/useBibleStore';
 
 /**
  * Applies the built-in layout presets.
@@ -33,6 +34,35 @@ import { genericEnglishTitle } from '../utils/paneNames';
  * Re-applying the preset that is already current deliberately skips the
  * remembered arrangement: that is the "reset this layout" gesture.
  */
+/**
+ * B-027: applying a preset rebuilds the grid with `fromJSON`, which unmounts
+ * every Bible pane; on remount a pane re-seeds from its dockview `contentKey`,
+ * which still names the passage it was *created* with. Re-encode each Bible
+ * panel's live passage into that key first, so the pane comes back where the
+ * reader was (chapter and selected verse), not at its original seed.
+ */
+export function freshenBibleSeeds(snapshot: SerializedDockview): void {
+  const panels = (snapshot as unknown as { panels?: Record<string, { params?: Record<string, unknown> }> }).panels;
+  if (!panels) return;
+  const live = useBibleStore.getState().panels; // allow-getstate: service - imperative store access outside render
+  for (const [id, entry] of Object.entries(panels)) {
+    if (entry.params?.contentType !== 'bible') continue;
+    const ps = live.get(id);
+    const tab = ps?.openTabs[ps.activeTabIndex] ?? ps?.openTabs[0];
+    if (!ps || !tab || !ps.currentBook || !ps.currentChapter) continue;
+    entry.params = {
+      ...entry.params,
+      contentKey: encodeBibleContentKey({
+        abbreviation: tab.abbreviation,
+        book: ps.currentBook,
+        chapter: ps.currentChapter,
+        selectedVerseId: ps.selectedVerseId,
+        displayMode: tab.displayMode,
+      }),
+    };
+  }
+}
+
 export class LayoutPresetService implements ILayoutPresetService {
   private _currentPresetId: string | null = null;
   private _undoSnapshot: SerializedDockview | null = null;
@@ -94,6 +124,7 @@ export class LayoutPresetService implements ILayoutPresetService {
       snapshot = api.toJSON();
     }
 
+    freshenBibleSeeds(snapshot);
     this.rememberCurrent(snapshot);
 
     const reuseRemembered = !options?.forceRebuild && presetId !== this._currentPresetId;
