@@ -451,6 +451,17 @@
     line-height: var(--pane-line-height-dictionary, var(--study-line-height, 1.75));
   }
 
+  /* The Study pane (B-074). Prose inside it already flows through
+   * .pane-content-commentary; this wrapper carries the same "Study / pane text"
+   * size and font to everything else (section labels, topic rows, badges,
+   * notices). `--study-fs` is the resolved size - see utils/studyScale.ts, which
+   * sizes each literal as a fraction of it. */
+  .pane-content-study {
+    --study-fs: calc(var(--study-font-size, 16px) * var(--global-font-scale, 1));
+    font-family: var(--study-font-family, Georgia, Merriweather, serif);
+    font-size: var(--study-fs);
+  }
+
   /* Pane header bar styling - shared across all panes (theme-aware) */
   .pane-header {
     @apply flex items-center flex-shrink-0 min-w-0;

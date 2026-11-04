@@ -1,4 +1,5 @@
 import React from 'react';
+import { studyScaled } from '../../utils/studyScale';
 import { formatVerseReference } from '../../utils/verseReference';
 import { useI18n } from '../../contexts/useI18n';
 
@@ -27,7 +28,7 @@ const SuggestionBanner: React.FC<SuggestionBannerProps> = ({ verseId, messagePre
         padding: '6px 12px',
         backgroundColor: 'var(--theme-accent-bg, rgba(59, 130, 246, 0.1))',
         borderBottom: '1px solid var(--theme-border-primary)',
-        fontSize: '0.8125rem',
+        fontSize: studyScaled(13),
         color: 'var(--theme-text-primary)',
         gap: '8px',
         flexShrink: 0,
@@ -41,7 +42,7 @@ const SuggestionBanner: React.FC<SuggestionBannerProps> = ({ verseId, messagePre
           onClick={onGo}
           style={{
             padding: '2px 10px',
-            fontSize: '0.75rem',
+            fontSize: studyScaled(12),
             borderRadius: '4px',
             border: 'none',
             backgroundColor: 'var(--theme-accent-primary)',
@@ -55,7 +56,7 @@ const SuggestionBanner: React.FC<SuggestionBannerProps> = ({ verseId, messagePre
           onClick={onDismiss}
           style={{
             padding: '2px 10px',
-            fontSize: '0.75rem',
+            fontSize: studyScaled(12),
             borderRadius: '4px',
             border: '1px solid var(--theme-border-primary)',
             backgroundColor: 'transparent',

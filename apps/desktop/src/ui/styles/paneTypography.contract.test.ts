@@ -49,6 +49,31 @@ describe('pane typography cascade', () => {
     expect(rule![1]).toMatch(/line-height:\s*inherit/);
   });
 
+  it('gives the Study pane its text size and font from the Study / pane text setting (B-074)', () => {
+    const rule = globals.match(/\.pane-content-study\s*\{([^}]*)\}/);
+    expect(rule, 'globals.css must define .pane-content-study').not.toBeNull();
+    expect(rule![1]).toMatch(/--study-fs:\s*calc\([^;]*--study-font-size[^;]*--global-font-scale/);
+    expect(rule![1]).toMatch(/font-family:\s*var\(--study-font-family/);
+    expect(rule![1]).toMatch(/font-size:\s*var\(--study-fs\)/);
+  });
+
+  it('sizes no Study pane text with a fixed size', () => {
+    // The Study pane's own components size text through studyScaled() so the
+    // Study / pane text setting reaches all of it; a fixed rem/px size or a
+    // Tailwind text-* size class would quietly opt out again.
+    for (const file of [
+      'components/StudyPane.tsx',
+      'components/study/StudySection.tsx',
+      'components/shared/SuggestionBanner.tsx',
+      'components/shared/TopicSearchBar.tsx',
+      'components/commentary/DigestDisclaimer.tsx',
+    ]) {
+      const src = read(file);
+      expect(src, `${file} has a fixed fontSize`).not.toMatch(/fontSize:\s*['"`]\d/);
+      expect(src, `${file} has a text-* size class`).not.toMatch(/className=[^\n]*\btext-(xs|sm|base|lg|xl|\[\d)/);
+    }
+  });
+
   it('keeps the pane font-size expressed through --global-font-scale', () => {
     // Inheriting is only useful if the wrapper itself still multiplies by the
     // Global Font Scale slider - that is where the value being inherited comes

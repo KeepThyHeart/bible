@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import TopicListItem from './TopicListItem';
 import { useI18n } from '../../contexts/useI18n';
+import { studyScaled } from '../../utils/studyScale';
 import { unwrap } from '../../services/ipcResult';
 
 interface TopicSearchResult {
@@ -106,7 +107,7 @@ const TopicSearchBar: React.FC<TopicSearchBarProps> = ({
         style={{
           width: '100%',
           padding: '6px 10px',
-          fontSize: '0.8125rem',
+          fontSize: studyScaled(13),
           border: '1px solid var(--theme-border-primary)',
           borderRadius: '6px',
           backgroundColor: 'var(--theme-bg-primary)',

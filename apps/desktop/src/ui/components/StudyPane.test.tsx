@@ -295,7 +295,7 @@ describe('StudyPane', () => {
   // `uiScaled()` rather than hardcoding fontSize as a bare px string, or it
   // would never respond to the Typography section's "UI text" slider or the
   // "Global Font Scale" slider. `uiScaled()` expresses the size as
-  // `calc(Npx * var(--ui-font-scale, 1) * var(--global-font-scale, 1))` -
+  // `calc(Npx * var(--study-fs, 1) * var(--global-font-scale, 1))` -
   // these assertions check the rendered inline style references both
   // variables (and not a bare px value) rather than re-asserting the exact
   // pixel number, so they don't churn if the literal's base size is tuned.
@@ -306,9 +306,8 @@ describe('StudyPane', () => {
       const title = screen.getByText(enString('studyPane.title'));
       const hint = screen.getByText(enString('studyPane.emptyHint'));
 
-      expect(title.style.fontSize).toContain('var(--ui-font-scale');
-      expect(title.style.fontSize).toContain('rem'); // B-045: scaled by the rem root
-      expect(hint.style.fontSize).toContain('var(--ui-font-scale');
+      expect(title.style.fontSize).toContain('var(--study-fs');
+      expect(hint.style.fontSize).toContain('var(--study-fs');
       expect(hint.style.fontSize).not.toMatch(/^\d+px$/);
     });
 
@@ -317,7 +316,7 @@ describe('StudyPane', () => {
       renderWithProviders(<StudyPane panelId="study_default" />);
 
       const loading = screen.getByText(enString('studyPane.loadingData'));
-      expect(loading.style.fontSize).toContain('var(--ui-font-scale');
+      expect(loading.style.fontSize).toContain('var(--study-fs');
     });
 
     it('empty-section notes ("noTopics"/"noCommentaries"/"noCrossReferences") are not hardcoded px', async () => {
@@ -330,7 +329,7 @@ describe('StudyPane', () => {
       const noCrossReferences = screen.getByText(enString('studyPane.noCrossReferences'));
 
       for (const el of [noTopics, noCommentaries, noCrossReferences]) {
-        expect(el.style.fontSize).toContain('var(--ui-font-scale');
+        expect(el.style.fontSize).toContain('var(--study-fs');
       }
     });
 
@@ -339,7 +338,7 @@ describe('StudyPane', () => {
       renderWithProviders(<StudyPane panelId="study_default" />);
 
       const label = screen.getByText(enT('studyPane.studyingVerse', { reference: `Verse ${JOHN_3_16}` }));
-      expect(label.style.fontSize).toContain('var(--ui-font-scale');
+      expect(label.style.fontSize).toContain('var(--study-fs');
     });
   });
 
