@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback, useImperativeHandle, forwardRef } from 'react';
 import { stripBidiControls } from '@bible/core/browser';
 import { useI18n } from '../contexts/useI18n';
+import { describeReferenceProblem, checkChapterVerse, type ReferenceProblem } from '../services/referenceProblem';
 import { useSearchStore, normalizeSearchQuery } from '../stores/useSearchStore';
 import { useBibleStore } from '../stores/useBibleStore';
 import { useLayoutStore } from '../stores/useLayoutStore';
@@ -290,9 +291,19 @@ const TopSearchBar = forwardRef<TopSearchBarHandle>(function TopSearchBar(_props
   // `reference` is passed explicitly by the Enter handler, which re-parses the
   // live input; the dropdown's click path has no race and falls back to the
   // memoized value.
+  const reportReferenceProblem = useCallback((problem: ReferenceProblem) => {
+    useSearchStore.setState({ error: t(problem.key, problem.params) });
+  }, [t]);
+
   const handleReferenceNavigation = useCallback(async (reference?: ParsedReference) => {
     const target = reference ?? parsedReference;
     if (!target) return;
+
+    const problem = checkChapterVerse(target.book!, target.chapter!, target.verse);
+    if (problem) {
+      reportReferenceProblem(problem);
+      return;
+    }
 
     const validationError = getLocalizedReferenceParser().validate(target);
     if (validationError) {
@@ -459,7 +470,13 @@ const TopSearchBar = forwardRef<TopSearchBarHandle>(function TopSearchBar(_props
       } else if (showingSearchSuggestions && selectedIndex >= 0 && selectedIndex < liveSuggestions.length) {
         handleSelectSuggestion(liveSuggestions[selectedIndex]);
       } else {
-        handleSearch(liveQuery);
+        const problem = describeReferenceProblem(liveQuery);
+        if (problem) {
+          cancelLiveSearch();
+          reportReferenceProblem(problem);
+        } else {
+          handleSearch(liveQuery);
+        }
       }
     } else if (e.key === 'Escape') {
       e.preventDefault();
@@ -483,7 +500,7 @@ const TopSearchBar = forwardRef<TopSearchBarHandle>(function TopSearchBar(_props
     mode, selectedIndex, matchedCommands, liveSuggestions, itemCount,
     showingSearchSuggestions, handleExecuteCommand, handleReferenceNavigation,
     handleSelectSuggestion, handleSearch, handleTabAutocomplete, clearSearch,
-    resolveLiveQuery, cancelLiveSearch,
+    resolveLiveQuery, cancelLiveSearch, reportReferenceProblem,
   ]);
 
   // --------------------------------------------------------------------------
