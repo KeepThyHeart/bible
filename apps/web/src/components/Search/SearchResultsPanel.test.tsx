@@ -161,6 +161,9 @@ vi.mock('../../stores/searchStore', () => ({
   searchResultId: (r: SearchResultData) => `${r.verseId}-${r.module}`,
 }));
 
+const mockAnnounce = vi.fn();
+vi.mock('../../utils/announcer', () => ({ announce: (...a: unknown[]) => mockAnnounce(...a) }));
+
 const mockNavigateToPreview = vi.fn();
 const mockAddTabWithPassage = vi.fn();
 const mockSetActiveTab = vi.fn();
@@ -761,6 +764,15 @@ describe('SearchResultsPanel', () => {
     expect(err.querySelector('img')).toBeNull();
     expect(container.textContent).not.toContain('search.noResults');
     expect(container.textContent).not.toContain('search.noKeywordResults');
+  });
+
+  it('W-063: a rejected query shows once, without a count, and is not announced as "no results"', () => {
+    mockAnnounce.mockClear();
+    mockQuery = '"love';
+    mockSearchError = 'Unmatched quote in search query';
+    const { container } = render(<SearchResultsPanel />);
+    expect(container.querySelector('.search-panel-inline__title')!.textContent).toBe('"love');
+    expect(mockAnnounce).not.toHaveBeenCalledWith('search.noResults');
   });
 
   it('W-052: Strong\'s header shows the true total, not the page size', () => {

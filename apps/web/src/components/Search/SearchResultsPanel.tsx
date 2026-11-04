@@ -77,11 +77,15 @@ export function SearchResultsPanel({ onNavigate, onOpenStrongsEntry }: SearchRes
   const resultsTruncated = useStore(searchStore, () => searchStore.resultsTruncated);
   const isOnline = useStore(offlineStore, () => offlineStore.isOnline);
 
+  const queryRejected = !!searchError && results.length === 0;
+
   // Announce the outcome of each search to screen readers.
   useEffect(() => {
     if (loading || !query) return;
+    // W-063: a rejected query is announced by its own role="alert"; "No results found." would be wrong.
+    if (queryRejected) return;
     announce(results.length === 0 ? t('search.noResults') : t('search.results', { count: totalResults || results.length }));
-  }, [loading, query, results.length === 0, totalResults]);
+  }, [loading, query, results.length === 0, totalResults, queryRejected]);
   // Offline with nothing found means the search could not run, not that it found 0.
   // While a search runs, the previous count (or an empty "0") is not an answer yet (B-184).
   const showCount = !loading && (isOnline || totalResults > 0);
@@ -312,7 +316,8 @@ export function SearchResultsPanel({ onNavigate, onOpenStrongsEntry }: SearchRes
             ) : (
               <>
                 <i class={`fa-solid ${searchType === 'semantic' ? 'fa-lightbulb' : 'fa-magnifying-glass'}`} style={{ opacity: 0.5, marginInlineEnd: '6px', fontSize: '0.85em' }} />
-                {quotedByUser ? query : `"${query}"`}{showCount && <> ({headlineCount})</>}
+                {/* W-063: a rejected query is shown once, as typed, with no count. */}
+                {queryRejected ? query : quotedByUser ? query : `"${query}"`}{showCount && !queryRejected && <> ({headlineCount})</>}
               </>
             )}
           </span>
