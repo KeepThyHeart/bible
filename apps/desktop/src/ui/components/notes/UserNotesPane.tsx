@@ -271,6 +271,15 @@ const UserNotesPane: React.FC<UserNotesPaneProps> = ({
     onPrint: handlePrint,
   });
 
+  // Notes added, renamed or synced by another program (Dropbox, a file manager) while the app was in the
+  // background show up in the list when the user comes back to it (B-083).
+  useEffect(() => {
+    if (view !== 'browser' || showSetup) return;
+    const refresh = () => loadDirectory(currentPath);
+    window.addEventListener('focus', refresh);
+    return () => window.removeEventListener('focus', refresh);
+  }, [view, showSetup, currentPath, loadDirectory]);
+
   // Verse Notes folder check + permissions
   const isInVerseNotesFolder = isInVerseNotesFolderPath(currentPath);
   const canCreateNewNote = !isInVerseNotesFolder;
