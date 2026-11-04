@@ -3,7 +3,7 @@ import type { Plugin } from 'vite';
 import preact from '@preact/preset-vite';
 import { VitePWA } from 'vite-plugin-pwa';
 import { execSync } from 'child_process';
-import { existsSync, readFileSync } from 'fs';
+import { existsSync, readdirSync, readFileSync } from 'fs';
 import { resolve } from 'path';
 import { chunkReport } from './build/chunkReport';
 
@@ -121,6 +121,55 @@ function brandingPlugin(): Plugin {
   };
 }
 
+/**
+ * The boot splash in index.html is shown before i18next or any catalog has
+ * loaded, so it cannot use `t()`. Instead the build reads `app.loading` and the
+ * direction from every shipped locale folder and injects them as
+ * `%LOCALE_SPLASH_JSON%`, keyed by lower-cased tag (`fa-ir`) and by primary
+ * subtag (`fa`, first folder wins). A new language therefore needs only its
+ * locale files -- no second edit in index.html. `xx-*` pseudo-locales are
+ * dev-only, matching src/i18n.ts.
+ */
+function loadSplashStrings(dev: boolean): Record<string, { text: string; dir: string }> {
+  const localesDir = resolve(__dirname, 'src/locales');
+  const out: Record<string, { text: string; dir: string }> = {};
+  const tags = readdirSync(localesDir, { withFileTypes: true })
+    .filter((d) => d.isDirectory() && d.name !== 'schemas' && d.name !== 'en')
+    .map((d) => d.name)
+    .filter((tag) => dev || !tag.toLowerCase().startsWith('xx-'))
+    .sort();
+  for (const tag of tags) {
+    const uiPath = resolve(localesDir, tag, 'ui.json');
+    if (!existsSync(uiPath)) continue;
+    const text = JSON.parse(readFileSync(uiPath, 'utf-8'))?.app?.loading;
+    if (typeof text !== 'string' || !text) continue;
+    const metaPath = resolve(localesDir, tag, 'meta.json');
+    const meta = existsSync(metaPath) ? JSON.parse(readFileSync(metaPath, 'utf-8')) : {};
+    const entry = { text, dir: meta['locale.direction'] === 'rtl' ? 'rtl' : 'ltr' };
+    const lower = tag.toLowerCase();
+    out[lower] = entry;
+    const primary = lower.split('-')[0];
+    if (!(primary in out)) out[primary] = entry;
+  }
+  return out;
+}
+
+function splashLocalesPlugin(): Plugin {
+  let dev = false;
+  return {
+    name: 'splash-locales-index-html',
+    configResolved(config) {
+      dev = config.command === 'serve';
+    },
+    transformIndexHtml: {
+      order: 'pre',
+      handler: (html: string) =>
+        html.replace('%LOCALE_SPLASH_JSON%', () =>
+          JSON.stringify(loadSplashStrings(dev)).replace(/</g, '\\u003c')
+        ),
+    },
+  };
+}
 
 /*
  * The client build ALWAYS contains both workers: the real `sw.js` (built from
@@ -375,6 +424,7 @@ export default defineConfig({
   },
   plugins: [
     brandingPlugin(),
+    splashLocalesPlugin(),
     basePathPlugin(),
     presentViewerDevPlugin(),
     presentWatchDevPlugin(),

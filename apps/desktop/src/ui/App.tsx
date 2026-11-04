@@ -20,7 +20,7 @@ import FindBar from './components/FindBar';
 import { useSessionAutoSave } from './stores/useSessionStore';
 import HeaderActions from './components/HeaderActions';
 import type { PaneType } from './stores/useTextSettingsStore';
-import type { ModuleType } from './stores/useModuleStore';
+import type { ModuleManagerTab } from './stores/module/types';
 import type { OpenModuleManagerDetail } from './utils/openModuleManager';
 import { wireStoreSync } from './stores/storeSync';
 import {
@@ -175,7 +175,7 @@ function App() {
   const setLayoutDecided = useStudyLayoutBoot((s) => s.setLayoutDecided);
   const studyActive = useIsAppActive('study');
   const [showModuleManager, setShowModuleManager] = useState(false);
-  const [moduleManagerFilter, setModuleManagerFilter] = useState<ModuleType | null>(null);
+  const [moduleManagerFilter, setModuleManagerFilter] = useState<ModuleManagerTab | null>(null);
   const [showUpdateCheck, setShowUpdateCheck] = useState(false);
   const [showPreferences, setShowPreferences] = useState(false);
   const [preferencesInitialSection, setPreferencesInitialSection] = useState<string>('general');
@@ -355,6 +355,9 @@ function App() {
       // the user needs (e.g. an empty Commentary pane -> Available > Commentaries).
       const detail = (e as CustomEvent<OpenModuleManagerDetail>).detail;
       setModuleManagerFilter(detail?.moduleType ?? null);
+      // Preferences draws above the manager; a link from it (Search > "install
+      // the pack") must not open the manager underneath.
+      setShowPreferences(false);
       setShowModuleManager(true);
     };
     const checkForUpdates = () => {

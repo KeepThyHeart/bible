@@ -8,6 +8,7 @@ import {
   RemoteSemanticService,
   JsonFileConsentStore,
   gatewayFetch,
+  remoteSemanticUserAgent,
   type ConsentStore,
 } from '../RemoteSemanticService';
 import type { INetworkGateway } from '../NetworkGateway';
@@ -131,5 +132,41 @@ describe('gatewayFetch', () => {
     expect(fetchBuffered).toHaveBeenCalledWith(expect.objectContaining({
       method: 'GET', maxRedirects: 0, headers: { 'x-api-key': 'k' }, context: 'remote semantic search',
     }));
+  });
+
+  it('identifies the app with its own User-Agent, replacing any the caller set', async () => {
+    const fetchBuffered = vi.fn(async () => ({ status: 200, headers: {}, url: '', body: Buffer.from('{}') }));
+    const f = gatewayFetch(
+      () => ({ fetchBuffered }) as unknown as INetworkGateway,
+      remoteSemanticUserAgent('1.0.0-rc.1'),
+    );
+    await f('https://x.example/v1/search?query=a', { headers: { 'User-Agent': 'something-else' } });
+    expect(fetchBuffered).toHaveBeenCalledWith(expect.objectContaining({
+      headers: { 'user-agent': 'KeepThyHeartBible/1.0.0-rc.1 (desktop)' },
+    }));
+  });
+
+  it('adds the build commit as semver build metadata, and drops a malformed one', () => {
+    expect(remoteSemanticUserAgent('1.0.0', '3c4be3f')).toBe('KeepThyHeartBible/1.0.0+3c4be3f (desktop)');
+    expect(remoteSemanticUserAgent('1.0.0', '')).toBe('KeepThyHeartBible/1.0.0 (desktop)');
+    expect(remoteSemanticUserAgent('1.0.0', 'bad id\r\nX: y')).toBe('KeepThyHeartBible/1.0.0 (desktop)');
+  });
+
+  it('the service sends that User-Agent on a real search', async () => {
+    const fetchBuffered = vi.fn(async () => ({
+      status: 200, headers: { 'content-type': 'application/json' }, url: '', body: Buffer.from(JSON.stringify(okBody)),
+    }));
+    const service = new RemoteSemanticService({
+      url: 'https://search.example.org',
+      apiKey: '',
+      store: memStore(RemoteSemantic.makeConsentRecord('granted')),
+      userAgent: remoteSemanticUserAgent('2.3.4'),
+      getGateway: () => ({ isOffline: () => false, fetchBuffered }) as unknown as INetworkGateway,
+    });
+    await service.search('love your neighbour');
+    const sent = (fetchBuffered.mock.calls[0] as unknown as [{ headers: Record<string, string> }])[0].headers;
+    expect(sent['user-agent']).toBe('KeepThyHeartBible/2.3.4 (desktop)');
+    // No key configured, so none is sent.
+    expect(sent['x-api-key']).toBeUndefined();
   });
 });

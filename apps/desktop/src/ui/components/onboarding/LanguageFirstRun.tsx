@@ -71,6 +71,19 @@ import type { LocaleMetadata } from '../../services/II18nService';
 /** Locale shown when the user has never been asked and nothing is persisted. */
 const DEFAULT_LOCALE = 'en';
 
+/** Where one card's install loop has got to. */
+interface InstallProgress {
+  current: number;
+  total: number;
+}
+
+/**
+ * How a card tells the dialog its install started, moved on or finished
+ * (`null`). The dialog's footer needs it: "Start reading" while modules are
+ * still arriving would open an app that is about to change under the reader.
+ */
+type ReportInstallProgress = (cardId: string, progress: InstallProgress | null) => void;
+
 type Step = 'language' | 'network' | 'content';
 
 /** What step 3 can put in front of the user for a language. */
@@ -361,6 +374,25 @@ const LanguageFirstRun: React.FC = () => {
   // an install card reads as "install these".
   const hasInstalledModules = useModuleStore((s) => s.installedModules.length > 0);
 
+  // Installs in flight, per card. Summed for the footer; normally one card.
+  // Closing the dialog does not stop them: the loop lives in the card's
+  // handler, not in an effect, so it runs to the end after the dialog is gone.
+  const [installProgress, setInstallProgress] = useState<Record<string, InstallProgress>>({});
+  const reportInstallProgress = useCallback<ReportInstallProgress>((cardId, progress) => {
+    setInstallProgress((prev) => {
+      const next = { ...prev };
+      if (progress) next[cardId] = progress;
+      else delete next[cardId];
+      return next;
+    });
+  }, []);
+  const activeInstalls = Object.values(installProgress);
+  const installing = activeInstalls.length > 0;
+  const overallProgress = activeInstalls.reduce(
+    (sum, p) => ({ current: sum.current + p.current, total: sum.total + p.total }),
+    { current: 0, total: 0 }
+  );
+
   if (!open) return null;
 
   // Never paint the language step when there is nothing to choose: `step` is
@@ -438,7 +470,12 @@ const LanguageFirstRun: React.FC = () => {
           ) : onNetworkStep ? (
             <NetworkStep loading={catalogLoading} />
           ) : (
-            <StarterPackStep offer={offer} allowWebRequests={allowWebRequests} onGoOnline={handleGoOnline} />
+            <StarterPackStep
+              offer={offer}
+              allowWebRequests={allowWebRequests}
+              onGoOnline={handleGoOnline}
+              onInstallProgress={reportInstallProgress}
+            />
           )}
         </div>
 
@@ -473,6 +510,36 @@ const LanguageFirstRun: React.FC = () => {
                 {catalogLoading ? t('onboarding.network.loadingCatalog') : t('onboarding.network.goOnline')}
               </button>
             </>
+          ) : installing ? (
+            // While modules are installing the main way out waits for them, so
+            // the reader does not land in an app whose Bibles are still
+            // arriving. The link below is for whoever would rather not wait.
+            <div className="flex flex-col items-end gap-xs">
+              <button
+                type="button"
+                disabled
+                aria-busy="true"
+                data-testid="first-run-language-installing"
+                className="flex items-center gap-sm rounded bg-accent px-lg py-sm text-sm text-text-on-accent opacity-60"
+              >
+                <span
+                  aria-hidden="true"
+                  className="h-4 w-4 animate-spin rounded-full border-2 border-text-on-accent border-t-transparent"
+                />
+                {t('onboarding.language.installingFooter', {
+                  current: overallProgress.current,
+                  total: overallProgress.total,
+                })}
+              </button>
+              <button
+                type="button"
+                onClick={handleClose}
+                data-testid="first-run-start-reading-now"
+                className="text-xs text-accent underline hover:no-underline focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              >
+                {t('onboarding.language.startReadingNow')}
+              </button>
+            </div>
           ) : (
             <button
               type="button"
@@ -524,14 +591,18 @@ const NetworkStep: React.FC<{ loading: boolean }> = ({ loading }) => {
  */
 const StarterPackModuleRow: React.FC<{
   module: CatalogModule;
+  /** Already on this machine: shown, never ticked, labelled as such. */
+  installed: boolean;
   checked: boolean;
   disabled: boolean;
   onToggle: () => void;
-}> = ({ module, checked, disabled, onToggle }) => {
+}> = ({ module, installed, checked, disabled, onToggle }) => {
   const { t } = useI18n();
   return (
-    <li data-testid={`first-run-pack-module-${module.module_id}`}>
-      <label className="flex cursor-pointer items-baseline gap-sm text-xs text-text-secondary">
+    <li data-testid={`first-run-pack-module-${module.module_id}`} data-installed={installed ? 'true' : 'false'}>
+      <label
+        className={`flex items-baseline gap-sm text-xs text-text-secondary ${installed ? 'cursor-default' : 'cursor-pointer'}`}
+      >
         <input
           type="checkbox"
           checked={checked}
@@ -541,12 +612,18 @@ const StarterPackModuleRow: React.FC<{
           className="translate-y-[2px]"
         />
         <span className="flex-1 text-text-primary">{module.name}</span>
-        <span className="whitespace-nowrap">
-          {t('onboarding.language.packModuleMeta', {
-            license: module.license || '—',
-            size: formatSize(module.download_size_bytes),
-          })}
-        </span>
+        {installed ? (
+          <span className="whitespace-nowrap text-success" data-testid={`first-run-pack-module-installed-${module.module_id}`}>
+            {t('onboarding.language.packModuleInstalled')}
+          </span>
+        ) : (
+          <span className="whitespace-nowrap">
+            {t('onboarding.language.packModuleMeta', {
+              license: module.license || '—',
+              size: formatSize(module.download_size_bytes),
+            })}
+          </span>
+        )}
       </label>
     </li>
   );
@@ -570,7 +647,10 @@ type PackInstallState =
  * least as much disclosure as `ModuleCard`'s "Show details" toggle in the
  * Module Manager (which starts collapsed).
  */
-const StarterPackCard: React.FC<{ pack: OfferedStarterPack }> = ({ pack }) => {
+const StarterPackCard: React.FC<{ pack: OfferedStarterPack; onInstallProgress: ReportInstallProgress }> = ({
+  pack,
+  onInstallProgress,
+}) => {
   const [modules, setModules] = useState<CatalogModule[] | null>(null);
   const catalogId = pack.source?.catalogId;
 
@@ -603,6 +683,7 @@ const StarterPackCard: React.FC<{ pack: OfferedStarterPack }> = ({ pack }) => {
       verified
       modules={modules}
       catalogId={catalogId}
+      onInstallProgress={onInstallProgress}
     />
   );
 };
@@ -617,17 +698,36 @@ interface InstallCardProps {
   modules: CatalogModule[] | null;
   /** Scopes each install to one catalog; undefined for the module fallback. */
   catalogId: number | undefined;
+  onInstallProgress: ReportInstallProgress;
 }
 
 /**
  * The module list (licence + size always visible) and Install button shared by
  * starter packs and the recommended-modules fallback.
  */
-const InstallCard: React.FC<InstallCardProps> = ({ id, name, description, verified, modules, catalogId }) => {
+const InstallCard: React.FC<InstallCardProps> = ({
+  id,
+  name,
+  description,
+  verified,
+  modules,
+  catalogId,
+  onInstallProgress,
+}) => {
   const { t } = useI18n();
   const installModule = useModuleStore((s) => s.installModule);
   const loadInstalledModules = useModuleStore((s) => s.loadInstalledModules);
+  const installedModules = useModuleStore((s) => s.installedModules);
   const [install, setInstall] = useState<PackInstallState>({ status: 'idle' });
+
+  // A module already on this machine is shown, but not offered: installing it
+  // again is refused ("Module already installed") and would be reported as a
+  // failure. Matched on abbreviation, the same key that refusal uses.
+  const installedAbbreviations = useMemo(
+    () => new Set(installedModules.map((m) => m.abbreviation?.toLowerCase()).filter(Boolean)),
+    [installedModules]
+  );
+  const isInstalled = (m: CatalogModule) => installedAbbreviations.has(m.abbreviation?.toLowerCase());
 
   // Everything starts ticked: the recommended set is the easy path, and
   // unticking is how a reader trims it. Reset whenever the list is (re)loaded.
@@ -636,7 +736,8 @@ const InstallCard: React.FC<InstallCardProps> = ({ id, name, description, verifi
     setSelected(new Set((modules ?? []).map((m) => m.module_id)));
   }, [modules]);
 
-  const chosen = (modules ?? []).filter((m) => selected.has(m.module_id));
+  const installable = (modules ?? []).filter((m) => !isInstalled(m));
+  const chosen = installable.filter((m) => selected.has(m.module_id));
   const totalSize = chosen.reduce((sum, m) => sum + (m.download_size_bytes || 0), 0);
   const busy = install.status === 'installing';
 
@@ -650,19 +751,25 @@ const InstallCard: React.FC<InstallCardProps> = ({ id, name, description, verifi
 
   const handleInstall = async () => {
     if (chosen.length === 0) return;
+    const queue = chosen;
     const failed: CatalogModule[] = [];
-    for (let i = 0; i < chosen.length; i++) {
-      setInstall({ status: 'installing', index: i + 1, total: chosen.length });
-      // Scoped to the pack's own catalog - see `IModuleCatalogService.getModuleInfo`'s
-      // doc comment for why a bare module id must never be resolved across
-      // every enabled catalog here.
-      const ok = await installModule(chosen[i].module_id, catalogId);
-      if (!ok) failed.push(chosen[i]);
+    try {
+      for (let i = 0; i < queue.length; i++) {
+        setInstall({ status: 'installing', index: i + 1, total: queue.length });
+        onInstallProgress(id, { current: i + 1, total: queue.length });
+        // Scoped to the pack's own catalog - see `IModuleCatalogService.getModuleInfo`'s
+        // doc comment for why a bare module id must never be resolved across
+        // every enabled catalog here.
+        const ok = await installModule(queue[i].module_id, catalogId);
+        if (!ok) failed.push(queue[i]);
+      }
+      // `installModule` already reloads the installed list per call; one more
+      // pass here is cheap insurance so every reader pane sees the final state
+      // even if a mid-loop failure left it out of step.
+      await loadInstalledModules();
+    } finally {
+      onInstallProgress(id, null);
     }
-    // `installModule` already reloads the installed list per call; one more
-    // pass here is cheap insurance so every reader pane sees the final state
-    // even if a mid-loop failure left it out of step.
-    await loadInstalledModules();
     setInstall({ status: 'done', failed });
   };
 
@@ -689,30 +796,38 @@ const InstallCard: React.FC<InstallCardProps> = ({ id, name, description, verifi
       ) : (
         <>
           <ul className="mt-sm flex flex-col gap-xs" data-testid={`first-run-pack-modules-${id}`}>
-            {modules.map((module) => (
-              <StarterPackModuleRow
-                key={module.module_id}
-                module={module}
-                checked={selected.has(module.module_id)}
-                disabled={busy}
-                onToggle={() => toggle(module.module_id)}
-              />
-            ))}
+            {modules.map((module) => {
+              const installed = isInstalled(module);
+              return (
+                <StarterPackModuleRow
+                  key={module.module_id}
+                  module={module}
+                  installed={installed}
+                  checked={!installed && selected.has(module.module_id)}
+                  disabled={busy || installed}
+                  onToggle={() => toggle(module.module_id)}
+                />
+              );
+            })}
           </ul>
           <p className="mt-xs text-xs text-text-secondary" data-testid={`first-run-pack-summary-${id}`}>
-            {t('onboarding.language.packSelectedCount', { selected: chosen.length, count: modules.length })}
+            {t('onboarding.language.packSelectedCount', { selected: chosen.length, count: installable.length })}
             {' · '}
             {t('onboarding.language.packTotalSize', { size: formatSize(totalSize) })}
-            {install.status === 'idle' && modules.length > 1 && (
+            {install.status === 'idle' && installable.length > 1 && (
               <>
                 {' · '}
                 <button
                   type="button"
-                  onClick={() => setSelected(chosen.length === modules.length ? new Set() : new Set(modules.map((m) => m.module_id)))}
+                  onClick={() =>
+                    setSelected(
+                      chosen.length === installable.length ? new Set() : new Set(installable.map((m) => m.module_id))
+                    )
+                  }
                   data-testid={`first-run-pack-toggle-all-${id}`}
                   className="text-accent underline hover:no-underline focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                 >
-                  {chosen.length === modules.length ? t('onboarding.language.packSelectNone') : t('onboarding.language.packSelectAll')}
+                  {chosen.length === installable.length ? t('onboarding.language.packSelectNone') : t('onboarding.language.packSelectAll')}
                 </button>
               </>
             )}
@@ -771,13 +886,14 @@ interface StarterPackStepProps {
   allowWebRequests: boolean;
   /** Same handler the network step's own "Go online" button uses. */
   onGoOnline: () => void;
+  onInstallProgress: ReportInstallProgress;
 }
 
 /**
  * Step 3 - what we can offer in the chosen language, if the network switch is
  * on, and whatever else there is to do about it if it is not.
  */
-const StarterPackStep: React.FC<StarterPackStepProps> = ({ offer, allowWebRequests, onGoOnline }) => {
+const StarterPackStep: React.FC<StarterPackStepProps> = ({ offer, allowWebRequests, onGoOnline, onInstallProgress }) => {
   const { t } = useI18n();
   const [fileInstall, setFileInstall] = useState<{ message: string; isError: boolean } | null>(null);
   const [fileInstallBusy, setFileInstallBusy] = useState(false);
@@ -829,6 +945,7 @@ const StarterPackStep: React.FC<StarterPackStepProps> = ({ offer, allowWebReques
             description={t('onboarding.language.recommendedDescription')}
             modules={modules}
             catalogId={undefined}
+            onInstallProgress={onInstallProgress}
           />
         </ul>
         <p className="mt-md text-xs text-text-secondary">{t('onboarding.language.moreLater')}</p>
@@ -895,7 +1012,7 @@ const StarterPackStep: React.FC<StarterPackStepProps> = ({ offer, allowWebReques
       <p className="mb-md text-sm text-text-secondary">{t('onboarding.language.packsIntro')}</p>
       <ul className="flex flex-col gap-sm">
         {packs.map((pack) => (
-          <StarterPackCard key={pack.pack_id} pack={pack} />
+          <StarterPackCard key={pack.pack_id} pack={pack} onInstallProgress={onInstallProgress} />
         ))}
       </ul>
       <p className="mt-md text-xs text-text-secondary">{t('onboarding.language.moreLater')}</p>

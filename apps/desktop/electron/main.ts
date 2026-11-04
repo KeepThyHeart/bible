@@ -10,7 +10,7 @@ import { registerBookHandlers, closeBookDbs } from './ipc/bookHandlers';
 import { registerTopicalIndexHandlers, closeTopicalDbs } from './ipc/topicalIndexHandlers';
 import { registerCrossReferenceHandlers, closeXrefDbs } from './ipc/crossReferenceHandlers';
 import { registerTagGraphHandlers, closeTagGraphDb } from './ipc/tagGraphHandlers';
-import { registerSearchHandlers, closeSearchDb } from './ipc/searchHandlers';
+import { registerSearchHandlers, closeSearchDb, isLocalSemanticAvailable } from './ipc/searchHandlers';
 import { registerSessionHandlers, closeSessionDb } from './ipc/sessionHandlers';
 import { registerNotesHandlers, initializeNotesDatabase, closeNotesDatabase } from './ipc/notesHandlers';
 import { registerCollectionHandlers, closeCollectionService } from './ipc/collectionHandlers';
@@ -70,7 +70,9 @@ import {
   getUserDataPath,
   resolveAppIconPath,
   resolveMainDbPath,
+  resolveModulePath,
 } from './utils/appPaths';
+import { readModuleFileUuid, repairModuleRegistry } from './services/moduleRegistryIntegrity';
 import { applyWindowSecurity, lockDownNavigation, openExternalUrl } from './utils/windowSecurity';
 import { closeSharedMainDb } from './services/sharedMainDb';
 import { closeStudyCache } from './services/StudyCacheService';
@@ -109,6 +111,7 @@ import { getDictionaryRepository } from './ipc/dictionaryHandlers';
 import { getBookRepository } from './ipc/bookHandlers';
 import { getSharedBookRepo, getSharedModuleMetadataRepo } from './services/sharedMainDb';
 import { registerExtensionHandlers } from './ipc/extensionHandlers';
+import { RELEASE_EXTENSIONS_ENABLED } from './config/releaseProfile';
 import { registerMarketplaceHandlers } from './ipc/marketplaceHandlers';
 import { ExtensionCatalogService } from './extensions/marketplace/ExtensionCatalogService';
 import { ExtensionBlocklistService } from './extensions/marketplace/ExtensionBlocklistService';
@@ -644,7 +647,7 @@ const registerAllHandlersOnce = runOnce(() => {
   registerCollectionHandlers();
   registerHighlightHandlers();
   registerNoteDirectionHandlers();
-  registerRemoteSemanticHandlers();
+  registerRemoteSemanticHandlers({ localAvailable: isLocalSemanticAvailable });
   registerModuleHandlers(ipcMain);
   registerFeaturePackHandlers(ipcMain);
   registerAssetHandlers(ipcMain);
@@ -974,6 +977,10 @@ async function createWindow(): Promise<void> {
  * host available so the renderer can list extensions.
  */
 async function initializeExtensionHostInBackground(): Promise<void> {
+  if (!RELEASE_EXTENSIONS_ENABLED) {
+    log.info('[Background] Extensions disabled by the release profile; ExtensionHost not started.');
+    return;
+  }
   try {
     log.info('[Background] Booting ExtensionHost...');
     const userDb = await getSharedUserDb();
@@ -1380,6 +1387,13 @@ app.whenReady().then(async () => {
   // All handlers and module detector use this path for main.db
   const mainDbPath = resolveMainDbPath();
   const mainDbInit = initializeMainDatabase(mainDbPath, getBundledMainDbPath());
+  // Before anything lists modules: fold duplicate registrations of one file
+  // into a single row (moving the user's references with it) and normalize
+  // stored paths. Opens the user database only when there is a duplicate.
+  await repairModuleRegistry(mainDbInit, {
+    readFileUuid: (databasePath) => readModuleFileUuid(resolveModulePath(databasePath)),
+    getUserDb: () => getSharedUserDb(),
+  });
   mainDbInit.close(); // Close init connection; handlers open their own
   log.info('Main database schema initialized at:', mainDbPath);
 

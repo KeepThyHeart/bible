@@ -18,6 +18,7 @@ import type {
   NewTabTileContribution,
   PreferencesSectionContribution,
 } from '@bible/core/browser';
+import { RELEASE_EXTENSIONS_ENABLED } from '../../../../electron/config/releaseProfile';
 
 const tile = (
   order: number,
@@ -57,19 +58,21 @@ const section = (order: number, id: string, titleKey: string, fallback: string):
   order,
 });
 
-export const HOST_PREFERENCES_SECTIONS: readonly PreferencesSectionContribution[] = [
+// Builds whose release profile drops extensions omit the Extensions section (the host never starts).
+export const HOST_PREFERENCES_SECTIONS: readonly PreferencesSectionContribution[] = ([
   section(5, 'general', 'preferencesDialog.sectionGeneral', 'General'),
   section(10, 'typography', 'preferencesDialog.sectionTypography', 'Typography'),
   section(15, 'fonts', 'preferencesDialog.sectionFonts', 'Fonts'),
   section(20, 'themes', 'preferencesDialog.sectionThemes', 'Themes'),
   section(25, 'privacy', 'preferencesDialog.sectionPrivacy', 'Privacy'),
-  // Only present when the build configures the online meaning-search service (task 0190).
-  { ...section(30, 'search', 'preferencesDialog.sectionSearch', 'Search'), when: 'remoteSemanticConfigured' },
+  // Meaning search: online / on this computer / off. Always present; the online
+  // choice appears only when the build configures a service (task 0190).
+  section(30, 'search', 'preferencesDialog.sectionSearch', 'Search'),
   section(40, 'extensions', 'preferencesDialog.sectionExtensions', 'Extensions'),
   section(45, 'apps', 'preferencesDialog.sectionApps', 'Apps'),
   section(55, 'advanced', 'preferencesDialog.sectionAdvanced', 'Advanced'),
   section(60, 'diagnostics', 'preferencesDialog.sectionDiagnostics', 'Diagnostics'),
-];
+]).filter((s) => RELEASE_EXTENSIONS_ENABLED || s.id !== 'extensions');
 
 export const hostUiManifest: FeatureModuleManifest = {
   id: 'host-ui',

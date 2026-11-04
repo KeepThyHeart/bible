@@ -24,6 +24,7 @@ import type { DesktopAppBinding } from '../apps/appHost';
 import type { ICommandRegistry } from '../services/ICommandRegistry';
 import type { IDisposable } from '../types/Command';
 import { isEnabled } from '../settings/featureFlags';
+import { releaseModuleOverrides } from '../../../electron/config/releaseProfile';
 import { declareSessionKeys } from '../stores/helpers/sessionRegistry';
 import { preferencesSectionGlyphs, setViewActivator } from './host/slots';
 import type { ReactNode } from 'react';
@@ -34,12 +35,14 @@ export const moduleTimings = createModuleTimingLog();
 
 const OVERRIDE_KEY = 'kth.modules';
 
+/** Release-profile removals always apply; the dev localStorage override layers on top in development only. */
 function devOverrides(): Record<string, boolean> {
-  if (!import.meta.env.DEV) return {};
+  const fromProfile = releaseModuleOverrides();
+  if (!import.meta.env.DEV) return fromProfile;
   try {
-    return parseFeatureModuleOverrides(window.localStorage.getItem(OVERRIDE_KEY));
+    return { ...fromProfile, ...parseFeatureModuleOverrides(window.localStorage.getItem(OVERRIDE_KEY)) };
   } catch {
-    return {};
+    return fromProfile;
   }
 }
 

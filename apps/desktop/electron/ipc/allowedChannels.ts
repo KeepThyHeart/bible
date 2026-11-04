@@ -105,6 +105,7 @@ export const ALLOWED_IPC_CHANNELS = [
   'search:semanticSearchEx',
   'remoteSemantic:getStatus',
   'remoteSemantic:setConsent',
+  'remoteSemantic:setSource',
   // Backup/Restore channels
   'backup:create',
   'backup:exportPlain',

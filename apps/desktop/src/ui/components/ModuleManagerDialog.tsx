@@ -134,7 +134,8 @@ export interface ModuleManagerDialogProps {
    * - an empty study pane sends the user straight to the modules that would
    * fill it. `null` opens on whichever tab was last used (the default).
    */
-  initialModuleType?: ModuleType | null;
+  /** A module type, or another tab such as `features` (Preferences > Search links there). */
+  initialModuleType?: ModuleManagerTab | null;
 }
 
 const INSTALL_FILTERS: Array<{ id: ModuleInstallFilter; key: string; fallback: string }> = [

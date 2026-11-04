@@ -40,6 +40,7 @@ export default async function globalSetup(): Promise<void> {
       NODE_ENV: 'test',
       ELECTRON_USER_DATA: userDataDir,
       BIBLE_KEYWORD_INDEX_DIR: E2E_KEYWORD_INDEX_DIR,
+      BIBLE_REMOTE_SEMANTIC_URL: 'none',
     },
   });
   try {

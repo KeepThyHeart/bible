@@ -465,9 +465,10 @@ export function registerSearchHandlers(_ipcMain: IpcMain, opts: SearchHandlersOp
   // Semantic Search Handlers
   // ===========================================================================
 
-  // Handler: Check if semantic search is available. True for an installed
-  // local pack, or (task 0190) a configured online service the user has not
-  // declined - so the toggle is offered and the consent modal can appear.
+  // Handler: Check if semantic search is available, per the Preferences source:
+  // 'off' never; 'offline' with an installed pack; 'online' with a pack or a
+  // configured service the user has not declined - so the toggle is offered
+  // and the consent modal can appear (task 0190).
   ipcHandler<[], boolean>('search:semanticAvailable', () =>
     isSemanticOffered(isLocalSemanticAvailable(), getRemoteSemanticService().getStatus())
   );
@@ -505,7 +506,7 @@ export function registerSearchHandlers(_ipcMain: IpcMain, opts: SearchHandlersOp
 // Semantic Search Helpers
 // ===========================================================================
 
-function isLocalSemanticAvailable(): boolean {
+export function isLocalSemanticAvailable(): boolean {
   initializeSemanticSearch();
   return semanticSearchService?.isAvailable() ?? false;
 }

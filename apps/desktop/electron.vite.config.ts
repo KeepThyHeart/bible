@@ -112,14 +112,33 @@ const DIAGNOSTICS_URL = envOrEmpty('BIBLE_DIAGNOSTICS_URL');
 const DIAGNOSTICS_TOKEN = envOrEmpty('BIBLE_DIAGNOSTICS_TOKEN');
 const ABOUT_TEXT = envOrEmpty('BIBLE_ABOUT_TEXT');
 // Timeline minimum framing span in years; empty means the built-in 200.
-// Online meaning search (bibsearch). Both empty = feature absent. These go into
+// Online meaning search (bibsearch). Empty URL = the hosted service
+// (`DEFAULT_REMOTE_SEMANTIC_URL` in appConfig.ts); `none` = feature absent. These go into
 // the MAIN bundle only (see `MAIN_ONLY_DEFINES`): the renderer and preload never
 // receive them, so the URL and key cannot reach a web page.
 const REMOTE_SEMANTIC_URL = envOrEmpty('BIBLE_REMOTE_SEMANTIC_URL');
 const REMOTE_SEMANTIC_API_KEY = envOrEmpty('BIBLE_REMOTE_SEMANTIC_API_KEY');
 const TIMELINE_MIN_SPAN_YEARS = envOrEmpty('BIBLE_TIMELINE_MIN_SPAN_YEARS');
 
+// Release profile (see release-profiles.json): which optional features this build ships.
+// No profile = 'full' = nothing disabled. An unknown name fails the build rather than
+// silently shipping everything.
+function resolveReleaseProfile(): { disabledModules: string[]; extensions: boolean } {
+  const name = envOrEmpty('BIBLE_RELEASE_PROFILE');
+  if (!name) return { disabledModules: [], extensions: true };
+  const profiles = JSON.parse(readFileSync(resolve(__dirname, 'release-profiles.json'), 'utf8')) as Record<
+    string,
+    { disabledModules?: string[]; extensions?: boolean }
+  >;
+  const profile = name.startsWith('_') ? undefined : profiles[name];
+  if (!profile) throw new Error(`Unknown BIBLE_RELEASE_PROFILE "${name}" (see release-profiles.json)`);
+  return { disabledModules: profile.disabledModules ?? [], extensions: profile.extensions !== false };
+}
+const RELEASE_PROFILE = resolveReleaseProfile();
+
 const APP_CONFIG_DEFINES: Record<string, string> = {
+  __BIBLE_DISABLED_MODULES__: JSON.stringify(RELEASE_PROFILE.disabledModules.join(',')),
+  __BIBLE_EXTENSIONS__: JSON.stringify(RELEASE_PROFILE.extensions ? 'on' : 'off'),
   __BIBLE_PRODUCT_NAME__: JSON.stringify(PRODUCT_NAME),
   __BIBLE_ISSUE_REPORT_URL__: JSON.stringify(ISSUE_REPORT_URL),
   __BIBLE_MODULE_CATALOG_URL__: JSON.stringify(MODULE_CATALOG_URL),

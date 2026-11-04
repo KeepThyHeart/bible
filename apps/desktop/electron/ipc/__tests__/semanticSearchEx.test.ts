@@ -143,6 +143,69 @@ describe('runSemanticSearchEx', () => {
   });
 });
 
+describe('runSemanticSearchEx with a chosen source', () => {
+  it('offline: answers from the pack and never calls the service, even with consent', async () => {
+    const t = setup({ consent: 'granted' });
+    t.service.setSource('offline');
+    const r = await runSemanticSearchEx(t.deps, 'love your enemies');
+    expect(t.fetchMock).not.toHaveBeenCalled();
+    expect(r).toMatchObject({ source: 'local', results: [localRow] });
+    expect(r.notice).toBeUndefined();
+  });
+
+  it('off: no meaning search at all, nothing sent and the pack not used', async () => {
+    const t = setup({ consent: 'granted' });
+    t.service.setSource('off');
+    await expect(runSemanticSearchEx(t.deps, 'love your enemies')).rejects.toMatchObject({ code: 'unavailable' });
+    expect(t.fetchMock).not.toHaveBeenCalled();
+    expect(t.runLocal).not.toHaveBeenCalled();
+  });
+
+  it('the service itself refuses to search unless the source is online', async () => {
+    const t = setup({ consent: 'granted' });
+    t.service.setSource('offline');
+    await expect(t.service.search('love your enemies')).rejects.toBeInstanceOf(RemoteSemantic.RemoteSemanticError);
+    expect(t.fetchMock).not.toHaveBeenCalled();
+  });
+});
+
+describe('RemoteSemanticService source', () => {
+  it('defaults to online when configured, offline when not or after Not now', () => {
+    expect(setup().service.getStatus().source).toBe('online');
+    expect(setup({ configured: false }).service.getStatus().source).toBe('offline');
+    expect(setup({ consent: 'declined' }).service.getStatus().source).toBe('offline');
+  });
+
+  it('Not now moves the source to offline', () => {
+    const { service } = setup();
+    expect(service.setConsent('declined').source).toBe('offline');
+  });
+
+  it('choosing online after Not now clears that answer so the next search asks, without granting', () => {
+    const { service } = setup({ consent: 'declined' });
+    const s = service.setSource('online');
+    expect(s).toMatchObject({ source: 'online', consent: 'unset' });
+  });
+
+  it('online cannot be chosen in a build without a service', () => {
+    const { service } = setup({ configured: false });
+    expect(() => service.setSource('online')).toThrow();
+    expect(service.getStatus().source).toBe('offline');
+  });
+});
+
+describe('isSemanticOffered by source', () => {
+  it.each([
+    // local, configured, consent, source, expected
+    [true, true, 'granted', 'off', false],
+    [true, true, 'unset', 'offline', true],
+    [false, true, 'granted', 'offline', false],
+    [false, true, 'unset', 'online', true],
+  ] as const)('local=%s configured=%s consent=%s source=%s -> %s', (local, configured, consent, source, expected) => {
+    expect(isSemanticOffered(local, { configured, consent, source })).toBe(expected);
+  });
+});
+
 describe('isSemanticOffered truth table', () => {
   it.each([
     // local, configured, consent, expected
@@ -180,6 +243,20 @@ describe('remoteSemantic IPC handlers', () => {
     expect((await call('remoteSemantic:getStatus')).value.consent).toBe('unset');
     expect((await call('remoteSemantic:setConsent', 'declined')).value.consent).toBe('declined');
     expect((await call('remoteSemantic:setConsent', 'reset')).value.consent).toBe('unset');
+  });
+
+  it('setSource validates, reports the pack, and refuses online without a service', async () => {
+    handlers.clear();
+    registerRemoteSemanticHandlers({ localAvailable: () => true });
+    __setRemoteSemanticServiceForTests(new RemoteSemanticService({ url: 'https://x.example', apiKey: '', store: memStore() }));
+    expect((await call('remoteSemantic:getStatus')).value).toMatchObject({ source: 'online', localPackInstalled: true });
+    expect((await call('remoteSemantic:setSource', 'off')).value).toMatchObject({ source: 'off' });
+    for (const bad of ['remote', '', 2, null]) {
+      expect(await call('remoteSemantic:setSource', bad)).toMatchObject({ ok: false, error: { code: 'invalid_input' } });
+    }
+    __setRemoteSemanticServiceForTests(new RemoteSemanticService({ url: '', apiKey: '', store: memStore() }));
+    expect(await call('remoteSemantic:setSource', 'online')).toMatchObject({ ok: false, error: { code: 'unavailable' } });
+    expect((await call('remoteSemantic:setSource', 'offline')).value).toMatchObject({ source: 'offline' });
   });
 
   it('rejects bad arguments and an unconfigured build', async () => {

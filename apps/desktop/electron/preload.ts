@@ -57,6 +57,7 @@ import type { FeaturePack as FeaturePackListing } from '@bible/core';
 import type { AssetListSnapshot } from '@bible/core/browser';
 import type { SemanticPackStatus as FeaturePackStatus } from './services/SemanticPackService';
 import type { RemoteSemanticStatus } from './services/RemoteSemanticService';
+import type { RemoteSemanticStatusReply } from './ipc/remoteSemanticHandlers';
 import type { SemanticRow, SemanticSearchExResult } from './ipc/semanticSearchEx';
 import type { ModuleInstallDialogResult } from './ipc/moduleHandlers';
 import type { StudyOverviewPayload } from './services/StudyCacheService';
@@ -66,7 +67,7 @@ import type { KeywordIndexStatusDto } from './services/KeywordIndexService';
 import type { StarterPack, OfferedStarterPack, CatalogModule } from '@bible/core';
 import { APP_CONFIG, toRendererAppConfig, type AppConfig } from './config/appConfig';
 
-export type { RemoteSemanticStatus, SemanticRow, SemanticSearchExResult };
+export type { RemoteSemanticStatus, RemoteSemanticStatusReply, SemanticRow, SemanticSearchExResult };
 
 // Define the API interface for type safety
 export interface ElectronAPI {
@@ -243,8 +244,10 @@ export interface ElectronAPI {
 
   /** Online meaning search: build-time availability and the first-use consent record (task 0190). */
   remoteSemantic: {
-    getStatus: () => Promise<Result<RemoteSemanticStatus>>;
-    setConsent: (decision: 'granted' | 'declined' | 'reset') => Promise<Result<RemoteSemanticStatus>>;
+    getStatus: () => Promise<Result<RemoteSemanticStatusReply>>;
+    setConsent: (decision: 'granted' | 'declined' | 'reset') => Promise<Result<RemoteSemanticStatusReply>>;
+    /** Preferences > Search: where meaning search runs. */
+    setSource: (source: 'online' | 'offline' | 'off') => Promise<Result<RemoteSemanticStatusReply>>;
   };
 
   // Session methods. Replies use the `Result<T>` envelope;
@@ -917,6 +920,8 @@ const electronAPI: ElectronAPI = {
     getStatus: () => ipcRenderer.invoke('remoteSemantic:getStatus'),
     setConsent: (decision: 'granted' | 'declined' | 'reset') =>
       ipcRenderer.invoke('remoteSemantic:setConsent', decision),
+    setSource: (source: 'online' | 'offline' | 'off') =>
+      ipcRenderer.invoke('remoteSemantic:setSource', source),
   },
 
   session: {

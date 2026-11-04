@@ -37,7 +37,7 @@ const OLD_SECTIONS = ['general', 'typography', 'fonts', 'themes', 'privacy', 'no
 // The 'measures' section (order 50, between 'apps' and 'advanced') comes from the measures module's manifest.
 /** Sections that moved into their feature module's manifest (the downloads and notifications modules, task 0128). */
 const HOST_SECTIONS = [...OLD_SECTIONS.filter((s) => s !== 'downloads' && s !== 'notifications')];
-HOST_SECTIONS.splice(HOST_SECTIONS.indexOf('privacy') + 1, 0, 'search'); // task 0190, gated by `when`
+HOST_SECTIONS.splice(HOST_SECTIONS.indexOf('privacy') + 1, 0, 'search'); // task 0190: meaning-search source (online / offline / off)
 
 function host(manifests: FeatureModuleManifest[]) {
   const points = createStandardPoints();

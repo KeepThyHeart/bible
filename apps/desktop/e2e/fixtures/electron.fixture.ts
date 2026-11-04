@@ -93,6 +93,10 @@ export const test = base.extend<ElectronFixtures>({
         ELECTRON_USER_DATA: userDataDir,
         // Keyword-search indexes: one shared directory, built once by globalSetup.ts.
         BIBLE_KEYWORD_INDEX_DIR: E2E_KEYWORD_INDEX_DIR,
+        // No online meaning search: a build defaults to the hosted service, and
+        // its first-use consent modal would interrupt the semantic-search specs.
+        // remote-semantic.spec.ts launches its own instance against a stub.
+        BIBLE_REMOTE_SEMANTIC_URL: 'none',
       },
     });
 

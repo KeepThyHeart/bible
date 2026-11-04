@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { SearchResult, SearchOptions, SavedSearch, StrongsNumberHelper } from '@bible/core';
 import type { RemoteSemantic } from '@bible/core';
 import { searchAPI, dictionaryAPI, remoteSemanticAPI } from '../services/electronAPI';
-import type { RemoteSemanticStatus, RemoteConsentChoice, SemanticSearchExReply } from '../services/electronAPI';
+import type { RemoteSemanticStatus, RemoteConsentChoice, SemanticSearchExReply, SemanticSource } from '../services/electronAPI';
 import { resolveOpenModuleAbbreviations, resolveInstalledModuleId, showSearchResultsPanel } from './crossStoreBridge';
 import { whenContextService } from '../services/WhenContextService';
 import { useToastStore } from './useToastStore';
@@ -219,6 +219,8 @@ interface SearchState {
   answerRemoteConsent: (choice: RemoteConsentChoice) => Promise<void>;
   /** Preferences toggle: 'declined' withdraws, 'reset' re-enables (asks again on next use). */
   setRemoteSemanticConsent: (decision: RemoteConsentChoice | 'reset') => Promise<void>;
+  /** Preferences > Search: online / offline (installed pack) / off. */
+  setSemanticSource: (source: SemanticSource) => Promise<void>;
 
   // Actions - Result paging
   /**
@@ -779,6 +781,21 @@ export const useSearchStore = create<SearchState>((set, get) => ({
     await get().checkSemanticAvailability();
   },
 
+  setSemanticSource: async (source) => {
+    try {
+      const status = await remoteSemanticAPI.setSource(source);
+      set({ remoteSemanticStatus: status });
+    } catch (error) {
+      console.error('Failed to update the meaning-search source:', error);
+    }
+    await get().checkSemanticAvailability();
+    // Turned off (or nothing left to answer): leave semantic mode so the
+    // search bar is not stuck on a mode that no longer exists.
+    if (!get().semanticAvailable && get().isSemanticMode) {
+      set({ isSemanticMode: false, autoSwitchedToSemantic: false, semanticResults: [], semanticNotice: null });
+    }
+  },
+
   performSemanticSearch: async (query?: string) => {
     const queryToSearch = query || get().query;
 
@@ -792,7 +809,7 @@ export const useSearchStore = create<SearchState>((set, get) => ({
       // First-use consent: nothing is searched (or sent) until the user answers.
       // Concurrent searches share one modal.
       const status = get().remoteSemanticStatus ?? (await get().refreshRemoteSemanticStatus());
-      if (status?.configured && status.consent === 'unset') {
+      if (status?.configured && status.consent === 'unset' && (status.source ?? 'online') === 'online') {
         await new Promise<void>((resolve) => {
           consentWaiters.push(resolve);
           if (!get().consentDialogOpen) set({ consentDialogOpen: true });
@@ -821,7 +838,7 @@ export const useSearchStore = create<SearchState>((set, get) => ({
       // With the online service configured, "nothing answered" means the user is
       // on keyword search: leave semantic mode (not persisted) and say why.
       const st = get().remoteSemanticStatus;
-      const fallbackNotice: RemoteSemantic.SemanticNotice | null = st?.configured
+      const fallbackNotice: RemoteSemantic.SemanticNotice | null = st?.configured && st.source !== 'off'
         ? (st.consent === 'declined' ? { kind: 'declined' } : { kind: 'unavailable' })
         : null;
       set({

@@ -18,6 +18,7 @@ import { readHeaderBytes, validateModuleFileForInstall } from './moduleInstallVa
 import { runValidationInWorker } from './runValidationInWorker';
 import { getSharedUserDb } from './sharedUserDb';
 import { stabilizeModuleLinkage } from './moduleLinkStability';
+import { normalizeRegistryPath } from './moduleRegistryIntegrity';
 import type { KeywordIndexService } from './KeywordIndexService';
 
 /**
@@ -197,7 +198,9 @@ export class InstallationService implements IInstallationService {
         abbreviation: moduleInfo.abbreviation,
         version: moduleInfo.version,
         languageCode: moduleInfo.languageCode,
-        databasePath: path.relative(path.dirname(this.modulesBasePath), destinationPath),
+        // Forward slashes on every platform: the registry's stored form, which
+        // the start-up scan compares against (see `toRegistryPath`).
+        databasePath: normalizeRegistryPath(path.relative(path.dirname(this.modulesBasePath), destinationPath)),
         sizeBytes,
         isIndexed: false,
         features: moduleInfo.features || [],

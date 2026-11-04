@@ -5,7 +5,8 @@
     "pwaUpdate": "Keep Thy Heart 圣经阅读器有新版本可用，是否重新加载以更新？",
     "connectError": "无法连接到服务器，请检查网络连接后重试。",
     "genericError": "应用启动时出现问题。",
-    "tagline": "圣经阅读器"
+    "tagline": "圣经阅读器",
+    "loading": "正在加载圣经阅读器..."
   },
   "header": {
     "placeholder": "跳转到经文或搜索（例如：约翰福音 3:16、救赎）",

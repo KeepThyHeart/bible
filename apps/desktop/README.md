@@ -49,6 +49,21 @@ In dev mode, logs go to the terminal where you launched the command. The rendere
 pnpm run build:core && pnpm run dev
 ```
 
+### Installing a packaged dev build (Linux, Windows)
+
+`pnpm run dev` hides bugs that only exist in a packaged app: asar paths, `process.resourcesPath`, unpacked native modules, data under `userData` rather than the checkout. To run the real packaged app without building an installer, run this from the repository root:
+
+```bash
+pnpm run install:local                     # build, package (electron-builder --dir), install
+pnpm run install:local --profile=curated   # package with another config: code-only (default), lean, curated
+pnpm run install:local --skip-build        # re-package the existing out/ only
+pnpm run uninstall:local                   # remove it (user data is kept)
+```
+
+Run `install:local` again to update in place. Quit the app first, including the tray icon; the script refuses to run while the app is open. It installs per user, with no sudo or admin rights. On Linux the app goes in `~/.local/opt/`, with a menu entry, an icon and a `~/.local/bin` symlink. On Windows it goes in `%LOCALAPPDATA%\Programs\`, with a Start Menu shortcut.
+
+The install uses a **dev identity**: "Keep Thy Heart Bible Reader (Dev)" with appId `com.keepthyheart.bible.desktop.dev`. Its user data is in `~/.config/Keep Thy Heart Bible Reader (Dev)` (`%APPDATA%\…` on Windows), separate from both `pnpm run dev` and any release installed on the machine. Set `BIBLE_PRODUCT_NAME` / `BIBLE_APP_ID` to use another identity; the official one is refused. To debug, launch it with `--inspect=9229` (main process) or `--remote-debugging-port=9222` (renderer). On systems that restrict unprivileged user namespaces (Ubuntu 24.04+), the script prints the `chmod 4755` command that `chrome-sandbox` needs.
+
 ## Building and Packaging
 
 ```bash
@@ -101,7 +116,7 @@ A few user-visible values are not finalised yet, so they are supplied by environ
 | `BIBLE_APP_VERSION` | `version` from `package.json` | Version embedded in the `mailto:` issue-report subject, and shown at the foot of the Help panel. |
 | `BIBLE_DOCS_URL` | `https://docs.bible.keepthyheart.com/desktop/` | Documentation website. The Help panel offers a "Documentation website" row that opens it in the OS browser. Set it to `none` for a build with no docs site: the row is then omitted entirely - same rule as the issue tracker, no dead links. |
 | `BIBLE_ABOUT_TEXT` | *(empty)* | A sentence or two about this build, shown at the top of the Help panel. Passed through as written and **not** translated, since it arrives as one already-authored string. |
-| `BIBLE_REMOTE_SEMANTIC_URL` | *(empty)* | Base `http(s)://` URL of a bibsearch service for online meaning search. Empty (or not http/https) means the feature does not exist anywhere in the UI. With it set, Preferences > Search offers "Use online meaning search", on by default but inactive until the user agrees on first use. Main process only: never handed to the renderer. See `docs/features/search.md`. |
+| `BIBLE_REMOTE_SEMANTIC_URL` | `https://search.bible.keepthyheart.com` | Base `http(s)://` URL of a bibsearch service for online meaning search. `none` (or any non-http/https value) removes the online choice from the UI. Preferences > Search offers Online (the default, inactive until the user agrees on first use), On this computer (the installed pack; offered even before it is installed) and Off. Main process only: never handed to the renderer. The e2e fixtures set `none`. See `docs/features/search.md`. |
 | `BIBLE_REMOTE_SEMANTIC_API_KEY` | *(empty)* | Optional `X-API-Key` sent to that service. Not a secret, but kept in the main process (baked into the main bundle only). |
 | `BIBLE_TIMELINE_MIN_SPAN_YEARS` | `200` | Timeline explorer: the minimum span, in years, framed when a search result is chosen or the timeline follows the reading passage (centred on the event). Longer events get 1.5x their length, coarse-dated items (century or millennium precision) may be framed wider, and the view never exceeds the dataset. Empty, zero or non-numeric values fall back to 200. Renderer-only: read directly from the define in `src/ui/modules/timeline/TimelinePane.tsx`, not via `appConfig.ts` or the preload bridge, and no `process.env` fallback at run time. The web app takes the same variable. |
 
