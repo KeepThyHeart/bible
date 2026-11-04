@@ -247,7 +247,7 @@ function renderProgressRow(
       button(tr('memory.ui.plan.reciteHandsFree', 'Hands-free'), () => void startReciteRun(host, { kind: 'passage', passageId: pv.passage.id }, 'handsfree'), {
         class: 'sm-btn sm-btn-small',
         disabled: !reciteReady || !speech?.handsFree,
-        attrs: { ...aria(tr('memory.ui.plan.reciteHandsFree', 'Hands-free')), 'data-testid': 'recite-handsfree', title: tr('memory.ui.plan.reciteHandsFreeHint', 'Speak and listen without touching the screen') },
+        attrs: { ...aria(tr('memory.ui.plan.reciteHandsFree', 'Hands-free')), 'data-testid': 'recite-handsfree', title: !speech?.handsFree && reciteReady ? tr('memory.ui.plan.reciteHandsFreeNoVoice', 'Hands-free needs the app to be able to speak, and no text-to-speech voice is available on this computer.') : tr('memory.ui.plan.reciteHandsFreeHint', 'Speak and listen without touching the screen') },
       }),
     ]);
   } else if (rv.resume) {

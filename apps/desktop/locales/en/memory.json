@@ -560,5 +560,6 @@
   "memory.core.loopPracticeOnly": "Practice only. Nothing was graded.",
   "memory.ui.settings.practiceOnlyShort": "Practice only. Nothing was graded.",
   "memory.ui.plan.removeConfirmNew": "Remove this passage from your list?",
-  "memory.ui.plan.alreadyInList": "{reference} is already in your list."
+  "memory.ui.plan.alreadyInList": "{reference} is already in your list.",
+  "memory.ui.plan.reciteHandsFreeNoVoice": "Hands-free needs the app to be able to speak, and no text-to-speech voice is available on this computer."
 }

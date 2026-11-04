@@ -8,6 +8,7 @@
 
 import React from 'react';
 import { useI18n } from '../../contexts/useI18n';
+import { announce } from '../../services/announcer';
 import { tElements } from '../../utils/tElements';
 import { AVAILABLE_THEMES, ThemeOption, usePreferencesStore } from '../../stores/usePreferencesStore';
 
@@ -189,7 +190,10 @@ export const ThemesSection: React.FC = () => {
             key={themeOption.id}
             theme={themeOption}
             isSelected={theme === themeOption.id}
-            onSelect={() => setTheme(themeOption.id)}
+            onSelect={() => {
+              setTheme(themeOption.id);
+              announce(t('a11y.announce.themeChanged', { theme: t(themeOption.labelKey) }));
+            }}
           />
         ))}
       </div>

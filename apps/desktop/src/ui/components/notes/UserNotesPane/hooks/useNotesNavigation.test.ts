@@ -185,6 +185,7 @@ describe('useNotesNavigation - handleOpenNote with unsaved edits', () => {
     const { result } = renderHook(() => useNotesNavigation(args));
     await result.current.handleOpenNote('Documents/Other.bn');
     expect(args.setCurrentNote).toHaveBeenCalled();
+    expect(args.setFileError).toHaveBeenCalledWith(null); // B-144: stale banner cleared
   });
 
   it('says so when the clicked note cannot be read, and stays where it is (B-084)', async () => {

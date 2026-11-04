@@ -380,7 +380,7 @@ const SearchResultsPane: React.FC<SearchResultsPaneProps> = ({ dockviewPanelApi 
 
           {/* Query Display */}
           <div className="flex-1 min-w-0">
-            <h2 id="search-results-heading" className="pane-header-title truncate">
+            <h2 id="search-results-heading" tabIndex={-1} data-pane-focus className="pane-header-title truncate">
               {headingText}
             </h2>
             {!isLoading && !error && hasQuery && (

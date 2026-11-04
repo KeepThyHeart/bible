@@ -74,6 +74,7 @@ export function useNotesNavigation(args: UseNotesNavigationArgs): NotesNavigatio
     try {
       const note = await fileNotesAPI.readNote(relativePath);
       if (note) {
+        setFileError(null); // B-144: a banner about the previous note does not follow us here
         setCurrentNote(note);
         setCurrentNotePath(relativePath);
         setView('editor');

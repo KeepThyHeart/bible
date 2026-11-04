@@ -1,4 +1,6 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
+import { announce } from '../services/announcer';
+import { useLayoutStore } from '../stores/useLayoutStore';
 import { adjacentChapter } from './bible/adjacentChapter';
 import { useI18n } from '../contexts/useI18n';
 import { useBiblePaneContext } from './BiblePaneContext';
@@ -25,6 +27,22 @@ const BibleHeader: React.FC = () => {
     setShowBookPicker,
   } = useBiblePaneContext();
 
+  // B-113: speak the new chapter (any route: arrows, Alt+Up/Down, picker, typed
+  // reference, result click). Not on first render, not while loading, and only
+  // from the pane the reader is in, so synced panes do not repeat it.
+  const panelId = (useBiblePaneContext() as { panelId?: string }).panelId;
+  const lastActivePanelId = useLayoutStore(s => s.lastActiveBiblePanelId);
+  const prevRef = useRef<string | null>(null);
+  const chapterKey = `${currentBook}:${currentChapter}`;
+  useEffect(() => {
+    if (isLoading) return;
+    const prev = prevRef.current;
+    prevRef.current = chapterKey;
+    if (prev === null || prev === chapterKey) return;
+    if (panelId && lastActivePanelId && panelId !== lastActivePanelId) return;
+    announce(t('a11y.announce.chapter', { reference: `${currentBookName} ${currentChapter}` }));
+  }, [chapterKey, isLoading]); // eslint-disable-line react-hooks/exhaustive-deps
+
   return (
     <div dir={uiDir} className="flex items-center justify-between mb-lg border-b border-border pb-sm">
       <button
@@ -42,6 +60,8 @@ const BibleHeader: React.FC = () => {
         onClick={() => setShowBookPicker(true)}
         title={t('biblePane.goToBookChapterTitle')}
         data-testid="bible-chapter-heading"
+        tabIndex={-1}
+        data-pane-focus
       >
         <bdi>{currentBookName} {currentChapter}</bdi>
         <svg className="inline w-4 h-4 ms-2 opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24">

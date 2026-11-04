@@ -17,6 +17,43 @@ import type { SearchBarMode } from '../types/SearchBarMode';
 import type { CommandQueryResult } from '../types/Command';
 import TopSearchBarDropdown from './TopSearchBarDropdown';
 import LiveSearchSuggestions from './LiveSearchSuggestions';
+import { useLayoutStore } from '../stores/useLayoutStore';
+import { focusRegion } from '../services/regionNavigation';
+
+/**
+ * Focus-return rule (B-113, see services/regionNavigation.ts): leaving the
+ * search box never drops focus to <body>. After the new UI renders, focus goes
+ * to the heading of what replaced it, else the Bible pane region.
+ */
+function focusAfterSearch(kind: 'bible' | 'results' | 'back'): void {
+  const run = (attempt = 0): void => {
+    const active = document.activeElement;
+    // The action already put focus somewhere real (a dialog, another pane): leave it.
+    if (active && active !== document.body && !active.closest('header')) return;
+    let target: HTMLElement | null = null;
+    if (kind === 'results') {
+      target = document.querySelector<HTMLElement>('[data-tour-pane="search"] [data-pane-focus]');
+      // The results panel opens a moment after the search resolves.
+      if (!target && attempt < 12) {
+        window.setTimeout(() => run(attempt + 1), 100);
+        return;
+      }
+    }
+    if (!target) {
+      const id = useLayoutStore.getState().lastActiveBiblePanelId; // allow-getstate: focus helper outside render
+      target =
+        (id && document.querySelector<HTMLElement>(`[data-panel-id="${id}"] [data-pane-focus]`)) ||
+        document.querySelector<HTMLElement>('[data-tour-pane="bible"] [data-pane-focus]');
+    }
+    if (target) {
+      target.focus();
+      return;
+    }
+    const region = document.querySelector<HTMLElement>('[data-kth-region="pane"]');
+    if (region) focusRegion(region);
+  };
+  requestAnimationFrame(() => requestAnimationFrame(() => run()));
+}
 
 // ============================================================================
 // Module-level singleton - avoids re-creating the classifier on every render.
@@ -229,7 +266,7 @@ const TopSearchBar = forwardRef<TopSearchBarHandle>(function TopSearchBar(_props
   }, [liveSuggestions, matchedCommands]);
 
   // --------------------------------------------------------------------------
-  // Global keyboard shortcuts (F6 / Ctrl+L / Ctrl+K)
+  // Global keyboard shortcuts (Ctrl+L / Ctrl+K; F6 is region navigation, see services/regionNavigation.ts)
   //
   // Ctrl+L is the desktop app's own shortcut and the one the badge above
   // advertises. Ctrl+K is kept bound as an alias because the web app uses it
@@ -237,7 +274,7 @@ const TopSearchBar = forwardRef<TopSearchBarHandle>(function TopSearchBar(_props
   // --------------------------------------------------------------------------
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'F6' || ((e.ctrlKey || e.metaKey) && (e.key === 'l' || e.key === 'k'))) {
+      if (((e.ctrlKey || e.metaKey) && (e.key === 'l' || e.key === 'k'))) {
         e.preventDefault();
         hasUserInteracted.current = true;
         inputRef.current?.focus();
@@ -354,6 +391,7 @@ const TopSearchBar = forwardRef<TopSearchBarHandle>(function TopSearchBar(_props
     clearSearch();
     setIsFocused(false);
     inputRef.current?.blur();
+    focusAfterSearch('bible');
   }, [parsedReference, navigateToVerse, clearSearch]);
 
   // --------------------------------------------------------------------------
@@ -368,6 +406,7 @@ const TopSearchBar = forwardRef<TopSearchBarHandle>(function TopSearchBar(_props
     clearSearch();
     setIsFocused(false);
     inputRef.current?.blur();
+    focusAfterSearch('back');
   }, [registry, clearSearch]);
 
   // --------------------------------------------------------------------------
@@ -387,6 +426,7 @@ const TopSearchBar = forwardRef<TopSearchBarHandle>(function TopSearchBar(_props
     await performSearch(stripped);
     setIsFocused(false);
     inputRef.current?.blur();
+    focusAfterSearch('results');
   }, [query, performSearch]);
 
   // --------------------------------------------------------------------------
@@ -399,6 +439,7 @@ const TopSearchBar = forwardRef<TopSearchBarHandle>(function TopSearchBar(_props
       clearSearch();
       setIsFocused(false);
       inputRef.current?.blur();
+      focusAfterSearch('bible');
     } catch (err) {
       console.error('Error navigating to suggestion:', err, result);
     }

@@ -2374,5 +2374,12 @@
   "preferencesDialog.semanticOfflineMissing": "The meaning search pack is not installed yet.",
   "preferencesDialog.semanticOfflineInstall": "Get it in Module Manager",
   "preferencesDialog.semanticOff": "Off",
-  "preferencesDialog.semanticOffHelp": "Search by words only."
+  "preferencesDialog.semanticOffHelp": "Search by words only.",
+  "a11y.announce.chapter": "{reference}",
+  "a11y.announce.highlightApplied": "Highlight applied",
+  "a11y.announce.underlineApplied": "Underline applied",
+  "a11y.announce.highlightRemoved": "Highlight removed",
+  "a11y.announce.themeChanged": "Theme: {theme}",
+  "ui.keyboardShortcuts.navigation.nextRegion": "Next region (header, apps, panes, status)",
+  "ui.keyboardShortcuts.navigation.previousRegion": "Previous region"
 }

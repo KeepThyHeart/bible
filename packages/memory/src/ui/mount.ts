@@ -275,6 +275,7 @@ export function mountMemoryUi(container: HTMLElement, options: MemoryUiOptions):
     },
 
     announce,
+    fail: showError,
   };
 
   // -------------------------------------------------------------------------

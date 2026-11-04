@@ -5,6 +5,7 @@ import TopSearchBar from './components/TopSearchBar';
 import LayoutDropdown from './components/LayoutDropdown';
 import ExtensionUiHost from './components/extensions/ExtensionUiHost';
 import ToastContainer from './components/ToastContainer';
+import LiveAnnouncer from './components/LiveAnnouncer';
 import DesktopAppStage from './apps/DesktopAppStage';
 import CompanionSlot from './apps/CompanionSlot';
 import { useStudyLayoutBoot } from './apps/useStudyLayoutBoot';
@@ -471,7 +472,7 @@ function App() {
       <React.Suspense fallback={null}>
       <div className="flex flex-col h-screen bg-background overflow-hidden" data-testid="app-loaded">
         {/* Top bar */}
-        <header className="border-b border-border px-lg py-sm flex-shrink-0" style={{ backgroundColor: 'var(--theme-pane-header-bg)' }}>
+        <header data-kth-region="header" className="border-b border-border px-lg py-sm flex-shrink-0" style={{ backgroundColor: 'var(--theme-pane-header-bg)' }}>
           <div className="flex flex-wrap items-center gap-x-lg gap-y-sm min-w-0">
             <AppWordmark />
             {studyActive && <LayoutDropdown />}
@@ -564,6 +565,7 @@ function App() {
         <ExtensionConsentDialog />
         {/* Toast notifications */}
         <ToastContainer />
+        <LiveAnnouncer />
 
         {/* Diagnostics: crash prompt for main-process errors */}
         <CrashReportDialog />
