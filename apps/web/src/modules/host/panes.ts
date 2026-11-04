@@ -18,7 +18,7 @@ import type { IDataProviders } from '../../providers/interfaces';
 export interface PaneViewProps {
   providers: IDataProviders;
   showTagGraph: boolean;
-  onStrongsClick: (strongsNumber: string) => void;
+  onStrongsClick: (strongsNumber: string, source?: string) => void;
   onStrongsHover: (...args: never[]) => void;
   onStrongsLeave: () => void;
   onOpenSettings: (section?: string) => void;
