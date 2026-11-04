@@ -170,7 +170,7 @@ export function DesktopApp({ providers }: DesktopAppProps) {
       />
       <ConnectionBanner />
       <UpdateBanner />
-      <div class="main-layout">
+      <main class="main-layout" id="main-content" tabIndex={-1}>
         <div class="main-layout__bible" style={bibleStyle}>
           <BiblePane
             interlinearProvider={providers.interlinear}
@@ -195,7 +195,7 @@ export function DesktopApp({ providers }: DesktopAppProps) {
         {showRightPane && (
           <>
             <ResizeHandle onResize={handleResize} />
-            <div class="main-layout__right-pane" style={rightPaneStyle}>
+            <aside class="main-layout__right-pane" style={rightPaneStyle} aria-label={t('a11y.studyPane', 'Study panel')}>
               <div class="right-pane-tabs">
                 {paneModes.filter((m) => paneAvailable(m.id)).map((m) => (
                   <button
@@ -235,7 +235,7 @@ export function DesktopApp({ providers }: DesktopAppProps) {
                 ) : null,
               )}
               {paneMode === 'search' && <SearchResultsPanel onOpenStrongsEntry={handleStrongsClick} />}
-            </div>
+            </aside>
           </>
         )}
         {shared.collapsed && (
@@ -243,7 +243,7 @@ export function DesktopApp({ providers }: DesktopAppProps) {
             <CommentaryPane bibleProvider={providers.bible} />
           </div>
         )}
-      </div>
+      </main>
       {/* Study's companion strip while a session is live; the shortcuts are `PresenterKeys`, mounted by the app shell. */}
       <CompanionSlot />
       <DialogLayer

@@ -9,6 +9,8 @@ import { useNavItems, useRailVisible } from './navPrefs';
 import { AppStage } from './AppStage';
 import { useAppSwitchKeys } from './useAppSwitchKeys';
 import { useReadable } from './useReadable';
+import { SkipLinks } from '../components/common/SkipLinks';
+import { LiveRegion } from '../components/common/LiveRegion';
 
 /**
  * `[AppRail][stage]`. The rail is a conditional *sibling* of the stage wrapper,
@@ -42,6 +44,8 @@ export function AppShell(_props: { ctx: ShellContext }) {
   const locale = i18n.language || 'en';
   return (
     <DirectionProvider value={{ ui: uiDirectionFor(locale), locale }}>
+      <SkipLinks />
+      <LiveRegion />
       <div class="app-shell">
         <AppRailSlot />
         <div class="app-shell__stage">
