@@ -25,6 +25,8 @@
     "test:installer": "node admin/scripts/test-installer.js",
     "dev": "pnpm --filter @bible/desktop run dev",
     "dev:web": "pnpm --filter @bible/web run dev",
+    "install:local": "pnpm --filter @bible/desktop run install:local",
+    "uninstall:local": "pnpm --filter @bible/desktop run uninstall:local",
     "clean": "pnpm -r --if-present run clean",
     "test": "pnpm run build:core && pnpm run test:scripts && pnpm -r --no-bail --workspace-concurrency=1 --if-present run test",
     "test:scripts": "node scripts/build-module-pack.test.js && node scripts/check-logical-css.test.js && node scripts/check-logical-css.js && node scripts/init/starter-pack-presets.test.js && node scripts/generate-kth-css.js --check",
