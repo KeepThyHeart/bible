@@ -20,6 +20,8 @@ import { getSharedUserDb } from './sharedUserDb';
 import { stabilizeModuleLinkage } from './moduleLinkStability';
 import { normalizeRegistryPath } from './moduleRegistryIntegrity';
 import type { KeywordIndexService } from './KeywordIndexService';
+import { ModuleLoader } from './ModuleLoader';
+import { getModuleDatabaseRegistry } from './ModuleDatabaseRegistry';
 
 /**
  * Installation service implementation
@@ -326,8 +328,16 @@ export class InstallationService implements IInstallationService {
 
       // Delete module file - resolve relative databasePath against modules base
       const absolutePath = path.resolve(path.dirname(this.modulesBasePath), module.databasePath);
-      if (fs.existsSync(absolutePath)) {
-        fs.unlinkSync(absolutePath);
+      // Close every open handle first (loader caches + registry), or the
+      // removed module keeps being served and -wal/-shm sidecars are orphaned.
+      try {
+        if (module.abbreviation) ModuleLoader.evictEverywhere(module.abbreviation);
+        getModuleDatabaseRegistry().close(absolutePath);
+      } catch (error) {
+        log.warn(`[InstallationService] Failed to close handles for module ${moduleId}:`, error);
+      }
+      for (const suffix of ['', '-wal', '-shm', '-journal']) {
+        fs.rmSync(absolutePath + suffix, { force: true });
       }
 
       // Remove from database
