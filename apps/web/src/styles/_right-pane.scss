@@ -12,12 +12,15 @@
   // pane sideways and clips its content.
   overflow-x: auto;
   overflow-y: hidden;
-  scrollbar-width: thin;
+  // No scrollbar under the tabs (it was always visible and ate into the strip's
+  // height); the strip still scrolls by wheel, touch and keyboard focus (B-168).
+  scrollbar-width: none;
+  &::-webkit-scrollbar { display: none; }
 
   &__tab {
     flex-shrink: 0;
     white-space: nowrap;
-    padding: 6px 14px;
+    padding: 6px 10px;
     cursor: pointer;
     font-size: calc(0.8125rem * var(--ui-font-scale, 1));
     font-weight: 500;

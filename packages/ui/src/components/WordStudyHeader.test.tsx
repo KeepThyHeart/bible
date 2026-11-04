@@ -44,4 +44,10 @@ describe('WordStudyHeader', () => {
     render(<WordStudyHeader overview={overviewFixture({ subject: { kind: 'group', label: 'love' }, entry: null })} onModuleChange={() => {}} />);
     expect(screen.queryByText(/Strong's/)).toBeNull();
   });
+
+  it('says the number does not exist, and offers no dictionary entry to open (B-168)', () => {
+    render(<WordStudyHeader overview={overviewFixture({ notice: 'unknown-number' })} onModuleChange={() => {}} onOpenInDictionary={() => {}} onSearchAll={() => {}} />);
+    expect(screen.getByRole('status')).toHaveTextContent("No such Strong's number.");
+    expect(screen.queryByRole('button', { name: 'Open in dictionary' })).toBeNull();
+  });
 });

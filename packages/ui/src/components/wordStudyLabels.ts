@@ -18,6 +18,7 @@ export interface WordStudyLabels {
   noticeNoModule: string;
   noticeNotTagged: string;
   noticeNoOccurrences: string;
+  noticeUnknownNumber: string;
   renderingsTitle: string;
   formsTitle: string;
   /** `{count}` = number of rolled-up entries */
@@ -70,6 +71,7 @@ export const DEFAULT_WORD_STUDY_LABELS: WordStudyLabels = {
   noticeNoModule: 'No suitable Bible is installed for this study.',
   noticeNotTagged: "This translation has no Strong's tagging. Pick another translation.",
   noticeNoOccurrences: 'No occurrences found in this translation.',
+  noticeUnknownNumber: "No such Strong's number.",
   renderingsTitle: 'How it is rendered',
   formsTitle: 'Forms found',
   other: 'Other ({count})',

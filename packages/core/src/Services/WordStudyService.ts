@@ -191,7 +191,10 @@ export class WordStudyService {
       entry, modules, module: chosen?.module, moduleLanguage: chosen?.languageCode,
       totals: { occurrences: 0, verses: 0 }, bookCounts: {}, forms: [], morphology: [], family: [],
       semanticRange: null,
-      ...(chosen ? {} : { notice: (this.anyTagged() ? 'no-occurrences' : 'not-tagged') as 'no-occurrences' | 'not-tagged' }),
+      ...(chosen ? {} : { notice: (this.anyTagged()
+        // A lexicon is installed and has no such entry: the number does not exist (G9999), as opposed to one with no hits here.
+        ? (this.dictFor(display) && !entry ? 'unknown-number' : 'no-occurrences')
+        : 'not-tagged') as 'no-occurrences' | 'not-tagged' | 'unknown-number' }),
     };
     base.family = this.family(display, chosen?.module);
     if (!chosen) return base;

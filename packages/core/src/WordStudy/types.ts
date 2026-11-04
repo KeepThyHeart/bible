@@ -97,7 +97,7 @@ export interface WordStudyOverview {
   /** Group studies: whether a stemmer was applied for this module's language. */
   stemming?: boolean;
   /** Why the study is empty or limited, for the UI to show. */
-  notice?: 'no-module' | 'not-tagged' | 'no-occurrences';
+  notice?: 'no-module' | 'not-tagged' | 'no-occurrences' | 'unknown-number';
 }
 
 export interface WordOccurrenceQuery {

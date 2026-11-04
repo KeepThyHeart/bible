@@ -201,7 +201,9 @@ describe('WordStudyService', () => {
   });
 
   it('reports untagged / missing data', () => {
-    expect(service.getOverview({ kind: 'strongs', strongs: 'G9999' }).notice).toBe('no-occurrences');
+    // G9999 is not a Strong's number at all (no dictionary entry); G26 is, it just has no tagged hits here
+    expect(service.getOverview({ kind: 'strongs', strongs: 'G9999' }).notice).toBe('unknown-number');
+    expect(service.getOverview({ kind: 'strongs', strongs: 'G26' }, { module: 'rvr' }).notice).not.toBe('unknown-number');
   });
 
   it('studies a word group in any translation\'s own text', () => {

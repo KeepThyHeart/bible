@@ -22,6 +22,7 @@
       "noticeNoModule": "لا يوجد كتاب مقدس مناسب مثبَّت لهذه الدراسة.",
       "noticeNotTagged": "هذه الترجمة بلا وسوم أرقام Strong's. اختر ترجمة أخرى.",
       "noticeNoOccurrences": "لم يُعثر على مواضع في هذه الترجمة.",
+      "noticeUnknownNumber": "لا يوجد رقم سترونغ بهذا الرقم.",
       "renderingsTitle": "كيف تُترجم",
       "formsTitle": "الصيغ الموجودة",
       "other": "أخرى ({count})",
