@@ -29,6 +29,21 @@ describe('Strong\'s dictionary keys (B-165)', () => {
   });
 });
 
+describe('Strong\'s Hebrew lemma from the entry word (B-179)', () => {
+  const def = "430 'elohiym el-o-heem' plural of 433; gods";
+  it('uses the entry word when it holds Hebrew letters', () => {
+    expect(parseStrongsHead(def, 'H', 'אֱלֹהִים')).toMatchObject({ word: 'אֱלֹהִים', transliteration: 'elohiym', pronunciation: 'el-o-heem' });
+  });
+  it('keeps transliteration only when the word is the raw key or Latin (current data)', () => {
+    expect(parseStrongsHead(def, 'H', '00430')).toMatchObject({ word: '', transliteration: 'elohiym' });
+    expect(parseStrongsHead(def, 'H')).toMatchObject({ word: '' });
+    expect(parseStrongsHead(def, 'H', 'elohiym')).toMatchObject({ word: '' });
+  });
+  it('ignores the entry word for Greek', () => {
+    expect(parseStrongsHead("26 ἀγάπη ajgavph agape {ag-ah'-pay} from 25; love", 'G', 'אֱ')).toMatchObject({ word: 'ἀγάπη' });
+  });
+});
+
 describe('Strong\'s Hebrew body (B-165 remainder)', () => {
   it('drops the raw "N translit pron" opening line from the body', () => {
     const h = parseStrongsHead("430 'elohiym el-o-heem' plural of 433; gods", 'H');

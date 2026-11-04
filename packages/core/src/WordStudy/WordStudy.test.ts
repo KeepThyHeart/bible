@@ -77,6 +77,13 @@ describe('parseStrongsDefinition', () => {
     expect(b.derivedFrom).toBe(433);
     expect(b.sense).toBe('plural of 433; gods in the ordinary sense');
   });
+  it('takes the Hebrew lemma from the entry word when it holds Hebrew letters (B-179)', () => {
+    const raw = "430 'elohiym el-o-heem' plural of 433; gods in the ordinary sense:--God.";
+    expect(parseStrongsDefinition(raw, 'Hebrew', 'אֱלֹהִים').originalWord).toBe('אֱלֹהִים');
+    expect(parseStrongsDefinition(raw, 'Hebrew', '00430').originalWord).toBeUndefined();
+    expect(parseStrongsDefinition(raw, 'Hebrew').originalWord).toBeUndefined();
+    expect(parseStrongsDefinition(raw, 'Hebrew', 'אֱלֹהִים').transliteration).toBe("'elohiym");
+  });
   it('degrades on an unparseable entry', () => {
     expect(parseStrongsDefinition('999 some word', 'Hebrew').number).toBe(999);
   });

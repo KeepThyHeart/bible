@@ -84,7 +84,7 @@ export function StrongsPopup({ entry, position, onClose, hideWordStudy }: Strong
       <div class="strongs-popup__header">
         <div>
           <span class="strongs-popup__number">{entry.strongsNumber}</span>
-          <span class="strongs-popup__word">{entry.word}</span>
+          <span class="strongs-popup__word" {...(entry.strongsNumber?.startsWith('H') ? { lang: 'he', dir: 'rtl' } : {})}>{entry.word}</span>
         </div>
         <button class="strongs-popup__close" onClick={onClose}>
           <i class="fa-solid fa-xmark" />
