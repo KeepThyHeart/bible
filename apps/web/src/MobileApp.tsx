@@ -171,17 +171,23 @@ export function MobileApp({ providers }: MobileAppProps) {
   // Mobile hardware Back button support via popstate.
   // We push a dummy history entry so pressing Back fires popstate instead of
   // leaving the app, then route it through the in-app navigation stack.
+  // Seed once (not per view: the handler effect below re-runs on every tab switch, and
+  // seeding there grew the history by an entry per switch, B-100).
   useEffect(() => {
-    // Seed with a dummy entry so the first Back press stays in-app
-    window.history.pushState({ mobileBack: true }, '');
+    if (!window.history.state?.mobileBack) window.history.pushState({ mobileBack: true }, '');
+  }, []);
 
+  useEffect(() => {
     const handlePopState = (_e: PopStateEvent) => {
       // Back out of any other app (it returns to Study, or is that app's own step): the hidden
       // Study must not also take one. (Its dummy entry is still in place.)
       if (studyShouldIgnoreBack()) return;
 
-      // Re-push so the next Back press also stays in-app
-      window.history.pushState({ mobileBack: true }, '');
+      // Whether this press was handled inside the app. If so the dummy entry is
+      // re-pushed so the next Back stays in-app; on Home with nowhere to go it is
+      // not, so the next Back leaves the app (B-100).
+      const stayInApp = () => window.history.pushState({ mobileBack: true }, '');
+      if (!(mobileView === 'home' && !bibleStore.canGoBack())) stayInApp();
 
       // Priority 0: a full-screen layer a module put over the phone layout (for example a media
       // player; playback continues). A handler consumes the press by returning true.
