@@ -55,6 +55,9 @@
     // the last one (Settings) off the right edge.
     // The title keeps priority at large text sizes: it never shrinks below a few characters.
     &__logo {
+      // The wordmark is branding, not reading text: it keeps its default size at every
+      // Aa step, so it still fits beside the action buttons on a 360px phone (B-184).
+      --ui-font-scale: 1;
       min-inline-size: 6ch;
       flex: 1 1 auto;
       overflow: hidden;
