@@ -492,6 +492,14 @@ const TopSearchBar = forwardRef<TopSearchBarHandle>(function TopSearchBar(_props
       e.preventDefault();
       clearSearch();
       inputRef.current?.blur();
+      // B-047: blur alone drops focus to <body>. Give it back to where it was
+      // (or, failing that, the selected tab) so keyboard users keep their place.
+      const back = returnFocusRef.current;
+      const target =
+        back && back.isConnected
+          ? back
+          : document.querySelector<HTMLElement>('[role="tab"][aria-selected="true"]');
+      target?.focus();
     } else if (e.key === 'ArrowDown') {
       e.preventDefault();
       if (itemCount > 0) {
@@ -521,7 +529,14 @@ const TopSearchBar = forwardRef<TopSearchBarHandle>(function TopSearchBar(_props
     if (error) clearError();
   }, [setQuery, error, clearError]);
 
-  const handleFocus = useCallback(() => {
+  const returnFocusRef = useRef<HTMLElement | null>(null);
+
+  const handleFocus = useCallback((e: React.FocusEvent<HTMLInputElement>) => {
+    // B-047: remember where focus came from so Escape can hand it back.
+    const from = e.relatedTarget;
+    if (from instanceof HTMLElement && !e.currentTarget.contains(from)) {
+      returnFocusRef.current = from;
+    }
     if (hasUserInteracted.current) {
       setIsFocused(true);
     }

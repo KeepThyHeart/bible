@@ -139,6 +139,22 @@ describe('TopSearchBar', () => {
     mockCommandQuery.mockReturnValue([]);
   });
 
+  it('Escape hands focus back to where it came from instead of dropping to body (B-047)', async () => {
+    const user = userEvent.setup();
+    render(
+      <ContextProvider services={createMockServices()}>
+        <button data-testid="opener">Opener</button>
+        <TopSearchBar />
+      </ContextProvider>,
+    );
+    const opener = screen.getByTestId('opener');
+    opener.focus();
+    await user.click(screen.getByTestId('search-input'));
+    expect(screen.getByTestId('search-input')).toHaveFocus();
+    await user.keyboard('{Escape}');
+    expect(opener).toHaveFocus();
+  });
+
   it('shows advanced search button', () => {
     renderWithProviders(<TopSearchBar />);
     expect(screen.getByTestId('search-options-button')).toBeInTheDocument();
