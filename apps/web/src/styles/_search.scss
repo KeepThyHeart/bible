@@ -582,3 +582,15 @@
     }
   }
 }
+
+// Soft keyboard up on a phone: the viewport shrinks to ~500px, so give the
+// results the room by folding the hint and the distribution chart away while
+// the search box has focus (B-139).
+@media (max-height: 600px) and (pointer: coarse) {
+  .search-panel-inline:has(.search-panel-inline__mobile-input:focus) {
+    .search-panel-inline__mobile-type-hint,
+    .search-distribution {
+      display: none;
+    }
+  }
+}

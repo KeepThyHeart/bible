@@ -215,6 +215,10 @@ export function SearchResultsPanel({ onNavigate, onOpenStrongsEntry }: SearchRes
           <input
             ref={mobileInputRef}
             type="text"
+            inputMode="search"
+            enterKeyHint="search"
+            autoCapitalize="none"
+            autoCorrect="off"
             class="search-panel-inline__mobile-input"
             placeholder={t('search.placeholder')}
             value={mobileQuery}
