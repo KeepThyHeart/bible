@@ -423,3 +423,10 @@
 .app-workbench-row[dir='rtl'] {
   flex-direction: row-reverse;
 }
+
+/* B-042: dockview sets no focus style on tabs; make keyboard focus visible
+   (inset so the strip's overflow does not clip it). */
+.dv-tab:focus-visible {
+  outline: 2px solid var(--theme-border-focus);
+  outline-offset: -2px;
+}

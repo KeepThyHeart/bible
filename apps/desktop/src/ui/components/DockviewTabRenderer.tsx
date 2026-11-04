@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useOverlayDismissal } from '../hooks/useOverlayDismissal';
+import { useDockviewTabA11y } from '../hooks/useDockviewTabA11y';
 import { createPortal } from 'react-dom';
 import type { IDockviewPanelHeaderProps } from 'dockview-react';
 import type { PanelContentType } from '../stores/useLayoutStore';
@@ -153,6 +154,7 @@ const DockviewTabRenderer: React.FC<IDockviewPanelHeaderProps> = (props) => {
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const uiDir = useDirection();
   const menuRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
 
   // Subscribe to title changes so the tab re-renders when setTitle() is called
   const [storedTitle, setStoredTitle] = useState(api.title);
@@ -413,12 +415,15 @@ const DockviewTabRenderer: React.FC<IDockviewPanelHeaderProps> = (props) => {
     api.close();
   };
 
+  useDockviewTabA11y(contentRef, api as never, title, uiDir === 'rtl');
+
   const panelCount = containerApi.panels.length;
   const canPopOut = !!contentType && !!POP_OUT_PANE_TYPE[contentType];
 
   return (
     <>
       <div
+        ref={contentRef}
         className="dockview-tab-content"
         onMouseDown={handleMouseDown}
         onContextMenu={handleContextMenu}
