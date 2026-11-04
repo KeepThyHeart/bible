@@ -1,6 +1,7 @@
 import { Component } from 'preact';
 import type { ComponentChildren } from 'preact';
 import i18n from '../i18n';
+import { resetAppCache } from '../utils/appUpdate';
 
 interface Props {
   children: ComponentChildren;
@@ -30,15 +31,10 @@ export class ErrorBoundary extends Component<Props, State> {
   };
 
   handleClearAndReload = () => {
-    // Clear service worker caches then reload
-    if (typeof caches !== 'undefined') {
-      caches.keys()
-        .then(names => Promise.all(names.map(n => caches.delete(n))))
-        .then(() => location.reload())
-        .catch(() => location.reload());
-    } else {
-      location.reload();
-    }
+    // W-027: the shared reset unregisters the worker and spares the precache-adjacent large
+    // caches (transformers-cache, search model); deleting every cache here left the worker
+    // registered with an empty precache, which broke offline.
+    resetAppCache().catch(() => location.reload());
   };
 
   handleRetry = () => {

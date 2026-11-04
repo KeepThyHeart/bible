@@ -24,6 +24,9 @@ vi.mock('../i18n', () => ({
   },
 }));
 
+const resetAppCache = vi.hoisted(() => vi.fn(async () => {}));
+vi.mock('../utils/appUpdate', () => ({ resetAppCache }));
+
 import { ErrorBoundary } from './ErrorBoundary';
 
 // A child component that throws on render when `shouldThrow` is true.
@@ -104,5 +107,19 @@ describe('ErrorBoundary', () => {
     );
 
     expect(container.querySelector('.fa-triangle-exclamation')).toBeTruthy();
+  });
+
+  it('"Clear Cache & Reload" uses the shared app-cache reset (W-027)', () => {
+    const deleteSpy = vi.fn();
+    vi.stubGlobal('caches', { keys: async () => ['workbox-precache'], delete: deleteSpy });
+    render(
+      <ErrorBoundary>
+        <CrashingChild shouldThrow={true} />
+      </ErrorBoundary>,
+    );
+    fireEvent.click(screen.getByText('Clear Cache & Reload'));
+    expect(resetAppCache).toHaveBeenCalledTimes(1);
+    expect(deleteSpy).not.toHaveBeenCalled();
+    vi.unstubAllGlobals();
   });
 });
