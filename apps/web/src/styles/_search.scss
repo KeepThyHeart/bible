@@ -319,6 +319,11 @@
     background: var(--bg-secondary);
   }
 
+  // The divine name (LORD) in small caps, as in the reading pane (B-167).
+  .divine-name {
+    font-variant-caps: small-caps;
+  }
+
   &__ref {
     display: flex;
     align-items: center;
