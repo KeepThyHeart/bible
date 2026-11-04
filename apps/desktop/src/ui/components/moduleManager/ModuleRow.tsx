@@ -111,7 +111,7 @@ export const ModuleTableRow: React.FC<ModuleTableRowProps> = ({
           className="text-start block w-full min-w-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded"
         >
           <span className="block text-sm font-medium text-text-heading break-words">
-            {row.name}
+            <bdi>{row.name}</bdi>
             {isRecommendedModule(row.catalogModule) && (
               <span className="ms-2 align-middle text-xs px-1.5 py-0.5 bg-success-soft text-success-text rounded">
                 {td('moduleCard.recommended', 'Recommended')}

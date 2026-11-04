@@ -62,8 +62,9 @@ const PaneNavHeader: React.FC<PaneNavHeaderProps> = ({
         title={t('ui.paneNav.goBack')}
         aria-label={t('ui.paneNav.goBack')}
       >
-        {/* B-036: logical arrow - mirrored in RTL so Back points the way the text reads */}
-        <span aria-hidden="true" className="rtl-mirror">&lt;</span>
+        {/* B-036: "<" and ">" are bidi-mirrored glyphs - the browser already flips them
+            in RTL, so adding .rtl-mirror (scale -1) flipped them back (double mirror). */}
+        <span aria-hidden="true">&lt;</span>
       </button>
       <button
         className="control-nav-button"
@@ -73,7 +74,7 @@ const PaneNavHeader: React.FC<PaneNavHeaderProps> = ({
         title={t('ui.paneNav.goForward')}
         aria-label={t('ui.paneNav.goForward')}
       >
-        <span aria-hidden="true" className="rtl-mirror">&gt;</span>
+        <span aria-hidden="true">&gt;</span>
       </button>
       {onHome && (
         <button
