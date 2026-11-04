@@ -2312,6 +2312,22 @@
   --theme-info-text: rgb(var(--theme-info-text-rgb));
   --theme-info-border: rgb(var(--theme-info-border-rgb));
 
+  /* Aliases (B-198): names components already use, mapped onto the tokens above so every theme
+     (High Contrast included) resolves them instead of falling back to a hard-coded pale colour. */
+  --theme-border: var(--theme-border-primary);
+  --theme-accent-bg: var(--theme-accent-light);
+  --theme-accent-disabled: var(--theme-text-muted);
+  --theme-warning-bg: var(--theme-warning-soft);
+  --theme-bg-warning: var(--theme-warning-soft);
+  --theme-text-warning: var(--theme-warning-text);
+  --theme-error: var(--theme-danger);
+  --theme-error-bg: var(--theme-danger-soft);
+  --theme-error-text: var(--theme-danger-text);
+  --theme-error-border: var(--theme-danger-border);
+  --theme-bg-error: var(--theme-danger-soft);
+  --theme-text-error: var(--theme-danger-text);
+  --theme-text-tertiary: var(--theme-text-muted);
+
   /* Scrollbar (follows the surface/border palette) */
   --theme-scrollbar-track: var(--theme-bg-tertiary);
   --theme-scrollbar-thumb: var(--theme-border-secondary);
