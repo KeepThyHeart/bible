@@ -161,6 +161,7 @@
     "resultsFrom": "‏Results from {modules}‏"
   },
   "contextMenu": {
+    "label": "‏Verse actions‏",
     "copyPassage": "‏Copy Passage...‏",
     "crossReferences": "‏Cross-References‏",
     "topics": "‏Topics‏",

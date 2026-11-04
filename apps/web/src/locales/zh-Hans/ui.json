@@ -161,6 +161,7 @@
     "resultsFrom": "结果来自 {modules}"
   },
   "contextMenu": {
+    "label": "经文操作",
     "copyPassage": "复制经文…",
     "crossReferences": "串珠",
     "topics": "主题",

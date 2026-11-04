@@ -161,6 +161,7 @@
     "resultsFrom": "نتایج از {modules}"
   },
   "contextMenu": {
+    "label": "کارهای آیه",
     "copyPassage": "کپی قسمت...",
     "crossReferences": "ارجاعات متقابل",
     "topics": "موضوعات",

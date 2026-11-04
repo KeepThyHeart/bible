@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'preact/hooks';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { selectVerseActions } from '@bible/core/browser';
 import { useDirection } from '@bible/ui';
@@ -53,6 +53,11 @@ export function useContextMenu(
   setMobileView?: (view: MobileView) => void,
 ) {
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
+  // W-038: where focus was when the menu opened, so closing it from the keyboard (or running an action,
+  // which may open a dialog that records its own opener) puts focus back somewhere useful.
+  const originRef = useRef<HTMLElement | null>(null);
+  const menuOpenRef = useRef(false);
+  menuOpenRef.current = !!contextMenu;
   const dir = useDirection();
   const { t, i18n } = useTranslation();
   // Study stays mounted (hidden, inert) behind another app; its document listener must not
@@ -79,6 +84,18 @@ export function useContextMenu(
     dir,
   );
 
+  const rememberOrigin = () => {
+    const a = document.activeElement;
+    originRef.current = a instanceof HTMLElement && a !== document.body ? a : null;
+  };
+  /** Return focus to the element that had it before the menu opened, else the main reading region. */
+  const restoreFocus = useCallback(() => {
+    let back = originRef.current;
+    originRef.current = null;
+    if (!back || !back.isConnected) back = document.getElementById('main-content');
+    back?.focus({ preventScroll: true });
+  }, []);
+
   useEffect(() => {
     if (!studyActive) {
       setContextMenu(null);
@@ -88,28 +105,52 @@ export function useContextMenu(
       const result = findVerseAtPoint(e.target as HTMLElement, e.clientX, e.clientY);
       if (!result) return;
       e.preventDefault();
+      rememberOrigin();
       setContextMenu({ x: e.clientX, y: e.clientY, verseId: result.verseId });
+    };
+
+    // W-038: the ContextMenu key / Shift+F10 opens the menu for the selected verse when focus is in the
+    // reading area (the selected verse is the keyboard model: verses themselves are not focusable).
+    const handleKeyOpen = (e: KeyboardEvent) => {
+      if (e.key !== 'ContextMenu' && !(e.key === 'F10' && e.shiftKey)) return;
+      const target = e.target as HTMLElement | null;
+      if (!target || target.closest('input,textarea,select,[contenteditable=""],[contenteditable="true"]')) return;
+      if (!target.closest('.bible-content') && target.id !== 'main-content') return;
+      const verseId = bibleStore.getActiveTab()?.studyVerse;
+      const verseEl = verseId ? document.querySelector(`.bible-content [data-verse-id="${verseId}"]`) : null;
+      if (!verseId || !verseEl) return;
+      e.preventDefault();
+      const rect = verseEl.getBoundingClientRect();
+      rememberOrigin();
+      setContextMenu({ x: Math.round(rect.left + 16), y: Math.round(rect.bottom), verseId });
     };
 
     const handleClickAway = () => setContextMenu(null);
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setContextMenu(null);
+      if (!menuOpenRef.current) return;
+      if (e.key === 'Escape') { setContextMenu(null); restoreFocus(); }
+      // W-038: Tab must not walk into the page behind a menu; close it and hand focus back.
+      else if (e.key === 'Tab') { e.preventDefault(); setContextMenu(null); restoreFocus(); }
     };
 
     document.addEventListener('contextmenu', handleContextMenu);
     document.addEventListener('click', handleClickAway);
     document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener('keydown', handleKeyOpen);
     return () => {
       document.removeEventListener('contextmenu', handleContextMenu);
       document.removeEventListener('click', handleClickAway);
       document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('keydown', handleKeyOpen);
     };
-  }, [findVerseAtPoint, studyActive]);
+  }, [findVerseAtPoint, studyActive, restoreFocus]);
 
   const handleContextMenuAction = useCallback((action: string) => {
     if (!contextMenu) return;
     const verseId = contextMenu.verseId;
     setContextMenu(null);
+    // Before the action: the Copy dialog records the focused element as its opener when it renders.
+    restoreFocus();
 
     if (action === 'copy') {
       // Right-clicking inside a shift-click selection copies that whole
@@ -144,13 +185,14 @@ export function useContextMenu(
     eventBus.emit('pane:show', { paneId: target.paneId });
     eventBus.emit('pane:expand');
     setMobileView?.(target.mobileView);
-  }, [contextMenu, setCopyOpen, setMobileView]);
+  }, [contextMenu, setCopyOpen, setMobileView, restoreFocus]);
 
   /** Run a registry action (e.g. Present) on the right-clicked verse; its handler loads on first use. */
   const handleVerseAction = useCallback((id: string) => {
     if (!contextMenu) return;
     const verseId = contextMenu.verseId;
     setContextMenu(null);
+    restoreFocus();
     const ctx = {
       verseId,
       verseIds: [verseId],
@@ -158,7 +200,7 @@ export function useContextMenu(
       surface: setMobileView ? 'phone' : 'reader',
     };
     verseActions.run(id, ctx).catch((err: unknown) => console.error('[verseActions]', id, err));
-  }, [contextMenu, setMobileView]);
+  }, [contextMenu, setMobileView, restoreFocus]);
 
   return { contextMenu, contextMenuRef, handleContextMenuAction, handleVerseAction, verseActionItems };
 }
