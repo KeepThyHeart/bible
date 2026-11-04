@@ -123,6 +123,24 @@ export async function resolveReference(
     }
   }
 
+  // The host parser hands back verse ids for "John 3:999" without checking the
+  // verse exists: bound both ends against the chapter extents (B-038).
+  const extents = await api.bible.listChapters(parsed.bookNumber, moduleId);
+  for (const id of [startVerseId, endVerseId]) {
+    const chapterNo = Math.floor(id / 1000) % 1000;
+    const extent = extents.find((c) => c.chapter === chapterNo);
+    if (!extent) {
+      throw new ReferenceError(
+        tc('memory.core.refNoChapter', 'That book does not have a chapter {chapter} in this translation.', { chapter: chapterNo }),
+      );
+    }
+    if (id < extent.firstVerseId || id > extent.lastVerseId) {
+      throw new ReferenceError(
+        tc('memory.core.refChapterVerses', 'That chapter only has {count} verses.', { count: extent.verseCount }),
+      );
+    }
+  }
+
   if (endVerseId < startVerseId) {
     throw new ReferenceError(tc('memory.core.refRangeBackwards', 'That range ends before it starts.'));
   }

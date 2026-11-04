@@ -83,6 +83,12 @@ describe('resolveReference', () => {
 });
 
 describe('addPassage twice (B-026)', () => {
+  it('rejects a verse past the end of the chapter (B-038)', async () => {
+    await expect(resolveReference(api(), 'John 3:999')).rejects.toThrow(/only has 36 verses/);
+    await expect(resolveReference(api(), 'John 3:30-40')).rejects.toThrow(/only has 36 verses/);
+    expect((await resolveReference(api(), 'John 3:36')).verseCount).toBe(1);
+  });
+
   it('flags the second add as already in the list', async () => {
     try {
       const { svc } = await startTestService({
