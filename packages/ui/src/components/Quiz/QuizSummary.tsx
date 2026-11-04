@@ -60,7 +60,7 @@ export function QuizSummary({
 
       {(summary.unanswered ?? 0) > 0 ? (
         <p className="kth-quiz__small" data-testid="quiz-ended-early">
-          {fillLabel(l.endedEarly, { count: summary.unanswered })}
+          {fillLabel(l.endedEarly, { count: summary.unanswered ?? 0 })}
         </p>
       ) : null}
 
