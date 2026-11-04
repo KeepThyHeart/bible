@@ -408,6 +408,12 @@ const TopSearchBar = forwardRef<TopSearchBarHandle>(function TopSearchBar(_props
     } catch (err) {
       console.error('Error executing command:', err);
     }
+    // These two commands exist to put the caret in the box: ending the command by clearing and
+    // blurring it undid them and left focus on <body> (B-072).
+    if (commandId === 'app.focusSearchBar' || commandId === 'app.openCommandMode') {
+      if (commandId === 'app.focusSearchBar') clearSearch();
+      return;
+    }
     clearSearch();
     setIsFocused(false);
     inputRef.current?.blur();
