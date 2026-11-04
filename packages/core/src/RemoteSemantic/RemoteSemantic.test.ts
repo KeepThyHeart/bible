@@ -176,6 +176,14 @@ describe('RemoteSemanticClient', () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
+  it('caps the pause at maxBlockSec so one 429 cannot lock out a shared server for the quota window (B-097)', async () => {
+    const { client, advance } = make([res(429, err('quota_exceeded'), { 'Retry-After': '3600' }), res(200, OK)], { maxBlockSec: 300 });
+    expect(await kind(client.search('mercy'))).toBe('quota_exceeded');
+    expect(await kind(client.search('mercy'))).toBe('blocked');
+    advance(301_000);
+    expect(await kind(client.search('mercy'))).toBe('ok');
+  });
+
   it('does not wait a long Retry-After; blocks instead', async () => {
     const { client, fetchMock, sleeps } = make([res(429, err('rate_limited'), { 'Retry-After': '120' })]);
     expect(await kind(client.search('mercy'))).toBe('rate_limited');

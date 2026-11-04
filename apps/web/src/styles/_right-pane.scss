@@ -51,7 +51,7 @@
   &__badge {
     font-size: calc(0.75rem * var(--ui-font-scale, 1));
     background: var(--accent-color);
-    color: #fff;
+    color: var(--accent-text, #fff);
     padding: 1px 6px;
     border-radius: 8px;
     font-weight: 600;

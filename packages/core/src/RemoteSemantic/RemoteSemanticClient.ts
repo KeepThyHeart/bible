@@ -128,6 +128,8 @@ export interface RemoteSemanticClientOptions {
   timeoutMs?: number;
   now?: () => number;
   sleep?: (ms: number) => Promise<void>;
+  /** Upper bound for any client-side pause. A server shared by many users sets it low so one 429 cannot lock everyone out for the whole quota window. */
+  maxBlockSec?: number;
 }
 
 export const REMOTE_TIMEOUT_MS = 10_000;
@@ -149,6 +151,7 @@ export class RemoteSemanticClient {
   private readonly timeoutMs: number;
   private readonly now: () => number;
   private readonly sleep: (ms: number) => Promise<void>;
+  private readonly maxBlockSec: number;
   private _blockedUntil = 0;
   private _blockedError: RemoteSemanticError | null = null;
   private _lastRateLimit: RemoteRateLimit = {};
@@ -161,6 +164,7 @@ export class RemoteSemanticClient {
     this.timeoutMs = opts.timeoutMs ?? REMOTE_TIMEOUT_MS;
     this.now = opts.now ?? Date.now;
     this.sleep = opts.sleep ?? defaultSleep;
+    this.maxBlockSec = opts.maxBlockSec ?? Infinity;
   }
 
   /** Epoch ms before which no call is made (0 when not blocked). */
@@ -238,7 +242,7 @@ export class RemoteSemanticClient {
   }
 
   private block(sec: number, err: RemoteSemanticError): void {
-    this._blockedUntil = this.now() + sec * 1000;
+    this._blockedUntil = this.now() + Math.min(sec, this.maxBlockSec) * 1000;
     this._blockedError = err;
   }
 

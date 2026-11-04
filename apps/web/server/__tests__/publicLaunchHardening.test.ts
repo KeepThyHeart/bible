@@ -129,6 +129,12 @@ describe('inline script hashes in the CSP', () => {
     expect(scriptSrc).not.toContain("'unsafe-inline'");
   });
 
+  it('ignores a literal <script> inside an HTML comment (B-098)', () => {
+    const inline = 'window.__BRAND__ = {};';
+    writeFileSync(join(dir, 'index.html'), `<!-- placeholder inside <script> tags is not escaped --><script>${inline}</script>`);
+    expect(inlineScriptHashes(dir)).toEqual([`'sha256-${createHash('sha256').update(inline).digest('base64')}'`]);
+  });
+
   it('falls back to unsafe-inline without a build', () => {
     expect(inlineScriptHashes(join(dir, 'missing'))).toEqual([]);
     expect(Array.from(contentSecurityPolicyDirectives().scriptSrc ?? [])).toContain("'unsafe-inline'");

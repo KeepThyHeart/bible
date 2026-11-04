@@ -692,10 +692,27 @@ class SettingsStore extends Store {
     } else {
       el.removeAttribute('data-dark-theme');
     }
+
+    // Keep the browser/Android address bar in step with the theme (B-141).
+    try {
+      const bar = getComputedStyle(el).getPropertyValue('--header-bg').trim()
+        || getComputedStyle(el).getPropertyValue('--bg-primary').trim();
+      const meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
+      if (bar && meta) meta.content = bar;
+    } catch { /* styles unavailable (tests) */ }
   }
 }
 
 export const settingsStore = new SettingsStore();
+
+// "Auto" follows the OS scheme live, not only at load (B-141).
+if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
+  try {
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', () => {
+      if (settingsStore.theme === 'auto') settingsStore.applyTheme();
+    });
+  } catch { /* no matchMedia change events */ }
+}
 
 // Core event `settings.changed` (task 0123): only while an active feature module listens.
 watchSettingsStore(settingsStore, () => Object.fromEntries(WEB_SETTINGS.definitions.map((d) => [d.key, webSettings.get(d.key)])));

@@ -35,6 +35,8 @@ describe('serverReachability', () => {
     expect(isGatewayFailure(new Response(null, { status: 500 }))).toBe(true);
     expect(isGatewayFailure(json(500))).toBe(false);
     expect(isGatewayFailure(json(404))).toBe(false);
+    // B-096: our server's own JSON 503 (upstream bibsearch failure) is not an outage.
+    expect(isGatewayFailure(json(503))).toBe(false);
   });
 
   it('recovers on the next successful API response and notifies listeners', async () => {

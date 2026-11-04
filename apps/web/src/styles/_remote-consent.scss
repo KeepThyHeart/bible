@@ -53,7 +53,7 @@
     &--primary {
       background: var(--accent-color, #2563eb);
       border-color: var(--accent-color, #2563eb);
-      color: #fff;
+      color: var(--accent-text, #fff);
     }
   }
 }
