@@ -10,10 +10,15 @@ export function createStrongsRoutes(db: DatabaseManager): Router {
 
   router.get('/:number', (req, res): void => {
     try {
-      const number = validateStrongsNumber(req.params.number);
+      const validated = validateStrongsNumber(req.params.number);
+      // W-007: the validator accepts lowercase, but every check below is
+      // case-sensitive; /h430 used to fall through to the Greek dictionary.
+      const number = validated ? validated.toUpperCase() : null;
       if (!number) { sendError(res, 400, ErrorCodes.INVALID_PARAM, 'Invalid Strong\'s number format (e.g., G2316, H1234)'); return; }
 
-      const dictName = number.startsWith('H') ? 'strongshebrew' : 'strongsgreek';
+      // 'A' (Aramaic) has no dictionary of its own here; do not call it Greek.
+      const dictName = number.startsWith('H') ? 'strongshebrew' : number.startsWith('G') ? 'strongsgreek' : null;
+      if (!dictName) { sendError(res, 404, ErrorCodes.NOT_FOUND, `Entry not found: ${number}`); return; }
       const dictRepo = db.getDictionaryRepo(dictName);
       if (!dictRepo) { sendError(res, 404, ErrorCodes.NOT_FOUND, 'Dictionary not available'); return; }
 
