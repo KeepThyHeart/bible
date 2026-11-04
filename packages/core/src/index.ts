@@ -168,7 +168,7 @@ export * as Backup from './Backup';
 
 // Shared text tools (task 0089): also re-exported from `./browser`.
 export {
-  canonicalLanguage, tokenizeVerseWords, foldWord, foldLemma, trimEdgePunctuation,
+  canonicalLanguage, tokenizeVerseWords, foldWord, foldLemma, looseTranslit, trimEdgePunctuation,
   normalizeArchaic, ARCHAIC_EN,
   porterStem, getStemmer, hasStemmer, registerStemmer,
   getStopWords, registerStopWords, isStopWord,

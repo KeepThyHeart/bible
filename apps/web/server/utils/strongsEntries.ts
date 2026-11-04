@@ -5,6 +5,9 @@
  * says "G26", so lookups and headings translate between the two (B-165).
  */
 
+import { looseTranslit } from '../core.js';
+import type { IDictionaryRepository } from '@bible/core';
+
 /** 'G' or 'H' for a Strong's lexicon module (by abbreviation), else null. */
 export function strongsLanguageOf(moduleName: string): 'G' | 'H' | null {
   if (!/^strongs/i.test(moduleName)) return null;
@@ -55,4 +58,30 @@ export function parseStrongsHead(definition: string, language: 'G' | 'H'): Stron
   const m = /^\s*\d+\s+(\S+)\s+(\S+)\s*/.exec(def);
   if (!m) return null;
   return { word: '', transliteration: m[1].replace(/^'/, ''), pronunciation: m[2].replace(/[;,]$/, ''), body: def.slice(m[0].length) };
+}
+
+type LooseIndex = Array<{ entry: ReturnType<IDictionaryRepository['getAllEntries']>[number]; loose: string }>;
+const looseIndexes = new WeakMap<object, LooseIndex>();
+
+/**
+ * Entries of a Strong's lexicon whose transliteration matches `query` loosely (y/i, doubled
+ * letters, kh/ch; B-178): "elohim" finds 'elohiym. Exact matches first, then prefix matches.
+ * Used only when the plain search found nothing. Plain Latin queries only.
+ */
+export function looseStrongsMatches(repo: IDictionaryRepository, language: 'G' | 'H', query: string, limit = 30) {
+  const loose = looseTranslit(query);
+  if (!loose) return [];
+  let index = looseIndexes.get(repo);
+  if (!index) {
+    index = [];
+    for (const entry of repo.getAllEntries({ limit: 20000 })) {
+      const head = parseStrongsHead(entry.definition ?? '', language);
+      const key = head ? looseTranslit(head.transliteration) : '';
+      if (key) index.push({ entry, loose: key });
+    }
+    looseIndexes.set(repo, index);
+  }
+  const exact = index.filter(e => e.loose === loose);
+  const prefix = index.filter(e => e.loose !== loose && e.loose.startsWith(loose));
+  return [...exact, ...prefix].slice(0, limit).map(e => e.entry);
 }

@@ -230,6 +230,11 @@ class SearchStore extends Store {
     return this.search.warmupSemanticSearch();
   }
 
+  /** Run the current search again with the same type and translations (e.g. once the connection is back, B-184). */
+  retryLast(): Promise<void> {
+    return this.performSearch(this.query, this.searchType, this.lastKeywordModules.length > 0 ? this.lastKeywordModules : undefined);
+  }
+
   async performSearch(query: string, type?: 'keyword' | 'semantic', modules?: string[]): Promise<void> {
     if (!this.search || !query.trim()) return;
 

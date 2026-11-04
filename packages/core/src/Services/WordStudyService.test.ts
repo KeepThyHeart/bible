@@ -265,3 +265,31 @@ describe('divine name in word study occurrences (B-167)', () => {
     expect(plain.items[0].divine).toBeUndefined();
   });
 });
+
+describe('WordStudyService.resolve tolerates transliteration spellings (B-178)', () => {
+  const HEBREW = dict([
+    ['00430', "430 'elohiym el-o-heem' plural of 433; gods in the ordinary sense:--God, gods."],
+    ['00433', "433 'eloahh el-o'-ah rarely (shortened) 'eloahh; probably prolonged from 410; a deity:--God, god."],
+    ['03068', "3068 Yehovah yeh-ho-vaw' from 1961; self-Existent or Eternal; Jehovah:--Jehovah, the Lord."],
+  ]);
+  const svc = new WordStudyService({
+    bibles: () => new Map(), greek: GREEK, hebrew: HEBREW, family: new WordFamilyService(GREEK, HEBREW),
+  });
+
+  it('finds H430 for "elohim" as it does for the lexicon spelling "elohiym"', () => {
+    expect(svc.resolve('elohiym').map(c => c.strongs)).toContain('H430');
+    expect(svc.resolve('elohim').map(c => c.strongs)).toContain('H430');
+  });
+
+  it('treats y/i, doubled letters and kh/ch as the same', () => {
+    expect(svc.resolve('yehovah').map(c => c.strongs)).toContain('H3068');
+    expect(svc.resolve('iehovah').map(c => c.strongs)).toContain('H3068');
+    expect(svc.resolve('agaape').map(c => c.strongs)).toContain('G26');
+  });
+
+  it('keeps an exact match ahead of looser ones and does not invent matches', () => {
+    expect(svc.resolve('agape')[0].strongs).toBe('G26');
+    expect(svc.resolve('zzz')).toEqual([]);
+    expect(svc.resolve('elohimzz')).toEqual([]);
+  });
+});

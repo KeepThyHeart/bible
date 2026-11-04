@@ -47,6 +47,18 @@ export function foldLemma(s: string): string {
 }
 
 /**
+ * Looser key for Latin transliterations, so common spellings of one word meet:
+ * "elohim"/"elohiym", "yehovah"/"iehovah", "agape"/"agaape", "kharis"/"charis".
+ * y -> i (after iy -> i), kh -> ch, doubled letters collapse. Empty for anything that is
+ * not plain Latin letters (Greek or Hebrew script keep matching on {@link foldLemma} alone).
+ */
+export function looseTranslit(s: string): string {
+  const f = foldLemma(s);
+  if (!/^[a-z ]+$/.test(f)) return '';
+  return f.replace(/iy/g, 'i').replace(/y/g, 'i').replace(/kh/g, 'ch').replace(/([a-z])\1+/g, '$1');
+}
+
+/**
  * Archaic English -> modern English, for word forms that stemming cannot
  * reach (pronouns and irregular verbs). Keys are folded lower-case words.
  * Regular "-eth"/"-est" verbs are deliberately not rewritten here (it would corrupt

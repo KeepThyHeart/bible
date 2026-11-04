@@ -29,6 +29,7 @@ import { contentSwipeStep } from './utils/contentDirection';
 import { parseVerseId } from './utils/verseId';
 import { bibleStore } from './stores/bibleStore';
 import { searchStore } from './stores/searchStore';
+import { createSearchReturn } from './utils/searchReturn';
 import { studyStore } from './stores/studyStore';
 import { MAX_CHAPTERS } from './constants';
 import { settingsStore, pxToRem } from './stores/settingsStore';
@@ -124,6 +125,13 @@ export function MobileApp({ providers }: MobileAppProps) {
     return () => clearTimeout(timer);
   }, [navTooltip]);
 
+  // A tapped search result remembers where it landed, so Back can show the results again (B-182).
+  const searchReturnRef = useRef(createSearchReturn());
+  const openedFromSearch = () => {
+    searchReturnRef.current.mark(bibleStore.getActiveTab());
+    switchMobileView('bible');
+  };
+
   // Save/restore mobile-scroll-wrapper scroll position when switching views
   const switchMobileView = (wanted: typeof mobileView) => {
     const view = resolvePhoneView(wanted, phoneViews);
@@ -216,6 +224,12 @@ export function MobileApp({ providers }: MobileAppProps) {
       // Priority 3: Non-bible view → back to bible
       if (mobileView === 'search' || phoneViews.has(mobileView)) {
         switchMobileView('bible');
+        return;
+      }
+
+      // Priority 3b: just opened from a search result: back to the results (B-182)
+      if (mobileView === 'bible' && searchReturnRef.current.take(bibleStore.getActiveTab(), searchStore.isOpen)) {
+        switchMobileView('search');
         return;
       }
 
@@ -483,7 +497,7 @@ export function MobileApp({ providers }: MobileAppProps) {
               {mobileView === 'bible' && bibleContent}
               {mobileView === 'search' && (
                 <div class="main-layout__right-pane" style={commentaryStyle}>
-                  <SearchResultsPanel onNavigate={() => switchMobileView('bible')} onOpenStrongsEntry={shared.handleStrongsClick} />
+                  <SearchResultsPanel onNavigate={openedFromSearch} onOpenStrongsEntry={shared.handleStrongsClick} />
                 </div>
               )}
               {renderPhoneView(mobileView)}
@@ -510,7 +524,7 @@ export function MobileApp({ providers }: MobileAppProps) {
             )}
             {mobileView === 'search' && (
               <div class="main-layout__right-pane" style={commentaryStyle}>
-                <SearchResultsPanel onNavigate={() => switchMobileView('bible')} onOpenStrongsEntry={shared.handleStrongsClick} />
+                <SearchResultsPanel onNavigate={openedFromSearch} onOpenStrongsEntry={shared.handleStrongsClick} />
               </div>
             )}
             {renderPhoneView(mobileView)}

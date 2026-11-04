@@ -94,6 +94,7 @@ export interface StrongsEntryData {
   strongsNumber: string;
   word: string;
   transliteration: string;
+  pronunciation?: string;
   definition: string;
   partOfSpeech: string;
   etymology?: string;

@@ -7,7 +7,7 @@ export { primaryLanguage, canonicalLanguage } from './language';
 export { tokenizeVerseWords, tokenizePhrase } from './tokenize';
 export type { TextWord } from './tokenize';
 export {
-  normalizeToken, foldWord, foldLemma, trimEdgePunctuation,
+  normalizeToken, foldWord, foldLemma, looseTranslit, trimEdgePunctuation,
   normalizeArchaic, ARCHAIC_EN,
 } from './normalize';
 export { porterStem, getStemmer, hasStemmer, registerStemmer } from './stemmers';

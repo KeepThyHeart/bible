@@ -790,7 +790,9 @@
     "topics": "主题",
     "browseAllTopics": "浏览所有主题",
     "interlinear": "原文对照",
-    "topicsBrowser": "主题浏览器"
+    "topicsBrowser": "主题浏览器",
+    "dictionary": "词典",
+    "lookUpWord": "查找词语或斯特朗编号"
   },
   "studyHomePage": {
     "commentarySummary": "注释摘要",

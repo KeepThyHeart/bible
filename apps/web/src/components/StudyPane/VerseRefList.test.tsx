@@ -379,6 +379,8 @@ describe('VerseRefList', () => {
       await act(async () => { await vi.advanceTimersByTimeAsync(50); });
       const note = container.querySelector('.verse-ref-list__added')!;
       expect(note.textContent).toContain('+1 added');
+      // B-181: it is a screen-reader status, not text to read on the page.
+      expect(note.classList.contains('sr-only')).toBe(true);
       expect(spy.mock.contexts).toContain(note);
     } finally {
       vi.useRealTimers();

@@ -2,6 +2,7 @@ import { Router } from 'express';
 import type { DatabaseManager } from '../DatabaseManager.js';
 import { validateStrongsNumber } from '../utils/validation.js';
 import { sendError, ErrorCodes } from '../utils/errorResponse.js';
+import { parseStrongsHead } from '../utils/strongsEntries.js';
 import { registerRoute } from './routeRegistry.js';
 
 export function createStrongsRoutes(db: DatabaseManager): Router {
@@ -24,11 +25,15 @@ export function createStrongsRoutes(db: DatabaseManager): Router {
         || dictRepo.getEntryByKey(numericPart);
       if (!entry) { sendError(res, 404, ErrorCodes.NOT_FOUND, `Entry not found: ${number}`); return; }
 
+      // The stored word is the raw key and the definition opens with the raw lexicon
+      // line; show the parsed word/transliteration/pronunciation instead (B-177, as B-165).
+      const head = parseStrongsHead(entry.definition ?? '', number.startsWith('H') ? 'H' : 'G');
       res.json({
         strongsNumber: number,
-        word: entry.word,
-        transliteration: entry.transliteration,
-        definition: entry.definition,
+        word: head ? (head.word || head.transliteration) : entry.word,
+        transliteration: head ? (head.word ? head.transliteration : undefined) : entry.transliteration,
+        pronunciation: head ? head.pronunciation : undefined,
+        definition: head ? head.body : entry.definition,
         partOfSpeech: entry.partOfSpeech,
         etymology: entry.etymology,
       });

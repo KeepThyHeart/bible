@@ -300,7 +300,7 @@ export { primaryLanguage } from './Text';
 // re-exports normalizeToken/tokenizePhrase/primaryLanguage from here, so those are
 // left out of this list to avoid duplicate `export *` names.
 export {
-  canonicalLanguage, tokenizeVerseWords, foldWord, foldLemma, trimEdgePunctuation,
+  canonicalLanguage, tokenizeVerseWords, foldWord, foldLemma, looseTranslit, trimEdgePunctuation,
   normalizeArchaic, ARCHAIC_EN,
   porterStem, getStemmer, hasStemmer, registerStemmer,
   getStopWords, registerStopWords, isStopWord,

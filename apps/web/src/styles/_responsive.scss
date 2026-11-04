@@ -64,11 +64,12 @@
       min-inline-size: 0;
     }
 
+    // Wrap rather than cut to "Keep ..." when the text size is at its maximum (B-184); the
+    // header already grows to fit.
     &__wordmark-name,
     &__wordmark-tagline {
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
+      white-space: normal;
+      overflow-wrap: normal;
     }
 
     &__actions {

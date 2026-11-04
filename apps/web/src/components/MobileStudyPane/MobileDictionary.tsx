@@ -10,6 +10,7 @@ import { sanitizeHtml } from '../../utils/sanitize';
 import { newlinesToLineBreaks, resolveNewlineHandling } from '@bible/core/browser';
 import type { IBibleDataProvider } from '../../providers/interfaces';
 import { moduleContentAttrs } from '../../utils/contentDirection';
+import { entryLabel } from '../DictionaryPane/entryLabel';
 
 interface MobileDictionaryProps {
   bibleProvider?: IBibleDataProvider;
@@ -139,7 +140,7 @@ export function MobileDictionary({ bibleProvider }: MobileDictionaryProps) {
               onClick={() => handleSelectEntry(s.entry_key, s.module_abbr)}
             >
               <div class="mobile-dictionary__suggestion-word">
-                {s.word}
+                {entryLabel(s.module_abbr, s.word, s.entry_key)}
                 {s.transliteration && (
                   <span class="mobile-dictionary__suggestion-translit"> ({s.transliteration})</span>
                 )}
@@ -165,7 +166,7 @@ export function MobileDictionary({ bibleProvider }: MobileDictionaryProps) {
       {!showSuggestions && currentEntry && !entryLoading && (
         <div class="mobile-dictionary__entry">
           <div class="dictionary-pane__entry-header">
-            <h3 class="dictionary-pane__entry-word">{currentEntry.word}</h3>
+            <h3 class="dictionary-pane__entry-word">{entryLabel(currentModule, currentEntry.word, currentEntry.entry_key ?? '')}</h3>
             {currentEntry.transliteration && (
               <span class="dictionary-pane__entry-translit">{currentEntry.transliteration}</span>
             )}
