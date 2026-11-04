@@ -2,6 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { ContextProvider, createDefaultServices } from './contexts/ContextProvider';
 import { LocaleCatalogLoader } from './services/LocaleCatalogLoader';
+import { loadBundledEnglishCatalogs } from './services/bundledCatalogs';
 import { bindDocumentDirection, restorePersistedLocale } from './utils/documentDirection';
 import { DetachedWindow } from './components/DetachedWindow';
 
@@ -18,6 +19,9 @@ const detachedServices = createDefaultServices();
 // I18nService instance, no catalogs and no locale unless we load them here.
 // Without this block a popped-out pane always rendered English, LTR, no matter
 // what the main window was set to.
+// B-196: seed the bundled English strings synchronously (loadCatalog fires no event, so panes
+// that rendered before the async load below would keep showing `[key]`).
+loadBundledEnglishCatalogs(detachedServices.i18n);
 bindDocumentDirection(detachedServices.i18n);
 void new LocaleCatalogLoader(detachedServices.i18n)
   .loadAll()
