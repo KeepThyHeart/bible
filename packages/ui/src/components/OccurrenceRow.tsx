@@ -32,7 +32,7 @@ export function highlightWords(text: string, start: number, end: number): ReactN
 
 /**
  * Like {@link highlightWords}, with each character range of `divine` wrapped in
- * `<span class="divine-name">` (small caps, as in the reader). Split at every
+ * `<span class="kth-ws-occ__divine">` (small caps, as in the reader). Split at every
  * boundary so the span nests cleanly inside the `<mark>`.
  */
 export function highlightWithDivineName(text: string, start: number, end: number, divine: Array<{ start: number; end: number }>): ReactNode[] {
@@ -47,7 +47,7 @@ export function highlightWithDivineName(text: string, start: number, end: number
   const pieces = points.slice(0, -1).map((a, i) => {
     const b = points[i + 1];
     let node: ReactNode = text.slice(a, b);
-    if (divine.some(r => covers(r, a, b))) node = <span key={`d${a}`} className="divine-name kth-ws-occ__divine">{node}</span>;
+    if (divine.some(r => covers(r, a, b))) node = <span key={`d${a}`} className="kth-ws-occ__divine">{node}</span>;
     return { a, b, node, inHit: covers(hit ?? undefined, a, b) };
   });
   const out: ReactNode[] = [];
