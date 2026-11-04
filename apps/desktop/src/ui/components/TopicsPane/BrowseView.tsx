@@ -1,3 +1,4 @@
+import { normalizeModuleLabel } from '../../utils/moduleLabel';
 import React, { useEffect, useRef, useState } from 'react';
 import { useI18n } from '../../contexts/useI18n';
 import { TopicalIndexModule } from '../../stores/useTopicalIndexStore';
@@ -283,7 +284,7 @@ const BrowseTopicRow: React.FC<BrowseTopicRowProps> = ({ topic, subtopicLabel, o
         )}
       </span>
       <span style={{ fontSize: '0.6875rem', color: 'var(--theme-text-secondary)', flexShrink: 0 }}>
-        ({topic.source_name})
+        (<bdi>{normalizeModuleLabel(topic.source_name)}</bdi>)
       </span>
       {topic.verse_count > 0 && (
         <span style={{

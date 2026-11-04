@@ -159,3 +159,13 @@ describe('BrowseView', () => {
     });
   });
 });
+
+describe('BrowseView source label with a right-to-left apostrophe', () => {
+  it('shows the source name with a plain apostrophe, isolated from the surrounding bidi text', () => {
+    renderView({ topics: [topic({ source_name: 'Naveߴs Topical Bible' })] });
+    const label = screen.getByText(/Topical Bible/);
+    expect(label.textContent).not.toContain('ߴ');
+    expect(label.textContent).toContain('Nave’s Topical Bible');
+    expect(label.closest('bdi, [dir="auto"]')).not.toBeNull();
+  });
+});
