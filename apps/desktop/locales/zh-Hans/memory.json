@@ -418,6 +418,7 @@
   "memory.core.listenStartFailed": "无法开始聆听。",
   "memory.core.loopGettingReady": "正在准备",
   "memory.core.loopPaused": "已暂停",
+  "memory.core.loopPausedSilence": "没有听到声音，背诵已暂停。说“resume”或点击“继续”即可恢复。",
   "memory.core.loopFinishingUp": "即将完成",
   "memory.core.somethingWentWrong": "出了点问题。",
   "memory.core.loopFindingNext": "正在查找下一段经文",

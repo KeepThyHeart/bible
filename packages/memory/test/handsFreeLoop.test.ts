@@ -385,6 +385,13 @@ describe('derails', () => {
     expect(s.recorded).toHaveLength(1);
   });
 
+  it('B-137: the pause after silence says why and how to continue', async () => {
+    const s = setup({ script: [{ silence: true }, { silence: true }, { say: FULL }, { silence: true }] });
+    await until(() => s.view().phase === 'paused', 'paused');
+    expect(s.view().message).toMatch(/no speech|did not hear|silence/i);
+    expect(s.view().message).toMatch(/resume/i);
+  });
+
   it('stalling mid-passage hints one word, then three, then scores', async () => {
     const s = setup({ script: [{ say: V1 }, { silence: true }, { silence: true }, { silence: true }] , settings: { voiceCommands: false }});
     await until(() => s.view().phase === 'done');

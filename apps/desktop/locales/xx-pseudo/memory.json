@@ -418,6 +418,7 @@
   "memory.core.listenStartFailed": "⟦Çøüļð ñøţ šţåŕţ ļîšţéñîñĝ. ·······⟧",
   "memory.core.loopGettingReady": "⟦Ĝéţţîñĝ ŕéåðý ···⟧",
   "memory.core.loopPaused": "⟦Þåüšéð ··⟧",
+  "memory.core.loopPausedSilence": "⟦No speech was heard, so recitation is paused. Say \"resume\" or press Resume to continue.⟧",
   "memory.core.loopFinishingUp": "⟦Ƒîñîšĥîñĝ üþ ···⟧",
   "memory.core.somethingWentWrong": "⟦Šøɱéţĥîñĝ ŵéñţ ŵŕøñĝ. ······⟧",
   "memory.core.loopFindingNext": "⟦Ƒîñðîñĝ ţĥé ñéẋţ þåššåĝé ·······⟧",

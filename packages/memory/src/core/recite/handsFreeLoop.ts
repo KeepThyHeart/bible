@@ -143,6 +143,8 @@ export class HandsFreeLoop {
   private hintCount = 0;
   private stall = 0;
   private noSpeech = 0;
+  /** The pause in force came from silence, not from the reader (B-137): the message says why. */
+  private silencePause = false;
   private lostCount = 0;
   private feedbackSpoken = false;
 
@@ -285,7 +287,7 @@ export class HandsFreeLoop {
       case 'pause': {
         if (s === 'announce' || s === 'ready' || s === 'listen' || s === 'feedback' || s === 'fetch') {
           this.step = 'paused';
-          this.setPhase('paused', tc('memory.core.loopPaused', 'Paused'));
+          this.setPhase('paused', this.pausedMessage());
           this.interrupt();
         }
         return;
@@ -311,8 +313,15 @@ export class HandsFreeLoop {
     }
   }
 
+  private pausedMessage(): string {
+    return this.silencePause
+      ? tc('memory.core.loopPausedSilence', 'No speech was heard, so recitation is paused. Say "resume" or press Resume to continue.')
+      : tc('memory.core.loopPaused', 'Paused');
+  }
+
   private resume(): void {
     this.noSpeech = 0;
+    this.silencePause = false;
     const handsFree = this.deps.mode === 'handsfree';
     this.step = !this.card || this.result ? 'fetch' : handsFree ? 'announce' : 'listen';
     this.interrupt();
@@ -364,7 +373,7 @@ export class HandsFreeLoop {
             await this.doFeedback(gen);
             break;
           case 'paused':
-            this.setPhase('paused', tc('memory.core.loopPaused', 'Paused'));
+            this.setPhase('paused', this.pausedMessage());
             await this.waitWake(gen);
             break;
           case 'summary':
@@ -591,6 +600,7 @@ export class HandsFreeLoop {
         await this.say(sayHint, c.language);
         return;
       }
+      this.silencePause = true;
       this.act('pause');
       return;
     }
@@ -880,6 +890,7 @@ export class HandsFreeLoop {
     this.hintCount = 0;
     this.stall = 0;
     this.noSpeech = 0;
+    this.silencePause = false;
     this.lostCount = 0;
     this.repeatReq = false;
     this.feedbackSpoken = false;

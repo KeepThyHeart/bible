@@ -418,6 +418,7 @@
   "memory.core.listenStartFailed": "לא ניתן היה להתחיל להאזין.",
   "memory.core.loopGettingReady": "מתכוננים",
   "memory.core.loopPaused": "מושהה",
+  "memory.core.loopPausedSilence": "לא נשמע דיבור, ולכן ההקראה מושהית. אמרו \"resume\" או לחצו על המשך כדי להמשיך.",
   "memory.core.loopFinishingUp": "מסיימים",
   "memory.core.somethingWentWrong": "משהו השתבש.",
   "memory.core.loopFindingNext": "מחפשים את הקטע הבא",

@@ -418,6 +418,7 @@
   "memory.core.listenStartFailed": "No se ha podido empezar a escuchar.",
   "memory.core.loopGettingReady": "Preparándose",
   "memory.core.loopPaused": "En pausa",
+  "memory.core.loopPausedSilence": "No se oyó nada, así que el recitado está en pausa. Diga «resume» o pulse Reanudar para continuar.",
   "memory.core.loopFinishingUp": "Terminando",
   "memory.core.somethingWentWrong": "Algo ha salido mal.",
   "memory.core.loopFindingNext": "Buscando el siguiente pasaje",
