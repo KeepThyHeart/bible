@@ -17,6 +17,14 @@ describe('OccurrenceRow', () => {
     expect(container.querySelector('.kth-ws-occ__text')?.textContent).toBe('For God so loved the world');
   });
 
+  // B-197: the verse text keeps its own direction; inheriting the RTL UI moved an English verse's final period to the left.
+  it('gives the verse text dir="auto" (plain and renderVerse paths)', () => {
+    const a = render(<OccurrenceRow item={item} reference="John 3:16" onOpen={() => {}} />);
+    expect(a.container.querySelector('.kth-ws-occ__text')).toHaveAttribute('dir', 'auto');
+    const b = render(<OccurrenceRow item={item} reference="John 3:16" onOpen={() => {}} renderVerse={() => 'x'} />);
+    expect(b.container.querySelector('.kth-ws-occ__text')).toHaveAttribute('dir', 'auto');
+  });
+
   it('highlightWords handles ranges at the edges and out of range', () => {
     const text = (n: unknown[]) => n.map((x) => (typeof x === 'string' ? x : (x as { props: { children: string } }).props.children)).join('');
     expect(text(highlightWords('a b c', 0, 0))).toBe('a b c');

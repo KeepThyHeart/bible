@@ -69,9 +69,9 @@ export function OccurrenceRow({ item, reference, onOpen, renderVerse }: Occurren
         {item.morph && <span className="kth-ws-occ__morph">{item.morph}</span>}
       </span>
       {renderVerse ? (
-        <span className="kth-ws-occ__text">{renderVerse(item)}</span>
+        <span className="kth-ws-occ__text" dir="auto">{renderVerse(item)}</span>
       ) : item.text ? (
-        <span className="kth-ws-occ__text">
+        <span className="kth-ws-occ__text" dir="auto">
           {item.divine?.length ? highlightWithDivineName(item.text, item.start, item.end, item.divine) : highlightWords(item.text, item.start, item.end)}
         </span>
       ) : null}
