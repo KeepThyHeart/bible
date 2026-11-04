@@ -89,14 +89,14 @@ describe('StrongsPopup', () => {
   });
 
   it('marks a Hebrew lemma lang=he dir=rtl, and leaves Greek alone (B-179)', () => {
-    const { container, rerender } = render(
+    const { container } = render(
       <StrongsPopup entry={makeEntry({ strongsNumber: 'H430', word: 'אֱלֹהִים' })} position={DEFAULT_POSITION} onClose={vi.fn()} />,
     );
     const word = container.querySelector('.strongs-popup__word')!;
     expect(word.getAttribute('lang')).toBe('he');
     expect(word.getAttribute('dir')).toBe('rtl');
-    rerender(<StrongsPopup entry={makeEntry()} position={DEFAULT_POSITION} onClose={vi.fn()} />);
-    expect(container.querySelector('.strongs-popup__word')!.getAttribute('dir')).toBeNull();
+    const greek = render(<StrongsPopup entry={makeEntry()} position={DEFAULT_POSITION} onClose={vi.fn()} />);
+    expect(greek.container.querySelector('.strongs-popup__word')!.getAttribute('lang')).toBeNull();
   });
 
   it('applies the position style to the popup element', () => {
