@@ -64,6 +64,24 @@ export const PrivacySection: React.FC = () => {
           {t('preferencesDialog.allowWebRequestsDescription')}
         </p>
       </div>
+
+      {/* B-161: every online feature in one place, with where it is controlled. */}
+      <div data-testid="privacy-online-features">
+        <h3 className="text-sm font-medium" style={{ color: 'var(--theme-text-primary)' }}>
+          {t('preferencesDialog.privacyOnlineHeading')}
+        </h3>
+        <ul className="list-disc ps-5 mt-1 space-y-1 text-xs" style={{ color: 'var(--theme-text-secondary)' }}>
+          <li>{t('preferencesDialog.privacyOnlineModules')}</li>
+          <li>{t('preferencesDialog.privacyOnlineUpdates')}</li>
+          <li>{t('preferencesDialog.privacyOnlineSpeech')}</li>
+          <li>{t('preferencesDialog.privacyOnlineSearch')}</li>
+          <li>{t('preferencesDialog.privacyOnlineDiagnostics')}</li>
+          <li>{t('preferencesDialog.privacyOnlineLinks')}</li>
+        </ul>
+        <p className="text-xs mt-2" style={{ color: 'var(--theme-text-secondary)' }}>
+          {t('preferencesDialog.privacyOnlineFooter')}
+        </p>
+      </div>
     </div>
   );
 };

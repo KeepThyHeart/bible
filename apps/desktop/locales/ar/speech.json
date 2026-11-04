@@ -21,5 +21,7 @@
   "speech.mic.stop": "إيقاف",
   "speech.mic.level": "مستوى الميكروفون",
   "speech.mic.denied": "تم رفض الوصول إلى الميكروفون.",
-  "speech.mic.unavailable": "تعذّر فتح أي ميكروفون."
+  "speech.mic.unavailable": "تعذّر فتح أي ميكروفون.",
+  "speech.status.downloading": "جارٍ تنزيل النموذج…",
+  "speech.downloadHint": "يتصل التنزيل مرة واحدة بـ huggingface.co (وخوادم ملفاته hf.co) لجلب نحو 44 ميغابايت (Tiny) أو 80 ميغابايت (Base)؛ ونسخ بطاقة الرسوميات أكبر. تُطلب ملفات النموذج فقط. صوتك ونصك لا يُرسلان أبدًا."
 }

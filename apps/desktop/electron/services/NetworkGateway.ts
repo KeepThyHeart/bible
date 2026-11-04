@@ -51,8 +51,11 @@ export class NetworkBlockedError extends Error {
   // (`network_blocked`), so a caller checking either the thrown error or the
   // IPC `Result<T>` envelope's `error.code` sees the same string.
   readonly code = 'network_blocked' as const;
+  /** What was refused (for logs); the message is the user-facing text (B-160). */
+  readonly context: string;
   constructor(context: string) {
-    super(`Network egress blocked by offline mode: ${context}`);
+    super('Web requests are turned off. Turn on \u201cAllow web requests\u201d in Preferences > Privacy to do this.');
+    this.context = context;
     this.name = 'NetworkBlockedError';
   }
 }

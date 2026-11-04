@@ -340,3 +340,12 @@ describe('NetworkGateway — Electron manual-redirect `redirect` event (B-134)',
     expect(requestedUrls).toHaveLength(1);
   });
 });
+
+describe('NetworkBlockedError wording (B-160)', () => {
+  it('has user-facing text (no raw "egress" jargon) and keeps the context for logs', () => {
+    const e = new NetworkBlockedError('asset download');
+    expect(e.message).toMatch(/Web requests are turned off/);
+    expect(e.message).not.toMatch(/egress|offline mode/i);
+    expect(e.context).toBe('asset download');
+  });
+});

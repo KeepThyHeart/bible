@@ -21,5 +21,7 @@
   "speech.mic.stop": "‏Stop‏",
   "speech.mic.level": "‏Microphone level‏",
   "speech.mic.denied": "‏Microphone access was denied.‏",
-  "speech.mic.unavailable": "‏No microphone could be opened.‏"
+  "speech.mic.unavailable": "‏No microphone could be opened.‏",
+  "speech.status.downloading": "‏Downloading the model…‏",
+  "speech.downloadHint": "‏Download connects to huggingface.co (and its hf.co file servers) once, to fetch about 44 MB (Tiny) or 80 MB (Base); the graphics-card versions are larger. Only the model files are requested. Your voice and text are never sent.‏"
 }

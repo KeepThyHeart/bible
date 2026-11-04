@@ -37,6 +37,16 @@ describe('SpeechSection', () => {
     await waitFor(() => expect(service.removeModel).toHaveBeenCalledWith('base'));
   });
 
+  it('B-162: names the download source before download and says Downloading while busy', async () => {
+    service.prepareModel.mockImplementation((_id: string, _p: unknown, signal: AbortSignal) =>
+      new Promise((_res, rej) => signal.addEventListener('abort', () => rej(new Error('aborted')))));
+    render(<SpeechSection />);
+    expect(await screen.findByTestId('speech-download-hint')).toHaveTextContent('speech.downloadHint');
+    fireEvent.click(screen.getByTestId('speech-download'));
+    expect(await screen.findByTestId('speech-status')).toHaveTextContent('speech.status.downloading');
+    fireEvent.click(await screen.findByTestId('speech-cancel'));
+  });
+
   it('cancel aborts the download without showing an error', async () => {
     service.prepareModel.mockImplementation((_id: string, _p: unknown, signal: AbortSignal) =>
       new Promise((_res, rej) => signal.addEventListener('abort', () => rej(new Error('aborted')))));

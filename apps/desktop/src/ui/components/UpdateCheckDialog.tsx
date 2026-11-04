@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useI18n } from '../contexts/useI18n';
 import { unwrap } from '../services/ipcResult';
+import { useNetworkStore } from '../stores/useNetworkStore';
 import { activateFocusTrap } from '../utils/focusTrap';
 import type { UpdateCheckInfo, UpdateCheckOutcome } from '../../../electron/services/UpdateCheckService';
 import type { UpdateDownloadProgress } from '../../../electron/services/UpdateInstallService';
@@ -177,9 +178,24 @@ const UpdateCheckDialog: React.FC<UpdateCheckDialogProps> = ({ onClose }) => {
         )}
 
         {phase.kind === 'offline' && (
-          <p className="text-text-secondary" data-testid="update-offline">
-            {t('updateCheck.offline')}
-          </p>
+          <>
+            <p className="text-text-secondary" data-testid="update-offline">
+              {t('updateCheck.offline')}
+            </p>
+            {/* B-160: same confirmation-gated switch as the Module Manager banner; on success go on to the host confirmation. */}
+            <button
+              type="button"
+              data-testid="update-offline-turn-on"
+              className="self-start px-3 py-1.5 text-sm font-medium text-text-on-accent bg-accent rounded hover:bg-accent-hover transition-colors"
+              onClick={async () => {
+                if (await useNetworkStore.getState().requestAllow(true)) { // allow-getstate: event handler
+                  setPhase({ kind: 'confirm', info: { ...phase.info, offline: false } });
+                }
+              }}
+            >
+              {t('moduleManagerDialog.turnOnNetwork')}
+            </button>
+          </>
         )}
 
         {phase.kind === 'confirm' && (

@@ -21,5 +21,7 @@
   "speech.mic.stop": "停止",
   "speech.mic.level": "麦克风音量",
   "speech.mic.denied": "麦克风访问被拒绝。",
-  "speech.mic.unavailable": "无法打开任何麦克风。"
+  "speech.mic.unavailable": "无法打开任何麦克风。",
+  "speech.status.downloading": "正在下载模型…",
+  "speech.downloadHint": "下载会连接一次 huggingface.co（及其 hf.co 文件服务器），获取约 44 MB（Tiny）或 80 MB（Base）；显卡版本更大。只请求模型文件，您的语音和文字绝不会被发送。"
 }
