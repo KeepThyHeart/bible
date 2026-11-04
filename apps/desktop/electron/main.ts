@@ -1,6 +1,6 @@
 import { app, BrowserWindow, ipcMain, dialog } from 'electron';
-import { join } from 'path';
-import { mkdirSync } from 'fs';
+import { join, basename, extname } from 'path';
+import { mkdirSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
 import log from 'electron-log';
 import { registerBibleHandlers, closeBibleDb } from './ipc/bibleHandlers';
@@ -508,6 +508,37 @@ function registerPrintHandler(): void {
       return { success: false, error: describeRenderError(err) };
     });
   });
+
+  // Save a text file the renderer built (reading-plan .ics, keyword-set JSON).
+  // A hidden <a download> click was silently dropped here (B-078); a native save
+  // dialog, like the note exports, always shows the user where the file went.
+  ipcMain.handle(
+    'app:save-text-file',
+    async (_event, defaultName: unknown, content: unknown): Promise<{ success: boolean; canceled?: boolean; filePath?: string; error?: string }> => {
+      if (typeof defaultName !== 'string' || typeof content !== 'string' || content.length > 50 * 1024 * 1024) {
+        return { success: false, error: 'Invalid file' };
+      }
+      const safeName = basename(defaultName).replace(/[\\/:*?"<>|\0]/g, '_') || 'export.txt';
+      const ext = extname(safeName).slice(1);
+      const parent = BrowserWindow.getFocusedWindow();
+      const options = {
+        defaultPath: join(app.getPath('downloads'), safeName),
+        filters: [
+          ...(ext ? [{ name: ext.toUpperCase(), extensions: [ext] }] : []),
+          { name: t('main.filter.allFiles'), extensions: ['*'] }
+        ]
+      };
+      try {
+        const saved = parent ? await dialog.showSaveDialog(parent, options) : await dialog.showSaveDialog(options);
+        if (saved.canceled || !saved.filePath) return { success: false, canceled: true };
+        writeFileSync(saved.filePath, content, 'utf-8');
+        return { success: true, filePath: saved.filePath };
+      } catch (err) {
+        log.error('[IPC] app:save-text-file failed:', err);
+        return { success: false, error: err instanceof Error ? err.message : String(err) };
+      }
+    }
+  );
 
   // PDF export. The renderer hands over exactly the document it would print,
   // and the save dialog comes first - mirroring `file-notes:export-markdown`,
