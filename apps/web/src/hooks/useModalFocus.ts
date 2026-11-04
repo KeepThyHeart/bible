@@ -13,6 +13,11 @@ const FOCUSABLE = [
 /** Open modal containers, oldest first. Only the last one traps Tab, so a dialog opened over another is not fought by it. */
 const openModals: HTMLElement[] = [];
 
+/** Opener of each open modal, so a dialog opened from inside another can fall back to that one's opener. */
+const modalOpener = new WeakMap<HTMLElement, HTMLElement | null>();
+/** Opener element (inside a parent dialog) to the parent dialog's own opener. */
+const fallbackOf = new WeakMap<HTMLElement, HTMLElement>();
+
 function tabbables(root: HTMLElement): HTMLElement[] {
   return Array.from(root.querySelectorAll<HTMLElement>(FOCUSABLE)).filter(
     (el) => !el.closest('[inert],[hidden]') && el.getClientRects().length > 0,
@@ -32,15 +37,29 @@ export function useModalFocus(isOpen: boolean, ref: RefObject<HTMLElement>): voi
   const opener = useRef<HTMLElement | null>(null);
   const wasOpen = useRef(false);
   // Captured while rendering: by the time an effect runs, a dialog's own autofocus may already have moved focus.
-  if (isOpen && !wasOpen.current) {
+  // Captured once per opening: a re-render before the effect runs sees focus already moved and must not overwrite it.
+  const captured = useRef(false);
+  if (!isOpen && !wasOpen.current) captured.current = false;
+  if (isOpen && !wasOpen.current && !captured.current) {
+    captured.current = true;
     const a = document.activeElement;
     opener.current = a instanceof HTMLElement && a !== document.body ? a : null;
+    // The parent dialog already unmounted (it closed in the render before ours), so focus is on BODY:
+    // the parent's own opener is the best place to come back to.
+    if (!opener.current && openModals.length) opener.current = modalOpener.get(openModals[openModals.length - 1]) ?? null;
+    // Opened from inside another open dialog: if that opener is gone when we close, return to the parent's opener.
+    if (opener.current) {
+      const parent = openModals.find((m) => m.contains(opener.current));
+      const up = parent ? modalOpener.get(parent) : null;
+      if (up) fallbackOf.set(opener.current, up);
+    }
   }
 
   useEffect(() => {
     const el = ref.current;
     if (isOpen && el) {
       openModals.push(el);
+      modalOpener.set(el, opener.current);
       if (!el.contains(document.activeElement)) {
         if (!el.hasAttribute('tabindex')) el.setAttribute('tabindex', '-1');
         el.focus({ preventScroll: true });
@@ -53,12 +72,27 @@ export function useModalFocus(isOpen: boolean, ref: RefObject<HTMLElement>): voi
     }
     if (!isOpen && wasOpen.current) {
       wasOpen.current = false;
-      const back = opener.current;
-      opener.current = null;
-      if (back?.isConnected) back.focus({ preventScroll: true });
+      restore();
     }
     return undefined;
   }, [isOpen]);
+
+  function restore() {
+    let back = opener.current;
+    opener.current = null;
+    captured.current = false;
+    while (back && !back.isConnected) back = fallbackOf.get(back) ?? null;
+    // Another dialog already holds focus (one closing as the next opens): leave it be.
+    if (openModals.some((m) => m.contains(document.activeElement))) return;
+    back?.focus({ preventScroll: true });
+  }
+
+  // The dialog component unmounted while open (mounted only when shown): hand focus back too.
+  const restoreRef = useRef(restore);
+  restoreRef.current = restore;
+  useEffect(() => () => {
+    if (wasOpen.current) { wasOpen.current = false; restoreRef.current(); }
+  }, []);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {

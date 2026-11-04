@@ -129,6 +129,9 @@ vi.mock('../../stores/settingsStore', () => ({
   },
 }));
 
+const mockAnnounce = vi.fn();
+vi.mock('../../utils/announcer', () => ({ announce: (m: string) => mockAnnounce(m) }));
+
 import { BiblePane } from './BiblePane';
 
 describe('BiblePane', () => {
@@ -440,5 +443,12 @@ describe('BiblePane', () => {
     expect(interlinearAttr(container, 'data-interlinear-unavailable')).toBe('false');
     await waitFor(() =>
       expect(interlinearAttr(container, 'data-interlinear-unavailable')).toBe('true'));
+  });
+
+  // B-157: phones render BiblePane with hideBars; chapter loads must still be announced.
+  it.each([false, true])('announces a loaded chapter (hideBars=%s)', (hideBars) => {
+    mockActiveTab = makeTab({ verses: [{ verse_id: 43003001, text: 'x' }] as never });
+    render(<BiblePane hideBars={hideBars} />);
+    expect(mockAnnounce).toHaveBeenCalledTimes(1);
   });
 });

@@ -179,7 +179,7 @@ export function BiblePane({
   }, []);
 
   // Tell screen readers a chapter has loaded (focus stays where it is).
-  const loadedKey = !hideBars && !showHome && tab && !tab.loading && tab.verses.length > 0
+  const loadedKey = !showHome && tab && !tab.loading && tab.verses.length > 0
     ? `${tab.moduleAbbr}|${tab.book}|${tab.chapter}` : '';
   useEffect(() => {
     if (!loadedKey || !tab?.book) return;

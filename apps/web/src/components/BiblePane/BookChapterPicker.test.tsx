@@ -430,4 +430,17 @@ describe('BookChapterPicker', () => {
     rerender(<BookChapterPicker {...defaultProps} />);
     expect(container.querySelector<HTMLInputElement>('.kth-picker__input')!.value).toBe('');
   });
+
+  // B-156: closing the picker returns focus to what opened it.
+  it('returns focus to the opener when it closes', async () => {
+    const opener = document.createElement('button');
+    document.body.appendChild(opener);
+    opener.focus();
+    const { rerender } = render(<BookChapterPicker {...defaultProps} />);
+    await new Promise((r) => setTimeout(r, 50));
+    rerender(<BookChapterPicker {...defaultProps} isOpen={false} />);
+    await new Promise((r) => setTimeout(r, 50));
+    expect(document.activeElement).toBe(opener);
+    opener.remove();
+  });
 });
