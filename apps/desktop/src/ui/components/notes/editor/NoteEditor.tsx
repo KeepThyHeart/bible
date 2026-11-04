@@ -52,6 +52,8 @@ interface NoteEditorProps {
   onChange: (content: string) => void;
   placeholder?: string;
   readOnly?: boolean;
+  /** Move keyboard focus into the editor when it mounts (a note the user just opened to write in). */
+  autoFocus?: boolean;
   /**
    * Print / PDF / Word / Markdown, passed straight through to the toolbar.
    * Only the notes pane can supply them - they act on the *file* the editor's
@@ -124,6 +126,7 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
   onChange,
   placeholder,
   readOnly = false,
+  autoFocus = false,
   exportActions,
   defaultDirection,
 }) => {
@@ -364,6 +367,7 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
     ],
     content: value || '',
     editable: !readOnly,
+    autofocus: autoFocus && !readOnly ? 'end' : false,
     onUpdate: ({ editor }) => {
       if (!isInternalUpdate.current) {
         const html = editor.getHTML();
@@ -372,6 +376,11 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
     },
     editorProps: {
       attributes: {
+        // B-046: a screen reader needs to know this is a multi-line text box
+        // and how to leave it (Tab indents; Escape then Tab moves on).
+        role: 'textbox',
+        'aria-multiline': 'true',
+        'aria-label': t('userNotesPane.editorLabel'),
         class: 'prose prose-sm max-w-none focus:outline-none min-h-full',
         // Note body font-size follows the Typography section's "Study text"
         // slider (--study-font-size) and the "Global Font Scale" slider

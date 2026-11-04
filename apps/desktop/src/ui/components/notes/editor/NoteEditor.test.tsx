@@ -219,3 +219,19 @@ describe('NoteEditor: swapping the document from outside', () => {
     expect(onChange).not.toHaveBeenCalled();
   });
 });
+
+describe('NoteEditor - accessibility (B-046)', () => {
+  it('has a textbox role, an accessible name, and takes focus when autoFocus is set', async () => {
+    render(
+      <ContextProvider services={createMockServices()}>
+        <NoteEditor value="<p>Hello</p>" onChange={vi.fn()} autoFocus />
+      </ContextProvider>,
+    );
+    await waitFor(() => expect(getEditableDiv()).toBeInTheDocument());
+    const el = getEditableDiv();
+    expect(el.getAttribute('role')).toBe('textbox');
+    expect(el.getAttribute('aria-multiline')).toBe('true');
+    expect(el.getAttribute('aria-label')).toBe('userNotesPane.editorLabel');
+    await waitFor(() => expect(document.activeElement).toBe(el));
+  });
+});

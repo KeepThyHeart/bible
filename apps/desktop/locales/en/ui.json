@@ -615,6 +615,7 @@
   "userNotesPane.renameNoteTitle": "Rename note",
   "userNotesPane.popOutTitle": "Pop out to separate window",
   "userNotesPane.startWritingPlaceholder": "Start writing...",
+  "userNotesPane.editorLabel": "Note text. Tab indents; press Escape then Tab to leave the editor.",
   "userNotesPane.newFolderDialogTitle": "New Folder",
   "userNotesPane.folderNameLabel": "Folder name:",
   "userNotesPane.folderNamePlaceholder": "My Folder",

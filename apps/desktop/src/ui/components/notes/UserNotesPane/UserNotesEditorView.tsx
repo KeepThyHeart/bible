@@ -181,6 +181,7 @@ const UserNotesEditorView: React.FC<UserNotesEditorViewProps> = ({
         <NoteEditor
           value={editorContent}
           onChange={setEditorContent}
+          autoFocus
           placeholder={t('userNotesPane.startWritingPlaceholder')}
           exportActions={exportActions}
           defaultDirection={noteDirection ?? undefined}
