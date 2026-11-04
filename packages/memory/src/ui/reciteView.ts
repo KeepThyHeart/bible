@@ -254,6 +254,9 @@ export function createReciteView(initial: ReciteStateView, cb: ReciteCallbacks):
         ? el('p', { class: 'sm-hint', text: progressText(state) })
         : null,
       state.error ? errorBanner(state.error.message) : null,
+      state.phase === 'paused' && state.message
+        ? el('p', { class: 'sm-hint', attrs: { 'data-testid': 'recite-pause-message' }, text: state.message })
+        : null,
       state.phase === 'error' && !state.error ? errorBanner(tr('memory.ui.settings.wentWrongPeriod', 'Something went wrong.')) : null,
       showVerses
         ? el('p', { class: 'sm-recite-hint-text' }, [state.verses!.flatMap((v) => v.words).join(' ')])
