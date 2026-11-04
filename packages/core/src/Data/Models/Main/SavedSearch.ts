@@ -47,6 +47,8 @@ export interface SearchOptions {
   maxResults?: number;          // Result limit (default 200)
   includeContext?: boolean;     // Include surrounding verses
   autoFuzzy?: boolean;          // Auto-fallback to fuzzy if < 10 results
+  /** Advanced search: read `&&` (and), `||` (or), `!` (not) and parentheses as boolean operators (B-017). */
+  symbolOperators?: boolean;
   /**
    * How the auto-fuzzy supplement decides that a verse is a plausible
    * approximate match for a multi-word query.

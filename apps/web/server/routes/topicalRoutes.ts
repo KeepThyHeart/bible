@@ -126,6 +126,7 @@ export function createTopicalRoutes(db: DatabaseManager, siteSettings: SiteSetti
         })),
         verse_count: verseCount,
         reference_count: referenceCount,
+        direct_reference_count: repo.getReferenceCount(topicId),
       });
     } catch (error) {
       console.error('Error getting topic:', error);

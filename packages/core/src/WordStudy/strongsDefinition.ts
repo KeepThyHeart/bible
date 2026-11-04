@@ -17,7 +17,7 @@ export interface ParsedStrongsDefinition {
   compareRefs: number[];
 }
 
-export function parseStrongsDefinition(raw: string, language: 'Greek' | 'Hebrew'): ParsedStrongsDefinition {
+export function parseStrongsDefinition(raw: string, language: 'Greek' | 'Hebrew', entryWord?: string | null): ParsedStrongsDefinition {
   const def = raw ?? '';
   const numMatch = def.match(/^\s*(\d+)/);
   const sep = def.indexOf(':--');
@@ -60,7 +60,8 @@ export function parseStrongsDefinition(raw: string, language: 'Greek' | 'Hebrew'
 
   return {
     number: numMatch ? parseInt(numMatch[1], 10) : 0,
-    originalWord: greek?.[2],
+    // Hebrew definitions carry no script; the lemma lives in the entry's `word` column when present (B-179).
+    originalWord: greek ? greek[2] : (language === 'Hebrew' && entryWord && /[\u0590-\u05FF]/.test(entryWord) ? entryWord.trim() : undefined),
     transliteration: greek ? greek[3] : hebrew?.[2],
     pronunciation: greek ? greek[4] : hebrew?.[3],
     sense,

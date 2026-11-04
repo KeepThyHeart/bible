@@ -2408,5 +2408,10 @@
   "preferencesDialog.privacyOnlineSearch": "Busca por significado (Preferências > Busca): a opção on-line envia o texto da sua busca ao serviço de busca. Você escolhe a fonte lá.",
   "preferencesDialog.privacyOnlineDiagnostics": "Relatórios de diagnóstico (Preferências > Diagnóstico): enviados somente se você optar por enviá-los.",
   "preferencesDialog.privacyOnlineLinks": "Abrir links no seu navegador.",
-  "preferencesDialog.privacyOnlineFooter": "Com a chave desativada, nenhum destes recursos se conecta à internet."
+  "preferencesDialog.privacyOnlineFooter": "Com a chave desativada, nenhum destes recursos se conecta à internet.",
+  "remoteConsent.local": "Prefere manter tudo neste dispositivo? Um pacote local de significado funciona offline e não faz requisições web.",
+  "remoteConsent.getPack": "Obter o pacote local de significado",
+  "searchResultsPane.resultsFrom": "Resultados de {modules}",
+  "advancedSearchDialog.operatorsHint": "Operadores: && (e), || (ou), ! (não), com parênteses, p. ex. amor && !(ódio || ira). As palavras AND, OR e NOT continuam sendo palavras comuns.",
+  "topicsPane.directOfTotal": "({direct} diretos, {total} no total)"
 }

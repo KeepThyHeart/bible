@@ -2393,5 +2393,10 @@
   "preferencesDialog.privacyOnlineSearch": "חיפוש לפי משמעות (העדפות > חיפוש): האפשרות המקוונת שולחת את טקסט החיפוש לשירות החיפוש. את המקור בוחרים שם.",
   "preferencesDialog.privacyOnlineDiagnostics": "דוחות אבחון (העדפות > אבחון): נשלחים רק אם בחרתם לשלוח אותם.",
   "preferencesDialog.privacyOnlineLinks": "פתיחת קישורים בדפדפן שלכם.",
-  "preferencesDialog.privacyOnlineFooter": "כשהמתג כבוי, אף אחד מאלה אינו מתחבר לאינטרנט."
+  "preferencesDialog.privacyOnlineFooter": "כשהמתג כבוי, אף אחד מאלה אינו מתחבר לאינטרנט.",
+  "remoteConsent.local": "מעדיפים לשמור הכול במכשיר הזה? חבילת משמעות מקומית פועלת ללא חיבור ואינה שולחת בקשות אינטרנט.",
+  "remoteConsent.getPack": "קבלת חבילת המשמעות המקומית",
+  "searchResultsPane.resultsFrom": "תוצאות מתוך {modules}",
+  "advancedSearchDialog.operatorsHint": "אופרטורים: && (וגם), || (או), ! (לא), עם סוגריים, למשל אהבה && !(שנאה || כעס). המילים AND, OR ו-NOT נשארות מילים רגילות.",
+  "topicsPane.directOfTotal": "({direct} ישירות, {total} בסך הכול)"
 }

@@ -22,6 +22,14 @@
     color: var(--text-secondary);
   }
 
+  &__translation-note {
+    flex: 1 1 auto;
+    margin-inline: 8px;
+    font-size: calc(0.75rem * var(--ui-font-scale, 1));
+    color: var(--text-muted);
+    text-align: end;
+  }
+
   &__close {
     background: none;
     border: none;

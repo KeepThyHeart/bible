@@ -125,7 +125,7 @@ export class WordStudyService {
       for (const entry of dict.getAllEntries({ limit: 20000 })) {
         const n = parseInt(entry.entryKey, 10);
         if (!n) continue;
-        const parsed = parseStrongsDefinition(entry.definition ?? '', language);
+        const parsed = parseStrongsDefinition(entry.definition ?? '', language, entry.word);
         const candidate: WordKeyCandidate = {
           strongs: `${prefix}${n}`, language, word: parsed.originalWord, translit: parsed.transliteration,
           gloss: parsed.lexiconRenderings.join(', ') || parsed.sense,
@@ -146,7 +146,7 @@ export class WordStudyService {
     const key = StrongsNumberHelper.toDictionaryKey(display);
     const entry = key ? dict.getEntryByKey(key) : undefined;
     if (!entry) return null;
-    const p = parseStrongsDefinition(entry.definition ?? '', display.startsWith('G') ? 'Greek' : 'Hebrew');
+    const p = parseStrongsDefinition(entry.definition ?? '', display.startsWith('G') ? 'Greek' : 'Hebrew', entry.word);
     return {
       word: p.originalWord, translit: p.transliteration, pronunciation: p.pronunciation,
       sense: p.sense, lexiconRenderings: p.lexiconRenderings,

@@ -50,6 +50,7 @@ export function RemoteConsentDialog() {
           {t('remoteSemantic.consent.body')}
           {via === 'browser' && <> {t('remoteSemantic.consent.ipNotice')}</>}
           {' '}{t('remoteSemantic.consent.neverSent')}
+          {' '}<span data-testid="remote-consent-local">{t('remoteSemantic.consent.localOption')}</span>
         </p>
         <div class="remote-consent__actions">
           <button

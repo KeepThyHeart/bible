@@ -94,6 +94,15 @@ const TopicView: React.FC<TopicViewProps> = ({
             : detail.verse_count === 1
               ? t('topicsPane.verseCountOne')
               : t('topicsPane.verseCount', { count: detail.verse_count })}
+          {/* The count above includes sub-topics; say how many are filed on this topic itself (B-093). */}
+          {detail.children.length > 0
+            && typeof detail.direct_reference_count === 'number'
+            && typeof detail.reference_count === 'number'
+            && detail.direct_reference_count < detail.reference_count && (
+              <span data-testid="topic-direct-count">
+                {' '}{t('topicsPane.directOfTotal', { direct: detail.direct_reference_count, total: detail.reference_count })}
+              </span>
+            )}
         </div>
       </div>
 

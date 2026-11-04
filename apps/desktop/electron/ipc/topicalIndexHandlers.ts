@@ -147,6 +147,7 @@ export function registerTopicalIndexHandlers(_ipcMain: IpcMain): void {
       })),
       verse_count: verseCount,
       reference_count: referenceCount,
+      direct_reference_count: repo.getReferenceCount(topicId),
       source_abbreviation: abbreviation,
       source_name: sourceName
     };

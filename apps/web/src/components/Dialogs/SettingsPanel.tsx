@@ -29,7 +29,7 @@ import { ContributedSection } from './ContributedSection';
 type SettingsTab = string;
 
 /** Tabs whose content is rendered inline below; any other contributed section goes through `ContributedSection`. */
-const BUILTIN_TABS = new Set(['text-size', 'theme', 'modules', 'gestures', 'apps', 'about']);
+const BUILTIN_TABS = new Set(['text-size', 'theme', 'modules', 'gestures', 'apps', 'language', 'about']);
 
 /** The tabs, in order, from the `preferencesSections` contribution point (declared by `modules/host/ui.ts`). */
 function useSettingsSections(): PreferencesSectionContribution[] {
@@ -55,6 +55,7 @@ function sectionToTab(section?: string): SettingsTab {
   if (section === 'modules') return 'modules';
   if (section === 'gestures') return 'gestures';
   if (section === 'apps') return 'apps';
+  if (section === 'language') return 'language';
   if (section === 'about') return 'about';
   // A section contributed by a feature module deep-links by its own id.
   if (section && modulePoints.preferencesSections.has(section)) {
@@ -551,14 +552,8 @@ export function SettingsPanel({ isOpen, onClose, scrollToSection }: SettingsPane
               <ContributedSection section={sections.find(sec => sec.id === activeTab)!} />
             )}
 
-            {activeTab === 'about' && (
-              <div class="settings-panel__section" data-section="about">
-                {/*
-                  `settings-section` / `settings-hint` were classes with no
-                  stylesheet behind them, which is why this block did not look
-                  like the rest of the panel. It uses the panel's own heading
-                  and field patterns instead.
-                */}
+            {activeTab === 'language' && (
+              <div class="settings-panel__section" data-section="language">
                 <h4 class="settings-panel__section-title">{t('settings.language.title')}</h4>
                 <div class="settings-panel__field">
                   <span>{t('settings.language.description')}</span>
@@ -601,7 +596,17 @@ export function SettingsPanel({ isOpen, onClose, scrollToSection }: SettingsPane
                     <p class="settings-panel__hint">{t('settings.language.moreComingNote')}</p>
                   )}
                 </div>
+              </div>
+            )}
 
+            {activeTab === 'about' && (
+              <div class="settings-panel__section" data-section="about">
+                {/*
+                  `settings-section` / `settings-hint` were classes with no
+                  stylesheet behind them, which is why this block did not look
+                  like the rest of the panel. It uses the panel's own heading
+                  and field patterns instead.
+                */}
                 <h4 class="settings-panel__section-title">{t('settings.about.title')}</h4>
                 <div class="settings-panel__field">
                   <button

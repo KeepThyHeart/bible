@@ -38,9 +38,16 @@ export interface StrongsHead {
 /**
  * Greek: "N <greek words> <encoded words> <translit> {pron}" - the words before the
  * encoded form are as many as the encoded ones, so 3588 "ὁ ἡ τό oJ hJ tov ho {ho}" parses too.
- * Hebrew carries no script: "N translit pron ..." gives the transliteration only.
+ * Hebrew carries no script in the definition: "N translit pron ..." gives the transliteration only; the lemma
+ * comes from the entry's own `word` column when that holds Hebrew letters (B-179).
  */
-export function parseStrongsHead(definition: string, language: 'G' | 'H'): StrongsHead | null {
+/** The entry's `word` when it holds Hebrew letters (U+0590-U+05FF), else ''. */
+export function hebrewLemma(word?: string | null): string {
+  const w = (word ?? '').trim();
+  return /[\u0590-\u05FF]/.test(w) ? w : '';
+}
+
+export function parseStrongsHead(definition: string, language: 'G' | 'H', entryWord?: string | null): StrongsHead | null {
   const def = definition ?? '';
   if (language === 'G') {
     const m = /^\s*\d+\s+([^{}]+?)\s*\{([^}]*)\}\s*/.exec(def);
@@ -57,7 +64,7 @@ export function parseStrongsHead(definition: string, language: 'G' | 'H'): Stron
   }
   const m = /^\s*\d+\s+(\S+)\s+(\S+)\s*/.exec(def);
   if (!m) return null;
-  return { word: '', transliteration: m[1].replace(/^'/, ''), pronunciation: m[2].replace(/[;,]$/, ''), body: def.slice(m[0].length) };
+  return { word: hebrewLemma(entryWord), transliteration: m[1].replace(/^'/, ''), pronunciation: m[2].replace(/[;,]$/, ''), body: def.slice(m[0].length) };
 }
 
 type LooseIndex = Array<{ entry: ReturnType<IDictionaryRepository['getAllEntries']>[number]; loose: string }>;

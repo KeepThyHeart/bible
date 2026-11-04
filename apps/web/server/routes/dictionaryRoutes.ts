@@ -73,7 +73,7 @@ export function createDictionaryRoutes(db: DatabaseManager, siteSettings: SiteSe
         if (lang && numberQuery && (!numberQuery.prefix || numberQuery.prefix === lang)) {
           const direct = repo.getEntryByKey(numberQuery.key);
           if (direct) {
-            const head = parseStrongsHead(direct.definition ?? '', lang);
+            const head = parseStrongsHead(direct.definition ?? '', lang, direct.word);
             hits.push({
               entry_key: direct.entryKey,
               word: head?.word || head?.transliteration || direct.entryKey,
@@ -91,7 +91,7 @@ export function createDictionaryRoutes(db: DatabaseManager, siteSettings: SiteSe
         const looseHits = lang && entries.length === 0;
         if (lang && looseHits) entries = looseStrongsMatches(repo, lang, query);
         for (const e of entries) {
-          const head = looseHits && lang ? parseStrongsHead(e.definition ?? '', lang) : null;
+          const head = looseHits && lang ? parseStrongsHead(e.definition ?? '', lang, e.word) : null;
           hits.push({
             entry_key: e.entryKey,
             word: head ? (head.word || head.transliteration) : (e.word ?? e.entryKey),
@@ -159,7 +159,7 @@ export function createDictionaryRoutes(db: DatabaseManager, siteSettings: SiteSe
 
       // Sort by title match quality: exact > starts-with > contains > alphabetical
       const mapped = entries.map(e => {
-        const head = lang ? parseStrongsHead(e.definition ?? '', lang) : null;
+        const head = lang ? parseStrongsHead(e.definition ?? '', lang, e.word) : null;
         return {
           entry_key: e.entryKey,
           word: head ? (head.word || head.transliteration) : e.word,
@@ -229,7 +229,7 @@ export function createDictionaryRoutes(db: DatabaseManager, siteSettings: SiteSe
         // Strong's rows keep the number in the word column; the head of the definition has the word (B-179).
         entries: result.entries.map(e => {
           const lang = strongsLanguageOf(moduleName);
-          const head = lang ? parseStrongsHead(repo.getEntryByKey(e.entryKey)?.definition ?? '', lang) : null;
+          const head = lang ? parseStrongsHead(repo.getEntryByKey(e.entryKey)?.definition ?? '', lang, repo.getEntryByKey(e.entryKey)?.word) : null;
           return { entry_key: e.entryKey, word: head ? (head.word || head.transliteration) : e.word };
         }),
         total: result.total,
@@ -295,7 +295,7 @@ export function createDictionaryRoutes(db: DatabaseManager, siteSettings: SiteSe
         return;
       }
 
-      const head = lang ? parseStrongsHead(entry.definition ?? '', lang) : null;
+      const head = lang ? parseStrongsHead(entry.definition ?? '', lang, entry.word) : null;
       let entries = [{
         entry_key: entry.entryKey,
         word: head ? (head.word || head.transliteration) : entry.word,

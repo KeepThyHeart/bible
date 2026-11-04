@@ -3,7 +3,7 @@ import { SearchResult, SearchOptions, SavedSearch, StrongsNumberHelper } from '@
 import type { RemoteSemantic } from '@bible/core';
 import { searchAPI, dictionaryAPI, remoteSemanticAPI } from '../services/electronAPI';
 import type { RemoteSemanticStatus, RemoteConsentChoice, SemanticSearchExReply, SemanticSource } from '../services/electronAPI';
-import { resolveOpenModuleAbbreviations, resolveInstalledModuleId, showSearchResultsPanel } from './crossStoreBridge';
+import { resolveOpenModuleAbbreviations, resolveActiveBibleModule, resolveInstalledModuleId, showSearchResultsPanel } from './crossStoreBridge';
 import { whenContextService } from '../services/WhenContextService';
 import { useToastStore } from './useToastStore';
 import { moduleAPI } from './module/moduleAPI';
@@ -77,6 +77,12 @@ interface SearchState {
   query: string;
   resultsForQuery: string; // The query that the current searchResults are for (not the live input)
   searchResults: SearchResult[];
+  /**
+   * The translation(s) the current keyword results were run in (B-005). The
+   * results stay when the reader switches translation; the pane names these so
+   * they are not mistaken for the new one.
+   */
+  searchedModules: string[];
   isSearching: boolean;
   error: string | null;
 
@@ -193,7 +199,14 @@ interface SearchState {
 
   // Actions - Search
   setQuery: (query: string) => void;
-  performSearch: (query?: string) => Promise<void>;
+  /**
+   * Run a keyword search. `symbolOperators` (set only by the Advanced Search
+   * dialog, B-017) reads `&&`, `||`, `!` and parentheses as boolean operators
+   * for this query; every ordinary search clears it.
+   */
+  performSearch: (query?: string, opts?: { symbolOperators?: boolean }) => Promise<void>;
+  /** Whether the current results were run with symbol operators on (re-fetches keep it). */
+  symbolOperators: boolean;
   performLiveSearch: (query: string) => Promise<void>;
   clearSearch: () => void;
   /**
@@ -325,11 +338,12 @@ const DEFAULT_SEARCH_OPTIONS: SearchOptions = {
  * different search rather than more of the same one.
  */
 function buildKeywordRequestOptions(
-  state: Pick<SearchState, 'searchOptions' | 'includeRelatedWords'>,
+  state: Pick<SearchState, 'searchOptions' | 'includeRelatedWords'> & { symbolOperators?: boolean },
   query: string,
   maxResults: number,
 ): SearchOptions {
   let options: SearchOptions = { ...state.searchOptions, maxResults };
+  if (state.symbolOperators) options = { ...options, symbolOperators: true };
   if (state.searchOptions.scope === 'allOpenModules') {
     options = { ...options, modules: resolveOpenModuleAbbreviations() };
   }
@@ -366,6 +380,7 @@ function emptyResultsPatch(): Partial<SearchState> {
   return {
     resultsForQuery: '',
     searchResults: [],
+    searchedModules: [],
     keywordResultLimit: KEYWORD_DEFAULT_MAX_RESULTS,
     isShowingAllKeywordResults: false,
     keywordIndexNotice: null,
@@ -426,6 +441,7 @@ export const useSearchStore = create<SearchState>((set, get) => ({
   query: '',
   resultsForQuery: '',
   searchResults: [],
+  searchedModules: [],
   isSearching: false,
   error: null,
   keywordResultLimit: KEYWORD_DEFAULT_MAX_RESULTS,
@@ -461,6 +477,7 @@ export const useSearchStore = create<SearchState>((set, get) => ({
   indexingProgress: null,
 
   searchOptions: DEFAULT_SEARCH_OPTIONS,
+  symbolOperators: false,
 
   savedSearches: [],
   isLoadingSavedSearches: false,
@@ -494,7 +511,7 @@ export const useSearchStore = create<SearchState>((set, get) => ({
     set({ query });
   },
 
-  performSearch: async (query?: string) => {
+  performSearch: async (query?: string, opts?: { symbolOperators?: boolean }) => {
     const queryToSearch = query || get().query;
 
     if (!queryToSearch.trim()) {
@@ -506,6 +523,7 @@ export const useSearchStore = create<SearchState>((set, get) => ({
       isSearching: true,
       error: null,
       query: queryToSearch,
+      symbolOperators: !!opts?.symbolOperators,
       // A brand-new top-level query invalidates any "already tried this
       // translation" / "last visited result" bookkeeping from the previous one.
       retriedModules: [],
@@ -526,11 +544,15 @@ export const useSearchStore = create<SearchState>((set, get) => ({
       const requestedLimit = get().searchOptions.maxResults ?? KEYWORD_DEFAULT_MAX_RESULTS;
       const searchOptions = buildKeywordRequestOptions(get(), queryToSearch, requestedLimit);
 
+      const searchedModules = searchOptions.modules && searchOptions.modules.length > 0
+        ? [...searchOptions.modules]
+        : (resolveActiveBibleModule() ? [resolveActiveBibleModule() as string] : []);
       const results = await searchAPI.performSearch(queryToSearch, searchOptions);
 
       // Reset proximity distance after search completes (per user requirement)
       set({
         searchResults: results,
+        searchedModules,
         resultsForQuery: queryToSearch,
         isResultsVisible: true,
         isSearching: false,
@@ -654,6 +676,7 @@ export const useSearchStore = create<SearchState>((set, get) => ({
       query: '',
       resultsForQuery: '',
       searchResults: [],
+      searchedModules: [],
       liveSuggestions: [],
       liveSearchQuery: '',
       isResultsVisible: false,
@@ -916,6 +939,7 @@ export const useSearchStore = create<SearchState>((set, get) => ({
       const requestedLimit = get().searchOptions.maxResults ?? KEYWORD_DEFAULT_MAX_RESULTS;
       const searchOptions = {
         ...get().searchOptions,
+        ...(get().symbolOperators ? { symbolOperators: true } : {}),
         maxResults: requestedLimit,
         scope: 'allOpenModules',
         openModules: [moduleAbbr],
@@ -925,6 +949,7 @@ export const useSearchStore = create<SearchState>((set, get) => ({
 
       set((state) => ({
         searchResults: results,
+        searchedModules: [moduleAbbr],
         resultsForQuery: queryToSearch,
         query: queryToSearch,
         isResultsVisible: true,

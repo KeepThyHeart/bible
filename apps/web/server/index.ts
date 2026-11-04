@@ -8,6 +8,7 @@ import { DatabaseManager } from './DatabaseManager.js';
 import { createPasswordGate, hashPassword } from './middleware/passwordGate.js';
 import { createServiceWorkerRoutes, pwaShell, readShell } from './middleware/serviceWorker.js';
 import { createCompression } from './middleware/compression.js';
+import { apiNotFound } from './middleware/apiNotFound.js';
 import { createRateLimiter, tierForApiPath } from './middleware/rateLimiter.js';
 import { contentSecurityPolicyDirectives, speechModelOrigins, inlineScriptHashes } from './cspDirectives.js';
 import { RemoteSemanticService } from './search/RemoteSemanticService.js';
@@ -469,6 +470,8 @@ for (const reg of getRegisteredRoutes()) {
 }
 // Paths of switched-off feature modules answer "not available" (after the password gate).
 app.use(createUnavailableRoutes());
+// Unknown /api paths: JSON 404 in the API's error shape (B-176), never the SPA fallback.
+app.use('/api', apiNotFound);
 
 // Audio Bible files (recordings, TTS engine files) are the `audio` server module's `/audio` route
 // (`modules/audio/routes.ts`), mounted above only while the module is on, so as private as the rest

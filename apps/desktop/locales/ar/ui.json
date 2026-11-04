@@ -2408,5 +2408,10 @@
   "preferencesDialog.privacyOnlineSearch": "البحث بالمعنى (التفضيلات > البحث): يرسل الخيار عبر الإنترنت نص بحثك إلى خدمة البحث. تختار المصدر هناك.",
   "preferencesDialog.privacyOnlineDiagnostics": "تقارير التشخيص (التفضيلات > التشخيص): لا تُرسل إلا إذا اخترت إرسالها.",
   "preferencesDialog.privacyOnlineLinks": "فتح الروابط في متصفحك.",
-  "preferencesDialog.privacyOnlineFooter": "عند إيقاف المفتاح لا يتصل أي من هذه بالإنترنت."
+  "preferencesDialog.privacyOnlineFooter": "عند إيقاف المفتاح لا يتصل أي من هذه بالإنترنت.",
+  "remoteConsent.local": "هل تفضل إبقاء كل شيء على هذا الجهاز؟ تعمل حزمة المعنى المحلية دون اتصال ولا ترسل أي طلبات عبر الويب.",
+  "remoteConsent.getPack": "الحصول على حزمة المعنى المحلية",
+  "searchResultsPane.resultsFrom": "نتائج من {modules}",
+  "advancedSearchDialog.operatorsHint": "العوامل: && (و)، || (أو)، ! (ليس)، مع الأقواس، مثل محبة && !(بغض || غضب). تبقى الكلمات AND وOR وNOT كلمات عادية.",
+  "topicsPane.directOfTotal": "({direct} مباشرة، المجموع {total})"
 }

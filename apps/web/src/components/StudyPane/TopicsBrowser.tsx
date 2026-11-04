@@ -1039,6 +1039,13 @@ export function TopicsBrowser({
             const versesHeader = (
               <>
                 {t('topicsBrowser.verses', { count: refTotal })}
+                {/* The total includes sub-topics; say how many are filed on this topic itself (B-093). */}
+                {topicDetail.children.length > 0 && topicDetail.direct_reference_count != null
+                  && topicDetail.direct_reference_count < refTotal && (
+                  <span class="topics-browser__direct-count" data-testid="topic-direct-count">
+                    {' '}{t('topicsBrowser.directOfTotal', { direct: topicDetail.direct_reference_count, total: refTotal })}
+                  </span>
+                )}
                 {topicDetail.verse_count > refTotal && (
                   <span class="topics-browser__verse-total">
                     {' · '}{t('topicsBrowser.verseTotal', { count: topicDetail.verse_count })}

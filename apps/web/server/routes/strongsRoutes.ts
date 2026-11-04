@@ -27,7 +27,7 @@ export function createStrongsRoutes(db: DatabaseManager): Router {
 
       // The stored word is the raw key and the definition opens with the raw lexicon
       // line; show the parsed word/transliteration/pronunciation instead (B-177, as B-165).
-      const head = parseStrongsHead(entry.definition ?? '', number.startsWith('H') ? 'H' : 'G');
+      const head = parseStrongsHead(entry.definition ?? '', number.startsWith('H') ? 'H' : 'G', entry.word);
       res.json({
         strongsNumber: number,
         word: head ? (head.word || head.transliteration) : entry.word,

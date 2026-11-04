@@ -102,7 +102,15 @@ describe('AdvancedSearchDialog', () => {
     // The Search button has exact text "Search"
     await user.click(screen.getByText('Search'));
     expect(setSearchOptions).toHaveBeenCalled();
-    expect(performSearch).toHaveBeenCalledWith('love');
+    expect(performSearch).toHaveBeenCalledWith('love', { symbolOperators: true });
+  });
+
+  it('documents the && || ! operators in the help text (B-017)', () => {
+    renderWithProviders(<AdvancedSearchDialog />);
+    const hint = screen.getByTestId('adv-search-operators-hint').textContent ?? '';
+    expect(hint).toContain('&&');
+    expect(hint).toContain('||');
+    expect(hint).toContain('!');
   });
 
   it('closes when Escape key is pressed (clicking overlay)', async () => {
