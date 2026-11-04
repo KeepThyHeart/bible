@@ -33,3 +33,21 @@ describe('markSaved with the saved content', () => {
     expect(useNoteEditorStore.getState().isDirty).toBe(false);
   });
 });
+
+describe('normalizeContent (B-085)', () => {
+  it('adopts the editor-normalised text as the baseline for an untouched note', () => {
+    useNoteEditorStore.getState().resetContent('<p>a</p><ul><li>x</li></ul>');
+    useNoteEditorStore.getState().normalizeContent('<p>a</p><ul><li><p>x</p></li></ul><p></p>');
+    expect(useNoteEditorStore.getState().isDirty).toBe(false);
+    // the same text coming back through setContent is still not an edit
+    useNoteEditorStore.getState().setContent('<p>a</p><ul><li><p>x</p></li></ul><p></p>');
+    expect(useNoteEditorStore.getState().isDirty).toBe(false);
+  });
+
+  it('keeps unsaved edits dirty', () => {
+    useNoteEditorStore.getState().resetContent('<p>a</p>');
+    useNoteEditorStore.getState().setContent('<p>ab</p>');
+    useNoteEditorStore.getState().normalizeContent('<p>ab</p><p></p>');
+    expect(useNoteEditorStore.getState().isDirty).toBe(true);
+  });
+});

@@ -50,6 +50,12 @@ import { getLocalizedReferenceParser } from '../../../services/localizedReferenc
 interface NoteEditorProps {
   value: string;
   onChange: (content: string) => void;
+  /**
+   * The editor reshaped the document without any change from the user (it adds a trailing paragraph, normalises
+   * `<b>` to `<strong>`, wraps list items). Reported separately from `onChange` so merely opening a note is not
+   * an edit that rewrites its file (B-085).
+   */
+  onNormalized?: (content: string) => void;
   placeholder?: string;
   readOnly?: boolean;
   /** Move keyboard focus into the editor when it mounts (a note the user just opened to write in). */
@@ -124,6 +130,7 @@ const HOVER_CLOSE_DELAY_MS = 220;
 const NoteEditor: React.FC<NoteEditorProps> = ({
   value,
   onChange,
+  onNormalized,
   placeholder,
   readOnly = false,
   autoFocus = false,
@@ -368,10 +375,13 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
     content: value || '',
     editable: !readOnly,
     autofocus: autoFocus && !readOnly ? 'end' : false,
-    onUpdate: ({ editor }) => {
+    onUpdate: ({ editor, transaction }) => {
       if (!isInternalUpdate.current) {
         const html = editor.getHTML();
-        onChange(html);
+        // The document changed only through appended transactions (the trailing-paragraph plugin reacting to
+        // a selection or focus change): that is the editor tidying up, not the user writing (B-085).
+        if (!transaction.docChanged && onNormalized) onNormalized(html);
+        else onChange(html);
       }
     },
     editorProps: {

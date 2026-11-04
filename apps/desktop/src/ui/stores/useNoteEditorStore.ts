@@ -20,6 +20,11 @@ interface NoteEditorState {
 
   /** Set editor content and mark as dirty */
   setContent: (content: string) => void;
+  /**
+   * The editor reshaped an untouched document (trailing paragraph, tag normalisation). Adopts the new text as
+   * the baseline too, unless the user already has unsaved edits, so opening a note never counts as editing it (B-085).
+   */
+  normalizeContent: (content: string) => void;
   /** Set editor content without marking as dirty (used when loading a note) */
   resetContent: (content: string) => void;
   /** Mark the editor as saved (clears dirty flag, updates lastSaved timestamp) */
@@ -40,6 +45,8 @@ export const useNoteEditorStore = create<NoteEditorState>((set, get) => ({
   // editor re-emitting its own document on open) is not an edit: counting it
   // made merely opening a note rewrite its file.
   setContent: (content) => set(state => ({ content, isDirty: content !== state.baseline })),
+
+  normalizeContent: (content) => set(state => (state.isDirty ? { content } : { content, baseline: content })),
 
   // Loading another note: the previous note's save time must not carry over.
   resetContent: (content) => {

@@ -2,6 +2,7 @@ import React from 'react';
 import { Bdi } from '@bible/ui';
 import { useI18n } from '../../../contexts/useI18n';
 import NoteEditor from '../editor/NoteEditor';
+import { useNoteEditorStore } from '../../../stores/useNoteEditorStore';
 import type { NoteExportActions } from '../editor/EditorToolbar';
 import { BreadcrumbSegment } from '../NotesBreadcrumb';
 import NoteDirectionControl from './NoteDirectionControl';
@@ -29,6 +30,9 @@ interface UserNotesEditorViewProps {
   /** Reopen `previousNote` (the current note is saved first). */
   onBackToPrevious?: () => void;
 }
+
+// allow-getstate: editor callback - imperative store write outside render
+const normalizeEditorContent = (html: string): void => useNoteEditorStore.getState().normalizeContent(html);
 
 /**
  * The editor surface: sidebar toggle + breadcrumb + Tiptap editor + status bar.
@@ -181,6 +185,7 @@ const UserNotesEditorView: React.FC<UserNotesEditorViewProps> = ({
         <NoteEditor
           value={editorContent}
           onChange={setEditorContent}
+          onNormalized={normalizeEditorContent}
           autoFocus
           placeholder={t('userNotesPane.startWritingPlaceholder')}
           exportActions={exportActions}
