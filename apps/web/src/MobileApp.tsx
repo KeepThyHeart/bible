@@ -35,7 +35,7 @@ import { MAX_CHAPTERS } from './constants';
 import { settingsStore, pxToRem } from './stores/settingsStore';
 import { useStore } from './hooks/useStore';
 import { studyShouldIgnoreBack } from './host/appHost';
-import { useAppShared } from './hooks/useAppShared';
+import { useAppShared, noteMobileBackPress } from './hooks/useAppShared';
 import { useContextMenu } from './hooks/useContextMenu';
 import type { IDataProviders } from './providers/interfaces';
 
@@ -190,11 +190,18 @@ export function MobileApp({ providers }: MobileAppProps) {
       // Back out of any other app (it returns to Study, or is that app's own step): the hidden
       // Study must not also take one. (Its dummy entry is still in place.)
       if (studyShouldIgnoreBack()) return;
+      // W-031: this press is handled here; the hashchange it also raises must not navigate again.
+      noteMobileBackPress();
 
       // Whether this press was handled inside the app. If so the dummy entry is
       // re-pushed so the next Back stays in-app; on Home with nowhere to go it is
       // not, so the next Back leaves the app (B-100).
-      const stayInApp = () => window.history.pushState({ mobileBack: true }, '');
+      // The new dummy entry's URL is then put back to the reader's actual location (the popped-to
+      // entry's hash may differ, and the hashchange handler no longer re-syncs it) (W-031).
+      const stayInApp = () => {
+        window.history.pushState({ mobileBack: true }, '');
+        bibleStore.updateHash();
+      };
       if (!(mobileView === 'home' && !bibleStore.canGoBack())) stayInApp();
 
       // Priority 0: a full-screen layer a module put over the phone layout (for example a media

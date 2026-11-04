@@ -111,7 +111,7 @@ vi.mock('../stores/commentaryStore', () => ({ commentaryStore: h.commentaryStore
 vi.mock('../stores/searchStore', () => ({ searchStore: h.searchStore }));
 vi.mock('../stores/settingsStore', () => ({ settingsStore: h.settingsStore }));
 
-import { useAppShared } from './useAppShared';
+import { useAppShared, noteMobileBackPress } from './useAppShared';
 import { eventBus } from '../events/eventBus';
 
 const STRONGS_ENTRY = { strongsNumber: 'G2316', word: 'θεός', definition: 'God' };
@@ -581,6 +581,24 @@ describe('hash navigation', () => {
     });
 
     expect(h.bibleStore.navigateFromHash).toHaveBeenCalledWith('#/Psalm/23');
+  });
+
+  it('skips the hashchange raised by a phone Back press the popstate handler already took (W-031)', () => {
+    render();
+
+    noteMobileBackPress();
+    window.location.hash = '#/Psalm/23';
+    act(() => {
+      window.dispatchEvent(new HashChangeEvent('hashchange'));
+    });
+    expect(h.bibleStore.navigateFromHash).not.toHaveBeenCalled();
+
+    // Only that one: a later, genuine hash change is followed again.
+    window.location.hash = '#/Psalm/24';
+    act(() => {
+      window.dispatchEvent(new HashChangeEvent('hashchange'));
+    });
+    expect(h.bibleStore.navigateFromHash).toHaveBeenCalledWith('#/Psalm/24');
   });
 
   it('stops following once unmounted', () => {
