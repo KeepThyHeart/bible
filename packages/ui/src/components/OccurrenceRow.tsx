@@ -47,7 +47,7 @@ export function highlightWithDivineName(text: string, start: number, end: number
   const pieces = points.slice(0, -1).map((a, i) => {
     const b = points[i + 1];
     let node: ReactNode = text.slice(a, b);
-    if (divine.some(r => covers(r, a, b))) node = <span key={`d${a}`} className="divine-name">{node}</span>;
+    if (divine.some(r => covers(r, a, b))) node = <span key={`d${a}`} className="divine-name kth-ws-occ__divine">{node}</span>;
     return { a, b, node, inHit: covers(hit ?? undefined, a, b) };
   });
   const out: ReactNode[] = [];
