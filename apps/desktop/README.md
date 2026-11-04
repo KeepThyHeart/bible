@@ -49,6 +49,21 @@ In dev mode, logs go to the terminal where you launched the command. The rendere
 pnpm run build:core && pnpm run dev
 ```
 
+### Installing a packaged dev build (Linux, Windows)
+
+`pnpm run dev` hides bugs that only exist in a packaged app: asar paths, `process.resourcesPath`, unpacked native modules, data under `userData` rather than the checkout. To run the real packaged app without building an installer, run this from the repository root:
+
+```bash
+pnpm run install:local                     # build, package (electron-builder --dir), install
+pnpm run install:local --profile=curated   # package with another config: code-only (default), lean, curated
+pnpm run install:local --skip-build        # re-package the existing out/ only
+pnpm run uninstall:local                   # remove it (user data is kept)
+```
+
+Run `install:local` again to update in place. Quit the app first, including the tray icon; the script refuses to run while the app is open. It installs per user, with no sudo or admin rights. On Linux the app goes in `~/.local/opt/`, with a menu entry, an icon and a `~/.local/bin` symlink. On Windows it goes in `%LOCALAPPDATA%\Programs\`, with a Start Menu shortcut.
+
+The install uses a **dev identity**: "Keep Thy Heart Bible Reader (Dev)" with appId `com.keepthyheart.bible.desktop.dev`. Its user data is in `~/.config/Keep Thy Heart Bible Reader (Dev)` (`%APPDATA%\…` on Windows), separate from both `pnpm run dev` and any release installed on the machine. Set `BIBLE_PRODUCT_NAME` / `BIBLE_APP_ID` to use another identity; the official one is refused. To debug, launch it with `--inspect=9229` (main process) or `--remote-debugging-port=9222` (renderer). On systems that restrict unprivileged user namespaces (Ubuntu 24.04+), the script prints the `chmod 4755` command that `chrome-sandbox` needs.
+
 ## Building and Packaging
 
 ```bash
