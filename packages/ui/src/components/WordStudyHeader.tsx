@@ -1,5 +1,5 @@
 import type { WordStudyOverview } from '@bible/core/browser';
-import { fillTemplate, mergeWordStudyLabels } from './wordStudyLabels';
+import { fillTemplateIsolated, mergeWordStudyLabels } from './wordStudyLabels';
 import type { WordStudyLabels } from './wordStudyLabels';
 
 export interface WordStudyHeaderProps {
@@ -25,13 +25,13 @@ export function WordStudyHeader({ overview, onModuleChange, onSearchAll, onOpenI
           {entry?.word && <span className="kth-ws-header__word" lang={subject.language === 'Hebrew' ? 'he' : 'grc'}>{entry.word}</span>}
           {entry?.translit && <span className="kth-ws-header__translit">{entry.translit}</span>}
           {entry?.pronunciation && <span className="kth-ws-header__pron">{entry.pronunciation}</span>}
-          {subject.strongs && <span className="kth-ws-header__strongs">{fillTemplate(l.strongsNumber, { strongs: subject.strongs })}</span>}
+          {subject.strongs && <span className="kth-ws-header__strongs">{fillTemplateIsolated(l.strongsNumber, { strongs: subject.strongs })}</span>}
         </p>
       )}
       {noticeText ? (
         <p className="kth-ws-notice" role="status">{noticeText}</p>
       ) : (
-        <p className="kth-ws-header__totals">{fillTemplate(l.totals, { occurrences: totals.occurrences, verses: totals.verses })}</p>
+        <p className="kth-ws-header__totals">{fillTemplateIsolated(l.totals, { occurrences: totals.occurrences, verses: totals.verses })}</p>
       )}
       <div className="kth-ws-header__actions">
         {modules.length > 0 && (

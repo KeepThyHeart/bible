@@ -12,6 +12,7 @@
   "wordStudy.label.noticeNoModule": "No hay ninguna Biblia adecuada instalada para este estudio.",
   "wordStudy.label.noticeNotTagged": "Esta traducción no tiene etiquetas Strong. Elija otra traducción.",
   "wordStudy.label.noticeNoOccurrences": "No se encontraron apariciones en esta traducción.",
+  "wordStudy.label.noticeUnknownNumber": "No existe ese número de Strong.",
   "wordStudy.label.renderingsTitle": "Cómo se traduce",
   "wordStudy.label.formsTitle": "Formas encontradas",
   "wordStudy.label.other": "Otros ({count})",

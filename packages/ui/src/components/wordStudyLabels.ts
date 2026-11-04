@@ -111,6 +111,14 @@ export function fillTemplate(template: string, values: Record<string, string | n
   return template.replace(/\{(\w+)\}/g, (m, k: string) => (k in values ? String(values[k]) : m));
 }
 
+/**
+ * Like `fillTemplate`, but wraps each filled value in a bidi first-strong isolate (U+2068 ... U+2069), so a number or
+ * Strong's id in an RTL sentence keeps its own direction and does not reorder the words around it (B-186).
+ */
+export function fillTemplateIsolated(template: string, values: Record<string, string | number>): string {
+  return template.replace(/\{(\w+)\}/g, (m, k: string) => (k in values ? `\u2068${String(values[k])}\u2069` : m));
+}
+
 export function mergeWordStudyLabels(labels?: Partial<WordStudyLabels>): WordStudyLabels {
   return labels ? { ...DEFAULT_WORD_STUDY_LABELS, ...labels } : DEFAULT_WORD_STUDY_LABELS;
 }

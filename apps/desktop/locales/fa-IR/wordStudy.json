@@ -12,6 +12,7 @@
   "wordStudy.label.noticeNoModule": "هیچ کتاب مقدس مناسبی برای این مطالعه نصب نشده است.",
   "wordStudy.label.noticeNotTagged": "این ترجمه برچسب‌گذاری استرانگ ندارد. ترجمه دیگری انتخاب کنید.",
   "wordStudy.label.noticeNoOccurrences": "در این ترجمه موردی یافت نشد.",
+  "wordStudy.label.noticeUnknownNumber": "چنین شماره استرانگی وجود ندارد.",
   "wordStudy.label.renderingsTitle": "چگونه ترجمه شده است",
   "wordStudy.label.formsTitle": "شکل‌های یافت‌شده",
   "wordStudy.label.other": "سایر ({count})",
