@@ -265,3 +265,16 @@
   }
 }
 
+
+// Touch targets: at least 44x44 CSS px for the phone chrome (B-140).
+.app--mobile {
+  .header__action-btn,
+  .bible-tab-bar__add,
+  .bible-toolbar__nav-btn,
+  .bible-toolbar__translation-btn,
+  .bible-toolbar__btn,
+  .chapter-nav__btn {
+    min-inline-size: 44px;
+    min-block-size: 44px;
+  }
+}
