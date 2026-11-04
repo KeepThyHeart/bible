@@ -190,6 +190,29 @@ export function hashWriteMode(currentHash: string, newHash: string, userNav: boo
   if (!cur || !next) return 'replace';
   return cur[1] === next[1] && cur[2] === next[2] && cur[3] === next[3] ? 'replace' : 'push';
 }
+/**
+ * W-031: what a phone Back press that landed on `hash` should do to the reader.
+ *
+ * A chapter step (next/previous, a swipe) replaces the tab's own history entry but
+ * pushes a browser entry per chapter, so after John 3 → 4 → 5 → 6 the tab can no
+ * longer "go back" while the browser still holds 5, 4 and 3. The browser entry Back
+ * lands on is then the truth: `'none'` when it is not a reader hash or names the
+ * passage the tab is already on (a dummy entry: close a panel, go Home, ...),
+ * `'history'` when it is the tab's previous history entry (goBack, which restores
+ * its verse and scroll), `'hash'` for any other passage (open it, as desktop does).
+ */
+export function browserBackStep(
+  tab: { moduleAbbr: string; book: number | null; chapter: number | null } & HistorySlot,
+  hash: string,
+): 'none' | 'history' | 'hash' {
+  const m = hash.match(HASH_PATTERN);
+  if (!m) return 'none';
+  const target = { moduleAbbr: m[1], book: parseInt(m[2], 10), chapter: parseInt(m[3], 10) };
+  if (target.moduleAbbr === tab.moduleAbbr && target.book === tab.book && target.chapter === tab.chapter) return 'none';
+  const previous = tab.historyIndex > 0 ? tab.history[tab.historyIndex - 1] : undefined;
+  return previous && isSamePassage(previous, target) ? 'history' : 'hash';
+}
+
 const STUDY_SETTINGS_KEY = 'bible-reader-study-settings';
 
 let tabCounter = 0;
@@ -553,6 +576,9 @@ class BibleStore extends Store {
       tab.versesModule = undefined;
       tab.coveredBooks = undefined;
       tab.loadError = chapterLoadError();
+      // W-069: the commentary pane follows the chapter even when its text could
+      // not load (offline), instead of keeping the previous passage's header.
+      if (!follow) eventBus.emit('commentary:load-chapter', { book, chapter });
       if (wasShowingHome) {
         this.showHome = false;
       }
@@ -1014,12 +1040,19 @@ class BibleStore extends Store {
 
     if (this.tabs.length === 0) {
       this.addTab();
+      // W-059: the URL must not keep naming the closed passage (a reload would reopen it);
+      // the fresh tab has none, so the reader hash is dropped (replaced, not pushed).
+      if (studyOwnsHash() && HASH_PATTERN.test(window.location.hash)) {
+        history.replaceState(history.state, '', window.location.pathname + window.location.search);
+      }
       return;
     }
 
     if (this.activeTabId === tabId) {
       this.activeTabId = this.tabs[Math.min(idx, this.tabs.length - 1)].id;
       this.syncCommentaryToSelection();
+      // W-059: the hash follows the tab that became active (replace: closing a tab is no step to go Back to).
+      this.updateHash();
     }
 
     this.saveSession();
@@ -1217,6 +1250,20 @@ class BibleStore extends Store {
     tab.moduleAbbr = entry.moduleAbbr;
     tab.moduleName = entry.moduleAbbr;
     await this._loadHistoryEntry(entry);
+  }
+
+  /**
+   * Phone Back landed on browser entry `hash` (W-031, see `browserBackStep`): step the
+   * reader there. Returns true when it did, false when the entry names the passage
+   * already open, so the caller's own Back handling (panels, Home, ...) applies.
+   */
+  followBrowserBack(hash: string): boolean {
+    const tab = this.getActiveTab();
+    if (!tab) return false;
+    const step = browserBackStep(tab, hash);
+    if (step === 'history') void this.goBack();
+    else if (step === 'hash') void this.navigateFromHash(hash);
+    return step !== 'none';
   }
 
   // There is no goForward(): the toolbar has a Back button and a Recent

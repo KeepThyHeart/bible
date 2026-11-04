@@ -112,3 +112,18 @@ describe('bibleStore — verse past the end of the chapter', () => {
     expect(bibleStore.getActiveTab()?.studyVerse).toBe(43003036);
   });
 });
+
+describe('bibleStore — commentary follows a chapter whose text failed to load (W-069)', () => {
+  it('emits commentary:load-chapter even when getChapter rejects', async () => {
+    await bibleStore.navigateTo(43, 3, 16);
+    const provider = {
+      getChapter: vi.fn(async () => { throw new Error('Network error'); }),
+      getVerseOfTheDay: vi.fn(async () => null),
+    } as never;
+    bibleStore.init(provider);
+    loads = [];
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    await bibleStore.navigateTo(1, 1);
+    expect(loads).toEqual([{ book: 1, chapter: 1 }]);
+  });
+});
