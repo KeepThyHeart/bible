@@ -68,7 +68,7 @@ describe('WordStudyPane', () => {
     fireEvent.click(await screen.findByText('Search all'));
     expect(performSearch).toHaveBeenCalledWith('G25');
     fireEvent.click(screen.getByText('Open in dictionary'));
-    expect(onOpenStrongsEntry).toHaveBeenCalledWith('G25');
+    expect(onOpenStrongsEntry).toHaveBeenCalledWith('G25', 'wordStudy');
   });
 
   it('submitting a group query studies a word group', async () => {

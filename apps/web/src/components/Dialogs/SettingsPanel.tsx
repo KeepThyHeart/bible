@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'preact/hooks';
+import { formatVersionLine } from '../../utils/appVersion';
 import { useSyncExternalStore } from 'preact/compat';
 import { SettingsForm } from '@bible/ui';
 import { useTranslation } from 'react-i18next';
@@ -632,6 +633,9 @@ export function SettingsPanel({ isOpen, onClose, scrollToSection }: SettingsPane
                 )}
                 <div class="settings-panel__about">
                   <p class="settings-panel__about-name">{t('settings.about.appName')}</p>
+                  <p class="settings-panel__about-version" data-testid="app-version">
+                    {formatVersionLine(t('settings.about.versionLine'))}
+                  </p>
                   <p class="settings-panel__about-desc">
                     {t('settings.about.description')}
                   </p>

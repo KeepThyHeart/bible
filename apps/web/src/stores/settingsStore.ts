@@ -483,7 +483,7 @@ class SettingsStore extends Store {
    * no longer installed.
    *
    * The server's configured default (`ui.defaultModule`) when it is installed,
-   * otherwise the first installed Bible, so an install without the configured
+   * otherwise KJV when installed, then the first installed Bible, so an install without the configured
    * translation still opens on text rather than "Failed to load chapter".
    *
    * Until the module list has loaded there is nothing to check against, so the
@@ -497,7 +497,8 @@ class SettingsStore extends Store {
     if (!moduleStore.loaded) return configured ?? LAST_RESORT_BIBLE;
     const installed = moduleStore.getBibleModules();
     const match = configured ? findBible(installed, configured) : undefined;
-    return match?.abbreviation ?? installed[0]?.abbreviation ?? configured ?? LAST_RESORT_BIBLE;
+    // Configured, else KJV (the built-in preference), else whatever is installed first.
+    return match?.abbreviation ?? findBible(installed, 'KJV')?.abbreviation ?? installed[0]?.abbreviation ?? configured ?? LAST_RESORT_BIBLE;
   }
 
   /**

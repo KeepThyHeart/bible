@@ -104,6 +104,20 @@ describe('StrongsPopup', () => {
     expect(screen.getByText(/agape/)).toBeTruthy();
   });
 
+  it('shows the pronunciation even when there is no transliteration (B-177)', () => {
+    render(
+      <StrongsPopup entry={makeEntry({ strongsNumber: 'H430', word: 'elohiym', transliteration: '', pronunciation: "el-o-heem'" })} position={DEFAULT_POSITION} onClose={vi.fn()} />,
+    );
+    expect(screen.getByText(/el-o-heem'/)).toBeTruthy();
+  });
+
+  it('hides the Word study button when opened from the Word study page (B-177)', () => {
+    render(
+      <StrongsPopup entry={makeEntry()} position={DEFAULT_POSITION} onClose={vi.fn()} hideWordStudy />,
+    );
+    expect(screen.queryByTestId('strongs-popup-word-study')).toBeNull();
+  });
+
   it('shows the part of speech', () => {
     render(
       <StrongsPopup entry={makeEntry({ partOfSpeech: 'noun, feminine' })} position={DEFAULT_POSITION} onClose={vi.fn()} />,

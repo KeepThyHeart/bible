@@ -62,7 +62,7 @@ describe('useNotesAutoSave stale-save refusals', () => {
 
     // Ctrl+Q / reload: the close flush must still carry the old baseline and fail.
     vi.mocked(fileNotesAPI.saveNote).mockClear();
-    vi.mocked(fileNotesAPI.saveNote).mockImplementation(async (path, _n, expected) => {
+    vi.mocked(fileNotesAPI.saveNote).mockImplementation(async (_path, _n, expected) => {
       if (expected === 'U0') throw new IpcResultError('conflict', 'x');
       return 'U10';
     });

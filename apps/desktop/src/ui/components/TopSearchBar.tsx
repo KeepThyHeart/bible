@@ -17,7 +17,6 @@ import type { SearchBarMode } from '../types/SearchBarMode';
 import type { CommandQueryResult } from '../types/Command';
 import TopSearchBarDropdown from './TopSearchBarDropdown';
 import LiveSearchSuggestions from './LiveSearchSuggestions';
-import { useLayoutStore } from '../stores/useLayoutStore';
 import { focusRegion } from '../services/regionNavigation';
 
 /**
