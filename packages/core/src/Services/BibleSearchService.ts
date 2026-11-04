@@ -16,8 +16,7 @@ import { IBibleRepository } from '../Data/Repositories/IBibleRepository';
 import { IBibleBookRepository } from '../Data/Repositories/IBibleBookRepository';
 import { SearchResult, SearchOptions, ParsedQuery, Match, MatchType, BooleanExpression, BibleRange } from '../types/search';
 import { VerseId, VerseIdHelper } from '../Data/Core/Types';
-import { formatVerseText } from './VerseFormatter';
-import { divineRangesFromHtml, markUp, type TextRange } from './SearchMarkup';
+import { divineRangesOfVerse, markUp, type TextRange } from './SearchMarkup';
 import { StrongsNumberHelper } from '../Data/Core/StrongsNumberHelper';
 import { isReadOnlyDatabaseError } from '../Data/Core/Errors';
 import { BibleVerse } from '../Data/Models/Bible/BibleVerse';
@@ -1151,18 +1150,23 @@ export class BibleSearchService implements ISearchService {
           if (!verse) continue;
 
           const text = verse.textPlain || verse.text;
-          const highlightedText = glosses.length > 0
-            ? await this.highlightMatches(text, glosses)
-            : text;
-
           const matches: Match[] = glosses.length > 0
             ? this.extractMatches(text, glosses)
             : [];
+          // B-167: where the verse's HTML marks the divine name, keep it in the result.
+          const divine = divineRangesOfVerse(verse, text);
+          const hasDivine = !!divine && divine.length > 0;
+          const highlightedText = hasDivine
+            ? markUp(text, 0, text.length, matchRanges(matches), divine)
+            : glosses.length > 0
+              ? await this.highlightMatches(text, glosses)
+              : text;
 
           let snippet: string | undefined;
           if (text.length > 100 && matches.length > 0) {
             const rawSnippet = this.createSnippet(text, glosses, 120);
-            snippet = await this.highlightMatches(rawSnippet, glosses);
+            snippet = (hasDivine ? this.markUpSnippet(text, rawSnippet, matches, divine) : null)
+              ?? await this.highlightMatches(rawSnippet, glosses);
           }
 
           allResults.push({
@@ -1288,7 +1292,7 @@ export class BibleSearchService implements ISearchService {
     // TABLE` again per verse - see `highlighterFor()`.
     const matches = this.highlighterFor(moduleAbbr, repo).spans(text, query);
     // B-167: where the verse's HTML marks the divine name, keep it in the result.
-    const divine = this.divineRanges(verse, text);
+    const divine = divineRangesOfVerse(verse, text);
     const hasDivine = !!divine && divine.length > 0;
     const highlightedText = hasDivine
       ? markUp(text, 0, text.length, matchRanges(matches), divine)
@@ -1321,14 +1325,6 @@ export class BibleSearchService implements ISearchService {
       score: 1.0,
       type: matchType,
     };
-  }
-
-  /** Divine-name character ranges of `text`, from the verse's formatted HTML; null/empty when it has none. */
-  private divineRanges(verse: BibleVerse, text: string): TextRange[] | null {
-    const fd = verse.formattingData as { divineName?: unknown[]; divine_name?: unknown[] } | undefined;
-    const marked = verse.text.includes('<divineName') || !!fd?.divineName?.length || !!fd?.divine_name?.length;
-    if (!marked) return null;
-    return divineRangesFromHtml(formatVerseText(verse).textHtml, text);
   }
 
   /**

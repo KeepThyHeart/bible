@@ -457,6 +457,11 @@
   &__vl-text {
     color: var(--text-primary, #333);
     font-size: calc(0.9375rem * var(--study-font-scale, 1));
+
+    // LORD (YHWH) in small caps, as in the reader (B-167).
+    .divine-name {
+      font-variant-caps: small-caps;
+    }
   }
 
   // ── Credit line ──
@@ -2181,6 +2186,11 @@
   &__expanded-text {
     color: var(--text-primary, #333);
     font-size: calc(0.9375rem * var(--study-font-scale, 1));
+
+    // LORD (YHWH) in small caps, as in the reader (B-167).
+    .divine-name {
+      font-variant-caps: small-caps;
+    }
   }
 
   &__loading {

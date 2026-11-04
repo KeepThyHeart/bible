@@ -10,6 +10,7 @@
  * Both produce the same {@link WordStudyOverview} shape so the UI is shared.
  */
 
+import { divineRangesOfVerse } from './SearchMarkup';
 import { IBibleRepository } from '../Data/Repositories/IBibleRepository';
 import { IDictionaryRepository } from '../Data/Repositories/IDictionaryRepository';
 import { StrongsNumberHelper } from '../Data/Core/StrongsNumberHelper';
@@ -290,7 +291,12 @@ export class WordStudyService {
     const total = items.length;
     const page = items.slice(offset, offset + limit);
     const texts = repo.getVerseTexts([...new Set(page.map(i => i.verseId))]);
-    for (const it of page) it.text = texts.get(it.verseId)?.text;
+    for (const it of page) {
+      const verse = texts.get(it.verseId);
+      it.text = verse?.text;
+      const divine = verse && it.text ? divineRangesOfVerse(verse, it.text) : null;
+      if (divine && divine.length > 0) it.divine = divine;
+    }
     return { total, items: page };
   }
 

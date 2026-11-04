@@ -122,6 +122,8 @@ export interface WordOccurrenceItem {
   original?: string;
   /** Verse text in the module, for context display. */
   text?: string;
+  /** Character ranges of `text` that are the divine name (shown in small caps). */
+  divine?: Array<{ start: number; end: number }>;
 }
 
 export interface WordOccurrencePage {

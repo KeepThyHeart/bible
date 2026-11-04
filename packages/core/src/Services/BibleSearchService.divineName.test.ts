@@ -18,6 +18,8 @@ const repo = {
   getSql: () => sql,
   getModuleInfo: () => undefined,
   getVerse: () => verseRow(),
+  searchByStrongsNumber: () => [GEN_22_14],
+  getGlossesForStrongs: () => ['mount'],
   searchVersesWithHighlighting: () => [{
     verse: verseRow(),
     highlightedText: PLAIN,
@@ -31,6 +33,14 @@ describe('divine name in search results (B-167)', () => {
     const service = new BibleSearchService(new Map([['kjv', repo]]), bookRepo);
     const [hit] = await service.search('mount shall seen', { modules: ['kjv'], maxResults: 5 });
     expect(hit.text).toContain('<span class="divine-name">Lord</span>');
+    expect(hit.snippet ?? '').toContain('<span class="divine-name">Lord</span>');
+  });
+
+  it('keeps the span in Strong\'s search results too', async () => {
+    const service = new BibleSearchService(new Map([['kjv', repo]]), bookRepo);
+    const [hit] = await service.search('G3068', { modules: ['kjv'], maxResults: 5 });
+    expect(hit.text).toContain('<span class="divine-name">Lord</span>');
+    expect(hit.text).toContain('<strong><u>mount</u></strong>');
     expect(hit.snippet ?? '').toContain('<span class="divine-name">Lord</span>');
   });
 });

@@ -8,6 +8,9 @@
  * match highlights, always as well-formed HTML.
  */
 
+import type { BibleVerse } from '../Data/Models/Bible/BibleVerse';
+import { formatVerseText } from './VerseFormatter';
+
 export interface TextRange { start: number; end: number }
 
 const TAG = /<(\/?)(\w+)([^>]*)>/g;
@@ -70,4 +73,12 @@ export function markUp(text: string, from: number, to: number, matches: TextRang
     result += piece;
   }
   return result;
+}
+
+/** Divine-name character ranges of `text` (the verse's plain text), from its formatted HTML; null/empty when it has none. */
+export function divineRangesOfVerse(verse: BibleVerse, text: string): TextRange[] | null {
+  const fd = verse.formattingData as { divineName?: unknown[]; divine_name?: unknown[] } | undefined;
+  const marked = verse.text.includes('<divineName') || !!fd?.divineName?.length || !!fd?.divine_name?.length;
+  if (!marked) return null;
+  return divineRangesFromHtml(formatVerseText(verse).textHtml, text);
 }
