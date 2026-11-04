@@ -124,7 +124,7 @@ export const CATALOG_INDEX_MAX_RESPONSE_BYTES = 64 * 1024;
  * anything.
  */
 export const DEFAULT_UPDATE_MANIFEST_URL =
-  'https://api.github.com/repos/psrankin/bible/releases/latest';
+  'https://api.github.com/repos/KeepThyHeart/bible/releases/latest';
 
 /** Per-request timeout for the manual update check. */
 export const UPDATE_CHECK_TIMEOUT_MS = 15000;

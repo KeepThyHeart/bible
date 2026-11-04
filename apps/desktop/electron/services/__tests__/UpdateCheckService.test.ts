@@ -27,7 +27,7 @@ import {
 } from '../UpdateCheckService';
 import { FakeNetworkGateway, fetchResult } from './fakeNetworkGateway';
 
-const MANIFEST = 'https://api.github.com/repos/psrankin/bible/releases/latest';
+const MANIFEST = 'https://api.github.com/repos/KeepThyHeart/bible/releases/latest';
 
 beforeEach(() => {
   delete process.env.BIBLE_UPDATE_MANIFEST_URL;
