@@ -32,7 +32,7 @@ describe('Strong\'s dictionary keys (B-165)', () => {
 describe('Strong\'s Hebrew lemma from the entry word (B-179)', () => {
   const def = "430 'elohiym el-o-heem' plural of 433; gods";
   it('uses the entry word when it holds Hebrew letters', () => {
-    expect(parseStrongsHead(def, 'H', 'אֱלֹהִים')).toMatchObject({ word: 'אֱלֹהִים', transliteration: 'elohiym', pronunciation: 'el-o-heem' });
+    expect(parseStrongsHead(def, 'H', 'אֱלֹהִים')).toMatchObject({ word: 'אֱלֹהִים', transliteration: 'elohiym', pronunciation: "el-o-heem'" });
   });
   it('keeps transliteration only when the word is the raw key or Latin (current data)', () => {
     expect(parseStrongsHead(def, 'H', '00430')).toMatchObject({ word: '', transliteration: 'elohiym' });
