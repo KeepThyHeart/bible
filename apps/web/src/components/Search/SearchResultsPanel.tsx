@@ -80,7 +80,20 @@ export function SearchResultsPanel({ onNavigate, onOpenStrongsEntry }: SearchRes
     announce(results.length === 0 ? t('search.noResults') : t('search.results', { count: totalResults || results.length }));
   }, [loading, query, results.length === 0, totalResults]);
   // Offline with nothing found means the search could not run, not that it found 0.
-  const showCount = isOnline || totalResults > 0;
+  // While a search runs, the previous count (or an empty "0") is not an answer yet (B-184).
+  const showCount = !loading && (isOnline || totalResults > 0);
+  // A search that could not run offline is run again when the connection returns, rather
+  // than leaving "No results found" under a query nobody has actually answered.
+  const wasOfflineRef = useRef(false);
+  useEffect(() => {
+    if (!isOnline) {
+      wasOfflineRef.current = true;
+      return;
+    }
+    if (!wasOfflineRef.current) return;
+    wasOfflineRef.current = false;
+    if (query && !loading && results.length === 0) void searchStore.retryLast();
+  }, [isOnline]);
   // Keyword mode headlines the exact matches only: approximate rows sit under
   // their own divider and are not in the chart, so counting them made a phrase
   // with one real hit read "(31 results)" (B-168, as B-017 on desktop).
