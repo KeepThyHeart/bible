@@ -11,7 +11,7 @@ import { sendError, ErrorCodes } from '../utils/errorResponse.js';
 import type { SiteSettings } from '../siteSettings.js';
 import { isModuleActive, getModuleEntry } from '../siteSettings.js';
 import { isNamedModuleVisible } from '../utils/moduleVisibility.js';
-import { strongsLanguageOf, parseStrongsKeyInput, parseStrongsHead } from '../utils/strongsEntries.js';
+import { strongsLanguageOf, parseStrongsKeyInput, parseStrongsHead, looseStrongsMatches } from '../utils/strongsEntries.js';
 import { clampInt } from '../utils/requestHygiene.js';
 import { registerRoute } from './routeRegistry.js';
 import type { ServerHookRegistry } from '../plugins/ServerHooks.js';
@@ -86,13 +86,17 @@ export function createDictionaryRoutes(db: DatabaseManager, siteSettings: SiteSe
           }
           continue;
         }
-        const entries = repo.searchByTitle(query, { limit: 30 });
+        let entries = repo.searchByTitle(query, { limit: 30 });
+        // "elohim" for the lexicon's "elohiym": a looser transliteration match when nothing else hit (B-178).
+        const looseHits = lang && entries.length === 0;
+        if (lang && looseHits) entries = looseStrongsMatches(repo, lang, query);
         for (const e of entries) {
+          const head = looseHits && lang ? parseStrongsHead(e.definition ?? '', lang) : null;
           hits.push({
             entry_key: e.entryKey,
-            word: e.word ?? e.entryKey,
-            transliteration: e.transliteration,
-            definition: e.definition?.substring(0, 200),
+            word: head ? (head.word || head.transliteration) : (e.word ?? e.entryKey),
+            transliteration: head ? (head.word ? head.transliteration : undefined) : e.transliteration,
+            definition: (head?.body ?? e.definition)?.substring(0, 200),
             part_of_speech: e.partOfSpeech,
             module_abbr: abbreviation,
             module_name: name,
@@ -145,6 +149,8 @@ export function createDictionaryRoutes(db: DatabaseManager, siteSettings: SiteSe
       const lang = strongsLanguageOf(moduleName);
       const numberQuery = lang ? parseStrongsKeyInput(query) : null;
       let entries = repo.searchEntries(query, { limit: 30 });
+      // "elohim" for the lexicon's "elohiym": a looser transliteration match when nothing else hit (B-178).
+      if (lang && !numberQuery && entries.length === 0) entries = looseStrongsMatches(repo, lang, query);
       if (numberQuery && (!numberQuery.prefix || numberQuery.prefix === lang)) {
         const direct = repo.getEntryByKey(numberQuery.key);
         entries = direct ? [direct, ...entries.filter(e => e.entryKey !== direct.entryKey)] : entries;

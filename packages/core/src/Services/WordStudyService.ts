@@ -23,7 +23,7 @@ import {
 import { parseStrongsDefinition } from '../WordStudy/strongsDefinition';
 import { RenderingMode, glossMatchesRendering, groupRenderings } from '../WordStudy/renderings';
 import { GroupMatch, WordGroup, compileWordGroup } from '../WordStudy/wordGroup';
-import { foldLemma } from '../Text';
+import { foldLemma, looseTranslit } from '../Text';
 
 export interface WordStudyServiceDeps {
   /** Installed Bible modules, keyed by abbreviation. Called each time so installs show up. */
@@ -58,7 +58,7 @@ const FIRST_VERSE = 1001001;
 const LAST_VERSE = 66999999;
 
 export class WordStudyService {
-  private lemmaIndex: Array<{ key: string; folded: string; candidate: WordKeyCandidate }> | null = null;
+  private lemmaIndex: Array<{ key: string; folded: string; loose: string; candidate: WordKeyCandidate }> | null = null;
   private scanCache = new Map<string, Array<{ verseId: number; matches: GroupMatch[] }>>();
 
   constructor(private readonly deps: WordStudyServiceDeps) {}
@@ -83,7 +83,20 @@ export class WordStudyService {
       if (e.folded === folded) exact.set(e.candidate.strongs, e.candidate);
       else if (e.folded.startsWith(folded)) prefix.set(e.candidate.strongs, e.candidate);
     }
-    return [...exact.values(), ...[...prefix.values()].filter(c => !exact.has(c.strongs))].slice(0, 20);
+    if (exact.size || prefix.size) {
+      return [...exact.values(), ...[...prefix.values()].filter(c => !exact.has(c.strongs))].slice(0, 20);
+    }
+    // Nothing under the lexicon's own spelling: try the looser transliteration key (B-178).
+    const loose = looseTranslit(q);
+    if (!loose) return [];
+    const looseExact = new Map<string, WordKeyCandidate>();
+    const loosePrefix = new Map<string, WordKeyCandidate>();
+    for (const e of index) {
+      if (!e.loose) continue;
+      if (e.loose === loose) looseExact.set(e.candidate.strongs, e.candidate);
+      else if (e.loose.startsWith(loose)) loosePrefix.set(e.candidate.strongs, e.candidate);
+    }
+    return [...looseExact.values(), ...[...loosePrefix.values()].filter(c => !looseExact.has(c.strongs))].slice(0, 20);
   }
 
   private dictFor(display: string): IDictionaryRepository | null {
@@ -102,9 +115,9 @@ export class WordStudyService {
       word: e.word, translit: e.translit, gloss: e.lexiconRenderings.join(', ') || e.sense };
   }
 
-  private ensureLemmaIndex(): Array<{ key: string; folded: string; candidate: WordKeyCandidate }> {
+  private ensureLemmaIndex(): Array<{ key: string; folded: string; loose: string; candidate: WordKeyCandidate }> {
     if (this.lemmaIndex) return this.lemmaIndex;
-    const out: Array<{ key: string; folded: string; candidate: WordKeyCandidate }> = [];
+    const out: Array<{ key: string; folded: string; loose: string; candidate: WordKeyCandidate }> = [];
     for (const [dict, prefix, language] of [
       [this.deps.greek, 'G', 'Greek'], [this.deps.hebrew, 'H', 'Hebrew'],
     ] as const) {
@@ -119,7 +132,7 @@ export class WordStudyService {
         };
         for (const form of [parsed.originalWord, parsed.transliteration, entry.word]) {
           const f = form ? foldLemma(form) : '';
-          if (f) out.push({ key: candidate.strongs, folded: f, candidate });
+          if (f) out.push({ key: candidate.strongs, folded: f, loose: looseTranslit(form!), candidate });
         }
       }
     }

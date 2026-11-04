@@ -303,3 +303,20 @@ describe('Dictionary Routes - /:module/entry/:key', () => {
     expect(res.status).toBe(400);
   });
 });
+
+// B-178: the lexicon spells it "elohiym"; people type "elohim".
+describe('Dictionary Routes - tolerant Strong\'s transliteration search', () => {
+  it('per-module search finds H430 for "elohim" and for "elohiym"', async () => {
+    for (const q of ['elohim', 'elohiym']) {
+      const res = await request(app).get(`/api/dictionary/strongshebrew/search?q=${q}`);
+      expect(res.status).toBe(200);
+      expect(res.body.map((e: { entry_key: string }) => e.entry_key)).toContain('00430');
+    }
+  });
+
+  it('the all-dictionaries search finds it too, labelled with the Hebrew module', async () => {
+    const res = await request(app).get('/api/dictionary/search?q=elohim');
+    expect(res.status).toBe(200);
+    expect(res.body.some((e: { entry_key: string; module_abbr: string }) => e.entry_key === '00430' && /hebrew/i.test(e.module_abbr))).toBe(true);
+  });
+});

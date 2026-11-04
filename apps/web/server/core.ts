@@ -39,6 +39,7 @@ import type {
   SearchOrchestrationService as SearchOrchestrationServiceType,
   clampSearchQuery as clampSearchQueryType,
   readNewlineHandling as readNewlineHandlingType,
+  looseTranslit as looseTranslitType,
 } from '@bible/core';
 import type {
   XrefGraphService as XrefGraphServiceType,
@@ -109,6 +110,7 @@ export const SearchOrchestrationService: typeof SearchOrchestrationServiceType =
 export const clampSearchQuery: typeof clampSearchQueryType = core.clampSearchQuery;
 export const MAX_SEARCH_QUERY_CHARS: number = core.MAX_SEARCH_QUERY_CHARS;
 export const readNewlineHandling: typeof readNewlineHandlingType = core.readNewlineHandling;
+export const looseTranslit: typeof looseTranslitType = core.looseTranslit;
 
 // Cross-reference graph (task 0068). The service and index builder are Node-side; the byte encoder is in the pure browser barrel.
 export const XrefGraphService: typeof XrefGraphServiceType = core.XrefGraphService;
