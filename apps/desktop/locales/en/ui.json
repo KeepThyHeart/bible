@@ -2397,5 +2397,6 @@
   "remoteConsent.local": "Prefer to keep everything on this device? A local meaning pack works offline and makes no web requests.",
   "remoteConsent.getPack": "Get the local meaning pack",
   "searchResultsPane.resultsFrom": "Results from {modules}",
-  "advancedSearchDialog.operatorsHint": "Operators: && (and), || (or), ! (not), with parentheses, e.g. love && !(hate || anger). The words AND, OR and NOT stay ordinary words."
+  "advancedSearchDialog.operatorsHint": "Operators: && (and), || (or), ! (not), with parentheses, e.g. love && !(hate || anger). The words AND, OR and NOT stay ordinary words.",
+  "topicsPane.directOfTotal": "({direct} direct, {total} total)"
 }

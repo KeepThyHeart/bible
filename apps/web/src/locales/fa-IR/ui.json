@@ -747,7 +747,8 @@
     "entityUnavailable": "این مدخل بارگذاری نشد.",
     "seeAlso": "نگاه کنید به",
     "verseTotal": "{count, plural, one {# آیه} other {# آیه}}",
-    "topicHasNoEntries": "این موضوع آیه یا زیرموضوع مستقلی ندارد."
+    "topicHasNoEntries": "این موضوع آیه یا زیرموضوع مستقلی ندارد.",
+    "directOfTotal": "({direct} مستقیم، مجموع {total})"
   },
   "verseRefList": {
     "loading": "در حال بارگذاری...",

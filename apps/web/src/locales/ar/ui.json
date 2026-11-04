@@ -747,7 +747,8 @@
     "entityUnavailable": "تعذّر تحميل هذا المدخل.",
     "seeAlso": "انظر",
     "verseTotal": "{count, plural, zero {لا أعداد} one {عدد واحد} two {عددان} few {# أعداد} many {# عددًا} other {# عدد}}",
-    "topicHasNoEntries": "ليس لهذا الموضوع أعداد أو موضوعات فرعية خاصة به."
+    "topicHasNoEntries": "ليس لهذا الموضوع أعداد أو موضوعات فرعية خاصة به.",
+    "directOfTotal": "({direct} مباشرة، المجموع {total})"
   },
   "verseRefList": {
     "loading": "جارٍ التحميل...",

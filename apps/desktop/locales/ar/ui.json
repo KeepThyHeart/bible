@@ -2412,5 +2412,6 @@
   "remoteConsent.local": "هل تفضل إبقاء كل شيء على هذا الجهاز؟ تعمل حزمة المعنى المحلية دون اتصال ولا ترسل أي طلبات عبر الويب.",
   "remoteConsent.getPack": "الحصول على حزمة المعنى المحلية",
   "searchResultsPane.resultsFrom": "نتائج من {modules}",
-  "advancedSearchDialog.operatorsHint": "العوامل: && (و)، || (أو)، ! (ليس)، مع الأقواس، مثل محبة && !(بغض || غضب). تبقى الكلمات AND وOR وNOT كلمات عادية."
+  "advancedSearchDialog.operatorsHint": "العوامل: && (و)، || (أو)، ! (ليس)، مع الأقواس، مثل محبة && !(بغض || غضب). تبقى الكلمات AND وOR وNOT كلمات عادية.",
+  "topicsPane.directOfTotal": "({direct} مباشرة، المجموع {total})"
 }

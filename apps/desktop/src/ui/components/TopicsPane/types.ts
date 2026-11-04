@@ -40,6 +40,8 @@ export interface TopicDetail {
    * an older main process does not carry it.
    */
   reference_count?: number;
+  /** Passages filed directly on this topic, without its sub-topics (B-093). Optional like `reference_count`. */
+  direct_reference_count?: number;
   /**
    * Which index this topic came from. "Jericho" reads identically in Nave's
    * and in Torrey's, so the detail view has to name its source. Optional for

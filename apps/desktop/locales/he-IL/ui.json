@@ -2397,5 +2397,6 @@
   "remoteConsent.local": "מעדיפים לשמור הכול במכשיר הזה? חבילת משמעות מקומית פועלת ללא חיבור ואינה שולחת בקשות אינטרנט.",
   "remoteConsent.getPack": "קבלת חבילת המשמעות המקומית",
   "searchResultsPane.resultsFrom": "תוצאות מתוך {modules}",
-  "advancedSearchDialog.operatorsHint": "אופרטורים: && (וגם), || (או), ! (לא), עם סוגריים, למשל אהבה && !(שנאה || כעס). המילים AND, OR ו-NOT נשארות מילים רגילות."
+  "advancedSearchDialog.operatorsHint": "אופרטורים: && (וגם), || (או), ! (לא), עם סוגריים, למשל אהבה && !(שנאה || כעס). המילים AND, OR ו-NOT נשארות מילים רגילות.",
+  "topicsPane.directOfTotal": "({direct} ישירות, {total} בסך הכול)"
 }

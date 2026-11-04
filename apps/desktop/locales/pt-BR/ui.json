@@ -2412,5 +2412,6 @@
   "remoteConsent.local": "Prefere manter tudo neste dispositivo? Um pacote local de significado funciona offline e não faz requisições web.",
   "remoteConsent.getPack": "Obter o pacote local de significado",
   "searchResultsPane.resultsFrom": "Resultados de {modules}",
-  "advancedSearchDialog.operatorsHint": "Operadores: && (e), || (ou), ! (não), com parênteses, p. ex. amor && !(ódio || ira). As palavras AND, OR e NOT continuam sendo palavras comuns."
+  "advancedSearchDialog.operatorsHint": "Operadores: && (e), || (ou), ! (não), com parênteses, p. ex. amor && !(ódio || ira). As palavras AND, OR e NOT continuam sendo palavras comuns.",
+  "topicsPane.directOfTotal": "({direct} diretos, {total} no total)"
 }

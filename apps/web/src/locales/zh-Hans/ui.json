@@ -747,7 +747,8 @@
     "entityUnavailable": "无法加载此条目。",
     "seeAlso": "参见",
     "verseTotal": "{count} 节",
-    "topicHasNoEntries": "此主题本身没有经文或子主题。"
+    "topicHasNoEntries": "此主题本身没有经文或子主题。",
+    "directOfTotal": "（直接 {direct}，共 {total}）"
   },
   "verseRefList": {
     "loading": "正在加载…",

@@ -2414,5 +2414,6 @@
   "remoteConsent.local": "更愿意全部留在本设备上？本地语义包可离线使用，不会发出任何网络请求。",
   "remoteConsent.getPack": "获取本地语义包",
   "searchResultsPane.resultsFrom": "结果来自 {modules}",
-  "advancedSearchDialog.operatorsHint": "运算符：&&（与）、||（或）、!（非），可用括号，例如 爱 && !(恨 || 怒)。单词 AND、OR、NOT 仍按普通词处理。"
+  "advancedSearchDialog.operatorsHint": "运算符：&&（与）、||（或）、!（非），可用括号，例如 爱 && !(恨 || 怒)。单词 AND、OR、NOT 仍按普通词处理。",
+  "topicsPane.directOfTotal": "（直接 {direct}，共 {total}）"
 }

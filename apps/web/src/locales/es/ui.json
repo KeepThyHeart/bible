@@ -747,7 +747,8 @@
     "entityUnavailable": "No se ha podido cargar esta entrada.",
     "seeAlso": "Ver",
     "verseTotal": "{count, plural, one {# versículo} other {# versículos}}",
-    "topicHasNoEntries": "Este tema no tiene versículos ni subtemas propios."
+    "topicHasNoEntries": "Este tema no tiene versículos ni subtemas propios.",
+    "directOfTotal": "({direct} directos, {total} en total)"
   },
   "verseRefList": {
     "loading": "cargando...",

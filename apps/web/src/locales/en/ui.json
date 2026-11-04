@@ -747,7 +747,8 @@
     "entityUnavailable": "This entry could not be loaded.",
     "seeAlso": "See",
     "verseTotal": "{count, plural, one {# verse} other {# verses}}",
-    "topicHasNoEntries": "This topic has no verses or sub-topics of its own."
+    "topicHasNoEntries": "This topic has no verses or sub-topics of its own.",
+    "directOfTotal": "({direct} direct, {total} total)"
   },
   "verseRefList": {
     "loading": "loading...",

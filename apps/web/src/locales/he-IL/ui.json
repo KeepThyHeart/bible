@@ -747,7 +747,8 @@
     "entityUnavailable": "לא ניתן היה לטעון ערך זה.",
     "seeAlso": "ראו",
     "verseTotal": "{count, plural, one {פסוק #} two {# פסוקים} other {# פסוקים}}",
-    "topicHasNoEntries": "לנושא זה אין פסוקים או תת-נושאים משלו."
+    "topicHasNoEntries": "לנושא זה אין פסוקים או תת-נושאים משלו.",
+    "directOfTotal": "({direct} ישירות, {total} בסך הכול)"
   },
   "verseRefList": {
     "loading": "טוען...",
