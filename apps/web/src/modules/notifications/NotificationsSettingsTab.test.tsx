@@ -56,4 +56,25 @@ describe('NotificationsSettingsTab', () => {
     render(<NotificationsSettingsTab host={host} />);
     expect(await screen.findByText('statusUnsupported')).toBeTruthy();
   });
+
+  it('W-048: when blocked, shows the message once and disables the controls without changing the preference', async () => {
+    FakeNotification.permission = 'denied';
+    const host = createWebReminderHost();
+    const { container } = render(<NotificationsSettingsTab host={host} />);
+    await screen.findByText('statusDenied');
+    expect(screen.getAllByText('statusDenied')).toHaveLength(1);
+    const enabled = container.querySelector('#settings-notifications-enabled') as HTMLInputElement;
+    expect(enabled.disabled).toBe(true);
+    const test = screen.getByText('sendTest') as HTMLButtonElement;
+    expect(test.disabled).toBe(true);
+    const src = await waitFor(() => {
+      const el = container.querySelector('[data-source-id="app:verse-of-the-day"] input[type=checkbox]');
+      if (!el) throw new Error('no toggle yet');
+      return el as HTMLInputElement;
+    });
+    expect(screen.getAllByText('statusDenied')).toHaveLength(1);
+    expect(src.disabled).toBe(true);
+    expect(loadNotificationSettings().enabled).toBe(true); // stored preference untouched
+    host.stop();
+  });
 });
