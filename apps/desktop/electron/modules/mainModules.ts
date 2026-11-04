@@ -31,6 +31,7 @@ import { keywordMarksMainManifest } from './keyword-marks/manifest';
 import { notificationsMainManifest } from './notifications/manifest';
 import { memoryManifest } from '@bible/memory/manifest';
 import { speechMainManifest } from './speech/manifest';
+import { presentMainManifest } from './present/manifest';
 
 export interface MainModuleEntry {
   readonly manifest: FeatureModuleManifest;
@@ -51,6 +52,8 @@ export const MAIN_MODULES: readonly MainModuleEntry[] = [
   { manifest: memoryManifest, load: () => import('./memory') },
   // Speech engine bridge (0151): behind the `recite` flag; the engine itself runs in the renderer.
   { manifest: speechMainManifest, load: () => import('./speech') },
+  // Presenter (0198): handlers only; the screen server starts when the controller presses Start.
+  { manifest: presentMainManifest, load: () => import('./present') },
 ];
 
 export interface RegisterMainModulesOptions {
