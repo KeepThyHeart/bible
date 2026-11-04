@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useLayoutStore, type PanelContentType } from '../stores/useLayoutStore';
-import { useBibleStore, encodeBibleContentKey } from '../stores/useBibleStore';
+import { useBibleStore, encodeBibleContentKey, DEFAULT_PANEL_ID } from '../stores/useBibleStore';
 import { parseVerseReference, getAllBooks } from '../utils/verseParser';
 import { useI18n } from '../contexts/useI18n';
 import { useExtensionUiStore } from '../extensions/extensionUiStore';
@@ -254,8 +254,18 @@ const NewTabPage: React.FC<NewTabPageProps> = ({ panelId, dockviewPanelApi }) =>
     // where `localizePaneLabel` (which matches generic English) can never
     // translate it again, even after switching back to English. Store the
     // canonical English label and let the tab strip localize per render.
+    if (type === 'bible') {
+      // B-028: a new Bible pane opens where the reader is (so two translations
+      // or passages sit side by side), not on the app's blank default.
+      const panels = useBibleStore.getState().panels; // allow-getstate: event handler - imperative store access outside render
+      const here = panels.get(DEFAULT_PANEL_ID) ?? panels.values().next().value;
+      if (here?.currentBook && here.currentChapter && here.currentBookName) {
+        openPassage(here.currentBook, here.currentChapter, here.currentBookName, here.selectedVerseId ?? undefined);
+        return;
+      }
+    }
     replaceWithPanel(type, undefined, genericEnglishTitle(type));
-  }, [replaceWithPanel]);
+  }, [replaceWithPanel, openPassage]);
 
   const inputId = `newtab-query-${panelId}`;
   const errorId = `newtab-error-${panelId}`;
