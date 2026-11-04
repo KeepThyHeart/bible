@@ -8,16 +8,18 @@ import type { IBibleBookRepository } from '../Data/Repositories/IBibleBookReposi
 import { TestSqliteProvider } from '../__tests__/helpers/TestSqliteProvider';
 
 const GEN_22_14 = VerseIdHelper.calculate(1, 22, 14);
-const HTML = 'And Abraham called the name of that place Jehovahjireh: as it is said to this day, In the mount of the <span class="divine-name">Lord</span> it shall be seen.';
-const PLAIN = HTML.replace(/<[^>]*>/g, '');
+const PLAIN = 'And Abraham called the name of that place Jehovah–jireh: as it is said to this day, In the mount of the Lord it shall be seen.';
+// Like bible_verse.formatting in the real module: the divine name is a word-index span, not markup.
+const formatting = { v: 1, spans: [{ type: 'divine_name', start: 21, end: 21 }] };
+const verseRow = () => new BibleVerse({ verseId: GEN_22_14, text: PLAIN, textPlain: PLAIN, formatting } as never);
 const sql = new TestSqliteProvider(':memory:');
 
 const repo = {
   getSql: () => sql,
   getModuleInfo: () => undefined,
-  getVerse: () => new BibleVerse({ verseId: GEN_22_14, text: HTML, textPlain: PLAIN }),
+  getVerse: () => verseRow(),
   searchVersesWithHighlighting: () => [{
-    verse: new BibleVerse({ verseId: GEN_22_14, text: HTML, textPlain: PLAIN }),
+    verse: verseRow(),
     highlightedText: PLAIN,
     highlightedPlainText: PLAIN,
   }],

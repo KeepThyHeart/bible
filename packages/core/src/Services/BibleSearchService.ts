@@ -16,6 +16,7 @@ import { IBibleRepository } from '../Data/Repositories/IBibleRepository';
 import { IBibleBookRepository } from '../Data/Repositories/IBibleBookRepository';
 import { SearchResult, SearchOptions, ParsedQuery, Match, MatchType, BooleanExpression, BibleRange } from '../types/search';
 import { VerseId, VerseIdHelper } from '../Data/Core/Types';
+import { formatVerseText } from './VerseFormatter';
 import { divineRangesFromHtml, markUp, type TextRange } from './SearchMarkup';
 import { StrongsNumberHelper } from '../Data/Core/StrongsNumberHelper';
 import { isReadOnlyDatabaseError } from '../Data/Core/Errors';
@@ -1287,7 +1288,7 @@ export class BibleSearchService implements ISearchService {
     // TABLE` again per verse - see `highlighterFor()`.
     const matches = this.highlighterFor(moduleAbbr, repo).spans(text, query);
     // B-167: where the verse's HTML marks the divine name, keep it in the result.
-    const divine = divineRangesFromHtml(verse.text, text);
+    const divine = this.divineRanges(verse, text);
     const hasDivine = !!divine && divine.length > 0;
     const highlightedText = hasDivine
       ? markUp(text, 0, text.length, matchRanges(matches), divine)
@@ -1322,6 +1323,14 @@ export class BibleSearchService implements ISearchService {
     };
   }
 
+  /** Divine-name character ranges of `text`, from the verse's formatted HTML; null/empty when it has none. */
+  private divineRanges(verse: BibleVerse, text: string): TextRange[] | null {
+    const fd = verse.formattingData as { divineName?: unknown[]; divine_name?: unknown[] } | undefined;
+    const marked = verse.text.includes('<divineName') || !!fd?.divineName?.length || !!fd?.divine_name?.length;
+    if (!marked) return null;
+    return divineRangesFromHtml(formatVerseText(verse).textHtml, text);
+  }
+
   /**
    * The snippet's pieces (separated by "...") located in the full text, laid
    * over with match and divine-name markup. Null when a piece cannot be found,
@@ -1336,7 +1345,7 @@ export class BibleSearchService implements ISearchService {
     for (const piece of core.split('...')) {
       const at = piece ? text.indexOf(piece, cursor) : -1;
       if (at < 0) return null;
-      parts.push(markUp(text, at, at + piece.length, matchRanges(matches), divine));
+      parts.push(markUp(text, at, at + piece.length, matchRanges(matches.filter(m => !ENGLISH_STOP_WORDS.has(m.term.toLowerCase()))), divine));
       cursor = at + piece.length;
     }
     return (lead ? '...' : '') + parts.join('...') + (trail ? '...' : '');
