@@ -406,7 +406,7 @@ const DockviewTabRenderer: React.FC<IDockviewPanelHeaderProps> = (props) => {
     api.close();
   };
 
-  useDockviewTabA11y(contentRef, api as never, title, uiDir === 'rtl');
+  useDockviewTabA11y(contentRef, api as never, title ?? '', uiDir === 'rtl');
 
   const panelCount = containerApi.panels.length;
   const canPopOut = !!contentType && !!POP_OUT_PANE_TYPE[contentType];
