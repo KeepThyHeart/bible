@@ -264,7 +264,7 @@ describe('SettingsPanel', () => {
 
   it('renders the language picker from selectableLocaleInfos(), not a hard-coded option', () => {
     const { container } = render(<SettingsPanel isOpen={true} onClose={onClose} />);
-    fireEvent.click(container.querySelector<HTMLElement>('[data-tab="about"]')!);
+    fireEvent.click(container.querySelector<HTMLElement>('[data-tab="language"]')!);
     const options = container.querySelectorAll('.settings-select option');
     expect(options.length).toBe(1);
     expect(options[0].getAttribute('value')).toBe('en');
@@ -280,7 +280,7 @@ describe('SettingsPanel', () => {
     ];
     try {
       const { container } = render(<SettingsPanel isOpen={true} onClose={onClose} />);
-      fireEvent.click(container.querySelector<HTMLElement>('[data-tab="about"]')!);
+      fireEvent.click(container.querySelector<HTMLElement>('[data-tab="language"]')!);
       const text = (code: string) =>
         container.querySelector(`.settings-select option[value="${code}"]`)!.textContent;
       // `t` is mocked to echo the key, so the key proves the Preview label is used.

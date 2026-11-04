@@ -36,6 +36,7 @@ export const SETTINGS_SECTIONS: readonly PreferencesSectionContribution[] = [
   { id: 'theme', title: { key: 'settings.tabs.theme', fallback: 'Theme' }, icon: icon('fa-palette'), order: 20 },
   { id: 'modules', title: { key: 'settings.tabs.modules', fallback: 'Modules' }, icon: icon('fa-book'), order: 30 },
   { id: 'gestures', title: { key: 'settings.tabs.gestures', fallback: 'Gestures' }, icon: icon('fa-hand-pointer'), order: 40, settingsGroup: 'gestures' },
+  { id: 'language', title: { key: 'settings.language.title', fallback: 'Language' }, icon: icon('fa-language'), order: 50 },
   { id: 'apps', title: { key: 'settings.apps.title', fallback: 'Apps' }, icon: icon('fa-table-cells-large'), order: 80 },
   { id: 'about', title: { key: 'settings.tabs.about', fallback: 'About' }, icon: icon('fa-circle-info'), order: 90 },
 ];
