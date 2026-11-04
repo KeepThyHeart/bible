@@ -63,6 +63,31 @@ export function freshenBibleSeeds(snapshot: SerializedDockview): void {
   }
 }
 
+/**
+ * B-027: dockview moves each pane's DOM when the grid is rebuilt, and moving a
+ * scrolled element resets its scrollTop to 0 - the pane keeps its selected verse
+ * but is scrolled to the top. The Bible pane's scroll effect only reruns when
+ * its scroll trigger changes, so bump it for every pane that has a selected
+ * verse; the effect then centers the verse once the pane has been laid out.
+ */
+export function recenterBiblePanes(): void {
+  const store = useBibleStore.getState(); // allow-getstate: service - imperative store access outside render
+  const next = new Map(store.panels);
+  let changed = false;
+  for (const [id, ps] of next) {
+    if (!ps.selectedVerseId || ps.openTabs.length === 0) continue;
+    next.set(id, { ...ps, scrollMode: 'center', scrollTrigger: ps.scrollTrigger + 1 });
+    changed = true;
+  }
+  if (changed) useBibleStore.setState({ panels: next });
+}
+
+/** Let dockview finish moving panes, then re-center. */
+function recenterBiblePanesSoon(): void {
+  if (typeof requestAnimationFrame !== 'function') return;
+  requestAnimationFrame(() => requestAnimationFrame(() => recenterBiblePanes()));
+}
+
 export class LayoutPresetService implements ILayoutPresetService {
   private _currentPresetId: string | null = null;
   private _undoSnapshot: SerializedDockview | null = null;
@@ -149,6 +174,7 @@ export class LayoutPresetService implements ILayoutPresetService {
 
     this._undoSnapshot = snapshot;
     this._currentPresetId = presetId;
+    recenterBiblePanesSoon();
   }
 
   /**
@@ -185,6 +211,7 @@ export class LayoutPresetService implements ILayoutPresetService {
 
     this._undoSnapshot = null;
     this._currentPresetId = null;
+    recenterBiblePanesSoon();
     return true;
   }
 
