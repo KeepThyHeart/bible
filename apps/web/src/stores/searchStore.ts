@@ -470,7 +470,8 @@ class SearchStore extends Store {
 
   /** Occurrences still unfetched for the current Strong's search. */
   get strongsRemaining(): number {
-    return Math.max(0, this.strongsTotalAvailable - this.results.length);
+    // The server never returns more than its cap, however many exist.
+    return Math.max(0, Math.min(this.strongsTotalAvailable, STRONGS_MAX_RESULTS) - this.results.length);
   }
 
   /** Load one more page of Strong's occurrences. */

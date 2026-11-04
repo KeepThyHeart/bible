@@ -14,6 +14,9 @@
 import { IDictionaryRepository } from '../Data/Repositories/IDictionaryRepository';
 import { StrongsNumberHelper, StrongsLanguage } from '../Data/Core/StrongsNumberHelper';
 
+/** More neighbours than this marks a number as a hub (see pruneHubs). */
+const MAX_FAMILY_DEGREE = 15;
+
 export type WordFamilyRelationship = 'self' | 'parent' | 'child' | 'related';
 
 export interface WordFamilyMember {
@@ -163,6 +166,27 @@ export class WordFamilyService {
     }
     if (this.hebrewDict) {
       this.indexDictionary(this.hebrewDict, 'Hebrew');
+    }
+    this.pruneHubs();
+  }
+
+  /**
+   * A function word (G3588 "the", G3739 "which") is "Compared" by hundreds of
+   * unrelated entries, so its loose see/compare edges group theos and hina with
+   * the article. Past MAX_FAMILY_DEGREE neighbours a number keeps only its real
+   * derivation links (from/to), never the loose ones.
+   */
+  private pruneHubs(): void {
+    const graph = this.familyGraph!;
+    const isDerivation = (a: string, b: string) =>
+      this.derivedFrom!.get(a) === b || this.derivedFrom!.get(b) === a;
+    const hubs = [...graph.entries()].filter(([, set]) => set.size > MAX_FAMILY_DEGREE).map(([n]) => n);
+    for (const hub of hubs) {
+      for (const other of [...graph.get(hub)!]) {
+        if (isDerivation(hub, other)) continue;
+        graph.get(hub)!.delete(other);
+        graph.get(other)?.delete(hub);
+      }
     }
   }
 
