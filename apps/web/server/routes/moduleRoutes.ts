@@ -9,6 +9,7 @@ import type { DatabaseManager } from '../DatabaseManager.js';
 import type { ModuleType, ContentShape } from '@bible/core';
 import { validateModuleName } from '../utils/validation.js';
 import { sendError, ErrorCodes } from '../utils/errorResponse.js';
+import { sendExtraError, ExtraErrorCodes } from '../utils/apiErrors.js';
 import { createClientQuota } from '../utils/clientQuota.js';
 import type { SiteSettings } from '../siteSettings.js';
 import { getSettingsKey, isModuleActive, getModuleEntry, buildDescriptions, buildSortOrders } from '../siteSettings.js';
@@ -106,7 +107,7 @@ function sendDbFile(
   const MAX_DOWNLOAD_BYTES = 500 * 1024 * 1024;
   const stat = statSync(filePath);
   if (stat.size > MAX_DOWNLOAD_BYTES) {
-    res.status(413).json({ error: 'FILE_TOO_LARGE', message: 'Module too large to download directly.' });
+    sendExtraError(res, 413, ExtraErrorCodes.FILE_TOO_LARGE, 'Module too large to download directly.');
     return;
   }
 
@@ -436,7 +437,7 @@ export function createModuleRoutes(db: DatabaseManager, siteSettings: SiteSettin
       if (name === 'semantic-index') {
         const semanticPath = join(db['dataDir'], 'semantic_browser.db');
         if (!existsSync(semanticPath)) {
-          res.status(404).json({ error: 'Semantic index not available' });
+          sendError(res, 404, ErrorCodes.NOT_FOUND, 'Semantic index not available');
           return;
         }
         if (!takeDownload(req, res)) return;
@@ -455,13 +456,13 @@ export function createModuleRoutes(db: DatabaseManager, siteSettings: SiteSettin
       // Hidden in settings.json: indistinguishable from absent. (With no
       // settings loaded the filter is off, as it always was for downloads.)
       if (!mod || (siteSettings && !isModuleVisible(siteSettings, mod))) {
-        res.status(404).json({ error: 'Module not found' });
+        sendError(res, 404, ErrorCodes.MODULE_NOT_FOUND, 'Module not found');
         return;
       }
 
       const dbPath = db.resolveModulePath(mod.databasePath);
       if (!existsSync(dbPath)) {
-        res.status(404).json({ error: 'Module database not found' });
+        sendError(res, 404, ErrorCodes.NOT_FOUND, 'Module database not found');
         return;
       }
       if (!takeDownload(req, res)) return;
