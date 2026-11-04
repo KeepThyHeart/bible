@@ -129,6 +129,42 @@ describe('BibleRepository secondary Strong\'s tags (metadata.strongs) (B-015)', 
     expect(r.searchByStrongsNumber(['G2'])).toEqual([]);
     expect(r.countStrongs(['G268'])).toEqual({ occurrences: 0, verses: 0 });
   });
+  it('matches zero-padded Hebrew secondary tags exactly', () => {
+    const r = withSecondary();
+    (r.getSql() as TestSqliteProvider).execute(
+      `INSERT INTO interlinear_word (verse_id, word_position_start, word_position_end, strongs_number, gloss, metadata)
+       VALUES (43003016, 9, 9, 'H0853', 'obj', '{"strongs":"H0853 H01254"}')`);
+    expect(r.searchByStrongsNumber(['H1254', 'H01254', 'H001254'])).toEqual([43003016]);
+  });
+  it('counts a row whose only tag equals its primary once', () => {
+    const r = withSecondary();
+    (r.getSql() as TestSqliteProvider).execute(
+      `INSERT INTO interlinear_word (verse_id, word_position_start, word_position_end, strongs_number, gloss, metadata)
+       VALUES (43003016, 9, 9, 'G26', 'love', '{"strongs":"G26"}')`);
+    expect(r.countStrongs(['G26']).occurrences).toBe(2 + 1);
+  });
+  it('survives malformed metadata', () => {
+    const r = withSecondary();
+    (r.getSql() as TestSqliteProvider).execute(
+      `INSERT INTO interlinear_word (verse_id, word_position_start, word_position_end, strongs_number, gloss, metadata)
+       VALUES (43014015, 9, 9, 'G26', 'love', 'not json')`);
+    expect(() => r.searchByStrongsNumber(['G26'])).not.toThrow();
+    expect(r.searchByStrongsNumber(['G26'])).toContain(45005008);
+  });
+  it('perf guard: builds the secondary map once and never scans metadata per query', () => {
+    const r = withSecondary();
+    const sql = r.getSql() as TestSqliteProvider;
+    const seen: string[] = [];
+    for (const m of ['queryAll', 'queryOne'] as const) {
+      const orig = (sql as any)[m].bind(sql);
+      (sql as any)[m] = (q: string, p?: unknown[]) => { seen.push(q); return orig(q, p); };
+    }
+    for (const g of [['G26'], ['G25']]) {
+      r.countStrongs(g); r.countStrongsByBook(g); r.getStrongsGlossCounts(g); r.getStrongsHits(g); r.searchByStrongsNumber(g);
+    }
+    expect(seen.filter(q => q.includes('metadata IS NOT NULL')).length).toBe(1);
+    expect(seen.filter(q => !q.includes('metadata IS NOT NULL') && /json_extract|metadata/.test(q))).toEqual([]);
+  });
 });
 
 describe('WordStudyService', () => {

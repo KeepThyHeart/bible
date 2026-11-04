@@ -956,22 +956,52 @@ export class BibleRepository extends BaseModuleRepository<BibleModuleInfo> imple
   // Strong's Number Search Operations
   // ========================================================================
 
+  private secondaryStrongs: Map<string, number[]> | undefined;
+
+  /**
+   * Map of secondary Strong's tag -> interlinear_id, built lazily with ONE scan of the
+   * (few) rows that carry `metadata.strongs` (e.g. `{"strongs":"G3588 G26"}`). The module
+   * file is read-only so no index can be added; this keeps per-query cost near the old
+   * `strongs_number IN (...)` speed instead of a per-row JSON scan (B-015).
+   */
+  private getSecondaryStrongs(): Map<string, number[]> {
+    if (this.secondaryStrongs) return this.secondaryStrongs;
+    const map = new Map<string, number[]>();
+    try {
+      const rows = this.sql.queryAll<{ interlinear_id: number; s: string | null; strongs_number: string | null }>(
+        `SELECT interlinear_id, json_extract(metadata, '$.strongs') AS s, strongs_number
+         FROM interlinear_word WHERE metadata IS NOT NULL`
+      );
+      for (const r of rows) {
+        if (typeof r.s !== 'string') continue;
+        for (const tag of r.s.split(/\s+/)) {
+          if (!tag || tag === r.strongs_number) continue;
+          const list = map.get(tag);
+          if (list) list.push(r.interlinear_id);
+          else map.set(tag, [r.interlinear_id]);
+        }
+      }
+    } catch (error) {
+      console.warn('[BibleRepository] secondary Strong\'s index unavailable:', error);
+    }
+    this.secondaryStrongs = map;
+    return map;
+  }
+
   /**
    * WHERE fragment matching any of the Strong's variants as the word's primary tag
-   * (`strongs_number`) or as a secondary tag listed in `metadata.strongs`
-   * (e.g. `{"strongs":"G3588 G26"}`: the article carrying agape's number).
-   * The cheap `instr(metadata, ...)` test keeps the JSON parse to candidate rows.
+   * (`strongs_number`) or as a secondary tag listed in `metadata.strongs`.
    */
-  private strongsMatch(variants: string[]): { clause: string; params: string[] } {
+  private strongsMatch(variants: string[]): { clause: string; params: (string | number)[] } {
     const ph = variants.map(() => '?').join(', ');
-    const secondary = variants
-      .map(() => "(instr(metadata, ?) > 0 AND instr(' ' || json_extract(metadata, '$.strongs') || ' ', ?) > 0)")
-      .join(' OR ');
-    const params: string[] = [...variants];
-    for (const v of variants) params.push(v, ` ${v} `);
+    const map = this.getSecondaryStrongs();
+    const ids = new Set<number>();
+    for (const v of variants) for (const id of map.get(v) ?? []) ids.add(id);
+    if (ids.size === 0) return { clause: `strongs_number IN (${ph})`, params: [...variants] };
+    const sorted = [...ids].sort((x, y) => x - y);
     return {
-      clause: `(strongs_number IN (${ph}) OR (metadata IS NOT NULL AND (${secondary})))`,
-      params,
+      clause: `(strongs_number IN (${ph}) OR interlinear_id IN (SELECT value FROM json_each(?)))`,
+      params: [...variants, JSON.stringify(sorted)],
     };
   }
 
