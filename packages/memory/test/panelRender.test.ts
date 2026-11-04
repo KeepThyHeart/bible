@@ -2662,6 +2662,16 @@ describe('the home screen: title, Practice, the activity picker and the shuffle'
     expect(refs(need)).toEqual(['John 3:16', 'Genesis 1:1']);
   });
 
+  it('shows each passage\'s translation beside its reference, in the plan and in Manage Passages (B-123)', () => {
+    const kjv = passageViewFixture({ passage: passageFixture({ id: 1, reference: 'John 3:16', moduleId: 'KJV' }) });
+    const asv = passageViewFixture({ passage: passageFixture({ id: 2, reference: 'John 3:16', moduleId: 'ASV' }) });
+    const tags = (root: HTMLElement) =>
+      Array.from(root.querySelectorAll('.sm-row-translation')).map((n) => n.textContent);
+
+    expect(tags(renderPlan(host, planWithPassages([kjv, asv])))).toEqual(['KJV', 'ASV']);
+    expect(tags(renderManagePassages(host, planWithPassages([kjv, asv])))).toEqual(['KJV', 'ASV']);
+  });
+
   it('headed "Practice by Passage", with a sort select reading the plan\'s sortOrder', () => {
     const root = renderPlan(host, planWithPassages([passageViewFixture()], { sortOrder: 'need' }));
     container.appendChild(root);

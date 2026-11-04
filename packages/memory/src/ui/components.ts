@@ -394,6 +394,15 @@ export function errorBanner(message: string): HTMLElement {
   });
 }
 
+/** The translation a passage is memorised in, shown beside its reference (B-123). */
+export function translationTag(moduleId: string): HTMLElement {
+  return el('span', {
+    class: 'sm-row-meta sm-row-translation',
+    text: moduleId,
+    attrs: { title: tr('memory.ui.common.translationTitle', 'Translation: {module}', { module: moduleId }) },
+  });
+}
+
 /** The count of due activities on a passage, or nothing at all when none are. */
 export function dueBadge(dueCount: number): HTMLElement | null {
   if (dueCount <= 0) return null;

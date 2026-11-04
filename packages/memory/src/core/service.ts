@@ -85,6 +85,9 @@ import {
 import { BOOK_GENRE, buildReferenceDistractors, type ReferencePoint } from './exercises/references';
 import { LEGACY_SOURCE_KEY } from './legacyImport';
 
+/** memory_setting key: the translation last chosen explicitly in Memory (a tag in the Add field). */
+const SETTING_LAST_TRANSLATION = 'lastTranslation';
+
 const DEFAULT_COLLECTION_NAME = 'Default';
 /**
  * The old default list's name, before T5 introduced multiple lists.
@@ -1264,8 +1267,46 @@ export class MemoryService implements MemoryApi {
     return chosen.abbreviation;
   }
 
-  private async addPassageFromReference(reference: string): Promise<{ passage: Passage; existed: boolean }> {
-    const moduleId = await this.activeModuleId();
+  /**
+   * Split an optional trailing translation tag off what the user typed
+   * ("Psalm 23:1-3 ASV"), B-123. A tag is a final word that follows a
+   * reference ending in a digit, so "1 John" or "Song of Songs" are never read
+   * as one. It is matched against the installed modules, case-insensitively;
+   * a word that names no installed module is an error, not something to
+   * silently drop (the old behaviour added the passage in the wrong translation).
+   */
+  private async splitTranslationTag(
+    input: string,
+  ): Promise<{ reference: string; moduleId?: string }> {
+    const m = /^(.*\d)\s+([A-Za-z][A-Za-z0-9._-]*)$/s.exec(input.trim());
+    if (!m) return { reference: input };
+    const tag = m[2]!;
+    const modules = await this.host.bible.listModules();
+    const wanted = tag.toLowerCase();
+    const match = modules.find((mod) => mod.abbreviation.toLowerCase() === wanted || mod.id.toLowerCase() === wanted);
+    if (!match) {
+      throw new ReferenceError(
+        tc(
+          'memory.core.unknownTranslation',
+          '"{tag}" is not an installed translation. Installed: {list}.',
+          { tag, list: modules.map((mod) => mod.abbreviation).join(', ') },
+        ),
+      );
+    }
+    return { reference: m[1]!, moduleId: match.abbreviation };
+  }
+
+  /** The translation last chosen explicitly in Memory (by a tag), if it is still installed. */
+  private async lastChosenTranslation(): Promise<string | undefined> {
+    const saved = await this.store.getSetting(SETTING_LAST_TRANSLATION);
+    if (!saved) return undefined;
+    const modules = await this.host.bible.listModules();
+    return modules.find((m) => m.abbreviation === saved)?.abbreviation;
+  }
+
+  private async addPassageFromReference(input: string): Promise<{ passage: Passage; existed: boolean }> {
+    const { reference, moduleId: tagged } = await this.splitTranslationTag(input);
+    const moduleId = tagged ?? (await this.activeModuleId(await this.lastChosenTranslation()));
     const resolved = await resolveReference(this.host, reference, moduleId);
     const now = this.now();
     const targetCollectionId = await this.resolveAddTargetCollectionId();
@@ -1279,6 +1320,7 @@ export class MemoryService implements MemoryApi {
       verseCount: resolved.verseCount,
       addedAt: now,
     });
+    if (tagged) await this.store.setSetting(SETTING_LAST_TRANSLATION, tagged);
 
     if (created || revived) await this.refreshStatus();
     this.planChanged();
