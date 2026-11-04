@@ -2410,5 +2410,7 @@
   "preferencesDialog.privacyOnlineSearch": "语义搜索（偏好设置 > 搜索）：在线选项会把您的搜索文字发送给搜索服务。来源在那里选择。",
   "preferencesDialog.privacyOnlineDiagnostics": "诊断报告（偏好设置 > 诊断）：仅在您选择发送时才会发送。",
   "preferencesDialog.privacyOnlineLinks": "在浏览器中打开链接。",
-  "preferencesDialog.privacyOnlineFooter": "关闭此开关后，以上功能都不会联网。"
+  "preferencesDialog.privacyOnlineFooter": "关闭此开关后，以上功能都不会联网。",
+  "remoteConsent.local": "更愿意全部留在本设备上？本地语义包可离线使用，不会发出任何网络请求。",
+  "remoteConsent.getPack": "获取本地语义包"
 }

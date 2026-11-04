@@ -2393,5 +2393,7 @@
   "preferencesDialog.privacyOnlineSearch": "جستجوی معنایی (تنظیمات > جستجو): گزینهٔ آنلاین متن جستجوی شما را به سرویس جستجو می‌فرستد. منبع را همان‌جا انتخاب می‌کنید.",
   "preferencesDialog.privacyOnlineDiagnostics": "گزارش‌های عیب‌یابی (تنظیمات > عیب‌یابی): فقط در صورت انتخاب شما ارسال می‌شوند.",
   "preferencesDialog.privacyOnlineLinks": "باز کردن پیوندها در مرورگر شما.",
-  "preferencesDialog.privacyOnlineFooter": "وقتی کلید خاموش است، هیچ‌یک از این‌ها به اینترنت متصل نمی‌شوند."
+  "preferencesDialog.privacyOnlineFooter": "وقتی کلید خاموش است، هیچ‌یک از این‌ها به اینترنت متصل نمی‌شوند.",
+  "remoteConsent.local": "ترجیح می‌دهید همه‌چیز روی همین دستگاه بماند؟ بستهٔ معنایی محلی آفلاین کار می‌کند و هیچ درخواست وبی ارسال نمی‌کند.",
+  "remoteConsent.getPack": "دریافت بستهٔ معنایی محلی"
 }

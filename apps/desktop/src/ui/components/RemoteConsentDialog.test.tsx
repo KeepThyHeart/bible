@@ -43,3 +43,20 @@ describe('RemoteConsentDialog', () => {
     expect(answer).toHaveBeenCalledWith('declined');
   });
 });
+
+describe('RemoteConsentDialog local meaning pack option (B-003)', () => {
+  it('mentions the local pack and Get opens Module Manager > Features, declining online', async () => {
+    const seen: Array<CustomEvent> = [];
+    const onOpen = (e: Event) => seen.push(e as CustomEvent);
+    window.addEventListener('command:module:openManager', onOpen);
+    try {
+      render(<RemoteConsentDialog />);
+      expect(screen.getByTestId('remote-consent-local')).toBeInTheDocument();
+      await userEvent.click(screen.getByTestId('remote-consent-get-pack'));
+      expect(answer).toHaveBeenCalledWith('declined');
+      expect(seen[0]?.detail).toEqual({ moduleType: 'features' });
+    } finally {
+      window.removeEventListener('command:module:openManager', onOpen);
+    }
+  });
+});

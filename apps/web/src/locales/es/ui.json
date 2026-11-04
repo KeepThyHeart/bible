@@ -940,7 +940,8 @@
       "ipNotice": "El servicio ve su dirección IP, como cualquier sitio web.",
       "neverSent": "Su lectura de la Biblia, sus notas y el resto de sus datos nunca se envían.",
       "agree": "Aceptar y buscar",
-      "decline": "Ahora no"
+      "decline": "Ahora no",
+      "localOption": "La aplicación de escritorio también puede buscar por significado sin conexión, con un paquete local y sin solicitudes web."
     },
     "note": {
       "declined": "La búsqueda por significado está desactivada. Puede activarla en Configuración.",

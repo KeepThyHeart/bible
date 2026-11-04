@@ -940,7 +940,8 @@
       "ipNotice": "Your IP address is visible to the service, as with any website.",
       "neverSent": "Your Bible reading, notes and other data are never sent.",
       "agree": "Agree and search",
-      "decline": "Not now"
+      "decline": "Not now",
+      "localOption": "The desktop app can also search by meaning offline, with a local meaning pack and no web requests."
     },
     "note": {
       "declined": "Meaning search is off. You can turn it on in Settings.",
