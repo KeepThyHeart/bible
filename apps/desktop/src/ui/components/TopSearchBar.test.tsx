@@ -228,6 +228,8 @@ describe('TopSearchBar', () => {
       });
       renderWithProviders(<TopSearchBar />);
       expect(screen.getByTestId('search-result-count-badge')).toHaveTextContent('2');
+      // B-109: the badge, clear button and options need room, or they sit on top of the first typed letters.
+      expect(screen.getByTestId('search-input').className).toContain('pe-36');
     });
 
     // The pane counts semantic hits in semantic mode; the badge above it must
