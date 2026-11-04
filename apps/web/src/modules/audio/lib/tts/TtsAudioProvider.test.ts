@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { AudioSegment, ChapterRef, VerseText } from '@bible/core/browser';
 import { TtsAudioProvider, resolveVoice } from './TtsAudioProvider';
 import { splitSentences } from './TtsChapterAudio';
-import { TextPreparer } from '../TextPreparer';
+import { TextPreparer } from '@bible/core/browser';
 import { FakeTtsEngine } from '../testing';
 import type { PageVisibility } from './visibility';
 

@@ -17,7 +17,7 @@ import { HtmlAudioOutput } from './HtmlAudioOutput';
 import { HttpManifestSource } from './HttpManifestSource';
 import { MediaSessionBridge } from './MediaSessionBridge';
 import { RecordedAudioProvider } from './RecordedAudioProvider';
-import { TextPreparer } from './TextPreparer';
+import { TextPreparer } from '@bible/core/browser';
 import { createEngineRegistry, createProviderRegistry } from './registries';
 import { LazyTtsEngine } from './tts/LazyTtsEngine';
 import { TtsAudioProvider } from './tts/TtsAudioProvider';

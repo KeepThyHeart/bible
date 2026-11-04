@@ -8,7 +8,7 @@ import { RecordedAudioProvider } from './RecordedAudioProvider';
 import { CdnAudioLocator } from './CdnAudioLocator';
 import { FakeManifestSource, FakeProvider, FakeTtsEngine, deferred } from './testing';
 import { TtsAudioProvider } from './tts/TtsAudioProvider';
-import { TextPreparer } from './TextPreparer';
+import { TextPreparer } from '@bible/core/browser';
 
 const en = (id: string, label = id): AudioVoice => ({ id, label, language: 'en-US' });
 
