@@ -83,6 +83,7 @@ export function VerseRefList({ verses, totalCount, hasMore, onNavigateBible, bib
   const prevVersesRef = useRef(verses);
   const listRef = useRef<HTMLDivElement>(null);
   const [justAdded, setJustAdded] = useState(0);
+  const addedRef = useRef<HTMLSpanElement>(null);
 
   // Clear cached texts when verses change
   useEffect(() => {
@@ -102,6 +103,8 @@ export function VerseRefList({ verses, totalCount, hasMore, onNavigateBible, bib
           requestAnimationFrame(() => {
             const el = listRef.current?.querySelector<HTMLElement>(`[data-verse-id="${first}"]`);
             el?.scrollIntoView?.({ block: 'nearest' });
+            // The "+N added" note sits after the new refs, below the fold on a phone: bring it up too (B-099).
+            addedRef.current?.scrollIntoView?.({ block: 'nearest' });
           });
         }
       }
@@ -214,7 +217,7 @@ export function VerseRefList({ verses, totalCount, hasMore, onNavigateBible, bib
               <button class="verse-ref-list__load-more-inline" onClick={onLoadMore} disabled={loadingMore}>
                 {loadingMore ? t('verseRefList.loading') : `${t('verseRefList.and')} ${remaining} more — load more`}
               </button>
-              <span class="verse-ref-list__added" role="status" aria-live="polite">{justAdded > 0 ? ` +${justAdded} added` : ''}</span>
+              <span class="verse-ref-list__added" ref={addedRef} role="status" aria-live="polite">{justAdded > 0 ? ` +${justAdded} added` : ''}</span>
             </>
           ) : (
             <span class="verse-ref-list__more"> {t('verseRefList.and')} {remaining} more</span>

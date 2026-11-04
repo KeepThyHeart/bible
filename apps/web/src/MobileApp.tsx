@@ -231,7 +231,9 @@ export function MobileApp({ providers }: MobileAppProps) {
         return;
       }
 
-      // On home with nowhere to go — let it be (user sees home screen)
+      // On home with nowhere to go: the dummy entry was just popped, so step back once more and
+      // leave the app in this one press rather than needing a second (B-100).
+      window.history.back();
     };
 
     window.addEventListener('popstate', handlePopState);
