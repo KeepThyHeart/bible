@@ -72,6 +72,8 @@
     "modeStandard": "רגיל",
     "modeReading": "קריאה",
     "modeStudy": "לימוד",
+    "modeHint": "תצוגת הלימוד מציגה מספרי סטרונג ומילים בין-שורתיות בתרגומים שכוללים אותם, כמו KJV.",
+    "modeLabel": "מצב תצוגה",
     "recentPassages": "קטעים אחרונים",
     "noHistory": "טרם בוקרו קטעים"
   },
@@ -91,6 +93,7 @@
     "notesUnavailable": "בתרגום זה אין הערות מהמו״ל.",
     "interlinearLoading": "טוען נתונים בין-שורתיים...",
     "interlinearUnavailable": "בתרגום זה אין נתונים בין-שורתיים עבור קטע זה.",
+    "chapterNotFound": "ההפניה לא נמצאה: {ref} אינו קיים בתרגום זה.",
     "coverageNone": "אין תוכן זמין בתרגום זה.",
     "coverageNTOnly": "בתרגום זה יש תוכן רק עבור הברית החדשה.",
     "coverageOTOnly": "בתרגום זה יש תוכן רק עבור הברית הישנה.",
@@ -131,6 +134,7 @@
     "findByMeaning": "כדי למצוא קטעים לפי משמעות.",
     "noResults": "לא נמצאו תוצאות.",
     "offlineNotice": "אין חיבור לרשת. יש להתחבר מחדש כדי לחפש.",
+    "slashDesktopOnly": "פקודות סלאש (כמו /note או /plan) זמינות רק ביישום לשולחן העבודה.",
     "loadingMore": "טוען...",
     "showMore": "הצגת תוצאות נוספות",
     "loadAll": "{count, plural, one {טעינת הכול (# נוסף)} two {טעינת הכול (# נוספים)} other {טעינת הכול (# נוספים)}}",
@@ -227,7 +231,10 @@
       "resetTextSizes": "איפוס גודלי הטקסט",
       "resetTextSizesTitle": "שחזור גודלי הטקסט וגובהי השורות המוגדרים כברירת מחדל",
       "interlinearStackedShort": "מוערם",
-      "interlinearInlineShort": "בשורה"
+      "interlinearInlineShort": "בשורה",
+      "popoverTitle": "גודל הטקסט",
+      "popoverReset": "אפס",
+      "moreOptions": "אפשרויות טקסט נוספות…"
     },
     "theme": {
       "resetAll": "איפוס הכול",
@@ -357,6 +364,7 @@
       "resetCacheConfirm": "Reset the app cache? The app reloads and re-downloads its files; your settings and downloaded modules are kept.",
       "appName": "יישום לימוד מקרא",
       "description": "יישום מודרני בקוד פתוח ללימוד מקרא, שנועד לקריאה ולמחקר מעמיקים של כתבי הקודש.",
+      "desktopOnly": "הערות, הדגשות, סימניות, שינון כתבי הקודש, תוכניות קריאה ורשימות תפילה זמינים ביישום לשולחן העבודה.",
       "license": "ברישיון <strong>GNU General Public License v3.0</strong> (GPL-3.0).",
       "licenseDetails": "תוכנה זו חופשית לשימוש, לשינוי ולהפצה בהתאם לתנאי ה-GPL v3. קוד המקור ותרומות מתקבלים בברכה.",
       "viewOnGithub": "צפייה ב-GitHub"
@@ -540,6 +548,7 @@
     "verseLevelNotes": "הערות ברמת הפסוק קיימות ב-",
     "passageLevelNotes": "הערות ברמת הקטע קיימות עבור",
     "noEntriesChapter": "לפירוש זה אין ערכים עבור פרק זה.",
+    "offlineNotice": "אתם לא מחוברים. הפירוש ייטען שוב כשהחיבור יחזור.",
     "about": "אודות פירוש זה",
     "aboutName": "שם",
     "aboutAuthor": "מחבר",
@@ -578,7 +587,8 @@
     "navigateToAPassageTo": "יש לעבור לקטע כדי לראות פירוש.",
     "noCommentaryDataAvailable": "אין נתוני פירוש זמינים.",
     "noCommentariesHaveContentFor": "אין פירושים עם תוכן לפסוק זה.",
-    "noContentForThisVerse": "אין תוכן לפסוק זה."
+    "noContentForThisVerse": "אין תוכן לפסוק זה.",
+    "noCommentaryOn": "אין פירוש ל{passage}"
   },
   "commentaryTabBar": {
     "overview": "סקירת פירושים",
@@ -623,6 +633,8 @@
     "searchAll": "חיפוש בכל המילונים...",
     "searching": "מחפש...",
     "noDictionaries": "אין מילונים זמינים.",
+    "loadFailed": "לא ניתן היה לטעון את המילונים. בדקו את החיבור שלכם.",
+    "retry": "נסה שוב",
     "unstar": "הסרת הכוכב",
     "star": "סימון בכוכב (נעיצה בראש הרשימה)"
   },
@@ -849,6 +861,7 @@
   "semanticSearchLoadingOverlay": {
     "dismiss": "סגירה",
     "loading": "טוען חיפוש רעיונות…",
+    "unavailable": "חיפוש רעיונות אינו זמין כרגע.",
     "step": "שלב {step} מתוך 3 — {label}"
   },
   "login": {
@@ -915,5 +928,39 @@
     "quiz": {
       "title": "חידון"
     }
+  },
+  "remoteSemantic": {
+    "consent": {
+      "title": "חיפוש לפי משמעות משתמש בשירות מקוון",
+      "body": "כדי למצוא פסוקים לפי משמעות, מילות החיפוש שלכם נשלחות לשירות החיפוש שלנו, המשתמש בספק בינה מלאכותית חיצוני כדי להבין את משמעותן. הן נשלחות ללא שמכם או חשבונכם.",
+      "ipNotice": "כתובת ה-IP שלכם גלויה לשירות, כמו בכל אתר.",
+      "neverSent": "קריאת המקרא, ההערות ושאר הנתונים שלכם אינם נשלחים לעולם.",
+      "agree": "מסכים/ה וחפש",
+      "decline": "לא עכשיו"
+    },
+    "note": {
+      "declined": "חיפוש לפי משמעות כבוי. ניתן להפעיל אותו בהגדרות.",
+      "degraded": "מוצגות תוצאות מילות מפתח (שירות המשמעות לא היה זמין).",
+      "quota": "הגעתם למגבלה היומית של חיפוש לפי משמעות. היא תתאפס ב-{time}. מוצגות תוצאות מילות מפתח.",
+      "quotaNoTime": "הגעתם למגבלה היומית של חיפוש לפי משמעות. מוצגות תוצאות מילות מפתח.",
+      "paused": "חיפוש לפי משמעות מושהה לזמן מה. מוצגות תוצאות מילות מפתח.",
+      "unavailable": "חיפוש לפי משמעות אינו זמין כרגע. מוצגות תוצאות מילות מפתח.",
+      "rephrase": "נסו ביטוי ארוך יותר או שונה לחיפוש לפי משמעות. מוצגות תוצאות מילות מפתח."
+    },
+    "settings": {
+      "title": "חיפוש",
+      "toggle": "שימוש בחיפוש לפי משמעות באינטרנט",
+      "statusUnset": "לא פעיל עד שתסכימו בשימוש הראשון",
+      "statusGranted": "פעיל. הסכמתם ב-{date}.",
+      "statusDeclined": "כבוי"
+    }
+  },
+  "a11y": {
+    "skipToContent": "דלג לתוכן",
+    "skipToSearch": "דלג לחיפוש",
+    "readerTitle": "קורא המקרא",
+    "studyPane": "חלונית לימוד",
+    "mobileNav": "ניווט ראשי",
+    "chapterLoaded": "{ref} נטען"
   }
 }

@@ -74,6 +74,7 @@
   "readingPlans.card.open": "खोलें",
   "readingPlans.card.markDayRead": "दिन को पढ़ा हुआ चिह्नित करें",
   "readingPlans.card.markDayUnread": "दिन को अपठित चिह्नित करें",
+  "readingPlans.card.markDayConfirm": "आज का कोई भी पठन चिह्नित नहीं है। फिर भी पूरे दिन को पढ़ा हुआ चिह्नित करें?",
   "readingPlans.card.completed": "यह योजना पूरी हो गई है। बहुत बढ़िया!",
   "readingPlans.card.notStarted": "यह योजना अभी शुरू नहीं हुई है।",
   "readingPlans.card.restDay": "विश्राम का दिन",

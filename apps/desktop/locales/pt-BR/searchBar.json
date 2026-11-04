@@ -1,10 +1,14 @@
 {
   "searchBar.unifiedPlaceholder": "Pesquise na Bíblia, digite uma referência ou digite / para ver os comandos",
   "searchBar.commandMode.label": "Comandos",
+  "searchBar.resultCountLabel": "{count} resultados",
   "searchBar.commandMode.empty": "Nenhum comando correspondente",
   "searchBar.referenceMode.label": "Ir para a referência",
   "searchBar.referenceMode.goTo": "Ir para {reference}",
   "searchBar.emptyState.recentSearches": "Pesquisas recentes",
   "searchBar.emptyState.recentCommands": "Comandos recentes",
-  "searchBar.emptyState.noRecents": "Nenhum item recente"
+  "searchBar.emptyState.noRecents": "Nenhum item recente",
+  "searchBar.reference.noChapter": "\"{book} {chapter}\" não é uma referência válida: {book} tem {count} capítulos.",
+  "searchBar.reference.noVerse": "\"{book} {chapter}:{verse}\" não é uma referência válida: {book} {chapter} tem {count} versículos.",
+  "searchBar.reference.needsChapter": "\"{book}\" precisa de um capítulo para ser uma referência válida, por exemplo \"{book} 1\"."
 }

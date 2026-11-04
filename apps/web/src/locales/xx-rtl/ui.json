@@ -72,6 +72,8 @@
     "modeStandard": "‏Standard‏",
     "modeReading": "‏Reading‏",
     "modeStudy": "‏Study‏",
+    "modeHint": "‏Study view shows Strong's numbers and interlinear words for translations that include them, such as KJV.‏",
+    "modeLabel": "‏Display mode‏",
     "recentPassages": "‏Recent passages‏",
     "noHistory": "‏No passages visited yet‏"
   },
@@ -91,6 +93,7 @@
     "notesUnavailable": "‏This translation does not include publisher notes.‏",
     "interlinearLoading": "‏Loading interlinear data...‏",
     "interlinearUnavailable": "‏This translation does not have interlinear data for this passage.‏",
+    "chapterNotFound": "‏Reference not found: {ref} does not exist in this translation.‏",
     "coverageNone": "‏No content is available in this translation.‏",
     "coverageNTOnly": "‏This translation only has content for the New Testament.‏",
     "coverageOTOnly": "‏This translation only has content for the Old Testament.‏",
@@ -131,6 +134,7 @@
     "findByMeaning": "‏to find passages by meaning.‏",
     "noResults": "‏No results found.‏",
     "offlineNotice": "‏You're offline. Reconnect to search.‏",
+    "slashDesktopOnly": "‏Slash commands (like /note or /plan) are only available in the desktop app.‏",
     "loadingMore": "‏Loading...‏",
     "showMore": "‏Show more results‏",
     "loadAll": "‏{count, plural, one {Load all (# more)} other {Load all (# more)}}‏",
@@ -147,7 +151,7 @@
       "newTestament": "‏New Testament‏",
       "bar": "‏{book} — {count, plural, one {# result} other {# results}}‏",
       "barEmpty": "‏{book} — no matches‏",
-      "captionKeyword": "‏{count, plural, one {# result, by book. Word-form matches count; approximate spellings do not.} other {# results, by book. Word-form matches count; approximate spellings do not.}}‏",
+      "captionKeyword": "‏{count, plural, one {# result, by book. Different forms of the word count; close spellings are listed separately.} other {# results, by book. Different forms of the word count; close spellings are listed separately.}}‏",
       "captionStrongs": "‏{count, plural, one {# occurrence below, by book.} other {# occurrences below, by book.}}‏",
       "captionSemantic": "‏{count, plural, one {# passage retrieved, by book — not a tally of the whole Bible.} other {# passages retrieved, by book — not a tally of the whole Bible.}}‏",
       "captionCapped": "‏Only the results loaded so far are counted; there are more to load.‏",
@@ -227,7 +231,10 @@
       "resetTextSizes": "‏Reset Text Sizes‏",
       "resetTextSizesTitle": "‏Restore the default text sizes and line heights‏",
       "interlinearStackedShort": "‏Stacked‏",
-      "interlinearInlineShort": "‏Inline‏"
+      "interlinearInlineShort": "‏Inline‏",
+      "popoverTitle": "‏Text size‏",
+      "popoverReset": "‏Reset‏",
+      "moreOptions": "‏More text options…‏"
     },
     "theme": {
       "resetAll": "‏Reset All‏",
@@ -353,10 +360,11 @@
       "title": "‏About‏",
       "refreshApp": "‏Refresh App‏",
       "resetCache": "‏Reset app cache‏",
-      "resetCacheHint": "‏Clears this app's saved files and the background service worker on this device, then reloads. Use it if the app looks out of date or misbehaves. Your settings, downloaded modules and notes are kept.‏",
-      "resetCacheConfirm": "Reset the app cache? The app reloads and re-downloads its files; your settings and downloaded modules are kept.",
-      "appName": "‏Bible Study App‏",
+      "resetCacheHint": "‏Clears this app's saved files and the background service worker on this device, then reloads. Use it if the app looks out of date or misbehaves. Your settings and downloaded modules are kept.‏",
+      "resetCacheConfirm": "‏Reset the app cache? The app reloads and re-downloads its files; your settings and downloaded modules are kept.‏",
+      "appName": "‏Keep Thy Heart Bible Reader‏",
       "description": "‏A modern, open-source Bible study application designed for in-depth Scripture reading and research.‏",
+      "desktopOnly": "‏Notes, highlights, bookmarks, Scripture memory, reading plans and prayer lists are available in the desktop app.‏",
       "license": "‏Licensed under the <strong>GNU General Public License v3.0</strong> (GPL-3.0).‏",
       "licenseDetails": "‏This software is free to use, modify, and distribute under the terms of the GPL v3. Source code and contributions are welcome.‏",
       "viewOnGithub": "‏View on GitHub‏"
@@ -540,6 +548,7 @@
     "verseLevelNotes": "‏Verse-level notes exist in‏",
     "passageLevelNotes": "‏Passage-level notes exist for‏",
     "noEntriesChapter": "‏This commentary has no entries for this chapter.‏",
+    "offlineNotice": "‏You're offline. Commentary will load again when you reconnect.‏",
     "about": "‏About this commentary‏",
     "aboutName": "‏Name‏",
     "aboutAuthor": "‏Author‏",
@@ -578,7 +587,8 @@
     "navigateToAPassageTo": "‏Navigate to a passage to see commentary.‏",
     "noCommentaryDataAvailable": "‏No commentary data available.‏",
     "noCommentariesHaveContentFor": "‏No commentaries have content for this verse.‏",
-    "noContentForThisVerse": "‏No content for this verse.‏"
+    "noContentForThisVerse": "‏No content for this verse.‏",
+    "noCommentaryOn": "‏No commentary on {passage}‏"
   },
   "commentaryTabBar": {
     "overview": "‏Commentary overview‏",
@@ -623,6 +633,8 @@
     "searchAll": "‏Search all dictionaries...‏",
     "searching": "‏Searching...‏",
     "noDictionaries": "‏No dictionaries available.‏",
+    "loadFailed": "‏Couldn't load the dictionaries. Check your connection.‏",
+    "retry": "‏Retry‏",
     "unstar": "‏Unstar‏",
     "star": "‏Star (pin to top)‏"
   },
@@ -795,7 +807,7 @@
     "dictionary": "‏Dict.‏"
   },
   "studyVerseHeader": {
-    "notesFor": "‏Notes for‏",
+    "notesFor": "‏Verse:‏",
     "unpinVerse": "‏Unpin verse‏",
     "pinVerse": "‏Pin verse‏",
     "expand": "‏(expand)‏",
@@ -849,6 +861,7 @@
   "semanticSearchLoadingOverlay": {
     "dismiss": "‏Dismiss‏",
     "loading": "‏Loading Ideas Search…‏",
+    "unavailable": "‏Ideas search isn't available right now.‏",
     "step": "‏Step {step} of 3 — {label}‏"
   },
   "login": {
@@ -915,5 +928,39 @@
     "quiz": {
       "title": "‏Quiz‏"
     }
+  },
+  "remoteSemantic": {
+    "consent": {
+      "title": "‏Meaning-based search uses an online service‏",
+      "body": "‏To find verses by meaning, your search words are sent to our search service, which uses an outside AI provider to work out what they mean. They are sent without your name or account.‏",
+      "ipNotice": "‏Your IP address is visible to the service, as with any website.‏",
+      "neverSent": "‏Your Bible reading, notes and other data are never sent.‏",
+      "agree": "‏Agree and search‏",
+      "decline": "‏Not now‏"
+    },
+    "note": {
+      "declined": "‏Meaning search is off. You can turn it on in Settings.‏",
+      "degraded": "‏Showing keyword results (the meaning service was unavailable).‏",
+      "quota": "‏Daily limit for meaning search reached. It resets at {time}. Showing keyword results.‏",
+      "quotaNoTime": "‏Daily limit for meaning search reached. Showing keyword results.‏",
+      "paused": "‏Meaning search is paused for a while. Showing keyword results.‏",
+      "unavailable": "‏Meaning search is unavailable right now. Showing keyword results.‏",
+      "rephrase": "‏Try a longer or different phrase for meaning search. Showing keyword results.‏"
+    },
+    "settings": {
+      "title": "‏Search‏",
+      "toggle": "‏Use online meaning search‏",
+      "statusUnset": "‏Not active until you agree on first use‏",
+      "statusGranted": "‏On. You agreed on {date}.‏",
+      "statusDeclined": "‏Off‏"
+    }
+  },
+  "a11y": {
+    "skipToContent": "‏Skip to content‏",
+    "skipToSearch": "‏Skip to search‏",
+    "readerTitle": "‏Bible reader‏",
+    "studyPane": "‏Study panel‏",
+    "mobileNav": "‏Main navigation‏",
+    "chapterLoaded": "‏{ref} loaded‏"
   }
 }
