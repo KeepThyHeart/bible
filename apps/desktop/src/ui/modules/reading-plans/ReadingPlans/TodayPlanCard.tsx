@@ -99,7 +99,7 @@ const TodayPlanCard: React.FC<Props> = ({
         ) : null}
       </header>
       <div className="flex items-center gap-sm">
-        <div className="flex-1 h-1.5 rounded overflow-hidden" style={{ backgroundColor: 'var(--theme-bg-secondary)' }}
+        <div className="flex-1 h-1.5 rounded overflow-hidden" style={{ backgroundColor: 'var(--theme-bg-strong)', border: '1px solid var(--theme-border-primary)' }}
           role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(pct)} aria-label={t('readingPlans.today.progress')}>
           <div style={{ width: `${pct}%`, height: '100%', backgroundColor: 'var(--theme-accent-primary, #3b82f6)' }} />
         </div>

@@ -38,6 +38,19 @@ describe('theme token use', () => {
     }
     expect(undef).toEqual([]);
   });
+  // B-199: native checkboxes / radios (plan readings, Copy Passage formats) showed the browser's blue in High Contrast,
+  // and the plan progress track was bg-secondary (black on the black card), so the empty part of the bar vanished.
+  it('checkboxes and radios take the theme accent', () => {
+    const css = readFileSync(resolve(SRC, 'styles/themes.css'), 'utf8');
+    expect(css).toMatch(/input\[type="checkbox"\][^{]*\{[^}]*accent-color:\s*var\(--theme-accent-primary\)/);
+    expect(css).toMatch(/input\[type="radio"\][^{]*\{[^}]*accent-color:\s*var\(--theme-accent-primary\)/);
+  });
+  it('plan progress track is visible against the card', () => {
+    const src = readFileSync(resolve(SRC, 'modules/reading-plans/ReadingPlans/TodayPlanCard.tsx'), 'utf8');
+    const track = src.split('\n').find((l) => l.includes('role="progressbar"') || l.includes('h-1.5 rounded overflow-hidden')) ?? '';
+    expect(track).toContain('--theme-bg-strong');
+    expect(track).toContain('--theme-border-primary');
+  });
   it('quiz radio is filled with the accent', () => {
     const css = readFileSync(resolve(__dirname, '../../../../../packages/ui/css/kth-quiz.css'), 'utf8');
     expect(css).toMatch(/\.kth-quiz__choice-input[^{]*\{[^}]*accent-color:\s*var\(--kth-accent\)/);

@@ -2820,3 +2820,9 @@ textarea:focus {
   outline: none;
   box-shadow: 0 0 0 2px var(--theme-accent-light);
 }
+
+/* B-199: native checkboxes and radios follow the theme accent (the browser's blue clashed with High Contrast). */
+input[type="checkbox"],
+input[type="radio"] {
+  accent-color: var(--theme-accent-primary);
+}
