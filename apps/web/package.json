@@ -17,6 +17,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "games:content": "tsx server/modules/games/tools/content.ts",
     "typecheck:e2e": "tsc --noEmit -p e2e/tsconfig.json",
+    "build:vh-data": "node ../../packages/verse-hover/scripts/build-static.mjs --out ../../data/vh-data --gzip",
     "fetch:model": "node scripts/fetch-embedding-model.mjs",
     "fetch:fonts": "node scripts/fetch-fonts.mjs",
     "fetch:piper": "node scripts/fetch-piper-assets.mjs",

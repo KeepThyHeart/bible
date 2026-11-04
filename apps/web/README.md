@@ -93,6 +93,8 @@ The `modules` section controls:
   - **Display overrides** (custom names, descriptions)
   - **About text** for the app
 
+The `verseHover` block configures the verse-hover drop-in served at `/vh` (from `packages/verse-hover/dist`, skipped when not built; `/vh/data/<TR>/...` serves generated static Bible JSON from `<data dir>/vh-data`, or `verseHover.dataDir`). `verseHover.public: true` (default `false`) lets other sites load it without the password gate. Generate the data with `pnpm run build:vh-data` (opt-in, not part of `build`; open-licence modules only).
+
 See `config/site-config.schema.json` for the full schema. Deployments that predate the unified config can keep using a standalone `settings.json` -- see `config/settings.sample.json` and `config/settings.schema.json`.
 
 ## Architecture
