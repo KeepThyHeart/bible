@@ -228,7 +228,7 @@
 }
 .pz-btn:hover:not(:disabled) { background: var(--bg-tertiary); }
 .pz-btn:disabled { opacity: 0.5; cursor: default; }
-.pz-btn--primary { background: var(--accent-color); border-color: var(--accent-color); color: #fff; }
+.pz-btn--primary { background: var(--accent-color); border-color: var(--accent-color); color: var(--accent-text, #fff); }
 .pz-btn--primary:hover:not(:disabled) { background: var(--accent-hover, var(--accent-color)); }
 .pz-btn--danger { border-color: #b3261e; color: #b3261e; }
 .pz-btn--icon { padding: 5px 9px; }
@@ -248,7 +248,7 @@
 }
 .pz-transport__btn:hover:not(:disabled) { background: var(--bg-tertiary); }
 .pz-transport__btn:disabled { opacity: 0.45; cursor: default; }
-.pz-transport__btn--on { background: var(--accent-color); border-color: var(--accent-color); color: #fff; }
+.pz-transport__btn--on { background: var(--accent-color); border-color: var(--accent-color); color: var(--accent-text, #fff); }
 
 /* Add row and pickers */
 .pz-addrow { display: flex; flex-direction: column; gap: 8px; }

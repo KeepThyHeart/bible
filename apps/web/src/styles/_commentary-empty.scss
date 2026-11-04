@@ -82,12 +82,12 @@
 
     &--current {
       background: var(--accent-color);
-      color: #fff;
+      color: var(--accent-text, #fff);
       border-color: var(--accent-color);
 
       &:hover {
         background: var(--accent-hover);
-        color: #fff;
+        color: var(--accent-text, #fff);
       }
     }
   }
@@ -115,7 +115,7 @@
 
     &:hover {
       background: var(--accent-color);
-      color: #fff;
+      color: var(--accent-text, #fff);
     }
   }
 

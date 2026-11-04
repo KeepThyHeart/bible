@@ -160,7 +160,7 @@
 
     .copy-dialog__format--selected & {
       background: var(--accent-color);
-      color: #fff;
+      color: var(--accent-text, #fff);
     }
   }
 
@@ -276,7 +276,7 @@
     width: 100%;
     padding: 10px;
     background: var(--accent-color);
-    color: white;
+    color: var(--accent-text, #fff);
     border: none;
     border-radius: 6px;
     cursor: pointer;

@@ -142,7 +142,7 @@
 
     &--primary {
       background: var(--accent-color);
-      color: #fff;
+      color: var(--accent-text, #fff);
       border-color: var(--accent-color);
 
       &:hover {

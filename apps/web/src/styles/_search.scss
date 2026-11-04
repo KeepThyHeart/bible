@@ -85,7 +85,7 @@
     padding: 10px 14px;
     border: none;
     background: var(--accent-color);
-    color: #fff;
+    color: var(--accent-text, #fff);
     cursor: pointer;
     font-size: calc(0.875rem * var(--ui-font-scale, 1));
   }
@@ -112,7 +112,7 @@
 
     &--active {
       background: var(--accent-color);
-      color: #fff;
+      color: var(--accent-text, #fff);
       border-color: var(--accent-color);
     }
   }

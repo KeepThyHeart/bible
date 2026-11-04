@@ -100,11 +100,11 @@
 
     &--active {
       background: var(--accent-color);
-      color: #fff;
+      color: var(--accent-text, #fff);
 
       &:hover {
         background: var(--accent-color);
-        color: #fff;
+        color: var(--accent-text, #fff);
       }
     }
   }

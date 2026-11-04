@@ -79,7 +79,7 @@
   color: inherit;
   font: inherit;
   cursor: pointer;
-  &.is-on { background: var(--accent-color); border-color: var(--accent-color); color: #fff; }
+  &.is-on { background: var(--accent-color); border-color: var(--accent-color); color: var(--accent-text, #fff); }
 }
 .pn-chooser__check { display: flex; align-items: center; gap: 6px; margin-top: 6px; }
 .pn-chooser__save {
