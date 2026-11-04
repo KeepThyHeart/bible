@@ -12,6 +12,22 @@ import type { ChapterData, VerseData, BookTopicsData } from '../types';
 import type { BibleWorkerProxy } from './BibleWorkerProxy';
 import { offlineStore } from '../stores/offlineStore';
 import { setModuleDbCloser } from './moduleAssets';
+import { OpfsModuleStore } from './OpfsModuleStore';
+
+/**
+ * True only when OPFS positively reports modules/<abbr>.db as absent. Any error
+ * (OPFS unavailable, transient failure) answers false: "unknown" is not "missing".
+ */
+async function opfsFileIsMissing(module: string): Promise<boolean> {
+  try {
+    const exists = await new OpfsModuleStore().exists({
+      assetId: '', kind: 'module', version: '', path: `${module}.db`, url: '', size: 0,
+    });
+    return !exists;
+  } catch {
+    return false;
+  }
+}
 
 export class OfflineBibleProvider implements IBibleDataProvider {
   private loadingModules = new Set<string>();
@@ -29,6 +45,7 @@ export class OfflineBibleProvider implements IBibleDataProvider {
   constructor(
     private server: IBibleDataProvider,
     private workerProxy: BibleWorkerProxy,
+    private fileIsMissing: (module: string) => Promise<boolean> = opfsFileIsMissing,
   ) {
     // Module updates/removals must release the worker's OPFS handle before replacing the file.
     setModuleDbCloser((abbr) => this.workerProxy.closeDb(abbr));
@@ -178,10 +195,15 @@ export class OfflineBibleProvider implements IBibleDataProvider {
         await this.workerProxy.openDb(module);
         console.debug(`[OfflineBible] Background open ${module}: ${(performance.now()-t0).toFixed(1)}ms — next nav will be local`);
       } catch (err) {
-        // OPFS file is missing (browser evicted it) but offlineStore still
-        // thinks it's downloaded.  Remove the stale entry so we stop retrying.
-        console.debug(`[OfflineBible] OPFS file missing for ${module} — removing stale offline entry`);
-        offlineStore.removeDownloadedModule(module);
+        // W-058: openDb also fails for reasons that say nothing about the file —
+        // offline, the worker's wa-sqlite .wasm may not load. Only drop the entry
+        // when OPFS positively reports the file gone (browser evicted it).
+        if (await this.fileIsMissing(module)) {
+          console.debug(`[OfflineBible] OPFS file missing for ${module} — removing stale offline entry`);
+          offlineStore.removeDownloadedModule(module);
+        } else {
+          console.debug(`[OfflineBible] Background open of ${module} failed; keeping offline entry`, err);
+        }
       } finally {
         this.loadingModules.delete(module);
       }

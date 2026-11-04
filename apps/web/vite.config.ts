@@ -523,7 +523,12 @@ export default defineConfig({
         // when the server is unreachable. Unlike the previous config this does
         // NOT make the shell the answer to every navigation — src/sw.ts consults
         // the network first and only reaches for this copy on network failure.
-        globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
+        //
+        // W-058: plus the SQLite engine the offline Bible worker loads. Without
+        // it a downloaded translation cannot be opened after an offline reload:
+        // the worker's fetch of the wasm fails, so only chapters already read
+        // could be shown. Only this file: the 21 MB ONNX runtime stays out.
+        globPatterns: ['**/*.{js,css,html,svg,png,woff2}', 'wa-sqlite-async.wasm'],
         // The app bundle and the transformers.js chunk both exceed workbox's
         // 2 MiB default; silently dropping them from the precache would leave
         // the offline shell unable to boot.
