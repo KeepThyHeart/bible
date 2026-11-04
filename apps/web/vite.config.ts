@@ -6,6 +6,7 @@ import { execSync } from 'child_process';
 import { existsSync, readdirSync, readFileSync } from 'fs';
 import { resolve } from 'path';
 import { chunkReport } from './build/chunkReport';
+import { HTML_ENTRIES, MODULE_PAGE_GLOBS } from './build/htmlEntries';
 
 /**
  * Identifier for this build, compiled into the client and written to
@@ -529,7 +530,11 @@ export default defineConfig({
         maximumFileSizeToCacheInBytes: 8 * 1024 * 1024,
         // The kill switch is fetched by URL when needed; precaching it would
         // just spend the user's bandwidth on a worker they never run.
-        globIgnores: ['sw-kill.js'],
+        //
+        // W-030: nor the feature modules' own pages (present/*.html,
+        // games/play.html): a switched-off module answers 404 for them, and a
+        // single failed precache URL fails the whole install. See htmlEntries.ts.
+        globIgnores: ['sw-kill.js', ...MODULE_PAGE_GLOBS],
       },
       // Runtime caching lives in src/sw/rules/, applied by src/sw.ts.
     }),
@@ -551,14 +556,7 @@ export default defineConfig({
        * service starts. Naming `index.html` explicitly is required -- adding an
        * `input` map replaces Vite's implicit default rather than adding to it.
        */
-      input: {
-        index: resolve(__dirname, 'index.html'),
-        presentViewer: resolve(__dirname, 'present/viewer.html'),
-        presentWatch: resolve(__dirname, 'present/watch.html'),
-        presentSolo: resolve(__dirname, 'present/solo.html'),
-        // The Games phone page: its own entry, so a phone loads no reader code.
-        gamesPlay: resolve(__dirname, 'games/play.html'),
-      },
+      input: Object.fromEntries(Object.entries(HTML_ENTRIES).map(([name, file]) => [name, resolve(__dirname, file)])),
     },
   },
   worker: {
@@ -589,7 +587,7 @@ export default defineConfig({
   },
   test: {
     environment: 'happy-dom',
-    include: ['src/**/*.test.{ts,tsx}', 'server/**/*.test.ts', 'scripts/**/*.test.ts'],
+    include: ['src/**/*.test.{ts,tsx}', 'server/**/*.test.ts', 'scripts/**/*.test.ts', 'build/**/*.test.ts'],
     globals: true,
     // Node 25+ ships an experimental global `localStorage` that, without --localstorage-file, is undefined and
     // shadows the DOM environment's own. Turn it off in the workers; Node 24 does not know the flag.
