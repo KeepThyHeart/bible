@@ -1,4 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+vi.mock('../stores/syncPanesWithVerse', () => ({ syncPanesWithVerse: vi.fn() }));
 import { scrollCenterOnceLaidOut } from './useBibleScrolling';
 
 /** B-027: a pane that mounts before dockview has sized it must still scroll to its verse. */
@@ -48,7 +50,9 @@ describe('scrollCenterOnceLaidOut', () => {
   });
 });
 
-import { renderHook } from '@testing-library/react';
+import { renderHook, act } from '@testing-library/react';
+import { useBibleStore } from '../stores/useBibleStore';
+import { syncPanesWithVerse } from '../stores/syncPanesWithVerse';
 import { useBibleScrolling } from './useBibleScrolling';
 
 describe('useBibleScrolling after a layout switch (B-027)', () => {
@@ -82,5 +86,23 @@ describe('useBibleScrolling after a layout switch (B-027)', () => {
     h = 600;
     vi.advanceTimersByTime(48);
     expect(verse.scrollIntoView).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('History Back keeps the study panes in step with the Bible pane (B-061)', () => {
+  it('points the study panes at the verse Back landed on', async () => {
+    useBibleStore.getState().initPanel('p-b061');
+    const goBack = vi.fn(async () => {
+      useBibleStore.setState({
+        panels: new Map(useBibleStore.getState().panels).set('p-b061', {
+          ...useBibleStore.getState().getPanelState('p-b061'), selectedVerseId: 43003016,
+        }),
+      });
+    });
+    const { result } = renderHook(() =>
+      useBibleScrolling('p-b061', { current: null }, { current: null }, null, null, 0, 'center', [], false, vi.fn(), goBack, vi.fn()),
+    );
+    await act(async () => { result.current.goBackWithScroll(); });
+    expect(syncPanesWithVerse).toHaveBeenCalledWith(43003016);
   });
 });
