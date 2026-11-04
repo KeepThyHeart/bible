@@ -51,13 +51,35 @@ describe('useNotesAutoSave stale-save refusals', () => {
     expect(useNoteEditorStore.getState().isDirty).toBe(false);
   });
 
-  it('after a conflict the baseline is re-synced to disk so one "Save again" is enough', async () => {
+  it('after a conflict the baseline is NOT reset (B-081): a later flush writes a conflict copy, never over the other version', async () => {
     vi.mocked(fileNotesAPI.saveNote).mockRejectedValue(new IpcResultError('conflict', 'x'));
     vi.mocked(fileNotesAPI.readNote).mockResolvedValue({ ...note, updated: 'U9' });
     const { setCurrentNote } = mount();
     await act(async () => { await vi.advanceTimersByTimeAsync(2000); });
-    expect(setCurrentNote).toHaveBeenCalledWith(expect.objectContaining({ updated: 'U9' }));
+    expect(setCurrentNote).not.toHaveBeenCalledWith(expect.objectContaining({ updated: 'U9' }));
+    expect(fileNotesAPI.readNote).not.toHaveBeenCalled();
     expect(useNoteEditorStore.getState().isDirty).toBe(true);
+
+    // Ctrl+Q / reload: the close flush must still carry the old baseline and fail.
+    vi.mocked(fileNotesAPI.saveNote).mockClear();
+    vi.mocked(fileNotesAPI.saveNote).mockImplementation(async (path, _n, expected) => {
+      if (expected === 'U0') throw new IpcResultError('conflict', 'x');
+      return 'U10';
+    });
+    let flush: () => Promise<void> = async () => undefined;
+    const { registerActiveNoteFlush } = await import('../../../../services/activeNoteFlush');
+    void registerActiveNoteFlush;
+    const { renderHook: rh } = await import('@testing-library/react');
+    const { useActiveNoteFlush } = await import('./useActiveNoteFlush');
+    const svc = await import('../../../../services/activeNoteFlush');
+    const spy = vi.spyOn(svc, 'registerActiveNoteFlush').mockImplementation((f) => { flush = f as () => Promise<void>; });
+    rh(() => useActiveNoteFlush({ view: 'editor', currentNote: note, currentNotePath: 'F/T.bn', setCurrentNote: vi.fn() }));
+    await flush();
+    spy.mockRestore();
+    const calls = vi.mocked(fileNotesAPI.saveNote).mock.calls;
+    expect(calls[0][2]).toBe('U0');
+    expect(calls.some(c => String(c[0]).includes('(unsaved changes)'))).toBe(true);
+    expect(calls.every(c => c[2] === undefined || c[2] === 'U0')).toBe(true);
   });
 
   it.each([

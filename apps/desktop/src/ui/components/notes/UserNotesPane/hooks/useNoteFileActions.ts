@@ -8,7 +8,7 @@ import { htmlToMarkdown } from '../../../../utils/exportNote';
 import { sanitizeHtml } from '../../../../utils/sanitize';
 import { IpcResultError, unwrap } from '../../../../services/ipcResult';
 import { escapeHtmlText, isAbsolutePath } from '../utils';
-import { MISSING_MESSAGE } from './noteSave';
+import { MISSING_MESSAGE, hasNoteConflict, markNoteConflict, clearNoteConflict } from './noteSave';
 
 interface UseNoteFileActionsArgs {
   currentNote: BnFile | null;
@@ -103,7 +103,19 @@ export function useNoteFileActions(args: UseNoteFileActionsArgs): NoteFileAction
       // Pass the timestamp the note was loaded at so the main process refuses a
       // blind overwrite if another window saved this file since (A3). `updated`
       // on currentNote is the last loaded/saved value - our new base.
-      const expectedUpdated = currentNote.updated;
+      let expectedUpdated = currentNote.updated;
+      // A save already refused for a conflict (B-081) is the user's deliberate
+      // "Save again": only now is the baseline re-synced to what is on disk.
+      if (hasNoteConflict(currentNotePath)) {
+        try {
+          const onDisk = isAbsolutePath(currentNotePath)
+            ? await fileNotesAPI.readNoteAbsolute(currentNotePath)
+            : await fileNotesAPI.readNote(currentNotePath);
+          if (onDisk) expectedUpdated = onDisk.updated;
+        } catch {
+          // Keep the old baseline; the save is then refused again.
+        }
+      }
       // The main process regenerates `updated` itself and returns the real
       // written value - that (not a client-side guess) becomes the new
       // baseline. Using a local `new Date().toISOString()` guess here was the
@@ -113,25 +125,17 @@ export function useNoteFileActions(args: UseNoteFileActionsArgs): NoteFileAction
       const savedUpdated = isAbsolutePath(currentNotePath)
         ? await fileNotesAPI.saveNoteAbsolute(currentNotePath, updatedNote, expectedUpdated)
         : await fileNotesAPI.saveNote(currentNotePath, updatedNote, expectedUpdated);
+      clearNoteConflict(currentNotePath);
       setCurrentNote({ ...updatedNote, updated: savedUpdated });
       useNoteEditorStore.getState().markSaved(); // allow-getstate: save-note async callback - imperative store update outside render
       setFileError(null);
     } catch (err: unknown) {
       if (err instanceof IpcResultError && err.code === 'conflict') {
         // Another window changed this note since we opened it. Don't clobber it
-        // silently: warn, and re-sync our base timestamp to what's on disk so a
-        // second, deliberate Save overwrites (or the user can Save As to branch).
-        // The editor stays dirty (no markSaved) so no edits are dropped.
-        try {
-          const onDisk = isAbsolutePath(currentNotePath)
-            ? await fileNotesAPI.readNoteAbsolute(currentNotePath)
-            : await fileNotesAPI.readNote(currentNotePath);
-          if (onDisk) {
-            setCurrentNote({ ...currentNote, updated: onDisk.updated });
-          }
-        } catch {
-          // Best-effort re-sync; the warning below still stands.
-        }
+        // silently: warn and keep the old baseline (B-081), so automatic saves
+        // (close, reload) keep being refused. The editor stays dirty. A second,
+        // deliberate Save re-syncs the baseline to disk and overwrites.
+        markNoteConflict(currentNotePath);
         setFileError(
           'This note was changed in another window since you opened it. ' +
             'Save again to overwrite those changes, or use "Save As" to keep both copies.'

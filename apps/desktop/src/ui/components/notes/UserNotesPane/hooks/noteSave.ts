@@ -40,3 +40,13 @@ export async function saveConflictCopy(path: string, note: BnFile): Promise<void
   const copyPath = path.replace(/\.bn$/, '') + ' (unsaved changes).bn';
   await fileNotesAPI.saveNote(copyPath, { ...note, title: `${note.title} (unsaved changes)` });
 }
+
+/**
+ * Notes whose last save was refused with a conflict and not yet resolved by the
+ * user. While a path is here the baseline is left alone, so only a deliberate
+ * second manual Save (which re-syncs it) can overwrite the other version.
+ */
+const conflictPaths = new Set<string>();
+export const markNoteConflict = (path: string): void => { conflictPaths.add(path); };
+export const hasNoteConflict = (path: string): boolean => conflictPaths.has(path);
+export const clearNoteConflict = (path: string): void => { conflictPaths.delete(path); };
