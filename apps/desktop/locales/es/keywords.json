@@ -20,7 +20,6 @@
   "keywords.legend.addSuggestion": "Añadir {label}",
   "keywords.legend.announce": "{label}, versículo {verse}, {index} de {total}",
   "keywords.legend.needsInterlinear": "Las marcas de Strong necesitan una traducción interlineal.",
-  "keywords.settings.colorSafe": "Marcas seguras para el color (subrayado y símbolo adicionales)",
   "keywords.menu.markWord": "Marcar todas las \"{word}\"",
   "keywords.menu.markLemma": "Marcar lema {strongs}",
   "keywords.strongs.markInChapter": "Marcar en este capítulo",

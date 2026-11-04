@@ -127,7 +127,6 @@ describe('useKeywordMarkStore', () => {
     const { useStore } = setup();
     useStore.getState().setTabEnabled('tab-1', true);
     useStore.getState().toggleMark('tab-1', 'x');
-    useStore.getState().setColorSafe(false);
     useStore.getState().setTabEnabled('tab-2', false); // untouched: not saved
     const saved = useStore.getState().getSessionData();
     expect(Object.keys(saved.tabs)).toEqual(['tab-1']);
@@ -135,13 +134,15 @@ describe('useKeywordMarkStore', () => {
     const other = setup().useStore;
     other.getState().loadFromSession(JSON.parse(JSON.stringify(saved)));
     expect(other.getState().getTabState('tab-1')).toEqual({ enabled: true, activeSetIds: null, hiddenMarkIds: ['x'] });
-    expect(other.getState().colorSafe).toBe(false);
+    expect('colorSafe' in saved).toBe(false);
     other.getState().loadFromSession('garbage'); // ignored
     expect(other.getState().getTabState('tab-1').enabled).toBe(true);
   });
 
-  it('defaults colorSafe to true', () => {
-    expect(setup().useStore.getState().colorSafe).toBe(true);
+  it('has no colour-safe setting (B-075): marks always carry underline and symbol cues', () => {
+    const state = setup().useStore.getState() as unknown as Record<string, unknown>;
+    expect('colorSafe' in state).toBe(false);
+    expect(state.setColorSafe).toBeUndefined();
   });
 
   describe('set management', () => {

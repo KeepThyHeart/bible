@@ -64,9 +64,9 @@ describe('keyword-marks manifest', () => {
     expect(keywordMarksManifest.platforms).toEqual(['desktop']);
     expect(keywordMarksManifest.activationEvents).toEqual(['onView:bible']);
     const c = keywordMarksManifest.contributes;
-    expect(c.settings?.[0].defs.map((d) => d.key)).toEqual(['keywordColorSafe']);
-    expect(c.settings?.[0].defs[0]).toMatchObject({ type: 'boolean', default: true, scope: 'device', group: 'advanced' });
-    expect(c.preferencesSections?.map((s) => ({ id: s.id, parent: s.parent }))).toEqual([{ id: 'keyword-marks', parent: 'advanced' }]);
+    // B-075: the colour-safe setting is gone; marks always carry their underline and symbol cues.
+    expect(c.settings).toBeUndefined();
+    expect(c.preferencesSections).toBeUndefined();
     expect(c.i18nNamespace).toBe('keywords');
   });
 });
@@ -77,9 +77,8 @@ describe('keyword-marks module in the desktop host', () => {
     const { registry, live } = fakeCommandRegistry();
     bindModuleCommands(registry);
     expect(live.has('bible.toggleKeywordMarks')).toBe(true);
-    expect(modulePoints.settings.list().some((g) => g.defs.some((d) => d.key === 'keywordColorSafe'))).toBe(true);
-    expect(modulePoints.preferencesSections.list().find((s) => s.id === 'keyword-marks')).toMatchObject({ parent: 'advanced' });
-    expect(modulePoints.views.resolve('preferences:keyword-marks')).toBeTypeOf('function');
+    expect(modulePoints.settings.list().some((g) => g.defs.some((d) => d.key === 'keywordColorSafe'))).toBe(false);
+    expect(modulePoints.preferencesSections.list().some((s) => s.id === 'keyword-marks')).toBe(false);
     expect(modulePoints.i18nNamespace.list().some((n) => n.id === 'keywords')).toBe(true);
     expect(loadSpy).not.toHaveBeenCalled();
     expect(featureModules.isActive('keyword-marks')).toBe(false);
@@ -109,7 +108,6 @@ describe('keyword-marks module in the desktop host', () => {
     expect(live.has('bible.toggleKeywordMarks')).toBe(false);
     expect(modulePoints.settings.list().some((g) => g.defs.some((d) => d.key === 'keywordColorSafe'))).toBe(false);
     expect(modulePoints.preferencesSections.list().some((s) => s.id === 'keyword-marks')).toBe(false);
-    expect(modulePoints.views.resolve('preferences:keyword-marks')).toBeUndefined();
     expect(modulePoints.i18nNamespace.list().some((n) => n.id === 'keywords')).toBe(false);
     for (const slot of [slots.readerPaintControllers, slots.readerToolbarItems, slots.wordMenuItems, slots.strongsTooltipActions]) {
       expect(mine(slot.list())).toEqual([]);
@@ -161,7 +159,8 @@ describe('a saved session naming the module', () => {
     const { stashRestoredSessionUi } = await import('../../stores/helpers/sessionRegistry');
     stashRestoredSessionUi({ keywordMarks: saved });
     const { useKeywordMarkStore } = await import('./useKeywordMarkStore');
-    expect(useKeywordMarkStore.getState().colorSafe).toBe(false);
+    // An old saved colorSafe value is ignored harmlessly.
+    expect('colorSafe' in useKeywordMarkStore.getState()).toBe(false);
     expect(useKeywordMarkStore.getState().tabs.t1?.enabled).toBe(true);
   }, 60_000);
 });

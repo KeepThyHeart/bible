@@ -20,7 +20,6 @@
   "keywords.legend.addSuggestion": "افزودن {label}",
   "keywords.legend.announce": "{label}، آیه {verse}، {index} از {total}",
   "keywords.legend.needsInterlinear": "نشانه‌های استرانگ به یک ترجمه بین‌خطی نیاز دارند.",
-  "keywords.settings.colorSafe": "نشانه‌های ایمن برای رنگ (با خط زیرین و نماد اضافی)",
   "keywords.menu.markWord": "نشانه‌گذاری همه «{word}»",
   "keywords.menu.markLemma": "نشانه‌گذاری لم {strongs}",
   "keywords.strongs.markInChapter": "نشانه‌گذاری در این باب",

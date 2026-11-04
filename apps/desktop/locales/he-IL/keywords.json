@@ -20,7 +20,6 @@
   "keywords.legend.addSuggestion": "הוסף {label}",
   "keywords.legend.announce": "{label}, פסוק {verse}, {index} מתוך {total}",
   "keywords.legend.needsInterlinear": "סימוני סטרונג דורשים תרגום בין-שורתי.",
-  "keywords.settings.colorSafe": "סימונים בטוחים לצבעים (קו תחתון וסימנים נוספים)",
   "keywords.menu.markWord": "סמן את כל \"{word}\"",
   "keywords.menu.markLemma": "סמן את הלמה {strongs}",
   "keywords.strongs.markInChapter": "סמן בפרק זה",

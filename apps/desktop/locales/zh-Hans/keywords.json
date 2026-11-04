@@ -20,7 +20,6 @@
   "keywords.legend.addSuggestion": "添加{label}",
   "keywords.legend.announce": "{label}，第 {verse} 节，第 {index} 处，共 {total} 处",
   "keywords.legend.needsInterlinear": "斯特朗编号标记需要逐字对照译本。",
-  "keywords.settings.colorSafe": "色觉友好标记（附加下划线和符号提示）",
   "keywords.menu.markWord": "标记所有“{word}”",
   "keywords.menu.markLemma": "标记词根 {strongs}",
   "keywords.strongs.markInChapter": "在本章中标记",

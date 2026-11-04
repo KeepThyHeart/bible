@@ -20,7 +20,6 @@
   "keywords.legend.addSuggestion": "⟦Åðð {label} ··⟧",
   "keywords.legend.announce": "⟦{label}, ṽéŕšé {verse}, {index} øƒ {total} ····⟧",
   "keywords.legend.needsInterlinear": "⟦Šţŕøñĝ'š ɱåŕķš ñééð åñ îñţéŕļîñéåŕ ţŕåñšļåţîøñ. ··············⟧",
-  "keywords.settings.colorSafe": "⟦Çøļøüŕ-šåƒé ɱåŕķš (éẋţŕå üñðéŕļîñé åñð šýɱƀøļ çüéš) ···············⟧",
   "keywords.menu.markWord": "⟦Ṁåŕķ åļļ \"{word}\" ···⟧",
   "keywords.menu.markLemma": "⟦Ṁåŕķ ļéɱɱå {strongs} ···⟧",
   "keywords.strongs.markInChapter": "⟦Ṁåŕķ îñ ţĥîš çĥåþţéŕ ······⟧",

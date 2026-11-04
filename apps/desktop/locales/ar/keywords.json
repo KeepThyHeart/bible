@@ -20,7 +20,6 @@
   "keywords.legend.addSuggestion": "إضافة {label}",
   "keywords.legend.announce": "{label}، الآية {verse}، {index} من {total}",
   "keywords.legend.needsInterlinear": "علامات أرقام Strong's تتطلب ترجمة بينية.",
-  "keywords.settings.colorSafe": "علامات آمنة للألوان (تسطير ورموز إضافية)",
   "keywords.menu.markWord": "وضع علامة على كل \"{word}\"",
   "keywords.menu.markLemma": "وضع علامة على الجذر {strongs}",
   "keywords.strongs.markInChapter": "وضع علامة في هذا الأصحاح",

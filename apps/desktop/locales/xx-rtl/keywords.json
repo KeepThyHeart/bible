@@ -20,7 +20,6 @@
   "keywords.legend.addSuggestion": "‏Add {label}‏",
   "keywords.legend.announce": "‏{label}, verse {verse}, {index} of {total}‏",
   "keywords.legend.needsInterlinear": "‏Strong's marks need an interlinear translation.‏",
-  "keywords.settings.colorSafe": "‏Colour-safe marks (extra underline and symbol cues)‏",
   "keywords.menu.markWord": "‏Mark all \"{word}\"‏",
   "keywords.menu.markLemma": "‏Mark lemma {strongs}‏",
   "keywords.strongs.markInChapter": "‏Mark in this chapter‏",

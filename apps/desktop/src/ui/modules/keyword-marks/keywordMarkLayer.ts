@@ -93,10 +93,10 @@ export interface ChapterMarks {
 export function computeChapterMarks(
   input: ChapterInput,
   sets: KeywordSet[],
-  opts: { colorSafe: boolean; hiddenMarkIds: readonly string[] },
+  opts: { hiddenMarkIds: readonly string[] },
 ): ChapterMarks {
   const result = matchKeywordMarks(input, sets);
-  const layer = toDecorationLayer(result, sets, { colorSafe: opts.colorSafe, hiddenMarkIds: new Set(opts.hiddenMarkIds) });
+  const layer = toDecorationLayer(result, sets, { hiddenMarkIds: new Set(opts.hiddenMarkIds) });
   const verseLayers = new Map<number, LayerDecorations[]>();
   for (const [verseId, vl] of splitLayerByVerse(layer)) verseLayers.set(verseId, [vl]);
   return { input, result, sets, verseLayers };
