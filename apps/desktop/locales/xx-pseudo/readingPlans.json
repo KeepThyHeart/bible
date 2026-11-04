@@ -183,5 +183,6 @@
   "readingPlans.reader.next": "⟦Ñéẋţ ŕéåðîñĝ → ····⟧",
   "readingPlans.reader.nextNamed": "⟦Ñéẋţ ŕéåðîñĝ: {reading} ····⟧",
   "readingPlans.reader.lastReading": "⟦Ţĥåţ ŵåš ţĥé ļåšţ ŕéåðîñĝ øƒ ţĥé þļåñ. ···········⟧",
-  "readingPlans.reader.failed": "⟦Çøüļð ñøţ šåṽé. Ţŕý åĝåîñ. ·······⟧"
+  "readingPlans.reader.failed": "⟦Çøüļð ñøţ šåṽé. Ţŕý åĝåîñ. ·······⟧",
+  "readingPlans.today.pastEnd": "⟦Ţĥîš þļåñ’š šçĥéðüļéð þéŕîøð ĥåš éñðéð. Éṽéŕýţĥîñĝ üñŕéåð çøüñţš åš øṽéŕðüé; šŵîţçĥ ţø ƒļéẋîƀļé þåçîñĝ ţø ŕéåð åţ ýøüŕ øŵñ šþééð. ······································⟧"
 }

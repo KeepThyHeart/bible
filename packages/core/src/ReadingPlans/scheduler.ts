@@ -106,6 +106,8 @@ export interface TodayView {
   completed: boolean;
   /** Fixed pacing: today is before the start date. */
   notStarted: boolean;
+  /** Fixed pacing: the scheduled period has ended with days still unread. */
+  pastEnd?: boolean;
 }
 
 function readingsOf(plan: PlanDefinition, progress: ProgressIndex, day: number | null): TodayReading[] {
@@ -161,6 +163,7 @@ export function todayView(plan: PlanDefinition, e: Enrollment, completions: read
     aheadBy,
     completed: false,
     notStarted: false,
+    ...(pastEnd ? { pastEnd: true } : {}),
   };
 }
 

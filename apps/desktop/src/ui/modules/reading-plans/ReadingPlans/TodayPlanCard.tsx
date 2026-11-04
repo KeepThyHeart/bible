@@ -48,7 +48,8 @@ const TodayPlanCard: React.FC<Props> = ({
     () => (plan && view.pacing === 'fixed' ? ReadingPlans.overdueReadings(plan, progress, view.missedDays.filter((d) => d !== day)) : []),
     [plan, progress, view.pacing, view.missedDays, day],
   );
-  const catchUp = ReadingPlans.catchUpSuggestion(view.behindBy);
+  // Past the scheduled end a "read N extra per day" plan makes no sense; say so and offer flexible pacing instead (B-068).
+  const catchUp = view.pastEnd ? null : ReadingPlans.catchUpSuggestion(view.behindBy);
   const restOnly = day === null && view.restDay && !view.completed && !view.notStarted;
   const pct = Math.max(0, Math.min(100, percent ?? 0));
 
@@ -141,6 +142,7 @@ const TodayPlanCard: React.FC<Props> = ({
 
       {view.behindBy > 0 && !view.completed ? (
         <div className="flex flex-col gap-xs">
+          {view.pastEnd ? <p className="m-0 text-xs" style={secondary} data-testid="past-end-note">{t('readingPlans.today.pastEnd')}</p> : null}
           {catchUp ? <p className="m-0 text-xs" style={secondary}>{labels.todayCard.catchUp(catchUp.extraPerDay, catchUp.days)}</p> : null}
           {confirmingFlexible ? (
             <div role="group" aria-label={labels.todayCard.switchToFlexible} className="flex flex-col gap-xs">

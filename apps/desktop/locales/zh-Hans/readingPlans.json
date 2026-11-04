@@ -183,5 +183,6 @@
   "readingPlans.reader.next": "Next reading →",
   "readingPlans.reader.nextNamed": "Next reading: {reading}",
   "readingPlans.reader.lastReading": "That was the last reading of the plan.",
-  "readingPlans.reader.failed": "Could not save. Try again."
+  "readingPlans.reader.failed": "Could not save. Try again.",
+  "readingPlans.today.pastEnd": "此计划的预定期限已结束。所有未读内容都算逾期；请切换到灵活进度，按自己的节奏阅读。"
 }

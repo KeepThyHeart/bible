@@ -183,5 +183,6 @@
   "readingPlans.reader.next": "Next reading →",
   "readingPlans.reader.nextNamed": "Next reading: {reading}",
   "readingPlans.reader.lastReading": "That was the last reading of the plan.",
-  "readingPlans.reader.failed": "Could not save. Try again."
+  "readingPlans.reader.failed": "Could not save. Try again.",
+  "readingPlans.today.pastEnd": "התקופה המתוכננת של התוכנית הסתיימה. כל מה שלא נקרא נחשב מאחר; עברו לקצב גמיש כדי לקרוא בקצב שלכם."
 }
