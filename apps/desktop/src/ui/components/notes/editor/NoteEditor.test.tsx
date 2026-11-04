@@ -145,6 +145,21 @@ describe('NoteEditor - Tab key handling', () => {
     expect(onChange).not.toHaveBeenCalled();
   });
 
+  it('Escape then Shift+Tab also leaves: pressing Shift itself must not disarm the hatch (B-046)', async () => {
+    const { onChange } = renderEditor({ value: '<p>Hello world</p>' });
+    await waitFor(() => getEditableDiv());
+    const editable = getEditableDiv();
+    editable.focus();
+
+    fireEvent.keyDown(editable, { key: 'Escape', code: 'Escape' });
+    // A real Shift+Tab sends a keydown for Shift first.
+    fireEvent.keyDown(editable, { key: 'Shift', code: 'ShiftLeft', shiftKey: true });
+    onChange.mockClear();
+    const notCanceled = fireEvent.keyDown(editable, { key: 'Tab', code: 'Tab', shiftKey: true });
+
+    expect(notCanceled).toBe(true);
+  });
+
   it('traps Tab again on the next press after the escape hatch is consumed', async () => {
     const { onChange } = renderEditor({ value: '<p>Hello world</p>' });
     await waitFor(() => getEditableDiv());

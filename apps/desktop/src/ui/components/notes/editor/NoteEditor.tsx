@@ -508,6 +508,11 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
         tabEscapeArmedRef.current = true;
         return;
       }
+      if (e.key === 'Shift' || e.key === 'Control' || e.key === 'Alt' || e.key === 'Meta') {
+        // Pressing a modifier is the first half of Shift+Tab; it must not
+        // disarm the hatch (B-046: Escape then Shift+Tab stayed trapped).
+        return;
+      }
       if (e.key !== 'Tab') {
         // Any other key cancels a pending escape-hatch.
         tabEscapeArmedRef.current = false;
