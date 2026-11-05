@@ -37,7 +37,7 @@ export function Transport() {
         onClick={presenterToggleBlank}
         disabled={unknown}
         title={unknown ? t('present.reconnecting') : blanked ? t('present.unblankScreen') : t('present.blankScreen')}
-        aria-label={blanked ? t('present.unblankScreen') : t('present.blankScreen')}
+        aria-label={t('present.blankScreen')}
         aria-pressed={blanked}
       >
         <i class={`fa-solid ${blanked ? 'fa-eye-slash' : 'fa-eye'}`} aria-hidden="true" />

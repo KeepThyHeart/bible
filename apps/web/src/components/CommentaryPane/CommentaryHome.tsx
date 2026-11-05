@@ -432,7 +432,7 @@ export function CommentaryHome({ bibleProvider }: CommentaryHomeProps) {
               role="button"
               tabIndex={0}
               aria-pressed={isPromoted}
-              aria-label={`${isPromoted ? 'Unstar (remove from top)' : 'Star (pin to top)'}: ${mod.moduleAbbr}`}
+              aria-label={`Star ${isDigestModule(mod.moduleAbbr) ? getDigestDisplayName() : mod.moduleAbbr}`}
               title={isPromoted ? 'Unstar (remove from top)' : 'Star (pin to top)'}
               onClick={(e: MouseEvent) => { e.stopPropagation(); commentaryStore.togglePromoted(mod.moduleAbbr); }}
               onKeyDown={(e: KeyboardEvent) => {
@@ -457,9 +457,11 @@ export function CommentaryHome({ bibleProvider }: CommentaryHomeProps) {
                 <button
                   class="commentary-home__action-btn commentary-home__action-btn--mute"
                   onClick={(e) => { e.stopPropagation(); commentaryStore.toggleMuted(mod.moduleAbbr); }}
+                  aria-pressed={isMuted}
+                  aria-label={`Mute ${isDigestModule(mod.moduleAbbr) ? getDigestDisplayName() : mod.moduleAbbr}`}
                   title={isMuted ? 'Unmute' : 'Mute (hide)'}
                 >
-                  <i class={`fa-solid ${isMuted ? 'fa-eye' : 'fa-eye-slash'} fa-xs`} /> {isMuted ? 'Unmute' : 'Mute'}
+                  <i class={`fa-solid ${isMuted ? 'fa-eye' : 'fa-eye-slash'} fa-xs`} /> Mute
                 </button>
               </div>
               {(() => {

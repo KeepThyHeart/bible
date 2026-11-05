@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AppBadge } from './AppBadge';
 import { AppRail } from './AppRail';
@@ -133,6 +133,25 @@ describe('AppSheet', () => {
     render(<AppSheet open onClose={onClose} items={items} activeId={null} onSelect={() => {}} title="Apps" labels={{ close: 'Fermer' }} />);
     await userEvent.click(screen.getByRole('button', { name: 'Fermer' }));
     expect(onClose).toHaveBeenCalled();
+  });
+});
+
+describe('AppSheet inert page', () => {
+  const App = ({ open }: { open: boolean }) => (
+    <>
+      <main data-testid="page"><button>behind</button></main>
+      <AppSheet open={open} onClose={() => {}} items={items} activeId={null} onSelect={() => {}} title="Apps" />
+    </>
+  );
+  it('makes the page behind inert while open and restores it on close', async () => {
+    const { rerender } = render(<App open={false} />);
+    const page = screen.getByTestId('page');
+    expect(page.closest('[inert]')).toBeNull();
+    rerender(<App open />);
+    await waitFor(() => expect(page.closest('[inert]')).not.toBeNull());
+    expect(screen.getByRole('dialog', { name: 'Apps' }).closest('[inert]')).toBeNull();
+    rerender(<App open={false} />);
+    await waitFor(() => expect(page.closest('[inert]')).toBeNull());
   });
 });
 

@@ -184,7 +184,8 @@
     "timeline": "خط زمان",
     "quiz": "آزمون",
     "similar": "مشابه",
-    "wordStudy": "مطالعه واژه"
+    "wordStudy": "مطالعه واژه",
+    "modes": "نماهای پنل کناری"
   },
   "mobileNav": {
     "home": "خانه",
@@ -459,7 +460,8 @@
     "copied": "کپی شد!",
     "copyToClipboard": "کپی در کلیپ‌بورد",
     "loading": "در حال بارگذاری آیات...",
-    "copyFailed": "کپی در کلیپ‌بورد ممکن نشد. بررسی کنید که این سایت اجازهٔ استفاده از آن را دارد."
+    "copyFailed": "کپی در کلیپ‌بورد ممکن نشد. بررسی کنید که این سایت اجازهٔ استفاده از آن را دارد.",
+    "referencePosition": "جای ارجاع"
   },
   "ui": {
     "passageInsert": {
@@ -831,7 +833,9 @@
     "verseHistory": "تاریخچهٔ آیات",
     "prevVerse": "آیهٔ قبلی",
     "nextVerse": "آیهٔ بعدی",
-    "goToVerseInBible": "رفتن به آیه در کتاب مقدس"
+    "goToVerseInBible": "رفتن به آیه در کتاب مقدس",
+    "showFull": "نمایش کامل آیه",
+    "showLess": "نمایش کمتر"
   },
   "verseHistory": {
     "justNow": "همین الان",

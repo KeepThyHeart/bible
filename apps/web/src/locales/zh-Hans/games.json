@@ -86,7 +86,9 @@
       "yourName": "您的名字",
       "joining": "正在加入…",
       "joinRoom": "加入房间",
-      "solo": "单人游戏"
+      "solo": "单人游戏",
+      "codeInvalid": "房间代码由 {length} 个字母和数字组成，例如 5HK27。请查看大屏幕。",
+      "nameNeeded": "输入你的名字以加入。"
     },
     "solo": {
       "onYourOwn": "仅限您自己——其他人看不到这个房间。",
@@ -138,7 +140,11 @@
       "leaveRejoin": "只要房间仍然开放，您就可以用同一代码重新加入。",
       "stay": "留下",
       "theme": "主题",
-      "leave": "离开"
+      "leave": "离开",
+      "themeCycle": "主题：{name}。切换到下一个主题",
+      "themeCycleCustom": "切换到下一个主题",
+      "playersCount": "玩家：{total}",
+      "lobbyHeading": "房间大厅"
     },
     "brand": {
       "title": "圣经团体游戏",

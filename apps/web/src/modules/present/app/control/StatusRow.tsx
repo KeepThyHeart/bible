@@ -1,4 +1,4 @@
-import { useState } from 'preact/hooks';
+import { useEffect, useRef, useState } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { presentStore } from '../../stores/presentStore';
 import { goLive } from '../presenterSink';
@@ -17,6 +17,21 @@ export function StatusRow(props: { menuOpen: boolean; onToggleMenu: () => void }
   const [confirmEnd, setConfirmEnd] = useState(false);
   const session = useStore(presentStore, () => presentStore.session);
   const live = view.presenting;
+
+  // Go live / End / End it replace each other, so the focused button disappears.
+  // Remember where focus should go next and move it once that control has rendered.
+  const goLiveRef = useRef<HTMLButtonElement>(null);
+  const endRef = useRef<HTMLButtonElement>(null);
+  const cancelRef = useRef<HTMLButtonElement>(null);
+  const wanted = useRef<{ target: 'goLive' | 'end' | 'cancel'; until: number } | null>(null);
+  const want = (target: 'goLive' | 'end' | 'cancel'): void => { wanted.current = { target, until: Date.now() + 8000 }; };
+  useEffect(() => {
+    const w = wanted.current;
+    if (!w) return;
+    if (Date.now() > w.until) { wanted.current = null; return; }
+    const el = w.target === 'goLive' ? goLiveRef.current : w.target === 'end' ? endRef.current : cancelRef.current;
+    if (el) { wanted.current = null; el.focus(); }
+  });
   // The stream can take a while to notice a dropped network; the browser knows at once.
   const online = useStore(offlineStore, () => offlineStore.isOnline);
   const connected = view.connection === 'live' && online;
@@ -33,6 +48,7 @@ export function StatusRow(props: { menuOpen: boolean; onToggleMenu: () => void }
           title={connected ? t('present.viewersTooltip') : t('present.reconnecting')}
         >
           <i class="fa-solid fa-tv" aria-hidden="true" />
+          <span class="sr-only">{t('present.viewersLabel', { defaultValue: 'Viewers' })}: </span>
           {view.wall ? view.viewers : '…'}
         </span>
       )}
@@ -49,24 +65,25 @@ export function StatusRow(props: { menuOpen: boolean; onToggleMenu: () => void }
         <button
           type="button"
           class="pz-btn pz-btn--primary"
+          ref={goLiveRef}
           disabled={view.busy}
-          onClick={() => void goLive()}
+          onClick={() => { want('end'); void goLive(); }}
         >
           {t('present.control.goLive')}
         </button>
       )}
       {live && !confirmEnd && (
-        <button type="button" class="pz-btn" title={t('present.liveNote')} onClick={() => setConfirmEnd(true)}>
+        <button type="button" class="pz-btn" ref={endRef} title={t('present.liveNote')} onClick={() => { want('cancel'); setConfirmEnd(true); }}>
           {t('present.control.endLive')}
         </button>
       )}
       {live && confirmEnd && (
         <span class="pz-status__confirm">
           <span title={t('present.liveNote')}>{t('present.endConfirm')}</span>
-          <button type="button" class="pz-btn pz-btn--danger" onClick={() => { setConfirmEnd(false); void presentStore.end(); }}>
+          <button type="button" class="pz-btn pz-btn--danger" onClick={() => { want('goLive'); setConfirmEnd(false); void presentStore.end(); }}>
             {t('present.endYes')}
           </button>
-          <button type="button" class="pz-btn" onClick={() => setConfirmEnd(false)}>
+          <button type="button" class="pz-btn" ref={cancelRef} onClick={() => { want('end'); setConfirmEnd(false); }}>
             {t('common.cancel')}
           </button>
         </span>

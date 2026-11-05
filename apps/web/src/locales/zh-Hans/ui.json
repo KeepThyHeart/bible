@@ -184,7 +184,8 @@
     "timeline": "时间线",
     "quiz": "测验",
     "similar": "相似经文",
-    "wordStudy": "词语"
+    "wordStudy": "词语",
+    "modes": "侧边栏视图"
   },
   "mobileNav": {
     "home": "首页",
@@ -459,7 +460,8 @@
     "copied": "已复制！",
     "copyToClipboard": "复制到剪贴板",
     "loading": "正在加载经节…",
-    "copyFailed": "无法复制到剪贴板。请检查是否允许此网站使用剪贴板。"
+    "copyFailed": "无法复制到剪贴板。请检查是否允许此网站使用剪贴板。",
+    "referencePosition": "出处位置"
   },
   "ui": {
     "passageInsert": {
@@ -831,7 +833,9 @@
     "verseHistory": "经节历史记录",
     "prevVerse": "上一节",
     "nextVerse": "下一节",
-    "goToVerseInBible": "在圣经中跳转到此节"
+    "goToVerseInBible": "在圣经中跳转到此节",
+    "showFull": "显示完整经文",
+    "showLess": "收起"
   },
   "verseHistory": {
     "justNow": "刚刚",

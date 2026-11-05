@@ -110,8 +110,11 @@ export interface NewServiceInput {
 
 const LAST_OPEN = 'lastOpenId';
 
-function todayISO(now: number): string {
-  return new Date(now).toISOString().slice(0, 10);
+/** Today as YYYY-MM-DD on the user's own clock (the UTC date is already tomorrow on a Sunday evening in the Americas). */
+export function todayISO(now: number): string {
+  const d = new Date(now);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
 function defaultId(): string {

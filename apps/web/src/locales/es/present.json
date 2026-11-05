@@ -208,7 +208,10 @@
       "create": "Crear",
       "save": "Guardar",
       "cancel": "Cancelar",
-      "notSaved": "El almacenamiento no está disponible: los servicios se perderán al cerrar esta página."
+      "notSaved": "El almacenamiento no está disponible: los servicios se perderán al cerrar esta página.",
+      "renameFor": "Cambiar el nombre de {name}",
+      "duplicateFor": "Duplicar {name}",
+      "deleteFor": "Eliminar {name}"
     },
     "notes": {
       "reason": {
@@ -254,8 +257,11 @@
         "empty": "Aún no hay nada planificado. Los versículos, himnos y citas de sus notas aparecen aquí.",
         "highlights": "{count, plural, one {# resaltado} other {# resaltados}}",
         "removed": "Se quitó {label}",
-        "undo": "Deshacer"
-      }
+        "undo": "Deshacer",
+        "moreFor": "Más acciones para {label}",
+        "reorderFor": "Arrastra para reordenar {label}"
+      },
+      "playMarkerFor": "Volver a mostrar {label}"
     },
     "solo": {
       "launcherTooltip": "Abre el cuadro de comandos para ir a un versículo (pulse / en el teclado)",
@@ -281,6 +287,10 @@
       "planLabel": "Plan",
       "removed": "Se quitó {label}",
       "undo": "Deshacer"
-    }
+    },
+    "hymnAddToNotesFor": "Añadir {title} a las notas",
+    "hymnAddToPlanFor": "Añadir {title} al orden del servicio",
+    "viewersLabel": "Espectadores",
+    "previewFrameTitle": "Vista previa de la pantalla"
   }
 }

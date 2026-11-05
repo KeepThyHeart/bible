@@ -453,11 +453,23 @@ describe('CommentaryHome', () => {
 
   it('the star is a named, pressable button that does not expand the row', () => {
     render(<CommentaryHome />);
-    const star = screen.getByRole('button', { name: 'Star (pin to top): MHC' });
+    const star = screen.getByRole('button', { name: 'Star MHC' });
     expect(star.getAttribute('aria-pressed')).toBe('false');
     mocks.fetchModuleEntries.mockClear();
     fireEvent.keyDown(star, { key: 'Enter' });
     expect(mocks.togglePromoted).toHaveBeenCalledWith('MHC');
     expect(mocks.fetchModuleEntries).not.toHaveBeenCalled();
+  });
+
+  it('star and mute are named per commentary; state is aria-pressed, not a rename', () => {
+    state.promotedModules = new Set(['MHC']);
+    render(<CommentaryHome />);
+    const star = screen.getByRole('button', { name: 'Star MHC' });
+    expect(star.getAttribute('aria-pressed')).toBe('true');
+    expect(screen.queryByRole('button', { name: /^Unstar/ })).toBeNull();
+    fireEvent.keyDown(screen.getByRole('button', { name: 'MHC', expanded: false }), { key: 'Enter' });
+    const mute = screen.getByRole('button', { name: 'Mute MHC' });
+    expect(mute.getAttribute('aria-pressed')).toBe('false');
+    expect(screen.queryByRole('button', { name: /^Unmute/ })).toBeNull();
   });
 });

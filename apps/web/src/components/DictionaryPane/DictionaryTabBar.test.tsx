@@ -1,4 +1,5 @@
 import type { ComponentChildren } from 'preact';
+import { focusAfterTabClose } from '../common/SortableTab';
 /**
  * Component tests for DictionaryTabBar.
  *
@@ -44,7 +45,8 @@ vi.mock('@dnd-kit/sortable', () => ({
 
 // ---- SortableTab: render a plain div with the forwarded props -----------
 vi.mock('../common/SortableTab', () => ({
-  tabKeyDown: (activate: () => void) => (e: KeyboardEvent) => { if (e.key === 'Enter' || e.key === ' ') activate(); },
+  tabKeyDown: (activate: () => void, close?: (list: Element | null) => void) => (e: KeyboardEvent) => { if (e.key === 'Enter' || e.key === ' ') activate(); else if (e.key === 'Delete' && close) close(null); },
+  focusAfterTabClose: vi.fn(),
   tablistKeyDown: () => {},
   SortableTab: ({
     children,
@@ -418,7 +420,7 @@ describe('DictionaryTabBar', () => {
     ];
     mockActiveTabId = 'dtab-1';
     const { container } = render(<DictionaryTabBar />);
-    expect(container.querySelector('.dictionary-tab-bar')!.getAttribute('role')).toBe('tablist');
+    expect(container.querySelector('.dictionary-tab-bar [role="tablist"]')).toBeTruthy();
     const greek = screen.getByRole('tab', { name: "Strong's Greek" });
     expect(greek.getAttribute('aria-selected')).toBe('true');
     expect(screen.getByRole('tab', { name: 'Webster' }).getAttribute('aria-selected')).toBe('false');
@@ -434,5 +436,35 @@ describe('DictionaryTabBar', () => {
     expect(home.getAttribute('aria-selected')).toBe('true');
     fireEvent.keyDown(home, { key: ' ' });
     expect(mockSetActiveTab).toHaveBeenCalledWith('dtab-home');
+  });
+
+  it('closes the focused tab with Delete; Home does not close', () => {
+    mockTabs = [
+      { id: 'dtab-home', moduleAbbr: '__home__', moduleName: 'Home' },
+      makeTab({ id: 'dtab-1' }),
+    ];
+    render(<DictionaryTabBar />);
+    const tab = screen.getAllByRole('tab').find(t => t.className.includes('__label') && !t.textContent?.includes('dictionaryTabBar.home'))!;
+    fireEvent.keyDown(tab, { key: 'Delete' });
+    expect(mockRemoveTab).toHaveBeenCalledWith('dtab-1');
+    mockRemoveTab.mockClear();
+    fireEvent.keyDown(screen.getByRole('tab', { name: /dictionaryTabBar.home/ }), { key: 'Delete' });
+    expect(mockRemoveTab).not.toHaveBeenCalled();
+  });
+
+  it('restores focus (focusAfterTabClose) after the close button removes a tab', () => {
+    mockTabs = [makeTab({ id: 'dtab-1' })];
+    const { container } = render(<DictionaryTabBar />);
+    (focusAfterTabClose as any).mockClear();
+    fireEvent.click(container.querySelector('.dictionary-tab-bar__close')!);
+    expect(focusAfterTabClose).toHaveBeenCalled();
+  });
+
+  it('renders the dictionary chooser outside the tablist', () => {
+    const { container } = render(<DictionaryTabBar />);
+    fireEvent.click(container.querySelector('.dictionary-tab-bar__add')!);
+    const overlay = container.querySelector('.module-dialog-overlay')!;
+    expect(overlay).toBeTruthy();
+    expect(overlay.closest('[role="tablist"]')).toBeNull();
   });
 });

@@ -208,7 +208,10 @@
       "create": "יצירה",
       "save": "שמירה",
       "cancel": "ביטול",
-      "notSaved": "האחסון אינו זמין: השירותים יאבדו עם סגירת דף זה."
+      "notSaved": "האחסון אינו זמין: השירותים יאבדו עם סגירת דף זה.",
+      "renameFor": "שינוי שם של {name}",
+      "duplicateFor": "שכפול {name}",
+      "deleteFor": "מחיקת {name}"
     },
     "notes": {
       "reason": {
@@ -254,8 +257,11 @@
         "empty": "עדיין לא תוכנן דבר. פסוקים, המנונים וציטוטים בהערות שלך יופיעו כאן.",
         "highlights": "{count, plural, one {הדגשה #} two {# הדגשות} other {# הדגשות}}",
         "removed": "הוסר {label}",
-        "undo": "ביטול פעולה"
-      }
+        "undo": "ביטול פעולה",
+        "moreFor": "פעולות נוספות עבור {label}",
+        "reorderFor": "גררו כדי לשנות את מיקום {label}"
+      },
+      "playMarkerFor": "הצגת {label} שוב"
     },
     "solo": {
       "launcherTooltip": "מציג את שורת הפקודות למעבר לפסוק (יש ללחוץ על / במקלדת)",
@@ -281,6 +287,10 @@
       "planLabel": "תכנית",
       "removed": "הוסר {label}",
       "undo": "ביטול פעולה"
-    }
+    },
+    "hymnAddToNotesFor": "הוספת {title} להערות",
+    "hymnAddToPlanFor": "הוספת {title} לסדר הפריטים",
+    "viewersLabel": "צופים",
+    "previewFrameTitle": "תצוגה מקדימה של המסך"
   }
 }

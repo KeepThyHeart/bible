@@ -121,6 +121,13 @@ describe('the phone lobby header', () => {
     expect(host.querySelector('.lobby-count')?.textContent).toContain('3');
   });
 
+  it('labels the room code and the player count, and has an h1', () => {
+    draw(themeControl());
+    expect(host.querySelector('.chrome-code')?.getAttribute('aria-label')).toContain('Room code');
+    expect(host.querySelector('.lobby-count .sr-only')?.textContent).toBe('Players: 3');
+    expect(host.querySelector('h1')).not.toBeNull();
+  });
+
   it('offers no inline theme editor any more — theme, settings and leave are icon buttons', () => {
     draw(themeControl());
     expect(host.querySelector('.theme-editor')).toBeNull();

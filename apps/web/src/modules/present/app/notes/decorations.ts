@@ -129,8 +129,8 @@ export interface DecorationHost {
   /** A recognised item was clicked; `el` is the clicked element for popover placement. */
   onItemClick: (itemId: string, el: HTMLElement) => void;
   onHighlightClick: (highlightId: string, el: HTMLElement) => void;
-  /** i18n for the marker's tooltip. */
-  playTitle: () => string;
+  /** i18n for the marker's tooltip and name; `label` is the item's text, so each marker is told apart. */
+  playTitle: (label?: string) => string;
 }
 
 export interface DecoMeta {
@@ -151,13 +151,13 @@ export const notesDecoKey = new PluginKey<DecoState>('notesDecorations');
 
 const EMPTY: DecoState = { detection: null, playItemId: null, deco: DecorationSet.empty, spans: [], playPos: null };
 
-function playButton(host: DecorationHost, itemId: string): HTMLElement {
+function playButton(host: DecorationHost, itemId: string, label?: string): HTMLElement {
   const btn = document.createElement('button');
   btn.type = 'button';
   btn.className = 'pn-play';
   btn.setAttribute('contenteditable', 'false');
-  btn.title = host.playTitle();
-  btn.setAttribute('aria-label', host.playTitle());
+  btn.title = host.playTitle(label);
+  btn.setAttribute('aria-label', host.playTitle(label));
   btn.textContent = '▶';
   // Keep the caret where it is: pressing ▶ must not move the selection.
   btn.addEventListener('mousedown', (e) => e.preventDefault());
@@ -171,6 +171,7 @@ function playButton(host: DecorationHost, itemId: string): HTMLElement {
 function rebuild(doc: import('prosemirror-model').Node, detection: DetectResult | null, playItemId: string | null, host: DecorationHost): DecoState {
   if (!detection) return { ...EMPTY, playItemId };
   const descriptors = computeDecorations(detection, { docSize: doc.content.size, playItemId, translate: host.translate });
+  const labels = new Map(detection.items.map((i) => [i.id, i.label]));
   const decos: Decoration[] = [];
   const spans: DecoSpan[] = [];
   for (const d of descriptors) {
@@ -178,7 +179,7 @@ function rebuild(doc: import('prosemirror-model').Node, detection: DetectResult 
       decos.push(Decoration.inline(d.from, d.to, d.attrs, { span: d.span }));
       spans.push(d.span);
     } else {
-      decos.push(Decoration.widget(d.pos, () => playButton(host, d.itemId), { side: 1, key: `play-${d.itemId}`, ignoreSelection: true }));
+      decos.push(Decoration.widget(d.pos, () => playButton(host, d.itemId, labels.get(d.itemId)), { side: 1, key: `play-${d.itemId}`, ignoreSelection: true }));
     }
   }
   const play = playItemId ? spans.find((s) => s.kind === 'item' && s.id === playItemId) : undefined;
@@ -236,9 +237,12 @@ class PlayGutter {
     this.gutter = document.createElement('div');
     this.gutter.className = 'pn-gutter';
     this.gutter.setAttribute('contenteditable', 'false');
+    // The gutter marker repeats the item's own ▶ widget in the text: pointer-only, hidden from keyboard and AT.
+    this.gutter.setAttribute('aria-hidden', 'true');
     this.button = document.createElement('button');
     this.button.type = 'button';
     this.button.className = 'pn-gutter__play';
+    this.button.tabIndex = -1;
     this.button.textContent = '▶';
     this.button.addEventListener('mousedown', (e) => e.preventDefault());
     this.button.addEventListener('click', (e) => {

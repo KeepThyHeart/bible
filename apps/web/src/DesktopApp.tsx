@@ -8,6 +8,7 @@ import { TopicsPane } from './components/StudyPane/TopicsPane';
 import { DictionaryPane } from './components/DictionaryPane/DictionaryPane';
 import { Header } from './components/Header';
 import { ResizeHandle } from './components/common/ResizeHandle';
+import { tablistKeyDown } from './components/common/SortableTab';
 import { DialogLayer } from './components/common/DialogLayer';
 import { ContextMenuPopup } from './components/common/ContextMenuPopup';
 import { setModalFallback } from './hooks/useModalFocus';
@@ -209,24 +210,43 @@ export function DesktopApp({ providers }: DesktopAppProps) {
             <ResizeHandle onResize={handleResize} />
             <aside class="main-layout__right-pane" style={rightPaneStyle} aria-label={t('a11y.studyPane', 'Study panel')}>
               <div class="right-pane-tabs">
-                {paneModes.filter((m) => paneAvailable(m.id)).map((m) => (
-                  <button
-                    key={m.id}
-                    class={`right-pane-tabs__tab ${paneMode === m.id ? 'right-pane-tabs__tab--active' : ''}`}
-                    onClick={() => commentaryStore.setRightPaneMode(m.id)}
-                    data-testid={`right-pane-tab-${m.id}`}
-                  >
-                    {resolveLabel((k, f) => t(k, f), m.title)}
-                  </button>
-                ))}
-                {shared.searchIsOpen && (
-                  <button
-                    class={`right-pane-tabs__tab ${paneMode === 'search' ? 'right-pane-tabs__tab--active' : ''}`}
-                    onClick={() => commentaryStore.setRightPaneMode('search')}
-                  >
-                    {t('rightPane.search')}
-                  </button>
-                )}
+                {/* The mode switcher is a tablist; the collapse control sits outside it. */}
+                <div role="tablist" style={{ display: 'contents' }} aria-label={t('rightPane.modes', { defaultValue: 'Side pane views' })}>
+                  {(() => {
+                    const visibleModes = paneModes.filter((m) => paneAvailable(m.id));
+                    const stopId = visibleModes.some((m) => m.id === paneMode) || paneMode === 'search' ? paneMode : visibleModes[0]?.id;
+                    return (
+                      <>
+                        {visibleModes.map((m) => (
+                          <button
+                            key={m.id}
+                            class={`right-pane-tabs__tab ${paneMode === m.id ? 'right-pane-tabs__tab--active' : ''}`}
+                            role="tab"
+                            aria-selected={paneMode === m.id}
+                            tabIndex={stopId === m.id ? 0 : -1}
+                            onKeyDown={tablistKeyDown}
+                            onClick={() => commentaryStore.setRightPaneMode(m.id)}
+                            data-testid={`right-pane-tab-${m.id}`}
+                          >
+                            {resolveLabel((k, f) => t(k, f), m.title)}
+                          </button>
+                        ))}
+                        {shared.searchIsOpen && (
+                          <button
+                            class={`right-pane-tabs__tab ${paneMode === 'search' ? 'right-pane-tabs__tab--active' : ''}`}
+                            role="tab"
+                            aria-selected={paneMode === 'search'}
+                            tabIndex={stopId === 'search' ? 0 : -1}
+                            onKeyDown={tablistKeyDown}
+                            onClick={() => commentaryStore.setRightPaneMode('search')}
+                          >
+                            {t('rightPane.search')}
+                          </button>
+                        )}
+                      </>
+                    );
+                  })()}
+                </div>
                 <button
                   class="right-pane-tabs__collapse"
                   onClick={() => commentaryStore.toggleCollapsed()}

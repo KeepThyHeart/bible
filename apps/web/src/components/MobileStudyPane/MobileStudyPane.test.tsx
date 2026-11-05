@@ -10,7 +10,7 @@
  * integration.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, act } from '@testing-library/preact';
+import { render, screen, fireEvent, act, waitFor } from '@testing-library/preact';
 
 // ---- i18n ----------------------------------------------------------------
 vi.mock('react-i18next', () => ({
@@ -326,5 +326,33 @@ describe('MobileStudyPane', () => {
     act(() => { handled = phoneBackHandlers.list().some((h) => h()); });
     expect(handled).toBe(true);
     expect(container.querySelector('[data-testid="mock-mobile-dictionary"]')).toBeNull();
+  });
+
+  // ---- Overlays are modal dialogs ------------------------------------------
+  it('the Topics browser overlay is a named modal dialog with a named close button', () => {
+    mockStudyState.topicsBrowserOpen = true;
+    const { container } = render(<MobileStudyPane providers={mockProviders} />);
+    const dlg = container.querySelector('.mobile-topics-overlay')!;
+    expect(dlg.getAttribute('role')).toBe('dialog');
+    expect(dlg.getAttribute('aria-modal')).toBe('true');
+    const title = container.querySelector('#' + dlg.getAttribute('aria-labelledby'))!;
+    expect(title.textContent).toContain('mobileStudyPane.topicsBrowser');
+    expect(container.querySelector('.mobile-topics-overlay__close')!.getAttribute('aria-label')).toBe('common.close');
+    fireEvent.keyDown(dlg, { key: 'Escape' });
+    expect(mockCloseTopicsBrowser).toHaveBeenCalled();
+  });
+
+  it('the Dictionary overlay closes on Escape, makes the page inert and returns focus to its opener', async () => {
+    const { container } = render(<MobileStudyPane providers={mockProviders} />);
+    const opener = container.querySelector<HTMLButtonElement>('[data-testid="mobile-study-open-dictionary"]')!;
+    opener.focus();
+    fireEvent.click(opener);
+    const dlg = container.querySelector<HTMLElement>('.mobile-dictionary-overlay')!;
+    expect(dlg.getAttribute('role')).toBe('dialog');
+    await waitFor(() => expect(container.querySelector('.mobile-study-pane__content')!.hasAttribute('inert')).toBe(true));
+    fireEvent.keyDown(dlg, { key: 'Escape' });
+    expect(container.querySelector('.mobile-dictionary-overlay')).toBeNull();
+    await waitFor(() => expect(document.activeElement).toBe(opener));
+    expect(container.querySelector('.mobile-study-pane__content')!.hasAttribute('inert')).toBe(false);
   });
 });

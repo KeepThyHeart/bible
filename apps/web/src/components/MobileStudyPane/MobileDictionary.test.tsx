@@ -10,7 +10,7 @@
  * empty state, loading states, cancel/clear actions, and offline notice.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, act } from '@testing-library/preact';
+import { render, screen, fireEvent, act, waitFor } from '@testing-library/preact';
 
 // ---- i18n ----------------------------------------------------------------
 vi.mock('react-i18next', () => ({
@@ -227,6 +227,22 @@ describe('MobileDictionary', () => {
     });
     expect(container.querySelector('.mobile-dictionary__entry')).toBeTruthy();
     expect(container.querySelector('.dictionary-pane__entry-word')).toBeTruthy();
+  });
+
+  it('moves focus to the entry heading after a result is picked', async () => {
+    mockSuggestions = [makeSuggestion('G25', 'agapaō')];
+    const jsonFn = vi.fn().mockResolvedValue({ word: 'agapaō', definition: 'to love' });
+    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({ ok: true, json: jsonFn });
+    const { container } = render(<MobileDictionary />);
+    fireEvent.input(container.querySelector<HTMLInputElement>('.mobile-dictionary__search-input')!, { target: { value: 'ag' } });
+    const suggestionBtn = container.querySelector<HTMLButtonElement>('.mobile-dictionary__suggestion')!;
+    suggestionBtn.focus();
+    await act(async () => {
+      fireEvent.click(suggestionBtn);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    await waitFor(() => expect(document.activeElement).toBe(container.querySelector('.dictionary-pane__entry-word')));
   });
 
   it('shows close icon button (not text) when an entry is displayed and no query', async () => {

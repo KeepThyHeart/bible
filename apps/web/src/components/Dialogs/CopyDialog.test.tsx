@@ -463,6 +463,15 @@ describe('CopyDialog', () => {
       expect(previewText(container)).not.toContain('(16)');
     });
 
+    it('names the reference-position select apart from the Reference text box', () => {
+      render(<CopyDialog isOpen={true} onClose={onClose} />);
+      expect(screen.getByRole('textbox', { name: 'Reference' })).toBeTruthy();
+      expect(screen.queryAllByRole('combobox', { name: 'Reference' })).toHaveLength(0);
+      // The test's t() falls back to the key for a key missing from the catalog; the app falls back to
+      // "Reference position".
+      expect(screen.getByRole('combobox', { name: /referencePosition|Reference position/ })).toBeTruthy();
+    });
+
     it('follows the reference-position control', () => {
       const { container } = render(<CopyDialog isOpen={true} onClose={onClose} />);
       setRange(container, 'John 3:16-17');

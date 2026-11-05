@@ -7,7 +7,7 @@
  * useStore is mocked to call the selector immediately (no subscription).
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/preact';
+import { render, screen, fireEvent, waitFor } from '@testing-library/preact';
 
 // ---- i18n ----------------------------------------------------------------
 vi.mock('react-i18next', () => ({
@@ -466,5 +466,55 @@ describe('Header', () => {
     mockSearchType = 'keyword';
     const { container } = render(<Header />);
     expect(container.querySelector('.header__ideas-help-btn')).toBeNull();
+  });
+
+  // 0209 W6: WAI-ARIA menu-button keyboard behaviour for the search-type menu.
+  describe('search-type menu keyboard', () => {
+    it('opens on ArrowDown and focuses the checked item; arrows, Home and End move', async () => {
+      mockSearchType = 'semantic';
+      const { container } = render(<Header />);
+      const btn = container.querySelector<HTMLElement>('.header__search-type-btn')!;
+      btn.focus();
+      fireEvent.keyDown(btn, { key: 'ArrowDown' });
+      const ideas = await screen.findByRole('menuitemradio', { name: 'header.ideasSearch' });
+      await waitFor(() => expect(document.activeElement).toBe(ideas));
+      const standard = screen.getByRole('menuitemradio', { name: 'header.standardSearch' });
+      fireEvent.keyDown(ideas, { key: 'ArrowUp' });
+      expect(document.activeElement).toBe(standard);
+      fireEvent.keyDown(standard, { key: 'End' });
+      expect(document.activeElement).toBe(ideas);
+      fireEvent.keyDown(ideas, { key: 'Home' });
+      expect(document.activeElement).toBe(standard);
+    });
+
+    it('opens on Enter with focus on the first item', async () => {
+      mockSearchType = 'keyword';
+      const { container } = render(<Header />);
+      const btn = container.querySelector<HTMLElement>('.header__search-type-btn')!;
+      btn.focus();
+      fireEvent.keyDown(btn, { key: 'Enter' });
+      const first = await screen.findByRole('menuitemradio', { name: 'header.standardSearch' });
+      await waitFor(() => expect(document.activeElement).toBe(first));
+    });
+
+    it('Escape from an item closes the menu and focuses the trigger', async () => {
+      const { container } = render(<Header />);
+      const btn = container.querySelector<HTMLElement>('.header__search-type-btn')!;
+      fireEvent.keyDown(btn, { key: 'ArrowDown' });
+      const item = await screen.findByRole('menuitemradio', { name: 'header.standardSearch' });
+      await waitFor(() => expect(document.activeElement).toBe(item));
+      fireEvent.keyDown(item, { key: 'Escape' });
+      expect(container.querySelector('.header__search-type-dropdown')).toBeNull();
+      expect(document.activeElement).toBe(btn);
+    });
+
+    it('Tab closes the menu', async () => {
+      const { container } = render(<Header />);
+      const btn = container.querySelector<HTMLElement>('.header__search-type-btn')!;
+      fireEvent.keyDown(btn, { key: 'ArrowDown' });
+      const item = await screen.findByRole('menuitemradio', { name: 'header.standardSearch' });
+      fireEvent.keyDown(item, { key: 'Tab' });
+      expect(container.querySelector('.header__search-type-dropdown')).toBeNull();
+    });
   });
 });

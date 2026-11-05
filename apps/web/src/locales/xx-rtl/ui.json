@@ -184,7 +184,8 @@
     "timeline": "‏Timeline‏",
     "quiz": "‏Quiz‏",
     "similar": "‏Similar‏",
-    "wordStudy": "‏Word study‏"
+    "wordStudy": "‏Word study‏",
+    "modes": "‏Side pane views‏"
   },
   "mobileNav": {
     "home": "‏Home‏",
@@ -459,7 +460,8 @@
     "copied": "‏Copied!‏",
     "copyToClipboard": "‏Copy to Clipboard‏",
     "loading": "‏Loading verses...‏",
-    "copyFailed": "‏Could not copy to the clipboard. Check that this site is allowed to use it.‏"
+    "copyFailed": "‏Could not copy to the clipboard. Check that this site is allowed to use it.‏",
+    "referencePosition": "‏Reference position‏"
   },
   "ui": {
     "passageInsert": {
@@ -831,7 +833,9 @@
     "verseHistory": "‏Verse history‏",
     "prevVerse": "‏Previous verse‏",
     "nextVerse": "‏Next verse‏",
-    "goToVerseInBible": "‏Go to verse in Bible‏"
+    "goToVerseInBible": "‏Go to verse in Bible‏",
+    "showFull": "‏Show full verse‏",
+    "showLess": "‏Show less‏"
   },
   "verseHistory": {
     "justNow": "‏just now‏",

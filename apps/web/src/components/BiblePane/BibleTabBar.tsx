@@ -14,7 +14,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import type { Modifier } from '@dnd-kit/core';
-import { SortableTab, tabKeyDown, tablistKeyDown } from '../common/SortableTab';
+import { SortableTab, tabKeyDown, tablistKeyDown, focusAfterTabClose } from '../common/SortableTab';
 import { PropsSlotOutlet, readerTabBadges } from '../../host/slots';
 import { bibleStore, BibleTab } from '../../stores/bibleStore';
 import { useStore } from '../../hooks/useStore';
@@ -167,7 +167,10 @@ export function BibleTabBar({ vertical, hideHome }: BibleTabBarProps) {
   const showHome = useStore(bibleStore, () => bibleStore.showHome);
 
   return (
-    <div class="bible-tab-bar" ref={barRef} role="tablist" aria-label={t('bibleTabBar.tabs', { defaultValue: 'Bible tabs' })}>
+    <div class="bible-tab-bar" ref={barRef}>
+      {/* Only the tabs live in the tablist (`display: contents` keeps the strip's flex layout);
+          the "+" button and the pickers are siblings. */}
+      <div role="tablist" style={{ display: 'contents' }} aria-label={t('bibleTabBar.tabs', { defaultValue: 'Bible tabs' })}>
       {!hideHome && (
         <button
           class={`bible-tab-bar__home ${showHome ? 'bible-tab-bar__home--active' : ''}`}
@@ -188,6 +191,10 @@ export function BibleTabBar({ vertical, hideHome }: BibleTabBarProps) {
             const { title, subtitle } = getTabInfo(tab);
             const isActive = tab.id === activeTabId && !showHome;
             const activate = () => { bibleStore.setShowHome(false); bibleStore.setActiveTab(tab.id); };
+            const closeTab = (list: Element | null) => {
+              bibleStore.removeTab(tab.id);
+              focusAfterTabClose(list, '.bible-tab-bar__home, .bible-tab-bar__add');
+            };
             // Roving tabindex: one stop in the strip (the Home tab when Home is shown).
             const rovingStop = hideHome || !showHome ? (activeTabId && tabs.some(x => x.id === activeTabId) ? tab.id === activeTabId : tab.id === tabs[0].id) : false;
             return (
@@ -204,7 +211,7 @@ export function BibleTabBar({ vertical, hideHome }: BibleTabBarProps) {
                   role="tab"
                   aria-selected={isActive}
                   tabIndex={rovingStop ? 0 : -1}
-                  onKeyDown={tabKeyDown(activate)}
+                  onKeyDown={tabKeyDown(activate, tabs.length > 1 ? closeTab : undefined)}
                 >
                   <span class="bible-tab-bar__tab-title">
                     <PropsSlotOutlet slot={readerTabBadges} props={{ tabId: tab.id }} />
@@ -217,7 +224,7 @@ export function BibleTabBar({ vertical, hideHome }: BibleTabBarProps) {
                     class="bible-tab-bar__close"
                     onClick={(e) => {
                       e.stopPropagation();
-                      bibleStore.removeTab(tab.id);
+                      closeTab((e.currentTarget as HTMLElement).closest('[role="tablist"]'));
                     }}
                     aria-label={t('bibleTabBar.closeTabNamed', { title, defaultValue: `Close ${title}` })}
                     title={t('bibleTabBar.closeTabNamed', { title, defaultValue: `Close ${title}` })}
@@ -230,6 +237,7 @@ export function BibleTabBar({ vertical, hideHome }: BibleTabBarProps) {
           })}
         </SortableContext>
       </DndContext>
+      </div>
       <button
         class="bible-tab-bar__add"
         onClick={() => setShowNewTabPicker(true)}

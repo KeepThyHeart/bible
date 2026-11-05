@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'preact/hooks';
+import { useEffect, useRef, useState } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { API_BASE } from '../../../utils/apiUrl';
 import { presentStore } from '../stores/presentStore';
@@ -26,6 +26,15 @@ export function PresentHymns(props: { onAddToNotes?: (item: PresentItem) => void
   const [results, setResults] = useState<HymnSummary[]>([]);
   const [total, setTotal] = useState(0);
   const [failed, setFailed] = useState(false);
+  const [added, setAdded] = useState<string | null>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
+  const addedTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  // The picker opens ready to type; and its announcement timer never outlives it.
+  useEffect(() => {
+    searchRef.current?.focus();
+    return () => clearTimeout(addedTimer.current);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -53,12 +62,16 @@ export function PresentHymns(props: { onAddToNotes?: (item: PresentItem) => void
     <div class="present-hymns">
       <input
         class="present-hymns__search"
+        ref={searchRef}
         type="search"
         value={query}
         placeholder={t('present.hymnSearchPlaceholder')}
         aria-label={t('present.hymnSearchPlaceholder')}
         onInput={event => setQuery((event.target as HTMLInputElement).value)}
       />
+
+      {/* Always rendered, so a screen reader announces the text when it appears. */}
+      <p class="present-panel__hint" role="status">{added ? `${t('present.added')}: ${added}` : ''}</p>
 
       {failed && <p class="present-panel__note">{t('present.hymnsUnavailable')}</p>}
 
@@ -92,9 +105,14 @@ export function PresentHymns(props: { onAddToNotes?: (item: PresentItem) => void
                 const item: PresentItem = { kind: 'hymn', hymnId: hymn.id };
                 if (props.onAddToNotes) props.onAddToNotes(item);
                 else void presentStore.addToPlan(item);
+                setAdded(hymn.title);
+                clearTimeout(addedTimer.current);
+                addedTimer.current = setTimeout(() => setAdded(null), 3000);
               }}
               title={props.onAddToNotes ? t('present.control.addToNotes') : t('present.hymnAddToPlan')}
-              aria-label={props.onAddToNotes ? t('present.control.addToNotes') : t('present.hymnAddToPlan')}
+              aria-label={String(props.onAddToNotes
+                ? t('present.hymnAddToNotesFor', { title: hymn.title, defaultValue: `${t('present.control.addToNotes')}: ${hymn.title}` })
+                : t('present.hymnAddToPlanFor', { title: hymn.title, defaultValue: `${t('present.hymnAddToPlan')}: ${hymn.title}` }))}
             >
               <i class="fa-solid fa-plus" aria-hidden="true" />
             </button>

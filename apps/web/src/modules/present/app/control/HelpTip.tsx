@@ -1,4 +1,4 @@
-import { useRef, useState } from 'preact/hooks';
+import { useEffect, useRef, useState } from 'preact/hooks';
 import { Popover } from '@bible/ui';
 import type { ComponentChildren } from 'preact';
 
@@ -10,6 +10,15 @@ import type { ComponentChildren } from 'preact';
 export function HelpTip(props: { label: string; children: ComponentChildren; width?: number }) {
   const buttonRef = useRef<HTMLButtonElement>(null);
   const [open, setOpen] = useState(false);
+  // Escape (handled by the Popover) hands focus back to this button, not to <body>.
+  useEffect(() => {
+    if (!open) return undefined;
+    const onKey = (event: KeyboardEvent): void => {
+      if (event.key === 'Escape') setTimeout(() => buttonRef.current?.focus(), 0);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open]);
   const rect = open ? buttonRef.current?.getBoundingClientRect() : undefined;
   return (
     <>

@@ -56,6 +56,12 @@ export function isInteractiveSearch(search: string): boolean {
   return new URLSearchParams(search).get('interactive') === '1';
 }
 
+/** Visually hidden, still read by screen readers (the viewer page does not load the app's utility classes). */
+const SR_ONLY = {
+  position: 'absolute', width: '1px', height: '1px', margin: '-1px', padding: '0',
+  overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap', border: '0',
+} as unknown as preact.JSX.CSSProperties;
+
 export function ViewerApp(props: ViewerAppProps = {}): preact.JSX.Element {
   const isLocal = props.localState !== undefined;
   const joinCode = useMemo(() => (isLocal ? '' : joinCodeFromLocation(window.location.pathname)), [isLocal]);
@@ -129,11 +135,13 @@ export function ViewerApp(props: ViewerAppProps = {}): preact.JSX.Element {
 
   // The old viewer's fade between passages, reproduced as a brief cross-fade
   // whenever the live item itself changes (not on `next`/`previous`).
+  const blanked = Boolean(state?.display.blanked);
   const flashSeq = useItemTransitionFlash(itemTransitionKey(state?.live ?? null));
 
   return (
     <div class={`pv-root${sink ? ' pv-root--interactive' : ''}`} style={style}>
-      <div class="pv-safe">
+      {/* Hidden from assistive technology while blanked (inert too, except in the interactive preview, whose pointer layer still works). */}
+      <div class="pv-safe" aria-hidden={blanked ? 'true' : undefined} inert={(blanked && !sink) || undefined}>
         {renderBody(connection, state, passage, hymn, joinCode,
           isPreview || isFullscreen, toggle, overscan, isPreview, display.theme, display.fontStep, sink)}
       </div>
@@ -143,7 +151,9 @@ export function ViewerApp(props: ViewerAppProps = {}): preact.JSX.Element {
         scroll position -- and the cheapest way to guarantee that is never to
         unmount it.
       */}
-      <div class={`pv-curtain${state?.display.blanked ? ' pv-curtain--on' : ''}`} aria-hidden="true" />
+      <div class={`pv-curtain${blanked ? ' pv-curtain--on' : ''}`} aria-hidden="true" />
+      {/* The curtain is only paint: tell assistive technology the content is hidden too. */}
+      <div role="status" style={SR_ONLY}>{blanked ? 'Screen is blank' : ''}</div>
       {flashSeq > 0 && <div key={flashSeq} class="pv-curtain-flash" aria-hidden="true" />}
       {isPreview ? null : (
         <ScreenMenu

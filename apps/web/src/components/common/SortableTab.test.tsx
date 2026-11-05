@@ -26,7 +26,7 @@ vi.mock('@dnd-kit/utilities', () => ({
   },
 }));
 
-import { SortableTab, tabKeyDown } from './SortableTab';
+import { SortableTab, tabKeyDown, focusAfterTabClose } from './SortableTab';
 
 // Default stub returned by useSortable
 function makeSortableState(overrides: Partial<{
@@ -226,5 +226,39 @@ describe('SortableTab', () => {
       fireEvent.keyDown(screen.getByTestId('x'), { key: ' ' });
       expect(activate).toHaveBeenCalledTimes(2);
     });
+  });
+});
+
+describe('Delete and focus after close', () => {
+  it('Delete calls close with the tablist; without a close handler it does nothing', () => {
+    const close = vi.fn();
+    const { container } = render(
+      <div role="tablist">
+        <span role="tab" tabIndex={0} onKeyDown={tabKeyDown(() => {}, close)}>A</span>
+        <span role="tab" tabIndex={-1} onKeyDown={tabKeyDown(() => {})}>B</span>
+      </div>,
+    );
+    const [a, b] = Array.from(container.querySelectorAll('[role="tab"]'));
+    fireEvent.keyDown(b, { key: 'Delete' });
+    expect(close).not.toHaveBeenCalled();
+    fireEvent.keyDown(a, { key: 'Delete' });
+    expect(close).toHaveBeenCalledWith(container.querySelector('[role="tablist"]'));
+  });
+
+  it('focusAfterTabClose focuses the selected tab, else the fallback control', async () => {
+    const { container } = render(
+      <div>
+        <div role="tablist"><span role="tab" tabIndex={-1} aria-selected="true">A</span></div>
+        <button class="add">+</button>
+      </div>,
+    );
+    const list = container.querySelector('[role="tablist"]')!;
+    focusAfterTabClose(list, '.add');
+    await new Promise(r => requestAnimationFrame(() => r(null)));
+    expect(document.activeElement).toBe(container.querySelector('[role="tab"]'));
+    list.innerHTML = '';
+    focusAfterTabClose(list, '.add');
+    await new Promise(r => requestAnimationFrame(() => r(null)));
+    expect(document.activeElement).toBe(container.querySelector('.add'));
   });
 });

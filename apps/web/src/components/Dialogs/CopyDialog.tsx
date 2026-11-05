@@ -798,6 +798,8 @@ export function CopyDialog({ isOpen, onClose }: CopyDialogProps) {
                 <label class="copy-dialog__option">
                   <span>{t('ui.passageInsert.referenceLabel')}</span>
                   <select
+                    // Distinct from the "Reference" text box above, which would otherwise share its name.
+                    aria-label={t('copyDialog.referencePosition', { defaultValue: 'Reference position' })}
                     value={options.referencePosition}
                     onChange={(e) => changeOptions({ referencePosition: (e.target as HTMLSelectElement).value as PassageReferencePosition })}
                   >

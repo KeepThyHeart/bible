@@ -5,6 +5,7 @@ import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-
 import { CSS } from '@dnd-kit/utilities';
 import { useStore } from '../../../../hooks/useStore';
 import { focusCommandBox } from '../../lib/command';
+import { focusFirstMenuItem, handleMenuKey, useExclusiveMenu } from '../../lib/menuKeys';
 import { notesStore, type PlanItem } from './notesStore';
 
 /**
@@ -14,31 +15,57 @@ import { notesStore, type PlanItem } from './notesStore';
  * derived from the notes on every change, so there is nothing to keep in sync.
  */
 
-function PlanCard(props: { p: PlanItem; index: number; count: number; live: boolean }) {
+function PlanCard(props: { p: PlanItem; index: number; count: number; live: boolean; onRemove: (index: number) => void }) {
   const { t } = useTranslation();
   const { p } = props;
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: p.id });
   const [menu, setMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const moreRef = useRef<HTMLButtonElement>(null);
+  const popupRef = useRef<HTMLDivElement>(null);
+  /** Set after Move up/down: the row re-renders at its new index, and focus follows it there. */
+  const refocus = useRef(false);
+
+  useExclusiveMenu(`plan-${p.id}`, menu, () => setMenu(false));
 
   useEffect(() => {
     if (!menu) return;
     const away = (e: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenu(false);
     };
-    const esc = (e: KeyboardEvent) => e.key === 'Escape' && setMenu(false);
     document.addEventListener('mousedown', away);
-    document.addEventListener('keydown', esc);
-    return () => {
-      document.removeEventListener('mousedown', away);
-      document.removeEventListener('keydown', esc);
-    };
+    return () => document.removeEventListener('mousedown', away);
   }, [menu]);
+
+  // Focus the first item when the menu opens.
+  useEffect(() => {
+    if (menu) focusFirstMenuItem(popupRef.current);
+  }, [menu]);
+
+  // A move re-renders this row at a new index (the browser drops focus when the node is moved): put it back.
+  useEffect(() => {
+    if (refocus.current) moreRef.current?.focus();
+  }, [props.index]);
+
+  const closeToButton = () => {
+    setMenu(false);
+    moreRef.current?.focus();
+  };
 
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : undefined } as preact.JSX.CSSProperties;
   const amber = p.status === 'choose';
   const reason = amber && p.reason ? (t(p.reason.key, p.reason.params as Record<string, string | number>) as string) : undefined;
-  const run = (fn: () => void) => () => { setMenu(false); fn(); };
+  const run = (fn: () => void, keepFocus = false) => () => {
+    setMenu(false);
+    if (keepFocus) {
+      refocus.current = true;
+      setTimeout(() => { refocus.current = false; }, 1500);
+    }
+    fn();
+    if (keepFocus) moreRef.current?.focus();
+  };
+  const moreLabel = t('present.notes.plan.moreFor', { label: p.label, defaultValue: `${t('present.notes.plan.more')} - ${p.label}` }) as string;
+  const reorderLabel = t('present.notes.plan.reorderFor', { label: p.label, defaultValue: `${t('present.notes.plan.reorder')} - ${p.label}` }) as string;
 
   return (
     <li
@@ -50,9 +77,13 @@ function PlanCard(props: { p: PlanItem; index: number; count: number; live: bool
       <button
         type="button"
         class="pn-plan__grip"
-        aria-label={t('present.notes.plan.reorder')}
         {...(attributes as unknown as Record<string, unknown>)}
         {...(listeners as unknown as Record<string, unknown>)}
+        // Pointer-only: keyboard users reorder with Move up / Move down in the row's menu.
+        tabIndex={-1}
+        aria-hidden="true"
+        aria-label={reorderLabel}
+        role={undefined}
       >
         <i class="fa-solid fa-grip-vertical" aria-hidden="true" />
       </button>
@@ -67,7 +98,8 @@ function PlanCard(props: { p: PlanItem; index: number; count: number; live: bool
         <button
           type="button"
           class="pn-plan__more"
-          aria-label={t('present.notes.plan.more')}
+          ref={moreRef}
+          aria-label={moreLabel}
           aria-haspopup="menu"
           aria-expanded={menu}
           onClick={() => setMenu((m) => !m)}
@@ -75,11 +107,11 @@ function PlanCard(props: { p: PlanItem; index: number; count: number; live: bool
           <i class="fa-solid fa-ellipsis" aria-hidden="true" />
         </button>
         {menu && (
-          <div class="pn-plan__menu" role="menu">
-            <button type="button" role="menuitem" disabled={props.index === 0} onClick={run(() => notesStore.moveItem(p.id, props.index - 1))}>
+          <div class="pn-plan__menu" role="menu" ref={popupRef} aria-label={moreLabel} onKeyDown={(e) => handleMenuKey(e, popupRef.current, closeToButton)}>
+            <button type="button" role="menuitem" disabled={props.index === 0} onClick={run(() => notesStore.moveItem(p.id, props.index - 1), true)}>
               {t('present.notes.plan.moveUp')}
             </button>
-            <button type="button" role="menuitem" disabled={props.index === props.count - 1} onClick={run(() => notesStore.moveItem(p.id, props.index + 1))}>
+            <button type="button" role="menuitem" disabled={props.index === props.count - 1} onClick={run(() => notesStore.moveItem(p.id, props.index + 1), true)}>
               {t('present.notes.plan.moveDown')}
             </button>
             <button
@@ -92,7 +124,7 @@ function PlanCard(props: { p: PlanItem; index: number; count: number; live: bool
             >
               {t('present.notes.plan.change')}
             </button>
-            <button type="button" role="menuitem" class="is-danger" onClick={run(() => notesStore.removeItem(p.id))}>
+            <button type="button" role="menuitem" class="is-danger" onClick={run(() => props.onRemove(props.index))}>
               {t('present.notes.plan.remove')}
             </button>
           </div>
@@ -108,6 +140,23 @@ export function PlanOutline() {
   const live = useStore(notesStore, () => notesStore.livePlanItemId);
   const removed = useStore(notesStore, () => notesStore.removed);
   const [adding, setAdding] = useState(false);
+  const listRef = useRef<HTMLOListElement>(null);
+  /** After Remove: where focus goes once the row has gone (the next row's More actions, else Add). */
+  const afterRemove = useRef<{ index: number; count: number } | null>(null);
+
+  useEffect(() => {
+    const pending = afterRemove.current;
+    if (!pending || items.length >= pending.count) return;
+    afterRemove.current = null;
+    const buttons = listRef.current?.querySelectorAll<HTMLElement>('.pn-plan__more');
+    const target = buttons && buttons.length > 0 ? buttons[Math.min(pending.index, buttons.length - 1)] : document.querySelector<HTMLElement>('.pn-plan__add-btn');
+    target?.focus();
+  }, [items]);
+
+  const remove = (index: number) => {
+    afterRemove.current = { index, count: items.length };
+    notesStore.removeItem(items[index].id);
+  };
   // The handle starts a drag at once (no long-press); the rest of the card scrolls.
   const sensors = useSensors(useSensor(PointerSensor));
 
@@ -132,9 +181,9 @@ export function PlanOutline() {
       ) : (
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
           <SortableContext items={items.map((i) => i.id)} strategy={verticalListSortingStrategy}>
-            <ol class="pn-plan__list">
+            <ol class="pn-plan__list" ref={listRef}>
               {items.map((p, index) => (
-                <PlanCard key={p.id} p={p} index={index} count={items.length} live={p.id === live} />
+                <PlanCard key={p.id} p={p} index={index} count={items.length} live={p.id === live} onRemove={remove} />
               ))}
             </ol>
           </SortableContext>
@@ -155,7 +204,15 @@ export function PlanOutline() {
       {removed && (
         <div class="pn-plan__snack" role="status">
           <span>{t('present.notes.plan.removed', { label: removed.label })}</span>
-          <button type="button" onClick={() => notesStore.undoRemove()}>{t('present.notes.plan.undo')}</button>
+          <button
+            type="button"
+            onClick={() => {
+              notesStore.undoRemove();
+              document.querySelector<HTMLElement>('.pn-plan__add-btn')?.focus();
+            }}
+          >
+            {t('present.notes.plan.undo')}
+          </button>
         </div>
       )}
     </div>

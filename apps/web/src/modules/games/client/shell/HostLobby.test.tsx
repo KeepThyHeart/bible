@@ -367,7 +367,8 @@ describe('group voting in the lobby', () => {
   it('offers a switch for a game where voting is optional, and sends the change', () => {
     draw('optional');
     const button = voteSwitch();
-    expect(button?.getAttribute('aria-pressed')).toBe('false');
+    expect(button?.hasAttribute('aria-pressed')).toBe(false);
+    expect(button?.textContent).toBe('Off');
     act(() => {
       button?.click();
     });
@@ -409,7 +410,7 @@ describe('the room theme, in the lobby', () => {
   it('defaults to light, matching the room default', () => {
     draw('none');
     const active = [...host.querySelectorAll('.theme-preset')].find(
-      (button) => button.getAttribute('aria-pressed') === 'true'
+      (button) => button.getAttribute('aria-checked') === 'true'
     );
     expect(active?.textContent).toBe('Light');
   });
@@ -472,7 +473,7 @@ describe('sword drill’s buzz-in setting, in the lobby', () => {
   it('defaults to host-calls, worded as such, with nothing set', () => {
     draw('none', { gameId: 'sword-drill' });
     const button = buzzSwitch();
-    expect(button?.getAttribute('aria-pressed')).toBe('false');
+    expect(button?.hasAttribute('aria-pressed')).toBe(false);
     expect(button?.textContent).toContain('Host calls');
   });
 
@@ -487,7 +488,7 @@ describe('sword drill’s buzz-in setting, in the lobby', () => {
   it('says buttons mode when that is what is set', () => {
     draw('none', { gameId: 'sword-drill', gameOptions: { buzzMode: 'buttons' } });
     const button = buzzSwitch();
-    expect(button?.getAttribute('aria-pressed')).toBe('true');
+    expect(button?.hasAttribute('aria-pressed')).toBe(false);
     expect(button?.textContent).toContain('Phone buttons');
   });
 });
@@ -578,5 +579,20 @@ describe('control in the lobby', () => {
   it('offers no way to play too without an owner session to grant control from', () => {
     drawWith(lobby(), true, false);
     expect(textButton('Play too, and run it from here')).toBeNull();
+  });
+});
+
+describe('game picker labelling', () => {
+  it('names the select just "Game", with the scope hint as its description', () => {
+    host = document.createElement('div');
+    document.body.appendChild(host);
+    draw('none');
+    const select = host.querySelector<HTMLSelectElement>('#games-host-game')!;
+    expect(select.labels?.[0]?.textContent).toBe('Game');
+    expect(select.labels?.[0]?.querySelector('.field-hint')).toBeNull();
+    act(() => {
+      render(null, host);
+    });
+    host.remove();
   });
 });

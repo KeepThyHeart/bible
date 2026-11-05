@@ -13,7 +13,7 @@ import {
   SortableContext,
   rectSortingStrategy,
 } from '@dnd-kit/sortable';
-import { SortableTab, tabKeyDown } from '../common/SortableTab';
+import { SortableTab, tabKeyDown, focusAfterTabClose } from '../common/SortableTab';
 import { ModuleSelectDialog } from '../common/ModuleSelectDialog';
 import { dictionaryStore, DICT_HOME_TAB_ID } from '../../stores/dictionaryStore';
 import { moduleStore } from '../../stores/moduleStore';
@@ -70,7 +70,8 @@ export function DictionaryTabBar() {
   };
 
   return (
-    <div class="dictionary-tab-bar" role="tablist" aria-label={t('dictionaryTabBar.tabs', { defaultValue: 'Dictionary tabs' })}>
+    <div class="dictionary-tab-bar">
+      <div role="tablist" style={{ display: 'contents' }} aria-label={t('dictionaryTabBar.tabs', { defaultValue: 'Dictionary tabs' })}>
       {/* Home tab — fixed, non-draggable */}
       {tabs.find(t => t.id === DICT_HOME_TAB_ID) && (
         <div
@@ -91,6 +92,10 @@ export function DictionaryTabBar() {
           {sortableTabs.map(tab => {
             const isTemp = tab.temporary ?? false;
             const activate = () => dictionaryStore.setActiveTab(tab.id);
+            const closeTab = (list: Element | null) => {
+              dictionaryStore.removeTab(tab.id);
+              focusAfterTabClose(list, '.dictionary-tab-bar__add');
+            };
             const closeName = t('bibleTabBar.closeTabNamed', { title: tab.moduleName, defaultValue: `Close ${tab.moduleName}` });
             return (
               <SortableTab
@@ -106,13 +111,13 @@ export function DictionaryTabBar() {
                   role="tab"
                   aria-selected={tab.id === activeTabId}
                   tabIndex={tab.id === activeTabId ? 0 : -1}
-                  onKeyDown={tabKeyDown(activate)}
+                  onKeyDown={tabKeyDown(activate, closeTab)}
                 >{tab.moduleName}</span>
                 <button
                   class="dictionary-tab-bar__close"
                   onClick={(e) => {
                     e.stopPropagation();
-                    dictionaryStore.removeTab(tab.id);
+                    closeTab((e.currentTarget as HTMLElement).closest('[role="tablist"]'));
                   }}
                   aria-label={closeName}
                   title={closeName}
@@ -124,6 +129,7 @@ export function DictionaryTabBar() {
           })}
         </SortableContext>
       </DndContext>
+      </div>
 
       {/* Add dictionary button */}
       <button

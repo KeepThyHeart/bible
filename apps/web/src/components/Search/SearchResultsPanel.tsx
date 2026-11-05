@@ -123,6 +123,23 @@ export function SearchResultsPanel({ onNavigate, onOpenStrongsEntry }: SearchRes
   const mobileInputRef = useRef<HTMLInputElement>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
 
+  // A search started elsewhere (an interlinear word, a Strong's link) lands here with the store's
+  // query: show it in the box instead of leaving the box empty under a headline that names it.
+  useEffect(() => {
+    if (query && query !== mobileQuery) setMobileQuery(query);
+  }, [query]);
+
+  // searchStore.clear() (this panel's Close search, the header's Clear) empties the box too, and
+  // Close search unmounts the button that held focus, so the field is where focus lands.
+  const clearSeq = useStore(searchStore, () => searchStore.clearSeq ?? 0);
+  const seenClearSeq = useRef(clearSeq);
+  useEffect(() => {
+    if (clearSeq === seenClearSeq.current) return;
+    seenClearSeq.current = clearSeq;
+    setMobileQuery('');
+    mobileInputRef.current?.focus({ preventScroll: true });
+  }, [clearSeq]);
+
   // Auto-focus mobile search input when panel mounts — but only on desktop
   // (on mobile, auto-focus opens the keyboard which is jarring)
   useEffect(() => {
@@ -300,6 +317,7 @@ export function SearchResultsPanel({ onNavigate, onOpenStrongsEntry }: SearchRes
           <button
             type="button"
             class={`search-panel-inline__type-btn ${searchType === 'keyword' ? 'search-panel-inline__type-btn--active' : ''}`}
+            aria-pressed={searchType === 'keyword'}
             onClick={() => searchStore.setSearchType('keyword')}
           >
             <i class="fa-solid fa-magnifying-glass" /> {t('search.keyword')}
@@ -307,6 +325,7 @@ export function SearchResultsPanel({ onNavigate, onOpenStrongsEntry }: SearchRes
           <button
             type="button"
             class={`search-panel-inline__type-btn ${searchType === 'semantic' ? 'search-panel-inline__type-btn--active' : ''}`}
+            aria-pressed={searchType === 'semantic'}
             onClick={() => {
               searchStore.setSearchType('semantic');
               searchStore.warmupSemanticSearch().catch(() => {});

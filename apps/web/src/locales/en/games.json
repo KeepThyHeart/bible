@@ -86,7 +86,9 @@
       "yourName": "Your name",
       "joining": "Joining…",
       "joinRoom": "Join room",
-      "solo": "Play solo"
+      "solo": "Play solo",
+      "codeInvalid": "A room code is {length} letters and numbers, like 5HK27. Check the big screen.",
+      "nameNeeded": "Enter your name to join."
     },
     "solo": {
       "onYourOwn": "On your own — nobody else can see this room.",
@@ -138,7 +140,11 @@
       "leaveRejoin": "You can rejoin with the same code while the room is still open.",
       "stay": "Stay",
       "theme": "Theme",
-      "leave": "Leave"
+      "leave": "Leave",
+      "themeCycle": "Theme: {name}. Switch to the next theme",
+      "themeCycleCustom": "Switch to the next theme",
+      "playersCount": "Players: {total}",
+      "lobbyHeading": "Room lobby"
     },
     "brand": {
       "title": "Group Bible Games",

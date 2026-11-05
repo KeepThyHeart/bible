@@ -104,6 +104,7 @@ let mockLastClickedId: string | null = null;
 let mockResultsTruncated = false;
 let mockIsOnline = true;
 let mockSearchError = '';
+let mockClearSeq = 0;
 let mockStrongsTotalAvailable = 0;
 
 const mockClose = vi.fn();
@@ -145,6 +146,7 @@ vi.mock('../../stores/searchStore', () => ({
     get lastClickedId() { return mockLastClickedId; },
     get resultsTruncated() { return mockResultsTruncated; },
     get searchError() { return mockSearchError; },
+    get clearSeq() { return mockClearSeq; },
     get strongsTotalAvailable() { return mockStrongsTotalAvailable; },
     close: () => mockClose(),
     clear: () => mockClear(),
@@ -227,6 +229,7 @@ describe('SearchResultsPanel', () => {
     mockResultsTruncated = false;
     mockIsOnline = true;
     mockSearchError = '';
+    mockClearSeq = 0;
     mockStrongsTotalAvailable = 0;
   });
 
@@ -526,6 +529,35 @@ describe('SearchResultsPanel', () => {
     fireEvent.click(ideasBtn);
     expect(mockSetSearchType).toHaveBeenCalledWith('semantic');
     expect(mockWarmupSemanticSearch).toHaveBeenCalled();
+  });
+
+  it('marks the active search mode with aria-pressed', () => {
+    mockSearchType = 'semantic';
+    const { container } = render(<SearchResultsPanel />);
+    const [kw, ideas] = Array.from(container.querySelectorAll<HTMLElement>('.search-panel-inline__type-btn'));
+    expect(kw.getAttribute('aria-pressed')).toBe('false');
+    expect(ideas.getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('shows an externally started search in the mobile box', () => {
+    const { container, rerender } = render(<SearchResultsPanel />);
+    const input = container.querySelector<HTMLInputElement>('.search-panel-inline__mobile-input')!;
+    expect(input.value).toBe('');
+    mockQuery = 'G1510';
+    rerender(<SearchResultsPanel />);
+    expect(input.value).toBe('G1510');
+  });
+
+  it('empties the mobile box and focuses it when the search is cleared', async () => {
+    mockQuery = 'faith';
+    const { container, rerender } = render(<SearchResultsPanel />);
+    const input = container.querySelector<HTMLInputElement>('.search-panel-inline__mobile-input')!;
+    expect(input.value).toBe('faith');
+    mockQuery = '';
+    mockClearSeq = 1;
+    rerender(<SearchResultsPanel />);
+    await waitFor(() => expect(input.value).toBe(''));
+    await waitFor(() => expect(document.activeElement).toBe(input));
   });
 
   // ------------------------------------------------------------------

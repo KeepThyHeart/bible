@@ -2,14 +2,16 @@ import { useEffect, useRef } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { createPortal } from 'react-dom';
 import { presentStore, type ControllerSession } from '../../stores/presentStore';
+import { useExclusiveMenu } from '../../lib/menuKeys';
 import { HandoffSection, JoinSection, ScreenSection } from './sections';
 
 export const SIMPLE_VIEWER_PATH = '/present/solo';
 
 /**
  * The Control pane's hamburger: screen settings, join and share, handoff, the
- * simple viewer, and help. A popover under the status row; a click outside or
- * Escape closes it.
+ * simple viewer, and help. A non-modal dialog under the status row (it holds
+ * headings, checkboxes and links, so it is not a menu); a click outside or
+ * Escape closes it, and Escape hands focus back to the button that opened it.
  */
 export function ControlMenu(props: {
   session: ControllerSession | null;
@@ -20,16 +22,25 @@ export function ControlMenu(props: {
   const ref = useRef<HTMLDivElement>(null);
   const { session } = props;
 
+  useExclusiveMenu('control-menu', true, props.onClose);
+
+  useEffect(() => { ref.current?.focus({ preventScroll: true }); }, []);
+
   useEffect(() => {
     const onPointer = (event: PointerEvent): void => {
       const target = event.target as Node;
       if (ref.current?.contains(target)) return;
       // The toggle button closes it itself; don't reopen on the same click.
-      if ((target as HTMLElement).closest?.('[data-control-menu-toggle]')) return;
+      // The "About remote keys" popover is portalled out of this dialog but belongs to it.
+      if ((target as HTMLElement).closest?.('[data-control-menu-toggle], .pz-helptip__pop')) return;
       props.onClose();
     };
     const onKey = (event: KeyboardEvent): void => {
-      if (event.key === 'Escape') props.onClose();
+      if (event.key !== 'Escape' || event.defaultPrevented) return;
+      // An open "About remote keys" popover is the innermost layer: it takes this Escape.
+      if (document.querySelector('.pz-helptip__pop')) return;
+      props.onClose();
+      document.querySelector<HTMLElement>('[data-control-menu-toggle]')?.focus();
     };
     document.addEventListener('pointerdown', onPointer);
     document.addEventListener('keydown', onKey);
@@ -41,7 +52,7 @@ export function ControlMenu(props: {
 
   // In a portal: the pane clips its children, which cut the menu and the handoff QR short.
   return createPortal(
-    <div class="pz-menu present-panel" ref={ref} role="menu" aria-label={t('present.menu')}>
+    <div class="pz-menu present-panel" ref={ref} role="dialog" tabIndex={-1} aria-label={t('present.control.moreTooltip')}>
       <ScreenSection />
       {session && <JoinSection session={session} />}
       {session && <HandoffSection session={session} />}

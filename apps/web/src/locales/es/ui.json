@@ -184,7 +184,8 @@
     "timeline": "Cronología",
     "quiz": "Cuestionario",
     "similar": "Similares",
-    "wordStudy": "Palabras"
+    "wordStudy": "Palabras",
+    "modes": "Vistas del panel lateral"
   },
   "mobileNav": {
     "home": "Inicio",
@@ -459,7 +460,8 @@
     "copied": "¡Copiado!",
     "copyToClipboard": "Copiar al portapapeles",
     "loading": "Cargando los versículos...",
-    "copyFailed": "No se pudo copiar al portapapeles. Comprueba que este sitio tenga permiso para usarlo."
+    "copyFailed": "No se pudo copiar al portapapeles. Comprueba que este sitio tenga permiso para usarlo.",
+    "referencePosition": "Posición de la referencia"
   },
   "ui": {
     "passageInsert": {
@@ -831,7 +833,9 @@
     "verseHistory": "Historial de versículos",
     "prevVerse": "Versículo anterior",
     "nextVerse": "Versículo siguiente",
-    "goToVerseInBible": "Ir al versículo en la Biblia"
+    "goToVerseInBible": "Ir al versículo en la Biblia",
+    "showFull": "Mostrar el versículo completo",
+    "showLess": "Mostrar menos"
   },
   "verseHistory": {
     "justNow": "justo ahora",

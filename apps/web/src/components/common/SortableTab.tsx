@@ -44,10 +44,36 @@ export function tablistKeyDown(e: KeyboardEvent) {
   tabs[next].focus();
 }
 
-/** Enter/Space on a non-native tab element runs `activate`; arrows navigate the strip. */
-export function tabKeyDown(activate: () => void) {
+/**
+ * After a tab closes, put keyboard focus on the tab that became active (or, failing
+ * that, the strip's `fallback` control, e.g. the "+" button) instead of losing it to
+ * <body>. Waits a frame so the strip has re-rendered; `list` is the tablist captured
+ * before the close (the strip's element survives the re-render).
+ */
+export function focusAfterTabClose(list: Element | null, fallback?: string) {
+  if (!list) return;
+  const strip = list.parentElement ?? list;
+  requestAnimationFrame(() => {
+    const el =
+      list.querySelector<HTMLElement>('[role="tab"][aria-selected="true"]') ??
+      list.querySelector<HTMLElement>('[role="tab"]') ??
+      (fallback ? strip.querySelector<HTMLElement>(fallback) : null);
+    el?.focus();
+  });
+}
+
+/**
+ * Enter/Space on a non-native tab element runs `activate`; arrows navigate the strip.
+ * When `close` is given, Delete closes the focused tab (omit it for tabs that can't close).
+ */
+export function tabKeyDown(activate: () => void, close?: (list: Element | null) => void) {
   return (e: KeyboardEvent) => {
     if (e.target !== e.currentTarget) return;
+    if (e.key === 'Delete' && close) {
+      e.preventDefault();
+      close((e.currentTarget as HTMLElement).closest('[role="tablist"]'));
+      return;
+    }
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
       activate();

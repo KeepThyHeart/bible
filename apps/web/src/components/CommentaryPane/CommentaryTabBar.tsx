@@ -19,7 +19,7 @@ import {
   SortableContext,
   rectSortingStrategy,
 } from '@dnd-kit/sortable';
-import { SortableTab, tabKeyDown } from '../common/SortableTab';
+import { SortableTab, tabKeyDown, focusAfterTabClose } from '../common/SortableTab';
 import { ModuleSelectDialog } from '../common/ModuleSelectDialog';
 import { commentaryStore, HOME_TAB_ID } from '../../stores/commentaryStore';
 import { moduleStore } from '../../stores/moduleStore';
@@ -167,7 +167,8 @@ export function CommentaryTabBar() {
   const sortableTabs = tabs.filter(t => t.id !== HOME_TAB_ID);
 
   return (
-    <div class="commentary-tab-bar" role="tablist" aria-label={t('commentaryTabBar.tabs', { defaultValue: 'Commentary tabs' })}>
+    <div class="commentary-tab-bar">
+      <div role="tablist" style={{ display: 'contents' }} aria-label={t('commentaryTabBar.tabs', { defaultValue: 'Commentary tabs' })}>
       {/* Home tab is not draggable — always first (hidden when overview disabled in settings) */}
       {showOverview && tabs.find(t => t.id === HOME_TAB_ID) && (
         <div
@@ -191,6 +192,10 @@ export function CommentaryTabBar() {
               ? commentaryStore.tabHasContentForVerse(tab.id, highlightedVerse)
               : false;
             const activate = () => commentaryStore.setActiveTab(tab.id);
+            const closeTab = (list: Element | null) => {
+              commentaryStore.removeTab(tab.id);
+              focusAfterTabClose(list, '.commentary-tab-bar__add');
+            };
             const closeName = t('bibleTabBar.closeTabNamed', { title: getShortName(tab.moduleName, tab.moduleAbbr), defaultValue: `Close ${getShortName(tab.moduleName, tab.moduleAbbr)}` });
             return (
               <SortableTab
@@ -207,13 +212,13 @@ export function CommentaryTabBar() {
                   role="tab"
                   aria-selected={tab.id === activeTabId}
                   tabIndex={tab.id === activeTabId ? 0 : -1}
-                  onKeyDown={tabKeyDown(activate)}
+                  onKeyDown={tabKeyDown(activate, closeTab)}
                 >{getShortName(tab.moduleName, tab.moduleAbbr)}</span>
                 <button
                   class="commentary-tab-bar__close"
                   onClick={(e) => {
                     e.stopPropagation();
-                    commentaryStore.removeTab(tab.id);
+                    closeTab((e.currentTarget as HTMLElement).closest('[role="tablist"]'));
                   }}
                   aria-label={closeName}
                   title={closeName}
@@ -225,6 +230,7 @@ export function CommentaryTabBar() {
           })}
         </SortableContext>
       </DndContext>
+      </div>
 
       <button
         class="commentary-tab-bar__add"

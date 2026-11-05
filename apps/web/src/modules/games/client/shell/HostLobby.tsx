@@ -159,10 +159,12 @@ export function HostLobby({
       <section class="host-settings">
         <h2 class="small-heading">{gt('games.lobby.settings', 'Settings')}</h2>
         <fieldset class="settings-grid" disabled={!controlling}>
-          <label class="field">
-            <span class="field-label">{gt('games.lobby.game', 'Game')}</span>
+          <div class="field">
+            <label class="field-label" for="games-host-game">{gt('games.lobby.game', 'Game')}</label>
             <select
+              id="games-host-game"
               value={settings.gameId}
+              aria-describedby={currentGame?.scopeLabel !== undefined ? 'games-host-game-hint' : undefined}
               onChange={(event) => onSettings({ gameId: event.currentTarget.value })}
             >
               {games.map((game) => (
@@ -171,11 +173,11 @@ export function HostLobby({
                 </option>
               ))}
             </select>
-            {/* Published and, until now, never shown anywhere a host would see it. */}
+            {/* Outside the label, so the hint is a description of the picker and not part of its name. */}
             {currentGame?.scopeLabel !== undefined && (
-              <span class="field-hint">{currentGame.scopeLabel}</span>
+              <span class="field-hint" id="games-host-game-hint">{currentGame.scopeLabel}</span>
             )}
-          </label>
+          </div>
 
           {showSet && (
             <label class="field">
@@ -268,7 +270,6 @@ export function HostLobby({
             <span class="field-label">{gt('games.lobby.teams', 'Teams')}</span>
             <button
               type="button"
-              aria-pressed={settings.teamsEnabled}
               onClick={() => onSettings({ teamsEnabled: !settings.teamsEnabled })}
             >
               {settings.teamsEnabled
@@ -282,7 +283,6 @@ export function HostLobby({
               <span class="field-label">{gt('games.lobby.voteTogether', 'Vote together')}</span>
               <button
                 type="button"
-                aria-pressed={settings.groupVote}
                 onClick={() => onSettings({ groupVote: !settings.groupVote })}
               >
                 {settings.groupVote
@@ -316,7 +316,6 @@ export function HostLobby({
               <span class="field-label">{gt('games.lobby.buzzLabel', 'How players buzz in')}</span>
               <button
                 type="button"
-                aria-pressed={settings.gameOptions['buzzMode'] === 'buttons'}
                 onClick={() =>
                   onSettings({
                     gameOptions: {

@@ -47,8 +47,17 @@ export function JoinScreen({ initialCode, initialName, busy, error, onJoin, onSo
     if (incoming) setCode(incoming);
   }, [initialCode]);
 
+  const [attempted, setAttempted] = useState(false);
   const trimmedName = normaliseName(name);
   const ready = code.length >= MIN_CODE_LENGTH && trimmedName.length > 0 && !busy;
+
+  // Said only once someone has tried (Enter) or typed a part-code, never on a pristine form.
+  const problem =
+    code.length < MIN_CODE_LENGTH && (attempted || code.length > 0)
+      ? gt('games.join.codeInvalid', 'A room code is {length} letters and numbers, like 5HK27. Check the big screen.', { length: MIN_CODE_LENGTH })
+      : attempted && trimmedName.length === 0
+        ? gt('games.join.nameNeeded', 'Enter your name to join.')
+        : null;
 
   return (
     <main class="screen screen-join">
@@ -59,6 +68,7 @@ export function JoinScreen({ initialCode, initialName, busy, error, onJoin, onSo
         onSubmit={(event) => {
           event.preventDefault();
           if (ready) onJoin(code, trimmedName);
+          else if (!busy) setAttempted(true);
         }}
       >
         <label class="field">
@@ -95,6 +105,10 @@ export function JoinScreen({ initialCode, initialName, busy, error, onJoin, onSo
             onInput={(event) => setName(event.currentTarget.value)}
           />
         </label>
+
+        <p class="muted small" role="status">
+          {problem}
+        </p>
 
         {error !== null && (
           <p class="alert" role="alert">

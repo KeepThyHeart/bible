@@ -184,7 +184,8 @@
     "timeline": "ציר זמן",
     "quiz": "חידון",
     "similar": "דומים",
-    "wordStudy": "לימוד מילים"
+    "wordStudy": "לימוד מילים",
+    "modes": "תצוגות החלונית הצדדית"
   },
   "mobileNav": {
     "home": "בית",
@@ -459,7 +460,8 @@
     "copied": "הועתק!",
     "copyToClipboard": "העתקה ללוח",
     "loading": "טוען פסוקים...",
-    "copyFailed": "לא ניתן להעתיק ללוח. בדקו שלאתר זה יש הרשאה להשתמש בו."
+    "copyFailed": "לא ניתן להעתיק ללוח. בדקו שלאתר זה יש הרשאה להשתמש בו.",
+    "referencePosition": "מיקום ההפניה"
   },
   "ui": {
     "passageInsert": {
@@ -831,7 +833,9 @@
     "verseHistory": "היסטוריית פסוקים",
     "prevVerse": "הפסוק הקודם",
     "nextVerse": "הפסוק הבא",
-    "goToVerseInBible": "מעבר לפסוק במקרא"
+    "goToVerseInBible": "מעבר לפסוק במקרא",
+    "showFull": "הצגת הפסוק המלא",
+    "showLess": "הצגת פחות"
   },
   "verseHistory": {
     "justNow": "הרגע",

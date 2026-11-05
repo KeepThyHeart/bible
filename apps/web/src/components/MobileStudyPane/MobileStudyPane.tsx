@@ -6,6 +6,7 @@ import { StudyHome } from '../StudyPane/StudyHome';
 import { StudyTopics } from '../StudyPane/StudyTopics';
 import { TopicsBrowser } from '../StudyPane/TopicsBrowser';
 import { MobileDictionary } from './MobileDictionary';
+import { MobileOverlay } from './MobileOverlay';
 import { mobileStudySections, phoneBackHandlers, useSlot } from '../../host/slots';
 import { studyStore } from '../../stores/studyStore';
 import { bibleStore } from '../../stores/bibleStore';
@@ -218,54 +219,41 @@ export function MobileStudyPane({ providers, onStrongsClick, onStrongsHover, onS
 
       {/* Topics Browser full-screen overlay */}
       {topicsBrowserOpen && (
-        <div class="mobile-topics-overlay">
-          <div class="mobile-topics-overlay__header">
-            <button class="mobile-topics-overlay__close" onClick={() => studyStore.closeTopicsBrowser()}>
-              <i class="fa-solid fa-xmark" />
-            </button>
-            <span class="mobile-topics-overlay__title">
-              <span class="mobile-topics-overlay__pane-label">{t('studyPane.study')}</span> {t('mobileStudyPane.topicsBrowser')}
-            </span>
-          </div>
-          <div class="mobile-topics-overlay__body">
-            <TopicsBrowser
-              verseId={verseId}
-              verseTopics={verseTopics}
-              verseEntities={verseEntities}
-              loading={topicsLoading}
-              onNavigateBible={handleNavigateBible}
-              topicalProvider={providers.topical}
-              // Gated the same way DesktopApp gates the Topics pane: with the
-              // feature off there is nothing for the browser to search or open.
-              tagGraphProvider={isTagGraphEnabled() ? providers.tagGraph : undefined}
-              bibleProvider={providers.bible}
-              topicRequest={overlayInitialTopic}
-              onTopicRequestHandled={() => studyStore.consumePendingTopicNav()}
-              mobile
-            />
-          </div>
-        </div>
+        <MobileOverlay
+          titleId="mobile-topics-overlay-title"
+          closeLabel={t('common.close')}
+          onClose={() => studyStore.closeTopicsBrowser()}
+          title={<><span class="mobile-topics-overlay__pane-label">{t('studyPane.study')}</span> {t('mobileStudyPane.topicsBrowser')}</>}
+        >
+          <TopicsBrowser
+            verseId={verseId}
+            verseTopics={verseTopics}
+            verseEntities={verseEntities}
+            loading={topicsLoading}
+            onNavigateBible={handleNavigateBible}
+            topicalProvider={providers.topical}
+            // Gated the same way DesktopApp gates the Topics pane: with the
+            // feature off there is nothing for the browser to search or open.
+            tagGraphProvider={isTagGraphEnabled() ? providers.tagGraph : undefined}
+            bibleProvider={providers.bible}
+            topicRequest={overlayInitialTopic}
+            onTopicRequestHandled={() => studyStore.consumePendingTopicNav()}
+            mobile
+          />
+        </MobileOverlay>
       )}
 
       {/* Dictionary full-screen overlay */}
       {dictionaryOpen && (
-        <div class="mobile-topics-overlay mobile-dictionary-overlay">
-          <div class="mobile-topics-overlay__header">
-            <button
-              class="mobile-topics-overlay__close"
-              aria-label={t('common.close')}
-              onClick={() => setDictionaryOpen(false)}
-            >
-              <i class="fa-solid fa-xmark" />
-            </button>
-            <span class="mobile-topics-overlay__title">
-              <span class="mobile-topics-overlay__pane-label">{t('studyPane.study')}</span> {t('mobileStudyPane.dictionary')}
-            </span>
-          </div>
-          <div class="mobile-topics-overlay__body">
-            <MobileDictionary bibleProvider={providers.bible} />
-          </div>
-        </div>
+        <MobileOverlay
+          className="mobile-dictionary-overlay"
+          titleId="mobile-dictionary-overlay-title"
+          closeLabel={t('common.close')}
+          onClose={() => setDictionaryOpen(false)}
+          title={<><span class="mobile-topics-overlay__pane-label">{t('studyPane.study')}</span> {t('mobileStudyPane.dictionary')}</>}
+        >
+          <MobileDictionary bibleProvider={providers.bible} />
+        </MobileOverlay>
       )}
 
       {moduleSections.map((m) => m.Sheet && <m.Sheet key={m.id} onNavigateBible={onNavigateBible} />)}

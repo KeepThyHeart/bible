@@ -11,10 +11,12 @@
  * reason: an icon alone is a guess for anyone unsure what it does.
  */
 
-import { useState } from 'preact/hooks';
+import { useRef, useState } from 'preact/hooks';
+import { useEscapeKey } from '../../../../hooks/useEscapeKey';
+import { useModalFocus } from '../../../../hooks/useModalFocus';
 import { QrCode } from './QrCode.js';
 import { ThemeEditor } from './ThemeEditor.js';
-import { THEME_PRESETS, THEME_PRESET_IDS, presetIdOf } from '../../shared/theme.js';
+import { THEME_PRESETS, THEME_PRESET_IDS, THEME_PRESET_LABELS, presetIdOf } from '../../shared/theme.js';
 import type { ThemeControl } from './theme.js';
 import { gt } from './t.js';
 
@@ -62,8 +64,10 @@ function SettingsPanel({
   themeControl: ThemeControl;
   onClose(): void;
 }) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useModalFocus(true, dialogRef);
   return (
-    <div class="overlay" role="dialog" aria-label={gt('games.phone.settings', 'Settings')}>
+    <div class="overlay" role="dialog" aria-modal="true" aria-label={gt('games.phone.settings', 'Settings')} ref={dialogRef}>
       <div class="overlay-card">
         <h2 class="overlay-title">{gt('games.phone.settings', 'Settings')}</h2>
 
@@ -91,8 +95,10 @@ function SettingsPanel({
 }
 
 function LeaveConfirm({ onLeave, onCancel }: { onLeave(): void; onCancel(): void }) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useModalFocus(true, dialogRef);
   return (
-    <div class="overlay" role="dialog" aria-label={gt('games.phone.leaveTitle', 'Leave the room')}>
+    <div class="overlay" role="dialog" aria-modal="true" aria-label={gt('games.phone.leaveTitle', 'Leave the room')} ref={dialogRef}>
       <div class="overlay-card">
         <h2 class="overlay-title">{gt('games.phone.leaveQuestion', 'Leave the room?')}</h2>
         <p class="muted">{gt('games.phone.leaveRejoin', 'You can rejoin with the same code while the room is still open.')}</p>
@@ -119,6 +125,15 @@ export function PhoneHeaderActions({ code, joinUrl, themeControl, onLeave }: Pho
   const [showSettings, setShowSettings] = useState(false);
   const [confirmLeave, setConfirmLeave] = useState(false);
 
+  // Stays mounted while the dialogs come and go, which is what useEscapeKey needs.
+  useEscapeKey(showSettings || confirmLeave, () => {
+    if (confirmLeave) setConfirmLeave(false);
+    else setShowSettings(false);
+  });
+
+  const currentPreset = presetIdOf(themeControl.theme);
+  const currentThemeName = currentPreset !== null ? THEME_PRESET_LABELS[currentPreset] : null;
+
   const cycleTheme = (): void => {
     const current = presetIdOf(themeControl.theme);
     const index = current === null ? -1 : THEME_PRESET_IDS.indexOf(current);
@@ -129,7 +144,16 @@ export function PhoneHeaderActions({ code, joinUrl, themeControl, onLeave }: Pho
 
   return (
     <div class="lobby-actions">
-      <button type="button" class="icon-button" onClick={cycleTheme}>
+      <button
+        type="button"
+        class="icon-button"
+        onClick={cycleTheme}
+        aria-label={
+          currentThemeName !== null
+            ? gt('games.phone.themeCycle', 'Theme: {name}. Switch to the next theme', { name: currentThemeName })
+            : gt('games.phone.themeCycleCustom', 'Switch to the next theme')
+        }
+      >
         <ThemeIcon />
         <span class="icon-caption">{gt('games.phone.theme', 'Theme')}</span>
       </button>

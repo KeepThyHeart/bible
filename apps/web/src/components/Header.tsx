@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from 'preact/hooks';
+import { useMenuKeyboard } from '../hooks/useMenuKeyboard';
 import { useTranslation } from 'react-i18next';
 import { bibleStore } from '../stores/bibleStore';
 import { searchStore } from '../stores/searchStore';
@@ -43,6 +44,9 @@ export function Header({ onSettingsClick, onHelpClick, onFeedbackClick, onLogoCl
   const themeDialogRef = useRef<HTMLDivElement>(null);
   const themeWrapperRef = useRef<HTMLDivElement>(null);
   const themeButtonRef = useRef<HTMLButtonElement>(null);
+  const searchTypeButtonRef = useRef<HTMLButtonElement>(null);
+  const searchTypeMenuRef = useRef<HTMLDivElement>(null);
+  const searchTypeKeys = useMenuKeyboard(showSearchTypeDropdown, setShowSearchTypeDropdown, searchTypeButtonRef, searchTypeMenuRef);
   // The theme picker is a small non-modal popup (the page stays usable while it is open), so it
   // does not trap Tab or claim aria-modal: it takes focus when it opens, closes when focus or a
   // pointer press goes elsewhere, and hands focus back to its button when it closes from inside.
@@ -220,6 +224,8 @@ export function Header({ onSettingsClick, onHelpClick, onFeedbackClick, onLogoCl
           <button
             type="button"
             class="header__search-type-btn"
+            ref={searchTypeButtonRef}
+            onKeyDown={searchTypeKeys.onTriggerKeyDown}
             onClick={() => setShowSearchTypeDropdown(!showSearchTypeDropdown)}
             title={t('header.searchTypeChange')}
             aria-haspopup="menu"
@@ -237,6 +243,8 @@ export function Header({ onSettingsClick, onHelpClick, onFeedbackClick, onLogoCl
           </button>
           {showSearchTypeDropdown && (
             <div class="header__search-type-dropdown"
+              ref={searchTypeMenuRef}
+              onKeyDown={searchTypeKeys.onMenuKeyDown}
               role="menu"
               aria-label={t('header.searchTypeChange')}
               onMouseLeave={() => setShowSearchTypeDropdown(false)}

@@ -1085,6 +1085,19 @@ class BibleStore extends Store {
     tab.moduleAbbr = moduleAbbr;
     tab.moduleName = moduleAbbr;
 
+    // The entry the reader is standing on describes this passage in the translation they are now
+    // reading; leaving the old abbreviation made "Recent passages" name the wrong version.
+    const standingOn = tab.history[tab.historyIndex];
+    if (standingOn && standingOn.moduleAbbr !== moduleAbbr) {
+      standingOn.moduleAbbr = moduleAbbr;
+      // Entries are per (module, passage): drop an older row that is now a duplicate of this one.
+      const kept = tab.history.filter(h => h === standingOn || !isSamePassage(h, standingOn));
+      if (kept.length !== tab.history.length) {
+        tab.history = kept;
+        tab.historyIndex = kept.indexOf(standingOn);
+      }
+    }
+
     // Reload current chapter in new translation
     if (tab.book && tab.chapter) {
       tab.loadError = undefined;

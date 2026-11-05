@@ -86,7 +86,9 @@
       "yourName": "Su nombre",
       "joining": "Uniéndose…",
       "joinRoom": "Unirse a la sala",
-      "solo": "Jugar solo"
+      "solo": "Jugar solo",
+      "codeInvalid": "Un código de sala tiene {length} letras y números, como 5HK27. Mira la pantalla grande.",
+      "nameNeeded": "Escribe tu nombre para unirte."
     },
     "solo": {
       "onYourOwn": "Está solo: nadie más puede ver esta sala.",
@@ -138,7 +140,11 @@
       "leaveRejoin": "Puede volver a unirse con el mismo código mientras la sala siga abierta.",
       "stay": "Quedarse",
       "theme": "Tema",
-      "leave": "Salir"
+      "leave": "Salir",
+      "themeCycle": "Tema: {name}. Cambiar al siguiente tema",
+      "themeCycleCustom": "Cambiar al siguiente tema",
+      "playersCount": "Jugadores: {total}",
+      "lobbyHeading": "Sala de espera"
     },
     "brand": {
       "title": "Juegos Bíblicos en Grupo",

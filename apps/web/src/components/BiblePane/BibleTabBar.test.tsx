@@ -10,6 +10,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/preact';
 import type { BibleTab } from '../../stores/bibleStore';
+import { focusAfterTabClose } from '../common/SortableTab';
 
 // ---- i18n ----------------------------------------------------------------
 vi.mock('react-i18next', () => ({
@@ -40,7 +41,8 @@ vi.mock('@dnd-kit/sortable', () => ({
 
 // ---- SortableTab mock ----------------------------------------------------
 vi.mock('../common/SortableTab', () => ({
-  tabKeyDown: (activate: () => void) => (e: KeyboardEvent) => { if (e.key === 'Enter' || e.key === ' ') activate(); },
+  tabKeyDown: (activate: () => void, close?: (list: Element | null) => void) => (e: KeyboardEvent) => { if (e.key === 'Enter' || e.key === ' ') activate(); else if (e.key === 'Delete' && close) close(null); },
+  focusAfterTabClose: vi.fn(),
   tablistKeyDown: () => {},
   SortableTab: ({ children, class: className, onClick }: { children: unknown; class?: string; onClick?: () => void }) => (
     <div class={className} onClick={onClick}>{children as any}</div>
@@ -278,7 +280,7 @@ describe('BibleTabBar', () => {
 
     it('is a tablist whose tabs expose aria-selected', () => {
       const { container } = render(<BibleTabBar />);
-      expect(container.querySelector('.bible-tab-bar')!.getAttribute('role')).toBe('tablist');
+      expect(container.querySelector('.bible-tab-bar [role="tablist"]')).toBeTruthy();
       const tabs = screen.getAllByRole('tab', { name: /John 3|Book19 23|Psalms 23/ });
       expect(tabs.filter(t => t.getAttribute('aria-selected') === 'true')).toHaveLength(1);
       expect(container.querySelector('.bible-tab-bar__tab--active [role="tab"]')!.getAttribute('aria-selected')).toBe('true');
@@ -312,6 +314,36 @@ describe('BibleTabBar', () => {
       const second = screen.getAllByRole('tab').find(t => t.textContent?.includes('Book19') || t.textContent?.includes('Psalms'))!;
       fireEvent.keyDown(second, { key: 'Enter' });
       expect(mockSetActiveTab).toHaveBeenCalledWith('tab-2');
+    });
+
+    it('closes the focused tab with Delete and hands focus to the active tab', () => {
+      render(<BibleTabBar />);
+      const second = screen.getAllByRole('tab').find(t => t.textContent?.includes('Book19') || t.textContent?.includes('Psalms'))!;
+      fireEvent.keyDown(second, { key: 'Delete' });
+      expect(mockRemoveTab).toHaveBeenCalledWith('tab-2');
+    });
+
+    it('does not close the last tab with Delete', () => {
+      mockTabs = [makeTab()];
+      render(<BibleTabBar />);
+      fireEvent.keyDown(screen.getAllByRole('tab').find(t => t.textContent?.includes('John'))!, { key: 'Delete' });
+      expect(mockRemoveTab).not.toHaveBeenCalled();
+    });
+
+    it('moves focus (via focusAfterTabClose) when the close button is used', () => {
+      render(<BibleTabBar />);
+      (focusAfterTabClose as any).mockClear();
+      fireEvent.click(screen.getByRole('button', { name: 'Close John 3' }));
+      expect(mockRemoveTab).toHaveBeenCalledWith('tab-1');
+      expect(focusAfterTabClose).toHaveBeenCalled();
+    });
+
+    it('renders the New-tab picker outside the tablist', () => {
+      const { container } = render(<BibleTabBar />);
+      fireEvent.click(container.querySelector('.bible-tab-bar__add')!);
+      const picker = screen.getByTestId('book-chapter-picker');
+      expect(picker.closest('[role="tablist"]')).toBeNull();
+      expect(container.querySelector('.bible-tab-bar__add')!.closest('[role="tablist"]')).toBeNull();
     });
   });
 });

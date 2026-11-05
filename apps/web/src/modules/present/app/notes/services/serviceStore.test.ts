@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createIndexedDbBackend, createMemoryBackend, ServiceStore, type ServiceBackend } from './serviceStore';
+import { createIndexedDbBackend, createMemoryBackend, ServiceStore, todayISO, type ServiceBackend } from './serviceStore';
 
 let n = 0;
 const make = (backend: ServiceBackend = createMemoryBackend()) =>
@@ -95,5 +95,26 @@ describe('ServiceStore', () => {
     expect(store.list()).toHaveLength(1);
     expect(store.persistent).toBe(false);
     expect(s.name).toBe('A');
+  });
+});
+
+// 0209 R2 W7 item 6: the default service name is the user's local date, not the UTC date.
+describe('default service name uses the local date', () => {
+  const realTz = process.env.TZ;
+  afterEach(() => {
+    if (realTz === undefined) delete process.env.TZ;
+    else process.env.TZ = realTz;
+  });
+
+  it('is still today at 23:28 in New York (the UTC date is already tomorrow)', () => {
+    process.env.TZ = 'America/New_York';
+    const at = new Date('2026-11-05T04:28:00Z').getTime(); // 2026-11-04 23:28 EST
+    expect(todayISO(at)).toBe('2026-11-04');
+  });
+
+  it('is already tomorrow at 07:00 in Auckland (the UTC date is still today)', () => {
+    process.env.TZ = 'Pacific/Auckland';
+    const at = new Date('2026-11-04T18:00:00Z').getTime(); // 2026-11-05 07:00 NZDT
+    expect(todayISO(at)).toBe('2026-11-05');
   });
 });
