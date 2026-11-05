@@ -1,0 +1,31 @@
+{
+  "app": "web",
+  "kind": "web",
+  "description": "Bible web app served locally on fixture data (the e2e module snapshot), or an allowed external site read-only",
+  "build": {
+    "requires": ["dist/client/index.html"],
+    "hint": "pnpm run build:core && pnpm --filter @bible/web run build:client"
+  },
+  "prepare": {
+    "command": "node",
+    "args": ["node_modules/tsx/dist/cli.mjs", "../../packages/ui-driver/fixtures/web-prepare.ts"]
+  },
+  "server": {
+    "command": "node",
+    "args": ["node_modules/tsx/dist/cli.mjs", "server/index.ts"],
+    "port": "auto",
+    "env": {
+      "PORT": "${port}",
+      "NO_AUTH": "1",
+      "DISABLE_RATE_LIMIT": "1",
+      "FEATURE_PWA": "0",
+      "BIBLE_DATA_DIR": "${prepare.dataDir}",
+      "BIBLE_MODULES_DIR": "${prepare.modulesDir}",
+      "BIBLE_APP_STATE_DIR": "${profile}/state"
+    },
+    "url": "http://127.0.0.1:${port}",
+    "ready": { "url": "${url}/api/health", "timeout": 300000 }
+  },
+  "external": { "allow": ["https://bible.keepthyheart.com"] },
+  "viewport": { "width": 1280, "height": 800 }
+}
