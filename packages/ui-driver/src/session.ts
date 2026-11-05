@@ -598,6 +598,8 @@ export class Session implements Executor {
    */
   private async tabWalk(p: Page): Promise<AuditItem[]> {
     const before = await p.evaluate(() => window.__uid.focusRef());
+    // Kept as a handle too: focus on an element without a ref (a dialog container) is put back as well.
+    const beforeEl = await p.evaluateHandle(() => document.activeElement).catch(() => undefined);
     await p.evaluate(() => { (document.activeElement as HTMLElement | null)?.blur?.(); });
     const stops: string[] = [];
     const items: AuditItem[] = [];
@@ -630,6 +632,10 @@ export class Session implements Executor {
     const order = [...distinct].filter(x => x !== 'body');
     items.push({ kind: 'info-tab', detail: `${order.length} stops${wrapped ? ', wraps' : ' (stopped at 80, no wrap)'}: ${order.slice(0, 15).join(' ')}${order.length > 15 ? ' …' : ''}` });
     if (/^r\d+$/.test(before)) await p.evaluate((r) => (window.__uid.resolve(r) as HTMLElement | null)?.focus?.(), before).catch(() => undefined);
+    else if (beforeEl) {
+      await p.evaluate((el) => { if (el instanceof HTMLElement && el.isConnected && el !== document.body) el.focus(); }, beforeEl).catch(() => undefined);
+    }
+    await beforeEl?.dispose().catch(() => undefined);
     const s = await this.snap(p);
     this.setBase(s);
     return items;
