@@ -97,6 +97,7 @@ describe('parseArgv', () => {
     expect(ok(['resize', '390x844'])).toEqual({ name: 'resize', width: 390, height: 844 });
     expect(ok(['resize', '390', '844'])).toEqual({ name: 'resize', width: 390, height: 844 });
     expect(ok(['resize', '390x844', '-q'])).toEqual({ name: 'resize', width: 390, height: 844, quiet: true });
+    expect(ok(['wait', '1500', '-q'])).toEqual({ name: 'wait', kind: 'ms', ms: 1500, quiet: true });
     expect(err(['resize', '390'])).toMatch(/^usage: resize/);
   });
   it('wait', () => {

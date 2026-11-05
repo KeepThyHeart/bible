@@ -318,8 +318,8 @@ function build(argv: string[]): Command {
 }
 
 function buildWait(rest: string[], usage: string): Command {
-  const { pos, f } = parseFlags(rest, { timeout: 'int' }, usage);
-  const timeout = typeof f.timeout === 'number' ? { timeout: f.timeout } : {};
+  const { pos, f } = parseFlags(rest, { timeout: 'int', quiet: 'bool' }, usage);
+  const timeout = { ...(typeof f.timeout === 'number' ? { timeout: f.timeout } : {}), ...(f.quiet ? { quiet: true } : {}) };
   const mk = (kind: WaitKind, extra: { text?: string; ref?: string; ms?: number } = {}): Command => ({
     name: 'wait',
     kind,

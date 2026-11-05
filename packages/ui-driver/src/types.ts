@@ -76,7 +76,7 @@ export type Command =
   | ({ name: 'forward' } & ActionOpts)
   | ({ name: 'reload' } & ActionOpts)
   | { name: 'resize'; width: number; height: number; quiet?: boolean }
-  | { name: 'wait'; kind: WaitKind; text?: string; ref?: string; ms?: number; timeout?: number }
+  | { name: 'wait'; kind: WaitKind; text?: string; ref?: string; ms?: number; timeout?: number; quiet?: boolean }
   | { name: 'errors'; all?: boolean; warnings?: boolean; clear?: boolean }
   /** `check` with no ref (or with audit kinds): the heuristics. */
   | { name: 'audit'; kinds: AuditKind[] }
