@@ -26,7 +26,7 @@ vi.mock('@dnd-kit/utilities', () => ({
   },
 }));
 
-import { SortableTab, tabKeyDown, focusAfterTabClose } from './SortableTab';
+import { SortableTab, tabKeyDown, tablistKeyDown, focusAfterTabClose } from './SortableTab';
 
 // Default stub returned by useSortable
 function makeSortableState(overrides: Partial<{
@@ -260,5 +260,40 @@ describe('Delete and focus after close', () => {
     focusAfterTabClose(list, '.add');
     await new Promise(r => requestAnimationFrame(() => r(null)));
     expect(document.activeElement).toBe(container.querySelector('.add'));
+  });
+});
+
+describe('tablistKeyDown wrapping', () => {
+  function strip(dir = 'ltr') {
+    const list = document.createElement('div');
+    list.setAttribute('role', 'tablist');
+    list.style.direction = dir;
+    const tabs = [0, 1, 2].map(() => {
+      const t = document.createElement('button');
+      t.setAttribute('role', 'tab');
+      list.appendChild(t);
+      return t;
+    });
+    document.body.appendChild(list);
+    return { list, tabs };
+  }
+  function press(tab: HTMLElement, key: string) {
+    const ev = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true });
+    Object.defineProperty(ev, 'currentTarget', { value: tab });
+    tablistKeyDown(ev);
+  }
+  it('wraps ArrowRight on the last tab to the first and ArrowLeft on the first to the last', () => {
+    const { list, tabs } = strip();
+    press(tabs[2], 'ArrowRight');
+    expect(document.activeElement).toBe(tabs[0]);
+    press(tabs[0], 'ArrowLeft');
+    expect(document.activeElement).toBe(tabs[2]);
+    list.remove();
+  });
+  it('wraps in the visual direction for RTL', () => {
+    const { list, tabs } = strip('rtl');
+    press(tabs[0], 'ArrowRight');
+    expect(document.activeElement).toBe(tabs[2]);
+    list.remove();
   });
 });

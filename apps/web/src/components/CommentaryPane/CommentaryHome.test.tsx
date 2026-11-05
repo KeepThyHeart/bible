@@ -446,8 +446,8 @@ describe('CommentaryHome', () => {
   it('expands a module from the keyboard via its name button (aria-expanded)', () => {
     render(<CommentaryHome />);
     const toggle = screen.getByRole('button', { name: 'MHC', expanded: false });
-    expect(toggle.getAttribute('tabindex')).toBe('0');
-    fireEvent.keyDown(toggle, { key: 'Enter' });
+    expect(toggle.tagName).toBe('BUTTON');
+    fireEvent.click(toggle);
     expect(mocks.fetchModuleEntries).toHaveBeenCalled();
   });
 
@@ -456,9 +456,21 @@ describe('CommentaryHome', () => {
     const star = screen.getByRole('button', { name: 'Star MHC' });
     expect(star.getAttribute('aria-pressed')).toBe('false');
     mocks.fetchModuleEntries.mockClear();
-    fireEvent.keyDown(star, { key: 'Enter' });
+    expect(star.tagName).toBe('BUTTON');
+    fireEvent.click(star);
     expect(mocks.togglePromoted).toHaveBeenCalledWith('MHC');
     expect(mocks.fetchModuleEntries).not.toHaveBeenCalled();
+  });
+
+  it('U-232: the star is a sibling of the card button, not nested inside any button or role=button', () => {
+    const { container } = render(<CommentaryHome />);
+    const star = screen.getByRole('button', { name: 'Star MHC' });
+    const toggle = screen.getByRole('button', { name: 'MHC', expanded: false });
+    expect(toggle.contains(star)).toBe(false);
+    expect(star.parentElement?.closest('button, [role="button"]')).toBeNull();
+    expect(toggle.parentElement?.closest('button, [role="button"]')).toBeNull();
+    expect(star.contains(toggle)).toBe(false);
+    expect(container.querySelector('.commentary-home__list-item')?.getAttribute('role')).toBeNull();
   });
 
   it('star and mute are named per commentary; state is aria-pressed, not a rename', () => {
@@ -467,7 +479,7 @@ describe('CommentaryHome', () => {
     const star = screen.getByRole('button', { name: 'Star MHC' });
     expect(star.getAttribute('aria-pressed')).toBe('true');
     expect(screen.queryByRole('button', { name: /^Unstar/ })).toBeNull();
-    fireEvent.keyDown(screen.getByRole('button', { name: 'MHC', expanded: false }), { key: 'Enter' });
+    fireEvent.click(screen.getByRole('button', { name: 'MHC', expanded: false }));
     const mute = screen.getByRole('button', { name: 'Mute MHC' });
     expect(mute.getAttribute('aria-pressed')).toBe('false');
     expect(screen.queryByRole('button', { name: /^Unmute/ })).toBeNull();

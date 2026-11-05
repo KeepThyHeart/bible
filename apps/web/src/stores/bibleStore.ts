@@ -7,7 +7,7 @@ import type { VerseData, BookTopicsData } from '../types';
 import { formatPassageRef, MAX_CHAPTERS } from '../constants';
 import { triggerAutoDownload } from '../offline/autoDownloadManager';
 import { settingsStore } from './settingsStore';
-import { studyOwnsHash, noteStudyHash } from '../host/hashGate';
+import { studyOwnsHash, noteStudyHash, setStudyHomeProbe } from '../host/hashGate';
 import { watchReaderStore } from '../modules/host/readerHooks';
 
 export type DisplayMode = 'standard' | 'reading' | 'study';
@@ -1581,6 +1581,7 @@ class BibleStore extends Store {
 }
 
 export const bibleStore = new BibleStore();
+setStudyHomeProbe(() => bibleStore.showHome);
 
 // Auto-recover a chapter that failed while offline once the connection returns (B-117/B-138).
 if (typeof window !== 'undefined') {

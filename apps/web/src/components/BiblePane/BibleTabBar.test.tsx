@@ -346,4 +346,30 @@ describe('BibleTabBar', () => {
       expect(container.querySelector('.bible-tab-bar__add')!.closest('[role="tablist"]')).toBeNull();
     });
   });
+
+  // 0209 U-137: a clipped active tab that fits with the strip at its start scrolls to the start
+  // (Home and "+" stay visible) instead of being scrolled into view alone.
+  it('scrolls to the start when the active tab fits there', () => {
+    const rect = (left: number, right: number) => ({ left, right, top: 0, bottom: 30, width: right - left, height: 30, x: left, y: 0, toJSON() {} }) as DOMRect;
+    const raf = vi.spyOn(window, 'requestAnimationFrame').mockImplementation((cb) => { cb(0); return 0; });
+    const protoRect = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
+      if (this.classList.contains('bible-tab-bar__tab--active')) return rect(-20, 90); // clipped on the left
+      if (this.classList.contains('bible-tab-bar')) return rect(0, 300);
+      return rect(0, 0);
+    });
+    const clientWidth = vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(300);
+    try {
+      const { container } = render(<BibleTabBar />);
+      const bar = container.querySelector('.bible-tab-bar') as HTMLElement;
+      bar.scrollLeft = 40;
+      bar.scrollBy = vi.fn() as any;
+      // re-run the effect with the scroll position set
+      mockTabs = [makeTab(), makeTab({ id: 'tab-2' })];
+      render(<BibleTabBar />, { container });
+      expect(bar.scrollLeft).toBe(0);
+      expect(bar.scrollBy).not.toHaveBeenCalled();
+    } finally {
+      raf.mockRestore(); protoRect.mockRestore(); clientWidth.mockRestore();
+    }
+  });
 });

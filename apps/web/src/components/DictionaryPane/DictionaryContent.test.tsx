@@ -10,12 +10,12 @@
  * view rendering, navigation buttons, search dropdown, keyboard nav.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/preact';
+import { render, screen, fireEvent, waitFor } from '@testing-library/preact';
 
 // ---- i18n ----------------------------------------------------------------
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
-    t: (key: string) => key,
+    t: (key: string, opts?: { defaultValue?: string }) => opts?.defaultValue ?? key,
     i18n: { language: 'en' },
   }),
 }));
@@ -256,6 +256,23 @@ describe('DictionaryContent', () => {
     const entryBtn = screen.getByText('Agape').closest('button')!;
     fireEvent.click(entryBtn);
     expect(mockLoadEntryInTab).toHaveBeenCalledWith('dtab-1', 'agape');
+  });
+
+  it('U-230: a browse entry that fails to load shows an alert and keeps focus on that item', async () => {
+    mockTab = makeTab();
+    mockTabState = {
+      ...emptyTabState(),
+      browseEntries: [{ entry_key: 'bad/key', word: 'Bad' }, { entry_key: 'logos', word: 'Logos' }],
+    };
+    // The store leaves entry null on failure.
+    mockLoadEntryInTab.mockResolvedValueOnce(undefined);
+    render(<DictionaryContent tabId="dtab-1" />);
+    const btn = screen.getByText('Bad').closest('button')!;
+    btn.focus();
+    fireEvent.click(btn);
+    const alert = await screen.findByRole('alert');
+    expect(alert.textContent).toBe('This entry could not be loaded.');
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByText('Bad').closest('button')));
   });
 
   it('shows "Load more" button when browseOffset < browseTotal', () => {

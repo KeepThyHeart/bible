@@ -640,7 +640,8 @@
     "loadingEntry": "Cargando la entrada...",
     "browseEntriesIn": "Explorar entradas en",
     "searchOccurrences": "Buscar todas las apariciones de {number}",
-    "loadMore": "Cargar más ({count} restantes)"
+    "loadMore": "Cargar más ({count} restantes)",
+    "entryLoadFailed": "No se pudo cargar esta entrada."
   },
   "dictionaryHome": {
     "searchAll": "Buscar en todos los diccionarios...",
@@ -649,7 +650,8 @@
     "loadFailed": "No se pudieron cargar los diccionarios. Compruebe su conexión.",
     "retry": "Reintentar",
     "unstar": "Quitar de destacados",
-    "star": "Destacar (fijar arriba)"
+    "star": "Destacar (fijar arriba)",
+    "starNamed": "Destacar {name}"
   },
   "dictionaryPane": {
     "back": "Atrás",

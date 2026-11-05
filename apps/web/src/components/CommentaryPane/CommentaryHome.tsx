@@ -424,34 +424,26 @@ export function CommentaryHome({ bibleProvider }: CommentaryHomeProps) {
         >
           <div class="commentary-home__item-row">
             <i class={`fa-solid ${isExpanded ? 'fa-chevron-down' : 'fa-chevron-right kth-rtl-mirror'} fa-xs commentary-home__item-chevron`} />
-            {/* The row's click target for the keyboard: the whole row is clickable by mouse, but a
-                role="button" row would nest the star button inside it. */}
-            <span
-              class="commentary-home__item-module"
-              role="button"
-              tabIndex={0}
+            {/* The card's keyboard/AT activation: a real button holding only the name. The whole card
+                is still clickable by mouse, and the star below is its sibling, not inside it. */}
+            <button
+              type="button"
+              class="commentary-home__item-module plain-btn plain-btn--text"
               aria-expanded={isExpanded}
-              onKeyDown={(e: KeyboardEvent) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  handleToggleExpand(mod, e as unknown as MouseEvent);
-                }
+              onClick={(e: MouseEvent) => {
+                e.stopPropagation();
+                handleToggleExpand(mod, e);
               }}
-            >{isDigestModule(mod.moduleAbbr) ? getDigestDisplayName() : mod.moduleAbbr}</span>
+            >{isDigestModule(mod.moduleAbbr) ? getDigestDisplayName() : mod.moduleAbbr}</button>
             {showBar && <div class="commentary-home__item-bar-track"><div class="commentary-home__item-bar" style={{ width: `${barPct}%` }} /></div>}
-            <i
-              class={`fa-${isPromoted ? 'solid' : 'regular'} fa-star fa-xs commentary-home__item-star ${isPromoted ? 'commentary-home__item-star--active' : ''}`}
-              role="button"
-              tabIndex={0}
+            <button
+              type="button"
+              class={`fa-${isPromoted ? 'solid' : 'regular'} fa-star fa-xs commentary-home__item-star plain-btn ${isPromoted ? 'commentary-home__item-star--active' : ''}`}
               aria-pressed={isPromoted}
               data-star-module={mod.moduleAbbr}
               aria-label={`Star ${isDigestModule(mod.moduleAbbr) ? getDigestDisplayName() : mod.moduleAbbr}`}
               title={isPromoted ? 'Unstar (remove from top)' : 'Star (pin to top)'}
               onClick={(e: MouseEvent) => { e.stopPropagation(); toggleStar(mod.moduleAbbr); }}
-              onKeyDown={(e: KeyboardEvent) => {
-                if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); toggleStar(mod.moduleAbbr); }
-              }}
             />
           </div>
           <div class="commentary-home__item-row">

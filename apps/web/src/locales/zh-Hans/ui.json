@@ -640,7 +640,8 @@
     "loadingEntry": "正在加载条目…",
     "browseEntriesIn": "浏览条目于",
     "searchOccurrences": "搜索 {number} 的所有出现处",
-    "loadMore": "加载更多（还剩 {count} 个）"
+    "loadMore": "加载更多（还剩 {count} 个）",
+    "entryLoadFailed": "无法加载此词条。"
   },
   "dictionaryHome": {
     "searchAll": "搜索所有词典…",
@@ -649,7 +650,8 @@
     "loadFailed": "无法加载词典。请检查您的网络连接。",
     "retry": "重试",
     "unstar": "取消星标",
-    "star": "加星标（置顶）"
+    "star": "加星标（置顶）",
+    "starNamed": "星标 {name}"
   },
   "dictionaryPane": {
     "back": "返回",

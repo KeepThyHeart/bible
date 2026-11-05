@@ -306,14 +306,16 @@ for (const [name, Layout] of [
       expect(onStrongsClick).toHaveBeenCalledWith('G26');
     });
 
-    it('looks up from the transliteration too', () => {
+    it('leaves the transliteration as plain text (the word beside it is the control)', () => {
       const onStrongsClick = vi.fn();
       const cells = [cell(0, [word('love')])];
 
       render(<Layout cells={cells} onStrongsClick={onStrongsClick} />);
-      fireEvent.click(screen.getByText('agape'));
+      const translit = screen.getByText('agape');
+      fireEvent.click(translit);
 
-      expect(onStrongsClick).toHaveBeenCalledWith('G26');
+      expect(translit.closest('button')).toBeNull();
+      expect(onStrongsClick).not.toHaveBeenCalled();
     });
 
     it('marks the word clickable only when there is something to look up', () => {
@@ -424,7 +426,7 @@ describe('InlineInterlinear', () => {
 
     const { container } = render(<InlineInterlinear cells={cells} />);
 
-    expect(container.textContent).toBe('God loved(ἀγάπηagapeG26)');
+    expect(container.textContent).toBe('God loved(ἀγάπη agape G26)');
   });
 
   it('separates cells with a space', () => {
@@ -485,5 +487,68 @@ describe('Interlinear keyboard access (round 5)', () => {
   it('stacked: a gloss ending in a comma does not double the comma in the name', () => {
     render(<StackedInterlinear cells={[cell(0, [word('the'), word('world,')], source({ strongsNumber: 'G3588' }))]} />);
     expect(screen.getByRole('button', { name: 'the world, G3588' })).toBeTruthy();
+  });
+});
+
+describe('Interlinear keyboard access and names (round 7)', () => {
+  for (const [name, Layout] of [
+    ['StackedInterlinear', StackedInterlinear],
+    ['InlineInterlinear', InlineInterlinear],
+  ] as const) {
+    it(`${name}: the original word and the Strong's chip are named buttons with the same lookup`, () => {
+      const onStrongsClick = vi.fn();
+      render(<Layout cells={[cell(0, [word('love')])]} onStrongsClick={onStrongsClick} />);
+
+      const original = screen.getByRole('button', { name: 'ἀγάπη, G26' });
+      const chip = screen.getByRole('button', { name: "Strong's G26" });
+      expect(original.tagName).toBe('BUTTON');
+      expect(chip.tagName).toBe('BUTTON');
+      fireEvent.click(original);
+      fireEvent.click(chip);
+      expect(onStrongsClick).toHaveBeenNthCalledWith(1, 'G26');
+      expect(onStrongsClick).toHaveBeenNthCalledWith(2, 'G26');
+    });
+
+    it(`${name}: a padded and an unpadded copy of one number name it once ("H5175")`, () => {
+      const cells = [cell(0, [word('serpent')],
+        source({ strongsNumber: 'H05175', originalWord: 'נָחָשׁ' }),
+        [source({ strongsNumber: 'H5175', gloss: '' })])];
+      render(<Layout cells={cells} />);
+
+      expect(screen.getAllByRole('button', { name: "Strong's H5175" })).toHaveLength(1);
+      expect(screen.getByRole('button', { name: 'נָחָשׁ, H5175' })).toBeTruthy();
+      if (name === 'StackedInterlinear') expect(screen.getByRole('button', { name: 'serpent, H5175' })).toBeTruthy();
+      expect(document.body.textContent).not.toContain('H05175');
+    });
+
+    it(`${name}: still reports the stored (padded) number to the lookup`, () => {
+      const onStrongsClick = vi.fn();
+      render(<Layout cells={[cell(0, [word('serpent')], source({ strongsNumber: 'H05175' }))]} onStrongsClick={onStrongsClick} />);
+      fireEvent.click(screen.getByRole('button', { name: "Strong's H5175" }));
+      expect(onStrongsClick).toHaveBeenCalledWith('H05175');
+    });
+  }
+
+  it('stacked: cells keep word spacing in their text ("called to be an")', () => {
+    const cells = [
+      cell(0, [word('called')], null),
+      cell(1, [word('to'), word('be')], null),
+      cell(2, [word('an')], null),
+      cell(3, [word('apostle')], null),
+    ];
+    const { container } = render(<StackedInterlinear cells={cells} />);
+    expect(container.textContent).toBe('called to be an apostle');
+  });
+
+  it('stacked: spaces separate a cell\'s English, original word, transliteration and chip', () => {
+    const { container } = render(
+      <StackedInterlinear cells={[cell(0, [word('love')]), cell(1, [word('God')], null)]} />,
+    );
+    expect(container.textContent).toContain('love ἀγάπη agape G26 God');
+  });
+
+  it('inline: the annotation reads "word translit chip"', () => {
+    const { container } = render(<InlineInterlinear cells={[cell(0, [word('love')])]} />);
+    expect(container.textContent).toContain('(ἀγάπη agape G26)');
   });
 });

@@ -456,4 +456,29 @@ describe('BookChapterPicker', () => {
     expect(document.activeElement).toBe(opener);
     opener.remove();
   });
+
+  // U-083: at phone width the opener is the non-focusable chapter heading; picking a passage must
+  // not drop focus to <body>.
+  it('moves focus to the reader heading after a pick when the opener cannot take focus', async () => {
+    const pane = document.createElement('div');
+    pane.className = 'bible-pane';
+    const h1 = document.createElement('h1');
+    pane.appendChild(h1);
+    const opener = document.createElement('h2'); // not focusable, like the chapter heading
+    pane.appendChild(opener);
+    document.body.appendChild(pane);
+    const onSelect = vi.fn();
+    const { container, rerender } = render(<BookChapterPicker {...defaultProps} onSelect={onSelect} />);
+    await new Promise((r) => setTimeout(r, 50));
+    fireEvent.click(container.querySelector('.kth-picker__cell--book')!);
+    await new Promise((r) => setTimeout(r, 20));
+    fireEvent.click(container.querySelector('.kth-picker__cell--chapter')!);
+    expect(onSelect).toHaveBeenCalled();
+    (document.activeElement as HTMLElement | null)?.blur();
+    rerender(<BookChapterPicker {...defaultProps} onSelect={onSelect} isOpen={false} />);
+    await new Promise((r) => setTimeout(r, 80));
+    expect(document.activeElement).toBe(h1);
+    expect(h1.getAttribute('tabindex')).toBe('-1');
+    pane.remove();
+  });
 });

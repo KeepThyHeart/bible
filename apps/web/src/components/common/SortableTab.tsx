@@ -39,6 +39,7 @@ export function tablistKeyDown(e: KeyboardEvent) {
   else if (e.key === 'ArrowLeft') next = rtl ? i + 1 : i - 1;
   else if (e.key === 'Home') next = 0;
   else if (e.key === 'End') next = tabs.length - 1;
+  if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') next = (next + tabs.length) % tabs.length;
   if (next < 0 || next >= tabs.length) return;
   e.preventDefault();
   tabs[next].focus();

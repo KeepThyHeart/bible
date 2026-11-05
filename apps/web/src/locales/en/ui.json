@@ -640,7 +640,8 @@
     "loadingEntry": "Loading entry...",
     "browseEntriesIn": "Browse entries in",
     "searchOccurrences": "Search all occurrences of {number}",
-    "loadMore": "Load more ({count} remaining)"
+    "loadMore": "Load more ({count} remaining)",
+    "entryLoadFailed": "This entry could not be loaded."
   },
   "dictionaryHome": {
     "searchAll": "Search all dictionaries...",
@@ -649,7 +650,8 @@
     "loadFailed": "Couldn't load the dictionaries. Check your connection.",
     "retry": "Retry",
     "unstar": "Unstar",
-    "star": "Star (pin to top)"
+    "star": "Star (pin to top)",
+    "starNamed": "Star {name}"
   },
   "dictionaryPane": {
     "back": "Back",

@@ -640,7 +640,8 @@
     "loadingEntry": "טוען ערך...",
     "browseEntriesIn": "עיון בערכים ב-",
     "searchOccurrences": "חיפוש כל ההופעות של {number}",
-    "loadMore": "טעינת עוד ({count} נותרו)"
+    "loadMore": "טעינת עוד ({count} נותרו)",
+    "entryLoadFailed": "לא ניתן לטעון את הערך הזה."
   },
   "dictionaryHome": {
     "searchAll": "חיפוש בכל המילונים...",
@@ -649,7 +650,8 @@
     "loadFailed": "לא ניתן היה לטעון את המילונים. בדקו את החיבור שלכם.",
     "retry": "נסה שוב",
     "unstar": "הסרת הכוכב",
-    "star": "סימון בכוכב (נעיצה בראש הרשימה)"
+    "star": "סימון בכוכב (נעיצה בראש הרשימה)",
+    "starNamed": "סימון {name} בכוכב"
   },
   "dictionaryPane": {
     "back": "חזרה",

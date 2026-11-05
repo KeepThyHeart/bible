@@ -4,7 +4,7 @@ vi.mock('../../utils/bootGuard', () => ({ reloadForUpdateOnce: () => false }));
 
 import { appHost, appRegistry, addAppBinding, consumeAppPop } from '../appHost';
 import { activateApp, backFromApp, appIdForHash } from '../webRoute';
-import { studyOwnsHash, setStudyOwnsHash, noteStudyHash } from '../hashGate';
+import { studyOwnsHash, setStudyOwnsHash, noteStudyHash, setStudyHomeProbe } from '../hashGate';
 
 const View = () => null;
 let presentGate: Promise<void> | null = null;
@@ -51,6 +51,20 @@ describe('webRoute', () => {
     await activateApp('present');
     await backFromApp();
     expect(location.hash).toBe('#/KJV/43/3');
+  });
+
+  // 0209 U-026: Home -> app -> Study showed the home screen under a passage URL.
+  it('backFromApp leaves no passage in the URL when Study is showing its home screen', async () => {
+    setStudyHomeProbe(() => true);
+    try {
+      await activateApp('present');
+      noteStudyHash('#/KJV/1/1');
+      await backFromApp();
+      expect(location.hash).toBe('');
+      expect(studyOwnsHash()).toBe(true);
+    } finally {
+      setStudyHomeProbe(null);
+    }
   });
 
   it('popstate onto an app hash activates it and flags the pop once', async () => {

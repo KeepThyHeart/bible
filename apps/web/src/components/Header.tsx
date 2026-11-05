@@ -36,6 +36,8 @@ interface HeaderProps {
 export function Header({ onSettingsClick, onHelpClick, onFeedbackClick, onLogoClick }: HeaderProps) {
   const { t } = useTranslation();
   const theme = useStore(settingsStore, () => settingsStore.getResolvedTheme());
+  // The stored choice ('auto' or a theme): the popup's pressed state follows it, not the resolved theme.
+  const storedTheme = useStore(settingsStore, () => (settingsStore as { theme?: string }).theme ?? settingsStore.getResolvedTheme());
   const [value, setValue] = useState('');
   const [showThemeDropdown, setShowThemeDropdown] = useState(false);
   const [showSearchTypeDropdown, setShowSearchTypeDropdown] = useState(false);
@@ -392,6 +394,7 @@ export function Header({ onSettingsClick, onHelpClick, onFeedbackClick, onLogoCl
             class="header__action-btn"
             onClick={() => setShowThemeDropdown(!showThemeDropdown)}
             title={t('header.theme')}
+            aria-label={`${t('header.theme')}: ${t(`themes.${storedTheme}`)}${storedTheme === 'auto' ? ` (${t(`themes.${theme}`)})` : ''}`}
             aria-expanded={showThemeDropdown}
             aria-haspopup="dialog"
           >
@@ -404,14 +407,14 @@ export function Header({ onSettingsClick, onHelpClick, onFeedbackClick, onLogoCl
               aria-label={t('header.theme')}
               onMouseLeave={() => setShowThemeDropdown(false)}
             >
-              {themeOptions.slice(0, 3).map(opt => (
+              {[{ value: 'auto', label: 'themes.auto', icon: 'fa-circle-half-stroke' }, ...themeOptions.slice(0, 3)].map(opt => (
                 <button
                   key={opt.value}
                   type="button"
-                  class={`header__theme-option ${theme === opt.value ? 'header__theme-option--active' : ''}`}
-                  aria-pressed={theme === opt.value}
+                  class={`header__theme-option ${storedTheme === opt.value ? 'header__theme-option--active' : ''}`}
+                  aria-pressed={storedTheme === opt.value}
                   onClick={() => {
-                    settingsStore.setTheme(opt.value);
+                    settingsStore.setTheme(opt.value as Parameters<typeof settingsStore.setTheme>[0]);
                     setShowThemeDropdown(false);
                   }}
                 >

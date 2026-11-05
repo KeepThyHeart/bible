@@ -116,7 +116,7 @@ export function DictionaryHome() {
                   tabIndex={0}
                   aria-pressed={isStarred}
                   data-star-module={m.abbreviation}
-                  aria-label={`${t('dictionaryHome.star')}: ${m.name}`}
+                  aria-label={t('dictionaryHome.starNamed', { name: m.name, defaultValue: 'Star {name}' })}
                   title={isStarred ? t('dictionaryHome.unstar') : t('dictionaryHome.star')}
                   onClick={(e: MouseEvent) => { e.stopPropagation(); toggleStar(m.abbreviation); }}
                   onKeyDown={(e: KeyboardEvent) => {

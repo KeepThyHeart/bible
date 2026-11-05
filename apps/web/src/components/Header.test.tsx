@@ -28,10 +28,12 @@ let mockSearchType: 'keyword' | 'semantic' = 'keyword';
 let mockSearchQuery = '';
 let mockIsOnline = true;
 let mockOfflineEnabled = false;
+let mockStoredTheme: string | undefined;
 
 vi.mock('../stores/settingsStore', () => ({
   settingsStore: {
     getResolvedTheme: () => mockTheme,
+    get theme() { return mockStoredTheme ?? mockTheme; },
     setTheme: vi.fn(),
   },
 }));
@@ -407,6 +409,22 @@ describe('Header', () => {
     expect(screen.getByRole('button', { name: 'themes.dark' }).getAttribute('aria-pressed')).toBe('true');
     const pressed = screen.getAllByRole('button').filter((b) => b.getAttribute('aria-pressed') === 'true');
     expect(pressed).toHaveLength(1);
+  });
+
+  // 0209 U-225: with the stored setting on Auto, no concrete theme may show as pressed.
+  it('shows Auto pressed (and names the resolved theme) when the stored theme is auto', () => {
+    mockTheme = 'light';
+    mockStoredTheme = 'auto';
+    try {
+      render(<Header />);
+      const btn = screen.getByTitle('header.theme');
+      expect(btn.getAttribute('aria-label')).toBe('header.theme: themes.auto (themes.light)');
+      fireEvent.click(btn);
+      expect(screen.getByRole('button', { name: 'themes.auto' }).getAttribute('aria-pressed')).toBe('true');
+      expect(screen.getByRole('button', { name: 'themes.light' }).getAttribute('aria-pressed')).toBe('false');
+    } finally {
+      mockStoredTheme = undefined;
+    }
   });
 
   it('theme popup is not aria-modal and reports expanded on its button', () => {

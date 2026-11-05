@@ -546,7 +546,9 @@ export function SearchResultsPanel({ onNavigate, onOpenStrongsEntry }: SearchRes
             // is told nothing rather than told zero — it counts its own rows then.
             bookCounts={Object.keys(bookCounts).length > 0 ? bookCounts : undefined}
             mode={distributionMode}
-            truncated={resultsTruncated}
+            // Strong's paging has no server-side per-book counts: while rows remain to load the bars
+            // count only the loaded page (U-040), so the caption says so, as for a capped keyword search.
+            truncated={resultsTruncated || (strongsMode && strongsRemaining > 0)}
             onSelectBook={selectBook}
           />
         )}

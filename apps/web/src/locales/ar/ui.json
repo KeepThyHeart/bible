@@ -640,7 +640,8 @@
     "loadingEntry": "جارٍ تحميل المدخل...",
     "browseEntriesIn": "تصفح المدخلات في",
     "searchOccurrences": "البحث عن جميع مواضع {number}",
-    "loadMore": "تحميل المزيد (المتبقي {count})"
+    "loadMore": "تحميل المزيد (المتبقي {count})",
+    "entryLoadFailed": "تعذّر تحميل هذا المدخل."
   },
   "dictionaryHome": {
     "searchAll": "البحث في كل القواميس...",
@@ -649,7 +650,8 @@
     "loadFailed": "تعذّر تحميل القواميس. تحقّق من اتصالك.",
     "retry": "إعادة المحاولة",
     "unstar": "إلغاء التمييز بنجمة",
-    "star": "تمييز بنجمة (التثبيت في الأعلى)"
+    "star": "تمييز بنجمة (التثبيت في الأعلى)",
+    "starNamed": "تمييز {name} بنجمة"
   },
   "dictionaryPane": {
     "back": "رجوع",

@@ -13,7 +13,8 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/preact';
 // ---- i18n ----------------------------------------------------------------
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
-    t: (key: string) => key,
+    t: (key: string, opts?: { defaultValue?: string; [k: string]: unknown }) =>
+      opts?.defaultValue ? opts.defaultValue.replace(/\{\{?(\w+)\}\}?/g, (_m, k) => String(opts[k])) : key,
     i18n: { language: 'en' },
   }),
 }));
@@ -281,12 +282,12 @@ describe('DictionaryHome', () => {
     mockModules = [makeModule({ abbreviation: 'strongs', name: 'Strongs' }), makeModule({ abbreviation: 'webster', name: 'Webster' })];
     mockStarredModules = new Set(['webster']);
     render(<DictionaryHome />);
-    const stars = screen.getAllByRole('button', { name: /dictionaryHome\.star: / });
+    const stars = screen.getAllByRole('button', { name: /^Star / });
     expect(stars).toHaveLength(2);
-    const strongs = screen.getByRole('button', { name: 'dictionaryHome.star: Strongs' });
+    const strongs = screen.getByRole('button', { name: 'Star Strongs' });
     expect(strongs.getAttribute('aria-pressed')).toBe('false');
     expect(strongs.getAttribute('tabindex')).toBe('0');
-    expect(screen.getByRole('button', { name: 'dictionaryHome.star: Webster' }).getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getByRole('button', { name: 'Star Webster' }).getAttribute('aria-pressed')).toBe('true');
     fireEvent.keyDown(strongs, { key: 'Enter' });
     expect(mockToggleStarred).toHaveBeenCalledWith('strongs');
     fireEvent.keyDown(strongs, { key: ' ' });
@@ -298,13 +299,13 @@ describe('DictionaryHome', () => {
     mockModules = [makeModule({ abbreviation: 'aaa', name: 'Aaa' }), makeModule({ abbreviation: 'zzz', name: 'Zzz' })];
     mockStarredModules = new Set();
     render(<DictionaryHome />);
-    const star = screen.getByRole('button', { name: 'dictionaryHome.star: Zzz' });
+    const star = screen.getByRole('button', { name: 'Star Zzz' });
     star.focus();
     // The re-sort remounts the star, which drops focus to <body>.
     mockToggleStarred.mockImplementationOnce(() => (document.activeElement as HTMLElement).blur());
     fireEvent.click(star);
     await waitFor(() => {
-      expect(document.activeElement).toBe(screen.getByRole('button', { name: 'dictionaryHome.star: Zzz' }));
+      expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Star Zzz' }));
     });
     expect(mockToggleStarred).toHaveBeenCalledWith('zzz');
   });

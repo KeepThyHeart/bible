@@ -30,7 +30,7 @@ test.describe('UI hardening 0209 (desktop)', () => {
 
   // U-003 / U-004: theme popup is a non-modal popup with expanded/pressed state; focusing search closes it.
   test('U-003/U-004 theme popup state and non-modal behaviour', async ({ page }) => {
-    const themeBtn = page.getByRole('button', { name: 'Theme', exact: true }).first();
+    const themeBtn = page.getByRole('button', { name: /^Theme(: |$)/ }).first();
     await expect(themeBtn).toHaveAttribute('aria-expanded', 'false');
     await themeBtn.click();
     await expect(themeBtn).toHaveAttribute('aria-expanded', 'true');
@@ -120,7 +120,7 @@ test.describe('UI hardening 0209 (desktop)', () => {
 
   // U-134: Settings opened from the Theme popup "More…" returns focus to the Theme button on Escape.
   test('U-134 Settings from Theme More returns focus to Theme button', async ({ page }) => {
-    const themeBtn = page.getByRole('button', { name: 'Theme', exact: true }).first();
+    const themeBtn = page.getByRole('button', { name: /^Theme(: |$)/ }).first();
     await themeBtn.click();
     await page.getByRole('button', { name: /^More/ }).click();
     const dialog = page.getByRole('dialog', { name: 'Settings' });

@@ -9,13 +9,24 @@
   color: var(--text-muted);
   direction: auto;
   unicode-bidi: isolate;
+
+  // The original-language word is a real <button> when it can be looked up: it looks like the
+  // surrounding text, and the 0.75em above is applied to it once, not compounded.
+  @at-root button#{&} {
+    background: none;
+    border: 0;
+    padding: 0;
+    margin: 0;
+    font-family: inherit;
+    line-height: inherit;
+    text-align: inherit;
+  }
 }
 
 // The original-language word and its transliteration open the same Strong's
 // definition as the chip beside them. Inert, they would make the most obvious
 // thing to click in an interlinear do nothing.
-.verse__interlinear-original--clickable,
-.verse__interlinear-translit--clickable {
+.verse__interlinear-original--clickable {
   cursor: pointer;
   border-radius: 3px;
   transition: background 0.1s;
@@ -51,9 +62,10 @@
     font-size: 1em;
   }
 
-  .verse__interlinear-translit,
+  // The parts are separated by real spaces (so the text reads "word translit G26"), which take
+  // over from the old margins.
   .verse__strongs-link {
-    margin-inline-start: 3px;
+    margin-inline-start: 0;
   }
 }
 

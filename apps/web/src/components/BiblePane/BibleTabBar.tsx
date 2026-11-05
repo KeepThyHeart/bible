@@ -71,7 +71,11 @@ export function BibleTabBar({ vertical, hideHome }: BibleTabBarProps) {
         const delta = (lo: number, hi: number, blo: number, bhi: number) => (lo < blo ? lo - blo : hi > bhi ? hi - bhi : 0);
         const left = delta(a.left, a.right, b.left, b.right);
         const top = delta(a.top, a.bottom, b.top, b.bottom);
-        if (left || top) bar.scrollBy({ left, top, behavior: 'smooth' });
+        // U-137: when the active tab fits with the strip at its start, stay at the start
+        // (Home and "+" visible) instead of scrolling just far enough to show the tab.
+        const reach = scrollStart(bar, uiDir) + (uiDir === 'rtl' ? b.right - a.left : a.right - b.left);
+        if (!vertical && left && reach <= bar.clientWidth) setScrollStart(bar, 0, uiDir);
+        else if (left || top) bar.scrollBy({ left, top, behavior: 'smooth' });
       }
     });
   }, [activeTabId, tabs.length]);

@@ -73,6 +73,24 @@ export function DictionaryContent({ tabId, bibleProvider }: DictionaryContentPro
     if ((!ae || ae === document.body) && (ua ? ua.isActive : true)) searchRef.current?.focus({ preventScroll: true });
   }, [tabId]);
 
+  // A browse-list entry that failed to load (HTTP error / network): the store leaves the entry
+  // null, so without this the click appears to do nothing and, as the list was swapped for the
+  // loading line meanwhile, focus fell to <body>.
+  const [failedEntryKey, setFailedEntryKey] = useState<string | null>(null);
+  const openBrowseEntry = async (entryKey: string) => {
+    setFailedEntryKey(null);
+    await dictionaryStore.loadEntryInTab(tabId, entryKey);
+    const after = dictionaryStore.getTabState(tabId);
+    if (!after.entry && !after.entryLoading) setFailedEntryKey(entryKey);
+  };
+  const browseListRef = useRef<HTMLDivElement>(null);
+  const entryLoadingNow = tabState?.entryLoading;
+  useEffect(() => {
+    if (!failedEntryKey || entryLoadingNow) return;
+    Array.from(browseListRef.current?.querySelectorAll<HTMLElement>('[data-entry-key]') ?? [])
+      .find(el => el.dataset.entryKey === failedEntryKey)?.focus({ preventScroll: true });
+  }, [failedEntryKey, entryLoadingNow]);
+
   if (!tab) return null;
 
   const {
@@ -379,6 +397,11 @@ export function DictionaryContent({ tabId, bibleProvider }: DictionaryContentPro
           Rendering them side by side flashed a screen of Greek/Hebrew words for a
           frame before the definition landed. */}
       {entryLoading && <div class="dictionary-pane__loading">{t('dictionaryContent.loadingEntry')}</div>}
+      {!entryLoading && failedEntryKey && (
+        <div class="dictionary-pane__placeholder" role="alert">
+          {t('dictionaryContent.entryLoadFailed', { defaultValue: 'This entry could not be loaded.' })}
+        </div>
+      )}
 
       {/* Alphabet bar */}
       {!entryLoading && browseLetters && browseLetters.length > 0 && (
@@ -399,12 +422,13 @@ export function DictionaryContent({ tabId, bibleProvider }: DictionaryContentPro
       {!entryLoading && browseLoading && <div class="dictionary-pane__loading">{t('common.loading')}</div>}
 
       {!entryLoading && browseEntries.length > 0 && (
-        <div class="dictionary-content__browse-list">
+        <div class="dictionary-content__browse-list" ref={browseListRef}>
           {browseEntries.map(e => (
             <button
               key={e.entry_key}
               class="dictionary-content__browse-item"
-              onClick={() => dictionaryStore.loadEntryInTab(tabId, e.entry_key)}
+              data-entry-key={e.entry_key}
+              onClick={() => openBrowseEntry(e.entry_key)}
             >
               {entryLabel(tab.moduleAbbr, e.word, e.entry_key)}
             </button>

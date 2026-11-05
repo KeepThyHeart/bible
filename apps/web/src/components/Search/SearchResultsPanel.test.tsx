@@ -614,6 +614,21 @@ describe('SearchResultsPanel', () => {
     expect(screen.getByTestId('search-distribution').dataset.mode).toBe('semantic');
   });
 
+  it('U-040: a Strong\'s search with rows still to load marks the chart counts as partial', () => {
+    mockQuery = 'G25';
+    mockStrongsMode = true;
+    mockStrongsRemaining = 540;
+    mockResults = [
+      { verseId: 43003016, reference: 'John 3:16', module: 'KJV', type: 'exact', text: '...' },
+    ];
+    const { unmount } = render(<SearchResultsPanel />);
+    expect(screen.getByTestId('search-distribution').dataset.truncated).toBe('true');
+    unmount();
+    mockStrongsRemaining = 0;
+    render(<SearchResultsPanel />);
+    expect(screen.getByTestId('search-distribution').dataset.truncated).toBe('false');
+  });
+
   it('passes the truncation flag from the store through to the chart caption', () => {
     mockQuery = 'love';
     mockResultsTruncated = true;
