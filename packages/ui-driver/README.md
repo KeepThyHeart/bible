@@ -137,8 +137,17 @@ stopped session default (7 commands; transcript $DRIVE_DIR/transcript.jsonl)
   one screenshot settles it.
 
 The `check` heuristics are hints, not verdicts: `covered` and `overlap` use hit-testing at the
-element's centre; `i18n` flags key-like strings (`settings.title`), unresolved placeholders
-(`{{count}}`) and, on a non-English page, English-looking text.
+element's centre (a button laid inside a text field, like a search box's clear button, is not an
+overlap); `i18n` flags key-like strings (`settings.title`), unresolved placeholders (`{{count}}`)
+and, on a non-English page, English-looking text, short English names of controls, tablists,
+regions and dialogs ("Refresh"), and native `<select>` options, skipping content inside an
+English `[lang]` block. `narrow` and `tab` change layout and focus: a dialog or menu they close is
+reported (`closed: …`), and a tab walk that hits the 80-stop cap says so instead of reading clean.
+
+Focus on an element without a ref is shown by what it is, e.g. `focus: r12 → (div#pane)`.
+
+Several web sessions can share one local server: start it once (or let one session start it),
+then `drive start web --url http://127.0.0.1:PORT` in the others.
 
 ## Manifests
 
