@@ -1112,6 +1112,7 @@
   "moduleTable.noneInstalled": "Aún no hay nada instalado aquí",
   "moduleTable.noneInstalledHint": "Cambie el filtro a Todos para explorar los módulos que se pueden instalar.",
   "moduleTable.offlineHint": "El acceso a la red está desactivado",
+  "moduleTable.offlineInstallHint": "Activa el acceso a la red para instalar desde la tienda",
   "moduleTable.updateAria": "Actualizar {name}",
   "notePreviewTooltip.loading": "Cargando...",
   "notePreviewTooltip.noNotesFound": "No se han encontrado notas",

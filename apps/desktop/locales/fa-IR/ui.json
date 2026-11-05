@@ -1115,6 +1115,7 @@
   "moduleTable.noneInstalled": "هنوز چیزی اینجا نصب نشده است",
   "moduleTable.noneInstalledHint": "فیلتر را روی «همه» بگذارید تا ماژول‌های قابل نصب را مرور کنید.",
   "moduleTable.offlineHint": "دسترسی به شبکه خاموش است",
+  "moduleTable.offlineInstallHint": "برای نصب از فروشگاه، دسترسی به شبکه را روشن کنید",
   "moduleTable.updateAria": "به‌روزرسانی {name}",
   "notePreviewTooltip.loading": "در حال بارگیری...",
   "notePreviewTooltip.noNotesFound": "یادداشتی یافت نشد",

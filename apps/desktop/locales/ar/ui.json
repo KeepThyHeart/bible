@@ -1112,6 +1112,7 @@
   "moduleTable.noneInstalled": "لا شيء مثبّت هنا بعد",
   "moduleTable.noneInstalledHint": "بدّل عامل التصفية إلى «الكل» لاستعراض الوحدات التي يمكنك تثبيتها.",
   "moduleTable.offlineHint": "الوصول إلى الشبكة متوقف",
+  "moduleTable.offlineInstallHint": "فعّل الوصول إلى الشبكة للتثبيت من المتجر",
   "moduleTable.updateAria": "تحديث {name}",
   "notePreviewTooltip.loading": "جارٍ التحميل...",
   "notePreviewTooltip.noNotesFound": "لم يُعثر على ملاحظات",

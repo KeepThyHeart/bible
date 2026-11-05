@@ -935,6 +935,12 @@
   border-radius: 4px;
 }
 
+/* Menu items fill the menu edge to edge, so the default outside ring overhangs
+   the menu's border; draw it inside the item instead (U-175). */
+[role='menu'] [role='menuitem']:focus-visible {
+  outline-offset: -2px;
+}
+
 /* Inputs keep their border tint as well; the outline is additive, not a
    replacement. Overriding `outline: none` from themes.css is the whole point. */
 input:focus-visible,

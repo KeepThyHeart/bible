@@ -1115,6 +1115,7 @@
   "moduleTable.noneInstalled": "Здесь пока ничего не установлено",
   "moduleTable.noneInstalledHint": "Переключите фильтр на «Все», чтобы просмотреть модули, доступные для установки.",
   "moduleTable.offlineHint": "Доступ к сети отключён",
+  "moduleTable.offlineInstallHint": "Включите доступ к сети, чтобы устанавливать из магазина",
   "moduleTable.updateAria": "Обновить {name}",
   "notePreviewTooltip.loading": "Загрузка...",
   "notePreviewTooltip.noNotesFound": "Заметок не найдено",

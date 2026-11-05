@@ -672,8 +672,9 @@ const VerseContextMenu: React.FC<VerseContextMenuProps> = ({
             className="w-full px-4 py-2 text-start text-sm hover:bg-background-hover transition-colors flex items-center gap-2 cursor-pointer"
             role="menuitem"
           >
-            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M16.24 3.56l4.95 4.94c.78.79.78 2.05 0 2.84L12 20.53a4.008 4.008 0 0 1-5.66 0L2.81 17c-.78-.79-.78-2.05 0-2.84l10.6-10.6c.79-.78 2.05-.78 2.83 0M4.22 15.58l3.54 3.53c.78.79 2.04.79 2.83 0l3.53-3.53-4.95-4.95-4.95 4.95z"/>
+            {/* Highlighter marker (Material "highlight"); the eraser glyph stays on Remove. */}
+            <svg className="w-4 h-4" data-testid="highlight-menu-icon" aria-hidden="true" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M6 14l3 3v5h6v-5l3-3V9H6zm5-12h2v3h-2zM3.5 5.88l1.41-1.41 2.12 2.12L5.62 8zm13.46.71l2.12-2.12 1.41 1.41L18.38 8z"/>
             </svg>
             <span className="flex-1">{t('ui.verseContextMenu.highlightUnderline')}</span>
             <span className="text-xs text-text-muted ms-4 bidi-isolate">{'Ctrl+Shift+H'}</span>

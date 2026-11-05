@@ -320,6 +320,11 @@
   overflow-y: hidden !important;
   /* Hide scrollbar visually - scrolling still works via touchpad/trackpad */
   scrollbar-width: none; /* Firefox */
+  /* U-058: end padding equal to the scroll chevron's width (30px), so the
+     last tab's close button can scroll clear of the chevron instead of
+     resting under it. */
+  padding-inline-end: 30px;
+  scroll-padding-inline-end: 30px;
 }
 .dockview-theme-light.dockview-theme-light .dv-scrollable > .dv-tabs-container::-webkit-scrollbar {
   display: none; /* Chrome, Edge, Safari */

@@ -230,3 +230,40 @@ export function focusPanelTab(container: ContainerLike | undefined, panelId: str
   const panel = container?.getPanel?.(panelId);
   focusActiveTabOfGroup(container, panel?.group, panelId);
 }
+
+interface RoleGroupLike {
+  element?: HTMLElement;
+  panels: Array<{ id: string; title?: string }>;
+  activePanel?: { id: string };
+}
+
+/**
+ * Re-applies tablist / tab roles to every group's strip. A layout reset
+ * (`fromJSON`) can recreate `.dv-tab` elements that the per-tab sync has not
+ * reached yet, leaving role-less tabs until a reload (U-057). Idempotent.
+ */
+export function reapplyTabRoles(container: { groups?: RoleGroupLike[] } | undefined): void {
+  for (const group of container?.groups ?? []) {
+    const strip = group.element?.querySelector<HTMLElement>('.dv-tabs-container');
+    if (!strip) continue;
+    if (!strip.hasAttribute('role')) strip.setAttribute('role', 'tablist');
+    const tabs = strip.querySelectorAll<HTMLElement>('.dv-tab');
+    tabs.forEach((tab, i) => {
+      const panel = group.panels[i];
+      tab.setAttribute('role', 'tab');
+      if (!panel) return;
+      if (panel.title && !tab.hasAttribute('aria-label')) tab.setAttribute('aria-label', panel.title);
+      tab.setAttribute('aria-selected', String(group.activePanel?.id === panel.id));
+    });
+  }
+}
+
+/** Runs {@link reapplyTabRoles} now and after the next two frames. */
+export function reapplyTabRolesSoon(container: { groups?: RoleGroupLike[] } | undefined): void {
+  reapplyTabRoles(container);
+  if (typeof requestAnimationFrame !== 'function') return;
+  requestAnimationFrame(() => {
+    reapplyTabRoles(container);
+    requestAnimationFrame(() => reapplyTabRoles(container));
+  });
+}

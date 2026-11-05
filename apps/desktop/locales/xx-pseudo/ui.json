@@ -1115,6 +1115,7 @@
   "moduleTable.noneInstalled": "⟦Ñøţĥîñĝ îñšţåļļéð ĥéŕé ýéţ ·······⟧",
   "moduleTable.noneInstalledHint": "⟦Šŵîţçĥ ţĥé ƒîļţéŕ ţø Åļļ ţø ƀŕøŵšé ɱøðüļéš ýøü çåñ îñšţåļļ. ·················⟧",
   "moduleTable.offlineHint": "⟦Ñéţŵøŕķ åççéšš îš øƒƒ ······⟧",
+  "moduleTable.offlineInstallHint": "⟦Ţüŕñ øñ ñéţŵøŕķ åççéšš ţø îñšţåļļ ƒŕøɱ ţĥé šţøŕé ··············⟧",
   "moduleTable.updateAria": "⟦Üþðåţé {name} ··⟧",
   "notePreviewTooltip.loading": "⟦Ļøåðîñĝ... ···⟧",
   "notePreviewTooltip.noNotesFound": "⟦Ñø ñøţéš ƒøüñð ····⟧",

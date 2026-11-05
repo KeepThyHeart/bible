@@ -1115,6 +1115,7 @@
   "moduleTable.noneInstalled": "此处尚未安装任何内容",
   "moduleTable.noneInstalledHint": "将筛选条件切换为“全部”，即可浏览可安装的模块。",
   "moduleTable.offlineHint": "网络访问已关闭",
+  "moduleTable.offlineInstallHint": "开启网络访问以从商店安装",
   "moduleTable.updateAria": "更新 {name}",
   "notePreviewTooltip.loading": "正在加载...",
   "notePreviewTooltip.noNotesFound": "未找到笔记",

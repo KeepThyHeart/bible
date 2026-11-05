@@ -79,6 +79,7 @@ const defaultSearchState = {
   isSearching: false,
   error: null,
   clearResults: vi.fn(),
+  setQuery: vi.fn(),
   keywordResultLimit: 200,
   isShowingAllKeywordResults: false,
   showAllKeywordResults: vi.fn(),
@@ -275,6 +276,15 @@ describe('SearchResultsPane', () => {
     const closeBtn = screen.getByTitle('Close Search Results');
     await user.click(closeBtn);
     expect(mockClearResults).toHaveBeenCalled();
+  });
+
+  it('also empties the header search box when closed (U-176)', async () => {
+    const user = userEvent.setup();
+    const mockSetQuery = vi.fn();
+    Object.assign(mockSearchStore, { ...defaultSearchState, setQuery: mockSetQuery });
+    renderWithProviders(<SearchResultsPane />);
+    await user.click(screen.getByTitle('Close Search Results'));
+    expect(mockSetQuery).toHaveBeenCalledWith('');
   });
 
   it('shows auto-switch notice when auto-switched to semantic', () => {

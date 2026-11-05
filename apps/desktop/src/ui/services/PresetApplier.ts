@@ -1,5 +1,6 @@
 import type { DockviewApi, SerializedDockview } from 'dockview-react';
 import type { LayoutPreset, PresetGroup } from '../types/LayoutPreset';
+import { reapplyTabRolesSoon } from '../hooks/useDockviewTabA11y';
 import type { PanelContentType } from '../stores/useLayoutStore';
 
 export interface TabInfo {
@@ -659,4 +660,6 @@ export function expandGroups(api: DockviewApi, groups: CollapsedGroup[]): void {
 export function applyPresetLayout(api: DockviewApi, result: PresetLayoutResult): void {
   api.fromJSON(result.layout, { reuseExistingPanels: true });
   collapseGroups(api, result.collapsedGroups);
+  // U-057: the new layout's tabs must get their roles at once, not on reload.
+  reapplyTabRolesSoon(api as unknown as Parameters<typeof reapplyTabRolesSoon>[0]);
 }

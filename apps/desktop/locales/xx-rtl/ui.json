@@ -1115,6 +1115,7 @@
   "moduleTable.noneInstalled": "‏Nothing installed here yet‏",
   "moduleTable.noneInstalledHint": "‏Switch the filter to All to browse modules you can install.‏",
   "moduleTable.offlineHint": "‏Network access is off‏",
+  "moduleTable.offlineInstallHint": "‏Turn on network access to install from the store‏",
   "moduleTable.updateAria": "‏Update {name}‏",
   "notePreviewTooltip.loading": "‏Loading...‏",
   "notePreviewTooltip.noNotesFound": "‏No notes found‏",

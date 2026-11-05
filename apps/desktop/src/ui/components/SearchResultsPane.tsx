@@ -76,6 +76,7 @@ const SearchResultsPane: React.FC<SearchResultsPaneProps> = ({ dockviewPanelApi 
     isSearching,
     error,
     clearResults,
+    setQuery,
     // Result paging ("Show All Matches" / "Show N More")
     keywordResultLimit,
     isShowingAllKeywordResults,
@@ -313,6 +314,9 @@ const SearchResultsPane: React.FC<SearchResultsPaneProps> = ({ dockviewPanelApi 
   // results nothing on screen could show.
   const handleClose = () => {
     clearResults();
+    // U-176: closing the results also empties the header search box, as Escape
+    // and Clear do there (clearResults deliberately leaves the query alone).
+    setQuery('');
     dockviewPanelApi?.close();
   };
 
