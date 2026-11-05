@@ -145,7 +145,7 @@ export class Session implements Executor {
         const p = this.need();
         await p.setViewportSize({ width: cmd.width, height: cmd.height });
         await this.settle(p);
-        return this.afterAction(p, false);
+        return this.afterAction(p, !!cmd.quiet);
       }
       case 'errors': {
         const entries = cmd.all ? this.errors.all({ warnings: cmd.warnings }) : this.errors.since(this.errMarkCmd, { warnings: cmd.warnings });
@@ -540,8 +540,19 @@ export class Session implements Executor {
     const items: AuditItem[] = [];
     const pageKinds = kinds.filter(k => k !== 'narrow' && k !== 'tab');
     if (pageKinds.length) items.push(...await p.evaluate((k) => window.__uid.audit(k), pageKinds));
-    if (kinds.includes('narrow')) items.push(...await this.narrow(p));
-    if (kinds.includes('tab')) items.push(...await this.tabWalk(p));
+    // narrow and tab change layout and focus: a dialog or popup they close (an app that re-mounts at
+    // 360px, a popup that closes when focus leaves it) is reported, since later refs into it are stale.
+    const openDialogs = () => p.evaluate(() => Array.from(document.querySelectorAll('[role=dialog],[role=alertdialog],dialog[open],[role=menu]'))
+      .filter((d) => (d as HTMLElement).checkVisibility?.() ?? true)
+      .map((d) => `${d.getAttribute('role') ?? 'dialog'} "${(d.getAttribute('aria-label') ?? '').slice(0, 30)}"`)).catch(() => [] as string[]);
+    for (const k of ['narrow', 'tab'] as const) {
+      if (!kinds.includes(k)) continue;
+      const before = await openDialogs();
+      items.push(...await (k === 'narrow' ? this.narrow(p) : this.tabWalk(p)));
+      const after = new Set(await openDialogs());
+      const gone = before.filter((d) => !after.has(d));
+      if (gone.length) items.push({ kind: 'info-closed', detail: `the ${k} check closed ${gone.join(', ')} (reopen it before using its refs)` });
+    }
     const by = new Map<string, AuditItem[]>();
     for (const it of items) {
       const list = by.get(it.kind) ?? [];

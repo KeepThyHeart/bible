@@ -138,8 +138,8 @@ export function findNodes(root: RawNode, text: string, role?: string, limit = 15
   if (!total && !role && /^[a-z]+$/.test(needle)) {
     // `find slider`: no name holds the word, but it is a role on the page - show those instead of "no match".
     const byRole = findNodes(root, '', needle, limit);
-    if (!byRole.startsWith('no match')) return `no name matches ${q(text)}; nodes with role ${needle}:\n${byRole}`;
+    if (!byRole.startsWith('no ')) return `no name matches ${q(text)}; nodes with role ${needle}:\n${byRole}`;
   }
-  if (!total) return `no match for ${q(text)}`;
+  if (!total) return role && !text ? `no ${role} on the page` : `no match for ${q(text)}${role ? ` with role ${role}` : ''}`;
   return hits.join('\n') + (total > hits.length ? `\n… +${total - hits.length} more` : '');
 }

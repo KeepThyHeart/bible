@@ -137,6 +137,8 @@ describe('findNodes', () => {
   it('falls back to a role when no name holds the word', () => {
     expect(findNodes(tree, 'textbox')).toBe('no name matches "textbox"; nodes with role textbox:\n[r3] textbox "Name" ="My Settings" focused  < [r1] dialog "Settings"');
     expect(findNodes(tree, 'slider')).toBe('no match for "slider"');
+    expect(findNodes(tree, '', 'menu')).toBe('no menu on the page');
+    expect(findNodes(tree, 'zzz', 'button')).toBe('no match for "zzz" with role button');
   });
   it('limits and counts the rest', () => {
     const many = page(...Array.from({ length: 20 }, (_, i) => btn(i + 1)));

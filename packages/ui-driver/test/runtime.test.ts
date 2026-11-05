@@ -315,6 +315,26 @@ describe('audit', () => {
     expect(details).not.toContain('Welcome back');
   });
 
+  it('on a non-English page flags short English control names but not English content blocks', async () => {
+    await load(`<button>Actualizar</button><button>Refresh</button><button aria-label="Scroll tabs left">‹</button>
+      <div role="tablist" aria-label="Bible tabs"></div>
+      <div lang="en"><p>For God so loved the world, that he gave his only begotten Son, and the whole of it</p></div>`);
+    await page.evaluate(() => { document.documentElement.lang = 'es'; });
+    await snap();
+    const details = (await audit('i18n')).map((i) => i.detail).join('\n');
+    expect(details).toContain('"Refresh"');
+    expect(details).toContain('Scroll tabs left');
+    expect(details).toContain('Bible tabs');
+    expect(details).not.toContain('Actualizar');
+    expect(details).not.toContain('loved the world');
+  });
+
+  it('describes focus on an element without a ref', async () => {
+    await load(`<div id="pane" tabindex="-1" class="pane-body"><span>text</span></div>`);
+    await page.evaluate(() => (document.getElementById('pane') as HTMLElement).focus());
+    expect((await snap()).focus).toBe('(div#pane)');
+  });
+
   it('does not report screen-reader-only 1px text as clipped', async () => {
     await load(`<span style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap">Skip to main content</span>
       <p>ok</p>`);
