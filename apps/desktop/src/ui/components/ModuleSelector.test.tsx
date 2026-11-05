@@ -303,4 +303,40 @@ describe('ModuleSelector: remove affordance (opt-in)', () => {
     expect(onRemove).toHaveBeenCalledWith(modules[0]);
     expect(onSelect).not.toHaveBeenCalled();
   });
+
+  describe('modal behaviour', () => {
+    const Host = () => {
+      const [open, setOpen] = React.useState(false);
+      return (
+        <div>
+          <div data-testid="page">
+            <button onClick={() => setOpen(true)}>Change translation</button>
+          </div>
+          <h2 tabIndex={-1}>Genesis 24</h2>
+          {open && (
+            <ModuleSelector
+              title="Select Translation"
+              modules={mockModules}
+              onSelect={onSelect}
+              onClose={() => setOpen(false)}
+            />
+          )}
+        </div>
+      );
+    };
+
+    it('is a labelled modal dialog that inerts the page and returns focus to its opener on Escape', async () => {
+      const user = userEvent.setup();
+      renderWithProviders(<Host />);
+      const opener = screen.getByText('Change translation');
+      await user.click(opener);
+      const dialog = screen.getByRole('dialog', { name: 'Select Translation' });
+      expect(dialog).toHaveAttribute('aria-modal', 'true');
+      expect(screen.getByTestId('page').closest('[inert]')).not.toBeNull();
+      await user.keyboard('{Escape}');
+      expect(screen.queryByRole('dialog')).toBeNull();
+      expect(screen.getByTestId('page').closest('[inert]')).toBeNull();
+      expect(document.activeElement).toBe(opener);
+    });
+  });
 });

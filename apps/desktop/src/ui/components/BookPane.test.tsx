@@ -847,6 +847,15 @@ describe('BookPane: overview shelf (F23)', () => {
     expect(screen.getByTestId('library-home')).toBeInTheDocument();
   });
 
+  // 0209: Overview was a pressed button inside the tablist beside real tabs.
+  it('exposes Overview as a selected tab, like Commentary', () => {
+    renderWithProviders(<BookPane />);
+    const tab = screen.getByTestId('library-overview-tab');
+    expect(tab.getAttribute('role')).toBe('tab');
+    expect(tab.getAttribute('aria-selected')).toBe('true');
+    expect(tab.hasAttribute('aria-pressed')).toBe(false);
+  });
+
   // The other half of that rule: the shelf is for *finding* a module, so a pane
   // that already has one open shows the module rather than the shelf.
   it('opens on the module, not the shelf, when a tab is already open', () => {

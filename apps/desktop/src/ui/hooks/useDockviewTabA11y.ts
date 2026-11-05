@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import type { DockviewPanelApi } from 'dockview-react';
 
 /**
@@ -16,26 +16,64 @@ import type { DockviewPanelApi } from 'dockview-react';
 export function useDockviewTabA11y(
   contentRef: React.RefObject<HTMLElement | null>,
   api: Pick<DockviewPanelApi, 'setActive'> & {
+    id?: string;
     isActive?: boolean;
+    group?: { activePanel?: { id: string } };
     onDidActiveChange?: (cb: () => void) => { dispose(): void };
+    onDidVisibilityChange?: (cb: () => void) => { dispose(): void };
+    onDidGroupChange?: (cb: () => void) => { dispose(): void };
   },
   label: string,
   isRtl: boolean,
+  extras: {
+    /**
+     * Closes the tab. The close button inside a tab is taken out of the tab
+     * order (it cannot be un-nested from dockview's tab element), so Delete on
+     * the focused tab is its keyboard equivalent. Omitted when the tab cannot
+     * be closed by the button either (a lone tab in its group).
+     */
+    onClose?: () => void;
+    /** Layout-change subscription, to re-sync after a restore / split. */
+    onDidLayoutChange?: (cb: () => void) => { dispose(): void };
+    /** Accessible name for the strip's tablist (set once, if it has none). */
+    tablistLabel?: string;
+  } = {},
 ): void {
+  const { onClose, onDidLayoutChange, tablistLabel } = extras;
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
   useEffect(() => {
     const host = contentRef.current?.closest<HTMLElement>('.dv-tab');
     if (!host) return;
     const strip = host.closest<HTMLElement>('.dv-tabs-container');
     if (strip && !strip.hasAttribute('role')) strip.setAttribute('role', 'tablist');
+    if (strip && tablistLabel && !strip.hasAttribute('aria-label')) strip.setAttribute('aria-label', tablistLabel);
     host.setAttribute('role', 'tab');
     if (label) host.setAttribute('aria-label', label);
-    const syncSelected = (): void => host.setAttribute('aria-selected', String(!!api.isActive));
+    // `api.isActive` means "active panel of the *focused* group", so reading it
+    // un-selected the visible tab of every other group. A tablist's selected
+    // tab is its group's active panel, whichever group has focus.
+    const syncSelected = (): void => {
+      const groupActive = api.group?.activePanel;
+      const selected = groupActive && api.id !== undefined ? groupActive.id === api.id : !!api.isActive;
+      host.setAttribute('aria-selected', String(selected));
+    };
     syncSelected();
-    const sub = api.onDidActiveChange?.(syncSelected);
+    const subs = [
+      api.onDidActiveChange?.(syncSelected),
+      api.onDidVisibilityChange?.(syncSelected),
+      api.onDidGroupChange?.(syncSelected),
+      onDidLayoutChange?.(syncSelected),
+    ];
 
     const onKeyDown = (e: KeyboardEvent): void => {
       // Keys aimed at the close button inside the tab keep their own meaning.
       if (e.target !== host) return;
+      if (e.key === 'Delete' && onCloseRef.current) {
+        e.preventDefault();
+        onCloseRef.current();
+        return;
+      }
       if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault();
         api.setActive();
@@ -60,7 +98,7 @@ export function useDockviewTabA11y(
     host.addEventListener('keydown', onKeyDown);
     return () => {
       host.removeEventListener('keydown', onKeyDown);
-      sub?.dispose();
+      subs.forEach(sub => sub?.dispose());
     };
-  }, [contentRef, api, label, isRtl]);
+  }, [contentRef, api, label, isRtl, onDidLayoutChange, tablistLabel]);
 }

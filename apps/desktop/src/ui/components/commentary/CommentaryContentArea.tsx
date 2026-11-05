@@ -151,7 +151,17 @@ const CommentaryContentArea: React.FC<CommentaryContentAreaProps> = ({
         />
         {/* Module info */}
         <div className="flex items-center gap-2 mb-md text-xs text-text-muted">
-          <span>{moduleName}</span>
+          {/* The entry's heading: a programmatic focus target (the pane moves
+              focus here after a commentary is opened from the Overview) and a
+              landmark for heading navigation. */}
+          <h3
+            tabIndex={-1}
+            data-commentary-heading=""
+            className="text-xs font-normal text-text-muted"
+            style={{ margin: 0 }}
+          >
+            {moduleName}
+          </h3>
           {entries.length > 1 && (
             <span>· {entries.length} entries</span>
           )}

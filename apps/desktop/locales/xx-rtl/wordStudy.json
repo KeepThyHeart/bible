@@ -12,6 +12,7 @@
   "wordStudy.label.noticeNoModule": "‏No suitable Bible is installed for this study.‏",
   "wordStudy.label.noticeNotTagged": "‏This translation has no Strong's tagging. Pick another translation.‏",
   "wordStudy.label.noticeNoOccurrences": "‏No occurrences found in this translation.‏",
+  "wordStudy.label.noticeUnknownNumber": "‏No such Strong's number.‏",
   "wordStudy.label.renderingsTitle": "‏How it is rendered‏",
   "wordStudy.label.formsTitle": "‏Forms found‏",
   "wordStudy.label.other": "‏Other ({count})‏",

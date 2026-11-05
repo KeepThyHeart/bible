@@ -105,10 +105,21 @@ const ReadingPlansPane: React.FC = () => {
     el.querySelector<HTMLElement>('input, button')?.focus({ preventScroll: true });
   }, [startKey]);
 
+  // "Start plan" unmounts with the Plans view it sits in; focus would fall out
+  // to <body>. Hand it to the Today tab, which survives and leads into the new
+  // plan's card.
+  const todayTabRef = React.useRef<HTMLButtonElement | null>(null);
+  const focusTodayTabRef = React.useRef(false);
+  useEffect(() => {
+    if (view.kind !== 'today' || !focusTodayTabRef.current) return;
+    focusTodayTabRef.current = false;
+    todayTabRef.current?.focus();
+  }, [view]);
+
   const confirmStart = async () => {
     if (!startKey) return;
     const ok = await run(() => service.startPlan(startKey, { startDate, pacing, readingDays }));
-    if (ok) { setStartKey(null); go({ kind: 'today' }); }
+    if (ok) { focusTodayTabRef.current = true; setStartKey(null); go({ kind: 'today' }); }
   };
 
   const shell = { backgroundColor: 'var(--theme-bg-primary)', color: 'var(--theme-text-primary)' } as const;
@@ -294,7 +305,7 @@ const ReadingPlansPane: React.FC = () => {
   return (
     <div className="h-full w-full flex flex-col overflow-hidden" data-testid="reading-plans-pane" style={shell}>
       <div className="flex items-center gap-xs px-md py-xs border-b border-border" role="toolbar" aria-label={t('readingPlans.title')}>
-        <button type="button" className={tabClass(activeKind === 'today')} aria-pressed={activeKind === 'today'} onClick={() => go({ kind: 'today' })}>{t('readingPlans.nav.today')}</button>
+        <button type="button" ref={todayTabRef} className={tabClass(activeKind === 'today')} aria-pressed={activeKind === 'today'} onClick={() => go({ kind: 'today' })}>{t('readingPlans.nav.today')}</button>
         <button type="button" className={tabClass(activeKind === 'plans')} aria-pressed={activeKind === 'plans'} onClick={() => go({ kind: 'plans' })}>{t('readingPlans.nav.plans')}</button>
         <button type="button" className={tabClass(activeKind === 'new')} aria-pressed={activeKind === 'new'} onClick={() => go({ kind: 'new' })}>{t('readingPlans.nav.new')}</button>
       </div>

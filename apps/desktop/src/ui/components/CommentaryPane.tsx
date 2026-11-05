@@ -460,7 +460,21 @@ const CommentaryPane: React.FC<CommentaryPaneProps> = (props) => {
   const handleOpenFromOverview = (abbreviation: string, name: string) => {
     openCommentary(abbreviation, name);
     setOverviewActive(false);
+    // The Overview row that was clicked is about to unmount, which would drop
+    // focus to <body>. Hand it to the opened entry's heading once it renders.
+    focusHeadingPendingRef.current = true;
   };
+
+  const contentRegionRef = useRef<HTMLDivElement>(null);
+  const focusHeadingPendingRef = useRef(false);
+  useEffect(() => {
+    if (!focusHeadingPendingRef.current || overviewActive) return;
+    const heading = contentRegionRef.current?.querySelector<HTMLElement>('[data-commentary-heading]');
+    if (heading) {
+      focusHeadingPendingRef.current = false;
+      heading.focus();
+    }
+  }, [overviewActive, activeTab, activeEntries.length, isLoading, error]);
 
   // Handle syncing when pinned to a different verse
   const handleSyncFromPin = () => {
@@ -647,6 +661,7 @@ const CommentaryPane: React.FC<CommentaryPaneProps> = (props) => {
 
       {/* Content Area */}
       <div
+        ref={contentRegionRef}
         className="flex-1 overflow-auto pane-content-commentary"
         {...tabPanelProps}
         style={{

@@ -19,7 +19,7 @@ import DockviewTabListMenu from './DockviewTabListMenu';
  * height is `auto` is a percentage with nothing to resolve against, so these
  * controls stretch to the row explicitly instead.
  */
-const ChevronButton: React.FC<{
+export const ChevronButton: React.FC<{
   /** Logical side: `start` scrolls towards the inline-start edge (left in LTR, right in RTL). */
   direction: 'start' | 'end';
   enabled: boolean;
@@ -28,7 +28,11 @@ const ChevronButton: React.FC<{
 }> = ({ direction, enabled, onClick, rtl = false }) => (
   <button
     onClick={enabled ? onClick : undefined}
-    title={enabled ? `Scroll tabs ${(direction === 'start') !== rtl ? 'left' : 'right'}` : undefined}
+    // The name stays while the button is inert: only the state changes, so a
+    // screen reader still finds "Scroll tabs left" and hears it as unavailable.
+    aria-label={`Scroll tabs ${(direction === 'start') !== rtl ? 'left' : 'right'}`}
+    aria-disabled={!enabled}
+    title={`Scroll tabs ${(direction === 'start') !== rtl ? 'left' : 'right'}`}
     style={{
       display: 'flex',
       alignItems: 'center',
@@ -307,6 +311,7 @@ const DockviewHeaderActions: React.FC<IDockviewHeaderActionsProps> = ({ containe
       // one of these; the tour spotlights whichever the document finds first.
       data-tour-anchor="add-pane"
       title={t('ui.dockviewHeaderActions.newTab')}
+      aria-label={t('ui.dockviewHeaderActions.newTab')}
       style={{
         display: 'flex',
         alignItems: 'center',
@@ -329,7 +334,7 @@ const DockviewHeaderActions: React.FC<IDockviewHeaderActionsProps> = ({ containe
         (e.currentTarget as HTMLElement).style.color = 'var(--theme-text-secondary)';
       }}
     >
-      +
+      <span aria-hidden="true">+</span>
     </button>
   );
 

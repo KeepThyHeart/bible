@@ -15,7 +15,7 @@ import { getNotesPanelNavState } from '../stores/useFileNotesStore';
 import { formatVerseReference } from '../utils/verseReference';
 import type { PaneType } from '../../../electron/config/paneConfig';
 import { useI18n } from '../contexts/useI18n';
-import { localizePaneLabel } from '../utils/paneNames';
+import { localizePaneLabel, PANE_NAME_KEYS, type NamedPaneType } from '../utils/paneNames';
 import { anchorAtPointer } from '@bible/core/browser';
 import { useDirection, Bdi } from '@bible/ui';
 import { popOutModuleToWindow } from '../utils/popOutModule';
@@ -406,7 +406,24 @@ const DockviewTabRenderer: React.FC<IDockviewPanelHeaderProps> = (props) => {
     api.close();
   };
 
-  useDockviewTabA11y(contentRef, api as never, title ?? '', uiDir === 'rtl');
+  // The "x" button is taken out of the tab order (tabIndex -1) because it sits
+  // inside dockview's role=tab element and cannot be un-nested; Delete on the
+  // focused tab is its keyboard equivalent, offered only when the "x" is.
+  const closeFromKeyboard = useCallback(() => api.close(), [api]);
+  const onDidLayoutChange = useCallback(
+    (cb: () => void) => containerApi.onDidLayoutChange(cb),
+    [containerApi],
+  );
+  // The strip is a tablist with no other name; name it for what it holds.
+  const paneNameKey = contentType && contentType in PANE_NAME_KEYS ? PANE_NAME_KEYS[contentType as NamedPaneType] : undefined;
+  const paneName = paneNameKey ? t(paneNameKey) : undefined;
+  const tablistLabel = paneName ? t('ui.dockviewTab.tablistLabel', { name: paneName }) : undefined;
+  useDockviewTabA11y(contentRef, api as never, title ?? '', uiDir === 'rtl', {
+    onClose: groupTabCount > 1 ? closeFromKeyboard : undefined,
+    onDidLayoutChange,
+    // Until the catalog has the key, `t` hands the key back; fall back to English.
+    tablistLabel: tablistLabel === 'ui.dockviewTab.tablistLabel' ? `${paneName} tabs` : tablistLabel,
+  });
 
   const panelCount = containerApi.panels.length;
   const canPopOut = !!contentType && !!POP_OUT_PANE_TYPE[contentType];
@@ -471,6 +488,8 @@ const DockviewTabRenderer: React.FC<IDockviewPanelHeaderProps> = (props) => {
           <button
             onClick={handleClose}
             data-testid="close-tab"
+            tabIndex={-1}
+            aria-label={t('bookPane.closeTabLabel', { name: title ?? '' })}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -494,7 +513,7 @@ const DockviewTabRenderer: React.FC<IDockviewPanelHeaderProps> = (props) => {
             }}
             title={t('ui.dockviewTab.closePanel')}
           >
-            ×
+            <span aria-hidden="true">×</span>
           </button>
         )}
       </div>
@@ -547,6 +566,7 @@ const ContextMenuItem: React.FC<{
   onClick: () => void;
 }> = ({ label, onClick }) => (
   <button
+    role="menuitem"
     onClick={onClick}
     style={{
       display: 'flex',

@@ -146,6 +146,37 @@ describe('LanguageFirstRun', () => {
     expect(screen.getByTestId('first-run-language-de')).toBeInTheDocument();
   });
 
+  it('moves focus to the first revealed language when "More languages" is used', async () => {
+    render(<LanguageFirstRun />);
+    await screen.findByTestId('first-run-language-dialog');
+
+    await userEvent.click(screen.getByTestId('first-run-language-more'));
+
+    expect(screen.queryByTestId('first-run-language-more')).not.toBeInTheDocument();
+    await waitFor(() => expect(document.activeElement).not.toBe(document.body));
+    const radios = screen.getAllByRole('radio');
+    const firstNew = radios.find((r) => r.getAttribute('data-testid') === 'first-run-language-fr' || r.getAttribute('data-testid') === 'first-run-language-de');
+    expect(document.activeElement).toBe(firstNew);
+  });
+
+  it('is a single Tab stop and moves between languages with the arrow keys', async () => {
+    render(<LanguageFirstRun />);
+    await screen.findByTestId('first-run-language-dialog');
+    await userEvent.click(screen.getByTestId('first-run-language-more'));
+
+    const radios = screen.getAllByRole('radio');
+    expect(radios.length).toBeGreaterThan(2);
+    expect(radios.filter((r) => r.getAttribute('tabindex') === '0')).toHaveLength(1);
+    expect(screen.getByTestId('first-run-language-en')).toHaveAttribute('tabindex', '0');
+
+    screen.getByTestId('first-run-language-en').focus();
+    await userEvent.keyboard('{ArrowDown}');
+    expect(document.activeElement).toBe(radios[1]);
+    expect(radios[1]).toHaveAttribute('aria-checked', 'true');
+    expect(radios[1]).toHaveAttribute('tabindex', '0');
+    expect(screen.getByTestId('first-run-language-en')).toHaveAttribute('tabindex', '-1');
+  });
+
   it('marks draft translations so we never imply a review that did not happen', async () => {
     render(<LanguageFirstRun />);
     await screen.findByTestId('first-run-language-dialog');

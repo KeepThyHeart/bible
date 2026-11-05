@@ -488,10 +488,12 @@ const TopSearchBar = forwardRef<TopSearchBarHandle>(function TopSearchBar(_props
   // Effective item count for arrow-key navigation
   const itemCount = useMemo(() => {
     if (mode === 'command') return matchedCommands.length;
-    if (mode === 'reference') return 1;
+    // The reference hint only renders for text that parses; "Zzz 99" is
+    // classified as a reference attempt but has no option to offer.
+    if (mode === 'reference') return referenceText && referenceTarget ? 1 : 0;
     if (showingSearchSuggestions) return liveSuggestions.length;
     return 0;
-  }, [mode, matchedCommands.length, showingSearchSuggestions, liveSuggestions.length]);
+  }, [mode, matchedCommands.length, showingSearchSuggestions, liveSuggestions.length, referenceText, referenceTarget]);
 
   // The listbox is in the DOM only when the dropdown is up and no error panel
   // replaced it (see the render below); combobox state must match that.
@@ -527,6 +529,13 @@ const TopSearchBar = forwardRef<TopSearchBarHandle>(function TopSearchBar(_props
         else {
           const problem = describeReferenceProblem(liveQuery);
           if (problem) reportReferenceProblem(problem);
+          else {
+            // Looks like "<name> <number>" but names no book ("Zzz 99"): say so
+            // instead of silently doing nothing.
+            useSearchStore.setState({
+              error: t('liveSearchSuggestions.noResults', { query: liveQuery.trim() }),
+            });
+          }
         }
       } else if (showingSearchSuggestions && selectedIndex >= 0 && selectedIndex < liveSuggestions.length) {
         handleSelectSuggestion(liveSuggestions[selectedIndex]);
@@ -569,7 +578,7 @@ const TopSearchBar = forwardRef<TopSearchBarHandle>(function TopSearchBar(_props
     mode, selectedIndex, matchedCommands, liveSuggestions, itemCount,
     showingSearchSuggestions, handleExecuteCommand, handleReferenceNavigation,
     handleSelectSuggestion, handleSearch, handleTabAutocomplete, clearSearch,
-    resolveLiveQuery, cancelLiveSearch, reportReferenceProblem,
+    resolveLiveQuery, cancelLiveSearch, reportReferenceProblem, t,
   ]);
 
   // --------------------------------------------------------------------------
@@ -746,7 +755,15 @@ const TopSearchBar = forwardRef<TopSearchBarHandle>(function TopSearchBar(_props
               onClick={(e) => {
                 e.preventDefault();
                 clearSearch();
-                inputRef.current?.focus();
+                const input = inputRef.current;
+                input?.focus();
+                // The button unmounts with the text. If anything (the focus
+                // rescue, a re-render) moves focus off the box in the meantime,
+                // put it back - "Clear" should leave the caret where typing
+                // continues, never on an unrelated header button.
+                requestAnimationFrame(() => {
+                  if (input && input.isConnected && document.activeElement !== input) input.focus();
+                });
               }}
               className="p-1 hover:bg-background-active rounded transition-colors"
               title={t('searchBar.clearTitle')}
@@ -804,7 +821,7 @@ const TopSearchBar = forwardRef<TopSearchBarHandle>(function TopSearchBar(_props
           dropdown and the live-search suggestions, which drop from this very
           input and never had the problem. */}
       {error && (
-        <div className="absolute top-full mt-1 w-full bg-surface-elevated border border-danger-border text-danger-text shadow-lg z-50 px-3 py-2 rounded text-sm">
+        <div role="alert" className="absolute top-full mt-1 w-full bg-surface-elevated border border-danger-border text-danger-text shadow-lg z-50 px-3 py-2 rounded text-sm">
           {error}
         </div>
       )}

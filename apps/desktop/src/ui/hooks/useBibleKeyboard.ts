@@ -264,7 +264,28 @@ export function useBibleKeyboard({
         e.preventDefault();
         e.stopPropagation();
 
-        const selectionData = buildSelectionFromDOM();
+        // Word selection first; otherwise a selected verse (or shift-click
+        // passage) is highlighted whole, exactly as the verse context menu's
+        // Highlight does when no words are selected. That fallback is gated
+        // like Ctrl+C: never from a text field, and only the pane the reader
+        // was last in answers (every pane installs this window listener).
+        const lastActiveBibleId = useLayoutStore.getState().lastActiveBiblePanelId; // allow-getstate: event handler - reads latest focus tracking, not a render
+        const verseFallbackAllowed =
+          !isEditableTarget(document.activeElement) &&
+          !(lastActiveBibleId && lastActiveBibleId !== panelId);
+        const selectionData: Pick<WordSelection, 'startVerseId' | 'startWordIndex' | 'endVerseId' | 'endWordIndex'> | null =
+          buildSelectionFromDOM() ??
+          (selectedVerseId && verseFallbackAllowed
+            ? {
+                startVerseId: selectedVerseId,
+                startWordIndex: 0,
+                endVerseId:
+                  selectionEndVerseId !== null && selectionEndVerseId !== selectedVerseId
+                    ? selectionEndVerseId
+                    : undefined,
+                endWordIndex: undefined,
+              }
+            : null);
         if (!selectionData || !activeTab?.moduleId) return;
 
         const { startVerseId, startWordIndex, endVerseId, endWordIndex } = selectionData;
@@ -324,7 +345,7 @@ export function useBibleKeyboard({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [activeTab, lastUsedColor, createHighlight, highlightRepository, buildSelectionFromDOM, dismissFloatingToolbar]);
+  }, [activeTab, lastUsedColor, createHighlight, highlightRepository, buildSelectionFromDOM, dismissFloatingToolbar, selectedVerseId, selectionEndVerseId, panelId]);
 }
 
 /**

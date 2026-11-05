@@ -194,4 +194,42 @@ describe('BookmarkMenu', () => {
     expect(listener).toHaveBeenCalled();
     window.removeEventListener('command:bookmarks:manage', listener);
   });
+
+  describe('as a menu button', () => {
+    const seed = () =>
+      useBookmarkStore.setState({
+        bookmarks: [
+          { pinId: 1, itemType: 'verse', referenceText: 'Psalm 23:1', verseIdStart: 19023001, sortOrder: 0 },
+        ],
+      });
+
+    it('focuses the first item on open and moves with the arrow keys', async () => {
+      const user = userEvent.setup();
+      seed();
+      render(<BookmarkMenu />);
+      await user.click(screen.getByTestId('bookmark-toggle'));
+      expect(screen.getByTestId('bookmark-add-current')).toHaveFocus();
+      await user.keyboard('{ArrowDown}');
+      expect(screen.getByTestId('bookmark-jump-1')).toHaveFocus();
+      await user.keyboard('{ArrowDown}');
+      expect(screen.getByTestId('bookmark-manage')).toHaveFocus();
+      await user.keyboard('{ArrowDown}');
+      expect(screen.getByTestId('bookmark-add-current')).toHaveFocus();
+      await user.keyboard('{ArrowUp}');
+      expect(screen.getByTestId('bookmark-manage')).toHaveFocus();
+    });
+
+    it('opens from the keyboard and Escape closes it, returning focus to the button', async () => {
+      const user = userEvent.setup();
+      seed();
+      render(<BookmarkMenu />);
+      const toggle = screen.getByTestId('bookmark-toggle');
+      toggle.focus();
+      await user.keyboard('{Enter}');
+      expect(screen.getByTestId('bookmark-add-current')).toHaveFocus();
+      await user.keyboard('{Escape}');
+      expect(screen.queryByRole('menu')).toBeNull();
+      expect(toggle).toHaveFocus();
+    });
+  });
 });

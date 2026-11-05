@@ -64,6 +64,7 @@ vi.mock('../contexts/useI18n', () => ({
 
 vi.mock('../utils/paneNames', () => ({
   localizePaneLabel: (_t: unknown, _type: unknown, label: string) => label,
+  PANE_NAME_KEYS: {},
 }));
 
 vi.mock('../hooks/useOverlayDismissal', () => ({
@@ -112,7 +113,7 @@ async function popOut(contentType: string) {
   render(<DockviewTabRenderer {...makeProps(contentType)} />);
 
   await user.pointer({ keys: '[MouseRight]', target: screen.getByText('Tab') });
-  await user.click(screen.getByRole('button', { name: 'ui.dockviewTab.popOutToWindow' }));
+  await user.click(screen.getByRole('menuitem', { name: 'ui.dockviewTab.popOutToWindow' }));
 }
 
 /** The (paneType, initialState) pair handed to the main process. */
@@ -246,14 +247,14 @@ describe('context menu', () => {
     const user = userEvent.setup();
     render(<DockviewTabRenderer {...makeProps('bible')} />);
 
-    expect(screen.queryByRole('button', { name: 'ui.dockviewTab.popOutToWindow' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: 'ui.dockviewTab.popOutToWindow' })).not.toBeInTheDocument();
     await user.pointer({ keys: '[MouseRight]', target: screen.getByText('Tab') });
-    expect(screen.getByRole('button', { name: 'ui.dockviewTab.popOutToWindow' })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: 'ui.dockviewTab.popOutToWindow' })).toBeInTheDocument();
   });
 
   it('closes the menu after popping out', async () => {
     await popOut('bible');
-    expect(screen.queryByRole('button', { name: 'ui.dockviewTab.popOutToWindow' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: 'ui.dockviewTab.popOutToWindow' })).not.toBeInTheDocument();
   });
 });
 
@@ -289,7 +290,7 @@ describe('pop out: pane type routing', () => {
       // "+" page is a way to make a pane, not one worth keeping - so the menu
       // leaves the item off rather than offering a gesture that does nothing.
       expect(
-        screen.queryByRole('button', { name: 'ui.dockviewTab.popOutToWindow' })
+        screen.queryByRole('menuitem', { name: 'ui.dockviewTab.popOutToWindow' })
       ).not.toBeInTheDocument();
     }
   );
@@ -557,7 +558,7 @@ describe('pop out: payload safety', () => {
     await user.pointer({ keys: '[MouseRight]', target: screen.getByText('Tab') });
 
     expect(
-      screen.queryByRole('button', { name: 'ui.dockviewTab.popOutToWindow' })
+      screen.queryByRole('menuitem', { name: 'ui.dockviewTab.popOutToWindow' })
     ).not.toBeInTheDocument();
     expect(detachPane).not.toHaveBeenCalled();
   });

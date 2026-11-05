@@ -299,7 +299,7 @@ const DraggableTabBar: React.FC<DraggableTabBarProps> = ({
               className="px-2.5 text-text-muted hover:bg-background-hover hover:text-text-primary transition-colors flex-shrink-0 text-sm font-medium"
               onClick={onAddClick}
               title={addButtonTitle ?? t('draggableTabBar.addTab')}
-              aria-label={addButtonTitle}
+              aria-label={addButtonTitle ?? t('draggableTabBar.addTab')}
               data-testid={addButtonTestId}
               style={{ paddingTop: '6px', paddingBottom: '3px' }}
             >

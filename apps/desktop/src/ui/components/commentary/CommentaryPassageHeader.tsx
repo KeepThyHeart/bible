@@ -35,9 +35,10 @@ const CommentaryPassageHeader: React.FC<CommentaryPassageHeaderProps> = ({
       {/* Left: passage label + pin */}
       <div className="flex items-center gap-0.5">
         {currentVerseId && (
-          <span
+          <button
+            type="button"
             className="font-semibold text-text-primary cursor-pointer hover:text-accent transition-colors"
-            style={{ fontSize: '0.8125rem' }}
+            style={{ fontSize: '0.8125rem', background: 'transparent', border: 'none', padding: 0 }}
             onClick={() => {
               useBibleStore.getState().navigateToVerseInPrimary(currentVerseId); // allow-getstate: event handler - imperative navigation, no subscription needed
             }}
@@ -45,7 +46,7 @@ const CommentaryPassageHeader: React.FC<CommentaryPassageHeaderProps> = ({
             data-testid="commentary-verse-ref"
           >
             <Bdi>{formatVerseReference(currentVerseId)}</Bdi>
-          </span>
+          </button>
         )}
         <PinButton
           pinned={pinned}

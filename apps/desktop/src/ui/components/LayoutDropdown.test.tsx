@@ -199,3 +199,29 @@ describe('LayoutDropdown', () => {
     window.removeEventListener('command:app:openPreferences', listener);
   });
 });
+
+describe('LayoutDropdown accessibility', () => {
+  it('exposes expanded/popup state, a named dialog and pressed state on presets', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<LayoutDropdown />);
+    const button = screen.getByTestId('layout-dropdown-button');
+    expect(button).toHaveAttribute('aria-haspopup', 'dialog');
+    expect(button).toHaveAttribute('aria-expanded', 'false');
+    await user.click(button);
+    expect(button).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByRole('dialog', { name: 'Layout' })).toBeInTheDocument();
+    const presets = screen.getAllByTestId(/^layout-preset-/);
+    expect(presets.length).toBeGreaterThan(0);
+    presets.forEach(p => expect(p).toHaveAttribute('aria-pressed'));
+  });
+
+  it('toggles advanced mode from its label text (label is the click target)', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<LayoutDropdown />);
+    await user.click(screen.getByTestId('layout-dropdown-button'));
+    const box = screen.getByTestId('layout-advanced-mode-checkbox') as HTMLInputElement;
+    const before = box.checked;
+    await user.click(screen.getByText('layout.advancedMode.label'));
+    expect((screen.getByTestId('layout-advanced-mode-checkbox') as HTMLInputElement).checked).toBe(!before);
+  });
+});

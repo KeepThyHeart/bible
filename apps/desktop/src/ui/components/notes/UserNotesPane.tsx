@@ -27,6 +27,7 @@ import UserNotesEditorView from './UserNotesPane/UserNotesEditorView';
 import UserNotesDialogs from './UserNotesPane/UserNotesDialogs';
 import ConfirmDialog from '../shared/ConfirmDialog';
 import { useI18n } from '../../contexts/useI18n';
+import { entryDisplayName } from './verseNoteName';
 
 type NotesView = 'browser' | 'editor';
 
@@ -48,7 +49,7 @@ const UserNotesPane: React.FC<UserNotesPaneProps> = ({
   initialCurrentPath,
   initialCurrentNotePath,
 }) => {
-  const { t } = useI18n();
+  const { t, localizer } = useI18n();
   const { currentVerseId } = useNotesPanel(panelId);
   // Entry awaiting delete confirmation (goes to the system trash).
   const [deleteTarget, setDeleteTarget] = useState<FileEntry | null>(null);
@@ -430,7 +431,10 @@ const UserNotesPane: React.FC<UserNotesPaneProps> = ({
         title={t('userNotesPane.deleteConfirm.title')}
         message={deleteTarget?.isDirectory
           ? t('userNotesPane.deleteConfirm.folderMessage', { name: deleteTarget.name })
-          : t('userNotesPane.deleteConfirm.message', { name: deleteTarget?.name ?? '' })}
+          : t('userNotesPane.deleteConfirm.message', {
+              // "Genesis 24:3", not the bare file name "3", for a verse note.
+              name: deleteTarget ? entryDisplayName(deleteTarget, VERSE_NOTES_FOLDER, localizer) : '',
+            })}
         confirmLabel={t('userNotesPane.deleteConfirm.confirm')}
         destructive
         onConfirm={() => {

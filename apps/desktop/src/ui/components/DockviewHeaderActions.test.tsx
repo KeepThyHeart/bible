@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { IDockviewHeaderActionsProps } from 'dockview-react';
-import DockviewHeaderActions from './DockviewHeaderActions';
+import DockviewHeaderActions, { ChevronButton } from './DockviewHeaderActions';
 import { ContextProvider, type AppServices } from '../contexts/ContextProvider';
 import { useLayoutStore } from '../stores/useLayoutStore';
 
@@ -174,5 +174,23 @@ describe('DockviewHeaderActions collapse control', () => {
 
     await userEvent.click(screen.getByTestId('collapse-pane'));
     expect(collapseGroup).toHaveBeenCalledWith('group-1');
+  });
+});
+
+describe('DockviewHeaderActions accessible names', () => {
+  it('names the add-tab button', () => {
+    renderHeader('group-1');
+    expect(screen.getByRole('button', { name: 'New Tab' })).toBeInTheDocument();
+  });
+
+  it('keeps the scroll buttons named while disabled, marking them aria-disabled', () => {
+    render(
+      <>
+        <ChevronButton direction="start" enabled={false} onClick={() => {}} />
+        <ChevronButton direction="end" enabled onClick={() => {}} />
+      </>,
+    );
+    expect(screen.getByRole('button', { name: 'Scroll tabs left' })).toHaveAttribute('aria-disabled', 'true');
+    expect(screen.getByRole('button', { name: 'Scroll tabs right' })).toHaveAttribute('aria-disabled', 'false');
   });
 });

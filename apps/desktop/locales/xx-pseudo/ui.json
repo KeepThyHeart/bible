@@ -308,6 +308,7 @@
   "commentaryHome.sortAZ": "⟦Å-Ž ··⟧",
   "commentaryHome.sortLong": "⟦Ļøñĝ ··⟧",
   "commentaryHome.sortShort": "⟦Šĥøŕţ ··⟧",
+  "commentaryHome.sortLabel": "⟦Šøŕţ çøɱɱéñţåŕîéš ·····⟧",
   "commentaryHome.addToTabsTitle": "⟦Åðð ţø ţåƀš ···⟧",
   "commentaryHome.favoritedBadgeTitle": "⟦Ƒåṽøŕîţéð ··⟧",
   "commentaryHome.favoriteLabel": "⟦Ƒåṽøŕîţé ··⟧",
@@ -1468,6 +1469,7 @@
   "ui.dockviewTab.popOutToWindow": "⟦Þøþ Øüţ ţø Ŵîñðøŵ ·····⟧",
   "ui.dockviewTab.close": "⟦Çļøšé ··⟧",
   "ui.dockviewTab.contextMenuLabel": "⟦Ţåƀ åçţîøñš ···⟧",
+  "ui.dockviewTab.tablistLabel": "⟦{name} ţåƀš ··⟧",
   "ui.downloadProgress.pause": "⟦Þåüšé ðøŵñļøåð ····⟧",
   "ui.downloadProgress.resume": "⟦Ŕéšüɱé ðøŵñļøåð ····⟧",
   "ui.downloadProgress.cancel": "⟦Çåñçéļ ðøŵñļøåð ····⟧",
@@ -1824,6 +1826,7 @@
   "preferencesDialog.sectionPrivacy": "⟦Þŕîṽåçý ··⟧",
   "preferencesDialog.allowWebRequestsLabel": "⟦Åļļøŵ ŵéƀ ŕéǫüéšţš ·····⟧",
   "preferencesDialog.allowWebRequestsDescription": "⟦Ļéţš ţĥé åþþ ĝø øñļîñé ţø çĥéçķ ƒøŕ üþðåţéš, ƀŕøŵšé åñð ðøŵñļøåð ɱøðüļéš, åñð øþéñ ļîñķš îñ ýøüŕ ƀŕøŵšéŕ. Øƒƒ ƀý ðéƒåüļţ; ţüŕñîñĝ ţĥîš øñ šĥøŵš å çøñƒîŕɱåţîøñ ţĥé ƒîŕšţ ţîɱé. ····················································⟧",
+  "preferencesDialog.allowWebRequestsPending": "⟦Ŵåîţîñĝ ƒøŕ ýøüŕ çøñƒîŕɱåţîøñ îñ ţĥé ðîåļøĝ ţĥåţ ĵüšţ øþéñéð… ··················⟧",
   "preferencesDialog.sectionExtensions": "⟦Éẋţéñšîøñš ···⟧",
   "preferencesDialog.sectionAdvanced": "⟦Åðṽåñçéð ··⟧",
   "preferencesDialog.advancedPaneManagerLabel": "⟦Åðṽåñçéð Þåñé Ṁåñåĝéŕ ······⟧",
@@ -2393,5 +2396,10 @@
   "preferencesDialog.privacyOnlineSearch": "⟦Ṁéåñîñĝ šéåŕçĥ (Þŕéƒéŕéñçéš > Šéåŕçĥ): ţĥé øñļîñé øþţîøñ šéñðš ýøüŕ šéåŕçĥ ţéẋţ ţø ţĥé šéåŕçĥ šéŕṽîçé. Ýøü çĥøøšé ţĥé šøüŕçé ţĥéŕé. ·······································⟧",
   "preferencesDialog.privacyOnlineDiagnostics": "⟦Ðîåĝñøšţîç ŕéþøŕţš (Þŕéƒéŕéñçéš > Ðîåĝñøšţîçš): šéñţ øñļý îƒ ýøü çĥøøšé ţø šéñð ţĥéɱ. ·························⟧",
   "preferencesDialog.privacyOnlineLinks": "⟦Øþéñîñĝ ļîñķš îñ ýøüŕ ƀŕøŵšéŕ. ·········⟧",
-  "preferencesDialog.privacyOnlineFooter": "⟦Ŵîţĥ ţĥé šŵîţçĥ øƒƒ, ñøñé øƒ ţĥéšé çøññéçţ ţø ţĥé îñţéŕñéţ. ·················⟧"
+  "preferencesDialog.privacyOnlineFooter": "⟦Ŵîţĥ ţĥé šŵîţçĥ øƒƒ, ñøñé øƒ ţĥéšé çøññéçţ ţø ţĥé îñţéŕñéţ. ·················⟧",
+  "remoteConsent.local": "⟦Þŕéƒéŕ ţø ķééþ éṽéŕýţĥîñĝ øñ ţĥîš ðéṽîçé? Å ļøçåļ ɱéåñîñĝ þåçķ ŵøŕķš øƒƒļîñé åñð ɱåķéš ñø ŵéƀ ŕéǫüéšţš. ······························⟧",
+  "remoteConsent.getPack": "⟦Ĝéţ ţĥé ļøçåļ ɱéåñîñĝ þåçķ ·······⟧",
+  "searchResultsPane.resultsFrom": "⟦Ŕéšüļţš ƒŕøɱ {modules} ···⟧",
+  "advancedSearchDialog.operatorsHint": "⟦Øþéŕåţøŕš: && (åñð), || (øŕ), ! (ñøţ), ŵîţĥ þåŕéñţĥéšéš, é.ĝ. ļøṽé && !(ĥåţé || åñĝéŕ). Ţĥé ŵøŕðš ÅÑÐ, ØŔ åñð ÑØŢ šţåý øŕðîñåŕý ŵøŕðš. ········································⟧",
+  "topicsPane.directOfTotal": "⟦({direct} ðîŕéçţ, {total} ţøţåļ) ·····⟧"
 }

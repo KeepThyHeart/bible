@@ -81,11 +81,11 @@ vi.mock('../utils/verseFormatting', () => ({
 
 // Mock sub-components
 vi.mock('./CommentaryTreeView', () => ({ default: () => <div data-testid="commentary-tree-view" /> }));
-vi.mock('./CommentaryHome', () => ({ default: (props: any) => <div data-testid="commentary-home">Home {props.currentVerseId}</div> }));
+vi.mock('./CommentaryHome', () => ({ default: (props: any) => <div data-testid="commentary-home">Home {props.currentVerseId}<button type="button" data-testid="home-open-mhc" onClick={() => props.onOpenTab('MHC', 'Matthew Henry')}>open</button></div> }));
 vi.mock('./commentary/CommentaryPassageHeader', () => ({ default: () => <div data-testid="commentary-passage-header" /> }));
 vi.mock('./commentary/CommentaryVersePreview', () => ({ default: () => <div data-testid="commentary-verse-preview" /> }));
 vi.mock('./commentary/CommentaryPinnedBanner', () => ({ default: () => <div data-testid="commentary-pinned-banner" /> }));
-vi.mock('./commentary/CommentaryContentArea', () => ({ default: () => <div data-testid="commentary-content-area" /> }));
+vi.mock('./commentary/CommentaryContentArea', () => ({ default: () => <div data-testid="commentary-content-area"><h3 tabIndex={-1} data-commentary-heading="">Matthew Henry</h3></div> }));
 vi.mock('./ModuleSelector', () => ({ default: (props: any) => (
   <div data-testid="module-selector">
     {props.modules?.map((m: any) => (
@@ -514,5 +514,16 @@ describe('CommentaryPane: startup restore gating (5.2)', () => {
     expect(screen.getByText(enT('onboarding.empty.commentary.noneTitle'))).toBeInTheDocument();
     expect(screen.getByTestId('commentary-empty-install')).toBeInTheDocument();
   });
-});
 
+  it('moves focus to the entry heading after a commentary is opened from the Overview', async () => {
+    const user = userEvent.setup();
+    mockUseCommentaryPanel.mockReturnValue({
+      ...defaultPanelState,
+      openTabs: [{ abbreviation: 'MHC', name: 'Matthew Henry' }],
+      entriesByTab: new Map([['MHC', []]]),
+    });
+    renderWithProviders(<CommentaryPane />);
+    await user.click(screen.getByTestId('home-open-mhc'));
+    expect(screen.getByRole('heading', { name: 'Matthew Henry' })).toHaveFocus();
+  });
+});

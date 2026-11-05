@@ -8,7 +8,16 @@
  * - Intercepts Tab/Shift+Tab to cycle focus within the container.
  * - Optionally closes the dialog on Escape (see `onEscape`).
  * - On release, restores focus to the element that was focused before activation.
+ *   When that element is gone (a menu item that closed as the dialog opened),
+ *   falls back to the most recent still-connected element focused before it -
+ *   normally the menu's own button - so focus never drops to <body> and gets
+ *   "rescued" onto the Bible pane heading by regionNavigation.
+ * - By default makes everything outside the container `inert` while the trap is
+ *   active (every user of this util is an `aria-modal` dialog); pass
+ *   `inertBackground: false` for a non-modal popup.
  */
+
+import { inertBackground } from './inertBackground';
 
 const FOCUSABLE_SELECTOR = [
   'a[href]',
@@ -27,11 +36,52 @@ export function getFocusableElements(container: HTMLElement): HTMLElement[] {
   return nodes.filter((el) => {
     // Hidden or disabled elements aren't tab-reachable.
     if (el.hasAttribute('disabled')) return false;
+    // Roving-tabindex members (unselected radios, tabs) are focusable but not
+    // part of the Tab order; counting them would break the wrap-around.
+    if (el.getAttribute('tabindex') === '-1') return false;
     if (el.getAttribute('aria-hidden') === 'true') return false;
     const style = window.getComputedStyle(el);
     if (style.visibility === 'hidden' || style.display === 'none') return false;
     return true;
   });
+}
+
+/**
+ * Recently focused elements per document, oldest first. Lets a trap that is
+ * released find the opener even when the element that was focused at
+ * activation time is already gone.
+ */
+const FOCUS_HISTORY_LIMIT = 8;
+const focusHistories = new WeakMap<Document, HTMLElement[]>();
+
+function trackFocusHistory(doc: Document): HTMLElement[] {
+  let history = focusHistories.get(doc);
+  if (history) return history;
+  const list: HTMLElement[] = [];
+  focusHistories.set(doc, list);
+  doc.addEventListener(
+    'focusin',
+    (e) => {
+      const target = e.target as HTMLElement | null;
+      if (!target || target === doc.body || target === doc.documentElement) return;
+      const index = list.indexOf(target);
+      if (index !== -1) list.splice(index, 1);
+      list.push(target);
+      if (list.length > FOCUS_HISTORY_LIMIT) list.shift();
+    },
+    true,
+  );
+  return list;
+}
+
+function canReceiveFocus(el: HTMLElement, doc: Document): boolean {
+  return (
+    el.isConnected &&
+    el.ownerDocument === doc &&
+    typeof el.focus === 'function' &&
+    !el.closest('[inert],[hidden],[aria-hidden="true"]') &&
+    !(el as HTMLButtonElement).disabled
+  );
 }
 
 export interface FocusTrapHandle {
@@ -46,14 +96,25 @@ export interface FocusTrapOptions {
    * outer dialog stays open.
    */
   onEscape?: () => void;
+  /**
+   * Make the rest of the page inert while the trap is active (default true).
+   * Pass false for a non-modal popup that must leave the page interactive.
+   */
+  inertBackground?: boolean;
 }
 
 export function activateFocusTrap(
   container: HTMLElement,
   options: FocusTrapOptions = {},
 ): FocusTrapHandle {
-  const previouslyFocused =
-    (document.activeElement as HTMLElement | null) ?? null;
+  const doc = container.ownerDocument;
+  const win = doc.defaultView ?? window;
+  const history = trackFocusHistory(doc);
+  const previouslyFocused = (doc.activeElement as HTMLElement | null) ?? null;
+  // Snapshot now: the history keeps changing once focus moves into the dialog.
+  const openerCandidates = [...history].filter((el) => !container.contains(el));
+  const restoreInert =
+    options.inertBackground === false ? null : inertBackground(container);
 
   // Keep the container itself focusable - but not tab-reachable - for the whole
   // lifetime of the trap. Clicking inert content inside a dialog (a heading, a
@@ -98,7 +159,7 @@ export function activateFocusTrap(
     }
     const first = focusables[0];
     const last = focusables[focusables.length - 1];
-    const active = document.activeElement as HTMLElement | null;
+    const active = doc.activeElement as HTMLElement | null;
     if (event.shiftKey) {
       if (active === first || !container.contains(active)) {
         event.preventDefault();
@@ -113,21 +174,38 @@ export function activateFocusTrap(
   };
 
   // Defer focus until after the container has mounted its children.
-  const rafId = window.requestAnimationFrame(focusFirst);
+  const rafId = win.requestAnimationFrame(focusFirst);
   container.addEventListener('keydown', handleKeyDown);
 
   return {
     release: () => {
-      window.cancelAnimationFrame(rafId);
+      win.cancelAnimationFrame(rafId);
       container.removeEventListener('keydown', handleKeyDown);
       if (addedTabIndex) {
         container.removeAttribute('tabindex');
       }
-      if (previouslyFocused && typeof previouslyFocused.focus === 'function') {
-        // Guard against the previous element having been removed from the DOM.
-        if (document.contains(previouslyFocused)) {
-          previouslyFocused.focus();
-        }
+      // Un-inert first: an inert element cannot take focus.
+      restoreInert?.();
+      // Do not steal focus from something the app already focused after the
+      // dialog went away (e.g. a handler that moved focus on purpose).
+      const current = doc.activeElement as HTMLElement | null;
+      if (current && current !== doc.body && !container.contains(current) && current.isConnected) {
+        return;
+      }
+      if (
+        previouslyFocused &&
+        previouslyFocused !== doc.body &&
+        canReceiveFocus(previouslyFocused, doc)
+      ) {
+        previouslyFocused.focus();
+        return;
+      }
+      // The opener is gone: walk back to the most recent surviving element.
+      for (let i = openerCandidates.length - 1; i >= 0; i--) {
+        const candidate = openerCandidates[i];
+        if (candidate === previouslyFocused || !canReceiveFocus(candidate, doc)) continue;
+        candidate.focus();
+        if (doc.activeElement === candidate) return;
       }
     },
   };

@@ -411,4 +411,23 @@ describe('CommentaryHome', () => {
       expect(screen.queryByTestId('confirm-dialog')).not.toBeInTheDocument();
     });
   });
+
+  it('exposes each module row as an expandable button operable from the keyboard', async () => {
+    const { default: userEvent } = await import('@testing-library/user-event');
+    mockUseCommentaryPanel.mockReturnValue({
+      ...defaultPanelState,
+      homeData: [{
+        abbreviation: 'MHC',
+        name: 'Matthew Henry Commentary',
+        entries: [{ entry_id: 1, entry_level: 'verse', content: 'God loves the world', word_count: 100 }],
+        totalWordCount: 100,
+      }],
+    });
+    renderWithProviders(<CommentaryHome currentVerseId={43003016} onOpenTab={vi.fn()} />);
+    const row = screen.getByRole('button', { name: /MHC/ });
+    expect(row).toHaveAttribute('aria-expanded', 'false');
+    row.focus();
+    await userEvent.setup().keyboard('{Enter}');
+    expect(screen.getByRole('button', { name: /MHC/ })).toHaveAttribute('aria-expanded', 'true');
+  });
 });

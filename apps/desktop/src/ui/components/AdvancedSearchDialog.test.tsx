@@ -128,4 +128,38 @@ describe('AdvancedSearchDialog', () => {
     renderWithProviders(<AdvancedSearchDialog />);
     expect(screen.getByRole('dialog')).toBeInTheDocument();
   });
+
+  it('makes proximity a number field like the others', () => {
+    renderWithProviders(<AdvancedSearchDialog />);
+    const prox = document.getElementById('adv-search-proximity') as HTMLInputElement;
+    expect(prox.type).toBe('number');
+    expect(prox.min).toBe('0');
+    expect(prox.max).toBe('100');
+  });
+
+  it('clamps out-of-range fuzzy distance and a negative result cap on submit', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<AdvancedSearchDialog />);
+    const fuzzy = document.getElementById('adv-search-fuzzy') as HTMLInputElement;
+    const max = document.getElementById('adv-search-max-results') as HTMLInputElement;
+    const prox = document.getElementById('adv-search-proximity') as HTMLInputElement;
+    await user.clear(fuzzy); await user.type(fuzzy, '9');
+    await user.clear(max); await user.type(max, '-5');
+    await user.clear(prox); await user.type(prox, '500');
+    await user.click(screen.getByText('Search'));
+    expect(setSearchOptions).toHaveBeenCalledWith(expect.objectContaining({
+      fuzzyDistance: 3,
+      maxResults: 10,
+      proximityDistance: 100,
+    }));
+  });
+
+  it('falls back to defaults when the number fields are emptied', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<AdvancedSearchDialog />);
+    await user.clear(document.getElementById('adv-search-fuzzy') as HTMLInputElement);
+    await user.clear(document.getElementById('adv-search-max-results') as HTMLInputElement);
+    await user.click(screen.getByText('Search'));
+    expect(setSearchOptions).toHaveBeenCalledWith(expect.objectContaining({ fuzzyDistance: 2, maxResults: 200 }));
+  });
 });

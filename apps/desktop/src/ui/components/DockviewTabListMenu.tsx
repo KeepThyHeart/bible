@@ -39,6 +39,16 @@ const DockviewTabListMenu: React.FC<{ group: DockviewGroupPanel }> = ({ group })
   };
 
   const onMenuKeyDown = (e: React.KeyboardEvent): void => {
+    if (e.key === 'Escape') {
+      // Just close and hand focus back to the button. Letting the row vanish
+      // under focus drops it to <body>, and the focus-rescue backstop then
+      // moves it into the Bible pane, which also switches the active group.
+      e.preventDefault();
+      e.stopPropagation();
+      close();
+      buttonRef.current?.focus();
+      return;
+    }
     if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
     e.preventDefault();
     const items = Array.from(menuRef.current?.querySelectorAll<HTMLElement>('[role="menuitemradio"]') ?? []);

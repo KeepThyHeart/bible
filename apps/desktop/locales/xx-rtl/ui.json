@@ -308,6 +308,7 @@
   "commentaryHome.sortAZ": "‏A-Z‏",
   "commentaryHome.sortLong": "‏Long‏",
   "commentaryHome.sortShort": "‏Short‏",
+  "commentaryHome.sortLabel": "‏Sort commentaries‏",
   "commentaryHome.addToTabsTitle": "‏Add to tabs‏",
   "commentaryHome.favoritedBadgeTitle": "‏Favorited‏",
   "commentaryHome.favoriteLabel": "‏Favorite‏",
@@ -1468,6 +1469,7 @@
   "ui.dockviewTab.popOutToWindow": "‏Pop Out to Window‏",
   "ui.dockviewTab.close": "‏Close‏",
   "ui.dockviewTab.contextMenuLabel": "‏Tab actions‏",
+  "ui.dockviewTab.tablistLabel": "‏{name} tabs‏",
   "ui.downloadProgress.pause": "‏Pause download‏",
   "ui.downloadProgress.resume": "‏Resume download‏",
   "ui.downloadProgress.cancel": "‏Cancel download‏",
@@ -1824,6 +1826,7 @@
   "preferencesDialog.sectionPrivacy": "‏Privacy‏",
   "preferencesDialog.allowWebRequestsLabel": "‏Allow web requests‏",
   "preferencesDialog.allowWebRequestsDescription": "‏Lets the app go online to check for updates, browse and download modules, and open links in your browser. Off by default; turning this on shows a confirmation the first time.‏",
+  "preferencesDialog.allowWebRequestsPending": "‏Waiting for your confirmation in the dialog that just opened…‏",
   "preferencesDialog.sectionExtensions": "‏Extensions‏",
   "preferencesDialog.sectionAdvanced": "‏Advanced‏",
   "preferencesDialog.advancedPaneManagerLabel": "‏Advanced Pane Manager‏",
@@ -2393,5 +2396,10 @@
   "preferencesDialog.privacyOnlineSearch": "‏Meaning search (Preferences > Search): the online option sends your search text to the search service. You choose the source there.‏",
   "preferencesDialog.privacyOnlineDiagnostics": "‏Diagnostic reports (Preferences > Diagnostics): sent only if you choose to send them.‏",
   "preferencesDialog.privacyOnlineLinks": "‏Opening links in your browser.‏",
-  "preferencesDialog.privacyOnlineFooter": "‏With the switch off, none of these connect to the internet.‏"
+  "preferencesDialog.privacyOnlineFooter": "‏With the switch off, none of these connect to the internet.‏",
+  "remoteConsent.local": "‏Prefer to keep everything on this device? A local meaning pack works offline and makes no web requests.‏",
+  "remoteConsent.getPack": "‏Get the local meaning pack‏",
+  "searchResultsPane.resultsFrom": "‏Results from {modules}‏",
+  "advancedSearchDialog.operatorsHint": "‏Operators: && (and), || (or), ! (not), with parentheses, e.g. love && !(hate || anger). The words AND, OR and NOT stay ordinary words.‏",
+  "topicsPane.directOfTotal": "‏({direct} direct, {total} total)‏"
 }

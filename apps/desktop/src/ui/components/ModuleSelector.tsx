@@ -2,6 +2,7 @@ import { Bdi } from '@bible/ui';
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { PaneOverlay } from './shared/PaneOverlay';
 import { useI18n } from '../contexts/useI18n';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 import { tElements } from '../utils/tElements';
 
 /**
@@ -86,6 +87,10 @@ const ModuleSelector: React.FC<ModuleSelectorProps> = ({
   const [selectedIndex, setSelectedIndex] = useState(0);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  // A modal picker: trap Tab, inert the page behind it, and on close return
+  // focus to whatever opened it (the pane's "change module" button). Embedded
+  // use lives inside another dialog that owns the trap.
+  const dialogRef = useFocusTrap<HTMLDivElement>(!embedded);
 
   // Auto-focus search input when dialog opens
   useEffect(() => {
@@ -296,6 +301,10 @@ const ModuleSelector: React.FC<ModuleSelectorProps> = ({
     // so a click inside it never reaches here.
     <PaneOverlay onDismiss={onClose}>
       <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="module-selector-title"
         onKeyDown={handleKeyDown}
         data-testid="module-selector"
         className="bg-surface rounded-lg shadow-xl w-full max-w-2xl max-h-[80vh] overflow-hidden"
@@ -303,7 +312,7 @@ const ModuleSelector: React.FC<ModuleSelectorProps> = ({
       >
         {/* Header */}
         <div className="px-xl py-lg border-b border-border">
-          <h2 className="text-2xl font-semibold text-text-heading">{title}</h2>
+          <h2 id="module-selector-title" className="text-2xl font-semibold text-text-heading">{title}</h2>
         </div>
 
         {innerContent}

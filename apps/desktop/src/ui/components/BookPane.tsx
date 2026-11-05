@@ -563,8 +563,10 @@ const BookPane: React.FC<BookPaneProps> = (props) => {
         prefixContent={
           <button
             type="button"
+            role="tab"
+            aria-selected={overviewActive}
+            data-tabnav-skip=""
             data-testid="library-overview-tab"
-            aria-pressed={overviewActive}
             onClick={() => {
               shelfChosenByUser.current = true;
               setOverviewActive(prev => !prev);
