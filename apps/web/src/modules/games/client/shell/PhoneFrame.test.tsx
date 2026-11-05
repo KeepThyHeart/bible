@@ -230,3 +230,34 @@ describe('the compact-layout hook', () => {
     expect(host.querySelector('.phone')?.getAttribute('data-question-on-screen')).toBe('true');
   });
 });
+
+describe('focus when a question is scored (0209 R2 W14)', () => {
+  it('lands on the phone body when the answer control that held it is removed', () => {
+    host = document.createElement('div');
+    document.body.appendChild(host);
+    const drawPhase = (phase: 'question' | 'reveal'): void => {
+      act(() => {
+        render(
+          <PhoneFrame
+            snapshot={{ ...snapshotWithRank(null), phase }}
+            yourResult={null}
+            status="open"
+            onReconnectNow={() => undefined}
+          >
+            {phase === 'question' ? <button type="button">Answer</button> : <p>scored</p>}
+          </PhoneFrame>,
+          host
+        );
+      });
+    };
+    drawPhase('question');
+    host.querySelector('button')!.focus();
+    expect(document.activeElement?.textContent).toBe('Answer');
+    drawPhase('reveal');
+    expect(document.activeElement).toBe(host.querySelector('.phone-body'));
+    act(() => {
+      render(null, host);
+    });
+    host.remove();
+  });
+});

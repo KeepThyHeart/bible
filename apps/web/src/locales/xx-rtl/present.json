@@ -292,6 +292,7 @@
     "hymnAddToNotesFor": "‏Add {title} to notes‏",
     "hymnAddToPlanFor": "‏Add {title} to the running order‏",
     "viewersLabel": "‏Viewers‏",
-    "previewFrameTitle": "‏Screen preview‏"
+    "previewFrameTitle": "‏Screen preview‏",
+    "viewersCount": "‏Viewers: {count}‏"
   }
 }

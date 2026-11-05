@@ -113,12 +113,12 @@ class WordStudyStore extends Store {
     const seq = ++this.resolveSeq;
 
     if (GROUP_SYNTAX_RE.test(trimmed)) {
-      await this.openGroup(groupFromQuery(trimmed));
+      await this.open({ kind: 'group', group: groupFromQuery(trimmed) }, undefined, true);
       return;
     }
     const m = STRONGS_RE.exec(trimmed);
     if (m) {
-      await this.openStrongs(m[1].toUpperCase());
+      await this.open({ kind: 'strongs', strongs: m[1].toUpperCase() }, undefined, true);
       return;
     }
 
@@ -135,7 +135,7 @@ class WordStudyStore extends Store {
     }
     if (seq !== this.resolveSeq) return;
     if (found.length === 1) {
-      await this.openStrongs(found[0].strongs);
+      await this.open({ kind: 'strongs', strongs: found[0].strongs }, undefined, true);
     } else if (found.length > 1) {
       this.candidates = found;
       // The previous word's study is not the answer to this query; leaving it
@@ -145,13 +145,13 @@ class WordStudyStore extends Store {
       this.loading = false;
       this.notify();
     } else {
-      await this.openGroup(groupFromQuery(trimmed));
+      await this.open({ kind: 'group', group: groupFromQuery(trimmed) }, undefined, true);
     }
   }
 
   pickCandidate(strongs: string): Promise<void> {
     this.candidates = [];
-    return this.openStrongs(strongs);
+    return this.open({ kind: 'strongs', strongs }, undefined, true);
   }
 
   // ---------------------------------------------------------------- subjects
@@ -164,8 +164,10 @@ class WordStudyStore extends Store {
     return this.open({ kind: 'group', group }, opts);
   }
 
-  private async open(subject: WordStudySubject, opts?: { module?: string }): Promise<void> {
+  /** `keepQuery`: the reader typed the query themselves, so leave the input as typed; any other caller (a link, the dictionary) shows the opened subject in the input. */
+  private async open(subject: WordStudySubject, opts?: { module?: string }, keepQuery = false): Promise<void> {
     this.resolveSeq++;
+    if (!keepQuery) this.query = subjectQuery(subject);
     this.candidates = [];
     if (opts?.module) { this.module = opts.module; this.moduleExplicit = true; }
     // A new subject drops the trail beyond the current position, like browser history.

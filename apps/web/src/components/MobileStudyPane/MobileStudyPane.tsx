@@ -223,7 +223,8 @@ export function MobileStudyPane({ providers, onStrongsClick, onStrongsHover, onS
           titleId="mobile-topics-overlay-title"
           closeLabel={t('common.close')}
           onClose={() => studyStore.closeTopicsBrowser()}
-          title={<><span class="mobile-topics-overlay__pane-label">{t('studyPane.study')}</span> {t('mobileStudyPane.topicsBrowser')}</>}
+          paneLabel={t('studyPane.study')}
+          title={t('mobileStudyPane.topicsBrowser')}
         >
           <TopicsBrowser
             verseId={verseId}
@@ -248,9 +249,10 @@ export function MobileStudyPane({ providers, onStrongsClick, onStrongsHover, onS
         <MobileOverlay
           className="mobile-dictionary-overlay"
           titleId="mobile-dictionary-overlay-title"
-          closeLabel={t('common.close')}
+          closeLabel={t('mobileDictionary.closeDictionary', { defaultValue: 'Close dictionary' })}
           onClose={() => setDictionaryOpen(false)}
-          title={<><span class="mobile-topics-overlay__pane-label">{t('studyPane.study')}</span> {t('mobileStudyPane.dictionary')}</>}
+          paneLabel={t('studyPane.study')}
+          title={t('mobileStudyPane.dictionary')}
         >
           <MobileDictionary bibleProvider={providers.bible} />
         </MobileOverlay>

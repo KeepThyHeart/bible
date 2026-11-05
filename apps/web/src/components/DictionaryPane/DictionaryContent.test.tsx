@@ -587,6 +587,14 @@ describe('DictionaryContent', () => {
       expect(document.activeElement).toBe(container.querySelector('.dictionary-pane__entry-word'));
     });
 
+    it('focuses the search box of a dictionary opened from the Home list (the card is gone)', () => {
+      (document.activeElement as HTMLElement | null)?.blur();
+      mockTab = makeTab();
+      mockTabState = emptyTabState();
+      const { container } = render(<DictionaryContent tabId="dtab-1" />);
+      expect(document.activeElement).toBe(container.querySelector('.dictionary-content__search'));
+    });
+
     it('does not steal focus from another control the user is on', () => {
       const other = document.createElement('button');
       document.body.appendChild(other);

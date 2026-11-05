@@ -61,6 +61,18 @@ export function DictionaryContent({ tabId, bibleProvider }: DictionaryContentPro
     if (focusLost && userJustActed) headingRef.current?.focus();
   }, [shownEntryKey]);
 
+  // A dictionary opened from the Home list (a module card) replaces the card that held focus: land on
+  // the new tab's search box. Same guards as above; a loading or shown entry gets the heading instead.
+  const lastFocusedTab = useRef<string | null>(null);
+  useEffect(() => {
+    if (lastFocusedTab.current === tabId) return;
+    lastFocusedTab.current = tabId;
+    if (shownEntryKey || tabState?.entryLoading) return;
+    const ae = document.activeElement;
+    const ua = (navigator as Navigator & { userActivation?: { isActive: boolean } }).userActivation;
+    if ((!ae || ae === document.body) && (ua ? ua.isActive : true)) searchRef.current?.focus({ preventScroll: true });
+  }, [tabId]);
+
   if (!tab) return null;
 
   const {

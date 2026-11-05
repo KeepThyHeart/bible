@@ -90,7 +90,8 @@
       "joinRoom": "Unirse a la sala",
       "solo": "Jugar solo",
       "codeInvalid": "Un código de sala tiene {length} letras y números, como 5HK27. Mira la pantalla grande.",
-      "nameNeeded": "Escribe tu nombre para unirte."
+      "nameNeeded": "Escribe tu nombre para unirte.",
+      "codeFiltered": "Los códigos de sala solo usan estos caracteres: {chars}. Se han omitido los demás."
     },
     "solo": {
       "onYourOwn": "Está solo: nadie más puede ver esta sala.",
@@ -159,6 +160,34 @@
     },
     "app": {
       "live": "Sala activa"
+    },
+    "names": {
+      "fillInTheBlank": "Completa el espacio",
+      "nameThatReference": "Adivina la referencia",
+      "whoSaidIt": "¿Quién lo dijo?",
+      "whoAmI": "¿Quién soy?",
+      "putInOrder": "Ordena",
+      "categoryBoard": "Tablero de categorías",
+      "swordDrill": "Ejercicio de la espada",
+      "describeIt": "Descríbelo",
+      "detective": "Detective"
+    },
+    "scopes": {
+      "wholeBible": "Toda la Biblia",
+      "peopleOfTheBible": "Personajes de la Biblia"
+    },
+    "familiarity": {
+      "core": "Versículos que todos conocen",
+      "familiar": "Versículos conocidos",
+      "broad": "Conocidos y menos conocidos",
+      "deep": "Para un grupo que lee la Biblia",
+      "any": "Cualquier parte de la Biblia"
+    },
+    "errors": {
+      "roomNotFound": "Ninguna sala usa ese código. Revisa el código en la pantalla grande.",
+      "roomsFull": "Este servidor ya tiene todas las salas que puede. Inténtalo de nuevo dentro de un rato.",
+      "offline": "No se pudo conectar con el servidor. Revisa la wifi e inténtalo de nuevo.",
+      "status": "El servidor respondió {status}."
     }
   }
 }

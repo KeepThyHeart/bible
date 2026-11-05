@@ -113,6 +113,19 @@ export function MobileCommentaryView({ providers, onNavigateBible, onOpenSetting
     void commentaryStore.prefetchAllEntries(book, chapter);
   }, [commentaryDetail, verseId, book, chapter]);
 
+  // Opening a commentary replaces the card list, so the card that held focus is gone: land on the opened
+  // commentary's title instead of the page body. Not on a mount that restores an already-open commentary.
+  const detailTitleRef = useRef<HTMLButtonElement>(null);
+  const previousAbbr = useRef<string | null>(commentaryDetail?.abbr ?? null);
+  const openedAbbr = commentaryDetail?.abbr ?? null;
+  useEffect(() => {
+    const active = document.activeElement;
+    if (openedAbbr && !previousAbbr.current && (!active || active === document.body || !active.isConnected)) {
+      detailTitleRef.current?.focus({ preventScroll: true });
+    }
+    previousAbbr.current = openedAbbr;
+  }, [openedAbbr]);
+
   const handleBackToList = useCallback(() => {
     setCommentaryDetail(null);
     // After returning to card list, scroll so the filter bar is flush at the top
@@ -127,7 +140,7 @@ export function MobileCommentaryView({ providers, onNavigateBible, onOpenSetting
   // Back bar for commentary detail — back arrow to return to commentary list
   const backBar = commentaryDetail ? (
     <div class="mobile-study-pane__sticky-back mobile-study-pane__sticky-back--commentary-detail">
-      <button class="mobile-commentary-detail__back-title" onClick={handleBackToList}>
+      <button ref={detailTitleRef} class="mobile-commentary-detail__back-title" onClick={handleBackToList}>
         <i class="fa-solid fa-arrow-left fa-xs kth-rtl-mirror" />
         <span class="mobile-commentary-detail__back-title-text">{commentaryDetail.name}</span>
       </button>

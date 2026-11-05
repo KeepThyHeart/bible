@@ -6,6 +6,8 @@ interface MobileOverlayProps {
   /** Id of the element inside `title` that names the dialog. */
   titleId: string;
   title: ComponentChildren;
+  /** Small label above the title (e.g. "Study"); not part of the dialog's accessible name. */
+  paneLabel?: ComponentChildren;
   closeLabel: string;
   onClose: () => void;
   className?: string;
@@ -17,7 +19,7 @@ interface MobileOverlayProps {
  * named, the page behind inert, Tab kept inside, Escape closes, focus returns to the opener.
  * Mounted only while open.
  */
-export function MobileOverlay({ titleId, title, closeLabel, onClose, className, children }: MobileOverlayProps) {
+export function MobileOverlay({ titleId, title, paneLabel, closeLabel, onClose, className, children }: MobileOverlayProps) {
   const ref = useRef<HTMLDivElement>(null);
   useModalFocus(true, ref);
   return (
@@ -35,7 +37,10 @@ export function MobileOverlay({ titleId, title, closeLabel, onClose, className, 
         <button type="button" class="mobile-topics-overlay__close" aria-label={closeLabel} onClick={onClose}>
           <i class="fa-solid fa-xmark" aria-hidden="true" />
         </button>
-        <span class="mobile-topics-overlay__title" id={titleId}>{title}</span>
+        <span class="mobile-topics-overlay__title">
+          {paneLabel != null && <><span class="mobile-topics-overlay__pane-label">{paneLabel}</span>{' '}</>}
+          <span id={titleId}>{title}</span>
+        </span>
       </div>
       <div class="mobile-topics-overlay__body">{children}</div>
     </div>

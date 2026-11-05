@@ -185,9 +185,9 @@ export function PresenterApp() {
         <span class="pz-appbar__spacer" />
         {/* Shows on the phone layout and when the wide-screen rail is off. */}
         <AppSwitchSlot className="pz-btn pz-btn--icon pz-appbar__switch" />
-        {/* On desktop the Control pane shows the live status; the phone has no such row. */}
+        {/* A glanceable copy for sighted users on the phone; the status row below (StatusRow) is the one assistive tech reads. */}
         {layout === 'phone' && (
-          <span class={`pz-appbar__live ${session ? 'pz-appbar__live--on' : ''}`}>
+          <span aria-hidden="true" class={`pz-appbar__live ${session ? 'pz-appbar__live--on' : ''}`}>
             {session
               ? <>
                 <span class="pz-status__dot" aria-hidden="true" />

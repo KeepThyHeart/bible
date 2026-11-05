@@ -799,7 +799,9 @@
     "searching": "در حال جستجو...",
     "noEntries": "مدخلی یافت نشد",
     "offlineNotice": "آفلاین هستید. این بخش به‌صورت آفلاین در دسترس نیست.",
-    "searchPrompt": "یک واژه یا اصطلاح را در بالا جستجو کنید"
+    "searchPrompt": "یک واژه یا اصطلاح را در بالا جستجو کنید",
+    "closeEntry": "بستن مدخل",
+    "closeDictionary": "بستن فرهنگ لغت"
   },
   "mobileStudyPane": {
     "study": "تحقیق",

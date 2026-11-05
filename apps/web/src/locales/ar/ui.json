@@ -799,7 +799,9 @@
     "searching": "جارٍ البحث...",
     "noEntries": "لم يتم العثور على مدخلات",
     "offlineNotice": "أنت غير متصل بالإنترنت. هذا غير متاح دون اتصال.",
-    "searchPrompt": "ابحث عن كلمة أو مصطلح أعلاه"
+    "searchPrompt": "ابحث عن كلمة أو مصطلح أعلاه",
+    "closeEntry": "إغلاق المدخل",
+    "closeDictionary": "إغلاق القاموس"
   },
   "mobileStudyPane": {
     "study": "دراسة",

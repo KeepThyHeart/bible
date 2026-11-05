@@ -12,7 +12,7 @@ vi.mock('react-i18next', () => ({
 
 const { stub, h } = vi.hoisted(() => ({
   stub: (_name: string) => () => null,
-  h: { rightPaneMode: 'commentary', collapsed: false, setRightPaneMode: undefined as any },
+  h: { rightPaneMode: 'commentary', collapsed: false, setRightPaneMode: undefined as any, searchIsOpen: false, searchSeq: 0 },
 }));
 vi.mock('./components/BiblePane/BiblePane', () => ({ BiblePane: stub('bible') }));
 vi.mock('./components/CommentaryPane/CommentaryPane', () => ({ CommentaryPane: stub('commentary') }));
@@ -61,7 +61,7 @@ vi.mock('./stores/commentaryStore', () => ({
 
 vi.mock('./hooks/useAppShared', () => ({
   useAppShared: () => ({
-    rightPaneMode: h.rightPaneMode, collapsed: h.collapsed, searchIsOpen: false, searchSeq: 0,
+    rightPaneMode: h.rightPaneMode, collapsed: h.collapsed, searchIsOpen: h.searchIsOpen, searchSeq: h.searchSeq,
     fontFamily: '', fontSize: 16, lineHeight: 1.5, headingFontFamily: '', studyFontFamily: '', studyLineHeight: 1.5,
     setStrongsPopup: vi.fn(), handleStrongsLeave: vi.fn(), handleStrongsHover: vi.fn(), openSettings: vi.fn(),
     setHelpOpen: vi.fn(), setCopyOpen: vi.fn(), findVerseAtPoint: vi.fn(),
@@ -151,5 +151,42 @@ describe('DesktopApp side-pane collapse focus', () => {
     h.rightPaneMode = 'dictionary';
     const { container } = render(<DesktopApp providers={{} as any} />);
     expect(container.querySelector('.commentary-pane__expand-btn')!.textContent).toBe('Dictionary →');
+  });
+});
+
+describe('DesktopApp side view survives a re-mount with a search active', () => {
+  beforeEach(() => { h.rightPaneMode = 'dictionary'; h.collapsed = false; h.searchIsOpen = false; h.searchSeq = 0; setRightPaneMode.mockClear(); });
+
+  it('does not flip back to Search on a re-mount, but does on a new search', () => {
+    const first = render(<DesktopApp providers={{} as any} />);
+    h.searchIsOpen = true; h.searchSeq = 1;
+    first.rerender(<DesktopApp providers={{} as any} />);
+    expect(setRightPaneMode).toHaveBeenCalledWith('search');
+    setRightPaneMode.mockClear();
+    first.unmount();
+    // Reader picked another view; the layout re-mounts DesktopApp with the same search still open.
+    render(<DesktopApp providers={{} as any} />);
+    expect(setRightPaneMode).not.toHaveBeenCalled();
+    // A new search does switch.
+    h.searchSeq = 2;
+    const again = render(<DesktopApp providers={{} as any} />);
+    expect(setRightPaneMode).toHaveBeenCalledWith('search');
+    again.unmount();
+  });
+
+  it('scrolls the selected tab into view when the selection changes', () => {
+    const scroll = vi.fn();
+    (HTMLElement.prototype as any).scrollIntoView = scroll;
+    try {
+      h.rightPaneMode = 'study';
+      const { rerender } = render(<DesktopApp providers={{} as any} />);
+      scroll.mockClear();
+      h.rightPaneMode = 'dictionary';
+      rerender(<DesktopApp providers={{} as any} />);
+      expect(scroll).toHaveBeenCalled();
+      expect(scroll.mock.contexts[0]).toBe(screen.getByRole('tab', { name: 'Dictionary' }));
+    } finally {
+      delete (HTMLElement.prototype as any).scrollIntoView;
+    }
   });
 });

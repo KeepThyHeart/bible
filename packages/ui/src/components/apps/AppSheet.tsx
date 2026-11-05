@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useLayoutEffect, useRef } from 'react';
 import type { ReactNode } from 'react';
 import { BottomSheet } from '../BottomSheet';
 import type { BottomSheetLabels } from '../BottomSheet';
@@ -47,7 +47,25 @@ export function AppSheet(props: AppSheetProps) {
   if (sheetId.current === null) sheetId.current = `kth_app_sheet_${++nextSheetId}`;
   const id = sheetId.current;
   // The sheet is aria-modal: keep the page behind it out of the tab order and the accessibility tree too.
-  useEffect(() => (open ? inertBehind(id) : undefined), [open, id]);
+  // The opener (the "Switch app" button) is inert while the sheet is open, so the sheet's own focus restore
+  // cannot land on it. Lift the inertness first, then return focus to the opener ourselves.
+  const opener = useRef<HTMLElement | null>(null);
+  const wasOpen = useRef(false);
+  if (open && !wasOpen.current) {
+    const a = typeof document !== 'undefined' ? document.activeElement : null;
+    opener.current = a instanceof HTMLElement && a !== document.body ? a : null;
+  }
+  useLayoutEffect(() => {
+    wasOpen.current = open;
+    if (!open) return undefined;
+    const undo = inertBehind(id);
+    return () => {
+      undo();
+      const o = opener.current;
+      opener.current = null;
+      if (o && o.isConnected) o.focus({ preventScroll: true });
+    };
+  }, [open, id]);
   return (
     <BottomSheet open={open} onClose={onClose} title={title} labels={labels} portal={portal} id={id} className="kth-app-sheet">
       <ul className="kth-app-sheet__list">

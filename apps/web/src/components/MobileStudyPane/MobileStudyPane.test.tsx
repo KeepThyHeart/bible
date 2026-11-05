@@ -315,6 +315,7 @@ describe('MobileStudyPane', () => {
     expect(container.querySelector('[data-testid="mock-mobile-dictionary"]')).toBeNull();
     fireEvent.click(container.querySelector('[data-testid="mobile-study-open-dictionary"]')!);
     expect(container.querySelector('[data-testid="mock-mobile-dictionary"]')).toBeTruthy();
+    expect(container.querySelector('.mobile-dictionary-overlay .mobile-topics-overlay__close')!.getAttribute('aria-label')).toBe('mobileDictionary.closeDictionary');
     fireEvent.click(container.querySelector('.mobile-dictionary-overlay .mobile-topics-overlay__close')!);
     expect(container.querySelector('[data-testid="mock-mobile-dictionary"]')).toBeNull();
   });
@@ -337,6 +338,8 @@ describe('MobileStudyPane', () => {
     expect(dlg.getAttribute('aria-modal')).toBe('true');
     const title = container.querySelector('#' + dlg.getAttribute('aria-labelledby'))!;
     expect(title.textContent).toContain('mobileStudyPane.topicsBrowser');
+    // Named by the dialog title only, not "Study" + title run together
+    expect(title.textContent).not.toContain('studyPane.study');
     expect(container.querySelector('.mobile-topics-overlay__close')!.getAttribute('aria-label')).toBe('common.close');
     fireEvent.keyDown(dlg, { key: 'Escape' });
     expect(mockCloseTopicsBrowser).toHaveBeenCalled();

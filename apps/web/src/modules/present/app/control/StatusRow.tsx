@@ -23,13 +23,18 @@ export function StatusRow(props: { menuOpen: boolean; onToggleMenu: () => void }
   const goLiveRef = useRef<HTMLButtonElement>(null);
   const endRef = useRef<HTMLButtonElement>(null);
   const cancelRef = useRef<HTMLButtonElement>(null);
-  const wanted = useRef<{ target: 'goLive' | 'end' | 'cancel'; until: number } | null>(null);
-  const want = (target: 'goLive' | 'end' | 'cancel'): void => { wanted.current = { target, until: Date.now() + 8000 }; };
+  // Going live lands here, not on End: a stray Enter right after must not end the session.
+  const stateRef = useRef<HTMLSpanElement>(null);
+  const wanted = useRef<{ target: 'goLive' | 'end' | 'cancel' | 'state'; until: number } | null>(null);
+  const want = (target: 'goLive' | 'end' | 'cancel' | 'state'): void => { wanted.current = { target, until: Date.now() + 8000 }; };
   useEffect(() => {
     const w = wanted.current;
     if (!w) return;
     if (Date.now() > w.until) { wanted.current = null; return; }
-    const el = w.target === 'goLive' ? goLiveRef.current : w.target === 'end' ? endRef.current : cancelRef.current;
+    const el = w.target === 'goLive' ? goLiveRef.current
+      : w.target === 'end' ? endRef.current
+      : w.target === 'state' ? stateRef.current
+      : cancelRef.current;
     if (el) { wanted.current = null; el.focus(); }
   });
   // The stream can take a while to notice a dropped network; the browser knows at once.
@@ -38,7 +43,7 @@ export function StatusRow(props: { menuOpen: boolean; onToggleMenu: () => void }
 
   return (
     <div class="pz-status">
-      <span class={`pz-status__state ${live ? 'pz-status__state--live' : ''}`}>
+      <span class={`pz-status__state ${live ? 'pz-status__state--live' : ''}`} ref={stateRef} tabIndex={-1}>
         {live ? <><span class="pz-status__dot" aria-hidden="true" />{t('present.app.live')}</> : t('present.app.notLive')}
       </span>
 
@@ -48,8 +53,11 @@ export function StatusRow(props: { menuOpen: boolean; onToggleMenu: () => void }
           title={connected ? t('present.viewersTooltip') : t('present.reconnecting')}
         >
           <i class="fa-solid fa-tv" aria-hidden="true" />
-          <span class="sr-only">{t('present.viewersLabel', { defaultValue: 'Viewers' })}: </span>
-          {view.wall ? view.viewers : '…'}
+          {/* One interpolated string, so a language's own colon spacing applies. */}
+          <span class="sr-only">
+            {t('present.viewersCount', { count: view.wall ? view.viewers : '…', defaultValue: 'Viewers: {count}' })}
+          </span>
+          <span aria-hidden="true">{view.wall ? view.viewers : '…'}</span>
         </span>
       )}
 
@@ -67,7 +75,7 @@ export function StatusRow(props: { menuOpen: boolean; onToggleMenu: () => void }
           class="pz-btn pz-btn--primary"
           ref={goLiveRef}
           disabled={view.busy}
-          onClick={() => { want('end'); void goLive(); }}
+          onClick={() => { want('state'); void goLive(); }}
         >
           {t('present.control.goLive')}
         </button>

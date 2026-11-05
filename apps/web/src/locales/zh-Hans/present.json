@@ -292,6 +292,7 @@
     "hymnAddToNotesFor": "将 {title} 添加到笔记",
     "hymnAddToPlanFor": "将 {title} 添加到流程",
     "viewersLabel": "观看者",
-    "previewFrameTitle": "屏幕预览"
+    "previewFrameTitle": "屏幕预览",
+    "viewersCount": "观看者：{count}"
   }
 }

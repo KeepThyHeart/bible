@@ -119,13 +119,26 @@ export function MobileDictionary({ bibleProvider }: MobileDictionaryProps) {
           onInput={handleInput}
           onFocus={handleFocus}
         />
-        {(searchQuery || currentEntry) && (
+        {/* Cancel only while a search is running; once results are in there is nothing left to cancel. */}
+        {searchQuery && searchLoading && (
           <button
+            type="button"
             class="mobile-dictionary__search-action"
-            onClick={searchQuery ? handleCancel : handleClear}
-            title={searchQuery ? t('mobileDictionary.cancel') : t('common.close')}
+            onClick={handleCancel}
+            title={t('mobileDictionary.cancel')}
           >
-            {searchQuery ? t('mobileDictionary.cancel') : <i class="fa-solid fa-xmark" />}
+            {t('mobileDictionary.cancel')}
+          </button>
+        )}
+        {!searchQuery && currentEntry && (
+          <button
+            type="button"
+            class="mobile-dictionary__search-action"
+            onClick={handleClear}
+            aria-label={t('mobileDictionary.closeEntry', { defaultValue: 'Close entry' })}
+            title={t('mobileDictionary.closeEntry', { defaultValue: 'Close entry' })}
+          >
+            <i class="fa-solid fa-xmark" aria-hidden="true" />
           </button>
         )}
       </div>

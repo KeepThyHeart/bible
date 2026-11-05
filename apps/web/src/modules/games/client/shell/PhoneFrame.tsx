@@ -10,6 +10,7 @@
  */
 
 import type { ComponentChildren } from 'preact';
+import { useEffect } from 'preact/hooks';
 import type { PersonalResult, PlayerSnapshot } from '../../shared/protocol.js';
 import { PhoneHeaderActions } from './PhoneHeaderActions.js';
 import { TimerBar } from './TimerBar.js';
@@ -60,6 +61,14 @@ export function PhoneFrame({
   const { code, round, totalRounds, paused, phase, phaseEndsAt, settings, you } = snapshot;
   // The lobby (with the focused Start button) is gone once this frame mounts.
   const bodyRef = useHeadingFocus<HTMLElement>();
+  // Scoring (or any phase change) removes the answer control that held focus,
+  // which drops it to <body>: put it on the body so the result is read next
+  // and Tab starts from it. Skipped on mount (above) and when focus is elsewhere.
+  useEffect(() => {
+    const active = document.activeElement;
+    if (active && active !== document.body && active.isConnected) return;
+    bodyRef.current?.focus({ preventScroll: true });
+  }, [phase, round]);
   // `round` is the index intents carry, counted from zero. People count from
   // one, and a lobby is not question zero of ten — it is not a question yet.
   const inRound = phase !== 'lobby' && phase !== 'summary';

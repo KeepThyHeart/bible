@@ -217,6 +217,19 @@ describe('MobileCommentaryView', () => {
     expect(mockSetMobileSelectedCommentary).toHaveBeenCalledWith(null, mockStudyVerseId);
   });
 
+  it('moves focus to the opened commentary title when opened from the list (list is replaced)', () => {
+    const { container, rerender } = render(<MobileCommentaryView providers={mockProviders} />);
+    mockMobileSelectedCommentary = { abbr: 'MHC', name: 'MHC Commentary' };
+    rerender(<MobileCommentaryView providers={mockProviders} />);
+    expect(document.activeElement).toBe(container.querySelector('.mobile-commentary-detail__back-title'));
+  });
+
+  it('does not steal focus when mounted with a commentary already open', () => {
+    mockMobileSelectedCommentary = { abbr: 'MHC', name: 'MHC Commentary' };
+    render(<MobileCommentaryView providers={mockProviders} />);
+    expect(document.activeElement).toBe(document.body);
+  });
+
   it('accepts an onNavigateBible callback prop without error', () => {
     const onNavigateBible = vi.fn();
     expect(() => render(

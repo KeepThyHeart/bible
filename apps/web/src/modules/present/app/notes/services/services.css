@@ -31,6 +31,13 @@
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
 }
 
+/* On a phone the picker sits mid-bar: anchor the panel to the bar so it spans the viewport instead of spilling off the right edge. */
+@media (max-width: 600px) {
+  .pz-appbar { position: relative; }
+  .pz-appbar .service-menu { position: static; }
+  .pz-appbar .service-menu__panel { inset-inline: 6px; min-width: 0; max-width: none; }
+}
+
 .service-menu__list { list-style: none; margin: 0 0 4px; padding: 0; max-height: 50vh; overflow-y: auto; }
 .service-menu__row { display: flex; align-items: center; gap: 2px; border-radius: 6px; }
 .service-menu__row.is-current { background: var(--bg-tertiary); }

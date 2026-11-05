@@ -155,6 +155,34 @@ describe('AppSheet inert page', () => {
   });
 });
 
+describe('AppSheet focus return', () => {
+  it('returns focus to the opener even though it was inert while the sheet was open', () => {
+    const realFocus = HTMLElement.prototype.focus;
+    // jsdom ignores `inert`; emulate browsers, where an inert element cannot take focus.
+    const spy = vi.spyOn(HTMLElement.prototype, 'focus').mockImplementation(function (this: HTMLElement, o?: FocusOptions) {
+      if (this.closest('[inert]')) return;
+      realFocus.call(this, o);
+    });
+    try {
+      const App = ({ open }: { open: boolean }) => (
+        <>
+          <main><button>Switch app</button></main>
+          <AppSheet open={open} onClose={() => {}} items={items} activeId={null} onSelect={() => {}} title="Apps" />
+        </>
+      );
+      const { rerender } = render(<App open={false} />);
+      const opener = screen.getByRole('button', { name: 'Switch app' });
+      opener.focus();
+      rerender(<App open />);
+      expect(opener.closest('[inert]')).not.toBeNull();
+      rerender(<App open={false} />);
+      expect(opener).toHaveFocus();
+    } finally {
+      spy.mockRestore();
+    }
+  });
+});
+
 describe('AppSwitchButton', () => {
   it('is a named button that shows the aggregate badge and clicks', async () => {
     const onClick = vi.fn();

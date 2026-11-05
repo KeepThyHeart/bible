@@ -55,6 +55,7 @@
       "save": "ذخیره",
       "cancel": "لغو",
       "delete": "حذف"
-    }
+    },
+    "summarySource": "خلاصه از استرانگ و کاربرد در {module}"
   }
 }

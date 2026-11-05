@@ -799,7 +799,9 @@
     "searching": "Searching...",
     "noEntries": "No entries found",
     "offlineNotice": "You're offline. This isn't available offline.",
-    "searchPrompt": "Search for a word or term above"
+    "searchPrompt": "Search for a word or term above",
+    "closeEntry": "Close entry",
+    "closeDictionary": "Close dictionary"
   },
   "mobileStudyPane": {
     "study": "Study",

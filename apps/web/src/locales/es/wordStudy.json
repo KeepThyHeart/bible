@@ -55,6 +55,7 @@
       "save": "Guardar",
       "cancel": "Cancelar",
       "delete": "Eliminar"
-    }
+    },
+    "summarySource": "Resumen a partir de Strong y del uso en {module}"
   }
 }

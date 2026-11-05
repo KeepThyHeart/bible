@@ -18,10 +18,28 @@ import type {
 } from '../../shared/protocol.js';
 import { API } from '../../shared/protocol.js';
 import type { ClockReport } from '../clock/index.js';
+import { gt } from './t.js';
 
 export type ApiResult<T> = { ok: true; value: T } | { ok: false; error: string };
 
 const OFFLINE = 'Could not reach the server. Check the wifi and try again.';
+
+/**
+ * The server answers in English with a stable `error` code; these are the
+ * codes a person can meet on screen, translated here with the server's own
+ * sentence as the fallback for any code (or language) not covered.
+ */
+const KNOWN_ERRORS: Readonly<Record<string, string>> = {
+  roomNotFound: 'No room is using that code. Check the code on the big screen.',
+  roomsFull: 'This server is hosting as many rooms as it can. Try again in a little while.',
+};
+
+function describeError(code: string | null, message: string | null): string | null {
+  if (code !== null && code in KNOWN_ERRORS) {
+    return gt(`games.errors.${code}`, message ?? KNOWN_ERRORS[code] ?? '');
+  }
+  return message;
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -29,12 +47,16 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 async function request<T>(url: string, init: RequestInit): Promise<ApiResult<T>> {
   const response = await fetch(url, init).catch(() => null);
-  if (!response) return { ok: false, error: OFFLINE };
+  if (!response) return { ok: false, error: gt('games.errors.offline', OFFLINE) };
 
   const body: unknown = await response.json().catch(() => null);
   if (!response.ok) {
     const message = isRecord(body) && typeof body['message'] === 'string' ? body['message'] : null;
-    return { ok: false, error: message ?? `Server said ${response.status}.` };
+    const code = isRecord(body) && typeof body['error'] === 'string' ? body['error'] : null;
+    return {
+      ok: false,
+      error: describeError(code, message) ?? gt('games.errors.status', 'Server said {status}.', { status: response.status }),
+    };
   }
   return { ok: true, value: body as T };
 }

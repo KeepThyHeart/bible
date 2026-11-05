@@ -799,7 +799,9 @@
     "searching": "Buscando...",
     "noEntries": "No se han encontrado entradas",
     "offlineNotice": "Está sin conexión. Esto no está disponible sin conexión.",
-    "searchPrompt": "Busque una palabra o un término arriba"
+    "searchPrompt": "Busque una palabra o un término arriba",
+    "closeEntry": "Cerrar entrada",
+    "closeDictionary": "Cerrar diccionario"
   },
   "mobileStudyPane": {
     "study": "Estudio",

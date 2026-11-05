@@ -292,6 +292,7 @@
     "hymnAddToNotesFor": "إضافة {title} إلى الملاحظات",
     "hymnAddToPlanFor": "إضافة {title} إلى ترتيب البرنامج",
     "viewersLabel": "المشاهدون",
-    "previewFrameTitle": "معاينة الشاشة"
+    "previewFrameTitle": "معاينة الشاشة",
+    "viewersCount": "المشاهدون: {count}"
   }
 }

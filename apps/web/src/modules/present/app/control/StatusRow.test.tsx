@@ -10,7 +10,10 @@ const fireEvent = rtlFireEvent as unknown as {
 const h = vi.hoisted(() => ({ view: { presenting: false, busy: false, connection: 'live', wall: true, viewers: 2 } as Record<string, unknown>, goLive: vi.fn(), end: vi.fn() }));
 
 vi.mock('react-i18next', () => ({
-  useTranslation: () => ({ t: (key: string, o?: { defaultValue?: string }) => (o && typeof o === 'object' && o.defaultValue) || key }),
+  useTranslation: () => ({
+    t: (key: string, o?: { defaultValue?: string; count?: unknown }) =>
+      (o && typeof o === 'object' && o.defaultValue ? o.defaultValue.replace('{count}', String(o.count)) : key),
+  }),
 }));
 vi.mock('../../../../hooks/useStore', () => ({ useStore: (_s: unknown, sel: () => unknown) => sel() }));
 vi.mock('../../../../stores/offlineStore', () => ({ offlineStore: { isOnline: true } }));
@@ -27,14 +30,15 @@ const byText = (root: Element, text: string) =>
 describe('StatusRow', () => {
   beforeEach(() => { h.view.presenting = false; });
 
-  it('Go live: focus moves to End once the session is live', async () => {
+  it('Go live: focus moves to the live status, never to End', async () => {
     const { container, rerender } = render(<StatusRow menuOpen={false} onToggleMenu={() => {}} />);
     const go = byText(container, 'present.control.goLive');
     go.focus();
     await act(async () => { fireEvent.click(go); });
     h.view.presenting = true;
     await act(async () => { rerender(<StatusRow menuOpen={false} onToggleMenu={() => {}} />); });
-    expect(document.activeElement).toBe(byText(container, 'present.control.endLive'));
+    expect(document.activeElement).toBe(container.querySelector('.pz-status__state'));
+    expect(document.activeElement).not.toBe(byText(container, 'present.control.endLive'));
   });
 
   it('End asks first with focus on Cancel; Cancel returns focus to End; End it returns it to Go live', async () => {
@@ -68,6 +72,9 @@ describe('StatusRow', () => {
   it('labels the viewer count', () => {
     h.view.presenting = true;
     const { container } = render(<StatusRow menuOpen={false} onToggleMenu={() => {}} />);
-    expect(container.querySelector('.pz-status__viewers')!.textContent).toContain('Viewers: 2');
+    const text = container.querySelector('.pz-status__viewers')!.textContent!;
+    expect(text).toContain('Viewers: 2');
+    expect(text).not.toContain('Viewers : ');
+    expect(container.querySelector('.pz-status__viewers [aria-hidden="true"]:not(i)')!.textContent).toBe('2');
   });
 });

@@ -799,7 +799,9 @@
     "searching": "正在搜索…",
     "noEntries": "未找到条目",
     "offlineNotice": "您已离线，此功能在离线状态下不可用。",
-    "searchPrompt": "在上方搜索单词或术语"
+    "searchPrompt": "在上方搜索单词或术语",
+    "closeEntry": "关闭词条",
+    "closeDictionary": "关闭词典"
   },
   "mobileStudyPane": {
     "study": "研经",

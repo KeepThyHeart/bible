@@ -15,12 +15,13 @@ import type {
   RoomSettings,
   ScreenSnapshot,
 } from '../../shared/protocol.js';
-import { FAMILIARITIES, FAMILIARITY_LABELS, TEAM_IDS } from '../../shared/protocol.js';
+import { FAMILIARITIES, TEAM_IDS } from '../../shared/protocol.js';
 import { Brand } from './Brand.js';
 import { QrCode } from './QrCode.js';
 import { ThemeEditor } from './ThemeEditor.js';
 import { listGameViews } from './gameViews.js';
 import { TEAM_LABELS } from './teams.js';
+import { familiarityName, gameName, scopeName } from './gameLabels.js';
 import { gt } from './t.js';
 
 const ROUND_CHOICES = [5, 8, 10, 12, 15, 20];
@@ -169,13 +170,13 @@ export function HostLobby({
             >
               {games.map((game) => (
                 <option key={game.id} value={game.id}>
-                  {game.name}
+                  {gameName(game.id, game.name)}
                 </option>
               ))}
             </select>
             {/* Outside the label, so the hint is a description of the picker and not part of its name. */}
             {currentGame?.scopeLabel !== undefined && (
-              <span class="field-hint" id="games-host-game-hint">{currentGame.scopeLabel}</span>
+              <span class="field-hint" id="games-host-game-hint">{scopeName(currentGame.scopeLabel)}</span>
             )}
           </div>
 
@@ -229,7 +230,7 @@ export function HostLobby({
               >
                 {FAMILIARITIES.map((familiarity) => (
                   <option key={familiarity} value={familiarity}>
-                    {FAMILIARITY_LABELS[familiarity]}
+                    {familiarityName(familiarity)}
                   </option>
                 ))}
               </select>

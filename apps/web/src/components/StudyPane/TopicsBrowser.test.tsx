@@ -341,6 +341,28 @@ describe('TopicsBrowser', () => {
     expect(container.querySelector('.topics-browser__mobile-nav')).toBeNull();
   });
 
+  it('mobile Back from a topic to the list focuses the search box instead of dropping focus', async () => {
+    let view!: ReturnType<typeof render>;
+    await act(async () => {
+      view = render(
+        <TopicsBrowser
+          {...defaultProps}
+          mobile
+          topicalProvider={makeTopicalProvider()}
+          topicRequest={{ topicId: 1, module: 'TSK', topicName: 'Love', token: 1 }}
+        />
+      );
+    });
+    const back = await waitFor(() => {
+      const b = (view.container as HTMLElement).querySelector<HTMLButtonElement>('.topics-browser__mobile-back');
+      expect(b).not.toBeNull();
+      return b!;
+    });
+    back.focus();
+    await act(async () => { fireEvent.click(back); });
+    await waitFor(() => expect(document.activeElement).toBe(view.container.querySelector('.topics-browser__search-input')));
+  });
+
   // ------------------------------------------------------------------
   // topicRequest prop
   // ------------------------------------------------------------------

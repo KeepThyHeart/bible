@@ -292,6 +292,7 @@
     "hymnAddToNotesFor": "הוספת {title} להערות",
     "hymnAddToPlanFor": "הוספת {title} לסדר הפריטים",
     "viewersLabel": "צופים",
-    "previewFrameTitle": "תצוגה מקדימה של המסך"
+    "previewFrameTitle": "תצוגה מקדימה של המסך",
+    "viewersCount": "צופים: {count}"
   }
 }

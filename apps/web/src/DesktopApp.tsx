@@ -64,6 +64,9 @@ interface DesktopAppProps {
   providers: IDataProviders;
 }
 
+/** The last search sequence number a DesktopApp acted on; outlives the component so a re-mount does not replay it. */
+let handledSearchSeq: number | undefined;
+
 export function DesktopApp({ providers }: DesktopAppProps) {
   const shared = useAppShared(providers);
   const { t } = useTranslation();
@@ -74,12 +77,19 @@ export function DesktopApp({ providers }: DesktopAppProps) {
   const paneModes = usePaneModes();
   const [biblePaneWidth, setBiblePaneWidth] = useState(60);
 
-  // Auto-switch to search mode when a search is performed, and force the pane
-  // open. Keyed off `searchSeq` as well as `isOpen` so that a second search runs
-  // this even when the results were already "open" behind the Commentary or
-  // Dictionary tab — otherwise pressing Enter appears to do nothing.
+  // Auto-switch to search mode when a NEW search is performed (or the results are re-opened), and force
+  // the pane open. Keyed off `searchSeq` as well as `isOpen` so that a second search runs this even when the
+  // results were already "open" behind the Commentary or Dictionary tab. A re-mount (the layout crossing the
+  // breakpoint and back) is not a new search: the reader's chosen side view survives it, even though the
+  // header still holds the query text.
+  const wasSearchOpen = useRef(shared.searchIsOpen);
+  handledSearchSeq ??= shared.searchSeq;
   useEffect(() => {
-    if (shared.searchIsOpen) {
+    const reopened = shared.searchIsOpen && !wasSearchOpen.current;
+    const newSearch = shared.searchSeq !== handledSearchSeq;
+    wasSearchOpen.current = shared.searchIsOpen;
+    handledSearchSeq = shared.searchSeq;
+    if (shared.searchIsOpen && (reopened || newSearch)) {
       commentaryStore.setRightPaneMode('search');
       commentaryStore.expand();
     }
@@ -118,6 +128,14 @@ export function DesktopApp({ providers }: DesktopAppProps) {
   const paneMode = shared.rightPaneMode === 'search'
     ? (shared.searchIsOpen ? 'search' : 'study')
     : paneAvailable(shared.rightPaneMode) ? shared.rightPaneMode : 'study';
+
+  // The tab strip is clipped and scrolls: keep the selected tab visible when the selection changes
+  // (a search opening Search, a shortcut, a re-mount), instead of leaving it hidden past the chevron.
+  const tabListRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const active = tabListRef.current?.querySelector<HTMLElement>('[role="tab"][aria-selected="true"]');
+    active?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
+  }, [paneMode, shared.searchIsOpen, shared.collapsed, paneModes]);
 
   useEffect(() => { if (paneMode !== 'search') fireActivation('onPanel:' + paneMode); }, [paneMode]);
 
@@ -231,7 +249,7 @@ export function DesktopApp({ providers }: DesktopAppProps) {
             <aside class="main-layout__right-pane" style={rightPaneStyle} aria-label={t('a11y.studyPane', 'Study panel')}>
               <div class="right-pane-tabs">
                 {/* The mode switcher is a tablist; the collapse control sits outside it. */}
-                <div role="tablist" class="right-pane-tabs__list" aria-label={t('rightPane.modes', { defaultValue: 'Side pane views' })}>
+                <div ref={tabListRef} role="tablist" class="right-pane-tabs__list" aria-label={t('rightPane.modes', { defaultValue: 'Side pane views' })}>
                   {(() => {
                     const visibleModes = paneModes.filter((m) => paneAvailable(m.id));
                     const stopId = visibleModes.some((m) => m.id === paneMode) || paneMode === 'search' ? paneMode : visibleModes[0]?.id;

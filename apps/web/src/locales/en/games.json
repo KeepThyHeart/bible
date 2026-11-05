@@ -90,7 +90,8 @@
       "joinRoom": "Join room",
       "solo": "Play solo",
       "codeInvalid": "A room code is {length} letters and numbers, like 5HK27. Check the big screen.",
-      "nameNeeded": "Enter your name to join."
+      "nameNeeded": "Enter your name to join.",
+      "codeFiltered": "Room codes only use these characters: {chars}. Others were left out."
     },
     "solo": {
       "onYourOwn": "On your own — nobody else can see this room.",
@@ -159,6 +160,34 @@
     },
     "app": {
       "live": "Room live"
+    },
+    "names": {
+      "fillInTheBlank": "Fill in the blank",
+      "nameThatReference": "Name that reference",
+      "whoSaidIt": "Who said it",
+      "whoAmI": "Who am I",
+      "putInOrder": "Put in order",
+      "categoryBoard": "Category board",
+      "swordDrill": "Sword drill",
+      "describeIt": "Describe it",
+      "detective": "Detective"
+    },
+    "scopes": {
+      "wholeBible": "Whole Bible",
+      "peopleOfTheBible": "People of the Bible"
+    },
+    "familiarity": {
+      "core": "Verses everyone knows",
+      "familiar": "Well-known verses",
+      "broad": "Familiar and further afield",
+      "deep": "For a group that reads",
+      "any": "Anywhere in the Bible"
+    },
+    "errors": {
+      "roomNotFound": "No room is using that code. Check the code on the big screen.",
+      "roomsFull": "This server is hosting as many rooms as it can. Try again in a little while.",
+      "offline": "Could not reach the server. Check the wifi and try again.",
+      "status": "Server said {status}."
     }
   }
 }

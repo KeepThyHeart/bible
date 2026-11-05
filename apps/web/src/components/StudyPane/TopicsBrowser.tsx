@@ -109,6 +109,8 @@ export function TopicsBrowser({
   const titleRef = useRef<HTMLElement>(null);
   const backBtnRef = useRef<HTMLButtonElement>(null);
   const focusAfterOpenRef = useRef(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const focusSearchAfterBackRef = useRef(false);
   const entityActions = useSlot(topicEntityActions);
 
   // The request present on the very first render seeds the nav stack, so the
@@ -220,6 +222,14 @@ export function TopicsBrowser({
     (titleRef.current ?? backBtnRef.current)?.focus();
   }, [detailLoading, topicDetail, entityDetail, detailError]);
 
+  // Mobile "Back" removes (home) or remounts (topic) the button that held focus: land on the search box
+  // when the list is back, or on the topic's heading once it has loaded, never on <body>.
+  useEffect(() => {
+    if (!focusSearchAfterBackRef.current || history[historyIndex]?.type !== 'home') return;
+    focusSearchAfterBackRef.current = false;
+    searchInputRef.current?.focus({ preventScroll: true });
+  }, [historyIndex, history]);
+
   // Remember the nav stack for the next mount.
   useEffect(() => {
     savedNav.set(navKey, { history, historyIndex });
@@ -313,6 +323,10 @@ export function TopicsBrowser({
   const goBack = () => {
     if (!canGoBack) return;
     const newIndex = historyIndex - 1;
+    if (mobile) {
+      if (history[newIndex].type === 'home') focusSearchAfterBackRef.current = true;
+      else focusAfterOpenRef.current = true;
+    }
     setHistoryIndex(newIndex);
     loadNavEntry(history[newIndex]);
   };
@@ -511,6 +525,7 @@ export function TopicsBrowser({
   const renderSearchBar = () => (
     <div class="topics-browser__search">
       <input
+        ref={searchInputRef}
         type="text"
         class="topics-browser__search-input"
         placeholder={t('topicsBrowser.searchPlaceholder')}

@@ -139,3 +139,30 @@ describe('PlanOutline row menu', () => {
     expect(container.querySelectorAll('[role="menu"]')).toHaveLength(1);
   });
 });
+
+// 0209 R2 W14 item 5: the Add disclosure closes on Escape (focus back to Add) and on an outside press.
+describe('PlanOutline Add disclosure', () => {
+  beforeEach(() => { h.items = [entry('a', 'John 3:16')]; });
+
+  it('Escape collapses it and returns focus to Add', async () => {
+    const { container } = render(<PlanOutline />);
+    const add = container.querySelector<HTMLButtonElement>('.pn-plan__add-btn')!;
+    await act(async () => { fireEvent.click(add); });
+    expect(container.querySelector('.pn-plan__add-choices')).not.toBeNull();
+    expect(add.getAttribute('aria-expanded')).toBe('true');
+    const chip = container.querySelector<HTMLButtonElement>('.pn-plan__add-choices button')!;
+    chip.focus();
+    await act(async () => { fireEvent.keyDown(chip, { key: 'Escape' }); });
+    expect(container.querySelector('.pn-plan__add-choices')).toBeNull();
+    expect(add.getAttribute('aria-expanded')).toBe('false');
+    expect(document.activeElement).toBe(add);
+  });
+
+  it('an outside press collapses it', async () => {
+    const { container } = render(<PlanOutline />);
+    await act(async () => { fireEvent.click(container.querySelector('.pn-plan__add-btn')!); });
+    expect(container.querySelector('.pn-plan__add-choices')).not.toBeNull();
+    await act(async () => { document.body.dispatchEvent(new Event('pointerdown', { bubbles: true })); });
+    expect(container.querySelector('.pn-plan__add-choices')).toBeNull();
+  });
+});

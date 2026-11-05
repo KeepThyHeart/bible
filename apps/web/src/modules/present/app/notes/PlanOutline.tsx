@@ -141,6 +141,8 @@ export function PlanOutline() {
   const removed = useStore(notesStore, () => notesStore.removed);
   const [adding, setAdding] = useState(false);
   const listRef = useRef<HTMLOListElement>(null);
+  const addWrapRef = useRef<HTMLDivElement>(null);
+  const addBtnRef = useRef<HTMLButtonElement>(null);
   /** After Remove: where focus goes once the row has gone (the next row's More actions, else Add). */
   const afterRemove = useRef<{ index: number; count: number } | null>(null);
 
@@ -152,6 +154,16 @@ export function PlanOutline() {
     const target = buttons && buttons.length > 0 ? buttons[Math.min(pending.index, buttons.length - 1)] : document.querySelector<HTMLElement>('.pn-plan__add-btn');
     target?.focus();
   }, [items]);
+
+  // The Add disclosure collapses on an outside press (focus stays where the press put it).
+  useEffect(() => {
+    if (!adding) return undefined;
+    const away = (event: Event): void => {
+      if (addWrapRef.current && !addWrapRef.current.contains(event.target as Node)) setAdding(false);
+    };
+    document.addEventListener('pointerdown', away);
+    return () => document.removeEventListener('pointerdown', away);
+  }, [adding]);
 
   const remove = (index: number) => {
     afterRemove.current = { index, count: items.length };
@@ -189,8 +201,18 @@ export function PlanOutline() {
           </SortableContext>
         </DndContext>
       )}
-      <div class="pn-plan__add">
-        <button type="button" class="pn-plan__add-btn" aria-expanded={adding} onClick={() => setAdding((a) => !a)}>
+      <div
+        class="pn-plan__add"
+        ref={addWrapRef}
+        onKeyDown={(event: KeyboardEvent) => {
+          if (event.key !== 'Escape' || !adding) return;
+          event.preventDefault();
+          event.stopPropagation();
+          setAdding(false);
+          addBtnRef.current?.focus();
+        }}
+      >
+        <button type="button" class="pn-plan__add-btn" ref={addBtnRef} aria-expanded={adding} onClick={() => setAdding((a) => !a)}>
           <i class="fa-solid fa-plus" aria-hidden="true" /> {t('present.notes.plan.add')}
         </button>
         {adding && (

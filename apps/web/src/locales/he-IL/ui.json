@@ -799,7 +799,9 @@
     "searching": "מחפש...",
     "noEntries": "לא נמצאו ערכים",
     "offlineNotice": "אין חיבור לרשת. תכונה זו אינה זמינה במצב לא מקוון.",
-    "searchPrompt": "יש לחפש מילה או מונח למעלה"
+    "searchPrompt": "יש לחפש מילה או מונח למעלה",
+    "closeEntry": "סגירת הערך",
+    "closeDictionary": "סגירת המילון"
   },
   "mobileStudyPane": {
     "study": "לימוד",

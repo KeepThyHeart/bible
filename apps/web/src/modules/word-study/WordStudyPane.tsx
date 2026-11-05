@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'preact/hooks';
+import { useEffect, useMemo, useRef } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { WordStudyView } from '@bible/ui';
 import type { WordOccurrenceItem } from '@bible/core/browser';
@@ -68,6 +68,30 @@ export function WordStudyPane({ onNavigate, onOpenStrongsEntry, onClose }: WordS
     onNavigate?.();
   };
 
+  // "Load more": the button vanishes on the last page (and is disabled while loading), which would drop
+  // focus to <body>. Move it to the first newly added row instead.
+  const loadMoreFrom = useRef<number | null>(null);
+  const shownCount = occurrences?.items.length ?? 0;
+  useEffect(() => {
+    const from = loadMoreFrom.current;
+    if (from === null) return;
+    if (shownCount > from) {
+      loadMoreFrom.current = null;
+      rootRef.current?.querySelectorAll<HTMLElement>('.kth-ws-occ')[from]?.focus();
+    } else if (shownCount < from) {
+      loadMoreFrom.current = null; // the list was reset (new subject or filter) while loading
+    }
+  }, [shownCount]);
+
+  // The summary line's label is built in English by the data service; show it translated.
+  const shownOverview = useMemo(() => {
+    const range = overview?.semanticRange;
+    const m = range && /^Summary from Strong's and (.+) usage$/.exec(range.sourceLabel ?? '');
+    if (!overview || !range || !m) return overview;
+    const sourceLabel = t('wordStudy.summarySource', { module: m[1], defaultValue: "Summary from Strong's and {module} usage" });
+    return { ...overview, semanticRange: { ...range, sourceLabel } };
+  }, [overview, t]);
+
   const strongs = subject?.kind === 'strongs' ? subject.strongs : undefined;
 
   return (
@@ -97,7 +121,7 @@ export function WordStudyPane({ onNavigate, onOpenStrongsEntry, onClose }: WordS
         <p className="word-study-pane__prompt">{t('wordStudy.prompt')}</p>
       )}
       <WordStudyView
-        overview={overview}
+        overview={shownOverview}
         loading={loading}
         error={error ?? undefined}
         occurrences={occurrences}
@@ -109,7 +133,7 @@ export function WordStudyPane({ onNavigate, onOpenStrongsEntry, onClose }: WordS
         onModuleChange={(m) => void s.setModule(m)}
         onSelectStrongs={(x) => void s.openStrongs(x)}
         onOpenOccurrence={openOccurrence}
-        onLoadMore={() => void s.loadMore()}
+        onLoadMore={() => { loadMoreFrom.current = shownCount; void s.loadMore(); }}
         formatBook={formatBook}
         formatReference={formatReference}
         onSearchAll={strongs ? () => searchStore.performSearch(strongs) : undefined}

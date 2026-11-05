@@ -292,6 +292,11 @@
     font-size: 13px;
   }
 
+  // A button that follows a hint (the settings menu's Help) must not touch it.
+  &__hint + &__button {
+    margin-top: 10px;
+  }
+
   &__join {
     display: flex;
     flex-wrap: wrap;

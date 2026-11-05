@@ -183,7 +183,17 @@ describe('MobileDictionary', () => {
   });
 
   // ---- Cancel / Clear actions --------------------------------------------
+  it('hides the cancel button once the search has finished', () => {
+    mockSearchLoading = false;
+    mockSuggestions = [makeSuggestion('G25', 'agapaō')];
+    const { container } = render(<MobileDictionary />);
+    fireEvent.input(container.querySelector<HTMLInputElement>('.mobile-dictionary__search-input')!, { target: { value: 'love' } });
+    expect(container.querySelector('.mobile-dictionary__search-action')).toBeNull();
+    expect(screen.queryByText('mobileDictionary.cancel')).toBeNull();
+  });
+
   it('shows cancel button when there is a search query', () => {
+    mockSearchLoading = true;
     const { container } = render(<MobileDictionary />);
     const input = container.querySelector<HTMLInputElement>('.mobile-dictionary__search-input')!;
     fireEvent.input(input, { target: { value: 'love' } });
@@ -194,6 +204,7 @@ describe('MobileDictionary', () => {
   });
 
   it('clears the query when cancel is clicked', () => {
+    mockSearchLoading = true;
     const { container } = render(<MobileDictionary />);
     const input = container.querySelector<HTMLInputElement>('.mobile-dictionary__search-input')!;
     fireEvent.input(input, { target: { value: 'love' } });
@@ -261,6 +272,8 @@ describe('MobileDictionary', () => {
     const action = container.querySelector('.mobile-dictionary__search-action');
     expect(action).toBeTruthy();
     expect(action!.querySelector('.fa-xmark')).toBeTruthy();
+    // Named distinctly from the overlay's own close button
+    expect(action!.getAttribute('aria-label')).toBe('mobileDictionary.closeEntry');
   });
 
   // ---- Strong's labels (B-165 helpers, B-180) -------------------------------

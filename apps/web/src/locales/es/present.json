@@ -77,7 +77,7 @@
     "liveNote": "La pantalla sigue activa hasta que la finalices, aunque cierres el navegador.",
     "followUnknown": "Este código es desconocido o ha caducado.",
     "endConfirm": "¿Finalizar la sesión y borrar la pantalla?",
-    "endYes": "Finalizar",
+    "endYes": "Sí, finalizar",
     "hymns": "Himnos",
     "hymnSearchPlaceholder": "Título, primer verso o número",
     "hymnSend": "Poner este himno en pantalla",
@@ -292,6 +292,7 @@
     "hymnAddToNotesFor": "Añadir {title} a las notas",
     "hymnAddToPlanFor": "Añadir {title} al orden del servicio",
     "viewersLabel": "Espectadores",
-    "previewFrameTitle": "Vista previa de la pantalla"
+    "previewFrameTitle": "Vista previa de la pantalla",
+    "viewersCount": "Espectadores: {count}"
   }
 }

@@ -80,6 +80,22 @@ describe('StrongsPopup', () => {
     expect(container.querySelector('.strongs-popup')).toBeTruthy();
   });
 
+  it('is a modal dialog: focus moves in, close button is named, focus returns to the opener', async () => {
+    const opener = document.createElement('button');
+    document.body.appendChild(opener);
+    opener.focus();
+    const { rerender } = render(
+      <div><StrongsPopup entry={makeEntry()} position={DEFAULT_POSITION} onClose={vi.fn()} /></div>,
+    );
+    const dialog = await screen.findByRole('dialog');
+    expect(dialog.getAttribute('aria-modal')).toBe('true');
+    await vi.waitFor(() => expect(dialog.contains(document.activeElement)).toBe(true));
+    expect(screen.getByRole('button', { name: 'common.close' })).toBeTruthy();
+    rerender(<div><StrongsPopup entry={null} position={DEFAULT_POSITION} onClose={vi.fn()} /></div>);
+    await vi.waitFor(() => expect(document.activeElement).toBe(opener));
+    opener.remove();
+  });
+
   it('displays the Strongs number and word', () => {
     render(
       <StrongsPopup entry={makeEntry()} position={DEFAULT_POSITION} onClose={vi.fn()} />,

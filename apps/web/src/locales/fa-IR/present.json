@@ -292,6 +292,7 @@
     "hymnAddToNotesFor": "افزودن {title} به یادداشت‌ها",
     "hymnAddToPlanFor": "افزودن {title} به ترتیب برنامه",
     "viewersLabel": "بینندگان",
-    "previewFrameTitle": "پیش‌نمایش صفحه"
+    "previewFrameTitle": "پیش‌نمایش صفحه",
+    "viewersCount": "بینندگان: {count}"
   }
 }
