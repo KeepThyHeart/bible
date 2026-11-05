@@ -15,6 +15,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useI18n } from '../contexts/useI18n';
 import { useFocusTrap } from '../hooks/useFocusTrap';
+import { useTabKeyboardNav } from '../hooks/useTabKeyboardNav';
 import { ExtensionCatalogBrowser } from './extensions/ExtensionCatalogBrowser';
 import { ExtensionCatalogSources } from './extensions/ExtensionCatalogSources';
 import ExtensionSettingsRenderer from './extensions/ExtensionSettingsRenderer';
@@ -418,6 +419,15 @@ export function ExtensionsSection({ initialExpand }: ExtensionsSectionProps): JS
     { id: 'catalogs', label: t('extensions.tabs.catalogs') },
   ];
 
+  const { tablistRef, onKeyDown: onTablistKeyDown } = useTabKeyboardNav({
+    tabCount: tabs.length,
+    activeIndex: Math.max(0, tabs.findIndex((tab) => tab.id === activeTab)),
+    onActivate: (index) => {
+      const next = tabs[index];
+      if (next) setActiveTab(next.id);
+    },
+  });
+
   return (
     <div className="space-y-4">
       <p
@@ -435,6 +445,8 @@ export function ExtensionsSection({ initialExpand }: ExtensionsSectionProps): JS
       <div
         role="tablist"
         aria-label={t('extensions.tabs.label')}
+        ref={tablistRef}
+        onKeyDown={onTablistKeyDown}
         className="flex gap-1"
         style={{ borderBottom: '1px solid var(--theme-border-primary)' }}
       >
@@ -444,6 +456,7 @@ export function ExtensionsSection({ initialExpand }: ExtensionsSectionProps): JS
             type="button"
             role="tab"
             aria-selected={activeTab === tab.id}
+            tabIndex={activeTab === tab.id ? 0 : -1}
             data-testid={`extensions-tab-${tab.id}`}
             onClick={() => setActiveTab(tab.id)}
             className="px-3 py-1.5 text-sm"

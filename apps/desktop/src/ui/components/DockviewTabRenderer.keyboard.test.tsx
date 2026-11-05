@@ -162,6 +162,43 @@ describe('tabs in other groups (round 2)', () => {
   });
 });
 
+describe('tablist names (D8-3)', () => {
+  function strip(group: any, others: any[] = []) {
+    const { props } = makeProps('p1', 'newtab', group);
+    props.containerApi.groups = [...others, group];
+    const { container } = render(
+      <div className="dv-tabs-container"><div className="dv-tab" tabIndex={0}><DockviewTabRenderer {...props} /></div></div>,
+    );
+    return container.querySelector('.dv-tabs-container') as HTMLElement;
+  }
+
+  it('names the strip for the selected panel, not the first tab', () => {
+    const group: any = {
+      id: 'g',
+      panels: [{ id: 'p0', params: { contentType: 'bible' } }, { id: 'p1', params: { contentType: 'study' } }],
+      activePanel: { id: 'p1' },
+    };
+    expect(strip(group).getAttribute('aria-label')).toBe('ui.dockviewTab.tablistLabel:paneName.study');
+  });
+
+  it('tells two groups of the same kind apart with a number', () => {
+    const first: any = { id: 'g1', panels: [{ id: 'a', params: { contentType: 'newtab' } }], activePanel: { id: 'a' } };
+    const second: any = { id: 'g2', panels: [{ id: 'p1', params: { contentType: 'newtab' } }], activePanel: { id: 'p1' } };
+    expect(strip(second, [first]).getAttribute('aria-label')).toBe('ui.dockviewTab.tablistLabel:paneName.newTab 2');
+  });
+
+  it('leaves the first group of a kind unnumbered', () => {
+    const first: any = { id: 'g1', panels: [{ id: 'p1', params: { contentType: 'newtab' } }], activePanel: { id: 'p1' } };
+    const second: any = { id: 'g2', panels: [{ id: 'b', params: { contentType: 'newtab' } }], activePanel: { id: 'b' } };
+    const { props } = makeProps('p1', 'newtab', first);
+    props.containerApi.groups = [first, second];
+    const { container } = render(
+      <div className="dv-tabs-container"><div className="dv-tab" tabIndex={0}><DockviewTabRenderer {...props} /></div></div>,
+    );
+    expect(container.querySelector('.dv-tabs-container')!.getAttribute('aria-label')).toBe('ui.dockviewTab.tablistLabel:paneName.newTab');
+  });
+});
+
 describe('focus after closing a tab (round 2)', () => {
   it('Delete moves focus to the tab that becomes active in the same group', async () => {
     const strip = document.createElement('div');

@@ -433,6 +433,8 @@ const BookPane: React.FC<BookPaneProps> = (props) => {
   // panes can be open in one document, and these ids (used for `aria-labelledby`
   // and the tabpanel `id` below) must stay unique across them.
   const tabIdPrefix = `book-dict-${panelId}`;
+  const overviewTabId = `${tabIdPrefix}-tab-overview`;
+  const overviewPanelId = `${tabIdPrefix}-panel-overview`;
 
   const activeUnifiedTab = allTabs[combinedActiveIndex];
   const paneMenuOptions: PaneMenuOption[] = activeUnifiedTab
@@ -564,7 +566,9 @@ const BookPane: React.FC<BookPaneProps> = (props) => {
           <button
             type="button"
             role="tab"
+            id={overviewTabId}
             aria-selected={overviewActive}
+            aria-controls={overviewActive ? overviewPanelId : undefined}
             data-tabnav-skip=""
             data-testid="library-overview-tab"
             onClick={() => {
@@ -606,7 +610,12 @@ const BookPane: React.FC<BookPaneProps> = (props) => {
       {/* Overview shelf - takes the whole content area. Lists only this pane's
           own kind of module. */}
       {overviewActive && (
-        <div className="flex-1 overflow-hidden">
+        <div
+          className="flex-1 overflow-hidden"
+          id={overviewPanelId}
+          role="tabpanel"
+          aria-labelledby={overviewTabId}
+        >
           <LibraryHome
             kind={paneKind}
             books={availableBooks}

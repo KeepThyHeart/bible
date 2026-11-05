@@ -924,6 +924,17 @@
   outline-offset: 2px;
 }
 
+/* Headings that are focused by script (tabindex=-1, e.g. the Search Results
+   heading) sit directly above a subtitle. The default 2px outside ring cuts
+   through that subtitle, so draw the ring inside the heading box and give the
+   text a little room so the ring does not touch the glyphs. */
+:is(h1, h2, h3, h4)[tabindex='-1']:focus-visible {
+  outline-offset: -2px;
+  padding-inline: 4px;
+  padding-block: 2px;
+  border-radius: 4px;
+}
+
 /* Inputs keep their border tint as well; the outline is additive, not a
    replacement. Overriding `outline: none` from themes.css is the whole point. */
 input:focus-visible,

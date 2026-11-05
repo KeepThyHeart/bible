@@ -224,3 +224,28 @@ describe('DetachedWindow: state handover', () => {
     expect(paneProps.CommentaryPane.currentVerseId).toBe(43003016);
   });
 });
+
+describe('DetachedWindow: document title (D8-4)', () => {
+  it('follows the pane instead of staying at the generic title', () => {
+    document.title = 'Detached Pane - Keep Thy Heart';
+    render(<DetachedWindow />);
+    sendInitializePane({
+      paneType: 'bible',
+      state: { currentBookName: 'John', currentChapter: 4 },
+    });
+    expect(document.title).toBe('John 4 — Keep Thy Heart');
+  });
+
+  it('prefers a title supplied by the main process and falls back to the pane name', () => {
+    document.title = 'Detached Pane - Keep Thy Heart';
+    const { unmount } = render(<DetachedWindow />);
+    sendInitializePane({ paneType: 'study', componentName: 'StudyPane', title: 'Romans 8 Study' });
+    expect(document.title).toBe('Romans 8 Study — Keep Thy Heart');
+    unmount();
+
+    document.title = 'Detached Pane - Keep Thy Heart';
+    render(<DetachedWindow />);
+    sendInitializePane({ paneType: 'study', componentName: 'StudyPane' });
+    expect(document.title).toBe(`${enT('paneName.study')} — Keep Thy Heart`);
+  });
+});

@@ -354,6 +354,7 @@
   "memory.ui.practice.passage": "अंश",
   "memory.ui.practice.home": "मुख्य पृष्ठ",
   "memory.ui.practice.next": "आगे",
+  "memory.ui.practice.progress": "प्रगति",
   "memory.ui.practice.skipToNextPassage": "अगले अंश पर जाएँ",
   "memory.ui.practice.tierOf": "{label} (स्तर {tier} / {tiers})",
   "memory.ui.practice.shuffle": "फेंटें - कुछ और अभ्यास करें",

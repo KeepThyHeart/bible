@@ -50,6 +50,8 @@ const XrefGraphDialog: React.FC = () => {
   const labels = useXrefGraphLabels();
   const direction = useDirection();
   const { isOpen, anchor, view, close, setAnchor, setView } = useXrefGraphStore();
+  // Hop count is shared by the web and compass views so it survives switching tabs.
+  const [depth, setDepth] = useState<1 | 2 | 3>(2);
   const phone = usePhoneWidth();
   const dialogRef = useFocusTrap<HTMLDivElement>(isOpen);
   const { full, toggle: toggleFull, exit: exitFull } = useFullscreen(dialogRef);
@@ -161,6 +163,8 @@ const XrefGraphDialog: React.FC = () => {
           formatRef={formatRef}
           getVerseText={getVerseText}
           labels={labels.web}
+          initialDepth={depth}
+          onDepthChange={setDepth}
           dir={dir}
         />
       );
@@ -176,6 +180,8 @@ const XrefGraphDialog: React.FC = () => {
           bookName={bookName}
           getVerseText={getVerseText}
           labels={labels.compass}
+          initialDepth={depth}
+          onDepthChange={setDepth}
           dir={dir}
         />
       );

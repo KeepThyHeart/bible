@@ -384,6 +384,7 @@
   "searchDistributionGraph.fuzzyExcludedNote": "⟦Åþþŕøẋîɱåţé ɱåţçĥéš åŕé ñøţ çøüñţéð. ··········⟧",
   "searchDistributionGraph.bookMatches": "⟦{book} — {count, plural, one {# match} other {# matches}} ···⟧",
   "searchDistributionGraph.bookNoMatches": "⟦{book} — ñø ɱåţçĥéš ···⟧",
+  "searchDistributionGraph.bookNotCounted": "⟦{book} — ñøţ çøüñţéð ýéţ ·····⟧",
   "prayerTab.prayerListLabel": "⟦Þŕåýéŕ Ļîšţ: ···⟧",
   "prayerTab.configureTitle": "⟦Çøñƒîĝüŕé Þŕåýéŕ Ļîšţš ······⟧",
   "prayerTab.newPrayerDialogTitle": "⟦Ñéŵ Þŕåýéŕ ···⟧",

@@ -21,6 +21,7 @@ import { useSessionStore } from '../stores/useSessionStore';
 import { useBibleStore } from '../stores/useBibleStore';
 import { usePreferencesStore } from '../stores/usePreferencesStore';
 import { useIsAppActive } from '../apps/appHost';
+import { DEFAULT_LAYOUT_PRESET_ID } from '../presets';
 import { zeroSizedGroupIds } from '../services/PresetApplier';
 import { sanitizeDockviewState, type LayoutRepairLogEntry } from '../services/LayoutStateSanitizer';
 import { exceedsDragThreshold, gateDragEvent } from '../services/AdvancedPaneManagerGate';
@@ -209,6 +210,9 @@ function createDefaultLayout(api: DockviewApi): void {
 
   // Activate the Study panel as the default visible tab in the right group
   studyPanel.api.setActive();
+
+  // The layout above is Study Mode's shape, so the Layout menu should say so.
+  layoutPresetService.markCurrent(DEFAULT_LAYOUT_PRESET_ID);
 }
 
 interface DockviewLayoutProps {

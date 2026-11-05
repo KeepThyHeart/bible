@@ -384,6 +384,7 @@
   "searchDistributionGraph.fuzzyExcludedNote": "अनुमानित मिलान नहीं गिने जाते।",
   "searchDistributionGraph.bookMatches": "{book} — {count, plural, one {# मिलान} other {# मिलान}}",
   "searchDistributionGraph.bookNoMatches": "{book} — कोई मिलान नहीं",
+  "searchDistributionGraph.bookNotCounted": "{book} — अभी गिना नहीं गया",
   "prayerTab.prayerListLabel": "प्रार्थना सूची:",
   "prayerTab.configureTitle": "प्रार्थना सूचियाँ कॉन्फ़िगर करें",
   "prayerTab.newPrayerDialogTitle": "नई प्रार्थना",

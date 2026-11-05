@@ -354,6 +354,7 @@
   "memory.ui.practice.passage": "المقطع",
   "memory.ui.practice.home": "الرئيسية",
   "memory.ui.practice.next": "التالي",
+  "memory.ui.practice.progress": "التقدّم",
   "memory.ui.practice.skipToNextPassage": "تخطّي إلى المقطع التالي",
   "memory.ui.practice.tierOf": "{label} (الدرجة {tier} من {tiers})",
   "memory.ui.practice.shuffle": "خلط - تدرّب على شيء آخر",

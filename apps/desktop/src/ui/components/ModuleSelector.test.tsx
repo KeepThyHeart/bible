@@ -339,4 +339,28 @@ describe('ModuleSelector: remove affordance (opt-in)', () => {
       expect(document.activeElement).toBe(opener);
     });
   });
+
+  it('marks only the pane\'s own module as current, not the highlighted first row', () => {
+    renderWithProviders(
+      <ModuleSelector
+        title="Select Translation"
+        modules={mockModules}
+        currentId="esv"
+        onSelect={onSelect}
+        onClose={onClose}
+      />,
+    );
+    const rows = screen.getAllByTestId('module-selector-item');
+    expect(rows[0]).not.toHaveAttribute('aria-current');
+    expect(rows[1]).toHaveAttribute('aria-current', 'true');
+  });
+
+  it('marks no row current when the caller names none', () => {
+    renderWithProviders(
+      <ModuleSelector title="Select" modules={mockModules} onSelect={onSelect} onClose={onClose} />,
+    );
+    for (const row of screen.getAllByTestId('module-selector-item')) {
+      expect(row).not.toHaveAttribute('aria-current');
+    }
+  });
 });

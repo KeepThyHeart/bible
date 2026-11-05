@@ -8,6 +8,7 @@ import PrayerTab from './notes/tabs/PrayerTab';
 import StudyPane from './StudyPane';
 import TopicsPane from './TopicsPane';
 import ExtensionPanelHost from './extensions/ExtensionPanelHost';
+import { PANE_NAME_KEYS, type NamedPaneType } from '../utils/paneNames';
 
 /**
  * Component map - maps component names to actual components
@@ -46,9 +47,31 @@ export const COMPONENT_MAP: Record<string, React.ComponentType<any>> = {
 
 export interface InitializePanePayload {
   paneType: string;
+  /** Window title computed by the main process, when it supplies one. */
+  title?: string;
   windowId: string;
   componentName?: string;
   state?: unknown;
+}
+
+/**
+ * The title this pane's window should carry, e.g. "John 4" or "Study".
+ *
+ * The native window title is set by the main process from `paneConfig`; the
+ * page's own `document.title` is what a screen reader, the task switcher and
+ * automation read, and it used to stay at the generic "Detached Pane". The
+ * main process may hand its title over as `payload.title`; otherwise it is
+ * derived from what the pane was given, falling back to the pane's name.
+ */
+export function detachedPaneTitle(payload: InitializePanePayload): string | undefined {
+  if (payload.title) return payload.title;
+  const st = (payload.state && typeof payload.state === 'object' ? payload.state : {}) as Record<string, any>;
+  const passage = st.currentBookName && st.currentChapter ? `${st.currentBookName} ${st.currentChapter}` : undefined;
+  const named = passage ?? st.verseName ?? st.topicName ?? st.noteName;
+  if (typeof named === 'string' && named) return named;
+  const key = payload.paneType in PANE_NAME_KEYS ? PANE_NAME_KEYS[payload.paneType as NamedPaneType] : undefined;
+  const name = key ? i18nService.t(key) : undefined;
+  return name && name !== key ? name : undefined;
 }
 
 /**
@@ -70,6 +93,16 @@ export function DetachedWindow() {
       setPayload(data);
     });
   }, []);
+
+  // Keep the page title in step with the pane. The product suffix is whatever
+  // follows the first " - " in the HTML's own title, so it stays localized/branded.
+  useEffect(() => {
+    if (!payload) return;
+    const title = detachedPaneTitle(payload);
+    if (!title) return;
+    const suffix = document.title.includes(' - ') ? document.title.split(' - ').slice(1).join(' - ') : '';
+    document.title = suffix ? `${title} \u2014 ${suffix}` : title;
+  }, [payload]);
 
   // Loading state.
   //

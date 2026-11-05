@@ -15,6 +15,8 @@ export interface ILayoutPresetService {
   undo(): boolean;
   /** Forget remembered arrangements (called when the workbench is replaced). */
   reset(): void;
+  /** Record a preset as current without rearranging (the fresh default layout). */
+  markCurrent(presetId: string): void;
   /** Told about every layout change; drops the "current preset" checkmark for manual ones. */
   notifyManualLayoutChange(): void;
   readonly currentPresetId: string | null;

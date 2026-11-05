@@ -354,6 +354,7 @@
   "memory.ui.practice.passage": "经文",
   "memory.ui.practice.home": "首页",
   "memory.ui.practice.next": "下一个",
+  "memory.ui.practice.progress": "进度",
   "memory.ui.practice.skipToNextPassage": "跳到下一段经文",
   "memory.ui.practice.tierOf": "{label}（第 {tier} 级，共 {tiers} 级）",
   "memory.ui.practice.shuffle": "随机——换个练习",

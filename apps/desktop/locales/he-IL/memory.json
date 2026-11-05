@@ -354,6 +354,7 @@
   "memory.ui.practice.passage": "קטע",
   "memory.ui.practice.home": "דף הבית",
   "memory.ui.practice.next": "הבא",
+  "memory.ui.practice.progress": "התקדמות",
   "memory.ui.practice.skipToNextPassage": "דלג לקטע הבא",
   "memory.ui.practice.tierOf": "{label} (דרגה {tier} מתוך {tiers})",
   "memory.ui.practice.shuffle": "ערבוב - תרגל משהו אחר",

@@ -384,6 +384,7 @@
   "searchDistributionGraph.fuzzyExcludedNote": "近似匹配不计入统计。",
   "searchDistributionGraph.bookMatches": "{book}——{count} 处匹配",
   "searchDistributionGraph.bookNoMatches": "{book}——无匹配",
+  "searchDistributionGraph.bookNotCounted": "{book} — 尚未统计",
   "prayerTab.prayerListLabel": "祷告清单：",
   "prayerTab.configureTitle": "配置祷告清单",
   "prayerTab.newPrayerDialogTitle": "新建祷告",

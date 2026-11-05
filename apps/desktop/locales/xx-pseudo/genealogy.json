@@ -15,5 +15,6 @@
   "genealogyPane.loading": "⟦Ļøåðîñĝ ƒåɱîļý ţŕéé... ······⟧",
   "genealogyPane.empty": "⟦Ñø ĝéñéåļøĝý ðåţå îš îñšţåļļéð. Îñšţåļļ å ĝéñéåļøĝý ɱøðüļé ţø éẋþļøŕé ƒåɱîļý ţŕééš. ························⟧",
   "genealogyPane.error": "⟦Ţĥé ƒåɱîļý ţŕéé çøüļð ñøţ ƀé ļøåðéð. ··········⟧",
-  "genealogyPane.retry": "⟦Ţŕý åĝåîñ ··⟧"
+  "genealogyPane.retry": "⟦Ţŕý åĝåîñ ··⟧",
+  "genealogyPane.openModuleManager": "⟦Øþéñ ţĥé Ṁøðüļé Ṁåñåĝéŕ ······⟧"
 }

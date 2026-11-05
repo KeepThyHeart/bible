@@ -196,4 +196,38 @@ describe('ReadingPlansPane', () => {
     await user.click(within(screen.getByRole('group', { name: 'Remove' })).getByRole('button', { name: 'Remove' }));
     await waitFor(async () => expect(await service.enrollments()).toHaveLength(0));
   });
+
+  describe('inline Remove confirmation keyboard', () => {
+    async function openConfirm() {
+      const { service } = installTestService();
+      await service.startPlan('stock:gospels-30');
+      const user = userEvent.setup();
+      render(<ReadingPlansPane />);
+      await user.click(await screen.findByRole('button', { name: 'Plans' }));
+      const row = await screen.findByTestId('reading-plans-enrollment');
+      const remove = within(row).getByRole('button', { name: /^Remove / });
+      await user.click(remove);
+      return { user, row, remove, service };
+    }
+
+    it('moves focus into the confirmation', async () => {
+      const { row } = await openConfirm();
+      const group = within(row).getByRole('group');
+      await waitFor(() => expect(within(group).getAllByRole('button')[0]).toHaveFocus());
+    });
+
+    it('Escape cancels and returns focus to Remove', async () => {
+      const { user, row, remove, service } = await openConfirm();
+      await user.keyboard('{Escape}');
+      expect(within(row).queryByRole('group')).not.toBeInTheDocument();
+      expect(remove).toHaveFocus();
+      expect(await service.enrollments()).toHaveLength(1);
+    });
+
+    it('Cancel returns focus to Remove instead of the page', async () => {
+      const { user, row, remove } = await openConfirm();
+      await user.click(within(within(row).getByRole('group')).getByRole('button', { name: 'Cancel' }));
+      expect(remove).toHaveFocus();
+    });
+  });
 });

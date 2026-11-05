@@ -384,6 +384,7 @@
   "searchDistributionGraph.fuzzyExcludedNote": "‏Approximate matches are not counted.‏",
   "searchDistributionGraph.bookMatches": "‏{book} — {count, plural, one {# match} other {# matches}}‏",
   "searchDistributionGraph.bookNoMatches": "‏{book} — no matches‏",
+  "searchDistributionGraph.bookNotCounted": "‏{book} — not counted yet‏",
   "prayerTab.prayerListLabel": "‏Prayer List:‏",
   "prayerTab.configureTitle": "‏Configure Prayer Lists‏",
   "prayerTab.newPrayerDialogTitle": "‏New Prayer‏",

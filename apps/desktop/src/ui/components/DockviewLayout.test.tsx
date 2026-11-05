@@ -92,12 +92,13 @@ vi.mock('../stores/useLayoutStore', () => ({
 // functions the factory closes over must be declared via `vi.hoisted()`
 // rather than a plain `const`, or the factory sees them in the temporal dead
 // zone ("Cannot access '...' before initialization").
-const { mockPresetServiceReset, mockNotifyManualLayoutChange } = vi.hoisted(() => ({
+const { mockPresetServiceReset, mockNotifyManualLayoutChange, mockMarkCurrent } = vi.hoisted(() => ({
+  mockMarkCurrent: vi.fn(),
   mockPresetServiceReset: vi.fn(),
   mockNotifyManualLayoutChange: vi.fn(),
 }));
 vi.mock('../commands/layoutCommands', () => ({
-  layoutPresetService: { reset: mockPresetServiceReset, notifyManualLayoutChange: mockNotifyManualLayoutChange },
+  layoutPresetService: { reset: mockPresetServiceReset, notifyManualLayoutChange: mockNotifyManualLayoutChange, markCurrent: mockMarkCurrent },
 }));
 
 const mockMarkDirty = vi.fn();
@@ -150,6 +151,14 @@ describe('DockviewLayout', () => {
     expect(mockSetDockviewApi).toHaveBeenCalledWith(mockDockviewApi);
     expect(mockAddPanel).toHaveBeenCalled();
     expect(mockRegisterPanel).toHaveBeenCalled();
+  });
+
+  it('marks the default preset current after building the default layout (D8-2)', () => {
+    render(<DockviewLayout />);
+    act(() => {
+      capturedOnReady!({ api: mockDockviewApi });
+    });
+    expect(mockMarkCurrent).toHaveBeenCalledWith('study-mode');
   });
 
   it('opens Bible, Study, Commentary and Dictionary on first run', () => {

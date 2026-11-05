@@ -63,6 +63,12 @@ interface ModuleSelectorProps {
    * used rather than a hardcoded English default.
    */
   emptyMessage?: string;
+  /**
+   * The id of the module the pane currently shows (e.g. the pane's translation). It alone is
+   * exposed as `aria-current`; the keyboard-highlighted row is only a visual ring, since the
+   * first row used to be announced as "current" whatever the pane held.
+   */
+  currentId?: string;
   /** When true, renders without the outer modal overlay (for embedding in another dialog) */
   embedded?: boolean;
 }
@@ -80,6 +86,7 @@ const ModuleSelector: React.FC<ModuleSelectorProps> = ({
   onRemove,
   removeLabel,
   onClose,
+  currentId,
   embedded = false
 }) => {
   const { t } = useI18n();
@@ -211,7 +218,7 @@ const ModuleSelector: React.FC<ModuleSelectorProps> = ({
                   type="button"
                   data-testid="module-selector-item"
                   data-index={index}
-                  aria-current={index === selectedIndex ? 'true' : undefined}
+                  aria-current={currentId !== undefined && module.id === currentId ? 'true' : undefined}
                   className={`
                     block w-full text-start p-md border rounded transition-colors
                     ${isOpen

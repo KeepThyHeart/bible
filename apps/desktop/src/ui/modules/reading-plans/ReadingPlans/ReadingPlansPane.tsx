@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { ReadingPlans } from '@bible/core/browser';
 import {
   ReadingPlanBuilderForm, ReadingPlanLibrary, SettingsForm, WeekdayPicker,
@@ -7,6 +7,7 @@ import { useI18n } from '../../../contexts/useI18n';
 import { getReadingPlanService } from '../readingPlansAPI';
 import { openPlanReading } from '../useActiveReadingStore';
 import { useReadingPlanStore } from '../useReadingPlanStore';
+import { useInlineConfirm } from './useInlineConfirm';
 import { DESKTOP_SETTINGS, getDesktopSettingsStore } from '../../../settings/desktopSettings';
 import { isEnabled } from '../../../settings/featureFlags';
 import { ensureReferenceLocales } from '../../../services/localizedReferenceParser';
@@ -69,6 +70,35 @@ const ReadingPlansPane: React.FC = () => {
   const [readingDays, setReadingDays] = useState<Weekday[]>(ALL_DAYS);
   const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+
+  // Inline Remove / Delete confirmations: focus goes in, Escape cancels, and focus returns to the
+  // trigger (or, when the row is gone, to the list's first control) instead of dropping to <body>.
+  const paneRootRef = useRef<HTMLDivElement>(null);
+  const removeButtons = useRef(new Map<string, HTMLButtonElement | null>());
+  const cancelRemove = () => {
+    const id = confirmRemove;
+    setConfirmRemove(null);
+    if (id) removeButtons.current.get(id)?.focus();
+  };
+  const removeConfirm = useInlineConfirm(confirmRemove, cancelRemove);
+  const cancelDelete = () => {
+    const key = confirmDelete;
+    setConfirmDelete(null);
+    if (!key) return;
+    const plan = data.library.find((p) => p.key === key);
+    const trigger = plan
+      ? Array.from(paneRootRef.current?.querySelectorAll<HTMLElement>('button') ?? [])
+          .find((b) => b.getAttribute('aria-label') === labels.library.deleteNamed(plan.name))
+      : undefined;
+    trigger?.focus();
+  };
+  const deleteConfirm = useInlineConfirm(confirmDelete, cancelDelete);
+  const focusAfterRowGone = () => {
+    requestAnimationFrame(() => {
+      const first = paneRootRef.current?.querySelector<HTMLElement>('[data-testid="reading-plans-enrollment"] button');
+      (first ?? plansTabRef.current)?.focus();
+    });
+  };
 
   const refreshStore = useReadingPlanStore((s) => s.refresh);
   useEffect(() => { void refreshStore(); }, [refreshStore]);
@@ -194,14 +224,16 @@ const ReadingPlansPane: React.FC = () => {
           </button>
         ) : null}
         <button type="button" className="kth-btn kth-btn--sm kth-btn--danger" aria-label={t('readingPlans.action.removeNamed', { name })}
+          ref={(el) => { removeButtons.current.set(e.id, el); }}
           onClick={() => setConfirmRemove(e.id)}>{t('readingPlans.action.remove')}</button>
         {confirmRemove === e.id ? (
-          <div role="group" aria-label={t('readingPlans.action.removeNamed', { name })} className="w-full flex flex-col gap-xs">
+          <div role="group" aria-label={t('readingPlans.action.removeNamed', { name })} className="w-full flex flex-col gap-xs"
+            ref={removeConfirm.groupRef} onKeyDown={removeConfirm.onKeyDown}>
             <p className="text-sm m-0">{t('readingPlans.action.removeConfirm', { name })}</p>
             <div className="flex gap-sm">
               <button type="button" className="kth-btn kth-btn--sm kth-btn--danger"
-                onClick={() => { setConfirmRemove(null); void run(() => service.removeEnrollment(e.id)); }}>{t('readingPlans.action.confirmRemove')}</button>
-              <button type="button" className="kth-btn kth-btn--sm" onClick={() => setConfirmRemove(null)}>{labels.todayCard.cancel}</button>
+                onClick={() => { setConfirmRemove(null); void run(() => service.removeEnrollment(e.id)).then(focusAfterRowGone); }}>{t('readingPlans.action.confirmRemove')}</button>
+              <button type="button" className="kth-btn kth-btn--sm" onClick={cancelRemove}>{labels.todayCard.cancel}</button>
             </div>
           </div>
         ) : null}
@@ -266,12 +298,13 @@ const ReadingPlansPane: React.FC = () => {
             onDelete={(key) => setConfirmDelete(key)}
           />
           {deleting ? (
-            <div role="group" aria-label={labels.library.deleteNamed(deleting.name)} className="flex flex-col gap-xs mt-sm">
+            <div role="group" aria-label={labels.library.deleteNamed(deleting.name)} className="flex flex-col gap-xs mt-sm"
+              ref={deleteConfirm.groupRef} onKeyDown={deleteConfirm.onKeyDown}>
               <p className="text-sm m-0">{t('readingPlans.library.deleteConfirm', { name: deleting.name })}</p>
               <div className="flex gap-sm">
                 <button type="button" className="kth-btn kth-btn--sm kth-btn--danger"
-                  onClick={() => { const key = deleting.key; setConfirmDelete(null); void run(() => service.deletePlan(key)); }}>{t('readingPlans.action.confirmDelete')}</button>
-                <button type="button" className="kth-btn kth-btn--sm" onClick={() => setConfirmDelete(null)}>{labels.todayCard.cancel}</button>
+                  onClick={() => { const key = deleting.key; setConfirmDelete(null); void run(() => service.deletePlan(key)).then(focusAfterRowGone); }}>{t('readingPlans.action.confirmDelete')}</button>
+                <button type="button" className="kth-btn kth-btn--sm" onClick={cancelDelete}>{labels.todayCard.cancel}</button>
               </div>
             </div>
           ) : null}
@@ -314,7 +347,7 @@ const ReadingPlansPane: React.FC = () => {
   );
 
   return (
-    <div className="h-full w-full flex flex-col overflow-hidden" data-testid="reading-plans-pane" style={shell}>
+    <div ref={paneRootRef} className="h-full w-full flex flex-col overflow-hidden" data-testid="reading-plans-pane" style={shell}>
       <div className="flex items-center gap-xs px-md py-xs border-b border-border" role="toolbar" aria-label={t('readingPlans.title')}>
         <button type="button" ref={todayTabRef} className={tabClass(activeKind === 'today')} aria-pressed={activeKind === 'today'} onClick={() => go({ kind: 'today' })}>{t('readingPlans.nav.today')}</button>
         <button type="button" ref={plansTabRef} className={tabClass(activeKind === 'plans')} aria-pressed={activeKind === 'plans'} onClick={() => go({ kind: 'plans' })}>{t('readingPlans.nav.plans')}</button>

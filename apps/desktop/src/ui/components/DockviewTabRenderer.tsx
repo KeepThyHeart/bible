@@ -472,21 +472,39 @@ const DockviewTabRenderer: React.FC<IDockviewPanelHeaderProps> = (props) => {
   //
   // The name follows the *group*, not this tab: a tab moved into a new group
   // (Split Right / Down, a drag) names the new strip, and the name changes when
-  // the group's panels do. The group's purpose is its first panel that is not
-  // an empty "+" page (or that page, when it is all the group holds); the pane
-  // name is localized through the catalog, never taken from the stored title,
-  // which is an English constant for generic panels.
+  // the group's panels do. It is named for the group's *selected* panel, so a
+  // group showing Study is "Study tabs" whatever tab happens to be first; a
+  // group with no readable selection falls back to its first panel that is not
+  // an empty "+" page. Pane names are localized through the catalog, never
+  // taken from the stored title, which is an English constant for generic
+  // panels. Two groups that would share a name are told apart by a number
+  // ("New Tab 2"), in the order the workbench lists its groups.
   const getTablistLabel = useCallback((): string | undefined => {
-    const panels = (api.group?.panels ?? []) as Array<{ params?: { contentType?: string } }>;
-    const kinds = panels.map(p => p.params?.contentType).filter((k): k is string => !!k);
-    const kind = kinds.find(k => k !== 'newtab') ?? kinds[0] ?? contentType;
-    const key = kind && kind in PANE_NAME_KEYS ? PANE_NAME_KEYS[kind as NamedPaneType] : undefined;
-    const name = key ? t(key) : undefined;
+    type GroupShape = {
+      panels?: Array<{ id?: string; params?: { contentType?: string } }>;
+      activePanel?: { id?: string; params?: { contentType?: string } };
+    };
+    const baseName = (group: GroupShape | undefined, fallbackKind?: string): string | undefined => {
+      const panels = group?.panels ?? [];
+      const active = group?.activePanel;
+      const activeKind = (panels.find(p => p.id !== undefined && p.id === active?.id) ?? active)?.params?.contentType;
+      const kinds = panels.map(p => p.params?.contentType).filter((k): k is string => !!k);
+      const kind = activeKind ?? kinds.find(k => k !== 'newtab') ?? kinds[0] ?? fallbackKind;
+      const key = kind && kind in PANE_NAME_KEYS ? PANE_NAME_KEYS[kind as NamedPaneType] : undefined;
+      return key ? t(key) : undefined;
+    };
+    const name = baseName(api.group as GroupShape | undefined, contentType);
     if (!name) return undefined;
-    const label = t('ui.dockviewTab.tablistLabel', { name });
+    const groups = ((containerApi as { groups?: GroupShape[] }).groups ?? []);
+    const mine = api.group as GroupShape | undefined;
+    const samePosition = groups
+      .filter(g => g === mine || baseName(g) === name);
+    const index = mine ? samePosition.indexOf(mine) : -1;
+    const unique = index > 0 ? `${name} ${index + 1}` : name;
+    const label = t('ui.dockviewTab.tablistLabel', { name: unique });
     // Until the catalog has the key, `t` hands the key back; fall back to English.
-    return label === 'ui.dockviewTab.tablistLabel' ? `${name} tabs` : label;
-  }, [api, contentType, t]);
+    return label === 'ui.dockviewTab.tablistLabel' ? `${unique} tabs` : label;
+  }, [api, containerApi, contentType, t]);
   useDockviewTabA11y(contentRef, api as never, title ?? '', uiDir === 'rtl', {
     onClose: groupTabCount > 1 ? closeFromKeyboard : undefined,
     onDidLayoutChange,
@@ -530,12 +548,12 @@ const DockviewTabRenderer: React.FC<IDockviewPanelHeaderProps> = (props) => {
       >
         {icon && <span style={{ fontSize: controlScaled(12), alignSelf: subtitle ? 'flex-start' : undefined }}>{icon}</span>}
         {subtitle ? (
-          <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.2 }}>
-            <span style={{ fontWeight: 600 }}><Bdi>{title}</Bdi></span>
-            <span style={{ fontSize: controlScaled(10), color: 'var(--theme-text-secondary)', fontWeight: 400 }}><Bdi>{subtitle}</Bdi></span>
+          <div className="dockview-tab-text" style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.2 }}>
+            <span className="dockview-tab-title" style={{ fontWeight: 600 }}><Bdi>{title}</Bdi></span>
+            <span className="dockview-tab-title" style={{ fontSize: controlScaled(10), color: 'var(--theme-text-secondary)', fontWeight: 400 }}><Bdi>{subtitle}</Bdi></span>
           </div>
         ) : (
-          <span><Bdi>{title}</Bdi></span>
+          <span className="dockview-tab-title"><Bdi>{title}</Bdi></span>
         )}
         {badge !== undefined && (
           <span

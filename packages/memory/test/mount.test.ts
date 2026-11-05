@@ -103,7 +103,7 @@ describe('mountMemoryUi', () => {
     const bus = fakeBus();
     mountMemoryUi(c, { api: fakeApi(), subscribe: bus.subscribe });
     expect(c.classList.contains('sm-app')).toBe(true);
-    expect(c.querySelector('main.sm-main')).not.toBeNull();
+    expect(c.querySelector('div.sm-main')).not.toBeNull();
     const status = c.querySelector('.sm-status')!;
     expect(status.getAttribute('role')).toBe('status');
     expect(status.getAttribute('aria-live')).toBe('polite');

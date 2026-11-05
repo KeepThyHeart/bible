@@ -73,7 +73,7 @@ function renderAnswerModeGroup(host: PanelHost, current: AnswerMode): HTMLElemen
     ]);
   }
 
-  return el('div', { class: 'sm-radio-group' }, [
+  return el('div', { class: 'sm-radio-group', attrs: { role: 'radiogroup', 'aria-label': tr('memory.ui.settings.answeringBlanks', 'Answering blanks') } }, [
     radio('firstLetter', tr('memory.ui.settings.firstLetterOfEachWord', 'First letter of each word'), tr('memory.ui.settings.quick', '(quick)')),
     radio('fullWord', tr('memory.ui.settings.fullWordExactSpelling', 'Full word, exact spelling'), null),
   ]);

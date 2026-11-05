@@ -107,6 +107,21 @@ describe('TopSearchBar - search box feedback and focus', () => {
     expect(input).toHaveAttribute('aria-expanded', 'false');
   });
 
+  it('says there are no commands on Enter after "/" instead of staying silent', () => {
+    const view = render(
+      <ContextProvider services={createMockServices()}><TopSearchBar /></ContextProvider>,
+    );
+    const input = screen.getByTestId('search-input') as HTMLInputElement;
+    fireEvent.mouseDown(input);
+    fireEvent.focus(input);
+    fireEvent.change(input, { target: { value: '/' } });
+    view.rerender(<ContextProvider services={createMockServices()}><TopSearchBar /></ContextProvider>);
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(mockSearchState.error).toBe('searchBar.commandMode.empty');
+    view.rerender(<ContextProvider services={createMockServices()}><TopSearchBar /></ContextProvider>);
+    expect(screen.getByRole('alert')).toHaveTextContent('searchBar.commandMode.empty');
+  });
+
   it('returns focus to the search box when Clear search is clicked', async () => {
     mockSearchState.query = 'love';
     render(<ContextProvider services={createMockServices()}><TopSearchBar /></ContextProvider>);

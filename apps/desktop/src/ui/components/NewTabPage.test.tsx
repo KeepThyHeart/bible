@@ -15,6 +15,9 @@ import { enT } from '../testing/enCatalog';
 // Mock dockview-react
 vi.mock('dockview-react', () => ({}));
 
+const mockFocusPanelTab = vi.hoisted(() => vi.fn());
+vi.mock('../hooks/useDockviewTabA11y', () => ({ focusPanelTab: mockFocusPanelTab }));
+
 /**
  * `t()` returns `[key]` for a key no catalog carries - the real service's
  * behaviour - so these assertions exercise the `tf()` English fallbacks the
@@ -200,6 +203,19 @@ describe('NewTabPage', () => {
     expect(addPanel).toHaveBeenCalledTimes(1);
     expect(addPanel.mock.calls[0][0]).toBe('bible');
     expect(addPanel.mock.calls[0][1]).toBe('KJV|43|3|43003016|standard');
+  });
+
+  it('moves focus to the new pane tab after replacing the New Tab page', async () => {
+    const addPanel = vi.fn().mockReturnValue('timeline_new');
+    const api = fakeDockview();
+    useLayoutStore.setState({ dockviewApi: api, addPanel });
+
+    const user = userEvent.setup();
+    renderPage(<NewTabPage panelId="test-panel" dockviewPanelApi={{} as never} />);
+    await user.type(screen.getByPlaceholderText(/For example/i), 'Study');
+    await user.keyboard('{Enter}');
+
+    expect(mockFocusPanelTab).toHaveBeenCalledWith(api, 'timeline_new');
   });
 
   it('seeds a typed "Book Chapter" in the default display mode too', async () => {

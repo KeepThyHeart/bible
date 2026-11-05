@@ -18,4 +18,9 @@ describe('CommentaryPassageHeader', () => {
     await userEvent.setup().click(btn);
     expect(navigate).toHaveBeenCalledWith(45008001);
   });
+
+  it('names the Aa button as text settings', () => {
+    render(<CommentaryPassageHeader currentVerseId={45008001} pinned={false} onTogglePin={() => {}} />);
+    expect(screen.getByRole('button', { name: 'ui.commentaryPassageHeader.textSettings' })).toHaveTextContent('Aa');
+  });
 });

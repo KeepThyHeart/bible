@@ -37,6 +37,7 @@ import { activateWhenContentReady } from '../services/paneHandoff';
 import { prefetchTopic } from '../services/topicalContentCache';
 import { VERSE_PAGE_SIZE } from './TopicsPane/types';
 import type { IDockviewPanel } from 'dockview-react';
+import { focusPanelTab } from '../hooks/useDockviewTabA11y';
 
 /** Data id of the Cross-ref graph module's verse action; the button runs it without importing the module. */
 const CONNECTIONS_ACTION = 'xrefGraph.connections';
@@ -315,6 +316,34 @@ const StudyPane: React.FC<StudyPaneProps> = ({ panelId: propPanelId, initialVers
     return () => { cancelled = true; };
   }, [currentVerseId, displayNameFor, installedModules]);
 
+  // Back/Forward disable themselves at the ends of the trail. Pressing the arrow that just
+  // disabled drops focus to the page, so move it to the arrow (or header button) still usable.
+  const paneRootRef = useRef<HTMLDivElement>(null);
+  const pendingNavFocus = useRef<'back' | 'forward' | null>(null);
+  useEffect(() => {
+    const pending = pendingNavFocus.current;
+    const root = paneRootRef.current;
+    if (!pending || !root) return;
+    const back = root.querySelector<HTMLButtonElement>('[data-testid="pane-nav-back"]');
+    const forward = root.querySelector<HTMLButtonElement>('[data-testid="pane-nav-forward"]');
+    const pressed = pending === 'back' ? back : forward;
+    const active = document.activeElement;
+    // Only rescue focus that was lost with the button, never focus the reader moved elsewhere.
+    if (active && active !== document.body && active !== pressed) {
+      pendingNavFocus.current = null;
+      return;
+    }
+    if (!pressed || !pressed.disabled) return;
+    pendingNavFocus.current = null;
+    const other = pending === 'back' ? forward : back;
+    const target = other && !other.disabled
+      ? other
+      : pressed.parentElement?.querySelector<HTMLButtonElement>('button:not(:disabled)');
+    target?.focus();
+  }, [canGoBack, canGoForward]);
+  const stepBack = useCallback(() => { pendingNavFocus.current = 'back'; goBack(); }, [goBack]);
+  const stepForward = useCallback(() => { pendingNavFocus.current = 'forward'; goForward(); }, [goForward]);
+
   // Navigate topic to Topics Pane
   const handleTopicClick = useCallback((abbreviation: string, topicId: number) => {
     // Find or create a Topics Pane and navigate to the topic
@@ -340,7 +369,11 @@ const StudyPane: React.FC<StudyPaneProps> = ({ panelId: propPanelId, initialVers
       const panel = targetPanel;
       useTopicsStore.getState().navigateToTopic(panel.id, topicId, abbreviation); // allow-getstate: event handler - imperative navigation
       activateWhenContentReady(
-        () => panel.api.setActive(),
+        () => {
+          panel.api.setActive();
+          // Keep focus with the pane the reader just opened, not the Bible pane's heading.
+          focusPanelTab(api as never, panel.id);
+        },
         prefetchTopic(abbreviation, topicId, VERSE_PAGE_SIZE),
       );
     } else {
@@ -355,6 +388,7 @@ const StudyPane: React.FC<StudyPaneProps> = ({ panelId: propPanelId, initialVers
         title: t('paneName.topics'),
         params: { contentType: 'topics' },
       });
+      focusPanelTab(api as never, newPanel.id);
       // Navigate after panel is created
       setTimeout(() => {
         useTopicsStore.getState().navigateToTopic(newPanel.id, topicId, abbreviation); // allow-getstate: event handler - imperative navigation
@@ -386,8 +420,8 @@ const StudyPane: React.FC<StudyPaneProps> = ({ panelId: propPanelId, initialVers
   // Empty state
   if (!currentVerseId && !suggestionVerseId) {
     return (
-      <div className="pane-content-study h-full w-full flex flex-col overflow-hidden" data-testid="study-pane" style={{ backgroundColor: 'var(--theme-bg-primary)', color: 'var(--theme-text-primary)' }}>
-        <PaneNavHeader canGoBack={canGoBack} canGoForward={canGoForward} pinned={pinned} onBack={goBack} onForward={goForward} onTogglePin={togglePin} />
+      <div ref={paneRootRef} className="pane-content-study h-full w-full flex flex-col overflow-hidden" data-testid="study-pane" style={{ backgroundColor: 'var(--theme-bg-primary)', color: 'var(--theme-text-primary)' }}>
+        <PaneNavHeader canGoBack={canGoBack} canGoForward={canGoForward} pinned={pinned} onBack={stepBack} onForward={stepForward} onTogglePin={togglePin} />
         <div style={{ padding: '16px' }}>
           <TopicSearchBar onSelectTopic={handleSearchSelectTopic} placeholder={t('studyPane.searchTopicsPlaceholder')} />
         </div>
@@ -403,11 +437,12 @@ const StudyPane: React.FC<StudyPaneProps> = ({ panelId: propPanelId, initialVers
 
   return (
     <div
+      ref={paneRootRef}
       className="pane-content-study h-full w-full flex flex-col overflow-hidden"
       style={{ backgroundColor: 'var(--theme-bg-primary)', color: 'var(--theme-text-primary)' }}
       data-testid="study-pane"
     >
-      <PaneNavHeader canGoBack={canGoBack} canGoForward={canGoForward} pinned={pinned} onBack={goBack} onForward={goForward} onTogglePin={togglePin} />
+      <PaneNavHeader canGoBack={canGoBack} canGoForward={canGoForward} pinned={pinned} onBack={stepBack} onForward={stepForward} onTogglePin={togglePin} />
 
       {/*
         Only a pinned pane can be out of step with the Bible pane now - an

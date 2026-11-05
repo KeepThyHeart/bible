@@ -4,7 +4,7 @@
  * explorer itself are the real shared code (their own suites live in `packages/`).
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor, act } from '@testing-library/react';
+import { render, screen, waitFor, act, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 vi.mock('../../contexts/useI18n', () => ({
@@ -19,6 +19,11 @@ vi.mock('../../../api/dataProviderAdapter', () => ({
 const mockNavigate = vi.fn();
 vi.mock('../../stores/crossStoreBridge', () => ({
   navigateToVerseInPrimary: (...args: unknown[]) => mockNavigate(...args),
+}));
+
+const mockOpenModuleManager = vi.fn();
+vi.mock('../../utils/openModuleManager', () => ({
+  openModuleManager: (...args: unknown[]) => mockOpenModuleManager(...args),
 }));
 
 import GenealogyPane from './GenealogyPane';
@@ -61,6 +66,14 @@ describe('GenealogyPane', () => {
     mockGetDataset.mockResolvedValue(null);
     render(<GenealogyPane panelId="genealogy_1" />);
     await waitFor(() => expect(screen.getByTestId('genealogy-empty')).toHaveTextContent(enT('genealogyPane.empty')));
+  });
+
+  it('offers an Open Module Manager action in the empty state', async () => {
+    mockGetDataset.mockResolvedValue(null);
+    render(<GenealogyPane panelId="genealogy_1" />);
+    await waitFor(() => expect(screen.getByTestId('genealogy-empty')).toBeInTheDocument());
+    await userEvent.click(within(screen.getByTestId('genealogy-empty')).getByRole('button'));
+    expect(mockOpenModuleManager).toHaveBeenCalledTimes(1);
   });
 
   it('treats a dataset with no people as not installed', async () => {

@@ -354,6 +354,7 @@
   "memory.ui.practice.passage": "Отрывок",
   "memory.ui.practice.home": "Главная",
   "memory.ui.practice.next": "Далее",
+  "memory.ui.practice.progress": "Прогресс",
   "memory.ui.practice.skipToNextPassage": "Перейти к следующему отрывку",
   "memory.ui.practice.tierOf": "{label} (ступень {tier} из {tiers})",
   "memory.ui.practice.shuffle": "Перемешать - потренировать что-нибудь другое",

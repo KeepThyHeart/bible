@@ -93,7 +93,7 @@ const LayoutDropdown: React.FC = () => {
               <button
                 key={preset.id}
                 onClick={() => handleApply(preset.id)}
-                className={`w-full text-start px-3 py-2 hover:bg-background-hover transition-colors ${isCurrent ? 'bg-accent-light' : ''}`}
+                className={`layout-preset-row w-full text-start px-3 py-2 hover:bg-background-hover transition-colors ${isCurrent ? 'bg-accent-light' : ''}`}
                 aria-current={isCurrent ? 'true' : undefined}
                 aria-pressed={isCurrent}
                 data-testid={`layout-preset-${preset.id}`}

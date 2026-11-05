@@ -15,8 +15,9 @@ interface DictModule {
 interface BookModuleSelectorModalProps {
   /** The pane's kind. Books and dictionaries are segregated, so this is fixed while the dialog is open. */
   selectorType: 'book' | 'dictionary';
-  selectorSearchQuery: string;
-  setSelectorSearchQuery: (q: string) => void;
+  /** Unused now (the embedded selector owns the filter); kept so callers need not change. */
+  selectorSearchQuery?: string;
+  setSelectorSearchQuery?: (q: string) => void;
   availableBooks: BookModule[];
   availableDictionaries: DictModule[];
   bookTabs: BookTab[];
@@ -37,8 +38,6 @@ interface BookModuleSelectorModalProps {
  */
 export const BookModuleSelectorModal: React.FC<BookModuleSelectorModalProps> = ({
   selectorType,
-  selectorSearchQuery,
-  setSelectorSearchQuery,
   availableBooks,
   availableDictionaries,
   bookTabs,
@@ -53,7 +52,6 @@ export const BookModuleSelectorModal: React.FC<BookModuleSelectorModalProps> = (
   // Matches BookTreeView's dialog treatment: without the trap, Tab from the
   // filter box walked straight out into the pane behind the overlay.
   const dialogRef = useFocusTrap<HTMLDivElement>(true, onClose);
-  const query = selectorSearchQuery.toLowerCase();
 
   const bookModules = availableBooks.map((book): ModuleItem => ({
     id: book.abbreviation,
@@ -71,15 +69,7 @@ export const BookModuleSelectorModal: React.FC<BookModuleSelectorModalProps> = (
     version: dict.version,
     openCount: dictTabs.some(tab => tab.abbreviation === dict.abbreviation) ? 1 : 0,
   }));
-  const filterModules = (modules: ModuleItem[]) => query
-    ? modules.filter(m =>
-        m.name.toLowerCase().includes(query)
-        || m.abbreviation.toLowerCase().includes(query)
-        || (m.languageCode && m.languageCode.toLowerCase().includes(query))
-      )
-    : modules;
-  const filteredBooks = filterModules(bookModules);
-  const filteredDicts = filterModules(dictModules);
+  const headingId = 'book-module-selector-title';
 
   return (
     <PaneOverlay onDismiss={onClose}>
@@ -87,22 +77,17 @@ export const BookModuleSelectorModal: React.FC<BookModuleSelectorModalProps> = (
         ref={dialogRef}
         role="dialog"
         aria-modal="true"
-        aria-label={selectorType === 'book'
-          ? t('bookPane.selectorBookDialogLabel')
-          : t('bookPane.selectorDictionaryDialogLabel')}
+        aria-labelledby={headingId}
         className="bg-surface rounded-lg shadow-xl w-full max-w-2xl max-h-[80vh] overflow-hidden flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Search filter */}
-        <div className="px-xl py-md border-b border-border">
-          <input
-            type="text"
-            placeholder={t('bookPane.filterPlaceholder')}
-            className="w-full px-md py-sm border border-border rounded focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent"
-            value={selectorSearchQuery}
-            onChange={(e) => setSelectorSearchQuery(e.target.value)}
-            autoFocus
-          />
+        {/* The embedded ModuleSelector below carries the one filter box (with arrow/Enter handling). */}
+        <div className="px-xl py-lg border-b border-border">
+          <h2 id={headingId} className="text-2xl font-semibold text-text-heading">
+            {selectorType === 'book'
+              ? t('bookPane.selectorBookDialogLabel')
+              : t('bookPane.selectorDictionaryDialogLabel')}
+          </h2>
         </div>
 
         {/* Module list */}
@@ -110,7 +95,7 @@ export const BookModuleSelectorModal: React.FC<BookModuleSelectorModalProps> = (
           title={selectorType === 'book'
             ? t('bookPane.selectBookTitle')
             : t('bookPane.selectDictionaryTitle')}
-          modules={selectorType === 'book' ? filteredBooks : filteredDicts}
+          modules={selectorType === 'book' ? bookModules : dictModules}
           isLoading={selectorType === 'book' ? loadingBooks : loadingDictionaries}
           emptyMessage={selectorType === 'book'
             ? t('bookPane.noBooksInstalled')

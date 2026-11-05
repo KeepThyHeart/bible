@@ -384,6 +384,7 @@
   "searchDistributionGraph.fuzzyExcludedNote": "Ocorrências aproximadas não são contadas.",
   "searchDistributionGraph.bookMatches": "{book} — {count, plural, one {# ocorrência} other {# ocorrências}}",
   "searchDistributionGraph.bookNoMatches": "{book} — nenhuma ocorrência",
+  "searchDistributionGraph.bookNotCounted": "{book} — ainda não contado",
   "prayerTab.prayerListLabel": "Lista de oração:",
   "prayerTab.configureTitle": "Configurar as listas de oração",
   "prayerTab.newPrayerDialogTitle": "Nova oração",

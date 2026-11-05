@@ -384,6 +384,7 @@
   "searchDistributionGraph.fuzzyExcludedNote": "المطابقات التقريبية غير محسوبة.",
   "searchDistributionGraph.bookMatches": "{book} — {count, plural, zero {لا مطابقات} one {مطابقة واحدة} two {مطابقتان} few {# مطابقات} many {# مطابقة} other {# مطابقة}}",
   "searchDistributionGraph.bookNoMatches": "{book} — لا مطابقات",
+  "searchDistributionGraph.bookNotCounted": "{book} — لم يُحسب بعد",
   "prayerTab.prayerListLabel": "قائمة الصلاة:",
   "prayerTab.configureTitle": "تهيئة قوائم الصلاة",
   "prayerTab.newPrayerDialogTitle": "صلاة جديدة",

@@ -384,6 +384,7 @@
   "searchDistributionGraph.fuzzyExcludedNote": "تطابق‌های تقریبی شمارش نمی‌شوند.",
   "searchDistributionGraph.bookMatches": "{book} — {count, plural, one {# تطابق} other {# تطابق}}",
   "searchDistributionGraph.bookNoMatches": "{book} — بدون تطابق",
+  "searchDistributionGraph.bookNotCounted": "{book} — هنوز شمرده نشده",
   "prayerTab.prayerListLabel": "فهرست دعا:",
   "prayerTab.configureTitle": "پیکربندی فهرست‌های دعا",
   "prayerTab.newPrayerDialogTitle": "دعای جدید",

@@ -517,6 +517,10 @@ const TopSearchBar = forwardRef<TopSearchBarHandle>(function TopSearchBar(_props
           : matchedCommands[0];
         if (target) {
           handleExecuteCommand(target.id);
+        } else {
+          // Nothing to run ("/" with no extensions installed, or a prefix nothing matches):
+          // say so rather than leaving Enter silent.
+          useSearchStore.setState({ error: t('searchBar.commandMode.empty') });
         }
       } else if (liveMode === 'reference') {
         // A suggestion fetch may have been armed while the string was still a

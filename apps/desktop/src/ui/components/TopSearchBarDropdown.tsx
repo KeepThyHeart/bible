@@ -49,7 +49,7 @@ const TopSearchBarDropdown: React.FC<TopSearchBarDropdownProps> = ({
     if (!commands || commands.length === 0) {
       return (
         <div data-testid="search-dropdown" className="absolute top-full mt-1 w-full bg-surface-elevated border border-border rounded-lg shadow-lg z-50">
-          <div className="px-3 py-4 text-center text-sm text-text-secondary">
+          <div role="status" className="px-3 py-4 text-center text-sm text-text-secondary">
             {t('searchBar.commandMode.empty')}
           </div>
         </div>

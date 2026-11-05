@@ -354,6 +354,7 @@
   "memory.ui.practice.passage": "Passagem",
   "memory.ui.practice.home": "Início",
   "memory.ui.practice.next": "Próxima",
+  "memory.ui.practice.progress": "Progresso",
   "memory.ui.practice.skipToNextPassage": "Pular para a próxima passagem",
   "memory.ui.practice.tierOf": "{label} (grau {tier} de {tiers})",
   "memory.ui.practice.shuffle": "Embaralhar - praticar outra coisa",

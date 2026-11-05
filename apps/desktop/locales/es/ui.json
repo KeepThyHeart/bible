@@ -384,6 +384,7 @@
   "searchDistributionGraph.fuzzyExcludedNote": "Las coincidencias aproximadas no se cuentan.",
   "searchDistributionGraph.bookMatches": "{book}: {count, plural, one {# coincidencia} other {# coincidencias}}",
   "searchDistributionGraph.bookNoMatches": "{book}: sin coincidencias",
+  "searchDistributionGraph.bookNotCounted": "{book}: aún sin contar",
   "prayerTab.prayerListLabel": "Lista de oración:",
   "prayerTab.configureTitle": "Configurar las listas de oración",
   "prayerTab.newPrayerDialogTitle": "Oración nueva",

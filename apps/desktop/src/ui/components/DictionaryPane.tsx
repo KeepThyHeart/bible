@@ -14,7 +14,7 @@ import { useTextSettingsStore, getFontFamilyCSS } from '../stores/useTextSetting
 import { formatVerseReference } from '../utils/verseReference';
 import { cleanModuleName } from '../utils/verseFormatting';
 import ModuleSelector, { ModuleItem } from './ModuleSelector';
-import DictionaryLiveSearch from './dictionary/DictionaryLiveSearch';
+import DictionaryLiveSearch, { type LiveResultDisplay } from './dictionary/DictionaryLiveSearch';
 import { sanitizeHtml } from '../utils/sanitize';
 import ToolbarPopover from './bible/ToolbarPopover';
 import { PaneOverlay } from './shared/PaneOverlay';
@@ -226,6 +226,24 @@ const DictionaryPane: React.FC<DictionaryPaneProps> = ({ hideTabs = false, panel
     [activeAbbreviation, searchDictionary],
   );
 
+  /** A Strong's hit reads "G1645 ἐλαφρός (elaphros)", not its zero-padded key and raw headline. */
+  const describeLiveResult = useCallback(
+    (r: DictionaryEntrySummary): LiveResultDisplay => {
+      const strongs = activeAbbreviation ? strongsNumberFor(activeAbbreviation, r.entry_key) : null;
+      if (!strongs) {
+        return { key: r.entry_key, word: r.word, transliteration: r.transliteration, definition: r.definition };
+      }
+      const headline = parseStrongsHeadline(r.definition);
+      return {
+        key: strongs,
+        word: headline?.word ?? r.word,
+        transliteration: headline?.transliteration,
+        definition: stripStrongsHeadline(r.definition),
+      };
+    },
+    [activeAbbreviation],
+  );
+
   const openEntry = useCallback(
     (entryKey: string) => {
       if (!activeAbbreviation) return;
@@ -327,8 +345,51 @@ const DictionaryPane: React.FC<DictionaryPaneProps> = ({ hideTabs = false, panel
 
   const handleRelatedWordClick = (relatedKey: string) => {
     if (activeTab) {
+      pendingFocusRef.current = { mode: 'heading', fromEntry: currentEntry, fromNavIndex: navIndex };
       lookupEntry(activeTab.abbreviation, relatedKey);
     }
+  };
+
+  /*
+    Focus follows a navigation made from inside the pane. Following a link, a related word,
+    Back or Forward replaces the entry (often through a loading state), which removes the
+    control that had focus; left alone, the page-level rescue lands it on the first tabbable
+    thing in the pane (the Overview tab). So the click records where it came from, and once the
+    new entry is on screen focus goes to its heading - or, after Back/Forward, to the arrow
+    that is still usable, since the one just pressed disables itself at the end of the trail.
+  */
+  const rootRef = useRef<HTMLDivElement>(null);
+  const pendingFocusRef = useRef<{
+    mode: 'heading' | 'back' | 'forward';
+    fromEntry: unknown;
+    fromNavIndex: number;
+  } | null>(null);
+  useEffect(() => {
+    const pending = pendingFocusRef.current;
+    if (!pending || rawIsLoading || isLoading) return;
+    if (error) {
+      pendingFocusRef.current = null;
+      return;
+    }
+    if (currentEntry === pending.fromEntry && navIndex === pending.fromNavIndex) return;
+    pendingFocusRef.current = null;
+    const root = rootRef.current;
+    if (!root) return;
+    const heading = root.querySelector<HTMLElement>('[data-testid="dictionary-entry-key"]');
+    if (pending.mode === 'heading') {
+      heading?.focus();
+      return;
+    }
+    const back = root.querySelector<HTMLButtonElement>('[data-testid="dictionary-back"]');
+    const forward = root.querySelector<HTMLButtonElement>('[data-testid="dictionary-forward"]');
+    const [first, second] = pending.mode === 'back' ? [back, forward] : [forward, back];
+    const target = [first, second].find((b) => b && !b.disabled) ?? heading;
+    target?.focus();
+  }, [currentEntry, navIndex, rawIsLoading, isLoading, error]);
+
+  const stepHistory = (mode: 'back' | 'forward', step: () => Promise<unknown> | void) => {
+    pendingFocusRef.current = { mode, fromEntry: currentEntry, fromNavIndex: navIndex };
+    void step();
   };
 
   const browseDialogRef = useFocusTrap<HTMLDivElement>(showBrowseModal);
@@ -356,7 +417,7 @@ const DictionaryPane: React.FC<DictionaryPaneProps> = ({ hideTabs = false, panel
   });
 
   return (
-    <div className="h-full flex flex-col" data-testid="dictionary-pane" style={{ backgroundColor: 'var(--theme-bg-primary)' }}>
+    <div ref={rootRef} className="h-full flex flex-col" data-testid="dictionary-pane" style={{ backgroundColor: 'var(--theme-bg-primary)' }}>
       {/* Tab Bar (hidden when embedded in BookPane) */}
       {!hideTabs && (
         <div className="flex items-start border-b border-border bg-background-warm px-sm py-xs">
@@ -450,7 +511,7 @@ const DictionaryPane: React.FC<DictionaryPaneProps> = ({ hideTabs = false, panel
             pane uses for the same list - the same gesture wearing two faces.
           */}
           <PaneToolbarButton
-            onClick={() => { void goBack(); }}
+            onClick={() => stepHistory('back', goBack)}
             disabled={navIndex <= 0}
             label={t('dictionaryPane.goBackTitle')}
             testId="dictionary-back"
@@ -458,7 +519,7 @@ const DictionaryPane: React.FC<DictionaryPaneProps> = ({ hideTabs = false, panel
             <BackIcon />
           </PaneToolbarButton>
           <PaneToolbarButton
-            onClick={() => { void goForward(); }}
+            onClick={() => stepHistory('forward', goForward)}
             disabled={navIndex < 0 || navIndex >= navHistory.length - 1}
             label={t('dictionaryPane.goForwardTitle')}
             testId="dictionary-forward"
@@ -544,6 +605,7 @@ const DictionaryPane: React.FC<DictionaryPaneProps> = ({ hideTabs = false, panel
               isSearching={isSearching}
               onSelectEntry={openEntry}
               onSubmitFallback={handleLookup}
+              describeResult={describeLiveResult}
             />
           </div>
         </PaneToolbar>
@@ -655,7 +717,7 @@ const DictionaryPane: React.FC<DictionaryPaneProps> = ({ hideTabs = false, panel
           >
             {/* Entry Header */}
             <div className="mb-lg">
-              <h2 className="text-3xl font-bold text-text-heading mb-sm" data-testid="dictionary-entry-key">
+              <h2 tabIndex={-1} className="text-3xl font-bold text-text-heading mb-sm" data-testid="dictionary-entry-key">
                 {strongsSearchNumber ?? currentEntry.entry_key}
                 {(strongsHeadline?.word ?? currentEntry.word) && (strongsHeadline?.word ?? currentEntry.word)!.trim().toLowerCase() !== String(currentEntry.entry_key).trim().toLowerCase() && (
                   <span className="ms-md text-2xl text-text-secondary">
@@ -719,6 +781,7 @@ const DictionaryPane: React.FC<DictionaryPaneProps> = ({ hideTabs = false, panel
                   const ref = (e.target as HTMLElement).closest<HTMLElement>('[data-strongs-ref]')?.dataset.strongsRef;
                   if (!ref) return;
                   e.preventDefault();
+                  pendingFocusRef.current = { mode: 'heading', fromEntry: currentEntry, fromNavIndex: navIndex };
                   void useDictionaryStore.getState().lookupStrongsNumber(ref, panelId); // allow-getstate: click handler, not render
                 }}
                 dangerouslySetInnerHTML={{ __html: sanitizeHtml((() => {

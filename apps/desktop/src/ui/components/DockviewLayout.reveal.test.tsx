@@ -54,7 +54,7 @@ vi.mock('../stores/useLayoutStore', () => ({
   ),
 }));
 vi.mock('../commands/layoutCommands', () => ({
-  layoutPresetService: { reset: vi.fn(), notifyManualLayoutChange: vi.fn(), runInternal },
+  layoutPresetService: { reset: vi.fn(), notifyManualLayoutChange: vi.fn(), runInternal, markCurrent: vi.fn() },
 }));
 vi.mock('../stores/useSessionStore', () => ({
   useSessionStore: Object.assign(vi.fn(), { getState: () => ({ markDirty: vi.fn() }) }),

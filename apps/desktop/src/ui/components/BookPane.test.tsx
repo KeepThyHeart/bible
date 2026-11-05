@@ -856,6 +856,15 @@ describe('BookPane: overview shelf (F23)', () => {
     expect(tab.hasAttribute('aria-pressed')).toBe(false);
   });
 
+  it('puts the Overview shelf in a tabpanel labelled by the Overview tab', () => {
+    renderWithProviders(<BookPane />);
+    const tab = screen.getByTestId('library-overview-tab');
+    const panel = screen.getByRole('tabpanel');
+    expect(panel).toContainElement(screen.getByTestId('library-home'));
+    expect(panel.getAttribute('aria-labelledby')).toBe(tab.id);
+    expect(tab.getAttribute('aria-controls')).toBe(panel.id);
+  });
+
   // The other half of that rule: the shelf is for *finding* a module, so a pane
   // that already has one open shows the module rather than the shelf.
   it('opens on the module, not the shelf, when a tab is already open', () => {

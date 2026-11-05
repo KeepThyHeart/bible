@@ -198,7 +198,12 @@ const SearchDistributionGraph: React.FC<DistributionProps> = (props) => {
           book: bookName(bar.bookNumber),
           count: bar.count,
         })
-      : t('searchDistributionGraph.bookNoMatches', { book: bookName(bar.bookNumber) });
+      : // A capped keyword set stopped counting at its limit, so a book with
+        // nothing counted may still have matches past it: say "not counted",
+        // never "no matches".
+        props.mode === 'keyword' && props.isCapped
+        ? t('searchDistributionGraph.bookNotCounted', { book: bookName(bar.bookNumber) })
+        : t('searchDistributionGraph.bookNoMatches', { book: bookName(bar.bookNumber) });
 
   const hovered = hoveredBook === null ? null : bars[hoveredBook - 1];
 

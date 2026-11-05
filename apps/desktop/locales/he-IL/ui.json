@@ -384,6 +384,7 @@
   "searchDistributionGraph.fuzzyExcludedNote": "התאמות מקורבות אינן נספרות.",
   "searchDistributionGraph.bookMatches": "{book} — {count, plural, one {התאמה אחת} two {# התאמות} other {# התאמות}}",
   "searchDistributionGraph.bookNoMatches": "{book} — אין התאמות",
+  "searchDistributionGraph.bookNotCounted": "{book} — טרם נספר",
   "prayerTab.prayerListLabel": "רשימת תפילה:",
   "prayerTab.configureTitle": "הגדרת רשימות תפילה",
   "prayerTab.newPrayerDialogTitle": "תפילה חדשה",

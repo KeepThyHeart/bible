@@ -87,7 +87,7 @@ import { renderPassageScreen } from '../src/ui/passageView';
 import { renderSettings } from '../src/ui/settingsView';
 import { renderAnalytics } from '../src/ui/analyticsView';
 import { renderManagePassages } from '../src/ui/managePassagesView';
-import { activityRow, iconButton, listSelector, modal, tierPips } from '../src/ui/components';
+import { activityRow, iconButton, listSelector, menu, modal, tierPips } from '../src/ui/components';
 import { RUNG_LABEL } from '../src/ui/format';
 import { tierLabel } from '../src/core/ladder';
 import { SUGGESTED_LISTS } from '../src/core/suggestedLists';
@@ -4838,5 +4838,59 @@ describe('stylesheet: hidden popovers stay hidden', () => {
     for (const cls of ['.sm-menu-panel', '.sm-modal-backdrop']) {
       expect(STYLESHEET_TEXT).toContain(`${cls}[hidden]`);
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Round 3 UI hardening (D9)
+// ---------------------------------------------------------------------------
+
+describe('round 3 hardening', () => {
+  it('menu: Tab closes the open menu, Home/End jump to the first/last item', () => {
+    const m = menu({ label: 'Menu', items: [1, 2, 3].map((n) => ({ label: `Item ${n}`, onClick: () => {} })) });
+    container.appendChild(m);
+    m.querySelector<HTMLButtonElement>('.sm-menu-btn')!.click();
+    const items = Array.from(m.querySelectorAll<HTMLButtonElement>('[role="menuitem"]'));
+    const key = (k: string) => items[0]!.ownerDocument.activeElement!.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true, cancelable: true }));
+    key('End');
+    expect(document.activeElement).toBe(items[2]);
+    key('Home');
+    expect(document.activeElement).toBe(items[0]);
+    key('Tab');
+    expect(m.querySelector<HTMLElement>('[role="menu"]')!.hidden).toBe(true);
+    expect(m.querySelector('.sm-menu-btn')!.getAttribute('aria-expanded')).toBe('false');
+  });
+
+  it('modal: the rest of the page is inert while open and restored on close', () => {
+    const other = document.createElement('div');
+    container.appendChild(other);
+    const handle = modal({ title: 'Confirm', body: [document.createElement('p')] });
+    container.appendChild(handle.element);
+    handle.open();
+    expect(other.hasAttribute('inert')).toBe(true);
+    expect(handle.element.hasAttribute('inert')).toBe(false);
+    handle.close();
+    expect(other.hasAttribute('inert')).toBe(false);
+  });
+
+  it('settings: the answer-mode radios sit in a named radiogroup', () => {
+    const root = renderSettings(host, { defaultAnswerMode: 'firstLetter', recite: RECITE_DEFAULTS, speech: SPEECH_OFF }, emptyPlan());
+    container.appendChild(root);
+    const group = root.querySelector('[role="radiogroup"]')!;
+    expect(group.getAttribute('aria-label')).toBe('Answering blanks');
+    expect(group.querySelectorAll('input[type="radio"]').length).toBe(2);
+  });
+
+  it('practice: the progressbar has an accessible name', async () => {
+    await mountPractice(orderingStep());
+    expect(container.querySelector('[role="progressbar"]')!.getAttribute('aria-label')).toBe('Progress');
+  });
+
+  it('practice: restoreTabFocus puts focus on the selected tab when focus fell to body', async () => {
+    (document.activeElement as HTMLElement | null)?.blur();
+    const practice = await mountPractice(orderingStep(), { rung: 'ordering' });
+    practice.restoreTabFocus();
+    const tab = container.querySelector<HTMLElement>('[role="tab"][aria-selected="true"]')!;
+    expect(document.activeElement).toBe(tab);
   });
 });

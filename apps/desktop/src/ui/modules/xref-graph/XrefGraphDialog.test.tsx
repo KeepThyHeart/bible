@@ -8,6 +8,7 @@ const hoisted = vi.hoisted(() => ({
   getVerses: vi.fn(),
   hopperProps: null as any,
   webProps: null as any,
+  compassProps: null as any,
   arcProps: null as any,
 }));
 
@@ -17,7 +18,7 @@ vi.mock('@bible/ui', async () => {
     ...actual,
     XrefHopper: (p: any) => { hoisted.hopperProps = p; return <div data-testid="hopper">{p.anchor}</div>; },
     XrefWebView: (p: any) => { hoisted.webProps = p; return <div data-testid="web">{p.anchor}</div>; },
-    XrefCompassView: (p: any) => <div data-testid="compass">{p.anchor}</div>,
+    XrefCompassView: (p: any) => { hoisted.compassProps = p; return <div data-testid="compass">{p.anchor}</div>; },
     XrefArcView: (p: any) => {
       hoisted.arcProps = p;
       return <div data-testid="arcs" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Escape') e.preventDefault(); }} />;
@@ -88,6 +89,17 @@ describe('XrefGraphDialog', () => {
     expect(screen.getByTestId('web')).toHaveTextContent('19023001');
     fireEvent.click(screen.getByRole('tab', { name: 'Canon arcs' }));
     expect(hoisted.arcProps.current).toEqual({ book: 19, chapter: 23 });
+  });
+
+  it('keeps the hop count when switching between graph tabs', () => {
+    renderDialog();
+    open('web');
+    expect(hoisted.webProps.initialDepth).toBe(2);
+    act(() => hoisted.webProps.onDepthChange(3));
+    fireEvent.click(screen.getByRole('tab', { name: 'Compass' }));
+    expect(hoisted.compassProps.initialDepth).toBe(3);
+    fireEvent.click(screen.getByRole('tab', { name: 'Verse web' }));
+    expect(hoisted.webProps.initialDepth).toBe(3);
   });
 
   it('shows the compass tab and toggles full screen', () => {

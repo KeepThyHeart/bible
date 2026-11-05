@@ -107,6 +107,20 @@ describe('LayoutDropdown', () => {
     });
   });
 
+  it('shows the current preset as pressed, with a check, once it is marked (D8-2)', async () => {
+    const { layoutPresetService } = await import('../commands/layoutCommands');
+    layoutPresetService.markCurrent('study-mode');
+    const user = userEvent.setup();
+    renderWithProviders(<LayoutDropdown />);
+    await user.click(screen.getByTestId('layout-dropdown-button'));
+    const row = await screen.findByTestId('layout-preset-study-mode');
+    expect(row).toHaveAttribute('aria-pressed', 'true');
+    expect(row).toHaveClass('layout-preset-row');
+    expect(row.querySelector('svg')).toBeInTheDocument();
+    expect(screen.getByTestId('layout-preset-reading-mode')).toHaveAttribute('aria-pressed', 'false');
+    layoutPresetService.reset();
+  });
+
   it('displays layout preset options', async () => {
     const user = userEvent.setup();
     renderWithProviders(<LayoutDropdown />);

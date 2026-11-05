@@ -384,6 +384,7 @@
   "searchDistributionGraph.fuzzyExcludedNote": "Приблизительные совпадения не учитываются.",
   "searchDistributionGraph.bookMatches": "{book} — {count, plural, one {# совпадение} few {# совпадения} many {# совпадений} other {# совпадения}}",
   "searchDistributionGraph.bookNoMatches": "{book} — нет совпадений",
+  "searchDistributionGraph.bookNotCounted": "{book} — ещё не подсчитано",
   "prayerTab.prayerListLabel": "Молитвенный список:",
   "prayerTab.configureTitle": "Настроить молитвенные списки",
   "prayerTab.newPrayerDialogTitle": "Новая молитва",

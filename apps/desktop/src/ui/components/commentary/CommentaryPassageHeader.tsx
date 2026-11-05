@@ -61,8 +61,9 @@ const CommentaryPassageHeader: React.FC<CommentaryPassageHeaderProps> = ({
         className="text-text-secondary hover:text-text-primary hover:bg-background-hover transition-colors font-semibold rounded"
         style={{ padding: '2px 8px', border: '1px solid var(--theme-border-primary)', fontSize: '0.8125rem' }}
         title={t('ui.commentaryPassageHeader.textSettings')}
+        aria-label={t('ui.commentaryPassageHeader.textSettings')}
       >
-        Aa
+        <span aria-hidden="true">Aa</span>
       </button>
     </div>
   );

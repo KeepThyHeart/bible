@@ -59,3 +59,25 @@ describe('DocumentationDialog search keeps the current item visible', () => {
     expect(current[0]).toBe(items[0]);
   });
 });
+
+describe('DocumentationDialog search status is a live region', () => {
+  it('keeps a polite status region mounted and fills it with the match count', async () => {
+    const user = userEvent.setup();
+    renderDlg();
+    const status = screen.getByTestId('documentation-search-status');
+    expect(status).toHaveAttribute('role', 'status');
+    expect(status).toHaveAttribute('aria-live', 'polite');
+    expect(status).toBeEmptyDOMElement();
+    const docs = buildDocumentation((k: string, p?: Record<string, unknown>) => enT(k, p));
+    await user.type(screen.getByRole('textbox'), docs[docs.length - 1].title);
+    expect(screen.getByTestId('documentation-search-status')).toBe(status);
+    expect(status.textContent).toMatch(/sections match/);
+  });
+
+  it('announces the empty result as a status too', async () => {
+    const user = userEvent.setup();
+    renderDlg();
+    await user.type(screen.getByRole('textbox'), 'zzzzqqqqxx');
+    expect(screen.getAllByRole('status').some((el) => /No documentation sections match/.test(el.textContent ?? ''))).toBe(true);
+  });
+});
