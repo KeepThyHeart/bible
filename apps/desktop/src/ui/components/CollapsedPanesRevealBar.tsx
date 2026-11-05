@@ -75,8 +75,10 @@ const CollapsedPanesRevealBar: React.FC<CollapsedPanesRevealBarProps> = ({
       type="button"
       onClick={onExpand}
       data-testid="collapsed-panes-reveal-bar"
+      // No aria-label: the accessible name is the visible "Show Study Panes"
+      // text (an aria-label of the tooltip hid it from name lookups); the
+      // tooltip stays as the title, which assistive tech exposes as a description.
       title={tooltip}
-      aria-label={tooltip}
       className="flex-shrink-0 self-stretch flex items-center justify-center transition-colors"
       style={{
         writingMode: 'vertical-rl',

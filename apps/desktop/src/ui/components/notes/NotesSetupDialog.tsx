@@ -69,6 +69,12 @@ const NotesSetupDialog: React.FC<NotesSetupDialogProps> = ({ onComplete, onCance
               type="text"
               value={notesDir}
               onChange={(e) => setNotesDir(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  void handleConfirm();
+                }
+              }}
               aria-describedby="notes-setup-tip"
               className="flex-1 px-3 py-2 text-sm border border-border rounded bg-surface focus:outline-none focus:ring-2 focus:ring-accent"
             />

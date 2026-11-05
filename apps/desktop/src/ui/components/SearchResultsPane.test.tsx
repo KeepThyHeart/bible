@@ -110,6 +110,14 @@ describe('SearchResultsPane', () => {
     expect(screen.getByText(/Search Results for/)).toBeInTheDocument();
   });
 
+  it('does not double the quotes in the heading of a phrase query', () => {
+    Object.assign(mockSearchStore, { ...defaultSearchState, resultsForQuery: '"love one" -hate' });
+    renderWithProviders(<SearchResultsPane />);
+    const heading = screen.getByText(/Search Results for/);
+    expect(heading.textContent).not.toContain('""');
+    expect(heading.textContent).toBe('Search Results for: "\u201Clove one\u201D -hate"');
+  });
+
   // The panel is part of the saved layout, so it comes back on the next launch
   // with no query behind it. That state must not read as "0 results for ''".
   it('names the translation the results were run in once the reader switches (B-005)', () => {

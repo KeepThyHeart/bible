@@ -2,6 +2,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import NotesSetupDialog from './NotesSetupDialog';
+import * as fileNotesAPI from '../../services/fileNotesAPI';
 
 vi.mock('../../contexts/useI18n', () => ({ useI18n: () => ({ t: (k: string) => k }) }));
 vi.mock('../../services/fileNotesAPI', () => ({
@@ -24,5 +25,20 @@ describe('NotesSetupDialog focus (B-187)', () => {
       expect(dialog.contains(document.activeElement)).toBe(true);
     }
     outside.remove();
+  });
+});
+
+describe('NotesSetupDialog Enter in the Location field', () => {
+  it('submits "Use This Folder"', async () => {
+    vi.mocked(fileNotesAPI.initialize).mockResolvedValue('/tmp/notes');
+    const onComplete = vi.fn();
+    render(<NotesSetupDialog onComplete={onComplete} onCancel={() => {}} />);
+    const input = screen.getByLabelText('notesSetupDialog.locationLabel');
+    await waitFor(() => expect(input).toHaveValue('/tmp/notes'));
+    const user = userEvent.setup();
+    await user.click(input);
+    await user.keyboard('{Enter}');
+    await waitFor(() => expect(onComplete).toHaveBeenCalledWith('/tmp/notes'));
+    expect(fileNotesAPI.initialize).toHaveBeenCalledWith('/tmp/notes');
   });
 });

@@ -470,28 +470,23 @@ const DockviewTabRenderer: React.FC<IDockviewPanelHeaderProps> = (props) => {
   );
   // The strip is a tablist with no other name; name it for what it holds.
   //
-  // The name follows the *group*, not this tab: a tab moved into a new group
-  // (Split Right / Down, a drag) names the new strip, and the name changes when
-  // the group's panels do. It is named for the group's *selected* panel, so a
-  // group showing Study is "Study tabs" whatever tab happens to be first; a
-  // group with no readable selection falls back to its first panel that is not
-  // an empty "+" page. Pane names are localized through the catalog, never
-  // taken from the stored title, which is an English constant for generic
-  // panels. Two groups that would share a name are told apart by a number
-  // ("New Tab 2"), in the order the workbench lists its groups.
+  // The name follows the *group*, not this tab, and is stable: it does not
+  // change as the selected tab does. A group containing a Bible panel is
+  // "Bible tabs"; any other group is "Study tabs" (it holds Study, Commentary,
+  // Notes, Topics, Dictionary ... and a name taken from the selected tab would
+  // mislead). Pane names are localized through the catalog, never taken from
+  // the stored title. Two groups that would share a name are told apart by a
+  // number ("Bible 2"), in the order the workbench lists its groups.
   const getTablistLabel = useCallback((): string | undefined => {
     type GroupShape = {
       panels?: Array<{ id?: string; params?: { contentType?: string } }>;
       activePanel?: { id?: string; params?: { contentType?: string } };
     };
     const baseName = (group: GroupShape | undefined, fallbackKind?: string): string | undefined => {
-      const panels = group?.panels ?? [];
-      const active = group?.activePanel;
-      const activeKind = (panels.find(p => p.id !== undefined && p.id === active?.id) ?? active)?.params?.contentType;
-      const kinds = panels.map(p => p.params?.contentType).filter((k): k is string => !!k);
-      const kind = activeKind ?? kinds.find(k => k !== 'newtab') ?? kinds[0] ?? fallbackKind;
-      const key = kind && kind in PANE_NAME_KEYS ? PANE_NAME_KEYS[kind as NamedPaneType] : undefined;
-      return key ? t(key) : undefined;
+      const kinds = (group?.panels ?? []).map(p => p.params?.contentType).filter((k): k is string => !!k);
+      if (kinds.length === 0 && fallbackKind) kinds.push(fallbackKind);
+      const kind = kinds.includes('bible') ? 'bible' : 'study';
+      return t(PANE_NAME_KEYS[kind as NamedPaneType]);
     };
     const name = baseName(api.group as GroupShape | undefined, contentType);
     if (!name) return undefined;

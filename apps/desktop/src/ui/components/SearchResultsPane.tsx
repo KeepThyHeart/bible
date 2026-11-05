@@ -392,11 +392,23 @@ const SearchResultsPane: React.FC<SearchResultsPaneProps> = ({ dockviewPanelApi 
     }
   }, [isLoading, isSearching, error, hasQuery, renderedRowCount, countSummary]);
 
+  // The heading template already wraps the query in straight quotes, so a query
+  // of its own quotes (a phrase search) would read `""love one" -hate"`. Show
+  // the query's own quotes as typographic pairs instead.
+  const headingQuery = (() => {
+    let open = true;
+    return resultsForQuery.replace(/"/g, () => {
+      const mark = open ? '\u201C' : '\u201D';
+      open = !open;
+      return mark;
+    });
+  })();
+
   const headingText = !hasQuery
     ? t('paneName.search')
     : isSemanticMode
-      ? t('searchResultsPane.semanticHeading', { query: resultsForQuery, })
-      : t('searchResultsPane.heading', { query: resultsForQuery, });
+      ? t('searchResultsPane.semanticHeading', { query: headingQuery })
+      : t('searchResultsPane.heading', { query: headingQuery });
 
   return (
     <section

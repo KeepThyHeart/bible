@@ -86,6 +86,13 @@ describe('KeyboardShortcutsDialog', () => {
     expect(onClose).toHaveBeenCalled();
   });
 
+  it('names its focusable scroll container as a region', () => {
+    renderWithProviders(<KeyboardShortcutsDialog onClose={onClose} />);
+    const region = screen.getByRole('region');
+    expect(region).toHaveAttribute('tabindex', '0');
+    expect(region).toHaveAccessibleName();
+  });
+
   it('closes dialog when Escape key is pressed', async () => {
     const user = userEvent.setup();
     renderWithProviders(<KeyboardShortcutsDialog onClose={onClose} />);

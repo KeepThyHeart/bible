@@ -79,6 +79,17 @@ const AdvancedSearchDialog: React.FC = () => {
   // Contains Tab within the dialog while it is open.
   const dialogRef = useFocusTrap<HTMLDivElement>(isAdvancedDialogOpen);
 
+  // Initial focus: the query box. The focus trap parks focus on the first
+  // focusable element (Close) in a requestAnimationFrame of its own; this one is
+  // registered after it, so it runs after it and the query box keeps focus.
+  useEffect(() => {
+    if (!isAdvancedDialogOpen) return;
+    const raf = window.requestAnimationFrame(() => {
+      document.getElementById('adv-search-query')?.focus();
+    });
+    return () => window.cancelAnimationFrame(raf);
+  }, [isAdvancedDialogOpen]);
+
   // Sync form state when dialog opens, and track focused element
   useEffect(() => {
     if (isAdvancedDialogOpen) {
@@ -248,6 +259,21 @@ const AdvancedSearchDialog: React.FC = () => {
             if (e.key === 'Escape') {
               e.stopPropagation();
               handleCancel();
+              return;
+            }
+            // Enter in a single-line field runs the search (buttons, checkboxes
+            // and selects keep their own Enter behaviour).
+            const el = e.target as HTMLElement;
+            if (
+              e.key === 'Enter' &&
+              !e.ctrlKey &&
+              !e.metaKey &&
+              !e.altKey &&
+              el instanceof HTMLInputElement &&
+              (el.type === 'text' || el.type === 'number' || el.type === 'search')
+            ) {
+              e.preventDefault();
+              void handleSearch();
             }
           }}
         >

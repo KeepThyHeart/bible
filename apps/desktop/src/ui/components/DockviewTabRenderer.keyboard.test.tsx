@@ -155,10 +155,10 @@ describe('tabs in other groups (round 2)', () => {
       <div className="dv-tabs-container"><div className="dv-tab" tabIndex={0}><DockviewTabRenderer {...props} /></div></div>,
     );
     const strip = container.querySelector('.dv-tabs-container') as HTMLElement;
-    expect(strip.getAttribute('aria-label')).toBe('ui.dockviewTab.tablistLabel:paneName.newTab');
-    group.panels = [{ id: 'p1', params: { contentType: 'study' } }];
-    act(() => layout.fire());
     expect(strip.getAttribute('aria-label')).toBe('ui.dockviewTab.tablistLabel:paneName.study');
+    group.panels = [{ id: 'p1', params: { contentType: 'newtab' } }, { id: 'p2', params: { contentType: 'bible' } }];
+    act(() => layout.fire());
+    expect(strip.getAttribute('aria-label')).toBe('ui.dockviewTab.tablistLabel:paneName.bible');
   });
 });
 
@@ -172,10 +172,19 @@ describe('tablist names (D8-3)', () => {
     return container.querySelector('.dv-tabs-container') as HTMLElement;
   }
 
-  it('names the strip for the selected panel, not the first tab', () => {
+  it('names a group holding a Bible panel "Bible" whichever tab is selected', () => {
     const group: any = {
       id: 'g',
       panels: [{ id: 'p0', params: { contentType: 'bible' } }, { id: 'p1', params: { contentType: 'study' } }],
+      activePanel: { id: 'p1' },
+    };
+    expect(strip(group).getAttribute('aria-label')).toBe('ui.dockviewTab.tablistLabel:paneName.bible');
+  });
+
+  it('names any other group "Study" whatever its selected tab is', () => {
+    const group: any = {
+      id: 'g',
+      panels: [{ id: 'p0', params: { contentType: 'notes' } }, { id: 'p1', params: { contentType: 'dictionary' } }],
       activePanel: { id: 'p1' },
     };
     expect(strip(group).getAttribute('aria-label')).toBe('ui.dockviewTab.tablistLabel:paneName.study');
@@ -184,7 +193,7 @@ describe('tablist names (D8-3)', () => {
   it('tells two groups of the same kind apart with a number', () => {
     const first: any = { id: 'g1', panels: [{ id: 'a', params: { contentType: 'newtab' } }], activePanel: { id: 'a' } };
     const second: any = { id: 'g2', panels: [{ id: 'p1', params: { contentType: 'newtab' } }], activePanel: { id: 'p1' } };
-    expect(strip(second, [first]).getAttribute('aria-label')).toBe('ui.dockviewTab.tablistLabel:paneName.newTab 2');
+    expect(strip(second, [first]).getAttribute('aria-label')).toBe('ui.dockviewTab.tablistLabel:paneName.study 2');
   });
 
   it('leaves the first group of a kind unnumbered', () => {
@@ -195,7 +204,7 @@ describe('tablist names (D8-3)', () => {
     const { container } = render(
       <div className="dv-tabs-container"><div className="dv-tab" tabIndex={0}><DockviewTabRenderer {...props} /></div></div>,
     );
-    expect(container.querySelector('.dv-tabs-container')!.getAttribute('aria-label')).toBe('ui.dockviewTab.tablistLabel:paneName.newTab');
+    expect(container.querySelector('.dv-tabs-container')!.getAttribute('aria-label')).toBe('ui.dockviewTab.tablistLabel:paneName.study');
   });
 });
 

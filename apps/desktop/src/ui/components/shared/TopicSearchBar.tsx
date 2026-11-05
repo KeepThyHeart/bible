@@ -98,7 +98,7 @@ const TopicSearchBar: React.FC<TopicSearchBarProps> = ({
       <input
         ref={inputRef}
         data-testid="topic-search-input"
-        type="text"
+        type="search"
         value={query}
         onChange={handleChange}
         onKeyDown={handleKeyDown}

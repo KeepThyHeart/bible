@@ -162,4 +162,22 @@ describe('AdvancedSearchDialog', () => {
     await user.click(screen.getByText('Search'));
     expect(setSearchOptions).toHaveBeenCalledWith(expect.objectContaining({ fuzzyDistance: 2, maxResults: 200 }));
   });
+
+  it('runs the search on Enter in the query box', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<AdvancedSearchDialog />);
+    const input = screen.getByPlaceholderText(enString('advancedSearchDialog.queryPlaceholder'));
+    await user.click(input);
+    await user.keyboard('{Enter}');
+    expect(setSearchOptions).toHaveBeenCalled();
+    expect(performSearch).toHaveBeenCalledWith('love', { symbolOperators: true });
+  });
+
+  it('opens with the query box focused, not Close', async () => {
+    renderWithProviders(<AdvancedSearchDialog />);
+    const input = screen.getByPlaceholderText(enString('advancedSearchDialog.queryPlaceholder'));
+    await vi.waitFor(() => expect(document.activeElement).toBe(input));
+    await new Promise(r => setTimeout(r, 50));
+    expect(document.activeElement).toBe(input);
+  });
 });
