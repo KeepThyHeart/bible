@@ -213,6 +213,7 @@ const CommentaryHome: React.FC<CommentaryHomeProps> = ({ panelId, currentVerseId
           />
           <select
             value={sortMode}
+            aria-label={t('commentaryHome.sortLabel')}
             onChange={e => setSortMode(e.target.value as SortMode)}
             className="px-2 py-1 text-xs border border-border rounded cursor-pointer"
             style={{ backgroundColor: 'var(--theme-bg-primary)' }}

@@ -41,7 +41,14 @@ const HeaderActions: React.FC = () => {
       <button
         type="button"
         className={iconButton}
-        onClick={() => dispatch('command:app:openPreferences')}
+        onClick={(e) => {
+          // Not every activation focuses the button (Safari-style engines, assistive
+          // tech and synthetic clicks leave focus where it was). The dialog's focus
+          // trap returns focus to whatever was focused when it opened, so make that
+          // the button - otherwise closing Preferences lands on the chapter heading.
+          e.currentTarget.focus();
+          dispatch('command:app:openPreferences');
+        }}
         title={t('header.openPreferences')}
         aria-label={t('header.openPreferences')}
         data-testid="header-preferences"

@@ -451,16 +451,26 @@ describe('CommentaryPane: tab/tabpanel wiring', () => {
     expect(panelIds).toHaveLength(2);
     expect(new Set(panelIds).size).toBe(2);
     // Each pane's tab must resolve to *its own* panel, not the other pane's.
-    for (const tab of screen.getAllByRole('tab')) {
+    // (The inactive Overview tab controls nothing, so it has no aria-controls.)
+    for (const tab of screen.getAllByRole('tab').filter(t => t.hasAttribute('aria-controls'))) {
       expect(panelIds).toContain(tab.getAttribute('aria-controls'));
     }
   });
 
-  it('does not claim a tabpanel when the Overview tab is showing', () => {
+  it('exposes Overview as a selected tab in the tablist, owning the content region', () => {
     renderWithProviders(<CommentaryPane />);
-
+    const overview = screen.getByRole('tab', { name: /overview/i });
+    expect(overview).toHaveAttribute('aria-selected', 'true');
+    expect(overview.closest('[role="tablist"]')).not.toBeNull();
+    const panel = screen.getByRole('tabpanel');
+    expect(panel).toHaveAttribute('aria-labelledby', overview.id);
+    expect(overview).toHaveAttribute('aria-controls', panel.id);
     expect(screen.getByTestId('commentary-home')).toBeInTheDocument();
-    expect(screen.queryByRole('tabpanel')).not.toBeInTheDocument();
+  });
+
+  it('marks Overview unselected once a commentary tab is active', () => {
+    renderWithProviders(<CommentaryPane panelId="commentary_c" isDetached overviewActive={false} />);
+    expect(screen.getByRole('tab', { name: /overview/i })).toHaveAttribute('aria-selected', 'false');
   });
 });
 

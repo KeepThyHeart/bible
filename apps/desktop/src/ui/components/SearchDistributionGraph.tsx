@@ -235,14 +235,17 @@ const SearchDistributionGraph: React.FC<DistributionProps> = (props) => {
     // whose own grow factor is its book count, so all 66 come out the same.
     const cellStyle: React.CSSProperties = { flex: '1 1 0%', minWidth: 0 };
 
-    // A book with no matches has nothing to select, so it is not a control -
+    // A book with no matches has nothing to select, so it is not operable -
     // making it focusable would put 40-odd dead stops in the tab order. It
-    // still carries its name for a screen reader.
+    // is exposed as the disabled counterpart of the matching books' buttons
+    // (not `role="img"`, which read as decoration inside a row of controls),
+    // still carrying its name for a screen reader.
     if (bar.count === 0) {
       return (
         <div
           key={bar.bookNumber}
-          role="img"
+          role="button"
+          aria-disabled="true"
           aria-label={label}
           data-testid="distribution-bar"
           data-book={bar.bookNumber}

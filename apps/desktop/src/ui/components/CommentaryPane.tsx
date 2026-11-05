@@ -486,17 +486,24 @@ const CommentaryPane: React.FC<CommentaryPaneProps> = (props) => {
   // nothing. The prefix is scoped by panelId because several commentary panes
   // can be open in one document, and ids must stay unique across them.
   const tabIdPrefix = `commentary-${panelId}`;
-  // Only a commentary tab owns a tabpanel: the Overview tab is rendered as
-  // `prefixContent` rather than a `role="tab"`, and with no tabs open the
-  // content region is an onboarding empty state that no tab controls.
-  const tabPanelProps: React.HTMLAttributes<HTMLDivElement> =
-    !overviewActive && activeTab
-      ? {
-          id: `${tabIdPrefix}-panel-${activeTabIndex}`,
-          role: 'tabpanel',
-          'aria-labelledby': `${tabIdPrefix}-tab-${activeTabIndex}`,
-        }
-      : {};
+  // The Overview tab (`prefixContent`, a real `role="tab"`) owns the content
+  // region while it is active; otherwise the active commentary tab does. With
+  // no tabs open and Overview off, the region is an onboarding empty state
+  // that no tab controls.
+  const overviewTabId = `${tabIdPrefix}-tab-overview`;
+  const tabPanelProps: React.HTMLAttributes<HTMLDivElement> = overviewActive
+    ? {
+        id: `${tabIdPrefix}-panel-overview`,
+        role: 'tabpanel',
+        'aria-labelledby': overviewTabId,
+      }
+    : activeTab
+    ? {
+        id: `${tabIdPrefix}-panel-${activeTabIndex}`,
+        role: 'tabpanel',
+        'aria-labelledby': `${tabIdPrefix}-tab-${activeTabIndex}`,
+      }
+    : {};
 
   const noneInstalled = availableCommentaries.length === 0;
   const emptyState = (
@@ -576,7 +583,13 @@ const CommentaryPane: React.FC<CommentaryPaneProps> = (props) => {
         )}
         wrap
         prefixContent={
-          <div
+          <button
+            type="button"
+            role="tab"
+            id={overviewTabId}
+            aria-selected={overviewActive}
+            aria-controls={overviewActive ? `${tabIdPrefix}-panel-overview` : undefined}
+            data-tabnav-skip=""
             data-testid="commentary-overview-tab"
             onClick={handleOverviewClick}
             className={`flex items-center gap-1.5 px-3 cursor-pointer transition-colors text-sm select-none flex-shrink-0 border-e border-border ${
@@ -595,7 +608,7 @@ const CommentaryPane: React.FC<CommentaryPaneProps> = (props) => {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
             </svg>
             <span className="whitespace-nowrap">{t('commentaryPane.overviewLabel')}</span>
-          </div>
+          </button>
         }
       />
 

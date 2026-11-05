@@ -96,6 +96,25 @@ describe('LanguageFirstRun', () => {
     expect(await screen.findByTestId('first-run-language-dialog')).toBeInTheDocument();
   });
 
+  it('makes the app behind the dialog inert while open and restores it after', async () => {
+    const { rerender } = render(
+      <div data-testid="root">
+        <main data-testid="app-behind"><button>behind</button></main>
+        <LanguageFirstRun />
+      </div>,
+    );
+    await screen.findByTestId('first-run-language-dialog');
+    await waitFor(() => expect(screen.getByTestId('app-behind')).toHaveAttribute('inert'));
+    expect(screen.getByTestId('first-run-language-backdrop')).not.toHaveAttribute('inert');
+    // Closing (unmounting) the dialog must give the page back.
+    rerender(
+      <div data-testid="root">
+        <main data-testid="app-behind"><button>behind</button></main>
+      </div>,
+    );
+    expect(screen.getByTestId('app-behind')).not.toHaveAttribute('inert');
+  });
+
   it('renders nothing once the language question has been answered', () => {
     useOnboardingStore.setState({ languageChosen: true });
     render(<LanguageFirstRun />);

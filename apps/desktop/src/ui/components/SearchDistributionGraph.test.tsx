@@ -146,7 +146,11 @@ describe('SearchDistributionGraph', () => {
     expect(hairline.style.height).toBe('2px');
     // Not a control: nothing to select, so it must not take a tab stop.
     expect(obadiah.tagName).toBe('DIV');
-    expect(obadiah).toHaveAttribute('role', 'img');
+    // Exposed as a disabled (non-focusable) button, never as an image.
+    expect(obadiah).toHaveAttribute('role', 'button');
+    expect(obadiah).toHaveAttribute('aria-disabled', 'true');
+    expect(obadiah).not.toHaveAttribute('tabindex');
+    expect(screen.queryAllByRole('img')).toHaveLength(0);
     expect(obadiah).toHaveAttribute('aria-label', 'Obadiah — no matches');
   });
 

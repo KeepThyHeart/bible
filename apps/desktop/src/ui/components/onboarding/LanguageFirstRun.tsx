@@ -3,6 +3,7 @@ import { SUPPORTED_CONTENT_LANGUAGES, type OfferedStarterPack, type CatalogModul
 import { useI18n } from '../../contexts/useI18n';
 import { selectableLocales } from '../PreferencesDialog/GeneralSection';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
+import { inertBackground } from '../../utils/inertBackground';
 import { useOnboardingStore } from '../../stores/useOnboardingStore';
 import { useNetworkStore } from '../../stores/useNetworkStore';
 import { useModuleStore } from '../../stores/useModuleStore';
@@ -244,6 +245,15 @@ const LanguageFirstRun: React.FC = () => {
 
   const open = !answeredBefore && !dismissed && catalogsReady;
   const containerRef = useFocusTrap<HTMLDivElement>(open);
+
+  // aria-modal alone does not stop assistive tech reaching the app behind the
+  // dialog; make the rest of the page inert while it is up.
+  useEffect(() => {
+    if (!open) return;
+    const node = containerRef.current;
+    if (!node) return;
+    return inertBackground(node);
+  }, [open, containerRef]);
 
   // The offered set, not every loaded catalog - see the module doc comment.
   const allLocales = selectableLocales(i18n.availableLocaleInfos, i18n.currentLocale);
