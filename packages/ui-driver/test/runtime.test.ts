@@ -63,6 +63,15 @@ describe('roles, names, states', () => {
     expect(byRole(s, 'textbox').map((b) => b.name)).toEqual(['First', 'Second', 'Third']);
   });
 
+  it('a label wrapping a select names it without the option texts; other embedded controls give their value', async () => {
+    await load(`<label><span>Layout</span><select><option>Inline</option><option selected>Stacked</option></select></label>
+      <label>Font size <select id="fs"><option>Small</option><option selected>Large</option></select></label>
+      <label for="q">Find <input value="love"> in</label><input id="q">`);
+    const s = await snap();
+    expect(byRole(s, 'combobox').map((b) => b.name)).toEqual(['Layout', 'Font size']);
+    expect(byRole(s, 'textbox').map((b) => b.name)).toContain('Find love in');
+  });
+
   it('names images from alt and skips decorative ones', async () => {
     await load(`<img alt="Logo" src="data:image/gif;base64,R0lGODlhAQABAAAAACw="><img alt="" src="data:image/gif;base64,R0lGODlhAQABAAAAACw=">`);
     const imgs = byRole(await snap(), 'img');

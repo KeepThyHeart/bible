@@ -122,12 +122,20 @@
   }
 
   /** Text of an element for name-from-content, skipping hidden parts. */
-  function contentText(el, depth) {
+  function contentText(el, depth, self) {
     if (depth > 6) return '';
     let out = '';
     for (const n of el.childNodes) {
       if (n.nodeType === 3) out += n.nodeValue;
       else if (n.nodeType === 1) {
+        // Embedded controls (accname 2E): the control being named contributes nothing; another
+        // one contributes its value, never the text of all its options.
+        if (n.tagName === 'SELECT' || n.tagName === 'INPUT' || n.tagName === 'TEXTAREA') {
+          if (n === self || (n.tagName === 'INPUT' && n.type === 'hidden')) continue;
+          if (n.tagName === 'SELECT') { const o = n.selectedOptions && n.selectedOptions[0]; out += ' ' + (o ? o.textContent : '') + ' '; }
+          else if (!['checkbox', 'radio', 'file', 'image'].includes((n.type || '').toLowerCase())) out += ' ' + (n.value || '') + ' ';
+          continue;
+        }
         if (n.getAttribute('aria-hidden') === 'true' || SKIP_TAGS.has(n.tagName)) {
           if (n.tagName === 'svg' || n.tagName === 'SVG') {
             const t = n.querySelector && n.querySelector('title');
@@ -139,7 +147,7 @@
         const al = n.getAttribute('aria-label');
         if (al) { out += ' ' + al; continue; }
         if (n.tagName === 'BR') { out += ' '; continue; }
-        out += ' ' + contentText(n, depth + 1) + ' ';
+        out += ' ' + contentText(n, depth + 1, self) + ' ';
       }
     }
     return out;
@@ -159,7 +167,7 @@
     let n = idsText(el, 'aria-labelledby');
     if (!squash(n)) n = el.getAttribute('aria-label') || '';
     if (!squash(n) && el.labels && el.labels.length && el.type !== 'hidden') {
-      n = Array.from(el.labels).map((l) => contentText(l, 0)).join(' ');
+      n = Array.from(el.labels).map((l) => contentText(l, 0, el)).join(' ');
     }
     if (!squash(n)) {
       const tag = el.tagName;

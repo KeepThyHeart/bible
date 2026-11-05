@@ -36,7 +36,7 @@ plus errors, no diff) and `--timeout ms` (default 5000).
 
 | Command | Notes |
 |---|---|
-| `start [web\|desktop\|path/to/manifest.json] [--url URL] [--viewport WxH] [--headed] [--keep]` | `--url https://bible.keepthyheart.com` drives the live site **read-only** (only GET/HEAD/OPTIONS go out; others are blocked and listed under `errors`). `--keep` keeps the throwaway profile. |
+| `start [web\|desktop\|path/to/manifest.json] [--url URL] [--viewport WxH] [--headed] [--keep]` | `--url https://bible.keepthyheart.com` drives the live site **read-only** (only GET/HEAD/OPTIONS go out; others are blocked and listed under `errors`). A loopback `--url` (`http://127.0.0.1:PORT`, `localhost`) drives a local server that is already running, normally (not read-only), and starts no server of its own: several sessions can share one server (another session's, or one started by hand) to save memory. `--keep` keeps the throwaway profile. |
 | `stop`, `status` | |
 | `snapshot [rN] [--depth N] [--max N] [--visible] [--all]` | `rN` scopes to one element (a native `<select>` then lists its options); `--visible` only what is in the viewport, and only the modal dialog when one is open (menus and popovers are not filtered); long lists show 9 items and a count; 150 lines max unless `--max`/`--all`. |
 | `diff` | Changes since the last snapshot or action. Actions already include it. |
