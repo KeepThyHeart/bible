@@ -6,7 +6,6 @@ import { settingsStore } from '../stores/settingsStore';
 import { offlineStore } from '../stores/offlineStore';
 import { useStore } from '../hooks/useStore';
 import { useLocalizer } from '../hooks/useLocalizer';
-import { useModalFocus } from '../hooks/useModalFocus';
 import { focusSearchField } from '../utils/focusSearchField';
 import { isMobileLayout } from '../utils/isMobileLayout';
 import { AppSwitchSlot } from '../host/AppSwitchSlot';
@@ -42,7 +41,31 @@ export function Header({ onSettingsClick, onHelpClick, onFeedbackClick, onLogoCl
   const [showIdeasHelp, setShowIdeasHelp] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const themeDialogRef = useRef<HTMLDivElement>(null);
-  useModalFocus(showThemeDropdown, themeDialogRef);
+  const themeWrapperRef = useRef<HTMLDivElement>(null);
+  const themeButtonRef = useRef<HTMLButtonElement>(null);
+  // The theme picker is a small non-modal popup (the page stays usable while it is open), so it
+  // does not trap Tab or claim aria-modal: it takes focus when it opens, closes when focus or a
+  // pointer press goes elsewhere, and hands focus back to its button when it closes from inside.
+  const themeWasOpen = useRef(false);
+  useEffect(() => {
+    if (showThemeDropdown) {
+      themeWasOpen.current = true;
+      const box = themeDialogRef.current;
+      const target = box?.querySelector<HTMLElement>('[aria-pressed="true"]') ?? box?.querySelector<HTMLElement>('button');
+      target?.focus({ preventScroll: true });
+      const onPointerDown = (e: PointerEvent) => {
+        if (!themeWrapperRef.current?.contains(e.target as Node)) setShowThemeDropdown(false);
+      };
+      document.addEventListener('pointerdown', onPointerDown, true);
+      return () => document.removeEventListener('pointerdown', onPointerDown, true);
+    }
+    if (themeWasOpen.current) {
+      themeWasOpen.current = false;
+      const active = document.activeElement;
+      if (!active || active === document.body) themeButtonRef.current?.focus({ preventScroll: true });
+    }
+    return undefined;
+  }, [showThemeDropdown]);
 
   const searchType = useStore(searchStore, () => searchStore.searchType);
   const searchQuery = useStore(searchStore, () => searchStore.query);
@@ -231,6 +254,8 @@ export function Header({ onSettingsClick, onHelpClick, onFeedbackClick, onLogoCl
             type="button"
             class="header__search-clear"
             onClick={() => { setValue(''); inputRef.current?.focus(); }}
+            aria-label={t('header.clearSearch')}
+            title={t('header.clearSearch')}
           >
             <i class="fa-solid fa-xmark" />
           </button>
@@ -313,11 +338,21 @@ export function Header({ onSettingsClick, onHelpClick, onFeedbackClick, onLogoCl
         >
           <i class="fa-solid fa-rotate-right" />
         </button>}
-        <div class="header__theme-wrapper">
+        <div
+          class="header__theme-wrapper"
+          ref={themeWrapperRef}
+          onFocusOut={(e) => {
+            const next = (e as FocusEvent).relatedTarget as Node | null;
+            if (showThemeDropdown && next && !themeWrapperRef.current?.contains(next)) setShowThemeDropdown(false);
+          }}
+        >
           <button
+            ref={themeButtonRef}
             class="header__action-btn"
             onClick={() => setShowThemeDropdown(!showThemeDropdown)}
             title={t('header.theme')}
+            aria-expanded={showThemeDropdown}
+            aria-haspopup="dialog"
           >
             <i class={`fa-solid ${themeOptions.find(o => o.value === theme)?.icon ?? 'fa-sun'}`} />
           </button>
@@ -325,14 +360,15 @@ export function Header({ onSettingsClick, onHelpClick, onFeedbackClick, onLogoCl
             <div class="header__theme-dropdown"
               ref={themeDialogRef}
               role="dialog"
-              aria-modal="true"
               aria-label={t('header.theme')}
               onMouseLeave={() => setShowThemeDropdown(false)}
             >
               {themeOptions.slice(0, 3).map(opt => (
                 <button
                   key={opt.value}
+                  type="button"
                   class={`header__theme-option ${theme === opt.value ? 'header__theme-option--active' : ''}`}
+                  aria-pressed={theme === opt.value}
                   onClick={() => {
                     settingsStore.setTheme(opt.value);
                     setShowThemeDropdown(false);

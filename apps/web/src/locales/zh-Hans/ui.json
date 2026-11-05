@@ -33,7 +33,8 @@
     "more": "更多…",
     "offlineTooltip": "您当前处于离线状态",
     "shortcutHint": "按 / 或 Ctrl+K 进行搜索",
-    "feedback": "发送反馈"
+    "feedback": "发送反馈",
+    "clearSearch": "清除搜索"
   },
   "themes": {
     "auto": "自动",

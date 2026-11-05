@@ -313,6 +313,56 @@ describe('Header', () => {
     expect(container.querySelector('.header__search-clear')).toBeNull();
   });
 
+  // 0209 U-001: the clear button had no name, and Preact reused the "Go to Passage" button's
+  // element for it, so a screen reader heard an unnamed button where Go to Passage had been.
+  it('names the clear button and keeps "Go to Passage" named after typing', () => {
+    const { container } = render(<Header />);
+    const input = container.querySelector<HTMLInputElement>('.header__search-field')!;
+    fireEvent.input(input, { target: { value: 'love' } });
+    expect(screen.getByRole('button', { name: 'header.clearSearch' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'bookChapterPicker.goToPassage' })).toBeTruthy();
+    for (const b of Array.from(container.querySelectorAll('header button'))) {
+      expect(b.getAttribute('aria-label') || b.getAttribute('title') || b.textContent?.trim()).toBeTruthy();
+    }
+  });
+
+  // 0209 U-003/U-004: the theme picker is a non-modal popup with pressed state on the current theme.
+  it('theme options expose which theme is selected', () => {
+    mockTheme = 'dark';
+    render(<Header />);
+    fireEvent.click(screen.getByTitle('header.theme'));
+    expect(screen.getByRole('button', { name: 'themes.dark' }).getAttribute('aria-pressed')).toBe('true');
+    const pressed = screen.getAllByRole('button').filter((b) => b.getAttribute('aria-pressed') === 'true');
+    expect(pressed).toHaveLength(1);
+  });
+
+  it('theme popup is not aria-modal and reports expanded on its button', () => {
+    render(<Header />);
+    const btn = screen.getByTitle('header.theme');
+    expect(btn.getAttribute('aria-expanded')).toBe('false');
+    fireEvent.click(btn);
+    expect(btn.getAttribute('aria-expanded')).toBe('true');
+    const dialog = screen.getByRole('dialog', { name: 'header.theme' });
+    expect(dialog.getAttribute('aria-modal')).toBeNull();
+  });
+
+  it('theme popup closes when focus moves to the search field', () => {
+    const { container } = render(<Header />);
+    fireEvent.click(screen.getByTitle('header.theme'));
+    const option = container.querySelector<HTMLElement>('.header__theme-option')!;
+    const input = container.querySelector<HTMLInputElement>('.header__search-field')!;
+    fireEvent.focusOut(option, { relatedTarget: input });
+    expect(container.querySelector('.header__theme-dropdown')).toBeNull();
+  });
+
+  it('theme popup closes on a pointer press outside it', () => {
+    const { container } = render(<Header />);
+    fireEvent.click(screen.getByTitle('header.theme'));
+    expect(container.querySelector('.header__theme-dropdown')).toBeTruthy();
+    fireEvent.pointerDown(container.querySelector('.header__search-field')!);
+    expect(container.querySelector('.header__theme-dropdown')).toBeNull();
+  });
+
   // ------------------------------------------------------------------
   // Offline badge
   // ------------------------------------------------------------------

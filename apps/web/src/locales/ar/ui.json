@@ -33,7 +33,8 @@
     "more": "المزيد…",
     "offlineTooltip": "أنت غير متصل بالإنترنت",
     "shortcutHint": "اضغط / أو Ctrl+K للبحث",
-    "feedback": "إرسال ملاحظات"
+    "feedback": "إرسال ملاحظات",
+    "clearSearch": "مسح البحث"
   },
   "themes": {
     "auto": "تلقائي",

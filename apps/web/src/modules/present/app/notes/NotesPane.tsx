@@ -89,6 +89,7 @@ export function NotesPane() {
             onReady={notesStore.attachView}
             onShowAtCaret={notesStore.showAtCaret}
             onInsertRequest={onInsertRequest}
+            label={t('present.app.notes')}
           />
         ) : (
           <PlanOutline />

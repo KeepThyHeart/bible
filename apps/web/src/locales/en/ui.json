@@ -33,7 +33,8 @@
     "more": "More…",
     "offlineTooltip": "You are offline",
     "shortcutHint": "Press / or Ctrl+K to search",
-    "feedback": "Send feedback"
+    "feedback": "Send feedback",
+    "clearSearch": "Clear search"
   },
   "themes": {
     "auto": "Auto",

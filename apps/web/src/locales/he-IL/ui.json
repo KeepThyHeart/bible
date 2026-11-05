@@ -33,7 +33,8 @@
     "more": "עוד…",
     "offlineTooltip": "אין חיבור לרשת",
     "shortcutHint": "יש ללחוץ על / או על Ctrl+K כדי לחפש",
-    "feedback": "שליחת משוב"
+    "feedback": "שליחת משוב",
+    "clearSearch": "ניקוי החיפוש"
   },
   "themes": {
     "auto": "אוטומטי",
