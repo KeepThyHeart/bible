@@ -25,7 +25,8 @@
       "remaining": "Tiempo restante",
       "secondsLeft": "Quedan {seconds} segundos",
       "paused": "En pausa",
-      "secondsShort": "{seconds} s"
+      "secondsShort": "{seconds} s",
+      "oneSecondLeft": "Queda 1 segundo"
     },
     "frame": {
       "roomAria": "Sala {code}",
@@ -78,7 +79,8 @@
       "skipIt": "Omitir",
       "keepGoing": "Continuar",
       "skip": "Omitir",
-      "nextQuestion": "Siguiente pregunta"
+      "nextQuestion": "Siguiente pregunta",
+      "scoresEveryoneItem": "Mostrar la puntuación de todos"
     },
     "join": {
       "enterCode": "Introduzca el código de la sala",

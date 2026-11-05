@@ -261,7 +261,8 @@
         "moreFor": "کارهای بیشتر برای {label}",
         "reorderFor": "برای جابه‌جایی {label} بکشید"
       },
-      "playMarkerFor": "نمایش دوبارهٔ {label}"
+      "playMarkerFor": "نمایش دوبارهٔ {label}",
+      "viewsLabel": "نماهای یادداشت"
     },
     "solo": {
       "launcherTooltip": "کادر فرمان را برای رفتن به یک آیه باز می‌کند (روی صفحه‌کلید / را فشار دهید)",

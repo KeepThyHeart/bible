@@ -25,7 +25,8 @@
       "remaining": "زمان باقی‌مانده",
       "secondsLeft": "{seconds} ثانیه باقی مانده",
       "paused": "متوقف",
-      "secondsShort": "{seconds} ث"
+      "secondsShort": "{seconds} ث",
+      "oneSecondLeft": "۱ ثانیه مانده"
     },
     "frame": {
       "roomAria": "اتاق {code}",
@@ -78,7 +79,8 @@
       "skipIt": "ردش کن",
       "keepGoing": "ادامه بده",
       "skip": "رد کردن",
-      "nextQuestion": "پرسش بعدی"
+      "nextQuestion": "پرسش بعدی",
+      "scoresEveryoneItem": "نمایش امتیاز همه"
     },
     "join": {
       "enterCode": "کد اتاق را وارد کنید",

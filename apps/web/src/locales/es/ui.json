@@ -185,7 +185,9 @@
     "quiz": "Cuestionario",
     "similar": "Similares",
     "wordStudy": "Palabras",
-    "modes": "Vistas del panel lateral"
+    "modes": "Vistas del panel lateral",
+    "expandTo": "Mostrar {tab}",
+    "expand": "Expandir el panel lateral"
   },
   "mobileNav": {
     "home": "Inicio",

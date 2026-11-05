@@ -27,6 +27,8 @@ vi.mock('react-i18next', () => ({
 let mockWordsOfChristInRed = false;
 let mockInterlinearLayout: 'inline' | 'stacked' = 'inline';
 
+// Word study is not enabled here, so a numbered gloss falls back to the Strong's search.
+vi.mock('../../modules/host/usePaneModes', () => ({ usePaneAvailable: () => false }));
 vi.mock('../../hooks/useStore', () => ({
   useStore: (_store: unknown, selector: () => unknown) => selector(),
 }));

@@ -267,9 +267,11 @@ export function HostLobby({
           </label>
 
           <div class="field">
-            <span class="field-label">{gt('games.lobby.teams', 'Teams')}</span>
+            <span class="field-label" id="lobby-teams-label">{gt('games.lobby.teams', 'Teams')}</span>
             <button
               type="button"
+              aria-labelledby="lobby-teams-label"
+              aria-pressed={settings.teamsEnabled}
               onClick={() => onSettings({ teamsEnabled: !settings.teamsEnabled })}
             >
               {settings.teamsEnabled
@@ -280,9 +282,11 @@ export function HostLobby({
 
           {voteMode === 'optional' && (
             <div class="field">
-              <span class="field-label">{gt('games.lobby.voteTogether', 'Vote together')}</span>
+              <span class="field-label" id="lobby-vote-label">{gt('games.lobby.voteTogether', 'Vote together')}</span>
               <button
                 type="button"
+                aria-labelledby="lobby-vote-label"
+                aria-pressed={settings.groupVote}
                 onClick={() => onSettings({ groupVote: !settings.groupVote })}
               >
                 {settings.groupVote

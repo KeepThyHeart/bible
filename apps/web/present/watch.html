@@ -47,10 +47,16 @@
       font-size: 1.6rem;
       font-weight: 400;
     }
-    p {
+    p, label.prompt {
       margin: 0 0 1.2em;
       color: var(--muted);
       font-size: 0.95rem;
+    }
+    label.prompt {
+      display: block;
+    }
+    h1:focus {
+      outline: none;
     }
     input[type="text"] {
       display: block;
@@ -110,9 +116,9 @@
 </head>
 <body>
   <div class="card">
-    <h1>Join</h1>
-    <p>Enter the code you were given.</p>
+    <h1 id="heading" tabindex="-1">Join</h1>
     <form id="join-form" autocomplete="off">
+      <label class="prompt" for="code">Enter the code you were given.</label>
       <input
         type="text"
         id="code"
@@ -148,6 +154,16 @@
         var pre = new URLSearchParams(window.location.search).get('j');
         if (pre) input.value = pre;
       } catch (e) { /* Malformed query string: nothing to prefill. */ }
+
+      // Arriving by Back (or any load that leaves nothing focused): start at the page heading, not the document body.
+      function focusHeadingIfLost() {
+        var a = document.activeElement;
+        if (!a || a === document.body || a === document.documentElement) {
+          document.getElementById('heading').focus();
+        }
+      }
+      focusHeadingIfLost();
+      window.addEventListener('pageshow', focusHeadingIfLost);
 
       function normalize(raw) {
         return (raw || '').toUpperCase().replace(/[^0-9A-Z]/g, '');

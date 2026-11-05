@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'preact/hooks';
+import { useEffect, useRef, useState } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { useStore } from '../../../../hooks/useStore';
 import { focusCommandBox } from '../../lib/command';
@@ -55,6 +55,22 @@ export function NotesPane() {
     }
   };
 
+  const tabsRef = useRef<HTMLDivElement>(null);
+  const VIEWS = ['notes', 'plan'] as const;
+  // WAI-ARIA tabs: roving tabindex; Left/Right/Home/End move and activate.
+  const onTabKey = (event: KeyboardEvent) => {
+    const at = VIEWS.indexOf(view);
+    let next = -1;
+    if (event.key === 'ArrowRight' || event.key === 'ArrowDown') next = (at + 1) % VIEWS.length;
+    else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') next = (at - 1 + VIEWS.length) % VIEWS.length;
+    else if (event.key === 'Home') next = 0;
+    else if (event.key === 'End') next = VIEWS.length - 1;
+    if (next < 0) return;
+    event.preventDefault();
+    setView(VIEWS[next]);
+    tabsRef.current?.querySelectorAll<HTMLElement>('[role="tab"]')[next]?.focus();
+  };
+
   const showEditor = !phone && view === 'notes';
 
   return (
@@ -63,13 +79,20 @@ export function NotesPane() {
         <h2 class="pz-pane__title pz-notes__title">{t('present.app.notes')}</h2>
         {!phone && (
           <>
-            <div class="pz-notes__toggle" role="tablist">
-              {(['notes', 'plan'] as const).map((v) => (
+            <div
+              class="pz-notes__toggle"
+              role="tablist"
+              ref={tabsRef}
+              aria-label={t('present.notes.viewsLabel', { defaultValue: 'Notes views' })}
+              onKeyDown={onTabKey}
+            >
+              {VIEWS.map((v) => (
                 <button
                   key={v}
                   type="button"
                   role="tab"
                   aria-selected={view === v}
+                  tabIndex={view === v ? 0 : -1}
                   class={`pz-notes__tab${view === v ? ' is-active' : ''}`}
                   onClick={() => setView(v)}
                 >

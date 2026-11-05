@@ -319,13 +319,13 @@ describe('the room menu', () => {
     openMenu();
     expect(button('New game')).not.toBeNull();
     expect(button('Close room')).not.toBeNull();
-    expect(host.textContent).toContain('Scores: top three');
+    expect(host.querySelector('[role="menuitemcheckbox"]')?.getAttribute('aria-checked')).toBe('false');
   });
 
   it('sends the scores toggle and closes nothing else by doing it', () => {
     drawInteractive(snapshot());
     openMenu();
-    click(button('Scores:'));
+    click(button("Show everyone's scores"));
     expect(commands).toEqual([{ cmd: 'setSettings', settings: { showIndividualScores: true } }]);
   });
 

@@ -6,7 +6,7 @@ import { audioStore } from '../audioStore';
 
 export function TabSpeakerBadge({ tabId }: ReaderTabBadgeProps) {
   const { t } = useTranslation();
-  const playing = useStore(audioStore, () => (audioStore.status === 'idle' ? null : audioStore.playingTabId));
+  const playing = useStore(audioStore, () => (audioStore.status === 'idle' || audioStore.status === 'error' ? null : audioStore.playingTabId));
   if (playing !== tabId) return null;
   return <i class="fa-solid fa-volume-high bible-tab-bar__audio" role="img" aria-label={t('audio.playingTab')} />;
 }

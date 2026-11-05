@@ -185,7 +185,9 @@
     "quiz": "‏Quiz‏",
     "similar": "‏Similar‏",
     "wordStudy": "‏Word study‏",
-    "modes": "‏Side pane views‏"
+    "modes": "‏Side pane views‏",
+    "expandTo": "‏Show {tab}‏",
+    "expand": "‏Expand side pane‏"
   },
   "mobileNav": {
     "home": "‏Home‏",

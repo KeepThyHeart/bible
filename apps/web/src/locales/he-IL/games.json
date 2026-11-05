@@ -25,7 +25,8 @@
       "remaining": "הזמן שנותר",
       "secondsLeft": "נותרו {seconds} שניות",
       "paused": "מושהה",
-      "secondsShort": "{seconds} ש׳"
+      "secondsShort": "{seconds} ש׳",
+      "oneSecondLeft": "נותרה שנייה אחת"
     },
     "frame": {
       "roomAria": "חדר {code}",
@@ -78,7 +79,8 @@
       "skipIt": "לדלג",
       "keepGoing": "להמשיך",
       "skip": "דילוג",
-      "nextQuestion": "השאלה הבאה"
+      "nextQuestion": "השאלה הבאה",
+      "scoresEveryoneItem": "הצגת הניקוד של כולם"
     },
     "join": {
       "enterCode": "הזינו את קוד החדר",

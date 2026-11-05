@@ -46,4 +46,23 @@ describe('translation switch and history', () => {
     expect(rows).toHaveLength(1);
     expect(bibleStore.getHistory()[bibleStore.getHistoryIndex()]).toMatchObject({ book: 45, moduleAbbr: original });
   });
+
+  it('keeps the selected verse in the URL when the translation changes', async () => {
+    await bibleStore.navigateTo(43, 3);
+    const tab = bibleStore.getActiveTab()!;
+    const from = tab.moduleAbbr;
+    const next = from === 'ASV' ? 'KJV' : 'ASV';
+    tab.studyVerse = 43003016;
+    history.replaceState(null, '', `#/${from}/43/3/16`);
+    await bibleStore.setTabTranslation(tab.id, next);
+    expect(window.location.hash).toBe(`#/${next}/43/3/16`);
+  });
+
+  it('does not add a verse to a chapter-only URL when the translation changes', async () => {
+    await bibleStore.navigateTo(43, 3);
+    const tab = bibleStore.getActiveTab()!;
+    const next = tab.moduleAbbr === 'ASV' ? 'KJV' : 'ASV';
+    await bibleStore.setTabTranslation(tab.id, next);
+    expect(window.location.hash).toBe(`#/${next}/43/3`);
+  });
 });

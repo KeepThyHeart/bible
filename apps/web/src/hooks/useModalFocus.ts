@@ -24,7 +24,21 @@ const fallbackOf = new WeakMap<HTMLElement, HTMLElement>();
  * another modal, which the hook's own nested-opener fallback already covers.
  */
 export function setModalFallback(opener: HTMLElement | null | undefined, fallback: HTMLElement | null | undefined): void {
-  if (opener && fallback && opener !== fallback) fallbackOf.set(opener, fallback);
+  if (opener && fallback && opener !== fallback) {
+    fallbackOf.set(opener, fallback);
+    // By the time the dialog renders, the popup holding `opener` has usually unmounted and focus is on
+    // BODY, so the dialog cannot find `opener` by itself: remember the fallback for the dialog opened next.
+    pendingFallback = { el: fallback, at: Date.now() };
+  }
+}
+
+/** The fallback registered by the latest `setModalFallback`, used by the next dialog that finds no opener. */
+let pendingFallback: { el: HTMLElement; at: number } | null = null;
+const PENDING_FALLBACK_MS = 1500;
+function takePendingFallback(): HTMLElement | null {
+  const p = pendingFallback;
+  pendingFallback = null;
+  return p && Date.now() - p.at < PENDING_FALLBACK_MS && p.el.isConnected ? p.el : null;
 }
 
 /** Elements this module has made inert, so closing a modal restores only what it set. */
@@ -91,6 +105,9 @@ export function useModalFocus(isOpen: boolean, ref: RefObject<HTMLElement>): voi
     captured.current = true;
     const a = document.activeElement;
     opener.current = a instanceof HTMLElement && a !== document.body ? a : null;
+    // Opened from a popup item that closed as it opened this dialog: focus is already on BODY.
+    if (!opener.current) opener.current = takePendingFallback();
+    else pendingFallback = null;
     // The parent dialog already unmounted (it closed in the render before ours), so focus is on BODY:
     // the parent's own opener is the best place to come back to.
     if (!opener.current && openModals.length) opener.current = modalOpener.get(openModals[openModals.length - 1]) ?? null;

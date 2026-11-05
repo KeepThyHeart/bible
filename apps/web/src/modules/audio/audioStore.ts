@@ -748,6 +748,8 @@ class AudioStore extends Store {
     this.staleSource = false;
     this.pendingGate = null;
     this.gateResolve = null;
+    // An error notice names the chapter being played; once playback is gone it would read "There is no recording of ."
+    if (this.notice?.tone === 'error') this.notice = null;
     this.follow.set(null, null);
     this.position.set(0, null);
   }

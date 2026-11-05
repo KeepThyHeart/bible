@@ -12,7 +12,7 @@ vi.mock('react-i18next', () => ({
 
 const { stub, h } = vi.hoisted(() => ({
   stub: (_name: string) => () => null,
-  h: { rightPaneMode: 'commentary', setRightPaneMode: undefined as any },
+  h: { rightPaneMode: 'commentary', collapsed: false, setRightPaneMode: undefined as any },
 }));
 vi.mock('./components/BiblePane/BiblePane', () => ({ BiblePane: stub('bible') }));
 vi.mock('./components/CommentaryPane/CommentaryPane', () => ({ CommentaryPane: stub('commentary') }));
@@ -61,7 +61,7 @@ vi.mock('./stores/commentaryStore', () => ({
 
 vi.mock('./hooks/useAppShared', () => ({
   useAppShared: () => ({
-    rightPaneMode: h.rightPaneMode, collapsed: false, searchIsOpen: false, searchSeq: 0,
+    rightPaneMode: h.rightPaneMode, collapsed: h.collapsed, searchIsOpen: false, searchSeq: 0,
     fontFamily: '', fontSize: 16, lineHeight: 1.5, headingFontFamily: '', studyFontFamily: '', studyLineHeight: 1.5,
     setStrongsPopup: vi.fn(), handleStrongsLeave: vi.fn(), handleStrongsHover: vi.fn(), openSettings: vi.fn(),
     setHelpOpen: vi.fn(), setCopyOpen: vi.fn(), findVerseAtPoint: vi.fn(),
@@ -75,7 +75,7 @@ import { DesktopApp } from './DesktopApp';
 const setRightPaneMode = (h.setRightPaneMode = vi.fn());
 
 describe('DesktopApp side-pane switcher', () => {
-  beforeEach(() => { h.rightPaneMode = 'commentary'; setRightPaneMode.mockClear(); });
+  beforeEach(() => { h.rightPaneMode = 'commentary'; h.collapsed = false; setRightPaneMode.mockClear(); });
 
   it('is a tablist whose tabs expose aria-selected and a roving tabindex', () => {
     render(<DesktopApp providers={{} as any} />);
@@ -95,6 +95,13 @@ describe('DesktopApp side-pane switcher', () => {
     expect(container.querySelector('.right-pane-tabs__collapse')!.closest('[role="tablist"]')).toBeNull();
   });
 
+  it('puts the tabs in a scrollable list, with the collapse button outside it', () => {
+    const { container } = render(<DesktopApp providers={{} as any} />);
+    const list = container.querySelector('[role="tablist"]')!;
+    expect(list.classList.contains('right-pane-tabs__list')).toBe(true);
+    expect((list as HTMLElement).style.display).toBe('');
+  });
+
   it('arrow keys move focus along the tabs; click selects', () => {
     render(<DesktopApp providers={{} as any} />);
     const commentary = screen.getByRole('tab', { name: 'Commentary' });
@@ -103,5 +110,46 @@ describe('DesktopApp side-pane switcher', () => {
     expect(document.activeElement).toBe(screen.getByRole('tab', { name: 'Dictionary' }));
     fireEvent.click(screen.getByRole('tab', { name: 'Study' }));
     expect(setRightPaneMode).toHaveBeenCalledWith('study');
+  });
+});
+
+describe('DesktopApp side-pane collapse focus', () => {
+  const flush = () => new Promise((r) => setTimeout(r, 60));
+  beforeEach(() => { h.rightPaneMode = 'commentary'; h.collapsed = false; });
+
+  it('moves focus to the expander when the pane collapses, and back to the collapse button on expand', async () => {
+    const { container, rerender } = render(<DesktopApp providers={{} as any} />);
+    const collapse = container.querySelector<HTMLElement>('.right-pane-tabs__collapse')!;
+    collapse.focus();
+    h.collapsed = true;
+    rerender(<DesktopApp providers={{} as any} />);
+    await flush();
+    const expand = container.querySelector<HTMLElement>('.commentary-pane__expand-btn')!;
+    expect(expand).toBeTruthy();
+    expect(document.activeElement).toBe(expand);
+    h.collapsed = false;
+    rerender(<DesktopApp providers={{} as any} />);
+    await flush();
+    expect(document.activeElement).toBe(container.querySelector('.right-pane-tabs__collapse'));
+  });
+
+  it('does not steal focus when the pane is toggled while focus is elsewhere', async () => {
+    const { container, rerender } = render(<DesktopApp providers={{} as any} />);
+    const input = document.createElement('input');
+    document.body.appendChild(input);
+    input.focus();
+    h.collapsed = true;
+    rerender(<DesktopApp providers={{} as any} />);
+    await flush();
+    expect(document.activeElement).toBe(input);
+    input.remove();
+    expect(container).toBeTruthy();
+  });
+
+  it('names the expander after the tab that will show', () => {
+    h.collapsed = true;
+    h.rightPaneMode = 'dictionary';
+    const { container } = render(<DesktopApp providers={{} as any} />);
+    expect(container.querySelector('.commentary-pane__expand-btn')!.textContent).toBe('Dictionary →');
   });
 });

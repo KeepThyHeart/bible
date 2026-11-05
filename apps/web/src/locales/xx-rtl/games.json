@@ -25,7 +25,8 @@
       "remaining": "‏Time remaining‏",
       "secondsLeft": "‏{seconds} seconds left‏",
       "paused": "‏Paused‏",
-      "secondsShort": "‏{seconds}s‏"
+      "secondsShort": "‏{seconds}s‏",
+      "oneSecondLeft": "‏1 second left‏"
     },
     "frame": {
       "roomAria": "‏Room {code}‏",
@@ -78,7 +79,8 @@
       "skipIt": "‏Skip it‏",
       "keepGoing": "‏Keep going‏",
       "skip": "‏Skip‏",
-      "nextQuestion": "‏Next question‏"
+      "nextQuestion": "‏Next question‏",
+      "scoresEveryoneItem": "‏Show everyone's scores‏"
     },
     "join": {
       "enterCode": "‏Enter room code‏",

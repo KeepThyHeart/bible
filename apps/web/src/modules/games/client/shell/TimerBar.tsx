@@ -132,7 +132,11 @@ export function TimerBar({ endsAt, durationMs, paused }: TimerBarProps) {
         aria-valuemin={0}
         aria-valuemax={100}
         aria-valuenow={Math.round(fraction * 100)}
-        aria-valuetext={gt('games.timer.secondsLeft', '{seconds} seconds left', { seconds })}
+        aria-valuetext={
+          seconds === 1
+            ? gt('games.timer.oneSecondLeft', '1 second left')
+            : gt('games.timer.secondsLeft', '{seconds} seconds left', { seconds })
+        }
       >
         <div class="timerbar-fill" style={{ width: `${fraction * 100}%` }} />
       </div>

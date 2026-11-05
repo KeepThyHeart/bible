@@ -7,6 +7,7 @@ import { xrefGraphStore } from './xrefGraphStore';
 import type { XrefGraphView } from './xrefGraphStore';
 import { bibleStore } from '../../stores/bibleStore';
 import { useStore } from '../../hooks/useStore';
+import { useModalFocus } from '../../hooks/useModalFocus';
 import { useXrefGraphLabels } from './useXrefGraphLabels';
 import { xrefGraphProvider } from './XrefGraphProvider';
 import { getLocalizedBookName } from '../../utils/bookNames';
@@ -40,17 +41,12 @@ function XrefGraphDialogInner({ bibleProvider }: XrefGraphDialogProps) {
   const labels = useXrefGraphLabels();
   const anchor = useStore(xrefGraphStore, () => xrefGraphStore.anchor);
   const view = useStore(xrefGraphStore, () => xrefGraphStore.view);
+  // Hop count is shared by the web and compass views so it survives switching tabs.
+  const [depth, setDepth] = useState<1 | 2 | 3>(2);
   const dialogRef = useRef<HTMLDivElement>(null);
   const { full, toggle: toggleFull } = useFullscreen(dialogRef);
-  // Captured during the first render, before focus moves into the dialog.
-  const [opener] = useState<Element | null>(() => document.activeElement);
-
-  useEffect(() => {
-    dialogRef.current?.focus();
-    return () => {
-      if (opener instanceof HTMLElement && opener.isConnected) opener.focus();
-    };
-  }, []);
+  // Focus moves in, Tab stays in, the background is made inert, and focus returns to the opener on close.
+  useModalFocus(true, dialogRef);
 
   // Close on Escape unless a view already handled it (the arc and web views clear a selection first).
   useEffect(() => {
@@ -149,7 +145,6 @@ function XrefGraphDialogInner({ bibleProvider }: XrefGraphDialogProps) {
         aria-label={t('xrefGraph.title', { defaultValue: 'Cross-reference graph' })}
         tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
-        onKeyDown={(e) => trapTab(e as KeyboardEvent, dialogRef.current)}
       >
         <div class="xref-graph-dialog__header">
           <h3 class="xref-graph-dialog__title">
@@ -228,6 +223,8 @@ function XrefGraphDialogInner({ bibleProvider }: XrefGraphDialogProps) {
               formatRef={formatRef}
               getVerseText={getVerseText}
               labels={labels.web}
+              initialDepth={depth}
+              onDepthChange={setDepth}
             />
           ) : view === 'compass' ? (
             <CompassView
@@ -239,6 +236,8 @@ function XrefGraphDialogInner({ bibleProvider }: XrefGraphDialogProps) {
               bookName={getLocalizedBookName}
               getVerseText={getVerseText}
               labels={labels.compass}
+              initialDepth={depth}
+              onDepthChange={setDepth}
             />
           ) : (
             <ArcView
@@ -263,25 +262,6 @@ function refArgs(id: number): [number, number, number] {
 }
 
 /** Modal "Cross-reference graph": tabs for the shared hopper, verse web and canon arc views. Mounted only while open. */
-/** Keep Tab and Shift+Tab inside the modal dialog (aria-modal does not do it by itself). */
-function trapTab(e: KeyboardEvent, root: HTMLElement | null): void {
-  if (e.key !== 'Tab' || !root) return;
-  const items = Array.from(
-    root.querySelectorAll<HTMLElement>('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'),
-  ).filter((el) => !el.hasAttribute('disabled') && el.tabIndex >= 0 && el.offsetParent !== null);
-  if (items.length === 0) return;
-  const first = items[0];
-  const last = items[items.length - 1];
-  const active = document.activeElement;
-  if (e.shiftKey && (active === first || active === root)) {
-    e.preventDefault();
-    last.focus();
-  } else if (!e.shiftKey && active === last) {
-    e.preventDefault();
-    first.focus();
-  }
-}
-
 export function XrefGraphDialog({ bibleProvider }: XrefGraphDialogProps) {
   const isOpen = useStore(xrefGraphStore, () => xrefGraphStore.isOpen);
   if (!isOpen) return null;

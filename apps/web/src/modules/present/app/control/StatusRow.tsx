@@ -78,7 +78,16 @@ export function StatusRow(props: { menuOpen: boolean; onToggleMenu: () => void }
         </button>
       )}
       {live && confirmEnd && (
-        <span class="pz-status__confirm">
+        <span
+          class="pz-status__confirm"
+          onKeyDown={(event: KeyboardEvent) => {
+            if (event.key !== 'Escape') return;
+            event.preventDefault();
+            event.stopPropagation();
+            want('end');
+            setConfirmEnd(false);
+          }}
+        >
           <span title={t('present.liveNote')}>{t('present.endConfirm')}</span>
           <button type="button" class="pz-btn pz-btn--danger" onClick={() => { want('goLive'); setConfirmEnd(false); void presentStore.end(); }}>
             {t('present.endYes')}

@@ -91,6 +91,8 @@ export interface XrefCompassViewProps {
   bookName?: (book: number) => string;
   getVerseText?: (verseId: VerseId, endVerseId?: VerseId) => Promise<string | undefined>;
   initialDepth?: 1 | 2 | 3;
+  /** Called when the user picks a hop count, so a host can keep it across views. */
+  onDepthChange?: (depth: 1 | 2 | 3) => void;
   initialMaxNodes?: number;
   labels?: Partial<XrefCompassLabels>;
   dir?: 'ltr' | 'rtl';
@@ -122,6 +124,7 @@ export function XrefCompassView({
   bookName = (b) => getBookName(b, 'medium'),
   getVerseText,
   initialDepth = 2,
+  onDepthChange,
   initialMaxNodes = 60,
   labels: labelOverrides,
   dir,
@@ -300,7 +303,7 @@ export function XrefCompassView({
         <button type="button" className="kth-xref-web__btn" onClick={goBack} disabled={history.length === 0}>
           {L.back}
         </button>
-        <XrefDepthControl labels={L} depth={depth} onChange={setDepth} className="kth-xref-web__btn" />
+        <XrefDepthControl labels={L} depth={depth} onChange={(d) => { setDepth(d); onDepthChange?.(d); }} className="kth-xref-web__btn" />
         <XrefStrengthControl labels={L} step={minStep} onChange={setMinStep} />
         {graph && !isEmpty && (
           <span className="kth-xref-web__value" aria-live="polite">{fill(L.summary, { n: Math.max(0, graph.nodes.length - 1) })}</span>

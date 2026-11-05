@@ -694,7 +694,7 @@ class BibleStore extends Store {
       this.showHome = false;
 
       this.pushHistory({ moduleAbbr: tab.moduleAbbr, book, chapter, verse, fromPreview: true });
-      this.updateHash(false, true);
+      this.updateHash(!!verseId, true, verseId ?? undefined);
       this.saveSession();
       this.notify();
     } catch (error) {
@@ -1082,6 +1082,14 @@ class BibleStore extends Store {
     const tab = this.tabs.find(t => t.id === tabId);
     if (!tab || !this.bible) return;
 
+    // A URL that names a verse (`#/KJV/43/3/16`) keeps naming it across the switch. Decided before the
+    // module changes: updateHash() only follows a hash whose module is the tab's current one.
+    const hashNow = window.location.hash.match(HASH_PATTERN);
+    const urlNamedVerse = !!hashNow?.[4]
+      && hashNow[1] === tab.moduleAbbr
+      && parseInt(hashNow[2], 10) === tab.book
+      && parseInt(hashNow[3], 10) === tab.chapter;
+
     tab.moduleAbbr = moduleAbbr;
     tab.moduleName = moduleAbbr;
 
@@ -1132,7 +1140,7 @@ class BibleStore extends Store {
 
     // W-020: the URL names the translation too, or a reload (or a shared link) goes back to the
     // module still in the hash. updateHash() replaces the entry (it is not a chapter change).
-    if (tab.id === this.activeTabId) this.updateHash();
+    if (tab.id === this.activeTabId) this.updateHash(urlNamedVerse);
     this.saveSession();
     this.notify();
 
@@ -1370,7 +1378,7 @@ class BibleStore extends Store {
 
   // URL hash
   /** `withVerse`: the navigation named a verse (reference box), so the URL names it too. */
-  updateHash(withVerse = false, userNav = false): void {
+  updateHash(withVerse = false, userNav = false, verseOverride?: number): void {
     const tab = this.getActiveTab();
     if (tab?.book && tab.chapter) {
       const hash = `#/${tab.moduleAbbr}/${tab.book}/${tab.chapter}`;
@@ -1386,10 +1394,12 @@ class BibleStore extends Store {
         && current[1] === tab.moduleAbbr
         && parseInt(current[2], 10) === tab.book
         && parseInt(current[3], 10) === tab.chapter);
+      // `verseOverride`: a preview link names its own verse (the study verse is left where it was).
+      const hashVerse = verseOverride ?? tab.studyVerse;
       if (namesVerse
-        && tab.studyVerse !== null
-        && Math.floor(tab.studyVerse / 1000) === tab.book * 1000 + tab.chapter) {
-        const verseHash = `${hash}/${tab.studyVerse % 1000}`;
+        && hashVerse !== null && hashVerse !== undefined
+        && Math.floor(hashVerse / 1000) === tab.book * 1000 + tab.chapter) {
+        const verseHash = `${hash}/${hashVerse % 1000}`;
         if (window.location.hash !== verseHash) {
           if (hashWriteMode(window.location.hash, verseHash, userNav) === 'push') history.pushState(null, '', verseHash);
           else history.replaceState(null, '', verseHash);

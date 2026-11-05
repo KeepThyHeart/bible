@@ -185,7 +185,9 @@
     "quiz": "测验",
     "similar": "相似经文",
     "wordStudy": "词语",
-    "modes": "侧边栏视图"
+    "modes": "侧边栏视图",
+    "expandTo": "显示{tab}",
+    "expand": "展开侧边栏"
   },
   "mobileNav": {
     "home": "首页",

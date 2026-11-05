@@ -27,6 +27,13 @@ function subjectKey(s: WordStudySubject): string {
   return s.kind === 'strongs' ? `s:${s.strongs}` : `g:${s.group.id}`;
 }
 
+/** The lookup-box text that studies `s` again (what the reader would type). */
+function subjectQuery(s: WordStudySubject): string {
+  if (s.kind === 'strongs') return s.strongs;
+  const exclude = (s.group.exclude ?? []).map((t) => `-${t}`);
+  return [...s.group.terms, ...exclude].join(', ') || s.group.label;
+}
+
 /**
  * State of the Word study pane: what is being studied, the options and filters,
  * the loaded overview and occurrence pages and a back/forward
@@ -175,12 +182,14 @@ class WordStudyStore extends Store {
   back(): Promise<void> {
     if (!this.canGoBack) return Promise.resolve();
     this.trailIndex--;
+    this.query = subjectQuery(this.trail[this.trailIndex]);
     return this.study(this.trail[this.trailIndex]);
   }
 
   forward(): Promise<void> {
     if (!this.canGoForward) return Promise.resolve();
     this.trailIndex++;
+    this.query = subjectQuery(this.trail[this.trailIndex]);
     return this.study(this.trail[this.trailIndex]);
   }
 

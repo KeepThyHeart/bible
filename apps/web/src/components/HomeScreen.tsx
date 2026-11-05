@@ -39,9 +39,26 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
       .catch(() => {});
   }, []);
 
+  // Leaving Home unmounts the control that was pressed, which would drop keyboard focus to <body>.
+  // Land on the reader's main heading instead, once the reader has rendered.
+  const focusReader = () => {
+    let tries = 0;
+    const attempt = () => {
+      const heading = document.querySelector<HTMLElement>('.bible-pane > h1');
+      if (heading) {
+        if (!heading.hasAttribute('tabindex')) heading.setAttribute('tabindex', '-1');
+        heading.focus({ preventScroll: true });
+      } else if (++tries < 10) {
+        requestAnimationFrame(attempt);
+      }
+    };
+    requestAnimationFrame(attempt);
+  };
+
   const handleReadBible = () => {
     bibleStore.setShowHome(false);
     onNavigate?.('bible');
+    focusReader();
   };
 
   const handleSearch = () => {
@@ -89,21 +106,25 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
           card, so the verse arriving never re-centers the column. */}
       <div class="home-screen__votd-slot">
         {votd && votd.text ? (
-          <div
+          <button
+            type="button"
             class="home-screen__votd"
-            onClick={() => bibleStore.navigateTo(votd.book, votd.chapter, votd.verse)}
+            onClick={() => {
+              bibleStore.navigateTo(votd.book, votd.chapter, votd.verse);
+              focusReader();
+            }}
           >
-            <div class="home-screen__votd-label">
+            <span class="home-screen__votd-label">
               {votd.holiday ? t('bibleContent.votdHoliday', { holiday: votd.holiday }) : t('bibleContent.votdLabel')}
-            </div>
-            <div
+            </span>
+            <span
               class="home-screen__votd-text"
               dangerouslySetInnerHTML={{ __html: sanitizeHtml(votd.text_html || votd.text) }}
             />
-            <div class="home-screen__votd-ref">
+            <span class="home-screen__votd-ref">
               {t(String(votd.book), { ns: 'books' })} {votd.chapter}:{votd.verse}
-            </div>
-          </div>
+            </span>
+          </button>
         ) : (
           <div
             class="home-screen__votd home-screen__votd--skeleton home-screen__loading"

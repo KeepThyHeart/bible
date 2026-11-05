@@ -261,7 +261,8 @@
         "moreFor": "مزيد من الإجراءات لـ {label}",
         "reorderFor": "اسحب لإعادة ترتيب {label}"
       },
-      "playMarkerFor": "إظهار {label} مرة أخرى"
+      "playMarkerFor": "إظهار {label} مرة أخرى",
+      "viewsLabel": "عروض الملاحظات"
     },
     "solo": {
       "launcherTooltip": "يفتح موجّه الأوامر للانتقال إلى عدد (اضغط / على لوحة المفاتيح)",

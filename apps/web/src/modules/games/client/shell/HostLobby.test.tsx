@@ -367,7 +367,8 @@ describe('group voting in the lobby', () => {
   it('offers a switch for a game where voting is optional, and sends the change', () => {
     draw('optional');
     const button = voteSwitch();
-    expect(button?.hasAttribute('aria-pressed')).toBe(false);
+    expect(button?.getAttribute('aria-pressed')).toBe('false');
+    expect(button?.getAttribute('aria-labelledby')).toBeTruthy();
     expect(button?.textContent).toBe('Off');
     act(() => {
       button?.click();

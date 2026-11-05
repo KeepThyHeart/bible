@@ -97,4 +97,31 @@ describe('WordStudyPane', () => {
     fireEvent.click(screen.getByLabelText('wordStudy.close'));
     expect(onClose).toHaveBeenCalled();
   });
+
+  it('Back and Forward put the studied word back in the lookup box', async () => {
+    render(<WordStudyPane />);
+    await wordStudyStore.openStrongs('G25');
+    await wordStudyStore.openStrongs('G26');
+    wordStudyStore.setQuery('G26');
+    const input = screen.getByRole('textbox') as HTMLInputElement;
+    fireEvent.click(await screen.findByLabelText('wordStudy.back'));
+    await waitFor(() => expect(input.value).toBe('G25'));
+    fireEvent.click(screen.getByLabelText('wordStudy.forward'));
+    await waitFor(() => expect(input.value).toBe('G26'));
+  });
+
+  it('keeps focus on the other arrow when Back disables itself, and on Back when Forward does', async () => {
+    render(<WordStudyPane />);
+    await wordStudyStore.openStrongs('G25');
+    await wordStudyStore.openStrongs('G26');
+    const back = await screen.findByLabelText('wordStudy.back') as HTMLButtonElement;
+    back.focus();
+    fireEvent.click(back);
+    await waitFor(() => expect(back.disabled).toBe(true));
+    const forward = screen.getByLabelText('wordStudy.forward') as HTMLButtonElement;
+    await waitFor(() => expect(document.activeElement).toBe(forward));
+    fireEvent.click(forward);
+    await waitFor(() => expect(forward.disabled).toBe(true));
+    await waitFor(() => expect(document.activeElement).toBe(back));
+  });
 });

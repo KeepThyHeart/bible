@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'preact/hooks';
+import { useState, useCallback, useEffect, useRef } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { BiblePane } from './components/BiblePane/BiblePane';
 import { CommentaryPane } from './components/CommentaryPane/CommentaryPane';
@@ -136,6 +136,26 @@ export function DesktopApp({ providers }: DesktopAppProps) {
   }, [paneMode, paneModes, opened]);
 
   const showRightPane = !shared.collapsed;
+
+  // Collapsing or expanding the side pane unmounts the control that was just pressed. Keyboard focus
+  // would fall to <body>, so move it to the counterpart control (but never steal it from somewhere
+  // else when the pane was toggled by other means: a search, a shortcut, a plugin).
+  const collapseBtnRef = useRef<HTMLButtonElement>(null);
+  const expandBtnRef = useRef<HTMLButtonElement>(null);
+  const seenCollapsed = useRef(shared.collapsed);
+  useEffect(() => {
+    if (seenCollapsed.current === shared.collapsed) return;
+    seenCollapsed.current = shared.collapsed;
+    const active = document.activeElement;
+    if (active && active !== document.body) return;
+    (shared.collapsed ? expandBtnRef : collapseBtnRef).current?.focus({ preventScroll: true });
+  }, [shared.collapsed]);
+
+  // The expander is named after the tab it will bring back, not always "Commentary".
+  const expandMode = paneModes.find((m) => m.id === paneMode);
+  const expandTabTitle = paneMode === 'search' || !expandMode
+    ? (paneMode === 'search' ? t('rightPane.search') : t('rightPane.expand', { defaultValue: 'Expand side pane' }))
+    : resolveLabel((k, f) => t(k, f), expandMode.title);
   const paneProps: PaneViewProps = {
     providers,
     showTagGraph,
@@ -211,7 +231,7 @@ export function DesktopApp({ providers }: DesktopAppProps) {
             <aside class="main-layout__right-pane" style={rightPaneStyle} aria-label={t('a11y.studyPane', 'Study panel')}>
               <div class="right-pane-tabs">
                 {/* The mode switcher is a tablist; the collapse control sits outside it. */}
-                <div role="tablist" style={{ display: 'contents' }} aria-label={t('rightPane.modes', { defaultValue: 'Side pane views' })}>
+                <div role="tablist" class="right-pane-tabs__list" aria-label={t('rightPane.modes', { defaultValue: 'Side pane views' })}>
                   {(() => {
                     const visibleModes = paneModes.filter((m) => paneAvailable(m.id));
                     const stopId = visibleModes.some((m) => m.id === paneMode) || paneMode === 'search' ? paneMode : visibleModes[0]?.id;
@@ -248,6 +268,7 @@ export function DesktopApp({ providers }: DesktopAppProps) {
                   })()}
                 </div>
                 <button
+                  ref={collapseBtnRef}
                   class="right-pane-tabs__collapse"
                   onClick={() => commentaryStore.toggleCollapsed()}
                   title={t('rightPane.collapseRight')}
@@ -272,7 +293,16 @@ export function DesktopApp({ providers }: DesktopAppProps) {
         )}
         {shared.collapsed && (
           <div class="main-layout__commentary-collapsed">
-            <CommentaryPane bibleProvider={providers.bible} />
+            <div class="commentary-pane commentary-pane--collapsed">
+              <button
+                ref={expandBtnRef}
+                class="commentary-pane__expand-btn"
+                onClick={() => commentaryStore.toggleCollapsed()}
+                title={t('rightPane.expandTo', { defaultValue: 'Show {tab}', tab: expandTabTitle })}
+              >
+                {expandTabTitle} →
+              </button>
+            </div>
           </div>
         )}
       </main>

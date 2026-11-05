@@ -11,6 +11,8 @@
 
 import { searchStore } from '../../stores/searchStore';
 import { commentaryStore } from '../../stores/commentaryStore';
+import { openPane } from '../../host/paneRequests';
+import { usePaneAvailable } from '../../modules/host/usePaneModes';
 import {
   cellStrongsNumbers,
   wordRenderAttrs,
@@ -153,6 +155,46 @@ function strongsTitle(strongsNumber: string, entries: Record<string, StrongsEntr
   return entries?.[strongsNumber]?.briefMeaning || strongsNumber;
 }
 
+/** `H07225` -> `H7225`: the number as a reader types it (the data pads to five digits). */
+function plainStrongs(strongsNumber: string): string {
+  return strongsNumber.replace(/^([GH])0+(?=\d)/i, '$1');
+}
+
+/**
+ * The English of a cell. With a Strong's number it is a button (keyboard reachable) named after the
+ * word and its number: it opens Word study when that pane exists, else searches the number.
+ */
+function CellGloss({ cell, primary, resolved, className = 'verse__interlinear-gloss' }: {
+  cell: InterlinearCell;
+  primary: string | undefined;
+  resolved?: ResolvedVerse | null;
+  className?: string;
+}) {
+  const wordStudyAvailable = usePaneAvailable('wordStudy');
+  if (!primary) {
+    return <span class={className}><CellEnglish cell={cell} resolved={resolved} /></span>;
+  }
+  const number = plainStrongs(primary);
+  const english = cell.englishWords.map((w) => w.displayText).join(' ');
+  return (
+    <button
+      type="button"
+      class={`${className} ${className}--clickable`}
+      aria-label={english ? `${english}, ${number}` : number}
+      title={wordStudyAvailable ? `Word study ${number}` : `Search ${number}`}
+      onClick={(e: MouseEvent) => {
+        e.stopPropagation();
+        if (wordStudyAvailable) {
+          openPane('wordStudy', { strongs: number });
+        } else {
+          searchStore.performSearch(number);
+          commentaryStore.setRightPaneMode('search');
+        }
+      }}
+    ><CellEnglish cell={cell} resolved={resolved} /></button>
+  );
+}
+
 /** One column per cell: English on top, then original language and Strong's. */
 export function StackedInterlinear({ cells, resolved, strongsEntries, onStrongsClick, onStrongsHover, onStrongsLeave }: LayoutProps) {
   return (
@@ -162,15 +204,7 @@ export function StackedInterlinear({ cells, resolved, strongsEntries, onStrongsC
         const primary = strongs[0];
         return (
           <span key={cell.wordStart} class="verse__interlinear-word">
-            <span
-              class={`verse__interlinear-gloss${primary ? ' verse__interlinear-gloss--clickable' : ''}`}
-              onClick={primary ? (e: MouseEvent) => {
-                e.stopPropagation();
-                searchStore.performSearch(primary);
-                commentaryStore.setRightPaneMode('search');
-              } : undefined}
-              title={primary ? `Search ${primary}` : undefined}
-            ><CellEnglish cell={cell} resolved={resolved} /></span>
+            <CellGloss cell={cell} primary={primary} resolved={resolved} />
             <CellOriginal
               cell={cell}
               strongsNumber={primary}

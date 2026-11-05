@@ -33,8 +33,12 @@ vi.mock('@bible/ui', async () => {
         <button onClick={async () => { (window as any).__txt = await p.getVerseText(43003016, 43003017); }}>text</button>
       </div>
     ),
-    XrefWebView: (p: any) => <div data-testid="web" data-anchor={p.anchor} />,
-    XrefCompassView: (p: any) => <div data-testid="compass" data-anchor={p.anchor} />,
+    XrefWebView: (p: any) => (
+      <div data-testid="web" data-anchor={p.anchor} data-depth={p.initialDepth}>
+        <button onClick={() => p.onDepthChange(3)}>web-depth-3</button>
+      </div>
+    ),
+    XrefCompassView: (p: any) => <div data-testid="compass" data-anchor={p.anchor} data-depth={p.initialDepth} />,
     XrefArcView: (p: any) => (
       <div data-testid="arcs" data-current={JSON.stringify(p.current)}>
         <button onClick={() => p.onExploreChapter(43, 3)}>explore</button>
@@ -90,6 +94,17 @@ describe('XrefGraphDialog', () => {
     expect(screen.getByTestId('web').getAttribute('data-anchor')).toBe('2002002');
   });
 
+  it('keeps the hop count when switching between graph tabs', () => {
+    render(<XrefGraphDialog />);
+    act(() => xrefGraphStore.open(43003016, 'web'));
+    expect(screen.getByTestId('web').getAttribute('data-depth')).toBe('2');
+    fireEvent.click(screen.getByText('web-depth-3'));
+    fireEvent.click(screen.getByRole('tab', { name: 'Compass' }));
+    expect(screen.getByTestId('compass').getAttribute('data-depth')).toBe('3');
+    fireEvent.click(screen.getByRole('tab', { name: 'Verse web' }));
+    expect(screen.getByTestId('web').getAttribute('data-depth')).toBe('3');
+  });
+
   it('gives the arc view the anchor chapter and explores into the web at verse 1', () => {
     render(<XrefGraphDialog />);
     act(() => xrefGraphStore.open(43003016, 'arcs'));
@@ -141,6 +156,17 @@ describe('XrefGraphDialog', () => {
     act(() => xrefGraphStore.close());
     await waitFor(() => expect(document.activeElement).toBe(opener));
     opener.remove();
+  });
+
+  it('makes the background inert while open and restores it on close', async () => {
+    const bg = document.createElement('main');
+    document.body.appendChild(bg);
+    render(<XrefGraphDialog />);
+    act(() => xrefGraphStore.open(43003016));
+    await waitFor(() => expect(bg.hasAttribute('inert')).toBe(true));
+    act(() => xrefGraphStore.close());
+    await waitFor(() => expect(bg.hasAttribute('inert')).toBe(false));
+    bg.remove();
   });
 
   it('supplies tag-stripped verse text from the provider', async () => {

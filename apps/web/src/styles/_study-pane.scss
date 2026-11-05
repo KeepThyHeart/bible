@@ -1638,6 +1638,8 @@
     padding: 8px 12px;
     border: 1px solid var(--border-color, #ddd);
     border-radius: 6px;
+    // Inputs default to the system sans font; the page is serif.
+    font-family: inherit;
     font-size: calc(0.875rem * var(--ui-font-scale, 1));
     background: var(--input-bg, #fff);
     color: var(--text-primary, #333);

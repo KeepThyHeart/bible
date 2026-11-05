@@ -261,7 +261,8 @@
         "moreFor": "‏More actions for {label}‏",
         "reorderFor": "‏Drag to reorder {label}‏"
       },
-      "playMarkerFor": "‏Show {label} again‏"
+      "playMarkerFor": "‏Show {label} again‏",
+      "viewsLabel": "‏Notes views‏"
     },
     "solo": {
       "launcherTooltip": "‏Brings up the command prompt for going to a verse (press / on the keyboard)‏",

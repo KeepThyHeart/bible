@@ -261,7 +261,8 @@
         "moreFor": "פעולות נוספות עבור {label}",
         "reorderFor": "גררו כדי לשנות את מיקום {label}"
       },
-      "playMarkerFor": "הצגת {label} שוב"
+      "playMarkerFor": "הצגת {label} שוב",
+      "viewsLabel": "תצוגות הערות"
     },
     "solo": {
       "launcherTooltip": "מציג את שורת הפקודות למעבר לפסוק (יש ללחוץ על / במקלדת)",

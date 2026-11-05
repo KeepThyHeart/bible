@@ -25,7 +25,8 @@
       "remaining": "剩余时间",
       "secondsLeft": "剩余 {seconds} 秒",
       "paused": "已暂停",
-      "secondsShort": "{seconds} 秒"
+      "secondsShort": "{seconds} 秒",
+      "oneSecondLeft": "还剩 1 秒"
     },
     "frame": {
       "roomAria": "房间 {code}",
@@ -78,7 +79,8 @@
       "skipIt": "跳过",
       "keepGoing": "继续",
       "skip": "跳过",
-      "nextQuestion": "下一题"
+      "nextQuestion": "下一题",
+      "scoresEveryoneItem": "显示所有人的分数"
     },
     "join": {
       "enterCode": "输入房间代码",

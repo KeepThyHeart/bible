@@ -261,7 +261,8 @@
         "moreFor": "{label} 的更多操作",
         "reorderFor": "拖动以调整 {label} 的顺序"
       },
-      "playMarkerFor": "再次显示 {label}"
+      "playMarkerFor": "再次显示 {label}",
+      "viewsLabel": "笔记视图"
     },
     "solo": {
       "launcherTooltip": "打开命令框以跳到某节（按键盘上的 /）",

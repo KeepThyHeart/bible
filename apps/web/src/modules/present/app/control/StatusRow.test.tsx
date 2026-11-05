@@ -53,6 +53,18 @@ describe('StatusRow', () => {
     expect(document.activeElement).toBe(byText(container, 'present.control.goLive'));
   });
 
+  it('Escape in the End confirm cancels it and returns focus to End', async () => {
+    h.view.presenting = true;
+    h.end.mockClear();
+    const { container } = render(<StatusRow menuOpen={false} onToggleMenu={() => {}} />);
+    await act(async () => { fireEvent.click(byText(container, 'present.control.endLive')); });
+    expect(byText(container, 'present.endYes')).toBeTruthy();
+    await act(async () => { fireEvent.keyDown(document.activeElement!, { key: 'Escape' }); });
+    expect(byText(container, 'present.endYes')).toBeUndefined();
+    expect(h.end).not.toHaveBeenCalled();
+    expect(document.activeElement).toBe(byText(container, 'present.control.endLive'));
+  });
+
   it('labels the viewer count', () => {
     h.view.presenting = true;
     const { container } = render(<StatusRow menuOpen={false} onToggleMenu={() => {}} />);

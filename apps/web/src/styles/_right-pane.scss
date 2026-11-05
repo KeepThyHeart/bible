@@ -7,10 +7,22 @@
   background: var(--bg-secondary);
   border-bottom: 1px solid var(--border-color);
   flex-shrink: 0;
-  // With Quiz, Word study, Similar and Timeline the tabs no longer fit a narrow
-  // pane. They wrap onto a second row rather than scroll: every tab stays visible
-  // and keyboard-reachable at any width, with no hidden overflow (B-168).
-  flex-wrap: wrap;
+  // With Quiz, Word study, Similar and Timeline (and Search) the tabs no longer fit a narrow pane.
+  // The strip stays ONE row: the tabs scroll sideways inside `__list` while the collapse chevron
+  // stays put. Tabs remain keyboard-reachable (focus scrolls them into view) at any width.
+  flex-wrap: nowrap;
+
+  &__list {
+    display: flex;
+    align-items: stretch;
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+
+    &::-webkit-scrollbar { display: none; }
+  }
 
   &__tab {
     flex-shrink: 0;
@@ -33,10 +45,15 @@
       color: var(--text-primary);
     }
 
-    // The strip clips overflow, so an outside focus ring would be cut off.
+    // The list clips overflow, so the ring sits just inside the tab's edge: it outlines the whole
+    // tab (not only the label) and cannot be cut off.
+    border-radius: 4px 4px 0 0;
+
     &:focus-visible {
       outline: 2px solid var(--accent-color);
       outline-offset: -2px;
+      position: relative;
+      z-index: 1;
     }
 
     &--active {

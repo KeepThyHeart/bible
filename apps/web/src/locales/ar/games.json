@@ -25,7 +25,8 @@
       "remaining": "الوقت المتبقي",
       "secondsLeft": "متبقٍ {seconds} ثانية",
       "paused": "متوقف مؤقتًا",
-      "secondsShort": "{seconds} ث"
+      "secondsShort": "{seconds} ث",
+      "oneSecondLeft": "بقيت ثانية واحدة"
     },
     "frame": {
       "roomAria": "الغرفة {code}",
@@ -78,7 +79,8 @@
       "skipIt": "تخطَّ",
       "keepGoing": "واصل",
       "skip": "تخطي",
-      "nextQuestion": "السؤال التالي"
+      "nextQuestion": "السؤال التالي",
+      "scoresEveryoneItem": "إظهار نتائج الجميع"
     },
     "join": {
       "enterCode": "أدخل رمز الغرفة",

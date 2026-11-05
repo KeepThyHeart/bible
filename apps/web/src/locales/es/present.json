@@ -261,7 +261,8 @@
         "moreFor": "Más acciones para {label}",
         "reorderFor": "Arrastra para reordenar {label}"
       },
-      "playMarkerFor": "Volver a mostrar {label}"
+      "playMarkerFor": "Volver a mostrar {label}",
+      "viewsLabel": "Vistas de notas"
     },
     "solo": {
       "launcherTooltip": "Abre el cuadro de comandos para ir a un versículo (pulse / en el teclado)",

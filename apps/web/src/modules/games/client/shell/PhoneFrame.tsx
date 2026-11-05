@@ -17,6 +17,7 @@ import { ordinal, teamColour, teamLabel } from './teams.js';
 import type { ThemeControl } from './theme.js';
 import type { StreamStatus } from './useRoomStream.js';
 import { gt } from './t.js';
+import { useHeadingFocus } from './useHeadingFocus.js';
 
 /** The top three is the whole of what a phone may be told about its position. */
 export const RANK_SHOWN_THROUGH = 3;
@@ -57,6 +58,8 @@ export function PhoneFrame({
   children,
 }: PhoneFrameProps) {
   const { code, round, totalRounds, paused, phase, phaseEndsAt, settings, you } = snapshot;
+  // The lobby (with the focused Start button) is gone once this frame mounts.
+  const bodyRef = useHeadingFocus<HTMLElement>();
   // `round` is the index intents carry, counted from zero. People count from
   // one, and a lobby is not question zero of ten — it is not a question yet.
   const inRound = phase !== 'lobby' && phase !== 'summary';
@@ -108,7 +111,7 @@ export function PhoneFrame({
         </p>
       )}
 
-      <main class="phone-body">{children}</main>
+      <main class="phone-body" tabIndex={-1} ref={bodyRef}>{children}</main>
 
       <footer class="phone-score">
         <span class="score-total">

@@ -241,9 +241,12 @@
     color: var(--text-primary);
     outline: none;
     min-width: 0;
+    // The long "Go to passage or search (e.g. ...)" hint ends in an ellipsis when the field is narrow.
+    text-overflow: ellipsis;
 
     &::placeholder {
       color: var(--text-muted);
+      text-overflow: ellipsis;
       font-size: calc(0.8125rem * var(--ui-font-scale, 1));
     }
   }

@@ -28,6 +28,13 @@ vi.mock('../../stores/commentaryStore', () => ({
   commentaryStore: { setRightPaneMode: (m: string) => mockSetRightPaneMode(m) },
 }));
 
+const paneAvailable = vi.hoisted(() => ({ wordStudy: false }));
+const mockOpenPane = vi.fn();
+vi.mock('../../modules/host/usePaneModes', () => ({
+  usePaneAvailable: (id: string) => id === 'wordStudy' && paneAvailable.wordStudy,
+}));
+vi.mock('../../host/paneRequests', () => ({ openPane: (...a: unknown[]) => mockOpenPane(...a) }));
+
 const { StackedInterlinear, InlineInterlinear } = await import('./InterlinearLayouts');
 
 // ---- Fixtures ------------------------------------------------------------
@@ -74,6 +81,7 @@ const ENTRIES: Record<string, StrongsEntryData> = {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  paneAvailable.wordStudy = false;
 });
 
 // ---- Shared behaviour ----------------------------------------------------
@@ -360,6 +368,24 @@ describe('StackedInterlinear', () => {
 
     expect(mockPerformSearch).toHaveBeenCalledWith('G26');
     expect(mockSetRightPaneMode).toHaveBeenCalledWith('search');
+  });
+
+  it('makes a numbered word a named button, searching the plain (unpadded) number', () => {
+    const cells = [cell(0, [word('In'), word('the'), word('beginning')], source({ strongsNumber: 'H07225' }))];
+    render(<StackedInterlinear cells={cells} />);
+    const btn = screen.getByRole('button', { name: 'In the beginning, H7225' });
+    fireEvent.click(btn);
+    expect(mockPerformSearch).toHaveBeenCalledWith('H7225');
+    expect(mockPerformSearch).not.toHaveBeenCalledWith('H07225');
+  });
+
+  it('opens Word study instead of searching when that pane is available', () => {
+    paneAvailable.wordStudy = true;
+    const cells = [cell(0, [word('beginning')], source({ strongsNumber: 'H07225' }))];
+    render(<StackedInterlinear cells={cells} />);
+    fireEvent.click(screen.getByRole('button', { name: 'beginning, H7225' }));
+    expect(mockOpenPane).toHaveBeenCalledWith('wordStudy', { strongs: 'H7225' });
+    expect(mockPerformSearch).not.toHaveBeenCalled();
   });
 
   it('says what the gloss click will do', () => {
