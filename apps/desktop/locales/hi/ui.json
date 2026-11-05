@@ -1468,6 +1468,7 @@
   "ui.dockviewTab.closePanel": "पैनल बंद करें",
   "ui.dockviewTab.splitRight": "दाईं ओर विभाजित करें",
   "ui.dockviewTab.splitDown": "नीचे विभाजित करें",
+  "ui.dockviewTab.splitNeedsTwoTabs": "इस समूह में एक और टैब चाहिए",
   "ui.dockviewTab.popOutToWindow": "अलग विंडो में खोलें",
   "ui.dockviewTab.close": "बंद करें",
   "ui.dockviewTab.contextMenuLabel": "टैब क्रियाएँ",

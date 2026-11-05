@@ -1468,6 +1468,7 @@
   "ui.dockviewTab.closePanel": "Close panel",
   "ui.dockviewTab.splitRight": "Split Right",
   "ui.dockviewTab.splitDown": "Split Down",
+  "ui.dockviewTab.splitNeedsTwoTabs": "Needs another tab in this group",
   "ui.dockviewTab.popOutToWindow": "Pop Out to Window",
   "ui.dockviewTab.close": "Close",
   "ui.dockviewTab.contextMenuLabel": "Tab actions",

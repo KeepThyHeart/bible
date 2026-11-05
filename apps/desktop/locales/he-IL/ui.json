@@ -1465,6 +1465,7 @@
   "ui.dockviewTab.closePanel": "סגור חלונית",
   "ui.dockviewTab.splitRight": "פצל ימינה",
   "ui.dockviewTab.splitDown": "פצל למטה",
+  "ui.dockviewTab.splitNeedsTwoTabs": "נדרשת כרטיסייה נוספת בקבוצה זו",
   "ui.dockviewTab.popOutToWindow": "הוצא לחלון",
   "ui.dockviewTab.close": "סגור",
   "ui.dockviewTab.contextMenuLabel": "פעולות לשונית",

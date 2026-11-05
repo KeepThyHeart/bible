@@ -1468,6 +1468,7 @@
   "ui.dockviewTab.closePanel": "بستن پنل",
   "ui.dockviewTab.splitRight": "تقسیم به راست",
   "ui.dockviewTab.splitDown": "تقسیم به پایین",
+  "ui.dockviewTab.splitNeedsTwoTabs": "به زبانهٔ دیگری در این گروه نیاز دارد",
   "ui.dockviewTab.popOutToWindow": "جدا کردن در پنجره",
   "ui.dockviewTab.close": "بستن",
   "ui.dockviewTab.contextMenuLabel": "عملیات زبانه",

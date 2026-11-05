@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { i18nService } from '../services/I18nService';
 import BiblePane from './BiblePane';
 import CommentaryPane from './CommentaryPane';
@@ -8,6 +8,8 @@ import PrayerTab from './notes/tabs/PrayerTab';
 import StudyPane from './StudyPane';
 import TopicsPane from './TopicsPane';
 import ExtensionPanelHost from './extensions/ExtensionPanelHost';
+import { useBibleStore } from '../stores/useBibleStore';
+import { DEFAULT_PANEL_ID } from '../stores/helpers/panelStateHelpers';
 import { PANE_NAME_KEYS, type NamedPaneType } from '../utils/paneNames';
 
 /**
@@ -96,13 +98,29 @@ export function DetachedWindow() {
 
   // Keep the page title in step with the pane. The product suffix is whatever
   // follows the first " - " in the HTML's own title, so it stays localized/branded.
+  // A Bible window's passage changes as the reader navigates (Next Chapter), and the pane's heading
+  // reads this window's own panel state, so the title follows that rather than the handover payload
+  // (which is also what the pane was seeded from, so the two cannot disagree once it has loaded).
+  const livePassage = useBibleStore((s) => {
+    const ps = s.panels.get(DEFAULT_PANEL_ID);
+    return ps && ps.openTabs.length > 0 && ps.currentBookName && ps.currentChapter
+      ? `${ps.currentBookName} ${ps.currentChapter}`
+      : undefined;
+  });
+  const suffixRef = useRef<string | null>(null);
+  const isBible = payload?.paneType === 'bible' || (payload?.componentName ?? 'BiblePane') === 'BiblePane';
+
   useEffect(() => {
     if (!payload) return;
-    const title = detachedPaneTitle(payload);
+    const title = (isBible ? livePassage : undefined) ?? detachedPaneTitle(payload);
     if (!title) return;
-    const suffix = document.title.includes(' - ') ? document.title.split(' - ').slice(1).join(' - ') : '';
+    // Read the suffix once: after the first write the title uses an em dash, not " - ".
+    if (suffixRef.current === null) {
+      suffixRef.current = document.title.includes(' - ') ? document.title.split(' - ').slice(1).join(' - ') : '';
+    }
+    const suffix = suffixRef.current;
     document.title = suffix ? `${title} \u2014 ${suffix}` : title;
-  }, [payload]);
+  }, [payload, isBible, livePassage]);
 
   // Loading state.
   //

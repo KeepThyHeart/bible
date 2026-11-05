@@ -563,3 +563,30 @@ describe('pop out: payload safety', () => {
     expect(detachPane).not.toHaveBeenCalled();
   });
 });
+
+describe('DockviewTabRenderer: split from a lone tab', () => {
+  it('disables Split Right / Down with a hint when the group has one tab, and does nothing', async () => {
+    const user = userEvent.setup();
+    const props = makeProps('bible', 'Tab', 1, 3);
+    render(<DockviewTabRenderer {...props} />);
+    await user.pointer({ keys: '[MouseRight]', target: screen.getByText('Tab') });
+    for (const name of ['ui.dockviewTab.splitRight', 'ui.dockviewTab.splitDown']) {
+      const item = screen.getByRole('menuitem', { name });
+      expect(item).toHaveAttribute('aria-disabled', 'true');
+      expect(item).toHaveAttribute('title');
+      await user.click(item);
+    }
+    expect(props.containerApi.addGroup).not.toHaveBeenCalled();
+  });
+
+  it('splits when the group holds another tab', async () => {
+    const user = userEvent.setup();
+    const props = makeProps('bible', 'Tab', 2);
+    render(<DockviewTabRenderer {...props} />);
+    await user.pointer({ keys: '[MouseRight]', target: screen.getByText('Tab') });
+    const item = screen.getByRole('menuitem', { name: 'ui.dockviewTab.splitRight' });
+    expect(item).not.toHaveAttribute('aria-disabled');
+    await user.click(item);
+    expect(props.containerApi.addGroup).toHaveBeenCalledTimes(1);
+  });
+});

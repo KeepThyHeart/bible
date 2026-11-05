@@ -1468,6 +1468,7 @@
   "ui.dockviewTab.closePanel": "Закрыть панель",
   "ui.dockviewTab.splitRight": "Разделить вправо",
   "ui.dockviewTab.splitDown": "Разделить вниз",
+  "ui.dockviewTab.splitNeedsTwoTabs": "Нужна ещё одна вкладка в этой группе",
   "ui.dockviewTab.popOutToWindow": "Открепить в окно",
   "ui.dockviewTab.close": "Закрыть",
   "ui.dockviewTab.contextMenuLabel": "Действия вкладки",

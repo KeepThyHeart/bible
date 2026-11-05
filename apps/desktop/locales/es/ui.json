@@ -1465,6 +1465,7 @@
   "ui.dockviewTab.closePanel": "Cerrar el panel",
   "ui.dockviewTab.splitRight": "Dividir a la derecha",
   "ui.dockviewTab.splitDown": "Dividir abajo",
+  "ui.dockviewTab.splitNeedsTwoTabs": "Necesita otra pestaña en este grupo",
   "ui.dockviewTab.popOutToWindow": "Desacoplar en una ventana",
   "ui.dockviewTab.close": "Cerrar",
   "ui.dockviewTab.contextMenuLabel": "Acciones de pestaña",

@@ -509,6 +509,10 @@ const DockviewTabRenderer: React.FC<IDockviewPanelHeaderProps> = (props) => {
 
   const panelCount = containerApi.panels.length;
   const canPopOut = !!contentType && !!POP_OUT_PANE_TYPE[contentType];
+  // Splitting moves this tab into a new group; from a group's only tab that would leave an
+  // empty group behind, so it is offered only when the group holds another tab.
+  const canSplit = groupTabCount > 1;
+  const splitHint = canSplit ? undefined : translateOr(t, 'ui.dockviewTab.splitNeedsTwoTabs', 'Needs another tab in this group');
 
   return (
     <>
@@ -622,8 +626,8 @@ const DockviewTabRenderer: React.FC<IDockviewPanelHeaderProps> = (props) => {
           onMouseDown={(e) => e.stopPropagation()}
           onKeyDown={handleMenuKeyDown}
         >
-          <ContextMenuItem label={t('ui.dockviewTab.splitRight')} onClick={handleSplitRight} />
-          <ContextMenuItem label={t('ui.dockviewTab.splitDown')} onClick={handleSplitDown} />
+          <ContextMenuItem label={t('ui.dockviewTab.splitRight')} onClick={handleSplitRight} disabled={!canSplit} hint={splitHint} />
+          <ContextMenuItem label={t('ui.dockviewTab.splitDown')} onClick={handleSplitDown} disabled={!canSplit} hint={splitHint} />
           {canPopOut && (
             <>
               <div style={{ height: '1px', backgroundColor: 'var(--theme-border-primary)', margin: '4px 0' }} />
@@ -644,13 +648,24 @@ const DockviewTabRenderer: React.FC<IDockviewPanelHeaderProps> = (props) => {
 };
 
 /** Simple context menu item */
+/** `t` hands the key back until the catalog has it: fall back to English. */
+function translateOr(t: (key: string) => string, key: string, fallback: string): string {
+  const v = t(key);
+  return v === key ? fallback : v;
+}
+
 const ContextMenuItem: React.FC<{
   label: string;
   onClick: () => void;
-}> = ({ label, onClick }) => (
+  /** Stays focusable (aria-disabled) so keyboard users can reach it and read the hint. */
+  disabled?: boolean;
+  hint?: string;
+}> = ({ label, onClick, disabled = false, hint }) => (
   <button
     role="menuitem"
-    onClick={onClick}
+    aria-disabled={disabled || undefined}
+    title={disabled ? hint : undefined}
+    onClick={disabled ? (e) => e.preventDefault() : onClick}
     style={{
       display: 'flex',
       alignItems: 'center',
@@ -659,12 +674,14 @@ const ContextMenuItem: React.FC<{
       padding: '5px 12px',
       border: 'none',
       background: 'transparent',
-      cursor: 'pointer',
+      cursor: disabled ? 'default' : 'pointer',
+      opacity: disabled ? 0.5 : 1,
       fontSize: controlScaled(13),
       color: 'var(--theme-text-primary)',
       textAlign: 'start',
     }}
     onMouseEnter={(e) => {
+      if (disabled) return;
       (e.currentTarget as HTMLElement).style.backgroundColor = 'var(--theme-tab-bg-hover)';
     }}
     onMouseLeave={(e) => {

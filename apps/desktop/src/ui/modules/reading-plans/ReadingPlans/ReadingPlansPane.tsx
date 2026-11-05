@@ -93,6 +93,25 @@ const ReadingPlansPane: React.FC = () => {
     trigger?.focus();
   };
   const deleteConfirm = useInlineConfirm(confirmDelete, cancelDelete);
+  // Start form: Escape / Cancel close it and hand focus back to the "Start <plan>" button that opened it.
+  // (Its own focus-in effect lives with startRef below, so only the Escape handling is shared here.)
+  const cancelStart = () => {
+    const key = startKey;
+    setStartKey(null);
+    if (!key) return;
+    const plan = data.library.find((p) => p.key === key);
+    const trigger = plan
+      ? Array.from(paneRootRef.current?.querySelectorAll<HTMLElement>('button') ?? [])
+          .find((b) => b.getAttribute('aria-label') === labels.library.startNamed(labels.stockName(plan)))
+      : undefined;
+    trigger?.focus();
+  };
+  const onStartKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key !== 'Escape') return;
+    e.preventDefault();
+    e.stopPropagation();
+    cancelStart();
+  };
   const focusAfterRowGone = () => {
     requestAnimationFrame(() => {
       const first = paneRootRef.current?.querySelector<HTMLElement>('[data-testid="reading-plans-enrollment"] button');
@@ -246,7 +265,7 @@ const ReadingPlansPane: React.FC = () => {
     if (!plan) return null;
     const name = labels.stockName(plan);
     return (
-      <section ref={startRef} className="flex flex-col gap-sm p-md rounded border border-border" aria-label={t('readingPlans.start.title', { name })} data-testid="reading-plans-start">
+      <section ref={startRef} className="flex flex-col gap-sm p-md rounded border border-border" aria-label={t('readingPlans.start.title', { name })} data-testid="reading-plans-start" onKeyDown={onStartKeyDown}>
         <h3 className="text-sm font-semibold m-0">{t('readingPlans.start.title', { name })}</h3>
         <label className="flex items-center gap-sm text-sm">
           {labels.builder.startDate}
@@ -266,7 +285,7 @@ const ReadingPlansPane: React.FC = () => {
         <WeekdayPicker value={readingDays} onChange={setReadingDays} weekdayNames={labels.weekdayNames} labels={{ group: labels.weekdayGroup }} />
         <div className="flex gap-sm">
           <button type="button" className="kth-btn kth-btn--primary" disabled={!ReadingPlans.isIsoDate(startDate)} onClick={() => void confirmStart()}>{t('readingPlans.start.begin')}</button>
-          <button type="button" className="kth-btn" onClick={() => setStartKey(null)}>{labels.todayCard.cancel}</button>
+          <button type="button" className="kth-btn" onClick={cancelStart}>{labels.todayCard.cancel}</button>
         </div>
       </section>
     );
@@ -348,6 +367,8 @@ const ReadingPlansPane: React.FC = () => {
 
   return (
     <div ref={paneRootRef} className="h-full w-full flex flex-col overflow-hidden" data-testid="reading-plans-pane" style={shell}>
+      {/* Heading for the app view: DesktopAppStage focuses the first h1[tabindex=-1] when the app opens. */}
+      <h1 tabIndex={-1} className="sr-only">{t('readingPlans.title')}</h1>
       <div className="flex items-center gap-xs px-md py-xs border-b border-border" role="toolbar" aria-label={t('readingPlans.title')}>
         <button type="button" ref={todayTabRef} className={tabClass(activeKind === 'today')} aria-pressed={activeKind === 'today'} onClick={() => go({ kind: 'today' })}>{t('readingPlans.nav.today')}</button>
         <button type="button" ref={plansTabRef} className={tabClass(activeKind === 'plans')} aria-pressed={activeKind === 'plans'} onClick={() => go({ kind: 'plans' })}>{t('readingPlans.nav.plans')}</button>

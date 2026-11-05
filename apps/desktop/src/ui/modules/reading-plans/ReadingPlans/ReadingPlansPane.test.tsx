@@ -197,6 +197,41 @@ describe('ReadingPlansPane', () => {
     await waitFor(async () => expect(await service.enrollments()).toHaveLength(0));
   });
 
+  describe('inline Start form keyboard', () => {
+    async function openStart() {
+      installTestService();
+      const user = userEvent.setup();
+      render(<ReadingPlansPane />);
+      await user.click(await screen.findByRole('button', { name: 'Choose a plan' }));
+      const trigger = await screen.findByRole('button', { name: 'Start The Gospels in 30 days' });
+      await user.click(trigger);
+      await screen.findByTestId('reading-plans-start');
+      return { user, trigger };
+    }
+
+    it('Escape closes the form and returns focus to the Start button', async () => {
+      const { user, trigger } = await openStart();
+      await user.keyboard('{Escape}');
+      expect(screen.queryByTestId('reading-plans-start')).not.toBeInTheDocument();
+      expect(trigger).toHaveFocus();
+    });
+
+    it('Cancel closes the form and returns focus to the Start button', async () => {
+      const { user, trigger } = await openStart();
+      await user.click(within(screen.getByTestId('reading-plans-start')).getByRole('button', { name: 'Cancel' }));
+      expect(screen.queryByTestId('reading-plans-start')).not.toBeInTheDocument();
+      expect(trigger).toHaveFocus();
+    });
+  });
+
+  it('has an h1 heading for the app view that can take focus', async () => {
+    installTestService();
+    render(<ReadingPlansPane />);
+    const h1 = await screen.findByRole('heading', { level: 1 });
+    expect(h1).toHaveAttribute('tabindex', '-1');
+    expect(h1).toHaveTextContent(enT('readingPlans.title'));
+  });
+
   describe('inline Remove confirmation keyboard', () => {
     async function openConfirm() {
       const { service } = installTestService();

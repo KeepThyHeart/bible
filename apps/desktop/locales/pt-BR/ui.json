@@ -1468,6 +1468,7 @@
   "ui.dockviewTab.closePanel": "Fechar o painel",
   "ui.dockviewTab.splitRight": "Dividir à direita",
   "ui.dockviewTab.splitDown": "Dividir abaixo",
+  "ui.dockviewTab.splitNeedsTwoTabs": "Precisa de outra aba neste grupo",
   "ui.dockviewTab.popOutToWindow": "Desacoplar em uma janela",
   "ui.dockviewTab.close": "Fechar",
   "ui.dockviewTab.contextMenuLabel": "Ações da aba",

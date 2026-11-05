@@ -1465,6 +1465,7 @@
   "ui.dockviewTab.closePanel": "إغلاق اللوحة",
   "ui.dockviewTab.splitRight": "تقسيم إلى اليمين",
   "ui.dockviewTab.splitDown": "تقسيم إلى الأسفل",
+  "ui.dockviewTab.splitNeedsTwoTabs": "يتطلب لسانًا آخر في هذه المجموعة",
   "ui.dockviewTab.popOutToWindow": "فصل في نافذة",
   "ui.dockviewTab.close": "إغلاق",
   "ui.dockviewTab.contextMenuLabel": "إجراءات علامة التبويب",

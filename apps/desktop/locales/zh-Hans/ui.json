@@ -1468,6 +1468,7 @@
   "ui.dockviewTab.closePanel": "关闭面板",
   "ui.dockviewTab.splitRight": "向右拆分",
   "ui.dockviewTab.splitDown": "向下拆分",
+  "ui.dockviewTab.splitNeedsTwoTabs": "此组中需要另一个标签页",
   "ui.dockviewTab.popOutToWindow": "弹出到窗口",
   "ui.dockviewTab.close": "关闭",
   "ui.dockviewTab.contextMenuLabel": "标签页操作",

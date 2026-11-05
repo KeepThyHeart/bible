@@ -33,6 +33,12 @@ function stubPane(name: string) {
 }
 
 vi.mock('./BiblePane', () => stubPane('BiblePane'));
+// The real store drags in the reference parser and the i18n service this suite stubs out; the window
+// only reads `panels` from it, so a bare store with that shape stands in.
+vi.mock('../stores/useBibleStore', async () => {
+  const { create } = await import('zustand');
+  return { useBibleStore: create(() => ({ panels: new Map() })) };
+});
 vi.mock('./CommentaryPane', () => stubPane('CommentaryPane'));
 vi.mock('./BookPane', () => stubPane('BookPane'));
 vi.mock('./DictionaryPane', () => stubPane('DictionaryPane'));
@@ -247,5 +253,30 @@ describe('DetachedWindow: document title (D8-4)', () => {
     render(<DetachedWindow />);
     sendInitializePane({ paneType: 'study', componentName: 'StudyPane' });
     expect(document.title).toBe(`${enT('paneName.study')} — Keep Thy Heart`);
+  });
+
+  it('follows the Bible pane as it navigates, and trusts the pane over a stale payload title', async () => {
+    const { useBibleStore } = await import('../stores/useBibleStore');
+    const { DEFAULT_PANEL_ID } = await import('../stores/helpers/panelStateHelpers');
+    const setPassage = (book: string, chapter: number) =>
+      act(() => {
+        useBibleStore.setState(((st: any) => {
+          const panels = new Map(st.panels);
+          panels.set(DEFAULT_PANEL_ID, {
+            ...(panels.get(DEFAULT_PANEL_ID) as object),
+            openTabs: [{ id: 't' }], currentBookName: book, currentChapter: chapter,
+          });
+          return { panels };
+        }) as never);
+      });
+    document.title = 'Detached Pane - Keep Thy Heart';
+    render(<DetachedWindow />);
+    sendInitializePane({ paneType: 'bible', title: 'Isaiah 54', state: {} });
+    expect(document.title).toBe('Isaiah 54 \u2014 Keep Thy Heart');
+    setPassage('Romans', 8);
+    expect(document.title).toBe('Romans 8 \u2014 Keep Thy Heart');
+    setPassage('Romans', 9);
+    expect(document.title).toBe('Romans 9 \u2014 Keep Thy Heart');
+    act(() => { useBibleStore.setState({ panels: new Map() } as any); });
   });
 });
