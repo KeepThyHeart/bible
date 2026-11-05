@@ -62,9 +62,12 @@ export class Session implements Executor {
   private notes: string[] = [];
   private shots = 0;
 
-  constructor(opts: { sessionDir: string; repoRoot: string }) {
+  private readonly label: string | undefined;
+
+  constructor(opts: { sessionDir: string; repoRoot: string; name?: string }) {
     this.sessionDir = opts.sessionDir;
     this.repoRoot = opts.repoRoot;
+    this.label = opts.name || undefined;
   }
 
   // ------------------------------------------------------------------ entry
@@ -100,8 +103,9 @@ export class Session implements Executor {
     if (app) await app.close().catch(() => undefined);
   }
 
+  /** The session's name: --session / DRIVE_SESSION when given (also with DRIVE_DIR), else the directory's name. */
   private name(): string {
-    return path.basename(this.sessionDir);
+    return this.label ?? path.basename(this.sessionDir);
   }
 
   private page(): Page | undefined {

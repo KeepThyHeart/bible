@@ -17,7 +17,7 @@ const i = args.indexOf('--dir');
 const dir = i >= 0 && args[i + 1] ? args[i + 1] : sessionDir();
 // packages/ui-driver/src -> repo root
 const repoRoot = resolve(import.meta.dirname, '..', '..', '..');
-const session = new Session({ sessionDir: dir, repoRoot });
+const session = new Session({ sessionDir: dir, repoRoot, name: process.env.DRIVE_SESSION });
 
 if (args.includes('--stdio')) await runStdio(session);
 else await runDaemon({ dir, executor: session });
