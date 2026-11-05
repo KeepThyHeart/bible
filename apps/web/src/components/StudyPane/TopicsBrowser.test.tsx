@@ -465,6 +465,23 @@ describe('TopicsBrowser', () => {
     expect(screen.getByRole('button', { name: 'topicsBrowser.forward' })).toBeTruthy();
   });
 
+  it('moves focus off Back to Forward when Back disables itself at the start of the history', async () => {
+    render(
+      <TopicsBrowser
+        {...defaultProps}
+        topicalProvider={makeTopicalProvider()}
+        topicRequest={{ topicId: 1, module: 'TSK', topicName: 'Love', token: 1 }}
+      />
+    );
+    await act(async () => { await Promise.resolve(); });
+    const back = screen.getByRole('button', { name: 'topicsBrowser.back' });
+    back.focus();
+    await act(async () => { fireEvent.click(back); });
+    await waitFor(() => {
+      expect(document.activeElement).toBe(screen.getByRole('button', { name: 'topicsBrowser.forward' }));
+    });
+  });
+
   it('names the search clear (x) button once something is typed', () => {
     const { container } = render(<TopicsBrowser {...defaultProps} topicalProvider={makeTopicalProvider()} />);
     fireEvent.input(container.querySelector<HTMLInputElement>('.topics-browser__search-input')!, { target: { value: 'love' } });

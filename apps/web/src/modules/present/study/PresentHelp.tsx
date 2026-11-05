@@ -1,6 +1,7 @@
-import { useState } from 'preact/hooks';
+import { useRef, useState } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { useEscapeKey } from '../../../hooks/useEscapeKey';
+import { useModalFocus } from '../../../hooks/useModalFocus';
 
 /**
  * A concise, multi-tab help overlay for the Presenter, opened from the `?` key,
@@ -31,15 +32,23 @@ const TABS: Array<{ id: HelpTab; points: string[] }> = [
 export function PresentHelp(props: { isOpen: boolean; onClose: () => void }) {
   const { t } = useTranslation('help');
   const [tab, setTab] = useState<HelpTab>('notes');
+  const dialogRef = useRef<HTMLDivElement>(null);
   useEscapeKey(props.isOpen, props.onClose);
+  useModalFocus(props.isOpen, dialogRef);
 
   if (!props.isOpen) return null;
 
   return (
     <div class="settings-panel-overlay" onClick={props.onClose}>
-      <div class="help-dialog" onClick={event => event.stopPropagation()}>
+      <div
+        class="help-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="present-help-title"
+        ref={dialogRef}
+        onClick={event => event.stopPropagation()}>
         <div class="help-dialog__header">
-          <h3>
+          <h3 id="present-help-title">
             <i class="fa-solid fa-circle-question" style={{ marginInlineEnd: '8px', opacity: 0.5 }} aria-hidden="true" />
             {t('present.title')}
           </h3>

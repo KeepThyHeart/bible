@@ -198,6 +198,7 @@ export function PresenterApp() {
         )}
         <button
           type="button" class="pz-btn pz-btn--icon" onClick={() => setHelpOpen(true)}
+          aria-haspopup="dialog" aria-expanded={helpOpen}
           title={t('present.help')} aria-label={t('present.help')}
         >
           <i class="fa-solid fa-circle-question" aria-hidden="true" />

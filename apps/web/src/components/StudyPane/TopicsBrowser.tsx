@@ -111,6 +111,9 @@ export function TopicsBrowser({
   const focusAfterOpenRef = useRef(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const focusSearchAfterBackRef = useRef(false);
+  const fwdBtnRef = useRef<HTMLButtonElement>(null);
+  /** Desktop nav buttons disable themselves at the ends of the history: which one was just pressed. */
+  const navPressedRef = useRef<'back' | 'forward' | 'home' | null>(null);
   const entityActions = useSlot(topicEntityActions);
 
   // The request present on the very first render seeds the nav stack, so the
@@ -230,6 +233,22 @@ export function TopicsBrowser({
     searchInputRef.current?.focus({ preventScroll: true });
   }, [historyIndex, history]);
 
+  // A desktop nav button that was just pressed may now be disabled (Back at the start, Forward at the end,
+  // Home at home), which drops focus to <body>: hand it to the opposite arrow, else the search box.
+  useEffect(() => {
+    const pressed = navPressedRef.current;
+    if (!pressed) return;
+    navPressedRef.current = null;
+    const ae = document.activeElement as HTMLElement | null;
+    const lost = !ae || ae === document.body || (ae as HTMLButtonElement).disabled === true;
+    if (!lost) return;
+    const order = pressed === 'forward' ? [backBtnRef, searchInputRef] : [fwdBtnRef, backBtnRef, searchInputRef];
+    for (const r of order) {
+      const el = r.current;
+      if (el && !(el as HTMLButtonElement).disabled) { el.focus({ preventScroll: true }); return; }
+    }
+  }, [historyIndex, history]);
+
   // Remember the nav stack for the next mount.
   useEffect(() => {
     savedNav.set(navKey, { history, historyIndex });
@@ -323,6 +342,7 @@ export function TopicsBrowser({
   const goBack = () => {
     if (!canGoBack) return;
     const newIndex = historyIndex - 1;
+    if (!mobile) navPressedRef.current = 'back';
     if (mobile) {
       if (history[newIndex].type === 'home') focusSearchAfterBackRef.current = true;
       else focusAfterOpenRef.current = true;
@@ -334,11 +354,13 @@ export function TopicsBrowser({
   const goForward = () => {
     if (!canGoForward) return;
     const newIndex = historyIndex + 1;
+    if (!mobile) navPressedRef.current = 'forward';
     setHistoryIndex(newIndex);
     loadNavEntry(history[newIndex]);
   };
 
   const goHome = () => {
+    if (!mobile) navPressedRef.current = 'home';
     setHistoryIndex(0);
     setHistory([{ type: 'home' }]);
     clearDetail();
@@ -505,7 +527,7 @@ export function TopicsBrowser({
         <button class="topics-browser__nav-btn" ref={backBtnRef} disabled={!canGoBack} onClick={goBack} title={t('topicsBrowser.back')} aria-label={t('topicsBrowser.back')}>
           <i class="fa-solid fa-arrow-left kth-rtl-mirror" />
         </button>
-        <button class="topics-browser__nav-btn" disabled={!canGoForward} onClick={goForward} title={t('topicsBrowser.forward', { defaultValue: 'Forward' })} aria-label={t('topicsBrowser.forward', { defaultValue: 'Forward' })}>
+        <button class="topics-browser__nav-btn" ref={fwdBtnRef} disabled={!canGoForward} onClick={goForward} title={t('topicsBrowser.forward', { defaultValue: 'Forward' })} aria-label={t('topicsBrowser.forward', { defaultValue: 'Forward' })}>
           <i class="fa-solid fa-arrow-right kth-rtl-mirror" />
         </button>
         {showTitle && currentEntry.type === 'topic' && currentEntry.topicName && (

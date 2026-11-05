@@ -6,7 +6,7 @@
  * useStore is mocked to call the selector immediately (no subscription).
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/preact';
+import { render, screen, fireEvent, waitFor } from '@testing-library/preact';
 import type { CommentaryHomeData } from '../../types';
 
 // ---- i18n ----------------------------------------------------------------
@@ -471,5 +471,16 @@ describe('CommentaryHome', () => {
     const mute = screen.getByRole('button', { name: 'Mute MHC' });
     expect(mute.getAttribute('aria-pressed')).toBe('false');
     expect(screen.queryByRole('button', { name: /^Unmute/ })).toBeNull();
+  });
+
+  // 0209 round 5: starring remounts the star (the list re-sorts); focus must stay on that item's star.
+  it('keeps focus on the star after starring', async () => {
+    render(<CommentaryHome />);
+    const star = screen.getByRole('button', { name: 'Star MHC' });
+    star.focus();
+    // The re-sort remounts the star, which drops focus to <body>.
+    mocks.togglePromoted.mockImplementationOnce(() => (document.activeElement as HTMLElement).blur());
+    fireEvent.click(star);
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Star MHC' })));
   });
 });

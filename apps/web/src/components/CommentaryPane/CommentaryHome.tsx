@@ -188,6 +188,19 @@ export function CommentaryHome({ bibleProvider }: CommentaryHomeProps) {
   const [sortOpen, setSortOpen] = useState(false);
   const sortRef = useRef<HTMLDivElement>(null);
 
+  // Starring re-sorts the list, so the star button remounts: put focus back on the same item's star.
+  const rootRef = useRef<HTMLDivElement>(null);
+  const [starFocus, setStarFocus] = useState<{ abbr: string; n: number } | null>(null);
+  const toggleStar = (abbr: string) => {
+    commentaryStore.togglePromoted(abbr);
+    setStarFocus({ abbr, n: Date.now() });
+  };
+  useEffect(() => {
+    if (!starFocus) return;
+    Array.from(rootRef.current?.querySelectorAll<HTMLElement>('[data-star-module]') ?? [])
+      .find(el => el.dataset.starModule === starFocus.abbr)?.focus({ preventScroll: true });
+  }, [starFocus]);
+
   // Stable random order: assign each module a random key, regenerated on data/sort change
   const randomOrderRef = useRef<Map<string, number>>(new Map());
   const randomSeedKeyRef = useRef('');
@@ -432,11 +445,12 @@ export function CommentaryHome({ bibleProvider }: CommentaryHomeProps) {
               role="button"
               tabIndex={0}
               aria-pressed={isPromoted}
+              data-star-module={mod.moduleAbbr}
               aria-label={`Star ${isDigestModule(mod.moduleAbbr) ? getDigestDisplayName() : mod.moduleAbbr}`}
               title={isPromoted ? 'Unstar (remove from top)' : 'Star (pin to top)'}
-              onClick={(e: MouseEvent) => { e.stopPropagation(); commentaryStore.togglePromoted(mod.moduleAbbr); }}
+              onClick={(e: MouseEvent) => { e.stopPropagation(); toggleStar(mod.moduleAbbr); }}
               onKeyDown={(e: KeyboardEvent) => {
-                if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); commentaryStore.togglePromoted(mod.moduleAbbr); }
+                if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); toggleStar(mod.moduleAbbr); }
               }}
             />
           </div>
@@ -526,7 +540,7 @@ export function CommentaryHome({ bibleProvider }: CommentaryHomeProps) {
   };
 
   return (
-    <div class="commentary-content commentary-home">
+    <div class="commentary-content commentary-home" ref={rootRef}>
       <div class="commentary-home__section">
         <div class="commentary-home__section-title">
           <i class="fa-solid fa-bookmark" />

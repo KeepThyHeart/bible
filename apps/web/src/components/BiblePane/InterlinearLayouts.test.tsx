@@ -467,3 +467,23 @@ describe('InlineInterlinear', () => {
     expect(container.textContent).toBe('love(G26)');
   });
 });
+
+// ---- 0209 round 5: keyboard access ---------------------------------------
+
+describe('Interlinear keyboard access (round 5)', () => {
+  beforeEach(() => { mockPerformSearch.mockClear(); });
+
+  it('inline: the Greek word is a named button that opens the same lookup', () => {
+    const onStrongsClick = vi.fn();
+    render(<InlineInterlinear cells={[cell(0, [word('loved')])]} onStrongsClick={onStrongsClick} />);
+    const btn = screen.getByRole('button', { name: 'ἀγάπη, G26' });
+    expect(btn.tagName).toBe('BUTTON');
+    fireEvent.click(btn);
+    expect(onStrongsClick).toHaveBeenCalledWith('G26');
+  });
+
+  it('stacked: a gloss ending in a comma does not double the comma in the name', () => {
+    render(<StackedInterlinear cells={[cell(0, [word('the'), word('world,')], source({ strongsNumber: 'G3588' }))]} />);
+    expect(screen.getByRole('button', { name: 'the world, G3588' })).toBeTruthy();
+  });
+});

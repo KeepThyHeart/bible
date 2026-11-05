@@ -97,17 +97,24 @@ function StrongsChip({ strongsNumber, title, onStrongsClick, onStrongsHover, onS
   );
 }
 
+/** A button that looks like the surrounding text. */
+const BUTTON_RESET: JSX.CSSProperties = {
+  background: 'none', border: 0, padding: 0, margin: 0, font: 'inherit', fontSize: '1em', color: 'inherit',
+};
+
 /**
  * Original-language word and transliteration, wired to the same dictionary
  * lookup as the Strong's chip. Left inert, the Hebrew or Greek word — the one
  * thing a reader is most likely to click in an interlinear — does nothing at
  * all.
  */
-function CellOriginal({ cell, strongsNumber, classPrefix, onStrongsClick, onStrongsHover, onStrongsLeave }: {
+function CellOriginal({ cell, strongsNumber, classPrefix, asButton = false, onStrongsClick, onStrongsHover, onStrongsLeave }: {
   cell: InterlinearCell;
   strongsNumber: string | undefined;
   /** BEM block prefix; `-original` / `-translit` are appended. */
   classPrefix: string;
+  /** Render the clickable original word as a button (a Tab stop named "word, G25"). The inline layout has no gloss button. */
+  asButton?: boolean;
 } & StrongsHandlers) {
   const source = cell.source;
   if (!source) return null;
@@ -127,7 +134,16 @@ function CellOriginal({ cell, strongsNumber, classPrefix, onStrongsClick, onStro
 
   return (
     <>
-      {source.originalWord && (
+      {source.originalWord && clickable && asButton && (
+        <button
+          type="button"
+          class={`${classPrefix}-original ${classPrefix}-original--clickable`}
+          style={BUTTON_RESET}
+          aria-label={`${source.originalWord}, ${plainStrongs(strongsNumber!)}`}
+          {...handlers}
+        >{source.originalWord}</button>
+      )}
+      {source.originalWord && !(clickable && asButton) && (
         <span
           class={`${classPrefix}-original${clickable ? ` ${classPrefix}-original--clickable` : ''}`}
           {...handlers}
@@ -175,7 +191,8 @@ function CellGloss({ cell, primary, resolved, className = 'verse__interlinear-gl
     return <span class={className}><CellEnglish cell={cell} resolved={resolved} /></span>;
   }
   const number = plainStrongs(primary);
-  const english = cell.englishWords.map((w) => w.displayText).join(' ');
+  // The gloss can end in the verse's own punctuation ("the world,"): drop it before ", G3588".
+  const english = cell.englishWords.map((w) => w.displayText).join(' ').replace(/[\s.,;:!?]+$/, '');
   return (
     <button
       type="button"
@@ -251,6 +268,7 @@ export function InlineInterlinear({ cells, resolved, strongsEntries, onStrongsCl
                   cell={cell}
                   strongsNumber={strongs[0]}
                   classPrefix="verse__interlinear"
+                  asButton
                   onStrongsClick={onStrongsClick}
                   onStrongsHover={onStrongsHover}
                   onStrongsLeave={onStrongsLeave}
