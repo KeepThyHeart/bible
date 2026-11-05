@@ -57,8 +57,9 @@ test.describe('Error Resilience', () => {
     // Unblock requests
     await page.unroute('**/api/bible/**');
 
-    // Dismiss error and try again
-    await page.locator('.connection-banner__dismiss').click();
+    // Dismiss error and try again. Once requests flow again the app may clear the banner by itself
+    // (a background fetch succeeds); dismissing is covered by the test above, recovery is the point here.
+    await dismissBannerIfShown(page);
     await searchInput.fill('Romans 1');
     await searchInput.press('Enter');
 
@@ -102,7 +103,7 @@ test.describe('Error Resilience', () => {
 
     // Recover
     await page.unroute('**/api/bible/**');
-    await page.locator('.connection-banner__dismiss').click();
+    await dismissBannerIfShown(page);
 
     // Navigate to a passage
     await navigateTo(page, 'John 3');
@@ -129,3 +130,12 @@ test.describe('Error Resilience', () => {
     await page.keyboard.press('Escape');
   });
 });
+
+async function dismissBannerIfShown(page: import('@playwright/test').Page): Promise<void> {
+  const dismiss = page.locator('.connection-banner__dismiss');
+  try {
+    await dismiss.click({ timeout: 3000 });
+  } catch {
+    await expect(page.locator('.connection-banner')).toHaveCount(0);
+  }
+}
