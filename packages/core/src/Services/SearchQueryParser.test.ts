@@ -643,14 +643,15 @@ describe('SearchQueryParser symbol operators (advanced search, B-017)', () => {
 
   it('without a symbol operator the legacy rules apply, even in advanced mode', () => {
     expect(parser.parse('love hate', adv).searchType).toBe('multi-word');
-    expect(parser.parse('love -hate', adv).terms).toEqual(['love', '-hate']);
+    // `-word` is the documented exclusion (D6), so it is no longer a plain term.
+    expect(parser.parse('love -hate', adv).boolean).toEqual({ operator: 'NOT', left: 'love', right: 'hate' });
     expect(parser.parse('believed not', adv).searchType).toBe('multi-word');
     // Parenthesised word operators keep working when no symbol is present.
     expect(parser.parse('(faith AND works)', adv).boolean).toEqual({ operator: 'AND', left: 'faith', right: 'works' });
   });
 
-  it('"love -hate" in normal mode is unchanged by the option being absent', () => {
-    expect(parser.parse('love -hate').terms).toEqual(['love', '-hate']);
+  it('"love -hate" excludes in normal mode too (D6)', () => {
+    expect(parser.parse('love -hate').boolean).toEqual({ operator: 'NOT', left: 'love', right: 'hate' });
   });
 
   it('a "!" inside or at the end of a word is part of the word', () => {

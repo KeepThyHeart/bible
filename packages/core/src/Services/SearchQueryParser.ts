@@ -168,6 +168,18 @@ export class SearchQueryParser {
       };
     }
 
+    // `+word` / `-word` (and `-"a phrase"`): required and excluded terms, as the
+    // Advanced Search hint documents. Without this the sign was quoted away
+    // ("-hate" searched for `hate`), so an exclusion behaved like an inclusion.
+    const signed = this.parseSignedTerms(trimmedQuery);
+    if (signed) {
+      return {
+        originalQuery: trimmedQuery,
+        searchType: 'boolean',
+        boolean: signed,
+      };
+    }
+
     // Check if entire query is a single phrase (enclosed in quotes)
     const singlePhraseMatch = trimmedQuery.match(/^"(.+)"$/);
     if (singlePhraseMatch) {
@@ -250,6 +262,35 @@ export class SearchQueryParser {
           `"${parsed.searchType}" search has no KeywordQuery equivalent - it is not a single full-text query`
         );
     }
+  }
+
+  /**
+   * Parse a query with `-word` exclusions (and optional `+word` requirements)
+   * into `((required terms) NOT excluded) NOT ...`, or null when it has no
+   * exclusion or nothing positive to exclude from. A sign only counts at the
+   * start of a token outside quotes and when something follows it, so
+   * hyphenated words ("well-beloved") and a lone "-" are untouched.
+   */
+  private parseSignedTerms(query: string): BooleanExpression | null {
+    const tokens = query.match(/[+-]?"[^"]*"|\S+/g) ?? [];
+    const positives: string[] = [];
+    const excluded: string[] = [];
+    for (const token of tokens) {
+      const sign = token[0];
+      const body = token.slice(1);
+      if ((sign === '-' || sign === '+') && body.length > 0 && body !== '"') {
+        (sign === '-' ? excluded : positives).push(body);
+      } else {
+        positives.push(token);
+      }
+    }
+    if (excluded.length === 0 || positives.length === 0) return null;
+
+    let expr: BooleanExpression | string = positives.join(' ');
+    for (const term of excluded) {
+      expr = { operator: 'NOT', left: expr, right: term };
+    }
+    return expr as BooleanExpression;
   }
 
   /**
