@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { stripOsisTags } from '../core.js';
 import type { DatabaseManager } from '../DatabaseManager.js';
-import { validateBookNumber, validateChapter } from '../utils/validation.js';
+import { validateModuleName, validateBookNumber, validateChapter } from '../utils/validation.js';
 import { sendError, ErrorCodes } from '../utils/errorResponse.js';
 import { registerRoute } from './routeRegistry.js';
 import type { SiteSettings } from '../siteSettings.js';
@@ -34,8 +34,12 @@ export function createInterlinearRoutes(db: DatabaseManager, siteSettings: SiteS
       // otherwise whichever tagged Bible is, rather than assuming KJV exists.
       // A Bible the site has switched off is treated as unknown when named. The
       // default is the server's own choice of tagged Bible and is not filtered.
-      const named = typeof req.query.module === 'string' && req.query.module ? req.query.module : null;
-      const moduleName = named ?? db.getDefaultInterlinearBibleAbbreviation('KJV');
+      const rawNamed = typeof req.query.module === 'string' && req.query.module ? req.query.module : null;
+      // W-013: a malformed name is never looked up nor echoed (it can be ~16 KB
+      // with newlines); it is just an unresolvable module.
+      const named = rawNamed !== null ? validateModuleName(rawNamed) : null;
+      const malformed = rawNamed !== null && named === null;
+      const moduleName = malformed ? null : (named ?? db.getDefaultInterlinearBibleAbbreviation('KJV'));
       const hidden = named !== null && !isNamedModuleVisible(siteSettings, 'bibles', named);
       const repo = moduleName && !hidden ? db.getBibleRepo(moduleName) : null;
 
@@ -45,7 +49,9 @@ export function createInterlinearRoutes(db: DatabaseManager, siteSettings: SiteS
       // none. Logged because an empty response is otherwise indistinguishable
       // from "this translation has no interlinear data".
       if (!repo) {
-        logger.warn(moduleName
+        logger.warn(malformed
+          ? 'Interlinear requested with a malformed module name; returning no words'
+          : moduleName
           ? `Interlinear requested for unknown Bible module "${moduleName}"; returning no words`
           : 'Interlinear requested with no module named and no Strong\'s-tagged Bible installed; returning no words');
         res.json({ words: [], strongsEntries: {} });

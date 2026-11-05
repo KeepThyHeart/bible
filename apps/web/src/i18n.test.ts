@@ -11,6 +11,12 @@ import i18n, {
   setModuleNamespaceLoadersForTests,
 } from './i18n';
 
+// W-047: make the reference-data load instant so the catalog load is the only slow part.
+vi.mock('@bible/core/browser', async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  loadReferenceLocales: async () => undefined,
+}));
+
 /**
  * `syncDocumentLang()` used to compare the exact language tag against a
  * hard-coded RTL list (`['ar', 'he', 'fa', 'ur']`), so a region variant like
@@ -146,6 +152,18 @@ describe('ensureLocaleLoaded', () => {
     await expect(
       Promise.all([ensureLocaleLoaded('en'), ensureLocaleLoaded('en')]),
     ).resolves.toBeDefined();
+  });
+});
+
+describe('ensureLocaleLoaded race (W-047)', () => {
+  it('a second caller waits for the in-flight load instead of returning early', async () => {
+    // Mirrors boot: i18n.ts fires a `void ensureLocaleLoaded(lng)` at import time,
+    // then bootShell awaits its own call before the first render.
+    void ensureLocaleLoaded('he-IL');
+    await ensureLocaleLoaded('he-IL');
+    // Without the fix the second call resolved while the catalogs were still loading.
+    expect(i18n.getResourceBundle('he-IL', 'ui')).toBeTruthy();
+    expect(i18n.getResourceBundle('he-IL', 'books')).toBeTruthy();
   });
 });
 

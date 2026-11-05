@@ -59,4 +59,51 @@ describe('RemoteConsentDialog', () => {
     fireEvent.click(await screen.findByTestId('remote-consent-decline'));
     await expect(answer).resolves.toBe('declined');
   });
+  // W-029 / W-036
+  describe('keyboard and backdrop behaviour', () => {
+    it('focuses "Not now" first, not the consenting button', async () => {
+      render(<RemoteConsentDialog />);
+      act(() => { void remoteConsentStore.request(); });
+      const decline = await screen.findByTestId('remote-consent-decline');
+      await vi.waitFor(() => expect(document.activeElement).toBe(decline));
+      act(() => { remoteConsentStore.decline(); });
+    });
+
+    it('traps Tab inside the dialog', async () => {
+      render(<RemoteConsentDialog />);
+      act(() => { void remoteConsentStore.request(); });
+      const decline = await screen.findByTestId('remote-consent-decline');
+      const agree = screen.getByTestId('remote-consent-agree');
+      await vi.waitFor(() => expect(document.activeElement).toBe(decline));
+      // Last control + Tab wraps to the first instead of leaving the dialog.
+      agree.focus();
+      fireEvent.keyDown(agree, { key: 'Tab' });
+      expect(document.activeElement).toBe(decline);
+      fireEvent.keyDown(decline, { key: 'Tab', shiftKey: true });
+      expect(document.activeElement).toBe(agree);
+      act(() => { remoteConsentStore.decline(); });
+    });
+
+    it('a backdrop click means Not now; a click inside the dialog does not', async () => {
+      render(<RemoteConsentDialog />);
+      let answer!: Promise<string>;
+      act(() => { answer = remoteConsentStore.request(); });
+      const dlg = await screen.findByTestId('remote-consent-dialog');
+      fireEvent.click(dlg);
+      expect(remoteConsentStore.status).not.toBe('declined');
+      fireEvent.click(dlg.parentElement as HTMLElement);
+      await expect(answer).resolves.toBe('declined');
+    });
+
+    it('gives focus back to the opener on close', async () => {
+      const opener = document.createElement('button');
+      document.body.appendChild(opener);
+      opener.focus();
+      render(<RemoteConsentDialog />);
+      act(() => { void remoteConsentStore.request(); });
+      fireEvent.click(await screen.findByTestId('remote-consent-decline'));
+      await vi.waitFor(() => expect(document.activeElement).toBe(opener));
+      opener.remove();
+    });
+  });
 });

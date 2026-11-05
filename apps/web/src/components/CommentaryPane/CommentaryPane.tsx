@@ -6,7 +6,7 @@ import { CommentaryTabBar } from './CommentaryTabBar';
 import { CommentaryContent } from './CommentaryContent';
 import { commentaryStore, HOME_TAB_ID } from '../../stores/commentaryStore';
 import { bibleStore } from '../../stores/bibleStore';
-import { moduleStore } from '../../stores/moduleStore';
+import { getLocalizedBookName } from '../../utils/bookNames';
 import { useStore } from '../../hooks/useStore';
 import { formatPassageRef, MAX_CHAPTERS } from '../../constants';
 import { parseVerseId } from '../../utils/verseId';
@@ -90,7 +90,7 @@ export function CommentaryPane({ bibleProvider, onOpenSettings, hideTabBar }: Co
   if (effectiveBook && effectiveChapter) {
     const displayVerse = pinned ? pinnedVerse : studyVerse;
     const verse = displayVerse ? displayVerse % 1000 : null;
-    passageLabel = formatPassageRef(effectiveBook, effectiveChapter, verse, moduleStore.getBookName(effectiveBook));
+    passageLabel = formatPassageRef(effectiveBook, effectiveChapter, verse, getLocalizedBookName(effectiveBook));
   }
 
   const displayVerse = pinned ? pinnedVerse : studyVerse;

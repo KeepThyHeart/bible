@@ -421,10 +421,19 @@ export class DatabaseManager {
     return this.getCommentaryLoader().get(resolved);
   }
 
-  getDictionaryRepo(name: string): DictionaryRepositoryT | null {
-    if (this.dictionaryRepos.has(name)) {
-      return this.dictionaryRepos.get(name)!;
+  getDictionaryRepo(requestedName: string): DictionaryRepositoryT | null {
+    // W-004: the caches were keyed by the name exactly as requested, so every
+    // casing of one dictionary ("sTrongsgreek", "stRongsgreek", ...) opened its
+    // own never-closed SQLite connection. One canonical (lowercase) key per
+    // dictionary, whatever the casing; names that could not be a module
+    // abbreviation never reach the filesystem.
+    if (!/^[A-Za-z0-9_-]{1,100}$/.test(requestedName)) return null;
+    const key = requestedName.toLowerCase();
+    if (this.dictionaryRepos.has(key)) {
+      return this.dictionaryRepos.get(key)!;
     }
+    // Prefer the canonical abbreviation's spelling when the metadata knows it.
+    const name = this.resolveAbbreviation(requestedName);
 
     // The API advertises mixed-case abbreviations ("AmTract", "ISBE") but the
     // module files on disk are lowercase, so the obvious path only resolves on
@@ -456,8 +465,8 @@ export class DatabaseManager {
         db.close();
         return null;
       }
-      this.dictionaryDbs.set(name, db);
-      this.dictionaryRepos.set(name, repo);
+      this.dictionaryDbs.set(key, db);
+      this.dictionaryRepos.set(key, repo);
       return repo;
     } catch (err) {
       console.debug(`Failed to open dictionary module ${name}:`, err);
@@ -469,7 +478,7 @@ export class DatabaseManager {
   getDictionaryDb(name: string): SqliteProvider | null {
     // Ensure the repo (and db) are loaded
     this.getDictionaryRepo(name);
-    return this.dictionaryDbs.get(name) ?? null;
+    return this.dictionaryDbs.get(name.toLowerCase()) ?? null;
   }
 
   /** Get all dictionary repos (loads them lazily) */

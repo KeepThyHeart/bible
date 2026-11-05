@@ -20,6 +20,19 @@ import type { StrongsEntryData } from '../types';
  * "Shared" means shared across different app entry points/layouts, not
  * shared with other packages.
  */
+/**
+ * W-031: on the phone a Back press fires `popstate` (MobileApp steps its own stack: goBack, close a
+ * panel, ...) and, when the URL hash differs, `hashchange` right behind it. Handling both made the
+ * hash handler re-navigate to the hash of the entry Back landed on, overwriting the step the popstate
+ * handler had just taken (John 6,5,5 then out, 4 and 3 unreachable). MobileApp calls this at the top
+ * of its popstate handler so the hashchange of that same press is skipped. Cleared by a timer, as a
+ * pop to an entry with the same hash raises no hashchange to consume it.
+ */
+let mobileBackPressUntil = 0;
+export function noteMobileBackPress(): void {
+  mobileBackPressUntil = Date.now() + 300;
+}
+
 export function useAppShared(providers: IDataProviders) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsSection, setSettingsSection] = useState<string | undefined>(undefined);
@@ -208,6 +221,7 @@ export function useAppShared(providers: IDataProviders) {
     const handleHashChange = () => {
       // `#/@app` hashes (and any hash while another app is active) are the host's.
       if (!studyOwnsHash() || /^#\/@/.test(window.location.hash)) return;
+      if (Date.now() < mobileBackPressUntil) { mobileBackPressUntil = 0; return; }
       bibleStore.navigateFromHash(window.location.hash);
     };
     window.addEventListener('hashchange', handleHashChange);

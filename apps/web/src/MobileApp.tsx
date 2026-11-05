@@ -35,7 +35,7 @@ import { MAX_CHAPTERS } from './constants';
 import { settingsStore, pxToRem } from './stores/settingsStore';
 import { useStore } from './hooks/useStore';
 import { studyShouldIgnoreBack } from './host/appHost';
-import { useAppShared } from './hooks/useAppShared';
+import { useAppShared, noteMobileBackPress } from './hooks/useAppShared';
 import { useContextMenu } from './hooks/useContextMenu';
 import type { IDataProviders } from './providers/interfaces';
 
@@ -190,56 +190,62 @@ export function MobileApp({ providers }: MobileAppProps) {
       // Back out of any other app (it returns to Study, or is that app's own step): the hidden
       // Study must not also take one. (Its dummy entry is still in place.)
       if (studyShouldIgnoreBack()) return;
+      // W-031: this press is handled here; the hashchange it also raises must not navigate again.
+      noteMobileBackPress();
+      // The entry Back landed on, read before `stayInApp` rewrites the URL.
+      const landedHash = window.location.hash;
 
       // Whether this press was handled inside the app. If so the dummy entry is
       // re-pushed so the next Back stays in-app; on Home with nowhere to go it is
       // not, so the next Back leaves the app (B-100).
-      const stayInApp = () => window.history.pushState({ mobileBack: true }, '');
+      // The new dummy entry's URL is then put back to the reader's actual location (the popped-to
+      // entry's hash may differ, and the hashchange handler does not re-sync it) (W-031).
+      const stayInApp = () => {
+        window.history.pushState({ mobileBack: true }, '');
+        bibleStore.updateHash();
+      };
+      // The overlays and views a press closes first; each keeps the reader where they are.
+      const closeLayer = (): boolean => {
+        // Priority 0: a full-screen layer a module put over the phone layout (for example a media
+        // player; playback continues). A handler consumes the press by returning true.
+        for (const handler of phoneBackHandlers.list()) {
+          if (handler()) return true;
+        }
+        // Then a Study mode's sheet (the family tree; it sits beneath such a layer)
+        if (studyStore.studyMode) { studyStore.closeStudyMode(); return true; }
+        // Priority 1: Close topics browser overlay
+        if (studyStore.topicsBrowserOpen) { studyStore.closeTopicsBrowser(); return true; }
+        // Priority 2: Commentary detail → back to commentary list
+        if (mobileView === 'commentary' && commentaryStore.mobileSelectedCommentary) {
+          commentaryStore.setMobileSelectedCommentary(null);
+          return true;
+        }
+        // Priority 3: Non-bible view → back to bible
+        if (mobileView === 'search' || phoneViews.has(mobileView)) { switchMobileView('bible'); return true; }
+        // Priority 3b: just opened from a search result: back to the results (B-182)
+        if (mobileView === 'bible' && searchReturnRef.current.take(bibleStore.getActiveTab(), searchStore.isOpen)) {
+          switchMobileView('search');
+          return true;
+        }
+        return false;
+      };
+      if (closeLayer()) { stayInApp(); return; }
+
+      // Priority 4 (W-031): Back landed on a real reader entry for another passage -- a chapter
+      // step pushes one browser entry per chapter while the tab's own history only replaces --
+      // so follow the browser there (desktop does the same). No dummy is pushed: the landed
+      // entry is a real step, and the ones below it stay reachable by further presses.
+      if (mobileView === 'bible' && bibleStore.followBrowserBack(landedHash)) return;
+
       if (!(mobileView === 'home' && !bibleStore.canGoBack())) stayInApp();
 
-      // Priority 0: a full-screen layer a module put over the phone layout (for example a media
-      // player; playback continues). A handler consumes the press by returning true.
-      for (const handler of phoneBackHandlers.list()) {
-        if (handler()) return;
-      }
-
-      // Then a Study mode's sheet (the family tree; it sits beneath such a layer)
-      if (studyStore.studyMode) {
-        studyStore.closeStudyMode();
-        return;
-      }
-
-      // Priority 1: Close topics browser overlay
-      if (studyStore.topicsBrowserOpen) {
-        studyStore.closeTopicsBrowser();
-        return;
-      }
-
-      // Priority 2: Commentary detail → back to commentary list
-      if (mobileView === 'commentary' && commentaryStore.mobileSelectedCommentary) {
-        commentaryStore.setMobileSelectedCommentary(null);
-        return;
-      }
-
-      // Priority 3: Non-bible view → back to bible
-      if (mobileView === 'search' || phoneViews.has(mobileView)) {
-        switchMobileView('bible');
-        return;
-      }
-
-      // Priority 3b: just opened from a search result: back to the results (B-182)
-      if (mobileView === 'bible' && searchReturnRef.current.take(bibleStore.getActiveTab(), searchStore.isOpen)) {
-        switchMobileView('search');
-        return;
-      }
-
-      // Priority 4: Bible has navigation history → go back
+      // Priority 5: Bible has navigation history → go back
       if (mobileView === 'bible' && bibleStore.canGoBack()) {
         bibleStore.goBack();
         return;
       }
 
-      // Priority 5: Bible with no history → go home
+      // Priority 6: Bible with no history → go home
       if (mobileView === 'bible') {
         switchMobileView('home');
         return;

@@ -41,6 +41,17 @@ export function StudySection({ id, label, subtitle, defaultExpanded = false, chi
       <div
         class={`study-pane__section-label${expanded ? ' study-pane__section-label--sticky' : ''}`}
         onClick={toggle}
+        // W-065: a real keyboard/screen-reader control, not a click-only div.
+        role="button"
+        tabIndex={0}
+        aria-expanded={expanded}
+        aria-controls={`study-section-body-${id}`}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            toggle();
+          }
+        }}
       >
         <i class={`fa-solid ${expanded ? 'fa-chevron-down' : 'fa-chevron-right kth-rtl-mirror'} study-pane__section-chevron`} />
         <span class="study-pane__section-titles">
@@ -49,7 +60,7 @@ export function StudySection({ id, label, subtitle, defaultExpanded = false, chi
         </span>
       </div>
       {expanded && (
-        <div class="study-pane__section-body">
+        <div class="study-pane__section-body" id={`study-section-body-${id}`}>
           {children}
         </div>
       )}

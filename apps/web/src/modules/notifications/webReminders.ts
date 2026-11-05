@@ -195,6 +195,18 @@ export function createWebReminderHost(opts: WebReminderHostOptions = {}): WebRem
           }),
         );
         removeListeners = install();
+        // W-049: a source's label/description are read into the published state when it is built, which
+        // can be before this language's catalog arrives (or before a language switch); republish when
+        // either happens, or the Reminders list keeps the English strings.
+        const onLocale = (): void => publish();
+        i18n.on?.('languageChanged', onLocale);
+        i18n.on?.('added', onLocale);
+        const removeInstall = removeListeners;
+        removeListeners = () => {
+          removeInstall();
+          i18n.off?.('languageChanged', onLocale);
+          i18n.off?.('added', onLocale);
+        };
         const begin = async (): Promise<void> => {
           leader = true;
           await scheduler.start();

@@ -91,6 +91,12 @@ class SearchStore extends Store {
    * Enter in the search box looks like it did nothing.
    */
   searchSeq = 0;
+  /**
+   * W-035: the server's own validation message when it rejected the query (400, e.g.
+   * "Unmatched quote in search query"). Safe text, rendered as text only. Empty for
+   * everything else, so a real network failure keeps the ordinary empty-result state.
+   */
+  searchError = '';
   /** Bumped by every keyword/semantic run and by `setSearchType` to abandon in-flight ones. */
   private runId = 0;
   /** Verse ID detected from a reference in the search query (shown first in results) */
@@ -248,6 +254,7 @@ class SearchStore extends Store {
 
     this.query = query;
     this.searchType = type ?? this.searchType;
+    this.searchError = '';
     this.searchSeq++;
     // Identifies this run, so a search the reader has since abandoned (by
     // switching to Ideas mode, see `setSearchType`) cannot land its results.
@@ -325,7 +332,10 @@ class SearchStore extends Store {
       this.notify();
     } catch (error) {
       if (runId !== this.runId) return;
-      console.error('Search failed:', error);
+      const vm = (error as { validationMessage?: unknown } | null)?.validationMessage;
+      // A rejected query (unbalanced quote...) is the user's input, shown in the panel, not an app error.
+      if (typeof vm !== 'string') console.error('Search failed:', error);
+      this.searchError = typeof vm === 'string' ? vm : '';
       this.results = [];
       this.totalResults = 0;
       this.loading = false;
@@ -344,6 +354,9 @@ class SearchStore extends Store {
 
     this.query = displayNum;
     this.searchSeq++;
+    // W-021: also abandons an in-flight keyword/semantic run, which checks runId only.
+    this.runId++;
+    this.searchError = '';
     this.loading = true;
     this.results = [];
     this.totalResults = 0;
@@ -383,8 +396,10 @@ class SearchStore extends Store {
       this.loading = false;
       this.notify();
     } catch (error) {
-      console.error('Strong\'s search failed:', error);
       if (seq !== this.searchSeq) return;
+      const vm = (error as { validationMessage?: unknown } | null)?.validationMessage;
+      if (typeof vm !== 'string') console.error('Strong\'s search failed:', error);
+      this.searchError = typeof vm === 'string' ? vm : '';
       this.results = [];
       this.totalResults = 0;
       this.loading = false;
@@ -596,12 +611,16 @@ class SearchStore extends Store {
     this.loadingMore = true;
     this.notify();
 
+    // W-022: a new query while this page loads must not be overwritten by it.
+    const seq = this.searchSeq;
+    const runId = this.runId;
     try {
       this.semanticPageSize += 20;
       const resultSet = await this.search.semanticSearch(this.query, {
         pageSize: this.semanticPageSize,
         modules: this.lastSemanticModules,
       });
+      if (seq !== this.searchSeq || runId !== this.runId) return;
 
       this.results = resultSet.results;
       this.totalResults = resultSet.total;
@@ -612,6 +631,7 @@ class SearchStore extends Store {
       this.notify();
     } catch (error) {
       console.error('Load more failed:', error);
+      if (seq !== this.searchSeq || runId !== this.runId) return;
       this.loadingMore = false;
       this.canLoadMore = false;
       this.notify();
@@ -688,6 +708,7 @@ class SearchStore extends Store {
   /** Drop the query and every result, leaving `isOpen` as it was. */
   private resetResults(): void {
     this.query = '';
+    this.searchError = '';
     this.results = [];
     this.semanticMeta = undefined;
     this.totalResults = 0;

@@ -50,6 +50,10 @@
     align-items: center;
     flex: 1;
     max-width: 560px;
+    // W-060: allowed to shrink below its content's width (the field's intrinsic size), so the
+    // header fits a phone held landscape (800-900px, desktop layout) instead of pushing the
+    // action buttons past the edge and the whole page sideways.
+    min-width: 0;
     background: var(--bg-primary);
     border: 1px solid var(--border-color);
     border-radius: 8px;

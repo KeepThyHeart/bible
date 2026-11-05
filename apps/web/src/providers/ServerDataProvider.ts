@@ -52,6 +52,7 @@ import type {
 
 import { connectionStore, CONNECTION_ERROR_NETWORK } from '../stores/connectionStore';
 import { navigateToLoginOnce, showBootError } from '../utils/bootGuard';
+import { withValidationMessage } from '../utils/validationError';
 
 // Module-level flag prevents multiple concurrent 401 responses from each
 // triggering a redirect. Once one 401 starts the redirect flow, all others
@@ -93,7 +94,7 @@ async function fetchJson<T>(url: string): Promise<T> {
       if (res.status === 401 || res.status === 403 || (res.status === 200 && body.includes('<form') && body.includes('login'))) {
         return handleAuthFailure();
       }
-      throw new Error(`API error ${res.status}: ${body}`);
+      throw withValidationMessage(new Error(`API error ${res.status}: ${body}`), res.status, body);
     }
     connectionStore.clearNetworkError();
     return res.json();

@@ -161,6 +161,7 @@
     "resultsFrom": "نتائج من {modules}"
   },
   "contextMenu": {
+    "label": "إجراءات الآية",
     "copyPassage": "نسخ المقطع...",
     "crossReferences": "الشواهد المرجعية",
     "topics": "المواضيع",

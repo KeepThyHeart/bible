@@ -304,13 +304,14 @@ describe('BiblePane', () => {
     // computed scroll target 0 and indistinguishable from "never scrolled".
     let rectSpy: ReturnType<typeof vi.spyOn> | undefined;
     const CONTAINER_HEIGHT = 400;
+    let verseTop = 500;
 
     beforeEach(() => {
       rectSpy = vi.spyOn(Element.prototype, 'getBoundingClientRect')
         .mockImplementation(function (this: Element) {
           const isVerse = this.hasAttribute('data-verse-id');
           return {
-            top: isVerse ? 500 : 0,
+            top: isVerse ? verseTop : 0,
             height: isVerse ? 20 : CONTAINER_HEIGHT,
             bottom: 0, left: 0, right: 0, width: 0, x: 0, y: 0,
             toJSON: () => ({}),
@@ -323,6 +324,7 @@ describe('BiblePane', () => {
     });
 
     afterEach(() => {
+      verseTop = 500;
       rectSpy?.mockRestore();
       delete (HTMLElement.prototype as unknown as Record<string, unknown>).clientHeight;
     });
@@ -380,6 +382,17 @@ describe('BiblePane', () => {
       expect(container.querySelector(`[data-verse-id="${JOHN_3_16}"]`)).toBeTruthy();
       expect(mockClearPendingScrollVerse).toHaveBeenCalledWith(JOHN_3_16);
       expect(mockActiveTab?.pendingScrollVerse).toBeNull();
+    });
+
+    // W-061: on the phone the scroll element also holds the header; centring a verse that was
+    // already in view at the top of the page scrolled the header partly off screen.
+    it('leaves the page at the top when the pending verse is already wholly in view', async () => {
+      verseTop = 100;
+      mockActiveTab = makeTab({ verses: makeVerses(), pendingScrollVerse: JOHN_3_16 });
+      const { container } = render(<BiblePane />);
+
+      await waitFor(() => expect(mockClearPendingScrollVerse).toHaveBeenCalledWith(JOHN_3_16));
+      expect(scrollTopOf(container)).toBe(0);
     });
 
     it('drops a token for a verse the loaded chapter does not contain', async () => {

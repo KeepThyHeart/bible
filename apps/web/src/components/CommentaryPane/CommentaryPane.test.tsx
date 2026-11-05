@@ -130,6 +130,13 @@ vi.mock('../../stores/bibleStore', () => ({
   },
 }));
 
+// W-050: the header must use the UI-localized book name (same formatter as the Bible pane), not the
+// Bible module's own (English) book_name that moduleStore.getBookName prefers.
+let mockLocalizedBook = 'John';
+vi.mock('../../utils/bookNames', () => ({
+  getLocalizedBookName: (n: number) => (n === 43 ? mockLocalizedBook : `Book${n}`),
+}));
+
 vi.mock('../../stores/moduleStore', () => ({
   moduleStore: {
     getBookName: (n: number) => n === 43 ? 'John' : `Book${n}`,
@@ -233,6 +240,18 @@ describe('CommentaryPane', () => {
     const { container } = render(<CommentaryPane />);
     // formatPassageRef is mocked — passage will contain "John" and chapter "3"
     expect(container.querySelector('.commentary-passage-header__label')?.textContent).toContain('John');
+  });
+
+  it('W-050: the passage header uses the localized book name, not the module\'s English one', () => {
+    mockLocalizedBook = 'יוחנן';
+    try {
+      const { container } = render(<CommentaryPane />);
+      const label = container.querySelector('.commentary-passage-header__label')?.textContent ?? '';
+      expect(label).toContain('יוחנן');
+      expect(label).not.toContain('John');
+    } finally {
+      mockLocalizedBook = 'John';
+    }
   });
 
   it('shows "no passage selected" when synced book/chapter are null', () => {

@@ -5,7 +5,7 @@
  * re-exports everything here for existing importers.
  */
 import { getAllBookNames, getLocalizedBookName } from './bookNames';
-import { localizedBookAliases } from '../constants';
+import { localizedBookAliases, MAX_CHAPTERS, isSingleChapterBook } from '../constants';
 import type { Localizer } from '@bible/core/browser';
 
 /**
@@ -62,6 +62,9 @@ export const BOOK_ABBREV_MAP: Record<string, number> = {
   '1jo': 62, '1john': 62, '1 john': 62, 'i john': 62,
   '2jo': 63, '2john': 63, '2 john': 63, 'ii john': 63,
   '3jo': 64, '3john': 64, '3 john': 64, 'iii john': 64,
+  // "1 Jn" style (W-023: used to work only through the loose fuzzy matcher)
+  '1jn': 62, '1 jn': 62, '1 jo': 62, '2jn': 63, '2 jn': 63, '2 jo': 63, '3jn': 64, '3 jn': 64, '3 jo': 64,
+  'song': 22, 'sos': 22,
 };
 
 /**
@@ -76,6 +79,33 @@ export const BOOK_ABBREV_MAP: Record<string, number> = {
  */
 export function headerBookAliases(localizer: Localizer): Record<string, number> {
   return { ...BOOK_ABBREV_MAP, ...localizedBookAliases(localizer) };
+}
+
+
+type RefTail = { chapter: number; verse?: number; endVerse?: number };
+
+/**
+ * Parse the part after the book name: "3", "3:16", "3:16-18". For a single-chapter book
+ * (Obadiah, Philemon, 2/3 John, Jude) "Jude 5" means verse 5 of chapter 1 and "Jude 5-7" is a
+ * verse range (W-032) -- a bare "N" is never a chapter there. A bare range in any other book
+ * ("John 3-5") is not a reference.
+ */
+function parseTail(rest: string, book: number): RefTail | null {
+  const m = rest.match(/^(\d+)(?:\s*[-–—]\s*(\d+))?(?::(\d+)(?:\s*[-–—]\s*(\d+))?)?$/);
+  if (!m) return null;
+  let chapter = parseInt(m[1], 10);
+  let verse = m[3] ? parseInt(m[3], 10) : undefined;
+  let endVerse = m[4] ? parseInt(m[4], 10) : undefined;
+  if (m[2] && m[3]) return null; // "3-5:2" is not a form we accept
+  if (m[2]) {
+    if (!isSingleChapterBook(book)) return null;
+    endVerse = parseInt(m[2], 10);
+  }
+  if (isSingleChapterBook(book) && verse === undefined) {
+    verse = chapter;
+    chapter = 1;
+  }
+  return { chapter, verse, endVerse };
 }
 
 /**
@@ -133,8 +163,9 @@ function fuzzyMatchReference(input: string, bookAliases: Record<string, number>)
   // caller's range-aware pattern ever sees it.
   if (!/^\d+(?::\d+(?:\s*[-–—]\s*\d+)?)?$/.test(rest)) return null;
 
-  // Skip very short book parts — too ambiguous for fuzzy matching
-  if (bookPart.length <= 2) return null;
+  // Skip very short book parts — too ambiguous for fuzzy matching. 4+ letters only (W-023:
+  // 3-letter words like "law" matched Lamentations).
+  if (bookPart.length <= 3) return null;
 
   let bestCandidate: { name: string; bookNum: number } | null = null;
   let bestDistance = Infinity;
@@ -145,7 +176,10 @@ function fuzzyMatchReference(input: string, bookAliases: Record<string, number>)
     if (cand.name.length <= 2) continue;
 
     const distance = damerauLevenshtein(bookPart, cand.name);
-    const maxDistance = Math.min(2, Math.floor(bookPart.length / 2));
+    // W-023: one typo below 6 letters ("song 2" was 2 edits from Jonah, "love 1" from Leviticus),
+    // two from 6 up, and the first letter must be right -- typos rarely hit the first letter.
+    if (cand.name[0] !== bookPart[0]) continue;
+    const maxDistance = bookPart.length >= 6 ? 2 : 1;
     if (distance > maxDistance || distance === 0) continue; // distance 0 = exact match, already handled
 
     // Tiebreakers: character overlap, then length similarity
@@ -177,7 +211,26 @@ function fuzzyMatchReference(input: string, bookAliases: Record<string, number>)
   return null;
 }
 
-export function parseReference(input: string, bookAliases: Record<string, number> = BOOK_ABBREV_MAP): { book: number; chapter: number; verse?: number; endVerse?: number; fuzzyMatch?: boolean; correctedBookName?: string } | null {
+export type ParsedReference = { book: number; chapter: number; verse?: number; endVerse?: number; fuzzyMatch?: boolean; correctedBookName?: string };
+
+/**
+ * A parse result is only a reference when the book is 1-66 and the chapter exists in it
+ * (W-023: "John 99", "law 10" and "99 1" used to be returned and navigated to). Anything else
+ * returns null so the Header falls through to a search. Verses are not checked: "Gen 1:99"
+ * clamps to the last verse downstream.
+ */
+function validRef(r: ParsedReference): ParsedReference | null {
+  const max = MAX_CHAPTERS[r.book];
+  if (!max || r.chapter < 1 || r.chapter > max) return null;
+  return r;
+}
+
+export function parseReference(input: string, bookAliases: Record<string, number> = BOOK_ABBREV_MAP): ParsedReference | null {
+  const r = parseReferenceRaw(input, bookAliases);
+  return r ? validRef(r) : null;
+}
+
+function parseReferenceRaw(input: string, bookAliases: Record<string, number>): ParsedReference | null {
   const trimmed = input.trim();
   if (!trimmed) return null;
 
@@ -194,15 +247,8 @@ export function parseReference(input: string, bookAliases: Record<string, number
     for (const abbr of abbrevs) {
       if (lowerInput.startsWith(abbr)) {
         const rest = trimmed.substring(abbr.length).trim();
-        const match = rest.match(/^(\d+)(?::(\d+)(?:\s*[-–—]\s*(\d+))?)?$/);
-        if (match) {
-          return {
-            book: bookNum,
-            chapter: parseInt(match[1], 10),
-            verse: match[2] ? parseInt(match[2], 10) : undefined,
-            endVerse: match[3] ? parseInt(match[3], 10) : undefined,
-          };
-        }
+        const tail = parseTail(rest, bookNum);
+        if (tail) return { book: bookNum, ...tail };
         if (!rest) return { book: bookNum, chapter: 1 };
       }
     }
@@ -216,15 +262,8 @@ export function parseReference(input: string, bookAliases: Record<string, number
   for (const abbr of sortedAbbrevs) {
     if (lowerInput.startsWith(abbr)) {
       const rest = trimmed.substring(abbr.length).trim();
-      const match = rest.match(/^(\d+)(?::(\d+)(?:\s*[-–—]\s*(\d+))?)?$/);
-      if (match) {
-        return {
-          book: bookAliases[abbr],
-          chapter: parseInt(match[1], 10),
-          verse: match[2] ? parseInt(match[2], 10) : undefined,
-          endVerse: match[3] ? parseInt(match[3], 10) : undefined,
-        };
-      }
+      const t = parseTail(rest, bookAliases[abbr]);
+      if (t) return { book: bookAliases[abbr], ...t };
       if (!rest) return { book: bookAliases[abbr], chapter: 1 };
     }
   }
@@ -232,17 +271,9 @@ export function parseReference(input: string, bookAliases: Record<string, number
   // Try fuzzy matching as a fallback for typos like "jonh 3:16"
   const fuzzy = fuzzyMatchReference(trimmed, bookAliases);
   if (fuzzy) {
-    const match = fuzzy.rest.match(/^(\d+)(?::(\d+)(?:\s*[-–—]\s*(\d+))?)?$/);
-    if (match) {
-      const correctedName = getLocalizedBookName(fuzzy.book);
-      return {
-        book: fuzzy.book,
-        chapter: parseInt(match[1], 10),
-        verse: match[2] ? parseInt(match[2], 10) : undefined,
-        endVerse: match[3] ? parseInt(match[3], 10) : undefined,
-        fuzzyMatch: true,
-        correctedBookName: correctedName,
-      };
+    const t = parseTail(fuzzy.rest, fuzzy.book);
+    if (t) {
+      return { book: fuzzy.book, ...t, fuzzyMatch: true, correctedBookName: getLocalizedBookName(fuzzy.book) };
     }
   }
 

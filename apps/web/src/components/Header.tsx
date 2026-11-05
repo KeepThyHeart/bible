@@ -8,6 +8,7 @@ import { useStore } from '../hooks/useStore';
 import { useLocalizer } from '../hooks/useLocalizer';
 import { useModalFocus } from '../hooks/useModalFocus';
 import { focusSearchField } from '../utils/focusSearchField';
+import { isMobileLayout } from '../utils/isMobileLayout';
 import { AppSwitchSlot } from '../host/AppSwitchSlot';
 import { PaneHeaderButtons } from '../host/PaneHeaderButtons';
 import { stripBidiControls } from '@bible/core/browser';
@@ -127,7 +128,9 @@ export function Header({ onSettingsClick, onHelpClick, onFeedbackClick, onLogoCl
       const activeModule = bibleStore.getActiveTab()?.moduleAbbr;
       const modules = activeModule ? [activeModule] : undefined;
       searchStore.performSearch(trimmed, undefined, modules);
-      inputRef.current?.blur();
+      // W-039: only the phone blurs (to put the keyboard away); on desktop the field keeps focus,
+      // so the query can be refined and Enter pressed again without reaching for the mouse.
+      if (isMobileLayout()) inputRef.current?.blur();
     }
   };
 

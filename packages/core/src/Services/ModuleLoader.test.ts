@@ -311,3 +311,38 @@ describe('ModuleLoader ensure()/get() (task 0034)', () => {
     expect(openSpy).toHaveBeenCalledTimes(1);
   });
 });
+
+/** W-005: the failure memo is keyed by caller input, so it must stay bounded. */
+describe('ModuleLoader failure memo is bounded (W-005)', () => {
+  const mk = () =>
+    new ModuleLoader<{ id: string }>({
+      moduleType: 'commentary',
+      metadataRepo: { getByAbbreviation: () => undefined } as unknown as IModuleMetadataRepository,
+      pathResolver: { resolveModulePath: (p: string) => p },
+      store: {
+        id: 'fake', extensions: ['.db'], canOpen: () => true,
+        open: (loc: ModuleLocator): IModuleConnection => ({ locator: loc, writable: false, close: () => {} }),
+      },
+      factory: { create: () => ({ id: 'repo' }) },
+      fileExists: () => false,
+      logger: { error: () => {} },
+    });
+  const size = (l: ModuleLoader<{ id: string }>) => (l as unknown as { failedAt: Map<string, number> }).failedAt.size;
+
+  afterEach(() => vi.useRealTimers());
+
+  it('caps the number of remembered failures', () => {
+    const loader = mk();
+    for (let i = 0; i < 2000; i++) loader.get(`missing-${i}`);
+    expect(size(loader)).toBeLessThanOrEqual(500);
+  });
+
+  it('sweeps expired entries when recording a new one', () => {
+    vi.useFakeTimers();
+    const loader = mk();
+    for (let i = 0; i < 50; i++) loader.get(`old-${i}`);
+    vi.advanceTimersByTime(60_000);
+    loader.get('fresh');
+    expect(size(loader)).toBe(1);
+  });
+});

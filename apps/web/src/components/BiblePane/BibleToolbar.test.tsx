@@ -76,6 +76,7 @@ vi.mock('../../hooks/useStore', () => ({
 const mockSetTabTranslation = vi.fn();
 const mockGoBack = vi.fn();
 const mockSetDisplayMode = vi.fn();
+const mockScrollToVerse = vi.fn();
 const mockNavigateTo = vi.fn();
 
 vi.mock('../../stores/bibleStore', () => ({
@@ -88,6 +89,7 @@ vi.mock('../../stores/bibleStore', () => ({
     setTabTranslation: (id: string, abbr: string) => mockSetTabTranslation(id, abbr),
     goBack: () => mockGoBack(),
     setDisplayMode: (id: string, mode: string) => mockSetDisplayMode(id, mode),
+    scrollToVerse: (id: number) => mockScrollToVerse(id),
     // Options are forwarded: the chapter buttons must mark their move as a
     // sequential page (replace) rather than a jump.
     navigateTo: (book: number, ch: number, verse?: number, options?: unknown) =>
@@ -291,6 +293,13 @@ describe('BibleToolbar', () => {
     const select = container.querySelector<HTMLSelectElement>('.bible-toolbar__mode-select')!;
     fireEvent.change(select, { target: { value: 'reading' } });
     expect(mockSetDisplayMode).toHaveBeenCalledWith('tab-1', 'reading');
+  });
+
+  it('scrolls the selected verse back into view after a mode switch (W-056)', () => {
+    mockActiveTab = makeTab({ studyVerse: 43003016 });
+    const { container } = render(<BibleToolbar />);
+    fireEvent.change(container.querySelector<HTMLSelectElement>('.bible-toolbar__mode-select')!, { target: { value: 'study' } });
+    expect(mockScrollToVerse).toHaveBeenCalledWith(43003016);
   });
 
   // ------------------------------------------------------------------

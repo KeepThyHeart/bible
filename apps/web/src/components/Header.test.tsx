@@ -256,6 +256,32 @@ describe('Header', () => {
     expect(mockPerformSearch).toHaveBeenCalledWith('love', undefined, expect.any(Array));
   });
 
+  // W-039: Enter in the header search used to blur the field everywhere.
+  it('keeps focus in the search field after a search on desktop', () => {
+    const { container } = render(<Header />, { container: document.body.appendChild(document.createElement('div')) });
+    const input = container.querySelector('.header__search-field') as HTMLInputElement;
+    input.focus();
+    fireEvent.input(input, { target: { value: 'love' } });
+    fireEvent.submit(container.querySelector('.header__search')!);
+    expect(mockPerformSearch).toHaveBeenCalled();
+    expect(document.activeElement).toBe(input);
+  });
+
+  it('blurs the search field after a search on the phone (hides the keyboard)', () => {
+    const width = window.innerWidth;
+    Object.defineProperty(window, 'innerWidth', { configurable: true, value: 375 });
+    try {
+      const { container } = render(<Header />, { container: document.body.appendChild(document.createElement('div')) });
+      const input = container.querySelector('.header__search-field') as HTMLInputElement;
+      input.focus();
+      fireEvent.input(input, { target: { value: 'love' } });
+      fireEvent.submit(container.querySelector('.header__search')!);
+      expect(document.activeElement).not.toBe(input);
+    } finally {
+      Object.defineProperty(window, 'innerWidth', { configurable: true, value: width });
+    }
+  });
+
   it('does not submit empty searches', () => {
     const { container } = render(<Header />);
     fireEvent.submit(container.querySelector('.header__search')!);

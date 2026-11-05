@@ -36,6 +36,7 @@ import { bibleStore } from '../../stores/bibleStore';
 import { moduleStore } from '../../stores/moduleStore';
 import { useStore } from '../../hooks/useStore';
 import { useEscapeKey } from '../../hooks/useEscapeKey';
+import { useModalFocus } from '../../hooks/useModalFocus';
 import { useLocalizer } from '../../hooks/useLocalizer';
 import { formatPassageRef, localizedBookAliases } from '../../constants';
 import { getAllBookNames } from '../../utils/bookNames';
@@ -356,6 +357,9 @@ export function CopyDialog({ isOpen, onClose }: CopyDialogProps) {
   const formatGroupName = useId();
 
   useEscapeKey(isOpen, onClose);
+  // W-037: focus moves in, Tab stays inside, focus returns to the opener on close.
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useModalFocus(isOpen && !!tab?.book && !!tab.chapter, dialogRef);
 
   /**
    * Selecting a format swaps in that format's own remembered shape options.
@@ -707,7 +711,7 @@ export function CopyDialog({ isOpen, onClose }: CopyDialogProps) {
 
   return (
     <div class="copy-dialog-overlay" onMouseDown={onClose}>
-      <div class="copy-dialog" onMouseDown={(e) => e.stopPropagation()}>
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-label={t('copyDialog.title')} class="copy-dialog" onMouseDown={(e) => e.stopPropagation()}>
         <div class="copy-dialog__header">
           <h3>{t('copyDialog.title')}</h3>
           <button onClick={onClose} aria-label={t('common.close')}><i class="fa-solid fa-xmark" /></button>

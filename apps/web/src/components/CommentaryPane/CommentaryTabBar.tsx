@@ -23,6 +23,7 @@ import { SortableTab } from '../common/SortableTab';
 import { ModuleSelectDialog } from '../common/ModuleSelectDialog';
 import { commentaryStore, HOME_TAB_ID } from '../../stores/commentaryStore';
 import { moduleStore } from '../../stores/moduleStore';
+import { getLocalizedBookName } from '../../utils/bookNames';
 import { bibleStore } from '../../stores/bibleStore';
 import { settingsStore } from '../../stores/settingsStore';
 import { useStore } from '../../hooks/useStore';
@@ -125,7 +126,7 @@ export function CommentaryTabBar() {
     const avail = availability[m.abbreviation];
     const hasVerse = avail?.hasVerse ?? false;
     const hasChapter = avail?.hasChapter ?? false;
-    const bookName = currentBook ? moduleStore.getBookName(currentBook) : '';
+    const bookName = currentBook ? getLocalizedBookName(currentBook) : '';
     const verseNum = highlightedVerse && currentBook && currentChapter
       ? highlightedVerse - (currentBook * 1000000) - (currentChapter * 1000)
       : null;

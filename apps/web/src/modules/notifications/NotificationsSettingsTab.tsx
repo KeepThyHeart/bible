@@ -24,15 +24,24 @@ export function NotificationsSettingsTab({ host }: { host?: WebReminderHost }) {
   const h = useMemo(() => host ?? getWebReminders(), [host]);
   // Starting is idempotent; it matters only when boot skipped it (unsupported browsers never get here).
   useEffect(() => { void h.start().catch(() => {}); }, [h]);
-  const state: NotificationsViewState = useSyncExternalStore(h.store.subscribe, h.store.getSnapshot);
+  const hostState: NotificationsViewState = useSyncExternalStore(h.store.subscribe, h.store.getSnapshot);
+  // W-048: with browser permission denied nothing can ever fire, but the shared component only disables its
+  // controls (and drops the duplicate per-source "blocked" line) for 'unsupported'. Present denied as
+  // unsupported to it, with the denied text as its status; the stored preference is not touched.
+  const denied = hostState.capabilities.permission === 'denied';
+  const state: NotificationsViewState = useMemo(
+    () => (denied ? { ...hostState, capabilities: { ...hostState.capabilities, permission: 'unsupported' } } : hostState),
+    [hostState, denied],
+  );
 
   const labels = useMemo(() => {
     const out = {} as NotificationPreferencesLabels;
     // The component fills these placeholders itself: hand them back untouched.
     const keep = { time: '{time}', count: '{count}', source: '{source}' };
     for (const k of LABEL_KEYS) out[k] = t(`notifications.labels.${k}`, keep);
+    if (denied) out.statusUnsupported = out.statusDenied;
     return out;
-  }, [t]);
+  }, [t, denied]);
 
   return (
     <div class="settings-panel__section" data-section="notifications">

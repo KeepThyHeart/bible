@@ -142,6 +142,17 @@ function clampTo(range: { min: number; max: number }, value: number): number {
   return Math.round(Math.max(range.min, Math.min(range.max, value)) * 10) / 10;
 }
 
+/**
+ * W-028: a stored size is untrusted (hand-edited, corrupted, an older build). Coerce with
+ * Number(), fall back to the default when it is not finite, and clamp to the setting's range,
+ * so a value like 99999, 0 or "abc" cannot make the UI unusable (or render "NaNrem").
+ */
+function sanitizeStoredSize(range: { min: number; max: number }, stored: unknown, fallback: number): number {
+  if (stored === null || stored === undefined || stored === '' || typeof stored === 'boolean') return fallback;
+  const n = Number(stored);
+  return Number.isFinite(n) ? clampTo(range, n) : fallback;
+}
+
 class SettingsStore extends Store {
   theme: ThemeName = DEFAULT_SETTINGS.theme;
   fontSchemeId = DEFAULT_SETTINGS.fontSchemeId;
@@ -613,11 +624,11 @@ class SettingsStore extends Store {
         this.fontFamily = parsed.fontFamily ?? this.fontFamily;
         this.headingFontFamily = parsed.headingFontFamily ?? this.headingFontFamily;
         this.studyFontFamily = parsed.studyFontFamily ?? parsed.commentaryFontFamily ?? this.studyFontFamily;
-        this.fontSize = parsed.fontSize ?? this.fontSize;
-        this.studyFontSize = parsed.studyFontSize ?? parsed.commentaryFontSize ?? this.studyFontSize;
-        this.uiFontSize = parsed.uiFontSize ?? this.uiFontSize;
-        this.lineHeight = parsed.lineHeight ?? this.lineHeight;
-        this.studyLineHeight = parsed.studyLineHeight ?? parsed.commentaryLineHeight ?? this.studyLineHeight;
+        this.fontSize = sanitizeStoredSize(TEXT_SIZE_RANGES.fontSize, parsed.fontSize, this.fontSize);
+        this.studyFontSize = sanitizeStoredSize(TEXT_SIZE_RANGES.studyFontSize, parsed.studyFontSize ?? parsed.commentaryFontSize, this.studyFontSize);
+        this.uiFontSize = sanitizeStoredSize(TEXT_SIZE_RANGES.uiFontSize, parsed.uiFontSize, this.uiFontSize);
+        this.lineHeight = sanitizeStoredSize(TEXT_SIZE_RANGES.lineHeight, parsed.lineHeight, this.lineHeight);
+        this.studyLineHeight = sanitizeStoredSize(TEXT_SIZE_RANGES.studyLineHeight, parsed.studyLineHeight ?? parsed.commentaryLineHeight, this.studyLineHeight);
         this.wordsOfChristInRed = parsed.wordsOfChristInRed ?? this.wordsOfChristInRed;
         this.browserSemanticSearch = parsed.browserSemanticSearch ?? this.browserSemanticSearch;
         this.excludedTopicalModules = parsed.excludedTopicalModules ?? this.excludedTopicalModules;

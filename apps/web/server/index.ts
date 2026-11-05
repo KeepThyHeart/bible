@@ -36,6 +36,7 @@ import type { ISearchPipeline, IVectorSearch } from '@bible/core';
 import { createSearchPipelineWithComponents } from './search/SearchPipelineFactory.js';
 import type { SqliteVectorSearch } from './search/SqliteVectorSearch.js';
 import { logger } from './utils/logger.js';
+import { isServiceBusyError, sendServiceBusy } from './utils/apiErrors.js';
 import { sanitizeQuery, clientErrorStatus } from './utils/requestHygiene.js';
 import { ServerPluginManager } from './plugins/pluginManager.js';
 import { SiteConfig } from './SiteConfig.js';
@@ -622,7 +623,10 @@ app.use((err: Error, req: express.Request, res: express.Response, _next: express
     if (!res.headersSent) res.status(clientStatus).json({ error: { code: 'INVALID_PARAM', message: 'Bad request' } });
     return;
   }
+  // W-009: connect-timeout's 503 is overload, not a fault: no stack, a 503 with Retry-After.
+  if (isServiceBusyError(err)) { sendServiceBusy(res); return; }
   logger.error(`${req.method} ${req.path}:`, err);
+  if (res.headersSent) return;
   res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'An internal server error occurred' } });
 });
 

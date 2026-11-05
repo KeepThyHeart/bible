@@ -103,6 +103,8 @@ let mockKeywordRemaining = 0;
 let mockLastClickedId: string | null = null;
 let mockResultsTruncated = false;
 let mockIsOnline = true;
+let mockSearchError = '';
+let mockStrongsTotalAvailable = 0;
 
 const mockClose = vi.fn();
 const mockPerformSearch = vi.fn();
@@ -141,6 +143,8 @@ vi.mock('../../stores/searchStore', () => ({
     get keywordRemaining() { return mockKeywordRemaining; },
     get lastClickedId() { return mockLastClickedId; },
     get resultsTruncated() { return mockResultsTruncated; },
+    get searchError() { return mockSearchError; },
+    get strongsTotalAvailable() { return mockStrongsTotalAvailable; },
     close: () => mockClose(),
     performSearch: (...args: unknown[]) => mockPerformSearch(...args),
     retryLast: () => mockRetryLast(),
@@ -156,6 +160,9 @@ vi.mock('../../stores/searchStore', () => ({
   },
   searchResultId: (r: SearchResultData) => `${r.verseId}-${r.module}`,
 }));
+
+const mockAnnounce = vi.fn();
+vi.mock('../../utils/announcer', () => ({ announce: (...a: unknown[]) => mockAnnounce(...a) }));
 
 const mockNavigateToPreview = vi.fn();
 const mockAddTabWithPassage = vi.fn();
@@ -217,6 +224,8 @@ describe('SearchResultsPanel', () => {
     mockLastClickedId = null;
     mockResultsTruncated = false;
     mockIsOnline = true;
+    mockSearchError = '';
+    mockStrongsTotalAvailable = 0;
   });
 
   // ------------------------------------------------------------------
@@ -742,5 +751,75 @@ describe('SearchResultsPanel', () => {
     mockSearchedModules = ['KJV'];
     render(<SearchResultsPanel onNavigate={onNavigate} />);
     expect(screen.queryByTestId('search-results-translation-note')).toBeNull();
+  });
+  // ------------------------------------------------------------------
+  // Hardening (W-035, W-039, W-045, W-052, W-053)
+  // ------------------------------------------------------------------
+  it('W-035: shows the server validation message as text instead of "no results"', () => {
+    mockQuery = '"love';
+    mockSearchError = 'Unmatched quote in search query <img src=x onerror=alert(1)>';
+    const { container } = render(<SearchResultsPanel />);
+    const err = screen.getByTestId('search-query-error');
+    expect(err.textContent).toContain('Unmatched quote in search query');
+    expect(err.querySelector('img')).toBeNull();
+    expect(container.textContent).not.toContain('search.noResults');
+    expect(container.textContent).not.toContain('search.noKeywordResults');
+  });
+
+  it('W-063: a rejected query shows once, without a count, and is not announced as "no results"', () => {
+    mockAnnounce.mockClear();
+    mockQuery = '"love';
+    mockSearchError = 'Unmatched quote in search query';
+    const { container } = render(<SearchResultsPanel />);
+    expect(container.querySelector('.search-panel-inline__title')!.textContent).toBe('"love');
+    expect(mockAnnounce).not.toHaveBeenCalledWith('search.noResults');
+  });
+
+  it('W-052: Strong\'s header shows the true total, not the page size', () => {
+    mockQuery = 'H430';
+    mockStrongsMode = true;
+    mockTotalResults = 100;
+    mockStrongsTotalAvailable = 2600;
+    mockCanLoadMore = true;
+    const { container } = render(<SearchResultsPanel />);
+    const title = container.querySelector('.search-panel-inline__title')!.textContent;
+    expect(title).toContain('search.results:2600');
+    expect(title).not.toContain('search.results:100');
+  });
+
+  it('W-052: Strong\'s header shows no count when only a partial page is known', () => {
+    mockQuery = 'H430';
+    mockStrongsMode = true;
+    mockTotalResults = 100;
+    mockCanLoadMore = true;
+    const { container } = render(<SearchResultsPanel />);
+    expect(container.querySelector('.search-panel-inline__title')!.textContent).not.toContain('search.results');
+  });
+
+  it('W-053: a phrase typed with its own quotes is not quoted twice', () => {
+    mockQuery = '"love one another"';
+    const { container } = render(<SearchResultsPanel />);
+    const title = container.querySelector('.search-panel-inline__title')!.textContent!;
+    expect(title).toContain('"love one another"');
+    expect(title).not.toContain('""');
+  });
+
+  it('W-045: the title can wrap and the close button cannot shrink away', () => {
+    mockQuery = 'a'.repeat(300);
+    const { container } = render(<SearchResultsPanel />);
+    const title = container.querySelector('.search-panel-inline__title') as HTMLElement;
+    expect(title.style.overflowWrap).toBe('anywhere');
+    expect((container.querySelector('.search-panel-inline__close') as HTMLElement).style.flexShrink).toBe('0');
+  });
+
+  it('W-039: submitting a search on desktop keeps focus in the search input', () => {
+    Object.defineProperty(window, 'innerWidth', { value: 1280, configurable: true });
+    const { container } = render(<SearchResultsPanel />);
+    const input = container.querySelector('.search-panel-inline__mobile-input') as HTMLInputElement;
+    input.focus();
+    fireEvent.input(input, { target: { value: 'love' } });
+    fireEvent.submit(input.closest('form')!);
+    expect(mockPerformSearch).toHaveBeenCalled();
+    expect(document.activeElement).toBe(input);
   });
 });

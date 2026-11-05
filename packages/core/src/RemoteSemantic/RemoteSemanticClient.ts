@@ -178,7 +178,10 @@ export class RemoteSemanticClient {
       throw new RemoteSemanticError('invalid_query', 0, 'invalid_query', `Query not sent: ${check.rule}`, { rule: check.rule satisfies QueryRule });
     }
     const query = check.query;
-    const k = Math.min(100, Math.max(1, Math.floor(opts.k ?? 10)));
+    // W-010: Math.max(1, NaN) is NaN, so a garbage `k` used to go upstream as
+    // k=NaN. A non-finite one now falls back to the default like a missing one.
+    const rawK = typeof opts.k === 'number' && Number.isFinite(opts.k) ? opts.k : 10;
+    const k = Math.min(100, Math.max(1, Math.floor(rawK)));
     const filters: Record<string, string> = {};
     for (const key of ['translation', 'lang', 'book', 'testament'] as const) {
       const v = opts[key];

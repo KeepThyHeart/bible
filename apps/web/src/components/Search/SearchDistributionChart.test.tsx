@@ -320,3 +320,22 @@ describe('SearchDistributionChart', () => {
       .toContain('search.distribution.captionSemantic');
   });
 });
+
+describe('SearchDistributionChart keyboard (W-064)', () => {
+  it('is a single tab stop with arrow-key roving between books that have matches', () => {
+    const { container } = renderChart({ results: [result(1, 1), result(2, 1), result(40, 1)] });
+    const buttons = Array.from(container.querySelectorAll<HTMLButtonElement>('button.search-distribution__cell'));
+    expect(buttons).toHaveLength(3);
+    expect(buttons.filter(b => b.tabIndex === 0)).toHaveLength(1);
+    expect(buttons[0].tabIndex).toBe(0);
+    buttons[0].focus();
+    fireEvent.keyDown(buttons[0], { key: 'ArrowRight' });
+    expect(document.activeElement).toBe(buttons[1]);
+    expect(buttons[1].tabIndex).toBe(0);
+    expect(buttons[0].tabIndex).toBe(-1);
+    fireEvent.keyDown(buttons[1], { key: 'End' });
+    expect(document.activeElement).toBe(buttons[2]);
+    fireEvent.keyDown(buttons[2], { key: 'Home' });
+    expect(document.activeElement).toBe(buttons[0]);
+  });
+});

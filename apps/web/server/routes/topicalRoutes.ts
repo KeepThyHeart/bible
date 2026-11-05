@@ -9,6 +9,16 @@ import { registerRoute } from './routeRegistry.js';
 export function createTopicalRoutes(db: DatabaseManager, siteSettings: SiteSettings | null): Router {
   const router = Router();
 
+  // W-005: the module name used to reach the loader raw (up to ~16 KB), and a
+  // failed lookup is remembered by that key. Reject malformed names up front.
+  router.param('module', (_req, res, next, value) => {
+    if (typeof value !== 'string' || !validateModuleName(value)) {
+      sendError(res, 400, ErrorCodes.INVALID_PARAM, 'Invalid module name');
+      return;
+    }
+    next();
+  });
+
   // List available topical modules
   router.get('/modules', (_req, res): void => {
     try {
