@@ -10,6 +10,7 @@ import { Header } from './components/Header';
 import { ResizeHandle } from './components/common/ResizeHandle';
 import { DialogLayer } from './components/common/DialogLayer';
 import { ContextMenuPopup } from './components/common/ContextMenuPopup';
+import { setModalFallback } from './hooks/useModalFocus';
 import { SiteBanners } from './components/SiteBanners';
 import { ConnectionBanner } from './components/ConnectionBanner';
 import { CompanionSlot } from './host/CompanionSlot';
@@ -165,7 +166,18 @@ export function DesktopApp({ providers }: DesktopAppProps) {
     <div class="app">
       <SiteBanners />
       <Header
-        onSettingsClick={(section) => shared.openSettings(section)}
+        onSettingsClick={(section) => {
+          // Settings can be opened from a popup item that closes as it opens (the Theme popup's "More...").
+          // Name the control that opened that popup as the place focus returns to once Settings closes.
+          const from = document.activeElement;
+          if (from instanceof HTMLElement && from !== document.body) {
+            const headerButton = section === 'theme'
+              ? document.querySelector<HTMLElement>('.header__theme-wrapper > button')
+              : document.querySelector<HTMLElement>('[data-testid="header-settings-btn"]');
+            setModalFallback(from, headerButton ?? document.querySelector<HTMLElement>('[data-testid="header-settings-btn"]'));
+          }
+          shared.openSettings(section);
+        }}
         onHelpClick={() => shared.setHelpOpen(true)}
       />
       <ConnectionBanner />
@@ -270,6 +282,7 @@ export function DesktopApp({ providers }: DesktopAppProps) {
           onAction={handleContextMenuAction}
           actions={verseActionItems}
           onVerseAction={handleVerseAction}
+          verseId={contextMenu.verseId}
         />
       )}
     </div>

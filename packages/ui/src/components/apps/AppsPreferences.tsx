@@ -94,6 +94,7 @@ export function AppsPreferences(props: AppsPreferencesProps) {
                 <input
                   type="checkbox"
                   checked={!item.hidden}
+                  aria-label={`${l.show}: ${item.title}`}
                   disabled={item.locked}
                   title={item.locked ? l.alwaysShown : undefined}
                   onChange={(e) => onHiddenChange(item.id, !e.currentTarget.checked)}

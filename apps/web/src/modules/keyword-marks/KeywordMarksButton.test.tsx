@@ -75,6 +75,20 @@ describe('KeywordMarksButton', () => {
     await waitFor(() => expect(keywordMarkStore.getPaneState('bible').hiddenMarkIds).toHaveLength(1));
   });
 
+  // 0209: Escape from inside the legend after toggling a row left focus on <body>.
+  it('Escape from inside the legend closes it and returns focus to the button', async () => {
+    keywordMarkStore.togglePane('bible', true);
+    paint();
+    render(<KeywordMarksButton />);
+    const toggle = screen.getByTestId('keyword-marks-toggle');
+    fireEvent.click(toggle);
+    const hide = screen.getAllByRole('button', { name: /keywordMarks\.hide/ })[0];
+    hide.focus();
+    fireEvent.keyDown(document, { key: 'Escape' });
+    await waitFor(() => expect(toggle.getAttribute('aria-expanded')).toBe('false'));
+    expect(document.activeElement).toBe(toggle);
+  });
+
   it('steps through occurrences: scrolls, flashes the word and announces it', () => {
     keywordMarkStore.togglePane('bible', true);
     paint();

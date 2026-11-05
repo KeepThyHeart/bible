@@ -91,4 +91,10 @@ describe('StudyTabBar', () => {
       expect(active.length).toBe(1);
     }
   });
+
+  it('exposes the active tab as pressed (not just by colour)', () => {
+    render(<StudyTabBar activePage="topics" onNavigate={vi.fn()} />);
+    expect(screen.getByRole('button', { name: /studyTabBar.topics/ }).getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getByRole('button', { name: /studyTabBar.dictionary/ }).getAttribute('aria-pressed')).toBe('false');
+  });
 });

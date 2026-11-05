@@ -26,7 +26,7 @@ vi.mock('@dnd-kit/utilities', () => ({
   },
 }));
 
-import { SortableTab } from './SortableTab';
+import { SortableTab, tabKeyDown } from './SortableTab';
 
 // Default stub returned by useSortable
 function makeSortableState(overrides: Partial<{
@@ -178,5 +178,53 @@ describe('SortableTab', () => {
     );
     expect(container.querySelector('.inner')).toBeTruthy();
     expect(screen.getByText('Inner Content')).toBeTruthy();
+  });
+
+  describe('presentational wrapper', () => {
+    it('drops the dnd-kit button semantics so the tab inside is not nested in a button', () => {
+      mockUseSortable.mockReturnValue(makeSortableState({
+        attributes: { role: 'button', tabIndex: 0, 'aria-pressed': false, 'aria-roledescription': 'sortable' },
+      }));
+      const { container } = render(<SortableTab id="t" presentational>x</SortableTab>);
+      const div = container.firstElementChild as HTMLElement;
+      expect(div.getAttribute('role')).toBe('presentation');
+      expect(div.hasAttribute('tabindex')).toBe(false);
+      expect(div.hasAttribute('aria-pressed')).toBe(false);
+      expect(div.hasAttribute('aria-roledescription')).toBe(false);
+    });
+  });
+
+  describe('tabKeyDown', () => {
+    function strip() {
+      return render(
+        <div role="tablist">
+          <span role="tab" tabIndex={0} data-testid="a" onKeyDown={tabKeyDown(() => {})} />
+          <span role="tab" tabIndex={-1} data-testid="b" onKeyDown={tabKeyDown(() => {})} />
+          <span role="tab" tabIndex={-1} data-testid="c" onKeyDown={tabKeyDown(() => {})} />
+        </div>,
+      );
+    }
+
+    it('ArrowRight/ArrowLeft/Home/End move focus between tabs', () => {
+      strip();
+      const [a, b, c] = ['a', 'b', 'c'].map(id => screen.getByTestId(id));
+      a.focus();
+      fireEvent.keyDown(a, { key: 'ArrowRight' });
+      expect(document.activeElement).toBe(b);
+      fireEvent.keyDown(b, { key: 'End' });
+      expect(document.activeElement).toBe(c);
+      fireEvent.keyDown(c, { key: 'ArrowLeft' });
+      expect(document.activeElement).toBe(b);
+      fireEvent.keyDown(b, { key: 'Home' });
+      expect(document.activeElement).toBe(a);
+    });
+
+    it('Enter and Space activate', () => {
+      const activate = vi.fn();
+      render(<span role="tab" tabIndex={0} data-testid="x" onKeyDown={tabKeyDown(activate)} />);
+      fireEvent.keyDown(screen.getByTestId('x'), { key: 'Enter' });
+      fireEvent.keyDown(screen.getByTestId('x'), { key: ' ' });
+      expect(activate).toHaveBeenCalledTimes(2);
+    });
   });
 });

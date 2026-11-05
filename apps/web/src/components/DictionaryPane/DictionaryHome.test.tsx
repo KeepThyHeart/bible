@@ -273,4 +273,23 @@ describe('DictionaryHome', () => {
     fireEvent.keyDown(input, { key: 'Enter' });
     expect(mockOpenDictionaryEntry).toHaveBeenCalledWith('agape', 'strongs', "Strong's");
   });
+
+  // ------------------------------------------------------------------
+  // Accessibility: the star is a real, keyboard-reachable, named control
+  // ------------------------------------------------------------------
+  it('exposes each star as a named button with pressed state, reachable by keyboard', () => {
+    mockModules = [makeModule({ abbreviation: 'strongs', name: 'Strongs' }), makeModule({ abbreviation: 'webster', name: 'Webster' })];
+    mockStarredModules = new Set(['webster']);
+    render(<DictionaryHome />);
+    const stars = screen.getAllByRole('button', { name: /dictionaryHome\.(star|unstar): / });
+    expect(stars).toHaveLength(2);
+    const strongs = screen.getByRole('button', { name: 'dictionaryHome.star: Strongs' });
+    expect(strongs.getAttribute('aria-pressed')).toBe('false');
+    expect(strongs.getAttribute('tabindex')).toBe('0');
+    expect(screen.getByRole('button', { name: 'dictionaryHome.unstar: Webster' }).getAttribute('aria-pressed')).toBe('true');
+    fireEvent.keyDown(strongs, { key: 'Enter' });
+    expect(mockToggleStarred).toHaveBeenCalledWith('strongs');
+    fireEvent.keyDown(strongs, { key: ' ' });
+    expect(mockToggleStarred).toHaveBeenCalledTimes(2);
+  });
 });

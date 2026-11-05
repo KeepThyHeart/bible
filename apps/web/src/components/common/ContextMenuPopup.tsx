@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { anchorAtPointer } from '@bible/core/browser';
 import { useDirection } from '@bible/ui';
-import { useEffect } from 'preact/hooks';
+import { useEffect, useRef } from 'preact/hooks';
 import type { RefObject } from 'preact';
 
 const ESTIMATED_MENU_WIDTH = 200;
@@ -16,6 +16,8 @@ interface ContextMenuPopupProps {
   /** Registry actions (labels already resolved), listed after the built-ins. */
   actions?: { id: string; label: string; iconClass?: string; group?: string }[];
   onVerseAction?: (id: string) => void;
+  /** The verse the menu was opened for: when the menu goes away, focus returns to it if it can take focus. */
+  verseId?: number;
 }
 
 /**
@@ -28,7 +30,7 @@ interface ContextMenuPopupProps {
  * cross-references, topics and the rest as sections. Only actions that act on
  * the clicked verse directly (Copy) sit alongside it.
  */
-export function ContextMenuPopup({ x, y, menuRef, onAction, actions, onVerseAction }: ContextMenuPopupProps) {
+export function ContextMenuPopup({ x, y, menuRef, onAction, actions, onVerseAction, verseId }: ContextMenuPopupProps) {
   const { t } = useTranslation();
   const dir = useDirection();
   // The hook that owns menuRef re-anchors with the measured width; this is the first-paint estimate.
@@ -36,6 +38,20 @@ export function ContextMenuPopup({ x, y, menuRef, onAction, actions, onVerseActi
   // W-038: move focus to the first item on open, and arrow-key between items (Escape/Tab are the owning hook's job).
   useEffect(() => {
     menuRef.current?.querySelector<HTMLElement>('[role="menuitem"]')?.focus({ preventScroll: true });
+  }, []);
+  // Whoever closes the menu hands focus back to the origin or <main>; a verse that can itself take focus
+  // is the better place to land, so the reader stays at the verse the menu was for. Verses that are not
+  // focusable (the usual case) are left alone.
+  const verseIdRef = useRef(verseId);
+  verseIdRef.current = verseId;
+  useEffect(() => () => {
+    const id = verseIdRef.current;
+    if (id === undefined) return;
+    const active = document.activeElement;
+    const main = document.getElementById('main-content');
+    if (active && active !== document.body && active !== main) return; // focus is somewhere deliberate
+    const verse = document.querySelector<HTMLElement>(`.bible-content [data-verse-id="${id}"]`);
+    if (verse && verse.hasAttribute('tabindex') && verse.tabIndex >= -1) verse.focus({ preventScroll: true });
   }, []);
   const onKeyDown = (e: KeyboardEvent) => {
     const root = menuRef.current;

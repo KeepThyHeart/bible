@@ -34,7 +34,8 @@
     "offlineTooltip": "Está sin conexión",
     "shortcutHint": "Pulse / o Ctrl+K para buscar",
     "feedback": "Enviar comentarios",
-    "clearSearch": "Borrar búsqueda"
+    "clearSearch": "Borrar búsqueda",
+    "searchTypeCurrent": "Tipo de búsqueda: {type}"
   },
   "themes": {
     "auto": "Automático",
@@ -76,7 +77,8 @@
     "modeHint": "La vista de estudio muestra los números de Strong y las palabras interlineales de las traducciones que los incluyen, como KJV.",
     "modeLabel": "Modo de visualización",
     "recentPassages": "Pasajes recientes",
-    "noHistory": "Todavía no se ha visitado ningún pasaje"
+    "noHistory": "Todavía no se ha visitado ningún pasaje",
+    "translationButton": "Traducción: {abbr}"
   },
   "bibleContent": {
     "votdLabel": "Versículo del día",
@@ -456,7 +458,8 @@
     "markdownDesc": "Escribir la estructura en Markdown: citas en bloque con líneas \"> \", encabezados con \"#\"",
     "copied": "¡Copiado!",
     "copyToClipboard": "Copiar al portapapeles",
-    "loading": "Cargando los versículos..."
+    "loading": "Cargando los versículos...",
+    "copyFailed": "No se pudo copiar al portapapeles. Comprueba que este sitio tenga permiso para usarlo."
   },
   "ui": {
     "passageInsert": {
@@ -608,7 +611,8 @@
     "hasContentFor": "Tiene contenido para",
     "loading": "Cargando...",
     "cancel": "Cancelar",
-    "apply": "Aplicar"
+    "apply": "Aplicar",
+    "tabs": "Pestañas de comentarios"
   },
   "digestDisclaimer": {
     "notice": "Aviso",
@@ -658,7 +662,8 @@
     "noModules": "No hay módulos de diccionario disponibles",
     "noMatches": "Sin coincidencias",
     "cancel": "Cancelar",
-    "apply": "Aplicar"
+    "apply": "Aplicar",
+    "tabs": "Pestañas de diccionarios"
   },
   "studyCrossRefs": {
     "loading": "Cargando las referencias cruzadas...",
@@ -699,7 +704,8 @@
     "loading": "Cargando los temas...",
     "noTopics": "No se han encontrado temas para este versículo.",
     "offlineNotice": "Está sin conexión. Esto no está disponible sin conexión.",
-    "entities": "Entidades"
+    "entities": "Entidades",
+    "someIndexesOff": "Algunos índices temáticos están desactivados en Ajustes."
   },
   "topicsBrowser": {
     "searchAll": "Buscar en todos los temas",
@@ -750,7 +756,9 @@
     "seeAlso": "Ver",
     "verseTotal": "{count, plural, one {# versículo} other {# versículos}}",
     "topicHasNoEntries": "Este tema no tiene versículos ni subtemas propios.",
-    "directOfTotal": "({direct} directos, {total} en total)"
+    "directOfTotal": "({direct} directos, {total} en total)",
+    "forward": "Adelante",
+    "clearSearch": "Borrar búsqueda"
   },
   "verseRefList": {
     "loading": "cargando...",
@@ -864,7 +872,9 @@
   "bibleTabBar": {
     "home": "Inicio",
     "closeTab": "Cerrar pestaña",
-    "newTab": "Pestaña nueva"
+    "newTab": "Pestaña nueva",
+    "closeTabNamed": "Cerrar {title}",
+    "tabs": "Pestañas de la Biblia"
   },
   "semanticSearchLoadingOverlay": {
     "dismiss": "Descartar",

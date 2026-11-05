@@ -440,6 +440,39 @@ describe('SettingsPanel', () => {
     const offlineTab = container.querySelector('[data-tab="offline"]');
     expect(offlineTab).toBeNull();
   });
+
+  // 0209 W3: accessible names and state.
+  it('marks the active left-nav tab with aria-current and no other', () => {
+    const { container } = render(<SettingsPanel isOpen={true} onClose={onClose} />);
+    expect(container.querySelector('[data-tab="text-size"]')!.getAttribute('aria-current')).toBe('page');
+    expect(container.querySelector('[data-tab="theme"]')!.hasAttribute('aria-current')).toBe(false);
+    fireEvent.click(container.querySelector<HTMLElement>('[data-tab="theme"]')!);
+    expect(container.querySelector('[data-tab="theme"]')!.getAttribute('aria-current')).toBe('page');
+    expect(container.querySelector('[data-tab="text-size"]')!.hasAttribute('aria-current')).toBe(false);
+  });
+
+  it('reports the Advanced toggle as expanded or collapsed', () => {
+    const { container } = render(<SettingsPanel isOpen={true} onClose={onClose} />);
+    const toggle = container.querySelector<HTMLElement>('.settings-panel__advanced-toggle')!;
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    fireEvent.click(toggle);
+    expect(toggle.getAttribute('aria-expanded')).toBe('true');
+  });
+
+  it('gives colour-theme and font-scheme buttons a pressed state', () => {
+    const { container } = render(<SettingsPanel isOpen={true} onClose={onClose} />);
+    fireEvent.click(container.querySelector<HTMLElement>('[data-tab="theme"]')!);
+    expect(container.querySelector('[data-theme-id="light"]')!.getAttribute('aria-pressed')).toBe('true');
+    expect(container.querySelector('[data-theme-id="dark"]')!.getAttribute('aria-pressed')).toBe('false');
+    const scheme = container.querySelector('.settings-panel__scheme-card')!;
+    expect(scheme.getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('names the Language select after its visible section heading', () => {
+    const { container } = render(<SettingsPanel isOpen={true} onClose={onClose} />);
+    fireEvent.click(container.querySelector<HTMLElement>('[data-tab="language"]')!);
+    expect(screen.getByRole('combobox', { name: 'settings.language.title' })).toBeTruthy();
+  });
 });
 
 describe('SettingsPanel sections with a parent tab (module fields inside Theme)', () => {

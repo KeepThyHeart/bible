@@ -82,6 +82,23 @@ function BookTopics({ book, onSelect }: { book: number; onSelect: BookChapterPic
   );
 }
 
+/**
+ * Picking a book swaps the book grid for the chapter grid, which removes the button that had focus (focus
+ * falls to <body>). Mounted beside the chapter grid, this moves focus onto it: the current chapter, else the first.
+ */
+function FocusChapterGrid({ dialogRef }: { dialogRef: { current: HTMLElement | null } }) {
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    const active = document.activeElement;
+    if (active && active !== document.body && active !== dialog && dialog.contains(active) && active.isConnected) return;
+    const cell = dialog.querySelector<HTMLElement>('.kth-picker__cell--chapter[aria-current="true"]')
+      ?? dialog.querySelector<HTMLElement>('.kth-picker__cell--chapter');
+    cell?.focus({ preventScroll: true });
+  }, []);
+  return null;
+}
+
 /** Results of a search run from inside the picker; subscribes to the global search store. */
 function PickerSearchResults({ query, onSelect }: { query: string; onSelect: BookChapterPickerProps['onSelect'] }) {
   const { t } = useTranslation();
@@ -207,7 +224,12 @@ function PickerDialog({ onClose, onSelect, currentBook, currentChapter, moduleAb
               )}
             </>
           )}
-          chapterExtras={(book) => <BookTopics book={book} onSelect={onSelect} />}
+          chapterExtras={(book) => (
+            <>
+              <BookTopics book={book} onSelect={onSelect} />
+              <FocusChapterGrid dialogRef={dialogRef} />
+            </>
+          )}
         />
       </div>
     </div>

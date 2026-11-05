@@ -69,6 +69,9 @@ export function Header({ onSettingsClick, onHelpClick, onFeedbackClick, onLogoCl
 
   const searchType = useStore(searchStore, () => searchStore.searchType);
   const searchQuery = useStore(searchStore, () => searchStore.query);
+  // Bumped by searchStore.clear(): Clear (x) and the results panel's Close search both reset the
+  // box through it, which a plain query watcher cannot do (the query is also emptied by switching to Ideas).
+  const clearSeq = useStore(searchStore, () => searchStore.clearSeq ?? 0);
   const isOnline = useStore(offlineStore, () => offlineStore.isOnline);
   const offlineEnabled = useStore(offlineStore, () => offlineStore.enabled);
   const localizer = useLocalizer();
@@ -89,6 +92,16 @@ export function Header({ onSettingsClick, onHelpClick, onFeedbackClick, onLogoCl
       });
     }
   }, [searchQuery]);
+
+  const seenClearSeq = useRef(clearSeq);
+  useEffect(() => {
+    if (clearSeq === seenClearSeq.current) return;
+    seenClearSeq.current = clearSeq;
+    setValue('');
+    // The control that triggered the reset (Close search in the results panel) is gone or
+    // pointless afterwards; the search field is the stable place for focus to land.
+    inputRef.current?.focus();
+  }, [clearSeq]);
 
   // Close dropdowns on Escape.
   //
@@ -161,6 +174,9 @@ export function Header({ onSettingsClick, onHelpClick, onFeedbackClick, onLogoCl
     searchStore.setSearchType(type);
     setShowSearchTypeDropdown(false);
     inputRef.current?.focus();
+    // Ideas starts from an empty results panel with the old text still in the box: select it so
+    // the next keystroke rewords it and Enter runs it as an Ideas search.
+    if (type === 'semantic') inputRef.current?.select();
 
     // Pre-load semantic search models on first selection
     if (type === 'semantic') {
@@ -206,6 +222,12 @@ export function Header({ onSettingsClick, onHelpClick, onFeedbackClick, onLogoCl
             class="header__search-type-btn"
             onClick={() => setShowSearchTypeDropdown(!showSearchTypeDropdown)}
             title={t('header.searchTypeChange')}
+            aria-haspopup="menu"
+            aria-expanded={showSearchTypeDropdown}
+            aria-label={t('header.searchTypeCurrent', {
+              type: searchType === 'keyword' ? t('header.standardSearch') : t('header.ideasSearch'),
+              defaultValue: 'Search type: {type}',
+            })}
           >
             <i class={`fa-solid ${searchType === 'keyword' ? 'fa-magnifying-glass' : 'fa-lightbulb'}`} />
             <span class="header__search-type-label">
@@ -215,20 +237,26 @@ export function Header({ onSettingsClick, onHelpClick, onFeedbackClick, onLogoCl
           </button>
           {showSearchTypeDropdown && (
             <div class="header__search-type-dropdown"
+              role="menu"
+              aria-label={t('header.searchTypeChange')}
               onMouseLeave={() => setShowSearchTypeDropdown(false)}
             >
               <button
                 type="button"
+                role="menuitemradio"
+                aria-checked={searchType === 'keyword'}
                 class={`header__search-type-option ${searchType === 'keyword' ? 'header__search-type-option--active' : ''}`}
-                onMouseDown={() => selectSearchType('keyword')}
+                onClick={() => selectSearchType('keyword')}
               >
                 <i class="fa-solid fa-magnifying-glass" />
                 <span>{t('header.standardSearch')}</span>
               </button>
               <button
                 type="button"
+                role="menuitemradio"
+                aria-checked={searchType === 'semantic'}
                 class={`header__search-type-option ${searchType === 'semantic' ? 'header__search-type-option--active' : ''}`}
-                onMouseDown={() => selectSearchType('semantic')}
+                onClick={() => selectSearchType('semantic')}
                 data-search-type="semantic"
               >
                 <i class="fa-solid fa-lightbulb" />
@@ -253,7 +281,7 @@ export function Header({ onSettingsClick, onHelpClick, onFeedbackClick, onLogoCl
           <button
             type="button"
             class="header__search-clear"
-            onClick={() => { setValue(''); inputRef.current?.focus(); }}
+            onClick={() => { setValue(''); searchStore.clear(); inputRef.current?.focus(); }}
             aria-label={t('header.clearSearch')}
             title={t('header.clearSearch')}
           >
@@ -283,11 +311,16 @@ export function Header({ onSettingsClick, onHelpClick, onFeedbackClick, onLogoCl
               class="header__ideas-help-btn"
               onClick={() => setShowIdeasHelp(!showIdeasHelp)}
               title={t('header.ideasHelpQuestion')}
+              aria-label={t('header.ideasHelpQuestion')}
+              aria-expanded={showIdeasHelp}
+              aria-haspopup="dialog"
             >
               <i class="fa-solid fa-circle-question" />
             </button>
             {showIdeasHelp && (
               <div class="header__ideas-help-popup"
+                role="dialog"
+                aria-label={t('header.ideasHelpTitle')}
                 onMouseLeave={() => setShowIdeasHelp(false)}
               >
                 <div class="header__ideas-help-title">{t('header.ideasHelpTitle')}</div>

@@ -198,6 +198,19 @@ describe('BookChapterPicker', () => {
     expect(onClose).not.toHaveBeenCalled();
   });
 
+  it('moves focus into the chapter grid after a book is picked', async () => {
+    const { container } = render(<BookChapterPicker {...defaultProps} currentBook={43} currentChapter={3} />);
+    await act(async () => { await new Promise(r => setTimeout(r, 60)); }); // let the input's autofocus land first
+    const genesis = Array.from(container.querySelectorAll<HTMLButtonElement>('.kth-picker__cell--book'))
+      .find(b => b.title === 'Genesis')!;
+    genesis.focus();
+    await act(async () => { fireEvent.click(genesis); });
+    await act(async () => { await new Promise(r => setTimeout(r, 60)); });
+    const chapters = container.querySelectorAll('.kth-picker__cell--chapter');
+    expect(chapters.length).toBeGreaterThan(0);
+    expect(document.activeElement).toBe(chapters[0]);
+  });
+
   // ------------------------------------------------------------------
   // Reference input and submission
   // ------------------------------------------------------------------

@@ -98,8 +98,15 @@ export function DictionaryHome() {
                 </button>
                 <i
                   class={`fa-${isStarred ? 'solid' : 'regular'} fa-star dictionary-home__card-star ${isStarred ? 'dictionary-home__card-star--active' : ''}`}
+                  role="button"
+                  tabIndex={0}
+                  aria-pressed={isStarred}
+                  aria-label={`${isStarred ? t('dictionaryHome.unstar') : t('dictionaryHome.star')}: ${m.name}`}
                   title={isStarred ? t('dictionaryHome.unstar') : t('dictionaryHome.star')}
                   onClick={(e: MouseEvent) => { e.stopPropagation(); dictionaryStore.toggleStarred(m.abbreviation); }}
+                  onKeyDown={(e: KeyboardEvent) => {
+                    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); dictionaryStore.toggleStarred(m.abbreviation); }
+                  }}
                 />
               </div>
             );

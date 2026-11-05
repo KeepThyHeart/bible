@@ -221,4 +221,10 @@ describe('AppsPreferences', () => {
     await userEvent.click(boxes[1]);
     expect(onHidden).toHaveBeenCalledWith('present', true);
   });
+  // 0209: every row's checkbox was named just "Show".
+  it('names each visibility checkbox after its app', () => {
+    render(<AppsPreferences mode="auto" onModeChange={vi.fn()} items={rows} onOrderChange={vi.fn()} onHiddenChange={vi.fn()} />);
+    expect(screen.getByRole('checkbox', { name: 'Show: Study' })).toBeTruthy();
+    expect(screen.getByRole('checkbox', { name: 'Show: Presenter' })).toBeTruthy();
+  });
 });

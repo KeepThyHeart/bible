@@ -108,6 +108,7 @@ vi.mock('../../stores/moduleStore', () => ({
   moduleStore: {
     getBibleModules: () => mockGetBibleModules(),
     getBookByNumber: (n: number) => mockGetBookByNumber(n),
+    getBookName: (n: number) => `Book ${n}`,
     getBibleSections: () => mockGetBibleSections(),
     getModuleDescription: (type: string, abbr: string) => mockGetModuleDescription(type, abbr),
   },
@@ -310,6 +311,14 @@ describe('BibleToolbar', () => {
     expect(container.querySelector('.module-dialog-overlay')).toBeNull();
   });
 
+  it('names the translation button for assistive tech, not just by its abbreviation', () => {
+    const { container } = render(<BibleToolbar />);
+    const btn = container.querySelector('.bible-toolbar__translation-btn')!;
+    expect(btn.getAttribute('aria-label')).toBeTruthy();
+    expect(btn.getAttribute('aria-label')).toBe('bibleToolbar.translationButton');
+    expect(btn.textContent).toContain('KJV');
+  });
+
   it('opens the translation dialog when the translation button is clicked', () => {
     const { container } = render(<BibleToolbar />);
     fireEvent.click(container.querySelector('.bible-toolbar__translation-btn')!);
@@ -402,5 +411,20 @@ describe('BibleToolbar', () => {
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(container.querySelector('.bible-toolbar__history-menu')).toBeNull();
     expect(document.activeElement).toBe(toggle);
+  });
+
+  it('choosing a Recent passages item returns focus to the menu button', () => {
+    mockHistory = [{ moduleAbbr: 'KJV', book: 43, chapter: 3 }, { moduleAbbr: 'KJV', book: 1, chapter: 1 }];
+    mockHistoryIndex = 1;
+    const { container } = render(<BibleToolbar />);
+    const toggle = container.querySelector<HTMLButtonElement>('[data-testid="history-dropdown-toggle"]')!;
+    fireEvent.click(toggle);
+    const item = container.querySelector<HTMLElement>('[role="menuitem"]')!;
+    item.focus();
+    fireEvent.click(item);
+    expect(container.querySelector('.bible-toolbar__history-menu')).toBeNull();
+    expect(document.activeElement).toBe(toggle);
+    mockHistory = [];
+    mockHistoryIndex = -1;
   });
 });

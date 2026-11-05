@@ -14,7 +14,7 @@ import type { BibleTab } from '../../stores/bibleStore';
 // ---- i18n ----------------------------------------------------------------
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
-    t: (key: string) => key,
+    t: (key: string, opts?: { title?: string }) => (key === 'bibleTabBar.closeTabNamed' ? `Close ${opts?.title}` : key),
     i18n: { language: 'en' },
   }),
   initReactI18next: { type: '3rdParty', init: vi.fn() },
@@ -40,6 +40,8 @@ vi.mock('@dnd-kit/sortable', () => ({
 
 // ---- SortableTab mock ----------------------------------------------------
 vi.mock('../common/SortableTab', () => ({
+  tabKeyDown: (activate: () => void) => (e: KeyboardEvent) => { if (e.key === 'Enter' || e.key === ' ') activate(); },
+  tablistKeyDown: () => {},
   SortableTab: ({ children, class: className, onClick }: { children: unknown; class?: string; onClick?: () => void }) => (
     <div class={className} onClick={onClick}>{children as any}</div>
   ),
@@ -264,5 +266,52 @@ describe('BibleTabBar', () => {
     expect(screen.getByTestId('book-chapter-picker')).toBeTruthy();
     fireEvent.click(screen.getByText('close-picker'));
     expect(screen.queryByTestId('book-chapter-picker')).toBeNull();
+  });
+
+  // ------------------------------------------------------------------
+  // Tab semantics (a11y)
+  // ------------------------------------------------------------------
+  describe('tab semantics', () => {
+    beforeEach(() => {
+      mockTabs = [makeTab(), makeTab({ id: 'tab-2', book: 19, chapter: 23 })];
+    });
+
+    it('is a tablist whose tabs expose aria-selected', () => {
+      const { container } = render(<BibleTabBar />);
+      expect(container.querySelector('.bible-tab-bar')!.getAttribute('role')).toBe('tablist');
+      const tabs = screen.getAllByRole('tab', { name: /John 3|Book19 23|Psalms 23/ });
+      expect(tabs.filter(t => t.getAttribute('aria-selected') === 'true')).toHaveLength(1);
+      expect(container.querySelector('.bible-tab-bar__tab--active [role="tab"]')!.getAttribute('aria-selected')).toBe('true');
+    });
+
+    it('marks Home selected (and no passage tab) when Home is shown', () => {
+      mockShowHome = true;
+      render(<BibleTabBar />);
+      expect(screen.getByRole('tab', { name: 'bibleTabBar.home' }).getAttribute('aria-selected')).toBe('true');
+      expect(document.querySelectorAll('[role="tab"][aria-selected="true"]')).toHaveLength(1);
+    });
+
+    it('does not nest the close button inside a tab and names it after the tab', () => {
+      const { container } = render(<BibleTabBar />);
+      for (const tab of Array.from(container.querySelectorAll('[role="tab"]'))) {
+        expect(tab.querySelector('button')).toBeNull();
+      }
+      const closes = screen.getAllByRole('button', { name: /^Close / });
+      expect(closes).toHaveLength(2);
+      expect(new Set(closes.map(c => c.getAttribute('aria-label'))).size).toBe(2);
+      expect(closes[0].getAttribute('aria-label')).toBe('Close John 3');
+    });
+
+    it('gives the + button an accessible name from the New tab string', () => {
+      render(<BibleTabBar />);
+      expect(screen.getByRole('button', { name: 'bibleTabBar.newTab' })).toBeTruthy();
+    });
+
+    it('activates a tab with Enter from the keyboard', () => {
+      render(<BibleTabBar />);
+      const second = screen.getAllByRole('tab').find(t => t.textContent?.includes('Book19') || t.textContent?.includes('Psalms'))!;
+      fireEvent.keyDown(second, { key: 'Enter' });
+      expect(mockSetActiveTab).toHaveBeenCalledWith('tab-2');
+    });
   });
 });

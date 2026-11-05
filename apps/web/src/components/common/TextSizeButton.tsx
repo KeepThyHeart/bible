@@ -94,6 +94,8 @@ export function TextSizeButton({ target, onMoreOptions, className = '' }: TextSi
     settingsStore.setFontSize(DEFAULT_SETTINGS.fontSize);
     settingsStore.setStudyFontSize(DEFAULT_SETTINGS.studyFontSize);
     settingsStore.setUiFontSize(DEFAULT_SETTINGS.uiFontSize);
+    // Reset disables itself at the defaults; keep keyboard focus in the popover rather than losing it to <body>.
+    popoverRef.current?.querySelector<HTMLButtonElement>('.text-size__step:not([disabled])')?.focus();
   };
 
   const title = t('settings.textSize.popoverTitle');

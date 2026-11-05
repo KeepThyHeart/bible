@@ -148,6 +148,8 @@ export function BibleToolbar({ onOpenSettings }: BibleToolbarProps) {
                         onClick={() => {
                           void bibleStore.goToHistoryEntry(index);
                           setShowHistory(false);
+                          // The item that had focus is about to unmount; keep focus on the menu's button.
+                          historyToggleRef.current?.focus({ preventScroll: true });
                         }}
                       >
                         <span class="bible-toolbar__history-dot" aria-hidden="true" />
@@ -186,6 +188,8 @@ export function BibleToolbar({ onOpenSettings }: BibleToolbarProps) {
           class="bible-toolbar__translation-btn"
           onClick={() => setShowTranslationDialog(true)}
           title={t('bibleToolbar.changeTranslation')}
+          aria-label={t('bibleToolbar.translationButton', { defaultValue: 'Translation: {abbr}', abbr: tab.moduleAbbr })}
+          aria-haspopup="dialog"
         >
           <Bdi>{tab.moduleAbbr}</Bdi> <i class="fa-solid fa-caret-down" style={{ fontSize: '10px', opacity: 0.6 }} />
         </button>

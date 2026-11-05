@@ -559,4 +559,43 @@ describe('DictionaryContent', () => {
     const { container } = render(<DictionaryContent tabId="dtab-1" />);
     expect(searchBtn(container)).toBeNull();
   });
+
+  // ------------------------------------------------------------------
+  // Focus: an opened entry takes focus (the clicked control is gone)
+  // ------------------------------------------------------------------
+  describe('focus after an entry opens', () => {
+    it('moves focus to the entry heading when focus was lost to <body>', () => {
+      (document.activeElement as HTMLElement | null)?.blur();
+      mockTab = makeTab();
+      mockTabState = { ...emptyTabState(), entry: makeEntry({ entry_key: '00025', word: 'agapao' }) };
+      const { container } = render(<DictionaryContent tabId="dtab-1" />);
+      const heading = container.querySelector('.dictionary-pane__entry-word') as HTMLElement;
+      expect(heading.getAttribute('tabindex')).toBe('-1');
+      expect(document.activeElement).toBe(heading);
+    });
+
+    it('moves focus to the new heading when a suggestion is picked and the entry replaces the search results', () => {
+      mockTab = makeTab();
+      mockTabState = { ...emptyTabState(), entry: makeEntry({ entry_key: 'a', word: 'alpha' }) };
+      const { container, rerender } = render(<DictionaryContent tabId="dtab-1" />);
+      // Opening the next entry unmounts the clicked control and drops focus to <body>.
+      mockTabState = { ...emptyTabState(), entry: null, entryLoading: true };
+      rerender(<DictionaryContent tabId="dtab-1" />);
+      (document.activeElement as HTMLElement | null)?.blur();
+      mockTabState = { ...emptyTabState(), entry: makeEntry({ entry_key: 'b', word: 'beta' }) };
+      rerender(<DictionaryContent tabId="dtab-1" />);
+      expect(document.activeElement).toBe(container.querySelector('.dictionary-pane__entry-word'));
+    });
+
+    it('does not steal focus from another control the user is on', () => {
+      const other = document.createElement('button');
+      document.body.appendChild(other);
+      other.focus();
+      mockTab = makeTab();
+      mockTabState = { ...emptyTabState(), entry: makeEntry({ entry_key: 'z', word: 'zeta' }) };
+      render(<DictionaryContent tabId="dtab-1" />);
+      expect(document.activeElement).toBe(other);
+      other.remove();
+    });
+  });
 });

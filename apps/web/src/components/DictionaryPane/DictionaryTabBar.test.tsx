@@ -17,7 +17,7 @@ import { render, screen, fireEvent } from '@testing-library/preact';
 // ---- i18n ----------------------------------------------------------------
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
-    t: (key: string) => key,
+    t: (key: string, opts?: { title?: string }) => (key === 'bibleTabBar.closeTabNamed' ? `Close ${opts?.title}` : key),
     i18n: { language: 'en' },
   }),
 }));
@@ -44,6 +44,8 @@ vi.mock('@dnd-kit/sortable', () => ({
 
 // ---- SortableTab: render a plain div with the forwarded props -----------
 vi.mock('../common/SortableTab', () => ({
+  tabKeyDown: (activate: () => void) => (e: KeyboardEvent) => { if (e.key === 'Enter' || e.key === ' ') activate(); },
+  tablistKeyDown: () => {},
   SortableTab: ({
     children,
     id,
@@ -403,5 +405,34 @@ describe('DictionaryTabBar', () => {
     const sections = container.querySelectorAll('.module-dialog__section-label');
     expect(sections.length).toBe(2);
     expect(screen.getByText('dictionaryTabBar.other')).toBeTruthy();
+  });
+
+  // ------------------------------------------------------------------
+  // Tab semantics (a11y)
+  // ------------------------------------------------------------------
+  it('is a tablist; active tab aria-selected; close button is a sibling named after the tab', () => {
+    mockTabs = [
+      { id: 'dtab-home', moduleAbbr: '__home__', moduleName: 'Home' },
+      makeTab({ id: 'dtab-1', moduleName: "Strong's Greek" }),
+      makeTab({ id: 'dtab-2', moduleAbbr: 'webster', moduleName: 'Webster' }),
+    ];
+    mockActiveTabId = 'dtab-1';
+    const { container } = render(<DictionaryTabBar />);
+    expect(container.querySelector('.dictionary-tab-bar')!.getAttribute('role')).toBe('tablist');
+    const greek = screen.getByRole('tab', { name: "Strong's Greek" });
+    expect(greek.getAttribute('aria-selected')).toBe('true');
+    expect(screen.getByRole('tab', { name: 'Webster' }).getAttribute('aria-selected')).toBe('false');
+    expect(greek.querySelector('button')).toBeNull();
+    expect(screen.getByRole('button', { name: "Close Strong's Greek" })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Close Webster' })).toBeTruthy();
+  });
+
+  it('the Home tab is a selected, keyboard-activatable tab', () => {
+    mockActiveTabId = 'dtab-home';
+    render(<DictionaryTabBar />);
+    const home = screen.getByRole('tab', { name: /dictionaryTabBar.home/ });
+    expect(home.getAttribute('aria-selected')).toBe('true');
+    fireEvent.keyDown(home, { key: ' ' });
+    expect(mockSetActiveTab).toHaveBeenCalledWith('dtab-home');
   });
 });

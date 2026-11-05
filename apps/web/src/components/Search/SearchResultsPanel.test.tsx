@@ -107,6 +107,7 @@ let mockSearchError = '';
 let mockStrongsTotalAvailable = 0;
 
 const mockClose = vi.fn();
+const mockClear = vi.fn();
 const mockPerformSearch = vi.fn();
 const mockRetryLast = vi.fn();
 const mockSetSearchType = vi.fn();
@@ -146,6 +147,7 @@ vi.mock('../../stores/searchStore', () => ({
     get searchError() { return mockSearchError; },
     get strongsTotalAvailable() { return mockStrongsTotalAvailable; },
     close: () => mockClose(),
+    clear: () => mockClear(),
     performSearch: (...args: unknown[]) => mockPerformSearch(...args),
     retryLast: () => mockRetryLast(),
     setSearchType: (...args: unknown[]) => mockSetSearchType(...args),
@@ -340,12 +342,12 @@ describe('SearchResultsPanel', () => {
     expect(container.querySelector('.search-panel-inline__close')).toBeTruthy();
   });
 
-  it('calls searchStore.close and sets right pane mode when close button is clicked', () => {
+  it('calls searchStore.clear (resets box + results) and sets right pane mode when close button is clicked', () => {
     mockQuery = 'faith';
     const { container } = render(<SearchResultsPanel />);
     const closeBtn = container.querySelector<HTMLElement>('.search-panel-inline__close')!;
     fireEvent.click(closeBtn);
-    expect(mockClose).toHaveBeenCalled();
+    expect(mockClear).toHaveBeenCalled();
     expect(mockSetRightPaneMode).toHaveBeenCalledWith('commentary');
   });
 
@@ -821,5 +823,35 @@ describe('SearchResultsPanel', () => {
     fireEvent.submit(input.closest('form')!);
     expect(mockPerformSearch).toHaveBeenCalled();
     expect(document.activeElement).toBe(input);
+  });
+
+  // 0209 W3: an Ideas search that could not run is not "0 results".
+  it('does not show a count or "No results found" when Ideas search is unavailable', () => {
+    mockSearchType = 'semantic';
+    mockQuery = 'mercy';
+    mockSemanticInitStatus = 'error';
+    const { container } = render(<SearchResultsPanel />);
+    expect(container.querySelector('.search-panel-inline__title')!.textContent).not.toContain('search.results');
+    expect(screen.getByTestId('ideas-unavailable').getAttribute('role')).toBe('status');
+    expect(mockAnnounce).not.toHaveBeenCalledWith('search.noResults');
+    expect(screen.queryByText('search.noResults')).toBeNull();
+  });
+
+  it('moves focus to the first newly loaded row after "Load all"', async () => {
+    mockQuery = 'mercy';
+    mockResults = [{ verseId: 19103008, module: 'KJV', type: 'exact', reference: 'Psalm 103:8', text: 'x' } as SearchResultData];
+    mockKeywordRemaining = 1;
+    mockLoadAllKeyword.mockImplementationOnce(() => Promise.resolve());
+    const { container, rerender } = render(<SearchResultsPanel />);
+    fireEvent.click(screen.getByTestId('keyword-load-all'));
+    mockResults = [
+      ...mockResults,
+      { verseId: 19145008, module: 'KJV', type: 'exact', reference: 'Psalm 145:8', text: 'y' } as SearchResultData,
+    ];
+    mockKeywordRemaining = 0;
+    rerender(<SearchResultsPanel />);
+    const rows = container.querySelectorAll<HTMLElement>('[data-result-id]');
+    rows.forEach((r) => r.setAttribute('tabindex', '0'));
+    await waitFor(() => expect(document.activeElement).toBe(rows[1]));
   });
 });

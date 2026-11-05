@@ -34,7 +34,8 @@
     "offlineTooltip": "شما آفلاین هستید",
     "shortcutHint": "برای جستجو / یا Ctrl+K را فشار دهید",
     "feedback": "ارسال بازخورد",
-    "clearSearch": "پاک کردن جستجو"
+    "clearSearch": "پاک کردن جستجو",
+    "searchTypeCurrent": "نوع جستجو: {type}"
   },
   "themes": {
     "auto": "خودکار",
@@ -76,7 +77,8 @@
     "modeHint": "نمای مطالعه برای ترجمه‌هایی که شماره‌های استرانگ و واژه‌های بین‌خطی دارند، مانند KJV، آن‌ها را نشان می‌دهد.",
     "modeLabel": "حالت نمایش",
     "recentPassages": "قسمت‌های اخیر",
-    "noHistory": "هنوز قسمتی بازدید نشده است"
+    "noHistory": "هنوز قسمتی بازدید نشده است",
+    "translationButton": "ترجمه: {abbr}"
   },
   "bibleContent": {
     "votdLabel": "آیهٔ امروز",
@@ -456,7 +458,8 @@
     "markdownDesc": "ساختار را به‌صورت Markdown بنویسید — نقل‌قول‌های بلوکی به‌صورت خطوط «> » و عنوان‌ها به‌صورت «#»",
     "copied": "کپی شد!",
     "copyToClipboard": "کپی در کلیپ‌بورد",
-    "loading": "در حال بارگذاری آیات..."
+    "loading": "در حال بارگذاری آیات...",
+    "copyFailed": "کپی در کلیپ‌بورد ممکن نشد. بررسی کنید که این سایت اجازهٔ استفاده از آن را دارد."
   },
   "ui": {
     "passageInsert": {
@@ -608,7 +611,8 @@
     "hasContentFor": "مطلب دارد برای",
     "loading": "در حال بارگذاری...",
     "cancel": "انصراف",
-    "apply": "اعمال"
+    "apply": "اعمال",
+    "tabs": "زبانه‌های تفسیر"
   },
   "digestDisclaimer": {
     "notice": "توجه",
@@ -658,7 +662,8 @@
     "noModules": "هیچ ماژول فرهنگ لغتی در دسترس نیست",
     "noMatches": "موردی یافت نشد",
     "cancel": "انصراف",
-    "apply": "اعمال"
+    "apply": "اعمال",
+    "tabs": "زبانه‌های فرهنگ لغت"
   },
   "studyCrossRefs": {
     "loading": "در حال بارگذاری ارجاعات متقابل...",
@@ -699,7 +704,8 @@
     "loading": "در حال بارگذاری موضوعات...",
     "noTopics": "موضوعی برای این آیه یافت نشد.",
     "offlineNotice": "آفلاین هستید. این بخش به‌صورت آفلاین در دسترس نیست.",
-    "entities": "موجودیت‌ها"
+    "entities": "موجودیت‌ها",
+    "someIndexesOff": "برخی فهرست‌های موضوعی در تنظیمات خاموش هستند."
   },
   "topicsBrowser": {
     "searchAll": "جستجوی همهٔ موضوعات",
@@ -750,7 +756,9 @@
     "seeAlso": "نگاه کنید به",
     "verseTotal": "{count, plural, one {# آیه} other {# آیه}}",
     "topicHasNoEntries": "این موضوع آیه یا زیرموضوع مستقلی ندارد.",
-    "directOfTotal": "({direct} مستقیم، مجموع {total})"
+    "directOfTotal": "({direct} مستقیم، مجموع {total})",
+    "forward": "جلو",
+    "clearSearch": "پاک کردن جستجو"
   },
   "verseRefList": {
     "loading": "در حال بارگذاری...",
@@ -864,7 +872,9 @@
   "bibleTabBar": {
     "home": "خانه",
     "closeTab": "بستن برگه",
-    "newTab": "برگهٔ جدید"
+    "newTab": "برگهٔ جدید",
+    "closeTabNamed": "بستن {title}",
+    "tabs": "زبانه‌های کتاب مقدس"
   },
   "semanticSearchLoadingOverlay": {
     "dismiss": "بستن",

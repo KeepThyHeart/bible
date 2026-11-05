@@ -260,6 +260,7 @@ export function SettingsPanel({ isOpen, onClose, scrollToSection }: SettingsPane
                 key={item.id}
                 class={`settings-panel__tab ${activeTab === item.id ? 'settings-panel__tab--active' : ''}`}
                 onClick={() => setActiveTab(item.id)}
+                aria-current={activeTab === item.id ? 'page' : undefined}
                 data-tab={item.id}
               >
                 <i class={`fa-solid ${item.icon?.kind === 'builtin' ? item.icon.name : ''}`} />
@@ -326,6 +327,7 @@ export function SettingsPanel({ isOpen, onClose, scrollToSection }: SettingsPane
                 <button
                   class={`settings-panel__advanced-toggle ${advancedOpen ? 'settings-panel__advanced-toggle--open' : ''}`}
                   onClick={() => setAdvancedOpen(!advancedOpen)}
+                  aria-expanded={advancedOpen}
                 >
                   <i class="fa-solid fa-chevron-right kth-rtl-mirror" />
                   {t('settings.textSize.advanced')}
@@ -407,6 +409,7 @@ export function SettingsPanel({ isOpen, onClose, scrollToSection }: SettingsPane
                         key={themeDef.id}
                         class={`settings-panel__theme-swatch ${theme === themeDef.id ? 'settings-panel__theme-swatch--active' : ''}`}
                         onClick={() => settingsStore.setTheme(themeDef.id)}
+                        aria-pressed={theme === themeDef.id}
                         title={t(`themes.${themeDef.id}`, themeDef.name)}
                         data-theme-id={themeDef.id}
                         style={{
@@ -430,6 +433,7 @@ export function SettingsPanel({ isOpen, onClose, scrollToSection }: SettingsPane
                         key={scheme.id}
                         class={`settings-panel__scheme-card ${fontSchemeId === scheme.id ? 'settings-panel__scheme-card--active' : ''}`}
                         onClick={() => settingsStore.setFontScheme(scheme.id)}
+                        aria-pressed={fontSchemeId === scheme.id}
                       >
                         <span class="settings-panel__scheme-label">{scheme.label}</span>
                         <span class="settings-panel__scheme-heading" style={{ fontFamily: scheme.headingFont }}>{t('settings.theme.heading')}</span>
@@ -446,6 +450,7 @@ export function SettingsPanel({ isOpen, onClose, scrollToSection }: SettingsPane
                         key={scheme.id}
                         class={`settings-panel__scheme-card ${fontSchemeId === scheme.id ? 'settings-panel__scheme-card--active' : ''}`}
                         onClick={() => settingsStore.setFontScheme(scheme.id)}
+                        aria-pressed={fontSchemeId === scheme.id}
                       >
                         <span class="settings-panel__scheme-label">{scheme.label}</span>
                         <span class="settings-panel__scheme-heading" style={{ fontFamily: scheme.headingFont }}>{t('settings.theme.heading')}</span>
@@ -554,7 +559,7 @@ export function SettingsPanel({ isOpen, onClose, scrollToSection }: SettingsPane
 
             {activeTab === 'language' && (
               <div class="settings-panel__section" data-section="language">
-                <h4 class="settings-panel__section-title">{t('settings.language.title')}</h4>
+                <h4 class="settings-panel__section-title" id="settings-language-title">{t('settings.language.title')}</h4>
                 <div class="settings-panel__field">
                   <span>{t('settings.language.description')}</span>
                   {/*
@@ -568,6 +573,7 @@ export function SettingsPanel({ isOpen, onClose, scrollToSection }: SettingsPane
                   */}
                   <select
                     class="settings-select"
+                    aria-labelledby="settings-language-title"
                     value={localeOptions.some((info) => info.code === i18n.language) ? i18n.language : 'en'}
                     onChange={(e) => {
                       void changeLocale((e.target as HTMLSelectElement).value);

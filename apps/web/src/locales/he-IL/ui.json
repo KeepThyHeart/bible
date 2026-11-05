@@ -34,7 +34,8 @@
     "offlineTooltip": "אין חיבור לרשת",
     "shortcutHint": "יש ללחוץ על / או על Ctrl+K כדי לחפש",
     "feedback": "שליחת משוב",
-    "clearSearch": "ניקוי החיפוש"
+    "clearSearch": "ניקוי החיפוש",
+    "searchTypeCurrent": "סוג חיפוש: {type}"
   },
   "themes": {
     "auto": "אוטומטי",
@@ -76,7 +77,8 @@
     "modeHint": "תצוגת הלימוד מציגה מספרי סטרונג ומילים בין-שורתיות בתרגומים שכוללים אותם, כמו KJV.",
     "modeLabel": "מצב תצוגה",
     "recentPassages": "קטעים אחרונים",
-    "noHistory": "טרם בוקרו קטעים"
+    "noHistory": "טרם בוקרו קטעים",
+    "translationButton": "תרגום: {abbr}"
   },
   "bibleContent": {
     "votdLabel": "פסוק היום",
@@ -456,7 +458,8 @@
     "markdownDesc": "כתיבת המבנה כ-Markdown — ציטוטים בבלוק כשורות \"> \", כותרות כ-\"#\"",
     "copied": "הועתק!",
     "copyToClipboard": "העתקה ללוח",
-    "loading": "טוען פסוקים..."
+    "loading": "טוען פסוקים...",
+    "copyFailed": "לא ניתן להעתיק ללוח. בדקו שלאתר זה יש הרשאה להשתמש בו."
   },
   "ui": {
     "passageInsert": {
@@ -608,7 +611,8 @@
     "hasContentFor": "יש תוכן עבור",
     "loading": "טוען...",
     "cancel": "ביטול",
-    "apply": "החלה"
+    "apply": "החלה",
+    "tabs": "כרטיסיות פירושים"
   },
   "digestDisclaimer": {
     "notice": "הודעה",
@@ -658,7 +662,8 @@
     "noModules": "אין מודולי מילון זמינים",
     "noMatches": "אין התאמות",
     "cancel": "ביטול",
-    "apply": "החלה"
+    "apply": "החלה",
+    "tabs": "כרטיסיות מילונים"
   },
   "studyCrossRefs": {
     "loading": "טוען הפניות צולבות...",
@@ -699,7 +704,8 @@
     "loading": "טוען נושאים...",
     "noTopics": "לא נמצאו נושאים לפסוק זה.",
     "offlineNotice": "אין חיבור לרשת. תכונה זו אינה זמינה במצב לא מקוון.",
-    "entities": "ישויות"
+    "entities": "ישויות",
+    "someIndexesOff": "חלק מהמפתחות הנושאיים כבויים בהגדרות."
   },
   "topicsBrowser": {
     "searchAll": "חיפוש בכל הנושאים",
@@ -750,7 +756,9 @@
     "seeAlso": "ראו",
     "verseTotal": "{count, plural, one {פסוק #} two {# פסוקים} other {# פסוקים}}",
     "topicHasNoEntries": "לנושא זה אין פסוקים או תת-נושאים משלו.",
-    "directOfTotal": "({direct} ישירות, {total} בסך הכול)"
+    "directOfTotal": "({direct} ישירות, {total} בסך הכול)",
+    "forward": "קדימה",
+    "clearSearch": "ניקוי החיפוש"
   },
   "verseRefList": {
     "loading": "טוען...",
@@ -864,7 +872,9 @@
   "bibleTabBar": {
     "home": "בית",
     "closeTab": "סגירת הלשונית",
-    "newTab": "לשונית חדשה"
+    "newTab": "לשונית חדשה",
+    "closeTabNamed": "סגירת {title}",
+    "tabs": "כרטיסיות התנ״ך"
   },
   "semanticSearchLoadingOverlay": {
     "dismiss": "סגירה",

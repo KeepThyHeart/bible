@@ -78,14 +78,16 @@ export function SearchResultsPanel({ onNavigate, onOpenStrongsEntry }: SearchRes
   const isOnline = useStore(offlineStore, () => offlineStore.isOnline);
 
   const queryRejected = !!searchError && results.length === 0;
+  // Ideas could not run at all: that is not "0 results", so no count and no "No results found".
+  const ideasFailed = searchType === 'semantic' && ideasUnavailableShown && results.length === 0;
 
   // Announce the outcome of each search to screen readers.
   useEffect(() => {
     if (loading || !query) return;
     // W-063: a rejected query is announced by its own role="alert"; "No results found." would be wrong.
-    if (queryRejected) return;
+    if (queryRejected || ideasFailed) return;
     announce(results.length === 0 ? t('search.noResults') : t('search.results', { count: totalResults || results.length }));
-  }, [loading, query, results.length === 0, totalResults, queryRejected]);
+  }, [loading, query, results.length === 0, totalResults, queryRejected, ideasFailed]);
   // Offline with nothing found means the search could not run, not that it found 0.
   // While a search runs, the previous count (or an empty "0") is not an answer yet (B-184).
   const showCount = !loading && (isOnline || totalResults > 0);
@@ -204,8 +206,24 @@ export function SearchResultsPanel({ onNavigate, onOpenStrongsEntry }: SearchRes
     onNavigate?.();
   };
 
+  // "Load all" removes its own button once the rest arrives, which would drop focus to <body>:
+  // hand it to the first row that was not there before.
+  const loadAllThenFocus = async (load: () => Promise<void>) => {
+    const before = resultsRef.current?.querySelectorAll('[data-result-id]').length ?? 0;
+    await load();
+    requestAnimationFrame(() => {
+      const rows = resultsRef.current?.querySelectorAll<HTMLElement>('[data-result-id]');
+      if (!rows || rows.length === 0) return;
+      const active = document.activeElement;
+      if (active && active !== document.body && resultsRef.current?.contains(active) && !(active as HTMLElement).matches?.('.search-panel-inline__load-more-btn')) return;
+      (rows[before] ?? rows[rows.length - 1]).focus({ preventScroll: false });
+    });
+  };
+
   const handleClose = () => {
-    searchStore.close();
+    // clear(), not close(): the header box must not keep the query of a search that is gone
+    // (it also refocuses the header field, since this button unmounts with the panel header).
+    searchStore.clear();
     commentaryStore.setRightPaneMode('commentary');
   };
 
@@ -317,7 +335,7 @@ export function SearchResultsPanel({ onNavigate, onOpenStrongsEntry }: SearchRes
               <>
                 <i class={`fa-solid ${searchType === 'semantic' ? 'fa-lightbulb' : 'fa-magnifying-glass'}`} style={{ opacity: 0.5, marginInlineEnd: '6px', fontSize: '0.85em' }} />
                 {/* W-063: a rejected query is shown once, as typed, with no count. */}
-                {queryRejected ? query : quotedByUser ? query : `"${query}"`}{showCount && !queryRejected && <> ({headlineCount})</>}
+                {queryRejected ? query : quotedByUser ? query : `"${query}"`}{showCount && !queryRejected && !ideasFailed && <> ({headlineCount})</>}
               </>
             )}
           </span>
@@ -425,6 +443,11 @@ export function SearchResultsPanel({ onNavigate, onOpenStrongsEntry }: SearchRes
             {t('search.enterSearchTerm')}
           </div>
         )}
+        {!loading && query && ideasFailed && (
+          <div class="search-panel-inline__empty" role="status" data-testid="ideas-unavailable">
+            {t('semanticSearchLoadingOverlay.unavailable')}
+          </div>
+        )}
         {/* W-035: the server rejected the query (unmatched quote or parenthesis); say so, as text. */}
         {!loading && query && results.length === 0 && searchError && (
           <div class="search-panel-inline__empty" role="alert" data-testid="search-query-error">
@@ -528,7 +551,7 @@ export function SearchResultsPanel({ onNavigate, onOpenStrongsEntry }: SearchRes
               class="search-panel-inline__load-more-btn"
               data-testid="keyword-load-all"
               disabled={loadingMore}
-              onClick={() => searchStore.loadAllKeyword()}
+              onClick={() => void loadAllThenFocus(() => searchStore.loadAllKeyword())}
             >
               {loadingMore ? (
                 <><i class="fa-solid fa-spinner fa-spin" style={{ marginInlineEnd: '6px' }} />{t('search.loadingMore')}</>
@@ -560,7 +583,7 @@ export function SearchResultsPanel({ onNavigate, onOpenStrongsEntry }: SearchRes
                 class="search-panel-inline__load-more-btn"
                 style={{ marginInlineStart: '8px' }}
                 disabled={loadingMore}
-                onClick={() => searchStore.loadAllStrongs()}
+                onClick={() => void loadAllThenFocus(() => searchStore.loadAllStrongs())}
               >
                 {t('search.loadAll', { count: strongsRemaining })}
               </button>

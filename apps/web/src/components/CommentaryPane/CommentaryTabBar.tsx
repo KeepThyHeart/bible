@@ -19,7 +19,7 @@ import {
   SortableContext,
   rectSortingStrategy,
 } from '@dnd-kit/sortable';
-import { SortableTab } from '../common/SortableTab';
+import { SortableTab, tabKeyDown } from '../common/SortableTab';
 import { ModuleSelectDialog } from '../common/ModuleSelectDialog';
 import { commentaryStore, HOME_TAB_ID } from '../../stores/commentaryStore';
 import { moduleStore } from '../../stores/moduleStore';
@@ -167,12 +167,16 @@ export function CommentaryTabBar() {
   const sortableTabs = tabs.filter(t => t.id !== HOME_TAB_ID);
 
   return (
-    <div class="commentary-tab-bar">
+    <div class="commentary-tab-bar" role="tablist" aria-label={t('commentaryTabBar.tabs', { defaultValue: 'Commentary tabs' })}>
       {/* Home tab is not draggable — always first (hidden when overview disabled in settings) */}
       {showOverview && tabs.find(t => t.id === HOME_TAB_ID) && (
         <div
           class={`commentary-tab-bar__tab ${activeTabId === HOME_TAB_ID ? 'commentary-tab-bar__tab--active' : ''} commentary-tab-bar__tab--home`}
+          role="tab"
+          aria-selected={activeTabId === HOME_TAB_ID}
+          tabIndex={activeTabId === HOME_TAB_ID || !tabs.some(x => x.id === activeTabId) ? 0 : -1}
           onClick={() => commentaryStore.setActiveTab(HOME_TAB_ID)}
+          onKeyDown={tabKeyDown(() => commentaryStore.setActiveTab(HOME_TAB_ID))}
           title={t('commentaryTabBar.overview')}
         >
           <span class="commentary-tab-bar__label"><i class="fa-solid fa-house fa-xs" /> {t('commentaryTabBar.overview')}</span>
@@ -186,23 +190,33 @@ export function CommentaryTabBar() {
             const hasContent = highlightedVerse
               ? commentaryStore.tabHasContentForVerse(tab.id, highlightedVerse)
               : false;
+            const activate = () => commentaryStore.setActiveTab(tab.id);
+            const closeName = t('bibleTabBar.closeTabNamed', { title: getShortName(tab.moduleName, tab.moduleAbbr), defaultValue: `Close ${getShortName(tab.moduleName, tab.moduleAbbr)}` });
             return (
               <SortableTab
                 key={tab.id}
                 id={tab.id}
+                presentational
                 class={`commentary-tab-bar__tab ${tab.id === activeTabId ? 'commentary-tab-bar__tab--active' : ''} ${hasContent ? 'commentary-tab-bar__tab--has-content' : ''} ${isTemp ? 'commentary-tab-bar__tab--temporary' : ''}`}
-                onClick={() => commentaryStore.setActiveTab(tab.id)}
+                onClick={activate}
                 title={isTemp ? `${tab.moduleName} (${t('commentaryTabBar.preview')})` : tab.moduleName}
               >
                 {tab.pinned && <i class="fa-solid fa-thumbtack fa-2xs commentary-tab-bar__pin-indicator" />}
-                <span class="commentary-tab-bar__label">{getShortName(tab.moduleName, tab.moduleAbbr)}</span>
+                <span
+                  class="commentary-tab-bar__label"
+                  role="tab"
+                  aria-selected={tab.id === activeTabId}
+                  tabIndex={tab.id === activeTabId ? 0 : -1}
+                  onKeyDown={tabKeyDown(activate)}
+                >{getShortName(tab.moduleName, tab.moduleAbbr)}</span>
                 <button
                   class="commentary-tab-bar__close"
                   onClick={(e) => {
                     e.stopPropagation();
                     commentaryStore.removeTab(tab.id);
                   }}
-                  title={t('commentaryTabBar.closeTab')}
+                  aria-label={closeName}
+                  title={closeName}
                 >
                   <i class="fa-solid fa-xmark fa-xs" />
                 </button>

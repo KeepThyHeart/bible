@@ -38,12 +38,16 @@ vi.mock('../stores/settingsStore', () => ({
 
 const mockPerformSearch = vi.fn();
 const mockSetSearchType = vi.fn();
+const mockClear = vi.fn();
+let mockClearSeq = 0;
 const mockWarmupSemanticSearch = vi.fn(() => Promise.resolve());
 
 vi.mock('../stores/searchStore', () => ({
   searchStore: {
     get searchType() { return mockSearchType; },
     get query() { return mockSearchQuery; },
+    get clearSeq() { return mockClearSeq; },
+    clear: () => mockClear(),
     performSearch: (...args: unknown[]) => mockPerformSearch(...args),
     setSearchType: (...args: unknown[]) => mockSetSearchType(...args),
     warmupSemanticSearch: () => mockWarmupSemanticSearch(),
@@ -81,6 +85,7 @@ describe('Header', () => {
     mockTheme = 'light';
     mockSearchType = 'keyword';
     mockSearchQuery = '';
+    mockClearSeq = 0;
     mockIsOnline = true;
     mockOfflineEnabled = false;
   });
@@ -220,11 +225,11 @@ describe('Header', () => {
     expect(container.querySelector('.header__search-type-dropdown')).toBeTruthy();
   });
 
-  it('calls setSearchType with "keyword" when keyword option is mousedown-ed', () => {
+  it('calls setSearchType with "keyword" when keyword option is clicked', () => {
     const { container } = render(<Header />);
     fireEvent.click(container.querySelector('.header__search-type-btn')!);
     const kwOption = container.querySelector<HTMLElement>('.header__search-type-option:first-child')!;
-    fireEvent.mouseDown(kwOption);
+    fireEvent.click(kwOption);
     expect(mockSetSearchType).toHaveBeenCalledWith('keyword');
   });
 
@@ -232,9 +237,47 @@ describe('Header', () => {
     const { container } = render(<Header />);
     fireEvent.click(container.querySelector('.header__search-type-btn')!);
     const semanticOption = container.querySelector<HTMLElement>('[data-search-type="semantic"]')!;
-    fireEvent.mouseDown(semanticOption);
+    fireEvent.click(semanticOption);
     expect(mockSetSearchType).toHaveBeenCalledWith('semantic');
     expect(mockWarmupSemanticSearch).toHaveBeenCalled();
+  });
+
+  // 0209 W3: search-type button / menu semantics and focus.
+  it('gives the search-type button a stable name, haspopup and expanded state', () => {
+    const { container } = render(<Header />);
+    const btn = container.querySelector<HTMLElement>('.header__search-type-btn')!;
+    expect(btn.getAttribute('aria-label')).toBeTruthy();
+    // The mocked t() returns the key: the name comes from one key, not from the Search/Ideas label.
+    expect(btn.getAttribute('aria-label')).toBe('header.searchTypeCurrent');
+    expect(btn.getAttribute('aria-haspopup')).toBe('menu');
+    expect(btn.getAttribute('aria-expanded')).toBe('false');
+    fireEvent.click(btn);
+    expect(btn.getAttribute('aria-expanded')).toBe('true');
+  });
+
+  it('exposes the selected search type in the menu with menuitemradio', () => {
+    mockSearchType = 'semantic';
+    const { container } = render(<Header />);
+    fireEvent.click(container.querySelector('.header__search-type-btn')!);
+    expect(screen.getByRole('menuitemradio', { name: 'header.ideasSearch' }).getAttribute('aria-checked')).toBe('true');
+    expect(screen.getByRole('menuitemradio', { name: 'header.standardSearch' }).getAttribute('aria-checked')).toBe('false');
+  });
+
+  it('returns focus to the search field after choosing a search type', () => {
+    const { container } = render(<Header />);
+    fireEvent.click(container.querySelector('.header__search-type-btn')!);
+    fireEvent.click(screen.getByRole('menuitemradio', { name: 'header.standardSearch' }));
+    expect(document.activeElement).toBe(container.querySelector('.header__search-field'));
+  });
+
+  it('marks the Ideas help button expanded and gives its popup a dialog role and name', () => {
+    mockSearchType = 'semantic';
+    const { container } = render(<Header />);
+    const btn = container.querySelector<HTMLElement>('.header__ideas-help-btn')!;
+    expect(btn.getAttribute('aria-expanded')).toBe('false');
+    fireEvent.click(btn);
+    expect(btn.getAttribute('aria-expanded')).toBe('true');
+    expect(screen.getByRole('dialog', { name: 'header.ideasHelpTitle' })).toBeTruthy();
   });
 
   // ------------------------------------------------------------------
@@ -311,6 +354,36 @@ describe('Header', () => {
     const clearBtn = container.querySelector<HTMLElement>('.header__search-clear')!;
     fireEvent.click(clearBtn);
     expect(container.querySelector('.header__search-clear')).toBeNull();
+  });
+
+  // 0209 W3: Clear must reset the store too, or a later re-render puts the old query back.
+  it('clears the search store when the clear button is clicked', () => {
+    const { container } = render(<Header />);
+    const input = container.querySelector<HTMLInputElement>('.header__search-field')!;
+    fireEvent.input(input, { target: { value: 'mercy' } });
+    fireEvent.click(container.querySelector<HTMLElement>('.header__search-clear')!);
+    expect(mockClear).toHaveBeenCalled();
+    expect(input.value).toBe('');
+  });
+
+  it('empties the box and focuses it when the store is cleared elsewhere (Close search)', () => {
+    const { container, rerender } = render(<Header />);
+    const input = container.querySelector<HTMLInputElement>('.header__search-field')!;
+    fireEvent.input(input, { target: { value: 'mercy' } });
+    expect(input.value).toBe('mercy');
+    mockClearSeq = 1;
+    rerender(<Header />);
+    expect(input.value).toBe('');
+    expect(document.activeElement).toBe(input);
+  });
+
+  it('keeps the typed text when the search type changes (query is not re-synced from the store)', () => {
+    const { container, rerender } = render(<Header />);
+    const input = container.querySelector<HTMLInputElement>('.header__search-field')!;
+    fireEvent.input(input, { target: { value: 'mercy' } });
+    mockSearchType = 'semantic';
+    rerender(<Header />);
+    expect(input.value).toBe('mercy');
   });
 
   // 0209 U-001: the clear button had no name, and Preact reused the "Go to Passage" button's

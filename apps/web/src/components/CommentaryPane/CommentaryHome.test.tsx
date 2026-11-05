@@ -439,4 +439,25 @@ describe('CommentaryHome', () => {
     const { container } = render(<CommentaryHome />);
     expect(screen.getByText('Commentary on Passage')).toBeTruthy();
   });
+
+  // ------------------------------------------------------------------
+  // Accessibility: keyboard reach for the accordion header and the star
+  // ------------------------------------------------------------------
+  it('expands a module from the keyboard via its name button (aria-expanded)', () => {
+    render(<CommentaryHome />);
+    const toggle = screen.getByRole('button', { name: 'MHC', expanded: false });
+    expect(toggle.getAttribute('tabindex')).toBe('0');
+    fireEvent.keyDown(toggle, { key: 'Enter' });
+    expect(mocks.fetchModuleEntries).toHaveBeenCalled();
+  });
+
+  it('the star is a named, pressable button that does not expand the row', () => {
+    render(<CommentaryHome />);
+    const star = screen.getByRole('button', { name: 'Star (pin to top): MHC' });
+    expect(star.getAttribute('aria-pressed')).toBe('false');
+    mocks.fetchModuleEntries.mockClear();
+    fireEvent.keyDown(star, { key: 'Enter' });
+    expect(mocks.togglePromoted).toHaveBeenCalledWith('MHC');
+    expect(mocks.fetchModuleEntries).not.toHaveBeenCalled();
+  });
 });

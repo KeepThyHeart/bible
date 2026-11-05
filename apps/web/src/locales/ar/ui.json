@@ -34,7 +34,8 @@
     "offlineTooltip": "أنت غير متصل بالإنترنت",
     "shortcutHint": "اضغط / أو Ctrl+K للبحث",
     "feedback": "إرسال ملاحظات",
-    "clearSearch": "مسح البحث"
+    "clearSearch": "مسح البحث",
+    "searchTypeCurrent": "نوع البحث: {type}"
   },
   "themes": {
     "auto": "تلقائي",
@@ -76,7 +77,8 @@
     "modeHint": "يعرض وضع الدراسة أرقام سترونغ والكلمات البينية للترجمات التي تتضمنها، مثل KJV.",
     "modeLabel": "وضع العرض",
     "recentPassages": "المقاطع الأخيرة",
-    "noHistory": "لم تتم زيارة أي مقطع بعد"
+    "noHistory": "لم تتم زيارة أي مقطع بعد",
+    "translationButton": "الترجمة: {abbr}"
   },
   "bibleContent": {
     "votdLabel": "عدد اليوم",
@@ -456,7 +458,8 @@
     "markdownDesc": "اكتب البنية بصيغة Markdown — الاقتباسات كأسطر تبدأ بـ \"> \"، والعناوين بالرمز \"#\"",
     "copied": "تم النسخ!",
     "copyToClipboard": "نسخ إلى الحافظة",
-    "loading": "جارٍ تحميل الأعداد..."
+    "loading": "جارٍ تحميل الأعداد...",
+    "copyFailed": "تعذّر النسخ إلى الحافظة. تحقّق من أن هذا الموقع مسموح له باستخدامها."
   },
   "ui": {
     "passageInsert": {
@@ -608,7 +611,8 @@
     "hasContentFor": "له محتوى لـ",
     "loading": "جارٍ التحميل...",
     "cancel": "إلغاء",
-    "apply": "تطبيق"
+    "apply": "تطبيق",
+    "tabs": "ألسنة التفاسير"
   },
   "digestDisclaimer": {
     "notice": "تنبيه",
@@ -658,7 +662,8 @@
     "noModules": "لا توجد وحدات قواميس",
     "noMatches": "لا توجد نتائج مطابقة",
     "cancel": "إلغاء",
-    "apply": "تطبيق"
+    "apply": "تطبيق",
+    "tabs": "ألسنة القواميس"
   },
   "studyCrossRefs": {
     "loading": "جارٍ تحميل الشواهد المرجعية...",
@@ -699,7 +704,8 @@
     "loading": "جارٍ تحميل الموضوعات...",
     "noTopics": "لم يُعثر على مواضيع لهذا العدد.",
     "offlineNotice": "أنت غير متصل بالإنترنت. هذا غير متاح دون اتصال.",
-    "entities": "الكيانات"
+    "entities": "الكيانات",
+    "someIndexesOff": "بعض الفهارس الموضوعية معطّلة في الإعدادات."
   },
   "topicsBrowser": {
     "searchAll": "البحث في كل الموضوعات",
@@ -750,7 +756,9 @@
     "seeAlso": "انظر",
     "verseTotal": "{count, plural, zero {لا أعداد} one {عدد واحد} two {عددان} few {# أعداد} many {# عددًا} other {# عدد}}",
     "topicHasNoEntries": "ليس لهذا الموضوع أعداد أو موضوعات فرعية خاصة به.",
-    "directOfTotal": "({direct} مباشرة، المجموع {total})"
+    "directOfTotal": "({direct} مباشرة، المجموع {total})",
+    "forward": "التالي",
+    "clearSearch": "مسح البحث"
   },
   "verseRefList": {
     "loading": "جارٍ التحميل...",
@@ -864,7 +872,9 @@
   "bibleTabBar": {
     "home": "الرئيسية",
     "closeTab": "إغلاق علامة التبويب",
-    "newTab": "علامة تبويب جديدة"
+    "newTab": "علامة تبويب جديدة",
+    "closeTabNamed": "إغلاق {title}",
+    "tabs": "ألسنة الكتاب المقدس"
   },
   "semanticSearchLoadingOverlay": {
     "dismiss": "تجاهل",

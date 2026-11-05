@@ -45,6 +45,22 @@ export function DictionaryContent({ tabId, bibleProvider }: DictionaryContentPro
     }
   }, []);
 
+  // After an entry opens (a picked search result, "Open in dictionary", browse, prev/next) the
+  // control that was clicked is gone, so focus would drop to <body>: move it to the entry heading.
+  // Only when focus was actually lost and the user just acted (not when a saved tab is restored on load).
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const lastFocusedEntry = useRef<string | null>(null);
+  const shownEntryKey = tabState?.entry && !tabState.entryLoading ? tabState.entry.entry_key : null;
+  useEffect(() => {
+    if (!shownEntryKey || lastFocusedEntry.current === shownEntryKey) return;
+    lastFocusedEntry.current = shownEntryKey;
+    const ae = document.activeElement;
+    const focusLost = !ae || ae === document.body || !!dropdownRef.current?.contains(ae);
+    const ua = (navigator as Navigator & { userActivation?: { isActive: boolean } }).userActivation;
+    const userJustActed = ua ? ua.isActive : true;
+    if (focusLost && userJustActed) headingRef.current?.focus();
+  }, [shownEntryKey]);
+
   if (!tab) return null;
 
   const {
@@ -160,7 +176,7 @@ export function DictionaryContent({ tabId, bibleProvider }: DictionaryContentPro
         {/* Entry content */}
         <div class="dictionary-pane__entry">
           <div class="dictionary-pane__entry-header">
-            <h3 class="dictionary-pane__entry-word">{entryLabel(tab.moduleAbbr, entry.word, entry.entry_key)}</h3>
+            <h3 class="dictionary-pane__entry-word" ref={headingRef} tabIndex={-1}>{entryLabel(tab.moduleAbbr, entry.word, entry.entry_key)}</h3>
             {entry.transliteration && (
               <span class="dictionary-pane__entry-translit">{entry.transliteration}</span>
             )}

@@ -245,4 +245,22 @@ describe('ModuleSelectDialog', () => {
     expect(onClose).not.toHaveBeenCalled();
     expect(onApply).not.toHaveBeenCalled();
   });
+
+  describe('keyboard reach', () => {
+    it('exposes the cards as checkboxes with one in the Tab order', () => {
+      const { container } = renderDialog({ selected: ['TSK'] });
+      const boxes = Array.from(container.querySelectorAll<HTMLElement>('[role="checkbox"]'));
+      expect(boxes).toHaveLength(2);
+      expect(boxes[1].getAttribute('aria-checked')).toBe('true');
+      expect(boxes.filter(b => b.tabIndex === 0)).toHaveLength(1);
+    });
+
+    it('moves real focus onto the cards with the arrow keys', () => {
+      const { container } = renderDialog();
+      const boxes = Array.from(container.querySelectorAll<HTMLElement>('[role="checkbox"]'));
+      press('ArrowDown');
+      press('ArrowDown');
+      expect(document.activeElement).toBe(boxes[1]);
+    });
+  });
 });

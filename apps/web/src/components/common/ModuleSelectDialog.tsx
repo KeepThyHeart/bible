@@ -125,6 +125,8 @@ export function ModuleSelectDialog<M extends SelectableModule>({
         e.preventDefault();
         setFocusedIndex(prev => Math.max(prev - 1, 0));
       } else if (e.key === 'Enter' || e.key === ' ') {
+        // A focused button (Close, Cancel, Apply) activates itself; swallowing the key would kill it.
+        if (document.activeElement instanceof HTMLButtonElement) return;
         if (e.key === ' ' && document.activeElement === filterInputRef.current) return;
         e.preventDefault();
         setFocusedIndex(cur => {
@@ -150,12 +152,14 @@ export function ModuleSelectDialog<M extends SelectableModule>({
     setFocusedIndex(-1);
   }, [filter]);
 
-  // Scroll focused item into view
+  // Scroll focused item into view, and give it real keyboard focus (roving tabindex on the checkboxes).
   useEffect(() => {
     if (focusedIndex < 0) return;
     const cards = listRef.current?.querySelectorAll('.module-card');
     if (cards && cards[focusedIndex]) {
-      (cards[focusedIndex] as HTMLElement).scrollIntoView({ block: 'nearest' });
+      const card = cards[focusedIndex] as HTMLElement;
+      card.scrollIntoView?.({ block: 'nearest' });
+      if (document.activeElement !== card) card.focus({ preventScroll: true });
     }
   }, [focusedIndex]);
 
@@ -204,6 +208,11 @@ export function ModuleSelectDialog<M extends SelectableModule>({
       <div
         key={m.abbreviation}
         class={`module-card${idx === focusedIndex ? ' module-card--focused' : ''}`}
+        role="checkbox"
+        aria-checked={isChecked}
+        // Roving tabindex: the arrowed-to card, else the first, is in the Tab order.
+        tabIndex={(focusedIndex >= 0 ? idx === focusedIndex : idx === 0) ? 0 : -1}
+        onFocus={() => setFocusedIndex(idx)}
         onClick={() => togglePending(m.abbreviation)}
       >
         <div class="module-card__top">

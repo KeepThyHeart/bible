@@ -640,6 +640,22 @@ describe('CopyDialog', () => {
       expect(mockWriteText).toHaveBeenCalledWith(expect.stringContaining('> For God so loved the world'));
     });
 
+    it('shows an error and stays open when the browser refuses the clipboard write', async () => {
+      mockClipboardWrite.mockImplementationOnce(() => Promise.reject(new Error('denied')));
+      mockWriteText.mockImplementationOnce(() => Promise.reject(new DOMException('denied', 'NotAllowedError')));
+      const { container } = render(<CopyDialog isOpen={true} onClose={onClose} />);
+      fireEvent.click(container.querySelector('.copy-dialog__copy-btn')!);
+      await tick();
+      await tick();
+
+      expect(container.querySelector('[role="alert"]')).toBeTruthy();
+      expect(onClose).not.toHaveBeenCalled();
+      // And a later successful copy clears it.
+      fireEvent.click(container.querySelector('.copy-dialog__copy-btn')!);
+      await tick();
+      expect(container.querySelector('[role="alert"]')).toBeNull();
+    });
+
     it('writes plain text only when the red-letter option is off', async () => {
       const { container } = render(<CopyDialog isOpen={true} onClose={onClose} />);
       fireEvent.click(optionCheckbox(container, 'Words of Christ in red'));

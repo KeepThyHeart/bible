@@ -2,6 +2,7 @@ import { useState, useCallback, useRef, useEffect, useMemo } from 'preact/hooks'
 import { useTranslation } from 'react-i18next';
 import { useStore } from '../../hooks/useStore';
 import { offlineStore } from '../../stores/offlineStore';
+import { settingsStore } from '../../stores/settingsStore';
 import { formatPassageRef } from '../../constants';
 import { parseVerseId } from '../../utils/verseId';
 import type {
@@ -103,6 +104,11 @@ export function TopicsBrowser({
 }: TopicsBrowserProps) {
   const { t } = useTranslation();
   const isOnline = useStore(offlineStore, () => offlineStore.isOnline);
+  const someIndexesOff = useStore(settingsStore, () => settingsStore.excludedTopicalModules.length > 0);
+  /** Heading of the opened topic/entity; focus moves here after a click opens one. */
+  const titleRef = useRef<HTMLElement>(null);
+  const backBtnRef = useRef<HTMLButtonElement>(null);
+  const focusAfterOpenRef = useRef(false);
   const entityActions = useSlot(topicEntityActions);
 
   // The request present on the very first render seeds the nav stack, so the
@@ -205,6 +211,14 @@ export function TopicsBrowser({
     const entry = initialNav[historyIndex];
     if (entry && entry.type !== 'home') loadNavEntry(entry);
   }, []);
+
+  // The topic/entity that was clicked is gone from the list, so focus would fall to <body>:
+  // once the detail has loaded, move it to the opened item's heading (or the back button).
+  useEffect(() => {
+    if (!focusAfterOpenRef.current || detailLoading) return;
+    focusAfterOpenRef.current = false;
+    (titleRef.current ?? backBtnRef.current)?.focus();
+  }, [detailLoading, topicDetail, entityDetail, detailError]);
 
   // Remember the nav stack for the next mount.
   useEffect(() => {
@@ -437,6 +451,7 @@ export function TopicsBrowser({
   };
 
   const handleTopicClick = (topicId: number, module: string, topicName: string, sourceName?: string) => {
+    focusAfterOpenRef.current = true;
     const snapshot = searchQuery ? { query: searchQuery, topics: searchResults, entities: entitySearchResults } : undefined;
     setSearchQuery('');
     setSearchResults([]);
@@ -445,6 +460,7 @@ export function TopicsBrowser({
   };
 
   const handleEntityClick = (entityId: string, category: string, name: string) => {
+    focusAfterOpenRef.current = true;
     const snapshot = searchQuery ? { query: searchQuery, topics: searchResults, entities: entitySearchResults } : undefined;
     setSearchQuery('');
     setSearchResults([]);
@@ -459,7 +475,7 @@ export function TopicsBrowser({
       if (!isHome) {
         return (
           <div class="topics-browser__mobile-nav">
-            <button class="topics-browser__mobile-back" onClick={goBack} disabled={!canGoBack}>
+            <button class="topics-browser__mobile-back" ref={backBtnRef} onClick={goBack} disabled={!canGoBack}>
               <i class="fa-solid fa-chevron-left kth-rtl-mirror" /> {t('topicsBrowser.back')}
             </button>
           </div>
@@ -472,19 +488,19 @@ export function TopicsBrowser({
         <button class="topics-browser__nav-btn" onClick={isHome ? undefined : goHome} disabled={isHome} title={t('topicsBrowser.home')}>
           <i class="fa-solid fa-house" />
         </button>
-        <button class="topics-browser__nav-btn" disabled={!canGoBack} onClick={goBack}>
+        <button class="topics-browser__nav-btn" ref={backBtnRef} disabled={!canGoBack} onClick={goBack} title={t('topicsBrowser.back')} aria-label={t('topicsBrowser.back')}>
           <i class="fa-solid fa-arrow-left kth-rtl-mirror" />
         </button>
-        <button class="topics-browser__nav-btn" disabled={!canGoForward} onClick={goForward}>
+        <button class="topics-browser__nav-btn" disabled={!canGoForward} onClick={goForward} title={t('topicsBrowser.forward', { defaultValue: 'Forward' })} aria-label={t('topicsBrowser.forward', { defaultValue: 'Forward' })}>
           <i class="fa-solid fa-arrow-right kth-rtl-mirror" />
         </button>
         {showTitle && currentEntry.type === 'topic' && currentEntry.topicName && (
-          <span class="topics-browser__title">
+          <span class="topics-browser__title" ref={titleRef} tabIndex={-1}>
             {currentEntry.topicName}
           </span>
         )}
         {showTitle && currentEntry.type === 'entity' && currentEntry.entityName && (
-          <span class="topics-browser__title">
+          <span class="topics-browser__title" ref={titleRef} tabIndex={-1}>
             {entityIcon(currentEntry.entityCategory ?? '')} {currentEntry.entityName}
           </span>
         )}
@@ -505,6 +521,8 @@ export function TopicsBrowser({
         <button
           class="topics-browser__search-cancel"
           onClick={() => handleSearch('')}
+          title={t('topicsBrowser.clearSearch', { defaultValue: 'Clear search' })}
+          aria-label={t('topicsBrowser.clearSearch', { defaultValue: 'Clear search' })}
         >
           <i class="fa-solid fa-xmark" />
         </button>
@@ -537,7 +555,7 @@ export function TopicsBrowser({
         {loading && <div class="topics-browser__loading">{t('topicsBrowser.loading')}</div>}
 
         {!loading && verseTopics.length === 0 && verseEntities.length === 0 && (
-          <div class="topics-browser__empty">{!isOnline ? t('studyTopics.offlineNotice') : t('topicsBrowser.noTopicsVerse')}</div>
+          <div class="topics-browser__empty">{!isOnline ? t('studyTopics.offlineNotice') : t('topicsBrowser.noTopicsVerse')}{isOnline && someIndexesOff && ` ${t('studyTopics.someIndexesOff', { defaultValue: 'Some topical indexes are turned off in Settings.' })}`}</div>
         )}
 
         {groupedVerseTopics.length > 0 && (
@@ -895,7 +913,7 @@ export function TopicsBrowser({
         <div class="topics-browser__detail">
           {mobile ? (
             <>
-              <div class="topics-browser__mobile-topic-title">{currentEntry.topicName}</div>
+              <div class="topics-browser__mobile-topic-title" ref={titleRef as any} tabIndex={-1}>{currentEntry.topicName}</div>
               {topicDetail.parent_chain && topicDetail.parent_chain.length > 0 && (
                 <div class="topics-browser__mobile-hierarchy">
                   {topicDetail.parent_chain.map((p, i) => (

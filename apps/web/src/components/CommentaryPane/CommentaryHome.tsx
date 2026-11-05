@@ -300,7 +300,7 @@ export function CommentaryHome({ bibleProvider }: CommentaryHomeProps) {
     } else if (e.key === 'ArrowDown') {
       e.preventDefault();
       const firstItem = (filterRef.current?.closest('.commentary-home') as HTMLElement)
-        ?.querySelector('.commentary-home__list-item') as HTMLElement;
+        ?.querySelector('.commentary-home__item-module') as HTMLElement;
       firstItem?.focus();
     }
   };
@@ -411,12 +411,33 @@ export function CommentaryHome({ bibleProvider }: CommentaryHomeProps) {
         >
           <div class="commentary-home__item-row">
             <i class={`fa-solid ${isExpanded ? 'fa-chevron-down' : 'fa-chevron-right kth-rtl-mirror'} fa-xs commentary-home__item-chevron`} />
-            <span class="commentary-home__item-module">{isDigestModule(mod.moduleAbbr) ? getDigestDisplayName() : mod.moduleAbbr}</span>
+            {/* The row's click target for the keyboard: the whole row is clickable by mouse, but a
+                role="button" row would nest the star button inside it. */}
+            <span
+              class="commentary-home__item-module"
+              role="button"
+              tabIndex={0}
+              aria-expanded={isExpanded}
+              onKeyDown={(e: KeyboardEvent) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleToggleExpand(mod, e as unknown as MouseEvent);
+                }
+              }}
+            >{isDigestModule(mod.moduleAbbr) ? getDigestDisplayName() : mod.moduleAbbr}</span>
             {showBar && <div class="commentary-home__item-bar-track"><div class="commentary-home__item-bar" style={{ width: `${barPct}%` }} /></div>}
             <i
               class={`fa-${isPromoted ? 'solid' : 'regular'} fa-star fa-xs commentary-home__item-star ${isPromoted ? 'commentary-home__item-star--active' : ''}`}
+              role="button"
+              tabIndex={0}
+              aria-pressed={isPromoted}
+              aria-label={`${isPromoted ? 'Unstar (remove from top)' : 'Star (pin to top)'}: ${mod.moduleAbbr}`}
               title={isPromoted ? 'Unstar (remove from top)' : 'Star (pin to top)'}
               onClick={(e: MouseEvent) => { e.stopPropagation(); commentaryStore.togglePromoted(mod.moduleAbbr); }}
+              onKeyDown={(e: KeyboardEvent) => {
+                if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); commentaryStore.togglePromoted(mod.moduleAbbr); }
+              }}
             />
           </div>
           <div class="commentary-home__item-row">
@@ -589,7 +610,16 @@ export function CommentaryHome({ bibleProvider }: CommentaryHomeProps) {
 
       {filteredMuted.length > 0 && (
         <div class="commentary-home__section commentary-home__section--muted">
-          <div class="commentary-home__section-title commentary-home__section-title--muted" onClick={() => setShowMuted(!showMuted)}>
+          <div
+            class="commentary-home__section-title commentary-home__section-title--muted"
+            role="button"
+            tabIndex={0}
+            aria-expanded={showMuted}
+            onClick={() => setShowMuted(!showMuted)}
+            onKeyDown={(e: KeyboardEvent) => {
+              if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowMuted(!showMuted); }
+            }}
+          >
             <i class={`fa-solid ${showMuted ? 'fa-chevron-down' : 'fa-chevron-right kth-rtl-mirror'} fa-xs`} />
             <i class="fa-solid fa-eye-slash" />
             Muted ({filteredMuted.length})
