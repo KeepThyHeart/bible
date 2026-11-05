@@ -72,6 +72,13 @@ describe('QuizPane', () => {
     });
   });
 
+  // 0209 U-227: the app stage focuses an app's h1[tabindex=-1] on open; Quiz had none, so focus stayed on the rail.
+  it('renders a focusable level-1 heading for the app stage to focus', async () => {
+    stubElectron(() => ok(catalog));
+    const { container } = render(<QuizPane />);
+    await waitFor(() => expect(container.querySelector('h1[tabindex="-1"]')).not.toBeNull());
+  });
+
   it("keeps today's reading null with no active plan or when the service fails", async () => {
     stubElectron(() => ok(catalog));
     mockScope.getTodayScope.mockRejectedValue(new Error('ipc'));
