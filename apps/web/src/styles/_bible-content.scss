@@ -427,7 +427,7 @@
     color: var(--text-primary);
 
     // The English of a numbered word is a real <button>: strip the control chrome.
-    button& {
+    @at-root button#{&} {
       font-family: inherit;
       line-height: inherit;
       background: none;
