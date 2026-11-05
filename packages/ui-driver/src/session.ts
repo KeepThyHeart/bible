@@ -560,7 +560,9 @@ export class Session implements Executor {
       by.set(it.kind, list);
     }
     const issues = items.filter(it => !it.kind.startsWith('info-')).length;
-    const lines = [issues ? `check: ${issues} issue${issues > 1 ? 's' : ''}` : `check: clean (${kinds.join(' ')})`];
+    const capped = items.some(it => it.kind === 'info-tab' && /no wrap/.test(it.detail));
+    const lines = [(issues ? `check: ${issues} issue${issues > 1 ? 's' : ''}` : `check: clean (${kinds.join(' ')})`) +
+      (capped ? ' — tab walk incomplete: stopped at 80 stops without wrapping' : '')];
     for (const [kind, list] of by) {
       if (kind.startsWith('info-')) { lines.push(`${kind.slice(5)}: ${list.map(it => it.detail).join('; ')}`); continue; }
       const shown = list.slice(0, 5).map(it => {
