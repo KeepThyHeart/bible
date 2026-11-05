@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useOverlayDismissal } from '../hooks/useOverlayDismissal';
-import { useDockviewTabA11y } from '../hooks/useDockviewTabA11y';
+import { useDockviewTabA11y, focusActiveTabOfGroup, focusPanelTab } from '../hooks/useDockviewTabA11y';
 import { createPortal } from 'react-dom';
 import type { IDockviewPanelHeaderProps } from 'dockview-react';
 import type { PanelContentType } from '../stores/useLayoutStore';
@@ -188,15 +188,27 @@ const DockviewTabRenderer: React.FC<IDockviewPanelHeaderProps> = (props) => {
   // name - are data and pass through untouched.
   const title = localizePaneLabel(t, contentType, storedTitle) ?? storedTitle;
 
+  /**
+   * Close this tab and keep keyboard focus in its strip: the focused tab is
+   * about to be removed, and focus would otherwise fall to the page and be
+   * rescued onto the first pane's heading. The tab that becomes active in the
+   * same group takes it (the workbench's active group when this one is gone).
+   */
+  const closeKeepingFocus = useCallback(() => {
+    const group = api.group;
+    api.close();
+    focusActiveTabOfGroup(containerApi as never, group as never);
+  }, [api, containerApi]);
+
   const handleClose = (e: React.MouseEvent) => {
     e.stopPropagation();
-    api.close();
+    closeKeepingFocus();
   };
 
   const handleMouseDown = (e: React.MouseEvent) => {
     if (e.button === 1) {
       e.preventDefault();
-      api.close();
+      closeKeepingFocus();
     }
   };
 
@@ -206,9 +218,49 @@ const DockviewTabRenderer: React.FC<IDockviewPanelHeaderProps> = (props) => {
     setContextMenu({ x: e.clientX, y: e.clientY });
   }, []);
 
+  // Keyboard route to the same menu (Shift+F10 / the Menu key on the focused
+  // tab); the hook reports the tab's rectangle.
+  const openMenuFromKeyboard = useCallback((anchor: DOMRect) => {
+    setContextMenu({ x: anchor.left, y: anchor.bottom });
+  }, []);
+
   // Close context menu on outside click or Escape
   const dismissContextMenu = useCallback(() => setContextMenu(null), []);
   useOverlayDismissal(!!contextMenu, dismissContextMenu);
+
+  /** The tab element this menu belongs to, where focus returns when it closes. */
+  const tabHost = (): HTMLElement | null => contentRef.current?.closest<HTMLElement>('.dv-tab') ?? null;
+
+  // The menu takes focus when it opens, on its first item.
+  useEffect(() => {
+    if (!contextMenu) return;
+    menuRef.current?.querySelector<HTMLElement>('[role="menuitem"]')?.focus();
+  }, [contextMenu]);
+
+  const handleMenuKeyDown = (e: React.KeyboardEvent) => {
+    const items = Array.from(menuRef.current?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? []);
+    if (items.length === 0) return;
+    const i = items.indexOf(document.activeElement as HTMLElement);
+    let next = -1;
+    if (e.key === 'ArrowDown') next = (i + 1) % items.length;
+    else if (e.key === 'ArrowUp') next = (i - 1 + items.length) % items.length;
+    else if (e.key === 'Home') next = 0;
+    else if (e.key === 'End') next = items.length - 1;
+    if (next >= 0) {
+      e.preventDefault();
+      e.stopPropagation();
+      items[next].focus();
+      return;
+    }
+    if (e.key === 'Escape' || e.key === 'Tab') {
+      // Escape and Tab both dismiss; focus goes back to the tab so the
+      // keyboard user is where they started (Tab then moves on from there).
+      e.preventDefault();
+      e.stopPropagation();
+      setContextMenu(null);
+      tabHost()?.focus();
+    }
+  };
 
   const handleSplitRight = () => {
     setContextMenu(null);
@@ -221,6 +273,7 @@ const DockviewTabRenderer: React.FC<IDockviewPanelHeaderProps> = (props) => {
         direction: 'right',
       });
       panel.api.moveTo({ group: newGroup });
+      focusPanelTab(containerApi as never, api.id);
     }
   };
 
@@ -235,6 +288,7 @@ const DockviewTabRenderer: React.FC<IDockviewPanelHeaderProps> = (props) => {
         direction: 'below',
       });
       panel.api.moveTo({ group: newGroup });
+      focusPanelTab(containerApi as never, api.id);
     }
   };
 
@@ -403,26 +457,41 @@ const DockviewTabRenderer: React.FC<IDockviewPanelHeaderProps> = (props) => {
 
   const handleCloseContext = () => {
     setContextMenu(null);
-    api.close();
+    closeKeepingFocus();
   };
 
   // The "x" button is taken out of the tab order (tabIndex -1) because it sits
   // inside dockview's role=tab element and cannot be un-nested; Delete on the
   // focused tab is its keyboard equivalent, offered only when the "x" is.
-  const closeFromKeyboard = useCallback(() => api.close(), [api]);
+  const closeFromKeyboard = closeKeepingFocus;
   const onDidLayoutChange = useCallback(
     (cb: () => void) => containerApi.onDidLayoutChange(cb),
     [containerApi],
   );
   // The strip is a tablist with no other name; name it for what it holds.
-  const paneNameKey = contentType && contentType in PANE_NAME_KEYS ? PANE_NAME_KEYS[contentType as NamedPaneType] : undefined;
-  const paneName = paneNameKey ? t(paneNameKey) : undefined;
-  const tablistLabel = paneName ? t('ui.dockviewTab.tablistLabel', { name: paneName }) : undefined;
+  //
+  // The name follows the *group*, not this tab: a tab moved into a new group
+  // (Split Right / Down, a drag) names the new strip, and the name changes when
+  // the group's panels do. The group's purpose is its first panel that is not
+  // an empty "+" page (or that page, when it is all the group holds); the pane
+  // name is localized through the catalog, never taken from the stored title,
+  // which is an English constant for generic panels.
+  const getTablistLabel = useCallback((): string | undefined => {
+    const panels = (api.group?.panels ?? []) as Array<{ params?: { contentType?: string } }>;
+    const kinds = panels.map(p => p.params?.contentType).filter((k): k is string => !!k);
+    const kind = kinds.find(k => k !== 'newtab') ?? kinds[0] ?? contentType;
+    const key = kind && kind in PANE_NAME_KEYS ? PANE_NAME_KEYS[kind as NamedPaneType] : undefined;
+    const name = key ? t(key) : undefined;
+    if (!name) return undefined;
+    const label = t('ui.dockviewTab.tablistLabel', { name });
+    // Until the catalog has the key, `t` hands the key back; fall back to English.
+    return label === 'ui.dockviewTab.tablistLabel' ? `${name} tabs` : label;
+  }, [api, contentType, t]);
   useDockviewTabA11y(contentRef, api as never, title ?? '', uiDir === 'rtl', {
     onClose: groupTabCount > 1 ? closeFromKeyboard : undefined,
     onDidLayoutChange,
-    // Until the catalog has the key, `t` hands the key back; fall back to English.
-    tablistLabel: tablistLabel === 'ui.dockviewTab.tablistLabel' ? `${paneName} tabs` : tablistLabel,
+    tablistLabel: getTablistLabel,
+    onOpenMenu: openMenuFromKeyboard,
   });
 
   const panelCount = containerApi.panels.length;
@@ -538,6 +607,7 @@ const DockviewTabRenderer: React.FC<IDockviewPanelHeaderProps> = (props) => {
             padding: '4px 0',
           }}
           onMouseDown={(e) => e.stopPropagation()}
+          onKeyDown={handleMenuKeyDown}
         >
           <ContextMenuItem label={t('ui.dockviewTab.splitRight')} onClick={handleSplitRight} />
           <ContextMenuItem label={t('ui.dockviewTab.splitDown')} onClick={handleSplitDown} />

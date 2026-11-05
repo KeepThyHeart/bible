@@ -22,6 +22,7 @@ const PaneLoading: React.FC = () => (
 );
 import type { PanelContentType } from '../stores/useLayoutStore';
 import { useI18n } from '../contexts/useI18n';
+import { localizePaneLabel } from '../utils/paneNames';
 
 /** One React.lazy component per registry loader, so a panel type is never wrapped twice. */
 const lazyComponents = new WeakMap<object, React.LazyExoticComponent<React.ComponentType<any>>>();
@@ -190,7 +191,7 @@ const PanelContentRenderer: React.FC<IDockviewPanelProps<{
       data-kth-region="pane"
       data-panel-id={api.id}
       role="region"
-      aria-label={panelTitle || contentType}
+      aria-label={localizePaneLabel(t, contentType, panelTitle) || panelTitle || contentType}
       style={{ backgroundColor: 'var(--theme-bg-primary)' }}
     >
       <PaneErrorBoundary paneName={contentType}>

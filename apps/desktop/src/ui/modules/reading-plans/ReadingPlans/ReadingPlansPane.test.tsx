@@ -52,6 +52,26 @@ describe('ReadingPlansPane', () => {
     expect(useActiveReadingStore.getState().ref).toMatchObject({ enrollmentId: enrollment.id, day: 2, index: 0 });
   });
 
+  it('moves focus to the Plans tab when "Choose a plan" removes itself', async () => {
+    installTestService();
+    const user = userEvent.setup();
+    render(<ReadingPlansPane />);
+    await user.click(await screen.findByRole('button', { name: 'Choose a plan' }));
+    await screen.findByRole('heading', { name: 'Plan library' });
+    expect(screen.getByRole('button', { name: 'Plans' })).toHaveFocus();
+  });
+
+  it('exposes aria-expanded on the reading plan settings disclosure', async () => {
+    installTestService();
+    const user = userEvent.setup();
+    render(<ReadingPlansPane />);
+    await user.click(await screen.findByRole('button', { name: 'Choose a plan' }));
+    const summary = (await screen.findByText('Reading plan settings')).closest('summary') as HTMLElement;
+    expect(summary).toHaveAttribute('aria-expanded', 'false');
+    await user.click(summary);
+    await waitFor(() => expect(summary).toHaveAttribute('aria-expanded', 'true'));
+  });
+
   it('keeps focus on the Today tab after Start plan removes the form', async () => {
     installTestService();
     const user = userEvent.setup();

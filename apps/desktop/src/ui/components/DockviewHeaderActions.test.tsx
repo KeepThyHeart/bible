@@ -11,6 +11,7 @@ const STRINGS: Record<string, string> = {
   'layout.expandCollapsed.tooltip': 'Bring the collapsed study panes back into view',
   'layout.collapsePane.tooltip': 'Collapse this pane out of the way',
   'ui.dockviewHeaderActions.newTab': 'New Tab',
+  'ui.dockviewHeaderActions.scrollLeft': 'Desplazar pestañas a la izquierda',
 };
 
 function createMockServices(): AppServices {
@@ -181,6 +182,11 @@ describe('DockviewHeaderActions accessible names', () => {
   it('names the add-tab button', () => {
     renderHeader('group-1');
     expect(screen.getByRole('button', { name: 'New Tab' })).toBeInTheDocument();
+  });
+
+  it('takes the scroll button names from the catalog when given, keeping English as the default', () => {
+    render(<ChevronButton direction="start" enabled onClick={() => {}} label="Desplazar pestañas a la izquierda" />);
+    expect(screen.getByRole('button', { name: 'Desplazar pestañas a la izquierda' })).toBeInTheDocument();
   });
 
   it('keeps the scroll buttons named while disabled, marking them aria-disabled', () => {

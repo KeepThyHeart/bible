@@ -239,6 +239,61 @@ describe('DockviewLayout', () => {
     expect(mockOnDidLayoutChange).toHaveBeenCalled();
   });
 
+  describe('manual-layout-change detection (layout presets stay marked current)', () => {
+    const grid = (views: string[], active: string, size: number) => ({
+      grid: {
+        orientation: 'HORIZONTAL',
+        root: {
+          type: 'branch',
+          data: [
+            { type: 'leaf', size, data: { id: 'g1', views: ['bible_default'], activeView: 'bible_default' } },
+            { type: 'leaf', size: 100 - size, data: { id: 'g2', views, activeView: active } },
+          ],
+        },
+      },
+    });
+
+    function fireLayoutChange(json: unknown): void {
+      (mockDockviewApi as any).toJSON = () => json;
+      const cb = mockOnDidLayoutChange.mock.calls[mockOnDidLayoutChange.mock.calls.length - 1][0] as () => void;
+      cb();
+    }
+
+    it('does not clear the current preset when only focus, the active tab or sizes change', () => {
+      (mockDockviewApi as any).toJSON = () => grid(['study_default', 'commentary_default'], 'study_default', 60);
+      render(<DockviewLayout />);
+      act(() => { capturedOnReady!({ api: mockDockviewApi }); });
+      mockNotifyManualLayoutChange.mockClear();
+
+      fireLayoutChange(grid(['study_default', 'commentary_default'], 'commentary_default', 60));
+      fireLayoutChange(grid(['study_default', 'commentary_default'], 'commentary_default', 55));
+
+      expect(mockNotifyManualLayoutChange).not.toHaveBeenCalled();
+      expect(mockMarkDirty).toHaveBeenCalled();
+    });
+
+    it('clears the current preset when a pane is moved or closed', () => {
+      (mockDockviewApi as any).toJSON = () => grid(['study_default', 'commentary_default'], 'study_default', 60);
+      render(<DockviewLayout />);
+      act(() => { capturedOnReady!({ api: mockDockviewApi }); });
+      mockNotifyManualLayoutChange.mockClear();
+
+      fireLayoutChange(grid(['study_default'], 'study_default', 60));
+
+      expect(mockNotifyManualLayoutChange).toHaveBeenCalledTimes(1);
+    });
+
+    it('treats an unserializable layout as a change', () => {
+      render(<DockviewLayout />);
+      act(() => { capturedOnReady!({ api: mockDockviewApi }); });
+      mockNotifyManualLayoutChange.mockClear();
+      (mockDockviewApi as any).toJSON = () => { throw new Error('mid-mutation'); };
+      const cb = mockOnDidLayoutChange.mock.calls[mockOnDidLayoutChange.mock.calls.length - 1][0] as () => void;
+      cb();
+      expect(mockNotifyManualLayoutChange).toHaveBeenCalled();
+    });
+  });
+
   it('skips layout creation if panels already exist', () => {
     mockDockviewApi.panels = [{ id: 'existing', params: { contentType: 'bible' }, title: 'Bible' }] as any;
     render(<DockviewLayout />);

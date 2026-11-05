@@ -275,6 +275,18 @@ const VerseContextMenu: React.FC<VerseContextMenuProps> = ({
   useEffect(() => {
     previouslyFocusedRef.current = (document.activeElement as HTMLElement | null) ?? null;
     return () => {
+      // A right-click leaves focus on the pane, so BibleVerseList marks the
+      // verse's "Select <ref>" button it was opened on; go back to that one
+      // (also for the dialogs this menu opens, which restore to wherever this
+      // cleanup leaves focus).
+      const opener = document.querySelector<HTMLElement>('[data-verse-menu-opener]');
+      if (opener) {
+        opener.removeAttribute('data-verse-menu-opener');
+        if (opener.isConnected) {
+          opener.focus();
+          return;
+        }
+      }
       const prev = previouslyFocusedRef.current;
       if (prev && typeof prev.focus === 'function' && document.contains(prev)) {
         prev.focus();

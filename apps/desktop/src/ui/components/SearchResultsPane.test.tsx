@@ -156,6 +156,14 @@ describe('SearchResultsPane', () => {
     expect(screen.getByText('No results found')).toBeInTheDocument();
   });
 
+  it('announces zero results through an always-mounted live region', () => {
+    Object.assign(mockSearchStore, { ...defaultSearchState, resultsForQuery: 'test query', searchResults: [] });
+    renderWithProviders(<SearchResultsPane />);
+    const live = screen.getAllByRole('status').find((el) => el.classList.contains('sr-only'));
+    expect(live).toBeDefined();
+    expect(live).toHaveTextContent(/0 results/);
+  });
+
   it('renders keyword search results', () => {
     Object.assign(mockSearchStore, {
       ...defaultSearchState,

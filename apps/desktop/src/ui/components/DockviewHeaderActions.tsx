@@ -25,14 +25,18 @@ export const ChevronButton: React.FC<{
   enabled: boolean;
   onClick: () => void;
   rtl?: boolean;
-}> = ({ direction, enabled, onClick, rtl = false }) => (
+  /** Localized accessible name; the English default applies where no catalog is in scope. */
+  label?: string;
+}> = ({ direction, enabled, onClick, rtl = false, label }) => {
+  const name = label ?? `Scroll tabs ${(direction === 'start') !== rtl ? 'left' : 'right'}`;
+  return (
   <button
     onClick={enabled ? onClick : undefined}
     // The name stays while the button is inert: only the state changes, so a
     // screen reader still finds "Scroll tabs left" and hears it as unavailable.
-    aria-label={`Scroll tabs ${(direction === 'start') !== rtl ? 'left' : 'right'}`}
+    aria-label={name}
     aria-disabled={!enabled}
-    title={`Scroll tabs ${(direction === 'start') !== rtl ? 'left' : 'right'}`}
+    title={name}
     style={{
       display: 'flex',
       alignItems: 'center',
@@ -70,7 +74,8 @@ export const ChevronButton: React.FC<{
   >
     <span aria-hidden="true" className="kth-rtl-mirror">{direction === 'start' ? '\u2039' : '\u203A'}</span>
   </button>
-);
+  );
+};
 
 /**
  * Right-side header actions component for dockview groups.
@@ -279,6 +284,55 @@ const DockviewHeaderActions: React.FC<IDockviewHeaderActionsProps> = ({ containe
 
   const hasOverflow = canScrollStart || canScrollEnd;
 
+  // Physical names for the two chevrons (they flip in RTL). Catalog strings,
+  // with the English text until the keys reach every locale.
+  const scrollLabel = (physical: 'left' | 'right'): string => {
+    const key = physical === 'left' ? 'ui.dockviewHeaderActions.scrollLeft' : 'ui.dockviewHeaderActions.scrollRight';
+    const v = t(key);
+    return v && v !== key ? v : `Scroll tabs ${physical}`;
+  };
+  const startLabel = scrollLabel(uiDir === 'rtl' ? 'right' : 'left');
+  const endLabel = scrollLabel(uiDir === 'rtl' ? 'left' : 'right');
+
+  // Keep the active tab fully visible. dockview scrolls a newly active tab
+  // into view against the strip as it was *before* the scroll chevrons
+  // appeared, so a tab activated in a crowded group could end up under the
+  // left chevron. Re-check after the chevrons have rendered, against the strip
+  // minus whatever part of it a chevron covers.
+  useEffect(() => {
+    const strip = tabsContainerRef.current;
+    if (!strip) return;
+    let raf = 0;
+    const reveal = (): void => {
+      const tab = strip.querySelector<HTMLElement>('.dv-tab.dv-active-tab, .dv-tab[aria-selected="true"]');
+      if (!tab) return;
+      const view = strip.getBoundingClientRect();
+      const rect = tab.getBoundingClientRect();
+      const covered = (el: Element | null | undefined): DOMRect | null => (el ? el.getBoundingClientRect() : null);
+      let left = view.left;
+      let right = view.right;
+      const leftChev = covered(leftPortalContainer);
+      if (leftChev && leftChev.width > 0 && leftChev.right > left && leftChev.left < right) left = leftChev.right;
+      const rightChev = covered(actionsRef.current);
+      if (rightChev && rightChev.width > 0 && rightChev.left < right && rightChev.right > left) right = rightChev.left;
+      if (rect.left < left) scrollerRef.current?.scrollBy(rect.left - left);
+      else if (rect.right > right) scrollerRef.current?.scrollBy(Math.min(rect.right - right, rect.left - left));
+    };
+    const soon = (): void => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => { raf = requestAnimationFrame(reveal); });
+    };
+    soon();
+    const subs = [
+      group?.api?.onDidActivePanelChange?.(soon),
+      containerApi?.onDidActivePanelChange?.(soon),
+    ];
+    return () => {
+      cancelAnimationFrame(raf);
+      subs.forEach(sub => sub?.dispose());
+    };
+  }, [group, containerApi, hasOverflow, leftPortalContainer, uiDir]);
+
   const isCollapsed = collapsedGroups.some(c => c.groupId === group.id);
 
   // A collapsed group has zero width, so its own header cannot carry the
@@ -435,13 +489,13 @@ const DockviewHeaderActions: React.FC<IDockviewHeaderActionsProps> = ({ containe
 
       {/* Left chevron - portaled to far left of tab row */}
       {hasOverflow && leftPortalContainer && createPortal(
-        <ChevronButton direction="start" enabled={canScrollStart} onClick={scrollTowardStart} rtl={uiDir === 'rtl'} />,
+        <ChevronButton direction="start" enabled={canScrollStart} onClick={scrollTowardStart} rtl={uiDir === 'rtl'} label={startLabel} />,
         leftPortalContainer,
       )}
 
       {/* Right chevron - stays in right actions area */}
       {hasOverflow && (
-        <ChevronButton direction="end" enabled={canScrollEnd} onClick={scrollTowardEnd} rtl={uiDir === 'rtl'} />
+        <ChevronButton direction="end" enabled={canScrollEnd} onClick={scrollTowardEnd} rtl={uiDir === 'rtl'} label={endLabel} />
       )}
 
       {/* Every tab in the pane, for when they no longer all fit */}

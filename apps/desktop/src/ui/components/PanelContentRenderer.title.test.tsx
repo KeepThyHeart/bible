@@ -8,7 +8,7 @@ import { act, render, screen } from '@testing-library/react';
 import PanelContentRenderer from './PanelContentRenderer';
 
 vi.mock('../contexts/useI18n', () => ({
-  useI18n: () => ({ t: (k: string) => k, language: 'en' }),
+  useI18n: () => ({ t: (k: string) => (k === 'paneName.study' ? 'Estudio' : k), language: 'es' }),
 }));
 vi.mock('../modules/moduleHost', () => ({
   modulePoints: {
@@ -49,5 +49,13 @@ describe('PanelContentRenderer region name', () => {
 
     expect(screen.getByRole('region', { name: 'Romans 8' })).toBeInTheDocument();
     expect(screen.queryByRole('region', { name: 'John 3' })).toBeNull();
+  });
+
+  it('uses the localized pane name, not the English constant title, for generic panels', () => {
+    const api = makeApi('Study');
+    const props = { params: { contentType: 'study' }, api } as unknown as React.ComponentProps<typeof PanelContentRenderer>;
+    render(<PanelContentRenderer {...props} />);
+    expect(screen.getByRole('region', { name: 'Estudio' })).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Study' })).toBeNull();
   });
 });

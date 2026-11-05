@@ -79,6 +79,36 @@ function logLayoutRepairs(repairs: LayoutRepairLogEntry[]): void {
 }
 
 /**
+ * The arrangement of the workbench - which groups exist, how they nest and
+ * which panels they hold - as a string, ignoring sizes and which panel is
+ * active.
+ *
+ * `onDidLayoutChange` also fires when focus moves between groups, a tab is
+ * activated or the window is resized. None of those rearranges anything, but
+ * treating each as a manual change cleared the layout presets' "current" mark
+ * the moment the user clicked a pane, so no preset ever showed as selected.
+ * Comparing shapes tells a real rearrangement (split, move, close, open) apart.
+ * Returns null when the layout cannot be serialized (counted as a change).
+ */
+export function layoutShape(api: Pick<DockviewApi, 'toJSON'>): string | null {
+  try {
+    const json = api.toJSON() as unknown as {
+      grid?: { orientation?: string; root?: unknown };
+    };
+    const walk = (node: unknown): unknown => {
+      const n = node as { type?: string; data?: unknown } | null;
+      if (!n || typeof n !== 'object') return null;
+      if (Array.isArray(n.data)) return [n.type, n.data.map(walk)];
+      const leaf = n.data as { id?: string; views?: string[] } | undefined;
+      return [n.type, leaf?.id, leaf?.views];
+    };
+    return JSON.stringify([json.grid?.orientation, walk(json.grid?.root)]);
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Component registry for dockview.
  * Maps component IDs (used in addPanel calls) to React components.
  */
@@ -373,9 +403,16 @@ const DockviewLayout: React.FC<DockviewLayoutProps> = ({ savedLayout, layoutDeci
     // `LayoutPresetService` sets a re-entrancy flag around its own
     // `apply()`/`undo()` calls and `notifyManualLayoutChange()` is a no-op
     // while that flag is set. See LayoutPresetService.ts.
+    // Only a change of arrangement counts as manual (see `layoutShape`); the
+    // baseline is taken once the initial layout below exists, and kept current
+    // through preset applications too, so those are never mistaken for edits.
+    let lastShape: string | null = null;
     const changeDisposable = api.onDidLayoutChange(() => {
       useSessionStore.getState().markDirty(); // allow-getstate: dockview event callback - runs outside React render
-      layoutPresetService.notifyManualLayoutChange();
+      const shape = layoutShape(api);
+      const rearranged = shape === null || shape !== lastShape;
+      lastShape = shape;
+      if (rearranged) layoutPresetService.notifyManualLayoutChange();
     });
 
     // Track the active panel so navigation actions (e.g. search) can target
@@ -458,6 +495,8 @@ const DockviewLayout: React.FC<DockviewLayoutProps> = ({ savedLayout, layoutDeci
         createDefaultLayout(api);
       }
     }
+
+    lastShape = layoutShape(api);
 
     // Session restore stages extra Bible passages for creation. It may finish
     // before or after this effect (a session with no saved dockview state hits

@@ -373,6 +373,25 @@ const SearchResultsPane: React.FC<SearchResultsPaneProps> = ({ dockviewPanelApi 
   // announcing results for `""`.
   const hasQuery = resultsForQuery.trim().length > 0;
 
+  // Zero results: the header's count region only mounts together with its text
+  // (and not at all while loading), so a search that finds nothing is never
+  // announced. Speak it through the always-mounted region below. Cleared when
+  // the next search starts, so an identical repeat is spoken again.
+  const zeroAnnouncedRef = useRef(false);
+  useEffect(() => {
+    if (isLoading) {
+      if (zeroAnnouncedRef.current) {
+        zeroAnnouncedRef.current = false;
+        setExpandAnnouncement('');
+      }
+      return;
+    }
+    if (!error && hasQuery && renderedRowCount === 0 && !isSearching) {
+      zeroAnnouncedRef.current = true;
+      setExpandAnnouncement(countSummary);
+    }
+  }, [isLoading, isSearching, error, hasQuery, renderedRowCount, countSummary]);
+
   const headingText = !hasQuery
     ? t('paneName.search')
     : isSemanticMode

@@ -115,4 +115,19 @@ describe('HelpPanel', () => {
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(onClose).toHaveBeenCalled();
   });
+
+  it('closes on Tab and puts focus back on the Help button so Tab moves on from there', () => {
+    const onClose = vi.fn();
+    render(
+      <div>
+        <button data-testid="opener">Help</button>
+        <HelpPanel onClose={onClose} />
+      </div>,
+    );
+    const first = screen.getAllByRole('menuitem')[0];
+    first.focus();
+    fireEvent.keyDown(first, { key: 'Tab' });
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId('opener')).toHaveFocus();
+  });
 });

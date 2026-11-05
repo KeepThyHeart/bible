@@ -116,6 +116,17 @@ const ReadingPlansPane: React.FC = () => {
     todayTabRef.current?.focus();
   }, [view]);
 
+  // "Choose a plan" (empty Today tab) unmounts with the Today view; hand focus
+  // to the Plans tab so it does not drop to <body>.
+  const plansTabRef = React.useRef<HTMLButtonElement | null>(null);
+  const focusPlansTabRef = React.useRef(false);
+  useEffect(() => {
+    if (view.kind !== 'plans' || !focusPlansTabRef.current) return;
+    focusPlansTabRef.current = false;
+    plansTabRef.current?.focus();
+  }, [view]);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+
   const confirmStart = async () => {
     if (!startKey) return;
     const ok = await run(() => service.startPlan(startKey, { startDate, pacing, readingDays }));
@@ -133,7 +144,7 @@ const ReadingPlansPane: React.FC = () => {
         <div className="flex flex-col items-center gap-sm text-center p-lg" data-testid="reading-plans-empty">
           <div style={{ fontSize: '1rem', fontWeight: 500 }}>{t('readingPlans.empty.title')}</div>
           <p className="m-0" style={secondary}>{t('readingPlans.empty.body')}</p>
-          <button type="button" className="kth-btn kth-btn--primary" onClick={() => go({ kind: 'plans' })}>{t('readingPlans.empty.choose')}</button>
+          <button type="button" className="kth-btn kth-btn--primary" onClick={() => { focusPlansTabRef.current = true; go({ kind: 'plans' }); }}>{t('readingPlans.empty.choose')}</button>
         </div>
       );
     }
@@ -266,8 +277,8 @@ const ReadingPlansPane: React.FC = () => {
           ) : null}
         </section>
 
-        <details>
-          <summary className="cursor-pointer font-medium">{t('readingPlans.settings.title')}</summary>
+        <details open={settingsOpen} onToggle={(e) => setSettingsOpen((e.currentTarget as HTMLDetailsElement).open)}>
+          <summary className="cursor-pointer font-medium" aria-expanded={settingsOpen}>{t('readingPlans.settings.title')}</summary>
           <div className="mt-sm"><ReadingPlanSettings /></div>
         </details>
       </div>
@@ -306,7 +317,7 @@ const ReadingPlansPane: React.FC = () => {
     <div className="h-full w-full flex flex-col overflow-hidden" data-testid="reading-plans-pane" style={shell}>
       <div className="flex items-center gap-xs px-md py-xs border-b border-border" role="toolbar" aria-label={t('readingPlans.title')}>
         <button type="button" ref={todayTabRef} className={tabClass(activeKind === 'today')} aria-pressed={activeKind === 'today'} onClick={() => go({ kind: 'today' })}>{t('readingPlans.nav.today')}</button>
-        <button type="button" className={tabClass(activeKind === 'plans')} aria-pressed={activeKind === 'plans'} onClick={() => go({ kind: 'plans' })}>{t('readingPlans.nav.plans')}</button>
+        <button type="button" ref={plansTabRef} className={tabClass(activeKind === 'plans')} aria-pressed={activeKind === 'plans'} onClick={() => go({ kind: 'plans' })}>{t('readingPlans.nav.plans')}</button>
         <button type="button" className={tabClass(activeKind === 'new')} aria-pressed={activeKind === 'new'} onClick={() => go({ kind: 'new' })}>{t('readingPlans.nav.new')}</button>
       </div>
       {error ? <p className="m-0 px-md py-xs text-sm" role="alert" style={{ color: 'var(--theme-error, #c0392b)' }}>{t('readingPlans.error', { message: error })}</p> : null}
