@@ -74,6 +74,21 @@ function trackFocusHistory(doc: Document): HTMLElement[] {
   return list;
 }
 
+/**
+ * The most recent keydown per document, seen in the capture phase. A trap
+ * released while that event is still being dispatched (a field whose Enter
+ * handler closed the dialog - React commits it before the event finishes
+ * bubbling) can still cancel it; see `release`.
+ */
+const lastKeydowns = new WeakMap<Document, KeyboardEvent>();
+const trackedKeydownDocs = new WeakSet<Document>();
+
+function trackKeydowns(doc: Document): void {
+  if (trackedKeydownDocs.has(doc)) return;
+  trackedKeydownDocs.add(doc);
+  doc.addEventListener('keydown', (e) => lastKeydowns.set(doc, e), true);
+}
+
 function canReceiveFocus(el: HTMLElement, doc: Document): boolean {
   return (
     el.isConnected &&
@@ -110,6 +125,7 @@ export function activateFocusTrap(
   const doc = container.ownerDocument;
   const win = doc.defaultView ?? window;
   const history = trackFocusHistory(doc);
+  trackKeydowns(doc);
   const previouslyFocused = (doc.activeElement as HTMLElement | null) ?? null;
   // Snapshot now: the history keeps changing once focus moves into the dialog.
   const openerCandidates = [...history].filter((el) => !container.contains(el));
@@ -183,6 +199,17 @@ export function activateFocusTrap(
       container.removeEventListener('keydown', handleKeyDown);
       if (addedTabIndex) {
         container.removeAttribute('tabindex');
+      }
+      // Closed by an Enter keydown (a field that submits and closes the
+      // dialog): once that keydown finishes, the browser sends the key's
+      // keypress to whatever has focus, and Chromium activates a focused
+      // button on keypress - so the opener we are about to refocus would be
+      // clicked and the dialog would open again. Cancelling the keydown while
+      // it is still in dispatch suppresses that keypress; the key has already
+      // done its job.
+      const keydown = lastKeydowns.get(doc);
+      if (keydown && keydown.key === 'Enter' && keydown.eventPhase !== 0) {
+        keydown.preventDefault();
       }
       // Un-inert first: an inert element cannot take focus.
       restoreInert?.();

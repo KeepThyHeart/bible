@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { describe, it, expect } from 'vitest';
+import { flushSync } from 'react-dom';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { useFocusTrap } from './useFocusTrap';
 
@@ -114,5 +115,41 @@ describe('useFocusTrap inert background', () => {
     fireEvent.keyDown(screen.getByTestId('dlg'), { key: 'Escape' });
     await flush();
     expect(document.activeElement).toBe(helpButton);
+  });
+
+  it('cancels the Enter keydown that closed it, so its keypress cannot click the refocused opener', async () => {
+    function Host() {
+      const [open, setOpen] = useState(false);
+      return (
+        <div>
+          <button onClick={() => setOpen(true)}>opener</button>
+          {open && (
+            <Dialog id="picker" onClose={() => setOpen(false)}>
+              <input
+                aria-label="filter"
+                onKeyDown={(e) => {
+                  // flushSync: commit (and release the trap) while the keydown
+                  // is still being dispatched, as the app's event loop does.
+                  if (e.key === 'Enter') flushSync(() => setOpen(false));
+                }}
+              />
+            </Dialog>
+          )}
+        </div>
+      );
+    }
+    render(<Host />);
+    const opener = screen.getByText('opener');
+    opener.focus();
+    fireEvent.click(opener);
+    await flush();
+    const input = screen.getByLabelText('filter');
+    input.focus();
+    // fireEvent returns false when a handler called preventDefault().
+    const notCancelled = fireEvent.keyDown(input, { key: 'Enter' });
+    await flush();
+    expect(screen.queryByTestId('picker')).toBeNull();
+    expect(notCancelled).toBe(false);
+    expect(document.activeElement).toBe(opener);
   });
 });

@@ -85,6 +85,31 @@ describe('region navigation (B-113)', () => {
     expect(document.activeElement?.id).toBe('h');
   });
 
+  it('a rescue focuses the pane heading without scrolling the reader back to it', () => {
+    const heading = document.getElementById('h')!;
+    const calls: Array<FocusOptions | undefined> = [];
+    const original = heading.focus.bind(heading);
+    heading.focus = (opts?: FocusOptions) => {
+      calls.push(opts);
+      original(opts);
+    };
+    focusRegion(document.querySelector('[data-panel-id=p1]') as HTMLElement, true);
+    expect(active()).toBe('h');
+    expect(calls).toEqual([{ preventScroll: true }]);
+  });
+
+  it('F6 (not a rescue) still focuses the pane heading normally', () => {
+    const heading = document.getElementById('h')!;
+    const calls: Array<FocusOptions | undefined> = [];
+    const original = heading.focus.bind(heading);
+    heading.focus = (opts?: FocusOptions) => {
+      calls.push(opts);
+      original(opts);
+    };
+    focusRegion(document.querySelector('[data-panel-id=p1]') as HTMLElement);
+    expect(calls).toEqual([undefined]);
+  });
+
   it('B-158: a rescue ignores the F6 memory (stale marker) and lands on the pane heading', () => {
     document.getElementById('b1')!.focus(); // remembered for the pane
     (document.activeElement as HTMLElement).blur();

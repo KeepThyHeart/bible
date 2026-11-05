@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import React from 'react';
 import ModuleSelector, { type ModuleItem } from './ModuleSelector';
@@ -333,6 +333,8 @@ describe('ModuleSelector: remove affordance (opt-in)', () => {
       const dialog = screen.getByRole('dialog', { name: 'Select Translation' });
       expect(dialog).toHaveAttribute('aria-modal', 'true');
       expect(screen.getByTestId('page').closest('[inert]')).not.toBeNull();
+      // Focus moves in on a timer; Escape typed before it lands goes nowhere.
+      await waitFor(() => expect(dialog.contains(document.activeElement)).toBe(true));
       await user.keyboard('{Escape}');
       expect(screen.queryByRole('dialog')).toBeNull();
       expect(screen.getByTestId('page').closest('[inert]')).toBeNull();
