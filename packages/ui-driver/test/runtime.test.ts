@@ -329,6 +329,20 @@ describe('audit', () => {
     expect(details).not.toContain('loved the world');
   });
 
+  it('does not report a button laid inside a text field as an overlap', async () => {
+    await load(`<div style="position:relative;width:300px"><input aria-label="Search" style="width:300px;height:32px;box-sizing:border-box">
+      <button aria-label="Clear" style="position:absolute;right:4px;top:4px;width:24px;height:24px">x</button></div>`);
+    await snap();
+    expect((await audit('overlap')).filter((i) => i.kind === 'overlap' || i.kind === 'covered')).toEqual([]);
+  });
+
+  it('on a non-English page checks native select options', async () => {
+    await load(`<label>Mostrar <select><option>Show all</option><option>Hide all</option></select></label>`);
+    await page.evaluate(() => { document.documentElement.lang = 'es'; });
+    await snap();
+    expect((await audit('i18n')).map((i) => i.detail).join('\n')).toContain('Show all');
+  });
+
   it('describes focus on an element without a ref', async () => {
     await load(`<div id="pane" tabindex="-1" class="pane-body"><span>text</span></div>`);
     await page.evaluate(() => (document.getElementById('pane') as HTMLElement).focus());

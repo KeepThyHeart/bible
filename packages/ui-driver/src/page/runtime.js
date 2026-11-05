@@ -762,6 +762,10 @@
             const pr = pin.getBoundingClientRect();
             if ((pr.width >= 0.9 * vw || pr.height >= 0.9 * vh) && pr.width * pr.height < 0.4 * vw * vh) continue;
           }
+          // a clear/options button laid inside a text field (search boxes) is a design, not an overlap
+          const field = (e) => e.tagName === 'INPUT' || e.tagName === 'TEXTAREA' || /^(textbox|searchbox|combobox)$/.test(roleOf(e));
+          const inside = (o, i) => i.left >= o.left - 1 && i.right <= o.right + 1 && i.top >= o.top - 1 && i.bottom <= o.bottom + 1;
+          if ((field(ea) && !field(eb) && inside(a, bb)) || (field(eb) && !field(ea) && inside(bb, a))) continue;
           // per line box: wrapped inline elements have rects that do not overlap although their bounding boxes do
           let area = 0;
           const ra2 = cut(boxes(ea), a); const rb2 = cut(boxes(eb), bb);
@@ -825,6 +829,9 @@
         for (const attr of ['aria-label', 'placeholder', 'title', 'alt']) {
           const v = el.getAttribute && el.getAttribute(attr);
           if (v) check(v, el, attr, true);
+        }
+        if (nonEn && el.tagName === 'SELECT') {
+          for (const o of Array.from(el.options || []).slice(0, 12)) check(o.textContent, el, 'option', true);
         }
         const role = roleOf(el);
         if (nonEn && (INTERACTIVE.has(role) || ['tablist', 'region', 'dialog', 'alertdialog', 'menu', 'tabpanel', 'group'].includes(role))) check(nameOf(el, role), el, 'name', true);
