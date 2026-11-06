@@ -137,12 +137,13 @@ describe('W-010: /api/search/semantic maxResults', () => {
     return new URL(String(f.mock.calls[0][0])).searchParams.get('k');
   }
 
-  it('clamps to an integer from 1 to 50, defaulting to 20', async () => {
+  it('clamps to an integer from 1 to 500 at the route (the remote client then caps k at 100), defaulting to 20', async () => {
     expect(await sentK(undefined)).toBe('20');
     expect(await sentK('abc')).toBe('20');
     expect(await sentK('0')).toBe('1');
     expect(await sentK('-7')).toBe('1');
     expect(await sentK('12.9')).toBe('12');
-    expect(await sentK('999')).toBe('50');
+    expect(await sentK('999')).toBe('100'); // route allows 500; RemoteSemanticClient caps k at 100
+    expect(await sentK('100')).toBe('100');
   });
 });

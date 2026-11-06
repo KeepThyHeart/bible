@@ -10,4 +10,4 @@ export const STRONGS_LOAD_MORE_STEP = 1000;
  * MAX_SEMANTIC_RESULTS (server/routes/searchRoutes.ts), so that is the ceiling.
  */
 export const SEMANTIC_LOAD_MORE_STEP = 100;
-export const SEMANTIC_MAX_RESULTS = 50;
+export const SEMANTIC_MAX_RESULTS = 500;

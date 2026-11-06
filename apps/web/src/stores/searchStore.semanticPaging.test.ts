@@ -12,7 +12,7 @@ const provider = {
   keywordSearch: vi.fn(() => Promise.resolve({ results: [], total: 0 })),
   semanticSearch: vi.fn((_q: string, o?: { pageSize?: number }) => {
     sizes.push(o?.pageSize ?? 0);
-    const n = Math.min(o?.pageSize ?? 20, 80);
+    const n = Math.min(o?.pageSize ?? 20, 1000);
     return Promise.resolve({ results: rows(n), total: n });
   }),
   strongsSearch: vi.fn(),
@@ -32,9 +32,12 @@ describe('searchStore semantic paging', () => {
     expect(searchStore.canLoadMore).toBe(true);
 
     await searchStore.loadMoreSemantic();
-    expect(sizes[1]).toBe(Math.min(20 + SEMANTIC_LOAD_MORE_STEP, SEMANTIC_MAX_RESULTS));
-    expect(sizes[1]).toBe(50);
-    expect(searchStore.results.length).toBe(50);
+    expect(sizes[1]).toBe(20 + SEMANTIC_LOAD_MORE_STEP);
+    expect(searchStore.canLoadMore).toBe(true);
+
+    for (let i = 0; i < 10 && searchStore.canLoadMore; i++) await searchStore.loadMoreSemantic();
+    expect(Math.max(...sizes)).toBe(SEMANTIC_MAX_RESULTS);
+    expect(searchStore.results.length).toBe(SEMANTIC_MAX_RESULTS);
     expect(searchStore.canLoadMore).toBe(false);
   });
 });

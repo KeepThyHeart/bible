@@ -193,7 +193,7 @@ each endpoint bounds itself differently:
 | Mode | Signal | Why |
 |---|---|---|
 | Keyword | `results.length >= KEYWORD_PAGE_SIZE` (50) | `GET /api/search/keyword` has no offset and reports `total` as `results.length`, so the response carries no truncation signal at all. The store now asks for an explicit `pageSize` so the limit is a constant it owns rather than the server's default (the route caps at 100). A page that came back exactly full cannot be told apart from one the cap cut short — hence a caption that hedges rather than claiming a Bible-wide tally. |
-| Semantic | `canLoadMore` | The store asks for a page (20) and infers more from a full one. Re-running the vector search at a larger cap loses relevance, so "Show more" grows by a bounded step (`SEMANTIC_LOAD_MORE_STEP` = 100) clamped to the route's `maxResults` ceiling (`SEMANTIC_MAX_RESULTS` = 50), i.e. one click takes 20 to 50 and then the button goes away. |
+| Semantic | `canLoadMore` | The store asks for a page (20) and infers more from a full one. Re-running the vector search at a larger cap loses relevance, so "Show more" grows by a bounded step (`SEMANTIC_LOAD_MORE_STEP` = 100) clamped to the route's `maxResults` ceiling (`SEMANTIC_MAX_RESULTS` = 500, matching the route clamp), so clicks take 20 to 120, 220 and on up to 500. The remote bibsearch client (`RemoteSemanticClient`) still caps `k` at 100, so in remote mode the list stops growing at 100; the desktop remote source caps at 50. |
 | Strong's | `results.length < strongsTotalAvailable` | The only endpoint that reports a true unclamped count. |
 
 ## Approximate (fuzzy) matches in the list
@@ -275,7 +275,7 @@ reworded first. Switching back to keyword still re-runs the query. Covered by
 
 `GET /api/search/semantic` proxies to bibsearch (`server/search/RemoteSemanticService.ts`, one client per process so a 429/503/403 pause is shared). Internal or localhost URLs work. Every web user then shares the web server's IP as far as bibsearch is concerned, so give the server an `apiKey` (or raise bibsearch's anonymous tier), or the per-IP limits will be hit quickly.
 
-Request: the normal `q`, `maxResults` (cap 50) and `modules` parameters plus the header `X-Remote-Search-Consent: <notice version>`. Without the current version the route answers `403 {error:{code:'CONSENT_REQUIRED'}, results:[], total:0}` and sends nothing to bibsearch. Success: `{results, total, timings, semantic:{source:'remote', notice?:{kind:'degraded'}, rateLimit}}`. Failure of the service: `503 {error:{code:'REMOTE_UNAVAILABLE'}, results:[], total:0, semantic:{source:'remote', notice}}`, where `notice` is `quota`, `paused`, `unavailable` or `rephrase`, so the browser can fall back to keyword search and show the note. `POST /api/search/semantic/warmup` does nothing in this mode.
+Request: the normal `q`, `maxResults` (cap 500) and `modules` parameters plus the header `X-Remote-Search-Consent: <notice version>`. Without the current version the route answers `403 {error:{code:'CONSENT_REQUIRED'}, results:[], total:0}` and sends nothing to bibsearch. Success: `{results, total, timings, semantic:{source:'remote', notice?:{kind:'degraded'}, rateLimit}}`. Failure of the service: `503 {error:{code:'REMOTE_UNAVAILABLE'}, results:[], total:0, semantic:{source:'remote', notice}}`, where `notice` is `quota`, `paused`, `unavailable` or `rephrase`, so the browser can fall back to keyword search and show the note. `POST /api/search/semantic/warmup` does nothing in this mode.
 
 ### `via: "browser"`
 

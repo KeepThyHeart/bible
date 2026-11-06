@@ -78,7 +78,7 @@ const MAX_STRONGS_RESULTS = 5000;
 
 /** Semantic result count: default and ceiling (W-010). */
 const DEFAULT_SEMANTIC_RESULTS = 20;
-const MAX_SEMANTIC_RESULTS = 50;
+const MAX_SEMANTIC_RESULTS = 500;
 
 /**
  * Verse-proximity (`a b ~Nv`) limits (W-003). Each term is a separate lookup

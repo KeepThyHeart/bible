@@ -80,6 +80,7 @@ The Writing pane: file-backed `.bn` notes with a rich text editor and a folder b
 |---|---|
 | `electron/ipc/notesHandlers.ts` | IPC handlers for SQLite-based notes CRUD operations |
 | `electron/ipc/fileNotesHandlers.ts` | IPC handlers for file-based .bn notes (CRUD, dialogs, verse notes, export to .md/.docx) |
+| `electron/ipc/noteDocx.ts` | Note HTML to .docx for `file-notes:export-docx`: parses the editor HTML into a small tree and emits real Word formatting (headings, bold/italic/underline/strike/sub/sup, hyperlinks, nested bullet and numbered lists, block quotes, soft-tab indent, rules, code). Test: `noteDocx.test.ts` parses `word/document.xml` and checks no HTML leaks into text runs |
 | `electron/services/BibleNotesFileService.ts` | File service for .bn file operations, .bak backups, directory management, verse notes |
 | `electron/main.ts` | `renderNoteDocument` plus the `notes:print` and `notes:export-pdf` channels that share it |
 
