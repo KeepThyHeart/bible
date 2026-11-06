@@ -161,7 +161,8 @@
       "captionCapped": "فقط نتایجی که تاکنون بارگذاری شده‌اند شمرده می‌شوند؛ موارد بیشتری برای بارگذاری وجود دارد.",
       "captionCeiling": "{count, plural, one {فقط نخستین # تطابق شمرده می‌شود؛ جستجو همان‌جا متوقف می‌شود.} other {فقط نخستین # تطابق شمرده می‌شود؛ جستجو همان‌جا متوقف می‌شود.}}"
     },
-    "resultsFrom": "نتایج از {modules}"
+    "resultsFrom": "نتایج از {modules}",
+    "showMoreCount": "Show {count} more"
   },
   "contextMenu": {
     "label": "کارهای آیه",
