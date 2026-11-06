@@ -169,6 +169,7 @@ pnpm --filter @bible/ui-driver test        # unit tests (runtime tests use headl
 pnpm --filter @bible/ui-driver typecheck
 pnpm --filter @bible/ui-driver lint
 pnpm --filter @bible/ui-driver e2e         # smoke: drives the CLI against web and desktop (needs builds)
+pnpm --filter @bible/ui-driver e2e:popout  # popped-out notes window: toolbar, indent, Ctrl+F, reference hover (needs the desktop build; xvfb-run -a on a headless Linux box; skips when it cannot run)
 ```
 
 No build step: Node runs the TypeScript directly (type stripping), so `.ts` imports carry their
