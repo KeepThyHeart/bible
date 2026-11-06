@@ -85,7 +85,25 @@ const VersePreviewTooltip: React.FC<VersePreviewTooltipProps> = ({
   // Get active Bible version from store
   const { openTabs, activeTabIndex } = useBiblePanel();
   const defaultBible = useBibleStore(s => s.getDefaultBible());
-  const activeVersion = openTabs[activeTabIndex]?.abbreviation ?? defaultBible;
+  const tabVersion = openTabs[activeTabIndex]?.abbreviation ?? defaultBible;
+  // A detached notes window is its own renderer with an empty store: no Bible
+  // tabs and no module list yet, so `tabVersion` is undefined there. Resolve
+  // the default Bible after loading the installed list instead of giving up.
+  const [resolvedVersion, setResolvedVersion] = useState<string | undefined>(undefined);
+  const [resolveDone, setResolveDone] = useState(false);
+  const activeVersion = tabVersion ?? resolvedVersion;
+  useEffect(() => {
+    if (tabVersion) return;
+    let cancelled = false;
+    const resolver = useBibleStore.getState().resolveDefaultBible;
+    if (!resolver) { setResolveDone(true); return; }
+    void resolver().then(v => {
+      if (cancelled) return;
+      if (v) setResolvedVersion(v);
+      setResolveDone(true);
+    }).catch(() => { if (!cancelled) setResolveDone(true); });
+    return () => { cancelled = true; };
+  }, [tabVersion]);
   // The previewed text follows the active Bible's language, not the UI's.
   const activeLanguage = useBibleStore(s => s.availableBibles?.find(b => b.abbreviation === activeVersion)?.language_code);
   /**
@@ -114,6 +132,8 @@ const VersePreviewTooltip: React.FC<VersePreviewTooltipProps> = ({
 
         // No Bible installed (or none known yet): nothing to preview from.
         if (!activeVersion) {
+          // Still resolving the default Bible (detached window): stay loading.
+          if (!tabVersion && !resolveDone) return;
           setError('Verse not found');
           return;
         }
@@ -177,7 +197,7 @@ const VersePreviewTooltip: React.FC<VersePreviewTooltipProps> = ({
     };
 
     fetchVerses();
-  }, [verseId, endVerseId, isRange, activeVersion]);
+  }, [verseId, endVerseId, isRange, activeVersion, resolveDone]);
 
   // Scroll to center the target verse after loading (KAN-33)
   // Center the verse unless it's taller than the container, in which case show the top

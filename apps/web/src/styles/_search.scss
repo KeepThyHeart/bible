@@ -317,6 +317,9 @@
 }
 
 .search-result-item {
+  // "Show more" can put 1,000 rows on screen: skip layout/paint for off-screen ones.
+  content-visibility: auto;
+  contain-intrinsic-size: auto 64px;
   padding: 10px 12px;
   border-bottom: 1px solid var(--border-color);
   cursor: pointer;

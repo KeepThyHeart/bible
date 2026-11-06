@@ -2,7 +2,6 @@ import { Bdi } from '@bible/ui';
 import React, { useEffect, useRef } from 'react';
 import { useI18n } from '../contexts/useI18n';
 import { SearchResult } from '@bible/core';
-import { useSearchStore } from '../stores/useSearchStore';
 import { sanitizeHtml } from '../utils/sanitize';
 import { tElements } from '../utils/tElements';
 
@@ -40,10 +39,6 @@ const LiveSearchSuggestions: React.FC<LiveSearchSuggestionsProps> = ({
   onSelectSuggestion,
 }) => {
   const { t } = useI18n();
-  // All hooks must be called unconditionally before any early returns
-  // (React Rules of Hooks). Moving useSearchStore before conditional logic.
-  const { semanticAvailable, toggleSemanticMode, isSemanticMode } = useSearchStore();
-
   // Show loading state while searching
   if (isLoading) {
     return (
@@ -81,20 +76,8 @@ const LiveSearchSuggestions: React.FC<LiveSearchSuggestionsProps> = ({
   return (
     <div data-testid="live-suggestions" className="absolute top-full mt-1 w-full bg-surface border border-border rounded-lg shadow-lg max-h-96 overflow-y-auto z-50">
       {/* Header */}
-      <div className="px-3 py-2 text-xs font-semibold text-text-secondary border-b border-border bg-surface-secondary flex items-center justify-between">
+      <div className="px-3 py-2 text-xs font-semibold text-text-secondary border-b border-border bg-surface-secondary">
         <span>{t('liveSearchSuggestions.topResults')}</span>
-        {semanticAvailable && (
-          <button
-            type="button"
-            onMouseDown={(e) => {
-              e.preventDefault();
-              toggleSemanticMode();
-            }}
-            className="text-xs text-accent-strong hover:text-accent-strong hover:underline cursor-pointer"
-          >
-            {isSemanticMode ? 'Back to Keyword Search' : 'Semantic Search'}
-          </button>
-        )}
       </div>
 
       {/* Suggestions List */}

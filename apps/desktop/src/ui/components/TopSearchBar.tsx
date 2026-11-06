@@ -16,6 +16,7 @@ import type { SearchBarMode } from '../types/SearchBarMode';
 import type { CommandQueryResult } from '../types/Command';
 import TopSearchBarDropdown from './TopSearchBarDropdown';
 import LiveSearchSuggestions from './LiveSearchSuggestions';
+import SearchTypeSelector from './SearchTypeSelector';
 import { focusRegion } from '../services/regionNavigation';
 import { useLayoutStore } from '../stores/useLayoutStore';
 import { currentOs } from '../utils/platformLabels';
@@ -51,11 +52,13 @@ function focusAfterSearch(kind: 'bible' | 'results' | 'back'): void {
         document.querySelector<HTMLElement>('[data-tour-pane="bible"] [data-pane-focus]');
     }
     if (target) {
-      target.focus();
+      // Landing on a Bible verse: the pane heading sits above verse 1, so focusing it with the
+      // default scroll would undo the centring of a typed "John 3:16" and snap back to the top.
+      target.focus(kind === 'results' ? undefined : { preventScroll: true });
       return;
     }
     const region = document.querySelector<HTMLElement>('[data-kth-region="pane"]');
-    if (region) focusRegion(region);
+    if (region) focusRegion(region, kind !== 'results');
   };
   requestAnimationFrame(() => requestAnimationFrame(() => run()));
 }
@@ -656,12 +659,8 @@ const TopSearchBar = forwardRef<TopSearchBarHandle>(function TopSearchBar(_props
         </svg>
       );
     }
-    // search / empty
-    return (
-      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-      </svg>
-    );
+    // search / empty: the icon is also the Search / Ideas selector
+    return <SearchTypeSelector onChosen={() => inputRef.current?.focus()} />;
   }, [mode]);
 
   // --------------------------------------------------------------------------

@@ -76,17 +76,28 @@ describe('searchStore Strong\'s paging', () => {
     expect(searchStore.strongsRemaining).toBe(AVAILABLE - 100);
   });
 
-  it('advances by one page per loadMoreStrongs call', async () => {
+  it('asks for 1,000 more per loadMoreStrongs call, clamped to what exists', async () => {
     await searchStore.performSearch('G25');
     await searchStore.loadMoreStrongs();
 
-    expect(capturedOptions[1].maxResults).toBe(200);
-    expect(searchStore.results.length).toBe(200);
-    expect(searchStore.canLoadMore).toBe(true);
+    expect(capturedOptions[1].maxResults).toBe(1100);
+    expect(searchStore.results.length).toBe(AVAILABLE);
+    expect(searchStore.canLoadMore).toBe(false);
+  });
 
-    await searchStore.loadMoreStrongs();
-    expect(capturedOptions[2].maxResults).toBe(300);
-    expect(searchStore.results.length).toBe(300);
+  it('keeps stepping by 1,000 while more remain, up to the server cap', async () => {
+    AVAILABLE = 7052;
+    try {
+      await searchStore.performSearch('G3588');
+      await searchStore.loadMoreStrongs();
+      expect(capturedOptions[1].maxResults).toBe(1100);
+      expect(searchStore.results.length).toBe(1100);
+      expect(searchStore.canLoadMore).toBe(true);
+      await searchStore.loadMoreStrongs();
+      expect(capturedOptions[2].maxResults).toBe(2100);
+    } finally {
+      AVAILABLE = 640;
+    }
   });
 
   it('fetches everything remaining on loadAllStrongs and stops offering more', async () => {

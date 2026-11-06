@@ -134,6 +134,14 @@ The Tab key indents instead of moving focus out of the editor, matching what use
 - **Escape hatch - "Escape, then Tab":** pressing Escape arms a one-shot exception; the very next Tab press is left alone (not trapped), so the browser's default focus-out-of-field behavior runs and a keyboard-only user can leave the field. Any other keypress between Escape and Tab cancels the armed state, so it can't fire unexpectedly later. This is the same convention used by CodeMirror and other code-editor components for accessible tab-trapping. Note that this arms *before* the expansion keymap runs, so Escape-then-Tab leaves the editor even when the caret is sitting on a reference - accessibility wins over convenience.
 - **The container handler defers to ProseMirror.** Its first act on a Tab is `if (e.defaultPrevented) return;`. It is a React bubble-phase listener on the wrapper div, so it runs *after* TipTap's own keydown handling, and an expansion fires in a plain paragraph where none of the `isActive('listItem' | 'tableCell' | ...)` checks hold. Without the guard the soft tab would be appended after every expanded passage - into saved `.bn` content.
 
+### Indent / outdent buttons
+
+The editor toolbar has Increase / Decrease Indent buttons (`indentCommands.ts`). In a list or task item they nest / lift the item (`sinkListItem` / `liftListItem`, the same as Tab / Shift+Tab); in paragraphs they prefix / strip one `SOFT_TAB` (non-breaking spaces) at the start of every selected block. Decrease is disabled when there is nothing to outdent. Tests: `indentAndFind.test.ts`.
+
+### Find in a note (Ctrl+F)
+
+With focus inside a note, Ctrl+F opens a find bar at the top of the editor (`NoteFindBar.tsx`) instead of the Bible find bar. `searchCommands.ts` re-dispatches `command:notes:find` when the focused element is inside `.note-editor`; the editor also handles Ctrl/Cmd+F itself when no command layer claimed the key (detached windows). Matches are inline decorations from `NoteFindExtension.ts` (`note-find-match`, `-current`), never saved into the note HTML; `noteFindRanges.ts` is the pure matcher (matches do not span formatting boundaries). Enter / Shift+Enter / F3 step, Escape closes and refocuses the editor. It reuses the `ui.findBar.*` strings. Find in the note *list* is not provided.
+
 ### Expanding a verse reference in place
 
 Two ways in, both landing on the same picker. **Tab** with the caret immediately after a reference, or **right-click** it and choose "Expand to full text...". The picker asks how the passage should be pasted, previews the answer live, and inserts on Enter - so the common case is "type the reference, Tab, Enter". (The toolbar's `+ Bible Passage` and the passage slash commands open the same picker with a reference field on top - see "One passage dialog, four ways in" below.)

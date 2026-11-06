@@ -114,6 +114,9 @@ export function resolveReorderTarget(
  * was aimed at a tab. It is the same division of labour dockview uses between
  * `.dv-tab` and `.dv-void-container`.
  */
+/** The inactive-tab underline, shared with the "+" button and drop zone so the strip's line is unbroken. */
+const TAB_UNDERLINE = '3px solid color-mix(in srgb, var(--theme-border-primary) 50%, transparent)';
+
 const EndDropZone: React.FC<{ id: string }> = ({ id }) => {
   const { setNodeRef, isOver } = useDroppable({ id });
   return (
@@ -127,6 +130,7 @@ const EndDropZone: React.FC<{ id: string }> = ({ id }) => {
         minWidth: '24px',
         // A rule at the insertion point says *where* the drop will land.
         borderInlineStart: isOver ? '2px solid var(--theme-accent-primary)' : '2px solid transparent',
+        borderBottom: TAB_UNDERLINE,
       }}
     />
   );
@@ -165,7 +169,7 @@ const SortableTab: React.FC<{
     boxShadow: isOver && !isDragging ? 'inset 2px 0 0 0 var(--theme-accent-primary)' : undefined,
     borderBottom: isActive
       ? '3px solid var(--theme-accent-primary)'
-      : '3px solid color-mix(in srgb, var(--theme-border-primary) 50%, transparent)',
+      : TAB_UNDERLINE,
     paddingTop: '6px',
     paddingBottom: '3px',
   };
@@ -301,7 +305,7 @@ const DraggableTabBar: React.FC<DraggableTabBarProps> = ({
               title={addButtonTitle ?? t('draggableTabBar.addTab')}
               aria-label={addButtonTitle ?? t('draggableTabBar.addTab')}
               data-testid={addButtonTestId}
-              style={{ paddingTop: '6px', paddingBottom: '3px' }}
+              style={{ paddingTop: '6px', paddingBottom: '3px', borderBottom: TAB_UNDERLINE }}
             >
               +
             </button>

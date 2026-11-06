@@ -8,8 +8,9 @@ import { commentaryStore, HOME_TAB_ID } from '../../stores/commentaryStore';
 import { bibleStore } from '../../stores/bibleStore';
 import { getLocalizedBookName } from '../../utils/bookNames';
 import { useStore } from '../../hooks/useStore';
-import { formatPassageRef, MAX_CHAPTERS } from '../../constants';
+import { formatPassageRef } from '../../constants';
 import { parseVerseId } from '../../utils/verseId';
+import { stepCommentaryVerse } from '../../utils/commentaryVerseNav';
 import { getSyncStatus } from '../../utils/syncStatus';
 import { useVerseText } from '../../hooks/useVerseText';
 import type { IBibleDataProvider } from '../../providers/interfaces';
@@ -138,31 +139,30 @@ export function CommentaryPane({ bibleProvider, onOpenSettings, hideTabBar }: Co
   const navigateCommentaryVerse = useCallback(async (delta: number) => {
     const verseNum = displayVerse ? displayVerse % 1000 : null;
     if (!effectiveBook || !effectiveChapter || !verseNum) return;
-    const newVerse = verseNum + delta;
-    if (newVerse < 1) {
-      // Go to the last verse of the previous chapter
-      let prevBook = effectiveBook;
-      let prevChapter = effectiveChapter - 1;
-      if (prevChapter < 1) {
-        if (effectiveBook <= 1) return; // Already at Genesis 1
-        prevBook = effectiveBook - 1;
-        prevChapter = MAX_CHAPTERS[prevBook] || 1;
+    // The verses of the chapter on screen, when the Bible tab is showing it: the end of
+    // the chapter (John 3:36) is read from here so Next can cross into the next chapter.
+    const tab = bibleStore.getActiveTab();
+    const chapterVerses = tab && tab.book === effectiveBook && tab.chapter === effectiveChapter
+      ? tab.verses?.map(v => v.verse_id % 1000)
+      : undefined;
+    const step = stepCommentaryVerse(effectiveBook, effectiveChapter, verseNum, delta < 0 ? -1 : 1, chapterVerses);
+    if (!step) return; // Genesis 1:1 backwards / Revelation 22:21 forwards
+    let verse: number = step.verse ?? 1;
+    if (step.crossesChapter) {
+      // Load the neighbouring chapter in the Bible pane (it selects its first verse).
+      await bibleStore.navigateTo(step.book, step.chapter);
+      if (step.verse == null) {
+        // Previous: land on the last verse of the loaded chapter.
+        const lastV = bibleStore.getActiveTab()?.verses?.filter(v => v.verse_id % 1000 > 0).pop();
+        verse = lastV ? lastV.verse_id % 1000 : 1;
       }
-      // Navigate Bible pane to the previous chapter (loads verses)
-      await bibleStore.navigateTo(prevBook, prevChapter);
-      // Pick the last verse from the loaded data
-      const tab = bibleStore.getActiveTab();
-      const verses = tab?.verses;
-      const lastV = verses?.filter(v => v.verse_id % 1000 > 0).pop();
-      const lastVerseNum = lastV ? lastV.verse_id % 1000 : 1;
-      const lastVerseId = (prevBook * 1000000) + (prevChapter * 1000) + lastVerseNum;
-      commentaryStore.setOverrideVerse(lastVerseId);
-      bibleStore.adoptPreviewAsStudy(lastVerseId);
-      return;
     }
-    const newVerseId = (effectiveBook * 1000000) + (effectiveChapter * 1000) + newVerse;
+    const newVerseId = (step.book * 1000000) + (step.chapter * 1000) + verse;
     commentaryStore.setOverrideVerse(newVerseId);
     bibleStore.adoptPreviewAsStudy(newVerseId);
+    // Bring the verse into view in the Bible pane (the commentary itself scrolls to
+    // its top whenever the verse changes, below).
+    bibleStore.scrollToVerse(newVerseId);
   }, [displayVerse, effectiveBook, effectiveChapter]);
 
   useEffect(() => {

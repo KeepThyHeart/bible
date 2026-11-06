@@ -20,6 +20,9 @@ import Superscript from '@tiptap/extension-superscript';
 import TextAlign from '@tiptap/extension-text-align';
 import Image from '@tiptap/extension-image';
 import CharacterCount from '@tiptap/extension-character-count';
+import { SOFT_TAB } from './indentCommands';
+import { NoteFind } from './NoteFindExtension';
+import NoteFindBar from './NoteFindBar';
 import EditorToolbar, { type NoteExportActions } from './EditorToolbar';
 import { verseReferencePlugin } from './VerseReferencePlugin';
 import { FontSize } from './FontSizeExtension';
@@ -106,7 +109,6 @@ function expandNoticeText(
 // run of non-breaking spaces is what actually renders as an indent, and
 // (being ordinary characters) survives save/load through the .bn HTML content
 // exactly like any other text.
-const SOFT_TAB = '    ';
 
 /**
  * Gap between a detected reference and the preview popup anchored under it.
@@ -155,6 +157,19 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
     expansionId: string;
   } | null>(null);
   const editorContainerRef = useRef<HTMLDivElement>(null);
+  const noteRootRef = useRef<HTMLDivElement>(null);
+  const [showFind, setShowFind] = useState(false);
+
+  // Ctrl+F while the note (or its find bar) has focus finds in the note. The
+  // search command re-dispatches here instead of opening the Bible find bar.
+  useEffect(() => {
+    const open = () => {
+      const root = noteRootRef.current;
+      if (root && root.contains(document.activeElement)) setShowFind(true);
+    };
+    window.addEventListener('command:notes:find', open);
+    return () => window.removeEventListener('command:notes:find', open);
+  }, []);
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [tooltipState, setTooltipState] = useState<{
     visible: boolean;
@@ -337,6 +352,7 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
       TableCell,
       TableHeader,
       TaskList,
+      NoteFind,
       TaskItem.configure({ nested: true }),
       Placeholder.configure({ placeholder: resolvedPlaceholder }),
       Typography,
@@ -512,6 +528,11 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
 
   const handleEditorContainerKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLDivElement>) => {
+      if (editor && (e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'f' && !e.defaultPrevented) {
+        e.preventDefault();
+        setShowFind(true);
+        return;
+      }
       if (!editor || readOnly) return;
 
       if (e.key === 'Escape') {
@@ -852,7 +873,7 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
   );
 
   return (
-    <div className="note-editor h-full flex flex-col">
+    <div ref={noteRootRef} className="note-editor h-full flex flex-col">
       {/* Toolbar (only show when not read-only) */}
       {!readOnly && (
         <EditorToolbar
@@ -861,6 +882,10 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
           onInsertImage={insertImageFromFile}
           exportActions={exportActions}
         />
+      )}
+
+      {showFind && editor && (
+        <NoteFindBar editor={editor} onClose={() => { setShowFind(false); editor.commands.focus(); }} />
       )}
 
       {/* Editor content */}

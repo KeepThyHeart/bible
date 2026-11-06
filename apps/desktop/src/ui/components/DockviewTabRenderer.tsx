@@ -144,6 +144,9 @@ const DockviewTabRenderer: React.FC<IDockviewPanelHeaderProps> = (props) => {
   // id is the session id.
   const isSearchTab = contentType === 'search';
   const searchQuery = useSearchStore(s => (isSearchTab ? sessionTitleQuery(selectSessionView(s, api.id)) : ''));
+  // Preview-tab model: an unpinned search tab is shown in italics and reused by the next search.
+  const searchPinned = useSearchStore(s => isSearchTab && !!s.sessionMeta[api.id]?.pinned);
+  const searchIsPreview = isSearchTab && !searchPinned;
   const searchIsSemantic = useSearchStore(s => isSearchTab && selectSessionView(s, api.id).isSemanticMode);
   const subtitle = isSearchTab && searchQuery && searchIsSemantic
     ? t('searchTabs.meaningSubtitle')
@@ -522,6 +525,12 @@ const DockviewTabRenderer: React.FC<IDockviewPanelHeaderProps> = (props) => {
     onOpenMenu: openMenuFromKeyboard,
   });
 
+  const handleToggleSearchPin = () => {
+    setContextMenu(null);
+    // allow-getstate: event handler - imperative store action
+    useSearchStore.getState().pinSession(api.id);
+  };
+
   const handleOpenInNewSearchTab = () => {
     setContextMenu(null);
     // allow-getstate: event handler - imperative store action
@@ -542,7 +551,10 @@ const DockviewTabRenderer: React.FC<IDockviewPanelHeaderProps> = (props) => {
         className="dockview-tab-content"
         onMouseDown={handleMouseDown}
         onContextMenu={handleContextMenu}
+        onDoubleClick={isSearchTab ? () => { if (searchIsPreview) handleToggleSearchPin(); } : undefined}
+        data-search-preview={isSearchTab ? (searchIsPreview ? 'true' : 'false') : undefined}
         style={{
+          fontStyle: searchIsPreview && searchQuery ? 'italic' : undefined,
           display: 'flex',
           alignItems: 'center',
           // Every literal here is scaled by the same ratio as the font, so the
@@ -649,6 +661,7 @@ const DockviewTabRenderer: React.FC<IDockviewPanelHeaderProps> = (props) => {
         >
           {isSearchTab && searchQuery && (
             <>
+              <ContextMenuItem label={searchPinned ? t('searchTabs.unpin') : t('searchTabs.pin')} onClick={handleToggleSearchPin} testId="search-tab-pin" />
               <ContextMenuItem label={t('searchTabs.openInNewTab')} onClick={handleOpenInNewSearchTab} testId="search-tab-open-in-new-tab" />
               <div style={{ height: '1px', backgroundColor: 'var(--theme-border-primary)', margin: '4px 0' }} />
             </>

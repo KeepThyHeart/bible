@@ -1,5 +1,6 @@
 import { Store } from './Store';
 import { bibleStore } from './bibleStore';
+import { STRONGS_LOAD_MORE_STEP, SEMANTIC_LOAD_MORE_STEP, SEMANTIC_MAX_RESULTS } from './searchPaging';
 import { parseReference, headerBookAliases } from '../components/Header';
 import { formatPassageRef } from '../constants';
 import { getLocalizer, stripBidiControls, type RemoteSemantic } from '@bible/core/browser';
@@ -47,6 +48,7 @@ const KEYWORD_MAX_RESULTS = 5000;
 
 /** How many occurrences a Strong's search asks for per page. */
 const STRONGS_PAGE_SIZE = 100;
+
 
 /**
  * Ceiling for "Load All", matching the server's own cap (MAX_STRONGS_RESULTS in
@@ -499,7 +501,7 @@ class SearchStore extends Store {
 
   /** Load one more page of Strong's occurrences. */
   async loadMoreStrongs(): Promise<void> {
-    return this.fetchStrongsPage(this.strongsPageSize + STRONGS_PAGE_SIZE);
+    return this.fetchStrongsPage(this.strongsPageSize + STRONGS_LOAD_MORE_STEP);
   }
 
   /** Load every remaining occurrence for the current Strong's search. */
@@ -615,7 +617,7 @@ class SearchStore extends Store {
     const seq = this.searchSeq;
     const runId = this.runId;
     try {
-      this.semanticPageSize += 20;
+      this.semanticPageSize = Math.min(this.semanticPageSize + SEMANTIC_LOAD_MORE_STEP, SEMANTIC_MAX_RESULTS);
       const resultSet = await this.search.semanticSearch(this.query, {
         pageSize: this.semanticPageSize,
         modules: this.lastSemanticModules,
@@ -626,7 +628,8 @@ class SearchStore extends Store {
       this.totalResults = resultSet.total;
       this.semanticMeta = resultSet.semantic;
       // If we got fewer than requested, no more to load
-      this.canLoadMore = resultSet.results.length >= this.semanticPageSize;
+      this.canLoadMore = resultSet.results.length >= this.semanticPageSize
+        && this.semanticPageSize < SEMANTIC_MAX_RESULTS;
       this.loadingMore = false;
       this.notify();
     } catch (error) {

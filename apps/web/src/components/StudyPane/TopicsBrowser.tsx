@@ -370,6 +370,8 @@ export function TopicsBrowser({
   };
 
   const VERSE_PAGE_SIZE = 100;
+  /** "Load more" fetches up to this many verses at once (the server caps at the same figure). */
+  const VERSE_LOAD_MORE_SIZE = 1000;
 
   const loadTopic = async (module: string, topicId: number) => {
     const seq = ++loadSeqRef.current;
@@ -412,10 +414,10 @@ export function TopicsBrowser({
     if (!entry.module || !entry.topicId || !topicalProvider || versesLoadingMore) return;
     setVersesLoadingMore(true);
     try {
-      const more = await topicalProvider.getVersesForTopic(entry.module, entry.topicId, VERSE_PAGE_SIZE, verseOffset);
+      const more = await topicalProvider.getVersesForTopic(entry.module, entry.topicId, VERSE_LOAD_MORE_SIZE, verseOffset);
       setTopicVerses(prev => [...prev, ...more]);
       setVerseOffset(prev => prev + more.length);
-      if (more.length < VERSE_PAGE_SIZE) setVersesExhausted(true);
+      if (more.length < VERSE_LOAD_MORE_SIZE) setVersesExhausted(true);
     } catch (error) {
       console.error('Error loading more verses:', error);
       // Don't retry blindly against a failing endpoint.

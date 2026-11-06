@@ -138,7 +138,11 @@ export const createVerseSlice: StateCreator<BibleState, [], [], VerseSlice> = (s
           // scrollMode is sticky, and a stale 'center' makes the scroll effect
           // take its history-restore branch on the *next* plain verse click,
           // yanking the reader back to a scroll position from another visit.
-          scrollMode: 'nearest'
+          // 'top' (not 'nearest'): 'nearest' scrolls verse 1 to the very top of the
+          // pane and hides the chapter heading above it. Bumping the trigger makes
+          // the scroll fire even when verse 1 was already the selected verse.
+          scrollMode: 'top',
+          scrollTrigger: ps.scrollTrigger + 1
         }, createDefaultPanelState)
       });
 

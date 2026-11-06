@@ -60,6 +60,11 @@ Pop out any dockview pane into a standalone window. The detached window preserve
 |---|---|
 | `electron/preload.ts` | Exposes `window.electron.window.detachPane()`, `broadcastVerseChange()`, `onInitializePane()`, `onVerseChanged()` for detached window communication. |
 
+### Notes Pop-Out Specifics (detached notes window)
+
+- The pop-out button in `UserNotesEditorView.tsx` is hidden when the pane is `isDetached` (nothing to pop out to; there is no "Dock back" action).
+- The reference hover/caret preview (`VersePreviewTooltip.tsx`) takes its Bible from the open Bible tab, else the default Bible. A detached window has neither (own store, module list not loaded), which used to report "Verse not found"; the tooltip now calls `resolveDefaultBible()` (loads the installed list first) and stays in loading until it settles. Test: `VersePreviewTooltip.detached.test.tsx`.
+
 ### Tests
 
 | File | Description |

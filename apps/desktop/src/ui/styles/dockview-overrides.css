@@ -480,3 +480,14 @@
   z-index: 1;
   background-color: var(--theme-pane-header-bg);
 }
+
+/* The "+" host paints an opaque background (above), which covers the strip's
+   baseline inset shadow and broke the underline after the last tab. Repeat the
+   same baseline on the host - same token as the container and inactive tabs, so
+   it follows light and dark themes. The right-actions and collapse hosts get it
+   too: they are opaque children of the strip as well. */
+.dockview-theme-light.dockview-theme-light .dv-tabs-container > .app-add-tab-host,
+.dockview-theme-light.dockview-theme-light .dv-tabs-and-actions-container .dv-right-actions-container,
+.dockview-theme-light.dockview-theme-light .dv-tabs-and-actions-container .app-collapse-action-host {
+  box-shadow: inset 0 calc(-1 * var(--app-tab-strip-border-width)) 0 0 var(--theme-border-primary);
+}

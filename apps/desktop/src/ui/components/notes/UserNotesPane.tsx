@@ -406,6 +406,7 @@ const UserNotesPane: React.FC<UserNotesPaneProps> = ({
                   // documents/journal/prayer notes keep the free-text title.
                   titleEditable={currentNote.type !== 'verse_note'}
                   onPopOut={handlePopOut}
+                  isDetached={isDetached}
                   notePath={currentNotePath}
                   previousNote={previousNote && previousNote.path !== currentNotePath ? previousNote : null}
                   onBackToPrevious={() => { if (previousNote) void handleOpenNote(previousNote.path); }}

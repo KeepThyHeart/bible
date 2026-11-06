@@ -21,6 +21,8 @@ interface UserNotesEditorViewProps {
   /** False for verse notes: their title is derived from the verse reference. */
   titleEditable: boolean;
   onPopOut: () => void;
+  /** True in a popped-out notes window: there is nothing further to pop out to. */
+  isDetached?: boolean;
   /** Print / PDF / Word / Markdown, surfaced in the editor toolbar. */
   exportActions: NoteExportActions;
   /** Path of the open note relative to the notes root; keys its stored direction. */
@@ -50,6 +52,7 @@ const UserNotesEditorView: React.FC<UserNotesEditorViewProps> = ({
   onRequestRenameTitle,
   titleEditable,
   onPopOut,
+  isDetached = false,
   exportActions,
   notePath,
   previousNote,
@@ -168,7 +171,7 @@ const UserNotesEditorView: React.FC<UserNotesEditorViewProps> = ({
             each other. It is pushed to the far end of the header (`ms-auto`
             against the flex-1 breadcrumb nav) and given the same bordered
             chrome as the sidebar toggle so it reads as a pane control. */}
-        <button
+        {!isDetached && (<button
           type="button"
           onClick={onPopOut}
           className={`${notePath ? '' : 'ms-auto '}flex-shrink-0 px-2 py-1 rounded border border-border-secondary hover:bg-background-hover transition-colors`}
@@ -178,7 +181,7 @@ const UserNotesEditorView: React.FC<UserNotesEditorViewProps> = ({
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
           </svg>
-        </button>
+        </button>)}
       </div>
 
       {/* TipTap Editor */}

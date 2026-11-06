@@ -143,6 +143,28 @@ describe('search tabs: tab policy', () => {
     expect(showCalls[1]).toEqual({ sessionId: idB, reveal: true, nearSessionId: idA });
   });
 
+  it('a plain search reuses the unpinned (preview) tab; once pinned, the next search opens a new tab', async () => {
+    resolveImmediately();
+    await search('love');
+    const idA = st().activeSessionId!;
+
+    await search('hope');
+    expect(st().activeSessionId).toBe(idA);
+    expect(st().resultsForQuery).toBe('hope');
+    expect(Object.keys(st().parkedSessions)).toHaveLength(0);
+
+    st().pinSession(idA);
+    await search('grace');
+    const idB = st().activeSessionId!;
+    expect(idB).not.toBe(idA);
+    expect(st().parkedSessions[idA].resultsForQuery).toBe('hope');
+    expect(st().sessionMeta[idB].pinned).toBeFalsy();
+
+    // The new preview tab is reused in turn.
+    await search('mercy');
+    expect(st().activeSessionId).toBe(idB);
+  });
+
   it('activateSession swaps the flat fields with the parked tab and parks the previous one', async () => {
     resolveImmediately();
     await search('love');

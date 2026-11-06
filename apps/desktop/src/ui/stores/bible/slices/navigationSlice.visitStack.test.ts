@@ -69,6 +69,13 @@ describe('Back button - the visit stack', () => {
     expect(useBibleStore.getState().canGoBackVisit(PANEL)).toBe(false);
   });
 
+  it('a plain chapter change scrolls to the top (heading visible) and re-triggers the scroll', async () => {
+    const before = panelState().scrollTrigger;
+    await useBibleStore.getState().loadChapter(PANEL, 43, 4);
+    expect(panelState().scrollMode).toBe('top');
+    expect(panelState().scrollTrigger).toBe(before + 1);
+  });
+
   it('records a visit for every chapter change, whatever caused it', async () => {
     const store = useBibleStore.getState();
 

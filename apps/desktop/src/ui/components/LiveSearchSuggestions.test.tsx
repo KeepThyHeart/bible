@@ -209,7 +209,7 @@ describe('LiveSearchSuggestions', () => {
     expect(screen.getByText('John 3:17')).toBeInTheDocument();
   });
 
-  it('shows semantic search toggle when available', () => {
+  it('no longer carries a semantic search link (the bar icon selects the search type)', () => {
     useSearchStore.setState({
       semanticAvailable: true,
       isSemanticMode: false,
@@ -226,7 +226,8 @@ describe('LiveSearchSuggestions', () => {
       />
     );
 
-    expect(screen.getByText(/Semantic Search/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Semantic Search/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Back to Keyword Search/i)).not.toBeInTheDocument();
   });
 
   it('shows enter key instructions', () => {
