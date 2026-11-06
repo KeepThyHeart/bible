@@ -44,4 +44,26 @@ describe('buildNoteDocx', () => {
   it('decodes entities', () => {
     expect(decodeEntities('a&nbsp;b &#65;&#x42; &mdash;')).toBe('a b AB —');
   });
+
+  it('keeps task list text, table cells, and list order', async () => {
+    const xml = await docXml(
+      '<ul data-type="taskList"><li data-type="taskItem" data-checked="true"><label><input type="checkbox"><span></span></label><div><p>done task</p></div></li></ul>' +
+      '<table><tbody><tr><th><p>Head</p></th></tr><tr><td><p>Cell</p></td></tr></tbody></table>' +
+      '<ul>\n<li>\n<p>Aaa</p><ul><li><p>CHILD</p></li></ul><p>Bbb</p></li></ul>');
+    const text = textOf(xml);
+    expect(text).toContain('\u2611 |done task');
+    expect(text).toContain('Head');
+    expect(text).toContain('Cell');
+    expect(text.indexOf('Aaa')).toBeLessThan(text.indexOf('CHILD'));
+    expect(text.indexOf('CHILD')).toBeLessThan(text.indexOf('Bbb'));
+  });
+
+  it('restarts numbering per list, strips control chars, keeps colour and highlight', async () => {
+    const xml = await docXml('<ol><li><p>x</p></li></ol><p>mid</p><ol><li><p>y</p></li></ol><p>a&#0;b<mark data-color="#ffcc00">hi</mark><span style="color: rgb(255, 0, 0)">red</span></p>');
+    const ids = [...xml.matchAll(/<w:numId w:val="(\d+)"/g)].map(m => m[1]);
+    expect(new Set(ids).size).toBe(2);
+    expect(xml).not.toMatch(/[\u0000-\u0008]/);
+    expect(xml).toContain('w:fill="FFCC00"');
+    expect(xml).toContain('w:val="FF0000"');
+  });
 });

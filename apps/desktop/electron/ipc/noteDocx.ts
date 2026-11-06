@@ -6,7 +6,7 @@
  */
 import {
   Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, ExternalHyperlink,
-  LevelFormat, BorderStyle,
+  LevelFormat, BorderStyle, ShadingType,
 } from 'docx';
 
 type HtmlNode = { tag: string; attrs: Record<string, string>; children: HtmlNode[] } | { text: string };
@@ -19,11 +19,15 @@ const NAMED: Record<string, string> = {
   lsquo: '‘', rsquo: '’', ldquo: '“', rdquo: '”', hellip: '…',
 };
 
+const CONTROL = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\uFFFE\uFFFF]/g;
+
+function stripControl(s: string): string { return s.replace(CONTROL, ''); }
+
 export function decodeEntities(s: string): string {
-  return s.replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (m, e: string) => {
+  return stripControl(s).replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (m, e: string) => {
     if (e[0] === '#') {
       const code = e[1].toLowerCase() === 'x' ? parseInt(e.slice(2), 16) : parseInt(e.slice(1), 10);
-      try { return String.fromCodePoint(code); } catch { return m; }
+      try { return stripControl(code === 0 ? '\uFFFD' : String.fromCodePoint(code)); } catch { return m; }
     }
     return NAMED[e.toLowerCase()] ?? m;
   });
@@ -62,11 +66,11 @@ export function parseHtml(html: string): HtmlNode[] {
   return root.children;
 }
 
-interface Fmt { bold?: boolean; italics?: boolean; underline?: boolean; strike?: boolean; sup?: boolean; sub?: boolean; code?: boolean; link?: string }
+interface Fmt { bold?: boolean; italics?: boolean; underline?: boolean; strike?: boolean; sup?: boolean; sub?: boolean; code?: boolean; link?: string; color?: string; highlight?: string }
 
 function isEl(n: HtmlNode): n is Exclude<HtmlNode, { text: string }> { return 'tag' in n; }
 
-const BLOCK_TAGS = new Set(['p', 'div', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'li', 'blockquote', 'hr', 'pre', 'table', 'tr']);
+const BLOCK_TAGS = new Set(['p', 'div', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'li', 'blockquote', 'hr', 'pre', 'table', 'tr', 'tbody', 'thead', 'tfoot', 'td', 'th', 'colgroup', 'label']);
 
 function run(text: string, f: Fmt): TextRun {
   return new TextRun({
@@ -78,7 +82,8 @@ function run(text: string, f: Fmt): TextRun {
     superScript: f.sup || undefined,
     subScript: f.sub || undefined,
     font: f.code ? 'Courier New' : undefined,
-    color: f.link ? '0563C1' : undefined,
+    color: f.link ? '0563C1' : f.color,
+    shading: f.highlight ? { type: ShadingType.CLEAR, fill: f.highlight, color: 'auto' } : undefined,
   });
 }
 
@@ -91,6 +96,7 @@ function inlineRuns(nodes: HtmlNode[], f: Fmt, out: (TextRun | ExternalHyperlink
       continue;
     }
     const t = n.tag;
+    if (t === 'img') { if (n.attrs.alt) out.push(run(`[image: ${n.attrs.alt}]`, f)); continue; }
     if (t === 'br') { out.push(new TextRun({ break: 1 })); continue; }
     if (BLOCK_TAGS.has(t)) continue;
     const next: Fmt = { ...f };
@@ -107,6 +113,11 @@ function inlineRuns(nodes: HtmlNode[], f: Fmt, out: (TextRun | ExternalHyperlink
       continue;
     }
     const style = n.attrs.style ?? '';
+    const bg = /background(?:-color)?\s*:\s*([^;]+)/i.exec(style)?.[1];
+    if (t === 'mark') next.highlight = hex(n.attrs['data-color'] ?? bg) ?? 'FFFF00';
+    else if (bg && hex(bg)) next.highlight = hex(bg);
+    const col = /(?:^|;)\s*color\s*:\s*([^;]+)/i.exec(style)?.[1];
+    if (col && hex(col)) next.color = hex(col);
     if (/font-weight\s*:\s*(bold|[6-9]00)/i.test(style)) next.bold = true;
     if (/font-style\s*:\s*italic/i.test(style)) next.italics = true;
     if (/text-decoration[^;]*underline/i.test(style)) next.underline = true;
@@ -115,12 +126,27 @@ function inlineRuns(nodes: HtmlNode[], f: Fmt, out: (TextRun | ExternalHyperlink
   return out;
 }
 
+/** #rgb / #rrggbb / rgb(r,g,b) -> RRGGBB, else undefined. */
+function hex(v?: string): string | undefined {
+  if (!v) return undefined;
+  v = v.trim();
+  let m = /^#([0-9a-f]{6})$/i.exec(v);
+  if (m) return m[1].toUpperCase();
+  m = /^#([0-9a-f])([0-9a-f])([0-9a-f])$/i.exec(v);
+  if (m) return (m[1] + m[1] + m[2] + m[2] + m[3] + m[3]).toUpperCase();
+  m = /^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i.exec(v);
+  if (m) return [m[1], m[2], m[3]].map(x => Math.min(255, Number(x)).toString(16).padStart(2, '0')).join('').toUpperCase();
+  return undefined;
+}
+
 const HEADINGS: Record<string, (typeof HeadingLevel)[keyof typeof HeadingLevel]> = {
   h1: HeadingLevel.HEADING_1, h2: HeadingLevel.HEADING_2, h3: HeadingLevel.HEADING_3,
   h4: HeadingLevel.HEADING_4, h5: HeadingLevel.HEADING_5, h6: HeadingLevel.HEADING_6,
 };
 
-interface Ctx { quote: number; list?: { ordered: boolean; level: number } }
+interface Ctx { quote: number; list?: { ordered: boolean; level: number; instance: number; task?: boolean } }
+
+let olCounter = 0;
 
 function alignOf(n: Exclude<HtmlNode, { text: string }>) {
   const m = /text-align\s*:\s*(left|right|center|justify)/i.exec(n.attrs.style ?? '');
@@ -163,7 +189,9 @@ function blocks(nodes: HtmlNode[], ctx: Ctx, out: Paragraph[]): void {
       if (runs.length) out.push(new Paragraph({ heading: HEADINGS[t], children: runs, alignment: alignOf(n) }));
     } else if (t === 'ul' || t === 'ol') {
       const level = ctx.list ? ctx.list.level + 1 : 0;
-      blocks(n.children, { ...ctx, list: { ordered: t === 'ol', level: Math.min(level, 8) } }, out);
+      const instance = t === 'ol' && level === 0 ? ++olCounter : (ctx.list?.instance ?? 0);
+      const task = n.attrs['data-type'] === 'taskList';
+      blocks(n.children, { ...ctx, list: { ordered: t === 'ol', level: Math.min(level, 8), instance, task } }, out);
     } else if (t === 'li') {
       listItem(n, ctx, out);
     } else if (t === 'blockquote') {
@@ -171,7 +199,9 @@ function blocks(nodes: HtmlNode[], ctx: Ctx, out: Paragraph[]): void {
     } else if (t === 'pre') {
       const text = collectText(n.children);
       text.split('\n').forEach(line => out.push(new Paragraph({ children: [new TextRun({ text: line, font: 'Courier New' })], indent: { left: 360 * (ctx.quote + 1) } })));
-    } else if (t === 'table' || t === 'tr') {
+    } else if (t === 'label') {
+      continue;
+    } else if (t === 'table' || t === 'tr' || t === 'tbody' || t === 'thead' || t === 'tfoot' || t === 'colgroup' || t === 'td' || t === 'th') {
       blocks(n.children, ctx, out);
     } else {
       // p / div
@@ -202,38 +232,51 @@ function para(runs: (TextRun | ExternalHyperlink)[], ctx: Ctx, alignment?: (type
   });
 }
 
-function listProps(l: { ordered: boolean; level: number }) {
-  return l.ordered ? { numbering: { reference: 'note-ol', level: l.level } } : { bullet: { level: l.level } };
+function listProps(l: { ordered: boolean; level: number; instance: number }) {
+  return l.ordered ? { numbering: { reference: 'note-ol', level: l.level, instance: l.instance } } : { bullet: { level: l.level } };
 }
 
 function listItem(li: Exclude<HtmlNode, { text: string }>, ctx: Ctx, out: Paragraph[]): void {
-  const lctx: Ctx = ctx.list ? ctx : { ...ctx, list: { ordered: false, level: 0 } };
-  const inline: HtmlNode[] = [];
-  const rest: HtmlNode[] = [];
-  let firstPara = true;
-  for (const c of li.children) {
-    if (isEl(c) && (c.tag === 'p' || c.tag === 'div')) {
-      const runs = inlineRuns(c.children, {});
-      if (runs.length) {
-        out.push(firstPara && !inline.length
-          ? para(runs, lctx)
-          : para(runs, { quote: lctx.quote }, undefined, { left: 720 * (lctx.list!.level + 1) }));
-        firstPara = false;
-      }
-    } else if (isEl(c) && BLOCK_TAGS.has(c.tag)) {
-      rest.push(c);
+  const lctx: Ctx = ctx.list ? ctx : { ...ctx, list: { ordered: false, level: 0, instance: 0 } };
+  const task = lctx.list!.task || li.attrs['data-type'] === 'taskItem';
+  const mark = task ? (li.attrs['data-checked'] === 'true' ? '\u2611 ' : '\u2610 ') : '';
+  let first = true;
+  let inline: HtmlNode[] = [];
+  const emit = (runs: (TextRun | ExternalHyperlink)[], align?: (typeof AlignmentType)[keyof typeof AlignmentType]) => {
+    if (!runs.length) return;
+    if (first) {
+      const r = mark ? [new TextRun({ text: mark }), ...runs] : runs;
+      out.push(task
+        ? para(r, { quote: lctx.quote }, align, { left: 720 * (lctx.list!.level + 1) })
+        : para(r, lctx, align));
+      first = false;
     } else {
-      inline.push(c);
+      out.push(para(runs, { quote: lctx.quote }, align, { left: 720 * (lctx.list!.level + 1) }));
     }
-  }
-  const runs = inlineRuns(inline, {});
-  if (runs.length && inline.some(n => (isEl(n) ? true : n.text.trim()))) {
-    out.push(para(runs, lctx));
-  }
-  blocks(rest, lctx, out);
+  };
+  const flushInline = () => {
+    if (inline.some(n => (isEl(n) ? true : n.text.trim()))) emit(inlineRuns(inline, {}));
+    inline = [];
+  };
+  const walk = (nodes: HtmlNode[]) => {
+    for (const c of nodes) {
+      if (!isEl(c) || !BLOCK_TAGS.has(c.tag)) { inline.push(c); continue; }
+      flushInline();
+      if (c.tag === 'label') continue;
+      if (c.tag === 'p' || c.tag === 'div') {
+        if (c.children.some(x => isEl(x) && BLOCK_TAGS.has(x.tag))) walk(c.children);
+        else emit(inlineRuns(c.children, {}), alignOf(c));
+      } else {
+        blocks([c], lctx, out);
+      }
+    }
+  };
+  walk(li.children);
+  flushInline();
 }
 
 export function htmlToParagraphs(html: string, title: string): Paragraph[] {
+  olCounter = 0;
   const out: Paragraph[] = [];
   out.push(new Paragraph({
     heading: HeadingLevel.TITLE,
