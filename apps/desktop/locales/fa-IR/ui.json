@@ -2440,5 +2440,7 @@
   "remoteConsent.getPack": "دریافت بستهٔ معنایی محلی",
   "searchResultsPane.resultsFrom": "نتایج از {modules}",
   "advancedSearchDialog.operatorsHint": "عملگرها: && (و)، || (یا)، ! (نه)، با پرانتز، مثلاً محبت && !(نفرت || خشم). واژه‌های AND، OR و NOT همچنان واژهٔ معمولی‌اند.",
-  "topicsPane.directOfTotal": "({direct} مستقیم، مجموع {total})"
+  "topicsPane.directOfTotal": "({direct} مستقیم، مجموع {total})",
+  "editorToolbar.indentTitle": "Increase Indent (Tab)",
+  "editorToolbar.outdentTitle": "Decrease Indent (Shift+Tab)"
 }

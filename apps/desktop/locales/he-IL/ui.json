@@ -2440,5 +2440,7 @@
   "remoteConsent.getPack": "קבלת חבילת המשמעות המקומית",
   "searchResultsPane.resultsFrom": "תוצאות מתוך {modules}",
   "advancedSearchDialog.operatorsHint": "אופרטורים: && (וגם), || (או), ! (לא), עם סוגריים, למשל אהבה && !(שנאה || כעס). המילים AND, OR ו-NOT נשארות מילים רגילות.",
-  "topicsPane.directOfTotal": "({direct} ישירות, {total} בסך הכול)"
+  "topicsPane.directOfTotal": "({direct} ישירות, {total} בסך הכול)",
+  "editorToolbar.indentTitle": "Increase Indent (Tab)",
+  "editorToolbar.outdentTitle": "Decrease Indent (Shift+Tab)"
 }

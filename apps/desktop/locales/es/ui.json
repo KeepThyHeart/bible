@@ -2457,5 +2457,7 @@
   "remoteConsent.getPack": "Obtener el paquete local de significado",
   "searchResultsPane.resultsFrom": "Resultados de {modules}",
   "advancedSearchDialog.operatorsHint": "Operadores: && (y), || (o), ! (no), con paréntesis, p. ej. amor && !(odio || ira). Las palabras AND, OR y NOT siguen siendo palabras normales.",
-  "topicsPane.directOfTotal": "({direct} directos, {total} en total)"
+  "topicsPane.directOfTotal": "({direct} directos, {total} en total)",
+  "editorToolbar.indentTitle": "Increase Indent (Tab)",
+  "editorToolbar.outdentTitle": "Decrease Indent (Shift+Tab)"
 }

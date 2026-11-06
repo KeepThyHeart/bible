@@ -2455,5 +2455,7 @@
   "remoteConsent.getPack": "Получить локальный пакет смыслового поиска",
   "searchResultsPane.resultsFrom": "Результаты из {modules}",
   "advancedSearchDialog.operatorsHint": "Операторы: && (и), || (или), ! (не), со скобками, например любовь && !(ненависть || гнев). Слова AND, OR и NOT остаются обычными словами.",
-  "topicsPane.directOfTotal": "({direct} напрямую, {total} всего)"
+  "topicsPane.directOfTotal": "({direct} напрямую, {total} всего)",
+  "editorToolbar.indentTitle": "Increase Indent (Tab)",
+  "editorToolbar.outdentTitle": "Decrease Indent (Shift+Tab)"
 }

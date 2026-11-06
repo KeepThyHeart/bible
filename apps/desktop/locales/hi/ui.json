@@ -2455,5 +2455,7 @@
   "remoteConsent.getPack": "स्थानीय अर्थ पैक प्राप्त करें",
   "searchResultsPane.resultsFrom": "{modules} से परिणाम",
   "advancedSearchDialog.operatorsHint": "ऑपरेटर: && (और), || (या), ! (नहीं), कोष्ठक सहित, जैसे प्रेम && !(घृणा || क्रोध)। शब्द AND, OR और NOT सामान्य शब्द ही रहते हैं।",
-  "topicsPane.directOfTotal": "({direct} सीधे, कुल {total})"
+  "topicsPane.directOfTotal": "({direct} सीधे, कुल {total})",
+  "editorToolbar.indentTitle": "Increase Indent (Tab)",
+  "editorToolbar.outdentTitle": "Decrease Indent (Shift+Tab)"
 }

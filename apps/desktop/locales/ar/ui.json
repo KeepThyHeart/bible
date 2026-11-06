@@ -2455,5 +2455,7 @@
   "remoteConsent.getPack": "الحصول على حزمة المعنى المحلية",
   "searchResultsPane.resultsFrom": "نتائج من {modules}",
   "advancedSearchDialog.operatorsHint": "العوامل: && (و)، || (أو)، ! (ليس)، مع الأقواس، مثل محبة && !(بغض || غضب). تبقى الكلمات AND وOR وNOT كلمات عادية.",
-  "topicsPane.directOfTotal": "({direct} مباشرة، المجموع {total})"
+  "topicsPane.directOfTotal": "({direct} مباشرة، المجموع {total})",
+  "editorToolbar.indentTitle": "Increase Indent (Tab)",
+  "editorToolbar.outdentTitle": "Decrease Indent (Shift+Tab)"
 }
