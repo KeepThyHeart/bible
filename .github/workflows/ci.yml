@@ -12,6 +12,9 @@
 # here instead of skipping themselves as they do in a checkout set up for
 # `pnpm run dev`.
 #
+# The ui-driver unit tests drive a real headless chromium, so its shell is
+# installed before `pnpm test`.
+#
 # Not covered: the Playwright suites (desktop needs xvfb and a build, web needs
 # `pnpm exec playwright install`).
 name: CI
@@ -55,4 +58,5 @@ jobs:
       - run: pnpm run build:core
       - run: pnpm run init:modules --select=tests --yes
       - run: pnpm run typecheck
+      - run: pnpm --filter @bible/ui-driver exec playwright-core install --with-deps --only-shell chromium
       - run: pnpm test
