@@ -139,12 +139,21 @@ export function CommentaryPane({ bibleProvider, onOpenSettings, hideTabBar }: Co
   const navigateCommentaryVerse = useCallback(async (delta: number) => {
     const verseNum = displayVerse ? displayVerse % 1000 : null;
     if (!effectiveBook || !effectiveChapter || !verseNum) return;
-    // The verses of the chapter on screen, when the Bible tab is showing it: the end of
-    // the chapter (John 3:36) is read from here so Next can cross into the next chapter.
+    // The verses of the commentary's chapter: the end of it (John 3:36) is read from here so Next
+    // can cross into the next chapter. Use the Bible tab when it shows that chapter; otherwise (a
+    // pinned commentary, or one opened from search) ask the Bible provider for it.
     const tab = bibleStore.getActiveTab();
-    const chapterVerses = tab && tab.book === effectiveBook && tab.chapter === effectiveChapter
-      ? tab.verses?.map(v => v.verse_id % 1000)
-      : undefined;
+    let chapterVerses: number[] | undefined;
+    if (tab && tab.book === effectiveBook && tab.chapter === effectiveChapter) {
+      chapterVerses = tab.verses?.map(v => v.verse_id % 1000);
+    } else if (tab?.moduleAbbr && bibleProvider) {
+      try {
+        const data = await bibleProvider.getChapter(tab.moduleAbbr, effectiveBook, effectiveChapter);
+        chapterVerses = data?.verses?.map(v => v.verse_id % 1000);
+      } catch {
+        chapterVerses = undefined; // fall back to a plain +/-1 step
+      }
+    }
     const step = stepCommentaryVerse(effectiveBook, effectiveChapter, verseNum, delta < 0 ? -1 : 1, chapterVerses);
     if (!step) return; // Genesis 1:1 backwards / Revelation 22:21 forwards
     let verse: number = step.verse ?? 1;
@@ -163,7 +172,7 @@ export function CommentaryPane({ bibleProvider, onOpenSettings, hideTabBar }: Co
     // Bring the verse into view in the Bible pane (the commentary itself scrolls to
     // its top whenever the verse changes, below).
     bibleStore.scrollToVerse(newVerseId);
-  }, [displayVerse, effectiveBook, effectiveChapter]);
+  }, [displayVerse, effectiveBook, effectiveChapter, bibleProvider]);
 
   useEffect(() => {
     const el = scrollRef.current;

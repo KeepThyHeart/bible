@@ -229,7 +229,9 @@ export const createVerseSlice: StateCreator<BibleState, [], [], VerseSlice> = (s
             currentBook: verse.book_number,
             currentChapter: verse.chapter,
             selectedVerseId: verseId,
-            selectionEndVerseId: null
+            selectionEndVerseId: null,
+            // scrollMode is sticky: a stale 'top' would reset scrollTop to 0 on this change.
+            scrollMode: 'nearest'
           }, createDefaultPanelState)
         });
       } else {

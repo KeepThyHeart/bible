@@ -20,6 +20,7 @@ describe('stepCommentaryVerse', () => {
     expect(stepCommentaryVerse(1, 50, 26, 1, [24, 25, 26])).toEqual({ book: 2, chapter: 1, verse: 1, crossesChapter: true });
   });
   it('Previous from verse 1 goes to the previous chapter (last verse resolved later)', () => {
+    // verse: null means "last verse of the chapter" once it has loaded
     expect(stepCommentaryVerse(43, 3, 1, -1, john3)).toEqual({ book: 43, chapter: 2, verse: null, crossesChapter: true });
     expect(stepCommentaryVerse(2, 1, 1, -1)).toEqual({ book: 1, chapter: 50, verse: null, crossesChapter: true });
   });

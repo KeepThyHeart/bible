@@ -124,6 +124,7 @@ vi.mock('../../stores/bibleStore', () => ({
     getActiveTab: () => ({
       book: mockTabBook === undefined ? mockSyncedBook : mockTabBook,
       chapter: mockTabChapter === undefined ? mockSyncedChapter : mockTabChapter,
+      moduleAbbr: 'KJV',
       studyVerse: mockStudyVerse,
       previewVerse: mockPreviewVerse,
       verses: mockTabVerses,
@@ -322,16 +323,17 @@ describe('CommentaryPane', () => {
   describe('verse navigation across chapters', () => {
     const chapterOf = (book: number, chapter: number, n: number) =>
       Array.from({ length: n }, (_, i) => ({ verse_id: book * 1000000 + chapter * 1000 + i + 1 }));
-    const clickNav = async (i: number) => {
-      const { container } = render(<CommentaryPane />);
+    const clickNav = async (i: number, props: Record<string, unknown> = {}) => {
+      const { container } = render(<CommentaryPane {...props} />);
       fireEvent.click(container.querySelectorAll<HTMLButtonElement>('.commentary-passage-header__nav')[i]);
-      await Promise.resolve(); await Promise.resolve();
+      for (let k = 0; k < 5; k++) await Promise.resolve();
     };
 
     beforeEach(() => {
       mockSetOverrideVerse.mockClear(); mockAdoptPreviewAsStudy.mockClear();
       mockNavigateTo.mockClear(); mockScrollToVerse.mockClear();
       mockTabVerses = chapterOf(43, 3, 36);
+      mockTabChapter = undefined;
     });
 
     it('Next on the last verse of a chapter goes to verse 1 of the next chapter', async () => {
@@ -341,6 +343,17 @@ describe('CommentaryPane', () => {
       expect(mockSetOverrideVerse).toHaveBeenCalledWith(43004001);
       expect(mockAdoptPreviewAsStudy).toHaveBeenCalledWith(43004001);
       expect(mockScrollToVerse).toHaveBeenCalledWith(43004001);
+    });
+
+    it('Next crosses chapters from the provider\'s verse list when the Bible tab shows another chapter', async () => {
+      mockStudyVerse = 43003036;
+      mockTabChapter = 5; // Bible tab is elsewhere; the commentary is on John 3
+      mockTabVerses = chapterOf(43, 5, 47);
+      const getChapter = vi.fn().mockResolvedValue({ verses: chapterOf(43, 3, 36) });
+      await clickNav(1, { bibleProvider: { getChapter } });
+      expect(getChapter).toHaveBeenCalledWith('KJV', 43, 3);
+      expect(mockNavigateTo).toHaveBeenCalledWith(43, 4);
+      expect(mockSetOverrideVerse).toHaveBeenCalledWith(43004001);
     });
 
     it('Next on the last verse of a book\'s last chapter goes to the next book', async () => {

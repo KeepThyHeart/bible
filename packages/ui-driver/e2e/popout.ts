@@ -8,7 +8,7 @@
  * the editor toolbar there (indent / outdent buttons change the note and the Decrease button's enabled
  * state); Ctrl+F opens the note find bar, counts and steps matches, and Escape closes it; hovering a
  * verse reference opens the preview popup (verse text when a Bible is installed, "Verse not found"
- * otherwise - both are accepted, the popup being there and anchored is what this checks).
+ * only when no Bible is installed; with apps/desktop/data/main.db present the verse text is required).
  *
  * Skips (exit 0, says why) when the desktop build or a display is missing, like nothing was run.
  * Uses a throwaway profile; with no `apps/desktop/data/main.db` it points the app at an empty data dir
@@ -143,6 +143,13 @@ try {
   step('hover reference', ['hover', refRef]);
   waitFor('preview popup', ['find', 'Alt+Click'], (t) => t.includes('dialog'));
   step('preview names the verse', ['find', 'Go to verse', '--role', 'button'], expectIn('John 3:16', 'popup title'));
+  // With a Bible installed the hover must show the verse itself, never "Verse not found".
+  if (existsSync(join(desktopDir, 'data', 'main.db'))) {
+    const notFound = run(['find', 'Verse not found']);
+    if (/\[r\d+\]/.test(notFound.text)) throw new StepFailure('preview says "Verse not found" although a Bible is installed');
+    // John 3:16 (KJV and most modules) contains "so loved the world".
+    waitFor('preview shows verse text', ['find', 'loved'], (t) => /\[r\d+\]/.test(t));
+  }
   step('errors', ['errors']);
 } catch (e) {
   console.error(e instanceof StepFailure ? e.message : e);

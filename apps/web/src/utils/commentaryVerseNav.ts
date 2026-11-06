@@ -3,7 +3,7 @@ import { MAX_CHAPTERS } from '../constants';
 export interface VerseStep {
   book: number;
   chapter: number;
-  /** Verse number to land on; `null` = "first verse of the chapter" (resolved once its text has loaded). */
+  /** Verse number to land on; `null` = "last verse of the chapter" (a Previous step into the prior chapter; resolved once that chapter has loaded). */
   verse: number | null;
   /** True when the step leaves the current chapter, so the Bible pane has to load the new one. */
   crossesChapter: boolean;

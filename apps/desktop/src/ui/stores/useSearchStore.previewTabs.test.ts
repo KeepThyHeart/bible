@@ -27,4 +27,19 @@ describe('search preview/pinned tabs', () => {
     useSearchStore.getState().restoreSessions([{ id: 'r1', query: 'love' }]);
     expect(useSearchStore.getState().sessionMeta.r1.pinned).toBe(true);
   });
+
+  it('a plain search with a pinned active tab reuses an existing unpinned tab instead of opening another', async () => {
+    useSearchStore.setState({
+      activeSessionId: 's1',
+      parkedSessions: { s2: { ...freshSessionFields(false) } },
+      sessionMeta: {
+        s1: { hasPanel: true, lastUsed: 2, createdAt: 1, hostPanelId: null, pinned: true },
+        s2: { hasPanel: true, lastUsed: 1, createdAt: 1, hostPanelId: null },
+      },
+    });
+    await useSearchStore.getState().performSearch('grace').catch(() => undefined);
+    const st = useSearchStore.getState();
+    expect(st.activeSessionId).toBe('s2');
+    expect(Object.keys(st.sessionMeta).sort()).toEqual(['s1', 's2']);
+  });
 });

@@ -16,7 +16,7 @@ import { IBibleRepository } from '../Data/Repositories/IBibleRepository';
 import { IBibleBookRepository } from '../Data/Repositories/IBibleBookRepository';
 import { SearchResult, SearchOptions, ParsedQuery, Match, MatchType, BooleanExpression, BibleRange } from '../types/search';
 import { VerseId, VerseIdHelper } from '../Data/Core/Types';
-import { divineRangesOfVerse, christRangesOfVerse, markUp, type TextRange } from './SearchMarkup';
+import { markedRangesOfVerse, markUp, type TextRange } from './SearchMarkup';
 import { StrongsNumberHelper } from '../Data/Core/StrongsNumberHelper';
 import { isReadOnlyDatabaseError } from '../Data/Core/Errors';
 import { BibleVerse } from '../Data/Models/Bible/BibleVerse';
@@ -1170,8 +1170,7 @@ export class BibleSearchService implements ISearchService {
             ? this.extractMatches(text, glosses)
             : [];
           // B-167: where the verse's HTML marks the divine name, keep it in the result.
-          const divine = divineRangesOfVerse(verse, text);
-          const christ = christRangesOfVerse(verse, text);
+          const { divine, christ } = markedRangesOfVerse(verse, text);
           const hasDivine = (!!divine && divine.length > 0) || (!!christ && christ.length > 0);
           const highlightedText = hasDivine
             ? markUp(text, 0, text.length, matchRanges(matches), divine ?? [], christ ?? [])
@@ -1309,8 +1308,7 @@ export class BibleSearchService implements ISearchService {
     // TABLE` again per verse - see `highlighterFor()`.
     const matches = this.highlighterFor(moduleAbbr, repo).spans(text, query);
     // B-167: where the verse's HTML marks the divine name, keep it in the result.
-    const divine = divineRangesOfVerse(verse, text);
-    const christ = christRangesOfVerse(verse, text);
+    const { divine, christ } = markedRangesOfVerse(verse, text);
     const hasDivine = (!!divine && divine.length > 0) || (!!christ && christ.length > 0);
     const highlightedText = hasDivine
       ? markUp(text, 0, text.length, matchRanges(matches), divine ?? [], christ ?? [])

@@ -26,7 +26,7 @@ import { currentOs } from '../utils/platformLabels';
  * search box never drops focus to <body>. After the new UI renders, focus goes
  * to the heading of what replaced it, else the Bible pane region.
  */
-function focusAfterSearch(kind: 'bible' | 'results' | 'back'): void {
+export function focusAfterSearch(kind: 'bible' | 'results' | 'back', verseId?: number): void {
   const run = (attempt = 0): void => {
     const active = document.activeElement;
     // The action already put focus somewhere real (a dialog, another pane): leave it.
@@ -50,6 +50,17 @@ function focusAfterSearch(kind: 'bible' | 'results' | 'back'): void {
       target =
         (id && document.querySelector<HTMLElement>(`[data-panel-id="${id}"] [data-pane-focus]`)) ||
         document.querySelector<HTMLElement>('[data-tour-pane="bible"] [data-pane-focus]');
+    }
+    if (target && kind === 'bible' && verseId !== undefined) {
+      // A verse was the navigation target: focus its row (not the chapter heading, which would
+      // show a focus ring instead of the verse), without scrolling away from the centred verse.
+      const pane = target.closest<HTMLElement>('[data-panel-id]') ?? document;
+      const row = pane.querySelector<HTMLElement>(`[data-verse-id="${verseId}"]`);
+      if (row) {
+        if (!row.hasAttribute('tabindex')) row.tabIndex = -1;
+        row.focus({ preventScroll: true });
+        return;
+      }
     }
     if (target) {
       // Landing on a Bible verse: the pane heading sits above verse 1, so focusing it with the
@@ -348,6 +359,7 @@ const TopSearchBar = forwardRef<TopSearchBarHandle>(function TopSearchBar(_props
     const target = reference ?? parsedReference;
     if (!target) return;
 
+    let navigatedVerseId: number | undefined;
     const problem = checkChapterVerse(target.book!, target.chapter!, target.verse);
     if (problem) {
       reportReferenceProblem(problem);
@@ -387,6 +399,7 @@ const TopSearchBar = forwardRef<TopSearchBarHandle>(function TopSearchBar(_props
         ? undefined
         : (target.book! * 1000000) + ((target.endChapter ?? target.chapter!) * 1000) + endVerse;
 
+      navigatedVerseId = verseId;
       await navigateToVerse(verseId, endVerseId);
       // Typing a reference is the reader choosing a verse, exactly as a click
       // is. Without this the Bible pane moved on its own and the study panes
@@ -403,7 +416,7 @@ const TopSearchBar = forwardRef<TopSearchBarHandle>(function TopSearchBar(_props
     clearSearch();
     setIsFocused(false);
     inputRef.current?.blur();
-    focusAfterSearch('bible');
+    focusAfterSearch('bible', navigatedVerseId);
   }, [parsedReference, navigateToVerse, clearSearch]);
 
   // --------------------------------------------------------------------------
@@ -460,7 +473,7 @@ const TopSearchBar = forwardRef<TopSearchBarHandle>(function TopSearchBar(_props
       clearSearch();
       setIsFocused(false);
       inputRef.current?.blur();
-      focusAfterSearch('bible');
+      focusAfterSearch('bible', result.verseId);
     } catch (err) {
       console.error('Error navigating to suggestion:', err, result);
     }

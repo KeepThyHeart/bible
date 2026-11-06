@@ -4,6 +4,7 @@ import { useI18n } from '../contexts/useI18n';
 import { SearchResult } from '@bible/core';
 import { sanitizeHtml } from '../utils/sanitize';
 import { tElements } from '../utils/tElements';
+import { useTextSettingsStore } from '../stores/useTextSettingsStore';
 
 /**
  * A keycap. `dir="ltr"` is load-bearing, not cosmetic: key names are always
@@ -39,6 +40,7 @@ const LiveSearchSuggestions: React.FC<LiveSearchSuggestionsProps> = ({
   onSelectSuggestion,
 }) => {
   const { t } = useI18n();
+  const showRedLetter = useTextSettingsStore((state) => state.getSettings('bible').showRedLetter);
   // Show loading state while searching
   if (isLoading) {
     return (
@@ -74,7 +76,7 @@ const LiveSearchSuggestions: React.FC<LiveSearchSuggestionsProps> = ({
   }
 
   return (
-    <div data-testid="live-suggestions" className="absolute top-full mt-1 w-full bg-surface border border-border rounded-lg shadow-lg max-h-96 overflow-y-auto z-50">
+    <div data-testid="live-suggestions" className={`absolute top-full mt-1 w-full bg-surface border border-border rounded-lg shadow-lg max-h-96 overflow-y-auto z-50${showRedLetter === false ? ' no-red-letter' : ''}`}>
       {/* Header */}
       <div className="px-3 py-2 text-xs font-semibold text-text-secondary border-b border-border bg-surface-secondary">
         <span>{t('liveSearchSuggestions.topResults')}</span>
@@ -108,6 +110,35 @@ const LiveSearchSuggestions: React.FC<LiveSearchSuggestionsProps> = ({
   );
 };
 
+/** Cut `html` after `max` visible characters, keeping tags balanced; adds an ellipsis when cut. */
+export function truncateHtml(html: string, max: number): string {
+  let visible = 0;
+  let out = '';
+  const open: string[] = [];
+  const re = /<[^>]*>|[^<]+/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(html)) !== null) {
+    const tok = m[0];
+    if (tok.startsWith('<')) {
+      out += tok;
+      const name = /^<\/?\s*([a-zA-Z][\w-]*)/.exec(tok)?.[1]?.toLowerCase();
+      if (name && !tok.endsWith('/>')) {
+        if (tok.startsWith('</')) open.pop();
+        else open.push(name);
+      }
+      continue;
+    }
+    if (visible + tok.length > max) {
+      out += tok.slice(0, max - visible) + '...';
+      while (open.length) out += `</${open.pop()}>`;
+      return out;
+    }
+    out += tok;
+    visible += tok.length;
+  }
+  return out;
+}
+
 // ============================================================================
 // SuggestionItem Component
 // ============================================================================
@@ -132,10 +163,8 @@ const SuggestionItem: React.FC<SuggestionItemProps> = ({ result, isSelected, ind
   // Extract text without HTML tags for preview (in case highlighting was added)
   const textPreview = result.snippet || result.text;
 
-  // Truncate text to ~150 characters for preview
-  const truncatedText = textPreview.length > 150
-    ? textPreview.substring(0, 150) + '...'
-    : textPreview;
+  // Truncate on the visible text length (tags do not count), so markup cannot eat the cut.
+  const truncatedText = truncateHtml(textPreview, 150);
 
   return (
     <button

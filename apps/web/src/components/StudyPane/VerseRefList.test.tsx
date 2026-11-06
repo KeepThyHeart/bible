@@ -387,4 +387,16 @@ describe('VerseRefList', () => {
       Element.prototype.scrollIntoView = orig;
     }
   });
+
+  it('fetches verse texts in requests of at most 500 ids', async () => {
+    const storageKey = 'batch-test';
+    localStorage.setItem(storageKey, 'true');
+    const provider = makeBibleProvider();
+    const verses = Array.from({ length: 1100 }, (_, i) => ({ startVerseId: 43001001 + i }));
+    await act(async () => {
+      render(<VerseRefList verses={verses} bibleProvider={provider} storageKey={storageKey} />);
+    });
+    const sizes = (provider.getVerseTexts as ReturnType<typeof vi.fn>).mock.calls.map(c => c[1].length);
+    expect(sizes).toEqual([500, 500, 100]);
+  });
 });

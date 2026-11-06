@@ -1121,6 +1121,17 @@ export const useSearchStore = create<SearchState>((set, get) => {
       return;
     }
 
+    // A pinned active tab is kept, but a plain search should not pile up preview tabs:
+    // reuse the most recently used unpinned search tab if one exists (activate it).
+    if (!explicitSession && !opts.newTab) {
+      const st = get();
+      if (st.activeSessionId && st.sessionMeta[st.activeSessionId]?.pinned) {
+        const reusable = Object.keys(st.parkedSessions)
+          .filter((id) => !st.sessionMeta[id]?.pinned)
+          .sort((a, b) => (st.sessionMeta[b]?.lastUsed ?? 0) - (st.sessionMeta[a]?.lastUsed ?? 0))[0];
+        if (reusable) get().activateSession(reusable);
+      }
+    }
     const sessionId = explicitSession
       ?? (shouldOpenNewTab(opts) ? startNewTabSession(opts.semantic) : ensureActiveSession());
     const ticket = beginRequest(sessionId, 'keyword');

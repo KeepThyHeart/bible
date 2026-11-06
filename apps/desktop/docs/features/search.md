@@ -146,7 +146,7 @@ Keyword search, advanced search dialog, semantic search, Strong's word-family pi
 | `src/ui/stores/useLayoutStore.searchPanel.test.ts` | `openSearchResultsPanel` against a real `DockviewComponent`: splits below the last-active Bible pane, generic English title, focuses rather than duplicates, leaves a relocated panel where it was dragged, re-creates after close, falls back when no Bible pane exists |
 | `src/ui/stores/__tests__/useSearchStore.test.ts` | Store-level search behavior (query/mode/results state) |
 | `src/ui/components/AdvancedSearchDialog.test.tsx` | Advanced search dialog rendering and option wiring |
-| `src/ui/components/LiveSearchSuggestions.test.tsx` | Live suggestion dropdown, including the semantic-mode toggle link in its header |
+| `src/ui/components/LiveSearchSuggestions.test.tsx` | Live suggestion dropdown (loading/empty/results states, selection, red-letter class, markup-safe truncation); it has no mode link |
 | `src/ui/components/TopSearchBar.referenceRace.test.tsx` | Reference navigation vs. search race (a slow reference parse must not be overtaken by a later keystroke) |
 | `src/ui/components/TopSearchBarCommandResult.test.tsx` | Command-mode (`>`) result rows in the search bar |
 | `src/ui/components/SearchTypeSelector.test.tsx`, `src/ui/utils/dedupeSemanticResults.test.ts`, `src/ui/stores/useSearchStore.previewTabs.test.ts`, `src/ui/components/commentary/CommentaryVersePreview.test.tsx` | The Search/Ideas selector, Ideas de-duplication, search-tab pinning, and the commentary verse bar |

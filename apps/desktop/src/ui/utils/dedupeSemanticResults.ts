@@ -28,6 +28,11 @@ export function dedupeSemanticResults(results: SemanticResult[]): SemanticResult
     } else if (r.similarity > merged[at].similarity) {
       merged[at] = { ...merged[at], similarity: r.similarity };
     }
+    // Keep the first position and the best similarity; a verse row carries the verse's own
+    // richer text, so it wins over the one-verse paragraph row's text.
+    if (at !== undefined && r.level === 'verse' && raw.level === 'verse') {
+      merged[at] = { ...merged[at], text: r.text, textPreview: r.textPreview };
+    }
   }
 
   const paragraphs = merged.filter((r) => r.endVerseId > r.startVerseId && r.level !== 'chapter');

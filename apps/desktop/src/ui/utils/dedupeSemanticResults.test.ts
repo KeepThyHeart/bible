@@ -17,6 +17,14 @@ describe('dedupeSemanticResults', () => {
     expect(out[0]).toMatchObject({ level: 'verse', similarity: 0.64 });
   });
 
+  it('keeps the verse row text when merging with its one-verse paragraph row', () => {
+    const para = { ...row('p', 'paragraph', 7, 7, 0.5), text: 'short', textPreview: 'short' };
+    const verse = { ...row('v', 'verse', 7, 7, 0.4), text: 'the full verse text', textPreview: 'the full verse text' };
+    const out = dedupeSemanticResults([para, verse]);
+    expect(out).toHaveLength(1);
+    expect(out[0]).toMatchObject({ id: 'p', text: 'the full verse text', similarity: 0.5, level: 'verse' });
+  });
+
   it('drops a lone verse already inside a listed multi-verse paragraph, keeping order', () => {
     const out = dedupeSemanticResults([
       row('v1', 'verse', 5, 5, 0.9),

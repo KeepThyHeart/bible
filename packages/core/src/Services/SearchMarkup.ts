@@ -97,17 +97,34 @@ export function markUp(
   return result;
 }
 
+function hasDivineMarks(verse: BibleVerse): boolean {
+  const fd = verse.formattingData as { divineName?: unknown[]; divine_name?: unknown[] } | undefined;
+  return verse.text.includes('<divineName') || !!fd?.divineName?.length || !!fd?.divine_name?.length;
+}
+
+function hasChristMarks(verse: BibleVerse): boolean {
+  const fd = verse.formattingData as { wordsOfChrist?: unknown[]; words_of_christ?: unknown[] } | undefined;
+  return !!fd?.wordsOfChrist?.length || !!fd?.words_of_christ?.length;
+}
+
+/** Both range lists of a verse, formatting its text at most once. */
+export function markedRangesOfVerse(verse: BibleVerse, text: string): { divine: TextRange[] | null; christ: TextRange[] | null } {
+  const wantDivine = hasDivineMarks(verse);
+  const wantChrist = hasChristMarks(verse);
+  if (!wantDivine && !wantChrist) return { divine: null, christ: null };
+  const html = formatVerseText(verse).textHtml;
+  return {
+    divine: wantDivine ? divineRangesFromHtml(html, text) : null,
+    christ: wantChrist ? christRangesFromHtml(html, text) : null,
+  };
+}
+
 /** Divine-name character ranges of `text` (the verse's plain text), from its formatted HTML; null/empty when it has none. */
 export function divineRangesOfVerse(verse: BibleVerse, text: string): TextRange[] | null {
-  const fd = verse.formattingData as { divineName?: unknown[]; divine_name?: unknown[] } | undefined;
-  const marked = verse.text.includes('<divineName') || !!fd?.divineName?.length || !!fd?.divine_name?.length;
-  if (!marked) return null;
-  return divineRangesFromHtml(formatVerseText(verse).textHtml, text);
+  return markedRangesOfVerse(verse, text).divine;
 }
 
 /** Words-of-Christ character ranges of `text` (the verse's plain text); null/empty when the verse has none. */
 export function christRangesOfVerse(verse: BibleVerse, text: string): TextRange[] | null {
-  const fd = verse.formattingData as { wordsOfChrist?: unknown[]; words_of_christ?: unknown[] } | undefined;
-  if (!fd?.wordsOfChrist?.length && !fd?.words_of_christ?.length) return null;
-  return christRangesFromHtml(formatVerseText(verse).textHtml, text);
+  return markedRangesOfVerse(verse, text).christ;
 }

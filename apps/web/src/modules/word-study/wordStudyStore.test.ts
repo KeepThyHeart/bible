@@ -135,13 +135,24 @@ describe('wordStudyStore occurrences', () => {
     await wordStudyStore.openStrongs('G25');
     expect(wordStudyStore.hasMore).toBe(true);
     await wordStudyStore.loadMore();
-    expect(provider.getOccurrences.mock.calls[1][1]).toMatchObject({ offset: 100, limit: 100 });
-    expect(wordStudyStore.occurrences?.items).toHaveLength(200);
-    await wordStudyStore.loadMore();
+    expect(provider.getOccurrences.mock.calls[1][1]).toMatchObject({ offset: 100, limit: 500 });
     expect(wordStudyStore.occurrences?.items).toHaveLength(250);
     expect(wordStudyStore.hasMore).toBe(false);
     await wordStudyStore.loadMore();
-    expect(provider.getOccurrences).toHaveBeenCalledTimes(3);
+    expect(provider.getOccurrences).toHaveBeenCalledTimes(2);
+  });
+
+  it('load more fetches up to 1,000 per click in requests of at most 500', async () => {
+    provider.getOccurrences.mockImplementation(async (_s, q) => ({
+      total: 3000, items: items(Math.min(q.limit ?? 100, 3000 - (q.offset ?? 0)), q.offset ?? 0),
+    }));
+    await wordStudyStore.openStrongs('G25');
+    expect(wordStudyStore.occurrences?.items).toHaveLength(100);
+    await wordStudyStore.loadMore();
+    const calls = provider.getOccurrences.mock.calls.slice(1).map(c => [c[1].offset, c[1].limit]);
+    expect(calls).toEqual([[100, 500], [600, 500]]);
+    expect(wordStudyStore.occurrences?.items).toHaveLength(1100);
+    expect(wordStudyStore.hasMore).toBe(true);
   });
 
   it('a filter change reloads from the first page', async () => {
