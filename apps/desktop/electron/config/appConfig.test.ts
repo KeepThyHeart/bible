@@ -1,11 +1,15 @@
 // @vitest-environment node
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, afterEach, beforeEach } from 'vitest';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import { resolveAppConfig, toRendererAppConfig, isRemoteSemanticConfigured, DEFAULT_REMOTE_SEMANTIC_URL } from './appConfig';
 
 const KEYS = ['BIBLE_REMOTE_SEMANTIC_URL', 'BIBLE_REMOTE_SEMANTIC_API_KEY'];
-afterEach(() => { for (const k of KEYS) delete process.env[k]; });
+// The suite may run under an environment that sets these (the e2e runs export BIBLE_REMOTE_SEMANTIC_URL=none):
+// start from a clean slate, and put the original values back afterwards.
+const original: Record<string, string | undefined> = {};
+beforeEach(() => { for (const k of KEYS) { original[k] = process.env[k]; delete process.env[k]; } });
+afterEach(() => { for (const k of KEYS) { if (original[k] === undefined) delete process.env[k]; else process.env[k] = original[k]; } });
 
 describe('appConfig remoteSemantic (task 0190)', () => {
   it('defaults to the hosted service, with no key', () => {

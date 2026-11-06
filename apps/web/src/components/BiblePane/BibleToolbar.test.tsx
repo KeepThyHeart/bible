@@ -10,7 +10,7 @@
 // compat first keeps its patched event handling in place from the first render, as in the real app.
 import 'preact/compat';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/preact';
+import { render, screen, fireEvent, waitFor } from '@testing-library/preact';
 import type { BibleTab } from '../../stores/bibleStore';
 
 // ---- i18n ----------------------------------------------------------------
@@ -108,6 +108,7 @@ vi.mock('../../stores/moduleStore', () => ({
   moduleStore: {
     getBibleModules: () => mockGetBibleModules(),
     getBookByNumber: (n: number) => mockGetBookByNumber(n),
+    getBookName: (n: number) => `Book ${n}`,
     getBibleSections: () => mockGetBibleSections(),
     getModuleDescription: (type: string, abbr: string) => mockGetModuleDescription(type, abbr),
   },
@@ -310,6 +311,14 @@ describe('BibleToolbar', () => {
     expect(container.querySelector('.module-dialog-overlay')).toBeNull();
   });
 
+  it('names the translation button for assistive tech, not just by its abbreviation', () => {
+    const { container } = render(<BibleToolbar />);
+    const btn = container.querySelector('.bible-toolbar__translation-btn')!;
+    expect(btn.getAttribute('aria-label')).toBeTruthy();
+    expect(btn.getAttribute('aria-label')).toBe('bibleToolbar.translationButton');
+    expect(btn.textContent).toContain('KJV');
+  });
+
   it('opens the translation dialog when the translation button is clicked', () => {
     const { container } = render(<BibleToolbar />);
     fireEvent.click(container.querySelector('.bible-toolbar__translation-btn')!);
@@ -402,5 +411,79 @@ describe('BibleToolbar', () => {
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(container.querySelector('.bible-toolbar__history-menu')).toBeNull();
     expect(document.activeElement).toBe(toggle);
+  });
+
+  it('choosing a Recent passages item returns focus to the menu button', () => {
+    mockHistory = [{ moduleAbbr: 'KJV', book: 43, chapter: 3 }, { moduleAbbr: 'KJV', book: 1, chapter: 1 }];
+    mockHistoryIndex = 1;
+    const { container } = render(<BibleToolbar />);
+    const toggle = container.querySelector<HTMLButtonElement>('[data-testid="history-dropdown-toggle"]')!;
+    fireEvent.click(toggle);
+    const item = container.querySelector<HTMLElement>('[role="menuitem"]')!;
+    item.focus();
+    fireEvent.click(item);
+    expect(container.querySelector('.bible-toolbar__history-menu')).toBeNull();
+    expect(document.activeElement).toBe(toggle);
+    mockHistory = [];
+    mockHistoryIndex = -1;
+  });
+
+  // 0209 W6: Recent passages is a keyboard menu.
+  describe('Recent passages keyboard', () => {
+    const twoEntries = () => {
+      mockHistory = [{ moduleAbbr: 'KJV', book: 43, chapter: 3 }, { moduleAbbr: 'KJV', book: 1, chapter: 1 }];
+      mockHistoryIndex = 1;
+    };
+    const reset = () => { mockHistory = []; mockHistoryIndex = -1; };
+
+    it('ArrowDown on the button opens the menu and focuses the current entry; arrows move', async () => {
+      twoEntries();
+      const { container } = render(<BibleToolbar />);
+      const toggle = container.querySelector<HTMLButtonElement>('[data-testid="history-dropdown-toggle"]')!;
+      toggle.focus();
+      fireEvent.keyDown(toggle, { key: 'ArrowDown' });
+      await waitFor(() => expect(container.querySelector('.bible-toolbar__history-menu')).toBeTruthy());
+      const items = Array.from(container.querySelectorAll<HTMLElement>('[role="menuitem"]'));
+      expect(items).toHaveLength(2);
+      // Newest first; the current entry (index 1) is the first row.
+      await waitFor(() => expect(document.activeElement).toBe(items[0]));
+      fireEvent.keyDown(items[0], { key: 'ArrowDown' });
+      expect(document.activeElement).toBe(items[1]);
+      fireEvent.keyDown(items[1], { key: 'ArrowDown' });
+      expect(document.activeElement).toBe(items[0]);
+      reset();
+    });
+
+    it('Escape from an item closes the menu and focuses the button', async () => {
+      twoEntries();
+      const { container } = render(<BibleToolbar />);
+      const toggle = container.querySelector<HTMLButtonElement>('[data-testid="history-dropdown-toggle"]')!;
+      fireEvent.keyDown(toggle, { key: 'Enter' });
+      const first = await waitFor(() => {
+        const el = container.querySelector<HTMLElement>('[role="menuitem"]');
+        expect(el).toBeTruthy();
+        return el!;
+      });
+      await waitFor(() => expect(document.activeElement).toBe(first));
+      fireEvent.keyDown(first, { key: 'Escape' });
+      expect(container.querySelector('.bible-toolbar__history-menu')).toBeNull();
+      expect(document.activeElement).toBe(toggle);
+      reset();
+    });
+
+    it('Tab closes the menu', async () => {
+      twoEntries();
+      const { container } = render(<BibleToolbar />);
+      const toggle = container.querySelector<HTMLButtonElement>('[data-testid="history-dropdown-toggle"]')!;
+      fireEvent.keyDown(toggle, { key: 'ArrowDown' });
+      const first = await waitFor(() => {
+        const el = container.querySelector<HTMLElement>('[role="menuitem"]');
+        expect(el).toBeTruthy();
+        return el!;
+      });
+      fireEvent.keyDown(first, { key: 'Tab' });
+      expect(container.querySelector('.bible-toolbar__history-menu')).toBeNull();
+      reset();
+    });
   });
 });

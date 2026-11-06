@@ -25,6 +25,19 @@ type RangeMode = 'single' | 'books' | 'preset';
  * - Save search functionality
  * - OK/Cancel actions
  */
+const FUZZY_MIN = 1;
+const FUZZY_MAX = 3;
+const PROXIMITY_MAX = 100;
+const MAX_RESULTS_MIN = 10;
+const MAX_RESULTS_MAX = 1000;
+
+/** Parse a field's value to an integer inside [min, max]; `fallback` when it is not a number. */
+function clampInt(raw: number | string, min: number, max: number, fallback: number): number {
+  const n = typeof raw === 'number' ? Math.trunc(raw) : parseInt(raw, 10);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.min(max, Math.max(min, n));
+}
+
 const AdvancedSearchDialog: React.FC = () => {
   const { t, localizer } = useI18n();
   const bookNames = useMemo(() => localizedBookNames(localizer), [localizer]);
@@ -43,9 +56,11 @@ const AdvancedSearchDialog: React.FC = () => {
   const [scope, setScope] = useState<SearchScope>(searchOptions.scope || 'currentModule');
   const [caseSensitive, setCaseSensitive] = useState(searchOptions.caseSensitive || false);
   const [wholeWord, setWholeWord] = useState(searchOptions.wholeWord || false);
-  const [fuzzyDistance, setFuzzyDistance] = useState(searchOptions.fuzzyDistance || 2);
+  // Held as the raw field text/number so typing is never fought; clamped on
+  // blur and again on submit (see `handleSearch`).
+  const [fuzzyDistanceRaw, setFuzzyDistance] = useState<number | string>(searchOptions.fuzzyDistance || 2);
   const [proximityDistanceStr, setProximityDistanceStr] = useState(String(searchOptions.proximityDistance || 0));
-  const [maxResults, setMaxResults] = useState(searchOptions.maxResults || 200);
+  const [maxResultsRaw, setMaxResults] = useState<number | string>(searchOptions.maxResults || 200);
   const [includeContext, setIncludeContext] = useState(searchOptions.includeContext || false);
   const [autoFuzzy, setAutoFuzzy] = useState(searchOptions.autoFuzzy ?? true);
 
@@ -63,6 +78,17 @@ const AdvancedSearchDialog: React.FC = () => {
 
   // Contains Tab within the dialog while it is open.
   const dialogRef = useFocusTrap<HTMLDivElement>(isAdvancedDialogOpen);
+
+  // Initial focus: the query box. The focus trap parks focus on the first
+  // focusable element (Close) in a requestAnimationFrame of its own; this one is
+  // registered after it, so it runs after it and the query box keeps focus.
+  useEffect(() => {
+    if (!isAdvancedDialogOpen) return;
+    const raf = window.requestAnimationFrame(() => {
+      document.getElementById('adv-search-query')?.focus();
+    });
+    return () => window.cancelAnimationFrame(raf);
+  }, [isAdvancedDialogOpen]);
 
   // Sync form state when dialog opens, and track focused element
   useEffect(() => {
@@ -158,8 +184,12 @@ const AdvancedSearchDialog: React.FC = () => {
 
   // Handle search with new options
   const handleSearch = async () => {
-    // Update search options
-    const proximityDistance = parseInt(proximityDistanceStr) || 0;
+    // Update search options. Every number is clamped here, whatever the field
+    // held: a typed "9" for a 1-3 range, or a negative cap (which the search
+    // reads as "no cap" and then misreports as having stopped at its limit).
+    const proximityDistance = clampInt(proximityDistanceStr, 0, PROXIMITY_MAX, 0);
+    const fuzzyDistance = clampInt(fuzzyDistanceRaw, FUZZY_MIN, FUZZY_MAX, 2);
+    const maxResults = clampInt(maxResultsRaw, MAX_RESULTS_MIN, MAX_RESULTS_MAX, 200);
     setSearchOptions({
       scope,
       range: buildRange(),
@@ -229,6 +259,21 @@ const AdvancedSearchDialog: React.FC = () => {
             if (e.key === 'Escape') {
               e.stopPropagation();
               handleCancel();
+              return;
+            }
+            // Enter in a single-line field runs the search (buttons, checkboxes
+            // and selects keep their own Enter behaviour).
+            const el = e.target as HTMLElement;
+            if (
+              e.key === 'Enter' &&
+              !e.ctrlKey &&
+              !e.metaKey &&
+              !e.altKey &&
+              el instanceof HTMLInputElement &&
+              (el.type === 'text' || el.type === 'number' || el.type === 'search')
+            ) {
+              e.preventDefault();
+              void handleSearch();
             }
           }}
         >
@@ -498,8 +543,9 @@ const AdvancedSearchDialog: React.FC = () => {
                   type="number"
                   min={1}
                   max={3}
-                  value={fuzzyDistance}
-                  onChange={(e) => setFuzzyDistance(parseInt(e.target.value) || 2)}
+                  value={fuzzyDistanceRaw}
+                  onChange={(e) => setFuzzyDistance(e.target.value)}
+                  onBlur={() => setFuzzyDistance(clampInt(fuzzyDistanceRaw, FUZZY_MIN, FUZZY_MAX, 2))}
                   className={fieldClass}
                 />
                 <div id="adv-search-fuzzy-hint" className={hintClass}>
@@ -515,21 +561,14 @@ const AdvancedSearchDialog: React.FC = () => {
                 <input
                   id="adv-search-proximity"
                   aria-describedby="adv-search-proximity-hint"
-                  type="text"
-                  inputMode="numeric"
-                  pattern="[0-9]*"
+                  type="number"
+                  min={0}
+                  max={PROXIMITY_MAX}
                   value={proximityDistanceStr}
-                  onChange={(e) => {
-                    // Allow empty string or valid numbers only
-                    const val = e.target.value;
-                    if (val === '' || /^\d+$/.test(val)) {
-                      setProximityDistanceStr(val);
-                    }
-                  }}
+                  onChange={(e) => setProximityDistanceStr(e.target.value)}
                   onBlur={() => {
-                    // Ensure valid value on blur (default to 0 if empty or invalid)
-                    const num = parseInt(proximityDistanceStr) || 0;
-                    setProximityDistanceStr(String(Math.min(100, Math.max(0, num))));
+                    // Ensure a valid value on blur (0 if empty or invalid)
+                    setProximityDistanceStr(String(clampInt(proximityDistanceStr, 0, PROXIMITY_MAX, 0)));
                   }}
                   className={fieldClass}
                 />
@@ -550,8 +589,9 @@ const AdvancedSearchDialog: React.FC = () => {
                   min={10}
                   max={1000}
                   step={10}
-                  value={maxResults}
-                  onChange={(e) => setMaxResults(parseInt(e.target.value) || 200)}
+                  value={maxResultsRaw}
+                  onChange={(e) => setMaxResults(e.target.value)}
+                  onBlur={() => setMaxResults(clampInt(maxResultsRaw, MAX_RESULTS_MIN, MAX_RESULTS_MAX, 200))}
                   className={fieldClass}
                 />
                 <div id="adv-search-max-results-hint" className={hintClass}>

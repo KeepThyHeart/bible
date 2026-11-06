@@ -141,6 +141,20 @@ const PreferencesDialog: React.FC<PreferencesDialogProps> = ({
     onActivate: (index) => setActiveSection(sections[index].id),
   });
 
+  // The tablist is vertical, so Up/Down are its arrows (the hook handles
+  // Left/Right, which stay working too).
+  const handleSectionKeyDown = (event: React.KeyboardEvent<HTMLElement>) => {
+    if ((event.key === 'ArrowDown' || event.key === 'ArrowUp') && sections.length > 0) {
+      event.preventDefault();
+      const step = event.key === 'ArrowDown' ? 1 : -1;
+      const next = (Math.max(activeSectionIndex, 0) + step + sections.length) % sections.length;
+      setActiveSection(sections[next].id);
+      tablistRef.current?.querySelectorAll<HTMLElement>('[role="tab"]')[next]?.focus();
+      return;
+    }
+    handleTabKeyDown(event);
+  };
+
   return (
     <div
       className="fixed inset-0 flex items-center justify-center z-50"
@@ -181,7 +195,7 @@ const PreferencesDialog: React.FC<PreferencesDialogProps> = ({
             aria-label={t('preferencesDialog.sectionsNavLabel')}
             aria-orientation="vertical"
             ref={tablistRef}
-            onKeyDown={handleTabKeyDown}
+            onKeyDown={handleSectionKeyDown}
           >
             {sections.map((section) => (
               <button

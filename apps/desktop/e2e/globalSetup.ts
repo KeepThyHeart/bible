@@ -30,7 +30,10 @@ export default async function globalSetup(): Promise<void> {
   if (!fs.existsSync(MAIN_JS_PATH)) return; // the fixture reports the missing build itself
   fs.mkdirSync(E2E_KEYWORD_INDEX_DIR, { recursive: true });
   const userDataDir = path.join(os.tmpdir(), 'bible-e2e', 'keyword-index-setup');
-  fs.rmSync(userDataDir, { recursive: true, force: true });
+  // Kept between runs, like the index directory: the keyword-index records live in this profile's
+  // database. A fresh profile over an index directory that already holds ready indexes reports every
+  // module "unbuilt" for ever (the files are ready, so the app builds nothing, and no record says so),
+  // and this setup waited out its whole budget for a state that never came.
   fs.mkdirSync(userDataDir, { recursive: true });
 
   const app = await electron.launch({

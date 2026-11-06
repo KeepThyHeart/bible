@@ -18,7 +18,17 @@ import { AudioProgress } from './AudioProgress';
 import { AudioTransportButtons } from './AudioTransportButtons';
 import { useSources } from './useSources';
 import { sourceChipText } from './sourceChip';
-import { focusAudioPlayer, setAudioPlayerFocuser } from '../lib/audioShortcuts';
+import { setAudioPlayerFocuser } from '../lib/audioShortcuts';
+
+/** After docking, the pop-up unmounts and the bar mounts a frame or two later: focus the bar's first usable control once it is there. */
+function focusBarSoon(tries = 20): void {
+  setAudioPlayerFocuser(null);
+  requestAnimationFrame(() => {
+    const btn = document.querySelector<HTMLElement>('[data-testid="audio-transport"] button:not(:disabled)');
+    if (btn) btn.focus();
+    else if (tries > 0) focusBarSoon(tries - 1);
+  });
+}
 
 export function AudioPlayerPopup({ onOpenSettings }: { onOpenSettings?: (section?: string) => void }) {
   const { t } = useTranslation();
@@ -56,14 +66,17 @@ export function AudioPlayerPopup({ onOpenSettings }: { onOpenSettings?: (section
 
   const onKeyDown = (e: KeyboardEvent) => {
     if (e.key !== 'Escape' || gearOpen || e.defaultPrevented) return;
+    // Escape closes the player (it is a dialog) and hands focus back to where the reader came from, or Listen.
     const back = returnRef.current;
     const el = back instanceof HTMLElement && back.isConnected ? back : document.querySelector<HTMLElement>('[data-testid="audio-listen"]');
     returnRef.current = null;
-    if (el) { e.preventDefault(); el.focus(); }
+    e.preventDefault();
+    audioStore.stop();
+    el?.focus();
   };
 
   const active = sources.find(s => s.provider.id === providerId);
-  const sub = sourceChipText(t, providerId, active?.provider.label, active?.voices.find(v => v.id === voiceId)?.label, now.moduleAbbr ?? '');
+  const sub = status === 'error' ? '' : sourceChipText(t, providerId, active?.provider.label, active?.voices.find(v => v.id === voiceId)?.label, now.moduleAbbr ?? '');
 
   return (
     <div
@@ -93,7 +106,7 @@ export function AudioPlayerPopup({ onOpenSettings }: { onOpenSettings?: (section
         >
           <i class="fa-solid fa-gear" aria-hidden="true" />
         </button>
-        <button type="button" class="audio-btn" onClick={() => { audioStore.setPlayerStyle('bar'); requestAnimationFrame(() => focusAudioPlayer()); }} title={t('audio.popup.dock')} aria-label={t('audio.popup.dock')} data-testid="audio-dock">
+        <button type="button" class="audio-btn" onClick={() => { audioStore.setPlayerStyle('bar'); focusBarSoon(); }} title={t('audio.popup.dock')} aria-label={t('audio.popup.dock')} data-testid="audio-dock">
           <i class="fa-solid fa-window-minimize" aria-hidden="true" />
         </button>
         <button type="button" class="audio-btn" onClick={() => { audioStore.stop(); document.querySelector<HTMLElement>('[data-testid="audio-listen"]')?.focus(); }} title={t('audio.player.stop')} aria-label={t('audio.player.stop')} data-testid="audio-close">

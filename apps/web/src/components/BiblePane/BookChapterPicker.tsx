@@ -82,6 +82,23 @@ function BookTopics({ book, onSelect }: { book: number; onSelect: BookChapterPic
   );
 }
 
+/**
+ * Picking a book swaps the book grid for the chapter grid, which removes the button that had focus (focus
+ * falls to <body>). Mounted beside the chapter grid, this moves focus onto it: the current chapter, else the first.
+ */
+function FocusChapterGrid({ dialogRef }: { dialogRef: { current: HTMLElement | null } }) {
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    const active = document.activeElement;
+    if (active && active !== document.body && active !== dialog && dialog.contains(active) && active.isConnected) return;
+    const cell = dialog.querySelector<HTMLElement>('.kth-picker__cell--chapter[aria-current="true"]')
+      ?? dialog.querySelector<HTMLElement>('.kth-picker__cell--chapter');
+    cell?.focus({ preventScroll: true });
+  }, []);
+  return null;
+}
+
 /** Results of a search run from inside the picker; subscribes to the global search store. */
 function PickerSearchResults({ query, onSelect }: { query: string; onSelect: BookChapterPickerProps['onSelect'] }) {
   const { t } = useTranslation();
@@ -121,9 +138,36 @@ function PickerSearchResults({ query, onSelect }: { query: string; onSelect: Boo
   );
 }
 
-function PickerDialog({ onClose, onSelect, currentBook, currentChapter, moduleAbbr, onChangeTranslation }: Omit<BookChapterPickerProps, 'isOpen'>) {
+/**
+ * After a passage is picked the dialog closes and focus returns to its opener. When the opener was
+ * not focusable (at phone width, the chapter heading) or has gone, focus would fall to <body>: land
+ * on the reader's main heading instead (the same target HomeScreen uses after "Read Bible").
+ */
+function focusReaderIfFocusLost() {
+  let tries = 0;
+  const attempt = () => {
+    // Still open (the parent kept it up, or has not re-rendered yet): wait a few frames.
+    if (document.querySelector('.book-chapter-picker__overlay') && ++tries < 10) {
+      requestAnimationFrame(attempt);
+      return;
+    }
+    const ae = document.activeElement;
+    if (ae && ae !== document.body && ae.isConnected) return;
+    const heading = document.querySelector<HTMLElement>('.bible-pane > h1');
+    if (!heading) return;
+    if (!heading.hasAttribute('tabindex')) heading.setAttribute('tabindex', '-1');
+    heading.focus({ preventScroll: true });
+  };
+  requestAnimationFrame(attempt);
+}
+
+function PickerDialog({ onClose, onSelect: onSelectProp, currentBook, currentChapter, moduleAbbr, onChangeTranslation }: Omit<BookChapterPickerProps, 'isOpen'>) {
   const { t } = useTranslation();
   const localizer = useLocalizer();
+  const onSelect: BookChapterPickerProps['onSelect'] = (...args) => {
+    onSelectProp(...args);
+    focusReaderIfFocusLost();
+  };
   const bookAliases = useMemo(() => localizedBookAliases(localizer), [localizer]);
   const [showTranslationDialog, setShowTranslationDialog] = useState(false);
   // Mounted only while open: focus returns to whatever opened it when it unmounts (B-156).
@@ -207,7 +251,12 @@ function PickerDialog({ onClose, onSelect, currentBook, currentChapter, moduleAb
               )}
             </>
           )}
-          chapterExtras={(book) => <BookTopics book={book} onSelect={onSelect} />}
+          chapterExtras={(book) => (
+            <>
+              <BookTopics book={book} onSelect={onSelect} />
+              <FocusChapterGrid dialogRef={dialogRef} />
+            </>
+          )}
         />
       </div>
     </div>

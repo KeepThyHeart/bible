@@ -10,12 +10,12 @@
  * view rendering, navigation buttons, search dropdown, keyboard nav.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/preact';
+import { render, screen, fireEvent, waitFor } from '@testing-library/preact';
 
 // ---- i18n ----------------------------------------------------------------
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
-    t: (key: string) => key,
+    t: (key: string, opts?: { defaultValue?: string }) => opts?.defaultValue ?? key,
     i18n: { language: 'en' },
   }),
 }));
@@ -256,6 +256,23 @@ describe('DictionaryContent', () => {
     const entryBtn = screen.getByText('Agape').closest('button')!;
     fireEvent.click(entryBtn);
     expect(mockLoadEntryInTab).toHaveBeenCalledWith('dtab-1', 'agape');
+  });
+
+  it('U-230: a browse entry that fails to load shows an alert and keeps focus on that item', async () => {
+    mockTab = makeTab();
+    mockTabState = {
+      ...emptyTabState(),
+      browseEntries: [{ entry_key: 'bad/key', word: 'Bad' }, { entry_key: 'logos', word: 'Logos' }],
+    };
+    // The store leaves entry null on failure.
+    mockLoadEntryInTab.mockResolvedValueOnce(undefined);
+    render(<DictionaryContent tabId="dtab-1" />);
+    const btn = screen.getByText('Bad').closest('button')!;
+    btn.focus();
+    fireEvent.click(btn);
+    const alert = await screen.findByRole('alert');
+    expect(alert.textContent).toBe('This entry could not be loaded.');
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByText('Bad').closest('button')));
   });
 
   it('shows "Load more" button when browseOffset < browseTotal', () => {
@@ -558,5 +575,52 @@ describe('DictionaryContent', () => {
     mockTabState = { ...emptyTabState(), entry: makeEntry({ entry_key: 'preface' }) };
     const { container } = render(<DictionaryContent tabId="dtab-1" />);
     expect(searchBtn(container)).toBeNull();
+  });
+
+  // ------------------------------------------------------------------
+  // Focus: an opened entry takes focus (the clicked control is gone)
+  // ------------------------------------------------------------------
+  describe('focus after an entry opens', () => {
+    it('moves focus to the entry heading when focus was lost to <body>', () => {
+      (document.activeElement as HTMLElement | null)?.blur();
+      mockTab = makeTab();
+      mockTabState = { ...emptyTabState(), entry: makeEntry({ entry_key: '00025', word: 'agapao' }) };
+      const { container } = render(<DictionaryContent tabId="dtab-1" />);
+      const heading = container.querySelector('.dictionary-pane__entry-word') as HTMLElement;
+      expect(heading.getAttribute('tabindex')).toBe('-1');
+      expect(document.activeElement).toBe(heading);
+    });
+
+    it('moves focus to the new heading when a suggestion is picked and the entry replaces the search results', () => {
+      mockTab = makeTab();
+      mockTabState = { ...emptyTabState(), entry: makeEntry({ entry_key: 'a', word: 'alpha' }) };
+      const { container, rerender } = render(<DictionaryContent tabId="dtab-1" />);
+      // Opening the next entry unmounts the clicked control and drops focus to <body>.
+      mockTabState = { ...emptyTabState(), entry: null, entryLoading: true };
+      rerender(<DictionaryContent tabId="dtab-1" />);
+      (document.activeElement as HTMLElement | null)?.blur();
+      mockTabState = { ...emptyTabState(), entry: makeEntry({ entry_key: 'b', word: 'beta' }) };
+      rerender(<DictionaryContent tabId="dtab-1" />);
+      expect(document.activeElement).toBe(container.querySelector('.dictionary-pane__entry-word'));
+    });
+
+    it('focuses the search box of a dictionary opened from the Home list (the card is gone)', () => {
+      (document.activeElement as HTMLElement | null)?.blur();
+      mockTab = makeTab();
+      mockTabState = emptyTabState();
+      const { container } = render(<DictionaryContent tabId="dtab-1" />);
+      expect(document.activeElement).toBe(container.querySelector('.dictionary-content__search'));
+    });
+
+    it('does not steal focus from another control the user is on', () => {
+      const other = document.createElement('button');
+      document.body.appendChild(other);
+      other.focus();
+      mockTab = makeTab();
+      mockTabState = { ...emptyTabState(), entry: makeEntry({ entry_key: 'z', word: 'zeta' }) };
+      render(<DictionaryContent tabId="dtab-1" />);
+      expect(document.activeElement).toBe(other);
+      other.remove();
+    });
   });
 });

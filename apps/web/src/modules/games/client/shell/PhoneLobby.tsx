@@ -16,6 +16,7 @@ import { TEAM_IDS } from '../../shared/protocol.js';
 import { PhoneHeaderActions } from './PhoneHeaderActions.js';
 import { TEAM_LABELS, teamColour } from './teams.js';
 import type { ThemeControl } from './theme.js';
+import { useHeadingFocus } from './useHeadingFocus.js';
 import { gt } from './t.js';
 
 export interface PhoneLobbyProps {
@@ -142,6 +143,7 @@ export function PhoneLobby({
   onStart,
 }: PhoneLobbyProps) {
   const { code, players, settings, you } = snapshot;
+  const headingRef = useHeadingFocus();
   const others = players.filter((player) => player.id !== you.id);
   const controlling = snapshot.control !== undefined;
   const canStart = players.length > 0;
@@ -149,17 +151,18 @@ export function PhoneLobby({
   return (
     <main class="screen screen-lobby" style={{ '--team': teamColour(you.teamId) }}>
       <header class="chrome-row lobby-header">
-        <span class="chrome-code">#{code}</span>
-        <span class="lobby-count" aria-label={
-            players.length === 1
-              ? gt('games.phone.inRoomOne', '{total} person in the room', { total: players.length })
-              : gt('games.phone.inRoom', '{total} people in the room', { total: players.length })
-          }>
+        <span class="chrome-code" aria-label={gt('games.host.roomCodeAria', 'Room code {code}', { code: code.split('').join(' ') })}>
+          #{code}
+        </span>
+        <span class="lobby-count">
           <UsersIcon />
-          {players.length}
+          <span aria-hidden="true">{players.length}</span>
+          <span class="sr-only">{gt('games.phone.playersCount', 'Players: {total}', { total: players.length })}</span>
         </span>
         <PhoneHeaderActions code={code} joinUrl={joinUrl} themeControl={themeControl} onLeave={onLeave} />
       </header>
+
+      <h1 class="sr-only" tabIndex={-1} ref={headingRef}>{gt('games.phone.lobbyHeading', 'Room lobby')}</h1>
 
       <p class="lobby-name">
         {gt('games.phone.yourName', 'Your name:')} <strong>{you.name}</strong>

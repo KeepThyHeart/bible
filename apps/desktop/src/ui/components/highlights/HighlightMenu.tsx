@@ -5,6 +5,7 @@ import { anchorAtPointer } from '@bible/core/browser';
 import { useDirection } from '@bible/ui';
 import { useI18n } from '../../contexts/useI18n';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
+import { onRadioGroupKeyDown } from '../../utils/radioGroupKeys';
 import { UnderlineSwatch } from './UnderlineSwatch';
 
 interface HighlightMenuProps {
@@ -152,13 +153,14 @@ export const HighlightMenu: React.FC<HighlightMenuProps> = ({
             These three are mutually exclusive, so they are radios rather than
             three independent toggles - the difference is audible.
           */}
-          <div className="flex gap-2" role="radiogroup" aria-labelledby="markup-type-heading">
+          <div className="flex gap-2" role="radiogroup" aria-labelledby="markup-type-heading" onKeyDown={onRadioGroupKeyDown}>
             {markupOptions.map(({ type, label }) => (
               <button
                 key={type}
                 type="button"
                 role="radio"
                 aria-checked={selectedMarkupType === type}
+                tabIndex={selectedMarkupType === type ? 0 : -1}
                 className={`px-3 py-1 text-sm rounded cursor-pointer ${
                   selectedMarkupType === type
                     ? 'bg-accent text-text-on-accent'
@@ -209,13 +211,14 @@ export const HighlightMenu: React.FC<HighlightMenuProps> = ({
               <div id="underline-style-heading" className="text-sm font-semibold mb-2 text-text-primary">
                 {t('highlightMenu.underlineStyleHeading')}
               </div>
-              <div className="flex gap-2" role="radiogroup" aria-labelledby="underline-style-heading">
+              <div className="flex gap-2" role="radiogroup" aria-labelledby="underline-style-heading" onKeyDown={onRadioGroupKeyDown}>
                 {underlineStyles.map(style => (
                   <button
                     key={style}
                     type="button"
                     role="radio"
                     aria-checked={selectedUnderlineStyle === style}
+                    tabIndex={selectedUnderlineStyle === style ? 0 : -1}
                     className={`px-3 py-1 text-sm rounded cursor-pointer ${
                       selectedUnderlineStyle === style
                         ? 'bg-accent text-text-on-accent'
@@ -234,13 +237,14 @@ export const HighlightMenu: React.FC<HighlightMenuProps> = ({
               <div id="underline-color-heading" className="text-sm font-semibold mb-2 text-text-primary">
                 {t('highlightMenu.underlineColorHeading')}
               </div>
-              <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-labelledby="underline-color-heading">
+              <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-labelledby="underline-color-heading" onKeyDown={onRadioGroupKeyDown}>
                 {colors.map(color => (
                   <button
                     key={`underline-${color}`}
                     type="button"
                     role="radio"
                     aria-checked={selectedUnderlineColor === color}
+                    tabIndex={selectedUnderlineColor === color ? 0 : -1}
                     className={`w-10 h-10 rounded border-2 flex items-center justify-center cursor-pointer ${
                       selectedUnderlineColor === color
                         ? 'border-accent'

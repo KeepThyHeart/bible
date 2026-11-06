@@ -18,7 +18,13 @@ export function useScrollSpy(
   sections: DocSection[],
   initialId: string,
 ): ScrollSpyApi {
-  const [activeSectionId, setActiveSectionId] = useState<string>(initialId);
+  const [selectedSectionId, setActiveSectionId] = useState<string>(initialId);
+  // A search can filter the current section out of the list. The sidebar must
+  // not keep marking a section that is no longer there: fall back to the first
+  // one still visible (or none when nothing matches).
+  const activeSectionId = sections.some((s) => s.id === selectedSectionId)
+    ? selectedSectionId
+    : (sections[0]?.id ?? '');
   const sectionRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const isClickScrolling = useRef(false);
   const clickScrollTimer = useRef<ReturnType<typeof setTimeout> | null>(null);

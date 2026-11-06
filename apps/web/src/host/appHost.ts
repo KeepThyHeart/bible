@@ -8,6 +8,7 @@ import { AppRegistry, VerseActionRegistry, createAppBindingController, createApp
 import type { ActivateOptions, ActivateResult, AppBinding, AppCompanionBinding, AppId, Disposable } from '@bible/core/browser';
 import type { ComponentType } from 'preact';
 import { reloadForUpdateOnce } from '../utils/bootGuard';
+import { isPageLeaving } from './pageLeaving';
 import type { ShellContext } from '../boot/shellContext';
 
 export type AppView = ComponentType<any>;
@@ -173,6 +174,11 @@ export function isChunkLoadError(err: unknown): boolean {
  */
 export async function activateWithRecovery(id: AppId, options: ActivateOptions = {}): Promise<ActivateResult> {
   const result = await appHost.activate(id, options);
+  if (result.status === 'failed' && isPageLeaving() && isChunkLoadError(result.error)) {
+    // A reload or navigation cut the import short (WebKit rejects in-flight imports then): the
+    // page this would report to is already going away, so there is nothing to report or recover.
+    return result;
+  }
   if (result.status === 'failed') {
     console.error(`[AppHost] "${id}" failed to start:`, result.error);
     if (isChunkLoadError(result.error) && reloadForUpdateOnce()) reloading = true;

@@ -6,7 +6,7 @@
  *
  * Pure logic (x <-> chapter, filtering, bucketing, ranking) lives in `arcLayout.ts`. Strings are props.
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import type { KeyboardEvent, MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent } from 'react';
 import { BIBLE_SECTIONS, CHAPTER_COUNT, bookFirstChapterIndex, chapterFromIndex, getBookName } from '@bible/core/browser';
 import type { ChapterArcs, IXrefGraphProvider } from '@bible/core/browser';
@@ -237,6 +237,7 @@ export function XrefArcView({ provider, current, onOpenChapter, onExploreChapter
   const [hover, setHover] = useState<number | null>(null);
   const [sectionsOn, setSectionsOn] = useState<boolean[]>(() => Array(SECTION_COUNT).fill(true));
   const [slider, setSlider] = useState<number | null>(null);
+  const sliderNameId = useId();
   const [palette, setPalette] = useState<Palette>(FALLBACK_PALETTE);
   const [themeTick, setThemeTick] = useState(0);
   const [announce, setAnnounce] = useState('');
@@ -466,8 +467,9 @@ export function XrefArcView({ provider, current, onOpenChapter, onExploreChapter
               </select>
             </label>
             <label className="kth-xref-arcs__field" title={L.minWeightHint}>
-              <span>{L.minWeight}</span>
+              <span id={sliderNameId}>{L.minWeight}</span>
               <input
+                aria-labelledby={sliderNameId}
                 className="kth-xref-arcs__slider"
                 type="range"
                 min={0}

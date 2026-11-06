@@ -33,7 +33,9 @@
     "more": "עוד…",
     "offlineTooltip": "אין חיבור לרשת",
     "shortcutHint": "יש ללחוץ על / או על Ctrl+K כדי לחפש",
-    "feedback": "שליחת משוב"
+    "feedback": "שליחת משוב",
+    "clearSearch": "ניקוי החיפוש",
+    "searchTypeCurrent": "סוג חיפוש: {type}"
   },
   "themes": {
     "auto": "אוטומטי",
@@ -75,7 +77,8 @@
     "modeHint": "תצוגת הלימוד מציגה מספרי סטרונג ומילים בין-שורתיות בתרגומים שכוללים אותם, כמו KJV.",
     "modeLabel": "מצב תצוגה",
     "recentPassages": "קטעים אחרונים",
-    "noHistory": "טרם בוקרו קטעים"
+    "noHistory": "טרם בוקרו קטעים",
+    "translationButton": "תרגום: {abbr}"
   },
   "bibleContent": {
     "votdLabel": "פסוק היום",
@@ -181,7 +184,10 @@
     "timeline": "ציר זמן",
     "quiz": "חידון",
     "similar": "דומים",
-    "wordStudy": "לימוד מילים"
+    "wordStudy": "לימוד מילים",
+    "modes": "תצוגות החלונית הצדדית",
+    "expandTo": "הצגת {tab}",
+    "expand": "הרחבת החלונית הצדדית"
   },
   "mobileNav": {
     "home": "בית",
@@ -455,7 +461,9 @@
     "markdownDesc": "כתיבת המבנה כ-Markdown — ציטוטים בבלוק כשורות \"> \", כותרות כ-\"#\"",
     "copied": "הועתק!",
     "copyToClipboard": "העתקה ללוח",
-    "loading": "טוען פסוקים..."
+    "loading": "טוען פסוקים...",
+    "copyFailed": "לא ניתן להעתיק ללוח. בדקו שלאתר זה יש הרשאה להשתמש בו.",
+    "referencePosition": "מיקום ההפניה"
   },
   "ui": {
     "passageInsert": {
@@ -607,7 +615,8 @@
     "hasContentFor": "יש תוכן עבור",
     "loading": "טוען...",
     "cancel": "ביטול",
-    "apply": "החלה"
+    "apply": "החלה",
+    "tabs": "כרטיסיות פירושים"
   },
   "digestDisclaimer": {
     "notice": "הודעה",
@@ -631,7 +640,8 @@
     "loadingEntry": "טוען ערך...",
     "browseEntriesIn": "עיון בערכים ב-",
     "searchOccurrences": "חיפוש כל ההופעות של {number}",
-    "loadMore": "טעינת עוד ({count} נותרו)"
+    "loadMore": "טעינת עוד ({count} נותרו)",
+    "entryLoadFailed": "לא ניתן לטעון את הערך הזה."
   },
   "dictionaryHome": {
     "searchAll": "חיפוש בכל המילונים...",
@@ -640,7 +650,8 @@
     "loadFailed": "לא ניתן היה לטעון את המילונים. בדקו את החיבור שלכם.",
     "retry": "נסה שוב",
     "unstar": "הסרת הכוכב",
-    "star": "סימון בכוכב (נעיצה בראש הרשימה)"
+    "star": "סימון בכוכב (נעיצה בראש הרשימה)",
+    "starNamed": "סימון {name} בכוכב"
   },
   "dictionaryPane": {
     "back": "חזרה",
@@ -657,7 +668,8 @@
     "noModules": "אין מודולי מילון זמינים",
     "noMatches": "אין התאמות",
     "cancel": "ביטול",
-    "apply": "החלה"
+    "apply": "החלה",
+    "tabs": "כרטיסיות מילונים"
   },
   "studyCrossRefs": {
     "loading": "טוען הפניות צולבות...",
@@ -698,7 +710,8 @@
     "loading": "טוען נושאים...",
     "noTopics": "לא נמצאו נושאים לפסוק זה.",
     "offlineNotice": "אין חיבור לרשת. תכונה זו אינה זמינה במצב לא מקוון.",
-    "entities": "ישויות"
+    "entities": "ישויות",
+    "someIndexesOff": "חלק מהמפתחות הנושאיים כבויים בהגדרות."
   },
   "topicsBrowser": {
     "searchAll": "חיפוש בכל הנושאים",
@@ -749,7 +762,9 @@
     "seeAlso": "ראו",
     "verseTotal": "{count, plural, one {פסוק #} two {# פסוקים} other {# פסוקים}}",
     "topicHasNoEntries": "לנושא זה אין פסוקים או תת-נושאים משלו.",
-    "directOfTotal": "({direct} ישירות, {total} בסך הכול)"
+    "directOfTotal": "({direct} ישירות, {total} בסך הכול)",
+    "forward": "קדימה",
+    "clearSearch": "ניקוי החיפוש"
   },
   "verseRefList": {
     "loading": "טוען...",
@@ -786,7 +801,9 @@
     "searching": "מחפש...",
     "noEntries": "לא נמצאו ערכים",
     "offlineNotice": "אין חיבור לרשת. תכונה זו אינה זמינה במצב לא מקוון.",
-    "searchPrompt": "יש לחפש מילה או מונח למעלה"
+    "searchPrompt": "יש לחפש מילה או מונח למעלה",
+    "closeEntry": "סגירת הערך",
+    "closeDictionary": "סגירת המילון"
   },
   "mobileStudyPane": {
     "study": "לימוד",
@@ -822,7 +839,9 @@
     "verseHistory": "היסטוריית פסוקים",
     "prevVerse": "הפסוק הקודם",
     "nextVerse": "הפסוק הבא",
-    "goToVerseInBible": "מעבר לפסוק במקרא"
+    "goToVerseInBible": "מעבר לפסוק במקרא",
+    "showFull": "הצגת הפסוק המלא",
+    "showLess": "הצגת פחות"
   },
   "verseHistory": {
     "justNow": "הרגע",
@@ -863,7 +882,9 @@
   "bibleTabBar": {
     "home": "בית",
     "closeTab": "סגירת הלשונית",
-    "newTab": "לשונית חדשה"
+    "newTab": "לשונית חדשה",
+    "closeTabNamed": "סגירת {title}",
+    "tabs": "כרטיסיות התנ״ך"
   },
   "semanticSearchLoadingOverlay": {
     "dismiss": "סגירה",

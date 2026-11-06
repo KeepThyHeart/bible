@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import DocumentationDialog from './DocumentationDialog';
 import { ContextProvider, type AppServices } from '../contexts/ContextProvider';
 import { enT } from '../testing/enCatalog';
+import { buildDocumentation } from './DocumentationDialog/content';
 
 const services = {
   registry: {}, whenContext: {}, keybindings: {},
@@ -33,5 +34,50 @@ describe('DocumentationDialog focus and name (B-112)', () => {
       await user.tab();
       expect(dlg.contains(document.activeElement)).toBe(true);
     }
+  });
+});
+
+describe('DocumentationDialog search keeps the current item visible', () => {
+  it('moves the current marker to the first visible section when the current one is filtered out', async () => {
+    const user = userEvent.setup();
+    renderDlg();
+    const docs = buildDocumentation((k: string, p?: Record<string, unknown>) => enT(k, p));
+    const nav = screen.getByRole('navigation');
+    const itemsBefore = Array.from(nav.querySelectorAll('button'));
+    expect(itemsBefore[0]).toHaveAttribute('aria-current', 'true');
+
+    // A query only the last section's title satisfies, so the first section drops out.
+    const last = docs[docs.length - 1];
+    await user.type(screen.getByRole('textbox'), last.title);
+
+    const items = Array.from(nav.querySelectorAll('button'));
+    expect(items.length).toBeGreaterThan(0);
+    expect(items.length).toBeLessThan(itemsBefore.length);
+    expect(items.some((b) => b.textContent?.includes(docs[0].title))).toBe(false);
+    const current = items.filter((b) => b.getAttribute('aria-current') === 'true');
+    expect(current).toHaveLength(1);
+    expect(current[0]).toBe(items[0]);
+  });
+});
+
+describe('DocumentationDialog search status is a live region', () => {
+  it('keeps a polite status region mounted and fills it with the match count', async () => {
+    const user = userEvent.setup();
+    renderDlg();
+    const status = screen.getByTestId('documentation-search-status');
+    expect(status).toHaveAttribute('role', 'status');
+    expect(status).toHaveAttribute('aria-live', 'polite');
+    expect(status).toBeEmptyDOMElement();
+    const docs = buildDocumentation((k: string, p?: Record<string, unknown>) => enT(k, p));
+    await user.type(screen.getByRole('textbox'), docs[docs.length - 1].title);
+    expect(screen.getByTestId('documentation-search-status')).toBe(status);
+    expect(status.textContent).toMatch(/sections match/);
+  });
+
+  it('announces the empty result as a status too', async () => {
+    const user = userEvent.setup();
+    renderDlg();
+    await user.type(screen.getByRole('textbox'), 'zzzzqqqqxx');
+    expect(screen.getAllByRole('status').some((el) => /No documentation sections match/.test(el.textContent ?? ''))).toBe(true);
   });
 });

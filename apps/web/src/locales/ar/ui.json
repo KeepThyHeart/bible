@@ -33,7 +33,9 @@
     "more": "المزيد…",
     "offlineTooltip": "أنت غير متصل بالإنترنت",
     "shortcutHint": "اضغط / أو Ctrl+K للبحث",
-    "feedback": "إرسال ملاحظات"
+    "feedback": "إرسال ملاحظات",
+    "clearSearch": "مسح البحث",
+    "searchTypeCurrent": "نوع البحث: {type}"
   },
   "themes": {
     "auto": "تلقائي",
@@ -75,7 +77,8 @@
     "modeHint": "يعرض وضع الدراسة أرقام سترونغ والكلمات البينية للترجمات التي تتضمنها، مثل KJV.",
     "modeLabel": "وضع العرض",
     "recentPassages": "المقاطع الأخيرة",
-    "noHistory": "لم تتم زيارة أي مقطع بعد"
+    "noHistory": "لم تتم زيارة أي مقطع بعد",
+    "translationButton": "الترجمة: {abbr}"
   },
   "bibleContent": {
     "votdLabel": "عدد اليوم",
@@ -181,7 +184,10 @@
     "timeline": "الخط الزمني",
     "quiz": "اختبار",
     "similar": "مشابه",
-    "wordStudy": "دراسة الكلمة"
+    "wordStudy": "دراسة الكلمة",
+    "modes": "عروض اللوحة الجانبية",
+    "expandTo": "إظهار {tab}",
+    "expand": "توسيع اللوحة الجانبية"
   },
   "mobileNav": {
     "home": "الرئيسية",
@@ -455,7 +461,9 @@
     "markdownDesc": "اكتب البنية بصيغة Markdown — الاقتباسات كأسطر تبدأ بـ \"> \"، والعناوين بالرمز \"#\"",
     "copied": "تم النسخ!",
     "copyToClipboard": "نسخ إلى الحافظة",
-    "loading": "جارٍ تحميل الأعداد..."
+    "loading": "جارٍ تحميل الأعداد...",
+    "copyFailed": "تعذّر النسخ إلى الحافظة. تحقّق من أن هذا الموقع مسموح له باستخدامها.",
+    "referencePosition": "موضع المرجع"
   },
   "ui": {
     "passageInsert": {
@@ -607,7 +615,8 @@
     "hasContentFor": "له محتوى لـ",
     "loading": "جارٍ التحميل...",
     "cancel": "إلغاء",
-    "apply": "تطبيق"
+    "apply": "تطبيق",
+    "tabs": "ألسنة التفاسير"
   },
   "digestDisclaimer": {
     "notice": "تنبيه",
@@ -631,7 +640,8 @@
     "loadingEntry": "جارٍ تحميل المدخل...",
     "browseEntriesIn": "تصفح المدخلات في",
     "searchOccurrences": "البحث عن جميع مواضع {number}",
-    "loadMore": "تحميل المزيد (المتبقي {count})"
+    "loadMore": "تحميل المزيد (المتبقي {count})",
+    "entryLoadFailed": "تعذّر تحميل هذا المدخل."
   },
   "dictionaryHome": {
     "searchAll": "البحث في كل القواميس...",
@@ -640,7 +650,8 @@
     "loadFailed": "تعذّر تحميل القواميس. تحقّق من اتصالك.",
     "retry": "إعادة المحاولة",
     "unstar": "إلغاء التمييز بنجمة",
-    "star": "تمييز بنجمة (التثبيت في الأعلى)"
+    "star": "تمييز بنجمة (التثبيت في الأعلى)",
+    "starNamed": "تمييز {name} بنجمة"
   },
   "dictionaryPane": {
     "back": "رجوع",
@@ -657,7 +668,8 @@
     "noModules": "لا توجد وحدات قواميس",
     "noMatches": "لا توجد نتائج مطابقة",
     "cancel": "إلغاء",
-    "apply": "تطبيق"
+    "apply": "تطبيق",
+    "tabs": "ألسنة القواميس"
   },
   "studyCrossRefs": {
     "loading": "جارٍ تحميل الشواهد المرجعية...",
@@ -698,7 +710,8 @@
     "loading": "جارٍ تحميل الموضوعات...",
     "noTopics": "لم يُعثر على مواضيع لهذا العدد.",
     "offlineNotice": "أنت غير متصل بالإنترنت. هذا غير متاح دون اتصال.",
-    "entities": "الكيانات"
+    "entities": "الكيانات",
+    "someIndexesOff": "بعض الفهارس الموضوعية معطّلة في الإعدادات."
   },
   "topicsBrowser": {
     "searchAll": "البحث في كل الموضوعات",
@@ -749,7 +762,9 @@
     "seeAlso": "انظر",
     "verseTotal": "{count, plural, zero {لا أعداد} one {عدد واحد} two {عددان} few {# أعداد} many {# عددًا} other {# عدد}}",
     "topicHasNoEntries": "ليس لهذا الموضوع أعداد أو موضوعات فرعية خاصة به.",
-    "directOfTotal": "({direct} مباشرة، المجموع {total})"
+    "directOfTotal": "({direct} مباشرة، المجموع {total})",
+    "forward": "التالي",
+    "clearSearch": "مسح البحث"
   },
   "verseRefList": {
     "loading": "جارٍ التحميل...",
@@ -786,7 +801,9 @@
     "searching": "جارٍ البحث...",
     "noEntries": "لم يتم العثور على مدخلات",
     "offlineNotice": "أنت غير متصل بالإنترنت. هذا غير متاح دون اتصال.",
-    "searchPrompt": "ابحث عن كلمة أو مصطلح أعلاه"
+    "searchPrompt": "ابحث عن كلمة أو مصطلح أعلاه",
+    "closeEntry": "إغلاق المدخل",
+    "closeDictionary": "إغلاق القاموس"
   },
   "mobileStudyPane": {
     "study": "دراسة",
@@ -822,7 +839,9 @@
     "verseHistory": "سجل الأعداد",
     "prevVerse": "العدد السابق",
     "nextVerse": "العدد التالي",
-    "goToVerseInBible": "الانتقال إلى العدد في الكتاب المقدس"
+    "goToVerseInBible": "الانتقال إلى العدد في الكتاب المقدس",
+    "showFull": "إظهار الآية كاملة",
+    "showLess": "إظهار أقل"
   },
   "verseHistory": {
     "justNow": "الآن",
@@ -863,7 +882,9 @@
   "bibleTabBar": {
     "home": "الرئيسية",
     "closeTab": "إغلاق علامة التبويب",
-    "newTab": "علامة تبويب جديدة"
+    "newTab": "علامة تبويب جديدة",
+    "closeTabNamed": "إغلاق {title}",
+    "tabs": "ألسنة الكتاب المقدس"
   },
   "semanticSearchLoadingOverlay": {
     "dismiss": "تجاهل",

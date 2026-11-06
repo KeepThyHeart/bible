@@ -208,7 +208,10 @@
       "create": "创建",
       "save": "保存",
       "cancel": "取消",
-      "notSaved": "存储不可用：关闭此页面后聚会内容将丢失。"
+      "notSaved": "存储不可用：关闭此页面后聚会内容将丢失。",
+      "renameFor": "重命名 {name}",
+      "duplicateFor": "复制 {name}",
+      "deleteFor": "删除 {name}"
     },
     "notes": {
       "reason": {
@@ -254,8 +257,12 @@
         "empty": "尚未安排任何内容。备注中的经文、诗歌和引文会显示在这里。",
         "highlights": "{count, plural, other {# 处高亮}}",
         "removed": "已移除 {label}",
-        "undo": "撤销"
-      }
+        "undo": "撤销",
+        "moreFor": "{label} 的更多操作",
+        "reorderFor": "拖动以调整 {label} 的顺序"
+      },
+      "playMarkerFor": "再次显示 {label}",
+      "viewsLabel": "笔记视图"
     },
     "solo": {
       "launcherTooltip": "打开命令框以跳到某节（按键盘上的 /）",
@@ -281,6 +288,11 @@
       "planLabel": "计划",
       "removed": "已移除 {label}",
       "undo": "撤销"
-    }
+    },
+    "hymnAddToNotesFor": "将 {title} 添加到笔记",
+    "hymnAddToPlanFor": "将 {title} 添加到流程",
+    "viewersLabel": "观看者",
+    "previewFrameTitle": "屏幕预览",
+    "viewersCount": "观看者：{count}"
   }
 }

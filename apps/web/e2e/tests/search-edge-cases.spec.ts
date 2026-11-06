@@ -1,4 +1,4 @@
-import { test, expect } from '../fixtures';
+import { test, expect, expectConsoleProblems } from '../fixtures';
 
 test.describe('Search Edge Cases', () => {
   test.beforeEach(async ({ page }, testInfo) => {
@@ -44,6 +44,8 @@ test.describe('Search Edge Cases', () => {
   });
 
   test('special characters in search do not cause errors', async ({ page }) => {
+    // The server refuses some of these queries with a 400, which the browser logs as a failed resource.
+    expectConsoleProblems('provokes 400 responses with deliberately hostile queries');
     const searchInput = page.locator('.header__search-field');
 
     // Characters that could be dangerous for XSS or SQL injection

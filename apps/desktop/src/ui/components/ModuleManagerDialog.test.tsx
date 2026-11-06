@@ -121,6 +121,14 @@ describe('ModuleManagerDialog', () => {
     expect(screen.getByPlaceholderText(/search/i)).toBeInTheDocument();
   });
 
+  it('opens with the search field focused, not Close', async () => {
+    renderWithProviders(<ModuleManagerDialog onClose={onClose} />);
+    const search = screen.getByPlaceholderText(/search/i);
+    await vi.waitFor(() => expect(document.activeElement).toBe(search));
+    await new Promise(r => setTimeout(r, 50));
+    expect(document.activeElement).toBe(search);
+  });
+
   it('closes when Escape key is pressed', async () => {
     const user = userEvent.setup();
     renderWithProviders(<ModuleManagerDialog onClose={onClose} />);

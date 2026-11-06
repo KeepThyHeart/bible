@@ -67,7 +67,7 @@ describe('AudioPlayerPopup', () => {
     expect(screen.queryByTestId('audio-popup')).toBeNull();
   });
 
-  it('the focus shortcut moves focus into the verse pane; Escape returns it and changes no state', async () => {
+  it('the focus shortcut moves focus into the verse pane; Escape closes the player and returns focus', async () => {
     await start();
     const outside = document.createElement('button');
     outside.setAttribute('data-testid', 'outside');
@@ -78,11 +78,40 @@ describe('AudioPlayerPopup', () => {
     outside.focus();
     focusAudioPlayer();
     expect(document.activeElement).toBe(screen.getByTestId('audio-verse-pane'));
-    const status = audioStore.status;
     fireEvent.keyDown(document.activeElement!, { key: 'Escape' });
     expect(document.activeElement).toBe(outside);
-    expect(audioStore.status).toBe(status);
+    expect(audioStore.status).toBe('idle');
+    expect(screen.queryByTestId('audio-popup')).toBeNull();
     outside.remove();
+  });
+
+  it('docking to the bar focuses the bar\'s first control', async () => {
+    await start();
+    render(<><AudioPlayerPopup /><AudioTransportBar /></>);
+    await playNow();
+    fireEvent.click(await screen.findByTestId('audio-dock'));
+    await vi.waitFor(() => {
+      const bar = screen.getByTestId('audio-transport');
+      expect(bar.contains(document.activeElement)).toBe(true);
+      expect(document.activeElement).not.toBe(document.body);
+    });
+  });
+
+  it('a no-recording error disables the transport, hides the source chip and clears the error on stop', async () => {
+    await start();
+    render(<AudioPlayerPopup />);
+    await playNow();
+    await screen.findByTestId('audio-popup');
+    const s = audioStore as unknown as { status: string; notice: unknown; notify(): void };
+    s.status = 'error';
+    s.notice = { key: 'audio.error.not-found', tone: 'error', actions: [] };
+    s.notify();
+    await flush();
+    expect(screen.getByTestId('audio-play-pause').hasAttribute('disabled')).toBe(true);
+    expect((screen.getByTestId('audio-progress') as HTMLInputElement).disabled).toBe(true);
+    expect(screen.queryByTestId('audio-popup-sub')).toBeNull();
+    audioStore.stop();
+    expect(audioStore.notice).toBeNull();
   });
 });
 

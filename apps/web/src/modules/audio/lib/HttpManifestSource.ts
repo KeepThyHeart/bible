@@ -11,7 +11,8 @@
  * - Chapter manifests are immutable (the revision is in the URL), so they are
  *   served from the asset cache first. The index is not immutable: the network
  *   wins, and the last good copy is the fallback when offline.
- * - Index lookups are shared for a minute, so the Play button, the resolver and
+ * - A "no recording" answer is remembered for the session (`forgetIndex` retries).
+ * - Other index lookups are shared for a minute, so the Play button, the resolver and
  *   the provider asking in quick succession cost one request.
  */
 
@@ -41,7 +42,7 @@ export function isAbort(err: unknown): boolean {
 }
 
 export class HttpManifestSource implements IManifestSource {
-  private readonly indexMemo = new Map<string, { at: number; value: Promise<TranslationAudioIndex | null> }>();
+  private readonly indexMemo = new Map<string, { at: number; sticky: boolean; value: Promise<TranslationAudioIndex | null> }>();
 
   constructor(
     private readonly locator: IAudioLocator,
@@ -57,15 +58,24 @@ export class HttpManifestSource implements IManifestSource {
    */
   translationIndex(moduleAbbr: string, _signal?: AbortSignal): Promise<TranslationAudioIndex | null> {
     const memo = this.indexMemo.get(moduleAbbr);
-    if (memo && this.now() - memo.at < INDEX_TTL_MS) return memo.value;
+    if (memo && (memo.sticky || this.now() - memo.at < INDEX_TTL_MS)) return memo.value;
     const value = this.loadIndex(moduleAbbr, new AbortController().signal);
-    const entry = { at: this.now(), value };
+    const entry = { at: this.now(), sticky: false, value };
+    // "No recording" (404) is remembered for the session, so a translation without
+    // audio is not re-requested (and logged as a 404) on every lookup.
+    void value.then(v => { if (v === null) entry.sticky = true; }, () => {});
     this.indexMemo.set(moduleAbbr, entry);
     // Do not memoize a failure (offline, aborted): the next caller should retry.
     value.catch(() => {
       if (this.indexMemo.get(moduleAbbr) === entry) this.indexMemo.delete(moduleAbbr);
     });
     return value;
+  }
+
+  /** Drop the remembered index (or all of them): the user asked to check again. */
+  forgetIndex(moduleAbbr?: string): void {
+    if (moduleAbbr === undefined) this.indexMemo.clear();
+    else this.indexMemo.delete(moduleAbbr);
   }
 
   async chapter(ref: ChapterRef, narrator: AudioNarrator, signal: AbortSignal): Promise<ChapterManifest | null> {

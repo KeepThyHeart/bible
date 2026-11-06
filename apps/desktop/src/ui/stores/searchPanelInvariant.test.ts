@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { useLayoutStore } from './useLayoutStore';
-import { useSearchStore } from './useSearchStore';
+import { useSearchStore, freshSessionFields } from './useSearchStore';
 import { installSearchPanelInvariant } from './searchPanelInvariant';
 
 const searchPanel = { panelId: 's1', contentType: 'search' } as never;
@@ -13,7 +13,7 @@ beforeEach(() => {
   useSearchStore.setState({ query: 'love', resultsForQuery: 'love', isSearching: false, isSemanticSearching: false });
   useLayoutStore.setState({
     panels: new Map(),
-    closeSearchResultsPanels: close as never,
+    removePanel: close as never,
     getPanelsByType: ((t: string) => (t === 'search' && useLayoutStore.getState().panels.has('s1') ? [searchPanel] : [])) as never,
   });
   off = installSearchPanelInvariant();
@@ -50,12 +50,12 @@ describe('a Search panel never outlives its search (B-001/054/145/147)', () => {
     expect(close).toHaveBeenCalledTimes(1);
   });
 
-  it('B-001/B-145 reopened: typing one more character after a search keeps the pane', async () => {
+  it('B-001/B-145 reopened: typing one more character after a search keeps the pane (and, with tabs, its results)', async () => {
     addPanel();
     useSearchStore.setState({ searchResults: [{ verseId: 1 }] as never });
     useSearchStore.getState().setQuery('loves');
     await tick(); await tick();
-    expect(useSearchStore.getState().resultsForQuery).toBe('');
+    expect(useSearchStore.getState().resultsForQuery).toBe('love');
     expect(close).not.toHaveBeenCalled();
   });
 
@@ -64,5 +64,52 @@ describe('a Search panel never outlives its search (B-001/054/145/147)', () => {
     addPanel();
     await tick(); await tick();
     expect(close).not.toHaveBeenCalled();
+  });
+});
+
+describe('a search host panel ("Tab in the right pane")', () => {
+  const hostPanel = { panelId: 'h1', contentType: 'search', contentKey: 'host' } as never;
+  const addHost = () => useLayoutStore.setState({
+    panels: new Map([['h1', hostPanel]]),
+    getPanelsByType: ((t: string) => (t === 'search' && useLayoutStore.getState().panels.has('h1') ? [hostPanel] : [])) as never,
+  });
+  const hosted = (_id: string, lastUsed: number) => ({ hasPanel: true, lastUsed, createdAt: lastUsed, hostPanelId: 'h1' });
+
+  it('is kept while any hosted session has a search, even when the active one is empty', async () => {
+    useSearchStore.setState({
+      query: '', resultsForQuery: '', activeSessionId: 'a',
+      parkedSessions: { b: { ...freshSessionFields(false), query: 'hope', resultsForQuery: 'hope' } },
+      sessionMeta: { a: hosted('a', 1), b: hosted('b', 2) },
+    });
+    addHost();
+    await tick(); await tick();
+    expect(close).not.toHaveBeenCalled();
+  });
+
+  it('is removed when no hosted session has a search', async () => {
+    useSearchStore.setState({
+      query: '', resultsForQuery: '', activeSessionId: 'a',
+      parkedSessions: { b: { ...freshSessionFields(false), query: '', resultsForQuery: '' } },
+      sessionMeta: { a: hosted('a', 1), b: hosted('b', 2) },
+    });
+    addHost();
+    await tick(); await tick();
+    expect(close).toHaveBeenCalledWith('h1');
+  });
+
+  it('is removed when it has no hosted sessions and nothing is being searched', async () => {
+    useSearchStore.setState({ query: '', resultsForQuery: '', activeSessionId: null, parkedSessions: {}, sessionMeta: {} });
+    addHost();
+    await tick(); await tick();
+    expect(close).toHaveBeenCalledWith('h1');
+  });
+
+  // closeSession keeps the query text in the box after the last session closes; a host panel with no
+  // hosted sessions must still go (found by this test and the e2e spec, fixed in panelHasSearch).
+  it('a host whose last sub-tab was closed (query text kept in the box) is removed', async () => {
+    useSearchStore.setState({ query: 'love', resultsForQuery: '', activeSessionId: null, parkedSessions: {}, sessionMeta: {} });
+    addHost();
+    await tick(); await tick();
+    expect(close).toHaveBeenCalledWith('h1');
   });
 });

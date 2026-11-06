@@ -597,3 +597,28 @@ describe('CopyOptionsDialog: the number-key shortcuts', () => {
     expect(format('Custom Template').checked).toBe(true);
   });
 });
+
+describe('CopyOptionsDialog: keyboard focus and Enter on buttons', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    localStorage.clear();
+  });
+
+  it('opens with the Passage field focused, not the help button', async () => {
+    openDialog(mockVerses, vi.fn());
+    const reference = screen.getByDisplayValue('John 3:16');
+    await vi.waitFor(() => expect(document.activeElement).toBe(reference));
+    // The focus trap's own deferred focus must not have moved it afterwards.
+    await new Promise(r => setTimeout(r, 50));
+    expect(document.activeElement).toBe(reference);
+  });
+
+  it('Enter on the reference help button does not run the dialog default (Copy)', async () => {
+    const onClose = vi.fn();
+    openDialog(mockVerses, onClose);
+    const help = screen.getByRole('button', { name: /reference format/i });
+    help.focus();
+    fireEvent.keyDown(help, { key: 'Enter' });
+    expect(onClose).not.toHaveBeenCalled();
+  });
+});

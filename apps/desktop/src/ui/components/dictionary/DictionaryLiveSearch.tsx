@@ -23,6 +23,14 @@ const DEBOUNCE_MS = 200;
 /** How much of a definition a result row previews. */
 const SNIPPET_LENGTH = 140;
 
+/** How one result is shown: the caller knows the module (a Strong's number is "G1645", not "01645"). */
+export interface LiveResultDisplay {
+  key: string;
+  word?: string;
+  transliteration?: string;
+  definition: string;
+}
+
 interface DictionaryLiveSearchProps {
   /** Current query text. Owned by the parent so it can seed other views with it. */
   value: string;
@@ -41,6 +49,19 @@ interface DictionaryLiveSearchProps {
    * cascade, which still matters for a query the search itself misses.
    */
   onSubmitFallback: (term: string) => void;
+  /** Maps a result to what is shown and announced. Defaults to the raw entry fields. */
+  describeResult?: (result: DictionaryEntrySummary) => LiveResultDisplay;
+}
+
+const rawDisplay = (r: DictionaryEntrySummary): LiveResultDisplay => ({
+  key: r.entry_key, word: r.word, transliteration: r.transliteration, definition: r.definition,
+});
+
+/** The short spoken name of a result: "G1645 ἐλαφρός (elaphros)". */
+export function liveResultLabel(d: LiveResultDisplay): string {
+  const word = d.word && d.word.trim().toLowerCase() !== d.key.trim().toLowerCase() ? ` ${d.word}` : '';
+  const translit = d.transliteration ? ` (${d.transliteration})` : '';
+  return `${d.key}${word}${translit}`;
 }
 
 /** Plain-text preview of a definition, which is stored as HTML. */
@@ -73,6 +94,7 @@ const DictionaryLiveSearch: React.FC<DictionaryLiveSearchProps> = ({
   isSearching,
   onSelectEntry,
   onSubmitFallback,
+  describeResult = rawDisplay,
 }) => {
   const { t } = useI18n();
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -208,11 +230,14 @@ const DictionaryLiveSearch: React.FC<DictionaryLiveSearchProps> = ({
               aria-label={t('dictionaryPane.liveResultsLabel')}
               className="divide-y divide-border"
             >
-              {results.map((result, index) => (
+              {results.map((result, index) => {
+                const display = describeResult(result);
+                return (
                 <li
                   key={result.entry_key}
                   id={`${listId}-${index}`}
                   role="option"
+                  aria-label={liveResultLabel(display)}
                   aria-selected={index === selectedIndex}
                   // mousedown, not click: the input keeps focus and the row acts
                   // before any blur-driven teardown can remove it.
@@ -224,19 +249,22 @@ const DictionaryLiveSearch: React.FC<DictionaryLiveSearchProps> = ({
                   data-testid="dictionary-live-result"
                 >
                   <span className="block font-semibold text-text-heading">
-                    {result.entry_key}
-                    {result.word && <span className="ms-md text-text-secondary">{result.word}</span>}
+                    {display.key}
+                    {display.word && display.word.trim().toLowerCase() !== display.key.trim().toLowerCase() && (
+                      <span className="ms-md text-text-secondary">{display.word}</span>
+                    )}
                   </span>
-                  {result.transliteration && (
+                  {display.transliteration && (
                     <span className="block text-sm text-text-secondary italic">
-                      {result.transliteration}
+                      {display.transliteration}
                     </span>
                   )}
                   <span className="block text-sm text-text-secondary line-clamp-2">
-                    {snippet(result.definition)}
+                    {snippet(display.definition)}
                   </span>
                 </li>
-              ))}
+                );
+              })}
             </ul>
           )}
         </div>

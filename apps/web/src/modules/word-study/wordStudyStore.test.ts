@@ -114,6 +114,22 @@ describe('wordStudyStore submit', () => {
   });
 });
 
+describe('wordStudyStore query input', () => {
+  it('opening a subject from elsewhere replaces the previous query with the subject (interlinear word)', async () => {
+    await wordStudyStore.submit('H7225');
+    expect(wordStudyStore.query).toBe('H7225');
+    await wordStudyStore.openStrongs('H5175');
+    expect(wordStudyStore.query).toBe('H5175');
+  });
+
+  it('keeps a typed word as typed when it resolves to a Strong\'s entry', async () => {
+    provider.resolve.mockResolvedValueOnce([{ strongs: 'G26', word: 'agape' }]);
+    await wordStudyStore.submit('love');
+    expect(wordStudyStore.subject).toEqual({ kind: 'strongs', strongs: 'G26' });
+    expect(wordStudyStore.query).toBe('love');
+  });
+});
+
 describe('wordStudyStore occurrences', () => {
   it('load more appends the next page', async () => {
     await wordStudyStore.openStrongs('G25');

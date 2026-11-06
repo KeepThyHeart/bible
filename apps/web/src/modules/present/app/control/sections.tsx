@@ -15,15 +15,40 @@ import { HelpTip } from './HelpTip';
  * classes (they live in modules/present/present.scss).
  */
 
+/** `execCommand('copy')` through a throwaway textarea, for when the async clipboard is refused (or absent). */
+function legacyCopy(text: string): boolean {
+  try {
+    const area = document.createElement('textarea');
+    area.value = text;
+    area.setAttribute('readonly', '');
+    area.style.position = 'fixed';
+    area.style.opacity = '0';
+    document.body.appendChild(area);
+    const active = document.activeElement as HTMLElement | null;
+    area.select();
+    const ok = document.execCommand('copy');
+    area.remove();
+    active?.focus?.();
+    return ok;
+  } catch {
+    return false;
+  }
+}
+
 function useCopy() {
   const [copied, setCopied] = useState<'viewer' | 'control' | null>(null);
   const copy = async (text: string, which: 'viewer' | 'control'): Promise<void> => {
+    let ok = false;
     try {
       await navigator.clipboard.writeText(text);
+      ok = true;
+    } catch {
+      ok = legacyCopy(text);
+    }
+    // No clipboard permission at all: the link is on screen and selectable.
+    if (ok) {
       setCopied(which);
       setTimeout(() => setCopied(null), 2000);
-    } catch {
-      // No clipboard permission. The link is on screen and selectable.
     }
   };
   return { copied, copy };
@@ -74,7 +99,7 @@ export function ScreenSection() {
         >
           <i class="fa-solid fa-minus" aria-hidden="true" />
         </button>
-        <span class="present-panel__step-value">{fontStep}</span>
+        <output class="present-panel__step-value" aria-live="polite" aria-label={t('present.textSize')}>{fontStep}</output>
         <button
           type="button" class="present-panel__step"
           onClick={() => setFont(fontStep + 1)}
@@ -92,6 +117,7 @@ export function ScreenSection() {
             key={theme}
             type="button"
             class={`present-panel__choice ${state?.display.theme === theme ? 'present-panel__choice--active' : ''}`}
+            aria-pressed={state?.display.theme === theme}
             onClick={() => presenterSend({ type: 'setTheme', theme })}
           >
             {theme === 'max' ? t('present.themeMax') : theme === 'dark' ? t('present.themeDark') : t('present.themeLight')}
@@ -155,6 +181,7 @@ export function JoinSection(props: { session: ControllerSession }) {
             <i class="fa-solid fa-copy" aria-hidden="true" />
             {copied === 'viewer' ? t('present.copied') : t('present.copyLink')}
           </button>
+          <span class="sr-only" role="status">{copied === 'viewer' ? t('present.copied') : ''}</span>
         </div>
 
         <label class="present-panel__toggle">
@@ -199,6 +226,7 @@ export function HandoffSection(props: { session: ControllerSession }) {
             <i class="fa-solid fa-copy" aria-hidden="true" />
             {copied === 'control' ? t('present.copied') : t('present.copyControlLink')}
           </button>
+          <span class="sr-only" role="status">{copied === 'control' ? t('present.copied') : ''}</span>
         </div>
       ) : (
         <button type="button" class="present-panel__button" onClick={() => setShow(true)}>

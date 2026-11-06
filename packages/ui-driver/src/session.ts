@@ -62,9 +62,12 @@ export class Session implements Executor {
   private notes: string[] = [];
   private shots = 0;
 
-  constructor(opts: { sessionDir: string; repoRoot: string }) {
+  private readonly label: string | undefined;
+
+  constructor(opts: { sessionDir: string; repoRoot: string; name?: string }) {
     this.sessionDir = opts.sessionDir;
     this.repoRoot = opts.repoRoot;
+    this.label = opts.name || undefined;
   }
 
   // ------------------------------------------------------------------ entry
@@ -100,8 +103,9 @@ export class Session implements Executor {
     if (app) await app.close().catch(() => undefined);
   }
 
+  /** The session's name: --session / DRIVE_SESSION when given (also with DRIVE_DIR), else the directory's name. */
   private name(): string {
-    return path.basename(this.sessionDir);
+    return this.label ?? path.basename(this.sessionDir);
   }
 
   private page(): Page | undefined {
@@ -141,7 +145,7 @@ export class Session implements Executor {
         const p = this.need();
         await p.setViewportSize({ width: cmd.width, height: cmd.height });
         await this.settle(p);
-        return this.afterAction(p, false);
+        return this.afterAction(p, !!cmd.quiet);
       }
       case 'errors': {
         const entries = cmd.all ? this.errors.all({ warnings: cmd.warnings }) : this.errors.since(this.errMarkCmd, { warnings: cmd.warnings });
@@ -536,8 +540,19 @@ export class Session implements Executor {
     const items: AuditItem[] = [];
     const pageKinds = kinds.filter(k => k !== 'narrow' && k !== 'tab');
     if (pageKinds.length) items.push(...await p.evaluate((k) => window.__uid.audit(k), pageKinds));
-    if (kinds.includes('narrow')) items.push(...await this.narrow(p));
-    if (kinds.includes('tab')) items.push(...await this.tabWalk(p));
+    // narrow and tab change layout and focus: a dialog or popup they close (an app that re-mounts at
+    // 360px, a popup that closes when focus leaves it) is reported, since later refs into it are stale.
+    const openDialogs = () => p.evaluate(() => Array.from(document.querySelectorAll('[role=dialog],[role=alertdialog],dialog[open],[role=menu]'))
+      .filter((d) => (d as HTMLElement).checkVisibility?.() ?? true)
+      .map((d) => `${d.getAttribute('role') ?? 'dialog'} "${(d.getAttribute('aria-label') ?? '').slice(0, 30)}"`)).catch(() => [] as string[]);
+    for (const k of ['narrow', 'tab'] as const) {
+      if (!kinds.includes(k)) continue;
+      const before = await openDialogs();
+      items.push(...await (k === 'narrow' ? this.narrow(p) : this.tabWalk(p)));
+      const after = new Set(await openDialogs());
+      const gone = before.filter((d) => !after.has(d));
+      if (gone.length) items.push({ kind: 'info-closed', detail: `the ${k} check closed ${gone.join(', ')} (reopen it before using its refs)` });
+    }
     const by = new Map<string, AuditItem[]>();
     for (const it of items) {
       const list = by.get(it.kind) ?? [];
@@ -545,7 +560,9 @@ export class Session implements Executor {
       by.set(it.kind, list);
     }
     const issues = items.filter(it => !it.kind.startsWith('info-')).length;
-    const lines = [issues ? `check: ${issues} issue${issues > 1 ? 's' : ''}` : `check: clean (${kinds.join(' ')})`];
+    const capped = items.some(it => it.kind === 'info-tab' && /no wrap/.test(it.detail));
+    const lines = [(issues ? `check: ${issues} issue${issues > 1 ? 's' : ''}` : `check: clean (${kinds.join(' ')})`) +
+      (capped ? ' — tab walk incomplete: stopped at 80 stops without wrapping' : '')];
     for (const [kind, list] of by) {
       if (kind.startsWith('info-')) { lines.push(`${kind.slice(5)}: ${list.map(it => it.detail).join('; ')}`); continue; }
       const shown = list.slice(0, 5).map(it => {
@@ -581,6 +598,8 @@ export class Session implements Executor {
    */
   private async tabWalk(p: Page): Promise<AuditItem[]> {
     const before = await p.evaluate(() => window.__uid.focusRef());
+    // Kept as a handle too: focus on an element without a ref (a dialog container) is put back as well.
+    const beforeEl = await p.evaluateHandle(() => document.activeElement).catch(() => undefined);
     await p.evaluate(() => { (document.activeElement as HTMLElement | null)?.blur?.(); });
     const stops: string[] = [];
     const items: AuditItem[] = [];
@@ -613,6 +632,10 @@ export class Session implements Executor {
     const order = [...distinct].filter(x => x !== 'body');
     items.push({ kind: 'info-tab', detail: `${order.length} stops${wrapped ? ', wraps' : ' (stopped at 80, no wrap)'}: ${order.slice(0, 15).join(' ')}${order.length > 15 ? ' …' : ''}` });
     if (/^r\d+$/.test(before)) await p.evaluate((r) => (window.__uid.resolve(r) as HTMLElement | null)?.focus?.(), before).catch(() => undefined);
+    else if (beforeEl) {
+      await p.evaluate((el) => { if (el instanceof HTMLElement && el.isConnected && el !== document.body) el.focus(); }, beforeEl).catch(() => undefined);
+    }
+    await beforeEl?.dispose().catch(() => undefined);
     const s = await this.snap(p);
     this.setBase(s);
     return items;

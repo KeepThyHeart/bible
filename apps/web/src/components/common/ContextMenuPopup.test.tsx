@@ -137,4 +137,47 @@ describe('ContextMenuPopup', () => {
     const { container } = renderMenu({ actions: [] });
     expect(container.querySelectorAll('.verse-context-menu__divider').length).toBe(1);
   });
+
+  describe('focus on close', () => {
+    const mountVerse = (attrs: Record<string, string>) => {
+      const host = document.createElement('div');
+      host.className = 'bible-content';
+      const verse = document.createElement('span');
+      verse.setAttribute('data-verse-id', '43003016');
+      Object.entries(attrs).forEach(([k, v]) => verse.setAttribute(k, v));
+      host.appendChild(verse);
+      document.body.appendChild(host);
+      return { host, verse };
+    };
+
+    it('returns focus to the verse the menu was for when that verse can take focus', () => {
+      const { host, verse } = mountVerse({ tabindex: '-1' });
+      const { unmount } = renderMenu({ verseId: 43003016 });
+      (document.activeElement as HTMLElement).blur();
+      unmount();
+      expect(document.activeElement).toBe(verse);
+      host.remove();
+    });
+
+    it('leaves focus alone when the verse is not focusable', () => {
+      const { host } = mountVerse({});
+      const { unmount } = renderMenu({ verseId: 43003016 });
+      (document.activeElement as HTMLElement).blur();
+      unmount();
+      expect(document.activeElement).toBe(document.body);
+      host.remove();
+    });
+
+    it('does not steal focus from somewhere deliberate (a dialog the action opened)', () => {
+      const { host } = mountVerse({ tabindex: '-1' });
+      const other = document.createElement('button');
+      document.body.appendChild(other);
+      const { unmount } = renderMenu({ verseId: 43003016 });
+      other.focus();
+      unmount();
+      expect(document.activeElement).toBe(other);
+      other.remove();
+      host.remove();
+    });
+  });
 });

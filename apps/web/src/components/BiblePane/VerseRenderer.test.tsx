@@ -27,6 +27,8 @@ vi.mock('react-i18next', () => ({
 let mockWordsOfChristInRed = false;
 let mockInterlinearLayout: 'inline' | 'stacked' = 'inline';
 
+// Word study is not enabled here, so a numbered gloss falls back to the Strong's search.
+vi.mock('../../modules/host/usePaneModes', () => ({ usePaneAvailable: () => false }));
 vi.mock('../../hooks/useStore', () => ({
   useStore: (_store: unknown, selector: () => unknown) => selector(),
 }));
@@ -460,7 +462,7 @@ describe('VerseRenderer', () => {
     expect(onStrongsClick).toHaveBeenCalledWith('G2316');
   });
 
-  it('opens the Strongs definition from the transliteration', () => {
+  it('leaves the transliteration as plain text; the original word is the lookup button', () => {
     const onStrongsClick = vi.fn();
     const { container } = render(
       <VerseRenderer
@@ -471,7 +473,8 @@ describe('VerseRenderer', () => {
         onStrongsClick={onStrongsClick}
       />,
     );
-    fireEvent.click(container.querySelector('.verse__interlinear-translit--clickable')!);
+    expect(container.querySelector('.verse__interlinear-translit--clickable')).toBeNull();
+    fireEvent.click(container.querySelector('button.verse__interlinear-original--clickable')!);
     expect(onStrongsClick).toHaveBeenCalledWith('G2316');
   });
 

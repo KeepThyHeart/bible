@@ -200,4 +200,48 @@ describe('ManageBookmarksDialog', () => {
 
     expect(onClose).toHaveBeenCalled();
   });
+
+  it('keeps focus on the row after Rename > type > Enter', async () => {
+    const user = userEvent.setup();
+    render(<ManageBookmarksDialog onClose={vi.fn()} />);
+    await settle();
+
+    await user.click(screen.getByTestId('bookmark-rename-1'));
+    await user.type(screen.getByTestId('bookmark-name-input-1'), 'The gospel');
+    await user.keyboard('{Enter}');
+
+    expect(screen.queryByTestId('bookmark-name-input-1')).not.toBeInTheDocument();
+    expect(screen.getByTestId('bookmark-rename-1')).toHaveFocus();
+  });
+
+  it('keeps focus on the row after Rename > Escape', async () => {
+    const user = userEvent.setup();
+    render(<ManageBookmarksDialog onClose={vi.fn()} />);
+    await settle();
+
+    await user.click(screen.getByTestId('bookmark-rename-2'));
+    await user.keyboard('{Escape}');
+
+    expect(screen.getByTestId('bookmark-rename-2')).toHaveFocus();
+  });
+
+  it('moves focus to a neighbouring row when a bookmark is removed', async () => {
+    const user = userEvent.setup();
+    render(<ManageBookmarksDialog onClose={vi.fn()} />);
+    await settle();
+
+    await user.click(screen.getByTestId('bookmark-remove-2'));
+    expect(removeBookmark).toHaveBeenCalledWith(2);
+    expect(screen.getByTestId('bookmark-remove-3')).toHaveFocus();
+  });
+
+  it('falls back to the dialog when the last bookmark is removed', async () => {
+    useBookmarkStore.setState({ bookmarks: [bookmark(1, 'John 3:16')] });
+    const user = userEvent.setup();
+    render(<ManageBookmarksDialog onClose={vi.fn()} />);
+    await settle();
+
+    await user.click(screen.getByTestId('bookmark-remove-1'));
+    expect(screen.getByTestId('manage-bookmarks-dialog')).toHaveFocus();
+  });
 });

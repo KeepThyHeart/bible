@@ -122,12 +122,20 @@
   }
 
   /** Text of an element for name-from-content, skipping hidden parts. */
-  function contentText(el, depth) {
+  function contentText(el, depth, self) {
     if (depth > 6) return '';
     let out = '';
     for (const n of el.childNodes) {
       if (n.nodeType === 3) out += n.nodeValue;
       else if (n.nodeType === 1) {
+        // Embedded controls (accname 2E): the control being named contributes nothing; another
+        // one contributes its value, never the text of all its options.
+        if (n.tagName === 'SELECT' || n.tagName === 'INPUT' || n.tagName === 'TEXTAREA') {
+          if (n === self || (n.tagName === 'INPUT' && n.type === 'hidden')) continue;
+          if (n.tagName === 'SELECT') { const o = n.selectedOptions && n.selectedOptions[0]; out += ' ' + (o ? o.textContent : '') + ' '; }
+          else if (!['checkbox', 'radio', 'file', 'image'].includes((n.type || '').toLowerCase())) out += ' ' + (n.value || '') + ' ';
+          continue;
+        }
         if (n.getAttribute('aria-hidden') === 'true' || SKIP_TAGS.has(n.tagName)) {
           if (n.tagName === 'svg' || n.tagName === 'SVG') {
             const t = n.querySelector && n.querySelector('title');
@@ -139,7 +147,7 @@
         const al = n.getAttribute('aria-label');
         if (al) { out += ' ' + al; continue; }
         if (n.tagName === 'BR') { out += ' '; continue; }
-        out += ' ' + contentText(n, depth + 1) + ' ';
+        out += ' ' + contentText(n, depth + 1, self) + ' ';
       }
     }
     return out;
@@ -159,7 +167,7 @@
     let n = idsText(el, 'aria-labelledby');
     if (!squash(n)) n = el.getAttribute('aria-label') || '';
     if (!squash(n) && el.labels && el.labels.length && el.type !== 'hidden') {
-      n = Array.from(el.labels).map((l) => contentText(l, 0)).join(' ');
+      n = Array.from(el.labels).map((l) => contentText(l, 0, el)).join(' ');
     }
     if (!squash(n)) {
       const tag = el.tagName;
@@ -452,11 +460,19 @@
     const sigs = {};
     for (const [r, s] of sigOf) sigs[r] = s;
     const a = deepActive();
-    const focus = a && a !== document.body && a !== document.documentElement ? (byEl.get(a) || 'unref') : 'body';
+    const focus = a && a !== document.body && a !== document.documentElement ? (byEl.get(a) || unrefLabel(a)) : 'body';
     return {
       url: location.href, title: document.title, vw: innerWidth, vh: innerHeight,
       focus, root, nextRef: counter, sigs, ...(behind ? { modalOnly: true } : {}),
     };
+  }
+
+  /** Focus on an element that has no ref (a container, a hidden element): say what it is. */
+  function unrefLabel(el) {
+    const role = roleOf(el);
+    const cls = typeof el.className === 'string' ? el.className.trim().split(/\s+/).filter(Boolean)[0] : '';
+    const name = role ? nameOf(el, role) : '';
+    return '(' + el.tagName.toLowerCase() + (el.id ? '#' + el.id : cls ? '.' + cls : '') + (role ? ' ' + role : '') + (name ? ' "' + clip(name, 30) + '"' : '') + ')';
   }
 
   function resolveRaw(ref) {
@@ -640,6 +656,8 @@
   const I18N_KEY = /^[a-z][a-zA-Z0-9_]*(\.[a-zA-Z0-9_-]+){1,5}$/;
   const FILE_LIKE = /\.(html?|js|ts|css|json|png|jpe?g|svg|db|pdf|txt|md|com|org|net|io)$/i;
   const PLACEHOLDER = /\{\{\s*[\w.]+\s*\}\}|\{\s*[a-zA-Z_]\w*\s*(,\s*(plural|select|number|date)\b[^}]*)?\}|\$t\(|\[missing ["'][^"']+["'] translation\]|__[A-Z_]{3,}__/;
+  // Short English control names ("Refresh", "Scroll tabs left") that the running-text heuristic misses.
+  const UI_WORDS = new Set(['refresh', 'send', 'all', 'now', 'scroll', 'tabs', 'tab', 'left', 'right', 'up', 'down', 'back', 'forward', 'next', 'previous', 'close', 'cancel', 'save', 'delete', 'remove', 'add', 'new', 'edit', 'rename', 'open', 'show', 'hide', 'more', 'less', 'search', 'settings', 'help', 'view', 'copy', 'done', 'ok', 'apply', 'reset', 'clear', 'menu', 'options', 'switch', 'version', 'study', 'notes', 'preview', 'screen', 'home', 'start', 'stop', 'play', 'pause', 'yes', 'no', 'version', 'bible', 'select', 'loading', 'actions', 'automatically', 'report', 'dialog', 'crash', 'show', "don't"]);
   const EN_WORDS = new Set(['the', 'and', 'of', 'to', 'your', 'with', 'for', 'this', 'that', 'is', 'are', 'you', 'not', 'from', 'settings', 'search', 'open', 'close', 'cancel', 'save', 'delete', 'loading', 'please', 'select', 'show', 'hide']);
 
   function audit(kinds) {
@@ -744,6 +762,10 @@
             const pr = pin.getBoundingClientRect();
             if ((pr.width >= 0.9 * vw || pr.height >= 0.9 * vh) && pr.width * pr.height < 0.4 * vw * vh) continue;
           }
+          // a clear/options button laid inside a text field (search boxes) is a design, not an overlap
+          const field = (e) => e.tagName === 'INPUT' || e.tagName === 'TEXTAREA' || /^(textbox|searchbox|combobox)$/.test(roleOf(e));
+          const inside = (o, i) => i.left >= o.left - 1 && i.right <= o.right + 1 && i.top >= o.top - 1 && i.bottom <= o.bottom + 1;
+          if ((field(ea) && !field(eb) && inside(a, bb)) || (field(eb) && !field(ea) && inside(bb, a))) continue;
           // per line box: wrapped inline elements have rects that do not overlap although their bounding boxes do
           let area = 0;
           const ra2 = cut(boxes(ea), a); const rb2 = cut(boxes(eb), bb);
@@ -776,9 +798,11 @@
       const nonEn = lang && !lang.startsWith('en');
       const seen = new Set();
       let n = 0;
-      const check = (text, el, where) => {
+      const check = (text, el, where, control) => {
         const t = squash(text);
         if (!t || seen.has(t) || n > 15) return;
+        // Content in a declared English block (Bible text, module descriptions) is not UI.
+        if (nonEn && el && el.closest && el.closest('[lang]') && /^en\b/i.test(el.closest('[lang]').getAttribute('lang') || '') && el.closest('[lang]') !== document.documentElement) return;
         let why = '';
         if (I18N_KEY.test(t) && !FILE_LIKE.test(t) && /[a-z]{2,}\.[a-z]/i.test(t)) why = 'looks like an i18n key';
         else if (PLACEHOLDER.test(t)) why = 'unresolved placeholder';
@@ -786,6 +810,7 @@
           const words = t.toLowerCase().split(/[^a-z']+/).filter(Boolean);
           const hits = words.filter((w) => EN_WORDS.has(w)).length;
           if (words.length >= 2 && hits >= 2 && hits / words.length >= 0.3) why = 'English text on a ' + lang + ' page';
+          else if (control && /^[a-z' ]+$/i.test(t) && words.length <= 6 && words.filter((w) => UI_WORDS.has(w) || EN_WORDS.has(w)).length / words.length >= 0.6) why = 'English control name on a ' + lang + ' page';
         }
         if (!why) return;
         seen.add(t);
@@ -800,10 +825,16 @@
         check(node.nodeValue, p, '');
       }
       for (const el of allEls()) {
+        if (hidden(el)) continue;
         for (const attr of ['aria-label', 'placeholder', 'title', 'alt']) {
           const v = el.getAttribute && el.getAttribute(attr);
-          if (v) check(v, el, attr);
+          if (v) check(v, el, attr, true);
         }
+        if (nonEn && el.tagName === 'SELECT') {
+          for (const o of Array.from(el.options || []).slice(0, 12)) check(o.textContent, el, 'option', true);
+        }
+        const role = roleOf(el);
+        if (nonEn && (INTERACTIVE.has(role) || ['tablist', 'region', 'dialog', 'alertdialog', 'menu', 'tabpanel', 'group'].includes(role))) check(nameOf(el, role), el, 'name', true);
       }
     }
     return items;

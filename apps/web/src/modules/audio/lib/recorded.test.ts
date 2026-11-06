@@ -80,6 +80,17 @@ describe('HttpManifestSource', () => {
     expect(fetchFn).toHaveBeenCalledTimes(2);
   });
 
+  it('remembers a 404 (no recordings) for the session until forgetIndex', async () => {
+    const { src, fetchFn } = source({});
+    expect(await src.translationIndex('ASV', signal())).toBeNull();
+    now = 10 * 60_000;
+    expect(await src.translationIndex('ASV', signal())).toBeNull();
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+    src.forgetIndex('ASV');
+    await src.translationIndex('ASV', signal());
+    expect(fetchFn).toHaveBeenCalledTimes(2);
+  });
+
   it('does not let one caller aborting fail another', async () => {
     const { src } = source({ '/audio/v1/KJV/index.json': () => jsonRes(index) });
     const ctrl = new AbortController();

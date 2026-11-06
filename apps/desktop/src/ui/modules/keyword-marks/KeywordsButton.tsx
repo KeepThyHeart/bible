@@ -86,9 +86,9 @@ const KeywordsButton: React.FC<{ tabId: string }> = ({ tabId }) => {
           }`}
           style={{ borderRadius: 0, padding: '8px 10px' }}
           title={t('keywords.toolbar.title')}
+          // A toggle: pressed state only. The popover is owned by the options
+          // button next to it, which carries aria-haspopup / aria-expanded.
           aria-pressed={tab.enabled}
-          aria-haspopup={tab.enabled ? 'dialog' : undefined}
-          aria-expanded={tab.enabled ? open : undefined}
           data-testid="keywords-toggle"
         >
           {label}

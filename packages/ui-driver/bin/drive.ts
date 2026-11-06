@@ -12,6 +12,12 @@ import { encode, lineReader, sessionDir, socketPath } from '../src/protocol.ts';
 
 const daemonMain = join(import.meta.dirname, '..', 'src', 'daemon-main.ts');
 
+// `drive snapshot | head`: the reader went away; exit quietly instead of an EPIPE stack trace.
+process.stdout.on('error', (e: NodeJS.ErrnoException) => {
+  if (e.code === 'EPIPE') process.exit(0);
+  throw e;
+});
+
 /** Resolves a connected socket, or the error code (ENOENT, ECONNREFUSED...) when it cannot connect. */
 function connect(sock: string): Promise<net.Socket | string> {
   return new Promise((resolve) => {
@@ -42,14 +48,14 @@ function request(c: net.Socket, argv: string[]): Promise<{ ok: boolean; text: st
   });
 }
 
-async function startDaemon(dir: string, sock: string): Promise<net.Socket | undefined> {
+async function startDaemon(dir: string, sock: string, session: string | undefined): Promise<net.Socket | undefined> {
   mkdirSync(dir, { recursive: true });
   const logPath = join(dir, 'daemon.log');
   const log = openSync(logPath, 'a');
   const child = spawn(process.execPath, [daemonMain, '--dir', dir], {
     detached: true,
     stdio: ['ignore', log, log],
-    env: { ...process.env, DRIVE_DIR: dir },
+    env: { ...process.env, DRIVE_DIR: dir, ...(session ? { DRIVE_SESSION: session } : {}) },
   });
   child.unref();
   const deadline = Date.now() + 10_000;
@@ -77,7 +83,7 @@ async function main(): Promise<number> {
     const { runStdio } = await import('../src/daemon.ts');
     const { Session } = await import('../src/session.ts');
     const { resolve } = await import('node:path');
-    await runStdio(new Session({ sessionDir: dir, repoRoot: resolve(import.meta.dirname, '..', '..', '..') }));
+    await runStdio(new Session({ sessionDir: dir, repoRoot: resolve(import.meta.dirname, '..', '..', '..'), name: session ?? process.env.DRIVE_SESSION }));
     return 0;
   }
 
@@ -97,7 +103,7 @@ async function main(): Promise<number> {
     rmSync(sock, { force: true });
     const cmd = argv[0];
     if (cmd === 'start') {
-      const started = await startDaemon(dir, sock);
+      const started = await startDaemon(dir, sock, session ?? process.env.DRIVE_SESSION);
       if (!started) return 2;
       c = started;
     } else if (cmd === 'stop' || cmd === 'status') {

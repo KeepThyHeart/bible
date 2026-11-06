@@ -16,4 +16,10 @@ describe('header fit', () => {
     const css = readFileSync(resolve(__dirname, '_responsive.scss'), 'utf8');
     expect(css).toMatch(/@media \(max-width: 340px\)\s*\{\s*&__logo\s*\{\s*--ui-font-scale:\s*1;/);
   });
+
+  // U-137: the phone wordmark wrapped to a three-line block; each line is now nowrap + ellipsis.
+  it('keeps the phone wordmark name and tagline on one line each', () => {
+    const css = readFileSync(resolve(__dirname, '_responsive.scss'), 'utf8');
+    expect(css).toMatch(/&__wordmark-name,\s*&__wordmark-tagline\s*\{\s*white-space:\s*nowrap;[^}]*text-overflow:\s*ellipsis;/);
+  });
 });

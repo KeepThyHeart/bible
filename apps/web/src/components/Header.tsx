@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from 'preact/hooks';
+import { useMenuKeyboard } from '../hooks/useMenuKeyboard';
 import { useTranslation } from 'react-i18next';
 import { bibleStore } from '../stores/bibleStore';
 import { searchStore } from '../stores/searchStore';
@@ -6,7 +7,6 @@ import { settingsStore } from '../stores/settingsStore';
 import { offlineStore } from '../stores/offlineStore';
 import { useStore } from '../hooks/useStore';
 import { useLocalizer } from '../hooks/useLocalizer';
-import { useModalFocus } from '../hooks/useModalFocus';
 import { focusSearchField } from '../utils/focusSearchField';
 import { isMobileLayout } from '../utils/isMobileLayout';
 import { AppSwitchSlot } from '../host/AppSwitchSlot';
@@ -36,16 +36,48 @@ interface HeaderProps {
 export function Header({ onSettingsClick, onHelpClick, onFeedbackClick, onLogoClick }: HeaderProps) {
   const { t } = useTranslation();
   const theme = useStore(settingsStore, () => settingsStore.getResolvedTheme());
+  // The stored choice ('auto' or a theme): the popup's pressed state follows it, not the resolved theme.
+  const storedTheme = useStore(settingsStore, () => (settingsStore as { theme?: string }).theme ?? settingsStore.getResolvedTheme());
   const [value, setValue] = useState('');
   const [showThemeDropdown, setShowThemeDropdown] = useState(false);
   const [showSearchTypeDropdown, setShowSearchTypeDropdown] = useState(false);
   const [showIdeasHelp, setShowIdeasHelp] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const themeDialogRef = useRef<HTMLDivElement>(null);
-  useModalFocus(showThemeDropdown, themeDialogRef);
+  const themeWrapperRef = useRef<HTMLDivElement>(null);
+  const themeButtonRef = useRef<HTMLButtonElement>(null);
+  const searchTypeButtonRef = useRef<HTMLButtonElement>(null);
+  const searchTypeMenuRef = useRef<HTMLDivElement>(null);
+  const searchTypeKeys = useMenuKeyboard(showSearchTypeDropdown, setShowSearchTypeDropdown, searchTypeButtonRef, searchTypeMenuRef);
+  // The theme picker is a small non-modal popup (the page stays usable while it is open), so it
+  // does not trap Tab or claim aria-modal: it takes focus when it opens, closes when focus or a
+  // pointer press goes elsewhere, and hands focus back to its button when it closes from inside.
+  const themeWasOpen = useRef(false);
+  useEffect(() => {
+    if (showThemeDropdown) {
+      themeWasOpen.current = true;
+      const box = themeDialogRef.current;
+      const target = box?.querySelector<HTMLElement>('[aria-pressed="true"]') ?? box?.querySelector<HTMLElement>('button');
+      target?.focus({ preventScroll: true });
+      const onPointerDown = (e: PointerEvent) => {
+        if (!themeWrapperRef.current?.contains(e.target as Node)) setShowThemeDropdown(false);
+      };
+      document.addEventListener('pointerdown', onPointerDown, true);
+      return () => document.removeEventListener('pointerdown', onPointerDown, true);
+    }
+    if (themeWasOpen.current) {
+      themeWasOpen.current = false;
+      const active = document.activeElement;
+      if (!active || active === document.body) themeButtonRef.current?.focus({ preventScroll: true });
+    }
+    return undefined;
+  }, [showThemeDropdown]);
 
   const searchType = useStore(searchStore, () => searchStore.searchType);
   const searchQuery = useStore(searchStore, () => searchStore.query);
+  // Bumped by searchStore.clear(): Clear (x) and the results panel's Close search both reset the
+  // box through it, which a plain query watcher cannot do (the query is also emptied by switching to Ideas).
+  const clearSeq = useStore(searchStore, () => searchStore.clearSeq ?? 0);
   const isOnline = useStore(offlineStore, () => offlineStore.isOnline);
   const offlineEnabled = useStore(offlineStore, () => offlineStore.enabled);
   const localizer = useLocalizer();
@@ -66,6 +98,16 @@ export function Header({ onSettingsClick, onHelpClick, onFeedbackClick, onLogoCl
       });
     }
   }, [searchQuery]);
+
+  const seenClearSeq = useRef(clearSeq);
+  useEffect(() => {
+    if (clearSeq === seenClearSeq.current) return;
+    seenClearSeq.current = clearSeq;
+    setValue('');
+    // The control that triggered the reset (Close search in the results panel) is gone or
+    // pointless afterwards; the search field is the stable place for focus to land.
+    inputRef.current?.focus();
+  }, [clearSeq]);
 
   // Close dropdowns on Escape.
   //
@@ -138,6 +180,9 @@ export function Header({ onSettingsClick, onHelpClick, onFeedbackClick, onLogoCl
     searchStore.setSearchType(type);
     setShowSearchTypeDropdown(false);
     inputRef.current?.focus();
+    // Ideas starts from an empty results panel with the old text still in the box: select it so
+    // the next keystroke rewords it and Enter runs it as an Ideas search.
+    if (type === 'semantic') inputRef.current?.select();
 
     // Pre-load semantic search models on first selection
     if (type === 'semantic') {
@@ -181,8 +226,16 @@ export function Header({ onSettingsClick, onHelpClick, onFeedbackClick, onLogoCl
           <button
             type="button"
             class="header__search-type-btn"
+            ref={searchTypeButtonRef}
+            onKeyDown={searchTypeKeys.onTriggerKeyDown}
             onClick={() => setShowSearchTypeDropdown(!showSearchTypeDropdown)}
             title={t('header.searchTypeChange')}
+            aria-haspopup="menu"
+            aria-expanded={showSearchTypeDropdown}
+            aria-label={t('header.searchTypeCurrent', {
+              type: searchType === 'keyword' ? t('header.standardSearch') : t('header.ideasSearch'),
+              defaultValue: 'Search type: {type}',
+            })}
           >
             <i class={`fa-solid ${searchType === 'keyword' ? 'fa-magnifying-glass' : 'fa-lightbulb'}`} />
             <span class="header__search-type-label">
@@ -192,20 +245,28 @@ export function Header({ onSettingsClick, onHelpClick, onFeedbackClick, onLogoCl
           </button>
           {showSearchTypeDropdown && (
             <div class="header__search-type-dropdown"
+              ref={searchTypeMenuRef}
+              onKeyDown={searchTypeKeys.onMenuKeyDown}
+              role="menu"
+              aria-label={t('header.searchTypeChange')}
               onMouseLeave={() => setShowSearchTypeDropdown(false)}
             >
               <button
                 type="button"
+                role="menuitemradio"
+                aria-checked={searchType === 'keyword'}
                 class={`header__search-type-option ${searchType === 'keyword' ? 'header__search-type-option--active' : ''}`}
-                onMouseDown={() => selectSearchType('keyword')}
+                onClick={() => selectSearchType('keyword')}
               >
                 <i class="fa-solid fa-magnifying-glass" />
                 <span>{t('header.standardSearch')}</span>
               </button>
               <button
                 type="button"
+                role="menuitemradio"
+                aria-checked={searchType === 'semantic'}
                 class={`header__search-type-option ${searchType === 'semantic' ? 'header__search-type-option--active' : ''}`}
-                onMouseDown={() => selectSearchType('semantic')}
+                onClick={() => selectSearchType('semantic')}
                 data-search-type="semantic"
               >
                 <i class="fa-solid fa-lightbulb" />
@@ -230,7 +291,9 @@ export function Header({ onSettingsClick, onHelpClick, onFeedbackClick, onLogoCl
           <button
             type="button"
             class="header__search-clear"
-            onClick={() => { setValue(''); inputRef.current?.focus(); }}
+            onClick={() => { setValue(''); searchStore.clear(); inputRef.current?.focus(); }}
+            aria-label={t('header.clearSearch')}
+            title={t('header.clearSearch')}
           >
             <i class="fa-solid fa-xmark" />
           </button>
@@ -258,11 +321,16 @@ export function Header({ onSettingsClick, onHelpClick, onFeedbackClick, onLogoCl
               class="header__ideas-help-btn"
               onClick={() => setShowIdeasHelp(!showIdeasHelp)}
               title={t('header.ideasHelpQuestion')}
+              aria-label={t('header.ideasHelpQuestion')}
+              aria-expanded={showIdeasHelp}
+              aria-haspopup="dialog"
             >
               <i class="fa-solid fa-circle-question" />
             </button>
             {showIdeasHelp && (
               <div class="header__ideas-help-popup"
+                role="dialog"
+                aria-label={t('header.ideasHelpTitle')}
                 onMouseLeave={() => setShowIdeasHelp(false)}
               >
                 <div class="header__ideas-help-title">{t('header.ideasHelpTitle')}</div>
@@ -313,11 +381,22 @@ export function Header({ onSettingsClick, onHelpClick, onFeedbackClick, onLogoCl
         >
           <i class="fa-solid fa-rotate-right" />
         </button>}
-        <div class="header__theme-wrapper">
+        <div
+          class="header__theme-wrapper"
+          ref={themeWrapperRef}
+          onFocusOut={(e) => {
+            const next = (e as FocusEvent).relatedTarget as Node | null;
+            if (showThemeDropdown && next && !themeWrapperRef.current?.contains(next)) setShowThemeDropdown(false);
+          }}
+        >
           <button
+            ref={themeButtonRef}
             class="header__action-btn"
             onClick={() => setShowThemeDropdown(!showThemeDropdown)}
             title={t('header.theme')}
+            aria-label={`${t('header.theme')}: ${t(`themes.${storedTheme}`)}${storedTheme === 'auto' ? ` (${t(`themes.${theme}`)})` : ''}`}
+            aria-expanded={showThemeDropdown}
+            aria-haspopup="dialog"
           >
             <i class={`fa-solid ${themeOptions.find(o => o.value === theme)?.icon ?? 'fa-sun'}`} />
           </button>
@@ -325,16 +404,17 @@ export function Header({ onSettingsClick, onHelpClick, onFeedbackClick, onLogoCl
             <div class="header__theme-dropdown"
               ref={themeDialogRef}
               role="dialog"
-              aria-modal="true"
               aria-label={t('header.theme')}
               onMouseLeave={() => setShowThemeDropdown(false)}
             >
-              {themeOptions.slice(0, 3).map(opt => (
+              {[{ value: 'auto', label: 'themes.auto', icon: 'fa-circle-half-stroke' }, ...themeOptions.slice(0, 3)].map(opt => (
                 <button
                   key={opt.value}
-                  class={`header__theme-option ${theme === opt.value ? 'header__theme-option--active' : ''}`}
+                  type="button"
+                  class={`header__theme-option ${storedTheme === opt.value ? 'header__theme-option--active' : ''}`}
+                  aria-pressed={storedTheme === opt.value}
                   onClick={() => {
-                    settingsStore.setTheme(opt.value);
+                    settingsStore.setTheme(opt.value as Parameters<typeof settingsStore.setTheme>[0]);
                     setShowThemeDropdown(false);
                   }}
                 >

@@ -16,6 +16,7 @@ import React from 'react';
 import { useI18n } from '../../contexts/useI18n';
 import { usePreferencesStore } from '../../stores/usePreferencesStore';
 import type { LocaleMetadata } from '../../services/II18nService';
+import { onRadioGroupKeyDown } from '../../utils/radioGroupKeys';
 
 /**
  * True when a locale code is a real BCP-47 tag that assistive tech can act on.
@@ -94,14 +95,17 @@ export function selectableLocales(
 const LocaleOption: React.FC<{
   info: LocaleMetadata;
   selected: boolean;
+  /** Roving tabindex: the group is one Tab stop. */
+  tabStop: boolean;
   previewLabel: string;
   previewTooltip: string;
   onSelect: (code: string) => void;
-}> = ({ info, selected, previewLabel, previewTooltip, onSelect }) => (
+}> = ({ info, selected, tabStop, previewLabel, previewTooltip, onSelect }) => (
   <button
     type="button"
     role="radio"
     aria-checked={selected}
+    tabIndex={tabStop ? 0 : -1}
     /*
       Only tag real BCP-47 locales. `xx-pseudo` is a development pseudo-locale
       whose primary subtag is not a registered language, and announcing it as
@@ -271,12 +275,14 @@ export const GeneralSection: React.FC = () => {
               aria-describedby="preferences-language-description"
               className="space-y-1.5 max-h-64 overflow-y-auto"
               data-testid="language-picker"
+              onKeyDown={onRadioGroupKeyDown}
             >
-              {localeInfos.map((info) => (
+              {localeInfos.map((info, index) => (
                 <LocaleOption
                   key={info.code}
                   info={info}
                   selected={info.code === locale}
+                  tabStop={info.code === locale || (index === 0 && !localeInfos.some((l) => l.code === locale))}
                   previewLabel={previewLabel}
                   previewTooltip={previewTooltip}
                   onSelect={(code) => { void i18n.setLocale(code); }}

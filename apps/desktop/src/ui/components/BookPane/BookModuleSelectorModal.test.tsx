@@ -7,7 +7,7 @@
  * never told a dialog had opened.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import React from 'react';
 import { BookModuleSelectorModal } from './BookModuleSelectorModal';
@@ -69,6 +69,13 @@ describe('BookModuleSelectorModal', () => {
     expect(dialog).toHaveAccessibleName('Add a book');
   });
 
+  it('has one filter box and a heading naming the dialog', () => {
+    renderModal({ selectorType: 'dictionary' });
+    expect(screen.getAllByRole('textbox')).toHaveLength(1);
+    expect(screen.getByRole('heading', { name: 'Add a dictionary' })).toBeInTheDocument();
+    expect(screen.getByRole('dialog')).toHaveAccessibleName('Add a dictionary');
+  });
+
   it('lists one kind only — books and dictionaries are separate panes now', () => {
     renderModal();
     expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
@@ -85,6 +92,8 @@ describe('BookModuleSelectorModal', () => {
   it('closes on Escape from inside the dialog', async () => {
     const user = userEvent.setup();
     renderModal();
+    // The filter box takes focus a beat after mount.
+    await waitFor(() => expect(screen.getByRole('textbox')).toHaveFocus());
     await user.keyboard('{Escape}');
     expect(onClose).toHaveBeenCalled();
   });

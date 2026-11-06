@@ -104,9 +104,11 @@ let mockLastClickedId: string | null = null;
 let mockResultsTruncated = false;
 let mockIsOnline = true;
 let mockSearchError = '';
+let mockClearSeq = 0;
 let mockStrongsTotalAvailable = 0;
 
 const mockClose = vi.fn();
+const mockClear = vi.fn();
 const mockPerformSearch = vi.fn();
 const mockRetryLast = vi.fn();
 const mockSetSearchType = vi.fn();
@@ -144,8 +146,10 @@ vi.mock('../../stores/searchStore', () => ({
     get lastClickedId() { return mockLastClickedId; },
     get resultsTruncated() { return mockResultsTruncated; },
     get searchError() { return mockSearchError; },
+    get clearSeq() { return mockClearSeq; },
     get strongsTotalAvailable() { return mockStrongsTotalAvailable; },
     close: () => mockClose(),
+    clear: () => mockClear(),
     performSearch: (...args: unknown[]) => mockPerformSearch(...args),
     retryLast: () => mockRetryLast(),
     setSearchType: (...args: unknown[]) => mockSetSearchType(...args),
@@ -225,6 +229,7 @@ describe('SearchResultsPanel', () => {
     mockResultsTruncated = false;
     mockIsOnline = true;
     mockSearchError = '';
+    mockClearSeq = 0;
     mockStrongsTotalAvailable = 0;
   });
 
@@ -340,12 +345,12 @@ describe('SearchResultsPanel', () => {
     expect(container.querySelector('.search-panel-inline__close')).toBeTruthy();
   });
 
-  it('calls searchStore.close and sets right pane mode when close button is clicked', () => {
+  it('calls searchStore.clear (resets box + results) and sets right pane mode when close button is clicked', () => {
     mockQuery = 'faith';
     const { container } = render(<SearchResultsPanel />);
     const closeBtn = container.querySelector<HTMLElement>('.search-panel-inline__close')!;
     fireEvent.click(closeBtn);
-    expect(mockClose).toHaveBeenCalled();
+    expect(mockClear).toHaveBeenCalled();
     expect(mockSetRightPaneMode).toHaveBeenCalledWith('commentary');
   });
 
@@ -526,6 +531,35 @@ describe('SearchResultsPanel', () => {
     expect(mockWarmupSemanticSearch).toHaveBeenCalled();
   });
 
+  it('marks the active search mode with aria-pressed', () => {
+    mockSearchType = 'semantic';
+    const { container } = render(<SearchResultsPanel />);
+    const [kw, ideas] = Array.from(container.querySelectorAll<HTMLElement>('.search-panel-inline__type-btn'));
+    expect(kw.getAttribute('aria-pressed')).toBe('false');
+    expect(ideas.getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('shows an externally started search in the mobile box', () => {
+    const { container, rerender } = render(<SearchResultsPanel />);
+    const input = container.querySelector<HTMLInputElement>('.search-panel-inline__mobile-input')!;
+    expect(input.value).toBe('');
+    mockQuery = 'G1510';
+    rerender(<SearchResultsPanel />);
+    expect(input.value).toBe('G1510');
+  });
+
+  it('empties the mobile box and focuses it when the search is cleared', async () => {
+    mockQuery = 'faith';
+    const { container, rerender } = render(<SearchResultsPanel />);
+    const input = container.querySelector<HTMLInputElement>('.search-panel-inline__mobile-input')!;
+    expect(input.value).toBe('faith');
+    mockQuery = '';
+    mockClearSeq = 1;
+    rerender(<SearchResultsPanel />);
+    await waitFor(() => expect(input.value).toBe(''));
+    await waitFor(() => expect(document.activeElement).toBe(input));
+  });
+
   // ------------------------------------------------------------------
   // Mobile search form submission
   // ------------------------------------------------------------------
@@ -578,6 +612,21 @@ describe('SearchResultsPanel', () => {
     ];
     render(<SearchResultsPanel />);
     expect(screen.getByTestId('search-distribution').dataset.mode).toBe('semantic');
+  });
+
+  it('U-040: a Strong\'s search with rows still to load marks the chart counts as partial', () => {
+    mockQuery = 'G25';
+    mockStrongsMode = true;
+    mockStrongsRemaining = 540;
+    mockResults = [
+      { verseId: 43003016, reference: 'John 3:16', module: 'KJV', type: 'exact', text: '...' },
+    ];
+    const { unmount } = render(<SearchResultsPanel />);
+    expect(screen.getByTestId('search-distribution').dataset.truncated).toBe('true');
+    unmount();
+    mockStrongsRemaining = 0;
+    render(<SearchResultsPanel />);
+    expect(screen.getByTestId('search-distribution').dataset.truncated).toBe('false');
   });
 
   it('passes the truncation flag from the store through to the chart caption', () => {
@@ -821,5 +870,35 @@ describe('SearchResultsPanel', () => {
     fireEvent.submit(input.closest('form')!);
     expect(mockPerformSearch).toHaveBeenCalled();
     expect(document.activeElement).toBe(input);
+  });
+
+  // 0209 W3: an Ideas search that could not run is not "0 results".
+  it('does not show a count or "No results found" when Ideas search is unavailable', () => {
+    mockSearchType = 'semantic';
+    mockQuery = 'mercy';
+    mockSemanticInitStatus = 'error';
+    const { container } = render(<SearchResultsPanel />);
+    expect(container.querySelector('.search-panel-inline__title')!.textContent).not.toContain('search.results');
+    expect(screen.getByTestId('ideas-unavailable').getAttribute('role')).toBe('status');
+    expect(mockAnnounce).not.toHaveBeenCalledWith('search.noResults');
+    expect(screen.queryByText('search.noResults')).toBeNull();
+  });
+
+  it('moves focus to the first newly loaded row after "Load all"', async () => {
+    mockQuery = 'mercy';
+    mockResults = [{ verseId: 19103008, module: 'KJV', type: 'exact', reference: 'Psalm 103:8', text: 'x' } as SearchResultData];
+    mockKeywordRemaining = 1;
+    mockLoadAllKeyword.mockImplementationOnce(() => Promise.resolve());
+    const { container, rerender } = render(<SearchResultsPanel />);
+    fireEvent.click(screen.getByTestId('keyword-load-all'));
+    mockResults = [
+      ...mockResults,
+      { verseId: 19145008, module: 'KJV', type: 'exact', reference: 'Psalm 145:8', text: 'y' } as SearchResultData,
+    ];
+    mockKeywordRemaining = 0;
+    rerender(<SearchResultsPanel />);
+    const rows = container.querySelectorAll<HTMLElement>('[data-result-id]');
+    rows.forEach((r) => r.setAttribute('tabindex', '0'));
+    await waitFor(() => expect(document.activeElement).toBe(rows[1]));
   });
 });

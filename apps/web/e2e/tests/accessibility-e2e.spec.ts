@@ -62,14 +62,15 @@ test.describe('Accessibility Basics', () => {
   });
 
   test('tab bar buttons are keyboard-accessible', async ({ page }) => {
-    // Tab elements should be focusable (button or have tabIndex)
-    const tab = page.locator('.bible-tab-bar__tab').first();
-    const tagName = await tab.evaluate(el => el.tagName.toLowerCase());
-    const tabIndex = await tab.evaluate(el => (el as HTMLElement).tabIndex);
-
-    // Should be either a button or have tabIndex >= 0
-    const isFocusable = tagName === 'button' || tabIndex >= 0;
-    expect(isFocusable).toBe(true);
+    // The Bible tab strip is a tablist (0209 U-017): every tab is focusable and the selected
+    // one is in the Tab order (roving tabindex; arrows move between the others).
+    const tabs = page.getByRole('tablist', { name: /Bible tabs/ }).getByRole('tab');
+    await expect(tabs.first()).toBeVisible();
+    const indexes = await tabs.evaluateAll(els => els.map(el => (el as HTMLElement).tabIndex));
+    expect(indexes.every(i => i >= -1)).toBe(true);
+    const selected = page.getByRole('tablist', { name: /Bible tabs/ }).getByRole('tab', { selected: true });
+    await expect(selected).toHaveCount(1);
+    expect(await selected.evaluate(el => (el as HTMLElement).tabIndex)).toBe(0);
   });
 
   test('interactive elements use semantic HTML or have roles', async ({ page }) => {

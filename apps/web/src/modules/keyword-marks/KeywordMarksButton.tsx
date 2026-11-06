@@ -44,7 +44,17 @@ export function KeywordMarksButton() {
     const onDown = (e: MouseEvent) => {
       if (openRef.current && wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false);
     };
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && openRef.current) setOpen(false); };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' || !openRef.current) return;
+      setOpen(false);
+      // Escape from inside the panel: the control that had focus may be gone (a toggled row re-renders),
+      // so hand focus back to the button that opened it rather than letting it fall to <body>.
+      const wrap = wrapRef.current;
+      const active = document.activeElement;
+      if (wrap && (!active || active === document.body || wrap.contains(active))) {
+        wrap.querySelector<HTMLElement>('[data-testid="keyword-marks-toggle"]')?.focus({ preventScroll: true });
+      }
+    };
     document.addEventListener('mousedown', onDown);
     document.addEventListener('keydown', onKey);
     return () => { document.removeEventListener('mousedown', onDown); document.removeEventListener('keydown', onKey); };

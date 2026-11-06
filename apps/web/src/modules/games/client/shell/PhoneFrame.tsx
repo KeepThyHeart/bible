@@ -10,6 +10,7 @@
  */
 
 import type { ComponentChildren } from 'preact';
+import { useEffect } from 'preact/hooks';
 import type { PersonalResult, PlayerSnapshot } from '../../shared/protocol.js';
 import { PhoneHeaderActions } from './PhoneHeaderActions.js';
 import { TimerBar } from './TimerBar.js';
@@ -17,6 +18,7 @@ import { ordinal, teamColour, teamLabel } from './teams.js';
 import type { ThemeControl } from './theme.js';
 import type { StreamStatus } from './useRoomStream.js';
 import { gt } from './t.js';
+import { useHeadingFocus } from './useHeadingFocus.js';
 
 /** The top three is the whole of what a phone may be told about its position. */
 export const RANK_SHOWN_THROUGH = 3;
@@ -57,6 +59,16 @@ export function PhoneFrame({
   children,
 }: PhoneFrameProps) {
   const { code, round, totalRounds, paused, phase, phaseEndsAt, settings, you } = snapshot;
+  // The lobby (with the focused Start button) is gone once this frame mounts.
+  const bodyRef = useHeadingFocus<HTMLElement>();
+  // Scoring (or any phase change) removes the answer control that held focus,
+  // which drops it to <body>: put it on the body so the result is read next
+  // and Tab starts from it. Skipped on mount (above) and when focus is elsewhere.
+  useEffect(() => {
+    const active = document.activeElement;
+    if (active && active !== document.body && active.isConnected) return;
+    bodyRef.current?.focus({ preventScroll: true });
+  }, [phase, round]);
   // `round` is the index intents carry, counted from zero. People count from
   // one, and a lobby is not question zero of ten — it is not a question yet.
   const inRound = phase !== 'lobby' && phase !== 'summary';
@@ -108,7 +120,7 @@ export function PhoneFrame({
         </p>
       )}
 
-      <main class="phone-body">{children}</main>
+      <main class="phone-body" tabIndex={-1} ref={bodyRef}>{children}</main>
 
       <footer class="phone-score">
         <span class="score-total">

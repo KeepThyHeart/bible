@@ -195,6 +195,28 @@ export class PracticeView {
     void this.loadPassageView();
   }
 
+  /** True while a mouse-clicked activity tab's focus is waiting for the new strip. */
+  private wantTabFocus = false;
+
+  /**
+   * The screen replaced this one because its activity tab was clicked: the
+   * old tab (and its focus) is gone, so put focus on the new screen's
+   * selected tab as soon as the strip exists, rather than dropping to <body>.
+   */
+  restoreTabFocus(): void {
+    this.wantTabFocus = true;
+    this.focusSelectedTab();
+  }
+
+  private focusSelectedTab(): void {
+    if (!this.wantTabFocus) return;
+    const tab = this.headEl.querySelector<HTMLElement>('[role="tab"][aria-selected="true"]');
+    if (!tab) return;
+    this.wantTabFocus = false;
+    const active = this.root.ownerDocument.activeElement;
+    if (active === null || active === this.root.ownerDocument.body) focusQuietly(tab);
+  }
+
   destroy(): void {
     this.disposed = true;
     this.layoutObserver?.disconnect();
@@ -268,6 +290,7 @@ export class PracticeView {
     }
     this.passageView = reply.data;
     this.renderHead();
+    this.focusSelectedTab();
     void this.loadSpeechReady();
   }
 
@@ -365,6 +388,7 @@ export class PracticeView {
                 class: 'sm-bar sm-bar-slim',
                 attrs: {
                   role: 'progressbar',
+                  'aria-label': tr('memory.ui.practice.progress', 'Progress'),
                   'aria-valuemin': '0',
                   'aria-valuemax': String(Math.max(step.totalSteps, step.stepNumber)),
                   'aria-valuenow': String(step.stepNumber),

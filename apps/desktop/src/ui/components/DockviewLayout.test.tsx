@@ -65,6 +65,12 @@ const mockExpandCollapsedGroups = vi.fn();
 // up once `apiRef.current` is set.
 const mockLayoutState = { collapsedGroups: [] as unknown[], expandCollapsedGroups: mockExpandCollapsedGroups };
 
+// Search tabs (task 0210): restoring a layout hands its search panels to
+// searchTabsSync, which keeps the ones saved with a query and closes the rest
+// (its own tests cover that rule).
+const { mockRestoreSearchTabs } = vi.hoisted(() => ({ mockRestoreSearchTabs: vi.fn() }));
+vi.mock('../stores/searchTabsSync', () => ({ restoreSearchTabsFromLayout: mockRestoreSearchTabs }));
+
 vi.mock('../stores/useLayoutStore', () => ({
   useLayoutStore: Object.assign(
     (selector: (state: typeof mockLayoutState) => unknown) => selector(mockLayoutState),
@@ -92,12 +98,13 @@ vi.mock('../stores/useLayoutStore', () => ({
 // functions the factory closes over must be declared via `vi.hoisted()`
 // rather than a plain `const`, or the factory sees them in the temporal dead
 // zone ("Cannot access '...' before initialization").
-const { mockPresetServiceReset, mockNotifyManualLayoutChange } = vi.hoisted(() => ({
+const { mockPresetServiceReset, mockNotifyManualLayoutChange, mockMarkCurrent } = vi.hoisted(() => ({
+  mockMarkCurrent: vi.fn(),
   mockPresetServiceReset: vi.fn(),
   mockNotifyManualLayoutChange: vi.fn(),
 }));
 vi.mock('../commands/layoutCommands', () => ({
-  layoutPresetService: { reset: mockPresetServiceReset, notifyManualLayoutChange: mockNotifyManualLayoutChange },
+  layoutPresetService: { reset: mockPresetServiceReset, notifyManualLayoutChange: mockNotifyManualLayoutChange, markCurrent: mockMarkCurrent },
 }));
 
 const mockMarkDirty = vi.fn();
@@ -150,6 +157,14 @@ describe('DockviewLayout', () => {
     expect(mockSetDockviewApi).toHaveBeenCalledWith(mockDockviewApi);
     expect(mockAddPanel).toHaveBeenCalled();
     expect(mockRegisterPanel).toHaveBeenCalled();
+  });
+
+  it('marks the default preset current after building the default layout (D8-2)', () => {
+    render(<DockviewLayout />);
+    act(() => {
+      capturedOnReady!({ api: mockDockviewApi });
+    });
+    expect(mockMarkCurrent).toHaveBeenCalledWith('study-mode');
   });
 
   it('opens Bible, Study, Commentary and Dictionary on first run', () => {
@@ -239,6 +254,61 @@ describe('DockviewLayout', () => {
     expect(mockOnDidLayoutChange).toHaveBeenCalled();
   });
 
+  describe('manual-layout-change detection (layout presets stay marked current)', () => {
+    const grid = (views: string[], active: string, size: number) => ({
+      grid: {
+        orientation: 'HORIZONTAL',
+        root: {
+          type: 'branch',
+          data: [
+            { type: 'leaf', size, data: { id: 'g1', views: ['bible_default'], activeView: 'bible_default' } },
+            { type: 'leaf', size: 100 - size, data: { id: 'g2', views, activeView: active } },
+          ],
+        },
+      },
+    });
+
+    function fireLayoutChange(json: unknown): void {
+      (mockDockviewApi as any).toJSON = () => json;
+      const cb = mockOnDidLayoutChange.mock.calls[mockOnDidLayoutChange.mock.calls.length - 1][0] as () => void;
+      cb();
+    }
+
+    it('does not clear the current preset when only focus, the active tab or sizes change', () => {
+      (mockDockviewApi as any).toJSON = () => grid(['study_default', 'commentary_default'], 'study_default', 60);
+      render(<DockviewLayout />);
+      act(() => { capturedOnReady!({ api: mockDockviewApi }); });
+      mockNotifyManualLayoutChange.mockClear();
+
+      fireLayoutChange(grid(['study_default', 'commentary_default'], 'commentary_default', 60));
+      fireLayoutChange(grid(['study_default', 'commentary_default'], 'commentary_default', 55));
+
+      expect(mockNotifyManualLayoutChange).not.toHaveBeenCalled();
+      expect(mockMarkDirty).toHaveBeenCalled();
+    });
+
+    it('clears the current preset when a pane is moved or closed', () => {
+      (mockDockviewApi as any).toJSON = () => grid(['study_default', 'commentary_default'], 'study_default', 60);
+      render(<DockviewLayout />);
+      act(() => { capturedOnReady!({ api: mockDockviewApi }); });
+      mockNotifyManualLayoutChange.mockClear();
+
+      fireLayoutChange(grid(['study_default'], 'study_default', 60));
+
+      expect(mockNotifyManualLayoutChange).toHaveBeenCalledTimes(1);
+    });
+
+    it('treats an unserializable layout as a change', () => {
+      render(<DockviewLayout />);
+      act(() => { capturedOnReady!({ api: mockDockviewApi }); });
+      mockNotifyManualLayoutChange.mockClear();
+      (mockDockviewApi as any).toJSON = () => { throw new Error('mid-mutation'); };
+      const cb = mockOnDidLayoutChange.mock.calls[mockOnDidLayoutChange.mock.calls.length - 1][0] as () => void;
+      cb();
+      expect(mockNotifyManualLayoutChange).toHaveBeenCalled();
+    });
+  });
+
   it('skips layout creation if panels already exist', () => {
     mockDockviewApi.panels = [{ id: 'existing', params: { contentType: 'bible' }, title: 'Bible' }] as any;
     render(<DockviewLayout />);
@@ -266,7 +336,7 @@ describe('DockviewLayout', () => {
     expect(mockRegisterPanel).toHaveBeenCalledTimes(2);
   });
 
-  it('closes a restored search-results panel: its results are not persisted, so it would reopen empty (B-054)', () => {
+  it('hands a restored layout\'s search panels to the search-tab restore (B-054, task 0210)', () => {
     mockFromJSON.mockImplementation(() => {
       (mockDockviewApi.panels as any[]).push({ id: 'search_1', params: { contentType: 'search' }, title: 'Search' });
     });
@@ -274,7 +344,8 @@ describe('DockviewLayout', () => {
     act(() => {
       capturedOnReady!({ api: mockDockviewApi });
     });
-    expect(mockCloseSearchResultsPanels).toHaveBeenCalledTimes(1);
+    expect(mockRestoreSearchTabs).toHaveBeenCalledTimes(1);
+    expect(mockRestoreSearchTabs).toHaveBeenCalledWith(mockDockviewApi);
   });
 
   // --- Historical-bug recovery: corrupted `contentComponent` from a since-

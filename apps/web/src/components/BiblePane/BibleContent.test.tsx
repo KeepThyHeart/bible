@@ -222,6 +222,16 @@ describe('BibleContent', () => {
     expect(container.querySelector('.bible-content__chapter-title')?.textContent).toContain('3');
   });
 
+  it('uses the localized book name in the heading and mirrors both chevrons in RTL', () => {
+    mockActiveTab = makeTab({ book: 43, chapter: 3 });
+    const { container } = render(<BibleContent />);
+    // The heading takes its name from getLocalizedBookName (the tab label's function), not moduleStore.
+    expect(container.querySelector('.bible-content__chapter-title bdi')?.textContent).toBe('John 3');
+    const icons = container.querySelectorAll('.bible-content__chapter-header .bible-content__nav-btn i');
+    expect(icons).toHaveLength(2);
+    icons.forEach(i => expect(i.classList.contains('kth-rtl-mirror')).toBe(true));
+  });
+
   it('calls openBookPicker when chapter title is clicked', () => {
     mockActiveTab = makeTab({ book: 43, chapter: 3 });
     const { container } = render(<BibleContent />);

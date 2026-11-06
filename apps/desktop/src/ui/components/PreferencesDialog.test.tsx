@@ -321,4 +321,20 @@ describe('PreferencesDialog - sections modules contribute', () => {
     expect(screen.getByRole('dialog')).toBeInTheDocument();
     expect(screen.queryByTestId('general-section')).toBeNull();
   });
+
+  it('moves between the vertical section tabs with Up/Down (Left/Right stay with the shared hook)', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<PreferencesDialog onClose={onClose} />);
+    const tablist = screen.getByRole('tablist');
+    expect(tablist).toHaveAttribute('aria-orientation', 'vertical');
+    const tabs = screen.getAllByRole('tab');
+    // Let the dialog's focus trap finish its own initial focus first.
+    await new Promise((r) => requestAnimationFrame(() => r(null)));
+    tabs[0].focus();
+    await user.keyboard('{ArrowDown}');
+    expect(document.activeElement).toBe(tabs[1]);
+    expect(tabs[1]).toHaveAttribute('aria-selected', 'true');
+    await user.keyboard('{ArrowUp}');
+    expect(document.activeElement).toBe(tabs[0]);
+  });
 });

@@ -8,7 +8,7 @@
  * Two servers (see playwright.config.ts): 3101 has `features.pwa` on, 3100 has
  * it off. They are separate origins, so no worker leaks between them.
  */
-import { test, expect } from '../fixtures';
+import { test, expect, expectConsoleProblems } from '../fixtures';
 import type { Page } from '../fixtures';
 import { PLAIN_URL, PWA_URL } from '../ports';
 
@@ -52,6 +52,7 @@ test.describe('PWA on (features.pwa = true)', () => {
   });
 
   test('offline boot: an already-visited app shell loads with no network', async ({ page, context }) => {
+    expectConsoleProblems('the network is switched off on purpose: every request fails and is logged');
     await bootWithWorker(page);
     await context.setOffline(true);
     await page.reload();
@@ -62,6 +63,7 @@ test.describe('PWA on (features.pwa = true)', () => {
   });
 
   test('cache rules: declared content is cached, other API routes and /api/sync never are', async ({ page }) => {
+    expectConsoleProblems('fetches routes that answer 404 on purpose to see what the worker caches');
     await bootWithWorker(page);
     await page.evaluate(async () => {
       await fetch('/api/commentary/all/43/3?modules=Barnes');
@@ -85,6 +87,7 @@ test.describe('PWA on (features.pwa = true)', () => {
   });
 
   test('update: a newly activated worker takes over and the page reloads itself once', async ({ page }) => {
+    expectConsoleProblems('registers a second worker script by hand; Chromium warns about the preloads it then cannot use');
     await bootWithWorker(page);
     // Playwright cannot intercept a worker script's own update fetch, so make the
     // browser see a new worker the other way: register a different script URL for

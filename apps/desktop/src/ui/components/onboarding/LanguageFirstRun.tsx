@@ -3,6 +3,7 @@ import { SUPPORTED_CONTENT_LANGUAGES, type OfferedStarterPack, type CatalogModul
 import { useI18n } from '../../contexts/useI18n';
 import { selectableLocales } from '../PreferencesDialog/GeneralSection';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
+import { onRadioGroupKeyDown } from '../../utils/radioGroupKeys';
 import { useOnboardingStore } from '../../stores/useOnboardingStore';
 import { useNetworkStore } from '../../stores/useNetworkStore';
 import { useModuleStore } from '../../stores/useModuleStore';
@@ -147,16 +148,20 @@ async function findOffer(languageCode: string): Promise<ContentOffer> {
 interface LanguageOptionProps {
   info: LocaleMetadata;
   selected: boolean;
+  /** The one radio in the group that is in the Tab order (roving tabindex). */
+  tabStop: boolean;
   onSelect: (code: string) => void;
 }
 
-const LanguageOption: React.FC<LanguageOptionProps> = ({ info, selected, onSelect }) => {
+const LanguageOption: React.FC<LanguageOptionProps> = ({ info, selected, tabStop, onSelect }) => {
   const { t } = useI18n();
   return (
     <button
       type="button"
       role="radio"
       aria-checked={selected}
+      // Roving tabindex: the group is one Tab stop, arrows move within it.
+      tabIndex={tabStop ? 0 : -1}
       onClick={() => onSelect(info.code)}
       data-testid={`first-run-language-${info.code}`}
       className={[
@@ -208,6 +213,9 @@ const LanguageFirstRun: React.FC = () => {
   const [step, setStep] = useState<Step>('language');
   const [selected, setSelected] = useState<string>(i18n.currentLocale || DEFAULT_LOCALE);
   const [showAll, setShowAll] = useState(false);
+  // The "More languages" button unmounts when it is used; focus goes to the
+  // first newly revealed language instead of dropping out to <body>.
+  const focusFirstOtherRef = useRef(false);
   const [offer, setOffer] = useState<ContentOffer | null>(null);
   const [dismissed, setDismissed] = useState(false);
   // Shown on the network step while `requestAllow(true)` -> `refreshAllCatalogs()`
@@ -268,6 +276,16 @@ const LanguageFirstRun: React.FC = () => {
     const otherList = allLocales.filter((info) => !featuredCodes.has(info.code));
     return { featured: featuredList, others: otherList };
   }, [allLocales]);
+
+  useEffect(() => {
+    if (!showAll || !focusFirstOtherRef.current) return;
+    focusFirstOtherRef.current = false;
+    const first = others[0];
+    if (!first) return;
+    containerRef.current
+      ?.querySelector<HTMLElement>(`[data-testid="first-run-language-${first.code}"]`)
+      ?.focus();
+  }, [showAll, others, containerRef]);
 
   // Keep the highlighted row in step with the live locale until the user
   // touches the control, so the dialog opens on whatever the app detected.
@@ -401,6 +419,10 @@ const LanguageFirstRun: React.FC = () => {
   const onNetworkStep = step === 'network';
 
   const visibleOthers = showAll ? others : [];
+  // Roving tabindex: the selected radio is the Tab stop, unless it is hidden
+  // behind "More languages", in which case the first visible one is.
+  const visibleCodes = [...featured, ...visibleOthers].map((info) => info.code);
+  const tabStopCode = visibleCodes.includes(selected) ? selected : visibleCodes[0];
 
   return (
     <div
@@ -435,6 +457,7 @@ const LanguageFirstRun: React.FC = () => {
               <div
                 role="radiogroup"
                 aria-labelledby="first-run-language-title"
+                onKeyDown={onRadioGroupKeyDown}
                 className="flex flex-col gap-xs"
               >
                 {featured.map((info) => (
@@ -442,6 +465,7 @@ const LanguageFirstRun: React.FC = () => {
                     key={info.code}
                     info={info}
                     selected={info.code === selected}
+                    tabStop={info.code === tabStopCode}
                     onSelect={setSelected}
                   />
                 ))}
@@ -451,6 +475,7 @@ const LanguageFirstRun: React.FC = () => {
                     key={info.code}
                     info={info}
                     selected={info.code === selected}
+                    tabStop={info.code === tabStopCode}
                     onSelect={setSelected}
                   />
                 ))}
@@ -459,7 +484,10 @@ const LanguageFirstRun: React.FC = () => {
               {others.length > 0 && !showAll && (
                 <button
                   type="button"
-                  onClick={() => setShowAll(true)}
+                  onClick={() => {
+                    focusFirstOtherRef.current = true;
+                    setShowAll(true);
+                  }}
                   data-testid="first-run-language-more"
                   className="mt-sm text-sm text-accent underline hover:no-underline focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                 >

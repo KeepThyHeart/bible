@@ -8,12 +8,13 @@
  * keyboard navigation, empty states.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/preact';
+import { render, screen, fireEvent, waitFor } from '@testing-library/preact';
 
 // ---- i18n ----------------------------------------------------------------
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
-    t: (key: string) => key,
+    t: (key: string, opts?: { defaultValue?: string; [k: string]: unknown }) =>
+      opts?.defaultValue ? opts.defaultValue.replace(/\{\{?(\w+)\}\}?/g, (_m, k) => String(opts[k])) : key,
     i18n: { language: 'en' },
   }),
 }));
@@ -272,5 +273,40 @@ describe('DictionaryHome', () => {
     fireEvent.keyDown(input, { key: 'ArrowDown' });
     fireEvent.keyDown(input, { key: 'Enter' });
     expect(mockOpenDictionaryEntry).toHaveBeenCalledWith('agape', 'strongs', "Strong's");
+  });
+
+  // ------------------------------------------------------------------
+  // Accessibility: the star is a real, keyboard-reachable, named control
+  // ------------------------------------------------------------------
+  it('exposes each star as a named button with pressed state, reachable by keyboard', () => {
+    mockModules = [makeModule({ abbreviation: 'strongs', name: 'Strongs' }), makeModule({ abbreviation: 'webster', name: 'Webster' })];
+    mockStarredModules = new Set(['webster']);
+    render(<DictionaryHome />);
+    const stars = screen.getAllByRole('button', { name: /^Star / });
+    expect(stars).toHaveLength(2);
+    const strongs = screen.getByRole('button', { name: 'Star Strongs' });
+    expect(strongs.getAttribute('aria-pressed')).toBe('false');
+    expect(strongs.getAttribute('tabindex')).toBe('0');
+    expect(screen.getByRole('button', { name: 'Star Webster' }).getAttribute('aria-pressed')).toBe('true');
+    fireEvent.keyDown(strongs, { key: 'Enter' });
+    expect(mockToggleStarred).toHaveBeenCalledWith('strongs');
+    fireEvent.keyDown(strongs, { key: ' ' });
+    expect(mockToggleStarred).toHaveBeenCalledTimes(2);
+  });
+
+  // 0209 round 5: starring re-sorts the cards and remounts the button; focus stays on that item's star.
+  it('keeps focus on the same item star after starring', async () => {
+    mockModules = [makeModule({ abbreviation: 'aaa', name: 'Aaa' }), makeModule({ abbreviation: 'zzz', name: 'Zzz' })];
+    mockStarredModules = new Set();
+    render(<DictionaryHome />);
+    const star = screen.getByRole('button', { name: 'Star Zzz' });
+    star.focus();
+    // The re-sort remounts the star, which drops focus to <body>.
+    mockToggleStarred.mockImplementationOnce(() => (document.activeElement as HTMLElement).blur());
+    fireEvent.click(star);
+    await waitFor(() => {
+      expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Star Zzz' }));
+    });
+    expect(mockToggleStarred).toHaveBeenCalledWith('zzz');
   });
 });

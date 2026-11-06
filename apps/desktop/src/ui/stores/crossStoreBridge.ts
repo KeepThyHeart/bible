@@ -49,16 +49,30 @@ export type ResolveOpenModuleAbbreviations = () => string[];
  */
 export type ResolveInstalledModuleId = (abbreviation: string) => number | undefined;
 
+/** How the search store asks for a session's results tab (task 0210). */
+export interface ShowSearchResultsPanelOptions {
+  /** Focus the tab. False for a background re-run, which must not steal focus. */
+  reveal: boolean;
+  /** Session whose tab a new tab should join (the tab active when it was asked for). */
+  nearSessionId: string | null;
+}
+
 /**
  * Open - or, if it already exists anywhere in the workbench, focus - the
- * dockview panel that shows search results. Implemented by useLayoutStore.
+ * dockview panel that shows one search session's results (the panel id is the
+ * session id), or the one general Search panel that shows it as a sub-tab
+ * ("Tab in the right pane"). Returns the id of the panel now showing the
+ * session (the session id itself, or that host panel's id), or null.
  *
  * The search store calls this whenever a search produces a result set. It is
  * deliberately a bridge and not an import: the search store must keep working
  * (as a no-op) in tests and in the detached-window renderer, neither of which
  * has a dockview instance.
  */
-export type ShowSearchResultsPanel = () => void;
+export type ShowSearchResultsPanel = (sessionId: string, opts: ShowSearchResultsPanelOptions) => string | null;
+
+/** Close one search session's results panel (the tab cap replacing the oldest tab). */
+export type CloseSearchResultsPanel = (sessionId: string) => void;
 
 /**
  * The abbreviation of the translation the reader is looking at in the primary
@@ -92,6 +106,7 @@ interface CrossStoreBridges {
   resolveOpenModuleAbbreviations: ResolveOpenModuleAbbreviations | null;
   resolveInstalledModuleId: ResolveInstalledModuleId | null;
   showSearchResultsPanel: ShowSearchResultsPanel | null;
+  closeSearchResultsPanel: CloseSearchResultsPanel | null;
   resolveActiveBibleModule: ResolveActiveBibleModule | null;
 }
 
@@ -103,6 +118,7 @@ const bridges: CrossStoreBridges = {
   resolveOpenModuleAbbreviations: null,
   resolveInstalledModuleId: null,
   showSearchResultsPanel: null,
+  closeSearchResultsPanel: null,
   resolveActiveBibleModule: null,
 };
 
@@ -185,6 +201,14 @@ export function setShowSearchResultsPanel(fn: ShowSearchResultsPanel | null): vo
   bridges.showSearchResultsPanel = fn;
 }
 
-export function showSearchResultsPanel(): void {
-  bridges.showSearchResultsPanel?.();
+export function showSearchResultsPanel(sessionId: string, opts: ShowSearchResultsPanelOptions): string | null {
+  return bridges.showSearchResultsPanel?.(sessionId, opts) ?? null;
+}
+
+export function setCloseSearchResultsPanel(fn: CloseSearchResultsPanel | null): void {
+  bridges.closeSearchResultsPanel = fn;
+}
+
+export function closeSearchResultsPanel(sessionId: string): void {
+  bridges.closeSearchResultsPanel?.(sessionId);
 }

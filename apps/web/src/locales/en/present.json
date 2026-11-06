@@ -208,7 +208,10 @@
       "create": "Create",
       "save": "Save",
       "cancel": "Cancel",
-      "notSaved": "Storage is unavailable: services will be lost when you close this page."
+      "notSaved": "Storage is unavailable: services will be lost when you close this page.",
+      "renameFor": "Rename {name}",
+      "duplicateFor": "Duplicate {name}",
+      "deleteFor": "Delete {name}"
     },
     "notes": {
       "reason": {
@@ -254,8 +257,12 @@
         "empty": "Nothing planned yet. Use Verse, Hymn or Quote below and press Add to build the running order, or type references in your notes. \"Show now\" only puts something on the screen.",
         "highlights": "{count, plural, one {# highlight} other {# highlights}}",
         "removed": "Removed {label}",
-        "undo": "Undo"
-      }
+        "undo": "Undo",
+        "moreFor": "More actions for {label}",
+        "reorderFor": "Drag to reorder {label}"
+      },
+      "playMarkerFor": "Show {label} again",
+      "viewsLabel": "Notes views"
     },
     "solo": {
       "launcherTooltip": "Brings up the command prompt for going to a verse (press / on the keyboard)",
@@ -281,6 +288,11 @@
       "planLabel": "Plan",
       "removed": "Removed {label}",
       "undo": "Undo"
-    }
+    },
+    "hymnAddToNotesFor": "Add {title} to notes",
+    "hymnAddToPlanFor": "Add {title} to the running order",
+    "viewersLabel": "Viewers",
+    "previewFrameTitle": "Screen preview",
+    "viewersCount": "Viewers: {count}"
   }
 }

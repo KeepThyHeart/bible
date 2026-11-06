@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useId, useRef } from 'react';
 import { useI18n } from '../contexts/useI18n';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 
 interface TextInputDialogProps {
   isOpen: boolean;
@@ -26,6 +27,19 @@ const TextInputDialog: React.FC<TextInputDialogProps> = ({
 }) => {
   const { t } = useI18n();
   const [value, setValue] = useState(initialValue);
+  const inputId = useId();
+  // Shared modal trap: inerts the background, handles Tab and Escape, and
+  // restores focus to the opener on close.
+  const dialogRef = useFocusTrap<HTMLDivElement>(isOpen, onCancel);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // The trap focuses the first control (Close) on a frame callback; queued
+  // after it, this puts focus on the text field, which is what the user types in.
+  useEffect(() => {
+    if (!isOpen) return;
+    const id = requestAnimationFrame(() => inputRef.current?.select());
+    return () => cancelAnimationFrame(id);
+  }, [isOpen]);
 
   // Reset value when dialog opens
   useEffect(() => {
@@ -44,9 +58,6 @@ const TextInputDialog: React.FC<TextInputDialogProps> = ({
     if (e.key === 'Enter') {
       e.preventDefault();
       handleConfirm();
-    } else if (e.key === 'Escape') {
-      e.preventDefault();
-      onCancel();
     }
   };
 
@@ -64,6 +75,7 @@ const TextInputDialog: React.FC<TextInputDialogProps> = ({
       <div className="fixed inset-0 flex items-center justify-center z-50 p-lg">
         <div
           className="bg-surface rounded-lg shadow-xl max-w-md w-full"
+          ref={dialogRef}
           role="dialog"
           aria-modal="true"
           aria-labelledby="text-input-dialog-title"
@@ -86,10 +98,12 @@ const TextInputDialog: React.FC<TextInputDialogProps> = ({
 
           {/* Content */}
           <div className="px-xl py-lg">
-            <label className="block text-sm font-semibold text-text-heading mb-xs">
+            <label htmlFor={inputId} className="block text-sm font-semibold text-text-heading mb-xs">
               {label}
             </label>
             <input
+              id={inputId}
+              ref={inputRef}
               type="text"
               value={value}
               onChange={(e) => setValue(e.target.value)}

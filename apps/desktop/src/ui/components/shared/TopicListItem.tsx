@@ -5,6 +5,8 @@ interface TopicListItemProps {
   parentPath?: string;
   source?: string;
   verseCount?: number;
+  /** Spoken/tooltip form of the count ("1463 verses"); the badge shows only the number. */
+  verseCountLabel?: string;
   onClick: () => void;
   indented?: boolean;
 }
@@ -13,7 +15,7 @@ interface TopicListItemProps {
  * Renders a single topic entry with name, source label, and verse count badge.
  * Used in Study Pane topic list, Topics Pane browse/sub-topics.
  */
-const TopicListItem: React.FC<TopicListItemProps> = ({ topicName, parentPath, source, verseCount, onClick, indented }) => {
+const TopicListItem: React.FC<TopicListItemProps> = ({ topicName, parentPath, source, verseCount, verseCountLabel, onClick, indented }) => {
   return (
     <button
       data-testid="topic-list-item"
@@ -76,8 +78,9 @@ const TopicListItem: React.FC<TopicListItemProps> = ({ topicName, parentPath, so
           padding: '1px 6px',
           borderRadius: '8px',
           flexShrink: 0,
-        }}>
-          {verseCount}
+        }} title={verseCountLabel}>
+          <span aria-hidden={verseCountLabel ? true : undefined}>{verseCount}</span>
+          {verseCountLabel && <span className="sr-only">{verseCountLabel}</span>}
         </span>
       )}
     </button>

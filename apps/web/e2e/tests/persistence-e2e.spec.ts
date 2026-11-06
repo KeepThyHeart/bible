@@ -110,8 +110,13 @@ test.describe('Session Persistence', () => {
     await page.locator('.kth-picker__cell--chapter').first().click();
     await waitForVerses(page);
 
+    // Study mode loads the chapter's commentary. Let that finish before reloading: WebKit reports
+    // requests a reload cuts off as page errors, and that is the test's doing, not the app's.
+    const commentary = page.waitForResponse(r => r.url().includes('/api/commentary/chapter-overview/'));
     await page.locator('.bible-toolbar__mode-select').selectOption('study');
     await expect(page.locator('.bible-toolbar__mode-select')).toHaveValue('study');
+    await commentary;
+    await page.waitForLoadState('networkidle');
 
     // Reload
     await page.reload({ waitUntil: 'networkidle' });

@@ -10,7 +10,7 @@
  * empty state, loading states, cancel/clear actions, and offline notice.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, act } from '@testing-library/preact';
+import { render, screen, fireEvent, act, waitFor } from '@testing-library/preact';
 
 // ---- i18n ----------------------------------------------------------------
 vi.mock('react-i18next', () => ({
@@ -183,7 +183,17 @@ describe('MobileDictionary', () => {
   });
 
   // ---- Cancel / Clear actions --------------------------------------------
+  it('hides the cancel button once the search has finished', () => {
+    mockSearchLoading = false;
+    mockSuggestions = [makeSuggestion('G25', 'agapaō')];
+    const { container } = render(<MobileDictionary />);
+    fireEvent.input(container.querySelector<HTMLInputElement>('.mobile-dictionary__search-input')!, { target: { value: 'love' } });
+    expect(container.querySelector('.mobile-dictionary__search-action')).toBeNull();
+    expect(screen.queryByText('mobileDictionary.cancel')).toBeNull();
+  });
+
   it('shows cancel button when there is a search query', () => {
+    mockSearchLoading = true;
     const { container } = render(<MobileDictionary />);
     const input = container.querySelector<HTMLInputElement>('.mobile-dictionary__search-input')!;
     fireEvent.input(input, { target: { value: 'love' } });
@@ -194,6 +204,7 @@ describe('MobileDictionary', () => {
   });
 
   it('clears the query when cancel is clicked', () => {
+    mockSearchLoading = true;
     const { container } = render(<MobileDictionary />);
     const input = container.querySelector<HTMLInputElement>('.mobile-dictionary__search-input')!;
     fireEvent.input(input, { target: { value: 'love' } });
@@ -229,6 +240,22 @@ describe('MobileDictionary', () => {
     expect(container.querySelector('.dictionary-pane__entry-word')).toBeTruthy();
   });
 
+  it('moves focus to the entry heading after a result is picked', async () => {
+    mockSuggestions = [makeSuggestion('G25', 'agapaō')];
+    const jsonFn = vi.fn().mockResolvedValue({ word: 'agapaō', definition: 'to love' });
+    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({ ok: true, json: jsonFn });
+    const { container } = render(<MobileDictionary />);
+    fireEvent.input(container.querySelector<HTMLInputElement>('.mobile-dictionary__search-input')!, { target: { value: 'ag' } });
+    const suggestionBtn = container.querySelector<HTMLButtonElement>('.mobile-dictionary__suggestion')!;
+    suggestionBtn.focus();
+    await act(async () => {
+      fireEvent.click(suggestionBtn);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    await waitFor(() => expect(document.activeElement).toBe(container.querySelector('.dictionary-pane__entry-word')));
+  });
+
   it('shows close icon button (not text) when an entry is displayed and no query', async () => {
     mockSuggestions = [makeSuggestion('G25', 'agapaō')];
     const jsonFn = vi.fn().mockResolvedValue({ word: 'agapaō', definition: 'to love' });
@@ -245,6 +272,8 @@ describe('MobileDictionary', () => {
     const action = container.querySelector('.mobile-dictionary__search-action');
     expect(action).toBeTruthy();
     expect(action!.querySelector('.fa-xmark')).toBeTruthy();
+    // Named distinctly from the overlay's own close button
+    expect(action!.getAttribute('aria-label')).toBe('mobileDictionary.closeEntry');
   });
 
   // ---- Strong's labels (B-165 helpers, B-180) -------------------------------

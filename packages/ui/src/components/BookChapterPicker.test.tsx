@@ -72,7 +72,9 @@ describe('BookChapterPicker: book list', () => {
   it('shows short names in a compact grid until a filter is typed', async () => {
     const user = userEvent.setup();
     const { container } = setup({ compact: true, shortBookName: (n) => `#${n}` });
-    expect(screen.getByRole('button', { name: '#43' })).toHaveAttribute('title', 'John');
+    // Shown as the abbreviation, named by the full book name.
+    expect(screen.getByRole('button', { name: 'John' })).toHaveTextContent('#43');
+    expect(screen.getByRole('button', { name: 'John' })).toHaveAttribute('title', 'John');
     expect(container.querySelector('.kth-picker__grid--compact')).not.toBeNull();
     await user.type(input(), 'john');
     expect(container.querySelector('.kth-picker__grid--compact')).toBeNull();

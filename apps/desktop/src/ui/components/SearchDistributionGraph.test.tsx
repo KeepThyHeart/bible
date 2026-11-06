@@ -15,7 +15,11 @@ import { SECTION_COLOR_TOKEN } from '../constants/bibleSections';
 // unformatted message on a first synchronous render - no use to an assertion
 // about what the reader sees. A stub that echoed the key back would be worse
 // still: it would accept a component that never passed `count` at all.
-const catalog = enUi as Record<string, string>;
+const catalog: Record<string, string> = {
+  // New key (added to the locale files separately).
+  'searchDistributionGraph.bookNotCounted': '{book} — not counted yet',
+  ...(enUi as Record<string, string>),
+};
 
 function stubT(key: string, params?: Record<string, unknown>): string {
   const message = catalog[key];
@@ -146,7 +150,11 @@ describe('SearchDistributionGraph', () => {
     expect(hairline.style.height).toBe('2px');
     // Not a control: nothing to select, so it must not take a tab stop.
     expect(obadiah.tagName).toBe('DIV');
-    expect(obadiah).toHaveAttribute('role', 'img');
+    // Exposed as a disabled (non-focusable) button, never as an image.
+    expect(obadiah).toHaveAttribute('role', 'button');
+    expect(obadiah).toHaveAttribute('aria-disabled', 'true');
+    expect(obadiah).not.toHaveAttribute('tabindex');
+    expect(screen.queryAllByRole('img')).toHaveLength(0);
     expect(obadiah).toHaveAttribute('aria-label', 'Obadiah — no matches');
   });
 
@@ -229,6 +237,22 @@ describe('SearchDistributionGraph', () => {
     const caption = screen.getByTestId('distribution-caption');
     expect(caption).toHaveTextContent('First 2 matches in 2 books');
     expect(caption).toHaveTextContent('this is not a full count');
+  });
+
+  it('does not claim "no matches" for uncounted books when the set is truncated', () => {
+    renderWithProviders(
+      <SearchDistributionGraph
+        mode="keyword"
+        results={[keywordResult(GEN_1_1)]}
+        isCapped
+        onSelectBook={vi.fn()}
+      />,
+    );
+
+    expect(barFor(43)).toHaveAttribute('aria-label', 'John — not counted yet');
+    expect(screen.queryByLabelText(/no matches/)).toBeNull();
+    // Counted books keep their count.
+    expect(barFor(1)).toHaveAttribute('aria-label', 'Genesis — 1 match');
   });
 
   it('states a plain count when the set is complete', () => {

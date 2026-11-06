@@ -68,12 +68,13 @@
       min-inline-size: 0;
     }
 
-    // Wrap rather than cut to "Keep ..." when the text size is at its maximum (B-184); the
-    // header already grows to fit.
+    // U-137: each line of the wordmark stays on one line and gives way with an ellipsis, so
+    // the logo block is two lines (name + tagline) at any width, never three.
     &__wordmark-name,
     &__wordmark-tagline {
-      white-space: normal;
-      overflow-wrap: normal;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     // W-061: on a 320px phone the wordmark broke over five lines (a 91px header). Below 340px

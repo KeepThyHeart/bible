@@ -52,6 +52,7 @@ import type {
 } from '../../types';
 import type { ITopicalDataProvider, ITagGraphDataProvider } from '../../providers/interfaces';
 import { TopicsBrowser, resetTopicsBrowserNav } from './TopicsBrowser';
+import { settingsStore } from '../../stores/settingsStore';
 
 // ---- Helper factory functions -------------------------------------------
 function makeVerseTopics(count = 2): VerseTopicData[] {
@@ -340,6 +341,28 @@ describe('TopicsBrowser', () => {
     expect(container.querySelector('.topics-browser__mobile-nav')).toBeNull();
   });
 
+  it('mobile Back from a topic to the list focuses the search box instead of dropping focus', async () => {
+    let view!: ReturnType<typeof render>;
+    await act(async () => {
+      view = render(
+        <TopicsBrowser
+          {...defaultProps}
+          mobile
+          topicalProvider={makeTopicalProvider()}
+          topicRequest={{ topicId: 1, module: 'TSK', topicName: 'Love', token: 1 }}
+        />
+      );
+    });
+    const back = await waitFor(() => {
+      const b = (view.container as HTMLElement).querySelector<HTMLButtonElement>('.topics-browser__mobile-back');
+      expect(b).not.toBeNull();
+      return b!;
+    });
+    back.focus();
+    await act(async () => { fireEvent.click(back); });
+    await waitFor(() => expect(document.activeElement).toBe(view.container.querySelector('.topics-browser__search-input')));
+  });
+
   // ------------------------------------------------------------------
   // topicRequest prop
   // ------------------------------------------------------------------
@@ -431,5 +454,58 @@ describe('TopicsBrowser', () => {
     );
     await act(async () => { await Promise.resolve(); });
     expect(container.querySelector('.topics-browser__empty')).toBeTruthy();
+  });
+
+  // ------------------------------------------------------------------
+  // Accessibility
+  // ------------------------------------------------------------------
+  it('names the back and forward buttons', () => {
+    render(<TopicsBrowser {...defaultProps} />);
+    expect(screen.getByRole('button', { name: 'topicsBrowser.back' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'topicsBrowser.forward' })).toBeTruthy();
+  });
+
+  it('moves focus off Back to Forward when Back disables itself at the start of the history', async () => {
+    render(
+      <TopicsBrowser
+        {...defaultProps}
+        topicalProvider={makeTopicalProvider()}
+        topicRequest={{ topicId: 1, module: 'TSK', topicName: 'Love', token: 1 }}
+      />
+    );
+    await act(async () => { await Promise.resolve(); });
+    const back = screen.getByRole('button', { name: 'topicsBrowser.back' });
+    back.focus();
+    await act(async () => { fireEvent.click(back); });
+    await waitFor(() => {
+      expect(document.activeElement).toBe(screen.getByRole('button', { name: 'topicsBrowser.forward' }));
+    });
+  });
+
+  it('names the search clear (x) button once something is typed', () => {
+    const { container } = render(<TopicsBrowser {...defaultProps} topicalProvider={makeTopicalProvider()} />);
+    fireEvent.input(container.querySelector<HTMLInputElement>('.topics-browser__search-input')!, { target: { value: 'love' } });
+    expect(screen.getByRole('button', { name: 'topicsBrowser.clearSearch' })).toBeTruthy();
+  });
+
+  it('moves focus to the opened topic heading after a topic is opened from the list', async () => {
+    const { container } = render(<TopicsBrowser {...defaultProps} topicalProvider={makeTopicalProvider()} />);
+    const topicLink = container.querySelector<HTMLElement>('.study-topics__chain-current')!;
+    topicLink.focus();
+    await act(async () => { fireEvent.click(topicLink); });
+    await waitFor(() => {
+      expect(document.activeElement).toBe(container.querySelector('.topics-browser__title'));
+    });
+  });
+
+  it('says some topical indexes are off in Settings when the verse has no topics and some are excluded', () => {
+    const before = settingsStore.excludedTopicalModules;
+    settingsStore.excludedTopicalModules = ['nave'];
+    try {
+      const { container } = render(<TopicsBrowser {...defaultProps} verseTopics={[]} />);
+      expect(container.querySelector('.topics-browser__empty')!.textContent).toContain('studyTopics.someIndexesOff');
+    } finally {
+      settingsStore.excludedTopicalModules = before;
+    }
   });
 });

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import React from 'react';
 import ModuleSelector, { type ModuleItem } from './ModuleSelector';
@@ -302,5 +302,67 @@ describe('ModuleSelector: remove affordance (opt-in)', () => {
     await user.click(screen.getByTestId('module-selector-remove'));
     expect(onRemove).toHaveBeenCalledWith(modules[0]);
     expect(onSelect).not.toHaveBeenCalled();
+  });
+
+  describe('modal behaviour', () => {
+    const Host = () => {
+      const [open, setOpen] = React.useState(false);
+      return (
+        <div>
+          <div data-testid="page">
+            <button onClick={() => setOpen(true)}>Change translation</button>
+          </div>
+          <h2 tabIndex={-1}>Genesis 24</h2>
+          {open && (
+            <ModuleSelector
+              title="Select Translation"
+              modules={mockModules}
+              onSelect={onSelect}
+              onClose={() => setOpen(false)}
+            />
+          )}
+        </div>
+      );
+    };
+
+    it('is a labelled modal dialog that inerts the page and returns focus to its opener on Escape', async () => {
+      const user = userEvent.setup();
+      renderWithProviders(<Host />);
+      const opener = screen.getByText('Change translation');
+      await user.click(opener);
+      const dialog = screen.getByRole('dialog', { name: 'Select Translation' });
+      expect(dialog).toHaveAttribute('aria-modal', 'true');
+      expect(screen.getByTestId('page').closest('[inert]')).not.toBeNull();
+      // Focus moves in on a timer; Escape typed before it lands goes nowhere.
+      await waitFor(() => expect(dialog.contains(document.activeElement)).toBe(true));
+      await user.keyboard('{Escape}');
+      expect(screen.queryByRole('dialog')).toBeNull();
+      expect(screen.getByTestId('page').closest('[inert]')).toBeNull();
+      expect(document.activeElement).toBe(opener);
+    });
+  });
+
+  it('marks only the pane\'s own module as current, not the highlighted first row', () => {
+    renderWithProviders(
+      <ModuleSelector
+        title="Select Translation"
+        modules={mockModules}
+        currentId="esv"
+        onSelect={onSelect}
+        onClose={onClose}
+      />,
+    );
+    const rows = screen.getAllByTestId('module-selector-item');
+    expect(rows[0]).not.toHaveAttribute('aria-current');
+    expect(rows[1]).toHaveAttribute('aria-current', 'true');
+  });
+
+  it('marks no row current when the caller names none', () => {
+    renderWithProviders(
+      <ModuleSelector title="Select" modules={mockModules} onSelect={onSelect} onClose={onClose} />,
+    );
+    for (const row of screen.getAllByTestId('module-selector-item')) {
+      expect(row).not.toHaveAttribute('aria-current');
+    }
   });
 });

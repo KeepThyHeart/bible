@@ -36,7 +36,7 @@ plus errors, no diff) and `--timeout ms` (default 5000).
 
 | Command | Notes |
 |---|---|
-| `start [web\|desktop\|path/to/manifest.json] [--url URL] [--viewport WxH] [--headed] [--keep]` | `--url https://bible.keepthyheart.com` drives the live site **read-only** (only GET/HEAD/OPTIONS go out; others are blocked and listed under `errors`). `--keep` keeps the throwaway profile. |
+| `start [web\|desktop\|path/to/manifest.json] [--url URL] [--viewport WxH] [--headed] [--keep]` | `--url https://bible.keepthyheart.com` drives the live site **read-only** (only GET/HEAD/OPTIONS go out; others are blocked and listed under `errors`). A loopback `--url` (`http://127.0.0.1:PORT`, `localhost`) drives a local server that is already running, normally (not read-only), and starts no server of its own: several sessions can share one server (another session's, or one started by hand) to save memory. `--keep` keeps the throwaway profile. |
 | `stop`, `status` | |
 | `snapshot [rN] [--depth N] [--max N] [--visible] [--all]` | `rN` scopes to one element (a native `<select>` then lists its options); `--visible` only what is in the viewport, and only the modal dialog when one is open (menus and popovers are not filtered); long lists show 9 items and a count; 150 lines max unless `--max`/`--all`. |
 | `diff` | Changes since the last snapshot or action. Actions already include it. |
@@ -137,8 +137,17 @@ stopped session default (7 commands; transcript $DRIVE_DIR/transcript.jsonl)
   one screenshot settles it.
 
 The `check` heuristics are hints, not verdicts: `covered` and `overlap` use hit-testing at the
-element's centre; `i18n` flags key-like strings (`settings.title`), unresolved placeholders
-(`{{count}}`) and, on a non-English page, English-looking text.
+element's centre (a button laid inside a text field, like a search box's clear button, is not an
+overlap); `i18n` flags key-like strings (`settings.title`), unresolved placeholders (`{{count}}`)
+and, on a non-English page, English-looking text, short English names of controls, tablists,
+regions and dialogs ("Refresh"), and native `<select>` options, skipping content inside an
+English `[lang]` block. `narrow` and `tab` change layout and focus: a dialog or menu they close is
+reported (`closed: …`), and a tab walk that hits the 80-stop cap says so instead of reading clean.
+
+Focus on an element without a ref is shown by what it is, e.g. `focus: r12 → (div#pane)`.
+
+Several web sessions can share one local server: start it once (or let one session start it),
+then `drive start web --url http://127.0.0.1:PORT` in the others.
 
 ## Manifests
 

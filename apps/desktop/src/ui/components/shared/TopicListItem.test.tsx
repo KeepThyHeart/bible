@@ -220,4 +220,11 @@ describe('TopicListItem', () => {
     const button = container.querySelector('button');
     expect(button?.style.cursor).toBe('pointer');
   });
+
+  // 0209 U-169: a bare count ("1463") next to a topic didn't say what it counted.
+  it('names the count when a label is given', () => {
+    render(<TopicListItem topicName="Faith" verseCount={1463} verseCountLabel="1463 verses" onClick={vi.fn()} />);
+    expect(screen.getByRole('button').textContent).toContain('1463 verses');
+    expect(screen.getByTitle('1463 verses')).toBeInTheDocument();
+  });
 });

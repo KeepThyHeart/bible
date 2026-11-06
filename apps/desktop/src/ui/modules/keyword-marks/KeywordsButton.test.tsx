@@ -53,6 +53,20 @@ describe('KeywordsButton', () => {
     expect(screen.getByTestId('keywords-toggle')).toHaveAttribute('aria-pressed', 'true');
   });
 
+  it('exposes pressed on the toggle and expanded only on the options button', () => {
+    useKeywordMarkStore.getState().setTabEnabled('tab-1', true);
+    render(<KeywordsButton tabId="tab-1" />);
+    const toggle = screen.getByTestId('keywords-toggle');
+    const options = screen.getByTestId('keywords-options');
+    expect(toggle).toHaveAttribute('aria-pressed', 'true');
+    expect(toggle).not.toHaveAttribute('aria-expanded');
+    expect(toggle).not.toHaveAttribute('aria-haspopup');
+    expect(options).toHaveAttribute('aria-expanded', 'false');
+    fireEvent.click(options);
+    expect(screen.getByTestId('keywords-options')).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByTestId('keywords-toggle')).not.toHaveAttribute('aria-expanded');
+  });
+
   it('shows the count of visible marks in a badge', () => {
     useKeywordMarkStore.getState().setTabEnabled('tab-1', true);
     render(<KeywordsButton tabId="tab-1" />);

@@ -17,6 +17,7 @@ vi.mock('../stores/useSearchStore', async () => {
     // `lastClickedId`, so the fake IDs in these tests need the real format.
     searchResultId: actual.searchResultId,
     semanticResultId: actual.semanticResultId,
+    selectSessionView: actual.selectSessionView,
     useSearchStore: (selector?: (s: any) => any) => (selector ? selector(mockSearchStore) : mockSearchStore),
   };
 });
@@ -79,6 +80,7 @@ const defaultSearchState = {
   isSearching: false,
   error: null,
   clearResults: vi.fn(),
+  setQuery: vi.fn(),
   keywordResultLimit: 200,
   isShowingAllKeywordResults: false,
   showAllKeywordResults: vi.fn(),
@@ -108,6 +110,14 @@ describe('SearchResultsPane', () => {
     Object.assign(mockSearchStore, { ...defaultSearchState, resultsForQuery: 'love' });
     renderWithProviders(<SearchResultsPane />);
     expect(screen.getByText(/Search Results for/)).toBeInTheDocument();
+  });
+
+  it('does not double the quotes in the heading of a phrase query', () => {
+    Object.assign(mockSearchStore, { ...defaultSearchState, resultsForQuery: '"love one" -hate' });
+    renderWithProviders(<SearchResultsPane />);
+    const heading = screen.getByText(/Search Results for/);
+    expect(heading.textContent).not.toContain('""');
+    expect(heading.textContent).toBe('Search Results for: "\u201Clove one\u201D -hate"');
   });
 
   // The panel is part of the saved layout, so it comes back on the next launch
@@ -154,6 +164,14 @@ describe('SearchResultsPane', () => {
     Object.assign(mockSearchStore, { ...defaultSearchState, resultsForQuery: 'test query', searchResults: [] });
     renderWithProviders(<SearchResultsPane />);
     expect(screen.getByText('No results found')).toBeInTheDocument();
+  });
+
+  it('announces zero results through an always-mounted live region', () => {
+    Object.assign(mockSearchStore, { ...defaultSearchState, resultsForQuery: 'test query', searchResults: [] });
+    renderWithProviders(<SearchResultsPane />);
+    const live = screen.getAllByRole('status').find((el) => el.classList.contains('sr-only'));
+    expect(live).toBeDefined();
+    expect(live).toHaveTextContent(/0 results/);
   });
 
   it('renders keyword search results', () => {
@@ -259,6 +277,15 @@ describe('SearchResultsPane', () => {
     const closeBtn = screen.getByTitle('Close Search Results');
     await user.click(closeBtn);
     expect(mockClearResults).toHaveBeenCalled();
+  });
+
+  it('also empties the header search box when closed (U-176)', async () => {
+    const user = userEvent.setup();
+    const mockSetQuery = vi.fn();
+    Object.assign(mockSearchStore, { ...defaultSearchState, setQuery: mockSetQuery });
+    renderWithProviders(<SearchResultsPane />);
+    await user.click(screen.getByTitle('Close Search Results'));
+    expect(mockSetQuery).toHaveBeenCalledWith('');
   });
 
   it('shows auto-switch notice when auto-switched to semantic', () => {

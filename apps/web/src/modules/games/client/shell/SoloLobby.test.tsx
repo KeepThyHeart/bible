@@ -4,7 +4,9 @@ import { act } from 'preact/test-utils';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { Catalog, PlayerSnapshot, RoomSettings } from '../../shared/protocol.js';
 import { DEFAULT_THEME } from '../../shared/theme.js';
+import type { i18n } from 'i18next';
 import { SoloLobby } from './SoloLobby.js';
+import { setGamesI18n } from './t.js';
 
 function solo(settings: Partial<RoomSettings> = {}): PlayerSnapshot {
   const merged: RoomSettings = {
@@ -206,5 +208,42 @@ describe('warning when no Bible module is installed', () => {
   it('warns once the catalog has answered with no translations', () => {
     draw({}, noTranslations, true);
     expect(host.textContent).toContain('No Bible module is installed');
+  });
+});
+
+describe('game picker labelling and translation (0209 R2 W14)', () => {
+  it('names the select just "Game", with the scope hint as its description', () => {
+    draw({ gameId: 'who-am-i' });
+    const picker = host.querySelector<HTMLSelectElement>('#games-solo-game')!;
+    expect(picker.labels?.[0]?.textContent).toBe('Game');
+    expect(picker.labels?.[0]?.querySelector('.field-hint')).toBeNull();
+    const hint = host.querySelector('#games-solo-game-hint')!;
+    expect(picker.getAttribute('aria-describedby')).toBe('games-solo-game-hint');
+    expect(hint.textContent).toBe('People of the Bible');
+  });
+
+  it('shows game names, scope hint and familiarity levels through the games catalogue', () => {
+    const strings: Record<string, string> = {
+      'games.names.fillInTheBlank': 'Completar el espacio',
+      'games.names.whoAmI': 'Quién soy',
+      'games.scopes.peopleOfTheBible': 'Personajes de la Biblia',
+      'games.familiarity.broad': 'Conocidos y más allá',
+    };
+    setGamesI18n({
+      isInitialized: true,
+      t: (key: string, o?: { defaultValue?: string }) => strings[key] ?? o?.defaultValue ?? key,
+    } as unknown as i18n);
+    try {
+      draw({ gameId: 'who-am-i' });
+      const options = [...(select('Game')?.querySelectorAll('option') ?? [])].map((o) => o.textContent);
+      expect(options).toEqual(['Completar el espacio', 'Quién soy']);
+      expect(host.querySelector('#games-solo-game-hint')?.textContent).toBe('Personajes de la Biblia');
+      const levels = [...(select('How well known')?.querySelectorAll('option') ?? [])].map((o) => o.textContent);
+      expect(levels).toContain('Conocidos y más allá');
+      // Anything without an entry keeps the server's English.
+      expect(levels).toContain('Verses everyone knows');
+    } finally {
+      setGamesI18n(null);
+    }
   });
 });

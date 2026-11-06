@@ -63,6 +63,15 @@ describe('roles, names, states', () => {
     expect(byRole(s, 'textbox').map((b) => b.name)).toEqual(['First', 'Second', 'Third']);
   });
 
+  it('a label wrapping a select names it without the option texts; other embedded controls give their value', async () => {
+    await load(`<label><span>Layout</span><select><option>Inline</option><option selected>Stacked</option></select></label>
+      <label>Font size <select id="fs"><option>Small</option><option selected>Large</option></select></label>
+      <label for="q">Find <input value="love"> in</label><input id="q">`);
+    const s = await snap();
+    expect(byRole(s, 'combobox').map((b) => b.name)).toEqual(['Layout', 'Font size']);
+    expect(byRole(s, 'textbox').map((b) => b.name)).toContain('Find love in');
+  });
+
   it('names images from alt and skips decorative ones', async () => {
     await load(`<img alt="Logo" src="data:image/gif;base64,R0lGODlhAQABAAAAACw="><img alt="" src="data:image/gif;base64,R0lGODlhAQABAAAAACw=">`);
     const imgs = byRole(await snap(), 'img');
@@ -304,6 +313,40 @@ describe('audit', () => {
     expect(details).toContain('{{count}}');
     expect(details).toContain('nav.menu_open');
     expect(details).not.toContain('Welcome back');
+  });
+
+  it('on a non-English page flags short English control names but not English content blocks', async () => {
+    await load(`<button>Actualizar</button><button>Refresh</button><button aria-label="Scroll tabs left">‹</button>
+      <div role="tablist" aria-label="Bible tabs"></div>
+      <div lang="en"><p>For God so loved the world, that he gave his only begotten Son, and the whole of it</p></div>`);
+    await page.evaluate(() => { document.documentElement.lang = 'es'; });
+    await snap();
+    const details = (await audit('i18n')).map((i) => i.detail).join('\n');
+    expect(details).toContain('"Refresh"');
+    expect(details).toContain('Scroll tabs left');
+    expect(details).toContain('Bible tabs');
+    expect(details).not.toContain('Actualizar');
+    expect(details).not.toContain('loved the world');
+  });
+
+  it('does not report a button laid inside a text field as an overlap', async () => {
+    await load(`<div style="position:relative;width:300px"><input aria-label="Search" style="width:300px;height:32px;box-sizing:border-box">
+      <button aria-label="Clear" style="position:absolute;right:4px;top:4px;width:24px;height:24px">x</button></div>`);
+    await snap();
+    expect((await audit('overlap')).filter((i) => i.kind === 'overlap' || i.kind === 'covered')).toEqual([]);
+  });
+
+  it('on a non-English page checks native select options', async () => {
+    await load(`<label>Mostrar <select><option>Show all</option><option>Hide all</option></select></label>`);
+    await page.evaluate(() => { document.documentElement.lang = 'es'; });
+    await snap();
+    expect((await audit('i18n')).map((i) => i.detail).join('\n')).toContain('Show all');
+  });
+
+  it('describes focus on an element without a ref', async () => {
+    await load(`<div id="pane" tabindex="-1" class="pane-body"><span>text</span></div>`);
+    await page.evaluate(() => (document.getElementById('pane') as HTMLElement).focus());
+    expect((await snap()).focus).toBe('(div#pane)');
   });
 
   it('does not report screen-reader-only 1px text as clipped', async () => {

@@ -70,7 +70,7 @@ export const hostPanelsBinding: FeatureModuleBinding = {
     'panel:newtab': eager('newtab'),
     'panel:notes': () => import('../../components/notes/UserNotesPane'),
     'panel:prayer': () => import('../../components/notes/tabs/PrayerTab'),
-    'panel:search': () => import('../../components/SearchResultsPane'),
+    'panel:search': () => import('../../components/SearchPanel'),
     'panel:study': () => import('../../components/StudyPane'),
     'panel:topics': () => import('../../components/TopicsPane'),
   },

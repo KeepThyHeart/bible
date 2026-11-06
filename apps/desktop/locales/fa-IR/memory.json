@@ -354,6 +354,7 @@
   "memory.ui.practice.passage": "قسمت",
   "memory.ui.practice.home": "خانه",
   "memory.ui.practice.next": "بعدی",
+  "memory.ui.practice.progress": "پیشرفت",
   "memory.ui.practice.skipToNextPassage": "رفتن به قسمت بعدی",
   "memory.ui.practice.tierOf": "{label} (مرحلهٔ {tier} از {tiers})",
   "memory.ui.practice.shuffle": "درهم‌ریزی - تمرین چیز دیگر",

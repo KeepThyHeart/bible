@@ -1,7 +1,7 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { render, cleanup, fireEvent } from '@testing-library/preact';
 import { useRef } from 'preact/hooks';
-import { useModalFocus } from './useModalFocus';
+import { useModalFocus, setModalFallback } from './useModalFocus';
 
 function Harness({ open }: { open: boolean }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -116,5 +116,97 @@ describe('useModalFocus (B-156)', () => {
     rerender(<Chain stage={0} />);
     await flush();
     expect(document.activeElement).toBe(root);
+  });
+});
+
+function Nested({ a, b }: { a: boolean; b: boolean }) {
+  const ra = useRef<HTMLDivElement>(null);
+  const rb = useRef<HTMLDivElement>(null);
+  useModalFocus(a, ra);
+  useModalFocus(b, rb);
+  return (
+    <div data-testid="root">
+      <header data-testid="page"><button>page</button></header>
+      <div role="status" aria-live="polite" data-testid="live" />
+      <script data-testid="script" />
+      {a && <div ref={ra} role="dialog" aria-modal="true" data-testid="A"><button>a</button></div>}
+      {b && <div ref={rb} role="dialog" aria-modal="true" data-testid="B"><button>b</button></div>}
+    </div>
+  );
+}
+
+describe('useModalFocus inert background', () => {
+  afterEach(cleanup);
+
+  it('makes everything outside the open modal inert and restores it on close', async () => {
+    const { getByTestId, rerender } = render(<Nested a={false} b={false} />);
+    rerender(<Nested a b={false} />);
+    await flush();
+    expect(getByTestId('page').hasAttribute('inert')).toBe(true);
+    expect(getByTestId('A').hasAttribute('inert')).toBe(false);
+    // live regions and non-content elements are left alone
+    expect(getByTestId('live').hasAttribute('inert')).toBe(false);
+    expect(getByTestId('script').hasAttribute('inert')).toBe(false);
+    rerender(<Nested a={false} b={false} />);
+    await flush();
+    expect(getByTestId('page').hasAttribute('inert')).toBe(false);
+  });
+
+  it('keeps an element that was already inert inert after the modal closes', async () => {
+    const { getByTestId, rerender } = render(<Nested a={false} b={false} />);
+    getByTestId('page').setAttribute('inert', '');
+    rerender(<Nested a b={false} />);
+    await flush();
+    rerender(<Nested a={false} b={false} />);
+    await flush();
+    expect(getByTestId('page').hasAttribute('inert')).toBe(true);
+  });
+
+  it('nested modals: the lower one is inert while the upper is open and is restored when it closes', async () => {
+    const { getByTestId, rerender } = render(<Nested a b={false} />);
+    await flush();
+    rerender(<Nested a b />);
+    await flush();
+    expect(getByTestId('A').hasAttribute('inert')).toBe(true);
+    expect(getByTestId('B').hasAttribute('inert')).toBe(false);
+    expect(getByTestId('page').hasAttribute('inert')).toBe(true);
+    rerender(<Nested a b={false} />);
+    await flush();
+    expect(getByTestId('A').hasAttribute('inert')).toBe(false);
+    expect(getByTestId('page').hasAttribute('inert')).toBe(true);
+    rerender(<Nested a={false} b={false} />);
+    await flush();
+    expect(getByTestId('page').hasAttribute('inert')).toBe(false);
+    expect(document.querySelectorAll('[inert]').length).toBe(0);
+  });
+});
+
+describe('setModalFallback', () => {
+  afterEach(cleanup);
+
+  it('returns focus to the registered fallback when the opener vanished before the dialog closed', async () => {
+    function Wrap({ stage }: { stage: 0 | 1 | 2 }) {
+      // stage 1: popup with an item is up; stage 2: popup gone, dialog open; stage 0: all closed
+      const r = useRef<HTMLDivElement>(null);
+      useModalFocus(stage === 2, r);
+      return (
+        <div>
+          <button data-testid="theme">theme</button>
+          {stage === 1 && <button data-testid="more">more</button>}
+          {stage === 2 && <div ref={r} role="dialog"><button>in</button></div>}
+        </div>
+      );
+    }
+    const { getByTestId, rerender } = render(<Wrap stage={0} />);
+    rerender(<Wrap stage={1} />);
+    await flush();
+    const more = getByTestId('more');
+    more.focus();
+    setModalFallback(more, getByTestId('theme'));
+    rerender(<Wrap stage={2} />);
+    await flush();
+    rerender(<Wrap stage={0} />);
+    await flush();
+    expect(document.activeElement).toBe(getByTestId('theme'));
   });
 });

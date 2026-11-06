@@ -25,7 +25,13 @@ export const PrivacySection: React.FC = () => {
   // to the store's value below if the user cancels that dialog.
   const [pending, setPending] = useState(false);
 
+  // Until the catalog carries the key, `t` hands the key back; use English.
+  const pendingKey = 'preferencesDialog.allowWebRequestsPending';
+  const pendingMsg = t(pendingKey);
+  const pendingText = pendingMsg === pendingKey ? 'Waiting for your confirmation in the dialog that just opened\u2026' : pendingMsg;
+
   const handleToggle = async (checked: boolean) => {
+    if (pending) return;
     if (!checked) {
       // Turning off is never gated - apply immediately.
       await requestAllow(false);
@@ -50,7 +56,11 @@ export const PrivacySection: React.FC = () => {
           <input
             type="checkbox"
             checked={allowWebRequests}
-            disabled={pending}
+            // Not `disabled` while the native confirmation is open: a disabled
+            // control drops keyboard focus to <body> and it never comes back.
+            // `aria-busy` + the status line below carry the state instead, and
+            // `handleToggle` ignores clicks until the dialog resolves.
+            aria-busy={pending}
             onChange={(e) => void handleToggle(e.target.checked)}
             className="w-4 h-4 rounded"
             style={{ accentColor: 'var(--theme-accent-primary)' }}
@@ -62,6 +72,15 @@ export const PrivacySection: React.FC = () => {
         </label>
         <p className="text-xs mt-1" style={{ color: 'var(--theme-text-secondary)' }}>
           {t('preferencesDialog.allowWebRequestsDescription')}
+        </p>
+        {/* Always mounted so assistive tech announces the text when it appears. */}
+        <p
+          role="status"
+          className="text-xs mt-1"
+          style={{ color: 'var(--theme-text-secondary)' }}
+          data-testid="privacy-allow-web-requests-status"
+        >
+          {pending ? pendingText : ''}
         </p>
       </div>
 

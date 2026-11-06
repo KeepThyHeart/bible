@@ -2,7 +2,7 @@
  * Online meaning search E2E (task 0190): first-use consent, the stub service,
  * Not now, and the Preferences > Search toggle.
  *
- * NOT RUN by the writer. The shared fixture launches Electron without extra
+ * The shared fixture launches Electron without extra
  * env, so this spec launches its own instance with BIBLE_REMOTE_SEMANTIC_URL
  * pointing at the local bibsearch stub (scripts/bibsearch-stub.mjs). The worker
  * adapts the launch to the fixture if it grows an env option.
@@ -12,6 +12,7 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { pathToFileURL } from 'url';
+import { dismissFirstRunDialog } from '../fixtures/electron.fixture';
 import { _electron as electron, test as base, expect, type ElectronApplication, type Page } from '@playwright/test';
 
 const MAIN_JS_PATH = path.resolve(__dirname, '../../out/main/index.js');
@@ -61,12 +62,8 @@ const test = base.extend<{ stub: Stub; app: ElectronApplication; window: Page }>
   window: async ({ app }, use) => {
     const window = await app.firstWindow();
     await window.waitForSelector('[data-testid="app-loaded"]', { timeout: 30000 });
-    // First-run language dialog is modal; dismiss it as the shared fixture does.
-    const dialog = window.locator('[data-testid="first-run-language-dialog"]');
-    if (await dialog.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await dialog.getByRole('button').last().click({ force: true });
-      await dialog.waitFor({ state: 'hidden', timeout: 10000 }).catch(() => undefined);
-    }
+    // First-run language dialog is modal and can appear late on a cold start: the shared helper waits for it.
+    await dismissFirstRunDialog(window);
     // Fresh user data chains first-run dialogs ("Suggested study content", tour banner...); clear them.
     for (let i = 0; i < 6; i++) {
       const other = window.locator('[role="dialog"]:not([data-testid="remote-consent-dialog"])').first();

@@ -98,7 +98,7 @@ const TopicSearchBar: React.FC<TopicSearchBarProps> = ({
       <input
         ref={inputRef}
         data-testid="topic-search-input"
-        type="text"
+        type="search"
         value={query}
         onChange={handleChange}
         onKeyDown={handleKeyDown}
@@ -142,6 +142,7 @@ const TopicSearchBar: React.FC<TopicSearchBarProps> = ({
                 parentPath={result.parent_path}
                 source={result.source_name}
                 verseCount={result.verse_count}
+                verseCountLabel={result.verse_count === 1 ? t('topicsPane.verseCountOne') : t('topicsPane.verseCount', { count: result.verse_count })}
                 onClick={() => handleSelect(result)}
               />
             </div>

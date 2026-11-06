@@ -95,6 +95,33 @@ describe('XrefWebView', () => {
     await waitFor(() => expect(fn).toHaveBeenLastCalledWith(A, expect.objectContaining({ depth: 3, maxNodes: 60 })));
   });
 
+  it('keeps a stable slider name with the value in aria-valuetext', async () => {
+    setup();
+    await screen.findByRole('button', { name: 'John 3:16' });
+    const slider = screen.getByRole('slider', { name: 'Minimum strength' });
+    expect(slider).toHaveAttribute('aria-valuetext', 'Any');
+    act(() => { fireEvent.change(slider, { target: { value: '4' } }); });
+    expect(screen.getByRole('slider', { name: 'Minimum strength' })).toHaveAttribute('aria-valuetext', '4 of 5 and up');
+  });
+
+  it('the list toggle changes its name without also being a pressed button', async () => {
+    const { user } = setup();
+    await screen.findByRole('button', { name: 'John 3:16' });
+    const btn = screen.getByRole('button', { name: 'Show list' });
+    expect(btn).not.toHaveAttribute('aria-pressed');
+    await user.click(btn);
+    expect(screen.getByRole('button', { name: 'Hide list' })).not.toHaveAttribute('aria-pressed');
+  });
+
+  it('starts at initialDepth and reports depth changes', async () => {
+    const onDepthChange = vi.fn();
+    const { user, fn } = setup({ initialDepth: 3, onDepthChange });
+    await screen.findByRole('button', { name: 'John 3:16' });
+    expect(fn).toHaveBeenLastCalledWith(A, expect.objectContaining({ depth: 3 }));
+    await user.click(screen.getByRole('button', { name: 'Hops: 1' }));
+    expect(onDepthChange).toHaveBeenCalledWith(1);
+  });
+
   it('shows the truncated notice', async () => {
     setup({}, async (a) => makeGraph(a, [B, C], true));
     expect(await screen.findByText('Showing the strongest 2 connections')).toBeInTheDocument();

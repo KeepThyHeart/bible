@@ -19,6 +19,8 @@ import React, { useEffect } from 'react';
 import { useI18n } from '../../contexts/useI18n';
 import { useNetworkStore } from '../../stores/useNetworkStore';
 import { useSearchStore } from '../../stores/useSearchStore';
+import { usePreferencesStore } from '../../stores/usePreferencesStore';
+import type { SearchResultsPlacement } from '../../stores/useLayoutStore';
 import { openModuleManager } from '../../utils/openModuleManager';
 import type { SemanticSource } from '../../services/electronAPI';
 
@@ -33,7 +35,8 @@ export const SearchSection: React.FC = () => {
     void refresh();
   }, [refresh]);
 
-  if (!status) return null;
+  const placementFieldset = <SearchPlacementFieldset />;
+  if (!status) return <div className="space-y-8">{placementFieldset}</div>;
 
   const configured = status.configured === true;
   const current: SemanticSource = status.source ?? (configured ? 'online' : 'offline');
@@ -76,6 +79,7 @@ export const SearchSection: React.FC = () => {
 
   return (
     <div className="space-y-8">
+      {placementFieldset}
       <fieldset>
         <legend className="text-sm font-semibold mb-1" style={{ color: 'var(--theme-text-primary)' }}>
           {t('preferencesDialog.semanticHeading')}
@@ -136,6 +140,57 @@ export const SearchSection: React.FC = () => {
         </div>
       </fieldset>
     </div>
+  );
+};
+
+/**
+ * Where a new search results pane opens (task 0210): below the Bible pane (the
+ * default), one Search tab in the right-hand pane group with a sub-tab per
+ * search, or a full-height column on the right, as on the web app. Applies
+ * when no search tab is open; a pane the user has moved stays where it is.
+ */
+export const SearchPlacementFieldset: React.FC = () => {
+  const { t } = useI18n();
+  const placement = usePreferencesStore((s) => s.searchResultsPlacement);
+  const setPlacement = usePreferencesStore((s) => s.setSearchResultsPlacement);
+
+  const option = (value: SearchResultsPlacement, label: string, help: string) => (
+    <label className="flex items-start gap-2 cursor-pointer" data-testid={`search-placement-${value}-row`}>
+      <input
+        type="radio"
+        name="search-results-placement"
+        value={value}
+        checked={placement === value}
+        onChange={() => setPlacement(value)}
+        className="w-4 h-4 mt-0.5 shrink-0"
+        style={{ accentColor: 'var(--theme-accent-primary)' }}
+        data-testid={`search-placement-${value}`}
+      />
+      <span>
+        <span className="block text-sm font-medium" style={{ color: 'var(--theme-text-primary)' }}>
+          {label}
+        </span>
+        <span className="block text-xs mt-0.5" style={{ color: 'var(--theme-text-secondary)' }}>
+          {help}
+        </span>
+      </span>
+    </label>
+  );
+
+  return (
+    <fieldset data-testid="search-placement">
+      <legend className="text-sm font-semibold mb-1" style={{ color: 'var(--theme-text-primary)' }}>
+        {t('preferencesDialog.searchPlacementHeading')}
+      </legend>
+      <p className="text-xs mb-3" style={{ color: 'var(--theme-text-secondary)' }}>
+        {t('preferencesDialog.searchPlacementIntro')}
+      </p>
+      <div className="space-y-3" role="radiogroup" aria-label={t('preferencesDialog.searchPlacementHeading')}>
+        {option('below', t('preferencesDialog.searchPlacementBelow'), t('preferencesDialog.searchPlacementBelowHelp'))}
+        {option('tab', t('preferencesDialog.searchPlacementTab'), t('preferencesDialog.searchPlacementTabHelp'))}
+        {option('right', t('preferencesDialog.searchPlacementRight'), t('preferencesDialog.searchPlacementRightHelp'))}
+      </div>
+    </fieldset>
   );
 };
 

@@ -463,6 +463,15 @@ describe('CopyDialog', () => {
       expect(previewText(container)).not.toContain('(16)');
     });
 
+    it('names the reference-position select apart from the Reference text box', () => {
+      render(<CopyDialog isOpen={true} onClose={onClose} />);
+      expect(screen.getByRole('textbox', { name: 'Reference' })).toBeTruthy();
+      expect(screen.queryAllByRole('combobox', { name: 'Reference' })).toHaveLength(0);
+      // The test's t() falls back to the key for a key missing from the catalog; the app falls back to
+      // "Reference position".
+      expect(screen.getByRole('combobox', { name: /referencePosition|Reference position/ })).toBeTruthy();
+    });
+
     it('follows the reference-position control', () => {
       const { container } = render(<CopyDialog isOpen={true} onClose={onClose} />);
       setRange(container, 'John 3:16-17');
@@ -638,6 +647,22 @@ describe('CopyDialog', () => {
 
       expect(mockClipboardWrite).not.toHaveBeenCalled();
       expect(mockWriteText).toHaveBeenCalledWith(expect.stringContaining('> For God so loved the world'));
+    });
+
+    it('shows an error and stays open when the browser refuses the clipboard write', async () => {
+      mockClipboardWrite.mockImplementationOnce(() => Promise.reject(new Error('denied')));
+      mockWriteText.mockImplementationOnce(() => Promise.reject(new DOMException('denied', 'NotAllowedError')));
+      const { container } = render(<CopyDialog isOpen={true} onClose={onClose} />);
+      fireEvent.click(container.querySelector('.copy-dialog__copy-btn')!);
+      await tick();
+      await tick();
+
+      expect(container.querySelector('[role="alert"]')).toBeTruthy();
+      expect(onClose).not.toHaveBeenCalled();
+      // And a later successful copy clears it.
+      fireEvent.click(container.querySelector('.copy-dialog__copy-btn')!);
+      await tick();
+      expect(container.querySelector('[role="alert"]')).toBeNull();
     });
 
     it('writes plain text only when the red-letter option is off', async () => {

@@ -11,7 +11,7 @@ import { offlineStore } from '../../stores/offlineStore';
 import { useStore } from '../../hooks/useStore';
 import { formatPassageRef } from '../../constants';
 import { collapseReferencesStructured } from '../../utils/collapseReferences';
-import { parseVerseId } from '../../utils/verseId';
+import { parseVerseId, formatVerseRange } from '../../utils/verseId';
 import type { IBibleDataProvider } from '../../providers/interfaces';
 import { Bdi } from '@bible/ui';
 
@@ -234,6 +234,7 @@ export function StudyCrossRefs({ bibleProvider }: StudyCrossRefsProps) {
           key={`ref-${seg.verseId}`}
           class="study-crossrefs__ref-link"
           href="#"
+          aria-label={formatVerseRange(seg.verseId, endId)}
           onClick={(e) => handleClick(seg.verseId, e as any, endId)}
           onMouseEnter={(e) => handleHover(seg.verseId, e as any)}
           onMouseLeave={handleLeave}

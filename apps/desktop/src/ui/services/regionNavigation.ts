@@ -55,9 +55,12 @@ function regionOf(el: Element | null): HTMLElement | null {
 
 /**
  * `rescue` = focus was lost (not moved by the user): skip the F6 memory (which can
- * hold a stale marker such as a note indicator) and never jump into the search box.
+ * hold a stale marker such as a note indicator), never jump into the search box,
+ * and never scroll - the pane heading sits at the top of the chapter, so focusing
+ * it normally would throw the reader back to verse 1 just because a dialog closed.
  */
 export function focusRegion(region: HTMLElement, rescue = false): void {
+  const focusOptions: FocusOptions | undefined = rescue ? { preventScroll: true } : undefined;
   const remembered = lastFocus.get(region);
   if (!rescue && remembered && remembered.isConnected && region.contains(remembered)) {
     remembered.focus();
@@ -65,7 +68,7 @@ export function focusRegion(region: HTMLElement, rescue = false): void {
   }
   const paneTarget = region.querySelector<HTMLElement>('[data-pane-focus]');
   if (paneTarget) {
-    paneTarget.focus();
+    paneTarget.focus(focusOptions);
     return;
   }
   const kind = region.getAttribute('data-kth-region') ?? (region.matches('nav.app-rail') ? 'rail' : '');
@@ -86,11 +89,11 @@ export function focusRegion(region: HTMLElement, rescue = false): void {
   }
   const first = region.querySelector<HTMLElement>(TABBABLE);
   if (first) {
-    first.focus();
+    first.focus(focusOptions);
     return;
   }
   if (!region.hasAttribute('tabindex')) region.setAttribute('tabindex', '-1');
-  region.focus();
+  region.focus(focusOptions);
 }
 
 export function cycleRegion(dir: 1 | -1, root: ParentNode = document, isVisible?: (el: HTMLElement) => boolean): void {

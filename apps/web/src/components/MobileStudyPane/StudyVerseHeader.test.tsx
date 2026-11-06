@@ -73,7 +73,7 @@ describe('StudyVerseHeader', () => {
 
     it('renders the expand button', () => {
       render(<StudyVerseHeader {...defaultProps()} />);
-      expect(screen.getByText('studyVerseHeader.expand')).toBeTruthy();
+      expect(screen.getByText('studyVerseHeader.showFull')).toBeTruthy();
     });
 
     it('applies pinned class when pinned=true', () => {
@@ -104,7 +104,7 @@ describe('StudyVerseHeader', () => {
 
     it('expands when the expand button is clicked', () => {
       const { container } = render(<StudyVerseHeader {...defaultProps()} />);
-      const expandBtn = screen.getByText('studyVerseHeader.expand');
+      const expandBtn = screen.getByText('studyVerseHeader.showFull');
       fireEvent.click(expandBtn);
       // No longer collapsed
       expect(container.querySelector('.study-verse-header--collapsed')).toBeNull();
@@ -112,6 +112,18 @@ describe('StudyVerseHeader', () => {
   });
 
   // ── Expanded view ───────────────────────────────────────────────────────
+
+  describe('expand toggle accessibility', () => {
+    it('exposes aria-expanded and no parenthesised name, flipping on click', () => {
+      render(<StudyVerseHeader {...defaultProps()} />);
+      const btn = screen.getByRole('button', { name: 'studyVerseHeader.showFull' });
+      expect(btn.getAttribute('aria-expanded')).toBe('false');
+      expect(btn.textContent).not.toMatch(/[()]/);
+      fireEvent.click(btn);
+      const open = screen.getByRole('button', { name: 'studyVerseHeader.showLess' });
+      expect(open.getAttribute('aria-expanded')).toBe('true');
+    });
+  });
 
   describe('expanded view', () => {
     beforeEach(() => {
@@ -126,12 +138,12 @@ describe('StudyVerseHeader', () => {
 
     it('shows collapse button in expanded view', () => {
       render(<StudyVerseHeader {...defaultProps()} />);
-      expect(screen.getByText('studyVerseHeader.collapse')).toBeTruthy();
+      expect(screen.getByText('studyVerseHeader.showLess')).toBeTruthy();
     });
 
     it('collapses when the collapse button is clicked', () => {
       const { container } = render(<StudyVerseHeader {...defaultProps()} />);
-      fireEvent.click(screen.getByText('studyVerseHeader.collapse'));
+      fireEvent.click(screen.getByText('studyVerseHeader.showLess'));
       expect(container.querySelector('.study-verse-header--collapsed')).toBeTruthy();
     });
 

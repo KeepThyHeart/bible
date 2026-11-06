@@ -32,6 +32,26 @@ function newNoteButton(window: Page) {
   return notesPane(window).getByRole('button', { name: 'New Note', exact: true });
 }
 
+/**
+ * Get a Notes pane past its first-run folder setup.
+ *
+ * Every test starts from a wiped `userData`, and since B-010 the default notes
+ * folder lives inside it (it used to be the real ~/Documents/BibleReader, which
+ * existed from earlier runs). So the folder never exists yet, and a freshly
+ * opened Notes pane shows "Set Up Your Notes Folder" instead of its browser.
+ * Accept the default folder, as a first-time reader would. Waits for whichever
+ * of the two the pane settles on, so it is a no-op once setup is done.
+ */
+async function finishNotesSetup(window: Page): Promise<void> {
+  const useFolder = notesPane(window).getByRole('button', { name: 'Use This Folder' });
+  const settled = notesPane(window).locator('.ProseMirror').or(newNoteButton(window)).or(useFolder);
+  await expect(settled.first()).toBeVisible({ timeout: 15000 });
+  if (await useFolder.count() > 0) {
+    await useFolder.click({ force: true });
+    await expect(useFolder).toHaveCount(0, { timeout: 15000 });
+  }
+}
+
 test.describe('User Notes', () => {
   test.describe('Notes Pane', () => {
     test('opens with its file browser', async ({ window }) => {
@@ -41,6 +61,7 @@ test.describe('User Notes', () => {
       // testids, so it is addressed here by the accessible names of its
       // controls.
       await ensurePaneOpen(window, 'Notes');
+      await finishNotesSetup(window);
 
       await expect(newNoteButton(window)).toBeVisible({ timeout: 15000 });
       await expect(notesPane(window).getByRole('button', { name: 'New Folder' })).toBeVisible();
@@ -48,6 +69,7 @@ test.describe('User Notes', () => {
 
     test('shows the Verse Notes folder the app writes verse notes into', async ({ window }) => {
       await ensurePaneOpen(window, 'Notes');
+      await finishNotesSetup(window);
       await expect(newNoteButton(window)).toBeVisible({ timeout: 15000 });
 
       // This folder is created on first run and is where "Add Note" on a verse
@@ -73,7 +95,13 @@ test.describe('User Notes', () => {
 
       await expect(window.locator('.dockview-tab-content', { hasText: 'Notes' }).first())
         .toBeVisible({ timeout: 15000 });
-      await expect(newNoteButton(window)).toBeVisible({ timeout: 15000 });
+      await finishNotesSetup(window);
+      // Add Note carries on into that verse's note once setup is done (the
+      // setup dialog's completion hands over to the pending verse note), so the
+      // pane shows the John 3:1 note in the editor rather than the browser.
+      await expect(notesPane(window).getByRole('navigation', { name: 'Note path' }))
+        .toContainText('John 3:1', { timeout: 15000 });
+      await expect(notesPane(window).locator('.ProseMirror')).toBeVisible({ timeout: 15000 });
     });
 
     test('Add Note twice reuses the pane instead of stacking another', async ({ window }) => {
@@ -87,6 +115,7 @@ test.describe('User Notes', () => {
         await menu.getByRole('menuitem', { name: /^Add Note$/ }).click({ force: true });
         await expect(window.locator('.dockview-tab-content', { hasText: 'Notes' }).first())
           .toBeVisible({ timeout: 15000 });
+        await finishNotesSetup(window);
       }
 
       // A second pane would edit the same files from two places, and the
@@ -104,6 +133,7 @@ test.describe('User Notes', () => {
       // shows no per-verse state to check sync against, and inventing an
       // assertion for one would be worse than saying so.
       await ensurePaneOpen(window, 'Notes');
+      await finishNotesSetup(window);
       await expect(newNoteButton(window)).toBeVisible({ timeout: 15000 });
 
       // Back to the Bible tab to move the selection. Opening Notes puts it in
@@ -248,6 +278,7 @@ test.describe('User Notes', () => {
      */
     async function leaveAndReturn(window: Page): Promise<void> {
       await ensurePaneOpen(window, 'Notes');
+      await finishNotesSetup(window);
       await expect(prayerPane(window)).toHaveCount(0, { timeout: 15000 });
       await navigateToPrayerTab(window);
     }
@@ -352,6 +383,7 @@ test.describe('User Notes', () => {
      */
     async function createNote(window: Page, name: string) {
       await ensurePaneOpen(window, 'Notes');
+      await finishNotesSetup(window);
       const newNote = newNoteButton(window);
       await expect(newNote).toBeVisible({ timeout: 15000 });
       await newNote.click({ force: true });

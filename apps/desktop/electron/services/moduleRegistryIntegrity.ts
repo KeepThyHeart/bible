@@ -93,6 +93,8 @@ export interface RegistryRepairResult {
   userReferencesRemapped: number;
   /** Rows whose database_path was rewritten to forward slashes. */
   pathsNormalized: number;
+  /** Rows whose module_uuid was re-synced to the module file's own uuid. */
+  uuidsSynced: number;
   /** Abbreviations registered more than once for different files (reported only). */
   sharedAbbreviations: string[];
 }
@@ -258,6 +260,60 @@ function findSharedAbbreviations(mainDb: ISql): string[] {
 }
 
 /**
+ * Re-sync `module_metadata.module_uuid` with the module file's own
+ * `module_info.module_uuid`. A file replaced in place (restored backup,
+ * hand-copied file, regenerated dev data) keeps its path but carries a new
+ * uuid; the keyword index is written under the FILE's uuid, so a stale
+ * registry uuid leaves its status "unbuilt" forever. User tables reference
+ * `module_id` (see USER_TABLES_REFERENCING_MODULE_ID), so updating the uuid in
+ * place is safe. `keyword_index` records under the old uuid are deleted (they
+ * describe an index nobody can find any more). Unreadable files and uuids
+ * already held by another row are left alone. Returns the rows changed.
+ */
+export function syncRegistryUuids(mainDb: ISql, readFileUuid: RegistryRepairDeps['readFileUuid']): number {
+  const rows = readRegistry(mainDb);
+  const holders = new Map<string, number>();
+  for (const r of rows) if (r.module_uuid) holders.set(r.module_uuid, r.module_id);
+  const hasKeywordIndex = existingTables(mainDb, ['keyword_index']).length > 0;
+  let changed = 0;
+
+  for (const row of rows) {
+    if (!row.database_path) continue;
+    let fileUuid: string | undefined;
+    try {
+      fileUuid = readFileUuid(row.database_path) || undefined;
+    } catch {
+      fileUuid = undefined;
+    }
+    if (!fileUuid || fileUuid === row.module_uuid) continue;
+
+    const holder = holders.get(fileUuid);
+    if (holder !== undefined && holder !== row.module_id) {
+      log.warn(
+        `[ModuleRegistry] ${row.database_path} (id ${row.module_id}) has uuid ${fileUuid}, ` +
+          `which row ${holder} already holds; left as is`
+      );
+      continue;
+    }
+
+    mainDb.transaction(() => {
+      mainDb.execute('UPDATE module_metadata SET module_uuid = ? WHERE module_id = ?', [fileUuid, row.module_id]);
+      if (hasKeywordIndex && row.module_uuid) {
+        mainDb.execute('DELETE FROM keyword_index WHERE module_uuid = ?', [row.module_uuid]);
+      }
+    });
+    if (row.module_uuid) holders.delete(row.module_uuid);
+    holders.set(fileUuid, row.module_id);
+    changed += 1;
+    log.info(
+      `[ModuleRegistry] ${row.database_path} (id ${row.module_id}): registry uuid ${row.module_uuid ?? '(none)'} ` +
+        `replaced by the file's ${fileUuid}`
+    );
+  }
+  return changed;
+}
+
+/**
  * Check the registry and repair what can be repaired safely. Never throws:
  * each step is its own transaction, so a failure leaves that step undone and
  * start-up continues.
@@ -272,6 +328,7 @@ export async function repairModuleRegistry(mainDb: ISql, deps: RegistryRepairDep
     rowsRemoved: 0,
     userReferencesRemapped: 0,
     pathsNormalized: 0,
+    uuidsSynced: 0,
     sharedAbbreviations: [],
   };
 
@@ -301,16 +358,17 @@ export async function repairModuleRegistry(mainDb: ISql, deps: RegistryRepairDep
     }
 
     result.pathsNormalized = normalizeStoredPaths(mainDb);
+    result.uuidsSynced = syncRegistryUuids(mainDb, deps.readFileUuid);
     result.sharedAbbreviations = findSharedAbbreviations(mainDb);
     for (const shared of result.sharedAbbreviations) {
       log.warn(`[ModuleRegistry] ${shared} is registered for more than one file; left as is`);
     }
 
-    if (result.rowsRemoved > 0 || result.pathsNormalized > 0) {
+    if (result.rowsRemoved > 0 || result.pathsNormalized > 0 || result.uuidsSynced > 0) {
       log.info(
         `[ModuleRegistry] Repaired: ${result.rowsRemoved} duplicate row(s) removed across ` +
           `${result.duplicateFiles} file(s), ${result.userReferencesRemapped} user reference(s) remapped, ` +
-          `${result.pathsNormalized} path(s) normalized`
+          `${result.pathsNormalized} path(s) normalized, ${result.uuidsSynced} uuid(s) synced`
       );
     }
   } catch (error) {

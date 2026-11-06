@@ -93,4 +93,13 @@ describe('XrefCompassView', () => {
     setup({}, async () => { throw new Error('x'); });
     expect(await screen.findByRole('alert')).toHaveTextContent('Could not load the connections');
   });
+
+  it('keeps a stable slider name and reports depth changes', async () => {
+    const onDepthChange = vi.fn();
+    const { user } = setup({ initialDepth: 3, onDepthChange });
+    await screen.findByRole('button', { name: 'John 3:16' });
+    expect(screen.getByRole('slider', { name: 'Minimum strength' })).toHaveAttribute('aria-valuetext', 'Any');
+    await user.click(screen.getByRole('button', { name: 'Hops: 2' }));
+    expect(onDepthChange).toHaveBeenCalledWith(2);
+  });
 });

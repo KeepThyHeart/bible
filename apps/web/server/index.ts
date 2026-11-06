@@ -444,6 +444,8 @@ const routeDeps = {
     showTagGraph: siteConfig.features.tagGraph,
     showTimeline: siteConfig.isEnabled('timeline'),
     // /api/offline (pack builder manifest and files): on with either offline feature flag.
+    // The Presenter's own HTML pages drop their manifest link when the PWA is off, like the app shell.
+    pwaEnabled: () => siteConfig.features.pwa,
     offlineEnabled: () => siteConfig.features.offlineDownloads || siteConfig.features.offlineAutoDownload,
     // The configured default Bible, for routes answering a request that names none.
     defaultModule: siteConfig.ui.defaultModule,

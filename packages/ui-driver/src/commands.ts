@@ -271,11 +271,13 @@ function build(argv: string[]): Command {
       return { name: 'page', index: Number(rest[0]) };
     }
     case 'resize': {
-      if (rest.length === 1) {
-        const s = parseSize(rest[0]);
-        if (s) return { name: 'resize', ...s };
-      } else if (rest.length === 2 && isInt(rest[0]) && isInt(rest[1])) {
-        return { name: 'resize', width: Number(rest[0]), height: Number(rest[1]) };
+      const { pos, f } = parseFlags(rest, { quiet: 'bool' }, u());
+      const q = f.quiet ? { quiet: true } : {};
+      if (pos.length === 1) {
+        const s = parseSize(pos[0]);
+        if (s) return { name: 'resize', ...s, ...q };
+      } else if (pos.length === 2 && isInt(pos[0]) && isInt(pos[1])) {
+        return { name: 'resize', width: Number(pos[0]), height: Number(pos[1]), ...q };
       }
       return fail();
     }
@@ -316,8 +318,8 @@ function build(argv: string[]): Command {
 }
 
 function buildWait(rest: string[], usage: string): Command {
-  const { pos, f } = parseFlags(rest, { timeout: 'int' }, usage);
-  const timeout = typeof f.timeout === 'number' ? { timeout: f.timeout } : {};
+  const { pos, f } = parseFlags(rest, { timeout: 'int', quiet: 'bool' }, usage);
+  const timeout = { ...(typeof f.timeout === 'number' ? { timeout: f.timeout } : {}), ...(f.quiet ? { quiet: true } : {}) };
   const mk = (kind: WaitKind, extra: { text?: string; ref?: string; ms?: number } = {}): Command => ({
     name: 'wait',
     kind,

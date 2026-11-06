@@ -92,6 +92,18 @@ describe('TextSizeButton', () => {
     expect(screen.queryByTestId('text-size-popover-bible')).toBeNull();
   });
 
+  it('keeps focus in the popover when Reset disables itself', () => {
+    settingsStore.setFontSize(30);
+    render(<TextSizeButton target="bible" />);
+    open();
+    const reset = screen.getByText(/^reset$/i) as HTMLButtonElement;
+    reset.focus();
+    fireEvent.click(reset);
+    const popover = screen.getByTestId('text-size-popover-bible');
+    expect(popover.contains(document.activeElement)).toBe(true);
+    expect(document.activeElement).not.toBe(reset);
+  });
+
   it('closes on Escape and returns focus to the button', () => {
     render(<TextSizeButton target="bible" />);
     open();

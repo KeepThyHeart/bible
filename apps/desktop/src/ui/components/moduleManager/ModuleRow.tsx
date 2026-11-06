@@ -93,7 +93,9 @@ export const ModuleTableRow: React.FC<ModuleTableRowProps> = ({
   // A download in progress also disables the action button
   const hasActiveDownload = (activeDownload && activeDownload.status !== 'completed') || !!installJob;
   const actionDisabled = busy || offline || hasActiveDownload;
-  const actionTitle = offline ? td('moduleTable.offlineHint', 'Network access is off') : undefined;
+  const actionTitle = offline
+    ? td('moduleTable.offlineInstallHint', 'Turn on network access to install from the store')
+    : undefined;
 
   return (
     <tr
@@ -199,6 +201,7 @@ export const ModuleTableRow: React.FC<ModuleTableRowProps> = ({
                   onUpdate(row);
                 }}
                 disabled={actionDisabled}
+                aria-disabled={actionDisabled || undefined}
                 title={actionTitle}
                 aria-label={td('moduleTable.updateAria', 'Update {name}', { name: row.name })}
                 className="px-2 py-0.5 text-xs font-medium text-text-on-accent bg-warning rounded hover:bg-warning/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
@@ -218,9 +221,10 @@ export const ModuleTableRow: React.FC<ModuleTableRowProps> = ({
                   onInstall(row);
                 }}
                 disabled={actionDisabled}
+                aria-disabled={actionDisabled || undefined}
                 title={actionTitle}
                 aria-label={td('moduleTable.installAria', 'Install {name}', { name: row.name })}
-                className="px-2 py-0.5 text-xs font-medium text-text-on-accent bg-accent rounded hover:bg-accent-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-2 py-0.5 text-xs font-medium text-text-on-accent bg-accent rounded hover:bg-accent-hover transition-colors disabled:opacity-100 disabled:bg-background-hover disabled:text-text-secondary disabled:hover:bg-background-hover disabled:cursor-not-allowed"
               >
                 {busy ? td('moduleCard.installing', 'Installing...') : td('moduleCard.install', 'Install')}
               </button>

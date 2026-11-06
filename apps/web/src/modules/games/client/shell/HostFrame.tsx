@@ -26,6 +26,7 @@ import type {
 } from '../../shared/protocol.js';
 import type { StreamStatus } from './useRoomStream.js';
 import { gt } from './t.js';
+import { useHeadingFocus } from './useHeadingFocus.js';
 
 export interface HostFrameProps {
   snapshot: ScreenSnapshot;
@@ -93,6 +94,8 @@ export function HostFrame({
   children,
 }: HostFrameProps) {
   const { code, round, totalRounds, paused, phase, phaseEndsAt, settings, players, controller } = snapshot;
+  // The lobby (with the focused Start button) is gone once this frame mounts.
+  const bodyRef = useHeadingFocus<HTMLElement>();
   // A game whose rounds are not questions words the chrome its own way; every
   // word it leaves out is the shell's.
   const chrome: HostChrome = snapshot.chrome ?? {};
@@ -148,7 +151,7 @@ export function HostFrame({
         <TimerBar endsAt={phaseEndsAt} durationMs={snapshot.phaseDurationMs} paused={paused} />
       </header>
 
-      <main class="host-body">
+      <main class="host-body" tabIndex={-1} ref={bodyRef}>
         {children}
         {snapshot.control !== undefined && playing && (
           <button type="button" class="btn-reveal-now" onClick={() => onCommand({ cmd: 'revealNow' })}>

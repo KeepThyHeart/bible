@@ -315,6 +315,23 @@ const BookPane: React.FC<BookPaneProps> = (props) => {
     allTabs.findIndex(tab => tab.type === effectivePane && tab.abbreviation === activeAbbreviation),
   );
 
+  const rootRef = useRef<HTMLDivElement>(null);
+  /*
+    Move focus onto the selected tab of the strip (not the Overview tab), once
+    the render that selects it has committed. Falls back to Overview when no
+    other tab is left.
+  */
+  const focusActiveStripTab = useCallback(() => {
+    window.requestAnimationFrame(() => {
+      const root = rootRef.current;
+      if (!root) return;
+      const active = root.querySelector<HTMLElement>(
+        '[role="tablist"] [role="tab"]:not([data-tabnav-skip])[tabindex="0"]',
+      );
+      (active ?? root.querySelector<HTMLElement>('[data-testid="library-overview-tab"]'))?.focus();
+    });
+  }, []);
+
   /*
     Opening from the Overview shelf. A module that is already a tab is switched
     to rather than reopened: `openBook`/`openDictionary` are themselves
@@ -336,7 +353,10 @@ const BookPane: React.FC<BookPaneProps> = (props) => {
       else openDictionary(abbreviation, name);
     }
     setOverviewActive(false);
-  }, [bookTabs, dictTabs, setBookActiveTab, setDictActiveTab, openBook, openDictionary]);
+    // The shelf unmounts under the focused row; without this focus falls back
+    // to the first tab in the strip (Overview), which is not the one just opened.
+    focusActiveStripTab();
+  }, [bookTabs, dictTabs, setBookActiveTab, setDictActiveTab, openBook, openDictionary, focusActiveStripTab]);
 
   const openBookAbbrs = useMemo(() => new Set(bookTabs.map(tab => tab.abbreviation)), [bookTabs]);
   const openDictAbbrs = useMemo(() => new Set(dictTabs.map(tab => tab.abbreviation)), [dictTabs]);
@@ -433,6 +453,8 @@ const BookPane: React.FC<BookPaneProps> = (props) => {
   // panes can be open in one document, and these ids (used for `aria-labelledby`
   // and the tabpanel `id` below) must stay unique across them.
   const tabIdPrefix = `book-dict-${panelId}`;
+  const overviewTabId = `${tabIdPrefix}-tab-overview`;
+  const overviewPanelId = `${tabIdPrefix}-panel-overview`;
 
   const activeUnifiedTab = allTabs[combinedActiveIndex];
   const paneMenuOptions: PaneMenuOption[] = activeUnifiedTab
@@ -445,7 +467,28 @@ const BookPane: React.FC<BookPaneProps> = (props) => {
     : [];
 
   return (
-    <div className="h-full flex flex-col" data-testid="books-pane" style={{ backgroundColor: 'var(--theme-bg-primary)' }}>
+    <div
+      ref={rootRef}
+      className="h-full flex flex-col"
+      data-testid="books-pane"
+      style={{ backgroundColor: 'var(--theme-bg-primary)' }}
+      onKeyDown={(e) => {
+        // Delete on a focused module tab closes it, like its close button
+        // (the Overview tab is not one of them: its id has no numeric index).
+        if (e.key !== 'Delete' || e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;
+        const target = e.target as HTMLElement | null;
+        if (target?.getAttribute('role') !== 'tab') return;
+        const prefix = `${tabIdPrefix}-tab-`;
+        if (!target.id.startsWith(prefix)) return;
+        const index = Number(target.id.slice(prefix.length));
+        const tab = Number.isInteger(index) ? allTabs[index] : undefined;
+        if (!tab) return;
+        e.preventDefault();
+        if (tab.type === 'book') closeBook(tab.abbreviation);
+        else closeDictionary(tab.abbreviation);
+        focusActiveStripTab();
+      }}
+    >
       {/* Tab Bar - unified books + dictionaries */}
       <DraggableTabBar
         tabs={allTabs}
@@ -563,8 +606,12 @@ const BookPane: React.FC<BookPaneProps> = (props) => {
         prefixContent={
           <button
             type="button"
+            role="tab"
+            id={overviewTabId}
+            aria-selected={overviewActive}
+            aria-controls={overviewActive ? overviewPanelId : undefined}
+            data-tabnav-skip=""
             data-testid="library-overview-tab"
-            aria-pressed={overviewActive}
             onClick={() => {
               shelfChosenByUser.current = true;
               setOverviewActive(prev => !prev);
@@ -604,7 +651,12 @@ const BookPane: React.FC<BookPaneProps> = (props) => {
       {/* Overview shelf - takes the whole content area. Lists only this pane's
           own kind of module. */}
       {overviewActive && (
-        <div className="flex-1 overflow-hidden">
+        <div
+          className="flex-1 overflow-hidden"
+          id={overviewPanelId}
+          role="tabpanel"
+          aria-labelledby={overviewTabId}
+        >
           <LibraryHome
             kind={paneKind}
             books={availableBooks}

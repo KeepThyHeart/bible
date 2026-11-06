@@ -11,11 +11,12 @@
  */
 
 import { Router } from 'express';
-import { existsSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
 import { registerRoute } from '../../routes/routeRegistry.js';
+import { pwaShell } from '../../middleware/serviceWorker.js';
 
-function pageRoute(file: string, missing: string) {
+function pageRoute(file: string, missing: string, pwaEnabled: () => boolean) {
   return (_req: unknown, res: import('express').Response): void => {
     if (!existsSync(file)) {
       res.status(404).json({ error: missing });
@@ -23,7 +24,8 @@ function pageRoute(file: string, missing: string) {
     }
     // It names hashed asset files, so a stale copy pins this screen to a stale build.
     res.set('Cache-Control', 'no-store');
-    res.sendFile(file);
+    // Without the PWA there is no manifest to link: a browser that follows the link gets a 404.
+    res.type('html').send(pwaShell(readFileSync(file, 'utf-8'), pwaEnabled()));
   };
 }
 
@@ -32,9 +34,10 @@ registerRoute({
   createRoutes: (deps) => {
     const router = Router();
     const clientDir = deps.extra.clientDir as string | undefined;
+    const pwaEnabled = (deps.extra.pwaEnabled as (() => boolean) | undefined) ?? (() => false);
     if (!clientDir || !existsSync(clientDir)) return router;
-    router.get('/v/:joinCode', pageRoute(join(clientDir, 'present', 'viewer.html'), 'Projection viewer is not built'));
-    router.get('/solo', pageRoute(join(clientDir, 'present', 'solo.html'), 'The solo viewer is not built'));
+    router.get('/v/:joinCode', pageRoute(join(clientDir, 'present', 'viewer.html'), 'Projection viewer is not built', pwaEnabled));
+    router.get('/solo', pageRoute(join(clientDir, 'present', 'solo.html'), 'The solo viewer is not built', pwaEnabled));
     return router;
   },
 });
@@ -44,8 +47,9 @@ registerRoute({
   createRoutes: (deps) => {
     const router = Router();
     const clientDir = deps.extra.clientDir as string | undefined;
+    const pwaEnabled = (deps.extra.pwaEnabled as (() => boolean) | undefined) ?? (() => false);
     if (!clientDir || !existsSync(clientDir)) return router;
-    router.get('/', pageRoute(join(clientDir, 'present', 'watch.html'), 'The join page is not built'));
+    router.get('/', pageRoute(join(clientDir, 'present', 'watch.html'), 'The join page is not built', pwaEnabled));
     return router;
   },
 });

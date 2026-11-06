@@ -36,6 +36,10 @@
   }
 
   &__votd {
+    // A real <button> (keyboard reachable): reset the control chrome so it still reads as a card.
+    display: block;
+    font: inherit;
+    color: inherit;
     padding: 20px 24px;
     border: 1px solid var(--border-color);
     border-radius: 12px;
@@ -76,6 +80,7 @@
   }
 
   &__votd-label {
+    display: block;
     font-size: 0.8em;
     font-weight: 600;
     text-transform: uppercase;
@@ -85,6 +90,7 @@
   }
 
   &__votd-text {
+    display: block;
     font-family: Georgia, serif;
     font-size: 1.1em;
     line-height: 1.7;
@@ -93,6 +99,7 @@
   }
 
   &__votd-ref {
+    display: block;
     font-size: 0.9em;
     font-weight: 500;
     color: var(--text-secondary);

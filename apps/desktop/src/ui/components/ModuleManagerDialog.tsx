@@ -151,6 +151,7 @@ const ModuleManagerDialog: React.FC<ModuleManagerDialogProps> = ({ onClose, init
   const { t, localizer } = useI18n();
   const td = useTd();
   const dialogRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const appliedInitialFilterRef = useRef(false);
   const [searchInput, setSearchInput] = useState('');
   // The selected row is local to the dialog (by abbreviation, the row key) -
@@ -338,6 +339,20 @@ const ModuleManagerDialog: React.FC<ModuleManagerDialogProps> = ({ onClose, init
     if (!node) return;
     const handle = activateFocusTrap(node);
     return () => handle.release();
+  }, [isInitialized]);
+
+  // Initial focus: the search field. The trap above parks focus on the first
+  // focusable element (Close) in a requestAnimationFrame of its own; this one is
+  // registered after it, so it runs after it and the search field keeps focus.
+  useEffect(() => {
+    const raf = window.requestAnimationFrame(() => {
+      const node = dialogRef.current;
+      const search = searchInputRef.current;
+      if (search && node?.contains(search) && node.contains(document.activeElement)) {
+        search.focus();
+      }
+    });
+    return () => window.cancelAnimationFrame(raf);
   }, [isInitialized]);
 
   // Handle click outside to close
@@ -788,6 +803,7 @@ const ModuleManagerDialog: React.FC<ModuleManagerDialogProps> = ({ onClose, init
             {/* Search */}
             <div className="flex-1 relative">
               <input
+                ref={searchInputRef}
                 type="text"
                 value={searchInput}
                 onChange={handleSearchChange}

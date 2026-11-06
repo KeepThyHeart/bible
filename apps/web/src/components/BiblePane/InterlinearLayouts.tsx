@@ -11,12 +11,15 @@
 
 import { searchStore } from '../../stores/searchStore';
 import { commentaryStore } from '../../stores/commentaryStore';
+import { openPane } from '../../host/paneRequests';
+import { usePaneAvailable } from '../../modules/host/usePaneModes';
 import {
   cellStrongsNumbers,
   wordRenderAttrs,
   type InterlinearCell,
   type ResolvedVerse,
 } from '@bible/core/browser';
+import { Fragment } from 'preact';
 import type { JSX } from 'preact';
 import type { StrongsEntryData } from '../../types';
 
@@ -71,35 +74,38 @@ function CellEnglish({ cell, resolved }: { cell: InterlinearCell; resolved?: Res
   );
 }
 
-/** One Strong's number, opening the dictionary definition on click. */
+/** One Strong's number, a real button opening the dictionary definition. */
 function StrongsChip({ strongsNumber, title, onStrongsClick, onStrongsHover, onStrongsLeave }: {
   strongsNumber: string;
   title?: string;
 } & StrongsHandlers) {
+  const number = plainStrongs(strongsNumber);
   return (
-    <sup
+    <button
+      type="button"
       class="verse__strongs-link"
-      title={title || strongsNumber}
+      title={title || number}
+      aria-label={`Strong's ${number}`}
       onClick={(e: MouseEvent) => {
         e.stopPropagation();
         onStrongsClick?.(strongsNumber);
       }}
       onMouseEnter={(e: MouseEvent) => {
-        const rect = (e.target as HTMLElement).getBoundingClientRect();
+        const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
         onStrongsHover?.(strongsNumber, rect);
       }}
       onMouseLeave={() => onStrongsLeave?.()}
     >
-      {strongsNumber}
-    </sup>
+      {number}
+    </button>
   );
 }
 
 /**
- * Original-language word and transliteration, wired to the same dictionary
- * lookup as the Strong's chip. Left inert, the Hebrew or Greek word — the one
- * thing a reader is most likely to click in an interlinear — does nothing at
- * all.
+ * Original-language word and transliteration. The word is a real button wired to the same
+ * dictionary lookup as the Strong's chip (left inert, the one thing a reader is most likely to
+ * click in an interlinear would do nothing); the transliteration is plain text beside it, since a
+ * second button for the same lookup would only add a Tab stop.
  */
 function CellOriginal({ cell, strongsNumber, classPrefix, onStrongsClick, onStrongsHover, onStrongsLeave }: {
   cell: InterlinearCell;
@@ -111,31 +117,32 @@ function CellOriginal({ cell, strongsNumber, classPrefix, onStrongsClick, onStro
   if (!source) return null;
 
   const clickable = Boolean(strongsNumber);
-  const handlers = clickable ? {
-    onClick: (e: MouseEvent) => {
-      e.stopPropagation();
-      onStrongsClick?.(strongsNumber!);
-    },
-    onMouseEnter: (e: MouseEvent) => {
-      const rect = (e.target as HTMLElement).getBoundingClientRect();
-      onStrongsHover?.(strongsNumber!, rect);
-    },
-    onMouseLeave: () => onStrongsLeave?.(),
-  } : {};
-
   return (
     <>
-      {source.originalWord && (
-        <span
-          class={`${classPrefix}-original${clickable ? ` ${classPrefix}-original--clickable` : ''}`}
-          {...handlers}
-        >{source.originalWord}</span>
+      {source.originalWord && clickable && (
+        <button
+          type="button"
+          class={`${classPrefix}-original ${classPrefix}-original--clickable`}
+          aria-label={`${source.originalWord}, ${plainStrongs(strongsNumber!)}`}
+          onClick={(e: MouseEvent) => {
+            e.stopPropagation();
+            onStrongsClick?.(strongsNumber!);
+          }}
+          onMouseEnter={(e: MouseEvent) => {
+            const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+            onStrongsHover?.(strongsNumber!, rect);
+          }}
+          onMouseLeave={() => onStrongsLeave?.()}
+        >{source.originalWord}</button>
+      )}
+      {source.originalWord && !clickable && (
+        <span class={`${classPrefix}-original`}>{source.originalWord}</span>
       )}
       {source.transliteration && (
-        <span
-          class={`${classPrefix}-translit${clickable ? ` ${classPrefix}-translit--clickable` : ''}`}
-          {...handlers}
-        >{source.transliteration}</span>
+        <>
+          {source.originalWord ? ' ' : ''}
+          <span class={`${classPrefix}-translit`}>{source.transliteration}</span>
+        </>
       )}
     </>
   );
@@ -153,24 +160,73 @@ function strongsTitle(strongsNumber: string, entries: Record<string, StrongsEntr
   return entries?.[strongsNumber]?.briefMeaning || strongsNumber;
 }
 
+/** A cell's Strong's numbers with padded duplicates ("H05175" beside "H5175") collapsed. */
+function uniqueStrongs(cell: InterlinearCell): string[] {
+  const seen = new Set<string>();
+  return cellStrongsNumbers(cell).filter((n) => {
+    const key = plainStrongs(n).toUpperCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+/** `H07225` -> `H7225`: the number as a reader types it (the data pads to five digits). */
+function plainStrongs(strongsNumber: string): string {
+  return strongsNumber.replace(/^([GH])0+(?=\d)/i, '$1');
+}
+
+/**
+ * The English of a cell. With a Strong's number it is a button (keyboard reachable) named after the
+ * word and its number: it opens Word study when that pane exists, else searches the number.
+ */
+function CellGloss({ cell, primary, resolved, className = 'verse__interlinear-gloss' }: {
+  cell: InterlinearCell;
+  primary: string | undefined;
+  resolved?: ResolvedVerse | null;
+  className?: string;
+}) {
+  const wordStudyAvailable = usePaneAvailable('wordStudy');
+  if (!primary) {
+    return <span class={className}><CellEnglish cell={cell} resolved={resolved} /></span>;
+  }
+  const number = plainStrongs(primary);
+  // The gloss can end in the verse's own punctuation ("the world,"): drop it before ", G3588".
+  const english = cell.englishWords.map((w) => w.displayText).join(' ').replace(/[\s.,;:!?]+$/, '');
+  return (
+    <button
+      type="button"
+      class={`${className} ${className}--clickable`}
+      aria-label={english ? `${english}, ${number}` : number}
+      title={wordStudyAvailable ? `Word study ${number}` : `Search ${number}`}
+      onClick={(e: MouseEvent) => {
+        e.stopPropagation();
+        if (wordStudyAvailable) {
+          openPane('wordStudy', { strongs: number });
+        } else {
+          searchStore.performSearch(number);
+          commentaryStore.setRightPaneMode('search');
+        }
+      }}
+    ><CellEnglish cell={cell} resolved={resolved} /></button>
+  );
+}
+
 /** One column per cell: English on top, then original language and Strong's. */
 export function StackedInterlinear({ cells, resolved, strongsEntries, onStrongsClick, onStrongsHover, onStrongsLeave }: LayoutProps) {
   return (
     <div class="verse__body verse__body--interlinear">
-      {cells.map(cell => {
-        const strongs = cellStrongsNumbers(cell);
+      {cells.map((cell, index) => {
+        const strongs = uniqueStrongs(cell);
         const primary = strongs[0];
+        // Whitespace between flex items is not painted, but it keeps the verse's text content
+        // and accessible name spaced ("called to be an", not "calledto bean").
         return (
-          <span key={cell.wordStart} class="verse__interlinear-word">
-            <span
-              class={`verse__interlinear-gloss${primary ? ' verse__interlinear-gloss--clickable' : ''}`}
-              onClick={primary ? (e: MouseEvent) => {
-                e.stopPropagation();
-                searchStore.performSearch(primary);
-                commentaryStore.setRightPaneMode('search');
-              } : undefined}
-              title={primary ? `Search ${primary}` : undefined}
-            ><CellEnglish cell={cell} resolved={resolved} /></span>
+          <Fragment key={cell.wordStart}>
+          {index > 0 ? ' ' : ''}
+          <span class="verse__interlinear-word">
+            <CellGloss cell={cell} primary={primary} resolved={resolved} />
+            {cell.source?.originalWord || cell.source?.transliteration ? ' ' : ''}
             <CellOriginal
               cell={cell}
               strongsNumber={primary}
@@ -180,16 +236,19 @@ export function StackedInterlinear({ cells, resolved, strongsEntries, onStrongsC
               onStrongsLeave={onStrongsLeave}
             />
             {strongs.map((number, i) => (
-              <StrongsChip
-                key={`${number}-${i}`}
-                strongsNumber={number}
-                title={strongsTitle(number, strongsEntries)}
-                onStrongsClick={onStrongsClick}
-                onStrongsHover={onStrongsHover}
-                onStrongsLeave={onStrongsLeave}
-              />
+              <Fragment key={`${number}-${i}`}>
+                {' '}
+                <StrongsChip
+                  strongsNumber={number}
+                  title={strongsTitle(number, strongsEntries)}
+                  onStrongsClick={onStrongsClick}
+                  onStrongsHover={onStrongsHover}
+                  onStrongsLeave={onStrongsLeave}
+                />
+              </Fragment>
             ))}
           </span>
+          </Fragment>
         );
       })}
     </div>
@@ -204,7 +263,7 @@ export function InlineInterlinear({ cells, resolved, strongsEntries, onStrongsCl
   return (
     <div class="verse__body verse__body--interlinear-inline">
       {cells.map((cell, index) => {
-        const strongs = cellStrongsNumbers(cell);
+        const strongs = uniqueStrongs(cell);
         const hasAnnotation = strongs.length > 0 || Boolean(cell.source?.originalWord);
         return (
           <span key={cell.wordStart} class="verse__interlinear-inline-word">
@@ -222,14 +281,16 @@ export function InlineInterlinear({ cells, resolved, strongsEntries, onStrongsCl
                   onStrongsLeave={onStrongsLeave}
                 />
                 {strongs.map((number, i) => (
-                  <StrongsChip
-                    key={`${number}-${i}`}
-                    strongsNumber={number}
-                    title={strongsTitle(number, strongsEntries)}
-                    onStrongsClick={onStrongsClick}
-                    onStrongsHover={onStrongsHover}
-                    onStrongsLeave={onStrongsLeave}
-                  />
+                  <Fragment key={`${number}-${i}`}>
+                    {i > 0 || cell.source?.originalWord || cell.source?.transliteration ? ' ' : ''}
+                    <StrongsChip
+                      strongsNumber={number}
+                      title={strongsTitle(number, strongsEntries)}
+                      onStrongsClick={onStrongsClick}
+                      onStrongsHover={onStrongsHover}
+                      onStrongsLeave={onStrongsLeave}
+                    />
+                  </Fragment>
                 ))}
                 {')'}
               </span>

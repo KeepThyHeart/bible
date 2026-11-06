@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { whenContextService } from '../services/WhenContextService';
 import { preferencesChanged } from '../modules/host/readerHooks';
 import { useTextSettingsStore } from './useTextSettingsStore';
+import type { SearchResultsPlacement } from './useLayoutStore';
 import type { AppSwitcherMode } from '@bible/core/browser';
 import { THEME_TOKENS, isValidThemeId, type ThemeId } from '../styles/themeTokens';
 
@@ -153,6 +154,14 @@ interface PreferencesState {
   // AdvancedPaneManagerGate.ts for the pure gate logic.
   advancedPaneManagerEnabled: boolean;
 
+  /**
+   * Where a new search results pane opens when no search tab is open (task
+   * 0210): `below` the Bible pane (default), one Search `tab` in the
+   * right-hand pane group with a sub-tab per search, or a full-height column
+   * on the `right`. A pane the user has moved stays where they put it.
+   */
+  searchResultsPlacement: SearchResultsPlacement;
+
   /** Hour (0-12) at which a new reading-plan day begins (task 0073). */
   readingPlanRolloverHour: number;
   /** Show reading streaks in reading plans (task 0073). */
@@ -170,6 +179,7 @@ interface PreferencesState {
   setGlobalFontScale: (scale: number) => void;
   setUiControlFontSize: (size: number) => void;
   setAdvancedPaneManagerEnabled: (enabled: boolean) => void;
+  setSearchResultsPlacement: (placement: SearchResultsPlacement) => void;
   setReadingPlanRolloverHour: (hour: number) => void;
   setReadingPlanShowStreak: (show: boolean) => void;
   setAppSwitcher: (mode: AppSwitcherMode) => void;
@@ -190,6 +200,7 @@ interface PreferencesState {
     uiControlFontSize?: number;
     typography?: Partial<TypographyPrefs>;
     advancedPaneManagerEnabled?: boolean;
+    searchResultsPlacement?: unknown;
     readingPlanRolloverHour?: number;
     readingPlanShowStreak?: boolean;
     appSwitcher?: unknown;
@@ -202,12 +213,18 @@ interface PreferencesState {
     uiControlFontSize: number;
     typography: TypographyPrefs;
     advancedPaneManagerEnabled: boolean;
+    searchResultsPlacement: SearchResultsPlacement;
     readingPlanRolloverHour: number;
     readingPlanShowStreak: boolean;
     appSwitcher: AppSwitcherMode;
     appOrder: string[];
     appHidden: string[];
   };
+}
+
+/** Anything but `tab` or `right` (a missing, old or hand-edited value) means the default, `below`. */
+export function sanitizeSearchResultsPlacement(raw: unknown): SearchResultsPlacement {
+  return raw === 'right' || raw === 'tab' ? raw : 'below';
 }
 
 /** Keep only distinct, non-empty string ids. */
@@ -392,6 +409,7 @@ export const usePreferencesStore = create<PreferencesState>((set, get) => ({
   uiControlFontSize: 14,
   typography: { ...DEFAULT_TYPOGRAPHY },
   advancedPaneManagerEnabled: false,
+  searchResultsPlacement: 'below',
   readingPlanRolloverHour: 3,
   readingPlanShowStreak: false,
   appSwitcher: 'auto',
@@ -419,6 +437,11 @@ export const usePreferencesStore = create<PreferencesState>((set, get) => ({
 
   setAdvancedPaneManagerEnabled: (enabled: boolean) => {
     set({ advancedPaneManagerEnabled: enabled });
+    markSessionDirty();
+  },
+
+  setSearchResultsPlacement: (placement: SearchResultsPlacement) => {
+    set({ searchResultsPlacement: sanitizeSearchResultsPlacement(placement) });
     markSessionDirty();
   },
 
@@ -505,13 +528,14 @@ export const usePreferencesStore = create<PreferencesState>((set, get) => ({
       : 3;
     const readingPlanShowStreak = typeof data.readingPlanShowStreak === 'boolean' ? data.readingPlanShowStreak : false;
 
+    const searchResultsPlacement = sanitizeSearchResultsPlacement(data.searchResultsPlacement);
     const appSwitcher = sanitizeAppSwitcher(data.appSwitcher);
     const appOrder = sanitizeIdList(data.appOrder);
     const appHidden = sanitizeIdList(data.appHidden);
 
     set({
       theme, globalFontScale, uiControlFontSize, typography, advancedPaneManagerEnabled,
-      readingPlanRolloverHour, readingPlanShowStreak, appSwitcher, appOrder, appHidden,
+      searchResultsPlacement, readingPlanRolloverHour, readingPlanShowStreak, appSwitcher, appOrder, appHidden,
     });
     applyThemeToDOM(theme);
     notifyMainOfTheme(theme);
@@ -523,11 +547,11 @@ export const usePreferencesStore = create<PreferencesState>((set, get) => ({
   getSessionData: () => {
     const {
       theme, globalFontScale, uiControlFontSize, typography, advancedPaneManagerEnabled,
-      readingPlanRolloverHour, readingPlanShowStreak, appSwitcher, appOrder, appHidden,
+      searchResultsPlacement, readingPlanRolloverHour, readingPlanShowStreak, appSwitcher, appOrder, appHidden,
     } = get();
     return {
       theme, globalFontScale, uiControlFontSize, typography, advancedPaneManagerEnabled,
-      readingPlanRolloverHour, readingPlanShowStreak, appSwitcher, appOrder, appHidden,
+      searchResultsPlacement, readingPlanRolloverHour, readingPlanShowStreak, appSwitcher, appOrder, appHidden,
     };
   }
 }));

@@ -4,7 +4,6 @@ import { useI18n } from '../contexts/useI18n';
 import { describeReferenceProblem, checkChapterVerse, type ReferenceProblem } from '../services/referenceProblem';
 import { useSearchStore, normalizeSearchQuery } from '../stores/useSearchStore';
 import { useBibleStore } from '../stores/useBibleStore';
-import { useLayoutStore } from '../stores/useLayoutStore';
 import { syncPanesWithVerse } from '../stores/syncPanesWithVerse';
 import { useCommands } from '../contexts/useCommands';
 import { useWhenContext } from '../contexts/useWhenContext';
@@ -18,6 +17,8 @@ import type { CommandQueryResult } from '../types/Command';
 import TopSearchBarDropdown from './TopSearchBarDropdown';
 import LiveSearchSuggestions from './LiveSearchSuggestions';
 import { focusRegion } from '../services/regionNavigation';
+import { useLayoutStore } from '../stores/useLayoutStore';
+import { currentOs } from '../utils/platformLabels';
 
 /**
  * Focus-return rule (B-113, see services/regionNavigation.ts): leaving the
@@ -32,7 +33,11 @@ function focusAfterSearch(kind: 'bible' | 'results' | 'back'): void {
     if (active && active !== document.body && !active.closest('header') && !active.closest('[data-kth-region="pane"]')) return;
     let target: HTMLElement | null = null;
     if (kind === 'results') {
-      target = document.querySelector<HTMLElement>('[data-tour-pane="search"] [data-pane-focus]');
+      // The active search tab's own pane first: with several search tabs, more than one can be on screen.
+      const sessionId = useSearchStore.getState().activeSessionId; // allow-getstate: focus helper outside render
+      target =
+        (sessionId && document.querySelector<HTMLElement>(`[data-search-session="${sessionId}"] [data-pane-focus]`)) ||
+        document.querySelector<HTMLElement>('[data-tour-pane="search"] [data-pane-focus]');
       // The results panel opens a moment after the search resolves.
       if (!target && attempt < 30) {
         window.setTimeout(() => run(attempt + 1), 100);
@@ -389,9 +394,9 @@ const TopSearchBar = forwardRef<TopSearchBarHandle>(function TopSearchBar(_props
       console.error('Error navigating to reference:', err, target);
     }
 
-    // Jumping to a typed reference ends the search: don't leave an empty results pane open.
-    // allow-getstate: event handler - imperative action, no subscription needed
-    useLayoutStore.getState().closeSearchResultsPanels();
+    // Jumping to a typed reference ends the active tab's search; the empty-pane
+    // invariant (searchPanelInvariant.ts) then closes that tab, and only that
+    // one - other search tabs keep their results (task 0210).
     clearSearch();
     setIsFocused(false);
     inputRef.current?.blur();
@@ -428,12 +433,15 @@ const TopSearchBar = forwardRef<TopSearchBarHandle>(function TopSearchBar(_props
   // the text that was classified is the text that is searched - re-reading
   // the store would classify a `?`-prefixed query stripped but search it with
   // the `?` still on.
-  const handleSearch = useCallback(async (rawQuery?: string) => {
+  // `newTab` (Ctrl+Enter, Cmd+Enter on macOS) opens the results in a new search
+  // tab; plain Enter replaces the active tab's search (task 0210).
+  const handleSearch = useCallback(async (rawQuery?: string, newTab = false) => {
     const source = stripBidiControls(rawQuery ?? query);
     const stripped = source.startsWith('?') ? source.slice(1).trim() : source.trim();
     if (!stripped) return;
 
-    await performSearch(stripped);
+    if (newTab) await performSearch(stripped, { newTab: true });
+    else await performSearch(stripped);
     setIsFocused(false);
     inputRef.current?.blur();
     focusAfterSearch('results');
@@ -488,10 +496,12 @@ const TopSearchBar = forwardRef<TopSearchBarHandle>(function TopSearchBar(_props
   // Effective item count for arrow-key navigation
   const itemCount = useMemo(() => {
     if (mode === 'command') return matchedCommands.length;
-    if (mode === 'reference') return 1;
+    // The reference hint only renders for text that parses; "Zzz 99" is
+    // classified as a reference attempt but has no option to offer.
+    if (mode === 'reference') return referenceText && referenceTarget ? 1 : 0;
     if (showingSearchSuggestions) return liveSuggestions.length;
     return 0;
-  }, [mode, matchedCommands.length, showingSearchSuggestions, liveSuggestions.length]);
+  }, [mode, matchedCommands.length, showingSearchSuggestions, liveSuggestions.length, referenceText, referenceTarget]);
 
   // The listbox is in the DOM only when the dropdown is up and no error panel
   // replaced it (see the render below); combobox state must match that.
@@ -515,6 +525,10 @@ const TopSearchBar = forwardRef<TopSearchBarHandle>(function TopSearchBar(_props
           : matchedCommands[0];
         if (target) {
           handleExecuteCommand(target.id);
+        } else {
+          // Nothing to run ("/" with no extensions installed, or a prefix nothing matches):
+          // say so rather than leaving Enter silent.
+          useSearchStore.setState({ error: t('searchBar.commandMode.empty') });
         }
       } else if (liveMode === 'reference') {
         // A suggestion fetch may have been armed while the string was still a
@@ -527,6 +541,13 @@ const TopSearchBar = forwardRef<TopSearchBarHandle>(function TopSearchBar(_props
         else {
           const problem = describeReferenceProblem(liveQuery);
           if (problem) reportReferenceProblem(problem);
+          else {
+            // Looks like "<name> <number>" but names no book ("Zzz 99"): say so
+            // instead of silently doing nothing.
+            useSearchStore.setState({
+              error: t('liveSearchSuggestions.noResults', { query: liveQuery.trim() }),
+            });
+          }
         }
       } else if (showingSearchSuggestions && selectedIndex >= 0 && selectedIndex < liveSuggestions.length) {
         handleSelectSuggestion(liveSuggestions[selectedIndex]);
@@ -536,12 +557,22 @@ const TopSearchBar = forwardRef<TopSearchBarHandle>(function TopSearchBar(_props
           cancelLiveSearch();
           reportReferenceProblem(problem);
         } else {
-          handleSearch(liveQuery);
+          handleSearch(liveQuery, e.ctrlKey || e.metaKey);
         }
       }
     } else if (e.key === 'Escape') {
       e.preventDefault();
-      clearSearch();
+      // With search tabs, Esc over a draft gives the box back the active
+      // tab's query instead of closing that tab; Esc again (box matching the
+      // tab) ends its search as before (task 0210).
+      if (
+        resultsForQuery.trim() &&
+        normalizeSearchQuery(resolveLiveQuery()) !== normalizeSearchQuery(resultsForQuery)
+      ) {
+        setQuery(resultsForQuery);
+      } else {
+        clearSearch();
+      }
       inputRef.current?.blur();
       // B-047: blur alone drops focus to <body>. Give it back to where it was
       // (or, failing that, the selected tab) so keyboard users keep their place.
@@ -568,8 +599,8 @@ const TopSearchBar = forwardRef<TopSearchBarHandle>(function TopSearchBar(_props
   }, [
     mode, selectedIndex, matchedCommands, liveSuggestions, itemCount,
     showingSearchSuggestions, handleExecuteCommand, handleReferenceNavigation,
-    handleSelectSuggestion, handleSearch, handleTabAutocomplete, clearSearch,
-    resolveLiveQuery, cancelLiveSearch, reportReferenceProblem,
+    handleSelectSuggestion, handleSearch, handleTabAutocomplete, clearSearch, setQuery, resultsForQuery,
+    resolveLiveQuery, cancelLiveSearch, reportReferenceProblem, t,
   ]);
 
   // --------------------------------------------------------------------------
@@ -593,8 +624,16 @@ const TopSearchBar = forwardRef<TopSearchBarHandle>(function TopSearchBar(_props
     }
   }, []);
 
+  // The timer is cleared on unmount so a blur just before the bar goes away
+  // never updates an unmounted component.
+  const blurTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => {
+    if (blurTimerRef.current !== null) clearTimeout(blurTimerRef.current);
+  }, []);
   const handleBlur = useCallback(() => {
-    setTimeout(() => {
+    if (blurTimerRef.current !== null) clearTimeout(blurTimerRef.current);
+    blurTimerRef.current = setTimeout(() => {
+      blurTimerRef.current = null;
       setIsFocused(false);
     }, 200);
   }, []);
@@ -746,7 +785,15 @@ const TopSearchBar = forwardRef<TopSearchBarHandle>(function TopSearchBar(_props
               onClick={(e) => {
                 e.preventDefault();
                 clearSearch();
-                inputRef.current?.focus();
+                const input = inputRef.current;
+                input?.focus();
+                // The button unmounts with the text. If anything (the focus
+                // rescue, a re-render) moves focus off the box in the meantime,
+                // put it back - "Clear" should leave the caret where typing
+                // continues, never on an unrelated header button.
+                requestAnimationFrame(() => {
+                  if (input && input.isConnected && document.activeElement !== input) input.focus();
+                });
               }}
               className="p-1 hover:bg-background-active rounded transition-colors"
               title={t('searchBar.clearTitle')}
@@ -804,7 +851,7 @@ const TopSearchBar = forwardRef<TopSearchBarHandle>(function TopSearchBar(_props
           dropdown and the live-search suggestions, which drop from this very
           input and never had the problem. */}
       {error && (
-        <div className="absolute top-full mt-1 w-full bg-surface-elevated border border-danger-border text-danger-text shadow-lg z-50 px-3 py-2 rounded text-sm">
+        <div role="alert" className="absolute top-full mt-1 w-full bg-surface-elevated border border-danger-border text-danger-text shadow-lg z-50 px-3 py-2 rounded text-sm">
           {error}
         </div>
       )}
@@ -850,6 +897,11 @@ const TopSearchBar = forwardRef<TopSearchBarHandle>(function TopSearchBar(_props
                 <span>
                   {tElements(t, 'searchBar.hintSearch', {
                     key: <kbd dir="ltr" className="px-1.5 py-0.5 bg-surface border border-accent-soft rounded text-xs font-mono">{t('searchBar.enterKey')}</kbd>,
+                  })}
+                </span>
+                <span>
+                  {tElements(t, 'searchBar.hintNewTab', {
+                    key: <kbd dir="ltr" className="px-1.5 py-0.5 bg-surface border border-accent-soft rounded text-xs font-mono">{t(currentOs() === 'mac' ? 'searchBar.newTabKeyMac' : 'searchBar.newTabKey')}</kbd>,
                   })}
                 </span>
                 <span>

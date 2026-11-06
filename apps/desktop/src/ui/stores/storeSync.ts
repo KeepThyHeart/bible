@@ -29,6 +29,7 @@ import { libraryChangeListeners } from '../modules/host/hostListeners';
 import { whenContextService } from '../services/WhenContextService';
 import { useLayoutStore } from './useLayoutStore';
 import { installSearchPanelInvariant } from './searchPanelInvariant';
+import { installSearchTabsSync } from './searchTabsSync';
 import { useSessionStore } from './useSessionStore';
 import { useModuleStore } from './module/useModuleStore';
 import {
@@ -38,7 +39,6 @@ import {
   setResolvePrimaryBibleVerseId,
   setResolveOpenModuleAbbreviations,
   setResolveInstalledModuleId,
-  setShowSearchResultsPanel,
   setResolveActiveBibleModule,
 } from './crossStoreBridge';
 
@@ -238,13 +238,11 @@ export function wireStoreSync(): void {
     return typeof match?.module_id === 'number' ? match.module_id : undefined;
   });
 
-  // The search store calls this once a search has produced results, so the
-  // results get their own dockview tab (split below the active Bible pane the
-  // first time, focused in place thereafter).
-  setShowSearchResultsPanel(() => {
-    useLayoutStore.getState().openSearchResultsPanel();
-  });
-  // ...and the panel never outlives that search, whichever path cleared it.
+  // The search store opens or focuses each search session's own dockview tab
+  // once it has results, focusing a tab activates its session, and each tab's
+  // query is kept in the saved layout (task 0210; see searchTabsSync.ts)...
+  installSearchTabsSync();
+  // ...and no search tab outlives its search, whichever path cleared it.
   installSearchPanelInvariant();
 
   // ==========================================================================

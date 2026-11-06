@@ -8,7 +8,7 @@ import type { IBibleDataProvider } from '../../providers/interfaces';
 import { collapseReferencesStructured } from '../../utils/collapseReferences';
 import type { CollapsedSegment } from '../../utils/collapseReferences';
 import { useVersePopup } from '../../hooks/useVersePopup';
-import { parseVerseId } from '../../utils/verseId';
+import { parseVerseId, formatVerseRange } from '../../utils/verseId';
 import { sanitizeHtml } from '../../utils/sanitize';
 import { moduleContentAttrs } from '../../utils/contentDirection';
 import { Bdi } from '@bible/ui';
@@ -202,6 +202,7 @@ export function VerseRefList({ verses, totalCount, hasMore, onNavigateBible, bib
               data-verse-id={seg.verseId}
               class={`verse-ref-list__ref-link${isLast ? ' verse-ref-list__ref-link--last-clicked' : ''}`}
               href="#"
+              aria-label={formatVerseRange(seg.verseId, seg.endVerseId)}
               onClick={(e) => handleRefClick(seg.verseId, e as any)}
               onMouseEnter={(e) => handleHover(seg.verseId, e as any)}
               onMouseLeave={handleLeave}

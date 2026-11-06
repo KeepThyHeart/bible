@@ -2,6 +2,7 @@ import { useEffect, useMemo } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { studyStore } from '../../stores/studyStore';
 import { offlineStore } from '../../stores/offlineStore';
+import { settingsStore } from '../../stores/settingsStore';
 import { useStore } from '../../hooks/useStore';
 
 interface StudyTopicsProps {
@@ -19,6 +20,7 @@ export function StudyTopics({ onTopicClick }: StudyTopicsProps) {
   const verseEntities = useStore(studyStore, () => studyStore.verseEntities);
   const loading = useStore(studyStore, () => studyStore.topicsLoading);
   const isOnline = useStore(offlineStore, () => offlineStore.isOnline);
+  const someIndexesOff = useStore(settingsStore, () => settingsStore.excludedTopicalModules.length > 0);
 
   // Mounted is the signal to load; see StudyCrossRefs.
   useEffect(() => {
@@ -43,7 +45,7 @@ export function StudyTopics({ onTopicClick }: StudyTopicsProps) {
   }
 
   if (verseTopics.length === 0 && verseEntities.length === 0) {
-    return <div class="study-topics__empty">{!isOnline ? t('studyTopics.offlineNotice') : t('studyTopics.noTopics')}</div>;
+    return <div class="study-topics__empty">{!isOnline ? t('studyTopics.offlineNotice') : t('studyTopics.noTopics')}{isOnline && someIndexesOff && ` ${t('studyTopics.someIndexesOff', { defaultValue: 'Some topical indexes are turned off in Settings.' })}`}</div>;
   }
 
   return (

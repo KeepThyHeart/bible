@@ -157,6 +157,20 @@ describe('VerseContextMenu', () => {
     expect(screen.getByText('ui.verseContextMenu.highlightUnderline')).toBeInTheDocument();
   });
 
+  it('uses a highlighter icon, not the eraser glyph, for the highlight item (U-175)', () => {
+    renderWithProviders(
+      <VerseContextMenu
+        verses={mockVerse}
+        context={mockContext}
+        position={position}
+        onClose={onClose}
+        onOpenHighlightMenu={onOpenHighlightMenu}
+      />,
+    );
+    const d = screen.getByTestId('highlight-menu-icon').querySelector('path')?.getAttribute('d') ?? '';
+    expect(d.startsWith('M6 14l3 3v5h6v-5')).toBe(true);
+  });
+
   it('shows add note option when onAddNote is provided', () => {
     renderWithProviders(
       <VerseContextMenu
@@ -408,5 +422,23 @@ describe('VerseContextMenu', () => {
       expect(screen.queryByTestId('word-item')).toBeNull();
       expect(screen.queryByTestId('menu-mark-word')).toBeNull();
     });
+  });
+
+  it('restores focus to the marked verse button when the menu unmounts', () => {
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    const btn = document.createElement('button');
+    btn.setAttribute('data-verse-menu-opener', 'true');
+    host.appendChild(btn);
+    const { unmount } = render(
+      <ContextProvider services={createMockServices()}>
+        <VerseContextMenu verses={mockVerse} context={mockContext} position={position} onClose={onClose} onOpenCopyOptions={onOpenCopyOptions} />
+      </ContextProvider>,
+    );
+    expect(document.activeElement).not.toBe(btn);
+    unmount();
+    expect(document.activeElement).toBe(btn);
+    expect(btn.hasAttribute('data-verse-menu-opener')).toBe(false);
+    host.remove();
   });
 });

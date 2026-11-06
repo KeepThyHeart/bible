@@ -15,5 +15,6 @@
   "genealogyPane.loading": "Cargando árbol genealógico...",
   "genealogyPane.empty": "No hay datos de genealogía instalados. Instale un módulo de genealogía para explorar árboles genealógicos.",
   "genealogyPane.error": "No se pudo cargar el árbol genealógico.",
-  "genealogyPane.retry": "Reintentar"
+  "genealogyPane.retry": "Reintentar",
+  "genealogyPane.openModuleManager": "Abrir el Administrador de módulos"
 }

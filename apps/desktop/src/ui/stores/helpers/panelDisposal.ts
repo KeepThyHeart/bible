@@ -51,7 +51,8 @@ export function destroyPanelState(
 ): void {
   if (contentType === 'search') {
     // allow-getstate: dockview event callback - runs outside React render
-    useSearchStore.getState().clearResults();
+    // Each search tab is its own session (task 0210): closing the tab drops it.
+    useSearchStore.getState().closePanelSessions(panelId);
     return;
   }
 

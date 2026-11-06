@@ -36,7 +36,7 @@ async function openMarkupMenuOnWord(window: Page, wordRe: RegExp, selectFirst: b
     // Electron's own right-click can select the word under the pointer; send the
     // contextmenu event ourselves, with the selection cleared, to model "nothing selected".
     await word.evaluate((el, pt) => {
-      window.getSelection()?.removeAllRanges();
+      document.getSelection()?.removeAllRanges(); // not `window`: that name is the Playwright Page here
       el.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: pt.x, clientY: pt.y, button: 2 }));
     }, { x, y });
   } else {

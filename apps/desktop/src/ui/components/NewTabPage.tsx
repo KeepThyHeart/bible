@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { focusPanelTab } from '../hooks/useDockviewTabA11y';
 import { useLayoutStore, type PanelContentType } from '../stores/useLayoutStore';
 import { useBibleStore, encodeBibleContentKey, DEFAULT_PANEL_ID } from '../stores/useBibleStore';
 import { parseVerseReference, getAllBooks } from '../utils/verseParser';
@@ -168,6 +169,9 @@ const NewTabPage: React.FC<NewTabPageProps> = ({ panelId, dockviewPanelApi }) =>
     }
 
     currentPanel.api.close();
+    // Closing the placeholder drops focus to the page, which the region rescue would send to the
+    // Bible pane's heading. Put it on the new pane's tab instead.
+    focusPanelTab(api as never, createdId);
   }, [panelId, dockviewPanelApi, t]);
 
   /**

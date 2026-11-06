@@ -26,3 +26,15 @@ export function takeStudyHash(): string | null {
   pending = null;
   return h;
 }
+
+let homeProbe: (() => boolean) | null = null;
+
+/** Study registers how to ask whether its home screen (no passage) is showing. */
+export function setStudyHomeProbe(probe: (() => boolean) | null): void {
+  homeProbe = probe;
+}
+
+/** Is Study's home screen showing? Then the reader URL names no passage. */
+export function studyShowsHome(): boolean {
+  return homeProbe?.() ?? false;
+}

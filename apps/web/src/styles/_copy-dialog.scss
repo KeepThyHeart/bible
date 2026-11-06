@@ -305,4 +305,14 @@
       flex: 1 1 auto;
     }
   }
+
+  // Clipboard write refused (permission denied): shown above the actions, dialog stays open.
+  &__error {
+    margin-block: 8px 0;
+    padding: 8px 12px;
+    border-radius: 6px;
+    color: var(--kth-danger, #c94141);
+    border: 1px solid currentColor;
+    font-size: 0.9em;
+  }
 }

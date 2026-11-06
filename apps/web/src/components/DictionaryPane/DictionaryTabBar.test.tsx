@@ -1,4 +1,5 @@
 import type { ComponentChildren } from 'preact';
+import { focusAfterTabClose } from '../common/SortableTab';
 /**
  * Component tests for DictionaryTabBar.
  *
@@ -17,7 +18,7 @@ import { render, screen, fireEvent } from '@testing-library/preact';
 // ---- i18n ----------------------------------------------------------------
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
-    t: (key: string) => key,
+    t: (key: string, opts?: { title?: string }) => (key === 'bibleTabBar.closeTabNamed' ? `Close ${opts?.title}` : key),
     i18n: { language: 'en' },
   }),
 }));
@@ -44,6 +45,9 @@ vi.mock('@dnd-kit/sortable', () => ({
 
 // ---- SortableTab: render a plain div with the forwarded props -----------
 vi.mock('../common/SortableTab', () => ({
+  tabKeyDown: (activate: () => void, close?: (list: Element | null) => void) => (e: KeyboardEvent) => { if (e.key === 'Enter' || e.key === ' ') activate(); else if (e.key === 'Delete' && close) close(null); },
+  focusAfterTabClose: vi.fn(),
+  tablistKeyDown: () => {},
   SortableTab: ({
     children,
     id,
@@ -403,5 +407,64 @@ describe('DictionaryTabBar', () => {
     const sections = container.querySelectorAll('.module-dialog__section-label');
     expect(sections.length).toBe(2);
     expect(screen.getByText('dictionaryTabBar.other')).toBeTruthy();
+  });
+
+  // ------------------------------------------------------------------
+  // Tab semantics (a11y)
+  // ------------------------------------------------------------------
+  it('is a tablist; active tab aria-selected; close button is a sibling named after the tab', () => {
+    mockTabs = [
+      { id: 'dtab-home', moduleAbbr: '__home__', moduleName: 'Home' },
+      makeTab({ id: 'dtab-1', moduleName: "Strong's Greek" }),
+      makeTab({ id: 'dtab-2', moduleAbbr: 'webster', moduleName: 'Webster' }),
+    ];
+    mockActiveTabId = 'dtab-1';
+    const { container } = render(<DictionaryTabBar />);
+    expect(container.querySelector('.dictionary-tab-bar [role="tablist"]')).toBeTruthy();
+    const greek = screen.getByRole('tab', { name: "Strong's Greek" });
+    expect(greek.getAttribute('aria-selected')).toBe('true');
+    expect(screen.getByRole('tab', { name: 'Webster' }).getAttribute('aria-selected')).toBe('false');
+    expect(greek.querySelector('button')).toBeNull();
+    expect(screen.getByRole('button', { name: "Close Strong's Greek" })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Close Webster' })).toBeTruthy();
+  });
+
+  it('the Home tab is a selected, keyboard-activatable tab', () => {
+    mockActiveTabId = 'dtab-home';
+    render(<DictionaryTabBar />);
+    const home = screen.getByRole('tab', { name: /dictionaryTabBar.home/ });
+    expect(home.getAttribute('aria-selected')).toBe('true');
+    fireEvent.keyDown(home, { key: ' ' });
+    expect(mockSetActiveTab).toHaveBeenCalledWith('dtab-home');
+  });
+
+  it('closes the focused tab with Delete; Home does not close', () => {
+    mockTabs = [
+      { id: 'dtab-home', moduleAbbr: '__home__', moduleName: 'Home' },
+      makeTab({ id: 'dtab-1' }),
+    ];
+    render(<DictionaryTabBar />);
+    const tab = screen.getAllByRole('tab').find(t => t.className.includes('__label') && !t.textContent?.includes('dictionaryTabBar.home'))!;
+    fireEvent.keyDown(tab, { key: 'Delete' });
+    expect(mockRemoveTab).toHaveBeenCalledWith('dtab-1');
+    mockRemoveTab.mockClear();
+    fireEvent.keyDown(screen.getByRole('tab', { name: /dictionaryTabBar.home/ }), { key: 'Delete' });
+    expect(mockRemoveTab).not.toHaveBeenCalled();
+  });
+
+  it('restores focus (focusAfterTabClose) after the close button removes a tab', () => {
+    mockTabs = [makeTab({ id: 'dtab-1' })];
+    const { container } = render(<DictionaryTabBar />);
+    (focusAfterTabClose as any).mockClear();
+    fireEvent.click(container.querySelector('.dictionary-tab-bar__close')!);
+    expect(focusAfterTabClose).toHaveBeenCalled();
+  });
+
+  it('renders the dictionary chooser outside the tablist', () => {
+    const { container } = render(<DictionaryTabBar />);
+    fireEvent.click(container.querySelector('.dictionary-tab-bar__add')!);
+    const overlay = container.querySelector('.module-dialog-overlay')!;
+    expect(overlay).toBeTruthy();
+    expect(overlay.closest('[role="tablist"]')).toBeNull();
   });
 });

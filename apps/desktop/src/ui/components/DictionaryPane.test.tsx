@@ -238,6 +238,47 @@ describe('DictionaryPane', () => {
     expect(mockLookup).toHaveBeenCalledWith('strongs', 'G26');
   });
 
+  describe('focus after in-pane navigation', () => {
+    const entry = (key: string) => ({
+      entry_key: key, word: 'w', definition: 'To love', related_words: ['G26'], example_verses: [],
+    });
+    const tabs = [{ abbreviation: 'strongs', name: "Strong's" }];
+
+    it('moves focus to the new entry heading after following a related word', async () => {
+      const user = userEvent.setup();
+      mockUseDictionaryPanel.mockReturnValue({
+        ...defaultDictPanel, openTabs: tabs, entriesByTab: new Map([['strongs', entry('G25')]]),
+      });
+      const { rerender } = renderWithProviders(<DictionaryPane />);
+      await user.click(screen.getByTestId('related-word-btn'));
+      mockUseDictionaryPanel.mockReturnValue({
+        ...defaultDictPanel, openTabs: tabs, entriesByTab: new Map([['strongs', entry('G26')]]),
+      });
+      rerender(<ContextProvider services={createMockServices()}><DictionaryPane /></ContextProvider>);
+      await waitFor(() => expect(screen.getByTestId('dictionary-entry-key')).toHaveFocus());
+    });
+
+    it('moves focus to Forward when Back disables itself at the start of the trail', async () => {
+      const user = userEvent.setup();
+      const trail = [
+        { abbreviation: 'strongs', entryKey: '00025' },
+        { abbreviation: 'strongs', entryKey: '00026' },
+      ];
+      mockUseDictionaryPanel.mockReturnValue({
+        ...defaultDictPanel, openTabs: tabs, entriesByTab: new Map([['strongs', entry('G26')]]),
+        navHistory: trail, navIndex: 1,
+      });
+      const { rerender } = renderWithProviders(<DictionaryPane />);
+      await user.click(screen.getByTestId('dictionary-back'));
+      mockUseDictionaryPanel.mockReturnValue({
+        ...defaultDictPanel, openTabs: tabs, entriesByTab: new Map([['strongs', entry('G25')]]),
+        navHistory: trail, navIndex: 0,
+      });
+      rerender(<ContextProvider services={createMockServices()}><DictionaryPane /></ContextProvider>);
+      await waitFor(() => expect(screen.getByTestId('dictionary-forward')).toHaveFocus());
+    });
+  });
+
   // ---------------------------------------------------------------------
   // 5.2 - startup empty-state flash: an empty `openTabs` during session
   // restore must show a neutral skeleton, not the alarming "Get a
@@ -448,6 +489,23 @@ describe('DictionaryPane', () => {
 
       fireEvent.mouseDown(rows[1]);
       expect(lookupEntry).toHaveBeenCalledWith('strongs', '00026');
+    });
+
+    it("names a Strong's hit by number, word and transliteration, not its raw headline", async () => {
+      mockUseDictionaryPanel.mockReturnValue({
+        ...defaultDictPanel,
+        openTabs,
+        searchResultsByTab: new Map([['strongs', [{
+          entry_key: '01645',
+          word: '01645',
+          definition: "1645 ἐλαφρός ejlafrovs elaphros {el-af-ros'} of uncertain affinity; light",
+        }]]]),
+      });
+      renderWithProviders(<DictionaryPane />);
+
+      fireEvent.change(screen.getByTestId('dictionary-lookup-input'), { target: { value: 'elaph' } });
+
+      expect(await screen.findByRole('option', { name: 'G1645 ἐλαφρός (elaphros)' })).toBeInTheDocument();
     });
 
     it('opens the highlighted match on Enter rather than falling back to the browse dialog', async () => {

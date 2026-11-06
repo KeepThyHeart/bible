@@ -53,51 +53,64 @@ function renderCard(
   t: (key: string) => string,
   localizer: Localizer,
 ) {
+  const display = isDigestModule(card.moduleAbbr) ? getDigestDisplayName() : card.moduleAbbr;
+  // The star and mute buttons are siblings of the row button (a button inside a button is invalid and
+  // reads as one control), each named for its commentary with its state in aria-pressed.
   return (
-    <button
+    <div
       key={card.moduleAbbr}
       class={`mobile-commentary__card ${card.muted ? 'mobile-commentary__card--muted' : ''}`}
-      onClick={() => setViewingModule({ abbr: card.moduleAbbr, name: card.moduleName })}
     >
       <div
         class="mobile-commentary__card-border"
         style={{ backgroundColor: levelColor[card.level] }}
       />
-      <div class="mobile-commentary__card-body">
-        <div class="mobile-commentary__card-header">
-          <span class="mobile-commentary__card-abbr">{isDigestModule(card.moduleAbbr) ? getDigestDisplayName() : card.moduleAbbr}</span>
-          <div class="mobile-commentary__card-actions">
-            <button
-              class={`mobile-commentary__card-action ${card.starred ? 'mobile-commentary__card-action--active' : ''}`}
-              onClick={(e) => { e.stopPropagation(); e.preventDefault(); commentaryStore.togglePromoted(card.moduleAbbr); }}
-              onTouchEnd={(e) => { e.stopPropagation(); }}
-              title={card.starred ? t('mobileCommentary.unstar') : t('mobileCommentary.star')}
-            >
-              <i class={`${card.starred ? 'fa-solid' : 'fa-regular'} fa-star`} />
-            </button>
-            <button
-              class={`mobile-commentary__card-action ${card.muted ? 'mobile-commentary__card-action--active' : ''}`}
-              onClick={(e) => { e.stopPropagation(); e.preventDefault(); commentaryStore.toggleMuted(card.moduleAbbr); }}
-              onTouchEnd={(e) => { e.stopPropagation(); }}
-              title={card.muted ? t('mobileCommentary.unmute') : t('mobileCommentary.mute')}
-            >
-              <i class={`fa-solid ${card.muted ? 'fa-eye' : 'fa-eye-slash'}`} />
-            </button>
+      <button
+        type="button"
+        class="mobile-commentary__card-main"
+        style={{ flex: 1, minWidth: 0, border: 'none', background: 'none', padding: 0, font: 'inherit', color: 'inherit', textAlign: 'start', cursor: 'pointer' }}
+        onClick={() => setViewingModule({ abbr: card.moduleAbbr, name: card.moduleName })}
+      >
+        <div class="mobile-commentary__card-body">
+          <div class="mobile-commentary__card-header">
+            <span class="mobile-commentary__card-abbr">{display}</span>
           </div>
+          {/* The line above already shows the digest's display name; repeating
+              it here — as the raw "SYNTHESIS" — says nothing. */}
+          <div class="mobile-commentary__card-name">{isDigestModule(card.moduleAbbr) ? '' : card.moduleName}</div>
+          {card.wordCount > 0 && (
+            <div class="mobile-commentary__card-words">
+              {localizer.formatNumber(card.wordCount)} {t('mobileCommentary.words')}
+              <span class="mobile-commentary__card-level">
+                {card.level === 'verse' ? t('mobileCommentary.verse') : card.level === 'passage' ? t('mobileCommentary.passage') : ''}
+              </span>
+            </div>
+          )}
         </div>
-        {/* The line above already shows the digest's display name; repeating
-            it here — as the raw "SYNTHESIS" — says nothing. */}
-        <div class="mobile-commentary__card-name">{isDigestModule(card.moduleAbbr) ? '' : card.moduleName}</div>
-        {card.wordCount > 0 && (
-          <div class="mobile-commentary__card-words">
-            {localizer.formatNumber(card.wordCount)} {t('mobileCommentary.words')}
-            <span class="mobile-commentary__card-level">
-              {card.level === 'verse' ? t('mobileCommentary.verse') : card.level === 'passage' ? t('mobileCommentary.passage') : ''}
-            </span>
-          </div>
-        )}
+      </button>
+      <div class="mobile-commentary__card-actions" style={{ alignSelf: 'flex-start', padding: '4px 8px 0 0' }}>
+        <button
+          type="button"
+          class={`mobile-commentary__card-action ${card.starred ? 'mobile-commentary__card-action--active' : ''}`}
+          onClick={(e) => { e.stopPropagation(); e.preventDefault(); commentaryStore.togglePromoted(card.moduleAbbr); }}
+          aria-pressed={card.starred}
+          aria-label={`${t('mobileCommentary.star')} ${display}`}
+          title={card.starred ? t('mobileCommentary.unstar') : t('mobileCommentary.star')}
+        >
+          <i class={`${card.starred ? 'fa-solid' : 'fa-regular'} fa-star`} aria-hidden="true" />
+        </button>
+        <button
+          type="button"
+          class={`mobile-commentary__card-action ${card.muted ? 'mobile-commentary__card-action--active' : ''}`}
+          onClick={(e) => { e.stopPropagation(); e.preventDefault(); commentaryStore.toggleMuted(card.moduleAbbr); }}
+          aria-pressed={card.muted}
+          aria-label={`${t('mobileCommentary.mute')} ${display}`}
+          title={card.muted ? t('mobileCommentary.unmute') : t('mobileCommentary.mute')}
+        >
+          <i class={`fa-solid ${card.muted ? 'fa-eye' : 'fa-eye-slash'}`} aria-hidden="true" />
+        </button>
       </div>
-    </button>
+    </div>
   );
 }
 

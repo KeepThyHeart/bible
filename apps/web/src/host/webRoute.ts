@@ -13,7 +13,7 @@
  */
 import { isAppHash, parseAppLink, appLinkSegment, formatAppLink, STUDY_APP_ID } from '@bible/core/browser';
 import type { AppId } from '@bible/core/browser';
-import { setStudyOwnsHash, takeStudyHash } from './hashGate';
+import { setStudyOwnsHash, studyShowsHome, takeStudyHash } from './hashGate';
 import {
   activateWithRecovery, appHost, appRegistry, consumeAppPop, isAppActive, noteAppPop, setAppNavigator,
 } from './appHost';
@@ -82,7 +82,9 @@ function appLinkSegmentFor(id: AppId): string {
 }
 
 function restoreReaderUrl(): void {
-  const remembered = takeStudyHash() ?? hashBeforeOpen;
+  // U-026: Study is returning to its home screen, which names no passage: do not put a
+  // passage URL back under it.
+  const remembered = studyShowsHome() ? (takeStudyHash(), '') : (takeStudyHash() ?? hashBeforeOpen);
   hashBeforeOpen = '';
   if (isAppHash(window.location.hash)) {
     writeUrl('replace', remembered || window.location.pathname + window.location.search);

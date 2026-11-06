@@ -45,6 +45,52 @@ export function DictionaryContent({ tabId, bibleProvider }: DictionaryContentPro
     }
   }, []);
 
+  // After an entry opens (a picked search result, "Open in dictionary", browse, prev/next) the
+  // control that was clicked is gone, so focus would drop to <body>: move it to the entry heading.
+  // Only when focus was actually lost and the user just acted (not when a saved tab is restored on load).
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const lastFocusedEntry = useRef<string | null>(null);
+  const shownEntryKey = tabState?.entry && !tabState.entryLoading ? tabState.entry.entry_key : null;
+  useEffect(() => {
+    if (!shownEntryKey || lastFocusedEntry.current === shownEntryKey) return;
+    lastFocusedEntry.current = shownEntryKey;
+    const ae = document.activeElement;
+    const focusLost = !ae || ae === document.body || !!dropdownRef.current?.contains(ae);
+    const ua = (navigator as Navigator & { userActivation?: { isActive: boolean } }).userActivation;
+    const userJustActed = ua ? ua.isActive : true;
+    if (focusLost && userJustActed) headingRef.current?.focus();
+  }, [shownEntryKey]);
+
+  // A dictionary opened from the Home list (a module card) replaces the card that held focus: land on
+  // the new tab's search box. Same guards as above; a loading or shown entry gets the heading instead.
+  const lastFocusedTab = useRef<string | null>(null);
+  useEffect(() => {
+    if (lastFocusedTab.current === tabId) return;
+    lastFocusedTab.current = tabId;
+    if (shownEntryKey || tabState?.entryLoading) return;
+    const ae = document.activeElement;
+    const ua = (navigator as Navigator & { userActivation?: { isActive: boolean } }).userActivation;
+    if ((!ae || ae === document.body) && (ua ? ua.isActive : true)) searchRef.current?.focus({ preventScroll: true });
+  }, [tabId]);
+
+  // A browse-list entry that failed to load (HTTP error / network): the store leaves the entry
+  // null, so without this the click appears to do nothing and, as the list was swapped for the
+  // loading line meanwhile, focus fell to <body>.
+  const [failedEntryKey, setFailedEntryKey] = useState<string | null>(null);
+  const openBrowseEntry = async (entryKey: string) => {
+    setFailedEntryKey(null);
+    await dictionaryStore.loadEntryInTab(tabId, entryKey);
+    const after = dictionaryStore.getTabState(tabId);
+    if (!after.entry && !after.entryLoading) setFailedEntryKey(entryKey);
+  };
+  const browseListRef = useRef<HTMLDivElement>(null);
+  const entryLoadingNow = tabState?.entryLoading;
+  useEffect(() => {
+    if (!failedEntryKey || entryLoadingNow) return;
+    Array.from(browseListRef.current?.querySelectorAll<HTMLElement>('[data-entry-key]') ?? [])
+      .find(el => el.dataset.entryKey === failedEntryKey)?.focus({ preventScroll: true });
+  }, [failedEntryKey, entryLoadingNow]);
+
   if (!tab) return null;
 
   const {
@@ -160,7 +206,7 @@ export function DictionaryContent({ tabId, bibleProvider }: DictionaryContentPro
         {/* Entry content */}
         <div class="dictionary-pane__entry">
           <div class="dictionary-pane__entry-header">
-            <h3 class="dictionary-pane__entry-word">{entryLabel(tab.moduleAbbr, entry.word, entry.entry_key)}</h3>
+            <h3 class="dictionary-pane__entry-word" ref={headingRef} tabIndex={-1}>{entryLabel(tab.moduleAbbr, entry.word, entry.entry_key)}</h3>
             {entry.transliteration && (
               <span class="dictionary-pane__entry-translit">{entry.transliteration}</span>
             )}
@@ -351,6 +397,11 @@ export function DictionaryContent({ tabId, bibleProvider }: DictionaryContentPro
           Rendering them side by side flashed a screen of Greek/Hebrew words for a
           frame before the definition landed. */}
       {entryLoading && <div class="dictionary-pane__loading">{t('dictionaryContent.loadingEntry')}</div>}
+      {!entryLoading && failedEntryKey && (
+        <div class="dictionary-pane__placeholder" role="alert">
+          {t('dictionaryContent.entryLoadFailed', { defaultValue: 'This entry could not be loaded.' })}
+        </div>
+      )}
 
       {/* Alphabet bar */}
       {!entryLoading && browseLetters && browseLetters.length > 0 && (
@@ -371,12 +422,13 @@ export function DictionaryContent({ tabId, bibleProvider }: DictionaryContentPro
       {!entryLoading && browseLoading && <div class="dictionary-pane__loading">{t('common.loading')}</div>}
 
       {!entryLoading && browseEntries.length > 0 && (
-        <div class="dictionary-content__browse-list">
+        <div class="dictionary-content__browse-list" ref={browseListRef}>
           {browseEntries.map(e => (
             <button
               key={e.entry_key}
               class="dictionary-content__browse-item"
-              onClick={() => dictionaryStore.loadEntryInTab(tabId, e.entry_key)}
+              data-entry-key={e.entry_key}
+              onClick={() => openBrowseEntry(e.entry_key)}
             >
               {entryLabel(tab.moduleAbbr, e.word, e.entry_key)}
             </button>

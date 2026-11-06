@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AppBadge } from './AppBadge';
 import { AppRail } from './AppRail';
@@ -136,6 +136,53 @@ describe('AppSheet', () => {
   });
 });
 
+describe('AppSheet inert page', () => {
+  const App = ({ open }: { open: boolean }) => (
+    <>
+      <main data-testid="page"><button>behind</button></main>
+      <AppSheet open={open} onClose={() => {}} items={items} activeId={null} onSelect={() => {}} title="Apps" />
+    </>
+  );
+  it('makes the page behind inert while open and restores it on close', async () => {
+    const { rerender } = render(<App open={false} />);
+    const page = screen.getByTestId('page');
+    expect(page.closest('[inert]')).toBeNull();
+    rerender(<App open />);
+    await waitFor(() => expect(page.closest('[inert]')).not.toBeNull());
+    expect(screen.getByRole('dialog', { name: 'Apps' }).closest('[inert]')).toBeNull();
+    rerender(<App open={false} />);
+    await waitFor(() => expect(page.closest('[inert]')).toBeNull());
+  });
+});
+
+describe('AppSheet focus return', () => {
+  it('returns focus to the opener even though it was inert while the sheet was open', () => {
+    const realFocus = HTMLElement.prototype.focus;
+    // jsdom ignores `inert`; emulate browsers, where an inert element cannot take focus.
+    const spy = vi.spyOn(HTMLElement.prototype, 'focus').mockImplementation(function (this: HTMLElement, o?: FocusOptions) {
+      if (this.closest('[inert]')) return;
+      realFocus.call(this, o);
+    });
+    try {
+      const App = ({ open }: { open: boolean }) => (
+        <>
+          <main><button>Switch app</button></main>
+          <AppSheet open={open} onClose={() => {}} items={items} activeId={null} onSelect={() => {}} title="Apps" />
+        </>
+      );
+      const { rerender } = render(<App open={false} />);
+      const opener = screen.getByRole('button', { name: 'Switch app' });
+      opener.focus();
+      rerender(<App open />);
+      expect(opener.closest('[inert]')).not.toBeNull();
+      rerender(<App open={false} />);
+      expect(opener).toHaveFocus();
+    } finally {
+      spy.mockRestore();
+    }
+  });
+});
+
 describe('AppSwitchButton', () => {
   it('is a named button that shows the aggregate badge and clicks', async () => {
     const onClick = vi.fn();
@@ -220,5 +267,11 @@ describe('AppsPreferences', () => {
     expect(boxes[0]).toBeDisabled();
     await userEvent.click(boxes[1]);
     expect(onHidden).toHaveBeenCalledWith('present', true);
+  });
+  // 0209: every row's checkbox was named just "Show".
+  it('names each visibility checkbox after its app', () => {
+    render(<AppsPreferences mode="auto" onModeChange={vi.fn()} items={rows} onOrderChange={vi.fn()} onHiddenChange={vi.fn()} />);
+    expect(screen.getByRole('checkbox', { name: 'Show: Study' })).toBeTruthy();
+    expect(screen.getByRole('checkbox', { name: 'Show: Presenter' })).toBeTruthy();
   });
 });

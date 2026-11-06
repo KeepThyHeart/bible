@@ -7,6 +7,7 @@ import { useI18n } from '../../contexts/useI18n';
 import { anchorAtPointerX } from '../../utils/overlayPosition';
 import { deleteKey, revealKey } from '../../utils/platformLabels';
 import PaneEmptyState from '../onboarding/PaneEmptyState';
+import { entryDisplayName as entryDisplayNameFor } from './verseNoteName';
 
 interface NotesFolderBrowserProps {
   entries: FileEntry[];
@@ -76,13 +77,47 @@ const NotesFolderBrowser: React.FC<NotesFolderBrowserProps> = ({
   const searchAbortRef = useRef(0);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const menuRef = useRef<HTMLDivElement>(null);
+  /** The row the menu was opened on; Escape hands focus back to it. */
+  const menuOpenerRef = useRef<HTMLElement | null>(null);
+
   const handleContextMenu = useCallback((e: React.MouseEvent, entry: FileEntry) => {
     e.preventDefault();
+    menuOpenerRef.current = e.currentTarget as HTMLElement;
     setContextMenu({ x: e.clientX, y: e.clientY, entry });
   }, []);
 
   const closeContextMenu = useCallback(() => {
     setContextMenu(null);
+  }, []);
+
+  // A real menu: take focus when it opens...
+  useEffect(() => {
+    if (!contextMenu) return;
+    menuRef.current?.querySelector<HTMLElement>('[role="menuitem"]:not([disabled])')?.focus({ preventScroll: true });
+  }, [contextMenu]);
+
+  // ...move with the arrow keys, and close on Escape back onto the row.
+  const handleMenuKeyDown = useCallback((e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      e.stopPropagation();
+      setContextMenu(null);
+      const opener = menuOpenerRef.current;
+      if (opener?.isConnected) opener.focus();
+      return;
+    }
+    if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(e.key)) return;
+    const items = Array.from(e.currentTarget.querySelectorAll<HTMLElement>('[role="menuitem"]:not([disabled])'));
+    if (items.length === 0) return;
+    e.preventDefault();
+    const current = items.indexOf(document.activeElement as HTMLElement);
+    let next: number;
+    if (e.key === 'Home') next = 0;
+    else if (e.key === 'End') next = items.length - 1;
+    else if (e.key === 'ArrowDown') next = current < 0 ? 0 : (current + 1) % items.length;
+    else next = current <= 0 ? items.length - 1 : current - 1;
+    items[next].focus();
   }, []);
 
   const handleEntryClick = useCallback((entry: FileEntry) => {
@@ -321,25 +356,9 @@ const NotesFolderBrowser: React.FC<NotesFolderBrowserProps> = ({
   }, [entries, onMove]);
 
   // Render a file/folder entry row
-  /**
-   * Verse notes are stored as `Verse Notes/<Book>/<chapter>/<verse>.bn`, so the
-   * bare file name is just "4". Show "Psalm 23:4" (localized book name) instead.
-   */
-  const entryDisplayName = (entry: FileEntry): string => {
-    if (entry.isDirectory) return entry.name;
-    const parts = entry.path.replace(/\\/g, '/').split('/').filter(Boolean);
-    if (parts.length !== 4 || parts[0] !== verseNotesFolderPath) return entry.name;
-    const [, bookFolder, chapter] = parts;
-    const verse = parts[3].replace(/\.bn$/i, '');
-    if (!/^\d+$/.test(chapter) || !/^\d+$/.test(verse)) return entry.name;
-    const bookNumber =
-      localizer.referenceParserConfig?.bookNames?.get(bookFolder.toLowerCase()) ??
-      ENGLISH_BOOK_NAMES.get(bookFolder.toLowerCase());
-    const bookName = bookNumber !== undefined
-      ? (localizer.referenceParserConfig?.displayNames?.[bookNumber - 1] ?? getBookName(bookNumber))
-      : bookFolder;
-    return `${bookName} ${chapter}:${verse}`;
-  };
+  /** "Psalm 23:4" for a verse note, the plain name otherwise - see verseNoteName.ts. */
+  const entryDisplayName = (entry: FileEntry): string =>
+    entryDisplayNameFor(entry, verseNotesFolderPath, localizer);
 
   const renderEntry = (entry: FileEntry) => (
     <button
@@ -607,11 +626,13 @@ const NotesFolderBrowser: React.FC<NotesFolderBrowserProps> = ({
       {/* Context Menu */}
       {contextMenu && (
         <div
+          ref={menuRef}
           className="fixed z-50 bg-surface-elevated border border-border rounded shadow-lg py-1 min-w-[160px]"
           style={{ ...anchorAtPointerX(contextMenu.x), top: contextMenu.y }}
           onClick={closeContextMenu}
+          onKeyDown={handleMenuKeyDown}
           role="menu"
-          aria-label={t('notesFolderBrowser.contextMenuLabel', { name: contextMenu.entry.name, })}
+          aria-label={t('notesFolderBrowser.contextMenuLabel', { name: entryDisplayName(contextMenu.entry) })}
         >
           <button
             type="button"

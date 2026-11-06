@@ -123,4 +123,11 @@ describe('CollapsedPanesRevealBar', () => {
     await userEvent.click(screen.getByTestId('collapsed-panes-reveal-bar'));
     expect(onExpand).toHaveBeenCalledOnce();
   });
+
+  it('is a named button whose accessible name is its visible text', () => {
+    renderBar({ collapsedGroups: [{ groupId: 'group-2', axis: 'width' }] });
+    const button = screen.getByRole('button', { name: 'Show Study Panes' });
+    expect(button).toHaveAttribute('title', 'Bring the collapsed study panes back into view');
+    expect(button).not.toHaveAttribute('aria-label');
+  });
 });

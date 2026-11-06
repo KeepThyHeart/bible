@@ -533,7 +533,9 @@ describe('keyboard', () => {
     const input = container.querySelector('.module-dialog__filter input') as HTMLInputElement;
     input.focus();
 
+    // The focus ring is already on a card (set earlier), but keyboard focus is still in the box.
     arrow('ArrowDown');
+    input.focus();
     arrow(' ');
 
     expect(onSelect).not.toHaveBeenCalled();
@@ -571,5 +573,42 @@ describe('keyboard', () => {
     arrow('Escape');
 
     expect(onClose).not.toHaveBeenCalled();
+  });
+});
+
+describe('TranslationDialog keyboard reach (roving tabindex)', () => {
+  it('puts exactly one radio in the Tab order: the current translation', () => {
+    const { container } = open({ currentAbbr: 'ASV' });
+    const radios = Array.from(container.querySelectorAll<HTMLElement>('[role="radio"]'));
+    const tabbable = radios.filter(r => r.tabIndex === 0);
+    expect(tabbable).toHaveLength(1);
+    expect(tabbable[0].textContent).toContain('ASV');
+  });
+
+  it('falls back to the first radio when the current translation is not listed', () => {
+    const { container } = open({ currentAbbr: 'ZZZ' });
+    const radios = Array.from(container.querySelectorAll<HTMLElement>('[role="radio"]'));
+    expect(radios.filter(r => r.tabIndex === 0)).toHaveLength(1);
+    expect(radios[0].tabIndex).toBe(0);
+  });
+
+  it('moves real focus onto the radios with the arrow keys', async () => {
+    const { container } = open();
+    const radios = Array.from(container.querySelectorAll<HTMLElement>('[role="radio"]'));
+    await act(async () => { fireEvent.keyDown(window, { key: 'ArrowDown' }); });
+    expect(document.activeElement).toBe(radios[0]);
+    await act(async () => { fireEvent.keyDown(window, { key: 'ArrowDown' }); });
+    expect(document.activeElement).toBe(radios[1]);
+    expect(radios[1].tabIndex).toBe(0);
+    expect(radios[0].tabIndex).toBe(-1);
+  });
+
+  it('lets Enter activate a focused Close button instead of swallowing it', async () => {
+    const onClose = vi.fn();
+    const { container } = open({ onClose });
+    const close = container.querySelector<HTMLButtonElement>('.module-dialog__close')!;
+    close.focus();
+    const notPrevented = fireEvent.keyDown(close, { key: 'Enter' });
+    expect(notPrevented).toBe(true);
   });
 });

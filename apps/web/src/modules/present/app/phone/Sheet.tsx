@@ -1,10 +1,14 @@
-import { useEffect } from 'preact/hooks';
+import { useEffect, useRef } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import type { ComponentChildren } from 'preact';
+import { useModalFocus } from '../../../../hooks/useModalFocus';
 
 /** A bottom sheet over the phone layout: tap outside, Escape or the X closes it. */
 export function Sheet(props: { title: string; onClose: () => void; children: ComponentChildren }) {
   const { t } = useTranslation();
+  const box = useRef<HTMLDivElement>(null);
+  // It is a modal dialog: trap Tab, make the page inert behind it, hand focus back on close.
+  useModalFocus(true, box);
   useEffect(() => {
     const onKey = (event: KeyboardEvent): void => {
       if (event.key === 'Escape') props.onClose();
@@ -15,7 +19,7 @@ export function Sheet(props: { title: string; onClose: () => void; children: Com
 
   return (
     <div class="pzp-backdrop" onClick={props.onClose}>
-      <div class="pzp-sheet" role="dialog" aria-modal="true" aria-label={props.title} onClick={event => event.stopPropagation()}>
+      <div class="pzp-sheet" ref={box} role="dialog" aria-modal="true" aria-label={props.title} onClick={event => event.stopPropagation()}>
         <div class="pzp-sheet__head">
           <h2>{props.title}</h2>
           <button type="button" class="pzp-icon" onClick={props.onClose} aria-label={t('common.close')}>

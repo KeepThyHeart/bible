@@ -1,4 +1,4 @@
-import { useState } from 'preact/hooks';
+import { useEffect, useRef, useState } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { redo, undo } from 'prosemirror-history';
 import type { EditorView } from 'prosemirror-view';
@@ -13,6 +13,7 @@ import {
   toggleOrderedList,
 } from './commands';
 import type { Command } from 'prosemirror-state';
+import { focusFirstMenuItem, handleMenuKey, useExclusiveMenu } from '../../../lib/menuKeys';
 
 export type InsertKind = 'verse' | 'hymn' | 'quote';
 
@@ -27,6 +28,24 @@ interface ToolbarProps {
 export function Toolbar({ view, tick, onInsertRequest }: ToolbarProps) {
   const { t } = useTranslation();
   const [insertOpen, setInsertOpen] = useState(false);
+  const insertRoot = useRef<HTMLDivElement>(null);
+  const insertButton = useRef<HTMLButtonElement>(null);
+  const insertMenu = useRef<HTMLDivElement>(null);
+
+  useExclusiveMenu('notes-insert-menu', insertOpen, () => setInsertOpen(false));
+  useEffect(() => {
+    if (!insertOpen) return undefined;
+    focusFirstMenuItem(insertMenu.current);
+    const away = (e: MouseEvent) => {
+      if (insertRoot.current && !insertRoot.current.contains(e.target as Node)) setInsertOpen(false);
+    };
+    document.addEventListener('mousedown', away);
+    return () => document.removeEventListener('mousedown', away);
+  }, [insertOpen]);
+  const closeToButton = () => {
+    setInsertOpen(false);
+    insertButton.current?.focus();
+  };
   void tick;
   const state = view?.state;
 
@@ -87,20 +106,36 @@ export function Toolbar({ view, tick, onInsertRequest }: ToolbarProps) {
         !!state && isBlockActive(state, 'blockquote'),
       )}
       <span class="notes-toolbar__sep" aria-hidden="true" />
-      <div class="notes-toolbar__insert">
+      <div
+        class="notes-toolbar__insert"
+        ref={insertRoot}
+        onFocusOut={(e) => {
+          const next = e.relatedTarget as Node | null;
+          if (insertOpen && next && !insertRoot.current?.contains(next)) setInsertOpen(false);
+        }}
+      >
         <button
           type="button"
           class="notes-toolbar__btn notes-toolbar__btn--wide"
           aria-haspopup="menu"
           aria-expanded={insertOpen}
+          ref={insertButton}
           onMouseDown={keep}
           onClick={() => setInsertOpen(!insertOpen)}
-          onBlur={() => setTimeout(() => setInsertOpen(false), 120)}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape' && insertOpen) closeToButton();
+            else if (e.key === 'ArrowDown' && !insertOpen) { e.preventDefault(); setInsertOpen(true); }
+          }}
         >
           {t('present.editor.insert')}
         </button>
         {insertOpen && (
-          <div class="notes-toolbar__menu" role="menu">
+          <div
+            class="notes-toolbar__menu"
+            role="menu"
+            ref={insertMenu}
+            onKeyDown={(e) => { handleMenuKey(e as unknown as KeyboardEvent, insertMenu.current, closeToButton); }}
+          >
             {(['verse', 'hymn', 'quote'] as const).map((kind) => (
               <button
                 key={kind}
@@ -109,6 +144,7 @@ export function Toolbar({ view, tick, onInsertRequest }: ToolbarProps) {
                 class="notes-toolbar__menuitem"
                 onMouseDown={keep}
                 onClick={() => {
+                  insertButton.current?.focus();
                   setInsertOpen(false);
                   onInsertRequest?.(kind);
                 }}

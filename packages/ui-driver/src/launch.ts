@@ -133,9 +133,14 @@ async function launchWeb(
   const viewport = opts.viewport ?? manifest.viewport;
   let baseUrl: string;
   let contextOpts: Parameters<Browser['newContext']>[0] = { viewport };
-  const readOnly = opts.url !== undefined;
+  // A loopback --url is a local server someone already started (another session's, or one shared
+  // by several sessions to save memory): driven normally, with nothing of ours to start or stop.
+  const shared = opts.url !== undefined && isLoopback(opts.url);
+  const readOnly = opts.url !== undefined && !shared;
 
-  if (readOnly) {
+  if (shared) {
+    baseUrl = opts.url!;
+  } else if (readOnly) {
     const url = new URL(opts.url!);
     const allowed = manifest.external?.allow ?? [];
     if (!allowed.includes(url.origin)) throw new Error(`refusing ${opts.url}: not in external.allow`);
@@ -194,7 +199,7 @@ async function launchWeb(
     readOnly,
     context,
     page,
-    info: `web ${baseUrl} (${readOnly ? 'external, read-only' : 'local server, fixture data'})`,
+    info: `web ${baseUrl} (${readOnly ? 'external, read-only' : shared ? 'shared local server' : 'local server, fixture data'})`,
     repro: { kind: 'web', baseUrl, viewport },
   };
 }
@@ -238,4 +243,13 @@ async function launchElectron(
     info: `electron ${path.relative(opts.repoRoot, main)} (throwaway profile)`,
     repro: { kind: 'electron', main, args, env, cwd: manifestDir },
   };
+}
+
+/** http(s) URL on this machine (127.0.0.0/8, localhost, ::1). */
+export function isLoopback(raw: string): boolean {
+  let u: URL;
+  try { u = new URL(raw); } catch { return false; }
+  if (u.protocol !== 'http:' && u.protocol !== 'https:') return false;
+  const h = u.hostname.replace(/^\[|\]$/g, '');
+  return h === 'localhost' || h.endsWith('.localhost') || h === '::1' || /^127\.\d+\.\d+\.\d+$/.test(h);
 }

@@ -71,6 +71,12 @@ describe('TopicSearchBar', () => {
     expect(input).toBeInTheDocument();
   });
 
+  // 0209: the same field was a searchbox in the Topics list and a textbox on topic pages.
+  it('is a search field (searchbox role), like the Topics list', () => {
+    renderWithProviders(<TopicSearchBar onSelectTopic={vi.fn()} placeholder="Find a topic..." />);
+    expect(screen.getByRole('searchbox')).toBe(screen.getByPlaceholderText('Find a topic...'));
+  });
+
   it('uses default placeholder when not provided', () => {
     const onSelectTopic = vi.fn();
     mockTopical.searchTopics.mockResolvedValue({
@@ -102,7 +108,7 @@ describe('TopicSearchBar', () => {
 
     renderWithProviders(<TopicSearchBar onSelectTopic={onSelectTopic} />);
 
-    const input = screen.getByRole('textbox');
+    const input = screen.getByRole('searchbox');
     await user.type(input, 'Jesus');
 
     await waitFor(() => {
@@ -116,7 +122,7 @@ describe('TopicSearchBar', () => {
 
     renderWithProviders(<TopicSearchBar onSelectTopic={onSelectTopic} />);
 
-    const input = screen.getByRole('textbox');
+    const input = screen.getByRole('searchbox');
     await user.type(input, 'J');
 
     await waitFor(() => {
@@ -134,7 +140,7 @@ describe('TopicSearchBar', () => {
 
     renderWithProviders(<TopicSearchBar onSelectTopic={onSelectTopic} />);
 
-    const input = screen.getByRole('textbox');
+    const input = screen.getByRole('searchbox');
     await user.type(input, 'test');
 
     // Shouldn't be called yet due to debounce
@@ -159,7 +165,7 @@ describe('TopicSearchBar', () => {
 
     renderWithProviders(<TopicSearchBar onSelectTopic={onSelectTopic} />);
 
-    const input = screen.getByRole('textbox');
+    const input = screen.getByRole('searchbox');
     await user.type(input, 'Faith');
 
     await waitFor(() => {
@@ -190,7 +196,7 @@ describe('TopicSearchBar', () => {
 
     renderWithProviders(<TopicSearchBar onSelectTopic={onSelectTopic} />);
 
-    const input = screen.getByRole('textbox');
+    const input = screen.getByRole('searchbox');
     await user.type(input, 'Hope');
 
     await waitFor(() => {
@@ -223,7 +229,7 @@ describe('TopicSearchBar', () => {
 
     renderWithProviders(<TopicSearchBar onSelectTopic={onSelectTopic} />);
 
-    const input = screen.getByRole('textbox');
+    const input = screen.getByRole('searchbox');
     await user.type(input, 'Test');
 
     await waitFor(() => {
@@ -260,7 +266,7 @@ describe('TopicSearchBar', () => {
 
     renderWithProviders(<TopicSearchBar onSelectTopic={onSelectTopic} />);
 
-    const input = screen.getByRole('textbox');
+    const input = screen.getByRole('searchbox');
     await user.type(input, 'Test');
 
     await waitFor(() => {
@@ -289,7 +295,7 @@ describe('TopicSearchBar', () => {
 
     renderWithProviders(<TopicSearchBar onSelectTopic={onSelectTopic} />);
 
-    const input = screen.getByRole('textbox');
+    const input = screen.getByRole('searchbox');
     await user.type(input, 'Topic');
 
     await waitFor(() => {
@@ -319,7 +325,7 @@ describe('TopicSearchBar', () => {
 
     renderWithProviders(<TopicSearchBar onSelectTopic={onSelectTopic} />);
 
-    const input = screen.getByRole('textbox');
+    const input = screen.getByRole('searchbox');
     await user.type(input, 'Grace');
 
     await waitFor(() => {
@@ -345,7 +351,7 @@ describe('TopicSearchBar', () => {
 
     renderWithProviders(<TopicSearchBar onSelectTopic={onSelectTopic} />);
 
-    const input = screen.getByRole('textbox');
+    const input = screen.getByRole('searchbox');
     await user.type(input, 'Love');
 
     await waitFor(() => {
@@ -368,7 +374,7 @@ describe('TopicSearchBar', () => {
       />
     );
 
-    const input = screen.getByRole('textbox');
+    const input = screen.getByRole('searchbox');
     await user.type(input, 'Search');
 
     await waitFor(() => {
@@ -397,7 +403,7 @@ describe('TopicSearchBar', () => {
 
     renderWithProviders(<TopicSearchBar onSelectTopic={onSelectTopic} />);
 
-    const input = screen.getByRole('textbox') as HTMLInputElement;
+    const input = screen.getByRole('searchbox') as HTMLInputElement;
     await user.type(input, 'Clear');
 
     await waitFor(() => {

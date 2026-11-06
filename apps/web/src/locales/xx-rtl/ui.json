@@ -33,7 +33,9 @@
     "more": "‏More…‏",
     "offlineTooltip": "‏You are offline‏",
     "shortcutHint": "‏Press / or Ctrl+K to search‏",
-    "feedback": "‏Send feedback‏"
+    "feedback": "‏Send feedback‏",
+    "clearSearch": "‏Clear search‏",
+    "searchTypeCurrent": "‏Search type: {type}‏"
   },
   "themes": {
     "auto": "‏Auto‏",
@@ -75,7 +77,8 @@
     "modeHint": "‏Study view shows Strong's numbers and interlinear words for translations that include them, such as KJV.‏",
     "modeLabel": "‏Display mode‏",
     "recentPassages": "‏Recent passages‏",
-    "noHistory": "‏No passages visited yet‏"
+    "noHistory": "‏No passages visited yet‏",
+    "translationButton": "‏Translation: {abbr}‏"
   },
   "bibleContent": {
     "votdLabel": "‏Verse of the Day‏",
@@ -181,7 +184,10 @@
     "timeline": "‏Timeline‏",
     "quiz": "‏Quiz‏",
     "similar": "‏Similar‏",
-    "wordStudy": "‏Word study‏"
+    "wordStudy": "‏Word study‏",
+    "modes": "‏Side pane views‏",
+    "expandTo": "‏Show {tab}‏",
+    "expand": "‏Expand side pane‏"
   },
   "mobileNav": {
     "home": "‏Home‏",
@@ -455,7 +461,9 @@
     "markdownDesc": "‏Write the structure as Markdown — block quotes as \"> \" lines, headings as \"#\"‏",
     "copied": "‏Copied!‏",
     "copyToClipboard": "‏Copy to Clipboard‏",
-    "loading": "‏Loading verses...‏"
+    "loading": "‏Loading verses...‏",
+    "copyFailed": "‏Could not copy to the clipboard. Check that this site is allowed to use it.‏",
+    "referencePosition": "‏Reference position‏"
   },
   "ui": {
     "passageInsert": {
@@ -607,7 +615,8 @@
     "hasContentFor": "‏Has content for‏",
     "loading": "‏Loading...‏",
     "cancel": "‏Cancel‏",
-    "apply": "‏Apply‏"
+    "apply": "‏Apply‏",
+    "tabs": "‏Commentary tabs‏"
   },
   "digestDisclaimer": {
     "notice": "‏Notice‏",
@@ -631,7 +640,8 @@
     "loadingEntry": "‏Loading entry...‏",
     "browseEntriesIn": "‏Browse entries in‏",
     "searchOccurrences": "‏Search all occurrences of {number}‏",
-    "loadMore": "‏Load more ({count} remaining)‏"
+    "loadMore": "‏Load more ({count} remaining)‏",
+    "entryLoadFailed": "‏This entry could not be loaded.‏"
   },
   "dictionaryHome": {
     "searchAll": "‏Search all dictionaries...‏",
@@ -640,7 +650,8 @@
     "loadFailed": "‏Couldn't load the dictionaries. Check your connection.‏",
     "retry": "‏Retry‏",
     "unstar": "‏Unstar‏",
-    "star": "‏Star (pin to top)‏"
+    "star": "‏Star (pin to top)‏",
+    "starNamed": "‏Star {name}‏"
   },
   "dictionaryPane": {
     "back": "‏Back‏",
@@ -657,7 +668,8 @@
     "noModules": "‏No dictionary modules available‏",
     "noMatches": "‏No matches‏",
     "cancel": "‏Cancel‏",
-    "apply": "‏Apply‏"
+    "apply": "‏Apply‏",
+    "tabs": "‏Dictionary tabs‏"
   },
   "studyCrossRefs": {
     "loading": "‏Loading cross-references...‏",
@@ -698,7 +710,8 @@
     "loading": "‏Loading topics...‏",
     "noTopics": "‏No topics found for this verse.‏",
     "offlineNotice": "‏You're offline. This isn't available offline.‏",
-    "entities": "‏Entities‏"
+    "entities": "‏Entities‏",
+    "someIndexesOff": "‏Some topical indexes are turned off in Settings.‏"
   },
   "topicsBrowser": {
     "searchAll": "‏Search All Topics‏",
@@ -749,7 +762,9 @@
     "seeAlso": "‏See‏",
     "verseTotal": "‏{count, plural, one {# verse} other {# verses}}‏",
     "topicHasNoEntries": "‏This topic has no verses or sub-topics of its own.‏",
-    "directOfTotal": "‏({direct} direct, {total} total)‏"
+    "directOfTotal": "‏({direct} direct, {total} total)‏",
+    "forward": "‏Forward‏",
+    "clearSearch": "‏Clear search‏"
   },
   "verseRefList": {
     "loading": "‏loading...‏",
@@ -786,7 +801,9 @@
     "searching": "‏Searching...‏",
     "noEntries": "‏No entries found‏",
     "offlineNotice": "‏You're offline. This isn't available offline.‏",
-    "searchPrompt": "‏Search for a word or term above‏"
+    "searchPrompt": "‏Search for a word or term above‏",
+    "closeEntry": "‏Close entry‏",
+    "closeDictionary": "‏Close dictionary‏"
   },
   "mobileStudyPane": {
     "study": "‏Study‏",
@@ -822,7 +839,9 @@
     "verseHistory": "‏Verse history‏",
     "prevVerse": "‏Previous verse‏",
     "nextVerse": "‏Next verse‏",
-    "goToVerseInBible": "‏Go to verse in Bible‏"
+    "goToVerseInBible": "‏Go to verse in Bible‏",
+    "showFull": "‏Show full verse‏",
+    "showLess": "‏Show less‏"
   },
   "verseHistory": {
     "justNow": "‏just now‏",
@@ -863,7 +882,9 @@
   "bibleTabBar": {
     "home": "‏Home‏",
     "closeTab": "‏Close tab‏",
-    "newTab": "‏New tab‏"
+    "newTab": "‏New tab‏",
+    "closeTabNamed": "‏Close {title}‏",
+    "tabs": "‏Bible tabs‏"
   },
   "semanticSearchLoadingOverlay": {
     "dismiss": "‏Dismiss‏",

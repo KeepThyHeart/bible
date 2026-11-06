@@ -81,11 +81,11 @@ vi.mock('../utils/verseFormatting', () => ({
 
 // Mock sub-components
 vi.mock('./CommentaryTreeView', () => ({ default: () => <div data-testid="commentary-tree-view" /> }));
-vi.mock('./CommentaryHome', () => ({ default: (props: any) => <div data-testid="commentary-home">Home {props.currentVerseId}</div> }));
+vi.mock('./CommentaryHome', () => ({ default: (props: any) => <div data-testid="commentary-home">Home {props.currentVerseId}<button type="button" data-testid="home-open-mhc" onClick={() => props.onOpenTab('MHC', 'Matthew Henry')}>open</button></div> }));
 vi.mock('./commentary/CommentaryPassageHeader', () => ({ default: () => <div data-testid="commentary-passage-header" /> }));
 vi.mock('./commentary/CommentaryVersePreview', () => ({ default: () => <div data-testid="commentary-verse-preview" /> }));
 vi.mock('./commentary/CommentaryPinnedBanner', () => ({ default: () => <div data-testid="commentary-pinned-banner" /> }));
-vi.mock('./commentary/CommentaryContentArea', () => ({ default: () => <div data-testid="commentary-content-area" /> }));
+vi.mock('./commentary/CommentaryContentArea', () => ({ default: () => <div data-testid="commentary-content-area"><h3 tabIndex={-1} data-commentary-heading="">Matthew Henry</h3></div> }));
 vi.mock('./ModuleSelector', () => ({ default: (props: any) => (
   <div data-testid="module-selector">
     {props.modules?.map((m: any) => (
@@ -451,16 +451,26 @@ describe('CommentaryPane: tab/tabpanel wiring', () => {
     expect(panelIds).toHaveLength(2);
     expect(new Set(panelIds).size).toBe(2);
     // Each pane's tab must resolve to *its own* panel, not the other pane's.
-    for (const tab of screen.getAllByRole('tab')) {
+    // (The inactive Overview tab controls nothing, so it has no aria-controls.)
+    for (const tab of screen.getAllByRole('tab').filter(t => t.hasAttribute('aria-controls'))) {
       expect(panelIds).toContain(tab.getAttribute('aria-controls'));
     }
   });
 
-  it('does not claim a tabpanel when the Overview tab is showing', () => {
+  it('exposes Overview as a selected tab in the tablist, owning the content region', () => {
     renderWithProviders(<CommentaryPane />);
-
+    const overview = screen.getByRole('tab', { name: /overview/i });
+    expect(overview).toHaveAttribute('aria-selected', 'true');
+    expect(overview.closest('[role="tablist"]')).not.toBeNull();
+    const panel = screen.getByRole('tabpanel');
+    expect(panel).toHaveAttribute('aria-labelledby', overview.id);
+    expect(overview).toHaveAttribute('aria-controls', panel.id);
     expect(screen.getByTestId('commentary-home')).toBeInTheDocument();
-    expect(screen.queryByRole('tabpanel')).not.toBeInTheDocument();
+  });
+
+  it('marks Overview unselected once a commentary tab is active', () => {
+    renderWithProviders(<CommentaryPane panelId="commentary_c" isDetached overviewActive={false} />);
+    expect(screen.getByRole('tab', { name: /overview/i })).toHaveAttribute('aria-selected', 'false');
   });
 });
 
@@ -504,5 +514,16 @@ describe('CommentaryPane: startup restore gating (5.2)', () => {
     expect(screen.getByText(enT('onboarding.empty.commentary.noneTitle'))).toBeInTheDocument();
     expect(screen.getByTestId('commentary-empty-install')).toBeInTheDocument();
   });
-});
 
+  it('moves focus to the entry heading after a commentary is opened from the Overview', async () => {
+    const user = userEvent.setup();
+    mockUseCommentaryPanel.mockReturnValue({
+      ...defaultPanelState,
+      openTabs: [{ abbreviation: 'MHC', name: 'Matthew Henry' }],
+      entriesByTab: new Map([['MHC', []]]),
+    });
+    renderWithProviders(<CommentaryPane />);
+    await user.click(screen.getByTestId('home-open-mhc'));
+    expect(screen.getByRole('heading', { name: 'Matthew Henry' })).toHaveFocus();
+  });
+});

@@ -29,6 +29,7 @@ export function StudyTabBar({ activePage, onNavigate }: StudyTabBarProps) {
         <button
           key={tab.id}
           class={`study-tab-bar__tab ${activePage === tab.id ? 'study-tab-bar__tab--active' : ''}`}
+          aria-pressed={activePage === tab.id}
           onClick={() => onNavigate(tab.id)}
           title={t(tab.labelKey)}
         >

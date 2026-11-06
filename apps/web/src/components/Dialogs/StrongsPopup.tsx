@@ -1,3 +1,4 @@
+import { useRef } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { Popover } from '@bible/ui';
 import type { StrongsEntryData } from '../../types';
@@ -5,6 +6,7 @@ import { searchStore } from '../../stores/searchStore';
 import { commentaryStore } from '../../stores/commentaryStore';
 import { openPane } from '../../host/paneRequests';
 import { usePaneAvailable } from '../../modules/host/usePaneModes';
+import { useModalFocus } from '../../hooks/useModalFocus';
 
 interface StrongsPopupProps {
   entry: StrongsEntryData | null;
@@ -57,6 +59,11 @@ export function StrongsPopup({ entry, position, onClose, hideWordStudy }: Strong
   const { t } = useTranslation();
   const wordStudyAvailable = usePaneAvailable('wordStudy');
 
+  // The Popover owns the dialog element, so find it from a marker rendered inside it. It is a real modal:
+  // focus moves in, Tab is trapped, the page behind is inert, and focus returns to the opener on close.
+  const dialogRef = useRef<HTMLElement | null>(null);
+  useModalFocus(!!entry && !!position, dialogRef);
+
   if (!entry || !position) return null;
 
   const parsed = parseDefinition(entry.definition);
@@ -81,13 +88,21 @@ export function StrongsPopup({ entry, position, onClose, hideWordStudy }: Strong
       padding={8}
       style={{ width: 'auto', overflowY: 'visible' }}
     >
+      <span
+        hidden
+        ref={(node: HTMLSpanElement | null) => {
+          const dialog = node?.closest<HTMLElement>('[role="dialog"]') ?? null;
+          dialog?.setAttribute('aria-modal', 'true');
+          dialogRef.current = dialog;
+        }}
+      />
       <div class="strongs-popup__header">
         <div>
           <span class="strongs-popup__number">{entry.strongsNumber}</span>
           <span class="strongs-popup__word" {...(entry.strongsNumber?.startsWith('H') ? { lang: 'he', dir: 'rtl' } : {})}>{entry.word}</span>
         </div>
-        <button class="strongs-popup__close" onClick={onClose}>
-          <i class="fa-solid fa-xmark" />
+        <button type="button" class="strongs-popup__close" aria-label={t('common.close')} onClick={onClose}>
+          <i class="fa-solid fa-xmark" aria-hidden="true" />
         </button>
       </div>
       <div class="strongs-popup__body">

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
+import { useTranslation } from 'react-i18next';
 import { listenForViewerIntents, type IntentSink } from '../lib/intentSink';
 import type { PresentState } from '../lib/protocol';
 import { isLocalPreviewHello, localPreviewStateMessage } from '../app/control/localPreviewProtocol';
@@ -54,6 +55,7 @@ export interface PresentPreviewProps {
 }
 
 export function PresentPreview(props: PresentPreviewProps) {
+  const { t } = useTranslation();
   const boxRef = useRef<HTMLDivElement>(null);
   const frameRef = useRef<HTMLIFrameElement>(null);
   const [scale, setScale] = useState(0);
@@ -112,7 +114,7 @@ export function PresentPreview(props: PresentPreviewProps) {
         class="present-preview__frame"
         src={`/present/v/${isLocal ? 'local' : encodeURIComponent(props.joinCode!)}${query}`}
         onLoad={isLocal ? post : undefined}
-        title="Screen preview"
+        title={t('present.previewFrameTitle', { defaultValue: 'Screen preview' })}
         // `allow-same-origin` is required -- the viewer opens an EventSource
         // back to this origin, and an opaque origin would make that a
         // cross-origin request. Paired with `allow-scripts` it does not isolate

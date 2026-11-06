@@ -672,6 +672,10 @@ class SearchStore extends Store {
   setSearchType(type: 'keyword' | 'semantic'): void {
     if (this.searchType === type) return;
     this.searchType = type;
+    // Leaving Ideas ends the "Ideas search is unavailable" notice: it is about Ideas only.
+    if (type === 'keyword' && this.semanticInit.status === 'error') {
+      this.semanticInit = { status: 'idle', stage: '', detail: '' };
+    }
 
     if (type === 'semantic') {
       // Abandon anything in flight so a slow keyword search cannot land its
@@ -699,7 +703,11 @@ class SearchStore extends Store {
     }
   }
 
+  /** Bumped by `clear()` so the header's search box can empty itself on a reset it did not start. */
+  clearSeq = 0;
+
   clear(): void {
+    this.clearSeq++;
     this.resetResults();
     this.isOpen = false;
     this.notify();

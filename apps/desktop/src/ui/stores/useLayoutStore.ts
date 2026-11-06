@@ -47,6 +47,73 @@ export type CorePanelType = (typeof CORE_PANEL_TYPES)[number];
 /**
  * Registered panel in the layout system
  */
+/**
+ * Where a new search results pane opens (Preferences > Search, task 0210):
+ * below the Bible pane, as one general Search tab in the right-hand pane group
+ * with a sub-tab per search (`tab`), or a full-height column on the right.
+ */
+export type SearchResultsPlacement = 'below' | 'tab' | 'right';
+
+/** The `contentKey` of the one general Search panel that hosts searches as sub-tabs. */
+export const SEARCH_HOST_CONTENT_KEY = 'host';
+
+/** Options for `openSearchResultsPanel` (task 0210). */
+export interface OpenSearchPanelOptions {
+  /** Focus the tab (default true). A background re-run passes false. */
+  reveal?: boolean;
+  /** A new tab joins this session's tab group, when that tab is still open. */
+  nearSessionId?: string | null;
+  /** Where the first search pane goes when no search tab is open. Default `below`. */
+  placement?: SearchResultsPlacement;
+}
+
+/** Extra dockview `addPanel` options a caller may pass through. */
+export interface AddPanelExtras {
+  inactive?: boolean;
+  initialWidth?: number;
+  initialHeight?: number;
+}
+
+/**
+ * Width of a new right-hand, full-height search column: a third of the
+ * workbench, kept within a readable range so it neither crushes the Bible pane
+ * on a narrow window nor sprawls on a wide one.
+ */
+export function rightSearchColumnWidth(workbenchWidth: number): number | undefined {
+  if (!Number.isFinite(workbenchWidth) || workbenchWidth <= 0) return undefined;
+  const third = Math.round(workbenchWidth / 3);
+  return Math.max(Math.min(third, 560), Math.min(280, Math.round(workbenchWidth / 2)));
+}
+
+/** What `findRightPaneGroupId` needs to know about a dockview group. */
+export interface GroupSummary {
+  id: string;
+  /** Content types of the group's panels. */
+  panelTypes: string[];
+  /** Right edge on screen (0 when unknown, e.g. in tests). */
+  right: number;
+}
+
+/**
+ * The right-hand pane group a "Tab in the right pane" search joins: the group
+ * of study tools beside the Bible. Groups holding a Bible pane, groups of
+ * search tabs only, and collapsed groups do not count. Prefers the group with
+ * the Study pane, then the one furthest right. Null when there is none (a
+ * single-pane layout, or a preset with only Bible groups).
+ */
+export function findRightPaneGroupId(groups: GroupSummary[], collapsedGroupIds: readonly string[] = []): string | null {
+  const candidates = groups.filter(g =>
+    !collapsedGroupIds.includes(g.id) &&
+    g.panelTypes.length > 0 &&
+    !g.panelTypes.includes('bible') &&
+    !g.panelTypes.every(t => t === 'search'),
+  );
+  if (candidates.length === 0) return null;
+  const study = candidates.find(g => g.panelTypes.includes('study'));
+  if (study) return study.id;
+  return candidates.reduce((a, b) => (b.right > a.right ? b : a)).id;
+}
+
 export interface LayoutPanel {
   panelId: string;
   contentType: PanelContentType;
@@ -121,18 +188,30 @@ interface LayoutState {
    * id the session already refers to (see the Bible session migration); normal
    * callers should let the id be generated.
    */
-  addPanel: (contentType: PanelContentType, contentKey?: string, displayName?: string, position?: Record<string, unknown>, subtitle?: string, panelIdOverride?: string) => string | null;
+  addPanel: (contentType: PanelContentType, contentKey?: string, displayName?: string, position?: Record<string, unknown>, subtitle?: string, panelIdOverride?: string, extras?: AddPanelExtras) => string | null;
 
   /** Remove a panel from the layout */
   removePanel: (panelId: string) => void;
 
   /**
-   * Open the search-results panel, or focus it if one is already open.
+   * Open a search session's results tab (the panel id is the session id), or
+   * focus it if it is already open. Without a session id, focuses any open
+   * search panel or opens one.
    *
    * Returns the panel id, or `null` if dockview is not ready. See the
-   * implementation for the placement rule.
+   * implementation for the placement rules.
    */
-  openSearchResultsPanel: () => string | null;
+  openSearchResultsPanel: (sessionId?: string, opts?: OpenSearchPanelOptions) => string | null;
+
+  /**
+   * Open the general Search panel that shows searches as sub-tabs, in the
+   * right-hand pane group (or focus it). Returns its id, or null when there is
+   * no right-hand group to put it in (the caller falls back to the column).
+   */
+  openSearchHostPanel: (opts?: { reveal?: boolean }) => string | null;
+
+  /** Set a search tab's title and the query it re-runs after a restart (dockview params). */
+  updateSearchPanelMeta: (panelId: string, query: string, semantic: boolean) => void;
 
   /** Close every search-results panel (e.g. after the reader jumps to a typed reference). */
   closeSearchResultsPanels: () => void;
@@ -344,7 +423,7 @@ export const useLayoutStore = create<LayoutState>((set, get) => ({
     return stripTransientPanels(api.toJSON());
   },
 
-  addPanel: (contentType: PanelContentType, contentKey?: string, displayName?: string, position?: Record<string, unknown>, subtitle?: string, panelIdOverride?: string) => {
+  addPanel: (contentType: PanelContentType, contentKey?: string, displayName?: string, position?: Record<string, unknown>, subtitle?: string, panelIdOverride?: string, extras?: AddPanelExtras) => {
     const api = get().dockviewApi;
     if (!api) {
       console.error('[LayoutStore] addPanel failed: dockviewApi is null. contentType:', contentType);
@@ -396,6 +475,9 @@ export const useLayoutStore = create<LayoutState>((set, get) => ({
         addOptions.position = resolved;
       }
     }
+    if (extras?.inactive) addOptions.inactive = true;
+    if (extras?.initialWidth) addOptions.initialWidth = extras.initialWidth;
+    if (extras?.initialHeight) addOptions.initialHeight = extras.initialHeight;
 
     try {
       api.addPanel(addOptions);
@@ -420,55 +502,127 @@ export const useLayoutStore = create<LayoutState>((set, get) => ({
   },
 
   /**
-   * Show search results in their own dockview panel.
+   * Show a search session's results in their own dockview tab.
    *
-   * Three rules, in order:
+   * Rules, in order:
    *
-   * 1. **If a search panel already exists, focus it - never move it.** This is
-   *    the whole of "remember where I put it": once the user has dragged the
-   *    results into the study group (or anywhere else), dockview's own layout
-   *    state is the memory, and the next search must not yank it back. It also
-   *    covers the panel simply being open but behind another tab.
-   * 2. **Otherwise split the Bible pane top/bottom**, results below, targeting
-   *    `lastActiveBiblePanelId` (the Bible pane the user was actually reading -
-   *    the search bar lives outside dockview and never becomes the active
-   *    panel, so `activePanelId` alone would be the wrong target) and falling
-   *    back to any registered Bible panel.
-   * 3. **Otherwise let dockview place it**, which lands it in the active group.
-   *    Nothing to split against is a legitimate state (no Bible pane open).
+   * 1. **The session's own tab exists: focus it - never move it.** Once the
+   *    user has dragged the results anywhere, dockview's own layout state is
+   *    the memory, and the next search must not yank them back.
+   * 2. **Another search tab is open: join its group** as a new tab, preferring
+   *    the tab the search was started from (`nearSessionId`). Search tabs stay
+   *    together, wherever the user has put them.
+   * 3. **No search tab is open: the placement preference.**
+   *    - `right`: a column at the right edge of the whole layout, full height
+   *      (dockview's absolute `direction: 'right'`).
+   *    - `below` (default): split the Bible pane top/bottom, results below,
+   *      targeting `lastActiveBiblePanelId` (the search bar lives outside
+   *      dockview and never becomes the active panel) and falling back to any
+   *      registered Bible panel; with no Bible pane at all, dockview places it
+   *      in the active group.
    *
    * The title is the generic *English* label on purpose - `addPanel` writes it
-   * into the serialized layout, so a localized string here would bake the
-   * creating locale into the saved session. `localizePaneLabel` translates it
-   * at render time instead.
+   * into the serialized layout. The tab renderer shows the session's query
+   * instead (see `DockviewTabRenderer`).
    */
-  openSearchResultsPanel: () => {
+  openSearchResultsPanel: (sessionId?: string, opts: OpenSearchPanelOptions = {}) => {
     const api = get().dockviewApi;
     if (!api) return null;
+    const reveal = opts.reveal !== false;
+
+    // A search host panel holds its searches as sub-tabs; it is not a tab
+    // another search tab joins.
+    const openSearchIds = get().getPanelsByType('search')
+      .filter(p => p.contentKey !== SEARCH_HOST_CONTENT_KEY)
+      .map(p => p.panelId)
+      .filter(id => !!api.getPanel(id));
 
     // Rule 1: reuse wherever it now lives.
-    for (const existing of get().getPanelsByType('search')) {
-      const dockPanel = api.getPanel(existing.panelId);
-      if (dockPanel) {
-        dockPanel.api.setActive();
-        return existing.panelId;
+    if (sessionId) {
+      const own = api.getPanel(sessionId);
+      if (own) {
+        if (reveal) own.api.setActive();
+        return sessionId;
       }
+    } else if (openSearchIds.length > 0) {
+      const existing = api.getPanel(openSearchIds[0]);
+      if (reveal) existing?.api.setActive();
+      return openSearchIds[0];
     }
 
-    // Rule 2: below the Bible pane the user was last reading.
-    const { lastActiveBiblePanelId } = get();
-    const targetBibleId =
-      (lastActiveBiblePanelId && api.getPanel(lastActiveBiblePanelId) ? lastActiveBiblePanelId : null)
-      ?? get().getPanelsByType('bible').find(p => api.getPanel(p.panelId))?.panelId
-      ?? null;
+    let position: Record<string, unknown> | undefined;
+    const extras: AddPanelExtras = { inactive: !reveal };
 
-    // Rule 3 is simply passing `undefined` here; `addPanel` then omits the
-    // position and dockview uses the active group.
-    const position = targetBibleId
-      ? { direction: 'below', referencePanel: targetBibleId }
-      : undefined;
+    const anchor = opts.nearSessionId && openSearchIds.includes(opts.nearSessionId)
+      ? opts.nearSessionId
+      : openSearchIds[openSearchIds.length - 1];
 
-    return get().addPanel('search', undefined, genericEnglishTitle('search'), position);
+    if (anchor) {
+      // Rule 2: a new tab beside the other search tabs.
+      position = { referencePanel: anchor, direction: 'within' };
+    } else if (opts.placement === 'right') {
+      // Rule 3, right: full height at the right edge of the whole layout.
+      position = { direction: 'right' };
+      const width = rightSearchColumnWidth(api.width);
+      if (width) extras.initialWidth = width;
+    } else {
+      // Rule 3, below: under the Bible pane the user was last reading.
+      const { lastActiveBiblePanelId } = get();
+      const targetBibleId =
+        (lastActiveBiblePanelId && api.getPanel(lastActiveBiblePanelId) ? lastActiveBiblePanelId : null)
+        ?? get().getPanelsByType('bible').find(p => api.getPanel(p.panelId))?.panelId
+        ?? null;
+      position = targetBibleId
+        ? { direction: 'below', referencePanel: targetBibleId }
+        : undefined;
+    }
+
+    return get().addPanel('search', undefined, genericEnglishTitle('search'), position, undefined, sessionId, extras);
+  },
+
+  openSearchHostPanel: (opts: { reveal?: boolean } = {}) => {
+    const api = get().dockviewApi;
+    if (!api) return null;
+    const reveal = opts.reveal !== false;
+    const existing = get().getPanelsByType('search')
+      .find(p => p.contentKey === SEARCH_HOST_CONTENT_KEY && api.getPanel(p.panelId));
+    if (existing) {
+      if (reveal) api.getPanel(existing.panelId)?.api.setActive();
+      return existing.panelId;
+    }
+    const groupId = findRightPaneGroupId(
+      // Grid groups only: never a floating or popped-out window.
+      api.groups.filter(g => (g.api as { location?: { type?: string } } | undefined)?.location?.type !== 'floating'
+        && (g.api as { location?: { type?: string } } | undefined)?.location?.type !== 'popout').map(g => ({
+        id: g.id,
+        panelTypes: g.panels.map(p => get().panels.get(p.id)?.contentType ?? 'unknown'),
+        right: (g.element as HTMLElement | undefined)?.getBoundingClientRect?.().right ?? 0,
+      })),
+      get().collapsedGroups.map(c => c.groupId),
+    );
+    if (!groupId) return null;
+    return get().addPanel(
+      'search',
+      SEARCH_HOST_CONTENT_KEY,
+      genericEnglishTitle('search'),
+      { referenceGroup: groupId, direction: 'within' },
+      undefined,
+      undefined,
+      { inactive: !reveal },
+    );
+  },
+
+  updateSearchPanelMeta: (panelId: string, query: string, semantic: boolean) => {
+    const api = get().dockviewApi;
+    const panel = api?.getPanel(panelId);
+    if (!panel) return;
+    const params = (panel.params ?? {}) as Record<string, unknown>;
+    if (params.searchQuery !== query || !!params.searchSemantic !== semantic) {
+      panel.api.updateParameters({ ...params, searchQuery: query, searchSemantic: semantic });
+    }
+    // The dockview title too, so places that read it (the "List all tabs"
+    // menu, a pop-out) name the search rather than a generic "Search".
+    if (panel.api.title !== query) panel.api.setTitle(query);
   },
 
   closeSearchResultsPanels: () => {

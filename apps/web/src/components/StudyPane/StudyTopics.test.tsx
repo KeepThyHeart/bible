@@ -61,6 +61,13 @@ vi.mock('../../stores/offlineStore', () => ({
   },
 }));
 
+let mockExcludedTopical: string[] = [];
+vi.mock('../../stores/settingsStore', () => ({
+  settingsStore: {
+    get excludedTopicalModules() { return mockExcludedTopical; },
+  },
+}));
+
 import { StudyTopics } from './StudyTopics';
 
 function makeTopic(overrides: Partial<VerseTopicData> = {}): VerseTopicData {
@@ -91,6 +98,7 @@ describe('StudyTopics', () => {
     mockVerseEntities = [];
     mockTopicsLoading = false;
     mockIsOnline = true;
+    mockExcludedTopical = [];
   });
 
   // ------------------------------------------------------------------
@@ -295,5 +303,18 @@ describe('StudyTopics', () => {
     const groups = container.querySelectorAll('.study-topics__group');
     // 1 topic group + 1 entity group
     expect(groups.length).toBe(2);
+  });
+
+  it('hints that topical indexes are turned off in Settings when some are excluded and nothing is found', () => {
+    mockExcludedTopical = ['nave'];
+    const { container } = render(<StudyTopics />);
+    const empty = container.querySelector('.study-topics__empty')!;
+    expect(empty.textContent).toContain('studyTopics.noTopics');
+    expect(empty.textContent).toContain('studyTopics.someIndexesOff');
+  });
+
+  it('shows no settings hint when no topical index is excluded', () => {
+    const { container } = render(<StudyTopics />);
+    expect(container.querySelector('.study-topics__empty')!.textContent).not.toContain('someIndexesOff');
   });
 });

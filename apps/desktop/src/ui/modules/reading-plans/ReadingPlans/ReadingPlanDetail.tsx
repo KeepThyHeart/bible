@@ -9,6 +9,7 @@ import { WeekdayPicker } from '@bible/ui';
 import { useI18n } from '../../../contexts/useI18n';
 import { getReadingPlanService } from '../readingPlansAPI';
 import { openPlanReading } from '../useActiveReadingStore';
+import { useInlineConfirm } from './useInlineConfirm';
 import { usePreferencesStore } from '../../../stores/usePreferencesStore';
 import type { ReadingPlanLabelSet } from './useReadingPlanLabels';
 
@@ -38,6 +39,10 @@ const ReadingPlanDetail: React.FC<Props> = ({ enrollmentId, labels, displayName,
   const scrolled = useRef(false);
   const [confirming, setConfirming] = useState<'flexible' | 'remove' | null>(null);
   const [alarm, setAlarm] = useState('');
+  // Remove confirmation: focus goes in, Escape / Cancel return to the Remove button.
+  const removeButtonRef = useRef<HTMLButtonElement | null>(null);
+  const cancelRemove = () => { setConfirming(null); removeButtonRef.current?.focus(); };
+  const removeConfirm = useInlineConfirm(confirming === 'remove' ? 'remove' : null, cancelRemove);
 
   const load = useCallback(async () => {
     try {
@@ -232,15 +237,16 @@ const ReadingPlanDetail: React.FC<Props> = ({ enrollmentId, labels, displayName,
             {e.status === 'paused' ? t('readingPlans.action.resume') : t('readingPlans.action.pause')}
           </button>
         ) : null}
-        <button type="button" className="kth-btn kth-btn--sm kth-btn--danger" onClick={() => setConfirming('remove')}>{t('readingPlans.action.remove')}</button>
+        <button type="button" ref={removeButtonRef} className="kth-btn kth-btn--sm kth-btn--danger" onClick={() => setConfirming('remove')}>{t('readingPlans.action.remove')}</button>
       </section>
       {confirming === 'remove' ? (
-        <div role="group" aria-label={t('readingPlans.action.remove')} className="flex flex-col gap-xs">
+        <div role="group" aria-label={t('readingPlans.action.remove')} className="flex flex-col gap-xs"
+          ref={removeConfirm.groupRef} onKeyDown={removeConfirm.onKeyDown}>
           <p className="text-sm m-0">{t('readingPlans.action.removeConfirm', { name })}</p>
           <div className="flex gap-sm">
             <button type="button" className="kth-btn kth-btn--sm kth-btn--danger"
               onClick={() => { setConfirming(null); void run(async () => { await service.removeEnrollment(e.id); onRemoved(); }); }}>{t('readingPlans.action.remove')}</button>
-            <button type="button" className="kth-btn kth-btn--sm" onClick={() => setConfirming(null)}>{labels.todayCard.cancel}</button>
+            <button type="button" className="kth-btn kth-btn--sm" onClick={cancelRemove}>{labels.todayCard.cancel}</button>
           </div>
         </div>
       ) : null}

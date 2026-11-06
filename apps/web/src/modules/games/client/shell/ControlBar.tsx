@@ -18,7 +18,7 @@
  * the room, approved or declined right here.
  */
 
-import { useEffect, useState } from 'preact/hooks';
+import { useEffect, useRef, useState } from 'preact/hooks';
 import type {
   ControlPanel as ControlPanelData,
   HostCommand,
@@ -87,6 +87,12 @@ function MenuIcon() {
   );
 }
 
+const MENU_ITEMS = '[role^="menuitem"]:not([disabled])';
+
+function menuItems(menu: ParentNode | null): HTMLElement[] {
+  return menu ? Array.from(menu.querySelectorAll<HTMLElement>(MENU_ITEMS)) : [];
+}
+
 /**
  * The hamburger menu: New game, Close room, the individual-scores switch,
  * and the doors into Overall winners, Manage players and Full standings. Everything here changes the room
@@ -103,6 +109,7 @@ function RoomMenu({
   onOpenFullStandings,
   onCommand,
   onClose,
+  onEscape,
 }: {
   open: boolean;
   playing: boolean;
@@ -113,18 +120,50 @@ function RoomMenu({
   onOpenFullStandings(): void;
   onCommand(command: HostCommand): void;
   onClose(): void;
+  /** Escape: close and hand focus back to the menu button. */
+  onEscape(): void;
 }) {
+  const panelRef = useRef<HTMLDivElement>(null);
   const [confirmNewGame, setConfirmNewGame] = useState(false);
   const [confirmEnd, setConfirmEnd] = useState(false);
 
+  // Opening the menu puts focus on its first item.
+  useEffect(() => {
+    if (open) menuItems(panelRef.current)[0]?.focus();
+  }, [open]);
+
   if (!open) return null;
 
+  const onKeyDown = (event: KeyboardEvent): void => {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      event.stopPropagation();
+      onEscape();
+      return;
+    }
+    const items = menuItems(panelRef.current);
+    if (items.length === 0) return;
+    const at = items.indexOf(document.activeElement as HTMLElement);
+    let target = -1;
+    if (event.key === 'ArrowDown') target = at < 0 ? 0 : (at + 1) % items.length;
+    else if (event.key === 'ArrowUp') target = at < 0 ? items.length - 1 : (at - 1 + items.length) % items.length;
+    else if (event.key === 'Home') target = 0;
+    else if (event.key === 'End') target = items.length - 1;
+    if (target < 0) return;
+    event.preventDefault();
+    items[target]?.focus();
+  };
+
   return (
-    <div class="host-menu-panel" role="menu" aria-label={gt('games.bar.roomMenu', 'Room menu')}>
-      <button type="button" role="menuitem" aria-pressed={showIndividualScores} onClick={onToggleScores}>
-        {showIndividualScores
-          ? gt('games.bar.scoresEveryone', 'Scores: everyone')
-          : gt('games.bar.scoresTopThree', 'Scores: top three')}
+    <div
+      class="host-menu-panel"
+      role="menu"
+      aria-label={gt('games.bar.roomMenu', 'Room menu')}
+      ref={panelRef}
+      onKeyDown={onKeyDown}
+    >
+      <button type="button" role="menuitemcheckbox" aria-checked={showIndividualScores} onClick={onToggleScores}>
+        {gt('games.bar.scoresEveryoneItem', 'Show everyone\'s scores')}
       </button>
       <button
         type="button"
@@ -364,6 +403,11 @@ export function ControlBar({ common, panel, reveal, fullStandings, onCommand }: 
   const [showFullStandings, setShowFullStandings] = useState(false);
   const [showBack, setShowBack] = useState(false);
   const [confirmSkip, setConfirmSkip] = useState(false);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
+  const escapeMenu = (): void => {
+    setMenuOpen(false);
+    menuButtonRef.current?.focus();
+  };
   // The room retires `reveal` the instant the next round's snapshot lands,
   // so a "Back" reading it directly would only ever show the round already
   // on screen. Holding the last one seen here is what makes it survive past
@@ -409,7 +453,14 @@ export function ControlBar({ common, panel, reveal, fullStandings, onCommand }: 
             <button
               type="button"
               class="icon-button host-menu-toggle"
-              aria-haspopup="true"
+              aria-haspopup="menu"
+              ref={menuButtonRef}
+              onKeyDown={(event: KeyboardEvent) => {
+                if (event.key === 'ArrowDown' && !menuOpen) {
+                  event.preventDefault();
+                  setMenuOpen(true);
+                }
+              }}
               aria-expanded={menuOpen}
               aria-label={gt('games.bar.roomMenu', 'Room menu')}
               onClick={() => setMenuOpen((open) => !open)}
@@ -431,6 +482,7 @@ export function ControlBar({ common, panel, reveal, fullStandings, onCommand }: 
               onOpenFullStandings={openFullStandings}
               onCommand={onCommand}
               onClose={() => setMenuOpen(false)}
+              onEscape={escapeMenu}
             />
           </div>
         </nav>
@@ -481,7 +533,14 @@ export function ControlBar({ common, panel, reveal, fullStandings, onCommand }: 
             <button
               type="button"
               class="icon-button host-menu-toggle"
-              aria-haspopup="true"
+              aria-haspopup="menu"
+              ref={menuButtonRef}
+              onKeyDown={(event: KeyboardEvent) => {
+                if (event.key === 'ArrowDown' && !menuOpen) {
+                  event.preventDefault();
+                  setMenuOpen(true);
+                }
+              }}
               aria-expanded={menuOpen}
               aria-label={gt('games.bar.roomMenu', 'Room menu')}
               onClick={() => setMenuOpen((open) => !open)}
@@ -503,6 +562,7 @@ export function ControlBar({ common, panel, reveal, fullStandings, onCommand }: 
               onOpenFullStandings={openFullStandings}
               onCommand={onCommand}
               onClose={() => setMenuOpen(false)}
+              onEscape={escapeMenu}
             />
           </div>
         </nav>

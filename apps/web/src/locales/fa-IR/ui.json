@@ -33,7 +33,9 @@
     "more": "بیشتر…",
     "offlineTooltip": "شما آفلاین هستید",
     "shortcutHint": "برای جستجو / یا Ctrl+K را فشار دهید",
-    "feedback": "ارسال بازخورد"
+    "feedback": "ارسال بازخورد",
+    "clearSearch": "پاک کردن جستجو",
+    "searchTypeCurrent": "نوع جستجو: {type}"
   },
   "themes": {
     "auto": "خودکار",
@@ -75,7 +77,8 @@
     "modeHint": "نمای مطالعه برای ترجمه‌هایی که شماره‌های استرانگ و واژه‌های بین‌خطی دارند، مانند KJV، آن‌ها را نشان می‌دهد.",
     "modeLabel": "حالت نمایش",
     "recentPassages": "قسمت‌های اخیر",
-    "noHistory": "هنوز قسمتی بازدید نشده است"
+    "noHistory": "هنوز قسمتی بازدید نشده است",
+    "translationButton": "ترجمه: {abbr}"
   },
   "bibleContent": {
     "votdLabel": "آیهٔ امروز",
@@ -181,7 +184,10 @@
     "timeline": "خط زمان",
     "quiz": "آزمون",
     "similar": "مشابه",
-    "wordStudy": "مطالعه واژه"
+    "wordStudy": "مطالعه واژه",
+    "modes": "نماهای پنل کناری",
+    "expandTo": "نمایش {tab}",
+    "expand": "گسترش پنل کناری"
   },
   "mobileNav": {
     "home": "خانه",
@@ -455,7 +461,9 @@
     "markdownDesc": "ساختار را به‌صورت Markdown بنویسید — نقل‌قول‌های بلوکی به‌صورت خطوط «> » و عنوان‌ها به‌صورت «#»",
     "copied": "کپی شد!",
     "copyToClipboard": "کپی در کلیپ‌بورد",
-    "loading": "در حال بارگذاری آیات..."
+    "loading": "در حال بارگذاری آیات...",
+    "copyFailed": "کپی در کلیپ‌بورد ممکن نشد. بررسی کنید که این سایت اجازهٔ استفاده از آن را دارد.",
+    "referencePosition": "جای ارجاع"
   },
   "ui": {
     "passageInsert": {
@@ -607,7 +615,8 @@
     "hasContentFor": "مطلب دارد برای",
     "loading": "در حال بارگذاری...",
     "cancel": "انصراف",
-    "apply": "اعمال"
+    "apply": "اعمال",
+    "tabs": "زبانه‌های تفسیر"
   },
   "digestDisclaimer": {
     "notice": "توجه",
@@ -631,7 +640,8 @@
     "loadingEntry": "در حال بارگذاری مدخل...",
     "browseEntriesIn": "مرور مدخل‌ها در",
     "searchOccurrences": "جستجوی همهٔ موارد کاربرد {number}",
-    "loadMore": "بارگذاری بیشتر ({count} مورد باقی‌مانده)"
+    "loadMore": "بارگذاری بیشتر ({count} مورد باقی‌مانده)",
+    "entryLoadFailed": "این مدخل بارگذاری نشد."
   },
   "dictionaryHome": {
     "searchAll": "جستجو در همهٔ فرهنگ‌های لغت...",
@@ -640,7 +650,8 @@
     "loadFailed": "فرهنگ‌های لغت بارگذاری نشدند. اتصال خود را بررسی کنید.",
     "retry": "تلاش مجدد",
     "unstar": "برداشتن ستاره",
-    "star": "ستاره‌دار کردن (سنجاق به بالا)"
+    "star": "ستاره‌دار کردن (سنجاق به بالا)",
+    "starNamed": "ستاره‌دار کردن {name}"
   },
   "dictionaryPane": {
     "back": "بازگشت",
@@ -657,7 +668,8 @@
     "noModules": "هیچ ماژول فرهنگ لغتی در دسترس نیست",
     "noMatches": "موردی یافت نشد",
     "cancel": "انصراف",
-    "apply": "اعمال"
+    "apply": "اعمال",
+    "tabs": "زبانه‌های فرهنگ لغت"
   },
   "studyCrossRefs": {
     "loading": "در حال بارگذاری ارجاعات متقابل...",
@@ -698,7 +710,8 @@
     "loading": "در حال بارگذاری موضوعات...",
     "noTopics": "موضوعی برای این آیه یافت نشد.",
     "offlineNotice": "آفلاین هستید. این بخش به‌صورت آفلاین در دسترس نیست.",
-    "entities": "موجودیت‌ها"
+    "entities": "موجودیت‌ها",
+    "someIndexesOff": "برخی فهرست‌های موضوعی در تنظیمات خاموش هستند."
   },
   "topicsBrowser": {
     "searchAll": "جستجوی همهٔ موضوعات",
@@ -749,7 +762,9 @@
     "seeAlso": "نگاه کنید به",
     "verseTotal": "{count, plural, one {# آیه} other {# آیه}}",
     "topicHasNoEntries": "این موضوع آیه یا زیرموضوع مستقلی ندارد.",
-    "directOfTotal": "({direct} مستقیم، مجموع {total})"
+    "directOfTotal": "({direct} مستقیم، مجموع {total})",
+    "forward": "جلو",
+    "clearSearch": "پاک کردن جستجو"
   },
   "verseRefList": {
     "loading": "در حال بارگذاری...",
@@ -786,7 +801,9 @@
     "searching": "در حال جستجو...",
     "noEntries": "مدخلی یافت نشد",
     "offlineNotice": "آفلاین هستید. این بخش به‌صورت آفلاین در دسترس نیست.",
-    "searchPrompt": "یک واژه یا اصطلاح را در بالا جستجو کنید"
+    "searchPrompt": "یک واژه یا اصطلاح را در بالا جستجو کنید",
+    "closeEntry": "بستن مدخل",
+    "closeDictionary": "بستن فرهنگ لغت"
   },
   "mobileStudyPane": {
     "study": "تحقیق",
@@ -822,7 +839,9 @@
     "verseHistory": "تاریخچهٔ آیات",
     "prevVerse": "آیهٔ قبلی",
     "nextVerse": "آیهٔ بعدی",
-    "goToVerseInBible": "رفتن به آیه در کتاب مقدس"
+    "goToVerseInBible": "رفتن به آیه در کتاب مقدس",
+    "showFull": "نمایش کامل آیه",
+    "showLess": "نمایش کمتر"
   },
   "verseHistory": {
     "justNow": "همین الان",
@@ -863,7 +882,9 @@
   "bibleTabBar": {
     "home": "خانه",
     "closeTab": "بستن برگه",
-    "newTab": "برگهٔ جدید"
+    "newTab": "برگهٔ جدید",
+    "closeTabNamed": "بستن {title}",
+    "tabs": "زبانه‌های کتاب مقدس"
   },
   "semanticSearchLoadingOverlay": {
     "dismiss": "بستن",

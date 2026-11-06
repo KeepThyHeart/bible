@@ -77,7 +77,6 @@ const UserNotesEditorView: React.FC<UserNotesEditorViewProps> = ({
           }`}
           title={sidebarToggleLabel}
           aria-label={sidebarToggleLabel}
-          aria-pressed={showEditorSidebar}
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
             <rect x="3" y="3" width="18" height="18" rx="2" strokeWidth={2} />

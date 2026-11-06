@@ -12,11 +12,11 @@
  * code into a word.
  */
 
-import { useEffect, useState } from 'preact/hooks';
-import { ROOM_CODE_LENGTH } from '../../shared/protocol.js';
+import { useEffect, useRef, useState } from 'preact/hooks';
+import { ROOM_CODE_ALPHABET, ROOM_CODE_LENGTH } from '../../shared/protocol.js';
 import type { RoomCode } from '../../shared/protocol.js';
 import { Brand } from './Brand.js';
-import { filterToCodeAlphabet } from './routes.js';
+import { filterToCodeAlphabet, normaliseCode } from './routes.js';
 import { gt } from './t.js';
 
 /** No room code is ever shorter than this, so nothing shorter is worth sending. */
@@ -47,8 +47,29 @@ export function JoinScreen({ initialCode, initialName, busy, error, onJoin, onSo
     if (incoming) setCode(incoming);
   }, [initialCode]);
 
+  const [attempted, setAttempted] = useState(false);
+  // True while the last edit dropped characters the code alphabet never uses.
+  const [dropped, setDropped] = useState(false);
+  const codeRef = useRef<HTMLInputElement>(null);
+
+  // A refused join leaves focus on a disabled button (so on the body): bring it
+  // back to the code, which is the usual thing to correct.
+  useEffect(() => {
+    if (error !== null) codeRef.current?.focus();
+  }, [error]);
   const trimmedName = normaliseName(name);
   const ready = code.length >= MIN_CODE_LENGTH && trimmedName.length > 0 && !busy;
+
+  // Said only once someone has tried (Enter) or typed a part-code, never on a pristine form.
+  const problem = dropped && !attempted
+    ? gt('games.join.codeFiltered', 'Room codes only use these characters: {chars}. Others were left out.', {
+        chars: ROOM_CODE_ALPHABET.split('').join(' '),
+      })
+    : code.length < MIN_CODE_LENGTH && (attempted || code.length > 0)
+      ? gt('games.join.codeInvalid', 'A room code is {length} letters and numbers, like 5HK27. Check the big screen.', { length: MIN_CODE_LENGTH })
+      : attempted && trimmedName.length === 0
+        ? gt('games.join.nameNeeded', 'Enter your name to join.')
+        : null;
 
   return (
     <main class="screen screen-join">
@@ -59,6 +80,7 @@ export function JoinScreen({ initialCode, initialName, busy, error, onJoin, onSo
         onSubmit={(event) => {
           event.preventDefault();
           if (ready) onJoin(code, trimmedName);
+          else if (!busy) setAttempted(true);
         }}
       >
         <label class="field">
@@ -75,7 +97,13 @@ export function JoinScreen({ initialCode, initialName, busy, error, onJoin, onSo
             maxLength={8}
             aria-describedby="code-help"
             value={code}
-            onInput={(event) => setCode(filterToCodeAlphabet(event.currentTarget.value))}
+            ref={codeRef}
+            onInput={(event) => {
+              const raw = event.currentTarget.value;
+              const kept = filterToCodeAlphabet(raw);
+              setDropped(kept.length < normaliseCode(raw).length);
+              setCode(kept);
+            }}
           />
         </label>
         <p id="code-help" class="muted small">
@@ -95,6 +123,10 @@ export function JoinScreen({ initialCode, initialName, busy, error, onJoin, onSo
             onInput={(event) => setName(event.currentTarget.value)}
           />
         </label>
+
+        <p class="muted small" role="status">
+          {problem}
+        </p>
 
         {error !== null && (
           <p class="alert" role="alert">
