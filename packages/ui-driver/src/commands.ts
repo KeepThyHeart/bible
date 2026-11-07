@@ -35,6 +35,8 @@ const USAGE: Record<string, string> = {
   reload: `reload ${ACT}`,
   pages: 'pages',
   page: 'page N',
+  eval: 'eval JS...   (run an expression in the current page, print the JSON result: read a computed style, an attribute, a store)',
+  closepage: 'closepage N   (close a popup / extra window, e.g. a popped-out pane; page 0 is refused)',
   resize: 'resize WxH | resize W H',
   wait: 'wait rN | gone rN|TEXT... | idle | url TEXT | MS | text TEXT... | TEXT...  [--timeout ms]',
   errors: 'errors [--all] [--warn] [--clear]',
@@ -269,6 +271,14 @@ function build(argv: string[]): Command {
     case 'page': {
       need(rest.length === 1 && isInt(rest[0]));
       return { name: 'page', index: Number(rest[0]) };
+    }
+    case 'eval': {
+      need(rest.length >= 1);
+      return { name: 'eval', code: rest.join(' ') };
+    }
+    case 'closepage': {
+      need(rest.length === 1 && isInt(rest[0]));
+      return { name: 'closepage', index: Number(rest[0]) };
     }
     case 'resize': {
       const { pos, f } = parseFlags(rest, { quiet: 'bool' }, u());

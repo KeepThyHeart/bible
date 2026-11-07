@@ -90,9 +90,11 @@ export async function launchApp(opts: LaunchOptions): Promise<LaunchedApp> {
   const manifest = loadManifest(manifestFile);
   const manifestDir = path.dirname(manifestFile);
 
-  const profileDir = path.join(opts.sessionDir, `profile-${Date.now()}`);
+  // DRIVE_PROFILE_DIR reuses (and keeps) one profile across starts: restart tests (saved layout, notes).
+  const fixedProfile = process.env.DRIVE_PROFILE_DIR;
+  const profileDir = fixedProfile ?? path.join(opts.sessionDir, `profile-${Date.now()}`);
   mkdirSync(profileDir, { recursive: true });
-  const keepProfile = opts.keepProfile || manifest.profile?.keep === true;
+  const keepProfile = !!fixedProfile || opts.keepProfile || manifest.profile?.keep === true;
   const cleanups: Array<() => Promise<void>> = [];
   const cleanup = async () => {
     for (const fn of cleanups.reverse()) {

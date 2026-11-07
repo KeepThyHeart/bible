@@ -83,7 +83,9 @@ export type Command =
   | { name: 'screenshot'; ref?: string; full?: boolean; path?: string }
   | { name: 'log'; playwright?: boolean; path?: string; tail?: number }
   | { name: 'pages' }
-  | { name: 'page'; index: number };
+  | { name: 'page'; index: number }
+  | { name: 'closepage'; index: number }
+  | { name: 'eval'; code: string };
 
 export type CommandName = Command['name'];
 

@@ -12,6 +12,8 @@
 // Only tiny, well-scoped *imperative* bridges belong here. Reactive
 // subscriptions belong in `storeSync.ts` directly.
 
+import { isDetachedWindow } from '../utils/isDetachedWindow';
+
 /** Navigate the primary Bible panel to a verse. Implemented by useBibleStore. */
 export type NavigateToVerseInPrimary = (verseId: number) => void;
 
@@ -146,7 +148,21 @@ export function resolveActiveBibleModule(): string | undefined {
   return bridges.resolveActiveBibleModule?.();
 }
 
+/**
+ * A popped-out window never wires these bridges (it has no Bible pane and no dockview), so a
+ * scripture link clicked there used to do nothing at all. The reader's Bible pane is in the main
+ * window: ask it to open the passage. Returns true when the request was sent.
+ */
+function handOffToMainWindow(verseId: number): boolean {
+  if (!isDetachedWindow()) return false;
+  const send = window.electron?.window?.navigateMainToVerse;
+  if (!send) return false;
+  void send(verseId).catch((err: unknown) => console.warn('[crossStoreBridge] could not open the passage in the main window:', err));
+  return true;
+}
+
 export function navigateToVerseInPrimary(verseId: number): void {
+  if (!bridges.navigateToVerseInPrimary && handOffToMainWindow(verseId)) return;
   bridges.navigateToVerseInPrimary?.(verseId);
 }
 
@@ -160,7 +176,7 @@ export function previewVerseInPrimary(verseId: number, endVerseId?: number): voi
     bridges.previewVerseInPrimary(verseId, endVerseId);
     return;
   }
-  bridges.navigateToVerseInPrimary?.(verseId);
+  navigateToVerseInPrimary(verseId);
 }
 
 export function resolvePrimaryBibleVerseId(): number | null {

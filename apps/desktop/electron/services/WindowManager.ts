@@ -253,6 +253,15 @@ export class WindowManager {
     return this.detachedWindows.size;
   }
 
+  /** Send `channel` to every detached window except the sender's (`excludeWebContentsId`). */
+  sendToDetached(channel: string, payload: unknown, excludeWebContentsId?: number): void {
+    this.detachedWindows.forEach((windowInfo) => {
+      const win = windowInfo.browserWindow;
+      if (win.isDestroyed() || win.webContents.id === excludeWebContentsId) return;
+      win.webContents.send(channel, payload);
+    });
+  }
+
   /**
    * Broadcast verse change to all linked detached windows
    * Used to sync commentary/notes panes with Bible navigation

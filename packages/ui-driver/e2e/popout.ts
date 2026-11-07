@@ -8,7 +8,10 @@
  * the editor toolbar there (indent / outdent buttons change the note and the Decrease button's enabled
  * state); Ctrl+F opens the note find bar, counts and steps matches, and Escape closes it; hovering a
  * verse reference opens the preview popup (verse text when a Bible is installed, "Verse not found"
- * only when no Bible is installed; with apps/desktop/data/main.db present the verse text is required).
+ * only when no Bible is installed; with a real data dir the verse text is required).
+ * With a real data dir (BIBLE_DESKTOP_DATA_DIR, or apps/desktop/data) it also checks that: clicking "Go to verse"
+ * in the popped-out window opens the passage in the main window; a theme chosen in the main window reaches the
+ * open pop-out live and a pop-out opened afterwards; closing the pop-out docks the Notes pane back.
  *
  * Skips (exit 0, says why) when the desktop build or a display is missing, like nothing was run.
  * Uses a throwaway profile; with no `apps/desktop/data/main.db` it points the app at an empty data dir
@@ -16,7 +19,7 @@
  * offending reply on the first failure. `stop` always runs.
  */
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdtempSync, mkdirSync, rmSync } from 'node:fs';
+import { cpSync, existsSync, mkdtempSync, mkdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -36,10 +39,16 @@ if (process.platform === 'linux' && !process.env.DISPLAY && !process.env.WAYLAND
 
 const dir = mkdtempSync(join(tmpdir(), 'drive-popout-'));
 const env: NodeJS.ProcessEnv = { ...process.env, DRIVE_DIR: dir };
-if (!existsSync(join(desktopDir, 'data', 'main.db')) && !env.BIBLE_DESKTOP_DATA_DIR) {
+const EXT_FIXTURE = join(desktopDir, 'e2e', 'fixtures', 'test-extension');
+const dataDir = env.BIBLE_DESKTOP_DATA_DIR ?? join(desktopDir, 'data');
+const realBible = existsSync(join(dataDir, 'main.db'));
+if (!realBible && !env.BIBLE_DESKTOP_DATA_DIR) {
   env.BIBLE_DESKTOP_DATA_DIR = join(dir, 'data');
   mkdirSync(join(dir, 'data', 'modules'), { recursive: true });
+  // The fixture extension (it contributes a panel) installs by being in data/extensions/<id>/.
+  cpSync(EXT_FIXTURE, join(dir, 'data', 'extensions', 'ext.test.bible-viewer'), { recursive: true });
 }
+const hasExtension = existsSync(join(env.BIBLE_DESKTOP_DATA_DIR ?? dataDir, 'extensions', 'ext.test.bible-viewer'));
 
 function run(argv: string[]): { ok: boolean; text: string } {
   const r = spawnSync(process.execPath, ['bin/drive.ts', ...argv], { cwd: pkgDir, env, encoding: 'utf8', timeout: 120_000 });
@@ -60,6 +69,12 @@ function ref(name: string, role: string): string {
   const out = step(`find ${role} ${name}`, ['find', name, '--role', role], (t) => (/\[r\d+\]/.test(t) ? undefined : `no ${role} "${name}"`));
   const lines = out.split('\n').filter((l) => /^\[r\d+\]/.test(l));
   return /^\[(r\d+)\]/.exec(lines[lines.length - 1])![1];
+}
+
+/** Index of the newest open window (the last `pages` row that is not closed). */
+function lastPage(): number {
+  const rows = run(['pages']).text.split('\n').filter((l) => /^\d+\*? /.test(l) && !/\(closed\)/.test(l));
+  return Number(/^(\d+)/.exec(rows[rows.length - 1] ?? '0')![1]);
 }
 
 /** True when `find` sees no such element (never fails the step). */
@@ -98,7 +113,7 @@ try {
   step('title', ['fill', ref('Title', 'textbox'), 'Popout Test']);
   step('create', ['click', ref('Create', 'button')]);
   const editor = ref('Note text', 'textbox');
-  step('type text', ['type', editor, 'alpha beta alpha gamma see John 3:16 now'], expectIn('John 3:16', 'text'));
+  step('type text', ['type', editor, 'alpha beta alpha gamma see John 3:16 now and Romans 8:28 too'], expectIn('alpha beta', 'text'));
 
   // The editor toolbar (main window): indent enables outdent.
   const dec = run(['find', 'Decrease Indent', '--role', 'button']).text;
@@ -111,7 +126,7 @@ try {
   // Pop out and drive the new window.
   step('pop out', ['click', ref('Pop out to separate window', 'button')]);
   waitFor('second window', ['pages'], (t) => /detached\.html/.test(t));
-  step('page 1', ['page', '1'], expectIn('Detached Pane', 'detached window'));
+  step('page 1', ['page', '1'], expectIn('Popout Test', 'detached window titled for the note'));
   waitFor('note in popped-out window', ['find', 'Note text', '--role', 'textbox'], (t) => /alpha beta alpha gamma/.test(t));
 
   if (!absent('Pop out to separate window', 'button')) throw new StepFailure('pop-out button is present in the popped-out notes window');
@@ -144,11 +159,72 @@ try {
   waitFor('preview popup', ['find', 'Alt+Click'], (t) => t.includes('dialog'));
   step('preview names the verse', ['find', 'Go to verse', '--role', 'button'], expectIn('John 3:16', 'popup title'));
   // With a Bible installed the hover must show the verse itself, never "Verse not found".
-  if (existsSync(join(desktopDir, 'data', 'main.db'))) {
+  if (realBible) {
     const notFound = run(['find', 'Verse not found']);
     if (/\[r\d+\]/.test(notFound.text)) throw new StepFailure('preview says "Verse not found" although a Bible is installed');
     // John 3:16 (KJV and most modules) contains "so loved the world".
     waitFor('preview shows verse text', ['find', 'loved'], (t) => /\[r\d+\]/.test(t));
+  }
+
+  if (realBible) {
+    // Clicking a reference in the popped-out window opens the passage in the MAIN window's Bible pane
+    // (a popped-out notes window has no Bible pane; the click used to log "dockviewApi is null").
+    const romans = /\[(r\d+)\] clickable "Romans 8:28"/.exec(run(['find', 'Romans 8:28']).text)?.[1];
+    if (!romans) throw new StepFailure('no clickable "Romans 8:28" in the popped-out window');
+    step('hover Romans 8:28', ['hover', romans]);
+    waitFor('Romans preview', ['find', 'Go to verse', '--role', 'button'], (t) => t.includes('Romans 8:28'));
+    step('Go to verse', ['click', ref('Go to verse', 'button')]);
+    step('main window', ['page', '0']);
+    waitFor('main window opened Romans 8', ['find', 'Romans 8', '--role', 'tab'], (t) => /\[r\d+\]/.test(t));
+    step('back to pop-out', ['page', String(lastPage())]);
+
+    // Theme: a change in the main window reaches the open pop-out ...
+    const themeOf = () => JSON.parse(run(['eval', "document.documentElement.getAttribute('data-theme')"]).text) as string | null;
+    const setMainTheme = (name: string) => {
+      step('main window', ['page', '0']);
+      step('open Preferences', ['click', ref('Preferences (app settings)', 'button')]);
+      step('Themes', ['click', ref('Themes', 'tab')]);
+      step(`theme ${name}`, ['click', ref(name, 'button')]);
+      step('close Preferences', ['click', ref('Done', 'button')]);
+    };
+    setMainTheme('Midnight');
+    step('pop-out window', ['page', String(lastPage())]);
+    waitFor('pop-out follows the theme', ['eval', "document.documentElement.getAttribute('data-theme')"], (t) => t === '"midnight"');
+
+    // ... and a pop-out opened afterwards starts on it. Closing the window docks the pane back.
+    step('close pop-out', ['closepage', String(lastPage())]);
+    waitFor('Notes docked back', ['find', 'Popout Test'], (t) => /\[r\d+\]/.test(t));
+    step('open the note', ['click', ref('Popout Test', 'button')]);
+    step('pop out again', ['click', ref('Pop out to separate window', 'button')]);
+    waitFor('second pop-out', ['pages'], (t) => /detached\.html/.test(t.split('\n').filter((l) => !/closed/.test(l)).pop() ?? ''));
+    step('pop-out window', ['page', String(lastPage())]);
+    waitFor('new pop-out starts on the theme', ['eval', "document.documentElement.getAttribute('data-theme')"], (t) => t === '"midnight"');
+    if (themeOf() !== 'midnight') throw new StepFailure('theme is not midnight in the second pop-out');
+
+    // Ctrl+F in a popped-out Bible pane (the find bar used to exist only in the main window).
+    step('main window', ['page', '0']);
+    step('Bible tab menu', ['click', ref('Romans 8', 'tab'), '--right']);
+    step('pop out the Bible pane', ['click', ref('Pop Out to Window', 'menuitem')]);
+    waitFor('Bible pop-out', ['pages'], (t) => /Romans 8/.test(t));
+    step('Bible window', ['page', String(lastPage())]);
+    waitFor('Bible text in pop-out', ['find', 'Select Romans 8:28', '--role', 'button'], (t) => /\[r\d+\]/.test(t));
+    step('Ctrl+F in Bible pop-out', ['press', 'Control+f'], expectIn('Find in page', 'Bible find bar'));
+    step('find "God"', ['type', ref('Find in page', 'textbox'), 'God'], expectIn(/\d+ \/ \d+/, 'match counter'));
+    step('Escape closes', ['press', 'Escape'], () => undefined);
+    if (!absent('Find in page', 'textbox')) throw new StepFailure('Bible find bar still open after Escape');
+  }
+
+  if (hasExtension) {
+    // An extension panel's tab menu offers Pop Out to Window too (it used to be missing: the menu's check
+    // looked the content type up directly, so no `ext:` panel ever matched).
+    step('main window', ['page', '0']);
+    const tabs = run(['find', 'New tab', '--role', 'button']).text.split('\n').filter((l) => /^\[r\d+\]/.test(l));
+    step('new tab', ['click', /^\[(r\d+)\]/.exec(tabs[tabs.length - 1])![1]]);
+    step('open the extension panel', ['click', ref('Test Bible Viewer', 'button')]);
+    step('extension tab menu', ['click', ref('Test Bible Viewer', 'tab'), '--right']);
+    const before = run(['pages']).text.split('\n').length;
+    step('pop out the extension panel', ['click', ref('Pop Out to Window', 'menuitem')]);
+    waitFor('extension pop-out window', ['pages'], (t) => t.split('\n').length > before && /Test Bible Viewer/.test(t));
   }
   step('errors', ['errors']);
 } catch (e) {

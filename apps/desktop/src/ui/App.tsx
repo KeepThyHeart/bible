@@ -14,6 +14,7 @@ import { restoreActiveApp } from './apps/appSession';
 import StatusBar from './components/StatusBar';
 import WelcomeBar from './components/onboarding/WelcomeBar';
 import { useOnboardingStore } from './stores/useOnboardingStore';
+import { VerseIdHelper } from '@bible/core';
 import { useBibleStore } from './stores/useBibleStore';
 import { useSearchStore } from './stores/useSearchStore';
 import { useFindStore } from './stores/useFindStore';
@@ -24,6 +25,7 @@ import type { PaneType } from './stores/useTextSettingsStore';
 import type { ModuleManagerTab } from './stores/module/types';
 import type { OpenModuleManagerDetail } from './utils/openModuleManager';
 import { wireStoreSync } from './stores/storeSync';
+import { startAppearancePublisher } from './utils/appearanceSync';
 import {
   initializeApp,
   registerSaveBeforeCloseHandler,
@@ -93,6 +95,7 @@ const navigateToVerseInPrimary = (verseId: number) => {
 // so they're in place before any component calls into the stores. See
 // apps/desktop/src/ui/stores/storeSync.ts for what gets wired.
 wireStoreSync();
+startAppearancePublisher();
 
 /**
  * Header wordmark: a bible glyph plus the product name stacked over a small
@@ -234,6 +237,17 @@ function App() {
     const api = window.electron?.window;
     if (api?.onExtensionNavigateToVerse) {
       api.onExtensionNavigateToVerse(navigateToVerseInPrimary);
+    }
+    // A reference clicked in a popped-out window (notes, commentary, ...) opens here.
+    if (api?.onNavigateToVerse) {
+      api.onNavigateToVerse((verseId, newPanel) => {
+        if (newPanel) {
+          const { bookNumber, chapter, verse } = VerseIdHelper.parse(verseId);
+          void useBibleStore.getState().openPassageInNewPanel(bookNumber, chapter, verse || 1); // allow-getstate: IPC listener - imperative cross-window navigation
+        } else {
+          void navigateToVerseInPrimary(verseId);
+        }
+      });
     }
   }, []);
 

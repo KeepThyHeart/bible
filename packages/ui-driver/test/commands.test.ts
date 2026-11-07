@@ -94,6 +94,10 @@ describe('parseArgv', () => {
   it('page / resize', () => {
     expect(ok(['page', '2'])).toEqual({ name: 'page', index: 2 });
     expect(err(['page', 'x'])).toBe('usage: page N');
+    expect(ok(['closepage', '1'])).toEqual({ name: 'closepage', index: 1 });
+    expect(err(['closepage'])).toMatch(/^usage: closepage N/);
+    expect(ok(['eval', 'document.title', '+', '1'])).toEqual({ name: 'eval', code: 'document.title + 1' });
+    expect(err(['eval'])).toMatch(/^usage: eval JS/);
     expect(ok(['resize', '390x844'])).toEqual({ name: 'resize', width: 390, height: 844 });
     expect(ok(['resize', '390', '844'])).toEqual({ name: 'resize', width: 390, height: 844 });
     expect(ok(['resize', '390x844', '-q'])).toEqual({ name: 'resize', width: 390, height: 844, quiet: true });

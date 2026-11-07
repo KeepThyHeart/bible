@@ -318,6 +318,9 @@ export const TYPED_IPC_CHANNELS = [
   'window:close-detached',
   'window:get-detached-windows',
   'window:broadcast-verse-change',
+  'window:navigate-main-to-verse',
+  'window:broadcast-appearance',
+  'window:get-appearance',
   // Module Manager
   'module:init',
   'module:get-available',

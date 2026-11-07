@@ -382,6 +382,14 @@ export interface ElectronAPI {
     onVerseChanged: (callback: (verseId: number) => void) => void;
     // Listen for extension-driven verse navigation requests
     onExtensionNavigateToVerse: (callback: (verseId: number) => void) => void;
+    // Ask the main window to open a passage (a detached window has no Bible pane of its own)
+    navigateMainToVerse: (verseId: number, newPanel?: boolean) => Promise<{ success: boolean; error?: string }>;
+    // Main window: another window asked for a passage
+    onNavigateToVerse: (callback: (verseId: number, newPanel: boolean) => void) => void;
+    // Theme / font settings: published by the main window, followed by popped-out windows
+    broadcastAppearance: (appearance: Record<string, unknown>) => Promise<{ success: boolean; error?: string }>;
+    getAppearance: () => Promise<Record<string, unknown> | null>;
+    onAppearanceChanged: (callback: (appearance: Record<string, unknown>) => void) => void;
   };
 
   // App-level events
@@ -1097,6 +1105,22 @@ const electronAPI: ElectronAPI = {
     // Listen for extension-driven verse navigation requests
     onExtensionNavigateToVerse: (callback: (verseId: number) => void) => {
       ipcRenderer.on('extension:navigate-to-verse', (_event, verseId: number) => callback(verseId));
+    },
+
+    navigateMainToVerse: (verseId: number, newPanel?: boolean) =>
+      ipcRenderer.invoke('window:navigate-main-to-verse', verseId, newPanel === true),
+
+    onNavigateToVerse: (callback: (verseId: number, newPanel: boolean) => void) => {
+      ipcRenderer.on('window:navigate-to-verse', (_event, verseId: number, newPanel: boolean) => callback(verseId, newPanel === true));
+    },
+
+    broadcastAppearance: (appearance: Record<string, unknown>) =>
+      ipcRenderer.invoke('window:broadcast-appearance', appearance),
+
+    getAppearance: () => ipcRenderer.invoke('window:get-appearance'),
+
+    onAppearanceChanged: (callback: (appearance: Record<string, unknown>) => void) => {
+      ipcRenderer.on('appearance-changed', (_event, appearance: Record<string, unknown>) => callback(appearance));
     }
   },
 

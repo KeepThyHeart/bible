@@ -10,6 +10,8 @@ import TopicsPane from './TopicsPane';
 import ExtensionPanelHost from './extensions/ExtensionPanelHost';
 import { useBibleStore } from '../stores/useBibleStore';
 import { DEFAULT_PANEL_ID } from '../stores/helpers/panelStateHelpers';
+import FindBar from './FindBar';
+import { useFindStore } from '../stores/useFindStore';
 import { PANE_NAME_KEYS, type NamedPaneType } from '../utils/paneNames';
 
 /**
@@ -69,7 +71,11 @@ export function detachedPaneTitle(payload: InitializePanePayload): string | unde
   if (payload.title) return payload.title;
   const st = (payload.state && typeof payload.state === 'object' ? payload.state : {}) as Record<string, any>;
   const passage = st.currentBookName && st.currentChapter ? `${st.currentBookName} ${st.currentChapter}` : undefined;
-  const named = passage ?? st.verseName ?? st.topicName ?? st.noteName;
+  // A notes window is named for its note (the file's basename), an extension window for the title the
+  // panel contributed; neither has a pane-name key to fall back on, so both used to stay "Detached Pane".
+  const notePath = typeof st.initialCurrentNotePath === 'string' ? st.initialCurrentNotePath : '';
+  const noteFile = notePath ? notePath.split(/[\\/]/).pop()?.replace(/\.[^.]+$/, '') : undefined;
+  const named = passage ?? st.verseName ?? st.topicName ?? st.noteName ?? st.panelTitle ?? noteFile;
   if (typeof named === 'string' && named) return named;
   const key = payload.paneType in PANE_NAME_KEYS ? PANE_NAME_KEYS[payload.paneType as NamedPaneType] : undefined;
   const name = key ? i18nService.t(key) : undefined;
@@ -109,6 +115,28 @@ export function DetachedWindow() {
   });
   const suffixRef = useRef<string | null>(null);
   const isBible = payload?.paneType === 'bible' || (payload?.componentName ?? 'BiblePane') === 'BiblePane';
+
+  // Ctrl+F in a popped-out Bible window. The main window's find bar lives in App.tsx and its shortcut
+  // goes through the main window's command system, neither of which exists here; `useBibleFind` inside
+  // the Bible pane does the matching and highlighting off the same store.
+  const isFindVisible = useFindStore((s) => s.isVisible);
+  const setFindVisible = useFindStore((s) => s.setVisible);
+  useEffect(() => {
+    if (!isBible) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'f' && !e.defaultPrevented) {
+        e.preventDefault();
+        setFindVisible(true);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isBible, setFindVisible]);
+  const closeFind = () => {
+    setFindVisible(false);
+    document.querySelectorAll('.word.find-match, .word.find-match-current')
+      .forEach((w) => w.classList.remove('find-match', 'find-match-current'));
+  };
 
   useEffect(() => {
     if (!payload) return;
@@ -168,8 +196,15 @@ export function DetachedWindow() {
   const paneState = (payload.state && typeof payload.state === 'object') ? payload.state : {};
 
   return (
-    <div className="h-screen" data-testid="detached-pane" data-pane-type={payload.paneType}>
-      <Component {...paneState} isDetached={true} windowId={payload.windowId} />
+    <div className="h-screen flex flex-col" data-testid="detached-pane" data-pane-type={payload.paneType}>
+      {isBible && isFindVisible && (
+        <div className="flex-shrink-0 border-b border-border bg-surface-secondary px-4 py-1 flex justify-end">
+          <FindBar onClose={closeFind} />
+        </div>
+      )}
+      <div className="flex-1 min-h-0">
+        <Component {...paneState} isDetached={true} windowId={payload.windowId} />
+      </div>
     </div>
   );
 }

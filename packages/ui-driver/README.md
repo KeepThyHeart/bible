@@ -54,7 +54,10 @@ plus errors, no diff) and `--timeout ms` (default 5000).
 | `check [names overflow overlap focus i18n narrow tab all]` | Without kinds: the cheap five. `narrow` re-checks layout at 360 px wide and restores; `tab` presses Tab until focus wraps (max 80) and reports the order, invisible stops and traps, then puts focus back. `narrow` and `tab` change layout/focus while they run. |
 | `screenshot [rN] [--full] [--path P]` | Returns the path; read the image only when you need to see it. |
 | `log [--tail N]`, `log --playwright [--path P]` | The session transcript, or a Playwright spec that replays it (review locators before committing it as a test). |
-| `pages`, `page N` | Popups and extra windows. |
+| `pages`, `page N`, `closepage N` | Popups and extra windows (a popped-out pane is page 1, ...). `closepage` closes one like its close button (a popped-out pane then docks back); page 0 is refused. |
+| `eval JS...` | Run an expression in the current page and print its JSON result: `eval document.documentElement.dataset.theme`. For what the accessibility tree cannot show (computed styles, attributes, store state). |
+
+Set `DRIVE_PROFILE_DIR=/path` to reuse one profile across `start`s (the saved layout, notes folder and theme survive an app restart; it is kept, never deleted).
 
 ## Reading replies
 

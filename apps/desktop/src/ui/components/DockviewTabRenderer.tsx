@@ -538,7 +538,7 @@ const DockviewTabRenderer: React.FC<IDockviewPanelHeaderProps> = (props) => {
   };
 
   const panelCount = containerApi.panels.length;
-  const canPopOut = !!contentType && !!POP_OUT_PANE_TYPE[contentType];
+  const canPopOut = !!contentType && !!popOutPaneTypeFor(contentType);
   // Splitting moves this tab into a new group; from a group's only tab that would leave an
   // empty group behind, so it is offered only when the group holds another tab.
   const canSplit = groupTabCount > 1;
