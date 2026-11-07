@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { usePreferencesStore } from '../stores/usePreferencesStore';
+import { getMainActiveTranslation } from './mainActiveTranslation';
 import { startAppearanceFollower, startAppearancePublisher } from './appearanceSync';
 
 type Win = { electron?: { window?: Record<string, unknown> } };
@@ -16,14 +17,16 @@ describe('appearanceSync', () => {
     let listener: ((a: Record<string, unknown>) => void) | undefined;
     (window as unknown as Win).electron = {
       window: {
-        getAppearance: vi.fn().mockResolvedValue({ theme: 'sepia', globalFontScale: 1.2, uiControlFontSize: 14 }),
+        getAppearance: vi.fn().mockResolvedValue({ theme: 'sepia', globalFontScale: 1.2, uiControlFontSize: 14, activeTranslation: 'ASV' }),
         onAppearanceChanged: (cb: (a: Record<string, unknown>) => void) => { listener = cb; },
       },
     };
     startAppearanceFollower();
     await vi.waitFor(() => expect(document.documentElement.getAttribute('data-theme')).toBe('sepia'));
     expect(document.documentElement.style.getPropertyValue('--global-font-scale')).toBe('1.2');
-    listener!({ theme: 'midnight' });
+    expect(getMainActiveTranslation()).toBe('ASV');
+    listener!({ theme: 'midnight', activeTranslation: 'KJV' });
+    expect(getMainActiveTranslation()).toBe('KJV');
     expect(document.documentElement.getAttribute('data-theme')).toBe('midnight');
   });
 

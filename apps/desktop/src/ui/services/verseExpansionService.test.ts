@@ -19,12 +19,14 @@ const parser = new ReferenceParser();
 
 /** Mutable so individual tests can simulate "no Bible panel open". */
 let activeTabs: Array<{ abbreviation: string }> = [{ abbreviation: 'KJV' }];
+/** A popped-out window: the Bible store has no panels at all. */
+let noPanels = false;
 
 vi.mock('../stores/useBibleStore', () => ({
   DEFAULT_PANEL_ID: 'bible_default',
   useBibleStore: {
     getState: () => ({
-      panels: new Map([['bible_default', { openTabs: activeTabs, activeTabIndex: 0 }]]),
+      panels: noPanels ? new Map() : new Map([['bible_default', { openTabs: activeTabs, activeTabIndex: 0 }]]),
     }),
   },
 }));
@@ -43,6 +45,7 @@ import {
   expandReference,
   MAX_EXPAND_VERSES,
 } from './verseExpansionService';
+import { setMainActiveTranslation } from '../utils/mainActiveTranslation';
 import { __clearVerseFetchCache } from './verseFetchCache';
 
 const JOHN_3_16 = {
@@ -139,6 +142,26 @@ describe('getActiveTranslation', () => {
 
   it('returns null rather than silently defaulting when no Bible tab is open', () => {
     activeTabs = [];
+    expect(getActiveTranslation()).toBeNull();
+  });
+});
+
+describe('getActiveTranslation in a popped-out window', () => {
+  beforeEach(() => { noPanels = true; history.pushState({}, '', '/renderer/detached.html'); });
+  afterEach(() => { noPanels = false; history.pushState({}, '', '/'); setMainActiveTranslation(null); });
+
+  it('uses the translation the main window reported', () => {
+    setMainActiveTranslation('ASV');
+    expect(getActiveTranslation()).toBe('ASV');
+  });
+
+  it('still refuses (null, no KJV default) when the main window has none', () => {
+    expect(getActiveTranslation()).toBeNull();
+  });
+
+  it('ignores the main window value when this is the main window with no Bible open', () => {
+    history.pushState({}, '', '/');
+    setMainActiveTranslation('ASV');
     expect(getActiveTranslation()).toBeNull();
   });
 });

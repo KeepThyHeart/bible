@@ -19,6 +19,8 @@ import { closeHistory } from '@tiptap/pm/history';
 import { VerseIdHelper, type ParsedReference } from '@bible/core';
 import { sanitizeHtml } from '../utils/sanitize';
 import { useBibleStore, DEFAULT_PANEL_ID } from '../stores/useBibleStore';
+import { isDetachedWindow } from '../utils/isDetachedWindow';
+import { getMainActiveTranslation } from '../utils/mainActiveTranslation';
 import { formatVersesWithFormat, getLastUsedFormatOptions, type VerseContext } from './verseCopyService';
 import {
   isPassageMarkupFormat,
@@ -235,7 +237,7 @@ export function loadInsertOptions(formatId: string): PassageInsertOptions {
 
 /**
  * The translation to expand against: the active tab of the primary Bible
- * panel.
+ * panel (in a pop-out, the main window's, via `mainActiveTranslation`).
  *
  * The notes pane has no translation of its own, so it borrows the Bible
  * pane's. Returns null rather than defaulting to KJV - inserting text from a
@@ -256,7 +258,11 @@ export function getActiveTranslation(): string | null {
     const firstKey = panels.keys().next().value;
     if (firstKey) panel = panels.get(firstKey);
   }
-  return panel?.openTabs[panel.activeTabIndex]?.abbreviation ?? null;
+  const own = panel?.openTabs[panel.activeTabIndex]?.abbreviation;
+  if (own) return own;
+  // A popped-out window has no Bible pane: borrow the main window's (still null when it has none).
+  if (panels.size === 0 && isDetachedWindow()) return getMainActiveTranslation();
+  return null;
 }
 
 /** Fetch the verses a reference covers, or null if it cannot be resolved. */

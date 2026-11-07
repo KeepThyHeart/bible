@@ -178,6 +178,21 @@ try {
     waitFor('main window opened Romans 8', ['find', 'Romans 8', '--role', 'tab'], (t) => /\[r\d+\]/.test(t));
     step('back to pop-out', ['page', String(lastPage())]);
 
+    // Tab on a reference expands it into verse text. A pop-out has no Bible pane of its own, so it used to
+    // refuse ("Open a Bible translation first."); it now uses the main window's translation.
+    const noteBox = ref('Note text', 'textbox');
+    step('focus note', ['click', noteBox]);
+    step('caret to end', ['press', 'Control+End']);
+    step('type a reference', ['type', noteBox, ' Ps 23:1'], expectIn('Ps 23:1', 'typed reference'));
+    const tab = step('Tab expands', ['press', 'Tab']);
+    if (/Open a Bible translation first/.test(tab) || /Open a Bible translation first/.test(run(['snapshot']).text)) {
+      throw new StepFailure('Tab on a reference says "Open a Bible translation first." in the pop-out');
+    }
+    // The format picker opens over the reference; Enter inserts with its default format: real verse text.
+    waitFor('expand picker opens', ['find', 'Expand verse reference'], (t) => /dialog/.test(t), 8000);
+    step('Insert', ['press', 'Enter']);
+    waitFor('verse text in the note', ['find', 'shepherd'], (t) => /\[r\d+\]/.test(t), 8000);
+
     // Theme: a change in the main window reaches the open pop-out ...
     const themeOf = () => JSON.parse(run(['eval', "document.documentElement.getAttribute('data-theme')"]).text) as string | null;
     const setMainTheme = (name: string) => {

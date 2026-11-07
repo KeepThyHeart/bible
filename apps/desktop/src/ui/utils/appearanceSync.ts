@@ -8,17 +8,22 @@
  * the latest when it opens and applies every change after that.
  */
 import { usePreferencesStore } from '../stores/usePreferencesStore';
+import { useBibleStore } from '../stores/useBibleStore';
+import { getActiveTranslation } from '../services/verseExpansionService';
+import { setMainActiveTranslation } from './mainActiveTranslation';
 
 type Appearance = {
   theme: string;
   globalFontScale: number;
   uiControlFontSize: number;
   typography: unknown;
+  /** The main window's Bible translation: a pop-out has no Bible pane to ask (note reference expansion). */
+  activeTranslation: string | null;
 };
 
 function snapshot(): Appearance {
   const { theme, globalFontScale, uiControlFontSize, typography } = usePreferencesStore.getState();
-  return { theme, globalFontScale, uiControlFontSize, typography };
+  return { theme, globalFontScale, uiControlFontSize, typography, activeTranslation: getActiveTranslation() };
 }
 
 /** Main window: publish now and on every change of the appearance fields. */
@@ -30,12 +35,14 @@ export function startAppearancePublisher(): void {
     api.broadcastAppearance(snapshot() as unknown as Record<string, unknown>).catch(() => undefined);
   };
   publish();
-  usePreferencesStore.subscribe(() => {
+  const onChange = () => {
     const now = JSON.stringify(snapshot());
     if (now === last) return;
     last = now;
     publish();
-  });
+  };
+  usePreferencesStore.subscribe(onChange);
+  useBibleStore.subscribe(onChange);
 }
 
 /** Detached window: apply the main window's appearance now and whenever it changes. */
@@ -44,6 +51,7 @@ export function startAppearanceFollower(): void {
   if (!api) return;
   const apply = (a: Record<string, unknown> | null | undefined) => {
     if (!a || typeof a !== 'object') return;
+    setMainActiveTranslation(a.activeTranslation as string | null | undefined);
     // loadFromSession validates every field and applies it to the DOM; it saves nothing.
     usePreferencesStore.getState().loadFromSession(a as Parameters<ReturnType<typeof usePreferencesStore.getState>['loadFromSession']>[0]);
   };
