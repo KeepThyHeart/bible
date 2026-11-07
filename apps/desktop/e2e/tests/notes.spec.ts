@@ -73,7 +73,11 @@ test.describe('User Notes', () => {
 
       await expect(window.locator('.dockview-tab-content', { hasText: 'Notes' }).first())
         .toBeVisible({ timeout: 15000 });
-      await expect(newNoteButton(window)).toBeVisible({ timeout: 15000 });
+      // The pane carries on into the verse's own note (its tab says which verse); the file
+      // browser's "New Note" button is only there for the moment before it does.
+      await expect(notesPane(window)).toBeVisible({ timeout: 15000 });
+      await expect(window.locator('.dockview-tab-content', { hasText: 'Notes' }).first())
+        .toContainText('John 3:1', { timeout: 15000 });
     });
 
     test('Add Note twice reuses the pane instead of stacking another', async ({ window }) => {
