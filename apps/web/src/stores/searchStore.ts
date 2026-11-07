@@ -2,6 +2,7 @@ import { Store } from './Store';
 import { bibleStore } from './bibleStore';
 import { STRONGS_LOAD_MORE_STEP, SEMANTIC_LOAD_MORE_STEP, SEMANTIC_MAX_RESULTS } from './searchPaging';
 import { parseReference, headerBookAliases } from '../components/Header';
+import { dedupeSemanticResults } from './dedupeSemanticResults';
 import { formatPassageRef } from '../constants';
 import { getLocalizer, stripBidiControls, type RemoteSemantic } from '@bible/core/browser';
 import i18n from '../i18n';
@@ -310,8 +311,8 @@ class SearchStore extends Store {
         ]);
         if (runId !== this.runId) return;
 
-        this.results = semanticResult.results;
-        this.totalResults = semanticResult.total;
+        this.results = dedupeSemanticResults(semanticResult.results);
+        this.totalResults = Math.max(this.results.length, semanticResult.total - (semanticResult.results.length - this.results.length));
         this.semanticMeta = semanticResult.semantic;
         // The whole match set, not the page the endpoint happened to return —
         // "N keyword matches" in the banner is a reason to switch modes, and
@@ -624,8 +625,8 @@ class SearchStore extends Store {
       });
       if (seq !== this.searchSeq || runId !== this.runId) return;
 
-      this.results = resultSet.results;
-      this.totalResults = resultSet.total;
+      this.results = dedupeSemanticResults(resultSet.results);
+      this.totalResults = Math.max(this.results.length, resultSet.total - (resultSet.results.length - this.results.length));
       this.semanticMeta = resultSet.semantic;
       // If we got fewer than requested, no more to load
       this.canLoadMore = resultSet.results.length >= this.semanticPageSize

@@ -51,3 +51,26 @@ describe('normalizeContent (B-085)', () => {
     expect(useNoteEditorStore.getState().isDirty).toBe(true);
   });
 });
+
+describe('preserveSelection is one-shot', () => {
+  it('reloadExternal with identical content does not leave the flag set', () => {
+    useNoteEditorStore.getState().resetContent('<p>a</p>');
+    useNoteEditorStore.getState().reloadExternal('<p>a</p>');
+    expect(useNoteEditorStore.getState().preserveSelection).toBeFalsy();
+  });
+
+  it('resetContent (opening another note) clears a stale flag', () => {
+    useNoteEditorStore.getState().resetContent('<p>a</p>');
+    useNoteEditorStore.getState().reloadExternal('<p>b</p>');
+    expect(useNoteEditorStore.getState().preserveSelection).toBe(true);
+    useNoteEditorStore.getState().resetContent('<p>c</p>');
+    expect(useNoteEditorStore.getState().preserveSelection).toBe(false);
+  });
+
+  it('a user edit clears a stale flag', () => {
+    useNoteEditorStore.getState().resetContent('<p>a</p>');
+    useNoteEditorStore.getState().reloadExternal('<p>b</p>');
+    useNoteEditorStore.getState().setContent('<p>bc</p>');
+    expect(useNoteEditorStore.getState().preserveSelection).toBe(false);
+  });
+});

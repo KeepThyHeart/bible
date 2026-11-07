@@ -41,3 +41,20 @@ describe('searchStore semantic paging', () => {
     expect(searchStore.canLoadMore).toBe(false);
   });
 });
+
+describe('searchStore semantic dedupe', () => {
+  it('drops a repeated verse range and the count follows', async () => {
+    const dup = { verseId: 20019017, reference: 'Prov 19:17', text: 't', module: 'KJV', type: 'semantic' };
+    const p = {
+      keywordSearch: vi.fn(() => Promise.resolve({ results: [], total: 0 })),
+      semanticSearch: vi.fn(() => Promise.resolve({ results: [dup, { ...dup, verseId: 43003016 }, dup], total: 3 })),
+      strongsSearch: vi.fn(),
+      warmupSemanticSearch: vi.fn(() => Promise.resolve()),
+    } as unknown as ISearchProvider;
+    searchStore.clear();
+    searchStore.init(p);
+    await searchStore.performSearch('x', 'semantic', ['KJV']);
+    expect(searchStore.results.map((r) => r.verseId)).toEqual([20019017, 43003016]);
+    expect(searchStore.totalResults).toBe(2);
+  });
+});

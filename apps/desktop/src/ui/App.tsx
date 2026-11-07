@@ -486,7 +486,7 @@ function App() {
       <React.Suspense fallback={null}>
       <div className="flex flex-col h-screen bg-background overflow-hidden" data-testid="app-loaded">
         {/* Top bar */}
-        <header data-kth-region="header" className="border-b border-border px-lg py-sm flex-shrink-0" style={{ backgroundColor: 'var(--theme-pane-header-bg)' }}>
+        <header data-kth-region="header" className="relative z-30 border-b border-border px-lg py-sm flex-shrink-0" style={{ backgroundColor: 'var(--theme-pane-header-bg)' }}>
           <div className="flex flex-wrap items-center gap-x-lg gap-y-sm min-w-0">
             <AppWordmark />
             {studyActive && <LayoutDropdown />}

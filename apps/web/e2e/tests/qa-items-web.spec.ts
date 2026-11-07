@@ -214,10 +214,15 @@ test.describe('QA items (web)', () => {
           addLine: parseFloat(getComputedStyle(addEl).borderBottomWidth),
           // How far below the button the bar's own rule sits: the line must not break at the "+".
           addInsideBar: addEl.getBoundingClientRect().bottom <= barEl.getBoundingClientRect().bottom + 1,
+          // Bottom edge of the button within 2px of the bar's bottom rule (the bar's border box ends at the rule).
+          addMeetsRule: Math.abs(addEl.getBoundingClientRect().bottom - barEl.getBoundingClientRect().bottom) <= 2,
         };
       }, bar);
       // Either the bar draws one continuous line under the "+", or the button draws its own.
       expect(lines.barLine > 0 || lines.addLine > 0, `${bar}: ${JSON.stringify(lines)}`).toBe(true);
+      // The "+" button's bottom edge meets the bar's rule (it sits inside the bar, not above or below it).
+      expect(lines.addInsideBar, `${bar}: ${JSON.stringify(lines)}`).toBe(true);
+      expect(lines.addMeetsRule, `${bar}: ${JSON.stringify(lines)}`).toBe(true);
     }
     await shot(page, 'web-16-tab-plus-underline');
   });
@@ -294,8 +299,8 @@ test.describe('QA items (web, Ideas)', () => {
       const url = new URL(route.request().url());
       const max = Number(url.searchParams.get('maxResults') ?? 20);
       requested.push(max);
-      // Real verse ids (the client hydrates the text from them), repeated to fill the list.
-      const rows = fakeRows(Math.min(max, 600)).map((r, i) => ({ ...r, verseId: 43003001 + (i % 36), reference: `John 3:${1 + (i % 36)}`, type: 'semantic', score: 0.5 }));
+      // Real, DISTINCT verse ids (John 1-21, verses 1-25; the client hydrates the text and drops repeated ranges).
+      const rows = fakeRows(Math.min(max, 525)).map((r, i) => ({ ...r, verseId: 43000000 + (1 + Math.floor(i / 25)) * 1000 + 1 + (i % 25), reference: `John ${1 + Math.floor(i / 25)}:${1 + (i % 25)}`, type: 'semantic', score: 0.5 }));
       return json(route, { results: rows, total: rows.length, semantic: { source: 'remote' } });
     });
     await ideasSearch(page, 'God loves the world');
@@ -313,7 +318,7 @@ test.describe('QA items (web, Ideas)', () => {
     expect(res.status()).not.toBe(400);
   });
 
-  test('item 10: Ideas results with a repeated verse render (dedupe is desktop-only)', async ({ page }) => {
+  test('item 10: Ideas results show a repeated verse range once', async ({ page }) => {
     const poor = 'He that hath pity upon the poor lendeth unto the LORD; and that which he hath given will he pay him again.';
     await page.route('**/api/search/semantic?*', route => json(route, {
       results: [
@@ -327,7 +332,8 @@ test.describe('QA items (web, Ideas)', () => {
     await ideasSearch(page, 'God repaying those who help the poor');
     await expect(page.locator('.search-result-item').first()).toBeVisible({ timeout: 20000 });
     await shot(page, 'web-10-ideas-dedupe');
-    // Web has no paragraph rows (that is the desktop index's shape), so nothing is merged here: this is a render check.
-    await expect(page.locator('.search-result-item')).toHaveCount(3);
+    // The stub returns Proverbs 19:17 twice; the list shows it once (fails on a duplicate row).
+    await expect(page.locator('.search-result-item')).toHaveCount(2);
+    await expect(page.locator('.search-result-item').filter({ hasText: 'Proverbs 19:17' })).toHaveCount(1);
   });
 });

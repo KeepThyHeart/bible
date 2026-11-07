@@ -309,6 +309,7 @@ try {
     const prov = list.split('\n').filter((l) => /button "Proverbs 19:17/.test(l)).length;
     if (prov !== 1) throw new Fail(`Proverbs 19:17 is listed ${prov} times`);
     const total = /list "(\d+) semantic matches found"/.exec(list)?.[1];
+    shot('10-ideas-dedupe'); // while the Ideas results are on screen
     chooseSearchType('Search');
     return `Proverbs 19:17 once, ${total} results from 4 stub rows`;
   });
@@ -350,7 +351,7 @@ try {
       step(['hover', bar, '-q']);
       const tip = waitFor(`tooltip (${name})`, () => ev<{ body: boolean; pos: string; z: string; inView: boolean } | null>(`(()=>{const t=document.querySelector('[data-testid=distribution-tooltip]');if(!t)return null;const r=t.getBoundingClientRect(),cs=getComputedStyle(t);return {body:t.parentElement===document.body,pos:cs.position,z:cs.zIndex,inView:r.top>=0&&r.left>=0&&r.right<=innerWidth&&r.bottom<=innerHeight}})()`), 4000);
       if (!tip.body || tip.pos !== 'fixed' || Number(tip.z) < 1000 || !tip.inView) throw new Fail(`tooltip in "${name}" placement is not above everything: ${JSON.stringify(tip)}`);
-      if (name === 'below') shot('08-graph-tooltip-all-placements');
+      shot(`08-graph-tooltip-placement-${name}`); // one frame per placement; stitched into 08-graph-tooltip-all-placements
       notes.push(name);
     }
     closeSearchPanes();
@@ -369,7 +370,7 @@ try {
         if (!r.host || r.host === 'none') throw new Fail(`${theme}: the "+" host has no underline (box-shadow none)`);
       }
       out.push(`${theme} ${rows.length} bars`);
-      if (theme === 'Dark') shot('16-tab-plus-underline');
+      shot(theme === 'Light' ? '16-tab-plus-underline' : '16-tab-plus-underline-dark');
     }
     setTheme('Light');
     return out.join(', ');
@@ -398,8 +399,10 @@ try {
     const dec = () => run(['find', 'Decrease Indent', '--role', 'button']).text;
     if (!/\[r\d+\]/.test(dec())) throw new Fail('no Decrease Indent button');
     if (!has('Increase Indent', 'button')) throw new Fail('no Increase Indent button');
+    shot('14-notes-indent-before');
     step(['click', ref('Increase Indent', 'button'), '-q']);
     sleep(0.4);
+    shot('14-notes-indent-outdent'); // after indenting
     if (/disabled/.test(dec())) throw new Fail('Decrease Indent still disabled after Increase Indent');
     step(['click', ref('Decrease Indent', 'button'), '-q']);
     sleep(0.4);

@@ -26,8 +26,10 @@ interface Args {
  *
  * - editor clean: the saved copy is read and loaded into the editor (caret and
  *   scroll kept by `reloadExternal`);
- * - editor dirty, or a save of ours in flight: the "changed in another window"
- *   banner is shown at once and nothing is overwritten.
+ * - editor dirty: the saved copy is read; when its content equals this window's baseline the
+ *   new `updated` is adopted silently, otherwise (a real difference, or a save of ours in
+ *   flight, or an unreadable copy) the "changed in another window" banner is shown and nothing
+ *   is overwritten.
  */
 export function useNoteSavedListener(args: Args): void {
   const { view, currentNote, currentNotePath, setCurrentNote, setFileError } = args;
@@ -63,7 +65,7 @@ export function useNoteSavedListener(args: Args): void {
       if (event.updated === ref.current.currentNote.updated) return; // already have it
       if (event.updated > latestUpdated.current) latestUpdated.current = event.updated;
 
-      if (isDirty() || isSaveInFlight(path)) {
+      if (isSaveInFlight(path)) {
         conflict(path);
         return;
       }
@@ -76,7 +78,21 @@ export function useNoteSavedListener(args: Args): void {
           now.setFileError(MISSING_MESSAGE);
           return;
         }
-        if (isDirty() || isSaveInFlight(path)) {
+        if (isSaveInFlight(path)) {
+          conflict(path);
+          return;
+        }
+        if (isDirty()) {
+          // The other window's copy has the very text this window started from (it only touched the
+          // save time): nothing to reconcile. Adopt its `updated` so our next save is not refused.
+          // Only a real content difference raises the banner.
+          if ((note.content || '') === useNoteEditorStore.getState().baseline) { // allow-getstate: event handler, not render
+            if (note.updated > now.currentNote.updated) {
+              ref.current.currentNote = { ...now.currentNote, updated: note.updated };
+              now.setCurrentNote(ref.current.currentNote);
+            }
+            return;
+          }
           conflict(path);
           return;
         }
@@ -88,6 +104,7 @@ export function useNoteSavedListener(args: Args): void {
         clearNoteConflict(path);
         now.setFileError(null);
       } catch (err: unknown) {
+        if (isDirty()) { conflict(path); return; }
         ref.current.setFileError(`Could not refresh this note: ${err instanceof Error ? err.message : String(err)}`);
       }
     };

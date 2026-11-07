@@ -55,7 +55,7 @@ export const useNoteEditorStore = create<NoteEditorState>((set, get) => ({
   // An update that leaves the text equal to what was loaded or saved (the
   // editor re-emitting its own document on open) is not an edit: counting it
   // made merely opening a note rewrite its file.
-  setContent: (content) => set(state => ({ content, isDirty: content !== state.baseline })),
+  setContent: (content) => set(state => ({ content, isDirty: content !== state.baseline, ...(content !== state.content ? { preserveSelection: false } : {}) })),
 
   normalizeContent: (content) => set(state => (state.isDirty ? { content } : { content, baseline: content })),
 
@@ -69,10 +69,10 @@ export const useNoteEditorStore = create<NoteEditorState>((set, get) => ({
         console.error('Saving the previous note failed:', error);
       }
     }
-    set({ content, baseline: content, isDirty: false, lastSaved: undefined });
+    set({ content, baseline: content, isDirty: false, lastSaved: undefined, preserveSelection: false });
   },
 
-  reloadExternal: (content) => set({ content, baseline: content, isDirty: false, preserveSelection: true }),
+  reloadExternal: (content) => set(state => ({ content, baseline: content, isDirty: false, preserveSelection: content !== state.content })),
 
   clearPreserveSelection: () => set({ preserveSelection: false }),
 

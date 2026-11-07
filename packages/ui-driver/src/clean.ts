@@ -128,31 +128,48 @@ export async function cleanTemp(opts: CleanOptions = {}): Promise<CleanResult> {
     if (st.isSymbolicLink()) { result.skipped.push({ path: p, reason: 'symlink' }); return undefined; }
     if (kind === 'dir' ? !st.isDirectory() : !st.isSocket()) { result.skipped.push({ path: p, reason: 'not a ' + kind }); return undefined; }
     let real: string;
-    try { real = realpathSync(p); } catch { return undefined; }
+    try { real = realpathSync(p); } catch (e) { result.skipped.push({ path: p, reason: `error: ${(e as NodeJS.ErrnoException).code ?? 'unknown'}` }); return undefined; }
     if (path.dirname(real) !== parent) { result.skipped.push({ path: p, reason: 'resolves outside its parent' }); return undefined; }
     if (now - st.mtimeMs < minAgeMs) { result.skipped.push({ path: p, reason: 'modified recently' }); return undefined; }
     return st;
   };
 
+  /** Removes `p`; a filesystem error (EACCES, ENOENT, ...) records 'skipped' instead of aborting. */
   const remove = (p: string): void => {
-    const bytes = treeBytes(p);
-    if (!opts.dryRun) rmSync(p, { recursive: true, force: true });
-    result.removed.push({ path: p, bytes });
-    result.totalBytes += bytes;
+    try {
+      const bytes = treeBytes(p);
+      if (!opts.dryRun) rmSync(p, { recursive: true, force: true });
+      result.removed.push({ path: p, bytes });
+      result.totalBytes += bytes;
+    } catch (e) {
+      result.skipped.push({ path: p, reason: `error: ${(e as NodeJS.ErrnoException).code ?? 'unknown'}` });
+    }
+  };
+  const list = (p: string): string[] => {
+    try { return readdirSync(p).sort(); } catch (e) { result.skipped.push({ path: p, reason: `error: ${(e as NodeJS.ErrnoException).code ?? 'unknown'}` }); return []; }
+  };
+  /** A live session lives in the dir itself or one level down (`<prefix-dir>/<session>/drive.pid`). */
+  const holdsLiveSession = (dir: string): boolean => {
+    if (livePid(dir, alive)) return true;
+    let names: string[] = [];
+    try { names = readdirSync(dir); } catch { return false; }
+    return names.some((n) => {
+      try { return lstatSync(path.join(dir, n)).isDirectory() && livePid(path.join(dir, n), alive); } catch { return false; }
+    });
   };
 
-  for (const name of readdirSync(realTmp).sort()) {
+  for (const name of list(realTmp)) {
     const full = path.join(realTmp, name);
     if (name === SESSIONS_DIR) {
       if (!eligibleRoot(full, realTmp)) continue;
-      for (const session of readdirSync(full).sort()) {
+      for (const session of list(full)) {
         const dir = path.join(full, session);
         let st;
         try { st = lstatSync(dir); } catch { continue; }
         if (st.isSymbolicLink() || !st.isDirectory()) { result.skipped.push({ path: dir, reason: st.isSymbolicLink() ? 'symlink' : 'not a dir' }); continue; }
         if (livePid(dir, alive)) { result.skipped.push({ path: dir, reason: 'live session' }); continue; }
         if (opts.allSessions && now - st.mtimeMs >= minAgeMs) { remove(dir); continue; }
-        for (const child of readdirSync(dir).sort()) {
+        for (const child of list(dir)) {
           if (child.startsWith('profile-') && eligible(dir, child, 'dir')) remove(path.join(dir, child));
         }
       }
@@ -161,7 +178,9 @@ export async function cleanTemp(opts: CleanOptions = {}): Promise<CleanResult> {
       if (await socketAlive(full)) { result.skipped.push({ path: full, reason: 'live daemon' }); continue; }
       remove(full);
     } else if (matchesName(name)) {
-      if (eligible(realTmp, name, 'dir')) remove(full);
+      if (!eligible(realTmp, name, 'dir')) continue;
+      if (holdsLiveSession(full)) { result.skipped.push({ path: full, reason: 'live session' }); continue; }
+      remove(full);
     }
   }
   return result;
@@ -170,7 +189,7 @@ export async function cleanTemp(opts: CleanOptions = {}): Promise<CleanResult> {
     let st;
     try { st = lstatSync(p); } catch { return false; }
     if (st.isSymbolicLink() || !st.isDirectory()) { result.skipped.push({ path: p, reason: 'symlink or not a dir' }); return false; }
-    return path.dirname(realpathSync(p)) === parent;
+    try { return path.dirname(realpathSync(p)) === parent; } catch { return false; }
   }
 }
 

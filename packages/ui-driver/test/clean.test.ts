@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, existsSync, rmSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, mkdtempSync, existsSync, rmSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs';
 import { spawn } from 'node:child_process';
 import net from 'node:net';
 import os from 'node:os';
@@ -143,5 +143,36 @@ describe('parseCleanArgs', () => {
   it('rejects bad input', () => {
     expect(parseCleanArgs(['--older-than', 'x'])).toMatch(/^error/);
     expect(parseCleanArgs(['--wat'])).toMatch(/unknown option/);
+  });
+
+  it('skips a prefix dir that holds a live session one level down, or directly', async () => {
+    const nested = dir('drive-popout-live');
+    mkdirSync(path.join(nested, 's1'));
+    writeFileSync(path.join(nested, 's1', 'drive.pid'), '4242');
+    age(nested);
+    const direct = dir('drive-qaitems-live');
+    writeFileSync(path.join(direct, 'drive.pid'), '4242');
+    age(direct);
+    const dead = dir('drive-smoke-dead');
+    mkdirSync(path.join(dead, 's1'));
+    writeFileSync(path.join(dead, 's1', 'drive.pid'), '9');
+    age(dead);
+    const r = await cleanTemp({ tmpRoot: root, isAlive: (pid) => pid === 4242 });
+    expect(existsSync(nested)).toBe(true);
+    expect(existsSync(direct)).toBe(true);
+    expect(existsSync(dead)).toBe(false);
+    expect(r.skipped).toContainEqual({ path: nested, reason: 'live session' });
+    expect(r.skipped).toContainEqual({ path: direct, reason: 'live session' });
+  });
+
+  it.skipIf(process.getuid?.() === 0)('a removal error is recorded as skipped instead of aborting the run', async () => {
+    const locked = dir('drive-smoke-locked');
+    const ok = dir('drive-smoke-ok');
+    chmodSync(locked, 0o555); // its entries cannot be unlinked: rmSync throws EACCES
+    try {
+      const r = await cleanTemp({ tmpRoot: root });
+      expect(r.skipped.some((x) => x.path === locked && x.reason.startsWith('error:'))).toBe(true);
+      expect(existsSync(ok)).toBe(false);
+    } finally { chmodSync(locked, 0o755); }
   });
 });

@@ -1,8 +1,8 @@
 import { IpcResultError } from './ipcResult';
 
-/** Codes meaning "this module cannot be opened"; the UI shows a state, not a stack. */
+/** Only `module_missing` means "this module cannot be opened"; the UI shows a state, not a stack. Other `not_found`s are real errors. */
 export function isModuleUnavailableError(err: unknown): err is IpcResultError {
-  return err instanceof IpcResultError && (err.code === 'module_missing' || err.code === 'not_found');
+  return err instanceof IpcResultError && err.code === 'module_missing';
 }
 
 const seen = new Set<string>();

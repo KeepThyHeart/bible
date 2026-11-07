@@ -46,14 +46,27 @@ describe('useNoteSavedListener', () => {
     expect(setFileError).toHaveBeenCalledWith(null);
   });
 
-  it('dirty pane shows the conflict banner immediately and does not reload', async () => {
+  it('dirty pane with a REAL content difference shows the conflict banner and does not reload', async () => {
     useNoteEditorStore.setState({ content: 'mine', isDirty: true });
+    readNote.mockResolvedValue(note('t2', 'theirs'));
     mount();
     emit(ev('t2')); await flush();
     expect(setFileError).toHaveBeenCalledWith(CONFLICT_MESSAGE);
     expect(hasNoteConflict(PATH)).toBe(true);
-    expect(readNote).not.toHaveBeenCalled();
+    expect(setCurrentNote).not.toHaveBeenCalled();
     expect(useNoteEditorStore.getState().content).toBe('mine');
+  });
+
+  it('dirty pane whose other-window copy equals its baseline adopts the new updated silently', async () => {
+    useNoteEditorStore.setState({ content: 'mine', baseline: 'old', isDirty: true });
+    readNote.mockResolvedValue(note('t2', 'old'));
+    mount();
+    emit(ev('t2')); await flush();
+    expect(setFileError).not.toHaveBeenCalled();
+    expect(hasNoteConflict(PATH)).toBe(false);
+    expect(setCurrentNote).toHaveBeenCalledWith(expect.objectContaining({ updated: 't2' }));
+    expect(useNoteEditorStore.getState().content).toBe('mine');
+    expect(useNoteEditorStore.getState().isDirty).toBe(true);
   });
 
   it('a save of ours in flight counts as a conflict', async () => {

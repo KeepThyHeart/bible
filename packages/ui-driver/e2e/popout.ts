@@ -209,7 +209,17 @@ try {
       const end = Date.now() + 5000;
       while (Date.now() < end && !(conflictSeen = banner())) spawnSync('sleep', ['0.3']);
       if (conflictSeen) {
+        // A real conflict: the pop-out keeps its OWN pending text and has not adopted the main window's edit.
+        const pop = noteText();
+        if (pop.includes(` MAIN${attempt}`)) throw new StepFailure(`pop-out replaced its pending text with the main window's edit: ${pop.slice(-60)}`);
+        if (!pop.includes(` POP${attempt}`)) throw new StepFailure(`pop-out lost its own pending edit: ${pop.slice(-60)}`);
         shot('22-live-note-sync-banner');
+        // Resolve the conflict with Retry (saves this window's text over the other copy): a bare dismiss would come
+        // straight back on the next autosave tick, and later shots (reference hover) must not carry the banner.
+        run(['eval', "(()=>{const b=[...document.querySelectorAll('button')].find(x=>x.textContent.trim()==='Retry');if(b)b.click();return !!b})()"]);
+        const gone = Date.now() + 5000;
+        while (Date.now() < gone && banner()) spawnSync('sleep', ['0.3']);
+        if (banner()) throw new StepFailure('the conflict banner did not clear after Retry');
         step('main window', ['page', '0']);
         if (banner()) throw new StepFailure('the saving window shows the conflict banner');
         console.log(`${'live sync: both dirty -> banner'.padEnd(34)} ok (attempt ${attempt})`);
