@@ -41,6 +41,15 @@ function run(dir: string, argv: string[]): { ok: boolean; text: string } {
 
 function smokeApp(app: AppSpec): void {
   const dir = mkdtempSync(join(tmpdir(), `drive-smoke-${app.name}-`));
+  // Ctrl-C / kill: stop the app and remove the temp dir even though the steps are synchronous.
+  const onExit = () => {
+    try { run(dir, ['stop']); } catch { /* best effort */ }
+    rmSync(dir, { recursive: true, force: true });
+  };
+  process.on('exit', onExit);
+  const onSignal = (code: number) => () => process.exit(code);
+  process.on('SIGINT', onSignal(130));
+  process.on('SIGTERM', onSignal(143));
   const step = (label: string, argv: string[], check?: (text: string) => string | undefined): string => {
     const t0 = Date.now();
     const r = run(dir, argv);
@@ -86,6 +95,7 @@ function smokeApp(app: AppSpec): void {
     const gone = status.text.includes('not running');
     console.log(`${app.name.padEnd(7)} ${'status'.padEnd(22)} ${String(status.text.length).padStart(6)} chars${gone ? '' : '  FAIL'}`);
     rmSync(dir, { recursive: true, force: true });
+    process.off('exit', onExit);
     if ((!stop.ok || !gone) && process.exitCode === undefined) {
       console.error(`${app.name}: stop/status failed\nstop: ${stop.text}\nstatus: ${status.text}`);
       process.exitCode = 1;

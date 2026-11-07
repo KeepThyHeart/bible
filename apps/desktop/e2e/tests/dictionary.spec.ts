@@ -17,6 +17,8 @@
 import { test, expect } from '../fixtures/electron.fixture';
 import type { Page } from '@playwright/test';
 import { ensurePaneOpen } from '../fixtures/test-utils';
+import { needsRealData } from '../fixtures/dataDir';
+
 
 /**
  * Strong's Greek is in the dev dataset, and its keys are zero-padded: looking
@@ -63,6 +65,9 @@ async function lookUp(window: Page, term: string): Promise<void> {
   await lookupInput(window).fill(term);
   await window.locator('[data-testid="dictionary-lookup-btn"]').click({ force: true });
 }
+
+// Modules the committed fixture lacks: skipped unless real data is given (BIBLE_E2E_DATA_DIR).
+needsRealData(test.skip, 'StrongsGreek');
 
 test.describe('Dictionary Pane', () => {
   test('opens a dictionary from the library shelf, with a lookup box', async ({ window }) => {

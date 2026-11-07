@@ -38,6 +38,7 @@ plus errors, no diff) and `--timeout ms` (default 5000).
 |---|---|
 | `start [web\|desktop\|path/to/manifest.json] [--url URL] [--viewport WxH] [--headed] [--keep]` | `--url https://bible.keepthyheart.com` drives the live site **read-only** (only GET/HEAD/OPTIONS go out; others are blocked and listed under `errors`). A loopback `--url` (`http://127.0.0.1:PORT`, `localhost`) drives a local server that is already running, normally (not read-only), and starts no server of its own: several sessions can share one server (another session's, or one started by hand) to save memory. `--keep` keeps the throwaway profile. |
 | `stop`, `status` | |
+| `clean [--dry-run] [--all-sessions] [--older-than MINUTES]` | Local (no daemon). Removes temp dirs that bible tests and the driver leave in the tmp dir: only names on the allow-list in `src/clean.ts` (`bible-ui-driver/<session>/profile-*`, `bible-devmode-*`, `bible-e2e*`, `drive-smoke-*`, `drive-popout-*`, ...), directly in the tmp dir, never through a symlink, skipping anything modified within `--older-than` minutes (default 60) and sessions whose daemon is alive. `--all-sessions` also removes stopped sessions' own dirs; `--dry-run` only lists. Also `pnpm run e2e:clean` from the repo root. |
 | `snapshot [rN] [--depth N] [--max N] [--visible] [--all]` | `rN` scopes to one element (a native `<select>` then lists its options); `--visible` only what is in the viewport, and only the modal dialog when one is open (menus and popovers are not filtered); long lists show 9 items and a count; 150 lines max unless `--max`/`--all`. |
 | `diff` | Changes since the last snapshot or action. Actions already include it. |
 | `find [TEXT] [--role ROLE]` | Search names/values of the whole page without printing it (TEXT optional with `--role`). Cheapest way to get a ref. |
@@ -162,7 +163,10 @@ fixture data, start and wait for it, the throwaway profile and the viewport. See
 - Web: runs `apps/web/server` on a free port against the same fixture data the e2e suite builds
   (`apps/web/e2e/.data`), with app state in the throwaway profile. `--url` is allowed only for the
   origins in `external.allow`, always read-only.
-- Desktop: launches the built `out/main/index.js` with a fresh `ELECTRON_USER_DATA`. A fresh profile
+- Desktop: launches the built `out/main/index.js` with a fresh `ELECTRON_USER_DATA`, on a per-run copy of the
+  committed public-domain fixture (`fixtures/bible-data`, see its README) in `<profile>/data`, removed with the
+  profile on stop, plus a sample note. Set `BIBLE_DESKTOP_DATA_DIR` to use real data instead (used as given; its
+  keyword indexes are cached in the tmp dir, `drive clean` removes them). A fresh profile
   opens on the first-run dialogs (language, then network: "Stay offline").
 
 ## Development

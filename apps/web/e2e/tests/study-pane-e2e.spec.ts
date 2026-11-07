@@ -1,5 +1,6 @@
 import { test, expect } from '../fixtures';
 import type { Page } from '../fixtures';
+import { usingFixtureData } from '../prepareData';
 
 /**
  * Open a collapsed study section by clicking its label.
@@ -58,6 +59,7 @@ test.describe('Study Pane', () => {
   });
 
   test('study pane shows cross-references section', async ({ page }) => {
+    test.skip(usingFixtureData(), 'needs the TSK cross-reference module (not in the fixture): set BIBLE_E2E_DATA_DIR');
     await openStudyOnVerse(page);
 
     // Study sections start collapsed (StudySection defaults `defaultExpanded`

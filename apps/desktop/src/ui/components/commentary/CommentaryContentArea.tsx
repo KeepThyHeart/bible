@@ -22,6 +22,13 @@ interface CommentaryContentAreaProps {
   currentVerseId: number | null;
   isLoading: boolean;
   error: string | null;
+  /**
+   * The module's file is missing (or it is not installed): render the "module
+   * file missing" state naming the module instead of an error/empty verse.
+   */
+  missing?: boolean;
+  /** Opens the Module Manager so the reader can reinstall the module. */
+  onOpenModuleManager?: () => void;
   onNavigatePrev: () => void;
   onNavigateNext: () => void;
   onBrowseAll?: () => void;
@@ -52,6 +59,8 @@ const CommentaryContentArea: React.FC<CommentaryContentAreaProps> = ({
   currentVerseId,
   isLoading,
   error,
+  missing,
+  onOpenModuleManager,
   onNavigatePrev,
   onNavigateNext,
   onBrowseAll,
@@ -74,6 +83,40 @@ const CommentaryContentArea: React.FC<CommentaryContentAreaProps> = ({
     // useDeferredLoading already debounces this by 80ms, so a fast cache-hit
     // load never shows it at all.
     return <PaneLoadingSkeleton testId="commentary-loading-skeleton" />;
+  }
+
+  if (missing) {
+    const name = moduleName || moduleAbbreviation || '';
+    return (
+      <div
+        className="flex flex-col items-center justify-center h-full gap-sm px-md text-center"
+        role="status"
+        data-testid="commentary-module-missing"
+      >
+        <div className="text-text-primary">{t('commentaryContentArea.moduleMissing', { name })}</div>
+        <div className="text-text-secondary text-sm">{t('commentaryContentArea.moduleMissingHint')}</div>
+        <div className="flex gap-sm">
+          {onOpenModuleManager && (
+            <button
+              type="button"
+              onClick={onOpenModuleManager}
+              className="px-md py-sm bg-accent text-text-on-accent rounded hover:bg-accent-hover"
+            >
+              {t('commentaryContentArea.openModuleManager')}
+            </button>
+          )}
+          {onRetry && (
+            <button
+              type="button"
+              onClick={onRetry}
+              className="px-md py-sm bg-control text-text-primary rounded hover:bg-control-hover"
+            >
+              {t('commentaryContentArea.retry')}
+            </button>
+          )}
+        </div>
+      </div>
+    );
   }
 
   if (error) {

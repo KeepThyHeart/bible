@@ -1,10 +1,11 @@
 import { IpcMain } from 'electron';
+import { missingModuleError } from './moduleErrors';
 import log from 'electron-log/main';
 import { VerseIdHelper, formatVerseText } from '@bible/core';
 import type { BibleRepository } from '@bible/core';
 import { getSharedModuleMetadataRepo, getSharedBookRepo } from '../services/sharedMainDb';
 import { ModuleLoader } from '../services/ModuleLoader';
-import { ipcHandler, IpcKnownError } from './handler-helper';
+import { ipcHandler } from './handler-helper';
 import { validateAbbreviation, validateBookNumber, validateChapter, validateVerseId, validateString } from '../utils/validation';
 import { pickDefaultBible } from './defaultBible';
 
@@ -45,7 +46,7 @@ export function ensureBibleRepository(abbreviation: string): Promise<BibleReposi
 function requireBibleRepository(abbreviation: string): BibleRepository {
   const repo = getBibleRepository(abbreviation);
   if (!repo) {
-    throw new IpcKnownError('not_found', `Bible not found: ${abbreviation}`);
+    throw missingModuleError(bibleLoader, abbreviation, `Bible not found: ${abbreviation}`);
   }
   return repo;
 }

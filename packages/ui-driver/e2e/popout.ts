@@ -48,6 +48,18 @@ if (!realBible && !env.BIBLE_DESKTOP_DATA_DIR) {
   // The fixture extension (it contributes a panel) installs by being in data/extensions/<id>/.
   cpSync(EXT_FIXTURE, join(dir, 'data', 'extensions', 'ext.test.bible-viewer'), { recursive: true });
 }
+if (realBible && !env.BIBLE_DESKTOP_DATA_DIR) {
+  // The driver defaults to the committed fixture when no data dir is given; this check wants the real data.
+  env.BIBLE_DESKTOP_DATA_DIR = dataDir;
+}
+// Ctrl-C / kill: the synchronous steps below cannot run handlers, so make the exit path stop the app and
+// remove the temp dir (the 'exit' event also fires for process.exit from these handlers).
+process.on('exit', () => {
+  try { spawnSync(process.execPath, ['bin/drive.ts', 'stop'], { cwd: pkgDir, env, timeout: 30_000 }); } catch { /* best effort */ }
+  rmSync(dir, { recursive: true, force: true });
+});
+process.on('SIGINT', () => process.exit(130));
+process.on('SIGTERM', () => process.exit(143));
 const hasExtension = existsSync(join(env.BIBLE_DESKTOP_DATA_DIR ?? dataDir, 'extensions', 'ext.test.bible-viewer'));
 
 function run(argv: string[]): { ok: boolean; text: string } {

@@ -41,6 +41,7 @@ const USAGE: Record<string, string> = {
   wait: 'wait rN | gone rN|TEXT... | idle | url TEXT | MS | text TEXT... | TEXT...  [--timeout ms]',
   errors: 'errors [--all] [--warn] [--clear]',
   screenshot: 'screenshot [rN] [--full] [--path P]   (shot)',
+  clean: 'clean [--dry-run] [--all-sessions] [--older-than MINUTES]   (local: remove leaked bible/driver temp dirs from the tmp dir; default older than 60 min)',
   log: 'log [--playwright] [--path P] [--tail N]',
 };
 

@@ -96,7 +96,14 @@ export async function launchApp(opts: LaunchOptions): Promise<LaunchedApp> {
   mkdirSync(profileDir, { recursive: true });
   const keepProfile = !!fixedProfile || opts.keepProfile || manifest.profile?.keep === true;
   const cleanups: Array<() => Promise<void>> = [];
+  // Hard-exit fallback: if the daemon dies without running close() (uncaught exit, process.exit), the
+  // profile (fixture data copy, keyword index, user data) must not stay behind in /tmp.
+  const onExit = () => {
+    if (!keepProfile) rmSync(profileDir, { recursive: true, force: true });
+  };
+  process.on('exit', onExit);
   const cleanup = async () => {
+    process.off('exit', onExit);
     for (const fn of cleanups.reverse()) {
       try { await fn(); } catch { /* best effort */ }
     }
@@ -212,7 +219,13 @@ async function launchElectron(
 ): Promise<Partial_> {
   const miss = missingBuild(manifest, manifestDir);
   if (miss) throw new Error(miss);
-  const e = expandDeep(manifest.electron!, base);
+  const vars: Record<string, string> = { ...base };
+  if (manifest.prepare) {
+    const t0 = Date.now();
+    Object.assign(vars, await runPrepare(manifest.prepare, manifestDir, vars));
+    opts.log(`prepare done in ${((Date.now() - t0) / 1000).toFixed(1)}s`);
+  }
+  const e = expandDeep(manifest.electron!, vars);
   const main = path.resolve(manifestDir, e.main);
   const args = e.args ?? [];
   const env = e.env ?? {};

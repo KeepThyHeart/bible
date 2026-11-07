@@ -8,6 +8,10 @@
  * them under apps/desktop/data), tearing each other's `.part` files. A torn build is recorded as failed
  * and never retried until the module changes, so search stayed empty in every later run too.
  *
+ * With the committed fixture (no data dir given) there is nothing to wait for: each app builds the
+ * tiny index of its own data copy at startup (specs that search call `waitForKeywordIndexes`), so this
+ * returns at once. The rest applies to real data (`BIBLE_E2E_DATA_DIR`).
+ *
  * Now the suite keeps its indexes in `E2E_KEYWORD_INDEX_DIR`. This launches the app once, lets its
  * background build fill that directory, rebuilds any index left failed, and waits until none is
  * unbuilt, building or failed. A later run finds them ready and returns at once.
@@ -16,7 +20,7 @@ import { _electron as electron } from '@playwright/test';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
-import { E2E_KEYWORD_INDEX_DIR } from './fixtures/keywordIndexDir';
+import { E2E_KEYWORD_INDEX_DIR, realDataDir, usingFixture } from './fixtures/dataDir';
 
 const MAIN_JS_PATH = path.resolve(__dirname, '../out/main/index.js');
 const BUILD_BUDGET_MS = 15 * 60_000;
@@ -27,6 +31,7 @@ export default async function globalSetup(): Promise<void> {
   // For a dataset of modules that carry their own FTS tables (a development `data/` dir), where this
   // wait for sidecar indexes would only ever time out. Set E2E_SKIP_KEYWORD_INDEX_SETUP=1.
   if (process.env.E2E_SKIP_KEYWORD_INDEX_SETUP === '1') return;
+  if (usingFixture()) return;
   if (!fs.existsSync(MAIN_JS_PATH)) return; // the fixture reports the missing build itself
   fs.mkdirSync(E2E_KEYWORD_INDEX_DIR, { recursive: true });
   const userDataDir = path.join(os.tmpdir(), 'bible-e2e', 'keyword-index-setup');
@@ -42,6 +47,7 @@ export default async function globalSetup(): Promise<void> {
       ...process.env,
       NODE_ENV: 'test',
       ELECTRON_USER_DATA: userDataDir,
+      BIBLE_DESKTOP_DATA_DIR: realDataDir()!,
       BIBLE_KEYWORD_INDEX_DIR: E2E_KEYWORD_INDEX_DIR,
       BIBLE_REMOTE_SEMANTIC_URL: 'none',
     },

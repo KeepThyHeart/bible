@@ -1,3 +1,4 @@
+import { resetModuleErrorLog } from '../../../services/moduleErrorLog';
 import type { StateCreator } from 'zustand';
 import { commentaryAPI } from '../../../services/electronAPI';
 import {
@@ -39,6 +40,22 @@ export const createSharedSlice: StateCreator<CommentaryState, [], [], SharedSlic
       // against the verse, so it would keep showing the old set (on a fresh
       // install: "0 of 0 modules") until the reader moved to another verse.
       // Drop the cache and rebuild it for the verse each panel is on.
+      // A module whose file is back (reinstall) is no longer unavailable:
+      // drop its flags so the next load hits IPC once.
+      const present = new Map(commentaries.map(c => [c.abbreviation, c]));
+      for (const [panelId, ps] of get().panels) {
+        const stale = [...ps.unavailableByTab.keys()].filter(a => present.has(a) && !present.get(a)!.fileMissing);
+        if (stale.length === 0) continue;
+        const unavailable = new Map(ps.unavailableByTab);
+        const failed = new Map(ps.summariesFailedByTab);
+        for (const a of stale) {
+          unavailable.delete(a);
+          failed.delete(a);
+          resetModuleErrorLog('commentary', a);
+        }
+        set({ panels: updatePanelState(get().panels, panelId, { unavailableByTab: unavailable, summariesFailedByTab: failed }, createDefaultPanelState) });
+      }
+
       const after = commentaries.map(c => c.abbreviation).join('\u0000');
       if (before !== after) {
         for (const [panelId, ps] of get().panels) {

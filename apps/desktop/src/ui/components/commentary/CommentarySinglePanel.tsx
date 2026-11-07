@@ -6,6 +6,8 @@ import { bibleAPI } from '../../services/electronAPI';
 import { loadBookNamesCache, formatVerseReference } from '../../utils/verseReference';
 import { commentaryAPI } from '../../services/electronAPI';
 import { DIGEST_DISPLAY_NAME, isDigestModule } from '../../moduleDescriptions';
+import { isModuleUnavailableError, logModuleErrorOnce, resetModuleErrorLog } from '../../services/moduleErrorLog';
+import { openModuleManager } from '../../utils/openModuleManager';
 import CommentaryPassageHeader from './CommentaryPassageHeader';
 import CommentaryVersePreview from './CommentaryVersePreview';
 import CommentaryPinnedBanner from './CommentaryPinnedBanner';
@@ -41,6 +43,8 @@ const CommentarySinglePanel: React.FC<CommentarySinglePanelProps> = ({
   const [entries, setEntries] = React.useState<CommentaryEntry[]>([]);
   const [isLoading, setIsLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const [missing, setMissing] = React.useState(false);
+  const missingRef = useRef(false);
   const [currentVerseId, setCurrentVerseId] = React.useState<number | null>(null);
   const [pinned, setPinned] = React.useState(false);
   const [pinnedVerseId, setPinnedVerseId] = React.useState<number | null>(null);
@@ -99,13 +103,21 @@ const CommentarySinglePanel: React.FC<CommentarySinglePanelProps> = ({
 
   // Load commentary for a verse
   const loadForVerse = React.useCallback(async (verseId: number) => {
+    // Module file missing: stay missing (no IPC per chapter) until Retry.
+    if (missingRef.current) return;
     setIsLoading(true);
     setError(null);
     try {
       const result = await commentaryAPI.getEntriesForVerse(abbreviation, verseId);
       setEntries(result);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load commentary');
+      if (isModuleUnavailableError(err)) {
+        logModuleErrorOnce('commentary', abbreviation, `verse ${verseId}`, err);
+        missingRef.current = true;
+        setMissing(true);
+      } else {
+        setError(err instanceof Error ? err.message : 'Failed to load commentary');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -132,7 +144,7 @@ const CommentarySinglePanel: React.FC<CommentarySinglePanelProps> = ({
   // so the empty-verse fallback grid can render.
   useEffect(() => {
     if (isLoading || entries.length > 0) return;
-    if (summariesLoadedRef.current) return;
+    if (summariesLoadedRef.current || missingRef.current) return;
     summariesLoadedRef.current = true;
     commentaryAPI.getAllEntrySummaries(abbreviation)
       .then((res) => setEntrySummaries(res))
@@ -167,7 +179,7 @@ const CommentarySinglePanel: React.FC<CommentarySinglePanelProps> = ({
   };
 
   const handleNavigateNext = async () => {
-    if (!currentVerseId) return;
+    if (!currentVerseId || missingRef.current) return;
     try {
       const nextVerseId = await commentaryAPI.getNextVerseWithContent(abbreviation, currentVerseId);
       if (nextVerseId) {
@@ -179,12 +191,12 @@ const CommentarySinglePanel: React.FC<CommentarySinglePanelProps> = ({
         try { useBibleStore.getState().navigateToVerseInPrimary(nextVerseId); } catch { /* ignore */ } // allow-getstate: event handler - imperative navigation, no subscription needed
       }
     } catch (err) {
-      console.error(`Error navigating to next verse for ${abbreviation}:`, err);
+      if (!logModuleErrorOnce('commentary', abbreviation, 'navigate next', err)) console.error(`Error navigating to next verse for ${abbreviation}:`, err);
     }
   };
 
   const handleNavigatePrev = async () => {
-    if (!currentVerseId) return;
+    if (!currentVerseId || missingRef.current) return;
     try {
       const prevVerseId = await commentaryAPI.getPreviousVerseWithContent(abbreviation, currentVerseId);
       if (prevVerseId) {
@@ -195,7 +207,7 @@ const CommentarySinglePanel: React.FC<CommentarySinglePanelProps> = ({
         try { useBibleStore.getState().navigateToVerseInPrimary(prevVerseId); } catch { /* ignore */ } // allow-getstate: event handler - imperative navigation, no subscription needed
       }
     } catch (err) {
-      console.error(`Error navigating to previous verse for ${abbreviation}:`, err);
+      if (!logModuleErrorOnce('commentary', abbreviation, 'navigate previous', err)) console.error(`Error navigating to previous verse for ${abbreviation}:`, err);
     }
   };
 
@@ -245,7 +257,14 @@ const CommentarySinglePanel: React.FC<CommentarySinglePanelProps> = ({
           error={error}
           onNavigatePrev={handleNavigatePrev}
           onNavigateNext={handleNavigateNext}
-          onRetry={() => { if (currentVerseId) void loadForVerse(currentVerseId); }}
+          onRetry={() => {
+            missingRef.current = false;
+            setMissing(false);
+            resetModuleErrorLog('commentary', abbreviation);
+            if (currentVerseId) void loadForVerse(currentVerseId);
+          }}
+          missing={missing}
+          onOpenModuleManager={() => openModuleManager('commentary')}
           entrySummaries={entrySummaries}
           onSelectVerse={(verseId) => {
             setPinned(false);

@@ -1,8 +1,9 @@
 import { IpcMain } from 'electron';
+import { missingModuleError } from './moduleErrors';
 import { CrossReferenceRepository } from '@bible/core';
 import { getSharedModuleMetadataRepo } from '../services/sharedMainDb';
 import { ModuleLoader } from '../services/ModuleLoader';
-import { ipcHandler, IpcKnownError } from './handler-helper';
+import { ipcHandler } from './handler-helper';
 import { validateAbbreviation, validateVerseId } from '../utils/validation';
 import type { ExtensionHost } from '../extensions/ExtensionHost';
 
@@ -106,7 +107,7 @@ export function registerCrossReferenceHandlers(
     // synchronous `.get()` it always was.
     await loader.ensure(abbreviation);
     const repo = getXrefRepository(abbreviation);
-    if (!repo) throw new IpcKnownError('not_found', `Cross-reference module not found: ${abbreviation}`);
+    if (!repo) throw missingModuleError(loader, abbreviation, `Cross-reference module not found: ${abbreviation}`);
 
     const groupsWithEntries = repo.getGroupsWithEntries(verseId);
     const builtIn: XrefGroupWithEntries[] = groupsWithEntries.map(({ group, entries }) => ({
@@ -177,7 +178,7 @@ export function registerCrossReferenceHandlers(
       validateVerseId(startVerseId);
       validateVerseId(endVerseId);
       const repo = getXrefRepository(abbreviation);
-      if (!repo) throw new IpcKnownError('not_found', `Cross-reference module not found: ${abbreviation}`);
+      if (!repo) throw missingModuleError(loader, abbreviation, `Cross-reference module not found: ${abbreviation}`);
 
       const groupsWithEntries = repo.getGroupsWithEntriesForRange(startVerseId, endVerseId);
       return groupsWithEntries.map(({ group, entries }) => ({
@@ -211,7 +212,7 @@ export function registerCrossReferenceHandlers(
       validateVerseId(startVerseId);
       validateVerseId(endVerseId);
       const repo = getXrefRepository(abbreviation);
-      if (!repo) throw new IpcKnownError('not_found', `Cross-reference module not found: ${abbreviation}`);
+      if (!repo) throw missingModuleError(loader, abbreviation, `Cross-reference module not found: ${abbreviation}`);
 
       return repo.getReverseReferencesForRange(startVerseId, endVerseId).map(r => ({
         source_verse_id: r.sourceVerseId,
@@ -228,7 +229,7 @@ export function registerCrossReferenceHandlers(
     validateAbbreviation(abbreviation);
     validateVerseId(verseId);
     const repo = getXrefRepository(abbreviation);
-    if (!repo) throw new IpcKnownError('not_found', `Cross-reference module not found: ${abbreviation}`);
+    if (!repo) throw missingModuleError(loader, abbreviation, `Cross-reference module not found: ${abbreviation}`);
 
     const refs = repo.getReverseReferences(verseId);
     return refs.map(r => ({
@@ -243,7 +244,7 @@ export function registerCrossReferenceHandlers(
     validateAbbreviation(abbreviation);
     validateVerseId(verseId);
     const repo = getXrefRepository(abbreviation);
-    if (!repo) throw new IpcKnownError('not_found', `Cross-reference module not found: ${abbreviation}`);
+    if (!repo) throw missingModuleError(loader, abbreviation, `Cross-reference module not found: ${abbreviation}`);
 
     return repo.getEntryCount(verseId);
   });

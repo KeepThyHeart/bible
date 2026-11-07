@@ -9,11 +9,32 @@ import { isAbsolutePath } from '../utils';
  * (`conflict`) or re-create a note that was renamed, moved or trashed since
  * (`not_found`). Returns the `updated` the main process wrote.
  */
-export function saveWithBaseline(path: string, note: BnFile): Promise<string> {
-  return isAbsolutePath(path)
-    ? fileNotesAPI.saveNoteAbsolute(path, note, note.updated)
-    : fileNotesAPI.saveNote(path, note, note.updated);
+export async function saveWithBaseline(path: string, note: BnFile): Promise<string> {
+  beginSave(path);
+  try {
+    return isAbsolutePath(path)
+      ? await fileNotesAPI.saveNoteAbsolute(path, note, note.updated)
+      : await fileNotesAPI.saveNote(path, note, note.updated);
+  } finally {
+    endSave(path);
+  }
 }
+
+/**
+ * Saves of this window that have been sent but not answered yet, per path. A
+ * "note saved elsewhere" push that arrives meanwhile is a real conflict, never
+ * something to reload over.
+ */
+const savesInFlight = new Map<string, number>();
+export function beginSave(path: string): void {
+  savesInFlight.set(path, (savesInFlight.get(path) ?? 0) + 1);
+}
+export function endSave(path: string): void {
+  const n = (savesInFlight.get(path) ?? 0) - 1;
+  if (n > 0) savesInFlight.set(path, n);
+  else savesInFlight.delete(path);
+}
+export const isSaveInFlight = (path: string): boolean => (savesInFlight.get(path) ?? 0) > 0;
 
 /** Which kind of stale-baseline refusal this is, or null for any other error. */
 export function staleSaveKind(err: unknown): 'conflict' | 'missing' | null {

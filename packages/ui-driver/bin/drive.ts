@@ -94,6 +94,18 @@ async function main(): Promise<number> {
   };
   if (argv.length === 0) return localHelp();
 
+  if (argv[0] === 'clean') {
+    // Local: removes leaked temp dirs; needs no daemon.
+    const { cleanTemp, formatClean, parseCleanArgs } = await import('../src/clean.ts');
+    const opts = parseCleanArgs(argv.slice(1));
+    if (typeof opts === 'string') {
+      print(opts);
+      return 2;
+    }
+    print(formatClean(await cleanTemp(opts)));
+    return 0;
+  }
+
   let c = await connect(sock);
   if (typeof c === 'string') {
     if (c !== 'ENOENT' && c !== 'ECONNREFUSED') {

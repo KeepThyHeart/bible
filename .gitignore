@@ -42,6 +42,7 @@ playwright-report/
 *.db
 *.db-shm
 *.db-wal
+!fixtures/bible-data/**/*.db
 *.log
 
 # Secrets. Catalog signing: only the PUBLIC key belongs in the repo.

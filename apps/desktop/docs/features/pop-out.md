@@ -164,3 +164,7 @@ Verse changes travel **between all windows**, not just outward from the main one
 The window's **title** comes from `book.titleFormat`, which reads `paneKind` to decide between "Dictionary - {name}" and "Book - {name}" and takes the name off the handed-over tab list.
 
 `paneKind` is what separates the two: a `BookPane` with `paneKind: 'dictionary'` shows dictionary tabs only, one with `paneKind: 'book'` book tabs only. The pop-out payload carries it alongside the dictionary state (`popOutModule.ts` and `DockviewTabRenderer`), and `PanelContentRenderer` sets the same prop from the panel's content type for the docked case.
+
+## Notes stay in sync with the main window
+
+A popped-out Notes pane is the same `UserNotesPane`. A save in either window is pushed to the other (`file-notes:note-saved`, sender excluded), which reloads a clean editor in place or shows the conflict banner if it has unsaved edits. See "A note open in two windows stays in step" in `notes-writing.md`.

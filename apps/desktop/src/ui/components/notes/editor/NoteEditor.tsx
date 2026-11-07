@@ -28,6 +28,7 @@ import { verseReferencePlugin } from './VerseReferencePlugin';
 import { FontSize } from './FontSizeExtension';
 import { TextDirection } from './TextDirectionExtension';
 import { useDirection } from '../../../contexts/useDirection';
+import { useNoteEditorStore } from '../../../stores/useNoteEditorStore';
 import { createSlashCommandsExtension } from './SlashCommands';
 import VersePreviewTooltip from '../../VersePreviewTooltip';
 import NoteEditorVerseMenu from './NoteEditorVerseMenu';
@@ -823,10 +824,30 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
   useEffect(() => {
     if (editor && value !== editor.getHTML()) {
       isInternalUpdate.current = true;
+      // A reload of the same note saved by another window keeps the caret and
+      // scroll where they were (clamped to the new document), instead of jumping to the top.
+      const keep = useNoteEditorStore.getState().preserveSelection === true; // allow-getstate: effect-time read of a one-shot flag, not render state
+      const prevSel = keep ? { from: editor.state.selection.from, to: editor.state.selection.to } : null;
+      const scroller = editorContainerRef.current;
+      const prevScroll = keep && scroller ? scroller.scrollTop : 0;
       // An external swap of the whole document (switching prayer/note) is not an
       // edit the user made: keep it out of the undo history, or Ctrl+Z would
       // bring back the previous document's text and autosave it over this one.
       editor.chain().setMeta('addToHistory', false).setContent(value || '').run();
+      if (keep) {
+        if (prevSel) {
+          const size = editor.state.doc.content.size;
+          const from = Math.min(prevSel.from, size);
+          const to = Math.min(prevSel.to, size);
+          try {
+            editor.chain().setMeta('addToHistory', false).setTextSelection({ from, to }).run();
+          } catch {
+            // A position that is not valid in the new document: leave the selection as TipTap placed it.
+          }
+        }
+        if (scroller) scroller.scrollTop = prevScroll;
+        useNoteEditorStore.getState().clearPreserveSelection(); // allow-getstate: one-shot flag reset in an effect
+      }
       isInternalUpdate.current = false;
     }
   }, [value, editor]);

@@ -381,6 +381,12 @@ Pointer-anchoring is wrong here twice over. It renders below wherever in the lin
 
 `UserNotesEditorView`'s pop-out button sits at the far end of the breadcrumb header (`ms-auto` against the `flex-1` nav), with the same bordered chrome as the sidebar toggle. It is deliberately not beside the Edit Title pencil: two 14px icons a few pixels apart, one of which renames the note and the other of which tears the pane into a separate window, are routinely misclicked for each other.
 
+### A note open in two windows stays in step
+
+After a successful `file-notes:save-note(-absolute)` the main process (`ipcHandlerWithSender` in `fileNotesHandlers.ts`, `broadcastNoteSaved` in `noteSavedBroadcast.ts`) pushes `file-notes:note-saved` `{ absolutePath, updated, senderId }` to every window **except the saver**. Excluding the sender matters: the push would otherwise reach the saving window while it is still dirty and raise a false conflict, or echo.
+
+`useNoteSavedListener` (in `UserNotesPane`) compares the event's path with the open note and ignores an equal `updated`. If the editor is clean it reads the note and calls `useNoteEditorStore.reloadExternal`, which sets the content as the new baseline (not dirty, no `_beforeReplace` save) and flags `preserveSelection`; `NoteEditor` then restores the caret (clamped) and scroll after `setContent`. If the editor has unsaved edits, or a save of ours is in flight (`isSaveInFlight`), the existing "changed in another window" conflict banner shows at once and nothing is overwritten. Stale reads (older than the newest event) are dropped. Rename and delete are not synced. The same note open in two panes of one window is not synced (the sender is excluded per window). The conflict strings are still hardcoded English.
+
 ## Not implemented
 
 - **A Journal feature.** There is no `journal` `PanelContentType`, no journal tab in the Writing pane, and no way to create a journal panel. Journalling is done as an ordinary `.bn` note, optionally from the "Devotional" template in `NewNoteDialog`.

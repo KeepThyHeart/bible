@@ -577,6 +577,15 @@ export interface ElectronAPI {
     onCrashDetected: (handler: (payload: { id: string }) => void) => () => void;
   };
 
+  // File notes: push events. (Invokes go through ipcRenderer.invoke.)
+  fileNotes: {
+    /**
+     * Fires in every window except the one that saved a note, so a note open in
+     * several windows can reload (or flag a conflict). Returns an unsubscribe.
+     */
+    onNoteSaved: (cb: (event: { absolutePath: string; updated: string; senderId: number }) => void) => () => void;
+  };
+
   // Network privacy - master "Allow web requests" switch. Replies use
   // the `Result<T>` envelope; callers unwrap via `services/ipcResult.ts#unwrap`.
   //
@@ -1279,6 +1288,17 @@ const electronAPI: ElectronAPI = {
       ipcRenderer.on('diagnostics:crash-detected', wrapped);
       return () => {
         ipcRenderer.removeListener('diagnostics:crash-detected', wrapped);
+      };
+    },
+  },
+
+  fileNotes: {
+    onNoteSaved: (cb: (event: { absolutePath: string; updated: string; senderId: number }) => void) => {
+      const wrapped = (_event: unknown, payload: { absolutePath: string; updated: string; senderId: number }): void =>
+        cb(payload);
+      ipcRenderer.on('file-notes:note-saved', wrapped);
+      return () => {
+        ipcRenderer.removeListener('file-notes:note-saved', wrapped);
       };
     },
   },

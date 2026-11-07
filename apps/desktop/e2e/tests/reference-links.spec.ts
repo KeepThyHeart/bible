@@ -19,6 +19,8 @@
 import { test, expect } from '../fixtures/electron.fixture';
 import type { Page } from '@playwright/test';
 import { selectVerse } from '../fixtures/test-utils';
+import { needsRealData } from '../fixtures/dataDir';
+
 
 /** Links inside rendered commentary text - the ones this file is about. */
 function commentaryLinks(window: Page) {
@@ -57,6 +59,9 @@ async function openScofieldOnJohn316(window: Page): Promise<void> {
   // on that, and a silent zero here would make them all vacuous.
   await expect(commentaryLinks(window).first()).toBeAttached({ timeout: 20000 });
 }
+
+// Modules the committed fixture lacks: skipped unless real data is given (BIBLE_E2E_DATA_DIR).
+needsRealData(test.skip, 'Scofield');
 
 test.describe('Scripture Reference Links', () => {
   test.beforeEach(async ({ window }) => {

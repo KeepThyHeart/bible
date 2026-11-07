@@ -10,7 +10,7 @@
 
 import type { Page } from '@playwright/test';
 import { test, expect } from '../fixtures/electron.fixture';
-import { waitForAppReady } from '../fixtures/test-utils';
+import { waitForAppReady, waitForKeywordIndexes } from '../fixtures/test-utils';
 
 /**
  * Whether this machine has a semantic index installed.
@@ -53,6 +53,7 @@ async function search(window: Page, query: string): Promise<void> {
 test.describe('Semantic Search', () => {
   test('should be available, toggle from keyword search, and return results', async ({ window }) => {
     await waitForAppReady(window);
+    await waitForKeywordIndexes(window);
     // `test.skip` rather than a bare `return`: an environment without the index
     // is a legitimate skip, and reporting it as a pass hides the fact that this
     // file checked nothing on that machine.
@@ -89,6 +90,7 @@ test.describe('Semantic Search', () => {
 
   test('should auto-switch to semantic when keyword search returns zero results', async ({ window }) => {
     await waitForAppReady(window);
+    await waitForKeywordIndexes(window);
     test.skip(!(await semanticAvailable(window)), 'Semantic index not installed');
 
     // `useSearchStore` auto-switches on `results.length === 0`, so this is
@@ -110,6 +112,7 @@ test.describe('Semantic Search', () => {
 
   test('auto-switch is undone by a query that does have keyword matches', async ({ window }) => {
     await waitForAppReady(window);
+    await waitForKeywordIndexes(window);
     test.skip(!(await semanticAvailable(window)), 'Semantic index not installed');
 
     // The store clears `isSemanticMode` on the next search when the previous

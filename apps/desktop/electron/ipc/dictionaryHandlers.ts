@@ -1,4 +1,5 @@
 import { IpcMain } from 'electron';
+import { missingModuleError } from './moduleErrors';
 import { DictionaryRepository, readNewlineHandling, type NewlineHandling } from '@bible/core';
 import { listInstalledModules } from '../services/installedModules';
 import { ModuleLoader } from '../services/ModuleLoader';
@@ -27,8 +28,9 @@ function requireDictionaryRepository(abbreviation: string): DictionaryRepository
     // state. The available-dictionaries list is filtered to what is on disk,
     // so reaching this means a restored session tab or a module removed while
     // the app was running - both recoverable by reinstalling.
-    throw new IpcKnownError(
-      'not_found',
+    throw missingModuleError(
+      loader,
+      abbreviation,
       `The dictionary “${abbreviation}” is not installed. You can reinstall it from the Module Manager.`
     );
   }

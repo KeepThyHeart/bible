@@ -12,6 +12,8 @@
  *
  * Standard error codes:
  *   - `not_found` - entity does not exist (handled in UI as empty/404)
+ *   - `module_missing` - a `module_metadata` row exists but the module's file is
+ *     gone from disk (renderer shows a "module file missing" state, no retry)
  *   - `invalid_input` - caller passed bad arguments
  *   - `unauthorized` - caller lacks permission
  *   - `conflict` - state conflict (e.g., duplicate insert)
@@ -39,6 +41,7 @@
 
 export type IpcErrorCode =
   | 'not_found'
+  | 'module_missing'
   | 'invalid_input'
   | 'unauthorized'
   | 'conflict'

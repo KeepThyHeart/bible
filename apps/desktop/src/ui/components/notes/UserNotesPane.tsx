@@ -20,6 +20,7 @@ import { useEditorShortcuts } from './UserNotesPane/hooks/useEditorShortcuts';
 import { useNotesInit } from './UserNotesPane/hooks/useNotesInit';
 import { useVerseNoteOpener } from './UserNotesPane/hooks/useVerseNoteOpener';
 import { usePopOutListener } from './UserNotesPane/hooks/usePopOutListener';
+import { useNoteSavedListener } from './UserNotesPane/hooks/useNoteSavedListener';
 import { useNotesNavigation } from './UserNotesPane/hooks/useNotesNavigation';
 import { useMoveDialogFolders } from './UserNotesPane/hooks/useMoveDialogFolders';
 import UserNotesSidebar from './UserNotesPane/UserNotesSidebar';
@@ -236,6 +237,9 @@ const UserNotesPane: React.FC<UserNotesPaneProps> = ({
     handleSaveNote,
     loadDirectory,
   });
+
+  // Live sync: a save of this note in another window reloads it here (or flags a conflict if we have unsaved edits)
+  useNoteSavedListener({ view, currentNote, currentNotePath, setCurrentNote, setFileError });
 
   // Notes-folder CRUD: create note/folder, rename, move, delete
   const {

@@ -1,8 +1,9 @@
 import { IpcMain } from 'electron';
+import { missingModuleError } from './moduleErrors';
 import { TopicalIndexRepository } from '@bible/core';
 import { getSharedModuleMetadataRepo } from '../services/sharedMainDb';
 import { ModuleLoader } from '../services/ModuleLoader';
-import { ipcHandler, IpcKnownError } from './handler-helper';
+import { ipcHandler } from './handler-helper';
 import { validateAbbreviation, validateVerseId, validatePositiveInt, validateString } from '../utils/validation';
 
 const loader = new ModuleLoader('topical_index', 'topicalIndex');
@@ -102,7 +103,7 @@ export function registerTopicalIndexHandlers(_ipcMain: IpcMain): void {
     await loader.ensure(abbreviation);
     const repo = getTopicalRepository(abbreviation);
     if (!repo) {
-      throw new IpcKnownError('not_found', `Topical index not found: ${abbreviation}`);
+      throw missingModuleError(loader, abbreviation, `Topical index not found: ${abbreviation}`);
     }
 
     const topic = repo.getTopic(topicId);
@@ -159,7 +160,7 @@ export function registerTopicalIndexHandlers(_ipcMain: IpcMain): void {
     validatePositiveInt(parentTopicId, 'parentTopicId');
     const repo = getTopicalRepository(abbreviation);
     if (!repo) {
-      throw new IpcKnownError('not_found', `Topical index not found: ${abbreviation}`);
+      throw missingModuleError(loader, abbreviation, `Topical index not found: ${abbreviation}`);
     }
 
     const children = repo.getChildren(parentTopicId);
@@ -177,7 +178,7 @@ export function registerTopicalIndexHandlers(_ipcMain: IpcMain): void {
     validatePositiveInt(topicId, 'topicId');
     const repo = getTopicalRepository(abbreviation);
     if (!repo) {
-      throw new IpcKnownError('not_found', `Topical index not found: ${abbreviation}`);
+      throw missingModuleError(loader, abbreviation, `Topical index not found: ${abbreviation}`);
     }
 
     const chain = repo.getParentChain(topicId);
@@ -195,7 +196,7 @@ export function registerTopicalIndexHandlers(_ipcMain: IpcMain): void {
       validatePositiveInt(topicId, 'topicId');
       const repo = getTopicalRepository(abbreviation);
       if (!repo) {
-        throw new IpcKnownError('not_found', `Topical index not found: ${abbreviation}`);
+        throw missingModuleError(loader, abbreviation, `Topical index not found: ${abbreviation}`);
       }
 
       const verses = repo.getRecursiveVersesForTopic(topicId, { limit, offset });

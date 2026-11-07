@@ -265,6 +265,11 @@ describe('PreferencesDialog - section nav alignment (B-201)', () => {
       // Top-aligned so a wrapped label keeps the icon beside its first line.
       expect(tab).toHaveClass('items-start');
       expect(tab).not.toHaveClass('items-center');
+      expect(tab).toHaveClass('justify-start');
+      const icon = tab.querySelector('[data-tab-icon]');
+      const label = tab.querySelector('[data-tab-label]');
+      expect(icon).toHaveClass('shrink-0', 'h-5');
+      expect(label).toHaveClass('flex-1', 'min-w-0', 'text-start');
     }
   });
 });

@@ -109,6 +109,8 @@ const CommentaryPane: React.FC<CommentaryPaneProps> = (props) => {
     errorByTab,
     entrySummariesByTab,
     loadingSummariesByTab,
+    unavailableByTab,
+    summariesFailedByTab,
     loadAvailableCommentaries,
     openCommentary,
     closeCommentary,
@@ -413,6 +415,11 @@ const CommentaryPane: React.FC<CommentaryPaneProps> = (props) => {
   const error = activeTab ? errorByTab.get(activeTab.abbreviation) || null : null;
   const entrySummaries = activeTab ? entrySummariesByTab.get(activeTab.abbreviation) || [] : [];
   const loadingSummaries = activeTab ? loadingSummariesByTab.get(activeTab.abbreviation) || false : false;
+  // Module file gone (or module not installed): show the "missing" state and
+  // never auto-refetch. A summary fetch that failed for another reason also
+  // stops auto-refetching until the reader presses Retry.
+  const tabUnavailable = activeTab ? unavailableByTab.get(activeTab.abbreviation) ?? null : null;
+  const summariesFailed = activeTab ? summariesFailedByTab.get(activeTab.abbreviation) || false : false;
 
   // Task #10: When a commentary has no entry for the current verse, lazily load
   // its entry summaries so the empty-verse fallback grid can render.
@@ -423,11 +430,12 @@ const CommentaryPane: React.FC<CommentaryPaneProps> = (props) => {
     if (activeEntries.length > 0) return;
     if (entrySummaries.length > 0) return;
     if (loadingSummaries) return;
+    if (tabUnavailable || summariesFailed) return;
     loadEntrySummaries(activeTab.abbreviation);
-  }, [overviewActive, activeTab, activeEntries.length, entrySummaries.length, isLoading, loadingSummaries, loadEntrySummaries]);
+  }, [overviewActive, activeTab, activeEntries.length, entrySummaries.length, isLoading, loadingSummaries, tabUnavailable, summariesFailed, loadEntrySummaries]);
 
   const handleShowTreeView = () => {
-    if (activeTab && entrySummaries.length === 0 && !loadingSummaries) {
+    if (activeTab && entrySummaries.length === 0 && !loadingSummaries && !tabUnavailable && !summariesFailed) {
       loadEntrySummaries(activeTab.abbreviation);
     }
     setShowTreeView(true);
@@ -716,10 +724,13 @@ const CommentaryPane: React.FC<CommentaryPaneProps> = (props) => {
             currentVerseId={currentVerseId}
             isLoading={isLoading}
             error={error}
+            missing={tabUnavailable !== null || availableCommentaries.find(c => c.abbreviation === activeTab?.abbreviation)?.fileMissing === true}
+            onOpenModuleManager={() => openModuleManager('commentary')}
             onNavigatePrev={handleNavigatePrevious}
             onNavigateNext={handleNavigateNext}
             onBrowseAll={handleShowTreeView}
             onRetry={() => {
+              if (activeTab) useCommentaryStore.getState().clearTabUnavailable(panelId, activeTab.abbreviation); // allow-getstate: retry click handler - imperative store call
               if (activeTab && currentVerseId) {
                 void useCommentaryStore.getState().loadCommentaryForVerse(panelId, activeTab.abbreviation, currentVerseId); // allow-getstate: retry click handler - imperative store call
               }

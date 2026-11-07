@@ -1,10 +1,15 @@
 {
   "app": "desktop",
   "kind": "electron",
-  "description": "Bible desktop app (Electron) with a throwaway user-data dir",
+  "description": "Bible desktop app (Electron) with a throwaway user-data dir, on the committed fixture data unless BIBLE_DESKTOP_DATA_DIR is set",
   "build": {
     "requires": ["out/main/index.js"],
     "hint": "pnpm run build:desktop"
+  },
+  "prepare": {
+    "command": "node",
+    "args": ["../../packages/ui-driver/fixtures/desktop-prepare.ts"],
+    "env": { "DRIVE_PROFILE": "${profile}" }
   },
   "electron": {
     "main": "out/main/index.js",
@@ -12,7 +17,8 @@
     "env": {
       "NODE_ENV": "test",
       "ELECTRON_USER_DATA": "${profile}/user-data",
-      "BIBLE_KEYWORD_INDEX_DIR": "${tmp}/bible-ui-driver-keyword-index",
+      "BIBLE_DESKTOP_DATA_DIR": "${prepare.dataDir}",
+      "BIBLE_KEYWORD_INDEX_DIR": "${prepare.keywordIndexDir}",
       "BIBLE_REMOTE_SEMANTIC_URL": "none"
     },
     "readySelector": "[data-testid=\"app-loaded\"]",

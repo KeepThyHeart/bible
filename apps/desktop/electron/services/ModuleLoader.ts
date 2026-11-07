@@ -3,6 +3,7 @@ import log from 'electron-log';
 import { getSharedModuleMetadataRepo } from './sharedMainDb';
 import { resolveModulePath } from '../utils/appPaths';
 import { createRegistrySqlFactory } from './ModuleDatabaseRegistry';
+import { dedupeMissingModuleLogs, type ModuleDiagnosis } from '../ipc/moduleErrors';
 import {
   ModuleLoader as CoreModuleLoader,
   SqliteModuleStore,
@@ -122,6 +123,7 @@ function asConcreteFactory<K extends keyof ModuleRepositoryByType>(
  */
 export class ModuleLoader<K extends keyof ModuleRepositoryByType> {
   private core: CoreModuleLoader<ConcreteModuleRepositoryByType[K]>;
+  private readonly moduleType: string;
 
   /** Every loader created in this process, so an uninstall can drop a module from all of them. */
   private static readonly instances = new Set<{ evict(abbreviation: string): void }>();
@@ -161,6 +163,7 @@ export class ModuleLoader<K extends keyof ModuleRepositoryByType> {
     // numeric moduleId (studyHandlers) - shares a single handle owned by the
     // registry.
     ModuleLoader.instances.add(this);
+    this.moduleType = moduleType;
     const store = new SqliteModuleStore(createRegistrySqlFactory(moduleType));
 
     this.core = new CoreModuleLoader<ConcreteModuleRepositoryByType[K]>({
@@ -172,7 +175,9 @@ export class ModuleLoader<K extends keyof ModuleRepositoryByType> {
       readonly,
       onRepoCreated,
       fileExists: existsSync,
-      logger: log,
+      // A module whose file is gone is re-checked after the core's 30 s negative
+      // cache expires; log that condition once per session, not every 30 s.
+      logger: dedupeMissingModuleLogs(log),
     });
   }
 
@@ -205,6 +210,22 @@ export class ModuleLoader<K extends keyof ModuleRepositoryByType> {
    */
   evict(abbreviation: string): void {
     this.core.evict(abbreviation);
+  }
+
+  /**
+   * Why `get()`/`ensure()` came back null: no metadata row, or a row whose
+   * file is absent from disk. Cheap (one indexed lookup + stat); used to pick
+   * the `module_missing` vs `not_found` IPC code.
+   */
+  diagnose(abbreviation: string): { status: ModuleDiagnosis; databasePath?: string } {
+    try {
+      const meta = getSharedModuleMetadataRepo().getByAbbreviation(abbreviation);
+      if (!meta || meta.moduleType !== this.moduleType) return { status: 'no_metadata' };
+      const databasePath = resolveModulePath(meta.databasePath);
+      return existsSync(databasePath) ? { status: 'ok', databasePath } : { status: 'file_missing', databasePath };
+    } catch {
+      return { status: 'no_metadata' };
+    }
   }
 
   /** Close all database connections. Call on app shutdown. */

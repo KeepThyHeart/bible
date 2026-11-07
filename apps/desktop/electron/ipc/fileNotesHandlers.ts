@@ -1,9 +1,10 @@
 import { dialog, BrowserWindow } from 'electron';
 import log from 'electron-log/main';
 import { readFile } from 'fs/promises';
-import { extname } from 'path';
+import { extname, resolve as resolvePath, isAbsolute } from 'path';
 import { BibleNotesFileService, BnFile, NoteConflictError, NoteMissingError } from '../services/BibleNotesFileService';
-import { ipcHandler, IpcKnownError } from './handler-helper';
+import { ipcHandler, ipcHandlerWithSender, IpcKnownError } from './handler-helper';
+import { broadcastNoteSaved } from './noteSavedBroadcast';
 import { blessPath, isPathBlessed, isPathWithin } from './blessedPaths';
 import { t } from '../services/MainI18n';
 import { buildNoteDocx } from './noteDocx';
@@ -120,26 +121,40 @@ export function registerFileNotesHandlers(): void {
   // the main process regenerates it, so it is the only trustworthy value for
   // the renderer's next conflict-detection baseline (see
   // BibleNotesFileService.saveNote/saveNoteAbsolute).
-  ipcHandler<[string, BnFile, string | undefined], string>(
+  // After a successful save the other windows are told (`file-notes:note-saved`)
+  // so a note open in two windows stays in step. The saving window is excluded:
+  // it is still dirty when the push would arrive and would raise a false conflict.
+  ipcHandlerWithSender<[string, BnFile, string | undefined], string>(
     'file-notes:save-note',
-    (relativePath, note, expectedUpdated) => {
+    (senderId, relativePath, note, expectedUpdated) => {
+      let updated: string;
       try {
-        return getService().saveNote(relativePath, note, expectedUpdated);
+        updated = getService().saveNote(relativePath, note, expectedUpdated);
       } catch (err) {
         throw toConflictError(err);
       }
+      const notesDir = getService().getNotesDir();
+      broadcastNoteSaved({
+        absolutePath: isAbsolute(relativePath) ? resolvePath(relativePath) : resolvePath(notesDir, relativePath),
+        updated,
+        senderId,
+      });
+      return updated;
     }
   );
 
-  ipcHandler<[string, BnFile, string | undefined], string>(
+  ipcHandlerWithSender<[string, BnFile, string | undefined], string>(
     'file-notes:save-note-absolute',
-    (absolutePath, note, expectedUpdated) => {
+    (senderId, absolutePath, note, expectedUpdated) => {
       assertAbsolutePathAllowed(absolutePath);
+      let updated: string;
       try {
-        return getService().saveNoteAbsolute(absolutePath, note, expectedUpdated);
+        updated = getService().saveNoteAbsolute(absolutePath, note, expectedUpdated);
       } catch (err) {
         throw toConflictError(err);
       }
+      broadcastNoteSaved({ absolutePath: resolvePath(absolutePath), updated, senderId });
+      return updated;
     }
   );
 

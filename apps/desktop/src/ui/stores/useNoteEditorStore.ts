@@ -27,6 +27,17 @@ interface NoteEditorState {
   normalizeContent: (content: string) => void;
   /** Set editor content without marking as dirty (used when loading a note) */
   resetContent: (content: string) => void;
+  /**
+   * Replace the content with a newer copy saved by another window. Like
+   * `resetContent` it leaves the editor clean, but it never calls `_beforeReplace`
+   * (nothing to save: the caller checked there are no local edits) and it asks the
+   * editor to keep the caret and scroll position (`preserveSelection`).
+   */
+  reloadExternal: (content: string) => void;
+  /** Set by `reloadExternal`; the editor clears it once it has restored selection/scroll. */
+  preserveSelection?: boolean;
+  /** The editor calls this after restoring selection/scroll. */
+  clearPreserveSelection: () => void;
   /** Mark the editor as saved (clears dirty flag, updates lastSaved timestamp) */
   markSaved: (savedContent?: string) => void;
   /** Start auto-save timer that calls saveFn when content is dirty */
@@ -60,6 +71,10 @@ export const useNoteEditorStore = create<NoteEditorState>((set, get) => ({
     }
     set({ content, baseline: content, isDirty: false, lastSaved: undefined });
   },
+
+  reloadExternal: (content) => set({ content, baseline: content, isDirty: false, preserveSelection: true }),
+
+  clearPreserveSelection: () => set({ preserveSelection: false }),
 
   setBeforeReplace: (fn) => set({ _beforeReplace: fn }),
 
