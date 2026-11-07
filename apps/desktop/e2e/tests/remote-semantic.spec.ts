@@ -2,16 +2,16 @@
  * Online meaning search E2E (task 0190): first-use consent, the stub service,
  * Not now, and the Preferences > Search toggle.
  *
- * NOT RUN by the writer. The shared fixture launches Electron without extra
- * env, so this spec launches its own instance with BIBLE_REMOTE_SEMANTIC_URL
- * pointing at the local bibsearch stub (scripts/bibsearch-stub.mjs). The worker
- * adapts the launch to the fixture if it grows an env option.
+ * The shared fixture launches Electron with BIBLE_REMOTE_SEMANTIC_URL=none, so this
+ * spec launches its own instance with BIBLE_REMOTE_SEMANTIC_URL pointing at the local
+ * bibsearch stub (scripts/bibsearch-stub.mjs).
  */
 
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { pathToFileURL } from 'url';
+import { E2E_KEYWORD_INDEX_DIR } from '../fixtures/keywordIndexDir';
 import { _electron as electron, test as base, expect, type ElectronApplication, type Page } from '@playwright/test';
 
 const MAIN_JS_PATH = path.resolve(__dirname, '../../out/main/index.js');
@@ -52,6 +52,9 @@ const test = base.extend<{ stub: Stub; app: ElectronApplication; window: Page }>
         ...process.env,
         NODE_ENV: 'test',
         ELECTRON_USER_DATA: userDataDir,
+        // The keyword indexes globalSetup built. Without them a keyword search finds nothing
+        // yet, and the app jumps straight to meaning search, so the spec's toggle never shows.
+        BIBLE_KEYWORD_INDEX_DIR: E2E_KEYWORD_INDEX_DIR,
         BIBLE_REMOTE_SEMANTIC_URL: stub.url,
       },
     });

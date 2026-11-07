@@ -19,13 +19,15 @@ import type { Page } from '@playwright/test';
 import { ensurePaneOpen } from '../fixtures/test-utils';
 
 /**
- * Strong's Greek is in the dev dataset, and its keys are zero-padded: looking
- * up "G25" (agapao) must resolve to entry `00025`. That normalisation is the
- * reason to prefer it over a word dictionary here.
+ * Strong's Greek is in the dev dataset and the official catalog: looking up
+ * "G25" (agapao) must resolve to the entry for 25. The dev dataset keys it
+ * zero-padded (`00025`), the catalog build as `G25`; the key patterns below
+ * take either, so the test follows the lookup and not one build's key style.
  */
 const DICTIONARY = 'StrongsGreek';
 const STRONGS_QUERY = 'G25';
-const STRONGS_KEY = '00025';
+const STRONGS_KEY = /(?<!\d)(?:G|0+)25(?!\d)/;
+const NEXT_KEY = /(?<!\d)(?:G|0+)26(?!\d)/;
 
 // BookPane renders an open dictionary through `DictionaryPane hideTabs`, so
 // these are its ids. They exist only once a dictionary has been opened.
@@ -103,7 +105,7 @@ test.describe('Dictionary Pane', () => {
     // must replace what is shown rather than leave the previous entry in place.
     await lookUp(window, 'G26');
 
-    await expect(entryKey(window)).toContainText('00026', { timeout: 15000 });
+    await expect(entryKey(window)).toContainText(NEXT_KEY, { timeout: 15000 });
     await expect(entryKey(window)).not.toContainText(STRONGS_KEY);
   });
 });

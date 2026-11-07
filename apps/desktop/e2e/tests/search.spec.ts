@@ -148,7 +148,7 @@ test.describe('Search', () => {
 
       await searchInput.fill('Aenon');
 
-      await expect(window.getByText('Top Results')).toBeVisible({ timeout: SEARCH_TIMEOUT });
+      await expect(window.getByText('First matches')).toBeVisible({ timeout: SEARCH_TIMEOUT });
       await expect(window.getByText(/Type at least 3 characters/i)).toHaveCount(0);
     });
   });
@@ -167,7 +167,7 @@ test.describe('Search', () => {
       await searchInput.click({ force: true });
       await searchInput.fill('Aenon');
 
-      await expect(window.getByText('Top Results')).toBeVisible({ timeout: SEARCH_TIMEOUT });
+      await expect(window.getByText('First matches')).toBeVisible({ timeout: SEARCH_TIMEOUT });
 
       const suggestions = window.locator('.divide-y.divide-border button');
       await expect(suggestions.first()).toBeVisible({ timeout: SEARCH_TIMEOUT });

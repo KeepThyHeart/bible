@@ -67,6 +67,11 @@ export const test = base.extend<ElectronFixtures>({
       fs.rmSync(userDataDir, { recursive: true });
     }
     fs.mkdirSync(userDataDir, { recursive: true });
+    // The default notes folder follows ELECTRON_USER_DATA (<userData>/BibleReader), and the Notes
+    // pane asks the user to set the folder up when it does not exist. Create it, as it exists on a
+    // machine that already uses Notes, so specs reach the pane itself; the setup dialog is covered
+    // by its component test.
+    fs.mkdirSync(path.join(userDataDir, 'BibleReader'), { recursive: true });
 
     // Launch Electron with specific environment
     // Note: Electron windows cannot be fully hidden during Playwright tests,

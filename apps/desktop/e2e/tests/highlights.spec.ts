@@ -68,6 +68,7 @@ test.describe('Highlight menu', () => {
 
 test.describe('Word selection boundaries (KAN-10)', () => {
   test('expands a part-word drag out to whole words', async ({ window }) => {
+    await window.locator(VERSE).scrollIntoViewIfNeeded(); // mouse coordinates: John 3:16 must be on screen
     const box = await window.locator(VERSE).boundingBox();
     expect(box).not.toBeNull();
 
@@ -90,6 +91,7 @@ test.describe('Word selection boundaries (KAN-10)', () => {
     const word = window.locator(`${VERSE} .word`).filter({ hasText: /^world,?$/i }).first();
     await expect(word).toBeVisible({ timeout: 10000 });
 
+    await word.scrollIntoViewIfNeeded(); // mouse coordinates: the word must be on screen
     const box = await word.boundingBox();
     expect(box).not.toBeNull();
     await window.mouse.dblclick(box!.x + box!.width / 2, box!.y + box!.height / 2);
@@ -105,6 +107,7 @@ test.describe('Highlight persistence', () => {
     // highlight-diagnosis.spec.ts proves a highlight survives a reload; this is
     // the other way a reader loses one - paging away and back re-mounts the
     // verse list from the store rather than from disk.
+    await window.locator(VERSE).scrollIntoViewIfNeeded(); // mouse coordinates: John 3:16 must be on screen
     const box = await window.locator(VERSE).boundingBox();
     expect(box).not.toBeNull();
     await dragAcross(window, box!, 0.1, 0.4);
