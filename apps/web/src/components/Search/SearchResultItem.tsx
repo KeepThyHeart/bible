@@ -3,6 +3,9 @@ import { sanitizeHtml } from '../../utils/sanitize';
 import type { SearchResultData } from '../../types';
 import { moduleContentAttrs } from '../../utils/contentDirection';
 import { Bdi } from '@bible/ui';
+import { useStore } from '../../hooks/useStore';
+import { settingsStore } from '../../stores/settingsStore';
+import { applyRedLetterSetting } from '../../utils/verseHtml';
 
 interface SearchResultItemProps {
   result: SearchResultData;
@@ -20,6 +23,8 @@ interface SearchResultItemProps {
 
 export function SearchResultItem({ result, onClick, onCtrlClick, lastClicked, resultId }: SearchResultItemProps) {
   const { t } = useTranslation();
+  // Words of Christ are red here as in the Bible pane (the server marks them `christ-words`).
+  const wordsOfChristInRed = useStore(settingsStore, () => settingsStore.wordsOfChristInRed);
 
   const handleClick = (e: MouseEvent) => {
     if (e.ctrlKey || e.metaKey) {
@@ -66,7 +71,7 @@ export function SearchResultItem({ result, onClick, onCtrlClick, lastClicked, re
       <div
         class="search-result-item__text"
         {...moduleContentAttrs(result.module)}
-        dangerouslySetInnerHTML={{ __html: sanitizeHtml(result.snippet || result.text) }}
+        dangerouslySetInnerHTML={{ __html: sanitizeHtml(applyRedLetterSetting(result.snippet || result.text, wordsOfChristInRed)) }}
       />
     </div>
   );

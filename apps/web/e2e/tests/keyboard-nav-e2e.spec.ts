@@ -1,4 +1,5 @@
 import { test, expect } from '../fixtures';
+import { usingFixtureData } from '../prepareData';
 import type { Page } from '../fixtures';
 
 /**
@@ -73,6 +74,7 @@ test.describe('Keyboard Navigation', () => {
   });
 
   test('chapter navigation arrows work', async ({ page }) => {
+    test.skip(usingFixtureData(), 'needs Genesis 2 (the fixture holds Genesis 1 and 3 only): set BIBLE_E2E_DATA_DIR');
     // Get current passage title
     const tabTitle = page.locator('.bible-tab-bar__tab--active .bible-tab-bar__tab-title');
     const initialTitle = await tabTitle.textContent();
@@ -92,6 +94,7 @@ test.describe('Keyboard Navigation', () => {
   });
 
   test('previous chapter navigation works', async ({ page }) => {
+    test.skip(usingFixtureData(), 'needs Genesis 2 (the fixture holds Genesis 1 and 3 only): set BIBLE_E2E_DATA_DIR');
     // Navigate to Genesis 3 first
     const searchInput = page.locator('.header__search-field');
     await searchInput.fill('Genesis 3');

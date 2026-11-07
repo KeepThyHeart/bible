@@ -316,6 +316,11 @@
   }
 }
 
+// Red letters in results, same token as the Bible pane (_bible-content.scss).
+.search-result-item__text .christ-words {
+  color: var(--christ-words);
+}
+
 .search-result-item {
   // "Show more" can put 1,000 rows on screen: skip layout/paint for off-screen ones.
   content-visibility: auto;

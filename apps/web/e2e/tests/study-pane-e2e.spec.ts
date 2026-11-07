@@ -94,6 +94,7 @@ test.describe('Study Pane', () => {
   });
 
   test('clicking a cross-reference previews it in the Bible pane', async ({ page }) => {
+    test.skip(usingFixtureData(), 'needs the TSK cross-reference module (not in the fixture): set BIBLE_E2E_DATA_DIR');
     // Was "clicking cross-reference link navigates to verse", and asserted only
     // that `.bible-pane` was still visible — inside
     // `if (await refLink.isVisible())`, so it usually asserted nothing at all.
