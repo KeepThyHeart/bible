@@ -228,7 +228,12 @@ async function launchElectron(
   const e = expandDeep(manifest.electron!, vars);
   const main = path.resolve(manifestDir, e.main);
   const args = e.args ?? [];
-  const env = e.env ?? {};
+  // DRIVE_APP_ENV_NAME=value in the driver's own environment overrides NAME for the launched app
+  // (the manifest's value loses), e.g. DRIVE_APP_ENV_BIBLE_REMOTE_SEMANTIC_URL=http://127.0.0.1:8799.
+  const env: Record<string, string> = { ...(e.env ?? {}) };
+  for (const [k, v] of Object.entries(process.env)) {
+    if (k.startsWith('DRIVE_APP_ENV_') && v !== undefined && k.length > 14) env[k.slice(14)] = v;
+  }
   const executablePath = createRequire(path.join(manifestDir, 'package.json'))('electron') as string;
   const timeout = e.timeout ?? 60_000;
 

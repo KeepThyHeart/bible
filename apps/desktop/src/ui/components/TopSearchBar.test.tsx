@@ -117,6 +117,16 @@ describe('TopSearchBar', () => {
     expect(screen.getByTestId('search-input')).toBeInTheDocument();
   });
 
+  it('lifts the icon (and the Search/Ideas menu inside it) above the panes below the header', () => {
+    mockSearchState.semanticAvailable = true;
+    renderWithProviders(<TopSearchBar />);
+    // The icon wrapper is transformed (-translate-y-1/2), which makes it a stacking context: without its own
+    // z-index the selector's z-50 menu stays trapped under later positioned siblings (the dock panes).
+    const wrapper = screen.getByTestId('search-type-button').parentElement!.parentElement!;
+    expect(wrapper.className).toContain('-translate-y-1/2');
+    expect(wrapper.className).toMatch(/\bz-50\b/);
+  });
+
   it('shows placeholder text', () => {
     renderWithProviders(<TopSearchBar />);
     expect(screen.getByPlaceholderText('searchBar.unifiedPlaceholder')).toBeInTheDocument();

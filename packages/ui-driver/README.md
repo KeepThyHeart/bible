@@ -58,6 +58,8 @@ plus errors, no diff) and `--timeout ms` (default 5000).
 | `pages`, `page N`, `closepage N` | Popups and extra windows (a popped-out pane is page 1, ...). `closepage` closes one like its close button (a popped-out pane then docks back); page 0 is refused. |
 | `eval JS...` | Run an expression in the current page and print its JSON result: `eval document.documentElement.dataset.theme`. For what the accessibility tree cannot show (computed styles, attributes, store state). |
 
+Set `DRIVE_APP_ENV_NAME=value` to give the launched desktop app an environment variable `NAME` that overrides the manifest's (for example `DRIVE_APP_ENV_BIBLE_REMOTE_SEMANTIC_URL=http://127.0.0.1:8799` points Ideas search at a local stub).
+
 Set `DRIVE_PROFILE_DIR=/path` to reuse one profile across `start`s (the saved layout, notes folder and theme survive an app restart; it is kept, never deleted).
 
 ## Reading replies
@@ -177,6 +179,7 @@ pnpm --filter @bible/ui-driver typecheck
 pnpm --filter @bible/ui-driver lint
 pnpm --filter @bible/ui-driver e2e         # smoke: drives the CLI against web and desktop (needs builds)
 pnpm --filter @bible/ui-driver e2e:popout  # popped-out notes window: toolbar, indent, Ctrl+F, reference hover (needs the desktop build; xvfb-run -a on a headless Linux box; skips when it cannot run)
+pnpm --filter @bible/ui-driver e2e:qa     # the QA-polish items (reading, search selector, red letters, preview tabs, tooltips, "+" underline, Settings tabs, missing module, ...) on the committed fixture; QA_ONLY=03,05 picks items, QA_SHOTS=/dir saves a screenshot per item (same build/display needs as e2e:popout)
 ```
 
 No build step: Node runs the TypeScript directly (type stripping), so `.ts` imports carry their

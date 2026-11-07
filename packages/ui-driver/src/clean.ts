@@ -18,6 +18,7 @@ export const CLEAN_EXACT: readonly string[] = ['bible-e2e', 'bible-ui-driver-key
 /** Directories whose name starts with one of these. */
 export const CLEAN_PREFIXES: readonly string[] = [
   'drive-popout-',
+  'drive-qaitems-',
   'drive-smoke-',
   'ui-driver-repro-',
   'bible-e2e-', // search-tabs, search-host, pack, keyword-index (the deliberate real-data cache)

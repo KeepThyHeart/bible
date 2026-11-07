@@ -9,19 +9,22 @@
  * state); Ctrl+F opens the note find bar, counts and steps matches, and Escape closes it; hovering a
  * verse reference opens the preview popup (verse text when a Bible is installed, "Verse not found"
  * only when no Bible is installed; with a real data dir the verse text is required).
+ * Live sync: the note open in both windows follows a save made in the other without a banner; both windows dirty
+ * raises the banner at once in the window that did not save (and none in the one that did).
  * With a real data dir (BIBLE_DESKTOP_DATA_DIR, or apps/desktop/data) it also checks that: clicking "Go to verse"
  * in the popped-out window opens the passage in the main window; a theme chosen in the main window reaches the
  * open pop-out live and a pop-out opened afterwards; closing the pop-out docks the Notes pane back.
  *
  * Skips (exit 0, says why) when the desktop build or a display is missing, like nothing was run.
- * Uses a throwaway profile; with no `apps/desktop/data/main.db` it points the app at an empty data dir
- * (BIBLE_DESKTOP_DATA_DIR), so no installed Bible is needed. Prints one line per step; exits 1 with the
+ * Uses a throwaway profile and, unless BIBLE_DESKTOP_DATA_DIR is set, a copy of the committed fixture data
+ * (fixtures/bible-data) plus the fixture extension, so the verse steps run with no real data installed. Prints one line per step; exits 1 with the
  * offending reply on the first failure. `stop` always runs.
  */
 import { spawnSync } from 'node:child_process';
-import { cpSync, existsSync, mkdtempSync, mkdirSync, rmSync } from 'node:fs';
+import { cpSync, existsSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { copyFixture } from '../../../fixtures/bible-data/copy.mjs';
 
 const pkgDir = join(import.meta.dirname, '..');
 const repoRoot = join(pkgDir, '..', '..');
@@ -41,16 +44,15 @@ const dir = mkdtempSync(join(tmpdir(), 'drive-popout-'));
 const env: NodeJS.ProcessEnv = { ...process.env, DRIVE_DIR: dir };
 const EXT_FIXTURE = join(desktopDir, 'e2e', 'fixtures', 'test-extension');
 const dataDir = env.BIBLE_DESKTOP_DATA_DIR ?? join(desktopDir, 'data');
-const realBible = existsSync(join(dataDir, 'main.db'));
-if (!realBible && !env.BIBLE_DESKTOP_DATA_DIR) {
+// A Bible is installed in every mode: the committed fixture (KJV for John 3, Romans 8, Ps 23, ...) unless a real data dir is given.
+const realBible = true;
+if (!env.BIBLE_DESKTOP_DATA_DIR) {
+  // A copy of the committed fixture plus the fixture extension (it contributes a panel; an extension installs by
+  // being in data/extensions/<id>/). The keyword index stays inside the copy, so it is deleted with it.
   env.BIBLE_DESKTOP_DATA_DIR = join(dir, 'data');
-  mkdirSync(join(dir, 'data', 'modules'), { recursive: true });
-  // The fixture extension (it contributes a panel) installs by being in data/extensions/<id>/.
+  env.BIBLE_KEYWORD_INDEX_DIR = join(dir, 'data', 'index', 'keyword');
+  copyFixture(join(dir, 'data'));
   cpSync(EXT_FIXTURE, join(dir, 'data', 'extensions', 'ext.test.bible-viewer'), { recursive: true });
-}
-if (realBible && !env.BIBLE_DESKTOP_DATA_DIR) {
-  // The driver defaults to the committed fixture when no data dir is given; this check wants the real data.
-  env.BIBLE_DESKTOP_DATA_DIR = dataDir;
 }
 // Ctrl-C / kill: the synchronous steps below cannot run handlers, so make the exit path stop the app and
 // remove the temp dir (the 'exit' event also fires for process.exit from these handlers).
@@ -65,6 +67,11 @@ const hasExtension = existsSync(join(env.BIBLE_DESKTOP_DATA_DIR ?? dataDir, 'ext
 function run(argv: string[]): { ok: boolean; text: string } {
   const r = spawnSync(process.execPath, ['bin/drive.ts', ...argv], { cwd: pkgDir, env, encoding: 'utf8', timeout: 120_000 });
   return { ok: r.status === 0, text: ((r.stdout ?? '') + (r.stderr ?? '')).replace(/\n+$/, '') };
+}
+
+/** With QA_SHOTS=/dir set, one screenshot of the current window (demo for the QA-polish task). */
+function shot(name: string): void {
+  if (process.env.QA_SHOTS) run(['screenshot', '--path', join(process.env.QA_SHOTS, `${name}.png`)]);
 }
 
 function step(label: string, argv: string[], check?: (text: string) => string | undefined): string {
@@ -143,6 +150,7 @@ try {
 
   if (!absent('Pop out to separate window', 'button')) throw new StepFailure('pop-out button is present in the popped-out notes window');
   console.log(`${'no pop-out button in pop-out'.padEnd(34)} ok`);
+  shot('13-popout-no-popout-button');
 
   // Toolbar in the popped-out window; the indent persisted through the hand-over.
   const dec3 = run(['find', 'Decrease Indent', '--role', 'button']).text;
@@ -163,6 +171,57 @@ try {
   step('Escape closes', ['press', 'Escape'], expectIn('- [r', 'find bar removed'));
   if (!absent('Find in page', 'textbox')) throw new StepFailure('find bar still open after Escape');
 
+  // Live note sync (item 22): the same note open in the main window and the pop-out follows saves made in the
+  // other window with no banner; both windows holding unsaved edits raise the banner in the window that did NOT save.
+  {
+    const popWin = String(lastPage());
+    const NOTE = '[role=textbox][aria-label^="Note text"]';
+    // The editor store catches up with a DOM edit a moment later, so a save waits 500 ms after typing.
+    const edit = (text: string, save: boolean): boolean => JSON.parse(run(['eval',
+      `(async()=>{const e=document.querySelector('${NOTE}');if(!e)return false;e.focus();const r=document.createRange();r.selectNodeContents(e);r.collapse(false);const s=getSelection();s.removeAllRanges();s.addRange(r);document.execCommand('insertText',false,${JSON.stringify(text)});${save ? "await new Promise(r=>setTimeout(r,500));document.dispatchEvent(new KeyboardEvent('keydown',{key:'s',ctrlKey:true,bubbles:true,cancelable:true}));" : ''}return true})()`]).text) as boolean;
+    const noteText = (): string => JSON.parse(run(['eval', `(document.querySelector('${NOTE}')||{}).innerText||''`]).text) as string;
+    const banner = (): boolean => JSON.parse(run(['eval', "document.body.innerText.includes('changed in another window')"]).text) as boolean;
+
+    step('main window', ['page', '0']);
+    step('open the note in the main window too', ['click', ref('Popout Test', 'button')]);
+    waitFor('note editor in main', ['find', 'Note text', '--role', 'textbox'], (t) => /\[r\d+\]/.test(t));
+    if (!edit(' LIVE1', true)) throw new StepFailure('could not type into the main window note');
+    step('pop-out window', ['page', popWin]);
+    waitFor('save in main reaches the pop-out', ['eval', `(document.querySelector('${NOTE}')||{}).innerText||''`], (t) => t.includes('LIVE1'), 10_000);
+    if (banner()) throw new StepFailure('pop-out shows the conflict banner after a clean live update');
+    console.log(`${'live sync: main -> pop-out'.padEnd(34)} ok`);
+    step('main window', ['page', '0']);
+    if (!noteText().includes('LIVE1') || banner()) throw new StepFailure('main window changed or shows a banner after its own save');
+
+    // Both windows dirty: the main window types, the pop-out types, then the main window saves. The notes autosave
+    // ticks every 2 s, so an unlucky tick can save the main window's edit before the pop-out has typed (the two
+    // then merge cleanly); try again, each attempt starts from synced windows.
+    const saveNow = (): void => { run(['eval', "document.dispatchEvent(new KeyboardEvent('keydown',{key:'s',ctrlKey:true,bubbles:true,cancelable:true}))"]); };
+    let conflictSeen = false;
+    for (let attempt = 1; attempt <= 4 && !conflictSeen; attempt++) {
+      step('main window', ['page', '0']);
+      if (!edit(` MAIN${attempt}`, false)) throw new StepFailure('could not type into the main window note');
+      step('pop-out window', ['page', popWin]);
+      if (!edit(` POP${attempt}`, false)) throw new StepFailure('could not type into the pop-out note');
+      step('main window', ['page', '0']);
+      saveNow();
+      step('pop-out window', ['page', popWin]);
+      const end = Date.now() + 5000;
+      while (Date.now() < end && !(conflictSeen = banner())) spawnSync('sleep', ['0.3']);
+      if (conflictSeen) {
+        shot('22-live-note-sync-banner');
+        step('main window', ['page', '0']);
+        if (banner()) throw new StepFailure('the saving window shows the conflict banner');
+        console.log(`${'live sync: both dirty -> banner'.padEnd(34)} ok (attempt ${attempt})`);
+      } else {
+        // Settle: wait until both windows hold the same text again before the next attempt.
+        spawnSync('sleep', ['3']);
+      }
+    }
+    if (!conflictSeen) throw new StepFailure('both windows dirty: the window that did not save never showed the conflict banner');
+    step('pop-out window', ['page', popWin]);
+  }
+
   // Reference hover.
   const refs = step('find reference', ['find', 'John 3:16'], expectIn('clickable', 'reference element'));
   const refRef = /\[(r\d+)\] clickable "John 3:16"/.exec(refs)?.[1];
@@ -176,6 +235,7 @@ try {
     if (/\[r\d+\]/.test(notFound.text)) throw new StepFailure('preview says "Verse not found" although a Bible is installed');
     // John 3:16 (KJV and most modules) contains "so loved the world".
     waitFor('preview shows verse text', ['find', 'loved'], (t) => /\[r\d+\]/.test(t));
+    shot('11-popout-reference-hover');
   }
 
   if (realBible) {
@@ -221,7 +281,8 @@ try {
     // ... and a pop-out opened afterwards starts on it. Closing the window docks the pane back.
     step('close pop-out', ['closepage', String(lastPage())]);
     waitFor('Notes docked back', ['find', 'Popout Test'], (t) => /\[r\d+\]/.test(t));
-    step('open the note', ['click', ref('Popout Test', 'button')]);
+    // The main window opened the note again for the live-sync steps, so it may already be in the editor.
+    if (!absent('Popout Test', 'button')) step('open the note', ['click', ref('Popout Test', 'button')]);
     step('pop out again', ['click', ref('Pop out to separate window', 'button')]);
     waitFor('second pop-out', ['pages'], (t) => /detached\.html/.test(t.split('\n').filter((l) => !/closed/.test(l)).pop() ?? ''));
     step('pop-out window', ['page', String(lastPage())]);

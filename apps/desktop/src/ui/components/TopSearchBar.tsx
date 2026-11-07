@@ -733,7 +733,7 @@ const TopSearchBar = forwardRef<TopSearchBarHandle>(function TopSearchBar(_props
       {/* Search Input Container */}
       <div className="relative">
         {/* Mode Icon */}
-        <div className="absolute start-3 top-1/2 transform -translate-y-1/2 text-text-muted">
+        <div className="absolute start-3 top-1/2 transform -translate-y-1/2 text-text-muted z-50">
           {modeIcon}
         </div>
 
