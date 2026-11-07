@@ -12,7 +12,7 @@
 # here instead of skipping themselves as they do in a checkout set up for
 # `pnpm run dev`.
 #
-# Not covered: the Playwright suites (desktop needs xvfb and a build, web needs
+# Not covered: the Playwright E2E suites (desktop needs xvfb and a build, web needs
 # `pnpm exec playwright install`).
 name: CI
 
@@ -51,6 +51,10 @@ jobs:
           path: data/modules
           key: modules-tests-${{ hashFiles('scripts/init/index.js') }}
           restore-keys: modules-tests-
+
+      # packages/ui-driver's runtime tests drive a real headless chromium.
+      - name: Install Playwright chromium
+        run: pnpm --filter @bible/ui-driver exec playwright-core install --with-deps chromium-headless-shell
 
       - run: pnpm run build:core
       - run: pnpm run init:modules --select=tests --yes
