@@ -442,6 +442,8 @@ const routeDeps = {
     hybridDefault: searchHybridDefault,
     minScoreDefault: searchMinScore,
     showTagGraph: siteConfig.features.tagGraph,
+    // Second HTML entry points (Presenter, games) strip the manifest link like the SPA shell when off.
+    pwaEnabled: () => siteConfig.features.pwa,
     showTimeline: siteConfig.isEnabled('timeline'),
     // /api/offline (pack builder manifest and files): on with either offline feature flag.
     offlineEnabled: () => siteConfig.features.offlineDownloads || siteConfig.features.offlineAutoDownload,

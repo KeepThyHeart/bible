@@ -51,37 +51,43 @@ test.describe('PWA on (features.pwa = true)', () => {
     expect(await script.text()).not.toContain('KEEP_CACHES');
   });
 
-  test('offline boot: an already-visited app shell loads with no network', async ({ page, context }) => {
-    await bootWithWorker(page);
-    await context.setOffline(true);
-    await page.reload();
-    await expect(page.locator('#app')).not.toBeEmpty();
-    await expect(page.locator('body')).not.toContainText('no cached copy is available');
-    // Still controlled by the same worker, not unregistered because the config fetch failed.
-    expect(await registrationCount(page)).toBe(1);
-  });
+  test.describe('provokes errors on purpose', () => {
+    // Offline boot fails every request in the browser, and the cache-rules probe fetches
+    // /api/sync, which this server does not serve (404). Both are reported as console errors.
+    test.use({ failOnConsoleProblems: false });
 
-  test('cache rules: declared content is cached, other API routes and /api/sync never are', async ({ page }) => {
-    await bootWithWorker(page);
-    await page.evaluate(async () => {
-      await fetch('/api/commentary/all/43/3?modules=Barnes');
-      await fetch('/api/health');
-      await fetch('/api/config');
-      await fetch('/api/sync');
-      await fetch('/api/sync/pull?since=0');
+    test('offline boot: an already-visited app shell loads with no network', async ({ page, context }) => {
+      await bootWithWorker(page);
+      await context.setOffline(true);
+      await page.reload();
+      await expect(page.locator('#app')).not.toBeEmpty();
+      await expect(page.locator('body')).not.toContainText('no cached copy is available');
+      // Still controlled by the same worker, not unregistered because the config fetch failed.
+      expect(await registrationCount(page)).toBe(1);
     });
 
-    const cached = await page.evaluate(async () => {
-      const out: string[] = [];
-      for (const name of await caches.keys()) {
-        for (const req of await (await caches.open(name)).keys()) out.push(`${name} ${new URL(req.url).pathname}`);
+    test('cache rules: declared content is cached, other API routes and /api/sync never are', async ({ page }) => {
+      await bootWithWorker(page);
+      await page.evaluate(async () => {
+        await fetch('/api/commentary/all/43/3?modules=Barnes');
+        await fetch('/api/health');
+        await fetch('/api/config');
+        await fetch('/api/sync');
+        await fetch('/api/sync/pull?since=0');
+      });
+
+      const cached = await page.evaluate(async () => {
+        const out: string[] = [];
+        for (const name of await caches.keys()) {
+          for (const req of await (await caches.open(name)).keys()) out.push(`${name} ${new URL(req.url).pathname}`);
+        }
+        return out;
+      });
+      expect(cached.some(e => e.startsWith('commentary-text-v1 /api/commentary/all/43/3'))).toBe(true);
+      for (const path of ['/api/health', '/api/config', '/api/sync']) {
+        expect(cached.filter(e => e.includes(path)), path).toEqual([]);
       }
-      return out;
     });
-    expect(cached.some(e => e.startsWith('commentary-text-v1 /api/commentary/all/43/3'))).toBe(true);
-    for (const path of ['/api/health', '/api/config', '/api/sync']) {
-      expect(cached.filter(e => e.includes(path)), path).toEqual([]);
-    }
   });
 
   test('update: a newly activated worker takes over and the page reloads itself once', async ({ page }) => {

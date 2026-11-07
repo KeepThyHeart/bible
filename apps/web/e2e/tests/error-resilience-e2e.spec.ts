@@ -54,11 +54,13 @@ test.describe('Error Resilience', () => {
     // Wait for error to appear
     await expect(page.locator('.connection-banner')).toBeVisible({ timeout: 10000 });
 
-    // Unblock requests
+    // Dismiss the error while requests are still blocked, then unblock. Unblocking first
+    // races the app's own retries: a retry that succeeds clears the banner and one still
+    // failing puts it back, so the button is detached under the click.
+    await page.locator('.connection-banner__dismiss').click();
     await page.unroute('**/api/bible/**');
 
-    // Dismiss error and try again
-    await page.locator('.connection-banner__dismiss').click();
+    // Try again
     await searchInput.fill('Romans 1');
     await searchInput.press('Enter');
 
@@ -100,9 +102,9 @@ test.describe('Error Resilience', () => {
 
     await expect(page.locator('.connection-banner')).toBeVisible({ timeout: 10000 });
 
-    // Recover
-    await page.unroute('**/api/bible/**');
+    // Recover: dismiss first, then unblock (see the transient-failure spec for why).
     await page.locator('.connection-banner__dismiss').click();
+    await page.unroute('**/api/bible/**');
 
     // Navigate to a passage
     await navigateTo(page, 'John 3');

@@ -140,11 +140,17 @@ test.describe('Audio Bible: desktop', () => {
     await expect(page.getByTestId('audio-play-pause')).toHaveAttribute('aria-label', 'Play');
   });
 
-  test('a translation with no recording and no speech engine: Listen is disabled and says why', async ({ page }) => {
-    await open(page, '#/ASV/43/3');
-    const listen = page.getByTestId('audio-listen');
-    await expect(listen).toBeDisabled({ timeout: 15000 });
-    await expect(listen).toHaveAttribute('title', NO_AUDIO);
+  test.describe('no recording', () => {
+    // The app asks for the translation's /audio/v1/<id>/index.json and gets a 404, which is
+    // how "no recording" is expressed; the browser logs that as a console error. Expected here.
+    test.use({ failOnConsoleProblems: false });
+
+    test('a translation with no recording and no speech engine: Listen is disabled and says why', async ({ page }) => {
+      await open(page, '#/ASV/43/3');
+      const listen = page.getByTestId('audio-listen');
+      await expect(listen).toBeDisabled({ timeout: 15000 });
+      await expect(listen).toHaveAttribute('title', NO_AUDIO);
+    });
   });
 
   test('Settings has an Audio tab with the toggles and no voice list (there are no engines)', async ({ page }) => {

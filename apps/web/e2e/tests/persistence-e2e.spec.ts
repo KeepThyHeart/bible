@@ -110,10 +110,14 @@ test.describe('Session Persistence', () => {
     await page.locator('.kth-picker__cell--chapter').first().click();
     await waitForVerses(page);
 
+    // Study mode loads the chapter's commentary. Reload only once those requests have
+    // finished: WebKit reports a fetch cut off by the reload as a page error, which the
+    // console guard rightly fails on.
+    const commentaryLoaded = page.waitForResponse(r => r.url().includes('/api/commentary/chapter-overview/'));
     await page.locator('.bible-toolbar__mode-select').selectOption('study');
     await expect(page.locator('.bible-toolbar__mode-select')).toHaveValue('study');
-
-    // Reload
+    await commentaryLoaded;
+    await page.waitForLoadState('networkidle');
     await page.reload({ waitUntil: 'networkidle' });
     await waitForVerses(page);
 

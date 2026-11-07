@@ -10,7 +10,11 @@ export function useStore<T>(store: Store, selector: () => T): T {
       valueRef.current = selector();
       forceUpdate(n => n + 1);
     };
-    return store.subscribe(update);
+    const unsubscribe = store.subscribe(update);
+    // The store may have changed between the render and this effect (effects run after
+    // paint), when nobody was listening yet: catch up, or the component keeps a stale value.
+    if (!Object.is(selector(), valueRef.current)) update();
+    return unsubscribe;
   }, [store]);
 
   valueRef.current = selector();

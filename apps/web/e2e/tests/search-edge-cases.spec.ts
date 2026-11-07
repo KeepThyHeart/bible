@@ -43,17 +43,23 @@ test.describe('Search Edge Cases', () => {
     await expect(page.locator('.bible-pane')).toBeVisible();
   });
 
-  test('special characters in search do not cause errors', async ({ page }) => {
-    const searchInput = page.locator('.header__search-field');
+  test.describe('special characters', () => {
+    // The server answers a malformed keyword query (a lone `"`) with 400, and the browser
+    // reports that as a console error. Provoked on purpose; the test is about not crashing.
+    test.use({ failOnConsoleProblems: false });
 
-    // Characters that could be dangerous for XSS or SQL injection
-    const specialQueries = ["'", '"', '&', '<script>', '><', "'; DROP TABLE--"];
-    for (const query of specialQueries) {
-      await searchInput.fill(query);
-      await searchInput.press('Enter');
-      // App should not crash
-      await expect(page.locator('.app')).toBeVisible();
-    }
+    test('special characters in search do not cause errors', async ({ page }) => {
+      const searchInput = page.locator('.header__search-field');
+
+      // Characters that could be dangerous for XSS or SQL injection
+      const specialQueries = ["'", '"', '&', '<script>', '><', "'; DROP TABLE--"];
+      for (const query of specialQueries) {
+        await searchInput.fill(query);
+        await searchInput.press('Enter');
+        // App should not crash
+        await expect(page.locator('.app')).toBeVisible();
+      }
+    });
   });
 
   test('very long query does not crash', async ({ page }) => {
