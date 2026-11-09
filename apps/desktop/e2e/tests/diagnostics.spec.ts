@@ -25,8 +25,9 @@ type Result<T> = OkResult<T> | ErrResult;
 
 /**
  * What the two submit channels resolve to. `willUpload` reports whether the
- * background uploader would actually collect this file - diagnostics enabled
- * *and* an endpoint set - which is what lets the Report an Issue dialog say
+ * background uploader would actually collect this file - an endpoint is set
+ * (user-submitted reports do not wait for the diagnostics toggle) - which is
+ * what lets the Report an Issue dialog say
  * "sent" only when that is true.
  */
 interface SubmitReceipt {

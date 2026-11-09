@@ -3,21 +3,21 @@
  * Help menu (see {@link registerDiagnosticsCommands}).
  *
  * Two modes driven by the "Include diagnostic information" checkbox:
+ *   - unchecked -> calls `diagnostics:submit-feedback` (description-only,
+ *                 no snapshot, no OS info). This is the default: diagnostic
+ *                 data is opt-in, per report, every time the dialog opens.
  *   - checked   -> calls `diagnostics:submit-manual-report` (attaches a state
  *                 snapshot and environment info)
- *   - unchecked -> calls `diagnostics:submit-feedback` (description-only,
- *                 no snapshot, no OS info)
  *
- * Submitting only *enqueues*. The payload is written to
- * `{userData}/diagnostics/queue/` and a background uploader POSTs it later, on
- * a 30-minute tick - and that uploader does nothing at all unless diagnostics
- * is enabled and an endpoint URL is set, both of which are off by default.
+ * Submitting enqueues the payload in `{userData}/diagnostics/queue/` and the
+ * main process starts uploading it straight away. It does not wait for the
+ * diagnostics toggle in Preferences - that one governs crash reports only -
+ * but it does need an endpoint, and a build or user can have none.
  *
  * That is why the thank-you has two wordings rather than one. The dialog used
  * to simply vanish on success, which told the user nothing; saying "sent"
- * instead would be worse, because on a default install nothing has been sent
- * and nothing is going to be until they configure a destination. The handler's
- * receipt (`SubmitReceipt.willUpload`) is what decides which sentence is true.
+ * when no destination exists would be worse. The handler's receipt
+ * (`SubmitReceipt.willUpload`) is what decides which sentence is true.
  */
 
 import React, { useCallback, useEffect, useState } from 'react';
@@ -73,7 +73,8 @@ const ReportIssueDialog: React.FC = () => {
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const [description, setDescription] = useState('');
-  const [includeDiagnostics, setIncludeDiagnostics] = useState(true);
+  // Opt-in: diagnostic data is attached only when the user ticks the box.
+  const [includeDiagnostics, setIncludeDiagnostics] = useState(false);
   const [snapshot, setSnapshot] = useState<unknown>(null);
   const [snapshotLoading, setSnapshotLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -85,7 +86,7 @@ const ReportIssueDialog: React.FC = () => {
 
   const reset = useCallback((): void => {
     setDescription('');
-    setIncludeDiagnostics(true);
+    setIncludeDiagnostics(false);
     setSnapshot(null);
     setSnapshotLoading(false);
     setSubmitting(false);

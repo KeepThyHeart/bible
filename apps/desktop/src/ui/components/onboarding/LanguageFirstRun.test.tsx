@@ -45,6 +45,8 @@ const h = vi.hoisted(() => ({
   locales: [] as LocaleMetadata[],
   current: 'en',
   setLocale: vi.fn(async () => {}),
+  /** Per-test translations, standing in for a non-English catalog. */
+  strings: {} as Record<string, string>,
 }));
 
 vi.mock('../../contexts/useI18n', () => ({
@@ -52,7 +54,7 @@ vi.mock('../../contexts/useI18n', () => ({
     // `tf()` falls back to its English source when a key is unknown, and a
     // stub `t` that echoes the key is one of the two shapes it treats as a
     // miss - so the assertions below read the real English copy.
-    t: (key: string, params?: Record<string, unknown>) => enT(key, params),
+    t: (key: string, params?: Record<string, unknown>) => h.strings[key] ?? enT(key, params),
     locale: 'en',
     i18n: {
       get currentLocale(): string {
@@ -68,7 +70,17 @@ vi.mock('../../contexts/useI18n', () => ({
 
 const getStarterPacks = vi.fn();
 
+/** What the OS reports as its preferred languages (`navigator.languages`). */
+let systemLanguages: string[] = [];
+
 beforeEach(() => {
+  // No OS match by default, so most tests below exercise the full list, which
+  // is what a user sees on an OS language we do not offer. The "system
+  // language" block sets this.
+  systemLanguages = [];
+  vi.spyOn(window.navigator, 'languages', 'get').mockImplementation(() => systemLanguages);
+  vi.spyOn(window.navigator, 'language', 'get').mockImplementation(() => systemLanguages[0] ?? '');
+  h.strings = {};
   window.localStorage.clear();
   useOnboardingStore.setState({ languageChosen: false });
   h.setLocale.mockClear();
@@ -693,5 +705,93 @@ describe('LanguageFirstRun', () => {
       pending[1](true);
       await waitFor(() => expect(loadInstalledModules).toHaveBeenCalled());
     });
+  });
+});
+
+describe('LanguageFirstRun - system language', () => {
+  it('switches to the OS language at once and asks only to confirm it', async () => {
+    systemLanguages = ['de-DE', 'en-US'];
+    render(<LanguageFirstRun />);
+
+    const card = await screen.findByTestId('first-run-language-suggested');
+    expect(card).toHaveTextContent('Deutsch');
+    expect(h.setLocale).toHaveBeenCalledWith('de');
+    // One obvious action, already focused so Enter accepts it.
+    const confirm = screen.getByTestId('first-run-language-continue');
+    expect(confirm).toHaveTextContent('Continue in Deutsch');
+    await waitFor(() => expect(confirm).toHaveFocus());
+    // The list is not on screen until the user asks for it.
+    expect(screen.queryByRole('radiogroup')).not.toBeInTheDocument();
+
+    await userEvent.click(confirm);
+    expect(useOnboardingStore.getState().languageChosen).toBe(true);
+    expect(await screen.findByTestId('first-run-packs-empty')).toBeInTheDocument();
+  });
+
+  it('keeps a different language one deliberate step away', async () => {
+    systemLanguages = ['de-DE'];
+    render(<LanguageFirstRun />);
+    await screen.findByTestId('first-run-language-suggested');
+
+    await userEvent.click(screen.getByTestId('first-run-language-change'));
+
+    // The full list, with the detected language marked, selected and focused
+    // (revealed even though it sits behind "More languages").
+    const de = screen.getByTestId('first-run-language-de');
+    expect(de).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByTestId('first-run-language-system-badge-de')).toHaveTextContent('System language');
+    await waitFor(() => expect(de).toHaveFocus());
+    expect(screen.getByTestId('first-run-language-continue')).toHaveTextContent(/^Continue$/);
+
+    // The UI is in German now.
+    h.current = 'de';
+    h.setLocale.mockClear();
+    await userEvent.click(screen.getByTestId('first-run-language-en'));
+    await userEvent.click(screen.getByTestId('first-run-language-continue'));
+    expect(h.setLocale).toHaveBeenCalledWith('en');
+    expect(useOnboardingStore.getState().languageChosen).toBe(true);
+  });
+
+  it('labels the way out in English too when the UI is not in English', async () => {
+    systemLanguages = ['de-DE'];
+    h.current = 'de';
+    h.strings['onboarding.language.chooseDifferent'] = 'Andere Sprache wählen';
+    render(<LanguageFirstRun />);
+    await screen.findByTestId('first-run-language-suggested');
+    const change = screen.getByTestId('first-run-language-change');
+    expect(change.querySelector('[lang="en"]')).toHaveTextContent('Choose a different language');
+  });
+
+  it('suggests English on an English system, without switching anything', async () => {
+    systemLanguages = ['en-GB'];
+    render(<LanguageFirstRun />);
+    await screen.findByTestId('first-run-language-suggested');
+    expect(screen.getByTestId('first-run-language-continue')).toHaveTextContent('Continue in English');
+    expect(h.setLocale).not.toHaveBeenCalled();
+  });
+
+  it('shows the full list when the OS language is not offered', async () => {
+    systemLanguages = ['ja-JP'];
+    render(<LanguageFirstRun />);
+    await screen.findByTestId('first-run-language-dialog');
+    expect(screen.queryByTestId('first-run-language-suggested')).not.toBeInTheDocument();
+    expect(screen.getByRole('radiogroup')).toBeInTheDocument();
+    expect(h.setLocale).not.toHaveBeenCalled();
+  });
+
+  it('never suggests a withheld machine-drafted catalog', async () => {
+    // `es` ships but is a built-in draft, so it is not offered at all.
+    systemLanguages = ['es-MX'];
+    render(<LanguageFirstRun />);
+    await screen.findByTestId('first-run-language-dialog');
+    expect(screen.queryByTestId('first-run-language-suggested')).not.toBeInTheDocument();
+  });
+
+  it('prefers a language already saved over the OS language', async () => {
+    systemLanguages = ['de-DE'];
+    window.localStorage.setItem('bible.ui.locale', 'fr');
+    render(<LanguageFirstRun />);
+    expect(await screen.findByTestId('first-run-language-suggested')).toHaveTextContent('Français');
+    expect(h.setLocale).toHaveBeenCalledWith('fr');
   });
 });

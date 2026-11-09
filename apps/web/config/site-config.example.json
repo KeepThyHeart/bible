@@ -79,6 +79,9 @@
   "privacy": {
     "mode": "strict"
   },
+  "desktopReports": {
+    "token": ""
+  },
   "repoUrl": "",
   "docsUrl": "https://docs.bible.keepthyheart.com/web/"
 }

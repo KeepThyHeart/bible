@@ -28,6 +28,24 @@ const DEFAULTS: DiagnosticsConfigShape = {
   dontAskAgain: false,
 };
 
+/**
+ * A blank endpoint means "this build's default", never "no destination".
+ *
+ * Earlier versions wrote the whole config on any change, so an install that
+ * once toggled a setting under a build with no default has `endpointUrl: ""`
+ * on disk. Reading that literally would pin the install to nowhere after an
+ * update that ships a default. Clearing the field in Preferences likewise
+ * restores the default. A build opts out with `BIBLE_DIAGNOSTICS_URL=none`, which
+ * makes the default itself empty.
+ */
+function withDefaultEndpoint(cfg: DiagnosticsConfigShape): DiagnosticsConfigShape {
+  const endpointUrl =
+    typeof cfg.endpointUrl === 'string' && cfg.endpointUrl.trim()
+      ? cfg.endpointUrl.trim()
+      : DIAGNOSTICS_DEFAULT_ENDPOINT;
+  return { ...cfg, endpointUrl };
+}
+
 export class DiagnosticsConfig {
   private filePath: string;
   private cached: DiagnosticsConfigShape;
@@ -43,7 +61,7 @@ export class DiagnosticsConfig {
     try {
       const raw = fs.readFileSync(this.filePath, 'utf-8');
       const parsed = JSON.parse(raw) as Partial<DiagnosticsConfigShape>;
-      return { ...DEFAULTS, ...parsed };
+      return withDefaultEndpoint({ ...DEFAULTS, ...parsed });
     } catch {
       return { ...DEFAULTS };
     }
@@ -54,7 +72,7 @@ export class DiagnosticsConfig {
   }
 
   set(patch: Partial<DiagnosticsConfigShape>): DiagnosticsConfigShape {
-    this.cached = { ...this.cached, ...patch };
+    this.cached = withDefaultEndpoint({ ...this.cached, ...patch });
     try {
       fs.mkdirSync(path.dirname(this.filePath), { recursive: true });
       fs.writeFileSync(

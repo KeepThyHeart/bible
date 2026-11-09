@@ -771,13 +771,12 @@ const registerAllHandlersOnce = runOnce(() => {
   registerUpdateHandlers(ipcMain);
   initializeDiagnosticsService();
   registerDiagnosticsHandlers(ipcMain);
-  // Kick off the background uploader ONLY when diagnostics is explicitly
-  // enabled (opt-IN). A stock build never contacts a diagnostics
-  // endpoint without consent. It self-schedules its first tick a few seconds
-  // after start so app boot isn't competing with an HTTP POST.
-  if (getDiagnosticsConfig()?.get().enabled) {
-    getDiagnosticsUploader()?.start();
-  }
+  // Always start the background uploader, so feedback the user submitted while
+  // offline still goes out later. It only ever sends reports the user chose to
+  // send (see the consent notes in DiagnosticsUploader.ts); a tick with
+  // nothing eligible makes no request. Its first tick is a few seconds after
+  // start so app boot isn't competing with an HTTP POST.
+  getDiagnosticsUploader()?.start();
 
   // Register window management handlers
   registerWindowHandlers();

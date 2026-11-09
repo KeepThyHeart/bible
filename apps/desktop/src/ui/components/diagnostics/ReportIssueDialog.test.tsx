@@ -51,6 +51,13 @@ function typeDescription(text: string): void {
   fireEvent.change(screen.getByRole('textbox'), { target: { value: text } });
 }
 
+/** Opt in to attaching diagnostics (the box starts unticked). */
+function tickIncludeDiagnostics(): void {
+  const box = screen.getByRole('checkbox');
+  expect(box).not.toBeChecked();
+  fireEvent.click(box);
+}
+
 function send(): void {
   fireEvent.click(screen.getByRole('button', { name: 'Send' }));
 }
@@ -76,6 +83,23 @@ describe('ReportIssueDialog', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
   });
 
+  it('starts with diagnostics unticked and sends description-only feedback', async () => {
+    // Diagnostic data is opt-in: a user who just types and presses Send must
+    // send their words and nothing else.
+    submitFeedback.mockResolvedValue({ ok: true, value: { reportId: 'f1', willUpload: true } });
+
+    openDialog();
+    await screen.findByRole('dialog');
+    expect(screen.getByRole('checkbox')).not.toBeChecked();
+    typeDescription('the menu is hard to find');
+    send();
+
+    await screen.findByTestId('report-issue-success');
+    expect(submitFeedback).toHaveBeenCalledWith({ description: 'the menu is hard to find' });
+    expect(submitManualReport).not.toHaveBeenCalled();
+    expect(getStateSnapshot).not.toHaveBeenCalled();
+  });
+
   it('confirms delivery when an endpoint is configured', async () => {
     submitManualReport.mockResolvedValue({
       ok: true,
@@ -84,6 +108,7 @@ describe('ReportIssueDialog', () => {
 
     openDialog();
     await screen.findByRole('dialog');
+    tickIncludeDiagnostics();
     typeDescription('the xref link did nothing');
     send();
 
@@ -104,6 +129,7 @@ describe('ReportIssueDialog', () => {
 
     openDialog();
     await screen.findByRole('dialog');
+    tickIncludeDiagnostics();
     typeDescription('commentary font is too small');
     send();
 
@@ -121,7 +147,6 @@ describe('ReportIssueDialog', () => {
 
     openDialog();
     await screen.findByRole('dialog');
-    fireEvent.click(screen.getByRole('checkbox'));
     typeDescription('bigger commentary font please');
     send();
 
@@ -142,6 +167,7 @@ describe('ReportIssueDialog', () => {
 
     openDialog();
     await screen.findByRole('dialog');
+    tickIncludeDiagnostics();
     typeDescription('something broke');
     send();
 
@@ -163,6 +189,7 @@ describe('ReportIssueDialog', () => {
 
     openDialog();
     await screen.findByRole('dialog');
+    tickIncludeDiagnostics();
     typeDescription('a description worth keeping');
     send();
 
@@ -180,6 +207,7 @@ describe('ReportIssueDialog', () => {
 
     openDialog();
     await screen.findByRole('dialog');
+    tickIncludeDiagnostics();
     typeDescription('first report');
     send();
     await screen.findByTestId('report-issue-success');
@@ -191,5 +219,7 @@ describe('ReportIssueDialog', () => {
     // Not still showing the previous submission's thank-you.
     expect(screen.queryByTestId('report-issue-success')).not.toBeInTheDocument();
     expect(screen.getByRole('textbox')).toHaveValue('');
+    // And the diagnostics box is back to unticked: consent is per report.
+    expect(screen.getByRole('checkbox')).not.toBeChecked();
   });
 });

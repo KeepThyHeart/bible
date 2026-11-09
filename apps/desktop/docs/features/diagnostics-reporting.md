@@ -1,8 +1,10 @@
 # Diagnostics & Issue Reporting
 
-**Last verified:** 2026-09-08
+**Last verified:** 2026-11-09
 
-Opt-in, privacy-preserving system for sending crash reports and manual issue reports. Reports are collected locally as JSON files, previewed before sending, and queued for background upload when the user is online.
+Opt-in, privacy-preserving system for sending crash reports and manual issue reports. Reports are collected locally as JSON files, previewed before sending, and uploaded when the user is online.
+
+Official builds send to `https://bible.keepthyheart.com/api/desktop-report` (`DEFAULT_DIAGNOSTICS_URL` in `electron/config/constants.ts`). A build overrides that with `BIBLE_DIAGNOSTICS_URL`, or opts out with `BIBLE_DIAGNOSTICS_URL=none`; a user overrides it in Preferences -> Diagnostics, and clearing that field restores the default.
 
 ## Files
 
@@ -12,8 +14,8 @@ Opt-in, privacy-preserving system for sending crash reports and manual issue rep
 |---|---|
 | `electron/services/DiagnosticsService.ts` | Collection layer: IPC breadcrumb ring, error capture, sanitizer, payload builders for crash / manual / feedback. Also exports `BUILD_ID` |
 | `electron/services/DiagnosticsQueue.ts` | Filesystem-backed queue at `{userData}/diagnostics/queue/`; one JSON file per report, size-capped with FIFO eviction |
-| `electron/services/DiagnosticsConfig.ts` | Small sync JSON config store at `{userData}/diagnostics/config.json` (enabled flag, endpoint URL, "don't ask again") |
-| `electron/services/DiagnosticsUploader.ts` | Background uploader using Electron's `net` module; serial POSTs, one attempt per file per tick, respects `429 Retry-After` |
+| `electron/services/DiagnosticsConfig.ts` | Small sync JSON config store at `{userData}/diagnostics/config.json` (enabled flag, endpoint URL, "don't ask again"). A blank stored endpoint reads as the build default |
+| `electron/services/DiagnosticsUploader.ts` | Uploader using Electron's `net` module; serial POSTs, one attempt per file per tick, respects `429 Retry-After`. Runs for the app's lifetime; flushes at once after a submit, then every 30 min for retries |
 
 ### IPC
 
@@ -29,14 +31,14 @@ Opt-in, privacy-preserving system for sending crash reports and manual issue rep
 | File | Description |
 |---|---|
 | `electron/main.ts` | Installs `uncaughtException` / `unhandledRejection` hooks that call `DiagnosticsService.captureMainError`, enqueue the payload, and send `diagnostics:crash-detected` to the renderer. Also stops the uploader timer on shutdown. |
-| `electron/config/constants.ts` | `DIAGNOSTICS_QUEUE_MAX` (50), `DIAGNOSTICS_RING_SIZE` (20), `DIAGNOSTICS_CRASHES_PER_SESSION_CAP` (10), `DIAGNOSTICS_UPLOAD_INTERVAL_MS` (30 min), `DIAGNOSTICS_UPLOAD_TIMEOUT_MS` (15 s), `DIAGNOSTICS_UPLOAD_INITIAL_DELAY_MS` (5 s), `DIAGNOSTICS_DEFAULT_ENABLED` (false), `DIAGNOSTICS_DEFAULT_ENDPOINT` and `DIAGNOSTICS_SHARED_TOKEN` (both baked in from the environment, empty by default) |
+| `electron/config/constants.ts` | `DIAGNOSTICS_QUEUE_MAX` (50), `DIAGNOSTICS_RING_SIZE` (20), `DIAGNOSTICS_CRASHES_PER_SESSION_CAP` (10), `DIAGNOSTICS_UPLOAD_INTERVAL_MS` (30 min), `DIAGNOSTICS_UPLOAD_TIMEOUT_MS` (15 s), `DIAGNOSTICS_UPLOAD_INITIAL_DELAY_MS` (5 s), `DIAGNOSTICS_DEFAULT_ENABLED` (false), `DIAGNOSTICS_DEFAULT_ENDPOINT` (from `BIBLE_DIAGNOSTICS_URL`, defaulting to `DEFAULT_DIAGNOSTICS_URL`) and `DIAGNOSTICS_SHARED_TOKEN` (from `BIBLE_DIAGNOSTICS_TOKEN`, empty by default) |
 
 ### Renderer (UI)
 
 | File | Description |
 |---|---|
 | `src/ui/components/diagnostics/CrashReportDialog.tsx` | In-app dialog shown when main-process error is captured; plain-English summary + expandable JSON + description textarea + "Don't ask again" |
-| `src/ui/components/diagnostics/ReportIssueDialog.tsx` | User-initiated "Report an Issue" dialog; description + "Include app diagnostics" toggle + preview panel + the thank-you panel shown on success (see "The thank-you says only what is true" below) |
+| `src/ui/components/diagnostics/ReportIssueDialog.tsx` | User-initiated "Report an Issue" dialog; description + "Include app diagnostics" toggle (unticked on every open) + preview panel + the thank-you panel shown on success (see "The thank-you says only what is true" below) |
 | `src/ui/components/diagnostics/DiagnosticsSettings.tsx` | Settings panel: toggle crash prompt, view/delete queued reports, "Send All Now", endpoint URL override. Rendered by `src/ui/components/PreferencesDialog.tsx` as the `diagnostics` section - there is no separate command or menu entry for it |
 | `src/ui/components/diagnostics/privacyBlurb.ts` | Shared plain-English summary text used by both dialogs |
 | `src/ui/components/ErrorBoundary.tsx` | React error boundary that forwards captures to `diagnostics:report-renderer-error` |
@@ -117,7 +119,7 @@ Both submit channels return a `SubmitReceipt` (`electron/ipc/diagnosticsHandlers
 ```ts
 interface SubmitReceipt {
   reportId: string;
-  willUpload: boolean;   // cfg.enabled && cfg.endpointUrl.trim() !== ''
+  willUpload: boolean;   // cfg.endpointUrl.trim() !== ''
 }
 ```
 
@@ -126,13 +128,15 @@ interface SubmitReceipt {
 - **`willUpload: true`** - "Your feedback has been sent - it is queued for upload and will go out in the background."
 - **`willUpload: false`** - "Your report has been saved on this computer. It will be sent once a feedback endpoint is configured in Preferences -> Diagnostics."
 
-Submitting only *enqueues*. `DiagnosticsUploader.tick()` runs on a 30-minute timer and bails immediately on `!cfg.enabled || !cfg.endpointUrl.trim()`, and both default off/empty (`DIAGNOSTICS_DEFAULT_ENABLED` / `DIAGNOSTICS_DEFAULT_ENDPOINT`). On a stock install nothing has been sent and nothing will be until the user configures a destination, so "thank you, that's been sent" would be a straightforward falsehood. `willUpload` is computed from the same condition the uploader guards on, so the two cannot drift into telling the user different stories.
+The diagnostics toggle is deliberately not part of `willUpload`: it governs crash reports the app captured by itself, not a report the user wrote and asked to send (see **Consent gate** below). `willUpload: false` therefore means only that this build or user has no endpoint.
+
+Submitting enqueues the report and asks the uploader to flush at once; a report that fails (offline, a 5xx, a 404 from a server whose token this build lacks) stays queued and is retried on the 30-minute tick. `willUpload` is computed from the same endpoint condition the uploader guards on, so the two cannot drift into telling the user different stories.
 
 Deliberately excluded from `willUpload`: offline mode and the connectivity probe, which the uploader also checks. Those resolve by themselves, and a report merely waiting for the network really is going to be sent.
 
 The renderer's `willUploadFromEnvelope` reads an unrecognised value - a main process returning the bare report id, a changed envelope shape - as `false`. The saved-locally wording is true whether or not an endpoint exists; "it has been sent" is only true when the receipt says so, so the unknown case falls to the claim that cannot be wrong.
 
-A build may ship a *default* destination: `BIBLE_DIAGNOSTICS_URL` is baked into `DIAGNOSTICS_DEFAULT_ENDPOINT` at build time, and `BIBLE_DIAGNOSTICS_TOKEN` into `DIAGNOSTICS_SHARED_TOKEN` (`electron.vite.config.ts` -> `electron/config/constants.ts`). Both default to empty, and a default endpoint changes nothing about consent: the uploader is still gated on `cfg.enabled`, which is still `false` until the user turns it on. A URL alone sends nothing.
+The default destination is baked in at build time: `BIBLE_DIAGNOSTICS_URL` (empty means `DEFAULT_DIAGNOSTICS_URL`, `none` means no destination) becomes `DIAGNOSTICS_DEFAULT_ENDPOINT`, and `BIBLE_DIAGNOSTICS_TOKEN` becomes `DIAGNOSTICS_SHARED_TOKEN` (`electron.vite.config.ts` -> `electron/config/constants.ts`). The release workflow passes the `DIAGNOSTICS_URL` variable and `DIAGNOSTICS_TOKEN` secret of the `release` environment. A destination alone sends nothing: only reports the user chose to send ever leave the machine.
 
 ### The reference receiver
 
@@ -152,7 +156,11 @@ A build may ship a *default* destination: `BIBLE_DIAGNOSTICS_URL` is baked into 
 
 **Dedup:** identical `{message, first-5-stack-frames}` pairs are captured once per session.
 
-**Consent gate:** crash payloads carry `pending_send: false` until the user clicks "Send Report" in the crash dialog, which flips the flag via `diagnostics:submit-crash-report`. The uploader refuses to send crash reports with `pending_send=false`. Manual and feedback reports are submitted intentionally so they are eligible immediately.
+**Consent gate:** nothing is sent that the user did not choose to send.
+
+- **Feedback** (Report an Issue, box unticked) carries only the description and app version. It is eligible as soon as the user presses Send, whether or not diagnostics is enabled.
+- **Manual** reports (Report an Issue, box ticked) add environment info and a state snapshot. The box starts unticked every time the dialog opens, so this data is opt-in per report. Eligible as soon as the user presses Send.
+- **Crash** reports are captured by the app itself, so they need two opt-ins: the standing "Send diagnostic reports when errors occur" setting (`cfg.enabled`, off by default) AND the per-crash "Send Report" click, which sets `pending_send` via `diagnostics:submit-crash-report`. The uploader skips a crash report unless both are true.
 
 ## Build ID & Source Maps
 

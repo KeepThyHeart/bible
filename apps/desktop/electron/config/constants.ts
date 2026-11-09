@@ -31,16 +31,32 @@ declare const __BIBLE_DIAGNOSTICS_URL__: string | undefined;
 declare const __BIBLE_DIAGNOSTICS_TOKEN__: string | undefined;
 
 /**
- * Default destination for queued reports, baked in at build time from
- * `BIBLE_DIAGNOSTICS_URL`. Empty means this build has no destination, and the
- * uploader stays silent -- the user can still set one in Preferences.
- *
- * Note this is only a *default*: it seeds `DiagnosticsConfig` on first run and
- * a user-set endpoint overrides it. Enabling diagnostics remains opt-in either
- * way; a URL alone sends nothing.
+ * Where official builds send reports: the web server's `POST
+ * /api/desktop-report` route (apps/web/server/routes/desktopReportRoutes.ts).
  */
-export const DIAGNOSTICS_DEFAULT_ENDPOINT: string =
-  typeof __BIBLE_DIAGNOSTICS_URL__ === 'string' ? __BIBLE_DIAGNOSTICS_URL__ : '';
+export const DEFAULT_DIAGNOSTICS_URL = 'https://bible.keepthyheart.com/api/desktop-report';
+
+/**
+ * Resolve the build's report destination from the `BIBLE_DIAGNOSTICS_URL`
+ * value baked in at build time. Unset or blank means the official default;
+ * `none` opts a build out entirely (no destination, the uploader stays
+ * silent), the same convention as `BIBLE_DOCS_URL`.
+ */
+export function resolveDiagnosticsEndpoint(defined: string | undefined): string {
+  const configured = defined?.trim() || DEFAULT_DIAGNOSTICS_URL;
+  return configured.toLowerCase() === 'none' ? '' : configured;
+}
+
+/**
+ * Default destination for queued reports. A user-set endpoint in Preferences
+ * overrides it. A destination alone sends nothing: a report leaves the machine
+ * only after the user submits it (Report an Issue), or clicks Send Report on a
+ * crash AND has "Send diagnostic reports when errors occur" turned on. See
+ * DiagnosticsUploader.
+ */
+export const DIAGNOSTICS_DEFAULT_ENDPOINT: string = resolveDiagnosticsEndpoint(
+  typeof __BIBLE_DIAGNOSTICS_URL__ === 'string' ? __BIBLE_DIAGNOSTICS_URL__ : undefined
+);
 
 /**
  * Shared secret presented to that endpoint as `X-Report-Token`.

@@ -12,10 +12,18 @@
  * - Never retries within a single tick. If a POST fails the file stays queued
  *   and the next tick (30 min later, or triggered by the user via "Send all
  *   now") will pick it up.
- * - Respects the `pending_send` flag on crash reports - those are only sent
- *   after the user clicks "Send Report" in the crash dialog (which flips the
- *   flag via `diagnostics:submit-crash-report`). Manual and feedback reports
- *   are always eligible (they were submitted intentionally).
+ * - Consent is per report type:
+ *   - `feedback` and `manual` reports are eligible as soon as they are queued:
+ *     the user wrote them and pressed Send in Report an Issue. A `manual`
+ *     report carries diagnostic data only because the user ticked "Include
+ *     diagnostic information" for that report (the box starts unticked).
+ *   - `crash` reports need BOTH the standing opt-in (`cfg.enabled`, "Send
+ *     diagnostic reports when errors occur") AND the per-crash `pending_send`
+ *     flag, set when the user clicks "Send Report" in the crash dialog.
+ *   So `cfg.enabled` gates diagnostics that the app captured by itself; it
+ *   does not gate feedback the user typed and asked to send.
+ * - Runs whenever the app runs (see main.ts). A tick with nothing eligible
+ *   makes no request, so a running uploader contacts nothing on its own.
  */
 
 import { app } from 'electron';
@@ -111,7 +119,7 @@ export class DiagnosticsUploader {
     this.running = true;
     try {
       const cfg = this.config.get();
-      if (!cfg.enabled || !cfg.endpointUrl.trim()) return counts;
+      if (!cfg.endpointUrl.trim()) return counts;
       // Master offline switch: when the app is in offline mode we make no
       // attempt at all (queued files stay put, uncounted). The gateway would
       // refuse anyway, but bailing here avoids marking files as "failed".
@@ -130,9 +138,10 @@ export class DiagnosticsUploader {
           continue;
         }
 
-        // Crash reports only leave the queue after the user explicitly
-        // clicks "Send Report" in the crash dialog (which sets pending_send).
-        if (payload.type === 'crash' && !payload.pending_send) {
+        // Crash reports only leave the queue when diagnostics is turned on
+        // AND the user clicked "Send Report" in the crash dialog (which sets
+        // pending_send). See the consent notes at the top of this file.
+        if (payload.type === 'crash' && !(cfg.enabled && payload.pending_send)) {
           counts.skipped++;
           continue;
         }

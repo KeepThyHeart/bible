@@ -13,6 +13,8 @@ import {
   whenLocaleCatalogsReady,
 } from '../../services/localeCatalogsReady';
 import type { LocaleMetadata } from '../../services/II18nService';
+import { matchSystemLocale, systemLanguagePreferences } from '../../utils/systemLocale';
+import { readStoredLocale } from '../../utils/documentDirection';
 
 /**
  * First-run language question, the network consent question that follows it,
@@ -28,7 +30,14 @@ import type { LocaleMetadata } from '../../services/II18nService';
  *
  * ## Three steps, and why two of them can be skipped
  *
- * 1. **Language.** The four languages in `SUPPORTED_CONTENT_LANGUAGES` are
+ * 1. **Language.** When the OS language matches one we offer, the app switches
+ *    to it as soon as the dialog opens and the step asks only to confirm it:
+ *    one prominent "Continue in <language>" button. Picking something else is
+ *    deliberately a step further away, behind "Choose a different language",
+ *    which opens the full list (the detected language is marked there). With
+ *    no match, the full list is shown straight away. See `suggestedLocale`.
+ *
+ *    In the list, the four languages in `SUPPORTED_CONTENT_LANGUAGES` are
  *    listed first because those are the ones we intend to have study content
  *    for. Every other *offered* locale stays reachable behind a disclosure -
  *    hiding a working translation to keep a list short would be a regression,
@@ -148,12 +157,39 @@ async function findOffer(languageCode: string): Promise<ContentOffer> {
 interface LanguageOptionProps {
   info: LocaleMetadata;
   selected: boolean;
+  /** This is the language detected from the OS. */
+  isSystem?: boolean;
   /** The one radio in the group that is in the Tab order (roving tabindex). */
   tabStop: boolean;
   onSelect: (code: string) => void;
 }
 
-const LanguageOption: React.FC<LanguageOptionProps> = ({ info, selected, tabStop, onSelect }) => {
+/** "Preview" badge for a machine-drafted, unreviewed catalog. */
+const PreviewBadge: React.FC<{ info: LocaleMetadata }> = ({ info }) => {
+  const { t } = useI18n();
+  if (info.status === 'complete') return null;
+  // Never imply a review that did not happen - every non-English catalog
+  // here is machine-drafted. `selectableLocales()` already withholds built-in
+  // `draft` locales, so a `draft` reaching this component is always
+  // user-supplied; `beta` may be either.
+  return (
+    <span
+      data-testid={`first-run-language-${info.status}-badge-${info.code}`}
+      title={t('onboarding.language.previewTooltip')}
+      className="flex-shrink-0 rounded bg-background-hover px-xs text-xs text-text-secondary"
+    >
+      {t('onboarding.language.previewBadge')}
+    </span>
+  );
+};
+
+const LanguageOption: React.FC<LanguageOptionProps> = ({
+  info,
+  selected,
+  isSystem,
+  tabStop,
+  onSelect,
+}) => {
   const { t } = useI18n();
   return (
     <button
@@ -180,20 +216,68 @@ const LanguageOption: React.FC<LanguageOptionProps> = ({ info, selected, tabStop
       {info.nativeName !== info.name && (
         <span className="text-sm text-text-secondary">{info.name}</span>
       )}
-      {info.status !== 'complete' && (
-        // Never imply a review that did not happen - every non-English
-        // catalog here is machine-drafted. `selectableLocales()` already
-        // withholds built-in `draft` locales, so a `draft` reaching this
-        // component is always user-supplied; `beta` may be either.
-        <span
-          data-testid={`first-run-language-${info.status}-badge-${info.code}`}
-          title={t('onboarding.language.previewTooltip')}
-          className="ms-auto flex-shrink-0 rounded bg-background-hover px-xs text-xs text-text-secondary"
-        >
-          {t('onboarding.language.previewBadge')}
-        </span>
-      )}
+      <span className="ms-auto flex flex-shrink-0 items-baseline gap-xs">
+        {isSystem && (
+          <span
+            data-testid={`first-run-language-system-badge-${info.code}`}
+            className="rounded border border-border px-xs text-xs text-text-secondary"
+          >
+            {t('onboarding.language.systemBadge')}
+          </span>
+        )}
+        <PreviewBadge info={info} />
+      </span>
     </button>
+  );
+};
+
+/**
+ * The confirm-the-detected-language view: the language, large, and a quieter
+ * way out. The way out carries its label in English as well when the UI is not
+ * in English, because the person who needs it is exactly the one who cannot
+ * read the language that was detected (an English speaker on a Spanish-language
+ * computer, say). The globe is the cross-language signpost for the rest.
+ */
+const SuggestedLanguage: React.FC<{
+  info: LocaleMetadata;
+  onChooseDifferent: () => void;
+}> = ({ info, onChooseDifferent }) => {
+  const { i18n, t } = useI18n();
+  const label = t('onboarding.language.chooseDifferent');
+  const englishLabel = 'Choose a different language';
+  const showEnglish = !i18n.currentLocale.startsWith('en') && label !== englishLabel;
+  return (
+    <>
+      <p className="mb-md text-sm text-text-secondary">{t('onboarding.language.detectedIntro')}</p>
+      <div
+        data-testid="first-run-language-suggested"
+        className="flex items-baseline gap-sm rounded border border-accent bg-accent-soft px-md py-md"
+      >
+        <span className="text-xl font-semibold text-text-primary" lang={info.code}>
+          {info.nativeName}
+        </span>
+        {info.nativeName !== info.name && (
+          <span className="text-sm text-text-secondary">{info.name}</span>
+        )}
+        <span className="ms-auto flex flex-shrink-0 items-baseline">
+          <PreviewBadge info={info} />
+        </span>
+      </div>
+      <button
+        type="button"
+        onClick={onChooseDifferent}
+        data-testid="first-run-language-change"
+        className="mt-md inline-flex items-center gap-xs rounded text-sm text-accent underline hover:no-underline focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+      >
+        <span aria-hidden="true">🌐</span>
+        <span>{label}</span>
+        {showEnglish && (
+          <span lang="en" className="text-text-secondary">
+            ({englishLabel})
+          </span>
+        )}
+      </button>
+    </>
   );
 };
 
@@ -276,6 +360,62 @@ const LanguageFirstRun: React.FC = () => {
     const otherList = allLocales.filter((info) => !featuredCodes.has(info.code));
     return { featured: featuredList, others: otherList };
   }, [allLocales]);
+
+  // The language to suggest: one already persisted (an earlier run that was
+  // interrupted, or a choice made in Preferences), else the OS's language when
+  // we offer it. `undefined` means no match, and the full list is shown.
+  const offeredCodes = allLocales.map((info) => info.code).join('|');
+  const suggestedLocale = useMemo(() => {
+    const codes = offeredCodes.split('|');
+    const stored = readStoredLocale();
+    if (stored && codes.includes(stored)) return stored;
+    return matchSystemLocale(systemLanguagePreferences(), codes);
+  }, [offeredCodes]);
+  const suggestedInfo = allLocales.find((info) => info.code === suggestedLocale);
+
+  // Switching away from the suggestion is deliberately one step further away:
+  // "Choose a different language" opens the full list.
+  const [choosing, setChoosing] = useState(false);
+  const listMode = choosing || !suggestedInfo;
+
+  // Switch to the suggested language as soon as the dialog opens, so the
+  // question itself is asked in the language the user most likely reads.
+  // Once only: after that the user is in charge.
+  const suggestionApplied = useRef(false);
+  useEffect(() => {
+    if (!open || !languageChoiceNeeded || !suggestedLocale || suggestionApplied.current) return;
+    suggestionApplied.current = true;
+    setSelected(suggestedLocale);
+    if (suggestedLocale !== i18n.currentLocale) {
+      i18n.setLocale(suggestedLocale).catch(() => {
+        // Stay in the current language; the list still offers every choice.
+      });
+    }
+  }, [open, languageChoiceNeeded, suggestedLocale, i18n]);
+
+  // Focus follows the mode: the confirm button while suggesting (so Enter
+  // accepts the suggestion), the selected language once the list opens
+  // (the "Choose a different language" button has just unmounted).
+  const confirmRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (!open || step !== 'language') return;
+    if (!listMode) {
+      confirmRef.current?.focus();
+    } else if (choosing) {
+      containerRef.current
+        ?.querySelector<HTMLElement>(`[data-testid="first-run-language-${selected}"]`)
+        ?.focus();
+    }
+    // `selected` is read for the target only; re-running on every pick would
+    // fight the arrow keys.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, step, listMode, choosing, containerRef]);
+
+  const startChoosing = useCallback(() => {
+    // Reveal the full list if the current language is behind the disclosure.
+    if (others.some((info) => info.code === selected)) setShowAll(true);
+    setChoosing(true);
+  }, [others, selected]);
 
   useEffect(() => {
     if (!showAll || !focusFirstOtherRef.current) return;
@@ -440,7 +580,9 @@ const LanguageFirstRun: React.FC = () => {
         <div className="flex-shrink-0 border-b border-border px-lg py-md">
           <h2 id="first-run-language-title" className="text-lg font-semibold text-text-primary">
             {onLanguageStep
-              ? t('onboarding.language.title')
+              ? listMode
+                ? t('onboarding.language.title')
+                : t('onboarding.language.detectedTitle')
               : onNetworkStep
               ? t('onboarding.network.title')
               : t('onboarding.language.contentTitle')}
@@ -448,7 +590,12 @@ const LanguageFirstRun: React.FC = () => {
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-lg py-md">
-          {onLanguageStep ? (
+          {onLanguageStep && !listMode && suggestedInfo ? (
+            <SuggestedLanguage
+              info={suggestedInfo}
+              onChooseDifferent={startChoosing}
+            />
+          ) : onLanguageStep ? (
             <>
               <p className="mb-md text-sm text-text-secondary">
                 {t('onboarding.language.intro')}
@@ -465,6 +612,7 @@ const LanguageFirstRun: React.FC = () => {
                     key={info.code}
                     info={info}
                     selected={info.code === selected}
+                    isSystem={info.code === suggestedLocale}
                     tabStop={info.code === tabStopCode}
                     onSelect={setSelected}
                   />
@@ -475,6 +623,7 @@ const LanguageFirstRun: React.FC = () => {
                     key={info.code}
                     info={info}
                     selected={info.code === selected}
+                    isSystem={info.code === suggestedLocale}
                     tabStop={info.code === tabStopCode}
                     onSelect={setSelected}
                   />
@@ -510,12 +659,15 @@ const LanguageFirstRun: React.FC = () => {
         <div className="flex flex-shrink-0 items-center justify-end gap-sm border-t border-border px-lg py-md">
           {onLanguageStep ? (
             <button
+              ref={confirmRef}
               type="button"
               onClick={() => void handleConfirmLanguage()}
               data-testid="first-run-language-continue"
               className="rounded bg-accent px-lg py-sm text-sm text-text-on-accent hover:bg-accent-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
             >
-              {t('onboarding.language.continue')}
+              {!listMode && suggestedInfo
+                ? t('onboarding.language.continueIn', { language: suggestedInfo.nativeName })
+                : t('onboarding.language.continue')}
             </button>
           ) : onNetworkStep ? (
             <>

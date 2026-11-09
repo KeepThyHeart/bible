@@ -1,6 +1,6 @@
 # Onboarding
 
-**Last verified:** 2026-09-18
+**Last verified:** 2026-11-09
 
 First-run guidance for two audiences at once: seminary students who want the power features found fast, and laypeople who have never used Bible software and would otherwise bounce off a multi-pane workspace with no explanation.
 
@@ -16,7 +16,9 @@ There is exactly one exception, documented as layer 0 below: the first-run langu
 
 **Three steps, two of which can be skipped.**
 
-1. **Language.** The four `SUPPORTED_CONTENT_LANGUAGES` (`en`, `es`, `hi`, `zh-Hans`, from `@bible/core`) are listed first - those are the languages we intend to have study *content* for. Every other loaded locale stays reachable behind a "More languages" disclosure; hiding a working translation to keep the list short would be a regression. Draft catalogs are badged so we never imply a review that did not happen.
+1. **Language.** The OS's preferred languages (`navigator.languages`, most preferred first) are matched against the offered locales by `utils/systemLocale.ts#matchSystemLocale`: exact tag, then same language + script + region, then same language + script (`pt-PT` -> `pt-BR`, `zh-CN` -> `zh-Hans`; `zh-TW` never gets `zh-Hans`). A locale already saved in `bible.ui.locale` wins over the OS. When there is a match, the dialog switches the UI to it on open and shows only that language, with a prominent **Continue in <language>** (focused, so Enter accepts) and a quieter 🌐 **Choose a different language** link, also labelled in English when the UI is not. That link opens the full list below, with the detected row marked "System language". With no match, the full list is shown straight away.
+
+   In the full list, the four `SUPPORTED_CONTENT_LANGUAGES` (`en`, `es`, `hi`, `zh-Hans`, from `@bible/core`) are listed first - those are the languages we intend to have study *content* for. Every other loaded locale stays reachable behind a "More languages" disclosure; hiding a working translation to keep the list short would be a regression. Draft catalogs are badged so we never imply a review that did not happen.
 2. **Network.** Skipped unless the shared `useNetworkStore` has definitely finished loading AND definitely reports the master "Allow web requests" switch off (`electron/services/NetworkConfig.ts` - off by default on a fresh install). An unresolved read skips the step rather than stalling on it. **Go online** goes through `requestAllow(true)` - the same native confirmation dialog as the Privacy menu item and Preferences → Privacy - then refreshes the catalog before moving on; a cancelled dialog leaves the step exactly as it was. **Stay offline** moves on without asking again.
 3. **Suggested content.** Starter packs for the chosen language, fetched via `module:get-starter-packs` as `OfferedStarterPack[]` (`@bible/core`'s `StarterPackTypes.ts`) - **only from the official catalog, verified against the pinned key** (see `docs/features/module-management.md`'s "Starter packs and first-run fallback" section). Every offered pack shows a "Verified: signed by Keep Thy Heart" badge.
 

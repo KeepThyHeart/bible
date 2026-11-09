@@ -395,6 +395,18 @@
       },
       "additionalProperties": false
     },
+    "desktopReports": {
+      "type": "object",
+      "description": "Settings for POST /api/desktop-report, where the desktop app's feedback and crash reports arrive (stored under <dataDir>/desktop-reports). The route is always on.",
+      "properties": {
+        "token": {
+          "type": "string",
+          "description": "Shared token the desktop build must send as X-Report-Token; it must equal the release build's BIBLE_DIAGNOSTICS_TOKEN (the DIAGNOSTICS_TOKEN secret in the GitHub 'release' environment). A wrong or missing token gets 404. Empty accepts any build. Not a secret from users (it ships inside every copy of the app); it keeps generic bots off an open endpoint. Read at server start.",
+          "default": ""
+        }
+      },
+      "additionalProperties": false
+    },
     "repoUrl": {
       "type": "string",
       "description": "URL to the source code repository, shown in the About panel.",

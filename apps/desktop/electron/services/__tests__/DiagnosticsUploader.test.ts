@@ -24,6 +24,14 @@ vi.mock('electron-log', () => ({
   default: { warn: vi.fn(), error: vi.fn(), info: vi.fn() },
 }));
 
+// A build opted out of a default destination (`BIBLE_DIAGNOSTICS_URL=none`), so
+// a blank endpoint really means "nowhere" and the empty-endpoint guard can be
+// tested. The official default is covered in DiagnosticsConfig.test.ts.
+vi.mock('../../config/constants', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../config/constants')>()),
+  DIAGNOSTICS_DEFAULT_ENDPOINT: '',
+}));
+
 import { DiagnosticsUploader } from '../DiagnosticsUploader';
 import { DiagnosticsQueue } from '../DiagnosticsQueue';
 import { DiagnosticsConfig } from '../DiagnosticsConfig';
@@ -163,12 +171,24 @@ describe('DiagnosticsUploader', () => {
     expect(queue.read(secondId)).not.toBeNull();
   });
 
-  it('does nothing when config.enabled=false', async () => {
+  it('sends user-submitted feedback even when diagnostics is disabled', async () => {
+    // The toggle governs crash reports the app captured by itself, not words
+    // the user typed and asked to send.
     config.set({ enabled: false });
-    queue.enqueue(mkFeedback());
+    const id = queue.enqueue(mkFeedback());
+    respondWith(() => fetchResult(201));
     const counts = await uploader.flushNow();
-    expect(counts).toEqual({ sent: 0, failed: 0, skipped: 0 });
+    expect(counts).toEqual({ sent: 1, failed: 0, skipped: 0 });
+    expect(queue.read(id)).toBeNull();
+  });
+
+  it('holds back a consented crash report while diagnostics is disabled', async () => {
+    config.set({ enabled: false });
+    const id = queue.enqueue(mkCrash({ pending_send: true }));
+    const counts = await uploader.flushNow();
     expect(gateway.fetchCalls).toHaveLength(0);
+    expect(counts).toEqual({ sent: 0, failed: 0, skipped: 1 });
+    expect(queue.read(id)).not.toBeNull();
   });
 
   it('does nothing when endpointUrl is empty', async () => {
