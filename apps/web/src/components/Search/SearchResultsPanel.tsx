@@ -151,7 +151,11 @@ export function SearchResultsPanel({ onNavigate, onOpenStrongsEntry }: SearchRes
   // (on mobile, auto-focus opens the keyboard which is jarring)
   useEffect(() => {
     if (window.innerWidth > 768) {
-      const timer = setTimeout(() => mobileInputRef.current?.focus(), 100);
+      // Only if nothing moved focus in the meantime (a fast click on a row or "Load all").
+      const before = document.activeElement;
+      const timer = setTimeout(() => {
+        if (document.activeElement === before) mobileInputRef.current?.focus();
+      }, 100);
       return () => clearTimeout(timer);
     }
     return undefined;

@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, afterEach, vi } from 'vitest';
 import { ServiceStore, createMemoryBackend } from './serviceStore';
 import { emptyDocJSON } from '../editor/schema';
 
@@ -29,17 +29,15 @@ describe('ServiceStore across tabs', () => {
     b.onRemoteChange((id) => seen.push(id));
 
     a.save(svc.id, docWith('Acts 2:1'));
-    await tick();
-    expect(seen).toEqual([svc.id]);
+    // Wait for the debounced save and the channel message, however slow the runner.
+    await vi.waitFor(() => expect(seen).toEqual([svc.id]));
     expect(JSON.stringify(b.get(svc.id)!.doc)).toContain('Acts 2:1');
 
     // Tab B now edits on top of what it received: the stored doc has both.
     const merged = docWith('Acts 2:1 Jude 3');
     b.save(svc.id, merged);
-    await tick();
-    const stored = await createFresh(a);
-    expect(stored).toContain('Jude 3');
-    expect(stored).toContain('Acts 2:1');
+    await vi.waitFor(async () => expect(await createFresh(a)).toContain('Jude 3'));
+    expect(await createFresh(a)).toContain('Acts 2:1');
   });
 
   it('a delete in one tab removes the service in the other', async () => {
@@ -50,8 +48,7 @@ describe('ServiceStore across tabs', () => {
     const seen: string[] = [];
     b.onRemoteChange((id) => seen.push(id));
     await a.remove(svc.id);
-    await tick();
-    expect(b.get(svc.id)).toBeUndefined();
+    await vi.waitFor(() => expect(b.get(svc.id)).toBeUndefined());
     expect(seen).toEqual([svc.id]);
   });
 

@@ -4,7 +4,8 @@
  *
  * Behavior:
  * - On activation, moves focus to the first focusable element (or a supplied
- *   initial target).
+ *   initial target) - unless focus has already moved inside the container by
+ *   the time that deferred step runs (a fast click), which it leaves alone.
  * - Intercepts Tab/Shift+Tab to cycle focus within the container.
  * - Optionally closes the dialog on Escape (see `onEscape`).
  * - On release, restores focus to the element that was focused before activation.
@@ -143,7 +144,14 @@ export function activateFocusTrap(
     container.setAttribute('tabindex', '-1');
   }
 
+  // Whatever held focus when the trap went up (the opener, or an autoFocus
+  // field inside the dialog). If focus has moved into the dialog since, the
+  // user (or the dialog) already chose where it goes: the deferred initial
+  // focus must not pull it back.
+  const focusAtActivation = doc.activeElement;
   const focusFirst = () => {
+    const current = doc.activeElement;
+    if (current !== focusAtActivation && current && container.contains(current)) return;
     const initial = options.initialFocus ?? null;
     if (initial && container.contains(initial)) {
       initial.focus();
