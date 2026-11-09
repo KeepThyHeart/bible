@@ -1043,6 +1043,14 @@
   "searchTabs.meaningSubtitle": "معنا",
   "searchTabs.openInNewTab": "باز کردن در زبانه جستجوی جدید",
   "searchTabs.openInNewTabTitle": "باز کردن این جستجو در یک زبانه جستجوی جدید",
+  "searchTabs.pin": "Pin Search Tab",
+  "searchTabs.unpin": "Unpin Search Tab",
+  "searchTabs.previewTitle": "Preview tab: the next search replaces it. Double-click to pin.",
+  "searchBar.type.title": "Search type",
+  "searchBar.type.keyword": "Search",
+  "searchBar.type.keywordHint": "Find verses that contain your words.",
+  "searchBar.type.ideas": "Ideas Search",
+  "searchBar.type.ideasHint": "Find verses by meaning, even when the words differ.",
   "searchTabs.subTabListLabel": "جستجوها",
   "searchTabs.closeSubTab": "بستن جستجو: {query}",
   "searchResultsPane.noSemanticMatches": "تطابق معنایی یافت نشد",
@@ -1133,6 +1141,9 @@
   "commentaryContentArea.loading": "در حال بارگیری تفسیر...",
   "commentaryContentArea.noCommentary": "تفسیری برای این آیه موجود نیست",
   "commentaryContentArea.browseAll": "مرور همه",
+  "commentaryContentArea.moduleMissing": "{name}: this commentary's file is missing.",
+  "commentaryContentArea.moduleMissingHint": "Reinstall it from the Module Manager.",
+  "commentaryContentArea.openModuleManager": "Open Module Manager",
   "commentaryContentArea.previousVerse": "آیه قبلی",
   "commentaryContentArea.nextVerse": "آیه بعدی",
   "commentaryContentArea.previous": "قبلی",
@@ -2432,5 +2443,7 @@
   "remoteConsent.getPack": "دریافت بستهٔ معنایی محلی",
   "searchResultsPane.resultsFrom": "نتایج از {modules}",
   "advancedSearchDialog.operatorsHint": "عملگرها: && (و)، || (یا)، ! (نه)، با پرانتز، مثلاً محبت && !(نفرت || خشم). واژه‌های AND، OR و NOT همچنان واژهٔ معمولی‌اند.",
-  "topicsPane.directOfTotal": "({direct} مستقیم، مجموع {total})"
+  "topicsPane.directOfTotal": "({direct} مستقیم، مجموع {total})",
+  "editorToolbar.indentTitle": "Increase Indent (Tab)",
+  "editorToolbar.outdentTitle": "Decrease Indent (Shift+Tab)"
 }

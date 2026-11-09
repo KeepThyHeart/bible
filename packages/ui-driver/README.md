@@ -38,6 +38,7 @@ plus errors, no diff) and `--timeout ms` (default 5000).
 |---|---|
 | `start [web\|desktop\|path/to/manifest.json] [--url URL] [--viewport WxH] [--headed] [--keep]` | `--url https://bible.keepthyheart.com` drives the live site **read-only** (only GET/HEAD/OPTIONS go out; others are blocked and listed under `errors`). A loopback `--url` (`http://127.0.0.1:PORT`, `localhost`) drives a local server that is already running, normally (not read-only), and starts no server of its own: several sessions can share one server (another session's, or one started by hand) to save memory. `--keep` keeps the throwaway profile. |
 | `stop`, `status` | |
+| `clean [--dry-run] [--all-sessions] [--older-than MINUTES]` | Local (no daemon). Removes temp dirs that bible tests and the driver leave in the tmp dir: only names on the allow-list in `src/clean.ts` (`bible-ui-driver/<session>/profile-*`, `bible-devmode-*`, `bible-e2e*`, `drive-smoke-*`, `drive-popout-*`, ...), directly in the tmp dir, never through a symlink, skipping anything modified within `--older-than` minutes (default 60) and sessions whose daemon is alive. `--all-sessions` also removes stopped sessions' own dirs; `--dry-run` only lists. Also `pnpm run e2e:clean` from the repo root. |
 | `snapshot [rN] [--depth N] [--max N] [--visible] [--all]` | `rN` scopes to one element (a native `<select>` then lists its options); `--visible` only what is in the viewport, and only the modal dialog when one is open (menus and popovers are not filtered); long lists show 9 items and a count; 150 lines max unless `--max`/`--all`. |
 | `diff` | Changes since the last snapshot or action. Actions already include it. |
 | `find [TEXT] [--role ROLE]` | Search names/values of the whole page without printing it (TEXT optional with `--role`). Cheapest way to get a ref. |
@@ -54,7 +55,12 @@ plus errors, no diff) and `--timeout ms` (default 5000).
 | `check [names overflow overlap focus i18n narrow tab all]` | Without kinds: the cheap five. `narrow` re-checks layout at 360 px wide and restores; `tab` presses Tab until focus wraps (max 80) and reports the order, invisible stops and traps, then puts focus back. `narrow` and `tab` change layout/focus while they run. |
 | `screenshot [rN] [--full] [--path P]` | Returns the path; read the image only when you need to see it. |
 | `log [--tail N]`, `log --playwright [--path P]` | The session transcript, or a Playwright spec that replays it (review locators before committing it as a test). |
-| `pages`, `page N` | Popups and extra windows. |
+| `pages`, `page N`, `closepage N` | Popups and extra windows (a popped-out pane is page 1, ...). `closepage` closes one like its close button (a popped-out pane then docks back); page 0 is refused. |
+| `eval JS...` | Run an expression in the current page and print its JSON result: `eval document.documentElement.dataset.theme`. For what the accessibility tree cannot show (computed styles, attributes, store state). |
+
+Set `DRIVE_APP_ENV_NAME=value` to give the launched desktop app an environment variable `NAME` that overrides the manifest's (for example `DRIVE_APP_ENV_BIBLE_REMOTE_SEMANTIC_URL=http://127.0.0.1:8799` points Ideas search at a local stub).
+
+Set `DRIVE_PROFILE_DIR=/path` to reuse one profile across `start`s (the saved layout, notes folder and theme survive an app restart; it is kept, never deleted).
 
 ## Reading replies
 
@@ -159,7 +165,10 @@ fixture data, start and wait for it, the throwaway profile and the viewport. See
 - Web: runs `apps/web/server` on a free port against the same fixture data the e2e suite builds
   (`apps/web/e2e/.data`), with app state in the throwaway profile. `--url` is allowed only for the
   origins in `external.allow`, always read-only.
-- Desktop: launches the built `out/main/index.js` with a fresh `ELECTRON_USER_DATA`. A fresh profile
+- Desktop: launches the built `out/main/index.js` with a fresh `ELECTRON_USER_DATA`, on a per-run copy of the
+  committed public-domain fixture (`fixtures/bible-data`, see its README) in `<profile>/data`, removed with the
+  profile on stop, plus a sample note. Set `BIBLE_DESKTOP_DATA_DIR` to use real data instead (used as given; its
+  keyword indexes are cached in the tmp dir, `drive clean` removes them). A fresh profile
   opens on the first-run dialogs (language, then network: "Stay offline").
 
 ## Development
@@ -169,6 +178,8 @@ pnpm --filter @bible/ui-driver test        # unit tests (runtime tests use headl
 pnpm --filter @bible/ui-driver typecheck
 pnpm --filter @bible/ui-driver lint
 pnpm --filter @bible/ui-driver e2e         # smoke: drives the CLI against web and desktop (needs builds)
+pnpm --filter @bible/ui-driver e2e:popout  # popped-out notes window: toolbar, indent, Ctrl+F, reference hover (needs the desktop build; xvfb-run -a on a headless Linux box; skips when it cannot run)
+pnpm --filter @bible/ui-driver e2e:qa     # the QA-polish items (reading, search selector, red letters, preview tabs, tooltips, "+" underline, Settings tabs, missing module, ...) on the committed fixture; QA_ONLY=03,05 picks items, QA_SHOTS=/dir saves a screenshot per item (same build/display needs as e2e:popout)
 ```
 
 No build step: Node runs the TypeScript directly (type stripping), so `.ts` imports carry their

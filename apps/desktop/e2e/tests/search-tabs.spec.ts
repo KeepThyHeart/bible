@@ -14,8 +14,8 @@ import path from 'path';
 import fs from 'fs';
 import os from 'os';
 import { test, expect, dismissFirstRunDialog } from '../fixtures/electron.fixture';
-import { waitForAppReady } from '../fixtures/test-utils';
-import { E2E_KEYWORD_INDEX_DIR } from '../fixtures/keywordIndexDir';
+import { waitForAppReady, waitForKeywordIndexes } from '../fixtures/test-utils';
+import { dataEnv } from '../fixtures/dataDir';
 
 const SEARCH_TIMEOUT = 30000;
 const MAIN_JS = process.env.E2E_MAIN_JS ?? path.resolve(__dirname, '../../out/main/index.js');
@@ -77,6 +77,7 @@ async function setPlacement(w: Page, value: 'below' | 'tab' | 'right'): Promise<
 test.describe('Search tabs', () => {
   test.beforeEach(async ({ window }) => {
     await waitForAppReady(window);
+    await waitForKeywordIndexes(window);
   });
 
   test('Ctrl+Enter opens a second tab for a different query', async ({ window }) => {
@@ -168,6 +169,7 @@ test.describe('Search tabs', () => {
 test.describe('Search tabs: Tab in the right pane', () => {
   test.beforeEach(async ({ window }) => {
     await waitForAppReady(window);
+    await waitForKeywordIndexes(window);
     await setPlacement(window, 'tab');
   });
 
@@ -281,13 +283,14 @@ test.describe('Search tabs: Tab in the right pane', () => {
 test('search tabs come back after a restart', async () => {
   test.setTimeout(180000);
   const userDataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'bible-e2e-search-tabs-'));
+  const data = dataEnv(`${userDataDir}-data`);
   const launch = () => electron.launch({
     args: ['--password-store=basic', '--no-sandbox', '--disable-dev-shm-usage', MAIN_JS],
     env: {
       ...process.env,
       NODE_ENV: 'test',
       ELECTRON_USER_DATA: userDataDir,
-      BIBLE_KEYWORD_INDEX_DIR: E2E_KEYWORD_INDEX_DIR,
+      ...data.env,
       BIBLE_REMOTE_SEMANTIC_URL: 'none',
     },
   });
@@ -296,6 +299,7 @@ test('search tabs come back after a restart', async () => {
     await w.waitForSelector('[data-testid="app-loaded"]', { timeout: 30000 });
     await dismissFirstRunDialog(w);
     await waitForAppReady(w);
+    await waitForKeywordIndexes(w);
     return w;
   };
 
@@ -325,19 +329,21 @@ test('search tabs come back after a restart', async () => {
     }
   } finally {
     fs.rmSync(userDataDir, { recursive: true, force: true });
+    data.cleanup();
   }
 });
 
 test('right-pane search sub-tabs come back after a restart', async () => {
   test.setTimeout(240000);
   const userDataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'bible-e2e-search-host-'));
+  const data = dataEnv(`${userDataDir}-data`);
   const launch = () => electron.launch({
     args: ['--password-store=basic', '--no-sandbox', '--disable-dev-shm-usage', MAIN_JS],
     env: {
       ...process.env,
       NODE_ENV: 'test',
       ELECTRON_USER_DATA: userDataDir,
-      BIBLE_KEYWORD_INDEX_DIR: E2E_KEYWORD_INDEX_DIR,
+      ...data.env,
       BIBLE_REMOTE_SEMANTIC_URL: 'none',
     },
   });
@@ -346,6 +352,7 @@ test('right-pane search sub-tabs come back after a restart', async () => {
     await w.waitForSelector('[data-testid="app-loaded"]', { timeout: 30000 });
     await dismissFirstRunDialog(w);
     await waitForAppReady(w);
+    await waitForKeywordIndexes(w);
     return w;
   };
 
@@ -383,5 +390,6 @@ test('right-pane search sub-tabs come back after a restart', async () => {
     }
   } finally {
     fs.rmSync(userDataDir, { recursive: true, force: true });
+    data.cleanup();
   }
 });

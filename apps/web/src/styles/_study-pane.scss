@@ -1312,6 +1312,8 @@
   }
 
   &__browse-item {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 28px;
     display: block;
     width: 100%;
     padding: 5px 8px;

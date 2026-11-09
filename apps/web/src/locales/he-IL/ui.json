@@ -161,7 +161,8 @@
       "captionCapped": "נספרות רק התוצאות שנטענו עד כה; יש עוד תוצאות לטעינה.",
       "captionCeiling": "{count, plural, one {נספרת רק ההתאמה הראשונה; החיפוש נעצר שם.} two {נספרות רק # ההתאמות הראשונות; החיפוש נעצר שם.} other {נספרות רק # ההתאמות הראשונות; החיפוש נעצר שם.}}"
     },
-    "resultsFrom": "תוצאות מתוך {modules}"
+    "resultsFrom": "תוצאות מתוך {modules}",
+    "showMoreCount": "Show {count} more"
   },
   "contextMenu": {
     "label": "פעולות לפסוק",

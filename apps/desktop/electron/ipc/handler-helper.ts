@@ -63,6 +63,26 @@ export function ipcHandler<Args extends unknown[], T>(
   });
 }
 
+/**
+ * Like {@link ipcHandler}, but the handler also receives the sending
+ * `webContents.id` as its first argument, so it can exclude the caller from a
+ * broadcast. The reply envelope is identical.
+ */
+export function ipcHandlerWithSender<Args extends unknown[], T>(
+  channel: string,
+  fn: (senderId: number, ...args: Args) => Promise<T> | T
+): void {
+  ipcMain.handle(channel, async (event, ...args): Promise<Result<T>> => {
+    try {
+      const value = await fn(event.sender.id, ...(args as Args));
+      return { ok: true, value };
+    } catch (err) {
+      const error = classifyError(channel, err);
+      return { ok: false, error };
+    }
+  });
+}
+
 /** How long an identical known-error line is collapsed before it is logged again. */
 const KNOWN_ERROR_LOG_WINDOW_MS = 30_000;
 

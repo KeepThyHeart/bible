@@ -88,6 +88,10 @@ const mockSetOverrideVerse = vi.fn();
 const mockAdoptPreviewAsStudy = vi.fn();
 const mockLoadForChapter = vi.fn();
 const mockNavigateTo = vi.fn().mockResolvedValue(undefined);
+const mockScrollToVerse = vi.fn();
+let mockTabVerses: { verse_id: number }[] = [];
+let mockTabBook: number | null | undefined;
+let mockTabChapter: number | null | undefined;
 const mockKeepTab = vi.fn();
 const mockSyncCommentaryToSelection = vi.fn();
 
@@ -118,12 +122,14 @@ vi.mock('../../stores/commentaryStore', () => ({
 vi.mock('../../stores/bibleStore', () => ({
   bibleStore: {
     getActiveTab: () => ({
-      book: mockSyncedBook,
-      chapter: mockSyncedChapter,
+      book: mockTabBook === undefined ? mockSyncedBook : mockTabBook,
+      chapter: mockTabChapter === undefined ? mockSyncedChapter : mockTabChapter,
+      moduleAbbr: 'KJV',
       studyVerse: mockStudyVerse,
       previewVerse: mockPreviewVerse,
-      verses: [],
+      verses: mockTabVerses,
     }),
+    scrollToVerse: (id: number) => mockScrollToVerse(id),
     adoptPreviewAsStudy: (id: number) => mockAdoptPreviewAsStudy(id),
     navigateTo: (...args: unknown[]) => mockNavigateTo(...args),
     syncCommentaryToSelection: () => mockSyncCommentaryToSelection(),
@@ -312,6 +318,69 @@ describe('CommentaryPane', () => {
     fireEvent.click(navBtns[1]); // next verse
     expect(mockSetOverrideVerse).toHaveBeenCalled();
     expect(mockAdoptPreviewAsStudy).toHaveBeenCalled();
+  });
+
+  describe('verse navigation across chapters', () => {
+    const chapterOf = (book: number, chapter: number, n: number) =>
+      Array.from({ length: n }, (_, i) => ({ verse_id: book * 1000000 + chapter * 1000 + i + 1 }));
+    const clickNav = async (i: number, props: Record<string, unknown> = {}) => {
+      const { container } = render(<CommentaryPane {...props} />);
+      fireEvent.click(container.querySelectorAll<HTMLButtonElement>('.commentary-passage-header__nav')[i]);
+      for (let k = 0; k < 5; k++) await Promise.resolve();
+    };
+
+    beforeEach(() => {
+      mockSetOverrideVerse.mockClear(); mockAdoptPreviewAsStudy.mockClear();
+      mockNavigateTo.mockClear(); mockScrollToVerse.mockClear();
+      mockTabVerses = chapterOf(43, 3, 36);
+      mockTabChapter = undefined;
+    });
+
+    it('Next on the last verse of a chapter goes to verse 1 of the next chapter', async () => {
+      mockStudyVerse = 43003036;
+      await clickNav(1);
+      expect(mockNavigateTo).toHaveBeenCalledWith(43, 4);
+      expect(mockSetOverrideVerse).toHaveBeenCalledWith(43004001);
+      expect(mockAdoptPreviewAsStudy).toHaveBeenCalledWith(43004001);
+      expect(mockScrollToVerse).toHaveBeenCalledWith(43004001);
+    });
+
+    it('Next crosses chapters from the provider\'s verse list when the Bible tab shows another chapter', async () => {
+      mockStudyVerse = 43003036;
+      mockTabChapter = 5; // Bible tab is elsewhere; the commentary is on John 3
+      mockTabVerses = chapterOf(43, 5, 47);
+      const getChapter = vi.fn().mockResolvedValue({ verses: chapterOf(43, 3, 36) });
+      await clickNav(1, { bibleProvider: { getChapter } });
+      expect(getChapter).toHaveBeenCalledWith('KJV', 43, 3);
+      expect(mockNavigateTo).toHaveBeenCalledWith(43, 4);
+      expect(mockSetOverrideVerse).toHaveBeenCalledWith(43004001);
+    });
+
+    it('Next on the last verse of a book\'s last chapter goes to the next book', async () => {
+      mockSyncedBook = 43; mockSyncedChapter = 22; mockStudyVerse = 43022025;
+      mockTabVerses = chapterOf(43, 22, 25);
+      await clickNav(1);
+      expect(mockNavigateTo).toHaveBeenCalledWith(44, 1);
+      expect(mockSetOverrideVerse).toHaveBeenCalledWith(44001001);
+    });
+
+    it('Next inside a chapter stays in it and scrolls to the verse', async () => {
+      mockStudyVerse = 43003016;
+      await clickNav(1);
+      expect(mockNavigateTo).not.toHaveBeenCalled();
+      expect(mockSetOverrideVerse).toHaveBeenCalledWith(43003017);
+      expect(mockScrollToVerse).toHaveBeenCalledWith(43003017);
+    });
+
+    it('Previous from a first verse lands on the previous chapter\'s last verse and scrolls to it', async () => {
+      mockStudyVerse = 43003001;
+      mockNavigateTo.mockImplementationOnce(async () => { mockTabVerses = chapterOf(43, 2, 25); });
+      await clickNav(0);
+      expect(mockNavigateTo).toHaveBeenCalledWith(43, 2);
+      expect(mockSetOverrideVerse).toHaveBeenCalledWith(43002025);
+      expect(mockAdoptPreviewAsStudy).toHaveBeenCalledWith(43002025);
+      expect(mockScrollToVerse).toHaveBeenCalledWith(43002025);
+    });
   });
 
   // ---- Settings button ---------------------------------------------------

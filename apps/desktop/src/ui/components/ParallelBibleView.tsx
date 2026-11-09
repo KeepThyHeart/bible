@@ -104,6 +104,11 @@ const ParallelBibleView: React.FC<ParallelBibleViewProps> = ({ panelId }) => {
   // this effect) changes first, when the target row does not exist yet, so the
   // scroll found no ref and never retried (B-016).
   useEffect(() => {
+    if (scrollMode === 'top') {
+      // A new chapter: show it from its heading, as the single-column view does.
+      tableRef.current?.scrollIntoView?.({ behavior: 'auto', block: 'start' });
+      return;
+    }
     if (scrollMode !== 'center') return;
     selectedVerseRef.current?.scrollIntoView({
       behavior: 'auto',

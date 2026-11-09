@@ -1,4 +1,5 @@
 import { IpcMain } from 'electron';
+import { missingModuleError } from './moduleErrors';
 import log from 'electron-log/main';
 import { CommentaryRepository, VerseIdHelper, getBookName } from '@bible/core';
 import { getSharedModuleMetadataRepo } from '../services/sharedMainDb';
@@ -19,7 +20,7 @@ export function getCommentaryRepository(abbreviation: string): CommentaryReposit
 function requireCommentaryRepository(abbreviation: string): CommentaryRepository {
   const repo = getCommentaryRepository(abbreviation);
   if (!repo) {
-    throw new IpcKnownError('not_found', `Commentary not found: ${abbreviation}`);
+    throw missingModuleError(commentaryLoader, abbreviation, `Commentary not found: ${abbreviation}`);
   }
   return repo;
 }
@@ -31,6 +32,8 @@ interface AvailableCommentaryDto {
   language_code: string | undefined;
   version: string | undefined;
   database_path: string;
+  /** True when the module_metadata row exists but its file is gone (shown as a "missing" tab). */
+  fileMissing?: boolean;
 }
 
 interface CommentaryInfoDto {
@@ -95,7 +98,10 @@ function listAvailableCommentaries(): AvailableCommentaryDto[] {
     name: module.moduleName,
     language_code: module.languageCode,
     version: module.version,
-    database_path: module.databasePath
+    database_path: module.databasePath,
+    ...(commentaryLoader.diagnose(module.abbreviation || module.getAbbreviation()).status === 'file_missing'
+      ? { fileMissing: true }
+      : {})
   }));
 }
 

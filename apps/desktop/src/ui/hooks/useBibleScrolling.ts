@@ -123,7 +123,7 @@ export function useBibleScrolling(
    */
   previewVerseId: number | null,
   scrollTrigger: number,
-  scrollMode: 'center' | 'nearest',
+  scrollMode: 'center' | 'nearest' | 'top',
   currentVerses: any[],
   isLoading: boolean,
   saveScrollPosition: (scrollTop: number) => void,
@@ -167,6 +167,13 @@ export function useBibleScrolling(
         const updatedHistory = [...ps.navigationHistory];
         updatedHistory[ps.historyIndex] = { ...currentHistoryEntry, scrollTop: undefined };
         useBibleStore.setState({ panels: new Map(useBibleStore.getState().panels).set(panelId, { ...ps, navigationHistory: updatedHistory }) });
+        return;
+      }
+
+      // 'top': a plain chapter change (next/previous link, header arrows). Show the chapter from its
+      // heading; scrolling verse 1 into view would hide the heading above it.
+      if (scrollMode === 'top' && !previewVerseId) {
+        if (bibleTextRef.current) bibleTextRef.current.scrollTop = 0;
         return;
       }
 

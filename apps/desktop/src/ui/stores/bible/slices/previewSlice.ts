@@ -131,6 +131,8 @@ export const createPreviewSlice: StateCreator<BibleState, [], [], PreviewSlice> 
       panels: updatePanelState(get().panels, panelId, {
         selectedVerseId: verseId,
         selectionEndVerseId: null,
+        // Sticky scrollMode: never let a stale 'top' reset the pane to scrollTop 0.
+        scrollMode: 'nearest',
         previewVerseId: null,
         previewVerseEndId: null,
         backBarVerseId: null,

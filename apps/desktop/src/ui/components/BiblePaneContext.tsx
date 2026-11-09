@@ -108,7 +108,7 @@ export interface BiblePaneContextValue {
   error: string | null;
   displayMode: DisplayMode;
   scrollTrigger: number;
-  scrollMode: 'center' | 'nearest';
+  scrollMode: 'center' | 'nearest' | 'top';
 
   // Panel actions
   loadInitialData: () => void;

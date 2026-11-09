@@ -38,6 +38,8 @@ export function useCommentaryPanel(panelId: string = DEFAULT_PANEL_ID) {
     entrySummariesByTab: new Map(),
     tabActivationSeq: 0,
     loadingSummariesByTab: new Map(),
+    unavailableByTab: new Map(),
+    summariesFailedByTab: new Map(),
   }, [panelState]);
 
   // Shared actions (no panelId binding needed)
@@ -135,6 +137,8 @@ export function useCommentaryPanel(panelId: string = DEFAULT_PANEL_ID) {
     browseModeByTab: ps.browseModeByTab,
     entrySummariesByTab: ps.entrySummariesByTab,
     loadingSummariesByTab: ps.loadingSummariesByTab,
+    unavailableByTab: ps.unavailableByTab,
+    summariesFailedByTab: ps.summariesFailedByTab,
     tabActivationSeq: ps.tabActivationSeq,
 
     // Bound actions

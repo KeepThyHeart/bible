@@ -16,6 +16,7 @@ import type { SearchBarMode } from '../types/SearchBarMode';
 import type { CommandQueryResult } from '../types/Command';
 import TopSearchBarDropdown from './TopSearchBarDropdown';
 import LiveSearchSuggestions from './LiveSearchSuggestions';
+import SearchTypeSelector from './SearchTypeSelector';
 import { focusRegion } from '../services/regionNavigation';
 import { useLayoutStore } from '../stores/useLayoutStore';
 import { currentOs } from '../utils/platformLabels';
@@ -25,7 +26,7 @@ import { currentOs } from '../utils/platformLabels';
  * search box never drops focus to <body>. After the new UI renders, focus goes
  * to the heading of what replaced it, else the Bible pane region.
  */
-function focusAfterSearch(kind: 'bible' | 'results' | 'back'): void {
+export function focusAfterSearch(kind: 'bible' | 'results' | 'back', verseId?: number): void {
   const run = (attempt = 0): void => {
     const active = document.activeElement;
     // The action already put focus somewhere real (a dialog, another pane): leave it.
@@ -50,12 +51,25 @@ function focusAfterSearch(kind: 'bible' | 'results' | 'back'): void {
         (id && document.querySelector<HTMLElement>(`[data-panel-id="${id}"] [data-pane-focus]`)) ||
         document.querySelector<HTMLElement>('[data-tour-pane="bible"] [data-pane-focus]');
     }
+    if (target && kind === 'bible' && verseId !== undefined) {
+      // A verse was the navigation target: focus its row (not the chapter heading, which would
+      // show a focus ring instead of the verse), without scrolling away from the centred verse.
+      const pane = target.closest<HTMLElement>('[data-panel-id]') ?? document;
+      const row = pane.querySelector<HTMLElement>(`[data-verse-id="${verseId}"]`);
+      if (row) {
+        if (!row.hasAttribute('tabindex')) row.tabIndex = -1;
+        row.focus({ preventScroll: true });
+        return;
+      }
+    }
     if (target) {
-      target.focus();
+      // Landing on a Bible verse: the pane heading sits above verse 1, so focusing it with the
+      // default scroll would undo the centring of a typed "John 3:16" and snap back to the top.
+      target.focus(kind === 'results' ? undefined : { preventScroll: true });
       return;
     }
     const region = document.querySelector<HTMLElement>('[data-kth-region="pane"]');
-    if (region) focusRegion(region);
+    if (region) focusRegion(region, kind !== 'results');
   };
   requestAnimationFrame(() => requestAnimationFrame(() => run()));
 }
@@ -345,6 +359,7 @@ const TopSearchBar = forwardRef<TopSearchBarHandle>(function TopSearchBar(_props
     const target = reference ?? parsedReference;
     if (!target) return;
 
+    let navigatedVerseId: number | undefined;
     const problem = checkChapterVerse(target.book!, target.chapter!, target.verse);
     if (problem) {
       reportReferenceProblem(problem);
@@ -384,6 +399,7 @@ const TopSearchBar = forwardRef<TopSearchBarHandle>(function TopSearchBar(_props
         ? undefined
         : (target.book! * 1000000) + ((target.endChapter ?? target.chapter!) * 1000) + endVerse;
 
+      navigatedVerseId = verseId;
       await navigateToVerse(verseId, endVerseId);
       // Typing a reference is the reader choosing a verse, exactly as a click
       // is. Without this the Bible pane moved on its own and the study panes
@@ -400,7 +416,7 @@ const TopSearchBar = forwardRef<TopSearchBarHandle>(function TopSearchBar(_props
     clearSearch();
     setIsFocused(false);
     inputRef.current?.blur();
-    focusAfterSearch('bible');
+    focusAfterSearch('bible', navigatedVerseId);
   }, [parsedReference, navigateToVerse, clearSearch]);
 
   // --------------------------------------------------------------------------
@@ -457,7 +473,7 @@ const TopSearchBar = forwardRef<TopSearchBarHandle>(function TopSearchBar(_props
       clearSearch();
       setIsFocused(false);
       inputRef.current?.blur();
-      focusAfterSearch('bible');
+      focusAfterSearch('bible', result.verseId);
     } catch (err) {
       console.error('Error navigating to suggestion:', err, result);
     }
@@ -656,12 +672,8 @@ const TopSearchBar = forwardRef<TopSearchBarHandle>(function TopSearchBar(_props
         </svg>
       );
     }
-    // search / empty
-    return (
-      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-      </svg>
-    );
+    // search / empty: the icon is also the Search / Ideas selector
+    return <SearchTypeSelector onChosen={() => inputRef.current?.focus()} />;
   }, [mode]);
 
   // --------------------------------------------------------------------------
@@ -721,7 +733,7 @@ const TopSearchBar = forwardRef<TopSearchBarHandle>(function TopSearchBar(_props
       {/* Search Input Container */}
       <div className="relative">
         {/* Mode Icon */}
-        <div className="absolute start-3 top-1/2 transform -translate-y-1/2 text-text-muted">
+        <div className="absolute start-3 top-1/2 transform -translate-y-1/2 text-text-muted z-50">
           {modeIcon}
         </div>
 

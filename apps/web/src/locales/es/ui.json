@@ -161,7 +161,8 @@
       "captionCapped": "Solo se cuentan los resultados cargados hasta ahora; hay más por cargar.",
       "captionCeiling": "{count, plural, one {Solo se cuenta la primera # coincidencia; la búsqueda se detiene ahí.} other {Solo se cuentan las primeras # coincidencias; la búsqueda se detiene ahí.}}"
     },
-    "resultsFrom": "Resultados de {modules}"
+    "resultsFrom": "Resultados de {modules}",
+    "showMoreCount": "Show {count} more"
   },
   "contextMenu": {
     "label": "Acciones del versículo",

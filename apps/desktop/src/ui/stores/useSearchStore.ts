@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { dedupeSemanticResults } from '../utils/dedupeSemanticResults';
 import { SearchResult, SearchOptions, SavedSearch, StrongsNumberHelper } from '@bible/core';
 import type { RemoteSemantic } from '@bible/core';
 import { searchAPI, dictionaryAPI, remoteSemanticAPI } from '../services/electronAPI';
@@ -126,6 +127,11 @@ export interface SearchSessionMeta {
   hostPanelId?: string | null;
   /** Creation stamp: the order of sub-tabs inside a search host panel. */
   createdAt?: number;
+  /**
+   * Preview-tab model: an unpinned search tab (italic title) is reused by the
+   * next plain search; a pinned one is kept, and the next search opens a new tab.
+   */
+  pinned?: boolean;
 }
 
 export interface PerformSearchOptions {
@@ -286,6 +292,8 @@ interface SearchState {
   runPendingRerun: (sessionId: string) => Promise<void>;
   /** "Open in new search tab": run this tab's search again in a new tab. */
   openSessionInNewTab: (sessionId: string) => Promise<void>;
+  /** Pin (or unpin, `pinned = false`) a search tab; omitted toggles. A pinned tab is not reused by the next search. */
+  pinSession: (sessionId: string, pinned?: boolean) => void;
   /** Apply a patch to one session wherever it lives; false when the session is gone. */
   patchSession: (sessionId: string, patch: Partial<SearchSessionFields>) => boolean;
 
@@ -825,6 +833,13 @@ export const useSearchStore = create<SearchState>((set, get) => {
     return id;
   };
 
+  /** A plain search reuses the active (preview) tab; an explicit new tab, or a pinned active tab, opens another. */
+  const shouldOpenNewTab = (opts: PerformSearchOptions): boolean => {
+    const s = get();
+    if (!s.activeSessionId) return false;
+    return !!opts.newTab || !!s.sessionMeta[s.activeSessionId]?.pinned;
+  };
+
   /** Start a new session for a new tab and make it active. */
   const startNewTabSession = (semantic: boolean | undefined): string => {
     const s = get();
@@ -1048,7 +1063,8 @@ export const useSearchStore = create<SearchState>((set, get) => {
       const query = tab.query.trim();
       if (!query || sessionExists(tab.id) || parked[tab.id]) continue;
       parked[tab.id] = { ...freshSessionFields(!!tab.semantic), query, pendingRerun: true };
-      meta[tab.id] = { ...newMeta(), hasPanel: true, hostPanelId: tab.hostPanelId ?? null };
+      // A tab that survived a restart was kept on purpose: it is pinned.
+      meta[tab.id] = { ...newMeta(), hasPanel: true, hostPanelId: tab.hostPanelId ?? null, pinned: true };
     }
     for (const tab of tabs) {
       if (tab.recent && meta[tab.id]) meta[tab.id] = { ...meta[tab.id], lastUsed: nextUseStamp() };
@@ -1065,6 +1081,14 @@ export const useSearchStore = create<SearchState>((set, get) => {
     // highlights and badge follow it as they would after a search.
     if (!get().activeSessionId) get().activateSession(sessionId);
     await get().performSearch(query, { sessionId, reveal: false });
+  },
+
+  pinSession: (sessionId: string, pinned?: boolean) => {
+    set((st) => {
+      const meta = st.sessionMeta[sessionId];
+      if (!meta) return st;
+      return { sessionMeta: { ...st.sessionMeta, [sessionId]: { ...meta, pinned: pinned ?? !meta.pinned } } };
+    });
   },
 
   openSessionInNewTab: async (sessionId: string) => {
@@ -1097,8 +1121,19 @@ export const useSearchStore = create<SearchState>((set, get) => {
       return;
     }
 
+    // A pinned active tab is kept, but a plain search should not pile up preview tabs:
+    // reuse the most recently used unpinned search tab if one exists (activate it).
+    if (!explicitSession && !opts.newTab) {
+      const st = get();
+      if (st.activeSessionId && st.sessionMeta[st.activeSessionId]?.pinned) {
+        const reusable = Object.keys(st.parkedSessions)
+          .filter((id) => !st.sessionMeta[id]?.pinned)
+          .sort((a, b) => (st.sessionMeta[b]?.lastUsed ?? 0) - (st.sessionMeta[a]?.lastUsed ?? 0))[0];
+        if (reusable) get().activateSession(reusable);
+      }
+    }
     const sessionId = explicitSession
-      ?? (opts.newTab && get().activeSessionId ? startNewTabSession(opts.semantic) : ensureActiveSession());
+      ?? (shouldOpenNewTab(opts) ? startNewTabSession(opts.semantic) : ensureActiveSession());
     const ticket = beginRequest(sessionId, 'keyword');
 
     patchSession(sessionId, {
@@ -1427,7 +1462,7 @@ export const useSearchStore = create<SearchState>((set, get) => {
 
       if (!isLatestRequest(sessionId, 'semantic', ticket)) return;
       const written = patchSession(sessionId, {
-        semanticResults: reply.results,
+        semanticResults: dedupeSemanticResults(reply.results),
         semanticSource: reply.source,
         semanticNotice: reply.notice ?? null,
         semanticRateLimit: reply.rateLimit ?? null,

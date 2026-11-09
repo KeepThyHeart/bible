@@ -378,6 +378,35 @@ function registerWindowHandlers(): void {
     }
   });
 
+  // Theme and font settings live in the main window's renderer. A popped-out window is its own
+  // renderer, so the main window publishes them here and every detached window follows (and asks
+  // for the latest on open: `window:get-appearance`).
+  let lastAppearance: unknown = null;
+  ipcMain.handle('window:broadcast-appearance', async (event, appearance: unknown) => {
+    if (!appearance || typeof appearance !== 'object') return { success: false, error: 'Invalid appearance' };
+    lastAppearance = appearance;
+    windowManager.sendToDetached('appearance-changed', appearance, event.sender.id);
+    return { success: true };
+  });
+  ipcMain.handle('window:get-appearance', async () => lastAppearance);
+
+  // A detached window (notes, commentary, ...) has no Bible pane: a reference clicked there opens in the
+  // main window's Bible pane, which is brought to the front.
+  ipcMain.handle('window:navigate-main-to-verse', async (_event, verseId: number, newPanel?: boolean) => {
+    try {
+      if (!Number.isInteger(verseId) || verseId <= 0) return { success: false, error: 'Invalid verse id' };
+      if (!mainWindow || mainWindow.isDestroyed()) return { success: false, error: 'No main window' };
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.show();
+      mainWindow.focus();
+      mainWindow.webContents.send('window:navigate-to-verse', verseId, newPanel === true);
+      return { success: true };
+    } catch (error) {
+      log.error('[IPC] Error navigating main window to verse:', error);
+      return { success: false, error: (error as Error).message };
+    }
+  });
+
   // Broadcast verse change to every *other* window (for syncing)
   ipcMain.handle('window:broadcast-verse-change', async (event, verseId: number, moduleId?: string) => {
     try {

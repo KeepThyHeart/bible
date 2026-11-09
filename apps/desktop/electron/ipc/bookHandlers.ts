@@ -1,4 +1,5 @@
 import { IpcMain } from 'electron';
+import { missingModuleError } from './moduleErrors';
 import log from 'electron-log/main';
 import { BookRepository } from '@bible/core';
 import { listInstalledModules } from '../services/installedModules';
@@ -19,7 +20,7 @@ export function getBookRepository(abbreviation: string): BookRepository | null {
 function requireBookRepository(abbreviation: string): BookRepository {
   const repo = getBookRepository(abbreviation);
   if (!repo) {
-    throw new IpcKnownError('not_found', `Book not found: ${abbreviation}`);
+    throw missingModuleError(loader, abbreviation, `Book not found: ${abbreviation}`);
   }
   return repo;
 }

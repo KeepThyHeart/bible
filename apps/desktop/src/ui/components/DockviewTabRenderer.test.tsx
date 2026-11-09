@@ -252,6 +252,14 @@ describe('context menu', () => {
     expect(screen.getByRole('menuitem', { name: 'ui.dockviewTab.popOutToWindow' })).toBeInTheDocument();
   });
 
+  it('offers Pop Out to Window on an extension panel tab (the ext: prefix is not a PanelContentType key)', async () => {
+    const user = userEvent.setup();
+    render(<DockviewTabRenderer {...makeProps('ext:ext.test.bible-viewer.viewer')} />);
+
+    await user.pointer({ keys: '[MouseRight]', target: screen.getByText('Tab') });
+    expect(screen.getByRole('menuitem', { name: 'ui.dockviewTab.popOutToWindow' })).toBeInTheDocument();
+  });
+
   it('closes the menu after popping out', async () => {
     await popOut('bible');
     expect(screen.queryByRole('menuitem', { name: 'ui.dockviewTab.popOutToWindow' })).not.toBeInTheDocument();

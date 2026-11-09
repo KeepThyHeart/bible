@@ -6,6 +6,7 @@ import type {
   IWordStudyProvider,
   WordGroup,
   WordKeyCandidate,
+  WordOccurrenceItem,
   WordOccurrencePage,
   WordStudyOverview,
   WordStudySubject,
@@ -13,6 +14,10 @@ import type {
 
 /** Occurrences fetched per page; "load more" appends the next page. */
 export const WORD_STUDY_PAGE_SIZE = 100;
+/** "Load more" fetches up to this many occurrences per click, like the other lists. */
+export const WORD_STUDY_LOAD_MORE_SIZE = 1000;
+/** The occurrences endpoint (and the core service) clamp one request to 500, so a click is split into requests of this size. */
+export const WORD_STUDY_REQUEST_MAX = 500;
 
 export interface WordStudyStoreFilters {
   book?: number;
@@ -277,20 +282,29 @@ class WordStudyStore extends Store {
     if (reset) this.occurrences = null;
     this.occurrencesLoading = true;
     this.notify();
-    const offset = reset ? 0 : (this.occurrences?.items.length ?? 0);
+    const startOffset = reset ? 0 : (this.occurrences?.items.length ?? 0);
+    const want = reset ? WORD_STUDY_PAGE_SIZE : WORD_STUDY_LOAD_MORE_SIZE;
     try {
-      const page = await this.api().getOccurrences(subject, {
-        module,
-        book: this.filters.book,
-        form: this.filters.form,
-        renderingMode: this.renderingMode,
-        offset,
-        limit: WORD_STUDY_PAGE_SIZE,
-      });
-      if (seq !== this.occSeq) return;
+      let total = 0;
+      const collected: WordOccurrenceItem[] = [];
+      while (collected.length < want) {
+        const limit = Math.min(WORD_STUDY_REQUEST_MAX, want - collected.length);
+        const chunk = await this.api().getOccurrences(subject, {
+          module,
+          book: this.filters.book,
+          form: this.filters.form,
+          renderingMode: this.renderingMode,
+          offset: startOffset + collected.length,
+          limit,
+        });
+        if (seq !== this.occSeq) return;
+        total = chunk.total;
+        collected.push(...chunk.items);
+        if (chunk.items.length < limit || startOffset + collected.length >= chunk.total) break;
+      }
       this.occurrences = reset || !this.occurrences
-        ? page
-        : { total: page.total, items: [...this.occurrences.items, ...page.items] };
+        ? { total, items: collected }
+        : { total, items: [...this.occurrences.items, ...collected] };
       this.occurrencesLoading = false;
       this.notify();
     } catch (e) {

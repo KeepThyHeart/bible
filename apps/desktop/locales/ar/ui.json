@@ -1041,6 +1041,14 @@
   "searchTabs.meaningSubtitle": "المعنى",
   "searchTabs.openInNewTab": "فتح في علامة تبويب بحث جديدة",
   "searchTabs.openInNewTabTitle": "فتح هذا البحث في علامة تبويب بحث جديدة",
+  "searchTabs.pin": "Pin Search Tab",
+  "searchTabs.unpin": "Unpin Search Tab",
+  "searchTabs.previewTitle": "Preview tab: the next search replaces it. Double-click to pin.",
+  "searchBar.type.title": "Search type",
+  "searchBar.type.keyword": "Search",
+  "searchBar.type.keywordHint": "Find verses that contain your words.",
+  "searchBar.type.ideas": "Ideas Search",
+  "searchBar.type.ideasHint": "Find verses by meaning, even when the words differ.",
   "searchTabs.subTabListLabel": "عمليات البحث",
   "searchTabs.closeSubTab": "إغلاق البحث: {query}",
   "searchResultsPane.noSemanticMatches": "لم يُعثر على مطابقات دلالية",
@@ -1130,6 +1138,9 @@
   "commentaryContentArea.loading": "جارٍ تحميل التفسير...",
   "commentaryContentArea.noCommentary": "لا يوجد تفسير متاح لهذا العدد",
   "commentaryContentArea.browseAll": "استعراض الكل",
+  "commentaryContentArea.moduleMissing": "{name}: this commentary's file is missing.",
+  "commentaryContentArea.moduleMissingHint": "Reinstall it from the Module Manager.",
+  "commentaryContentArea.openModuleManager": "Open Module Manager",
   "commentaryContentArea.previousVerse": "العدد السابق",
   "commentaryContentArea.nextVerse": "العدد التالي",
   "commentaryContentArea.previous": "السابق",
@@ -2447,5 +2458,7 @@
   "remoteConsent.getPack": "الحصول على حزمة المعنى المحلية",
   "searchResultsPane.resultsFrom": "نتائج من {modules}",
   "advancedSearchDialog.operatorsHint": "العوامل: && (و)، || (أو)، ! (ليس)، مع الأقواس، مثل محبة && !(بغض || غضب). تبقى الكلمات AND وOR وNOT كلمات عادية.",
-  "topicsPane.directOfTotal": "({direct} مباشرة، المجموع {total})"
+  "topicsPane.directOfTotal": "({direct} مباشرة، المجموع {total})",
+  "editorToolbar.indentTitle": "Increase Indent (Tab)",
+  "editorToolbar.outdentTitle": "Decrease Indent (Shift+Tab)"
 }

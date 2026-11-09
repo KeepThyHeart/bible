@@ -21,7 +21,20 @@ const TAG = /<(\/?)(\w+)([^>]*)>/g;
  * the offsets could not be trusted, so the caller keeps plain output.
  */
 export function divineRangesFromHtml(html: string, plain: string): TextRange[] | null {
-  if (!html || !html.includes('divine-name')) return [];
+  return spanRangesFromHtml(html, plain, 'divine-name');
+}
+
+/**
+ * Character ranges inside `<span class="christ-words">` (Words of Christ, red
+ * letter). Same contract as {@link divineRangesFromHtml}.
+ */
+export function christRangesFromHtml(html: string, plain: string): TextRange[] | null {
+  return spanRangesFromHtml(html, plain, 'christ-words');
+}
+
+function spanRangesFromHtml(html: string, plain: string, className: string): TextRange[] | null {
+  if (!html || !html.includes(className)) return [];
+  const classPattern = new RegExp(`class\\s*=\\s*"[^"]*\\b${className}\\b`);
   const ranges: TextRange[] = [];
   const stack: boolean[] = []; // per open <span>: is it a divine-name span
   let divineDepth = 0;
@@ -40,7 +53,7 @@ export function divineRangesFromHtml(html: string, plain: string): TextRange[] |
         open = -1;
       }
     } else {
-      const isDivine = /class\s*=\s*"[^"]*\bdivine-name\b/.test(m[3]);
+      const isDivine = classPattern.test(m[3]);
       stack.push(isDivine);
       if (isDivine && divineDepth++ === 0) open = out;
     }
@@ -54,9 +67,16 @@ export function divineRangesFromHtml(html: string, plain: string): TextRange[] |
  * around each of `divine`, clipped to [from, to) and shifted so offsets are
  * relative to `from`. Split at every boundary, so nesting is always valid.
  */
-export function markUp(text: string, from: number, to: number, matches: TextRange[], divine: TextRange[]): string {
+export function markUp(
+  text: string,
+  from: number,
+  to: number,
+  matches: TextRange[],
+  divine: TextRange[],
+  christ: TextRange[] = [],
+): string {
   const cuts = new Set<number>([from, to]);
-  for (const r of [...matches, ...divine]) {
+  for (const r of [...matches, ...divine, ...christ]) {
     if (r.end <= from || r.start >= to) continue;
     cuts.add(Math.max(r.start, from));
     cuts.add(Math.min(r.end, to));
@@ -70,15 +90,41 @@ export function markUp(text: string, from: number, to: number, matches: TextRang
     let piece = text.slice(a, b);
     if (covers(matches, a, b)) piece = `<strong><u>${piece}</u></strong>`;
     if (covers(divine, a, b)) piece = `<span class="divine-name">${piece}</span>`;
+    // Outermost, as in the Bible pane (VerseTextFormatter): christ-words wraps divine-name.
+    if (covers(christ, a, b)) piece = `<span class="christ-words">${piece}</span>`;
     result += piece;
   }
   return result;
 }
 
+function hasDivineMarks(verse: BibleVerse): boolean {
+  const fd = verse.formattingData as { divineName?: unknown[]; divine_name?: unknown[] } | undefined;
+  return verse.text.includes('<divineName') || !!fd?.divineName?.length || !!fd?.divine_name?.length;
+}
+
+function hasChristMarks(verse: BibleVerse): boolean {
+  const fd = verse.formattingData as { wordsOfChrist?: unknown[]; words_of_christ?: unknown[] } | undefined;
+  return !!fd?.wordsOfChrist?.length || !!fd?.words_of_christ?.length;
+}
+
+/** Both range lists of a verse, formatting its text at most once. */
+export function markedRangesOfVerse(verse: BibleVerse, text: string): { divine: TextRange[] | null; christ: TextRange[] | null } {
+  const wantDivine = hasDivineMarks(verse);
+  const wantChrist = hasChristMarks(verse);
+  if (!wantDivine && !wantChrist) return { divine: null, christ: null };
+  const html = formatVerseText(verse).textHtml;
+  return {
+    divine: wantDivine ? divineRangesFromHtml(html, text) : null,
+    christ: wantChrist ? christRangesFromHtml(html, text) : null,
+  };
+}
+
 /** Divine-name character ranges of `text` (the verse's plain text), from its formatted HTML; null/empty when it has none. */
 export function divineRangesOfVerse(verse: BibleVerse, text: string): TextRange[] | null {
-  const fd = verse.formattingData as { divineName?: unknown[]; divine_name?: unknown[] } | undefined;
-  const marked = verse.text.includes('<divineName') || !!fd?.divineName?.length || !!fd?.divine_name?.length;
-  if (!marked) return null;
-  return divineRangesFromHtml(formatVerseText(verse).textHtml, text);
+  return markedRangesOfVerse(verse, text).divine;
+}
+
+/** Words-of-Christ character ranges of `text` (the verse's plain text); null/empty when the verse has none. */
+export function christRangesOfVerse(verse: BibleVerse, text: string): TextRange[] | null {
+  return markedRangesOfVerse(verse, text).christ;
 }

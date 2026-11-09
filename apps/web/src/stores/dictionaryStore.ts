@@ -1,6 +1,9 @@
 import { Store } from './Store';
 import type { NewlineHandling } from '@bible/core/browser';
 
+/** Entries each dictionary browse "Load more" fetches (server caps at 1,000). */
+export const BROWSE_LOAD_MORE_LIMIT = 1000;
+
 export interface DictionaryModule {
   abbreviation: string;
   name: string;
@@ -624,7 +627,7 @@ class DictionaryStore extends Store {
 
     try {
       const res = await fetch(
-        `${this.baseUrl}/api/dictionary/${tab.moduleAbbr}/browse?letter=${encodeURIComponent(state.browseLetter)}&limit=50&offset=${state.browseOffset}`
+        `${this.baseUrl}/api/dictionary/${tab.moduleAbbr}/browse?letter=${encodeURIComponent(state.browseLetter)}&limit=${BROWSE_LOAD_MORE_LIMIT}&offset=${state.browseOffset}`
       );
       if (res.ok) {
         const data = await res.json();

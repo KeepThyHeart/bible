@@ -20,6 +20,7 @@ import { useEditorShortcuts } from './UserNotesPane/hooks/useEditorShortcuts';
 import { useNotesInit } from './UserNotesPane/hooks/useNotesInit';
 import { useVerseNoteOpener } from './UserNotesPane/hooks/useVerseNoteOpener';
 import { usePopOutListener } from './UserNotesPane/hooks/usePopOutListener';
+import { useNoteSavedListener } from './UserNotesPane/hooks/useNoteSavedListener';
 import { useNotesNavigation } from './UserNotesPane/hooks/useNotesNavigation';
 import { useMoveDialogFolders } from './UserNotesPane/hooks/useMoveDialogFolders';
 import UserNotesSidebar from './UserNotesPane/UserNotesSidebar';
@@ -237,6 +238,9 @@ const UserNotesPane: React.FC<UserNotesPaneProps> = ({
     loadDirectory,
   });
 
+  // Live sync: a save of this note in another window reloads it here (or flags a conflict if we have unsaved edits)
+  useNoteSavedListener({ view, currentNote, currentNotePath, setCurrentNote, setFileError });
+
   // Notes-folder CRUD: create note/folder, rename, move, delete
   const {
     handleCreateNote,
@@ -406,6 +410,7 @@ const UserNotesPane: React.FC<UserNotesPaneProps> = ({
                   // documents/journal/prayer notes keep the free-text title.
                   titleEditable={currentNote.type !== 'verse_note'}
                   onPopOut={handlePopOut}
+                  isDetached={isDetached}
                   notePath={currentNotePath}
                   previousNote={previousNote && previousNote.path !== currentNotePath ? previousNote : null}
                   onBackToPrevious={() => { if (previousNote) void handleOpenNote(previousNote.path); }}

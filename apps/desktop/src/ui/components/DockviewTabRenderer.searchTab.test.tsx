@@ -28,7 +28,7 @@ vi.mock('../utils/paneNames', async (importOriginal) => ({
 vi.mock('../hooks/useOverlayDismissal', () => ({ useOverlayDismissal: vi.fn() }));
 
 import DockviewTabRenderer, { searchTabTitle, SEARCH_TAB_TITLE_LENGTH } from './DockviewTabRenderer';
-import { useSearchStore, freshSessionFields } from '../stores/useSearchStore';
+import { useSearchStore, freshSessionFields, type SearchSessionMeta } from '../stores/useSearchStore';
 
 const PANEL_ID = 'search_abc';
 const LONG = 'the quick brown fox jumps over the lazy dog';
@@ -67,7 +67,7 @@ function renderTab(props: ReturnType<typeof makeProps>) {
   );
 }
 
-function setActiveSession(fields: Partial<ReturnType<typeof freshSessionFields>>) {
+function setActiveSession(fields: Partial<ReturnType<typeof freshSessionFields>> & { sessionMeta?: Record<string, SearchSessionMeta> }) {
   useSearchStore.setState({
     ...freshSessionFields(false),
     activeSessionId: PANEL_ID,
@@ -198,5 +198,37 @@ describe('search tab context menu', () => {
     renderTab(makeProps('bible', 'bible_1', 'John 3'));
     await user.pointer({ keys: '[MouseRight]', target: screen.getByText('John 3') });
     expect(screen.queryByTestId('search-tab-open-in-new-tab')).toBeNull();
+  });
+});
+
+describe('a search tab as a preview tab', () => {
+  const meta = (pinned: boolean) => ({
+    [PANEL_ID]: { hasPanel: true, lastUsed: 1, createdAt: 1, hostPanelId: null, pinned },
+  });
+
+  it('is italic until pinned', () => {
+    setActiveSession({ query: 'love', resultsForQuery: 'love', sessionMeta: meta(false) });
+    const { unmount } = renderTab(makeProps('search'));
+    expect(document.querySelector('[data-search-preview="true"]')).toHaveStyle({ fontStyle: 'italic' });
+    unmount();
+
+    setActiveSession({ query: 'love', resultsForQuery: 'love', sessionMeta: meta(true) });
+    renderTab(makeProps('search'));
+    const host = document.querySelector('[data-search-preview="false"]') as HTMLElement;
+    expect(host.style.fontStyle).toBe('');
+  });
+
+  it('double-click pins it; the context menu toggles the pin', async () => {
+    const user = userEvent.setup();
+    setActiveSession({ query: 'love', resultsForQuery: 'love', sessionMeta: meta(false) });
+    renderTab(makeProps('search'));
+
+    await user.dblClick(screen.getByText('love'));
+    expect(useSearchStore.getState().sessionMeta[PANEL_ID]?.pinned).toBe(true);
+
+    await user.pointer({ keys: '[MouseRight]', target: screen.getByText('love') });
+    expect(screen.getByTestId('search-tab-pin')).toHaveTextContent('searchTabs.unpin');
+    await user.click(screen.getByTestId('search-tab-pin'));
+    expect(useSearchStore.getState().sessionMeta[PANEL_ID]?.pinned).toBe(false);
   });
 });

@@ -1043,6 +1043,14 @@
   "searchTabs.meaningSubtitle": "Significado",
   "searchTabs.openInNewTab": "Abrir em uma nova aba de pesquisa",
   "searchTabs.openInNewTabTitle": "Abrir esta pesquisa em uma nova aba de pesquisa",
+  "searchTabs.pin": "Pin Search Tab",
+  "searchTabs.unpin": "Unpin Search Tab",
+  "searchTabs.previewTitle": "Preview tab: the next search replaces it. Double-click to pin.",
+  "searchBar.type.title": "Search type",
+  "searchBar.type.keyword": "Search",
+  "searchBar.type.keywordHint": "Find verses that contain your words.",
+  "searchBar.type.ideas": "Ideas Search",
+  "searchBar.type.ideasHint": "Find verses by meaning, even when the words differ.",
   "searchTabs.subTabListLabel": "Pesquisas",
   "searchTabs.closeSubTab": "Fechar pesquisa: {query}",
   "searchResultsPane.noSemanticMatches": "Nenhuma correspondência semântica encontrada",
@@ -1133,6 +1141,9 @@
   "commentaryContentArea.loading": "Carregando o comentário...",
   "commentaryContentArea.noCommentary": "Nenhum comentário disponível para este versículo",
   "commentaryContentArea.browseAll": "Procurar todos",
+  "commentaryContentArea.moduleMissing": "{name}: o arquivo deste comentário está ausente.",
+  "commentaryContentArea.moduleMissingHint": "Reinstale-o pelo Gerenciador de módulos.",
+  "commentaryContentArea.openModuleManager": "Abrir o Gerenciador de módulos",
   "commentaryContentArea.previousVerse": "Versículo anterior",
   "commentaryContentArea.nextVerse": "Próximo versículo",
   "commentaryContentArea.previous": "Anterior",
@@ -2447,5 +2458,7 @@
   "remoteConsent.getPack": "Obter o pacote local de significado",
   "searchResultsPane.resultsFrom": "Resultados de {modules}",
   "advancedSearchDialog.operatorsHint": "Operadores: && (e), || (ou), ! (não), com parênteses, p. ex. amor && !(ódio || ira). As palavras AND, OR e NOT continuam sendo palavras comuns.",
-  "topicsPane.directOfTotal": "({direct} diretos, {total} no total)"
+  "topicsPane.directOfTotal": "({direct} diretos, {total} no total)",
+  "editorToolbar.indentTitle": "Increase Indent (Tab)",
+  "editorToolbar.outdentTitle": "Decrease Indent (Shift+Tab)"
 }

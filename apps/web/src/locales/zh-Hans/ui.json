@@ -161,7 +161,8 @@
       "captionCapped": "此处仅统计已加载的结果，还有更多结果未加载。",
       "captionCeiling": "仅统计前 {count} 个匹配项，搜索到此为止。"
     },
-    "resultsFrom": "结果来自 {modules}"
+    "resultsFrom": "结果来自 {modules}",
+    "showMoreCount": "Show {count} more"
   },
   "contextMenu": {
     "label": "经文操作",

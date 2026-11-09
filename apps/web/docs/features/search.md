@@ -130,7 +130,7 @@ otherwise the client cannot tell whether there is more.
   uses, minus the cap), summed per module per number *without* de-duplication so
   that `results.length < totalAvailable` reliably means "the cap truncated
   something". It is never reported lower than `results.length`.
-- `searchStore.loadMoreStrongs()` grows the page by 100; `loadAllStrongs()` asks
+- `searchStore.loadMoreStrongs()` grows the page by 1,000 (`STRONGS_LOAD_MORE_STEP` in `src/stores/searchPaging.ts`; the first page stays 100); `loadAllStrongs()` asks
   for the ceiling. The endpoint has no offset, so — as with semantic paging — a
   larger page simply replaces the list. Both are guarded by `searchSeq`, so a
   response for a superseded search is dropped, and `canLoadMore` is cleared when
@@ -193,7 +193,7 @@ each endpoint bounds itself differently:
 | Mode | Signal | Why |
 |---|---|---|
 | Keyword | `results.length >= KEYWORD_PAGE_SIZE` (50) | `GET /api/search/keyword` has no offset and reports `total` as `results.length`, so the response carries no truncation signal at all. The store now asks for an explicit `pageSize` so the limit is a constant it owns rather than the server's default (the route caps at 100). A page that came back exactly full cannot be told apart from one the cap cut short — hence a caption that hedges rather than claiming a Bible-wide tally. |
-| Semantic | `canLoadMore` | The store asks for a page (20, growing by 20) and infers more from a full one; the route caps `maxResults` at 50. |
+| Semantic | `canLoadMore` | The store asks for a page (20) and infers more from a full one. Re-running the vector search at a larger cap loses relevance, so "Show more" grows by a bounded step (`SEMANTIC_LOAD_MORE_STEP` = 100) clamped to the route's `maxResults` ceiling (`SEMANTIC_MAX_RESULTS` = 500, matching the route clamp), so clicks take 20 to 120, 220 and on up to 500. The remote bibsearch client (`RemoteSemanticClient`) still caps `k` at 100, so in remote mode the list stops growing at 100; the desktop remote source caps at 50. |
 | Strong's | `results.length < strongsTotalAvailable` | The only endpoint that reports a true unclamped count. |
 
 ## Approximate (fuzzy) matches in the list
@@ -275,7 +275,7 @@ reworded first. Switching back to keyword still re-runs the query. Covered by
 
 `GET /api/search/semantic` proxies to bibsearch (`server/search/RemoteSemanticService.ts`, one client per process so a 429/503/403 pause is shared). Internal or localhost URLs work. Every web user then shares the web server's IP as far as bibsearch is concerned, so give the server an `apiKey` (or raise bibsearch's anonymous tier), or the per-IP limits will be hit quickly.
 
-Request: the normal `q`, `maxResults` (cap 50) and `modules` parameters plus the header `X-Remote-Search-Consent: <notice version>`. Without the current version the route answers `403 {error:{code:'CONSENT_REQUIRED'}, results:[], total:0}` and sends nothing to bibsearch. Success: `{results, total, timings, semantic:{source:'remote', notice?:{kind:'degraded'}, rateLimit}}`. Failure of the service: `503 {error:{code:'REMOTE_UNAVAILABLE'}, results:[], total:0, semantic:{source:'remote', notice}}`, where `notice` is `quota`, `paused`, `unavailable` or `rephrase`, so the browser can fall back to keyword search and show the note. `POST /api/search/semantic/warmup` does nothing in this mode.
+Request: the normal `q`, `maxResults` (cap 500) and `modules` parameters plus the header `X-Remote-Search-Consent: <notice version>`. Without the current version the route answers `403 {error:{code:'CONSENT_REQUIRED'}, results:[], total:0}` and sends nothing to bibsearch. Success: `{results, total, timings, semantic:{source:'remote', notice?:{kind:'degraded'}, rateLimit}}`. Failure of the service: `503 {error:{code:'REMOTE_UNAVAILABLE'}, results:[], total:0, semantic:{source:'remote', notice}}`, where `notice` is `quota`, `paused`, `unavailable` or `rephrase`, so the browser can fall back to keyword search and show the note. `POST /api/search/semantic/warmup` does nothing in this mode.
 
 ### `via: "browser"`
 
@@ -333,3 +333,7 @@ The browser calls bibsearch directly (`RemoteSemanticClient` with `credentials: 
 - Strong's popup (interlinear study mode, mobile layout) has a "Search all occurrences" button
 - The desktop layout routes an interlinear Strong's click to the Dictionary tab rather than the popup, so the same action lives on the dictionary entry: `DictionaryContent` renders a "Search all occurrences of G25" button whenever the open tab is a Strong's lexicon. `strongsNumberFor()` derives the number from the entry key, which is zero-padded and prefixless (`00025`), taking the G/H from which lexicon the tab is showing
 - `GET /api/search/strongs?number=G25&includeRelated=true&maxResults=100` endpoint returns entry info, word family, results, `total` (this page) and `totalAvailable` (all occurrences)
+
+## Paging ("Show more" / "Load more")
+
+Initial pages are unchanged (keyword 50, Strong's 100, topic verses 100, dictionary browse 50). Each "Show more"/"Load more" then loads up to 1,000 more at once: Strong's (`loadMoreStrongs`, bounded by the 5000 server cap; the button reads "Show N more"), keyword ("Load all"), topic verses (`TopicsBrowser`, `VERSE_LOAD_MORE_SIZE`), dictionary browse (`BROWSE_LOAD_MORE_LIMIT`). The topical `/verses` and dictionary `/browse` routes accept `limit` up to `MAX_LOAD_MORE_SIZE` (1000). Semantic (Ideas) is the exception, see above. Search result rows and browse items use `content-visibility: auto` so 1,000 rows stay smooth. Tests: `searchStore.strongsPaging.test.ts`, `searchStore.semanticPaging.test.ts`.

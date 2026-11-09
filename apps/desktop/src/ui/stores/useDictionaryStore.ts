@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { logModuleErrorOnce } from '../services/moduleErrorLog';
 import type { NewlineHandling } from '@bible/core';
 import { dictionaryAPI } from '../services/electronAPI';
 import { DEFAULT_PANEL_ID, updatePanelState } from './helpers/panelStateHelpers';
@@ -616,7 +617,9 @@ export const useDictionaryStore = create<DictionaryState>((set, get) => {
           }), createDefaultDictionaryPanelState)
         });
       } catch (error) {
-        console.error(`Error searching dictionary ${abbreviation}:`, error);
+        if (!logModuleErrorOnce('dictionary', abbreviation, 'store', error)) {
+          console.error(`Error searching dictionary ${abbreviation}:`, error);
+        }
         set({
           panels: updatePanelState(get().panels, panelId, withTabValues(get().getPanelState(panelId), abbreviation, {
             searchingByTab: false,
@@ -658,7 +661,9 @@ export const useDictionaryStore = create<DictionaryState>((set, get) => {
           }), createDefaultDictionaryPanelState)
         });
       } catch (error) {
-        console.error(`Error loading all entries for ${abbreviation}:`, error);
+        if (!logModuleErrorOnce('dictionary', abbreviation, 'store', error)) {
+          console.error(`Error loading all entries for ${abbreviation}:`, error);
+        }
         set({
           panels: updatePanelState(get().panels, panelId, withTabValues(get().getPanelState(panelId), abbreviation, {
             loadingAllEntriesByTab: false,

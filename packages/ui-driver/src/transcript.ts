@@ -83,7 +83,7 @@ function parseArgs(argv: string[]): { pos: string[]; enter: boolean; right: bool
   return { pos, enter, right };
 }
 
-const COMMENT_ONLY = new Set(['snapshot', 'diff', 'find', 'errors', 'check', 'screenshot', 'log', 'status', 'pages', 'page', 'help']);
+const COMMENT_ONLY = new Set(['snapshot', 'diff', 'find', 'errors', 'check', 'screenshot', 'log', 'status', 'pages', 'page', 'closepage', 'eval', 'help']);
 
 /** The steps (one or more lines, unindented) for one entry. */
 function step(e: TranscriptEntry, target: ReproTarget): string[] {

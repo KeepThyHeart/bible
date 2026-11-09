@@ -187,6 +187,31 @@ export class Session implements Executor {
         this.setBase(s);
         return ok(`page ${cmd.index}: ${headerLine(s)}`);
       }
+      case 'eval': {
+        this.need();
+        const page = this.pages[this.cur];
+        try {
+          const v = await page.evaluate(cmd.code);
+          const out = JSON.stringify(v === undefined ? null : v);
+          return ok(out.length > 4000 ? `${out.slice(0, 4000)}... (${out.length} chars)` : out);
+        } catch (e) {
+          return bad(`eval failed: ${(e as Error).message.split('\n')[0]}`);
+        }
+      }
+      case 'closepage': {
+        this.need();
+        if (cmd.index === 0) return bad('refusing to close page 0 (the main window); use stop');
+        const p = this.pages[cmd.index];
+        if (!p || p.isClosed()) return bad(`no page ${cmd.index}; pages`);
+        await p.close({ runBeforeUnload: true }).catch(() => undefined);
+        await new Promise((r) => setTimeout(r, 300));
+        if (this.cur === cmd.index) {
+          this.cur = 0;
+          const s = await this.snap(this.pages[0]);
+          this.setBase(s);
+        }
+        return ok(`closed page ${cmd.index}; now on page ${this.cur}`);
+      }
       default: return this.action(cmd as Act);
     }
   }
@@ -687,6 +712,8 @@ export function argvOf(cmd: Command): string[] {
     case 'find': return ['find', cmd.text];
     case 'start': return ['start', ...(cmd.app ? [cmd.app] : []), ...(cmd.url ? ['--url', cmd.url] : [])];
     case 'page': return ['page', String(cmd.index)];
+    case 'closepage': return ['closepage', String(cmd.index)];
+    case 'eval': return ['eval', cmd.code];
     case 'screenshot': return ['screenshot', ...(cmd.ref ? [cmd.ref] : [])];
     default: return [String(c.name)];
   }

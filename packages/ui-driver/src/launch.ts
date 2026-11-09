@@ -90,11 +90,20 @@ export async function launchApp(opts: LaunchOptions): Promise<LaunchedApp> {
   const manifest = loadManifest(manifestFile);
   const manifestDir = path.dirname(manifestFile);
 
-  const profileDir = path.join(opts.sessionDir, `profile-${Date.now()}`);
+  // DRIVE_PROFILE_DIR reuses (and keeps) one profile across starts: restart tests (saved layout, notes).
+  const fixedProfile = process.env.DRIVE_PROFILE_DIR;
+  const profileDir = fixedProfile ?? path.join(opts.sessionDir, `profile-${Date.now()}`);
   mkdirSync(profileDir, { recursive: true });
-  const keepProfile = opts.keepProfile || manifest.profile?.keep === true;
+  const keepProfile = !!fixedProfile || opts.keepProfile || manifest.profile?.keep === true;
   const cleanups: Array<() => Promise<void>> = [];
+  // Hard-exit fallback: if the daemon dies without running close() (uncaught exit, process.exit), the
+  // profile (fixture data copy, keyword index, user data) must not stay behind in /tmp.
+  const onExit = () => {
+    if (!keepProfile) rmSync(profileDir, { recursive: true, force: true });
+  };
+  process.on('exit', onExit);
   const cleanup = async () => {
+    process.off('exit', onExit);
     for (const fn of cleanups.reverse()) {
       try { await fn(); } catch { /* best effort */ }
     }
@@ -210,10 +219,21 @@ async function launchElectron(
 ): Promise<Partial_> {
   const miss = missingBuild(manifest, manifestDir);
   if (miss) throw new Error(miss);
-  const e = expandDeep(manifest.electron!, base);
+  const vars: Record<string, string> = { ...base };
+  if (manifest.prepare) {
+    const t0 = Date.now();
+    Object.assign(vars, await runPrepare(manifest.prepare, manifestDir, vars));
+    opts.log(`prepare done in ${((Date.now() - t0) / 1000).toFixed(1)}s`);
+  }
+  const e = expandDeep(manifest.electron!, vars);
   const main = path.resolve(manifestDir, e.main);
   const args = e.args ?? [];
-  const env = e.env ?? {};
+  // DRIVE_APP_ENV_NAME=value in the driver's own environment overrides NAME for the launched app
+  // (the manifest's value loses), e.g. DRIVE_APP_ENV_BIBLE_REMOTE_SEMANTIC_URL=http://127.0.0.1:8799.
+  const env: Record<string, string> = { ...(e.env ?? {}) };
+  for (const [k, v] of Object.entries(process.env)) {
+    if (k.startsWith('DRIVE_APP_ENV_') && v !== undefined && k.length > 14) env[k.slice(14)] = v;
+  }
   const executablePath = createRequire(path.join(manifestDir, 'package.json'))('electron') as string;
   const timeout = e.timeout ?? 60_000;
 

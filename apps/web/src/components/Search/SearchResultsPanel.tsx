@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { searchStore, searchResultId } from '../../stores/searchStore';
+import { SEMANTIC_LOAD_MORE_STEP, SEMANTIC_MAX_RESULTS, STRONGS_LOAD_MORE_STEP } from '../../stores/searchPaging';
 import { commentaryStore } from '../../stores/commentaryStore';
 import { bibleStore } from '../../stores/bibleStore';
 import { offlineStore } from '../../stores/offlineStore';
@@ -72,10 +73,16 @@ export function SearchResultsPanel({ onNavigate, onOpenStrongsEntry }: SearchRes
   const bookCounts = useStore(searchStore, () => searchStore.bookCounts);
   const searchError = useStore(searchStore, () => searchStore.searchError);
   const strongsTotalAvailable = useStore(searchStore, () => searchStore.strongsTotalAvailable);
+  const resultCount = useStore(searchStore, () => searchStore.results.length);
   const keywordRemaining = useStore(searchStore, () => searchStore.keywordRemaining);
   const lastClickedId = useStore(searchStore, () => searchStore.lastClickedId);
   const resultsTruncated = useStore(searchStore, () => searchStore.resultsTruncated);
   const isOnline = useStore(offlineStore, () => offlineStore.isOnline);
+  // What one click of "Show more" adds: Strong's loads up to 1,000 of the remainder,
+  // Ideas grows by a bounded step up to the server's cap.
+  const moreCount = strongsMode
+    ? Math.min(STRONGS_LOAD_MORE_STEP, strongsRemaining)
+    : Math.min(SEMANTIC_LOAD_MORE_STEP, Math.max(0, SEMANTIC_MAX_RESULTS - resultCount));
 
   const queryRejected = !!searchError && results.length === 0;
   // Ideas could not run at all: that is not "0 results", so no count and no "No results found".
@@ -593,7 +600,7 @@ export function SearchResultsPanel({ onNavigate, onOpenStrongsEntry }: SearchRes
               {loadingMore ? (
                 <><i class="fa-solid fa-spinner fa-spin" style={{ marginInlineEnd: '6px' }} />{t('search.loadingMore')}</>
               ) : (
-                t('search.showMore')
+                moreCount > 0 ? t('search.showMoreCount', { count: moreCount }) : t('search.showMore')
               )}
             </button>
             {/* A Strong's number has a known, finite occurrence count, so the user

@@ -1043,6 +1043,14 @@
   "searchTabs.meaningSubtitle": "语义",
   "searchTabs.openInNewTab": "在新搜索标签页中打开",
   "searchTabs.openInNewTabTitle": "在新的搜索标签页中打开此搜索",
+  "searchTabs.pin": "Pin Search Tab",
+  "searchTabs.unpin": "Unpin Search Tab",
+  "searchTabs.previewTitle": "Preview tab: the next search replaces it. Double-click to pin.",
+  "searchBar.type.title": "Search type",
+  "searchBar.type.keyword": "Search",
+  "searchBar.type.keywordHint": "Find verses that contain your words.",
+  "searchBar.type.ideas": "Ideas Search",
+  "searchBar.type.ideasHint": "Find verses by meaning, even when the words differ.",
   "searchTabs.subTabListLabel": "搜索列表",
   "searchTabs.closeSubTab": "关闭搜索：{query}",
   "searchResultsPane.noSemanticMatches": "未找到语义匹配",
@@ -1133,6 +1141,9 @@
   "commentaryContentArea.loading": "正在加载注释...",
   "commentaryContentArea.noCommentary": "这节经文没有可用的注释",
   "commentaryContentArea.browseAll": "浏览全部",
+  "commentaryContentArea.moduleMissing": "{name}：此注释的文件缺失。",
+  "commentaryContentArea.moduleMissingHint": "请在模块管理器中重新安装。",
+  "commentaryContentArea.openModuleManager": "打开模块管理器",
   "commentaryContentArea.previousVerse": "上一节",
   "commentaryContentArea.nextVerse": "下一节",
   "commentaryContentArea.previous": "上一个",
@@ -2449,5 +2460,7 @@
   "remoteConsent.getPack": "获取本地语义包",
   "searchResultsPane.resultsFrom": "结果来自 {modules}",
   "advancedSearchDialog.operatorsHint": "运算符：&&（与）、||（或）、!（非），可用括号，例如 爱 && !(恨 || 怒)。单词 AND、OR、NOT 仍按普通词处理。",
-  "topicsPane.directOfTotal": "（直接 {direct}，共 {total}）"
+  "topicsPane.directOfTotal": "（直接 {direct}，共 {total}）",
+  "editorToolbar.indentTitle": "Increase Indent (Tab)",
+  "editorToolbar.outdentTitle": "Decrease Indent (Shift+Tab)"
 }

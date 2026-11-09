@@ -60,7 +60,7 @@ vi.mock('../services/I18nService', async (importOriginal) => ({
   i18nService: { t: (key: string, params?: Record<string, unknown>) => enT(key, params) },
 }));
 
-import { DetachedWindow, COMPONENT_MAP, type InitializePanePayload } from './DetachedWindow';
+import { DetachedWindow, COMPONENT_MAP, detachedPaneTitle, type InitializePanePayload } from './DetachedWindow';
 // paneConfig is a dependency-free data module (no `electron` import), so the
 // renderer side can import the main-process side directly and check the two
 // halves of the pop-out contract against each other for real.
@@ -240,6 +240,12 @@ describe('DetachedWindow: document title (D8-4)', () => {
       state: { currentBookName: 'John', currentChapter: 4 },
     });
     expect(document.title).toBe('John 4 — Keep Thy Heart');
+  });
+
+  it('names a notes window for its note and an extension window for its contributed title', () => {
+    expect(detachedPaneTitle({ paneType: 'verse-notes', windowId: 'w', state: { initialCurrentNotePath: '/home/me/Notes/Verse Notes/Real Refs.html' } })).toBe('Real Refs');
+    expect(detachedPaneTitle({ paneType: 'verse-notes', windowId: 'w', state: { initialCurrentNotePath: 'C:\\Notes\\Plan.md' } })).toBe('Plan');
+    expect(detachedPaneTitle({ paneType: 'extension', windowId: 'w', state: { panelTitle: 'Test Bible Viewer' } })).toBe('Test Bible Viewer');
   });
 
   it('prefers a title supplied by the main process and falls back to the pane name', () => {

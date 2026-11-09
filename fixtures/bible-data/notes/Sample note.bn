@@ -1,0 +1,30 @@
+{
+  "bn": 1,
+  "type": "study",
+  "title": "Sample note",
+  "tags": [],
+  "passages": [
+    {
+      "start": 43003016,
+      "end": 43003016,
+      "association": "primary"
+    }
+  ],
+  "created": "2026-01-01T00:00:00Z",
+  "updated": "2026-01-01T00:00:00Z",
+  "content": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "For God so loved the world (fixture sample note)."
+          }
+        ]
+      }
+    ]
+  },
+  "metadata": {}
+}

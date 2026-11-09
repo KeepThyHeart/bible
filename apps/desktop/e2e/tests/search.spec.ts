@@ -6,7 +6,7 @@
 
 import type { Page, Locator } from '@playwright/test';
 import { test, expect } from '../fixtures/electron.fixture';
-import { waitForAppReady } from '../fixtures/test-utils';
+import { waitForAppReady, waitForKeywordIndexes } from '../fixtures/test-utils';
 
 /**
  * Search takes a round trip through IPC into SQLite FTS across every installed
@@ -48,6 +48,7 @@ async function openAdvanced(window: Page): Promise<Locator> {
 test.describe('Search', () => {
   test.beforeEach(async ({ window }) => {
     await waitForAppReady(window);
+    await waitForKeywordIndexes(window);
   });
 
   test.describe('Basic Search', () => {

@@ -20,11 +20,15 @@ import Superscript from '@tiptap/extension-superscript';
 import TextAlign from '@tiptap/extension-text-align';
 import Image from '@tiptap/extension-image';
 import CharacterCount from '@tiptap/extension-character-count';
+import { SOFT_TAB } from './indentCommands';
+import { NoteFind } from './NoteFindExtension';
+import NoteFindBar from './NoteFindBar';
 import EditorToolbar, { type NoteExportActions } from './EditorToolbar';
 import { verseReferencePlugin } from './VerseReferencePlugin';
 import { FontSize } from './FontSizeExtension';
 import { TextDirection } from './TextDirectionExtension';
 import { useDirection } from '../../../contexts/useDirection';
+import { useNoteEditorStore } from '../../../stores/useNoteEditorStore';
 import { createSlashCommandsExtension } from './SlashCommands';
 import VersePreviewTooltip from '../../VersePreviewTooltip';
 import NoteEditorVerseMenu from './NoteEditorVerseMenu';
@@ -106,7 +110,6 @@ function expandNoticeText(
 // run of non-breaking spaces is what actually renders as an indent, and
 // (being ordinary characters) survives save/load through the .bn HTML content
 // exactly like any other text.
-const SOFT_TAB = '    ';
 
 /**
  * Gap between a detected reference and the preview popup anchored under it.
@@ -155,6 +158,19 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
     expansionId: string;
   } | null>(null);
   const editorContainerRef = useRef<HTMLDivElement>(null);
+  const noteRootRef = useRef<HTMLDivElement>(null);
+  const [showFind, setShowFind] = useState(false);
+
+  // Ctrl+F while the note (or its find bar) has focus finds in the note. The
+  // search command re-dispatches here instead of opening the Bible find bar.
+  useEffect(() => {
+    const open = () => {
+      const root = noteRootRef.current;
+      if (root && root.contains(document.activeElement)) setShowFind(true);
+    };
+    window.addEventListener('command:notes:find', open);
+    return () => window.removeEventListener('command:notes:find', open);
+  }, []);
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [tooltipState, setTooltipState] = useState<{
     visible: boolean;
@@ -337,6 +353,7 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
       TableCell,
       TableHeader,
       TaskList,
+      NoteFind,
       TaskItem.configure({ nested: true }),
       Placeholder.configure({ placeholder: resolvedPlaceholder }),
       Typography,
@@ -512,6 +529,11 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
 
   const handleEditorContainerKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLDivElement>) => {
+      if (editor && (e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'f' && !e.defaultPrevented) {
+        e.preventDefault();
+        setShowFind(true);
+        return;
+      }
       if (!editor || readOnly) return;
 
       if (e.key === 'Escape') {
@@ -802,10 +824,30 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
   useEffect(() => {
     if (editor && value !== editor.getHTML()) {
       isInternalUpdate.current = true;
+      // A reload of the same note saved by another window keeps the caret and
+      // scroll where they were (clamped to the new document), instead of jumping to the top.
+      const keep = useNoteEditorStore.getState().preserveSelection === true; // allow-getstate: effect-time read of a one-shot flag, not render state
+      const prevSel = keep ? { from: editor.state.selection.from, to: editor.state.selection.to } : null;
+      const scroller = editorContainerRef.current;
+      const prevScroll = keep && scroller ? scroller.scrollTop : 0;
       // An external swap of the whole document (switching prayer/note) is not an
       // edit the user made: keep it out of the undo history, or Ctrl+Z would
       // bring back the previous document's text and autosave it over this one.
       editor.chain().setMeta('addToHistory', false).setContent(value || '').run();
+      if (keep) {
+        if (prevSel) {
+          const size = editor.state.doc.content.size;
+          const from = Math.min(prevSel.from, size);
+          const to = Math.min(prevSel.to, size);
+          try {
+            editor.chain().setMeta('addToHistory', false).setTextSelection({ from, to }).run();
+          } catch {
+            // A position that is not valid in the new document: leave the selection as TipTap placed it.
+          }
+        }
+        if (scroller) scroller.scrollTop = prevScroll;
+        useNoteEditorStore.getState().clearPreserveSelection(); // allow-getstate: one-shot flag reset in an effect
+      }
       isInternalUpdate.current = false;
     }
   }, [value, editor]);
@@ -852,7 +894,7 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
   );
 
   return (
-    <div className="note-editor h-full flex flex-col">
+    <div ref={noteRootRef} className="note-editor h-full flex flex-col">
       {/* Toolbar (only show when not read-only) */}
       {!readOnly && (
         <EditorToolbar
@@ -861,6 +903,10 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
           onInsertImage={insertImageFromFile}
           exportActions={exportActions}
         />
+      )}
+
+      {showFind && editor && (
+        <NoteFindBar editor={editor} onClose={() => { setShowFind(false); editor.commands.focus(); }} />
       )}
 
       {/* Editor content */}

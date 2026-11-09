@@ -13,6 +13,8 @@ import os from 'os';
 import path from 'path';
 import { pathToFileURL } from 'url';
 import { dismissFirstRunDialog } from '../fixtures/electron.fixture';
+import { dataEnv } from '../fixtures/dataDir';
+import { waitForKeywordIndexes } from '../fixtures/test-utils';
 import { _electron as electron, test as base, expect, type ElectronApplication, type Page } from '@playwright/test';
 
 const MAIN_JS_PATH = path.resolve(__dirname, '../../out/main/index.js');
@@ -47,23 +49,32 @@ const test = base.extend<{ stub: Stub; app: ElectronApplication; window: Page }>
     // The app is offline until the user allows web requests; the stub is a web request.
     fs.mkdirSync(path.join(userDataDir, 'network'), { recursive: true });
     fs.writeFileSync(path.join(userDataDir, 'network', 'config.json'), JSON.stringify({ allowNetwork: true }));
-    const app = await electron.launch({
-      args: ['--password-store=basic', '--no-sandbox', '--disable-dev-shm-usage', MAIN_JS_PATH],
-      env: {
-        ...process.env,
-        NODE_ENV: 'test',
-        ELECTRON_USER_DATA: userDataDir,
-        BIBLE_REMOTE_SEMANTIC_URL: stub.url,
-      },
-    });
-    await use(app);
-    await app.close();
+    const data = dataEnv(path.join(os.tmpdir(), 'bible-e2e', `remote-semantic-${testInfo.workerIndex}-data`));
+    let app: ElectronApplication | undefined;
+    try {
+      app = await electron.launch({
+        args: ['--password-store=basic', '--no-sandbox', '--disable-dev-shm-usage', MAIN_JS_PATH],
+        env: {
+          ...process.env,
+          NODE_ENV: 'test',
+          ELECTRON_USER_DATA: userDataDir,
+          ...data.env,
+          BIBLE_REMOTE_SEMANTIC_URL: stub.url,
+        },
+      });
+      await use(app);
+    } finally {
+      await app?.close().catch(() => undefined);
+      data.cleanup();
+      fs.rmSync(userDataDir, { recursive: true, force: true });
+    }
   },
   window: async ({ app }, use) => {
     const window = await app.firstWindow();
     await window.waitForSelector('[data-testid="app-loaded"]', { timeout: 30000 });
     // First-run language dialog is modal and can appear late on a cold start: the shared helper waits for it.
     await dismissFirstRunDialog(window);
+    await waitForKeywordIndexes(window);
     // Fresh user data chains first-run dialogs ("Suggested study content", tour banner...); clear them.
     for (let i = 0; i < 6; i++) {
       const other = window.locator('[role="dialog"]:not([data-testid="remote-consent-dialog"])').first();

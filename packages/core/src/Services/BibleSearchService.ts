@@ -16,7 +16,7 @@ import { IBibleRepository } from '../Data/Repositories/IBibleRepository';
 import { IBibleBookRepository } from '../Data/Repositories/IBibleBookRepository';
 import { SearchResult, SearchOptions, ParsedQuery, Match, MatchType, BooleanExpression, BibleRange } from '../types/search';
 import { VerseId, VerseIdHelper } from '../Data/Core/Types';
-import { divineRangesOfVerse, markUp, type TextRange } from './SearchMarkup';
+import { markedRangesOfVerse, markUp, type TextRange } from './SearchMarkup';
 import { StrongsNumberHelper } from '../Data/Core/StrongsNumberHelper';
 import { isReadOnlyDatabaseError } from '../Data/Core/Errors';
 import { BibleVerse } from '../Data/Models/Bible/BibleVerse';
@@ -1170,10 +1170,10 @@ export class BibleSearchService implements ISearchService {
             ? this.extractMatches(text, glosses)
             : [];
           // B-167: where the verse's HTML marks the divine name, keep it in the result.
-          const divine = divineRangesOfVerse(verse, text);
-          const hasDivine = !!divine && divine.length > 0;
+          const { divine, christ } = markedRangesOfVerse(verse, text);
+          const hasDivine = (!!divine && divine.length > 0) || (!!christ && christ.length > 0);
           const highlightedText = hasDivine
-            ? markUp(text, 0, text.length, matchRanges(matches), divine)
+            ? markUp(text, 0, text.length, matchRanges(matches), divine ?? [], christ ?? [])
             : glosses.length > 0
               ? await this.highlightMatches(text, glosses)
               : text;
@@ -1181,7 +1181,7 @@ export class BibleSearchService implements ISearchService {
           let snippet: string | undefined;
           if (text.length > 100 && matches.length > 0) {
             const rawSnippet = this.createSnippet(text, glosses, 120);
-            snippet = (hasDivine ? this.markUpSnippet(text, rawSnippet, matches, divine) : null)
+            snippet = (hasDivine ? this.markUpSnippet(text, rawSnippet, matches, divine ?? [], christ ?? []) : null)
               ?? await this.highlightMatches(rawSnippet, glosses);
           }
 
@@ -1308,10 +1308,10 @@ export class BibleSearchService implements ISearchService {
     // TABLE` again per verse - see `highlighterFor()`.
     const matches = this.highlighterFor(moduleAbbr, repo).spans(text, query);
     // B-167: where the verse's HTML marks the divine name, keep it in the result.
-    const divine = divineRangesOfVerse(verse, text);
-    const hasDivine = !!divine && divine.length > 0;
+    const { divine, christ } = markedRangesOfVerse(verse, text);
+    const hasDivine = (!!divine && divine.length > 0) || (!!christ && christ.length > 0);
     const highlightedText = hasDivine
-      ? markUp(text, 0, text.length, matchRanges(matches), divine)
+      ? markUp(text, 0, text.length, matchRanges(matches), divine ?? [], christ ?? [])
       : this.applyHighlightMarkup(text, matches);
 
     // Create a snippet that prioritizes the matched text (for live search display)
@@ -1323,7 +1323,7 @@ export class BibleSearchService implements ISearchService {
       const matchedTerms = matches.map(m => m.term);
       const termsForSnippet = matchedTerms.length > 0 ? matchedTerms : searchTerms;
       const rawSnippet = this.createSnippet(text, termsForSnippet, 120);
-      snippet = (hasDivine ? this.markUpSnippet(text, rawSnippet, matches, divine) : null)
+      snippet = (hasDivine ? this.markUpSnippet(text, rawSnippet, matches, divine ?? [], christ ?? []) : null)
         ?? await this.highlightMatches(rawSnippet, termsForSnippet);
     }
 
@@ -1348,7 +1348,7 @@ export class BibleSearchService implements ISearchService {
    * over with match and divine-name markup. Null when a piece cannot be found,
    * so the caller falls back to the plain highlighter.
    */
-  private markUpSnippet(text: string, rawSnippet: string, matches: Match[], divine: TextRange[]): string | null {
+  private markUpSnippet(text: string, rawSnippet: string, matches: Match[], divine: TextRange[], christ: TextRange[] = []): string | null {
     const lead = rawSnippet.startsWith('...') && !text.startsWith('...');
     const trail = rawSnippet.endsWith('...') && !text.endsWith('...') && rawSnippet.length > 3;
     const core = rawSnippet.slice(lead ? 3 : 0, trail ? -3 : undefined);
@@ -1357,7 +1357,7 @@ export class BibleSearchService implements ISearchService {
     for (const piece of core.split('...')) {
       const at = piece ? text.indexOf(piece, cursor) : -1;
       if (at < 0) return null;
-      parts.push(markUp(text, at, at + piece.length, matchRanges(matches.filter(m => !ENGLISH_STOP_WORDS.has(m.term.toLowerCase()))), divine));
+      parts.push(markUp(text, at, at + piece.length, matchRanges(matches.filter(m => !ENGLISH_STOP_WORDS.has(m.term.toLowerCase()))), divine, christ));
       cursor = at + piece.length;
     }
     return (lead ? '...' : '') + parts.join('...') + (trail ? '...' : '');

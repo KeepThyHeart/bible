@@ -1041,6 +1041,14 @@
   "searchTabs.meaningSubtitle": "משמעות",
   "searchTabs.openInNewTab": "פתח בלשונית חיפוש חדשה",
   "searchTabs.openInNewTabTitle": "פתח חיפוש זה בלשונית חיפוש חדשה",
+  "searchTabs.pin": "Pin Search Tab",
+  "searchTabs.unpin": "Unpin Search Tab",
+  "searchTabs.previewTitle": "Preview tab: the next search replaces it. Double-click to pin.",
+  "searchBar.type.title": "Search type",
+  "searchBar.type.keyword": "Search",
+  "searchBar.type.keywordHint": "Find verses that contain your words.",
+  "searchBar.type.ideas": "Ideas Search",
+  "searchBar.type.ideasHint": "Find verses by meaning, even when the words differ.",
   "searchTabs.subTabListLabel": "חיפושים",
   "searchTabs.closeSubTab": "סגור חיפוש: {query}",
   "searchResultsPane.noSemanticMatches": "לא נמצאו התאמות סמנטיות",
@@ -1130,6 +1138,9 @@
   "commentaryContentArea.loading": "טוען פירוש...",
   "commentaryContentArea.noCommentary": "אין פירוש זמין לפסוק זה",
   "commentaryContentArea.browseAll": "עיון בכל הפירושים",
+  "commentaryContentArea.moduleMissing": "{name}: this commentary's file is missing.",
+  "commentaryContentArea.moduleMissingHint": "Reinstall it from the Module Manager.",
+  "commentaryContentArea.openModuleManager": "Open Module Manager",
   "commentaryContentArea.previousVerse": "הפסוק הקודם",
   "commentaryContentArea.nextVerse": "הפסוק הבא",
   "commentaryContentArea.previous": "הקודם",
@@ -2432,5 +2443,7 @@
   "remoteConsent.getPack": "קבלת חבילת המשמעות המקומית",
   "searchResultsPane.resultsFrom": "תוצאות מתוך {modules}",
   "advancedSearchDialog.operatorsHint": "אופרטורים: && (וגם), || (או), ! (לא), עם סוגריים, למשל אהבה && !(שנאה || כעס). המילים AND, OR ו-NOT נשארות מילים רגילות.",
-  "topicsPane.directOfTotal": "({direct} ישירות, {total} בסך הכול)"
+  "topicsPane.directOfTotal": "({direct} ישירות, {total} בסך הכול)",
+  "editorToolbar.indentTitle": "Increase Indent (Tab)",
+  "editorToolbar.outdentTitle": "Decrease Indent (Shift+Tab)"
 }

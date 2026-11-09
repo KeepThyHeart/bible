@@ -6,7 +6,7 @@ import { Router } from 'express';
 // 'readNewlineHandling'". Type-only imports are erased and stay direct.
 import { readNewlineHandling } from '../core.js';
 import type { DatabaseManager } from '../DatabaseManager.js';
-import { validateModuleName } from '../utils/validation.js';
+import { validateModuleName, MAX_LOAD_MORE_SIZE } from '../utils/validation.js';
 import { sendError, ErrorCodes } from '../utils/errorResponse.js';
 import type { SiteSettings } from '../siteSettings.js';
 import { isModuleActive, getModuleEntry } from '../siteSettings.js';
@@ -221,7 +221,7 @@ export function createDictionaryRoutes(db: DatabaseManager, siteSettings: SiteSe
       if (!repo) { res.json({ entries: [], total: 0 }); return; }
 
       const letter = (req.query.letter as string) || '';
-      const limit = clampInt(req.query.limit, 50, 1, 200);
+      const limit = clampInt(req.query.limit, 50, 1, MAX_LOAD_MORE_SIZE);
       const offset = clampInt(req.query.offset, 0, 0, 10_000_000);
 
       const result = repo.browseByLetter(letter || null, limit, offset);

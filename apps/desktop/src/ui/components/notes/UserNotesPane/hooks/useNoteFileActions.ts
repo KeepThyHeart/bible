@@ -8,7 +8,7 @@ import { htmlToMarkdown } from '../../../../utils/exportNote';
 import { sanitizeHtml } from '../../../../utils/sanitize';
 import { IpcResultError, unwrap } from '../../../../services/ipcResult';
 import { escapeHtmlText, isAbsolutePath } from '../utils';
-import { MISSING_MESSAGE, hasNoteConflict, markNoteConflict, clearNoteConflict } from './noteSave';
+import { MISSING_MESSAGE, hasNoteConflict, markNoteConflict, clearNoteConflict, beginSave, endSave } from './noteSave';
 
 interface UseNoteFileActionsArgs {
   currentNote: BnFile | null;
@@ -94,6 +94,7 @@ export function useNoteFileActions(args: UseNoteFileActionsArgs): NoteFileAction
     if (!currentNote || !currentNotePath) return;
     if (saveInFlightRef.current) return;
     saveInFlightRef.current = true;
+    beginSave(currentNotePath);
     setIsSaving(true);
     try {
       const updatedNote: BnFile = {
@@ -149,6 +150,7 @@ export function useNoteFileActions(args: UseNoteFileActionsArgs): NoteFileAction
       }
       setFileError(`Could not save: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
+      endSave(currentNotePath);
       setIsSaving(false);
       saveInFlightRef.current = false;
     }

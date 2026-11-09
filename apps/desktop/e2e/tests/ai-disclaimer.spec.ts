@@ -9,6 +9,7 @@
  */
 
 import { test, expect, Page } from '../fixtures/electron.fixture';
+import { hasModule } from '../fixtures/dataDir';
 
 const DISCLAIMER = '[data-testid="module-disclaimer"]';
 const COLLAPSED = '[data-testid="module-disclaimer-collapsed"]';
@@ -102,6 +103,7 @@ test.describe('AI-generated content disclosure', () => {
   });
 
   test('a human-authored commentary gets no notice', async ({ window }) => {
+    test.skip(!hasModule('MHC'), 'needs real data (MHC): set BIBLE_E2E_DATA_DIR');
     await activateCommentaryTab(window);
     await openCommentary(window, 'MHC');
     // A positive anchor before the negative assertions: without one, "no

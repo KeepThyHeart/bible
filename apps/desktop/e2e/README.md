@@ -4,6 +4,12 @@ Playwright-based end-to-end tests for the Electron desktop app.
 
 ## Prerequisites
 
+**Data:** with no `BIBLE_E2E_DATA_DIR` (or `BIBLE_DESKTOP_DATA_DIR`) the suite runs on the committed
+public-domain fixture (`fixtures/bible-data`, see its README), copied per test and deleted afterwards;
+nothing below is needed. Specs that need other modules (Nave, TSK, StrongsGreek, Scofield, MHC) skip.
+Set `BIBLE_E2E_DATA_DIR=apps/desktop/data` to run them on real data, as described next. Leftover temp dirs
+from killed runs: `pnpm run e2e:clean`.
+
 ### 1. Data directory and module databases
 
 The `apps/desktop/data/` directory and all `.db` files are **gitignored** - they must be set up locally before tests can run. The data directory must contain:

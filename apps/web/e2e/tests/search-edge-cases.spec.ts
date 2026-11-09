@@ -1,4 +1,5 @@
 import { test, expect, expectConsoleProblems } from '../fixtures';
+import { usingFixtureData } from '../prepareData';
 
 test.describe('Search Edge Cases', () => {
   test.beforeEach(async ({ page }, testInfo) => {
@@ -15,7 +16,16 @@ test.describe('Search Edge Cases', () => {
     // verses are still in the DOM, so it returns immediately and a following
     // title assertion races the navigation and loses under load. The retrying
     // assertion on the title is the whole wait.
-    const references: ReadonlyArray<readonly [string, string]> = [
+    // The committed fixture holds only some chapters (see fixtures/bible-data/README.md), so a run on it
+    // uses chapters it has; the numbered-book and far-chapter cases need the real data.
+    const fixtureReferences: ReadonlyArray<readonly [string, string]> = [
+      ['jn 3', 'John'],                 // abbreviated book
+      ['psalm 23', 'Psalm'],
+      ['rev 1', 'Revelation'],
+      ['gen 1', 'Genesis'],
+      ['rom 8', 'Romans'],
+    ];
+    const fullReferences: ReadonlyArray<readonly [string, string]> = [
       ['jn 3', 'John'],                 // abbreviated book
       ['1 cor 13', '1 Corinthians'],    // numbered + abbreviated
       ['psalm 119', 'Psalm'],           // longest chapter
@@ -23,6 +33,7 @@ test.describe('Search Edge Cases', () => {
       ['gen 1', 'Genesis'],             // first chapter
       ['3 john 1', '3 John'],           // short numbered book
     ];
+    const references = usingFixtureData() ? fixtureReferences : fullReferences;
 
     for (const [query, expected] of references) {
       await searchInput.fill(query);

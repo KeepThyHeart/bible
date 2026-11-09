@@ -16,7 +16,9 @@
     "test:watch": "vitest",
     "e2e": "node e2e/smoke.ts",
     "e2e:web": "node e2e/smoke.ts web",
-    "e2e:desktop": "node e2e/smoke.ts desktop"
+    "e2e:desktop": "node e2e/smoke.ts desktop",
+    "e2e:popout": "node e2e/popout.ts",
+    "e2e:qa": "node e2e/qa-items.ts"
   },
   "dependencies": {
     "playwright-core": "1.63.0"

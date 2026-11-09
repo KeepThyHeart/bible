@@ -27,6 +27,7 @@
  * spellings, not occurrences of the word), stem results are not.
  */
 import React, { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { VerseIdHelper } from '@bible/core';
 import type { SearchResult } from '@bible/core/types/search';
 import { useI18n } from '../contexts/useI18n';
@@ -56,12 +57,18 @@ const EMPTY_BAR_HEIGHT = 2;
 /** Width of the testament break, in px. */
 const TESTAMENT_GAP = 12;
 /**
- * How close to an edge a bar has to be before its tooltip stops being centred
- * on it and pins to that edge of the chart instead. Keeps the tip inside the
- * pane without measuring anything - jsdom has no layout, and neither does the
- * first paint.
+ * The tooltip is portalled to <body> and positioned in viewport coordinates, so
+ * no pane header, overflow clip or stacking context can cover it. It sits above
+ * its bar, or below when there is less than this much room above (the graph can
+ * sit directly under the app header).
  */
-const EDGE_ANCHOR_BOOKS = 10;
+const TIP_FLIP_BELOW_PX = 40;
+/** Horizontal clearance kept from either viewport edge when centring the tip on its bar. */
+const TIP_EDGE_PX = 120;
+const TIP_Z_INDEX = 10000;
+
+/** Where the hovered bar is on screen. */
+interface TipAnchor { x: number; top: number; bottom: number }
 
 type DistributionProps =
   | {
@@ -167,6 +174,7 @@ const SearchDistributionGraph: React.FC<DistributionProps> = (props) => {
   const booksWithMatches = useMemo(() => bars.filter((b) => b.count > 0).length, [bars]);
 
   const [hoveredBook, setHoveredBook] = useState<number | null>(null);
+  const [tipAnchor, setTipAnchor] = useState<TipAnchor | null>(null);
 
   // Nothing counted means nothing to plot. Reachable in keyword mode when every
   // hit was fuzzy: a wall of 66 hairlines would say "no matches anywhere" above
@@ -210,7 +218,11 @@ const SearchDistributionGraph: React.FC<DistributionProps> = (props) => {
   const renderBar = (bar: BookBar): React.ReactElement => {
     const token = sectionColorToken(bar.bookNumber);
     const label = labelFor(bar);
-    const show = (): void => setHoveredBook(bar.bookNumber);
+    const show = (e: React.SyntheticEvent<HTMLElement>): void => {
+      const rect = e.currentTarget.getBoundingClientRect();
+      setTipAnchor({ x: rect.left + rect.width / 2, top: rect.top, bottom: rect.bottom });
+      setHoveredBook(bar.bookNumber);
+    };
     const hide = (): void => setHoveredBook((current) => (current === bar.bookNumber ? null : current));
 
     const fill =
@@ -288,16 +300,19 @@ const SearchDistributionGraph: React.FC<DistributionProps> = (props) => {
     );
   };
 
-  // Tooltip placement without measurement: centred on its bar, except near
-  // either end where it pins to that edge of the chart so it cannot spill out
-  // of the pane.
+  // Fixed-position style for the portalled tooltip: centred on its bar (kept
+  // clear of the viewport edges), above it, or below when the bar is near the top.
   const tipStyle = (): React.CSSProperties => {
-    if (hoveredBook === null) return {};
-    if (hoveredBook <= EDGE_ANCHOR_BOOKS) return { insetInlineStart: '0px' };
-    if (hoveredBook > BOOK_COUNT - EDGE_ANCHOR_BOOKS) return { insetInlineEnd: '0px' };
+    if (!tipAnchor) return {};
+    const vw = typeof window === 'undefined' ? 1024 : window.innerWidth;
+    const x = Math.min(Math.max(tipAnchor.x, TIP_EDGE_PX), Math.max(TIP_EDGE_PX, vw - TIP_EDGE_PX));
+    const below = tipAnchor.top < TIP_FLIP_BELOW_PX;
     return {
-      insetInlineStart: `${((hoveredBook - 0.5) / BOOK_COUNT) * 100}%`,
-      transform: 'translateX(-50%)',
+      position: 'fixed',
+      left: `${x}px`,
+      top: below ? `${tipAnchor.bottom + 4}px` : `${tipAnchor.top - 4}px`,
+      transform: below ? 'translateX(-50%)' : 'translate(-50%, -100%)',
+      zIndex: TIP_Z_INDEX,
     };
   };
 
@@ -307,15 +322,16 @@ const SearchDistributionGraph: React.FC<DistributionProps> = (props) => {
       data-testid="search-distribution"
     >
       <div className="relative">
-        {hovered && (
+        {hovered && typeof document !== 'undefined' && createPortal(
           <div
             role="tooltip"
             data-testid="distribution-tooltip"
-            className="absolute bottom-full mb-1 z-10 px-2 py-1 rounded border border-border bg-surface-elevated text-text-primary shadow-lg text-xs whitespace-nowrap pointer-events-none"
+            className="px-2 py-1 rounded border border-border bg-surface-elevated text-text-primary shadow-lg text-xs whitespace-nowrap pointer-events-none"
             style={tipStyle()}
           >
             {labelFor(hovered)}
-          </div>
+          </div>,
+          document.body,
         )}
 
         <div

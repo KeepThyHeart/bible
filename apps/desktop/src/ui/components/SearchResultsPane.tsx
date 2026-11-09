@@ -2,6 +2,7 @@ import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useSearchStore, SemanticResult, StrongsSearchMeta, searchResultId, semanticResultId, selectSessionView } from '../stores/useSearchStore';
 import { useBibleStore, DEFAULT_PANEL_ID } from '../stores/useBibleStore';
 import { useLayoutStore } from '../stores/useLayoutStore';
+import { useTextSettingsStore } from '../stores/useTextSettingsStore';
 import { syncPanesWithVerse } from '../stores/syncPanesWithVerse';
 import { SearchResult, truncateAtWordBoundary, VerseIdHelper } from '@bible/core';
 import { Bdi } from '@bible/ui';
@@ -234,6 +235,9 @@ const SearchResultsPane: React.FC<SearchResultsPaneProps> = ({ dockviewPanelApi,
     }
     return [primary, approximate] as const;
   }, [searchResults]);
+
+  // Words of Christ follow the Bible pane's red-letter preference (same `.christ-words` / `--theme-christ` tokens).
+  const showRedLetter = useTextSettingsStore((state) => state.getSettings('bible').showRedLetter);
 
   const visibleSemanticResults = useMemo(
     () => semanticResults.slice(0, semanticVisibleCount),
@@ -486,7 +490,7 @@ const SearchResultsPane: React.FC<SearchResultsPaneProps> = ({ dockviewPanelApi,
     <section
       data-testid="search-results-pane"
       data-search-session={panelId}
-      className="h-full flex flex-col"
+      className={`h-full flex flex-col${showRedLetter === false ? ' no-red-letter' : ''}`}
       style={{ backgroundColor: 'var(--theme-bg-primary)' }}
       aria-labelledby={headingId}
       onPointerDownCapture={activateThisTab}

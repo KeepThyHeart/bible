@@ -80,6 +80,7 @@ The Writing pane: file-backed `.bn` notes with a rich text editor and a folder b
 |---|---|
 | `electron/ipc/notesHandlers.ts` | IPC handlers for SQLite-based notes CRUD operations |
 | `electron/ipc/fileNotesHandlers.ts` | IPC handlers for file-based .bn notes (CRUD, dialogs, verse notes, export to .md/.docx) |
+| `electron/ipc/noteDocx.ts` | Note HTML to .docx for `file-notes:export-docx`: parses the editor HTML into a small tree and emits real Word formatting (headings, bold/italic/underline/strike/sub/sup, hyperlinks, nested bullet and numbered lists, block quotes, soft-tab indent, rules, code). Test: `noteDocx.test.ts` parses `word/document.xml` and checks no HTML leaks into text runs |
 | `electron/services/BibleNotesFileService.ts` | File service for .bn file operations, .bak backups, directory management, verse notes |
 | `electron/main.ts` | `renderNoteDocument` plus the `notes:print` and `notes:export-pdf` channels that share it |
 
@@ -133,6 +134,14 @@ The Tab key indents instead of moving focus out of the editor, matching what use
 - **Lists and tables:** the handler defers (does not call `preventDefault`) when the selection is inside a `listItem`, `taskItem`, `tableCell`, or `tableHeader` - TipTap's own built-in Tab bindings (list sink/lift, table next/previous-cell navigation) keep working unchanged.
 - **Escape hatch - "Escape, then Tab":** pressing Escape arms a one-shot exception; the very next Tab press is left alone (not trapped), so the browser's default focus-out-of-field behavior runs and a keyboard-only user can leave the field. Any other keypress between Escape and Tab cancels the armed state, so it can't fire unexpectedly later. This is the same convention used by CodeMirror and other code-editor components for accessible tab-trapping. Note that this arms *before* the expansion keymap runs, so Escape-then-Tab leaves the editor even when the caret is sitting on a reference - accessibility wins over convenience.
 - **The container handler defers to ProseMirror.** Its first act on a Tab is `if (e.defaultPrevented) return;`. It is a React bubble-phase listener on the wrapper div, so it runs *after* TipTap's own keydown handling, and an expansion fires in a plain paragraph where none of the `isActive('listItem' | 'tableCell' | ...)` checks hold. Without the guard the soft tab would be appended after every expanded passage - into saved `.bn` content.
+
+### Indent / outdent buttons
+
+The editor toolbar has Increase / Decrease Indent buttons (`indentCommands.ts`). In a list or task item they nest / lift the item (`sinkListItem` / `liftListItem`, the same as Tab / Shift+Tab); in paragraphs they prefix / strip one `SOFT_TAB` (non-breaking spaces) at the start of every selected block. Decrease is disabled when there is nothing to outdent. Tests: `indentAndFind.test.ts`.
+
+### Find in a note (Ctrl+F)
+
+With focus inside a note, Ctrl+F opens a find bar at the top of the editor (`NoteFindBar.tsx`) instead of the Bible find bar. `searchCommands.ts` re-dispatches `command:notes:find` when the focused element is inside `.note-editor`; the editor also handles Ctrl/Cmd+F itself when no command layer claimed the key (detached windows). Matches are inline decorations from `NoteFindExtension.ts` (`note-find-match`, `-current`), never saved into the note HTML; `noteFindRanges.ts` is the pure matcher (matches do not span formatting boundaries). Enter / Shift+Enter / F3 step, Escape closes and refocuses the editor. It reuses the `ui.findBar.*` strings. Find in the note *list* is not provided.
 
 ### Expanding a verse reference in place
 
@@ -371,6 +380,12 @@ Pointer-anchoring is wrong here twice over. It renders below wherever in the lin
 ### The pop-out control lives at the end of the header, not beside the title
 
 `UserNotesEditorView`'s pop-out button sits at the far end of the breadcrumb header (`ms-auto` against the `flex-1` nav), with the same bordered chrome as the sidebar toggle. It is deliberately not beside the Edit Title pencil: two 14px icons a few pixels apart, one of which renames the note and the other of which tears the pane into a separate window, are routinely misclicked for each other.
+
+### A note open in two windows stays in step
+
+After a successful `file-notes:save-note(-absolute)` the main process (`ipcHandlerWithSender` in `fileNotesHandlers.ts`, `broadcastNoteSaved` in `noteSavedBroadcast.ts`) pushes `file-notes:note-saved` `{ absolutePath, updated, senderId }` to every window **except the saver**. Excluding the sender matters: the push would otherwise reach the saving window while it is still dirty and raise a false conflict, or echo.
+
+`useNoteSavedListener` (in `UserNotesPane`) compares the event's path with the open note and ignores an equal `updated`. If the editor is clean it reads the note and calls `useNoteEditorStore.reloadExternal`, which sets the content as the new baseline (not dirty, no `_beforeReplace` save) and flags `preserveSelection`; `NoteEditor` then restores the caret (clamped) and scroll after `setContent`. If the editor has unsaved edits, or a save of ours is in flight (`isSaveInFlight`), the existing "changed in another window" conflict banner shows at once and nothing is overwritten. Stale reads (older than the newest event) are dropped. Rename and delete are not synced. The same note open in two panes of one window is not synced (the sender is excluded per window). The conflict strings are still hardcoded English.
 
 ## Not implemented
 

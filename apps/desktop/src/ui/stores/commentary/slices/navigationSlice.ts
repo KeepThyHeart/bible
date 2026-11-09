@@ -1,4 +1,5 @@
 import type { StateCreator } from 'zustand';
+import { logModuleErrorOnce } from '../../../services/moduleErrorLog';
 import { commentaryAPI } from '../../../services/electronAPI';
 import { updatePanelState } from '../../helpers/panelStateHelpers';
 import { markSessionDirty } from '../../helpers/sessionNotifier';
@@ -81,7 +82,7 @@ export const createNavigationSlice: StateCreator<CommentaryState, [], [], Naviga
 
   navigateToNextVerse: async (panelId: string, abbreviation: string) => {
     const ps = get().getPanelState(panelId);
-    if (!ps.currentVerseId) return;
+    if (!ps.currentVerseId || ps.unavailableByTab.has(abbreviation)) return;
 
     try {
       const nextVerseId = await commentaryAPI.getNextVerseWithContent(abbreviation, ps.currentVerseId);
@@ -89,13 +90,15 @@ export const createNavigationSlice: StateCreator<CommentaryState, [], [], Naviga
         await get().navigateToVerse(panelId, abbreviation, nextVerseId);
       }
     } catch (error) {
-      console.error(`Error navigating to next verse for ${abbreviation}:`, error);
+      if (!logModuleErrorOnce('commentary', abbreviation, 'navigate next', error)) {
+        console.error(`Error navigating to next verse for ${abbreviation}:`, error);
+      }
     }
   },
 
   navigateToPreviousVerse: async (panelId: string, abbreviation: string) => {
     const ps = get().getPanelState(panelId);
-    if (!ps.currentVerseId) return;
+    if (!ps.currentVerseId || ps.unavailableByTab.has(abbreviation)) return;
 
     try {
       const prevVerseId = await commentaryAPI.getPreviousVerseWithContent(abbreviation, ps.currentVerseId);
@@ -103,7 +106,9 @@ export const createNavigationSlice: StateCreator<CommentaryState, [], [], Naviga
         await get().navigateToVerse(panelId, abbreviation, prevVerseId);
       }
     } catch (error) {
-      console.error(`Error navigating to previous verse for ${abbreviation}:`, error);
+      if (!logModuleErrorOnce('commentary', abbreviation, 'navigate previous', error)) {
+        console.error(`Error navigating to previous verse for ${abbreviation}:`, error);
+      }
     }
   },
 

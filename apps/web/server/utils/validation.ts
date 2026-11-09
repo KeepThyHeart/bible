@@ -10,6 +10,9 @@ import { MAX_SEARCH_QUERY_CHARS } from '../core.js';
 // Item #7: Shared pagination limit across routes
 export const MAX_PAGE_SIZE = 200;
 
+/** Ceiling for "load more" endpoints (dictionary browse, topic verses), which fetch up to 1,000 rows per click. */
+export const MAX_LOAD_MORE_SIZE = 1000;
+
 /**
  * Maximum accepted length of a user search query, in characters.
  *

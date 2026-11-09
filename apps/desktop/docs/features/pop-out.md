@@ -60,6 +60,22 @@ Pop out any dockview pane into a standalone window. The detached window preserve
 |---|---|
 | `electron/preload.ts` | Exposes `window.electron.window.detachPane()`, `broadcastVerseChange()`, `onInitializePane()`, `onVerseChanged()` for detached window communication. |
 
+### Notes Pop-Out Specifics (detached notes window)
+
+- The pop-out button in `UserNotesEditorView.tsx` is hidden when the pane is `isDetached` (nothing to pop out to; there is no "Dock back" action).
+- The reference hover/caret preview (`VersePreviewTooltip.tsx`) takes its Bible from the open Bible tab, else the default Bible. A detached window has neither (own store, module list not loaded), which used to report "Verse not found"; the tooltip now calls `resolveDefaultBible()` (loads the installed list first) and stays in loading until it settles. Test: `VersePreviewTooltip.detached.test.tsx`.
+
+### Across windows (theme, scripture links, find)
+
+- **Theme and font settings**: `src/ui/utils/appearanceSync.ts`. The main window publishes theme, global font scale, UI control size and typography (`window:broadcast-appearance`; main keeps the latest and forwards it with `WindowManager.sendToDetached`). `detached.tsx` calls `startAppearanceFollower()`: it asks for the latest on open (`window:get-appearance`) and applies every later `appearance-changed`. It goes through `loadFromSession`, so a pop-out never saves a session. Per-pane text settings (the "Aa" button) are not carried.
+- **Scripture links** (a reference clicked in a popped-out note, a cross-reference in a popped-out Study pane, ...): a pop-out has no dockview and no Bible pane, and `storeSync` never wires the bridges there, so these clicks did nothing (or logged "dockviewApi is null"). `navigateToVerseInPrimary` (store and `crossStoreBridge`) now hands the verse to the main window through `window:navigate-main-to-verse`; main focuses the window and sends `window:navigate-to-verse`, which `App.tsx` turns into a navigation (or a new Bible panel for Ctrl+click). `utils/isDetachedWindow.ts` is the test for "this is a pop-out".
+- **Ctrl+F** in a popped-out Bible window: `DetachedWindow` renders the same `FindBar` and handles the shortcut; matching and highlighting stay in `useBibleFind` inside the pane.
+- **Reference expansion** (Tab on a reference in a popped-out note): `getActiveTranslation()` finds no Bible panel in a pop-out, so it uses the main window's translation, which `appearanceSync` publishes with the appearance (`utils/mainActiveTranslation.ts`) and keeps live. Still refuses when the main window has none.
+- **Window titles**: a notes window is titled for its note and an extension window for its contributed panel title (`detachedPaneTitle`).
+- **Extension panel tabs** offer "Pop Out to Window" (the menu check now goes through `popOutPaneTypeFor`).
+- Not synced live: the same note open in two windows. Saving the stale one raises the "changed in another window" banner (Retry / Save As) instead of overwriting.
+- Driver coverage: `packages/ui-driver/e2e/popout.ts` (`pnpm --filter @bible/ui-driver e2e:popout`; with real data point `BIBLE_DESKTOP_DATA_DIR` at a COPY of a data dir).
+
 ### Tests
 
 | File | Description |
@@ -148,3 +164,7 @@ Verse changes travel **between all windows**, not just outward from the main one
 The window's **title** comes from `book.titleFormat`, which reads `paneKind` to decide between "Dictionary - {name}" and "Book - {name}" and takes the name off the handed-over tab list.
 
 `paneKind` is what separates the two: a `BookPane` with `paneKind: 'dictionary'` shows dictionary tabs only, one with `paneKind: 'book'` book tabs only. The pop-out payload carries it alongside the dictionary state (`popOutModule.ts` and `DockviewTabRenderer`), and `PanelContentRenderer` sets the same prop from the panel's content type for the docked case.
+
+## Notes stay in sync with the main window
+
+A popped-out Notes pane is the same `UserNotesPane`. A save in either window is pushed to the other (`file-notes:note-saved`, sender excluded), which reloads a clean editor in place or shows the conflict banner if it has unsaved edits. See "A note open in two windows stays in step" in `notes-writing.md`.

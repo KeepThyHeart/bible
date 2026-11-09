@@ -6,6 +6,8 @@ export interface CommentaryModule {
   language_code?: string;
   version?: string;
   database_path: string;
+  /** The module_metadata row exists but the module file is gone. */
+  fileMissing?: boolean;
 }
 
 // Commentary entry from database
@@ -73,6 +75,15 @@ export interface CommentaryPanelState {
   entrySummariesByTab: Map<string, CommentaryEntrySummary[]>;
   loadingSummariesByTab: Map<string, boolean>;
   /**
+   * Tabs whose module cannot be opened (`module_missing` = row present, file
+   * gone; `not_found` = not installed). While a tab is flagged the store makes
+   * no IPC calls for it and the pane shows the "module file missing" state;
+   * Retry or a module-list refresh that shows the file back clears the flag.
+   */
+  unavailableByTab: Map<string, 'module_missing' | 'not_found'>;
+  /** Tabs whose summary fetch failed for another reason: no auto-refetch until Retry. */
+  summariesFailedByTab: Map<string, boolean>;
+  /**
    * Bumped every time a tab is brought forward because someone ASKED for it -
    * the reader picking a module, or another pane opening one on their behalf.
    * Not bumped when a tab is merely added to populate the pane.
@@ -107,6 +118,8 @@ export function createDefaultPanelState(): CommentaryPanelState {
     browseModeByTab: new Map(),
     entrySummariesByTab: new Map(),
     loadingSummariesByTab: new Map(),
+    unavailableByTab: new Map(),
+    summariesFailedByTab: new Map(),
     tabActivationSeq: 0,
   };
 }

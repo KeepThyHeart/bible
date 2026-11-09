@@ -382,6 +382,14 @@ export interface ElectronAPI {
     onVerseChanged: (callback: (verseId: number) => void) => void;
     // Listen for extension-driven verse navigation requests
     onExtensionNavigateToVerse: (callback: (verseId: number) => void) => void;
+    // Ask the main window to open a passage (a detached window has no Bible pane of its own)
+    navigateMainToVerse: (verseId: number, newPanel?: boolean) => Promise<{ success: boolean; error?: string }>;
+    // Main window: another window asked for a passage
+    onNavigateToVerse: (callback: (verseId: number, newPanel: boolean) => void) => void;
+    // Theme / font settings: published by the main window, followed by popped-out windows
+    broadcastAppearance: (appearance: Record<string, unknown>) => Promise<{ success: boolean; error?: string }>;
+    getAppearance: () => Promise<Record<string, unknown> | null>;
+    onAppearanceChanged: (callback: (appearance: Record<string, unknown>) => void) => void;
   };
 
   // App-level events
@@ -567,6 +575,15 @@ export interface ElectronAPI {
     reportRendererError: (payload: { message: string; stack?: string; componentStack?: string }) => Promise<unknown>;
     flushNow: () => Promise<unknown>;
     onCrashDetected: (handler: (payload: { id: string }) => void) => () => void;
+  };
+
+  // File notes: push events. (Invokes go through ipcRenderer.invoke.)
+  fileNotes: {
+    /**
+     * Fires in every window except the one that saved a note, so a note open in
+     * several windows can reload (or flag a conflict). Returns an unsubscribe.
+     */
+    onNoteSaved: (cb: (event: { absolutePath: string; updated: string; senderId: number }) => void) => () => void;
   };
 
   // Network privacy - master "Allow web requests" switch. Replies use
@@ -1097,6 +1114,22 @@ const electronAPI: ElectronAPI = {
     // Listen for extension-driven verse navigation requests
     onExtensionNavigateToVerse: (callback: (verseId: number) => void) => {
       ipcRenderer.on('extension:navigate-to-verse', (_event, verseId: number) => callback(verseId));
+    },
+
+    navigateMainToVerse: (verseId: number, newPanel?: boolean) =>
+      ipcRenderer.invoke('window:navigate-main-to-verse', verseId, newPanel === true),
+
+    onNavigateToVerse: (callback: (verseId: number, newPanel: boolean) => void) => {
+      ipcRenderer.on('window:navigate-to-verse', (_event, verseId: number, newPanel: boolean) => callback(verseId, newPanel === true));
+    },
+
+    broadcastAppearance: (appearance: Record<string, unknown>) =>
+      ipcRenderer.invoke('window:broadcast-appearance', appearance),
+
+    getAppearance: () => ipcRenderer.invoke('window:get-appearance'),
+
+    onAppearanceChanged: (callback: (appearance: Record<string, unknown>) => void) => {
+      ipcRenderer.on('appearance-changed', (_event, appearance: Record<string, unknown>) => callback(appearance));
     }
   },
 
@@ -1255,6 +1288,17 @@ const electronAPI: ElectronAPI = {
       ipcRenderer.on('diagnostics:crash-detected', wrapped);
       return () => {
         ipcRenderer.removeListener('diagnostics:crash-detected', wrapped);
+      };
+    },
+  },
+
+  fileNotes: {
+    onNoteSaved: (cb: (event: { absolutePath: string; updated: string; senderId: number }) => void) => {
+      const wrapped = (_event: unknown, payload: { absolutePath: string; updated: string; senderId: number }): void =>
+        cb(payload);
+      ipcRenderer.on('file-notes:note-saved', wrapped);
+      return () => {
+        ipcRenderer.removeListener('file-notes:note-saved', wrapped);
       };
     },
   },
