@@ -83,6 +83,9 @@ test.describe('App host: Presenter-only boot', () => {
     await page.goto('/#/@present');
     await expect(page.locator('.presenter-app')).toBeVisible({ timeout: 10000 });
 
+    // Let the first load settle before reloading: a reload that cuts off the lazy
+    // NotesEditor stylesheet makes WebKit report an unhandled preload rejection.
+    await page.waitForLoadState('networkidle');
     const urls = recordRequests(page);
     await page.reload();
     await expect(page.locator('.presenter-app')).toBeVisible({ timeout: 10000 });

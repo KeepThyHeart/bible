@@ -309,6 +309,7 @@ const SearchDistributionGraph: React.FC<DistributionProps> = (props) => {
     const below = tipAnchor.top < TIP_FLIP_BELOW_PX;
     return {
       position: 'fixed',
+      // rtl-physical: x is the bar's measured viewport centre, and translateX(-50%) centres on it in either direction
       left: `${x}px`,
       top: below ? `${tipAnchor.bottom + 4}px` : `${tipAnchor.top - 4}px`,
       transform: below ? 'translateX(-50%)' : 'translate(-50%, -100%)',
