@@ -26,8 +26,7 @@ import { mergeTabOrder, moveTab, sameTabOrder, indexWithinType } from './BookPan
 import { useNavSectionInfo } from './BookPane/hooks/useNavSectionInfo';
 import { useDetachedInit } from './BookPane/hooks/useDetachedInit';
 import { useDictionaryDetachedInit } from './BookPane/hooks/useDictionaryDetachedInit';
-import { anchorAtPointer } from '@bible/core/browser';
-import { useDirection } from '@bible/ui';
+import PointerMenu from './shared/PointerMenu';
 import { contentDirAttrs } from '../utils/contentDirection';
 import {
   SHOW_DICTIONARY_PANE_EVENT,
@@ -184,7 +183,6 @@ const BookPane: React.FC<BookPaneProps> = (props) => {
 
   // Context menu for internal tabs (right-click -> "Pop Out to Window")
   const [tabContextMenu, setTabContextMenu] = useState<{ x: number; y: number; tabType: 'book' | 'dictionary'; abbreviation: string } | null>(null);
-  const uiDir = useDirection();
 
   const dismissTabContextMenu = useCallback(() => setTabContextMenu(null), []);
   useOverlayDismissal(!!tabContextMenu, dismissTabContextMenu);
@@ -841,16 +839,14 @@ const BookPane: React.FC<BookPaneProps> = (props) => {
       {/* Tree View Modal */}
       {/* Internal tab context menu */}
       {tabContextMenu && (
-        <div
+        <PointerMenu
+          x={tabContextMenu.x}
+          y={tabContextMenu.y}
           ref={tabContextMenuRef}
           role="menu"
           aria-label={t('bookPane.tabMenuLabel')}
           onKeyDown={(e) => { if (e.key === 'Escape') dismissTabContextMenu(); }}
           style={{
-            position: 'fixed',
-            ...anchorAtPointer(tabContextMenu.x, 180, window.innerWidth, uiDir),
-            top: tabContextMenu.y,
-            zIndex: 10000,
             minWidth: '180px',
             backgroundColor: 'var(--theme-bg-primary)',
             border: '1px solid var(--theme-border-primary)',
@@ -876,7 +872,7 @@ const BookPane: React.FC<BookPaneProps> = (props) => {
               />
             </>
           )}
-        </div>
+        </PointerMenu>
       )}
 
     </div>

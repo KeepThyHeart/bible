@@ -17,7 +17,9 @@ const mockSearchState: Record<string, unknown> = {};
 vi.mock('../stores/useSearchStore', async () => {
   const actual = await vi.importActual<typeof import('../stores/useSearchStore')>('../stores/useSearchStore');
   return {
-    normalizeSearchQuery: actual.normalizeSearchQuery,
+    // Real exports (selectors, helpers) so a new one used by TopSearchBar
+    // does not break this mock; only the store hook is replaced.
+    ...actual,
     useSearchStore: Object.assign(
       (selector?: (s: Record<string, unknown>) => unknown) =>
         selector ? selector(mockSearchState) : mockSearchState,

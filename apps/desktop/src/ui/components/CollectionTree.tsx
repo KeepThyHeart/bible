@@ -5,8 +5,8 @@
  */
 import React, { useState } from 'react';
 import { useBookmarkStore } from '../stores/useBookmarkStore';
-import { anchorAtPointer } from '@bible/core/browser';
-import { useDirection, Bdi } from '@bible/ui';
+import PointerMenu from './shared/PointerMenu';
+import { Bdi } from '@bible/ui';
 import { PinIcon } from './shared/icons/PinIcon';
 import { useI18n } from '../contexts/useI18n';
 
@@ -148,7 +148,6 @@ const PinnedItemNode: React.FC<PinnedItemNodeProps> = ({
   const { t } = useI18n();
   const { removeItem } = useBookmarkStore();
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
-  const uiDir = useDirection();
 
   const handleClick = () => {
     if (item.verseIdStart) {
@@ -222,9 +221,10 @@ const PinnedItemNode: React.FC<PinnedItemNodeProps> = ({
 
       {/* Context Menu */}
       {contextMenu && (
-        <div
-          className="fixed bg-surface-elevated shadow-lg border border-border-secondary rounded-md py-1 z-50"
-          style={{ ...anchorAtPointer(contextMenu.x, 180, window.innerWidth, uiDir), top: contextMenu.y }}
+        <PointerMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          className="bg-surface-elevated shadow-lg border border-border-secondary rounded-md py-1"
           onClick={(e) => e.stopPropagation()}
         >
           <button
@@ -233,7 +233,7 @@ const PinnedItemNode: React.FC<PinnedItemNodeProps> = ({
           >
             {t('collectionTree.remove')}
           </button>
-        </div>
+        </PointerMenu>
       )}
     </>
   );

@@ -398,13 +398,14 @@ describe.skipIf(!hasStudyModules)('the main screen — study panes', () => {
     // Whichever number and name MHC landed on: read the row back rather than
     // assuming either — the alphabetical order is asserted
     // separately in `app/studyPanes.test.ts`.
-    const row = listed.split('\n').find((l) => l.toLowerCase().includes('mhc'));
+    // Only the list column: the side pane after `│` can hold a key hint on the same line.
+    const row = listed
+      .split('\n')
+      .map((l) => l.split('│')[0] ?? '')
+      .find((l) => l.toLowerCase().includes('mhc'));
     expect(row).toBeDefined();
     if (row === undefined) return;
     const number = row.trim().slice(0, 2);
-    const moduleName = row.trim().slice(2).trim().split(/\s{2,}/).pop()?.trim();
-    expect(moduleName).toBeDefined();
-    if (moduleName === undefined) return;
 
     for (const digit of number) syncAction(screen.key(key('char', digit), ctx));
     const opened = syncAction(screen.key(key('enter'), ctx));
@@ -412,7 +413,11 @@ describe.skipIf(!hasStudyModules)('the main screen — study panes', () => {
     // from `ctx.lastCommentary` (`undefined`), so it is persisted
     // rather than a plain redraw — see the dedicated `lastCommentary` tests.
     expect(opened.kind).toBe('lastCommentary');
-    expect(textOf(screen.view(ctx))).toContain(moduleName);
+    // The opened pane is headed by the module's name, which is the name on MHC's row.
+    // (Read it from the pane: the row's word-count column can run into the name.)
+    const heading = (textOf(screen.view(ctx)).split('\n')[0] ?? '').split('│')[0]?.trim() ?? '';
+    expect(heading.length).toBeGreaterThan(0);
+    expect(row).toContain(heading);
   });
 
   test('`esc` from a commentary entry opened via `c` goes back to the list', () => {

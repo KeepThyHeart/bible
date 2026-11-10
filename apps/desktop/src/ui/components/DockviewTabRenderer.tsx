@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useOverlayDismissal } from '../hooks/useOverlayDismissal';
 import { useDockviewTabA11y, focusActiveTabOfGroup, focusPanelTab } from '../hooks/useDockviewTabA11y';
-import { createPortal } from 'react-dom';
 import type { IDockviewPanelHeaderProps } from 'dockview-react';
 import type { PanelContentType } from '../stores/useLayoutStore';
 import { useLayoutStore } from '../stores/useLayoutStore';
@@ -16,7 +15,7 @@ import { formatVerseReference } from '../utils/verseReference';
 import type { PaneType } from '../../../electron/config/paneConfig';
 import { useI18n } from '../contexts/useI18n';
 import { localizePaneLabel, PANE_NAME_KEYS, type NamedPaneType } from '../utils/paneNames';
-import { anchorAtPointer } from '@bible/core/browser';
+import PointerMenu from './shared/PointerMenu';
 import { useDirection, Bdi } from '@bible/ui';
 import { popOutModuleToWindow } from '../utils/popOutModule';
 import { cleanModuleName } from '../utils/verseFormatting';
@@ -637,18 +636,15 @@ const DockviewTabRenderer: React.FC<IDockviewPanelHeaderProps> = (props) => {
         )}
       </div>
 
-      {/* Context Menu (rendered via portal to escape dockview's overflow/transform clipping) */}
-      {contextMenu && createPortal(
-        <div
+      {contextMenu && (
+        <PointerMenu
           ref={menuRef}
+          x={contextMenu.x}
+          y={contextMenu.y}
           role="menu"
           aria-label={t('ui.dockviewTab.contextMenuLabel')}
           data-testid="dockview-tab-context-menu"
           style={{
-            position: 'fixed',
-            ...anchorAtPointer(contextMenu.x, 180, window.innerWidth, uiDir),
-            top: contextMenu.y,
-            zIndex: 10000,
             minWidth: '180px',
             backgroundColor: 'var(--theme-bg-primary)',
             border: '1px solid var(--theme-border-primary)',
@@ -680,8 +676,7 @@ const DockviewTabRenderer: React.FC<IDockviewPanelHeaderProps> = (props) => {
               <ContextMenuItem label={t('ui.dockviewTab.close')} onClick={handleCloseContext} />
             </>
           )}
-        </div>,
-        document.body
+        </PointerMenu>
       )}
     </>
   );

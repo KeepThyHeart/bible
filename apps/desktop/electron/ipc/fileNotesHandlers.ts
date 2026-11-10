@@ -9,6 +9,7 @@ import { blessPath, isPathBlessed, isPathWithin } from './blessedPaths';
 import { t } from '../services/MainI18n';
 import { buildNoteDocx } from './noteDocx';
 import { moveNoteDirectionKeys, clearNoteDirectionKeys } from './noteDirectionHandlers';
+import { isEmptyNoteContent } from '../services/noteContent';
 
 let fileNotesService: BibleNotesFileService | null = null;
 
@@ -126,7 +127,20 @@ export function registerFileNotesHandlers(): void {
   // it is still dirty when the push would arrive and would raise a false conflict.
   ipcHandlerWithSender<[string, BnFile, string | undefined], string>(
     'file-notes:save-note',
-    (senderId, relativePath, note, expectedUpdated) => {
+    async (senderId, relativePath, note, expectedUpdated) => {
+      // A verse note whose text was cleared is removed rather than kept as an
+      // empty file (which would leave the verse showing a note marker). The
+      // empty `updated` tells the editor the note is no longer on disk, so
+      // typing again re-creates it.
+      if (getService().isVerseNotePath(relativePath) && isEmptyNoteContent(note.content)) {
+        try {
+          await getService().removeEmptiedVerseNote(relativePath, expectedUpdated);
+        } catch (err) {
+          throw toConflictError(err);
+        }
+        await clearNoteDirectionKeys(relativePath);
+        return '';
+      }
       let updated: string;
       try {
         updated = getService().saveNote(relativePath, note, expectedUpdated);

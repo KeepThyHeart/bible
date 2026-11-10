@@ -39,6 +39,7 @@ function menuPositionFor(button: HTMLElement): MenuPosition {
   const r = button.getBoundingClientRect();
   const rtl = getComputedStyle(button).direction === 'rtl';
   const top = r.bottom + 6;
+  // rtl-physical: fixed position from a physical rect, side chosen per direction
   return rtl ? { top, right: Math.max(0, window.innerWidth - r.right) } : { top, left: Math.max(0, r.left) };
 }
 
@@ -204,6 +205,7 @@ const SearchTypeSelector: React.FC<{ onChosen?: () => void; onOpenChange?: (open
           // Above the header's popups and the dock (which live in the app
           // root's stacking context); below nothing that matters, since any
           // choice closes the menu before a dialog can open.
+          // rtl-physical: physical inset from menuPositionFor, chosen per direction
           style={{ position: 'fixed', top: position.top, left: position.left, right: position.right, zIndex: 10000 }}
         >
           {options.map((o) => {
