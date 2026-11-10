@@ -28,6 +28,8 @@ const saveNoteAbsolute = vi.fn();
 vi.mock('../../services/BibleNotesFileService', () => ({
   BibleNotesFileService: class {
     getNotesDir() { return '/notes'; }
+    // These saves are not emptied verse notes, so they take the normal save path.
+    isVerseNotePath() { return false; }
     saveNote = saveNote;
     saveNoteAbsolute = saveNoteAbsolute;
   },
