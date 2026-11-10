@@ -255,4 +255,88 @@ describe('DiagnosticsUploader', () => {
     expect(parsed.type).toBe('feedback');
     expect(parsed.report_id).toBe('hdrcheck');
   });
+  describe('deliver(reportId)', () => {
+    it('sends the report now and says so', async () => {
+      const id = queue.enqueue(mkFeedback());
+      respondWith(() => fetchResult(201));
+      await expect(uploader.deliver(id)).resolves.toEqual({ status: 'sent' });
+      expect(queue.read(id)).toBeNull();
+    });
+
+    it('does not POST twice when the submit handler already started a flush', async () => {
+      const id = queue.enqueue(mkFeedback());
+      respondWith(() => fetchResult(201));
+      // What the submit IPC does: fire-and-forget flush, then the renderer asks.
+      void uploader.flushNow();
+      await expect(uploader.deliver(id)).resolves.toEqual({ status: 'sent' });
+      expect(gateway.fetchCalls).toHaveLength(1);
+    });
+
+    it('contacts nothing and names the switch when web requests are off', async () => {
+      gateway.offline = true;
+      const id = queue.enqueue(mkFeedback());
+      await expect(uploader.deliver(id)).resolves.toEqual({
+        status: 'queued',
+        reason: 'web-requests-off',
+      });
+      expect(gateway.fetchCalls).toHaveLength(0);
+      expect(queue.read(id)).not.toBeNull();
+    });
+
+    it('reports no connection without trying', async () => {
+      gateway.connected = false;
+      const id = queue.enqueue(mkFeedback());
+      await expect(uploader.deliver(id)).resolves.toEqual({
+        status: 'queued',
+        reason: 'no-connection',
+      });
+      expect(gateway.fetchCalls).toHaveLength(0);
+    });
+
+    it('reports no endpoint without trying', async () => {
+      config.set({ endpointUrl: '' });
+      const id = queue.enqueue(mkFeedback());
+      await expect(uploader.deliver(id)).resolves.toEqual({
+        status: 'queued',
+        reason: 'no-endpoint',
+      });
+      expect(gateway.fetchCalls).toHaveLength(0);
+    });
+
+    it('keeps a transient failure queued and says it is unreachable', async () => {
+      const id = queue.enqueue(mkFeedback());
+      respondWith(() => fetchResult(503));
+      await expect(uploader.deliver(id)).resolves.toEqual({
+        status: 'queued',
+        reason: 'unreachable',
+      });
+      expect(queue.read(id)).not.toBeNull();
+    });
+
+    it('reports a rate limit as queued', async () => {
+      const id = queue.enqueue(mkFeedback());
+      respondWith(() => fetchResult(429, '', { 'retry-after': '60' }));
+      await expect(uploader.deliver(id)).resolves.toEqual({
+        status: 'queued',
+        reason: 'rate-limited',
+      });
+    });
+
+    it('reports a permanent refusal as rejected (the file is gone, so not "queued")', async () => {
+      const id = queue.enqueue(mkFeedback());
+      respondWith(() => fetchResult(400));
+      await expect(uploader.deliver(id)).resolves.toEqual({ status: 'rejected' });
+      expect(queue.read(id)).toBeNull();
+    });
+
+    it('still will not send a crash report that lacks consent', async () => {
+      config.set({ enabled: false });
+      const id = queue.enqueue(mkCrash({ pending_send: true }));
+      await expect(uploader.deliver(id)).resolves.toEqual({
+        status: 'queued',
+        reason: 'not-eligible',
+      });
+      expect(gateway.fetchCalls).toHaveLength(0);
+    });
+  });
 });

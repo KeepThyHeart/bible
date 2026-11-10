@@ -234,6 +234,18 @@ export class InstallationService implements IInstallationService {
       // Register in database
       const registeredModuleId = await this.registerModule(metadata);
 
+      // A reader that asked for this module before it was installed got a
+      // miss, and the module loaders remember a miss for 30 s; an update may
+      // also have a connection open on the file just replaced. Drop both so the
+      // very next request opens the module that is now on disk.
+      if (metadata.abbreviation) {
+        try {
+          ModuleLoader.evictEverywhere(metadata.abbreviation);
+        } catch (error) {
+          log.warn(`[InstallationService] Failed to reset cached handles for ${metadata.abbreviation}:`, error);
+        }
+      }
+
       // Best-effort keyword-index build (F8, task 0027 revision 2). The
       // module is already fully installed and readable at this point -
       // registerModule() above succeeded - so this is a strictly separate,

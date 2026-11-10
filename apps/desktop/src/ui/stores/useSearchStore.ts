@@ -19,7 +19,11 @@ import { moduleAPI } from './module/moduleAPI';
 // Semantic Mode Persistence
 // ============================================================================
 
-const SEMANTIC_MODE_STORAGE_KEY = 'bible.search.semanticMode';
+// `.v2`: the old key was also written by the (removed) automatic switch to
+// Ideas search after zero keyword hits, so a stored `true` there may never
+// have been the user's choice. Starting from a fresh key puts everyone back on
+// keyword search until they pick Ideas themselves.
+const SEMANTIC_MODE_STORAGE_KEY = 'bible.search.semanticMode.v2';
 
 function loadPersistedSemanticMode(): boolean {
   if (typeof window === 'undefined' || !window.localStorage) return false;
@@ -207,7 +211,6 @@ interface SearchState {
   semanticResults: SemanticResult[];
   isSemanticSearching: boolean;
   semanticAvailable: boolean;
-  autoSwitchedToSemantic: boolean; // true if we auto-switched due to 0 keyword results
   /**
    * How many of `semanticResults` the list is currently showing.
    *
@@ -335,7 +338,7 @@ interface SearchState {
   /** Read (and cache) the remote option's status. Never throws; failure means "not configured". */
   refreshRemoteSemanticStatus: () => Promise<RemoteSemanticStatus | null>;
   /** The consent modal's answer: records it, closes the modal and releases the waiting search(es). */
-  answerRemoteConsent: (choice: RemoteConsentChoice) => Promise<void>;
+  answerRemoteConsent: (choice: ConsentDialogAnswer) => Promise<void>;
   /** Preferences toggle: 'declined' withdraws, 'reset' re-enables (asks again on next use). */
   setRemoteSemanticConsent: (decision: RemoteConsentChoice | 'reset') => Promise<void>;
   /** Preferences > Search: online / offline (installed pack) / off. */
@@ -399,7 +402,6 @@ export const SESSION_FIELD_KEYS = [
   'isSemanticMode',
   'semanticResults',
   'isSemanticSearching',
-  'autoSwitchedToSemantic',
   'semanticVisibleCount',
   'semanticSource',
   'semanticNotice',
@@ -420,8 +422,46 @@ export type SearchSessionFields = Pick<SearchState, SessionFieldKey>;
 /** Most search tabs open at once; opening another replaces the least recently used one. */
 export const MAX_SEARCH_TABS = 8;
 
-/** Searches parked behind the open consent modal; all released by `answerRemoteConsent`. */
-let consentWaiters: Array<() => void> = [];
+/**
+ * Searches parked behind the open consent modal; all released by
+ * `answerRemoteConsent` with whether to go ahead (false after "Not now").
+ */
+let consentWaiters: Array<(proceed: boolean) => void> = [];
+
+/**
+ * The consent modal's three answers. `granted` and `declined` are persisted by
+ * the main process; `notNow` is not recorded anywhere - it only cancels the
+ * Ideas search that asked, and the next one asks again.
+ */
+export type ConsentDialogAnswer = RemoteConsentChoice | 'notNow';
+
+/**
+ * Whether the search-type menu offers Ideas search. Wider than
+ * `semanticAvailable` (which says a search would get an answer right now): a
+ * build with the online service keeps Ideas selectable after the user said
+ * "Don't use the online service" with no local pack installed, so they can
+ * still pick it and be asked again. Only switching meaning search off in
+ * Preferences (source `off`) removes it.
+ */
+export function isIdeasSelectable(s: Pick<SearchState, 'semanticAvailable' | 'remoteSemanticStatus'>): boolean {
+  if (s.semanticAvailable) return true;
+  const st = s.remoteSemanticStatus;
+  return !!st?.configured && (st.source ?? 'online') !== 'off';
+}
+
+/**
+ * Does this semantic search have to ask first? First use of the online
+ * service (consent unset, source online), or the user explicitly picking
+ * Ideas again after "Don't use the online service" when nothing local can
+ * answer (asking is then the only way it can work).
+ */
+function needsConsentPrompt(status: RemoteSemanticStatus | null, semanticAvailable: boolean): boolean {
+  if (!status?.configured) return false;
+  const source = status.source ?? 'online';
+  if (source === 'off') return false;
+  if (status.consent === 'unset') return source === 'online';
+  return status.consent === 'declined' && !semanticAvailable;
+}
 
 /** The ceiling an ordinary keyword search is fetched with. */
 export const KEYWORD_DEFAULT_MAX_RESULTS = 200;
@@ -500,7 +540,6 @@ function emptyResultsPatch(): Partial<SearchState> {
     keywordIndexNotice: null,
     semanticResults: [],
     semanticVisibleCount: SEMANTIC_INITIAL_VISIBLE,
-    autoSwitchedToSemantic: false,
     strongsMeta: null,
     includeRelatedWords: false,
     retriedModules: [],
@@ -523,7 +562,6 @@ export function freshSessionFields(isSemanticMode = false): SearchSessionFields 
     isSemanticMode,
     semanticResults: [],
     isSemanticSearching: false,
-    autoSwitchedToSemantic: false,
     semanticVisibleCount: SEMANTIC_INITIAL_VISIBLE,
     semanticSource: null,
     semanticNotice: null,
@@ -925,7 +963,6 @@ export const useSearchStore = create<SearchState>((set, get) => {
   semanticResults: [],
   isSemanticSearching: false,
   semanticAvailable: false,
-  autoSwitchedToSemantic: false,
   semanticVisibleCount: SEMANTIC_INITIAL_VISIBLE,
   remoteSemanticStatus: null,
   consentDialogOpen: false,
@@ -1174,9 +1211,9 @@ export const useSearchStore = create<SearchState>((set, get) => {
       const current = readSession(sessionId);
       if (!current) return;
 
-      // Only reset semantic mode on a fresh query if it was auto-switched
-      // (a user-selected mode should persist across searches).
-      const nextSemanticMode = current.autoSwitchedToSemantic ? false : current.isSemanticMode;
+      // The search type is only ever what the user picked (the search-type
+      // menu or the results pane's suggestion); a search never changes it.
+      const nextSemanticMode = current.isSemanticMode;
       patchSession(sessionId, {
         searchResults: results,
         searchedModules,
@@ -1186,16 +1223,11 @@ export const useSearchStore = create<SearchState>((set, get) => {
         keywordResultLimit: requestedLimit,
         isShowingAllKeywordResults: false,
         semanticVisibleCount: SEMANTIC_INITIAL_VISIBLE,
-        isSemanticMode: nextSemanticMode,
-        autoSwitchedToSemantic: false,
         semanticResults: [],
         semanticNotice: null,
       });
       // Reset proximity distance after search completes (per user requirement)
       set((st) => ({ searchOptions: { ...st.searchOptions, proximityDistance: 0 } }));
-
-      // Persist mode change if we cleared auto-switch
-      if (sessionId === get().activeSessionId) persistSemanticMode(nextSemanticMode);
 
       // Surface the results tab: a new tab is placed by the layout store's
       // rules (see `useLayoutStore.openSearchResultsPanel`); an existing one is
@@ -1213,14 +1245,10 @@ export const useSearchStore = create<SearchState>((set, get) => {
         }).catch(err => console.error('Word family load failed:', err));
       }
 
-      // If the tab is in semantic mode, run semantic search as well
-      const semanticAvailable = get().semanticAvailable;
-      if (nextSemanticMode && semanticAvailable && !isStrongs) {
-        void get().performSemanticSearch(queryToSearch, { sessionId, reveal: opts.reveal });
-      } else if (results.length === 0 && semanticAvailable && !isStrongs) {
-        // Auto-switch to semantic search if no keyword results found
-        patchSession(sessionId, { isSemanticMode: true, autoSwitchedToSemantic: true });
-        if (sessionId === get().activeSessionId) persistSemanticMode(true);
+      // Ideas search runs only when the user put this tab in Ideas mode. Zero
+      // (or few) keyword hits never switch it on by themselves: the results
+      // pane offers it instead (its no-results suggestion).
+      if (nextSemanticMode && isIdeasSelectable(get()) && !isStrongs) {
         void get().performSemanticSearch(queryToSearch, { sessionId, reveal: opts.reveal });
       }
     } catch (error) {
@@ -1298,7 +1326,6 @@ export const useSearchStore = create<SearchState>((set, get) => {
       isShowingAllKeywordResults: false,
       keywordIndexNotice: null,
       // Keep persisted semantic mode selection when clearing; only reset auto-switch.
-      autoSwitchedToSemantic: false,
       semanticResults: [],
       semanticVisibleCount: SEMANTIC_INITIAL_VISIBLE,
       strongsMeta: null,
@@ -1337,13 +1364,13 @@ export const useSearchStore = create<SearchState>((set, get) => {
     const { isSemanticMode, resultsForQuery } = get();
     if (isSemanticMode) {
       // Switching back to keyword mode
-      set({ isSemanticMode: false, autoSwitchedToSemantic: false });
+      set({ isSemanticMode: false });
       persistSemanticMode(false);
     } else {
       // Switching to semantic mode - trigger semantic search
-      set({ isSemanticMode: true, autoSwitchedToSemantic: false });
+      set({ isSemanticMode: true });
       persistSemanticMode(true);
-      if (resultsForQuery) {
+      if (resultsForQuery && isIdeasSelectable(get())) {
         void get().performSemanticSearch(resultsForQuery);
       }
     }
@@ -1351,10 +1378,10 @@ export const useSearchStore = create<SearchState>((set, get) => {
 
   setSemanticMode: (mode: boolean) => {
     if (get().isSemanticMode === mode) return;
-    set({ isSemanticMode: mode, autoSwitchedToSemantic: false });
+    set({ isSemanticMode: mode });
     persistSemanticMode(mode);
-    const { resultsForQuery, semanticAvailable } = get();
-    if (mode && resultsForQuery && semanticAvailable) {
+    const { resultsForQuery } = get();
+    if (mode && resultsForQuery && isIdeasSelectable(get())) {
       void get().performSemanticSearch(resultsForQuery);
     }
   },
@@ -1395,17 +1422,22 @@ export const useSearchStore = create<SearchState>((set, get) => {
   },
 
   answerRemoteConsent: async (choice) => {
-    try {
-      const status = await remoteSemanticAPI.setConsent(choice);
-      set({ remoteSemanticStatus: status });
-    } catch (error) {
-      console.error('Failed to record meaning-search consent:', error);
+    // "Not now" is deliberately not recorded: it means "not this time", so the
+    // next Ideas search asks again and nothing switches to the local pack.
+    const persist = choice !== 'notNow';
+    if (persist) {
+      try {
+        const status = await remoteSemanticAPI.setConsent(choice);
+        set({ remoteSemanticStatus: status });
+      } catch (error) {
+        console.error('Failed to record meaning-search consent:', error);
+      }
     }
     set({ consentDialogOpen: false });
     const waiters = consentWaiters;
     consentWaiters = [];
-    waiters.forEach((resolve) => resolve());
-    void get().checkSemanticAvailability();
+    waiters.forEach((resolve) => resolve(persist));
+    if (persist) void get().checkSemanticAvailability();
   },
 
   setRemoteSemanticConsent: async (decision) => {
@@ -1428,8 +1460,8 @@ export const useSearchStore = create<SearchState>((set, get) => {
     await get().checkSemanticAvailability();
     // Turned off (or nothing left to answer): leave semantic mode so the
     // search bar is not stuck on a mode that no longer exists.
-    if (!get().semanticAvailable && get().isSemanticMode) {
-      set({ isSemanticMode: false, autoSwitchedToSemantic: false, semanticResults: [], semanticNotice: null });
+    if (!isIdeasSelectable(get()) && get().isSemanticMode) {
+      set({ isSemanticMode: false, semanticResults: [], semanticNotice: null });
     }
   },
 
@@ -1445,14 +1477,29 @@ export const useSearchStore = create<SearchState>((set, get) => {
     patchSession(sessionId, { isSemanticSearching: true });
 
     try {
-      // First-use consent: nothing is searched (or sent) until the user answers.
+      // Consent: nothing is searched (or sent) until the user answers.
       // Concurrent searches share one modal.
       const status = get().remoteSemanticStatus ?? (await get().refreshRemoteSemanticStatus());
-      if (status?.configured && status.consent === 'unset' && (status.source ?? 'online') === 'online') {
-        await new Promise<void>((resolve) => {
+      if (needsConsentPrompt(status, get().semanticAvailable)) {
+        const proceed = await new Promise<boolean>((resolve) => {
           consentWaiters.push(resolve);
           if (!get().consentDialogOpen) set({ consentDialogOpen: true });
         });
+        if (!proceed) {
+          // "Not now": this Ideas search does not run. Back to the keyword
+          // results the tab already has; no notice, nothing recorded.
+          if (!isLatestRequest(sessionId, 'semantic', ticket)) return;
+          patchSession(sessionId, {
+            isSemanticMode: false,
+            semanticResults: [],
+            semanticSource: null,
+            semanticNotice: null,
+            semanticRateLimit: null,
+            isSemanticSearching: false,
+          });
+          if (sessionId === get().activeSessionId) persistSemanticMode(false);
+          return;
+        }
       }
 
       const reply = await searchAPI.semanticSearchEx(queryToSearch, {
@@ -1471,8 +1518,8 @@ export const useSearchStore = create<SearchState>((set, get) => {
       });
       if (!written) return;
 
-      // A semantic search can be run on its own (the brain toggle, or the
-      // auto-switch after zero keyword hits), so it has to surface the pane too.
+      // A semantic search can be run on its own (the search-type menu, or the
+      // results pane's Ideas suggestion), so it has to surface the pane too.
       revealSession(sessionId, opts.reveal);
     } catch (error) {
       console.error('Semantic search failed:', error);
@@ -1487,7 +1534,7 @@ export const useSearchStore = create<SearchState>((set, get) => {
         semanticResults: [],
         semanticSource: null,
         semanticNotice: fallbackNotice,
-        ...(fallbackNotice ? { isSemanticMode: false, autoSwitchedToSemantic: false } : {}),
+        ...(fallbackNotice ? { isSemanticMode: false } : {}),
         semanticRateLimit: null,
         semanticVisibleCount: SEMANTIC_INITIAL_VISIBLE,
         isSemanticSearching: false,
@@ -1587,7 +1634,6 @@ export const useSearchStore = create<SearchState>((set, get) => {
         keywordResultLimit: requestedLimit,
         isShowingAllKeywordResults: false,
         isSemanticMode: false,
-        autoSwitchedToSemantic: false,
         semanticResults: [],
         semanticVisibleCount: SEMANTIC_INITIAL_VISIBLE,
         retriedModules: current.retriedModules.includes(moduleAbbr)

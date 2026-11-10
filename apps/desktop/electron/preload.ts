@@ -434,6 +434,13 @@ export interface ElectronAPI {
      * `installModule` below.
      */
     getStarterPacks: (languageCode: string) => Promise<Result<OfferedStarterPack[]>>;
+    /**
+     * Fired when the main process registers modules on its own - the startup
+     * scan finding module files on disk that were not in the registry. The
+     * renderer reloads its installed list (which tells the panes). Returns an
+     * unsubscribe function.
+     */
+    onLibraryChanged: (cb: (event: { moduleTypes: string[] }) => void) => () => void;
     /** Resolve a starter pack's module ids to their catalog entries, scoped to `catalogId` (its `source.catalogId`). */
     getStarterPackModules: (
       packId: string,
@@ -568,7 +575,9 @@ export interface ElectronAPI {
     deleteAll: () => Promise<unknown>;
     submitCrashReport: (args: { reportId: string; description?: string }) => Promise<unknown>;
     submitManualReport: (args: { description: string; includeDiagnostics: boolean }) => Promise<unknown>;
-    submitFeedback: (args: { description: string }) => Promise<unknown>;
+    submitFeedback: (args: { description: string; contact?: string }) => Promise<unknown>;
+    /** Try to send a just-submitted report now; resolves with a `DeliveryResult`. */
+    deliverReport: (reportId: string) => Promise<unknown>;
     getStateSnapshot: () => Promise<unknown>;
     getConfig: () => Promise<unknown>;
     setConfig: (patch: Record<string, unknown>) => Promise<unknown>;
@@ -1164,6 +1173,13 @@ const electronAPI: ElectronAPI = {
     // Starter packs for a UI locale, and the catalog entries one names.
     getStarterPacks: (languageCode: string) =>
       typedInvoke('module:get-starter-packs', languageCode),
+    onLibraryChanged: (cb: (event: { moduleTypes: string[] }) => void) => {
+      const wrapped = (_event: unknown, payload: { moduleTypes: string[] }): void => cb(payload);
+      ipcRenderer.on('module:library-changed', wrapped);
+      return () => {
+        ipcRenderer.removeListener('module:library-changed', wrapped);
+      };
+    },
     getStarterPackModules: (packId: string, catalogId: number) =>
       typedInvoke('module:get-starter-pack-modules', packId, catalogId),
     // Install module
@@ -1274,8 +1290,10 @@ const electronAPI: ElectronAPI = {
       ipcRenderer.invoke('diagnostics:submit-crash-report', args),
     submitManualReport: (args: { description: string; includeDiagnostics: boolean }) =>
       ipcRenderer.invoke('diagnostics:submit-manual-report', args),
-    submitFeedback: (args: { description: string }) =>
+    submitFeedback: (args: { description: string; contact?: string }) =>
       ipcRenderer.invoke('diagnostics:submit-feedback', args),
+    deliverReport: (reportId: string) =>
+      ipcRenderer.invoke('diagnostics:deliver-report', reportId),
     getStateSnapshot: () => ipcRenderer.invoke('diagnostics:get-state-snapshot'),
     getConfig: () => ipcRenderer.invoke('diagnostics:get-config'),
     setConfig: (patch: Record<string, unknown>) =>

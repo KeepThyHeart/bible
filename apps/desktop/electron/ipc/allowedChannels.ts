@@ -168,6 +168,7 @@ export const ALLOWED_IPC_CHANNELS = [
   'diagnostics:set-config',
   'diagnostics:report-renderer-error',
   'diagnostics:flush-now',
+  'diagnostics:deliver-report',
   // Renderer-bound event (main -> renderer): `diagnostics:crash-detected`
   // Network privacy - master offline switch
   'network:get-allow-web-requests',

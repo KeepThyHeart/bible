@@ -109,6 +109,16 @@ vi.mock('../../services/ModulePackService', async (importOriginal) => {
   return { ...actual, inspectModulePack, installModulePack };
 });
 
+// A semantic feature pack shares the .biblepack extension; the handler looks
+// inside to route it (see `featurePackArchive.ts`). False unless a test says so.
+const isFeaturePackArchive = vi.fn(async (_path: string) => false);
+vi.mock('../../services/featurePackArchive', () => ({ isFeaturePackArchive }));
+
+const installFromPackage = vi.fn();
+const getSemanticPackService = vi.fn(() => ({ installFromPackage }));
+vi.mock('../../services/SemanticPackService', () => ({ getSemanticPackService }));
+vi.mock('../searchHandlers', () => ({ resetSemanticSearch: vi.fn() }));
+
 async function invoke<T>(channel: string, ...args: unknown[]): Promise<{ ok: true; value: T } | { ok: false; error: { code: string; message: string } }> {
   const fn = handlers.get(channel);
   if (!fn) throw new Error(`No handler registered for ${channel}`);
@@ -127,6 +137,9 @@ describe("module:install-from-file's native trust-gate dialog", () => {
     showOpenDialog.mockReset();
     showMessageBox.mockReset();
     showErrorBox.mockReset();
+    isFeaturePackArchive.mockReset();
+    isFeaturePackArchive.mockResolvedValue(false);
+    installFromPackage.mockReset();
     showOpenDialog.mockResolvedValue({ canceled: false, filePaths: ['C:\\fake\\starter.biblepack'] });
   });
 
@@ -227,5 +240,70 @@ describe("module:install-from-file's native trust-gate dialog", () => {
     expect(inspectModulePack).not.toHaveBeenCalled();
     expect(result.ok).toBe(true);
     if (result.ok) expect(result.value).toBeNull();
+  });
+});
+
+describe("module:install-from-file routes a feature pack to the Feature packs installer", () => {
+  beforeAll(async () => {
+    if (!handlers.has('module:install-from-file')) {
+      const { registerModuleHandlers } = await import('../moduleHandlers');
+      registerModuleHandlers({} as never);
+    }
+  });
+
+  beforeEach(() => {
+    inspectModulePack.mockReset();
+    installModulePack.mockReset();
+    showMessageBox.mockReset();
+    showErrorBox.mockReset();
+    installFromPackage.mockReset();
+    isFeaturePackArchive.mockReset();
+    isFeaturePackArchive.mockImplementation(async (p: string) => p.includes('semantic-search'));
+  });
+
+  it('installs a .biblepack with feature-pack.json through SemanticPackService, with no module-pack trust gate', async () => {
+    const path = '/fake/semantic-search-nomic-v1.5-256d-int8-1.0.0.biblepack';
+    showOpenDialog.mockResolvedValue({ canceled: false, filePaths: [path] });
+    installFromPackage.mockResolvedValue({ name: 'Meaning search (English)' });
+
+    const result = await invoke<{ kind: string; summary: { found: number; installed: Array<{ moduleName?: string }>; failed: unknown[] } }>(
+      'module:install-from-file'
+    );
+
+    expect(installFromPackage).toHaveBeenCalledWith(path);
+    expect(inspectModulePack).not.toHaveBeenCalled();
+    expect(installModulePack).not.toHaveBeenCalled();
+    expect(showMessageBox).not.toHaveBeenCalled();
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.kind).toBe('batch');
+      expect(result.value.summary.found).toBe(1);
+      expect(result.value.summary.installed).toEqual([{ entryPath: path, moduleName: 'Meaning search (English)' }]);
+      expect(result.value.summary.failed).toEqual([]);
+    }
+  });
+
+  it('reports a failed feature-pack install as a failure, and still installs a module pack picked with it', async () => {
+    showOpenDialog.mockResolvedValue({
+      canceled: false,
+      filePaths: ['/fake/semantic-search.biblepack', '/fake/starter.biblepack'],
+    });
+    installFromPackage.mockRejectedValue(new Error('A semantic search install is already running.'));
+    inspectModulePack.mockResolvedValue({ status: 'verified', message: 'Verified.' });
+    installModulePack.mockResolvedValue({ found: 1, installed: [{ entryPath: 'kjv.db', moduleName: 'KJV' }], failed: [], skipped: [] });
+
+    const result = await invoke<{ kind: string; summary: { installed: unknown[]; failed: Array<{ reason: string }> } }>(
+      'module:install-from-file'
+    );
+
+    expect(installModulePack).toHaveBeenCalledTimes(1);
+    expect(installModulePack.mock.calls[0][0]).toBe('/fake/starter.biblepack');
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.summary.installed).toEqual([{ entryPath: 'kjv.db', moduleName: 'KJV' }]);
+      expect(result.value.summary.failed).toEqual([
+        { entryPath: '/fake/semantic-search.biblepack', reason: 'A semantic search install is already running.' },
+      ]);
+    }
   });
 });

@@ -35,10 +35,16 @@ const offer = (id: string, title: string, over: Partial<PackOffer> = {}): PackOf
   ...over,
 });
 
-function setup(installer: IPackInstaller['install']) {
+function setup(
+  installer: IPackInstaller['install'],
+  offers: PackOffer[] = [offer('kjv', 'King James'), offer('web', 'World English')],
+  presetItems: string[] = ['kjv'],
+) {
   const source: IPackSource = {
-    listOffers: async () => [offer('kjv', 'King James'), offer('web', 'World English')],
-    listPresets: async () => [{ id: 'basic', name: 'Basics', items: [{ kind: 'module', id: 'kjv' }] }],
+    listOffers: async () => offers,
+    listPresets: async () => [
+      { id: 'basic', name: 'Basics', description: 'A Bible to start with', items: presetItems.map((id) => ({ kind: 'module' as const, id })) },
+    ],
     freeBytes: async () => null,
   };
   const ui = (
@@ -105,5 +111,52 @@ describe('OfflinePacksPanel', () => {
     release();
     await screen.findByText('Everything is installed.');
     expect(install).toHaveBeenCalledTimes(1);
+  });
+
+  it('names the tab content for what it is, and insets it like the other panels', async () => {
+    setup(vi.fn(async () => undefined));
+    await screen.findByText('King James');
+    expect(screen.getByRole('heading', { name: 'Install a collection of modules' })).toBeInTheDocument();
+    expect(screen.getByText(/A collection is a ready-made set of modules/)).toBeInTheDocument();
+    expect(screen.getByRole('group', { name: 'Choose a collection' })).toBeInTheDocument();
+    expect(screen.getByTestId('module-manager-packs-panel')).toHaveClass('p-6');
+    expect(screen.getByRole('button', { name: 'Basics' })).toHaveAttribute('title', 'A Bible to start with');
+  });
+
+  it('says what choosing a collection selected', async () => {
+    setup(vi.fn(async () => undefined), undefined, ['kjv', 'web']);
+    const user = userEvent.setup();
+    await screen.findByText('King James');
+    await user.click(screen.getByRole('button', { name: 'Basics' }));
+    expect(screen.getByRole('button', { name: 'Basics' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByText('Basics: 2 modules selected to install.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Install selected' })).toBeEnabled();
+  });
+
+  it('says so when everything in the collection is already installed, and leaves Install disabled', async () => {
+    // The maintainer's case: most modules were already on disk, so clicking
+    // "Essentials" changed nothing visible and looked broken.
+    setup(vi.fn(async () => undefined), [offer('kjv', 'King James', { status: 'installed' }), offer('web', 'World English')]);
+    const user = userEvent.setup();
+    await screen.findByText('King James');
+    await user.click(screen.getByRole('button', { name: 'Basics' }));
+    expect(screen.getByText('You already have everything in Basics.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Install selected' })).toBeDisabled();
+  });
+
+  it('counts what is already installed separately', async () => {
+    setup(vi.fn(async () => undefined), [offer('kjv', 'King James', { status: 'installed' }), offer('web', 'World English')], ['kjv', 'web']);
+    const user = userEvent.setup();
+    await screen.findByText('King James');
+    await user.click(screen.getByRole('button', { name: 'Basics' }));
+    expect(screen.getByText('Basics: 1 module selected to install; you already have the other 1.')).toBeInTheDocument();
+  });
+
+  it('explains a collection none of whose modules the catalogs offer', async () => {
+    setup(vi.fn(async () => undefined), undefined, ['not_in_catalog']);
+    const user = userEvent.setup();
+    await screen.findByText('King James');
+    await user.click(screen.getByRole('button', { name: 'Basics' }));
+    expect(screen.getByText(/None of the modules in Basics are in your catalogs yet/)).toBeInTheDocument();
   });
 });

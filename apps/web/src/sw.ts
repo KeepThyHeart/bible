@@ -52,7 +52,67 @@ declare let self: ServiceWorkerGlobalScope & {
 self.skipWaiting();
 clientsClaim();
 
-precacheAndRoute(self.__WB_MANIFEST);
+// The build replaces this token, and it must appear exactly once in the worker.
+const PRECACHE_MANIFEST = self.__WB_MANIFEST;
+
+// ── Install: fetch the precache in parallel, not one file at a time ──────────
+//
+// Workbox's precache install fetches its entries strictly one after another
+// (workbox-precaching 7, PrecacheController.install), one round trip each. A
+// first install is ~300 of them back to back: about 14 s on a fast connection
+// and close to a minute on a phone. A deploy re-downloads every chunk whose
+// hash changed, which is usually most of them. The new worker cannot take
+// control until it finishes, and the first launch after a deploy pays for it.
+//
+// Hashed entries (no `revision`) are fetched by Workbox with the default HTTP
+// cache mode, and the server marks /assets/ immutable, so fetching them here
+// first, a few at a time, means Workbox's sequential pass is answered from the
+// HTTP cache. Workbox still does the actual precaching, so its integrity and
+// failure handling are unchanged; if the HTTP cache is unavailable this costs
+// one duplicate download per file and nothing breaks.
+//
+// Registered before precacheAndRoute so its fetches start first. Kept to a few
+// at a time: over HTTP/1.1 the browser allows six connections per host, and the
+// page loading at the same moment needs some of them.
+const WARM_CONCURRENCY = 4;
+
+self.addEventListener('install', (event: ExtendableEvent) => {
+  const urls = PRECACHE_MANIFEST
+    .filter(entry => typeof entry !== 'string' && entry.revision === null)
+    .map(entry => new URL((entry as { url: string }).url, self.location.href).href);
+  event.waitUntil(warmHttpCache(urls, WARM_CONCURRENCY));
+});
+
+/**
+ * Fetch `urls` with at most `concurrency` in flight, skipping any the precache
+ * already holds (Workbox skips those too, so after a deploy only the chunks that
+ * changed are downloaded). Never rejects.
+ */
+async function warmHttpCache(urls: string[], concurrency: number): Promise<void> {
+  let precache: Cache | undefined;
+  try {
+    precache = await caches.open(cacheNames.precache);
+  } catch {
+    // No Cache Storage: warm everything.
+  }
+  let next = 0;
+  const worker = async (): Promise<void> => {
+    while (next < urls.length) {
+      const url = urls[next++];
+      try {
+        if (precache && await precache.match(url)) continue;
+        // Body read to the end: an unread body may not be written to the cache.
+        const res = await fetch(url, { credentials: 'same-origin' });
+        await res.arrayBuffer();
+      } catch {
+        // Workbox fetches it again and reports a real failure itself.
+      }
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(concurrency, urls.length) }, worker));
+}
+
+precacheAndRoute(PRECACHE_MANIFEST);
 cleanupOutdatedCaches();
 
 // ── Navigation: network-first, cached shell only on network failure ──────────

@@ -153,4 +153,45 @@ test.describe('Diagnostics & Issue Reporting', () => {
     // Tidy up for the next run.
     await window.evaluate(() => globalThis.electron!.diagnostics!.deleteAll());
   });
+  test('give-feedback delivery respects Allow Web Requests (off by default)', async ({ window }) => {
+    await window.evaluate(() => globalThis.electron!.diagnostics!.deleteAll());
+
+    // Feedback with the optional contact the Give Feedback form offers.
+    const submitted = (await window.evaluate(async () => {
+      return (await globalThis.electron!.diagnostics!.submitFeedback({
+        description: 'E2E smoke: give feedback',
+        contact: 'e2e@example.test',
+      })) as Result<SubmitReceipt>;
+    })) as Result<SubmitReceipt>;
+    const receipt = unwrap(submitted);
+
+    // The dialog's "did it send?" call. Test profiles start with web requests
+    // off, so nothing may be contacted and the reason must say why.
+    const delivered = (await window.evaluate(async (id: string) => {
+      return (await globalThis.electron!.diagnostics!.deliverReport(id)) as Result<{
+        status: string;
+        reason?: string;
+      }>;
+    }, receipt.reportId)) as Result<{ status: string; reason?: string }>;
+    const result = unwrap(delivered);
+    if (receipt.willUpload) {
+      expect(result).toEqual({ status: 'queued', reason: 'web-requests-off' });
+    } else {
+      expect(result).toEqual({ status: 'queued', reason: 'no-endpoint' });
+    }
+
+    // Still on disk, with the contact kept.
+    const report = unwrap(
+      (await window.evaluate(async (id: string) => {
+        const diag = (window as unknown as {
+          electron: { diagnostics: Record<string, unknown> };
+        }).electron.diagnostics;
+        return (diag['getReport'] as (id: string) => Promise<unknown>)(id);
+      }, receipt.reportId)) as Result<Record<string, unknown>>
+    );
+    expect(report.type).toBe('feedback');
+    expect(report.contact).toBe('e2e@example.test');
+
+    await window.evaluate(() => globalThis.electron!.diagnostics!.deleteAll());
+  });
 });

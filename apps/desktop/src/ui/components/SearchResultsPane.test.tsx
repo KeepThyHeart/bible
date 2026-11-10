@@ -18,6 +18,7 @@ vi.mock('../stores/useSearchStore', async () => {
     searchResultId: actual.searchResultId,
     semanticResultId: actual.semanticResultId,
     selectSessionView: actual.selectSessionView,
+    isIdeasSelectable: actual.isIdeasSelectable,
     useSearchStore: (selector?: (s: any) => any) => (selector ? selector(mockSearchStore) : mockSearchStore),
   };
 });
@@ -92,7 +93,8 @@ const defaultSearchState = {
   isSemanticSearching: false,
   semanticAvailable: false,
   toggleSemanticMode: vi.fn(),
-  autoSwitchedToSemantic: false,
+  setSemanticMode: vi.fn(),
+  remoteSemanticStatus: null,
   retriedModules: [],
   retrySearchInModule: vi.fn(),
   lastClickedId: null,
@@ -241,7 +243,7 @@ describe('SearchResultsPane', () => {
     expect(screen.getByText('Fuzzy')).toBeInTheDocument();
   });
 
-  it('shows semantic toggle when semantic is available', () => {
+  it('shows the Ideas Search toggle when semantic is available', () => {
     Object.assign(mockSearchStore, {
       ...defaultSearchState,
       resultsForQuery: 'love',
@@ -249,7 +251,7 @@ describe('SearchResultsPane', () => {
       semanticAvailable: true,
     });
     renderWithProviders(<SearchResultsPane />);
-    expect(screen.getByText('Semantic Search')).toBeInTheDocument();
+    expect(screen.getByText('Ideas Search')).toBeInTheDocument();
   });
 
   it('renders semantic results when in semantic mode', () => {
@@ -288,18 +290,67 @@ describe('SearchResultsPane', () => {
     expect(mockSetQuery).toHaveBeenCalledWith('');
   });
 
-  it('shows auto-switch notice when auto-switched to semantic', () => {
-    Object.assign(mockSearchStore, {
-      ...defaultSearchState,
-      isSemanticMode: true,
-      autoSwitchedToSemantic: true,
-      resultsForQuery: 'test',
-      semanticResults: [
-        { id: '1', reference: 'John 3:16', text: 'Text', startVerseId: 43003016, similarity: 0.85, level: 'verse', textPreview: '' },
-      ],
+  describe('Ideas search suggestion (opt-in, never automatic)', () => {
+    const hit = (n: number) => ({ verseId: 43003016 + n, reference: `John 3:${16 + n}`, text: 'Text', type: 'exact', module: 'KJV' });
+
+    it('zero keyword hits: suggests Ideas search with an explanation; clicking switches and runs it', async () => {
+      const setSemanticMode = vi.fn();
+      Object.assign(mockSearchStore, { ...defaultSearchState, resultsForQuery: 'how do I forgive', semanticAvailable: true, setSemanticMode });
+      renderWithProviders(<SearchResultsPane />);
+      const suggestion = screen.getByTestId('ideas-suggestion');
+      expect(suggestion).toHaveAttribute('data-variant', 'none');
+      expect(suggestion).toHaveTextContent('No verses contain these words. Try Ideas Search?');
+      expect(suggestion).toHaveTextContent(/similar meaning/);
+      expect(setSemanticMode).not.toHaveBeenCalled();
+      await userEvent.click(screen.getByTestId('try-ideas-search'));
+      expect(setSemanticMode).toHaveBeenCalledWith(true);
     });
-    renderWithProviders(<SearchResultsPane />);
-    expect(screen.getByText(/No keyword matches found/)).toBeInTheDocument();
+
+    it('a few keyword hits: a one-line banner above the list', () => {
+      Object.assign(mockSearchStore, { ...defaultSearchState, resultsForQuery: 'agape', semanticAvailable: true, searchResults: [hit(0), hit(1)] });
+      renderWithProviders(<SearchResultsPane />);
+      expect(screen.getByTestId('ideas-suggestion')).toHaveAttribute('data-variant', 'few');
+    });
+
+    it('not offered for many hits, for a Strong\'s search, or when Ideas search cannot be chosen', () => {
+      Object.assign(mockSearchStore, { ...defaultSearchState, resultsForQuery: 'love', semanticAvailable: true, searchResults: [0, 1, 2, 3].map(hit) });
+      const { unmount } = renderWithProviders(<SearchResultsPane />);
+      expect(screen.queryByTestId('ideas-suggestion')).toBeNull();
+      unmount();
+
+      Object.assign(mockSearchStore, { ...defaultSearchState, resultsForQuery: 'G26', semanticAvailable: true });
+      const second = renderWithProviders(<SearchResultsPane />);
+      expect(screen.queryByTestId('ideas-suggestion')).toBeNull();
+      second.unmount();
+
+      Object.assign(mockSearchStore, { ...defaultSearchState, resultsForQuery: 'nothing', semanticAvailable: false, remoteSemanticStatus: null });
+      renderWithProviders(<SearchResultsPane />);
+      expect(screen.queryByTestId('ideas-suggestion')).toBeNull();
+    });
+
+    it('still offered after "Don\'t use the online service" with no local pack', () => {
+      Object.assign(mockSearchStore, {
+        ...defaultSearchState,
+        resultsForQuery: 'nothing',
+        semanticAvailable: false,
+        remoteSemanticStatus: { configured: true, consent: 'declined', noticeVersion: 1, source: 'offline' },
+      });
+      renderWithProviders(<SearchResultsPane />);
+      expect(screen.getByTestId('ideas-suggestion')).toBeInTheDocument();
+    });
+
+    it('declined with nothing local: says what Ideas search needs and offers the pack', () => {
+      Object.assign(mockSearchStore, {
+        ...defaultSearchState,
+        resultsForQuery: 'love',
+        searchResults: [hit(0)],
+        semanticNotice: { kind: 'declined' },
+        semanticSource: null,
+      });
+      renderWithProviders(<SearchResultsPane />);
+      expect(screen.getByTestId('semantic-note')).toHaveTextContent('needs the online service or the local meaning pack');
+      expect(screen.getByTestId('semantic-note-get-pack')).toBeInTheDocument();
+    });
   });
 
   // ==========================================================================

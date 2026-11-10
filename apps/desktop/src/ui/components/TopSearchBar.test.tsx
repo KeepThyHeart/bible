@@ -13,6 +13,7 @@ vi.mock('../stores/useSearchStore', async () => {
     // Real helper: the badge gate compares the box against `resultsForQuery`
     // through it, so a stub would be asserting the test's own rule.
     normalizeSearchQuery: actual.normalizeSearchQuery,
+    isIdeasSelectable: actual.isIdeasSelectable,
     useSearchStore: (selector?: (s: any) => any) => selector ? selector(mockSearchState) : mockSearchState,
   };
 });
@@ -117,14 +118,31 @@ describe('TopSearchBar', () => {
     expect(screen.getByTestId('search-input')).toBeInTheDocument();
   });
 
-  it('lifts the icon (and the Search/Ideas menu inside it) above the panes below the header', () => {
+  it('renders the Search/Ideas menu outside the icon wrapper, above the popups under the box', async () => {
     mockSearchState.semanticAvailable = true;
+    mockSearchState.query = 'love one another';
+    const user = userEvent.setup();
     renderWithProviders(<TopSearchBar />);
-    // The icon wrapper is transformed (-translate-y-1/2), which makes it a stacking context: without its own
-    // z-index the selector's z-50 menu stays trapped under later positioned siblings (the dock panes).
-    const wrapper = screen.getByTestId('search-type-button').parentElement!.parentElement!;
+    await user.click(screen.getByTestId('search-input'));
+    expect(screen.getByTestId('live-suggestions')).toBeInTheDocument();
+
+    // The icon wrapper is transformed (-translate-y-1/2), so it is a stacking context: a menu inside it can
+    // never paint above the later z-50 suggestion popup, whatever its own z-index. So the menu is portalled.
+    const button = screen.getByTestId('search-type-button');
+    const wrapper = button.parentElement!;
     expect(wrapper.className).toContain('-translate-y-1/2');
-    expect(wrapper.className).toMatch(/\bz-50\b/);
+    await user.click(button);
+    const menu = screen.getByTestId('search-type-menu');
+    expect(wrapper.contains(menu)).toBe(false);
+    expect(menu.parentElement).toBe(document.body);
+    expect(menu.style.position).toBe('fixed');
+    // ...and while it is open the popup under the box is not shown at all.
+    expect(screen.queryByTestId('live-suggestions')).toBeNull();
+    expect(screen.getByTestId('search-input')).toHaveAttribute('aria-expanded', 'false');
+
+    await user.keyboard('{Escape}');
+    expect(screen.queryByTestId('search-type-menu')).toBeNull();
+    expect(screen.getByTestId('search-type-button')).toHaveFocus();
   });
 
   it('shows placeholder text', () => {

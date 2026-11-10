@@ -15,7 +15,11 @@ import { DiagnosticsService } from '../services/DiagnosticsService';
 import type { DiagnosticsPayload } from '../services/DiagnosticsService';
 import { DiagnosticsQueue, QueueEntry } from '../services/DiagnosticsQueue';
 import { DiagnosticsConfig, DiagnosticsConfigShape } from '../services/DiagnosticsConfig';
-import { DiagnosticsUploader, FlushCounts } from '../services/DiagnosticsUploader';
+import {
+  DiagnosticsUploader,
+  type DeliveryResult,
+  type FlushCounts,
+} from '../services/DiagnosticsUploader';
 
 let service: DiagnosticsService | null = null;
 let queue: DiagnosticsQueue | null = null;
@@ -177,16 +181,30 @@ export function registerDiagnosticsHandlers(_ipcMain: IpcMain): void {
     }
   );
 
-  ipcHandler<[{ description: string }], SubmitReceipt>(
+  ipcHandler<[{ description: string; contact?: string }], SubmitReceipt>(
     'diagnostics:submit-feedback',
-    ({ description }) => {
+    ({ description, contact }) => {
       if (!description || !description.trim()) {
         throw new IpcKnownError('invalid_input', 'Description is required');
       }
-      const payload = requireService().buildFeedbackPayload({ description });
+      const payload = requireService().buildFeedbackPayload({
+        description,
+        contact: typeof contact === 'string' ? contact : undefined,
+      });
       return submitReceipt(requireQueue().enqueue(payload));
     }
   );
+
+  // "Did it send?" - called by the dialog right after a submit. Resolves once
+  // the uploader has tried this report (normally well under a second), with
+  // the reason when it is still queued. The dialog stops waiting after ~3 s
+  // and says the report will finish in the background; this keeps running.
+  ipcHandler<[string], DeliveryResult>('diagnostics:deliver-report', async (reportId) => {
+    if (typeof reportId !== 'string' || !reportId) {
+      throw new IpcKnownError('invalid_input', 'A report id is required');
+    }
+    return requireUploader().deliver(reportId);
+  });
 
   ipcHandler<[], ReturnType<DiagnosticsService['getStateSnapshot']>>(
     'diagnostics:get-state-snapshot',

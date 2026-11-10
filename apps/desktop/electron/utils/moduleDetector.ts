@@ -58,13 +58,15 @@ function readHeaderBytes(path: string): Uint8Array | null {
  * Scans the data/modules folder and registers discovered modules in main.db
  */
 
-interface ModuleDetectionResult {
+export interface ModuleDetectionResult {
   detected: number;
   registered: number;
   updated: number;
   /** Rows removed because they should never have been registered. */
   deregistered: number;
   errors: string[];
+  /** Abbreviations (and types) of the modules this scan registered. */
+  registeredModules: Array<{ abbreviation: string; moduleType: ModuleType }>;
 }
 
 /**
@@ -287,12 +289,44 @@ export function toRegistryPath(p: string): string {
 }
 
 export function detectAndRegisterModules(): ModuleDetectionResult {
+  const steps = detectionSteps();
+  for (;;) {
+    const next = steps.next();
+    if (next.done) return next.value;
+  }
+}
+
+/**
+ * {@link detectAndRegisterModules}, yielding to the event loop after every
+ * module file it opens.
+ *
+ * Opening a module and reading its `module_info` is a few milliseconds of
+ * synchronous SQLite work; a profile with a hundred modules on disk and an
+ * empty registry (a fresh `main.db` next to modules a previous install left -
+ * e.g. the release AppImage run over a developer build's data directory) made
+ * the synchronous scan hold the main process, and so every window, for the
+ * whole scan. Yielding per file lets IPC be served in between.
+ *
+ * Callers that read the registry while this runs must treat a miss as
+ * "maybe not registered yet" - see `moduleScan.ts`.
+ */
+export async function detectAndRegisterModulesAsync(): Promise<ModuleDetectionResult> {
+  const steps = detectionSteps();
+  for (;;) {
+    const next = steps.next();
+    if (next.done) return next.value;
+    await new Promise<void>((resolve) => setImmediate(resolve));
+  }
+}
+
+function* detectionSteps(): Generator<void, ModuleDetectionResult, void> {
   const result: ModuleDetectionResult = {
     detected: 0,
     registered: 0,
     updated: 0,
     deregistered: 0,
-    errors: []
+    errors: [],
+    registeredModules: []
   };
 
   // Compute paths based on environment. `dataPath` locates the BUNDLED module
@@ -449,6 +483,8 @@ export function detectAndRegisterModules(): ModuleDetectionResult {
 
           // Only open .db files for NEW modules not yet registered
           const moduleInfo = getModuleInfoFromDatabase(moduleType, fullPath);
+          // Let the event loop serve IPC between files (async scan only).
+          yield;
 
           if (!moduleInfo) {
             const error = `Unable to read module info from ${file}`;
@@ -504,6 +540,9 @@ export function detectAndRegisterModules(): ModuleDetectionResult {
 
           metadataRepo.create(metadata);
           result.registered++;
+          if (moduleInfo.abbreviation) {
+            result.registeredModules.push({ abbreviation: moduleInfo.abbreviation, moduleType });
+          }
         } catch (error) {
           const errorMsg = `Error processing ${file}: ${error}`;
           log.error(errorMsg);

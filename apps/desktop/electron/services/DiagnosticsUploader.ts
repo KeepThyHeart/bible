@@ -14,7 +14,8 @@
  *   now") will pick it up.
  * - Consent is per report type:
  *   - `feedback` and `manual` reports are eligible as soon as they are queued:
- *     the user wrote them and pressed Send in Report an Issue. A `manual`
+ *     the user wrote them and pressed Send in Give Feedback / Report an
+ *     Issue (which then calls `deliver()` to try right away). A `manual`
  *     report carries diagnostic data only because the user ticked "Include
  *     diagnostic information" for that report (the box starts unticked).
  *   - `crash` reports need BOTH the standing opt-in (`cfg.enabled`, "Send
@@ -59,11 +60,57 @@ type AttemptOutcome =
   | { kind: 'transient' }
   | { kind: 'rate-limited'; retryAfterSeconds: number | null };
 
+/**
+ * Why a report that was asked to go out right now is still in the queue.
+ *
+ *  - `web-requests-off` - Privacy -> Allow Web Requests is off. Nothing will be
+ *    sent until the user turns it on; this is the one the UI must name.
+ *  - `no-connection`    - Electron reports no network.
+ *  - `unreachable`      - the POST failed (timeout, connection error, 5xx...).
+ *  - `rate-limited`     - the endpoint answered 429.
+ *  - `no-endpoint`      - this build or user has no destination at all.
+ *  - `not-eligible`     - a crash report without the consent it needs.
+ */
+export type DeliveryQueuedReason =
+  | 'web-requests-off'
+  | 'no-connection'
+  | 'unreachable'
+  | 'rate-limited'
+  | 'no-endpoint'
+  | 'not-eligible';
+
+/**
+ * Result of {@link DiagnosticsUploader.deliver}: what happened to ONE report
+ * the user just submitted.
+ *
+ *  - `sent`     - the endpoint accepted it; it is no longer queued.
+ *  - `queued`   - still on disk, and the background ticks will retry it.
+ *  - `rejected` - the endpoint refused it permanently (400/413) and it was
+ *                 dropped from the queue, so "it will be sent later" would be
+ *                 untrue.
+ */
+export type DeliveryResult =
+  | { status: 'sent' }
+  | { status: 'queued'; reason: DeliveryQueuedReason }
+  | { status: 'rejected' };
+
+/** How many per-report outcomes `deliver()` can look back on. */
+const OUTCOME_MEMORY = 100;
+
+type RecordedOutcome = AttemptOutcome['kind'] | 'skipped';
+
 export class DiagnosticsUploader {
   private timer: NodeJS.Timeout | null = null;
   private initialTimer: NodeJS.Timeout | null = null;
-  private running = false;
+  /** The tick in progress, if any. Ticks never overlap. */
+  private current: Promise<FlushCounts> | null = null;
   private stopped = true;
+  /**
+   * What the most recent tick did with each report id, so `deliver()` can
+   * answer for a report a tick already handled instead of POSTing it twice.
+   * Insertion-ordered and capped at {@link OUTCOME_MEMORY}.
+   */
+  private readonly outcomes = new Map<string, RecordedOutcome>();
 
   private readonly gateway: INetworkGateway;
 
@@ -109,14 +156,99 @@ export class DiagnosticsUploader {
     return this.tick();
   }
 
-  private async tick(): Promise<FlushCounts> {
-    const counts: FlushCounts = { sent: 0, failed: 0, skipped: 0 };
-    if (this.running) {
+  /**
+   * Try to send one just-submitted report now and say what became of it.
+   *
+   * This is what lets the Give Feedback / Report an Issue dialog say "sent"
+   * only when it was. It does not POST on its own: it runs (or waits for) an
+   * ordinary tick, so every consent and offline rule the tick applies holds
+   * here too, and a report the submit handler's immediate flush already sent
+   * is not sent twice. Whatever the outcome, a report that is still queued
+   * stays queued for the background ticks.
+   */
+  async deliver(reportId: string): Promise<DeliveryResult> {
+    const cfg = this.config.get();
+    if (!cfg.endpointUrl.trim()) return { status: 'queued', reason: 'no-endpoint' };
+    // The app-wide permission model: with web requests off the tick contacts
+    // nothing, and neither do we. Say so rather than wait.
+    if (this.gateway.isOffline()) return { status: 'queued', reason: 'web-requests-off' };
+    if (!this.gateway.isConnected()) return { status: 'queued', reason: 'no-connection' };
+
+    // A tick is usually already running - the submit handler started one.
+    // Let it finish; it will have handled this report if it could.
+    await this.settle();
+    if (!this.outcomes.has(reportId) && this.queue.read(reportId)) {
+      // No tick has looked at it yet (or one started before it was queued).
+      await this.tick();
+      await this.settle();
+    }
+    return this.resultFor(reportId);
+  }
+
+  /** Wait until no tick is in progress. */
+  private async settle(): Promise<void> {
+    while (this.current) {
+      try {
+        await this.current;
+      } catch {
+        /* tick() never rejects, but a wait must not throw either way */
+      }
+    }
+  }
+
+  private resultFor(reportId: string): DeliveryResult {
+    const outcome = this.outcomes.get(reportId);
+    const stillQueued = this.queue.read(reportId) !== null;
+    switch (outcome) {
+      case 'sent':
+        return { status: 'sent' };
+      case 'permanent-failure':
+        return { status: 'rejected' };
+      case 'rate-limited':
+        return { status: 'queued', reason: 'rate-limited' };
+      case 'skipped':
+        return { status: 'queued', reason: 'not-eligible' };
+      case 'transient':
+        return { status: 'queued', reason: 'unreachable' };
+      default:
+        // Nothing recorded. Still on disk: the tick bailed before reaching it
+        // (the network went away mid-way) - it is waiting. Gone with no
+        // record: deleted from Preferences in the meantime; nothing to send.
+        if (stillQueued) {
+          if (this.gateway.isOffline()) return { status: 'queued', reason: 'web-requests-off' };
+          return { status: 'queued', reason: 'unreachable' };
+        }
+        return { status: 'rejected' };
+    }
+  }
+
+  private record(id: string, outcome: RecordedOutcome): void {
+    this.outcomes.delete(id);
+    this.outcomes.set(id, outcome);
+    while (this.outcomes.size > OUTCOME_MEMORY) {
+      const oldest = this.outcomes.keys().next().value;
+      if (oldest === undefined) break;
+      this.outcomes.delete(oldest);
+    }
+  }
+
+  private tick(): Promise<FlushCounts> {
+    if (this.current) {
       // A previous tick is still draining - skip to avoid concurrent POSTs
       // of the same file.
-      return counts;
+      return Promise.resolve({ sent: 0, failed: 0, skipped: 0 });
     }
-    this.running = true;
+    // Set synchronously, before the first await, so a `deliver()` arriving
+    // straight after a submit sees this tick and waits for it.
+    const run = this.runTick().finally(() => {
+      if (this.current === run) this.current = null;
+    });
+    this.current = run;
+    return run;
+  }
+
+  private async runTick(): Promise<FlushCounts> {
+    const counts: FlushCounts = { sent: 0, failed: 0, skipped: 0 };
     try {
       const cfg = this.config.get();
       if (!cfg.endpointUrl.trim()) return counts;
@@ -131,7 +263,8 @@ export class DiagnosticsUploader {
       const endpoint = cfg.endpointUrl.trim();
       const entries = this.queue.list();
 
-      for (const entry of entries) {
+      for (let i = 0; i < entries.length; i++) {
+        const entry = entries[i]!;
         const payload = this.queue.read(entry.id);
         if (!payload) {
           counts.skipped++;
@@ -142,11 +275,19 @@ export class DiagnosticsUploader {
         // AND the user clicked "Send Report" in the crash dialog (which sets
         // pending_send). See the consent notes at the top of this file.
         if (payload.type === 'crash' && !(cfg.enabled && payload.pending_send)) {
+          this.record(entry.id, 'skipped');
           counts.skipped++;
           continue;
         }
 
         const outcome = await this.attempt(endpoint, payload);
+        // The rest of the queue is untouched after a 429, but it is waiting
+        // on the same rate limit - record that, so `deliver()` does not start
+        // a second tick straight into it.
+        this.record(entry.id, outcome.kind);
+        if (outcome.kind === 'rate-limited') {
+          for (const rest of entries.slice(i + 1)) this.record(rest.id, 'rate-limited');
+        }
         if (outcome.kind === 'sent') {
           this.queue.delete(entry.id);
           counts.sent++;
@@ -168,8 +309,6 @@ export class DiagnosticsUploader {
       }
     } catch (err) {
       log.error('[diagnostics] uploader tick failed:', err);
-    } finally {
-      this.running = false;
     }
     return counts;
   }

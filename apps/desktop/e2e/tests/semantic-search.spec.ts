@@ -64,7 +64,7 @@ test.describe('Semantic Search', () => {
     const resultsPane = window.locator('[data-testid="search-results"]');
     await expect(resultsPane).toBeVisible({ timeout: 20000 });
 
-    const semanticBtn = window.locator('button:has-text("Semantic Search")');
+    const semanticBtn = window.locator('button:has-text("Ideas Search")');
     await expect(semanticBtn).toBeVisible();
     await semanticBtn.click({ force: true });
 
@@ -88,45 +88,24 @@ test.describe('Semantic Search', () => {
     await expect(resultsPane).toBeVisible();
   });
 
-  test('should auto-switch to semantic when keyword search returns zero results', async ({ window }) => {
+  test('zero keyword results offer Ideas search instead of running it', async ({ window }) => {
     await waitForAppReady(window);
     await waitForKeywordIndexes(window);
     test.skip(!(await semanticAvailable(window)), 'Semantic index not installed');
 
-    // `useSearchStore` auto-switches on `results.length === 0`, so this is
-    // deterministic given a query whose terms are absent from every installed
-    // translation - "existential" appears in none of them.
-    //
-    // The previous version wrapped every assertion in `if (autoSwitched)` and
-    // closed with `expect(true).toBe(true)`, so it passed whether or not the
-    // auto-switch existed at all.
+    // Ideas search is opt-in: a keyword search with no hits ("existential"
+    // appears in no installed translation) shows a suggestion and runs nothing.
     await search(window, 'existential meaning of human suffering');
 
-    await expect(window.locator('text=No keyword matches found'))
-      .toBeVisible({ timeout: FIRST_QUERY_TIMEOUT });
-
-    const semanticResults = window.locator('[data-testid="semantic-search-results"]');
-    await expect(semanticResults).toBeVisible();
-    expect(await window.locator('[data-testid="semantic-result"]').count()).toBeGreaterThan(0);
-  });
-
-  test('auto-switch is undone by a query that does have keyword matches', async ({ window }) => {
-    await waitForAppReady(window);
-    await waitForKeywordIndexes(window);
-    test.skip(!(await semanticAvailable(window)), 'Semantic index not installed');
-
-    // The store clears `isSemanticMode` on the next search when the previous
-    // one auto-switched (`isSemanticMode: autoSwitchedToSemantic ? false : ...`).
-    // Without that, one no-match query would strand the user in semantic mode
-    // for the rest of the session.
-    await search(window, 'existential meaning of human suffering');
-    await expect(window.locator('text=No keyword matches found'))
-      .toBeVisible({ timeout: FIRST_QUERY_TIMEOUT });
-
-    await search(window, 'love');
-
-    await expect(window.locator('[data-testid="search-results"]')).toBeVisible({ timeout: 20000 });
+    const suggestion = window.getByTestId('ideas-suggestion');
+    await expect(suggestion).toBeVisible({ timeout: 20000 });
     await expect(window.locator('[data-testid="semantic-search-results"]')).toBeHidden();
-    await expect(window.locator('text=No keyword matches found')).toBeHidden();
+    await expect(window.getByTestId('search-type-button')).toHaveAttribute('data-search-type', 'keyword');
+
+    // Clicking it is the explicit choice: switch to Ideas and run the same query.
+    await window.getByTestId('try-ideas-search').click();
+    await expect(window.locator('[data-testid="semantic-search-results"]')).toBeVisible({ timeout: FIRST_QUERY_TIMEOUT });
+    expect(await window.locator('[data-testid="semantic-result"]').count()).toBeGreaterThan(0);
+    await expect(window.getByTestId('search-type-button')).toHaveAttribute('data-search-type', 'ideas');
   });
 });

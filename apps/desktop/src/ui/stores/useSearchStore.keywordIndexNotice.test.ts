@@ -57,7 +57,6 @@ describe('useSearchStore - keywordIndexNotice', () => {
       retriedModules: [],
       isSemanticMode: false,
       semanticAvailable: false,
-      autoSwitchedToSemantic: false,
     });
   });
 

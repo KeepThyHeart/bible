@@ -8,6 +8,7 @@ import { useOnboardingStore } from '../../stores/useOnboardingStore';
 import { useNetworkStore } from '../../stores/useNetworkStore';
 import { useModuleStore } from '../../stores/useModuleStore';
 import { openModuleManager } from '../../utils/openModuleManager';
+import { getDocsUrl } from '../../config/appConfig';
 import {
   areLocaleCatalogsReady,
   whenLocaleCatalogsReady,
@@ -57,7 +58,11 @@ import { readStoredLocale } from '../../utils/documentDirection';
  *    falls back to its own (always-safe) offline rendering. Going online here
  *    goes through the exact same `requestAllow()` - and therefore the same
  *    native confirmation dialog - as the Privacy menu and Preferences; a
- *    cancelled dialog leaves this step exactly as it was.
+ *    cancelled dialog leaves this step exactly as it was. The step also offers
+ *    the offline route on equal terms: "Install from files instead" runs the
+ *    Module Manager's install-from-file flow (module files and module packs,
+ *    several at once) right here, with a pointer to the documentation site's
+ *    offline downloads when this build has a docs site configured.
  * 3. **Suggested content.** Starter packs for the chosen language, if the
  *    catalog offers any; otherwise the catalog's recommended modules for that
  *    language (the published catalog has modules but no `starter_packs`
@@ -507,8 +512,9 @@ const LanguageFirstRun: React.FC = () => {
   }, [markLanguageChosen]);
 
   // "Stay offline" is an explicit answer: do not follow it with a third dialog
-  // that offers to go online again. Modules stay reachable from Tools -> Module
-  // Manager (including installing from a file), so the flow simply ends here.
+  // that offers to go online again. Installing from files is offered on the
+  // network step itself, and modules stay reachable from Tools -> Module
+  // Manager afterwards, so the flow simply ends here.
   const handleStayOffline = handleClose;
 
   // Skipping step 1 still has to *commit* it: the locale is confirmed, the
@@ -751,6 +757,7 @@ const LanguageFirstRun: React.FC = () => {
  */
 const NetworkStep: React.FC<{ loading: boolean }> = ({ loading }) => {
   const { t } = useI18n();
+  const fileInstall = useInstallFromFile();
   if (loading) {
     return (
       <p className="text-sm text-text-secondary" data-testid="first-run-network-loading">
@@ -758,12 +765,132 @@ const NetworkStep: React.FC<{ loading: boolean }> = ({ loading }) => {
       </p>
     );
   }
+  const downloadsUrl = offlineDownloadsUrl();
   return (
-    <p className="text-sm text-text-secondary" data-testid="first-run-network-body">
-      {t('onboarding.network.body')}
-    </p>
+    <>
+      <p className="text-sm text-text-secondary" data-testid="first-run-network-body">
+        {t('onboarding.network.body')}
+      </p>
+      {/* The offline route, offered as an equal answer to the question rather
+          than discovered later in the Module Manager: a machine that will
+          never be online still needs a way to get content. */}
+      <div className="mt-md rounded border border-border px-md py-sm" data-testid="first-run-network-files">
+        <p className="text-sm font-medium text-text-primary">{t('onboarding.network.filesHeading')}</p>
+        <p className="mt-xs text-sm text-text-secondary" data-testid="first-run-network-files-body">
+          {t('onboarding.network.filesBody')}
+          {downloadsUrl && (
+            <>
+              {' '}
+              <a
+                href={downloadsUrl}
+                onClick={(event) => {
+                  event.preventDefault();
+                  openExternalUrl(downloadsUrl);
+                }}
+                data-testid="first-run-network-files-link"
+                className="text-accent underline hover:no-underline focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              >
+                {t('onboarding.network.filesLink')}
+              </a>
+            </>
+          )}
+        </p>
+        <button
+          type="button"
+          onClick={() => void fileInstall.run()}
+          disabled={fileInstall.busy}
+          data-testid="first-run-network-install-from-files"
+          className="mt-sm rounded border border-border px-md py-sm text-sm text-text-primary hover:bg-background-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-50"
+        >
+          {t('onboarding.network.installFromFiles')}
+        </button>
+        {fileInstall.result && (
+          <p
+            className={`mt-sm text-sm ${fileInstall.result.isError ? 'text-danger' : 'text-success'}`}
+            data-testid="first-run-network-install-from-files-result"
+            role="status"
+          >
+            {fileInstall.result.message}
+          </p>
+        )}
+      </div>
+    </>
   );
 };
+
+/**
+ * The documentation site's download page, where the offline downloads (module
+ * files and bundles such as "Essentials - English") are listed. Derived from
+ * the configured docs URL - a build with no docs site gets no link - and
+ * anchored at its "Offline downloads" section. The download page sits at the
+ * site root (`/download/`), beside the per-app docs the URL points into.
+ */
+function offlineDownloadsUrl(): string | undefined {
+  const docsUrl = getDocsUrl();
+  if (!docsUrl) return undefined;
+  try {
+    return new URL('/download/#offline-downloads', docsUrl).href;
+  } catch {
+    return undefined;
+  }
+}
+
+/** Hands a URL to the OS browser via the main process (as `HelpPanel` does). */
+function openExternalUrl(url: string): void {
+  const w = window as unknown as {
+    electron?: { ipcRenderer?: { invoke: (channel: string, ...args: unknown[]) => Promise<unknown> } };
+  };
+  void w.electron?.ipcRenderer?.invoke('app:open-external', url);
+}
+
+/**
+ * "Install from a file" as first run uses it: the Module Manager's own
+ * `module:install-from-file` flow (multi-select of `.db`/`.db.gz` files and
+ * `.zip`/`.biblepack` module packs), with its outcome as one line of feedback.
+ */
+function useInstallFromFile(): {
+  busy: boolean;
+  result: { message: string; isError: boolean } | null;
+  run: () => Promise<void>;
+} {
+  const { t } = useI18n();
+  const [result, setResult] = useState<{ message: string; isError: boolean } | null>(null);
+  const [busy, setBusy] = useState(false);
+  const loadInstalledModules = useModuleStore((s) => s.loadInstalledModules);
+
+  const run = useCallback(async () => {
+    setBusy(true);
+    try {
+      // Same `window.electron` bridge `StarterPackCard` and `fetchPacksFor`
+      // use - see the comment on `handleGoOnline` for why `moduleAPI` is
+      // avoided here.
+      const response = await window.electron?.moduleManager?.installFromFile?.();
+      if (!response) throw new Error('Electron API not available.');
+      if (!response.ok) throw new Error(response.error.message);
+      const value = response.value;
+      if (value === null) return; // User cancelled the picker - no feedback needed.
+      const message =
+        value.kind === 'single'
+          ? t('onboarding.language.installFromFileSuccess', { name: value.moduleName })
+          : t('onboarding.language.installFromFilePackSuccess', { count: value.summary.installed.length });
+      setResult({ message, isError: false });
+      try {
+        await loadInstalledModules();
+      } catch {
+        // The install itself succeeded; the reader panes refresh on their own later.
+      }
+    } catch (error) {
+      setResult({
+        message: t('onboarding.language.installFromFileError', { message: (error as Error).message }),
+        isError: true,
+      });
+    } finally {
+      setBusy(false);
+    }
+  }, [t, loadInstalledModules]);
+
+  return { busy, result, run };
+}
 
 /**
  * One row of a starter pack's module list: a checkbox, name, licence and size,
@@ -1075,34 +1202,7 @@ interface StarterPackStepProps {
  */
 const StarterPackStep: React.FC<StarterPackStepProps> = ({ offer, allowWebRequests, onGoOnline, onInstallProgress }) => {
   const { t } = useI18n();
-  const [fileInstall, setFileInstall] = useState<{ message: string; isError: boolean } | null>(null);
-  const [fileInstallBusy, setFileInstallBusy] = useState(false);
-
-  const handleInstallFromFile = async () => {
-    setFileInstallBusy(true);
-    try {
-      // Same `window.electron` bridge `StarterPackCard` and `fetchPacksFor`
-      // use - see the comment on `handleGoOnline` for why `moduleAPI` is
-      // avoided here.
-      const response = await window.electron?.moduleManager?.installFromFile?.();
-      if (!response) throw new Error('Electron API not available.');
-      if (!response.ok) throw new Error(response.error.message);
-      const result = response.value;
-      if (result === null) return; // User cancelled the picker - no feedback needed.
-      const message =
-        result.kind === 'single'
-          ? t('onboarding.language.installFromFileSuccess', { name: result.moduleName })
-          : t('onboarding.language.installFromFilePackSuccess', { count: result.summary.installed.length });
-      setFileInstall({ message, isError: false });
-    } catch (error) {
-      setFileInstall({
-        message: t('onboarding.language.installFromFileError', { message: (error as Error).message }),
-        isError: true,
-      });
-    } finally {
-      setFileInstallBusy(false);
-    }
-  };
+  const { busy: fileInstallBusy, result: fileInstall, run: handleInstallFromFile } = useInstallFromFile();
 
   if (offer === null) {
     return (

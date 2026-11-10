@@ -55,6 +55,12 @@ describe('RemoteSemanticService consent', () => {
     expect(store.value).toBeUndefined();
   });
 
+  it("declining moves the source offline; agreeing later moves it back online", () => {
+    const { service } = make();
+    expect(service.setConsent('declined').source).toBe('offline');
+    expect(service.setConsent('granted')).toMatchObject({ consent: 'granted', source: 'online' });
+  });
+
   it('an older notice version counts as unset', () => {
     const store = memStore(RemoteSemantic.makeConsentRecord('granted', new Date(), RemoteSemantic.REMOTE_SEMANTIC_NOTICE_VERSION - 1));
     expect(make({ store }).service.getStatus().consent).toBe('unset');

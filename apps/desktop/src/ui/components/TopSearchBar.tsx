@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useMemo, useCallback, useImperative
 import { stripBidiControls } from '@bible/core/browser';
 import { useI18n } from '../contexts/useI18n';
 import { describeReferenceProblem, checkChapterVerse, type ReferenceProblem } from '../services/referenceProblem';
-import { useSearchStore, normalizeSearchQuery } from '../stores/useSearchStore';
+import { useSearchStore, normalizeSearchQuery, isIdeasSelectable } from '../stores/useSearchStore';
 import { useBibleStore } from '../stores/useBibleStore';
 import { syncPanesWithVerse } from '../stores/syncPanesWithVerse';
 import { useCommands } from '../contexts/useCommands';
@@ -171,6 +171,12 @@ const TopSearchBar = forwardRef<TopSearchBarHandle>(function TopSearchBar(_props
   const { snapshot: whenSnapshot } = useWhenContext();
 
   const [isFocused, setIsFocused] = useState(false);
+  // While the Search / Ideas menu is open, the popups under the box (live
+  // suggestions, hints, command/reference list) stay hidden: they occupy the
+  // same space just below the input, and the menu is what the user is using.
+  const [typeMenuOpen, setTypeMenuOpen] = useState(false);
+  const popupsShown = isFocused && !typeMenuOpen;
+  const ideasSelectable = useSearchStore(isIdeasSelectable);
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const inputRef = useRef<HTMLInputElement>(null);
   const hasUserInteracted = useRef(false);
@@ -506,8 +512,8 @@ const TopSearchBar = forwardRef<TopSearchBarHandle>(function TopSearchBar(_props
   // --------------------------------------------------------------------------
   // Determine what's visible in the dropdown
   // --------------------------------------------------------------------------
-  const showingSearchSuggestions = isFocused && mode === 'search' && query.trim().length >= 3 && liveSuggestions.length > 0;
-  const showingDropdown = isFocused && (mode === 'command' || mode === 'reference');
+  const showingSearchSuggestions = popupsShown && mode === 'search' && query.trim().length >= 3 && liveSuggestions.length > 0;
+  const showingDropdown = popupsShown && (mode === 'command' || mode === 'reference');
 
   // Effective item count for arrow-key navigation
   const itemCount = useMemo(() => {
@@ -673,7 +679,7 @@ const TopSearchBar = forwardRef<TopSearchBarHandle>(function TopSearchBar(_props
       );
     }
     // search / empty: the icon is also the Search / Ideas selector
-    return <SearchTypeSelector onChosen={() => inputRef.current?.focus()} />;
+    return <SearchTypeSelector onChosen={() => inputRef.current?.focus()} onOpenChange={setTypeMenuOpen} />;
   }, [mode]);
 
   // --------------------------------------------------------------------------
@@ -732,7 +738,10 @@ const TopSearchBar = forwardRef<TopSearchBarHandle>(function TopSearchBar(_props
     <div className={`flex-1 min-w-[14rem] max-w-2xl relative ${modeClass}`}>
       {/* Search Input Container */}
       <div className="relative">
-        {/* Mode Icon */}
+        {/* Mode Icon. The wrapper is transformed, so it is its own stacking
+            context: anything rendered inside it can never rise above the
+            later z-50 popups below the box. That is why the Search / Ideas
+            menu is portalled to <body> (see SearchTypeSelector). */}
         <div className="absolute start-3 top-1/2 transform -translate-y-1/2 text-text-muted z-50">
           {modeIcon}
         </div>
@@ -760,7 +769,7 @@ const TopSearchBar = forwardRef<TopSearchBarHandle>(function TopSearchBar(_props
           }}
           placeholder={t('searchBar.unifiedPlaceholder')}
           data-testid="search-input"
-          className={`w-full ps-10 ${showResultCountBadge ? 'pe-36' : 'pe-28'} py-2 text-sm border rounded-lg transition-colors ${
+          className={`w-full ${ideasSelectable ? 'ps-14' : 'ps-10'} ${showResultCountBadge ? 'pe-36' : 'pe-28'} py-2 text-sm border rounded-lg transition-colors ${
             ringClass || (error ? 'border-danger' : 'border-border')
           } ${isSearching ? 'bg-surface-secondary' : 'bg-surface'}`}
           aria-busy={isSearching}
@@ -869,7 +878,7 @@ const TopSearchBar = forwardRef<TopSearchBarHandle>(function TopSearchBar(_props
       )}
 
       {/* Dropdowns - only when focused and no error */}
-      {!error && isFocused && (
+      {!error && popupsShown && (
         <>
           {/* Command / Reference dropdown */}
           {showingDropdown && (

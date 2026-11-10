@@ -57,7 +57,9 @@ import { registerStudyHandlers } from './ipc/studyHandlers';
 import { registerNetworkHandlers, initializeNetworkService } from './ipc/networkHandlers';
 import { registerUpdateHandlers, setBlocklistRefresher } from './ipc/updateHandlers';
 import { MenuBuilder, registerMenuRebuildHandler } from './menu/menuBuilder';
-import { detectAndRegisterModules } from './utils/moduleDetector';
+import { detectAndRegisterModulesAsync } from './utils/moduleDetector';
+import { runModuleScan } from './services/moduleScan';
+import { ModuleLoader } from './services/ModuleLoader';
 import { initializeMainDatabase } from './utils/initMainDatabase';
 import { windowManager } from './services/WindowManager';
 import { WindowStateService } from './services/WindowStateService';
@@ -1526,18 +1528,24 @@ app.whenReady().then(async () => {
   // (initialized above) but is not on the critical path for showing the UI.
   initializeExtensionHostInBackground();
 
-  // Detect and register modules in background (non-blocking)
-  setImmediate(() => {
-    try {
-      const result = detectAndRegisterModules();
-      log.info(`Module detection result: ${result.detected} detected, ${result.registered} new, ${result.updated} updated`);
-      if (result.errors.length > 0) {
-        log.warn(`Module detection had ${result.errors.length} errors`);
-      }
-    } catch (error) {
-      log.error('Failed to detect modules:', error);
+  // Detect and register modules in the background. The scan yields between
+  // module files so the windows stay responsive while it runs; requests that
+  // need to know what is installed wait for it (see services/moduleScan.ts).
+  void runModuleScan(detectAndRegisterModulesAsync, (result) => {
+    log.info(`Module detection result: ${result.detected} detected, ${result.registered} new, ${result.updated} updated`);
+    if (result.errors.length > 0) {
+      log.warn(`Module detection had ${result.errors.length} errors`);
     }
-
+    if (result.registeredModules.length > 0) {
+      // Forget any "not installed" a loader cached for these before the scan
+      // reached them, and tell every window its installed list is stale.
+      for (const { abbreviation } of result.registeredModules) ModuleLoader.evictEverywhere(abbreviation);
+      const moduleTypes = [...new Set(result.registeredModules.map((m) => m.moduleType))];
+      for (const win of BrowserWindow.getAllWindows()) {
+        if (!win.isDestroyed()) win.webContents.send('module:library-changed', { moduleTypes });
+      }
+    }
+  }).then(() => {
     // After detection, so newly registered modules are included. One module
     // at a time, yielding between them; search degrades to "no results" for a
     // module until its index exists.

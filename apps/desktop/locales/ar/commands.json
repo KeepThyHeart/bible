@@ -47,6 +47,8 @@
   "app.reportIssue.category": "التطبيق",
   "help.reportIssue": "الإبلاغ عن مشكلة",
   "help.reportIssue.category": "مساعدة",
+  "help.giveFeedback": "إرسال ملاحظات",
+  "help.giveFeedback.category": "مساعدة",
   "module.openManager": "فتح مدير الوحدات",
   "module.openManager.category": "الوحدات",
   "module.openManager.alias.0": "مدير الوحدات",

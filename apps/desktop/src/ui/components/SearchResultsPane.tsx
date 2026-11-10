@@ -1,10 +1,10 @@
 import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
-import { useSearchStore, SemanticResult, StrongsSearchMeta, searchResultId, semanticResultId, selectSessionView } from '../stores/useSearchStore';
+import { useSearchStore, SemanticResult, StrongsSearchMeta, searchResultId, semanticResultId, selectSessionView, isIdeasSelectable } from '../stores/useSearchStore';
 import { useBibleStore, DEFAULT_PANEL_ID } from '../stores/useBibleStore';
 import { useLayoutStore } from '../stores/useLayoutStore';
 import { useTextSettingsStore } from '../stores/useTextSettingsStore';
 import { syncPanesWithVerse } from '../stores/syncPanesWithVerse';
-import { SearchResult, truncateAtWordBoundary, VerseIdHelper } from '@bible/core';
+import { SearchResult, StrongsNumberHelper, truncateAtWordBoundary, VerseIdHelper } from '@bible/core';
 import { Bdi } from '@bible/ui';
 import { announce } from '../services/announcer';
 import { useNetworkStore } from '../stores/useNetworkStore';
@@ -14,6 +14,8 @@ import { contentDirAttrs } from '../utils/contentDirection';
 import { sanitizeHtml } from '../utils/sanitize';
 import { openStrongsInDictionary } from './bible/openStrongsInDictionary';
 import SearchDistributionGraph from './SearchDistributionGraph';
+import { LightbulbIcon } from './SearchTypeSelector';
+import { openModuleManager } from '../utils/openModuleManager';
 
 /**
  * How much of a Strong's gloss the search header shows before it is cut.
@@ -97,7 +99,6 @@ const SearchResultsPane: React.FC<SearchResultsPaneProps> = ({ dockviewPanelApi,
     isSemanticMode,
     semanticResults,
     isSemanticSearching,
-    autoSwitchedToSemantic,
     semanticSource,
     semanticNotice,
     // Strong's word family
@@ -116,8 +117,9 @@ const SearchResultsPane: React.FC<SearchResultsPaneProps> = ({ dockviewPanelApi,
   const setQuery = useSearchStore(s => s.setQuery);
   const showAllKeywordResults = useSearchStore(s => s.showAllKeywordResults);
   const showMoreSemanticResults = useSearchStore(s => s.showMoreSemanticResults);
-  const semanticAvailable = useSearchStore(s => s.semanticAvailable);
+  const semanticAvailable = useSearchStore(isIdeasSelectable);
   const toggleSemanticMode = useSearchStore(s => s.toggleSemanticMode);
+  const setSemanticMode = useSearchStore(s => s.setSemanticMode);
   const toggleIncludeRelatedWords = useSearchStore(s => s.toggleIncludeRelatedWords);
   const searchStrongsNumber = useSearchStore(s => s.searchStrongsNumber);
   const retrySearchInModule = useSearchStore(s => s.retrySearchInModule);
@@ -400,6 +402,14 @@ const SearchResultsPane: React.FC<SearchResultsPaneProps> = ({ dockviewPanelApi,
     if (await requestAllow(true) && resultsForQuery) void performSemanticSearch(resultsForQuery);
   };
 
+  // Ideas search is offered, never started, by a keyword search: zero or few
+  // hits show a suggestion the user has to click (Strong's numbers excluded -
+  // a meaning search for "G26" means nothing).
+  const offerIdeas = semanticAvailable && !!resultsForQuery && !StrongsNumberHelper.isStrongsNumber(resultsForQuery.trim());
+  // Same as picking Ideas in the search-type menu: switches this tab and runs
+  // the query (through the consent dialog when it is needed).
+  const tryIdeasSearch = () => setSemanticMode(true);
+
   const semanticNote = (() => {
     if (!semanticNotice) return null;
     const source = semanticSource === 'local' ? 'local' : 'keyword';
@@ -407,7 +417,10 @@ const SearchResultsPane: React.FC<SearchResultsPaneProps> = ({ dockviewPanelApi,
     const time = resetAtMs ? localizer.formatDate(new Date(resetAtMs), { timeStyle: 'short' }) : '';
     const reset = resetAtMs ? 'yes' : 'no';
     switch (semanticNotice.kind) {
-      case 'declined': return t('searchResultsPane.semanticNote.declined');
+      // Without the local pack nothing answered: say what Ideas search needs.
+      case 'declined': return semanticSource === 'local'
+        ? t('searchResultsPane.semanticNote.declined')
+        : t('searchResultsPane.semanticNote.declinedNoPack');
       case 'degraded': return t('searchResultsPane.semanticNote.degraded');
       case 'quota': return t('searchResultsPane.semanticNote.quota', { reset, time, source });
       case 'paused': return t('searchResultsPane.semanticNote.paused', { reset, time, source });
@@ -651,20 +664,16 @@ const SearchResultsPane: React.FC<SearchResultsPaneProps> = ({ dockviewPanelApi,
                 {t('searchResultsPane.semanticNote.turnOn')}
               </button>
             )}
-          </div>
-        )}
-
-        {/* Auto-switch notice */}
-        {!isLoading && !error && isSemanticMode && autoSwitchedToSemantic && semanticResults.length > 0 && (
-          <div className="px-md py-sm bg-accent-light border-b border-accent-soft text-sm text-accent-strong">
-            {t('searchResultsPane.autoSwitchNotice')}
-            <button
-              type="button"
-              onClick={toggleSemanticMode}
-              className="ms-2 text-accent-strong hover:text-accent-strong underline cursor-pointer"
-            >
-              {t('searchResultsPane.backToKeyword')}
-            </button>
+            {semanticNotice?.kind === 'declined' && semanticSource !== 'local' && (
+              <button
+                type="button"
+                onClick={() => openModuleManager('features')}
+                data-testid="semantic-note-get-pack"
+                className="ms-2 text-accent-strong hover:text-accent-strong underline cursor-pointer"
+              >
+                {t('remoteConsent.getPack')}
+              </button>
+            )}
           </div>
         )}
 
@@ -760,16 +769,15 @@ const SearchResultsPane: React.FC<SearchResultsPaneProps> = ({ dockviewPanelApi,
                     </div>
                   </div>
                 )}
-                {semanticAvailable && (
-                  <button
-                    type="button"
-                    onClick={toggleSemanticMode}
-                    className="mt-md text-sm text-accent-strong hover:text-accent-strong hover:underline cursor-pointer"
-                  >
-                    {t('searchResultsPane.trySemantic')}
-                  </button>
+                {offerIdeas && (
+                  <IdeasSuggestion variant="none" onTry={tryIdeasSearch} />
                 )}
               </div>
+            )}
+
+            {/* Only a few keyword hits: offer Ideas search too (never run it unasked). */}
+            {offerIdeas && exactAndStemResults.length > 0 && exactAndStemResults.length <= FEW_KEYWORD_RESULTS && (
+              <IdeasSuggestion variant="few" onTry={tryIdeasSearch} />
             )}
 
             {/* Results List */}
@@ -911,6 +919,56 @@ const ShowMoreBar: React.FC<ShowMoreBarProps> = ({ label, testId, onClick }) => 
     </button>
   </div>
 );
+
+// ============================================================================
+// IdeasSuggestion Component (offer Ideas search after a thin keyword search)
+// ============================================================================
+
+/** At or under this many exact keyword hits, Ideas search is suggested too. */
+export const FEW_KEYWORD_RESULTS = 3;
+
+/**
+ * "Try Ideas Search?" - the only way a keyword search leads to an Ideas
+ * search: the user clicks it. `none` sits in the empty state; `few` is a
+ * one-line banner above a short result list.
+ */
+const IdeasSuggestion: React.FC<{ variant: 'none' | 'few'; onTry: () => void }> = ({ variant, onTry }) => {
+  const { t } = useI18n();
+  const button = (
+    <button
+      type="button"
+      onClick={onTry}
+      data-testid="try-ideas-search"
+      className="inline-flex items-center gap-1 text-sm px-3 py-1.5 rounded border border-accent text-accent-strong hover:bg-accent-light cursor-pointer transition-colors"
+    >
+      <LightbulbIcon className="w-4 h-4" />
+      {t('searchResultsPane.ideasSuggestion.button')}
+    </button>
+  );
+  if (variant === 'few') {
+    return (
+      <div
+        className="px-md py-sm flex flex-wrap items-center gap-2 border-b border-border text-sm text-text-secondary"
+        data-testid="ideas-suggestion"
+        data-variant="few"
+      >
+        <span className="flex-1 min-w-[12rem]">{t('searchResultsPane.ideasSuggestion.few')}</span>
+        {button}
+      </div>
+    );
+  }
+  return (
+    <div
+      className="mt-lg flex flex-col items-center gap-sm max-w-md text-center"
+      data-testid="ideas-suggestion"
+      data-variant="none"
+    >
+      <div className="text-sm font-semibold text-text-primary">{t('searchResultsPane.ideasSuggestion.none')}</div>
+      <div className="text-xs text-text-secondary">{t('searchResultsPane.ideasSuggestion.explain')}</div>
+      {button}
+    </div>
+  );
+};
 
 // ============================================================================
 // SearchResultItem Component (keyword search)

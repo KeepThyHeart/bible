@@ -73,15 +73,20 @@ export function createDesktopPackSource(deps: DesktopPackSourceDeps): IPackSourc
   catalogIdFor(moduleId: string): number | undefined;
 } {
   const starterCatalog = new Map<string, number>();
+  // Starter packs only change with the catalog; `listOffers` runs on every download poll while
+  // anything installs, so the packs are fetched once per source (a failure is retried next time).
+  let starters: Promise<readonly PackStarterPack[]> | null = null;
 
   const loadStarters = async (): Promise<readonly PackStarterPack[]> => {
     try {
-      const packs = await deps.getStarterPacks();
+      starters ??= Promise.resolve(deps.getStarterPacks());
+      const packs = await starters;
       for (const p of packs) {
         if (p.source) for (const id of p.module_ids) starterCatalog.set(id.toLowerCase(), p.source.catalogId);
       }
       return packs;
     } catch {
+      starters = null;
       return [];
     }
   };

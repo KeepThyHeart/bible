@@ -1,6 +1,6 @@
 {
   "main.about.title": "About {productName}",
-  "main.about.detail": "Version {version}\n\nA Bible study desktop application.\n\n© {year}",
+  "main.about.detail": "Version {version}\n\nA Bible reader and study desktop application.\n\n© {year}",
   "main.about.build": "Build {buildId}",
   "main.about.ok": "OK",
   "main.dialog.saveBackup": "Save Backup File",

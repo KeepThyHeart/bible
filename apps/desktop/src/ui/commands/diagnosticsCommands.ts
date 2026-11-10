@@ -1,7 +1,9 @@
 /**
  * Diagnostics commands.
  *
- * Exposes `help.reportIssue` which opens the in-app Report an Issue dialog.
+ * Exposes `help.giveFeedback` (the lightweight Give Feedback form) and
+ * `help.reportIssue` (the in-app Report an Issue dialog). Both open the same
+ * component, ReportIssueDialog, in different modes.
  * Follows the same CustomEvent dispatch pattern used by {@link appCommands}
  * so the command module stays decoupled from React state.
  */
@@ -15,6 +17,12 @@ function dispatchAppEvent(name: string, detail?: unknown): void {
 
 export function registerDiagnosticsCommands(registry: ICommandRegistry): IDisposable[] {
   return [
+    registry.register({
+      id: 'help.giveFeedback',
+      title: { key: 'help.giveFeedback' },
+      category: { key: 'help.giveFeedback.category' },
+      handler: () => dispatchAppEvent('command:help:giveFeedback'),
+    }),
     registry.register({
       id: 'help.reportIssue',
       title: { key: 'help.reportIssue' },

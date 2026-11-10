@@ -4,6 +4,7 @@ import { getSharedModuleMetadataRepo } from './sharedMainDb';
 import { resolveModulePath } from '../utils/appPaths';
 import { createRegistrySqlFactory } from './ModuleDatabaseRegistry';
 import { dedupeMissingModuleLogs, type ModuleDiagnosis } from '../ipc/moduleErrors';
+import { isModuleScanRunning, whenModuleScanSettled } from './moduleScan';
 import {
   ModuleLoader as CoreModuleLoader,
   SqliteModuleStore,
@@ -187,7 +188,14 @@ export class ModuleLoader<K extends keyof ModuleRepositoryByType> {
    * per module, before the (synchronous) `get()` reads that follow it - see
    * `@bible/core`'s `ModuleLoader.ensure()`/`.get()` doc comment (task 0034).
    */
-  ensure(abbreviation: string): Promise<ConcreteModuleRepositoryByType[K] | null> {
+  async ensure(abbreviation: string): Promise<ConcreteModuleRepositoryByType[K] | null> {
+    const repo = await this.core.ensure(abbreviation);
+    if (repo || !isModuleScanRunning()) return repo;
+    // A miss while the startup scan is still registering module files may
+    // just mean this one has not been reached yet (see moduleScan.ts): wait
+    // for the scan, forget the miss, and look again.
+    await whenModuleScanSettled();
+    this.core.evict(abbreviation);
     return this.core.ensure(abbreviation);
   }
 

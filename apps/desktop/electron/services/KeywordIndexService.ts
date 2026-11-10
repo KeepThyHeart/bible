@@ -1,37 +1,31 @@
-import * as fs from 'fs';
 import log from 'electron-log';
-import type {
-  ISql,
-  ModuleType,
-  IIndexSource,
-  SidecarDatabaseOpener,
-  ICodecRegistry,
-  IModuleRepositoryFactory,
-} from '@bible/core';
+import type { ISql, ModuleType } from '@bible/core';
 import {
   SidecarFts5Provider,
-  SidecarIndexBuildError,
-  SidecarIndexBuildAbortedError,
   SIDECAR_FTS5_PROVIDER_ID,
   SIDECAR_TOKENIZER,
   KeywordIndexRepository,
   ModuleMetadataRepository,
-  SqliteModuleRepositoryFactory,
-  nodeCodecRegistry,
-  wrapSqlConnection,
   configureModuleKeywordIndex,
   hasModuleTable,
   inModuleKeywordIndexTable,
 } from '@bible/core';
 import { SqliteProvider } from '../providers/SqliteProvider';
 import { getKeywordIndexRoot, resolveModulePath } from '../utils/appPaths';
+import { openSidecarDatabase, repositoryForIndexing } from './keywordIndexBuild';
+import type { KeywordIndexBuildHooks, KeywordIndexBuildOutcome, KeywordIndexBuildRequest } from './keywordIndexBuild';
+import { runKeywordIndexBuild } from './runKeywordIndexBuild';
 
 /**
- * Task 0034 (finishing M11): the factory `repositoryForIndexing()` routes
- * construction through below, instead of `new XRepository(db)` per branch.
+ * Runs one build and reports its outcome. The default is
+ * {@link runKeywordIndexBuild}: in a worker thread, so the build never blocks
+ * the main process (see `keywordIndexBuild.ts`).
  */
-const repositoryFactory: IModuleRepositoryFactory = new SqliteModuleRepositoryFactory();
-const indexingCodecs: ICodecRegistry = nodeCodecRegistry();
+export type KeywordIndexBuildRunner = (
+  request: KeywordIndexBuildRequest,
+  hooks: KeywordIndexBuildHooks,
+  signal?: AbortSignal
+) => Promise<KeywordIndexBuildOutcome>;
 
 /**
  * Status the renderer reads for one module's keyword index (F8, task 0027
@@ -68,19 +62,6 @@ export interface KeywordIndexStatusDto {
 }
 
 /**
- * `SidecarDatabaseOpener` for `SidecarFts5Provider`: opens a `.kwi` file with
- * the same `better-sqlite3`-family driver every other connection in this app
- * uses. `SqliteProvider` already implements `exec()`, so it satisfies
- * `SidecarSql` with no adapter.
- *
- * `create: false` must fail rather than conjure an empty database (see
- * `SidecarOpenOptions`'s doc comment) - `fileMustExist: true` is exactly that
- * `better-sqlite3` behaviour.
- */
-const openSidecarDatabase: SidecarDatabaseOpener = (filePath, options) =>
-  new SqliteProvider(filePath, { readonly: options.readonly, fileMustExist: !options.create });
-
-/**
  * Make the indexes this service builds the ones every module repository and
  * `BibleSearchService` in this process search (`configureModuleKeywordIndex`).
  * Module schema v0.2 ships no FTS5 table, so without this a v0.2 module's
@@ -112,47 +93,6 @@ const INDEXABLE_MODULE_TYPES: ReadonlySet<ModuleType> = new Set<ModuleType>([
 /** Whether `moduleType` can ever have a keyword index - see {@link INDEXABLE_MODULE_TYPES}. */
 export function moduleTypeSupportsKeywordIndex(moduleType: ModuleType): boolean {
   return INDEXABLE_MODULE_TYPES.has(moduleType);
-}
-
-/**
- * The subset of `moduleDetector.ts`'s `moduleType -> repository` switch that
- * carries indexable content - one branch per member of
- * {@link INDEXABLE_MODULE_TYPES}. `null` for anything else means "nothing to
- * build", never an error - the caller treats it as a normal, silent no-op.
- */
-function repositoryForIndexing(moduleType: ModuleType, db: ISql): { getIndexSource(): IIndexSource } | null {
-  const conn = wrapSqlConnection(db);
-  switch (moduleType) {
-    case 'bible':
-      return repositoryFactory.create(conn, 'bible', indexingCodecs);
-    case 'commentary':
-      return repositoryFactory.create(conn, 'commentary', indexingCodecs);
-    case 'dictionary':
-    case 'lexicon':
-      return repositoryFactory.create(conn, 'dictionary', indexingCodecs);
-    case 'book':
-      return repositoryFactory.create(conn, 'book', indexingCodecs);
-    case 'topical_index':
-      return repositoryFactory.create(conn, 'topicalIndex', indexingCodecs);
-    case 'cross_reference':
-    case 'tag_graph':
-    case 'devotional':
-    default:
-      return null;
-  }
-}
-
-/** Size on disk, or `null` if the file cannot be stat'd (e.g. raced with a prune). */
-function statSizeSafe(filePath: string): number | null {
-  try {
-    return fs.statSync(filePath).size;
-  } catch {
-    return null;
-  }
-}
-
-function describeError(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
 }
 
 /**
@@ -188,7 +128,17 @@ export class KeywordIndexService {
   private readonly keywordIndexRepo: KeywordIndexRepository;
   private readonly moduleMetadataRepo: ModuleMetadataRepository;
 
-  constructor(mainDb: ISql, indexDir: string = getKeywordIndexRoot()) {
+  private readonly indexDir: string;
+  private readonly runBuildJob: KeywordIndexBuildRunner;
+
+  /**
+   * @param runBuildJob - how a build is run; defaults to a worker thread
+   *   ({@link runKeywordIndexBuild}), which falls back to this thread where no
+   *   worker file exists (unit tests).
+   */
+  constructor(mainDb: ISql, indexDir: string = getKeywordIndexRoot(), runBuildJob: KeywordIndexBuildRunner = runKeywordIndexBuild) {
+    this.indexDir = indexDir;
+    this.runBuildJob = runBuildJob;
     this.provider = new SidecarFts5Provider({ indexDir, openDatabase: openSidecarDatabase });
     this.keywordIndexRepo = new KeywordIndexRepository(mainDb);
     this.moduleMetadataRepo = new ModuleMetadataRepository(mainDb);
@@ -255,10 +205,9 @@ export class KeywordIndexService {
     module: { moduleType: ModuleType; absoluteDatabasePath: string },
     signal?: AbortSignal
   ): void {
-    // One post-install build at a time. Several modules installed in a row would
-    // otherwise run several full-content scans at once on the main thread, each
-    // holding its own database handle; queued, each yields to the event loop
-    // between modules and the app stays responsive.
+    // One post-install build at a time. Each build runs in a worker thread (see
+    // runBuild), so the main process stays responsive; queueing them keeps a
+    // pack install from starting a dozen full-content scans at once.
     const run = async (): Promise<void> => {
       await new Promise<void>((resolve) => setImmediate(resolve));
       await this.runBuild(module, signal);
@@ -446,74 +395,58 @@ export class KeywordIndexService {
     module: { moduleType: ModuleType; absoluteDatabasePath: string },
     signal?: AbortSignal
   ): Promise<void> {
-    const db = new SqliteProvider(module.absoluteDatabasePath, { readonly: true });
-    let repo: { getIndexSource(): IIndexSource } | null;
-    try {
-      repo = repositoryForIndexing(module.moduleType, db);
-    } catch (error) {
-      db.close();
-      throw error;
-    }
+    // The build runs in a worker thread (see `runKeywordIndexBuild.ts`); only
+    // the `keyword_index` bookkeeping below runs here, on main.db's own
+    // connection. `onStart` arrives before any document is written, so a
+    // status read mid-build reports `building`.
+    const outcome = await this.runBuildJob(
+      { moduleType: module.moduleType, absoluteDatabasePath: module.absoluteDatabasePath, indexDir: this.indexDir },
+      {
+        onStart: (target) => {
+          this.keywordIndexRepo.upsert({
+            moduleUuid: target.moduleUuid,
+            providerId: SIDECAR_FTS5_PROVIDER_ID,
+            contentSha256: target.contentSha256,
+            state: 'building',
+            tokenizer: SIDECAR_TOKENIZER,
+            docCount: null,
+            sizeBytes: null,
+            builtAt: null,
+            error: null,
+          });
+        },
+      },
+      signal
+    );
 
-    if (!repo) {
-      db.close();
-      return;
-    }
-
-    try {
-      const source = repo.getIndexSource();
-      const target = source.target;
-
-      this.keywordIndexRepo.upsert({
-        moduleUuid: target.moduleUuid,
-        providerId: SIDECAR_FTS5_PROVIDER_ID,
-        contentSha256: target.contentSha256,
-        state: 'building',
-        tokenizer: SIDECAR_TOKENIZER,
-        docCount: null,
-        sizeBytes: null,
-        builtAt: null,
-        error: null,
-      });
-
-      let lastDone = 0;
-      try {
-        await this.provider.build(
-          source,
-          (done) => {
-            lastDone = done;
-          },
-          signal
-        );
-      } catch (error) {
-        if (error instanceof SidecarIndexBuildAbortedError) {
-          this.keywordIndexRepo.delete(target.moduleUuid, SIDECAR_FTS5_PROVIDER_ID);
-          return;
-        }
-
-        const reason = error instanceof SidecarIndexBuildError ? error.reason : describeError(error);
-        this.upsertFailed(target.moduleUuid, target.contentSha256, reason);
+    switch (outcome.kind) {
+      case 'nothing-to-index':
+        return;
+      case 'aborted':
+        this.keywordIndexRepo.delete(outcome.target.moduleUuid, SIDECAR_FTS5_PROVIDER_ID);
+        return;
+      case 'failed':
+        this.upsertFailed(outcome.target.moduleUuid, outcome.target.contentSha256, outcome.reason);
         log.warn(
-          `[KeywordIndexService] Keyword-index build failed for module ${target.moduleUuid}: ${reason}`
+          `[KeywordIndexService] Keyword-index build failed for module ${outcome.target.moduleUuid}: ${outcome.reason}`
         );
         return;
-      }
-
-      const sizeBytes = statSizeSafe(this.provider.kwiPathFor(target));
-      this.keywordIndexRepo.upsert({
-        moduleUuid: target.moduleUuid,
-        providerId: SIDECAR_FTS5_PROVIDER_ID,
-        contentSha256: target.contentSha256,
-        state: 'ready',
-        tokenizer: SIDECAR_TOKENIZER,
-        docCount: lastDone,
-        sizeBytes,
-        builtAt: new Date().toISOString(),
-        error: null,
-      });
-      log.info(`[KeywordIndexService] Built keyword index for module ${target.moduleUuid} (${lastDone} docs)`);
-    } finally {
-      db.close();
+      case 'built':
+        this.keywordIndexRepo.upsert({
+          moduleUuid: outcome.target.moduleUuid,
+          providerId: SIDECAR_FTS5_PROVIDER_ID,
+          contentSha256: outcome.target.contentSha256,
+          state: 'ready',
+          tokenizer: SIDECAR_TOKENIZER,
+          docCount: outcome.docCount,
+          sizeBytes: outcome.sizeBytes,
+          builtAt: new Date().toISOString(),
+          error: null,
+        });
+        log.info(
+          `[KeywordIndexService] Built keyword index for module ${outcome.target.moduleUuid} (${outcome.docCount} docs)`
+        );
+        return;
     }
   }
 

@@ -47,6 +47,13 @@ const h = vi.hoisted(() => ({
   setLocale: vi.fn(async () => {}),
   /** Per-test translations, standing in for a non-English catalog. */
   strings: {} as Record<string, string>,
+  /** What `getDocsUrl()` returns; `undefined` is a build with no docs site. */
+  docsUrl: undefined as string | undefined,
+}));
+
+vi.mock('../../config/appConfig', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../config/appConfig')>()),
+  getDocsUrl: () => h.docsUrl,
 }));
 
 vi.mock('../../contexts/useI18n', () => ({
@@ -81,6 +88,7 @@ beforeEach(() => {
   vi.spyOn(window.navigator, 'languages', 'get').mockImplementation(() => systemLanguages);
   vi.spyOn(window.navigator, 'language', 'get').mockImplementation(() => systemLanguages[0] ?? '');
   h.strings = {};
+  h.docsUrl = undefined;
   window.localStorage.clear();
   useOnboardingStore.setState({ languageChosen: false });
   h.setLocale.mockClear();
@@ -559,6 +567,88 @@ describe('LanguageFirstRun', () => {
       expect(screen.queryByTestId('first-run-packs-offline-body')).not.toBeInTheDocument();
       expect(screen.queryByTestId('first-run-packs-go-online')).not.toBeInTheDocument();
       expect(setAllowWebRequests).not.toHaveBeenCalled();
+    });
+
+    describe('installing from files instead', () => {
+      const installFromFile = vi.fn();
+      const invoke = vi.fn();
+
+      beforeEach(() => {
+        installFromFile.mockReset();
+        invoke.mockReset().mockResolvedValue(undefined);
+        h.docsUrl = 'https://docs.example.org/desktop/';
+        (window as unknown as { electron?: unknown }).electron = {
+          moduleManager: { getStarterPacks, refreshAllCatalogs, installFromFile },
+          network: { getAllowWebRequests, setAllowWebRequests },
+          ipcRenderer: { invoke },
+        };
+      });
+
+      it('is offered beside Go online / Stay offline, without touching the network', async () => {
+        await continueToNetworkStep();
+        expect(screen.getByTestId('first-run-network-files')).toBeInTheDocument();
+        expect(screen.getByTestId('first-run-network-install-from-files')).toHaveTextContent('Install from files instead…');
+        expect(screen.getByTestId('first-run-network-stay-offline')).toBeInTheDocument();
+        expect(screen.getByTestId('first-run-network-go-online')).toBeInTheDocument();
+        expect(setAllowWebRequests).not.toHaveBeenCalled();
+      });
+
+      it('points at the docs site download page, opened in the browser', async () => {
+        await continueToNetworkStep();
+        const link = screen.getByTestId('first-run-network-files-link');
+        expect(link).toHaveAttribute('href', 'https://docs.example.org/download/#offline-downloads');
+        await userEvent.click(link);
+        expect(invoke).toHaveBeenCalledWith('app:open-external', 'https://docs.example.org/download/#offline-downloads');
+      });
+
+      it('drops the link, but keeps the explanation, when no docs site is configured', async () => {
+        h.docsUrl = undefined;
+        await continueToNetworkStep();
+        expect(screen.getByTestId('first-run-network-files-body')).toBeInTheDocument();
+        expect(screen.queryByTestId('first-run-network-files-link')).not.toBeInTheDocument();
+      });
+
+      it('runs the module install-from-file flow and reports a pack install', async () => {
+        const loadInstalledModules = vi.fn().mockResolvedValue(undefined);
+        useModuleStore.setState({ loadInstalledModules });
+        installFromFile.mockResolvedValue({
+          ok: true,
+          value: {
+            kind: 'batch',
+            summary: { found: 3, installed: [{}, {}, {}], failed: [], skipped: [], upToDate: [] },
+          },
+        });
+        await continueToNetworkStep();
+
+        await userEvent.click(screen.getByTestId('first-run-network-install-from-files'));
+
+        expect(installFromFile).toHaveBeenCalledTimes(1);
+        expect(await screen.findByTestId('first-run-network-install-from-files-result')).toHaveTextContent(
+          'Installed 3 module(s).'
+        );
+        expect(loadInstalledModules).toHaveBeenCalled();
+        // Still on the network step, and still offline.
+        expect(screen.getByTestId('first-run-network-body')).toBeInTheDocument();
+        expect(setAllowWebRequests).not.toHaveBeenCalled();
+      });
+
+      it('says nothing when the picker is cancelled', async () => {
+        installFromFile.mockResolvedValue({ ok: true, value: null });
+        await continueToNetworkStep();
+        await userEvent.click(screen.getByTestId('first-run-network-install-from-files'));
+        await waitFor(() => expect(installFromFile).toHaveBeenCalled());
+        await waitFor(() => expect(screen.getByTestId('first-run-network-install-from-files')).toBeEnabled());
+        expect(screen.queryByTestId('first-run-network-install-from-files-result')).not.toBeInTheDocument();
+      });
+
+      it('shows a failed install as an error', async () => {
+        installFromFile.mockResolvedValue({ ok: false, error: { message: 'Not a module file' } });
+        await continueToNetworkStep();
+        await userEvent.click(screen.getByTestId('first-run-network-install-from-files'));
+        const result = await screen.findByTestId('first-run-network-install-from-files-result');
+        expect(result).toHaveTextContent('Could not install: Not a module file');
+        expect(result).toHaveClass('text-danger');
+      });
     });
   });
 

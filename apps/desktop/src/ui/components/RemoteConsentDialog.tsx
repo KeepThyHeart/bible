@@ -1,10 +1,15 @@
 /**
  * RemoteConsentDialog.tsx
  *
- * First-use notice for the online meaning search (task 0190). Shown by the
- * search store before the first semantic search when the build configures a
- * remote service and the user has not answered yet. Nothing is sent until
- * "Agree and search"; "Not now" (or Escape) falls back to the installed pack.
+ * Notice for the online meaning search (task 0190). Shown by the search store
+ * before an Ideas search the user asked for, when the build configures a
+ * remote service and the user has not agreed yet. Nothing is sent until
+ * "Agree and search". The three answers:
+ *   - Agree and search: recorded; this and later Ideas searches use the service.
+ *   - Not now (or Escape): NOT recorded. Only this Ideas search is skipped
+ *     (the keyword results stay); the next one asks again.
+ *   - Don't use the online service: recorded; Ideas search then uses the local
+ *     meaning pack when one is installed, and otherwise says what it needs.
  * Mounted once at app level; renders nothing otherwise.
  */
 
@@ -25,7 +30,7 @@ export function RemoteConsentDialog() {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.stopPropagation();
-        void answer('declined');
+        void answer('notNow');
       }
     };
     window.addEventListener('keydown', onKey, true);
@@ -78,7 +83,7 @@ export function RemoteConsentDialog() {
               style={{ color: 'var(--theme-accent-primary)' }}
               data-testid="remote-consent-get-pack"
               onClick={() => {
-                void answer('declined');
+                void answer('notNow');
                 openModuleManager('features');
               }}
             >
@@ -86,10 +91,20 @@ export function RemoteConsentDialog() {
             </button>
           </p>
         </div>
-        <div className="flex justify-end gap-2 p-4" style={{ borderBlockStart: '1px solid var(--theme-border-primary)' }}>
+        <div className="flex flex-wrap justify-end gap-2 p-4" style={{ borderBlockStart: '1px solid var(--theme-border-primary)' }}>
           <button
             type="button"
             onClick={() => void answer('declined')}
+            className="px-3 py-1.5 rounded text-sm me-auto"
+            style={{ color: 'var(--theme-text-secondary)' }}
+            data-testid="remote-consent-never"
+            title={t('remoteConsent.dontUseOnlineHint')}
+          >
+            {t('remoteConsent.dontUseOnline')}
+          </button>
+          <button
+            type="button"
+            onClick={() => void answer('notNow')}
             className="px-3 py-1.5 rounded text-sm"
             style={{ border: '1px solid var(--theme-accent-primary)', color: 'var(--theme-accent-primary)' }}
             data-testid="remote-consent-decline"

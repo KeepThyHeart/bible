@@ -131,6 +131,15 @@ const HelpPanel: React.FC<HelpPanelProps> = ({ onClose }) => {
       description: t('helpPanel.shortcutsHint'),
       onSelect: () => dispatch('command:app:openKeyboardShortcuts'),
     },
+    // Always present: it opens an in-app form, which works in every build. Its
+    // delivery goes through the diagnostics uploader and so respects Privacy
+    // -> Allow Web Requests; the form says so when that is what holds it back.
+    {
+      id: 'giveFeedback',
+      label: t('helpPanel.giveFeedback'),
+      description: t('helpPanel.giveFeedbackHint'),
+      onSelect: () => dispatch('command:help:giveFeedback'),
+    },
   ];
 
   if (docsUrl) {

@@ -1,16 +1,17 @@
 /**
- * "Report an Issue" -> what the user is told afterwards.
+ * "Give Feedback" / "Report an Issue" -> what the user is told afterwards.
  *
  * The interesting part is not that a confirmation appears; it is that the
- * confirmation is *true*. Submitting only writes the payload into
- * `{userData}/diagnostics/queue/`, and the background uploader does nothing at
- * all unless diagnostics is enabled with an endpoint URL - both off by
- * default. So there are two wordings, chosen by `SubmitReceipt.willUpload`,
- * and the dangerous failure mode is claiming "sent" on a default install where
- * nothing has been or will be sent.
+ * confirmation is *true*. Submitting writes the payload into
+ * `{userData}/diagnostics/queue/`; the dialog then asks the main process to
+ * deliver it (`deliverReport`) and says "sent" only when that came back sent.
+ * Otherwise it names why the message is still waiting - web requests off, no
+ * connection, no destination - or, after 3 s, that it is still sending in the
+ * background. The dangerous failure mode is claiming "sent" when nothing has
+ * left the machine.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 
 vi.mock('../../contexts/useI18n', () => ({
   // Echo the key back: `tf()` treats a bare echo as "no such key" and renders
@@ -24,6 +25,7 @@ import { enT } from '../../testing/enCatalog';
 const submitManualReport = vi.fn();
 const submitFeedback = vi.fn();
 const getStateSnapshot = vi.fn();
+const deliverReport = vi.fn();
 
 type ElectronWindow = typeof globalThis & { electron?: unknown };
 
@@ -37,6 +39,7 @@ function installBridge(): void {
       submitManualReport: (...args: unknown[]) => submitManualReport(...args),
       submitFeedback: (...args: unknown[]) => submitFeedback(...args),
       getStateSnapshot: () => getStateSnapshot(),
+      deliverReport: (...args: unknown[]) => deliverReport(...args),
     },
     log: { error: vi.fn(), info: vi.fn() },
   };
@@ -68,6 +71,9 @@ describe('ReportIssueDialog', () => {
     submitFeedback.mockReset();
     getStateSnapshot.mockReset();
     getStateSnapshot.mockResolvedValue({ ok: true, value: { panes: [] } });
+    deliverReport.mockReset();
+    // Default: the endpoint takes it at once.
+    deliverReport.mockResolvedValue({ ok: true, value: { status: 'sent' } });
     installBridge();
   });
 
@@ -117,6 +123,8 @@ describe('ReportIssueDialog', () => {
     expect(success).toHaveTextContent(/has been sent/);
     // The honest-but-wrong-here wording must not also be on screen.
     expect(success).not.toHaveTextContent(/saved on this computer/);
+    // It asked about the very report it just queued.
+    expect(deliverReport).toHaveBeenCalledWith('r1');
   });
 
   it('says the report is only saved locally when nothing will collect it', async () => {
@@ -138,6 +146,8 @@ describe('ReportIssueDialog', () => {
     expect(success).toHaveTextContent(/saved on this computer/);
     expect(success).toHaveTextContent(/Preferences → Diagnostics/);
     expect(success).not.toHaveTextContent(/has been sent/);
+    // Nothing would collect it, so there is nothing to wait for.
+    expect(deliverReport).not.toHaveBeenCalled();
   });
 
   it('falls back to the saved-locally wording when the receipt says nothing', async () => {
@@ -221,5 +231,157 @@ describe('ReportIssueDialog', () => {
     expect(screen.getByRole('textbox')).toHaveValue('');
     // And the diagnostics box is back to unticked: consent is per report.
     expect(screen.getByRole('checkbox')).not.toBeChecked();
+  });
+  // ---- Give Feedback mode -------------------------------------------------
+
+  function openFeedback(): void {
+    render(<ReportIssueDialog />);
+    fireEvent(window, new CustomEvent('command:help:giveFeedback'));
+  }
+
+  function typeMessage(text: string): void {
+    fireEvent.change(screen.getByTestId('report-issue-description'), { target: { value: text } });
+  }
+
+  it('opens as a lightweight Give Feedback form: message, optional contact, no diagnostics box', async () => {
+    openFeedback();
+    const dialog = await screen.findByRole('dialog');
+    expect(dialog).toHaveTextContent('Give Feedback');
+    expect(screen.getByTestId('feedback-contact')).toBeInTheDocument();
+    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+  });
+
+  it('sends the contact only when one was typed', async () => {
+    submitFeedback.mockResolvedValue({ ok: true, value: { reportId: 'f2', willUpload: true } });
+    openFeedback();
+    await screen.findByRole('dialog');
+    typeMessage('love the parallel view');
+    fireEvent.change(screen.getByTestId('feedback-contact'), { target: { value: '  me@example.com ' } });
+    send();
+    await screen.findByTestId('report-issue-success');
+    expect(submitFeedback).toHaveBeenCalledWith({
+      description: 'love the parallel view',
+      contact: 'me@example.com',
+    });
+  });
+
+  it('can switch from feedback to a full issue report, keeping the text', async () => {
+    openFeedback();
+    await screen.findByRole('dialog');
+    typeMessage('the search froze');
+    fireEvent.click(screen.getByTestId('feedback-switch-to-issue'));
+    expect(screen.getByRole('dialog')).toHaveTextContent('Report an Issue');
+    expect(screen.getByRole('checkbox')).not.toBeChecked();
+    expect(screen.getByRole('textbox')).toHaveValue('the search froze');
+  });
+
+  it('shows a sending state, then "sent" when delivery is quick', async () => {
+    submitFeedback.mockResolvedValue({ ok: true, value: { reportId: 'f3', willUpload: true } });
+    let finish!: (v: unknown) => void;
+    deliverReport.mockReturnValue(new Promise((res) => (finish = res)));
+
+    openFeedback();
+    await screen.findByRole('dialog');
+    typeMessage('quick one');
+    send();
+
+    const busy = await screen.findByRole('button', { name: 'Sending…' });
+    expect(busy).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Cancel' })).toBeDisabled();
+
+    await act(async () => {
+      finish({ ok: true, value: { status: 'sent' } });
+    });
+    const success = await screen.findByTestId('report-issue-success');
+    expect(success).toHaveAttribute('data-delivery', 'sent');
+    expect(success).toHaveTextContent('Your message has been sent.');
+  });
+
+  describe('after the 3 second deadline', () => {
+    beforeEach(() => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+    });
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('says it is sending in the background, then updates if it lands while open', async () => {
+      submitFeedback.mockResolvedValue({ ok: true, value: { reportId: 'f4', willUpload: true } });
+      let finish!: (v: unknown) => void;
+      deliverReport.mockReturnValue(new Promise((res) => (finish = res)));
+
+      openFeedback();
+      await screen.findByRole('dialog');
+      typeMessage('slow network');
+      send();
+      await screen.findByRole('button', { name: 'Sending…' });
+
+      // (The exact boundary is pinned in deliverWithDeadline.test.ts; this
+      // timer also lets real time through, so leave a margin either side.)
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(2500);
+      });
+      expect(screen.queryByTestId('report-issue-success')).not.toBeInTheDocument();
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(600);
+      });
+      const panel = await screen.findByTestId('report-issue-success');
+      expect(panel).toHaveAttribute('data-delivery', 'background');
+      expect(panel).toHaveTextContent(/still sending in the background/);
+      // It can be closed now.
+      expect(screen.getByRole('button', { name: 'Close' })).toBeEnabled();
+
+      await act(async () => {
+        finish({ ok: true, value: { status: 'sent' } });
+      });
+      await waitFor(() =>
+        expect(screen.getByTestId('report-issue-success')).toHaveAttribute('data-delivery', 'sent')
+      );
+    });
+  });
+
+  it('names Allow Web Requests when that is what holds it back', async () => {
+    submitFeedback.mockResolvedValue({ ok: true, value: { reportId: 'f5', willUpload: true } });
+    deliverReport.mockResolvedValue({ ok: true, value: { status: 'queued', reason: 'web-requests-off' } });
+
+    openFeedback();
+    await screen.findByRole('dialog');
+    typeMessage('offline user');
+    send();
+
+    const panel = await screen.findByTestId('report-issue-success');
+    expect(panel).toHaveAttribute('data-delivery', 'webOff');
+    expect(panel).toHaveTextContent(/Privacy → Allow Web Requests/);
+    expect(panel).not.toHaveTextContent(/has been sent/);
+  });
+
+  it('says it will retry when the server could not be reached', async () => {
+    submitFeedback.mockResolvedValue({ ok: true, value: { reportId: 'f6', willUpload: true } });
+    deliverReport.mockResolvedValue({ ok: true, value: { status: 'queued', reason: 'unreachable' } });
+
+    openFeedback();
+    await screen.findByRole('dialog');
+    typeMessage('server down');
+    send();
+
+    const panel = await screen.findByTestId('report-issue-success');
+    expect(panel).toHaveAttribute('data-delivery', 'waiting');
+    expect(panel).toHaveTextContent(/try again automatically/);
+  });
+
+  it('returns to the form with the text when the server refuses it outright', async () => {
+    submitFeedback.mockResolvedValue({ ok: true, value: { reportId: 'f7', willUpload: true } });
+    deliverReport.mockResolvedValue({ ok: true, value: { status: 'rejected' } });
+
+    openFeedback();
+    await screen.findByRole('dialog');
+    typeMessage('rejected text');
+    send();
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('The server could not accept this message.');
+    expect(screen.queryByTestId('report-issue-success')).not.toBeInTheDocument();
+    expect(screen.getByTestId('report-issue-description')).toHaveValue('rejected text');
   });
 });

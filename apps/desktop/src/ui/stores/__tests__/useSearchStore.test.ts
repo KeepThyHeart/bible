@@ -41,7 +41,6 @@ describe('useSearchStore - result interaction', () => {
       isSemanticMode: false,
       semanticResults: [],
       semanticAvailable: false,
-      autoSwitchedToSemantic: false,
     });
   });
 

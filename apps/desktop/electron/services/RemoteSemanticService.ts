@@ -205,7 +205,7 @@ export class RemoteSemanticService {
 
   /**
    * The stored choice, else the default: online when this build has a service
-   * (a user who already said "Not now" to it stays offline), offline otherwise.
+   * (a user who already declined it ("Don't use the online service") stays offline), offline otherwise.
    * A stored `online` in a build without a service reads as offline.
    */
   private source(consent: RemoteSemantic.ConsentStatus): SemanticSource {
@@ -223,18 +223,23 @@ export class RemoteSemanticService {
   }
 
   /**
-   * The first-use answer. "Not now" also moves the source to offline, so the
-   * preference shows what is actually happening.
+   * The consent dialog's persisted answers. ("Not now" in the dialog is not
+   * one of them: it is never recorded.) "Don't use the online service"
+   * (`declined`) also moves the source to offline, so the preference shows
+   * what is actually happening. Agreeing moves it back to online: the dialog
+   * is shown again after a decline when the user picks Ideas search with no
+   * local pack, and agreeing there must actually turn the service on.
    */
   setConsent(decision: ConsentDecisionArg): RemoteSemanticStatus {
     if (decision === 'reset') this.opts.store.write(null);
     else this.opts.store.write(RemoteSemantic.makeConsentRecord(decision, this.opts.now?.()));
     if (decision === 'declined') this.storeSource('offline');
+    if (decision === 'granted' && this.isConfigured()) this.storeSource('online');
     return this.getStatus();
   }
 
   /**
-   * The Preferences choice. Choosing online after an earlier "Not now" clears
+   * The Preferences choice. Choosing online after an earlier "Don't use the online service" clears
    * that answer, so the next meaning search asks again; it never grants consent
    * by itself - the notice is shown first.
    */

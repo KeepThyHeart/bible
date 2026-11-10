@@ -653,7 +653,7 @@ const ModuleManagerDialog: React.FC<ModuleManagerDialogProps> = ({ onClose, init
     },
     {
       id: 'packs',
-      label: td('moduleManager.packs.tab', 'Bundles'),
+      label: td('moduleManager.packs.tab', 'Collections'),
       testId: 'module-manager-packs-tab',
     },
     {

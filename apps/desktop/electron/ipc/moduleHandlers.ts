@@ -39,6 +39,8 @@ import {
   type ModulePackTrustOptions
 } from '../services/ModulePackService';
 import { dialogParent } from '../utils/dialogParent';
+import { isFeaturePackArchive } from '../services/featurePackArchive';
+import { whenModuleScanSettled } from '../services/moduleScan';
 
 /** `dialog.showMessageBox` attached to the main window so it cannot fall behind it (B-087). */
 function showParentedMessageBox(options: Electron.MessageBoxOptions): Promise<Electron.MessageBoxReturnValue> {
@@ -471,6 +473,20 @@ function getModulePackExtractionRoot(): string {
 }
 
 /**
+ * Install a feature pack (`feature-pack.json` at the archive root) picked in
+ * "Install from File", through the same `SemanticPackService` the Feature packs
+ * tab uses. Loaded on demand so the module handlers do not pull the semantic
+ * search stack in at startup.
+ */
+async function installFeaturePackFromPath(filePath: string): Promise<{ name: string }> {
+  const [{ getSemanticPackService }, { resetSemanticSearch }] = await Promise.all([
+    import('../services/SemanticPackService'),
+    import('./searchHandlers'),
+  ]);
+  return getSemanticPackService(resetSemanticSearch).installFromPackage(filePath);
+}
+
+/**
  * Install every `.db`/`.db.gz` file bundled in a pack archive.
  *
  * Shared by the "Upload Module" dialog (when a single pack file is chosen)
@@ -555,7 +571,9 @@ export function registerModuleHandlers(_ipc: IpcMain): void {
   // Get installed modules
   ipcHandler<[], unknown[]>(
     'module:get-installed',
-    () => {
+    async () => {
+      // A running startup scan may not have registered everything on disk yet.
+      await whenModuleScanSettled();
       initializeModuleManager();
       const ctrl = requireModuleController();
       const modules = ctrl.getInstalledModules();
@@ -710,6 +728,22 @@ export function registerModuleHandlers(_ipc: IpcMain): void {
       let found = 0;
 
       for (const filePath of result.filePaths) {
+        if (isModulePackPath(filePath) && (await isFeaturePackArchive(filePath))) {
+          // A feature pack (the meaning-search pack) shares the .biblepack
+          // extension but is not a module pack: it has `feature-pack.json` and
+          // no `pack.json`. Route it to the Feature packs tab's installer, which
+          // verifies every artifact against the pack's own digests and
+          // publishes progress through `featurePack:get-status`, exactly as an
+          // install started from that tab does.
+          found += 1;
+          try {
+            const manifest = await installFeaturePackFromPath(filePath);
+            installed.push({ entryPath: filePath, moduleName: manifest.name });
+          } catch (error) {
+            failed.push({ entryPath: filePath, reason: (error as Error).message });
+          }
+          continue;
+        }
         if (isModulePackPath(filePath)) {
           try {
             // This whole flow is one main-process round trip with no later

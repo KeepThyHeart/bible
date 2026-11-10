@@ -47,6 +47,8 @@
   "app.reportIssue.category": "Приложение",
   "help.reportIssue": "Сообщить о проблеме",
   "help.reportIssue.category": "Справка",
+  "help.giveFeedback": "Оставить отзыв",
+  "help.giveFeedback.category": "Справка",
   "module.openManager": "Открыть менеджер модулей",
   "module.openManager.category": "Модули",
   "module.openManager.alias.0": "менеджер модулей",

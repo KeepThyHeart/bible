@@ -1,6 +1,7 @@
 /**
  * Online meaning search E2E (task 0190): first-use consent, the stub service,
- * Not now, and the Preferences > Search toggle.
+ * Not now (this time only), Don't use the online service (persisted), and the
+ * Preferences > Search toggle.
  *
  * The shared fixture launches Electron without extra
  * env, so this spec launches its own instance with BIBLE_REMOTE_SEMANTIC_URL
@@ -120,10 +121,23 @@ test.describe('Online meaning search', () => {
     expect(first.headers.authorization).toBeUndefined();
   });
 
-  test('Not now shows the hint and later semantic searches send nothing', async ({ window, stub }) => {
+  test('Not now skips this time only: nothing sent, no hint, and the next Ideas search asks again', async ({ window, stub }) => {
     await runSemanticSearch(window, 'love');
     await window.getByTestId('remote-consent-decline').click();
-    await expect(window.getByTestId('semantic-note')).toContainText('Preferences > Search', { timeout: 15000 });
+    await expect(window.getByTestId('remote-consent-dialog')).toHaveCount(0);
+    await expect(window.getByTestId('semantic-note')).toHaveCount(0);
+    expect(stub.requests).toHaveLength(0);
+
+    await runSemanticSearch(window, 'mercy');
+    await expect(window.getByTestId('remote-consent-dialog')).toBeVisible({ timeout: 15000 });
+    expect(stub.requests).toHaveLength(0);
+  });
+
+  test("Don't use the online service shows what Ideas search needs and later searches send nothing", async ({ window, stub }) => {
+    await runSemanticSearch(window, 'love');
+    await window.getByTestId('remote-consent-never').click();
+    // No local pack in this profile, so nothing answers: the note says what Ideas search needs.
+    await expect(window.getByTestId('semantic-note')).toContainText('local meaning pack', { timeout: 15000 });
 
     // Search again: no modal, no remote call.
     const input = window.locator('[data-testid="search-input"]');

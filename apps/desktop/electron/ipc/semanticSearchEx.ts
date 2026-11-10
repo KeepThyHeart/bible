@@ -112,7 +112,7 @@ export async function runSemanticSearchEx(
     // Something other than the remote answered: say why, when there is a reason.
     const note = RemoteSemantic.noteForRemoteError(outcome.remoteError);
     if (note) result.notice = note;
-    // After "Not now" (which also moved the source to offline), keep pointing
+    // After "Don't use the online service" (which also moved the source to offline), keep pointing
     // at where it can be changed. A plain offline choice gets no note.
     else if (status.configured && status.consent === 'declined') result.notice = { kind: 'declined' };
   }

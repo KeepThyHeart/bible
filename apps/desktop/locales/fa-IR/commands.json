@@ -47,6 +47,8 @@
   "app.reportIssue.category": "برنامه",
   "help.reportIssue": "گزارش مشکل",
   "help.reportIssue.category": "راهنما",
+  "help.giveFeedback": "ارسال بازخورد",
+  "help.giveFeedback.category": "راهنما",
   "module.openManager": "باز کردن مدیریت ماژول‌ها",
   "module.openManager.category": "ماژول‌ها",
   "module.openManager.alias.0": "مدیریت ماژول‌ها",

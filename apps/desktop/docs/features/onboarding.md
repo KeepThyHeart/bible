@@ -101,6 +101,7 @@ It retires permanently on dismissal **or** on completing the tour, since finishi
 | Documentation | `command:app:openDocumentation` - the in-app `DocumentationDialog` | always |
 | Take a tour | `command:app:startTour` | always |
 | Keyboard shortcuts | `command:app:openKeyboardShortcuts` | always |
+| Give feedback | `command:help:giveFeedback` - the in-app feedback form (`ReportIssueDialog`, feedback mode) | always |
 | Documentation website | `app:open-external` IPC with the configured URL | `getDocsUrl()` is set |
 | Report an issue | `command:app:reportIssue` | `getIssueReportUrl()` resolves |
 

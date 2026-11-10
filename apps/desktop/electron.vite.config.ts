@@ -297,7 +297,11 @@ export default defineConfig({
           'backup-kdf-worker': resolve(__dirname, 'electron/services/backup/kdfWorker.ts'),
           // Worker thread that runs the module conformance gate during an install, so
           // scanning a large module cannot freeze the app. See `runValidationInWorker.ts`.
-          'module-install-worker': resolve(__dirname, 'electron/services/moduleInstallWorker.ts')
+          'module-install-worker': resolve(__dirname, 'electron/services/moduleInstallWorker.ts'),
+          // Worker thread that builds keyword indexes (seconds of FTS5 work for a large
+          // module), so installs and the startup catch-up never freeze the app.
+          // See `runKeywordIndexBuild.ts`.
+          'keyword-index-worker': resolve(__dirname, 'electron/services/keywordIndexWorker.ts')
         },
         external: ['better-sqlite3-multiple-ciphers', '@huggingface/transformers', 'onnxruntime-common', 'onnxruntime-node']
       }
