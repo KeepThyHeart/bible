@@ -25,7 +25,8 @@
       "remaining": "הזמן שנותר",
       "secondsLeft": "נותרו {seconds} שניות",
       "paused": "מושהה",
-      "secondsShort": "{seconds} ש׳"
+      "secondsShort": "{seconds} ש׳",
+      "oneSecondLeft": "נותרה שנייה אחת"
     },
     "frame": {
       "roomAria": "חדר {code}",
@@ -78,7 +79,8 @@
       "skipIt": "לדלג",
       "keepGoing": "להמשיך",
       "skip": "דילוג",
-      "nextQuestion": "השאלה הבאה"
+      "nextQuestion": "השאלה הבאה",
+      "scoresEveryoneItem": "הצגת הניקוד של כולם"
     },
     "join": {
       "enterCode": "הזינו את קוד החדר",
@@ -86,7 +88,10 @@
       "yourName": "השם שלכם",
       "joining": "מצטרף…",
       "joinRoom": "הצטרפות לחדר",
-      "solo": "לשחק לבד"
+      "solo": "לשחק לבד",
+      "codeInvalid": "קוד חדר הוא {length} אותיות וספרות, למשל 5HK27. הסתכלו במסך הגדול.",
+      "nameNeeded": "הזינו את שמכם כדי להצטרף.",
+      "codeFiltered": "קודי חדר משתמשים רק בתווים האלה: {chars}. השאר הושמטו."
     },
     "solo": {
       "onYourOwn": "אתם לבד — אף אחד אחר לא יכול לראות את החדר הזה.",
@@ -138,7 +143,11 @@
       "leaveRejoin": "אפשר להצטרף שוב עם אותו קוד כל עוד החדר פתוח.",
       "stay": "להישאר",
       "theme": "ערכת נושא",
-      "leave": "עזיבה"
+      "leave": "עזיבה",
+      "themeCycle": "ערכת נושא: {name}. מעבר לערכה הבאה",
+      "themeCycleCustom": "מעבר לערכת הנושא הבאה",
+      "playersCount": "שחקנים: {total}",
+      "lobbyHeading": "לובי החדר"
     },
     "brand": {
       "title": "משחקי מקרא קבוצתיים",
@@ -151,6 +160,34 @@
     },
     "app": {
       "live": "החדר פעיל"
+    },
+    "names": {
+      "fillInTheBlank": "השלמת המילה החסרה",
+      "nameThatReference": "זהו את המקור",
+      "whoSaidIt": "מי אמר?",
+      "whoAmI": "מי אני?",
+      "putInOrder": "סדרו לפי הסדר",
+      "categoryBoard": "לוח קטגוריות",
+      "swordDrill": "תרגיל החרב",
+      "describeIt": "תארו את זה",
+      "detective": "בלש"
+    },
+    "scopes": {
+      "wholeBible": "כל המקרא",
+      "peopleOfTheBible": "דמויות מהמקרא"
+    },
+    "familiarity": {
+      "core": "פסוקים שכולם מכירים",
+      "familiar": "פסוקים מוכרים",
+      "broad": "מוכרים וגם פחות",
+      "deep": "לקבוצה שקוראת",
+      "any": "בכל מקום במקרא"
+    },
+    "errors": {
+      "roomNotFound": "אין חדר עם הקוד הזה. בדקו את הקוד במסך הגדול.",
+      "roomsFull": "השרת מארח כבר את מספר החדרים המרבי. נסו שוב בעוד זמן קצר.",
+      "offline": "לא ניתן להגיע לשרת. בדקו את ה-Wi-Fi ונסו שוב.",
+      "status": "השרת השיב {status}."
     }
   }
 }

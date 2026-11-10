@@ -9,6 +9,7 @@ import { createPasswordGate, hashPassword } from './middleware/passwordGate.js';
 import { createServiceWorkerRoutes, pwaShell, readShell } from './middleware/serviceWorker.js';
 import { createCompression } from './middleware/compression.js';
 import { createVerseHoverMount, resolveVerseHoverDist } from './middleware/verseHoverMount.js';
+import { apiNotFound } from './middleware/apiNotFound.js';
 import { createRateLimiter, tierForApiPath, isGloballyRateLimitExempt, isSyncPath } from './middleware/rateLimiter.js';
 import { contentSecurityPolicyDirectives, speechModelOrigins, inlineScriptHashes } from './cspDirectives.js';
 import { RemoteSemanticService } from './search/RemoteSemanticService.js';
@@ -36,6 +37,7 @@ import type { ISearchPipeline, IVectorSearch } from '@bible/core';
 import { createSearchPipelineWithComponents } from './search/SearchPipelineFactory.js';
 import type { SqliteVectorSearch } from './search/SqliteVectorSearch.js';
 import { logger } from './utils/logger.js';
+import { isServiceBusyError, sendServiceBusy } from './utils/apiErrors.js';
 import { sanitizeQuery, clientErrorStatus } from './utils/requestHygiene.js';
 import { ServerPluginManager } from './plugins/pluginManager.js';
 import { SiteConfig } from './SiteConfig.js';
@@ -466,6 +468,8 @@ const routeDeps = {
     showTagGraph: siteConfig.features.tagGraph,
     showTimeline: siteConfig.isEnabled('timeline'),
     // /api/offline (pack builder manifest and files): on with either offline feature flag.
+    // The Presenter's own HTML pages drop their manifest link when the PWA is off, like the app shell.
+    pwaEnabled: () => siteConfig.features.pwa,
     offlineEnabled: () => siteConfig.features.offlineDownloads || siteConfig.features.offlineAutoDownload,
     // The configured default Bible, for routes answering a request that names none.
     defaultModule: siteConfig.ui.defaultModule,
@@ -497,6 +501,8 @@ for (const reg of getRegisteredRoutes()) {
 }
 // Paths of switched-off feature modules answer "not available" (after the password gate).
 app.use(createUnavailableRoutes());
+// Unknown /api paths: JSON 404 in the API's error shape (B-176), never the SPA fallback.
+app.use('/api', apiNotFound);
 
 // Audio Bible files (recordings, TTS engine files) are the `audio` server module's `/audio` route
 // (`modules/audio/routes.ts`), mounted above only while the module is on, so as private as the rest
@@ -647,7 +653,10 @@ app.use((err: Error, req: express.Request, res: express.Response, _next: express
     if (!res.headersSent) res.status(clientStatus).json({ error: { code: 'INVALID_PARAM', message: 'Bad request' } });
     return;
   }
+  // W-009: connect-timeout's 503 is overload, not a fault: no stack, a 503 with Retry-After.
+  if (isServiceBusyError(err)) { sendServiceBusy(res); return; }
   logger.error(`${req.method} ${req.path}:`, err);
+  if (res.headersSent) return;
   res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'An internal server error occurred' } });
 });
 

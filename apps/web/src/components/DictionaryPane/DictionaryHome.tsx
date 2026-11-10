@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'preact/hooks';
+import { useState, useEffect, useCallback, useRef } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { BookOneSvg } from '../common/inlineIcons';
 import { dictionaryStore } from '../../stores/dictionaryStore';
@@ -43,6 +43,19 @@ export function DictionaryHome() {
     }
   }, [homeSuggestions, highlightedIndex]);
 
+  // Starring re-sorts the cards, so the star button remounts: put focus back on the same item's star.
+  const rootRef = useRef<HTMLDivElement>(null);
+  const [starFocus, setStarFocus] = useState<{ abbr: string; n: number } | null>(null);
+  const toggleStar = (abbr: string) => {
+    dictionaryStore.toggleStarred(abbr);
+    setStarFocus({ abbr, n: Date.now() });
+  };
+  useEffect(() => {
+    if (!starFocus) return;
+    Array.from(rootRef.current?.querySelectorAll<HTMLElement>('[data-star-module]') ?? [])
+      .find(el => el.dataset.starModule === starFocus.abbr)?.focus({ preventScroll: true });
+  }, [starFocus]);
+
   // Sort: starred first, then alphabetical
   const sortedModules = [...modules].sort((a, b) => {
     const aStarred = starredModules.has(a.abbreviation) ? 0 : 1;
@@ -52,7 +65,7 @@ export function DictionaryHome() {
   });
 
   return (
-    <div class="dictionary-home">
+    <div class="dictionary-home" ref={rootRef}>
       <input
         class="dictionary-home__search"
         type="text"
@@ -91,6 +104,7 @@ export function DictionaryHome() {
               >
                 <button
                   class="dictionary-home__card-body"
+                  data-module={m.abbreviation}
                   onClick={() => dictionaryStore.openTemporaryTab(m.abbreviation, m.name)}
                 >
                   <span class="dictionary-home__card-icon" dangerouslySetInnerHTML={{ __html: BookOneSvg }} />
@@ -98,8 +112,16 @@ export function DictionaryHome() {
                 </button>
                 <i
                   class={`fa-${isStarred ? 'solid' : 'regular'} fa-star dictionary-home__card-star ${isStarred ? 'dictionary-home__card-star--active' : ''}`}
+                  role="button"
+                  tabIndex={0}
+                  aria-pressed={isStarred}
+                  data-star-module={m.abbreviation}
+                  aria-label={t('dictionaryHome.starNamed', { name: m.name, defaultValue: 'Star {name}' })}
                   title={isStarred ? t('dictionaryHome.unstar') : t('dictionaryHome.star')}
-                  onClick={(e: MouseEvent) => { e.stopPropagation(); dictionaryStore.toggleStarred(m.abbreviation); }}
+                  onClick={(e: MouseEvent) => { e.stopPropagation(); toggleStar(m.abbreviation); }}
+                  onKeyDown={(e: KeyboardEvent) => {
+                    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); toggleStar(m.abbreviation); }
+                  }}
                 />
               </div>
             );

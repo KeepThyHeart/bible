@@ -88,11 +88,13 @@ interface StrengthProps {
 
 export function XrefStrengthControl({ labels, step, onChange }: StrengthProps) {
   const valueText = step <= 1 ? labels.minStrengthAny : fillTpl(labels.minStrengthValue, { n: step });
+  const nameId = useId();
   return (
     <label className="kth-xref-web__field" title={labels.minStrengthHint}>
-      <span>{labels.minWeight}</span>
+      <span id={nameId}>{labels.minWeight}</span>
       <input
         type="range"
+        aria-labelledby={nameId}
         className="kth-xref-web__slider"
         min={1}
         max={5}

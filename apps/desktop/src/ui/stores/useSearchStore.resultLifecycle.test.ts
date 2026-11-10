@@ -5,7 +5,9 @@
  * leaves them populated after the user has moved on is a badge advertising a
  * search that is no longer on screen. Three gestures end a search - closing the
  * results pane by its own X, closing it by its dockview tab, and editing the
- * text in the box - and all three must clear the results.
+ * text in the box - and the first two must clear the results. (Editing the text no longer
+ * does, task 0210: with search tabs the box is a draft and the badge compares
+ * the box with `resultsForQuery`.)
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { useSearchStore, normalizeSearchQuery } from './useSearchStore';
@@ -66,12 +68,17 @@ describe('setQuery', () => {
     seedResults();
   });
 
-  it('drops results that no longer belong to the text in the box', () => {
+  // Task 0210 (search tabs): the box is a draft. Typing a query meant for
+  // Ctrl+Enter must not wipe the tab the reader is leaving; the results stay,
+  // labelled by their own query, and the count badge (which compares the box
+  // with `resultsForQuery`) is what stops advertising them.
+  it('keeps the tab\'s results while the box holds a draft for another query', () => {
     useSearchStore.getState().setQuery('graceful');
     const state = useSearchStore.getState();
     expect(state.query).toBe('graceful');
-    expect(state.searchResults).toEqual([]);
-    expect(state.resultsForQuery).toBe('');
+    expect(state.searchResults).toHaveLength(2);
+    expect(state.resultsForQuery).toBe('grace');
+    expect(normalizeSearchQuery(state.query)).not.toBe(normalizeSearchQuery(state.resultsForQuery));
   });
 
   it('keeps results when only the `?` prefix or whitespace changed', () => {
@@ -81,18 +88,18 @@ describe('setQuery', () => {
     expect(state.searchResults).toHaveLength(2);
   });
 
-  it('does not close the results pane — typing empties it, it does not hide it', () => {
+  it('does not close the results pane while typing', () => {
     useSearchStore.getState().setQuery('graceful');
     expect(useSearchStore.getState().isResultsVisible).toBe(true);
   });
 
-  it('drops a stale semantic result set too', () => {
+  it('keeps a semantic result set too', () => {
     seedResults({
       searchResults: [],
       semanticResults: [{ id: 'a' }, { id: 'b' }] as never,
     });
     useSearchStore.getState().setQuery('graceful');
-    expect(useSearchStore.getState().semanticResults).toEqual([]);
+    expect(useSearchStore.getState().semanticResults).toHaveLength(2);
   });
 });
 

@@ -25,7 +25,8 @@
       "remaining": "زمان باقی‌مانده",
       "secondsLeft": "{seconds} ثانیه باقی مانده",
       "paused": "متوقف",
-      "secondsShort": "{seconds} ث"
+      "secondsShort": "{seconds} ث",
+      "oneSecondLeft": "۱ ثانیه مانده"
     },
     "frame": {
       "roomAria": "اتاق {code}",
@@ -78,7 +79,8 @@
       "skipIt": "ردش کن",
       "keepGoing": "ادامه بده",
       "skip": "رد کردن",
-      "nextQuestion": "پرسش بعدی"
+      "nextQuestion": "پرسش بعدی",
+      "scoresEveryoneItem": "نمایش امتیاز همه"
     },
     "join": {
       "enterCode": "کد اتاق را وارد کنید",
@@ -86,7 +88,10 @@
       "yourName": "نام شما",
       "joining": "در حال پیوستن…",
       "joinRoom": "پیوستن به اتاق",
-      "solo": "بازی تکی"
+      "solo": "بازی تکی",
+      "codeInvalid": "کد اتاق {length} حرف و عدد است، مانند 5HK27. به صفحهٔ بزرگ نگاه کنید.",
+      "nameNeeded": "برای پیوستن نام خود را وارد کنید.",
+      "codeFiltered": "کدهای اتاق فقط از این نویسه‌ها استفاده می‌کنند: {chars}. بقیه حذف شدند."
     },
     "solo": {
       "onYourOwn": "شما تنها هستید — هیچ‌کس دیگر این اتاق را نمی‌بیند.",
@@ -138,7 +143,11 @@
       "leaveRejoin": "تا زمانی که اتاق باز است می‌توانید با همان کد دوباره بپیوندید.",
       "stay": "ماندن",
       "theme": "زمینه",
-      "leave": "ترک"
+      "leave": "ترک",
+      "themeCycle": "پوسته: {name}. رفتن به پوستهٔ بعدی",
+      "themeCycleCustom": "رفتن به پوستهٔ بعدی",
+      "playersCount": "بازیکنان: {total}",
+      "lobbyHeading": "سالن انتظار"
     },
     "brand": {
       "title": "بازی‌های گروهی کتاب مقدس",
@@ -151,6 +160,34 @@
     },
     "app": {
       "live": "اتاق فعال"
+    },
+    "names": {
+      "fillInTheBlank": "جای خالی را پر کن",
+      "nameThatReference": "نشانی را بگو",
+      "whoSaidIt": "چه کسی گفت؟",
+      "whoAmI": "من کیستم؟",
+      "putInOrder": "مرتب کن",
+      "categoryBoard": "صفحهٔ دسته‌ها",
+      "swordDrill": "تمرین شمشیر",
+      "describeIt": "توصیفش کن",
+      "detective": "کارآگاه"
+    },
+    "scopes": {
+      "wholeBible": "کل کتاب مقدس",
+      "peopleOfTheBible": "شخصیت‌های کتاب مقدس"
+    },
+    "familiarity": {
+      "core": "آیه‌هایی که همه می‌دانند",
+      "familiar": "آیه‌های شناخته‌شده",
+      "broad": "آشنا و کمی دورتر",
+      "deep": "برای گروهی که کتاب مقدس می‌خواند",
+      "any": "هر جای کتاب مقدس"
+    },
+    "errors": {
+      "roomNotFound": "هیچ اتاقی از این کد استفاده نمی‌کند. کد را روی صفحهٔ بزرگ بررسی کنید.",
+      "roomsFull": "این سرور به حداکثر تعداد اتاق رسیده است. کمی بعد دوباره امتحان کنید.",
+      "offline": "دسترسی به سرور ممکن نشد. وای‌فای را بررسی کنید و دوباره امتحان کنید.",
+      "status": "پاسخ سرور: {status}."
     }
   }
 }

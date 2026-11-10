@@ -37,10 +37,12 @@ Runtime caching is declared in `src/sw/rules/`, not in `sw.ts`. See [service-wor
 
 ### Update flow
 
-1. **New launch (always silent).** Before rendering, the client compares its build ID with `/api/version`; a mismatch pulls the new worker in and reloads once under a loop guard (see the handshake below).
-2. **Page left open.** The browser re-checks `sw.js` on each navigation, and the page asks again whenever it returns to the foreground (at most hourly). The new worker `skipWaiting`s and claims the page (`controllerchange`):
+1. **New launch (always silent).** Before rendering, the client compares its build ID with `/api/version`; a mismatch pulls the new worker in and reloads once under a loop guard (see the handshake below). It waits at most 4 s for the new worker. `registration.update()` does not settle while an install is running (it queues behind it until the whole precache has downloaded), so awaiting it unbounded held the boot splash for the full download on the first launch after a deploy. The reload does not need the new worker: navigations are network-first, so the old worker returns the new shell too.
+2. **Page left open.** The browser re-checks `sw.js` on each navigation, and the page asks again whenever it returns to the foreground (at most hourly). The new worker `skipWaiting`s and claims the page (`controllerchange`). The page then asks `/api/version` and acts only if its own build is not the one the server serves (or the server cannot be asked). The first launch after a deploy already runs the new build, fetched from the network while the new worker was still precaching, so it is not reloaded when that worker takes over.
    - `pwaUpdate: "silent"` (default): the page reloads itself once, guarded by `reloadForUpdateOnce()`.
    - `pwaUpdate: "prompt"`: `UpdateBanner` shows "A new version is ready" with **Reload** / dismiss. The running page keeps its old bundle until the user reloads, so lazy-loaded chunks of the old build can 404 in the meantime; that is why silent is the default.
+
+**Install time.** Workbox precaches one entry at a time, one round trip each (~300 entries on a first install; after a deploy, every chunk whose hash changed). `sw.ts` therefore fetches the hashed entries (`revision: null`, which Workbox requests with the default HTTP cache mode) four at a time during `install`, skipping any already precached, so Workbox's sequential pass is answered from the HTTP cache. This depends on `/assets/` being served `immutable`. Measured against a local server adding 60 ms per request: 22.8 s → 8.0 s for a first install, with the same number of requests. Serving the site over HTTP/2 shortens the round trips further.
 
 ## Files
 
@@ -62,7 +64,7 @@ Runtime caching is declared in `src/sw/rules/`, not in `sw.ts`. See [service-wor
 
 | File | Description |
 |---|---|
-| `src/sw.ts` | **Hand-written service worker.** Network-first navigation (3s timeout → precached shell), `skipWaiting` + `clientsClaim`, and the runtime caches declared in `src/sw/rules/` |
+| `src/sw.ts` | **Hand-written service worker.** Network-first navigation (3s timeout → precached shell), `skipWaiting` + `clientsClaim`, a parallel HTTP-cache warm-up for the precache install, and the runtime caches declared in `src/sw/rules/` |
 | `src/utils/appUpdate.ts` | SW registration (plain `navigator.serviceWorker.register`), the update flow (silent or prompt), the build-ID staleness check, `unregisterServiceWorkers()` and `resetAppCache()` |
 | `src/utils/bootGuard.ts` | sessionStorage-backed one-shot guards for every automatic navigation (login redirect, update reload) |
 | `src/main.tsx` | Boot sequence: health + config + version in parallel → auth handling → SW registration → update check → render. Wires `OfflineBibleProvider`, auto-download, auto-cleanup |

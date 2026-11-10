@@ -81,11 +81,11 @@ vi.mock('../utils/verseFormatting', () => ({
 
 // Mock sub-components
 vi.mock('./CommentaryTreeView', () => ({ default: () => <div data-testid="commentary-tree-view" /> }));
-vi.mock('./CommentaryHome', () => ({ default: (props: any) => <div data-testid="commentary-home">Home {props.currentVerseId}</div> }));
+vi.mock('./CommentaryHome', () => ({ default: (props: any) => <div data-testid="commentary-home">Home {props.currentVerseId}<button type="button" data-testid="home-open-mhc" onClick={() => props.onOpenTab('MHC', 'Matthew Henry')}>open</button></div> }));
 vi.mock('./commentary/CommentaryPassageHeader', () => ({ default: () => <div data-testid="commentary-passage-header" /> }));
 vi.mock('./commentary/CommentaryVersePreview', () => ({ default: () => <div data-testid="commentary-verse-preview" /> }));
 vi.mock('./commentary/CommentaryPinnedBanner', () => ({ default: () => <div data-testid="commentary-pinned-banner" /> }));
-vi.mock('./commentary/CommentaryContentArea', () => ({ default: () => <div data-testid="commentary-content-area" /> }));
+vi.mock('./commentary/CommentaryContentArea', () => ({ default: (props: any) => <div data-testid="commentary-content-area" data-missing={String(!!props.missing)}><h3 tabIndex={-1} data-commentary-heading="">Matthew Henry</h3></div> }));
 vi.mock('./ModuleSelector', () => ({ default: (props: any) => (
   <div data-testid="module-selector">
     {props.modules?.map((m: any) => (
@@ -154,6 +154,8 @@ const defaultPanelState = {
   errorByTab: new Map(),
   entrySummariesByTab: new Map(),
   loadingSummariesByTab: new Map(),
+  unavailableByTab: new Map(),
+  summariesFailedByTab: new Map(),
   loadAvailableCommentaries: vi.fn(),
   openCommentary: vi.fn(),
   closeCommentary: vi.fn(),
@@ -451,16 +453,26 @@ describe('CommentaryPane: tab/tabpanel wiring', () => {
     expect(panelIds).toHaveLength(2);
     expect(new Set(panelIds).size).toBe(2);
     // Each pane's tab must resolve to *its own* panel, not the other pane's.
-    for (const tab of screen.getAllByRole('tab')) {
+    // (The inactive Overview tab controls nothing, so it has no aria-controls.)
+    for (const tab of screen.getAllByRole('tab').filter(t => t.hasAttribute('aria-controls'))) {
       expect(panelIds).toContain(tab.getAttribute('aria-controls'));
     }
   });
 
-  it('does not claim a tabpanel when the Overview tab is showing', () => {
+  it('exposes Overview as a selected tab in the tablist, owning the content region', () => {
     renderWithProviders(<CommentaryPane />);
-
+    const overview = screen.getByRole('tab', { name: /overview/i });
+    expect(overview).toHaveAttribute('aria-selected', 'true');
+    expect(overview.closest('[role="tablist"]')).not.toBeNull();
+    const panel = screen.getByRole('tabpanel');
+    expect(panel).toHaveAttribute('aria-labelledby', overview.id);
+    expect(overview).toHaveAttribute('aria-controls', panel.id);
     expect(screen.getByTestId('commentary-home')).toBeInTheDocument();
-    expect(screen.queryByRole('tabpanel')).not.toBeInTheDocument();
+  });
+
+  it('marks Overview unselected once a commentary tab is active', () => {
+    renderWithProviders(<CommentaryPane panelId="commentary_c" isDetached overviewActive={false} />);
+    expect(screen.getByRole('tab', { name: /overview/i })).toHaveAttribute('aria-selected', 'false');
   });
 });
 
@@ -504,5 +516,71 @@ describe('CommentaryPane: startup restore gating (5.2)', () => {
     expect(screen.getByText(enT('onboarding.empty.commentary.noneTitle'))).toBeInTheDocument();
     expect(screen.getByTestId('commentary-empty-install')).toBeInTheDocument();
   });
+
+  it('moves focus to the entry heading after a commentary is opened from the Overview', async () => {
+    const user = userEvent.setup();
+    mockUseCommentaryPanel.mockReturnValue({
+      ...defaultPanelState,
+      openTabs: [{ abbreviation: 'MHC', name: 'Matthew Henry' }],
+      entriesByTab: new Map([['MHC', []]]),
+    });
+    renderWithProviders(<CommentaryPane />);
+    await user.click(screen.getByTestId('home-open-mhc'));
+    expect(screen.getByRole('heading', { name: 'Matthew Henry' })).toHaveFocus();
+  });
 });
 
+describe('CommentaryPane: module file missing (item 21)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    useSessionStore.setState({ isSessionLoaded: true });
+  });
+
+  const emptyTab = {
+    ...defaultPanelState,
+    openTabs: [{ abbreviation: 'MHC', name: 'Matthew Henry' }],
+    entriesByTab: new Map([['MHC', []]]),
+  };
+
+  it('does not request entry summaries for a tab flagged unavailable, across re-renders', async () => {
+    const user = userEvent.setup();
+    const loadEntrySummaries = vi.fn();
+    mockUseCommentaryPanel.mockReturnValue({
+      ...emptyTab,
+      loadEntrySummaries,
+      unavailableByTab: new Map([['MHC', 'module_missing']]),
+    });
+    const { rerender } = renderWithProviders(<CommentaryPane />);
+    await user.click(screen.getByText('MHC'));
+    for (let i = 0; i < 5; i++) {
+      rerender(<ContextProvider services={createMockServices()}><CommentaryPane /></ContextProvider>);
+    }
+    expect(loadEntrySummaries).not.toHaveBeenCalled();
+    expect(screen.getByTestId('commentary-content-area')).toHaveAttribute('data-missing', 'true');
+  });
+
+  it('shows the missing state for a module the list reports as fileMissing, with no summary fetch loop', async () => {
+    const user = userEvent.setup();
+    const loadEntrySummaries = vi.fn();
+    mockUseCommentaryPanel.mockReturnValue({
+      ...emptyTab,
+      loadEntrySummaries,
+      availableCommentaries: [{ abbreviation: 'MHC', name: 'Matthew Henry', database_path: 'x', fileMissing: true }],
+      unavailableByTab: new Map([['MHC', 'module_missing']]),
+    });
+    renderWithProviders(<CommentaryPane />);
+    await user.click(screen.getByText('MHC'));
+    expect(screen.getByTestId('commentary-content-area')).toHaveAttribute('data-missing', 'true');
+    expect(loadEntrySummaries).not.toHaveBeenCalled();
+  });
+
+  it('still lazy-loads summaries once for a healthy empty tab', async () => {
+    const user = userEvent.setup();
+    const loadEntrySummaries = vi.fn();
+    mockUseCommentaryPanel.mockReturnValue({ ...emptyTab, loadEntrySummaries });
+    renderWithProviders(<CommentaryPane />);
+    await user.click(screen.getByText('MHC'));
+    expect(loadEntrySummaries).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId('commentary-content-area')).toHaveAttribute('data-missing', 'false');
+  });
+});

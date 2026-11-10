@@ -21,6 +21,7 @@ export function AudioProgress({ showTime = true }: { showTime?: boolean }) {
   const now = useNowPlaying();
   const position = useStore(audioStore.position, () => audioStore.position.position);
   const duration = useStore(audioStore.position, () => audioStore.position.duration);
+  const dead = useStore(audioStore, () => audioStore.status === 'error');
   const [dragging, setDragging] = useState<number | null>(null);
 
   const count = now.verses.length;
@@ -45,6 +46,7 @@ export function AudioProgress({ showTime = true }: { showTime?: boolean }) {
           max={count - 1}
           step={1}
           value={index}
+          disabled={dead}
           aria-label={t('audio.transport.progress')}
           aria-valuetext={t('audio.transport.verseOf', { verse, count })}
           data-testid="audio-progress"

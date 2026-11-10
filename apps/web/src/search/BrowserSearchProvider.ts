@@ -10,6 +10,7 @@ import type { ISearchProvider, IBibleDataProvider } from '../providers/interface
 import type { SearchResultSet, SearchResultData, SearchOptions, StrongsSearchResult } from '../types';
 import { BrowserSearchProxy, type ProgressCallback } from './BrowserSearchProxy';
 import { formatVerseRange } from '../utils/verseId';
+import { withValidationMessage } from '../utils/validationError';
 
 /**
  * The raw worker result carries a passage range but an empty reference and no
@@ -78,7 +79,7 @@ export class BrowserSearchProvider implements ISearchProvider {
     if (modules.length > 0) params.set('modules', modules.join(','));
     if (options?.pageSize) params.set('pageSize', String(options.pageSize));
     const res = await fetch(`${this.baseUrl}/api/search/keyword?${params}`);
-    if (!res.ok) throw new Error(`Keyword search failed: ${res.status}`);
+    if (!res.ok) throw withValidationMessage(new Error(`Keyword search failed: ${res.status}`), res.status, await res.text().catch(() => ''));
     return res.json();
   }
 
@@ -130,7 +131,7 @@ export class BrowserSearchProvider implements ISearchProvider {
     if (options?.scope) params.set('scope', String(options.scope));
     if (options?.maxResults) params.set('maxResults', String(options.maxResults));
     const res = await fetch(`${this.baseUrl}/api/search/strongs?${params}`);
-    if (!res.ok) throw new Error(`Strong's search failed: ${res.status}`);
+    if (!res.ok) throw withValidationMessage(new Error(`Strong's search failed: ${res.status}`), res.status, await res.text().catch(() => ''));
     return res.json();
   }
 

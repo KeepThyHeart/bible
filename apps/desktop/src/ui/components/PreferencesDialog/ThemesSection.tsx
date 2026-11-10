@@ -26,6 +26,7 @@ const ThemeCard: React.FC<ThemeCardProps> = ({ theme, isSelected, onSelect }) =>
   return (
     <button
       onClick={onSelect}
+      aria-pressed={isSelected}
       className="rounded-lg p-4 text-start transition-all"
       style={{
         border: isSelected

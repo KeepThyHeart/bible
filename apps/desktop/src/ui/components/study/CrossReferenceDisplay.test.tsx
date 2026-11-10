@@ -70,11 +70,19 @@ describe('CrossReferenceDisplay', () => {
     expect(row.textContent).not.toContain('Book 45');
   });
 
+  it('names every reference button with its full reference, whatever the collapsed text says', () => {
+    render(<CrossReferenceDisplay moduleRefs={[TSK]} />);
+    const row = screen.getByTestId('cross-reference-row-TSKxref');
+    const eight = within(row).getByText('8:32');
+    expect(eight).toHaveAccessibleName('Romans 8:32');
+    expect(within(row).getByRole('button', { name: 'Romans 5:8' })).toHaveTextContent('Rom 5:8');
+  });
+
   it('navigates to the verse behind a clicked reference', async () => {
     const onNavigateToVerse = vi.fn();
     render(<CrossReferenceDisplay moduleRefs={[TSK]} onNavigateToVerse={onNavigateToVerse} />);
 
-    await userEvent.click(screen.getByRole('button', { name: 'Rom 5:8' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Romans 5:8' }));
     // The range end rides along so a caller that previews a passage gets the
     // whole range, not just its first verse. Undefined for a single verse.
     expect(onNavigateToVerse).toHaveBeenCalledWith(45005008, undefined);
@@ -164,11 +172,11 @@ describe('CrossReferenceDisplay', () => {
       render(<CrossReferenceDisplay moduleRefs={[TSK]} />);
       expect(screen.queryByTestId('verse-preview-tooltip')).toBeNull();
 
-      await userEvent.hover(screen.getByRole('button', { name: 'Rom 5:8' }));
+      await userEvent.hover(screen.getByRole('button', { name: 'Romans 5:8' }));
       const tooltip = screen.getByTestId('verse-preview-tooltip');
       expect(tooltip.getAttribute('data-verse-id')).toBe('45005008');
 
-      await userEvent.unhover(screen.getByRole('button', { name: 'Rom 5:8' }));
+      await userEvent.unhover(screen.getByRole('button', { name: 'Romans 5:8' }));
       // Hiding is deferred ~100ms so the pointer can travel into the popup.
       await vi.waitFor(() => expect(screen.queryByTestId('verse-preview-tooltip')).toBeNull());
     });

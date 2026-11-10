@@ -34,7 +34,9 @@
     "offlineTooltip": "Está sin conexión",
     "shortcutHint": "Pulse / o Ctrl+K para buscar",
     "feedback": "Enviar comentarios",
-    "syncStatus": "Estado de sincronización"
+    "syncStatus": "Estado de sincronización",
+    "clearSearch": "Borrar búsqueda",
+    "searchTypeCurrent": "Tipo de búsqueda: {type}"
   },
   "themes": {
     "auto": "Automático",
@@ -76,7 +78,8 @@
     "modeHint": "La vista de estudio muestra los números de Strong y las palabras interlineales de las traducciones que los incluyen, como KJV.",
     "modeLabel": "Modo de visualización",
     "recentPassages": "Pasajes recientes",
-    "noHistory": "Todavía no se ha visitado ningún pasaje"
+    "noHistory": "Todavía no se ha visitado ningún pasaje",
+    "translationButton": "Traducción: {abbr}"
   },
   "bibleContent": {
     "votdLabel": "Versículo del día",
@@ -158,9 +161,12 @@
       "captionSemantic": "{count, plural, one {# pasaje recuperado, por libro; no es un recuento de toda la Biblia.} other {# pasajes recuperados, por libro; no es un recuento de toda la Biblia.}}",
       "captionCapped": "Solo se cuentan los resultados cargados hasta ahora; hay más por cargar.",
       "captionCeiling": "{count, plural, one {Solo se cuenta la primera # coincidencia; la búsqueda se detiene ahí.} other {Solo se cuentan las primeras # coincidencias; la búsqueda se detiene ahí.}}"
-    }
+    },
+    "resultsFrom": "Resultados de {modules}",
+    "showMoreCount": "Show {count} more"
   },
   "contextMenu": {
+    "label": "Acciones del versículo",
     "copyPassage": "Copiar pasaje...",
     "crossReferences": "Referencias cruzadas",
     "topics": "Temas",
@@ -180,7 +186,10 @@
     "timeline": "Cronología",
     "quiz": "Cuestionario",
     "similar": "Similares",
-    "wordStudy": "Palabras"
+    "wordStudy": "Palabras",
+    "modes": "Vistas del panel lateral",
+    "expandTo": "Mostrar {tab}",
+    "expand": "Expandir el panel lateral"
   },
   "mobileNav": {
     "home": "Inicio",
@@ -216,8 +225,8 @@
       "account": "Cuenta"
     },
     "textSize": {
-      "decreaseAll": "Reducir todos los tamaños de fuente",
-      "increaseAll": "Aumentar todos los tamaños de fuente",
+      "decreaseAll": "Reducir la escala del texto (Biblia, estudio e interfaz)",
+      "increaseAll": "Aumentar la escala del texto (Biblia, estudio e interfaz)",
       "christInRed": "Palabras de Jesús en rojo",
       "interlinearLayout": "Diseño interlineal",
       "interlinearInline": "En línea (entre paréntesis)",
@@ -225,7 +234,7 @@
       "advanced": "Avanzado",
       "bibleText": "Texto bíblico",
       "studyText": "Texto de estudio",
-      "uiText": "Texto de la interfaz",
+      "uiText": "Tamaño de la interfaz",
       "bibleLineHeight": "Interlineado de la Biblia",
       "studyLineHeight": "Interlineado de estudio",
       "pxValue": "{size} px",
@@ -235,9 +244,9 @@
       "resetTextSizesTitle": "Restaurar los tamaños de texto y el interlineado predeterminados",
       "interlinearStackedShort": "Apilado",
       "interlinearInlineShort": "En línea",
-      "popoverTitle": "Tamaño del texto",
+      "popoverTitle": "Escala del texto",
       "popoverReset": "Restablecer",
-      "moreOptions": "Más opciones de texto…"
+      "moreOptions": "Tamaños de Biblia, estudio e interfaz…"
     },
     "theme": {
       "resetAll": "Restablecer todo",
@@ -455,7 +464,9 @@
     "markdownDesc": "Escribir la estructura en Markdown: citas en bloque con líneas \"> \", encabezados con \"#\"",
     "copied": "¡Copiado!",
     "copyToClipboard": "Copiar al portapapeles",
-    "loading": "Cargando los versículos..."
+    "loading": "Cargando los versículos...",
+    "copyFailed": "No se pudo copiar al portapapeles. Comprueba que este sitio tenga permiso para usarlo.",
+    "referencePosition": "Posición de la referencia"
   },
   "ui": {
     "passageInsert": {
@@ -607,7 +618,8 @@
     "hasContentFor": "Tiene contenido para",
     "loading": "Cargando...",
     "cancel": "Cancelar",
-    "apply": "Aplicar"
+    "apply": "Aplicar",
+    "tabs": "Pestañas de comentarios"
   },
   "digestDisclaimer": {
     "notice": "Aviso",
@@ -631,7 +643,8 @@
     "loadingEntry": "Cargando la entrada...",
     "browseEntriesIn": "Explorar entradas en",
     "searchOccurrences": "Buscar todas las apariciones de {number}",
-    "loadMore": "Cargar más ({count} restantes)"
+    "loadMore": "Cargar más ({count} restantes)",
+    "entryLoadFailed": "No se pudo cargar esta entrada."
   },
   "dictionaryHome": {
     "searchAll": "Buscar en todos los diccionarios...",
@@ -640,7 +653,8 @@
     "loadFailed": "No se pudieron cargar los diccionarios. Compruebe su conexión.",
     "retry": "Reintentar",
     "unstar": "Quitar de destacados",
-    "star": "Destacar (fijar arriba)"
+    "star": "Destacar (fijar arriba)",
+    "starNamed": "Destacar {name}"
   },
   "dictionaryPane": {
     "back": "Atrás",
@@ -657,7 +671,8 @@
     "noModules": "No hay módulos de diccionario disponibles",
     "noMatches": "Sin coincidencias",
     "cancel": "Cancelar",
-    "apply": "Aplicar"
+    "apply": "Aplicar",
+    "tabs": "Pestañas de diccionarios"
   },
   "studyCrossRefs": {
     "loading": "Cargando las referencias cruzadas...",
@@ -698,7 +713,8 @@
     "loading": "Cargando los temas...",
     "noTopics": "No se han encontrado temas para este versículo.",
     "offlineNotice": "Está sin conexión. Esto no está disponible sin conexión.",
-    "entities": "Entidades"
+    "entities": "Entidades",
+    "someIndexesOff": "Algunos índices temáticos están desactivados en Ajustes."
   },
   "topicsBrowser": {
     "searchAll": "Buscar en todos los temas",
@@ -748,7 +764,10 @@
     "entityUnavailable": "No se ha podido cargar esta entrada.",
     "seeAlso": "Ver",
     "verseTotal": "{count, plural, one {# versículo} other {# versículos}}",
-    "topicHasNoEntries": "Este tema no tiene versículos ni subtemas propios."
+    "topicHasNoEntries": "Este tema no tiene versículos ni subtemas propios.",
+    "directOfTotal": "({direct} directos, {total} en total)",
+    "forward": "Adelante",
+    "clearSearch": "Borrar búsqueda"
   },
   "verseRefList": {
     "loading": "cargando...",
@@ -785,7 +804,9 @@
     "searching": "Buscando...",
     "noEntries": "No se han encontrado entradas",
     "offlineNotice": "Está sin conexión. Esto no está disponible sin conexión.",
-    "searchPrompt": "Busque una palabra o un término arriba"
+    "searchPrompt": "Busque una palabra o un término arriba",
+    "closeEntry": "Cerrar entrada",
+    "closeDictionary": "Cerrar diccionario"
   },
   "mobileStudyPane": {
     "study": "Estudio",
@@ -821,7 +842,9 @@
     "verseHistory": "Historial de versículos",
     "prevVerse": "Versículo anterior",
     "nextVerse": "Versículo siguiente",
-    "goToVerseInBible": "Ir al versículo en la Biblia"
+    "goToVerseInBible": "Ir al versículo en la Biblia",
+    "showFull": "Mostrar el versículo completo",
+    "showLess": "Mostrar menos"
   },
   "verseHistory": {
     "justNow": "justo ahora",
@@ -862,7 +885,9 @@
   "bibleTabBar": {
     "home": "Inicio",
     "closeTab": "Cerrar pestaña",
-    "newTab": "Pestaña nueva"
+    "newTab": "Pestaña nueva",
+    "closeTabNamed": "Cerrar {title}",
+    "tabs": "Pestañas de la Biblia"
   },
   "semanticSearchLoadingOverlay": {
     "dismiss": "Descartar",
@@ -945,7 +970,8 @@
       "ipNotice": "El servicio ve su dirección IP, como cualquier sitio web.",
       "neverSent": "Su lectura de la Biblia, sus notas y el resto de sus datos nunca se envían.",
       "agree": "Aceptar y buscar",
-      "decline": "Ahora no"
+      "decline": "Ahora no",
+      "localOption": "La aplicación de escritorio también puede buscar por significado sin conexión, con un paquete local y sin solicitudes web."
     },
     "note": {
       "declined": "La búsqueda por significado está desactivada. Puede activarla en Configuración.",

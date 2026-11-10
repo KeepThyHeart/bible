@@ -9,6 +9,7 @@
  */
 
 import { reloadForUpdateOnce } from './bootGuard';
+import { API_BASE } from './apiUrl';
 import { CACHE_RULES } from '../sw/rules';
 import { preservedOnReset } from '../sw/cacheRules';
 import { updateStore } from '../stores/updateStore';
@@ -27,7 +28,14 @@ export const CLIENT_BUILD_ID: string = typeof __BUILD_ID__ === 'string' ? __BUIL
  */
 export type UpdateMode = 'silent' | 'prompt';
 
-/** How long to wait for a new worker to take control before reloading anyway. */
+/**
+ * The most a stale page waits for a new worker before reloading anyway.
+ *
+ * Kept short on purpose: it is spent on the boot splash. The reload does not
+ * need the new worker: navigations are network-first (src/sw.ts), so even the
+ * old worker hands back the new shell, and the new build's chunks come from the
+ * network until the new worker has them precached.
+ */
 const ACTIVATION_TIMEOUT_MS = 4000;
 
 /** How often a long-lived page re-checks for a new worker while visible. */
@@ -60,7 +68,7 @@ export function registerServiceWorker(options: { updateMode?: UpdateMode } = {})
       hadController = true;
       return;
     }
-    onNewVersionActive();
+    void onNewVersionActive();
   });
 
   navigator.serviceWorker.register(workerUrl(), { scope: workerUrl().replace(/sw\.js$/, '') })
@@ -78,10 +86,35 @@ export function registerServiceWorker(options: { updateMode?: UpdateMode } = {})
     .catch(err => console.warn('[PWA] Service worker registration failed:', err));
 }
 
-/** A newer worker has taken control of this page. */
-function onNewVersionActive(): void {
+/**
+ * A newer worker has taken control of this page.
+ *
+ * That alone does not make the page stale. The first load after a deploy gets
+ * the new build from the network while the new worker is still precaching it,
+ * and the worker only takes control once that finishes, tens of seconds later
+ * on a slow connection. Reloading then would interrupt a page already running
+ * the current build, so ask the server first and act only on a real mismatch.
+ */
+async function onNewVersionActive(): Promise<void> {
+  if (!(await runningStaleBuild())) return;
   if (updateMode === 'prompt') updateStore.setAvailable(true);
   else reloadForUpdateOnce();
+}
+
+/**
+ * True unless the server confirms this page runs the build it is serving.
+ * Anything short of that confirmation (offline, an error, no build id) counts
+ * as stale, which keeps the earlier behaviour: reload when in doubt.
+ */
+async function runningStaleBuild(): Promise<boolean> {
+  try {
+    const res = await fetch(`${API_BASE}/api/version`, { cache: 'no-store' });
+    if (!res.ok) return true;
+    const { buildId } = await res.json() as { buildId?: string };
+    return !buildId || buildId !== CLIENT_BUILD_ID;
+  } catch {
+    return true;
+  }
 }
 
 /**
@@ -144,14 +177,36 @@ async function applyUpdate(): Promise<void> {
         // The worker skips waiting on install, so this is usually enough on its
         // own; postMessage covers a worker built before that behaviour existed.
         registration.waiting?.postMessage({ type: 'SKIP_WAITING' });
-        await registration.update();
-        await waitForController();
+        // Bounded, because update() is not: while a worker is installing (the
+        // browser starts one on the very navigation that loaded this page),
+        // update() queues behind that install and settles only once the whole
+        // precache has downloaded. Awaiting it held the boot splash for the
+        // length of the download, which looked like a hung first load after
+        // every deploy.
+        await withDeadline(
+          registration.update().then(() => waitForController()),
+          ACTIVATION_TIMEOUT_MS,
+        );
       }
     } catch (err) {
       console.warn('[PWA] Update failed, reloading anyway:', err);
     }
   }
   reloadForUpdateOnce();
+}
+
+/**
+ * Settle when `promise` does or after `ms`, whichever is first. A rejection
+ * that arrives after the deadline is swallowed: nobody is waiting for it.
+ */
+function withDeadline(promise: Promise<unknown>, ms: number): Promise<void> {
+  return new Promise<void>((resolve, reject) => {
+    const timer = setTimeout(resolve, ms);
+    promise.then(
+      () => { clearTimeout(timer); resolve(); },
+      err => { clearTimeout(timer); reject(err); },
+    );
+  });
 }
 
 /** Resolve when a new worker takes control, or when the timeout expires. */

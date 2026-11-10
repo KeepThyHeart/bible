@@ -101,7 +101,15 @@ export interface FeedbackPayload {
   app_version: string;
   build_id?: string;
   user_description: string;
+  /**
+   * How to reach the sender, exactly as they typed it into Give Feedback's
+   * optional "contact" box. Absent unless they filled it in.
+   */
+  contact?: string;
 }
+
+/** Longest contact string kept; anything longer is cut. */
+export const FEEDBACK_CONTACT_MAX_LENGTH = 200;
 
 export type DiagnosticsPayload = CrashPayload | ManualPayload | FeedbackPayload;
 
@@ -347,7 +355,8 @@ export class DiagnosticsService {
     return payload;
   }
 
-  buildFeedbackPayload(args: { description: string }): FeedbackPayload {
+  buildFeedbackPayload(args: { description: string; contact?: string }): FeedbackPayload {
+    const contact = args.contact?.trim().slice(0, FEEDBACK_CONTACT_MAX_LENGTH) ?? '';
     return {
       type: 'feedback',
       report_id: shortId(),
@@ -355,6 +364,7 @@ export class DiagnosticsService {
       app_version: app.getVersion(),
       ...(BUILD_ID ? { build_id: BUILD_ID } : {}),
       user_description: args.description,
+      ...(contact ? { contact } : {}),
     };
   }
 }

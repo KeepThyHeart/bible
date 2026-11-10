@@ -213,6 +213,7 @@ const CommentaryHome: React.FC<CommentaryHomeProps> = ({ panelId, currentVerseId
           />
           <select
             value={sortMode}
+            aria-label={t('commentaryHome.sortLabel')}
             onChange={e => setSortMode(e.target.value as SortMode)}
             className="px-2 py-1 text-xs border border-border rounded cursor-pointer"
             style={{ backgroundColor: 'var(--theme-bg-primary)' }}
@@ -269,6 +270,15 @@ const CommentaryHome: React.FC<CommentaryHomeProps> = ({ panelId, currentVerseId
                   className="flex items-center gap-1.5 px-4 text-xs font-semibold text-text-secondary uppercase tracking-wide cursor-pointer hover:text-text-primary select-none"
                   style={{ marginBottom: '12px', paddingBottom: '6px', borderBottom: '1px solid var(--theme-border-primary)' }}
                   onClick={() => setShowMuted(!showMuted)}
+                  role="button"
+                  tabIndex={0}
+                  aria-expanded={showMuted}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      setShowMuted(!showMuted);
+                    }
+                  }}
                 >
                   <svg className={`w-3 h-3 transition-transform ${showMuted ? 'rotate-90' : ''} rtl-mirror`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -331,6 +341,16 @@ const CommentaryHomeModule: React.FC<{
         className={`px-4 py-2 cursor-pointer hover:bg-background-hover transition-colors ${isPromoted ? 'border-s-3 border-s-accent ps-3' : ''}`}
         style={isPromoted ? { borderInlineStart: '3px solid var(--theme-accent-primary)', paddingInlineStart: '13px' } : undefined}
         onClick={onToggle}
+        role="button"
+        tabIndex={0}
+        aria-expanded={expanded}
+        onKeyDown={(e) => {
+          if (e.target !== e.currentTarget) return;
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onToggle();
+          }
+        }}
       >
         {/* Row 1: chevron | abbreviation | promoted icon | bar-track (flex:1) */}
         <div className="flex items-center gap-2">

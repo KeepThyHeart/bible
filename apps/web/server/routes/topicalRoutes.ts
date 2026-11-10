@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import type { DatabaseManager } from '../DatabaseManager.js';
-import { validateVerseId, validateModuleName, MAX_PAGE_SIZE } from '../utils/validation.js';
+import { validateVerseId, validateModuleName, MAX_PAGE_SIZE, MAX_LOAD_MORE_SIZE } from '../utils/validation.js';
 import { sendError, ErrorCodes } from '../utils/errorResponse.js';
 import type { SiteSettings } from '../siteSettings.js';
 import { clampInt } from '../utils/requestHygiene.js';
@@ -8,6 +8,16 @@ import { registerRoute } from './routeRegistry.js';
 
 export function createTopicalRoutes(db: DatabaseManager, siteSettings: SiteSettings | null): Router {
   const router = Router();
+
+  // W-005: the module name used to reach the loader raw (up to ~16 KB), and a
+  // failed lookup is remembered by that key. Reject malformed names up front.
+  router.param('module', (_req, res, next, value) => {
+    if (typeof value !== 'string' || !validateModuleName(value)) {
+      sendError(res, 400, ErrorCodes.INVALID_PARAM, 'Invalid module name');
+      return;
+    }
+    next();
+  });
 
   // List available topical modules
   router.get('/modules', (_req, res): void => {
@@ -126,6 +136,7 @@ export function createTopicalRoutes(db: DatabaseManager, siteSettings: SiteSetti
         })),
         verse_count: verseCount,
         reference_count: referenceCount,
+        direct_reference_count: repo.getReferenceCount(topicId),
       });
     } catch (error) {
       console.error('Error getting topic:', error);
@@ -167,7 +178,7 @@ export function createTopicalRoutes(db: DatabaseManager, siteSettings: SiteSetti
 
       const topicId = Number(req.params.topicId);
       // Item #7: Cap pagination with MAX_PAGE_SIZE
-      const limit = req.query.limit ? clampInt(req.query.limit, MAX_PAGE_SIZE, 1, MAX_PAGE_SIZE) : undefined;
+      const limit = req.query.limit ? clampInt(req.query.limit, MAX_PAGE_SIZE, 1, MAX_LOAD_MORE_SIZE) : undefined;
       const offset = req.query.offset ? clampInt(req.query.offset, 0, 0, 10_000_000) : undefined;
 
       const verses = repo.getRecursiveVersesForTopic(topicId, { limit, offset });

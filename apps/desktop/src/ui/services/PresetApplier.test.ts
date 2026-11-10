@@ -429,3 +429,27 @@ describe('zeroSizedGroupIds', () => {
     expect(zeroSizedGroupIds({} as SerializedDockview)).toEqual([]);
   });
 });
+
+describe('New Tab panels keep their group across presets (D8-1)', () => {
+  const current = layoutOf(
+    [
+      { id: 'g-bible', views: ['b1', 'n1', 'n2'] },
+      { id: 'g-study', views: ['s1'] },
+    ],
+    { b1: 'bible', n1: 'newtab', n2: 'newtab', s1: 'study' },
+  );
+  const leafViews = (r: ReturnType<typeof buildPresetLayout>): string[][] =>
+    ((r.layout.grid.root as unknown as { data: Array<{ data: { views: string[] } }> }).data).map(l => [...l.data.views]);
+
+  it('Study Mode leaves New Tabs in the Bible group', () => {
+    const views = leafViews(buildPresetLayout(STUDY_MODE, current));
+    expect(views[0]).toEqual(['b1', 'n1', 'n2']);
+    expect(views[1]).toEqual(['s1']);
+  });
+
+  it('Reading Mode does not move Bible-group New Tabs into the study group', () => {
+    const views = leafViews(buildPresetLayout(READING_MODE, current));
+    expect(views[0]).toEqual(['b1', 'n1', 'n2']);
+    expect(views[1]).toEqual(['s1']);
+  });
+});

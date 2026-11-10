@@ -1,6 +1,9 @@
 import { Store } from './Store';
 import type { NewlineHandling } from '@bible/core/browser';
 
+/** Entries each dictionary browse "Load more" fetches (server caps at 1,000). */
+export const BROWSE_LOAD_MORE_LIMIT = 1000;
+
 export interface DictionaryModule {
   abbreviation: string;
   name: string;
@@ -156,6 +159,20 @@ class DictionaryStore extends Store {
   // Timers
   private homeSearchTimer: any = null;
   private tabSearchTimers = new Map<string, any>();
+  /**
+   * W-026: latest request number per kind of request ("home", "search:<tab>",
+   * "entry:<tab>", "adj:<tab>"). A response whose number is no longer current is
+   * dropped, so the last request issued wins rather than the last to resolve.
+   */
+  private reqSeq = new Map<string, number>();
+  private bumpReq(key: string): number {
+    const n = (this.reqSeq.get(key) ?? 0) + 1;
+    this.reqSeq.set(key, n);
+    return n;
+  }
+  private isCurrentReq(key: string, n: number): boolean {
+    return this.reqSeq.get(key) === n;
+  }
 
   init(baseUrl: string): void {
     this.baseUrl = baseUrl;
@@ -348,6 +365,8 @@ class DictionaryStore extends Store {
     this.homeSearchQuery = query;
     this.notify();
 
+    // W-026: any new keystroke invalidates a request already in flight.
+    const homeReq = this.bumpReq('home');
     if (this.homeSearchTimer) clearTimeout(this.homeSearchTimer);
     if (!query.trim()) {
       this.homeSuggestions = [];
@@ -365,11 +384,15 @@ class DictionaryStore extends Store {
           `${this.baseUrl}/api/dictionary/search?q=${encodeURIComponent(query.trim())}`
         );
         if (res.ok) {
-          this.homeSuggestions = await res.json();
+          const data = await res.json();
+          if (!this.isCurrentReq('home', homeReq)) return;
+          this.homeSuggestions = data;
         }
       } catch {
+        if (!this.isCurrentReq('home', homeReq)) return;
         this.homeSuggestions = [];
       }
+      if (!this.isCurrentReq('home', homeReq)) return;
       this.homeSearchLoading = false;
       this.notify();
     }, 300);
@@ -400,6 +423,8 @@ class DictionaryStore extends Store {
     // Do NOT clear state.entry — suggestions appear as an overlay on top of the entry
     this.notify();
 
+    // W-026: any new keystroke invalidates a request already in flight.
+    const searchReq = this.bumpReq(`search:${tabId}`);
     // Clear existing timer for this tab
     const existingTimer = this.tabSearchTimers.get(tabId);
     if (existingTimer) clearTimeout(existingTimer);
@@ -444,9 +469,12 @@ class DictionaryStore extends Store {
           `${this.baseUrl}/api/dictionary/${tab.moduleAbbr}/search?q=${encodeURIComponent(query.trim())}`
         );
         if (res.ok) {
-          state.suggestions = await res.json();
+          const data = await res.json();
+          if (!this.isCurrentReq(`search:${tabId}`, searchReq)) return;
+          state.suggestions = data;
           state.searchError = null;
         } else {
+          if (!this.isCurrentReq(`search:${tabId}`, searchReq)) return;
           // A failed request used to leave the previous suggestions on screen
           // and say nothing, which is indistinguishable from "no matches" —
           // the reason a search that errored looked like it did nothing.
@@ -454,6 +482,7 @@ class DictionaryStore extends Store {
           state.searchError = `Search failed (${res.status}).`;
         }
       } catch {
+        if (!this.isCurrentReq(`search:${tabId}`, searchReq)) return;
         state.suggestions = [];
         state.searchError = 'Search failed. Check your connection and try again.';
       }
@@ -476,6 +505,7 @@ class DictionaryStore extends Store {
 
   /** Dismiss the search dropdown without loading an entry */
   clearTabSuggestions(tabId: string): void {
+    this.bumpReq(`search:${tabId}`);
     const state = this.getTabState(tabId);
     state.suggestions = [];
     state.searchQuery = '';
@@ -490,6 +520,9 @@ class DictionaryStore extends Store {
     if (!tab || tab.id === DICT_HOME_TAB_ID) return;
 
     const state = this.getTabState(tabId);
+    // W-026: the latest entry request wins; it also drops a pending search response.
+    const entryReq = this.bumpReq(`entry:${tabId}`);
+    this.bumpReq(`search:${tabId}`);
     state.entryLoading = true;
     state.suggestions = [];
     state.searchQuery = '';
@@ -500,11 +533,15 @@ class DictionaryStore extends Store {
         `${this.baseUrl}/api/dictionary/${tab.moduleAbbr}/entry/${encodeURIComponent(entryKey)}`
       );
       if (res.ok) {
-        state.entry = await res.json();
+        const data = await res.json();
+        if (!this.isCurrentReq(`entry:${tabId}`, entryReq)) return;
+        state.entry = data;
       } else {
+        if (!this.isCurrentReq(`entry:${tabId}`, entryReq)) return;
         state.entry = null;
       }
     } catch {
+      if (!this.isCurrentReq(`entry:${tabId}`, entryReq)) return;
       state.entry = null;
     }
 
@@ -590,7 +627,7 @@ class DictionaryStore extends Store {
 
     try {
       const res = await fetch(
-        `${this.baseUrl}/api/dictionary/${tab.moduleAbbr}/browse?letter=${encodeURIComponent(state.browseLetter)}&limit=50&offset=${state.browseOffset}`
+        `${this.baseUrl}/api/dictionary/${tab.moduleAbbr}/browse?letter=${encodeURIComponent(state.browseLetter)}&limit=${BROWSE_LOAD_MORE_LIMIT}&offset=${state.browseOffset}`
       );
       if (res.ok) {
         const data = await res.json();
@@ -612,6 +649,7 @@ class DictionaryStore extends Store {
     if (!tab || tab.id === DICT_HOME_TAB_ID) return;
 
     const state = this.getTabState(tabId);
+    const adjReq = this.bumpReq(`adj:${tabId}`);
 
     try {
       const res = await fetch(
@@ -619,6 +657,8 @@ class DictionaryStore extends Store {
       );
       if (res.ok) {
         const data = await res.json();
+        // W-026: a newer entry's neighbours must not be overwritten by this one's.
+        if (!this.isCurrentReq(`adj:${tabId}`, adjReq)) return;
         state.adjacentPrev = data.prev;
         state.adjacentNext = data.next;
         this.notify();

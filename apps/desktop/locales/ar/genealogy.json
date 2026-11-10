@@ -15,5 +15,6 @@
   "genealogyPane.loading": "Loading family tree...",
   "genealogyPane.empty": "No genealogy data is installed. Install a genealogy module to explore family trees.",
   "genealogyPane.error": "The family tree could not be loaded.",
-  "genealogyPane.retry": "Try again"
+  "genealogyPane.retry": "Try again",
+  "genealogyPane.openModuleManager": "فتح مدير الوحدات"
 }

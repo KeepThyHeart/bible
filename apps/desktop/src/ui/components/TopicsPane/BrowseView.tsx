@@ -239,6 +239,7 @@ interface BrowseTopicRowProps {
  * interchangeable to callers and tests.
  */
 const BrowseTopicRow: React.FC<BrowseTopicRowProps> = ({ topic, subtopicLabel, onClick }) => {
+  const { t } = useI18n();
   const secondary = topic.parent_path ?? subtopicLabel;
   return (
     <button
@@ -287,7 +288,11 @@ const BrowseTopicRow: React.FC<BrowseTopicRowProps> = ({ topic, subtopicLabel, o
         (<bdi>{normalizeModuleLabel(topic.source_name)}</bdi>)
       </span>
       {topic.verse_count > 0 && (
-        <span style={{
+        // U-169: say what the badge counts (verses, ranges expanded), not just a bare number.
+        <span
+          title={topic.verse_count === 1 ? t('topicsPane.verseCountOne') : t('topicsPane.verseCount', { count: topic.verse_count })}
+          aria-label={topic.verse_count === 1 ? t('topicsPane.verseCountOne') : t('topicsPane.verseCount', { count: topic.verse_count })}
+          style={{
           fontSize: '0.6875rem',
           color: 'var(--theme-text-secondary)',
           backgroundColor: 'var(--theme-bg-secondary, rgba(0,0,0,0.06))',

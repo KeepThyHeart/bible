@@ -83,6 +83,8 @@ interface BookBar {
 export function SearchDistributionChart({ results, bookCounts, mode, truncated, onSelectBook }: SearchDistributionChartProps) {
   const { t } = useTranslation();
   const [active, setActive] = useState<number | null>(null);
+  // W-064: the plot is one tab stop (roving tabindex), not one per book with matches.
+  const [roving, setRoving] = useState<number | null>(null);
   const plotRef = useRef<HTMLDivElement>(null);
   const tipRef = useRef<HTMLDivElement>(null);
 
@@ -147,6 +149,26 @@ export function SearchDistributionChart({ results, bookCounts, mode, truncated, 
 
   if (total === 0) return null;
 
+  const buttonBooks = bars.filter(b => b.count > 0).map(b => b.bookNumber);
+  const tabStop = roving !== null && buttonBooks.includes(roving) ? roving : buttonBooks[0];
+
+  const onPlotKeyDown = (e: KeyboardEvent) => {
+    const here = Number((e.target as HTMLElement)?.getAttribute?.('data-book'));
+    const i = buttonBooks.indexOf(here);
+    if (i < 0) return;
+    const rtl = (plotRef.current?.closest('[dir]') as HTMLElement | null)?.dir === 'rtl' || document.documentElement.dir === 'rtl';
+    let next = i;
+    if (e.key === 'ArrowRight') next = i + (rtl ? -1 : 1);
+    else if (e.key === 'ArrowLeft') next = i + (rtl ? 1 : -1);
+    else if (e.key === 'Home') next = 0;
+    else if (e.key === 'End') next = buttonBooks.length - 1;
+    else return;
+    e.preventDefault();
+    next = Math.min(Math.max(next, 0), buttonBooks.length - 1);
+    setRoving(buttonBooks[next]);
+    plotRef.current?.querySelector<HTMLElement>(`button[data-book="${buttonBooks[next]}"]`)?.focus();
+  };
+
   const activeBar = active === null ? undefined : bars[active - 1];
 
   const caption = mode === 'semantic'
@@ -163,6 +185,7 @@ export function SearchDistributionChart({ results, bookCounts, mode, truncated, 
         role="group"
         aria-label={t('search.distribution.label')}
         onMouseLeave={() => setActive(null)}
+        onKeyDown={onPlotKeyDown}
       >
         {bars.flatMap((bar) => {
           const label = bar.count > 0
@@ -191,9 +214,10 @@ export function SearchDistributionChart({ results, bookCounts, mode, truncated, 
               data-book={bar.bookNumber}
               class={cellClass}
               aria-label={label}
+              tabIndex={bar.bookNumber === tabStop ? 0 : -1}
               onClick={() => onSelectBook(bar.bookNumber, bar.first)}
               onMouseEnter={show}
-              onFocus={show}
+              onFocus={() => { show(); setRoving(bar.bookNumber); }}
               onBlur={() => setActive(null)}
             >
               {fill}

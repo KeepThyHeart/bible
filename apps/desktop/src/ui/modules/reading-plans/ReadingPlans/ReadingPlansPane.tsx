@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { ReadingPlans } from '@bible/core/browser';
 import {
   ReadingPlanBuilderForm, ReadingPlanLibrary, SettingsForm, WeekdayPicker,
@@ -7,6 +7,7 @@ import { useI18n } from '../../../contexts/useI18n';
 import { getReadingPlanService } from '../readingPlansAPI';
 import { openPlanReading } from '../useActiveReadingStore';
 import { useReadingPlanStore } from '../useReadingPlanStore';
+import { useInlineConfirm } from './useInlineConfirm';
 import { DESKTOP_SETTINGS, getDesktopSettingsStore } from '../../../settings/desktopSettings';
 import { isEnabled } from '../../../settings/featureFlags';
 import { ensureReferenceLocales } from '../../../services/localizedReferenceParser';
@@ -70,6 +71,54 @@ const ReadingPlansPane: React.FC = () => {
   const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
+  // Inline Remove / Delete confirmations: focus goes in, Escape cancels, and focus returns to the
+  // trigger (or, when the row is gone, to the list's first control) instead of dropping to <body>.
+  const paneRootRef = useRef<HTMLDivElement>(null);
+  const removeButtons = useRef(new Map<string, HTMLButtonElement | null>());
+  const cancelRemove = () => {
+    const id = confirmRemove;
+    setConfirmRemove(null);
+    if (id) removeButtons.current.get(id)?.focus();
+  };
+  const removeConfirm = useInlineConfirm(confirmRemove, cancelRemove);
+  const cancelDelete = () => {
+    const key = confirmDelete;
+    setConfirmDelete(null);
+    if (!key) return;
+    const plan = data.library.find((p) => p.key === key);
+    const trigger = plan
+      ? Array.from(paneRootRef.current?.querySelectorAll<HTMLElement>('button') ?? [])
+          .find((b) => b.getAttribute('aria-label') === labels.library.deleteNamed(plan.name))
+      : undefined;
+    trigger?.focus();
+  };
+  const deleteConfirm = useInlineConfirm(confirmDelete, cancelDelete);
+  // Start form: Escape / Cancel close it and hand focus back to the "Start <plan>" button that opened it.
+  // (Its own focus-in effect lives with startRef below, so only the Escape handling is shared here.)
+  const cancelStart = () => {
+    const key = startKey;
+    setStartKey(null);
+    if (!key) return;
+    const plan = data.library.find((p) => p.key === key);
+    const trigger = plan
+      ? Array.from(paneRootRef.current?.querySelectorAll<HTMLElement>('button') ?? [])
+          .find((b) => b.getAttribute('aria-label') === labels.library.startNamed(labels.stockName(plan)))
+      : undefined;
+    trigger?.focus();
+  };
+  const onStartKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key !== 'Escape') return;
+    e.preventDefault();
+    e.stopPropagation();
+    cancelStart();
+  };
+  const focusAfterRowGone = () => {
+    requestAnimationFrame(() => {
+      const first = paneRootRef.current?.querySelector<HTMLElement>('[data-testid="reading-plans-enrollment"] button');
+      (first ?? plansTabRef.current)?.focus();
+    });
+  };
+
   const refreshStore = useReadingPlanStore((s) => s.refresh);
   useEffect(() => { void refreshStore(); }, [refreshStore]);
 
@@ -105,10 +154,32 @@ const ReadingPlansPane: React.FC = () => {
     el.querySelector<HTMLElement>('input, button')?.focus({ preventScroll: true });
   }, [startKey]);
 
+  // "Start plan" unmounts with the Plans view it sits in; focus would fall out
+  // to <body>. Hand it to the Today tab, which survives and leads into the new
+  // plan's card.
+  const todayTabRef = React.useRef<HTMLButtonElement | null>(null);
+  const focusTodayTabRef = React.useRef(false);
+  useEffect(() => {
+    if (view.kind !== 'today' || !focusTodayTabRef.current) return;
+    focusTodayTabRef.current = false;
+    todayTabRef.current?.focus();
+  }, [view]);
+
+  // "Choose a plan" (empty Today tab) unmounts with the Today view; hand focus
+  // to the Plans tab so it does not drop to <body>.
+  const plansTabRef = React.useRef<HTMLButtonElement | null>(null);
+  const focusPlansTabRef = React.useRef(false);
+  useEffect(() => {
+    if (view.kind !== 'plans' || !focusPlansTabRef.current) return;
+    focusPlansTabRef.current = false;
+    plansTabRef.current?.focus();
+  }, [view]);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+
   const confirmStart = async () => {
     if (!startKey) return;
     const ok = await run(() => service.startPlan(startKey, { startDate, pacing, readingDays }));
-    if (ok) { setStartKey(null); go({ kind: 'today' }); }
+    if (ok) { focusTodayTabRef.current = true; setStartKey(null); go({ kind: 'today' }); }
   };
 
   const shell = { backgroundColor: 'var(--theme-bg-primary)', color: 'var(--theme-text-primary)' } as const;
@@ -122,7 +193,7 @@ const ReadingPlansPane: React.FC = () => {
         <div className="flex flex-col items-center gap-sm text-center p-lg" data-testid="reading-plans-empty">
           <div style={{ fontSize: '1rem', fontWeight: 500 }}>{t('readingPlans.empty.title')}</div>
           <p className="m-0" style={secondary}>{t('readingPlans.empty.body')}</p>
-          <button type="button" className="kth-btn kth-btn--primary" onClick={() => go({ kind: 'plans' })}>{t('readingPlans.empty.choose')}</button>
+          <button type="button" className="kth-btn kth-btn--primary" onClick={() => { focusPlansTabRef.current = true; go({ kind: 'plans' }); }}>{t('readingPlans.empty.choose')}</button>
         </div>
       );
     }
@@ -172,14 +243,16 @@ const ReadingPlansPane: React.FC = () => {
           </button>
         ) : null}
         <button type="button" className="kth-btn kth-btn--sm kth-btn--danger" aria-label={t('readingPlans.action.removeNamed', { name })}
+          ref={(el) => { removeButtons.current.set(e.id, el); }}
           onClick={() => setConfirmRemove(e.id)}>{t('readingPlans.action.remove')}</button>
         {confirmRemove === e.id ? (
-          <div role="group" aria-label={t('readingPlans.action.removeNamed', { name })} className="w-full flex flex-col gap-xs">
+          <div role="group" aria-label={t('readingPlans.action.removeNamed', { name })} className="w-full flex flex-col gap-xs"
+            ref={removeConfirm.groupRef} onKeyDown={removeConfirm.onKeyDown}>
             <p className="text-sm m-0">{t('readingPlans.action.removeConfirm', { name })}</p>
             <div className="flex gap-sm">
               <button type="button" className="kth-btn kth-btn--sm kth-btn--danger"
-                onClick={() => { setConfirmRemove(null); void run(() => service.removeEnrollment(e.id)); }}>{t('readingPlans.action.confirmRemove')}</button>
-              <button type="button" className="kth-btn kth-btn--sm" onClick={() => setConfirmRemove(null)}>{labels.todayCard.cancel}</button>
+                onClick={() => { setConfirmRemove(null); void run(() => service.removeEnrollment(e.id)).then(focusAfterRowGone); }}>{t('readingPlans.action.confirmRemove')}</button>
+              <button type="button" className="kth-btn kth-btn--sm" onClick={cancelRemove}>{labels.todayCard.cancel}</button>
             </div>
           </div>
         ) : null}
@@ -192,7 +265,7 @@ const ReadingPlansPane: React.FC = () => {
     if (!plan) return null;
     const name = labels.stockName(plan);
     return (
-      <section ref={startRef} className="flex flex-col gap-sm p-md rounded border border-border" aria-label={t('readingPlans.start.title', { name })} data-testid="reading-plans-start">
+      <section ref={startRef} className="flex flex-col gap-sm p-md rounded border border-border" aria-label={t('readingPlans.start.title', { name })} data-testid="reading-plans-start" onKeyDown={onStartKeyDown}>
         <h3 className="text-sm font-semibold m-0">{t('readingPlans.start.title', { name })}</h3>
         <label className="flex items-center gap-sm text-sm">
           {labels.builder.startDate}
@@ -212,7 +285,7 @@ const ReadingPlansPane: React.FC = () => {
         <WeekdayPicker value={readingDays} onChange={setReadingDays} weekdayNames={labels.weekdayNames} labels={{ group: labels.weekdayGroup }} />
         <div className="flex gap-sm">
           <button type="button" className="kth-btn kth-btn--primary" disabled={!ReadingPlans.isIsoDate(startDate)} onClick={() => void confirmStart()}>{t('readingPlans.start.begin')}</button>
-          <button type="button" className="kth-btn" onClick={() => setStartKey(null)}>{labels.todayCard.cancel}</button>
+          <button type="button" className="kth-btn" onClick={cancelStart}>{labels.todayCard.cancel}</button>
         </div>
       </section>
     );
@@ -244,19 +317,20 @@ const ReadingPlansPane: React.FC = () => {
             onDelete={(key) => setConfirmDelete(key)}
           />
           {deleting ? (
-            <div role="group" aria-label={labels.library.deleteNamed(deleting.name)} className="flex flex-col gap-xs mt-sm">
+            <div role="group" aria-label={labels.library.deleteNamed(deleting.name)} className="flex flex-col gap-xs mt-sm"
+              ref={deleteConfirm.groupRef} onKeyDown={deleteConfirm.onKeyDown}>
               <p className="text-sm m-0">{t('readingPlans.library.deleteConfirm', { name: deleting.name })}</p>
               <div className="flex gap-sm">
                 <button type="button" className="kth-btn kth-btn--sm kth-btn--danger"
-                  onClick={() => { const key = deleting.key; setConfirmDelete(null); void run(() => service.deletePlan(key)); }}>{t('readingPlans.action.confirmDelete')}</button>
-                <button type="button" className="kth-btn kth-btn--sm" onClick={() => setConfirmDelete(null)}>{labels.todayCard.cancel}</button>
+                  onClick={() => { const key = deleting.key; setConfirmDelete(null); void run(() => service.deletePlan(key)).then(focusAfterRowGone); }}>{t('readingPlans.action.confirmDelete')}</button>
+                <button type="button" className="kth-btn kth-btn--sm" onClick={cancelDelete}>{labels.todayCard.cancel}</button>
               </div>
             </div>
           ) : null}
         </section>
 
-        <details>
-          <summary className="cursor-pointer font-medium">{t('readingPlans.settings.title')}</summary>
+        <details open={settingsOpen} onToggle={(e) => setSettingsOpen((e.currentTarget as HTMLDetailsElement).open)}>
+          <summary className="cursor-pointer font-medium" aria-expanded={settingsOpen}>{t('readingPlans.settings.title')}</summary>
           <div className="mt-sm"><ReadingPlanSettings /></div>
         </details>
       </div>
@@ -292,10 +366,12 @@ const ReadingPlansPane: React.FC = () => {
   );
 
   return (
-    <div className="h-full w-full flex flex-col overflow-hidden" data-testid="reading-plans-pane" style={shell}>
+    <div ref={paneRootRef} className="h-full w-full flex flex-col overflow-hidden" data-testid="reading-plans-pane" style={shell}>
+      {/* Heading for the app view: DesktopAppStage focuses the first h1[tabindex=-1] when the app opens. */}
+      <h1 tabIndex={-1} className="sr-only">{t('readingPlans.title')}</h1>
       <div className="flex items-center gap-xs px-md py-xs border-b border-border" role="toolbar" aria-label={t('readingPlans.title')}>
-        <button type="button" className={tabClass(activeKind === 'today')} aria-pressed={activeKind === 'today'} onClick={() => go({ kind: 'today' })}>{t('readingPlans.nav.today')}</button>
-        <button type="button" className={tabClass(activeKind === 'plans')} aria-pressed={activeKind === 'plans'} onClick={() => go({ kind: 'plans' })}>{t('readingPlans.nav.plans')}</button>
+        <button type="button" ref={todayTabRef} className={tabClass(activeKind === 'today')} aria-pressed={activeKind === 'today'} onClick={() => go({ kind: 'today' })}>{t('readingPlans.nav.today')}</button>
+        <button type="button" ref={plansTabRef} className={tabClass(activeKind === 'plans')} aria-pressed={activeKind === 'plans'} onClick={() => go({ kind: 'plans' })}>{t('readingPlans.nav.plans')}</button>
         <button type="button" className={tabClass(activeKind === 'new')} aria-pressed={activeKind === 'new'} onClick={() => go({ kind: 'new' })}>{t('readingPlans.nav.new')}</button>
       </div>
       {error ? <p className="m-0 px-md py-xs text-sm" role="alert" style={{ color: 'var(--theme-error, #c0392b)' }}>{t('readingPlans.error', { message: error })}</p> : null}

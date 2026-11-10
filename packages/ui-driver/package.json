@@ -1,0 +1,33 @@
+{
+  "name": "@bible/ui-driver",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Text-based UI driver for the web and desktop apps: accessibility snapshots with refs, actions, diffs and cheap checks, for agent exploration",
+  "license": "GPL-3.0-or-later",
+  "author": "Peter Rankin <psrankin@outlook.com>",
+  "type": "module",
+  "bin": {
+    "drive": "./bin/drive.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "e2e": "node e2e/smoke.ts",
+    "e2e:web": "node e2e/smoke.ts web",
+    "e2e:desktop": "node e2e/smoke.ts desktop",
+    "e2e:popout": "node e2e/popout.ts",
+    "e2e:qa": "node e2e/qa-items.ts"
+  },
+  "dependencies": {
+    "playwright-core": "1.63.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "eslint": "^10.1.0",
+    "typescript": "^5.5.0",
+    "typescript-eslint": "^8.58.0",
+    "vitest": "^4.1.11"
+  }
+}

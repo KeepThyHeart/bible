@@ -17,15 +17,23 @@
 import { test, expect } from '../fixtures/electron.fixture';
 import type { Page } from '@playwright/test';
 import { ensurePaneOpen } from '../fixtures/test-utils';
+import { needsRealData } from '../fixtures/dataDir';
+
 
 /**
  * Strong's Greek is in the dev dataset, and its keys are zero-padded: looking
  * up "G25" (agapao) must resolve to entry `00025`. That normalisation is the
  * reason to prefer it over a word dictionary here.
+ *
+ * The entry heading no longer shows the raw padded key: a Strong's entry is
+ * headed by its Strong's number and headword ("G25 ἀγαπάω"). So the lookup is
+ * proven by the heading naming G25 *and* agapao's headword - an unresolved or
+ * wrong entry has neither.
  */
 const DICTIONARY = 'StrongsGreek';
 const STRONGS_QUERY = 'G25';
-const STRONGS_KEY = '00025';
+const STRONGS_KEY = 'G25';
+const STRONGS_HEADWORD = 'ἀγαπάω';
 
 // BookPane renders an open dictionary through `DictionaryPane hideTabs`, so
 // these are its ids. They exist only once a dictionary has been opened.
@@ -58,6 +66,9 @@ async function lookUp(window: Page, term: string): Promise<void> {
   await window.locator('[data-testid="dictionary-lookup-btn"]').click({ force: true });
 }
 
+// Modules the committed fixture lacks: skipped unless real data is given (BIBLE_E2E_DATA_DIR).
+needsRealData(test.skip, 'StrongsGreek');
+
 test.describe('Dictionary Pane', () => {
   test('opens a dictionary from the library shelf, with a lookup box', async ({ window }) => {
     await openDictionary(window);
@@ -74,6 +85,7 @@ test.describe('Dictionary Pane', () => {
 
     await expect(entry(window)).toBeVisible({ timeout: 15000 });
     await expect(entryKey(window)).toContainText(STRONGS_KEY);
+    await expect(entryKey(window)).toContainText(STRONGS_HEADWORD);
     await expect(entry(window)).not.toBeEmpty();
   });
 
@@ -103,7 +115,7 @@ test.describe('Dictionary Pane', () => {
     // must replace what is shown rather than leave the previous entry in place.
     await lookUp(window, 'G26');
 
-    await expect(entryKey(window)).toContainText('00026', { timeout: 15000 });
+    await expect(entryKey(window)).toContainText('G26', { timeout: 15000 });
     await expect(entryKey(window)).not.toContainText(STRONGS_KEY);
   });
 });

@@ -1,10 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import LiveSearchSuggestions from './LiveSearchSuggestions';
+import LiveSearchSuggestions, { truncateHtml } from './LiveSearchSuggestions';
 import { ContextProvider, type AppServices } from '../contexts/ContextProvider';
 import type { SearchResult } from '@bible/core';
 import { useSearchStore } from '../stores/useSearchStore';
+import { useTextSettingsStore } from '../stores/useTextSettingsStore';
 import { enT } from '../testing/enCatalog';
 
 function createMockI18n() {
@@ -209,7 +210,7 @@ describe('LiveSearchSuggestions', () => {
     expect(screen.getByText('John 3:17')).toBeInTheDocument();
   });
 
-  it('shows semantic search toggle when available', () => {
+  it('no longer carries a semantic search link (the bar icon selects the search type)', () => {
     useSearchStore.setState({
       semanticAvailable: true,
       isSemanticMode: false,
@@ -226,7 +227,8 @@ describe('LiveSearchSuggestions', () => {
       />
     );
 
-    expect(screen.getByText(/Semantic Search/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Semantic Search/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Back to Keyword Search/i)).not.toBeInTheDocument();
   });
 
   it('shows enter key instructions', () => {
@@ -247,5 +249,24 @@ describe('LiveSearchSuggestions', () => {
     const footer = screen.getByText('Enter').closest('div');
     expect(footer?.textContent).toContain('to navigate');
     expect(footer?.textContent).toContain('to select or search');
+  });
+
+  it('adds no-red-letter only when red letters are off', () => {
+    const props = { suggestions: [mockResult], isLoading: false, query: 'God', selectedIndex: 0, onSelectSuggestion: vi.fn() };
+    useTextSettingsStore.getState().updateSettings('bible', { showRedLetter: false });
+    const off = renderWithProviders(<LiveSearchSuggestions {...props} />);
+    expect(off.getByTestId('live-suggestions')).toHaveClass('no-red-letter');
+    off.unmount();
+    useTextSettingsStore.getState().updateSettings('bible', { showRedLetter: true });
+    const on = renderWithProviders(<LiveSearchSuggestions {...props} />);
+    expect(on.getByTestId('live-suggestions')).not.toHaveClass('no-red-letter');
+  });
+
+  it('truncates on visible text and keeps tags balanced', () => {
+    const html = '<span class="christ-words">' + 'a'.repeat(100) + '</span> ' + 'b'.repeat(100);
+    const out = truncateHtml(html, 150);
+    expect(out.replace(/<[^>]*>/g, '')).toBe('a'.repeat(100) + ' ' + 'b'.repeat(49) + '...');
+    expect(out.startsWith('<span class="christ-words">')).toBe(true);
+    expect(truncateHtml('<b>short</b>', 150)).toBe('<b>short</b>');
   });
 });

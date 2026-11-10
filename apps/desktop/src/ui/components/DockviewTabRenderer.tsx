@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useOverlayDismissal } from '../hooks/useOverlayDismissal';
-import { useDockviewTabA11y } from '../hooks/useDockviewTabA11y';
-import { createPortal } from 'react-dom';
+import { useDockviewTabA11y, focusActiveTabOfGroup, focusPanelTab } from '../hooks/useDockviewTabA11y';
 import type { IDockviewPanelHeaderProps } from 'dockview-react';
 import type { PanelContentType } from '../stores/useLayoutStore';
 import { useLayoutStore } from '../stores/useLayoutStore';
@@ -15,8 +14,8 @@ import { getNotesPanelNavState } from '../stores/useFileNotesStore';
 import { formatVerseReference } from '../utils/verseReference';
 import type { PaneType } from '../../../electron/config/paneConfig';
 import { useI18n } from '../contexts/useI18n';
-import { localizePaneLabel } from '../utils/paneNames';
-import { anchorAtPointer } from '@bible/core/browser';
+import { localizePaneLabel, PANE_NAME_KEYS, type NamedPaneType } from '../utils/paneNames';
+import PointerMenu from './shared/PointerMenu';
 import { useDirection, Bdi } from '@bible/ui';
 import { popOutModuleToWindow } from '../utils/popOutModule';
 import { cleanModuleName } from '../utils/verseFormatting';
@@ -28,6 +27,10 @@ import { declaredPanelWindowSize } from '../extensions/panelWindowSize';
 // category tiles (NewTabPage) resolve their icons from the same rule this tab
 // does rather than a second, drifting list.
 import { tabIconFor } from './paneIcons';
+import { useSearchStore, selectSessionView, sessionTitleQuery } from '../stores/useSearchStore';
+
+export { SEARCH_TAB_TITLE_LENGTH, searchTabTitle } from './searchTabTitle';
+import { searchTabTitle } from './searchTabTitle';
 
 /**
  * A literal chrome size in rem (B-045). The UI size setting scales the rem
@@ -136,7 +139,17 @@ const DockviewTabRenderer: React.FC<IDockviewPanelHeaderProps> = (props) => {
   const contentKey = props.params?.contentKey as string | undefined;
   const staticSubtitle = props.params?.subtitle as string | undefined;
   const dynamicSubtitle = useLayoutStore(s => s.dynamicSubtitles.get(api.id));
-  const subtitle = localizePaneLabel(t, contentType, dynamicSubtitle || staticSubtitle);
+  // A search tab is titled with its own session's query (task 0210); the panel
+  // id is the session id.
+  const isSearchTab = contentType === 'search';
+  const searchQuery = useSearchStore(s => (isSearchTab ? sessionTitleQuery(selectSessionView(s, api.id)) : ''));
+  // Preview-tab model: an unpinned search tab is shown in italics and reused by the next search.
+  const searchPinned = useSearchStore(s => isSearchTab && !!s.sessionMeta[api.id]?.pinned);
+  const searchIsPreview = isSearchTab && !searchPinned;
+  const searchIsSemantic = useSearchStore(s => isSearchTab && selectSessionView(s, api.id).isSemanticMode);
+  const subtitle = isSearchTab && searchQuery && searchIsSemantic
+    ? t('searchTabs.meaningSubtitle')
+    : localizePaneLabel(t, contentType, dynamicSubtitle || staticSubtitle);
   const icon = tabIconFor(contentType);
   // `workspace.setPanelBadge` - only ever set for an extension's own
   // `ext:`-content-type panel (the api-impl enforces that), so no
@@ -186,17 +199,33 @@ const DockviewTabRenderer: React.FC<IDockviewPanelHeaderProps> = (props) => {
   // restarts. Translate it here, per render, so switching locale re-labels the
   // tabs that are already open. Content-derived titles - a passage, a module
   // name - are data and pass through untouched.
-  const title = localizePaneLabel(t, contentType, storedTitle) ?? storedTitle;
+  const genericTitle = localizePaneLabel(t, contentType, storedTitle) ?? storedTitle;
+  const title = isSearchTab && searchQuery ? searchTabTitle(searchQuery) : genericTitle;
+  const accessibleName = isSearchTab && searchQuery
+    ? t(searchIsSemantic ? 'searchTabs.accessibleNameMeaning' : 'searchTabs.accessibleName', { query: searchQuery })
+    : title;
+
+  /**
+   * Close this tab and keep keyboard focus in its strip: the focused tab is
+   * about to be removed, and focus would otherwise fall to the page and be
+   * rescued onto the first pane's heading. The tab that becomes active in the
+   * same group takes it (the workbench's active group when this one is gone).
+   */
+  const closeKeepingFocus = useCallback(() => {
+    const group = api.group;
+    api.close();
+    focusActiveTabOfGroup(containerApi as never, group as never);
+  }, [api, containerApi]);
 
   const handleClose = (e: React.MouseEvent) => {
     e.stopPropagation();
-    api.close();
+    closeKeepingFocus();
   };
 
   const handleMouseDown = (e: React.MouseEvent) => {
     if (e.button === 1) {
       e.preventDefault();
-      api.close();
+      closeKeepingFocus();
     }
   };
 
@@ -206,9 +235,49 @@ const DockviewTabRenderer: React.FC<IDockviewPanelHeaderProps> = (props) => {
     setContextMenu({ x: e.clientX, y: e.clientY });
   }, []);
 
+  // Keyboard route to the same menu (Shift+F10 / the Menu key on the focused
+  // tab); the hook reports the tab's rectangle.
+  const openMenuFromKeyboard = useCallback((anchor: DOMRect) => {
+    setContextMenu({ x: anchor.left, y: anchor.bottom });
+  }, []);
+
   // Close context menu on outside click or Escape
   const dismissContextMenu = useCallback(() => setContextMenu(null), []);
   useOverlayDismissal(!!contextMenu, dismissContextMenu);
+
+  /** The tab element this menu belongs to, where focus returns when it closes. */
+  const tabHost = (): HTMLElement | null => contentRef.current?.closest<HTMLElement>('.dv-tab') ?? null;
+
+  // The menu takes focus when it opens, on its first item.
+  useEffect(() => {
+    if (!contextMenu) return;
+    menuRef.current?.querySelector<HTMLElement>('[role="menuitem"]')?.focus();
+  }, [contextMenu]);
+
+  const handleMenuKeyDown = (e: React.KeyboardEvent) => {
+    const items = Array.from(menuRef.current?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? []);
+    if (items.length === 0) return;
+    const i = items.indexOf(document.activeElement as HTMLElement);
+    let next = -1;
+    if (e.key === 'ArrowDown') next = (i + 1) % items.length;
+    else if (e.key === 'ArrowUp') next = (i - 1 + items.length) % items.length;
+    else if (e.key === 'Home') next = 0;
+    else if (e.key === 'End') next = items.length - 1;
+    if (next >= 0) {
+      e.preventDefault();
+      e.stopPropagation();
+      items[next].focus();
+      return;
+    }
+    if (e.key === 'Escape' || e.key === 'Tab') {
+      // Escape and Tab both dismiss; focus goes back to the tab so the
+      // keyboard user is where they started (Tab then moves on from there).
+      e.preventDefault();
+      e.stopPropagation();
+      setContextMenu(null);
+      tabHost()?.focus();
+    }
+  };
 
   const handleSplitRight = () => {
     setContextMenu(null);
@@ -221,6 +290,7 @@ const DockviewTabRenderer: React.FC<IDockviewPanelHeaderProps> = (props) => {
         direction: 'right',
       });
       panel.api.moveTo({ group: newGroup });
+      focusPanelTab(containerApi as never, api.id);
     }
   };
 
@@ -235,6 +305,7 @@ const DockviewTabRenderer: React.FC<IDockviewPanelHeaderProps> = (props) => {
         direction: 'below',
       });
       panel.api.moveTo({ group: newGroup });
+      focusPanelTab(containerApi as never, api.id);
     }
   };
 
@@ -403,13 +474,74 @@ const DockviewTabRenderer: React.FC<IDockviewPanelHeaderProps> = (props) => {
 
   const handleCloseContext = () => {
     setContextMenu(null);
-    api.close();
+    closeKeepingFocus();
   };
 
-  useDockviewTabA11y(contentRef, api as never, title ?? '', uiDir === 'rtl');
+  // The "x" button is taken out of the tab order (tabIndex -1) because it sits
+  // inside dockview's role=tab element and cannot be un-nested; Delete on the
+  // focused tab is its keyboard equivalent, offered only when the "x" is.
+  const closeFromKeyboard = closeKeepingFocus;
+  const onDidLayoutChange = useCallback(
+    (cb: () => void) => containerApi.onDidLayoutChange(cb),
+    [containerApi],
+  );
+  // The strip is a tablist with no other name; name it for what it holds.
+  //
+  // The name follows the *group*, not this tab, and is stable: it does not
+  // change as the selected tab does. A group containing a Bible panel is
+  // "Bible tabs"; any other group is "Study tabs" (it holds Study, Commentary,
+  // Notes, Topics, Dictionary ... and a name taken from the selected tab would
+  // mislead). Pane names are localized through the catalog, never taken from
+  // the stored title. Two groups that would share a name are told apart by a
+  // number ("Bible 2"), in the order the workbench lists its groups.
+  const getTablistLabel = useCallback((): string | undefined => {
+    type GroupShape = {
+      panels?: Array<{ id?: string; params?: { contentType?: string } }>;
+      activePanel?: { id?: string; params?: { contentType?: string } };
+    };
+    const baseName = (group: GroupShape | undefined, fallbackKind?: string): string | undefined => {
+      const kinds = (group?.panels ?? []).map(p => p.params?.contentType).filter((k): k is string => !!k);
+      if (kinds.length === 0 && fallbackKind) kinds.push(fallbackKind);
+      const kind = kinds.includes('bible') ? 'bible' : 'study';
+      return t(PANE_NAME_KEYS[kind as NamedPaneType]);
+    };
+    const name = baseName(api.group as GroupShape | undefined, contentType);
+    if (!name) return undefined;
+    const groups = ((containerApi as { groups?: GroupShape[] }).groups ?? []);
+    const mine = api.group as GroupShape | undefined;
+    const samePosition = groups
+      .filter(g => g === mine || baseName(g) === name);
+    const index = mine ? samePosition.indexOf(mine) : -1;
+    const unique = index > 0 ? `${name} ${index + 1}` : name;
+    const label = t('ui.dockviewTab.tablistLabel', { name: unique });
+    // Until the catalog has the key, `t` hands the key back; fall back to English.
+    return label === 'ui.dockviewTab.tablistLabel' ? `${unique} tabs` : label;
+  }, [api, containerApi, contentType, t]);
+  useDockviewTabA11y(contentRef, api as never, accessibleName ?? '', uiDir === 'rtl', {
+    onClose: groupTabCount > 1 ? closeFromKeyboard : undefined,
+    onDidLayoutChange,
+    tablistLabel: getTablistLabel,
+    onOpenMenu: openMenuFromKeyboard,
+  });
+
+  const handleToggleSearchPin = () => {
+    setContextMenu(null);
+    // allow-getstate: event handler - imperative store action
+    useSearchStore.getState().pinSession(api.id);
+  };
+
+  const handleOpenInNewSearchTab = () => {
+    setContextMenu(null);
+    // allow-getstate: event handler - imperative store action
+    void useSearchStore.getState().openSessionInNewTab(api.id);
+  };
 
   const panelCount = containerApi.panels.length;
-  const canPopOut = !!contentType && !!POP_OUT_PANE_TYPE[contentType];
+  const canPopOut = !!contentType && !!popOutPaneTypeFor(contentType);
+  // Splitting moves this tab into a new group; from a group's only tab that would leave an
+  // empty group behind, so it is offered only when the group holds another tab.
+  const canSplit = groupTabCount > 1;
+  const splitHint = canSplit ? undefined : translateOr(t, 'ui.dockviewTab.splitNeedsTwoTabs', 'Needs another tab in this group');
 
   return (
     <>
@@ -418,7 +550,10 @@ const DockviewTabRenderer: React.FC<IDockviewPanelHeaderProps> = (props) => {
         className="dockview-tab-content"
         onMouseDown={handleMouseDown}
         onContextMenu={handleContextMenu}
+        onDoubleClick={isSearchTab ? () => { if (searchIsPreview) handleToggleSearchPin(); } : undefined}
+        data-search-preview={isSearchTab ? (searchIsPreview ? 'true' : 'false') : undefined}
         style={{
+          fontStyle: searchIsPreview && searchQuery ? 'italic' : undefined,
           display: 'flex',
           alignItems: 'center',
           // Every literal here is scaled by the same ratio as the font, so the
@@ -444,12 +579,12 @@ const DockviewTabRenderer: React.FC<IDockviewPanelHeaderProps> = (props) => {
       >
         {icon && <span style={{ fontSize: controlScaled(12), alignSelf: subtitle ? 'flex-start' : undefined }}>{icon}</span>}
         {subtitle ? (
-          <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.2 }}>
-            <span style={{ fontWeight: 600 }}><Bdi>{title}</Bdi></span>
-            <span style={{ fontSize: controlScaled(10), color: 'var(--theme-text-secondary)', fontWeight: 400 }}><Bdi>{subtitle}</Bdi></span>
+          <div className="dockview-tab-text" style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.2 }}>
+            <span className="dockview-tab-title" style={{ fontWeight: 600 }} title={isSearchTab && searchQuery ? searchQuery : undefined}><Bdi>{title}</Bdi></span>
+            <span className="dockview-tab-title" style={{ fontSize: controlScaled(10), color: 'var(--theme-text-secondary)', fontWeight: 400 }}><Bdi>{subtitle}</Bdi></span>
           </div>
         ) : (
-          <span><Bdi>{title}</Bdi></span>
+          <span className="dockview-tab-title" title={isSearchTab && searchQuery ? searchQuery : undefined}><Bdi>{title}</Bdi></span>
         )}
         {badge !== undefined && (
           <span
@@ -471,6 +606,8 @@ const DockviewTabRenderer: React.FC<IDockviewPanelHeaderProps> = (props) => {
           <button
             onClick={handleClose}
             data-testid="close-tab"
+            tabIndex={-1}
+            aria-label={t('bookPane.closeTabLabel', { name: title ?? '' })}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -494,23 +631,20 @@ const DockviewTabRenderer: React.FC<IDockviewPanelHeaderProps> = (props) => {
             }}
             title={t('ui.dockviewTab.closePanel')}
           >
-            ×
+            <span aria-hidden="true">×</span>
           </button>
         )}
       </div>
 
-      {/* Context Menu (rendered via portal to escape dockview's overflow/transform clipping) */}
-      {contextMenu && createPortal(
-        <div
+      {contextMenu && (
+        <PointerMenu
           ref={menuRef}
+          x={contextMenu.x}
+          y={contextMenu.y}
           role="menu"
           aria-label={t('ui.dockviewTab.contextMenuLabel')}
           data-testid="dockview-tab-context-menu"
           style={{
-            position: 'fixed',
-            ...anchorAtPointer(contextMenu.x, 180, window.innerWidth, uiDir),
-            top: contextMenu.y,
-            zIndex: 10000,
             minWidth: '180px',
             backgroundColor: 'var(--theme-bg-primary)',
             border: '1px solid var(--theme-border-primary)',
@@ -519,9 +653,17 @@ const DockviewTabRenderer: React.FC<IDockviewPanelHeaderProps> = (props) => {
             padding: '4px 0',
           }}
           onMouseDown={(e) => e.stopPropagation()}
+          onKeyDown={handleMenuKeyDown}
         >
-          <ContextMenuItem label={t('ui.dockviewTab.splitRight')} onClick={handleSplitRight} />
-          <ContextMenuItem label={t('ui.dockviewTab.splitDown')} onClick={handleSplitDown} />
+          {isSearchTab && searchQuery && (
+            <>
+              <ContextMenuItem label={searchPinned ? t('searchTabs.unpin') : t('searchTabs.pin')} onClick={handleToggleSearchPin} testId="search-tab-pin" />
+              <ContextMenuItem label={t('searchTabs.openInNewTab')} onClick={handleOpenInNewSearchTab} testId="search-tab-open-in-new-tab" />
+              <div style={{ height: '1px', backgroundColor: 'var(--theme-border-primary)', margin: '4px 0' }} />
+            </>
+          )}
+          <ContextMenuItem label={t('ui.dockviewTab.splitRight')} onClick={handleSplitRight} disabled={!canSplit} hint={splitHint} />
+          <ContextMenuItem label={t('ui.dockviewTab.splitDown')} onClick={handleSplitDown} disabled={!canSplit} hint={splitHint} />
           {canPopOut && (
             <>
               <div style={{ height: '1px', backgroundColor: 'var(--theme-border-primary)', margin: '4px 0' }} />
@@ -534,20 +676,33 @@ const DockviewTabRenderer: React.FC<IDockviewPanelHeaderProps> = (props) => {
               <ContextMenuItem label={t('ui.dockviewTab.close')} onClick={handleCloseContext} />
             </>
           )}
-        </div>,
-        document.body
+        </PointerMenu>
       )}
     </>
   );
 };
 
 /** Simple context menu item */
+/** `t` hands the key back until the catalog has it: fall back to English. */
+function translateOr(t: (key: string) => string, key: string, fallback: string): string {
+  const v = t(key);
+  return v === key ? fallback : v;
+}
+
 const ContextMenuItem: React.FC<{
   label: string;
   onClick: () => void;
-}> = ({ label, onClick }) => (
+  /** Stays focusable (aria-disabled) so keyboard users can reach it and read the hint. */
+  disabled?: boolean;
+  hint?: string;
+  testId?: string;
+}> = ({ label, onClick, disabled = false, hint, testId }) => (
   <button
-    onClick={onClick}
+    role="menuitem"
+    data-testid={testId}
+    aria-disabled={disabled || undefined}
+    title={disabled ? hint : undefined}
+    onClick={disabled ? (e) => e.preventDefault() : onClick}
     style={{
       display: 'flex',
       alignItems: 'center',
@@ -556,12 +711,14 @@ const ContextMenuItem: React.FC<{
       padding: '5px 12px',
       border: 'none',
       background: 'transparent',
-      cursor: 'pointer',
+      cursor: disabled ? 'default' : 'pointer',
+      opacity: disabled ? 0.5 : 1,
       fontSize: controlScaled(13),
       color: 'var(--theme-text-primary)',
       textAlign: 'start',
     }}
     onMouseEnter={(e) => {
+      if (disabled) return;
       (e.currentTarget as HTMLElement).style.backgroundColor = 'var(--theme-tab-bg-hover)';
     }}
     onMouseLeave={(e) => {

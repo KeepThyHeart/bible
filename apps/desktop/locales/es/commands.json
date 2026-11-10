@@ -47,6 +47,8 @@
   "app.reportIssue.category": "Aplicación",
   "help.reportIssue": "Informar de un problema",
   "help.reportIssue.category": "Ayuda",
+  "help.giveFeedback": "Enviar comentarios",
+  "help.giveFeedback.category": "Ayuda",
   "module.openManager": "Abrir el administrador de módulos",
   "module.openManager.category": "Módulos",
   "module.openManager.alias.0": "administrador de módulos",

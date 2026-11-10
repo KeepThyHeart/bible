@@ -52,6 +52,37 @@ describe('ReadingPlansPane', () => {
     expect(useActiveReadingStore.getState().ref).toMatchObject({ enrollmentId: enrollment.id, day: 2, index: 0 });
   });
 
+  it('moves focus to the Plans tab when "Choose a plan" removes itself', async () => {
+    installTestService();
+    const user = userEvent.setup();
+    render(<ReadingPlansPane />);
+    await user.click(await screen.findByRole('button', { name: 'Choose a plan' }));
+    await screen.findByRole('heading', { name: 'Plan library' });
+    expect(screen.getByRole('button', { name: 'Plans' })).toHaveFocus();
+  });
+
+  it('exposes aria-expanded on the reading plan settings disclosure', async () => {
+    installTestService();
+    const user = userEvent.setup();
+    render(<ReadingPlansPane />);
+    await user.click(await screen.findByRole('button', { name: 'Choose a plan' }));
+    const summary = (await screen.findByText('Reading plan settings')).closest('summary') as HTMLElement;
+    expect(summary).toHaveAttribute('aria-expanded', 'false');
+    await user.click(summary);
+    await waitFor(() => expect(summary).toHaveAttribute('aria-expanded', 'true'));
+  });
+
+  it('keeps focus on the Today tab after Start plan removes the form', async () => {
+    installTestService();
+    const user = userEvent.setup();
+    render(<ReadingPlansPane />);
+    await user.click(await screen.findByRole('button', { name: 'Choose a plan' }));
+    await user.click(await screen.findByRole('button', { name: 'Start The Gospels in 30 days' }));
+    await user.click(screen.getByRole('button', { name: 'Start plan' }));
+    await screen.findByRole('region', { name: 'The Gospels in 30 days' });
+    expect(screen.getByRole('button', { name: 'Today' })).toHaveFocus();
+  });
+
   it('unticks a reading from the Today card and the progress follows', async () => {
     const { service } = installTestService();
     const e = await service.startPlan('stock:gospels-30', { startDate: '2026-10-01', pacing: 'fixed' });
@@ -164,5 +195,74 @@ describe('ReadingPlansPane', () => {
     await user.click(screen.getAllByRole('button', { name: 'Remove' })[0]);
     await user.click(within(screen.getByRole('group', { name: 'Remove' })).getByRole('button', { name: 'Remove' }));
     await waitFor(async () => expect(await service.enrollments()).toHaveLength(0));
+  });
+
+  describe('inline Start form keyboard', () => {
+    async function openStart() {
+      installTestService();
+      const user = userEvent.setup();
+      render(<ReadingPlansPane />);
+      await user.click(await screen.findByRole('button', { name: 'Choose a plan' }));
+      const trigger = await screen.findByRole('button', { name: 'Start The Gospels in 30 days' });
+      await user.click(trigger);
+      await screen.findByTestId('reading-plans-start');
+      return { user, trigger };
+    }
+
+    it('Escape closes the form and returns focus to the Start button', async () => {
+      const { user, trigger } = await openStart();
+      await user.keyboard('{Escape}');
+      expect(screen.queryByTestId('reading-plans-start')).not.toBeInTheDocument();
+      expect(trigger).toHaveFocus();
+    });
+
+    it('Cancel closes the form and returns focus to the Start button', async () => {
+      const { user, trigger } = await openStart();
+      await user.click(within(screen.getByTestId('reading-plans-start')).getByRole('button', { name: 'Cancel' }));
+      expect(screen.queryByTestId('reading-plans-start')).not.toBeInTheDocument();
+      expect(trigger).toHaveFocus();
+    });
+  });
+
+  it('has an h1 heading for the app view that can take focus', async () => {
+    installTestService();
+    render(<ReadingPlansPane />);
+    const h1 = await screen.findByRole('heading', { level: 1 });
+    expect(h1).toHaveAttribute('tabindex', '-1');
+    expect(h1).toHaveTextContent(enT('readingPlans.title'));
+  });
+
+  describe('inline Remove confirmation keyboard', () => {
+    async function openConfirm() {
+      const { service } = installTestService();
+      await service.startPlan('stock:gospels-30');
+      const user = userEvent.setup();
+      render(<ReadingPlansPane />);
+      await user.click(await screen.findByRole('button', { name: 'Plans' }));
+      const row = await screen.findByTestId('reading-plans-enrollment');
+      const remove = within(row).getByRole('button', { name: /^Remove / });
+      await user.click(remove);
+      return { user, row, remove, service };
+    }
+
+    it('moves focus into the confirmation', async () => {
+      const { row } = await openConfirm();
+      const group = within(row).getByRole('group');
+      await waitFor(() => expect(within(group).getAllByRole('button')[0]).toHaveFocus());
+    });
+
+    it('Escape cancels and returns focus to Remove', async () => {
+      const { user, row, remove, service } = await openConfirm();
+      await user.keyboard('{Escape}');
+      expect(within(row).queryByRole('group')).not.toBeInTheDocument();
+      expect(remove).toHaveFocus();
+      expect(await service.enrollments()).toHaveLength(1);
+    });
+
+    it('Cancel returns focus to Remove instead of the page', async () => {
+      const { user, row, remove } = await openConfirm();
+      await user.click(within(within(row).getByRole('group')).getByRole('button', { name: 'Cancel' }));
+      expect(remove).toHaveFocus();
+    });
   });
 });

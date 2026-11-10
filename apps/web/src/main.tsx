@@ -1,3 +1,4 @@
+import { isPageLeaving } from './host/pageLeaving';
 import { render } from 'preact';
 import { isBootLoopTripped, showBootError } from './utils/bootGuard';
 import { runBoot } from './boot/runBoot';
@@ -26,6 +27,8 @@ if (isBootLoopTripped()) {
   console.warn('[Boot] Boot-loop detected — app start suppressed');
 } else {
   runBoot({ render: (vnode) => render(vnode, document.getElementById('app')!) }).catch(err => {
+    // A reload cut the boot short (WebKit rejects the in-flight imports): the page is going away.
+    if (isPageLeaving()) return;
     console.error('[PWA] Bootstrap failed:', err);
     // Show the error fallback UI defined in index.html
     const message = err instanceof TypeError && err.message.includes('fetch')

@@ -72,6 +72,9 @@ test.describe('Boot and pane state', () => {
       parsed.rightPaneMode = 'search';
       localStorage.setItem('bible-reader-commentary', JSON.stringify(parsed));
     });
+    // Reload only after the first load's requests (audio index, commentary) have finished:
+    // WebKit reports a fetch cut off by the reload as a page error.
+    await page.waitForLoadState('networkidle');
     await page.reload();
     await page.waitForSelector('.verse', { timeout: 15000 });
 

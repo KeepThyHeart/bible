@@ -58,4 +58,35 @@ describe('autoDownloadManager', () => {
     expect(manager.removeModule).toHaveBeenCalledWith(names[0]);
     expect(offlineStore.downloadedModules.map((m) => m.abbreviation).sort()).toEqual(names.slice(1).sort());
   });
+
+  // W-024
+  it('does not ping-pong re-downloads when three translations alternate', async () => {
+    const { triggerAutoDownload, manager, MIN_CHAPTER_READS } = await setup();
+    const names = ['KJV', 'ASV', 'WEB'];
+    for (const n of names) {
+      for (let i = 0; i < MIN_CHAPTER_READS; i++) triggerAutoDownload(n, n);
+      await flush();
+      await new Promise((r) => setTimeout(r, 2));
+    }
+    const downloadsAfterSettling = manager.downloadModuleLite.mock.calls.length;
+    for (let round = 0; round < 5; round++) {
+      for (const n of names) { triggerAutoDownload(n, n); await flush(); }
+    }
+    expect(manager.downloadModuleLite.mock.calls.length).toBe(downloadsAfterSettling);
+    expect(offlineStore.downloadedModules.length).toBe(2);
+  });
+
+  // W-024
+  it('does not evict a good copy when the new download fails', async () => {
+    const { triggerAutoDownload, manager, MIN_CHAPTER_READS } = await setup();
+    for (const n of ['A', 'B']) {
+      for (let i = 0; i < MIN_CHAPTER_READS; i++) triggerAutoDownload(n, n);
+      await flush();
+    }
+    manager.downloadModuleLite.mockRejectedValueOnce(new Error('network'));
+    for (let i = 0; i < MIN_CHAPTER_READS; i++) triggerAutoDownload('C', 'C');
+    await flush();
+    expect(manager.removeModule).not.toHaveBeenCalled();
+    expect(offlineStore.downloadedModules.map((m) => m.abbreviation).sort()).toEqual(['A', 'B']);
+  });
 });

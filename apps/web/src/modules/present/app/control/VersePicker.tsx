@@ -4,7 +4,7 @@ import { useStore } from '../../../../hooks/useStore';
 import { MAX_CHAPTERS } from '../../../../constants';
 import { moduleStore } from '../../../../stores/moduleStore';
 import { presentStore } from '../../stores/presentStore';
-import { presenterShow } from '../presenterSink';
+import { presenterShow, usePresenterState } from '../presenterSink';
 import { settingsStore } from '../../../../stores/settingsStore';
 import type { PresentItem } from '../../lib/protocol';
 
@@ -16,9 +16,12 @@ import type { PresentItem } from '../../lib/protocol';
 export function VersePicker(props: { onAddToNotes?: (item: PresentItem) => void; onDone: () => void }) {
   const { t } = useTranslation();
   const bibles = useStore(moduleStore, () => moduleStore.getBibleModules());
-  const [module, setModule] = useState(() => settingsStore.getDefaultBible());
-  const [book, setBook] = useState(43);
-  const [chapter, setChapter] = useState(1);
+  // Start where the screen is: the passage on it, else John 1 in the reader's translation.
+  const shown = usePresenterState()?.live;
+  const seed = shown?.kind === 'passage' ? shown : null;
+  const [module, setModule] = useState(() => seed?.module ?? settingsStore.getDefaultBible());
+  const [book, setBook] = useState(() => seed?.book ?? 43);
+  const [chapter, setChapter] = useState(() => seed?.chapter ?? 1);
   const [verse, setVerse] = useState('');
 
   const maxChapter = MAX_CHAPTERS[book] ?? 1;

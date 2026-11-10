@@ -81,4 +81,23 @@ describe('PrivacySection', () => {
     expect(setAllowWebRequests).toHaveBeenCalledWith(false);
     await waitFor(() => expect(checkbox).not.toBeChecked());
   });
+
+  it('keeps the checkbox enabled and focused, and says why, while the native dialog is open', async () => {
+    let resolve!: (v: { ok: boolean; value: boolean }) => void;
+    setAllowWebRequests.mockReturnValue(new Promise(r => { resolve = r; }));
+    render(<PrivacySection />);
+    const box = screen.getByTestId('privacy-allow-web-requests-checkbox');
+    box.focus();
+    await userEvent.click(box);
+
+    expect(box).not.toBeDisabled();
+    expect(box).toHaveFocus();
+    expect(box).toHaveAttribute('aria-busy', 'true');
+    expect(screen.getByRole('status')).toHaveTextContent(/confirmation/i);
+
+    resolve({ ok: true, value: false });
+    await waitFor(() => expect(box).toHaveAttribute('aria-busy', 'false'));
+    expect(box).toHaveFocus();
+    expect(screen.getByRole('status')).toHaveTextContent('');
+  });
 });

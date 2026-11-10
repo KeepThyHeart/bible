@@ -110,6 +110,8 @@ export interface XrefWebViewProps {
   formatRef?: FormatRef;
   getVerseText?: (verseId: VerseId, endVerseId?: VerseId) => Promise<string | undefined>;
   initialDepth?: 1 | 2 | 3;
+  /** Called when the user picks a hop count, so a host can keep it across views. */
+  onDepthChange?: (depth: 1 | 2 | 3) => void;
   initialMaxNodes?: number;
   labels?: Partial<XrefWebViewLabels>;
   dir?: 'ltr' | 'rtl';
@@ -127,6 +129,7 @@ export function XrefWebView({
   formatRef = defaultFormatRef,
   getVerseText,
   initialDepth = 2,
+  onDepthChange,
   initialMaxNodes = 60,
   labels: labelOverrides,
   dir,
@@ -570,7 +573,7 @@ export function XrefWebView({
         <button type="button" className="kth-xref-web__btn" onClick={goBack} disabled={history.length === 0}>
           {L.back}
         </button>
-        <XrefDepthControl labels={L} depth={depth} onChange={setDepth} className="kth-xref-web__btn" />
+        <XrefDepthControl labels={L} depth={depth} onChange={(d) => { setDepth(d); onDepthChange?.(d); }} className="kth-xref-web__btn" />
         <XrefStrengthControl labels={L} step={minStep} onChange={setMinStep} />
         <div className="kth-xref-web__group" role="group" aria-label={L.zoom}>
           <button type="button" className="kth-xref-web__btn" aria-label={L.zoomOut} title={L.zoomOut} onClick={() => zoomBy(1 / 1.3)}>&minus;</button>
@@ -584,7 +587,6 @@ export function XrefWebView({
         <button
           type="button"
           className="kth-xref-web__btn"
-          aria-pressed={showList}
           onClick={() => setShowList((s) => !s)}
         >
           {showList ? L.hideList : L.showList}

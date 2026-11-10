@@ -6,6 +6,7 @@ import { pickDefaultBible } from '../../../../../electron/ipc/defaultBible';
 import { encodeBibleContentKey } from '../contentKey';
 import { DEFAULT_PANEL_ID, updatePanelState } from '../../helpers/panelStateHelpers';
 import { useLayoutStore } from '../../useLayoutStore';
+import { isDetachedWindow } from '../../../utils/isDetachedWindow';
 import {
   BibleState,
   BibleModule,
@@ -256,6 +257,14 @@ export const createSharedSlice: StateCreator<BibleState, [], [], SharedSlice> = 
   // (convenience for commentary, search, etc.)
   navigateToVerseInPrimary: async (verseId: number, endVerseId?: number) => {
     const { panels } = get();
+
+    // A popped-out commentary / study / notes window has no Bible pane and no dockview, so there is
+    // nothing here to navigate (adding a panel fails). The reader's Bible pane is in the main window.
+    if (panels.size === 0 && isDetachedWindow() && window.electron?.window?.navigateMainToVerse) {
+      const r = await window.electron.window.navigateMainToVerse(verseId).catch((e: unknown) => ({ success: false, error: String(e) }));
+      if (!r.success) console.warn('[useBibleStore] could not open the passage in the main window:', r.error);
+      return;
+    }
 
     // Prefer the Bible panel the user most recently had focus in. This is
     // deliberately "last active Bible panel" rather than "currently active

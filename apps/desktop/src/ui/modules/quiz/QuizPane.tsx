@@ -261,6 +261,8 @@ const QuizPane: React.FC = () => {
 
   return (
     <div className="h-full w-full overflow-auto" data-testid="quiz-pane" style={shell}>
+      {/* The stage focuses an app's first h1[tabindex=-1] when it opens (as Memory and Reading plans do). */}
+      <h1 tabIndex={-1} className="sr-only">{t('quizPane.title')}</h1>
       <QuizPanel
         catalog={state.status === 'ready' ? state.catalog : null}
         engine={engine}

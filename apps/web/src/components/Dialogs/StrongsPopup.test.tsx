@@ -80,12 +80,39 @@ describe('StrongsPopup', () => {
     expect(container.querySelector('.strongs-popup')).toBeTruthy();
   });
 
+  it('is a modal dialog: focus moves in, close button is named, focus returns to the opener', async () => {
+    const opener = document.createElement('button');
+    document.body.appendChild(opener);
+    opener.focus();
+    const { rerender } = render(
+      <div><StrongsPopup entry={makeEntry()} position={DEFAULT_POSITION} onClose={vi.fn()} /></div>,
+    );
+    const dialog = await screen.findByRole('dialog');
+    expect(dialog.getAttribute('aria-modal')).toBe('true');
+    await vi.waitFor(() => expect(dialog.contains(document.activeElement)).toBe(true));
+    expect(screen.getByRole('button', { name: 'common.close' })).toBeTruthy();
+    rerender(<div><StrongsPopup entry={null} position={DEFAULT_POSITION} onClose={vi.fn()} /></div>);
+    await vi.waitFor(() => expect(document.activeElement).toBe(opener));
+    opener.remove();
+  });
+
   it('displays the Strongs number and word', () => {
     render(
       <StrongsPopup entry={makeEntry()} position={DEFAULT_POSITION} onClose={vi.fn()} />,
     );
     expect(screen.getByText('G25')).toBeTruthy();
     expect(screen.getByText('ἀγάπη')).toBeTruthy();
+  });
+
+  it('marks a Hebrew lemma lang=he dir=rtl, and leaves Greek alone (B-179)', () => {
+    const { container } = render(
+      <StrongsPopup entry={makeEntry({ strongsNumber: 'H430', word: 'אֱלֹהִים' })} position={DEFAULT_POSITION} onClose={vi.fn()} />,
+    );
+    const word = container.querySelector('.strongs-popup__word')!;
+    expect(word.getAttribute('lang')).toBe('he');
+    expect(word.getAttribute('dir')).toBe('rtl');
+    const greek = render(<StrongsPopup entry={makeEntry()} position={DEFAULT_POSITION} onClose={vi.fn()} />);
+    expect(greek.container.querySelector('.strongs-popup__word')!.getAttribute('lang')).toBeNull();
   });
 
   it('applies the position style to the popup element', () => {

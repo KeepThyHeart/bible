@@ -128,7 +128,7 @@ jobs:
       - uses: actions/checkout@v7
 
       # The pnpm version comes from `packageManager` in the root package.json.
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
 
       - uses: actions/setup-node@v7
         with:
@@ -167,6 +167,15 @@ jobs:
         shell: bash
         env:
           BIBLE_RELEASE_PROFILE: base
+          # Feedback / issue reports. The URL defaults to the official
+          # https://bible.keepthyheart.com/api/desktop-report (constants.ts);
+          # set the DIAGNOSTICS_URL variable to override it, or to `none` to
+          # build without one. The token must match `desktopReports.token` in
+          # the server's site-config.json: without it the server answers 404 and
+          # reports stay queued on the user's machine. Dry runs (the `dry-run`
+          # environment) have no secret, so they build without a token.
+          BIBLE_DIAGNOSTICS_URL: ${{ vars.DIAGNOSTICS_URL }}
+          BIBLE_DIAGNOSTICS_TOKEN: ${{ secrets.DIAGNOSTICS_TOKEN }}
         run: |
           # Unset signing values that are empty (no secret, or not the mac job)
           # so electron-builder sees them as absent. See the job's `env`.

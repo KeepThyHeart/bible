@@ -105,6 +105,21 @@ export async function saveNoteAbsolute(
   return invoke<string>('file-notes:save-note-absolute', absolutePath, note, expectedUpdated);
 }
 
+/** Pushed by the main process to every window except the one that saved a note. */
+export interface NoteSavedEvent {
+  absolutePath: string;
+  updated: string;
+  senderId: number;
+}
+
+/**
+ * Subscribe to "a note was saved in another window". Returns an unsubscribe
+ * function (a no-op when the bridge is unavailable, e.g. in tests or the web build).
+ */
+export function onNoteSaved(cb: (event: NoteSavedEvent) => void): () => void {
+  return window.electron?.fileNotes?.onNoteSaved?.(cb) ?? (() => {});
+}
+
 /** Create a folder */
 export async function createFolder(relativePath: string): Promise<void> {
   await invoke<void>('file-notes:create-folder', relativePath);

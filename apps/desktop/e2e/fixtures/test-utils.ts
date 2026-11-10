@@ -17,6 +17,35 @@ import { Page, expect } from '@playwright/test';
 export const DEFAULT_OPEN_PANES = ['Bible', 'Study', 'Commentary'] as const;
 
 /**
+ * Wait until every installed module's keyword index is built (none unbuilt or building).
+ *
+ * With the committed fixture each launch builds its own tiny indexes in the background after startup
+ * (globalSetup only pre-builds them for real data), so a spec that searches must wait for them or it
+ * can see "no results". Polls the same status API globalSetup.ts uses. With real data the indexes are
+ * already ready and this returns on the first poll.
+ */
+export async function waitForKeywordIndexes(page: Page, budgetMs = 30_000): Promise<void> {
+  const deadline = Date.now() + budgetMs;
+  let pending: string[] = [];
+  for (;;) {
+    pending = await page.evaluate(async () => {
+      const unwrap = (r: unknown): any => (r && typeof r === 'object' && 'ok' in r ? (r as any).value : r);
+      const api = (globalThis as any).electron.moduleManager;
+      const modules: Array<{ module_id: number; abbreviation?: string; name?: string }> = unwrap(await api.getInstalledModules()) ?? [];
+      const out: string[] = [];
+      for (const m of modules) {
+        const status = unwrap(await api.getKeywordIndexStatus(m.module_id));
+        if (status?.state === 'unbuilt' || status?.state === 'building') out.push(`${m.abbreviation ?? m.name ?? m.module_id} (${status.state})`);
+      }
+      return out;
+    });
+    if (pending.length === 0) return;
+    if (Date.now() > deadline) throw new Error(`Keyword indexes not ready after ${budgetMs / 1000}s: ${pending.join(', ')}`);
+    await page.waitForTimeout(500);
+  }
+}
+
+/**
  * Wait until the app is genuinely usable, rather than sleeping and hoping.
  *
  * `app-loaded` is attached as soon as the React tree mounts, which is well

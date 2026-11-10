@@ -194,6 +194,13 @@ describe('ModuleTable', () => {
     expect(screen.getByTestId('module-row-update-MMM')).toBeDisabled();
   });
 
+  it('explains why store installs are off while offline (U-229)', () => {
+    renderTable({ offline: true });
+    const btn = screen.getByTestId('module-row-install-ZZZ');
+    expect(btn).toHaveAttribute('aria-disabled', 'true');
+    expect(btn).toHaveAttribute('title', expect.stringMatching(/network access to install/i));
+  });
+
   it('Installed filter lists only installed modules', () => {
     renderTable({ installFilter: 'installed' });
     expect(rowOrder()).toEqual(['MMM', 'AAA']);

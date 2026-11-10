@@ -264,7 +264,7 @@ describe('SettingsPanel', () => {
 
   it('renders the language picker from selectableLocaleInfos(), not a hard-coded option', () => {
     const { container } = render(<SettingsPanel isOpen={true} onClose={onClose} />);
-    fireEvent.click(container.querySelector<HTMLElement>('[data-tab="about"]')!);
+    fireEvent.click(container.querySelector<HTMLElement>('[data-tab="language"]')!);
     const options = container.querySelectorAll('.settings-select option');
     expect(options.length).toBe(1);
     expect(options[0].getAttribute('value')).toBe('en');
@@ -280,7 +280,7 @@ describe('SettingsPanel', () => {
     ];
     try {
       const { container } = render(<SettingsPanel isOpen={true} onClose={onClose} />);
-      fireEvent.click(container.querySelector<HTMLElement>('[data-tab="about"]')!);
+      fireEvent.click(container.querySelector<HTMLElement>('[data-tab="language"]')!);
       const text = (code: string) =>
         container.querySelector(`.settings-select option[value="${code}"]`)!.textContent;
       // `t` is mocked to echo the key, so the key proves the Preview label is used.
@@ -439,6 +439,39 @@ describe('SettingsPanel', () => {
     const { container } = render(<SettingsPanel isOpen={true} onClose={onClose} />);
     const offlineTab = container.querySelector('[data-tab="offline"]');
     expect(offlineTab).toBeNull();
+  });
+
+  // 0209 W3: accessible names and state.
+  it('marks the active left-nav tab with aria-current and no other', () => {
+    const { container } = render(<SettingsPanel isOpen={true} onClose={onClose} />);
+    expect(container.querySelector('[data-tab="text-size"]')!.getAttribute('aria-current')).toBe('page');
+    expect(container.querySelector('[data-tab="theme"]')!.hasAttribute('aria-current')).toBe(false);
+    fireEvent.click(container.querySelector<HTMLElement>('[data-tab="theme"]')!);
+    expect(container.querySelector('[data-tab="theme"]')!.getAttribute('aria-current')).toBe('page');
+    expect(container.querySelector('[data-tab="text-size"]')!.hasAttribute('aria-current')).toBe(false);
+  });
+
+  it('reports the Advanced toggle as expanded or collapsed', () => {
+    const { container } = render(<SettingsPanel isOpen={true} onClose={onClose} />);
+    const toggle = container.querySelector<HTMLElement>('.settings-panel__advanced-toggle')!;
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    fireEvent.click(toggle);
+    expect(toggle.getAttribute('aria-expanded')).toBe('true');
+  });
+
+  it('gives colour-theme and font-scheme buttons a pressed state', () => {
+    const { container } = render(<SettingsPanel isOpen={true} onClose={onClose} />);
+    fireEvent.click(container.querySelector<HTMLElement>('[data-tab="theme"]')!);
+    expect(container.querySelector('[data-theme-id="light"]')!.getAttribute('aria-pressed')).toBe('true');
+    expect(container.querySelector('[data-theme-id="dark"]')!.getAttribute('aria-pressed')).toBe('false');
+    const scheme = container.querySelector('.settings-panel__scheme-card')!;
+    expect(scheme.getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('names the Language select after its visible section heading', () => {
+    const { container } = render(<SettingsPanel isOpen={true} onClose={onClose} />);
+    fireEvent.click(container.querySelector<HTMLElement>('[data-tab="language"]')!);
+    expect(screen.getByRole('combobox', { name: 'settings.language.title' })).toBeTruthy();
   });
 });
 

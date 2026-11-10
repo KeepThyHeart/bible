@@ -1,6 +1,8 @@
 import { Store } from './Store';
 import { bibleStore } from './bibleStore';
+import { STRONGS_LOAD_MORE_STEP, SEMANTIC_LOAD_MORE_STEP, SEMANTIC_MAX_RESULTS } from './searchPaging';
 import { parseReference, headerBookAliases } from '../components/Header';
+import { dedupeSemanticResults } from './dedupeSemanticResults';
 import { formatPassageRef } from '../constants';
 import { getLocalizer, stripBidiControls, type RemoteSemantic } from '@bible/core/browser';
 import i18n from '../i18n';
@@ -48,6 +50,7 @@ const KEYWORD_MAX_RESULTS = 5000;
 /** How many occurrences a Strong's search asks for per page. */
 const STRONGS_PAGE_SIZE = 100;
 
+
 /**
  * Ceiling for "Load All", matching the server's own cap (MAX_STRONGS_RESULTS in
  * server/routes/searchRoutes.ts). Asking for more just gets clamped there.
@@ -91,6 +94,12 @@ class SearchStore extends Store {
    * Enter in the search box looks like it did nothing.
    */
   searchSeq = 0;
+  /**
+   * W-035: the server's own validation message when it rejected the query (400, e.g.
+   * "Unmatched quote in search query"). Safe text, rendered as text only. Empty for
+   * everything else, so a real network failure keeps the ordinary empty-result state.
+   */
+  searchError = '';
   /** Bumped by every keyword/semantic run and by `setSearchType` to abandon in-flight ones. */
   private runId = 0;
   /** Verse ID detected from a reference in the search query (shown first in results) */
@@ -106,6 +115,9 @@ class SearchStore extends Store {
   semanticMeta: RemoteSemantic.SemanticMeta | undefined = undefined;
   /** Modules used for the parallel keyword search (needed to switch) */
   private lastKeywordModules: string[] = [];
+
+  /** The translation(s) the current results were run in (B-005): results stay when the reader switches translation. */
+  get searchedModules(): string[] { return this.lastKeywordModules; }
   /** Translation the current semantic results were hydrated in; see loadMoreSemantic. */
   private lastSemanticModules: string[] = [];
   /**
@@ -245,6 +257,7 @@ class SearchStore extends Store {
 
     this.query = query;
     this.searchType = type ?? this.searchType;
+    this.searchError = '';
     this.searchSeq++;
     // Identifies this run, so a search the reader has since abandoned (by
     // switching to Ideas mode, see `setSearchType`) cannot land its results.
@@ -298,8 +311,8 @@ class SearchStore extends Store {
         ]);
         if (runId !== this.runId) return;
 
-        this.results = semanticResult.results;
-        this.totalResults = semanticResult.total;
+        this.results = dedupeSemanticResults(semanticResult.results);
+        this.totalResults = Math.max(this.results.length, semanticResult.total - (semanticResult.results.length - this.results.length));
         this.semanticMeta = semanticResult.semantic;
         // The whole match set, not the page the endpoint happened to return —
         // "N keyword matches" in the banner is a reason to switch modes, and
@@ -322,7 +335,10 @@ class SearchStore extends Store {
       this.notify();
     } catch (error) {
       if (runId !== this.runId) return;
-      console.error('Search failed:', error);
+      const vm = (error as { validationMessage?: unknown } | null)?.validationMessage;
+      // A rejected query (unbalanced quote...) is the user's input, shown in the panel, not an app error.
+      if (typeof vm !== 'string') console.error('Search failed:', error);
+      this.searchError = typeof vm === 'string' ? vm : '';
       this.results = [];
       this.totalResults = 0;
       this.loading = false;
@@ -341,6 +357,9 @@ class SearchStore extends Store {
 
     this.query = displayNum;
     this.searchSeq++;
+    // W-021: also abandons an in-flight keyword/semantic run, which checks runId only.
+    this.runId++;
+    this.searchError = '';
     this.loading = true;
     this.results = [];
     this.totalResults = 0;
@@ -380,8 +399,10 @@ class SearchStore extends Store {
       this.loading = false;
       this.notify();
     } catch (error) {
-      console.error('Strong\'s search failed:', error);
       if (seq !== this.searchSeq) return;
+      const vm = (error as { validationMessage?: unknown } | null)?.validationMessage;
+      if (typeof vm !== 'string') console.error('Strong\'s search failed:', error);
+      this.searchError = typeof vm === 'string' ? vm : '';
       this.results = [];
       this.totalResults = 0;
       this.loading = false;
@@ -481,7 +502,7 @@ class SearchStore extends Store {
 
   /** Load one more page of Strong's occurrences. */
   async loadMoreStrongs(): Promise<void> {
-    return this.fetchStrongsPage(this.strongsPageSize + STRONGS_PAGE_SIZE);
+    return this.fetchStrongsPage(this.strongsPageSize + STRONGS_LOAD_MORE_STEP);
   }
 
   /** Load every remaining occurrence for the current Strong's search. */
@@ -593,22 +614,28 @@ class SearchStore extends Store {
     this.loadingMore = true;
     this.notify();
 
+    // W-022: a new query while this page loads must not be overwritten by it.
+    const seq = this.searchSeq;
+    const runId = this.runId;
     try {
-      this.semanticPageSize += 20;
+      this.semanticPageSize = Math.min(this.semanticPageSize + SEMANTIC_LOAD_MORE_STEP, SEMANTIC_MAX_RESULTS);
       const resultSet = await this.search.semanticSearch(this.query, {
         pageSize: this.semanticPageSize,
         modules: this.lastSemanticModules,
       });
+      if (seq !== this.searchSeq || runId !== this.runId) return;
 
-      this.results = resultSet.results;
-      this.totalResults = resultSet.total;
+      this.results = dedupeSemanticResults(resultSet.results);
+      this.totalResults = Math.max(this.results.length, resultSet.total - (resultSet.results.length - this.results.length));
       this.semanticMeta = resultSet.semantic;
       // If we got fewer than requested, no more to load
-      this.canLoadMore = resultSet.results.length >= this.semanticPageSize;
+      this.canLoadMore = resultSet.results.length >= this.semanticPageSize
+        && this.semanticPageSize < SEMANTIC_MAX_RESULTS;
       this.loadingMore = false;
       this.notify();
     } catch (error) {
       console.error('Load more failed:', error);
+      if (seq !== this.searchSeq || runId !== this.runId) return;
       this.loadingMore = false;
       this.canLoadMore = false;
       this.notify();
@@ -649,6 +676,10 @@ class SearchStore extends Store {
   setSearchType(type: 'keyword' | 'semantic'): void {
     if (this.searchType === type) return;
     this.searchType = type;
+    // Leaving Ideas ends the "Ideas search is unavailable" notice: it is about Ideas only.
+    if (type === 'keyword' && this.semanticInit.status === 'error') {
+      this.semanticInit = { status: 'idle', stage: '', detail: '' };
+    }
 
     if (type === 'semantic') {
       // Abandon anything in flight so a slow keyword search cannot land its
@@ -676,7 +707,11 @@ class SearchStore extends Store {
     }
   }
 
+  /** Bumped by `clear()` so the header's search box can empty itself on a reset it did not start. */
+  clearSeq = 0;
+
   clear(): void {
+    this.clearSeq++;
     this.resetResults();
     this.isOpen = false;
     this.notify();
@@ -685,6 +720,7 @@ class SearchStore extends Store {
   /** Drop the query and every result, leaving `isOpen` as it was. */
   private resetResults(): void {
     this.query = '';
+    this.searchError = '';
     this.results = [];
     this.semanticMeta = undefined;
     this.totalResults = 0;

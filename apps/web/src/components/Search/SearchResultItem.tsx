@@ -3,6 +3,9 @@ import { sanitizeHtml } from '../../utils/sanitize';
 import type { SearchResultData } from '../../types';
 import { moduleContentAttrs } from '../../utils/contentDirection';
 import { Bdi } from '@bible/ui';
+import { useStore } from '../../hooks/useStore';
+import { settingsStore } from '../../stores/settingsStore';
+import { applyRedLetterSetting } from '../../utils/verseHtml';
 
 interface SearchResultItemProps {
   result: SearchResultData;
@@ -20,12 +23,24 @@ interface SearchResultItemProps {
 
 export function SearchResultItem({ result, onClick, onCtrlClick, lastClicked, resultId }: SearchResultItemProps) {
   const { t } = useTranslation();
+  // Words of Christ are red here as in the Bible pane (the server marks them `christ-words`).
+  const wordsOfChristInRed = useStore(settingsStore, () => settingsStore.wordsOfChristInRed);
 
   const handleClick = (e: MouseEvent) => {
     if (e.ctrlKey || e.metaKey) {
       onCtrlClick(result);
     } else {
       onClick(result);
+    }
+  };
+
+  // W-034: the row is a control, so a keyboard user can reach and open it (Ctrl/Cmd+Enter = new tab).
+  const handleKeyDown = (e: KeyboardEvent) => {
+    if (e.target !== e.currentTarget) return;
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      if (e.ctrlKey || e.metaKey) onCtrlClick(result);
+      else onClick(result);
     }
   };
 
@@ -39,6 +54,9 @@ export function SearchResultItem({ result, onClick, onCtrlClick, lastClicked, re
       class={`search-result-item${lastClicked ? ' search-result-item--last-clicked' : ''}${isFuzzy ? ' search-result-item--fuzzy' : ''}`}
       data-result-id={resultId}
       onClick={handleClick}
+      role="button"
+      tabIndex={0}
+      onKeyDown={handleKeyDown}
     >
       <div class="search-result-item__ref">
         <span class="search-result-item__reference"><Bdi>{result.reference}</Bdi></span>
@@ -53,7 +71,7 @@ export function SearchResultItem({ result, onClick, onCtrlClick, lastClicked, re
       <div
         class="search-result-item__text"
         {...moduleContentAttrs(result.module)}
-        dangerouslySetInnerHTML={{ __html: sanitizeHtml(result.snippet || result.text) }}
+        dangerouslySetInnerHTML={{ __html: sanitizeHtml(applyRedLetterSetting(result.snippet || result.text, wordsOfChristInRed)) }}
       />
     </div>
   );

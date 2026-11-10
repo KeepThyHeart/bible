@@ -382,6 +382,14 @@ export interface ElectronAPI {
     onVerseChanged: (callback: (verseId: number) => void) => void;
     // Listen for extension-driven verse navigation requests
     onExtensionNavigateToVerse: (callback: (verseId: number) => void) => void;
+    // Ask the main window to open a passage (a detached window has no Bible pane of its own)
+    navigateMainToVerse: (verseId: number, newPanel?: boolean) => Promise<{ success: boolean; error?: string }>;
+    // Main window: another window asked for a passage
+    onNavigateToVerse: (callback: (verseId: number, newPanel: boolean) => void) => void;
+    // Theme / font settings: published by the main window, followed by popped-out windows
+    broadcastAppearance: (appearance: Record<string, unknown>) => Promise<{ success: boolean; error?: string }>;
+    getAppearance: () => Promise<Record<string, unknown> | null>;
+    onAppearanceChanged: (callback: (appearance: Record<string, unknown>) => void) => void;
   };
 
   // App-level events
@@ -426,6 +434,13 @@ export interface ElectronAPI {
      * `installModule` below.
      */
     getStarterPacks: (languageCode: string) => Promise<Result<OfferedStarterPack[]>>;
+    /**
+     * Fired when the main process registers modules on its own - the startup
+     * scan finding module files on disk that were not in the registry. The
+     * renderer reloads its installed list (which tells the panes). Returns an
+     * unsubscribe function.
+     */
+    onLibraryChanged: (cb: (event: { moduleTypes: string[] }) => void) => () => void;
     /** Resolve a starter pack's module ids to their catalog entries, scoped to `catalogId` (its `source.catalogId`). */
     getStarterPackModules: (
       packId: string,
@@ -560,13 +575,24 @@ export interface ElectronAPI {
     deleteAll: () => Promise<unknown>;
     submitCrashReport: (args: { reportId: string; description?: string }) => Promise<unknown>;
     submitManualReport: (args: { description: string; includeDiagnostics: boolean }) => Promise<unknown>;
-    submitFeedback: (args: { description: string }) => Promise<unknown>;
+    submitFeedback: (args: { description: string; contact?: string }) => Promise<unknown>;
+    /** Try to send a just-submitted report now; resolves with a `DeliveryResult`. */
+    deliverReport: (reportId: string) => Promise<unknown>;
     getStateSnapshot: () => Promise<unknown>;
     getConfig: () => Promise<unknown>;
     setConfig: (patch: Record<string, unknown>) => Promise<unknown>;
     reportRendererError: (payload: { message: string; stack?: string; componentStack?: string }) => Promise<unknown>;
     flushNow: () => Promise<unknown>;
     onCrashDetected: (handler: (payload: { id: string }) => void) => () => void;
+  };
+
+  // File notes: push events. (Invokes go through ipcRenderer.invoke.)
+  fileNotes: {
+    /**
+     * Fires in every window except the one that saved a note, so a note open in
+     * several windows can reload (or flag a conflict). Returns an unsubscribe.
+     */
+    onNoteSaved: (cb: (event: { absolutePath: string; updated: string; senderId: number }) => void) => () => void;
   };
 
   // Network privacy - master "Allow web requests" switch. Replies use
@@ -1097,6 +1123,22 @@ const electronAPI: ElectronAPI = {
     // Listen for extension-driven verse navigation requests
     onExtensionNavigateToVerse: (callback: (verseId: number) => void) => {
       ipcRenderer.on('extension:navigate-to-verse', (_event, verseId: number) => callback(verseId));
+    },
+
+    navigateMainToVerse: (verseId: number, newPanel?: boolean) =>
+      ipcRenderer.invoke('window:navigate-main-to-verse', verseId, newPanel === true),
+
+    onNavigateToVerse: (callback: (verseId: number, newPanel: boolean) => void) => {
+      ipcRenderer.on('window:navigate-to-verse', (_event, verseId: number, newPanel: boolean) => callback(verseId, newPanel === true));
+    },
+
+    broadcastAppearance: (appearance: Record<string, unknown>) =>
+      ipcRenderer.invoke('window:broadcast-appearance', appearance),
+
+    getAppearance: () => ipcRenderer.invoke('window:get-appearance'),
+
+    onAppearanceChanged: (callback: (appearance: Record<string, unknown>) => void) => {
+      ipcRenderer.on('appearance-changed', (_event, appearance: Record<string, unknown>) => callback(appearance));
     }
   },
 
@@ -1131,6 +1173,13 @@ const electronAPI: ElectronAPI = {
     // Starter packs for a UI locale, and the catalog entries one names.
     getStarterPacks: (languageCode: string) =>
       typedInvoke('module:get-starter-packs', languageCode),
+    onLibraryChanged: (cb: (event: { moduleTypes: string[] }) => void) => {
+      const wrapped = (_event: unknown, payload: { moduleTypes: string[] }): void => cb(payload);
+      ipcRenderer.on('module:library-changed', wrapped);
+      return () => {
+        ipcRenderer.removeListener('module:library-changed', wrapped);
+      };
+    },
     getStarterPackModules: (packId: string, catalogId: number) =>
       typedInvoke('module:get-starter-pack-modules', packId, catalogId),
     // Install module
@@ -1241,8 +1290,10 @@ const electronAPI: ElectronAPI = {
       ipcRenderer.invoke('diagnostics:submit-crash-report', args),
     submitManualReport: (args: { description: string; includeDiagnostics: boolean }) =>
       ipcRenderer.invoke('diagnostics:submit-manual-report', args),
-    submitFeedback: (args: { description: string }) =>
+    submitFeedback: (args: { description: string; contact?: string }) =>
       ipcRenderer.invoke('diagnostics:submit-feedback', args),
+    deliverReport: (reportId: string) =>
+      ipcRenderer.invoke('diagnostics:deliver-report', reportId),
     getStateSnapshot: () => ipcRenderer.invoke('diagnostics:get-state-snapshot'),
     getConfig: () => ipcRenderer.invoke('diagnostics:get-config'),
     setConfig: (patch: Record<string, unknown>) =>
@@ -1255,6 +1306,17 @@ const electronAPI: ElectronAPI = {
       ipcRenderer.on('diagnostics:crash-detected', wrapped);
       return () => {
         ipcRenderer.removeListener('diagnostics:crash-detected', wrapped);
+      };
+    },
+  },
+
+  fileNotes: {
+    onNoteSaved: (cb: (event: { absolutePath: string; updated: string; senderId: number }) => void) => {
+      const wrapped = (_event: unknown, payload: { absolutePath: string; updated: string; senderId: number }): void =>
+        cb(payload);
+      ipcRenderer.on('file-notes:note-saved', wrapped);
+      return () => {
+        ipcRenderer.removeListener('file-notes:note-saved', wrapped);
       };
     },
   },

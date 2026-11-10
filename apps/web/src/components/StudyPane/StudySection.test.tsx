@@ -186,3 +186,20 @@ describe('StudySection', () => {
     expect(container.querySelector('.study-pane__section')).toBeTruthy();
   });
 });
+
+describe('StudySection keyboard access (W-065)', () => {
+  beforeEach(() => sessionStorage.clear());
+
+  it('header is a focusable button with aria-expanded that Enter and Space toggle', () => {
+    render(<StudySection id="kb" label="Topics"><div>content</div></StudySection>);
+    const header = screen.getByRole('button', { name: /Topics/ });
+    expect(header.getAttribute('tabindex')).toBe('0');
+    expect(header.getAttribute('aria-expanded')).toBe('false');
+    fireEvent.keyDown(header, { key: 'Enter' });
+    expect(header.getAttribute('aria-expanded')).toBe('true');
+    expect(screen.getByText('content')).toBeTruthy();
+    fireEvent.keyDown(header, { key: ' ' });
+    expect(header.getAttribute('aria-expanded')).toBe('false');
+    expect(screen.queryByText('content')).toBeNull();
+  });
+});

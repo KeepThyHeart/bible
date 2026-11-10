@@ -15,6 +15,8 @@
 
 import { test, expect, Page } from '../fixtures/electron.fixture';
 import { selectVerse as clickVerse } from '../fixtures/test-utils';
+import { needsRealData } from '../fixtures/dataDir';
+
 
 /**
  * The "Studying <reference>" banner.
@@ -80,6 +82,9 @@ async function studyVerse(window: Page, verseNum: number): Promise<void> {
   await activateStudyTab(window);
   await expect(studyingBanner(window)).toBeVisible({ timeout: 20000 });
 }
+
+// Modules the committed fixture lacks: skipped unless real data is given (BIBLE_E2E_DATA_DIR).
+needsRealData(test.skip, 'NaveTopics', 'TSKxref');
 
 test.describe('Study Pane', () => {
 

@@ -4,6 +4,13 @@ Playwright against the real Express server and the built client, in five browser
 projects: `desktop-chrome`, `tablet-chrome`, `mobile-chrome`, `mobile-safari`,
 `desktop-safari`.
 
+## Data
+
+With no `BIBLE_E2E_DATA_DIR` the suite runs on the committed public-domain fixture (`fixtures/bible-data`,
+see its README for contents and how to rebuild), copied to `e2e/.data/fixture` per run. Set
+`BIBLE_E2E_DATA_DIR=/path/to/data` (a directory holding `main.db` and `modules/`) to use real data; specs
+needing modules the fixture lacks skip without it.
+
 ## Running
 
 ```bash

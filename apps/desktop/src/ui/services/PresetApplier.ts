@@ -1,5 +1,6 @@
 import type { DockviewApi, SerializedDockview } from 'dockview-react';
 import type { LayoutPreset, PresetGroup } from '../types/LayoutPreset';
+import { reapplyTabRolesSoon } from '../hooks/useDockviewTabA11y';
 import type { PanelContentType } from '../stores/useLayoutStore';
 
 export interface TabInfo {
@@ -91,7 +92,11 @@ function isSpecificGroup(group: PresetGroup): boolean {
   return !group.accepts.every(a => a === 'unknown' || a === '*');
 }
 
-export function bucketTabs(preset: LayoutPreset, tabs: TabInfo[]): Map<number, TabInfo[]> {
+export function bucketTabs(
+  preset: LayoutPreset,
+  tabs: TabInfo[],
+  homes?: ReadonlyMap<string, number>,
+): Map<number, TabInfo[]> {
   const buckets = new Map<number, TabInfo[]>();
   for (let i = 0; i < preset.groups.length; i++) {
     buckets.set(i, []);
@@ -101,6 +106,11 @@ export function bucketTabs(preset: LayoutPreset, tabs: TabInfo[]): Map<number, T
 
   for (const tab of tabs) {
     let placed = false;
+    const home = homes?.get(tab.panelId);
+    if (home !== undefined && buckets.has(home)) {
+      buckets.get(home)!.push(tab);
+      continue;
+    }
     for (let i = 0; i < preset.groups.length; i++) {
       const group = preset.groups[i];
       if (isSpecificGroup(group) && matchesGroup(group, tab.contentType)) {
@@ -153,6 +163,33 @@ function sortByDeclaredOrder(tabs: TabInfo[], order: PanelContentType[]): TabInf
     .map((tab, i) => ({ tab, i, rank: rank.get(tab.contentType) ?? order.length }))
     .sort((a, b) => (a.rank - b.rank) || (a.i - b.i))
     .map(entry => entry.tab);
+}
+
+/**
+ * Generic "New Tab" panels have no kind of their own, so a preset cannot say
+ * where they belong. They stay with the panes they were opened beside: each
+ * one is homed in the preset group that its old group's kind-bearing tabs
+ * (the first one, in tab order) are sent to. A group holding only New Tabs
+ * is left to the preset's normal fallback.
+ */
+export function newTabHomes(preset: LayoutPreset, current: SerializedDockview): Map<string, number> {
+  const panels = current.panels as unknown as Record<string, SerializedPanelState>;
+  const typeOf = (id: string): string =>
+    ((panels[id]?.params ?? {}) as { contentType?: string }).contentType ?? 'unknown';
+  const homes = new Map<string, number>();
+  forEachLeaf(rootOf(current), leaf => {
+    const anchor = leaf.data.views.find(v => panels[v] && typeOf(v) !== 'newtab');
+    if (!anchor) return;
+    const index = bucketIndexFor(preset, {
+      panelId: anchor,
+      contentType: typeOf(anchor),
+      title: panels[anchor].title ?? anchor,
+    });
+    for (const v of leaf.data.views) {
+      if (panels[v] && typeOf(v) === 'newtab') homes.set(v, index);
+    }
+  });
+  return homes;
 }
 
 /** Which preset group a single tab belongs in, or the last group as a fallback. */
@@ -384,7 +421,7 @@ function buildGridLayout(
  */
 export function buildPresetLayout(preset: LayoutPreset, current: SerializedDockview): PresetLayoutResult {
   const tabs = collectTabsFromLayout(current);
-  const buckets = bucketTabs(preset, tabs);
+  const buckets = bucketTabs(preset, tabs, newTabHomes(preset, current));
   const planned = plannedGroups(preset, buckets);
   const previouslyActive = activeViewIds(current);
   const nextGroupId = makeGroupIdFactory(preset.id);
@@ -491,8 +528,9 @@ export function reconcileRememberedLayout(
       );
     }
 
+    const homes = newTabHomes(preset, current);
     for (const tab of newTabs) {
-      const target = bucketIndexFor(preset, tab);
+      const target = homes.get(tab.panelId) ?? bucketIndexFor(preset, tab);
       let best: SerializedLeaf | undefined;
       let bestScore = 0;
       for (const leaf of leaves) {
@@ -622,4 +660,6 @@ export function expandGroups(api: DockviewApi, groups: CollapsedGroup[]): void {
 export function applyPresetLayout(api: DockviewApi, result: PresetLayoutResult): void {
   api.fromJSON(result.layout, { reuseExistingPanels: true });
   collapseGroups(api, result.collapsedGroups);
+  // U-057: the new layout's tabs must get their roles at once, not on reload.
+  reapplyTabRolesSoon(api as unknown as Parameters<typeof reapplyTabRolesSoon>[0]);
 }

@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import TopicListItem from './TopicListItem';
 import { useI18n } from '../../contexts/useI18n';
+import { studyScaled } from '../../utils/studyScale';
 import { unwrap } from '../../services/ipcResult';
 
 interface TopicSearchResult {
@@ -97,7 +98,7 @@ const TopicSearchBar: React.FC<TopicSearchBarProps> = ({
       <input
         ref={inputRef}
         data-testid="topic-search-input"
-        type="text"
+        type="search"
         value={query}
         onChange={handleChange}
         onKeyDown={handleKeyDown}
@@ -106,7 +107,7 @@ const TopicSearchBar: React.FC<TopicSearchBarProps> = ({
         style={{
           width: '100%',
           padding: '6px 10px',
-          fontSize: '0.8125rem',
+          fontSize: studyScaled(13),
           border: '1px solid var(--theme-border-primary)',
           borderRadius: '6px',
           backgroundColor: 'var(--theme-bg-primary)',
@@ -141,6 +142,7 @@ const TopicSearchBar: React.FC<TopicSearchBarProps> = ({
                 parentPath={result.parent_path}
                 source={result.source_name}
                 verseCount={result.verse_count}
+                verseCountLabel={result.verse_count === 1 ? t('topicsPane.verseCountOne') : t('topicsPane.verseCount', { count: result.verse_count })}
                 onClick={() => handleSelect(result)}
               />
             </div>

@@ -24,6 +24,8 @@ async function markedWords(window: Page): Promise<string[]> {
 async function openMarkupMenuOnWord(window: Page, wordRe: RegExp, selectFirst: boolean, noNativeSelection = false): Promise<void> {
   const word = window.locator(`${VERSE} .word`).filter({ hasText: wordRe }).first();
   await expect(word).toBeVisible({ timeout: 10000 });
+  // Real mouse coordinates: the word has to be on screen (a short window leaves John 3:16 below the fold).
+  await word.scrollIntoViewIfNeeded();
   const box = (await word.boundingBox())!;
   const x = box.x + box.width / 2;
   const y = box.y + box.height / 2;
@@ -36,7 +38,7 @@ async function openMarkupMenuOnWord(window: Page, wordRe: RegExp, selectFirst: b
     // Electron's own right-click can select the word under the pointer; send the
     // contextmenu event ourselves, with the selection cleared, to model "nothing selected".
     await word.evaluate((el, pt) => {
-      window.getSelection()?.removeAllRanges();
+      document.getSelection()?.removeAllRanges(); // not `window`: that name is the Playwright Page here
       el.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: pt.x, clientY: pt.y, button: 2 }));
     }, { x, y });
   } else {
@@ -84,6 +86,8 @@ test('right-clicking with no selection marks the whole verse', async ({ window }
 test('dragging over one word, then right-clicking it, underlines only that word', async ({ window }) => {
   const word = window.locator(`${VERSE} .word`).filter({ hasText: /^world,?$/i }).first();
   await expect(word).toBeVisible({ timeout: 10000 });
+  // Real mouse coordinates: the word has to be on screen (a short window leaves John 3:16 below the fold).
+  await word.scrollIntoViewIfNeeded();
   const box = (await word.boundingBox())!;
   const y = box.y + box.height / 2;
   await window.mouse.move(box.x + 1, y);
@@ -114,6 +118,8 @@ test('an existing mark is cleared from the context menu in two clicks', async ({
   await expect.poll(async () => (await markedWords(window)).length).toBe(1);
 
   const word = window.locator(`${VERSE} .word[data-markup-id]`).first();
+  // Real mouse coordinates: the word has to be on screen (a short window leaves John 3:16 below the fold).
+  await word.scrollIntoViewIfNeeded();
   const box = (await word.boundingBox())!;
   await window.mouse.click(box.x + box.width / 2, box.y + box.height / 2, { button: 'right' });
   const menu = window.getByRole('menu');

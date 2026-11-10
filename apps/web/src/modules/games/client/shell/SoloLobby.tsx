@@ -11,8 +11,9 @@
  */
 
 import type { Catalog, Familiarity, GameId, PlayerSnapshot, RoomSettings } from '../../shared/protocol.js';
-import { FAMILIARITIES, FAMILIARITY_LABELS } from '../../shared/protocol.js';
+import { FAMILIARITIES } from '../../shared/protocol.js';
 import { Brand } from './Brand.js';
+import { familiarityName, gameName, scopeName } from './gameLabels.js';
 import { gt } from './t.js';
 
 const ROUND_CHOICES = [5, 8, 10, 12, 15, 20];
@@ -79,22 +80,25 @@ export function SoloLobby({
       )}
 
       <div class="settings-grid">
-        <label class="field">
-          <span class="field-label">{gt('games.lobby.game', 'Game')}</span>
+        <div class="field">
+          <label class="field-label" for="games-solo-game">{gt('games.lobby.game', 'Game')}</label>
           <select
+            id="games-solo-game"
             value={settings.gameId}
+            aria-describedby={currentGame?.scopeLabel !== undefined ? 'games-solo-game-hint' : undefined}
             onChange={(event) => onSettings({ gameId: event.currentTarget.value })}
           >
             {games.map((game) => (
               <option key={game.id} value={game.id}>
-                {game.name}
+                {gameName(game.id, game.name)}
               </option>
             ))}
           </select>
+          {/* Outside the label, so the hint describes the picker and is not part of its name. */}
           {currentGame?.scopeLabel !== undefined && (
-            <span class="field-hint">{currentGame.scopeLabel}</span>
+            <span class="field-hint" id="games-solo-game-hint">{scopeName(currentGame.scopeLabel)}</span>
           )}
-        </label>
+        </div>
 
         {showSet && (
           <label class="field">
@@ -140,7 +144,7 @@ export function SoloLobby({
             >
               {FAMILIARITIES.map((familiarity) => (
                 <option key={familiarity} value={familiarity}>
-                  {FAMILIARITY_LABELS[familiarity]}
+                  {familiarityName(familiarity)}
                 </option>
               ))}
             </select>

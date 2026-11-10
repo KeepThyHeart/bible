@@ -555,6 +555,9 @@ async function runLocalSemanticSearch(
         const { textHtml } = formatVerseText(verse);
         fullText = textHtml;
       }
+    } else if (r.level === 'paragraph' && bibleRepo) {
+      // Red letter: a passage with Words of Christ shows them as the Bible pane does.
+      fullText = redLetterPassageHtml(bibleRepo, r.startVerseId, r.endVerseId) ?? fullText;
     }
 
     return {
@@ -572,6 +575,24 @@ async function runLocalSemanticSearch(
 
 /** Passages longer than this many verses are cut when building a row's text. */
 const REMOTE_MAX_PASSAGE_VERSES = 40;
+
+/**
+ * The formatted HTML of a multi-verse passage, but only when it contains Words
+ * of Christ (otherwise null, and the caller keeps its plain preview). Lets a
+ * paragraph hit show red letters like the Bible pane does.
+ */
+export function redLetterPassageHtml(
+  repo: BibleRepository,
+  startVerseId: number,
+  endVerseId: number,
+): string | null {
+  const verses = startVerseId === endVerseId
+    ? [repo.getVerse(startVerseId)].filter((v): v is NonNullable<typeof v> => !!v)
+    : repo.getVerseRange(startVerseId, endVerseId).slice(0, REMOTE_MAX_PASSAGE_VERSES);
+  if (verses.length === 0) return null;
+  const html = verses.map(v => formatVerseText(v).textHtml);
+  return html.some(h => h.includes('christ-words')) ? html.join(' ') : null;
+}
 const REMOTE_PREVIEW_CHARS = 300;
 
 /**
@@ -606,7 +627,7 @@ function hydrateRemoteHits(hits: RemoteSemantic.RemoteHit[]): SemanticRow[] {
       startVerseId: hit.startVerseId,
       endVerseId: hit.endVerseId,
       reference: formatSemanticReference(hit.startVerseId, hit.endVerseId, bookName),
-      text: single ? formatVerseText(verses[0]!).textHtml : plain,
+      text: single ? formatVerseText(verses[0]!).textHtml : (redLetterPassageHtml(repo, hit.startVerseId, hit.endVerseId) ?? plain),
       textPreview,
       similarity: Math.round(hit.score * 1000) / 1000,
     });

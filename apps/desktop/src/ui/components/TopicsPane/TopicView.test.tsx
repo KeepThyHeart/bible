@@ -61,6 +61,25 @@ function renderView(d: TopicDetail | null) {
   );
 }
 
+describe('TopicView counts (B-093)', () => {
+  const kid = { topic_id: 5, name: 'Jericho captured', verse_count: 3 };
+
+  it('shows the total and labels the direct count when the topic has sub-topics', () => {
+    renderView(detail({ children: [kid], reference_count: 251, direct_reference_count: 23 }));
+    expect(screen.getByTestId('topic-verse-count')).toHaveTextContent('251 verses/passages (23 direct, 251 total)');
+  });
+
+  it('adds no label without sub-topics, when nothing is filed below, or from an older main process', () => {
+    renderView(detail({ children: [], reference_count: 9, direct_reference_count: 9 }));
+    expect(screen.queryByTestId('topic-direct-count')).toBeNull();
+  });
+
+  it('adds no label when every passage is direct', () => {
+    renderView(detail({ children: [kid], reference_count: 9, direct_reference_count: 9 }));
+    expect(screen.queryByTestId('topic-direct-count')).toBeNull();
+  });
+});
+
 describe('TopicView source attribution', () => {
   it('names the index the topic came from', () => {
     renderView(detail());

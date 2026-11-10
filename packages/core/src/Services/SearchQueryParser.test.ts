@@ -553,3 +553,134 @@ describe('SearchQueryParser', () => {
     });
   });
 });
+
+describe('SearchQueryParser symbol operators (advanced search, B-017)', () => {
+  const parser = new SearchQueryParser();
+  const adv = { symbolOperators: true };
+  const b = (q: string) => parser.parse(q, adv).boolean;
+
+  it('is off by default: && || ! are ordinary text', () => {
+    expect(parser.parse('love && hate').searchType).toBe('multi-word');
+    expect(parser.parse('love || hate').terms).toEqual(['love', '||', 'hate']);
+    expect(parser.parse('love !hate').searchType).toBe('multi-word');
+  });
+
+  it('&& is AND', () => {
+    expect(parser.parse('love && peace', adv).searchType).toBe('boolean');
+    expect(b('love && peace')).toEqual({ operator: 'AND', left: 'love', right: 'peace' });
+  });
+
+  it('|| is OR', () => {
+    expect(b('love || charity')).toEqual({ operator: 'OR', left: 'love', right: 'charity' });
+  });
+
+  it('! before a word is NOT; leading and after another term', () => {
+    expect(b('!hate')).toEqual({ operator: 'NOT', left: 'hate' });
+    expect(b('love !hate')).toEqual({ operator: 'NOT', left: 'love', right: 'hate' });
+    expect(b('love && !hate')).toEqual({ operator: 'AND', left: 'love', right: { operator: 'NOT', left: 'hate' } });
+    expect(b('love ! hate')).toEqual({ operator: 'NOT', left: 'love', right: 'hate' });
+  });
+
+  it('works without spaces around the operators', () => {
+    expect(b('love&&peace')).toEqual({ operator: 'AND', left: 'love', right: 'peace' });
+    expect(b('love||peace')).toEqual({ operator: 'OR', left: 'love', right: 'peace' });
+    expect(b('love&&!hate')).toEqual({ operator: 'AND', left: 'love', right: { operator: 'NOT', left: 'hate' } });
+  });
+
+  it('&& binds tighter than ||', () => {
+    expect(b('a || b && c')).toEqual({
+      operator: 'OR',
+      left: 'a',
+      right: { operator: 'AND', left: 'b', right: 'c' },
+    });
+    expect(b('a && b || c')).toEqual({
+      operator: 'OR',
+      left: { operator: 'AND', left: 'a', right: 'b' },
+      right: 'c',
+    });
+  });
+
+  it('parentheses group', () => {
+    expect(b('(a || b) && c')).toEqual({
+      operator: 'AND',
+      left: { operator: 'OR', left: 'a', right: 'b' },
+      right: 'c',
+    });
+    expect(b('a && (b || (c && d))')).toEqual({
+      operator: 'AND',
+      left: 'a',
+      right: { operator: 'OR', left: 'b', right: { operator: 'AND', left: 'c', right: 'd' } },
+    });
+  });
+
+  it('! negates a parenthesised group', () => {
+    expect(b('love && !(hate || anger)')).toEqual({
+      operator: 'AND',
+      left: 'love',
+      right: { operator: 'NOT', left: { operator: 'OR', left: 'hate', right: 'anger' } },
+    });
+  });
+
+  it('a run of bare words is one leaf (implicit AND)', () => {
+    expect(b('faith hope && charity')).toEqual({ operator: 'AND', left: 'faith hope', right: 'charity' });
+  });
+
+  it('quoted phrases stay whole and operators inside quotes are text', () => {
+    expect(b('"love one another" && !hate')).toEqual({
+      operator: 'AND',
+      left: '"love one another"',
+      right: { operator: 'NOT', left: 'hate' },
+    });
+    // No operator outside the quotes: not a boolean query at all.
+    expect(parser.parse('"faith && works"', adv).searchType).toBe('phrase');
+  });
+
+  it('plain words AND / OR / NOT stay words in symbol mode', () => {
+    expect(b('faith and works && love')).toEqual({ operator: 'AND', left: 'faith and works', right: 'love' });
+    expect(b('NOT here && there')).toEqual({ operator: 'AND', left: 'NOT here', right: 'there' });
+    expect(b('a OR b && c')).toEqual({ operator: 'AND', left: 'a OR b', right: 'c' });
+  });
+
+  it('without a symbol operator the legacy rules apply, even in advanced mode', () => {
+    expect(parser.parse('love hate', adv).searchType).toBe('multi-word');
+    // `-word` is the documented exclusion (D6), so it is no longer a plain term.
+    expect(parser.parse('love -hate', adv).boolean).toEqual({ operator: 'NOT', left: 'love', right: 'hate' });
+    expect(parser.parse('believed not', adv).searchType).toBe('multi-word');
+    // Parenthesised word operators keep working when no symbol is present.
+    expect(parser.parse('(faith AND works)', adv).boolean).toEqual({ operator: 'AND', left: 'faith', right: 'works' });
+  });
+
+  it('"love -hate" excludes in normal mode too (D6)', () => {
+    expect(parser.parse('love -hate').boolean).toEqual({ operator: 'NOT', left: 'love', right: 'hate' });
+  });
+
+  it('a "!" inside or at the end of a word is part of the word', () => {
+    expect(b('wait! && see')).toEqual({ operator: 'AND', left: 'wait!', right: 'see' });
+    expect(parser.parse('Hello!', adv).searchType).toBe('multi-word');
+  });
+
+  it('single & or | are ordinary characters', () => {
+    expect(parser.parse('a & b', adv).searchType).toBe('multi-word');
+    expect(parser.parse('a | b', adv).searchType).toBe('multi-word');
+  });
+
+  it('degrades gracefully on stray or unbalanced operators', () => {
+    // Missing right operand: still a boolean query that does not throw.
+    expect(() => parser.parse('love &&', adv)).not.toThrow();
+    expect(() => parser.parse('&& love', adv)).not.toThrow();
+    expect(() => parser.parse('love && (hate', adv)).not.toThrow();
+    expect(() => parser.parse('love || || hate', adv)).not.toThrow();
+    expect(() => parser.parse('!', adv)).not.toThrow();
+  });
+
+  it('toKeywordQuery of a symbol query is a boolean KeywordQuery only with the option', () => {
+    const p = new SearchQueryParser();
+    expect(p.parse('love && hate', adv).boolean).toBeDefined();
+    expect(p.toKeywordQuery('love && hate').kind).toBe('terms');
+  });
+
+  it('validate still checks parentheses and quotes', () => {
+    expect(parser.validate('love && (hate')).toBeDefined();
+    expect(parser.validate('love && !(hate || anger)')).toBeUndefined();
+  });
+});

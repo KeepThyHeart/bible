@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'preact/hooks';
+import { useState, useCallback, useEffect, useRef } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { BiblePane } from './components/BiblePane/BiblePane';
 import { CommentaryPane } from './components/CommentaryPane/CommentaryPane';
@@ -8,8 +8,10 @@ import { TopicsPane } from './components/StudyPane/TopicsPane';
 import { DictionaryPane } from './components/DictionaryPane/DictionaryPane';
 import { Header } from './components/Header';
 import { ResizeHandle } from './components/common/ResizeHandle';
+import { tablistKeyDown } from './components/common/SortableTab';
 import { DialogLayer } from './components/common/DialogLayer';
 import { ContextMenuPopup } from './components/common/ContextMenuPopup';
+import { setModalFallback } from './hooks/useModalFocus';
 import { SiteBanners } from './components/SiteBanners';
 import { ConnectionBanner } from './components/ConnectionBanner';
 import { CompanionSlot } from './host/CompanionSlot';
@@ -62,6 +64,9 @@ interface DesktopAppProps {
   providers: IDataProviders;
 }
 
+/** The last search sequence number a DesktopApp acted on; outlives the component so a re-mount does not replay it. */
+let handledSearchSeq: number | undefined;
+
 export function DesktopApp({ providers }: DesktopAppProps) {
   const shared = useAppShared(providers);
   const { t } = useTranslation();
@@ -72,12 +77,19 @@ export function DesktopApp({ providers }: DesktopAppProps) {
   const paneModes = usePaneModes();
   const [biblePaneWidth, setBiblePaneWidth] = useState(60);
 
-  // Auto-switch to search mode when a search is performed, and force the pane
-  // open. Keyed off `searchSeq` as well as `isOpen` so that a second search runs
-  // this even when the results were already "open" behind the Commentary or
-  // Dictionary tab — otherwise pressing Enter appears to do nothing.
+  // Auto-switch to search mode when a NEW search is performed (or the results are re-opened), and force
+  // the pane open. Keyed off `searchSeq` as well as `isOpen` so that a second search runs this even when the
+  // results were already "open" behind the Commentary or Dictionary tab. A re-mount (the layout crossing the
+  // breakpoint and back) is not a new search: the reader's chosen side view survives it, even though the
+  // header still holds the query text.
+  const wasSearchOpen = useRef(shared.searchIsOpen);
+  handledSearchSeq ??= shared.searchSeq;
   useEffect(() => {
-    if (shared.searchIsOpen) {
+    const reopened = shared.searchIsOpen && !wasSearchOpen.current;
+    const newSearch = shared.searchSeq !== handledSearchSeq;
+    wasSearchOpen.current = shared.searchIsOpen;
+    handledSearchSeq = shared.searchSeq;
+    if (shared.searchIsOpen && (reopened || newSearch)) {
       commentaryStore.setRightPaneMode('search');
       commentaryStore.expand();
     }
@@ -117,6 +129,14 @@ export function DesktopApp({ providers }: DesktopAppProps) {
     ? (shared.searchIsOpen ? 'search' : 'study')
     : paneAvailable(shared.rightPaneMode) ? shared.rightPaneMode : 'study';
 
+  // The tab strip is clipped and scrolls: keep the selected tab visible when the selection changes
+  // (a search opening Search, a shortcut, a re-mount), instead of leaving it hidden past the chevron.
+  const tabListRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const active = tabListRef.current?.querySelector<HTMLElement>('[role="tab"][aria-selected="true"]');
+    active?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
+  }, [paneMode, shared.searchIsOpen, shared.collapsed, paneModes]);
+
   useEffect(() => { if (paneMode !== 'search') fireActivation('onPanel:' + paneMode); }, [paneMode]);
 
   // Show the fallback while a pane is unavailable, but keep the saved choice (a disabled module, or
@@ -134,6 +154,26 @@ export function DesktopApp({ providers }: DesktopAppProps) {
   }, [paneMode, paneModes, opened]);
 
   const showRightPane = !shared.collapsed;
+
+  // Collapsing or expanding the side pane unmounts the control that was just pressed. Keyboard focus
+  // would fall to <body>, so move it to the counterpart control (but never steal it from somewhere
+  // else when the pane was toggled by other means: a search, a shortcut, a plugin).
+  const collapseBtnRef = useRef<HTMLButtonElement>(null);
+  const expandBtnRef = useRef<HTMLButtonElement>(null);
+  const seenCollapsed = useRef(shared.collapsed);
+  useEffect(() => {
+    if (seenCollapsed.current === shared.collapsed) return;
+    seenCollapsed.current = shared.collapsed;
+    const active = document.activeElement;
+    if (active && active !== document.body) return;
+    (shared.collapsed ? expandBtnRef : collapseBtnRef).current?.focus({ preventScroll: true });
+  }, [shared.collapsed]);
+
+  // The expander is named after the tab it will bring back, not always "Commentary".
+  const expandMode = paneModes.find((m) => m.id === paneMode);
+  const expandTabTitle = paneMode === 'search' || !expandMode
+    ? (paneMode === 'search' ? t('rightPane.search') : t('rightPane.expand', { defaultValue: 'Expand side pane' }))
+    : resolveLabel((k, f) => t(k, f), expandMode.title);
   const paneProps: PaneViewProps = {
     providers,
     showTagGraph,
@@ -165,7 +205,18 @@ export function DesktopApp({ providers }: DesktopAppProps) {
     <div class="app">
       <SiteBanners />
       <Header
-        onSettingsClick={(section) => shared.openSettings(section)}
+        onSettingsClick={(section) => {
+          // Settings can be opened from a popup item that closes as it opens (the Theme popup's "More...").
+          // Name the control that opened that popup as the place focus returns to once Settings closes.
+          const from = document.activeElement;
+          if (from instanceof HTMLElement && from !== document.body) {
+            const headerButton = section === 'theme'
+              ? document.querySelector<HTMLElement>('.header__theme-wrapper > button')
+              : document.querySelector<HTMLElement>('[data-testid="header-settings-btn"]');
+            setModalFallback(from, headerButton ?? document.querySelector<HTMLElement>('[data-testid="header-settings-btn"]'));
+          }
+          shared.openSettings(section);
+        }}
         onHelpClick={() => shared.setHelpOpen(true)}
       />
       <ConnectionBanner />
@@ -197,25 +248,45 @@ export function DesktopApp({ providers }: DesktopAppProps) {
             <ResizeHandle onResize={handleResize} />
             <aside class="main-layout__right-pane" style={rightPaneStyle} aria-label={t('a11y.studyPane', 'Study panel')}>
               <div class="right-pane-tabs">
-                {paneModes.filter((m) => paneAvailable(m.id)).map((m) => (
-                  <button
-                    key={m.id}
-                    class={`right-pane-tabs__tab ${paneMode === m.id ? 'right-pane-tabs__tab--active' : ''}`}
-                    onClick={() => commentaryStore.setRightPaneMode(m.id)}
-                    data-testid={`right-pane-tab-${m.id}`}
-                  >
-                    {resolveLabel((k, f) => t(k, f), m.title)}
-                  </button>
-                ))}
-                {shared.searchIsOpen && (
-                  <button
-                    class={`right-pane-tabs__tab ${paneMode === 'search' ? 'right-pane-tabs__tab--active' : ''}`}
-                    onClick={() => commentaryStore.setRightPaneMode('search')}
-                  >
-                    {t('rightPane.search')}
-                  </button>
-                )}
+                {/* The mode switcher is a tablist; the collapse control sits outside it. */}
+                <div ref={tabListRef} role="tablist" class="right-pane-tabs__list" aria-label={t('rightPane.modes', { defaultValue: 'Side pane views' })}>
+                  {(() => {
+                    const visibleModes = paneModes.filter((m) => paneAvailable(m.id));
+                    const stopId = visibleModes.some((m) => m.id === paneMode) || paneMode === 'search' ? paneMode : visibleModes[0]?.id;
+                    return (
+                      <>
+                        {visibleModes.map((m) => (
+                          <button
+                            key={m.id}
+                            class={`right-pane-tabs__tab ${paneMode === m.id ? 'right-pane-tabs__tab--active' : ''}`}
+                            role="tab"
+                            aria-selected={paneMode === m.id}
+                            tabIndex={stopId === m.id ? 0 : -1}
+                            onKeyDown={tablistKeyDown}
+                            onClick={() => commentaryStore.setRightPaneMode(m.id)}
+                            data-testid={`right-pane-tab-${m.id}`}
+                          >
+                            {resolveLabel((k, f) => t(k, f), m.title)}
+                          </button>
+                        ))}
+                        {shared.searchIsOpen && (
+                          <button
+                            class={`right-pane-tabs__tab ${paneMode === 'search' ? 'right-pane-tabs__tab--active' : ''}`}
+                            role="tab"
+                            aria-selected={paneMode === 'search'}
+                            tabIndex={stopId === 'search' ? 0 : -1}
+                            onKeyDown={tablistKeyDown}
+                            onClick={() => commentaryStore.setRightPaneMode('search')}
+                          >
+                            {t('rightPane.search')}
+                          </button>
+                        )}
+                      </>
+                    );
+                  })()}
+                </div>
                 <button
+                  ref={collapseBtnRef}
                   class="right-pane-tabs__collapse"
                   onClick={() => commentaryStore.toggleCollapsed()}
                   title={t('rightPane.collapseRight')}
@@ -240,7 +311,16 @@ export function DesktopApp({ providers }: DesktopAppProps) {
         )}
         {shared.collapsed && (
           <div class="main-layout__commentary-collapsed">
-            <CommentaryPane bibleProvider={providers.bible} />
+            <div class="commentary-pane commentary-pane--collapsed">
+              <button
+                ref={expandBtnRef}
+                class="commentary-pane__expand-btn"
+                onClick={() => commentaryStore.toggleCollapsed()}
+                title={t('rightPane.expandTo', { defaultValue: 'Show {tab}', tab: expandTabTitle })}
+              >
+                {expandTabTitle} →
+              </button>
+            </div>
           </div>
         )}
       </main>
@@ -270,6 +350,7 @@ export function DesktopApp({ providers }: DesktopAppProps) {
           onAction={handleContextMenuAction}
           actions={verseActionItems}
           onVerseAction={handleVerseAction}
+          verseId={contextMenu.verseId}
         />
       )}
     </div>

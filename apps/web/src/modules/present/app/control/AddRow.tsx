@@ -1,4 +1,4 @@
-import { useState } from 'preact/hooks';
+import { useRef, useState } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import type { PresentItem } from '../../lib/protocol';
 import { PresentHymns } from '../../study/PresentHymns';
@@ -16,12 +16,27 @@ export function AddRow(props: { disabled?: boolean; onAddToNotes?: (item: Presen
   const { t } = useTranslation();
   const [open, setOpen] = useState<Kind | null>(null);
   const toggle = (kind: Kind) => setOpen(current => (current === kind ? null : kind));
-  const close = () => setOpen(null);
+  const buttons = useRef<Partial<Record<Kind, HTMLButtonElement | null>>>({});
+  // The panel collapses when it is done: focus goes back to the button that opened it, not to <body>.
+  const close = () => {
+    const was = open;
+    setOpen(null);
+    if (was) buttons.current[was]?.focus();
+  };
+  const onKeyDown = (event: KeyboardEvent) => {
+    if (event.key !== 'Escape' || !open || event.defaultPrevented) return;
+    const target = event.target as HTMLInputElement | null;
+    // A search box with text clears itself on Escape first (the browser's own behaviour).
+    if (target?.type === 'search' && target.value) return;
+    event.preventDefault();
+    close();
+  };
 
   const button = (kind: Kind, icon: string, label: string) => (
     <button
       type="button"
       class={`pz-btn pz-addrow__btn ${open === kind ? 'pz-btn--on' : ''}`}
+      ref={(el) => { buttons.current[kind] = el; }}
       disabled={props.disabled}
       aria-expanded={open === kind}
       onClick={() => toggle(kind)}
@@ -32,7 +47,7 @@ export function AddRow(props: { disabled?: boolean; onAddToNotes?: (item: Presen
   );
 
   return (
-    <div class="pz-addrow">
+    <div class="pz-addrow" onKeyDown={onKeyDown}>
       <div class="pz-addrow__buttons">
         {button('verse', 'fa-book-bible', t('present.control.verse'))}
         {button('hymn', 'fa-music', t('present.control.hymn'))}

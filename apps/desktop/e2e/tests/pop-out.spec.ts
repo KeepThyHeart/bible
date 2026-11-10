@@ -167,7 +167,17 @@ test.describe('Pop Out to Window', () => {
     // Open/activate the Notes pane - not part of the first-run layout
     await ensurePaneOpen(window, 'Notes');
 
-    // Handle the "Set Up Your Notes Folder" dialog if it appears
+    // Handle the "Set Up Your Notes Folder" dialog. It always appears now: since
+    // B-010 the default notes folder lives in the per-test userData, which never
+    // has one yet. It renders only after the pane's async "is the folder set
+    // up?" check, so wait for the pane to settle on the dialog or its browser
+    // first - `dismissModals` only counts what is already there, and its
+    // full-dockview scrim would otherwise swallow the right-click on the tab.
+    const notesPane = window.locator('[data-testid="notes-pane"]');
+    await expect(
+      notesPane.getByRole('button', { name: 'Use This Folder' })
+        .or(notesPane.getByRole('button', { name: 'New Note', exact: true })),
+    ).toBeAttached({ timeout: 15000 });
     await dismissModals(window);
 
     // Pop out the Notes pane (the file browser should already have content)

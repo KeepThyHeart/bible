@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import * as fileNotesAPI from '../../services/fileNotesAPI';
 import { useI18n } from '../../contexts/useI18n';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
+import { useIsShown } from '../../hooks/useIsShown';
 
 interface NotesSetupDialogProps {
   onComplete: (notesDir: string) => void;
@@ -11,8 +12,12 @@ interface NotesSetupDialogProps {
 const NotesSetupDialog: React.FC<NotesSetupDialogProps> = ({ onComplete, onCancel }) => {
   const { t } = useI18n();
   const [notesDir, setNotesDir] = useState('');
-  // The dialog is only ever rendered while open, so the trap is always active.
-  const dialogRef = useFocusTrap<HTMLDivElement>(true);
+  // The dialog is only ever rendered while open. The trap, though, must wait while the Notes pane is in an
+  // app that is hidden (a restored session can start in the Memory app): an invisible trap leaves the whole
+  // window inert with nothing on screen to explain why.
+  const overlayRef = useRef<HTMLDivElement>(null);
+  const shown = useIsShown(() => overlayRef.current);
+  const dialogRef = useFocusTrap<HTMLDivElement>(shown);
 
   useEffect(() => {
     // Load the default path
@@ -36,7 +41,7 @@ const NotesSetupDialog: React.FC<NotesSetupDialogProps> = ({ onComplete, onCance
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background-overlay">
+    <div ref={overlayRef} className="fixed inset-0 z-50 flex items-center justify-center bg-background-overlay">
       <div
         ref={dialogRef}
         role="dialog"
@@ -69,6 +74,12 @@ const NotesSetupDialog: React.FC<NotesSetupDialogProps> = ({ onComplete, onCance
               type="text"
               value={notesDir}
               onChange={(e) => setNotesDir(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  void handleConfirm();
+                }
+              }}
               aria-describedby="notes-setup-tip"
               className="flex-1 px-3 py-2 text-sm border border-border rounded bg-surface focus:outline-none focus:ring-2 focus:ring-accent"
             />

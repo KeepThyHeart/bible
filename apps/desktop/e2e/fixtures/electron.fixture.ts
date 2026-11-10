@@ -9,7 +9,7 @@ import { test as base, _electron as electron, ElectronApplication, Page } from '
 import path from 'path';
 import fs from 'fs';
 import os from 'os';
-import { E2E_KEYWORD_INDEX_DIR } from './keywordIndexDir';
+import { dataEnv } from './dataDir';
 import { createConsoleGuard, type ConsoleGuard } from './consoleGuard';
 
 // Custom fixture types
@@ -68,10 +68,15 @@ export const test = base.extend<ElectronFixtures>({
     }
     fs.mkdirSync(userDataDir, { recursive: true });
 
+    // Bible data: the committed fixture is copied per launch (the app writes to it); real data is used as given.
+    const data = dataEnv(path.join(os.tmpdir(), 'bible-e2e', `worker-${testInfo.workerIndex}-data`));
+
     // Launch Electron with specific environment
     // Note: Electron windows cannot be fully hidden during Playwright tests,
     // but we can minimize impact by keeping the window in background
-    const app = await electron.launch({
+    let app: ElectronApplication;
+    try {
+      app = await electron.launch({
       args: [
         // Use basic password store to avoid system keyring prompts during tests
         '--password-store=basic',
@@ -91,24 +96,34 @@ export const test = base.extend<ElectronFixtures>({
         NODE_ENV: 'test',
         // Use a test-specific user data directory to isolate tests
         ELECTRON_USER_DATA: userDataDir,
-        // Keyword-search indexes: one shared directory, built once by globalSetup.ts.
-        BIBLE_KEYWORD_INDEX_DIR: E2E_KEYWORD_INDEX_DIR,
+        // Data dir and keyword-search indexes: the per-launch fixture copy, or the real data with its
+        // shared index directory built once by globalSetup.ts.
+        ...data.env,
         // No online meaning search: a build defaults to the hosted service, and
         // its first-use consent modal would interrupt the semantic-search specs.
         // remote-semantic.spec.ts launches its own instance against a stub.
         BIBLE_REMOTE_SEMANTIC_URL: 'none',
       },
-    });
+      });
+    } catch (e) {
+      data.cleanup();
+      fs.rmSync(userDataDir, { recursive: true, force: true });
+      throw e;
+    }
 
     // Every window, including ones opened later (pop-outs): attach before the
     // renderer has logged anything.
     app.windows().forEach(w => consoleGuard.attach(w));
     app.on('window', w => consoleGuard.attach(w));
 
-    await use(app);
-
-    // Cleanup: close the app after test
-    await app.close();
+    try {
+      await use(app);
+    } finally {
+      // Close the app, then remove the profile and the data copy so nothing is left in the tmp dir.
+      await app.close().catch(() => undefined);
+      data.cleanup();
+      fs.rmSync(userDataDir, { recursive: true, force: true });
+    }
   },
 
   window: async ({ electronApp }, use) => {

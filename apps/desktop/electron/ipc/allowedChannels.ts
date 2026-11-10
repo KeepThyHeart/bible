@@ -168,6 +168,7 @@ export const ALLOWED_IPC_CHANNELS = [
   'diagnostics:set-config',
   'diagnostics:report-renderer-error',
   'diagnostics:flush-now',
+  'diagnostics:deliver-report',
   // Renderer-bound event (main -> renderer): `diagnostics:crash-detected`
   // Network privacy - master offline switch
   'network:get-allow-web-requests',
@@ -318,6 +319,9 @@ export const TYPED_IPC_CHANNELS = [
   'window:close-detached',
   'window:get-detached-windows',
   'window:broadcast-verse-change',
+  'window:navigate-main-to-verse',
+  'window:broadcast-appearance',
+  'window:get-appearance',
   // Module Manager
   'module:init',
   'module:get-available',

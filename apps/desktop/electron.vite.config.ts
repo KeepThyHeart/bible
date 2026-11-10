@@ -105,9 +105,9 @@ const APP_VERSION = envOrEmpty('BIBLE_APP_VERSION') || resolveAppVersion();
 // env value (including the literal `none`, which opts a build out) still wins.
 const DOCS_URL = envOrEmpty('BIBLE_DOCS_URL');
 // Where user-submitted reports are POSTed, and the shared token that endpoint
-// requires. Both default to empty, which keeps a stock build silent: the
-// uploader does nothing without an endpoint, and an endpoint that expects a
-// token rejects a build that has none.
+// requires. An empty URL means the official default (DEFAULT_DIAGNOSTICS_URL in
+// electron/config/constants.ts); `none` opts the build out. The token has no
+// default: an endpoint that expects one rejects a build that has none.
 const DIAGNOSTICS_URL = envOrEmpty('BIBLE_DIAGNOSTICS_URL');
 const DIAGNOSTICS_TOKEN = envOrEmpty('BIBLE_DIAGNOSTICS_TOKEN');
 const ABOUT_TEXT = envOrEmpty('BIBLE_ABOUT_TEXT');
@@ -297,7 +297,11 @@ export default defineConfig({
           'backup-kdf-worker': resolve(__dirname, 'electron/services/backup/kdfWorker.ts'),
           // Worker thread that runs the module conformance gate during an install, so
           // scanning a large module cannot freeze the app. See `runValidationInWorker.ts`.
-          'module-install-worker': resolve(__dirname, 'electron/services/moduleInstallWorker.ts')
+          'module-install-worker': resolve(__dirname, 'electron/services/moduleInstallWorker.ts'),
+          // Worker thread that builds keyword indexes (seconds of FTS5 work for a large
+          // module), so installs and the startup catch-up never freeze the app.
+          // See `runKeywordIndexBuild.ts`.
+          'keyword-index-worker': resolve(__dirname, 'electron/services/keywordIndexWorker.ts')
         },
         external: ['better-sqlite3-multiple-ciphers', '@huggingface/transformers', 'onnxruntime-common', 'onnxruntime-node']
       }

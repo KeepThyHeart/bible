@@ -18,7 +18,7 @@ export function SetupCard(props: { session: ControllerSession | null; onDone: ()
     <section class={`pz-setup present-panel ${open ? 'pz-setup--open' : ''}`} aria-label={t('present.control.setupTitle')}>
       <div class="pz-setup__bar">
         <h2 class="pz-setup__title">{t('present.control.setupTitle')}</h2>
-        <button type="button" class="pz-btn" aria-expanded={open} onClick={() => setOpen(o => !o)}>
+        <button type="button" class="pz-btn" onClick={() => setOpen(o => !o)}>
           <i class={`fa-solid ${open ? 'fa-chevron-up' : 'fa-sliders'}`} aria-hidden="true" />
           {open ? t('present.control.setupHide') : t('present.control.setupOpen')}
         </button>

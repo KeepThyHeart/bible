@@ -10,11 +10,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/preact';
 import type { BibleTab } from '../../stores/bibleStore';
+import { focusAfterTabClose } from '../common/SortableTab';
 
 // ---- i18n ----------------------------------------------------------------
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
-    t: (key: string) => key,
+    t: (key: string, opts?: { title?: string }) => (key === 'bibleTabBar.closeTabNamed' ? `Close ${opts?.title}` : key),
     i18n: { language: 'en' },
   }),
   initReactI18next: { type: '3rdParty', init: vi.fn() },
@@ -40,6 +41,9 @@ vi.mock('@dnd-kit/sortable', () => ({
 
 // ---- SortableTab mock ----------------------------------------------------
 vi.mock('../common/SortableTab', () => ({
+  tabKeyDown: (activate: () => void, close?: (list: Element | null) => void) => (e: KeyboardEvent) => { if (e.key === 'Enter' || e.key === ' ') activate(); else if (e.key === 'Delete' && close) close(null); },
+  focusAfterTabClose: vi.fn(),
+  tablistKeyDown: () => {},
   SortableTab: ({ children, class: className, onClick }: { children: unknown; class?: string; onClick?: () => void }) => (
     <div class={className} onClick={onClick}>{children as any}</div>
   ),
@@ -264,5 +268,108 @@ describe('BibleTabBar', () => {
     expect(screen.getByTestId('book-chapter-picker')).toBeTruthy();
     fireEvent.click(screen.getByText('close-picker'));
     expect(screen.queryByTestId('book-chapter-picker')).toBeNull();
+  });
+
+  // ------------------------------------------------------------------
+  // Tab semantics (a11y)
+  // ------------------------------------------------------------------
+  describe('tab semantics', () => {
+    beforeEach(() => {
+      mockTabs = [makeTab(), makeTab({ id: 'tab-2', book: 19, chapter: 23 })];
+    });
+
+    it('is a tablist whose tabs expose aria-selected', () => {
+      const { container } = render(<BibleTabBar />);
+      expect(container.querySelector('.bible-tab-bar [role="tablist"]')).toBeTruthy();
+      const tabs = screen.getAllByRole('tab', { name: /John 3|Book19 23|Psalms 23/ });
+      expect(tabs.filter(t => t.getAttribute('aria-selected') === 'true')).toHaveLength(1);
+      expect(container.querySelector('.bible-tab-bar__tab--active [role="tab"]')!.getAttribute('aria-selected')).toBe('true');
+    });
+
+    it('marks Home selected (and no passage tab) when Home is shown', () => {
+      mockShowHome = true;
+      render(<BibleTabBar />);
+      expect(screen.getByRole('tab', { name: 'bibleTabBar.home' }).getAttribute('aria-selected')).toBe('true');
+      expect(document.querySelectorAll('[role="tab"][aria-selected="true"]')).toHaveLength(1);
+    });
+
+    it('does not nest the close button inside a tab and names it after the tab', () => {
+      const { container } = render(<BibleTabBar />);
+      for (const tab of Array.from(container.querySelectorAll('[role="tab"]'))) {
+        expect(tab.querySelector('button')).toBeNull();
+      }
+      const closes = screen.getAllByRole('button', { name: /^Close / });
+      expect(closes).toHaveLength(2);
+      expect(new Set(closes.map(c => c.getAttribute('aria-label'))).size).toBe(2);
+      expect(closes[0].getAttribute('aria-label')).toBe('Close John 3');
+    });
+
+    it('gives the + button an accessible name from the New tab string', () => {
+      render(<BibleTabBar />);
+      expect(screen.getByRole('button', { name: 'bibleTabBar.newTab' })).toBeTruthy();
+    });
+
+    it('activates a tab with Enter from the keyboard', () => {
+      render(<BibleTabBar />);
+      const second = screen.getAllByRole('tab').find(t => t.textContent?.includes('Book19') || t.textContent?.includes('Psalms'))!;
+      fireEvent.keyDown(second, { key: 'Enter' });
+      expect(mockSetActiveTab).toHaveBeenCalledWith('tab-2');
+    });
+
+    it('closes the focused tab with Delete and hands focus to the active tab', () => {
+      render(<BibleTabBar />);
+      const second = screen.getAllByRole('tab').find(t => t.textContent?.includes('Book19') || t.textContent?.includes('Psalms'))!;
+      fireEvent.keyDown(second, { key: 'Delete' });
+      expect(mockRemoveTab).toHaveBeenCalledWith('tab-2');
+    });
+
+    it('does not close the last tab with Delete', () => {
+      mockTabs = [makeTab()];
+      render(<BibleTabBar />);
+      fireEvent.keyDown(screen.getAllByRole('tab').find(t => t.textContent?.includes('John'))!, { key: 'Delete' });
+      expect(mockRemoveTab).not.toHaveBeenCalled();
+    });
+
+    it('moves focus (via focusAfterTabClose) when the close button is used', () => {
+      render(<BibleTabBar />);
+      (focusAfterTabClose as any).mockClear();
+      fireEvent.click(screen.getByRole('button', { name: 'Close John 3' }));
+      expect(mockRemoveTab).toHaveBeenCalledWith('tab-1');
+      expect(focusAfterTabClose).toHaveBeenCalled();
+    });
+
+    it('renders the New-tab picker outside the tablist', () => {
+      const { container } = render(<BibleTabBar />);
+      fireEvent.click(container.querySelector('.bible-tab-bar__add')!);
+      const picker = screen.getByTestId('book-chapter-picker');
+      expect(picker.closest('[role="tablist"]')).toBeNull();
+      expect(container.querySelector('.bible-tab-bar__add')!.closest('[role="tablist"]')).toBeNull();
+    });
+  });
+
+  // 0209 U-137: a clipped active tab that fits with the strip at its start scrolls to the start
+  // (Home and "+" stay visible) instead of being scrolled into view alone.
+  it('scrolls to the start when the active tab fits there', () => {
+    const rect = (left: number, right: number) => ({ left, right, top: 0, bottom: 30, width: right - left, height: 30, x: left, y: 0, toJSON() {} }) as DOMRect;
+    const raf = vi.spyOn(window, 'requestAnimationFrame').mockImplementation((cb) => { cb(0); return 0; });
+    const protoRect = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
+      if (this.classList.contains('bible-tab-bar__tab--active')) return rect(-20, 90); // clipped on the left
+      if (this.classList.contains('bible-tab-bar')) return rect(0, 300);
+      return rect(0, 0);
+    });
+    const clientWidth = vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(300);
+    try {
+      const { container } = render(<BibleTabBar />);
+      const bar = container.querySelector('.bible-tab-bar') as HTMLElement;
+      bar.scrollLeft = 40;
+      bar.scrollBy = vi.fn() as any;
+      // re-run the effect with the scroll position set
+      mockTabs = [makeTab(), makeTab({ id: 'tab-2' })];
+      render(<BibleTabBar />, { container });
+      expect(bar.scrollLeft).toBe(0);
+      expect(bar.scrollBy).not.toHaveBeenCalled();
+    } finally {
+      raf.mockRestore(); protoRect.mockRestore(); clientWidth.mockRestore();
+    }
   });
 });

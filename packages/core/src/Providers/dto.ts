@@ -340,7 +340,10 @@ export interface TopicDetailData {
   children: TopicChildData[];
   parent_chain: { topic_id: number; name: string }[];
   verse_count: number;
+  /** Total passages including sub-topics (what the list holds). */
   reference_count?: number;
+  /** Passages filed directly on this topic, excluding sub-topics (B-093). */
+  direct_reference_count?: number;
 }
 
 export interface TopicChildData {

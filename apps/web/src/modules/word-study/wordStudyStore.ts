@@ -6,6 +6,7 @@ import type {
   IWordStudyProvider,
   WordGroup,
   WordKeyCandidate,
+  WordOccurrenceItem,
   WordOccurrencePage,
   WordStudyOverview,
   WordStudySubject,
@@ -13,6 +14,10 @@ import type {
 
 /** Occurrences fetched per page; "load more" appends the next page. */
 export const WORD_STUDY_PAGE_SIZE = 100;
+/** "Load more" fetches up to this many occurrences per click, like the other lists. */
+export const WORD_STUDY_LOAD_MORE_SIZE = 1000;
+/** The occurrences endpoint (and the core service) clamp one request to 500, so a click is split into requests of this size. */
+export const WORD_STUDY_REQUEST_MAX = 500;
 
 export interface WordStudyStoreFilters {
   book?: number;
@@ -25,6 +30,13 @@ const GROUP_SYNTAX_RE = /[,;|*]/;
 /** Stable identity of a subject, for trail de-duplication. */
 function subjectKey(s: WordStudySubject): string {
   return s.kind === 'strongs' ? `s:${s.strongs}` : `g:${s.group.id}`;
+}
+
+/** The lookup-box text that studies `s` again (what the reader would type). */
+function subjectQuery(s: WordStudySubject): string {
+  if (s.kind === 'strongs') return s.strongs;
+  const exclude = (s.group.exclude ?? []).map((t) => `-${t}`);
+  return [...s.group.terms, ...exclude].join(', ') || s.group.label;
 }
 
 /**
@@ -106,12 +118,12 @@ class WordStudyStore extends Store {
     const seq = ++this.resolveSeq;
 
     if (GROUP_SYNTAX_RE.test(trimmed)) {
-      await this.openGroup(groupFromQuery(trimmed));
+      await this.open({ kind: 'group', group: groupFromQuery(trimmed) }, undefined, true);
       return;
     }
     const m = STRONGS_RE.exec(trimmed);
     if (m) {
-      await this.openStrongs(m[1].toUpperCase());
+      await this.open({ kind: 'strongs', strongs: m[1].toUpperCase() }, undefined, true);
       return;
     }
 
@@ -128,7 +140,7 @@ class WordStudyStore extends Store {
     }
     if (seq !== this.resolveSeq) return;
     if (found.length === 1) {
-      await this.openStrongs(found[0].strongs);
+      await this.open({ kind: 'strongs', strongs: found[0].strongs }, undefined, true);
     } else if (found.length > 1) {
       this.candidates = found;
       // The previous word's study is not the answer to this query; leaving it
@@ -138,13 +150,13 @@ class WordStudyStore extends Store {
       this.loading = false;
       this.notify();
     } else {
-      await this.openGroup(groupFromQuery(trimmed));
+      await this.open({ kind: 'group', group: groupFromQuery(trimmed) }, undefined, true);
     }
   }
 
   pickCandidate(strongs: string): Promise<void> {
     this.candidates = [];
-    return this.openStrongs(strongs);
+    return this.open({ kind: 'strongs', strongs }, undefined, true);
   }
 
   // ---------------------------------------------------------------- subjects
@@ -157,8 +169,10 @@ class WordStudyStore extends Store {
     return this.open({ kind: 'group', group }, opts);
   }
 
-  private async open(subject: WordStudySubject, opts?: { module?: string }): Promise<void> {
+  /** `keepQuery`: the reader typed the query themselves, so leave the input as typed; any other caller (a link, the dictionary) shows the opened subject in the input. */
+  private async open(subject: WordStudySubject, opts?: { module?: string }, keepQuery = false): Promise<void> {
     this.resolveSeq++;
+    if (!keepQuery) this.query = subjectQuery(subject);
     this.candidates = [];
     if (opts?.module) { this.module = opts.module; this.moduleExplicit = true; }
     // A new subject drops the trail beyond the current position, like browser history.
@@ -175,12 +189,14 @@ class WordStudyStore extends Store {
   back(): Promise<void> {
     if (!this.canGoBack) return Promise.resolve();
     this.trailIndex--;
+    this.query = subjectQuery(this.trail[this.trailIndex]);
     return this.study(this.trail[this.trailIndex]);
   }
 
   forward(): Promise<void> {
     if (!this.canGoForward) return Promise.resolve();
     this.trailIndex++;
+    this.query = subjectQuery(this.trail[this.trailIndex]);
     return this.study(this.trail[this.trailIndex]);
   }
 
@@ -266,20 +282,29 @@ class WordStudyStore extends Store {
     if (reset) this.occurrences = null;
     this.occurrencesLoading = true;
     this.notify();
-    const offset = reset ? 0 : (this.occurrences?.items.length ?? 0);
+    const startOffset = reset ? 0 : (this.occurrences?.items.length ?? 0);
+    const want = reset ? WORD_STUDY_PAGE_SIZE : WORD_STUDY_LOAD_MORE_SIZE;
     try {
-      const page = await this.api().getOccurrences(subject, {
-        module,
-        book: this.filters.book,
-        form: this.filters.form,
-        renderingMode: this.renderingMode,
-        offset,
-        limit: WORD_STUDY_PAGE_SIZE,
-      });
-      if (seq !== this.occSeq) return;
+      let total = 0;
+      const collected: WordOccurrenceItem[] = [];
+      while (collected.length < want) {
+        const limit = Math.min(WORD_STUDY_REQUEST_MAX, want - collected.length);
+        const chunk = await this.api().getOccurrences(subject, {
+          module,
+          book: this.filters.book,
+          form: this.filters.form,
+          renderingMode: this.renderingMode,
+          offset: startOffset + collected.length,
+          limit,
+        });
+        if (seq !== this.occSeq) return;
+        total = chunk.total;
+        collected.push(...chunk.items);
+        if (chunk.items.length < limit || startOffset + collected.length >= chunk.total) break;
+      }
       this.occurrences = reset || !this.occurrences
-        ? page
-        : { total: page.total, items: [...this.occurrences.items, ...page.items] };
+        ? { total, items: collected }
+        : { total, items: [...this.occurrences.items, ...collected] };
       this.occurrencesLoading = false;
       this.notify();
     } catch (e) {

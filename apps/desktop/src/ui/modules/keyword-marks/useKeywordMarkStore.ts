@@ -2,7 +2,7 @@
  * Keyword marks (task 0065): renderer state.
  *
  * Holds the keyword sets (via core's `KeywordSetService` over the IPC store),
- * per-Bible-tab switches, the colour-safe setting and, per tab, the current
+ * per-Bible-tab switches, and, per tab, the current
  * chapter's match. Marks are computed at render time from the chapter on screen
  * and never stored as highlights; only the switches persist (session).
  */
@@ -47,7 +47,6 @@ export const KEYWORD_SESSION_VERSION = 1;
 
 export interface KeywordSessionData {
   version: number;
-  colorSafe: boolean;
   tabs: Record<string, TabKeywordState>;
 }
 
@@ -73,7 +72,6 @@ export interface KeywordMarkDeps {
 export interface KeywordMarkState {
   sets: KeywordSet[];
   loaded: boolean;
-  colorSafe: boolean;
   tabs: Record<string, TabKeywordState>;
   /** Current chapter match per tab (transient). */
   chapters: Record<string, ChapterMarks | undefined>;
@@ -87,7 +85,6 @@ export interface KeywordMarkState {
   setTabEnabled(tabId: string, enabled: boolean): void;
   setActiveSets(tabId: string, setIds: string[] | null): void;
   toggleMark(tabId: string, markId: string): void;
-  setColorSafe(colorSafe: boolean): void;
   removeTab(tabId: string): void;
 
   /** Recompute the tab's marks for the chapter on screen (fetching interlinear rows when a mark needs them). */
@@ -156,7 +153,7 @@ export function createKeywordMarkStore(deps: KeywordMarkDeps): UseBoundStore<Sto
       const rows = req.interlinear ?? (Array.isArray(cached) ? cached : undefined);
       const input = buildChapterInput(req.moduleId, req.language, req.verses, rows);
       const sets = resolveActiveSets(s.sets, tab, req.language);
-      const marks = computeChapterMarks(input, sets, { colorSafe: s.colorSafe, hiddenMarkIds: tab.hiddenMarkIds });
+      const marks = computeChapterMarks(input, sets, { hiddenMarkIds: tab.hiddenMarkIds });
       set((st) => ({ chapters: { ...st.chapters, [tabId]: marks } }));
 
       const needsRows = marks.result.needsInterlinear || marks.result.wantsInterlinear;
@@ -185,7 +182,6 @@ export function createKeywordMarkStore(deps: KeywordMarkDeps): UseBoundStore<Sto
     return {
       sets: [...service.all()],
       loaded: false,
-      colorSafe: true,
       tabs: {},
       chapters: {},
 
@@ -207,7 +203,7 @@ export function createKeywordMarkStore(deps: KeywordMarkDeps): UseBoundStore<Sto
             hiddenMarkIds: Array.isArray(t.hiddenMarkIds) ? t.hiddenMarkIds.filter((x) => typeof x === 'string') : [],
           };
         }
-        set({ tabs, colorSafe: d.colorSafe !== false });
+        set({ tabs });
         recomputeAll();
       },
 
@@ -217,7 +213,7 @@ export function createKeywordMarkStore(deps: KeywordMarkDeps): UseBoundStore<Sto
           // Untouched tabs carry nothing worth saving.
           if (t.enabled || t.activeSetIds || t.hiddenMarkIds.length > 0) tabs[id] = t;
         }
-        return { version: KEYWORD_SESSION_VERSION, colorSafe: get().colorSafe, tabs };
+        return { version: KEYWORD_SESSION_VERSION, tabs };
       },
 
       getTabState: (tabId) => get().tabs[tabId] ?? DEFAULT_TAB_STATE,
@@ -234,12 +230,6 @@ export function createKeywordMarkStore(deps: KeywordMarkDeps): UseBoundStore<Sto
       toggleMark(tabId, markId) {
         const hidden = get().getTabState(tabId).hiddenMarkIds;
         patchTab(tabId, { hiddenMarkIds: hidden.includes(markId) ? hidden.filter((m) => m !== markId) : [...hidden, markId] });
-      },
-
-      setColorSafe(colorSafe) {
-        set({ colorSafe });
-        recomputeAll();
-        markSessionDirty();
       },
 
       removeTab(tabId) {

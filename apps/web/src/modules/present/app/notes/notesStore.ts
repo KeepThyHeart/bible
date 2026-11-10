@@ -100,7 +100,9 @@ class NotesStore extends Store {
     onPlay: (id) => this.playById(id),
     onItemClick: (id, el) => this.onItemClick(id, el),
     onHighlightClick: (id, el) => this.openChooser({ mode: 'highlight', id, anchor: el.getBoundingClientRect() }),
-    playTitle: () => this.translateFn('present.notes.playMarker'),
+    playTitle: (label) => (label
+      ? this.translateFn('present.notes.playMarkerFor', { label, defaultValue: `${this.translateFn('present.notes.playMarker')}: ${label}` })
+      : this.translateFn('present.notes.playMarker')),
   });
 
   get currentServiceId(): string | null { return this.serviceId; }

@@ -18,6 +18,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { getDiagnosticsPrivacyBlurb } from './privacyBlurb';
 import { useI18n } from '../../contexts/useI18n';
+import { translateWithDefault } from '../../utils/translateWithDefault';
 
 // ---------------------------------------------------------------------------
 // IPC helpers
@@ -54,12 +55,37 @@ interface QueueEntry {
   ts: string;
 }
 
+/**
+ * The privacy blurb is plain text ("What we send:" then "  - item" lines, a
+ * blank line between groups). Split it into paragraphs and real lists so a
+ * screen reader announces "list, N items" instead of reading literal dashes.
+ */
+type BlurbBlock = { kind: 'p'; text: string } | { kind: 'ul'; items: string[] };
+
+export function parsePrivacyBlurb(text: string): BlurbBlock[] {
+  const blocks: BlurbBlock[] = [];
+  for (const raw of text.split('\n')) {
+    const line = raw.trim();
+    if (!line) continue;
+    const bullet = /^[-\u2022]\s+(.*)$/.exec(line);
+    if (bullet) {
+      const last = blocks[blocks.length - 1];
+      if (last && last.kind === 'ul') last.items.push(bullet[1]);
+      else blocks.push({ kind: 'ul', items: [bullet[1]] });
+    } else {
+      blocks.push({ kind: 'p', text: line });
+    }
+  }
+  return blocks;
+}
+
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
 const DiagnosticsSettings: React.FC = () => {
   const { t } = useI18n();
+  const td = (key: string, fallback: string) => translateWithDefault(t, key, fallback);
   const [config, setConfig] = useState<DiagnosticsConfigShape | null>(null);
   const [configError, setConfigError] = useState<string | null>(null);
   const [endpointDraft, setEndpointDraft] = useState<string>('');
@@ -279,10 +305,9 @@ const DiagnosticsSettings: React.FC = () => {
         >
           {t('diagnosticsSettings.intro')}
         </p>
-        <pre
+        <div
+          data-testid="diagnostics-privacy-blurb"
           style={{
-            whiteSpace: 'pre-wrap',
-            fontFamily: 'inherit',
             fontSize: '0.75rem',
             margin: 0,
             padding: 12,
@@ -292,8 +317,18 @@ const DiagnosticsSettings: React.FC = () => {
             color: 'var(--theme-text-secondary)',
           }}
         >
-          {getDiagnosticsPrivacyBlurb(t)}
-        </pre>
+          {parsePrivacyBlurb(getDiagnosticsPrivacyBlurb(t)).map((block, i) =>
+            block.kind === 'ul' ? (
+              <ul key={i} style={{ margin: '0 0 8px', paddingInlineStart: 20, listStyle: 'disc' }}>
+                {block.items.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
+            ) : (
+              <p key={i} style={{ margin: '0 0 4px' }}>{block.text}</p>
+            ),
+          )}
+        </div>
       </section>
 
       {configError && (
@@ -347,7 +382,7 @@ const DiagnosticsSettings: React.FC = () => {
             disabled={!config}
             onChange={handleToggleDontAskAgain}
           />
-          <span>Don&apos;t show the crash report dialog automatically</span>
+          <span>{td('diagnosticsSettings.dontShowCrashDialog', "Don't show the crash report dialog automatically")}</span>
         </label>
       </section>
 
@@ -435,7 +470,7 @@ const DiagnosticsSettings: React.FC = () => {
               cursor: queueLoading ? 'default' : 'pointer',
             }}
           >
-            {queueLoading ? 'Refreshing…' : 'Refresh'}
+            {queueLoading ? td('diagnosticsSettings.refreshing', 'Refreshing\u2026') : td('diagnosticsSettings.refresh', 'Refresh')}
           </button>
         </div>
 
@@ -482,7 +517,7 @@ const DiagnosticsSettings: React.FC = () => {
               opacity: flushing || endpointEmpty ? 0.6 : 1,
             }}
           >
-            {flushing ? 'Sending…' : 'Send all now'}
+            {flushing ? td('diagnosticsSettings.sending', 'Sending\u2026') : td('diagnosticsSettings.sendAllNow', 'Send all now')}
           </button>
           {/* Single polite status region for the queue actions. */}
           <span
@@ -606,7 +641,7 @@ const DiagnosticsSettings: React.FC = () => {
                         cursor: 'pointer',
                       }}
                     >
-                      {expanded ? 'Hide' : 'View'}
+                      {expanded ? td('diagnosticsSettings.hide', 'Hide') : td('diagnosticsSettings.view', 'View')}
                     </button>
                     <button
                       type="button"

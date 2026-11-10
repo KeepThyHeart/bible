@@ -26,6 +26,8 @@ import { watchTargets } from '../ExtensionDevWatcher';
 import { FakeSql } from './fakeSql';
 
 let tmpRoot: string;
+// Every host a test made: disposed in afterEach so no dev watcher or lifecycle log write fires after the temp dir is removed.
+const hosts: ExtensionHost[] = [];
 let extensionsRoot: string;
 let devProject: string;
 
@@ -71,6 +73,7 @@ function makeHost(opts: { devConfig?: ExtensionDevConfig; sql?: FakeSql } = {}):
     }),
     devWatchDebounceMs: 30,
   });
+  hosts.push(host);
   return { host, sql };
 }
 
@@ -88,8 +91,11 @@ beforeEach(() => {
   makeDevProject(devProject);
 });
 
-afterEach(() => {
-  rmSync(tmpRoot, { recursive: true, force: true });
+afterEach(async () => {
+  for (const host of hosts.splice(0)) host.dispose();
+  // Let writes already in flight (extension.log appends) land before the directory goes.
+  await new Promise((r) => setTimeout(r, 50));
+  rmSync(tmpRoot, { recursive: true, force: true, maxRetries: 3 });
 });
 
 describe('ExtensionDevConfig', () => {

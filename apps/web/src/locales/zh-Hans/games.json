@@ -25,7 +25,8 @@
       "remaining": "剩余时间",
       "secondsLeft": "剩余 {seconds} 秒",
       "paused": "已暂停",
-      "secondsShort": "{seconds} 秒"
+      "secondsShort": "{seconds} 秒",
+      "oneSecondLeft": "还剩 1 秒"
     },
     "frame": {
       "roomAria": "房间 {code}",
@@ -78,7 +79,8 @@
       "skipIt": "跳过",
       "keepGoing": "继续",
       "skip": "跳过",
-      "nextQuestion": "下一题"
+      "nextQuestion": "下一题",
+      "scoresEveryoneItem": "显示所有人的分数"
     },
     "join": {
       "enterCode": "输入房间代码",
@@ -86,7 +88,10 @@
       "yourName": "您的名字",
       "joining": "正在加入…",
       "joinRoom": "加入房间",
-      "solo": "单人游戏"
+      "solo": "单人游戏",
+      "codeInvalid": "房间代码由 {length} 个字母和数字组成，例如 5HK27。请查看大屏幕。",
+      "nameNeeded": "输入你的名字以加入。",
+      "codeFiltered": "房间代码只使用这些字符：{chars}。其他字符已被省略。"
     },
     "solo": {
       "onYourOwn": "仅限您自己——其他人看不到这个房间。",
@@ -138,7 +143,11 @@
       "leaveRejoin": "只要房间仍然开放，您就可以用同一代码重新加入。",
       "stay": "留下",
       "theme": "主题",
-      "leave": "离开"
+      "leave": "离开",
+      "themeCycle": "主题：{name}。切换到下一个主题",
+      "themeCycleCustom": "切换到下一个主题",
+      "playersCount": "玩家：{total}",
+      "lobbyHeading": "房间大厅"
     },
     "brand": {
       "title": "圣经团体游戏",
@@ -151,6 +160,34 @@
     },
     "app": {
       "live": "房间已开启"
+    },
+    "names": {
+      "fillInTheBlank": "填空",
+      "nameThatReference": "说出出处",
+      "whoSaidIt": "谁说的",
+      "whoAmI": "我是谁",
+      "putInOrder": "排序",
+      "categoryBoard": "分类棋盘",
+      "swordDrill": "宝剑操练",
+      "describeIt": "描述它",
+      "detective": "侦探"
+    },
+    "scopes": {
+      "wholeBible": "整本圣经",
+      "peopleOfTheBible": "圣经人物"
+    },
+    "familiarity": {
+      "core": "人人都知道的经文",
+      "familiar": "熟悉的经文",
+      "broad": "熟悉的及较陌生的",
+      "deep": "适合常读经的小组",
+      "any": "圣经中的任何地方"
+    },
+    "errors": {
+      "roomNotFound": "没有房间使用该代码。请核对大屏幕上的代码。",
+      "roomsFull": "此服务器已达到房间上限。请稍后再试。",
+      "offline": "无法连接服务器。请检查 Wi-Fi 后重试。",
+      "status": "服务器返回 {status}。"
     }
   }
 }

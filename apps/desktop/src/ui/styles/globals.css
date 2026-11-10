@@ -451,6 +451,17 @@
     line-height: var(--pane-line-height-dictionary, var(--study-line-height, 1.75));
   }
 
+  /* The Study pane (B-074). Prose inside it already flows through
+   * .pane-content-commentary; this wrapper carries the same "Study / pane text"
+   * size and font to everything else (section labels, topic rows, badges,
+   * notices). `--study-fs` is the resolved size - see utils/studyScale.ts, which
+   * sizes each literal as a fraction of it. */
+  .pane-content-study {
+    --study-fs: calc(var(--study-font-size, 16px) * var(--global-font-scale, 1));
+    font-family: var(--study-font-family, Georgia, Merriweather, serif);
+    font-size: var(--study-fs);
+  }
+
   /* Pane header bar styling - shared across all panes (theme-aware) */
   .pane-header {
     @apply flex items-center flex-shrink-0 min-w-0;
@@ -913,6 +924,23 @@
   outline-offset: 2px;
 }
 
+/* Headings that are focused by script (tabindex=-1, e.g. the Search Results
+   heading) sit directly above a subtitle. The default 2px outside ring cuts
+   through that subtitle, so draw the ring inside the heading box and give the
+   text a little room so the ring does not touch the glyphs. */
+:is(h1, h2, h3, h4)[tabindex='-1']:focus-visible {
+  outline-offset: -2px;
+  padding-inline: 4px;
+  padding-block: 2px;
+  border-radius: 4px;
+}
+
+/* Menu items fill the menu edge to edge, so the default outside ring overhangs
+   the menu's border; draw it inside the item instead (U-175). */
+[role='menu'] [role='menuitem']:focus-visible {
+  outline-offset: -2px;
+}
+
 /* Inputs keep their border tint as well; the outline is additive, not a
    replacement. Overriding `outline: none` from themes.css is the whole point. */
 input:focus-visible,
@@ -945,4 +973,14 @@ textarea:not([dir]) {
 .ProseMirror :is(p, h1, h2, h3, h4, h5, h6, li, blockquote):not([dir]),
 .note-viewer-content :is(p, h1, h2, h3, h4, h5, h6, li, blockquote):not([dir]) {
   unicode-bidi: plaintext;
+}
+
+/* Find-in-note matches (decorations from NoteFindExtension) */
+.note-editor .tiptap .note-find-match {
+  background-color: var(--theme-bg-active);
+  border-radius: 2px;
+}
+.note-editor .tiptap .note-find-match-current {
+  background-color: #facc15;
+  color: #1c1917;
 }

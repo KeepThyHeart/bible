@@ -21,6 +21,8 @@ import { test, expect, Page } from '../fixtures/electron.fixture';
 import { selectVerse, ensurePaneOpen } from '../fixtures/test-utils';
 import fs from 'fs';
 import path from 'path';
+import { needsRealData } from '../fixtures/dataDir';
+
 
 /**
  * Fixtures, chosen against the dev dataset and qualified by source.
@@ -138,6 +140,9 @@ async function openTopic(
     `No "${topic.name}" result in ${topic.source} has sub-topics (${matches} exact matches tried)`,
   );
 }
+
+// Modules the committed fixture lacks: skipped unless real data is given (BIBLE_E2E_DATA_DIR).
+needsRealData(test.skip, 'NaveTopics');
 
 test.describe('Topics Pane', () => {
   test.beforeEach(async ({ window }) => {

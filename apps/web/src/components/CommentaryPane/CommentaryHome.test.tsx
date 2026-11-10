@@ -6,7 +6,7 @@
  * useStore is mocked to call the selector immediately (no subscription).
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/preact';
+import { render, screen, fireEvent, waitFor } from '@testing-library/preact';
 import type { CommentaryHomeData } from '../../types';
 
 // ---- i18n ----------------------------------------------------------------
@@ -438,5 +438,61 @@ describe('CommentaryHome', () => {
     });
     const { container } = render(<CommentaryHome />);
     expect(screen.getByText('Commentary on Passage')).toBeTruthy();
+  });
+
+  // ------------------------------------------------------------------
+  // Accessibility: keyboard reach for the accordion header and the star
+  // ------------------------------------------------------------------
+  it('expands a module from the keyboard via its name button (aria-expanded)', () => {
+    render(<CommentaryHome />);
+    const toggle = screen.getByRole('button', { name: 'MHC', expanded: false });
+    expect(toggle.tagName).toBe('BUTTON');
+    fireEvent.click(toggle);
+    expect(mocks.fetchModuleEntries).toHaveBeenCalled();
+  });
+
+  it('the star is a named, pressable button that does not expand the row', () => {
+    render(<CommentaryHome />);
+    const star = screen.getByRole('button', { name: 'Star MHC' });
+    expect(star.getAttribute('aria-pressed')).toBe('false');
+    mocks.fetchModuleEntries.mockClear();
+    expect(star.tagName).toBe('BUTTON');
+    fireEvent.click(star);
+    expect(mocks.togglePromoted).toHaveBeenCalledWith('MHC');
+    expect(mocks.fetchModuleEntries).not.toHaveBeenCalled();
+  });
+
+  it('U-232: the star is a sibling of the card button, not nested inside any button or role=button', () => {
+    const { container } = render(<CommentaryHome />);
+    const star = screen.getByRole('button', { name: 'Star MHC' });
+    const toggle = screen.getByRole('button', { name: 'MHC', expanded: false });
+    expect(toggle.contains(star)).toBe(false);
+    expect(star.parentElement?.closest('button, [role="button"]')).toBeNull();
+    expect(toggle.parentElement?.closest('button, [role="button"]')).toBeNull();
+    expect(star.contains(toggle)).toBe(false);
+    expect(container.querySelector('.commentary-home__list-item')?.getAttribute('role')).toBeNull();
+  });
+
+  it('star and mute are named per commentary; state is aria-pressed, not a rename', () => {
+    state.promotedModules = new Set(['MHC']);
+    render(<CommentaryHome />);
+    const star = screen.getByRole('button', { name: 'Star MHC' });
+    expect(star.getAttribute('aria-pressed')).toBe('true');
+    expect(screen.queryByRole('button', { name: /^Unstar/ })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'MHC', expanded: false }));
+    const mute = screen.getByRole('button', { name: 'Mute MHC' });
+    expect(mute.getAttribute('aria-pressed')).toBe('false');
+    expect(screen.queryByRole('button', { name: /^Unmute/ })).toBeNull();
+  });
+
+  // 0209 round 5: starring remounts the star (the list re-sorts); focus must stay on that item's star.
+  it('keeps focus on the star after starring', async () => {
+    render(<CommentaryHome />);
+    const star = screen.getByRole('button', { name: 'Star MHC' });
+    star.focus();
+    // The re-sort remounts the star, which drops focus to <body>.
+    mocks.togglePromoted.mockImplementationOnce(() => (document.activeElement as HTMLElement).blur());
+    fireEvent.click(star);
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Star MHC' })));
   });
 });

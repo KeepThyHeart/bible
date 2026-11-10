@@ -16,7 +16,7 @@ import { IBibleRepository } from '../Data/Repositories/IBibleRepository';
 import { IBibleBookRepository } from '../Data/Repositories/IBibleBookRepository';
 import { SearchResult, SearchOptions, ParsedQuery, Match, MatchType, BooleanExpression, BibleRange } from '../types/search';
 import { VerseId, VerseIdHelper } from '../Data/Core/Types';
-import { divineRangesOfVerse, markUp, type TextRange } from './SearchMarkup';
+import { markedRangesOfVerse, markUp, type TextRange } from './SearchMarkup';
 import { StrongsNumberHelper } from '../Data/Core/StrongsNumberHelper';
 import { isReadOnlyDatabaseError } from '../Data/Core/Errors';
 import { BibleVerse } from '../Data/Models/Bible/BibleVerse';
@@ -60,6 +60,18 @@ function shipsInModuleIndex(repository: IBibleRepository): boolean {
  * IBibleSearchRepository -- saved searches are the SearchController's business,
  * not this one's.
  */
+/** {@link SearchOptions} plus what only this service reads. */
+export interface BibleSearchOptions extends SearchOptions {
+  /**
+   * Run `/pattern/` queries as regular-expression searches. On by default (the
+   * desktop app offers it). The web server passes `false`, and such a query
+   * then throws a `SearchQueryRejectedError` (W-001: a pattern like
+   * `/^(\w+\s?)*$/` is tested against every verse synchronously and can hang
+   * the process).
+   */
+  allowRegex?: boolean;
+}
+
 const matchRanges = (matches: Match[]): TextRange[] => matches.map(m => ({ start: m.startPos, end: m.endPos }));
 
 /** How many glosses a Strong's result highlights, and how often the build loop yields. */
@@ -111,6 +123,8 @@ export class BibleSearchService implements ISearchService {
    * the character-variant retry, and the auto-fuzzy supplement).
    */
   private lastSkippedTargets: KeywordSearchResponse['skipped'] = [];
+  /** Extra name -> registered module name, for a Bible added again under another name (W-002). */
+  private readonly moduleAliases = new Map<string, string>();
 
   constructor(
     private bibleModules: Map<string, IBibleRepository>,
@@ -169,10 +183,40 @@ export class BibleSearchService implements ISearchService {
    * Used to dynamically add modules when searching across all Bibles
    */
   addBibleModule(abbreviation: string, repository: IBibleRepository): void {
-    if (!this.bibleModules.has(abbreviation)) {
-      this.bibleModules.set(abbreviation, repository);
-      this.registerModuleWithProvider(abbreviation, repository);
+    if (this.bibleModules.has(abbreviation) || this.moduleAliases.has(abbreviation)) return;
+    // W-002: the same Bible under a second name ("kjv" after "KJV") must not
+    // become a second module. It used to: every search without `modules`
+    // scanned that Bible once per name, and the second registration overwrote
+    // `targetKeyToAbbr` for the shared IndexTarget, so hits for the first name
+    // no longer mapped back and its searches found nothing until a restart.
+    // The new name now just points at the module already registered.
+    const existing = this.registeredNameFor(repository);
+    if (existing !== undefined) {
+      this.moduleAliases.set(abbreviation, existing);
+      return;
     }
+    this.bibleModules.set(abbreviation, repository);
+    this.registerModuleWithProvider(abbreviation, repository);
+  }
+
+  /**
+   * The name a repository is already registered under: the same instance, or
+   * one whose IndexTarget is already mapped (see `targetKeyToAbbr`).
+   */
+  private registeredNameFor(repository: IBibleRepository): string | undefined {
+    for (const [name, repo] of this.bibleModules) {
+      if (repo === repository) return name;
+    }
+    // `indexTargetFor` falls back to the abbreviation for a module with no
+    // uuid; only a real uuid identifies the Bible regardless of its name.
+    if (!repository.getModuleInfo()?.moduleUuid) return undefined;
+    const name = this.targetKeyToAbbr.get(indexTargetKey(this.indexTargetFor('', repository)));
+    return name !== undefined && this.bibleModules.has(name) ? name : undefined;
+  }
+
+  /** The registered module name for `abbreviation`, following W-002 aliases. */
+  private canonicalModuleName(abbreviation: string): string {
+    return this.moduleAliases.get(abbreviation) ?? abbreviation;
   }
 
   /**
@@ -405,7 +449,7 @@ export class BibleSearchService implements ISearchService {
    *          then phrase-match boost, then Bible order)
    * @throws Error if the query has invalid syntax
    */
-  async search(query: string, options: SearchOptions): Promise<SearchResult[]> {
+  async search(query: string, options: BibleSearchOptions): Promise<SearchResult[]> {
     // Reset the skipped-targets record for this top-level call; see
     // `lastSkippedTargets`'s doc comment. Accumulated (not overwritten) by
     // `reportSkippedTargets()` across every keyword-index call this one
@@ -413,13 +457,13 @@ export class BibleSearchService implements ISearchService {
     this.lastSkippedTargets = [];
 
     // Validate query
-    const validationError = this.parser.validate(query);
+    const validationError = this.parser.validate(query, { allowRegex: options.allowRegex });
     if (validationError) {
       throw new Error(validationError);
     }
 
     // Parse query to determine search type
-    const parsed = this.parseQuery(query);
+    const parsed = this.parseQuery(query, options);
 
     // The query parser can't detect proximity intent from plain text alone;
     // the advanced search dialog sets proximityDistance explicitly, so we
@@ -492,7 +536,7 @@ export class BibleSearchService implements ISearchService {
     if (results.length === 0) {
       const variantQuery = this.generateCharacterVariantQuery(query);
       if (variantQuery && variantQuery !== query) {
-        const variantParsed = this.parseQuery(variantQuery);
+        const variantParsed = this.parseQuery(variantQuery, options);
         // Re-run the same search type with variant query
         switch (variantParsed.searchType) {
           case 'multi-word':
@@ -590,8 +634,8 @@ export class BibleSearchService implements ISearchService {
    * @param query - The raw search query string
    * @returns Parsed query with detected search type, terms, and type-specific fields
    */
-  parseQuery(query: string): ParsedQuery {
-    return this.parser.parse(query);
+  parseQuery(query: string, options?: Pick<BibleSearchOptions, 'symbolOperators' | 'allowRegex'>): ParsedQuery {
+    return this.parser.parse(query, { symbolOperators: options?.symbolOperators, allowRegex: options?.allowRegex });
   }
 
   // ========================================================================
@@ -711,40 +755,12 @@ export class BibleSearchService implements ISearchService {
       }
 
       // 3. Find matching constellations (verses where all terms appear within verseDistance)
-      const matchingVerses = new Set<VerseId>();
-      const firstTermVerses = termVerseMap.get(terms[0])!;
-
-      for (const baseVerseId of firstTermVerses) {
-        // Check if all other terms appear within verseDistance of this verse
-        let allTermsWithinRange = true;
-
-        for (let i = 1; i < terms.length; i++) {
-          const otherTermVerses = termVerseMap.get(terms[i])!;
-
-          // Check if any occurrence of this term is within verseDistance verses
-          const hasNearbyMatch = Array.from(otherTermVerses).some(otherVerseId => {
-            return this.isWithinVerseDistance(baseVerseId, otherVerseId, verseDistance);
-          });
-
-          if (!hasNearbyMatch) {
-            allTermsWithinRange = false;
-            break;
-          }
-        }
-
-        if (allTermsWithinRange) {
-          // Collect ALL verses in this constellation (all terms within range)
-          matchingVerses.add(baseVerseId);
-
-          for (const term of terms) {
-            for (const vid of termVerseMap.get(term)!) {
-              if (this.isWithinVerseDistance(baseVerseId, vid, verseDistance)) {
-                matchingVerses.add(vid);
-              }
-            }
-          }
-        }
-      }
+      const matchingVerses = this.findVerseProximityMatches(
+        terms.map(term => termVerseMap.get(term)!),
+        verseDistance
+      );
+      // One thread serves every visitor: hand it back between modules.
+      await new Promise<void>(resolve => setImmediate(resolve));
 
       // 4. Group consecutive verses and format results
       if (matchingVerses.size > 0) {
@@ -1154,10 +1170,10 @@ export class BibleSearchService implements ISearchService {
             ? this.extractMatches(text, glosses)
             : [];
           // B-167: where the verse's HTML marks the divine name, keep it in the result.
-          const divine = divineRangesOfVerse(verse, text);
-          const hasDivine = !!divine && divine.length > 0;
+          const { divine, christ } = markedRangesOfVerse(verse, text);
+          const hasDivine = (!!divine && divine.length > 0) || (!!christ && christ.length > 0);
           const highlightedText = hasDivine
-            ? markUp(text, 0, text.length, matchRanges(matches), divine)
+            ? markUp(text, 0, text.length, matchRanges(matches), divine ?? [], christ ?? [])
             : glosses.length > 0
               ? await this.highlightMatches(text, glosses)
               : text;
@@ -1165,7 +1181,7 @@ export class BibleSearchService implements ISearchService {
           let snippet: string | undefined;
           if (text.length > 100 && matches.length > 0) {
             const rawSnippet = this.createSnippet(text, glosses, 120);
-            snippet = (hasDivine ? this.markUpSnippet(text, rawSnippet, matches, divine) : null)
+            snippet = (hasDivine ? this.markUpSnippet(text, rawSnippet, matches, divine ?? [], christ ?? []) : null)
               ?? await this.highlightMatches(rawSnippet, glosses);
           }
 
@@ -1292,10 +1308,10 @@ export class BibleSearchService implements ISearchService {
     // TABLE` again per verse - see `highlighterFor()`.
     const matches = this.highlighterFor(moduleAbbr, repo).spans(text, query);
     // B-167: where the verse's HTML marks the divine name, keep it in the result.
-    const divine = divineRangesOfVerse(verse, text);
-    const hasDivine = !!divine && divine.length > 0;
+    const { divine, christ } = markedRangesOfVerse(verse, text);
+    const hasDivine = (!!divine && divine.length > 0) || (!!christ && christ.length > 0);
     const highlightedText = hasDivine
-      ? markUp(text, 0, text.length, matchRanges(matches), divine)
+      ? markUp(text, 0, text.length, matchRanges(matches), divine ?? [], christ ?? [])
       : this.applyHighlightMarkup(text, matches);
 
     // Create a snippet that prioritizes the matched text (for live search display)
@@ -1307,7 +1323,7 @@ export class BibleSearchService implements ISearchService {
       const matchedTerms = matches.map(m => m.term);
       const termsForSnippet = matchedTerms.length > 0 ? matchedTerms : searchTerms;
       const rawSnippet = this.createSnippet(text, termsForSnippet, 120);
-      snippet = (hasDivine ? this.markUpSnippet(text, rawSnippet, matches, divine) : null)
+      snippet = (hasDivine ? this.markUpSnippet(text, rawSnippet, matches, divine ?? [], christ ?? []) : null)
         ?? await this.highlightMatches(rawSnippet, termsForSnippet);
     }
 
@@ -1332,7 +1348,7 @@ export class BibleSearchService implements ISearchService {
    * over with match and divine-name markup. Null when a piece cannot be found,
    * so the caller falls back to the plain highlighter.
    */
-  private markUpSnippet(text: string, rawSnippet: string, matches: Match[], divine: TextRange[]): string | null {
+  private markUpSnippet(text: string, rawSnippet: string, matches: Match[], divine: TextRange[], christ: TextRange[] = []): string | null {
     const lead = rawSnippet.startsWith('...') && !text.startsWith('...');
     const trail = rawSnippet.endsWith('...') && !text.endsWith('...') && rawSnippet.length > 3;
     const core = rawSnippet.slice(lead ? 3 : 0, trail ? -3 : undefined);
@@ -1341,7 +1357,7 @@ export class BibleSearchService implements ISearchService {
     for (const piece of core.split('...')) {
       const at = piece ? text.indexOf(piece, cursor) : -1;
       if (at < 0) return null;
-      parts.push(markUp(text, at, at + piece.length, matchRanges(matches.filter(m => !ENGLISH_STOP_WORDS.has(m.term.toLowerCase()))), divine));
+      parts.push(markUp(text, at, at + piece.length, matchRanges(matches.filter(m => !ENGLISH_STOP_WORDS.has(m.term.toLowerCase()))), divine, christ));
       cursor = at + piece.length;
     }
     return (lead ? '...' : '') + parts.join('...') + (trail ? '...' : '');
@@ -1711,7 +1727,8 @@ export class BibleSearchService implements ISearchService {
   private getModulesToSearch(options: SearchOptions): Map<string, IBibleRepository> {
     if (options.modules && options.modules.length > 0) {
       const filtered = new Map<string, IBibleRepository>();
-      for (const abbr of options.modules) {
+      for (const requested of options.modules) {
+        const abbr = this.canonicalModuleName(requested);
         const repo = this.bibleModules.get(abbr);
         if (repo) {
           filtered.set(abbr, repo);
@@ -1831,7 +1848,7 @@ export class BibleSearchService implements ISearchService {
     options: SearchOptions
   ): Promise<SearchResult[]> {
     // Extract terms from query
-    const parsed = this.parseQuery(query);
+    const parsed = this.parseQuery(query, options);
     const terms = parsed.terms || [];
 
     if (terms.length === 0) return [];
@@ -2221,89 +2238,142 @@ export class BibleSearchService implements ISearchService {
   // Verse Distance Calculation (for Verse Proximity Search)
   // ========================================================================
 
-  /** bookNumber -> (chapter -> verse count); see countVersesBetween. */
+  /** bookNumber -> (chapter -> verse count); see chapterVerseCounts. */
   private readonly chapterVerseCountCache = new Map<number, Map<number, number>>();
 
   /**
-   * Calculate the number of verses between two verse IDs
-   * Returns the absolute distance in verses, or Infinity if in different books
-   *
-   * Examples:
-   * - John 3:16 to John 3:18 = 2 verses
-   * - John 3:36 to John 4:3 = distance across chapter boundary
-   *
-   * @param verseId1 First verse ID
-   * @param verseId2 Second verse ID
-   * @returns Number of verses between them (0 if same verse, Infinity if different books)
+   * Chapter -> verse count for a book, or null when the book has no chapter
+   * info. Cached: a DB query per pair of candidate verses once made
+   * cross-chapter verse proximity take ~10s on the KJV. A book without chapter
+   * info is not cached, as before.
    */
-  private countVersesBetween(verseId1: VerseId, verseId2: VerseId): number {
-    const v1 = VerseIdHelper.parse(verseId1);
-    const v2 = VerseIdHelper.parse(verseId2);
-
-    // Different books = not in proximity
-    if (v1.bookNumber !== v2.bookNumber) {
-      return Infinity;
-    }
-
-    // Same chapter = simple verse difference
-    if (v1.chapter === v2.chapter) {
-      return Math.abs(v1.verse - v2.verse);
-    }
-
-    // Different chapters - need to count verses across chapters
-    // Ensure v1 is before v2 for easier calculation
-    const [first, second] = v1.chapter < v2.chapter ? [v1, v2] : [v2, v1];
-
-    // Chapter -> verse count for this book, cached: this runs once per pair of
-    // candidate verses, and a DB query per pair made cross-chapter verse
-    // proximity take ~10s on the KJV (right at the test timeout).
-    let chapterMap = this.chapterVerseCountCache.get(first.bookNumber);
+  private chapterVerseCounts(bookNumber: number): Map<number, number> | null {
+    let chapterMap = this.chapterVerseCountCache.get(bookNumber);
     if (!chapterMap) {
-      const chapterInfoList = this.bibleBookRepo.getChapterInfoByBookNumber(first.bookNumber);
-      if (chapterInfoList.length === 0) {
-        // Fallback: can't calculate precisely, use large number
-        return Infinity;
-      }
+      const chapterInfoList = this.bibleBookRepo.getChapterInfoByBookNumber(bookNumber);
+      if (chapterInfoList.length === 0) return null;
       chapterMap = new Map<number, number>();
       for (const info of chapterInfoList) {
         chapterMap.set(info.chapter, info.verseCount);
       }
-      this.chapterVerseCountCache.set(first.bookNumber, chapterMap);
+      this.chapterVerseCountCache.set(bookNumber, chapterMap);
     }
-
-    let distance = 0;
-
-    // Count verses from first.verse to end of first.chapter
-    const firstChapterVerseCount = chapterMap.get(first.chapter) ?? 0;
-    distance += firstChapterVerseCount - first.verse;
-
-    // Count all verses in middle chapters
-    for (let ch = first.chapter + 1; ch < second.chapter; ch++) {
-      distance += chapterMap.get(ch) ?? 0;
-    }
-
-    // Count verses from start of second.chapter to second.verse
-    distance += second.verse;
-
-    return distance;
+    return chapterMap;
   }
 
   /**
-   * Check if two verse IDs are within a specified verse distance
+   * The verses of every verse-proximity "constellation": each first-term verse
+   * that has, for every other term, a verse within `verseDistance`, plus every
+   * term's verses within `verseDistance` of it.
    *
-   * @param verseId1 First verse ID
-   * @param verseId2 Second verse ID
-   * @param maxDistance Maximum verse distance allowed
-   * @returns true if verses are within distance, false otherwise
+   * W-003: this used to compare each first-term verse with every verse of
+   * every other term (`Array.from(set).some(...)`), O(n^2) with up to 10,000
+   * hits a term, synchronously - `the and of ~3v` held the event loop for ~8 s
+   * on the KJV. Each verse now gets an ordinal within its book (verses in the
+   * earlier chapters plus its own number); the difference of two ordinals is
+   * exactly the verse count the old `countVersesBetween` computed, so per-book
+   * arrays sorted by ordinal give every candidate within the distance by
+   * binary search. Candidates are then held to the old `isWithinVerseDistance`
+   * rules (`near` below), so the result is the set the pairwise scan found
+   * (BibleSearchService.verseProximity.test.ts keeps that scan as the
+   * reference). A book without chapter info keeps the old meaning: only verses
+   * in the same chapter are near each other.
    */
-  private isWithinVerseDistance(verseId1: VerseId, verseId2: VerseId, maxDistance: number): boolean {
-    // Cheap rejection: every chapter holds at least one verse, so two verses
-    // N chapters apart are at least N verses apart.
-    const a = VerseIdHelper.parse(verseId1);
-    const b = VerseIdHelper.parse(verseId2);
-    if (a.bookNumber !== b.bookNumber) return false;
-    if (Math.abs(a.chapter - b.chapter) > maxDistance) return false;
-    return this.countVersesBetween(verseId1, verseId2) <= maxDistance;
+  private findVerseProximityMatches(termSets: Set<VerseId>[], verseDistance: number): Set<VerseId> {
+    type Entry = { id: VerseId; chapter: number; verse: number; ord: number };
+    const matching = new Set<VerseId>();
+    if (termSets.length === 0) return matching;
+    const d = verseDistance;
+
+    // bookNumber -> chapter -> verses in the book's earlier chapters (null: no chapter info).
+    const offsets = new Map<number, ((chapter: number) => number) | null>();
+    const offsetFor = (book: number): ((chapter: number) => number) | null => {
+      if (offsets.has(book)) return offsets.get(book)!;
+      const counts = this.chapterVerseCounts(book);
+      let fn: ((chapter: number) => number) | null = null;
+      if (counts) {
+        const keys = Array.from(counts.keys()).sort((a, b) => a - b);
+        const memo = new Map<number, number>();
+        fn = (chapter: number) => {
+          let cum = memo.get(chapter);
+          if (cum === undefined) {
+            cum = 0;
+            for (const k of keys) {
+              if (k >= chapter) break;
+              cum += counts.get(k) ?? 0;
+            }
+            memo.set(chapter, cum);
+          }
+          return cum;
+        };
+      }
+      offsets.set(book, fn);
+      return fn;
+    };
+
+    // Without chapter info, chapters sit far apart so only same-chapter verses share a window.
+    const NO_INFO_CHAPTER_SPAN = 1_000_000;
+    const index = (set: Set<VerseId>): Map<number, Entry[]> => {
+      const byBook = new Map<number, Entry[]>();
+      for (const id of set) {
+        const { bookNumber, chapter, verse } = VerseIdHelper.parse(id);
+        const offset = offsetFor(bookNumber);
+        const ord = offset ? offset(chapter) + verse : chapter * NO_INFO_CHAPTER_SPAN + verse;
+        let list = byBook.get(bookNumber);
+        if (!list) byBook.set(bookNumber, (list = []));
+        list.push({ id, chapter, verse, ord });
+      }
+      for (const list of byBook.values()) list.sort((a, b) => a.ord - b.ord);
+      return byBook;
+    };
+
+    // The old isWithinVerseDistance(), for two verses of the same book: same
+    // chapter by verse number; otherwise no more than `d` chapters apart and
+    // within `d` verses counted across the chapter boundaries.
+    const near = (a: Entry, b: Entry, hasInfo: boolean): boolean => {
+      if (a.chapter === b.chapter) return Math.abs(a.verse - b.verse) <= d;
+      if (Math.abs(a.chapter - b.chapter) > d) return false;
+      if (!hasInfo) return false;
+      const [first, second] = a.chapter < b.chapter ? [a, b] : [b, a];
+      return second.ord - first.ord <= d;
+    };
+
+    const lowerBound = (list: Entry[], ord: number): number => {
+      let lo = 0;
+      let hi = list.length;
+      while (lo < hi) {
+        const mid = (lo + hi) >>> 1;
+        if (list[mid].ord < ord) lo = mid + 1;
+        else hi = mid;
+      }
+      return lo;
+    };
+
+    const indexed = termSets.map(index);
+    for (const [book, baseList] of indexed[0]) {
+      const hasInfo = offsetFor(book) !== null;
+      const lists = indexed.map(byBook => byBook.get(book) ?? []);
+      for (const base of baseList) {
+        let all = true;
+        for (let i = 1; i < lists.length && all; i++) {
+          const list = lists[i];
+          let found = false;
+          for (let j = lowerBound(list, base.ord - d); j < list.length && list[j].ord <= base.ord + d; j++) {
+            if (near(base, list[j], hasInfo)) { found = true; break; }
+          }
+          all = found;
+        }
+        if (!all) continue;
+
+        matching.add(base.id);
+        for (const list of lists) {
+          for (let j = lowerBound(list, base.ord - d); j < list.length && list[j].ord <= base.ord + d; j++) {
+            if (near(base, list[j], hasInfo)) matching.add(list[j].id);
+          }
+        }
+      }
+    }
+    return matching;
   }
 
   // ========================================================================
@@ -2337,7 +2407,7 @@ export class BibleSearchService implements ISearchService {
     const statusMap = new Map();
 
     for (const moduleAbbr of modules) {
-      const repo = this.bibleModules.get(moduleAbbr);
+      const repo = this.bibleModules.get(this.canonicalModuleName(moduleAbbr));
       if (!repo) continue;
 
       const totalBooks = 66;
@@ -2376,7 +2446,7 @@ export class BibleSearchService implements ISearchService {
     books?: number[],
     onProgress?: (progress: { current: number; total: number; bookName: string }) => void
   ): Promise<void> {
-    const repo = this.bibleModules.get(module);
+    const repo = this.bibleModules.get(this.canonicalModuleName(module));
     if (!repo) {
       throw new Error(`Module not found: ${module}`);
     }

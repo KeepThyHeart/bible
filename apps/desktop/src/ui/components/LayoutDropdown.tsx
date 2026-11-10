@@ -66,6 +66,8 @@ const LayoutDropdown: React.FC = () => {
         onClick={() => setIsOpen(!isOpen)}
         className="px-3 py-1.5 text-sm border border-border rounded-lg hover:bg-background-hover transition-colors flex items-center gap-1.5"
         title={t('layout.dropdown.tooltip')}
+        aria-expanded={isOpen}
+        aria-haspopup="dialog"
         data-testid="layout-dropdown-button"
       >
         {/* Grid/layout icon */}
@@ -79,15 +81,21 @@ const LayoutDropdown: React.FC = () => {
       </button>
 
       {isOpen && (
-        <div className="absolute top-full start-0 mt-1 w-64 bg-surface-elevated border border-border rounded-lg shadow-lg z-50 py-1">
+        <div
+          role="dialog"
+          aria-label={t('layout.dropdown.label')}
+          data-testid="layout-dropdown-popup"
+          className="absolute top-full start-0 mt-1 w-64 bg-surface-elevated border border-border rounded-lg shadow-lg z-50 py-1"
+        >
           {BUILT_IN_PRESETS.map(preset => {
             const isCurrent = layoutPresetService.currentPresetId === preset.id;
             return (
               <button
                 key={preset.id}
                 onClick={() => handleApply(preset.id)}
-                className={`w-full text-start px-3 py-2 hover:bg-background-hover transition-colors ${isCurrent ? 'bg-accent-light' : ''}`}
+                className={`layout-preset-row w-full text-start px-3 py-2 hover:bg-background-hover transition-colors ${isCurrent ? 'bg-accent-light' : ''}`}
                 aria-current={isCurrent ? 'true' : undefined}
+                aria-pressed={isCurrent}
                 data-testid={`layout-preset-${preset.id}`}
               >
                 <div className="flex items-center gap-2">

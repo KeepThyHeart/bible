@@ -208,7 +208,10 @@
       "create": "ایجاد",
       "save": "ذخیره",
       "cancel": "انصراف",
-      "notSaved": "فضای ذخیره‌سازی در دسترس نیست: با بستن این صفحه مراسم‌ها از بین می‌روند."
+      "notSaved": "فضای ذخیره‌سازی در دسترس نیست: با بستن این صفحه مراسم‌ها از بین می‌روند.",
+      "renameFor": "تغییر نام {name}",
+      "duplicateFor": "تکثیر {name}",
+      "deleteFor": "حذف {name}"
     },
     "notes": {
       "reason": {
@@ -254,8 +257,12 @@
         "empty": "هنوز چیزی برنامه‌ریزی نشده است. آیه‌ها، سرودها و نقل‌قول‌های یادداشت‌های شما در اینجا ظاهر می‌شوند.",
         "highlights": "{count, plural, one {# هایلایت} other {# هایلایت}}",
         "removed": "{label} حذف شد",
-        "undo": "واگرد"
-      }
+        "undo": "واگرد",
+        "moreFor": "کارهای بیشتر برای {label}",
+        "reorderFor": "برای جابه‌جایی {label} بکشید"
+      },
+      "playMarkerFor": "نمایش دوبارهٔ {label}",
+      "viewsLabel": "نماهای یادداشت"
     },
     "solo": {
       "launcherTooltip": "کادر فرمان را برای رفتن به یک آیه باز می‌کند (روی صفحه‌کلید / را فشار دهید)",
@@ -281,6 +288,11 @@
       "planLabel": "برنامه",
       "removed": "{label} حذف شد",
       "undo": "واگرد"
-    }
+    },
+    "hymnAddToNotesFor": "افزودن {title} به یادداشت‌ها",
+    "hymnAddToPlanFor": "افزودن {title} به ترتیب برنامه",
+    "viewersLabel": "بینندگان",
+    "previewFrameTitle": "پیش‌نمایش صفحه",
+    "viewersCount": "بینندگان: {count}"
   }
 }

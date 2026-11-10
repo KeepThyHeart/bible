@@ -12,6 +12,7 @@
  * more.
  */
 
+import { useRef } from 'preact/hooks';
 import {
   THEME_PRESETS,
   THEME_PRESET_IDS,
@@ -29,12 +30,31 @@ export interface ThemeEditorProps {
 
 export function ThemeEditor({ theme, onChange, label = 'Theme' }: ThemeEditorProps) {
   const activePreset = presetIdOf(theme);
+  const groupRef = useRef<HTMLDivElement>(null);
+  const ids = THEME_PRESET_IDS.filter((id) => THEME_PRESETS[id]);
+  // Roving tabindex: the chosen preset is the one tab stop; with none chosen (a custom theme) the first is.
+  const tabStop = activePreset !== null && ids.includes(activePreset) ? activePreset : ids[0];
+
+  /** Arrow keys move the choice, and focus, to the neighbouring preset (wrapping). */
+  const onKeyDown = (event: KeyboardEvent, index: number): void => {
+    const step =
+      event.key === 'ArrowRight' || event.key === 'ArrowDown' ? 1
+      : event.key === 'ArrowLeft' || event.key === 'ArrowUp' ? -1
+      : 0;
+    if (step === 0) return;
+    event.preventDefault();
+    const nextId = ids[(index + step + ids.length) % ids.length];
+    const next = nextId ? THEME_PRESETS[nextId] : undefined;
+    if (!next) return;
+    onChange(next);
+    groupRef.current?.querySelectorAll<HTMLElement>('[role="radio"]')[(index + step + ids.length) % ids.length]?.focus();
+  };
 
   return (
     <div class="theme-editor">
       <span class="field-label">{label}</span>
-      <div class="theme-presets" role="radiogroup" aria-label={label}>
-        {THEME_PRESET_IDS.map((id) => {
+      <div class="theme-presets" role="radiogroup" ref={groupRef} aria-label={label}>
+        {ids.map((id, index) => {
           const preset = THEME_PRESETS[id];
           if (!preset) return null;
           return (
@@ -42,7 +62,10 @@ export function ThemeEditor({ theme, onChange, label = 'Theme' }: ThemeEditorPro
               key={id}
               type="button"
               class="theme-preset"
-              aria-pressed={activePreset === id}
+              role="radio"
+              aria-checked={activePreset === id}
+              tabIndex={tabStop === id ? 0 : -1}
+              onKeyDown={(event) => onKeyDown(event, index)}
               style={{ '--swatch': preset.accent, '--swatch-bg': preset.bg, '--swatch-fg': preset.fg }}
               onClick={() => onChange(preset)}
             >

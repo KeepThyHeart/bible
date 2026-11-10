@@ -113,6 +113,20 @@ describe('buildMenuSpec at boot', () => {
     );
   });
 
+  it('puts Give Feedback in the Help menu, next to Report an Issue', () => {
+    const spec = buildMenuSpec(stubDeps(bootI18n()));
+    const help = spec.find((menu) => menu.label === 'Help');
+    expect(help?.type).toBe('submenu');
+    const items = help && help.type === 'submenu' ? help.submenu : [];
+    const commands = items.flatMap((item) =>
+      item.type === 'command' ? [{ id: item.commandId, label: item.label }] : []
+    );
+    const feedback = commands.findIndex((c) => c.id === 'help.giveFeedback');
+    const issue = commands.findIndex((c) => c.id === 'help.reportIssue');
+    expect(commands[feedback]?.label).toBe('Give Feedback');
+    expect(issue).toBe(feedback + 1);
+  });
+
   it('would fail loudly if the menu catalog were not bundled at boot', () => {
     // The pre-fix state, reproduced: every namespace except `menu`.
     const withoutMenu = new I18nService();

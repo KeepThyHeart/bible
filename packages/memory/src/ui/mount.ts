@@ -103,7 +103,7 @@ export function mountMemoryUi(container: HTMLElement, options: MemoryUiOptions):
 
   container.classList.add('sm-app');
   clear(container);
-  const main = el('main', { class: 'sm-main' });
+  const main = el('div', { class: 'sm-main' });
   const status = el('div', { class: 'sm-status', attrs: { role: 'status', 'aria-live': 'polite' } });
   container.appendChild(main);
   container.appendChild(status);
@@ -245,10 +245,15 @@ export function mountMemoryUi(container: HTMLElement, options: MemoryUiOptions):
 
       // `render()` deliberately leaves the practice screen alone - that view
       // owns its own DOM and its own lifetime - so the mount happens here.
+      // Focus on an activity tab means the tab strip started this switch (a
+      // mouse click on a tab leaves focus there); keep it on the new strip.
+      const focused = doc.activeElement;
+      const fromTab = practice !== null && focused !== null && practice.root.contains(focused) && focused.getAttribute('role') === 'tab';
       practice?.destroy();
       clear(main);
       practice = new PracticeView(host, session, sessionFlow);
       practice.mount(main);
+      if (fromTab) practice.restoreTabFocus();
       lastPainted = nav.view;
       scrollToTop();
       announce('');

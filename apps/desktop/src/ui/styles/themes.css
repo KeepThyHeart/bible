@@ -1245,7 +1245,7 @@
   --theme-info-border-rgb: 30 64 175;
 
   /* --- Theme-specific literals -------------------------------- */
-  --theme-bg-overlay: rgb(201 209 217 / 0.6);
+  --theme-bg-overlay: rgb(0 0 0 / 0.6);
 
   /* Pane header */
   --theme-pane-header-bg: rgb(22 27 34);
@@ -1805,7 +1805,7 @@
   --theme-info-border-rgb: 30 64 175;
 
   /* --- Theme-specific literals -------------------------------- */
-  --theme-bg-overlay: rgb(203 213 225 / 0.6);
+  --theme-bg-overlay: rgb(0 0 0 / 0.6);
 
   /* Pane header */
   --theme-pane-header-bg: rgb(37 45 58);
@@ -2085,7 +2085,7 @@
   --theme-info-border-rgb: 30 64 175;
 
   /* --- Theme-specific literals -------------------------------- */
-  --theme-bg-overlay: rgb(240 208 216 / 0.6);
+  --theme-bg-overlay: rgb(0 0 0 / 0.6);
 
   /* Pane header */
   --theme-pane-header-bg: rgb(58 26 42);

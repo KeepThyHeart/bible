@@ -1,5 +1,6 @@
 # Type-checks and unit-tests every workspace on each pull request and on pushes
-# to main, so a contributor learns about a broken test before review does.
+# to main, qa and release/* branches, so a contributor learns about a broken
+# test before review does, and a release branch is green before it is tagged.
 #
 # Modules come from the official, signed catalog (the `tests` preset: every
 # module a suite names) and are cached between runs. The init script skips any
@@ -12,6 +13,9 @@
 # here instead of skipping themselves as they do in a checkout set up for
 # `pnpm run dev`.
 #
+# The ui-driver unit tests drive a real headless chromium, so its shell is
+# installed before `pnpm test`.
+#
 # Not covered: the Playwright suites (desktop needs xvfb and a build, web needs
 # `pnpm exec playwright install`).
 name: CI
@@ -19,7 +23,7 @@ name: CI
 on:
   pull_request:
   push:
-    branches: [main, qa]
+    branches: [main, qa, 'release/**']
 
 permissions:
   contents: read
@@ -36,7 +40,7 @@ jobs:
       - uses: actions/checkout@v7
 
       # The pnpm version comes from `packageManager` in the root package.json.
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
 
       - uses: actions/setup-node@v7
         with:
@@ -55,4 +59,5 @@ jobs:
       - run: pnpm run build:core
       - run: pnpm run init:modules --select=tests --yes
       - run: pnpm run typecheck
+      - run: pnpm --filter @bible/ui-driver exec playwright-core install --with-deps --only-shell chromium
       - run: pnpm test

@@ -85,6 +85,8 @@ export function TranslationDialog({ isOpen, onClose, currentAbbr, onSelect }: Tr
         e.preventDefault();
         setFocusedIndex(prev => Math.max(prev - 1, 0));
       } else if (e.key === 'Enter' || e.key === ' ') {
+        // A focused button (Close, Cancel, Apply) activates itself; swallowing the key would kill it.
+        if (document.activeElement instanceof HTMLButtonElement) return;
         // Only handle Space when focus is not in the filter input
         if (e.key === ' ' && document.activeElement === filterInputRef.current) return;
         e.preventDefault();
@@ -110,12 +112,14 @@ export function TranslationDialog({ isOpen, onClose, currentAbbr, onSelect }: Tr
     setFocusedIndex(-1);
   }, [translationFilter]);
 
-  // Scroll focused item into view
+  // Scroll focused item into view, and give it real keyboard focus (roving tabindex on the radios).
   useEffect(() => {
     if (focusedIndex < 0) return;
     const cards = listRef.current?.querySelectorAll('.module-card');
     if (cards && cards[focusedIndex]) {
-      (cards[focusedIndex] as HTMLElement).scrollIntoView({ block: 'nearest' });
+      const card = cards[focusedIndex] as HTMLElement;
+      card.scrollIntoView?.({ block: 'nearest' });
+      if (document.activeElement !== card) card.focus({ preventScroll: true });
     }
   }, [focusedIndex]);
 
@@ -157,6 +161,9 @@ export function TranslationDialog({ isOpen, onClose, currentAbbr, onSelect }: Tr
             ) : (() => {
               const isFiltering = translationFilter.length > 0;
               let globalIdx = 0;
+              // Roving tabindex: one radio is in the Tab order (the arrowed-to one, else the current
+              // translation, else the first); Arrow keys move real focus along the group.
+              const hasCurrent = filteredModules.some(m => m.abbreviation === currentAbbr);
 
               const renderCard = (m: typeof filteredModules[0], idx: number, showTagline: boolean) => {
                 const isActive = m.abbreviation === currentAbbr;
@@ -170,6 +177,8 @@ export function TranslationDialog({ isOpen, onClose, currentAbbr, onSelect }: Tr
                     class={`module-card module-card--single${idx === focusedIndex ? ' module-card--focused' : ''}`}
                     role="radio"
                     aria-checked={isActive}
+                    tabIndex={(focusedIndex >= 0 ? idx === focusedIndex : hasCurrent ? isActive : idx === 0) ? 0 : -1}
+                    onFocus={() => setFocusedIndex(idx)}
                     onClick={() => onSelect(m.abbreviation)}
                   >
                     <div class="module-card__top">

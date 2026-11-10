@@ -294,6 +294,32 @@ describe('HomeScreen', () => {
   // CSS classes
   // ---------------------------------------------------------------------------
 
+  it('renders the VOTD card as a focusable button', async () => {
+    const { container } = render(<HomeScreen />);
+    await act(async () => {
+      (stubBibleStore as any)._resolveVotd(sampleVotd);
+      await Promise.resolve();
+    });
+    const card = container.querySelector('.home-screen__votd')!;
+    expect(card.tagName).toBe('BUTTON');
+    expect(card.getAttribute('type')).toBe('button');
+    (card as HTMLElement).focus();
+    expect(document.activeElement).toBe(card);
+  });
+
+  it('moves focus to the reader heading after Read Bible', async () => {
+    const h1 = document.createElement('div');
+    h1.className = 'bible-pane';
+    h1.innerHTML = '<h1 class="sr-only">Bible reader</h1>';
+    document.body.appendChild(h1);
+    render(<HomeScreen />);
+    const btn = screen.getByText('homeScreen.readBible').closest('button') as HTMLElement;
+    btn.focus();
+    fireEvent.click(btn);
+    await waitFor(() => expect(document.activeElement).toBe(h1.querySelector('h1')));
+    h1.remove();
+  });
+
   it('applies the primary modifier class to the Read Bible button', () => {
     const { container } = render(<HomeScreen />);
     const btn = container.querySelector('.home-screen__action-btn--primary');

@@ -131,3 +131,11 @@ describe('UserNotesEditorView - breadcrumb title (B-011)', () => {
     expect(current.className).not.toContain('truncate');
   });
 });
+
+describe('UserNotesEditorView - sidebar toggle', () => {
+  it('uses a changing name without aria-pressed (one cue, not two)', () => {
+    renderView({ showEditorSidebar: true });
+    const btn = screen.getByRole('button', { name: 'userNotesPane.hideSidebar' });
+    expect(btn).not.toHaveAttribute('aria-pressed');
+  });
+});

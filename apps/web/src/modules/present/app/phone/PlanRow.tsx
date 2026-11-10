@@ -6,6 +6,7 @@ import type { NoteHighlight } from '../notes/types';
 import type { PlanItem } from '../notes/notesStore';
 import { isSwipeLeft, rangeOnWall } from './planLogic';
 import type { HighlightRange } from '../../lib/protocol';
+import { focusFirstMenuItem, handleMenuKey, useExclusiveMenu } from '../../lib/menuKeys';
 
 export interface PlanRowProps {
   entry: PlanItem;
@@ -35,6 +36,12 @@ export function PlanRow(props: PlanRowProps) {
   const [dx, setDx] = useState(0);
   const touch = useRef<{ x: number; y: number } | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const moreRef = useRef<HTMLButtonElement>(null);
+  const popupRef = useRef<HTMLDivElement>(null);
+  useExclusiveMenu(`phone-plan-${entry.id}`, menuOpen, () => setMenuOpen(false));
+  useEffect(() => {
+    if (menuOpen) focusFirstMenuItem(popupRef.current);
+  }, [menuOpen]);
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -89,6 +96,10 @@ export function PlanRow(props: PlanRowProps) {
             ref={setActivatorNodeRef as any}
             {...(attributes as any)}
             {...(listeners as any)}
+            // Pointer-only: keyboard users reorder with Move up / Move down in the row's menu.
+            tabIndex={-1}
+            aria-hidden="true"
+            role={undefined}
             aria-label={t('present.phone.dragHandle', { label: entry.label })}
           >
             <i class="fa-solid fa-grip-lines" aria-hidden="true" />
@@ -103,6 +114,7 @@ export function PlanRow(props: PlanRowProps) {
             <button
               type="button"
               class="pzp-icon"
+              ref={moreRef}
               aria-haspopup="menu"
               aria-expanded={menuOpen}
               aria-label={t('present.phone.itemMenu', { label: entry.label })}
@@ -111,7 +123,13 @@ export function PlanRow(props: PlanRowProps) {
               <i class="fa-solid fa-ellipsis" aria-hidden="true" />
             </button>
             {menuOpen && (
-              <div class="pzp-menu" role="menu">
+              <div
+                class="pzp-menu"
+                role="menu"
+                ref={popupRef}
+                aria-label={t('present.phone.itemMenu', { label: entry.label })}
+                onKeyDown={event => handleMenuKey(event, popupRef.current, () => { setMenuOpen(false); moreRef.current?.focus(); })}
+              >
                 {isPassage && (
                   <button type="button" role="menuitem" onClick={() => { setMenuOpen(false); props.onEdit(); }}>
                     <i class="fa-solid fa-highlighter" aria-hidden="true" />{t('present.phone.editVerse')}

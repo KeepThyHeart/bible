@@ -25,7 +25,8 @@
       "remaining": "‏Time remaining‏",
       "secondsLeft": "‏{seconds} seconds left‏",
       "paused": "‏Paused‏",
-      "secondsShort": "‏{seconds}s‏"
+      "secondsShort": "‏{seconds}s‏",
+      "oneSecondLeft": "‏1 second left‏"
     },
     "frame": {
       "roomAria": "‏Room {code}‏",
@@ -78,7 +79,8 @@
       "skipIt": "‏Skip it‏",
       "keepGoing": "‏Keep going‏",
       "skip": "‏Skip‏",
-      "nextQuestion": "‏Next question‏"
+      "nextQuestion": "‏Next question‏",
+      "scoresEveryoneItem": "‏Show everyone's scores‏"
     },
     "join": {
       "enterCode": "‏Enter room code‏",
@@ -86,7 +88,10 @@
       "yourName": "‏Your name‏",
       "joining": "‏Joining…‏",
       "joinRoom": "‏Join room‏",
-      "solo": "‏Play solo‏"
+      "solo": "‏Play solo‏",
+      "codeInvalid": "‏A room code is {length} letters and numbers, like 5HK27. Check the big screen.‏",
+      "nameNeeded": "‏Enter your name to join.‏",
+      "codeFiltered": "‏Room codes only use these characters: {chars}. Others were left out.‏"
     },
     "solo": {
       "onYourOwn": "‏On your own — nobody else can see this room.‏",
@@ -138,7 +143,11 @@
       "leaveRejoin": "‏You can rejoin with the same code while the room is still open.‏",
       "stay": "‏Stay‏",
       "theme": "‏Theme‏",
-      "leave": "‏Leave‏"
+      "leave": "‏Leave‏",
+      "themeCycle": "‏Theme: {name}. Switch to the next theme‏",
+      "themeCycleCustom": "‏Switch to the next theme‏",
+      "playersCount": "‏Players: {total}‏",
+      "lobbyHeading": "‏Room lobby‏"
     },
     "brand": {
       "title": "‏Group Bible Games‏",
@@ -151,6 +160,34 @@
     },
     "app": {
       "live": "‏Room live‏"
+    },
+    "names": {
+      "fillInTheBlank": "‏Fill in the blank‏",
+      "nameThatReference": "‏Name that reference‏",
+      "whoSaidIt": "‏Who said it‏",
+      "whoAmI": "‏Who am I‏",
+      "putInOrder": "‏Put in order‏",
+      "categoryBoard": "‏Category board‏",
+      "swordDrill": "‏Sword drill‏",
+      "describeIt": "‏Describe it‏",
+      "detective": "‏Detective‏"
+    },
+    "scopes": {
+      "wholeBible": "‏Whole Bible‏",
+      "peopleOfTheBible": "‏People of the Bible‏"
+    },
+    "familiarity": {
+      "core": "‏Verses everyone knows‏",
+      "familiar": "‏Well-known verses‏",
+      "broad": "‏Familiar and further afield‏",
+      "deep": "‏For a group that reads‏",
+      "any": "‏Anywhere in the Bible‏"
+    },
+    "errors": {
+      "roomNotFound": "‏No room is using that code. Check the code on the big screen.‏",
+      "roomsFull": "‏This server is hosting as many rooms as it can. Try again in a little while.‏",
+      "offline": "‏Could not reach the server. Check the wifi and try again.‏",
+      "status": "‏Server said {status}.‏"
     }
   }
 }

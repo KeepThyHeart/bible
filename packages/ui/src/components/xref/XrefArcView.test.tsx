@@ -173,4 +173,10 @@ describe('XrefArcView', () => {
       spy.mockRestore();
     }
   });
+
+  it('names the strength slider without its value and gives it a meaningful value text', async () => {
+    await setup();
+    const slider = screen.getByRole('slider', { name: DEFAULT_XREF_ARCS_LABELS.minWeight });
+    expect(slider.getAttribute('aria-valuetext')).toMatch(/arcs shown/);
+  });
 });

@@ -15,7 +15,11 @@ import { DiagnosticsService } from '../services/DiagnosticsService';
 import type { DiagnosticsPayload } from '../services/DiagnosticsService';
 import { DiagnosticsQueue, QueueEntry } from '../services/DiagnosticsQueue';
 import { DiagnosticsConfig, DiagnosticsConfigShape } from '../services/DiagnosticsConfig';
-import { DiagnosticsUploader, FlushCounts } from '../services/DiagnosticsUploader';
+import {
+  DiagnosticsUploader,
+  type DeliveryResult,
+  type FlushCounts,
+} from '../services/DiagnosticsUploader';
 
 let service: DiagnosticsService | null = null;
 let queue: DiagnosticsQueue | null = null;
@@ -70,13 +74,13 @@ function requireConfig(): DiagnosticsConfig {
 /**
  * What the renderer is told after a report is accepted.
  *
- * Submitting only *enqueues*: the payload is written to
- * `{userData}/diagnostics/queue/` and a background uploader POSTs it later, on
- * a 30-minute tick. That uploader bails immediately when diagnostics is
- * disabled or no endpoint is set - and both are off by default, because
- * configuring a destination for a user's reports is the user's call, not ours.
+ * Submitting *enqueues* the payload in `{userData}/diagnostics/queue/` and
+ * asks the uploader to flush straight away; anything that fails (offline, a
+ * server error) is retried on the uploader's 30-minute tick. User-submitted
+ * reports do not depend on the diagnostics toggle (see DiagnosticsUploader),
+ * only on there being an endpoint, and a build or user can have none.
  *
- * So "we sent it, thanks" is a claim the app is often not entitled to make.
+ * So "we sent it, thanks" is a claim the app is not always entitled to make.
  * `willUpload` is what lets the thank-you say the true thing instead: the
  * report is on this computer and will go out once an endpoint exists.
  */
@@ -85,7 +89,8 @@ export interface SubmitReceipt {
   reportId: string;
   /**
    * True when the background uploader would actually attempt this file -
-   * deliberately the same condition `DiagnosticsUploader.tick()` guards on, so
+   * deliberately the same condition `DiagnosticsUploader.tick()` guards on for
+   * user-submitted reports (an endpoint is set), so
    * the two cannot drift into telling the user different stories. Transient
    * conditions the uploader also checks (offline mode, no connectivity) are
    * excluded on purpose: those resolve by themselves, and a report that is
@@ -94,10 +99,23 @@ export interface SubmitReceipt {
   willUpload: boolean;
 }
 
-/** Wraps a freshly enqueued report id with whether anything will collect it. */
+/**
+ * Wraps a freshly enqueued user report with whether anything will collect it,
+ * and starts sending it now rather than on the next 30-minute tick.
+ */
 function submitReceipt(reportId: string): SubmitReceipt {
   const cfg = requireConfig().get();
-  return { reportId, willUpload: cfg.enabled && cfg.endpointUrl.trim().length > 0 };
+  const willUpload = cfg.endpointUrl.trim().length > 0;
+  if (willUpload) flushSoon();
+  return { reportId, willUpload };
+}
+
+/** Fire-and-forget flush; failures stay queued for the next tick. */
+function flushSoon(): void {
+  if (!uploader) return;
+  uploader.flushNow().catch((err: unknown) => {
+    log.warn('[diagnostics] immediate flush failed:', err);
+  });
 }
 
 function requireUploader(): DiagnosticsUploader {
@@ -126,7 +144,7 @@ export function registerDiagnosticsHandlers(_ipcMain: IpcMain): void {
   });
 
   // Attach the user's description to an already-queued crash report and
-  // mark it pending send. Actual upload is a later phase.
+  // mark it pending send. It uploads only when diagnostics is also enabled.
   ipcHandler<[{ reportId: string; description?: string }], boolean>(
     'diagnostics:submit-crash-report',
     ({ reportId, description }) => {
@@ -143,7 +161,9 @@ export function registerDiagnosticsHandlers(_ipcMain: IpcMain): void {
       }
       existing.user_description = description?.trim() ? description : null;
       existing.pending_send = true;
-      return q.update(reportId, existing);
+      const updated = q.update(reportId, existing);
+      if (requireConfig().get().enabled) flushSoon();
+      return updated;
     }
   );
 
@@ -161,16 +181,30 @@ export function registerDiagnosticsHandlers(_ipcMain: IpcMain): void {
     }
   );
 
-  ipcHandler<[{ description: string }], SubmitReceipt>(
+  ipcHandler<[{ description: string; contact?: string }], SubmitReceipt>(
     'diagnostics:submit-feedback',
-    ({ description }) => {
+    ({ description, contact }) => {
       if (!description || !description.trim()) {
         throw new IpcKnownError('invalid_input', 'Description is required');
       }
-      const payload = requireService().buildFeedbackPayload({ description });
+      const payload = requireService().buildFeedbackPayload({
+        description,
+        contact: typeof contact === 'string' ? contact : undefined,
+      });
       return submitReceipt(requireQueue().enqueue(payload));
     }
   );
+
+  // "Did it send?" - called by the dialog right after a submit. Resolves once
+  // the uploader has tried this report (normally well under a second), with
+  // the reason when it is still queued. The dialog stops waiting after ~3 s
+  // and says the report will finish in the background; this keeps running.
+  ipcHandler<[string], DeliveryResult>('diagnostics:deliver-report', async (reportId) => {
+    if (typeof reportId !== 'string' || !reportId) {
+      throw new IpcKnownError('invalid_input', 'A report id is required');
+    }
+    return requireUploader().deliver(reportId);
+  });
 
   ipcHandler<[], ReturnType<DiagnosticsService['getStateSnapshot']>>(
     'diagnostics:get-state-snapshot',
@@ -186,17 +220,10 @@ export function registerDiagnosticsHandlers(_ipcMain: IpcMain): void {
   ipcHandler<[Partial<DiagnosticsConfigShape>], DiagnosticsConfigShape>(
     'diagnostics:set-config',
     (patch) => {
-      const next = requireConfig().set(patch);
-      // Diagnostics is opt-IN: the uploader is not started at boot
-      // unless enabled, so reflect a runtime toggle here. Starting when already
-      // running / stopping when already stopped are both no-ops.
-      const up = requireUploader();
-      if (next.enabled) {
-        up.start();
-      } else {
-        up.stop();
-      }
-      return next;
+      // The uploader runs for the app's lifetime (see main.ts) and checks
+      // `enabled` per crash report on every tick, so a toggle takes effect
+      // without starting or stopping anything.
+      return requireConfig().set(patch);
     }
   );
 

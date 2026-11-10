@@ -10,6 +10,7 @@ import { PresentPreview } from '../study/PresentPreview';
 import { isTyping } from '../study/usePresenterShortcuts';
 import { describeItem, usePresenter } from '../study/usePresenter';
 import { useCommandHotkey } from '../lib/command';
+import { focusFirstMenuItem, handleMenuKey, useExclusiveMenu } from '../lib/menuKeys';
 import type { PresentItem, PresentState } from '../lib/protocol';
 import { ControlPane } from './control/ControlPane';
 import {
@@ -53,6 +54,20 @@ export function PresenterApp() {
   const [prefs, setPrefs] = useState<LayoutPrefs>(loadPrefs);
   const [helpOpen, setHelpOpen] = useState(false);
   const [barMenuOpen, setBarMenuOpen] = useState(false);
+  const barMenuRef = useRef<HTMLDivElement>(null);
+  const barMenuButton = useRef<HTMLButtonElement>(null);
+  useExclusiveMenu('app-bar-menu', barMenuOpen, () => setBarMenuOpen(false));
+  useEffect(() => {
+    if (!barMenuOpen) return undefined;
+    focusFirstMenuItem(barMenuRef.current);
+    const away = (event: PointerEvent): void => {
+      const target = event.target as Node;
+      if (barMenuRef.current?.contains(target) || barMenuButton.current?.contains(target)) return;
+      setBarMenuOpen(false);
+    };
+    document.addEventListener('pointerdown', away);
+    return () => document.removeEventListener('pointerdown', away);
+  }, [barMenuOpen]);
   const prefsRef = useRef(prefs);
   prefsRef.current = prefs;
   const gridRef = useRef<HTMLDivElement>(null);
@@ -170,9 +185,9 @@ export function PresenterApp() {
         <span class="pz-appbar__spacer" />
         {/* Shows on the phone layout and when the wide-screen rail is off. */}
         <AppSwitchSlot className="pz-btn pz-btn--icon pz-appbar__switch" />
-        {/* On desktop the Control pane shows the live status; the phone has no such row. */}
+        {/* A glanceable copy for sighted users on the phone; the status row below (StatusRow) is the one assistive tech reads. */}
         {layout === 'phone' && (
-          <span class={`pz-appbar__live ${session ? 'pz-appbar__live--on' : ''}`}>
+          <span aria-hidden="true" class={`pz-appbar__live ${session ? 'pz-appbar__live--on' : ''}`}>
             {session
               ? <>
                 <span class="pz-status__dot" aria-hidden="true" />
@@ -183,23 +198,27 @@ export function PresenterApp() {
         )}
         <button
           type="button" class="pz-btn pz-btn--icon" onClick={() => setHelpOpen(true)}
+          aria-haspopup="dialog" aria-expanded={helpOpen}
           title={t('present.help')} aria-label={t('present.help')}
         >
           <i class="fa-solid fa-circle-question" aria-hidden="true" />
         </button>
         <div class="pz-appbar__menu-wrap">
           <button
-            type="button" class="pz-btn pz-btn--icon" onClick={() => setBarMenuOpen(open => !open)}
+            type="button" class="pz-btn pz-btn--icon" ref={barMenuButton} onClick={() => setBarMenuOpen(open => !open)}
             aria-haspopup="menu" aria-expanded={barMenuOpen}
             title={t('present.app.moreTooltip')} aria-label={t('present.app.moreTooltip')}
           >
             <i class="fa-solid fa-ellipsis" aria-hidden="true" />
           </button>
           {barMenuOpen && (
-            <div class="pz-appbar__menu" role="menu">
+            <div
+              class="pz-appbar__menu" role="menu" ref={barMenuRef} aria-label={t('present.app.moreTooltip')}
+              onKeyDown={event => handleMenuKey(event, barMenuRef.current, () => { setBarMenuOpen(false); barMenuButton.current?.focus(); })}
+            >
               <button
                 type="button" role="menuitem" class="pz-appbar__menu-item"
-                onClick={() => { update(EMPTY_PREFS, true); setBarMenuOpen(false); }}
+                onClick={() => { update(EMPTY_PREFS, true); setBarMenuOpen(false); barMenuButton.current?.focus(); }}
               >
                 {t('present.app.resetLayout')}
               </button>

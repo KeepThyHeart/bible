@@ -246,6 +246,8 @@ export function BookChapterPicker({
         type="button"
         ref={isCurrent ? currentBookRef : undefined}
         title={name}
+        // The compact grid shows only an abbreviation; the accessible name stays the full book name.
+        aria-label={useCompact ? name : undefined}
         data-section={getBibleSection(num)}
         aria-current={isCurrent ? 'true' : undefined}
         style={isCurrent ? undefined : cellStyle?.(num)}

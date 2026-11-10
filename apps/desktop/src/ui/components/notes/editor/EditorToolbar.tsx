@@ -2,6 +2,7 @@ import React from 'react';
 import { Editor } from '@tiptap/react';
 import { useI18n } from '../../../contexts/useI18n';
 import ToolbarMenu from './ToolbarMenu';
+import { indentSelection, outdentSelection, canOutdent } from './indentCommands';
 import { currentBlockDirection } from './TextDirectionExtension';
 
 /**
@@ -514,6 +515,31 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
         >
           <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false">
             <path d="M4 10.5c-.83 0-1.5.67-1.5 1.5s.67 1.5 1.5 1.5 1.5-.67 1.5-1.5-.67-1.5-1.5-1.5zm0-6c-.83 0-1.5.67-1.5 1.5S3.17 7.5 4 7.5 5.5 6.83 5.5 6 4.83 4.5 4 4.5zm0 12c-.83 0-1.5.68-1.5 1.5s.68 1.5 1.5 1.5 1.5-.68 1.5-1.5-.67-1.5-1.5-1.5zM7 19h14v-2H7v2zm0-6h14v-2H7v2zm0-8v2h14V5H7z"/>
+          </svg>
+        </button>
+
+        {/* Indent / Outdent: list nesting, or a soft tab on paragraphs */}
+        <button
+          type="button"
+          onClick={() => outdentSelection(editor)}
+          disabled={!canOutdent(editor)}
+          className={`${btnClass(false)} disabled:opacity-40`}
+          title={t('editorToolbar.outdentTitle')}
+          aria-label={t('editorToolbar.outdentTitle')}
+        >
+          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false">
+            <path d="M11 17h10v-2H11v2zm-8-5l4 4V8l-4 4zm0 9h18v-2H3v2zM3 3v2h18V3H3zm8 6h10V7H11v2zm0 4h10v-2H11v2z"/>
+          </svg>
+        </button>
+        <button
+          type="button"
+          onClick={() => indentSelection(editor)}
+          className={btnClass(false)}
+          title={t('editorToolbar.indentTitle')}
+          aria-label={t('editorToolbar.indentTitle')}
+        >
+          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false">
+            <path d="M3 21h18v-2H3v2zM3 8v8l4-4-4-4zm8 9h10v-2H11v2zM3 3v2h18V3H3zm8 6h10V7H11v2zm0 4h10v-2H11v2z"/>
           </svg>
         </button>
 

@@ -22,7 +22,15 @@ export function registerSearchCommands(registry: ICommandRegistry): IDisposable[
       title: { key: 'search.openFindBar' },
       category: { key: 'search.openFindBar.category' },
       shortcut: { key: 'Ctrl+F', mac: 'Cmd+F' },
-      handler: () => dispatchAppEvent('command:search:openFindBar'),
+      handler: () => {
+        // Focus inside a note: find in the note, not in the Bible text.
+        const active = document.activeElement;
+        if (active && active.closest('.note-editor')) {
+          dispatchAppEvent('command:notes:find');
+          return;
+        }
+        dispatchAppEvent('command:search:openFindBar');
+      },
     }),
     registry.register({
       id: 'search.openAdvanced',

@@ -8,10 +8,13 @@ import type { IBibleDataProvider } from '../../providers/interfaces';
 import { collapseReferencesStructured } from '../../utils/collapseReferences';
 import type { CollapsedSegment } from '../../utils/collapseReferences';
 import { useVersePopup } from '../../hooks/useVersePopup';
-import { parseVerseId } from '../../utils/verseId';
+import { parseVerseId, formatVerseRange } from '../../utils/verseId';
 import { sanitizeHtml } from '../../utils/sanitize';
 import { moduleContentAttrs } from '../../utils/contentDirection';
 import { Bdi } from '@bible/ui';
+
+/** Max verse ids per getVerseTexts request (the server rejects more). */
+const VERSE_TEXT_BATCH_MAX = 500;
 
 export interface VerseRef {
   startVerseId: number;
@@ -124,7 +127,11 @@ export function VerseRefList({ verses, totalCount, hasMore, onNavigateBible, bib
     let cancelled = false;
 
     const ids = toFetch.map(v => v.startVerseId);
-    bibleProvider.getVerseTexts(moduleAbbr, ids).then(batch => {
+    // The server accepts at most 500 ids per request; "Load more" can append up to 1,000 at once.
+    const chunks: number[][] = [];
+    for (let i = 0; i < ids.length; i += VERSE_TEXT_BATCH_MAX) chunks.push(ids.slice(i, i + VERSE_TEXT_BATCH_MAX));
+    Promise.all(chunks.map(c => bibleProvider.getVerseTexts(moduleAbbr, c))).then(batches => {
+      const batch = { verses: Object.assign({}, ...batches.map(b => b.verses)) as typeof batches[number]['verses'] };
       if (cancelled) return;
       setVerseTexts(prev => {
         const next = new Map(prev);
@@ -202,6 +209,7 @@ export function VerseRefList({ verses, totalCount, hasMore, onNavigateBible, bib
               data-verse-id={seg.verseId}
               class={`verse-ref-list__ref-link${isLast ? ' verse-ref-list__ref-link--last-clicked' : ''}`}
               href="#"
+              aria-label={formatVerseRange(seg.verseId, seg.endVerseId)}
               onClick={(e) => handleRefClick(seg.verseId, e as any)}
               onMouseEnter={(e) => handleHover(seg.verseId, e as any)}
               onMouseLeave={handleLeave}

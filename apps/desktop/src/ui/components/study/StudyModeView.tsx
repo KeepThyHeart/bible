@@ -90,7 +90,7 @@ interface StudyModeViewProps {
   /** Panel's scroll trigger/mode (see useBibleScrolling) - used below to
    *  re-fire the scroll once interlinear data finishes loading. */
   scrollTrigger: number;
-  scrollMode: 'center' | 'nearest';
+  scrollMode: 'center' | 'nearest' | 'top';
 }
 
 /**

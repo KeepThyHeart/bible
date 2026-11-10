@@ -18,6 +18,12 @@
  * registry it can find plus the checked-in `fixtures/site-config.json`. Tests
  * get a fixed set of modules; the developer's own data is only ever read.
  *
+ * With no `BIBLE_E2E_DATA_DIR` the data is the committed fixture (`fixtures/bible-data`, public domain):
+ * it is copied to `e2e/.data/fixture` (never used in place; the server writes there) and that copy is both
+ * the registry and the module store. With `BIBLE_E2E_DATA_DIR` (a directory holding `main.db` and
+ * `modules/`) the real data is snapshotted as described above. Specs that need modules the fixture lacks
+ * should skip when `usingFixtureData()` is true.
+ *
  * Called from `playwright.config.ts` at module scope rather than from
  * `globalSetup`, because Playwright starts `webServer` as a plugin, and plugin
  * setup runs before global setup — by the time a global setup ran, the server
@@ -27,6 +33,7 @@ import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, statSync, wr
 import { join, resolve } from 'path';
 import Database from 'better-sqlite3-web';
 import { writeAudioFixture } from './audioFixture';
+import { copyFixture } from '../../../fixtures/bible-data/copy.mjs';
 
 const packageRoot = resolve(import.meta.dirname, '..');
 const repoRoot = resolve(packageRoot, '../..');
@@ -38,22 +45,27 @@ const repoRoot = resolve(packageRoot, '../..');
 const REQUIRED_MODULES = ['KJV', 'ASV', 'Barnes', 'AmTract'];
 
 /**
- * Places a module registry may live, in the order the server itself would
- * prefer them. `modulesDir` is the root the `database_path` column resolves
+ * Real data the caller chose, if any. `modulesDir` is the root the `database_path` column resolves
  * against, so it is the parent of `modules/`, not `modules/` itself.
+ * - `BIBLE_E2E_DATA_DIR`: a directory holding `main.db` and `modules/`.
+ * - `BIBLE_DATA_DIR` / `BIBLE_MODULES_DIR`: the server's own variables, as the server reads them.
+ * Neither: undefined, and the run uses the committed fixture.
  */
-const REGISTRY_CANDIDATES = [
-  // The server's own defaults: its registry beside the app, modules in the
-  // shared store. See `dataDir`/`modulesDir` in server/index.ts.
-  { dataDir: join(packageRoot, 'data'), modulesDir: join(repoRoot, 'data') },
-  // The shared store holding its own registry. This is what a fresh clone gets
-  // when the module data is dropped in one place for every workspace to use --
-  // the same directory the core and server test helpers fall back to -- and
-  // without it the suite refused to start on a checkout that could run every
-  // other test.
-  { dataDir: join(repoRoot, 'data'), modulesDir: join(repoRoot, 'data') },
-  { dataDir: join(repoRoot, 'apps', 'desktop', 'data'), modulesDir: join(repoRoot, 'apps', 'desktop', 'data') },
-];
+function chosenData(): { dataDir: string; modulesDir: string } | undefined {
+  const e2e = process.env.BIBLE_E2E_DATA_DIR;
+  if (e2e) return { dataDir: resolve(e2e), modulesDir: resolve(e2e) };
+  const data = process.env.BIBLE_DATA_DIR;
+  const modules = process.env.BIBLE_MODULES_DIR;
+  if (data || modules) {
+    return { dataDir: resolve(data ?? modules!), modulesDir: resolve(modules ?? data!) };
+  }
+  return undefined;
+}
+
+/** True when the run uses the committed fixture (specs needing other modules should skip). */
+export function usingFixtureData(): boolean {
+  return chosenData() === undefined;
+}
 
 export interface E2eDataPaths {
   /** Holds the snapshot registry and the fixture config. Handed to the server as BIBLE_DATA_DIR. */
@@ -105,9 +117,6 @@ function snapshotRegistry(sourceDb: string, destDb: string): void {
   }
 }
 
-function describeCandidates(): string {
-  return REGISTRY_CANDIDATES.map(c => `  - ${c.dataDir} (modules under ${join(c.modulesDir, 'modules')})`).join('\n');
-}
 
 /**
  * Assemble `e2e/.data` and return the paths the server should be given.
@@ -124,20 +133,32 @@ export function prepareE2eData(): E2eDataPaths {
     );
   }
 
-  const source = REGISTRY_CANDIDATES
-    .map(candidate => {
-      const mainDb = join(candidate.dataDir, 'main.db');
-      if (!existsSync(mainDb)) return null;
-      const installed = readInstalledModules(mainDb, candidate.modulesDir);
-      return installed.length > 0 ? { ...candidate, mainDb, installed } : null;
-    })
-    .find(candidate => candidate !== null);
+  const dataDir = join(packageRoot, 'e2e', '.data');
+  const chosen = chosenData();
+  const fixtureDir = join(dataDir, 'fixture');
+  if (!chosen) {
+    // The server writes into its data dir, so it gets a copy. Playwright loads this config in the main
+    // process AND in every worker (and remote-semantic.spec.ts calls this too) while the servers run:
+    // only the main process (re)creates the copy; the others reuse it.
+    if (!process.env.TEST_WORKER_INDEX || !existsSync(join(fixtureDir, 'main.db'))) {
+      rmSync(fixtureDir, { recursive: true, force: true });
+      copyFixture(fixtureDir);
+    }
+    mkdirSync(dataDir, { recursive: true });
+    writeFileSync(join(fixtureDir, 'site-config.json'), readFileSync(join(packageRoot, 'e2e', 'fixtures', 'site-config.json'), 'utf-8'));
+    writeAudioFixture(fixtureDir);
+    return { dataDir: fixtureDir, modulesDir: fixtureDir };
+  }
 
-  if (!source) {
+  const mainDb = join(chosen.dataDir, 'main.db');
+  const source = existsSync(mainDb)
+    ? { ...chosen, mainDb, installed: readInstalledModules(mainDb, chosen.modulesDir) }
+    : undefined;
+
+  if (!source || source.installed.length === 0) {
     throw new Error(
-      'E2E: no module registry with installed modules was found. Looked in:\n' +
-      `${describeCandidates()}\n` +
-      'Put the module .db files in one of those modules/ directories, then run: pnpm run init',
+      `E2E: no module registry with installed modules at ${mainDb} (modules under ${join(chosen.modulesDir, 'modules')}).\n` +
+      'Check BIBLE_E2E_DATA_DIR (or BIBLE_DATA_DIR / BIBLE_MODULES_DIR), or unset them to use the committed fixture.',
     );
   }
 
@@ -150,7 +171,6 @@ export function prepareE2eData(): E2eDataPaths {
     );
   }
 
-  const dataDir = join(packageRoot, 'e2e', '.data');
   mkdirSync(dataDir, { recursive: true });
   snapshotRegistry(source.mainDb, join(dataDir, 'main.db'));
 

@@ -51,7 +51,7 @@ export function DocumentationContentView({
               d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
             />
           </svg>
-          <p className="text-sm">{t('documentationDialog.noSectionsMatch', { query: searchQuery })}</p>
+          <p className="text-sm" role="status">{t('documentationDialog.noSectionsMatch', { query: searchQuery })}</p>
           <button
             type="button"
             onClick={onClearSearch}

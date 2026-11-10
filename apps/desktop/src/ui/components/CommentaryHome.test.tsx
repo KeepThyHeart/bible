@@ -126,6 +126,20 @@ describe('CommentaryHome', () => {
     expect(screen.getByText(enString('commentaryHome.sortDefault'))).toBeInTheDocument();
   });
 
+  it('gives the sort dropdown an accessible name', () => {
+    mockUseCommentaryPanel.mockReturnValue({
+      ...defaultPanelState,
+      homeData: [{
+        abbreviation: 'MHC',
+        name: 'Matthew Henry Commentary',
+        entries: [{ entry_id: 1, entry_level: 'verse', content: 'God loves the world', word_count: 100 }],
+        totalWordCount: 100,
+      }],
+    });
+    renderWithProviders(<CommentaryHome currentVerseId={43003016} onOpenTab={vi.fn()} />);
+    expect(screen.getByRole('combobox', { name: /sort/i })).toBeInTheDocument();
+  });
+
   // The box matches on name and abbreviation but was labelled only "Filter...",
   // which named neither what it filters nor which of the lists on screen - and
   // it had no accessible name at all.
@@ -396,5 +410,24 @@ describe('CommentaryHome', () => {
       expect(toggleMuted).toHaveBeenCalledWith('MHC');
       expect(screen.queryByTestId('confirm-dialog')).not.toBeInTheDocument();
     });
+  });
+
+  it('exposes each module row as an expandable button operable from the keyboard', async () => {
+    const { default: userEvent } = await import('@testing-library/user-event');
+    mockUseCommentaryPanel.mockReturnValue({
+      ...defaultPanelState,
+      homeData: [{
+        abbreviation: 'MHC',
+        name: 'Matthew Henry Commentary',
+        entries: [{ entry_id: 1, entry_level: 'verse', content: 'God loves the world', word_count: 100 }],
+        totalWordCount: 100,
+      }],
+    });
+    renderWithProviders(<CommentaryHome currentVerseId={43003016} onOpenTab={vi.fn()} />);
+    const row = screen.getByRole('button', { name: /MHC/ });
+    expect(row).toHaveAttribute('aria-expanded', 'false');
+    row.focus();
+    await userEvent.setup().keyboard('{Enter}');
+    expect(screen.getByRole('button', { name: /MHC/ })).toHaveAttribute('aria-expanded', 'true');
   });
 });

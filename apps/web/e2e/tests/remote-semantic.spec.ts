@@ -77,7 +77,8 @@ async function startServer(via: 'server' | 'browser', port: number, stubUrl: str
 
 async function ideasSearch(page: Page, query: string): Promise<void> {
   await page.locator('.header__search-type-btn').click();
-  await page.locator('[data-search-type="semantic"]').dispatchEvent('mousedown');
+  // The items are menuitemradio buttons activated by click/Enter (0209 U-034); they used to act on mousedown.
+  await page.locator('[data-search-type="semantic"]').click();
   const input = page.locator('.header__search-field');
   await input.fill(query);
   await input.press('Enter');

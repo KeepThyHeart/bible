@@ -89,6 +89,36 @@ describe('useBibleScrolling after a layout switch (B-027)', () => {
   });
 });
 
+describe('useBibleScrolling in top mode (next-chapter link)', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => setTimeout(() => cb(0), 16) as unknown as number);
+    vi.stubGlobal('cancelAnimationFrame', (id: number) => clearTimeout(id));
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
+
+  it('scrolls the pane to its top instead of bringing verse 1 into view', () => {
+    const verse = document.createElement('div');
+    verse.scrollIntoView = vi.fn();
+    const container = document.createElement('div');
+    container.scrollTop = 500;
+
+    renderHook(() =>
+      useBibleScrolling(
+        'p-top', { current: container }, { current: verse }, 43004001, null, 1, 'top',
+        [{ verse: 1 }], false, vi.fn(), vi.fn(), vi.fn(),
+      ),
+    );
+    vi.advanceTimersByTime(48);
+
+    expect(container.scrollTop).toBe(0);
+    expect(verse.scrollIntoView).not.toHaveBeenCalled();
+  });
+});
+
 describe('History Back keeps the study panes in step with the Bible pane (B-061)', () => {
   it('points the study panes at the verse Back landed on', async () => {
     useBibleStore.getState().initPanel('p-b061');

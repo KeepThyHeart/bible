@@ -20,6 +20,7 @@ vi.mock('react-i18next', () => ({
 }));
 
 import { SearchResultItem } from './SearchResultItem';
+import { settingsStore } from '../../stores/settingsStore';
 import type { SearchResultData } from '../../types';
 
 function makeResult(overrides: Partial<SearchResultData> = {}): SearchResultData {
@@ -164,5 +165,39 @@ describe('SearchResultItem', () => {
       />,
     );
     expect(container.querySelector('[data-result-id="KJV|exact|43003016|43003016"]')).toBeTruthy();
+  });
+  // W-034
+  it('is keyboard reachable and opens on Enter / Space, Ctrl+Enter opens a new tab', () => {
+    const onClick = vi.fn();
+    const onCtrlClick = vi.fn();
+    const { container } = render(
+      <SearchResultItem result={makeResult()} onClick={onClick} onCtrlClick={onCtrlClick} />,
+    );
+    const row = container.querySelector('.search-result-item') as HTMLElement;
+    expect(row.getAttribute('role')).toBe('button');
+    expect(row.tabIndex).toBe(0);
+    fireEvent.keyDown(row, { key: 'Enter' });
+    fireEvent.keyDown(row, { key: ' ' });
+    expect(onClick).toHaveBeenCalledTimes(2);
+    fireEvent.keyDown(row, { key: 'Enter', ctrlKey: true });
+    expect(onCtrlClick).toHaveBeenCalledTimes(1);
+    fireEvent.keyDown(row, { key: 'a' });
+    expect(onClick).toHaveBeenCalledTimes(2);
+  });
+
+  it('keeps the words-of-Christ spans while the red-letter setting is on and drops their class when off', () => {
+    const html = '<span class="christ-words">Verily I say</span> unto you';
+    const original = settingsStore.wordsOfChristInRed;
+    try {
+      settingsStore.wordsOfChristInRed = true;
+      const on = render(<SearchResultItem result={makeResult({ text: html })} onClick={vi.fn()} onCtrlClick={vi.fn()} />);
+      expect(on.container.querySelector('.search-result-item__text .christ-words')).toBeTruthy();
+      on.unmount();
+      settingsStore.wordsOfChristInRed = false;
+      const off = render(<SearchResultItem result={makeResult({ text: html })} onClick={vi.fn()} onCtrlClick={vi.fn()} />);
+      expect(off.container.querySelector('.search-result-item__text .christ-words')).toBeNull();
+    } finally {
+      settingsStore.wordsOfChristInRed = original;
+    }
   });
 });

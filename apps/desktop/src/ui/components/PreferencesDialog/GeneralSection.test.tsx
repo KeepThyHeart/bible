@@ -145,6 +145,21 @@ describe('GeneralSection language picker', () => {
     expect(h.setLocale).toHaveBeenCalledWith('fr');
   });
 
+  it('is a single Tab stop with arrow-key selection (roving tabindex)', async () => {
+    render(<GeneralSection />);
+    await userEvent.click(screen.getByTestId('language-disclosure'));
+
+    const en = screen.getByTestId('locale-option-en');
+    const fr = screen.getByTestId('locale-option-fr');
+    expect(en).toHaveAttribute('tabindex', '0');
+    expect(fr).toHaveAttribute('tabindex', '-1');
+
+    en.focus();
+    await userEvent.keyboard('{ArrowDown}');
+    expect(document.activeElement).toBe(fr);
+    expect(h.setLocale).toHaveBeenCalledWith('fr');
+  });
+
   it('names a locale that is no longer offered when the user is already on it', () => {
     h.locale = 'es';
     render(<GeneralSection />);

@@ -20,7 +20,6 @@
   "keywords.legend.addSuggestion": "Adicionar {label}",
   "keywords.legend.announce": "{label}, versículo {verse}, {index} de {total}",
   "keywords.legend.needsInterlinear": "As marcas de Strong's precisam de uma tradução interlinear.",
-  "keywords.settings.colorSafe": "Marcas acessíveis a daltonismo (sublinhado e símbolo extras)",
   "keywords.menu.markWord": "Marcar todas as ocorrências de \"{word}\"",
   "keywords.menu.markLemma": "Marcar lema {strongs}",
   "keywords.strongs.markInChapter": "Marcar neste capítulo",

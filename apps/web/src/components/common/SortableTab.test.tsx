@@ -26,7 +26,7 @@ vi.mock('@dnd-kit/utilities', () => ({
   },
 }));
 
-import { SortableTab } from './SortableTab';
+import { SortableTab, tabKeyDown, tablistKeyDown, focusAfterTabClose } from './SortableTab';
 
 // Default stub returned by useSortable
 function makeSortableState(overrides: Partial<{
@@ -178,5 +178,122 @@ describe('SortableTab', () => {
     );
     expect(container.querySelector('.inner')).toBeTruthy();
     expect(screen.getByText('Inner Content')).toBeTruthy();
+  });
+
+  describe('presentational wrapper', () => {
+    it('drops the dnd-kit button semantics so the tab inside is not nested in a button', () => {
+      mockUseSortable.mockReturnValue(makeSortableState({
+        attributes: { role: 'button', tabIndex: 0, 'aria-pressed': false, 'aria-roledescription': 'sortable' },
+      }));
+      const { container } = render(<SortableTab id="t" presentational>x</SortableTab>);
+      const div = container.firstElementChild as HTMLElement;
+      expect(div.getAttribute('role')).toBe('presentation');
+      expect(div.hasAttribute('tabindex')).toBe(false);
+      expect(div.hasAttribute('aria-pressed')).toBe(false);
+      expect(div.hasAttribute('aria-roledescription')).toBe(false);
+    });
+  });
+
+  describe('tabKeyDown', () => {
+    function strip() {
+      return render(
+        <div role="tablist">
+          <span role="tab" tabIndex={0} data-testid="a" onKeyDown={tabKeyDown(() => {})} />
+          <span role="tab" tabIndex={-1} data-testid="b" onKeyDown={tabKeyDown(() => {})} />
+          <span role="tab" tabIndex={-1} data-testid="c" onKeyDown={tabKeyDown(() => {})} />
+        </div>,
+      );
+    }
+
+    it('ArrowRight/ArrowLeft/Home/End move focus between tabs', () => {
+      strip();
+      const [a, b, c] = ['a', 'b', 'c'].map(id => screen.getByTestId(id));
+      a.focus();
+      fireEvent.keyDown(a, { key: 'ArrowRight' });
+      expect(document.activeElement).toBe(b);
+      fireEvent.keyDown(b, { key: 'End' });
+      expect(document.activeElement).toBe(c);
+      fireEvent.keyDown(c, { key: 'ArrowLeft' });
+      expect(document.activeElement).toBe(b);
+      fireEvent.keyDown(b, { key: 'Home' });
+      expect(document.activeElement).toBe(a);
+    });
+
+    it('Enter and Space activate', () => {
+      const activate = vi.fn();
+      render(<span role="tab" tabIndex={0} data-testid="x" onKeyDown={tabKeyDown(activate)} />);
+      fireEvent.keyDown(screen.getByTestId('x'), { key: 'Enter' });
+      fireEvent.keyDown(screen.getByTestId('x'), { key: ' ' });
+      expect(activate).toHaveBeenCalledTimes(2);
+    });
+  });
+});
+
+describe('Delete and focus after close', () => {
+  it('Delete calls close with the tablist; without a close handler it does nothing', () => {
+    const close = vi.fn();
+    const { container } = render(
+      <div role="tablist">
+        <span role="tab" tabIndex={0} onKeyDown={tabKeyDown(() => {}, close)}>A</span>
+        <span role="tab" tabIndex={-1} onKeyDown={tabKeyDown(() => {})}>B</span>
+      </div>,
+    );
+    const [a, b] = Array.from(container.querySelectorAll('[role="tab"]'));
+    fireEvent.keyDown(b, { key: 'Delete' });
+    expect(close).not.toHaveBeenCalled();
+    fireEvent.keyDown(a, { key: 'Delete' });
+    expect(close).toHaveBeenCalledWith(container.querySelector('[role="tablist"]'));
+  });
+
+  it('focusAfterTabClose focuses the selected tab, else the fallback control', async () => {
+    const { container } = render(
+      <div>
+        <div role="tablist"><span role="tab" tabIndex={-1} aria-selected="true">A</span></div>
+        <button class="add">+</button>
+      </div>,
+    );
+    const list = container.querySelector('[role="tablist"]')!;
+    focusAfterTabClose(list, '.add');
+    await new Promise(r => requestAnimationFrame(() => r(null)));
+    expect(document.activeElement).toBe(container.querySelector('[role="tab"]'));
+    list.innerHTML = '';
+    focusAfterTabClose(list, '.add');
+    await new Promise(r => requestAnimationFrame(() => r(null)));
+    expect(document.activeElement).toBe(container.querySelector('.add'));
+  });
+});
+
+describe('tablistKeyDown wrapping', () => {
+  function strip(dir = 'ltr') {
+    const list = document.createElement('div');
+    list.setAttribute('role', 'tablist');
+    list.style.direction = dir;
+    const tabs = [0, 1, 2].map(() => {
+      const t = document.createElement('button');
+      t.setAttribute('role', 'tab');
+      list.appendChild(t);
+      return t;
+    });
+    document.body.appendChild(list);
+    return { list, tabs };
+  }
+  function press(tab: HTMLElement, key: string) {
+    const ev = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true });
+    Object.defineProperty(ev, 'currentTarget', { value: tab });
+    tablistKeyDown(ev);
+  }
+  it('wraps ArrowRight on the last tab to the first and ArrowLeft on the first to the last', () => {
+    const { list, tabs } = strip();
+    press(tabs[2], 'ArrowRight');
+    expect(document.activeElement).toBe(tabs[0]);
+    press(tabs[0], 'ArrowLeft');
+    expect(document.activeElement).toBe(tabs[2]);
+    list.remove();
+  });
+  it('wraps in the visual direction for RTL', () => {
+    const { list, tabs } = strip('rtl');
+    press(tabs[0], 'ArrowRight');
+    expect(document.activeElement).toBe(tabs[2]);
+    list.remove();
   });
 });

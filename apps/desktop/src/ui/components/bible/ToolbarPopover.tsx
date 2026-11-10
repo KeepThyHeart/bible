@@ -1,8 +1,14 @@
-import React, { useCallback, useEffect, useLayoutEffect, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useDirection } from '@bible/ui';
 
 /**
+ * When `role` is `menu` (the default) the popover is a real menu button's menu:
+ * focus moves to the first item as it opens, Up/Down/Home/End move between
+ * items, and when it closes focus goes back to the button that opened it
+ * (Escape and outside-click dismissal stay with the owner's
+ * `useOverlayDismissal`).
+ *
  * A menu anchored to a Bible-toolbar button but rendered into `<body>`.
  *
  * The toolbar clips its own overflow so the control band never spills out of a
@@ -52,6 +58,47 @@ const ToolbarPopover: React.FC<ToolbarPopoverProps> = ({
   const uiDir = useDirection();
   const rtl = uiDir === 'rtl';
   const [placement, setPlacement] = useState<Placement | null>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const isMenu = role === 'menu';
+  const placed = placement !== null;
+
+  // Menu button behaviour: take focus on open, give it back on close.
+  useEffect(() => {
+    if (!isMenu || !placed) return;
+    const node = menuRef.current;
+    if (!node) return;
+    const opener = (document.activeElement as HTMLElement | null) ?? null;
+    const first =
+      node.querySelector<HTMLElement>('[role^="menuitem"]:not([disabled])') ??
+      node.querySelector<HTMLElement>('button:not([disabled])');
+    first?.focus({ preventScroll: true });
+    return () => {
+      // The menu is gone, so focus that was inside it is on <body>. Focus that
+      // already moved on purpose (a dialog, another control) is left alone.
+      const active = document.activeElement;
+      const orphaned = !active || active === document.body || node.contains(active);
+      if (orphaned && opener && opener !== document.body && opener.isConnected) {
+        opener.focus();
+      }
+    };
+  }, [isMenu, placed]);
+
+  const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>): void => {
+    if (!isMenu) return;
+    if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && e.key !== 'Home' && e.key !== 'End') return;
+    const items = Array.from(
+      e.currentTarget.querySelectorAll<HTMLElement>('[role^="menuitem"]:not([disabled])'),
+    );
+    if (items.length === 0) return;
+    e.preventDefault();
+    const current = items.indexOf(document.activeElement as HTMLElement);
+    let next: number;
+    if (e.key === 'Home') next = 0;
+    else if (e.key === 'End') next = items.length - 1;
+    else if (e.key === 'ArrowDown') next = current < 0 ? 0 : (current + 1) % items.length;
+    else next = current <= 0 ? items.length - 1 : current - 1;
+    items[next].focus();
+  };
 
   const measure = useCallback(() => {
     const anchor = anchorRef.current;
@@ -103,8 +150,10 @@ const ToolbarPopover: React.FC<ToolbarPopoverProps> = ({
         overflowY: 'auto',
         backgroundColor: 'var(--theme-surface-elevated)',
       }}
+      ref={menuRef}
       role={role}
       aria-label={rest['aria-label']}
+      onKeyDown={onKeyDown}
       onMouseLeave={onMouseLeave}
       onMouseDown={onMouseDown}
     >

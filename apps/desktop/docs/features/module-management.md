@@ -97,6 +97,14 @@ The file dialog returns a `ModuleInstallDialogResult` discriminated union - `{ k
 
 Pack archives are extracted under `getUserDataPath()/temp/module-packs` (`getModulePackExtractionRoot()`) specifically so the final move into place is a same-volume `renameSync` rather than a cross-device copy.
 
+## Keeping the UI responsive
+
+Every window talks to the main process over IPC, so synchronous work there freezes the whole app. The heavy steps of installing and checking modules therefore do not run on the main thread:
+
+- **Keyword-index builds** (after every install, and the startup catch-up for modules without an index) run in a worker thread: `keywordIndexWorker.ts` (built as `out/main/keyword-index-worker.js`), driven by `runKeywordIndexBuild.ts`. The build itself is `keywordIndexBuild.ts`; `KeywordIndexService` only writes the `keyword_index` rows. Progress arrives per batch; a cancel stops the worker at its next batch (a worker that does not stop within 30 s is terminated). Measured on the dev data set, the in-thread build of Matthew Henry's commentary stalled the main event loop for 23 s of a 27 s build (longest single stall 3.4 s); in the worker the main thread's longest stall was 12 ms.
+- **The install conformance gate** runs in `moduleInstallWorker.ts` (unchanged).
+- **The startup module scan** (`detectAndRegisterModulesAsync`) yields between module files. Handlers that answer "what is installed" (`bible:getAvailableBibles`, `bible:getInitialData`, `module:get-installed`) wait for a running scan, and a loader miss during the scan waits for it and retries (`services/moduleScan.ts`), so a reader restored before the scan reached its Bible is not told it is missing. When the scan registers modules it evicts them from every loader (forgetting a cached miss) and sends `module:library-changed` to every window; the renderer reloads its installed list and retries any Bible tab whose chapter had failed to load. An install does the same eviction (`InstallationService`).
+
 ## Install policy - what happens when a module is already installed
 
 `ModuleInstallPolicy` in `electron/ipc/moduleHandlers.ts`:
@@ -120,6 +128,8 @@ Note the asymmetry with `moduleLinkStability`, whose key is `moduleType:abbrevia
 `ModuleCatalogService` resolves a repository catalog's `starter_packs` into installable module lists. `getStarterPacksForLanguage` filters against `SUPPORTED_CONTENT_LANGUAGES` (`en`, `es`, `hi`, `zh-Hans`) and returning `[]` is a normal outcome. A pack entry whose `module_id` does not resolve is dropped with a warning rather than failing the whole pack. Ceilings: `MAX_STARTER_PACKS` 64, `MAX_STARTER_PACK_MODULES` 200, `MAX_STARTER_PACK_ARCHIVE_BYTES` 8 GiB.
 
 **Bundled packs.** The recommended sets live in one file, `packages/core/src/Data/Core/starter-packs.json` (exported as `BUNDLED_STARTER_PACKS`). Each pack is only a list of catalog `module_ids` plus a name, description and the languages it is offered for - nothing is bundled but the list. The official, verified catalog offers every bundled pack it does not already publish itself under the same `pack_id` (a catalog's own `starter_packs` win, so its maintainers can change a list without an app release), and each id is resolved against that catalog like any other pack. To add a tier, append an object to `packs`; first run then lists it as another card, each with per-module checkboxes. `pnpm run init:modules --select=<pack_id>` installs the same list from the setup script. The shipped `essentials` pack is English-only; other languages fall back to the recommended modules below.
+
+**The Module Manager's Collections tab** (`OfflinePacksPanel.tsx`, testids `module-manager-packs-tab` / `module-manager-packs-panel`; it was labelled "Bundles" before) shows the same starter packs as "collections": choosing one ticks its modules in the full module list below, the user can add or remove any, and **Install selected** installs them one at a time. A line under the chips says what the click did ("Essentials: 12 modules selected to install; you already have the other 2", or "You already have everything in Essentials"), and Install stays disabled when nothing selected still needs installing.
 
 **When starter packs are empty**, the first-run language dialog falls back to recommended catalog modules (`module:search` with `{ languageCode, recommended: true }`, Bible first) and offers those instead. Only "nothing available" is shown when both packs and modules are empty. The dialog also falls back `en-US` → `en` on the language code. **Currently, only `en` is published**, so non-English users will legitimately see nothing; the UI explains this honestly.
 

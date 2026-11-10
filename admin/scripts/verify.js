@@ -478,6 +478,14 @@ async function main() {
   }
 
   const ok = finish();
+  if (ok && !opts.workDir) {
+    // A passed run in the default temp work dir leaves nothing worth keeping (and a --fresh clone is big).
+    // A failed run keeps it: the logs it names are the point. --work-dir is the caller's, never removed.
+    fs.rmSync(workDir, { recursive: true, force: true });
+    console.log(`Removed ${workDir} (the run passed). Pass --work-dir=DIR to keep logs.`);
+  } else if (!ok && !opts.workDir) {
+    console.log(`Kept ${workDir} for debugging.`);
+  }
   process.exit(ok ? 0 : 1);
 }
 

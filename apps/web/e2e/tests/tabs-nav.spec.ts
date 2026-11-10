@@ -98,6 +98,9 @@ test.describe('Navigation History (Back/Forward)', () => {
   test.beforeEach(async ({ page }, testInfo) => {
     test.skip(testInfo.project.name.includes('mobile'), 'Desktop-only tests');
     await page.goto('/');
+    // Let the first load finish: reloading mid-import makes WebKit log "Importing a module script failed".
+    await page.waitForSelector('.app');
+    await page.waitForLoadState('networkidle');
     await page.evaluate(() => localStorage.clear());
     await page.reload();
     await page.waitForSelector('.app');

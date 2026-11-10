@@ -54,4 +54,25 @@ describe('DockviewTabListMenu', () => {
     expect(panels[2].api.setActive).toHaveBeenCalled();
     expect(screen.queryByTestId('tab-list-menu')).toBeNull();
   });
+
+  it('Escape closes the menu, returns focus to the button and does not activate a tab', async () => {
+    const user = userEvent.setup();
+    const panels = [fakePanel('p1', 'John 3'), fakePanel('p2', 'Clarke')];
+    const group = { id: 'g1', panels, activePanel: panels[1] } as unknown as DockviewGroupPanel;
+
+    render(
+      <ContextProvider services={createMockServices()}>
+        <DockviewTabListMenu group={group} />
+      </ContextProvider>,
+    );
+
+    const button = screen.getByRole('button', { name: 'List all tabs' });
+    await user.click(button);
+    expect(screen.getAllByRole('menuitemradio')[1]).toHaveFocus();
+    await user.keyboard('{Escape}');
+    expect(screen.queryByTestId('tab-list-menu')).toBeNull();
+    expect(button).toHaveFocus();
+    expect(panels[0].api.setActive).not.toHaveBeenCalled();
+    expect(panels[1].api.setActive).not.toHaveBeenCalled();
+  });
 });

@@ -2,6 +2,7 @@ import { useState, useCallback, useRef, useEffect, useMemo } from 'preact/hooks'
 import { useTranslation } from 'react-i18next';
 import { useStore } from '../../hooks/useStore';
 import { offlineStore } from '../../stores/offlineStore';
+import { settingsStore } from '../../stores/settingsStore';
 import { formatPassageRef } from '../../constants';
 import { parseVerseId } from '../../utils/verseId';
 import type {
@@ -103,6 +104,16 @@ export function TopicsBrowser({
 }: TopicsBrowserProps) {
   const { t } = useTranslation();
   const isOnline = useStore(offlineStore, () => offlineStore.isOnline);
+  const someIndexesOff = useStore(settingsStore, () => settingsStore.excludedTopicalModules.length > 0);
+  /** Heading of the opened topic/entity; focus moves here after a click opens one. */
+  const titleRef = useRef<HTMLElement>(null);
+  const backBtnRef = useRef<HTMLButtonElement>(null);
+  const focusAfterOpenRef = useRef(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const focusSearchAfterBackRef = useRef(false);
+  const fwdBtnRef = useRef<HTMLButtonElement>(null);
+  /** Desktop nav buttons disable themselves at the ends of the history: which one was just pressed. */
+  const navPressedRef = useRef<'back' | 'forward' | 'home' | null>(null);
   const entityActions = useSlot(topicEntityActions);
 
   // The request present on the very first render seeds the nav stack, so the
@@ -206,6 +217,38 @@ export function TopicsBrowser({
     if (entry && entry.type !== 'home') loadNavEntry(entry);
   }, []);
 
+  // The topic/entity that was clicked is gone from the list, so focus would fall to <body>:
+  // once the detail has loaded, move it to the opened item's heading (or the back button).
+  useEffect(() => {
+    if (!focusAfterOpenRef.current || detailLoading) return;
+    focusAfterOpenRef.current = false;
+    (titleRef.current ?? backBtnRef.current)?.focus();
+  }, [detailLoading, topicDetail, entityDetail, detailError]);
+
+  // Mobile "Back" removes (home) or remounts (topic) the button that held focus: land on the search box
+  // when the list is back, or on the topic's heading once it has loaded, never on <body>.
+  useEffect(() => {
+    if (!focusSearchAfterBackRef.current || history[historyIndex]?.type !== 'home') return;
+    focusSearchAfterBackRef.current = false;
+    searchInputRef.current?.focus({ preventScroll: true });
+  }, [historyIndex, history]);
+
+  // A desktop nav button that was just pressed may now be disabled (Back at the start, Forward at the end,
+  // Home at home), which drops focus to <body>: hand it to the opposite arrow, else the search box.
+  useEffect(() => {
+    const pressed = navPressedRef.current;
+    if (!pressed) return;
+    navPressedRef.current = null;
+    const ae = document.activeElement as HTMLElement | null;
+    const lost = !ae || ae === document.body || (ae as HTMLButtonElement).disabled === true;
+    if (!lost) return;
+    const order = pressed === 'forward' ? [backBtnRef, searchInputRef] : [fwdBtnRef, backBtnRef, searchInputRef];
+    for (const r of order) {
+      const el = r.current;
+      if (el && !(el as HTMLButtonElement).disabled) { el.focus({ preventScroll: true }); return; }
+    }
+  }, [historyIndex, history]);
+
   // Remember the nav stack for the next mount.
   useEffect(() => {
     savedNav.set(navKey, { history, historyIndex });
@@ -299,6 +342,11 @@ export function TopicsBrowser({
   const goBack = () => {
     if (!canGoBack) return;
     const newIndex = historyIndex - 1;
+    if (!mobile) navPressedRef.current = 'back';
+    if (mobile) {
+      if (history[newIndex].type === 'home') focusSearchAfterBackRef.current = true;
+      else focusAfterOpenRef.current = true;
+    }
     setHistoryIndex(newIndex);
     loadNavEntry(history[newIndex]);
   };
@@ -306,11 +354,13 @@ export function TopicsBrowser({
   const goForward = () => {
     if (!canGoForward) return;
     const newIndex = historyIndex + 1;
+    if (!mobile) navPressedRef.current = 'forward';
     setHistoryIndex(newIndex);
     loadNavEntry(history[newIndex]);
   };
 
   const goHome = () => {
+    if (!mobile) navPressedRef.current = 'home';
     setHistoryIndex(0);
     setHistory([{ type: 'home' }]);
     clearDetail();
@@ -320,6 +370,8 @@ export function TopicsBrowser({
   };
 
   const VERSE_PAGE_SIZE = 100;
+  /** "Load more" fetches up to this many verses at once (the server caps at the same figure). */
+  const VERSE_LOAD_MORE_SIZE = 1000;
 
   const loadTopic = async (module: string, topicId: number) => {
     const seq = ++loadSeqRef.current;
@@ -362,10 +414,10 @@ export function TopicsBrowser({
     if (!entry.module || !entry.topicId || !topicalProvider || versesLoadingMore) return;
     setVersesLoadingMore(true);
     try {
-      const more = await topicalProvider.getVersesForTopic(entry.module, entry.topicId, VERSE_PAGE_SIZE, verseOffset);
+      const more = await topicalProvider.getVersesForTopic(entry.module, entry.topicId, VERSE_LOAD_MORE_SIZE, verseOffset);
       setTopicVerses(prev => [...prev, ...more]);
       setVerseOffset(prev => prev + more.length);
-      if (more.length < VERSE_PAGE_SIZE) setVersesExhausted(true);
+      if (more.length < VERSE_LOAD_MORE_SIZE) setVersesExhausted(true);
     } catch (error) {
       console.error('Error loading more verses:', error);
       // Don't retry blindly against a failing endpoint.
@@ -437,6 +489,7 @@ export function TopicsBrowser({
   };
 
   const handleTopicClick = (topicId: number, module: string, topicName: string, sourceName?: string) => {
+    focusAfterOpenRef.current = true;
     const snapshot = searchQuery ? { query: searchQuery, topics: searchResults, entities: entitySearchResults } : undefined;
     setSearchQuery('');
     setSearchResults([]);
@@ -445,6 +498,7 @@ export function TopicsBrowser({
   };
 
   const handleEntityClick = (entityId: string, category: string, name: string) => {
+    focusAfterOpenRef.current = true;
     const snapshot = searchQuery ? { query: searchQuery, topics: searchResults, entities: entitySearchResults } : undefined;
     setSearchQuery('');
     setSearchResults([]);
@@ -459,7 +513,7 @@ export function TopicsBrowser({
       if (!isHome) {
         return (
           <div class="topics-browser__mobile-nav">
-            <button class="topics-browser__mobile-back" onClick={goBack} disabled={!canGoBack}>
+            <button class="topics-browser__mobile-back" ref={backBtnRef} onClick={goBack} disabled={!canGoBack}>
               <i class="fa-solid fa-chevron-left kth-rtl-mirror" /> {t('topicsBrowser.back')}
             </button>
           </div>
@@ -472,19 +526,19 @@ export function TopicsBrowser({
         <button class="topics-browser__nav-btn" onClick={isHome ? undefined : goHome} disabled={isHome} title={t('topicsBrowser.home')}>
           <i class="fa-solid fa-house" />
         </button>
-        <button class="topics-browser__nav-btn" disabled={!canGoBack} onClick={goBack}>
+        <button class="topics-browser__nav-btn" ref={backBtnRef} disabled={!canGoBack} onClick={goBack} title={t('topicsBrowser.back')} aria-label={t('topicsBrowser.back')}>
           <i class="fa-solid fa-arrow-left kth-rtl-mirror" />
         </button>
-        <button class="topics-browser__nav-btn" disabled={!canGoForward} onClick={goForward}>
+        <button class="topics-browser__nav-btn" ref={fwdBtnRef} disabled={!canGoForward} onClick={goForward} title={t('topicsBrowser.forward', { defaultValue: 'Forward' })} aria-label={t('topicsBrowser.forward', { defaultValue: 'Forward' })}>
           <i class="fa-solid fa-arrow-right kth-rtl-mirror" />
         </button>
         {showTitle && currentEntry.type === 'topic' && currentEntry.topicName && (
-          <span class="topics-browser__title">
+          <span class="topics-browser__title" ref={titleRef} tabIndex={-1}>
             {currentEntry.topicName}
           </span>
         )}
         {showTitle && currentEntry.type === 'entity' && currentEntry.entityName && (
-          <span class="topics-browser__title">
+          <span class="topics-browser__title" ref={titleRef} tabIndex={-1}>
             {entityIcon(currentEntry.entityCategory ?? '')} {currentEntry.entityName}
           </span>
         )}
@@ -495,6 +549,7 @@ export function TopicsBrowser({
   const renderSearchBar = () => (
     <div class="topics-browser__search">
       <input
+        ref={searchInputRef}
         type="text"
         class="topics-browser__search-input"
         placeholder={t('topicsBrowser.searchPlaceholder')}
@@ -505,6 +560,8 @@ export function TopicsBrowser({
         <button
           class="topics-browser__search-cancel"
           onClick={() => handleSearch('')}
+          title={t('topicsBrowser.clearSearch', { defaultValue: 'Clear search' })}
+          aria-label={t('topicsBrowser.clearSearch', { defaultValue: 'Clear search' })}
         >
           <i class="fa-solid fa-xmark" />
         </button>
@@ -537,7 +594,7 @@ export function TopicsBrowser({
         {loading && <div class="topics-browser__loading">{t('topicsBrowser.loading')}</div>}
 
         {!loading && verseTopics.length === 0 && verseEntities.length === 0 && (
-          <div class="topics-browser__empty">{!isOnline ? t('studyTopics.offlineNotice') : t('topicsBrowser.noTopicsVerse')}</div>
+          <div class="topics-browser__empty">{!isOnline ? t('studyTopics.offlineNotice') : t('topicsBrowser.noTopicsVerse')}{isOnline && someIndexesOff && ` ${t('studyTopics.someIndexesOff', { defaultValue: 'Some topical indexes are turned off in Settings.' })}`}</div>
         )}
 
         {groupedVerseTopics.length > 0 && (
@@ -895,7 +952,7 @@ export function TopicsBrowser({
         <div class="topics-browser__detail">
           {mobile ? (
             <>
-              <div class="topics-browser__mobile-topic-title">{currentEntry.topicName}</div>
+              <div class="topics-browser__mobile-topic-title" ref={titleRef as any} tabIndex={-1}>{currentEntry.topicName}</div>
               {topicDetail.parent_chain && topicDetail.parent_chain.length > 0 && (
                 <div class="topics-browser__mobile-hierarchy">
                   {topicDetail.parent_chain.map((p, i) => (
@@ -1039,6 +1096,13 @@ export function TopicsBrowser({
             const versesHeader = (
               <>
                 {t('topicsBrowser.verses', { count: refTotal })}
+                {/* The total includes sub-topics; say how many are filed on this topic itself (B-093). */}
+                {topicDetail.children.length > 0 && topicDetail.direct_reference_count != null
+                  && topicDetail.direct_reference_count < refTotal && (
+                  <span class="topics-browser__direct-count" data-testid="topic-direct-count">
+                    {' '}{t('topicsBrowser.directOfTotal', { direct: topicDetail.direct_reference_count, total: refTotal })}
+                  </span>
+                )}
                 {topicDetail.verse_count > refTotal && (
                   <span class="topics-browser__verse-total">
                     {' · '}{t('topicsBrowser.verseTotal', { count: topicDetail.verse_count })}

@@ -318,6 +318,15 @@ export class ExtensionHost implements IExtensionHost {
   }
 
   /**
+   * Stop background work that outlives a call: the Developer Mode file watches and their pending
+   * reload timers. The app never calls this (the host lives for the whole process); tests do, so a
+   * watcher cannot fire after their temp directory is removed and write into it again.
+   */
+  dispose(): void {
+    this.ctx.devWatcher?.dispose();
+  }
+
+  /**
    * Turn Developer Mode on or off. Turning it off stops every dev watch
    * immediately - leaving watchers running against a mode the user just
    * switched off would be a surprising amount of background behaviour.

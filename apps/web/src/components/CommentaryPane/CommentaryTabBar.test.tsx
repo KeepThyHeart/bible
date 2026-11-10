@@ -11,11 +11,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/preact';
 import type { CommentaryTab } from '../../stores/commentaryStore';
 import type { ComponentChildren } from 'preact';
+import { focusAfterTabClose } from '../common/SortableTab';
 
 // ---- i18n ----------------------------------------------------------------
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
-    t: (key: string) => key,
+    t: (key: string, opts?: { title?: string }) => (key === 'bibleTabBar.closeTabNamed' ? `Close ${opts?.title}` : key),
     i18n: { language: 'en' },
   }),
   initReactI18next: { type: '3rdParty', init: vi.fn() },
@@ -38,6 +39,9 @@ vi.mock('@dnd-kit/sortable', () => ({
 
 // ---- SortableTab mock ---------------------------------------------------
 vi.mock('../common/SortableTab', () => ({
+  tabKeyDown: (activate: () => void, close?: (list: Element | null) => void) => (e: KeyboardEvent) => { if (e.key === 'Enter' || e.key === ' ') activate(); else if (e.key === 'Delete' && close) close(null); },
+  focusAfterTabClose: vi.fn(),
+  tablistKeyDown: () => {},
   SortableTab: ({ children, class: className, onClick, title, id }: {
     children: ComponentChildren; class?: string; onClick?: () => void; title?: string; id: string
   }) => (
@@ -359,5 +363,65 @@ describe('CommentaryTabBar', () => {
     const { container } = render(<CommentaryTabBar />);
     const label = container.querySelector('.commentary-tab-bar__label');
     expect(label?.textContent?.trim()).toContain('MHC');
+  });
+
+  // ------------------------------------------------------------------
+  // Tab semantics (a11y)
+  // ------------------------------------------------------------------
+  it('is a tablist; the active tab is aria-selected and the close button is a sibling named after the tab', () => {
+    mockTabs = [
+      { id: HOME_TAB_ID_VAL, moduleAbbr: HOME_TAB_ID_VAL, moduleName: 'Overview' },
+      makeCommentaryTab({ id: 'ctab-1', moduleAbbr: 'MHC' }),
+      makeCommentaryTab({ id: 'ctab-2', moduleAbbr: 'WES' }),
+    ];
+    mockActiveTabId = 'ctab-2';
+    const { container } = render(<CommentaryTabBar />);
+    expect(container.querySelector('.commentary-tab-bar [role="tablist"]')).toBeTruthy();
+    const wes = screen.getByRole('tab', { name: 'WES' });
+    expect(wes.getAttribute('aria-selected')).toBe('true');
+    expect(screen.getByRole('tab', { name: 'MHC' }).getAttribute('aria-selected')).toBe('false');
+    expect(wes.querySelector('button')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Close WES' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Close MHC' })).toBeTruthy();
+  });
+
+  it('the overview home tab is a keyboard-reachable tab', () => {
+    mockTabs = [{ id: HOME_TAB_ID_VAL, moduleAbbr: HOME_TAB_ID_VAL, moduleName: 'Overview' }];
+    mockActiveTabId = 'ctab-x';
+    render(<CommentaryTabBar />);
+    const home = screen.getByRole('tab', { name: /commentaryTabBar.overview/ });
+    expect(home.getAttribute('tabindex')).toBe('0');
+    fireEvent.keyDown(home, { key: 'Enter' });
+    expect(mockSetActiveTab).toHaveBeenCalledWith(HOME_TAB_ID_VAL);
+  });
+
+  it('closes the focused tab with Delete; the Overview tab has no Delete close', () => {
+    mockTabs = [
+      { id: HOME_TAB_ID_VAL, moduleAbbr: HOME_TAB_ID_VAL, moduleName: 'Overview' },
+      makeCommentaryTab({ id: 'ctab-1', moduleAbbr: 'MHC' }),
+    ];
+    render(<CommentaryTabBar />);
+    fireEvent.keyDown(screen.getByRole('tab', { name: 'MHC' }), { key: 'Delete' });
+    expect(mockRemoveTab).toHaveBeenCalledWith('ctab-1');
+    mockRemoveTab.mockClear();
+    fireEvent.keyDown(screen.getByRole('tab', { name: /commentaryTabBar.overview/ }), { key: 'Delete' });
+    expect(mockRemoveTab).not.toHaveBeenCalled();
+  });
+
+  it('restores focus (focusAfterTabClose) after the close button removes a tab', () => {
+    mockTabs = [makeCommentaryTab({ id: 'ctab-1', moduleAbbr: 'MHC' })];
+    render(<CommentaryTabBar />);
+    (focusAfterTabClose as any).mockClear();
+    fireEvent.click(screen.getByRole('button', { name: 'Close MHC' }));
+    expect(focusAfterTabClose).toHaveBeenCalled();
+  });
+
+  it('renders the commentaries chooser outside the tablist', () => {
+    mockTabs = [makeCommentaryTab({ id: 'ctab-1', moduleAbbr: 'MHC' })];
+    const { container } = render(<CommentaryTabBar />);
+    fireEvent.click(container.querySelector('.commentary-tab-bar__add')!);
+    const overlay = container.querySelector('.module-dialog-overlay')!;
+    expect(overlay).toBeTruthy();
+    expect(overlay.closest('[role="tablist"]')).toBeNull();
   });
 });

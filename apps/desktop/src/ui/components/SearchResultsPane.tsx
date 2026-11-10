@@ -1,8 +1,10 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { useSearchStore, SemanticResult, StrongsSearchMeta, searchResultId, semanticResultId } from '../stores/useSearchStore';
+import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useSearchStore, SemanticResult, StrongsSearchMeta, searchResultId, semanticResultId, selectSessionView, isIdeasSelectable } from '../stores/useSearchStore';
 import { useBibleStore, DEFAULT_PANEL_ID } from '../stores/useBibleStore';
+import { useLayoutStore } from '../stores/useLayoutStore';
+import { useTextSettingsStore } from '../stores/useTextSettingsStore';
 import { syncPanesWithVerse } from '../stores/syncPanesWithVerse';
-import { SearchResult, truncateAtWordBoundary, VerseIdHelper } from '@bible/core';
+import { SearchResult, StrongsNumberHelper, truncateAtWordBoundary, VerseIdHelper } from '@bible/core';
 import { Bdi } from '@bible/ui';
 import { announce } from '../services/announcer';
 import { useNetworkStore } from '../stores/useNetworkStore';
@@ -12,6 +14,8 @@ import { contentDirAttrs } from '../utils/contentDirection';
 import { sanitizeHtml } from '../utils/sanitize';
 import { openStrongsInDictionary } from './bible/openStrongsInDictionary';
 import SearchDistributionGraph from './SearchDistributionGraph';
+import { LightbulbIcon } from './SearchTypeSelector';
+import { openModuleManager } from '../utils/openModuleManager';
 
 /**
  * How much of a Strong's gloss the search header shows before it is cut.
@@ -46,11 +50,19 @@ function moveResultFocus(from: HTMLElement, direction: 1 | -1): void {
  */
 interface SearchPanelApi {
   close: () => void;
+  isVisible?: boolean;
+  onDidVisibilityChange?: (cb: (event: { isVisible: boolean }) => void) => { dispose: () => void };
 }
 
 interface SearchResultsPaneProps {
   /** Supplied by `PanelContentRenderer` when this is a dockview panel. */
   dockviewPanelApi?: SearchPanelApi;
+  /**
+   * The dockview panel id, which is also this tab's search session id (task
+   * 0210). Absent in the detached-window and test paths, which show the
+   * active search.
+   */
+  panelId?: string;
 }
 
 /**
@@ -68,42 +80,78 @@ interface SearchResultsPaneProps {
  * - Semantic search toggle link
  * - Empty/loading/error states
  */
-const SearchResultsPane: React.FC<SearchResultsPaneProps> = ({ dockviewPanelApi }) => {
+const SearchResultsPane: React.FC<SearchResultsPaneProps> = ({ dockviewPanelApi, panelId }) => {
   const { t, localizer } = useI18n();
+  // This tab's own search session (task 0210): several search tabs can be on
+  // screen at once, so the pane must not simply show "the" search.
   const {
     resultsForQuery,
     searchResults,
     isSearching,
     error,
-    clearResults,
     // Result paging ("Show All Matches" / "Show N More")
     keywordResultLimit,
     isShowingAllKeywordResults,
-    showAllKeywordResults,
     // Keyword-index status note (F8 follow-up, task 0033)
     keywordIndexNotice,
     semanticVisibleCount,
-    showMoreSemanticResults,
     // Semantic search
     isSemanticMode,
     semanticResults,
     isSemanticSearching,
-    semanticAvailable,
-    toggleSemanticMode,
-    autoSwitchedToSemantic,
     semanticSource,
     semanticNotice,
     // Strong's word family
     strongsMeta,
     includeRelatedWords,
-    toggleIncludeRelatedWords,
-    searchStrongsNumber,
     // Result interaction (retry-in-translation, last-clicked marker)
     retriedModules,
-    retrySearchInModule,
+    searchedModules,
     lastClickedId,
-    setLastClickedId,
-  } = useSearchStore();
+    pendingRerun,
+    query,
+  } = useSearchStore(s => selectSessionView(s, panelId));
+  // Actions act on the active session; interacting with this pane makes it the
+  // active one first (see `activateThisTab` below).
+  const clearResults = useSearchStore(s => s.clearResults);
+  const setQuery = useSearchStore(s => s.setQuery);
+  const showAllKeywordResults = useSearchStore(s => s.showAllKeywordResults);
+  const showMoreSemanticResults = useSearchStore(s => s.showMoreSemanticResults);
+  const semanticAvailable = useSearchStore(isIdeasSelectable);
+  const toggleSemanticMode = useSearchStore(s => s.toggleSemanticMode);
+  const setSemanticMode = useSearchStore(s => s.setSemanticMode);
+  const toggleIncludeRelatedWords = useSearchStore(s => s.toggleIncludeRelatedWords);
+  const searchStrongsNumber = useSearchStore(s => s.searchStrongsNumber);
+  const retrySearchInModule = useSearchStore(s => s.retrySearchInModule);
+  const setLastClickedId = useSearchStore(s => s.setLastClickedId);
+  const activateSession = useSearchStore(s => s.activateSession);
+  const runPendingRerun = useSearchStore(s => s.runPendingRerun);
+  const openSessionInNewTab = useSearchStore(s => s.openSessionInNewTab);
+  const headingId = `search-results-heading-${useId().replace(/:/g, '')}`;
+
+  /**
+   * Make this tab's session the active search before acting on it. Clicking a
+   * dockview tab already does this; this covers a pointer or keyboard focus
+   * landing straight in the pane's content while another search tab is active.
+   */
+  const activateThisTab = () => {
+    if (panelId) activateSession(panelId);
+  };
+
+  // A tab restored after a restart holds only its query: re-run it the first
+  // time the tab is actually on screen (not while it sits behind another tab).
+  useEffect(() => {
+    if (!panelId || !pendingRerun) return;
+    const api = dockviewPanelApi;
+    if (!api || api.isVisible !== false) {
+      void runPendingRerun(panelId);
+      return;
+    }
+    const sub = api.onDidVisibilityChange?.((event) => {
+      if (event.isVisible) void runPendingRerun(panelId);
+    });
+    return () => sub?.dispose();
+  }, [panelId, pendingRerun, dockviewPanelApi, runPendingRerun]);
 
   const allowWebRequests = useNetworkStore(s => s.allowWebRequests);
   const networkLoaded = useNetworkStore(s => s.loaded);
@@ -189,6 +237,9 @@ const SearchResultsPane: React.FC<SearchResultsPaneProps> = ({ dockviewPanelApi 
     }
     return [primary, approximate] as const;
   }, [searchResults]);
+
+  // Words of Christ follow the Bible pane's red-letter preference (same `.christ-words` / `--theme-christ` tokens).
+  const showRedLetter = useTextSettingsStore((state) => state.getSettings('bible').showRedLetter);
 
   const visibleSemanticResults = useMemo(
     () => semanticResults.slice(0, semanticVisibleCount),
@@ -310,12 +361,39 @@ const SearchResultsPane: React.FC<SearchResultsPaneProps> = ({ dockviewPanelApi 
   // to leave `searchResults` populated, and the search bar's count badge is
   // derived from that array - so closing the results left a badge advertising
   // results nothing on screen could show.
+  //
+  // With search tabs (task 0210) closing the dockview panel is enough: the
+  // panel's disposal drops this tab's session (panelDisposal.ts). Clearing the
+  // active results first would empty whichever tab happens to be active.
   const handleClose = () => {
+    if (dockviewPanelApi) {
+      dockviewPanelApi.close();
+      return;
+    }
     clearResults();
-    dockviewPanelApi?.close();
+    setQuery('');
   };
 
-  const isLoading = isSearching || isSemanticSearching;
+  const handleOpenInNewTab = async () => {
+    if (!panelId) return;
+    await openSessionInNewTab(panelId);
+    // The button that was clicked is now in a hidden tab, and losing focus
+    // there lets the region rescue hand it to the Bible pane. Make the new
+    // tab the active panel and put focus in its pane once it has rendered.
+    const id = useSearchStore.getState().activeSessionId; // allow-getstate: event handler
+    if (!id || id === panelId) return;
+    // A sub-tab of the right pane's Search tab has no panel of its own: its host is the panel.
+    const panelOfSession = useSearchStore.getState().sessionMeta[id]?.hostPanelId ?? id; // allow-getstate: event handler
+    const settle = (attempt = 0): void => {
+      useLayoutStore.getState().dockviewApi?.getPanel(panelOfSession)?.api.setActive(); // allow-getstate: event handler
+      const target = document.querySelector<HTMLElement>(`[data-search-session="${id}"] [data-pane-focus]`);
+      if (target) target.focus();
+      else if (attempt < 20) window.setTimeout(() => settle(attempt + 1), 50);
+    };
+    settle();
+  };
+
+  const isLoading = isSearching || isSemanticSearching || pendingRerun;
 
   // Offline banner's "Turn on": same confirmation-gated path as the Module Manager
   // banner; once confirmed, retry the meaning search that just failed.
@@ -324,6 +402,14 @@ const SearchResultsPane: React.FC<SearchResultsPaneProps> = ({ dockviewPanelApi 
     if (await requestAllow(true) && resultsForQuery) void performSemanticSearch(resultsForQuery);
   };
 
+  // Ideas search is offered, never started, by a keyword search: zero or few
+  // hits show a suggestion the user has to click (Strong's numbers excluded -
+  // a meaning search for "G26" means nothing).
+  const offerIdeas = semanticAvailable && !!resultsForQuery && !StrongsNumberHelper.isStrongsNumber(resultsForQuery.trim());
+  // Same as picking Ideas in the search-type menu: switches this tab and runs
+  // the query (through the consent dialog when it is needed).
+  const tryIdeasSearch = () => setSemanticMode(true);
+
   const semanticNote = (() => {
     if (!semanticNotice) return null;
     const source = semanticSource === 'local' ? 'local' : 'keyword';
@@ -331,7 +417,10 @@ const SearchResultsPane: React.FC<SearchResultsPaneProps> = ({ dockviewPanelApi 
     const time = resetAtMs ? localizer.formatDate(new Date(resetAtMs), { timeStyle: 'short' }) : '';
     const reset = resetAtMs ? 'yes' : 'no';
     switch (semanticNotice.kind) {
-      case 'declined': return t('searchResultsPane.semanticNote.declined');
+      // Without the local pack nothing answered: say what Ideas search needs.
+      case 'declined': return semanticSource === 'local'
+        ? t('searchResultsPane.semanticNote.declined')
+        : t('searchResultsPane.semanticNote.declinedNoPack');
       case 'degraded': return t('searchResultsPane.semanticNote.degraded');
       case 'quota': return t('searchResultsPane.semanticNote.quota', { reset, time, source });
       case 'paused': return t('searchResultsPane.semanticNote.paused', { reset, time, source });
@@ -372,18 +461,53 @@ const SearchResultsPane: React.FC<SearchResultsPaneProps> = ({ dockviewPanelApi 
   // announcing results for `""`.
   const hasQuery = resultsForQuery.trim().length > 0;
 
-  const headingText = !hasQuery
+  // A restored tab names its query while the re-run is on its way.
+  // Zero results: the header's count region only mounts together with its text
+  // (and not at all while loading), so a search that finds nothing is never
+  // announced. Speak it through the always-mounted region below. Cleared when
+  // the next search starts, so an identical repeat is spoken again.
+  const zeroAnnouncedRef = useRef(false);
+  useEffect(() => {
+    if (isLoading) {
+      if (zeroAnnouncedRef.current) {
+        zeroAnnouncedRef.current = false;
+        setExpandAnnouncement('');
+      }
+      return;
+    }
+    if (!error && hasQuery && renderedRowCount === 0 && !isSearching) {
+      zeroAnnouncedRef.current = true;
+      setExpandAnnouncement(countSummary);
+    }
+  }, [isLoading, isSearching, error, hasQuery, renderedRowCount, countSummary]);
+
+  // The heading template already wraps the query in straight quotes, so a query
+  // of its own quotes (a phrase search) would read `""love one" -hate"`. Show
+  // the query's own quotes as typographic pairs instead.
+  const rawHeadingQuery = hasQuery ? resultsForQuery : (pendingRerun ? query.trim() : '');
+  const headingQuery = (() => {
+    let open = true;
+    return rawHeadingQuery.replace(/"/g, () => {
+      const mark = open ? '\u201C' : '\u201D';
+      open = !open;
+      return mark;
+    });
+  })();
+  const headingText = !headingQuery
     ? t('paneName.search')
     : isSemanticMode
-      ? t('searchResultsPane.semanticHeading', { query: resultsForQuery, })
-      : t('searchResultsPane.heading', { query: resultsForQuery, });
+      ? t('searchResultsPane.semanticHeading', { query: headingQuery, })
+      : t('searchResultsPane.heading', { query: headingQuery, });
 
   return (
     <section
       data-testid="search-results-pane"
-      className="h-full flex flex-col"
+      data-search-session={panelId}
+      className={`h-full flex flex-col${showRedLetter === false ? ' no-red-letter' : ''}`}
       style={{ backgroundColor: 'var(--theme-bg-primary)' }}
-      aria-labelledby="search-results-heading"
+      aria-labelledby={headingId}
+      onPointerDownCapture={activateThisTab}
+      onFocusCapture={activateThisTab}
       onKeyDown={(e) => {
         // Escape closes the results panel so it cannot linger and take half the Bible pane.
         if (e.key === 'Escape' && !e.defaultPrevented) handleClose();
@@ -399,7 +523,7 @@ const SearchResultsPane: React.FC<SearchResultsPaneProps> = ({ dockviewPanelApi 
 
           {/* Query Display */}
           <div className="flex-1 min-w-0">
-            <h2 id="search-results-heading" tabIndex={-1} data-pane-focus className="pane-header-title truncate">
+            <h2 id={headingId} tabIndex={-1} data-pane-focus className="pane-header-title truncate">
               {headingText}
             </h2>
             {!isLoading && !error && hasQuery && (
@@ -413,6 +537,12 @@ const SearchResultsPane: React.FC<SearchResultsPaneProps> = ({ dockviewPanelApi 
                 <span role="status" aria-live="polite" aria-atomic="true">
                   {countSummary}
                 </span>
+                {/* The results stay when the translation changes (B-005): say which one they came from. */}
+                {!isSemanticMode && searchedModules && searchedModules.length > 0 && primaryAbbr && !searchedModules.includes(primaryAbbr) && (
+                  <span data-testid="search-results-translation-note" className="text-text-secondary">
+                    {t('searchResultsPane.resultsFrom', { modules: searchedModules.join(', ') })}
+                  </span>
+                )}
                 {/* Semantic Search Toggle Link */}
                 {semanticAvailable && (
                   <button
@@ -432,6 +562,22 @@ const SearchResultsPane: React.FC<SearchResultsPaneProps> = ({ dockviewPanelApi 
 
         {/* Action Buttons */}
         <div className="flex items-center gap-2 flex-shrink-0">
+          {/* Open this search in a new search tab (task 0210) */}
+          {panelId && hasQuery && (
+            <button
+              type="button"
+              onClick={handleOpenInNewTab}
+              className="pane-header-btn p-1.5"
+              title={t('searchTabs.openInNewTabTitle')}
+              aria-label={t('searchTabs.openInNewTabTitle')}
+              data-testid="search-open-in-new-tab"
+            >
+              <svg className="w-4 h-4" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 4h11a1 1 0 011 1v11M4 8h11a1 1 0 011 1v10a1 1 0 01-1 1H5a1 1 0 01-1-1V9a1 1 0 011-1z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 11v6M7 14h6" />
+              </svg>
+            </button>
+          )}
           {/* Close Button */}
           <button
             type="button"
@@ -518,20 +664,16 @@ const SearchResultsPane: React.FC<SearchResultsPaneProps> = ({ dockviewPanelApi 
                 {t('searchResultsPane.semanticNote.turnOn')}
               </button>
             )}
-          </div>
-        )}
-
-        {/* Auto-switch notice */}
-        {!isLoading && !error && isSemanticMode && autoSwitchedToSemantic && semanticResults.length > 0 && (
-          <div className="px-md py-sm bg-accent-light border-b border-accent-soft text-sm text-accent-strong">
-            {t('searchResultsPane.autoSwitchNotice')}
-            <button
-              type="button"
-              onClick={toggleSemanticMode}
-              className="ms-2 text-accent-strong hover:text-accent-strong underline cursor-pointer"
-            >
-              {t('searchResultsPane.backToKeyword')}
-            </button>
+            {semanticNotice?.kind === 'declined' && semanticSource !== 'local' && (
+              <button
+                type="button"
+                onClick={() => openModuleManager('features')}
+                data-testid="semantic-note-get-pack"
+                className="ms-2 text-accent-strong hover:text-accent-strong underline cursor-pointer"
+              >
+                {t('remoteConsent.getPack')}
+              </button>
+            )}
           </div>
         )}
 
@@ -627,16 +769,15 @@ const SearchResultsPane: React.FC<SearchResultsPaneProps> = ({ dockviewPanelApi 
                     </div>
                   </div>
                 )}
-                {semanticAvailable && (
-                  <button
-                    type="button"
-                    onClick={toggleSemanticMode}
-                    className="mt-md text-sm text-accent-strong hover:text-accent-strong hover:underline cursor-pointer"
-                  >
-                    {t('searchResultsPane.trySemantic')}
-                  </button>
+                {offerIdeas && (
+                  <IdeasSuggestion variant="none" onTry={tryIdeasSearch} />
                 )}
               </div>
+            )}
+
+            {/* Only a few keyword hits: offer Ideas search too (never run it unasked). */}
+            {offerIdeas && exactAndStemResults.length > 0 && exactAndStemResults.length <= FEW_KEYWORD_RESULTS && (
+              <IdeasSuggestion variant="few" onTry={tryIdeasSearch} />
             )}
 
             {/* Results List */}
@@ -778,6 +919,56 @@ const ShowMoreBar: React.FC<ShowMoreBarProps> = ({ label, testId, onClick }) => 
     </button>
   </div>
 );
+
+// ============================================================================
+// IdeasSuggestion Component (offer Ideas search after a thin keyword search)
+// ============================================================================
+
+/** At or under this many exact keyword hits, Ideas search is suggested too. */
+export const FEW_KEYWORD_RESULTS = 3;
+
+/**
+ * "Try Ideas Search?" - the only way a keyword search leads to an Ideas
+ * search: the user clicks it. `none` sits in the empty state; `few` is a
+ * one-line banner above a short result list.
+ */
+const IdeasSuggestion: React.FC<{ variant: 'none' | 'few'; onTry: () => void }> = ({ variant, onTry }) => {
+  const { t } = useI18n();
+  const button = (
+    <button
+      type="button"
+      onClick={onTry}
+      data-testid="try-ideas-search"
+      className="inline-flex items-center gap-1 text-sm px-3 py-1.5 rounded border border-accent text-accent-strong hover:bg-accent-light cursor-pointer transition-colors"
+    >
+      <LightbulbIcon className="w-4 h-4" />
+      {t('searchResultsPane.ideasSuggestion.button')}
+    </button>
+  );
+  if (variant === 'few') {
+    return (
+      <div
+        className="px-md py-sm flex flex-wrap items-center gap-2 border-b border-border text-sm text-text-secondary"
+        data-testid="ideas-suggestion"
+        data-variant="few"
+      >
+        <span className="flex-1 min-w-[12rem]">{t('searchResultsPane.ideasSuggestion.few')}</span>
+        {button}
+      </div>
+    );
+  }
+  return (
+    <div
+      className="mt-lg flex flex-col items-center gap-sm max-w-md text-center"
+      data-testid="ideas-suggestion"
+      data-variant="none"
+    >
+      <div className="text-sm font-semibold text-text-primary">{t('searchResultsPane.ideasSuggestion.none')}</div>
+      <div className="text-xs text-text-secondary">{t('searchResultsPane.ideasSuggestion.explain')}</div>
+      {button}
+    </div>
+  );
+};
 
 // ============================================================================
 // SearchResultItem Component (keyword search)

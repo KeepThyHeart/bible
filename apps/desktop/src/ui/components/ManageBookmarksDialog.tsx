@@ -50,9 +50,25 @@ const ManageBookmarksDialog: React.FC<ManageBookmarksDialogProps> = ({ onClose }
    * typed, which is the opposite of what it promises.
    */
   const cancelledEditRef = useRef(false);
+  /**
+   * Pin id whose Rename button should take focus once the inline editor has
+   * unmounted. Set only when the edit ends by keyboard (Enter / Escape); a
+   * blur caused by clicking elsewhere must not steal focus from the click.
+   */
+  const refocusRenameRef = useRef<number | null>(null);
   /** Index being dragged, and the index it is currently hovering over. */
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [dropIndex, setDropIndex] = useState<number | null>(null);
+
+  // The inline input is gone (it held focus): move focus to the row's Rename
+  // button instead of letting it fall out to <body>.
+  useEffect(() => {
+    if (editingPinId !== null || refocusRenameRef.current === null) return;
+    const pinId = refocusRenameRef.current;
+    refocusRenameRef.current = null;
+    const target = dialogRef.current?.querySelector<HTMLElement>(`[data-testid="bookmark-rename-${pinId}"]`);
+    (target ?? dialogRef.current)?.focus();
+  }, [editingPinId]);
 
   // The dialog can be opened from a pane that never loaded the list.
   useEffect(() => {
@@ -97,10 +113,10 @@ const ManageBookmarksDialog: React.FC<ManageBookmarksDialogProps> = ({ onClose }
       // otherwise a mistyped name takes the whole dialog down with it.
       if (editingPinId !== null) {
         cancelledEditRef.current = true;
+        // The cancelled input is about to unmount; the effect above moves
+        // focus to the row's Rename button so it does not fall out to <body>.
+        refocusRenameRef.current = editingPinId;
         setEditingPinId(null);
-        // Take focus back to the dialog; the cancelled input is about to
-        // unmount and focus would otherwise fall out to <body>.
-        dialogRef.current?.focus();
         return;
       }
       onClose();
@@ -252,7 +268,14 @@ const ManageBookmarksDialog: React.FC<ManageBookmarksDialogProps> = ({ onClose }
                             data-testid={`bookmark-name-input-${pinId}`}
                             onChange={e => setDraftTitle(e.target.value)}
                             onKeyDown={e => {
-                              if (e.key === 'Enter') void commitTitle(pinId);
+                              if (e.key === 'Enter') {
+                                // Cancels the keypress that would otherwise reach
+                                // the Rename button focus is about to land on and
+                                // re-open the editor.
+                                e.preventDefault();
+                                refocusRenameRef.current = pinId;
+                                void commitTitle(pinId);
+                              }
                             }}
                             onBlur={() => void commitTitle(pinId)}
                           />
@@ -291,7 +314,18 @@ const ManageBookmarksDialog: React.FC<ManageBookmarksDialogProps> = ({ onClose }
 
                         <button
                           className="p-1 text-text-secondary hover:text-status-error"
-                          onClick={() => void removeBookmark(pinId)}
+                          onClick={() => {
+                            // The row (and this button) is about to vanish: hand
+                            // focus to a neighbour's Remove button, else the dialog.
+                            const neighbour = bookmarks[index + 1] ?? bookmarks[index - 1];
+                            const next = neighbour
+                              ? dialogRef.current?.querySelector<HTMLElement>(
+                                  `[data-testid="bookmark-remove-${neighbour.pinId}"]`,
+                                )
+                              : null;
+                            (next ?? dialogRef.current)?.focus();
+                            void removeBookmark(pinId);
+                          }}
                           title={t('ui.bookmarks.remove')}
                           aria-label={t('ui.bookmarks.remove')}
                           data-testid={`bookmark-remove-${pinId}`}

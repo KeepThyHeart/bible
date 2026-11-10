@@ -141,6 +141,20 @@ const PreferencesDialog: React.FC<PreferencesDialogProps> = ({
     onActivate: (index) => setActiveSection(sections[index].id),
   });
 
+  // The tablist is vertical, so Up/Down are its arrows (the hook handles
+  // Left/Right, which stay working too).
+  const handleSectionKeyDown = (event: React.KeyboardEvent<HTMLElement>) => {
+    if ((event.key === 'ArrowDown' || event.key === 'ArrowUp') && sections.length > 0) {
+      event.preventDefault();
+      const step = event.key === 'ArrowDown' ? 1 : -1;
+      const next = (Math.max(activeSectionIndex, 0) + step + sections.length) % sections.length;
+      setActiveSection(sections[next].id);
+      tablistRef.current?.querySelectorAll<HTMLElement>('[role="tab"]')[next]?.focus();
+      return;
+    }
+    handleTabKeyDown(event);
+  };
+
   return (
     <div
       className="fixed inset-0 flex items-center justify-center z-50"
@@ -181,7 +195,7 @@ const PreferencesDialog: React.FC<PreferencesDialogProps> = ({
             aria-label={t('preferencesDialog.sectionsNavLabel')}
             aria-orientation="vertical"
             ref={tablistRef}
-            onKeyDown={handleTabKeyDown}
+            onKeyDown={handleSectionKeyDown}
           >
             {sections.map((section) => (
               <button
@@ -192,7 +206,7 @@ const PreferencesDialog: React.FC<PreferencesDialogProps> = ({
                 aria-controls={`preferences-panel-${section.id}`}
                 tabIndex={activeSection === section.id ? 0 : -1}
                 onClick={() => setActiveSection(section.id)}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors ${
+                className={`w-full flex items-start justify-start text-start gap-3 px-3 py-2.5 rounded-md text-sm font-medium leading-5 transition-colors ${
                   activeSection === section.id ? 'font-semibold' : ''
                 }`}
                 style={{
@@ -214,8 +228,10 @@ const PreferencesDialog: React.FC<PreferencesDialogProps> = ({
                   }
                 }}
               >
-                {section.glyph}
-                {section.label}
+                {/* Fixed one-line-high icon box pinned to the top, so a wrapped label keeps it beside line 1. */}
+                <span data-tab-icon className="flex h-5 w-5 shrink-0 items-center justify-center">{section.glyph}</span>
+                {/* A real flex item (not an anonymous text node): fills the row and starts every line at the same edge. */}
+                <span data-tab-label className="min-w-0 flex-1 text-start break-words">{section.label}</span>
               </button>
             ))}
           </nav>

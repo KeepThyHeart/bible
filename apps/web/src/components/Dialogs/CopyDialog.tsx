@@ -36,6 +36,7 @@ import { bibleStore } from '../../stores/bibleStore';
 import { moduleStore } from '../../stores/moduleStore';
 import { useStore } from '../../hooks/useStore';
 import { useEscapeKey } from '../../hooks/useEscapeKey';
+import { useModalFocus } from '../../hooks/useModalFocus';
 import { useLocalizer } from '../../hooks/useLocalizer';
 import { formatPassageRef, localizedBookAliases } from '../../constants';
 import { getAllBookNames } from '../../utils/bookNames';
@@ -347,6 +348,8 @@ export function CopyDialog({ isOpen, onClose }: CopyDialogProps) {
   const [startVerse, setStartVerse] = useState(1);
   const [endVerse, setEndVerse] = useState(1);
   const [copied, setCopied] = useState(false);
+  // The browser refused the clipboard write (permission denied, insecure context): say so, stay open.
+  const [copyFailed, setCopyFailed] = useState(false);
   const [fetchedVerses, setFetchedVerses] = useState<VerseData[] | null>(null);
   const [fetchingVerses, setFetchingVerses] = useState(false);
   const [isWholeBook, setIsWholeBook] = useState(false);
@@ -356,6 +359,9 @@ export function CopyDialog({ isOpen, onClose }: CopyDialogProps) {
   const formatGroupName = useId();
 
   useEscapeKey(isOpen, onClose);
+  // W-037: focus moves in, Tab stays inside, focus returns to the opener on close.
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useModalFocus(isOpen && !!tab?.book && !!tab.chapter, dialogRef);
 
   /**
    * Selecting a format swaps in that format's own remembered shape options.
@@ -625,31 +631,40 @@ export function CopyDialog({ isOpen, onClose }: CopyDialogProps) {
   // Clipboard text never carries bidi isolates (they are display-only; task 0076).
   const plainText = stripBidiControls(useRichCopy ? decodeHtmlEntities(stripHtmlTags(sourceText)) : sourceText);
 
-  const handleCopy = async () => {
-    if (useRichCopy) {
-      // A markup shape knows its own structure, so its rich flavour *is* that
-      // structure: pasting "Verse headings" into a document gives real headings
-      // and a real block quote rather than a run of quote markers.
-      const html = `<div style="font-family: serif; font-size: 14px; line-height: 1.6;">${stripBidiControls(passageMarkupToHtml(markup))}</div>`;
-      try {
-        await navigator.clipboard.write([
-          new ClipboardItem({
-            'text/html': new Blob([html], { type: 'text/html' }),
-            'text/plain': new Blob([plainText], { type: 'text/plain' }),
-          }),
-        ]);
-      } catch {
-        // Not every browser has the async ClipboardItem API, and a page served
-        // without a permission grant refuses `write` while still allowing
-        // `writeText`. Plain text is always better than nothing.
+  /** Resolves true when the text reached the clipboard; false (with the error shown) when the browser refused. */
+  const handleCopy = async (): Promise<boolean> => {
+    setCopyFailed(false);
+    try {
+      if (useRichCopy) {
+        // A markup shape knows its own structure, so its rich flavour *is* that
+        // structure: pasting "Verse headings" into a document gives real headings
+        // and a real block quote rather than a run of quote markers.
+        const html = `<div style="font-family: serif; font-size: 14px; line-height: 1.6;">${stripBidiControls(passageMarkupToHtml(markup))}</div>`;
+        try {
+          await navigator.clipboard.write([
+            new ClipboardItem({
+              'text/html': new Blob([html], { type: 'text/html' }),
+              'text/plain': new Blob([plainText], { type: 'text/plain' }),
+            }),
+          ]);
+        } catch {
+          // Not every browser has the async ClipboardItem API, and a page served
+          // without a permission grant refuses `write` while still allowing
+          // `writeText`. Plain text is always better than nothing.
+          await navigator.clipboard.writeText(plainText);
+        }
+      } else {
         await navigator.clipboard.writeText(plainText);
       }
-    } else {
-      await navigator.clipboard.writeText(plainText);
+    } catch {
+      setCopied(false);
+      setCopyFailed(true);
+      return false;
     }
 
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+    return true;
   };
 
   const canCopy = !fetchingVerses && selectedVerses.length > 0;
@@ -660,7 +675,7 @@ export function CopyDialog({ isOpen, onClose }: CopyDialogProps) {
   // so a second copy after tweaking options costs no reopen.
   confirmRef.current = () => {
     if (!canCopy) return;
-    void handleCopy().then(onClose);
+    void handleCopy().then((ok) => { if (ok) onClose(); });
   };
 
   const changeOptions = (partial: Partial<PassageMarkupOptions>): void => {
@@ -707,7 +722,7 @@ export function CopyDialog({ isOpen, onClose }: CopyDialogProps) {
 
   return (
     <div class="copy-dialog-overlay" onMouseDown={onClose}>
-      <div class="copy-dialog" onMouseDown={(e) => e.stopPropagation()}>
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-label={t('copyDialog.title')} class="copy-dialog" onMouseDown={(e) => e.stopPropagation()}>
         <div class="copy-dialog__header">
           <h3>{t('copyDialog.title')}</h3>
           <button onClick={onClose} aria-label={t('common.close')}><i class="fa-solid fa-xmark" /></button>
@@ -783,6 +798,8 @@ export function CopyDialog({ isOpen, onClose }: CopyDialogProps) {
                 <label class="copy-dialog__option">
                   <span>{t('ui.passageInsert.referenceLabel')}</span>
                   <select
+                    // Distinct from the "Reference" text box above, which would otherwise share its name.
+                    aria-label={t('copyDialog.referencePosition', { defaultValue: 'Reference position' })}
                     value={options.referencePosition}
                     onChange={(e) => changeOptions({ referencePosition: (e.target as HTMLSelectElement).value as PassageReferencePosition })}
                   >
@@ -916,11 +933,16 @@ export function CopyDialog({ isOpen, onClose }: CopyDialogProps) {
             </div>
             <button
               class="copy-dialog__copy-btn"
-              onClick={handleCopy}
+              onClick={() => { void handleCopy(); }}
               disabled={!canCopy}
             >
               {copied ? t('copyDialog.copied') : t('copyDialog.copyToClipboard')}
             </button>
+            {copyFailed && (
+              <div class="copy-dialog__error" role="alert">
+                {t('copyDialog.copyFailed', { defaultValue: 'Could not copy to the clipboard. Check that this site is allowed to use it.' })}
+              </div>
+            )}
           </div>
         </div>
       </div>

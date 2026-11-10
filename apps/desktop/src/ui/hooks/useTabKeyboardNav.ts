@@ -43,7 +43,9 @@ export function useTabKeyboardNav(options: UseTabKeyboardNavOptions): {
   const focusTabAt = useCallback((index: number) => {
     const container = tablistRef.current;
     if (!container) return;
-    const tabs = container.querySelectorAll<HTMLElement>('[role="tab"]');
+    // `data-tabnav-skip` marks a fixed tab outside the indexed set (e.g. the
+    // commentary pane's Overview): it stays a tab but is not counted here.
+    const tabs = container.querySelectorAll<HTMLElement>('[role="tab"]:not([data-tabnav-skip])');
     const el = tabs[index];
     if (el) el.focus();
   }, []);

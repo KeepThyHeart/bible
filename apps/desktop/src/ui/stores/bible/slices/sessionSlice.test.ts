@@ -88,3 +88,35 @@ describe('sessionSlice.restorePanelFromSession — loadingByTab seeding', () => 
     expect(panelState().versesByTab.get(tab.tabId)?.length).toBeGreaterThan(0);
   });
 });
+
+describe('sessionSlice.restorePanelFromSession - selected verse is brought into view (B-055)', () => {
+  beforeEach(() => {
+    useBibleStore.setState({ panels: new Map(), sessionPanelStates: new Map() });
+  });
+
+  it('asks the pane to centre the restored selected verse (scroll position itself is not restored)', async () => {
+    stageSession({ selectedVerseId: 43003016 });
+    await useBibleStore.getState().restorePanelFromSession(PANEL);
+    const ps = panelState();
+    expect(ps.selectedVerseId).toBe(43003016);
+    expect(ps.scrollMode).toBe('center');
+    expect(ps.scrollTrigger).toBeGreaterThan(0);
+  });
+
+  it('does not ask for a scroll when no verse was selected', async () => {
+    stageSession({ selectedVerseId: undefined });
+    await useBibleStore.getState().restorePanelFromSession(PANEL);
+    expect(panelState().scrollMode).toBe('nearest');
+    expect(panelState().scrollTrigger).toBe(0);
+  });
+
+  it('drops any saved scroll offset from the restored history, so the verse wins', async () => {
+    stageSession({
+      selectedVerseId: 43003016,
+      history: [{ verseId: 43003016, bookNumber: 43, chapter: 3, bookName: 'John', scrollTop: 1234 }] as BibleTab['history'],
+      historyIndex: 0,
+    });
+    await useBibleStore.getState().restorePanelFromSession(PANEL);
+    expect(panelState().navigationHistory.every(h => h.scrollTop === undefined)).toBe(true);
+  });
+});

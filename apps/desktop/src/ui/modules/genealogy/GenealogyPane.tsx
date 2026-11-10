@@ -8,6 +8,7 @@ import { useGenealogyFocusStore } from './useGenealogyFocusStore';
 import { navigateToVerseInPrimary } from '../../stores/crossStoreBridge';
 import { formatVerseReference } from '../../utils/verseReference';
 import { useModuleNamespace } from '../host/useModuleNamespace';
+import { openModuleManager } from '../../utils/openModuleManager';
 
 interface GenealogyPaneProps {
   /** Optional, like the other panes, so a detached window can mount the pane without a dockview panel. */
@@ -94,7 +95,12 @@ const GenealogyPaneBody: React.FC<GenealogyPaneProps> = ({ panelId }) => {
     return <div data-testid="genealogy-loading" style={centered}>{t('genealogyPane.loading')}</div>;
   }
   if (load.status === 'empty') {
-    return <div data-testid="genealogy-empty" style={centered}>{t('genealogyPane.empty')}</div>;
+    return (
+      <div data-testid="genealogy-empty" style={{ ...centered, flexDirection: 'column', gap: '8px' }}>
+        <span>{t('genealogyPane.empty')}</span>
+        <button type="button" onClick={() => openModuleManager()}>{t('genealogyPane.openModuleManager')}</button>
+      </div>
+    );
   }
   if (load.status === 'error') {
     return (

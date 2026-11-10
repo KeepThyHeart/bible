@@ -4,6 +4,7 @@ import { TextSizeButton } from '../common/TextSizeButton';
 import { bibleStore } from '../../stores/bibleStore';
 import { moduleStore } from '../../stores/moduleStore';
 import { useStore } from '../../hooks/useStore';
+import { useMenuKeyboard } from '../../hooks/useMenuKeyboard';
 import { TranslationDialog } from './TranslationDialog';
 import { SlotOutlet, readerToolbarItems } from '../../host/slots';
 import { Bdi } from '@bible/ui';
@@ -40,6 +41,8 @@ export function BibleToolbar({ onOpenSettings }: BibleToolbarProps) {
   const historyOpenRef = useRef(false);
   historyOpenRef.current = showHistory;
   const historyToggleRef = useRef<HTMLButtonElement>(null);
+  const historyMenuRef = useRef<HTMLDivElement>(null);
+  const historyKeys = useMenuKeyboard(showHistory, setShowHistory, historyToggleRef, historyMenuRef);
   // Escape closes the menu and hands focus back to its button (B-156).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -113,6 +116,7 @@ export function BibleToolbar({ onOpenSettings }: BibleToolbarProps) {
           <button
             class="bible-toolbar__nav-btn"
             ref={historyToggleRef}
+            onKeyDown={historyKeys.onTriggerKeyDown}
             onClick={() => setShowHistory(v => !v)}
             // Without this the document-level dismissal below closes the menu a
             // beat before this button's own click would toggle it back open.
@@ -126,7 +130,7 @@ export function BibleToolbar({ onOpenSettings }: BibleToolbarProps) {
             <i class="fa-solid fa-clock-rotate-left" />
           </button>
           {showHistory && (
-            <div class="bible-toolbar__history-menu" role="menu">
+            <div class="bible-toolbar__history-menu" role="menu" ref={historyMenuRef} onKeyDown={historyKeys.onMenuKeyDown}>
               <div class="bible-toolbar__history-heading">{t('bibleToolbar.recentPassages')}</div>
               {history.length === 0 ? (
                 <div class="bible-toolbar__history-empty">{t('bibleToolbar.noHistory')}</div>
@@ -148,6 +152,8 @@ export function BibleToolbar({ onOpenSettings }: BibleToolbarProps) {
                         onClick={() => {
                           void bibleStore.goToHistoryEntry(index);
                           setShowHistory(false);
+                          // The item that had focus is about to unmount; keep focus on the menu's button.
+                          historyToggleRef.current?.focus({ preventScroll: true });
                         }}
                       >
                         <span class="bible-toolbar__history-dot" aria-hidden="true" />
@@ -169,7 +175,13 @@ export function BibleToolbar({ onOpenSettings }: BibleToolbarProps) {
           title={t('bibleToolbar.modeHint')}
           aria-label={t('bibleToolbar.modeLabel')}
           value={displayMode}
-          onChange={(e) => { if (tab) bibleStore.setDisplayMode(tab.id, (e.target as HTMLSelectElement).value as 'standard' | 'reading' | 'study'); }}
+          onChange={(e) => {
+            if (!tab) return;
+            bibleStore.setDisplayMode(tab.id, (e.target as HTMLSelectElement).value as 'standard' | 'reading' | 'study');
+            // W-056: the new layout is taller (Study interlinear), so the selected verse lands far below the
+            // old scroll offset; ask the pane to bring it back into view like a navigation does.
+            if (tab.studyVerse) bibleStore.scrollToVerse(tab.studyVerse);
+          }}
         >
           {(['standard', 'reading', 'study'] as const).map(mode => (
             <option key={mode} value={mode}>{t('bibleToolbar.mode' + mode.charAt(0).toUpperCase() + mode.slice(1))}</option>
@@ -180,6 +192,8 @@ export function BibleToolbar({ onOpenSettings }: BibleToolbarProps) {
           class="bible-toolbar__translation-btn"
           onClick={() => setShowTranslationDialog(true)}
           title={t('bibleToolbar.changeTranslation')}
+          aria-label={t('bibleToolbar.translationButton', { defaultValue: 'Translation: {abbr}', abbr: tab.moduleAbbr })}
+          aria-haspopup="dialog"
         >
           <Bdi>{tab.moduleAbbr}</Bdi> <i class="fa-solid fa-caret-down" style={{ fontSize: '10px', opacity: 0.6 }} />
         </button>

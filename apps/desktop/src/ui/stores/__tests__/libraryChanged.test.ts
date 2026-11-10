@@ -16,12 +16,27 @@ const getInitialData = vi.fn();
 const getAvailableCommentaries = vi.fn();
 const getAvailableDictionaries = vi.fn();
 const getAvailableBooks = vi.fn();
+const getChapter = vi.fn();
+
+// The main process announces modules it registered on its own (the startup
+// scan) on this channel; captured so a test can fire it.
+const libraryChangedListeners = vi.hoisted(() => [] as Array<(event: { moduleTypes: string[] }) => void>);
+vi.hoisted(() => {
+  (window as unknown as { electron: unknown }).electron = {
+    moduleManager: {
+      onLibraryChanged: (cb: (event: { moduleTypes: string[] }) => void) => {
+        libraryChangedListeners.push(cb);
+        return () => undefined;
+      },
+    },
+  };
+});
 
 vi.mock('../../services/electronAPI', () => ({
   bibleAPI: {
     getAvailableBibles: (...args: unknown[]) => getAvailableBibles(...args),
     getInitialData: (...args: unknown[]) => getInitialData(...args),
-    getChapter: vi.fn().mockResolvedValue({ verses: [] }),
+    getChapter: (...args: unknown[]) => getChapter(...args),
     getBookName: vi.fn().mockResolvedValue('John'),
   },
   commentaryAPI: {
@@ -92,6 +107,7 @@ beforeEach(() => {
   getAvailableCommentaries.mockResolvedValue([]);
   getAvailableDictionaries.mockResolvedValue([]);
   getAvailableBooks.mockResolvedValue([]);
+  getChapter.mockResolvedValue({ verses: [] });
   wireStoreSync();
   getAvailableBibles.mockResolvedValue([]);
   getInitialData.mockResolvedValue({
@@ -276,5 +292,65 @@ describe('changes that are not Bible changes', () => {
 
     expect(getAvailableBibles).toHaveBeenCalled();
     expect(useBibleStore.getState().availableBibles).toEqual([]);
+  });
+});
+
+describe('a restored tab whose Bible was not registered yet', () => {
+  // Regression: the release AppImage, run over a data directory that already
+  // held modules, restored the reader's KJV tab before the startup scan had
+  // registered bible_kjv.db. The chapter request failed ("Bible not found:
+  // KJV") and the pane kept that error even after the scan registered it,
+  // until the reader re-selected the same translation by hand.
+  async function kjvTabThatFailedToLoad(): Promise<string> {
+    useBibleStore.getState().openBible(PANEL, 'KJV', 'King James Version');
+    const tab = panelTabs()[0];
+    getChapter.mockRejectedValueOnce(new Error('Bible not found: KJV'));
+    await useBibleStore.getState().loadChapterForTab(PANEL, tab.tabId, 'KJV', tab.book, tab.chapter);
+    expect(useBibleStore.getState().getPanelState(PANEL).errorByTab.get(tab.tabId)).toBe('Bible not found: KJV');
+    getChapter.mockClear();
+    return tab.tabId;
+  }
+
+  it('reloads the chapter once the main process announces the module was registered', async () => {
+    const tabId = await kjvTabThatFailedToLoad();
+    getAvailableBibles.mockResolvedValue([KJV]);
+    getInstalledModules.mockResolvedValue([installedBible]);
+    getChapter.mockResolvedValue({ verses: JOHN_3 });
+
+    expect(libraryChangedListeners.length).toBeGreaterThan(0);
+    for (const listener of libraryChangedListeners) listener({ moduleTypes: ['bible'] });
+    await vi.waitFor(() => expect(getChapter).toHaveBeenCalled());
+    await vi.waitFor(() =>
+      expect(useBibleStore.getState().getPanelState(PANEL).versesByTab.get(tabId)).toEqual(JOHN_3)
+    );
+
+    const ps = useBibleStore.getState().getPanelState(PANEL);
+    expect(getChapter.mock.calls[0][0]).toBe('KJV');
+    expect(ps.errorByTab.get(tabId)).toBeNull();
+    expect(panelTabs()[0].abbreviation).toBe('KJV');
+  });
+
+  it('reloads it after an install from the Module Manager too', async () => {
+    const tabId = await kjvTabThatFailedToLoad();
+    getAvailableBibles.mockResolvedValue([KJV]);
+    getInstalledModules.mockResolvedValue([installedBible]);
+    getChapter.mockResolvedValue({ verses: JOHN_3 });
+
+    await useModuleStore.getState().installModule('bible_kjv');
+
+    expect(useBibleStore.getState().getPanelState(PANEL).versesByTab.get(tabId)).toEqual(JOHN_3);
+  });
+
+  it('leaves a tab that loaded fine alone', async () => {
+    useBibleStore.getState().openBible(PANEL, 'KJV', 'King James Version');
+    const tab = panelTabs()[0];
+    await useBibleStore.getState().loadChapterForTab(PANEL, tab.tabId, 'KJV', tab.book, tab.chapter);
+    getChapter.mockClear();
+    getAvailableBibles.mockResolvedValue([KJV]);
+    getInstalledModules.mockResolvedValue([installedBible]);
+
+    await useModuleStore.getState().installModule('bible_kjv');
+
+    expect(getChapter).not.toHaveBeenCalled();
   });
 });

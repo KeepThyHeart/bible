@@ -46,6 +46,7 @@ vi.mock('../../utils/verseId', () => ({
     chapter: Math.floor((id % 1000000) / 1000),
     verse: id % 1000,
   }),
+  formatVerseRange: (start: number, end?: number | null) => `ref:${start}${end ? `-${end}` : ''}`,
 }));
 
 // ---- formatPassageRef mock -----------------------------------------------
@@ -233,6 +234,19 @@ describe('StudyCrossRefs', () => {
     const { container } = render(<StudyCrossRefs />);
     const links = container.querySelectorAll('.study-crossrefs__ref-link');
     expect(links.length).toBeGreaterThan(0);
+  });
+
+  it('gives each reference link an aria-label with the full reference, not the compact "9"', () => {
+    mockCollapseReferencesStructured.mockReturnValue([
+      makeRefSegment(1036009, '9'),
+      makeSepSegment(', '),
+      { type: 'ref' as const, label: '43', verseId: 1036043, endVerseId: 1036045 },
+    ]);
+    mockCrossRefGroups = [makeGroup()];
+    render(<StudyCrossRefs />);
+    const nine = screen.getByRole('link', { name: 'ref:1036009' });
+    expect(nine.textContent).toBe('9');
+    expect(screen.getByRole('link', { name: 'ref:1036043-1036045' }).textContent).toBe('43');
   });
 
   // ------------------------------------------------------------------

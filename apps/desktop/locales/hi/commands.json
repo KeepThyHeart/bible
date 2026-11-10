@@ -47,6 +47,8 @@
   "app.reportIssue.category": "ऐप्लिकेशन",
   "help.reportIssue": "समस्या की सूचना दें",
   "help.reportIssue.category": "सहायता",
+  "help.giveFeedback": "प्रतिक्रिया दें",
+  "help.giveFeedback.category": "सहायता",
   "module.openManager": "मॉड्यूल प्रबंधक खोलें",
   "module.openManager.category": "मॉड्यूल",
   "module.openManager.alias.0": "मॉड्यूल प्रबंधक",

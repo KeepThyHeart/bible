@@ -1,3 +1,4 @@
+import { ExtraErrorCodes } from '../utils/apiErrors.js';
 import { scryptSync, randomBytes, timingSafeEqual, createHmac } from 'crypto';
 import type { Request, Response, NextFunction } from 'express';
 import uiCatalog from '../../src/locales/en/ui.json' with { type: 'json' };
@@ -144,7 +145,9 @@ export function createPasswordGate(options: {
     // `.webmanifest` is included because the browser fetches the PWA manifest without
     // credentials unless the link carries crossorigin="use-credentials"; gating it
     // returns a 401 and the install/manifest metadata silently fails to load.
-    if (/\.(js|css|wasm|svg|png|ico|woff2?|map|webmanifest)$/i.test(req.path)) return next();
+    // W-012: never under /api -- a path like /api/dictionary/Easton/adjacent/M.js
+    // is a data route, not a build artifact.
+    if (!req.path.startsWith('/api/') && /\.(js|css|wasm|svg|png|ico|woff2?|map|webmanifest)$/i.test(req.path)) return next();
 
     // Skip auth for browser-side semantic-search index files under /data/ (the .bin
     // vectors and .meta.json metadata). These are non-sensitive, filename-versioned
@@ -161,7 +164,8 @@ export function createPasswordGate(options: {
     // HTML to a JSON consumer is what makes an auth failure masquerade as valid content
     // and blow up on JSON.parse. Browsers navigating to a page still get the login form.
     if (req.accepts(['html', 'json']) !== 'html') {
-      res.status(401).json({ error: 'Unauthorized', reason: 'auth_required' });
+      // W-011: standard error envelope (`reason` kept for any caller that read it).
+      res.status(401).json({ error: { code: ExtraErrorCodes.AUTH_REQUIRED, message: 'Authentication required' }, reason: 'auth_required' });
       return;
     }
 

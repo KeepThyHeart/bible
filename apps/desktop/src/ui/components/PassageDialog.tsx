@@ -356,14 +356,22 @@ const PassageDialog: React.FC<PassageDialogProps> = ({
     return true;
   }, [formatId]);
   useEffect(() => {
-    if (focusFormatListOnOpen) {
-      formatListFocusedRef.current = focusFormatList();
-      return;
-    }
-    const input = referenceInputRef.current;
-    if (!input) return;
-    input.focus();
-    input.select();
+    const focusInitial = (): void => {
+      if (focusFormatListOnOpen) {
+        formatListFocusedRef.current = focusFormatList();
+        return;
+      }
+      const input = referenceInputRef.current;
+      if (!input) return;
+      input.focus();
+      input.select();
+    };
+    focusInitial();
+    // The focus trap moves focus to the first focusable element (the reference
+    // help button) in a requestAnimationFrame of its own; ours is registered
+    // after it, so it runs after it and the intended control keeps focus.
+    const raf = window.requestAnimationFrame(focusInitial);
+    return () => window.cancelAnimationFrame(raf);
     // On open only.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -592,6 +600,8 @@ const PassageDialog: React.FC<PassageDialogProps> = ({
     if (target?.tagName === 'TEXTAREA') return;
     if (target instanceof HTMLInputElement && target.id === TEMPLATE_SAVE_INPUT_ID) return;
     if (target?.closest('[data-popover-actions]')) return;
+    // Enter on any button activates that button only, never the dialog default.
+    if (target?.closest('button')) return;
 
     e.preventDefault();
     commit();

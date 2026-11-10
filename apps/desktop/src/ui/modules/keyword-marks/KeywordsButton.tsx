@@ -1,7 +1,7 @@
 /**
  * The Bible toolbar's "Keywords" control (task 0065): a toggle for keyword marks in this pane's tab with a count
  * badge, and a popover holding the shared `KeywordLegend` (row toggles, prev/next through occurrences,
- * suggestions), the colour-safe setting and the entry points to the mark editor and "Manage sets".
+ * suggestions), and the entry points to the mark editor and "Manage sets".
  *
  * Clicking the button turns marks on; once on, it (and the chevron at any time) opens the popover. The legend's
  * own switch turns marks off, as does Ctrl+Shift+K.
@@ -30,8 +30,6 @@ const KeywordsButton: React.FC<{ tabId: string }> = ({ tabId }) => {
 
   const tab = useKeywordMarkStore((s) => s.tabs[tabId]) ?? DEFAULT_TAB_STATE;
   const marks = useKeywordMarkStore((s) => s.chapters[tabId]);
-  const colorSafe = useKeywordMarkStore((s) => s.colorSafe);
-  const setColorSafe = useKeywordMarkStore((s) => s.setColorSafe);
   const toggleTab = useKeywordMarkStore((s) => s.toggleTab);
   const toggleMark = useKeywordMarkStore((s) => s.toggleMark);
   const addMarkFromWord = useKeywordMarkStore((s) => s.addMarkFromWord);
@@ -88,9 +86,9 @@ const KeywordsButton: React.FC<{ tabId: string }> = ({ tabId }) => {
           }`}
           style={{ borderRadius: 0, padding: '8px 10px' }}
           title={t('keywords.toolbar.title')}
+          // A toggle: pressed state only. The popover is owned by the options
+          // button next to it, which carries aria-haspopup / aria-expanded.
           aria-pressed={tab.enabled}
-          aria-haspopup={tab.enabled ? 'dialog' : undefined}
-          aria-expanded={tab.enabled ? open : undefined}
           data-testid="keywords-toggle"
         >
           {label}
@@ -147,10 +145,6 @@ const KeywordsButton: React.FC<{ tabId: string }> = ({ tabId }) => {
                 announcement={announcement}
                 labels={legendLabels(t)}
               />
-              <label className="flex items-center gap-2 text-xs mt-2 px-1">
-                <input type="checkbox" checked={colorSafe} onChange={(e) => setColorSafe(e.target.checked)} data-testid="keywords-color-safe" />
-                {t('keywords.settings.colorSafe')}
-              </label>
             </div>
           </ToolbarPopover>
         )}

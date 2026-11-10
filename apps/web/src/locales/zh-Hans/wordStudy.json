@@ -55,6 +55,7 @@
       "save": "保存",
       "cancel": "取消",
       "delete": "删除"
-    }
+    },
+    "summarySource": "摘自斯特朗词典和 {module} 用法"
   }
 }

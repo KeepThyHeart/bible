@@ -15,7 +15,7 @@ describe('GET /api/search/keyword approximate-match gate', () => {
   it('asks the search service for coverage-gated approximate matches', async () => {
     const search = vi.fn(async () => []);
     const db = {
-      getSearchService: () => ({ search, addBibleModule: vi.fn() }),
+      getSearchService: () => ({ search, addBibleModule: vi.fn(), parseQuery: () => ({ searchType: 'multi-word' }) }),
       getBibleRepo: () => null,
       getEnrichmentsDb: () => { throw new Error('unused'); },
     } as unknown as DatabaseManager;

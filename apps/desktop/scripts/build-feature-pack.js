@@ -26,6 +26,16 @@
  *     [--out=dist/feature-packs] [--version=1.0.0] [--pack-id=<id>] [--name=<name>]
  *     [--description=<text>] [--license=<spdx>] [--license-url=<url>]
  *     [--gzip-index] [--no-archive]
+ *     [--base-url=<https url>] [--merge-into=<catalog.json>]
+ *
+ * `--base-url` additionally writes `<pack-id>-<version>.catalog-entry.json`
+ * next to the staged folder: the same pack as a catalog `feature_packs` entry,
+ * every artifact's `download_url` being `<base-url>/<packaged file name>`
+ * (upload the staged folder's contents to that URL as-is). The entry is held to
+ * `parseFeaturePack` - what `ModuleCatalogService.getAvailableFeaturePacks`
+ * applies - before it is written. `--merge-into` then inserts it into that
+ * catalog's `feature_packs` array, replacing any entry with the same pack_id.
+ * A merged catalog must be re-signed before it is published.
  *
  * `--models` is the directory that holds `<model-id>/` - the same layout
  * `env.localModelPath` expects, e.g. apps/web/data/models after `npm run
@@ -46,6 +56,7 @@ const {
   FEATURE_PACK_MANIFEST_FILENAME,
   isSafeArtifactPath,
   packagedFileName,
+  parseFeaturePack,
   parseLocalFeaturePack,
 } = require('@bible/core');
 
@@ -95,12 +106,18 @@ function parseArgs(argv) {
       case 'license-url': args.licenseUrl = value; break;
       case 'gzip-index': args.gzipIndex = true; break;
       case 'no-archive': args.archive = false; break;
+      case 'base-url': args.baseUrl = value; break;
+      case 'merge-into': args.mergeInto = path.resolve(value); break;
       default: fail(`Unknown argument: ${arg}`);
     }
   }
   if (!args.index || !args.models) {
     fail('Usage: node scripts/build-feature-pack.js --index=<semantic_index.db> --models=<models root> [options]');
   }
+  if (args.baseUrl !== undefined && !/^https?:\/\/[^/]+/i.test(args.baseUrl)) {
+    fail(`--base-url must be an absolute http(s) URL, got "${args.baseUrl}".`);
+  }
+  if (args.mergeInto && !args.baseUrl) fail('--merge-into needs --base-url.');
   return args;
 }
 
@@ -275,6 +292,41 @@ async function writeStoredZip(zipPath, entries) {
   await new Promise((resolve, reject) => out.end(error => (error ? reject(error) : resolve())));
 }
 
+// ── Catalog entry ───────────────────────────────────────────────────────────
+
+/**
+ * The sideload manifest as a catalog `feature_packs` entry. Artifact URLs are
+ * absolute because `parseFeaturePack` requires it - catalog feature packs are
+ * not resolved against the catalog's own URL the way `modules` are.
+ */
+function toCatalogEntry(manifest, baseUrl) {
+  const base = baseUrl.replace(/\/+$/, '');
+  const artifacts = manifest.artifacts.map(artifact => ({
+    kind: artifact.kind,
+    path: artifact.path,
+    download_url: `${base}/${packagedFileName(artifact).split('/').map(encodeURIComponent).join('/')}`,
+    download_size_bytes: artifact.size_bytes,
+    sha256: artifact.sha256,
+    ...(artifact.gzipped ? { gzipped: true } : {}),
+  }));
+  const { format: _format, artifacts: _artifacts, ...rest } = manifest;
+  return {
+    ...rest,
+    download_size_bytes: artifacts.reduce((sum, artifact) => sum + artifact.download_size_bytes, 0),
+    artifacts,
+  };
+}
+
+function mergeIntoCatalog(catalogPath, entry) {
+  if (!fs.existsSync(catalogPath)) fail(`Catalog not found: ${catalogPath}`);
+  const catalog = JSON.parse(fs.readFileSync(catalogPath, 'utf-8'));
+  const packs = Array.isArray(catalog.feature_packs) ? catalog.feature_packs : [];
+  const replaced = packs.some(pack => pack && pack.pack_id === entry.pack_id);
+  catalog.feature_packs = [...packs.filter(pack => !pack || pack.pack_id !== entry.pack_id), entry];
+  fs.writeFileSync(catalogPath, `${JSON.stringify(catalog, null, 2)}\n`);
+  console.log(`${replaced ? 'Replaced' : 'Added'} "${entry.pack_id}" in ${catalogPath} - re-sign it before publishing.`);
+}
+
 // ── Main ────────────────────────────────────────────────────────────────────
 
 function defaultPackId(index) {
@@ -376,6 +428,16 @@ async function main() {
       })),
     ]);
     console.log(`Wrote ${zipPath} (${formatBytes(fs.statSync(zipPath).size)})`);
+  }
+
+  if (args.baseUrl) {
+    const entry = toCatalogEntry(manifest, args.baseUrl);
+    const checked = parseFeaturePack(entry);
+    if (!checked.ok) fail(`Catalog entry would be rejected by the app:\n  ${checked.errors.join('\n  ')}`);
+    const entryPath = `${stageDir}.catalog-entry.json`;
+    fs.writeFileSync(entryPath, `${JSON.stringify(entry, null, 2)}\n`);
+    console.log(`Wrote ${entryPath} (upload the contents of ${stageDir} to ${args.baseUrl})`);
+    if (args.mergeInto) mergeIntoCatalog(args.mergeInto, entry);
   }
 }
 

@@ -2,6 +2,7 @@ import { Bdi } from '@bible/ui';
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { PaneOverlay } from './shared/PaneOverlay';
 import { useI18n } from '../contexts/useI18n';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 import { tElements } from '../utils/tElements';
 
 /**
@@ -62,6 +63,12 @@ interface ModuleSelectorProps {
    * used rather than a hardcoded English default.
    */
   emptyMessage?: string;
+  /**
+   * The id of the module the pane currently shows (e.g. the pane's translation). It alone is
+   * exposed as `aria-current`; the keyboard-highlighted row is only a visual ring, since the
+   * first row used to be announced as "current" whatever the pane held.
+   */
+  currentId?: string;
   /** When true, renders without the outer modal overlay (for embedding in another dialog) */
   embedded?: boolean;
 }
@@ -79,6 +86,7 @@ const ModuleSelector: React.FC<ModuleSelectorProps> = ({
   onRemove,
   removeLabel,
   onClose,
+  currentId,
   embedded = false
 }) => {
   const { t } = useI18n();
@@ -86,6 +94,10 @@ const ModuleSelector: React.FC<ModuleSelectorProps> = ({
   const [selectedIndex, setSelectedIndex] = useState(0);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  // A modal picker: trap Tab, inert the page behind it, and on close return
+  // focus to whatever opened it (the pane's "change module" button). Embedded
+  // use lives inside another dialog that owns the trap.
+  const dialogRef = useFocusTrap<HTMLDivElement>(!embedded);
 
   // Auto-focus search input when dialog opens
   useEffect(() => {
@@ -206,7 +218,7 @@ const ModuleSelector: React.FC<ModuleSelectorProps> = ({
                   type="button"
                   data-testid="module-selector-item"
                   data-index={index}
-                  aria-current={index === selectedIndex ? 'true' : undefined}
+                  aria-current={currentId !== undefined && module.id === currentId ? 'true' : undefined}
                   className={`
                     block w-full text-start p-md border rounded transition-colors
                     ${isOpen
@@ -296,6 +308,10 @@ const ModuleSelector: React.FC<ModuleSelectorProps> = ({
     // so a click inside it never reaches here.
     <PaneOverlay onDismiss={onClose}>
       <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="module-selector-title"
         onKeyDown={handleKeyDown}
         data-testid="module-selector"
         className="bg-surface rounded-lg shadow-xl w-full max-w-2xl max-h-[80vh] overflow-hidden"
@@ -303,7 +319,7 @@ const ModuleSelector: React.FC<ModuleSelectorProps> = ({
       >
         {/* Header */}
         <div className="px-xl py-lg border-b border-border">
-          <h2 className="text-2xl font-semibold text-text-heading">{title}</h2>
+          <h2 id="module-selector-title" className="text-2xl font-semibold text-text-heading">{title}</h2>
         </div>
 
         {innerContent}

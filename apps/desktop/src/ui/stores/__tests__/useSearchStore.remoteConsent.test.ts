@@ -4,10 +4,11 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 const semanticSearchExMock = vi.fn();
 const getStatusMock = vi.fn();
 const setConsentMock = vi.fn();
+const performSearchMock = vi.fn();
 
 vi.mock('../../services/electronAPI', () => ({
   searchAPI: {
-    performSearch: vi.fn(),
+    performSearch: (...a: unknown[]) => performSearchMock(...a),
     semanticSearchEx: (...a: unknown[]) => semanticSearchExMock(...a),
     semanticAvailable: vi.fn().mockResolvedValue(true),
   },
@@ -32,7 +33,11 @@ beforeEach(() => {
   semanticSearchExMock.mockReset().mockResolvedValue(REPLY);
   getStatusMock.mockReset();
   setConsentMock.mockReset();
+  performSearchMock.mockReset();
   useSearchStore.setState({
+    // A local pack is installed unless a test says otherwise.
+    semanticAvailable: true,
+    isSemanticMode: false,
     semanticResults: [],
     isSemanticSearching: false,
     remoteSemanticStatus: null,
@@ -62,10 +67,37 @@ describe('performSemanticSearch consent gate', () => {
     expect(useSearchStore.getState().semanticResults).toHaveLength(1);
   });
 
-  it('Not now records declined and still runs the search', async () => {
+  it('Not now records nothing, skips this Ideas search, and asks again next time', async () => {
     getStatusMock.mockResolvedValue(status('unset'));
-    setConsentMock.mockResolvedValue(status('declined'));
-    semanticSearchExMock.mockResolvedValue({ results: [], source: 'local', notice: { kind: 'declined' } });
+    useSearchStore.setState({ isSemanticMode: true, remoteSemanticStatus: status('unset') });
+
+    const pending = useSearchStore.getState().performSemanticSearch('love');
+    await vi.waitFor(() => expect(useSearchStore.getState().consentDialogOpen).toBe(true));
+    await useSearchStore.getState().answerRemoteConsent('notNow');
+    await pending;
+
+    expect(setConsentMock).not.toHaveBeenCalled();
+    expect(semanticSearchExMock).not.toHaveBeenCalled();
+    const s = useSearchStore.getState();
+    expect(s.consentDialogOpen).toBe(false);
+    expect(s.isSemanticSearching).toBe(false);
+    // back on keyword search, with no "declined" note and no local fallback
+    expect(s.isSemanticMode).toBe(false);
+    expect(s.semanticNotice).toBeNull();
+    expect(s.semanticSource).toBeNull();
+
+    // the next Ideas search asks again
+    const again = useSearchStore.getState().performSemanticSearch('love');
+    await vi.waitFor(() => expect(useSearchStore.getState().consentDialogOpen).toBe(true));
+    await useSearchStore.getState().answerRemoteConsent('notNow');
+    await again;
+    expect(semanticSearchExMock).not.toHaveBeenCalled();
+  });
+
+  it("Don't use the online service records declined and runs the search (local pack answers)", async () => {
+    getStatusMock.mockResolvedValue(status('unset'));
+    setConsentMock.mockResolvedValue({ ...status('declined'), source: 'offline' });
+    semanticSearchExMock.mockResolvedValue({ results: [{ id: 'y' }], source: 'local' });
 
     const pending = useSearchStore.getState().performSemanticSearch('love');
     await vi.waitFor(() => expect(useSearchStore.getState().consentDialogOpen).toBe(true));
@@ -74,7 +106,19 @@ describe('performSemanticSearch consent gate', () => {
 
     expect(setConsentMock).toHaveBeenCalledWith('declined');
     expect(semanticSearchExMock).toHaveBeenCalledTimes(1);
-    expect(useSearchStore.getState().semanticNotice).toEqual({ kind: 'declined' });
+    expect(useSearchStore.getState().semanticSource).toBe('local');
+  });
+
+  it('after a decline with no local pack, picking Ideas asks again instead of failing', async () => {
+    getStatusMock.mockResolvedValue({ ...status('declined'), source: 'offline' });
+    useSearchStore.setState({ semanticAvailable: false, remoteSemanticStatus: { ...status('declined'), source: 'offline' } });
+    const pending = useSearchStore.getState().performSemanticSearch('love');
+    await vi.waitFor(() => expect(useSearchStore.getState().consentDialogOpen).toBe(true));
+    setConsentMock.mockResolvedValue({ ...status('granted'), source: 'online' });
+    await useSearchStore.getState().answerRemoteConsent('granted');
+    await pending;
+    expect(setConsentMock).toHaveBeenCalledWith('granted');
+    expect(semanticSearchExMock).toHaveBeenCalledTimes(1);
   });
 
   it('coalesces concurrent searches onto one modal', async () => {
@@ -145,5 +189,36 @@ describe('when nothing answers a semantic search', () => {
     await useSearchStore.getState().performSemanticSearch('love');
     expect(useSearchStore.getState().isSemanticMode).toBe(true);
     expect(useSearchStore.getState().semanticNotice).toBeNull();
+  });
+});
+
+describe('Ideas search is opt-in', () => {
+  it('a keyword search with zero hits never switches to or runs Ideas search', async () => {
+    getStatusMock.mockResolvedValue(status('granted'));
+    performSearchMock.mockResolvedValue([]);
+    await useSearchStore.getState().performSearch('nowhere to be found');
+    const s = useSearchStore.getState();
+    expect(performSearchMock).toHaveBeenCalledTimes(1);
+    expect(s.searchResults).toEqual([]);
+    expect(s.isSemanticMode).toBe(false);
+    expect(semanticSearchExMock).not.toHaveBeenCalled();
+    expect(s.consentDialogOpen).toBe(false);
+  });
+
+  it('a tab the user put in Ideas mode runs Ideas search with each query', async () => {
+    getStatusMock.mockResolvedValue(status('granted'));
+    performSearchMock.mockResolvedValue([]);
+    useSearchStore.setState({ isSemanticMode: true });
+    await useSearchStore.getState().performSearch('love one another');
+    await vi.waitFor(() => expect(semanticSearchExMock).toHaveBeenCalledTimes(1));
+  });
+
+  it('Ideas stays selectable after a decline with no local pack; only source off removes it', async () => {
+    const { isIdeasSelectable } = await import('../useSearchStore');
+    const declined = { ...status('declined'), source: 'offline' as const };
+    expect(isIdeasSelectable({ semanticAvailable: false, remoteSemanticStatus: declined })).toBe(true);
+    expect(isIdeasSelectable({ semanticAvailable: false, remoteSemanticStatus: { ...declined, source: 'off' } })).toBe(false);
+    expect(isIdeasSelectable({ semanticAvailable: false, remoteSemanticStatus: status('unset', false) })).toBe(false);
+    expect(isIdeasSelectable({ semanticAvailable: true, remoteSemanticStatus: null })).toBe(true);
   });
 });

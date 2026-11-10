@@ -42,6 +42,7 @@
 import { app } from 'electron';
 import log from 'electron-log';
 import type { UpdateInfo, ProgressInfo } from 'electron-updater';
+import { prereleaseChannel } from './UpdateCheckService';
 
 // `electron-updater` is a heavy CommonJS tree (js-yaml,
 // builder-util-runtime, lodash helpers) that was required at main-process
@@ -119,6 +120,10 @@ export class UpdateInstallService {
     // the restart - three explicit acts.
     autoUpdater.autoDownload = false;
     autoUpdater.autoInstallOnAppQuit = false;
+    // Already electron-updater's default for a pre-release version; set here so
+    // it stays in step with UpdateCheckService's channel rules
+    // (`pickLatestRelease`), which are written to match it.
+    autoUpdater.allowPrerelease = prereleaseChannel(app.getVersion()) !== null;
     autoUpdater.logger = log;
     this.configured = true;
   }

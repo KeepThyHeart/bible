@@ -2,7 +2,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/preact';
 
 vi.mock('react-i18next', () => ({
-  useTranslation: () => ({ t: (key: string, opts?: { defaultValue?: string }) => opts?.defaultValue ?? key, i18n: { language: 'en' } }),
+  useTranslation: () => ({ t: (key: string, opts?: { defaultValue?: string; module?: string }) =>
+    (key === 'wordStudy.summarySource' ? `translated ${opts?.module}` : opts?.defaultValue ?? key), i18n: { language: 'en' } }),
   initReactI18next: { type: '3rdParty', init: vi.fn() },
 }));
 
@@ -96,5 +97,69 @@ describe('WordStudyPane', () => {
     await waitFor(() => expect(wordStudyStore.subject).toEqual({ kind: 'strongs', strongs: 'G25' }));
     fireEvent.click(screen.getByLabelText('wordStudy.close'));
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it('Back and Forward put the studied word back in the lookup box', async () => {
+    render(<WordStudyPane />);
+    await wordStudyStore.openStrongs('G25');
+    await wordStudyStore.openStrongs('G26');
+    wordStudyStore.setQuery('G26');
+    const input = screen.getByRole('textbox') as HTMLInputElement;
+    fireEvent.click(await screen.findByLabelText('wordStudy.back'));
+    await waitFor(() => expect(input.value).toBe('G25'));
+    fireEvent.click(screen.getByLabelText('wordStudy.forward'));
+    await waitFor(() => expect(input.value).toBe('G26'));
+  });
+
+  it('keeps focus on the other arrow when Back disables itself, and on Back when Forward does', async () => {
+    render(<WordStudyPane />);
+    await wordStudyStore.openStrongs('G25');
+    await wordStudyStore.openStrongs('G26');
+    const back = await screen.findByLabelText('wordStudy.back') as HTMLButtonElement;
+    back.focus();
+    fireEvent.click(back);
+    await waitFor(() => expect(back.disabled).toBe(true));
+    const forward = screen.getByLabelText('wordStudy.forward') as HTMLButtonElement;
+    await waitFor(() => expect(document.activeElement).toBe(forward));
+    fireEvent.click(forward);
+    await waitFor(() => expect(forward.disabled).toBe(true));
+    await waitFor(() => expect(document.activeElement).toBe(back));
+  });
+
+  it('shows the opened subject in the lookup box, replacing the previous query (interlinear word)', async () => {
+    render(<WordStudyPane />);
+    await wordStudyStore.submit('H7225');
+    const input = screen.getByRole('textbox') as HTMLInputElement;
+    await waitFor(() => expect(input.value).toBe('H7225'));
+    await wordStudyStore.openStrongs('H5175');
+    await waitFor(() => expect(input.value).toBe('H5175'));
+  });
+
+  it('Load more moves focus to the first newly added row', async () => {
+    const row = (n: number) => ({ verseId: 43003016 + n, start: 0, end: 0, form: 'loved', text: `Verse ${n}` });
+    provider.getOccurrences.mockImplementation(async (_s: unknown, q: { offset?: number }) =>
+      (q.offset ?? 0) === 0 ? { total: 2, items: [row(0)] } : { total: 2, items: [row(1)] });
+    const { container } = render(<WordStudyPane />);
+    await wordStudyStore.openStrongs('G25');
+    const more = await waitFor(() => {
+      const b = container.querySelector<HTMLButtonElement>('.kth-ws-occurrences__more');
+      expect(b).not.toBeNull();
+      return b!;
+    });
+    more.focus();
+    fireEvent.click(more);
+    await waitFor(() => expect(container.querySelectorAll('.kth-ws-occ').length).toBe(2));
+    await waitFor(() => expect(document.activeElement).toBe(container.querySelectorAll('.kth-ws-occ')[1]));
+    expect(container.querySelector('.kth-ws-occurrences__more')).toBeNull();
+  });
+
+  it('translates the summary line built in English by the data service', async () => {
+    provider.getOverview.mockResolvedValue({
+      ...overview,
+      semanticRange: { sourceLabel: "Summary from Strong's and KJV usage", senses: [{ label: 'love', source: 'strongs' }] },
+    });
+    render(<WordStudyPane />);
+    await wordStudyStore.openStrongs('G25');
+    expect(await screen.findByText('translated KJV')).toBeTruthy();
   });
 });

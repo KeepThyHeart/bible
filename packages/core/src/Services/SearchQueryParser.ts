@@ -21,12 +21,59 @@ import { KeywordQuery } from '../Data/Access/KeywordTypes';
  * - "hope" and "love" within 50 words of each other
  * - NOT containing both "peace" AND "despair"
  */
+/** Options for {@link SearchQueryParser.parse}. */
+export interface ParseOptions {
+  /**
+   * Recognise `&&` (and), `||` (or) and `!` (not), with parentheses, as boolean
+   * operators. Off by default: ordinary search treats those characters as text.
+   */
+  symbolOperators?: boolean;
+  /**
+   * Accept `/pattern/` as a regular-expression search. On by default (the
+   * desktop app offers it); `false` makes such a query throw a
+   * {@link SearchQueryRejectedError} instead (W-001: on a shared server a
+   * user-supplied pattern such as `/^(\w+\s?)*$/` backtracks catastrophically
+   * against every verse and hangs the event loop).
+   */
+  allowRegex?: boolean;
+}
+
+/** Message of the error a `/pattern/` query raises when `allowRegex` is false. */
+export const PATTERN_SEARCH_DISABLED_MESSAGE = 'Pattern (regular expression) search is not available here';
+
+/**
+ * A well-formed query this caller has chosen not to run (W-001). Distinct from
+ * the syntax errors `validate()` reports, so a server can answer it with a 400
+ * by `code` rather than by matching message text.
+ */
+export class SearchQueryRejectedError extends Error {
+  readonly code = 'SEARCH_QUERY_REJECTED';
+  constructor(message: string) {
+    super(message);
+    this.name = 'SearchQueryRejectedError';
+  }
+}
+
+/** `~N` + `v` at the end of a query (verse proximity); see `matchProximitySuffix` (W-008). */
+const VERSE_PROXIMITY_SUFFIX = /~(\d+)v$/i;
+/** `~N` or `~Nw` at the end of a query (word proximity). */
+const WORD_PROXIMITY_SUFFIX = /~(\d+)w?$/i;
+
+/** Operator tokens in symbol mode. */
+const SYMBOL_OPERATORS = { AND: '&&', OR: '||', NOT: '!' } as const;
+
+interface Cursor {
+  index: number;
+  /** Symbol mode: operators are `&&` `||` `!`, and the words AND/OR/NOT are plain words. */
+  symbols: boolean;
+}
+
 export class SearchQueryParser {
   /**
    * Main parsing method
    * Analyzes query and determines search type and components
    */
-  parse(query: string): ParsedQuery {
+  parse(query: string, options: ParseOptions = {}): ParsedQuery {
     const trimmedQuery = query.trim();
 
     if (!trimmedQuery) {
@@ -46,6 +93,9 @@ export class SearchQueryParser {
     // Check for regex pattern (enclosed in forward slashes)
     const regexMatch = trimmedQuery.match(/^\/(.+)\/$/);
     if (regexMatch) {
+      if (options.allowRegex === false) {
+        throw new SearchQueryRejectedError(PATTERN_SEARCH_DISABLED_MESSAGE);
+      }
       return {
         originalQuery: trimmedQuery,
         searchType: 'regex',
@@ -54,10 +104,10 @@ export class SearchQueryParser {
     }
 
     // Check for verse proximity search (~Nv)
-    const verseProximityMatch = trimmedQuery.match(/(.+?)\s+~(\d+)v$/i);
+    const verseProximityMatch = this.matchProximitySuffix(trimmedQuery, VERSE_PROXIMITY_SUFFIX);
     if (verseProximityMatch) {
-      const terms = this.extractTerms(verseProximityMatch[1]);
-      const distance = parseInt(verseProximityMatch[2], 10);
+      const terms = this.extractTerms(verseProximityMatch.head);
+      const distance = parseInt(verseProximityMatch.distance, 10);
 
       return {
         originalQuery: trimmedQuery,
@@ -70,10 +120,10 @@ export class SearchQueryParser {
     }
 
     // Check for word proximity search (~N or ~Nw)
-    const proximityMatch = trimmedQuery.match(/(.+?)\s+~(\d+)w?$/i);
+    const proximityMatch = this.matchProximitySuffix(trimmedQuery, WORD_PROXIMITY_SUFFIX);
     if (proximityMatch) {
-      const terms = this.extractTerms(proximityMatch[1]);
-      const distance = parseInt(proximityMatch[2], 10);
+      const terms = this.extractTerms(proximityMatch.head);
+      const distance = parseInt(proximityMatch.distance, 10);
 
       return {
         originalQuery: trimmedQuery,
@@ -98,12 +148,35 @@ export class SearchQueryParser {
       };
     }
 
+    // Symbol operators (&&, ||, !), advanced search only (B-017). Words AND/OR/NOT
+    // stay ordinary words in this mode, so "faith and works && love" searches the
+    // word "and" like any other.
+    if (options.symbolOperators && this.hasSymbolOperators(trimmedQuery)) {
+      return {
+        originalQuery: trimmedQuery,
+        searchType: 'boolean',
+        boolean: this.parseBooleanExpression(trimmedQuery, true),
+      };
+    }
+
     // Check for boolean operators (AND, OR, NOT)
     if (this.hasBooleanOperators(trimmedQuery)) {
       return {
         originalQuery: trimmedQuery,
         searchType: 'boolean',
         boolean: this.parseBooleanExpression(trimmedQuery),
+      };
+    }
+
+    // `+word` / `-word` (and `-"a phrase"`): required and excluded terms, as the
+    // Advanced Search hint documents. Without this the sign was quoted away
+    // ("-hate" searched for `hate`), so an exclusion behaved like an inclusion.
+    const signed = this.parseSignedTerms(trimmedQuery);
+    if (signed) {
+      return {
+        originalQuery: trimmedQuery,
+        searchType: 'boolean',
+        boolean: signed,
       };
     }
 
@@ -192,6 +265,65 @@ export class SearchQueryParser {
   }
 
   /**
+   * Parse a query with `-word` exclusions (and optional `+word` requirements)
+   * into `((required terms) NOT excluded) NOT ...`, or null when it has no
+   * exclusion or nothing positive to exclude from. A sign only counts at the
+   * start of a token outside quotes and when something follows it, so
+   * hyphenated words ("well-beloved") and a lone "-" are untouched.
+   */
+  private parseSignedTerms(query: string): BooleanExpression | null {
+    const tokens = query.match(/[+-]?"[^"]*"|\S+/g) ?? [];
+    const positives: string[] = [];
+    const excluded: string[] = [];
+    for (const token of tokens) {
+      const sign = token[0];
+      const body = token.slice(1);
+      if ((sign === '-' || sign === '+') && body.length > 0 && body !== '"') {
+        (sign === '-' ? excluded : positives).push(body);
+      } else {
+        positives.push(token);
+      }
+    }
+    if (excluded.length === 0 || positives.length === 0) return null;
+
+    let expr: BooleanExpression | string = positives.join(' ');
+    for (const term of excluded) {
+      expr = { operator: 'NOT', left: expr, right: term };
+    }
+    return expr as BooleanExpression;
+  }
+
+  /**
+   * Split `<terms> <whitespace> ~N` (with the unit `suffix` allows) into the
+   * terms and the distance, or null when the query does not end that way.
+   *
+   * W-008: this was `/(.+?)\s+~(\d+)v$/` (and `...w?$`). Unanchored, with a
+   * lazy group and `\s+` both able to take the same spaces, it backtracked
+   * cubically on a run of whitespace: "a" + 510 spaces + "b" took ~190 ms a
+   * regex. The suffix is now found on its own (one `~`, its digits, the unit,
+   * end of input: linear), and the rest is plain string work that gives the
+   * same answer the old regex did:
+   * - the `~` must follow whitespace (`\s+`);
+   * - the head is everything before that whitespace run (the lazy group
+   *   stopped as early as `\s+~N$` let it, i.e. before the whole run);
+   * - `.` never matched a line terminator, so the old match began after the
+   *   head's last one, and only that last line's words were the terms.
+   */
+  private matchProximitySuffix(query: string, suffix: RegExp): { head: string; distance: string } | null {
+    const match = suffix.exec(query);
+    if (!match || match.index === 0 || !/\s/.test(query[match.index - 1])) return null;
+    const trimmedHead = query.slice(0, match.index).trimEnd();
+    let lineStart = 0;
+    for (let i = trimmedHead.length - 1; i >= 0; i--) {
+      const ch = trimmedHead[i];
+      if (ch === '\n' || ch === '\r' || ch === ' ' || ch === ' ') { lineStart = i + 1; break; }
+    }
+    const head = trimmedHead.slice(lineStart);
+    if (head.length === 0) return null;
+    return { head, distance: match[1] };
+  }
+
+  /**
    * Extract individual terms from a query string
    * Splits on whitespace, preserving quoted phrases
    */
@@ -246,16 +378,16 @@ export class SearchQueryParser {
    * Leaves stay strings so that the common `(faith AND works)` shape still
    * yields `left: 'faith'`, `right: 'works'`.
    */
-  private parseBooleanExpression(query: string): BooleanExpression {
-    const tokens = this.tokenizeBoolean(query);
-    const cursor = { index: 0 };
+  private parseBooleanExpression(query: string, symbols = false): BooleanExpression {
+    const tokens = symbols ? this.tokenizeSymbols(query) : this.tokenizeBoolean(query);
+    const cursor: Cursor = { index: 0, symbols };
     const parsed = tokens.length > 0 ? this.parseOrExpression(tokens, cursor) : '';
 
     // Trailing tokens mean unbalanced parentheses or a stray operator. Rather
     // than throw at the user, fall back to treating the whole query as one
     // leaf, which is what an ordinary multi-word search would have done.
     if (cursor.index < tokens.length) {
-      return { operator: 'AND', left: this.stripGrouping(query) };
+      return { operator: 'AND', left: this.stripGrouping(query, symbols) };
     }
 
     return typeof parsed === 'string' ? { operator: 'AND', left: parsed } : parsed;
@@ -288,17 +420,57 @@ export class SearchQueryParser {
     return tokens;
   }
 
-  private isOperator(token: string | undefined, operator: string): boolean {
-    return token !== undefined && token.toUpperCase() === operator;
+  private isOperator(token: string | undefined, operator: 'AND' | 'OR' | 'NOT', symbols: boolean): boolean {
+    if (token === undefined) return false;
+    return symbols ? token === SYMBOL_OPERATORS[operator] : token.toUpperCase() === operator;
+  }
+
+  /** True when the query holds at least one symbol operator outside quotes. */
+  private hasSymbolOperators(query: string): boolean {
+    return this.tokenizeSymbols(query).some(
+      (t) => t === SYMBOL_OPERATORS.AND || t === SYMBOL_OPERATORS.OR || t === SYMBOL_OPERATORS.NOT
+    );
+  }
+
+  /**
+   * Tokenizer for symbol mode: parentheses, quoted phrases (kept whole, so a
+   * `&&` inside quotes is text), the operators `&&` and `||`, a `!` that begins
+   * a token (`!hate`, `! hate`, `!(a b)`), and bare words. A `!`, `&` or `|`
+   * inside or at the end of a word stays part of it ("wait!").
+   */
+  private tokenizeSymbols(query: string): string[] {
+    const tokens: string[] = [];
+    let i = 0;
+    const n = query.length;
+    while (i < n) {
+      const ch = query[i];
+      if (/\s/.test(ch)) { i++; continue; }
+      if (ch === '(' || ch === ')') { tokens.push(ch); i++; continue; }
+      if (ch === '"') {
+        const close = query.indexOf('"', i + 1);
+        const end = close === -1 ? n : close + 1;
+        tokens.push(query.slice(i, end));
+        i = end;
+        continue;
+      }
+      if (query.startsWith('&&', i)) { tokens.push('&&'); i += 2; continue; }
+      if (query.startsWith('||', i)) { tokens.push('||'); i += 2; continue; }
+      if (ch === '!') { tokens.push('!'); i++; continue; }
+      let j = i;
+      while (j < n && !/[\s()"]/.test(query[j]) && !query.startsWith('&&', j) && !query.startsWith('||', j)) j++;
+      tokens.push(query.slice(i, j));
+      i = j;
+    }
+    return tokens;
   }
 
   private parseOrExpression(
     tokens: string[],
-    cursor: { index: number }
+    cursor: Cursor
   ): BooleanExpression | string {
     let left = this.parseAndExpression(tokens, cursor);
 
-    while (this.isOperator(tokens[cursor.index], 'OR')) {
+    while (this.isOperator(tokens[cursor.index], 'OR', cursor.symbols)) {
       cursor.index++;
       const right = this.parseAndExpression(tokens, cursor);
       left = { operator: 'OR', left, right };
@@ -309,15 +481,15 @@ export class SearchQueryParser {
 
   private parseAndExpression(
     tokens: string[],
-    cursor: { index: number }
+    cursor: Cursor
   ): BooleanExpression | string {
     let left = this.parseUnaryExpression(tokens, cursor);
 
     // `a NOT b` is the binary exclusion form, which FTS5 supports directly.
     // It sits at the same precedence as AND so that `a AND b NOT c` groups
     // left to right, the way a reader expects.
-    while (this.isOperator(tokens[cursor.index], 'AND') || this.isOperator(tokens[cursor.index], 'NOT')) {
-      const operator = tokens[cursor.index].toUpperCase() as 'AND' | 'NOT';
+    while (this.isOperator(tokens[cursor.index], 'AND', cursor.symbols) || this.isOperator(tokens[cursor.index], 'NOT', cursor.symbols)) {
+      const operator: 'AND' | 'NOT' = this.isOperator(tokens[cursor.index], 'AND', cursor.symbols) ? 'AND' : 'NOT';
       cursor.index++;
       const right = this.parseUnaryExpression(tokens, cursor);
       left = { operator, left, right };
@@ -328,9 +500,9 @@ export class SearchQueryParser {
 
   private parseUnaryExpression(
     tokens: string[],
-    cursor: { index: number }
+    cursor: Cursor
   ): BooleanExpression | string {
-    if (this.isOperator(tokens[cursor.index], 'NOT')) {
+    if (this.isOperator(tokens[cursor.index], 'NOT', cursor.symbols)) {
       cursor.index++;
       return { operator: 'NOT', left: this.parseUnaryExpression(tokens, cursor) };
     }
@@ -340,7 +512,7 @@ export class SearchQueryParser {
 
   private parsePrimaryExpression(
     tokens: string[],
-    cursor: { index: number }
+    cursor: Cursor
   ): BooleanExpression | string {
     if (tokens[cursor.index] === '(') {
       cursor.index++;
@@ -355,7 +527,7 @@ export class SearchQueryParser {
     while (cursor.index < tokens.length) {
       const token = tokens[cursor.index];
       if (token === '(' || token === ')') break;
-      if (this.isOperator(token, 'AND') || this.isOperator(token, 'OR') || this.isOperator(token, 'NOT')) break;
+      if (this.isOperator(token, 'AND', cursor.symbols) || this.isOperator(token, 'OR', cursor.symbols) || this.isOperator(token, 'NOT', cursor.symbols)) break;
       words.push(token);
       cursor.index++;
     }
@@ -364,8 +536,11 @@ export class SearchQueryParser {
   }
 
   /** Remove grouping characters for the give-up path, where they cannot help. */
-  private stripGrouping(query: string): string {
-    return query.replace(/[()]/g, ' ').replace(/\s+/g, ' ').trim();
+  private stripGrouping(query: string, symbols = false): string {
+    const plain = symbols
+      ? this.tokenizeSymbols(query).filter((t) => t !== '(' && t !== ')' && t !== '&&' && t !== '||' && t !== '!').join(' ')
+      : query.replace(/[()]/g, ' ');
+    return plain.replace(/\s+/g, ' ').trim();
   }
 
   /**
@@ -408,7 +583,7 @@ export class SearchQueryParser {
    * Validate search query
    * Returns error message if invalid, undefined if valid
    */
-  validate(query: string): string | undefined {
+  validate(query: string, options: ParseOptions = {}): string | undefined {
     if (!query || query.trim().length === 0) {
       return 'Search query cannot be empty';
     }
@@ -430,9 +605,10 @@ export class SearchQueryParser {
       return 'Unmatched opening parenthesis';
     }
 
-    // Check for invalid regex
+    // Check for invalid regex. Not when patterns are refused outright: parse()
+    // then rejects the query whatever it holds (W-001).
     const regexMatch = query.match(/^\/(.+)\/$/);
-    if (regexMatch) {
+    if (regexMatch && options.allowRegex !== false) {
       try {
         new RegExp(regexMatch[1]);
       } catch (e) {

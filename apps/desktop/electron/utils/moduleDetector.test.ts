@@ -33,7 +33,7 @@ vi.mock('electron-log', () => ({
 
 import { SqliteProvider } from '../providers/SqliteProvider';
 import { initializeMainDatabase } from './initMainDatabase';
-import { detectAndRegisterModules } from './moduleDetector';
+import { detectAndRegisterModules, detectAndRegisterModulesAsync } from './moduleDetector';
 
 /**
  * These tests drive real SQLite, so they need the native binding compiled for
@@ -121,6 +121,25 @@ describe.skipIf(!nativeSqliteAvailable)('detectAndRegisterModules - F5 rule tabl
     expect(result.registered).toBe(1);
     expect(result.errors).toEqual([]);
     expect(registeredAbbreviations()).toEqual(['TESTBOOK']);
+  });
+
+  it('the async scan registers the same modules, reports them, and yields to the event loop per file', async () => {
+    makeBookModuleFile(join(modulesDir, 'book_valid.db'), { formatVersion: '0.2' });
+    let ticks = 0;
+    const ticker = setInterval(() => { ticks += 1; }, 0);
+    let immediates = 0;
+    const counter = (): void => { immediates += 1; };
+    const spin = setImmediate(counter);
+
+    const result = await detectAndRegisterModulesAsync();
+    clearInterval(ticker);
+    clearImmediate(spin);
+
+    expect(result.registered).toBe(1);
+    expect(result.registeredModules).toEqual([{ abbreviation: 'TESTBOOK', moduleType: 'book' }]);
+    expect(registeredAbbreviations()).toEqual(['TESTBOOK']);
+    // Another callback got to run while the scan was in progress.
+    expect(immediates + ticks).toBeGreaterThan(0);
   });
 
   describe('SQLite header (new)', () => {

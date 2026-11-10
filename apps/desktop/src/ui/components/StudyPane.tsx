@@ -22,6 +22,7 @@ import { StudyPaneSections } from '../modules/host/slots';
 import { translateWithDefault } from '../utils/translateWithDefault';
 import StudyRichText from './study/StudyRichText';
 import { markdownToPlainText, looksLikeMarkdown } from './study/markdown';
+import { studyScaled } from '../utils/studyScale';
 import { crossReferenceModuleLabel } from '../utils/moduleNaming';
 import { MODULE_PROVENANCE_TEXT, isDigestModule } from '../moduleDescriptions';
 import { bibleAPI } from '../services/electronAPI';
@@ -36,37 +37,11 @@ import { activateWhenContentReady } from '../services/paneHandoff';
 import { prefetchTopic } from '../services/topicalContentCache';
 import { VERSE_PAGE_SIZE } from './TopicsPane/types';
 import type { IDockviewPanel } from 'dockview-react';
+import { focusPanelTab } from '../hooks/useDockviewTabA11y';
 
-/**
- * Turn a literal chrome-text pixel size into a CSS `calc()` expression that
- * still resolves to exactly that literal at default settings, but scales
- * with the Typography section's "UI text" slider and the General section's
- * "Global Font Scale" slider.
- *
- * This pane's prose (cross-reference/commentary text) already flows through
- * `.pane-content-commentary` in globals.css and responds to the Study text
- * size preference. Everything else here - topic rows, section labels,
- * badges, buttons, empty-state hints - was hardcoded in px and ignored every
- * font preference. Rather than have it inherit a single font-size (which
- * would flatten the intentional hierarchy: a 10px source label should stay
- * visibly smaller than a 16px pane title), each literal is scaled by the
- * same ratio, so the hierarchy is preserved at any slider position.
- *
- * `--ui-font-scale` (set by usePreferencesStore.ts's applyTypographyToDOM)
- * is `typography.uiFontSize / DEFAULT_TYPOGRAPHY.uiFontSize` - 1 at the
- * default "UI text" size, mirroring the web app's own `--ui-font-scale`
- * (apps/web/src/stores/settingsStore.ts + _study-pane.scss's
- * `calc(Npx * var(--ui-font-scale, 1))` pattern, used throughout that file).
- * B-045: the literals are rem, so they follow the UI size (`--ui-scale`, which
- * folds in the global font scale) through the rem root; `--ui-font-scale` is
- * the separate "UI text" tweak on top.
- */
 /** Data id of the Cross-ref graph module's verse action; the button runs it without importing the module. */
 const CONNECTIONS_ACTION = 'xrefGraph.connections';
 
-function uiScaled(px: number): string {
-  return `calc(${px / 16}rem * var(--ui-font-scale, 1))`;
-}
 
 interface StudyPaneProps {
   /**
@@ -341,6 +316,34 @@ const StudyPane: React.FC<StudyPaneProps> = ({ panelId: propPanelId, initialVers
     return () => { cancelled = true; };
   }, [currentVerseId, displayNameFor, installedModules]);
 
+  // Back/Forward disable themselves at the ends of the trail. Pressing the arrow that just
+  // disabled drops focus to the page, so move it to the arrow (or header button) still usable.
+  const paneRootRef = useRef<HTMLDivElement>(null);
+  const pendingNavFocus = useRef<'back' | 'forward' | null>(null);
+  useEffect(() => {
+    const pending = pendingNavFocus.current;
+    const root = paneRootRef.current;
+    if (!pending || !root) return;
+    const back = root.querySelector<HTMLButtonElement>('[data-testid="pane-nav-back"]');
+    const forward = root.querySelector<HTMLButtonElement>('[data-testid="pane-nav-forward"]');
+    const pressed = pending === 'back' ? back : forward;
+    const active = document.activeElement;
+    // Only rescue focus that was lost with the button, never focus the reader moved elsewhere.
+    if (active && active !== document.body && active !== pressed) {
+      pendingNavFocus.current = null;
+      return;
+    }
+    if (!pressed || !pressed.disabled) return;
+    pendingNavFocus.current = null;
+    const other = pending === 'back' ? forward : back;
+    const target = other && !other.disabled
+      ? other
+      : pressed.parentElement?.querySelector<HTMLButtonElement>('button:not(:disabled)');
+    target?.focus();
+  }, [canGoBack, canGoForward]);
+  const stepBack = useCallback(() => { pendingNavFocus.current = 'back'; goBack(); }, [goBack]);
+  const stepForward = useCallback(() => { pendingNavFocus.current = 'forward'; goForward(); }, [goForward]);
+
   // Navigate topic to Topics Pane
   const handleTopicClick = useCallback((abbreviation: string, topicId: number) => {
     // Find or create a Topics Pane and navigate to the topic
@@ -366,7 +369,11 @@ const StudyPane: React.FC<StudyPaneProps> = ({ panelId: propPanelId, initialVers
       const panel = targetPanel;
       useTopicsStore.getState().navigateToTopic(panel.id, topicId, abbreviation); // allow-getstate: event handler - imperative navigation
       activateWhenContentReady(
-        () => panel.api.setActive(),
+        () => {
+          panel.api.setActive();
+          // Keep focus with the pane the reader just opened, not the Bible pane's heading.
+          focusPanelTab(api as never, panel.id);
+        },
         prefetchTopic(abbreviation, topicId, VERSE_PAGE_SIZE),
       );
     } else {
@@ -381,6 +388,7 @@ const StudyPane: React.FC<StudyPaneProps> = ({ panelId: propPanelId, initialVers
         title: t('paneName.topics'),
         params: { contentType: 'topics' },
       });
+      focusPanelTab(api as never, newPanel.id);
       // Navigate after panel is created
       setTimeout(() => {
         useTopicsStore.getState().navigateToTopic(newPanel.id, topicId, abbreviation); // allow-getstate: event handler - imperative navigation
@@ -412,15 +420,15 @@ const StudyPane: React.FC<StudyPaneProps> = ({ panelId: propPanelId, initialVers
   // Empty state
   if (!currentVerseId && !suggestionVerseId) {
     return (
-      <div className="h-full w-full flex flex-col overflow-hidden" data-testid="study-pane" style={{ backgroundColor: 'var(--theme-bg-primary)', color: 'var(--theme-text-primary)' }}>
-        <PaneNavHeader canGoBack={canGoBack} canGoForward={canGoForward} pinned={pinned} onBack={goBack} onForward={goForward} onTogglePin={togglePin} />
+      <div ref={paneRootRef} className="pane-content-study h-full w-full flex flex-col overflow-hidden" data-testid="study-pane" style={{ backgroundColor: 'var(--theme-bg-primary)', color: 'var(--theme-text-primary)' }}>
+        <PaneNavHeader canGoBack={canGoBack} canGoForward={canGoForward} pinned={pinned} onBack={stepBack} onForward={stepForward} onTogglePin={togglePin} />
         <div style={{ padding: '16px' }}>
           <TopicSearchBar onSelectTopic={handleSearchSelectTopic} placeholder={t('studyPane.searchTopicsPlaceholder')} />
         </div>
         <div className="flex items-center justify-center flex-1">
           <div className="text-center" style={{ color: 'var(--theme-text-secondary)' }}>
-            <div style={{ fontSize: uiScaled(16), fontWeight: 500, marginBottom: '8px' }}>{t('studyPane.title')}</div>
-            <div style={{ fontSize: uiScaled(13) }}>{t('studyPane.emptyHint')}</div>
+            <div style={{ fontSize: studyScaled(16), fontWeight: 500, marginBottom: '8px' }}>{t('studyPane.title')}</div>
+            <div style={{ fontSize: studyScaled(13) }}>{t('studyPane.emptyHint')}</div>
           </div>
         </div>
       </div>
@@ -429,11 +437,12 @@ const StudyPane: React.FC<StudyPaneProps> = ({ panelId: propPanelId, initialVers
 
   return (
     <div
-      className="h-full w-full flex flex-col overflow-hidden"
+      ref={paneRootRef}
+      className="pane-content-study h-full w-full flex flex-col overflow-hidden"
       style={{ backgroundColor: 'var(--theme-bg-primary)', color: 'var(--theme-text-primary)' }}
       data-testid="study-pane"
     >
-      <PaneNavHeader canGoBack={canGoBack} canGoForward={canGoForward} pinned={pinned} onBack={goBack} onForward={goForward} onTogglePin={togglePin} />
+      <PaneNavHeader canGoBack={canGoBack} canGoForward={canGoForward} pinned={pinned} onBack={stepBack} onForward={stepForward} onTogglePin={togglePin} />
 
       {/*
         Only a pinned pane can be out of step with the Bible pane now - an
@@ -460,12 +469,12 @@ const StudyPane: React.FC<StudyPaneProps> = ({ panelId: propPanelId, initialVers
               gap: '8px',
               marginBottom: '10px',
             }}>
-              <span style={{ fontSize: uiScaled(13), fontWeight: 600 }}>
+              <span style={{ fontSize: studyScaled(13), fontWeight: 600 }}>
                 {t('studyPane.studyingVerse', { reference: verseLabel })}
               </span>
               <button
                 onClick={clearVerse}
-                style={{ border: 'none', backgroundColor: 'transparent', color: 'var(--theme-text-secondary)', cursor: 'pointer', fontSize: uiScaled(16), lineHeight: 1 }}
+                style={{ border: 'none', backgroundColor: 'transparent', color: 'var(--theme-text-secondary)', cursor: 'pointer', fontSize: studyScaled(16), lineHeight: 1 }}
                 title={t('studyPane.clearTitle')}
                 aria-label={t('studyPane.clearTitle')}
               >
@@ -476,7 +485,7 @@ const StudyPane: React.FC<StudyPaneProps> = ({ panelId: propPanelId, initialVers
         </div>
 
         {loading && (
-          <div style={{ textAlign: 'center', padding: '20px', color: 'var(--theme-text-secondary)', fontSize: uiScaled(13) }}>
+          <div style={{ textAlign: 'center', padding: '20px', color: 'var(--theme-text-secondary)', fontSize: studyScaled(13) }}>
             {t('studyPane.loadingData')}
           </div>
         )}
@@ -489,7 +498,7 @@ const StudyPane: React.FC<StudyPaneProps> = ({ panelId: propPanelId, initialVers
               margin: '0 12px 12px',
               padding: '8px 10px',
               borderRadius: '6px',
-              fontSize: uiScaled(12),
+              fontSize: studyScaled(12),
               color: 'var(--theme-danger-text)',
               backgroundColor: 'var(--theme-danger-soft)',
               border: '1px solid var(--theme-danger-border)',
@@ -535,7 +544,7 @@ const StudyPane: React.FC<StudyPaneProps> = ({ panelId: propPanelId, initialVers
               <VerseTopicsList
                 topics={topics}
                 onTopicClick={handleTopicClick}
-                scale={uiScaled}
+                scale={studyScaled}
                 emptyState={notInstalled.topics
                   ? <NotInstalledNote message={t('studyPane.noTopicalInstalled')} moduleType="topical_index" />
                   : <EmptyNote>{t('studyPane.noTopics')}</EmptyNote>}
@@ -601,14 +610,14 @@ const StudyPane: React.FC<StudyPaneProps> = ({ panelId: propPanelId, initialVers
                     onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--theme-tab-bg-hover, rgba(0,0,0,0.05))'; }}
                     onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
                   >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '6px', fontSize: uiScaled(13), fontWeight: 500, marginBottom: '2px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '6px', fontSize: studyScaled(13), fontWeight: 500, marginBottom: '2px' }}>
                       <span className="min-w-0 truncate" style={{ color: 'var(--theme-accent-primary)' }}>{c.name}</span>
                       <ModuleProvenanceBadge moduleAbbreviation={c.abbreviation} />
-                      <span style={{ fontSize: uiScaled(11), color: 'var(--theme-text-secondary)' }} className="ms-auto flex-shrink-0">
+                      <span style={{ fontSize: studyScaled(11), color: 'var(--theme-text-secondary)' }} className="ms-auto flex-shrink-0">
                         {t('studyPane.wordCount', { count: c.word_count })}
                       </span>
                     </div>
-                    <div style={{ fontSize: uiScaled(12), color: 'var(--theme-text-secondary)', lineHeight: '1.4' }}>
+                    <div style={{ fontSize: studyScaled(12), color: 'var(--theme-text-secondary)', lineHeight: '1.4' }}>
                       {c.preview}
                     </div>
                   </button>
@@ -637,7 +646,7 @@ const StudyPane: React.FC<StudyPaneProps> = ({ panelId: propPanelId, initialVers
 
 /** Muted "nothing here" line shared by every section. */
 const EmptyNote: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <div style={{ fontSize: uiScaled(12), color: 'var(--theme-text-secondary)', padding: '4px 0' }}>
+  <div style={{ fontSize: studyScaled(12), color: 'var(--theme-text-secondary)', padding: '4px 0' }}>
     {children}
   </div>
 );
@@ -772,7 +781,7 @@ const CrossReferencesSection: React.FC<{
           <button
             type="button"
             className="text-accent hover:text-accent-strong hover:underline"
-            style={{ fontSize: uiScaled(12) }}
+            style={{ fontSize: studyScaled(12) }}
             onClick={() => {
               verseActions
                 .run(CONNECTIONS_ACTION, { verseId, verseIds: [verseId], module: '', surface: 'study' })
@@ -795,7 +804,7 @@ const CrossReferencesSection: React.FC<{
           const keyword = g.group.phrase ? tskPhraseKeyword(g.group.phrase) : null;
           const aside = g.group.phrase ? tskPhraseAside(g.group.phrase) : null;
           return (
-            <div key={g.group.group_id} style={{ marginBottom: '6px', fontSize: uiScaled(12), color: 'var(--theme-text-secondary)' }}>
+            <div key={g.group.group_id} style={{ marginBottom: '6px', fontSize: studyScaled(12), color: 'var(--theme-text-secondary)' }}>
               {/* Keyword and references share a line - the shape the web pane
                   uses. A heading per group cost a line of height per phrase,
                   and a dense verse has a dozen of them. */}
@@ -853,7 +862,8 @@ const ModuleProvenanceBadge: React.FC<{ moduleAbbreviation: string }> = ({ modul
   return (
     <span
       data-testid="study-provenance-badge"
-      className="flex-shrink-0 rounded bg-info-soft px-1.5 py-0.5 text-[0.625rem] font-medium text-info-text"
+      className="flex-shrink-0 rounded bg-info-soft px-1.5 py-0.5 font-medium text-info-text"
+      style={{ fontSize: studyScaled(10) }}
     >
       {t(MODULE_PROVENANCE_TEXT[kind].collapsedKey)}
     </span>
@@ -908,7 +918,7 @@ const CommentaryDetailView: React.FC<{
           onClick={onBack}
           style={{
             padding: '4px 10px',
-            fontSize: uiScaled(12),
+            fontSize: studyScaled(12),
             border: '1px solid var(--theme-border-primary)',
             borderRadius: '4px',
             backgroundColor: 'transparent',
@@ -918,10 +928,10 @@ const CommentaryDetailView: React.FC<{
         >
           {t('studyPane.back')}
         </button>
-        <span style={{ fontSize: uiScaled(14), fontWeight: 500 }}>{commentaryName}</span>
+        <span style={{ fontSize: studyScaled(14), fontWeight: 500 }}>{commentaryName}</span>
       </div>
       {loading ? (
-        <div style={{ color: 'var(--theme-text-secondary)', fontSize: uiScaled(13) }}>{t('studyPane.loading')}</div>
+        <div style={{ color: 'var(--theme-text-secondary)', fontSize: studyScaled(13) }}>{t('studyPane.loading')}</div>
       ) : (
         <>
           {/* Machine-generated content notice - renders nothing for human-authored modules */}

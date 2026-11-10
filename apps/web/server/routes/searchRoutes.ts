@@ -4,7 +4,7 @@ import type { ISearchPipeline, ScoringConfig } from '@bible/core';
 import { sendError, ErrorCodes } from '../utils/errorResponse.js';
 import { VerseIdHelper, StrongsNumberHelper, EnrichmentRepository, SearchOrchestrationService } from '../core.js';
 import type { TopicEntry } from '../search/SqliteVectorSearch.js';
-import { isQuerySyntaxError } from '../utils/requestHygiene.js';
+import { isQuerySyntaxError, clampInt } from '../utils/requestHygiene.js';
 import { registerRoute } from './routeRegistry.js';
 import type { ServerHookRegistry } from '../plugins/ServerHooks.js';
 import { validateSearchQuery, MAX_SEARCH_QUERY_LENGTH, validateModuleName } from '../utils/validation.js';
@@ -76,6 +76,46 @@ const MAX_KEYWORD_RESULTS = 5000;
 const DEFAULT_STRONGS_PAGE_SIZE = 100;
 const MAX_STRONGS_RESULTS = 5000;
 
+/** Semantic result count: default and ceiling (W-010). */
+const DEFAULT_SEMANTIC_RESULTS = 20;
+const MAX_SEMANTIC_RESULTS = 500;
+
+/**
+ * Verse-proximity (`a b ~Nv`) limits (W-003). Each term is a separate lookup
+ * of up to 10,000 verses, and the window grows with the distance, so both are
+ * capped here; the desktop app, which shares the search service, is not.
+ */
+const MAX_VERSE_PROXIMITY_TERMS = 6;
+const MAX_VERSE_PROXIMITY_DISTANCE = 100;
+
+/** Error code core's `SearchQueryRejectedError` carries (W-001). */
+const SEARCH_QUERY_REJECTED = 'SEARCH_QUERY_REJECTED';
+const PATTERN_SEARCH_UNAVAILABLE = 'Pattern (regular expression) search is not available here';
+
+/**
+ * Why this server will not run a well-formed keyword query, or null when it
+ * will.
+ *
+ * W-001: `/pattern/` is a regular-expression search, tested against every
+ * verse synchronously; a pattern like `/^(\w+\s?)*$/` backtracks for ever and
+ * takes the whole server with it. The search call also passes
+ * `allowRegex: false`, which core enforces; checking the parsed query here as
+ * well answers with a clear 400 before any work starts.
+ * W-003: verse proximity beyond the caps above.
+ */
+function rejectedQueryReason(parsed: { searchType: string; verseProximity?: { terms: string[]; distance: number } }): string | null {
+  if (parsed.searchType === 'regex') return PATTERN_SEARCH_UNAVAILABLE;
+  if (parsed.searchType === 'verse-proximity' && parsed.verseProximity) {
+    if (parsed.verseProximity.terms.length > MAX_VERSE_PROXIMITY_TERMS) {
+      return `Verse proximity search takes at most ${MAX_VERSE_PROXIMITY_TERMS} terms`;
+    }
+    if (parsed.verseProximity.distance > MAX_VERSE_PROXIMITY_DISTANCE) {
+      return `Verse proximity search reaches at most ${MAX_VERSE_PROXIMITY_DISTANCE} verses`;
+    }
+  }
+  return null;
+}
+
 export interface SearchRouteOptions {
   topicEntries?: Map<string, TopicEntry>;
   pipeline?: ISearchPipeline;
@@ -91,12 +131,20 @@ export interface SearchRouteOptions {
  * de-duplicated and capped. `undefined` when the caller named none; an empty
  * array when every name it gave was dropped.
  */
-function requestedModules(raw: unknown, siteSettings: SiteSettings | null | undefined): string[] | undefined {
+function requestedModules(
+  raw: unknown,
+  siteSettings: SiteSettings | null | undefined,
+  canonical: (name: string) => string = (name) => name,
+): string[] | undefined {
   if (typeof raw !== 'string' || raw === '') return undefined;
   const seen = new Set<string>();
   const out: string[] = [];
   for (const part of raw.split(',')) {
-    const name = validateModuleName(part.trim());
+    const valid = validateModuleName(part.trim());
+    // W-002: the installed spelling ("kjv" -> "KJV"). The search service keys
+    // its modules by name, so a second casing used to register the same Bible
+    // again and break searches under the first one until a restart.
+    const name = valid ? canonical(valid) : null;
     if (!name || seen.has(name.toLowerCase())) continue;
     if (!isNamedModuleVisible(siteSettings, 'bibles', name)) continue;
     seen.add(name.toLowerCase());
@@ -108,6 +156,7 @@ function requestedModules(raw: unknown, siteSettings: SiteSettings | null | unde
 
 export function createSearchRoutes(db: DatabaseManager, routeOptions: SearchRouteOptions = {}, hybridDefault = false, minScoreDefault = 0.15, hooks?: ServerHookRegistry): Router {
   const router = Router();
+  const canonicalModule = (name: string): string => db.resolveAbbreviation(name);
 
   // Gates the expensive semantic path only; keyword/Strong's search is SQLite work.
   const semanticGate = createSemaphore({
@@ -178,7 +227,7 @@ export function createSearchRoutes(db: DatabaseManager, routeOptions: SearchRout
         return;
       }
 
-      const modules = requestedModules(req.query.modules, routeOptions.siteSettings);
+      const modules = requestedModules(req.query.modules, routeOptions.siteSettings, canonicalModule);
       if (modules && modules.length === 0) {
         // Every Bible named is hidden or malformed: nothing to search, and the
         // default Bible is not what the caller asked for.
@@ -194,6 +243,12 @@ export function createSearchRoutes(db: DatabaseManager, routeOptions: SearchRout
 
       const searchService = db.getSearchService();
       if (!searchService) { sendError(res, 500, ErrorCodes.INTERNAL_ERROR, 'Search not available'); return; }
+
+      const rejected = rejectedQueryReason(searchService.parseQuery(query));
+      if (rejected) {
+        sendError(res, 400, ErrorCodes.INVALID_PARAM, rejected);
+        return;
+      }
 
       // Ensure requested modules are loaded
       if (modules) {
@@ -219,6 +274,8 @@ export function createSearchRoutes(db: DatabaseManager, routeOptions: SearchRout
             // word ("God so loved the world" listed every verse containing "God"),
             // which the desktop app still relies on; the web app opts in here.
             fuzzyGate: 'coverage',
+            // W-001: never run a user-supplied regular expression on the server.
+            allowRegex: false,
           });
         });
       } catch (err) {
@@ -280,6 +337,10 @@ export function createSearchRoutes(db: DatabaseManager, routeOptions: SearchRout
 
       hooks?.fireActions('search:performed', { query, resultCount: mappedResults.length });
     } catch (error) {
+      if ((error as { code?: unknown } | null)?.code === SEARCH_QUERY_REJECTED) {
+        if (!res.headersSent) sendError(res, 400, ErrorCodes.INVALID_PARAM, PATTERN_SEARCH_UNAVAILABLE);
+        return;
+      }
       if (isQuerySyntaxError(error)) {
         if (!res.headersSent) sendError(res, 400, ErrorCodes.INVALID_PARAM, (error as Error).message);
         return;
@@ -297,14 +358,16 @@ export function createSearchRoutes(db: DatabaseManager, routeOptions: SearchRout
         return;
       }
 
-      // Item #4: Cap semantic search maxResults to prevent resource exhaustion
-      const maxResults = Math.min(Number(req.query.maxResults ?? 20), 50);
+      // Item #4: Cap semantic search maxResults to prevent resource exhaustion.
+      // W-010: an integer 1..50; garbage (NaN), 0 and negatives used to pass
+      // straight through and reach bibsearch as k=NaN.
+      const maxResults = clampInt(req.query.maxResults, DEFAULT_SEMANTIC_RESULTS, 1, MAX_SEMANTIC_RESULTS);
       const hybrid = req.query.hybrid !== undefined
         ? (req.query.hybrid === '1' || req.query.hybrid === 'true')
         : hybridDefault;
       // Hidden Bibles are dropped; an empty list then means "none named" here,
       // since `modules` only picks the translation hits are shown in.
-      const named = requestedModules(req.query.modules, routeOptions.siteSettings);
+      const named = requestedModules(req.query.modules, routeOptions.siteSettings, canonicalModule);
       const modules = named && named.length > 0 ? named : undefined;
 
       const remote = routeOptions.remote;
@@ -479,10 +542,15 @@ export function createSearchRoutes(db: DatabaseManager, routeOptions: SearchRout
 
       const includeRelated = req.query.includeRelated === 'true' || req.query.includeRelated === '1';
       // Hidden Bibles dropped, as for keyword search; none left means the default Bible.
-      const named = requestedModules(req.query.modules, routeOptions.siteSettings);
+      const named = requestedModules(req.query.modules, routeOptions.siteSettings, canonicalModule);
       const modules = named && named.length > 0 ? named : undefined;
+      // W-014: a book number, 1..66 and whole; `scope=1.5` used to pass.
       const scope = req.query.scope ? Number(req.query.scope) : undefined;
-      const scopeBook = scope && scope >= 1 && scope <= 66 ? scope : undefined;
+      if (scope !== undefined && !(Number.isInteger(scope) && scope >= 1 && scope <= 66)) {
+        sendError(res, 400, ErrorCodes.INVALID_PARAM, 'Query parameter "scope" must be a book number from 1 to 66');
+        return;
+      }
+      const scopeBook = scope;
 
       const wordFamilyService = db.getWordFamilyService();
       const searchService = db.getSearchService();

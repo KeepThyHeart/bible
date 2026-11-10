@@ -2,6 +2,8 @@ import * as fileNotesAPI from '../../../../services/fileNotesAPI';
 import type { BnFile } from '../../../../services/fileNotesAPI';
 import { IpcResultError } from '../../../../services/ipcResult';
 import { isAbsolutePath } from '../utils';
+import { useNotesStore } from '../../../../stores/useNotesStore';
+import { useFileNotesStore } from '../../../../stores/useFileNotesStore';
 
 /**
  * Save a note with the baseline (`updated`) it was loaded or last saved at, so
@@ -9,11 +11,45 @@ import { isAbsolutePath } from '../utils';
  * (`conflict`) or re-create a note that was renamed, moved or trashed since
  * (`not_found`). Returns the `updated` the main process wrote.
  */
-export function saveWithBaseline(path: string, note: BnFile): Promise<string> {
-  return isAbsolutePath(path)
-    ? fileNotesAPI.saveNoteAbsolute(path, note, note.updated)
-    : fileNotesAPI.saveNote(path, note, note.updated);
+export async function saveWithBaseline(path: string, note: BnFile): Promise<string> {
+  beginSave(path);
+  try {
+    const updated = isAbsolutePath(path)
+      ? await fileNotesAPI.saveNoteAbsolute(path, note, note.updated)
+      : await fileNotesAPI.saveNote(path, note, note.updated);
+    afterNoteSaved(path, updated);
+    return updated;
+  } finally {
+    endSave(path);
+  }
 }
+
+/**
+ * An empty `updated` back from a save means the main process removed the note
+ * instead (a verse note whose text was cleared): the verse's note marker and
+ * the recent-files entry go with it.
+ */
+export function afterNoteSaved(path: string, updated: string): void {
+  if (updated !== '') return;
+  useNotesStore.setState(s => ({ noteChangeCounter: s.noteChangeCounter + 1 }));
+  useFileNotesStore.getState().removeRecentFile(path); // allow-getstate: async save callback - imperative store update outside render
+}
+
+/**
+ * Saves of this window that have been sent but not answered yet, per path. A
+ * "note saved elsewhere" push that arrives meanwhile is a real conflict, never
+ * something to reload over.
+ */
+const savesInFlight = new Map<string, number>();
+export function beginSave(path: string): void {
+  savesInFlight.set(path, (savesInFlight.get(path) ?? 0) + 1);
+}
+export function endSave(path: string): void {
+  const n = (savesInFlight.get(path) ?? 0) - 1;
+  if (n > 0) savesInFlight.set(path, n);
+  else savesInFlight.delete(path);
+}
+export const isSaveInFlight = (path: string): boolean => (savesInFlight.get(path) ?? 0) > 0;
 
 /** Which kind of stale-baseline refusal this is, or null for any other error. */
 export function staleSaveKind(err: unknown): 'conflict' | 'missing' | null {

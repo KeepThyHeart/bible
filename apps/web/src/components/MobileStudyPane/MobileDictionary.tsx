@@ -19,6 +19,7 @@ interface MobileDictionaryProps {
 export function MobileDictionary({ bibleProvider }: MobileDictionaryProps) {
   const { t } = useTranslation();
   const inputRef = useRef<HTMLInputElement>(null);
+  const headingRef = useRef<HTMLHeadingElement>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
 
@@ -54,6 +55,11 @@ export function MobileDictionary({ bibleProvider }: MobileDictionaryProps) {
   useEffect(() => {
     if (window.innerWidth > 768) inputRef.current?.focus();
   }, []);
+
+  // Picking a result removes the button that held focus: land on the entry's heading instead of the page body.
+  useEffect(() => {
+    if (currentEntry && !entryLoading) headingRef.current?.focus({ preventScroll: true });
+  }, [currentEntry, entryLoading]);
 
   const handleInput = (e: Event) => {
     const value = (e.target as HTMLInputElement).value;
@@ -113,13 +119,26 @@ export function MobileDictionary({ bibleProvider }: MobileDictionaryProps) {
           onInput={handleInput}
           onFocus={handleFocus}
         />
-        {(searchQuery || currentEntry) && (
+        {/* Cancel only while a search is running; once results are in there is nothing left to cancel. */}
+        {searchQuery && searchLoading && (
           <button
+            type="button"
             class="mobile-dictionary__search-action"
-            onClick={searchQuery ? handleCancel : handleClear}
-            title={searchQuery ? t('mobileDictionary.cancel') : t('common.close')}
+            onClick={handleCancel}
+            title={t('mobileDictionary.cancel')}
           >
-            {searchQuery ? t('mobileDictionary.cancel') : <i class="fa-solid fa-xmark" />}
+            {t('mobileDictionary.cancel')}
+          </button>
+        )}
+        {!searchQuery && currentEntry && (
+          <button
+            type="button"
+            class="mobile-dictionary__search-action"
+            onClick={handleClear}
+            aria-label={t('mobileDictionary.closeEntry', { defaultValue: 'Close entry' })}
+            title={t('mobileDictionary.closeEntry', { defaultValue: 'Close entry' })}
+          >
+            <i class="fa-solid fa-xmark" aria-hidden="true" />
           </button>
         )}
       </div>
@@ -166,7 +185,7 @@ export function MobileDictionary({ bibleProvider }: MobileDictionaryProps) {
       {!showSuggestions && currentEntry && !entryLoading && (
         <div class="mobile-dictionary__entry">
           <div class="dictionary-pane__entry-header">
-            <h3 class="dictionary-pane__entry-word">{entryLabel(currentModule, currentEntry.word, currentEntry.entry_key ?? '')}</h3>
+            <h3 class="dictionary-pane__entry-word" ref={headingRef} tabIndex={-1}>{entryLabel(currentModule, currentEntry.word, currentEntry.entry_key ?? '')}</h3>
             {currentEntry.transliteration && (
               <span class="dictionary-pane__entry-translit">{currentEntry.transliteration}</span>
             )}

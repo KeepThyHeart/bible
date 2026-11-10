@@ -24,8 +24,7 @@ import { useSessionStore } from '../stores/useSessionStore';
 import { useLayoutStore } from '../stores/useLayoutStore';
 import { useI18n } from '../contexts/useI18n';
 import { openModuleManager } from '../utils/openModuleManager';
-import { anchorAtPointer } from '@bible/core/browser';
-import { useDirection } from '@bible/ui';
+import PointerMenu from './shared/PointerMenu';
 import { popOutModuleToWindow } from '../utils/popOutModule';
 
 interface CommentaryPaneProps {
@@ -109,6 +108,8 @@ const CommentaryPane: React.FC<CommentaryPaneProps> = (props) => {
     errorByTab,
     entrySummariesByTab,
     loadingSummariesByTab,
+    unavailableByTab,
+    summariesFailedByTab,
     loadAvailableCommentaries,
     openCommentary,
     closeCommentary,
@@ -268,7 +269,6 @@ const CommentaryPane: React.FC<CommentaryPaneProps> = (props) => {
 
   // Context menu for internal commentary tabs (right-click -> "Pop Out to Window")
   const [tabContextMenu, setTabContextMenu] = useState<{ x: number; y: number; abbreviation: string; tabIndex: number } | null>(null);
-  const uiDir = useDirection();
 
   // Close tab context menu on outside click or Escape
   const dismissTabContextMenu = useCallback(() => setTabContextMenu(null), []);
@@ -413,6 +413,11 @@ const CommentaryPane: React.FC<CommentaryPaneProps> = (props) => {
   const error = activeTab ? errorByTab.get(activeTab.abbreviation) || null : null;
   const entrySummaries = activeTab ? entrySummariesByTab.get(activeTab.abbreviation) || [] : [];
   const loadingSummaries = activeTab ? loadingSummariesByTab.get(activeTab.abbreviation) || false : false;
+  // Module file gone (or module not installed): show the "missing" state and
+  // never auto-refetch. A summary fetch that failed for another reason also
+  // stops auto-refetching until the reader presses Retry.
+  const tabUnavailable = activeTab ? unavailableByTab.get(activeTab.abbreviation) ?? null : null;
+  const summariesFailed = activeTab ? summariesFailedByTab.get(activeTab.abbreviation) || false : false;
 
   // Task #10: When a commentary has no entry for the current verse, lazily load
   // its entry summaries so the empty-verse fallback grid can render.
@@ -423,11 +428,12 @@ const CommentaryPane: React.FC<CommentaryPaneProps> = (props) => {
     if (activeEntries.length > 0) return;
     if (entrySummaries.length > 0) return;
     if (loadingSummaries) return;
+    if (tabUnavailable || summariesFailed) return;
     loadEntrySummaries(activeTab.abbreviation);
-  }, [overviewActive, activeTab, activeEntries.length, entrySummaries.length, isLoading, loadingSummaries, loadEntrySummaries]);
+  }, [overviewActive, activeTab, activeEntries.length, entrySummaries.length, isLoading, loadingSummaries, tabUnavailable, summariesFailed, loadEntrySummaries]);
 
   const handleShowTreeView = () => {
-    if (activeTab && entrySummaries.length === 0 && !loadingSummaries) {
+    if (activeTab && entrySummaries.length === 0 && !loadingSummaries && !tabUnavailable && !summariesFailed) {
       loadEntrySummaries(activeTab.abbreviation);
     }
     setShowTreeView(true);
@@ -460,7 +466,21 @@ const CommentaryPane: React.FC<CommentaryPaneProps> = (props) => {
   const handleOpenFromOverview = (abbreviation: string, name: string) => {
     openCommentary(abbreviation, name);
     setOverviewActive(false);
+    // The Overview row that was clicked is about to unmount, which would drop
+    // focus to <body>. Hand it to the opened entry's heading once it renders.
+    focusHeadingPendingRef.current = true;
   };
+
+  const contentRegionRef = useRef<HTMLDivElement>(null);
+  const focusHeadingPendingRef = useRef(false);
+  useEffect(() => {
+    if (!focusHeadingPendingRef.current || overviewActive) return;
+    const heading = contentRegionRef.current?.querySelector<HTMLElement>('[data-commentary-heading]');
+    if (heading) {
+      focusHeadingPendingRef.current = false;
+      heading.focus();
+    }
+  }, [overviewActive, activeTab, activeEntries.length, isLoading, error]);
 
   // Handle syncing when pinned to a different verse
   const handleSyncFromPin = () => {
@@ -486,17 +506,24 @@ const CommentaryPane: React.FC<CommentaryPaneProps> = (props) => {
   // nothing. The prefix is scoped by panelId because several commentary panes
   // can be open in one document, and ids must stay unique across them.
   const tabIdPrefix = `commentary-${panelId}`;
-  // Only a commentary tab owns a tabpanel: the Overview tab is rendered as
-  // `prefixContent` rather than a `role="tab"`, and with no tabs open the
-  // content region is an onboarding empty state that no tab controls.
-  const tabPanelProps: React.HTMLAttributes<HTMLDivElement> =
-    !overviewActive && activeTab
-      ? {
-          id: `${tabIdPrefix}-panel-${activeTabIndex}`,
-          role: 'tabpanel',
-          'aria-labelledby': `${tabIdPrefix}-tab-${activeTabIndex}`,
-        }
-      : {};
+  // The Overview tab (`prefixContent`, a real `role="tab"`) owns the content
+  // region while it is active; otherwise the active commentary tab does. With
+  // no tabs open and Overview off, the region is an onboarding empty state
+  // that no tab controls.
+  const overviewTabId = `${tabIdPrefix}-tab-overview`;
+  const tabPanelProps: React.HTMLAttributes<HTMLDivElement> = overviewActive
+    ? {
+        id: `${tabIdPrefix}-panel-overview`,
+        role: 'tabpanel',
+        'aria-labelledby': overviewTabId,
+      }
+    : activeTab
+    ? {
+        id: `${tabIdPrefix}-panel-${activeTabIndex}`,
+        role: 'tabpanel',
+        'aria-labelledby': `${tabIdPrefix}-tab-${activeTabIndex}`,
+      }
+    : {};
 
   const noneInstalled = availableCommentaries.length === 0;
   const emptyState = (
@@ -576,7 +603,13 @@ const CommentaryPane: React.FC<CommentaryPaneProps> = (props) => {
         )}
         wrap
         prefixContent={
-          <div
+          <button
+            type="button"
+            role="tab"
+            id={overviewTabId}
+            aria-selected={overviewActive}
+            aria-controls={overviewActive ? `${tabIdPrefix}-panel-overview` : undefined}
+            data-tabnav-skip=""
             data-testid="commentary-overview-tab"
             onClick={handleOverviewClick}
             className={`flex items-center gap-1.5 px-3 cursor-pointer transition-colors text-sm select-none flex-shrink-0 border-e border-border ${
@@ -595,7 +628,7 @@ const CommentaryPane: React.FC<CommentaryPaneProps> = (props) => {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
             </svg>
             <span className="whitespace-nowrap">{t('commentaryPane.overviewLabel')}</span>
-          </div>
+          </button>
         }
       />
 
@@ -634,6 +667,7 @@ const CommentaryPane: React.FC<CommentaryPaneProps> = (props) => {
 
       {/* Content Area */}
       <div
+        ref={contentRegionRef}
         className="flex-1 overflow-auto pane-content-commentary"
         {...tabPanelProps}
         style={{
@@ -688,10 +722,13 @@ const CommentaryPane: React.FC<CommentaryPaneProps> = (props) => {
             currentVerseId={currentVerseId}
             isLoading={isLoading}
             error={error}
+            missing={tabUnavailable !== null || availableCommentaries.find(c => c.abbreviation === activeTab?.abbreviation)?.fileMissing === true}
+            onOpenModuleManager={() => openModuleManager('commentary')}
             onNavigatePrev={handleNavigatePrevious}
             onNavigateNext={handleNavigateNext}
             onBrowseAll={handleShowTreeView}
             onRetry={() => {
+              if (activeTab) useCommentaryStore.getState().clearTabUnavailable(panelId, activeTab.abbreviation); // allow-getstate: retry click handler - imperative store call
               if (activeTab && currentVerseId) {
                 void useCommentaryStore.getState().loadCommentaryForVerse(panelId, activeTab.abbreviation, currentVerseId); // allow-getstate: retry click handler - imperative store call
               }
@@ -783,12 +820,10 @@ const CommentaryPane: React.FC<CommentaryPaneProps> = (props) => {
 
       {/* Internal tab context menu */}
       {tabContextMenu && (
-        <div
+        <PointerMenu
+          x={tabContextMenu.x}
+          y={tabContextMenu.y}
           style={{
-            position: 'fixed',
-            ...anchorAtPointer(tabContextMenu.x, 180, window.innerWidth, uiDir),
-            top: tabContextMenu.y,
-            zIndex: 10000,
             minWidth: '180px',
             backgroundColor: 'var(--theme-bg-primary)',
             border: '1px solid var(--theme-border-primary)',
@@ -809,7 +844,7 @@ const CommentaryPane: React.FC<CommentaryPaneProps> = (props) => {
               <CommentaryTabMenuItem label={t('commentaryPane.closeTab')} onClick={() => { setTabContextMenu(null); closeCommentary(tabContextMenu.abbreviation); }} />
             </>
           )}
-        </div>
+        </PointerMenu>
       )}
 
     </div>

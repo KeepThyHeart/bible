@@ -6,6 +6,17 @@ import { crossReferenceModuleLabel } from '../../utils/moduleNaming';
 import VersePreviewTooltip from '../VersePreviewTooltip';
 import { Bdi } from '@bible/ui';
 import { contentDirAttrs } from '../../utils/contentDirection';
+import { formatVerseIdRange, getBookName } from '@bible/core/browser';
+import { getBookNameFromCache } from '../../utils/verseReference';
+
+/** "Romans 8:32" for a button whose visible text is the collapsed "8:32". */
+function fullReferenceName(verseId: number, endVerseId?: number): string {
+  const name = (bookNumber: number): string => {
+    const cached = getBookNameFromCache(bookNumber);
+    return cached && cached !== 'Unknown' ? cached : getBookName(bookNumber);
+  };
+  return formatVerseIdRange(verseId, endVerseId, name);
+}
 
 /**
  * One phrase group inside a cross-reference module's row.
@@ -223,6 +234,8 @@ export const ReferenceRun: React.FC<{
             key={`ref-${segment.verseId}-${index}`}
             type="button"
             className="text-accent hover:text-accent-strong hover:underline"
+            // The visible text is collapsed ("8:32"); the name is the full reference.
+            aria-label={fullReferenceName(segment.verseId, segment.endVerseId)}
             onClick={() => onNavigateToVerse?.(segment.verseId, segment.endVerseId)}
             onMouseEnter={event => onHoverReference?.(segment.verseId, segment.endVerseId, event)}
             onMouseLeave={onLeaveReference}

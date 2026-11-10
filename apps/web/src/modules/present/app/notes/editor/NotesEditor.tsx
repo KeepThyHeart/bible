@@ -25,6 +25,8 @@ export interface NotesEditorProps {
   onShowAtCaret?: (pos: number) => void;
   /** Called once with the view (and null on unmount). */
   onReady?: (view: EditorView | null) => void;
+  /** Accessible name of the editing surface (a contenteditable has no label of its own). */
+  label?: string;
   class?: string;
 }
 
@@ -51,7 +53,13 @@ export function NotesEditor(props: NotesEditorProps) {
   useEffect(() => {
     const v = new EditorView(host.current!, {
       state: makeState(props.doc),
-      attributes: { class: 'notes-editor__content', spellcheck: 'true' },
+      attributes: () => ({
+        class: 'notes-editor__content',
+        spellcheck: 'true',
+        role: 'textbox',
+        'aria-multiline': 'true',
+        ...(propsRef.current.label ? { 'aria-label': propsRef.current.label } : {}),
+      }),
       dispatchTransaction(tr) {
         const next = v.state.apply(tr);
         v.updateState(next);

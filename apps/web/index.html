@@ -241,7 +241,11 @@
       var HEAL_KEY = 'br_boot_healed';
       var MAX_BOOTS = 5;        // boots allowed within the window
       var WINDOW_MS = 20000;    // rolling window
-      var PRESERVE = ['embedding-model', 'semantic-index'];
+      // W-062: must match the versioned names (embedding-model-v1, ...) of every cache
+      // flagged keepOnReset in src/sw/rules plus transformers-cache; bootGuard.test.ts
+      // checks this list against them. The unversioned names used before matched nothing.
+      var PRESERVE = ['transformers-cache', 'assets-v1', 'embedding-model-v1', 'semantic-index-v1',
+        'audio-manifests-v1', 'audio-chapters-v1', 'tts-models-v1'];
 
       var now = Date.now();
       var boots = [];
@@ -254,7 +258,23 @@
       boots.push(now);
       try { sessionStorage.setItem(LOG_KEY, JSON.stringify(boots)); } catch (e) { /* private mode */ }
 
-      if (boots.length <= MAX_BOOTS) return;
+      if (boots.length <= MAX_BOOTS) {
+        // W-062: only boots that never reach a rendered app are loop evidence. Once
+        // the app has mounted, forget the log so a human reloading a working page
+        // several times in a row is not mistaken for a crash loop.
+        var appEl = document.getElementById('app');
+        var clearLog = function() { try { sessionStorage.removeItem(LOG_KEY); } catch (e) { /* ignore */ } };
+        if (appEl) {
+          if (appEl.firstChild) clearLog();
+          else if (window.MutationObserver) {
+            var mo = new MutationObserver(function() {
+              if (appEl.firstChild) { mo.disconnect(); clearLog(); }
+            });
+            mo.observe(appEl, { childList: true });
+          }
+        }
+        return;
+      }
 
       // Tripped. Stop the app from booting again into the same wall.
       window.__bibleBootLoopTripped = true;

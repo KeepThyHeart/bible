@@ -15,5 +15,6 @@
   "genealogyPane.loading": "טוען אילן יוחסין...",
   "genealogyPane.empty": "לא מותקנים נתוני יחוס. יש להתקין מודול יחוס כדי לעיין באילנות יוחסין.",
   "genealogyPane.error": "לא ניתן היה לטעון את אילן היוחסין.",
-  "genealogyPane.retry": "נסה שוב"
+  "genealogyPane.retry": "נסה שוב",
+  "genealogyPane.openModuleManager": "פתיחת מנהל המודולים"
 }

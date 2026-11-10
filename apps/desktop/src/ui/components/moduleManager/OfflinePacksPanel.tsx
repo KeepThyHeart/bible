@@ -1,5 +1,8 @@
 /**
- * "Offline packs" tab of the Module Manager (task 0075): the shared `PackBuilder` wired to the desktop
+ * "Collections" tab of the Module Manager (task 0075; labelled "Bundles" before): install a set of
+ * modules in one step. A collection is a catalog starter pack (e.g. "Essentials") - a named LIST of
+ * catalog module ids, not a file of its own; choosing one ticks its modules in the list below, and
+ * the user can add or remove any before installing. This is the shared `PackBuilder` wired to the desktop
  * module store. Selection lives in component state (nothing is persisted), `planPack` re-runs on every
  * change, and Start runs a `PackRun` through the existing module install path.
  *
@@ -90,6 +93,7 @@ export function OfflinePacksPanel({ source: sourceProp, installers: installersPr
   const [freeBytes, setFreeBytes] = useState<number | null>(null);
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
   const [snapshot, setSnapshot] = useState<PackRunSnapshot | undefined>(() => getCurrentPackRun()?.getSnapshot());
+  const [appliedPreset, setAppliedPreset] = useState<{ id: string; status: string } | null>(null);
 
   // Re-attach to a run started before this mount; unsubscribe (never cancel) on unmount.
   useEffect(() => {
@@ -99,13 +103,24 @@ export function OfflinePacksPanel({ source: sourceProp, installers: installersPr
     return run.subscribe(() => setSnapshot(run.getSnapshot()));
   }, []);
 
+  // Collections only change with the catalog, so they load once per source - not on every download
+  // poll, which re-runs the effect below twice a second while anything is installing.
+  useEffect(() => {
+    let live = true;
+    void source.listPresets().then((p) => {
+      if (live) setPresets(p);
+    });
+    return () => {
+      live = false;
+    };
+  }, [source]);
+
   // Reload when the source changes or the store's catalog, installed set or downloads change.
   useEffect(() => {
     let live = true;
-    void Promise.all([source.listOffers(), source.listPresets(), source.freeBytes()]).then(([o, p, f]) => {
+    void Promise.all([source.listOffers(), source.freeBytes()]).then(([o, f]) => {
       if (!live) return;
       setOffers(o);
-      setPresets(p);
       setFreeBytes(f);
     });
     return () => {
@@ -177,18 +192,42 @@ export function OfflinePacksPanel({ source: sourceProp, installers: installersPr
     });
   }, []);
 
+  // Choosing a collection ticks its modules. Its modules may all be installed already, or may sit far
+  // down a long list, so say what happened right under the chips - otherwise the click looks like it
+  // did nothing.
   const onPreset = useCallback(
     (id: string) => {
       const preset = presets.find((p) => p.id === id);
       if (!preset) return;
-      const known = new Set(offers.map((o) => o.key));
+      const byKey = new Map(offers.map((o) => [o.key, o]));
+      const keys = [...new Set(preset.items.map((ref) => packKey(ref)))].filter((k) => byKey.has(k));
+      const installedCount = keys.filter((k) => byKey.get(k)?.status === 'installed').length;
+      const toInstall = keys.length - installedCount;
       setSelected((prev) => {
         const next = new Set(prev);
-        for (const ref of preset.items) if (known.has(packKey(ref))) next.add(packKey(ref));
+        for (const k of keys) next.add(k);
         return next;
       });
+      const name = preset.name;
+      const status =
+        keys.length === 0
+          ? td(
+              'moduleManager.packs.presetUnavailable',
+              'None of the modules in {name} are in your catalogs yet. Refresh the catalog on one of the module tabs, then try again.',
+              { name },
+            )
+          : toInstall === 0
+            ? td('moduleManager.packs.presetAllInstalled', 'You already have everything in {name}.', { name })
+            : installedCount === 0
+              ? td('moduleManager.packs.presetSelected', '{name}: {count} modules selected to install.', { name, count: toInstall })
+              : td(
+                  'moduleManager.packs.presetSelectedSomeInstalled',
+                  '{name}: {count} modules selected to install; you already have the other {installed}.',
+                  { name, count: toInstall, installed: installedCount },
+                );
+      setAppliedPreset({ id, status });
     },
-    [presets, offers],
+    [presets, offers, td],
   );
 
   const onStart = useCallback(() => {
@@ -206,8 +245,8 @@ export function OfflinePacksPanel({ source: sourceProp, installers: installersPr
   const onCancel = useCallback(() => getCurrentPackRun()?.cancel(), []);
 
   const labels: PackBuilderLabels = {
-    title: td('moduleManager.packs.title', 'Install bundles'),
-    presetsHeading: td('moduleManager.packs.presetsHeading', 'Start from'),
+    title: td('moduleManager.packs.title', 'Install a collection of modules'),
+    presetsHeading: td('moduleManager.packs.presetsHeading', 'Choose a collection'),
     groupsHeading: td('moduleManager.packs.groupsHeading', 'Content'),
     empty: td('moduleManager.packs.empty', 'No modules are available. Refresh the catalog first.'),
     statusAbsent: td('moduleManager.packs.statusAbsent', 'Not installed'),
@@ -237,12 +276,23 @@ export function OfflinePacksPanel({ source: sourceProp, installers: installersPr
   };
 
   return (
-    <div className="module-manager-packs">
+    // Same p-6 inset as the Feature packs and Sources panels, so the checkboxes do not touch the edge.
+    <div className="module-manager-packs p-6" data-testid="module-manager-packs-panel">
       <PackBuilder
         groups={GROUP_DEFAULTS.map((g) => ({ id: g.id, label: td(g.key, g.fallback) }))}
         rows={rows}
-        presets={presets.map((p) => ({ id: p.id, label: p.name }))}
+        notice={td(
+          'moduleManager.packs.description',
+          'A collection is a ready-made set of modules. Choose one to select its modules, add or remove any you like, then install them all in one step. Modules you already have are left as they are.',
+        )}
+        presets={presets.map((p) => {
+          const chip: { id: string; label: string; description?: string } = { id: p.id, label: p.name };
+          if (p.description) chip.description = p.description;
+          return chip;
+        })}
         onPreset={onPreset}
+        activePresetId={appliedPreset?.id}
+        presetStatus={appliedPreset?.status}
         onToggle={onToggle}
         summary={{
           downloadBytes: plan.downloadBytes,

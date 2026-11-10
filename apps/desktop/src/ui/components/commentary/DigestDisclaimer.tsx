@@ -2,6 +2,7 @@ import React, { useCallback, useSyncExternalStore } from 'react';
 import { useI18n } from '../../contexts/useI18n';
 import { MODULE_PROVENANCE_TEXT } from '../../moduleDescriptions';
 import { useModuleProvenance } from './useModuleProvenance';
+import { studyScaled } from '../../utils/studyScale';
 
 // ---------------------------------------------------------------------------
 // Session-scoped collapse state
@@ -93,7 +94,8 @@ const DigestDisclaimer: React.FC<DigestDisclaimerProps> = ({
         aria-expanded={false}
         title={t('moduleDisclaimer.expandTitle')}
         onClick={() => setCollapsed(moduleAbbreviation, false)}
-        className={`inline-flex items-center gap-1.5 rounded px-1.5 py-0.5 text-xs text-info-text hover:bg-info-soft transition-colors ${className}`}
+        className={`inline-flex items-center gap-1.5 rounded px-1.5 py-0.5 text-info-text hover:bg-info-soft transition-colors ${className}`}
+        style={{ fontSize: studyScaled(12) }}
       >
         <InfoIcon />
         <span>{label}</span>
@@ -107,7 +109,8 @@ const DigestDisclaimer: React.FC<DigestDisclaimerProps> = ({
       id={id}
       aria-label={regionLabel}
       data-testid="module-disclaimer"
-      className={`flex items-start gap-2 rounded border-s-2 border-info-border bg-info-soft px-3 py-2 text-xs ${className}`}
+      className={`flex items-start gap-2 rounded border-s-2 border-info-border bg-info-soft px-3 py-2 ${className}`}
+      style={{ fontSize: studyScaled(12) }}
     >
       <span className="mt-0.5 flex-shrink-0 text-info-text">
         <InfoIcon />

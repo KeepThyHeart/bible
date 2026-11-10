@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { searchStore, searchResultId } from '../../stores/searchStore';
+import { SEMANTIC_LOAD_MORE_STEP, SEMANTIC_MAX_RESULTS, STRONGS_LOAD_MORE_STEP } from '../../stores/searchPaging';
 import { commentaryStore } from '../../stores/commentaryStore';
 import { bibleStore } from '../../stores/bibleStore';
 import { offlineStore } from '../../stores/offlineStore';
@@ -50,6 +51,7 @@ export function SearchResultsPanel({ onNavigate, onOpenStrongsEntry }: SearchRes
   const totalResults = useStore(searchStore, () => searchStore.totalResults);
   const searchType = useStore(searchStore, () => searchStore.searchType);
   const searchedModule = useStore(searchStore, () => searchStore.searchedModule);
+  const searchedModules = useStore(searchStore, () => searchStore.searchedModules);
   const semanticMeta = useStore(searchStore, () => searchStore.semanticMeta);
   const keywordMatchCount = useStore(searchStore, () => searchStore.keywordMatchCount);
   const canLoadMore = useStore(searchStore, () => searchStore.canLoadMore);
@@ -69,16 +71,30 @@ export function SearchResultsPanel({ onNavigate, onOpenStrongsEntry }: SearchRes
   const groupedCounts = useStore(searchStore, () => searchStore.groupedCounts);
   const strongsRemaining = useStore(searchStore, () => searchStore.strongsRemaining);
   const bookCounts = useStore(searchStore, () => searchStore.bookCounts);
+  const searchError = useStore(searchStore, () => searchStore.searchError);
+  const strongsTotalAvailable = useStore(searchStore, () => searchStore.strongsTotalAvailable);
+  const resultCount = useStore(searchStore, () => searchStore.results.length);
   const keywordRemaining = useStore(searchStore, () => searchStore.keywordRemaining);
   const lastClickedId = useStore(searchStore, () => searchStore.lastClickedId);
   const resultsTruncated = useStore(searchStore, () => searchStore.resultsTruncated);
   const isOnline = useStore(offlineStore, () => offlineStore.isOnline);
+  // What one click of "Show more" adds: Strong's loads up to 1,000 of the remainder,
+  // Ideas grows by a bounded step up to the server's cap.
+  const moreCount = strongsMode
+    ? Math.min(STRONGS_LOAD_MORE_STEP, strongsRemaining)
+    : Math.min(SEMANTIC_LOAD_MORE_STEP, Math.max(0, SEMANTIC_MAX_RESULTS - resultCount));
+
+  const queryRejected = !!searchError && results.length === 0;
+  // Ideas could not run at all: that is not "0 results", so no count and no "No results found".
+  const ideasFailed = searchType === 'semantic' && ideasUnavailableShown && results.length === 0;
 
   // Announce the outcome of each search to screen readers.
   useEffect(() => {
     if (loading || !query) return;
+    // W-063: a rejected query is announced by its own role="alert"; "No results found." would be wrong.
+    if (queryRejected || ideasFailed) return;
     announce(results.length === 0 ? t('search.noResults') : t('search.results', { count: totalResults || results.length }));
-  }, [loading, query, results.length === 0, totalResults]);
+  }, [loading, query, results.length === 0, totalResults, queryRejected, ideasFailed]);
   // Offline with nothing found means the search could not run, not that it found 0.
   // While a search runs, the previous count (or an empty "0") is not an answer yet (B-184).
   const showCount = !loading && (isOnline || totalResults > 0);
@@ -103,15 +119,43 @@ export function SearchResultsPanel({ onNavigate, onOpenStrongsEntry }: SearchRes
   const headlineCount = approximateCount > 0
     ? t('search.resultsWithApproximate', { count: Math.max(0, totalResults - approximateCount), approximate: approximateCount })
     : t('search.results', { count: totalResults });
+  // W-052: in Strong's mode `totalResults` is the page size. Use the true occurrence count when the
+  // server gave one; otherwise, while more can be loaded, show no count rather than a wrong one.
+  const strongsCount = strongsTotalAvailable > 0 ? strongsTotalAvailable : totalResults;
+  const strongsHeadline = t('search.results', { count: strongsCount });
+  const showStrongsCount = showCount && (strongsTotalAvailable > 0 || !canLoadMore);
+  // W-053: a phrase search is typed with its own quotes; do not wrap them in a second pair.
+  const quotedByUser = query.length > 1 && query.startsWith('"') && query.endsWith('"');
   const [mobileQuery, setMobileQuery] = useState('');
   const mobileInputRef = useRef<HTMLInputElement>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
+
+  // A search started elsewhere (an interlinear word, a Strong's link) lands here with the store's
+  // query: show it in the box instead of leaving the box empty under a headline that names it.
+  useEffect(() => {
+    if (query && query !== mobileQuery) setMobileQuery(query);
+  }, [query]);
+
+  // searchStore.clear() (this panel's Close search, the header's Clear) empties the box too, and
+  // Close search unmounts the button that held focus, so the field is where focus lands.
+  const clearSeq = useStore(searchStore, () => searchStore.clearSeq ?? 0);
+  const seenClearSeq = useRef(clearSeq);
+  useEffect(() => {
+    if (clearSeq === seenClearSeq.current) return;
+    seenClearSeq.current = clearSeq;
+    setMobileQuery('');
+    mobileInputRef.current?.focus({ preventScroll: true });
+  }, [clearSeq]);
 
   // Auto-focus mobile search input when panel mounts — but only on desktop
   // (on mobile, auto-focus opens the keyboard which is jarring)
   useEffect(() => {
     if (window.innerWidth > 768) {
-      const timer = setTimeout(() => mobileInputRef.current?.focus(), 100);
+      // Only if nothing moved focus in the meantime (a fast click on a row or "Load all").
+      const before = document.activeElement;
+      const timer = setTimeout(() => {
+        if (document.activeElement === before) mobileInputRef.current?.focus();
+      }, 100);
       return () => clearTimeout(timer);
     }
     return undefined;
@@ -190,8 +234,24 @@ export function SearchResultsPanel({ onNavigate, onOpenStrongsEntry }: SearchRes
     onNavigate?.();
   };
 
+  // "Load all" removes its own button once the rest arrives, which would drop focus to <body>:
+  // hand it to the first row that was not there before.
+  const loadAllThenFocus = async (load: () => Promise<void>) => {
+    const before = resultsRef.current?.querySelectorAll('[data-result-id]').length ?? 0;
+    await load();
+    requestAnimationFrame(() => {
+      const rows = resultsRef.current?.querySelectorAll<HTMLElement>('[data-result-id]');
+      if (!rows || rows.length === 0) return;
+      const active = document.activeElement;
+      if (active && active !== document.body && resultsRef.current?.contains(active) && !(active as HTMLElement).matches?.('.search-panel-inline__load-more-btn')) return;
+      (rows[before] ?? rows[rows.length - 1]).focus({ preventScroll: false });
+    });
+  };
+
   const handleClose = () => {
-    searchStore.close();
+    // clear(), not close(): the header box must not keep the query of a search that is gone
+    // (it also refocuses the header field, since this button unmounts with the panel header).
+    searchStore.clear();
     commentaryStore.setRightPaneMode('commentary');
   };
 
@@ -205,7 +265,8 @@ export function SearchResultsPanel({ onNavigate, onOpenStrongsEntry }: SearchRes
     const activeModule = bibleStore.getActiveTab()?.moduleAbbr;
     const modules = activeModule ? [activeModule] : undefined;
     searchStore.performSearch(trimmed, undefined, modules);
-    mobileInputRef.current?.blur();
+    // W-039: blur only to dismiss a phone's soft keyboard; on desktop it dropped focus to <body>.
+    if (window.innerWidth <= 768) mobileInputRef.current?.blur();
   };
 
   // Fuzzy rows are partitioned out here rather than trusted to arrive last.
@@ -236,6 +297,12 @@ export function SearchResultsPanel({ onNavigate, onOpenStrongsEntry }: SearchRes
     );
   };
 
+  // The results stay when the reader switches translation (B-005): name the one they were run in.
+  const activeModuleAbbr = tabs.find((tab) => tab.id === activeTabId)?.moduleAbbr;
+  const translationNote = !strongsMode && searchedModules.length > 0 && activeModuleAbbr && !searchedModules.includes(activeModuleAbbr)
+    ? t('search.resultsFrom', { modules: searchedModules.join(', ') })
+    : null;
+
   return (
     <div class="search-panel-inline">
       {/* Mobile search bar — hidden on desktop via CSS */}
@@ -261,6 +328,7 @@ export function SearchResultsPanel({ onNavigate, onOpenStrongsEntry }: SearchRes
           <button
             type="button"
             class={`search-panel-inline__type-btn ${searchType === 'keyword' ? 'search-panel-inline__type-btn--active' : ''}`}
+            aria-pressed={searchType === 'keyword'}
             onClick={() => searchStore.setSearchType('keyword')}
           >
             <i class="fa-solid fa-magnifying-glass" /> {t('search.keyword')}
@@ -268,6 +336,7 @@ export function SearchResultsPanel({ onNavigate, onOpenStrongsEntry }: SearchRes
           <button
             type="button"
             class={`search-panel-inline__type-btn ${searchType === 'semantic' ? 'search-panel-inline__type-btn--active' : ''}`}
+            aria-pressed={searchType === 'semantic'}
             onClick={() => {
               searchStore.setSearchType('semantic');
               searchStore.warmupSemanticSearch().catch(() => {});
@@ -285,20 +354,25 @@ export function SearchResultsPanel({ onNavigate, onOpenStrongsEntry }: SearchRes
 
       {query && (
         <div class="search-panel-inline__header">
-          <span class="search-panel-inline__title">
+          {/* W-045: a long unbroken query wraps instead of pushing the close button off-screen. */}
+          <span class="search-panel-inline__title" style={{ minWidth: 0, overflowWrap: 'anywhere' }}>
             {strongsMode ? (
               <>
                 <i class="fa-solid fa-language" style={{ opacity: 0.5, marginInlineEnd: '6px', fontSize: '0.85em' }} />
-                {query}{showCount && <> ({headlineCount})</>}
+                {query}{showStrongsCount && <> ({strongsHeadline})</>}
               </>
             ) : (
               <>
                 <i class={`fa-solid ${searchType === 'semantic' ? 'fa-lightbulb' : 'fa-magnifying-glass'}`} style={{ opacity: 0.5, marginInlineEnd: '6px', fontSize: '0.85em' }} />
-                "{query}"{showCount && <> ({headlineCount})</>}
+                {/* W-063: a rejected query is shown once, as typed, with no count. */}
+                {queryRejected ? query : quotedByUser ? query : `"${query}"`}{showCount && !queryRejected && !ideasFailed && <> ({headlineCount})</>}
               </>
             )}
           </span>
-          <button class="search-panel-inline__close" onClick={handleClose} title={t('search.closeSearch')}>
+          {translationNote && (
+            <span class="search-panel-inline__translation-note" data-testid="search-results-translation-note">{translationNote}</span>
+          )}
+          <button class="search-panel-inline__close" style={{ flexShrink: 0 }} onClick={handleClose} title={t('search.closeSearch')}>
             <i class="fa-solid fa-xmark" />
           </button>
         </div>
@@ -399,7 +473,18 @@ export function SearchResultsPanel({ onNavigate, onOpenStrongsEntry }: SearchRes
             {t('search.enterSearchTerm')}
           </div>
         )}
-        {!loading && query && results.length === 0 && !isOnline && (
+        {!loading && query && ideasFailed && (
+          <div class="search-panel-inline__empty" role="status" data-testid="ideas-unavailable">
+            {t('semanticSearchLoadingOverlay.unavailable')}
+          </div>
+        )}
+        {/* W-035: the server rejected the query (unmatched quote or parenthesis); say so, as text. */}
+        {!loading && query && results.length === 0 && searchError && (
+          <div class="search-panel-inline__empty" role="alert" data-testid="search-query-error">
+            {searchError}
+          </div>
+        )}
+        {!loading && query && results.length === 0 && !isOnline && !searchError && (
           <div class="search-panel-inline__empty">
             <span>{t('search.offlineNotice')}</span>
           </div>
@@ -409,7 +494,7 @@ export function SearchResultsPanel({ onNavigate, onOpenStrongsEntry }: SearchRes
             {t('search.slashDesktopOnly')}
           </div>
         )}
-        {!loading && query && results.length === 0 && isOnline && !isSlashCommandQuery(query) && !(searchType === 'semantic' && ideasUnavailableShown) && (
+        {!loading && query && results.length === 0 && isOnline && !searchError && !isSlashCommandQuery(query) && !(searchType === 'semantic' && ideasUnavailableShown) && (
           <div class="search-panel-inline__empty">
             {searchType === 'keyword' && searchedModule ? (
               <div class="search-panel-inline__no-results">
@@ -472,7 +557,9 @@ export function SearchResultsPanel({ onNavigate, onOpenStrongsEntry }: SearchRes
             // is told nothing rather than told zero — it counts its own rows then.
             bookCounts={Object.keys(bookCounts).length > 0 ? bookCounts : undefined}
             mode={distributionMode}
-            truncated={resultsTruncated}
+            // Strong's paging has no server-side per-book counts: while rows remain to load the bars
+            // count only the loaded page (U-040), so the caption says so, as for a capped keyword search.
+            truncated={resultsTruncated || (strongsMode && strongsRemaining > 0)}
             onSelectBook={selectBook}
           />
         )}
@@ -496,7 +583,7 @@ export function SearchResultsPanel({ onNavigate, onOpenStrongsEntry }: SearchRes
               class="search-panel-inline__load-more-btn"
               data-testid="keyword-load-all"
               disabled={loadingMore}
-              onClick={() => searchStore.loadAllKeyword()}
+              onClick={() => void loadAllThenFocus(() => searchStore.loadAllKeyword())}
             >
               {loadingMore ? (
                 <><i class="fa-solid fa-spinner fa-spin" style={{ marginInlineEnd: '6px' }} />{t('search.loadingMore')}</>
@@ -517,7 +604,7 @@ export function SearchResultsPanel({ onNavigate, onOpenStrongsEntry }: SearchRes
               {loadingMore ? (
                 <><i class="fa-solid fa-spinner fa-spin" style={{ marginInlineEnd: '6px' }} />{t('search.loadingMore')}</>
               ) : (
-                t('search.showMore')
+                moreCount > 0 ? t('search.showMoreCount', { count: moreCount }) : t('search.showMore')
               )}
             </button>
             {/* A Strong's number has a known, finite occurrence count, so the user
@@ -528,7 +615,7 @@ export function SearchResultsPanel({ onNavigate, onOpenStrongsEntry }: SearchRes
                 class="search-panel-inline__load-more-btn"
                 style={{ marginInlineStart: '8px' }}
                 disabled={loadingMore}
-                onClick={() => searchStore.loadAllStrongs()}
+                onClick={() => void loadAllThenFocus(() => searchStore.loadAllStrongs())}
               >
                 {t('search.loadAll', { count: strongsRemaining })}
               </button>

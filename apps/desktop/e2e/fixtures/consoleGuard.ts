@@ -33,6 +33,14 @@ export const ALLOWED_CONSOLE_MESSAGES: readonly AllowedConsoleMessage[] = [
     pattern: /Electron Security Warning \(Insecure Content-Security-Policy\)/i,
     reason: 'The app own CSP allows unsafe-eval in unpackaged builds (needed by the dev renderer); Electron warns only when unpackaged. Known debt, not fixed by this task.',
   },
+  {
+    pattern: /An iframe which has both allow-scripts and allow-same-origin for its sandbox attribute can escape its sandboxing/i,
+    reason: 'Chromium advisory about the Presenter preview frame (PresentPreview.tsx), which needs allow-same-origin for its EventSource and documents why; it is defence in depth, not a boundary, by design.',
+  },
+  {
+    pattern: /Viewport argument key "interactive-widget" not recognized and ignored/i,
+    reason: 'WebKit does not implement the interactive-widget viewport key and says so in the console; the key is meant for Chromium and the page is correct without it.',
+  },
 ];
 
 export interface ConsoleProblem {

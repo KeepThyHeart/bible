@@ -270,7 +270,12 @@ const KeyboardShortcutsDialog: React.FC<KeyboardShortcutsDialogProps> = ({ onClo
           {/* -- Content --
               The list scrolls, so it must be tab-reachable in its own right;
               without tabIndex a keyboard-only user cannot scroll it. */}
-          <div className="flex-1 overflow-y-auto px-xl py-lg" tabIndex={0}>
+          <div
+            className="flex-1 overflow-y-auto px-xl py-lg"
+            tabIndex={0}
+            role="region"
+            aria-label={t('ui.keyboardShortcuts.title')}
+          >
             <p className="text-sm text-text-secondary mb-lg">
               {isMac
                 ? t('ui.keyboardShortcuts.platformMac')

@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import { getVersesCached } from '../../services/verseFetchCache';
 import { useI18n } from '../../contexts/useI18n';
 import { useBibleStore } from '../../stores/useBibleStore';
 import { formatVerseReference } from '../../utils/verseReference';
+
+const stripTags = (html: string): string => html.replace(/<[^>]*>/g, '');
 
 interface CommentaryVersePreviewProps {
   verseId: number;
@@ -17,7 +20,6 @@ interface CommentaryVersePreviewProps {
  */
 const CommentaryVersePreview: React.FC<CommentaryVersePreviewProps> = ({ verseId, onNavigatePrev, onNavigateNext, isLoading }) => {
   const { t } = useI18n();
-  const [verseText, setVerseText] = useState('');
 
   // Use useBibleStore directly to get the first (primary) Bible panel's data,
   // since the actual dockview panel ID differs from DEFAULT_PANEL_ID.
@@ -26,19 +28,28 @@ const CommentaryVersePreview: React.FC<CommentaryVersePreviewProps> = ({ verseId
     return first ?? null;
   });
 
+  const activeBibleTab = primaryBiblePanel?.openTabs[primaryBiblePanel.activeTabIndex];
+  const bibleVersion = activeBibleTab?.abbreviation;
+  const loadedVerses = activeBibleTab ? primaryBiblePanel?.versesByTab.get(activeBibleTab.tabId) : undefined;
+  const loadedVerse = loadedVerses?.find(v => v.verse_id === verseId);
+  const loadedText = loadedVerse ? stripTags(loadedVerse.text_html || loadedVerse.text) : '';
+
+  // The verse is usually in the Bible pane's loaded chapter. When the commentary was
+  // opened on a verse the pane is not showing (e.g. from a search result), read it directly.
+  const [fetched, setFetched] = useState<{ verseId: number; text: string } | null>(null);
   useEffect(() => {
-    if (!primaryBiblePanel) { setVerseText(''); return; }
-    const activeBibleTab = primaryBiblePanel.openTabs[primaryBiblePanel.activeTabIndex];
-    if (activeBibleTab) {
-      const verses = primaryBiblePanel.versesByTab.get(activeBibleTab.tabId) || [];
-      const verse = verses.find(v => v.verse_id === verseId);
-      if (verse) {
-        setVerseText((verse.text_html || verse.text).replace(/<[^>]*>/g, ''));
-        return;
-      }
-    }
-    setVerseText('');
-  }, [verseId, primaryBiblePanel]);
+    if (loadedText || !bibleVersion) return;
+    let cancelled = false;
+    getVersesCached(bibleVersion, verseId, verseId)
+      .then((verses) => {
+        const v = verses.find(x => x.verse_id === verseId);
+        if (!cancelled && v) setFetched({ verseId, text: stripTags(v.text_html || v.text) });
+      })
+      .catch(() => { /* the reference alone is still a usable header */ });
+    return () => { cancelled = true; };
+  }, [verseId, loadedText, bibleVersion]);
+
+  const verseText = loadedText || (fetched?.verseId === verseId ? fetched.text : '');
 
   const verseRef = formatVerseReference(verseId);
 

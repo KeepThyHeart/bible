@@ -15,5 +15,6 @@
   "genealogyPane.loading": "در حال بارگیری شجره‌نامه...",
   "genealogyPane.empty": "هیچ داده شجره‌نامه‌ای نصب نشده است. برای کاوش شجره‌نامه‌ها یک ماژول شجره‌نامه نصب کنید.",
   "genealogyPane.error": "بارگیری شجره‌نامه ممکن نشد.",
-  "genealogyPane.retry": "تلاش دوباره"
+  "genealogyPane.retry": "تلاش دوباره",
+  "genealogyPane.openModuleManager": "باز کردن مدیر ماژول‌ها"
 }

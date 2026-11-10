@@ -47,6 +47,8 @@
   "app.reportIssue.category": "应用程序",
   "help.reportIssue": "报告问题",
   "help.reportIssue.category": "帮助",
+  "help.giveFeedback": "提供反馈",
+  "help.giveFeedback.category": "帮助",
   "module.openManager": "打开模块管理器",
   "module.openManager.category": "模块",
   "module.openManager.alias.0": "模块管理器",

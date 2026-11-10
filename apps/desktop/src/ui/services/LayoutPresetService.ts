@@ -191,6 +191,18 @@ export class LayoutPresetService implements ILayoutPresetService {
     }
   }
 
+  /**
+   * Record `presetId` as the arrangement on screen without rearranging anything.
+   * Used for the fresh default layout, which is built by hand to match the
+   * default preset's shape, so the layout menu can show it as current. The
+   * layout events its construction queued are ignored, as for `apply()`.
+   */
+  markCurrent(presetId: string): void {
+    this._applyingPreset = true;
+    queueMicrotask(() => { this._applyingPreset = false; });
+    this._currentPresetId = presetId;
+  }
+
   undo(): boolean {
     if (!this._undoSnapshot) return false;
     const api = useLayoutStore.getState().dockviewApi; // allow-getstate: service - imperative dockview access outside render

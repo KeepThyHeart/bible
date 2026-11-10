@@ -198,6 +198,16 @@ describe('BibleVerseList', () => {
   });
 
   describe('Standard mode', () => {
+    it('marks the verse\'s Select button as the context-menu opener on right-click', () => {
+      renderWithContext({ displayMode: 'standard' });
+      fireEvent.contextMenu(screen.getByTestId('verse-1'));
+      expect(handleVerseContextMenu).toHaveBeenCalled();
+      const marked = document.querySelector('[data-verse-menu-opener]');
+      expect(marked).not.toBeNull();
+      expect(marked?.tagName).toBe('BUTTON');
+      expect(marked?.hasAttribute('data-verse-select')).toBe(true);
+    });
+
     it('clicking the verse text selects the verse', () => {
       renderWithContext({ displayMode: 'standard' });
 

@@ -120,4 +120,46 @@ describe('NotesFolderBrowser context menu', () => {
     expect(screen.getByRole('menuitem', { name: 'Open' })).toBeInTheDocument();
     expect(screen.getByRole('menuitem', { name: /^(Reveal in Explorer|Reveal in Finder|Show in file manager)$/ })).toBeInTheDocument();
   });
+
+  describe('keyboard and naming', () => {
+    const VERSE_NOTE: FileEntry = {
+      name: '3.bn',
+      path: 'Verse Notes/Genesis/24/3.bn',
+      isDirectory: false,
+      modified: '2026-01-01T00:00:00.000Z',
+    };
+
+    it('takes focus on open, moves with the arrow keys and closes on Escape back onto the row', () => {
+      renderBrowser();
+      const row = screen.getByText('Romans 8').closest('button') as HTMLElement;
+      row.focus();
+      fireEvent.contextMenu(row);
+
+      const items = screen.getAllByRole('menuitem');
+      expect(items[0]).toHaveFocus();
+      fireEvent.keyDown(items[0], { key: 'ArrowDown' });
+      expect(items[1]).toHaveFocus();
+      fireEvent.keyDown(items[1], { key: 'End' });
+      expect(items[items.length - 1]).toHaveFocus();
+      fireEvent.keyDown(items[items.length - 1], { key: 'ArrowDown' });
+      expect(items[0]).toHaveFocus();
+
+      fireEvent.keyDown(items[0], { key: 'Escape' });
+      expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+      expect(row).toHaveFocus();
+    });
+
+    it('names a verse note by its full reference, not the last path segment', () => {
+      renderBrowser({
+        entries: [VERSE_NOTE],
+        currentPath: 'Verse Notes/Genesis/24',
+        isVerseNotesFolder: true,
+        verseNotesFolderPath: 'Verse Notes',
+      });
+
+      openContextMenu('Genesis 24:3');
+
+      expect(screen.getByRole('menu', { name: 'Actions for Genesis 24:3' })).toBeInTheDocument();
+    });
+  });
 });

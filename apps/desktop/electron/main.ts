@@ -57,7 +57,9 @@ import { registerStudyHandlers } from './ipc/studyHandlers';
 import { registerNetworkHandlers, initializeNetworkService } from './ipc/networkHandlers';
 import { registerUpdateHandlers, setBlocklistRefresher } from './ipc/updateHandlers';
 import { MenuBuilder, registerMenuRebuildHandler } from './menu/menuBuilder';
-import { detectAndRegisterModules } from './utils/moduleDetector';
+import { detectAndRegisterModulesAsync } from './utils/moduleDetector';
+import { runModuleScan } from './services/moduleScan';
+import { ModuleLoader } from './services/ModuleLoader';
 import { initializeMainDatabase } from './utils/initMainDatabase';
 import { windowManager } from './services/WindowManager';
 import { WindowStateService } from './services/WindowStateService';
@@ -374,6 +376,35 @@ function registerWindowHandlers(): void {
       return { success: true, windows };
     } catch (error) {
       log.error('[IPC] Error getting detached windows:', error);
+      return { success: false, error: (error as Error).message };
+    }
+  });
+
+  // Theme and font settings live in the main window's renderer. A popped-out window is its own
+  // renderer, so the main window publishes them here and every detached window follows (and asks
+  // for the latest on open: `window:get-appearance`).
+  let lastAppearance: unknown = null;
+  ipcMain.handle('window:broadcast-appearance', async (event, appearance: unknown) => {
+    if (!appearance || typeof appearance !== 'object') return { success: false, error: 'Invalid appearance' };
+    lastAppearance = appearance;
+    windowManager.sendToDetached('appearance-changed', appearance, event.sender.id);
+    return { success: true };
+  });
+  ipcMain.handle('window:get-appearance', async () => lastAppearance);
+
+  // A detached window (notes, commentary, ...) has no Bible pane: a reference clicked there opens in the
+  // main window's Bible pane, which is brought to the front.
+  ipcMain.handle('window:navigate-main-to-verse', async (_event, verseId: number, newPanel?: boolean) => {
+    try {
+      if (!Number.isInteger(verseId) || verseId <= 0) return { success: false, error: 'Invalid verse id' };
+      if (!mainWindow || mainWindow.isDestroyed()) return { success: false, error: 'No main window' };
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.show();
+      mainWindow.focus();
+      mainWindow.webContents.send('window:navigate-to-verse', verseId, newPanel === true);
+      return { success: true };
+    } catch (error) {
+      log.error('[IPC] Error navigating main window to verse:', error);
       return { success: false, error: (error as Error).message };
     }
   });
@@ -744,13 +775,12 @@ const registerAllHandlersOnce = runOnce(() => {
   registerUpdateHandlers(ipcMain);
   initializeDiagnosticsService();
   registerDiagnosticsHandlers(ipcMain);
-  // Kick off the background uploader ONLY when diagnostics is explicitly
-  // enabled (opt-IN). A stock build never contacts a diagnostics
-  // endpoint without consent. It self-schedules its first tick a few seconds
-  // after start so app boot isn't competing with an HTTP POST.
-  if (getDiagnosticsConfig()?.get().enabled) {
-    getDiagnosticsUploader()?.start();
-  }
+  // Always start the background uploader, so feedback the user submitted while
+  // offline still goes out later. It only ever sends reports the user chose to
+  // send (see the consent notes in DiagnosticsUploader.ts); a tick with
+  // nothing eligible makes no request. Its first tick is a few seconds after
+  // start so app boot isn't competing with an HTTP POST.
+  getDiagnosticsUploader()?.start();
 
   // Register window management handlers
   registerWindowHandlers();
@@ -1500,18 +1530,24 @@ app.whenReady().then(async () => {
   // (initialized above) but is not on the critical path for showing the UI.
   initializeExtensionHostInBackground();
 
-  // Detect and register modules in background (non-blocking)
-  setImmediate(() => {
-    try {
-      const result = detectAndRegisterModules();
-      log.info(`Module detection result: ${result.detected} detected, ${result.registered} new, ${result.updated} updated`);
-      if (result.errors.length > 0) {
-        log.warn(`Module detection had ${result.errors.length} errors`);
-      }
-    } catch (error) {
-      log.error('Failed to detect modules:', error);
+  // Detect and register modules in the background. The scan yields between
+  // module files so the windows stay responsive while it runs; requests that
+  // need to know what is installed wait for it (see services/moduleScan.ts).
+  void runModuleScan(detectAndRegisterModulesAsync, (result) => {
+    log.info(`Module detection result: ${result.detected} detected, ${result.registered} new, ${result.updated} updated`);
+    if (result.errors.length > 0) {
+      log.warn(`Module detection had ${result.errors.length} errors`);
     }
-
+    if (result.registeredModules.length > 0) {
+      // Forget any "not installed" a loader cached for these before the scan
+      // reached them, and tell every window its installed list is stale.
+      for (const { abbreviation } of result.registeredModules) ModuleLoader.evictEverywhere(abbreviation);
+      const moduleTypes = [...new Set(result.registeredModules.map((m) => m.moduleType))];
+      for (const win of BrowserWindow.getAllWindows()) {
+        if (!win.isDestroyed()) win.webContents.send('module:library-changed', { moduleTypes });
+      }
+    }
+  }).then(() => {
     // After detection, so newly registered modules are included. One module
     // at a time, yielding between them; search degrades to "no results" for a
     // module until its index exists.

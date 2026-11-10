@@ -158,7 +158,7 @@ test.describe('UI E2E Tests', () => {
    * `pane:show` reaches the store, or that the pane is expanded enough to see.
    */
   const menuItem = (page: Page, label: string) =>
-    page.locator('.verse-context-menu').getByRole('button', { name: label, exact: true });
+    page.locator('.verse-context-menu').getByRole('menuitem', { name: label, exact: true });
 
   test('context menu "Study" opens the Study pane', async ({ page }) => {
     const searchInput = page.locator('.header__search-field');

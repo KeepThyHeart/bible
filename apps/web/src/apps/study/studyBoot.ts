@@ -22,7 +22,7 @@ import type { ShellContext } from '../../boot/shellContext';
  * the user staring at the spinner indefinitely. navigateTo swallows its own
  * errors and sets tab.loadError, so rendering early is always safe.
  */
-export function withBootTimeout(p: Promise<void>, ms = 8000): Promise<unknown> {
+export function withBootTimeout(p: Promise<unknown>, ms = 8000): Promise<unknown> {
   return Promise.race([p, new Promise<void>(resolve => setTimeout(resolve, ms))]);
 }
 
@@ -80,8 +80,14 @@ export async function bootStudy(ctx: ShellContext): Promise<void> {
   // If the active tab already has cached verses from the session, render them
   // immediately without re-fetching -- this makes repeat visits near-instant.
   const restoredTab = bibleStore.getActiveTab();
-  if (window.location.hash) {
-    await withBootTimeout(bibleStore.navigateFromHash(window.location.hash));
+  // W-025: a hash that names nothing reachable (#top, #/KJV/99/1, #/KJV/43/0) must not
+  // suppress the saved-session restore: fall through to it, and it rewrites the bad hash.
+  // (A boot timeout resolves undefined, not false: the navigation is still running then.)
+  const hashHandled = window.location.hash
+    ? (await withBootTimeout(bibleStore.navigateFromHash(window.location.hash))) !== false
+    : false;
+  if (hashHandled) {
+    // nothing more: the hash opened its passage
   } else if (restoredTab && restoredTab.verses.length > 0) {
     // Session had cached verses -- render immediately, no fetch needed
     bibleStore.setShowHome(false);

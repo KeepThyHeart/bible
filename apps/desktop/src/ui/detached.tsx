@@ -7,6 +7,7 @@ import { bindDocumentDirection, restorePersistedLocale } from './utils/documentD
 import { DetachedWindow } from './components/DetachedWindow';
 
 import { installStripBidiOnCopy } from './utils/stripBidiOnCopy';
+import { startAppearanceFollower } from './utils/appearanceSync';
 import './styles/globals.css';
 import './styles/highlights.css';
 import './styles/extensionDecorations.css';
@@ -31,6 +32,7 @@ void new LocaleCatalogLoader(detachedServices.i18n)
 // The component itself lives in ./components/DetachedWindow so it can be
 // unit-tested - this module is bootstrap only and runs createRoot on import.
 installStripBidiOnCopy();
+startAppearanceFollower();
 
 const root = ReactDOM.createRoot(document.getElementById('detached-root')!);
 root.render(

@@ -30,6 +30,7 @@ import {
   findDuplicateRegistrations,
   normalizeRegistryPath,
   repairModuleRegistry,
+  syncRegistryUuids,
 } from '../moduleRegistryIntegrity';
 
 function sqlOver(db: DatabaseSync): ISql {
@@ -262,5 +263,73 @@ describe('repairModuleRegistry', () => {
 
     expect(result.sharedAbbreviations).toEqual(['bible:KJV']);
     expect(ids(main)).toHaveLength(2);
+  });
+});
+
+describe('syncRegistryUuids', () => {
+  const addKeywordIndex = (db: DatabaseSync) =>
+    db.exec('CREATE TABLE keyword_index (module_uuid TEXT NOT NULL, provider_id TEXT NOT NULL, state TEXT)');
+  const kwRows = (db: DatabaseSync) =>
+    (db.prepare('SELECT module_uuid FROM keyword_index').all() as { module_uuid: string }[]).map((r) => r.module_uuid);
+  const uuidOf = (db: DatabaseSync, id: number) =>
+    (db.prepare('SELECT module_uuid FROM module_metadata WHERE module_id = ?').get(id) as { module_uuid: string }).module_uuid;
+
+  it('fixes a drifted uuid in place and drops the stale keyword_index row', () => {
+    const db = createMainDb();
+    addKeywordIndex(db);
+    const id = register(db, 'bible', 'KJV', 'uuid-stale', 'modules/bible_kjv.db');
+    const keep = register(db, 'bible', 'WEB', 'uuid-web', 'modules/bible_web.db');
+    db.exec("INSERT INTO keyword_index VALUES ('uuid-stale', 'sidecar-fts5', 'ready'), ('uuid-web', 'sidecar-fts5', 'ready')");
+
+    const changed = syncRegistryUuids(sqlOver(db), (p) => (p.endsWith('kjv.db') ? 'uuid-file' : 'uuid-web'));
+
+    expect(changed).toBe(1);
+    expect(uuidOf(db, id)).toBe('uuid-file');
+    expect(uuidOf(db, keep)).toBe('uuid-web');
+    expect(kwRows(db)).toEqual(['uuid-web']);
+  });
+
+  it('leaves a matching row untouched', () => {
+    const db = createMainDb();
+    addKeywordIndex(db);
+    register(db, 'bible', 'KJV', 'same', 'modules/bible_kjv.db');
+    db.exec("INSERT INTO keyword_index VALUES ('same', 'sidecar-fts5', 'ready')");
+    expect(syncRegistryUuids(sqlOver(db), () => 'same')).toBe(0);
+    expect(kwRows(db)).toEqual(['same']);
+  });
+
+  it('leaves a row alone when another row already holds the file uuid', () => {
+    const db = createMainDb();
+    const a = register(db, 'bible', 'KJV', 'uuid-a', 'modules/bible_kjv.db');
+    register(db, 'bible', 'KJV2', 'uuid-b', 'modules/bible_kjv2.db');
+    expect(syncRegistryUuids(sqlOver(db), (p) => (p.endsWith('kjv.db') ? 'uuid-b' : 'uuid-b'))).toBe(0);
+    expect(uuidOf(db, a)).toBe('uuid-a');
+  });
+
+  it('leaves a row alone when the file cannot be read', () => {
+    const db = createMainDb();
+    const a = register(db, 'bible', 'KJV', 'uuid-a', 'modules/bible_kjv.db');
+    expect(syncRegistryUuids(sqlOver(db), () => undefined)).toBe(0);
+    expect(syncRegistryUuids(sqlOver(db), () => { throw new Error('boom'); })).toBe(0);
+    expect(uuidOf(db, a)).toBe('uuid-a');
+  });
+
+  it('tolerates a main.db without a keyword_index table', () => {
+    const db = createMainDb();
+    const a = register(db, 'bible', 'KJV', 'uuid-a', 'modules/bible_kjv.db');
+    expect(syncRegistryUuids(sqlOver(db), () => 'uuid-new')).toBe(1);
+    expect(uuidOf(db, a)).toBe('uuid-new');
+  });
+
+  it('runs as part of repairModuleRegistry and is counted in the result', async () => {
+    const main = createMainDb();
+    const user = createUserDb();
+    register(main, 'bible', 'KJV', 'uuid-a', 'modules/bible_kjv.db');
+    const result = await repairModuleRegistry(sqlOver(main), {
+      readFileUuid: () => 'uuid-new',
+      getUserDb: async () => sqlOver(user),
+      caseInsensitivePaths: false,
+    });
+    expect(result.uuidsSynced).toBe(1);
   });
 });

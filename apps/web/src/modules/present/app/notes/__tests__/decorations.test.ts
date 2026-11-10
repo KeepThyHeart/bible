@@ -67,3 +67,36 @@ describe('play item matching', () => {
     expect(findPlayItemId([a, b], null, 'a')).toBeNull();
   });
 });
+
+// 0209 R2 W7 items 1 and 8: each ▶ marker is told apart by its item, and the gutter copy is not an extra control.
+describe('play markers', () => {
+  it('names each ▶ widget after its item and hides the gutter marker from keyboard and AT', async () => {
+    const { EditorState } = await import('prosemirror-state');
+    const { EditorView } = await import('prosemirror-view');
+    const { docFromJSON } = await import('../editor/schema');
+    const { createDecorationPlugins, notesDecoKey } = await import('../decorations');
+    const plugins = createDecorationPlugins({
+      translate: (k) => k,
+      onPlay: () => {},
+      onItemClick: () => {},
+      onHighlightClick: () => {},
+      playTitle: (label) => (label ? `Show ${label} again` : 'Show this again'),
+    });
+    const doc = docFromJSON({ type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'John 3:16' }] }] } as never);
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    const view = new EditorView(host, { state: EditorState.create({ doc, plugins }) });
+    const detection = {
+      items: [{ id: 'i1', kind: 'passage', status: 'ok', source: 'detected', label: 'John 3:16', blockPos: 0, from: 0, to: 9, item: { kind: 'passage', module: 'KJV', book: 43, chapter: 3 } }],
+      highlights: [],
+    } as never;
+    view.dispatch(view.state.tr.setMeta(notesDecoKey, { detection, playItemId: 'i1' }));
+    const widget = host.querySelector('.pn-play')!;
+    expect(widget.getAttribute('aria-label')).toBe('Show John 3:16 again');
+    const gutter = host.querySelector('.pn-gutter')!;
+    expect(gutter.getAttribute('aria-hidden')).toBe('true');
+    expect(gutter.querySelector('button')!.tabIndex).toBe(-1);
+    view.destroy();
+    host.remove();
+  });
+});

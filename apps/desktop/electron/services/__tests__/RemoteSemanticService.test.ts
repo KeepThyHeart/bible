@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, it, expect, vi } from 'vitest';
-import { mkdtempSync } from 'fs';
+import { mkdtempSync, rmSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import { RemoteSemantic } from '@bible/core';
@@ -55,13 +55,21 @@ describe('RemoteSemanticService consent', () => {
     expect(store.value).toBeUndefined();
   });
 
+  it("declining moves the source offline; agreeing later moves it back online", () => {
+    const { service } = make();
+    expect(service.setConsent('declined').source).toBe('offline');
+    expect(service.setConsent('granted')).toMatchObject({ consent: 'granted', source: 'online' });
+  });
+
   it('an older notice version counts as unset', () => {
     const store = memStore(RemoteSemantic.makeConsentRecord('granted', new Date(), RemoteSemantic.REMOTE_SEMANTIC_NOTICE_VERSION - 1));
     expect(make({ store }).service.getStatus().consent).toBe('unset');
   });
 
   it('persists to a JSON file under the key remoteSemantic.consent', () => {
-    const file = join(mkdtempSync(join(tmpdir(), 'rs-')), 'sub', 'remote-semantic.json');
+    const dir = mkdtempSync(join(tmpdir(), 'rs-'));
+    try {
+    const file = join(dir, 'sub', 'remote-semantic.json');
     const a = new RemoteSemanticService({ url: 'https://x.example', apiKey: '', store: new JsonFileConsentStore(file) });
     expect(a.getStatus().consent).toBe('unset');
     a.setConsent('granted');
@@ -69,6 +77,9 @@ describe('RemoteSemanticService consent', () => {
     expect(b.getStatus().consent).toBe('granted');
     b.setConsent('reset');
     expect(a.getStatus().consent).toBe('unset');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   it('is not configured without a url', () => {

@@ -1,7 +1,7 @@
 // Bundled and run by generate-beta1-profile.mjs against the extracted 0.1.0-beta.1
 // sources. Everything imported below is BETA.1's own code, not the working tree's.
 import Database from 'better-sqlite3';
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { unzipSync } from 'fflate';
@@ -98,3 +98,4 @@ if (manifestKey) {
 }
 console.log(JSON.stringify({ userVersion, dataTables, zipEntries: Object.keys(entries) }, null, 2));
 db.close();
+rmSync(work, { recursive: true, force: true });

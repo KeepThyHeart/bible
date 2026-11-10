@@ -4,6 +4,7 @@ import { offlineStore } from '../../stores/offlineStore';
 import { commentaryStore } from '../../stores/commentaryStore';
 import { bibleStore } from '../../stores/bibleStore';
 import { moduleStore, getCommentaryPopularity } from '../../stores/moduleStore';
+import { getLocalizedBookName } from '../../utils/bookNames';
 import { useStore } from '../../hooks/useStore';
 import { useLocalizer } from '../../hooks/useLocalizer';
 import { useVersePopup } from '../../hooks/useVersePopup';
@@ -154,7 +155,7 @@ export function CommentaryHome({ bibleProvider }: CommentaryHomeProps) {
     );
   }
 
-  const bookName = moduleStore.getBookName(syncedBook) || `Book ${syncedBook}`;
+  const bookName = getLocalizedBookName(syncedBook);
   const verseNum = highlightedVerse
     ? highlightedVerse - (syncedBook * 1000000) - (syncedChapter * 1000)
     : null;
@@ -186,6 +187,19 @@ export function CommentaryHome({ bibleProvider }: CommentaryHomeProps) {
   const [sortMode, setSortMode] = useState<SortMode>(loadSortPreference);
   const [sortOpen, setSortOpen] = useState(false);
   const sortRef = useRef<HTMLDivElement>(null);
+
+  // Starring re-sorts the list, so the star button remounts: put focus back on the same item's star.
+  const rootRef = useRef<HTMLDivElement>(null);
+  const [starFocus, setStarFocus] = useState<{ abbr: string; n: number } | null>(null);
+  const toggleStar = (abbr: string) => {
+    commentaryStore.togglePromoted(abbr);
+    setStarFocus({ abbr, n: Date.now() });
+  };
+  useEffect(() => {
+    if (!starFocus) return;
+    Array.from(rootRef.current?.querySelectorAll<HTMLElement>('[data-star-module]') ?? [])
+      .find(el => el.dataset.starModule === starFocus.abbr)?.focus({ preventScroll: true });
+  }, [starFocus]);
 
   // Stable random order: assign each module a random key, regenerated on data/sort change
   const randomOrderRef = useRef<Map<string, number>>(new Map());
@@ -299,7 +313,7 @@ export function CommentaryHome({ bibleProvider }: CommentaryHomeProps) {
     } else if (e.key === 'ArrowDown') {
       e.preventDefault();
       const firstItem = (filterRef.current?.closest('.commentary-home') as HTMLElement)
-        ?.querySelector('.commentary-home__list-item') as HTMLElement;
+        ?.querySelector('.commentary-home__item-module') as HTMLElement;
       firstItem?.focus();
     }
   };
@@ -410,12 +424,26 @@ export function CommentaryHome({ bibleProvider }: CommentaryHomeProps) {
         >
           <div class="commentary-home__item-row">
             <i class={`fa-solid ${isExpanded ? 'fa-chevron-down' : 'fa-chevron-right kth-rtl-mirror'} fa-xs commentary-home__item-chevron`} />
-            <span class="commentary-home__item-module">{isDigestModule(mod.moduleAbbr) ? getDigestDisplayName() : mod.moduleAbbr}</span>
+            {/* The card's keyboard/AT activation: a real button holding only the name. The whole card
+                is still clickable by mouse, and the star below is its sibling, not inside it. */}
+            <button
+              type="button"
+              class="commentary-home__item-module plain-btn plain-btn--text"
+              aria-expanded={isExpanded}
+              onClick={(e: MouseEvent) => {
+                e.stopPropagation();
+                handleToggleExpand(mod, e);
+              }}
+            >{isDigestModule(mod.moduleAbbr) ? getDigestDisplayName() : mod.moduleAbbr}</button>
             {showBar && <div class="commentary-home__item-bar-track"><div class="commentary-home__item-bar" style={{ width: `${barPct}%` }} /></div>}
-            <i
-              class={`fa-${isPromoted ? 'solid' : 'regular'} fa-star fa-xs commentary-home__item-star ${isPromoted ? 'commentary-home__item-star--active' : ''}`}
+            <button
+              type="button"
+              class={`fa-${isPromoted ? 'solid' : 'regular'} fa-star fa-xs commentary-home__item-star plain-btn ${isPromoted ? 'commentary-home__item-star--active' : ''}`}
+              aria-pressed={isPromoted}
+              data-star-module={mod.moduleAbbr}
+              aria-label={`Star ${isDigestModule(mod.moduleAbbr) ? getDigestDisplayName() : mod.moduleAbbr}`}
               title={isPromoted ? 'Unstar (remove from top)' : 'Star (pin to top)'}
-              onClick={(e: MouseEvent) => { e.stopPropagation(); commentaryStore.togglePromoted(mod.moduleAbbr); }}
+              onClick={(e: MouseEvent) => { e.stopPropagation(); toggleStar(mod.moduleAbbr); }}
             />
           </div>
           <div class="commentary-home__item-row">
@@ -435,9 +463,11 @@ export function CommentaryHome({ bibleProvider }: CommentaryHomeProps) {
                 <button
                   class="commentary-home__action-btn commentary-home__action-btn--mute"
                   onClick={(e) => { e.stopPropagation(); commentaryStore.toggleMuted(mod.moduleAbbr); }}
+                  aria-pressed={isMuted}
+                  aria-label={`Mute ${isDigestModule(mod.moduleAbbr) ? getDigestDisplayName() : mod.moduleAbbr}`}
                   title={isMuted ? 'Unmute' : 'Mute (hide)'}
                 >
-                  <i class={`fa-solid ${isMuted ? 'fa-eye' : 'fa-eye-slash'} fa-xs`} /> {isMuted ? 'Unmute' : 'Mute'}
+                  <i class={`fa-solid ${isMuted ? 'fa-eye' : 'fa-eye-slash'} fa-xs`} /> Mute
                 </button>
               </div>
               {(() => {
@@ -502,7 +532,7 @@ export function CommentaryHome({ bibleProvider }: CommentaryHomeProps) {
   };
 
   return (
-    <div class="commentary-content commentary-home">
+    <div class="commentary-content commentary-home" ref={rootRef}>
       <div class="commentary-home__section">
         <div class="commentary-home__section-title">
           <i class="fa-solid fa-bookmark" />
@@ -588,7 +618,16 @@ export function CommentaryHome({ bibleProvider }: CommentaryHomeProps) {
 
       {filteredMuted.length > 0 && (
         <div class="commentary-home__section commentary-home__section--muted">
-          <div class="commentary-home__section-title commentary-home__section-title--muted" onClick={() => setShowMuted(!showMuted)}>
+          <div
+            class="commentary-home__section-title commentary-home__section-title--muted"
+            role="button"
+            tabIndex={0}
+            aria-expanded={showMuted}
+            onClick={() => setShowMuted(!showMuted)}
+            onKeyDown={(e: KeyboardEvent) => {
+              if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowMuted(!showMuted); }
+            }}
+          >
             <i class={`fa-solid ${showMuted ? 'fa-chevron-down' : 'fa-chevron-right kth-rtl-mirror'} fa-xs`} />
             <i class="fa-solid fa-eye-slash" />
             Muted ({filteredMuted.length})

@@ -47,6 +47,8 @@
   "app.reportIssue.category": "יישום",
   "help.reportIssue": "דווח על בעיה",
   "help.reportIssue.category": "עזרה",
+  "help.giveFeedback": "שלח משוב",
+  "help.giveFeedback.category": "עזרה",
   "module.openManager": "פתח את מנהל המודולים",
   "module.openManager.category": "מודולים",
   "module.openManager.alias.0": "מנהל המודולים",

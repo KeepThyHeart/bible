@@ -139,7 +139,8 @@
     border-radius: 4px;
     padding: 3px 8px;
     font-size: calc(0.6875rem * var(--ui-font-scale, 1));
-    color: var(--text-muted);
+    // W-070: --text-muted on the rose theme is 4.11:1 here; --text-secondary clears 4.5.
+    color: var(--text-secondary);
     cursor: pointer;
 
     &:hover {
@@ -361,10 +362,21 @@
     margin-bottom: 4px;
   }
 
-  &__theme-swatch-label {
+  // W-041: `.settings-panel__field span` (0,1,1) used to win over this rule and paint the
+  // label in the CURRENT theme's secondary text colour (2:1 on dark swatches in Light, ~1.1:1
+  // on light swatches in High Contrast) and at 13px. Doubling the class (0,2,0) restores the
+  // swatch's own foreground (set inline on the button from theme.json), the 10px size, and lets
+  // long names ("High Contrast", "Parchment") wrap inside the swatch instead of being cut.
+  &__theme-swatch &__theme-swatch-label {
+    color: inherit;
     font-size: 10px;
     font-weight: 500;
     line-height: 1.2;
+    max-width: 100%;
+    min-width: 0;
+    text-align: center;
+    overflow-wrap: anywhere;
+    hyphens: auto;
   }
 
   &__about {
@@ -439,5 +451,31 @@
   &:focus-visible {
     outline: 2px solid var(--accent-color);
     outline-offset: 1px;
+  }
+}
+
+// W-057: on a phone the 160px sidebar leaves the Text Size select ~150px, which cut the
+// "Stacked (word columns)" option ("Stacked (word co"). Narrow the sidebar and trim paddings so
+// the select (full width of its field) has room for the longest option.
+@media (max-width: 480px) {
+  .settings-panel {
+    &__sidebar {
+      width: 120px;
+      padding: 8px 4px;
+    }
+
+    &__tab {
+      padding: 8px;
+      gap: 6px;
+    }
+
+    &__content {
+      padding: 16px 12px;
+    }
+
+    &__field select {
+      padding-inline: 6px;
+      text-overflow: ellipsis;
+    }
   }
 }

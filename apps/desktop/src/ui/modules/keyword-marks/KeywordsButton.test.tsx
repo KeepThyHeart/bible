@@ -53,6 +53,20 @@ describe('KeywordsButton', () => {
     expect(screen.getByTestId('keywords-toggle')).toHaveAttribute('aria-pressed', 'true');
   });
 
+  it('exposes pressed on the toggle and expanded only on the options button', () => {
+    useKeywordMarkStore.getState().setTabEnabled('tab-1', true);
+    render(<KeywordsButton tabId="tab-1" />);
+    const toggle = screen.getByTestId('keywords-toggle');
+    const options = screen.getByTestId('keywords-options');
+    expect(toggle).toHaveAttribute('aria-pressed', 'true');
+    expect(toggle).not.toHaveAttribute('aria-expanded');
+    expect(toggle).not.toHaveAttribute('aria-haspopup');
+    expect(options).toHaveAttribute('aria-expanded', 'false');
+    fireEvent.click(options);
+    expect(screen.getByTestId('keywords-options')).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByTestId('keywords-toggle')).not.toHaveAttribute('aria-expanded');
+  });
+
   it('shows the count of visible marks in a badge', () => {
     useKeywordMarkStore.getState().setTabEnabled('tab-1', true);
     render(<KeywordsButton tabId="tab-1" />);
@@ -68,7 +82,7 @@ describe('KeywordsButton', () => {
     fireEvent.click(screen.getByTestId('keywords-options'));
     const pop = screen.getByTestId('keywords-popover');
     expect(within(pop).getAllByRole('listitem').length).toBeGreaterThan(0);
-    expect(within(pop).getByTestId('keywords-color-safe')).toBeChecked();
+    expect(within(pop).queryByTestId('keywords-color-safe')).toBeNull();
   });
 
   it('toggling a row hides that mark for the tab', () => {

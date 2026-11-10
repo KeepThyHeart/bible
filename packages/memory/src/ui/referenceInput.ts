@@ -100,7 +100,7 @@ export function extractReferenceCandidates(text: string): string[] {
  * spellings that resolved to the same verses) keep whichever came first in
  * `items` and drop the rest, rather than keeping both or neither.
  */
-export function dropContainedRanges<T extends { startVerseId: number; endVerseId: number }>(
+export function dropContainedRanges<T extends { startVerseId: number; endVerseId: number; moduleId?: string }>(
   items: readonly T[],
 ): { kept: T[]; dropped: T[] } {
   // Larger ranges first, ties broken by original position, so a range is
@@ -128,10 +128,12 @@ function rangeSize(r: { startVerseId: number; endVerseId: number }): number {
   return r.endVerseId - r.startVerseId;
 }
 
-/** Whether `a`'s range fully contains `b`'s range (equal ranges count). */
+/** Whether `a`'s range fully contains `b`'s range, in the same translation (equal ranges count). */
 function covers(
-  a: { startVerseId: number; endVerseId: number },
-  b: { startVerseId: number; endVerseId: number },
+  a: { startVerseId: number; endVerseId: number; moduleId?: string },
+  b: { startVerseId: number; endVerseId: number; moduleId?: string },
 ): boolean {
+  // The same verses in another translation are a different passage (B-123).
+  if (a.moduleId !== b.moduleId) return false;
   return a.startVerseId <= b.startVerseId && a.endVerseId >= b.endVerseId;
 }

@@ -69,7 +69,7 @@ const BibleVerseList: React.FC = () => {
     handlePreviousChapter,
     handleNextChapter,
     handleStrongsClick,
-    handleVerseContextMenu,
+    handleVerseContextMenu: openVerseContextMenu,
     handleNoteIndicatorClick,
     handleNoteIndicatorHover,
     handleNoteIndicatorLeave,
@@ -154,6 +154,21 @@ const BibleVerseList: React.FC = () => {
     : undefined;
   const contentLang = activeBible?.language_code;
   const contentDir = directionForLanguage(contentLang);
+
+  /**
+   * Open the verse context menu, remembering which verse's "Select <ref>"
+   * button it was opened from. A right-click focuses nothing, so the menu
+   * (and the dialogs it opens) cannot otherwise find their way back to the
+   * verse; VerseContextMenu returns focus to the element carrying
+   * `data-verse-menu-opener` when it closes. Modes with no per-verse button
+   * (Reading) just fall back to the menu's own opener logic.
+   */
+  const handleVerseContextMenu = (e: React.MouseEvent, verse: any) => {
+    document.querySelectorAll('[data-verse-menu-opener]').forEach((el) => el.removeAttribute('data-verse-menu-opener'));
+    const row = (e.currentTarget as HTMLElement | null)?.closest?.('[data-verse-id]');
+    row?.querySelector('[data-verse-select]')?.setAttribute('data-verse-menu-opener', 'true');
+    openVerseContextMenu(e, verse);
+  };
 
   /**
    * Click-to-select that yields to a text drag.
@@ -544,6 +559,7 @@ const BibleVerseList: React.FC = () => {
                                   */
                                   <button
                                     type="button"
+                                    data-verse-select=""
                                     className="flex-shrink-0 w-11 text-end pe-2 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                                     aria-label={t(
                                       'biblePane.selectVerse',

@@ -84,3 +84,23 @@ describe('CommentaryContentArea: session-restore loading gap (FIX 3)', () => {
     expect(screen.getByTestId('entry')).toBeInTheDocument();
   });
 });
+
+describe('CommentaryContentArea: module file missing (item 21)', () => {
+  it('renders the missing state naming the module and wires the buttons', () => {
+    const onOpenModuleManager = vi.fn();
+    const onRetry = vi.fn();
+    renderArea({ missing: true, moduleName: 'Wesley', onOpenModuleManager, onRetry });
+    expect(screen.getByTestId('commentary-module-missing')).toBeTruthy();
+    expect(screen.getByText('commentaryContentArea.moduleMissing')).toBeTruthy();
+    screen.getByText('commentaryContentArea.openModuleManager').click();
+    screen.getByText('commentaryContentArea.retry').click();
+    expect(onOpenModuleManager).toHaveBeenCalledTimes(1);
+    expect(onRetry).toHaveBeenCalledTimes(1);
+  });
+
+  it('takes precedence over the generic error and the empty-verse state', () => {
+    renderArea({ missing: true, error: 'boom' });
+    expect(screen.queryByText('commentaryContentArea.loadError')).toBeNull();
+    expect(screen.queryByText('commentaryContentArea.noCommentary')).toBeNull();
+  });
+});

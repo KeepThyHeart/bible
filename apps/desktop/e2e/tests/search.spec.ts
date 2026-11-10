@@ -6,7 +6,7 @@
 
 import type { Page, Locator } from '@playwright/test';
 import { test, expect } from '../fixtures/electron.fixture';
-import { waitForAppReady } from '../fixtures/test-utils';
+import { waitForAppReady, waitForKeywordIndexes } from '../fixtures/test-utils';
 
 /**
  * Search takes a round trip through IPC into SQLite FTS across every installed
@@ -22,6 +22,11 @@ function results(window: Page): Locator {
 
 function resultsPane(window: Page): Locator {
   return window.locator('[data-testid="search-results"]');
+}
+
+/** The live-suggestion list under the search bar (`liveSearchSuggestions.listLabel`). */
+function liveSuggestions(window: Page): Locator {
+  return window.getByRole('listbox', { name: 'Search suggestions' });
 }
 
 /** Type a query into the global search bar and submit it. */
@@ -43,6 +48,7 @@ async function openAdvanced(window: Page): Promise<Locator> {
 test.describe('Search', () => {
   test.beforeEach(async ({ window }) => {
     await waitForAppReady(window);
+    await waitForKeywordIndexes(window);
   });
 
   test.describe('Basic Search', () => {
@@ -148,7 +154,10 @@ test.describe('Search', () => {
 
       await searchInput.fill('Aenon');
 
-      await expect(window.getByText('Top Results')).toBeVisible({ timeout: SEARCH_TIMEOUT });
+      // By the listbox's accessible name rather than its visible heading: the
+      // heading copy was reworded ("Top Results" -> "First matches") and the
+      // test is about live results replacing the hint, not about that word.
+      await expect(liveSuggestions(window)).toBeVisible({ timeout: SEARCH_TIMEOUT });
       await expect(window.getByText(/Type at least 3 characters/i)).toHaveCount(0);
     });
   });
@@ -167,9 +176,9 @@ test.describe('Search', () => {
       await searchInput.click({ force: true });
       await searchInput.fill('Aenon');
 
-      await expect(window.getByText('Top Results')).toBeVisible({ timeout: SEARCH_TIMEOUT });
+      await expect(liveSuggestions(window)).toBeVisible({ timeout: SEARCH_TIMEOUT });
 
-      const suggestions = window.locator('.divide-y.divide-border button');
+      const suggestions = liveSuggestions(window).getByRole('option');
       await expect(suggestions.first()).toBeVisible({ timeout: SEARCH_TIMEOUT });
       await expect(suggestions.first()).toContainText('John 3:23');
     });

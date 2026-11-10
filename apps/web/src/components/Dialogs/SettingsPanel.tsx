@@ -29,7 +29,7 @@ import { ContributedSection } from './ContributedSection';
 type SettingsTab = string;
 
 /** Tabs whose content is rendered inline below; any other contributed section goes through `ContributedSection`. */
-const BUILTIN_TABS = new Set(['text-size', 'theme', 'modules', 'gestures', 'apps', 'about']);
+const BUILTIN_TABS = new Set(['text-size', 'theme', 'modules', 'gestures', 'apps', 'language', 'about']);
 
 /** The tabs, in order, from the `preferencesSections` contribution point (declared by `modules/host/ui.ts`). */
 function useSettingsSections(): PreferencesSectionContribution[] {
@@ -55,6 +55,7 @@ function sectionToTab(section?: string): SettingsTab {
   if (section === 'modules') return 'modules';
   if (section === 'gestures') return 'gestures';
   if (section === 'apps') return 'apps';
+  if (section === 'language') return 'language';
   if (section === 'about') return 'about';
   // A section contributed by a feature module deep-links by its own id.
   if (section && modulePoints.preferencesSections.has(section)) {
@@ -259,6 +260,7 @@ export function SettingsPanel({ isOpen, onClose, scrollToSection }: SettingsPane
                 key={item.id}
                 class={`settings-panel__tab ${activeTab === item.id ? 'settings-panel__tab--active' : ''}`}
                 onClick={() => setActiveTab(item.id)}
+                aria-current={activeTab === item.id ? 'page' : undefined}
                 data-tab={item.id}
               >
                 <i class={`fa-solid ${item.icon?.kind === 'builtin' ? item.icon.name : ''}`} />
@@ -325,6 +327,7 @@ export function SettingsPanel({ isOpen, onClose, scrollToSection }: SettingsPane
                 <button
                   class={`settings-panel__advanced-toggle ${advancedOpen ? 'settings-panel__advanced-toggle--open' : ''}`}
                   onClick={() => setAdvancedOpen(!advancedOpen)}
+                  aria-expanded={advancedOpen}
                 >
                   <i class="fa-solid fa-chevron-right kth-rtl-mirror" />
                   {t('settings.textSize.advanced')}
@@ -406,6 +409,7 @@ export function SettingsPanel({ isOpen, onClose, scrollToSection }: SettingsPane
                         key={themeDef.id}
                         class={`settings-panel__theme-swatch ${theme === themeDef.id ? 'settings-panel__theme-swatch--active' : ''}`}
                         onClick={() => settingsStore.setTheme(themeDef.id)}
+                        aria-pressed={theme === themeDef.id}
                         title={t(`themes.${themeDef.id}`, themeDef.name)}
                         data-theme-id={themeDef.id}
                         style={{
@@ -429,6 +433,7 @@ export function SettingsPanel({ isOpen, onClose, scrollToSection }: SettingsPane
                         key={scheme.id}
                         class={`settings-panel__scheme-card ${fontSchemeId === scheme.id ? 'settings-panel__scheme-card--active' : ''}`}
                         onClick={() => settingsStore.setFontScheme(scheme.id)}
+                        aria-pressed={fontSchemeId === scheme.id}
                       >
                         <span class="settings-panel__scheme-label">{scheme.label}</span>
                         <span class="settings-panel__scheme-heading" style={{ fontFamily: scheme.headingFont }}>{t('settings.theme.heading')}</span>
@@ -445,6 +450,7 @@ export function SettingsPanel({ isOpen, onClose, scrollToSection }: SettingsPane
                         key={scheme.id}
                         class={`settings-panel__scheme-card ${fontSchemeId === scheme.id ? 'settings-panel__scheme-card--active' : ''}`}
                         onClick={() => settingsStore.setFontScheme(scheme.id)}
+                        aria-pressed={fontSchemeId === scheme.id}
                       >
                         <span class="settings-panel__scheme-label">{scheme.label}</span>
                         <span class="settings-panel__scheme-heading" style={{ fontFamily: scheme.headingFont }}>{t('settings.theme.heading')}</span>
@@ -551,15 +557,9 @@ export function SettingsPanel({ isOpen, onClose, scrollToSection }: SettingsPane
               <ContributedSection section={sections.find(sec => sec.id === activeTab)!} />
             )}
 
-            {activeTab === 'about' && (
-              <div class="settings-panel__section" data-section="about">
-                {/*
-                  `settings-section` / `settings-hint` were classes with no
-                  stylesheet behind them, which is why this block did not look
-                  like the rest of the panel. It uses the panel's own heading
-                  and field patterns instead.
-                */}
-                <h4 class="settings-panel__section-title">{t('settings.language.title')}</h4>
+            {activeTab === 'language' && (
+              <div class="settings-panel__section" data-section="language">
+                <h4 class="settings-panel__section-title" id="settings-language-title">{t('settings.language.title')}</h4>
                 <div class="settings-panel__field">
                   <span>{t('settings.language.description')}</span>
                   {/*
@@ -573,6 +573,7 @@ export function SettingsPanel({ isOpen, onClose, scrollToSection }: SettingsPane
                   */}
                   <select
                     class="settings-select"
+                    aria-labelledby="settings-language-title"
                     value={localeOptions.some((info) => info.code === i18n.language) ? i18n.language : 'en'}
                     onChange={(e) => {
                       void changeLocale((e.target as HTMLSelectElement).value);
@@ -601,7 +602,17 @@ export function SettingsPanel({ isOpen, onClose, scrollToSection }: SettingsPane
                     <p class="settings-panel__hint">{t('settings.language.moreComingNote')}</p>
                   )}
                 </div>
+              </div>
+            )}
 
+            {activeTab === 'about' && (
+              <div class="settings-panel__section" data-section="about">
+                {/*
+                  `settings-section` / `settings-hint` were classes with no
+                  stylesheet behind them, which is why this block did not look
+                  like the rest of the panel. It uses the panel's own heading
+                  and field patterns instead.
+                */}
                 <h4 class="settings-panel__section-title">{t('settings.about.title')}</h4>
                 <div class="settings-panel__field">
                   <button

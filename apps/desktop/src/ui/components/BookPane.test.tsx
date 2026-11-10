@@ -59,7 +59,7 @@ vi.mock('./DictionaryPane', () => ({ default: () => <div data-testid="dictionary
 // Renders whatever BookPane's custom `renderTab` produces, so the tab chrome
 // (close button, badge) is covered rather than stubbed away.
 vi.mock('./DraggableTabBar', () => ({ default: (props: any) => (
-  <div data-testid="book-tab-bar" data-active-index={String(props.activeTabIndex)}>
+  <div role="tablist" data-testid="book-tab-bar" data-active-index={String(props.activeTabIndex)}>
     {/* The real bar renders this ahead of the tabs; the Overview tab lives here
         rather than in `tabs` because it owns no `role="tab"`. */}
     {props.prefixContent}
@@ -68,6 +68,9 @@ vi.mock('./DraggableTabBar', () => ({ default: (props: any) => (
         key={i}
         data-testid={`book-tab-${t.id}`}
         data-index={String(i)}
+        role="tab"
+        id={props.idPrefix ? `${props.idPrefix}-tab-${i}` : undefined}
+        tabIndex={i === props.activeTabIndex ? 0 : -1}
         data-subtitle={t.subtitle ?? ''}
         data-has-content={String(!!t.hasContent)}
         onClick={() => props.onTabClick(i)}
@@ -847,6 +850,24 @@ describe('BookPane: overview shelf (F23)', () => {
     expect(screen.getByTestId('library-home')).toBeInTheDocument();
   });
 
+  // 0209: Overview was a pressed button inside the tablist beside real tabs.
+  it('exposes Overview as a selected tab, like Commentary', () => {
+    renderWithProviders(<BookPane />);
+    const tab = screen.getByTestId('library-overview-tab');
+    expect(tab.getAttribute('role')).toBe('tab');
+    expect(tab.getAttribute('aria-selected')).toBe('true');
+    expect(tab.hasAttribute('aria-pressed')).toBe(false);
+  });
+
+  it('puts the Overview shelf in a tabpanel labelled by the Overview tab', () => {
+    renderWithProviders(<BookPane />);
+    const tab = screen.getByTestId('library-overview-tab');
+    const panel = screen.getByRole('tabpanel');
+    expect(panel).toContainElement(screen.getByTestId('library-home'));
+    expect(panel.getAttribute('aria-labelledby')).toBe(tab.id);
+    expect(tab.getAttribute('aria-controls')).toBe(panel.id);
+  });
+
   // The other half of that rule: the shelf is for *finding* a module, so a pane
   // that already has one open shows the module rather than the shelf.
   it('opens on the module, not the shelf, when a tab is already open', () => {
@@ -1009,5 +1030,50 @@ describe('BookPane: overview shelf (F23)', () => {
       expect(bookPanelLifecycle.detachPanel).toHaveBeenCalledWith('book_abc');
       expect(bookPanelLifecycle.destroyPanel).not.toHaveBeenCalled();
     });
+  });
+});
+
+describe('BookPane: keyboard (D10)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockNavSectionInfo.mockReturnValue({ nextSectionInfo: null, prevSectionInfo: null });
+  });
+
+  it('focuses the opened tab, not Overview, after opening from the shelf', async () => {
+    const user = userEvent.setup();
+    mockUseBookPanel.mockReturnValue(defaultBookPanel);
+    mockUseDictionaryPanel.mockReturnValue({
+      ...defaultDictPanel,
+      availableDictionaries: [{ abbreviation: 'dict_test', name: 'Test Dictionary', language_code: 'en', version: '1' }],
+      openTabs: [DICT_TAB],
+    });
+    renderWithProviders(<BookPane paneKind="dictionary" />);
+    await user.click(screen.getByTestId('library-overview-tab'));
+    await user.click(await screen.findByTestId('library-item-dict_test'));
+    const tab = screen.getByTestId('book-tab-dict-dict_test');
+    await vi.waitFor(() => expect(document.activeElement).toBe(tab));
+    expect(document.activeElement).not.toBe(screen.getByTestId('library-overview-tab'));
+  });
+
+  it('Delete on a dictionary tab closes it, like the Close button', async () => {
+    const user = userEvent.setup();
+    const closeDictionary = vi.fn();
+    mockUseBookPanel.mockReturnValue(defaultBookPanel);
+    mockUseDictionaryPanel.mockReturnValue({ ...defaultDictPanel, openTabs: [DICT_TAB], closeDictionary });
+    renderWithProviders(<BookPane paneKind="dictionary" />);
+    screen.getByTestId('book-tab-dict-dict_test').focus();
+    await user.keyboard('{Delete}');
+    expect(closeDictionary).toHaveBeenCalledWith('dict_test');
+  });
+
+  it('Delete on the Overview tab does nothing', async () => {
+    const user = userEvent.setup();
+    const closeDictionary = vi.fn();
+    mockUseBookPanel.mockReturnValue(defaultBookPanel);
+    mockUseDictionaryPanel.mockReturnValue({ ...defaultDictPanel, openTabs: [DICT_TAB], closeDictionary });
+    renderWithProviders(<BookPane paneKind="dictionary" />);
+    screen.getByTestId('library-overview-tab').focus();
+    await user.keyboard('{Delete}');
+    expect(closeDictionary).not.toHaveBeenCalled();
   });
 });

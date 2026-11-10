@@ -1,12 +1,14 @@
 import { IpcMain } from 'electron';
+import { missingModuleError } from './moduleErrors';
 import log from 'electron-log/main';
 import { VerseIdHelper, formatVerseText } from '@bible/core';
 import type { BibleRepository } from '@bible/core';
 import { getSharedModuleMetadataRepo, getSharedBookRepo } from '../services/sharedMainDb';
 import { ModuleLoader } from '../services/ModuleLoader';
-import { ipcHandler, IpcKnownError } from './handler-helper';
+import { ipcHandler } from './handler-helper';
 import { validateAbbreviation, validateBookNumber, validateChapter, validateVerseId, validateString } from '../utils/validation';
 import { pickDefaultBible } from './defaultBible';
+import { whenModuleScanSettled } from '../services/moduleScan';
 
 // readonly: false - book-level proximity search (BibleSearchService's `~Nw`
 // word-distance queries) still lazily writes its index into the module's own
@@ -45,7 +47,20 @@ export function ensureBibleRepository(abbreviation: string): Promise<BibleReposi
 function requireBibleRepository(abbreviation: string): BibleRepository {
   const repo = getBibleRepository(abbreviation);
   if (!repo) {
-    throw new IpcKnownError('not_found', `Bible not found: ${abbreviation}`);
+    throw missingModuleError(bibleLoader, abbreviation, `Bible not found: ${abbreviation}`);
+  }
+  return repo;
+}
+
+/**
+ * {@link requireBibleRepository}, opening the module when it is not cached
+ * yet and - through the loader - waiting out a startup module scan that may
+ * not have registered it yet (see `moduleScan.ts`).
+ */
+async function ensureRequiredBibleRepository(abbreviation: string): Promise<BibleRepository> {
+  const repo = await ensureBibleRepository(abbreviation);
+  if (!repo) {
+    throw missingModuleError(bibleLoader, abbreviation, `Bible not found: ${abbreviation}`);
   }
   return repo;
 }
@@ -53,7 +68,10 @@ function requireBibleRepository(abbreviation: string): BibleRepository {
 export function registerBibleHandlers(_ipcMain: IpcMain): void {
 
   // Handler: Get list of available Bible modules
-  ipcHandler<[], any[]>('bible:getAvailableBibles', () => {
+  // Waits for a running startup module scan: a partial list here would make the
+  // renderer move a restored tab off a Bible that simply was not registered yet.
+  ipcHandler<[], any[]>('bible:getAvailableBibles', async () => {
+    await whenModuleScanSettled();
     const moduleMetadataRepo = getSharedModuleMetadataRepo();
     const bibles = moduleMetadataRepo.getByType('bible');
 
@@ -166,12 +184,12 @@ export function registerBibleHandlers(_ipcMain: IpcMain): void {
 
   ipcHandler<[string, number, number], { verses: any[]; hasInterlinearData: boolean }>(
     'bible:getChapter',
-    (abbreviation, bookNumber, chapter) => {
+    async (abbreviation, bookNumber, chapter) => {
       validateAbbreviation(abbreviation);
       validateBookNumber(bookNumber);
       validateChapter(chapter);
 
-      const bibleRepo = requireBibleRepository(abbreviation);
+      const bibleRepo = await ensureRequiredBibleRepository(abbreviation);
       const verses = bibleRepo.getChapter(bookNumber, chapter);
 
       // Check interlinear data availability (cached per module, avoids separate IPC call)
@@ -211,12 +229,13 @@ export function registerBibleHandlers(_ipcMain: IpcMain): void {
   // with the same rule the renderer uses once it knows.
   ipcHandler<[string | null | undefined, number | undefined, number | undefined], any>(
     'bible:getInitialData',
-    (requestedAbbreviation, defaultBook = 43, defaultChapter = 3) => {
+    async (requestedAbbreviation, defaultBook = 43, defaultChapter = 3) => {
       if (requestedAbbreviation != null) {
         validateAbbreviation(requestedAbbreviation);
       }
       validateBookNumber(defaultBook);
       validateChapter(defaultChapter);
+      await whenModuleScanSettled();
 
       // Get available Bibles
       let availableBibles: any[] = [];
@@ -244,7 +263,7 @@ export function registerBibleHandlers(_ipcMain: IpcMain): void {
 
       if (targetAbbr) {
         // Get default chapter verses
-        const bibleRepo = getBibleRepository(targetAbbr);
+        const bibleRepo = await ensureBibleRepository(targetAbbr);
         if (bibleRepo) {
           const verses = bibleRepo.getChapter(defaultBook, defaultChapter);
           defaultVerses = verses.map(verse => {

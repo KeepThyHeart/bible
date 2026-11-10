@@ -32,14 +32,14 @@ describe('downloads module in the web host', () => {
   it('is on by default: the tab sits between Notifications and Apps, with a lazy view', async () => {
     const h = await boot();
     const ids = h.modulePoints.preferencesSections.list().map((s) => s.id);
-    expect(ids).toEqual(['text-size', 'theme', 'modules', 'gestures', 'notifications', 'offline', 'apps', 'about', 'keyword-marks', 'measures']);
+    expect(ids).toEqual(['text-size', 'theme', 'modules', 'gestures', 'language', 'notifications', 'offline', 'apps', 'about', 'keyword-marks', 'measures']);
     expect(h.modulePoints.views.resolve('preferences:offline')).toBeTypeOf('function');
   });
 
   it('switched off by the dev override: no tab, no view, other tabs untouched', async () => {
     const h = await boot('-downloads');
     const ids = h.modulePoints.preferencesSections.list().map((s) => s.id);
-    expect(ids).toEqual(['text-size', 'theme', 'modules', 'gestures', 'notifications', 'apps', 'about', 'keyword-marks', 'measures']);
+    expect(ids).toEqual(['text-size', 'theme', 'modules', 'gestures', 'language', 'notifications', 'apps', 'about', 'keyword-marks', 'measures']);
     expect(h.modulePoints.views.resolve('preferences:offline')).toBeUndefined();
   });
 

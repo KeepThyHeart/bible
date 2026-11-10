@@ -347,6 +347,7 @@ export function buildMenuSpec(deps: BuildMenuSpecDeps): MenuSpec {
     // Manual, user-initiated update check. No background beacon - the
     // dialog names the host and requires confirmation before any egress.
     commandItem(deps, 'app.checkForUpdates', 'menu.help.checkForUpdates'),
+    commandItem(deps, 'help.giveFeedback', 'menu.help.giveFeedback'),
     commandItem(deps, 'help.reportIssue', 'menu.help.reportIssue'),
   ];
   if (!isMac) {

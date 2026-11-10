@@ -9,7 +9,7 @@
  * and conditional child selection.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/preact';
+import { render, screen, fireEvent, waitFor } from '@testing-library/preact';
 
 // ---- i18n ----------------------------------------------------------------
 vi.mock('react-i18next', () => ({
@@ -26,10 +26,15 @@ vi.mock('../../hooks/useStore', () => ({
 
 // ---- Stub child components -----------------------------------------------
 vi.mock('./DictionaryTabBar', () => ({
-  DictionaryTabBar: () => <div data-testid="dict-tab-bar" />,
+  DictionaryTabBar: () => <div data-testid="dict-tab-bar"><span role="tab" aria-selected="true" tabIndex={0}>tab</span></div>,
 }));
 vi.mock('./DictionaryHome', () => ({
-  DictionaryHome: () => <div data-testid="dict-home" />,
+  DictionaryHome: () => (
+    <div data-testid="dict-home">
+      <input class="dictionary-home__search" />
+      <button data-module="strongs">card</button>
+    </div>
+  ),
 }));
 vi.mock('./DictionaryContent', () => ({
   DictionaryContent: ({ tabId }: { tabId: string }) => (
@@ -52,7 +57,7 @@ vi.mock('../../stores/dictionaryStore', () => ({
     get tabs() { return mockTabs; },
     get activeTabId() { return mockActiveTabId; },
     removeTab: (id: string) => mockRemoveTab(id),
-    setActiveTab: (id: string) => mockSetActiveTab(id),
+    setActiveTab: (id: string) => { mockActiveTabId = id; mockSetActiveTab(id); },
     keepTab: (id: string) => mockKeepTab(id),
   },
 }));
@@ -209,5 +214,24 @@ describe('DictionaryPane', () => {
     const addBtn = container.querySelector('.dictionary-nav-bar__add') as HTMLButtonElement;
     fireEvent.click(addBtn);
     expect(mockKeepTab).toHaveBeenCalledWith('dtab-temp2');
+  });
+
+  // 0209 round 5: Back / Add to tabs remove the focused button; focus must not drop to <body>.
+  it('moves focus to the dictionary card on Home after Back', async () => {
+    const tab = makeTab();
+    mockTabs = [{ id: 'dtab-home', moduleAbbr: '__home__', moduleName: 'Home' }, tab];
+    mockActiveTabId = tab.id;
+    render(<DictionaryPane />);
+    fireEvent.click(screen.getByText('dictionaryPane.back'));
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByText('card')));
+  });
+
+  it('moves focus to the kept tab after Add to tabs', async () => {
+    const tab = makeTab({ temporary: true });
+    mockTabs = [{ id: 'dtab-home', moduleAbbr: '__home__', moduleName: 'Home' }, tab];
+    mockActiveTabId = tab.id;
+    render(<DictionaryPane />);
+    fireEvent.click(screen.getByText('dictionaryPane.addToTabs'));
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('tab')));
   });
 });

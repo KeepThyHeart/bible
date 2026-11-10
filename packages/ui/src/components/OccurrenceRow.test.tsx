@@ -44,12 +44,12 @@ describe('OccurrenceRow', () => {
   it('shows the divine name in small caps, inside or outside the match (B-167)', () => {
     const lord: WordOccurrenceItem = { verseId: 19023001, start: 4, end: 4, form: 'shepherd', text: 'The LORD is my shepherd', divine: [{ start: 4, end: 8 }] };
     const { container } = render(<OccurrenceRow item={lord} reference="Ps 23:1" onOpen={() => {}} />);
-    const dn = container.querySelectorAll('span.divine-name');
+    const dn = container.querySelectorAll('span.kth-ws-occ__divine');
     expect(dn).toHaveLength(1);
     expect(dn[0].textContent).toBe('LORD');
     expect(container.querySelector('mark.kth-ws-hit')?.textContent).toBe('shepherd');
     expect(container.querySelector('.kth-ws-occ__text')?.textContent).toBe('The LORD is my shepherd');
     const inside = render(<OccurrenceRow item={{ ...lord, start: 1, end: 1 }} reference="x" onOpen={() => {}} />).container;
-    expect(inside.querySelector('mark.kth-ws-hit span.divine-name')?.textContent).toBe('LORD');
+    expect(inside.querySelector('mark.kth-ws-hit span.kth-ws-occ__divine')?.textContent).toBe('LORD');
   });
 });

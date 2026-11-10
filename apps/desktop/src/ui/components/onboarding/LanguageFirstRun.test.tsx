@@ -45,6 +45,15 @@ const h = vi.hoisted(() => ({
   locales: [] as LocaleMetadata[],
   current: 'en',
   setLocale: vi.fn(async () => {}),
+  /** Per-test translations, standing in for a non-English catalog. */
+  strings: {} as Record<string, string>,
+  /** What `getDocsUrl()` returns; `undefined` is a build with no docs site. */
+  docsUrl: undefined as string | undefined,
+}));
+
+vi.mock('../../config/appConfig', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../config/appConfig')>()),
+  getDocsUrl: () => h.docsUrl,
 }));
 
 vi.mock('../../contexts/useI18n', () => ({
@@ -52,7 +61,7 @@ vi.mock('../../contexts/useI18n', () => ({
     // `tf()` falls back to its English source when a key is unknown, and a
     // stub `t` that echoes the key is one of the two shapes it treats as a
     // miss - so the assertions below read the real English copy.
-    t: (key: string, params?: Record<string, unknown>) => enT(key, params),
+    t: (key: string, params?: Record<string, unknown>) => h.strings[key] ?? enT(key, params),
     locale: 'en',
     i18n: {
       get currentLocale(): string {
@@ -68,7 +77,18 @@ vi.mock('../../contexts/useI18n', () => ({
 
 const getStarterPacks = vi.fn();
 
+/** What the OS reports as its preferred languages (`navigator.languages`). */
+let systemLanguages: string[] = [];
+
 beforeEach(() => {
+  // No OS match by default, so most tests below exercise the full list, which
+  // is what a user sees on an OS language we do not offer. The "system
+  // language" block sets this.
+  systemLanguages = [];
+  vi.spyOn(window.navigator, 'languages', 'get').mockImplementation(() => systemLanguages);
+  vi.spyOn(window.navigator, 'language', 'get').mockImplementation(() => systemLanguages[0] ?? '');
+  h.strings = {};
+  h.docsUrl = undefined;
   window.localStorage.clear();
   useOnboardingStore.setState({ languageChosen: false });
   h.setLocale.mockClear();
@@ -94,6 +114,25 @@ describe('LanguageFirstRun', () => {
   it('opens on a fresh install', async () => {
     render(<LanguageFirstRun />);
     expect(await screen.findByTestId('first-run-language-dialog')).toBeInTheDocument();
+  });
+
+  it('makes the app behind the dialog inert while open and restores it after', async () => {
+    const { rerender } = render(
+      <div data-testid="root">
+        <main data-testid="app-behind"><button>behind</button></main>
+        <LanguageFirstRun />
+      </div>,
+    );
+    await screen.findByTestId('first-run-language-dialog');
+    await waitFor(() => expect(screen.getByTestId('app-behind')).toHaveAttribute('inert'));
+    expect(screen.getByTestId('first-run-language-backdrop')).not.toHaveAttribute('inert');
+    // Closing (unmounting) the dialog must give the page back.
+    rerender(
+      <div data-testid="root">
+        <main data-testid="app-behind"><button>behind</button></main>
+      </div>,
+    );
+    expect(screen.getByTestId('app-behind')).not.toHaveAttribute('inert');
   });
 
   it('renders nothing once the language question has been answered', () => {
@@ -125,6 +164,37 @@ describe('LanguageFirstRun', () => {
     // regression, so it must still be there.
     expect(screen.getByTestId('first-run-language-fr')).toBeInTheDocument();
     expect(screen.getByTestId('first-run-language-de')).toBeInTheDocument();
+  });
+
+  it('moves focus to the first revealed language when "More languages" is used', async () => {
+    render(<LanguageFirstRun />);
+    await screen.findByTestId('first-run-language-dialog');
+
+    await userEvent.click(screen.getByTestId('first-run-language-more'));
+
+    expect(screen.queryByTestId('first-run-language-more')).not.toBeInTheDocument();
+    await waitFor(() => expect(document.activeElement).not.toBe(document.body));
+    const radios = screen.getAllByRole('radio');
+    const firstNew = radios.find((r) => r.getAttribute('data-testid') === 'first-run-language-fr' || r.getAttribute('data-testid') === 'first-run-language-de');
+    expect(document.activeElement).toBe(firstNew);
+  });
+
+  it('is a single Tab stop and moves between languages with the arrow keys', async () => {
+    render(<LanguageFirstRun />);
+    await screen.findByTestId('first-run-language-dialog');
+    await userEvent.click(screen.getByTestId('first-run-language-more'));
+
+    const radios = screen.getAllByRole('radio');
+    expect(radios.length).toBeGreaterThan(2);
+    expect(radios.filter((r) => r.getAttribute('tabindex') === '0')).toHaveLength(1);
+    expect(screen.getByTestId('first-run-language-en')).toHaveAttribute('tabindex', '0');
+
+    screen.getByTestId('first-run-language-en').focus();
+    await userEvent.keyboard('{ArrowDown}');
+    expect(document.activeElement).toBe(radios[1]);
+    expect(radios[1]).toHaveAttribute('aria-checked', 'true');
+    expect(radios[1]).toHaveAttribute('tabindex', '0');
+    expect(screen.getByTestId('first-run-language-en')).toHaveAttribute('tabindex', '-1');
   });
 
   it('marks draft translations so we never imply a review that did not happen', async () => {
@@ -498,6 +568,88 @@ describe('LanguageFirstRun', () => {
       expect(screen.queryByTestId('first-run-packs-go-online')).not.toBeInTheDocument();
       expect(setAllowWebRequests).not.toHaveBeenCalled();
     });
+
+    describe('installing from files instead', () => {
+      const installFromFile = vi.fn();
+      const invoke = vi.fn();
+
+      beforeEach(() => {
+        installFromFile.mockReset();
+        invoke.mockReset().mockResolvedValue(undefined);
+        h.docsUrl = 'https://docs.example.org/desktop/';
+        (window as unknown as { electron?: unknown }).electron = {
+          moduleManager: { getStarterPacks, refreshAllCatalogs, installFromFile },
+          network: { getAllowWebRequests, setAllowWebRequests },
+          ipcRenderer: { invoke },
+        };
+      });
+
+      it('is offered beside Go online / Stay offline, without touching the network', async () => {
+        await continueToNetworkStep();
+        expect(screen.getByTestId('first-run-network-files')).toBeInTheDocument();
+        expect(screen.getByTestId('first-run-network-install-from-files')).toHaveTextContent('Install from files instead…');
+        expect(screen.getByTestId('first-run-network-stay-offline')).toBeInTheDocument();
+        expect(screen.getByTestId('first-run-network-go-online')).toBeInTheDocument();
+        expect(setAllowWebRequests).not.toHaveBeenCalled();
+      });
+
+      it('points at the docs site download page, opened in the browser', async () => {
+        await continueToNetworkStep();
+        const link = screen.getByTestId('first-run-network-files-link');
+        expect(link).toHaveAttribute('href', 'https://docs.example.org/download/#offline-downloads');
+        await userEvent.click(link);
+        expect(invoke).toHaveBeenCalledWith('app:open-external', 'https://docs.example.org/download/#offline-downloads');
+      });
+
+      it('drops the link, but keeps the explanation, when no docs site is configured', async () => {
+        h.docsUrl = undefined;
+        await continueToNetworkStep();
+        expect(screen.getByTestId('first-run-network-files-body')).toBeInTheDocument();
+        expect(screen.queryByTestId('first-run-network-files-link')).not.toBeInTheDocument();
+      });
+
+      it('runs the module install-from-file flow and reports a pack install', async () => {
+        const loadInstalledModules = vi.fn().mockResolvedValue(undefined);
+        useModuleStore.setState({ loadInstalledModules });
+        installFromFile.mockResolvedValue({
+          ok: true,
+          value: {
+            kind: 'batch',
+            summary: { found: 3, installed: [{}, {}, {}], failed: [], skipped: [], upToDate: [] },
+          },
+        });
+        await continueToNetworkStep();
+
+        await userEvent.click(screen.getByTestId('first-run-network-install-from-files'));
+
+        expect(installFromFile).toHaveBeenCalledTimes(1);
+        expect(await screen.findByTestId('first-run-network-install-from-files-result')).toHaveTextContent(
+          'Installed 3 module(s).'
+        );
+        expect(loadInstalledModules).toHaveBeenCalled();
+        // Still on the network step, and still offline.
+        expect(screen.getByTestId('first-run-network-body')).toBeInTheDocument();
+        expect(setAllowWebRequests).not.toHaveBeenCalled();
+      });
+
+      it('says nothing when the picker is cancelled', async () => {
+        installFromFile.mockResolvedValue({ ok: true, value: null });
+        await continueToNetworkStep();
+        await userEvent.click(screen.getByTestId('first-run-network-install-from-files'));
+        await waitFor(() => expect(installFromFile).toHaveBeenCalled());
+        await waitFor(() => expect(screen.getByTestId('first-run-network-install-from-files')).toBeEnabled());
+        expect(screen.queryByTestId('first-run-network-install-from-files-result')).not.toBeInTheDocument();
+      });
+
+      it('shows a failed install as an error', async () => {
+        installFromFile.mockResolvedValue({ ok: false, error: { message: 'Not a module file' } });
+        await continueToNetworkStep();
+        await userEvent.click(screen.getByTestId('first-run-network-install-from-files'));
+        const result = await screen.findByTestId('first-run-network-install-from-files-result');
+        expect(result).toHaveTextContent('Could not install: Not a module file');
+        expect(result).toHaveClass('text-danger');
+      });
+    });
   });
 
   describe('installing a starter pack', () => {
@@ -643,5 +795,93 @@ describe('LanguageFirstRun', () => {
       pending[1](true);
       await waitFor(() => expect(loadInstalledModules).toHaveBeenCalled());
     });
+  });
+});
+
+describe('LanguageFirstRun - system language', () => {
+  it('switches to the OS language at once and asks only to confirm it', async () => {
+    systemLanguages = ['de-DE', 'en-US'];
+    render(<LanguageFirstRun />);
+
+    const card = await screen.findByTestId('first-run-language-suggested');
+    expect(card).toHaveTextContent('Deutsch');
+    expect(h.setLocale).toHaveBeenCalledWith('de');
+    // One obvious action, already focused so Enter accepts it.
+    const confirm = screen.getByTestId('first-run-language-continue');
+    expect(confirm).toHaveTextContent('Continue in Deutsch');
+    await waitFor(() => expect(confirm).toHaveFocus());
+    // The list is not on screen until the user asks for it.
+    expect(screen.queryByRole('radiogroup')).not.toBeInTheDocument();
+
+    await userEvent.click(confirm);
+    expect(useOnboardingStore.getState().languageChosen).toBe(true);
+    expect(await screen.findByTestId('first-run-packs-empty')).toBeInTheDocument();
+  });
+
+  it('keeps a different language one deliberate step away', async () => {
+    systemLanguages = ['de-DE'];
+    render(<LanguageFirstRun />);
+    await screen.findByTestId('first-run-language-suggested');
+
+    await userEvent.click(screen.getByTestId('first-run-language-change'));
+
+    // The full list, with the detected language marked, selected and focused
+    // (revealed even though it sits behind "More languages").
+    const de = screen.getByTestId('first-run-language-de');
+    expect(de).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByTestId('first-run-language-system-badge-de')).toHaveTextContent('System language');
+    await waitFor(() => expect(de).toHaveFocus());
+    expect(screen.getByTestId('first-run-language-continue')).toHaveTextContent(/^Continue$/);
+
+    // The UI is in German now.
+    h.current = 'de';
+    h.setLocale.mockClear();
+    await userEvent.click(screen.getByTestId('first-run-language-en'));
+    await userEvent.click(screen.getByTestId('first-run-language-continue'));
+    expect(h.setLocale).toHaveBeenCalledWith('en');
+    expect(useOnboardingStore.getState().languageChosen).toBe(true);
+  });
+
+  it('labels the way out in English too when the UI is not in English', async () => {
+    systemLanguages = ['de-DE'];
+    h.current = 'de';
+    h.strings['onboarding.language.chooseDifferent'] = 'Andere Sprache wählen';
+    render(<LanguageFirstRun />);
+    await screen.findByTestId('first-run-language-suggested');
+    const change = screen.getByTestId('first-run-language-change');
+    expect(change.querySelector('[lang="en"]')).toHaveTextContent('Choose a different language');
+  });
+
+  it('suggests English on an English system, without switching anything', async () => {
+    systemLanguages = ['en-GB'];
+    render(<LanguageFirstRun />);
+    await screen.findByTestId('first-run-language-suggested');
+    expect(screen.getByTestId('first-run-language-continue')).toHaveTextContent('Continue in English');
+    expect(h.setLocale).not.toHaveBeenCalled();
+  });
+
+  it('shows the full list when the OS language is not offered', async () => {
+    systemLanguages = ['ja-JP'];
+    render(<LanguageFirstRun />);
+    await screen.findByTestId('first-run-language-dialog');
+    expect(screen.queryByTestId('first-run-language-suggested')).not.toBeInTheDocument();
+    expect(screen.getByRole('radiogroup')).toBeInTheDocument();
+    expect(h.setLocale).not.toHaveBeenCalled();
+  });
+
+  it('never suggests a withheld machine-drafted catalog', async () => {
+    // `es` ships but is a built-in draft, so it is not offered at all.
+    systemLanguages = ['es-MX'];
+    render(<LanguageFirstRun />);
+    await screen.findByTestId('first-run-language-dialog');
+    expect(screen.queryByTestId('first-run-language-suggested')).not.toBeInTheDocument();
+  });
+
+  it('prefers a language already saved over the OS language', async () => {
+    systemLanguages = ['de-DE'];
+    window.localStorage.setItem('bible.ui.locale', 'fr');
+    render(<LanguageFirstRun />);
+    expect(await screen.findByTestId('first-run-language-suggested')).toHaveTextContent('Français');
+    expect(h.setLocale).toHaveBeenCalledWith('fr');
   });
 });

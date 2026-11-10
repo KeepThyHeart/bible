@@ -10,6 +10,11 @@ import { activateFocusTrap } from '../utils/focusTrap';
  * listener lives on the trapped container (not window), and propagation is
  * stopped, so a dialog opened on top of another closes only itself.
  *
+ * While active the rest of the page is made `inert` (see `activateFocusTrap`),
+ * so `aria-modal` is backed by behaviour and a dialog stacked on another one
+ * inerts the one beneath it and restores it on close. A non-modal popup that
+ * must leave the page interactive passes `{ modal: false }`.
+ *
  * Usage:
  *   const ref = useFocusTrap<HTMLDivElement>(isOpen, onClose);
  *   return <div ref={ref} role="dialog" aria-modal="true">...</div>;
@@ -17,6 +22,7 @@ import { activateFocusTrap } from '../utils/focusTrap';
 export function useFocusTrap<T extends HTMLElement = HTMLElement>(
   active: boolean,
   onEscape?: () => void,
+  options: { modal?: boolean } = {},
 ): React.RefObject<T> {
   const ref = useRef<T>(null);
 
@@ -25,6 +31,7 @@ export function useFocusTrap<T extends HTMLElement = HTMLElement>(
   // focus back to the first focusable element mid-interaction.
   const onEscapeRef = useRef(onEscape);
   onEscapeRef.current = onEscape;
+  const modal = options.modal !== false;
 
   useEffect(() => {
     if (!active) return;
@@ -35,9 +42,10 @@ export function useFocusTrap<T extends HTMLElement = HTMLElement>(
       // existing single-argument call sites must keep letting Escape bubble to
       // whatever listener they already had.
       onEscape: onEscapeRef.current ? () => onEscapeRef.current?.() : undefined,
+      inertBackground: modal,
     });
     return () => handle.release();
-  }, [active]);
+  }, [active, modal]);
 
   return ref;
 }

@@ -9,12 +9,14 @@
  * a future wording change is one file, not eleven.
  */
 
+import { useHeadingFocus } from './useHeadingFocus.js';
 import { gt } from './t.js';
 
 export function Brand() {
+  const headingRef = useHeadingFocus();
   return (
     <div class="brand-block">
-      <h1 class="brand">{gt('games.brand.title', 'Group Bible Games')}</h1>
+      <h1 class="brand" tabIndex={-1} ref={headingRef}>{gt('games.brand.title', 'Group Bible Games')}</h1>
       <p class="brand-sub">{gt('games.brand.by', 'By Keep Thy Heart')}</p>
     </div>
   );

@@ -84,6 +84,15 @@ const HelpPanel: React.FC<HelpPanelProps> = ({ onClose }) => {
     const items = Array.from(
       panelRef.current?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]') ?? [],
     );
+    if (e.key === 'Tab') {
+      // A menu is one Tab stop: Tab leaves it, so it must close rather than
+      // sit open while focus walks away. Put focus back on the Help button
+      // first so the browser's own Tab step then moves on from there.
+      const opener = panelRef.current?.previousElementSibling;
+      if (opener instanceof HTMLElement) opener.focus();
+      onClose();
+      return;
+    }
     if (items.length === 0) return;
     const current = items.findIndex(el => el === document.activeElement);
     let next: number | null = null;
@@ -121,6 +130,15 @@ const HelpPanel: React.FC<HelpPanelProps> = ({ onClose }) => {
       label: t('helpPanel.shortcuts'),
       description: t('helpPanel.shortcutsHint'),
       onSelect: () => dispatch('command:app:openKeyboardShortcuts'),
+    },
+    // Always present: it opens an in-app form, which works in every build. Its
+    // delivery goes through the diagnostics uploader and so respects Privacy
+    // -> Allow Web Requests; the form says so when that is what holds it back.
+    {
+      id: 'giveFeedback',
+      label: t('helpPanel.giveFeedback'),
+      description: t('helpPanel.giveFeedbackHint'),
+      onSelect: () => dispatch('command:help:giveFeedback'),
     },
   ];
 

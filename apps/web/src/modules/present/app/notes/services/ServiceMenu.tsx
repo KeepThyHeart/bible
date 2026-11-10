@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
+import { focusFirstMenuItem, handleMenuKey, useExclusiveMenu } from '../../../lib/menuKeys';
 import { getServiceStore, type Service, type ServiceStore } from './serviceStore';
 import './services.css';
 
@@ -23,6 +24,8 @@ export function ServiceMenu({ currentId, onSelect, onDeleted, store = getService
   const [draft, setDraft] = useState('');
   const [, force] = useState(0);
   const root = useRef<HTMLDivElement>(null);
+  const trigger = useRef<HTMLButtonElement>(null);
+  const panel = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     void store.ready();
@@ -34,14 +37,22 @@ export function ServiceMenu({ currentId, onSelect, onDeleted, store = getService
     const away = (e: MouseEvent) => {
       if (root.current && !root.current.contains(e.target as Node)) close();
     };
-    const esc = (e: KeyboardEvent) => e.key === 'Escape' && close();
     document.addEventListener('mousedown', away);
-    document.addEventListener('keydown', esc);
-    return () => {
-      document.removeEventListener('mousedown', away);
-      document.removeEventListener('keydown', esc);
-    };
+    return () => document.removeEventListener('mousedown', away);
   }, [open]);
+
+  useExclusiveMenu('service-menu', open, () => close());
+
+  // Focus the first item when the list opens (and again when it comes back from the name form).
+  useEffect(() => {
+    if (open && mode.kind === 'list') focusFirstMenuItem(panel.current);
+  }, [open, mode.kind]);
+
+  // Escape closes and hands focus back to the button.
+  const closeToButton = () => {
+    close();
+    trigger.current?.focus();
+  };
 
   const close = () => {
     setOpen(false);
@@ -87,6 +98,7 @@ export function ServiceMenu({ currentId, onSelect, onDeleted, store = getService
       <button
         type="button"
         class="service-menu__trigger"
+        ref={trigger}
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => setOpen(!open)}
@@ -95,21 +107,32 @@ export function ServiceMenu({ currentId, onSelect, onDeleted, store = getService
         <i class="fa-solid fa-chevron-down" aria-hidden="true" />
       </button>
       {open && (
-        <div class="service-menu__panel" role="menu">
+        <div
+          class="service-menu__panel"
+          role={mode.kind === 'list' ? 'menu' : undefined}
+          ref={panel}
+          aria-label={mode.kind === 'list' ? (current?.name ?? t('present.services.none')) : undefined}
+          onKeyDown={(e) => {
+            if (mode.kind === 'list') handleMenuKey(e, panel.current, closeToButton);
+            else if (e.key === 'Escape') { e.preventDefault(); closeToButton(); }
+          }}
+        >
           {mode.kind === 'list' ? (
             <>
-              <ul class="service-menu__list">
+              <ul class="service-menu__list" role="none">
                 {services.map((s) => (
-                  <li key={s.id} class={`service-menu__row${s.id === currentId ? ' is-current' : ''}`}>
+                  <li key={s.id} role="none" class={`service-menu__row${s.id === currentId ? ' is-current' : ''}`}>
                     <button type="button" role="menuitem" class="service-menu__open" onClick={() => void choose(s.id)}>
                       <span class="service-menu__row-name">{s.name}</span>
-                      <span class="service-menu__row-date">{s.date}</span>
+                      {/* A default name is the date: showing it twice made the item read "2026-11-05 2026-11-05". */}
+                      {s.date !== s.name && <span class="service-menu__row-date">{s.date}</span>}
                     </button>
                     <button
                       type="button"
+                      role="menuitem"
                       class="service-menu__icon"
                       title={t('present.services.rename')}
-                      aria-label={t('present.services.rename')}
+                      aria-label={String(t('present.services.renameFor', { name: s.name, defaultValue: `${t('present.services.rename')}: ${s.name}` }))}
                       onClick={() => {
                         setDraft(s.name);
                         setMode({ kind: 'rename', id: s.id });
@@ -119,18 +142,20 @@ export function ServiceMenu({ currentId, onSelect, onDeleted, store = getService
                     </button>
                     <button
                       type="button"
+                      role="menuitem"
                       class="service-menu__icon"
                       title={t('present.services.duplicate')}
-                      aria-label={t('present.services.duplicate')}
+                      aria-label={String(t('present.services.duplicateFor', { name: s.name, defaultValue: `${t('present.services.duplicate')}: ${s.name}` }))}
                       onClick={() => void duplicate(s.id)}
                     >
                       <i class="fa-regular fa-copy" aria-hidden="true" />
                     </button>
                     <button
                       type="button"
+                      role="menuitem"
                       class="service-menu__icon"
                       title={t('present.services.delete')}
-                      aria-label={t('present.services.delete')}
+                      aria-label={String(t('present.services.deleteFor', { name: s.name, defaultValue: `${t('present.services.delete')}: ${s.name}` }))}
                       onClick={() => void remove(s)}
                     >
                       <i class="fa-solid fa-trash" aria-hidden="true" />

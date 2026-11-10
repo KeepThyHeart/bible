@@ -1,4 +1,4 @@
-import React, { useEffect, useSyncExternalStore } from 'react';
+import React, { useEffect, useState, useSyncExternalStore } from 'react';
 import type { IDockviewPanelProps } from 'dockview-react';
 import PaneErrorBoundary from './PaneErrorBoundary';
 import { parseExtensionContentType } from './DockviewTabRenderer';
@@ -22,6 +22,7 @@ const PaneLoading: React.FC = () => (
 );
 import type { PanelContentType } from '../stores/useLayoutStore';
 import { useI18n } from '../contexts/useI18n';
+import { localizePaneLabel } from '../utils/paneNames';
 
 /** One React.lazy component per registry loader, so a panel type is never wrapped twice. */
 const lazyComponents = new WeakMap<object, React.LazyExoticComponent<React.ComponentType<any>>>();
@@ -71,6 +72,15 @@ const PanelContentRenderer: React.FC<IDockviewPanelProps<{
     (cb) => modulePoints.panelTypes.subscribe(cb),
     () => modulePoints.panelTypes.getSnapshot(),
   );
+
+  // The region's accessible name is the panel title, which panes change as the
+  // reader navigates (setTitle). Track it, or the name stays "John 3" forever.
+  const [panelTitle, setPanelTitle] = useState(api.title);
+  useEffect(() => {
+    setPanelTitle(api.title);
+    const disposable = api.onDidTitleChange?.(() => setPanelTitle(api.title));
+    return () => disposable?.dispose();
+  }, [api]);
 
   // Opening a panel of a type is the activation event of the module that owns it.
   useEffect(() => {
@@ -181,7 +191,7 @@ const PanelContentRenderer: React.FC<IDockviewPanelProps<{
       data-kth-region="pane"
       data-panel-id={api.id}
       role="region"
-      aria-label={api.title || contentType}
+      aria-label={localizePaneLabel(t, contentType, panelTitle) || panelTitle || contentType}
       style={{ backgroundColor: 'var(--theme-bg-primary)' }}
     >
       <PaneErrorBoundary paneName={contentType}>

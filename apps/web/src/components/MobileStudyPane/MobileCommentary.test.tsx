@@ -295,6 +295,20 @@ describe('MobileCommentary', () => {
     expect(mockToggleMuted).toHaveBeenCalledWith('MHC');
   });
 
+  it('star and mute buttons are siblings of the row button with stable per-commentary names and aria-pressed', () => {
+    mockHomeData = { verseModules: [makeModule('MHC'), makeModule('Barnes')], passageModules: [], chapterModules: [] };
+    mockMuted = new Set(['Barnes']);
+    const { container } = render(<MobileCommentary />);
+    expect(container.querySelectorAll('button button').length).toBe(0);
+    const mhcMute = screen.getByRole('button', { name: 'mobileCommentary.mute MHC' });
+    const barnesMute = screen.getByRole('button', { name: 'mobileCommentary.mute Barnes' });
+    expect(mhcMute.getAttribute('aria-pressed')).toBe('false');
+    expect(barnesMute.getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getByRole('button', { name: 'mobileCommentary.star MHC' }).getAttribute('aria-pressed')).toBe('false');
+    fireEvent.click(mhcMute);
+    expect(mockToggleMuted).toHaveBeenCalledWith('MHC');
+  });
+
   // ---- Detail view navigation -------------------------------------------
   it('renders MobileCommentaryDetail when viewingModule is set', () => {
     const { container } = render(
@@ -308,7 +322,7 @@ describe('MobileCommentary', () => {
     mockHomeData = { verseModules: [makeModule('MHC')], passageModules: [], chapterModules: [] };
     const onViewModule = vi.fn();
     const { container } = render(<MobileCommentary onViewModule={onViewModule} />);
-    const card = container.querySelector<HTMLButtonElement>('.mobile-commentary__card')!;
+    const card = container.querySelector<HTMLButtonElement>('.mobile-commentary__card-main')!;
     fireEvent.click(card);
     expect(onViewModule).toHaveBeenCalledWith({ abbr: 'MHC', name: expect.any(String) });
   });

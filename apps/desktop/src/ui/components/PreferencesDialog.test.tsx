@@ -254,6 +254,26 @@ describe('PreferencesDialog - section nav at large UI sizes (B-102)', () => {
   });
 });
 
+describe('PreferencesDialog - section nav alignment (B-201)', () => {
+  it('left-justifies every item (logical start) and aligns the icon to the first line', () => {
+    renderWithProviders(<PreferencesDialog onClose={vi.fn()} />);
+    const tabs = screen.getAllByRole('tab');
+    expect(tabs.length).toBeGreaterThan(1);
+    for (const tab of tabs) {
+      // A <button> centres its text by default; a wrapped second line must start under the first.
+      expect(tab).toHaveClass('text-start');
+      // Top-aligned so a wrapped label keeps the icon beside its first line.
+      expect(tab).toHaveClass('items-start');
+      expect(tab).not.toHaveClass('items-center');
+      expect(tab).toHaveClass('justify-start');
+      const icon = tab.querySelector('[data-tab-icon]');
+      const label = tab.querySelector('[data-tab-label]');
+      expect(icon).toHaveClass('shrink-0', 'h-5');
+      expect(label).toHaveClass('flex-1', 'min-w-0', 'text-start');
+    }
+  });
+});
+
 describe('PreferencesDialog - sections modules contribute', () => {
   const onClose = vi.fn();
   const fixture = {
@@ -305,5 +325,21 @@ describe('PreferencesDialog - sections modules contribute', () => {
     renderWithProviders(<PreferencesDialog onClose={onClose} initialSection="measures" />);
     expect(screen.getByRole('dialog')).toBeInTheDocument();
     expect(screen.queryByTestId('general-section')).toBeNull();
+  });
+
+  it('moves between the vertical section tabs with Up/Down (Left/Right stay with the shared hook)', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<PreferencesDialog onClose={onClose} />);
+    const tablist = screen.getByRole('tablist');
+    expect(tablist).toHaveAttribute('aria-orientation', 'vertical');
+    const tabs = screen.getAllByRole('tab');
+    // Let the dialog's focus trap finish its own initial focus first.
+    await new Promise((r) => requestAnimationFrame(() => r(null)));
+    tabs[0].focus();
+    await user.keyboard('{ArrowDown}');
+    expect(document.activeElement).toBe(tabs[1]);
+    expect(tabs[1]).toHaveAttribute('aria-selected', 'true');
+    await user.keyboard('{ArrowUp}');
+    expect(document.activeElement).toBe(tabs[0]);
   });
 });

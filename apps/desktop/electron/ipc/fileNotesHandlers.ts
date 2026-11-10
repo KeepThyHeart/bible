@@ -1,12 +1,15 @@
 import { dialog, BrowserWindow } from 'electron';
 import log from 'electron-log/main';
 import { readFile } from 'fs/promises';
-import { extname } from 'path';
+import { extname, resolve as resolvePath, isAbsolute } from 'path';
 import { BibleNotesFileService, BnFile, NoteConflictError, NoteMissingError } from '../services/BibleNotesFileService';
-import { ipcHandler, IpcKnownError } from './handler-helper';
+import { ipcHandler, ipcHandlerWithSender, IpcKnownError } from './handler-helper';
+import { broadcastNoteSaved } from './noteSavedBroadcast';
 import { blessPath, isPathBlessed, isPathWithin } from './blessedPaths';
 import { t } from '../services/MainI18n';
+import { buildNoteDocx } from './noteDocx';
 import { moveNoteDirectionKeys, clearNoteDirectionKeys } from './noteDirectionHandlers';
+import { isEmptyNoteContent } from '../services/noteContent';
 
 let fileNotesService: BibleNotesFileService | null = null;
 
@@ -119,26 +122,53 @@ export function registerFileNotesHandlers(): void {
   // the main process regenerates it, so it is the only trustworthy value for
   // the renderer's next conflict-detection baseline (see
   // BibleNotesFileService.saveNote/saveNoteAbsolute).
-  ipcHandler<[string, BnFile, string | undefined], string>(
+  // After a successful save the other windows are told (`file-notes:note-saved`)
+  // so a note open in two windows stays in step. The saving window is excluded:
+  // it is still dirty when the push would arrive and would raise a false conflict.
+  ipcHandlerWithSender<[string, BnFile, string | undefined], string>(
     'file-notes:save-note',
-    (relativePath, note, expectedUpdated) => {
+    async (senderId, relativePath, note, expectedUpdated) => {
+      // A verse note whose text was cleared is removed rather than kept as an
+      // empty file (which would leave the verse showing a note marker). The
+      // empty `updated` tells the editor the note is no longer on disk, so
+      // typing again re-creates it.
+      if (getService().isVerseNotePath(relativePath) && isEmptyNoteContent(note.content)) {
+        try {
+          await getService().removeEmptiedVerseNote(relativePath, expectedUpdated);
+        } catch (err) {
+          throw toConflictError(err);
+        }
+        await clearNoteDirectionKeys(relativePath);
+        return '';
+      }
+      let updated: string;
       try {
-        return getService().saveNote(relativePath, note, expectedUpdated);
+        updated = getService().saveNote(relativePath, note, expectedUpdated);
       } catch (err) {
         throw toConflictError(err);
       }
+      const notesDir = getService().getNotesDir();
+      broadcastNoteSaved({
+        absolutePath: isAbsolute(relativePath) ? resolvePath(relativePath) : resolvePath(notesDir, relativePath),
+        updated,
+        senderId,
+      });
+      return updated;
     }
   );
 
-  ipcHandler<[string, BnFile, string | undefined], string>(
+  ipcHandlerWithSender<[string, BnFile, string | undefined], string>(
     'file-notes:save-note-absolute',
-    (absolutePath, note, expectedUpdated) => {
+    (senderId, absolutePath, note, expectedUpdated) => {
       assertAbsolutePathAllowed(absolutePath);
+      let updated: string;
       try {
-        return getService().saveNoteAbsolute(absolutePath, note, expectedUpdated);
+        updated = getService().saveNoteAbsolute(absolutePath, note, expectedUpdated);
       } catch (err) {
         throw toConflictError(err);
       }
+      broadcastNoteSaved({ absolutePath: resolvePath(absolutePath), updated, senderId });
+      return updated;
     }
   );
 
@@ -350,159 +380,12 @@ export function registerFileNotesHandlers(): void {
         return null;
       }
 
-      const { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType } = await import('docx');
       const fs = await import('fs');
-
-      // Parse HTML into DOCX paragraphs
-      const paragraphs = htmlToDocxParagraphs(htmlContent, noteTitle, { Document, Paragraph, TextRun, HeadingLevel, AlignmentType });
-
-      const doc = new Document({
-        sections: [{
-          properties: {},
-          children: paragraphs
-        }]
-      });
-
-      const buffer = await Packer.toBuffer(doc);
+      const buffer = await buildNoteDocx(htmlContent, noteTitle);
       fs.writeFileSync(result.filePath, buffer);
       return result.filePath;
     }
   );
-}
-
-/**
- * Convert HTML content to docx Paragraph objects.
- * Lightweight parser - handles common TipTap output tags.
- */
-function htmlToDocxParagraphs(html: string, title: string, docx: any): any[] {
-  const { Paragraph, TextRun, HeadingLevel, AlignmentType } = docx;
-  const paragraphs: any[] = [];
-
-  // Add title
-  paragraphs.push(new Paragraph({
-    heading: HeadingLevel.TITLE,
-    children: [new TextRun({ text: title, bold: true })],
-    alignment: AlignmentType.CENTER,
-    spacing: { after: 200 }
-  }));
-
-  // Simple HTML parser using regex - handles p, h1-h3, li, blockquote, hr
-  const blockPattern = /<(h[1-3]|p|li|blockquote|hr)\b[^>]*>([\s\S]*?)<\/\1>|<hr\s*\/?>/gi;
-  let blockMatch: RegExpExecArray | null;
-
-  // If no block tags found, treat entire content as one paragraph
-  const hasBlocks = blockPattern.test(html);
-  blockPattern.lastIndex = 0;
-
-  if (!hasBlocks) {
-    const text = html.replace(/<[^>]+>/g, '').trim();
-    if (text) {
-      paragraphs.push(new Paragraph({ children: parseInlineRuns(text, TextRun) }));
-    }
-    return paragraphs;
-  }
-
-  while ((blockMatch = blockPattern.exec(html)) !== null) {
-    const tag = (blockMatch[1] || 'hr').toLowerCase();
-    const inner = blockMatch[2] || '';
-
-    if (tag === 'hr') {
-      paragraphs.push(new Paragraph({
-        children: [new TextRun({ text: '───────────────────────────' })],
-        spacing: { before: 100, after: 100 }
-      }));
-      continue;
-    }
-
-    const plainText = inner.replace(/<[^>]+>/g, '').trim();
-    if (!plainText && tag !== 'hr') continue;
-
-    const runs = parseInlineRuns(inner, TextRun);
-
-    switch (tag) {
-      case 'h1':
-        paragraphs.push(new Paragraph({ heading: HeadingLevel.HEADING_1, children: runs }));
-        break;
-      case 'h2':
-        paragraphs.push(new Paragraph({ heading: HeadingLevel.HEADING_2, children: runs }));
-        break;
-      case 'h3':
-        paragraphs.push(new Paragraph({ heading: HeadingLevel.HEADING_3, children: runs }));
-        break;
-      case 'blockquote':
-        // Parse inner paragraphs within blockquote
-        const bqInner = inner.replace(/<\/?blockquote[^>]*>/g, '');
-        const bqParas = bqInner.split(/<\/?p[^>]*>/g).filter((s: string) => s.trim());
-        for (const bp of bqParas) {
-          const bpText = bp.replace(/<[^>]+>/g, '').trim();
-          if (bpText) {
-            paragraphs.push(new Paragraph({
-              children: [new TextRun({ text: bpText, italics: true })],
-              indent: { left: 720 },
-              spacing: { before: 40, after: 40 }
-            }));
-          }
-        }
-        break;
-      case 'li':
-        paragraphs.push(new Paragraph({
-          children: runs,
-          bullet: { level: 0 }
-        }));
-        break;
-      default:
-        paragraphs.push(new Paragraph({ children: runs, spacing: { after: 120 } }));
-    }
-  }
-
-  return paragraphs;
-}
-
-/**
- * Parse inline HTML (bold, italic, underline, sup) into TextRun objects
- */
-function parseInlineRuns(html: string, TextRun: any): any[] {
-  const runs: any[] = [];
-
-  // Simple approach: split by tags, track formatting state
-  const tagPattern = /<(\/?)(?:strong|b|em|i|u|s|del|sup|sub)\b[^>]*>|([^<]+)/gi;
-  let match: RegExpExecArray | null;
-  let bold = false, italic = false, underline = false, strike = false, superscript = false;
-
-  while ((match = tagPattern.exec(html)) !== null) {
-    if (match[2]) {
-      // Text node
-      const text = match[2].replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&nbsp;/g, ' ');
-      if (text.trim() || text === ' ') {
-        runs.push(new TextRun({
-          text,
-          bold,
-          italics: italic,
-          underline: underline ? {} : undefined,
-          strike,
-          superScript: superscript
-        }));
-      }
-    } else {
-      // Tag
-      const isClosing = match[1] === '/';
-      const tagFull = match[0].toLowerCase();
-      if (tagFull.includes('strong') || tagFull.includes('<b>') || tagFull.includes('</b>')) bold = !isClosing;
-      if (tagFull.includes('em') || tagFull.includes('<i>') || tagFull.includes('</i>')) italic = !isClosing;
-      if (tagFull.includes('<u') || tagFull.includes('</u>')) underline = !isClosing;
-      if (tagFull.includes('<s') || tagFull.includes('del')) strike = !isClosing;
-      if (tagFull.includes('sup')) superscript = !isClosing;
-    }
-  }
-
-  if (runs.length === 0) {
-    const text = html.replace(/<[^>]+>/g, '').trim();
-    if (text) {
-      runs.push(new TextRun({ text }));
-    }
-  }
-
-  return runs;
 }
 
 /**

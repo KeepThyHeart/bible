@@ -15,7 +15,11 @@ import { SECTION_COLOR_TOKEN } from '../constants/bibleSections';
 // unformatted message on a first synchronous render - no use to an assertion
 // about what the reader sees. A stub that echoed the key back would be worse
 // still: it would accept a component that never passed `count` at all.
-const catalog = enUi as Record<string, string>;
+const catalog: Record<string, string> = {
+  // New key (added to the locale files separately).
+  'searchDistributionGraph.bookNotCounted': '{book} — not counted yet',
+  ...(enUi as Record<string, string>),
+};
 
 function stubT(key: string, params?: Record<string, unknown>): string {
   const message = catalog[key];
@@ -146,7 +150,11 @@ describe('SearchDistributionGraph', () => {
     expect(hairline.style.height).toBe('2px');
     // Not a control: nothing to select, so it must not take a tab stop.
     expect(obadiah.tagName).toBe('DIV');
-    expect(obadiah).toHaveAttribute('role', 'img');
+    // Exposed as a disabled (non-focusable) button, never as an image.
+    expect(obadiah).toHaveAttribute('role', 'button');
+    expect(obadiah).toHaveAttribute('aria-disabled', 'true');
+    expect(obadiah).not.toHaveAttribute('tabindex');
+    expect(screen.queryAllByRole('img')).toHaveLength(0);
     expect(obadiah).toHaveAttribute('aria-label', 'Obadiah — no matches');
   });
 
@@ -231,6 +239,22 @@ describe('SearchDistributionGraph', () => {
     expect(caption).toHaveTextContent('this is not a full count');
   });
 
+  it('does not claim "no matches" for uncounted books when the set is truncated', () => {
+    renderWithProviders(
+      <SearchDistributionGraph
+        mode="keyword"
+        results={[keywordResult(GEN_1_1)]}
+        isCapped
+        onSelectBook={vi.fn()}
+      />,
+    );
+
+    expect(barFor(43)).toHaveAttribute('aria-label', 'John — not counted yet');
+    expect(screen.queryByLabelText(/no matches/)).toBeNull();
+    // Counted books keep their count.
+    expect(barFor(1)).toHaveAttribute('aria-label', 'Genesis — 1 match');
+  });
+
   it('states a plain count when the set is complete', () => {
     renderWithProviders(
       <SearchDistributionGraph
@@ -285,8 +309,8 @@ describe('SearchDistributionGraph', () => {
     expect(screen.getByTestId('distribution-tooltip')).toHaveTextContent('Obadiah — no matches');
   });
 
-  it('keeps an edge book\'s tooltip inside the chart', () => {
-    renderWithProviders(
+  it('portals the tooltip to <body>, above everything, and keeps an edge book\'s tip on screen', () => {
+    const { container } = renderWithProviders(
       <SearchDistributionGraph
         mode="keyword"
         results={[keywordResult(GEN_1_1), keywordResult(REV_22_21)]}
@@ -294,15 +318,32 @@ describe('SearchDistributionGraph', () => {
         onSelectBook={vi.fn()}
       />,
     );
+    const rectAt = (el: HTMLElement, left: number, top: number): void => {
+      el.getBoundingClientRect = () => ({ left, top, right: left + 4, bottom: top + 40, width: 4, height: 40, x: left, y: top, toJSON: () => ({}) });
+    };
 
-    fireEvent.mouseEnter(barFor(1));
-    // Pinned to the leading edge rather than centred on a bar that is already
-    // at the edge, which would hang the tip outside the pane.
-    expect(screen.getByTestId('distribution-tooltip').style.insetInlineStart).toBe('0px');
-    fireEvent.mouseLeave(barFor(1));
+    const first = barFor(1);
+    rectAt(first, 2, 200);
+    fireEvent.mouseEnter(first);
+    const tip = screen.getByTestId('distribution-tooltip');
+    // Not inside the pane (and its clipping/stacking), but on <body>.
+    expect(container.contains(tip)).toBe(false);
+    expect(tip.parentElement).toBe(document.body);
+    expect(tip.style.position).toBe('fixed');
+    expect(Number(tip.style.zIndex)).toBeGreaterThanOrEqual(1000);
+    // Pulled in from the viewport edge rather than centred on a bar at x=4.
+    expect(parseFloat(tip.style.left)).toBeGreaterThanOrEqual(100);
+    // Room above: the tip sits above the bar.
+    expect(tip.style.transform).toContain('-100%');
+    fireEvent.mouseLeave(first);
 
-    fireEvent.mouseEnter(barFor(66));
-    expect(screen.getByTestId('distribution-tooltip').style.insetInlineEnd).toBe('0px');
+    // A bar right under the app header flips the tip below it.
+    const last = barFor(66);
+    rectAt(last, 1000, 10);
+    fireEvent.mouseEnter(last);
+    const flipped = screen.getByTestId('distribution-tooltip');
+    expect(flipped.style.transform).not.toContain('-100%');
+    expect(parseFloat(flipped.style.top)).toBeGreaterThanOrEqual(50);
   });
 
   it('reports the clicked book, and only for books that have matches', () => {

@@ -320,6 +320,11 @@
   overflow-y: hidden !important;
   /* Hide scrollbar visually - scrolling still works via touchpad/trackpad */
   scrollbar-width: none; /* Firefox */
+  /* U-058: end padding equal to the scroll chevron's width (30px), so the
+     last tab's close button can scroll clear of the chevron instead of
+     resting under it. */
+  padding-inline-end: 30px;
+  scroll-padding-inline-end: 30px;
 }
 .dockview-theme-light.dockview-theme-light .dv-scrollable > .dv-tabs-container::-webkit-scrollbar {
   display: none; /* Chrome, Edge, Safari */
@@ -428,4 +433,61 @@
 .dv-tab:focus-visible {
   outline: 2px solid var(--theme-border-focus);
   outline-offset: -2px;
+}
+
+/* Layout menu: the current preset's row must be unmistakable, not just a 12%
+   tint. A solid inline-start bar plus heavier text; the check icon stays. */
+.layout-preset-row[aria-pressed='true'] {
+  box-shadow: inset 3px 0 0 var(--theme-accent-primary);
+  background-color: var(--theme-accent-light);
+}
+.layout-preset-row[aria-pressed='true'] .text-sm {
+  font-weight: 700;
+}
+[dir='rtl'] .layout-preset-row[aria-pressed='true'] {
+  box-shadow: inset -3px 0 0 var(--theme-accent-primary);
+}
+
+/* ============================================================
+   NARROW STRIPS: ELLIPSIZE TITLES, KEEP "+" VISIBLE
+   ------------------------------------------------------------
+   dockview gives every tab `flex-shrink: 0`, so in a narrow pane the strip
+   just scrolled and the last tab was sliced mid-glyph ("Dictio") with the "+"
+   scrolled out of view. Tabs may now shrink down to a floor, their title
+   ellipsizes, and the "+" host sticks to the strip's end edge so it is
+   reachable however many tabs there are.
+   ============================================================ */
+.dockview-theme-light.dockview-theme-light .dv-tab {
+  flex-shrink: 1;
+  min-width: 5.5rem;
+}
+.dockview-theme-light.dockview-theme-light .dv-tab .dockview-tab-content {
+  min-width: 0;
+  max-width: 100%;
+}
+.dockview-theme-light.dockview-theme-light .dv-tab .dockview-tab-text {
+  min-width: 0;
+}
+.dockview-theme-light.dockview-theme-light .dv-tab .dockview-tab-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dockview-theme-light.dockview-theme-light .dv-tabs-container > .app-add-tab-host {
+  position: sticky;
+  inset-inline-end: 0;
+  z-index: 1;
+  background-color: var(--theme-pane-header-bg);
+}
+
+/* The "+" host paints an opaque background (above), which covers the strip's
+   baseline inset shadow and broke the underline after the last tab. Repeat the
+   same baseline on the host - same token as the container and inactive tabs, so
+   it follows light and dark themes. The right-actions and collapse hosts get it
+   too: they are opaque children of the strip as well. */
+.dockview-theme-light.dockview-theme-light .dv-tabs-container > .app-add-tab-host,
+.dockview-theme-light.dockview-theme-light .dv-tabs-and-actions-container .dv-right-actions-container,
+.dockview-theme-light.dockview-theme-light .dv-tabs-and-actions-container .app-collapse-action-host {
+  box-shadow: inset 0 calc(-1 * var(--app-tab-strip-border-width)) 0 0 var(--theme-border-primary);
 }

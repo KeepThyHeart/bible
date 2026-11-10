@@ -120,6 +120,9 @@ export function moduleRepositoryFactoryFor<K extends keyof ModuleRepositoryByTyp
  * loader.closeAll();                // on app shutdown
  * ```
  */
+/** W-005: most remembered failed loads kept per loader. */
+const MAX_FAILED_ENTRIES = 500;
+
 export class ModuleLoader<TRepo> {
   private repos = new Map<string, TRepo>();
   private connections = new Map<string, IModuleConnection>();
@@ -348,7 +351,20 @@ export class ModuleLoader<TRepo> {
    * nothing, so the log carries one line per genuine attempt.
    */
   private recordFailure(abbreviation: string, message: string, ...args: unknown[]): void {
-    this.failedAt.set(abbreviation, Date.now());
+    // W-005: the key is caller-controlled (a request's module name), so bound
+    // the map: sweep expired entries, then cap the size, dropping the oldest.
+    const now = Date.now();
+    for (const [key, at] of this.failedAt) {
+      if (now - at >= this.failureTtlMs) this.failedAt.delete(key);
+      else break; // insertion order == age order (re-set below), so the rest are fresh
+    }
+    this.failedAt.delete(abbreviation);
+    this.failedAt.set(abbreviation, now);
+    while (this.failedAt.size > MAX_FAILED_ENTRIES) {
+      const oldest = this.failedAt.keys().next().value;
+      if (oldest === undefined) break;
+      this.failedAt.delete(oldest);
+    }
     this.logger?.error(message, ...args);
   }
 

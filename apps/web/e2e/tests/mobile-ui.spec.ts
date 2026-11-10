@@ -5,6 +5,9 @@ test.describe('Mobile UI Tests', () => {
     test.skip(!testInfo.project.name.includes('mobile'), 'Mobile-only tests');
     // Clear session storage so home screen shows on fresh load
     await page.goto('/');
+    // Let the first load finish: reloading mid-import makes WebKit log "Importing a module script failed".
+    await page.waitForSelector('.app');
+    await page.waitForLoadState('networkidle');
     await page.evaluate(() => localStorage.clear());
     await page.reload();
     await page.waitForSelector('.app--mobile', { timeout: 10000 });

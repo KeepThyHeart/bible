@@ -65,7 +65,7 @@ export function StudyVerseHeader({
             <i class={`fa-solid fa-thumbtack${pinned ? '' : ' fa-rotate-by'}`} style={pinned ? undefined : { '--fa-rotate-angle': '30deg' } as any} />
           </button>
         </span>
-        <button class="study-verse-header__toggle" onClick={toggleExpanded}>{t('studyVerseHeader.expand')}</button>
+        <button class="study-verse-header__toggle" aria-expanded={false} onClick={toggleExpanded}>{t('studyVerseHeader.showFull', 'Show full verse')}</button>
       </div>
     );
   }
@@ -110,11 +110,11 @@ export function StudyVerseHeader({
           <div class="study-verse-header__text">
             {/* Verse text follows the Bible module's direction; the toggle stays UI chrome (task 0076). */}
             <span {...moduleContentAttrs(bibleStore.getActiveModule())}>{verseText}</span>{' '}
-            <button class="study-verse-header__toggle" onClick={toggleExpanded}>{t('studyVerseHeader.collapse')}</button>
+            <button class="study-verse-header__toggle" aria-expanded={true} onClick={toggleExpanded}>{t('studyVerseHeader.showLess', 'Show less')}</button>
           </div>
         )}
         {!verseText && (
-          <button class="study-verse-header__toggle" onClick={toggleExpanded}>{t('studyVerseHeader.collapse')}</button>
+          <button class="study-verse-header__toggle" aria-expanded={true} onClick={toggleExpanded}>{t('studyVerseHeader.showLess', 'Show less')}</button>
         )}
       </div>
 

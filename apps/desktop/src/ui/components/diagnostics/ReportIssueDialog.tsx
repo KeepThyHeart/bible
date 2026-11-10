@@ -1,29 +1,48 @@
 /**
- * ReportIssueDialog - user-initiated "Report an Issue" modal, opened from the
- * Help menu (see {@link registerDiagnosticsCommands}).
+ * ReportIssueDialog - the in-app "Give Feedback" and "Report an Issue" modal.
  *
- * Two modes driven by the "Include diagnostic information" checkbox:
- *   - checked   -> calls `diagnostics:submit-manual-report` (attaches a state
- *                 snapshot and environment info)
- *   - unchecked -> calls `diagnostics:submit-feedback` (description-only,
- *                 no snapshot, no OS info)
+ * One dialog, two entry points, two modes:
  *
- * Submitting only *enqueues*. The payload is written to
- * `{userData}/diagnostics/queue/` and a background uploader POSTs it later, on
- * a 30-minute tick - and that uploader does nothing at all unless diagnostics
- * is enabled and an endpoint URL is set, both of which are off by default.
+ *   - `command:help:giveFeedback` -> feedback mode. A short message and an
+ *     optional contact, like the web app's feedback form. Always calls
+ *     `diagnostics:submit-feedback` (no snapshot, no OS info). Reached from
+ *     the header Help "?" panel and Help -> Give Feedback.
+ *   - `command:help:reportIssue` -> issue mode, the original dialog. The
+ *     "Include diagnostic information" checkbox picks the channel:
+ *       unchecked -> `diagnostics:submit-feedback` (description-only). This is
+ *                    the default: diagnostic data is opt-in, per report.
+ *       checked   -> `diagnostics:submit-manual-report` (state snapshot and
+ *                    environment info attached).
  *
- * That is why the thank-you has two wordings rather than one. The dialog used
- * to simply vanish on success, which told the user nothing; saying "sent"
- * instead would be worse, because on a default install nothing has been sent
- * and nothing is going to be until they configure a destination. The handler's
- * receipt (`SubmitReceipt.willUpload`) is what decides which sentence is true.
+ * Both modes share one send path, which is the point of keeping them in one
+ * component:
+ *
+ *   1. Submit enqueues the payload in `{userData}/diagnostics/queue/`. From
+ *      here on it cannot be lost - a failed send is retried by the uploader.
+ *   2. Immediately `diagnostics:deliver-report` asks the main process to try
+ *      sending that report now, and the dialog shows "Sending...".
+ *   3. If that settles within {@link DELIVERY_DEADLINE_MS} (it usually takes
+ *      well under a second) the dialog says what really happened: sent, or
+ *      saved-and-why (web requests off, no connection, no destination).
+ *   4. If it has not settled by then, the dialog says the message is saved
+ *      and will finish sending in the background, and can be closed. If it is
+ *      still open when delivery settles, it updates to the real outcome.
+ *
+ * Delivery goes through the uploader and its NetworkGateway, so the app's
+ * network permission model holds: with Privacy -> Allow Web Requests off
+ * nothing is contacted, and the dialog says so plainly instead of "sent".
  */
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
 import { useI18n } from '../../contexts/useI18n';
 import { getDiagnosticsPrivacyBlurb } from './privacyBlurb';
+import {
+  deliverWithDeadline,
+  type DeliveryResult,
+} from './deliverWithDeadline';
+
+export { DELIVERY_DEADLINE_MS } from './deliverWithDeadline';
 
 interface ResultEnvelope<T> {
   ok: boolean;
@@ -44,20 +63,57 @@ function errorMessageFromEnvelope(x: unknown): string {
 }
 
 /**
- * Did the main process say this report will actually be uploaded?
- *
- * Anything unrecognised - an older main process still returning the bare
- * report id, an envelope shape that changed - reads as `false`. The
- * saved-on-this-computer wording is true whether or not an endpoint exists;
- * "it has been sent" is only true when the receipt says so, so the unknown
- * case must fall to the claim that cannot be wrong.
+ * Read the submit receipt. Anything unrecognised - an older main process
+ * still returning the bare report id, an envelope shape that changed - reads
+ * as "will not upload, id unknown", which lands on the saved-on-this-computer
+ * wording: true whether or not anything is ever sent.
  */
-function willUploadFromEnvelope(x: unknown): boolean {
-  if (!isOkEnvelope<unknown>(x)) return false;
+function receiptFromEnvelope(x: unknown): { reportId: string | null; willUpload: boolean } {
+  if (!isOkEnvelope<unknown>(x)) return { reportId: null, willUpload: false };
   const value = x.value;
-  if (!value || typeof value !== 'object') return false;
-  return (value as { willUpload?: unknown }).willUpload === true;
+  if (!value || typeof value !== 'object') return { reportId: null, willUpload: false };
+  const v = value as { reportId?: unknown; willUpload?: unknown };
+  return {
+    reportId: typeof v.reportId === 'string' && v.reportId ? v.reportId : null,
+    willUpload: v.willUpload === true,
+  };
 }
+
+export type DialogMode = 'feedback' | 'issue';
+
+/**
+ * What the finished panel tells the user. Each maps to exactly one sentence,
+ * chosen so it is true for that state:
+ *
+ *  - `sent`        - the endpoint accepted it.
+ *  - `background`  - still sending after the deadline; it is on disk either way.
+ *  - `webOff`      - Privacy -> Allow Web Requests is off; names the switch.
+ *  - `waiting`     - no connection / server unreachable / rate-limited.
+ *  - `noEndpoint`  - this build or user has no destination configured.
+ */
+export type DeliveryNotice = 'sent' | 'background' | 'webOff' | 'waiting' | 'noEndpoint';
+
+/** `null` means the server refused the report outright (it is not queued). */
+export function noticeForResult(result: DeliveryResult): DeliveryNotice | null {
+  if (result.status === 'sent') return 'sent';
+  if (result.status === 'rejected') return null;
+  switch (result.reason) {
+    case 'web-requests-off':
+      return 'webOff';
+    case 'no-endpoint':
+      return 'noEndpoint';
+    default:
+      return 'waiting';
+  }
+}
+
+const NOTICE_KEYS: Record<DeliveryNotice, string> = {
+  sent: 'reportIssueDialog.deliverySent',
+  background: 'reportIssueDialog.deliveryBackground',
+  webOff: 'reportIssueDialog.deliveryWebRequestsOff',
+  waiting: 'reportIssueDialog.deliveryWaiting',
+  noEndpoint: 'reportIssueDialog.successBodySaved',
+};
 
 const PRIMARY_BUTTON_STYLE: React.CSSProperties = {
   padding: '6px 14px',
@@ -69,28 +125,52 @@ const PRIMARY_BUTTON_STYLE: React.CSSProperties = {
   cursor: 'pointer',
 };
 
+const FIELD_STYLE: React.CSSProperties = {
+  display: 'block',
+  width: '100%',
+  marginTop: 4,
+  padding: 8,
+  fontFamily: 'inherit',
+  fontSize: '0.8125rem',
+  border: '1px solid var(--theme-border, #ccc)',
+  borderRadius: 4,
+  backgroundColor: 'var(--theme-bg-primary, #fff)',
+  color: 'inherit',
+  boxSizing: 'border-box',
+};
+
+/** Matches FEEDBACK_CONTACT_MAX_LENGTH in electron/services/DiagnosticsService.ts. */
+const CONTACT_MAX_LENGTH = 200;
+
 const ReportIssueDialog: React.FC = () => {
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
+  const [mode, setMode] = useState<DialogMode>('issue');
   const [description, setDescription] = useState('');
-  const [includeDiagnostics, setIncludeDiagnostics] = useState(true);
+  const [contact, setContact] = useState('');
+  // Opt-in: diagnostic data is attached only when the user ticks the box.
+  const [includeDiagnostics, setIncludeDiagnostics] = useState(false);
   const [snapshot, setSnapshot] = useState<unknown>(null);
   const [snapshotLoading, setSnapshotLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   // Non-null once the report has been accepted: the dialog switches to the
-  // thank-you panel, and the flag picks which of the two honest sentences it
-  // shows.
-  const [sent, setSent] = useState<{ willUpload: boolean } | null>(null);
+  // finished panel, and the notice picks its sentence.
+  const [notice, setNotice] = useState<DeliveryNotice | null>(null);
+  // Bumped on every open/close so a delivery that settles after the dialog
+  // was closed (or reopened for a new message) cannot repaint it.
+  const sessionRef = useRef(0);
 
   const reset = useCallback((): void => {
+    sessionRef.current += 1;
     setDescription('');
-    setIncludeDiagnostics(true);
+    setContact('');
+    setIncludeDiagnostics(false);
     setSnapshot(null);
     setSnapshotLoading(false);
     setSubmitting(false);
     setSubmitError(null);
-    setSent(null);
+    setNotice(null);
   }, []);
 
   // Lazily fetch the state snapshot the first time the checkbox is enabled,
@@ -117,21 +197,28 @@ const ReportIssueDialog: React.FC = () => {
   }, [snapshot, snapshotLoading]);
 
   useEffect(() => {
-    const handler = (): void => {
+    const openAs = (next: DialogMode) => (): void => {
       reset();
+      setMode(next);
       setOpen(true);
     };
-    window.addEventListener('command:help:reportIssue', handler);
+    const onIssue = openAs('issue');
+    const onFeedback = openAs('feedback');
+    window.addEventListener('command:help:reportIssue', onIssue);
+    window.addEventListener('command:help:giveFeedback', onFeedback);
     return () => {
-      window.removeEventListener('command:help:reportIssue', handler);
+      window.removeEventListener('command:help:reportIssue', onIssue);
+      window.removeEventListener('command:help:giveFeedback', onFeedback);
     };
   }, [reset]);
 
+  const attachDiagnostics = mode === 'issue' && includeDiagnostics;
+
   useEffect(() => {
-    if (open && includeDiagnostics) {
+    if (open && attachDiagnostics) {
       void fetchSnapshotIfNeeded();
     }
-  }, [open, includeDiagnostics, fetchSnapshotIfNeeded]);
+  }, [open, attachDiagnostics, fetchSnapshotIfNeeded]);
 
   const close = useCallback((): void => {
     setOpen(false);
@@ -141,34 +228,83 @@ const ReportIssueDialog: React.FC = () => {
   const handleSend = useCallback(async (): Promise<void> => {
     const trimmed = description.trim();
     if (!trimmed) return;
+    const session = sessionRef.current;
+    const stillHere = (): boolean => sessionRef.current === session;
     setSubmitting(true);
     setSubmitError(null);
     try {
       const api = window.electron?.diagnostics;
       if (!api) throw new Error('Diagnostics IPC unavailable');
-      const envelope = includeDiagnostics
-        ? await api.submitManualReport({ description: trimmed, includeDiagnostics: true })
-        : await api.submitFeedback({ description: trimmed });
+
+      // 1. Durable enqueue. Until this resolves OK nothing has been saved.
+      let envelope: unknown;
+      if (attachDiagnostics) {
+        envelope = await api.submitManualReport({ description: trimmed, includeDiagnostics: true });
+      } else if (mode === 'feedback' && contact.trim()) {
+        envelope = await api.submitFeedback({ description: trimmed, contact: contact.trim() });
+      } else {
+        envelope = await api.submitFeedback({ description: trimmed });
+      }
+      if (!stillHere()) return;
       if (!isOkEnvelope<unknown>(envelope)) {
         setSubmitError(errorMessageFromEnvelope(envelope));
+        setSubmitting(false);
         return;
       }
-      // Confirm rather than vanish: an immediate `close()` would be
-      // indistinguishable from the dialog being dismissed, leaving no point
-      // at which the user is told the report was accepted.
-      setSent({ willUpload: willUploadFromEnvelope(envelope) });
+
+      const receipt = receiptFromEnvelope(envelope);
+      if (!receipt.willUpload) {
+        setNotice('noEndpoint');
+        setSubmitting(false);
+        return;
+      }
+      const deliverReport = api.deliverReport;
+      if (!receipt.reportId || typeof deliverReport !== 'function') {
+        // Queued, and the main process started sending it, but there is no
+        // way to ask how that went: the honest sentence is "in the background".
+        setNotice('background');
+        setSubmitting(false);
+        return;
+      }
+
+      // 2-4. Try to send it now; stop waiting at the deadline.
+      const reportId = receipt.reportId;
+      const outcome = await deliverWithDeadline(() => deliverReport(reportId));
+      if (!stillHere()) return;
+      setSubmitting(false);
+
+      const show = (result: DeliveryResult): void => {
+        const next = noticeForResult(result);
+        if (next) {
+          setNotice(next);
+        } else {
+          // Refused outright and dropped from the queue - so not "saved".
+          // Back to the form with the text intact, to try again.
+          setNotice(null);
+          setSubmitError(t('reportIssueDialog.deliveryRejected'));
+        }
+      };
+
+      if (outcome.kind === 'settled') {
+        show(outcome.result);
+      } else {
+        setNotice('background');
+        void outcome.later.then((result) => {
+          if (stillHere()) show(result);
+        });
+      }
     } catch (err) {
+      if (!stillHere()) return;
       const message = err instanceof Error ? err.message : String(err);
       setSubmitError(message);
-      window.electron?.log?.error?.('[ReportIssueDialog] submit failed', err);
-    } finally {
       setSubmitting(false);
+      window.electron?.log?.error?.('[ReportIssueDialog] submit failed', err);
     }
-  }, [description, includeDiagnostics]);
+  }, [description, contact, mode, attachDiagnostics, t]);
 
   // Escape maps to exactly what the Cancel button does - including discarding a
   // half-typed description - and is ignored mid-submit, matching that button's
-  // disabled state. On the thank-you panel there is nothing left to discard, so
+  // disabled state. On the finished panel there is nothing left to discard, so
   // it simply dismisses.
   const dialogRef = useFocusTrap<HTMLDivElement>(open, () => {
     if (!submitting) close();
@@ -177,6 +313,7 @@ const ReportIssueDialog: React.FC = () => {
   if (!open) return null;
 
   const sendDisabled = submitting || description.trim().length === 0;
+  const isFeedback = mode === 'feedback';
 
   return (
     <div
@@ -193,6 +330,7 @@ const ReportIssueDialog: React.FC = () => {
       role="dialog"
       aria-modal="true"
       aria-labelledby="report-issue-dialog-title"
+      data-testid={isFeedback ? 'feedback-dialog' : 'report-issue-dialog'}
     >
       <div
         style={{
@@ -212,11 +350,11 @@ const ReportIssueDialog: React.FC = () => {
           id="report-issue-dialog-title"
           style={{ fontSize: '1.125rem', fontWeight: 600, marginTop: 0, marginBottom: 12 }}
         >
-          {t('reportIssueDialog.title')}
+          {isFeedback ? t('feedbackDialog.title') : t('reportIssueDialog.title')}
         </h2>
 
-        {sent ? (
-          <div role="status" data-testid="report-issue-success">
+        {notice ? (
+          <div role="status" data-testid="report-issue-success" data-delivery={notice}>
             <p style={{ fontSize: '0.9375rem', fontWeight: 600, margin: '0 0 8px 0' }}>
               {t('reportIssueDialog.successTitle')}
             </p>
@@ -228,9 +366,7 @@ const ReportIssueDialog: React.FC = () => {
                 color: 'var(--theme-text-secondary, #555)',
               }}
             >
-              {sent.willUpload
-                ? t('reportIssueDialog.successBodySent')
-                : t('reportIssueDialog.successBodySaved')}
+              {t(NOTICE_KEYS[notice])}
             </p>
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
@@ -242,47 +378,86 @@ const ReportIssueDialog: React.FC = () => {
         ) : (
           <>
             <label style={{ display: 'block', fontSize: '0.8125rem', marginTop: 8 }}>
-              {t('reportIssueDialog.descriptionLabel')}
+              {isFeedback ? t('feedbackDialog.messageLabel') : t('reportIssueDialog.descriptionLabel')}
               <textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                rows={6}
-                placeholder={t('reportIssueDialog.descriptionPlaceholder')}
+                rows={isFeedback ? 5 : 6}
+                disabled={submitting}
+                placeholder={
+                  isFeedback
+                    ? t('feedbackDialog.messagePlaceholder')
+                    : t('reportIssueDialog.descriptionPlaceholder')
+                }
+                data-testid="report-issue-description"
+                style={{ ...FIELD_STYLE, resize: 'vertical' }}
+              />
+            </label>
+
+            {isFeedback ? (
+              <>
+                <label style={{ display: 'block', fontSize: '0.8125rem', marginTop: 12 }}>
+                  {t('feedbackDialog.contactLabel')}
+                  <input
+                    type="text"
+                    value={contact}
+                    onChange={(e) => setContact(e.target.value)}
+                    maxLength={CONTACT_MAX_LENGTH}
+                    disabled={submitting}
+                    placeholder={t('feedbackDialog.contactPlaceholder')}
+                    data-testid="feedback-contact"
+                    style={FIELD_STYLE}
+                  />
+                </label>
+                <p
+                  style={{
+                    fontSize: '0.75rem',
+                    lineHeight: 1.5,
+                    margin: '8px 0 0 0',
+                    color: 'var(--theme-text-secondary, #555)',
+                  }}
+                >
+                  {t('feedbackDialog.privacyNote')}{' '}
+                  <button
+                    type="button"
+                    onClick={() => setMode('issue')}
+                    disabled={submitting}
+                    data-testid="feedback-switch-to-issue"
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      padding: 0,
+                      font: 'inherit',
+                      color: 'var(--theme-accent-primary, #2563eb)',
+                      textDecoration: 'underline',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {t('feedbackDialog.switchToIssue')}
+                  </button>
+                </p>
+              </>
+            ) : (
+              <label
                 style={{
-                  display: 'block',
-                  width: '100%',
-                  marginTop: 4,
-                  padding: 8,
-                  fontFamily: 'inherit',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  marginTop: 12,
                   fontSize: '0.8125rem',
-                  border: '1px solid var(--theme-border, #ccc)',
-                  borderRadius: 4,
-                  backgroundColor: 'var(--theme-bg-primary, #fff)',
-                  color: 'inherit',
-                  boxSizing: 'border-box',
-                  resize: 'vertical',
                 }}
-              />
-            </label>
+              >
+                <input
+                  type="checkbox"
+                  checked={includeDiagnostics}
+                  disabled={submitting}
+                  onChange={(e) => setIncludeDiagnostics(e.target.checked)}
+                />
+                {t('reportIssueDialog.includeDiagnostics')}
+              </label>
+            )}
 
-            <label
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6,
-                marginTop: 12,
-                fontSize: '0.8125rem',
-              }}
-            >
-              <input
-                type="checkbox"
-                checked={includeDiagnostics}
-                onChange={(e) => setIncludeDiagnostics(e.target.checked)}
-              />
-              {t('reportIssueDialog.includeDiagnostics')}
-            </label>
-
-            {includeDiagnostics && (
+            {attachDiagnostics && (
               <div style={{ marginTop: 12 }}>
                 <pre
                   style={{
@@ -369,6 +544,8 @@ const ReportIssueDialog: React.FC = () => {
                 type="button"
                 onClick={handleSend}
                 disabled={sendDisabled}
+                aria-busy={submitting}
+                data-testid="report-issue-send"
                 style={{
                   ...PRIMARY_BUTTON_STYLE,
                   background: sendDisabled
@@ -377,7 +554,7 @@ const ReportIssueDialog: React.FC = () => {
                   cursor: sendDisabled ? 'default' : 'pointer',
                 }}
               >
-                {t('reportIssueDialog.send')}
+                {submitting ? t('reportIssueDialog.sending') : t('reportIssueDialog.send')}
               </button>
             </div>
           </>

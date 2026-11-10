@@ -13,7 +13,7 @@ import {
   SortableContext,
   rectSortingStrategy,
 } from '@dnd-kit/sortable';
-import { SortableTab } from '../common/SortableTab';
+import { SortableTab, tabKeyDown, focusAfterTabClose } from '../common/SortableTab';
 import { ModuleSelectDialog } from '../common/ModuleSelectDialog';
 import { dictionaryStore, DICT_HOME_TAB_ID } from '../../stores/dictionaryStore';
 import { moduleStore } from '../../stores/moduleStore';
@@ -71,11 +71,16 @@ export function DictionaryTabBar() {
 
   return (
     <div class="dictionary-tab-bar">
+      <div role="tablist" style={{ display: 'contents' }} aria-label={t('dictionaryTabBar.tabs', { defaultValue: 'Dictionary tabs' })}>
       {/* Home tab — fixed, non-draggable */}
       {tabs.find(t => t.id === DICT_HOME_TAB_ID) && (
         <div
           class={`dictionary-tab-bar__tab ${activeTabId === DICT_HOME_TAB_ID ? 'dictionary-tab-bar__tab--active' : ''} dictionary-tab-bar__tab--home`}
+          role="tab"
+          aria-selected={activeTabId === DICT_HOME_TAB_ID}
+          tabIndex={activeTabId === DICT_HOME_TAB_ID || !tabs.some(x => x.id === activeTabId) ? 0 : -1}
           onClick={() => dictionaryStore.setActiveTab(DICT_HOME_TAB_ID)}
+          onKeyDown={tabKeyDown(() => dictionaryStore.setActiveTab(DICT_HOME_TAB_ID))}
           title={t('dictionaryPane.home')}
         >
           <span class="dictionary-tab-bar__label"><i class="fa-solid fa-house fa-xs" /> {t('dictionaryTabBar.home')}</span>
@@ -86,22 +91,36 @@ export function DictionaryTabBar() {
         <SortableContext items={sortableTabs.map(t => t.id)} strategy={rectSortingStrategy}>
           {sortableTabs.map(tab => {
             const isTemp = tab.temporary ?? false;
+            const activate = () => dictionaryStore.setActiveTab(tab.id);
+            const closeTab = (list: Element | null) => {
+              dictionaryStore.removeTab(tab.id);
+              focusAfterTabClose(list, '.dictionary-tab-bar__add');
+            };
+            const closeName = t('bibleTabBar.closeTabNamed', { title: tab.moduleName, defaultValue: `Close ${tab.moduleName}` });
             return (
               <SortableTab
                 key={tab.id}
                 id={tab.id}
+                presentational
                 class={`dictionary-tab-bar__tab ${tab.id === activeTabId ? 'dictionary-tab-bar__tab--active' : ''} ${isTemp ? 'dictionary-tab-bar__tab--temporary' : ''}`}
-                onClick={() => dictionaryStore.setActiveTab(tab.id)}
+                onClick={activate}
                 title={isTemp ? `${tab.moduleName} (${t('dictionaryTabBar.preview')})` : tab.moduleName}
               >
-                <span class="dictionary-tab-bar__label">{tab.moduleName}</span>
+                <span
+                  class="dictionary-tab-bar__label"
+                  role="tab"
+                  aria-selected={tab.id === activeTabId}
+                  tabIndex={tab.id === activeTabId ? 0 : -1}
+                  onKeyDown={tabKeyDown(activate, closeTab)}
+                >{tab.moduleName}</span>
                 <button
                   class="dictionary-tab-bar__close"
                   onClick={(e) => {
                     e.stopPropagation();
-                    dictionaryStore.removeTab(tab.id);
+                    closeTab((e.currentTarget as HTMLElement).closest('[role="tablist"]'));
                   }}
-                  title={t('commentaryTabBar.closeTab')}
+                  aria-label={closeName}
+                  title={closeName}
                 >
                   <i class="fa-solid fa-xmark fa-xs" />
                 </button>
@@ -110,6 +129,7 @@ export function DictionaryTabBar() {
           })}
         </SortableContext>
       </DndContext>
+      </div>
 
       {/* Add dictionary button */}
       <button

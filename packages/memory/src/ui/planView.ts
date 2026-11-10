@@ -20,7 +20,7 @@
 
 import type { PassageSortOrder, PassageView, PlanView } from '../core/types';
 import { append, button, el } from './dom';
-import { activitySquares, breadcrumb, dueBadge, icon, inapplicabilityNote, listSelector, menu } from './components';
+import { activitySquares, breadcrumb, dueBadge, icon, inapplicabilityNote, listSelector, menu, translationTag } from './components';
 import type { ListSelectorOption } from './components';
 import { sortPassagesByNeed } from './format';
 import { flowUnavailable } from './suggest';
@@ -337,6 +337,7 @@ function renderPassageRow(host: PanelHost, pv: PassageView): HTMLElement {
   append(main, [
     el('span', { class: 'sm-row-title' }, [
       el('span', { class: 'sm-row-ref', text: pv.passage.reference }),
+      translationTag(pv.passage.moduleId),
       dueBadge(pv.dueCount),
     ]),
     activitySquares(pv.rungs),

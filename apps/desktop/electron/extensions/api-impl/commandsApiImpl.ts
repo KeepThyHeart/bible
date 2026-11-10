@@ -86,6 +86,7 @@ const BUILTIN_COMMAND_ALLOWLIST: ReadonlySet<string> = new Set([
   'app.reportIssue',
   'app.startTour',
   'bookmarks.manage',
+  'help.giveFeedback',
   'help.reportIssue',
   'module.openManager',
   'search.openAdvanced',

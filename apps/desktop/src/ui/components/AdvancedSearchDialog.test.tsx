@@ -102,7 +102,15 @@ describe('AdvancedSearchDialog', () => {
     // The Search button has exact text "Search"
     await user.click(screen.getByText('Search'));
     expect(setSearchOptions).toHaveBeenCalled();
-    expect(performSearch).toHaveBeenCalledWith('love');
+    expect(performSearch).toHaveBeenCalledWith('love', { symbolOperators: true });
+  });
+
+  it('documents the && || ! operators in the help text (B-017)', () => {
+    renderWithProviders(<AdvancedSearchDialog />);
+    const hint = screen.getByTestId('adv-search-operators-hint').textContent ?? '';
+    expect(hint).toContain('&&');
+    expect(hint).toContain('||');
+    expect(hint).toContain('!');
   });
 
   it('closes when Escape key is pressed (clicking overlay)', async () => {
@@ -119,5 +127,57 @@ describe('AdvancedSearchDialog', () => {
   it('has accessible dialog role', () => {
     renderWithProviders(<AdvancedSearchDialog />);
     expect(screen.getByRole('dialog')).toBeInTheDocument();
+  });
+
+  it('makes proximity a number field like the others', () => {
+    renderWithProviders(<AdvancedSearchDialog />);
+    const prox = document.getElementById('adv-search-proximity') as HTMLInputElement;
+    expect(prox.type).toBe('number');
+    expect(prox.min).toBe('0');
+    expect(prox.max).toBe('100');
+  });
+
+  it('clamps out-of-range fuzzy distance and a negative result cap on submit', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<AdvancedSearchDialog />);
+    const fuzzy = document.getElementById('adv-search-fuzzy') as HTMLInputElement;
+    const max = document.getElementById('adv-search-max-results') as HTMLInputElement;
+    const prox = document.getElementById('adv-search-proximity') as HTMLInputElement;
+    await user.clear(fuzzy); await user.type(fuzzy, '9');
+    await user.clear(max); await user.type(max, '-5');
+    await user.clear(prox); await user.type(prox, '500');
+    await user.click(screen.getByText('Search'));
+    expect(setSearchOptions).toHaveBeenCalledWith(expect.objectContaining({
+      fuzzyDistance: 3,
+      maxResults: 10,
+      proximityDistance: 100,
+    }));
+  });
+
+  it('falls back to defaults when the number fields are emptied', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<AdvancedSearchDialog />);
+    await user.clear(document.getElementById('adv-search-fuzzy') as HTMLInputElement);
+    await user.clear(document.getElementById('adv-search-max-results') as HTMLInputElement);
+    await user.click(screen.getByText('Search'));
+    expect(setSearchOptions).toHaveBeenCalledWith(expect.objectContaining({ fuzzyDistance: 2, maxResults: 200 }));
+  });
+
+  it('runs the search on Enter in the query box', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<AdvancedSearchDialog />);
+    const input = screen.getByPlaceholderText(enString('advancedSearchDialog.queryPlaceholder'));
+    await user.click(input);
+    await user.keyboard('{Enter}');
+    expect(setSearchOptions).toHaveBeenCalled();
+    expect(performSearch).toHaveBeenCalledWith('love', { symbolOperators: true });
+  });
+
+  it('opens with the query box focused, not Close', async () => {
+    renderWithProviders(<AdvancedSearchDialog />);
+    const input = screen.getByPlaceholderText(enString('advancedSearchDialog.queryPlaceholder'));
+    await vi.waitFor(() => expect(document.activeElement).toBe(input));
+    await new Promise(r => setTimeout(r, 50));
+    expect(document.activeElement).toBe(input);
   });
 });

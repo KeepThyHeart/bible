@@ -1,10 +1,10 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
 import {
   BibleVerse,
   VerseContext,
 } from '../services/verseCopyService';
-import { anchorAtPointer, logicalArrow } from '@bible/core/browser';
+import { logicalArrow } from '@bible/core/browser';
+import PointerMenu from './shared/PointerMenu';
 import { useDirection, Bdi } from '@bible/ui';
 import { useI18n } from '../contexts/useI18n';
 import { useAppServices } from '../contexts/ContextProvider';
@@ -275,6 +275,18 @@ const VerseContextMenu: React.FC<VerseContextMenuProps> = ({
   useEffect(() => {
     previouslyFocusedRef.current = (document.activeElement as HTMLElement | null) ?? null;
     return () => {
+      // A right-click leaves focus on the pane, so BibleVerseList marks the
+      // verse's "Select <ref>" button it was opened on; go back to that one
+      // (also for the dialogs this menu opens, which restore to wherever this
+      // cleanup leaves focus).
+      const opener = document.querySelector<HTMLElement>('[data-verse-menu-opener]');
+      if (opener) {
+        opener.removeAttribute('data-verse-menu-opener');
+        if (opener.isConnected) {
+          opener.focus();
+          return;
+        }
+      }
       const prev = previouslyFocusedRef.current;
       if (prev && typeof prev.focus === 'function' && document.contains(prev)) {
         prev.focus();
@@ -377,55 +389,17 @@ const VerseContextMenu: React.FC<VerseContextMenuProps> = ({
     moveFocusWithin(submenuRef.current, event);
   };
 
-  // Position by the logical inline-start inset so the menu unfolds away from
-  // the pointer in the reading direction (leftward in an RTL UI). The width is a
-  // guess until the post-mount effect measures it.
-  const menuStyle: React.CSSProperties = {
-    position: 'fixed',
-    top: position.y,
-    insetInlineStart: anchorAtPointer(position.x, 180, typeof window === 'undefined' ? 1024 : window.innerWidth, uiDir, 10).insetInlineStart,
-    zIndex: 9999,
-    // Taller than the window (many extension items): scroll instead of clipping.
-    maxHeight: 'calc(100vh - 20px)',
-    // Only a menu that really overflows scrolls (see `clamp`): a scroll container would
-    // clip the bookmarks flyout and scroll the item labels out of view when it takes focus.
-    overflowY: 'visible',
-  };
-
-  // Re-anchor with the measured size to prevent overflow. Re-run whenever the
-  // menu's size changes: items (bookmarks, module entries) can arrive after mount.
-  useEffect(() => {
-    const node = menuRef.current;
-    if (!node) return;
-    const clamp = () => {
-      const rect = node.getBoundingClientRect();
-      const viewportWidth = window.innerWidth;
-      const viewportHeight = window.innerHeight;
-
-      let adjustedTop = position.y;
-      const { insetInlineStart } = anchorAtPointer(position.x, rect.width, viewportWidth, uiDir, 10);
-
-      // Shift up when the menu would overflow the bottom edge.
-      if (adjustedTop + rect.height > viewportHeight - 10) {
-        adjustedTop = viewportHeight - rect.height - 10;
-      }
-      adjustedTop = Math.max(10, adjustedTop);
-
-      node.style.top = `${adjustedTop}px`;
-      node.style.insetInlineStart = `${insetInlineStart}px`;
-      node.style.overflowY = node.scrollHeight > node.clientHeight + 1 ? 'auto' : 'visible';
-    };
-    clamp();
-    if (typeof ResizeObserver === 'undefined') return;
-    const observer = new ResizeObserver(clamp);
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, [position, uiDir]);
-
-  const menu = (
-    <div
+  // PointerMenu renders into document.body (in place, `position: fixed`
+  // resolves against dockview's `contain: layout` root rather than the
+  // viewport), keeps the menu in the window and scrolls only a menu taller
+  // than it, so the bookmarks flyout is not clipped.
+  return (
+    <PointerMenu
       ref={menuRef}
-      style={menuStyle}
+      x={position.x}
+      y={position.y}
+      edgePadding={10}
+      zIndex={9999}
       className="bg-surface border border-border-secondary rounded-md shadow-lg min-w-[180px] py-1"
       role="menu"
       aria-label={t('verseContextMenu.verseActions')}
@@ -660,8 +634,9 @@ const VerseContextMenu: React.FC<VerseContextMenuProps> = ({
             className="w-full px-4 py-2 text-start text-sm hover:bg-background-hover transition-colors flex items-center gap-2 cursor-pointer"
             role="menuitem"
           >
-            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M16.24 3.56l4.95 4.94c.78.79.78 2.05 0 2.84L12 20.53a4.008 4.008 0 0 1-5.66 0L2.81 17c-.78-.79-.78-2.05 0-2.84l10.6-10.6c.79-.78 2.05-.78 2.83 0M4.22 15.58l3.54 3.53c.78.79 2.04.79 2.83 0l3.53-3.53-4.95-4.95-4.95 4.95z"/>
+            {/* Highlighter marker (Material "highlight"); the eraser glyph stays on Remove. */}
+            <svg className="w-4 h-4" data-testid="highlight-menu-icon" aria-hidden="true" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M6 14l3 3v5h6v-5l3-3V9H6zm5-12h2v3h-2zM3.5 5.88l1.41-1.41 2.12 2.12L5.62 8zm13.46.71l2.12-2.12 1.41 1.41L18.38 8z"/>
             </svg>
             <span className="flex-1">{t('ui.verseContextMenu.highlightUnderline')}</span>
             <span className="text-xs text-text-muted ms-4 bidi-isolate">{'Ctrl+Shift+H'}</span>
@@ -725,12 +700,8 @@ const VerseContextMenu: React.FC<VerseContextMenuProps> = ({
         <WordMenuItems tabId={wordTabId} wordText={wordText} wordStrongs={wordStrongs} onClose={onClose} />
       )}
 
-    </div>
+    </PointerMenu>
   );
-
-  // See the component comment: in place, `position: fixed` resolves against
-  // dockview's `contain: layout` root rather than the viewport.
-  return typeof document === 'undefined' ? menu : createPortal(menu, document.body);
 };
 
 export default VerseContextMenu;

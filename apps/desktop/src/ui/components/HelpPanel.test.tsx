@@ -84,6 +84,23 @@ describe('HelpPanel', () => {
     window.removeEventListener('command:app:startTour', listener);
   });
 
+  it('always offers Give feedback, opening the in-app form via its command', () => {
+    // No issue URL, no docs URL: the feedback row does not depend on either,
+    // because it opens an in-app form rather than a link.
+    const onClose = vi.fn();
+    const listener = vi.fn();
+    window.addEventListener('command:help:giveFeedback', listener);
+
+    render(<HelpPanel onClose={onClose} />);
+    fireEvent.click(screen.getByRole('menuitem', { name: /Give feedback/ }));
+
+    expect(listener).toHaveBeenCalledTimes(1);
+    expect(onClose).toHaveBeenCalled();
+    // In-app, so not handed to the OS browser.
+    expect(invoke).not.toHaveBeenCalled();
+    window.removeEventListener('command:help:giveFeedback', listener);
+  });
+
   // A row that opens nothing is worse than no row.
   it('omits the docs-site row when this build has no documentation URL', () => {
     render(<HelpPanel onClose={vi.fn()} />);
@@ -114,5 +131,20 @@ describe('HelpPanel', () => {
     render(<HelpPanel onClose={onClose} />);
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it('closes on Tab and puts focus back on the Help button so Tab moves on from there', () => {
+    const onClose = vi.fn();
+    render(
+      <div>
+        <button data-testid="opener">Help</button>
+        <HelpPanel onClose={onClose} />
+      </div>,
+    );
+    const first = screen.getAllByRole('menuitem')[0];
+    first.focus();
+    fireEvent.keyDown(first, { key: 'Tab' });
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId('opener')).toHaveFocus();
   });
 });

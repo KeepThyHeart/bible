@@ -25,7 +25,8 @@
       "remaining": "Tiempo restante",
       "secondsLeft": "Quedan {seconds} segundos",
       "paused": "En pausa",
-      "secondsShort": "{seconds} s"
+      "secondsShort": "{seconds} s",
+      "oneSecondLeft": "Queda 1 segundo"
     },
     "frame": {
       "roomAria": "Sala {code}",
@@ -78,7 +79,8 @@
       "skipIt": "Omitir",
       "keepGoing": "Continuar",
       "skip": "Omitir",
-      "nextQuestion": "Siguiente pregunta"
+      "nextQuestion": "Siguiente pregunta",
+      "scoresEveryoneItem": "Mostrar la puntuación de todos"
     },
     "join": {
       "enterCode": "Introduzca el código de la sala",
@@ -86,7 +88,10 @@
       "yourName": "Su nombre",
       "joining": "Uniéndose…",
       "joinRoom": "Unirse a la sala",
-      "solo": "Jugar solo"
+      "solo": "Jugar solo",
+      "codeInvalid": "Un código de sala tiene {length} letras y números, como 5HK27. Mira la pantalla grande.",
+      "nameNeeded": "Escribe tu nombre para unirte.",
+      "codeFiltered": "Los códigos de sala solo usan estos caracteres: {chars}. Se han omitido los demás."
     },
     "solo": {
       "onYourOwn": "Está solo: nadie más puede ver esta sala.",
@@ -138,7 +143,11 @@
       "leaveRejoin": "Puede volver a unirse con el mismo código mientras la sala siga abierta.",
       "stay": "Quedarse",
       "theme": "Tema",
-      "leave": "Salir"
+      "leave": "Salir",
+      "themeCycle": "Tema: {name}. Cambiar al siguiente tema",
+      "themeCycleCustom": "Cambiar al siguiente tema",
+      "playersCount": "Jugadores: {total}",
+      "lobbyHeading": "Sala de espera"
     },
     "brand": {
       "title": "Juegos Bíblicos en Grupo",
@@ -151,6 +160,34 @@
     },
     "app": {
       "live": "Sala activa"
+    },
+    "names": {
+      "fillInTheBlank": "Completa el espacio",
+      "nameThatReference": "Adivina la referencia",
+      "whoSaidIt": "¿Quién lo dijo?",
+      "whoAmI": "¿Quién soy?",
+      "putInOrder": "Ordena",
+      "categoryBoard": "Tablero de categorías",
+      "swordDrill": "Ejercicio de la espada",
+      "describeIt": "Descríbelo",
+      "detective": "Detective"
+    },
+    "scopes": {
+      "wholeBible": "Toda la Biblia",
+      "peopleOfTheBible": "Personajes de la Biblia"
+    },
+    "familiarity": {
+      "core": "Versículos que todos conocen",
+      "familiar": "Versículos conocidos",
+      "broad": "Conocidos y menos conocidos",
+      "deep": "Para un grupo que lee la Biblia",
+      "any": "Cualquier parte de la Biblia"
+    },
+    "errors": {
+      "roomNotFound": "Ninguna sala usa ese código. Revisa el código en la pantalla grande.",
+      "roomsFull": "Este servidor ya tiene todas las salas que puede. Inténtalo de nuevo dentro de un rato.",
+      "offline": "No se pudo conectar con el servidor. Revisa la wifi e inténtalo de nuevo.",
+      "status": "El servidor respondió {status}."
     }
   }
 }

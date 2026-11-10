@@ -6,9 +6,10 @@
  */
 
 import { Router } from 'express';
-import { existsSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
 import { registerRoute } from '../../routes/routeRegistry.js';
+import { pwaShell } from '../../middleware/serviceWorker.js';
 
 registerRoute({
   path: '/games',
@@ -16,6 +17,7 @@ registerRoute({
     const router = Router();
     const clientDir = deps.extra.clientDir as string | undefined;
     if (!clientDir || !existsSync(clientDir)) return router;
+    const pwaEnabled = (deps.extra.pwaEnabled as (() => boolean) | undefined) ?? (() => false);
     const file = join(clientDir, 'games', 'play.html');
     const page = (_req: unknown, res: import('express').Response): void => {
       if (!existsSync(file)) {
@@ -24,7 +26,8 @@ registerRoute({
       }
       // It names hashed asset files, so a stale copy pins a phone to a stale build.
       res.set('Cache-Control', 'no-store');
-      res.sendFile(file);
+      // Without the PWA there is no manifest to link: a browser that follows the link gets a 404.
+      res.type('html').send(pwaShell(readFileSync(file, 'utf-8'), pwaEnabled()));
     };
     router.get(['/play', '/play/*', '/screen', '/screen/*', '/solo', '/solo/*'], page);
     return router;

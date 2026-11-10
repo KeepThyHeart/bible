@@ -87,8 +87,13 @@ export interface PackBuilderLabels {
 export interface PackBuilderProps {
   groups: { id: string; label: string }[];
   rows: readonly PackBuilderRow[];
-  presets: { id: string; label: string }[];
+  /** `description` (already localized) becomes the chip's tooltip. */
+  presets: { id: string; label: string; description?: string }[];
   onPreset: (id: string) => void;
+  /** The preset chip shown as pressed (the one last applied). */
+  activePresetId?: string;
+  /** Already localized; what applying a preset did, announced politely under the chips. */
+  presetStatus?: string;
   onToggle: (key: string, selected: boolean) => void;
   /**
    * When given, installed / update-available rows (not installing) get a Remove button, and installed rows
@@ -161,6 +166,8 @@ export function PackBuilder({
   rows,
   presets,
   onPreset,
+  activePresetId,
+  presetStatus,
   onToggle,
   onRemove,
   headingLevel = 3,
@@ -175,7 +182,9 @@ export function PackBuilder({
 }: PackBuilderProps) {
   const Heading = `h${headingLevel}` as 'h3';
   const running = run?.state === 'running';
-  const anySelected = rows.some((r) => r.selected && !r.disabled);
+  // Without the keep flow an installed row is only ever "selected" because a
+  // preset named it; there is nothing to install for it, so it cannot enable Start.
+  const anySelected = rows.some((r) => r.selected && !r.disabled && (!!onRemove || r.status !== 'installed'));
   const startDisabled = running || summary.fit === 'no' || !anySelected;
 
   const statusText: Record<PackBuilderStatus, string> = {
@@ -220,11 +229,24 @@ export function PackBuilder({
         <div className="kth-pack-builder__presets" role="group" aria-label={l.presetsHeading}>
           <span className="kth-pack-builder__heading">{l.presetsHeading}</span>
           {presets.map((p) => (
-            <button key={p.id} type="button" className="kth-pack-chip" disabled={running} onClick={() => onPreset(p.id)}>
+            <button
+              key={p.id}
+              type="button"
+              className="kth-pack-chip"
+              disabled={running}
+              title={p.description}
+              aria-pressed={activePresetId === undefined ? undefined : activePresetId === p.id}
+              onClick={() => onPreset(p.id)}
+            >
               {p.label}
             </button>
           ))}
         </div>
+      ) : null}
+      {presetStatus ? (
+        <p className="kth-pack-builder__preset-status" role="status" aria-live="polite">
+          {presetStatus}
+        </p>
       ) : null}
 
       {visibleGroups.length === 0 ? <p className="kth-pack-builder__empty">{l.empty}</p> : null}

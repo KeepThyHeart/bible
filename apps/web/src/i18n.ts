@@ -114,24 +114,41 @@ const namespaceLoaders: Record<string, () => Promise<NamespaceModule>> = {
   ...(import.meta.env.DEV ? import.meta.glob<NamespaceModule>(['./locales/xx-*/*.json']) : {}),
 };
 
+/** Locales whose catalogs are fully in the store (`en` is bundled). */
 const loadedLocales = new Set<string>(['en']);
+/**
+ * In-flight catalog loads, per locale. A second caller must await the SAME
+ * promise: W-047 - the import-time `void ensureLocaleLoaded(i18n.language)`
+ * below claimed the locale, so boot's own `await ensureLocaleLoaded(...)`
+ * returned immediately (the locale looked "loaded") and the first render
+ * happened with only `en` resources, leaving English strings under
+ * `lang="he-IL"` until the next language change.
+ */
+const inflightLocales = new Map<string, Promise<void>>();
 
 /**
  * Load every namespace catalog for `code` into i18next's resource store, if
  * it is not already loaded. Safe to call repeatedly, for a locale with no
- * shipped folder, or concurrently - later calls for an already-loaded or
- * in-flight locale are no-ops. `en` never needs this: it is bundled eagerly
- * above, exactly as it was before this module supported lazy locales.
+ * shipped folder, or concurrently - every call resolves only once the
+ * catalogs are actually in the store. `en` never needs this: it is bundled
+ * eagerly above, exactly as it was before this module supported lazy locales.
  */
 export async function ensureLocaleLoaded(code: string): Promise<void> {
   // Reference-parsing data (book names, separators, digits) for the language,
   // loaded on demand like the catalogs (task 0077); a no-op once loaded.
   const referenceData = loadReferenceLocales([code]);
-  if (loadedLocales.has(code)) {
-    await referenceData;
-    return;
+  if (!loadedLocales.has(code)) {
+    let inflight = inflightLocales.get(code);
+    if (!inflight) {
+      inflight = loadLocaleCatalogs(code).finally(() => inflightLocales.delete(code));
+      inflightLocales.set(code, inflight);
+    }
+    await inflight;
   }
-  loadedLocales.add(code); // Claim it first so concurrent callers don't double-fetch.
+  await referenceData;
+}
+
+async function loadLocaleCatalogs(code: string): Promise<void> {
   const results = await Promise.all(
     NAMESPACES.map(async (ns) => {
       const loader = namespaceLoaders[`./locales/${code}/${ns}.json`];
@@ -140,21 +157,14 @@ export async function ensureLocaleLoaded(code: string): Promise<void> {
       return [ns, mod.default] as const;
     }),
   );
-  const anyFound = results.some((r) => r !== null);
-  if (!anyFound) {
-    // No folder for this code at all - nothing to add, and nothing to mark
-    // loaded either, in case a locale folder is dropped in later at runtime
-    // (the desktop model of a user-supplied `<userData>/locales/` catalog
-    // has no web equivalent yet, but this keeps the door open).
-    loadedLocales.delete(code);
-    await referenceData;
-    return;
-  }
+  // No folder for this code at all - nothing to add, and nothing to mark
+  // loaded either, in case a locale folder is dropped in later at runtime.
+  if (!results.some((r) => r !== null)) return;
   for (const entry of results) {
     if (entry) i18n.addResourceBundle(code, entry[0], entry[1], true, true);
   }
   await Promise.all([...requestedNamespaces].map((ns) => mergeNamespaceFile(code, ns)));
-  await referenceData;
+  loadedLocales.add(code);
 }
 
 // ---------------------------------------------------------------------------

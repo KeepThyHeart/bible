@@ -15,12 +15,13 @@ import type {
   RoomSettings,
   ScreenSnapshot,
 } from '../../shared/protocol.js';
-import { FAMILIARITIES, FAMILIARITY_LABELS, TEAM_IDS } from '../../shared/protocol.js';
+import { FAMILIARITIES, TEAM_IDS } from '../../shared/protocol.js';
 import { Brand } from './Brand.js';
 import { QrCode } from './QrCode.js';
 import { ThemeEditor } from './ThemeEditor.js';
 import { listGameViews } from './gameViews.js';
 import { TEAM_LABELS } from './teams.js';
+import { familiarityName, gameName, scopeName } from './gameLabels.js';
 import { gt } from './t.js';
 
 const ROUND_CHOICES = [5, 8, 10, 12, 15, 20];
@@ -159,23 +160,25 @@ export function HostLobby({
       <section class="host-settings">
         <h2 class="small-heading">{gt('games.lobby.settings', 'Settings')}</h2>
         <fieldset class="settings-grid" disabled={!controlling}>
-          <label class="field">
-            <span class="field-label">{gt('games.lobby.game', 'Game')}</span>
+          <div class="field">
+            <label class="field-label" for="games-host-game">{gt('games.lobby.game', 'Game')}</label>
             <select
+              id="games-host-game"
               value={settings.gameId}
+              aria-describedby={currentGame?.scopeLabel !== undefined ? 'games-host-game-hint' : undefined}
               onChange={(event) => onSettings({ gameId: event.currentTarget.value })}
             >
               {games.map((game) => (
                 <option key={game.id} value={game.id}>
-                  {game.name}
+                  {gameName(game.id, game.name)}
                 </option>
               ))}
             </select>
-            {/* Published and, until now, never shown anywhere a host would see it. */}
+            {/* Outside the label, so the hint is a description of the picker and not part of its name. */}
             {currentGame?.scopeLabel !== undefined && (
-              <span class="field-hint">{currentGame.scopeLabel}</span>
+              <span class="field-hint" id="games-host-game-hint">{scopeName(currentGame.scopeLabel)}</span>
             )}
-          </label>
+          </div>
 
           {showSet && (
             <label class="field">
@@ -227,7 +230,7 @@ export function HostLobby({
               >
                 {FAMILIARITIES.map((familiarity) => (
                   <option key={familiarity} value={familiarity}>
-                    {FAMILIARITY_LABELS[familiarity]}
+                    {familiarityName(familiarity)}
                   </option>
                 ))}
               </select>
@@ -265,9 +268,10 @@ export function HostLobby({
           </label>
 
           <div class="field">
-            <span class="field-label">{gt('games.lobby.teams', 'Teams')}</span>
+            <span class="field-label" id="lobby-teams-label">{gt('games.lobby.teams', 'Teams')}</span>
             <button
               type="button"
+              aria-labelledby="lobby-teams-label"
               aria-pressed={settings.teamsEnabled}
               onClick={() => onSettings({ teamsEnabled: !settings.teamsEnabled })}
             >
@@ -279,9 +283,10 @@ export function HostLobby({
 
           {voteMode === 'optional' && (
             <div class="field">
-              <span class="field-label">{gt('games.lobby.voteTogether', 'Vote together')}</span>
+              <span class="field-label" id="lobby-vote-label">{gt('games.lobby.voteTogether', 'Vote together')}</span>
               <button
                 type="button"
+                aria-labelledby="lobby-vote-label"
                 aria-pressed={settings.groupVote}
                 onClick={() => onSettings({ groupVote: !settings.groupVote })}
               >
@@ -316,7 +321,6 @@ export function HostLobby({
               <span class="field-label">{gt('games.lobby.buzzLabel', 'How players buzz in')}</span>
               <button
                 type="button"
-                aria-pressed={settings.gameOptions['buzzMode'] === 'buttons'}
                 onClick={() =>
                   onSettings({
                     gameOptions: {

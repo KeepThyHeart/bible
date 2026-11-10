@@ -35,7 +35,9 @@ import { MAX_CHAPTERS } from './constants';
 import { settingsStore, pxToRem } from './stores/settingsStore';
 import { useStore } from './hooks/useStore';
 import { studyShouldIgnoreBack } from './host/appHost';
-import { useAppShared } from './hooks/useAppShared';
+import { useAppShared, noteMobileBackPress } from './hooks/useAppShared';
+import { setModalFallback } from './hooks/useModalFocus';
+import { LandscapeThemeMenu } from './LandscapeThemeMenu';
 import { useContextMenu } from './hooks/useContextMenu';
 import type { IDataProviders } from './providers/interfaces';
 
@@ -59,6 +61,15 @@ export function MobileApp({ providers }: MobileAppProps) {
    *  record the verseId the scroll position belongs to, so we can discard the
    *  restore if the user navigated to a different verse while away. */
   const savedScrollRef = useRef<Map<string, { scrollTop: number; verseId: number | null }>>(new Map());
+  const phoneOpenerRef = useRef<Map<string, HTMLElement>>(new Map());
+  /** A phone pane's Close: back to the Bible view, focus to whatever opened that pane (else it falls to <body>). */
+  const closePhoneView = (closing: string) => {
+    const opener = phoneOpenerRef.current.get(closing);
+    switchMobileView('bible');
+    requestAnimationFrame(() => {
+      if (opener?.isConnected && (document.activeElement === document.body || !document.activeElement)) opener.focus({ preventScroll: true });
+    });
+  };
 
   /** Compute the verseId currently displayed in the commentary view, mirroring
    *  the fallback logic in MobileCommentaryView. */
@@ -70,9 +81,18 @@ export function MobileApp({ providers }: MobileAppProps) {
   };
 
   // Landscape theme dropdown
-  const [landscapeThemeOpen, setLandscapeThemeOpen] = useState(false);
+  // Settings can be opened from a popup item that closes as it opens ("More..."): name the control that
+  // opened the popup as the place focus returns to once Settings closes.
+  const openSettingsFrom = (section?: string) => {
+    const from = document.activeElement;
+    if (from instanceof HTMLElement && from !== document.body) {
+      const themeButton = document.querySelector<HTMLElement>('.mobile-landscape-sidebar__theme-wrapper > button')
+        ?? document.querySelector<HTMLElement>('.header__theme-wrapper > button');
+      if (section === 'theme' && themeButton) setModalFallback(from, themeButton);
+    }
+    shared.openSettings(section);
+  };
   const theme = useStore(settingsStore, () => settingsStore.getResolvedTheme());
-  const themeIcon = theme === 'dark' ? 'fa-moon' : theme === 'sepia' ? 'fa-mug-hot' : 'fa-sun';
 
   // Detect landscape orientation, preserving scroll position across rotation
   const [isLandscape, setIsLandscape] = useState(() => window.innerWidth > window.innerHeight && window.innerWidth <= 1024);
@@ -135,6 +155,9 @@ export function MobileApp({ providers }: MobileAppProps) {
   // Save/restore mobile-scroll-wrapper scroll position when switching views
   const switchMobileView = (wanted: typeof mobileView) => {
     const view = resolvePhoneView(wanted, phoneViews);
+    // Remember what opened a view, so a pane's own Close button can hand focus back to it.
+    const active = document.activeElement;
+    if (view !== mobileView && active instanceof HTMLElement && active !== document.body) phoneOpenerRef.current.set(view, active);
     // Save current view's scroll position
     const wrapper = document.querySelector('.mobile-scroll-wrapper');
     if (wrapper) {
@@ -190,56 +213,62 @@ export function MobileApp({ providers }: MobileAppProps) {
       // Back out of any other app (it returns to Study, or is that app's own step): the hidden
       // Study must not also take one. (Its dummy entry is still in place.)
       if (studyShouldIgnoreBack()) return;
+      // W-031: this press is handled here; the hashchange it also raises must not navigate again.
+      noteMobileBackPress();
+      // The entry Back landed on, read before `stayInApp` rewrites the URL.
+      const landedHash = window.location.hash;
 
       // Whether this press was handled inside the app. If so the dummy entry is
       // re-pushed so the next Back stays in-app; on Home with nowhere to go it is
       // not, so the next Back leaves the app (B-100).
-      const stayInApp = () => window.history.pushState({ mobileBack: true }, '');
+      // The new dummy entry's URL is then put back to the reader's actual location (the popped-to
+      // entry's hash may differ, and the hashchange handler does not re-sync it) (W-031).
+      const stayInApp = () => {
+        window.history.pushState({ mobileBack: true }, '');
+        bibleStore.updateHash();
+      };
+      // The overlays and views a press closes first; each keeps the reader where they are.
+      const closeLayer = (): boolean => {
+        // Priority 0: a full-screen layer a module put over the phone layout (for example a media
+        // player; playback continues). A handler consumes the press by returning true.
+        for (const handler of phoneBackHandlers.list()) {
+          if (handler()) return true;
+        }
+        // Then a Study mode's sheet (the family tree; it sits beneath such a layer)
+        if (studyStore.studyMode) { studyStore.closeStudyMode(); return true; }
+        // Priority 1: Close topics browser overlay
+        if (studyStore.topicsBrowserOpen) { studyStore.closeTopicsBrowser(); return true; }
+        // Priority 2: Commentary detail → back to commentary list
+        if (mobileView === 'commentary' && commentaryStore.mobileSelectedCommentary) {
+          commentaryStore.setMobileSelectedCommentary(null);
+          return true;
+        }
+        // Priority 3: Non-bible view → back to bible
+        if (mobileView === 'search' || phoneViews.has(mobileView)) { switchMobileView('bible'); return true; }
+        // Priority 3b: just opened from a search result: back to the results (B-182)
+        if (mobileView === 'bible' && searchReturnRef.current.take(bibleStore.getActiveTab(), searchStore.isOpen)) {
+          switchMobileView('search');
+          return true;
+        }
+        return false;
+      };
+      if (closeLayer()) { stayInApp(); return; }
+
+      // Priority 4 (W-031): Back landed on a real reader entry for another passage -- a chapter
+      // step pushes one browser entry per chapter while the tab's own history only replaces --
+      // so follow the browser there (desktop does the same). No dummy is pushed: the landed
+      // entry is a real step, and the ones below it stay reachable by further presses.
+      if (mobileView === 'bible' && bibleStore.followBrowserBack(landedHash)) return;
+
       if (!(mobileView === 'home' && !bibleStore.canGoBack())) stayInApp();
 
-      // Priority 0: a full-screen layer a module put over the phone layout (for example a media
-      // player; playback continues). A handler consumes the press by returning true.
-      for (const handler of phoneBackHandlers.list()) {
-        if (handler()) return;
-      }
-
-      // Then a Study mode's sheet (the family tree; it sits beneath such a layer)
-      if (studyStore.studyMode) {
-        studyStore.closeStudyMode();
-        return;
-      }
-
-      // Priority 1: Close topics browser overlay
-      if (studyStore.topicsBrowserOpen) {
-        studyStore.closeTopicsBrowser();
-        return;
-      }
-
-      // Priority 2: Commentary detail → back to commentary list
-      if (mobileView === 'commentary' && commentaryStore.mobileSelectedCommentary) {
-        commentaryStore.setMobileSelectedCommentary(null);
-        return;
-      }
-
-      // Priority 3: Non-bible view → back to bible
-      if (mobileView === 'search' || phoneViews.has(mobileView)) {
-        switchMobileView('bible');
-        return;
-      }
-
-      // Priority 3b: just opened from a search result: back to the results (B-182)
-      if (mobileView === 'bible' && searchReturnRef.current.take(bibleStore.getActiveTab(), searchStore.isOpen)) {
-        switchMobileView('search');
-        return;
-      }
-
-      // Priority 4: Bible has navigation history → go back
+      // Priority 5: Bible has navigation history → go back
       if (mobileView === 'bible' && bibleStore.canGoBack()) {
         bibleStore.goBack();
         return;
       }
 
-      // Priority 5: Bible with no history → go home
+      // Priority 6: Bible with no history → go home
       if (mobileView === 'bible') {
         switchMobileView('home');
         return;
@@ -391,7 +420,7 @@ export function MobileApp({ providers }: MobileAppProps) {
           onStrongsLeave: shared.handleStrongsLeave,
           onOpenSettings: shared.openSettings as never,
           onNavigateBible: () => switchMobileView('bible'),
-          onClosePhone: () => switchMobileView('bible'),
+          onClosePhone: () => closePhoneView(view),
         }}
       />
     ));
@@ -433,35 +462,11 @@ export function MobileApp({ providers }: MobileAppProps) {
             </div>
             <div class="mobile-landscape-sidebar__actions">
               <AppSwitchSlot className="mobile-landscape-sidebar__action-btn" />
-              <div class="mobile-landscape-sidebar__theme-wrapper">
-                <button
-                  class="mobile-landscape-sidebar__action-btn"
-                  onClick={() => setLandscapeThemeOpen(!landscapeThemeOpen)}
-                  title={t('header.theme')}
-                >
-                  <i class={`fa-solid ${themeIcon}`} />
-                </button>
-                {landscapeThemeOpen && (
-                  <div class="mobile-landscape-sidebar__theme-dropdown">
-                    {([
-                      { value: 'light', label: 'themes.light', icon: 'fa-sun' },
-                      { value: 'dark', label: 'themes.dark', icon: 'fa-moon' },
-                      { value: 'sepia', label: 'themes.sepia', icon: 'fa-mug-hot' },
-                    ] as const).map(opt => (
-                      <button
-                        key={opt.value}
-                        class={`mobile-landscape-sidebar__theme-option ${theme === opt.value ? 'mobile-landscape-sidebar__theme-option--active' : ''}`}
-                        onClick={() => {
-                          settingsStore.setTheme(opt.value);
-                          setLandscapeThemeOpen(false);
-                        }}
-                      >
-                        <i class={`fa-solid ${opt.icon}`} /> {t(opt.label)}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
+              <LandscapeThemeMenu
+                theme={theme}
+                onSelect={(value) => settingsStore.setTheme(value)}
+                onMore={() => openSettingsFrom('theme')}
+              />
               <button
                 class="mobile-landscape-sidebar__action-btn"
                 onClick={() => window.location.reload()}
@@ -507,7 +512,7 @@ export function MobileApp({ providers }: MobileAppProps) {
       ) : (
         <div class="mobile-scroll-wrapper">
           <Header
-            onSettingsClick={(section) => shared.openSettings(section)}
+            onSettingsClick={(section) => openSettingsFrom(section)}
             onHelpClick={() => shared.setHelpOpen(true)}
             onLogoClick={() => switchMobileView('home')}
           />

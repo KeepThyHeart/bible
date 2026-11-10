@@ -42,7 +42,8 @@ interface E2EElectronBridge {
       description: string;
       includeDiagnostics: boolean;
     }) => Promise<unknown>;
-    submitFeedback: (args: { description: string }) => Promise<unknown>;
+    submitFeedback: (args: { description: string; contact?: string }) => Promise<unknown>;
+    deliverReport: (reportId: string) => Promise<unknown>;
     deleteAll: () => Promise<unknown>;
     getConfig: () => Promise<unknown>;
   };

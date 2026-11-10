@@ -3,15 +3,19 @@ import { SUPPORTED_CONTENT_LANGUAGES, type OfferedStarterPack, type CatalogModul
 import { useI18n } from '../../contexts/useI18n';
 import { selectableLocales } from '../PreferencesDialog/GeneralSection';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
+import { onRadioGroupKeyDown } from '../../utils/radioGroupKeys';
 import { useOnboardingStore } from '../../stores/useOnboardingStore';
 import { useNetworkStore } from '../../stores/useNetworkStore';
 import { useModuleStore } from '../../stores/useModuleStore';
 import { openModuleManager } from '../../utils/openModuleManager';
+import { getDocsUrl } from '../../config/appConfig';
 import {
   areLocaleCatalogsReady,
   whenLocaleCatalogsReady,
 } from '../../services/localeCatalogsReady';
 import type { LocaleMetadata } from '../../services/II18nService';
+import { matchSystemLocale, systemLanguagePreferences } from '../../utils/systemLocale';
+import { readStoredLocale } from '../../utils/documentDirection';
 
 /**
  * First-run language question, the network consent question that follows it,
@@ -27,7 +31,14 @@ import type { LocaleMetadata } from '../../services/II18nService';
  *
  * ## Three steps, and why two of them can be skipped
  *
- * 1. **Language.** The four languages in `SUPPORTED_CONTENT_LANGUAGES` are
+ * 1. **Language.** When the OS language matches one we offer, the app switches
+ *    to it as soon as the dialog opens and the step asks only to confirm it:
+ *    one prominent "Continue in <language>" button. Picking something else is
+ *    deliberately a step further away, behind "Choose a different language",
+ *    which opens the full list (the detected language is marked there). With
+ *    no match, the full list is shown straight away. See `suggestedLocale`.
+ *
+ *    In the list, the four languages in `SUPPORTED_CONTENT_LANGUAGES` are
  *    listed first because those are the ones we intend to have study content
  *    for. Every other *offered* locale stays reachable behind a disclosure -
  *    hiding a working translation to keep a list short would be a regression,
@@ -47,7 +58,11 @@ import type { LocaleMetadata } from '../../services/II18nService';
  *    falls back to its own (always-safe) offline rendering. Going online here
  *    goes through the exact same `requestAllow()` - and therefore the same
  *    native confirmation dialog - as the Privacy menu and Preferences; a
- *    cancelled dialog leaves this step exactly as it was.
+ *    cancelled dialog leaves this step exactly as it was. The step also offers
+ *    the offline route on equal terms: "Install from files instead" runs the
+ *    Module Manager's install-from-file flow (module files and module packs,
+ *    several at once) right here, with a pointer to the documentation site's
+ *    offline downloads when this build has a docs site configured.
  * 3. **Suggested content.** Starter packs for the chosen language, if the
  *    catalog offers any; otherwise the catalog's recommended modules for that
  *    language (the published catalog has modules but no `starter_packs`
@@ -147,16 +162,47 @@ async function findOffer(languageCode: string): Promise<ContentOffer> {
 interface LanguageOptionProps {
   info: LocaleMetadata;
   selected: boolean;
+  /** This is the language detected from the OS. */
+  isSystem?: boolean;
+  /** The one radio in the group that is in the Tab order (roving tabindex). */
+  tabStop: boolean;
   onSelect: (code: string) => void;
 }
 
-const LanguageOption: React.FC<LanguageOptionProps> = ({ info, selected, onSelect }) => {
+/** "Preview" badge for a machine-drafted, unreviewed catalog. */
+const PreviewBadge: React.FC<{ info: LocaleMetadata }> = ({ info }) => {
+  const { t } = useI18n();
+  if (info.status === 'complete') return null;
+  // Never imply a review that did not happen - every non-English catalog
+  // here is machine-drafted. `selectableLocales()` already withholds built-in
+  // `draft` locales, so a `draft` reaching this component is always
+  // user-supplied; `beta` may be either.
+  return (
+    <span
+      data-testid={`first-run-language-${info.status}-badge-${info.code}`}
+      title={t('onboarding.language.previewTooltip')}
+      className="flex-shrink-0 rounded bg-background-hover px-xs text-xs text-text-secondary"
+    >
+      {t('onboarding.language.previewBadge')}
+    </span>
+  );
+};
+
+const LanguageOption: React.FC<LanguageOptionProps> = ({
+  info,
+  selected,
+  isSystem,
+  tabStop,
+  onSelect,
+}) => {
   const { t } = useI18n();
   return (
     <button
       type="button"
       role="radio"
       aria-checked={selected}
+      // Roving tabindex: the group is one Tab stop, arrows move within it.
+      tabIndex={tabStop ? 0 : -1}
       onClick={() => onSelect(info.code)}
       data-testid={`first-run-language-${info.code}`}
       className={[
@@ -175,20 +221,68 @@ const LanguageOption: React.FC<LanguageOptionProps> = ({ info, selected, onSelec
       {info.nativeName !== info.name && (
         <span className="text-sm text-text-secondary">{info.name}</span>
       )}
-      {info.status !== 'complete' && (
-        // Never imply a review that did not happen - every non-English
-        // catalog here is machine-drafted. `selectableLocales()` already
-        // withholds built-in `draft` locales, so a `draft` reaching this
-        // component is always user-supplied; `beta` may be either.
-        <span
-          data-testid={`first-run-language-${info.status}-badge-${info.code}`}
-          title={t('onboarding.language.previewTooltip')}
-          className="ms-auto flex-shrink-0 rounded bg-background-hover px-xs text-xs text-text-secondary"
-        >
-          {t('onboarding.language.previewBadge')}
-        </span>
-      )}
+      <span className="ms-auto flex flex-shrink-0 items-baseline gap-xs">
+        {isSystem && (
+          <span
+            data-testid={`first-run-language-system-badge-${info.code}`}
+            className="rounded border border-border px-xs text-xs text-text-secondary"
+          >
+            {t('onboarding.language.systemBadge')}
+          </span>
+        )}
+        <PreviewBadge info={info} />
+      </span>
     </button>
+  );
+};
+
+/**
+ * The confirm-the-detected-language view: the language, large, and a quieter
+ * way out. The way out carries its label in English as well when the UI is not
+ * in English, because the person who needs it is exactly the one who cannot
+ * read the language that was detected (an English speaker on a Spanish-language
+ * computer, say). The globe is the cross-language signpost for the rest.
+ */
+const SuggestedLanguage: React.FC<{
+  info: LocaleMetadata;
+  onChooseDifferent: () => void;
+}> = ({ info, onChooseDifferent }) => {
+  const { i18n, t } = useI18n();
+  const label = t('onboarding.language.chooseDifferent');
+  const englishLabel = 'Choose a different language';
+  const showEnglish = !i18n.currentLocale.startsWith('en') && label !== englishLabel;
+  return (
+    <>
+      <p className="mb-md text-sm text-text-secondary">{t('onboarding.language.detectedIntro')}</p>
+      <div
+        data-testid="first-run-language-suggested"
+        className="flex items-baseline gap-sm rounded border border-accent bg-accent-soft px-md py-md"
+      >
+        <span className="text-xl font-semibold text-text-primary" lang={info.code}>
+          {info.nativeName}
+        </span>
+        {info.nativeName !== info.name && (
+          <span className="text-sm text-text-secondary">{info.name}</span>
+        )}
+        <span className="ms-auto flex flex-shrink-0 items-baseline">
+          <PreviewBadge info={info} />
+        </span>
+      </div>
+      <button
+        type="button"
+        onClick={onChooseDifferent}
+        data-testid="first-run-language-change"
+        className="mt-md inline-flex items-center gap-xs rounded text-sm text-accent underline hover:no-underline focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+      >
+        <span aria-hidden="true">🌐</span>
+        <span>{label}</span>
+        {showEnglish && (
+          <span lang="en" className="text-text-secondary">
+            ({englishLabel})
+          </span>
+        )}
+      </button>
+    </>
   );
 };
 
@@ -208,6 +302,9 @@ const LanguageFirstRun: React.FC = () => {
   const [step, setStep] = useState<Step>('language');
   const [selected, setSelected] = useState<string>(i18n.currentLocale || DEFAULT_LOCALE);
   const [showAll, setShowAll] = useState(false);
+  // The "More languages" button unmounts when it is used; focus goes to the
+  // first newly revealed language instead of dropping out to <body>.
+  const focusFirstOtherRef = useRef(false);
   const [offer, setOffer] = useState<ContentOffer | null>(null);
   const [dismissed, setDismissed] = useState(false);
   // Shown on the network step while `requestAllow(true)` -> `refreshAllCatalogs()`
@@ -268,6 +365,72 @@ const LanguageFirstRun: React.FC = () => {
     const otherList = allLocales.filter((info) => !featuredCodes.has(info.code));
     return { featured: featuredList, others: otherList };
   }, [allLocales]);
+
+  // The language to suggest: one already persisted (an earlier run that was
+  // interrupted, or a choice made in Preferences), else the OS's language when
+  // we offer it. `undefined` means no match, and the full list is shown.
+  const offeredCodes = allLocales.map((info) => info.code).join('|');
+  const suggestedLocale = useMemo(() => {
+    const codes = offeredCodes.split('|');
+    const stored = readStoredLocale();
+    if (stored && codes.includes(stored)) return stored;
+    return matchSystemLocale(systemLanguagePreferences(), codes);
+  }, [offeredCodes]);
+  const suggestedInfo = allLocales.find((info) => info.code === suggestedLocale);
+
+  // Switching away from the suggestion is deliberately one step further away:
+  // "Choose a different language" opens the full list.
+  const [choosing, setChoosing] = useState(false);
+  const listMode = choosing || !suggestedInfo;
+
+  // Switch to the suggested language as soon as the dialog opens, so the
+  // question itself is asked in the language the user most likely reads.
+  // Once only: after that the user is in charge.
+  const suggestionApplied = useRef(false);
+  useEffect(() => {
+    if (!open || !languageChoiceNeeded || !suggestedLocale || suggestionApplied.current) return;
+    suggestionApplied.current = true;
+    setSelected(suggestedLocale);
+    if (suggestedLocale !== i18n.currentLocale) {
+      i18n.setLocale(suggestedLocale).catch(() => {
+        // Stay in the current language; the list still offers every choice.
+      });
+    }
+  }, [open, languageChoiceNeeded, suggestedLocale, i18n]);
+
+  // Focus follows the mode: the confirm button while suggesting (so Enter
+  // accepts the suggestion), the selected language once the list opens
+  // (the "Choose a different language" button has just unmounted).
+  const confirmRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (!open || step !== 'language') return;
+    if (!listMode) {
+      confirmRef.current?.focus();
+    } else if (choosing) {
+      containerRef.current
+        ?.querySelector<HTMLElement>(`[data-testid="first-run-language-${selected}"]`)
+        ?.focus();
+    }
+    // `selected` is read for the target only; re-running on every pick would
+    // fight the arrow keys.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, step, listMode, choosing, containerRef]);
+
+  const startChoosing = useCallback(() => {
+    // Reveal the full list if the current language is behind the disclosure.
+    if (others.some((info) => info.code === selected)) setShowAll(true);
+    setChoosing(true);
+  }, [others, selected]);
+
+  useEffect(() => {
+    if (!showAll || !focusFirstOtherRef.current) return;
+    focusFirstOtherRef.current = false;
+    const first = others[0];
+    if (!first) return;
+    containerRef.current
+      ?.querySelector<HTMLElement>(`[data-testid="first-run-language-${first.code}"]`)
+      ?.focus();
+  }, [showAll, others, containerRef]);
 
   // Keep the highlighted row in step with the live locale until the user
   // touches the control, so the dialog opens on whatever the app detected.
@@ -349,8 +512,9 @@ const LanguageFirstRun: React.FC = () => {
   }, [markLanguageChosen]);
 
   // "Stay offline" is an explicit answer: do not follow it with a third dialog
-  // that offers to go online again. Modules stay reachable from Tools -> Module
-  // Manager (including installing from a file), so the flow simply ends here.
+  // that offers to go online again. Installing from files is offered on the
+  // network step itself, and modules stay reachable from Tools -> Module
+  // Manager afterwards, so the flow simply ends here.
   const handleStayOffline = handleClose;
 
   // Skipping step 1 still has to *commit* it: the locale is confirmed, the
@@ -401,6 +565,10 @@ const LanguageFirstRun: React.FC = () => {
   const onNetworkStep = step === 'network';
 
   const visibleOthers = showAll ? others : [];
+  // Roving tabindex: the selected radio is the Tab stop, unless it is hidden
+  // behind "More languages", in which case the first visible one is.
+  const visibleCodes = [...featured, ...visibleOthers].map((info) => info.code);
+  const tabStopCode = visibleCodes.includes(selected) ? selected : visibleCodes[0];
 
   return (
     <div
@@ -418,7 +586,9 @@ const LanguageFirstRun: React.FC = () => {
         <div className="flex-shrink-0 border-b border-border px-lg py-md">
           <h2 id="first-run-language-title" className="text-lg font-semibold text-text-primary">
             {onLanguageStep
-              ? t('onboarding.language.title')
+              ? listMode
+                ? t('onboarding.language.title')
+                : t('onboarding.language.detectedTitle')
               : onNetworkStep
               ? t('onboarding.network.title')
               : t('onboarding.language.contentTitle')}
@@ -426,7 +596,12 @@ const LanguageFirstRun: React.FC = () => {
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-lg py-md">
-          {onLanguageStep ? (
+          {onLanguageStep && !listMode && suggestedInfo ? (
+            <SuggestedLanguage
+              info={suggestedInfo}
+              onChooseDifferent={startChoosing}
+            />
+          ) : onLanguageStep ? (
             <>
               <p className="mb-md text-sm text-text-secondary">
                 {t('onboarding.language.intro')}
@@ -435,6 +610,7 @@ const LanguageFirstRun: React.FC = () => {
               <div
                 role="radiogroup"
                 aria-labelledby="first-run-language-title"
+                onKeyDown={onRadioGroupKeyDown}
                 className="flex flex-col gap-xs"
               >
                 {featured.map((info) => (
@@ -442,6 +618,8 @@ const LanguageFirstRun: React.FC = () => {
                     key={info.code}
                     info={info}
                     selected={info.code === selected}
+                    isSystem={info.code === suggestedLocale}
+                    tabStop={info.code === tabStopCode}
                     onSelect={setSelected}
                   />
                 ))}
@@ -451,6 +629,8 @@ const LanguageFirstRun: React.FC = () => {
                     key={info.code}
                     info={info}
                     selected={info.code === selected}
+                    isSystem={info.code === suggestedLocale}
+                    tabStop={info.code === tabStopCode}
                     onSelect={setSelected}
                   />
                 ))}
@@ -459,7 +639,10 @@ const LanguageFirstRun: React.FC = () => {
               {others.length > 0 && !showAll && (
                 <button
                   type="button"
-                  onClick={() => setShowAll(true)}
+                  onClick={() => {
+                    focusFirstOtherRef.current = true;
+                    setShowAll(true);
+                  }}
                   data-testid="first-run-language-more"
                   className="mt-sm text-sm text-accent underline hover:no-underline focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                 >
@@ -482,12 +665,15 @@ const LanguageFirstRun: React.FC = () => {
         <div className="flex flex-shrink-0 items-center justify-end gap-sm border-t border-border px-lg py-md">
           {onLanguageStep ? (
             <button
+              ref={confirmRef}
               type="button"
               onClick={() => void handleConfirmLanguage()}
               data-testid="first-run-language-continue"
               className="rounded bg-accent px-lg py-sm text-sm text-text-on-accent hover:bg-accent-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
             >
-              {t('onboarding.language.continue')}
+              {!listMode && suggestedInfo
+                ? t('onboarding.language.continueIn', { language: suggestedInfo.nativeName })
+                : t('onboarding.language.continue')}
             </button>
           ) : onNetworkStep ? (
             <>
@@ -571,6 +757,7 @@ const LanguageFirstRun: React.FC = () => {
  */
 const NetworkStep: React.FC<{ loading: boolean }> = ({ loading }) => {
   const { t } = useI18n();
+  const fileInstall = useInstallFromFile();
   if (loading) {
     return (
       <p className="text-sm text-text-secondary" data-testid="first-run-network-loading">
@@ -578,12 +765,132 @@ const NetworkStep: React.FC<{ loading: boolean }> = ({ loading }) => {
       </p>
     );
   }
+  const downloadsUrl = offlineDownloadsUrl();
   return (
-    <p className="text-sm text-text-secondary" data-testid="first-run-network-body">
-      {t('onboarding.network.body')}
-    </p>
+    <>
+      <p className="text-sm text-text-secondary" data-testid="first-run-network-body">
+        {t('onboarding.network.body')}
+      </p>
+      {/* The offline route, offered as an equal answer to the question rather
+          than discovered later in the Module Manager: a machine that will
+          never be online still needs a way to get content. */}
+      <div className="mt-md rounded border border-border px-md py-sm" data-testid="first-run-network-files">
+        <p className="text-sm font-medium text-text-primary">{t('onboarding.network.filesHeading')}</p>
+        <p className="mt-xs text-sm text-text-secondary" data-testid="first-run-network-files-body">
+          {t('onboarding.network.filesBody')}
+          {downloadsUrl && (
+            <>
+              {' '}
+              <a
+                href={downloadsUrl}
+                onClick={(event) => {
+                  event.preventDefault();
+                  openExternalUrl(downloadsUrl);
+                }}
+                data-testid="first-run-network-files-link"
+                className="text-accent underline hover:no-underline focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              >
+                {t('onboarding.network.filesLink')}
+              </a>
+            </>
+          )}
+        </p>
+        <button
+          type="button"
+          onClick={() => void fileInstall.run()}
+          disabled={fileInstall.busy}
+          data-testid="first-run-network-install-from-files"
+          className="mt-sm rounded border border-border px-md py-sm text-sm text-text-primary hover:bg-background-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-50"
+        >
+          {t('onboarding.network.installFromFiles')}
+        </button>
+        {fileInstall.result && (
+          <p
+            className={`mt-sm text-sm ${fileInstall.result.isError ? 'text-danger' : 'text-success'}`}
+            data-testid="first-run-network-install-from-files-result"
+            role="status"
+          >
+            {fileInstall.result.message}
+          </p>
+        )}
+      </div>
+    </>
   );
 };
+
+/**
+ * The documentation site's download page, where the offline downloads (module
+ * files and bundles such as "Essentials - English") are listed. Derived from
+ * the configured docs URL - a build with no docs site gets no link - and
+ * anchored at its "Offline downloads" section. The download page sits at the
+ * site root (`/download/`), beside the per-app docs the URL points into.
+ */
+function offlineDownloadsUrl(): string | undefined {
+  const docsUrl = getDocsUrl();
+  if (!docsUrl) return undefined;
+  try {
+    return new URL('/download/#offline-downloads', docsUrl).href;
+  } catch {
+    return undefined;
+  }
+}
+
+/** Hands a URL to the OS browser via the main process (as `HelpPanel` does). */
+function openExternalUrl(url: string): void {
+  const w = window as unknown as {
+    electron?: { ipcRenderer?: { invoke: (channel: string, ...args: unknown[]) => Promise<unknown> } };
+  };
+  void w.electron?.ipcRenderer?.invoke('app:open-external', url);
+}
+
+/**
+ * "Install from a file" as first run uses it: the Module Manager's own
+ * `module:install-from-file` flow (multi-select of `.db`/`.db.gz` files and
+ * `.zip`/`.biblepack` module packs), with its outcome as one line of feedback.
+ */
+function useInstallFromFile(): {
+  busy: boolean;
+  result: { message: string; isError: boolean } | null;
+  run: () => Promise<void>;
+} {
+  const { t } = useI18n();
+  const [result, setResult] = useState<{ message: string; isError: boolean } | null>(null);
+  const [busy, setBusy] = useState(false);
+  const loadInstalledModules = useModuleStore((s) => s.loadInstalledModules);
+
+  const run = useCallback(async () => {
+    setBusy(true);
+    try {
+      // Same `window.electron` bridge `StarterPackCard` and `fetchPacksFor`
+      // use - see the comment on `handleGoOnline` for why `moduleAPI` is
+      // avoided here.
+      const response = await window.electron?.moduleManager?.installFromFile?.();
+      if (!response) throw new Error('Electron API not available.');
+      if (!response.ok) throw new Error(response.error.message);
+      const value = response.value;
+      if (value === null) return; // User cancelled the picker - no feedback needed.
+      const message =
+        value.kind === 'single'
+          ? t('onboarding.language.installFromFileSuccess', { name: value.moduleName })
+          : t('onboarding.language.installFromFilePackSuccess', { count: value.summary.installed.length });
+      setResult({ message, isError: false });
+      try {
+        await loadInstalledModules();
+      } catch {
+        // The install itself succeeded; the reader panes refresh on their own later.
+      }
+    } catch (error) {
+      setResult({
+        message: t('onboarding.language.installFromFileError', { message: (error as Error).message }),
+        isError: true,
+      });
+    } finally {
+      setBusy(false);
+    }
+  }, [t, loadInstalledModules]);
+
+  return { busy, result, run };
+}
 
 /**
  * One row of a starter pack's module list: a checkbox, name, licence and size,
@@ -895,34 +1202,7 @@ interface StarterPackStepProps {
  */
 const StarterPackStep: React.FC<StarterPackStepProps> = ({ offer, allowWebRequests, onGoOnline, onInstallProgress }) => {
   const { t } = useI18n();
-  const [fileInstall, setFileInstall] = useState<{ message: string; isError: boolean } | null>(null);
-  const [fileInstallBusy, setFileInstallBusy] = useState(false);
-
-  const handleInstallFromFile = async () => {
-    setFileInstallBusy(true);
-    try {
-      // Same `window.electron` bridge `StarterPackCard` and `fetchPacksFor`
-      // use - see the comment on `handleGoOnline` for why `moduleAPI` is
-      // avoided here.
-      const response = await window.electron?.moduleManager?.installFromFile?.();
-      if (!response) throw new Error('Electron API not available.');
-      if (!response.ok) throw new Error(response.error.message);
-      const result = response.value;
-      if (result === null) return; // User cancelled the picker - no feedback needed.
-      const message =
-        result.kind === 'single'
-          ? t('onboarding.language.installFromFileSuccess', { name: result.moduleName })
-          : t('onboarding.language.installFromFilePackSuccess', { count: result.summary.installed.length });
-      setFileInstall({ message, isError: false });
-    } catch (error) {
-      setFileInstall({
-        message: t('onboarding.language.installFromFileError', { message: (error as Error).message }),
-        isError: true,
-      });
-    } finally {
-      setFileInstallBusy(false);
-    }
-  };
+  const { busy: fileInstallBusy, result: fileInstall, run: handleInstallFromFile } = useInstallFromFile();
 
   if (offer === null) {
     return (

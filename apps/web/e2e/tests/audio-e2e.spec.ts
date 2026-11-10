@@ -9,7 +9,7 @@
  *
  * The fixture plays half a second per verse, so the highlight is seen moving.
  */
-import { test, expect } from '../fixtures';
+import { test, expect, expectConsoleProblems } from '../fixtures';
 import type { Page } from '../fixtures';
 import { FIXTURE_VERSES } from '../audioFixture';
 import { desktopOnly, mobileOnly, waitForVerses } from '../helpers';
@@ -141,6 +141,8 @@ test.describe('Audio Bible: desktop', () => {
   });
 
   test('a translation with no recording and no speech engine: Listen is disabled and says why', async ({ page }) => {
+    // Asking the server for a recording that does not exist is a 404, which the browser logs.
+    expectConsoleProblems('probes for a recording that does not exist (404)');
     await open(page, '#/ASV/43/3');
     const listen = page.getByTestId('audio-listen');
     await expect(listen).toBeDisabled({ timeout: 15000 });

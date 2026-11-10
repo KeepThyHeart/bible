@@ -1,6 +1,6 @@
 {
   "name": "bible",
-  "version": "1.0.0-rc.1",
+  "version": "1.0.0-beta.1",
   "description": "Bible study software",
   "private": false,
   "workspaces": [
@@ -32,7 +32,8 @@
     "uninstall:local": "pnpm --filter @bible/desktop run uninstall:local",
     "clean": "pnpm -r --if-present run clean",
     "test": "pnpm run build:core && pnpm run build:sync-server && pnpm run test:scripts && pnpm -r --no-bail --workspace-concurrency=1 --if-present run test",
-    "test:scripts": "node --test scripts/semantic/export-bibsearch-corpus.test.mjs && node scripts/build-module-pack.test.js && node scripts/check-logical-css.test.js && node scripts/check-logical-css.js && node scripts/init/starter-pack-presets.test.js && node scripts/generate-kth-css.js --check",
+    "check:guards": "pnpm run test:scripts && pnpm --filter @bible/ui run lint",
+    "test:scripts": "node --test scripts/semantic/export-bibsearch-corpus.test.mjs && node scripts/build-module-pack.test.js && node scripts/check-logical-css.test.js && node scripts/check-logical-css.js && node scripts/init/starter-pack-presets.test.js && node scripts/generate-kth-css.js --check && node scripts/fixtures/build-bible-fixture.test.mjs",
     "i18n:pseudo": "node scripts/i18n-pseudo.js && node scripts/i18n-pseudo.js --rtl",
     "i18n:pseudo:rtl": "node scripts/i18n-pseudo.js --rtl",
     "check:logical-css": "node scripts/check-logical-css.js",
@@ -41,6 +42,8 @@
     "typecheck:core": "pnpm --filter @bible/core run typecheck",
     "typecheck:desktop": "pnpm --filter @bible/desktop run typecheck",
     "rebuild-sqlite": "pnpm --filter @bible/desktop run rebuild-native",
+    "fixtures:bible": "node scripts/fixtures/build-bible-fixture.mjs",
+    "e2e:clean": "node packages/ui-driver/bin/drive.ts clean",
     "generate:theme-vars": "node scripts/generate-theme-vars.js",
     "check:theme-vars": "node scripts/generate-theme-vars.js --check",
     "generate:kth-css": "node scripts/generate-kth-css.js",

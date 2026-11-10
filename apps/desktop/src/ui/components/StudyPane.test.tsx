@@ -51,16 +51,20 @@ vi.mock('../stores/useTopicsStore', () => ({
   ),
 }));
 
+const layoutMock = vi.hoisted(() => ({ api: null as unknown }));
 vi.mock('../stores/useLayoutStore', () => ({
   useLayoutStore: Object.assign(
     vi.fn().mockReturnValue(undefined),
     {
-      getState: vi.fn().mockReturnValue({
-        dockviewApi: null,
-      }),
+      getState: vi.fn(() => ({
+        dockviewApi: layoutMock.api,
+      })),
     },
   ),
 }));
+
+const mockFocusPanelTab = vi.hoisted(() => vi.fn());
+vi.mock('../hooks/useDockviewTabA11y', () => ({ focusPanelTab: mockFocusPanelTab }));
 
 // The Bible store is read through a selector (to find the pane's anchor verse),
 // so the stub has to actually run it against a controllable state.
@@ -96,6 +100,7 @@ vi.mock('../utils/verseReference', () => ({
   loadBookNamesCache: vi.fn(),
   formatVerseReference: (id: number) => `Verse ${id}`,
   formatVerseRange: (start: number, end: number) => `${start}-${end}`,
+  getBookNameFromCache: () => 'Unknown',
 }));
 
 vi.mock('../utils/sanitize', () => ({
@@ -116,8 +121,8 @@ vi.mock('@bible/core', async (importOriginal) => ({
 // Mock sub-components
 vi.mock('./shared/PaneNavHeader', () => ({ default: (props: any) => (
   <div data-testid="pane-nav-header">
-    <button data-testid="back-btn" onClick={props.onBack} disabled={!props.canGoBack}>Back</button>
-    <button data-testid="forward-btn" onClick={props.onForward} disabled={!props.canGoForward}>Forward</button>
+    <button data-testid="pane-nav-back" onClick={props.onBack} disabled={!props.canGoBack}>Back</button>
+    <button data-testid="pane-nav-forward" onClick={props.onForward} disabled={!props.canGoForward}>Forward</button>
   </div>
 ) }));
 vi.mock('./shared/SuggestionBanner', () => ({ default: (props: any) => (
@@ -126,7 +131,13 @@ vi.mock('./shared/SuggestionBanner', () => ({ default: (props: any) => (
     <button onClick={props.onDismiss}>Dismiss</button>
   </div>
 ) }));
-vi.mock('./shared/TopicSearchBar', () => ({ default: () => <div data-testid="topic-search-bar" /> }));
+vi.mock('./shared/TopicSearchBar', () => ({
+  default: (props: { onSelectTopic: (abbr: string, id: number) => void }) => (
+    <div data-testid="topic-search-bar">
+      <button onClick={() => props.onSelectTopic('Nave', 5)}>pick-topic</button>
+    </div>
+  ),
+}));
 vi.mock('./VersePreviewTooltip', () => ({ default: () => null }));
 vi.mock('../hooks/useScriptureTooltip', () => ({
   useScriptureTooltip: () => ({ tooltipState: { visible: false, verseId: 0, position: { x: 0, y: 0 } }, closeTooltip: vi.fn(), tooltipMouseEnter: vi.fn() }),
@@ -295,7 +306,7 @@ describe('StudyPane', () => {
   // `uiScaled()` rather than hardcoding fontSize as a bare px string, or it
   // would never respond to the Typography section's "UI text" slider or the
   // "Global Font Scale" slider. `uiScaled()` expresses the size as
-  // `calc(Npx * var(--ui-font-scale, 1) * var(--global-font-scale, 1))` -
+  // `calc(Npx * var(--study-fs, 1) * var(--global-font-scale, 1))` -
   // these assertions check the rendered inline style references both
   // variables (and not a bare px value) rather than re-asserting the exact
   // pixel number, so they don't churn if the literal's base size is tuned.
@@ -306,9 +317,8 @@ describe('StudyPane', () => {
       const title = screen.getByText(enString('studyPane.title'));
       const hint = screen.getByText(enString('studyPane.emptyHint'));
 
-      expect(title.style.fontSize).toContain('var(--ui-font-scale');
-      expect(title.style.fontSize).toContain('rem'); // B-045: scaled by the rem root
-      expect(hint.style.fontSize).toContain('var(--ui-font-scale');
+      expect(title.style.fontSize).toContain('var(--study-fs');
+      expect(hint.style.fontSize).toContain('var(--study-fs');
       expect(hint.style.fontSize).not.toMatch(/^\d+px$/);
     });
 
@@ -317,7 +327,7 @@ describe('StudyPane', () => {
       renderWithProviders(<StudyPane panelId="study_default" />);
 
       const loading = screen.getByText(enString('studyPane.loadingData'));
-      expect(loading.style.fontSize).toContain('var(--ui-font-scale');
+      expect(loading.style.fontSize).toContain('var(--study-fs');
     });
 
     it('empty-section notes ("noTopics"/"noCommentaries"/"noCrossReferences") are not hardcoded px', async () => {
@@ -330,7 +340,7 @@ describe('StudyPane', () => {
       const noCrossReferences = screen.getByText(enString('studyPane.noCrossReferences'));
 
       for (const el of [noTopics, noCommentaries, noCrossReferences]) {
-        expect(el.style.fontSize).toContain('var(--ui-font-scale');
+        expect(el.style.fontSize).toContain('var(--study-fs');
       }
     });
 
@@ -339,7 +349,7 @@ describe('StudyPane', () => {
       renderWithProviders(<StudyPane panelId="study_default" />);
 
       const label = screen.getByText(enT('studyPane.studyingVerse', { reference: `Verse ${JOHN_3_16}` }));
-      expect(label.style.fontSize).toContain('var(--ui-font-scale');
+      expect(label.style.fontSize).toContain('var(--study-fs');
     });
   });
 
@@ -642,6 +652,43 @@ describe('StudyPane', () => {
 
       expect(await screen.findByText('Matthew Henry')).toBeInTheDocument();
       expect(screen.getByText(/Here is plain HTML\./)).toBeInTheDocument();
+    });
+  });
+
+  describe('Back at the start of the trail', () => {
+    it('moves focus to Forward instead of dropping it to the page', async () => {
+      const goBack = vi.fn();
+      mockUseStudyPanel.mockReturnValue({
+        ...defaultPanelState, currentVerseId: JOHN_3_16, canGoBack: true, canGoForward: false, goBack,
+      });
+      stubElectron(ALL_INSTALLED);
+      const { rerender } = renderWithProviders(<StudyPane panelId="study_default" />);
+      const back = screen.getByTestId('pane-nav-back');
+      back.focus();
+      await userEvent.click(back);
+      expect(goBack).toHaveBeenCalled();
+      mockUseStudyPanel.mockReturnValue({
+        ...defaultPanelState, currentVerseId: JOHN_3_16, canGoBack: false, canGoForward: true, goBack,
+      });
+      rerender(
+        <ContextProvider services={createMockServices()}><StudyPane panelId="study_default" /></ContextProvider>,
+      );
+      await waitFor(() => expect(screen.getByTestId('pane-nav-forward')).toHaveFocus());
+    });
+  });
+
+  describe('opening a topic from the search bar', () => {
+    it('moves focus to the new Topics pane tab when it creates the pane', async () => {
+      mockFocusPanelTab.mockClear();
+      const api = { panels: [], addPanel: vi.fn(() => ({ id: 'topics-new' })) };
+      layoutMock.api = api;
+      mockUseStudyPanel.mockReturnValue({ ...defaultPanelState, currentVerseId: JOHN_3_16 });
+      stubElectron(ALL_INSTALLED);
+      renderWithProviders(<StudyPane panelId="study_default" />);
+      await userEvent.click(await screen.findByText('pick-topic'));
+      expect(api.addPanel).toHaveBeenCalled();
+      expect(mockFocusPanelTab).toHaveBeenCalledWith(api, 'topics-new');
+      layoutMock.api = null;
     });
   });
 });

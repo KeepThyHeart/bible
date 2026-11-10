@@ -20,6 +20,7 @@ import { useEditorShortcuts } from './UserNotesPane/hooks/useEditorShortcuts';
 import { useNotesInit } from './UserNotesPane/hooks/useNotesInit';
 import { useVerseNoteOpener } from './UserNotesPane/hooks/useVerseNoteOpener';
 import { usePopOutListener } from './UserNotesPane/hooks/usePopOutListener';
+import { useNoteSavedListener } from './UserNotesPane/hooks/useNoteSavedListener';
 import { useNotesNavigation } from './UserNotesPane/hooks/useNotesNavigation';
 import { useMoveDialogFolders } from './UserNotesPane/hooks/useMoveDialogFolders';
 import UserNotesSidebar from './UserNotesPane/UserNotesSidebar';
@@ -27,6 +28,7 @@ import UserNotesEditorView from './UserNotesPane/UserNotesEditorView';
 import UserNotesDialogs from './UserNotesPane/UserNotesDialogs';
 import ConfirmDialog from '../shared/ConfirmDialog';
 import { useI18n } from '../../contexts/useI18n';
+import { entryDisplayName } from './verseNoteName';
 
 type NotesView = 'browser' | 'editor';
 
@@ -48,7 +50,7 @@ const UserNotesPane: React.FC<UserNotesPaneProps> = ({
   initialCurrentPath,
   initialCurrentNotePath,
 }) => {
-  const { t } = useI18n();
+  const { t, localizer } = useI18n();
   const { currentVerseId } = useNotesPanel(panelId);
   // Entry awaiting delete confirmation (goes to the system trash).
   const [deleteTarget, setDeleteTarget] = useState<FileEntry | null>(null);
@@ -236,6 +238,9 @@ const UserNotesPane: React.FC<UserNotesPaneProps> = ({
     loadDirectory,
   });
 
+  // Live sync: a save of this note in another window reloads it here (or flags a conflict if we have unsaved edits)
+  useNoteSavedListener({ view, currentNote, currentNotePath, setCurrentNote, setFileError });
+
   // Notes-folder CRUD: create note/folder, rename, move, delete
   const {
     handleCreateNote,
@@ -405,6 +410,7 @@ const UserNotesPane: React.FC<UserNotesPaneProps> = ({
                   // documents/journal/prayer notes keep the free-text title.
                   titleEditable={currentNote.type !== 'verse_note'}
                   onPopOut={handlePopOut}
+                  isDetached={isDetached}
                   notePath={currentNotePath}
                   previousNote={previousNote && previousNote.path !== currentNotePath ? previousNote : null}
                   onBackToPrevious={() => { if (previousNote) void handleOpenNote(previousNote.path); }}
@@ -430,7 +436,10 @@ const UserNotesPane: React.FC<UserNotesPaneProps> = ({
         title={t('userNotesPane.deleteConfirm.title')}
         message={deleteTarget?.isDirectory
           ? t('userNotesPane.deleteConfirm.folderMessage', { name: deleteTarget.name })
-          : t('userNotesPane.deleteConfirm.message', { name: deleteTarget?.name ?? '' })}
+          : t('userNotesPane.deleteConfirm.message', {
+              // "Genesis 24:3", not the bare file name "3", for a verse note.
+              name: deleteTarget ? entryDisplayName(deleteTarget, VERSE_NOTES_FOLDER, localizer) : '',
+            })}
         confirmLabel={t('userNotesPane.deleteConfirm.confirm')}
         destructive
         onConfirm={() => {

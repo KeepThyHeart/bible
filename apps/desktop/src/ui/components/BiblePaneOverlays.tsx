@@ -286,7 +286,8 @@ const BiblePaneOverlays: React.FC<BiblePaneOverlaysProps> = ({
       {/* Bible Translation Selector Modal */}
       {showSelector && (
         <ModuleSelector
-          title={versionSelectorTabId ? "Switch Bible Version" : "Select Bible Translation"}
+          title={t(versionSelectorTabId ? 'biblePane.switchVersion' : 'biblePane.selectTranslation')}
+          currentId={(versionSelectorTabId ? openTabs.find(tab => tab.tabId === versionSelectorTabId) : activeTab)?.abbreviation}
           modules={availableBibles.map((bible): ModuleItem => ({
             id: bible.abbreviation,
             name: bible.name,

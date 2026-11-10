@@ -222,7 +222,7 @@ export interface BiblePanelState {
    */
   backBarVerseId: number | null;
   scrollTrigger: number;
-  scrollMode: 'center' | 'nearest';
+  scrollMode: 'center' | 'nearest' | 'top';
   navigationHistory: HistoryEntry[];
   historyIndex: number;
   maxHistorySize: number;

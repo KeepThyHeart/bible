@@ -25,6 +25,7 @@
 import type { Rung, RungView } from '../core/types';
 import { append, button, el, focusQuietly } from './dom';
 import { tr } from './i18n';
+import { inertBackground } from './inert';
 import { MIN_VERSES_FOR_REFERENCE_ACTIVITIES } from '../core/ladder';
 import {
   MASTERED_LEVEL,
@@ -220,9 +221,9 @@ export function menu(opts: { label: string; items: MenuItem[] }): HTMLElement {
 /**
  * Up/Down over an open `role="menu"`, wrapping at the ends, plus Escape - the
  * `role="menu"` analogue of `attachTabKeys` above (see `menu()`'s own note
- * for why it is not the same function). Left/Right, Home and End are a
- * tablist's own pattern, not a menu's, so they are left out here rather than
- * copied over.
+ * for why it is not the same function). Home/End jump to the ends and Tab closes the
+ * menu (focus returns to the trigger and the Tab moves on from there);
+ * Left/Right are a tablist's own pattern and are left out.
  */
 export function attachMenuKeys(
   panel: HTMLElement,
@@ -238,6 +239,12 @@ export function attachMenuKeys(
       onEscape();
       return;
     }
+    if (ev.key === 'Tab') {
+      // Close and put focus back on the trigger, but let the Tab itself
+      // proceed so focus moves on from there instead of leaving the menu open.
+      onEscape();
+      return;
+    }
 
     const current = itemButtons.indexOf(document.activeElement as HTMLButtonElement);
     if (current < 0) return;
@@ -249,6 +256,12 @@ export function attachMenuKeys(
         break;
       case 'ArrowUp':
         target = (current - 1 + itemButtons.length) % itemButtons.length;
+        break;
+      case 'Home':
+        target = 0;
+        break;
+      case 'End':
+        target = itemButtons.length - 1;
         break;
       default:
         return;
@@ -391,6 +404,15 @@ export function errorBanner(message: string): HTMLElement {
     class: 'sm-error',
     text: message,
     attrs: { role: 'alert' },
+  });
+}
+
+/** The translation a passage is memorised in, shown beside its reference (B-123). */
+export function translationTag(moduleId: string): HTMLElement {
+  return el('span', {
+    class: 'sm-row-meta sm-row-translation',
+    text: moduleId,
+    attrs: { title: tr('memory.ui.common.translationTitle', 'Translation: {module}', { module: moduleId }) },
   });
 }
 
@@ -589,6 +611,7 @@ export function modal(opts: ModalOptions): ModalHandle {
   const backdrop = el('div', { class: 'sm-modal-backdrop', hidden: true }, [dialog]);
 
   let opener: HTMLElement | null = null;
+  let releaseInert: (() => void) | null = null;
 
   function focusableElements(): HTMLElement[] {
     return Array.from(dialog.querySelectorAll<HTMLElement>(MODAL_FOCUSABLE_SELECTOR));
@@ -597,12 +620,16 @@ export function modal(opts: ModalOptions): ModalHandle {
   function openModal(): void {
     opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     backdrop.hidden = false;
+    releaseInert?.();
+    releaseInert = inertBackground(dialog);
     focusQuietly(focusableElements()[0] ?? dialog);
   }
 
   function closeModal(): void {
     if (backdrop.hidden) return;
     backdrop.hidden = true;
+    releaseInert?.();
+    releaseInert = null;
     focusQuietly(opener);
     opener = null;
     opts.onClose?.();

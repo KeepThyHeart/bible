@@ -29,6 +29,7 @@ import { libraryChangeListeners } from '../modules/host/hostListeners';
 import { whenContextService } from '../services/WhenContextService';
 import { useLayoutStore } from './useLayoutStore';
 import { installSearchPanelInvariant } from './searchPanelInvariant';
+import { installSearchTabsSync } from './searchTabsSync';
 import { useSessionStore } from './useSessionStore';
 import { useModuleStore } from './module/useModuleStore';
 import {
@@ -38,7 +39,6 @@ import {
   setResolvePrimaryBibleVerseId,
   setResolveOpenModuleAbbreviations,
   setResolveInstalledModuleId,
-  setShowSearchResultsPanel,
   setResolveActiveBibleModule,
 } from './crossStoreBridge';
 
@@ -76,6 +76,23 @@ async function refreshBibles(): Promise<void> {
         }
       }
     }
+  }
+
+  // A tab whose chapter failed to load because its Bible was not installed
+  // yet - restored from the session before the module was registered or
+  // downloaded - is retried now that it is. Without this the pane kept showing
+  // the "not found" error until the reader re-selected the same translation.
+  {
+    const bibleState = useBibleStore.getState();
+    const installed = new Set(bibleState.availableBibles.map(b => b.abbreviation));
+    const retries: Promise<void>[] = [];
+    for (const [panelId, ps] of bibleState.panels) {
+      for (const tab of ps.openTabs) {
+        if (!ps.errorByTab.get(tab.tabId) || !installed.has(tab.abbreviation)) continue;
+        retries.push(bibleState.loadChapterForTab(panelId, tab.tabId, tab.abbreviation, tab.book, tab.chapter));
+      }
+    }
+    await Promise.allSettled(retries);
   }
 
   // Seed the reading pane only from the true empty state: no Bible open in any
@@ -116,6 +133,14 @@ export function wireStoreSync(): void {
   // A changed set of Bibles reaches the Bible store (translation picker and,
   // when the very first Bible was just installed, the reading pane's seeding);
   // commentaries, dictionaries and books reach their own stores.
+  // The main process registers modules on its own too: the startup scan picks
+  // up module files on disk that the registry did not list. Reloading the
+  // installed list raises notifyLibraryChanged below for every type that
+  // changed, which is what refreshes the panes.
+  window.electron?.moduleManager?.onLibraryChanged?.(() => {
+    void useModuleStore.getState().loadInstalledModules();
+  });
+
   setNotifyLibraryChanged(async (change) => {
     libraryChangeListeners.emit(); // feature modules refresh what depends on installed data (a semantic pack may have arrived or left)
     const changed = new Set(change.moduleTypes);
@@ -238,13 +263,11 @@ export function wireStoreSync(): void {
     return typeof match?.module_id === 'number' ? match.module_id : undefined;
   });
 
-  // The search store calls this once a search has produced results, so the
-  // results get their own dockview tab (split below the active Bible pane the
-  // first time, focused in place thereafter).
-  setShowSearchResultsPanel(() => {
-    useLayoutStore.getState().openSearchResultsPanel();
-  });
-  // ...and the panel never outlives that search, whichever path cleared it.
+  // The search store opens or focuses each search session's own dockview tab
+  // once it has results, focusing a tab activates its session, and each tab's
+  // query is kept in the saved layout (task 0210; see searchTabsSync.ts)...
+  installSearchTabsSync();
+  // ...and no search tab outlives its search, whichever path cleared it.
   installSearchPanelInvariant();
 
   // ==========================================================================

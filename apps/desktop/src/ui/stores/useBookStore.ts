@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { logModuleErrorOnce } from '../services/moduleErrorLog';
 import { bookAPI } from '../services/electronAPI';
 import { DEFAULT_PANEL_ID, updatePanelState } from './helpers/panelStateHelpers';
 import { createPanelSlice } from './helpers/createPanelSlice';
@@ -398,7 +399,9 @@ export const useBookStore = create<BookState>((set, get) => {
           await get().navigateToSection(panelId, abbreviation, nextSection.section_id);
         }
       } catch (error) {
-        console.error(`Error navigating to next section for ${abbreviation}:`, error);
+        if (!logModuleErrorOnce('book', abbreviation, 'store', error)) {
+          console.error(`Error navigating to next section for ${abbreviation}:`, error);
+        }
       }
     },
 
@@ -414,7 +417,9 @@ export const useBookStore = create<BookState>((set, get) => {
           await get().navigateToSection(panelId, abbreviation, prevSection.section_id);
         }
       } catch (error) {
-        console.error(`Error navigating to previous section for ${abbreviation}:`, error);
+        if (!logModuleErrorOnce('book', abbreviation, 'store', error)) {
+          console.error(`Error navigating to previous section for ${abbreviation}:`, error);
+        }
       }
     },
 
@@ -430,7 +435,9 @@ export const useBookStore = create<BookState>((set, get) => {
           await get().navigateToSection(panelId, abbreviation, parentSection.section_id);
         }
       } catch (error) {
-        console.error(`Error navigating to parent section for ${abbreviation}:`, error);
+        if (!logModuleErrorOnce('book', abbreviation, 'store', error)) {
+          console.error(`Error navigating to parent section for ${abbreviation}:`, error);
+        }
       }
     },
 
@@ -459,7 +466,9 @@ export const useBookStore = create<BookState>((set, get) => {
           }), createDefaultBookPanelState)
         });
       } catch (error) {
-        console.error(`Error loading section summaries for ${abbreviation}:`, error);
+        if (!logModuleErrorOnce('book', abbreviation, 'store', error)) {
+          console.error(`Error loading section summaries for ${abbreviation}:`, error);
+        }
         // Record the attempt with an empty result. Leaving the key absent made
         // every "are summaries loaded?" check read as "not yet", which both kept
         // the Contents dialog permanently shut and let the pane's auto-load
@@ -495,7 +504,9 @@ export const useBookStore = create<BookState>((set, get) => {
           }), createDefaultBookPanelState)
         });
       } catch (error) {
-        console.error(`Error loading child sections for ${abbreviation}, section ${sectionId}:`, error);
+        if (!logModuleErrorOnce('book', abbreviation, 'store', error)) {
+          console.error(`Error loading child sections for ${abbreviation}, section ${sectionId}:`, error);
+        }
         // Clear child sections on error
         set({
           panels: updatePanelState(get().panels, panelId, withTabValues(get().getPanelState(panelId), abbreviation, {

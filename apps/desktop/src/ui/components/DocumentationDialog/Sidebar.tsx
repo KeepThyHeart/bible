@@ -87,15 +87,21 @@ export function DocumentationSidebar({
         </button>
       </div>
 
-      {/* Search results count */}
-      {searchQuery && (
-        <div className="px-4 py-2 text-xs text-text-muted border-t border-border" role="status" aria-live="polite">
-          {t(
-            'documentationDialog.searchMatchCount',
-            { matched: sections.length, total: totalSectionCount, },
-          )}
-        </div>
-      )}
+      {/* Search results count. The live region is always mounted so that the first
+          count after typing is announced; a region inserted with its text is often missed. */}
+      <div
+        className={searchQuery ? 'px-4 py-2 text-xs text-text-muted border-t border-border' : undefined}
+        role="status"
+        aria-live="polite"
+        data-testid="documentation-search-status"
+      >
+        {searchQuery
+          ? t(
+              'documentationDialog.searchMatchCount',
+              { matched: sections.length, total: totalSectionCount, },
+            )
+          : null}
+      </div>
     </nav>
   );
 }

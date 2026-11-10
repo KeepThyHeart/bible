@@ -114,18 +114,45 @@ describe('wordStudyStore submit', () => {
   });
 });
 
+describe('wordStudyStore query input', () => {
+  it('opening a subject from elsewhere replaces the previous query with the subject (interlinear word)', async () => {
+    await wordStudyStore.submit('H7225');
+    expect(wordStudyStore.query).toBe('H7225');
+    await wordStudyStore.openStrongs('H5175');
+    expect(wordStudyStore.query).toBe('H5175');
+  });
+
+  it('keeps a typed word as typed when it resolves to a Strong\'s entry', async () => {
+    provider.resolve.mockResolvedValueOnce([{ strongs: 'G26', word: 'agape' }]);
+    await wordStudyStore.submit('love');
+    expect(wordStudyStore.subject).toEqual({ kind: 'strongs', strongs: 'G26' });
+    expect(wordStudyStore.query).toBe('love');
+  });
+});
+
 describe('wordStudyStore occurrences', () => {
   it('load more appends the next page', async () => {
     await wordStudyStore.openStrongs('G25');
     expect(wordStudyStore.hasMore).toBe(true);
     await wordStudyStore.loadMore();
-    expect(provider.getOccurrences.mock.calls[1][1]).toMatchObject({ offset: 100, limit: 100 });
-    expect(wordStudyStore.occurrences?.items).toHaveLength(200);
-    await wordStudyStore.loadMore();
+    expect(provider.getOccurrences.mock.calls[1][1]).toMatchObject({ offset: 100, limit: 500 });
     expect(wordStudyStore.occurrences?.items).toHaveLength(250);
     expect(wordStudyStore.hasMore).toBe(false);
     await wordStudyStore.loadMore();
-    expect(provider.getOccurrences).toHaveBeenCalledTimes(3);
+    expect(provider.getOccurrences).toHaveBeenCalledTimes(2);
+  });
+
+  it('load more fetches up to 1,000 per click in requests of at most 500', async () => {
+    provider.getOccurrences.mockImplementation(async (_s, q) => ({
+      total: 3000, items: items(Math.min(q.limit ?? 100, 3000 - (q.offset ?? 0)), q.offset ?? 0),
+    }));
+    await wordStudyStore.openStrongs('G25');
+    expect(wordStudyStore.occurrences?.items).toHaveLength(100);
+    await wordStudyStore.loadMore();
+    const calls = provider.getOccurrences.mock.calls.slice(1).map(c => [c[1].offset, c[1].limit]);
+    expect(calls).toEqual([[100, 500], [600, 500]]);
+    expect(wordStudyStore.occurrences?.items).toHaveLength(1100);
+    expect(wordStudyStore.hasMore).toBe(true);
   });
 
   it('a filter change reloads from the first page', async () => {

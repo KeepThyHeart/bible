@@ -1,3 +1,4 @@
+import { useEffect, useMemo, useRef } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { WordStudyView } from '@bible/ui';
 import type { WordOccurrenceItem } from '@bible/core/browser';
@@ -38,6 +39,23 @@ export function WordStudyPane({ onNavigate, onOpenStrongsEntry, onClose }: WordS
   const canBack = useStore(s, () => s.canGoBack);
   const canForward = useStore(s, () => s.canGoForward);
 
+  // Back/Forward disable themselves at the ends of the trail: if the pressed one just did, keyboard
+  // focus would fall to <body>, so move it to the other arrow (or the lookup box).
+  const rootRef = useRef<HTMLDivElement>(null);
+  const backRef = useRef<HTMLButtonElement>(null);
+  const forwardRef = useRef<HTMLButtonElement>(null);
+  const pressed = useRef<{ which: 'back' | 'forward'; at: number } | null>(null);
+  // Keyed on the flags, so it runs for the render that disabled the button (the DOM is current then).
+  useEffect(() => {
+    const p = pressed.current;
+    pressed.current = null;
+    if (!p || Date.now() - p.at > 2000) return;
+    const own = p.which === 'back' ? backRef.current : forwardRef.current;
+    const other = p.which === 'back' ? forwardRef.current : backRef.current;
+    if (!own?.disabled) return;
+    (other && !other.disabled ? other : rootRef.current?.querySelector<HTMLElement>('input'))?.focus({ preventScroll: true });
+  }, [canBack, canForward]);
+
   const formatBook = (book: number) => moduleStore.getBookName(book);
   const formatReference = (verseId: number) => {
     const { bookNumber, chapter, verse } = parseVerseId(verseId);
@@ -50,15 +68,39 @@ export function WordStudyPane({ onNavigate, onOpenStrongsEntry, onClose }: WordS
     onNavigate?.();
   };
 
+  // "Load more": the button vanishes on the last page (and is disabled while loading), which would drop
+  // focus to <body>. Move it to the first newly added row instead.
+  const loadMoreFrom = useRef<number | null>(null);
+  const shownCount = occurrences?.items.length ?? 0;
+  useEffect(() => {
+    const from = loadMoreFrom.current;
+    if (from === null) return;
+    if (shownCount > from) {
+      loadMoreFrom.current = null;
+      rootRef.current?.querySelectorAll<HTMLElement>('.kth-ws-occ')[from]?.focus();
+    } else if (shownCount < from) {
+      loadMoreFrom.current = null; // the list was reset (new subject or filter) while loading
+    }
+  }, [shownCount]);
+
+  // The summary line's label is built in English by the data service; show it translated.
+  const shownOverview = useMemo(() => {
+    const range = overview?.semanticRange;
+    const m = range && /^Summary from Strong's and (.+) usage$/.exec(range.sourceLabel ?? '');
+    if (!overview || !range || !m) return overview;
+    const sourceLabel = t('wordStudy.summarySource', { module: m[1], defaultValue: "Summary from Strong's and {module} usage" });
+    return { ...overview, semanticRange: { ...range, sourceLabel } };
+  }, [overview, t]);
+
   const strongs = subject?.kind === 'strongs' ? subject.strongs : undefined;
 
   return (
-    <div className="word-study-pane" data-testid="word-study-pane">
+    <div className="word-study-pane" ref={rootRef} data-testid="word-study-pane">
       <div className="word-study-pane__bar">
-        <button type="button" className="kth-btn kth-btn--ghost kth-btn--sm" disabled={!canBack} onClick={() => void s.back()} title={t('wordStudy.back')} aria-label={t('wordStudy.back')}>
+        <button type="button" ref={backRef} className="kth-btn kth-btn--ghost kth-btn--sm" disabled={!canBack} onClick={() => { pressed.current = { which: 'back', at: Date.now() }; void s.back(); }} title={t('wordStudy.back')} aria-label={t('wordStudy.back')}>
           <i className="fa-solid fa-arrow-left kth-rtl-mirror" aria-hidden="true" />
         </button>
-        <button type="button" className="kth-btn kth-btn--ghost kth-btn--sm" disabled={!canForward} onClick={() => void s.forward()} title={t('wordStudy.forward')} aria-label={t('wordStudy.forward')}>
+        <button type="button" ref={forwardRef} className="kth-btn kth-btn--ghost kth-btn--sm" disabled={!canForward} onClick={() => { pressed.current = { which: 'forward', at: Date.now() }; void s.forward(); }} title={t('wordStudy.forward')} aria-label={t('wordStudy.forward')}>
           <i className="fa-solid fa-arrow-right kth-rtl-mirror" aria-hidden="true" />
         </button>
         <h2 className="word-study-pane__title">{t('wordStudy.title')}</h2>
@@ -79,7 +121,7 @@ export function WordStudyPane({ onNavigate, onOpenStrongsEntry, onClose }: WordS
         <p className="word-study-pane__prompt">{t('wordStudy.prompt')}</p>
       )}
       <WordStudyView
-        overview={overview}
+        overview={shownOverview}
         loading={loading}
         error={error ?? undefined}
         occurrences={occurrences}
@@ -91,7 +133,7 @@ export function WordStudyPane({ onNavigate, onOpenStrongsEntry, onClose }: WordS
         onModuleChange={(m) => void s.setModule(m)}
         onSelectStrongs={(x) => void s.openStrongs(x)}
         onOpenOccurrence={openOccurrence}
-        onLoadMore={() => void s.loadMore()}
+        onLoadMore={() => { loadMoreFrom.current = shownCount; void s.loadMore(); }}
         formatBook={formatBook}
         formatReference={formatReference}
         onSearchAll={strongs ? () => searchStore.performSearch(strongs) : undefined}

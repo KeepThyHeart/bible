@@ -169,3 +169,12 @@ describe('BrowseView source label with a right-to-left apostrophe', () => {
     expect(label.closest('bdi, [dir="auto"]')).not.toBeNull();
   });
 });
+
+describe('BrowseView count badge (U-169)', () => {
+  it('names what the badge counts', () => {
+    renderView({ topics: [topic({ verse_count: 1463 })] });
+    const badge = screen.getByTitle(enT('topicsPane.verseCount', { count: 1463 }));
+    expect(badge.textContent).toBe('1463');
+    expect(badge.getAttribute('aria-label')).toBe(enT('topicsPane.verseCount', { count: 1463 }));
+  });
+});
