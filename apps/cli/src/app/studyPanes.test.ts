@@ -286,8 +286,10 @@ describe.skipIf(!hasDictionary)('dictionaryListRows, dictionaryLetterRows, dicti
 
   test('an unknown dictionary falls back to the first one; an unknown entry key comes back undefined, not throwing', () => {
     // `Library.studyModule` names the nearest module rather than failing, so a
-    // stale abbreviation reads the first dictionary installed.
-    const first = dictionaryListRows(library())[0];
+    // stale abbreviation reads the first dictionary installed. That is discovery
+    // order, not dictionaryListRows' alphabetical order: the two differ once more
+    // than one dictionary is installed.
+    const first = library().study('dictionary')[0];
     expect(first).toBeDefined();
     if (first === undefined) return;
     expect(dictionaryLetterRows(library(), 'not-a-real-dictionary')).toEqual(
