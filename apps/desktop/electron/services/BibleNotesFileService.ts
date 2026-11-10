@@ -486,6 +486,38 @@ export class BibleNotesFileService {
     return this.listDirectory(relPath);
   }
 
+  /** Whether `relativePath` is a verse note: Verse Notes/<Book>/<Chapter>/<Verse>.bn */
+  isVerseNotePath(relativePath: string): boolean {
+    const parts = relativePath.split(/[\\/]/);
+    return parts.length === 4 && parts[0] === BibleNotesFileService.VERSE_NOTES_FOLDER && /^\d+\.bn$/.test(parts[3]);
+  }
+
+  /**
+   * Remove a verse note whose text was cleared, instead of saving it empty: the
+   * file (and its .bak) goes to the trash, so the verse loses its note marker,
+   * and its chapter and book folders go too once nothing is left in them.
+   *
+   * The baseline is checked like a save: a note another window wrote meanwhile
+   * is not removed. A note already gone is left alone. Saving content again
+   * afterwards with an empty baseline (`''`) re-creates it.
+   */
+  async removeEmptiedVerseNote(relativePath: string, expectedUpdated: string | undefined): Promise<void> {
+    const fullPath = this.resolveNotePath(relativePath);
+    if (!fs.existsSync(fullPath)) return;
+    this.assertNoConflict(fullPath, expectedUpdated);
+    await this.deleteEntry(relativePath);
+    this.knownHash.delete(fullPath);
+    const notesRoot = path.resolve(this.notesDir, BibleNotesFileService.VERSE_NOTES_FOLDER);
+    for (let dir = path.dirname(fullPath); dir.startsWith(notesRoot + path.sep); dir = path.dirname(dir)) {
+      try {
+        if (fs.readdirSync(dir).length > 0) break;
+        fs.rmdirSync(dir);
+      } catch {
+        break;
+      }
+    }
+  }
+
   /**
    * Check if a verse has a note file
    */
@@ -505,6 +537,15 @@ export class BibleNotesFileService {
    */
   private assertNoConflict(fullPath: string, expectedUpdated: string | undefined): void {
     if (expectedUpdated === undefined) return;
+    // An empty baseline means "not on disk when I last looked" (an emptied
+    // verse note that was removed): the save may create it, unless another
+    // window has written it since.
+    if (expectedUpdated === '') {
+      if (fs.existsSync(fullPath)) {
+        throw new NoteConflictError(this.readNoteTracked(fullPath, false)?.updated ?? '', expectedUpdated);
+      }
+      return;
+    }
     // A baseline means "I loaded this file": if it is gone it was renamed,
     // moved or trashed, and saving must not bring it back.
     if (!fs.existsSync(fullPath)) throw new NoteMissingError(fullPath);

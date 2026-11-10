@@ -12,7 +12,8 @@ import { bibleAPI } from '../../services/electronAPI';
 import { similarAPI } from './similarAPI';
 import { localizedBookNames } from '../../constants/bibleBooks';
 import { openModuleManager } from '../../utils/openModuleManager';
-import { anchorAtPointerX, isDocumentRtl } from '../../utils/overlayPosition';
+import { isDocumentRtl } from '../../utils/overlayPosition';
+import PointerMenu from '../../components/shared/PointerMenu';
 
 /** The user database the "Add as my cross-reference" action writes to. */
 const USER_XREF_DB = 'default';
@@ -243,10 +244,12 @@ const SimilarPane: React.FC<SimilarPaneProps> = ({ panelId = 'similar_default' }
       <div className="flex-1 overflow-auto">{body}</div>
 
       {menu && (
-        <div
+        <PointerMenu
+          x={menu.x}
+          y={menu.y}
           role="menu"
-          className="fixed z-50 border rounded shadow text-sm"
-          style={{ ...anchorAtPointerX(menu.x), top: menu.y, backgroundColor: 'var(--theme-bg-primary)', borderColor: 'var(--theme-border-primary)' }}
+          className="border rounded shadow text-sm"
+          style={{ backgroundColor: 'var(--theme-bg-primary)', borderColor: 'var(--theme-border-primary)' }}
           onMouseDown={e => e.stopPropagation()}
         >
           <button type="button" role="menuitem" className="block w-full text-start px-3 py-1.5 hover:bg-background-hover" onClick={() => copyReference(menu.row)}>
@@ -255,7 +258,7 @@ const SimilarPane: React.FC<SimilarPaneProps> = ({ panelId = 'similar_default' }
           <button type="button" role="menuitem" className="block w-full text-start px-3 py-1.5 hover:bg-background-hover" onClick={() => void addXref(menu.row)}>
             {t('similar.addXref')}
           </button>
-        </div>
+        </PointerMenu>
       )}
     </div>
   );

@@ -4,7 +4,7 @@ import { FileEntry, listDirectory } from '../../services/fileNotesAPI';
 import { RecentFile } from '../../stores/useFileNotesStore';
 import { BreadcrumbSegment } from './NotesBreadcrumb';
 import { useI18n } from '../../contexts/useI18n';
-import { anchorAtPointerX } from '../../utils/overlayPosition';
+import PointerMenu from '../shared/PointerMenu';
 import { deleteKey, revealKey } from '../../utils/platformLabels';
 import PaneEmptyState from '../onboarding/PaneEmptyState';
 import { entryDisplayName as entryDisplayNameFor } from './verseNoteName';
@@ -625,10 +625,12 @@ const NotesFolderBrowser: React.FC<NotesFolderBrowserProps> = ({
 
       {/* Context Menu */}
       {contextMenu && (
-        <div
+        <PointerMenu
           ref={menuRef}
-          className="fixed z-50 bg-surface-elevated border border-border rounded shadow-lg py-1 min-w-[160px]"
-          style={{ ...anchorAtPointerX(contextMenu.x), top: contextMenu.y }}
+          x={contextMenu.x}
+          y={contextMenu.y}
+          estimatedWidth={160}
+          className="bg-surface-elevated border border-border rounded shadow-lg py-1 min-w-[160px]"
           onClick={closeContextMenu}
           onKeyDown={handleMenuKeyDown}
           role="menu"
@@ -698,7 +700,7 @@ const NotesFolderBrowser: React.FC<NotesFolderBrowserProps> = ({
           >
             {t(revealKey('notesFolderBrowser.menuReveal'))}
           </button>
-        </div>
+        </PointerMenu>
       )}
     </div>
   );

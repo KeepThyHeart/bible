@@ -2,6 +2,8 @@ import * as fileNotesAPI from '../../../../services/fileNotesAPI';
 import type { BnFile } from '../../../../services/fileNotesAPI';
 import { IpcResultError } from '../../../../services/ipcResult';
 import { isAbsolutePath } from '../utils';
+import { useNotesStore } from '../../../../stores/useNotesStore';
+import { useFileNotesStore } from '../../../../stores/useFileNotesStore';
 
 /**
  * Save a note with the baseline (`updated`) it was loaded or last saved at, so
@@ -12,12 +14,25 @@ import { isAbsolutePath } from '../utils';
 export async function saveWithBaseline(path: string, note: BnFile): Promise<string> {
   beginSave(path);
   try {
-    return isAbsolutePath(path)
+    const updated = isAbsolutePath(path)
       ? await fileNotesAPI.saveNoteAbsolute(path, note, note.updated)
       : await fileNotesAPI.saveNote(path, note, note.updated);
+    afterNoteSaved(path, updated);
+    return updated;
   } finally {
     endSave(path);
   }
+}
+
+/**
+ * An empty `updated` back from a save means the main process removed the note
+ * instead (a verse note whose text was cleared): the verse's note marker and
+ * the recent-files entry go with it.
+ */
+export function afterNoteSaved(path: string, updated: string): void {
+  if (updated !== '') return;
+  useNotesStore.setState(s => ({ noteChangeCounter: s.noteChangeCounter + 1 }));
+  useFileNotesStore.getState().removeRecentFile(path); // allow-getstate: async save callback - imperative store update outside render
 }
 
 /**
