@@ -25,7 +25,6 @@ vi.mock('./HelpTip', () => ({ HelpTip: () => null }));
 
 import { JoinSection, ScreenSection } from './sections';
 import { Transport } from './Transport';
-import { SetupCard } from './SetupCard';
 
 // 0209 R2 W7 items 10 and 12: pressed states, labelled value, one cue per toggle, "Copied" feedback.
 describe('ScreenSection', () => {
@@ -58,11 +57,15 @@ describe('Transport blank toggle', () => {
   });
 });
 
-describe('SetupCard toggle', () => {
-  it('changes its name only (no aria-expanded second cue)', () => {
-    const { getByText } = render(<SetupCard session={null} onDone={() => {}} />);
-    const open = getByText('present.control.setupOpen').closest('button')!;
-    expect(open.hasAttribute('aria-expanded')).toBe(false);
+describe('Transport labels', () => {
+  it('shows visible text beside the icons', () => {
+    h.state.display.blanked = false;
+    const { container } = render(<Transport />);
+    const labels = Array.from(container.querySelectorAll('.pz-transport__label')).map((n) => n.textContent);
+    expect(labels).toEqual(['Back', 'Hide screen', 'Next']);
+    h.state.display.blanked = true;
+    const again = render(<Transport />);
+    expect(again.container.querySelectorAll('.pz-transport__label')[1].textContent).toBe('Show screen');
   });
 });
 

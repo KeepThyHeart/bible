@@ -4,9 +4,12 @@
  * Two halves, both pure:
  *
  *  - `parseHymnLine` reads what the preacher wrote -- `Hymn 23`,
- *    `Hymn: Amazing Grace (verses 1, 2, 5)`, `Song – It Is Well v1-3` -- into
- *    a number or a title plus an optional verse list, without looking at the
- *    library at all.
+ *    `Hymn: Amazing Grace (verses 1, 2, 5)`, `Song – It Is Well v1-3`,
+ *    `Opening hymn: …`, `Closing: …`, `Sing …` -- into a number or a title
+ *    plus an optional verse list, without looking at the library at all.
+ *  - `matchTitleLine` reads a line that is nothing but a library title (plus
+ *    an optional bracketed verse list), and `findTitlesInLine` finds library
+ *    titles inside other text, for suggestions. Both need the library.
  *  - `resolveHymn` finds the hymn: a number matches a hymnal number, anything
  *    else is a fuzzy title match (normalised, then exact, prefix, word-prefix
  *    and finally trigram similarity). Anything it cannot settle on its own --
@@ -36,9 +39,22 @@ export interface ParsedHymnLine {
   verses?: string[];
   /** The verse list was there but did not make sense (`3–1`). */
   versesInvalid?: boolean;
+  /**
+   * The line started with a weak cue (`Opening:`, `Closing:`, `Sing`) rather
+   * than the word hymn or song. Such a line is only a hymn when the library
+   * knows the title well; resolve it with `LOOSE_MIN_SCORE` and drop it when
+   * nothing is found.
+   */
+  loose?: boolean;
 }
 
-const PREFIX_RE = /^(\s*)(?:hymn|song)\b[\s:#.\-–—]*/i;
+/** `Hymn`, `Song`, `Opening hymn`, `Closing song`. */
+const PREFIX_RE = /^(\s*)(?:(?:opening|closing)\s+)?(?:hymn|song)\b[\s:#.\-–—]*/i;
+/** `Opening:`, `Closing –`, `Sing`: a hymn only if the title is a good library match. */
+const LOOSE_PREFIX_RE = /^(\s*)(?:(?:opening|closing)\s*[:\-–—]|sing\b)[\s:#.\-–—]*/i;
+
+/** The title score a loose line (`Sing …`, `Closing: …`) needs: every word must start a title word. */
+export const LOOSE_MIN_SCORE = 0.8;
 
 const LIST_TOKEN = String.raw`(?:\d{1,2}|[Rr])`;
 const LIST_SEP = String.raw`\s*(?:,|;|&|\band\b|[-–—]|\s)\s*`;
@@ -81,13 +97,20 @@ function stripQuotes(value: string): string {
  * Solomon 2:4` starts with "Song" too); this only looks at the words.
  */
 export function parseHymnLine(line: string): ParsedHymnLine | null {
-  const prefix = PREFIX_RE.exec(line);
+  const strict = PREFIX_RE.exec(line);
+  const prefix = strict ?? LOOSE_PREFIX_RE.exec(line);
   if (!prefix) return null;
 
   const from = prefix[1].length;
   const to = line.trimEnd().length;
-  let rest = line.slice(prefix[0].length, to);
   const out: ParsedHymnLine = { from, to };
+  if (!strict) out.loose = true;
+  return parseBody(line.slice(prefix[0].length, to), out);
+}
+
+/** The part after the prefix: number and/or title, then an optional verse list. */
+function parseBody(body: string, out: ParsedHymnLine): ParsedHymnLine | null {
+  let rest = body;
 
   const listMatch = PAREN_LIST_RE.exec(rest) ?? KEYWORD_LIST_RE.exec(rest);
   if (listMatch) {
@@ -110,6 +133,8 @@ export function parseHymnLine(line: string): ParsedHymnLine | null {
   }
 
   if (!out.number && !out.title) return null;
+  // `Sing 2 verses, then pray` is not hymn 2: a loose cue takes a number only on its own.
+  if (out.loose && out.number && out.title) return null;
   return out;
 }
 
@@ -214,6 +239,110 @@ function isAmbiguous(matches: HymnMatch[]): boolean {
 }
 
 // ---------------------------------------------------------------------------
+// Exact titles: a line that is a title, and titles inside other text
+// ---------------------------------------------------------------------------
+
+interface TitleIndex {
+  /** Normalised title -> hymns with that title (or alt title). */
+  exact: Map<string, HymnLibraryEntry[]>;
+  /** First normalised word -> titles starting with it, longest first. */
+  byFirstWord: Map<string, Array<{ words: string[]; hymn: HymnLibraryEntry }>>;
+}
+
+const titleIndexCache = new WeakMap<readonly HymnLibraryEntry[], TitleIndex>();
+
+/** Titles of one word ("Amen", "Jesus") are too common in prose to match on their own. */
+const MIN_TITLE_WORDS = 2;
+
+function titleIndex(library: readonly HymnLibraryEntry[]): TitleIndex {
+  const cached = titleIndexCache.get(library);
+  if (cached) return cached;
+  const exact = new Map<string, HymnLibraryEntry[]>();
+  const byFirstWord = new Map<string, Array<{ words: string[]; hymn: HymnLibraryEntry }>>();
+  for (const hymn of library) {
+    const norms = new Set([hymn.title, ...(hymn.altTitles ?? [])].map(normalizeTitle).filter(Boolean));
+    for (const norm of norms) {
+      const words = norm.split(' ');
+      if (words.length < MIN_TITLE_WORDS) continue;
+      const list = exact.get(norm) ?? [];
+      if (!list.includes(hymn)) list.push(hymn);
+      exact.set(norm, list);
+      const starting = byFirstWord.get(words[0]) ?? [];
+      starting.push({ words, hymn });
+      byFirstWord.set(words[0], starting);
+    }
+  }
+  for (const list of byFirstWord.values()) list.sort((a, b) => b.words.length - a.words.length);
+  const index = { exact, byFirstWord };
+  titleIndexCache.set(library, index);
+  return index;
+}
+
+/**
+ * A line that is exactly a library title (or alternative title), compared
+ * normalised, optionally followed by a bracketed verse list:
+ * `It Is Well with My Soul`, `Amazing Grace (verses 1, 2, 4)`. Anything else
+ * on the line and it is not a title line. Titles of one word never match.
+ */
+export function matchTitleLine(line: string, library: readonly HymnLibraryEntry[] | undefined): ParsedHymnLine | null {
+  if (!library?.length) return null;
+  const from = line.length - line.trimStart().length;
+  const to = line.trimEnd().length;
+  if (to <= from) return null;
+  const out: ParsedHymnLine = { from, to };
+  let rest = line.slice(from, to);
+  const list = PAREN_LIST_RE.exec(rest);
+  if (list) {
+    const verses = parseVerseList(list[1]);
+    if (verses) out.verses = verses;
+    else out.versesInvalid = true;
+    rest = rest.slice(0, list.index);
+  }
+  const title = stripQuotes(rest.trim());
+  if (!title || !titleIndex(library).exact.has(normalizeTitle(title))) return null;
+  out.title = title;
+  return out;
+}
+
+export interface TitleInText {
+  /** Offsets into the text searched, half-open, from the first word's start to the last word's end. */
+  from: number;
+  to: number;
+  hymn: HymnLibraryEntry;
+}
+
+/** Words with their offsets; apostrophes inside a word are kept so `it's` stays one word. */
+const WORD_RE = /[\p{L}\p{N}]+(?:['’‘`][\p{L}\p{N}]+)*/gu;
+
+/**
+ * Every library title (two words or more) written inside `text`, word for
+ * word after normalising, longest title first where two start at one word.
+ * A title shared by several hymns is skipped: there is nothing to suggest.
+ */
+export function findTitlesInLine(text: string, library: readonly HymnLibraryEntry[] | undefined): TitleInText[] {
+  if (!library?.length) return [];
+  const { byFirstWord } = titleIndex(library);
+  const words = [...text.matchAll(WORD_RE)].map(match => ({
+    norm: normalizeTitle(match[0]).replace(/ /g, ''),
+    from: match.index,
+    to: match.index + match[0].length,
+  }));
+  const out: TitleInText[] = [];
+  for (let i = 0; i < words.length; i++) {
+    const titles = byFirstWord.get(words[i].norm);
+    if (!titles) continue;
+    const found = titles.find(title =>
+      i + title.words.length <= words.length && title.words.every((word, k) => words[i + k].norm === word));
+    if (!found) continue;
+    const owners = new Set(titles.filter(t => t.words.join(' ') === found.words.join(' ')).map(t => t.hymn));
+    const end = i + found.words.length - 1;
+    if (owners.size === 1) out.push({ from: words[i].from, to: words[end].to, hymn: found.hymn });
+    i = end;
+  }
+  return out;
+}
+
+// ---------------------------------------------------------------------------
 // Verse order
 // ---------------------------------------------------------------------------
 
@@ -297,7 +426,11 @@ function withVerses(parsed: ParsedHymnLine, hymn: HymnLibraryEntry, label: strin
 export function resolveHymn(
   parsed: ParsedHymnLine,
   library: readonly HymnLibraryEntry[] | undefined,
-  options: { hymnal?: string } = {},
+  options: {
+    hymnal?: string;
+    /** A title match below this is "not found" (see `LOOSE_MIN_SCORE`). */
+    minScore?: number;
+  } = {},
 ): HymnResolution {
   const label = parsed.title ?? parsed.number ?? '';
   if (!library) return { status: 'choose', item: null, reason: reason('hymnLibraryUnavailable') };
@@ -327,7 +460,7 @@ export function resolveHymn(
   }
 
   const matches = matchHymnTitle(parsed.title!, library);
-  if (!matches.length) {
+  if (!matches.length || (options.minScore !== undefined && matches[0].score < options.minScore)) {
     return { status: 'choose', item: null, reason: reason('hymnNotFound', { title: parsed.title! }) };
   }
   if (isAmbiguous(matches)) {

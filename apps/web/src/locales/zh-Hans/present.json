@@ -21,25 +21,22 @@
     "screen": "屏幕",
     "joining": "加入",
     "menu": "设置",
-    "menuHint": "屏幕主题、文字大小和加入方式：请先设置好这些，再回到流程。",
+    "menuHint": "屏幕主题、文字大小和加入方式：请先设置好这些，再回到计划。",
     "help": "帮助",
     "addToPlan": "添加 {ref}",
     "nothingToAdd": "打开一段经文即可添加",
-    "planEmpty": "尚未安排任何内容。打开一段经文并添加，即可建立流程。",
+    "planEmpty": "尚未安排任何内容。打开一段经文并添加，即可建立计划。",
     "addNote": "添加备注",
     "notePlaceholder": "给自己的备注",
     "removeFromPlan": "移除",
     "reorder": "调整顺序",
     "untitledItem": "项目",
-    "addToPlanShort": "添加",
     "added": "已添加",
     "addAllFound": "全部添加（{count} 项）",
     "noReferencesFound": "在该文本中未找到经文引用。",
     "addQuote": "添加引文",
     "quoteTextPlaceholder": "引文内容",
     "quoteAttributionPlaceholder": "出处（可选）",
-    "showQuote": "立即显示",
-    "addQuoteToPlan": "添加到流程",
     "acceptClickerKeys": "接受遥控器按键",
     "acceptClickerKeysHint": "上/下、左/右和 Page Up/Down 可让屏幕内容前进，B 键黑屏，这些是演示遥控器发出的按键。在诗歌或引文上，它们切换到下一张幻灯片；在经文上，切换到下一节（按住按键可跳到下一段）。关闭后，上/下键仅用于移动研经的当前节。",
     "sendVerse": "将第 {verse} 节发送到屏幕",
@@ -74,14 +71,12 @@
     "leave": "停止控制",
     "leaveHint": "停止控制后，屏幕保持原样。结束会话则会为所有人清空屏幕。",
     "end": "结束会话",
-    "liveNote": "在您结束之前，展示墙会一直保持实时，即使关闭浏览器也是如此。",
+    "liveNote": "在您结束之前，屏幕会一直保持实时，即使关闭浏览器也是如此。",
     "followUnknown": "此代码未知或已过期。",
     "endConfirm": "结束会话并清空屏幕？",
     "endYes": "结束",
     "hymns": "诗歌",
     "hymnSearchPlaceholder": "标题、首句或编号",
-    "hymnSend": "将这首诗歌显示到屏幕",
-    "hymnAddToPlan": "添加到流程",
     "hymnsNoMatch": "没有匹配的诗歌。",
     "hymnsEmptyLibrary": "未安装任何诗歌。",
     "hymnsUnavailable": "无法访问诗歌库。",
@@ -98,16 +93,15 @@
     "openPresenterShort": "演示台",
     "app": {
       "notes": "备注",
-      "notesPlaceholder": "备注编辑器即将推出。目前这里显示的是您的流程。",
+      "notesPlaceholder": "备注编辑器即将推出。目前这里显示的是您的计划。",
       "phoneLabel": "演示台",
       "control": "控制",
       "preview": "预览",
       "back": "研经",
       "backTitle": "返回研经（演示台继续运行）",
-      "serviceName": "未命名聚会",
+      "serviceName": "未命名备注",
       "live": "直播中",
       "notLive": "未直播",
-      "moreTooltip": "更多",
       "resetLayout": "重置布局",
       "resizeColumns": "调整“备注”和“控制”栏的宽度",
       "resizeRows": "调整“控制”和“预览”的高度"
@@ -116,10 +110,7 @@
       "addToNotes": "添加到备注",
       "openSimpleViewer": "打开简易视图",
       "simpleViewerHint": "独立的屏幕，带一个小命令框，适合只需镜像笔记本电脑的场所。无需会话。",
-      "simpleViewerOffer": "只是镜像一块屏幕？简易视图无需任何设置。",
-      "setupOpen": "设置屏幕",
-      "setupHide": "隐藏设置",
-      "noPlanHint": "无需计划：在上方输入经文或诗歌，或在下方选择经文、诗歌或引文。用箭头逐节前进。",
+      "noPlanHint": "在上方输入经文，或在下方选择经文、诗歌或引文。",
       "keysHelp": "关于遥控器按键",
       "goLive": "开始直播",
       "endLive": "结束",
@@ -132,11 +123,8 @@
       "hymn": "诗歌",
       "quote": "引文",
       "showNow": "立即显示",
-      "setupTitle": "设置您的屏幕",
       "joinCodeLabel": "加入代码",
       "joinCodeTip": "请将此代码提供给要加入的人。二维码和复制链接在“...”菜单中。",
-      "setupGoLive": "点击“开始直播”获取加入代码并设置屏幕。",
-      "setupDone": "完成，隐藏此处",
       "chips": "高亮",
       "chipReveal": "在屏幕上显示此高亮（或按 H 显示下一个）",
       "chipPending": "经文正在加载",
@@ -145,8 +133,8 @@
     },
     "command": {
       "label": "命令",
-      "placeholder": "约翰福音 3:16 · 18 · 诗歌 23 · 恩典 · .",
-      "placeholderOverlay": "跳到某节：约翰福音 3:16、18，输入 . 黑屏",
+      "placeholder": "显示经文、诗歌或文字",
+      "placeholderOverlay": "显示经文或诗歌",
       "tooltip": "跳到某节或某首诗歌。按 / 聚焦。",
       "addToNotes": "添加到备注 (Alt+Enter)",
       "results": "搜索结果",
@@ -170,7 +158,12 @@
         "clear": "清除高亮",
         "help": "显示帮助",
         "search": "搜索‘{query}’",
-        "searchOff": "不是命令（此处已关闭搜索）"
+        "searchOff": "不是命令（此处已关闭搜索）",
+        "altEnter": "Alt+Enter 可添加到备注",
+        "moduleMissing": "未安装 {module}",
+        "firstPartOnly": "仅显示第一部分",
+        "next": "跳到下一节或下一页",
+        "previous": "跳到上一节或上一页"
       },
       "error": {
         "empty": "请输入经文引用、诗歌或搜索内容",
@@ -197,18 +190,18 @@
       "redo": "重做"
     },
     "services": {
-      "none": "无聚会",
-      "new": "新建聚会",
+      "none": "无备注",
+      "new": "新建备注",
       "rename": "重命名",
       "duplicate": "复制",
       "delete": "删除",
       "confirmDelete": "删除“{name}”？此操作无法撤销。",
-      "name": "聚会名称",
-      "namePlaceholder": "聚会名称（可选）",
+      "name": "名称",
+      "namePlaceholder": "名称（可选）",
       "create": "创建",
       "save": "保存",
       "cancel": "取消",
-      "notSaved": "存储不可用：关闭此页面后聚会内容将丢失。",
+      "notSaved": "存储不可用：关闭此页面后备注将丢失。",
       "renameFor": "重命名 {name}",
       "duplicateFor": "复制 {name}",
       "deleteFor": "删除 {name}"
@@ -226,7 +219,6 @@
         "hymnVerseListInvalid": "无法识别“{title}”的节数列表",
         "hymnLibraryUnavailable": "诗歌库尚未加载"
       },
-      "playMarker": "再次显示",
       "view": {
         "notes": "备注",
         "plan": "计划"
@@ -254,15 +246,37 @@
           "hymn": "诗歌",
           "quote": "引文"
         },
-        "empty": "尚未安排任何内容。备注中的经文、诗歌和引文会显示在这里。",
+        "empty": "尚未安排任何内容。使用下方的经文、诗歌或引文，按“添加到备注”建立计划，或在备注中输入经文。“显示”只会把内容放到屏幕上。",
         "highlights": "{count, plural, other {# 处高亮}}",
         "removed": "已移除 {label}",
         "undo": "撤销",
         "moreFor": "{label} 的更多操作",
         "reorderFor": "拖动以调整 {label} 的顺序"
       },
-      "playMarkerFor": "再次显示 {label}",
-      "viewsLabel": "笔记视图"
+      "viewsLabel": "笔记视图",
+      "show": {
+        "last": "再次显示",
+        "again": "再次显示 {label}",
+        "item": "显示 {label}"
+      },
+      "placeholder": "在此输入或粘贴笔记。诸如 约翰福音 3:16 的经文引用，以及诸如“Hymn: Amazing Grace”和“Quote: …”的行，会变成可展示的项目。点击项目旁的 ▶ 即可显示在屏幕上。",
+      "suggest": {
+        "summary": "{items, plural, other {找到 # 个项目}}. {count, plural, other {# 行待检查}}.",
+        "review": "检查",
+        "hide": "隐藏",
+        "dismiss": "忽略",
+        "skip": "跳过",
+        "reveal": "在笔记中选中此文本",
+        "acceptHymn": "诗歌：{title}",
+        "acceptQuote": "引文",
+        "acceptVerse": "{label}"
+      },
+      "select": {
+        "label": "将所选文本设为项目",
+        "verse": "创建经文项目",
+        "hymn": "创建诗歌项目",
+        "quote": "创建引文项目"
+      }
     },
     "solo": {
       "launcherTooltip": "打开命令框以跳到某节（按键盘上的 /）",
@@ -271,6 +285,9 @@
     "phone": {
       "dragHandle": "拖动以调整 {label} 的顺序",
       "onScreen": "屏幕上",
+      "addToList": "添加到列表",
+      "nothingOnScreen": "屏幕上暂无内容",
+      "screenHidden": "屏幕已隐藏",
       "itemMenu": "{label} 的操作",
       "editVerse": "编辑高亮",
       "moveUp": "上移",
@@ -290,9 +307,31 @@
       "undo": "撤销"
     },
     "hymnAddToNotesFor": "将 {title} 添加到笔记",
-    "hymnAddToPlanFor": "将 {title} 添加到流程",
-    "viewersLabel": "观看者",
+    "viewersLabel": "屏幕",
     "previewFrameTitle": "屏幕预览",
-    "viewersCount": "观看者：{count}"
+    "viewersCount": "屏幕：{count}",
+    "chrome": {
+      "back": "返回",
+      "nextLabel": "下一个",
+      "showScreen": "显示屏幕",
+      "hideScreen": "隐藏屏幕",
+      "openScreen": "打开屏幕",
+      "blankedHint": "屏幕已隐藏。准备好后请按“显示屏幕”。"
+    },
+    "rows": {
+      "show": "显示",
+      "add": "添加到备注"
+    },
+    "shown": {
+      "heading": "已显示，未在备注中",
+      "clear": "清除",
+      "clearAria": "清除已显示项目列表",
+      "show": "显示",
+      "showAria": "显示 {label}",
+      "add": "添加到备注",
+      "addAria": "将 {label} 添加到备注",
+      "more": "另外 {count} 项",
+      "fewer": "收起"
+    }
   }
 }

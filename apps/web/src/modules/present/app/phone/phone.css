@@ -150,3 +150,24 @@
   color: inherit; font: inherit; cursor: pointer;
 }
 .pzp-word--picked { background: #fff3a8; color: #222; outline: 2px solid #e6b800; }
+
+/* "On screen" card */
+.pzp-onscreen {
+  display: flex; flex-direction: column; gap: 1px;
+  padding: 5px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--bg-secondary);
+  min-width: 0;
+}
+.pzp-onscreen--item { border-color: var(--accent-color); }
+.pzp-onscreen__tag { font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-secondary); }
+.pzp-onscreen__title, .pzp-onscreen__line {
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.pzp-onscreen__title { font-weight: 600; font-size: 14px; }
+.pzp-onscreen__line { font-size: 13px; color: var(--text-secondary); }
+
+/* Four transport buttons with labels at 360px: tighter gap, smaller label */
+.pzp-controls .pz-transport { gap: 6px; }
+.pzp-controls .pz-transport__label { font-size: 12px; }

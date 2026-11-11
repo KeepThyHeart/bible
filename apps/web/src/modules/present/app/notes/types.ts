@@ -156,16 +156,57 @@ export interface ChapterRef {
   chapter: number;
 }
 
+/**
+ * Something in the notes that looks like an item but was deliberately not
+ * linked, for the presenter to accept or skip:
+ *
+ * - `quote`: a paragraph that is a quoted sentence (straight or curly quotes)
+ *   followed by a dash and a name -- `“Faith is …” – Martin Luther King Jr.`.
+ *   Only `Quote:` lines and blockquotes become quotes on their own.
+ * - `hymn`: a library title (two words or more) written inside a line that
+ *   did not qualify as a hymn line -- `the choir sings It Is Well with My Soul`.
+ *
+ * Accepting one means pinning `from`..`to` of the block to `item` (a `pin`
+ * mark with `{ item }`); skipping means an `unlink` mark over the same span,
+ * after which the suggestion is no longer reported. A suggestion never
+ * overlaps an item, an `unlink` or a `pin`.
+ */
+export interface NotesSuggestion {
+  /** Stable across edits elsewhere in the document, like `NotesItem.id`; never equal to an item id. */
+  id: string;
+  /** `NotesBlock.id` of the block, or its position as a string when the block has no id. */
+  blockId: string;
+  blockPos: number;
+  /** Offsets into the block's text, half-open. */
+  from: number;
+  to: number;
+  /** What it would become. Only `'quote'` and `'hymn'` are produced today. */
+  kind: NotesItemKind;
+  /** For the accept button: the hymn's library title, or the start of the quote. */
+  label: string;
+  /** The item a pin would hold. */
+  item: PresentItem;
+}
+
 export interface DetectResult {
   items: NotesItem[];
   highlights: NoteHighlight[];
   sections: NotesSection[];
+  /**
+   * Lines that look like items but were not linked, in document order.
+   * `detect()` always sets it (often empty); it is optional only so results
+   * built by hand (tests, older callers) still type-check.
+   */
+  suggestions?: NotesSuggestion[];
   /**
    * Chapters that were not available from `getChapter`. Load them, then run
    * detection again: only the highlights change, and every block is a cache hit.
    */
   needsChapters: ChapterRef[];
 }
+
+/** What `detect()` returns: a `DetectResult` whose `suggestions` is always set. */
+export type DetectOutput = DetectResult & { suggestions: NotesSuggestion[] };
 
 // ---------------------------------------------------------------------------
 // Injected data

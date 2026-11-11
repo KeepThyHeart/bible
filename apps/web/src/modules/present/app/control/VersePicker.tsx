@@ -6,6 +6,7 @@ import { moduleStore } from '../../../../stores/moduleStore';
 import { presentStore } from '../../stores/presentStore';
 import { presenterShow, usePresenterState } from '../presenterSink';
 import { settingsStore } from '../../../../stores/settingsStore';
+import './pickers.css';
 import type { PresentItem } from '../../lib/protocol';
 
 /**
@@ -13,8 +14,10 @@ import type { PresentItem } from '../../lib/protocol';
  * puts it on the screen; "Add to notes" hands the passage to the notes (or, until
  * the notes exist, to the running order).
  */
-export function VersePicker(props: { onAddToNotes?: (item: PresentItem) => void; onDone: () => void }) {
+export function VersePicker(props: { onAddToNotes?: (item: PresentItem) => void; onDone: () => void; addLabel?: string }) {
   const { t } = useTranslation();
+  const showLabel = String(t('present.rows.show', { defaultValue: 'Show' }));
+  const addLabel = props.addLabel ?? String(t('present.rows.add', { defaultValue: 'Add to notes' }));
   const bibles = useStore(moduleStore, () => moduleStore.getBibleModules());
   // Start where the screen is: the passage on it, else John 1 in the reader's translation.
   const shown = usePresenterState()?.live;
@@ -76,18 +79,19 @@ export function VersePicker(props: { onAddToNotes?: (item: PresentItem) => void;
           class="pz-btn pz-btn--primary"
           onClick={() => { presenterShow(item, verseNumber ?? 1); props.onDone(); }}
         >
-          {t('present.control.showNow')}
+          {showLabel}
         </button>
         <button
           type="button"
-          class="pz-btn"
+          class="pz-btn pz-picker__add"
+          aria-label={addLabel}
           onClick={() => {
             if (props.onAddToNotes) props.onAddToNotes({ ...item, ...(verseNumber ? { verseStart: verseNumber } : {}) });
             else void presentStore.addToPlan(item);
             props.onDone();
           }}
         >
-          {props.onAddToNotes ? t('present.control.addToNotes') : t('present.addToPlanShort')}
+          {addLabel}
         </button>
       </div>
     </div>

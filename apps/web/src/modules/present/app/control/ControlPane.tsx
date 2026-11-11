@@ -9,8 +9,7 @@ import type { PresentItem } from '../../lib/protocol';
 import { AddRow } from './AddRow';
 import { CommandArea } from './CommandArea';
 import { ControlMenu } from './ControlMenu';
-import { isSetupDone, markSetupDone } from './setupState';
-import { SetupCard } from './SetupCard';
+import { ShownList } from './ShownList';
 import { StatusRow } from './StatusRow';
 import { notesStore } from '../notes/notesStore';
 import { Transport } from './Transport';
@@ -27,6 +26,7 @@ import { Transport } from './Transport';
 export function ControlPane(props: {
   onAddToNotes?: (item: PresentItem, label?: string) => void;
   onOpenHelp: () => void;
+  onResetLayout?: () => void;
 }) {
   const { t } = useTranslation();
   const view = usePresenter();
@@ -34,7 +34,6 @@ export function ControlPane(props: {
   const session = useStore(presentStore, () => presentStore.session);
   useStore(notesStore, () => notesStore.planItems);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [setupDone, setSetupDone] = useState(isSetupDone);
 
   return (
     <section class="pz-pane pz-control" aria-label={t('present.app.control')}>
@@ -46,7 +45,7 @@ export function ControlPane(props: {
           <ControlMenu
             session={session}
             onClose={() => setMenuOpen(false)}
-            onOpenHelp={props.onOpenHelp}
+            onResetLayout={props.onResetLayout}
           />
         )}
       </div>
@@ -61,13 +60,15 @@ export function ControlPane(props: {
           </div>
         )}
 
-        {!setupDone && (
-          <SetupCard session={session} onDone={() => { markSetupDone(); setSetupDone(true); }} />
+        {state?.live && state.display.blanked && (
+          <p class="pz-hint pz-control__blanked" role="status">
+            {t('present.chrome.blankedHint', { defaultValue: 'The screen is hidden. Press Show screen when ready.' })}
+          </p>
         )}
-
         <Transport />
         {!state?.live && notesStore.planItems.length === 0 && <p class="pz-hint pz-control__nohint">{t('present.control.noPlanHint')}</p>}
         <HighlightChips />
+        <ShownList onAddToNotes={props.onAddToNotes} />
         <AddRow onAddToNotes={props.onAddToNotes} />
       </div>
     </section>

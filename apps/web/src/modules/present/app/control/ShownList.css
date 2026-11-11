@@ -1,0 +1,7 @@
+.pz-shown { display: flex; flex-direction: column; gap: 4px; }
+.pz-shown__head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.pz-shown__title { font-size: 0.8em; color: var(--text-secondary); }
+.pz-shown__list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; max-height: 12em; overflow-y: auto; }
+.pz-shown__row { display: flex; align-items: center; gap: 6px; }
+.pz-shown__label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; color: var(--text-primary); }
+.pz-shown .pz-btn { padding: 3px 8px; font-size: 12px; }

@@ -9,14 +9,17 @@ export const SIMPLE_VIEWER_PATH = '/present/solo';
 
 /**
  * The Control pane's hamburger: screen settings, join and share, handoff, the
- * simple viewer, and help. A non-modal dialog under the status row (it holds
+ * simple viewer, and reset layout (desktop). A non-modal dialog under the status row (it holds
  * headings, checkboxes and links, so it is not a menu); a click outside or
  * Escape closes it, and Escape hands focus back to the button that opened it.
  */
 export function ControlMenu(props: {
   session: ControllerSession | null;
   onClose: () => void;
-  onOpenHelp: () => void;
+  /** Kept so callers can still pass it; help now lives only on the app bar. */
+  onOpenHelp?: () => void;
+  /** Desktop only: puts the pane sizes back to their defaults. */
+  onResetLayout?: () => void;
 }) {
   const { t } = useTranslation();
   const ref = useRef<HTMLDivElement>(null);
@@ -63,15 +66,16 @@ export function ControlMenu(props: {
           {t('present.control.openSimpleViewer')}
         </a>
         <p class="present-panel__hint">{t('present.control.simpleViewerHint')}</p>
-        <button
-          type="button"
-          class="present-panel__button"
-          onClick={() => { props.onClose(); props.onOpenHelp(); }}
-        >
-          <i class="fa-solid fa-circle-question" aria-hidden="true" />
-          {t('present.help')}
-        </button>
       </section>
+
+      {props.onResetLayout && (
+        <section class="present-panel__menu-section">
+          <button type="button" class="present-panel__button" onClick={() => { props.onClose(); props.onResetLayout?.(); }}>
+            <i class="fa-solid fa-table-columns" aria-hidden="true" />
+            {t('present.app.resetLayout')}
+          </button>
+        </section>
+      )}
 
       {session && (
         <section class="present-panel__menu-section">

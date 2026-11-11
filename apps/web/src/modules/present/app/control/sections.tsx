@@ -9,8 +9,7 @@ import { presenterSend, usePresenterState } from '../presenterSink';
 import { HelpTip } from './HelpTip';
 
 /**
- * The settings sections shared by the hamburger menu and the first-run setup
- * card: Screen (theme, text size, clicker keys), Join and share, and Hand off.
+ * The settings sections of the hamburger menu: Screen (theme, text size, clicker keys), Join and share, and Hand off.
  * Carried over from the old `PresentPanelBody`, with its `present-panel__*`
  * classes (they live in modules/present/present.scss).
  */

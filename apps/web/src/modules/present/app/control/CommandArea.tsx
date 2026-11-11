@@ -19,7 +19,7 @@ export function CommandArea(props: CommandAreaProps) {
   const sink = presenterSend;
   return (
     <div class="pz-command" data-slot="command-area">
-      <CommandBox variant="panel" searchEnabled sink={sink} state={props.state} onHelp={props.onHelp} />
+      <CommandBox variant="panel" searchEnabled sink={sink} state={props.state} onHelp={props.onHelp} onAddToNotes={props.onAddToNotes} />
       <div class="pz-command__results">
         <CommandSearchResults variant="panel" sink={sink} state={props.state} onAddToNotes={props.onAddToNotes} />
       </div>

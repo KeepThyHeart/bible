@@ -32,6 +32,14 @@
   font-size: 0.85em;
   color: var(--text-muted, #5d636d);
 }
+.present-cmd--searching .present-cmd__hint {
+  color: var(--text, inherit);
+  font-style: italic;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--surface-muted, rgba(127, 127, 127, 0.15));
+}
+.present-cmd__hint-icon { margin-inline-end: 0.4em; font-style: normal; }
 .present-cmd--error .present-cmd__hint { color: #b3261e; }
 
 .present-cmd--bar {
@@ -83,8 +91,22 @@
   color: var(--text-muted, #5d636d);
   border-bottom: 1px solid var(--border-color, #c6cad0);
 }
-.present-cmd-results__close,
-.present-cmd-results__add { border: 0; background: transparent; color: inherit; cursor: pointer; padding: 4px 8px; }
+.present-cmd-results__close { border: 0; background: transparent; color: inherit; cursor: pointer; padding: 4px 8px; }
+.present-cmd-results__btns { display: flex; align-items: center; gap: 6px; padding: 4px 8px; flex: 0 0 auto; }
+.present-cmd-results__btn {
+  padding: 5px 12px;
+  border: 1px solid var(--border-color, #c6cad0);
+  border-radius: 6px;
+  background: var(--bg-secondary, #f3f4f6);
+  color: inherit;
+  font: inherit;
+  font-size: 0.85em;
+  cursor: pointer;
+}
+.present-cmd-results__btn:hover { background: var(--bg-tertiary, #e3ecf7); }
+.present-cmd-results__btn--primary { background: var(--accent-color, #2f6fb5); border-color: var(--accent-color, #2f6fb5); color: var(--accent-text, #fff); }
+.present-cmd-results__btn--primary:hover { background: var(--accent-hover, var(--accent-color, #2f6fb5)); }
+@media (pointer: coarse) { .present-cmd-results__btn { min-height: 36px; } }
 .present-cmd-results__body { overflow-y: auto; padding: 4px 0; }
 .present-cmd-results__group {
   margin: 8px 10px 2px;
@@ -107,7 +129,6 @@
   background: transparent;
   color: inherit;
   padding: 6px 10px;
-  cursor: pointer;
 }
 .present-cmd-results__ref { font-weight: 600; }
 .present-cmd-results__text {
@@ -119,3 +140,4 @@
 }
 .present-cmd-results__text mark { background: rgba(247, 214, 74, 0.5); color: inherit; }
 .present-cmd-results__note { margin: 8px 10px; color: var(--text-muted, #5d636d); }
+.present-cmd--overlay.present-cmd--searching .present-cmd__hint { color: #fff; background: rgba(255, 255, 255, 0.16); }

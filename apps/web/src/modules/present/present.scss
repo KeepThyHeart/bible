@@ -428,7 +428,7 @@
     margin-bottom: 10px;
   }
 
-  &__add {
+  &__add:not(.present-rowbtn) {
     display: inline-flex;
     align-items: center;
     gap: 8px;
@@ -503,6 +503,47 @@
   }
 }
 
+// The Show / Add pair on every picker and result row.
+.present-rowbtns {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+}
+
+.present-rowbtn {
+  padding: 6px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 14px;
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    background: var(--bg-tertiary);
+  }
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: default;
+  }
+
+  &--primary {
+    background: var(--accent-color);
+    border-color: var(--accent-color);
+    color: var(--accent-text, #fff);
+
+    &:hover:not(:disabled) {
+      background: var(--accent-hover, var(--accent-color));
+    }
+  }
+
+  @media (pointer: coarse) {
+    min-height: 36px;
+  }
+}
+
 // The hymn picker: one box searched four ways, because those are the four ways
 // a person names a hymn.
 .present-hymns {
@@ -530,7 +571,7 @@
     border-bottom: 1px solid var(--border-color);
   }
 
-  &__pick {
+  &__body {
     flex: 1;
     display: flex;
     flex-direction: column;
@@ -538,15 +579,6 @@
     gap: 2px;
     min-width: 0;
     padding: 9px 8px;
-    border: none;
-    background: none;
-    color: inherit;
-    text-align: start;
-    cursor: pointer;
-
-    &:hover {
-      background: var(--bg-tertiary);
-    }
   }
 
   &__title {

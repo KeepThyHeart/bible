@@ -3,10 +3,10 @@ import { useTranslation } from 'react-i18next';
 import { preferredBible } from '../../../../host/preferredBible';
 import { presentStore } from '../../stores/presentStore';
 import { useStore } from '../../../../hooks/useStore';
-import type { PresentState } from '../protocol';
+import type { PresentItem, PresentState } from '../protocol';
 import { completeBook, describeCommand, parseCommand, type Command } from './command';
 import { buildCommandContext } from './commandContext';
-import { executeCommand, type ExecuteFailure, type IntentSink } from './execute';
+import { executeCommand, resolveCommandItem, type ExecuteFailure, type IntentSink } from './execute';
 import { commandSearch } from './commandSearch';
 import { searchHymns as defaultSearchHymns } from './searchProviders';
 import {
@@ -42,6 +42,8 @@ export interface CommandBoxProps {
   onHelp?: () => void;
   /** Translation for passages that name none. Defaults to the wall's, then the Study tab's. */
   defaultModule?: string;
+  /** Alt+Enter on a typed passage or hymn adds it to the notes instead of showing it. Absent: Alt+Enter is Enter. */
+  onAddToNotes?: (item: PresentItem, label?: string) => void;
   /** Focus on mount. */
   autoFocus?: boolean;
   /** Bump to focus the box (e.g. after the host handled `/`). */
@@ -104,6 +106,11 @@ export function CommandBox(props: CommandBoxProps) {
   if (command.type === 'search' && !searchEnabled) {
     hint = t('present.command.hint.searchOff', { defaultValue: 'Not a command (search is off here)' });
   }
+  const isSearchHint = command.type === 'search' && searchEnabled;
+  const addable = command.type === 'passage' || command.type === 'verse' || command.type === 'chapterVerse' || command.type === 'hymn';
+  if (hint && addable && props.onAddToNotes) {
+    hint += '. ' + t('present.command.hint.altEnter', { defaultValue: 'Alt+Enter adds to notes' });
+  }
 
   // Focus plumbing: `/` and Ctrl+K reach us through `focusCommandBox`.
   useEffect(() => {
@@ -149,20 +156,35 @@ export function CommandBox(props: CommandBoxProps) {
     completeRef.current = null;
   };
 
-  const run = async () => {
+  const run = async (addToNotes = false) => {
     const cmd = parseCommand(value, ctx);
     if (cmd.type === 'none') return;
-    const result = await executeCommand(cmd, {
+    const deps = {
       sink,
       state,
       defaultModule,
       searchHymns: defaultSearchHymns,
-      rememberHymns: hymns => presentStore.rememberHymns(hymns),
+      rememberHymns: (hymns: Parameters<typeof presentStore.rememberHymns>[0]) => presentStore.rememberHymns(hymns),
       onHelp,
       onSearch: searchEnabled
-        ? query => { commandSearch.open(query); onSearch?.(query); }
+        ? (query: string) => { commandSearch.open(query); onSearch?.(query); }
         : undefined,
-    });
+    };
+    let result: Awaited<ReturnType<typeof executeCommand>> | undefined;
+    if (addToNotes && props.onAddToNotes) {
+      const resolved = await resolveCommandItem(cmd, deps);
+      if (resolved) {
+        if (resolved.ok) {
+          const label = resolved.label
+            ?? (resolved.ref ? ctx.formatRef(resolved.ref.book, resolved.ref.chapter, resolved.ref.verseStart, resolved.ref.verseEnd) : undefined);
+          props.onAddToNotes(resolved.item, label);
+          result = { ok: true };
+        } else {
+          result = resolved;
+        }
+      }
+    }
+    result ??= await executeCommand(cmd, deps);
     poke();
     if (!result.ok) {
       const [key, fallback] = FAILURE_KEY[result.reason];
@@ -208,7 +230,7 @@ export function CommandBox(props: CommandBoxProps) {
         commandSearch.activate(e.altKey ? 'notes' : 'show');
         return;
       }
-      void run();
+      void run(e.altKey);
       return;
     }
 
@@ -261,11 +283,11 @@ export function CommandBox(props: CommandBoxProps) {
   };
 
   const placeholder = variant === 'overlay'
-    ? t('present.command.placeholderOverlay', { defaultValue: 'Go to a verse: John 3:16, 18, . to blank' })
-    : t('present.command.placeholder', { defaultValue: 'John 3:16 · 18 · hymn 23 · grace · .' });
+    ? t('present.command.placeholderOverlay', { defaultValue: 'Show a verse or hymn' })
+    : t('present.command.placeholder', { defaultValue: 'Show a verse, hymn or words' });
 
   return (
-    <div class={`present-cmd present-cmd--${variant}${error ? ' present-cmd--error' : ''}`}>
+    <div class={`present-cmd present-cmd--${variant}${error ? ' present-cmd--error' : ''}${!error && isSearchHint ? ' present-cmd--searching' : ''}`}>
       <span class="present-cmd__prompt" aria-hidden="true">/</span>
       <input
         ref={inputRef}
@@ -284,7 +306,10 @@ export function CommandBox(props: CommandBoxProps) {
         onKeyDown={onKeyDown}
       />
       {(error ?? hint) && (
-        <span class="present-cmd__hint" role="status" aria-live="polite">{error ?? hint}</span>
+        <span class="present-cmd__hint" role="status" aria-live="polite">
+          {!error && isSearchHint && <span class="present-cmd__hint-icon" aria-hidden="true">{'\u{1F50D}\uFE0E'}</span>}
+          {error ?? hint}
+        </span>
       )}
     </div>
   );

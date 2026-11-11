@@ -20,8 +20,10 @@ import type { PresentItem } from '../lib/protocol';
 
 const DEBOUNCE_MS = 180;
 
-export function PresentHymns(props: { onAddToNotes?: (item: PresentItem) => void }) {
+export function PresentHymns(props: { onAddToNotes?: (item: PresentItem) => void; addLabel?: string }) {
   const { t } = useTranslation();
+  const showLabel = String(t('present.rows.show', { defaultValue: 'Show' }));
+  const addLabel = props.addLabel ?? String(t('present.rows.add', { defaultValue: 'Add to notes' }));
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<HymnSummary[]>([]);
   const [total, setTotal] = useState(0);
@@ -84,12 +86,7 @@ export function PresentHymns(props: { onAddToNotes?: (item: PresentItem) => void
       <ul class="present-hymns__list">
         {results.map(hymn => (
           <li class="present-hymns__row" key={hymn.id}>
-            <button
-              type="button"
-              class="present-hymns__pick"
-              onClick={() => presenterShow({ kind: 'hymn', hymnId: hymn.id })}
-              title={t('present.hymnSend')}
-            >
+            <div class="present-hymns__body">
               <span class="present-hymns__title">{hymn.title}</span>
               <span class="present-hymns__detail">
                 {hymn.firstLine}
@@ -97,25 +94,32 @@ export function PresentHymns(props: { onAddToNotes?: (item: PresentItem) => void
                 {/* The number is why it is here: it is how a hymn gets called for. */}
                 {hymn.hymnals.length > 0 ? ` · ${hymn.hymnals.map(ref => ref.number).join(', ')}` : ''}
               </span>
-            </button>
-            <button
-              type="button"
-              class="present-plan__icon"
-              onClick={() => {
-                const item: PresentItem = { kind: 'hymn', hymnId: hymn.id };
-                if (props.onAddToNotes) props.onAddToNotes(item);
-                else void presentStore.addToPlan(item);
-                setAdded(hymn.title);
-                clearTimeout(addedTimer.current);
-                addedTimer.current = setTimeout(() => setAdded(null), 3000);
-              }}
-              title={props.onAddToNotes ? t('present.control.addToNotes') : t('present.hymnAddToPlan')}
-              aria-label={String(props.onAddToNotes
-                ? t('present.hymnAddToNotesFor', { title: hymn.title, defaultValue: `${t('present.control.addToNotes')}: ${hymn.title}` })
-                : t('present.hymnAddToPlanFor', { title: hymn.title, defaultValue: `${t('present.hymnAddToPlan')}: ${hymn.title}` }))}
-            >
-              <i class="fa-solid fa-plus" aria-hidden="true" />
-            </button>
+            </div>
+            <div class="present-rowbtns">
+              <button
+                type="button"
+                class="present-hymns__pick present-rowbtn present-rowbtn--primary"
+                onClick={() => presenterShow({ kind: 'hymn', hymnId: hymn.id })}
+                aria-label={`${showLabel}: ${hymn.title}`}
+              >
+                {showLabel}
+              </button>
+              <button
+                type="button"
+                class="present-hymns__add present-rowbtn"
+                onClick={() => {
+                  const item: PresentItem = { kind: 'hymn', hymnId: hymn.id };
+                  if (props.onAddToNotes) props.onAddToNotes(item);
+                  else void presentStore.addToPlan(item);
+                  setAdded(hymn.title);
+                  clearTimeout(addedTimer.current);
+                  addedTimer.current = setTimeout(() => setAdded(null), 3000);
+                }}
+                aria-label={`${addLabel}: ${hymn.title}`}
+              >
+                {addLabel}
+              </button>
+            </div>
           </li>
         ))}
       </ul>

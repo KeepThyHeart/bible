@@ -8,7 +8,9 @@ vi.mock('react-i18next', () => ({
 }));
 vi.mock('../../../../hooks/useStore', () => ({ useStore: (_s: unknown, sel: () => unknown) => sel() }));
 vi.mock('../../lib/command', () => ({ focusCommandBox: () => true }));
-vi.mock('./editor/LazyNotesEditor', () => ({ LazyNotesEditor: () => <div data-testid="editor" /> }));
+vi.mock('./editor/LazyNotesEditor', () => ({ LazyNotesEditor: (p: { placeholder?: string }) => <div data-testid="editor" data-placeholder={p.placeholder} /> }));
+vi.mock('./SuggestionBar', () => ({ SuggestionBar: () => <div data-testid="suggest" /> }));
+vi.mock('./SelectionPopup', () => ({ SelectionPopup: () => <div data-testid="selpop" /> }));
 vi.mock('./ItemChooser', () => ({ ItemChooser: () => null }));
 vi.mock('./PlanOutline', () => ({ PlanOutline: () => <div data-testid="plan" /> }));
 vi.mock('./notesStore', () => ({
@@ -35,5 +37,17 @@ describe('NotesPane tablist', () => {
     expect(document.activeElement).toBe(tabs()[1]);
     await act(async () => { fireEvent.keyDown(tabs()[1], { key: 'ArrowLeft' }); });
     expect(document.activeElement).toBe(tabs()[0]);
+  });
+
+  it('mounts the suggestion bar and selection popup with the editor only, and passes the placeholder', async () => {
+    const { container } = render(<NotesPane />);
+    const editor = container.querySelector('[data-testid="editor"]')!;
+    expect(editor.getAttribute('data-placeholder')).toMatch(/^Type or paste notes here\./);
+    expect(container.querySelector('[data-testid="suggest"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="selpop"]')).not.toBeNull();
+    const plan = container.querySelectorAll<HTMLElement>('[role="tab"]')[1];
+    await act(async () => { plan.click(); });
+    expect(container.querySelector('[data-testid="suggest"]')).toBeNull();
+    expect(container.querySelector('[data-testid="selpop"]')).toBeNull();
   });
 });

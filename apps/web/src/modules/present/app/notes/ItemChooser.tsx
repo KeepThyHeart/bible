@@ -9,7 +9,7 @@ const DEBOUNCE_MS = 180;
 
 /**
  * The chooser popover: opened by clicking an amber item, a hymn, an amber
- * highlight, or "+ Insert > Hymn". Search a hymn, pick its verses, optionally
+ * highlight, "+ Insert > Hymn", or "Make a hymn item" on a selection. Search a hymn, pick its verses, optionally
  * a refrain after each, and save; the choice becomes a `pin` mark on the
  * text (see row 7). "Not a hymn" / "Not a reference" applies `unlink`.
  */
@@ -20,9 +20,12 @@ export function ItemChooser({ target }: { target: ChooserTarget }) {
   const item = target.mode === 'item' ? notesStore.itemById(target.id) : undefined;
   const highlight = target.mode === 'highlight' ? notesStore.highlightById(target.id) : undefined;
   const currentHymnId = item?.item?.kind === 'hymn' ? item.item.hymnId : undefined;
-  const wantsHymn = target.mode === 'insert' || item?.kind === 'hymn';
+  const wantsHymn = target.mode === 'insert' || target.mode === 'selection' || item?.kind === 'hymn';
 
-  const [query, setQuery] = useState(() => (item?.kind === 'hymn' && !item.candidates?.length ? item.label.replace(/^hymn\s+/i, '') : ''));
+  const [query, setQuery] = useState(() => {
+    if (target.mode === 'selection') return target.query;
+    return item?.kind === 'hymn' && !item.candidates?.length ? item.label.replace(/^hymn\s+/i, '') : '';
+  });
   const [results, setResults] = useState<HymnSummary[]>([]);
   const [chosen, setChosen] = useState<HymnSummary | undefined>(() => (currentHymnId ? notesStore.hymnById(currentHymnId) : undefined));
   const [selected, setSelected] = useState<number[]>([]);
@@ -74,6 +77,7 @@ export function ItemChooser({ target }: { target: ChooserTarget }) {
     const pinned = { kind: 'hymn' as const, hymnId: chosen.id, ...(verseOrder ? { verseOrder } : {}) };
     if (target.mode === 'insert') notesStore.insertItem(pinned, chosen.title);
     else if (target.mode === 'item') notesStore.pinItem(target.id, pinned);
+    else if (target.mode === 'selection') notesStore.pinRange(target.from, target.to, pinned);
   };
 
   const reason = item?.status === 'choose' ? item.reason : highlight?.status === 'choose' ? highlight.reason : undefined;

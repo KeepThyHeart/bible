@@ -142,6 +142,7 @@
     "slashDesktopOnly": "‏Slash commands (like /note or /plan) are only available in the desktop app.‏",
     "loadingMore": "‏Loading...‏",
     "showMore": "‏Show more results‏",
+    "showMoreCount": "‏Show {count} more‏",
     "loadAll": "‏{count, plural, one {Load all (# more)} other {Load all (# more)}}‏",
     "wordFamily": "‏Word family:‏",
     "includeRelated": "‏Include related words‏",

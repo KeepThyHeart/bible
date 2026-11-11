@@ -21,25 +21,22 @@
     "screen": "Screen",
     "joining": "Joining",
     "menu": "Settings",
-    "menuHint": "Screen theme, text size, and joining -- set these up first, then get back to the running order.",
+    "menuHint": "Screen theme, text size, and joining -- set these up first, then get back to the plan.",
     "help": "Help",
     "addToPlan": "Add {ref}",
     "nothingToAdd": "Open a passage to add it",
-    "planEmpty": "Nothing planned yet. Open a passage and add it to build a running order.",
+    "planEmpty": "Nothing planned yet. Open a passage and add it to build a plan.",
     "addNote": "Add a note",
     "notePlaceholder": "Note to yourself",
     "removeFromPlan": "Remove",
     "reorder": "Reorder",
     "untitledItem": "Item",
-    "addToPlanShort": "Add",
     "added": "Added",
     "addAllFound": "Add all {count}",
     "noReferencesFound": "No Bible references found in that text.",
     "addQuote": "Add a quote",
     "quoteTextPlaceholder": "The words of the quotation",
     "quoteAttributionPlaceholder": "Attribution (optional)",
-    "showQuote": "Show now",
-    "addQuoteToPlan": "Add to running order",
     "acceptClickerKeys": "Accept remote/clicker keys",
     "acceptClickerKeysHint": "Up/Down, Left/Right and Page Up/Down advance what's on screen, and B blanks it -- the keys a presentation remote sends. On a hymn or quote they move to the next slide; on a passage, to the next verse (hold the key for the next section). Turn off to keep plain Up/Down for moving the study verse only.",
     "sendVerse": "Send verse {verse} to the screen",
@@ -74,14 +71,12 @@
     "leave": "Stop controlling",
     "leaveHint": "Stopping leaves the screen as it is. Ending clears it for everyone.",
     "end": "End session",
-    "liveNote": "The wall stays live until you end it, even if you close the browser.",
+    "liveNote": "The screen stays live until you end it, even if you close the browser.",
     "followUnknown": "This code is unknown or has expired.",
     "endConfirm": "End the session and clear the screen?",
     "endYes": "End it",
     "hymns": "Hymns",
     "hymnSearchPlaceholder": "Title, first line, or number",
-    "hymnSend": "Put this hymn on the screen",
-    "hymnAddToPlan": "Add to the running order",
     "hymnsNoMatch": "No hymn matches that.",
     "hymnsEmptyLibrary": "No hymns are installed.",
     "hymnsUnavailable": "The hymn library could not be reached.",
@@ -98,16 +93,15 @@
     "openPresenterShort": "Presenter",
     "app": {
       "notes": "Notes",
-      "notesPlaceholder": "The notes editor is coming. For now, this is your running order.",
+      "notesPlaceholder": "The notes editor is coming. For now, this is your plan.",
       "phoneLabel": "Presenter",
       "control": "Control",
       "preview": "Preview",
       "back": "Study",
       "backTitle": "Back to Study (the Presenter keeps running)",
-      "serviceName": "Untitled service",
+      "serviceName": "Untitled notes",
       "live": "Live",
       "notLive": "Not live",
-      "moreTooltip": "More",
       "resetLayout": "Reset layout",
       "resizeColumns": "Resize the Notes and Control columns",
       "resizeRows": "Resize Control and Preview"
@@ -116,10 +110,7 @@
       "addToNotes": "Add to notes",
       "openSimpleViewer": "Open simple viewer",
       "simpleViewerHint": "A screen of its own with a small command box, for a room that just mirrors a laptop. No session needed.",
-      "simpleViewerOffer": "Just mirroring a screen? The simple viewer needs no setup.",
-      "setupOpen": "Set up screen",
-      "setupHide": "Hide setup",
-      "noPlanHint": "No plan needed: type a reference or hymn in the box above, or pick a Verse, Hymn or Quote below. Use the arrows to step.",
+      "noPlanHint": "Type a reference in the box above, or pick a Verse, Hymn or Quote below.",
       "keysHelp": "About remote keys",
       "goLive": "Go live",
       "endLive": "End",
@@ -132,11 +123,8 @@
       "hymn": "Hymn",
       "quote": "Quote",
       "showNow": "Show now",
-      "setupTitle": "Set up your screen",
       "joinCodeLabel": "Join code",
       "joinCodeTip": "Give this code to people joining. The QR and Copy link are in the ... menu.",
-      "setupGoLive": "Press Go live to get a join code (shown at the top, with the QR and Copy link in the ... menu) and set up the screen.",
-      "setupDone": "Done, hide this",
       "chips": "Highlights",
       "chipReveal": "Show this highlight on the screen (or press H for the next one)",
       "chipPending": "The verse text is still loading",
@@ -145,8 +133,8 @@
     },
     "command": {
       "label": "Command",
-      "placeholder": "Show now: John 3:16 · 18 · hymn 23 · grace · .",
-      "placeholderOverlay": "Go to a verse: John 3:16, 18, . to blank",
+      "placeholder": "Show a verse, hymn or words",
+      "placeholderOverlay": "Show a verse or hymn",
       "tooltip": "Go to a verse or hymn. Press / to focus.",
       "addToNotes": "Add to notes (Alt+Enter)",
       "results": "Search results",
@@ -170,7 +158,12 @@
         "clear": "Clear highlights",
         "help": "Show help",
         "search": "Search for ‘{query}’",
-        "searchOff": "Not a command (search is off here)"
+        "searchOff": "Not a command (search is off here)",
+        "altEnter": "Alt+Enter adds to notes",
+        "moduleMissing": "{module} is not installed",
+        "firstPartOnly": "Only the first part is shown",
+        "next": "Go to the next verse or slide",
+        "previous": "Go to the previous verse or slide"
       },
       "error": {
         "empty": "Type a reference, hymn or search",
@@ -197,18 +190,18 @@
       "redo": "Redo"
     },
     "services": {
-      "none": "No service",
-      "new": "New service",
+      "none": "No notes",
+      "new": "New notes",
       "rename": "Rename",
       "duplicate": "Duplicate",
       "delete": "Delete",
       "confirmDelete": "Delete \"{name}\"? This cannot be undone.",
-      "name": "Service name",
-      "namePlaceholder": "Service name (optional)",
+      "name": "Name",
+      "namePlaceholder": "Name (optional)",
       "create": "Create",
       "save": "Save",
       "cancel": "Cancel",
-      "notSaved": "Storage is unavailable: services will be lost when you close this page.",
+      "notSaved": "Storage is unavailable: notes will be lost when you close this page.",
       "renameFor": "Rename {name}",
       "duplicateFor": "Duplicate {name}",
       "deleteFor": "Delete {name}"
@@ -226,7 +219,6 @@
         "hymnVerseListInvalid": "Can't read the verse list for \"{title}\"",
         "hymnLibraryUnavailable": "The hymn library isn't loaded yet"
       },
-      "playMarker": "Show this again",
       "view": {
         "notes": "Notes",
         "plan": "Plan"
@@ -254,15 +246,37 @@
           "hymn": "Hymn",
           "quote": "Quote"
         },
-        "empty": "Nothing planned yet. Use Verse, Hymn or Quote below and press Add to build the running order, or type references in your notes. \"Show now\" only puts something on the screen.",
+        "empty": "Nothing planned yet. Use Verse, Hymn or Quote below and press Add to notes to build the plan, or type references in your notes. Show only puts something on the screen.",
         "highlights": "{count, plural, one {# highlight} other {# highlights}}",
         "removed": "Removed {label}",
         "undo": "Undo",
         "moreFor": "More actions for {label}",
         "reorderFor": "Drag to reorder {label}"
       },
-      "playMarkerFor": "Show {label} again",
-      "viewsLabel": "Notes views"
+      "viewsLabel": "Notes views",
+      "show": {
+        "last": "Show again",
+        "again": "Show {label} again",
+        "item": "Show {label}"
+      },
+      "placeholder": "Type or paste notes here. References such as John 3:16, lines such as “Hymn: Amazing Grace” and “Quote: …” become things to show. Press the ▶ beside one to put it on the screen.",
+      "suggest": {
+        "summary": "{items, plural, one {# item found} other {# items found}}. {count, plural, one {# line to check} other {# lines to check}}.",
+        "review": "Review",
+        "hide": "Hide",
+        "dismiss": "Dismiss",
+        "skip": "Skip",
+        "reveal": "Select this text in the notes",
+        "acceptHymn": "Hymn: {title}",
+        "acceptQuote": "Quote",
+        "acceptVerse": "{label}"
+      },
+      "select": {
+        "label": "Make the selected text an item",
+        "verse": "Make a verse item",
+        "hymn": "Make a hymn item",
+        "quote": "Make a quote item"
+      }
     },
     "solo": {
       "launcherTooltip": "Brings up the command prompt for going to a verse (press / on the keyboard)",
@@ -271,6 +285,9 @@
     "phone": {
       "dragHandle": "Drag to reorder {label}",
       "onScreen": "On screen",
+      "addToList": "Add to list",
+      "nothingOnScreen": "Nothing on screen yet",
+      "screenHidden": "Screen hidden",
       "itemMenu": "Actions for {label}",
       "editVerse": "Edit highlights",
       "moveUp": "Move up",
@@ -290,9 +307,31 @@
       "undo": "Undo"
     },
     "hymnAddToNotesFor": "Add {title} to notes",
-    "hymnAddToPlanFor": "Add {title} to the running order",
-    "viewersLabel": "Viewers",
+    "viewersLabel": "Screens",
     "previewFrameTitle": "Screen preview",
-    "viewersCount": "Viewers: {count}"
+    "viewersCount": "Screens: {count}",
+    "chrome": {
+      "back": "Back",
+      "nextLabel": "Next",
+      "showScreen": "Show screen",
+      "hideScreen": "Hide screen",
+      "openScreen": "Open screen",
+      "blankedHint": "The screen is hidden. Press Show screen when ready."
+    },
+    "rows": {
+      "show": "Show",
+      "add": "Add to notes"
+    },
+    "shown": {
+      "heading": "Shown, not in notes",
+      "clear": "Clear",
+      "clearAria": "Clear the list of shown items",
+      "show": "Show",
+      "showAria": "Show {label}",
+      "add": "Add to notes",
+      "addAria": "Add {label} to notes",
+      "more": "{count} more",
+      "fewer": "Show fewer"
+    }
   }
 }

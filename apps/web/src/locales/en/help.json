@@ -84,21 +84,21 @@
     },
     "notes": {
       "title": "Notes",
-      "references": "Type verse references anywhere in your notes (<strong>John 3:16</strong>, <strong>Rom 8:28-30</strong>): each one becomes a plan item.",
-      "hymns": "Type a hymn as <strong>hymn 460</strong> or <strong>hymn Amazing Grace</strong>, optionally with verses (<strong>hymn 460 1,3,R</strong>).",
-      "quotes": "Put a quote in a block quote. It shows as its own item, set apart from your text.",
+      "references": "Type verse references anywhere in your notes (<strong>John 3:16</strong>, <strong>Phil 4:6</strong>, <strong>Isaiah 26:3,4</strong>), optionally with a translation in brackets: each one becomes a plan item.",
+      "hymns": "Type a hymn as <strong>hymn 460</strong> or <strong>hymn Amazing Grace</strong>, optionally with verses (<strong>hymn 460 1,3,R</strong>). Lines starting <strong>Opening hymn</strong> or <strong>Closing hymn</strong>, or a line that is just a hymn title, also link.",
+      "quotes": "Put a quote in a block quote, or start a line with <strong>Quote:</strong>. It shows as its own item. After a paste, a bar above the notes lists lines that may be a hymn or quote; accept or skip each. Selecting text offers to make it a verse, hymn or quote.",
       "highlight": "Make text <strong>bold</strong> under a verse to mark words to highlight. A matching bold phrase gets a subtle yellow underline; it does not appear on the screen until you reveal it.",
-      "play": "The green <strong>&#9654;</strong> in the left gutter marks what is on screen, and follows your last click. Click a plan item to show it.",
+      "play": "Press the <strong>&#9654; Show</strong> button before an item, or <strong>Ctrl/Cmd+click</strong> its text, to put it on the screen (a plain click edits). The green marker in the left gutter shows the last item shown.",
       "ctrlEnter": "<strong>Ctrl+Enter</strong> with the cursor in a reference, hymn or quote shows it.",
       "amber": "An amber item needs a choice (an unknown hymn, an ambiguous reference). Hover it to see why; click it to choose."
     },
     "control": {
       "title": "Control",
-      "transport": "The three buttons are <strong>previous</strong>, <strong>show / hide</strong> (the eye blanks the screen without losing your place) and <strong>next</strong>. Arrow keys, Page Up/Down and a clicker do the same; <strong>.</strong> or <strong>B</strong> blanks.",
-      "pickers": "<strong>Verse</strong>, <strong>Hymn</strong> and <strong>Quote</strong> open a picker: <em>Show now</em> puts it on the screen, <em>Add to notes</em> writes it into your notes.",
+      "transport": "The three buttons are <strong>Back</strong>, <strong>Hide screen / Show screen</strong> (hides the screen without losing your place) and <strong>Next</strong>. Arrow keys, Page Up/Down and a clicker do the same; <strong>.</strong> or <strong>B</strong> blanks.",
+      "pickers": "<strong>Verse</strong>, <strong>Hymn</strong> and <strong>Quote</strong> open a picker: <em>Show</em> puts it on the screen, <em>Add to notes</em> writes it into your notes. Things shown this way and not yet in the notes appear under <em>Shown, not in notes</em>. On a phone, anything shown is added to the plan list.",
       "chips": "When the verse on screen has highlights from your notes, they appear as chips. <strong>Click a chip</strong>, or press <strong>H</strong>, to reveal the next one; <strong>X</strong> clears them.",
       "keys": "<strong>N</strong> / <strong>Shift+N</strong> shows the next / previous plan item. <strong>?</strong> opens this help; <strong>/</strong> or <strong>Ctrl+K</strong> jumps to the command box. None of these act while you are typing in your notes or a field.",
-      "prepare": "You can prepare before going live: the preview runs on an offline copy. <strong>Go live</strong> starts the real session from exactly where you are."
+      "prepare": "You can prepare before going live: the preview runs on an offline copy. <strong>Go live</strong> starts the real session from exactly where you are, with the screen hidden until you press <strong>Show screen</strong>."
     },
     "preview": {
       "title": "Preview",
@@ -109,17 +109,17 @@
     },
     "command": {
       "title": "Command box",
-      "verse": "<strong>18</strong>, <strong>v18</strong> or <strong>18-20</strong> goes to a verse in the current chapter.",
-      "passage": "<strong>john 3:16</strong>, <strong>ps 23 esv</strong>, <strong>rom 8</strong>: a book, chapter and verse, with an optional translation.",
-      "hymn": "<strong>hymn 460</strong>, <strong>hymn amazing grace</strong>, <strong>hymn 460 1-3</strong>.",
-      "blank": "<strong>blank</strong> hides the screen; <strong>.</strong> or <strong>clear</strong> clears highlights; <strong>?</strong> opens help.",
-      "search": "Anything else is a search. Results appear in the Control pane; add one to your notes or show it.",
+      "verse": "<strong>18</strong>, <strong>v18</strong> or <strong>18-20</strong> goes to a verse in the current chapter; <strong>3:16</strong> goes to a chapter and verse in the current book; <strong>next</strong> and <strong>back</strong> step.",
+      "passage": "<strong>john 3:16</strong>, <strong>ps 23 esv</strong>, <strong>rom 8</strong>: a book, chapter and verse, with an optional translation (the default is used, with a note, if it is not installed). <strong>gen 1-2</strong> and lists such as <strong>ps 23:1-3, 6</strong> show the first part.",
+      "hymn": "<strong>hymn 460</strong>, <strong>hymn amazing grace</strong>, <strong>hymn 460 1-3</strong>. <strong>Alt+Enter</strong> on a typed verse or hymn adds it to the notes.",
+      "blank": "<strong>blank</strong> or <strong>.</strong> hides or shows the screen; <strong>clear</strong> clears highlights; <strong>?</strong> opens help.",
+      "search": "Anything else is a search. Results appear in the Control pane; each has Show and Add to notes. Put a word in quotes, or start with <strong>?</strong>, to force a search.",
       "open": "Press <strong>/</strong> or <strong>Ctrl+K</strong> to focus it. Up and Down recall earlier commands."
     },
     "simple": {
       "title": "Simple viewer",
       "what": "A screen you drive yourself, with no session, join code or notes: open it on a projector or a second window.",
-      "open": "Open it from the Control menu (<strong>Open simple viewer</strong>) or at <strong>/present/solo</strong>.",
+      "open": "Open it from the Control \"...\" menu (<strong>Open simple viewer</strong>) or at <strong>/present/solo</strong>.",
       "prompt": "Press <strong>/</strong>, or click the small <strong>/</strong> at the bottom, to go to a verse. Arrow keys and <strong>.</strong> work as in the Presenter.",
       "noSearch": "Search is not available in the simple viewer."
     },

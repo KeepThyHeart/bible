@@ -15,6 +15,7 @@
 import { useEffect, useState } from 'preact/hooks';
 import { presentStore } from '../stores/presentStore';
 import { DEFAULT_FONT_STEP, type PresentIntent, type PresentItem, type PresentState } from '../lib/protocol';
+import { shownStore } from '../stores/shownStore';
 import { createLocalSession, type LocalSession } from '../lib/solo/localSession';
 
 export const PRELIVE_STORAGE_KEY = 'present-prelive';
@@ -49,6 +50,11 @@ export function presenterSettled(): Promise<unknown> {
 
 /** Send an intent to the live session, or, before going live, to the local one. Returns the live promise. */
 export function presenterSend(intent: PresentIntent): void | Promise<unknown> {
+  if (intent.type === 'show') shownStore.record(intent.item);
+  return sendUnrecorded(intent);
+}
+
+function sendUnrecorded(intent: PresentIntent): void | Promise<unknown> {
   if (presenterIsLive()) {
     const posted = Promise.resolve(presentStore.send(intent));
     lastPost = posted.catch(() => undefined);
@@ -60,6 +66,11 @@ export function presenterSend(intent: PresentIntent): void | Promise<unknown> {
 /** Put an item up (same meaning as `presentStore.show`). */
 export function presenterShow(item: PresentItem, index?: number): void | Promise<unknown> {
   return presenterSend({ type: 'show', item, index });
+}
+
+/** Put an item up from the notes or plan: same as `presenterShow`, but not recorded as an ad hoc show. */
+export function presenterShowFromNotes(item: PresentItem, index?: number): void | Promise<unknown> {
+  return sendUnrecorded({ type: 'show', item, index });
 }
 
 /** Blank or unblank, whichever is not the current state. */
@@ -109,5 +120,7 @@ export async function goLive(): Promise<boolean> {
   const ok = await presentStore.start();
   if (!ok) return false;
   for (const intent of seed) await presentStore.send(intent);
+  // The screen opens blank; the presenter chooses when to reveal it.
+  if (seed[seed.length - 1]?.type !== 'blank') await presentStore.send({ type: 'blank' });
   return true;
 }

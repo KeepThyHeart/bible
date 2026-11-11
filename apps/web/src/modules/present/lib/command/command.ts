@@ -6,10 +6,13 @@
  * is a search. Order matters and is the ambiguity policy:
  *
  *   1. empty, `.`, `clear`/`x`, `?`, `blank`
- *   2. a bare verse: `18`, `v18`, `:18`, `18-20`  (in the current chapter)
+ *   2. `next`/`back`/`prev`/`previous` (exact, alone) step; `3:16` is a
+ *      chapter and verse in the book on screen; a bare verse: `18`, `v18`,
+ *      `:18`, `18-20`  (in the current chapter)
  *   3. a passage: book [chapter[[: ]verse[-verse]]] [translation]
  *   4. a hymn: `h|hymn|song` then a number or title, then a verse list
- *   5. everything else: search
+ *   5. everything else: search. Quotes or a leading `?` force a search
+ *      (`"next"`, `?back`).
  *
  * Passage precedes hymn so `song 2:1` is Song of Solomon while `song amazing
  * grace` is a hymn. Nothing here touches stores or i18n: the app's book table
@@ -28,8 +31,15 @@ export type Command =
       module?: string;
       /** The book name was typo-corrected ("jonh 3:16"). */
       fuzzy?: boolean;
+      /** More followed ("psalm 23:1-3, 6"); only the first part is shown. */
+      more?: boolean;
+      /** A translation-like word that is not installed ("esv"); the default translation is used. */
+      unknownModule?: string;
     }
   | { type: 'verse'; verseStart: number; verseEnd?: number }
+  /** `3:16`: chapter and verse in the book currently on screen. */
+  | { type: 'chapterVerse'; chapter: number; verseStart: number; verseEnd?: number }
+  | { type: 'step'; dir: 'next' | 'previous' }
   | {
       type: 'hymn';
       /** Hymnal number as typed, when the first word after `hymn` is a number. */
@@ -93,6 +103,21 @@ function parseVerseOnly(text: string): Command | null {
     : { type: 'verse', verseStart };
 }
 
+// --- chapter and verse in the current book ---------------------------------
+
+function parseChapterVerse(text: string): Command | null {
+  const m = /^(\d{1,3})\s*:\s*(\d{1,3})(?:\s*[-–—]\s*(\d{1,3}))?$/.exec(text);
+  if (!m) return null;
+  const chapter = Number(m[1]);
+  const verseStart = Number(m[2]);
+  const end = m[3] ? Number(m[3]) : undefined;
+  if (!inRange(chapter, MAX_CHAPTER) || !inRange(verseStart, MAX_VERSE)) return null;
+  if (end !== undefined && (!inRange(end, MAX_VERSE) || end < verseStart)) return null;
+  return end !== undefined && end !== verseStart
+    ? { type: 'chapterVerse', chapter, verseStart, verseEnd: end }
+    : { type: 'chapterVerse', chapter, verseStart };
+}
+
 // --- passage ---------------------------------------------------------------
 
 /** "location" = the part after the book: `3`, `3:16`, `3 16`, `3:16-18`, `3 16-18`. */
@@ -102,6 +127,13 @@ function parseLocation(rest: string): { chapter: number; verseStart?: number; ve
   if (chapterOnly) {
     const chapter = Number(chapterOnly[1]);
     return inRange(chapter, MAX_CHAPTER) ? { chapter } : null;
+  }
+  // A chapter range ("1-2") shows its first chapter; the presenter steps on from there.
+  const range = /^(\d{1,3})-(\d{1,3})$/.exec(r);
+  if (range) {
+    const chapter = Number(range[1]);
+    const last = Number(range[2]);
+    return inRange(chapter, MAX_CHAPTER) && inRange(last, MAX_CHAPTER) && last >= chapter ? { chapter } : null;
   }
   const m = /^(\d{1,3})(?:[:. ]|\s*,\s*)(\d{1,3})(?:-(\d{1,3}))?$/.exec(r);
   if (!m) return null;
@@ -119,7 +151,20 @@ function stripDot(word: string): string {
   return word.replace(/\.$/, '');
 }
 
+/** Looks like a translation code ("esv", "nasb95"), whether or not it is installed. */
+const MODULE_LIKE_RE = /^[a-z][a-z0-9]{1,5}$/i;
+
 function parsePassage(text: string, ctx: CommandContext): Command | null {
+  const whole = parsePassageCore(text, ctx);
+  if (whole) return whole;
+  // "psalm 23:1-3, 6" / "rom 8:28; 12:1": the first part is what is shown.
+  const m = /^([^;,]+?)\s*[;,]\s*(\d.*)$/.exec(text);
+  if (!m) return null;
+  const head = parsePassageCore(m[1], ctx);
+  return head && head.type === 'passage' ? { ...head, more: true } : null;
+}
+
+function parsePassageCore(text: string, ctx: CommandContext): Command | null {
   // "john3:16" / "ps23" -> "john 3:16" / "ps 23"; a leading digit ("1john") is left alone.
   const spaced = text.replace(/([a-z])\.?(?=\d)/gi, '$1 ');
   let tokens = spaced.split(' ');
@@ -129,6 +174,7 @@ function parsePassage(text: string, ctx: CommandContext): Command | null {
   // book, so "ps esv" is not misread. A word that is also a book (none of the
   // usual translation abbreviations are) would already have been taken as one.
   let module: string | undefined;
+  let unknownModule: string | undefined;
   if (tokens.length >= 2) {
     const last = tokens[tokens.length - 1];
     if (/^[a-z][a-z0-9-]*$/i.test(last)) {
@@ -136,9 +182,15 @@ function parsePassage(text: string, ctx: CommandContext): Command | null {
       if (resolved && ctx.resolveBook(tokens.join(' ')) === null) {
         module = resolved;
         tokens = tokens.slice(0, -1);
+      } else if (!resolved && MODULE_LIKE_RE.test(last) && ctx.resolveBook(tokens.join(' ')) === null) {
+        // Not installed: only treated as a translation when a chapter precedes it
+        // (checked below), so "genesis creation" stays a search.
+        unknownModule = last;
+        tokens = tokens.slice(0, -1);
       }
     }
   }
+  const extra = unknownModule ? { unknownModule } : {};
 
   for (let n = Math.min(3, tokens.length); n >= 1; n--) {
     const name = tokens.slice(0, n).map(stripDot).join(' ');
@@ -147,11 +199,12 @@ function parsePassage(text: string, ctx: CommandContext): Command | null {
     const rest = tokens.slice(n).join(' ');
     if (rest === '') {
       // A bare book name opens its first chapter.
+      if (unknownModule) continue;
       return { type: 'passage', book, chapter: 1, ...(module ? { module } : {}) };
     }
     const loc = parseLocation(rest);
     if (!loc) continue;
-    return { type: 'passage', book, ...loc, ...(module ? { module } : {}) };
+    return { type: 'passage', book, ...loc, ...(module ? { module } : {}), ...extra };
   }
 
   // Typo-tolerant, only with a chapter after the name ("jonh 3:16").
@@ -161,7 +214,7 @@ function parsePassage(text: string, ctx: CommandContext): Command | null {
       const book = ctx.fuzzyBook(tokens.slice(0, firstDigit).map(stripDot).join(' '));
       const loc = book === null ? null : parseLocation(tokens.slice(firstDigit).join(' '));
       if (book !== null && loc) {
-        return { type: 'passage', book, ...loc, fuzzy: true, ...(module ? { module } : {}) };
+        return { type: 'passage', book, ...loc, fuzzy: true, ...(module ? { module } : {}), ...extra };
       }
     }
   }
@@ -234,8 +287,18 @@ export function parseCommand(text: string, ctx: CommandContext): Command {
   if (lower === 'x' || lower === 'clear') return { type: 'clear' };
   if (t === '?' || lower === 'help') return { type: 'help' };
 
+  if (lower === 'next') return { type: 'step', dir: 'next' };
+  if (lower === 'back' || lower === 'prev' || lower === 'previous') return { type: 'step', dir: 'previous' };
+
+  // Quotes or a leading `?` force a search, e.g. a verse search for "next".
+  const quoted = /^["“](.+?)["”]$/.exec(t) ?? /^\?\s*(.+)$/.exec(t);
+  if (quoted) return { type: 'search', query: quoted[1].trim() };
+
   const verse = parseVerseOnly(t);
   if (verse) return verse;
+
+  const chapterVerse = parseChapterVerse(t);
+  if (chapterVerse) return chapterVerse;
 
   const passage = parsePassage(t, ctx);
   if (passage) return passage;
@@ -268,10 +331,26 @@ export function describeCommand(cmd: Command, ctx: CommandContext, t: HintTransl
     case 'passage': {
       const ref = ctx.formatRef(cmd.book, cmd.chapter, cmd.verseStart, cmd.verseEnd);
       const module = (cmd.module ?? ctx.defaultModule ?? '').toUpperCase();
-      return module
+      let hint = module
         ? t('present.command.hint.passage', { ref, module }, `Show ${ref} (${module})`)
         : t('present.command.hint.passageNoModule', { ref }, `Show ${ref}`);
+      if (cmd.unknownModule) {
+        const name = cmd.unknownModule.toUpperCase();
+        hint += '. ' + t('present.command.hint.moduleMissing', { module: name }, `${name} is not installed`);
+      }
+      if (cmd.more) hint += '. ' + t('present.command.hint.firstPartOnly', {}, 'Only the first part is shown');
+      return hint;
     }
+    case 'chapterVerse': {
+      const cur = ctx.current;
+      if (!cur) return t('present.command.error.noPassage', {}, 'Nothing on screen to pick a verse from');
+      const ref = ctx.formatRef(cur.book, cmd.chapter, cmd.verseStart, cmd.verseEnd);
+      return t('present.command.hint.verseIn', { ref }, `Show ${ref}`);
+    }
+    case 'step':
+      return cmd.dir === 'next'
+        ? t('present.command.hint.next', {}, 'Go to the next verse or slide')
+        : t('present.command.hint.previous', {}, 'Go to the previous verse or slide');
     case 'verse': {
       const cur = ctx.current;
       const ref = cur ? ctx.formatRef(cur.book, cur.chapter, cmd.verseStart, cmd.verseEnd) : null;

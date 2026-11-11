@@ -11,7 +11,7 @@ import type { DetectResult, NotesItem, NotesReason } from './types';
  *    it is the item the wall is showing (`pn-item--live`);
  *  - highlight (a bold span matched to a verse): subtle yellow underline
  *    (`pn-hl`), yellow background on hover;
- *  - a small ▶ widget after each showable item;
+ *  - a solid Show button (▶) before each showable item; Ctrl/Cmd+click on the text shows it too;
  *  - a left gutter with a green Play marker at the live item.
  *
  * `computeDecorations` is pure (detection in, descriptors out) so it can be
@@ -66,7 +66,7 @@ export function computeDecorations(result: DetectResult, opts: ComputeOptions): 
     const title = item.status === 'choose' ? reasonText(item.reason, opts.translate) : undefined;
     if (title) attrs.title = title;
     out.push({ type: 'inline', from, to, attrs, span: { id: item.id, kind: 'item', from, to } });
-    if (item.item) out.push({ type: 'widget', pos: to, itemId: item.id });
+    if (item.item) out.push({ type: 'widget', pos: from, itemId: item.id });
   }
 
   for (const hl of result.highlights) {
@@ -130,7 +130,7 @@ export interface DecorationHost {
   onItemClick: (itemId: string, el: HTMLElement) => void;
   onHighlightClick: (highlightId: string, el: HTMLElement) => void;
   /** i18n for the marker's tooltip and name; `label` is the item's text, so each marker is told apart. */
-  playTitle: (label?: string) => string;
+  playTitle: (label?: string, again?: boolean) => string;
 }
 
 export interface DecoMeta {
@@ -151,13 +151,13 @@ export const notesDecoKey = new PluginKey<DecoState>('notesDecorations');
 
 const EMPTY: DecoState = { detection: null, playItemId: null, deco: DecorationSet.empty, spans: [], playPos: null };
 
-function playButton(host: DecorationHost, itemId: string, label?: string): HTMLElement {
+function playButton(host: DecorationHost, itemId: string, label: string | undefined, again: boolean): HTMLElement {
   const btn = document.createElement('button');
   btn.type = 'button';
-  btn.className = 'pn-play';
+  btn.className = again ? 'pn-play pn-play--again' : 'pn-play';
   btn.setAttribute('contenteditable', 'false');
-  btn.title = host.playTitle(label);
-  btn.setAttribute('aria-label', host.playTitle(label));
+  btn.title = host.playTitle(label, again);
+  btn.setAttribute('aria-label', host.playTitle(label, again));
   btn.textContent = '▶';
   // Keep the caret where it is: pressing ▶ must not move the selection.
   btn.addEventListener('mousedown', (e) => e.preventDefault());
@@ -179,7 +179,8 @@ function rebuild(doc: import('prosemirror-model').Node, detection: DetectResult 
       decos.push(Decoration.inline(d.from, d.to, d.attrs, { span: d.span }));
       spans.push(d.span);
     } else {
-      decos.push(Decoration.widget(d.pos, () => playButton(host, d.itemId, labels.get(d.itemId)), { side: 1, key: `play-${d.itemId}`, ignoreSelection: true }));
+      const again = d.itemId === playItemId;
+      decos.push(Decoration.widget(d.pos, () => playButton(host, d.itemId, labels.get(d.itemId), again), { side: -1, key: `play-${d.itemId}-${again ? 'again' : 'new'}`, ignoreSelection: true }));
     }
   }
   const play = playItemId ? spans.find((s) => s.kind === 'item' && s.id === playItemId) : undefined;
@@ -215,6 +216,12 @@ export function createDecorationPlugins(host: DecorationHost): Plugin[] {
       handleClick(_view, _pos, event) {
         const el = (event.target as HTMLElement | null)?.closest?.('[data-pn-item],[data-pn-hl]') as HTMLElement | null;
         if (!el) return false;
+        // Ctrl/Cmd+click on a linked item shows it; a plain click only edits.
+        if ((event.ctrlKey || event.metaKey) && el.dataset.pnItem) {
+          event.preventDefault();
+          host.onPlay(el.dataset.pnItem);
+          return true;
+        }
         if (el.dataset.pnItem) host.onItemClick(el.dataset.pnItem, el);
         else if (el.dataset.pnHl) host.onHighlightClick(el.dataset.pnHl, el);
         return false;
@@ -237,7 +244,7 @@ class PlayGutter {
     this.gutter = document.createElement('div');
     this.gutter.className = 'pn-gutter';
     this.gutter.setAttribute('contenteditable', 'false');
-    // The gutter marker repeats the item's own ▶ widget in the text: pointer-only, hidden from keyboard and AT.
+    // The gutter marker repeats the item's own Show button in the text: pointer-only, hidden from keyboard and AT.
     this.gutter.setAttribute('aria-hidden', 'true');
     this.button = document.createElement('button');
     this.button.type = 'button';
@@ -264,8 +271,8 @@ class PlayGutter {
       this.gutter.hidden = true;
       return;
     }
-    this.button.title = this.host.playTitle();
-    this.button.setAttribute('aria-label', this.host.playTitle());
+    this.button.title = this.host.playTitle(undefined, true);
+    this.button.setAttribute('aria-label', this.host.playTitle(undefined, true));
     try {
       const coords = view.coordsAtPos(Math.min(st.playPos + 1, view.state.doc.content.size));
       const box = scroller.getBoundingClientRect();

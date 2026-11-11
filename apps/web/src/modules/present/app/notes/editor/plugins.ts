@@ -6,7 +6,8 @@ import { InputRule, inputRules, textblockTypeInputRule, wrappingInputRule } from
 import { keymap } from 'prosemirror-keymap';
 import { liftListItem, sinkListItem, splitListItem } from 'prosemirror-schema-list';
 import type { MarkType } from 'prosemirror-model';
-import type { Plugin } from 'prosemirror-state';
+import { Plugin } from 'prosemirror-state';
+import { Decoration, DecorationSet } from 'prosemirror-view';
 import { blockIdPlugin } from './blockIds';
 import { toggleBold, toggleItalic } from './commands';
 import { notesSchema as s } from './schema';
@@ -14,6 +15,22 @@ import { notesSchema as s } from './schema';
 export interface EditorCallbacks {
   /** Ctrl/Cmd+Enter: show the item at the caret (doc position). */
   onShowAtCaret?: (pos: number) => void;
+  /** Hint shown (as a decoration, not content) while the document is empty. */
+  placeholder?: string;
+}
+
+/** Adds `data-placeholder` + `is-empty` to the first paragraph while the whole document is empty. */
+export function placeholderPlugin(cbs: () => EditorCallbacks): Plugin {
+  return new Plugin({
+    props: {
+      decorations(state) {
+        const text = cbs().placeholder;
+        const doc = state.doc;
+        if (!text || doc.childCount !== 1 || doc.firstChild!.type.name !== 'paragraph' || doc.firstChild!.content.size > 0) return null;
+        return DecorationSet.create(doc, [Decoration.node(0, doc.firstChild!.nodeSize, { class: 'pn-empty', 'data-placeholder': text })]);
+      },
+    },
+  });
 }
 
 /**
@@ -91,6 +108,7 @@ export function buildPlugins(cbs: () => EditorCallbacks, extra: Plugin[] = []): 
     dropCursor(),
     gapCursor(),
     blockIdPlugin(),
+    placeholderPlugin(cbs),
     ...extra,
   ];
 }

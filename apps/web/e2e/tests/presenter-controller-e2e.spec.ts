@@ -24,7 +24,11 @@ async function openPresenter(page: Page): Promise<void> {
   await expect(page.locator('.presenter-app')).toBeVisible({ timeout: 10000 });
 }
 
-/** Press Go live and return the join code (read from the settings menu). */
+/**
+ * Press Go live and return the join code (read from the settings menu).
+ * Going live starts with the screen hidden, so this also presses Show screen:
+ * callers get a screen that displays what they send.
+ */
 async function goLive(page: Page): Promise<string> {
   await page.locator('.pz-status .pz-btn--primary').click();
   await expect(page.locator('.pz-status__state--live')).toBeVisible({ timeout: 10000 });
@@ -33,6 +37,10 @@ async function goLive(page: Page): Promise<string> {
   await expect(code).toBeVisible();
   const text = (await code.textContent())!.trim();
   await page.keyboard.press('Escape');
+  const blank = page.locator('.pz-transport__btn--blank');
+  await expect(blank).toHaveAttribute('aria-pressed', 'true', { timeout: 10000 });
+  await blank.click();
+  await expect(blank).toHaveAttribute('aria-pressed', 'false', { timeout: 10000 });
   return text;
 }
 
@@ -183,6 +191,21 @@ test.describe('The Presenter on a phone', () => {
     await expect(page.locator('.pzp-add')).toHaveCount(3);
     await expect(page.locator('.pzp-list')).toBeVisible();
     await expect(page.locator('.pzp-bottom .present-cmd--bar .present-cmd__input')).toBeVisible();
+    // The "On screen" card is part of the frozen top.
+    await expect(page.locator('.pzp-onscreen')).toBeVisible();
+  });
+
+  test('showing a verse from the Verse picker adds it to the plan list', async ({ page }) => {
+    await page.goto('/#/@present');
+    await expect(page.locator('.pz-phone')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('.pzp-row__text')).toHaveCount(0);
+
+    await page.locator('.pzp-add', { hasText: 'Verse' }).click();
+    await page.locator('.pz-picker__actions .pz-btn--primary').click();
+
+    // Anything shown is appended to the plan automatically.
+    await expect(page.locator('.pzp-row__text').first()).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('.pzp-onscreen')).toBeVisible();
   });
 });
 

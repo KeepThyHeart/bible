@@ -4,6 +4,7 @@ import { presentStore } from '../../stores/presentStore';
 import { goLive } from '../presenterSink';
 import { usePresenter } from '../../study/usePresenter';
 import { useStore } from '../../../../hooks/useStore';
+import { buildViewerLink } from '../../lib/controlLink';
 import { offlineStore } from '../../../../stores/offlineStore';
 
 /**
@@ -55,7 +56,7 @@ export function StatusRow(props: { menuOpen: boolean; onToggleMenu: () => void }
           <i class="fa-solid fa-tv" aria-hidden="true" />
           {/* One interpolated string, so a language's own colon spacing applies. */}
           <span class="sr-only">
-            {t('present.viewersCount', { count: view.wall ? view.viewers : '…', defaultValue: 'Viewers: {count}' })}
+            {t('present.viewersCount', { count: view.wall ? view.viewers : '…', defaultValue: 'Screens: {count}' })}
           </span>
           <span aria-hidden="true">{view.wall ? view.viewers : '…'}</span>
         </span>
@@ -68,6 +69,17 @@ export function StatusRow(props: { menuOpen: boolean; onToggleMenu: () => void }
       )}
 
       <span class="pz-status__spacer" />
+
+      {live && session?.joinCode && (
+        <a
+          class="pz-btn"
+          href={buildViewerLink(session.joinCode)}
+          target="_blank"
+          rel="noopener"
+        >
+          {t('present.chrome.openScreen', { defaultValue: 'Open screen' })}
+        </a>
+      )}
 
       {!live && (
         <button

@@ -13,6 +13,8 @@ import { presentStore } from '../stores/presentStore';
 import { ControlMenu } from './control/ControlMenu';
 import { StatusRow } from './control/StatusRow';
 import { Transport } from './control/Transport';
+import { shownStore } from '../stores/shownStore';
+import { OnScreenCard } from './phone/OnScreenCard';
 import { notesStore } from './notes/notesStore';
 import type { PlanItem } from './notes/notesStore';
 import type { NoteHighlight } from './notes/types';
@@ -20,7 +22,7 @@ import { presenterSend, presenterSettled, presenterShow, usePresenterState } fro
 import { PlanRow } from './phone/PlanRow';
 import { PhoneAddRow, type PickerKind } from './phone/PhoneAddRow';
 import { WordSheet } from './phone/WordSheet';
-import { moveTarget, newestItem, rangeOnWall } from './phone/planLogic';
+import { adoptShown, moveTarget, newestItem, rangeOnWall } from './phone/planLogic';
 import './phone/phone.css';
 
 const ADD_FALLBACK_MS = 2000;
@@ -49,7 +51,7 @@ export function PhoneLayout(props: {
   const [editing, setEditing] = useState<string | null>(null);
   const removed = useStore(notesStore, () => notesStore.removed);
   const listRef = useRef<HTMLUListElement>(null);
-  const pending = useRef<{ ids: Set<string>; item: PresentItem; timer: ReturnType<typeof setTimeout> } | null>(null);
+  const pending = useRef<{ ids: Set<string>; item: PresentItem; show: boolean; timer: ReturnType<typeof setTimeout> } | null>(null);
 
   useEffect(() => {
     notesStore.setTranslate((key, params) => t(key, params) as string);
@@ -75,6 +77,7 @@ export function PhoneLayout(props: {
     if (!added) return;
     clearTimeout(wait.timer);
     pending.current = null;
+    // Marks the row live; for an item already on screen this re-shows the same thing.
     notesStore.showPlanItem(added.id);
     requestAnimationFrame(() => scrollTo(added.id));
   });
@@ -82,14 +85,31 @@ export function PhoneLayout(props: {
     if (pending.current) clearTimeout(pending.current.timer);
   }, []);
 
-  const addToPlan = (item: PresentItem, label?: string): void => {
+  // Anything shown ad hoc (Show buttons, command bar) joins the plan as a row.
+  const shown = useStore(shownStore, () => shownStore.items) ?? [];
+  const adopted = useRef(false);
+  useEffect(() => {
+    if (!adopted.current) { adopted.current = true; shownStore.clear(); return; }
+    if (shown.length === 0) return;
+    const [newest, ...older] = shown;
+    for (const e of [newest, ...older]) shownStore.remove(e.id);
+    const decision = adoptShown(newest.item, planItems);
+    if (decision.action === 'reuse') {
+      notesStore.showPlanItem(decision.id);
+      requestAnimationFrame(() => scrollTo(decision.id));
+    } else {
+      addToPlan(newest.item, newest.label, false);
+    }
+  }, [shown]);
+
+  const addToPlan = (item: PresentItem, label?: string, show = true): void => {
     setPicker(null);
     if (pending.current) clearTimeout(pending.current.timer);
     // If detection never yields a plan entry for it, at least put it on screen.
     const timer = setTimeout(() => {
-      if (pending.current) { pending.current = null; presenterShow(item); }
+      if (pending.current) { pending.current = null; if (show) presenterShow(item); }
     }, ADD_FALLBACK_MS);
-    pending.current = { ids: new Set(planItems.map(p => p.id)), item, timer };
+    pending.current = { ids: new Set(planItems.map(p => p.id)), item, show, timer };
     notesStore.addItem(item, label ?? describeItem(item, item.kind === 'passage' ? item.verseStart ?? 0 : 0) ?? t('present.untitledItem'));
   };
 
@@ -122,6 +142,7 @@ export function PhoneLayout(props: {
           {menuOpen && <ControlMenu session={session} onClose={() => setMenuOpen(false)} onOpenHelp={props.onOpenHelp} />}
         </div>
         <div class="pzp-controls">
+          <OnScreenCard />
           <Transport />
           <PhoneAddRow open={picker} onOpen={setPicker} onAdd={addToPlan} />
         </div>
@@ -167,9 +188,9 @@ export function PhoneLayout(props: {
 
       <div class="pzp-bottom">
         <div class="pzp-results">
-          <CommandSearchResults variant="banner" sink={presenterSend} state={state} onAddToNotes={addToPlan} />
+          <CommandSearchResults variant="banner" sink={presenterSend} state={state} onAddToNotes={addToPlan} addLabel={t('present.phone.addToList', { defaultValue: 'Add to list' })} />
         </div>
-        <CommandBox variant="bar" searchEnabled sink={presenterSend} state={state} onHelp={props.onOpenHelp} />
+        <CommandBox variant="bar" searchEnabled sink={presenterSend} state={state} onHelp={props.onOpenHelp} onAddToNotes={addToPlan} />
       </div>
 
       {editingEntry && <WordSheet entry={editingEntry} onClose={() => setEditing(null)} />}

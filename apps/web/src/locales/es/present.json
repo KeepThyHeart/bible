@@ -21,25 +21,22 @@
     "screen": "Pantalla",
     "joining": "Conexión",
     "menu": "Ajustes",
-    "menuHint": "Tema de la pantalla, tamaño del texto y conexión: configúrelos primero y luego vuelva al orden del servicio.",
+    "menuHint": "Tema de la pantalla, tamaño del texto y conexión: configúrelos primero y luego vuelva al plan.",
     "help": "Ayuda",
     "addToPlan": "Añadir {ref}",
     "nothingToAdd": "Abra un pasaje para añadirlo",
-    "planEmpty": "Aún no hay nada planificado. Abra un pasaje y añádalo para crear un orden del servicio.",
+    "planEmpty": "Aún no hay nada planificado. Abra un pasaje y añádalo para crear un plan.",
     "addNote": "Añadir una nota",
     "notePlaceholder": "Nota para usted",
     "removeFromPlan": "Quitar",
     "reorder": "Reordenar",
     "untitledItem": "Elemento",
-    "addToPlanShort": "Añadir",
     "added": "Añadido",
     "addAllFound": "Añadir los {count}",
     "noReferencesFound": "No se encontraron referencias bíblicas en ese texto.",
     "addQuote": "Añadir una cita",
     "quoteTextPlaceholder": "Las palabras de la cita",
     "quoteAttributionPlaceholder": "Autor o fuente (opcional)",
-    "showQuote": "Mostrar ahora",
-    "addQuoteToPlan": "Añadir al orden del servicio",
     "acceptClickerKeys": "Aceptar teclas de control remoto",
     "acceptClickerKeysHint": "Arriba/Abajo, Izquierda/Derecha y Re Pág/Av Pág avanzan lo que está en pantalla, y B la oculta: son las teclas que envía un control remoto de presentaciones. En un himno o una cita pasan a la diapositiva siguiente; en un pasaje, al versículo siguiente (mantenga la tecla para pasar a la sección siguiente). Desactívelo para que Arriba/Abajo solo muevan el versículo de estudio.",
     "sendVerse": "Enviar el versículo {verse} a la pantalla",
@@ -80,8 +77,6 @@
     "endYes": "Sí, finalizar",
     "hymns": "Himnos",
     "hymnSearchPlaceholder": "Título, primer verso o número",
-    "hymnSend": "Poner este himno en pantalla",
-    "hymnAddToPlan": "Añadir al orden del servicio",
     "hymnsNoMatch": "Ningún himno coincide.",
     "hymnsEmptyLibrary": "No hay himnos instalados.",
     "hymnsUnavailable": "No se pudo acceder a la biblioteca de himnos.",
@@ -98,16 +93,15 @@
     "openPresenterShort": "Presentador",
     "app": {
       "notes": "Notas",
-      "notesPlaceholder": "El editor de notas llegará pronto. Por ahora, este es su orden del servicio.",
+      "notesPlaceholder": "El editor de notas llegará pronto. Por ahora, este es su plan.",
       "phoneLabel": "Presentador",
       "control": "Control",
       "preview": "Vista previa",
       "back": "Estudio",
       "backTitle": "Volver a Estudio (el Presentador sigue funcionando)",
-      "serviceName": "Servicio sin título",
+      "serviceName": "Notas sin título",
       "live": "En vivo",
       "notLive": "Sin emitir",
-      "moreTooltip": "Más",
       "resetLayout": "Restablecer el diseño",
       "resizeColumns": "Cambiar el tamaño de las columnas Notas y Control",
       "resizeRows": "Cambiar el tamaño de Control y Vista previa"
@@ -116,10 +110,7 @@
       "addToNotes": "Añadir a las notas",
       "openSimpleViewer": "Abrir el visor sencillo",
       "simpleViewerHint": "Una pantalla independiente con un pequeño cuadro de comandos, para una sala que solo refleja un portátil. No necesita sesión.",
-      "simpleViewerOffer": "¿Solo quiere reflejar una pantalla? El visor sencillo no requiere configuración.",
-      "setupOpen": "Configurar pantalla",
-      "setupHide": "Ocultar configuración",
-      "noPlanHint": "No se necesita un plan: escriba una referencia o un himno en el cuadro de arriba, o elija un Versículo, Himno o Cita abajo. Use las flechas para avanzar.",
+      "noPlanHint": "Escriba una referencia en el cuadro de arriba, o elija un Versículo, Himno o Cita abajo.",
       "keysHelp": "Acerca de las teclas del control remoto",
       "goLive": "Iniciar emisión",
       "endLive": "Finalizar",
@@ -132,11 +123,8 @@
       "hymn": "Himno",
       "quote": "Cita",
       "showNow": "Mostrar ahora",
-      "setupTitle": "Configure su pantalla",
       "joinCodeLabel": "Código para unirse",
       "joinCodeTip": "Dé este código a quienes se unan. El QR y Copiar enlace están en el menú ...",
-      "setupGoLive": "Pulse Iniciar emisión para obtener un código de conexión y configurar la pantalla.",
-      "setupDone": "Listo, ocultar esto",
       "chips": "Resaltados",
       "chipReveal": "Mostrar este resaltado en la pantalla (o pulse H para el siguiente)",
       "chipPending": "El texto del versículo aún se está cargando",
@@ -145,8 +133,8 @@
     },
     "command": {
       "label": "Comando",
-      "placeholder": "Juan 3:16 · 18 · himno 23 · gracia · .",
-      "placeholderOverlay": "Ir a un versículo: Juan 3:16, 18, . para ocultar",
+      "placeholder": "Mostrar un versículo, himno o palabras",
+      "placeholderOverlay": "Mostrar un versículo o himno",
       "tooltip": "Ir a un versículo o himno. Pulse / para activar.",
       "addToNotes": "Añadir a las notas (Alt+Intro)",
       "results": "Resultados de la búsqueda",
@@ -170,7 +158,12 @@
         "clear": "Borrar los resaltados",
         "help": "Mostrar la ayuda",
         "search": "Buscar ‘{query}’",
-        "searchOff": "No es un comando (aquí la búsqueda está desactivada)"
+        "searchOff": "No es un comando (aquí la búsqueda está desactivada)",
+        "altEnter": "Alt+Intro añade a las notas",
+        "moduleMissing": "{module} no está instalado",
+        "firstPartOnly": "Solo se muestra la primera parte",
+        "next": "Ir al versículo o la diapositiva siguiente",
+        "previous": "Ir al versículo o la diapositiva anterior"
       },
       "error": {
         "empty": "Escriba una referencia, un himno o una búsqueda",
@@ -197,18 +190,18 @@
       "redo": "Rehacer"
     },
     "services": {
-      "none": "Ningún servicio",
-      "new": "Nuevo servicio",
+      "none": "Sin notas",
+      "new": "Notas nuevas",
       "rename": "Cambiar nombre",
       "duplicate": "Duplicar",
       "delete": "Eliminar",
       "confirmDelete": "¿Eliminar \"{name}\"? Esta acción no se puede deshacer.",
-      "name": "Nombre del servicio",
-      "namePlaceholder": "Nombre del servicio (opcional)",
+      "name": "Nombre",
+      "namePlaceholder": "Nombre (opcional)",
       "create": "Crear",
       "save": "Guardar",
       "cancel": "Cancelar",
-      "notSaved": "El almacenamiento no está disponible: los servicios se perderán al cerrar esta página.",
+      "notSaved": "El almacenamiento no está disponible: las notas se perderán al cerrar esta página.",
       "renameFor": "Cambiar el nombre de {name}",
       "duplicateFor": "Duplicar {name}",
       "deleteFor": "Eliminar {name}"
@@ -226,7 +219,6 @@
         "hymnVerseListInvalid": "No se puede leer la lista de estrofas de \"{title}\"",
         "hymnLibraryUnavailable": "La biblioteca de himnos aún no se ha cargado"
       },
-      "playMarker": "Mostrar de nuevo",
       "view": {
         "notes": "Notas",
         "plan": "Plan"
@@ -254,15 +246,37 @@
           "hymn": "Himno",
           "quote": "Cita"
         },
-        "empty": "Aún no hay nada planificado. Los versículos, himnos y citas de sus notas aparecen aquí.",
+        "empty": "Aún no hay nada planificado. Use Versículo, Himno o Cita abajo y pulse Añadir a las notas para crear el plan, o escriba referencias en sus notas. Mostrar solo pone algo en la pantalla.",
         "highlights": "{count, plural, one {# resaltado} other {# resaltados}}",
         "removed": "Se quitó {label}",
         "undo": "Deshacer",
         "moreFor": "Más acciones para {label}",
         "reorderFor": "Arrastra para reordenar {label}"
       },
-      "playMarkerFor": "Volver a mostrar {label}",
-      "viewsLabel": "Vistas de notas"
+      "viewsLabel": "Vistas de notas",
+      "show": {
+        "last": "Mostrar de nuevo",
+        "again": "Mostrar {label} de nuevo",
+        "item": "Mostrar {label}"
+      },
+      "placeholder": "Escriba o pegue notas aquí. Las referencias como Juan 3:16 y las líneas como “Hymn: Sublime gracia” y “Quote: …” se convierten en elementos para mostrar. Pulse el ▶ junto a uno para mostrarlo en la pantalla.",
+      "suggest": {
+        "summary": "{items, plural, one {# elemento encontrado} other {# elementos encontrados}}. {count, plural, one {# línea por revisar} other {# líneas por revisar}}.",
+        "review": "Revisar",
+        "hide": "Ocultar",
+        "dismiss": "Descartar",
+        "skip": "Omitir",
+        "reveal": "Seleccionar este texto en las notas",
+        "acceptHymn": "Himno: {title}",
+        "acceptQuote": "Cita",
+        "acceptVerse": "{label}"
+      },
+      "select": {
+        "label": "Convertir el texto seleccionado en un elemento",
+        "verse": "Crear un elemento de versículo",
+        "hymn": "Crear un elemento de himno",
+        "quote": "Crear un elemento de cita"
+      }
     },
     "solo": {
       "launcherTooltip": "Abre el cuadro de comandos para ir a un versículo (pulse / en el teclado)",
@@ -271,6 +285,9 @@
     "phone": {
       "dragHandle": "Arrastre para reordenar {label}",
       "onScreen": "En pantalla",
+      "addToList": "Añadir a la lista",
+      "nothingOnScreen": "Aún no hay nada en la pantalla",
+      "screenHidden": "Pantalla oculta",
       "itemMenu": "Acciones para {label}",
       "editVerse": "Editar resaltados",
       "moveUp": "Subir",
@@ -290,9 +307,31 @@
       "undo": "Deshacer"
     },
     "hymnAddToNotesFor": "Añadir {title} a las notas",
-    "hymnAddToPlanFor": "Añadir {title} al orden del servicio",
-    "viewersLabel": "Espectadores",
+    "viewersLabel": "Pantallas",
     "previewFrameTitle": "Vista previa de la pantalla",
-    "viewersCount": "Espectadores: {count}"
+    "viewersCount": "Pantallas: {count}",
+    "chrome": {
+      "back": "Atrás",
+      "nextLabel": "Siguiente",
+      "showScreen": "Mostrar pantalla",
+      "hideScreen": "Ocultar pantalla",
+      "openScreen": "Abrir pantalla",
+      "blankedHint": "La pantalla está oculta. Pulse Mostrar pantalla cuando esté lista."
+    },
+    "rows": {
+      "show": "Mostrar",
+      "add": "Añadir a las notas"
+    },
+    "shown": {
+      "heading": "Mostrado, no está en las notas",
+      "clear": "Borrar",
+      "clearAria": "Borrar la lista de elementos mostrados",
+      "show": "Mostrar",
+      "showAria": "Mostrar {label}",
+      "add": "Añadir a las notas",
+      "addAria": "Añadir {label} a las notas",
+      "more": "{count} más",
+      "fewer": "Mostrar menos"
+    }
   }
 }

@@ -29,7 +29,12 @@ const MATT_5: VerseText[] = [
   { verseId: 40005003, verse: 3, html: '<span class="christ-words">Blessed <i>are</i> the poor in spirit: for theirs is the kingdom of heaven.</span>' },
 ];
 
-const CHAPTERS: Record<string, VerseText[]> = { 'KJV/43/3': JOHN_3, 'KJV/43/4': JOHN_4, 'KJV/40/5': MATT_5 };
+const PSALM_23: VerseText[] = [
+  { verseId: 19023001, verse: 1, html: 'The LORD <i>is</i> my shepherd; I shall not want.' },
+  { verseId: 19023004, verse: 4, html: 'Yea, though I walk through the valley of the shadow of death, I will fear no evil: for thou <i>art</i> with me; thy rod and thy staff they comfort me.' },
+];
+
+const CHAPTERS: Record<string, VerseText[]> = { 'KJV/43/3': JOHN_3, 'KJV/43/4': JOHN_4, 'KJV/40/5': MATT_5, 'KJV/19/23': PSALM_23 };
 const getChapter: ChapterLookup = (module, book, chapter) => CHAPTERS[`${module}/${book}/${chapter}`];
 
 const OPTIONS: DetectOptions = { module: 'KJV', modules: ['KJV', 'ESV', 'NKJV'], hymns: LIBRARY, getChapter };
@@ -130,6 +135,66 @@ describe('passages', () => {
   });
 });
 
+describe('reference lists and forms', () => {
+  const passages = (text: string, options: Partial<DetectOptions> = {}) =>
+    run(doc(text), options).items.map(item => ({ label: item.label, span: text.slice(item.from, item.to), item: item.item }));
+
+  it('a chapter:verse after a semicolon is its own item in the same book', () => {
+    expect(passages('John 14:1–3; 14:27')).toEqual([
+      { label: 'John 14:1–3', span: 'John 14:1–3', item: { kind: 'passage', module: 'KJV', book: 43, chapter: 14, verseStart: 1, verseEnd: 3 } },
+      { label: 'John 14:27', span: '14:27', item: { kind: 'passage', module: 'KJV', book: 43, chapter: 14, verseStart: 27 } },
+    ]);
+    expect(passages('Rom 8:28; 12:1').map(p => [p.label, p.item])).toEqual([
+      ['Rom 8:28', { kind: 'passage', module: 'KJV', book: 45, chapter: 8, verseStart: 28 }],
+      ['Rom 12:1', { kind: 'passage', module: 'KJV', book: 45, chapter: 12, verseStart: 1 }],
+    ]);
+  });
+
+  it('merges contiguous verses of a comma list into one range', () => {
+    expect(passages('Isaiah 26:3,4')).toEqual([
+      { label: 'Isaiah 26:3,4', span: 'Isaiah 26:3,4', item: { kind: 'passage', module: 'KJV', book: 23, chapter: 26, verseStart: 3, verseEnd: 4 } },
+    ]);
+  });
+
+  it('splits a comma list with a gap into separate items', () => {
+    expect(passages('Psalm 23:1-3, 6')).toEqual([
+      { label: 'Psalm 23:1-3', span: 'Psalm 23:1-3', item: { kind: 'passage', module: 'KJV', book: 19, chapter: 23, verseStart: 1, verseEnd: 3 } },
+      { label: 'Psalm 23:6', span: '6', item: { kind: 'passage', module: 'KJV', book: 19, chapter: 23, verseStart: 6 } },
+    ]);
+  });
+
+  it('gives every part of a list the translation written after it', () => {
+    const text = 'Psalm 23:1-3, 6 (ESV)';
+    const { items } = run(doc(text));
+    expect(items.map(i => i.item)).toMatchObject([{ module: 'ESV', verseStart: 1 }, { module: 'ESV', verseStart: 6 }]);
+    expect(items[1].to).toBe(text.length);
+  });
+
+  it('reads a dot between chapter and verse, but not a sentence end', () => {
+    expect(passages('Jn 3.16')).toEqual([{ label: 'Jn 3.16', span: 'Jn 3.16', item: { kind: 'passage', module: 'KJV', book: 43, chapter: 3, verseStart: 16 } }]);
+    expect(passages('see John 3. 16 people came').map(p => p.item)).toEqual([{ kind: 'passage', module: 'KJV', book: 43, chapter: 3 }]);
+  });
+
+  it.each([
+    ['Matthew 6:25-34 (ESV)', 'ESV'],
+    ['Matthew 6:25-34 [ESV]', 'ESV'],
+    ['Matthew 6:25-34 ESV', 'ESV'],
+    ['Matthew 6:25-34 (ESV)', 'KJV', ['KJV', 'ASV']],
+  ] as Array<[string, string, string[]?]>)('a translation after a range: %s -> %s', (text, module, modules) => {
+    const [item] = run(doc(text), modules ? { modules } : {}).items;
+    expect(item.item).toMatchObject({ book: 40, chapter: 6, verseStart: 25, verseEnd: 34, module });
+    if (module !== 'KJV') expect(item.to).toBe(text.length);
+  });
+
+  it('reads Phil as Philippians', () => {
+    expect(passages('Phil 4:6-7')[0].item).toMatchObject({ book: 50, chapter: 4, verseStart: 6, verseEnd: 7 });
+  });
+
+  it('a continuation after a listed part continues it', () => {
+    expect(run(doc('Rom 8:28; 12:1', 'v. 2')).items.map(i => i.label)).toEqual(['Rom 8:28', 'Rom 12:1', 'Rom 12:2']);
+  });
+});
+
 // ---------------------------------------------------------------------------
 // Continuations and sections
 // ---------------------------------------------------------------------------
@@ -163,7 +228,7 @@ describe('continuations', () => {
 
   it('reaches back into the previous section', () => {
     const { items } = run(doc('John 3:16', 'prose', 'Hymn 460', 'prose', 'v. 18'));
-    expect(items.map(i => i.label)).toEqual(['John 3:16', '460', 'John 3:18']);
+    expect(items.map(i => i.label)).toEqual(['John 3:16', 'Amazing Grace', 'John 3:18']);
   });
 
   it('does not reach two sections back: a stray v. 4 stays unattached', () => {
@@ -222,6 +287,129 @@ describe('hymns', () => {
 
   it('needs a choice when there is no library', () => {
     expect(run(doc('Hymn 460'), { hymns: undefined }).items[0]).toMatchObject({ status: 'choose', item: null });
+  });
+});
+
+describe('hymn cues and title lines', () => {
+  it.each([
+    ['Opening hymn: Amazing Grace (verses 1, 2, 4)', { kind: 'hymn', hymnId: 'amazing-grace', verseOrder: ['1', '2', '4'] }],
+    ['Closing hymn: It Is Well', { kind: 'hymn', hymnId: 'it-is-well' }],
+    ['Opening: Amazing Grace', { kind: 'hymn', hymnId: 'amazing-grace' }],
+    ['Closing: It Is Well With My Soul', { kind: 'hymn', hymnId: 'it-is-well' }],
+    ["Sing 'Tis So Sweet to Trust in Jesus", { kind: 'hymn', hymnId: 'tis-so-sweet' }],
+    ['It Is Well with My Soul', { kind: 'hymn', hymnId: 'it-is-well' }],
+    ['Rock of Ages (1, 3)', { kind: 'hymn', hymnId: 'rock-of-ages', verseOrder: ['1', '3'] }],
+  ])('%s', (text, item) => {
+    const { items } = run(doc(text));
+    expect(items).toEqual([expect.objectContaining({ kind: 'hymn', status: 'ok', item })]);
+    expect(items[0].from).toBe(0);
+    expect(items[0].to).toBe(text.length);
+  });
+
+  it.each([
+    'Sing to the Lord a new song',
+    'Closing: prayer and blessing',
+    'Opening: welcome and notices',
+    'Sing 2 verses, then pray',
+    'Amazing Grace is the theme tonight',
+  ])('is not a hymn: %s', text => {
+    expect(run(doc(text)).items).toEqual([]);
+  });
+
+  it('a loose cue waits for the library, and a strong cue asks', () => {
+    expect(run(doc('Closing: It Is Well With My Soul'), { hymns: undefined }).items).toEqual([]);
+    expect(run(doc('Closing hymn: It Is Well With My Soul'), { hymns: undefined }).items).toEqual([expect.objectContaining({ status: 'choose' })]);
+  });
+
+  it('a reference after a loose cue stays a reference', () => {
+    expect(run(doc('Sing Psalm 23')).items).toEqual([expect.objectContaining({ kind: 'passage', item: expect.objectContaining({ book: 19, chapter: 23 }) })]);
+  });
+
+  it('labels a numbered hymn with its title, and keeps an id built from the number', () => {
+    const resolved = run(doc('Hymn 460')).items[0];
+    const unresolved = run(doc('Hymn 460'), { hymns: undefined }).items[0];
+    expect(resolved).toMatchObject({ label: 'Amazing Grace', item: { hymnId: 'amazing-grace' } });
+    expect(unresolved).toMatchObject({ label: '460', item: null });
+    expect(resolved.id).toBe(unresolved.id);
+  });
+
+  it('keeps the number as the label when the number is ambiguous', () => {
+    expect(run(doc('Hymn 23')).items[0]).toMatchObject({ label: '23', status: 'choose' });
+  });
+});
+
+describe('suggestions', () => {
+  it('is always present', () => {
+    expect(run(doc('John 3:16')).suggestions).toEqual([]);
+    expect(run([]).suggestions).toEqual([]);
+  });
+
+  it.each([
+    ['“Faith is taking the first step even when you don’t see the whole staircase.” – Martin Luther King Jr.',
+      'Faith is taking the first step even when you don’t see the whole staircase.', 'Martin Luther King Jr.'],
+    ['"Grace is free." - Spurgeon', 'Grace is free.', 'Spurgeon'],
+    ['"Grace is free." — C. H. Spurgeon', 'Grace is free.', 'C. H. Spurgeon'],
+    ['"Grace is free."\n— Spurgeon', 'Grace is free.', 'Spurgeon'],
+  ])('suggests a quoted paragraph with a dash attribution: %s', (text, quote, attribution) => {
+    const blocks = doc('Intro', text);
+    const { items, suggestions } = run(blocks);
+    expect(items).toEqual([]);
+    expect(suggestions).toEqual([{
+      id: expect.any(String), blockId: 'b1', blockPos: blocks[1].pos, from: 0, to: text.length,
+      kind: 'quote', label: expect.any(String), item: { kind: 'quote', text: quote, attribution },
+    }]);
+    expect(quote.startsWith(suggestions[0].label.replace(/…$/, ''))).toBe(true);
+  });
+
+  it.each([
+    'He said "yes" and left - quickly.',
+    '"Grace is free."',
+    'Grace is free. - Spurgeon',
+    '"Grace is free." – 1999',
+  ])('does not suggest a quote for: %s', text => {
+    expect(run(doc(text)).suggestions).toEqual([]);
+  });
+
+  it('does not suggest what is already an item', () => {
+    expect(run(doc('Quote: "Grace is free." — Spurgeon')).suggestions).toEqual([]);
+    expect(run(doc({ text: '"Grace is free." — Spurgeon', kind: 'blockquote' })).suggestions).toEqual([]);
+    expect(run(doc('"For God so loved the world" — John 3:16')).suggestions).toEqual([]);
+  });
+
+  it('suggests a library title inside a line', () => {
+    const text = 'Then the choir sings It Is Well with My Soul';
+    const blocks = doc(text);
+    const { items, suggestions } = run(blocks);
+    expect(items).toEqual([]);
+    expect(suggestions).toEqual([{
+      id: expect.any(String), blockId: 'b0', blockPos: 0, from: text.indexOf('It Is'), to: text.length,
+      kind: 'hymn', label: 'It Is Well with My Soul', item: { kind: 'hymn', hymnId: 'it-is-well' },
+    }]);
+  });
+
+  it('suggests a title on its own line inside a block, with block offsets', () => {
+    const text = 'Prayer\nwe sing Amazing Grace together';
+    const [s] = run(doc(text)).suggestions;
+    expect(text.slice(s.from, s.to)).toBe('Amazing Grace');
+  });
+
+  it('does not suggest a title that is already linked, unlinked or pinned', () => {
+    expect(run(doc('Hymn: Amazing Grace')).suggestions).toEqual([]);
+    expect(run(doc('Amazing Grace')).suggestions).toEqual([]);
+    expect(run(doc({ text: 'we sing Amazing Grace', unlink: ['Amazing Grace'] })).suggestions).toEqual([]);
+    const pinned = { kind: 'hymn' as const, hymnId: 'grace-greater' };
+    expect(run(doc({ text: 'we sing Amazing Grace', pin: [{ text: 'Amazing', attrs: { item: pinned } }] })).suggestions).toEqual([]);
+  });
+
+  it('has ids that are stable when text is typed above, and distinct from item ids', () => {
+    const before = run(doc('Intro', 'John 3:16 and we sing Amazing Grace'));
+    const after = run(doc('Intro with more words', 'John 3:16 and we sing Amazing Grace'));
+    expect(after.suggestions[0].id).toBe(before.suggestions[0].id);
+    expect(after.items.map(i => i.id)).not.toContain(after.suggestions[0].id);
+  });
+
+  it('needs the library for hymn suggestions', () => {
+    expect(run(doc('we sing Amazing Grace'), { hymns: undefined }).suggestions).toEqual([]);
   });
 });
 
@@ -386,6 +574,65 @@ describe('pin and unlink', () => {
       pin: [{ text: 'loved', attrs: { range } }, { text: 'world', attrs: { range: null } }],
     });
     expect(run(blocks).highlights).toEqual([expect.objectContaining({ text: 'loved', range, source: 'pinned', status: 'ok' })]);
+  });
+});
+
+describe('the test outline', () => {
+  it('links or suggests every line', () => {
+    const blocks = doc(
+      'Opening hymn: Amazing Grace (verses 1, 2, 4)',
+      'Read Psalm 23',
+      { text: 'The Lord is my shepherd, v. 1', bold: ['shepherd'] },
+      { text: 'vv. 4-6 - thou art with me', bold: ['thou art with me'] },
+      'See also Rom. 8:28, Phil 4:6-7 and 1 Pet 5:7',
+      'John 14:1–3; 14:27',
+      'Isaiah 26:3,4',
+      'Matthew 6:25-34 (ESV)',
+      'Jn 3.16',
+      'II Tim 1:7',
+      'Psalm 46 verse 10',
+      'Quote: He is no fool who gives what he cannot keep to gain that which he cannot lose.\n- Jim Elliot',
+      '“Faith is taking the first step even when you don’t see the whole staircase.” – Martin Luther King Jr.',
+      'Closing: It Is Well With My Soul',
+      "Sing 'Tis So Sweet to Trust in Jesus",
+      'Hymn 460',
+    );
+    const result = run(blocks);
+    const byBlock = (index: number) => result.items.filter(item => item.blockPos === blocks[index].pos);
+    const passage = (book: number, chapter: number, verseStart?: number, verseEnd?: number, module = 'KJV') => ({
+      kind: 'passage', module, book, chapter,
+      ...(verseStart !== undefined ? { verseStart } : {}), ...(verseEnd !== undefined ? { verseEnd } : {}),
+    });
+
+    expect(result.items.every(item => item.status === 'ok')).toBe(true);
+    expect(byBlock(0).map(i => i.item)).toEqual([{ kind: 'hymn', hymnId: 'amazing-grace', verseOrder: ['1', '2', '4'] }]);
+    expect(byBlock(1).map(i => i.item)).toEqual([passage(19, 23)]);
+    expect(byBlock(2).map(i => i.item)).toEqual([passage(19, 23, 1)]);
+    expect(byBlock(3).map(i => i.item)).toEqual([passage(19, 23, 4, 6)]);
+    expect(byBlock(4).map(i => i.item)).toEqual([passage(45, 8, 28), passage(50, 4, 6, 7), passage(60, 5, 7)]);
+    expect(byBlock(5).map(i => i.item)).toEqual([passage(43, 14, 1, 3), passage(43, 14, 27)]);
+    expect(byBlock(6).map(i => i.item)).toEqual([passage(23, 26, 3, 4)]);
+    expect(byBlock(7).map(i => i.item)).toEqual([passage(40, 6, 25, 34, 'ESV')]);
+    expect(byBlock(8).map(i => i.item)).toEqual([passage(43, 3, 16)]);
+    expect(byBlock(9).map(i => i.item)).toEqual([passage(55, 1, 7)]);
+    expect(byBlock(10).map(i => i.item)).toEqual([passage(19, 46), passage(19, 46, 10)]);
+    expect(byBlock(11).map(i => i.item)).toEqual([{
+      kind: 'quote', text: 'He is no fool who gives what he cannot keep to gain that which he cannot lose.', attribution: 'Jim Elliot',
+    }]);
+    expect(byBlock(12)).toEqual([]);
+    expect(byBlock(13).map(i => i.item)).toEqual([{ kind: 'hymn', hymnId: 'it-is-well' }]);
+    expect(byBlock(14).map(i => i.item)).toEqual([{ kind: 'hymn', hymnId: 'tis-so-sweet' }]);
+    expect(byBlock(15).map(i => [i.label, i.item])).toEqual([['Amazing Grace', { kind: 'hymn', hymnId: 'amazing-grace' }]]);
+
+    expect(result.suggestions).toEqual([expect.objectContaining({
+      blockPos: blocks[12].pos, kind: 'quote',
+      item: { kind: 'quote', text: 'Faith is taking the first step even when you don’t see the whole staircase.', attribution: 'Martin Luther King Jr.' },
+    })]);
+
+    expect(result.highlights.map(h => [h.text, h.status, h.range])).toEqual([
+      ['shepherd', 'ok', { verseIdStart: 19023001, textStart: 4 }],
+      ['thou art with me', 'ok', { verseIdStart: 19023004, textStart: 18, textEnd: 21 }],
+    ]);
   });
 });
 

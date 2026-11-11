@@ -73,8 +73,20 @@ describe('StatusRow', () => {
     h.view.presenting = true;
     const { container } = render(<StatusRow menuOpen={false} onToggleMenu={() => {}} />);
     const text = container.querySelector('.pz-status__viewers')!.textContent!;
-    expect(text).toContain('Viewers: 2');
-    expect(text).not.toContain('Viewers : ');
+    expect(text).toContain('Screens: 2');
+    expect(text).not.toContain('Screens : ');
     expect(container.querySelector('.pz-status__viewers [aria-hidden="true"]:not(i)')!.textContent).toBe('2');
+  });
+
+  it('shows Open screen only while live, as a new-window link to the viewer', () => {
+    h.view.presenting = false;
+    const off = render(<StatusRow menuOpen={false} onToggleMenu={() => {}} />);
+    expect(off.container.querySelector('a[target="_blank"]')).toBeNull();
+    off.unmount();
+    h.view.presenting = true;
+    const on = render(<StatusRow menuOpen={false} onToggleMenu={() => {}} />);
+    const link = on.container.querySelector('a[target="_blank"]') as HTMLAnchorElement;
+    expect(link.getAttribute('href')).toContain('/present/v/ABCD');
+    expect(link.getAttribute('rel')).toBe('noopener');
   });
 });

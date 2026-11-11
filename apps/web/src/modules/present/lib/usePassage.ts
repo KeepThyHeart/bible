@@ -59,8 +59,28 @@ function useBookNames(): Map<number, string> {
   return names;
 }
 
+/** A passage whose chapter failed to load or came back empty. */
+export interface UnavailablePassage {
+  key: string;
+  module: string;
+  book: number;
+  chapter: number;
+  bookName: string;
+}
+
 export function usePassage(item: PresentItem | null): Passage | null {
+  return usePassageState(item).passage;
+}
+
+/**
+ * Like `usePassage`, but also says when the current item's chapter cannot be
+ * shown (fetch failed, or the translation has no such text). `unavailable` is
+ * null while loading, so "still loading" and "not available" stay distinct.
+ * `passage` keeps its old behaviour of holding the previous chapter.
+ */
+export function usePassageState(item: PresentItem | null): { passage: Passage | null; unavailable: UnavailablePassage | null } {
   const [passage, setPassage] = useState<Passage | null>(null);
+  const [failedKey, setFailedKey] = useState<string | null>(null);
   const cache = useRef(new Map<string, ChapterVerse[]>());
   const bookNames = useBookNames();
 
@@ -74,6 +94,7 @@ export function usePassage(item: PresentItem | null): Passage | null {
       return;
     }
 
+    setFailedKey(null);
     const cached = cache.current.get(key);
     if (cached) {
       setPassage({
@@ -104,13 +125,25 @@ export function usePassage(item: PresentItem | null): Passage | null {
       })
       .catch(() => {
         // Leave whatever is on screen. The presenter will notice the wall did
-        // not follow and try again; an empty screen helps nobody.
+        // not follow and try again; an empty screen helps nobody. The failure
+        // is recorded only so the presenter's own preview can say so.
+        if (!cancelled) setFailedKey(key);
       });
 
     return () => { cancelled = true; };
   }, [key, item, bookNames]);
 
-  return passage;
+  let unavailable: UnavailablePassage | null = null;
+  if (item && item.kind === 'passage' && key) {
+    const emptyLoaded = passage !== null && passage.key === key && passage.verses.length === 0;
+    if (failedKey === key || emptyLoaded) {
+      unavailable = {
+        key, module: item.module, book: item.book, chapter: item.chapter,
+        bookName: bookNames.get(item.book) ?? `Book ${item.book}`,
+      };
+    }
+  }
+  return { passage, unavailable };
 }
 
 /**

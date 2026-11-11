@@ -35,7 +35,7 @@ describe('AddRow', () => {
     const { container } = render(<AddRow onAddToNotes={onAdd} />);
     const verse = button(container, 'present.control.verse');
     await act(async () => { fireEvent.click(verse); });
-    await act(async () => { fireEvent.click(button(container, 'present.control.addToNotes')); });
+    await act(async () => { fireEvent.click(button(container, 'Add to notes')); });
     expect(onAdd).toHaveBeenCalled();
     expect(container.querySelector('.pz-picker')).toBeNull();
     expect(document.activeElement).toBe(verse);

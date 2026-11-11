@@ -41,7 +41,7 @@ export const BOOK_ABBREV_MAP: Record<string, number> = {
   'luk': 42, 'lk': 42, 'luke': 42, 'joh': 43, 'jn': 43, 'john': 43,
   'act': 44, 'acts': 44, 'rom': 45, 'romans': 45,
   'gal': 48, 'galatians': 48, 'eph': 49, 'ephesians': 49,
-  'phi': 50, 'php': 50, 'philippians': 50, 'col': 51, 'colossians': 51,
+  'phi': 50, 'php': 50, 'phil': 50, 'philippians': 50, 'col': 51, 'colossians': 51,
   'tit': 56, 'titus': 56, 'phm': 57, 'philemon': 57, 'heb': 58, 'hebrews': 58,
   'jam': 59, 'jas': 59, 'james': 59, 'jud': 65, 'jude': 65, 'rev': 66, 'revelation': 66,
   // Numbered books with various prefix styles

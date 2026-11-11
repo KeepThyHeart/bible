@@ -5,6 +5,7 @@
  * `command.ts` so the parser stays pure and testable without i18n or stores.
  */
 
+import { refBookName } from '../bookName';
 import { getLocalizer } from '@bible/core/browser';
 import i18n from '../../../../i18n';
 import { headerBookAliases, parseReference } from '../../../../utils/referenceParse';
@@ -64,7 +65,7 @@ export function buildCommandContext(opts: CommandContextOptions = {}): CommandCo
       return out;
     },
     formatRef: (book, chapter, verseStart, verseEnd) => {
-      const base = formatPassageRef(book, chapter, verseStart ?? null, moduleStore.getBookName(book));
+      const base = formatPassageRef(book, chapter, verseStart ?? null, refBookName(moduleStore.getBookName(book)));
       return verseStart !== undefined && verseEnd !== undefined && verseEnd !== verseStart
         ? `${base}–${verseEnd}`
         : base;

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { EditorState, type Transaction } from 'prosemirror-state';
-import type { EditorView } from 'prosemirror-view';
+import type { DecorationSet, EditorView } from 'prosemirror-view';
 import { buildInputRules } from './plugins';
 import { docToBlocks } from './docToBlocks';
 import { docFromJSON, emptyDocJSON, notesSchema as s, parseHtml } from './schema';
@@ -126,5 +126,18 @@ describe('markdown mark input rules', () => {
     const state = type('a *b* c');
     expect(state.doc.textContent).toBe('a b c');
     expect(state.doc.rangeHasMark(3, 4, s.marks.italic)).toBe(true);
+  });
+});
+
+describe('empty-notes placeholder', () => {
+  it('decorates only an empty document, without adding content', async () => {
+    const { placeholderPlugin } = await import('./plugins');
+    const plugin = placeholderPlugin(() => ({ placeholder: 'Type here' }));
+    const empty = EditorState.create({ doc: docFromJSON(null), plugins: [plugin] });
+    const found = (st: EditorState) => (plugin.props.decorations!.call(plugin, st) as DecorationSet | null)?.find().length ?? 0;
+    expect(found(empty)).toBe(1);
+    expect(empty.doc.textContent).toBe('');
+    const full = EditorState.create({ doc: parseHtml('<p>hi</p>'), plugins: [plugin] });
+    expect(found(full)).toBe(0);
   });
 });

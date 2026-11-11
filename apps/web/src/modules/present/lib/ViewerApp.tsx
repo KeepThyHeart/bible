@@ -8,10 +8,11 @@
  * a new item, a blank, and the end of the session.
  */
 
+import { refBookName } from './bookName';
 import { useEffect, useLayoutEffect, useMemo, useRef } from 'preact/hooks';
 import type { HighlightRange, PresentState, PresentTheme } from './protocol';
 import { displayedState, usePresentStream, type PresentConnection } from './usePresentStream';
-import { selectedVerses, usePassage, type ChapterVerse, type Passage } from './usePassage';
+import { selectedVerses, usePassageState, type ChapterVerse, type Passage, type UnavailablePassage } from './usePassage';
 import { useHymn } from './useHymn';
 import type { HymnDetail } from './hymns';
 import { fontScaleForStep, prefersReducedMotion, shrinkToFit, shrinkToFitWidth } from './typography';
@@ -27,6 +28,21 @@ import { createPostMessageSink, forwardUnhandledKeys, type IntentSink } from './
 import { usePointerIntents } from './interaction/usePointerIntents';
 import type { WordAddress } from './interaction/words';
 import { API_BASE } from '../../../utils/apiUrl';
+
+/**
+ * "Psalms 23" reads wrong for a single chapter; it is "Psalm 23". Book names
+ * come from the server (English) and no singular form exists in the codebase,
+ * so this only maps the exact English "Psalms". Other names/languages are left
+ * unchanged.
+ */
+export function passageHeading(bookName: string, chapter: number): string {
+  return `${refBookName(bookName)} ${chapter}`;
+}
+
+/** Shown in the presenter's preview when a chapter cannot be loaded. */
+export function passageUnavailableMessage(module: string): string {
+  return `This passage is not available in ${module}.`;
+}
 
 /** The join code is the last path segment of `/present/v/<code>`. */
 export function joinCodeFromLocation(pathname: string): string {
@@ -99,7 +115,7 @@ export function ViewerApp(props: ViewerAppProps = {}): preact.JSX.Element {
   const forwardKeys = !props.intentSink && frameSink !== undefined;
   useEffect(() => (forwardKeys ? forwardUnhandledKeys(window.parent) : undefined), [forwardKeys]);
 
-  const passage = usePassage(state?.live ?? null);
+  const { passage, unavailable } = usePassageState(state?.live ?? null);
   const hymn = useHymn(state?.live ?? null);
 
   const { overscan, adjust } = useOverscan();
@@ -143,7 +159,7 @@ export function ViewerApp(props: ViewerAppProps = {}): preact.JSX.Element {
       {/* Hidden from assistive technology while blanked (inert too, except in the interactive preview, whose pointer layer still works). */}
       <div class="pv-safe" aria-hidden={blanked ? 'true' : undefined} inert={(blanked && !sink) || undefined}>
         {renderBody(connection, state, passage, hymn, joinCode,
-          isPreview || isFullscreen, toggle, overscan, isPreview, display.theme, display.fontStep, sink)}
+          isPreview || isFullscreen, toggle, overscan, isPreview, display.theme, display.fontStep, sink, unavailable)}
       </div>
       {/*
         The blanking curtain is a sibling of the content, not a swap for it.
@@ -188,6 +204,7 @@ function renderBody(
   theme: PresentTheme,
   fontStep: number,
   sink: IntentSink | undefined,
+  unavailable: UnavailablePassage | null,
 ): preact.JSX.Element {
   // A closed session takes the wall, even if something was on it. `closed` is
   // only ever sent because a presenter chose to end the session, or because
@@ -218,6 +235,16 @@ function renderBody(
   }
   if (state.live.kind === 'quote') {
     return <QuoteSlide text={state.live.text} attribution={state.live.attribution} />;
+  }
+  // Only the presenter's own preview is told; the public screen stays as it
+  // is (heading only) so the room never sees an error.
+  if (state.live.kind === 'passage' && unavailable && sink) {
+    return (
+      <div class="pv-passage">
+        <h1 class="pv-heading">{passageHeading(unavailable.bookName, unavailable.chapter)}</h1>
+        <p class="pv-unavailable">{passageUnavailableMessage(unavailable.module)}</p>
+      </div>
+    );
   }
   if (state.live.kind === 'passage' && passage) {
     return (
@@ -321,7 +348,7 @@ function PassageView(props: {
         screen -- and the congregation can see which verse is which from the
         numbers in the text.
       */}
-      <h1 class="pv-heading" ref={headingRef}>{props.passage.bookName} {props.passage.chapter}</h1>
+      <h1 class="pv-heading" ref={headingRef}>{passageHeading(props.passage.bookName, props.passage.chapter)}</h1>
       <div class="pv-scroll" ref={scrollRef} {...(handlers ?? {})}>
         {props.verses.map(verse => (
           <p

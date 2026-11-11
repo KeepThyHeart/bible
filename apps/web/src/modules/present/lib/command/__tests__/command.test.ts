@@ -203,3 +203,53 @@ describe('completeBook', () => {
     expect(completeBook('3:16', ctx)).toBeNull();
   });
 });
+
+describe('parseCommand: command-box ease additions', () => {
+  it('3:16 is chapter and verse in the current book', () => {
+    expect(parse('3:16')).toEqual({ type: 'chapterVerse', chapter: 3, verseStart: 16 });
+    expect(parse('3:16-18')).toEqual({ type: 'chapterVerse', chapter: 3, verseStart: 16, verseEnd: 18 });
+    expect(describeCommand(parse('3:16'), ctx)).toBe('Show John 3:16');
+    expect(describeCommand(parse('3:16'), { ...ctx, current: null })).toBe('Nothing on screen to pick a verse from');
+  });
+
+  it('a chapter range shows the first chapter', () => {
+    expect(parse('gen 1-2')).toEqual({ type: 'passage', book: 1, chapter: 1 });
+    expect(parse('gen 1 - 2')).toEqual({ type: 'passage', book: 1, chapter: 1 });
+    expect(parse('gen 2-1').type).toBe('search');
+  });
+
+  it('a multi-part list shows the first part', () => {
+    expect(parse('psalm 23:1-3, 6')).toEqual({ type: 'passage', book: 19, chapter: 23, verseStart: 1, verseEnd: 3, more: true });
+    expect(parse('rom 8:28; 12:1')).toEqual({ type: 'passage', book: 45, chapter: 8, verseStart: 28, more: true });
+    expect(describeCommand(parse('john 8:28; 12:1'), ctx)).toBe('Show John 8:28 (KJV). Only the first part is shown');
+  });
+
+  it('john 3,16 is still chapter and verse', () => {
+    expect(parse('john 3,16')).toMatchObject({ type: 'passage', chapter: 3, verseStart: 16 });
+    expect(parse('john 3,16').type === 'passage' && (parse('john 3,16') as { more?: boolean }).more).toBeFalsy();
+  });
+
+  it('step words are commands only when exact and alone', () => {
+    expect(parse('next')).toEqual({ type: 'step', dir: 'next' });
+    expect(parse('Back')).toEqual({ type: 'step', dir: 'previous' });
+    expect(parse('prev')).toEqual({ type: 'step', dir: 'previous' });
+    expect(parse('previous')).toEqual({ type: 'step', dir: 'previous' });
+    expect(parse('next time')).toEqual({ type: 'search', query: 'next time' });
+  });
+
+  it('quotes or ? force a search for a step word', () => {
+    expect(parse('"next"')).toEqual({ type: 'search', query: 'next' });
+    expect(parse('?back')).toEqual({ type: 'search', query: 'back' });
+  });
+
+  it('an uninstalled translation code shows the passage in the default translation', () => {
+    expect(parse('john 3:16 xyz')).toEqual({ type: 'passage', book: 43, chapter: 3, verseStart: 16, unknownModule: 'xyz' });
+    expect(describeCommand(parse('john 3:16 nasb'), ctx)).toBe('Show John 3:16 (KJV). NASB is not installed');
+    expect(parse('genesis creation').type).toBe('search');
+    expect(parse('john 3:16 esv')).toMatchObject({ module: 'esv' });
+  });
+
+  it('Alt+Enter hint pieces do not leak into describeCommand', () => {
+    expect(describeCommand(parse('john 3:16'), ctx)).not.toContain('Alt');
+  });
+});

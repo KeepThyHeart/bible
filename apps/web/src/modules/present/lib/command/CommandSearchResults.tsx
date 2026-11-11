@@ -24,8 +24,10 @@ export interface CommandSearchResultsProps {
   state: PresentState | null;
   /** Translation whose text is searched. Defaults to the wall's, then nothing (server default). */
   defaultModule?: string;
-  /** Provide to enable Alt+Enter and the "+" button; the host inserts the item into the notes. */
+  /** Provide to enable Alt+Enter and the Add button; the host inserts the item into the notes. */
   onAddToNotes?: (item: PresentItem, label: string) => void;
+  /** Label of the secondary button on each row. Defaults to 'Add to notes'. */
+  addLabel?: string;
   /** Called when the results close (a result was shown, or Esc). */
   onClose?: () => void;
   /** `panel`: fills the Control pane. `banner`: a page-wide strip with a capped height. */
@@ -51,6 +53,8 @@ export function searchItemToPresentItem(item: SearchItem): PresentItem {
 export function CommandSearchResults(props: CommandSearchResultsProps) {
   const { sink, state, onAddToNotes, onClose, variant = 'panel' } = props;
   const { t } = useTranslation();
+  const showLabel = String(t('present.rows.show', { defaultValue: 'Show' }));
+  const addLabel = props.addLabel ?? String(t('present.rows.add', { defaultValue: 'Add to notes' }));
   const query = useStore(commandSearch, () => commandSearch.query);
   const items = useStore(commandSearch, () => commandSearch.items);
   const selected = useStore(commandSearch, () => commandSearch.selected);
@@ -127,6 +131,7 @@ export function CommandSearchResults(props: CommandSearchResultsProps) {
 
   const row = (item: SearchItem) => {
     const i = indexOf(item);
+    const label = item.kind === 'hymn' ? item.hymn.title : item.reference;
     return (
       <li
         key={item.key}
@@ -134,12 +139,7 @@ export function CommandSearchResults(props: CommandSearchResultsProps) {
         role="option"
         aria-selected={i === selected}
       >
-        <button
-          type="button"
-          class="present-cmd-results__pick"
-          onMouseEnter={() => commandSearch.select(i)}
-          onClick={() => commandSearch.activate('show', i)}
-        >
+        <div class="present-cmd-results__pick" onMouseEnter={() => commandSearch.select(i)}>
           {item.kind === 'verse' ? (
             <>
               <span class="present-cmd-results__ref">{item.reference}</span>
@@ -154,18 +154,27 @@ export function CommandSearchResults(props: CommandSearchResultsProps) {
               </span>
             </>
           )}
-        </button>
-        {onAddToNotes && (
+        </div>
+        <div class="present-cmd-results__btns">
           <button
             type="button"
-            class="present-cmd-results__add"
-            title={t('present.command.addToNotes', { defaultValue: 'Add to notes (Alt+Enter)' })}
-            aria-label={t('present.command.addToNotes', { defaultValue: 'Add to notes (Alt+Enter)' })}
-            onClick={() => commandSearch.activate('notes', i)}
+            class="present-cmd-results__btn present-cmd-results__btn--primary"
+            aria-label={`${showLabel}: ${label}`}
+            onClick={() => commandSearch.activate('show', i)}
           >
-            <i class="fa-solid fa-plus" aria-hidden="true" />
+            {showLabel}
           </button>
-        )}
+          {onAddToNotes && (
+            <button
+              type="button"
+              class="present-cmd-results__btn present-cmd-results__add"
+              aria-label={`${addLabel}: ${label}`}
+              onClick={() => commandSearch.activate('notes', i)}
+            >
+              {addLabel}
+            </button>
+          )}
+        </div>
       </li>
     );
   };

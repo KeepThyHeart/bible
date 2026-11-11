@@ -1,3 +1,4 @@
+import { refBookName } from '../lib/bookName';
 import { useStore } from '../../../hooks/useStore';
 import { bibleStore } from '../../../stores/bibleStore';
 import { moduleStore } from '../../../stores/moduleStore';
@@ -47,7 +48,7 @@ export function describeItem(item: PresentItem | null, index: number): string | 
   if (!item) return null;
   if (item.kind === 'passage') {
     return formatPassageRef(item.book, item.chapter, index || null,
-      moduleStore.getBookName(item.book));
+      refBookName(moduleStore.getBookName(item.book)));
   }
   if (item.kind === 'text') return item.title ?? 'Text';
   if (item.kind === 'quote') {

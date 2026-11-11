@@ -684,3 +684,11 @@ body {
 /* Chapter context outside the item's verse range: visible, but clearly not part of it and not clickable. */
 .pv-verse.pv-verse--outside,
 .pv-passage--max .pv-verse.pv-verse--outside { opacity: 0.4; pointer-events: none; }
+
+/* Presenter preview only: a chapter that could not be loaded. */
+.pv-unavailable {
+  margin: 1rem 4vw;
+  text-align: center;
+  font-size: 1.1rem;
+  opacity: 0.6;
+}

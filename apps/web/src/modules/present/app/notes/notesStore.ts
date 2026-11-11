@@ -1,4 +1,5 @@
-import type { Plugin } from 'prosemirror-state';
+import { TextSelection, type Plugin } from 'prosemirror-state';
+import { closeHistory } from 'prosemirror-history';
 import type { EditorView } from 'prosemirror-view';
 import { Store } from '../../../../stores/Store';
 import { preferredBible } from '../../../../host/preferredBible';
@@ -6,7 +7,7 @@ import { moduleStore } from '../../../../stores/moduleStore';
 import { presentStore } from '../../stores/presentStore';
 import { getNotes, putNotes } from '../../lib/notesApi';
 import { describeItem } from '../../study/usePresenter';
-import { presenterShow, presenterState, subscribePresenter } from '../presenterSink';
+import { presenterShowFromNotes, presenterState, subscribePresenter } from '../presenterSink';
 import { API_BASE } from '../../../../utils/apiUrl';
 import type { HymnSummary } from '../../lib/hymns';
 import type { PresentItem, PresentPlanEntry } from '../../lib/protocol';
@@ -15,13 +16,14 @@ import { createDecorationPlugins, findPlayItemId, notesDecoKey, type DecoMeta, t
 import { appendPinnedParagraph, insertItemText, insertPinned, setChoiceMarks } from './editor/commands';
 import { withBlockIds } from './editor/blockIds';
 import { docToBlocks } from './editor/docToBlocks';
-import { docFromJSON, type ProseMirrorJSON } from './editor/schema';
+import { docFromJSON, notesSchema, type ProseMirrorJSON } from './editor/schema';
 import { addBoldLine, appendTextParagraph, derivePlanItems, deriveServerPlan, docKey, isBlankDoc, moveSection, removeHighlightInDoc, samePlan, unlinkItemInDoc, type PlanItem } from './planOps';
 import { createNotesDetector } from './detect';
 export { buildVerseOrder } from './verseOrder';
 export type { PlanItem } from './planOps';
 import { getServiceStore, type Service } from './services/serviceStore';
-import type { DetectResult, NoteHighlight, NotesItem, VerseText } from './types';
+import type { DetectResult, NoteHighlight, NotesItem, NotesSuggestion, PinAttrs, VerseText } from './types';
+import { selectionWatch } from './selectionWatch';
 
 /** Detection runs this long after the last keystroke. */
 const DETECT_DELAY_MS = 150;
@@ -43,7 +45,9 @@ function writePushed(sessionId: string, key: string): void {
 export type ChooserTarget =
   | { mode: 'item'; id: string; anchor: DOMRect }
   | { mode: 'highlight'; id: string; anchor: DOMRect }
-  | { mode: 'insert'; anchor: DOMRect };
+  | { mode: 'insert'; anchor: DOMRect }
+  /** "Make a hymn item" on a text selection: search seeded with `query`; Save pins `from`..`to`. */
+  | { mode: 'selection'; from: number; to: number; query: string; anchor: DOMRect };
 
 class NotesStore extends Store {
   private serviceId: string | null = null;
@@ -86,6 +90,8 @@ class NotesStore extends Store {
   planItems: PlanItem[] = [];
   /** Set for `UNDO_MS` after `removeItem`: what the "Removed X - Undo" snackbar shows. */
   removed: { id: string; label: string } | null = null;
+  /** The suggestion set (see `suggestionKey`) the presenter dismissed; the bar stays hidden while it is unchanged. */
+  dismissedSuggestions: string | null = null;
 
   private readonly chapters = new Map<string, readonly VerseText[]>();
   private readonly chaptersAsked = new Set<string>();
@@ -95,17 +101,22 @@ class NotesStore extends Store {
   private applyingRemote = false;
 
   /** Decoration plugins for the editor. Stable identity: pass as the editor's `plugins` prop. */
-  readonly plugins: Plugin[] = createDecorationPlugins({
+  readonly plugins: Plugin[] = [...createDecorationPlugins({
     translate: (key, params) => this.translateFn(key, params),
     onPlay: (id) => this.playById(id),
     onItemClick: (id, el) => this.onItemClick(id, el),
     onHighlightClick: (id, el) => this.openChooser({ mode: 'highlight', id, anchor: el.getBoundingClientRect() }),
-    playTitle: (label) => (label
-      ? this.translateFn('present.notes.playMarkerFor', { label, defaultValue: `${this.translateFn('present.notes.playMarker')}: ${label}` })
-      : this.translateFn('present.notes.playMarker')),
-  });
+    playTitle: (label, again) => {
+      if (!label) return this.translateFn('present.notes.show.last', { defaultValue: 'Show again' });
+      return again
+        ? this.translateFn('present.notes.show.again', { label, defaultValue: `Show ${label} again` })
+        : this.translateFn('present.notes.show.item', { label, defaultValue: `Show ${label}` });
+    },
+  }), selectionWatch.plugin];
 
   get currentServiceId(): string | null { return this.serviceId; }
+  /** The mounted notes editor, or null (Plan view, phone). */
+  get editorView(): EditorView | null { return this.view; }
   get currentServiceName(): string { return this.serviceName; }
 
   /** The plan item currently on screen (green in the Plan view), or null. */
@@ -299,7 +310,7 @@ class NotesStore extends Store {
   /** Show `item` on the wall (from the notes), remembering which note it was. */
   showItem(item: PresentItem, itemId?: string): void {
     if (itemId) this.lastShownId = itemId;
-    presenterShow(item, item.kind === 'passage' ? item.verseStart : undefined);
+    presenterShowFromNotes(item, item.kind === 'passage' ? item.verseStart : undefined);
     if (itemId) {
       this.playItemId = itemId;
       this.pushMeta({ playItemId: itemId });
@@ -691,11 +702,110 @@ class NotesStore extends Store {
     this.scheduleDetect(0);
   }
 
+  /** Pin document range `from`..`to` (a text selection) to `item`: it becomes a showable item. */
+  pinRange(from: number, to: number, item: PresentItem): void {
+    if (this.view && this.validRange(from, to)) this.markRange(from, to, { pin: { item } });
+    this.closeChooser();
+    this.runDetection();
+  }
+
+  // -------------------------------------------------------------------------
+  // Suggestions (things that look like items but were not linked)
+  // -------------------------------------------------------------------------
+
+  /** The latest detection's suggestions, in document order. */
+  get suggestions(): NotesSuggestion[] {
+    return this.detection?.suggestions ?? [];
+  }
+
+  /** How many items the latest detection found. */
+  get itemCount(): number {
+    return this.detection?.items.length ?? 0;
+  }
+
+  /** True while the presenter has dismissed exactly the current set of suggestions. */
+  get suggestionsDismissed(): boolean {
+    return this.dismissedSuggestions !== null && this.dismissedSuggestions === suggestionKey(this.suggestions);
+  }
+
+  /** Hide the suggestion bar until the set of suggestions changes. */
+  dismissSuggestions(): void {
+    this.dismissedSuggestions = suggestionKey(this.suggestions);
+    this.notify();
+  }
+
+  /** The suggestion's text as written in the notes (its label when no editor is mounted). */
+  suggestionText(id: string): string {
+    const s = this.suggestions.find((x) => x.id === id);
+    if (!s) return '';
+    const range = this.view ? this.suggestionRange(s) : null;
+    return range ? this.view!.state.doc.textBetween(range.from, range.to, '\n', '\n') : s.label;
+  }
+
+  /** Accept: pin the suggestion's span to the item it would become (one undo step). */
+  acceptSuggestion(id: string): void {
+    this.applySuggestion(id, (s) => ({ pin: { item: s.item } }));
+  }
+
+  /** Skip: mark the span "not an item", so it is no longer suggested (one undo step). */
+  skipSuggestion(id: string): void {
+    this.applySuggestion(id, () => 'unlink');
+  }
+
+  /** Select the suggestion's text in the editor and scroll it into view. */
+  revealSuggestion(id: string): void {
+    const view = this.view;
+    const s = this.suggestions.find((x) => x.id === id);
+    const range = view && s ? this.suggestionRange(s) : null;
+    if (!view || !range) return;
+    view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, range.from, range.to)).scrollIntoView());
+    view.focus();
+  }
+
+  private applySuggestion(id: string, mode: (s: NotesSuggestion) => { pin: PinAttrs } | 'unlink'): void {
+    // Detection may be a keystroke behind the document: refresh it so the offsets match.
+    if (this.detectTimer) this.runDetection();
+    const s = this.suggestions.find((x) => x.id === id);
+    const range = s && this.view ? this.suggestionRange(s) : null;
+    if (!s || !range) return;
+    this.markRange(range.from, range.to, mode(s));
+    this.runDetection();
+  }
+
+  /** Document positions of a suggestion's span, when they still fit inside one textblock. */
+  private suggestionRange(s: NotesSuggestion): { from: number; to: number } | null {
+    const from = s.blockPos + 1 + s.from;
+    const to = s.blockPos + 1 + s.to;
+    return this.validRange(from, to) ? { from, to } : null;
+  }
+
+  private validRange(from: number, to: number): boolean {
+    const doc = this.view?.state.doc;
+    if (!doc || from < 0 || to <= from || to > doc.content.size) return false;
+    const $from = doc.resolve(from);
+    return $from.parent.isTextblock && $from.sameParent(doc.resolve(to));
+  }
+
+  /** Replace pin/unlink marks over a range in one undo step of its own. */
+  private markRange(from: number, to: number, mode: { pin: PinAttrs } | 'unlink'): void {
+    const view = this.view;
+    if (!view) return;
+    const m = notesSchema.marks;
+    const tr = view.state.tr.removeMark(from, to, m.pin).removeMark(from, to, m.unlink);
+    tr.addMark(from, to, mode === 'unlink' ? m.unlink.create() : m.pin.create({ choice: mode.pin }));
+    view.dispatch(closeHistory(tr));
+  }
+
   /** Insert a hymn chosen in the insert-mode chooser. */
   insertItem(item: PresentItem, label: string): void {
     this.closeChooser();
     this.addItem(item, label);
   }
+}
+
+/** Identity of a set of suggestions (ids in order), for "dismiss until it changes". */
+export function suggestionKey(suggestions: readonly NotesSuggestion[]): string {
+  return suggestions.map((s) => s.id).join('\n');
 }
 
 export const notesStore = new NotesStore();

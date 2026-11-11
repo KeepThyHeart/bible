@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { matchHymnTitle, parseHymnLine, parseVerseList, resolveHymn, verseOrderFor } from '../hymnMatch';
+import {
+  findTitlesInLine, LOOSE_MIN_SCORE, matchHymnTitle, matchTitleLine, parseHymnLine, parseVerseList, resolveHymn, verseOrderFor,
+} from '../hymnMatch';
 import { LIBRARY, TH } from './fixtures';
 
 describe('parseHymnLine', () => {
@@ -144,5 +146,99 @@ describe('resolveHymn', () => {
     expect(resolveHymn(parseHymnLine('Hymn 460')!, undefined)).toMatchObject({
       status: 'choose', item: null, reason: { key: 'present.notes.reason.hymnLibraryUnavailable' },
     });
+  });
+});
+
+describe('hymn line cues', () => {
+  it.each([
+    ['Opening hymn: Amazing Grace (verses 1, 2, 4)', { title: 'Amazing Grace', verses: ['1', '2', '4'] }],
+    ['Closing hymn 460', { number: '460' }],
+    ['closing song – It Is Well', { title: 'It Is Well' }],
+  ])('a strong cue: %s', (line, expected) => {
+    const parsed = parseHymnLine(line);
+    expect(parsed).toMatchObject(expected);
+    expect(parsed).not.toHaveProperty('loose');
+  });
+
+  it.each([
+    ['Opening: Amazing Grace', { title: 'Amazing Grace' }],
+    ['Closing: It Is Well With My Soul', { title: 'It Is Well With My Soul' }],
+    ['Closing – Rock of Ages (1, 3)', { title: 'Rock of Ages', verses: ['1', '3'] }],
+    ["Sing 'Tis So Sweet to Trust in Jesus", { title: 'Tis So Sweet to Trust in Jesus' }],
+    ['Sing 460', { number: '460' }],
+  ])('a loose cue: %s', (line, expected) => {
+    expect(parseHymnLine(line)).toMatchObject({ ...expected, loose: true });
+  });
+
+  it.each(['Opening prayer', 'Singing together', 'Sing', 'Closing:', 'Sing 2 verses, then pray'])('is not a hymn line: %s', line => {
+    expect(parseHymnLine(line)).toBeNull();
+  });
+
+  it('a loose title needs a strong library match', () => {
+    const loose = (line: string) => resolveHymn(parseHymnLine(line)!, LIBRARY, { minScore: LOOSE_MIN_SCORE });
+    expect(loose('Closing: It Is Well With My Soul')).toMatchObject({ status: 'ok', item: { hymnId: 'it-is-well' } });
+    expect(loose('Sing to the Lord a new song')).toMatchObject({ item: null, reason: { key: 'present.notes.reason.hymnNotFound' } });
+    expect(loose('Closing: prayer and blessing')).toMatchObject({ item: null });
+  });
+});
+
+describe('matchTitleLine', () => {
+  it.each([
+    ['It Is Well with My Soul', { from: 0, to: 23, title: 'It Is Well with My Soul' }],
+    ['  amazing grace!  ', { from: 2, to: 16, title: 'amazing grace!' }],
+    ['Amazing Grace (verses 1, 2, 4)', { title: 'Amazing Grace', verses: ['1', '2', '4'] }],
+    ['Rock of Ages, Cleft for Me', { title: 'Rock of Ages, Cleft for Me' }],
+    ['“Rock of Ages”', { title: 'Rock of Ages' }],
+  ])('%s', (line, expected) => {
+    expect(matchTitleLine(line, LIBRARY)).toMatchObject(expected);
+  });
+
+  it.each(['Amazing Grace is our theme', 'Grace', 'Amazing', 'It is well', 'Amazing grace! how sweet the sound'])('is not a title line: %s', line => {
+    expect(matchTitleLine(line, LIBRARY)).toBeNull();
+  });
+
+  it('needs the library', () => {
+    expect(matchTitleLine('Amazing Grace', undefined)).toBeNull();
+    expect(matchTitleLine('Amazing Grace', [])).toBeNull();
+  });
+
+  it('ignores one-word titles', () => {
+    const library = [{ id: 'amen', title: 'Amen', hymnals: [], verseCount: 1, hasRefrain: false }];
+    expect(matchTitleLine('Amen', library)).toBeNull();
+    expect(findTitlesInLine('We all say Amen', library)).toEqual([]);
+  });
+});
+
+describe('findTitlesInLine', () => {
+  it('finds a title inside other words, with its span', () => {
+    const text = 'Then the choir sings It Is Well with My Soul, softly';
+    const [found] = findTitlesInLine(text, LIBRARY);
+    expect(found.hymn.id).toBe('it-is-well');
+    expect(text.slice(found.from, found.to)).toBe('It Is Well with My Soul');
+  });
+
+  it('prefers the longer title starting at the same word', () => {
+    const text = 'we close with Rock of Ages, Cleft for Me tonight';
+    const found = findTitlesInLine(text, LIBRARY);
+    expect(found).toHaveLength(1);
+    expect(text.slice(found[0].from, found[0].to)).toBe('Rock of Ages, Cleft for Me');
+  });
+
+  it('matches across apostrophes and case', () => {
+    const text = "after that, 'tis so sweet to trust in jesus";
+    expect(findTitlesInLine(text, LIBRARY).map(f => f.hymn.id)).toEqual(['tis-so-sweet']);
+  });
+
+  it('needs every word of the title', () => {
+    expect(findTitlesInLine('it is well with me', LIBRARY)).toEqual([]);
+    expect(findTitlesInLine('amazing graceful dancers', LIBRARY)).toEqual([]);
+  });
+
+  it('skips a title shared by two hymns', () => {
+    const library = [
+      { id: 'a', title: 'Be Still My Soul', hymnals: [], verseCount: 3, hasRefrain: false },
+      { id: 'b', title: 'Be Still, My Soul', hymnals: [], verseCount: 3, hasRefrain: false },
+    ];
+    expect(findTitlesInLine('we sang Be Still My Soul', library)).toEqual([]);
   });
 });

@@ -16,9 +16,10 @@ vi.mock('../../stores/presentStore', () => {
   return { presentStore: store };
 });
 
+import { shownStore } from '../../stores/shownStore';
 import { presentStore } from '../../stores/presentStore';
 import {
-  goLive, presenterIsLive, presenterSend, presenterShow, presenterState, presenterToggleBlank,
+  goLive, presenterIsLive, presenterSend, presenterShow, presenterShowFromNotes, presenterState, presenterToggleBlank,
   seedIntents, setPreliveSessionForTests,
 } from '../presenterSink';
 
@@ -30,6 +31,7 @@ beforeEach(() => {
   store.session = null;
   store.wall = null;
   store.send.mockClear();
+  shownStore.clear();
   started.calls.length = 0;
   setPreliveSessionForTests(createLocalSession({ storage: null, context: ctx }));
 });
@@ -73,11 +75,35 @@ describe('going live', () => {
     presenterShow(john, 4);
     presenterSend({ type: 'addHighlight', highlight: { verseIdStart: 43003004, textStart: 1, textEnd: 2 } });
     expect(await goLive()).toBe(true);
-    expect(started.calls.map((c: any) => c.type)).toEqual(['setTheme', 'show', 'addHighlight']);
+    expect(started.calls.map((c: any) => c.type)).toEqual(['setTheme', 'show', 'addHighlight', 'blank']);
     expect(started.calls[1]).toEqual({ type: 'show', item: john, index: 4 });
+  });
+
+  it('blanks even when the local session is untouched', async () => {
+    await goLive();
+    expect(started.calls).toEqual([{ type: 'blank' }]);
+  });
+
+  it('does not blank twice when the seed already ends blank', async () => {
+    presenterShow(john, 4);
+    presenterSend({ type: 'blank' });
+    await goLive();
+    expect(started.calls.map((c: any) => c.type)).toEqual(['show', 'blank']);
   });
 
   it('seeds nothing from an untouched local session', () => {
     expect(seedIntents(presenterState()!)).toEqual([]);
+  });
+});
+
+describe('shown recording', () => {
+  it('records ad hoc shows but not shows from the notes', () => {
+    presenterShow(john, 1);
+    presenterSend({ type: 'show', item: john });
+    expect(shownStore.items).toHaveLength(1);
+    shownStore.clear();
+    presenterShowFromNotes(john, 1);
+    expect(shownStore.items).toEqual([]);
+    expect(presenterState()?.live).toEqual(john);
   });
 });

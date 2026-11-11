@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { PresentIntent, PresentState } from '../../protocol';
 import type { HymnSummary } from '../../hymns';
-import { buildVerseOrder, executeCommand, pickHymn } from '../execute';
+import { buildVerseOrder, executeCommand, pickHymn, resolveCommandItem } from '../execute';
 import type { Command } from '../command';
 
 function stateWith(live: PresentState['live'], extra: Partial<PresentState['display']> = {}): PresentState {
@@ -181,5 +181,36 @@ describe('pickHymn', () => {
     expect(pickHymn([a, b], { title: 'grace great' })?.id).toBe('a');
     expect(pickHymn([a, b], { title: 'sweet sound' })?.id).toBe('a');
     expect(pickHymn([], { title: 'x' })).toBeNull();
+  });
+});
+
+describe('executeCommand: step and chapterVerse', () => {
+  it('steps', async () => {
+    expect((await run({ type: 'step', dir: 'next' }, null)).sent).toEqual([{ type: 'next' }]);
+    expect((await run({ type: 'step', dir: 'previous' }, null)).sent).toEqual([{ type: 'previous' }]);
+  });
+  it('chapterVerse uses the live book and translation', async () => {
+    const { sent } = await run({ type: 'chapterVerse', chapter: 1, verseStart: 5 }, john3);
+    expect(sent).toEqual([{ type: 'show', item: { kind: 'passage', module: 'kjv', book: 43, chapter: 1 }, index: 5 }]);
+  });
+  it('chapterVerse with nothing on screen fails', async () => {
+    expect((await run({ type: 'chapterVerse', chapter: 1, verseStart: 5 }, null)).result).toEqual({ ok: false, reason: 'noPassage' });
+  });
+});
+
+describe('resolveCommandItem', () => {
+  const deps = { sink: () => {}, state: john3, defaultModule: 'kjv' };
+  it('resolves passages without sending', async () => {
+    const r = await resolveCommandItem({ type: 'passage', book: 45, chapter: 8, verseStart: 28 }, deps);
+    expect(r).toMatchObject({ ok: true, item: { kind: 'passage', module: 'kjv', book: 45, chapter: 8, verseStart: 28 } });
+  });
+  it('resolves chapterVerse and hymns; null for others', async () => {
+    expect(await resolveCommandItem({ type: 'chapterVerse', chapter: 1, verseStart: 2 }, deps)).toMatchObject({ ok: true, item: { book: 43, chapter: 1, verseStart: 2 } });
+    const r = await resolveCommandItem({ type: 'hymn', number: '460', verses: [] }, { ...deps, searchHymns: async () => [hymn()] });
+    expect(r).toMatchObject({ ok: true, item: { kind: 'hymn', hymnId: 'amazing-grace' }, label: 'Amazing Grace' });
+    expect(await resolveCommandItem({ type: 'step', dir: 'next' }, deps)).toBeNull();
+  });
+  it('fails with nothing on screen for a bare verse', async () => {
+    expect(await resolveCommandItem({ type: 'verse', verseStart: 3 }, { ...deps, state: null })).toEqual({ ok: false, reason: 'noPassage' });
   });
 });

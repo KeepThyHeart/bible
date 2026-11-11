@@ -21,6 +21,20 @@ describe('ControlMenu', () => {
     expect(dialog.getAttribute('aria-modal')).toBeNull();
   });
 
+  it('offers Reset layout only when a callback is given, and has no Help entry', () => {
+    const { unmount } = render(<ControlMenu session={null} onClose={() => {}} />);
+    expect(document.querySelector('.pz-menu')!.textContent).not.toContain('present.app.resetLayout');
+    expect(document.querySelector('.pz-menu')!.textContent).not.toContain('present.help');
+    unmount();
+    const onReset = vi.fn();
+    const onClose = vi.fn();
+    render(<ControlMenu session={null} onClose={onClose} onResetLayout={onReset} />);
+    const btn = Array.from(document.querySelectorAll('.pz-menu button')).find((b) => b.textContent?.includes('present.app.resetLayout'))!;
+    fireEvent.click(btn);
+    expect(onReset).toHaveBeenCalledTimes(1);
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
   it('Escape closes it and returns focus to its button', () => {
     const toggle = document.createElement('button');
     toggle.setAttribute('data-control-menu-toggle', '');

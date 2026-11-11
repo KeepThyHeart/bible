@@ -13,8 +13,10 @@ import type { PresentItem, PresentQuoteItem } from '../lib/protocol';
  * plan offers. There is nowhere this text is stored except the plan entry the
  * presenter chooses to keep.
  */
-export function PresentQuote(props: { onAddToNotes?: (item: PresentItem) => void; startOpen?: boolean; onDone?: () => void }) {
+export function PresentQuote(props: { onAddToNotes?: (item: PresentItem) => void; startOpen?: boolean; onDone?: () => void; addLabel?: string }) {
   const { t } = useTranslation();
+  const showLabel = String(t('present.rows.show', { defaultValue: 'Show' }));
+  const addLabel = props.addLabel ?? String(t('present.rows.add', { defaultValue: 'Add to notes' }));
   const [open, setOpen] = useState(props.startOpen ?? false);
   const [text, setText] = useState('');
   const [attribution, setAttribution] = useState('');
@@ -66,15 +68,16 @@ export function PresentQuote(props: { onAddToNotes?: (item: PresentItem) => void
       <div class="present-plan__actions">
         <button
           type="button"
-          class="present-plan__add"
+          class="present-plan__add present-rowbtn present-rowbtn--primary"
           disabled={!item}
           onClick={() => { if (item) { presenterShow(item); close(); } }}
         >
-          {t('present.showQuote')}
+          {showLabel}
         </button>
         <button
           type="button"
-          class="present-plan__add"
+          class="present-plan__add present-rowbtn"
+          aria-label={addLabel}
           disabled={!item}
           onClick={() => {
             if (!item) return;
@@ -83,7 +86,7 @@ export function PresentQuote(props: { onAddToNotes?: (item: PresentItem) => void
             close();
           }}
         >
-          {props.onAddToNotes ? t('present.control.addToNotes') : t('present.addQuoteToPlan')}
+          {addLabel}
         </button>
       </div>
 

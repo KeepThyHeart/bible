@@ -10,7 +10,9 @@
  * Detection runs in two phases:
  *
  *  1. **Per block** (`scanBlock`): references, `v. 18` continuations, hymn
- *     lines, `Quote:` lines and bold spans, with `pin`/`unlink` applied. It
+ *     lines, `Quote:` lines and bold spans, with `pin`/`unlink` applied, plus
+ *     suggestions (quoted paragraphs, hymn titles in prose) that are reported
+ *     but not linked. It
  *     depends only on the block's own text, kind and marks (plus the options),
  *     so it is memoised by those: re-running on a document where one paragraph
  *     changed re-scans one paragraph.
@@ -26,11 +28,13 @@
 
 import { scanReferences } from '../../lib/referenceScan';
 import type { HighlightRange, PresentItem, PresentPassageItem } from '../../lib/protocol';
-import { parseHymnLine, resolveHymn, type HymnResolution } from './hymnMatch';
+import {
+  findTitlesInLine, LOOSE_MIN_SCORE, matchTitleLine, parseHymnLine, resolveHymn, type HymnResolution,
+} from './hymnMatch';
 import { matchPhrase } from './highlightMatch';
 import type {
-  ChapterRef, DetectOptions, DetectResult, NoteHighlight, NotesBlock, NotesItem, NotesItemKind,
-  NotesMark, NotesReason, NotesSection, VerseText,
+  ChapterRef, DetectOptions, DetectOutput, NoteHighlight, NotesBlock, NotesItem, NotesItemKind,
+  NotesMark, NotesReason, NotesSection, NotesSuggestion, VerseText,
 } from './types';
 
 // ---------------------------------------------------------------------------
@@ -63,6 +67,8 @@ interface ContinuationCandidate extends Span {
 interface HymnCandidate extends Span {
   kind: 'hymn';
   label: string;
+  /** The number or title as written: the id is built from it, so it survives the library loading. */
+  idText: string;
   resolution: HymnResolution;
 }
 
@@ -87,10 +93,20 @@ interface BoldSpan extends Span {
   pinned?: HighlightRange | null;
 }
 
+/** A suggestion before its id is assigned (see `NotesSuggestion`). */
+interface SuggestionCandidate extends Span {
+  kind: 'hymn' | 'quote';
+  label: string;
+  item: PresentItem;
+  /** For the id: what it is, not where. */
+  tag: string;
+}
+
 interface ScannedBlock {
   candidates: Candidate[];
   bolds: BoldSpan[];
   unlinks: Span[];
+  suggestions: SuggestionCandidate[];
 }
 
 const overlaps = (a: Span, b: Span): boolean => a.from < b.to && b.from < a.to;
@@ -125,50 +141,21 @@ function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-/**
- * Every reference in `text` with its position.
- *
- * `scanReferences` returns what it matched but not where, and drops exact
- * repeats. So each result is located by searching for its matched text (with
- * whitespace loosened, since the scanner collapses it), and the text is then
- * scanned again with the found spans blanked out, which surfaces the repeats.
- * Blanking keeps the length, so offsets never shift.
- */
-function scanPositions(text: string): Array<{ from: number; to: number; ref: ReturnType<typeof scanReferences>[number] }> {
-  const out: Array<{ from: number; to: number; ref: ReturnType<typeof scanReferences>[number] }> = [];
-  let working = text;
-  for (let pass = 0; pass < 20; pass++) {
-    const found = scanReferences(working);
-    if (!found.length) break;
-    let cursor = 0;
-    let blanked = working;
-    let progressed = false;
-    for (const ref of found) {
-      const pattern = new RegExp(escapeRegExp(ref.matchedText).replace(/ /g, '\\s+'), 'gi');
-      pattern.lastIndex = cursor;
-      const match = pattern.exec(working);
-      if (!match) continue;
-      const from = match.index;
-      const to = from + match[0].length;
-      out.push({ from, to, ref });
-      blanked = blanked.slice(0, from) + ' '.repeat(to - from) + blanked.slice(to);
-      cursor = to;
-      progressed = true;
-    }
-    if (!progressed) break;
-    working = blanked;
-  }
-  return out.sort((a, b) => a.from - b.from);
+type Scanned = ReturnType<typeof scanReferences>[number];
+
+/** Every reference in `text` with its position, repeats included. */
+function scanPositions(text: string): Array<{ from: number; to: number; ref: Scanned }> {
+  return scanReferences(text, { keepDuplicates: true }).map(ref => ({ from: ref.from, to: ref.to, ref }));
 }
 
-/** A trailing `(ESV)` or ` ESV` right after a reference. */
+/** A trailing `(ESV)`, `[ESV]` or ` ESV` right after a reference. */
 function trailingModule(text: string, at: number, modules: readonly string[] | undefined): { module: string; to: number } | null {
   const rest = text.slice(at);
-  const paren = /^\s*\(\s*([A-Za-z][A-Za-z0-9]{1,9})\s*\)/.exec(rest);
+  const paren = /^\s*(?:\(\s*([A-Za-z][A-Za-z0-9]{1,9})\s*\)|\[\s*([A-Za-z][A-Za-z0-9]{1,9})\s*\])/.exec(rest);
   const bare = paren ? null : /^\s+([A-Z][A-Z0-9]{1,9})\b/.exec(rest);
   const match = paren ?? bare;
   if (!match) return null;
-  const code = match[1];
+  const code = match[1] ?? match[2];
   if (modules) {
     const known = modules.find(id => id.toLowerCase() === code.toLowerCase());
     return known ? { module: known, to: at + match[0].length } : null;
@@ -180,7 +167,14 @@ function trailingModule(text: string, at: number, modules: readonly string[] | u
 const CONTINUATION_RE = /\b(?:vv?\.?|vs\.?|verses?)\s*(\d{1,3})(?:\s*[-–—]\s*(\d{1,3}))?\b/gi;
 
 const QUOTE_LINE_RE = /^(\s*)quote\s*[:\-–—]\s*/i;
-const ATTRIBUTION_RE = /^\s*(?:—|―|--|–)\s*(.+?)\s*$/;
+const ATTRIBUTION_RE = /^\s*(?:—|―|--|–|-(?=\s))\s*(.+?)\s*$/;
+
+/**
+ * A paragraph that is a quoted sentence and a dash attribution:
+ * `"Grace is free." – Spurgeon`, `“Faith is …” — Martin Luther King Jr.`.
+ * Suggested, not linked: a quoted sentence in prose is often just prose.
+ */
+const QUOTE_SUGGEST_RE = /^\s*["“”„«‘'](\S.*?)["”“»’']\s*(?:—|―|--|–|-)\s*(\p{L}[^\n]{0,79}?)\s*$/su;
 
 function stripWrappingQuotes(value: string): string {
   const trimmed = value.trim();
@@ -241,11 +235,10 @@ function scanBlock(block: NotesBlock, options: DetectOptions): ScannedBlock {
       const lineStart = line.from + (line.text.length - line.text.trimStart().length);
       const startsWithRef = refs.some(ref => ref.from === lineStart);
       if (!startsWithRef) {
-        const parsed = parseHymnLine(line.text);
-        if (parsed) {
-          const span = { from: line.from + parsed.from, to: line.from + parsed.to };
-          const label = parsed.title ?? parsed.number ?? '';
-          candidates.push({ kind: 'hymn', ...span, label, resolution: resolveHymn(parsed, options.hymns, { hymnal: options.hymnal }) });
+        const hymn = hymnLine(line.text, options);
+        if (hymn) {
+          const span = { from: line.from + hymn.from, to: line.from + hymn.to };
+          candidates.push({ kind: 'hymn', ...span, label: hymn.label, idText: hymn.idText, resolution: hymn.resolution });
           lineOwners.push(span);
           continue;
         }
@@ -265,14 +258,18 @@ function scanBlock(block: NotesBlock, options: DetectOptions): ScannedBlock {
       }
     }
 
+    // Parts of one written reference (`Psalm 23:1-3, 6`) share the translation written after the last part.
+    const groups = new Map<number, RefCandidate[]>();
     for (const { from, to: end, ref } of refs) {
       let to = end;
       if (lineOwners.some(owner => overlaps(owner, { from, to }))) continue;
 
-      let label = text.slice(from, to);
+      let label = ref.listed
+        ? `${ref.bookText} ${ref.chapter}${ref.verseStart !== undefined ? `:${formatVerses(ref.verseStart, ref.verseEnd)}` : ''}`
+        : text.slice(from, to);
       const crossing = cross.get(to);
       if (crossing) { label += crossing.text; to = crossing.to; }
-      const bookText = bookTextOf(ref.matchedText);
+      const bookText = ref.bookText.replace(/\.$/, '');
 
       const candidate: RefCandidate = {
         kind: 'passage', from, to, book: ref.book, chapter: ref.chapter, bookText, label: label.replace(/\s+/g, ' ').trim(),
@@ -280,9 +277,17 @@ function scanBlock(block: NotesBlock, options: DetectOptions): ScannedBlock {
       if (ref.verseStart !== undefined) candidate.verseStart = ref.verseStart;
       // A cross-chapter range runs to the end of its first chapter: the protocol has one chapter per item.
       if (ref.verseEnd !== undefined && !crossing) candidate.verseEnd = ref.verseEnd;
-      const module = trailingModule(text, to, options.modules);
-      if (module) { candidate.module = module.module; candidate.to = module.to; }
       candidates.push(candidate);
+      const group = groups.get(ref.group) ?? [];
+      group.push(candidate);
+      groups.set(ref.group, group);
+    }
+    for (const group of groups.values()) {
+      const last = group[group.length - 1];
+      const module = trailingModule(text, last.to, options.modules);
+      if (!module) continue;
+      for (const candidate of group) candidate.module = module.module;
+      last.to = module.to;
     }
 
     for (const match of text.matchAll(CONTINUATION_RE)) {
@@ -325,7 +330,70 @@ function scanBlock(block: NotesBlock, options: DetectOptions): ScannedBlock {
     bolds.push(boldSpan);
   }
 
-  return { candidates, bolds, unlinks };
+  return { candidates, bolds, unlinks, suggestions: block.kind === 'blockquote' ? [] : suggest(block, candidates, unlinks, pins, options) };
+}
+
+/**
+ * A hymn line: `Hymn …`/`Song …`/`Opening hymn: …` always; `Opening: …`,
+ * `Closing: …` and `Sing …` only when the library knows the title well; and
+ * a line that is exactly a library title. Offsets are relative to the line.
+ */
+function hymnLine(line: string, options: DetectOptions): { from: number; to: number; label: string; idText: string; resolution: HymnResolution } | null {
+  const parsed = parseHymnLine(line);
+  let resolution: HymnResolution | null = null;
+  let found = parsed;
+  if (parsed) {
+    resolution = resolveHymn(parsed, options.hymns, parsed.loose
+      ? { hymnal: options.hymnal, minScore: LOOSE_MIN_SCORE }
+      : { hymnal: options.hymnal });
+    if (parsed.loose && !resolution.item) { found = null; resolution = null; }
+  }
+  if (!found) {
+    found = matchTitleLine(line, options.hymns);
+    if (found) resolution = resolveHymn(found, options.hymns, { hymnal: options.hymnal });
+  }
+  if (!found || !resolution) return null;
+  const idText = found.title ?? found.number ?? '';
+  // `Hymn 460` is labelled with the hymn's title once the library resolves it.
+  const resolvedTitle = !found.title && resolution.item
+    ? options.hymns?.find(hymn => hymn.id === resolution!.item!.hymnId)?.title
+    : undefined;
+  return { from: found.from, to: found.to, label: resolvedTitle ?? idText, idText, resolution };
+}
+
+/**
+ * Suggestions for one block (see `NotesSuggestion`): a quoted paragraph with
+ * a dash attribution, and library titles inside lines that are not items.
+ * Nothing that overlaps an item, an unlink or a pin.
+ */
+function suggest(block: NotesBlock, candidates: Candidate[], unlinks: Span[], pins: NotesMark[], options: DetectOptions): SuggestionCandidate[] {
+  const { text } = block;
+  const taken = (span: Span): boolean =>
+    candidates.some(c => overlaps(c, span)) || unlinks.some(u => overlaps(u, span)) || pins.some(p => overlaps(p, span));
+  const out: SuggestionCandidate[] = [];
+
+  const quote = QUOTE_SUGGEST_RE.exec(text);
+  if (quote) {
+    const from = text.length - text.trimStart().length;
+    const span = { from, to: text.trimEnd().length };
+    const quoteText = quote[1].trim();
+    if (quoteText && !taken(span)) {
+      out.push({
+        kind: 'quote', ...span, label: labelFor(quoteText), tag: `q:${labelFor(quoteText, 24).toLowerCase()}`,
+        item: { kind: 'quote', text: quoteText, attribution: quote[2].trim() },
+      });
+      return out; // A hymn title inside the quote is part of the quote.
+    }
+  }
+
+  for (const line of lines(text)) {
+    for (const found of findTitlesInLine(line.text, options.hymns)) {
+      const span = { from: line.from + found.from, to: line.from + found.to };
+      if (taken(span)) continue;
+      out.push({ kind: 'hymn', ...span, label: found.hymn.title, tag: `h:${found.hymn.id}`, item: { kind: 'hymn', hymnId: found.hymn.id } });
+    }
+  }
+  return out;
 }
 
 // ---------------------------------------------------------------------------
@@ -334,7 +402,7 @@ function scanBlock(block: NotesBlock, options: DetectOptions): ScannedBlock {
 
 export interface NotesDetector {
   /** Detect items and highlights. Reuses per-block work from the previous call. */
-  detect(blocks: readonly NotesBlock[], options: DetectOptions): DetectResult;
+  detect(blocks: readonly NotesBlock[], options: DetectOptions): DetectOutput;
 }
 
 function blockKey(block: NotesBlock): string {
@@ -407,13 +475,14 @@ export function createNotesDetector(): NotesDetector {
 }
 
 /** One-shot detection with no memo, for tests and callers that run once. */
-export function detectNotes(blocks: readonly NotesBlock[], options: DetectOptions): DetectResult {
+export function detectNotes(blocks: readonly NotesBlock[], options: DetectOptions): DetectOutput {
   return createNotesDetector().detect(blocks, options);
 }
 
-function resolve(blocks: readonly NotesBlock[], scanned: ScannedBlock[], options: DetectOptions): DetectResult {
+function resolve(blocks: readonly NotesBlock[], scanned: ScannedBlock[], options: DetectOptions): DetectOutput {
   const items: NotesItem[] = [];
   const highlights: NoteHighlight[] = [];
+  const suggestions: NotesSuggestion[] = [];
   const needs = new Map<string, ChapterRef>();
 
   /** Distinct block indices that hold at least one item so far, in order. */
@@ -515,6 +584,9 @@ function resolve(blocks: readonly NotesBlock[], scanned: ScannedBlock[], options
     }
 
     const scan = scanned[blockIndex];
+    for (const { tag, ...suggestion } of scan.suggestions) {
+      suggestions.push({ id: makeId(blockIndex, `s:${tag}`), blockId: block.id ?? String(block.pos), blockPos: block.pos, ...suggestion });
+    }
     // Walk items and bold spans together, in text order, so a bold word sees
     // only the passages before it.
     const events: Array<{ at: number; candidate?: Candidate; bold?: BoldSpan }> = [
@@ -554,7 +626,7 @@ function resolve(blocks: readonly NotesBlock[], scanned: ScannedBlock[], options
         case 'hymn': {
           const { resolution } = c;
           const entry: NotesItem = {
-            id: makeId(blockIndex, `h:${c.label.toLowerCase()}`), ...at, kind: 'hymn', item: resolution.item,
+            id: makeId(blockIndex, `h:${c.idText.toLowerCase()}`), ...at, kind: 'hymn', item: resolution.item,
             status: resolution.status, source: 'detected', label: c.label,
           };
           if (resolution.reason) entry.reason = resolution.reason;
@@ -576,7 +648,7 @@ function resolve(blocks: readonly NotesBlock[], scanned: ScannedBlock[], options
     }
   }
 
-  return { items, highlights, sections: buildSections(blocks, items), needsChapters: [...needs.values()] };
+  return { items, highlights, sections: buildSections(blocks, items), suggestions, needsChapters: [...needs.values()] };
 }
 
 function buildSections(blocks: readonly NotesBlock[], items: NotesItem[]): NotesSection[] {

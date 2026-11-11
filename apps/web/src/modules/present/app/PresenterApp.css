@@ -52,32 +52,6 @@
 }
 .pz-appbar__live { color: var(--text-muted); white-space: nowrap; }
 .pz-appbar__live--on { color: var(--pz-live); font-weight: 600; }
-.pz-appbar__menu-wrap { position: relative; }
-.pz-appbar__menu {
-  position: absolute;
-  inset-inline-end: 0;
-  top: 100%;
-  z-index: 30;
-  min-width: 180px;
-  padding: 4px;
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
-  background: var(--bg-primary);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
-}
-.pz-appbar__menu-item {
-  display: block;
-  width: 100%;
-  text-align: start;
-  border: 0;
-  background: none;
-  color: inherit;
-  font: inherit;
-  padding: 6px 10px;
-  border-radius: 4px;
-  cursor: pointer;
-}
-.pz-appbar__menu-item:hover { background: var(--bg-tertiary); }
 
 /* Grid and splitters ----------------------------------------------------- */
 
@@ -235,9 +209,15 @@
 .pz-btn--on { background: var(--bg-tertiary); border-color: var(--accent-color); }
 
 /* Transport: three big icon buttons */
-.pz-transport { display: flex; gap: 10px; }
+.pz-transport { display: flex; gap: 10px; container-type: inline-size; }
 .pz-transport__btn {
   flex: 1;
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding-inline: 6px;
   min-height: 48px;
   border: 1px solid var(--border-color);
   border-radius: 8px;
@@ -248,6 +228,8 @@
 }
 .pz-transport__btn:hover:not(:disabled) { background: var(--bg-tertiary); }
 .pz-transport__btn:disabled { opacity: 0.45; cursor: default; }
+.pz-transport__label { font-size: 14px; line-height: 1.15; text-align: center; overflow-wrap: anywhere; }
+@container (max-width: 260px) { .pz-transport__label { display: none; } }
 .pz-transport__btn--on { background: var(--accent-color); border-color: var(--accent-color); color: var(--accent-text, #fff); }
 
 /* Add row and pickers */

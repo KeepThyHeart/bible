@@ -59,43 +59,17 @@ vi.mock('../notes/notesStore', () => ({
 import { fireEvent } from '@testing-library/preact';
 import { PresenterApp } from '../PresenterApp';
 
-// 0209 R2 W7 item 3: the app bar's "More" menu has a name, closes on Escape and on an outside press,
-// and yields to any other menu that opens.
-describe('PresenterApp app bar menu', () => {
+// The app bar's Help button opens the help dialog.
+describe('PresenterApp help button', () => {
   beforeEach(() => vi.clearAllMocks());
 
-  const mount = async () => {
+  it('opens the help dialog', async () => {
     const root = document.createElement('div');
     document.body.appendChild(root);
     await act(async () => { render(<PresenterApp />, root); });
-    const button = root.querySelector<HTMLButtonElement>('[aria-haspopup="menu"]')!;
+    expect(root.querySelector('#help')).toBeNull();
+    const button = root.querySelector<HTMLButtonElement>('button[aria-label="present.help"]')!;
     await act(async () => { fireEvent.click(button); });
-    return { root, button };
-  };
-
-  it('names the menu and moves focus into it', async () => {
-    const { root } = await mount();
-    const menu = root.querySelector('[role="menu"]')!;
-    expect(menu.getAttribute('aria-label')).toBe('present.app.moreTooltip');
-    expect(document.activeElement).toBe(menu.querySelector('[role="menuitem"]'));
-  });
-
-  it('Escape closes it and returns focus to the button', async () => {
-    const { root, button } = await mount();
-    await act(async () => { fireEvent.keyDown(document.activeElement!, { key: 'Escape' }); });
-    expect(root.querySelector('[role="menu"]')).toBeNull();
-    expect(document.activeElement).toBe(button);
-  });
-
-  it('closes on a press outside it', async () => {
-    const { root } = await mount();
-    await act(async () => { document.body.dispatchEvent(new Event('pointerdown', { bubbles: true })); });
-    expect(root.querySelector('[role="menu"]')).toBeNull();
-  });
-
-  it('closes when another menu opens', async () => {
-    const { root } = await mount();
-    await act(async () => { window.dispatchEvent(new CustomEvent('present-menu-opened', { detail: 'service-menu' })); });
-    expect(root.querySelector('[role="menu"]')).toBeNull();
+    expect(root.querySelector('#help')).not.toBeNull();
   });
 });

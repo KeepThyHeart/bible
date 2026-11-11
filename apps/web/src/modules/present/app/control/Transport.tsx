@@ -30,6 +30,7 @@ export function Transport() {
         aria-label={t('present.previous')}
       >
         <i class="fa-solid fa-chevron-left" aria-hidden="true" />
+        <span class="pz-transport__label">{t('present.chrome.back', { defaultValue: 'Back' })}</span>
       </button>
       <button
         type="button"
@@ -41,6 +42,11 @@ export function Transport() {
         aria-pressed={blanked}
       >
         <i class={`fa-solid ${blanked ? 'fa-eye-slash' : 'fa-eye'}`} aria-hidden="true" />
+        <span class="pz-transport__label">
+          {blanked
+            ? t('present.chrome.showScreen', { defaultValue: 'Show screen' })
+            : t('present.chrome.hideScreen', { defaultValue: 'Hide screen' })}
+        </span>
       </button>
       <button
         type="button"
@@ -50,6 +56,7 @@ export function Transport() {
         title={t('present.next')}
         aria-label={t('present.next')}
       >
+        <span class="pz-transport__label">{t('present.chrome.nextLabel', { defaultValue: 'Next' })}</span>
         <i class="fa-solid fa-chevron-right" aria-hidden="true" />
       </button>
     </div>

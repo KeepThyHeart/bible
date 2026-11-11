@@ -1,0 +1,5 @@
+/* Show / Add buttons in the verse picker: same sizing as the other pickers. */
+.pz-picker__actions .pz-btn { padding: 6px 12px; }
+@media (pointer: coarse) {
+  .pz-picker__actions .pz-btn { min-height: 36px; }
+}

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { tapWord, phraseOf, isWordPicked } from '../wordPick';
-import { moveTarget, newestItem, isSwipeLeft, rangeOnWall } from '../planLogic';
+import { moveTarget, newestItem, isSwipeLeft, rangeOnWall, adoptShown, onScreenSummary } from '../planLogic';
 
 describe('tapWord', () => {
   it('first tap starts, second completes in order', () => {
@@ -53,5 +53,38 @@ describe('planLogic', () => {
     expect(rangeOnWall(r, [{ verseIdStart: 5, textStart: 1, verseIdEnd: 5, textEnd: 3 }])).toBe(true);
     expect(rangeOnWall(r, [{ verseIdStart: 5, textStart: 1, textEnd: 4 }])).toBe(false);
     expect(rangeOnWall(null, [])).toBe(false);
+  });
+});
+
+describe('adoptShown', () => {
+  const psalm = { kind: 'passage', module: 'KJV', book: 19, chapter: 23 } as any;
+  const hymn = { kind: 'hymn', hymnId: 'h1' } as any;
+  it('adds an item that is not the newest row', () => {
+    expect(adoptShown(hymn, [])).toEqual({ action: 'add' });
+    expect(adoptShown(hymn, [{ id: 'a', item: psalm }])).toEqual({ action: 'add' });
+  });
+  it('reuses the newest row when it holds the same item', () => {
+    expect(adoptShown(psalm, [{ id: 'a', item: hymn }, { id: 'b', item: { ...psalm } }])).toEqual({ action: 'reuse', id: 'b' });
+  });
+});
+
+describe('onScreenSummary', () => {
+  const passage = { kind: 'passage', module: 'KJV', book: 19, chapter: 23 } as any;
+  it('is empty with nothing live', () => {
+    expect(onScreenSummary(null, false, null).mode).toBe('empty');
+  });
+  it('is hidden when blanked', () => {
+    expect(onScreenSummary(passage, true, 'Psalm 23:1', 'x')).toEqual({ mode: 'hidden', title: 'Psalm 23:1', line: '' });
+  });
+  it('shows reference and verse text for a passage', () => {
+    expect(onScreenSummary(passage, false, 'Psalm 23:1', 'The Lord is my shepherd')).toEqual({ mode: 'item', title: 'Psalm 23:1', line: 'The Lord is my shepherd' });
+  });
+  it('shows only the title for a hymn', () => {
+    expect(onScreenSummary({ kind: 'hymn', hymnId: 'h1' } as any, false, 'Amazing Grace')).toEqual({ mode: 'item', title: 'Amazing Grace', line: '' });
+  });
+  it('truncates a long quote', () => {
+    const r = onScreenSummary({ kind: 'quote', text: 'word '.repeat(60) } as any, false, 'q');
+    expect(r.line.length).toBeLessThanOrEqual(120);
+    expect(r.line.endsWith('…')).toBe(true);
   });
 });

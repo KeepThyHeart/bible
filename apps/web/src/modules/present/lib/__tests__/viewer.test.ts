@@ -79,3 +79,17 @@ describe('narrowing a chapter to the requested verses', () => {
       .toEqual([30, 31, 32, 33, 34, 35, 36]);
   });
 });
+
+describe('passage heading', () => {
+  it('uses the singular for the Psalms', async () => {
+    const { passageHeading } = await import('../ViewerApp');
+    expect(passageHeading('Psalms', 23)).toBe('Psalm 23');
+    expect(passageHeading('Genesis', 1)).toBe('Genesis 1');
+    expect(passageHeading('Book 19', 3)).toBe('Book 19 3');
+  });
+
+  it('words the unavailable message with the module', async () => {
+    const { passageUnavailableMessage } = await import('../ViewerApp');
+    expect(passageUnavailableMessage('KJV')).toBe('This passage is not available in KJV.');
+  });
+});

@@ -7,6 +7,8 @@ import type { InsertKind } from './editor/Toolbar';
 import { ItemChooser } from './ItemChooser';
 import { notesStore } from './notesStore';
 import { PlanOutline } from './PlanOutline';
+import { SelectionPopup } from './SelectionPopup';
+import { SuggestionBar } from './SuggestionBar';
 import './notesPane.css';
 
 const PHONE_QUERY = '(max-width: 759px)';
@@ -104,6 +106,7 @@ export function NotesPane() {
         )}
       </div>
       <div class="pz-notes__body">
+        {showEditor && <SuggestionBar />}
         {showEditor ? (
           <LazyNotesEditor
             doc={notesStore.doc}
@@ -113,12 +116,14 @@ export function NotesPane() {
             onShowAtCaret={notesStore.showAtCaret}
             onInsertRequest={onInsertRequest}
             label={t('present.app.notes')}
+            placeholder={t('present.notes.placeholder', { defaultValue: 'Type or paste notes here. References such as John 3:16, lines such as “Hymn: Amazing Grace” and “Quote: …” become things to show. Press the ▶ beside one to put it on the screen.' })}
           />
         ) : (
           <PlanOutline />
         )}
       </div>
-      {chooser && <ItemChooser key={chooser.mode === 'insert' ? 'insert' : chooser.id} target={chooser} />}
+      {showEditor && <SelectionPopup />}
+      {chooser && <ItemChooser key={chooser.mode === 'insert' || chooser.mode === 'selection' ? chooser.mode : chooser.id} target={chooser} />}
     </section>
   );
 }

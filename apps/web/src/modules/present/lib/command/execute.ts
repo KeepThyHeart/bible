@@ -141,6 +141,20 @@ export async function executeCommand(cmd: Command, deps: ExecuteDeps): Promise<E
       return ok;
     }
 
+    case 'step':
+      sink({ type: cmd.dir });
+      return ok;
+
+    case 'chapterVerse': {
+      const live = livePassage(state);
+      if (!live) return fail('noPassage');
+      showPassage(sink, state, {
+        module: live.module, book: live.book, chapter: cmd.chapter,
+        verseStart: cmd.verseStart, verseEnd: cmd.verseEnd,
+      });
+      return ok;
+    }
+
     case 'verse': {
       const live = livePassage(state);
       if (!live) return fail('noPassage');
@@ -165,5 +179,59 @@ export async function executeCommand(cmd: Command, deps: ExecuteDeps): Promise<E
       sink({ type: 'show', item: hymnItem(hymn, cmd.verses), index: 0 });
       return ok;
     }
+  }
+}
+
+export type ResolveItemResult =
+  | { ok: true; item: PresentItem; /** Passage target, for the host to label. */ ref?: { book: number; chapter: number; verseStart?: number; verseEnd?: number }; label?: string }
+  | { ok: false; reason: ExecuteFailure }
+  /** The command is not an item (blank, step, search ...). */
+  | null;
+
+/** The item a command stands for, without showing it: for "add to notes". */
+const failItem = (reason: ExecuteFailure): ResolveItemResult => ({ ok: false, reason });
+
+export async function resolveCommandItem(cmd: Command, deps: ExecuteDeps): Promise<ResolveItemResult> {
+  const { state } = deps;
+  const passage = (module: string, book: number, chapter: number, verseStart?: number, verseEnd?: number): ResolveItemResult => ({
+    ok: true,
+    item: {
+      kind: 'passage', module, book, chapter,
+      ...(verseStart !== undefined ? { verseStart } : {}),
+      ...(verseEnd !== undefined && verseEnd !== verseStart ? { verseEnd } : {}),
+    },
+    ref: { book, chapter, verseStart, verseEnd },
+  });
+  switch (cmd.type) {
+    case 'passage': {
+      const module = cmd.module ?? deps.defaultModule ?? livePassage(state)?.module;
+      if (!module) return failItem('noTranslation');
+      return passage(module, cmd.book, cmd.chapter, cmd.verseStart, cmd.verseEnd);
+    }
+    case 'verse': {
+      const live = livePassage(state);
+      if (!live) return failItem('noPassage');
+      return passage(live.module, live.book, live.chapter, cmd.verseStart, cmd.verseEnd);
+    }
+    case 'chapterVerse': {
+      const live = livePassage(state);
+      if (!live) return failItem('noPassage');
+      return passage(live.module, live.book, cmd.chapter, cmd.verseStart, cmd.verseEnd);
+    }
+    case 'hymn': {
+      if (!deps.searchHymns) return failItem('hymnUnavailable');
+      let hits: HymnSummary[];
+      try {
+        hits = await deps.searchHymns(cmd.title ?? cmd.number ?? '');
+      } catch {
+        return failItem('hymnUnavailable');
+      }
+      deps.rememberHymns?.(hits);
+      const hymn = pickHymn(hits, cmd);
+      if (!hymn) return failItem('hymnNotFound');
+      return { ok: true, item: hymnItem(hymn, cmd.verses), label: hymn.title };
+    }
+    default:
+      return null;
   }
 }

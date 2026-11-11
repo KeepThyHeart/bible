@@ -19,6 +19,7 @@ export function PhoneAddRow(props: {
 }) {
   const { t } = useTranslation();
   const close = () => props.onOpen(null);
+  const addLabel = t('present.phone.addToList', { defaultValue: 'Add to list' });
   const button = (kind: PickerKind, icon: string, label: string) => (
     <button
       type="button"
@@ -41,9 +42,9 @@ export function PhoneAddRow(props: {
       </div>
       {props.open && (
         <Sheet title={title} onClose={close}>
-          {props.open === 'verse' && <VersePicker onAddToNotes={item => props.onAdd(item)} onDone={close} />}
-          {props.open === 'hymn' && <PresentHymns onAddToNotes={item => props.onAdd(item)} />}
-          {props.open === 'quote' && <PresentQuote startOpen onAddToNotes={item => props.onAdd(item)} onDone={close} />}
+          {props.open === 'verse' && <VersePicker addLabel={addLabel} onAddToNotes={item => props.onAdd(item)} onDone={close} />}
+          {props.open === 'hymn' && <PresentHymns addLabel={addLabel} onAddToNotes={item => props.onAdd(item)} />}
+          {props.open === 'quote' && <PresentQuote addLabel={addLabel} startOpen onAddToNotes={item => props.onAdd(item)} onDone={close} />}
         </Sheet>
       )}
     </>

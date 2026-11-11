@@ -16,7 +16,7 @@ describe('computeDecorations', () => {
     const out = computeDecorations(result([item({})]), opts);
     expect(out[0]).toMatchObject({ type: 'inline', from: 13, to: 22 });
     expect(out[0].type === 'inline' && out[0].attrs.class).toBe('pn-item pn-item--passage');
-    expect(out[1]).toEqual({ type: 'widget', pos: 22, itemId: 'i1' });
+    expect(out[1]).toEqual({ type: 'widget', pos: 13, itemId: 'i1' });
   });
 
   it('marks amber items with the translated reason and no widget when nothing is showable', () => {
@@ -80,7 +80,7 @@ describe('play markers', () => {
       onPlay: () => {},
       onItemClick: () => {},
       onHighlightClick: () => {},
-      playTitle: (label) => (label ? `Show ${label} again` : 'Show this again'),
+      playTitle: (label, again) => (label ? `Show ${label}${again ? ' again' : ''}` : 'Show again'),
     });
     const doc = docFromJSON({ type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'John 3:16' }] }] } as never);
     const host = document.createElement('div');
@@ -93,6 +93,21 @@ describe('play markers', () => {
     view.dispatch(view.state.tr.setMeta(notesDecoKey, { detection, playItemId: 'i1' }));
     const widget = host.querySelector('.pn-play')!;
     expect(widget.getAttribute('aria-label')).toBe('Show John 3:16 again');
+    // The button sits before the item text.
+    expect(widget.nextSibling?.textContent).toBe('John 3:16');
+    // Not the last shown: plain wording.
+    view.dispatch(view.state.tr.setMeta(notesDecoKey, { playItemId: null }));
+    expect(host.querySelector('.pn-play')!.getAttribute('aria-label')).toBe('Show John 3:16');
+    view.dispatch(view.state.tr.setMeta(notesDecoKey, { playItemId: 'i1' }));
+    // Ctrl+click on the text shows the item; plain click does not.
+    const played: string[] = [];
+    const p2 = createDecorationPlugins({ translate: (k) => k, onPlay: (id) => played.push(id), onItemClick: () => {}, onHighlightClick: () => {}, playTitle: () => '' });
+    const handle = p2[0].props.handleClick as (v: unknown, p: number, e: MouseEvent) => boolean;
+    const span = host.querySelector('[data-pn-item]') as HTMLElement;
+    expect(handle(view, 1, { target: span, ctrlKey: false, metaKey: false, preventDefault() {} } as never)).toBe(false);
+    expect(played).toEqual([]);
+    expect(handle(view, 1, { target: span, ctrlKey: true, metaKey: false, preventDefault() {} } as never)).toBe(true);
+    expect(played).toEqual(['i1']);
     const gutter = host.querySelector('.pn-gutter')!;
     expect(gutter.getAttribute('aria-hidden')).toBe('true');
     expect(gutter.querySelector('button')!.tabIndex).toBe(-1);

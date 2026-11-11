@@ -12,6 +12,9 @@ export type { EditorBlock, EditorBlockMark } from './docToBlocks';
 export type { ProseMirrorJSON } from './schema';
 export type { InsertKind } from './Toolbar';
 
+export const DEFAULT_PLACEHOLDER =
+  'Type or paste notes here. References such as John 3:16, lines such as “Hymn: Amazing Grace” and “Quote: …” become things to show. Press the ▶ beside one to put it on the screen.';
+
 export interface NotesEditorProps {
   /** The saved document; null starts empty. Pass a different object (e.g. after opening another service) to replace the content. */
   doc: ProseMirrorJSON | null;
@@ -27,6 +30,8 @@ export interface NotesEditorProps {
   onReady?: (view: EditorView | null) => void;
   /** Accessible name of the editing surface (a contenteditable has no label of its own). */
   label?: string;
+  /** Hint shown while the document is empty. Defaults to the English text. */
+  placeholder?: string;
   class?: string;
 }
 
@@ -44,10 +49,15 @@ export function NotesEditor(props: NotesEditorProps) {
   const [tick, setTick] = useState(0);
   const [view, setView] = useState<EditorView | null>(null);
 
+  const cbs = () => ({
+    ...propsRef.current,
+    placeholder: propsRef.current.placeholder ?? DEFAULT_PLACEHOLDER,
+  });
+
   const makeState = (json: ProseMirrorJSON | null, extra?: Plugin[]) =>
     EditorState.create({
       doc: docFromJSON(json),
-      plugins: buildPlugins(() => propsRef.current, extra ?? propsRef.current.plugins),
+      plugins: buildPlugins(cbs, extra ?? propsRef.current.plugins),
     });
 
   useEffect(() => {
@@ -95,7 +105,7 @@ export function NotesEditor(props: NotesEditorProps) {
   useEffect(() => {
     const v = viewRef.current;
     if (!v) return;
-    v.updateState(v.state.reconfigure({ plugins: buildPlugins(() => propsRef.current, props.plugins) }));
+    v.updateState(v.state.reconfigure({ plugins: buildPlugins(cbs, props.plugins) }));
   }, [props.plugins]);
 
   return (
