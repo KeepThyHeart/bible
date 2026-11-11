@@ -20,9 +20,11 @@ import type {
   ITtsEngine,
   LoadProgress,
   OpenChapterOptions,
+  PronunciationOverlay,
   TtsEngineConfig,
   VerseText,
 } from '@bible/core/browser';
+import { applyPronunciation, pronunciationLocale, pronunciationVerseKey } from '@bible/core/browser';
 import { TtsChapterAudio, type LookAhead } from './TtsChapterAudio';
 import { abortedError, toTtsError } from './ttsErrors';
 import { documentVisibility, type PageVisibility } from './visibility';
@@ -40,6 +42,11 @@ export interface TtsProviderOptions {
   defaultLanguage?: string;
   lookAhead?: Partial<LookAhead>;
   longVerseChars?: number;
+  /**
+   * The pronunciation overlay for a module in a locale (`en-us`, from the voice's language),
+   * or null. Used only when the engine speaks pronunciation markers.
+   */
+  pronunciation?: (moduleAbbr: string, locale: string) => Promise<PronunciationOverlay | null>;
   visibility?: PageVisibility;
   createObjectURL?: (blob: Blob) => string;
   revokeObjectURL?: (url: string) => void;
@@ -221,6 +228,16 @@ export class TtsAudioProvider implements IAudioProvider {
     return voice;
   }
 
+  /** The overlay for the chapter's module in the voice's locale; none when the engine cannot use one. Never throws. */
+  private async overlayFor(ref: ChapterRef, voice: AudioVoice): Promise<PronunciationOverlay | null> {
+    if (!this.engine.capabilities.pronunciation || !this.opts.pronunciation) return null;
+    try {
+      return await this.opts.pronunciation(ref.moduleAbbr, pronunciationLocale(voice.language));
+    } catch {
+      return null;
+    }
+  }
+
   private async build(ref: ChapterRef, opts: OpenChapterOptions, signal: AbortSignal, prepareVoice: boolean): Promise<TtsChapterAudio> {
     const language = this.opts.languageOf(ref.moduleAbbr);
     const voice = await this.voiceFor(language, opts.voiceId);
@@ -231,8 +248,11 @@ export class TtsAudioProvider implements IAudioProvider {
       await this.engine.prepare(voice.id, opts.onProgress ?? (() => {}), signal);
       if (signal.aborted) throw abortedError();
     }
-    const verses = await this.source(ref, signal);
+    const [verses, overlay] = await Promise.all([this.source(ref, signal), this.overlayFor(ref, voice)]);
     if (signal.aborted) throw abortedError();
+    const pronounce = overlay
+      ? (text: string, verse: number | null) => applyPronunciation(text, overlay, verse === null ? undefined : pronunciationVerseKey(ref.book, ref.chapter, verse))
+      : undefined;
     const chapter = new TtsChapterAudio({
       ref,
       language,
@@ -245,6 +265,7 @@ export class TtsAudioProvider implements IAudioProvider {
       verses,
       lookAhead: this.lookAhead,
       longVerseChars: this.longVerseChars,
+      pronounce,
       visibility: this.visibility,
       createObjectURL: this.createObjectURL,
       revokeObjectURL: this.revokeObjectURL,

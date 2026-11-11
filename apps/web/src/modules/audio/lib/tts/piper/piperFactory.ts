@@ -14,6 +14,7 @@ export const piperFactory: TtsEngineFactory = {
     // length_scale is divided by the rate, so speed changes without pitch artefacts.
     rate: { min: 0.5, max: 2, step: 0.1 },
     nativeRate: true,
+    pronunciation: true,
     languages: PIPER_LANGUAGES,
     backends: ['wasm'],
     approxRuntimeBytes: PIPER_RUNTIME_BYTES,

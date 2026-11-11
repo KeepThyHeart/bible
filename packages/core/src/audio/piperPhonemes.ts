@@ -20,6 +20,7 @@
  * 3. Speed is `length_scale / rate`.
  */
 
+import { hasPronunciation, splitPronunciation, stripPronunciation } from './pronunciation';
 import type { AudioError } from './types';
 
 const engineError = (message: string, retryable = true): AudioError => ({ code: 'engine', message, retryable });
@@ -94,10 +95,197 @@ export function splitSentences(text: string): string[] {
   return text.split(/(?<=[.!?…])\s+/).map(s => s.trim()).filter(Boolean);
 }
 
-/** The `callMain` arguments that phonemize `text` (one entry per sentence) for an espeak voice. */
+const phonemizerArgs = (espeakVoice: string, entries: string[]): string[] =>
+  ['-l', espeakVoice, '--input', JSON.stringify(entries.map(t => ({ text: t }))), '--espeak_data', '/espeak-ng-data'];
+
+/** The `callMain` arguments that phonemize `text` (one entry per sentence) for an espeak voice. Pronunciation markers are read as their words. */
 export function piperPhonemizerArgs(espeakVoice: string, text: string): string[] {
-  const sentences = splitSentences(text);
-  return ['-l', espeakVoice, '--input', JSON.stringify(sentences.map(t => ({ text: t }))), '--espeak_data', '/espeak-ng-data'];
+  return phonemizerArgs(espeakVoice, splitSentences(stripPronunciation(text)));
+}
+
+/** One phonemizer run for a text that may carry pronunciation markers. */
+export interface PiperPhonemizerPlan {
+  /** `callMain` arguments: one entry per sentence, or per plain run of a sentence with markers. */
+  args: string[];
+  /** The phonemes of each sentence from the printed lines, or null when the output does not line up with the entries. */
+  assemble(lines: string[]): string[][] | null;
+}
+
+type Piece = { entry: number } | { symbols: string[] };
+type Run = { text: string } | { ipa: string[] };
+
+const CLAUSE_PUNCTUATION = ',.;:!?';
+const HAS_WORD = /[\p{L}\p{N}]/u;
+const STRESS = new Set(['ˈ', 'ˌ']);
+const IPA_VOWELS = new Set([...'aeiouæɐɑɒɔəɚɛɜɪʊʌᵻ']);
+
+/**
+ * Stand-in words for corrected words. espeak sees the whole sentence with these in place, so
+ * the words around a correction keep their context ("the" before a vowel, "of the" run
+ * together, unstressed "to"), then the stand-in's phonemes are swapped for the correction's.
+ * One begins with a consonant, one with a vowel, chosen by the correction's first sound.
+ */
+export const PIPER_PLACEHOLDERS = { consonant: 'mango', vowel: 'olive' } as const;
+
+/** The sentence's plain runs and corrections; a correction the voice cannot say is read as its word. */
+function sentenceRuns(sentence: string, known?: (symbol: string) => boolean): Run[] {
+  const runs: Run[] = [];
+  for (const r of splitPronunciation(sentence)) {
+    const symbols = r.kind === 'ipa' ? [...r.ipa] : null;
+    if (symbols && (!known || symbols.every(known))) { runs.push({ ipa: symbols }); continue; }
+    const t = r.kind === 'ipa' ? r.word : r.text;
+    const last = runs[runs.length - 1];
+    if (last && 'text' in last) last.text += t; else runs.push({ text: t });
+  }
+  return runs;
+}
+
+const startsWithVowel = (ipa: string[]): boolean => IPA_VOWELS.has(ipa.find(s => !STRESS.has(s)) ?? '');
+
+const isBoundary = (s: string | undefined): boolean => s === undefined || s === ' ' || CLAUSE_PUNCTUATION.includes(s);
+
+/**
+ * Replace each stand-in, in order, in a sentence's phonemes with its correction. Matching
+ * ignores stress marks (espeak may weaken the stand-in's stress in context) and needs a word
+ * boundary on both sides. Null when a stand-in cannot be found.
+ */
+function swapPlaceholders(phonemes: string[], swaps: Array<{ pattern: string[]; ipa: string[] }>): string[] | null {
+  const out: string[] = [];
+  let at = 0;
+  for (const { pattern, ipa } of swaps) {
+    let found = -1;
+    let end = -1;
+    for (let i = at; i < phonemes.length && found < 0; i++) {
+      if (STRESS.has(phonemes[i])) continue;
+      if (!isBoundary([...phonemes.slice(0, i)].reverse().find(s => !STRESS.has(s)))) continue;
+      let j = i;
+      let k = 0;
+      while (j < phonemes.length && k < pattern.length) {
+        if (STRESS.has(phonemes[j])) { j++; continue; }
+        if (phonemes[j] !== pattern[k]) break;
+        j++; k++;
+      }
+      if (k === pattern.length && isBoundary(phonemes[j])) { found = i; end = j; }
+    }
+    if (found < 0) return null;
+    // A stress mark right before the stand-in belongs to it (vowel-initial words).
+    const begin = found > at && STRESS.has(phonemes[found - 1]) ? found - 1 : found;
+    out.push(...phonemes.slice(at, begin), ...ipa);
+    at = end;
+  }
+  out.push(...phonemes.slice(at));
+  return out.filter((s, i) => s !== ' ' || out[i - 1] !== ' ');
+}
+
+/**
+ * Plan the phonemizer run for `text`. A sentence without markers is one entry, exactly as
+ * `piperPhonemizerArgs` (so unmarked text gets the same model input as before).
+ *
+ * - `placeholder` (preferred): a sentence with markers is one entry with a stand-in word in
+ *   place of each correction (`PIPER_PLACEHOLDERS`); the stand-ins are also phonemized alone,
+ *   and their phonemes in the sentence are swapped for the corrections'.
+ * - `split` (fallback): a sentence with markers is cut at them; each plain run is its own entry
+ *   and the correction goes between with a word space. The words next to a correction lose
+ *   their context. espeak drops punctuation at the start of an entry, so that is emitted here.
+ *
+ * A marker whose IPA has a symbol the voice cannot say (`known`) is read as its word instead.
+ */
+export function planPiperPhonemizer(
+  espeakVoice: string,
+  text: string,
+  known?: (symbol: string) => boolean,
+  mode: 'placeholder' | 'split' = 'placeholder',
+): PiperPhonemizerPlan {
+  const entries: string[] = [];
+  type Sentence = { pieces: Piece[]; swaps?: Array<{ placeholder: 'consonant' | 'vowel'; ipa: string[] }> };
+  const sentences: Sentence[] = [];
+  for (const sentence of splitSentences(text)) {
+    if (!hasPronunciation(sentence)) {
+      sentences.push({ pieces: [{ entry: entries.push(sentence) - 1 }] });
+      continue;
+    }
+    const runs = sentenceRuns(sentence, known);
+    if (mode === 'placeholder') {
+      const swaps: NonNullable<Sentence['swaps']> = [];
+      let plain = '';
+      for (const r of runs) {
+        if ('text' in r) { plain += r.text; continue; }
+        const placeholder = startsWithVowel(r.ipa) ? 'vowel' : 'consonant';
+        swaps.push({ placeholder, ipa: r.ipa });
+        plain += PIPER_PLACEHOLDERS[placeholder];
+      }
+      sentences.push({ pieces: [{ entry: entries.push(plain) - 1 }], swaps });
+      continue;
+    }
+    const pieces: Piece[] = [];
+    let space = false;
+    const add = (p: Piece): void => {
+      if (space && pieces.length > 0) pieces.push({ symbols: [' '] });
+      space = false;
+      pieces.push(p);
+    };
+    for (const r of runs) {
+      if ('ipa' in r) { add({ symbols: r.ipa }); continue; }
+      const lead = /^[^\p{L}\p{N}]*/u.exec(r.text)![0];
+      const punct = [...lead].filter(c => CLAUSE_PUNCTUATION.includes(c));
+      if (punct.length > 0) { pieces.push({ symbols: punct }); space = true; }
+      if (/[\s-]/.test(lead)) space = true;
+      const body = r.text.slice(lead.length);
+      if (HAS_WORD.test(body)) {
+        add({ entry: entries.push(body) - 1 });
+        if (/\s$/.test(body)) space = true;
+      }
+    }
+    sentences.push({ pieces });
+  }
+  const swapped = sentences.some(x => x.swaps && x.swaps.length > 0);
+  const standIns = swapped ? { consonant: entries.push(PIPER_PLACEHOLDERS.consonant) - 1, vowel: entries.push(PIPER_PLACEHOLDERS.vowel) - 1 } : null;
+  return {
+    args: phonemizerArgs(espeakVoice, entries),
+    assemble(lines) {
+      const printed = parsePhonemizerLines(lines);
+      if (printed.length !== entries.length) return null;
+      const patterns = standIns
+        ? { consonant: printed[standIns.consonant].filter(s => !STRESS.has(s)), vowel: printed[standIns.vowel].filter(s => !STRESS.has(s)) }
+        : null;
+      const out: string[][] = [];
+      for (const { pieces, swaps } of sentences) {
+        const joined: string[] = [];
+        for (const p of pieces) {
+          for (const s of 'entry' in p ? printed[p.entry] : p.symbols) {
+            if (s === ' ' && (joined.length === 0 || joined[joined.length - 1] === ' ')) continue;
+            joined.push(s);
+          }
+        }
+        if (!swaps || swaps.length === 0) { out.push(joined); continue; }
+        const result = swapPlaceholders(joined, swaps.map(w => ({ pattern: patterns![w.placeholder], ipa: w.ipa })));
+        if (!result) return null;
+        out.push(result);
+      }
+      return out;
+    },
+  };
+}
+
+/**
+ * Phonemize `text` (markers allowed) with `run`, which calls the phonemizer with the given
+ * arguments and returns the lines it printed. Shared by the browser worker and the native
+ * build tool. Stand-ins first; if they cannot be found in the output, the split plan; if
+ * that does not line up either, the text without markers, rather than failing.
+ */
+export async function phonemizePiper(
+  run: (args: string[]) => Promise<string[]>,
+  espeakVoice: string,
+  text: string,
+  known?: (symbol: string) => boolean,
+): Promise<string[][]> {
+  if (!hasPronunciation(text)) return parsePhonemizerLines(await run(piperPhonemizerArgs(espeakVoice, text)));
+  for (const mode of ['placeholder', 'split'] as const) {
+    const plan = planPiperPhonemizer(espeakVoice, text, known, mode);
+    const out = plan.assemble(await run(plan.args));
+    if (out) return out;
+  }
+  return parsePhonemizerLines(await run(piperPhonemizerArgs(espeakVoice, text)));
 }
 
 /** The phonemes of each sentence from the phonemizer's printed lines (non-JSON lines are skipped). */

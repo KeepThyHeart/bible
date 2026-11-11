@@ -6,7 +6,10 @@
 import { cpus } from 'node:os';
 import { checkExisting } from './chapterFiles';
 import type { ChapterResult, ChapterTask } from './chapterTask';
-import { TextPreparer, type AudioBuildInfo, type AudioProvenance, type ITextPreparer, type ITtsEngine } from './core';
+import {
+  TextPreparer, applyPronunciation, pronunciationLocale, pronunciationVerseKey, spokenTextHash,
+  type AudioBuildInfo, type AudioProvenance, type ITextPreparer, type ITtsEngine, type PronunciationOverlay,
+} from './core';
 import { DEFAULT_ENCODE, type EncodeOptions } from './encode';
 import type { EngineContext, EngineDefinition, Quantization } from './engines/types';
 import { getEngine } from './engines/registry';
@@ -17,6 +20,7 @@ import type { ModuleText } from './moduleSource';
 import { DEFAULT_RENDER, type RenderSettings } from './render';
 import { decideRights } from './rights';
 import { selectChapters, bookLabel, type ChapterId } from './selection';
+import { loadPronunciation, voiceLanguage } from './pronunciation';
 import { prepareChapterText, type PreparedChapter } from './text';
 
 export const TOOL_NAME = '@bible/audio-build 0.1.0';
@@ -41,6 +45,8 @@ export interface BuildOptions {
   quantization: Quantization;
   ffmpeg: string;
   iHaveRights: boolean;
+  /** Pronunciation overlay root (`<dir>/<locale>/...`, bible-scripts layout), or null for none. */
+  pronunciationDir?: string | null;
   /** Narrator label in the index; default "<engine label>, <voice label>". */
   label?: string;
   opusKbps?: number;
@@ -57,6 +63,8 @@ export interface RunDeps {
   /** In-process engine (tests); with it `jobs` is ignored and runs happen in this thread. */
   engine?: ITtsEngine;
   textPreparer?: ITextPreparer;
+  /** The overlay to apply instead of reading `pronunciationDir` (tests). */
+  pronunciation?: PronunciationOverlay | null;
   log?: (message: string) => void;
   now?: () => number;
 }
@@ -135,6 +143,29 @@ export async function runBuild(o: BuildOptions, deps: RunDeps): Promise<RunSumma
   const selected = selectChapters(available, { books: o.books, chapters: o.chapters });
   const prep = deps.textPreparer ?? new TextPreparer();
 
+  // Pronunciation: only for an engine that speaks markers, in the voice's locale.
+  let overlay: PronunciationOverlay | null = null;
+  if (def.pronunciation) {
+    if (deps.pronunciation !== undefined) overlay = deps.pronunciation;
+    else if (o.pronunciationDir) {
+      const lang = voiceLanguage(def, voice);
+      if (lang) {
+        const loaded = loadPronunciation(o.pronunciationDir, pronunciationLocale(lang), o.module);
+        overlay = loaded.overlay;
+        log(loaded.summary);
+      }
+    }
+  }
+  let staleVerses = 0;
+  const pronounce = overlay
+    ? (book: number, chapter: number) => (text: string, verse: number | null): string => {
+      const key = verse === null ? undefined : pronunciationVerseKey(book, chapter, verse);
+      const entry = key ? overlay!.module?.verses.get(key) : undefined;
+      if (entry && entry.hash !== spokenTextHash(text)) staleVerses++;
+      return applyPronunciation(text, overlay, key);
+    }
+    : null;
+
   // Plan: prepare every selected chapter's text (cheap), then decide render or skip.
   const planned: PlanEntry[] = [];
   const todo: PlanEntry[] = [];
@@ -147,6 +178,7 @@ export async function runBuild(o: BuildOptions, deps: RunDeps): Promise<RunSumma
       bookName: mod.bookName(id.book),
       language: mod.language,
       verses: mod.verses(id.book, id.chapter),
+      pronounce: pronounce?.(id.book, id.chapter),
     });
     if (prepared.verses.length === 0) { log(`${bookLabel(id.book)} ${id.chapter}: no text, skipped.`); skipped++; continue; }
     const entry: PlanEntry = { id, prepared, estimatedSeconds: estimateSeconds(prepared, o.gapMs, o.introGapMs) };
@@ -157,6 +189,7 @@ export async function runBuild(o: BuildOptions, deps: RunDeps): Promise<RunSumma
     }
     todo.push(entry);
   }
+  if (staleVerses > 0) log(`Pronunciation: ${staleVerses} verse(s) changed since their corrections were made; those corrections were skipped.`);
   const estimatedAudioSeconds = todo.reduce((n, e) => n + e.estimatedSeconds, 0);
 
   const summary: RunSummary = {

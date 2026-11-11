@@ -4,11 +4,12 @@
  * Mounted only while the `audio` server module is on: `features.audio` set and the module not
  * switched off (see `serverModules.ts`; with it off this file is never imported and `/audio`
  * answers "not available"). The
- * directory (default `<data dir>/audio`) holds two trees:
+ * directory (default `<data dir>/audio`) holds three trees:
  *
  *   v1/{module}/index.json                                 per-translation index (mutable)
  *   v1/{module}/{narrator}/{rev}/{book}/{ccc}.json|.ogg|.mp3   chapter manifest and audio (immutable)
  *   tts/{engine}/...                                       a TTS engine's runtime and voice files
+ *   pronunciation/{accent}/{lexicon|MODULE}.json           pronunciation overlay for on-device speech (mutable)
  *
  * Why the server serves them at all: the Content-Security-Policy allows media
  * and fetches from this origin only, so pointing the browser at a CDN would mean
@@ -29,7 +30,7 @@ import { registerRoute } from '../../routes/routeRegistry.js';
 import { logger } from '../../utils/logger.js';
 
 /** The only top-level directories that are served. */
-const ALLOWED_ROOTS = new Set(['v1', 'tts']);
+const ALLOWED_ROOTS = new Set(['v1', 'tts', 'pronunciation']);
 
 const IMMUTABLE = 'public, max-age=31536000, immutable';
 const INDEX_CACHE = 'public, max-age=300';
@@ -76,6 +77,9 @@ export function createAudioRouter(dir: string): Router {
         res.set('Cache-Control', INDEX_CACHE);
       } else if (/\/tts\/[^/]+\/index\.json$/.test(p)) {
         // Asset index of a TTS engine (written by fetch-piper-assets): always revalidate.
+        res.set('Cache-Control', ENGINE_INDEX_CACHE);
+      } else if (/\/pronunciation\//.test(p)) {
+        // Corrections are edited in place: always revalidate (the client keeps an offline copy).
         res.set('Cache-Control', ENGINE_INDEX_CACHE);
       } else if (/\/v1\//.test(p)) {
         // The revision is in the path, so these bytes never change.

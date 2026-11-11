@@ -584,3 +584,50 @@ describe('review fixes', () => {
 });
 
 beforeEach(() => { vi.restoreAllMocks(); });
+
+describe('pronunciation overlay', () => {
+  const overlay = {
+    lexicon: { locale: 'en-us', entries: new Map([['hast', 'hˈæst'], ['John', 'dʒˈɑːn']]), senses: new Map() },
+    module: null,
+  };
+  const build = (caps: { pronunciation?: boolean }, voiceId = 'v-en-1') => {
+    const engine = new FakeTtsEngine({
+      voices: [{ id: 'v-en-1', label: 'Ann', language: 'en-US' }, { id: 'v-en-2', label: 'Bob', language: 'en-GB' }],
+      caps,
+    });
+    engine.prepared.add('v-en-1');
+    engine.prepared.add('v-en-2');
+    const asked: string[] = [];
+    const provider = new TtsAudioProvider(engine, new TextPreparer(), async () => [{ verse: 1, text: 'Why hast thou done this?' }], {
+      languageOf: () => 'en',
+      bookName: () => 'John',
+      pronunciation: async (moduleAbbr, locale) => { asked.push(`${moduleAbbr}:${locale}`); return locale === 'en-us' ? overlay : null; },
+      visibility: new FakeVisibility(),
+      createObjectURL: () => 'blob:x',
+      revokeObjectURL: () => {},
+    });
+    return { engine, asked, open: () => provider.openChapter(ref, { rate: 1, voiceId }, signal()) };
+  };
+
+  it('marks corrected words (verse and intro) for an engine that speaks markers, in the voice\'s locale', async () => {
+    const r = build({ pronunciation: true });
+    const chapter = await r.open();
+    await chapter.segmentFor(1, signal());
+    expect(r.asked).toEqual(['WEB:en-us']);
+    expect(r.engine.requests[0].text).toBe('⟦John|dʒˈɑːn⟧, chapter 3. Why ⟦hast|hˈæst⟧ thou done this?');
+  });
+
+  it('sends plain text to an engine without marker support, and asks for no overlay', async () => {
+    const r = build({});
+    await (await r.open()).segmentFor(1, signal());
+    expect(r.asked).toEqual([]);
+    expect(r.engine.requests[0].text).toBe('John, chapter 3. Why hast thou done this?');
+  });
+
+  it('a voice in another locale gets no overlay', async () => {
+    const r = build({ pronunciation: true }, 'v-en-2');
+    await (await r.open()).segmentFor(1, signal());
+    expect(r.asked).toEqual(['WEB:en-gb']);
+    expect(r.engine.requests[0].text).not.toContain('⟦');
+  });
+});

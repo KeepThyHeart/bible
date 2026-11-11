@@ -2,7 +2,9 @@
  * The text of a chapter as it is spoken, and the hash that ties a recording to it.
  *
  * The preparer is core's `TextPreparer`, the same instance of code the web app
- * runs for live speech, so recordings and on-device speech say the same words.
+ * runs for live speech, so recordings and on-device speech say the same words. With a
+ * pronunciation overlay the text carries its markers, so a changed correction changes the
+ * hash and re-renders exactly the chapters it touches.
  */
 
 import { createHash } from 'node:crypto';
@@ -25,6 +27,8 @@ export interface PrepareInput {
   language: string;
   verses: VerseText[];
   readIntro?: boolean;
+  /** Pronunciation corrections (`applyPronunciation`): verse text and number, or null for the intro. */
+  pronounce?: (text: string, verse: number | null) => string;
 }
 
 /** Same rules as the player: a repeated verse number is ignored, an empty verse is skipped. */
@@ -34,14 +38,15 @@ export function prepareChapterText(prep: ITextPreparer, input: PrepareInput): Pr
   for (const raw of input.verses) {
     if (seen.has(raw.verse)) continue;
     seen.add(raw.verse);
-    const text = prep.verse(raw, input.language).trim();
+    let text = prep.verse(raw, input.language).trim();
+    if (text && input.pronounce) text = input.pronounce(text, raw.verse);
     if (text) verses.push({ verse: raw.verse, text });
   }
   verses.sort((a, b) => a.verse - b.verse);
   let intro: string | null = null;
   if (input.readIntro !== false && verses.length > 0) {
     const t = prep.chapterIntro({ moduleAbbr: input.moduleAbbr, book: input.book, chapter: input.chapter }, input.bookName, input.language).trim();
-    intro = t || null;
+    intro = t ? (input.pronounce ? input.pronounce(t, null) : t) : null;
   }
   return { intro, verses, textHash: hashChapterText(intro, verses) };
 }

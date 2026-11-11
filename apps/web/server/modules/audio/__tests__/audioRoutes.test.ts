@@ -27,6 +27,7 @@ beforeAll(() => {
   put('v1/KJV/n1/1/43/003.mp3', AUDIO);
   put('tts/piper/voice.onnx', 'model');
   put('tts/piper/runtime.wasm', 'wasm');
+  put('pronunciation/en-us/lexicon.json', '{"format":"kth-pron-lexicon/2"}');
   put('secret.txt', 'top secret');
   put('v1/.hidden', 'nope');
   app = express();
@@ -38,6 +39,14 @@ beforeAll(() => {
 afterAll(() => rmSync(root, { recursive: true, force: true }));
 
 describe('audio routes', () => {
+  it('serves the pronunciation overlay as JSON that is always revalidated', async () => {
+    const res = await request(app).get('/audio/pronunciation/en-us/lexicon.json');
+    expect(res.status).toBe(200);
+    expect(res.headers['content-type']).toContain('application/json');
+    expect(res.headers['cache-control']).toBe('no-cache');
+    expect((await request(app).get('/audio/pronunciation/en-us/missing.json')).status).toBe(404);
+  });
+
   it('serves a chapter file with an audio type, immutable caching and range support', async () => {
     const res = await request(app).get('/audio/v1/KJV/n1/1/43/003.ogg');
     expect(res.status).toBe(200);

@@ -34,7 +34,7 @@
  */
 
 import {
-  parsePhonemizerLines, parseVoiceConfig, phonemesToIds, piperPhonemizerArgs, piperScales, piperSilenceSamples, splitSentences,
+  parsePhonemizerLines, parseVoiceConfig, phonemesToIds, phonemizePiper, piperScales, piperSilenceSamples, splitSentences,
   type AudioError, type IAssetCache, type LoadProgress, type PiperVoiceConfig, type SynthesisRequest,
 } from '@bible/core/browser';
 import type { SynthesizeValue, TtsWorkerHandlers } from '../ttsWorkerProtocol';
@@ -203,10 +203,10 @@ export function createPiperHandlers(deps: PiperDeps): TtsWorkerHandlers {
     try { await old?.session.release?.(); } catch { /* best effort */ }
   }
 
-  /** The phonemes of each sentence, in order. */
-  function phonemize(text: string, espeakVoice: string): Promise<string[][]> {
+  /** The lines the phonemizer prints for `args`, on a fresh module (`callMain` may run once). */
+  function runPhonemizer(args: string[]): Promise<string[]> {
     const create = createPhonemizer!;
-    return new Promise<string[][]>((resolve, reject) => {
+    return new Promise<string[]>((resolve, reject) => {
       const lines: string[] = [];
       const errors: string[] = [];
       create({
@@ -218,12 +218,16 @@ export function createPiperHandlers(deps: PiperDeps): TtsWorkerHandlers {
         getPreloadedPackage: name => (name.endsWith('.data') ? phonemizerData : null),
       }).then(mod => {
         // callMain is synchronous and prints while it runs.
-        mod.callMain(piperPhonemizerArgs(espeakVoice, text));
-        const out = parsePhonemizerLines(lines);
-        if (out.length === 0) reject(engineError(errors.at(-1) || 'The phonemizer produced no output.'));
-        else resolve(out);
+        mod.callMain(args);
+        if (parsePhonemizerLines(lines).length === 0) reject(engineError(errors.at(-1) || 'The phonemizer produced no output.'));
+        else resolve(lines);
       }).catch(reject);
     });
+  }
+
+  /** The phonemes of each sentence, in order; pronunciation markers are spliced in (core `phonemizePiper`). */
+  function phonemize(text: string, config: PiperVoiceConfig): Promise<string[][]> {
+    return phonemizePiper(runPhonemizer, config.espeakVoice, text, s => s in config.phonemeIdMap);
   }
 
   return {
@@ -253,7 +257,7 @@ export function createPiperHandlers(deps: PiperDeps): TtsWorkerHandlers {
       const text = req.text.trim();
       if (!text) return { pcm: new Float32Array(piperSilenceSamples(voice.config)), sampleRate: voice.config.sampleRate };
 
-      const ids = phonemesToIds(await phonemize(text, voice.config.espeakVoice), voice.config.phonemeIdMap);
+      const ids = phonemesToIds(await phonemize(text, voice.config), voice.config.phonemeIdMap);
       if (signal.aborted) throw aborted();
       if (ids.length === 0) return { pcm: new Float32Array(piperSilenceSamples(voice.config)), sampleRate: voice.config.sampleRate };
 

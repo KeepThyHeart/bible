@@ -1,5 +1,6 @@
 /** `bible-audio-build`: argument parsing, module lookup, progress and exit code. */
 
+import { existsSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join, resolve as resolvePath } from 'node:path';
 import { parseArgs } from 'node:util';
@@ -32,11 +33,20 @@ Options:
   --cache-dir=DIR       models and voices (default ~/.cache/bible-audio-build)
   --ffmpeg=PATH         ffmpeg binary (default $FFMPEG or ffmpeg)
   --label=TEXT          narrator label shown to readers
+  --pronunciation=DIR   pronunciation overlay root (default <out>/pronunciation as fetch:piper installs it,
+                        else a bible-scripts checkout next to this repo)
+  --no-pronunciation    speak espeak's own pronunciation (no overlay)
   --force               render again even when a chapter is up to date
   --dry-run             list what would be rendered, with an estimate; loads no model
   --i-have-rights       record a translation whose licence does not clearly allow audio derivatives
   --help
 `;
+
+/** Where fetch:piper installed the overlay, else a bible-scripts checkout next to this repo. */
+function defaultPronunciationDir(audioDir: string): string {
+  const installed = join(audioDir, 'pronunciation');
+  return existsSync(installed) ? installed : resolvePath(__dirname, '../../../../bible-scripts/pronunciation');
+}
 
 export function parseCli(argv: string[], env: NodeJS.ProcessEnv = process.env): { options: BuildOptions; moduleFile?: string; modulesDir: string; help: boolean } {
   const { values: v } = parseArgs({
@@ -47,6 +57,7 @@ export function parseCli(argv: string[], env: NodeJS.ProcessEnv = process.env): 
       books: { type: 'string' }, chapters: { type: 'string' }, out: { type: 'string' }, 'modules-dir': { type: 'string' }, 'module-file': { type: 'string' },
       formats: { type: 'string' }, rate: { type: 'string' }, gap: { type: 'string' }, 'intro-gap': { type: 'string' }, quantization: { type: 'string' },
       jobs: { type: 'string' }, 'cache-dir': { type: 'string' }, ffmpeg: { type: 'string' }, label: { type: 'string' },
+      pronunciation: { type: 'string' }, 'no-pronunciation': { type: 'boolean' },
       force: { type: 'boolean' }, 'dry-run': { type: 'boolean' }, 'i-have-rights': { type: 'boolean' }, help: { type: 'boolean', short: 'h' },
     },
   });
@@ -85,6 +96,7 @@ export function parseCli(argv: string[], env: NodeJS.ProcessEnv = process.env): 
       formats: formats as AudioFormat[],
       rate: num('rate', v.rate, 1, 0.5, 2),
       jobs: Math.round(num('jobs', v.jobs, defaultJobs(), 1, 64)),
+      pronunciationDir: v['no-pronunciation'] ? null : resolve(v.pronunciation ?? defaultPronunciationDir(resolve(v.out ?? join(dataDir, 'audio')))),
       force: !!v.force,
       dryRun: !!v['dry-run'],
       cacheDir: resolve(v['cache-dir'] ?? join(homedir(), '.cache', 'bible-audio-build')),

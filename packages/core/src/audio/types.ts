@@ -305,9 +305,15 @@ export interface TtsEngineCapabilities {
   languages: string[];
   backends: Array<'wasm' | 'webgpu'>;
   approxRuntimeBytes: number;
+  /**
+   * True: `SynthesisRequest.text` may carry pronunciation markers (`⟦word|ipa⟧`, see
+   * `pronunciation.ts`) and the engine speaks their IPA. Without it callers send plain text.
+   */
+  pronunciation?: boolean;
 }
 
 export interface SynthesisRequest {
+  /** What to say. May carry pronunciation markers when the engine's capabilities say so. */
   text: string;
   voiceId: string;
   rate: number;

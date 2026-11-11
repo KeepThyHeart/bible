@@ -61,9 +61,10 @@ v1/{module}/index.json                                  per-translation index (m
 v1/{module}/{narrator}/{rev}/{book}/{ccc}.json          chapter manifest (immutable)
 v1/{module}/{narrator}/{rev}/{book}/{ccc}.ogg|.mp3|...  chapter audio (immutable, Range requests)
 tts/{engine}/...                                        an engine's runtime and voice files
+pronunciation/{locale|language}/{lexicon|MODULE}.json  pronunciation corrections for on-device speech (see audio-pronunciation.md)
 ```
 
-Only `v1` and `tts` are served, dotfiles and `..` are refused, a miss is a real 404 (never the SPA shell), and there are no directory listings. `express.static` provides Range support, which starting a chapter mid-way and seeking need.
+Only `v1`, `tts` and `pronunciation` are served, dotfiles and `..` are refused, a miss is a real 404 (never the SPA shell), and there are no directory listings. `express.static` provides Range support, which starting a chapter mid-way and seeking need.
 
 **Index** (`kth-audio-index/1`): `{ module, narrators: [{ id, label, language, rev, books: [book numbers fully recorded], chapters?: { "43": [3, 4] } }] }`.
 

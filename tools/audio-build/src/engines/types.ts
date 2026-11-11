@@ -40,5 +40,7 @@ export interface EngineDefinition {
   prefetch?(voiceId: string, ctx: EngineContext): Promise<void>;
   /** Typical render time / audio time for one job on a 6-core CPU, for the dry-run estimate. */
   nominalRtf(ctx: Pick<EngineContext, 'quantization'>): number;
+  /** True: the engine speaks pronunciation markers (`⟦word|ipa⟧`), so the run applies the overlay. */
+  pronunciation?: boolean;
   create(ctx: EngineContext): ITtsEngine;
 }

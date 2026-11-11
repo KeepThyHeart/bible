@@ -21,6 +21,7 @@ import { TextPreparer } from '@bible/core/browser';
 import { createEngineRegistry, createProviderRegistry } from './registries';
 import { LazyTtsEngine } from './tts/LazyTtsEngine';
 import { TtsAudioProvider } from './tts/TtsAudioProvider';
+import { PronunciationStore } from './tts/pronunciationStore';
 import { piperFactory } from './tts/piper/piperFactory';
 import type { AudioSystem } from '../audioStore';
 
@@ -85,6 +86,9 @@ export function createAudioSystem(config: AudioSiteConfig, deps: AudioBootstrapD
     providers.register(new RecordedAudioProvider(manifests, locator, { cache: createAssetCache(AUDIO_CACHE_NAMES.chapters) }));
   }
 
+  // One store for every engine: the files are per accent and module, not per engine.
+  const pronunciation = new PronunciationStore({ base: `${base.replace(/\/+$/, '')}/pronunciation`, cache: createAssetCache(AUDIO_CACHE_NAMES.models) });
+
   const source = async (ref: ChapterRef): Promise<VerseText[]> => {
     const loaded = deps.loadedVerses(ref);
     if (loaded) return loaded;
@@ -103,6 +107,7 @@ export function createAudioSystem(config: AudioSiteConfig, deps: AudioBootstrapD
       languageOf: deps.languageOf,
       bookName: (ref, language) => deps.bookName(ref.book, language),
       config: resolved,
+      pronunciation: (moduleAbbr, accent) => pronunciation.overlay(moduleAbbr, accent),
     }));
   }
 

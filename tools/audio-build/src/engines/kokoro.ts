@@ -6,6 +6,7 @@
 
 import { join } from 'node:path';
 import { ensureDownloaded } from './download';
+import { hasPronunciation, splitPronunciation, stripPronunciation } from '../core';
 import type {
   AudioError, AudioVoice, ITtsEngine, LoadProgress, SynthesisRequest, SynthesisResult, TtsEngineCapabilities,
 } from '../core';
@@ -66,9 +67,53 @@ export function splitForKokoro(text: string, maxChars = 280): string[] {
 
 const PIECE_GAP_SECONDS = 0.2;
 
-interface KokoroInstance {
-  generate(text: string, opts: { voice: string; speed: number }): Promise<{ audio: Float32Array; sampling_rate: number }>;
+type KokoroAudio = { audio: Float32Array; sampling_rate: number };
+export interface KokoroInstance {
+  generate(text: string, opts: { voice: string; speed: number }): Promise<KokoroAudio>;
+  generate_from_ids?(ids: unknown, opts: { voice: string; speed: number }): Promise<KokoroAudio>;
+  tokenizer?: (text: string, opts?: { truncation?: boolean }) => { input_ids: unknown };
 }
+
+const PROBE_STOP = Symbol('kokoro-phonemes');
+
+/**
+ * Kokoro's own phonemes for plain `text`, exactly as `generate` would make them. kokoro-js
+ * 1.2.1 does not export its phonemizer, but `generate(text)` phonemizes and then calls
+ * `this.tokenizer(phonemes)`: a copy of the instance whose tokenizer records its argument and
+ * stops gives the string without running the model. A test pins this against the real package.
+ */
+export async function kokoroPhonemes(tts: KokoroInstance, text: string, voice: string): Promise<string> {
+  let captured: string | undefined;
+  const probe = Object.assign(Object.create(Object.getPrototypeOf(tts) as object) as KokoroInstance, tts, {
+    tokenizer: (phonemes: string) => { captured = phonemes; throw PROBE_STOP; },
+  });
+  try {
+    await probe.generate(text, { voice, speed: 1 });
+  } catch (e) {
+    if (e !== PROBE_STOP) throw e;
+  }
+  if (typeof captured !== 'string') throw engineError('Could not read Kokoro\'s phonemes (kokoro-js changed?).', false);
+  return captured;
+}
+
+/**
+ * Phonemes for a piece with pronunciation markers: each plain run phonemized as Kokoro would
+ * (`phonemize`), each marker's IPA in between, with a space wherever the text had one.
+ */
+export async function kokoroMarkedPhonemes(phonemize: (text: string) => Promise<string>, text: string): Promise<string> {
+  let out = '';
+  for (const r of splitPronunciation(text)) {
+    if (r.kind === 'ipa') { out += r.ipa; continue; }
+    if (/^\s/.test(r.text)) out += ' ';
+    if (/[\p{L}\p{N}]/u.test(r.text)) out += await phonemize(r.text);
+    else out += r.text.trim();
+    if (/\s$/.test(r.text)) out += ' ';
+  }
+  return out.replace(/ {2,}/g, ' ').trim();
+}
+
+/** The corrections are American English: British voices get the words. */
+const speaksOverlay = (voiceId: string): boolean => KOKORO_VOICES.find(x => x.id === voiceId)?.language === 'en-US';
 interface KokoroModule { KokoroTTS: new (model: unknown, tokenizer: unknown) => KokoroInstance }
 interface TransformersModule {
   env: { cacheDir: string };
@@ -82,6 +127,7 @@ export class KokoroNodeEngine implements ITtsEngine {
   readonly capabilities: TtsEngineCapabilities = {
     rate: { min: 0.5, max: 2, step: 0.05 },
     nativeRate: true,
+    pronunciation: true,
     languages: ['en'],
     backends: [],
     approxRuntimeBytes: 600 * 1024 * 1024,
@@ -134,7 +180,7 @@ export class KokoroNodeEngine implements ITtsEngine {
     let sampleRate = 24000;
     for (let i = 0; i < pieces.length; i++) {
       if (signal.aborted) throw { code: 'aborted', message: 'Aborted', retryable: false } satisfies AudioError;
-      const r = await this.tts!.generate(pieces[i], { voice: req.voiceId, speed });
+      const r = await this.generate(pieces[i], req.voiceId, speed);
       sampleRate = r.sampling_rate;
       chunks.push(r.audio);
       if (i < pieces.length - 1) chunks.push(new Float32Array(Math.round(PIECE_GAP_SECONDS * sampleRate)));
@@ -143,6 +189,16 @@ export class KokoroNodeEngine implements ITtsEngine {
     let at = 0;
     for (const c of chunks) { pcm.set(c, at); at += c.length; }
     return { pcm, sampleRate };
+  }
+
+  /** One piece: through Kokoro's own pipeline, or, with markers, our phonemes and `generate_from_ids`. */
+  private async generate(piece: string, voice: string, speed: number): Promise<KokoroAudio> {
+    const tts = this.tts!;
+    if (!hasPronunciation(piece)) return tts.generate(piece, { voice, speed });
+    if (!speaksOverlay(voice) || !tts.tokenizer || !tts.generate_from_ids) return tts.generate(stripPronunciation(piece), { voice, speed });
+    const phonemes = await kokoroMarkedPhonemes(t => kokoroPhonemes(tts, t, voice), piece);
+    const { input_ids } = tts.tokenizer(phonemes, { truncation: true });
+    return tts.generate_from_ids(input_ids, { voice, speed });
   }
 
   async evictVoice(): Promise<void> { /* the model serves every voice */ }
@@ -164,6 +220,7 @@ const modelLabel = (q: Pick<{ quantization: Quantization }, 'quantization'>): st
 
 export const kokoroDefinition: EngineDefinition = {
   id: 'kokoro',
+  pronunciation: true,
   label: 'Kokoro-82M (native, onnxruntime-node)',
   languages: ['en'],
   voices: KOKORO_VOICES,

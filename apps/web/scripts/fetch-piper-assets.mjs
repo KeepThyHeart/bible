@@ -12,6 +12,7 @@
  *   <audio dir>/tts/piper/runtime/piper_phonemize.js          espeak-ng phonemizer, wrapped as an ES module
  *   <audio dir>/tts/piper/runtime/piper_phonemize.wasm|.data  (@diffusionstudio/piper-wasm, MIT; espeak-ng is GPL-3.0)
  *   <audio dir>/tts/piper/voices/<voice>.onnx|.onnx.json      voices from rhasspy/piper-voices
+ *   <audio dir>/pronunciation/<locale|language>/*.json       pronunciation overlay, from bible-scripts' pronunciation/
  *
  * The audio directory is `<data dir>/audio` (or the `audio.dir` of site.json);
  * the server serves it at `/audio`. Voices have their own licences, listed in
@@ -22,9 +23,19 @@
  *   node scripts/fetch-piper-assets.mjs --runtime-only
  *   node scripts/fetch-piper-assets.mjs --index-only      (no download: rebuild sidecars and tts/piper/index.json)
  *   node scripts/fetch-piper-assets.mjs --dest=/srv/bible/data/audio --voice=en_US-hfc_female-medium
+ *   node scripts/fetch-piper-assets.mjs --pronunciation-only   (only install the pronunciation overlay)
+ *   ... --no-pronunciation                                  (do not install it)
+ *   ... --pronunciation-src=DIR|URL                         (where it comes from; default below)
+ *
+ * The pronunciation overlay is data kept in the bible-scripts repository. It is read from
+ * `--pronunciation-src`, else a bible-scripts checkout next to this repository
+ * (`../bible-scripts/pronunciation`), else GitHub at the commit pinned in PRONUNCIATION_REF.
+ * Every file is checked against that source's `index.json` (size and SHA-256) before it is
+ * installed, and files the index no longer lists are removed.
  *
  * Environment: BIBLE_DATA_DIR (as the server), FORCE_PIPER_FETCH=1 to re-download,
- * PIPER_VOICES_BASE to use another voices repository or mirror.
+ * PIPER_VOICES_BASE to use another voices repository or mirror, PRONUNCIATION_REF to take the
+ * overlay from another bible-scripts commit or branch.
  *
  * Every file also gets a `<file>.sha256` sidecar, and `tts/piper/index.json` is written in the
  * asset-index schema (kth-asset-index/1, urls relative to that file) so the in-app asset manager
@@ -34,6 +45,7 @@
  */
 
 import { existsSync, mkdirSync, readdirSync, renameSync, rmSync, statSync, readFileSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { createWriteStream } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -46,6 +58,9 @@ const PHONEMIZE_VERSION = '1.0.0';
 const JSDELIVR = 'https://cdn.jsdelivr.net/npm';
 const VOICES_BASE = process.env.PIPER_VOICES_BASE || 'https://huggingface.co/rhasspy/piper-voices/resolve/main';
 const force = process.env.FORCE_PIPER_FETCH === '1';
+/** The bible-scripts commit whose `pronunciation/` this version of the app reads. */
+export const PRONUNCIATION_REF = '38b394c89c1318de02c91f1442a675a7199b5d30';
+const PRONUNCIATION_REPO = 'https://raw.githubusercontent.com/KeepThyHeart/bible-scripts';
 
 const RUNTIME = [
   { to: 'ort.wasm.min.mjs', from: `${JSDELIVR}/onnxruntime-web@${ORT_VERSION}/dist/ort.wasm.min.mjs` },
@@ -163,13 +178,74 @@ export async function buildPiperIndex(piperDir) {
   return index;
 }
 
+const PRONUNCIATION_PATH = /^[a-z]{2,3}(-[a-z0-9]+)?\/[A-Za-z0-9_-]+\.json$/;
+
+/** Read a file of a pronunciation source: a directory, or an http(s) base URL. */
+async function readSource(src, rel) {
+  if (/^https?:\/\//.test(src)) {
+    const res = await fetch(`${src.replace(/\/+$/, '')}/${rel}`, { redirect: 'follow' });
+    if (!res.ok) throw new Error(`Failed to download ${src}/${rel}: ${res.status} ${res.statusText}`);
+    return Buffer.from(await res.arrayBuffer());
+  }
+  return readFileSync(join(src, rel));
+}
+
+/**
+ * Install a pronunciation source (directory or URL holding `index.json`) into
+ * `<audio dir>/pronunciation/`. Each file the index lists is checked (size, SHA-256, JSON) before
+ * anything is written, then written under a temp name and renamed, so the server never serves a
+ * half-written or mixed set; `.json` files the index does not list are removed. Returns the
+ * installed paths, relative to the audio dir.
+ */
+export async function installPronunciation(src, audioDir) {
+  const index = JSON.parse((await readSource(src, 'index.json')).toString('utf8'));
+  if (index?.format !== 'kth-pron-index/1' || !Array.isArray(index.files)) throw new Error(`${src}/index.json is not a pronunciation index`);
+  const files = [];
+  for (const f of index.files) {
+    if (typeof f?.path !== 'string' || !PRONUNCIATION_PATH.test(f.path)) throw new Error(`pronunciation index: bad path ${JSON.stringify(f?.path)}`);
+    const bytes = await readSource(src, f.path);
+    const sha = createHash('sha256').update(bytes).digest('hex');
+    if (bytes.length !== f.bytes || sha !== f.sha256) throw new Error(`pronunciation: ${f.path} does not match index.json (stale index or damaged download)`);
+    JSON.parse(bytes.toString('utf8')); // refuse to publish a broken file
+    files.push({ path: f.path, bytes });
+  }
+  const root = join(audioDir, 'pronunciation');
+  for (const f of files) {
+    const to = join(root, f.path);
+    mkdirSync(dirname(to), { recursive: true });
+    writeFileSync(`${to}.tmp`, f.bytes);
+  }
+  for (const f of files) renameSync(join(root, `${f.path}.tmp`), join(root, f.path));
+  const keep = new Set(files.map(f => f.path));
+  if (existsSync(root)) {
+    for (const dir of readdirSync(root)) {
+      if (!statSync(join(root, dir)).isDirectory()) continue;
+      for (const name of readdirSync(join(root, dir))) {
+        if (name.endsWith('.json') && !keep.has(`${dir}/${name}`)) rmSync(join(root, dir, name));
+      }
+    }
+  }
+  return files.map(f => `pronunciation/${f.path}`);
+}
+
+/** `--pronunciation-src`, else a bible-scripts checkout next to the repo, else GitHub at the pinned commit. */
+export function pronunciationSource(explicit, repoRoot, ref = process.env.PRONUNCIATION_REF || PRONUNCIATION_REF) {
+  if (explicit) return /^https?:\/\//.test(explicit) ? explicit : resolve(explicit);
+  const sibling = resolve(repoRoot, '../bible-scripts/pronunciation');
+  if (existsSync(join(sibling, 'index.json'))) return sibling;
+  return `${PRONUNCIATION_REPO}/${ref}/pronunciation`;
+}
+
 function parseArgs(argv) {
-  const opts = { voices: [], dest: null, runtimeOnly: false, indexOnly: false };
+  const opts = { voices: [], dest: null, runtimeOnly: false, indexOnly: false, pronunciation: true, pronunciationOnly: false, pronunciationSrc: null };
   for (const a of argv) {
     if (a.startsWith('--voice=')) opts.voices.push(...a.slice(8).split(',').filter(Boolean));
     else if (a.startsWith('--dest=')) opts.dest = a.slice(7);
     else if (a === '--runtime-only') opts.runtimeOnly = true;
     else if (a === '--index-only') opts.indexOnly = true;
+    else if (a === '--no-pronunciation') opts.pronunciation = false;
+    else if (a === '--pronunciation-only') opts.pronunciationOnly = true;
+    else if (a.startsWith('--pronunciation-src=')) opts.pronunciationSrc = a.slice('--pronunciation-src='.length);
     else if (a === '-h' || a === '--help') { opts.help = true; }
     else throw new Error(`Unknown argument: ${a}`);
   }
@@ -183,7 +259,7 @@ function languageOf(id) {
 async function main() {
   const opts = parseArgs(process.argv.slice(2));
   if (opts.help) { log('see the header of scripts/fetch-piper-assets.mjs'); return; }
-  if (opts.voices.length === 0 && !opts.runtimeOnly && !opts.indexOnly) throw new Error('Name at least one --voice=<id> (or use --runtime-only).');
+  if (opts.voices.length === 0 && !opts.runtimeOnly && !opts.indexOnly && !opts.pronunciationOnly) throw new Error('Name at least one --voice=<id> (or use --runtime-only).');
   for (const id of opts.voices) voicePath(id); // validate before downloading anything
 
   const webRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -191,6 +267,13 @@ async function main() {
   const audioDir = opts.dest ? resolve(opts.dest) : join(dataDir, 'audio');
   const piperDir = join(audioDir, 'tts', 'piper');
   log(`target: ${piperDir}`);
+
+  if (opts.pronunciation || opts.pronunciationOnly) {
+    const src = pronunciationSource(opts.pronunciationSrc, resolve(webRoot, '../..'));
+    const copied = await installPronunciation(src, audioDir);
+    log(`pronunciation: ${copied.length} file(s) from ${src} in ${join(audioDir, 'pronunciation')}`);
+    if (opts.pronunciationOnly) return;
+  }
 
   if (opts.indexOnly) {
     const idx = await buildPiperIndex(piperDir);

@@ -14,7 +14,7 @@ import {
   parsePhonemizerLines,
   parseVoiceConfig,
   phonemesToIds,
-  piperPhonemizerArgs,
+  phonemizePiper,
   piperScales,
   piperSilenceSamples,
   type AudioError,
@@ -81,7 +81,8 @@ function loadPhonemizerFactory(file: string): CreatePhonemizer {
   }
 }
 
-export function phonemizeWith(assets: PhonemizerAssets, text: string, espeakVoice: string): Promise<string[][]> {
+/** The lines the phonemizer prints for `args` (a fresh module per call: `callMain` may run once). */
+function runPhonemizer(assets: PhonemizerAssets, args: string[]): Promise<string[]> {
   return new Promise((resolve, reject) => {
     const lines: string[] = [];
     const errors: string[] = [];
@@ -92,12 +93,19 @@ export function phonemizeWith(assets: PhonemizerAssets, text: string, espeakVoic
       wasmBinary: assets.wasm,
       getPreloadedPackage: name => (name.endsWith('.data') ? assets.data : null),
     }).then(mod => {
-      mod.callMain(piperPhonemizerArgs(espeakVoice, text));
-      const out = parsePhonemizerLines(lines);
-      if (out.length === 0) reject(engineError(errors.at(-1) || 'The phonemizer produced no output.'));
-      else resolve(out);
+      mod.callMain(args);
+      if (parsePhonemizerLines(lines).length === 0) reject(engineError(errors.at(-1) || 'The phonemizer produced no output.'));
+      else resolve(lines);
     }).catch(reject);
   });
+}
+
+/**
+ * The phonemes of each sentence of `text`, which may carry pronunciation markers (spliced in
+ * by core's `phonemizePiper`, as the browser worker does). `known` is the voice's symbol test.
+ */
+export function phonemizeWith(assets: PhonemizerAssets, text: string, espeakVoice: string, known?: (symbol: string) => boolean): Promise<string[][]> {
+  return phonemizePiper(args => runPhonemizer(assets, args), espeakVoice, text, known);
 }
 
 interface LoadedVoice { id: string; session: OrtSession; config: PiperVoiceConfig }
@@ -108,7 +116,7 @@ export interface PiperNodeDeps {
   phonemizer(): Promise<PhonemizerAssets>;
   /** Paths of the voice's `.onnx` and `.onnx.json`, downloading them when needed. */
   voiceFiles(voiceId: string): Promise<{ onnx: string; json: string }>;
-  phonemize?(assets: PhonemizerAssets, text: string, espeakVoice: string): Promise<string[][]>;
+  phonemize?(assets: PhonemizerAssets, text: string, espeakVoice: string, known?: (symbol: string) => boolean): Promise<string[][]>;
   readJson?(path: string): Promise<unknown>;
 }
 
@@ -118,6 +126,7 @@ export class PiperNodeEngine implements ITtsEngine {
   readonly capabilities: TtsEngineCapabilities = {
     rate: { min: 0.5, max: 2, step: 0.05 },
     nativeRate: true,
+    pronunciation: true,
     languages: PIPER_LANGUAGES,
     backends: [],
     approxRuntimeBytes: 200 * 1024 * 1024,
@@ -168,7 +177,7 @@ export class PiperNodeEngine implements ITtsEngine {
     const text = req.text.trim();
     if (!text) return { pcm: new Float32Array(piperSilenceSamples(c)), sampleRate: c.sampleRate };
     const phonemize = this.deps.phonemize ?? phonemizeWith;
-    const ids = phonemesToIds(await phonemize(this.assets!, text, c.espeakVoice), c.phonemeIdMap);
+    const ids = phonemesToIds(await phonemize(this.assets!, text, c.espeakVoice, s => s in c.phonemeIdMap), c.phonemeIdMap);
     if (ids.length === 0) return { pcm: new Float32Array(piperSilenceSamples(c)), sampleRate: c.sampleRate };
     const { Tensor } = this.ort!;
     const feeds: Record<string, unknown> = {
@@ -211,6 +220,7 @@ const DEFAULT_VOICES: Record<string, string> = {
 
 export const piperDefinition: EngineDefinition = {
   id: 'piper',
+  pronunciation: true,
   label: 'Piper (native, onnxruntime-node)',
   languages: PIPER_LANGUAGES,
   voices: PIPER_VOICES,

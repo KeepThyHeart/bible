@@ -42,6 +42,7 @@ import type {
   ITtsEngine,
   VerseText,
 } from '@bible/core/browser';
+import { stripPronunciation } from '@bible/core/browser';
 import { joinPcm, pcmSeconds, wavBlob } from '../wav';
 import { abortedError, toTtsError } from './ttsErrors';
 import type { PageVisibility } from './visibility';
@@ -67,6 +68,11 @@ export interface TtsChapterOptions {
   lookAhead: LookAhead;
   /** Verses longer than this many characters are synthesized sentence by sentence. */
   longVerseChars: number;
+  /**
+   * Pronunciation corrections for the spoken text (`applyPronunciation`): the verse's text and
+   * number, or null for the chapter intro. Only set when the engine speaks markers.
+   */
+  pronounce?: (text: string, verse: number | null) => string;
   visibility: PageVisibility;
   createObjectURL: (blob: Blob) => string;
   revokeObjectURL: (url: string) => void;
@@ -122,14 +128,16 @@ export class TtsChapterAudio implements IChapterAudio {
     const order: number[] = [];
     for (const raw of opts.verses) {
       if (this.texts.has(raw.verse)) continue; // a source repeating a verse number must not loop the chapter
-      const spoken = opts.text.verse(raw, opts.language).trim();
+      let spoken = opts.text.verse(raw, opts.language).trim();
+      if (spoken && opts.pronounce) spoken = opts.pronounce(spoken, raw.verse);
       if (spoken) { this.texts.set(raw.verse, spoken); order.push(raw.verse); }
     }
     order.sort((a, b) => a - b);
     this.verses = order;
     if (opts.readIntro && order.length > 0) {
       const first = order[0];
-      const intro = opts.text.chapterIntro(opts.ref, opts.bookName, opts.language).trim();
+      let intro = opts.text.chapterIntro(opts.ref, opts.bookName, opts.language).trim();
+      if (intro && opts.pronounce) intro = opts.pronounce(intro, null);
       if (intro) this.texts.set(first, `${intro} ${this.texts.get(first)}`);
     }
     this.unsubscribeVisibility = opts.visibility.subscribe(() => this.schedulePump());
@@ -328,7 +336,7 @@ export class TtsChapterAudio implements IChapterAudio {
   private async synthesize(verse: number): Promise<Done> {
     const signal = this.ctrl.signal;
     const text = this.texts.get(verse)!;
-    const pieces = text.length > this.o.longVerseChars ? splitSentences(text) : [text];
+    const pieces = stripPronunciation(text).length > this.o.longVerseChars ? splitSentences(text) : [text];
     const results: Float32Array[] = [];
     let sampleRate = 0;
     for (const piece of pieces) {
