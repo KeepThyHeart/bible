@@ -2,7 +2,7 @@
  * @vitest-environment jsdom
  *
  * Tests for the navigation components in `src/ui/components.ts`: `icon()`,
- * `breadcrumb()`, `menu()` / `attachMenuKeys`, and `tabs()` / `attachTabKeys`.
+ * `menu()` / `attachMenuKeys`, and `attachTabKeys`.
  * Component-level only (DOM and keyboard behaviour); the screens that use
  * them are covered in `panelRender.test.ts`.
  */
@@ -12,12 +12,10 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   attachMenuKeys,
   attachTabKeys,
-  breadcrumb,
   icon,
   menu,
-  tabs,
 } from '../src/ui/components';
-import type { Crumb, IconName } from '../src/ui/components';
+import type { IconName } from '../src/ui/components';
 
 let container: HTMLElement;
 
@@ -125,107 +123,7 @@ describe('icon()', () => {
 });
 
 // ---------------------------------------------------------------------------
-// 9. breadcrumb() - replaces the old toolbar()'s back arrow
-// ---------------------------------------------------------------------------
-
-describe('breadcrumb()', () => {
-  it('renders a nav landmark labelled Breadcrumb, holding an ordered list', () => {
-    const trail = breadcrumb({ crumbs: [{ label: 'Home', onClick: () => {} }, { label: 'Settings' }] });
-    container.appendChild(trail);
-
-    expect(trail.tagName).toBe('NAV');
-    expect(trail.classList.contains('kth-crumbs')).toBe(true);
-    expect(trail.getAttribute('aria-label')).toBe('Breadcrumb');
-    expect(trail.querySelector('ol')).not.toBeNull();
-  });
-
-  it('renders the final crumb as the screen\'s own <h1>, marked current', () => {
-    const trail = breadcrumb({ crumbs: [{ label: 'Home', onClick: () => {} }, { label: 'Analytics' }] });
-    container.appendChild(trail);
-
-    const current = trail.querySelector('h1')!;
-    expect(current).not.toBeNull();
-    expect(current.classList.contains('kth-crumbs__current')).toBe(true);
-    expect(current.getAttribute('aria-current')).toBe('page');
-    expect(spokenText(current)).toBe('Analytics');
-
-    // Exactly one - a second `<h1>` would break `panel.ts#render`'s
-    // "focus `main.querySelector('h1')`" contract.
-    expect(trail.querySelectorAll('h1').length).toBe(1);
-  });
-
-  it('renders every non-final crumb as a real <button>, and clicking one navigates', () => {
-    const clicked: string[] = [];
-    const crumbs: Crumb[] = [
-      { label: 'Home', onClick: () => clicked.push('Home') },
-      { label: 'Middle', onClick: () => clicked.push('Middle') },
-      { label: 'Current' },
-    ];
-    const trail = breadcrumb({ crumbs });
-    container.appendChild(trail);
-
-    const buttons = Array.from(trail.querySelectorAll<HTMLButtonElement>('button.kth-crumbs__link'));
-    expect(buttons.length).toBe(2);
-    expect(buttons.every((b) => b.type === 'button')).toBe(true);
-    expect(spokenText(buttons[1]!)).toBe('Middle');
-
-    buttons[1]!.click();
-    expect(clicked).toEqual(['Middle']);
-
-    buttons[0]!.click();
-    expect(clicked).toEqual(['Middle', 'Home']);
-
-    // The final crumb is never itself a button - there is nowhere further to
-    // go from the current screen.
-    expect(trail.querySelector('h1')!.tagName).not.toBe('BUTTON');
-  });
-
-  it('draws crumb 1 as a house glyph plus the word "Home", whether or not it is also the final crumb', () => {
-    const linked = breadcrumb({ crumbs: [{ label: 'Home', onClick: () => {} }, { label: 'Settings' }] });
-    const homeCrumb = linked.querySelector('.kth-crumbs__link')!;
-    expect(homeCrumb.querySelector('svg.sm-icon-home')).not.toBeNull();
-    expect(spokenText(homeCrumb)).toBe('Home');
-
-    // The home screen itself: a single crumb that is both crumb 1 and final.
-    const sole = breadcrumb({ crumbs: [{ label: 'Home' }] });
-    const heading = sole.querySelector('h1')!;
-    expect(heading.querySelector('svg.sm-icon-home')).not.toBeNull();
-    expect(spokenText(heading)).toBe('Home');
-    expect(heading.getAttribute('aria-current')).toBe('page');
-  });
-
-  it('separates crumbs with a "›", hidden from assistive tech', () => {
-    const trail = breadcrumb({ crumbs: [{ label: 'Home', onClick: () => {} }, { label: 'Settings' }] });
-    container.appendChild(trail);
-
-    const sep = trail.querySelector('.kth-crumbs__sep')!;
-    expect(sep.textContent).toBe('›');
-    expect(sep.querySelector('[aria-hidden="true"]')).not.toBeNull();
-    // The accessible name of the whole trail skips it entirely.
-    expect(spokenText(trail)).not.toContain('›');
-  });
-
-  it('places an optional menu slot and action elements where given', () => {
-    const menuSlot = document.createElement('button');
-    menuSlot.textContent = 'Menu';
-    const action = document.createElement('button');
-    action.textContent = 'Extra';
-
-    const trail = breadcrumb({ crumbs: [{ label: 'Home' }], menu: menuSlot, actions: [action] });
-
-    expect(trail.contains(menuSlot)).toBe(true);
-    expect(trail.contains(action)).toBe(true);
-  });
-
-  it('leaves the menu slot out entirely when not given, as every current call site does', () => {
-    const trail = breadcrumb({ crumbs: [{ label: 'Home' }] });
-    // Nothing beyond the crumb list and the (empty) actions slot.
-    expect(trail.children.length).toBe(2);
-  });
-});
-
-// ---------------------------------------------------------------------------
-// 9b. menu() - the hamburger that fills breadcrumb()'s menu slot (M3)
+// 9b. menu() - the "..." menu 
 // ---------------------------------------------------------------------------
 
 describe('menu()', () => {
@@ -393,84 +291,10 @@ describe('menu()', () => {
 
 
 // ---------------------------------------------------------------------------
-// tabs()
+// attachTabKeys
 // ---------------------------------------------------------------------------
 
-describe('tabs()', () => {
-  const ITEMS = [
-    { value: 'a', label: 'Alpha' },
-    { value: 'b', label: 'Beta' },
-    { value: 'c', label: 'Gamma' },
-  ] as const;
-
-  function build(selected: 'a' | 'b' | 'c', onSelect: (v: string) => void = () => {}) {
-    const strip = tabs({ items: ITEMS, selected, onSelect, ariaLabel: 'Letters' });
-    container.appendChild(strip);
-    return { strip, buttons: Array.from(strip.querySelectorAll<HTMLButtonElement>('[role="tab"]')) };
-  }
-
-  it('renders a labelled tablist of tab buttons with the selected one marked', () => {
-    const { strip, buttons } = build('b');
-    expect(strip.getAttribute('role')).toBe('tablist');
-    expect(strip.getAttribute('aria-label')).toBe('Letters');
-    expect(buttons.map(spokenText)).toEqual(['Alpha', 'Beta', 'Gamma']);
-    expect(buttons.map((t) => t.getAttribute('aria-selected'))).toEqual(['false', 'true', 'false']);
-    expect(buttons.every((t) => t.classList.contains('kth-tabs__tab'))).toBe(true);
-    expect(buttons.every((t) => t.type === 'button')).toBe(true);
-  });
-
-  it('omits aria-label when none is given', () => {
-    const strip = tabs({ items: ITEMS, selected: 'a', onSelect: () => {} });
-    expect(strip.hasAttribute('aria-label')).toBe(false);
-  });
-
-  it('calls onSelect with the pressed tab value', () => {
-    const picked: string[] = [];
-    const { buttons } = build('a', (v) => picked.push(v));
-    buttons[2]!.click();
-    expect(picked).toEqual(['c']);
-  });
-
-  it('puts only the selected tab in the Tab order', () => {
-    const { buttons } = build('b');
-    expect(buttons.map((t) => t.tabIndex)).toEqual([-1, 0, -1]);
-  });
-
-  it('moves focus (not selection) with Left/Right/Home/End, wrapping, and rolls tabindex', () => {
-    const picked: string[] = [];
-    const { buttons } = build('b', (v) => picked.push(v));
-
-    buttons[1]!.focus();
-    key(buttons[1]!, 'ArrowRight');
-    expect(document.activeElement).toBe(buttons[2]);
-    expect(buttons.map((t) => t.tabIndex)).toEqual([-1, -1, 0]);
-
-    key(buttons[2]!, 'ArrowRight');
-    expect(document.activeElement).toBe(buttons[0]); // wraps forward
-
-    key(buttons[0]!, 'ArrowLeft');
-    expect(document.activeElement).toBe(buttons[2]); // wraps back
-
-    key(buttons[2]!, 'Home');
-    expect(document.activeElement).toBe(buttons[0]);
-    key(buttons[0]!, 'End');
-    expect(document.activeElement).toBe(buttons[2]);
-
-    expect(picked).toEqual([]);
-  });
-
-  it('ignores unrelated keys and does not throw on an empty strip', () => {
-    const { buttons } = build('a');
-    buttons[0]!.focus();
-    const ev = new KeyboardEvent('keydown', { key: 'x', bubbles: true, cancelable: true });
-    buttons[0]!.dispatchEvent(ev);
-    expect(ev.defaultPrevented).toBe(false);
-    expect(document.activeElement).toBe(buttons[0]);
-
-    const empty = tabs({ items: [], selected: 'a' as never, onSelect: () => {} });
-    expect(empty.querySelectorAll('[role="tab"]').length).toBe(0);
-  });
-
+describe('attachTabKeys', () => {
   it('exports attachTabKeys for callers that build their own strip', () => {
     const list = document.createElement('div');
     const one = document.createElement('button');

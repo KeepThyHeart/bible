@@ -15,19 +15,20 @@
  * by freezing time globally, which makes the test order-dependent.
  */
 
-import type { AnalyticsView, PassageView, PlanView, Rung, RungView } from '../core/types';
+import type { AnalyticsView, Rung, RungView } from '../core/types';
 import { RUNG_ORDER } from '../core/types';
-import { TEXT_RECALL_CHAIN, isOptionalRung } from '../core/ladder';
 import { tr, uiLocale } from './i18n';
+import { startOfLocalDay } from '../core/today';
+import { WELL_LEARNED_LEVEL } from '../core/ladder';
 
 /**
  * The level at and above which an activity counts as mastered.
  *
  * Shared by `components.ts#levelBoxes` (green fill) and `carriesDownFrom`
  * below (the "harder carries down" rule) so the two never quietly disagree
- * about what "mastered" means.
+ * about what "mastered" means. The same number as core's `WELL_LEARNED_LEVEL`.
  */
-export const MASTERED_LEVEL = 4;
+export const MASTERED_LEVEL = WELL_LEARNED_LEVEL;
 
 // ---------------------------------------------------------------------------
 // Vocabulary
@@ -50,7 +51,7 @@ export const RUNG_LABEL: Readonly<Record<Rung, string>> = {
     return tr('memory.ui.common.rungBlanks', 'Fill in the blanks');
   },
   get firstletters() {
-    return tr('memory.ui.common.rungFirstletters', 'First letters only');
+    return tr('memory.ui.common.rungFirstLetters', 'First letters');
   },
   get refprovide() {
     return tr('memory.ui.common.rungRefprovide', 'Name the reference');
@@ -69,7 +70,7 @@ export const RUNG_BLURB: Readonly<Record<Rung, string>> = {
     return tr('memory.ui.common.blurbRefmatch', 'Given the words, choose the reference they belong to.');
   },
   get blanks() {
-    return tr('memory.ui.common.blurbBlanks', 'Type the words that have been removed from the passage.');
+    return tr('memory.ui.common.blurbBlanks', 'Type the words that have been removed from the verse.');
   },
   get firstletters() {
     return tr('memory.ui.common.blurbFirstletters', 'Every word is hidden. Recall the whole verse.');
@@ -78,7 +79,7 @@ export const RUNG_BLURB: Readonly<Record<Rung, string>> = {
     return tr('memory.ui.common.blurbRefprovide', 'Given the words, say which reference they come from.');
   },
   get recite() {
-    return tr('memory.ui.common.blurbRecite', 'Say the passage aloud from memory. Optional; needs a microphone.');
+    return tr('memory.ui.common.blurbRecite', 'Say the verse aloud from memory. Optional; needs a microphone.');
   },
 };
 
@@ -96,11 +97,7 @@ const MS_PER_DAY = 86_400_000;
  * currently 1am. Subtracting epoch milliseconds and dividing by 86 400 000
  * gets that wrong roughly half the time, so days are compared as days.
  */
-export function startOfLocalDay(ms: number): number {
-  const d = new Date(ms);
-  d.setHours(0, 0, 0, 0);
-  return d.getTime();
-}
+export { startOfLocalDay };
 
 /** Whole calendar days from the day of `from` to the day of `to`. */
 export function calendarDaysBetween(from: number, to: number): number {
@@ -136,16 +133,6 @@ export function formatDue(dueAt: number | null, now: number): string {
   return tr('memory.ui.common.dueOnDate', 'Due {date}', { date: formatShortDate(dueAt, now) });
 }
 
-/** When something was last practised: "Today", "Yesterday", "3 days ago", else a short date; "Not yet" for `null`. */
-export function formatLastPractised(at: number | null | undefined, now: number): string {
-  if (at === null || at === undefined) return tr('memory.ui.common.notPractisedYet', 'Not yet');
-  const days = calendarDaysBetween(at, now);
-  if (days <= 0) return tr('memory.ui.common.practisedToday', 'Today');
-  if (days === 1) return tr('memory.ui.common.practisedYesterday', 'Yesterday');
-  if (days < 7) return tr('memory.ui.common.practisedDaysAgo', '{days} days ago', { days });
-  return formatShortDate(at, now);
-}
-
 /** True when an activity is scheduled and its time has come. */
 export function isDue(rung: RungView, now: number): boolean {
   return rung.applicable && rung.dueAt !== null && rung.dueAt <= now;
@@ -166,21 +153,10 @@ export function formatScore(score: number | null): string {
   return `${Math.round(score * 100)}%`;
 }
 
-/** "Step 3 of 7". Defensive about a zero total so the header never reads "of 0". */
-export function formatStepProgress(stepNumber: number, totalSteps: number): string {
-  if (totalSteps <= 0) return tr('memory.ui.common.stepNumber', 'Step {step}', { step: stepNumber });
-  return tr('memory.ui.common.stepOfTotal', 'Step {step} of {total}', { step: stepNumber, total: totalSteps });
-}
-
 /** A 0..1 fraction as a percentage clamped to the bar's range. */
 export function clampPercent(value: number): number {
   if (!Number.isFinite(value)) return 0;
   return Math.max(0, Math.min(100, value * 100));
-}
-
-/** Pluralises a count and its noun together: "1 verse", "3 verses". */
-export function countLabel(n: number, singular: string, plural?: string): string {
-  return `${n} ${n === 1 ? singular : (plural ?? `${singular}s`)}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -217,7 +193,7 @@ export function matchesFirstLetter(typed: string, word: string): boolean {
 }
 
 // ---------------------------------------------------------------------------
-// Choosing what to practise
+// Choosing what to practice
 // ---------------------------------------------------------------------------
 
 /** What a "Start practicing" button will start, if anything. */
@@ -226,113 +202,6 @@ export interface PracticeTarget {
   rung: Rung;
   reference: string;
   dueAt: number | null;
-}
-
-/**
- * The single highest-priority due activity across the whole plan.
- *
- * The order is: longest overdue first, then lowest rung, then oldest passage.
- *
- * Rung order breaks the tie rather than passage order because the ladder is a
- * dependency chain - there is no point drilling first-letters on one passage
- * while an ordering card on another has been waiting the same number of days,
- * since the ordering card is the one holding up its own passage's progress.
- * The passage id is the final tiebreak purely so the button is deterministic;
- * a "random due card" button is one the user cannot form a habit around.
- */
-export function pickDueTarget(plan: PlanView, now: number): PracticeTarget | null {
-  let best: PracticeTarget | null = null;
-
-  for (const pv of plan.passages) {
-    for (const rv of pv.rungs) {
-      if (isOptionalRung(rv.rung)) continue; // recite has its own "Recite what's due"
-      if (!isDue(rv, now)) continue;
-      const candidate: PracticeTarget = {
-        passageId: pv.passage.id,
-        rung: rv.rung,
-        reference: pv.passage.reference,
-        dueAt: rv.dueAt,
-      };
-      if (best === null || comparePriority(candidate, best) < 0) best = candidate;
-    }
-  }
-
-  return best;
-}
-
-function comparePriority(a: PracticeTarget, b: PracticeTarget): number {
-  if (a.dueAt !== b.dueAt) return (a.dueAt ?? 0) - (b.dueAt ?? 0);
-  const rungDelta = RUNG_ORDER.indexOf(a.rung) - RUNG_ORDER.indexOf(b.rung);
-  if (rungDelta !== 0) return rungDelta;
-  return a.passageId - b.passageId;
-}
-
-/**
- * The activity a passage's own "Practice" button should start, and the one
- * badged "Suggested" on the passage screen: whichever applicable activity is
- * due soonest; failing that, the first applicable activity that has not
- * reached "well learned" (level 4); failing that (everything mastered), the
- * hardest one, as an upkeep suggestion.
- *
- * Unlike v0's `pickRungForPassage`, this never returns null: nothing is
- * locked or exempt from suggestion any more, so there is always something to
- * offer. `main.ts#suggestedRungForPassage` implements the same rule
- * worker-side for the "Start practicing" button, which does not have a
- * `RungView[]` to hand.
- */
-export function suggestedRungFor(rungs: RungView[], now: number): Rung | null {
-  const applicable = rungs.filter((r) => r.applicable && !isOptionalRung(r.rung));
-  if (applicable.length === 0) return null;
-
-  const due = applicable.filter((r) => isDue(r, now));
-  if (due.length > 0) {
-    due.sort((a, b) => (a.dueAt ?? 0) - (b.dueAt ?? 0));
-    return due[0]!.rung;
-  }
-
-  for (const rung of RUNG_ORDER) {
-    const rv = applicable.find((r) => r.rung === rung);
-    if (rv && rv.level < 4) return rv.rung;
-  }
-  return applicable[applicable.length - 1]!.rung;
-}
-
-/**
- * What "Start practicing" on the home screen offers: the plan's highest-
- * priority due activity, or - when nothing is due - the suggested activity of
- * the most recently added passage, so the button always does something.
- */
-export function pickStartTarget(plan: PlanView, now: number): PracticeTarget | null {
-  const due = pickDueTarget(plan, now);
-  if (due) return due;
-  if (plan.passages.length === 0) return null;
-
-  const latest = [...plan.passages].sort((a, b) => b.passage.addedAt - a.passage.addedAt)[0]!;
-  const rung = suggestedRungFor(latest.rungs, now);
-  if (!rung) return null;
-  const rv = latest.rungs.find((r) => r.rung === rung);
-  return { passageId: latest.passage.id, rung, reference: latest.passage.reference, dueAt: rv?.dueAt ?? null };
-}
-
-/**
- * True when `rung` itself has not been mastered, but a harder rung (later in
- * `RUNG_ORDER`) has - the "harder activity carries down" rule from task
- * 0004's review, point 10. `bestLevel`/`wellLearned` already apply this at
- * the whole-passage level; this is the per-activity version the plan row's
- * compact squares need, so an activity that was never directly practised to
- * mastery can still be drawn as "passed" rather than "not started".
- */
-export function carriesDownFrom(rungs: RungView[], rung: Rung): boolean {
-  // Same chain as ladder.ts (the worker's rule), so the panel and worker agree:
-  // recite carries down to the three text rungs, never to refmatch/refprovide.
-  const index = TEXT_RECALL_CHAIN.indexOf(rung);
-  if (index < 0) return false;
-  return rungs.some(
-    (r) =>
-      (r.applicable || r.optional === true) &&
-      TEXT_RECALL_CHAIN.indexOf(r.rung) > index &&
-      r.level >= MASTERED_LEVEL,
-  );
 }
 
 /**
@@ -345,51 +214,6 @@ export function carriesDownFrom(rungs: RungView[], rung: Rung): boolean {
  */
 export function inLadderOrder(rungs: RungView[]): RungView[] {
   return [...rungs].sort((a, b) => RUNG_ORDER.indexOf(a.rung) - RUNG_ORDER.indexOf(b.rung));
-}
-
-/**
- * Sorts passages by how much they need practice: due first by earliest
- * `dueAt`, then never-attempted (`bestLevel === 0`), then ascending
- * `bestLevel`, then descending `dueCount`, then ascending `addedAt` as the
- * deterministic tiebreak.
- *
- * Pure - returns a new array, per the file's convention (`inLadderOrder`
- * above does the same). Wiring this into an actual sort `<select>` is left to the caller; this is only the
- * ordering function.
- */
-export function sortPassagesByNeed(passages: PassageView[], now: number): PassageView[] {
-  return [...passages].sort((a, b) => comparePassageNeed(a, b, now));
-}
-
-function comparePassageNeed(a: PassageView, b: PassageView, now: number): number {
-  const dueDelta = compareEarliestDueAt(earliestDueAt(a, now), earliestDueAt(b, now));
-  if (dueDelta !== 0) return dueDelta;
-
-  const aNeverAttempted = a.bestLevel === 0;
-  const bNeverAttempted = b.bestLevel === 0;
-  if (aNeverAttempted !== bNeverAttempted) return aNeverAttempted ? -1 : 1;
-
-  if (a.bestLevel !== b.bestLevel) return a.bestLevel - b.bestLevel;
-  if (a.dueCount !== b.dueCount) return b.dueCount - a.dueCount;
-  return a.passage.addedAt - b.passage.addedAt;
-}
-
-/** The soonest `dueAt` among a passage's due rungs, or `null` if none is due. */
-function earliestDueAt(pv: PassageView, now: number): number | null {
-  let best: number | null = null;
-  for (const rv of pv.rungs) {
-    if (!isDue(rv, now)) continue;
-    if (best === null || (rv.dueAt ?? 0) < best) best = rv.dueAt ?? 0;
-  }
-  return best;
-}
-
-/** `null` (not due) always sorts after any due timestamp; earlier timestamps sort first. */
-function compareEarliestDueAt(a: number | null, b: number | null): number {
-  if (a === null && b === null) return 0;
-  if (a === null) return 1;
-  if (b === null) return -1;
-  return a - b;
 }
 
 // ---------------------------------------------------------------------------

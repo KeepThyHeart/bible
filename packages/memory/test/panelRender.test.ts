@@ -82,12 +82,9 @@ import type { Flow, NavAction } from '../src/ui/state';
 import { WordMeasurer, blankWidthFor, estimateTextWidth, MIN_BLANK_WIDTH_PX } from '../src/ui/measure';
 import { renderPassage } from '../src/ui/scripture';
 import { PracticeView } from '../src/ui/practiceView';
-import { renderPlan } from '../src/ui/planView';
-import { renderPassageScreen } from '../src/ui/passageView';
 import { renderSettings } from '../src/ui/settingsView';
 import { renderAnalytics } from '../src/ui/analyticsView';
-import { renderManagePassages } from '../src/ui/managePassagesView';
-import { activityRow, iconButton, listSelector, menu, modal, tierPips } from '../src/ui/components';
+import { menu, modal } from '../src/ui/components';
 import { RUNG_LABEL } from '../src/ui/format';
 import { tierLabel } from '../src/core/ladder';
 import { SUGGESTED_LISTS } from '../src/core/suggestedLists';
@@ -579,7 +576,7 @@ class TestHost implements PanelHost {
   readonly navigations: NavAction[] = [];
   readonly sessionsStarted: { passageId: number; rung?: Rung; restart?: boolean; tier?: number }[] = [];
   readonly openedVerses: number[] = [];
-  readonly flowsStarted: { flow: Flow; exclude?: ReadonlySet<number> }[] = [];
+  readonly flowsStarted: { flow: Flow }[] = [];
   reloads = 0;
   activeReference: string | null = null;
   readonly measurer: WordMeasurer;
@@ -620,8 +617,9 @@ class TestHost implements PanelHost {
     this.sessionsStarted.push({ passageId, rung, restart, tier });
   }
 
-  async startFlow(flow: Flow, exclude?: ReadonlySet<number>): Promise<void> {
-    this.flowsStarted.push({ flow, exclude });
+  async startFlow(flow: Flow): Promise<boolean> {
+    this.flowsStarted.push({ flow });
+    return true;
   }
 
   openInBible(verseId: number): void {
@@ -811,12 +809,13 @@ describe('scripture rendering', () => {
 // 2. The working verse among its context
 // ---------------------------------------------------------------------------
 
-function crumbLabels(root: HTMLElement): string[] {
-  return Array.from(root.querySelectorAll('.kth-crumbs__item')).map((n) => n.textContent ?? '');
+/** The practice screen's single title (the focused header's h1). */
+function practiceTitle(root: HTMLElement): string {
+  return root.querySelector('.sm-focused-title')?.textContent ?? '';
 }
 
 describe('the working verse among its context', () => {
-  it('shows the reference as the passage crumb as soon as context arrives, before any answer is submitted', async () => {
+  it('shows the reference in the title as soon as context arrives, before any answer is submitted', async () => {
     // The breadcrumb's current crumb comes from `PassageContext.reference` alone, fetched
     // separately from the step and deliberately not awaited before the first
     // paint (see `practiceView.ts#loadContext`'s own header). Before this,
@@ -826,7 +825,7 @@ describe('the working verse among its context', () => {
     // being prominent on this screen.
     const practice = await mountPractice(blanksStep(PSALM_1_2, [2, 16]));
 
-    expect(crumbLabels(practice.root)).toEqual(['Home', 'Psalm 1:2-3', RUNG_LABEL.blanks]);
+    expect(practiceTitle(practice.root)).toBe(`Psalm 1:2-3 · ${RUNG_LABEL.blanks}`);
   });
 
   it('marks exactly one verse as the one being worked on', async () => {
@@ -1265,38 +1264,23 @@ describe('a missed word', () => {
       },
     });
     const practice = await mountPractice(step);
-    const meta = () => practice.root.querySelector('.kth-crumbs__meta')?.textContent ?? '';
-    expect(meta()).toMatch(/1\D+2/);
+    const meta = () => practice.root.querySelector('.sm-step-count')?.textContent ?? '';
+    expect(meta()).toBe('1 of 2');
     const inputs = Array.from(practice.root.querySelectorAll<HTMLInputElement>('.sm-blank'));
     inputs[0]!.value = 'his';
     inputs[1]!.value = 'lore';
     practice.root.querySelector<HTMLButtonElement>('.sm-exercise-actions button')!.click();
     await settle();
-    expect(meta()).toMatch(/^\D*1\D+2/);
+    expect(meta()).toBe('1 of 2');
     practice.root.querySelector<HTMLButtonElement>('.sm-exercise-actions button')!.click(); // Next
     await settle();
-    expect(meta()).toMatch(/^\D*2\D+2/);
+    expect(meta()).toBe('2 of 2');
   });
 
-  it('B-121: the right-first-time tally updates on submit while the step counter stays', async () => {
-    const step = blanksStep(PSALM_1_2, BLANKED);
-    host.handlers.submitStep = () => ({
-      ok: true,
-      data: {
-        result: stepResult({ correct: true, wrong: [], blocking: false }),
-        session: { ...session({ ...blanksStep(PSALM_1_2, BLANKED), stepNumber: 2 }), correctFirst: 1 },
-        summary: null,
-      },
-    });
-    const practice = await mountPractice(step);
-    const tally = () => practice.root.querySelector('.sm-step-tally')?.textContent ?? '';
-    expect(tally()).toMatch(/^0\b/);
-    const inputs = Array.from(practice.root.querySelectorAll<HTMLInputElement>('.sm-blank'));
-    inputs[0]!.value = 'his';
-    inputs[1]!.value = 'law';
-    practice.root.querySelector<HTMLButtonElement>('.sm-exercise-actions button')!.click();
-    await settle();
-    expect(tally()).toMatch(/^1\b/);
+  it('has no right-first-time tally in the header (the count is a plain "{step} of {total}")', async () => {
+    const practice = await mountPractice(blanksStep(PSALM_1_2, BLANKED));
+    expect(practice.root.querySelector('.sm-step-tally')).toBeNull();
+    expect(practice.root.querySelector('.sm-step-count')?.textContent).toBe('1 of 2');
   });
 
   it('shows the right word and the wrong answer beside it, both readable', async () => {
@@ -1547,15 +1531,6 @@ describe('accessibility', () => {
     expect(label).toBe('Missing word 1 of 13');
   });
 
-  it('gives the home screen\'s sort select and menu trigger real accessible names', () => {
-    const plan: PlanView = { ...emptyPlan(), passages: [passageViewFixture()] };
-    const root = renderPlan(host, plan);
-    container.appendChild(root);
-
-    expect(root.querySelector<HTMLSelectElement>('#sm-passage-sort')!.getAttribute('aria-label')).toBeTruthy();
-    expect(root.querySelector<HTMLElement>('.sm-menu-btn')!.getAttribute('aria-label')).toBeTruthy();
-  });
-
   it('marks the working verse in the accessibility tree, not only in colour', async () => {
     const practice = await mountPractice(blanksStep(PSALM_1_2, [2, 16]));
 
@@ -1570,317 +1545,6 @@ describe('accessibility', () => {
 // 7a. The passage screen
 // ---------------------------------------------------------------------------
 
-describe('the plan row', () => {
-  function planWith(pv: PassageView): PlanView {
-    return {
-      collectionId: 1,
-      collectionName: 'My plan',
-      lists: [{ id: 1, name: 'Default', passageCount: 1, verseCount: pv.passage.verseCount }],
-      scope: 'all',
-      scopeVerseCount: pv.passage.verseCount,
-      referenceActivitiesUnlocked: false,
-      sortOrder: 'bible',
-      totalDue: 0,
-      speech: SPEECH_OFF,
-      reciteDueCount: 0,
-      defaultAnswerMode: 'firstLetter',
-      passages: [pv],
-    };
-  }
-
-  it('draws one square per applicable activity, and none for one that does not apply', () => {
-    const root = renderPlan(host, planWith(passageViewFixture()));
-    container.appendChild(root);
-
-    // The fixture has four rungs; `refmatch` is inapplicable.
-    expect(root.querySelectorAll('.sm-activity-square').length).toBe(3);
-  });
-
-  it('colours a square green when that activity itself is mastered, and orange when only partly attempted', () => {
-    const pv = passageViewFixture({
-      rungs: [
-        rungView({ rung: 'ordering', level: 5 }),
-        rungView({ rung: 'refmatch', applicable: false }),
-        rungView({ rung: 'blanks', level: 2 }),
-        rungView({ rung: 'firstletters', level: 0 }),
-      ],
-    });
-    const root = renderPlan(host, planWith(pv));
-    container.appendChild(root);
-
-    const squares = Array.from(root.querySelectorAll('.sm-activity-square'));
-    expect(squares.map((s) => s.className)).toEqual([
-      expect.stringContaining('sm-activity-square-done'), // ordering: mastered
-      expect.stringContaining('sm-activity-square-partial'), // blanks: tried, not mastered
-      expect.stringContaining('sm-activity-square-new'), // firstletters: never tried
-    ]);
-  });
-
-  it('colours a square light green when it is not itself mastered but a harder activity carries it', () => {
-    const pv = passageViewFixture({
-      rungs: [
-        rungView({ rung: 'ordering', level: 0 }),
-        rungView({ rung: 'refmatch', applicable: false }),
-        rungView({ rung: 'blanks', level: 1 }),
-        rungView({ rung: 'firstletters', level: 5 }), // mastered - carries down to ordering and blanks
-      ],
-    });
-    const root = renderPlan(host, planWith(pv));
-    container.appendChild(root);
-
-    const squares = Array.from(root.querySelectorAll('.sm-activity-square'));
-    expect(squares[0]!.className).toContain('sm-activity-square-carried'); // ordering
-    expect(squares[1]!.className).toContain('sm-activity-square-carried'); // blanks
-    expect(squares[2]!.className).toContain('sm-activity-square-done'); // firstletters itself
-  });
-
-  it('opens the passage screen from the row, with no separate Practice or Show in Bible button on the row itself', () => {
-    const pv = passageViewFixture();
-    const root = renderPlan(host, planWith(pv));
-    container.appendChild(root);
-
-    const row = root.querySelector('.sm-row')!;
-    // The whole row is one button; a review round asked that per-row actions
-    // stay hidden until a passage is actually selected, since opening it
-    // already puts Practice and Show in Bible one click away.
-    expect(row.querySelectorAll('button').length).toBe(1);
-
-    row.querySelector<HTMLButtonElement>('button')!.click();
-    expect(host.navigations).toContainEqual({ type: 'goPassage', passageId: pv.passage.id });
-  });
-});
-
-describe('the passage screen', () => {
-  it('offers a "Practice Passage" link that starts the suggested activity', () => {
-    // The fixture's suggested activity is `blanks` (see the "badges the
-    // suggested activity" test below).
-    const pv = passageViewFixture();
-    const root = renderPassageScreen(host, pv, 'firstLetter');
-    container.appendChild(root);
-
-    const link = Array.from(root.querySelectorAll('button')).find((b) => b.textContent === 'Practice Passage')!;
-    expect(link).toBeTruthy();
-    expect(link.className).not.toContain('sm-btn-primary'); // chrome-free, not a bordered callout.
-
-    link.click();
-    expect(host.sessionsStarted).toEqual([{ passageId: pv.passage.id, rung: 'blanks', restart: undefined }]);
-  });
-
-  const rowFor = (root: HTMLElement, label: string): HTMLTableRowElement =>
-    Array.from(root.querySelectorAll<HTMLTableRowElement>('.sm-progress-row')).find(
-      (r) => r.querySelector('strong')?.textContent === label,
-    )!;
-  const rowButton = (row: HTMLElement, label: string): HTMLButtonElement =>
-    Array.from(row.querySelectorAll<HTMLButtonElement>('button')).find((b) => b.textContent === label)!;
-
-  it('shows one progress table with a row per practice type, and no activity tabs', () => {
-    const root = renderPassageScreen(host, passageViewFixture(), 'firstLetter');
-    container.appendChild(root);
-
-    expect(root.querySelectorAll('[role="tab"]').length).toBe(0);
-    expect(root.querySelectorAll('table.kth-table').length).toBe(1);
-    const heads = Array.from(root.querySelectorAll('thead th')).map((h) => h.textContent);
-    expect(heads.slice(0, 4)).toEqual(['Practice', 'Progress', 'Last practised', 'Next due']);
-    // Four rungs in the fixture, `refmatch` inapplicable but still a row.
-    expect(Array.from(root.querySelectorAll('tbody .sm-progress-row strong')).map((n) => n.textContent)).toEqual([
-      RUNG_LABEL.ordering,
-      RUNG_LABEL.refmatch,
-      RUNG_LABEL.blanks,
-      RUNG_LABEL.firstletters,
-    ]);
-  });
-
-  it('explains an inapplicable activity in its own row, with no button, and names the 25-passage gate', () => {
-    const root = renderPassageScreen(host, passageViewFixture(), 'firstLetter');
-    container.appendChild(root);
-
-    const row = rowFor(root, RUNG_LABEL.refmatch);
-    expect(row.textContent).toContain('Matching a reference needs 25 passages in this list');
-    expect(row.querySelector('button')).toBeNull();
-  });
-
-  it('names the 25-passage gate for a gated refprovide row too', () => {
-    const pv = passageViewFixture({
-      rungs: [
-        rungView({ rung: 'ordering', level: 3 }),
-        rungView({ rung: 'refmatch', applicable: false }),
-        rungView({ rung: 'blanks', level: 1 }),
-        rungView({ rung: 'firstletters' }),
-        rungView({ rung: 'refprovide', applicable: false }),
-      ],
-    });
-    const root = renderPassageScreen(host, pv, 'firstLetter');
-    container.appendChild(root);
-
-    expect(rowFor(root, RUNG_LABEL.refprovide).textContent).toContain('Naming a reference needs 25 passages in this list');
-  });
-
-  it('badges the suggested activity once, and every row\'s button starts that practice', () => {
-    const pv = passageViewFixture();
-    const root = renderPassageScreen(host, pv, 'firstLetter');
-    container.appendChild(root);
-
-    // The fixture's `blanks` is due; everything else is not.
-    expect(root.querySelectorAll('.sm-badge-suggested').length).toBe(1);
-    expect(rowFor(root, RUNG_LABEL.blanks).querySelector('.sm-badge-suggested')).not.toBeNull();
-
-    rowButton(rowFor(root, RUNG_LABEL.firstletters), 'Practice').click();
-    rowButton(rowFor(root, RUNG_LABEL.ordering), 'Practice').click();
-    expect(host.sessionsStarted).toEqual([
-      { passageId: pv.passage.id, rung: 'firstletters', restart: undefined },
-      { passageId: pv.passage.id, rung: 'ordering', restart: undefined },
-    ]);
-  });
-
-  it('shows last practised and next due per row, and an untried activity as empty boxes', () => {
-    const pv = passageViewFixture({
-      rungs: [
-        rungView({ rung: 'ordering', level: 2, attempts: 3, lastPractisedAt: NOW - 3 * 86_400_000, dueAt: NOW + 5 * 86_400_000 }),
-        rungView({ rung: 'refmatch', applicable: false }),
-        rungView({ rung: 'blanks', level: 0, attempts: 0 }),
-        rungView({ rung: 'firstletters', level: 0, attempts: 0 }),
-      ],
-    });
-    const root = renderPassageScreen(host, pv, 'firstLetter');
-    container.appendChild(root);
-
-    const ordering = rowFor(root, RUNG_LABEL.ordering);
-    const cells = Array.from(ordering.querySelectorAll('td')).map((c) => c.textContent ?? '');
-    expect(cells[2]).toBe('3 days ago');
-    expect(cells[3]).toBe('Due in 5 days');
-
-    const untried = rowFor(root, RUNG_LABEL.blanks);
-    expect(untried.querySelectorAll('.sm-level-box-yellow, .sm-level-box-green').length).toBe(0);
-    expect(Array.from(untried.querySelectorAll('td'))[2]!.textContent).toBe('Not yet');
-  });
-
-  it('shows a paused activity\'s progress with Restart and Resume', () => {
-    const pv = passageViewFixture({
-      rungs: [
-        rungView({ rung: 'ordering', level: 2, tiers: 2, tiersPassed: 1, resume: { stepsDone: 2, totalSteps: 5 } }),
-        rungView({ rung: 'refmatch', applicable: false }),
-        rungView({ rung: 'blanks' }),
-        rungView({ rung: 'firstletters' }),
-      ],
-    });
-    const root = renderPassageScreen(host, pv, 'firstLetter');
-    container.appendChild(root);
-
-    const row = rowFor(root, RUNG_LABEL.ordering);
-    expect(row.querySelector('.sm-progress-note')?.textContent).toBe('Paused at 2/5');
-    expect(Array.from(row.querySelectorAll('button')).map((b) => b.textContent)).toEqual(['Restart', 'Resume']);
-  });
-
-  it('Resume starts without restart; Restart asks for one', () => {
-    const pv = passageViewFixture({
-      rungs: [
-        rungView({ rung: 'ordering', resume: { stepsDone: 1, totalSteps: 5 } }),
-        rungView({ rung: 'refmatch', applicable: false }),
-        rungView({ rung: 'blanks' }),
-        rungView({ rung: 'firstletters' }),
-      ],
-    });
-    const root = renderPassageScreen(host, pv, 'firstLetter');
-    container.appendChild(root);
-
-    const row = rowFor(root, RUNG_LABEL.ordering);
-    rowButton(row, 'Resume').click();
-    rowButton(row, 'Restart').click();
-
-    expect(host.sessionsStarted).toEqual([
-      { passageId: pv.passage.id, rung: 'ordering', restart: undefined },
-      { passageId: pv.passage.id, rung: 'ordering', restart: true },
-    ]);
-  });
-
-  it('opens a settings modal from the gear icon, with the answer-mode override and a reset-progress action', async () => {
-    const pv = passageViewFixture();
-    const root = renderPassageScreen(host, pv, 'firstLetter');
-    container.appendChild(root);
-
-    const gear = root.querySelector<HTMLButtonElement>('[aria-label="Passage settings"]')!;
-    gear.click();
-    await settle();
-
-    const dialog = document.querySelector('[role="dialog"]')!;
-    expect(dialog).toBeTruthy();
-    expect(dialog.querySelector('#sm-answer-mode')).toBeTruthy();
-    expect(spokenText(dialog)).toContain('Reset progress for this passage');
-    dialog.parentElement!.remove();
-  });
-
-  it('lets a passage override the answer mode from the modal, and tells the worker', async () => {
-    host.handlers.setPassageAnswerMode = () => ({ ok: true, data: {} });
-    const pv = passageViewFixture();
-    const root = renderPassageScreen(host, pv, 'firstLetter');
-    container.appendChild(root);
-
-    root.querySelector<HTMLButtonElement>('[aria-label="Passage settings"]')!.click();
-    await settle();
-
-    const select = document.querySelector<HTMLSelectElement>('#sm-answer-mode')!;
-    select.value = 'fullWord';
-    select.dispatchEvent(new Event('change'));
-    await settle();
-
-    const sent = host.requests.find((r) => r.type === 'setPassageAnswerMode');
-    expect(sent).toMatchObject({ type: 'setPassageAnswerMode', passageId: pv.passage.id, mode: 'fullWord' });
-    // Success closes the modal and reloads, rather than leaving it open on
-    // top of a screen that is about to be replaced.
-    expect(document.querySelector('[role="dialog"]')).toBeNull();
-    expect(host.reloads).toBe(1);
-  });
-
-  it('the settings modal traps focus and closes on Escape', async () => {
-    const root = renderPassageScreen(host, passageViewFixture(), 'firstLetter');
-    container.appendChild(root);
-
-    const gear = root.querySelector<HTMLButtonElement>('[aria-label="Passage settings"]')!;
-    gear.focus();
-    gear.click();
-    await settle();
-
-    const dialog = document.querySelector<HTMLElement>('[role="dialog"]')!;
-    expect(document.activeElement).not.toBe(gear);
-    expect(dialog.contains(document.activeElement)).toBe(true);
-
-    dialog.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
-
-    expect(document.querySelector('[role="dialog"]')).toBeNull();
-    expect(document.activeElement).toBe(gear);
-  });
-
-  it('asks for confirmation before resetting progress, then dispatches resetPassageProgress and reloads', async () => {
-    host.handlers.resetPassageProgress = () => ({ ok: true, data: emptyPlan() });
-    const pv = passageViewFixture({ bestLevel: 4 });
-    const root = renderPassageScreen(host, pv, 'firstLetter');
-    container.appendChild(root);
-
-    root.querySelector<HTMLButtonElement>('[aria-label="Passage settings"]')!.click();
-    await settle();
-    const dialog = document.querySelector<HTMLElement>('[role="dialog"]')!;
-
-    const resetButton = Array.from(dialog.querySelectorAll('button')).find(
-      (b) => b.textContent === 'Reset progress for this passage',
-    )!;
-    resetButton.click();
-
-    expect(spokenText(dialog)).toContain('Reset all progress on this passage?');
-    expect(host.requests.filter((r) => r.type === 'resetPassageProgress')).toEqual([]);
-
-    const confirm = Array.from(dialog.querySelectorAll('button')).find((b) => b.textContent === 'Yes, reset')!;
-    confirm.click();
-    await settle();
-
-    expect(host.requests).toContainEqual({ type: 'resetPassageProgress', passageId: pv.passage.id });
-    // The worker's reply is handled without incident even though this
-    // screen never reads its `PlanView` payload - it just reloads, which
-    // re-fetches a fresh `getPassageView`. No crash, whatever another panel
-    // was doing with a live session for the same passage.
-    expect(document.querySelector('[role="dialog"]')).toBeNull();
-    expect(host.reloads).toBe(1);
-  });
-});
 
 // ---------------------------------------------------------------------------
 // 7b. The settings screen
@@ -1912,7 +1576,7 @@ describe('the settings screen', () => {
     expect(host.requests).toContainEqual({ type: 'setDefaultAnswerMode', mode: 'fullWord' });
   });
 
-  it('lists only the passages that have overridden the default', () => {
+  it('lists only the verses that have overridden the default', () => {
     const plan: PlanView = {
       collectionId: 1,
       collectionName: 'My plan',
@@ -1932,7 +1596,7 @@ describe('the settings screen', () => {
     expect(spokenText(root)).not.toContain('John 3:16');
   });
 
-  it('navigates to a passage screen from "Change"', () => {
+  it('opens the verse page from "Change"', () => {
     const plan: PlanView = {
       collectionId: 1,
       collectionName: 'My plan',
@@ -1950,7 +1614,17 @@ describe('the settings screen', () => {
     const change = Array.from(root.querySelectorAll('button')).find((b) => b.textContent === 'Change')!;
     change.click();
 
-    expect(host.navigations).toContainEqual({ type: 'goPassage', passageId: 7 });
+    expect(host.navigations).toContainEqual({ type: 'goVerse', passageId: 7 });
+  });
+
+  it('has a focused header that closes to Today, and the Answering section', () => {
+    const root = renderSettings(host, settings(), emptyPlan());
+    container.appendChild(root);
+    expect(root.querySelector('h1')!.textContent).toBe('Settings');
+    expect(spokenText(root)).toContain('Answering');
+    expect(spokenText(root)).toContain('Verses with their own setting');
+    root.querySelector<HTMLButtonElement>('.sm-focused-close')!.click();
+    expect(host.navigations).toContainEqual({ type: 'goTab', tab: 'today' });
   });
 });
 
@@ -1959,61 +1633,17 @@ describe('the settings screen', () => {
 // ---------------------------------------------------------------------------
 
 describe('empty and error states', () => {
-  it('gives an empty plan a welcome with the obvious first action, not a pointer to a menu', () => {
-    const root = renderPlan(host, emptyPlan());
-    container.appendChild(root);
-
-    const text = spokenText(root);
-    expect(text).toContain('Learn Scripture by heart');
-    expect(text).toContain('Add a verse or passage');
-    // The dead end was "open the menu": nothing may send a new user there.
-    expect(text).not.toContain('Open the menu');
-    expect(text).not.toContain('three-line');
-
-    const add = Array.from(root.querySelectorAll('button')).find((b) => b.textContent === 'Add a passage')!;
-    expect(add).toBeDefined();
-    // With no verse being read it is the primary action, and it opens Manage Passages.
-    expect(add.classList.contains('sm-btn-primary')).toBe(true);
-    add.click();
-    expect(host.navigations).toContainEqual({ type: 'goManagePassages' });
-  });
-
-  it('offers one-click add-and-start once the reader has a verse open, even with an empty plan', () => {
-    host.activeReference = 'John 3:16';
-    const root = renderPlan(host, emptyPlan());
-    container.appendChild(root);
-
-    // Task 0004: a first-time user should never see an empty list with
-    // nothing to press. With a verse already open, one button both adds it
-    // and starts practising it.
-    const labels = Array.from(root.querySelectorAll('button')).map((b) => b.textContent);
-    expect(labels.some((l) => (l ?? '').includes('Add John 3:16 and start'))).toBe(true);
-  });
-
-  it('does not offer a start button at all with an empty plan and nothing being read', () => {
-    const root = renderPlan(host, emptyPlan());
-    container.appendChild(root);
-
-    // A disabled primary button with no explanation looks broken: the only
-    // action is "Add a passage".
-    const labels = Array.from(root.querySelectorAll('button')).map((b) => b.textContent ?? '');
-    expect(labels.some((l) => l.includes('Start practicing') || l.includes('and start'))).toBe(false);
-    expect(labels).toContain('Add a passage');
-  });
-
-  it('gives an empty analytics screen a way back rather than a wall of zeroes', () => {
+  it('gives an empty Progress screen a way to Today rather than a wall of zeroes', () => {
     const root = renderAnalytics(host, emptyAnalytics());
     container.appendChild(root);
 
     expect(spokenText(root)).toContain('Nothing to show yet.');
+    expect(root.querySelector('h1')?.textContent).toBe('Progress');
     expect(root.querySelectorAll('button').length).toBeGreaterThan(0);
   });
 
-  // The add-passage form (single reference, paste-batch confirm, and all the
-  // tests that exercised it) moved off this screen entirely in T10 - it now
-  // lives on the Manage Passages screen (T11), which owns its own tests. What
-  // stays here is `renderAddAndStart`'s one-click shortcut, covered above and
-  // in the "the plan screen: Practice and the activity picker" block below.
+  // The empty-plan welcome and add-and-start now live on the Today screen
+  // (first open, empty focus); see test/todayView.test.ts.
 
   it('keeps the exercise usable when the surrounding context cannot be fetched', async () => {
     const reason = 'Could not reach the Scripture Memory worker (getContext): Timeout';
@@ -2428,956 +2058,31 @@ describe('the modal', () => {
   });
 });
 
-describe('iconButton, tierPips, listSelector and activityRow', () => {
-  it('iconButton shows the glyph and names itself for assistive tech', () => {
-    const onClick = vi.fn();
-    const btn = iconButton('▶', 'Practice blanks', onClick);
-    container.appendChild(btn);
-
-    expect(btn.tagName).toBe('BUTTON');
-    expect(btn.textContent).toBe('▶');
-    expect(btn.getAttribute('aria-label')).toBe('Practice blanks');
-
-    btn.click();
-    expect(onClick).toHaveBeenCalledTimes(1);
-  });
-
-  it('tierPips conveys the count in text, not only in colour', () => {
-    const pips = tierPips(1, 3);
-    container.appendChild(pips);
-
-    expect(pips.getAttribute('aria-label')).toBe('1 of 3 tiers passed');
-    expect(pips.querySelectorAll('.sm-tier-pip').length).toBe(3);
-    expect(pips.querySelectorAll('.sm-tier-pip-passed').length).toBe(1);
-  });
-
-  it('listSelector renders every option and reports a change by id', () => {
-    const onChange = vi.fn();
-    const select = listSelector(
-      [
-        { id: 'all', name: 'All lists' },
-        { id: 3, name: 'Memory verses' },
-      ],
-      'all',
-      onChange,
-    );
-    container.appendChild(select);
-
-    expect(select.tagName).toBe('SELECT');
-    expect(Array.from(select.options).map((o) => o.textContent)).toEqual(['All lists', 'Memory verses']);
-
-    select.value = '3';
-    select.dispatchEvent(new Event('change'));
-
-    expect(onChange).toHaveBeenCalledWith(3);
-  });
-
-  it('activityRow lays out name, pips, level, schedule text and a play control', () => {
-    const onPlay = vi.fn();
-    const row = activityRow({
-      rung: 'blanks',
-      level: 2,
-      tiers: 2,
-      tiersPassed: 1,
-      scheduleText: 'Due today',
-      onPlay,
-    });
-    container.appendChild(row);
-
-    expect(spokenText(row)).toContain('Due today');
-    const playButton = row.querySelector('button')!;
-    playButton.click();
-    expect(onPlay).toHaveBeenCalledTimes(1);
-  });
-});
-
-// ---------------------------------------------------------------------------
-// T10: the home screen rework - title, the Practice control, the activity
-// picker, the shuffled recommendation, and the list picker.
-// ---------------------------------------------------------------------------
-
-describe('the home screen: title, Practice, the activity picker and the shuffle', () => {
-  /** A one-list, N-passage plan, everything else defaulted from `emptyPlan()`. */
-  function planWithPassages(passages: PassageView[], over: Partial<PlanView> = {}): PlanView {
-    return { ...emptyPlan(), passages, ...over };
-  }
-
-  const TWO_LISTS = [
-    { id: 1, name: 'Default', passageCount: 1, verseCount: 6 },
-    { id: 2, name: 'Romans Road', passageCount: 0, verseCount: 0 },
-  ];
-
-  it('has a Home breadcrumb as its only crumb, with the hamburger menu beside it', () => {
-    const root = renderPlan(host, planWithPassages([passageViewFixture()]));
-    const h1 = root.querySelector('h1')!;
-    expect(h1.textContent).toBe('Home');
-    expect(h1.getAttribute('aria-current')).toBe('page');
-    expect(root.querySelectorAll('.kth-crumbs__link').length).toBe(0);
-    expect(root.querySelector('.sm-menu')).not.toBeNull();
-  });
-
-  it('folds Manage Passages, Analytics and Settings into the menu, with no separate buttons left', () => {
-    const root = renderPlan(host, planWithPassages([passageViewFixture()]));
-    container.appendChild(root);
-
-    const items = Array.from(root.querySelectorAll<HTMLButtonElement>('[role="menuitem"]'));
-    expect(items.map((b) => b.textContent)).toEqual(['Manage Passages', 'Analytics', 'Settings']);
-    const outside = Array.from(root.querySelectorAll('button'))
-      .filter((b) => b.getAttribute('role') !== 'menuitem')
-      .map((b) => b.textContent);
-    expect(outside).not.toContain('Analytics');
-    expect(outside).not.toContain('Settings');
-    expect(outside).not.toContain('Manage Passages');
-    expect(outside).not.toContain('Practice');
-    expect(root.querySelector('.sm-manage-passages-link')).toBeNull();
-
-    items[0]!.click();
-    items[1]!.click();
-    items[2]!.click();
-    expect(host.navigations).toEqual([
-      { type: 'goManagePassages' },
-      { type: 'goAnalytics' },
-      { type: 'goSettings' },
-    ]);
-  });
-
-  it('opens and closes the menu from its trigger, and closes it on Escape', () => {
-    const root = renderPlan(host, planWithPassages([passageViewFixture()]));
-    container.appendChild(root);
-
-    const trigger = root.querySelector<HTMLButtonElement>('.sm-menu-btn')!;
-    const panel = root.querySelector<HTMLElement>('.sm-menu-panel')!;
-    expect(panel.hidden).toBe(true);
-    trigger.click();
-    expect(panel.hidden).toBe(false);
-    expect(trigger.getAttribute('aria-expanded')).toBe('true');
-    panel.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
-    expect(panel.hidden).toBe(true);
-  });
-
-  it('draws six activity tiles in order, with the two reference tiles disabled while locked', () => {
-    const plan = planWithPassages([passageViewFixture()], {
-      referenceActivitiesUnlocked: false,
-      scopeVerseCount: 12,
-    });
-    const root = renderPlan(host, plan);
-    container.appendChild(root);
-
-    const tiles = Array.from(root.querySelectorAll<HTMLButtonElement>('.sm-tile-grid .sm-tile'));
-    expect(tiles.map((t) => t.querySelector('.sm-tile-title')!.textContent)).toEqual([
-      'Variety',
-      'Match References',
-      'Put in Order',
-      'Fill in the Blanks',
-      'First Letters',
-      'Provide Reference',
-    ]);
-    const byTitle = (title: string) =>
-      tiles.find((t) => t.querySelector('.sm-tile-title')!.textContent === title)!;
-    expect(byTitle('Match References').disabled).toBe(true);
-    expect(byTitle('Provide Reference').disabled).toBe(true);
-    expect(byTitle('Put in Order').disabled).toBe(false);
-    expect(root.querySelector('.sm-activity-picker')).toBeNull();
-    expect(Array.from(root.querySelectorAll('h2')).map((h) => h.textContent)).toContain('Practice by Activity');
-  });
-
-  it('shows the reference hint text on each locked tile, naming the shortfall', () => {
-    const plan = planWithPassages([passageViewFixture()], {
-      referenceActivitiesUnlocked: false,
-      scopeVerseCount: 12,
-    });
-    const root = renderPlan(host, plan);
-    container.appendChild(root);
-
-    const warnings = Array.from(root.querySelectorAll('.sm-tile-warning'));
-    expect(warnings.length).toBe(2);
-    for (const warning of warnings) {
-      expect(spokenText(warning)).toContain('25');
-      expect(spokenText(warning)).toContain('13 more to go (12 so far)');
-    }
-    // A warning is inside a tile button, so it never nests a button.
-    expect(root.querySelector('.sm-tile button')).toBeNull();
-  });
-
-  it('shows no locked warning once the reference activities are unlocked', () => {
-    const plan = planWithPassages([passageViewFixture()], {
-      referenceActivitiesUnlocked: true,
-      scopeVerseCount: 30,
-    });
-    const root = renderPlan(host, plan);
-    container.appendChild(root);
-
-    expect(root.querySelector('.sm-reference-hint')).toBeNull();
-    expect(Array.from(root.querySelectorAll('.sm-tile-warning')).some((w) => spokenText(w).includes('25'))).toBe(false);
-  });
-
-  it('pressing a tile starts its flow through the host', () => {
-    const plan = planWithPassages([passageViewFixture()], { referenceActivitiesUnlocked: true });
-    const root = renderPlan(host, plan);
-    container.appendChild(root);
-
-    const tiles = Array.from(root.querySelectorAll<HTMLButtonElement>('.sm-tile'));
-    tiles[0]!.click();
-    tiles[3]!.click();
-    expect(host.flowsStarted.map((f) => f.flow)).toEqual([
-      { kind: 'variety' },
-      { kind: 'activity', rung: 'blanks' },
-    ]);
-    expect(host.sessionsStarted).toEqual([]);
-  });
-
-  it('disables a tile whose activity has no applicable passage, with a readable warning', () => {
-    // Only `ordering` is applicable on this passage.
-    const pv = passageViewFixture({ rungs: [rungView({ rung: 'ordering', level: 1 })] });
-    const plan = planWithPassages([pv], { referenceActivitiesUnlocked: true });
-    const root = renderPlan(host, plan);
-    container.appendChild(root);
-
-    const blanksTile = Array.from(root.querySelectorAll<HTMLButtonElement>('.sm-tile')).find(
-      (t) => t.querySelector('.sm-tile-title')!.textContent === 'Fill in the Blanks',
-    )!;
-    expect(blanksTile.disabled).toBe(true);
-    expect(spokenText(blanksTile.querySelector('.sm-tile-warning')!)).toContain('Nothing to practise');
-  });
-
-  it('lists passages in plan order for "bible" and by need for "need"', () => {
-    const fresh = passageViewFixture({
-      passage: passageFixture({ id: 1, reference: 'Genesis 1:1', addedAt: 1 }),
-      bestLevel: 3,
-      dueCount: 0,
-      rungs: [rungView({ rung: 'blanks', level: 3, dueAt: null })],
-    });
-    const needy = passageViewFixture({
-      passage: passageFixture({ id: 2, reference: 'John 3:16', addedAt: 2 }),
-      bestLevel: 0,
-      dueCount: 0,
-      rungs: [rungView({ rung: 'blanks', level: 0, attempts: 0, dueAt: null })],
-    });
-    const refs = (root: HTMLElement) =>
-      Array.from(root.querySelectorAll('.sm-row-ref')).map((n) => n.textContent);
-
-    const bible = renderPlan(host, planWithPassages([fresh, needy], { sortOrder: 'bible' }));
-    expect(refs(bible)).toEqual(['Genesis 1:1', 'John 3:16']);
-    const need = renderPlan(host, planWithPassages([fresh, needy], { sortOrder: 'need' }));
-    expect(refs(need)).toEqual(['John 3:16', 'Genesis 1:1']);
-  });
-
-  it('shows each passage\'s translation beside its reference, in the plan and in Manage Passages (B-123)', () => {
-    const kjv = passageViewFixture({ passage: passageFixture({ id: 1, reference: 'John 3:16', moduleId: 'KJV' }) });
-    const asv = passageViewFixture({ passage: passageFixture({ id: 2, reference: 'John 3:16', moduleId: 'ASV' }) });
-    const tags = (root: HTMLElement) =>
-      Array.from(root.querySelectorAll('.sm-row-translation')).map((n) => n.textContent);
-
-    expect(tags(renderPlan(host, planWithPassages([kjv, asv])))).toEqual(['KJV', 'ASV']);
-    expect(tags(renderManagePassages(host, planWithPassages([kjv, asv])))).toEqual(['KJV', 'ASV']);
-  });
-
-  it('headed "Practice by Passage", with a sort select reading the plan\'s sortOrder', () => {
-    const root = renderPlan(host, planWithPassages([passageViewFixture()], { sortOrder: 'need' }));
-    container.appendChild(root);
-
-    expect(Array.from(root.querySelectorAll('h2')).map((h) => h.textContent)).toContain('Practice by Passage');
-    const select = root.querySelector<HTMLSelectElement>('#sm-passage-sort')!;
-    expect(Array.from(select.options).map((o) => o.textContent)).toEqual(['Bible order', 'Needs work']);
-    expect(select.value).toBe('need');
-  });
-
-  it('persists a changed sort through setPassageSortOrder, then reloads', async () => {
-    host.handlers.setPassageSortOrder = () => ({ ok: true, data: {} });
-    const root = renderPlan(host, planWithPassages([passageViewFixture()]));
-    container.appendChild(root);
-
-    const select = root.querySelector<HTMLSelectElement>('#sm-passage-sort')!;
-    select.value = 'need';
-    select.dispatchEvent(new Event('change'));
-    await settle();
-
-    expect(host.requests).toContainEqual({ type: 'setPassageSortOrder', order: 'need' });
-    expect(host.reloads).toBe(1);
-  });
-
-  it('announces the error and does not reload when the sort cannot be saved', async () => {
-    host.handlers.setPassageSortOrder = () => ({ ok: false, error: 'nope' });
-    const root = renderPlan(host, planWithPassages([passageViewFixture()]));
-    container.appendChild(root);
-
-    const select = root.querySelector<HTMLSelectElement>('#sm-passage-sort')!;
-    select.value = 'need';
-    select.dispatchEvent(new Event('change'));
-    await settle();
-
-    expect(host.announcements).toContain('nope');
-    expect(host.reloads).toBe(0);
-  });
-
-  it('has no tiles or sort on an empty plan, and the one-click add-and-start path still works', async () => {
-    host.activeReference = 'John 3:16';
-    host.handlers.addPassage = (req) => ({ ok: true, data: { passage: passageFixture({ reference: req.reference }) } });
-    const root = renderPlan(host, emptyPlan());
-    container.appendChild(root);
-
-    expect(root.querySelector('.sm-tile')).toBeNull();
-    expect(root.querySelector('#sm-passage-sort')).toBeNull();
-
-    const addButton = Array.from(root.querySelectorAll('button')).find((b) =>
-      (b.textContent ?? '').includes('Add John 3:16 and start'),
-    )!;
-    addButton.click();
-    await settle();
-
-    expect(host.requests).toContainEqual({ type: 'addPassage', reference: 'John 3:16' });
-    expect(host.sessionsStarted.length).toBe(1);
-  });
-
-
-  it('keeps the list picker on an empty list, so the user can get back to All verses', () => {
-    const plan = { ...planWithPassages([]), scope: 1 } as PlanView;
-    const root = renderPlan(host, plan);
-    container.appendChild(root);
-    expect(root.querySelector('.sm-list-selector')).not.toBeNull();
-    expect(spokenText(root)).toContain('Add a passage');
-  });
-
-  it('always shows a labelled verse-list selector, defaulting to "All verses", even for a single-list plan', () => {
-    const plan = planWithPassages([passageViewFixture()]);
-    const root = renderPlan(host, plan);
-    container.appendChild(root);
-
-    const select = root.querySelector<HTMLSelectElement>('.sm-list-selector')!;
-    expect(select).not.toBeNull();
-    expect(select.value).toBe('all');
-    expect(select.options[0]!.textContent).toBe('All verses');
-    expect(root.querySelector('label[for="sm-verse-list"]')?.textContent).toBe('Practise from');
-  });
-
-  it('shows a list selector for a multi-list plan, and reads the current selection from plan.scope', () => {
-    const plan = planWithPassages([passageViewFixture()], { lists: TWO_LISTS, scope: 2 });
-    const root = renderPlan(host, plan);
-    container.appendChild(root);
-
-    const select = root.querySelector<HTMLSelectElement>('.sm-list-selector')!;
-    expect(select).not.toBeNull();
-    expect(select.value).toBe('2');
-  });
-
-  it('asks the worker to change scope, and reloads on success, when a different list is picked', async () => {
-    host.handlers.setScope = () => ({ ok: true, data: emptyPlan() });
-    const plan = planWithPassages([passageViewFixture()], { lists: TWO_LISTS });
-    const root = renderPlan(host, plan);
-    container.appendChild(root);
-
-    const select = root.querySelector<HTMLSelectElement>('.sm-list-selector')!;
-    select.value = '2';
-    select.dispatchEvent(new Event('change'));
-    await settle();
-
-    expect(host.requests).toContainEqual({ type: 'setScope', scope: { kind: 'list', id: 2 } });
-    expect(host.reloads).toBeGreaterThan(0);
-  });
-
-  it('reflects whatever scope the worker sends on the next render, rather than a value remembered locally', () => {
-    // Scope lives in the worker. A `planChanged` push makes `panel.ts` fetch a
-    // fresh `PlanView` and call `renderPlan` again - simulated here by calling
-    // it a second time with a different `scope` - and the selector must show
-    // *that* value, not whatever the first render happened to pick.
-    const plan1 = planWithPassages([passageViewFixture()], { lists: TWO_LISTS, scope: 2 });
-    const root1 = renderPlan(host, plan1);
-    expect(root1.querySelector<HTMLSelectElement>('.sm-list-selector')!.value).toBe('2');
-
-    const plan2 = planWithPassages([passageViewFixture()], { lists: TWO_LISTS, scope: 'all' });
-    const root2 = renderPlan(host, plan2);
-    expect(root2.querySelector<HTMLSelectElement>('.sm-list-selector')!.value).toBe('all');
-  });
-
-});
-
 // ---------------------------------------------------------------------------
 // T11: the Manage Passages screen - add/remove, list management, and the
 // suggested-lists gallery.
 // ---------------------------------------------------------------------------
 
-describe('the Manage Passages screen', () => {
-  /** A plan with the given passages and lists, everything else from `emptyPlan()`. */
-  function managePlan(passages: PassageView[], over: Partial<PlanView> = {}): PlanView {
-    return { ...emptyPlan(), passages, ...over };
-  }
-
-  const TWO_LISTS = [
-    { id: 1, name: 'Default', passageCount: 1, verseCount: 6 },
-    { id: 2, name: 'Romans Road', passageCount: 0, verseCount: 0 },
-  ];
-
-  /**
-   * `settle()` flushes six microtask ticks, plenty for the single-request
-   * flows elsewhere in this file. A suggested list's "Create this list"
-   * chains `createList`, `setScope`, and then one sequential `addPassage`
-   * per reference (deliberately not `Promise.all` - see `addBatch`'s own
-   * comment), so a ten-reference list needs more ticks than that to finish
-   * inside one `await`. This flushes considerably more.
-   */
-  async function settleBatch(): Promise<void> {
-    for (let i = 0; i < 60; i++) await Promise.resolve();
-  }
-
-  // -- the add-passage form, moved verbatim from the plan screen -----------
-
-  it('keeps the add-passage input at id "sm-add-reference" so the placeholder wiring keeps working', () => {
-    const root = renderManagePassages(host, managePlan([]));
-    container.appendChild(root);
-
-    expect(root.querySelector('#sm-add-reference')).not.toBeNull();
-  });
-
-  it('adds a single typed reference and reloads', async () => {
-    host.handlers.addPassage = (req) => ({ ok: true, data: { passage: passageFixture({ reference: req.reference }) } });
-    const root = renderManagePassages(host, managePlan([]));
-    container.appendChild(root);
-
-    const input = root.querySelector<HTMLInputElement>('#sm-add-reference')!;
-    input.value = 'John 3:16';
-    input.closest('form')!.dispatchEvent(new Event('submit', { cancelable: true }));
-    await settle();
-
-    expect(host.requests).toContainEqual({ type: 'addPassage', reference: 'John 3:16' });
-    expect(host.reloads).toBeGreaterThan(0);
-  });
-
-  it('offers a paste-batch confirm for more than one candidate, and adds them sequentially on confirm', async () => {
-    const order: string[] = [];
-    host.handlers.addPassage = (req) => {
-      order.push(req.reference);
-      return { ok: true, data: { passage: passageFixture({ id: order.length, reference: req.reference }) } };
-    };
-    const root = renderManagePassages(host, managePlan([]));
-    container.appendChild(root);
-
-    const input = root.querySelector<HTMLInputElement>('#sm-add-reference')!;
-    const pasteEvent = new Event('paste', { cancelable: true }) as ClipboardEvent & {
-      clipboardData?: { getData: (type: string) => string };
-    };
-    Object.defineProperty(pasteEvent, 'clipboardData', {
-      value: { getData: () => 'John 3:16\nRomans 8:28' },
-    });
-    input.dispatchEvent(pasteEvent);
-
-    const popup = document.querySelector('.sm-modal-backdrop')!;
-    expect(popup).not.toBeNull();
-
-    const addAll = Array.from(popup.querySelectorAll<HTMLButtonElement>('.sm-modal-actions button')).find((b) =>
-      (b.textContent ?? '').startsWith('Add'),
-    )!;
-    addAll.click();
-    await settle();
-    expect(document.querySelector('.sm-modal-backdrop')).toBeNull();
-
-    // Sequential, not concurrent - the order the references were typed in.
-    expect(order).toEqual(['John 3:16', 'Romans 8:28']);
-  });
-
-  it('a reference already present is reported by `created: false`, not treated as an error', async () => {
-    // `store.addPassage` returns the existing row unchanged for a duplicate -
-    // this is not a failure, and must not end up in the error slot.
-    host.handlers.addPassage = () => ({
-      ok: true,
-      data: { passage: passageFixture({ reference: 'Psalm 23:1-6' }), existed: true },
-    });
-    const root = renderManagePassages(host, managePlan([]));
-    container.appendChild(root);
-
-    const input = root.querySelector<HTMLInputElement>('#sm-add-reference')!;
-    input.value = 'Psalm 23:1-6';
-    input.closest('form')!.dispatchEvent(new Event('submit', { cancelable: true }));
-    await settle();
-
-    expect(root.querySelector('.sm-error')).toBeNull();
-    // B-026: says so, rather than claiming "Added".
-    expect(host.announcements.some((a) => a.includes('already in your list'))).toBe(true);
-    expect(host.announcements.some((a) => a.includes('Added'))).toBe(false);
-  });
-
-  // -- removing a passage ----------------------------------------------------
-
-  it('asks before removing a never-practiced passage too, then removes on confirm (B-025)', async () => {
-    host.handlers.removePassage = () => ({ ok: true, data: {} });
-    const pv = passageViewFixture({ bestLevel: 0 });
-    const root = renderManagePassages(host, managePlan([pv]));
-    container.appendChild(root);
-
-    root.querySelector<HTMLButtonElement>('.sm-remove button')!.click();
-    expect(host.requests.filter((r) => r.type === 'removePassage')).toEqual([]);
-    expect(spokenText(root)).toContain('Remove this passage from your list?');
-    root.querySelectorAll<HTMLButtonElement>('.sm-remove button')[0]!.click();
-    await settle();
-
-    expect(host.requests).toContainEqual({ type: 'removePassage', passageId: pv.passage.id });
-    expect(host.reloads).toBeGreaterThan(0);
-  });
-
-  it('asks for confirmation before removing a passage with history', () => {
-    const pv = passageViewFixture({ bestLevel: 3 });
-    const root = renderManagePassages(host, managePlan([pv]));
-    container.appendChild(root);
-
-    root.querySelector<HTMLButtonElement>('.sm-remove button')!.click();
-
-    expect(spokenText(root)).toContain('Its history is kept for 7 days, and adding it again restores it.');
-    expect(host.requests.filter((r) => r.type === 'removePassage')).toEqual([]);
-  });
-
-  it('removing the last passage of a list leaves the (now empty) list in place', async () => {
-    host.handlers.removePassage = () => ({ ok: true, data: {} });
-    const pv = passageViewFixture({ bestLevel: 0 });
-    const root = renderManagePassages(host, managePlan([pv], { lists: [{ id: 1, name: 'Default', passageCount: 1, verseCount: 6 }] }));
-    container.appendChild(root);
-
-    root.querySelector<HTMLButtonElement>('.sm-remove button')!.click();
-    root.querySelectorAll<HTMLButtonElement>('.sm-remove button')[0]!.click();
-    await settle();
-
-    // No list-deleting request of any kind was ever sent - removing a
-    // passage only ever removes the passage.
-    expect(host.requests.some((r) => r.type === 'deleteList')).toBe(false);
-    expect(host.requests).toContainEqual({ type: 'removePassage', passageId: pv.passage.id });
-  });
-
-  // -- moving a passage to another list ---------------------------------------
-
-  it('moves a passage to a different list when the move-to-list control changes', async () => {
-    host.handlers.movePassage = () => ({ ok: true, data: emptyPlan() });
-    const pv = passageViewFixture({ passage: passageFixture({ id: 5, collectionId: 1 }) });
-    const root = renderManagePassages(host, managePlan([pv], { lists: TWO_LISTS }));
-    container.appendChild(root);
-
-    const moveSelect = root.querySelector<HTMLSelectElement>(`[aria-label="Move ${pv.passage.reference} to a different list"]`)!;
-    moveSelect.value = '2';
-    moveSelect.dispatchEvent(new Event('change'));
-    await settle();
-
-    expect(host.requests).toContainEqual({ type: 'movePassage', passageId: 5, collectionId: 2 });
-    expect(host.reloads).toBeGreaterThan(0);
-  });
-
-  // -- list management: create, rename, delete --------------------------------
-
-  it('creates a new list from the create-list form', async () => {
-    host.handlers.createList = () => ({ ok: true, data: emptyPlan() });
-    const root = renderManagePassages(host, managePlan([], { lists: TWO_LISTS }));
-    container.appendChild(root);
-
-    const nameInput = root.querySelector<HTMLInputElement>('#sm-create-list-name')!;
-    nameInput.value = 'Advent';
-    nameInput.closest('form')!.dispatchEvent(new Event('submit', { cancelable: true }));
-    await settle();
-
-    expect(host.requests).toContainEqual({ type: 'createList', name: 'Advent' });
-    expect(host.reloads).toBeGreaterThan(0);
-  });
-
-  it('refuses to submit an empty list name', () => {
-    const root = renderManagePassages(host, managePlan([], { lists: TWO_LISTS }));
-    container.appendChild(root);
-
-    root.querySelector<HTMLInputElement>('#sm-create-list-name')!.value = '   ';
-    root.querySelector('#sm-create-list-name')!.closest('form')!.dispatchEvent(new Event('submit', { cancelable: true }));
-
-    expect(host.requests.some((r) => r.type === 'createList')).toBe(false);
-    expect(spokenText(root)).toContain('Type a name for the new list first.');
-  });
-
-  it('renames a list', async () => {
-    host.handlers.renameList = () => ({ ok: true, data: emptyPlan() });
-    const root = renderManagePassages(host, managePlan([], { lists: TWO_LISTS }));
-    container.appendChild(root);
-
-    const renameButtons = Array.from(root.querySelectorAll<HTMLButtonElement>('.sm-manage-list-actions button')).filter(
-      (b) => b.textContent === 'Rename',
-    );
-    renameButtons[0]!.click();
-
-    const input = root.querySelector<HTMLInputElement>('.sm-manage-list-rename input')!;
-    expect(input.value).toBe('Default');
-    input.value = 'My Verses';
-    root.querySelector<HTMLButtonElement>('.sm-manage-list-rename button')!.click();
-    await settle();
-
-    expect(host.requests).toContainEqual({ type: 'renameList', id: 1, name: 'My Verses' });
-    expect(host.reloads).toBeGreaterThan(0);
-  });
-
-  it('disables Delete on the only remaining list', () => {
-    const root = renderManagePassages(
-      host,
-      managePlan([], { lists: [{ id: 1, name: 'Default', passageCount: 0, verseCount: 0 }] }),
-    );
-    container.appendChild(root);
-
-    const deleteButton = Array.from(root.querySelectorAll<HTMLButtonElement>('.sm-manage-list-actions button')).find(
-      (b) => b.textContent === 'Delete',
-    )!;
-    expect(deleteButton.disabled).toBe(true);
-  });
-
-  it('deletes an empty list immediately, moving nothing, with no confirmation step', async () => {
-    host.handlers.deleteList = () => ({ ok: true, data: emptyPlan() });
-    const root = renderManagePassages(host, managePlan([], { lists: TWO_LISTS }));
-    container.appendChild(root);
-
-    const romansRow = Array.from(root.querySelectorAll('li.sm-manage-list-row')).find((row) =>
-      spokenText(row).includes('Romans Road'),
-    )!;
-    romansRow.querySelector<HTMLButtonElement>('button:last-of-type')!.click();
-    await settle();
-
-    expect(host.requests).toContainEqual({ type: 'deleteList', id: 2, movePassagesTo: 1 });
-    expect(root.querySelector('.sm-modal')).toBeNull();
-  });
-
-  it('asks where to move passages before deleting a list that has them, defaulting to Default', async () => {
-    host.handlers.getListPracticeStats = () => ({ ok: true, data: { total: 3, practiced: 0 } });
-    host.handlers.deleteList = () => ({ ok: true, data: emptyPlan() });
-    const lists = [
-      { id: 1, name: 'Default', passageCount: 0, verseCount: 0 },
-      { id: 2, name: 'Romans Road', passageCount: 3, verseCount: 6 },
-    ];
-    const root = renderManagePassages(host, managePlan([], { lists }));
-    container.appendChild(root);
-
-    const romansRow = Array.from(root.querySelectorAll('li.sm-manage-list-row')).find((row) =>
-      spokenText(row).includes('Romans Road'),
-    )!;
-    romansRow.querySelector<HTMLButtonElement>('button:last-of-type')!.click();
-    await settle();
-
-    const backdrop = document.querySelector('.sm-modal-backdrop');
-    expect(backdrop).not.toBeNull();
-    expect(spokenText(backdrop!)).toContain('Default');
-
-    const confirm = Array.from(backdrop!.querySelectorAll<HTMLButtonElement>('button')).find((b) =>
-      (b.textContent ?? '').startsWith('Delete and move'),
-    )!;
-    confirm.click();
-    await settle();
-
-    expect(host.requests).toContainEqual({ type: 'deleteList', id: 2, movePassagesTo: 1 });
-    backdrop?.remove();
-  });
-
-  // -- suggested lists ----------------------------------------------------
-
-  it('lists every suggested list with its name, blurb and reference count', () => {
-    const root = renderManagePassages(host, managePlan([]));
-    container.appendChild(root);
-
-    const text = spokenText(root.querySelector('.sm-suggested-lists')!);
-    for (const list of SUGGESTED_LISTS) {
-      expect(text).toContain(list.name);
-      expect(text).toContain(list.blurb);
-    }
-    const firstRow = root.querySelector('.sm-suggested-list-row')!;
-    expect(spokenText(firstRow)).toContain(`${SUGGESTED_LISTS[0]!.references.length}`);
-  });
-
-  it('"Copy references" drops the list into the add field\'s batch-confirm flow', () => {
-    const root = renderManagePassages(host, managePlan([]));
-    container.appendChild(root);
-
-    const firstRow = root.querySelector('.sm-suggested-list-row')!;
-    const copyButton = Array.from(firstRow.querySelectorAll<HTMLButtonElement>('button')).find(
-      (b) => b.textContent === 'Copy references',
-    )!;
-    copyButton.click();
-
-    const batch = document.querySelector('.sm-modal-backdrop')!;
-    expect(batch).not.toBeNull();
-    const items = Array.from(batch.querySelectorAll('.sm-batch-list-item')).map((li) => li.textContent);
-    expect(items).toEqual(SUGGESTED_LISTS[0]!.references);
-    batch.remove();
-  });
-
-  it('"Create this list" creates a collection named after the list and adds every reference', async () => {
-    const list = SUGGESTED_LISTS[0]!;
-    const createdLists = [{ id: 1, name: 'Default', passageCount: 0, verseCount: 0 }, { id: 9, name: list.name, passageCount: 0, verseCount: 0 }];
-    host.handlers.createList = () => ({ ok: true, data: { ...emptyPlan(), lists: createdLists } });
-    host.handlers.setScope = () => ({ ok: true, data: emptyPlan() });
-    const addedRefs: string[] = [];
-    host.handlers.addPassage = (req) => {
-      addedRefs.push(req.reference);
-      return { ok: true, data: { passage: passageFixture({ id: addedRefs.length, reference: req.reference }) } };
-    };
-
-    const root = renderManagePassages(host, managePlan([]));
-    container.appendChild(root);
-
-    const row = Array.from(root.querySelectorAll('.sm-suggested-list-row')).find((r) => spokenText(r).includes(list.name))!;
-    row.querySelector<HTMLButtonElement>('button')!.click(); // "Create this list" is the first button
-    await settleBatch();
-
-    expect(host.requests).toContainEqual({ type: 'createList', name: list.name });
-    expect(host.requests).toContainEqual({ type: 'setScope', scope: { kind: 'list', id: 9 } });
-    expect(addedRefs).toEqual(list.references);
-    expect(host.announcements.some((a) => a.includes(list.name))).toBe(true);
-  });
-
-  it('"Create this list" a second time reuses the existing list rather than creating a duplicate', async () => {
-    const list = SUGGESTED_LISTS[0]!;
-    host.handlers.setScope = () => ({ ok: true, data: emptyPlan() });
-    const addedRefs: string[] = [];
-    host.handlers.addPassage = (req) => {
-      addedRefs.push(req.reference);
-      return { ok: true, data: { passage: passageFixture({ id: addedRefs.length, reference: req.reference }) } };
-    };
-
-    // Simulate the plan the worker would hand back after the first creation:
-    // the list already exists by name.
-    const plan = managePlan([], { lists: [{ id: 1, name: 'Default', passageCount: 0, verseCount: 0 }, { id: 9, name: list.name, passageCount: list.references.length, verseCount: 0 }] });
-    const root = renderManagePassages(host, plan);
-    container.appendChild(root);
-
-    const row = Array.from(root.querySelectorAll('.sm-suggested-list-row')).find((r) => spokenText(r).includes(list.name))!;
-    row.querySelector<HTMLButtonElement>('button')!.click();
-    await settleBatch();
-
-    expect(host.requests.some((r) => r.type === 'createList')).toBe(false);
-    expect(host.requests).toContainEqual({ type: 'setScope', scope: { kind: 'list', id: 9 } });
-  });
-
-  it('reports a per-reference failure while still adding the rest of a suggested list', async () => {
-    const list = SUGGESTED_LISTS.find((l) => l.references.length > 1)!;
-    const createdLists = [{ id: 9, name: list.name, passageCount: 0, verseCount: 0 }];
-    host.handlers.createList = () => ({ ok: true, data: { ...emptyPlan(), lists: createdLists } });
-    host.handlers.setScope = () => ({ ok: true, data: emptyPlan() });
-    const failing = list.references[0]!;
-    let n = 0;
-    host.handlers.addPassage = (req) => {
-      n += 1;
-      if (req.reference === failing) return { ok: false, error: `Could not parse "${req.reference}".` };
-      return { ok: true, data: { passage: passageFixture({ id: n, reference: req.reference }) } };
-    };
-
-    const root = renderManagePassages(host, managePlan([]));
-    container.appendChild(root);
-
-    const row = Array.from(root.querySelectorAll('.sm-suggested-list-row')).find((r) => spokenText(r).includes(list.name))!;
-    row.querySelector<HTMLButtonElement>('button')!.click();
-    await settleBatch();
-
-    expect(spokenText(row)).toContain(`Could not parse "${failing}"`);
-    expect(host.announcements.some((a) => a.includes('failed'))).toBe(true);
-  });
-});
-
 // ---------------------------------------------------------------------------
 // T12: the passage-overview grid's alignment and narrow-width behaviour
 // ---------------------------------------------------------------------------
 
-describe('the passage screen: the tab panel', () => {
-  it('is one progress table, not a tablist with one activity panel', () => {
-    const root = renderPassageScreen(host, passageViewFixture(), 'firstLetter');
-    container.appendChild(root);
-
-    expect(root.querySelector('.sm-activity-table')).toBeNull();
-    expect(root.querySelectorAll('[role="tablist"]').length).toBe(0);
-    expect(root.querySelectorAll('.sm-activity-card').length).toBe(0);
-    expect(root.querySelectorAll('table.sm-progress-table').length).toBe(1);
-  });
-
-  it('puts the settings gear and Show in Bible in the breadcrumb actions', () => {
-    const pv = passageViewFixture();
-    const root = renderPassageScreen(host, pv, 'firstLetter');
-    container.appendChild(root);
-
-    const actions = root.querySelector('.kth-crumbs__actions')!;
-    expect(actions.querySelector('[aria-label="Passage settings"]')).not.toBeNull();
-    const show = Array.from(actions.querySelectorAll('button')).find((b) => b.textContent === 'Show in Bible')!;
-    show.click();
-    expect(host.openedVerses).toEqual([pv.passage.startVerseId]);
-  });
-});
-
 // ---------------------------------------------------------------------------
-// T13: the practice screen's chrome - activity tabs, shuffle, tier display
+// The practice chrome (tabs, shuffle, header Next and tier labels are gone; the
+// "..." menu, title and A5 summary are covered by practiceChrome.test.ts)
 // ---------------------------------------------------------------------------
 
-describe('the practice screen: activity tabs, shuffle, and tier display', () => {
-  // The tab strip is `components.ts#tabs()`, the same one the passage screen uses.
-  /** The tab strip's own buttons, in document order. */
-  function tabs(root: HTMLElement): HTMLButtonElement[] {
-    return Array.from(root.querySelectorAll<HTMLButtonElement>('.kth-tabs [role="tab"]'));
-  }
-
-  it('renders one tab per applicable activity, and marks the current one - never with aria-current="step"', async () => {
-    const practice = await mountPractice(blanksStep(PSALM_1_2, BLANKED), { rung: 'blanks' });
-
-    const strip = practice.root.querySelector('.kth-tabs')!;
-    expect(strip).toBeTruthy();
-    expect(strip.getAttribute('role')).toBe('tablist');
-
-    const labels = tabs(practice.root).map((t) => t.textContent);
-    // `refmatch` is inapplicable on `passageViewFixture()` and must not appear.
-    expect(labels).toEqual([RUNG_LABEL.ordering, RUNG_LABEL.blanks, RUNG_LABEL.firstletters]);
-
-    const current = tabs(practice.root).find((t) => t.textContent === RUNG_LABEL.blanks)!;
-    expect(current.getAttribute('aria-selected')).toBe('true');
-    const others = tabs(practice.root).filter((t) => t !== current);
-    for (const other of others) expect(other.getAttribute('aria-selected')).toBe('false');
-
-    // `aria-current="step"` is already this file's own word for the verse
-    // being worked on inside the passage (see `workingVerse()` and the
-    // accessibility describe block above) - a tab claiming the same value
-    // would make that query ambiguous, so the tab strip deliberately uses a
-    // different value.
-    expect(practice.root.querySelectorAll('[aria-current="step"]').length).toBe(1);
-  });
-
-  it('offers "Recite aloud" only when speech is ready, and opens the recite flow, not a session (B-023)', async () => {
-    const withRecite = passageViewFixture({
-      rungs: [
-        rungView({ rung: 'ordering', level: 3 }),
-        rungView({ rung: 'blanks', level: 1 }),
-        rungView({ rung: 'recite', level: 0 }),
-      ],
-    });
-    // Speech off: no recite tab.
-    host.handlers.getSettings = () => ({
-      ok: true,
-      data: { defaultAnswerMode: 'firstLetter', recite: RECITE_DEFAULTS, speech: SPEECH_OFF },
-    } as never);
-    let practice = await mountPractice(blanksStep(PSALM_1_2, BLANKED), { rung: 'blanks' }, undefined, { ok: true, data: withRecite });
-    expect(tabs(practice.root).map((t) => t.textContent)).not.toContain(RUNG_LABEL.recite);
-    practice.destroy();
-    container.innerHTML = '';
-
-    // Speech ready: the tab shows and starts a recite run.
-    host.handlers.getSettings = () => ({
-      ok: true,
-      data: { defaultAnswerMode: 'firstLetter', recite: RECITE_DEFAULTS, speech: { ...SPEECH_OFF, state: 'ready' } },
-    } as never);
-    host.handlers.endSession = () => ({ ok: true, data: { summary: null } });
-    host.handlers.startRecite = () => ({ ok: true, data: { reciteId: 7, mode: 'tap' } } as never);
-    practice = await mountPractice(blanksStep(PSALM_1_2, BLANKED), { rung: 'blanks' }, undefined, { ok: true, data: withRecite });
-    const reciteTab = tabs(practice.root).find((t) => t.textContent === RUNG_LABEL.recite)!;
-    expect(reciteTab).toBeTruthy();
-    reciteTab.click();
-    await settle();
-    expect(host.requests.some((r) => r.type === 'startRecite')).toBe(true);
-    expect(host.sessionsStarted.some((s) => s.rung === 'recite')).toBe(false);
-  });
-
-  it('shows no tab strip at all when only one activity is applicable', async () => {
-    const singlePassageView = passageViewFixture({
-      rungs: [rungView({ rung: 'blanks', level: 1 })],
-    });
-    const practice = await mountPractice(
-      blanksStep(PSALM_1_2, BLANKED),
-      { rung: 'blanks' },
-      undefined,
-      { ok: true, data: singlePassageView },
-    );
-
-    expect(practice.root.querySelector('.kth-tabs')).toBeNull();
-  });
-
-  it('clicking another tab ends the in-flight session via endSession BEFORE starting the next, and never resubmits with the old session id', async () => {
-    const order: string[] = [];
-    let endedSessionId: string | null = null;
-    host.handlers.endSession = (req) => {
-      order.push('end');
-      endedSessionId = req.sessionId;
-      return { ok: true, data: { summary: null } };
-    };
-    const originalStartSession = host.startSession.bind(host);
-    host.startSession = async (passageId, rung, restart, tier) => {
-      order.push('start');
-      return originalStartSession(passageId, rung, restart, tier);
-    };
-
-    const practice = await mountPractice(blanksStep(PSALM_1_2, BLANKED), {
-      passageId: 1,
-      rung: 'blanks',
-      sessionId: 'session-old',
-    });
-
-    const orderingTab = tabs(practice.root).find((t) => t.textContent === RUNG_LABEL.ordering)!;
-    orderingTab.click();
-    await settle();
-
-    // Ended before started, with the OLD session's id - not the passage or
-    // activity of the tab that was clicked.
-    expect(order).toEqual(['end', 'start']);
-    expect(endedSessionId).toBe('session-old');
-    expect(host.sessionsStarted).toContainEqual({
-      passageId: 1,
-      rung: 'ordering',
-      restart: undefined,
-      tier: undefined,
-    });
-
-    // No `submitStep` (or anything else) is ever sent against the ended
-    // session id after the switch.
-    const afterEnd = host.requests.slice(host.requests.findIndex((r) => r.type === 'endSession') + 1);
-    expect(afterEnd.some((r) => 'sessionId' in r && r.sessionId === 'session-old')).toBe(false);
-  });
-
-  it('clicking the current tab does nothing', async () => {
-    host.handlers.endSession = () => ({ ok: true, data: { summary: null } });
-
-    const practice = await mountPractice(blanksStep(PSALM_1_2, BLANKED), { rung: 'blanks' });
-    const currentTab = tabs(practice.root).find((t) => t.textContent === RUNG_LABEL.blanks)!;
-    currentTab.click();
-    await settle();
-
-    expect(host.requests.some((r) => r.type === 'endSession')).toBe(false);
-    expect(host.sessionsStarted.length).toBe(0);
-  });
-
-  it('shows the current tier beside the activity name when the activity has more than one tier', async () => {
+describe('the practice screen: no tabs, shuffle or tier text', () => {
+  it('shows no tab strip, shuffle button or tier label', async () => {
     const practice = await mountPractice(null, { rung: 'ordering', tier: 1, tiers: 2 });
-
-    expect(spokenText(practice.root)).toContain(tierLabel('ordering', 1));
-    expect(spokenText(practice.root)).toContain('Tier 2 of 2');
-  });
-
-  it('omits the tier text for a single-tier activity', async () => {
-    const practice = await mountPractice(null, { rung: 'refprovide', tier: 0, tiers: 1 });
-
+    expect(practice.root.querySelector('[role="tab"], .kth-tabs')).toBeNull();
+    expect(practice.root.querySelector('.sm-icon-btn')).toBeNull();
     expect(practice.root.querySelector('.sm-practice-tier')).toBeNull();
+    expect(spokenText(practice.root)).not.toContain('Tier 2 of 2');
+    expect(spokenText(practice.root)).not.toContain(tierLabel('ordering', 1));
   });
 
-  it('reflects the tier in the end-of-session summary', async () => {
-    host.handlers.submitStep = () => ({
-      ok: true,
-      data: {
-        result: stepResult({ correct: true, wrong: [] }),
-        session: session(null, { rung: 'blanks', tier: 1, tiers: 2 }),
-        summary: {
-          passageId: 1,
-          rung: 'blanks',
-          tier: 1,
-          tiers: 2,
-          score: 1,
-          correctFirst: 2,
-          totalSteps: 2,
-          nextDueAt: null,
-          level: 5,
-          passageWellLearned: false,
-        },
-      },
-    });
-
-    const practice = await mountPractice(blanksStep(PSALM_1_2, BLANKED), { rung: 'blanks', tier: 1, tiers: 2 });
-    practice.root.querySelector<HTMLButtonElement>('.sm-exercise-actions button')!.click();
-    await settle();
-
-    const finish = practice.root.querySelector<HTMLButtonElement>('.sm-exercise-actions button')!;
-    expect(finish.textContent).toBe('Finish');
-    finish.click();
-    await settle();
-
-    expect(spokenText(practice.root)).toContain(tierLabel('blanks', 1));
-    expect(spokenText(practice.root)).toContain('Tier 2 of 2');
-  });
-
-  it('does not rebuild the exercise inputs the user is typing into when the tab strip arrives after the first paint', async () => {
+  it('does not rebuild the exercise inputs the user is typing into when the passage view arrives after the first paint', async () => {
     let resolvePassageView!: (reply: PanelReply<PassageView>) => void;
     host.handlers.getContext = () => ({ ok: true, data: psalmContext() });
     host.handlers.getPassageView = () =>
@@ -3390,9 +2095,6 @@ describe('the practice screen: activity tabs, shuffle, and tier display', () => 
     await settle();
     view = practice;
 
-    // No tab strip yet - the fetch has not resolved.
-    expect(practice.root.querySelector('.kth-tabs')).toBeNull();
-
     const input = practice.root.querySelectorAll<HTMLInputElement>('.sm-blank')[0]!;
     input.value = 'his';
     input.dispatchEvent(new Event('input'));
@@ -3400,65 +2102,10 @@ describe('the practice screen: activity tabs, shuffle, and tier display', () => 
     resolvePassageView({ ok: true, data: passageViewFixture() });
     await settle();
 
-    // The tab strip is now present, but `contextEl` was never rebuilt: the
-    // very same input node still holds what the user typed.
-    expect(practice.root.querySelector('.kth-tabs')).not.toBeNull();
+    // `contextEl` was never rebuilt: the very same input node still holds what the user typed.
     const inputAfter = practice.root.querySelectorAll<HTMLInputElement>('.sm-blank')[0]!;
     expect(inputAfter).toBe(input);
     expect(inputAfter.value).toBe('his');
-  });
-
-  it('the shuffle control starts a different target', async () => {
-    const plan: PlanView = {
-      ...emptyPlan(),
-      passages: [
-        passageViewFixture({ passage: passageFixture({ id: 1, reference: 'Psalm 1:2-3' }) }),
-        passageViewFixture({ passage: passageFixture({ id: 2, reference: 'Psalm 23:1-6' }) }),
-      ],
-    };
-    host.handlers.getPlan = () => ({ ok: true, data: plan });
-    host.handlers.endSession = () => ({ ok: true, data: { summary: null } });
-
-    const practice = await mountPractice(blanksStep(PSALM_1_2, BLANKED), {
-      passageId: 1,
-      rung: 'blanks',
-      sessionId: 'session-old',
-    });
-
-    const shuffleButton = practice.root.querySelector<HTMLButtonElement>('.sm-practice-sub .sm-icon-btn')!;
-    shuffleButton.click();
-    await settle();
-
-    expect(host.requests.some((r) => r.type === 'getPlan')).toBe(true);
-    expect(
-      host.requests.some((r) => r.type === 'endSession' && r.sessionId === 'session-old'),
-    ).toBe(true);
-    expect(host.sessionsStarted.length).toBe(1);
-    const started = host.sessionsStarted[0]!;
-    expect(started.passageId === 1 && started.rung === 'blanks').toBe(false);
-  });
-
-  it('announces there is nothing else when the shuffle has no other target to offer', async () => {
-    const onlyPassageView = passageViewFixture({
-      passage: passageFixture({ id: 10 }),
-      rungs: [rungView({ rung: 'blanks', level: 1 })],
-    });
-    const plan: PlanView = { ...emptyPlan(), passages: [onlyPassageView] };
-    host.handlers.getPlan = () => ({ ok: true, data: plan });
-
-    const practice = await mountPractice(
-      blanksStep(PSALM_1_2, BLANKED),
-      { passageId: 10, rung: 'blanks', sessionId: 'session-old' },
-      undefined,
-      { ok: true, data: onlyPassageView },
-    );
-
-    const shuffleButton = practice.root.querySelector<HTMLButtonElement>('.sm-practice-sub .sm-icon-btn')!;
-    shuffleButton.click();
-    await settle();
-
-    expect(host.announcements).toContain('Nothing else to practise right now.');
-    expect(host.sessionsStarted.length).toBe(0);
   });
 });
 
@@ -3505,7 +2152,7 @@ describe('blanks, hard tier: the whole passage on one screen', () => {
     );
 
     const prompt = practice.root.querySelector('.sm-prompt')!;
-    expect(prompt.textContent).toContain(tierLabel('blanks', 1));
+    expect(prompt.textContent).not.toContain(tierLabel('blanks', 1));
   });
 
   it('puts every verse of a 25-verse hard-tier step on screen at once, all measured, with Enter walking across verse boundaries in order', async () => {
@@ -3704,7 +2351,7 @@ describe('blanks, easy tier: unchanged single-verse behaviour', () => {
     });
 
     const prompt = practice.root.querySelector('.sm-prompt')!;
-    expect(prompt.textContent).toContain(tierLabel('blanks', 0));
+    expect(prompt.textContent).not.toContain(tierLabel('blanks', 0));
   });
 });
 
@@ -3717,7 +2364,7 @@ describe('first letters, easy tier: a preview before the blanks', () => {
     expect(spokenText(workingVerse(practice.root))).toBe(PSALM_1_3.words.join(' '));
 
     const prompt = practice.root.querySelector('.sm-prompt')!;
-    expect(prompt.textContent).toContain(tierLabel('firstletters', 0));
+    expect(prompt.textContent).not.toContain(tierLabel('firstletters', 0));
 
     const start = Array.from(practice.root.querySelectorAll('button')).find(
       (b) => b.textContent === 'Start',
@@ -3772,7 +2419,7 @@ describe('first letters, hard tier: no preview', () => {
     ).toBe(false);
 
     const prompt = practice.root.querySelector('.sm-prompt')!;
-    expect(prompt.textContent).toContain(tierLabel('firstletters', 1));
+    expect(prompt.textContent).not.toContain(tierLabel('firstletters', 1));
   });
 });
 
@@ -4049,7 +2696,7 @@ describe('refprovide - supply the reference from memory', () => {
     });
 
     const practice = await mountPractice(step, { rung: 'refprovide' }, { ok: true, data: johnContext() });
-    const metaBefore = practice.root.querySelector('.kth-crumbs__meta')!.textContent;
+    const metaBefore = practice.root.querySelector('.sm-step-count')!.textContent;
     const fillBefore = practice.root.querySelector<HTMLElement>('.sm-bar-fill')!.style.width;
 
     const input = refInput(practice.root);
@@ -4057,7 +2704,7 @@ describe('refprovide - supply the reference from memory', () => {
     practice.root.querySelector<HTMLButtonElement>('.sm-btn-primary')!.click();
     await settle();
 
-    expect(practice.root.querySelector('.kth-crumbs__meta')!.textContent).toBe(metaBefore);
+    expect(practice.root.querySelector('.sm-step-count')!.textContent).toBe(metaBefore);
     expect(practice.root.querySelector<HTMLElement>('.sm-bar-fill')!.style.width).toBe(fillBefore);
     // Still the refprovide exercise, not a summary or a different step.
     expect(refInput(practice.root)).not.toBeNull();
@@ -4161,18 +2808,18 @@ describe('the analytics screen: wellLearned wording and refprovide vocabulary', 
     };
   }
 
-  it('captions the well-learned count with the same "well learned" wording as the passage badge', () => {
+  it('captions the well-learned count with the same "well learned" wording as the verse badge', () => {
     const root = renderAnalytics(host, analyticsFixture());
     container.appendChild(root);
 
-    expect(spokenText(root)).toContain('2 passages well learned');
+    expect(spokenText(root)).toContain('2 verses well learned');
   });
 
-  it('singularises the well-learned caption for exactly one passage', () => {
+  it('singularises the well-learned caption for exactly one verse', () => {
     const root = renderAnalytics(host, analyticsFixture({ passagesWellLearned: 1 }));
     container.appendChild(root);
 
-    expect(spokenText(root)).toContain('1 passage well learned');
+    expect(spokenText(root)).toContain('1 verse well learned');
   });
 
   it('labels a refprovide milestone with RUNG_LABEL, not the raw rung id', () => {
@@ -4422,366 +3069,25 @@ describe('blanks width stability (T17)', () => {
 // Item 2: the "Add several passages at once..." popup
 // ---------------------------------------------------------------------------
 
-describe('the batch-add popup', () => {
-  function renderManage(): HTMLElement {
-    const root = renderManagePassages(host, { ...emptyPlan() });
-    container.appendChild(root);
-    return root;
-  }
-
-  function popup(): HTMLElement | null {
-    return document.querySelector<HTMLElement>('.sm-modal-backdrop');
-  }
-
-  function popupButton(label: string): HTMLButtonElement {
-    return Array.from(popup()!.querySelectorAll<HTMLButtonElement>('button')).find((b) =>
-      (b.textContent ?? '').startsWith(label),
-    )!;
-  }
-
-  function openFromLink(root: HTMLElement): void {
-    Array.from(root.querySelectorAll<HTMLButtonElement>('button'))
-      .find((b) => b.textContent === 'Add several passages at once…')!
-      .click();
-  }
-
-  function stubAdd(order: string[] = []): string[] {
-    host.handlers.addPassage = (req) => {
-      order.push(req.reference);
-      return { ok: true, data: { passage: passageFixture({ id: order.length, reference: req.reference }) } };
-    };
-    return order;
-  }
-
-  it('shows the link and no inline batch-confirm slot', () => {
-    const root = renderManage();
-    expect(spokenText(root)).toContain('Add several passages at once…');
-    expect(root.querySelector('.sm-batch-confirm')).toBeNull();
-    expect(popup()).toBeNull();
-  });
-
-  it('opens a blank popup from the link, focusing the textarea', async () => {
-    const root = renderManage();
-    openFromLink(root);
-
-    const textarea = popup()!.querySelector<HTMLTextAreaElement>('textarea')!;
-    expect(textarea.value).toBe('');
-    expect(document.activeElement).toBe(textarea);
-    expect(popup()!.querySelector('[role="dialog"]')?.getAttribute('aria-modal')).toBe('true');
-    popup()!.remove();
-  });
-
-  it('asks for at least one reference when Find references finds none', () => {
-    const root = renderManage();
-    openFromLink(root);
-    popupButton('Find references').click();
-
-    expect(popup()!.querySelector('.sm-error')).not.toBeNull();
-    expect(popup()!.querySelector('.sm-batch-list')).toBeNull();
-    popup()!.remove();
-  });
-
-  it('Find references shows the confirm list; Back returns with the text intact', () => {
-    const root = renderManage();
-    openFromLink(root);
-    const textarea = popup()!.querySelector<HTMLTextAreaElement>('textarea')!;
-    textarea.value = 'John 3:16\nRomans 8:28';
-    popupButton('Find references').click();
-
-    const items = Array.from(popup()!.querySelectorAll('.sm-batch-list-item')).map((li) => li.textContent);
-    expect(items).toEqual(['John 3:16', 'Romans 8:28']);
-    expect(popupButton('Add 2 passages')).toBeTruthy();
-
-    popupButton('Back').click();
-    expect(popup()!.querySelector<HTMLTextAreaElement>('textarea')!.value).toBe('John 3:16\nRomans 8:28');
-    popup()!.remove();
-  });
-
-  it('Add N passages adds sequentially, announces, reloads and closes the popup', async () => {
-    const order = stubAdd();
-    const root = renderManage();
-    openFromLink(root);
-    popup()!.querySelector<HTMLTextAreaElement>('textarea')!.value = 'John 3:16\nRomans 8:28';
-    popupButton('Find references').click();
-    popupButton('Add 2 passages').click();
-    await settle();
-
-    expect(order).toEqual(['John 3:16', 'Romans 8:28']);
-    expect(host.announcements.some((a) => a.includes('Added 2 passages'))).toBe(true);
-    expect(host.reloads).toBeGreaterThan(0);
-    expect(popup()).toBeNull();
-  });
-
-  it('a partial failure keeps the popup open and names the failed line', async () => {
-    host.handlers.addPassage = (req) =>
-      req.reference === 'Romans 8:28'
-        ? { ok: false, error: 'No such book' }
-        : { ok: true, data: { passage: passageFixture({ id: 1, reference: req.reference }) } };
-    const root = renderManage();
-    openFromLink(root);
-    popup()!.querySelector<HTMLTextAreaElement>('textarea')!.value = 'John 3:16\nRomans 8:28';
-    popupButton('Find references').click();
-    popupButton('Add 2 passages').click();
-    await settle();
-
-    expect(popup()).not.toBeNull();
-    expect(spokenText(popup()!)).toContain('Romans 8:28: No such book');
-    expect(popupButton('Add 2 passages').disabled).toBe(false);
-    popup()!.remove();
-  });
-
-  it('a multi-reference Enter opens the popup pre-filled and on the confirm list', () => {
-    const root = renderManage();
-    const input = root.querySelector<HTMLInputElement>('#sm-add-reference')!;
-    input.value = 'John 3:16 and Romans 8:28';
-    input.closest('form')!.dispatchEvent(new Event('submit', { cancelable: true }));
-
-    expect(Array.from(popup()!.querySelectorAll('.sm-batch-list-item')).map((li) => li.textContent)).toEqual([
-      'John 3:16',
-      'Romans 8:28',
-    ]);
-    popup()!.remove();
-  });
-
-  it('Escape closes the popup, removes it and restores focus to the link', () => {
-    const root = renderManage();
-    const link = Array.from(root.querySelectorAll<HTMLButtonElement>('button')).find(
-      (b) => b.textContent === 'Add several passages at once…',
-    )!;
-    link.focus();
-    link.click();
-
-    popup()!
-      .querySelector('[role="dialog"]')!
-      .dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
-
-    expect(popup()).toBeNull();
-    expect(document.activeElement).toBe(link);
-  });
-});
-
-// ---------------------------------------------------------------------------
-// Navigation: breadcrumbs on every screen
-// ---------------------------------------------------------------------------
-
-describe('breadcrumbs replace the toolbar on every screen', () => {
-  it('the passage screen shows Home > reference, and Home goes to the plan', () => {
-    const pv = passageViewFixture();
-    const root = renderPassageScreen(host, pv, 'firstLetter');
-    container.appendChild(root);
-
-    expect(crumbLabels(root)).toEqual(['Home', pv.passage.reference]);
-    expect(root.querySelector('.sm-toolbar')).toBeNull();
-    root.querySelector<HTMLButtonElement>('.kth-crumbs__link')!.click();
-    expect(host.navigations).toContainEqual({ type: 'goPlan' });
-  });
-
-  it('settings, analytics and Manage Passages show Home > their name', () => {
-    const screens: [HTMLElement, string][] = [
-      [renderSettings(host, { defaultAnswerMode: 'firstLetter', recite: RECITE_DEFAULTS, speech: SPEECH_OFF }, emptyPlan()), 'Settings'],
-      [renderAnalytics(host, emptyAnalytics()), 'Analytics'],
-      [renderManagePassages(host, emptyPlan()), 'Manage Passages'],
-    ];
-    for (const [root, name] of screens) {
-      expect(crumbLabels(root)).toEqual(['Home', name]);
-      expect(root.querySelector('h1')!.textContent).toBe(name);
-      expect(root.querySelector('.sm-back')).toBeNull();
-    }
-  });
-
-  it('the practice screen shows Home > passage > activity, each crumb ending the session and going there', async () => {
-    host.handlers.endSession = () => ({ ok: true, data: { summary: null } });
-    const practice = await mountPractice(blanksStep(PSALM_1_2, BLANKED), { rung: 'blanks', passageId: 7 });
-
-    expect(crumbLabels(practice.root)).toEqual(['Home', 'Psalm 1:2-3', RUNG_LABEL.blanks]);
-    expect(practice.root.querySelector('.kth-crumbs__current')!.textContent).toBe(RUNG_LABEL.blanks);
-    const crumbs = practice.root.querySelectorAll<HTMLButtonElement>('.kth-crumbs__link');
-    expect(crumbs).toHaveLength(2);
-
-    crumbs[0].click();
-    await settle();
-    expect(host.requests.some((r) => r.type === 'endSession')).toBe(true);
-    expect(host.navigations).toContainEqual({ type: 'goPlan' });
-
-    crumbs[1].click();
-    await settle();
-    expect(host.navigations).toContainEqual({ type: 'goPassage', passageId: 7, rung: 'blanks' });
-  });
-});
-
 // ---------------------------------------------------------------------------
 // Navigation: the practice screen's Next skip button
 // ---------------------------------------------------------------------------
 
-describe('the practice screen: Next skips within a tile flow', () => {
-  async function mountWithFlow(flow: Flow): Promise<PracticeView> {
+describe('the practice screen: no header Next', () => {
+  it('has no Next skip button in the header, for any flow (Skip this verse lives in the "..." menu)', async () => {
     host.handlers.getContext = () => ({ ok: true, data: psalmContext() });
     host.handlers.getPassageView = () => ({ ok: true, data: passageViewFixture() });
-    host.handlers.endSession = () => ({ ok: true, data: { summary: null } });
-    const practice = new PracticeView(host, session(blanksStep(PSALM_1_2, BLANKED), { passageId: 7, rung: 'blanks' }), flow);
+    const practice = new PracticeView(
+      host,
+      session(blanksStep(PSALM_1_2, BLANKED), { passageId: 7, rung: 'blanks' }),
+      { kind: 'mixed', visited: [] },
+    );
     practice.mount(container);
     await settle();
     view = practice;
-    return practice;
-  }
-
-  const nextButton = (root: HTMLElement) =>
-    Array.from(root.querySelectorAll<HTMLButtonElement>('.kth-crumbs__actions button')).find((b) => b.textContent === 'Next');
-
-  it('is hidden for a passage flow, and for a view built without a flow', async () => {
-    const withFlow = await mountWithFlow({ kind: 'passage', passageId: 7 });
-    expect(nextButton(withFlow.root)).toBeUndefined();
-
-    const bare = await mountPractice(blanksStep(PSALM_1_2, BLANKED), { rung: 'blanks' });
-    expect(nextButton(bare.root)).toBeUndefined();
-  });
-
-  it('is shown for variety and activity flows', async () => {
-    const variety = await mountWithFlow({ kind: 'variety' });
-    expect(nextButton(variety.root)).toBeDefined();
-    variety.destroy();
-
-    const activity = await mountWithFlow({ kind: 'activity', rung: 'blanks' });
-    expect(nextButton(activity.root)).toBeDefined();
-  });
-
-  it('ends the session, then restarts the same flow excluding the passage just left', async () => {
-    const order: string[] = [];
-    const practice = await mountWithFlow({ kind: 'activity', rung: 'blanks' });
-    host.handlers.endSession = () => {
-      order.push('end');
-      return { ok: true, data: { summary: null } };
-    };
-    const originalStartFlow = host.startFlow.bind(host);
-    host.startFlow = async (flow, exclude) => {
-      order.push('flow');
-      return originalStartFlow(flow, exclude);
-    };
-
-    nextButton(practice.root)!.click();
-    await settle();
-
-    expect(order).toEqual(['end', 'flow']);
-    expect(host.flowsStarted).toHaveLength(1);
-    expect(host.flowsStarted[0]!.flow).toEqual({ kind: 'activity', rung: 'blanks' });
-    expect([...host.flowsStarted[0]!.exclude!]).toEqual([7]);
-  });
-});
-
-describe('Manage Passages lists table', () => {
-  let host: TestHost;
-  let container: HTMLElement;
-  beforeEach(() => {
-    host = new TestHost();
-    container = document.createElement('div');
-    document.body.appendChild(container);
-  });
-  afterEach(() => {
-    container.remove();
-    document.querySelectorAll('.sm-modal-backdrop').forEach((n) => n.remove());
-  });
-
-  const managePlan = (passages: PassageView[], over: Partial<PlanView> = {}): PlanView => ({
-    ...emptyPlan(),
-    passages,
-    ...over,
-  });
-  const LISTS = [
-    { id: 1, name: 'Default', passageCount: 2, verseCount: 5 },
-    { id: 2, name: 'Romans Road', passageCount: 3, verseCount: 6 },
-  ];
-  const rowFor = (root: HTMLElement, name: string): Element =>
-    Array.from(root.querySelectorAll('li.sm-manage-list-row')).find((r) => spokenText(r).includes(name))!;
-  const btn = (scope: Element, label: string): HTMLButtonElement | undefined =>
-    Array.from(scope.querySelectorAll<HTMLButtonElement>('button')).find((b) => b.textContent === label);
-
-  it('shows passage and verse counts per row', () => {
-    const root = renderManagePassages(host, managePlan([], { lists: LISTS, scope: 1 }));
-    container.appendChild(root);
-    expect(spokenText(rowFor(root, 'Romans Road'))).toContain('3 passages, 6 verses');
-  });
-
-  it('marks the scoped list Current with no Switch button, and offers Switch on the others', () => {
-    const root = renderManagePassages(host, managePlan([], { lists: LISTS, scope: 1 }));
-    container.appendChild(root);
-    const current = rowFor(root, 'Default');
-    expect(spokenText(current)).toContain('Current');
-    expect(btn(current, 'Switch to this list')).toBeUndefined();
-    expect(btn(rowFor(root, 'Romans Road'), 'Switch to this list')).toBeDefined();
-  });
-
-  it('Switch to this list sends setScope for that list and reloads', async () => {
-    host.handlers.setScope = () => ({ ok: true, data: emptyPlan() });
-    const root = renderManagePassages(host, managePlan([], { lists: LISTS, scope: 1 }));
-    container.appendChild(root);
-    btn(rowFor(root, 'Romans Road'), 'Switch to this list')!.click();
-    await settle();
-    expect(host.requests).toContainEqual({ type: 'setScope', scope: { kind: 'list', id: 2 } });
-    expect(host.reloads).toBeGreaterThan(0);
-  });
-
-  it('keeps an All lists way to select the all scope', async () => {
-    host.handlers.setScope = () => ({ ok: true, data: emptyPlan() });
-    const root = renderManagePassages(host, managePlan([], { lists: LISTS, scope: 1 }));
-    container.appendChild(root);
-    const all = root.querySelector('.sm-manage-all-lists-row')!;
-    expect(spokenText(all)).toContain('5 passages');
-    btn(all, 'Switch to all lists')!.click();
-    await settle();
-    expect(host.requests).toContainEqual({ type: 'setScope', scope: { kind: 'all' } });
-
-    const current = renderManagePassages(host, managePlan([], { lists: LISTS, scope: 'all' }));
-    expect(spokenText(current.querySelector('.sm-manage-all-lists-row')!)).toContain('Current');
-  });
-
-  it('explains why the only list cannot be deleted', () => {
-    const root = renderManagePassages(host, managePlan([], { lists: [LISTS[0]!] }));
-    container.appendChild(root);
-    const row = rowFor(root, 'Default');
-    expect(btn(row, 'Delete')!.disabled).toBe(true);
-    expect(spokenText(row)).toContain('only list cannot be deleted');
-  });
-
-  it('with practice history, warns N of M and gates Delete on the exact list name', async () => {
-    host.handlers.getListPracticeStats = () => ({ ok: true, data: { total: 3, practiced: 2 } });
-    host.handlers.deleteList = () => ({ ok: true, data: emptyPlan() });
-    const root = renderManagePassages(host, managePlan([], { lists: LISTS }));
-    container.appendChild(root);
-    btn(rowFor(root, 'Romans Road'), 'Delete')!.click();
-    await settle();
-
-    expect(host.requests).toContainEqual({ type: 'getListPracticeStats', id: 2 });
-    const backdrop = document.querySelector('.sm-modal-backdrop')!;
-    expect(spokenText(backdrop)).toContain('practice history on 2 of 3 passages');
-    const confirm = Array.from(backdrop.querySelectorAll<HTMLButtonElement>('button')).find((b) =>
-      (b.textContent ?? '').startsWith('Delete and move'),
-    )!;
-    expect(confirm.disabled).toBe(true);
-
-    const input = backdrop.querySelector<HTMLInputElement>('.sm-manage-delete-confirm')!;
-    input.value = 'romans road';
-    input.dispatchEvent(new Event('input'));
-    expect(confirm.disabled).toBe(true);
-    input.value = 'Romans Road';
-    input.dispatchEvent(new Event('input'));
-    expect(confirm.disabled).toBe(false);
-    confirm.click();
-    await settle();
-    expect(host.requests).toContainEqual({ type: 'deleteList', id: 2, movePassagesTo: 1 });
-  });
-
-  it('without practice history there is no name gate', async () => {
-    host.handlers.getListPracticeStats = () => ({ ok: true, data: { total: 3, practiced: 0 } });
-    const root = renderManagePassages(host, managePlan([], { lists: LISTS }));
-    container.appendChild(root);
-    btn(rowFor(root, 'Romans Road'), 'Delete')!.click();
-    await settle();
-    const backdrop = document.querySelector('.sm-modal-backdrop')!;
-    expect(backdrop.querySelector('.sm-manage-delete-confirm')).toBeNull();
-    const confirm = Array.from(backdrop.querySelectorAll<HTMLButtonElement>('button')).find((b) =>
-      (b.textContent ?? '').startsWith('Delete and move'),
-    )!;
-    expect(confirm.disabled).toBe(false);
+    const labels = Array.from(practice.root.querySelectorAll('.sm-focused-head > button')).map((b) => b.textContent);
+    expect(labels).toEqual(['×']);
+    expect(Array.from(practice.root.querySelectorAll('button')).some((b) => b.textContent === 'Next')).toBe(false);
   });
 });
 
@@ -4798,7 +3104,7 @@ describe('the practice heading during reference activities', () => {
     after: [],
   });
 
-  it('hides the passage reference from the crumbs during refmatch', async () => {
+  it('hides the passage reference from the title during refmatch', async () => {
     const step: RefMatchStep = {
       kind: 'refmatch',
       verse: JOHN_3_16,
@@ -4811,23 +3117,19 @@ describe('the practice heading during reference activities', () => {
       totalSteps: 3,
     };
     const practice = await mountPractice(step, { rung: 'refmatch' }, { ok: true, data: johnContext() });
-    const crumb = practice.root.querySelector<HTMLElement>('.kth-crumbs__current')!;
-    expect(crumb.textContent).toBe(RUNG_LABEL.refmatch);
-    expect(crumbLabels(practice.root)).toEqual(['Home', 'Passage', RUNG_LABEL.refmatch]);
-    expect(practice.root.querySelector('.kth-crumbs')!.textContent).not.toContain('John 3:16');
+    expect(practiceTitle(practice.root)).toBe(RUNG_LABEL.refmatch);
+    expect(practice.root.querySelector('.sm-practice-head')!.textContent).not.toContain('John 3:16');
   });
 
-  it('hides the passage reference from the crumbs during refprovide', async () => {
+  it('hides the passage reference from the title during refprovide', async () => {
     const practice = await mountPractice(null, { rung: 'refprovide', tier: 0, tiers: 1 }, { ok: true, data: johnContext() });
-    const crumb = practice.root.querySelector<HTMLElement>('.kth-crumbs__current')!;
-    expect(crumb.textContent).toBe(RUNG_LABEL.refprovide);
-    expect(crumbLabels(practice.root)).toEqual(['Home', 'Passage', RUNG_LABEL.refprovide]);
-    expect(practice.root.querySelector('.kth-crumbs')!.textContent).not.toContain('John 3:16');
+    expect(practiceTitle(practice.root)).toBe(RUNG_LABEL.refprovide);
+    expect(practice.root.querySelector('.sm-practice-head')!.textContent).not.toContain('John 3:16');
   });
 
   it('still shows the reference for a blanks session', async () => {
     const practice = await mountPractice(null, { rung: 'blanks' }, { ok: true, data: johnContext() });
-    expect(crumbLabels(practice.root)).toEqual(['Home', 'John 3:16', RUNG_LABEL.blanks]);
+    expect(practiceTitle(practice.root)).toBe(`John 3:16 · ${RUNG_LABEL.blanks}`);
   });
 });
 
@@ -4877,20 +3179,12 @@ describe('round 3 hardening', () => {
     const root = renderSettings(host, { defaultAnswerMode: 'firstLetter', recite: RECITE_DEFAULTS, speech: SPEECH_OFF }, emptyPlan());
     container.appendChild(root);
     const group = root.querySelector('[role="radiogroup"]')!;
-    expect(group.getAttribute('aria-label')).toBe('Answering blanks');
+    expect(group.getAttribute('aria-label')).toBe('Answering');
     expect(group.querySelectorAll('input[type="radio"]').length).toBe(2);
   });
 
   it('practice: the progressbar has an accessible name', async () => {
     await mountPractice(orderingStep());
     expect(container.querySelector('[role="progressbar"]')!.getAttribute('aria-label')).toBe('Progress');
-  });
-
-  it('practice: restoreTabFocus puts focus on the selected tab when focus fell to body', async () => {
-    (document.activeElement as HTMLElement | null)?.blur();
-    const practice = await mountPractice(orderingStep(), { rung: 'ordering' });
-    practice.restoreTabFocus();
-    const tab = container.querySelector<HTMLElement>('[role="tab"][aria-selected="true"]')!;
-    expect(document.activeElement).toBe(tab);
   });
 });

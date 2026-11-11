@@ -16,14 +16,15 @@
 
 import type { LoopPhase, ReciteAction, ReciteResultView, ReciteStateView, ReciteVerdict } from '../core/types';
 import { type Child, button, el, focusQuietly, replace } from './dom';
-import { breadcrumb, errorBanner } from './components';
+import { errorBanner } from './components';
+import { focusedHeader } from './shell';
 import { formatDue, formatScore } from './format';
 import { tr } from './i18n';
 
 export interface ReciteCallbacks {
   /** Sends a `reciteControl` action. */
   onControl(action: ReciteAction): void;
-  /** Leaves the screen (breadcrumb, and "Done" on the summary). */
+  /** Leaves the screen (close button, and "Done" on the summary). */
   onExit(): void;
   /** Starts the same recitation again after an error (a new run, same source). Omitted: falls back to a `listen` control. */
   onRetry?(source: { kind: 'passage'; passageId: number } | { kind: 'due' }): void;
@@ -71,14 +72,14 @@ function expectedWords(state: ReciteStateView): string[] | null {
 }
 
 /**
- * One line that follows the score. "Well learned" is about the passage over time and is only
+ * One line that follows the score. "Well learned" is about the verse over time and is only
  * said alongside a good score: a poor attempt never gets congratulations.
  */
 export function scoreMessage(result: ReciteResultView): string {
   const s = result.score;
   if (s >= 0.995) return tr('memory.ui.settings.msgPerfect', 'Perfect.');
   if (s >= 0.9) return result.passageWellLearned
-    ? tr('memory.ui.settings.wellLearned', 'Well learned. This passage is solid.')
+    ? tr('memory.ui.settings.wellLearnedVerse', 'Well learned. This verse is solid.')
     : tr('memory.ui.settings.msgExcellent', 'Excellent. Nearly word-perfect.');
   if (s >= 0.75) return tr('memory.ui.settings.msgGood', 'Good. A few words to firm up.');
   if (s >= 0.5) return tr('memory.ui.settings.msgGettingThere', 'Getting there. Check the marked words and try again.');
@@ -147,7 +148,6 @@ function renderResult(state: ReciteStateView, result: ReciteResultView, cb: Reci
       ? el('p', { class: 'sm-recite-learned', text: tr('memory.ui.settings.practiceOnly', 'Practice only: you saw the whole text, so nothing was graded or recorded.') })
       : el('p', { class: 'sm-recite-score' }, [
           el('span', { class: 'sm-recite-score-num', text: formatScore(result.score) }),
-          el('span', { class: 'sm-recite-level', text: ` ${tr('memory.ui.settings.level', 'Level {level}', { level: result.level })}` }),
         ]),
     result.nextDueAt !== null ? el('p', { class: 'sm-hint', text: formatDue(result.nextDueAt, now) }) : null,
     result.practiceOnly ? null : el('p', { class: `sm-recite-learned${result.score < 0.75 ? ' sm-recite-learned-low' : ''}`, attrs: { 'data-testid': 'recite-message' }, text: scoreMessage(result) }),
@@ -170,9 +170,9 @@ function renderResult(state: ReciteStateView, result: ReciteResultView, cb: Reci
   ]);
 }
 
-/** "Card 2 of 5" style progress for a due-queue run (never "0 done, 1 to go"). */
+/** "Verse 2 of 5" style progress for a due-queue run (never "0 done, 1 to go"). */
 export function progressText(state: ReciteStateView): string {
-  return tr('memory.ui.settings.cardProgress', 'Card {n} of {total}', { n: state.done + 1, total: state.done + state.remaining + 1 });
+  return tr('memory.ui.settings.verseProgress', 'Verse {n} of {total}', { n: state.done + 1, total: state.done + state.remaining + 1 });
 }
 
 function talkButton(phase: LoopPhase, cb: ReciteCallbacks): HTMLButtonElement | null {
@@ -241,7 +241,7 @@ export function createReciteView(initial: ReciteStateView, cb: ReciteCallbacks):
   function draw(): void {
     root.setAttribute('data-phase', state.phase);
     replace(crumb, [
-      breadcrumb({ crumbs: [{ label: tr('memory.ui.settings.home', 'Home'), onClick: () => cb.onExit() }, { label: tr('memory.ui.settings.reciteAloud', 'Recite aloud') }] }),
+      focusedHeader({ title: tr('memory.ui.settings.reciteAloud', 'Recite aloud'), onClose: () => cb.onExit() }),
     ]);
 
     const talk = talkButton(state.phase, cb);

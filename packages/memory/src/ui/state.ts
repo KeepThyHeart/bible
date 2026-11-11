@@ -1,5 +1,5 @@
 /**
- * Which of the five screens is showing, and how we got there.
+ * Which screen is showing, and how we got there.
  *
  * There is no router and no history. A panel is a docked pane inside another
  * application; pushing entries onto the iframe's history would put a Back
@@ -14,189 +14,186 @@
 
 import type { Rung } from '../core/types';
 
+export type Tab = 'today' | 'verses' | 'progress';
+/** My verses filter: 'focus' follows the persisted focus (the plan's scope), else an explicit chip. */
+export type VersesFilter = 'focus' | 'all' | number;
+
 /**
- * The five screens.
+ * The screens. Today, My verses and Progress are tabs; settings, the verse page,
+ * the reminder cards, practice and recite are focused screens.
  *
  * Practice carries the session id rather than the session: the worker owns the
- * session, and a copy of it stored here would be a second source of truth that
- * goes stale the moment a step is submitted.
- *
- * The passage screen's `rung` is which activity tab is showing - `null` means
- * "suggested" (resolved by `suggestedRungFor` at render time, not here; see
- * `goPassage`/`sessionStarted` below), not "no tab".
+ * session, and a copy stored here would go stale on the first step.
  */
 export type View =
-  | { name: 'plan' }
-  | { name: 'passage'; passageId: number; rung: Rung | null }
-  | { name: 'analytics' }
+  | { name: 'today' }
+  | { name: 'verses'; list: VersesFilter; highlight?: number }
+  | { name: 'verse'; passageId: number }
+  | { name: 'progress' }
   | { name: 'settings' }
   | { name: 'card' }
-  | { name: 'managePassages' }
   | { name: 'practice'; sessionId: string }
   | { name: 'recite'; reciteId: string; mode: 'tap' | 'handsfree' };
 
 /**
- * A panel-side flow: what the user pressed to get into practice.
- *
- * `variety` and `activity` name a *rule* for picking the next passage
- * (`suggest.ts#pickFlowTarget`), not one specific passage - they are what a
- * tile press starts. `passage` is the opposite: a session reached from
- * one specific passage's own screen or tab strip, or from a bare "Practice"/
- * "Resume"/"Restart" button, where there is no rule to fall back to, only the
- * one passage the user was already looking at.
- *
- * Carried on `NavState` (N6, Decision 4) so `practiceView.ts` can tell, while
- * a session is showing, whether pressing "Next" has anywhere to skip to:
- * `variety`/`activity` do (there is a rule to re-run, excluding the passage
- * just left); `passage` does not, and the button is omitted.
+ * What the user pressed to get into practice. Flows are immutable values: every
+ * skip or visit creates a new one.
  */
 export type Flow =
-  | { kind: 'variety' }
-  | { kind: 'activity'; rung: Rung }
-  | { kind: 'passage'; passageId: number };
+  | { kind: 'today'; skipped: readonly number[] }
+  | { kind: 'anyway'; visited: readonly number[] }
+  | { kind: 'mixed'; visited: readonly number[] }
+  | { kind: 'activity'; rung: Rung; visited: readonly number[] }
+  | { kind: 'verse'; passageId: number };
 
 export interface NavState {
   view: View;
-  /**
-   * Where leaving an activity (Back, or finishing it) goes back to.
-   *
-   * A session started from the plan should return to the plan; one started
-   * from a passage screen should return to that passage screen, because the
-   * user was in the middle of working through one passage and dumping them
-   * back at the top level loses their place. This is the entire reason the
-   * reducer exists rather than a bare `view` variable.
-   */
+  /** Where leaving practice, a verse page, settings or the cards goes back to. */
   returnTo: View;
-  /**
-   * The flow the *current* (or most recently ended) session belongs to -
-   * `null` before any session has ever started this panel load.
-   *
-   * Only meaningful while `view.name === 'practice'`; `practiceView.ts` is
-   * the only reader. Every action below carries it forward unchanged rather
-   * than resetting it on `goPlan`/`goPassage`/etc., deliberately: nothing
-   * outside practice ever reads a stale `flow`, so there is nothing for a
-   * reset to protect against, and carrying it forward keeps every other case
-   * of this reducer exactly as it was before N6 - one line added, not a new
-   * rule to keep in sync with each of them.
-   */
+  /** The flow of the current (or most recent) session; only practice reads it. */
   flow: Flow | null;
+  /** The My verses filter last used, so leaving and returning keeps it. */
+  versesList: VersesFilter;
 }
 
 export type NavAction =
-  | { type: 'goPlan' }
-  | { type: 'goAnalytics' }
+  | { type: 'goTab'; tab: Tab }
   | { type: 'goSettings' }
-  /** The push-card stack (task 0072). A leaf like Settings; leaving it returns to the plan. */
   | { type: 'goCard' }
-  | { type: 'goManagePassages' }
-  | { type: 'goPassage'; passageId: number; rung?: Rung | null }
+  | { type: 'goVerses'; list?: VersesFilter; highlight?: number }
+  | { type: 'goVerse'; passageId: number }
+  /** The verse page's close: back to wherever the verse was opened from. */
+  | { type: 'leaveVerse' }
   | { type: 'sessionStarted'; sessionId: string; passageId: number; rung: Rung; flow: Flow }
   | { type: 'sessionEnded' }
-  /** A recite run (tap or hands-free) started, or was resumed on panel open. */
+  /** A5 "Stop for today". */
+  | { type: 'stopForToday' }
   | { type: 'reciteStarted'; reciteId: string; mode: 'tap' | 'handsfree' }
   | { type: 'reciteEnded' }
-  /**
-   * The passage the current view is about has gone away - removed here, or
-   * removed in another panel and announced by a `planChanged` push. Any view
-   * pinned to it has to be abandoned rather than left rendering a stale
-   * reference that no longer resolves to anything.
-   */
+  /** The verse a view is about has gone away (removed here or in another window). */
   | { type: 'passageRemoved'; passageId: number };
 
 export const INITIAL_NAV: NavState = {
-  view: { name: 'plan' },
-  returnTo: { name: 'plan' },
+  view: { name: 'today' },
+  returnTo: { name: 'today' },
   flow: null,
+  versesList: 'focus',
 };
 
-export function navReduce(state: NavState, action: NavAction): NavState {
-  switch (action.type) {
-    case 'goPlan':
-      return { view: { name: 'plan' }, returnTo: { name: 'plan' }, flow: state.flow };
+/**
+ * Where a verse page opened from `state` returns to. Tabs and settings are
+ * screens to come back to (My verses without its one-off highlight); a verse
+ * opened from another verse page keeps the first one's origin; anything else
+ * (practice, recite, the cards) is transient and falls back to My verses.
+ */
+function verseOrigin(state: NavState): View {
+  const v = state.view;
+  switch (v.name) {
+    case 'today':
+    case 'progress':
+    case 'settings':
+      return v;
+    case 'verses':
+      return { name: 'verses', list: v.list };
+    case 'verse':
+      return state.returnTo;
+    default:
+      return { name: 'verses', list: state.versesList };
+  }
+}
 
-    case 'goAnalytics':
-      // Analytics is a leaf: it starts no sessions, so it is never a return
-      // target. Leaving `returnTo` alone would strand a later session there.
-      return { view: { name: 'analytics' }, returnTo: { name: 'plan' }, flow: state.flow };
+/** The returnTo a screen gets when it is arrived at by going back to it. */
+function returnToFor(view: View): View {
+  return view.name === 'settings' || view.name === 'card' ? { name: 'today' } : view;
+}
+
+function tabView(tab: Tab, versesList: VersesFilter): View {
+  return tab === 'today'
+    ? { name: 'today' }
+    : tab === 'verses'
+      ? { name: 'verses', list: versesList }
+      : { name: 'progress' };
+}
+
+export function navReduce(state: NavState, action: NavAction): NavState {
+  const keep = { flow: state.flow, versesList: state.versesList };
+  switch (action.type) {
+    case 'goTab': {
+      const view = tabView(action.tab, state.versesList);
+      return { ...keep, view, returnTo: view };
+    }
+
+    case 'goVerses': {
+      const list = action.list ?? state.versesList;
+      const view: View = { name: 'verses', list, highlight: action.highlight };
+      return { ...keep, versesList: list, view, returnTo: { name: 'verses', list } };
+    }
 
     case 'goSettings':
-      return { view: { name: 'settings' }, returnTo: { name: 'plan' }, flow: state.flow };
+    case 'goCard': {
+      const view: View = { name: action.type === 'goSettings' ? 'settings' : 'card' };
+      return { ...keep, view, returnTo: { name: 'today' } };
+    }
 
-    case 'goCard':
-      return { view: { name: 'card' }, returnTo: { name: 'plan' }, flow: state.flow };
-
-    case 'goManagePassages':
-      // Manage is a leaf too: it starts no sessions, so it is never a return
-      // target, exactly like Analytics and Settings above.
-      return { view: { name: 'managePassages' }, returnTo: { name: 'plan' }, flow: state.flow };
-
-    case 'goPassage': {
-      // `rung` omitted means "suggested" - `null`, resolved by
-      // `suggestedRungFor` at render time (N4), not here.
-      const rung = action.rung ?? null;
+    case 'goVerse':
       return {
-        view: { name: 'passage', passageId: action.passageId, rung },
-        returnTo: { name: 'passage', passageId: action.passageId, rung },
-        flow: state.flow,
+        ...keep,
+        view: { name: 'verse', passageId: action.passageId },
+        returnTo: verseOrigin(state),
       };
+
+    case 'leaveVerse': {
+      if (state.view.name !== 'verse') return state;
+      // Back on a verse page after practice or recite started from it, returnTo
+      // is that same page and its own origin is gone: fall back to My verses.
+      const to: View = state.returnTo.name === 'verse' ? { name: 'verses', list: state.versesList } : state.returnTo;
+      return { ...keep, view: to, returnTo: returnToFor(to) };
     }
 
     case 'sessionStarted': {
-      if (state.view.name === 'practice') {
-        // Another session started without ending the first - "Practice
-        // again" or "Next due" from the summary screen. `returnTo` already
-        // points at wherever the *first* session in this chain was launched
-        // from and is deliberately left alone: practice must not become its
-        // own return target, or leaving it would land back in a
-        // just-finished session.
-        return {
-          view: { name: 'practice', sessionId: action.sessionId },
-          returnTo: state.returnTo,
-          flow: action.flow,
-        };
-      }
-      // Otherwise the view the user launched from becomes the return target,
-      // as before - except a passage screen now remembers which rung/tab
-      // this session actually practices, so `sessionEnded` reopens that tab
-      // rather than re-deriving "Practice Passage" or the suggested activity.
-      const returnTo: View =
-        state.view.name === 'passage'
-          ? { name: 'passage', passageId: action.passageId, rung: action.rung }
-          : state.view;
-      return { view: { name: 'practice', sessionId: action.sessionId }, returnTo, flow: action.flow };
+      const view: View = { name: 'practice', sessionId: action.sessionId };
+      // Another session started without ending the first (Again, Continue):
+      // returnTo already names where the chain began and is left alone.
+      if (state.view.name === 'practice') return { ...keep, flow: action.flow, view, returnTo: state.returnTo };
+      return { ...keep, flow: action.flow, view, returnTo: state.view };
     }
 
     case 'sessionEnded':
       if (state.view.name !== 'practice') return state;
-      return { view: state.returnTo, returnTo: state.returnTo, flow: state.flow };
+      return { ...keep, view: state.returnTo, returnTo: state.returnTo };
+
+    case 'stopForToday':
+      if (state.view.name !== 'practice') return state;
+      return { ...keep, view: { name: 'today' }, returnTo: { name: 'today' } };
 
     case 'reciteStarted': {
+      const v = state.view.name;
       const returnTo: View =
-        state.view.name === 'plan' || state.view.name === 'passage'
+        v === 'today' || v === 'verses' || v === 'verse'
           ? state.view
-          : state.view.name === 'recite'
+          : v === 'recite'
             ? state.returnTo
-            : { name: 'plan' };
-      return { view: { name: 'recite', reciteId: action.reciteId, mode: action.mode }, returnTo, flow: state.flow };
+            : { name: 'today' };
+      return { ...keep, view: { name: 'recite', reciteId: action.reciteId, mode: action.mode }, returnTo };
     }
 
     case 'reciteEnded':
       if (state.view.name !== 'recite') return state;
-      return { view: state.returnTo, returnTo: state.returnTo, flow: state.flow };
+      return { ...keep, view: state.returnTo, returnTo: state.returnTo };
 
     case 'passageRemoved': {
-      const stranded =
-        (state.view.name === 'passage' && state.view.passageId === action.passageId) ||
-        (state.returnTo.name === 'passage' && state.returnTo.passageId === action.passageId);
-      if (!stranded) return state;
-      // A practice session on a removed passage is left alone deliberately:
-      // the worker still owns it and will end it, and yanking the screen out
-      // from under someone mid-answer is worse than one stale header. Only the
-      // destination is repaired.
-      if (state.view.name === 'practice') {
-        return { view: state.view, returnTo: { name: 'plan' }, flow: state.flow };
+      const on = (v: View) => v.name === 'verse' && v.passageId === action.passageId;
+      if (!on(state.view) && !on(state.returnTo)) return state;
+      const verses: View = { name: 'verses', list: state.versesList };
+      // A practice session on a removed verse is left alone (the worker ends it);
+      // only the destination is repaired.
+      // The same goes for a recite run.
+      if (state.view.name === 'practice' || state.view.name === 'recite') return { ...keep, view: state.view, returnTo: verses };
+      // On the removed verse's own page: back to where it was opened from.
+      if (on(state.view) && !on(state.returnTo)) {
+        return { ...keep, view: state.returnTo, returnTo: returnToFor(state.returnTo) };
       }
-      return { view: { name: 'plan' }, returnTo: { name: 'plan' }, flow: state.flow };
+      return { ...keep, view: verses, returnTo: verses };
     }
 
     default:
@@ -207,11 +204,8 @@ export function navReduce(state: NavState, action: NavAction): NavState {
 /** True when the two views would render the same screen. */
 export function sameView(a: View, b: View): boolean {
   if (a.name !== b.name) return false;
-  // `rung` is compared too: it picks which tab the passage screen shows, so
-  // two passage views that differ only in `rung` are not the same screen.
-  if (a.name === 'passage' && b.name === 'passage') {
-    return a.passageId === b.passageId && a.rung === b.rung;
-  }
+  if (a.name === 'verses' && b.name === 'verses') return a.list === b.list;
+  if (a.name === 'verse' && b.name === 'verse') return a.passageId === b.passageId;
   if (a.name === 'practice' && b.name === 'practice') return a.sessionId === b.sessionId;
   if (a.name === 'recite' && b.name === 'recite') return a.reciteId === b.reciteId;
   return true;

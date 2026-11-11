@@ -193,7 +193,7 @@ describe('hands-free loop', () => {
     const spoken = s.api.spoken.map((x) => x.text);
     expect(spoken[0]).toBe('Psalm chapter 23, verses 1 to 2');
     expect(spoken).toContain('Perfect.');
-    expect(spoken[spoken.length - 1]).toBe('All done. 1 passage, average 100 percent.');
+    expect(spoken[spoken.length - 1]).toBe('All done. 1 verse, average 100 percent.');
     expect(s.api.earcons).toEqual(['listen', 'ok', 'done']);
     expect(s.recorded).toHaveLength(1);
     expect(s.recorded[0].g.attempt.score).toBe(1);
@@ -250,7 +250,7 @@ describe('hands-free loop', () => {
     const s = setup({ script: [{ say: FULL }, { silence: true }, { say: FULL }], cards: [loopCard(1, 1), loopCard(2, 0)] });
     await until(() => s.view().phase === 'done');
     expect(s.recorded.map((r) => r.card.passageId)).toEqual([1, 2]);
-    expect(s.api.spoken[s.api.spoken.length - 1].text).toBe('All done. 2 passages, average 100 percent.');
+    expect(s.api.spoken[s.api.spoken.length - 1].text).toBe('All done. 2 verses, average 100 percent.');
   });
 
   it('a voice command after feedback can ask for another go', async () => {
@@ -636,13 +636,13 @@ describe('race rules', () => {
       cards: [loopCard(1), loopCard(2)],
       script: [{ say: FULL }, { say: FULL }],
       record: async (card) => {
-        if (card.passageId === 1) throw new Error('That passage is no longer in your plan.');
+        if (card.passageId === 1) throw new Error('That verse is no longer in Memory.');
       },
     });
     await until(() => s.view().phase === 'ready');
     s.act('listen');
     await until(() => s.view().passageId === 2 && s.view().phase === 'ready');
-    expect(s.view().message).toMatch(/no longer in your plan/);
+    expect(s.view().message).toMatch(/no longer in Memory/);
     s.act('listen');
     await until(() => s.view().phase === 'feedback');
     expect(s.recorded.map((r) => r.card.passageId)).toEqual([2]);
@@ -891,7 +891,7 @@ describe('ReciteService', () => {
     await expect(mute.svc.start({ source: { kind: 'due' }, mode: 'handsfree' })).rejects.toThrow(/able to speak/);
     resetProbeCache();
     const gone = makeService();
-    await expect(gone.svc.start({ source: { kind: 'passage', passageId: 99 }, mode: 'tap' })).rejects.toThrow(/no longer in your plan/);
+    await expect(gone.svc.start({ source: { kind: 'passage', passageId: 99 }, mode: 'tap' })).rejects.toThrow(/no longer in Memory/);
   });
 
   it('deleteHistory and dispose', async () => {

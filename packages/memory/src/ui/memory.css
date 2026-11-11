@@ -296,20 +296,13 @@
   outline-offset: 4px;
 }
 
-.sm-app .sm-subhead {
-  display: flex;
-  align-items: center;
-  gap: var(--sm-s2);
-  color: var(--sm-text-dim);
-}
-
 .sm-app .sm-hint {
   color: var(--sm-text-dim);
   font-size: 0.92em;
 }
 
 /* ==========================================================================
-   Hamburger menu (M3, `components.ts#menu()`)
+   "..." menu (M3, `components.ts#menu()`)
 
    The one floating/popover surface in this file - `.sm-menu-panel` sits
    `position: absolute`, so it needs a background, border and depth cue of
@@ -335,6 +328,12 @@
    caller (a test, a later tweak) that wants the trigger without reaching for
    those three classes together. */
 
+.sm-app .sm-menu-btn-glyph {
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  line-height: 1;
+}
+
 .sm-app .sm-menu-btn {
   display: inline-flex;
   align-items: center;
@@ -344,11 +343,13 @@
 .sm-app .sm-menu-panel {
   position: absolute;
   top: calc(100% + var(--sm-s1));
-  left: 0;
+  inset-inline-end: 0;
+  inset-inline-start: auto;
   z-index: 10;
   display: flex;
   flex-direction: column;
-  min-width: 11rem;
+  min-inline-size: min(11rem, calc(100vw - 32px));
+  max-inline-size: calc(100vw - 32px);
   padding: var(--sm-s1);
   background: var(--sm-surface-raised);
   border: 1px solid var(--sm-border);
@@ -372,7 +373,7 @@
   border-radius: var(--sm-radius);
   background: transparent;
   color: var(--sm-text);
-  text-align: left;
+  text-align: start;
   cursor: pointer;
 }
 
@@ -472,11 +473,6 @@
   font-size: 1em;
 }
 
-.sm-app .sm-btn-block {
-  display: block;
-  width: 100%;
-}
-
 /* "Start practicing" - the one button v0 called "Practice due (N)". Bigger
    because task 0004 asked this to be the obvious, unmissable thing to press
    on the home screen ("it should be possible, and easy, for the user to just
@@ -527,25 +523,6 @@
 /* ==========================================================================
    Plan
    ========================================================================== */
-
-.sm-app .sm-callout {
-  padding: var(--sm-s3);
-  border: 1px solid var(--sm-border);
-  border-radius: var(--sm-radius-lg);
-  background: var(--sm-surface);
-  display: flex;
-  flex-direction: column;
-  gap: var(--sm-s2);
-}
-
-.sm-app .sm-callout-action {
-  border-color: var(--sm-accent);
-  background: var(--sm-accent-light);
-}
-
-.sm-app .sm-callout-text {
-  color: var(--sm-text-dim);
-}
 
 .sm-app .sm-add {
   display: flex;
@@ -607,40 +584,6 @@
   padding: var(--sm-s2);
 }
 
-/* One line, tabular: reference (plus its due badge) on the left, activity
-   squares on the right - a follow-up review round asked the plan list to be
-   "more compact, tabular" once the per-activity strips became squares. */
-.sm-app .sm-row-main {
-  font: inherit;
-  flex: 1 1 auto;
-  min-width: 0;
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--sm-s3);
-  padding: var(--sm-s1) var(--sm-s2);
-  border: 0;
-  border-radius: var(--sm-radius);
-  background: transparent;
-  color: inherit;
-  cursor: pointer;
-  text-align: left;
-}
-
-.sm-app .sm-row-main:hover {
-  background: var(--sm-hover);
-}
-
-.sm-app .sm-row-title {
-  display: flex;
-  align-items: center;
-  gap: var(--sm-s2);
-  min-width: 0;
-  flex: 1 1 auto;
-  overflow: hidden;
-}
-
 .sm-app .sm-row-ref {
   font-weight: 600;
   color: var(--sm-heading);
@@ -652,13 +595,6 @@
 .sm-app .sm-row-meta {
   color: var(--sm-text-dim);
   font-size: 0.92em;
-}
-
-.sm-app .sm-remove-confirm {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--sm-s2);
-  flex-wrap: wrap;
 }
 
 .sm-app .sm-empty {
@@ -686,77 +622,11 @@
    Badges, pills, chips, bars
    ========================================================================== */
 
-.sm-app .sm-badge {
-  display: inline-block;
-  min-width: 1.5em;
-  padding: 0 0.4em;
-  border-radius: 999px;
-  text-align: center;
-  font-size: 0.85em;
-  font-weight: 700;
-  line-height: 1.6;
-}
-
-.sm-app .sm-badge-due {
-  background: var(--sm-warning);
-  color: #ffffff;
-}
-
-/* "Suggested" - understated on purpose. Nothing is locked any more, so this
-   is a hint about a good next step, not a claim about what is or is not
-   allowed (task 0004 review, point 10). */
-.sm-app .sm-badge-suggested {
-  background: var(--sm-accent-light);
-  color: var(--sm-accent);
-}
-
-.sm-app .sm-badge-learned {
-  background: var(--sm-success-soft);
-  color: var(--sm-success-text);
-  border: 1px solid var(--sm-success-border);
-}
-
 /* ==========================================================================
    Level boxes - five per activity, replacing v0's locked/learning/review/
    mastered chips. Grey = not reached, yellow = levels 1-3, green = 4-5,
    faded green = mastered but due again. See `components.ts#levelBoxes`.
    ========================================================================== */
-
-.sm-app .sm-level-boxes {
-  display: inline-flex;
-  gap: 3px;
-  vertical-align: middle;
-}
-
-/* A due activity below the mastered bar gets a ring instead of a fill colour
-   change, the same device `sm-badge-due` uses - due is a status layered on
-   top of the level, not a level of its own. */
-.sm-app .sm-level-boxes-due {
-  box-shadow: 0 0 0 2px var(--sm-warning);
-  border-radius: 3px;
-}
-
-.sm-app .sm-level-box {
-  width: 0.85em;
-  height: 0.85em;
-  border-radius: 2px;
-  background: var(--sm-control-bg);
-  border: 1px solid var(--sm-border-strong);
-}
-
-.sm-app .sm-level-box-yellow {
-  background: var(--sm-warning);
-  border-color: var(--sm-warning);
-}
-
-.sm-app .sm-level-box-green {
-  background: var(--sm-success);
-  border-color: var(--sm-success);
-}
-
-.sm-app .sm-level-box-faded {
-  opacity: 0.5;
-}
 
 .sm-app .sm-bar {
   height: 8px;
@@ -827,46 +697,6 @@
    difference between a list that fits on screen and one that does not.
    ========================================================================== */
 
-.sm-app .sm-activity-squares {
-  display: inline-flex;
-  gap: 3px;
-  margin-top: var(--sm-s1);
-  vertical-align: middle;
-}
-
-.sm-app .sm-activity-square {
-  width: 0.9em;
-  height: 0.9em;
-  border-radius: 2px;
-  border: 1px solid var(--sm-border-strong);
-}
-
-/* Grey - never attempted. */
-.sm-app .sm-activity-square-new {
-  background: var(--sm-control-bg);
-}
-
-/* Orange - attempted, not yet mastered. */
-.sm-app .sm-activity-square-partial {
-  background: var(--sm-warning);
-  border-color: var(--sm-warning);
-}
-
-/* Green - mastered on this activity itself. */
-.sm-app .sm-activity-square-done {
-  background: var(--sm-success);
-  border-color: var(--sm-success);
-}
-
-/* Light green - not mastered here, but a harder activity already was, so
-   this one counts as passed without ever having been drilled directly
-   ("harder carries down" - task 0004 review, point 10). */
-.sm-app .sm-activity-square-carried {
-  background: var(--sm-success);
-  border-color: var(--sm-success);
-  opacity: 0.45;
-}
-
 /* ==========================================================================
    Passage screen - a table-like list of activities, all always practisable.
 
@@ -878,91 +708,12 @@
    detail (level boxes, schedule, actions) exactly as before.
    ========================================================================== */
 
-.sm-app .sm-activities {
-  display: flex;
-  flex-direction: column;
-  border: 1px solid var(--sm-border);
-  border-radius: var(--sm-radius-lg);
-  background: var(--sm-surface-raised);
-  overflow: hidden;
-}
-
-/* A tabular row: name+badge, level, schedule/paused note, action(s), each a
-   flex child rather than a stacked block - a follow-up review round asked
-   for the activity list to read as compact and tabular, the way the plan
-   row's squares do. Falls back to stacking at the narrow, docked width (see
-   the responsive block at the end of this file). */
-.sm-app .sm-activity-card {
-  padding: var(--sm-s2) var(--sm-s3);
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: var(--sm-s3);
-  border-bottom: 1px solid var(--sm-border);
-}
-
-.sm-app .sm-activities .sm-activity-card:last-child {
-  border-bottom: 0;
-}
-
-/* Due gets a left accent stripe rather than a full border, so a due row still
-   reads as a row in the same table rather than standing apart as its own
-   card. */
-.sm-app .sm-activity-due {
-  box-shadow: inset 3px 0 0 var(--sm-warning);
-}
-
 .sm-app .sm-activity-na {
   opacity: 0.7;
 }
 
-.sm-app .sm-activity-head {
-  display: flex;
-  align-items: center;
-  gap: var(--sm-s2);
-  flex-wrap: wrap;
-  flex: 1 1 auto;
-  min-width: 0;
-}
-
-.sm-app .sm-activity-title {
-  font-size: 1em;
-  font-weight: 600;
-  color: var(--sm-heading);
-}
-
 .sm-app .sm-activity-blurb {
   color: var(--sm-text-dim);
-}
-
-.sm-app .sm-activity-level-row {
-  display: flex;
-  align-items: center;
-  gap: var(--sm-s2);
-  flex: 0 0 auto;
-}
-
-.sm-app .sm-activity-level-text {
-  color: var(--sm-text-dim);
-  font-size: 0.92em;
-  white-space: nowrap;
-}
-
-.sm-app .sm-schedule {
-  color: var(--sm-text-dim);
-  font-size: 0.92em;
-  flex: 1 1 auto;
-  min-width: 0;
-  text-align: right;
-}
-
-.sm-app .sm-activity-paused {
-  color: var(--sm-text-dim);
-  font-size: 0.92em;
-  font-style: italic;
-  flex: 1 1 auto;
-  min-width: 0;
-  text-align: right;
 }
 
 .sm-app .sm-activity-actions {
@@ -1109,18 +860,6 @@
   gap: var(--sm-s2);
   padding-bottom: var(--sm-s2);
   border-bottom: 1px solid var(--sm-border);
-}
-
-.sm-app .sm-practice-sub {
-  display: flex;
-  align-items: baseline;
-  gap: var(--sm-s2);
-  flex-wrap: wrap;
-}
-
-.sm-app .sm-practice-rung {
-  color: var(--sm-text-dim);
-  font-size: 0.92em;
 }
 
 .sm-app .sm-practice-progress {
@@ -1580,31 +1319,8 @@
   color: var(--sm-heading);
 }
 
-.sm-app .sm-summary-level {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--sm-s2);
-}
-
-.sm-app .sm-summary-level .sm-level-box {
-  width: 1.3em;
-  height: 1.3em;
-}
-
-.sm-app .sm-summary-level-text {
-  font-size: 1.3em;
-  font-weight: 700;
-  color: var(--sm-heading);
-}
-
 .sm-app .sm-summary-detail {
   color: var(--sm-text-dim);
-}
-
-.sm-app .sm-summary-good {
-  color: var(--sm-success-text);
-  font-weight: 600;
 }
 
 /* ==========================================================================
@@ -1614,11 +1330,6 @@
    list selector in the header, "All lists" filtering). This section exists
    so it has somewhere to append without re-opening the file's structure.
    ========================================================================== */
-
-.sm-app .sm-list-selector {
-  max-width: 12rem;
-  margin-bottom: var(--sm-s3);
-}
 
 /* ==========================================================================
    Passage overview
@@ -1640,102 +1351,6 @@
    up in the same tracks if anything else ever reuses it.
    ========================================================================== */
 
-.sm-app .sm-activity-row {
-  grid-column: 1 / -1;
-  display: grid;
-  grid-template-columns: minmax(8rem, 1.3fr) 3.25rem 6.25rem minmax(6rem, 1fr) 1.75rem;
-  align-items: center;
-  column-gap: var(--sm-s3);
-  padding: var(--sm-s2) var(--sm-s3);
-  margin: 0;
-  border: none;
-  border-bottom: 1px solid var(--sm-border);
-  background: transparent;
-  font: inherit;
-  color: inherit;
-  text-align: left;
-  width: 100%;
-}
-
-.sm-app button.sm-activity-row {
-  cursor: pointer;
-}
-
-.sm-app button.sm-activity-row:hover {
-  background: var(--sm-hover);
-}
-
-/* Due gets a left accent stripe rather than a full border, so a due row
-   still reads as a row in the same table rather than standing apart as its
-   own card (carried over from the pre-T12 `.sm-activity-due` treatment). */
-.sm-app .sm-activity-row-due {
-  box-shadow: inset 3px 0 0 var(--sm-warning);
-}
-
-.sm-app .sm-activity-row-na {
-  opacity: 0.7;
-}
-
-.sm-app .sm-activity-row-name {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--sm-s1);
-  font-weight: 600;
-  color: var(--sm-heading);
-}
-
-.sm-app .sm-activity-row-note,
-.sm-app .sm-activity-row-schedule,
-.sm-app .sm-activity-row-progress {
-  color: var(--sm-text-dim);
-  font-size: 0.9em;
-}
-
-.sm-app .sm-activity-row-na .sm-activity-row-note {
-  grid-column: 2 / -1;
-}
-
-.sm-app .sm-activity-row-play {
-  justify-self: end;
-  color: var(--sm-accent);
-}
-
-.sm-app .sm-tier-pips {
-  display: inline-flex;
-  gap: 3px;
-}
-
-.sm-app .sm-tier-pip {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--sm-border-strong);
-}
-
-.sm-app .sm-tier-pip-passed {
-  background: var(--sm-success);
-}
-
-/* The chrome-free "Practice Passage" link above the table - a real button
-   styled as a text link, mirroring the home screen's own Practice control
-   (`.sm-practice-btn`) at the scale of one passage. */
-.sm-app .sm-passage-practice-link {
-  align-self: flex-start;
-  font-weight: 600;
-  margin-bottom: var(--sm-s3);
-  padding-left: 0;
-  padding-right: 0;
-  text-decoration: underline;
-}
-
-/* The settings modal's content: the answer-mode row (`.sm-answer-row`,
-   defined elsewhere and reused here) plus "Reset progress for this
-   passage", which reuses `.sm-remove-confirm`'s existing confirm-step
-   styling from Manage Passages' remove control. */
-.sm-app .sm-reset-progress {
-  margin-top: var(--sm-s3);
-}
-
 .sm-app .sm-answer-row-error:empty {
   display: none;
 }
@@ -1748,111 +1363,6 @@
    management, the passage list's per-row move/remove controls, and the
    suggested-lists gallery.
    ========================================================================== */
-
-.sm-app .sm-screen-manage-passages {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sm-s4);
-}
-
-.sm-app .sm-manage-lists {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sm-s3);
-}
-
-.sm-app .sm-manage-lists-row {
-  display: flex;
-  align-items: center;
-  gap: var(--sm-s2);
-  flex-wrap: wrap;
-}
-
-.sm-app .sm-manage-list-rows {
-  gap: var(--sm-s1);
-}
-
-.sm-app .sm-manage-list-row {
-  justify-content: space-between;
-  flex-wrap: wrap;
-}
-
-.sm-app .sm-manage-list-actions {
-  display: flex;
-  gap: var(--sm-s2);
-  margin-left: auto;
-}
-
-.sm-app .sm-manage-all-lists-row {
-  justify-content: space-between;
-  flex-wrap: wrap;
-}
-
-.sm-app .sm-manage-list-hint {
-  flex-basis: 100%;
-}
-
-.sm-app .sm-manage-delete-confirm {
-  width: 100%;
-  margin-bottom: var(--sm-s3);
-}
-
-.sm-app .sm-manage-list-current {
-  align-self: center;
-  display: inline-block;
-  padding: 0.1em 0.6em;
-  font-size: 0.75em;
-  line-height: 1.4;
-  background: var(--sm-accent-light);
-  color: var(--sm-accent);
-  vertical-align: baseline;
-}
-
-.sm-app .sm-manage-list-rename {
-  display: flex;
-  align-items: center;
-  gap: var(--sm-s2);
-  flex-wrap: wrap;
-  width: 100%;
-}
-
-.sm-app .sm-manage-passage-row {
-  justify-content: space-between;
-  flex-wrap: wrap;
-}
-
-.sm-app .sm-suggested-lists {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sm-s2);
-}
-
-.sm-app .sm-suggested-lists-title {
-  font-size: 1em;
-  font-weight: 600;
-  color: var(--sm-heading);
-  margin: 0;
-}
-
-.sm-app .sm-suggested-list-row {
-  justify-content: space-between;
-  align-items: flex-start;
-  flex-wrap: wrap;
-}
-
-.sm-app .sm-suggested-list-info {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-  flex: 1 1 auto;
-}
-
-.sm-app .sm-suggested-list-actions {
-  display: flex;
-  gap: var(--sm-s2);
-  flex-wrap: wrap;
-}
 
 /* ==========================================================================
    Modal
@@ -1962,24 +1472,6 @@
    in the head and repeated in the end-of-session summary).
    ========================================================================== */
 
-.sm-app .sm-practice-tier {
-  color: var(--sm-text-muted);
-  font-size: 0.85em;
-  white-space: nowrap;
-}
-
-/* The shuffle icon sits at the end of the row regardless of how many of the
-   optional pieces before it (tier text) are present. */
-.sm-app .sm-practice-sub .sm-icon-btn {
-  margin-left: auto;
-}
-
-.sm-app .sm-summary-tier {
-  color: var(--sm-text-muted);
-  font-size: 0.9em;
-  margin-top: -0.25em;
-}
-
 /* ==========================================================================
    Responsive
 
@@ -2001,31 +1493,12 @@
     align-items: stretch;
   }
 
-  .sm-app .sm-row-main {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .sm-app .sm-activity-card {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .sm-app .sm-schedule,
-  .sm-app .sm-activity-paused {
-    text-align: left;
-  }
-
   .sm-app .sm-context {
     font-size: calc(var(--sm-bible-size) * 0.85);
   }
 
   .sm-app .sm-practice-progress {
     flex-wrap: wrap;
-  }
-
-  .sm-app .sm-tile-grid {
-    grid-template-columns: 1fr;
   }
 }
 
@@ -2061,84 +1534,6 @@
 .sm-app .sm-context,
 .sm-app .sm-choice-text {
   overflow-wrap: break-word;
-}
-
-/* "Practice by Passage" heading and its sort <select>: one row, wrapping
-   rather than truncating either at the narrowest width. */
-.sm-app .sm-list-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: var(--sm-s2);
-}
-
-/* "Practice by Activity": the six-tile grid - two columns, one in the narrow
-   docked pane (see the max-width block above). */
-.sm-app .sm-tile-section {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sm-s2);
-}
-
-.sm-app .sm-tile-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--sm-s2);
-}
-
-.sm-app .sm-tile {
-  font: inherit;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: var(--sm-s1);
-  text-align: left;
-  padding: var(--sm-s3);
-  border: 1px solid var(--sm-border);
-  border-radius: var(--sm-radius-lg);
-  background: var(--sm-surface-raised);
-  color: inherit;
-  cursor: pointer;
-}
-
-.sm-app .sm-tile:hover:not(:disabled) {
-  background: var(--sm-hover);
-  border-color: var(--sm-accent);
-}
-
-/* Dimmed and inert: an unavailable tile is a normal state, not a fault. */
-.sm-app .sm-tile:disabled {
-  opacity: 0.55;
-  cursor: default;
-}
-
-.sm-app .sm-tile-head {
-  display: flex;
-  align-items: center;
-  gap: var(--sm-s2);
-}
-
-.sm-app .sm-tile-title {
-  font-weight: 600;
-  color: var(--sm-heading);
-}
-
-.sm-app .sm-tile-sub {
-  color: var(--sm-text-dim);
-  font-size: 0.92em;
-}
-
-.sm-app .sm-tile-warning {
-  color: var(--sm-warning-text);
-  font-size: 0.92em;
-}
-
-/* The selected activity's panel on the passage screen, under the tab strip. */
-.sm-app .sm-activity-card-head {
-  display: flex;
-  align-items: center;
-  gap: var(--sm-s2);
 }
 
 /* ==========================================================================
@@ -2199,35 +1594,6 @@
 .sm-app .sm-handsfree[data-tone="dark"] .sm-btn:focus-visible { outline: 3px solid #ff0; outline-offset: 2px; }
 
 .sm-app .sm-recite-include { padding: var(--sm-s2) var(--sm-s3); display: flex; flex-direction: column; gap: var(--sm-s1); }
-/* push cards */
-.sm-app .sm-cards-banner {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--sm-s3);
-  width: 100%;
-  margin: var(--sm-s3) 0;
-  padding: var(--sm-s3);
-  font: inherit;
-  text-align: left;
-  color: var(--sm-info-text);
-  background: var(--sm-info-soft);
-  border: 1px solid var(--sm-info-border);
-  border-radius: var(--sm-radius-lg);
-  cursor: pointer;
-}
-
-.sm-app .sm-cards-banner:hover {
-  border-color: var(--sm-accent);
-}
-
-.sm-app .sm-cards-banner-text {
-  font-weight: 600;
-}
-
-.sm-app .sm-cards-banner-go {
-  color: var(--sm-accent);
-}
 
 .sm-app .sm-card {
   display: flex;
@@ -2321,81 +1687,10 @@
    styled here.
    ========================================================================== */
 
-.sm-app .sm-progress-wrap {
-  overflow-x: auto;
-}
-
-.sm-app .sm-progress-table {
-  min-width: 34rem;
-}
-
-.sm-app .sm-progress-title {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: var(--sm-s2);
-}
-
-.sm-app .sm-progress-blurb,
-.sm-app .sm-progress-note {
-  color: var(--sm-text-dim);
-  font-size: 0.85em;
-  margin-top: 2px;
-}
-
-.sm-app .sm-progress-row-na {
-  opacity: 0.8;
-}
-
-.sm-app .sm-progress-action {
-  text-align: end;
-  white-space: nowrap;
-}
-
-.sm-app .sm-progress-action .sm-activity-actions {
-  justify-content: flex-end;
-}
-
 /* ==========================================================================
    First-open welcome and the verse-list picker
    ========================================================================== */
 
-.sm-app .sm-welcome {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: var(--sm-s3);
-  padding: var(--sm-s5, 1.5rem) 0;
-}
-
-.sm-app .sm-welcome-title {
-  font-size: 1.35em;
-  font-weight: 600;
-  color: var(--sm-heading);
-  margin: 0;
-}
-
-.sm-app .sm-welcome-text {
-  margin: 0;
-  max-width: 36rem;
-  color: var(--sm-text);
-}
-
-.sm-app .sm-welcome-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--sm-s2);
-}
-
-.sm-app .sm-list-picker {
-  display: flex;
-  align-items: center;
-  gap: var(--sm-s2);
-}
-
-.sm-app .sm-list-picker .sm-list-selector {
-  margin-bottom: 0;
-}
 .sm-app .sm-recite-said { font-style: italic; opacity: 0.85; }
 .sm-app .sm-recite-peeked { background: var(--sm-info-soft); color: var(--sm-info-text); }
 .sm-app .sm-recite-learned-low { color: var(--sm-text-dim); }

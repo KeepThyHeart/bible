@@ -63,8 +63,9 @@ describe('MemoryService.addVerses', () => {
     const { svc, notices } = await startTestService();
 
     const first = await svc.addVerses({ verseIds: [19023001, 19023002, 19023003], module: 'KJV' });
-    expect(first.outcome).toBe('added');
-    expect(notices()).toEqual(['Added to your memorization plan.']);
+    expect(first).toEqual({ outcome: 'added', passageId: first.passageId, reference: expect.any(String) });
+    expect(first.reference.length).toBeGreaterThan(0);
+    expect(notices()).toEqual([]); // the host shows the result now
 
     const plan = await call<PlanView>(svc, { type: 'getPlan' });
     expect(plan.passages).toHaveLength(1);
@@ -77,13 +78,13 @@ describe('MemoryService.addVerses', () => {
     });
 
     const again = await svc.addVerses({ verseIds: [19023001, 19023002, 19023003] });
-    expect(again).toEqual({ outcome: 'exists', passageId: first.passageId });
-    expect(notices().pop()).toBe('That verse is already in your plan.');
+    expect(again).toEqual({ ...first, outcome: 'exists' });
+    expect(notices()).toEqual([]);
 
     await svc.removePassage({ passageId: first.passageId });
     const revived = await svc.addVerses({ verseIds: [19023001, 19023002, 19023003] });
-    expect(revived).toEqual({ outcome: 'revived', passageId: first.passageId });
-    expect(notices().pop()).toBe('Restored to your memorization plan with its progress.');
+    expect(revived).toEqual({ ...first, outcome: 'revived' });
+    expect(notices()).toEqual([]);
   });
 
   it('adds only the first verse of a gapped selection', async () => {

@@ -1,0 +1,29 @@
+/* Memory - settings and reminders (A8). Scoped under .sm-app, logical properties only. */
+
+.sm-app .sm-push-summary-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sm-s2);
+  margin-block: var(--sm-s2);
+}
+
+.sm-app .sm-push-summary {
+  margin: 0;
+  flex: 1 1 14rem;
+  min-inline-size: 0;
+}
+
+.sm-app .sm-push-schedule-fields {
+  margin-block-end: var(--sm-s2);
+}
+
+.sm-app .sm-push-advanced {
+  margin-block: var(--sm-s2);
+}
+
+.sm-app .sm-push-advanced-summary {
+  cursor: pointer;
+  font-weight: 600;
+  padding-block: var(--sm-s1);
+}

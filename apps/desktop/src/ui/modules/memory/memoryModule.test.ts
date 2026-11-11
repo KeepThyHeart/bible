@@ -26,7 +26,7 @@ vi.mock('../../services/I18nService', () => ({
 vi.mock('../../stores/useToastStore', () => ({ useToastStore: { getState: () => ({ addToast }) } }));
 vi.mock('./memoryClient', () => ({ memoryClient: client }));
 
-import { memoryModule, requestMemoryCards, onMemoryCardsRequest, takePendingMemoryCards } from './memoryModule';
+import { memoryModule, requestMemoryCards, onMemoryCardsRequest, takePendingMemoryCards, onMemoryPracticeRequest, requestMemoryPractice, takePendingMemoryPractice } from './memoryModule';
 import { activate, collectNotices, startMemoryClickRouting, INITIAL_STATUS_DELAY_MS, STATUS_REFRESH_MS } from './module';
 
 const subscriptions: Array<{ dispose(): void }> = [];
@@ -73,10 +73,36 @@ describe('installMemoryHost', () => {
 
   it('the verse handler adds the selected verses', async () => {
     const binding = memoryModule.verseActionHandlers![0]!;
-    client.addVerses.mockResolvedValue({ outcome: 'added', passageId: 1 });
+    client.addVerses.mockResolvedValue({ outcome: 'added', passageId: 1, reference: 'John 3:16-17' });
     const handler = await binding.load();
     await handler.run({ verseId: 43003016, verseIds: [43003016, 43003017], module: 'KJV', surface: 'reader' });
     expect(client.addVerses).toHaveBeenCalledWith({ verseIds: [43003016, 43003017], module: 'KJV' });
+  });
+
+  it('toasts the result with a Practice now action that opens Memory and requests practice', async () => {
+    client.addVerses.mockResolvedValue({ outcome: 'exists', passageId: 7, reference: 'John 3:16' });
+    openApp.mockResolvedValue({ status: 'activated', id: 'memory' });
+    const handler = await memoryModule.verseActionHandlers![0]!.load();
+    await handler.run({ verseId: 43003016, verseIds: [43003016], module: 'KJV', surface: 'reader' });
+    expect(addToast).toHaveBeenCalledTimes(1);
+    const [message, type, duration, action] = addToast.mock.calls[0]!;
+    expect(message).toBe('memory.toast.exists:');
+    expect(type).toBe('info');
+    expect(duration).toBeUndefined();
+    const heard: number[] = [];
+    const off = onMemoryPracticeRequest((id) => heard.push(id));
+    action.run();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(openApp).toHaveBeenCalledWith('memory');
+    expect(heard).toEqual([7]);
+    off();
+  });
+
+  it('a practice request before the view mounts is kept for takePendingMemoryPractice', () => {
+    requestMemoryPractice(9);
+    expect(takePendingMemoryPractice()).toBe(9);
+    expect(takePendingMemoryPractice()).toBeNull();
   });
 
   it('disposing the activation clears the badge and every subscription', async () => {

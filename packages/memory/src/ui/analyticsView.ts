@@ -3,7 +3,7 @@
  *
  * This replaced "Progress" in the task 0004 review, which asked for the
  * screen to be "limited to the analytics likely to incite excitement for
- * studying the passages." "Rungs mastered" and "where the effort went" were
+ * studying the verses." "Rungs mastered" and "where the effort went" were
  * dropped for exactly that reason - they describe the mechanism, not the
  * achievement. What is here instead: a streak, a running total of verses
  * genuinely learned, a practice calendar, recent level-ups and the next round
@@ -17,14 +17,14 @@
  * define - they come from `store.ts#analytics`, which already applies T4's
  * `ladder.ts#passageWellLearned` (every applicable activity satisfied, not
  * `bestLevel >= 4`) and already scopes the whole query to
- * `store.ts#getScope()` - the same list-or-all scope the plan screen's
+ * `store.ts#getScope()` - the same list-or-all scope the Today screen's
  * picker drives (`types.ts#Scope`). There is nothing for this view to filter
- * a second time; switching lists on the plan screen and coming back here
+ * a second time; switching lists on the Today screen and coming back here
  * shows this screen's numbers for that scope automatically.
  */
 
 import type { AnalyticsView } from '../core/types';
-import { breadcrumb, emptyState, statTile } from './components';
+import { emptyState, statTile } from './components';
 import { button, el } from './dom';
 import { RUNG_LABEL, calendarWeeks, formatShortDate, weekdayLabel } from './format';
 import type { PanelHost } from './host';
@@ -33,16 +33,15 @@ import { tr } from './i18n';
 export function renderAnalytics(host: PanelHost, analytics: AnalyticsView): HTMLElement {
   const root = el('section', { class: 'sm-screen sm-screen-analytics' });
 
-  root.appendChild(
-    breadcrumb({ crumbs: [{ label: tr('memory.ui.plan.home', 'Home'), onClick: () => host.go({ type: 'goPlan' }) }, { label: tr('memory.ui.plan.analytics', 'Analytics') }] }),
-  );
+  // Shown as a tab inside the app shell (mount.ts): a plain h1, no close and no breadcrumb.
+  root.appendChild(el('h1', { class: 'sm-screen-title', attrs: { tabindex: '-1' }, text: tr('memory.ui.shell.tabProgress', 'Progress') }));
 
   if (analytics.passagesWellLearned === 0 && analytics.streakDays === 0) {
     root.appendChild(
       emptyState(
-        tr('memory.ui.plan.nothingToShowYet', 'Nothing to show yet.'),
-        tr('memory.ui.plan.nothingToShowHint', 'Practice a passage a few times and this screen fills in from there.'),
-        button(tr('memory.ui.plan.backToPlan', 'Back to plan'), () => host.go({ type: 'goPlan' }), { class: 'sm-btn' }),
+        tr('memory.ui.progress.nothingToShowYet', 'Nothing to show yet.'),
+        tr('memory.ui.progress.nothingToShowHint', 'Practice a verse a few times and this screen fills in from there.'),
+        button(tr('memory.ui.progress.goToday', 'Go to Today'), () => host.go({ type: 'goTab', tab: 'today' }), { class: 'sm-btn' }),
       ),
     );
     return root;
@@ -50,11 +49,11 @@ export function renderAnalytics(host: PanelHost, analytics: AnalyticsView): HTML
 
   root.appendChild(
     el('div', { class: 'sm-stats' }, [
-      statTile(String(analytics.streakDays), tr('memory.ui.plan.daysInARow', '{count, plural, one {# day in a row} other {# days in a row}}', { count: analytics.streakDays })),
-      statTile(String(analytics.versesLearned), tr('memory.ui.plan.versesLearnedLabel', 'verses learned')),
+      statTile(String(analytics.streakDays), tr('memory.ui.progress.daysInARow', '{count, plural, one {# day in a row} other {# days in a row}}', { count: analytics.streakDays })),
+      statTile(String(analytics.versesLearned), tr('memory.ui.progress.versesLearnedLabel', 'verses learned')),
       statTile(
         String(analytics.passagesWellLearned),
-        tr('memory.ui.plan.passagesWellLearned', '{count, plural, one {# passage well learned} other {# passages well learned}}', { count: analytics.passagesWellLearned }),
+        tr('memory.ui.progress.versesWellLearned', '{count, plural, one {# verse well learned} other {# verses well learned}}', { count: analytics.passagesWellLearned }),
       ),
     ]),
   );
@@ -71,7 +70,7 @@ function renderCalendar(analytics: AnalyticsView, now: number): HTMLElement {
   const headings = weeks[0]?.map((day) => weekdayLabel(day.date)) ?? [];
 
   return el('section', { class: 'sm-block' }, [
-    el('h2', { class: 'sm-block-title', text: tr('memory.ui.plan.lastFiveWeeks', 'Last five weeks') }),
+    el('h2', { class: 'sm-block-title', text: tr('memory.ui.progress.lastFiveWeeks', 'Last five weeks') }),
     el(
       'div',
       { class: 'sm-calendar', attrs: { role: 'img', 'aria-label': calendarSummary(analytics) } },
@@ -106,21 +105,21 @@ function isToday(dateMs: number, now: number): boolean {
 
 function calendarSummary(analytics: AnalyticsView): string {
   const practiced = analytics.calendar.filter((d) => d.practiced).length;
-  return tr('memory.ui.plan.practicedOnDays', 'Practiced on {count, plural, one {# day} other {# days}} of the last 35.', { count: practiced });
+  return tr('memory.ui.progress.practicedOnDays', 'Practiced on {count, plural, one {# day} other {# days}} of the last 35.', { count: practiced });
 }
 
 function renderRecentlyReached(analytics: AnalyticsView, now: number): HTMLElement {
   return el('section', { class: 'sm-block' }, [
-    el('h2', { class: 'sm-block-title', text: tr('memory.ui.plan.recentlyReached', 'Recently reached') }),
+    el('h2', { class: 'sm-block-title', text: tr('memory.ui.progress.recentlyReached', 'Recently reached') }),
     analytics.recentlyReached.length === 0
-      ? el('p', { class: 'sm-block-caption', text: tr('memory.ui.plan.nothingAtLevel4', 'Nothing at level 4 or above yet.') })
+      ? el('p', { class: 'sm-block-caption', text: tr('memory.ui.progress.nothingKnownYet', 'Nothing known yet.') })
       : el(
           'ul',
           { class: 'sm-milestones' },
           analytics.recentlyReached.map((m) =>
             el('li', { class: 'sm-milestone-row' }, [
               el('span', { class: 'sm-milestone-ref', text: m.reference }),
-              el('span', { class: 'sm-milestone-rung', text: tr('memory.ui.plan.rungLevel', '{rung} {level}/5', { rung: RUNG_LABEL[m.rung], level: m.level }) }),
+              el('span', { class: 'sm-milestone-rung', text: tr('memory.ui.progress.knownRung', 'Known: {rung}', { rung: RUNG_LABEL[m.rung] }) }),
               el('span', { class: 'sm-milestone-date', text: formatShortDate(m.at, now) }),
             ]),
           ),
@@ -134,7 +133,7 @@ function renderMilestone(analytics: AnalyticsView): HTMLElement {
     class: 'sm-block-caption',
     text:
       toGo <= 0
-        ? tr('memory.ui.plan.milestoneReached', '{count} verses learned - milestone reached.', { count: versesLearned })
-        : tr('memory.ui.plan.nextMilestone', 'Next milestone: {count} verses learned ({toGo} to go).', { count: versesLearned, toGo }),
+        ? tr('memory.ui.progress.milestoneReached', '{count} verses learned - milestone reached.', { count: versesLearned })
+        : tr('memory.ui.progress.nextMilestone', 'Next milestone: {count} verses learned ({toGo} to go).', { count: versesLearned, toGo }),
   });
 }

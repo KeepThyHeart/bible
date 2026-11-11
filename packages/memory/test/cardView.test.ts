@@ -10,10 +10,8 @@ import type { CardStackView, RecallCardView } from '../src/core/pushTypes';
 import type { PanelReply, PanelRequest, RequestMap, Rung, VerseText } from '../src/core/types';
 import type { PanelHost } from '../src/ui/host';
 import type { Flow, NavAction } from '../src/ui/state';
-import { INITIAL_NAV, navReduce } from '../src/ui/state';
 import { WordMeasurer } from '../src/ui/measure';
 import { renderCardStack } from '../src/ui/cardView';
-import { cardsWaitingBanner } from '../src/ui/cardsBanner';
 
 const verse: VerseText = {
   verseId: 1,
@@ -56,8 +54,9 @@ class Host implements PanelHost {
   async startSession(id: number, _r?: Rung): Promise<void> {
     this.sessions.push(id);
   }
-  async startFlow(f: Flow): Promise<void> {
+  async startFlow(f: Flow): Promise<boolean> {
     this.flows.push(f);
+    return true;
   }
   openInBible(): void {}
   announce(m: string): void {
@@ -153,15 +152,15 @@ describe('the card stack', () => {
     btn(root, 'Partly').click();
     await settle();
     btn(root, "Practice what's due").click();
-    expect(host.flows).toEqual([{ kind: 'variety' }]);
+    expect(host.flows).toEqual([{ kind: 'today', skipped: [] }]);
     btn(root, 'Back').click();
-    expect(host.navigations).toContainEqual({ type: 'goPlan' });
+    expect(host.navigations).toContainEqual({ type: 'goTab', tab: 'today' });
   });
 
   it('shows the empty state', () => {
     const root = renderCardStack(host, stackOf());
     container.appendChild(root);
-    expect(root.textContent).toContain('No cards waiting.');
+    expect(root.textContent).toContain('No reminders waiting.');
   });
 
   it('announces a grading failure and keeps the card', async () => {
@@ -176,10 +175,10 @@ describe('the card stack', () => {
     expect(btn(root, 'Missed').disabled).toBe(false);
   });
 
-  it('Practice this passage starts a session', () => {
+  it('Practice this verse starts a session', () => {
     const root = renderCardStack(host, stackOf(card(7)));
     container.appendChild(root);
-    btn(root, 'Practice this passage').click();
+    btn(root, 'Practice this verse').click();
     expect(host.sessions).toEqual([7]);
   });
 
@@ -210,25 +209,13 @@ describe('the card stack', () => {
   });
 });
 
-describe('the cards banner', () => {
-  it('is null with nothing waiting', () => {
-    expect(cardsWaitingBanner(host, 0)).toBeNull();
-  });
-  it('announces the count and opens the stack', () => {
-    const b = cardsWaitingBanner(host, 2)!;
-    container.appendChild(b);
-    expect(b.textContent).toContain('2 memory cards waiting');
-    b.click();
-    expect(host.navigations).toEqual([{ type: 'goCard' }]);
-    expect(cardsWaitingBanner(host, 1)!.textContent).toContain('1 memory card waiting');
-  });
-});
-
-describe('nav: goCard', () => {
-  it('opens the card view and returns to the plan', () => {
-    const s = navReduce(INITIAL_NAV, { type: 'goCard' });
-    expect(s.view).toEqual({ name: 'card' });
-    expect(s.returnTo).toEqual({ name: 'plan' });
+describe('the reminders screen header', () => {
+  it('is titled Reminders and closes back to Today', () => {
+    const root = renderCardStack(host, stackOf(card(1)));
+    container.appendChild(root);
+    expect(root.querySelector('h1')!.textContent).toBe('Reminders');
+    root.querySelector<HTMLButtonElement>('.sm-focused-close')!.click();
+    expect(host.navigations).toContainEqual({ type: 'goTab', tab: 'today' });
   });
 });
 

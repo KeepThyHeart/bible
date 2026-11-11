@@ -33,6 +33,18 @@ const ToastContainer: React.FC = () => {
           }}
         >
           <span className="flex-1">{toast.message}</span>
+          {toast.action && (
+            <button
+              className="ms-2 font-semibold underline"
+              onClick={() => {
+                const { run } = toast.action!;
+                removeToast(toast.id);
+                run();
+              }}
+            >
+              {toast.action.label}
+            </button>
+          )}
           <button
             className="ms-2 opacity-60 hover:opacity-100"
             onClick={() => removeToast(toast.id)}

@@ -1,0 +1,110 @@
+/* Scripture Memory - app shell (tab bar, focus chip, focused header). Scoped under .sm-app. */
+
+.sm-app .sm-shell-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--sm-s2);
+  border-block-end: 1px solid var(--sm-border);
+  margin-block-end: var(--sm-s3);
+}
+
+.sm-app .sm-shell-tabs {
+  display: flex;
+  flex: 1;
+  gap: var(--sm-s1);
+  min-inline-size: 0;
+}
+
+.sm-app .sm-shell-tab {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  border-block-end: 3px solid transparent;
+  color: var(--sm-text-dim);
+  font: inherit;
+  font-weight: 600;
+  padding-block: var(--sm-s2);
+  padding-inline: var(--sm-s3);
+  cursor: pointer;
+}
+
+.sm-app .sm-shell-tab:hover {
+  color: var(--sm-text);
+}
+
+.sm-app .sm-shell-tab[aria-selected='true'] {
+  color: var(--sm-heading);
+  border-block-end-color: var(--sm-accent);
+}
+
+.sm-app .sm-shell-gear {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  border-radius: var(--sm-radius);
+  color: var(--sm-text-dim);
+  font: inherit;
+  padding-block: var(--sm-s1);
+  padding-inline: var(--sm-s2);
+  cursor: pointer;
+}
+
+.sm-app .sm-shell-gear:hover,
+.sm-app .sm-shell-gear[aria-current='page'] {
+  color: var(--sm-heading);
+  background: var(--sm-hover);
+}
+
+.sm-app .sm-shell-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sm-s1);
+  margin-block-end: var(--sm-s3);
+  padding-block: var(--sm-s1);
+  padding-inline: var(--sm-s3);
+  border: 1px solid var(--sm-border);
+  border-radius: 999px;
+  background: var(--sm-accent-light);
+  color: var(--sm-text);
+}
+
+.sm-app .sm-shell-chip-clear {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  padding-inline: var(--sm-s1);
+}
+
+.sm-app .sm-shell-chip-clear:hover {
+  color: var(--sm-heading);
+}
+
+.sm-app .sm-shell-panel:focus {
+  outline: none;
+}
+
+/* Focused screens (practice, verse page, cards, recite) */
+.sm-app .sm-focused-head {
+  display: flex;
+  align-items: center;
+  gap: var(--sm-s2);
+  margin-block-end: var(--sm-s3);
+}
+
+.sm-app .sm-focused-close {
+  flex: none;
+}
+
+.sm-app .sm-focused-title {
+  flex: 1;
+  min-inline-size: 0;
+  margin: 0;
+}
+
+.sm-app .sm-focused-meta {
+  flex: none;
+  color: var(--sm-text-dim);
+}

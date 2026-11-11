@@ -189,9 +189,9 @@ export function notificationFor(
   settings: Pick<PushCardSettings, 'lockScreen'>,
 ): { title: string; body: string; tag: string } {
   return {
-    title: tc('memory.core.notifTitle', 'Memory card'),
+    title: tc('memory.core.notifTitle', 'Reminder'),
     body: settings.lockScreen === 'generic'
-        ? tc('memory.core.notifBodyGeneric', 'A memory card is ready.')
+        ? tc('memory.core.notifBodyGeneric', 'A reminder is ready.')
         : tc('memory.core.notifBodyReference', '{reference} · Can you say it?', { reference }),
     tag: 'memory-card',
   };
@@ -250,22 +250,22 @@ export function statusMessage(
   caps: ReminderCapabilities | null,
   enabled: boolean,
 ): string {
-  if (!enabled) return tc('memory.core.statusOff', 'Memory cards are off.');
+  if (!enabled) return tc('memory.core.statusOff', 'Reminders are off.');
   if (!hostApi || !caps) {
-    return tc('memory.core.statusNoHostApi', 'This app cannot send notifications. Cards will wait here until you open the app.');
+    return tc('memory.core.statusNoHostApi', 'This app cannot send notifications. Reminders will wait here until you open the app.');
   }
   switch (caps.permission) {
     case 'denied':
-      return tc('memory.core.statusDenied', 'Notifications are blocked for this site. Cards will wait here until you open the app.');
+      return tc('memory.core.statusDenied', 'Notifications are blocked for this site. Reminders will wait here until you open the app.');
     case 'unsupported':
-      return tc('memory.core.statusUnsupported', 'Notifications are not supported here. Cards will wait here until you open the app.');
+      return tc('memory.core.statusUnsupported', 'Notifications are not supported here. Reminders will wait here until you open the app.');
     case 'prompt':
-      return tc('memory.core.statusPrompt', 'Allow notifications to get cards when the app is closed. Until then, cards wait here.');
+      return tc('memory.core.statusPrompt', 'Allow notifications to get reminders when the app is closed. Until then, reminders wait here.');
     case 'granted':
-      if (caps.whenClosed === 'fires') return tc('memory.core.statusFires', 'Cards arrive as notifications, even when the app is closed.');
+      if (caps.whenClosed === 'fires') return tc('memory.core.statusFires', 'Reminders arrive as notifications, even when the app is closed.');
       if (caps.whenClosed === 'background-only') {
-        return tc('memory.core.statusBackgroundOnly', 'Cards only arrive while the app is running. Turn on Keep running in background.');
+        return tc('memory.core.statusBackgroundOnly', 'Reminders only arrive while the app is running. Turn on Keep running in background.');
       }
-      return tc('memory.core.statusOpenOnly', 'Cards only arrive while the app is open. Otherwise they wait here.');
+      return tc('memory.core.statusOpenOnly', 'Reminders only arrive while the app is open. Otherwise they wait here.');
   }
 }

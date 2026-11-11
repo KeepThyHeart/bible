@@ -14,7 +14,7 @@ import { subscribeActiveVerseBroadcast } from '../../extensions/activeVerseBroad
 import { formatVerseReference } from '../../utils/verseReference';
 import { memoryClient } from './memoryClient';
 import { memoryT } from './memoryT';
-import { onMemoryCardsRequest, takePendingMemoryCards } from './memoryModule';
+import { onMemoryCardsRequest, onMemoryPracticeRequest, takePendingMemoryCards, takePendingMemoryPractice } from './memoryModule';
 
 const BACK_BUTTON =
   'rounded px-sm text-xs text-text-secondary hover:bg-background-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent';
@@ -36,12 +36,15 @@ export const MemoryAppView: React.FC = () => {
       t: memoryT,
       locale: i18n.currentLocale,
       initialView: takePendingMemoryCards() ? 'card' : 'plan',
+      initialPractice: takePendingMemoryPractice() ?? undefined,
     });
     const offCards = onMemoryCardsRequest(() => handle.showCards());
+    const offPractice = onMemoryPracticeRequest((id) => handle.practice(id));
     const offVerse = subscribeActiveVerseBroadcast((change) => handle.setActiveReference(formatVerseReference(change.verseId)));
     return () => {
       offVerse();
       offCards();
+      offPractice();
       handle.dispose();
     };
   }, [i18n.currentLocale]);

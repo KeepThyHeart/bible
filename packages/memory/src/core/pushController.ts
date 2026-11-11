@@ -566,7 +566,7 @@ export class PushController {
   }): Promise<{ nextDueAt: number | null; stack: CardStackView }> {
     const { store } = this.deps;
     const passage = await store.getPassage(req.passageId);
-    if (!passage) throw new Error(tc('memory.core.passageGone', 'That passage is no longer in your plan.'));
+    if (!passage) throw new Error(tc('memory.core.verseGone', 'That verse is no longer in Memory.'));
     const now = this.deps.now();
     const score = Object.prototype.hasOwnProperty.call(RECALL_SCORES, req.grade)
       ? RECALL_SCORES[req.grade]

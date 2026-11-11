@@ -195,8 +195,18 @@ describe('light status and maintenance', () => {
     t.db.exec(`INSERT INTO memory_card (passage_id, rung, state, due_at) VALUES (2, 'ordering', 'new', 10), (2, 'recite', 'new', 10)`);
     t.db.exec(`INSERT INTO memory_push_card (key, passage_id, fire_at, origin, state, updated_at) VALUES ('a', 2, 1, 'plan', 'waiting', 1), ('b', 1, 1, 'plan', 'waiting', 1)`);
     const store = new MemoryStore(createSqlPort(t));
-    for (const now of [5, 50, 5000]) {
-      expect(readMemoryStatus(t, now)).toEqual({ due: await store.dueCount({ kind: 'all' }, now), waiting: await store.waitingCount() });
+    t.db.exec(`INSERT INTO memory_card (passage_id, rung, state, due_at) VALUES (1, 'ordering', 'new', 10)`);
+    t.db.exec(`INSERT INTO memory_attempt (card_id, at, score, correct_first, total_steps) VALUES (2, 40, 1, 1, 1)`);
+    const scopes = [{ kind: 'all' as const }, { kind: 'list' as const, id: 5 }, { kind: 'list' as const, id: 1 }];
+    for (const scope of scopes) {
+      t.db.exec(`DELETE FROM memory_setting WHERE key = 'practiceScope'`);
+      t.db.exec(`INSERT INTO memory_setting (key, value) VALUES ('practiceScope', '${JSON.stringify(scope)}')`);
+      for (const [now, dayStart] of [[5, 0], [50, 0], [50, 45], [5000, 45], [5000, 6000]] as const) {
+        expect(readMemoryStatus(t, now, dayStart)).toEqual({
+          due: await store.todayReviewCount(scope, now, dayStart),
+          waiting: await store.waitingCount(),
+        });
+      }
     }
   });
 

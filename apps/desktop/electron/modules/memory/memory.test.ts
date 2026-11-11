@@ -414,7 +414,7 @@ describe('memory main module: badge, restore, push cards (M2)', () => {
     await reminders!.onActivated((e) => seen.push(e));
     expect(seen).toEqual([{ key: 'k1', keys: ['k1'], firedAt: 5 }]);
     await reminders!.replaceAll([]);
-    expect(host.scheduler.replaceItems).toHaveBeenCalledWith('app:memory', [], 'Scripture memory');
+    expect(host.scheduler.replaceItems).toHaveBeenCalledWith('app:memory', [], 'Memory');
   });
 
   it('starts the core after launch only when push cards are switched on', async () => {

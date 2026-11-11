@@ -11,7 +11,7 @@ const SRC = resolve(__dirname, '../src');
 const LOCALES = resolve(__dirname, '../../../apps/desktop/locales');
 const CALL = /\b(?:tr|tc)\(\s*'([^'\n]+)'\s*,\s*('(?:[^'\\\n]|\\.)*'|"(?:[^"\\\n]|\\.)*")/g;
 /** Keys the desktop host code looks up itself (badge, notices, reminder source label). */
-const HOST_KEYS = ['memory.badge.due', 'memory.badge.waiting', 'memory.notice.retired', 'memory.notice.skipped', 'memory.reminderSource.label'];
+const HOST_KEYS = ['memory.badge.due', 'memory.badge.waiting', 'memory.notice.retired', 'memory.notice.skipped', 'memory.reminderSource.label', 'memory.toast.added', 'memory.toast.revived', 'memory.toast.exists', 'memory.toast.practiceNow'];
 
 function walk(dir: string): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(join(dir, e.name)) : e.name.endsWith('.ts') ? [join(dir, e.name)] : []));

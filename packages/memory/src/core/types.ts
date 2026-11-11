@@ -242,6 +242,8 @@ export interface RungView {
   attempts: number;
   /** When this activity was last practised (epoch ms, since the last reset); `null`/absent when never. */
   lastPractisedAt?: number | null;
+  /** When the first attempt (since the last reset) was recorded; null/absent if none. */
+  firstPractisedAt?: number | null;
   /**
    * The tier the next session should serve: the lowest tier not yet passed,
    * or the hardest tier once every tier has been passed. 0-based.
@@ -772,14 +774,14 @@ export interface SessionSummary {
 // ---------------------------------------------------------------------------
 
 export type PanelRequest =
-  | { type: 'getPlan' }
+  | { type: 'getPlan'; /** One-off scope override; never persisted. */ scope?: Scope }
   | { type: 'getAnalytics' }
   | { type: 'getSettings' }
   | { type: 'setDefaultAnswerMode'; mode: AnswerMode }
   | { type: 'setPassageSortOrder'; order: PassageSortOrder }
   | { type: 'setPassageAnswerMode'; passageId: number; mode: AnswerMode | null }
   | { type: 'getContext'; passageId: number }
-  | { type: 'addPassage'; reference: string }
+  | { type: 'addPassage'; reference: string; collectionId?: number }
   | { type: 'removePassage'; passageId: number }
   /**
    * "Reset progress for this passage": the ONLY way a level ever goes down.

@@ -132,7 +132,7 @@ describe('tap-to-talk view', () => {
     const root = renderRecite({ ...scored, remaining: 2 }, c);
     container.appendChild(root);
     expect(text(root)).toContain('94%');
-    expect(text(root)).toContain('Level 3');
+    expect(text(root)).not.toContain('Level');
     const byLabel = (l: string) => Array.from(root.querySelectorAll('button')).find((b) => b.textContent === l)!;
     byLabel('Again').click();
     byLabel('Next').click();
@@ -263,12 +263,12 @@ describe('review fixes (render)', () => {
     expect(c.onControl).not.toHaveBeenCalled();
   });
 
-  it('progress reads "Card 1 of 1", never "0 done, 1 to go"', () => {
+  it('progress reads "Verse 1 of 1", never "0 done, 1 to go"', () => {
     const one = renderRecite(state({ source: 'due', done: 0, remaining: 0 }), cbs());
-    expect(text(one)).toContain('Card 1 of 1');
+    expect(text(one)).toContain('Verse 1 of 1');
     expect(text(one)).not.toContain('to go');
     const two = renderHandsFree(state({ mode: 'handsfree', source: 'due', done: 1, remaining: 2 }), cbs());
-    expect(text(two.querySelector('.sm-handsfree-progress')!)).toBe('Card 2 of 4');
+    expect(text(two.querySelector('.sm-handsfree-progress')!)).toBe('Verse 2 of 4');
   });
 
   it('listening shows a visible Listening label beside Stop; the heard line hides once scored', () => {

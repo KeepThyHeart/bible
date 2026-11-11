@@ -66,7 +66,7 @@ function badgeFor(due: number, waiting: number) {
   if (due <= 0 && waiting <= 0) return undefined;
   const parts: string[] = [];
   if (due > 0) parts.push(memoryT('memory.badge.due', '{count, plural, one {# verse due} other {# verses due}}', { count: due }));
-  if (waiting > 0) parts.push(memoryT('memory.badge.waiting', '{count, plural, one {# card waiting} other {# cards waiting}}', { count: waiting }));
+  if (waiting > 0) parts.push(memoryT('memory.badge.waiting', '{count, plural, one {# reminder waiting} other {# reminders waiting}}', { count: waiting }));
   // The number is the verses due; with none due, the push cards waiting.
   return { kind: 'count' as const, value: due > 0 ? due : waiting, tone: 'attention' as const, label: parts.join(', ') };
 }

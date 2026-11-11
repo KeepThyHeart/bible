@@ -21,7 +21,7 @@ import { memoryMainT } from './mainT';
 export const MEMORY_REMINDER_SOURCE = 'app:memory';
 export const MEMORY_CARDS_ROUTE = 'app:memory/cards';
 /** Shown in the notification settings; looked up each time, so it follows the UI language. */
-const label = (): string => memoryMainT('memory.reminderSource.label', 'Scripture memory');
+const label = (): string => memoryMainT('memory.reminderSource.label', 'Memory');
 
 type Activation = Parameters<Parameters<IRemindersApi['onActivated']>[0]>[0];
 type Missed = Parameters<Parameters<IRemindersApi['onMissed']>[0]>[0];

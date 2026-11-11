@@ -148,7 +148,7 @@ export async function resolveReference(
   const verseCount = await countVerses(api, parsed.bookNumber, startVerseId, endVerseId, moduleId);
   if (verseCount > MAX_PASSAGE_VERSES) {
     throw new ReferenceError(
-      tc('memory.core.refTooLong', 'That is {count} verses. Passages are limited to {max}; add it in smaller pieces so each one stays practisable.', { count: verseCount, max: MAX_PASSAGE_VERSES }),
+      tc('memory.core.refTooLong', 'That is {count} verses. Passages are limited to {max}; add it in smaller pieces.', { count: verseCount, max: MAX_PASSAGE_VERSES }),
     );
   }
 

@@ -170,7 +170,7 @@ export class ReciteService {
     let first: Passage | undefined;
     if (req.source.kind === 'passage') {
       first = await this.o.store.getPassage(req.source.passageId);
-      if (!first) throw new Error(tc('memory.core.passageGone', 'That passage is no longer in your plan.'));
+      if (!first) throw new Error(tc('memory.core.verseGone', 'That verse is no longer in Memory.'));
       if (kitFor(await this.languageOf(first)) === null) {
         throw new Error(unavailableMessage({ ...avail, state: 'unsupported-language' }));
       }

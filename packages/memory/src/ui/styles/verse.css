@@ -1,0 +1,110 @@
+/* Scripture Memory - verse page (A7). Scoped under .sm-app, logical properties only. */
+
+.sm-app .sm-verse-page {
+  max-inline-size: 44rem;
+  margin-inline: auto;
+}
+
+.sm-app .sm-verse-text {
+  line-height: 1.6;
+}
+
+.sm-app .sm-verse-page-state {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sm-s2);
+}
+
+.sm-app .sm-verse-page-state .sm-status {
+  flex: 0 0 auto;
+  padding-block: 0;
+  padding-inline: var(--sm-s2);
+  border: 1px solid var(--sm-border);
+  border-radius: 999px;
+  background: transparent;
+  font-size: 0.85em;
+  color: var(--sm-text-dim);
+}
+
+.sm-app .sm-verse-page-state .sm-status-learning {
+  border-color: var(--sm-info-border);
+  background: var(--sm-info-soft);
+  color: var(--sm-info-text);
+}
+
+.sm-app .sm-verse-page-state .sm-status-known {
+  border-color: var(--sm-success-border);
+  background: var(--sm-success-soft);
+  color: var(--sm-success-text);
+}
+
+.sm-app .sm-verse-page-next {
+  color: var(--sm-text-dim);
+}
+
+.sm-app .sm-verse-page-practice {
+  align-self: flex-start;
+}
+
+.sm-app .sm-verse-activities > summary {
+  cursor: pointer;
+  color: var(--sm-text-dim);
+}
+
+.sm-app .sm-verse-activities .sm-activity-list {
+  list-style: none;
+  margin-block: var(--sm-s2) 0;
+  margin-inline: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sm-s3);
+}
+
+.sm-app .sm-verse-activities .sm-activity-line {
+  display: grid;
+  grid-template-columns: minmax(8rem, 12rem) minmax(4rem, 1fr) minmax(5rem, auto);
+  align-items: center;
+  gap: var(--sm-s3);
+}
+
+.sm-app .sm-verse-activities .sm-activity-bar {
+  display: block;
+  block-size: 0.5rem;
+  border-radius: 999px;
+  background: var(--sm-border);
+  overflow: hidden;
+}
+
+.sm-app .sm-verse-activities .sm-activity-bar-fill {
+  display: block;
+  block-size: 100%;
+  background: var(--sm-info-text);
+}
+
+.sm-app .sm-verse-activities .sm-activity-next {
+  color: var(--sm-text-dim);
+  font-size: 0.9em;
+  text-align: end;
+}
+
+.sm-app .sm-verse-activities .sm-activity-blurb {
+  margin-block: 0;
+}
+
+.sm-app .sm-verse-activities .sm-activity-actions {
+  display: flex;
+  gap: var(--sm-s2);
+  margin-block-start: var(--sm-s2);
+}
+
+@media (max-width: 34rem) {
+  .sm-app .sm-verse-activities .sm-activity-line {
+    grid-template-columns: 1fr auto;
+  }
+  .sm-app .sm-verse-activities .sm-activity-bar {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+}

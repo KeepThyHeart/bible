@@ -14,7 +14,7 @@
  * request without `type`, and requests without fields take no argument.
  *
  * Errors: a method rejects with an `Error` whose message is meant for the
- * user ("That passage is no longer in your plan."), as `{ ok: false, error }`
+ * user ("That verse is no longer in Memory."), as `{ ok: false, error }`
  * replies were before.
  *
  * Type-only module plus one constant; safe to import anywhere.
@@ -28,15 +28,24 @@ type RequestArgs<K extends PanelRequest['type']> = Omit<Extract<PanelRequest, { 
 export type MemoryRequestApi = {
   [K in keyof RequestMap & PanelRequest['type']]: keyof RequestArgs<K> extends never
     ? () => Promise<RequestMap[K]>
-    : (args: RequestArgs<K>) => Promise<RequestMap[K]>;
+    : {} extends RequestArgs<K>
+      ? (args?: RequestArgs<K>) => Promise<RequestMap[K]>
+      : (args: RequestArgs<K>) => Promise<RequestMap[K]>;
 };
 
 /** What adding verses from the reader did. */
 export type AddVersesOutcome = 'added' | 'revived' | 'exists';
 
-/** Due counts for a badge or status item (global, not the plan's current scope). */
+/** The reply to `addVerses`; the host (not the core) tells the user. */
+export interface AddVersesResult {
+  readonly outcome: AddVersesOutcome;
+  readonly passageId: number;
+  readonly reference: string;
+}
+
+/** Due counts for a badge or status item, for the persisted Today focus (all lists when none is set). */
 export interface MemoryStatus {
-  /** Text-activity cards due now, every list. */
+  /** Reviews due today in the focus, leaving out verses already practiced today. */
   readonly due: number;
   /** Push cards waiting to be answered. */
   readonly waiting: number;
@@ -74,7 +83,7 @@ export interface MemoryCommandApi {
   /** "Recite what's due aloud": starts a recitation when speech and due cards allow; otherwise a notice. */
   practiceDueAloud(): Promise<{ started: boolean }>;
   /** "Memorize" on verses in the reader: a contiguous run in one chapter becomes one passage. */
-  addVerses(args: { verseIds: readonly number[]; module?: string }): Promise<{ outcome: AddVersesOutcome; passageId: number }>;
+  addVerses(args: { verseIds: readonly number[]; module?: string }): Promise<AddVersesResult>;
   getStatus(): Promise<MemoryStatus>;
   getImportStatus(): Promise<MemoryImportStatus>;
   /** Settings > "Import data from the old Scripture Memory extension": merge, never overwrite. */

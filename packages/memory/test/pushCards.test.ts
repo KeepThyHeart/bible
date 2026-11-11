@@ -112,14 +112,14 @@ describe('selectForFires', () => {
 describe('notificationFor', () => {
   it('shows the reference and a prompt', () => {
     expect(notificationFor('John 3:16', { lockScreen: 'reference' })).toEqual({
-      title: 'Memory card',
+      title: 'Reminder',
       body: 'John 3:16 · Can you say it?',
       tag: 'memory-card',
     });
   });
   it('uses a generic body that hides the reference', () => {
     const n = notificationFor('John 3:16', { lockScreen: 'generic' });
-    expect(n.body).toBe('A memory card is ready.');
+    expect(n.body).toBe('A reminder is ready.');
     expect(n.body).not.toContain('John');
   });
 });
@@ -157,7 +157,7 @@ describe('buildReminderItems', () => {
       {
         key: 'card:1:' + (D0 + 8 * HOUR),
         fireAt: D0 + 8 * HOUR,
-        title: 'Memory card',
+        title: 'Reminder',
         body: 'John 3:16 · Can you say it?',
         tag: 'memory-card',
         data: { v: 1, passageId: 1 },

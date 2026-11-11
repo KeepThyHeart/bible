@@ -78,8 +78,8 @@ type Step =
   | 'summary'
   | 'end';
 
-const NO_PLAN = /no longer in your plan/i;
-const passageGoneText = (): string => tc('memory.core.passageGone', 'That passage is no longer in your plan.');
+const NO_PLAN = /no longer in (your plan|Memory)/i;
+const passageGoneText = (): string => tc('memory.core.verseGone', 'That verse is no longer in Memory.');
 
 const COMMAND_ACTION: Partial<Record<LoopCommand, ReciteAction>> = {
   repeat: 'repeat',
@@ -403,7 +403,7 @@ export class HandsFreeLoop {
 
   private async doFetch(gen: number): Promise<void> {
     // Not 'ready': there is no card to talk to yet.
-    this.setPhase('announcing', tc('memory.core.loopFindingNext', 'Finding the next passage'));
+    this.setPhase('announcing', tc('memory.core.loopFindingNext', 'Finding the next verse'));
     const card = await this.deps.nextCard(this.exclude.slice());
     if (this.stale(gen)) return;
     if (!card) {
@@ -413,7 +413,7 @@ export class HandsFreeLoop {
     const kit = this.deps.kitFor(card.language);
     if (!kit) {
       this.exclude.push(card.passageId);
-      this.notice = tc('memory.core.loopSkippedLanguage', 'Skipped a passage in a language that cannot be recited aloud yet.');
+      this.notice = tc('memory.core.loopSkippedLanguage', 'Skipped a verse in a language that cannot be recited aloud yet.');
       this.message = this.notice;
       this.emitView();
       return;
@@ -794,8 +794,8 @@ export class HandsFreeLoop {
     const text =
       this.done > 0
         ? this.done === 1
-          ? tc('memory.core.loopSummaryOne', 'All done. {done} passage, average {avg} percent.', { done: this.done, avg: Math.round((this.scoreSum / this.done) * 100) })
-          : tc('memory.core.loopSummaryMany', 'All done. {done} passages, average {avg} percent.', { done: this.done, avg: Math.round((this.scoreSum / this.done) * 100) })
+          ? tc('memory.core.loopSummaryOne', 'All done. {done} verse, average {avg} percent.', { done: this.done, avg: Math.round((this.scoreSum / this.done) * 100) })
+          : tc('memory.core.loopSummaryMany', 'All done. {done} verses, average {avg} percent.', { done: this.done, avg: Math.round((this.scoreSum / this.done) * 100) })
         : nothingDue
           ? tc('memory.core.nothingDueToRecite', 'Nothing is due to recite right now.')
           : tc('memory.core.loopAllDone', 'All done.');

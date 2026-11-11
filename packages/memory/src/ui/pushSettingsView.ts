@@ -1,5 +1,5 @@
 /**
- * Memory-card notification settings (task 0072), a section of the Settings
+ * Reminder settings (task 0072; "Memory cards" renamed Reminders in 0219), a section of the Settings
  * screen.
  *
  * The section owns a local copy of the settings. Every edit updates the copy
@@ -18,6 +18,7 @@ import type {
 } from '../core/pushTypes';
 import { button, el, replace } from './dom';
 import { tr } from './i18n';
+import './styles/settings.css';
 import type { PanelHost } from './host';
 
 /** Resolved at render time so a language change takes effect. */
@@ -55,6 +56,9 @@ export function renderPushSettings(host: PanelHost, initial: PushSettingsView): 
   const statusBox = el('div', { class: 'sm-push-status' });
 
   let seq = 0;
+  // UI-only state, kept across redraws so a toggle does not collapse what the user opened.
+  let scheduleOpen = false;
+  let advancedOpen = false;
 
   function send(redraw: boolean): void {
     if (redraw) draw();
@@ -114,34 +118,68 @@ export function renderPushSettings(host: PanelHost, initial: PushSettingsView): 
     enabled.addEventListener('change', () => update((s) => (s.enabled = enabled.checked), true));
 
     const children: (Node | null)[] = [
-      el('h2', { class: 'sm-block-title', id: 'sm-push-title', text: tr('memory.ui.settings.memoryCards', 'Memory cards') }),
+      el('h2', { class: 'sm-block-title', id: 'sm-push-title', text: tr('memory.ui.settings.reminders', 'Reminders') }),
       el('div', { class: 'sm-radio-row' }, [
         enabled,
-        el('label', { attrs: { for: enabledId }, text: tr('memory.ui.settings.sendCards', 'Send me memory cards as notifications') }),
+        el('label', { attrs: { for: enabledId }, text: tr('memory.ui.settings.sendReminders', 'Send me verses to recall') }),
       ]),
-      el('p', { class: 'sm-hint', text: tr('memory.ui.settings.cardsIntro', 'A short prompt to say a passage to yourself, then grade how it went.') }),
+      el('p', { class: 'sm-hint', text: tr('memory.ui.settings.remindersIntro', 'A short prompt to say a verse to yourself, then grade how it went.') }),
       statusBox,
     ];
 
     if (settings.enabled) {
-      children.push(
-        renderSlots(),
-        renderQuiet(),
-        renderMax(),
-        renderSource(),
-        radioGroup(tr('memory.ui.settings.cardPrompt', 'Card prompt (in the app)'), 'prompt', settings.prompt, [
-          ['reference', tr('memory.ui.settings.referenceOnly', 'Reference only')],
-          ['firstWords', tr('memory.ui.settings.referenceAndFirstWords', 'Reference and first words')],
-        ], (v) => update((s) => (s.prompt = v as PushCardSettings['prompt']))),
-        el('p', { class: 'sm-hint', text: tr('memory.ui.settings.notificationsOnlyReference', 'Notifications only ever show the reference, never the verse or its first words.') }),
-        radioGroup(tr('memory.ui.settings.onLockScreen', 'On the lock screen'), 'lockScreen', settings.lockScreen, [
-          ['reference', tr('memory.ui.settings.showReference', 'Show the reference')],
-          ['generic', tr('memory.ui.settings.generic', 'Generic ("A memory card is ready.")')],
-        ], (v) => update((s) => (s.lockScreen = v as PushCardSettings['lockScreen']))),
-      );
+      children.push(renderSchedule(), renderAdvanced());
     }
     replace(root, children);
     drawStatus();
+  }
+
+  // --- schedule summary + Change -------------------------------------------
+  function renderSchedule(): HTMLElement {
+    const panelId = nextId('sm-push-schedule');
+    const toggle = button(
+      tr('memory.ui.settings.change', 'Change'),
+      () => {
+        scheduleOpen = !scheduleOpen;
+        toggle.setAttribute('aria-expanded', String(scheduleOpen));
+        fields.hidden = !scheduleOpen;
+        if (scheduleOpen) {
+          fields.replaceChildren(renderSlots(), renderQuiet(), renderMax());
+        } else {
+          fields.replaceChildren();
+        }
+      },
+      { class: 'sm-btn sm-btn-small sm-btn-quiet', attrs: { 'aria-expanded': String(scheduleOpen), 'aria-controls': panelId } },
+    );
+    const fields = el('div', { class: 'sm-push-schedule-fields', id: panelId });
+    fields.hidden = !scheduleOpen;
+    if (scheduleOpen) fields.append(renderSlots(), renderQuiet(), renderMax());
+    return el('div', { class: 'sm-push-schedule' }, [
+      el('div', { class: 'sm-push-summary-row' }, [
+        el('p', { class: 'sm-push-summary', text: scheduleSummary(settings) }),
+        toggle,
+      ]),
+      fields,
+    ]);
+  }
+
+  function renderAdvanced(): HTMLElement {
+    const details = el('details', { class: 'sm-push-advanced' }, [
+      el('summary', { class: 'sm-push-advanced-summary', text: tr('memory.ui.settings.advanced', 'Advanced') }),
+      renderSource(),
+      radioGroup(tr('memory.ui.settings.reminderPrompt', 'Reminder prompt (in the app)'), 'prompt', settings.prompt, [
+        ['reference', tr('memory.ui.settings.referenceOnly', 'Reference only')],
+        ['firstWords', tr('memory.ui.settings.referenceAndFirstWords', 'Reference and first words')],
+      ], (v) => update((s) => (s.prompt = v as PushCardSettings['prompt']))),
+      el('p', { class: 'sm-hint', text: tr('memory.ui.settings.notificationsOnlyReference', 'Notifications only ever show the reference, never the verse or its first words.') }),
+      radioGroup(tr('memory.ui.settings.onLockScreen', 'On the lock screen'), 'lockScreen', settings.lockScreen, [
+        ['reference', tr('memory.ui.settings.showReference', 'Show the reference')],
+        ['generic', tr('memory.ui.settings.genericReminder', 'Generic ("A reminder is ready.")')],
+      ], (v) => update((s) => (s.lockScreen = v as PushCardSettings['lockScreen']))),
+    ]) as HTMLDetailsElement;
+    details.open = advancedOpen;
+    details.addEventListener('toggle', () => (advancedOpen = details.open));
+    return details;
   }
 
   // --- slots ----------------------------------------------------------------
@@ -187,8 +225,8 @@ export function renderPushSettings(host: PanelHost, initial: PushSettingsView): 
       inputs.push(timeInput(tr('memory.ui.settings.windowStart', 'Window {n} start', { n }), slot.start, (v) => update(() => (slot.start = v))));
       inputs.push(el('span', { text: tr('memory.ui.settings.to', 'to'), attrs: { 'aria-hidden': 'true' } }));
       inputs.push(timeInput(tr('memory.ui.settings.windowEnd', 'Window {n} end', { n }), slot.end, (v) => update(() => (slot.end = v))));
-      const count = numberInput(tr('memory.ui.settings.cardsInWindow', 'Cards in window {n}', { n }), slot.count, 1, 6, (n) => update(() => (slot.count = n)));
-      inputs.push(count, el('span', { class: 'sm-hint', text: tr('memory.ui.settings.cards', 'cards') }));
+      const count = numberInput(tr('memory.ui.settings.remindersInWindow', 'Reminders in window {n}', { n }), slot.count, 1, 6, (n) => update(() => (slot.count = n)));
+      inputs.push(count, el('span', { class: 'sm-hint', text: tr('memory.ui.settings.remindersUnit', 'reminders') }));
     }
     return el('li', { class: 'sm-row sm-push-slot' }, [
       el('div', { class: 'sm-push-slot-times' }, inputs),
@@ -238,39 +276,39 @@ export function renderPushSettings(host: PanelHost, initial: PushSettingsView): 
         el('span', { text: tr('memory.ui.settings.to', 'to'), attrs: { 'aria-hidden': 'true' } }),
         timeInput(tr('memory.ui.settings.quietEnd', 'Quiet hours end'), q.end, (v) => { q.end = v; apply(); }),
       ]),
-      el('p', { class: 'sm-hint', text: tr('memory.ui.settings.quietHint', 'Cards that would fire during quiet hours are skipped.') }),
+      el('p', { class: 'sm-hint', text: tr('memory.ui.settings.quietHintReminders', 'Reminders that would fire during quiet hours are skipped.') }),
     ]);
   }
 
   function renderMax(): HTMLElement {
     const id = nextId('sm-push-max');
-    const input = numberInput(tr('memory.ui.settings.mostCardsPerDay', 'Most cards per day'), settings.plan.maxPerDay, 1, 12, (n) =>
+    const input = numberInput(tr('memory.ui.settings.mostRemindersPerDay', 'Most reminders per day'), settings.plan.maxPerDay, 1, 12, (n) =>
       update((s) => (s.plan.maxPerDay = n)),
     );
     input.id = id;
     input.removeAttribute('aria-label');
     return el('div', { class: 'sm-push-inline' }, [
-      el('label', { attrs: { for: id }, text: tr('memory.ui.settings.mostCardsPerDay', 'Most cards per day') }),
+      el('label', { attrs: { for: id }, text: tr('memory.ui.settings.mostRemindersPerDay', 'Most reminders per day') }),
       input,
     ]);
   }
 
   // --- source ---------------------------------------------------------------
   function renderSource(): HTMLElement {
-    const group = radioGroup(tr('memory.ui.settings.whichPassages', 'Which passages'), 'source', settings.source, [
-      ['dueThenReview', tr('memory.ui.settings.dueThenReview', 'Due passages first, then review well-learned ones')],
-      ['dueOnly', tr('memory.ui.settings.dueOnly', 'Due passages only')],
-      ['pinned', tr('memory.ui.settings.onlyPinned', 'Only passages I pin')],
+    const group = radioGroup(tr('memory.ui.settings.whichVerses', 'Which verses'), 'source', settings.source, [
+      ['dueThenReview', tr('memory.ui.settings.dueVersesThenReview', 'Due verses first, then review well-learned ones')],
+      ['dueOnly', tr('memory.ui.settings.dueVersesOnly', 'Due verses only')],
+      ['pinned', tr('memory.ui.settings.onlyPinnedVerses', 'Only verses I pin')],
     ], (v) => update((s) => (s.source = v as PushCardSettings['source']), true));
 
     if (settings.source !== 'pinned') return group;
     const pinned = new Set(settings.pinnedPassageIds);
     const picker =
       view.passages.length === 0
-        ? el('p', { class: 'sm-hint', text: tr('memory.ui.settings.addToPin', 'Add a passage to pin it.') })
+        ? el('p', { class: 'sm-hint', text: tr('memory.ui.settings.addVerseToPin', 'Add a verse to pin it.') })
         : el(
             'ul',
-            { class: 'sm-list sm-push-pinned', attrs: { 'aria-label': tr('memory.ui.settings.pinnedPassages', 'Pinned passages') } },
+            { class: 'sm-list sm-push-pinned', attrs: { 'aria-label': tr('memory.ui.settings.pinnedVerses', 'Pinned verses') } },
             view.passages.map((p) => {
               const id = nextId('sm-push-pin');
               const box = el('input', { id, type: 'checkbox' }) as HTMLInputElement;
@@ -297,6 +335,25 @@ export function renderPushSettings(host: PanelHost, initial: PushSettingsView): 
 // ---------------------------------------------------------------------------
 // Small form helpers
 // ---------------------------------------------------------------------------
+
+/** One sentence on when reminders arrive, e.g. "Up to 3 a day, at 08:00, 12:00." */
+export function scheduleSummary(s: PushCardSettings): string {
+  const times = s.plan.slots.map((slot) =>
+    slot.kind === 'fixed'
+      ? slot.time
+      : tr('memory.ui.settings.summaryWindow', '{count, plural, one {# reminder} other {# reminders}} between {start} and {end}', {
+          count: slot.count,
+          start: slot.start,
+          end: slot.end,
+        }),
+  );
+  if (times.length === 0) return tr('memory.ui.settings.summaryNone', 'No reminder times are set.');
+  return tr('memory.ui.settings.remindersSummary', 'Up to {max} a day, at {times}.', { times: listJoin(times), max: s.plan.maxPerDay });
+}
+
+function listJoin(items: string[]): string {
+  return items.join(', ');
+}
 
 function structuredCloneSafe<T>(v: T): T {
   return JSON.parse(JSON.stringify(v)) as T;

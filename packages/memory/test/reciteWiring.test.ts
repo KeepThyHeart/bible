@@ -14,11 +14,9 @@ import { describe, expect, it, vi } from 'vitest';
 
 import type { Passage, PassageView, PlanView, RungView, SpeechAvailability } from '../src/core/types';
 import { INITIAL_NAV, navReduce, sameView } from '../src/ui/state';
-import { RECITE_TILE, reciteDueEntry, reciteTileVisible } from '../src/ui/activities';
-import { RUNG_BLURB, RUNG_LABEL, carriesDownFrom, suggestedRungFor } from '../src/ui/format';
-import { listTargets } from '../src/ui/suggest';
-import { renderPassageScreen } from '../src/ui/passageView';
-import { renderPlan } from '../src/ui/planView';
+import { reciteDueEntry, reciteTileVisible } from '../src/ui/activities';
+import { RUNG_BLURB, RUNG_LABEL } from '../src/ui/format';
+import { listTargets } from '../src/ui/flows';
 import type { PanelHost } from '../src/ui/host';
 
 const NOW = Date.UTC(2026, 8, 19, 12, 0, 0);
@@ -68,43 +66,25 @@ function host(): PanelHost & { requests: any[]; go: ReturnType<typeof vi.fn> } {
 const flush = () => new Promise((r) => setTimeout(r, 0));
 
 describe('nav state for recite', () => {
-  it('reciteStarted remembers the passage screen and reciteEnded returns to it', () => {
-    let s = navReduce(INITIAL_NAV, { type: 'goPassage', passageId: 4, rung: 'recite' });
+  it('reciteStarted remembers the verse page and reciteEnded returns to it', () => {
+    let s = navReduce(INITIAL_NAV, { type: 'goVerse', passageId: 4 });
     s = navReduce(s, { type: 'reciteStarted', reciteId: 'a', mode: 'tap' });
     expect(s.view).toEqual({ name: 'recite', reciteId: 'a', mode: 'tap' });
     s = navReduce(s, { type: 'reciteEnded' });
-    expect(s.view).toEqual({ name: 'passage', passageId: 4, rung: 'recite' });
+    expect(s.view).toEqual({ name: 'verse', passageId: 4 });
   });
 
-  it('a resume from the plan returns to the plan; a second run keeps the return target', () => {
+  it('a resume from Today returns to Today; a second run keeps the return target', () => {
     let s = navReduce(INITIAL_NAV, { type: 'reciteStarted', reciteId: 'a', mode: 'handsfree' });
     s = navReduce(s, { type: 'reciteStarted', reciteId: 'b', mode: 'handsfree' });
-    expect(navReduce(s, { type: 'reciteEnded' }).view).toEqual({ name: 'plan' });
+    expect(navReduce(s, { type: 'reciteEnded' }).view).toEqual({ name: 'today' });
     expect(sameView({ name: 'recite', reciteId: 'a', mode: 'tap' }, { name: 'recite', reciteId: 'b', mode: 'tap' })).toBe(false);
   });
 });
 
 describe('carry-down and suggestion', () => {
-  it('recite mastered carries into the text rungs but not the reference rungs', () => {
-    const rungs = [
-      rung({ rung: 'ordering' }), rung({ rung: 'refmatch' }), rung({ rung: 'blanks' }),
-      rung({ rung: 'firstletters' }), rung({ rung: 'refprovide' }), rung({ rung: 'recite', level: 5, optional: true }),
-    ];
-    expect(carriesDownFrom(rungs, 'ordering')).toBe(true);
-    expect(carriesDownFrom(rungs, 'blanks')).toBe(true);
-    expect(carriesDownFrom(rungs, 'firstletters')).toBe(true);
-    expect(carriesDownFrom(rungs, 'refmatch')).toBe(false);
-    expect(carriesDownFrom(rungs, 'refprovide')).toBe(false);
-  });
-
-  it('refprovide no longer carries down (same chain as ladder.ts)', () => {
-    const rungs = [rung({ rung: 'ordering' }), rung({ rung: 'refprovide', level: 5 })];
-    expect(carriesDownFrom(rungs, 'ordering')).toBe(false);
-  });
-
   it('recite is never suggested or drawn for a flow, even when due', () => {
     const rungs = [rung({ rung: 'ordering', level: 5 }), rung({ rung: 'recite', dueAt: NOW - 1, optional: true })];
-    expect(suggestedRungFor(rungs, NOW)).toBe('ordering');
     expect(listTargets(plan({}, [pv(rungs)]), NOW).map((t) => t.rung)).toEqual(['ordering']);
   });
 
@@ -122,69 +102,6 @@ describe('activities', () => {
     expect(reciteDueEntry(plan({ reciteDueCount: 3 }))).toMatchObject({ count: 3, enabled: true });
     expect(reciteDueEntry(plan({ reciteDueCount: 3 }))!.label).toContain('(3)');
     expect(reciteDueEntry(plan())!.enabled).toBe(false);
-  });
-
-  it('the plan grid renders the recite tile only when ready, and starts hands-free for due', async () => {
-    const p = plan({ reciteDueCount: 2 }, [pv([rung({ rung: 'ordering' })])]);
-    const h = host();
-    const root = renderPlan(h, p);
-    expect(root.textContent).toContain(RECITE_TILE.title);
-    const due = [...root.querySelectorAll('button')].find((b) => b.textContent?.includes("recite what's due aloud"))!;
-    due.click();
-    await flush();
-    expect(h.requests[0]).toEqual({ type: 'startRecite', source: { kind: 'due' }, mode: 'handsfree' });
-    expect(h.go).toHaveBeenCalledWith({ type: 'reciteStarted', reciteId: 'r1', mode: 'handsfree' });
-
-    const off = renderPlan(host(), plan({ speech: speech({ state: 'permission-missing' }) }, [pv([rung({ rung: 'ordering' })])]));
-    expect(off.textContent).not.toContain(RECITE_TILE.title);
-    expect(off.textContent).not.toContain("recite what's due aloud");
-  });
-});
-
-describe('passage screen recite row', () => {
-  const rungs = [rung({ rung: 'ordering', level: 1 }), rung({ rung: 'recite', optional: true })];
-
-  it('marks recite optional in its row', () => {
-    const root = renderPassageScreen(host(), pv(rungs), 'firstLetter', 'recite', speech());
-    const row = [...root.querySelectorAll('.sm-progress-row strong')].find((b) => b.textContent?.includes('Recite aloud'))!;
-    expect(row.textContent).toContain('(optional)');
-  });
-
-  it('Recite starts tap mode when ready', async () => {
-    const h = host();
-    const root = renderPassageScreen(h, pv(rungs), 'firstLetter', 'recite', speech());
-    const btn = [...root.querySelectorAll('button')].find((b) => b.textContent === 'Recite')!;
-    expect(btn.disabled).toBe(false);
-    btn.click();
-    await flush();
-    expect(h.requests[0]).toEqual({ type: 'startRecite', source: { kind: 'passage', passageId: 10 }, mode: 'tap' });
-  });
-
-  it('Recite is disabled with the reason when speech is not ready', () => {
-    const root = renderPassageScreen(
-      host(), pv(rungs), 'firstLetter', 'recite',
-      speech({ state: 'permission-missing', missingPermissions: ['speech:listen'] }),
-    );
-    const btn = [...root.querySelectorAll('button')].find((b) => b.textContent === 'Recite')!;
-    expect(btn.disabled).toBe(true);
-    expect(root.textContent).toContain('microphone access');
-  });
-
-  it('the include toggle sends setPassageRecite and reloads', async () => {
-    const h = host();
-    const root = renderPassageScreen(h, pv(rungs), 'firstLetter', 'recite', speech());
-    const box = root.querySelector<HTMLInputElement>('#sm-recite-on')!;
-    expect(box.checked).toBe(false);
-    box.checked = true;
-    box.dispatchEvent(new Event('change'));
-    await flush();
-    expect(h.requests[0]).toEqual({ type: 'setPassageRecite', passageId: 10, on: true });
-    expect(h.reload).toHaveBeenCalled();
-  });
-
-  it('the suggested "Practice Passage" never names recite', () => {
-    const root = renderPassageScreen(host(), pv([rung({ rung: 'recite', dueAt: NOW - 1, optional: true })]), 'firstLetter', null, speech());
-    expect(root.textContent).not.toContain('Practice Passage');
   });
 });
 

@@ -132,6 +132,8 @@ export interface TierProgressRow extends TierBest {
   attempts: number;
   /** When the most recent of them happened, epoch ms. */
   lastAt: number;
+  /** When the first of them happened, epoch ms. */
+  firstAt: number;
 }
 
 export interface ResumeRow {
@@ -909,7 +911,8 @@ export class MemoryStore {
               a.tier          AS tier,
               MAX(a.score)    AS bestScore,
               COUNT(*)        AS attempts,
-              MAX(a.at)       AS lastAt
+              MAX(a.at)       AS lastAt,
+              MIN(a.at)       AS firstAt
          FROM memory_attempt a
          JOIN memory_card c ON c.id = a.card_id
         WHERE c.passage_id IN (${placeholders})
@@ -949,6 +952,31 @@ export class MemoryStore {
         WHERE c.due_at IS NOT NULL AND c.due_at <= ? AND p.collection_id = ?
           AND c.rung NOT IN ('recite', 'recall') AND p.deleted_at IS NULL`,
       [now, scope.id],
+    );
+    return row ? row.n : 0;
+  }
+
+  /**
+   * Verses to review today, in `scope`: passages with a due text-activity card
+   * and no attempt (non-recite, non-recall) since `dayStart`. The badge count;
+   * `status.ts#readMemoryStatus` runs the same SQL (a test holds them equal).
+   * Approximation: ignores read-time applicability.
+   */
+  async todayReviewCount(scope: Scope, now: number, dayStart: number): Promise<number> {
+    const listFilter = scope.kind === 'list' ? ' AND p.collection_id = ?' : '';
+    const params: number[] = scope.kind === 'list' ? [now, scope.id, dayStart] : [now, dayStart];
+    const row = await this.db.queryOne<{ n: number }>(
+      `SELECT COUNT(DISTINCT c.passage_id) AS n
+         FROM memory_card c
+         JOIN memory_passage p ON p.id = c.passage_id
+        WHERE c.due_at IS NOT NULL AND c.due_at <= ? AND c.rung NOT IN ('recite', 'recall')
+          AND p.deleted_at IS NULL${listFilter}
+          AND NOT EXISTS (
+            SELECT 1 FROM memory_attempt a
+              JOIN memory_card c2 ON c2.id = a.card_id
+             WHERE c2.passage_id = c.passage_id AND c2.rung NOT IN ('recite', 'recall')
+               AND a.at >= ? AND (c2.progress_reset_at IS NULL OR a.at > c2.progress_reset_at))`,
+      params,
     );
     return row ? row.n : 0;
   }

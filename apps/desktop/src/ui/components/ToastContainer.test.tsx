@@ -77,4 +77,23 @@ describe('ToastContainer', () => {
     // After clicking dismiss, the store should remove the toast
     expect(useToastStore.getState().toasts).toHaveLength(0);
   });
+
+  it('renders an action button that runs and dismisses the toast', async () => {
+    const run = vi.fn();
+    useToastStore.setState({
+      toasts: [{ id: '1', message: 'Added', type: 'info', action: { label: 'Practice now', run } }],
+    });
+    render(<ToastContainer />);
+    await userEvent.click(screen.getByRole('button', { name: 'Practice now' }));
+    expect(run).toHaveBeenCalledTimes(1);
+    expect(useToastStore.getState().toasts).toHaveLength(0);
+  });
+
+  it('gives toasts with an action a longer default duration', () => {
+    useToastStore.getState().addToast('x', 'info', undefined, { label: 'Go', run: () => {} });
+    useToastStore.getState().addToast('y', 'info');
+    const [a, b] = useToastStore.getState().toasts;
+    expect(a!.duration).toBe(8000);
+    expect(b!.duration).toBe(5000);
+  });
 });

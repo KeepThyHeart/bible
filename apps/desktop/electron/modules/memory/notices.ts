@@ -16,9 +16,9 @@ export const SKIPPED_NOTICE_KEY = `notice:skipped:${LEGACY_EXTENSION_ID}`;
 
 /** English texts; the renderer looks up `memory.notice.<id>` and falls back to these. */
 export const RETIRED_NOTICE =
-  'Scripture Memory is now built in: open it from the Memory app. Your plan and progress were brought over, and the old Scripture Memory extension was turned off.';
+  'Scripture Memory is now built in: open it from the Memory app. Your verses and progress were brought over, and the old Scripture Memory extension was turned off.';
 export const SKIPPED_NOTICE =
-  'Your old Scripture Memory extension data was not brought over automatically because Memory already has a plan. To add it, use "Import data from the old Scripture Memory extension" in Memory\'s settings.';
+  'Your old Scripture Memory extension data was not brought over automatically because Memory already has verses. To add it, use "Import data from the old Scripture Memory extension" in Memory\'s settings.';
 
 const NOTICES: ReadonlyArray<{ id: MemoryNotice['id']; key: string; message: string }> = [
   { id: 'retired', key: RETIRED_NOTICE_KEY, message: RETIRED_NOTICE },

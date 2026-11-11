@@ -56,8 +56,8 @@ export interface PanelHost {
    * (see `PanelRequest`'s `startSession` variant in `types.ts`).
    *
    * `flow` is the panel-side flow (`state.ts#Flow`) this session belongs to.
-   * Omitted, the panel defaults it to `{ kind: 'passage', passageId }` (no
-   * Next button). Only `startFlow`, and the practice screen's Next button
+   * Omitted, the panel defaults it to `{ kind: 'verse', passageId }` (no
+   * Continue or Skip). Only `startFlow`, and the practice screen's Next button
    * via it, pass one. The panel records it, with the session's real
    * passage and rung, on `NavState.flow` through `sessionStarted`.
    */
@@ -70,16 +70,12 @@ export interface PanelHost {
   ): Promise<void>;
 
   /**
-   * Starts whichever passage `flow`'s rule currently names (an activity tile
-   * press, or the practice screen's Next/skip) and switches to practice.
-   *
-   * Fetches `getPlan`, runs `suggest.ts#pickFlowTarget` with `Math.random`,
-   * then `startSession(target.passageId, target.rung, undefined, undefined,
-   * flow)`. `exclude` holds passage ids that must not be picked (Next passes
-   * the passage it just left). When nothing qualifies it announces
-   * "Nothing else to practice right now." and starts nothing.
+   * Starts the verse `flow` names next (fetches `getPlan`, runs
+   * `flows.ts#nextFlowTarget`, then `startSession` with `flow`) and switches to
+   * practice. When nothing qualifies it announces "Nothing else to practice
+   * right now." and returns false.
    */
-  startFlow(flow: Flow, exclude?: ReadonlySet<number>): Promise<void>;
+  startFlow(flow: Flow): Promise<boolean>;
 
   /** Asks the main app to move its Bible pane to a verse. */
   openInBible(verseId: number): void;

@@ -1,111 +1,22 @@
 /**
- * The small, repeated pieces: the toolbar, level boxes, bars, empty states.
+ * The small, repeated pieces: the "..." menu, bars, empty states, modals.
  *
- * Collected here rather than repeated in each view so that a level box means
- * one thing everywhere. The plan row's boxes and the passage screen's boxes
- * are the same claim about the same card, and two implementations of it would
- * drift the first time one of them was adjusted.
+ * Collected here rather than repeated in each view so that one control means
+ * one thing everywhere. Everything returns a detached element. Nothing here
+ * reads state, schedules work, or touches the worker.
  *
- * Everything returns a detached element. Nothing here reads state, schedules
- * work, or touches the worker.
- *
- * ## Toolbar styling
- *
- * The host gives extension panels colour and font tokens only - no button,
- * toolbar or back-icon styles (see `styles.css`'s header note). Task 0004
- * asked this panel to look like the rest of the app in the meantime: a
- * full-width toolbar band, a plain back arrow at the left, and small flat
- * buttons rather than v0's rounded filled ones and text-link "Back to plan".
- * `breadcrumb()` now renders the shared kit's `kth-crumbs*` classes (packages/ui/css/kth-classes.css).
- * The proper fix is a shared stylesheet from the host (`ext-ui://host/controls.css`,
- * raised as a separate Bible-repo task per that review) that this panel would
- * then consume instead of maintaining its own copy.
+ * The host gives extension panels colour and font tokens only - no button or
+ * toolbar styles - so this panel keeps its own small flat controls in
+ * `memory.css` and `styles/*.css`.
  */
 
-import type { Rung, RungView } from '../core/types';
 import { append, button, el, focusQuietly } from './dom';
 import { tr } from './i18n';
 import { inertBackground } from './inert';
-import { MIN_VERSES_FOR_REFERENCE_ACTIVITIES } from '../core/ladder';
-import {
-  MASTERED_LEVEL,
-  RUNG_LABEL,
-  carriesDownFrom,
-  clampPercent,
-  formatDue,
-  formatScore,
-  inLadderOrder,
-} from './format';
+import { clampPercent } from './format';
 
 // ---------------------------------------------------------------------------
-// Breadcrumb, menu, tabs
-// ---------------------------------------------------------------------------
-
-/** One entry in a `breadcrumb()` trail. */
-export interface Crumb {
-  label: string;
-  /** Omitted on the final crumb - it is the current screen, not a link. */
-  onClick?: () => void;
-}
-
-/**
- * The breadcrumb band at the top of every screen, replacing the old
- * `toolbar()`'s back arrow.
- *
- * Every non-final crumb is a real `<button>`; the final one is the screen's
- * own `<h1>`, given `aria-current="page"` instead of a click handler - there
- * is nowhere further to go from the current screen, and `panel.ts#render`
- * keeps focusing `main.querySelector('h1')` after every navigation without
- * needing to know that heading now lives inside a crumb trail.
- *
- * Crumb 1 is always Home - a house glyph (`icon('home')`) plus the word
- * "Home" - whether or not it is also the final crumb (the home screen itself
- * has a single, unclickable "Home" crumb).
- *
- * `menu` is a left-most slot for the hamburger (item 16, `menu()` below) -
- * the home screen's own `breadcrumb()` call is the only one that fills it,
- * with Manage Passages / Analytics / Settings folded into it instead of
- * sitting in `actions` as separate buttons the way they used to. `actions`
- * mirrors `toolbar()`'s own slot, e.g. the passage screen's "Show in Bible"
- * and answer-mode gear.
- */
-export function breadcrumb(opts: {
-  crumbs: Crumb[];
-  menu?: HTMLElement;
-  actions?: (HTMLElement | null)[];
-}): HTMLElement {
-  const list = el('ol', { class: 'kth-crumbs__list' });
-
-  opts.crumbs.forEach((crumb, index) => {
-    const isFirst = index === 0;
-    const isLast = index === opts.crumbs.length - 1;
-    const content: (Node | string)[] = isFirst ? [icon('home'), crumb.label] : [crumb.label];
-
-    const crumbEl: HTMLElement = isLast
-      ? el('h1', { class: 'kth-crumbs__current', attrs: { 'aria-current': 'page' } })
-      : button(crumb.label, crumb.onClick ?? (() => {}), { class: 'kth-crumbs__link', text: '' });
-    append(crumbEl, content);
-
-    list.appendChild(el('li', { class: 'kth-crumbs__item' }, [crumbEl]));
-
-    if (!isLast) {
-      list.appendChild(
-        el('li', { class: 'kth-crumbs__sep' }, [
-          el('span', { attrs: { 'aria-hidden': 'true' } }, ['›']),
-        ]),
-      );
-    }
-  });
-
-  return el('nav', { class: 'kth-crumbs', attrs: { 'aria-label': tr('memory.ui.common.breadcrumb', 'Breadcrumb') } }, [
-    opts.menu ?? null,
-    list,
-    el('div', { class: 'kth-crumbs__actions' }, opts.actions ?? []),
-  ]);
-}
-
-// ---------------------------------------------------------------------------
-// Hamburger menu
+// "..." menu
 // ---------------------------------------------------------------------------
 
 /** One entry in a `menu()` panel. */
@@ -115,30 +26,18 @@ export interface MenuItem {
 }
 
 /**
- * The hamburger menu that fills `breadcrumb()`'s `menu` slot on the home
- * screen (Decision 11 of the nav/chrome redesign, item 16): a trigger button
- * plus a `role="menu"` popover of `role="menuitem"` buttons, replacing the
- * separate "Analytics" / "Settings" buttons that used to sit in the
- * breadcrumb's `actions` slot - Manage Passages joins them there now that
- * there are three, not two, links off the home screen.
+ * The "..." menu: a trigger button showing an ellipsis glyph (with `label` as
+ * its `aria-label`) plus a `role="menu"` popover of `role="menuitem"` buttons.
+ * It holds the secondary actions of a screen, a verse row or a list chip.
  *
- * The trigger is a bare hamburger glyph (`icon('menu')`) with `label` as its
- * `aria-label` rather than visible text next to it, the same "icon speaks for
- * itself" choice the passage screen's answer-mode gear already makes
- * (`.sm-icon-btn`, `passageView.ts`) - three even bars is already this app's
- * unambiguous "more" affordance (see `icon()`'s own note), and spelling it
- * out in words would be the one string in the whole breadcrumb band that
- * wraps.
- *
- * Not a native `<select>` or a `window.*` dialog (design doc, Decision 11):
- * this panel runs inside a sandboxed iframe where the host can suppress
- * modal dialogs outright, and a `<select>` cannot be given the roving
- * Up/Down behaviour or the Escape/outside-close behaviour a `role="menu"`
- * needs. `attachMenuKeys` below is the `role="menu"` analogue of
- * `attachTabKeys` above: same roving-focus idea, different ARIA pattern
- * (vertical arrows moving between `menuitem`s that are never in the page's
- * own Tab order while the menu is open, rather than horizontal arrows moving
- * a single roving tab stop).
+ * Not a native `<select>` or a `window.*` dialog: this panel runs inside a
+ * sandboxed iframe where the host can suppress modal dialogs outright, and a
+ * `<select>` cannot be given the roving Up/Down behaviour or the
+ * Escape/outside-close behaviour a `role="menu"` needs. `attachMenuKeys`
+ * below is the `role="menu"` keyboard handler: vertical arrows move between
+ * `menuitem`s that are never in the page's own Tab order while the menu is
+ * open. The panel is anchored to the trigger's inline end edge, so it opens
+ * toward the inside of the screen in both LTR and RTL.
  */
 export function menu(opts: { label: string; items: MenuItem[] }): HTMLElement {
   const wrapper = el('div', { class: 'sm-menu' });
@@ -166,8 +65,8 @@ export function menu(opts: { label: string; items: MenuItem[] }): HTMLElement {
     text: '',
     attrs: { 'aria-haspopup': 'menu', 'aria-expanded': 'false', 'aria-label': opts.label, title: opts.label },
   });
-  // Icon plus the word: a bare three-line glyph was not self-evident to a new user.
-  append(trigger, [icon('menu'), el('span', { class: 'sm-menu-btn-label', text: tr('memory.ui.common.menuButton', 'Menu') })]);
+  // A plain ellipsis; the accessible name comes from aria-label.
+  append(trigger, [el('span', { class: 'sm-menu-btn-glyph', text: '\u2026', attrs: { 'aria-hidden': 'true' } })]);
 
   // Registered only while the menu is open, and torn down the moment it
   // closes by any route - Escape, an item press, or this handler firing
@@ -220,8 +119,7 @@ export function menu(opts: { label: string; items: MenuItem[] }): HTMLElement {
 
 /**
  * Up/Down over an open `role="menu"`, wrapping at the ends, plus Escape - the
- * `role="menu"` analogue of `attachTabKeys` above (see `menu()`'s own note
- * for why it is not the same function). Home/End jump to the ends and Tab closes the
+ * `role="menu"` analogue of `attachTabKeys` below. Home/End jump to the ends and Tab closes the
  * menu (focus returns to the trigger and the Tab moves on from there);
  * Left/Right are a tablist's own pattern and are left out.
  */
@@ -274,54 +172,8 @@ export function attachMenuKeys(
 }
 
 // ---------------------------------------------------------------------------
-// Tab strip
+// Tab keys
 // ---------------------------------------------------------------------------
-
-/**
- * The activity tab strip under the breadcrumb, on both the passage and
- * practice screens (Decision 2 of the nav/chrome redesign): `role="tablist"`
- * of `role="tab"` buttons, one per applicable activity, an underline rather
- * than a filled pill marking the selected one - "not pills" is the decision's
- * own wording, and a bottom border is the one treatment this file does not
- * already use for something else (badges are pills, `.sm-choice` is a filled
- * card).
- *
- * Generic over `T` rather than typed to `Rung` directly: both call sites pass
- * `Rung` values today, but nothing here needs to know that, and a component
- * this small gains nothing from repeating the union.
- */
-export function tabs<T extends string>(opts: {
-  items: readonly { value: T; label: string }[];
-  selected: T;
-  onSelect: (value: T) => void;
-  ariaLabel?: string;
-}): HTMLElement {
-  const list = el('div', {
-    class: 'kth-tabs',
-    attrs: { role: 'tablist', ...(opts.ariaLabel !== undefined ? { 'aria-label': opts.ariaLabel } : {}) },
-  });
-
-  const tabButtons = opts.items.map((item) => {
-    const isSelected = item.value === opts.selected;
-    return button(item.label, () => opts.onSelect(item.value), {
-      class: 'kth-tabs__tab',
-      attrs: {
-        role: 'tab',
-        'aria-selected': String(isSelected),
-        // Roving tabindex: only the selected tab sits in the page's own Tab
-        // order, so tabbing into the strip lands on it directly rather than
-        // on whichever tab happens to be first - see `attachTabKeys` below
-        // for how the arrows keep this in sync as focus moves.
-        tabindex: isSelected ? '0' : '-1',
-      },
-    });
-  });
-
-  append(list, tabButtons);
-  attachTabKeys(list, tabButtons);
-
-  return list;
-}
 
 /**
  * Left/Right/Home/End over a tab strip, wrapping at the ends - adapted from
@@ -415,117 +267,8 @@ export function translationTag(moduleId: string): HTMLElement {
     attrs: { title: tr('memory.ui.common.translationTitle', 'Translation: {module}', { module: moduleId }) },
   });
 }
-
-/** The count of due activities on a passage, or nothing at all when none are. */
-export function dueBadge(dueCount: number): HTMLElement | null {
-  if (dueCount <= 0) return null;
-  return el('span', {
-    class: 'sm-badge sm-badge-due',
-    text: String(dueCount),
-    attrs: { 'aria-label': tr('memory.ui.common.activitiesDue', '{count, plural, one {# activity due} other {# activities due}}', { count: dueCount }) },
-  });
-}
-
-/** "Suggested" - the badge on the activity `suggestedRungFor` picked. */
-export function suggestedBadge(): HTMLElement {
-  return el('span', { class: 'sm-badge sm-badge-suggested', text: tr('memory.ui.common.suggested', 'Suggested') });
-}
-
-// ---------------------------------------------------------------------------
-// Level boxes
-// ---------------------------------------------------------------------------
-
-/** How many boxes an activity's level is drawn with - always five. */
-export const LEVEL_MAX = 5;
-/** The level at and above which a box is drawn green rather than yellow. */
-const GREEN_AT = MASTERED_LEVEL;
-
-/**
- * The five-box level indicator: grey for not-yet-reached, yellow at levels
- * 1-3, green at 4-5, and faded green when a mastered activity has come due
- * for review again - the spaced repetition schedule keeps running underneath,
- * and the fade is the only sign of it the user needs.
- */
-export function levelBoxes(level: number, opts: { due?: boolean } = {}): HTMLElement {
-  const boxes: HTMLElement[] = [];
-  const faded = Boolean(opts.due) && level >= GREEN_AT;
-
-  for (let i = 1; i <= LEVEL_MAX; i += 1) {
-    const filled = i <= level;
-    const classes = ['sm-level-box'];
-    if (filled) classes.push(level >= GREEN_AT ? 'sm-level-box-green' : 'sm-level-box-yellow');
-    if (filled && faded) classes.push('sm-level-box-faded');
-    boxes.push(el('span', { class: classes.join(' '), attrs: { 'aria-hidden': 'true' } }));
-  }
-
-  const label =
-    level === 0
-      ? tr('memory.ui.common.levelNotTried', 'not tried yet')
-      : opts.due
-        ? tr('memory.ui.common.levelOfMaxDue', 'level {level} of {max}, due for review', { level, max: LEVEL_MAX })
-        : tr('memory.ui.common.levelOfMax', 'level {level} of {max}', { level, max: LEVEL_MAX });
-
-  return el(
-    'span',
-    { class: `sm-level-boxes${opts.due && level < GREEN_AT ? ' sm-level-boxes-due' : ''}`, attrs: { role: 'img', 'aria-label': label, title: label } },
-    boxes,
-  );
-}
-
-/**
- * A single word describing an activity square's status, for its title and
- * accessible label.
- */
-function squareStatusWord(rv: RungView, carried: boolean): string {
-  if (rv.level >= MASTERED_LEVEL) return tr('memory.ui.common.statusWellLearned', 'well learned');
-  if (carried) return tr('memory.ui.common.statusLearnedViaHarder', 'learned via a harder activity');
-  if (rv.level > 0) return tr('memory.ui.common.statusInProgress', 'in progress');
-  return tr('memory.ui.common.statusNotStarted', 'not started');
-}
-
-/**
- * The compact per-passage status strip for a plan row: one small square per
- * applicable activity rather than a labelled five-box strip per activity, so
- * a plan of many passages reads as a glance rather than a scroll (task 0004
- * review, point 1: "a lot more compact... a single row of squares").
- *
- * Colour follows the review's own scheme: greyed grey = not started, orange
- * = attempted but not yet mastered, green = mastered on this activity
- * itself, light green = not mastered *here* but the passage's overall
- * "well learned" status already carries down from a harder activity (see
- * `carriesDownFrom`).
- */
-export function activitySquares(rungs: RungView[]): HTMLElement {
-  const applicable = inLadderOrder(rungs).filter((r) => r.applicable);
-
-  return el(
-    'span',
-    { class: 'sm-activity-squares', attrs: { role: 'img', 'aria-label': squaresLabel(applicable, rungs) } },
-    applicable.map((rv) => {
-      const carried = rv.level < MASTERED_LEVEL && carriesDownFrom(rungs, rv.rung);
-      const status =
-        rv.level >= MASTERED_LEVEL ? 'done' : carried ? 'carried' : rv.level > 0 ? 'partial' : 'new';
-      return el('span', {
-        class: `sm-activity-square sm-activity-square-${status}`,
-        title: tr('memory.ui.common.rungStatus', '{rung}: {status}', { rung: RUNG_LABEL[rv.rung], status: squareStatusWord(rv, carried) }),
-        attrs: { 'aria-hidden': 'true' },
-      });
-    }),
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Icon buttons
-// ---------------------------------------------------------------------------
-
-/**
- * A button whose visible content is a glyph rather than a word, given an
- * accessible name through `aria-label` (and, for a mouse user, `title` as a
- * tooltip). Mirrors the pattern `passageView.ts`'s answer-mode gear (`⚙`)
- * already uses inline - `.sm-btn .sm-btn-quiet .sm-btn-small .sm-icon-btn` -
- * factored out here so later screens do not each re-type that class list.
- */
-export function iconButton(glyph: string, label: string, onClick: () => void): HTMLButtonElement {
+/** A glyph-only button with an accessible name; used by `modal()`'s close control. */
+function iconButton(glyph: string, label: string, onClick: () => void): HTMLButtonElement {
   return button(glyph, onClick, {
     class: 'sm-btn sm-btn-quiet sm-btn-small sm-icon-btn',
     title: label,
@@ -582,7 +325,7 @@ const MODAL_FOCUSABLE_SELECTOR =
  *
  * Content is fixed at construction; build a fresh `modal()` per open for
  * fresh content, or replace children of a wrapper element you passed in
- * `body`. The caller mounts `element` itself, like `menu()`/`tabs()`.
+ * `body`. The caller mounts `element` itself, like `menu()`.
  * A header close button (`✕`), Esc, and a click on the backdrop itself all
  * close it; clicks inside the dialog do not.
  */
@@ -683,123 +426,6 @@ function attachModalKeys(
   });
 }
 
-// ---------------------------------------------------------------------------
-// Tier pips
-// ---------------------------------------------------------------------------
-
-/**
- * Small dot-per-tier progress, e.g. for a passage-overview row: `tiers` pips,
- * `tiersPassed` of them marked passed. Colour is never the only signal - the
- * whole thing carries a text `aria-label` with the count, the way
- * `levelBoxes` does for its five boxes.
- */
-export function tierPips(tiersPassed: number, tiers: number): HTMLElement {
-  const pips: HTMLElement[] = [];
-  for (let i = 1; i <= tiers; i += 1) {
-    const passed = i <= tiersPassed;
-    pips.push(
-      el('span', {
-        class: `sm-tier-pip${passed ? ' sm-tier-pip-passed' : ''}`,
-        attrs: { 'aria-hidden': 'true' },
-      }),
-    );
-  }
-  return el(
-    'span',
-    {
-      class: 'sm-tier-pips',
-      attrs: { role: 'img', 'aria-label': tr('memory.ui.common.tiersPassed', '{passed} of {tiers, plural, one {# tier} other {# tiers}} passed', { passed: tiersPassed, tiers }) },
-    },
-    pips,
-  );
-}
-
-// ---------------------------------------------------------------------------
-// List selector
-// ---------------------------------------------------------------------------
-
-/** One choice in `listSelector` - `'all'` for the "All lists" option. */
-export interface ListSelectorOption {
-  id: number | 'all';
-  name: string;
-}
-
-/**
- * A `<select>`-based "All lists"/per-list picker. Deliberately minimal - T10
- * is what wires this into the home screen's header and decides how it looks
- * there; this just gets a working, accessible control in place.
- */
-export function listSelector(
-  options: ListSelectorOption[],
-  selected: number | 'all',
-  onChange: (id: number | 'all') => void,
-): HTMLSelectElement {
-  const select = el('select', {
-    class: 'sm-select sm-list-selector',
-    attrs: { 'aria-label': tr('memory.ui.common.list', 'List') },
-  }) as HTMLSelectElement;
-
-  for (const opt of options) {
-    const optionEl = el('option', { value: String(opt.id), text: opt.name });
-    if (opt.id === selected) optionEl.selected = true;
-    select.appendChild(optionEl);
-  }
-
-  select.addEventListener('change', () => {
-    const match = options.find((opt) => String(opt.id) === select.value);
-    if (match) onChange(match.id);
-  });
-
-  return select;
-}
-
-// ---------------------------------------------------------------------------
-// Activity row
-// ---------------------------------------------------------------------------
-
-/** What one `activityRow` needs. */
-export interface ActivityRowOptions {
-  rung: Rung;
-  /** 0-5, same scale as `levelBoxes`. */
-  level: number;
-  /** How many difficulty tiers this activity has. See `ladder.ts#TIERS`. */
-  tiers: number;
-  tiersPassed: number;
-  /** Whether this activity is due now - passed through to `levelBoxes`. */
-  due?: boolean;
-  /** The schedule/progress slot, e.g. `scheduleLine`'s text - left blank if omitted. */
-  scheduleText?: string;
-  onPlay: () => void;
-  /** Accessible name for the play icon. Defaults to "Practice <activity>". */
-  playLabel?: string;
-}
-
-/**
- * One row of an aligned activity table: name, tier pips, level boxes, a
- * schedule/progress slot, and a play icon - in that order, as plain flex
- * children rather than a real `<table>` (matching `.sm-activity-card`'s own
- * approach elsewhere in this file). Deliberately minimal/generic: T12 builds
- * the actual passage-overview grid on top of this and owns the polish.
- */
-export function activityRow(opts: ActivityRowOptions): HTMLElement {
-  return el('div', { class: 'sm-activity-row' }, [
-    el('span', { class: 'sm-activity-row-name', text: RUNG_LABEL[opts.rung] }),
-    tierPips(opts.tiersPassed, opts.tiers),
-    levelBoxes(opts.level, { due: opts.due }),
-    el('span', { class: 'sm-activity-row-schedule', text: opts.scheduleText ?? '' }),
-    iconButton('▶', opts.playLabel ?? tr('memory.ui.common.practiceRung', 'Practice {rung}', { rung: RUNG_LABEL[opts.rung] }), opts.onPlay),
-  ]);
-}
-
-function squaresLabel(applicable: RungView[], allRungs: RungView[]): string {
-  return applicable
-    .map((rv) => {
-      const carried = rv.level < MASTERED_LEVEL && carriesDownFrom(allRungs, rv.rung);
-      return tr('memory.ui.common.rungStatus', '{rung}: {status}', { rung: RUNG_LABEL[rv.rung], status: squareStatusWord(rv, carried) });
-    })
-    .join('; ');
-}
-
 /**
  * A labelled horizontal bar, drawn in CSS.
  *
@@ -822,14 +448,6 @@ export function statTile(value: string, caption: string): HTMLElement {
     el('div', { class: 'sm-stat-value', text: value }),
     el('div', { class: 'sm-stat-caption', text: caption }),
   ]);
-}
-
-/** "Due in 3 days · last score 82%" - the line under a passage-screen activity. */
-export function scheduleLine(rung: { dueAt: number | null; lastScore: number | null; streak: number }, now: number): HTMLElement {
-  const parts: string[] = [formatDue(rung.dueAt, now)];
-  if (rung.lastScore !== null) parts.push(tr('memory.ui.common.lastScore', 'Last score {score}', { score: formatScore(rung.lastScore) }));
-  if (rung.streak > 0) parts.push(tr('memory.ui.common.passesInARow', '{count, plural, one {# pass in a row} other {# passes in a row}}', { count: rung.streak }));
-  return el('p', { class: 'sm-schedule', text: parts.join(' · ') });
 }
 
 // ---------------------------------------------------------------------------
@@ -930,24 +548,4 @@ export function icon(name: IconName): SVGSVGElement {
   }
 
   return svg;
-}
-
-/**
- * A short caption naming an activity that does not apply and why.
- *
- * Non-applicable activities are shown rather than hidden. A ladder with a
- * missing step reads like a bug, and the reason a single verse cannot be
- * reordered is interesting enough to be worth one line of explanation.
- */
-export function inapplicabilityNote(rung: Rung): string {
-  switch (rung) {
-    case 'ordering':
-      return tr('memory.ui.common.notApplicableOrdering', 'Putting verses in order needs more than one verse.');
-    case 'refmatch':
-      return tr('memory.ui.common.notApplicableRefmatchPassages', 'Matching a reference needs {count} passages in this list to tell references apart.', { count: MIN_VERSES_FOR_REFERENCE_ACTIVITIES });
-    case 'refprovide':
-      return tr('memory.ui.common.notApplicableRefprovidePassages', 'Naming a reference needs {count} passages in this list to tell references apart.', { count: MIN_VERSES_FOR_REFERENCE_ACTIVITIES });
-    default:
-      return tr('memory.ui.common.notApplicableDefault', 'This activity does not apply to this passage.');
-  }
 }

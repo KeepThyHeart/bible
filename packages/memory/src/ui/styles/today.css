@@ -1,0 +1,261 @@
+/* Scripture Memory - Today screen (and starter-set chips). Scoped under .sm-app, logical properties only. */
+
+.sm-app .sm-today {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sm-s4);
+  max-inline-size: 36rem;
+  margin-inline: auto;
+}
+
+.sm-app .sm-today-title {
+  margin: 0;
+  font-size: 1.15em;
+  font-weight: 600;
+  color: var(--sm-heading);
+}
+
+.sm-app .sm-today-title:focus-visible {
+  outline: 2px solid var(--sm-focus);
+  outline-offset: 2px;
+}
+
+/* Offer and reminders rows */
+.sm-app .sm-today-offer,
+.sm-app .sm-today-reminders {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sm-s2) var(--sm-s3);
+  padding: var(--sm-s2) var(--sm-s3);
+  border: 1px solid var(--sm-border);
+  border-radius: var(--sm-radius);
+  background: var(--sm-surface);
+}
+
+.sm-app .sm-today-offer-text,
+.sm-app .sm-today-reminders-text {
+  flex: 1 1 auto;
+  min-inline-size: 0;
+}
+
+/* A1 */
+.sm-app .sm-today-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--sm-s2);
+}
+
+.sm-app .sm-today-counts {
+  margin: 0;
+  font-size: 1.6em;
+  font-weight: 600;
+  color: var(--sm-heading);
+}
+
+.sm-app .sm-today-minutes {
+  margin: 0;
+  color: var(--sm-text-dim);
+}
+
+.sm-app .sm-today-start {
+  min-inline-size: 9rem;
+  padding-block: var(--sm-s3);
+  font-size: 1.1em;
+}
+
+.sm-app .sm-today-upnext {
+  margin-block-start: var(--sm-s4);
+}
+
+.sm-app .sm-today-upnext-title,
+.sm-app .sm-today-sub {
+  margin: 0 0 var(--sm-s2);
+  font-size: 0.95em;
+  font-weight: 600;
+  color: var(--sm-text-dim);
+}
+
+.sm-app .sm-today-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.sm-app .sm-today-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--sm-s1) var(--sm-s2);
+  padding-block: var(--sm-s2);
+  border-block-end: 1px solid var(--sm-border);
+}
+
+.sm-app .sm-today-dot {
+  inline-size: 0.6em;
+  block-size: 0.6em;
+  border-radius: 50%;
+  border: 2px solid var(--sm-accent);
+  flex: none;
+  align-self: center;
+}
+
+/* "New" is a filled dot; the word New is always in the meta text too. */
+.sm-app .sm-today-item-new .sm-today-dot {
+  background: var(--sm-accent);
+}
+
+.sm-app .sm-today-ref {
+  font-weight: 600;
+}
+
+.sm-app .sm-today-meta {
+  color: var(--sm-text-dim);
+  font-size: 0.92em;
+}
+
+.sm-app .sm-today-more {
+  margin: var(--sm-s2) 0 0;
+  color: var(--sm-text-dim);
+}
+
+/* Practice something else */
+.sm-app .sm-today-else {
+  position: relative;
+  align-self: center;
+}
+
+.sm-app .sm-today-else-link {
+  text-decoration: underline;
+}
+
+.sm-app .sm-today-else-panel {
+  list-style: none;
+  margin: var(--sm-s1) 0 0;
+  padding: var(--sm-s1);
+  min-inline-size: 12rem;
+  border: 1px solid var(--sm-border-strong);
+  border-radius: var(--sm-radius-lg);
+  background: var(--sm-surface-raised);
+}
+
+.sm-app .sm-today-else-panel[hidden] {
+  display: none;
+}
+
+.sm-app .sm-today-else-item {
+  display: block;
+  inline-size: 100%;
+  font: inherit;
+  text-align: start;
+  padding: var(--sm-s2) var(--sm-s3);
+  border: 0;
+  border-radius: var(--sm-radius);
+  background: transparent;
+  color: var(--sm-text);
+  cursor: pointer;
+}
+
+.sm-app .sm-today-else-item:hover,
+.sm-app .sm-today-else-item:focus-visible {
+  background: var(--sm-hover);
+}
+
+/* A2 */
+.sm-app .sm-today-done {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sm-s3);
+  padding-block: var(--sm-s5);
+  text-align: center;
+}
+
+.sm-app .sm-today-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 2.5rem;
+  block-size: 2.5rem;
+  border-radius: 50%;
+  border: 2px solid var(--sm-accent);
+  color: var(--sm-accent);
+  font-size: 1.4em;
+}
+
+.sm-app .sm-today-done-title {
+  font-size: 1.4em;
+}
+
+.sm-app .sm-today-upcoming {
+  margin: 0;
+  color: var(--sm-text-dim);
+}
+
+.sm-app .sm-today-actions {
+  display: grid;
+  gap: var(--sm-s2);
+  inline-size: 100%;
+  max-inline-size: 15rem;
+}
+
+/* A3 and empty focus */
+.sm-app .sm-today-first {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sm-s3);
+  padding-block: var(--sm-s4);
+}
+
+.sm-app .sm-today-first .sm-today-title {
+  font-size: 1.4em;
+}
+
+.sm-app .sm-today-add-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sm-s2);
+}
+
+.sm-app .sm-today-add .sm-input {
+  min-inline-size: 10rem;
+}
+
+.sm-app .sm-today-tip {
+  margin: 0;
+}
+
+/* Starter-set chips */
+.sm-app .sm-starter-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sm-s2);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.sm-app .sm-chip {
+  font: inherit;
+  padding: var(--sm-s1) var(--sm-s3);
+  border: 1px solid var(--sm-border-strong);
+  border-radius: 999px;
+  background: var(--sm-control-bg);
+  color: var(--sm-control-text);
+  cursor: pointer;
+}
+
+.sm-app .sm-chip:hover:not(:disabled) {
+  background: var(--sm-accent-light);
+  border-color: var(--sm-accent);
+}
+
+.sm-app .sm-chip:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.sm-app .sm-starter-status {
+  margin-block-start: var(--sm-s2);
+}

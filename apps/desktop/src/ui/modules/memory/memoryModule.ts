@@ -8,7 +8,15 @@
 import { MEMORIZE_ACTION_ID, MEMORY_APP_ID, memoryManifest } from '@bible/memory/manifest';
 import type { DesktopFeatureModule } from '../moduleHost';
 
-export { onMemoryCardsRequest, openMemoryRoute, requestMemoryCards, takePendingMemoryCards } from './cardsRequest';
+export {
+  onMemoryCardsRequest,
+  onMemoryPracticeRequest,
+  openMemoryRoute,
+  requestMemoryCards,
+  requestMemoryPractice,
+  takePendingMemoryCards,
+  takePendingMemoryPractice,
+} from './cardsRequest';
 
 export const memoryModule: DesktopFeatureModule = {
   manifest: memoryManifest,

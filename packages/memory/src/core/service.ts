@@ -28,7 +28,7 @@ import type {
   ParsedReferenceDto,
 } from './ports';
 import type {
-  AddVersesOutcome,
+  AddVersesResult,
   MemoryApi,
   MemoryImportStatus,
   MemoryImportResult,
@@ -51,7 +51,9 @@ import type {
   SpeechAvailability,
   StepAnswer,
   VerseText,
+  Scope,
 } from './types';
+import { localDayStart } from './status';
 import { MemoryStore, activityLevels, byCard, scopeOf, ensureDefaultCollection } from './store';
 import type { ScopeFacts, TierProgressRow } from './store';
 import {
@@ -63,9 +65,9 @@ import {
   passageWellLearned,
   summarizeActivity,
   TIERS,
-  WELL_LEARNED_LEVEL,
 } from './ladder';
 import { schedule, makeRng, isDue } from './scheduler';
+import { countStartedToday, pickSuggestedRung, todayQueue } from './today';
 import { PushController } from './pushController';
 import { localCalendar } from './reminderPlan';
 import type { Calendar } from './reminderPlan';
@@ -552,7 +554,11 @@ export class MemoryService implements MemoryApi {
    * scope `'all'` - the Default list, created fresh if something has deleted
    * it since start.
    */
-  private async resolveAddTargetCollectionId(): Promise<number> {
+  private async resolveAddTargetCollectionId(explicit?: number): Promise<number> {
+    if (explicit !== undefined) {
+      const lists = await this.store.listCollections();
+      if (lists.some((l) => l.id === explicit)) return explicit;
+    }
     const scope = await this.store.getScope();
     if (scope.kind === 'list') return scope.id;
 
@@ -581,10 +587,10 @@ export class MemoryService implements MemoryApi {
   }
 
   private async computeStatus(): Promise<MemoryStatus> {
-    // Global on purpose: the status is a system-wide reminder, not a
-    // reflection of whatever list the UI has scoped right now - and the app
-    // need not even be open for it to matter.
-    const due = await this.store.dueCount({ kind: 'all' }, this.now());
+    // The badge follows the persisted focus and the queue: verses due and not
+    // yet practised today (`status.ts#readMemoryStatus` is the same count).
+    const now = this.now();
+    const due = await this.store.todayReviewCount(await this.store.getScope(), now, localDayStart(now));
     const waiting = this.push ? await this.push.waitingCount() : 0;
     return { due, waiting };
   }
@@ -624,8 +630,8 @@ export class MemoryService implements MemoryApi {
     }
   }
 
-  getPlan(): Promise<PlanView> {
-    return this.guard('getPlan', () => this.buildPlanView());
+  getPlan(args?: Req<'getPlan'>): Promise<PlanView> {
+    return this.guard('getPlan', () => this.buildPlanView(args?.scope));
   }
 
   getAnalytics(): Promise<RequestMap['getAnalytics']> {
@@ -674,7 +680,7 @@ export class MemoryService implements MemoryApi {
 
   addPassage(args: Req<'addPassage'>): Promise<{ passage: Passage; existed?: boolean }> {
     return this.guard('addPassage', async () => {
-      const { passage, existed } = await this.addPassageFromReference(args.reference);
+      const { passage, existed } = await this.addPassageFromReference(args.reference, args.collectionId);
       return { passage, ...(existed ? { existed: true } : {}) };
     });
   }
@@ -780,6 +786,8 @@ export class MemoryService implements MemoryApi {
   setScope(args: Req<'setScope'>): Promise<PlanView> {
     return this.guard('setScope', async () => {
       await this.store.setScope(args.scope);
+      // The badge counts the focus, so a new focus can change it.
+      await this.refreshStatus();
       this.planChanged();
       return this.buildPlanView();
     });
@@ -867,10 +875,16 @@ export class MemoryService implements MemoryApi {
   // -------------------------------------------------------------------------
 
   async practiceDue(): Promise<{ due: boolean }> {
-    // Same global choice as `refreshStatus`: this is reached from the palette
-    // or the status item, neither of which is scoped to one list.
-    const next = await this.store.nextDueCard({ kind: 'all' }, this.now());
-    if (!next) {
+    // "Due" means what Today would show: its queue for the persisted focus
+    // (reviews due and not practised today, then new verses within the daily
+    // cap). The app opens on Today, so anything else would open it onto
+    // "Done for today". The new-verse cap counts across all lists, as Today does.
+    const now = this.now();
+    const scope = await this.store.getScope();
+    const all = (await this.buildPlanView({ kind: 'all' })).passages;
+    const inScope = scope.kind === 'list' ? all.filter((pv) => pv.passage.collectionId === scope.id) : all;
+    const queue = todayQueue(inScope, now, { startedToday: countStartedToday(all, now) });
+    if (queue.items.length === 0) {
       this.notice(tc('memory.core.nothingDue', 'Nothing is due right now.'));
       return { due: false };
     }
@@ -903,12 +917,12 @@ export class MemoryService implements MemoryApi {
   async addVerses(args: {
     verseIds: readonly number[];
     module?: string;
-  }): Promise<{ outcome: AddVersesOutcome; passageId: number }> {
+  }): Promise<AddVersesResult> {
     // The verses the user selected, which need not be the reader's active
     // verse: a contiguous run within one chapter becomes one passage,
     // anything else just its first verse.
     const picked = versesFromMenuArgs(args);
-    if (!picked) throw new Error(tc('memory.core.selectVerseFirst', 'Select a verse first, then add it to your plan.'));
+    if (!picked) throw new Error(tc('memory.core.selectVerseFirst', 'Select a verse first, then add it to Memory.'));
     return this.addPassageFromVerseId(picked.start, picked.end, picked.module);
   }
 
@@ -1076,6 +1090,10 @@ export class MemoryService implements MemoryApi {
           (latest, r) => (latest === null || r.lastAt > latest ? r.lastAt : latest),
           null,
         ),
+        firstPractisedAt: (tierRows.get(c.id) ?? []).reduce<number | null>(
+          (first, r) => (first === null || r.firstAt < first ? r.firstAt : first),
+          null,
+        ),
         nextTier: progress.nextTier,
         ...(optional ? { optional: true as const } : {}),
       });
@@ -1095,15 +1113,29 @@ export class MemoryService implements MemoryApi {
   }
 
   private requirePush(): PushController {
-    if (!this.push) throw new Error(tc('memory.core.cardsUnavailable', 'Memory cards are not available right now.'));
+    if (!this.push) throw new Error(tc('memory.core.remindersUnavailable', 'Reminders are not available right now.'));
     return this.push;
   }
 
-  private async buildPlanView(): Promise<PlanView> {
+  /** `scopeOverride`: a one-off scope for this view; never persisted. */
+  private async buildPlanView(scopeOverride?: Scope): Promise<PlanView> {
     const now = this.now();
-    const scope = await this.store.getScope();
+    const scope = scopeOverride ?? (await this.store.getScope());
     const passages = await this.store.listPassagesInScope(scope);
     const scopeFacts = scopeOf(passages);
+    // Applicability is per passage's OWN list (as startSession and
+    // getPassageView do), not the browsing scope: under scope 'all' a lone verse
+    // in a small list must not look eligible for reference activities.
+    const byList = new Map<number, Passage[]>();
+    for (const p of passages) {
+      const g = byList.get(p.collectionId);
+      if (g) g.push(p);
+      else byList.set(p.collectionId, [p]);
+    }
+    const factsByList = new Map<number, ScopeFacts>();
+    for (const [id, group] of byList) {
+      factsByList.set(id, scope.kind === 'list' ? scopeFacts : scopeOf(group));
+    }
     // One query for the whole plan's attempt history, reduced in SQL. A plan of
     // thirty passages is ~150 cards, and every one of their levels is needed to
     // draw the list.
@@ -1114,7 +1146,14 @@ export class MemoryService implements MemoryApi {
 
     for (const passage of passages) {
       const cards = await this.store.listCards(passage.id);
-      const view = await this.assemblePassageView(passage, cards, tierRows, scopeFacts, now, speech);
+      const view = await this.assemblePassageView(
+        passage,
+        cards,
+        tierRows,
+        factsByList.get(passage.collectionId) ?? scopeFacts,
+        now,
+        speech,
+      );
       totalDue += view.dueCount;
       views.push(view);
     }
@@ -1132,7 +1171,9 @@ export class MemoryService implements MemoryApi {
       lists,
       scope: scope.kind === 'all' ? 'all' : scope.id,
       scopeVerseCount: scopeFacts.scopeVerseCount,
-      referenceActivitiesUnlocked: scopeFacts.scopeVerseCount >= MIN_VERSES_FOR_REFERENCE_ACTIVITIES,
+      referenceActivitiesUnlocked: [...factsByList.values()].some(
+        (f) => f.scopeVerseCount >= MIN_VERSES_FOR_REFERENCE_ACTIVITIES,
+      ),
       passages: views,
       totalDue,
       defaultAnswerMode: await this.store.getDefaultAnswerMode(),
@@ -1154,7 +1195,7 @@ export class MemoryService implements MemoryApi {
    */
   private async buildPassageView(passageId: number): Promise<PassageView> {
     const passage = await this.store.getPassage(passageId);
-    if (!passage) throw new Error(tc('memory.core.passageGone', 'That passage is no longer in your plan.'));
+    if (!passage) throw new Error(tc('memory.core.verseGone', 'That verse is no longer in Memory.'));
 
     const siblings = await this.store.listPassages(passage.collectionId);
     const scopeFacts = scopeOf(siblings);
@@ -1187,7 +1228,7 @@ export class MemoryService implements MemoryApi {
     opts: { withholdAfter: boolean },
   ): Promise<PassageContext> {
     const passage = await this.store.getPassage(passageId);
-    if (!passage) throw new Error(tc('memory.core.passageGone', 'That passage is no longer in your plan.'));
+    if (!passage) throw new Error(tc('memory.core.verseGone', 'That verse is no longer in Memory.'));
 
     const label = this.makeLabeller(passage.startVerseId, passage.endVerseId);
 
@@ -1304,12 +1345,15 @@ export class MemoryService implements MemoryApi {
     return modules.find((m) => m.abbreviation === saved)?.abbreviation;
   }
 
-  private async addPassageFromReference(input: string): Promise<{ passage: Passage; existed: boolean }> {
+  private async addPassageFromReference(
+    input: string,
+    collectionId?: number,
+  ): Promise<{ passage: Passage; existed: boolean }> {
     const { reference, moduleId: tagged } = await this.splitTranslationTag(input);
     const moduleId = tagged ?? (await this.activeModuleId(await this.lastChosenTranslation()));
     const resolved = await resolveReference(this.host, reference, moduleId);
     const now = this.now();
-    const targetCollectionId = await this.resolveAddTargetCollectionId();
+    const targetCollectionId = await this.resolveAddTargetCollectionId(collectionId);
 
     const { passage, created, revived } = await this.store.addPassage({
       collectionId: targetCollectionId,
@@ -1332,7 +1376,7 @@ export class MemoryService implements MemoryApi {
     startVerseId: number,
     endVerseId = startVerseId,
     preferredModule?: string,
-  ): Promise<{ outcome: AddVersesOutcome; passageId: number }> {
+  ): Promise<AddVersesResult> {
     const moduleId = await this.activeModuleId(preferredModule);
     const now = this.now();
     const targetCollectionId = await this.resolveAddTargetCollectionId();
@@ -1349,14 +1393,12 @@ export class MemoryService implements MemoryApi {
 
     await this.refreshStatus();
     this.planChanged();
-    this.notice(
-      created
-        ? tc('memory.core.noticeAdded', 'Added to your memorization plan.')
-        : revived
-          ? tc('memory.core.noticeRestored', 'Restored to your memorization plan with its progress.')
-          : tc('memory.core.noticeAlreadyInPlan', 'That verse is already in your plan.'),
-    );
-    return { outcome: created ? 'added' : revived ? 'revived' : 'exists', passageId: passage.id };
+    // No notice here: the host shows the result (see AddVersesResult).
+    return {
+      outcome: created ? 'added' : revived ? 'revived' : 'exists',
+      passageId: passage.id,
+      reference: passage.reference,
+    };
   }
 
   // -------------------------------------------------------------------------
@@ -1381,7 +1423,7 @@ export class MemoryService implements MemoryApi {
     tier?: number,
   ) {
     const passage = await this.store.getPassage(passageId);
-    if (!passage) throw new Error(tc('memory.core.passageGone', 'That passage is no longer in your plan.'));
+    if (!passage) throw new Error(tc('memory.core.verseGone', 'That verse is no longer in Memory.'));
 
     // The passage's own list, not the UI's current browsing scope - see
     // `buildPassageView`'s doc comment for why applicability is anchored to a
@@ -1400,11 +1442,11 @@ export class MemoryService implements MemoryApi {
     const now = this.now();
     const chosen = rung ?? (await this.suggestedRungForPassage(passage, applicable, now));
     if (!applicable.includes(chosen)) {
-      throw new Error(tc('memory.core.exerciseNotApplicable', 'That exercise does not apply to this passage.'));
+      throw new Error(tc('memory.core.activityNotApplicable', 'That activity does not apply to this verse.'));
     }
 
     const card = await this.store.getCard(passageId, chosen);
-    if (!card) throw new Error(tc('memory.core.exerciseNotSetUp', 'That exercise has not been set up for this passage.'));
+    if (!card) throw new Error(tc('memory.core.activityNotSetUp', 'That activity has not been set up for this verse.'));
 
     // Resolved decision D4: omitted, serve the lowest tier not yet passed (or
     // the hardest tier once every tier has been passed) - the same computation
@@ -1463,7 +1505,7 @@ export class MemoryService implements MemoryApi {
       referencePoints = this.referencePointsFor(verses);
       const correctBook = referencePoints[0]?.bookNumber;
       if (correctBook === undefined) {
-        throw new Error(tc('memory.core.noVersesToMatch', 'That passage has no verses to match a reference against.'));
+        throw new Error(tc('memory.core.noVersesToMatch', 'That verse has no verse text to match a reference against.'));
       }
       referenceCatalog = await this.buildReferenceCatalog(
         correctBook,
@@ -1532,9 +1574,8 @@ export class MemoryService implements MemoryApi {
     applicable: Rung[],
     now: number,
   ): Promise<Rung> {
-    let dueBest: { rung: Rung; dueAt: number } | null = null;
-    const levels = new Map<Rung, number>();
     const tierRows = byCard(await this.store.listTierProgress([passage.id]));
+    const candidates: { rung: Rung; dueAt: number | null; level: number }[] = [];
 
     for (const rung of applicable) {
       if (isOptionalRung(rung)) continue; // recite is never suggested
@@ -1543,18 +1584,14 @@ export class MemoryService implements MemoryApi {
       // The same derived level the plan screen shows. Reading `lastScore` here
       // instead would suggest an activity the user's own screen says is
       // finished, on the strength of one bad session.
-      levels.set(rung, levelForActivity(summarizeActivity(rung, tierRows.get(card.id) ?? [])));
-      if (isDue(card.dueAt, now) && (dueBest === null || (card.dueAt as number) < dueBest.dueAt)) {
-        dueBest = { rung, dueAt: card.dueAt as number };
-      }
+      candidates.push({
+        rung,
+        dueAt: card.dueAt,
+        level: levelForActivity(summarizeActivity(rung, tierRows.get(card.id) ?? [])),
+      });
     }
-    if (dueBest) return dueBest.rung;
-
-    const suggestible = applicable.filter((r) => !isOptionalRung(r));
-    for (const rung of suggestible) {
-      if ((levels.get(rung) ?? 0) < WELL_LEARNED_LEVEL) return rung;
-    }
-    return suggestible[suggestible.length - 1] as Rung;
+    // One shared rule with Today's queue (core/today.ts).
+    return pickSuggestedRung(candidates, now) ?? (applicable.filter((r) => !isOptionalRung(r)).pop() as Rung);
   }
 
   private async submitStepImpl(sessionId: string, answer: StepAnswer) {
@@ -1646,7 +1683,7 @@ export class MemoryService implements MemoryApi {
     await this.store.clearResume(a.cardId);
 
     const card = await this.store.getCard(a.passageId, a.rung);
-    if (!card) throw new Error(tc('memory.core.exerciseDisappeared', 'That exercise disappeared mid-session.'));
+    if (!card) throw new Error(tc('memory.core.activityDisappeared', 'That activity disappeared mid-session.'));
 
     const result = schedule({
       intervalStep: card.intervalStep,

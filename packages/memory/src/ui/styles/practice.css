@@ -1,0 +1,71 @@
+/* Scripture Memory - practice chrome (focused header, progress count, after-verse screen). Scoped under .sm-app. */
+
+.sm-app .sm-practice-head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sm-s2);
+}
+
+.sm-app .sm-practice-progress {
+  display: flex;
+  align-items: center;
+  gap: var(--sm-s2);
+}
+
+.sm-app .sm-practice-progress .sm-bar {
+  flex: 1;
+  min-inline-size: 0;
+}
+
+.sm-app .sm-step-count {
+  color: var(--sm-text-dim);
+  font-size: 0.92em;
+  white-space: nowrap;
+}
+
+.sm-app .sm-switch-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sm-s2);
+}
+
+.sm-app .sm-summary-next {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--sm-s2);
+}
+
+/* The after-verse screen's status chip: reset the pinned status-line rules of .sm-status (no rule above it). */
+.sm-app .sm-summary .sm-status {
+  flex: 0 0 auto;
+  padding-block: 0;
+  padding-inline: var(--sm-s2);
+  border: 1px solid var(--sm-border);
+  border-radius: 999px;
+  background: transparent;
+  font-size: 0.85em;
+  color: var(--sm-text-dim);
+}
+
+.sm-app .sm-summary .sm-status-learning {
+  border-color: var(--sm-info-border);
+  background: var(--sm-info-soft);
+  color: var(--sm-info-text);
+}
+
+.sm-app .sm-summary .sm-status-known {
+  border-color: var(--sm-success-border);
+  background: var(--sm-success-soft);
+  color: var(--sm-success-text);
+}
+
+/* The heading takes programmatic focus (a screen-reader landing point); it is not a control, so no box. */
+.sm-app .sm-summary-title:focus,
+.sm-app .sm-summary-title:focus-visible {
+  outline: none;
+}
+
+.sm-app .sm-summary-next {
+  justify-content: center;
+}

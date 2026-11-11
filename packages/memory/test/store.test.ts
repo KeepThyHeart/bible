@@ -634,6 +634,7 @@ describe('listTierProgress', () => {
       bestScore: 0.9,
       attempts: 2,
       lastAt: NOW + 1000,
+      firstAt: NOW,
     });
     expect(forCard[1]).toMatchObject({ tier: 1, bestScore: 0.5, attempts: 1 });
   });

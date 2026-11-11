@@ -1,0 +1,199 @@
+/* Scripture Memory - My verses (A6): add field, list chips, verse rows. Scoped under .sm-app, logical properties only. */
+
+.sm-app .sm-verses {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sm-s3);
+  max-inline-size: 44rem;
+  margin-inline: auto;
+}
+
+.sm-app .sm-verses-title {
+  margin: 0;
+  font-size: 1.15em;
+  font-weight: 600;
+  color: var(--sm-heading);
+}
+
+.sm-app .sm-verses-add .sm-add-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sm-s2);
+}
+
+.sm-app .sm-verses-add .sm-add-row .sm-input {
+  flex: 1 1 12rem;
+  min-inline-size: 0;
+}
+
+.sm-app .sm-verses-add .sm-add-row .sm-add-list {
+  flex: 0 1 10rem;
+}
+
+.sm-app .sm-verses-starters > summary {
+  cursor: pointer;
+  color: var(--sm-text-dim);
+}
+
+/* List chips */
+.sm-app .sm-list-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sm-s2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sm-app .sm-chip-item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sm-s1);
+}
+
+.sm-app .sm-list-chip {
+  font: inherit;
+  padding-block: var(--sm-s1);
+  padding-inline: var(--sm-s3);
+  border: 1px solid var(--sm-border-strong);
+  border-radius: 999px;
+  background: var(--sm-control-bg);
+  color: var(--sm-control-text);
+  cursor: pointer;
+}
+
+.sm-app .sm-list-chip:hover {
+  background: var(--sm-accent-light);
+  border-color: var(--sm-accent);
+}
+
+.sm-app .sm-list-chip[aria-pressed='true'] {
+  background: var(--sm-accent);
+  border-color: var(--sm-accent);
+  color: var(--sm-accent-text);
+  font-weight: 600;
+}
+
+.sm-app .sm-chip-focus {
+  margin-inline-start: var(--sm-s2);
+  font-size: 0.8em;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* A list chip and its "..." menu read as one control: a shared pill outline. */
+.sm-app .sm-chip-group {
+  gap: 0;
+  border: 1px solid var(--sm-border-strong);
+  border-radius: 999px;
+  background: var(--sm-control-bg);
+}
+
+.sm-app .sm-chip-group .sm-list-chip {
+  border-color: transparent;
+}
+
+.sm-app .sm-chip-group .sm-menu-btn {
+  border-radius: 999px;
+  padding-inline: var(--sm-s2);
+}
+
+/* Verse rows */
+.sm-app .sm-verse-rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sm-app .sm-verse-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: var(--sm-s2) var(--sm-s3);
+  padding-block: var(--sm-s2);
+  padding-inline: var(--sm-s2);
+  border-block-end: 1px solid var(--sm-border);
+}
+
+.sm-app .sm-verse-row-new {
+  background: var(--sm-accent-light);
+  border-radius: var(--sm-radius);
+}
+
+.sm-app .sm-verse-main {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--sm-s1) var(--sm-s2);
+  min-inline-size: 0;
+}
+
+.sm-app .sm-verse-ref {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  font-weight: 600;
+  color: var(--sm-heading);
+  text-align: start;
+  cursor: pointer;
+  text-decoration: underline transparent;
+}
+
+.sm-app .sm-verse-ref:hover {
+  text-decoration-color: currentColor;
+}
+
+.sm-app .sm-verse-state {
+  display: flex;
+  align-items: center;
+  gap: var(--sm-s3);
+}
+
+.sm-app .sm-verse-next {
+  color: var(--sm-text-dim);
+  min-inline-size: 6.5em;
+}
+
+.sm-app .sm-verse-acts {
+  display: flex;
+  align-items: center;
+  gap: var(--sm-s2);
+}
+
+/* Status chips: the word is always shown; colour only adds. Reset the status-line rules of .sm-status. */
+.sm-app .sm-verse-row .sm-status {
+  flex: 0 0 auto;
+  padding-block: 0;
+  padding-inline: var(--sm-s2);
+  border: 1px solid var(--sm-border);
+  border-radius: 999px;
+  background: transparent;
+  font-size: 0.85em;
+  color: var(--sm-text-dim);
+}
+
+.sm-app .sm-verse-row .sm-status-learning {
+  border-color: var(--sm-info-border);
+  background: var(--sm-info-soft);
+  color: var(--sm-info-text);
+}
+
+.sm-app .sm-verse-row .sm-status-known {
+  border-color: var(--sm-success-border);
+  background: var(--sm-success-soft);
+  color: var(--sm-success-text);
+}
+
+/* Phones: the row stacks (reference, then status and next review, then actions) */
+@media (max-width: 34rem) {
+  .sm-app .sm-verse-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .sm-app .sm-verse-main {
+    grid-column: 1 / -1;
+  }
+}

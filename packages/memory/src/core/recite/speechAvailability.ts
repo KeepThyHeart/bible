@@ -71,7 +71,7 @@ export function unavailableMessage(a: SpeechAvailability): string {
     case 'unavailable':
       return tc('memory.core.speechUnavailable', 'Speech recognition is not available on this device.');
     case 'permission-missing':
-      return tc('memory.core.speechPermissionMissing', 'Scripture Memory needs microphone access (the speech:listen permission) to listen while you recite. Grant it under Preferences > Extensions > Scripture Memory.');
+      return tc('memory.core.speechPermissionMissing', 'Memory needs microphone access (the speech:listen permission) to listen while you recite. Grant it under Preferences > Extensions > Memory.');
     case 'unsupported-language':
       return tc('memory.core.speechUnsupportedLanguage', 'Reciting aloud does not support this Bible translation’s language yet.');
     case 'host-too-old':

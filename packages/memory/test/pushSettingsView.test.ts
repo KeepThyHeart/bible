@@ -55,7 +55,10 @@ class Host {
       this.reply ?? (r.type === 'setPushSettings' ? view({ settings: (r as { settings: PushCardSettings }).settings }) : view());
     return Promise.resolve({ ok: true, data } as PanelReply<RequestMap[R['type']]>);
   }
-  go(): void {}
+  navigations = [];
+  go(a): void {
+    this.navigations.push(a);
+  }
   reload(): void {}
   async startSession(): Promise<void> {}
   async startFlow(): Promise<void> {}
@@ -91,6 +94,7 @@ const lastSent = (): PushCardSettings => {
 };
 const btn = (root: HTMLElement, label: string): HTMLButtonElement =>
   [...root.querySelectorAll('button')].find((b) => b.textContent === label) as HTMLButtonElement;
+const openSchedule = (root: HTMLElement): void => btn(root, 'Change').click();
 const change = (input: HTMLInputElement, value?: string): void => {
   if (value !== undefined) input.value = value;
   input.dispatchEvent(new Event('change', { bubbles: true }));
@@ -99,6 +103,7 @@ const change = (input: HTMLInputElement, value?: string): void => {
 describe('push settings', () => {
   it('shows the status message and labelled controls', () => {
     const root = mount(view());
+    openSchedule(root);
     expect(root.querySelector('[role="status"]')!.textContent).toBe('Notifications are on.');
     expect(root.querySelector('input[aria-label="Reminder time 1"]')).not.toBeNull();
     expect(root.querySelector('input[aria-label="Quiet hours start"]')).not.toBeNull();
@@ -108,16 +113,50 @@ describe('push settings', () => {
   it('hides details when disabled and sends on enabling', async () => {
     const root = mount(view({}, { enabled: false }));
     expect(root.querySelector('input[aria-label="Reminder time 1"]')).toBeNull();
+    expect(btn(root, 'Change')).toBeUndefined();
     const toggle = root.querySelector<HTMLInputElement>('input[type="checkbox"]')!;
     toggle.checked = true;
     change(toggle);
     await settle();
     expect(lastSent().enabled).toBe(true);
+    // Enabled: the summary and Change show; the schedule fields stay hidden until Change.
+    expect(btn(root, 'Change')).toBeDefined();
+    expect(root.querySelector('input[aria-label="Reminder time 1"]')).toBeNull();
+  });
+
+  it('labels the toggle "Send me verses to recall" under a Reminders heading', () => {
+    const root = mount(view());
+    expect(root.querySelector('h2')!.textContent).toBe('Reminders');
+    expect(root.querySelector('label')!.textContent).toBe('Send me verses to recall');
+  });
+
+  it('summarizes the schedule in one sentence and reveals the fields on Change', () => {
+    const root = mount(view());
+    expect(root.querySelector('.sm-push-summary')!.textContent).toBe('Up to 3 a day, at 08:00.');
+    expect(root.querySelector('input[aria-label="Reminder time 1"]')).toBeNull();
+    const change = btn(root, 'Change');
+    expect(change.getAttribute('aria-expanded')).toBe('false');
+    change.click();
+    expect(change.getAttribute('aria-expanded')).toBe('true');
     expect(root.querySelector('input[aria-label="Reminder time 1"]')).not.toBeNull();
+    expect(root.querySelector('input[aria-label="Quiet hours start"]')).not.toBeNull();
+    change.click();
+    expect(root.querySelector('input[aria-label="Reminder time 1"]')).toBeNull();
+  });
+
+  it('keeps the remaining fields under an Advanced details', () => {
+    const root = mount(view());
+    const adv = root.querySelector<HTMLDetailsElement>('details.sm-push-advanced')!;
+    expect(adv.querySelector('summary')!.textContent).toBe('Advanced');
+    expect(adv.open).toBe(false);
+    expect(adv.querySelector('input[type="radio"][value="pinned"]')).not.toBeNull();
+    expect(adv.querySelector('input[type="radio"][value="firstWords"]')).not.toBeNull();
+    expect(adv.querySelector('input[type="radio"][value="generic"]')).not.toBeNull();
   });
 
   it('edits a time, a day and the quiet hours', () => {
     const root = mount(view());
+    openSchedule(root);
     change(root.querySelector('input[aria-label="Reminder time 1"]')!, '09:15');
     expect((lastSent().plan.slots[0] as { time: string }).time).toBe('09:15');
 
@@ -132,12 +171,14 @@ describe('push settings', () => {
 
   it('ignores an invalid time', () => {
     const root = mount(view());
+    openSchedule(root);
     change(root.querySelector('input[aria-label="Reminder time 1"]')!, '');
     expect(host.requests).toHaveLength(0);
   });
 
   it('adds and removes times and windows', async () => {
     const root = mount(view());
+    openSchedule(root);
     btn(root, 'Add a time').click();
     btn(root, 'Add a window').click();
     await settle();
@@ -151,6 +192,7 @@ describe('push settings', () => {
 
   it('clamps max per day', () => {
     const root = mount(view());
+    openSchedule(root);
     const input = root.querySelector<HTMLInputElement>('input[aria-label="Most cards per day"], #' + root.querySelector('label')!.getAttribute('for'))!;
     const max = [...root.querySelectorAll<HTMLInputElement>('input[type="number"]')][0]!;
     void input;
@@ -208,8 +250,16 @@ describe('push settings', () => {
   it('appears in the settings screen only when given', () => {
     const plan = { passages: [] } as never;
     const without = renderSettings(host as unknown as PanelHost, { defaultAnswerMode: 'firstLetter' }, plan);
-    expect(without.textContent).not.toContain('Memory cards');
+    expect(without.textContent).not.toContain('Reminders');
     const withIt = renderSettings(host as unknown as PanelHost, { defaultAnswerMode: 'firstLetter' }, plan, view());
-    expect(withIt.textContent).toContain('Memory cards');
+    expect(withIt.textContent).toContain('Reminders');
+    expect(withIt.textContent).not.toContain('Memory cards');
+  });
+
+  it('settings header closes back to Today', () => {
+    const root = renderSettings(host as unknown as PanelHost, { defaultAnswerMode: 'firstLetter' }, { passages: [] } as never);
+    expect(root.querySelector('h1')!.textContent).toBe('Settings');
+    root.querySelector<HTMLButtonElement>('.sm-focused-close')!.click();
+    expect(host.navigations).toContainEqual({ type: 'goTab', tab: 'today' });
   });
 });

@@ -13,7 +13,7 @@ import { RECITE_ENABLED, reciteEnabled, setReciteEnabledForTests } from '../src/
 import type { PassageView, PlanView, RungView, SessionView, SettingsView, SpeechAvailability } from '../src/core/types';
 import type { PanelHost } from '../src/ui/host';
 import { reciteDueEntry, reciteTileVisible } from '../src/ui/activities';
-import { renderPassageScreen } from '../src/ui/passageView';
+import { renderVersePage } from '../src/ui/versePage';
 import { renderSettings } from '../src/ui/settingsView';
 import { MODULE_KJV, call, disposeAll, startTestService } from './helpers/service';
 
@@ -121,7 +121,7 @@ describe('recite UI is absent with the flag off, even if the host sends recite d
     expect(renderSettings(host, settings, plan).querySelector('.sm-block-recite')).not.toBeNull();
   });
 
-  it('passage actions and activity tabs', () => {
+  it('verse page recite row follows the flag', () => {
     const rung = (name: RungView['rung'], over: Partial<RungView> = {}): RungView => ({
       rung: name, level: 0, dueAt: null, streak: 0, lastScore: null, applicable: true, resume: null,
       tiers: 3, tiersPassed: 0, bestScore: null, attempts: 0, nextTier: 0, ...over,
@@ -131,11 +131,11 @@ describe('recite UI is absent with the flag off, even if the host sends recite d
       dueCount: 0, bestLevel: 0, wellLearned: false,
       rungs: [rung('blanks'), rung('firstletters'), rung('recite', { optional: true })],
     } as unknown as PassageView;
-    const off = renderPassageScreen(host, pv, 'firstLetter', undefined, READY);
+    const off = renderVersePage(host, pv, [], { speech: READY, defaultAnswerMode: 'firstLetter' });
     expect(off.textContent).not.toMatch(/recite/i);
     expect(off.querySelector('#sm-recite-on')).toBeNull();
     expect(off.textContent).toMatch(/blanks|first/i);
     setReciteEnabledForTests(true);
-    expect(renderPassageScreen(host, pv, 'firstLetter', 'recite', READY).querySelector('#sm-recite-on')).not.toBeNull();
+    expect(renderVersePage(host, pv, [], { speech: READY, defaultAnswerMode: 'firstLetter' }).querySelector('#sm-recite-on')).not.toBeNull();
   });
 });

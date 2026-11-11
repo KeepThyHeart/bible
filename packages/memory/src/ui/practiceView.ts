@@ -67,24 +67,21 @@ import type {
 import { startReciteRun } from './activities';
 import { reciteEnabled } from '../core/features';
 import { append, button, clear, el, focusQuietly, replace, textNode } from './dom';
-import { breadcrumb, errorBanner, iconButton, levelBoxes, tabs } from './components';
-import {
-  RUNG_LABEL,
-  formatScore,
-  formatStepProgress,
-  inLadderOrder,
-  matchesFirstLetter,
-  pickDueTarget,
-} from './format';
+import { errorBanner, menu, modal } from './components';
+import type { MenuItem } from './components';
+import { RUNG_LABEL, formatScore, inLadderOrder, matchesFirstLetter } from './format';
 import type { PanelHost } from './host';
 import type { Flow, NavAction } from './state';
 import { plainWord, renderPassage } from './scripture';
 import type { WordRenderer } from './scripture';
 import { resolveWrongPositions, revealedWord } from './stepResult';
 import type { HiddenWords } from './stepResult';
-import { tierLabel } from '../core/ladder';
-import { tr, uiLocale } from './i18n';
-import { listTargets, pickShuffledTarget } from './suggest';
+import { tr } from './i18n';
+import { flowRemaining } from './flows';
+import { MAX_NEW_PER_DAY, countStartedToday } from '../core/today';
+import { focusedHeader } from './shell';
+import { nextReviewText, statusChip } from './verseStatusUi';
+import './styles/practice.css';
 
 /** How long a wrong pick stays marked before the picker is handed back clean. */
 const WRONG_MARK_MS = 3000;
@@ -152,7 +149,7 @@ export class PracticeView {
      * The flow this session belongs to (`state.ts#Flow`). Only a non-`passage`
      * flow shows the Next skip button. Defaults to the session's own passage.
      */
-    private readonly flow: Flow = { kind: 'passage', passageId: session.passageId },
+    private readonly flow: Flow = { kind: 'verse', passageId: session.passageId },
   ) {
     this.session = session;
 
@@ -190,35 +187,41 @@ export class PracticeView {
    */
   mount(container: HTMLElement): void {
     container.appendChild(this.root);
+    this.root.ownerDocument.addEventListener('keydown', this.onDocumentKey);
     this.render();
     void this.loadContext();
     void this.loadPassageView();
   }
 
-  /** True while a mouse-clicked activity tab's focus is waiting for the new strip. */
-  private wantTabFocus = false;
-
   /**
-   * The screen replaced this one because its activity tab was clicked: the
-   * old tab (and its focus) is gone, so put focus on the new screen's
-   * selected tab as soon as the strip exists, rather than dropping to <body>.
+   * Esc closes practice, unless something else owns it: an open "..." menu or
+   * dialog handles its own Escape (and marks it handled with preventDefault).
+   * Added in `mount()` and removed in `destroy()`; separate from `keyCleanups`,
+   * which are per step.
+   *
+   * Scoped, because on web the Memory UI shares the document with the reader:
+   * only an Escape whose target is inside the Memory app root (`.sm-app`, or
+   * this screen when mounted elsewhere) counts, so Escape for a reader popover,
+   * search box or tooltip is left alone. An Escape aimed at the page itself
+   * (nothing focused) counts too, like `attachLetterKeys`: the picker steps
+   * focus nothing when drawn, so focus is usually on the body there.
    */
-  restoreTabFocus(): void {
-    this.wantTabFocus = true;
-    this.focusSelectedTab();
-  }
-
-  private focusSelectedTab(): void {
-    if (!this.wantTabFocus) return;
-    const tab = this.headEl.querySelector<HTMLElement>('[role="tab"][aria-selected="true"]');
-    if (!tab) return;
-    this.wantTabFocus = false;
-    const active = this.root.ownerDocument.activeElement;
-    if (active === null || active === this.root.ownerDocument.body) focusQuietly(tab);
-  }
+  private readonly onDocumentKey = (ev: KeyboardEvent): void => {
+    if (ev.key !== 'Escape' || ev.defaultPrevented || this.disposed) return;
+    // Duck-typed, not `instanceof Node`: the panel may live in another realm.
+    const target = ev.target as Node | null;
+    const scope = this.root.closest('.sm-app') ?? this.root;
+    const doc = this.root.ownerDocument;
+    const onPage = target === doc.body || target === doc.documentElement;
+    if (target === null || typeof target.nodeType !== 'number' || (!onPage && !scope.contains(target))) return;
+    if (doc.querySelector('[role="menu"]:not([hidden]), [role="dialog"]:not([hidden]), .sm-modal-backdrop:not([hidden])')) return;
+    ev.preventDefault();
+    void this.endSession();
+  };
 
   destroy(): void {
     this.disposed = true;
+    this.root.ownerDocument.removeEventListener('keydown', this.onDocumentKey);
     this.layoutObserver?.disconnect();
     this.layoutObserver = null;
     this.clearKeyHandlers();
@@ -290,7 +293,6 @@ export class PracticeView {
     }
     this.passageView = reply.data;
     this.renderHead();
-    this.focusSelectedTab();
     void this.loadSpeechReady();
   }
 
@@ -332,54 +334,24 @@ export class PracticeView {
   private renderHead(): void {
     const step = this.session.step;
     // `refmatch`/`refprovide`: the passage's own reference IS the answer being
-    // asked for, so the passage crumb must not show it; a generic "Passage"
-    // stands in. (The context is still loaded: `refProvideAnswer` needs it to
-    // grade and to show the answer after the step.)
+    // asked for, so the title must not show it: just the activity name.
     const hidesReference = this.session.rung === 'refprovide' || this.session.rung === 'refmatch';
-    const genericPassage = tr('memory.ui.practice.passage', 'Passage');
-    const translation = this.context?.moduleId ? ` (${this.context.moduleId})` : '';
-    const passageLabel = hidesReference ? genericPassage : (this.context?.reference ? `${this.context.reference}${translation}` : genericPassage);
-    const passageId = this.session.passageId;
-    const rung = this.session.rung;
+    const activity = RUNG_LABEL[this.session.rung];
+    const reference = this.context?.reference ?? '';
+    const title = hidesReference || reference === ''
+      ? activity
+      : tr('memory.ui.practice.title', '{reference} · {activity}', { reference, activity });
 
     replace(this.headEl, [
-      breadcrumb({
-        // Home > passage > activity. Leaving mid-exercise is not "ending"
-        // anything: the resume point is written to disk after every verse (see
-        // `main.ts`), so going back picks up later. Each crumb ends the
-        // session, then goes where it says.
-        crumbs: [
-          { label: tr('memory.ui.practice.home', 'Home'), onClick: () => void this.endSession({ type: 'goPlan' }) },
-          { label: passageLabel, onClick: () => void this.endSession({ type: 'goPassage', passageId, rung }) },
-          { label: RUNG_LABEL[rung] },
-        ],
-        actions: [
-          step !== null
-            ? el('span', { class: 'kth-crumbs__meta', text: formatStepProgress(step.stepNumber, step.totalSteps) })
-            : null,
-          // Only a flow with a rule to re-run has anywhere to skip to.
-          this.flow.kind !== 'passage'
-            ? button(tr('memory.ui.practice.next', 'Next'), () => void this.onNext(), {
-                class: 'sm-btn sm-btn-quiet sm-btn-small',
-                attrs: { 'aria-label': tr('memory.ui.practice.skipToNextPassage', 'Skip to the next passage') },
-              })
-            : null,
-        ],
+      // Leaving mid-exercise is not "ending" anything: the resume point is
+      // written to disk after every verse (see `main.ts`), so coming back
+      // picks up later.
+      focusedHeader({
+        title,
+        onClose: () => void this.endSession(),
+        closeLabel: tr('memory.ui.practice.closePractice', 'Close practice'),
+        menu: this.buildMenu(),
       }),
-      el('div', { class: 'sm-practice-sub' }, [
-        this.session.tiers > 1
-          ? el('span', {
-              class: 'sm-practice-tier',
-              text: tr('memory.ui.practice.tierOf', '{label} (Tier {tier} of {tiers})', {
-                label: tierLabel(this.session.rung, this.session.tier),
-                tier: this.session.tier + 1,
-                tiers: this.session.tiers,
-              }),
-            })
-          : null,
-        iconButton('🔀', tr('memory.ui.practice.shuffle', 'Shuffle - practise something else'), () => void this.shuffle()),
-      ]),
-      this.renderActivityTabs(),
       step !== null
         ? el('div', { class: 'sm-practice-progress' }, [
             el(
@@ -404,8 +376,11 @@ export class PracticeView {
               ],
             ),
             el('span', {
-              class: 'sm-step-tally',
-              text: tr('memory.ui.practice.rightFirstTime', '{count} right first time', { count: this.session.correctFirst }),
+              class: 'sm-step-count',
+              text: tr('memory.ui.practice.stepCount', '{step} of {total}', {
+                step: step.stepNumber,
+                total: Math.max(step.totalSteps, step.stepNumber),
+              }),
             }),
           ])
         : null,
@@ -413,44 +388,116 @@ export class PracticeView {
   }
 
   /**
-   * The step/tab strip: one tab per applicable activity on this passage, from
-   * `this.passageView` (see `loadPassageView`). `null` - no strip at all -
-   * until that fetch resolves, and also for a passage with only one
-   * applicable activity: a strip with a single, unclickable tab would only
-   * ever say "you are here, there is nowhere else to go" in a more
-   * complicated way than showing nothing.
-   *
-   * The strip is drawn by `components.ts#tabs`, which marks the current tab
-   * with `aria-selected`. It once used `aria-current="true"` rather than the more
-   * usual `"step"` value the plan text names - `aria-current="step"` is
-   * already this file's own vocabulary for the verse being worked on inside
-   * the passage (`scripture.ts`'s `current` word renderer option), and a
-   * second, unrelated element claiming the same value on the same screen
-   * would break every test (and every screen reader query) that treats
-   * `[aria-current="step"]` as identifying exactly one node.
+   * The "..." menu: Switch activity, Skip this verse (queue flows), Show in
+   * Bible, and Harder/Easier version when the activity has more than one tier.
    */
-  private renderActivityTabs(): HTMLElement | null {
-    if (this.passageView === null) return null;
-
-    const applicable = inLadderOrder(this.passageView.rungs).filter(
-      (rv) => rv.applicable && (rv.rung !== 'recite' || this.reciteReady),
-    );
-    if (applicable.length <= 1) return null;
-
-    return tabs({
-      items: applicable.map((rv) => ({ value: rv.rung, label: RUNG_LABEL[rv.rung] })),
-      selected: this.session.rung,
-      onSelect: (rung) => {
-        if (rung !== this.session.rung) void this.switchActivity(this.session.passageId, rung);
-      },
-      ariaLabel: tr('memory.ui.practice.activitiesForPassage', 'Activities for this passage'),
+  private buildMenu(): HTMLElement {
+    const items: MenuItem[] = [];
+    if (this.switchTargets().length > 0) {
+      items.push({
+        label: tr('memory.ui.practice.switchActivity', 'Switch activity'),
+        onClick: () => this.openSwitchPicker(),
+      });
+    }
+    if (this.flow.kind !== 'verse') {
+      items.push({
+        label: tr('memory.ui.practice.skipVerse', 'Skip this verse'),
+        onClick: () => void this.skipVerse(),
+      });
+    }
+    items.push({
+      label: tr('memory.ui.practice.showInBible', 'Show in Bible'),
+      onClick: () => this.showInBible(),
     });
+    const { tier, tiers } = this.session;
+    if (tiers > 1 && tier + 1 < tiers) {
+      items.push({
+        label: tr('memory.ui.practice.harderVersion', 'Harder version'),
+        onClick: () => void this.changeTier(tier + 1),
+      });
+    }
+    if (tiers > 1 && tier > 0) {
+      items.push({
+        label: tr('memory.ui.practice.easierVersion', 'Easier version'),
+        onClick: () => void this.changeTier(tier - 1),
+      });
+    }
+    return menu({ label: tr('memory.ui.practice.moreOptions', 'More options'), items });
+  }
+
+  /** Applicable activities on this verse other than the current one, in ladder order. */
+  private switchTargets(): Rung[] {
+    if (this.passageView === null) return [];
+    return inLadderOrder(this.passageView.rungs)
+      .filter((rv) => rv.applicable && rv.rung !== this.session.rung && (rv.rung !== 'recite' || this.reciteReady))
+      .map((rv) => rv.rung);
+  }
+
+  /** A small modal listing the other activities; each button switches to it. */
+  private openSwitchPicker(): void {
+    const rungs = this.switchTargets();
+    if (rungs.length === 0) return;
+    const handle = modal({
+      title: tr('memory.ui.practice.switchActivity', 'Switch activity'),
+      body: [
+        el(
+          'div',
+          { class: 'sm-switch-list' },
+          rungs.map((rung) =>
+            button(
+              RUNG_LABEL[rung],
+              () => {
+                handle.close();
+                void this.switchActivity(this.session.passageId, rung);
+              },
+              { class: 'sm-btn' },
+            ),
+          ),
+        ),
+      ],
+      onClose: () => handle.element.remove(),
+    });
+    (this.host.overlayRoot ?? document.body).appendChild(handle.element);
+    handle.open();
+  }
+
+  private showInBible(): void {
+    const verseId = this.context?.verses[0]?.verseId ?? this.passageView?.passage.startVerseId;
+    if (verseId !== undefined) this.host.openInBible(verseId);
+  }
+
+  /** The flow with this verse added to what it has skipped or visited (flows are immutable). */
+  private flowWithVisited(): Flow {
+    const id = this.session.passageId;
+    const f = this.flow;
+    switch (f.kind) {
+      case 'today':
+        return f.skipped.includes(id) ? f : { ...f, skipped: [...f.skipped, id] };
+      case 'verse':
+        return f;
+      default:
+        return f.visited.includes(id) ? f : { ...f, visited: [...f.visited, id] };
+    }
+  }
+
+  private async skipVerse(): Promise<void> {
+    if (this.disposed || this.switchingActivity) return;
+    const next = this.flowWithVisited();
+    await this.endSession();
+    void this.host.startFlow(next);
+  }
+
+  private async changeTier(tier: number): Promise<void> {
+    if (this.disposed || this.switchingActivity) return;
+    const { passageId, rung } = this.session;
+    const flow = this.flow;
+    await this.endSession();
+    void this.host.startSession(passageId, rung, true, tier, flow);
   }
 
   /**
-   * Ends the current session and starts a different one, for the tab strip
-   * and the shuffle button alike - both are "bail into something else mid-
-   * screen", the only difference being whether the passage changes too.
+   * Ends the current session and starts a different one, for "Switch
+   * activity" (and the tier changes).
    *
    * The old session is ended *before* the new one starts, and its reply is
    * not inspected - same reasoning as `endSession()` below: the resume point
@@ -473,44 +520,7 @@ export class PracticeView {
       void startReciteRun(this.host, { kind: 'passage', passageId }, 'tap');
       return;
     }
-    void this.host.startSession(passageId, rung);
-  }
-
-  /**
-   * The same shuffle the home screen offers (`planView.ts`), reached mid-
-   * screen: re-fetches the plan (this view only ever held one passage's
-   * worth of data) and hands it to `suggest.ts#pickShuffledTarget` - the one
-   * shuffle implementation, not a second copy of its weighting.
-   */
-  private async shuffle(): Promise<void> {
-    if (this.disposed || this.switchingActivity) return;
-
-    const reply = await this.host.request({ type: 'getPlan' });
-    if (this.disposed) return;
-    if (!reply.ok) {
-      this.host.announce(reply.error);
-      return;
-    }
-
-    const now = this.host.now();
-    const all = listTargets(reply.data, now);
-    const current = all.find(
-      (t) => t.passageId === this.session.passageId && t.rung === this.session.rung,
-    );
-    const others = current
-      ? all.filter((t) => !(t.passageId === current.passageId && t.rung === current.rung))
-      : all;
-    if (others.length === 0) {
-      this.host.announce(tr('memory.ui.practice.nothingElseToPractise', 'Nothing else to practise right now.'));
-      return;
-    }
-
-    const target = pickShuffledTarget(reply.data, now, Math.random, current);
-    if (target === null) {
-      this.host.announce(tr('memory.ui.practice.nothingElseToPractise', 'Nothing else to practise right now.'));
-      return;
-    }
-    void this.switchActivity(target.passageId, target.rung);
+    void this.host.startSession(passageId, rung, undefined, undefined, this.flow);
   }
 
   /**
@@ -1391,7 +1401,6 @@ export class PracticeView {
 
   private renderBlanks(step: BlanksStep): void {
     const count = step.blanks.reduce((n, b) => n + b.indices.length, 0);
-    const prefix = tierPrefix(this.session.rung, this.session.tier, this.session.tiers);
     const wholePassage = step.verses.length > 1;
 
     this.exerciseEl.appendChild(
@@ -1402,24 +1411,22 @@ export class PracticeView {
             ? wholePassage
               ? tr(
                   'memory.ui.practice.blanksFirstLetterWhole',
-                  '{prefix}Type the first letter of each missing word across the whole passage.',
-                  { prefix },
+                  'Type the first letter of each missing word across the whole passage.',
                 )
               : tr(
                   'memory.ui.practice.blanksFirstLetterVerse',
-                  '{prefix}Type the first letter of each missing word in the highlighted verse.',
-                  { prefix },
+                  'Type the first letter of each missing word in the highlighted verse.',
                 )
             : wholePassage
               ? tr(
                   'memory.ui.practice.blanksWordsWhole',
-                  '{prefix}Type the missing {count, plural, one {word} other {words}} across the whole passage.',
-                  { prefix, count },
+                  'Type the missing {count, plural, one {word} other {words}} across the whole passage.',
+                  { count },
                 )
               : tr(
                   'memory.ui.practice.blanksWordsVerse',
-                  '{prefix}Type the missing {count, plural, one {word} other {words}} in the highlighted verse.',
-                  { prefix, count },
+                  'Type the missing {count, plural, one {word} other {words}} in the highlighted verse.',
+                  { count },
                 ),
       }),
     );
@@ -1461,7 +1468,6 @@ export class PracticeView {
   }
 
   private renderFirstLetters(step: FirstLettersStep): void {
-    const prefix = tierPrefix(this.session.rung, step.tier, this.session.tiers);
 
     // Easy tier's preview: the verse in full, read before it is asked for
     // back. Tier 1 never reaches this branch - `renderContext` sends it
@@ -1469,7 +1475,7 @@ export class PracticeView {
     // look different, and the prompt below says so.
     if (step.tier === 0 && this.firstLettersStartedFor !== step) {
       this.exerciseEl.appendChild(
-        el('h2', { class: 'sm-prompt', text: tr('memory.ui.practice.readThenStart', '{prefix}Read the verse, then press Start.', { prefix }) }),
+        el('h2', { class: 'sm-prompt', text: tr('memory.ui.practice.readThenStart', 'Read the verse, then press Start.') }),
       );
       this.exerciseEl.appendChild(
         el('p', {
@@ -1487,8 +1493,7 @@ export class PracticeView {
       this.exerciseEl.appendChild(
         el('h2', {
           class: 'sm-prompt',
-          text: tr('memory.ui.practice.typeFirstLetterEachWord', '{prefix}Type the first letter of each word ({count} in this verse).', {
-            prefix,
+          text: tr('memory.ui.practice.typeFirstLetterEachWord', 'Type the first letter of each word ({count} in this verse).', {
             count: step.verse.words.length,
           }),
         }),
@@ -1517,8 +1522,8 @@ export class PracticeView {
         class: 'sm-prompt',
         text: tr(
           'memory.ui.practice.typeEveryWord',
-          '{prefix}Type every word in the verse ({count, plural, one {# word} other {# words}}).',
-          { prefix, count: step.verse.words.length },
+          'Type every word in the verse ({count, plural, one {# word} other {# words}}).',
+          { count: step.verse.words.length },
         ),
       }),
     );
@@ -1821,26 +1826,21 @@ export class PracticeView {
     this.renderExercise();
   }
 
+  /**
+   * The after-verse screen (A5): reference or activity, score, next review,
+   * status chip, then Continue (N left) / Done, Again and Stop for today.
+   */
   private renderSummary(summary: SessionSummary): void {
     this.contextEl.hidden = true;
+    const hidesReference = summary.rung === 'refprovide' || summary.rung === 'refmatch';
+    const reference = this.context?.reference ?? '';
+    const heading = hidesReference || reference === '' ? RUNG_LABEL[summary.rung] : reference;
+    const now = this.host.now();
+    const status = summary.passageWellLearned ? 'known' : 'learning';
 
     this.exerciseEl.appendChild(
       el('div', { class: 'sm-summary' }, [
-        el('h2', { class: 'sm-summary-title', text: tr('memory.ui.practice.activityDone', '{activity} — done', { activity: RUNG_LABEL[summary.rung] }) }),
-        summary.tiers > 1
-          ? el('p', {
-              class: 'sm-summary-tier',
-              text: tr('memory.ui.practice.tierOf', '{label} (Tier {tier} of {tiers})', {
-                label: tierLabel(summary.rung, summary.tier),
-                tier: summary.tier + 1,
-                tiers: summary.tiers,
-              }),
-            })
-          : null,
-        el('div', { class: 'sm-summary-level' }, [
-          levelBoxes(summary.level),
-          el('span', { class: 'sm-summary-level-text', text: tr('memory.ui.practice.levelOutOfFive', 'Level {level} of 5', { level: summary.level }) }),
-        ]),
+        el('h2', { class: 'sm-summary-title', text: heading }),
         el('p', {
           class: 'sm-summary-detail',
           text: tr('memory.ui.practice.summaryRightFirstTime', '{correct} of {total} right first time ({score}).', {
@@ -1849,75 +1849,87 @@ export class PracticeView {
             score: formatScore(summary.score),
           }),
         }),
-        summary.passageWellLearned
-          ? el('p', { class: 'sm-summary-good', text: tr('memory.ui.practice.wellLearned', 'This passage is well learned.') })
-          : null,
-        el('p', {
-          class: 'sm-summary-detail',
-          text:
+        el('p', { class: 'sm-summary-detail sm-summary-next' }, [
+          textNode(
             summary.nextDueAt !== null
-              ? tr('memory.ui.practice.nextReview', 'Next review {date}.', {
-                  date: new Date(summary.nextDueAt).toLocaleDateString(uiLocale()),
+              ? tr('memory.ui.practice.nextReviewIn', 'Next review: {when}', {
+                  when: nextReviewText({ status, nextReviewAt: summary.nextDueAt }, now),
                 })
               : tr('memory.ui.practice.noFurtherReview', 'No further review scheduled.'),
-        }),
+          ),
+          textNode(' '),
+          statusChip(status),
+        ]),
       ]),
     );
 
-    this.actionsEl.appendChild(
-      button(tr('memory.ui.practice.done', 'Done'), () => void this.endSession(), { class: 'sm-btn sm-btn-primary' }),
-    );
+    // B-113: the step controls that had focus are gone; land on the summary heading (never <body>).
+    const headingEl = this.exerciseEl.querySelector<HTMLElement>('.sm-summary-title');
+    if (headingEl) {
+      headingEl.tabIndex = -1;
+      headingEl.focus({ preventScroll: true });
+    }
+
+    // Today and "anyway" count what is left, which needs the plan; the
+    // open-ended flows say plain "Continue" and a single verse says "Done".
+    const counted = this.flow.kind === 'today' || this.flow.kind === 'anyway';
+    if (!counted) {
+      this.renderSummaryActions(summary, this.flow.kind === 'verse' ? 0 : null);
+      return;
+    }
+    void (async () => {
+      const reply = await this.host.request({ type: 'getPlan' });
+      let startedToday: number | undefined;
+      if (reply.ok) {
+        const all = reply.data.scope === 'all' ? reply : await this.host.request({ type: 'getPlan', scope: { kind: 'all' } });
+        // The cap counts every list; if they cannot be read, treat it as
+        // reached rather than undercount from the focused list alone.
+        startedToday = all.ok ? countStartedToday(all.data.passages, this.host.now()) : MAX_NEW_PER_DAY;
+      }
+      if (this.disposed || this.summary !== summary) return;
+      const left = reply.ok
+        ? flowRemaining(reply.data, this.flowWithVisited(), this.host.now(), startedToday !== undefined ? { startedToday } : {})
+        : 0;
+      this.renderSummaryActions(summary, left ?? 0);
+    })();
+  }
+
+  /** `left`: items remaining; 0 = nothing more (Done); null = open-ended (plain Continue). */
+  private renderSummaryActions(summary: SessionSummary, left: number | null): void {
+    clear(this.actionsEl);
+    const next = this.flowWithVisited();
+    if (left === null || left > 0) {
+      this.actionsEl.appendChild(
+        button(
+          left === null
+            ? tr('memory.ui.practice.continue', 'Continue')
+            : tr('memory.ui.practice.continueLeft', 'Continue ({count} left)', { count: left }),
+          () => void this.host.startFlow(next),
+          { class: 'sm-btn sm-btn-primary' },
+        ),
+      );
+    } else {
+      this.actionsEl.appendChild(
+        button(tr('memory.ui.practice.done', 'Done'), () => void this.endSession(), { class: 'sm-btn sm-btn-primary' }),
+      );
+    }
     this.actionsEl.appendChild(
       button(
-        tr('memory.ui.practice.practiceAgain', 'Practice again'),
+        tr('memory.ui.practice.again', 'Again'),
         () =>
-          void this.host.startSession(this.session.passageId, this.session.rung, undefined, undefined, this.flow),
+          void this.host.startSession(this.session.passageId, summary.rung, undefined, undefined, this.flow),
         { class: 'sm-btn' },
       ),
     );
-    // The wider plan can hold far more than one screenful of passages (task
-    // 0004's review raised a plan of 250 individual verses); this is the
-    // "just keep going" path so the user is never forced back through the
-    // plan list to find whatever else is due.
-    this.actionsEl.appendChild(
-      button(tr('memory.ui.practice.nextDue', 'Next due'), () => void this.startNextDue(), { class: 'sm-btn sm-btn-quiet' }),
-    );
-    // B-113: the step controls that had focus are gone; land on the summary heading (never <body>).
-    const heading = this.exerciseEl.querySelector<HTMLElement>('.sm-summary-title');
-    if (heading) {
-      heading.tabIndex = -1;
-      heading.focus({ preventScroll: true });
+    if (this.flow.kind !== 'verse') {
+      this.actionsEl.appendChild(
+        button(
+          tr('memory.ui.practice.stopForToday', 'Stop for today'),
+          () => void this.endSession({ type: 'stopForToday' }),
+          { class: 'sm-btn sm-btn-quiet' },
+        ),
+      );
     }
-  }
-
-  private async startNextDue(): Promise<void> {
-    const reply = await this.host.request({ type: 'getPlan' });
-    if (this.disposed) return;
-    if (!reply.ok) {
-      this.host.announce(reply.error);
-      return;
-    }
-    const target = pickDueTarget(reply.data, this.host.now());
-    if (!target) {
-      this.host.announce(tr('memory.ui.practice.nothingElseDue', 'Nothing else is due right now.'));
-      void this.endSession();
-      return;
-    }
-    void this.host.startSession(target.passageId, target.rung, undefined, undefined, this.flow);
-  }
-
-  /**
-   * The Next button: "not this one right now". Ends the session as the
-   * crumbs do, then re-runs this session's flow excluding the passage just
-   * left. `flow` and the passage id are captured first because `endSession`
-   * drives `sessionEnded`, which can destroy this view.
-   */
-  private async onNext(): Promise<void> {
-    if (this.flow.kind === 'passage') return;
-    const flow = this.flow;
-    const exclude = new Set([this.session.passageId]);
-    await this.endSession();
-    void this.host.startFlow(flow, exclude);
   }
 
   private async endSession(dest: NavAction = { type: 'sessionEnded' }): Promise<void> {
@@ -2042,20 +2054,6 @@ export class PracticeView {
 // ---------------------------------------------------------------------------
 // Free functions
 // ---------------------------------------------------------------------------
-
-/**
- * "Easier tier: " / "Harder tier: ", or nothing at all.
- *
- * Only shown once an activity actually HAS more than one tier
- * (`ladder.ts#TIERS`) - for every real `blanks`/`firstletters` session that is
- * always true (both are 2-tier activities), but a fixture built without
- * `tiers` set (several of `panelRender.test.ts`'s older helpers predate tiers
- * entirely) must not print a nonsensical label, so the guard is on the data
- * rather than on the rung name.
- */
-function tierPrefix(rung: Rung, tier: number, tiers: number): string {
-  return tiers > 1 ? tr('memory.ui.practice.tierPrefix', '{label} tier: ', { label: tierLabel(rung, tier) }) : '';
-}
 
 function stepFraction(stepNumber: number, totalSteps: number): number {
   if (totalSteps <= 0) return 0;

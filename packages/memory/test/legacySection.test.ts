@@ -20,7 +20,7 @@ describe('legacy import section', () => {
     expect(section.textContent).toContain('was not brought over automatically');
     section.querySelector('button')!.click();
     await vi.waitFor(() => expect(h.reload).toHaveBeenCalled());
-    expect(h.announce).toHaveBeenCalledWith('Imported 2 passages, 5 practice records, 1 removed passage restored.');
+    expect(h.announce).toHaveBeenCalledWith('Imported 2 verses, 5 practice records, 1 removed verse restored.');
   });
 
   it('describes each outcome', () => {

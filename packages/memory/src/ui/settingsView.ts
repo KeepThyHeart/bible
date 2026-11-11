@@ -1,11 +1,11 @@
 /**
- * Settings: the one global preference this extension has, plus a look at
- * which passages have overridden it.
+ * Settings (A8): Answering, Recite aloud, Reminders, and a look at which
+ * verses have overridden the answer mode.
  *
  * Task 0004's review chose a Settings screen inside the panel over the host's
  * Preferences (`contributes.configuration`) specifically because it sits next
- * to the per-passage override on the passage screen - a global-only Preferences
- * page could not show "3 passages have their own setting" at all.
+ * to the per-verse override on the verse page - a global-only Preferences
+ * page could not show "3 verses have their own setting" at all.
  */
 
 import { reciteEnabled } from '../core/features';
@@ -13,7 +13,8 @@ import type { AnswerMode, PlanView, ReciteSettings, SettingsView, SpeechAvailabi
 import type { PushSettingsView } from '../core/pushTypes';
 import { renderPushSettings } from './pushSettingsView';
 import { button, el } from './dom';
-import { breadcrumb, modal } from './components';
+import { modal } from './components';
+import { focusedHeader } from './shell';
 import type { PanelHost } from './host';
 import type { MemoryImportResult, MemoryImportStatus } from '../core/api';
 import { tr } from './i18n';
@@ -27,22 +28,27 @@ export function renderSettings(
 ): HTMLElement {
   const root = el('section', { class: 'sm-screen sm-screen-settings' });
 
-  root.appendChild(breadcrumb({ crumbs: [{ label: tr('memory.ui.settings.home', 'Home'), onClick: () => host.go({ type: 'goPlan' }) }, { label: tr('memory.ui.settings.settings', 'Settings') }] }));
+  root.appendChild(
+    focusedHeader({
+      title: tr('memory.ui.settings.settings', 'Settings'),
+      onClose: () => host.go({ type: 'goTab', tab: 'today' }),
+    }),
+  );
 
   root.appendChild(
     el('section', { class: 'sm-block' }, [
-      el('h2', { class: 'sm-block-title', text: tr('memory.ui.settings.answeringBlanks', 'Answering blanks') }),
+      el('h2', { class: 'sm-block-title', text: tr('memory.ui.settings.answering', 'Answering') }),
       renderAnswerModeGroup(host, settings.defaultAnswerMode),
       el('p', { class: 'sm-hint', text: tr('memory.ui.settings.capitalsNeverCount', 'Capitals and punctuation never count.') }),
     ]),
   );
 
+  if (push) root.appendChild(renderPushSettings(host, push));
+
   // `recite`/`speech` are absent on a host that predates Recite aloud.
   if (reciteEnabled() && settings.recite && settings.speech) root.appendChild(renderReciteSettings(host, settings.recite, settings.speech));
 
   root.appendChild(renderOverrides(host, plan));
-
-  if (push) root.appendChild(renderPushSettings(host, push));
 
   const legacySection = legacyImportSection(host, legacy);
   if (legacySection) root.appendChild(legacySection);
@@ -73,7 +79,7 @@ function renderAnswerModeGroup(host: PanelHost, current: AnswerMode): HTMLElemen
     ]);
   }
 
-  return el('div', { class: 'sm-radio-group', attrs: { role: 'radiogroup', 'aria-label': tr('memory.ui.settings.answeringBlanks', 'Answering blanks') } }, [
+  return el('div', { class: 'sm-radio-group', attrs: { role: 'radiogroup', 'aria-label': tr('memory.ui.settings.answering', 'Answering') } }, [
     radio('firstLetter', tr('memory.ui.settings.firstLetterOfEachWord', 'First letter of each word'), tr('memory.ui.settings.quick', '(quick)')),
     radio('fullWord', tr('memory.ui.settings.fullWordExactSpelling', 'Full word, exact spelling'), null),
   ]);
@@ -83,11 +89,11 @@ function renderOverrides(host: PanelHost, plan: PlanView): HTMLElement {
   const overridden = plan.passages.filter((pv) => pv.passage.answerMode !== null);
 
   return el('section', { class: 'sm-block' }, [
-    el('h2', { class: 'sm-block-title', text: tr('memory.ui.settings.passagesWithOwnSetting', 'Passages with their own setting') }),
+    el('h2', { class: 'sm-block-title', text: tr('memory.ui.settings.versesWithOwnSetting', 'Verses with their own setting') }),
     overridden.length === 0
       ? el('p', {
           class: 'sm-block-caption',
-          text: tr('memory.ui.settings.noneYetChangeOne', 'None yet. Change one from its own passage screen.'),
+          text: tr('memory.ui.settings.noneYetChangeOneOnVersePage', 'None yet. Change one from its verse page.'),
         })
       : el(
           'ul',
@@ -99,16 +105,18 @@ function renderOverrides(host: PanelHost, plan: PlanView): HTMLElement {
                 class: 'sm-row-meta',
                 text: pv.passage.answerMode === 'fullWord' ? tr('memory.ui.settings.fullWord', 'Full word') : tr('memory.ui.settings.firstLetter', 'First letter'),
               }),
-              button(tr('memory.ui.settings.change', 'Change'), () => host.go({ type: 'goPassage', passageId: pv.passage.id }), {
+              button(tr('memory.ui.settings.change', 'Change'), () => host.go({ type: 'goVerse', passageId: pv.passage.id }), {
                 class: 'sm-btn sm-btn-small sm-btn-quiet',
               }),
             ]),
           ),
         ),
-    el('p', {
-      class: 'sm-block-caption',
-      text: tr('memory.ui.settings.changeOnEachPassage', "(Change it on each passage's screen.)"),
-    }),
+    overridden.length === 0
+      ? null
+      : el('p', {
+          class: 'sm-block-caption',
+          text: tr('memory.ui.settings.changeOnEachVerse', "Change one from its verse page."),
+        }),
   ]);
 }
 
@@ -244,8 +252,8 @@ export function renderReciteSettings(host: PanelHost, recite: ReciteSettings, sp
       { value: 'brief', label: tr('memory.ui.settings.brief', 'Brief') },
       { value: 'full', label: tr('memory.ui.settings.fullQuoteMissed', 'Full (quote what was missed)') },
     ], recite.feedback, (v) => v as ReciteSettings['feedback'])),
-    checkbox('readBack', 'sm-recite-readback', tr('memory.ui.settings.readBack', 'Read back'), tr('memory.ui.settings.readBackHint', 'Speak the passage after scoring.')),
-    checkbox('autoAdvance', 'sm-recite-auto', tr('memory.ui.settings.autoAdvance', 'Auto-advance'), tr('memory.ui.settings.autoAdvanceHint', 'Move to the next passage by itself in hands-free mode.')),
+    checkbox('readBack', 'sm-recite-readback', tr('memory.ui.settings.readBack', 'Read back'), tr('memory.ui.settings.readBackHintVerse', 'Speak the verse after scoring.')),
+    checkbox('autoAdvance', 'sm-recite-auto', tr('memory.ui.settings.autoAdvance', 'Auto-advance'), tr('memory.ui.settings.autoAdvanceHintVerse', 'Move to the next verse by itself in hands-free mode.')),
     checkbox('voiceCommands', 'sm-recite-voice', tr('memory.ui.settings.voiceCommands', 'Voice commands'), tr('memory.ui.settings.voiceCommandsHint', 'Say "hint", "repeat", "skip" or "stop".')),
     field('sm-recite-hintdelay', tr('memory.ui.settings.hintAfterSilence', 'Hint after silence'), select('hintDelayMs', 'sm-recite-hintdelay',
       delayOptions.map((ms) => ({ value: String(ms), label: tr('memory.ui.settings.seconds', '{seconds} seconds', { seconds: ms / 1000 }) })),
@@ -297,11 +305,11 @@ export interface LegacyImportControl {
 export function legacyStatusText(status: MemoryImportStatus): string {
   switch (status.status) {
     case 'imported':
-      return tr('memory.ui.settings.legacyImported', 'Your plan from the Scripture Memory extension was brought over automatically.');
+      return tr('memory.ui.settings.legacyImportedVerses', 'Your verses from the Scripture Memory extension were brought over automatically.');
     case 'merged':
       return tr('memory.ui.settings.legacyMerged', 'Data from the Scripture Memory extension has been imported.');
     case 'skipped-not-empty':
-      return tr('memory.ui.settings.legacySkipped', 'Your Scripture Memory extension data was not brought over automatically, because Memory already had a plan. Import it to add it to this plan.');
+      return tr('memory.ui.settings.legacySkippedVerses', 'Your Scripture Memory extension data was not brought over automatically, because Memory already had verses. Import it to add it to them.');
     default:
       return tr('memory.ui.settings.legacyOnComputer', 'Data from the Scripture Memory extension is on this computer.');
   }
@@ -310,14 +318,14 @@ export function legacyStatusText(status: MemoryImportStatus): string {
 /** Summary of a manual import, for the status line. */
 export function legacyResultText(result: MemoryImportResult): string {
   if (result.status !== 'merged') return tr('memory.ui.settings.nothingToImport', 'There was nothing to import.');
-  const passages = result.added.memory_passage ?? 0;
+  const verses = result.added.memory_passage ?? 0;
   const attempts = result.added.memory_attempt ?? 0;
-  if (passages === 0 && attempts === 0 && result.revived === 0) return tr('memory.ui.settings.everythingHere', 'Everything from the extension is already here.');
+  if (verses === 0 && attempts === 0 && result.revived === 0) return tr('memory.ui.settings.everythingHere', 'Everything from the extension is already here.');
   const parts = [
-    tr('memory.ui.settings.importPassages', '{count, plural, one {# passage} other {# passages}}', { count: passages }),
+    tr('memory.ui.settings.importVerses', '{count, plural, one {# verse} other {# verses}}', { count: verses }),
     tr('memory.ui.settings.importRecords', '{count, plural, one {# practice record} other {# practice records}}', { count: attempts }),
   ];
-  if (result.revived > 0) parts.push(tr('memory.ui.settings.importRestored', '{count, plural, one {# removed passage restored} other {# removed passages restored}}', { count: result.revived }));
+  if (result.revived > 0) parts.push(tr('memory.ui.settings.importRestoredVerses', '{count, plural, one {# removed verse restored} other {# removed verses restored}}', { count: result.revived }));
   return tr('memory.ui.settings.importedList', 'Imported {list}.', { list: parts.join(', ') });
 }
 

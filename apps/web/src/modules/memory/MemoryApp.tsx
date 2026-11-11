@@ -10,6 +10,7 @@ import { mountMemoryUi } from '@bible/memory/ui';
 import type { MemoryUiHandle } from '@bible/memory/ui';
 import { bibleStore } from '../../stores/bibleStore';
 import { formatPassageRef } from '../../constants';
+import { onJustAdded, takeJustAdded } from './justAdded';
 import { getWebMemoryApi } from './webMemoryApi';
 
 /** The reader's current reference ("John 3:16"), or null before a chapter is open. */
@@ -32,15 +33,17 @@ export function MemoryApp() {
     let handle: MemoryUiHandle | undefined;
     try {
       const { api, subscribe } = getWebMemoryApi();
-      handle = mountMemoryUi(container, { api, subscribe, activeReference: activeReference() });
+      handle = mountMemoryUi(container, { api, subscribe, activeReference: activeReference(), justAdded: takeJustAdded() });
     } catch (e) {
       console.warn('[memory] could not start:', e);
       setFailed(true);
       return;
     }
     const off = bibleStore.subscribe(() => handle?.setActiveReference(activeReference()));
+    const offAdded = onJustAdded((added) => handle?.offerPractice(added));
     return () => {
       off();
+      offAdded();
       handle?.dispose();
     };
   }, []);

@@ -100,6 +100,88 @@ describe('status', () => {
     expect(openApp).toHaveBeenCalledTimes(1);
   });
 
+  it('setScope refreshes the badge, which counts only the focus', async () => {
+    const { svc, db, pushes } = await startTestService();
+    const statuses = () => pushes.filter((p) => p.type === 'status');
+    await svc.addVerses({ verseIds: [43003016] });
+    await db.sql.run(`UPDATE memory_card SET due_at = 1 WHERE rung = 'blanks'`);
+    const other = (await svc.createList({ name: 'Other' })).lists.find((l) => l.name === 'Other')!;
+    await svc.removePassage({ passageId: 999 }); // refresh: the due verse in Default counts
+    expect(statuses().pop()).toEqual({ type: 'status', status: { due: 1, waiting: 0 } });
+
+    await svc.setScope({ scope: { kind: 'list', id: other.id } });
+    expect(statuses().pop()).toEqual({ type: 'status', status: { due: 0, waiting: 0 } });
+    expect(await svc.getStatus()).toEqual({ due: 0, waiting: 0 });
+
+    await svc.setScope({ scope: { kind: 'all' } });
+    expect(statuses().pop()).toEqual({ type: 'status', status: { due: 1, waiting: 0 } });
+  });
+
+  describe('practiceDue follows the Today queue', () => {
+    const NOW = new Date(2026, 5, 15, 12).getTime();
+    const DAY = 86_400_000;
+
+    /** Mark every passage started on `at`: one attempt per blanks card, so it is no longer new. */
+    async function practiseAll(db: Awaited<ReturnType<typeof startTestService>>['db'], at: number) {
+      await db.sql.run(
+        `INSERT INTO memory_attempt (card_id, at, score, correct_first, total_steps)
+           SELECT id, ?, 1, 1, 1 FROM memory_card WHERE rung = 'blanks'`,
+        [at],
+      );
+    }
+
+    it('opens on a new verse within the daily cap', async () => {
+      const openApp = vi.fn();
+      const { svc } = await startTestService({ openApp, now: () => NOW });
+      await svc.addVerses({ verseIds: [43003016] });
+      expect(await svc.practiceDue()).toEqual({ due: true });
+      expect(openApp).toHaveBeenCalledTimes(1);
+    });
+
+    it('says nothing is due when the only due verse was practised today', async () => {
+      const openApp = vi.fn();
+      const { svc, db, notices } = await startTestService({ openApp, now: () => NOW });
+      await svc.addVerses({ verseIds: [43003016] });
+      await practiseAll(db, NOW - 60_000);
+      await db.sql.run(`UPDATE memory_card SET due_at = ?`, [NOW - DAY]);
+      expect(await svc.practiceDue()).toEqual({ due: false });
+      expect(notices()).toEqual(['Nothing is due right now.']);
+      expect(openApp).not.toHaveBeenCalled();
+
+      // Practised yesterday instead: due again today.
+      await db.sql.run(`UPDATE memory_attempt SET at = ?`, [NOW - DAY]);
+      expect(await svc.practiceDue()).toEqual({ due: true });
+    });
+
+    it('ignores a due verse outside the focus', async () => {
+      const { svc, db } = await startTestService({ now: () => NOW });
+      await svc.addVerses({ verseIds: [43003016] });
+      await practiseAll(db, NOW - 2 * DAY);
+      await db.sql.run(`UPDATE memory_card SET due_at = ?`, [NOW - DAY]);
+      const other = (await svc.createList({ name: 'Other' })).lists.find((l) => l.name === 'Other')!;
+      await svc.setScope({ scope: { kind: 'list', id: other.id } });
+      expect(await svc.practiceDue()).toEqual({ due: false });
+      await svc.setScope({ scope: { kind: 'all' } });
+      expect(await svc.practiceDue()).toEqual({ due: true });
+    });
+
+    it('does not count new verses once the day\'s cap is used, across all lists', async () => {
+      const { svc, db } = await startTestService({ now: () => NOW });
+      // Three verses started today in Default (the cap), none due again yet.
+      await svc.addVerses({ verseIds: [43003016] });
+      await svc.addVerses({ verseIds: [19023001] });
+      await svc.addVerses({ verseIds: [45008028] });
+      await practiseAll(db, NOW - 60_000);
+      await db.sql.run(`UPDATE memory_card SET due_at = ?`, [NOW + DAY]);
+      // A brand-new verse in the focused list: over the cap, so not today.
+      const other = (await svc.createList({ name: 'Other' })).lists.find((l) => l.name === 'Other')!;
+      const added = await svc.addVerses({ verseIds: [50004013] });
+      await svc.movePassage({ passageId: added.passageId, collectionId: other.id });
+      await svc.setScope({ scope: { kind: 'list', id: other.id } });
+      expect(await svc.practiceDue()).toEqual({ due: false });
+    });
+  });
+
   it('reports the one-time import status, empty until recorded', async () => {
     const { svc, db } = await startTestService();
     expect(await svc.getImportStatus()).toEqual({ status: null, recordedAt: null, counts: null, sourceAvailable: false });
@@ -963,5 +1045,134 @@ describe('start purges old soft-deleted passages', () => {
     const { svc } = await startTestService({ db, sql: failing, log });
     expect(svc).toBeDefined();
     expect(log.error).toHaveBeenCalledWith(expect.stringContaining('disk full'));
+  });
+});
+
+describe('0219 queue support', () => {
+  const RUNGS = ['ordering', 'refmatch', 'blanks', 'firstletters', 'refprovide'];
+  const DAY = 24 * 3600 * 1000;
+
+  async function seed(db: MemorySql, collectionId: number, reference: string, startVerseId: number, verseCount = 1, dueAt: number | null = null) {
+    const res = await db.run(
+      `INSERT INTO memory_passage (collection_id, module_id, start_verse_id, end_verse_id, reference, verse_count, added_at)
+       VALUES (?, 'KJV', ?, ?, ?, ?, 0)`,
+      [collectionId, startVerseId, startVerseId + verseCount - 1, reference, verseCount],
+    );
+    const id = Number(res.lastInsertRowid);
+    for (const rung of RUNGS) {
+      await db.run(
+        `INSERT INTO memory_card (passage_id, rung, state, interval_step, due_at, streak, last_score) VALUES (?, ?, 'new', -1, ?, 0, NULL)`,
+        [id, rung, dueAt],
+      );
+    }
+    return id;
+  }
+  const cardId = async (db: MemorySql, passageId: number, rung: string) =>
+    (await db.queryOne<{ id: number }>('SELECT id FROM memory_card WHERE passage_id = ? AND rung = ?', [passageId, rung]))!.id;
+  const attempt = (db: MemorySql, card: number, at: number) =>
+    db.run('INSERT INTO memory_attempt (card_id, at, score, correct_first, total_steps, tier) VALUES (?, ?, 1, 1, 1, 0)', [card, at]);
+
+  it('judges applicability per passage own list under scope all', async () => {
+    const { svc, sql } = await startTestService();
+    const big = (await svc.getPlan()).lists[0]!.id;
+    const small = (await svc.createList({ name: 'Small' })).lists.find((l) => l.name === 'Small')!.id;
+    for (let i = 1; i <= 25; i += 1) await seed(sql, big, `Psalm 119:${i}`, 19119000 + i);
+    const lone = await seed(sql, small, 'John 3:16', 43003016);
+    const plan = await svc.getPlan();
+    expect(plan.scope).toBe('all');
+    expect(plan.referenceActivitiesUnlocked).toBe(true);
+    const loneView = plan.passages.find((p) => p.passage.id === lone)!;
+    expect(loneView.rungs.find((r) => r.rung === 'refmatch')!.applicable).toBe(false);
+    const bigView = plan.passages.find((p) => p.passage.reference === 'Psalm 119:1')!;
+    expect(bigView.rungs.find((r) => r.rung === 'refmatch')!.applicable).toBe(true);
+  });
+
+  it('getPlan({ scope }) overrides for one call and is not persisted', async () => {
+    const { svc, sql } = await startTestService();
+    const first = (await svc.getPlan()).lists[0]!.id;
+    const second = (await svc.createList({ name: 'Two' })).lists.find((l) => l.name === 'Two')!.id;
+    await seed(sql, first, 'John 3:16', 43003016);
+    await seed(sql, second, 'John 3:17', 43003017);
+    await svc.setScope({ scope: { kind: 'list', id: second } });
+    expect((await svc.getPlan()).passages.map((p) => p.passage.reference)).toEqual(['John 3:17']);
+    const all = await svc.getPlan({ scope: { kind: 'all' } });
+    expect(all.scope).toBe('all');
+    expect(all.passages).toHaveLength(2);
+    const again = await svc.getPlan();
+    expect(again.scope).toBe(second);
+    expect(again.passages).toHaveLength(1);
+  });
+
+  it('addPassage puts the verse in an explicit collectionId, else falls back', async () => {
+    const verse: Record<string, number> = { 'John 3:16': 16, 'John 3:17': 17, 'John 3:18': 18 };
+    const { svc } = await startTestService({
+      bible: {
+        parseReference: async (input: string) => ({
+          bookNumber: 43, chapter: 3, startVerse: verse[input]!, input, startVerseId: 43003000 + verse[input]!,
+        }),
+      },
+    });
+    const def = (await svc.getPlan()).lists[0]!.id;
+    const other = (await svc.createList({ name: 'Other' })).lists.find((l) => l.name === 'Other')!.id;
+    const a = await svc.addPassage({ reference: 'John 3:16', collectionId: other });
+    expect(a.passage.collectionId).toBe(other);
+    const b = await svc.addPassage({ reference: 'John 3:17', collectionId: 99999 });
+    expect(b.passage.collectionId).toBe(def);
+    const c = await svc.addPassage({ reference: 'John 3:18' });
+    expect(c.passage.collectionId).toBe(def);
+  });
+
+  it('reports firstPractisedAt as the earliest attempt since the reset', async () => {
+    const { svc, sql } = await startTestService();
+    const list = (await svc.getPlan()).lists[0]!.id;
+    const id = await seed(sql, list, 'John 3:16', 43003016);
+    const card = await cardId(sql, id, 'blanks');
+    const rung = async () => (await svc.getPlan()).passages[0]!.rungs.find((r) => r.rung === 'blanks')!;
+    expect((await rung()).firstPractisedAt).toBeNull();
+    await attempt(sql, card, 500);
+    await attempt(sql, card, 900);
+    expect(await rung()).toMatchObject({ firstPractisedAt: 500, lastPractisedAt: 900 });
+    await sql.run('UPDATE memory_card SET progress_reset_at = 600 WHERE id = ?', [card]);
+    expect(await rung()).toMatchObject({ firstPractisedAt: 900, lastPractisedAt: 900 });
+  });
+
+  it('the badge drops after practice today, returns the next day, and follows the focus', async () => {
+    const t0 = new Date(2026, 5, 10, 12, 0, 0).getTime();
+    let now = t0;
+    const { svc, sql } = await startTestService({ now: () => now });
+    const first = (await svc.getPlan()).lists[0]!.id;
+    const second = (await svc.createList({ name: 'Two' })).lists.find((l) => l.name === 'Two')!.id;
+    const p1 = await seed(sql, first, 'John 3:16', 43003016, 1, t0 - 1000);
+    await seed(sql, first, 'John 3:17', 43003017, 1, t0 - 1000);
+    await seed(sql, second, 'John 3:18', 43003018, 1, t0 - 1000);
+    expect(await svc.getStatus()).toEqual({ due: 3, waiting: 0 }); // counts verses, not cards
+    // practised today: that verse leaves the badge (even though its other cards stay due)
+    await attempt(sql, await cardId(sql, p1, 'blanks'), t0 - 500);
+    expect(await svc.getStatus()).toEqual({ due: 2, waiting: 0 });
+    // next day: everything due and unpractised again
+    now = t0 + DAY;
+    expect(await svc.getStatus()).toEqual({ due: 3, waiting: 0 });
+    now = t0;
+    await svc.setScope({ scope: { kind: 'list', id: second } });
+    expect(await svc.getStatus()).toEqual({ due: 1, waiting: 0 });
+    // recite attempts do not count as practice
+    await sql.run(`INSERT INTO memory_card (passage_id, rung, state, due_at) VALUES (?, 'recite', 'new', NULL)`, [p1]);
+    await svc.setScope({ scope: { kind: 'all' } });
+    await attempt(sql, await cardId(sql, p1, 'recite'), t0 - 100);
+    expect(await svc.getStatus()).toEqual({ due: 2, waiting: 0 });
+  });
+
+  it('the badge drops (and pushes) once an attempt is recorded and status refreshes', async () => {
+    const { svc, sql, pushes } = await startTestService();
+    const list = (await svc.getPlan()).lists[0]!.id;
+    await seed(sql, list, 'John 3:16', 43003016, 1, 1);
+    expect((await svc.getStatus()).due).toBe(1);
+    const s = await svc.startSession({ passageId: 1, rung: 'blanks' });
+    expect(s).toBeDefined();
+    // finish the session by recording an attempt through the store path
+    await attempt(sql, await cardId(sql, 1, 'blanks'), Date.now());
+    await svc.removePassage({ passageId: 999 }); // triggers refreshStatus
+    expect((await svc.getStatus()).due).toBe(0);
+    expect(pushes.filter((p) => p.type === 'status').pop()).toMatchObject({ status: { due: 0 } });
   });
 });

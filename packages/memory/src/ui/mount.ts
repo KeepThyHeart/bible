@@ -16,27 +16,33 @@
  */
 
 import type { MemoryApi, MemoryPush } from '../core/api';
-import type { PanelReply, PanelRequest, ReciteAction, ReciteStateView, RequestMap, Rung } from '../core/types';
+import type { PanelReply, PanelRequest, PlanView, ReciteAction, ReciteStateView, RequestMap, Rung } from '../core/types';
 import { clear, el } from './dom';
 import { errorBanner } from './components';
 import type { PanelHost } from './host';
 import { WordMeasurer } from './measure';
 import { PracticeView } from './practiceView';
-import { renderPlan } from './planView';
+import { renderToday } from './todayView';
+import type { TodayExtras } from './todayView';
+import { renderMyVerses } from './myVersesView';
+import { renderVersePage } from './versePage';
 import { renderAnalytics } from './analyticsView';
-import { renderPassageScreen } from './passageView';
-import { renderManagePassages } from './managePassagesView';
 import { renderSettings } from './settingsView';
 import { createReciteView } from './reciteView';
 import { createHandsFreeView } from './handsFreeView';
 import { startReciteRun } from './activities';
 import { renderCardStack } from './cardView';
-import { pickFlowTarget } from './suggest';
+import { nextFlowTarget } from './flows';
+import { appShell } from './shell';
+import { MAX_NEW_PER_DAY, countStartedToday, startOfLocalDay } from '../core/today';
 import { INITIAL_NAV, navReduce, sameView } from './state';
 import type { Flow, NavAction, NavState } from './state';
 import { setUiTranslator, tr } from './i18n';
 import type { Translate } from './i18n';
 import './memory.css';
+
+/** The just-added verse offered on Today (with how the add went, when known). */
+export type JustAdded = NonNullable<TodayExtras['justAdded']>;
 
 export interface MemoryUiOptions {
   /** The core (desktop: IPC client; tests: a fake). */
@@ -44,7 +50,11 @@ export interface MemoryUiOptions {
   /** Core pushes. Returns the unsubscribe function. */
   subscribe(listener: (push: MemoryPush) => void): () => void;
   /** 'card' = open the push-card stack first (notification click). */
-  initialView?: 'plan' | 'card';
+  initialView?: 'today' | 'plan' | 'card';
+  /** Start practicing this verse right after mount (a host's "Practice now"). */
+  initialPractice?: number;
+  /** Show the "Added {reference} to Memory. Practice now" row on Today. */
+  justAdded?: JustAdded;
   /** The reader's current reference, for the add field placeholder. */
   activeReference?: string | null;
   /** Clock; default `Date.now`. */
@@ -62,6 +72,10 @@ export interface MemoryUiHandle {
   showCards(): void;
   /** Replaces the old `activeVerse` push. */
   setActiveReference(reference: string | null): void;
+  /** Start practicing one verse (flow `verse`); only announces when a session or recite is open. */
+  practice(passageId: number): void;
+  /** Show the "Added {reference}. Practice now" row on Today. */
+  offerPractice(added: JustAdded): void;
 }
 
 /**
@@ -116,6 +130,11 @@ export function mountMemoryUi(container: HTMLElement, options: MemoryUiOptions):
   let practice: PracticeView | null = null;
   let activeReference: string | null = options.activeReference ?? null;
   let disposed = false;
+  /** The verse the Today screen offers to practice (A9); cleared once Today is left. */
+  let justAdded: JustAdded | null = options.justAdded ?? null;
+  /** Local day the screen was last drawn for, for the midnight re-render. */
+  let dayKey = startOfLocalDay(now());
+  let dayTimer: number | undefined;
 
   /** The mounted recite / hands-free screen (at most one), and the last state it was given. */
   let reciteScreen: { element: HTMLElement; update(state: ReciteStateView): void } | null = null;
@@ -210,67 +229,31 @@ export function mountMemoryUi(container: HTMLElement, options: MemoryUiOptions):
       tier?: number,
       flow?: Flow,
     ): Promise<void> {
-      // Optional keys are omitted entirely rather than sent as `undefined`.
-      // `types.ts` requires structured-cloneable JSON, and an explicit
-      // `undefined` is the one value that does not survive that trip intact -
-      // it would arrive as a missing key on some paths and as `null` on others.
-      const request: PanelRequest = {
-        type: 'startSession',
-        passageId,
-        ...(rung !== undefined ? { rung } : {}),
-        ...(restart ? { restart: true } : {}),
-        ...(tier !== undefined ? { tier } : {}),
-      };
-
-      const reply = await requestVia(api, request);
-      if (disposed) return;
-      if (!reply.ok) {
-        showError(reply.error);
-        return;
-      }
-      const session = reply.data as RequestMap['startSession'];
-
-      // Every direct call site names one specific passage the user was already
-      // looking at, so an omitted flow means `passage`; only `startFlow` passes
-      // a real one. Defaulted here so `sessionStarted` stays a plain record.
-      const sessionFlow: Flow = flow ?? { kind: 'passage', passageId: session.passageId };
-
-      host.go({
-        type: 'sessionStarted',
-        sessionId: session.sessionId,
-        passageId: session.passageId,
-        rung: session.rung,
-        flow: sessionFlow,
-      });
-
-      // `render()` deliberately leaves the practice screen alone - that view
-      // owns its own DOM and its own lifetime - so the mount happens here.
-      // Focus on an activity tab means the tab strip started this switch (a
-      // mouse click on a tab leaves focus there); keep it on the new strip.
-      const focused = doc.activeElement;
-      const fromTab = practice !== null && focused !== null && practice.root.contains(focused) && focused.getAttribute('role') === 'tab';
-      practice?.destroy();
-      clear(main);
-      practice = new PracticeView(host, session, sessionFlow);
-      practice.mount(main);
-      if (fromTab) practice.restoreTabFocus();
-      lastPainted = nav.view;
-      scrollToTop();
-      announce('');
+      await startSessionImpl(passageId, rung, restart, tier, flow);
     },
 
-    async startFlow(flow: Flow, exclude?: ReadonlySet<number>): Promise<void> {
+    async startFlow(flow: Flow): Promise<boolean> {
       const reply = await host.request({ type: 'getPlan' });
       if (!reply.ok) {
         showError(reply.error);
-        return;
+        return false;
       }
-      const target = pickFlowTarget(reply.data, flow, host.now(), Math.random, exclude);
+      let startedToday: number | undefined;
+      if (flow.kind === 'today') {
+        // The new-verse cap counts every list, not just the focused one.
+        startedToday = await startedTodayAllLists(reply.data);
+      }
+      const target = nextFlowTarget(reply.data, flow, host.now(), Math.random, startedToday !== undefined ? { startedToday } : {});
       if (!target) {
         announce(tr('memory.ui.settings.nothingElseToPractice', 'Nothing else to practice right now.'));
-        return;
+        return false;
       }
-      await host.startSession(target.passageId, target.rung, undefined, undefined, flow);
+      // Recite is not a practice session: it has its own runner.
+      if (target.rung === 'recite') {
+        const run = await startReciteRun(host, { kind: 'passage', passageId: target.passageId }, 'tap');
+        return run !== null;
+      }
+      return startSessionImpl(target.passageId, target.rung, undefined, undefined, flow);
     },
 
     openInBible(verseId: number): void {
@@ -283,6 +266,73 @@ export function mountMemoryUi(container: HTMLElement, options: MemoryUiOptions):
     fail: showError,
   };
 
+  /**
+   * Verses started today across all lists (the plan passed in may be one list).
+   * If the all-lists plan cannot be read, the cap is treated as reached
+   * (`MAX_NEW_PER_DAY`) rather than counting the focused list alone, which could
+   * undercount and offer more new verses than the daily cap allows.
+   */
+  async function startedTodayAllLists(plan: PlanView): Promise<number> {
+    if (plan.scope === 'all') return countStartedToday(plan.passages, now());
+    const all = await host.request({ type: 'getPlan', scope: { kind: 'all' } });
+    if (all.ok) return countStartedToday(all.data.passages, now());
+    // Say so, or the missing new verses would read as "Done for today".
+    showError(all.error);
+    return MAX_NEW_PER_DAY;
+  }
+
+  async function startSessionImpl(
+    passageId: number,
+    rung?: Rung,
+    restart?: boolean,
+    tier?: number,
+    flow?: Flow,
+  ): Promise<boolean> {
+    // Optional keys are omitted entirely rather than sent as `undefined`.
+    // `types.ts` requires structured-cloneable JSON, and an explicit
+    // `undefined` is the one value that does not survive that trip intact -
+    // it would arrive as a missing key on some paths and as `null` on others.
+    const request: PanelRequest = {
+      type: 'startSession',
+      passageId,
+      ...(rung !== undefined ? { rung } : {}),
+      ...(restart ? { restart: true } : {}),
+      ...(tier !== undefined ? { tier } : {}),
+    };
+
+    const reply = await requestVia(api, request);
+    if (disposed) return false;
+    if (!reply.ok) {
+      showError(reply.error);
+      return false;
+    }
+    const session = reply.data as RequestMap['startSession'];
+
+    // An omitted flow means one verse (no Continue or Skip); only `startFlow`
+    // passes a real one. Defaulted here so `sessionStarted` stays a plain record.
+    const sessionFlow: Flow = flow ?? { kind: 'verse', passageId: session.passageId };
+
+    justAdded = null;
+    host.go({
+      type: 'sessionStarted',
+      sessionId: session.sessionId,
+      passageId: session.passageId,
+      rung: session.rung,
+      flow: sessionFlow,
+    });
+
+    // `render()` deliberately leaves the practice screen alone - that view
+    // owns its own DOM and its own lifetime - so the mount happens here.
+    practice?.destroy();
+    clear(main);
+    practice = new PracticeView(host, session, sessionFlow);
+    practice.mount(main);
+    lastPainted = nav.view;
+    scrollToTop();
+    announce('');
+    return true;
+  }
+
   // -------------------------------------------------------------------------
   // Rendering
   // -------------------------------------------------------------------------
@@ -290,6 +340,17 @@ export function mountMemoryUi(container: HTMLElement, options: MemoryUiOptions):
   async function render(): Promise<void> {
     if (disposed) return;
     const token = ++renderToken;
+    const focusedNow = doc.activeElement;
+    const tabFocusId =
+      focusedNow !== null && main.contains(focusedNow) && focusedNow.getAttribute('role') === 'tab' ? focusedNow.id || null : null;
+    // Any other focused element is remembered by id or data-passage-id, so a
+    // same-screen reload (Move to list, Rename, Remove...) does not drop focus.
+    const hadFocus = focusedNow instanceof HTMLElement && focusedNow !== main && main.contains(focusedNow) && tabFocusId === null;
+    const focusKey = hadFocus ? focusKeyOf(focusedNow as HTMLElement) : null;
+
+    if (justAdded !== null && nav.view.name !== 'today' && nav.view.name !== 'practice' && nav.view.name !== 'recite') {
+      justAdded = null;
+    }
 
     if (practice !== null && nav.view.name !== 'practice') {
       practice.destroy();
@@ -329,14 +390,48 @@ export function mountMemoryUi(container: HTMLElement, options: MemoryUiOptions):
     main.appendChild(content);
 
     // A different screen starts at its top: the scroll offset of the screen
-    // just left (the host's scroller included) would otherwise carry over and
-    // hide the breadcrumbs. A refresh of the same screen keeps its place.
-    if (lastPainted === null || !sameView(lastPainted, nav.view)) scrollToTop();
+    // just left (the host's scroller included) would otherwise carry over.
+    // A refresh of the same screen keeps its place.
+    const newScreen = lastPainted === null || !sameView(lastPainted, nav.view);
+    if (newScreen) scrollToTop();
     lastPainted = nav.view;
+    dayKey = startOfLocalDay(now());
 
-    // Move focus to the new screen's heading, so a keyboard or screen-reader
-    // user is not left at the top of the document after every navigation.
+    // A tab that had focus keeps it (the shell is rebuilt, so find the new
+    // button); otherwise a new screen moves focus to its heading, so a
+    // keyboard or screen-reader user is not left at the top of the document.
     // `tabindex="-1"` makes it focusable without putting it in the tab order.
+    const tab = tabFocusId === null ? null : main.querySelector<HTMLElement>(`[id="${tabFocusId}"]`);
+    if (tab) {
+      tab.focus({ preventScroll: true });
+    } else if (newScreen) {
+      focusHeading();
+    } else if (hadFocus) {
+      // Same screen rebuilt: put focus back on the same element, else the h1
+      // when it would otherwise fall to <body>.
+      const same = focusKey === null ? null : findByFocusKey(focusKey);
+      if (same) same.focus({ preventScroll: true });
+      else focusHeading();
+    }
+  }
+
+  function focusKeyOf(node: HTMLElement): { attr: 'id' | 'data-passage-id'; value: string } | null {
+    if (node.id) return { attr: 'id', value: node.id };
+    const passage = node.getAttribute('data-passage-id') ?? node.closest('[data-passage-id]')?.getAttribute('data-passage-id');
+    return passage ? { attr: 'data-passage-id', value: passage } : null;
+  }
+
+  function findByFocusKey(key: { attr: string; value: string }): HTMLElement | null {
+    const hit = main.querySelector<HTMLElement>(`[${key.attr}="${key.value.replace(/"/g, '\\"')}"]`);
+    if (!hit) return null;
+    // A row carrying data-passage-id: focus its first focusable control.
+    if (key.attr === 'data-passage-id' && !(hit instanceof HTMLButtonElement || hit instanceof HTMLAnchorElement || hit instanceof HTMLInputElement)) {
+      return hit.querySelector<HTMLElement>('button, a[href], input, [tabindex]') ?? hit;
+    }
+    return hit;
+  }
+
+  function focusHeading(): void {
     const heading = main.querySelector<HTMLElement>('h1');
     if (heading) {
       heading.tabIndex = -1;
@@ -392,71 +487,87 @@ export function mountMemoryUi(container: HTMLElement, options: MemoryUiOptions):
 
   async function buildScreen(): Promise<HTMLElement> {
     switch (nav.view.name) {
-      case 'plan': {
+      case 'today': {
         const reply = await host.request({ type: 'getPlan' });
-        return reply.ok ? renderPlan(host, reply.data) : failure(reply.error);
-      }
-
-      case 'passage': {
-        // `getPassageView` does not return `defaultAnswerMode`, which
-        // `getPlan` used to carry along for free; `getSettings` is fetched
-        // alongside for it.
-        const passageId = nav.view.passageId;
-        const [passageReply, settingsReply] = await Promise.all([
-          host.request({ type: 'getPassageView', passageId }),
-          host.request({ type: 'getSettings' }),
+        if (!reply.ok) return failure(reply.error);
+        const plan = reply.data;
+        const [startedToday, analytics] = await Promise.all([
+          startedTodayAllLists(plan),
+          host.request({ type: 'getAnalytics' }),
         ]);
-        if (!passageReply.ok) {
-          // Removed elsewhere between the click and the fetch reads the same as
-          // any other failure to the core, but this one has a specific,
-          // friendlier story: fall back to the plan rather than an error banner.
-          announce(tr('memory.ui.settings.passageGone', 'That passage is no longer in your plan.'));
-          nav = navReduce(nav, { type: 'passageRemoved', passageId });
-          const planReply = await host.request({ type: 'getPlan' });
-          return planReply.ok ? renderPlan(host, planReply.data) : failure(planReply.error);
-        }
-        if (!settingsReply.ok) return failure(settingsReply.error);
-        return renderPassageScreen(
-          host,
-          passageReply.data,
-          settingsReply.data.defaultAnswerMode,
-          nav.view.rung,
-          settingsReply.data.speech ?? null,
-        );
+        const content = renderToday(host, plan, {
+          startedToday,
+          streak: analytics.ok ? analytics.data.streakDays : 0,
+          justAdded,
+          reminders: plan.cardsWaiting > 0 ? { waiting: plan.cardsWaiting } : null,
+        });
+        return appShell(host, 'today', plan, content);
       }
 
-      case 'analytics': {
+      case 'verses': {
+        const [reply, allReply] = await Promise.all([
+          host.request({ type: 'getPlan' }),
+          host.request({ type: 'getPlan', scope: { kind: 'all' } }),
+        ]);
+        if (!reply.ok) return failure(reply.error);
+        if (!allReply.ok) return failure(allReply.error);
+        const content = renderMyVerses(host, reply.data, allReply.data, {
+          list: nav.view.list,
+          highlight: nav.view.highlight,
+        });
+        return appShell(host, 'verses', reply.data, content);
+      }
+
+      case 'verse': {
+        const passageId = nav.view.passageId;
+        const [viewReply, planReply, ctxReply] = await Promise.all([
+          host.request({ type: 'getPassageView', passageId }),
+          host.request({ type: 'getPlan', scope: { kind: 'all' } }),
+          host.request({ type: 'getContext', passageId }),
+        ]);
+        if (!viewReply.ok) return failure(viewReply.error);
+        if (!planReply.ok) return failure(planReply.error);
+        return renderVersePage(host, viewReply.data, planReply.data.lists, {
+          speech: planReply.data.speech,
+          defaultAnswerMode: planReply.data.defaultAnswerMode,
+          verses: ctxReply.ok ? ctxReply.data.verses : null,
+        });
+      }
+
+      case 'progress': {
         const reply = await host.request({ type: 'getAnalytics' });
-        return reply.ok ? renderAnalytics(host, reply.data) : failure(reply.error);
+        return reply.ok ? appShell(host, 'progress', null, renderAnalytics(host, reply.data)) : failure(reply.error);
       }
 
       case 'settings': {
         const [settingsReply, planReply, pushReply, importStatus] = await Promise.all([
           host.request({ type: 'getSettings' }),
-          host.request({ type: 'getPlan' }),
+          // All lists: the focus only narrows Today, and "Verses with their
+          // own setting" is about every verse.
+          host.request({ type: 'getPlan', scope: { kind: 'all' } }),
           host.request({ type: 'getPushSettings' }),
           // Optional: a host without the old extension's data hides the section.
           options.api.getImportStatus().catch(() => null),
         ]);
         if (!settingsReply.ok) return failure(settingsReply.error);
         if (!planReply.ok) return failure(planReply.error);
-        return renderSettings(
+        return appShell(
           host,
-          settingsReply.data,
-          planReply.data,
-          pushReply.ok ? pushReply.data : null,
-          importStatus ? { status: importStatus, run: () => options.api.importLegacyData() } : null,
+          'settings',
+          null,
+          renderSettings(
+            host,
+            settingsReply.data,
+            planReply.data,
+            pushReply.ok ? pushReply.data : null,
+            importStatus ? { status: importStatus, run: () => options.api.importLegacyData() } : null,
+          ),
         );
       }
 
       case 'card': {
         const reply = await host.request({ type: 'getCardStack' });
         return reply.ok ? renderCardStack(host, reply.data) : failure(reply.error);
-      }
-
-      case 'managePassages': {
-        const reply = await host.request({ type: 'getPlan' });
-        return reply.ok ? renderManagePassages(host, reply.data) : failure(reply.error);
       }
 
       default:
@@ -466,7 +577,7 @@ export function mountMemoryUi(container: HTMLElement, options: MemoryUiOptions):
 
   function failure(message: string): HTMLElement {
     return el('section', { class: 'sm-screen' }, [
-      el('h1', { class: 'sm-screen-title', text: tr('memory.ui.settings.title', 'Scripture Memory') }),
+      el('h1', { class: 'sm-screen-title', text: tr('memory.ui.settings.title', 'Memory') }),
       errorBanner(message),
     ]);
   }
@@ -494,7 +605,7 @@ export function mountMemoryUi(container: HTMLElement, options: MemoryUiOptions):
         return;
 
       case 'dueCountChanged':
-        if (typeof push.count === 'number' && nav.view.name === 'plan') void render();
+        if (typeof push.count === 'number' && nav.view.name === 'today') void render();
         return;
 
       case 'reciteState': {
@@ -515,7 +626,7 @@ export function mountMemoryUi(container: HTMLElement, options: MemoryUiOptions):
         return;
 
       case 'cardsWaitingChanged':
-        if (nav.view.name === 'plan' || nav.view.name === 'card') void render();
+        if (nav.view.name === 'today' || nav.view.name === 'card') void render();
         return;
 
       case 'notice':
@@ -558,15 +669,66 @@ export function mountMemoryUi(container: HTMLElement, options: MemoryUiOptions):
   function consumeLaunchIntent(): Promise<void> {
     return host.request({ type: 'consumeLaunchIntent' }).then((reply) => {
       if (disposed) return;
-      if (reply.ok && reply.data.showCard && nav.view.name === 'plan') {
+      if (reply.ok && reply.data.showCard && nav.view.name === 'today') {
         nav = navReduce(nav, { type: 'goCard' });
         void render();
       }
     });
   }
 
+  // -------------------------------------------------------------------------
+  // Day rollover
+  // -------------------------------------------------------------------------
+
+  /** Redraws when the local day has changed since the last paint (never mid-exercise). */
+  function checkRollover(): void {
+    if (disposed) return;
+    if (startOfLocalDay(now()) === dayKey) return;
+    if (nav.view.name === 'practice' || nav.view.name === 'recite') return;
+    void render();
+  }
+
+  function armMidnight(): void {
+    win.clearTimeout(dayTimer);
+    const next = new Date(now());
+    next.setHours(24, 0, 0, 0);
+    dayTimer = win.setTimeout(() => {
+      dayTimer = undefined;
+      checkRollover();
+      armMidnight();
+    }, Math.max(1000, next.getTime() - now() + 500));
+  }
+
+  const onVisibility = (): void => {
+    if (doc.visibilityState !== 'hidden') checkRollover();
+  };
+  win.addEventListener('focus', checkRollover);
+  doc.addEventListener('visibilitychange', onVisibility);
+  armMidnight();
+
+  // -------------------------------------------------------------------------
+  // Handle API
+  // -------------------------------------------------------------------------
+
+  function practiceVerse(passageId: number): void {
+    if (disposed) return;
+    if (nav.view.name === 'practice' || nav.view.name === 'recite') {
+      announce(tr('memory.ui.shell.finishFirst', 'Finish what you are doing first.'));
+      return;
+    }
+    void host.startSession(passageId);
+  }
+
+  function offerPractice(added: JustAdded): void {
+    if (disposed) return;
+    justAdded = added;
+    if (nav.view.name === 'practice' || nav.view.name === 'recite') return; // shown when Today comes back
+    if (nav.view.name !== 'today') nav = navReduce(nav, { type: 'goTab', tab: 'today' });
+    void render();
+  }
+
   // On open, resume a run that is already going (hands-free started by the
-  // command), else show the plan - or the card stack when asked to.
+  // command), else show Today - or the card stack when asked to.
   if (options.initialView === 'card') nav = navReduce(nav, { type: 'goCard' });
   void host
     .request({ type: 'getReciteState' })
@@ -576,7 +738,14 @@ export function mountMemoryUi(container: HTMLElement, options: MemoryUiOptions):
       }
     })
     .catch(() => undefined)
-    .then(() => render())
+    .then(async () => {
+      const first = options.initialPractice;
+      if (first !== undefined && nav.view.name === 'today') {
+        await host.startSession(first);
+        if ((nav as NavState).view.name === 'practice') return;
+      }
+      await render();
+    })
     .then(() => consumeLaunchIntent())
     .catch(() => undefined);
 
@@ -590,6 +759,10 @@ export function mountMemoryUi(container: HTMLElement, options: MemoryUiOptions):
       reciteState = null;
       win.clearTimeout(statusTimer);
       statusTimer = undefined;
+      win.clearTimeout(dayTimer);
+      dayTimer = undefined;
+      win.removeEventListener('focus', checkRollover);
+      doc.removeEventListener('visibilitychange', onVisibility);
       renderToken++;
       disposed = true;
       clear(container);
@@ -601,5 +774,7 @@ export function mountMemoryUi(container: HTMLElement, options: MemoryUiOptions):
       activeReference = reference;
       updateAddPlaceholder(reference);
     },
+    practice: practiceVerse,
+    offerPractice,
   };
 }

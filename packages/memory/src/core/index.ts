@@ -29,6 +29,10 @@ export type {
   LegacyMergeResult,
 } from './legacyImport';
 export { readMemoryStatus } from './status';
+export {
+  MAX_NEW_PER_DAY, SECONDS_PER_VERSE, startOfLocalDay, suggestedRung, verseStatus, todayQueue, anywayOrder,
+} from './today';
+export type { VerseStatus, VerseStatusInfo, TodayItem, TodayQueue } from './today';
 export { deletedPassageActivity, reviveMergedPassages, pushCardsEnabled } from './maintenance';
 
 export type * from './types';

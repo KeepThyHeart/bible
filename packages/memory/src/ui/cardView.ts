@@ -1,8 +1,8 @@
 /**
- * The memory-card stack (task 0072): one recall card at a time.
+ * The reminder stack (task 0072): one recall card at a time.
  *
  * Flow per card: read the prompt (reference, optional first words), say the
- * passage to yourself, reveal it, then grade honestly - Missed / Partly /
+ * verse to yourself, reveal it, then grade honestly - Missed / Partly /
  * Knew it. Grades are disabled until the reveal so a card cannot be marked
  * without looking. After grading the worker hands back the remaining stack
  * and we simply show its first card; nothing is tracked client-side except
@@ -15,7 +15,8 @@
 
 import type { CardStackView, RecallCardView, RecallGrade } from '../core/pushTypes';
 import { button, el, replace } from './dom';
-import { breadcrumb } from './components';
+import { focusedHeader } from './shell';
+import './styles/settings.css';
 import type { PanelHost } from './host';
 import { renderPassage } from './scripture';
 import { tr, uiLocale } from './i18n';
@@ -53,8 +54,9 @@ export function renderCardStack(host: PanelHost, initial: CardStackView): HTMLEl
   let revealButton: HTMLButtonElement | null = null;
 
   root.appendChild(
-    breadcrumb({
-      crumbs: [{ label: tr('memory.ui.settings.home', 'Home'), onClick: () => host.go({ type: 'goPlan' }) }, { label: tr('memory.ui.settings.memoryCards', 'Memory cards') }],
+    focusedHeader({
+      title: tr('memory.ui.settings.reminders', 'Reminders'),
+      onClose: () => host.go({ type: 'goTab', tab: 'today' }),
     }),
   );
   root.appendChild(body);
@@ -189,17 +191,17 @@ export function renderCardStack(host: PanelHost, initial: CardStackView): HTMLEl
   function endState(): HTMLElement {
     if (handled === 0) {
       return el('div', { class: 'sm-card-end' }, [
-        el('p', { class: 'sm-card-empty', text: tr('memory.ui.settings.noCardsWaiting', 'No cards waiting.') }),
-        button(tr('memory.ui.settings.back', 'Back'), () => host.go({ type: 'goPlan' }), { class: 'sm-btn' }),
+        el('p', { class: 'sm-card-empty', text: tr('memory.ui.settings.noRemindersWaiting', 'No reminders waiting.') }),
+        button(tr('memory.ui.settings.back', 'Back'), () => host.go({ type: 'goTab', tab: 'today' }), { class: 'sm-btn' }),
       ]);
     }
     return el('div', { class: 'sm-card-end' }, [
-      el('p', { class: 'sm-card-empty', text: tr('memory.ui.settings.allCardsDone', 'All cards done.') }),
+      el('p', { class: 'sm-card-empty', text: tr('memory.ui.settings.allRemindersDone', 'All reminders done.') }),
       el('div', { class: 'sm-card-actions' }, [
-        button(tr('memory.ui.settings.practiceWhatsDue', "Practice what's due"), () => void host.startFlow({ kind: 'variety' }), {
+        button(tr('memory.ui.settings.practiceWhatsDue', "Practice what's due"), () => void host.startFlow({ kind: 'today', skipped: [] }), {
           class: 'sm-btn sm-btn-primary',
         }),
-        button(tr('memory.ui.settings.back', 'Back'), () => host.go({ type: 'goPlan' }), { class: 'sm-btn' }),
+        button(tr('memory.ui.settings.back', 'Back'), () => host.go({ type: 'goTab', tab: 'today' }), { class: 'sm-btn' }),
       ]),
     ]);
   }
@@ -217,9 +219,9 @@ export function renderCardStack(host: PanelHost, initial: CardStackView): HTMLEl
       }),
     );
 
-    return el('article', { class: 'sm-card', attrs: { 'aria-label': tr('memory.ui.settings.cardFor', 'Memory card for {reference}', { reference: card.reference }) } }, [
+    return el('article', { class: 'sm-card', attrs: { 'aria-label': tr('memory.ui.settings.reminderFor', 'Reminder for {reference}', { reference: card.reference }) } }, [
       el('div', { class: 'sm-card-head' }, [
-        el('span', { class: 'sm-card-kind', text: tr('memory.ui.settings.cardKind', 'Memory card · {time}', { time: timeLabel(card.firedAt) }) }),
+        el('span', { class: 'sm-card-kind', text: tr('memory.ui.settings.reminderKind', 'Reminder · {time}', { time: timeLabel(card.firedAt) }) }),
         el('span', { class: 'sm-card-count', text: tr('memory.ui.settings.countOf', '{n} of {total}', { n: handled + 1, total }) }),
       ]),
       el('h2', { class: 'sm-card-ref', text: card.reference }),
@@ -229,7 +231,7 @@ export function renderCardStack(host: PanelHost, initial: CardStackView): HTMLEl
       versesBox,
       el('div', { class: 'sm-card-grades', attrs: { role: 'group', 'aria-label': tr('memory.ui.settings.howDidItGo', 'How did it go?') } }, gradeButtons),
       el('div', { class: 'sm-card-actions' }, [
-        button(tr('memory.ui.settings.practiceThisPassage', 'Practice this passage'), () => void host.startSession(card.passageId), {
+        button(tr('memory.ui.settings.practiceThisVerse', 'Practice this verse'), () => void host.startSession(card.passageId), {
           class: 'sm-btn sm-btn-small sm-btn-quiet',
         }),
         button(tr('memory.ui.settings.later', 'Later (1 h)'), () => void snooze(card), { class: 'sm-btn sm-btn-small sm-btn-quiet' }),
