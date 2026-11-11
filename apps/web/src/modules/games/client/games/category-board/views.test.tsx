@@ -33,6 +33,10 @@ const SETTINGS: RoomSettings = {
   teamsEnabled: false,
   rounds: 10,
   answerWindowMs: 20_000,
+  teamCount: 2,
+  openEnded: false,
+  autoAdvanceMs: null,
+  scoresAfterEachAnswer: true,
   showIndividualScores: false,
   solo: false,
   groupVote: false,
@@ -323,7 +327,7 @@ describe('the big screen', () => {
   });
 });
 
-describe('the big screen, picking the next tile', () => {
+describe('the organizer’s control, picking the next tile', () => {
   /** The same board, with each tile carrying the choice that picks it. */
   const PICKABLE = {
     ...HOST_VIEW,
@@ -333,12 +337,26 @@ describe('the big screen, picking the next tile', () => {
     })),
   };
 
+  function drawControl(view: unknown, overrides: Partial<ScreenSnapshot> = {}): void {
+    const Control = categoryBoardViews.control;
+    if (!Control) throw new Error('the category board registers no control');
+    act(() => {
+      render(
+        <Control
+          snapshot={hostSnapshot(view, { phase: 'reveal', ...overrides })}
+          send={(command) => commands.push(command)}
+        />,
+        host
+      );
+    });
+  }
+
   function picks(): HTMLButtonElement[] {
     return [...host.querySelectorAll<HTMLButtonElement>('.cb-tile-pick')];
   }
 
-  it('lets the host pick any open tile at the reveal, and sends that choice', () => {
-    drawHost('reveal', PICKABLE, REVEAL);
+  it('lets the organizer pick any open tile at the reveal, and sends that choice', () => {
+    drawControl(PICKABLE);
 
     // Ten tiles: two played before this round and one just played.
     expect(picks()).toHaveLength(7);
@@ -347,23 +365,48 @@ describe('the big screen, picking the next tile', () => {
   });
 
   it('offers no tile that has been played, including the one just played', () => {
-    drawHost('reveal', PICKABLE, REVEAL);
+    drawControl(PICKABLE);
 
-    for (const tile of host.querySelectorAll('.cb-tile[data-state="played"]')) {
-      expect(tile.querySelector('button')).toBeNull();
-    }
+    expect(host.textContent).not.toContain('played');
+    expect(picks().map((pick) => pick.getAttribute('aria-label'))).not.toContain('Prophets for 100');
+    expect(picks().map((pick) => pick.getAttribute('aria-label'))).not.toContain('Prophets for 200');
   });
 
   it('offers nothing to pick after the last question', () => {
-    drawHost('reveal', PICKABLE, REVEAL, { round: 9, totalRounds: 10 });
+    drawControl(PICKABLE, { round: 9, totalRounds: 10 });
 
     expect(picks()).toHaveLength(0);
   });
 
   it('offers nothing to pick while a question is up', () => {
-    drawHost('question', PICKABLE);
+    drawControl(PICKABLE, { phase: 'question' });
 
     expect(picks()).toHaveLength(0);
+  });
+
+  it('offers nothing for a board that carries no choices or cannot be read', () => {
+    drawControl(HOST_VIEW);
+    expect(picks()).toHaveLength(0);
+
+    drawControl(null);
+    expect(host.textContent).toBe('');
+  });
+});
+
+describe('the big screen has no controls', () => {
+  it('draws no button in any phase, even for a board that carries choices', () => {
+    const pickable = {
+      ...HOST_VIEW,
+      columns: HOST_VIEW.columns.map((column, c) => ({
+        ...column,
+        tiles: column.tiles.map((tile, r) => ({ ...tile, choice: `${c}:${r}` })),
+      })),
+    };
+    for (const phase of ['question', 'answering', 'reveal'] as const) {
+      drawHost(phase, pickable, phase === 'reveal' ? REVEAL : null);
+
+      expect(host.querySelector('button, [role="button"]'), phase).toBeNull();
+    }
   });
 });
 

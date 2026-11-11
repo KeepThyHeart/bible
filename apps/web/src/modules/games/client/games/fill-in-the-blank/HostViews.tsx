@@ -13,6 +13,7 @@
  */
 
 import type { HostViewProps } from '../../shell/gameViews.js';
+import { gt } from '../../shell/t.js';
 import { asPrompt, asReveal, hasVerse } from './payload.js';
 import { BlankedVerse, FilledVerse, NoVerse } from './VerseText.js';
 
@@ -21,7 +22,7 @@ function Question({ view }: HostViewProps) {
 
   return (
     <section class="fitb-host">
-      <h2 class="fitb-lead">Fill in the blank</h2>
+      <h2 class="fitb-lead">{gt('games.names.fillInTheBlank', 'Fill in the blank')}</h2>
       {hasVerse(prompt) ? <BlankedVerse prompt={prompt} /> : <NoVerse />}
     </section>
   );
@@ -33,7 +34,7 @@ function Answering({ view }: HostViewProps) {
   return (
     <section class="fitb-host">
       {hasVerse(prompt) ? <BlankedVerse prompt={prompt} /> : <NoVerse />}
-      <p class="fitb-lead">Type the missing word on your phone</p>
+      <p class="fitb-lead">{gt('games.fillInTheBlank.view.typeOnPhone', 'Type the missing word on your phone')}</p>
     </section>
   );
 }

@@ -12,6 +12,7 @@
  */
 
 import type { GroupResult, TeamId } from '../../../shared/protocol.js';
+import { gt } from '../../shell/t.js';
 
 export const GAME_ID = 'detective';
 
@@ -82,7 +83,7 @@ export function readHostCase(view: unknown): HostCase | null {
   const options = optionsAt(view);
   // A case with nothing to vote on is not a case this game can put up.
   if (opening === null || opening.length === 0 || options.length === 0) return null;
-  return { question: stringAt(view, 'question') ?? DEFAULT_QUESTION, opening, options };
+  return { question: stringAt(view, 'question') ?? gt('games.detective.view.defaultQuestion', DEFAULT_QUESTION), opening, options };
 }
 
 export function readPhoneCase(view: unknown): PhoneCase | null {
@@ -144,6 +145,10 @@ export const WHERE_CAPTIONS: Readonly<Record<ClueWhere, string>> = {
   phones: 'dealt to phones',
   undealt: 'not dealt this time',
 };
+
+export function whereCaption(where: ClueWhere): string {
+  return gt(`games.detective.view.where.${where}`, WHERE_CAPTIONS[where]);
+}
 
 /**
  * The group a phone voted in: its own team with teams on, or the whole room.

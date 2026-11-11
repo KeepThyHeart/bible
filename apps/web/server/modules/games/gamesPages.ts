@@ -1,5 +1,6 @@
 /**
- * The games page, `/games/play` (phones), `/games/screen` (a second display) and
+ * The games page, `/games/play` (phones), `/games/screen` (a second display),
+ * `/games/organize`, `/games/remote` and `/games/tv` (the organizer and a TV joining by code) and
  * `/games/solo` (task 0115): one HTML entry that loads no reader code. Mounted above the SPA catch-all, like the Presenter's pages.
  * `/games/play/<anything>` serves the same page (the client reads the room code
  * from its own path or query), so a QR code can carry a pretty URL.
@@ -29,7 +30,13 @@ registerRoute({
       // Without the PWA there is no manifest to link: a browser that follows the link gets a 404.
       res.type('html').send(pwaShell(readFileSync(file, 'utf-8'), pwaEnabled()));
     };
-    router.get(['/play', '/play/*', '/screen', '/screen/*', '/solo', '/solo/*'], page);
+    router.get(
+      [
+        '/play', '/play/*', '/screen', '/screen/*', '/solo', '/solo/*',
+        '/organize', '/organize/*', '/remote', '/remote/*', '/tv', '/tv/*',
+      ],
+      page
+    );
     return router;
   },
 });

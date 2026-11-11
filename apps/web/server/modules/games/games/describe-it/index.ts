@@ -393,6 +393,7 @@ export const describeIt: GameModule<DescribeItSecret> = {
   accepts: acceptsTap,
   roundComplete: deckSpent,
   hostChrome: turnChrome,
+  // No answerPreview: the describer's own phone already shows the card, and the organizer has no answer to check.
 
   scoreRound(round: Round<DescribeItSecret>, answers: ScoredAnswer[], table: Table): RoundOutcome {
     return scoreTurn(round, answers, table);

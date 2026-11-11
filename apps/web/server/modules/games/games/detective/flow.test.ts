@@ -85,6 +85,8 @@ function started(players: [PlayerId, TeamId?][], settings: Partial<RoomSettings>
     step(player(playerId), intent, T0 - 5_000 + index);
   }
   host({ cmd: 'start' }, T0);
+  // Past how to play, straight into the first round.
+  host({ cmd: 'nextRound' }, T0);
 }
 
 function secret(): DetectiveSecret {

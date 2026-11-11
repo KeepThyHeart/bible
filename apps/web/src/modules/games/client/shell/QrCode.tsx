@@ -7,6 +7,7 @@
  */
 
 import { useEffect, useState } from 'preact/hooks';
+import { gt } from './t.js';
 
 export interface QrCodeProps {
   url: string;
@@ -61,9 +62,7 @@ export function QrCode({ url, label }: QrCodeProps) {
       </div>
       {loopback && (
         <p class="qr-warning" role="note">
-          This address only works on this computer — a phone will not be
-          able to reach it. Fine for testing; a real room needs the
-          server’s actual address.
+          {gt('games.qr.loopback', 'This address only works on this computer — a phone will not be able to reach it. Fine for testing; a real game needs the server’s actual address.')}
         </p>
       )}
     </div>

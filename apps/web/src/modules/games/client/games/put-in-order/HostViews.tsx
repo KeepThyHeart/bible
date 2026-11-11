@@ -11,6 +11,8 @@
  */
 
 import type { HostViewProps } from '../../shell/gameViews.js';
+import { gt } from '../../shell/t.js';
+import { awaitingReveal } from '../../shell/waitingCopy.js';
 import { letterFor, readDetail, readQuestion } from './payload.js';
 import type { OrderQuestion } from './payload.js';
 import { RightOrder } from './RightOrder.js';
@@ -24,18 +26,18 @@ function Nothing({ line, why }: { line: string; why: string | null }) {
   );
 }
 
-const UNREADABLE = <Nothing line="Nothing to show for this round." why={null} />;
+const unreadable = () => <Nothing line={gt('games.putInOrder.view.nothingToShow', 'Nothing to show for this round.')} why={null} />;
 
-const NO_LISTS = (
+const noLists = () => (
   <Nothing
-    line="Nothing to put in order this round."
-    why="There are no lists for this game on this server yet."
+    line={gt('games.putInOrder.view.nothingToOrder', 'Nothing to put in order this round.')}
+    why={gt('games.putInOrder.view.noLists', 'There are no lists for this game on this server yet.')}
   />
 );
 
 function Shuffled({ question }: { question: OrderQuestion }) {
   return (
-    <ul class="pio-items" aria-label="The items, shuffled">
+    <ul class="pio-items" aria-label={gt('games.putInOrder.view.itemsShuffled', 'The items, shuffled')}>
       {question.items.map((item, index) => (
         <li key={item.key} class="pio-item">
           <span class="pio-letter">{letterFor(index)}</span>
@@ -57,39 +59,35 @@ function Heading({ question }: { question: OrderQuestion }) {
 
 export function HostQuestion({ view }: HostViewProps) {
   const question = readQuestion(view);
-  if (!question) return UNREADABLE;
-  if (question.items.length === 0) return NO_LISTS;
+  if (!question) return unreadable();
+  if (question.items.length === 0) return noLists();
 
   return (
     <section class="pio pio-host">
       <Heading question={question} />
       <Shuffled question={question} />
-      <p class="pio-hint">Ordering opens in a moment.</p>
+      <p class="pio-hint">{gt('games.putInOrder.view.orderingOpensSoon', 'Ordering opens in a moment.')}</p>
     </section>
   );
 }
 
 export function HostAnswering({ view }: HostViewProps) {
   const question = readQuestion(view);
-  if (!question) return UNREADABLE;
-  if (question.items.length === 0) return NO_LISTS;
+  if (!question) return unreadable();
+  if (question.items.length === 0) return noLists();
 
   return (
     <section class="pio pio-host">
       <Heading question={question} />
       <Shuffled question={question} />
-      <p class="pio-hint">Tap them in order on your phone.</p>
+      <p class="pio-hint">{gt('games.putInOrder.view.tapInOrder', 'Tap them in order on your phone.')}</p>
     </section>
   );
 }
 
-function plural(count: number, one: string, many: string): string {
-  return `${count} ${count === 1 ? one : many}`;
-}
-
 export function HostReveal({ reveal }: HostViewProps) {
   const detail = readDetail(reveal?.detail);
-  if (!reveal || !detail) return <Nothing line="Waiting for the answer." why={null} />;
+  if (!reveal || !detail) return <Nothing line={awaitingReveal()} why={null} />;
 
   // The server always leads with these two rows, in this order, so the screen
   // can praise them without matching on wording.
@@ -99,21 +97,23 @@ export function HostReveal({ reveal }: HostViewProps) {
 
   return (
     <section class="pio pio-host">
-      <p class="pio-answer-label">The right order</p>
+      <p class="pio-answer-label">{gt('games.putInOrder.view.rightOrder', 'The right order')}</p>
       {detail.title.length > 0 && <h2 class="pio-title">{detail.title}</h2>}
       <RightOrder items={detail.items} />
 
-      <ul class="pio-tally" aria-label="How the room did">
+      <ul class="pio-tally" aria-label={gt('games.putInOrder.view.howDid', 'How everyone did')}>
         <li class="pio-tally-row" data-kind="in-order">
           <span class="pio-tally-count">{inOrder}</span>
-          <span class="pio-tally-label">had it all in order</span>
+          <span class="pio-tally-label">{gt('games.putInOrder.view.allInOrder', 'had it all in order')}</span>
         </li>
         <li class="pio-tally-row" data-kind="nearly">
           <span class="pio-tally-count">{nearly}</span>
-          <span class="pio-tally-label">{nearly === 1 ? 'was one swap away' : 'were one swap away'}</span>
+          <span class="pio-tally-label">{nearly === 1 ? gt('games.putInOrder.view.oneSwapOne', 'was one swap away') : gt('games.putInOrder.view.oneSwapMany', 'were one swap away')}</span>
         </li>
       </ul>
-      <p class="pio-muted">{plural(answered, 'answer', 'answers')}. Nobody is named.</p>
+      <p class="pio-muted">{answered === 1
+          ? gt('games.putInOrder.view.oneAnswerAnonymous', '1 answer. Nobody is named.')
+          : gt('games.putInOrder.view.manyAnswersAnonymous', '{count} answers. Nobody is named.', { count: answered })}</p>
     </section>
   );
 }

@@ -25,7 +25,8 @@
 import { useEffect, useState } from 'preact/hooks';
 import type { PersonalResult } from '../../../shared/protocol.js';
 import type { PlayerViewProps } from '../../shell/gameViews.js';
-import { AWAITING_REVEAL, AWAITING_ROUND } from '../../shell/waitingCopy.js';
+import { gt } from '../../shell/t.js';
+import { awaitingReveal, awaitingRound } from '../../shell/waitingCopy.js';
 import { indexForLetter, letterFor, readDetail, readQuestion, tileCaption } from './payload.js';
 
 function Nothing({ line }: { line: string }) {
@@ -34,13 +35,13 @@ function Nothing({ line }: { line: string }) {
 
 export function PhoneQuestion({ view }: PlayerViewProps) {
   const question = readQuestion(view);
-  if (!question) return <Nothing line={AWAITING_ROUND} />;
+  if (!question) return <Nothing line={awaitingRound()} />;
 
   return (
     <section class="cb cb-phone">
       <p class="cb-caption">{tileCaption(question.category, question.value)}</p>
       <p class="cb-prompt">{question.prompt}</p>
-      <p class="cb-hint">Answers open in a moment.</p>
+      <p class="cb-hint">{gt('games.categoryBoard.view.answersOpen', 'Answers open in a moment.')}</p>
     </section>
   );
 }
@@ -91,7 +92,7 @@ export function PhoneAnswering({ snapshot, view, send }: PlayerViewProps) {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [question, done, chosen, voting, snapshot.round]);
 
-  if (!question) return <Nothing line={AWAITING_ROUND} />;
+  if (!question) return <Nothing line={awaitingRound()} />;
 
   const chosenLabel = question.options.find((option) => option.index === chosen)?.label ?? null;
 
@@ -118,11 +119,11 @@ export function PhoneAnswering({ snapshot, view, send }: PlayerViewProps) {
       {voting ? (
         <p class="cb-sent" role="status">
           {chosenLabel === null
-            ? 'Tap an answer to vote. You can change it until time runs out.'
-            : `Your vote: ${chosenLabel}. Tap another answer to change it until time runs out.`}
+            ? gt('games.categoryBoard.view.tapToVote', 'Tap an answer to vote. You can change it until time runs out.')
+            : gt('games.categoryBoard.view.yourVote', 'Your vote: {label}. Tap another answer to change it until time runs out.', { label: chosenLabel })}
         </p>
       ) : (
-        done && <p class="cb-sent">{mine ? `Sent: ${mine.label}` : 'Answer sent.'}</p>
+        done && <p class="cb-sent">{mine ? gt('games.categoryBoard.view.sentLabel', 'Sent: {label}', { label: mine.label }) : gt('games.categoryBoard.view.answerSent', 'Answer sent.')}</p>
       )}
     </section>
   );
@@ -136,14 +137,14 @@ function teamVerdict(result: PersonalResult): string {
   // The point delta is the phone frame's own footer (`score-delta`), not
   // repeated here — every other game's verdict says only whether it was
   // right, and this one used to be the one exception.
-  const verdict = result.correct ? 'Right.' : 'Not this time.';
+  const verdict = result.correct ? gt('games.categoryBoard.view.right', 'Right.') : gt('games.categoryBoard.view.notThisTime', 'Not this time.');
   return result.note === null ? verdict : `${result.note}. ${verdict}`;
 }
 
 export function PhoneReveal({ view, reveal, yourResult }: PlayerViewProps) {
-  if (!readQuestion(view)) return <Nothing line="Nothing was asked this round." />;
+  if (!readQuestion(view)) return <Nothing line={gt('games.categoryBoard.view.nothingAsked', 'Nothing was asked this round.')} />;
   const detail = readDetail(reveal?.detail);
-  if (!reveal || !detail) return <Nothing line={AWAITING_REVEAL} />;
+  if (!reveal || !detail) return <Nothing line={awaitingReveal()} />;
 
   const submitted = yourResult?.submitted ?? null;
   const picked =
@@ -154,27 +155,27 @@ export function PhoneReveal({ view, reveal, yourResult }: PlayerViewProps) {
   return (
     <section class="cb cb-phone">
       <p class="cb-caption">{tileCaption(detail.category, detail.value)}</p>
-      <p class="cb-answer-label">The answer</p>
+      <p class="cb-answer-label">{gt('games.categoryBoard.view.answer', 'The answer')}</p>
       <h2 class="cb-answer">{reveal.correctLabel}</h2>
       {detail.reference !== null && <p class="cb-reference">{detail.reference}</p>}
 
       {yourResult === null ? (
-        <p class="cb-yours">No answer from this phone.</p>
+        <p class="cb-yours">{gt('games.categoryBoard.view.noAnswer', 'No answer from this phone.')}</p>
       ) : teamVote ? (
         <p class="cb-yours" data-correct={yourResult.correct ? 'true' : 'false'}>
           {teamVerdict(yourResult)}
           {picked !== null && !(yourResult.correct && picked.correct) && (
-            <span class="cb-muted"> You voted {picked.label}.</span>
+            <span class="cb-muted"> {gt('games.categoryBoard.view.youVoted', 'You voted {label}.', { label: picked.label })}</span>
           )}
         </p>
       ) : yourResult.correct ? (
         <p class="cb-yours" data-correct="true">
-          Right.
+          {gt('games.categoryBoard.view.right', 'Right.')}
         </p>
       ) : (
         <p class="cb-yours" data-correct="false">
-          {yourResult.note ?? 'Not this time.'}
-          {picked !== null && <span class="cb-muted"> You said {picked.label}.</span>}
+          {yourResult.note ?? gt('games.categoryBoard.view.notThisTime', 'Not this time.')}
+          {picked !== null && <span class="cb-muted"> {gt('games.categoryBoard.view.youSaid', 'You said {label}.', { label: picked.label })}</span>}
         </p>
       )}
     </section>

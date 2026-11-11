@@ -58,3 +58,42 @@ where privacy is enforced, which is the one thing ADR 0004 forbids.
   shape of mistake, so it was fixed alongside it rather than left for a screen
   the whole room is watching to keep exposing — see `PublicBuzzState` in the
   protocol.
+
+### Amended 2026-11-10
+
+The organizer now runs the room from their own device, and the screen only
+displays. That adds a viewer role and a way to open a screen, and tightens what
+a controller is sent.
+
+- **The remote is a viewer role.** The owner credential can open a stream with
+  `as=remote`. It is not a screen and sets no screen presence, but it counts
+  toward owner presence, so a room whose only open streams are a display and a
+  sleeping remote still hands control to a waiting request after 45 seconds. It
+  has no seat. Its snapshot is the screen's public view plus the control block
+  while the owner credential holds control, and it is the only stream that is
+  sent the answer preview (`ControlPanel.answer`). No screen, owner or not, and
+  no player is ever sent it.
+- **A screen can be opened by the game code alone.** A stream with no token is a
+  display-only screen: no control block, no pending judgement, no answer. It
+  shows what the room shows anyone who has the code, which is no more than
+  joining does. Opens are limited per client address (IPv6 by /64), and an
+  unknown or closed room answers exactly as a wrong code does, so the endpoint
+  cannot be used to find live rooms. A request that presents any token is not
+  counted.
+- **A seated controller is never sent the answer.** A player who holds control
+  is also competing, so the preview that suits an organizer who is not playing
+  would spoil the round for them. Their judge card keeps the fact that a
+  judgement is waiting and the player's answer, but its canonical answer,
+  accepted answers and context note are blank until the reveal.
+- **The owner screen's judge card carries nothing typed.** A laptop on a
+  projector can hold control, and the room is watching it. Its judge card is
+  projected without the player's text, the canonical answer, accepted answers
+  or context note, so what the card says is only that there is an answer to
+  check. In the games that need it the answers are spoken aloud, and a
+  controller who wants to read them runs the room from a phone.
+- **No credential that grants control is ever shown on a screen.** An earlier
+  idea was a corner QR on the big screen for the organizer to scan and take over
+  from their phone. It was rejected for the same reason as handing control over
+  as a token: whatever is drawn on a screen the room is watching, the room
+  holds, and it cannot be taken back. The organizer opens the room on their own
+  device, which keeps the owner token, and the screen is told the code instead.

@@ -50,6 +50,10 @@ const SETTINGS: RoomSettings = {
   teamsEnabled: false,
   rounds: 8,
   answerWindowMs: 20_000,
+  teamCount: 2,
+  openEnded: false,
+  autoAdvanceMs: null,
+  scoresAfterEachAnswer: true,
   showIndividualScores: false,
   solo: false,
   groupVote: false,
@@ -128,6 +132,7 @@ function control(
     teamStandings: [],
     overallStandings: [],
     spent,
+    answer: null,
   };
 }
 
@@ -226,6 +231,14 @@ function drawHost(
       />,
       screen
     );
+  });
+}
+
+function drawControl(snapshot: ScreenSnapshot): void {
+  const Control = swordDrillViews.control;
+  if (!Control) throw new Error('sword drill registers no control');
+  act(() => {
+    render(<Control snapshot={snapshot} send={(command) => commands.push(command)} />, screen);
   });
 }
 
@@ -447,12 +460,9 @@ describe('the big screen during the search', () => {
   });
 });
 
-describe('the big screen during the search, in the room’s default (host-calls) mode', () => {
+describe('the organizer’s control during the search, in the room’s default (host-calls) mode', () => {
   it('offers every connected player as a button, and calls one on when tapped', () => {
-    drawHost(
-      swordDrillViews.host.question,
-      hostSnapshot({ settings: HOST_CALLS_SETTINGS, buzz: buzz([]) })
-    );
+    drawControl(hostSnapshot({ settings: HOST_CALLS_SETTINGS, buzz: buzz([]) }));
 
     expect(screen.textContent).toContain('Who found it?');
     const jonah = button('Jonah');
@@ -464,8 +474,7 @@ describe('the big screen during the search, in the room’s default (host-calls)
 
   it('leaves out a player already reading, waiting, spent or confirmed', () => {
     const busy: BuzzState & { confirmed: string[] } = { ...buzz(['p-1', 'p-2']), confirmed: [] };
-    drawHost(
-      swordDrillViews.host.question,
+    drawControl(
       hostSnapshot({ settings: HOST_CALLS_SETTINGS, buzz: busy, control: control(null, ['p-3']) })
     );
 
@@ -476,18 +485,21 @@ describe('the big screen during the search, in the room’s default (host-calls)
 
   it('leaves out a player who has disconnected', () => {
     const offline = PLAYERS.map((player) => (player.id === 'p-2' ? { ...player, connected: false } : player));
-    drawHost(
-      swordDrillViews.host.question,
-      hostSnapshot({ settings: HOST_CALLS_SETTINGS, players: offline, buzz: buzz([]) })
-    );
+    drawControl(hostSnapshot({ settings: HOST_CALLS_SETTINGS, players: offline, buzz: buzz([]) }));
 
     expect(button('Jonah')).toBeNull();
   });
 
   it('says nothing about a call-on panel in the room’s buttons mode', () => {
-    drawHost(swordDrillViews.host.question, hostSnapshot({ buzz: buzz([]) }));
+    drawControl(hostSnapshot({ buzz: buzz([]) }));
 
     expect(screen.textContent).not.toContain('Who found it?');
+  });
+
+  it('draws nothing at the reveal', () => {
+    drawControl(hostSnapshot({ phase: 'reveal', settings: HOST_CALLS_SETTINGS, buzz: buzz([]) }));
+
+    expect(screen.textContent).toBe('');
   });
 });
 
@@ -507,43 +519,14 @@ describe('the big screen while someone reads', () => {
     expect(screen.textContent).not.toContain('Jonah');
   });
 
-  it("holds the ruling until the reader's phone has reported in", () => {
-    drawHost(answering, hostSnapshot({ phase: 'answering', buzz: buzz(['p-1']) }));
-    click(button('Confirm'));
+  it('shows no way to rule on the reader, which is the organizer’s alone', () => {
+    drawHost(
+      answering,
+      hostSnapshot({ phase: 'answering', buzz: buzz(['p-1']), control: control(judging('p-1')) })
+    );
 
-    expect(button('Confirm')?.disabled).toBe(true);
-    expect(button('Next in line')?.disabled).toBe(true);
-    expect(screen.textContent).toContain('Waiting for Miriam’s phone');
+    expect(screen.querySelector('button, [role="button"]')).toBeNull();
     expect(commands).toEqual([]);
-  });
-
-  it('does not take a ruling meant for an earlier reader as one for this reader', () => {
-    drawHost(
-      answering,
-      hostSnapshot({ phase: 'answering', buzz: buzz(['p-2']), control: control(judging('p-1')) })
-    );
-
-    expect(button('Confirm')?.disabled).toBe(true);
-  });
-
-  it('confirms the reader', () => {
-    drawHost(
-      answering,
-      hostSnapshot({ phase: 'answering', buzz: buzz(['p-1']), control: control(judging('p-1')) })
-    );
-    click(button('Confirm'));
-
-    expect(commands).toEqual([{ cmd: 'judge', verdict: 'correct' }]);
-  });
-
-  it('passes the turn on', () => {
-    drawHost(
-      answering,
-      hostSnapshot({ phase: 'answering', buzz: buzz(['p-1']), control: control(judging('p-1')) })
-    );
-    click(button('Next in line'));
-
-    expect(commands).toEqual([{ cmd: 'judge', verdict: 'incorrect' }]);
   });
 
   it('never puts the verse up before the reveal, even with the host holding it', () => {
@@ -574,10 +557,47 @@ describe('the big screen while someone reads', () => {
     expect(screen.textContent).toContain('Miriam’s own time to answer');
     expect(screen.textContent).toContain('the search clock is paused');
   });
+});
+
+describe('the organizer’s control while someone reads', () => {
+  it("holds the ruling until the reader's phone has reported in", () => {
+    drawControl(hostSnapshot({ phase: 'answering', buzz: buzz(['p-1']) }));
+    click(button('Confirm'));
+
+    expect(button('Confirm')?.disabled).toBe(true);
+    expect(button('Next in line')?.disabled).toBe(true);
+    expect(screen.textContent).toContain('Waiting for Miriam’s phone');
+    expect(commands).toEqual([]);
+  });
+
+  it('does not take a ruling meant for an earlier reader as one for this reader', () => {
+    drawControl(
+      hostSnapshot({ phase: 'answering', buzz: buzz(['p-2']), control: control(judging('p-1')) })
+    );
+
+    expect(button('Confirm')?.disabled).toBe(true);
+  });
+
+  it('confirms the reader', () => {
+    drawControl(
+      hostSnapshot({ phase: 'answering', buzz: buzz(['p-1']), control: control(judging('p-1')) })
+    );
+    click(button('Confirm'));
+
+    expect(commands).toEqual([{ cmd: 'judge', verdict: 'correct' }]);
+  });
+
+  it('passes the turn on', () => {
+    drawControl(
+      hostSnapshot({ phase: 'answering', buzz: buzz(['p-1']), control: control(judging('p-1')) })
+    );
+    click(button('Next in line'));
+
+    expect(commands).toEqual([{ cmd: 'judge', verdict: 'incorrect' }]);
+  });
 
   it('still offers the call-on panel for a second reader, in host-calls mode', () => {
-    drawHost(
-      answering,
+    drawControl(
       hostSnapshot({ phase: 'answering', settings: HOST_CALLS_SETTINGS, buzz: buzz(['p-1']) })
     );
 
@@ -586,6 +606,27 @@ describe('the big screen while someone reads', () => {
     click(jonah);
 
     expect(commands).toEqual([{ cmd: 'callOn', playerId: 'p-2' }]);
+  });
+});
+
+describe('the big screen has no controls in any phase', () => {
+  it('draws no button, in either buzz mode', () => {
+    for (const settings of [SETTINGS, HOST_CALLS_SETTINGS]) {
+      for (const phase of ['question', 'answering', 'reveal'] as const) {
+        drawHost(
+          swordDrillViews.host[phase],
+          hostSnapshot({
+            phase,
+            settings,
+            buzz: buzz(['p-1']),
+            control: control(judging('p-1')),
+          }),
+          phase === 'reveal' ? REVEAL : null
+        );
+
+        expect(screen.querySelector('button, [role="button"]'), phase).toBeNull();
+      }
+    }
   });
 });
 
@@ -675,6 +716,12 @@ describe('putting the game on the client', () => {
   it('registers itself as a side effect of being imported', () => {
     expect(getGameViews(GAME_ID)).toBe(swordDrillViews);
     expect(GAME_ID).toBe('sword-drill');
+  });
+
+  it('registers a control, a card and the rules', () => {
+    expect(swordDrillViews.control).toBeDefined();
+    expect(swordDrillViews.card?.tags).toEqual(['outLoud', 'bibles']);
+    expect(swordDrillViews.howToPlay?.steps.length).toBeGreaterThanOrEqual(2);
   });
 
   it('covers all three phases on both screens', () => {

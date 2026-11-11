@@ -122,6 +122,10 @@ function settingsWith(overrides: Partial<RoomSettings> = {}): RoomSettings {
     teamsEnabled: false,
     rounds: 5,
     answerWindowMs: 20_000,
+    teamCount: 2,
+    openEnded: false,
+    autoAdvanceMs: null,
+    scoresAfterEachAnswer: true,
     showIndividualScores: false,
     solo: false,
     groupVote: false,
@@ -461,5 +465,15 @@ describe('scoring', () => {
       'undealt',
       'undealt',
     ]);
+  });
+});
+
+describe('the answer shown before the reveal', () => {
+  it('is the same answer the reveal will name', () => {
+    const round = build();
+    const preview = game().answerPreview?.(round);
+
+    expect(preview).toBeTruthy();
+    expect(preview).toBe(game().scoreRound(round, [], tableOf([])).correctLabel);
   });
 });

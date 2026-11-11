@@ -1,9 +1,9 @@
 /**
  * The root of the client.
  *
- * Two jobs, and deliberately no others. It picks one of the three screens a
- * device can be — the projector, a phone in the room, or someone playing alone
- * — and it starts the clock measurement that everything timed hangs off.
+ * Two jobs, and deliberately no others. It picks which screen this device
+ * is — the projector or a TV, a phone in the room, the organizer setting up
+ * or running a game, or someone playing alone — and it starts the clock measurement that everything timed hangs off.
  *
  * The clock is started here rather than inside whichever screen needs it first
  * because the offset is a property of the device, not of a screen: measuring it
@@ -13,9 +13,12 @@
 
 import { useEffect, useState } from 'preact/hooks';
 import { HomeScreen } from './shell/HomeScreen.js';
+import { OrganizeApp } from './shell/OrganizeApp.js';
 import { PlayApp } from './shell/PlayApp.js';
+import { RemoteApp } from './shell/RemoteApp.js';
 import { ScreenApp } from './shell/ScreenApp.js';
 import { SoloApp } from './shell/SoloApp.js';
+import { TvJoin } from './shell/TvJoin.js';
 import { ClockContext, measuredClock, startMeasuring } from './shell/clockPort.js';
 import { PATHS, useMemoryRoute, useRoute } from './shell/routes.js';
 import type { RouteState } from './shell/routes.js';
@@ -38,7 +41,17 @@ function AppView({ routeState, embedded = false, onLiveChange }: AppViewProps) {
   return (
     <ClockContext.Provider value={measuredClock}>
       {route.name === 'home' ? (
-        <HomeScreen onJoin={() => navigate(PATHS.play)} onHost={() => navigate(PATHS.screen)} />
+        <HomeScreen
+          onJoin={(code) => navigate(code ? `${PATHS.play}?room=${encodeURIComponent(code)}` : PATHS.play)}
+          onHost={() => navigate(PATHS.organize)}
+          onSolo={() => navigate(PATHS.solo)}
+        />
+      ) : route.name === 'organize' ? (
+        <OrganizeApp onNavigate={navigate} />
+      ) : route.name === 'remote' ? (
+        <RemoteApp code={route.code} onNavigate={navigate} />
+      ) : route.name === 'tv' ? (
+        <TvJoin code={route.code} onNavigate={navigate} />
       ) : route.name === 'screen' ? (
         // Hosting again is a fresh load rather than a re-render: the room was
         // created by an effect that has already run, and a full load is the

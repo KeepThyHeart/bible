@@ -34,6 +34,7 @@ import { RoomRegistry } from './RoomRegistry.js';
 import type { Room } from './RoomRegistry.js';
 import { broadcast, dispatch } from './broadcast.js';
 import type { TransportContext } from './broadcast.js';
+import { CodeOpenLimiter } from './CodeOpenLimiter.js';
 import type { EffectHandlers, RoomPort } from './roomPort.js';
 
 /** Long enough for "Grandma Ellen", short enough not to break a roster line. */
@@ -48,6 +49,8 @@ const MAX_CHOICE_LENGTH = 64;
 const SWEEP_INTERVAL_MS = 60_000;
 
 export interface TransportRequest extends StreamRequest {
+  /** The client address, as Express resolves it behind the trusted proxy. */
+  ip?: string | undefined;
   params: Record<string, string | undefined>;
   query: Record<string, unknown>;
   body: unknown;
@@ -65,6 +68,8 @@ export interface TransportOptions {
   idleTimeoutMs?: number;
   /** Injected so a test can drive every room deadline without waiting on one. */
   timers?: Timers;
+  /** Opens by room code alone are counted here; injected so a test can set the ceiling. */
+  codeOpenLimiter?: CodeOpenLimiter;
 }
 
 export interface Transport {
@@ -199,8 +204,17 @@ export function parseSettings(raw: unknown): Partial<RoomSettings> {
   if (source.setId === null) settings.setId = null;
   if (typeof source.translation === 'string') settings.translation = source.translation;
   if (typeof source.teamsEnabled === 'boolean') settings.teamsEnabled = source.teamsEnabled;
+  if (source.teamCount === 2 || source.teamCount === 3 || source.teamCount === 4) {
+    settings.teamCount = source.teamCount;
+  }
   if (isCount(source.rounds)) settings.rounds = source.rounds;
+  if (typeof source.openEnded === 'boolean') settings.openEnded = source.openEnded;
   if (isCount(source.answerWindowMs)) settings.answerWindowMs = source.answerWindowMs;
+  if (source.autoAdvanceMs === null) settings.autoAdvanceMs = null;
+  if (isCount(source.autoAdvanceMs)) settings.autoAdvanceMs = source.autoAdvanceMs;
+  if (typeof source.scoresAfterEachAnswer === 'boolean') {
+    settings.scoresAfterEachAnswer = source.scoresAfterEachAnswer;
+  }
   if (typeof source.showIndividualScores === 'boolean') {
     settings.showIndividualScores = source.showIndividualScores;
   }
@@ -246,7 +260,20 @@ function parseHostCommand(raw: unknown): HostCommand | null {
     case 'end':
     case 'newGame':
     case 'requestFullStandings':
+    case 'shuffleTeams':
+    case 'finish':
+    case 'continueGame':
       return { cmd: source.cmd };
+    case 'moveToTeam':
+      if (typeof source.playerId !== 'string' || source.playerId.length === 0) return null;
+      if (source.teamId !== null && !isTeamId(source.teamId)) return null;
+      return { cmd: 'moveToTeam', playerId: source.playerId, teamId: source.teamId };
+    case 'rename': {
+      if (typeof source.playerId !== 'string' || source.playerId.length === 0) return null;
+      const name = cleanName(source.name);
+      if (name === null) return null;
+      return { cmd: 'rename', playerId: source.playerId, name };
+    }
     case 'kick':
       if (typeof source.playerId !== 'string' || source.playerId.length === 0) return null;
       return { cmd: 'kick', playerId: source.playerId };
@@ -460,18 +487,62 @@ export function createTransport(options: TransportOptions): Transport {
     res.status(201).json(response);
   }
 
-  function stream(req: TransportRequest, res: TransportResponse): void {
+  const codeOpens = options.codeOpenLimiter ?? new CodeOpenLimiter({ now });
+
+  /**
+   * A screen opened with the room code and no credential at all. It is the
+   * display token's twin: it sees the public room and nothing else, and a
+   * closed or unknown room is refused the way a wrong credential is, so the
+   * response does not say which of the two it was.
+   */
+  function openedByCodeAlone(req: TransportRequest, res: TransportResponse): Room | null {
+    const retryAfter = codeOpens.take(req.ip ?? 'unknown');
+    if (retryAfter !== null) {
+      res.setHeader('Retry-After', String(retryAfter));
+      refuseStream(res, 429, 'tooManyRequests', 'Too many attempts. Wait a moment, then enter the code again.');
+      return null;
+    }
     const room = registry.get(req.params.code);
-    if (room === undefined) {
-      refuseStream(res, 404, 'roomNotFound', 'No room is using that code. Check the code on the big screen.');
-      return;
+    if (room === undefined || room.closed) {
+      refuseStream(res, 401, 'unauthorized', 'that token does not belong to this room');
+      return null;
+    }
+    return room;
+  }
+
+  function stream(req: TransportRequest, res: TransportResponse): void {
+    const token = presentedToken(req, null);
+    // `as=remote` is how the owner token asks to be the organizer's device
+    // rather than a screen. It is a request, not a claim: the token still has
+    // to be the owner's.
+    const asRemote = req.query.as === 'remote';
+
+    let room: Room;
+    if (token === null && !asRemote) {
+      const byCode = openedByCodeAlone(req, res);
+      if (byCode === null) return;
+      room = byCode;
+    } else {
+      const found = registry.get(req.params.code);
+      if (found === undefined) {
+        refuseStream(res, 404, 'roomNotFound', 'No room is using that code. Check the code on the big screen.');
+        return;
+      }
+      room = found;
     }
 
-    const token = presentedToken(req, null);
     let role: SubscriberRole;
     let playerId: PlayerId | null = null;
 
-    if (registry.isOwner(room, token)) {
+    if (asRemote) {
+      if (!registry.isOwner(room, token)) {
+        refuseStream(res, 401, 'unauthorized', 'only the owner token can open the remote');
+        return;
+      }
+      role = { kind: 'remote' };
+    } else if (token === null) {
+      role = { kind: 'screen', owner: false };
+    } else if (registry.isOwner(room, token)) {
       role = { kind: 'screen', owner: true };
     } else if (registry.isDisplay(room, token)) {
       role = { kind: 'screen', owner: false };
@@ -493,7 +564,7 @@ export function createTransport(options: TransportOptions): Transport {
         if (room.closed) return;
         // Recomputed from who is actually still connected, following a
         // screen's close exactly as a player's already does.
-        room.state = context.port.setScreenPresence(room.state, registry.screenPresence(room));
+        room.state = context.port.setScreenPresence(room.state, registry.presence(room));
         if (playerId !== null) {
           room.state = context.port.setConnected(room.state, playerId, false);
         }
@@ -502,7 +573,7 @@ export function createTransport(options: TransportOptions): Transport {
     });
 
     registry.subscribe(room, subscriber);
-    room.state = context.port.setScreenPresence(room.state, registry.screenPresence(room));
+    room.state = context.port.setScreenPresence(room.state, registry.presence(room));
     if (playerId !== null) {
       room.state = context.port.setConnected(room.state, playerId, true);
     }

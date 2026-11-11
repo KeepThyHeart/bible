@@ -17,6 +17,48 @@
  * wait is real, can last the whole round, and is worth explaining on its
  * own terms (see detective's and describe-it's own "waiting" states), so it
  * keeps its own wording rather than being folded in here.
+ *
+ * Every waiting state says what is being waited on: the answer, the other
+ * players, the organizer. The functions below word the ones that need a
+ * translation or a count; the two constants are kept as they were.
  */
+
+import { gt } from './t.js';
+
 export const AWAITING_ROUND = 'Getting the question ready…';
 export const AWAITING_REVEAL = 'Waiting for the answer.';
+
+export function awaitingRound(): string {
+  return gt('games.phone.awaitingRound', AWAITING_ROUND);
+}
+
+export function awaitingReveal(): string {
+  return gt('games.phone.awaitingReveal', AWAITING_REVEAL);
+}
+
+/** After a player has sent an answer: the label above what they sent. */
+export function sentLabel(): string {
+  return gt('games.phone.sent', 'Sent');
+}
+
+/** After sending, until the round is revealed. */
+export function waitingForAnswer(): string {
+  return gt('games.phone.awaitingReveal', AWAITING_REVEAL);
+}
+
+/** After sending, while some players have not answered yet. */
+export function waitingForPlayers(remaining: number): string {
+  return remaining === 1
+    ? gt('games.phone.waitingOnOne', 'Waiting for 1 more player.')
+    : gt('games.phone.waitingOnMany', 'Waiting for {count} more players.', { count: remaining });
+}
+
+/** A phone that is not running the game, between games or before one starts. */
+export function waitingForOrganizer(): string {
+  return gt('games.phone.waitingOrganizer', 'Waiting for the organizer.');
+}
+
+/** A turn that belongs to someone else. */
+export function waitingForTurn(name: string): string {
+  return gt('games.phone.waitingTurn', 'Waiting for {name}.', { name });
+}

@@ -27,6 +27,10 @@ function settings(overrides: Partial<RoomSettings> = {}): RoomSettings {
     teamsEnabled: false,
     rounds: 5,
     answerWindowMs: 20_000,
+    teamCount: 2,
+    openEnded: false,
+    autoAdvanceMs: null,
+    scoresAfterEachAnswer: true,
     showIndividualScores: false,
     solo: false,
     groupVote: false,
@@ -395,5 +399,21 @@ describe('drawing from the curated pool', () => {
     }
 
     expect(seen.size).toBeGreaterThan(1);
+  });
+});
+
+describe('the answer shown before the reveal', () => {
+  it('is the same answer the reveal will name', () => {
+    const round = roundFor('world');
+    const preview = fillInTheBlank.answerPreview?.(round);
+
+    expect(preview).toBe('world');
+    expect(preview).toBe(fillInTheBlank.scoreRound(round, [], { seats: [], log: [] }).correctLabel);
+  });
+
+  it('is nothing for a round with no verse behind it', () => {
+    const round: Round<BlankSecret | null> = { index: 0, secret: null, hostView: null, playerView: null };
+
+    expect(fillInTheBlank.answerPreview?.(round)).toBeNull();
   });
 });

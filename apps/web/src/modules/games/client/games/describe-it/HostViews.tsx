@@ -13,6 +13,7 @@
 
 import type { PublicPlayer, TeamId } from '../../../shared/protocol.js';
 import type { HostViewProps } from '../../shell/gameViews.js';
+import { gt } from '../../shell/t.js';
 import { teamLabel } from '../../shell/teams.js';
 import { nameOf, readHostTurn, readReveal } from './payload.js';
 import type { HostTurn } from './payload.js';
@@ -29,7 +30,7 @@ export function TeamPill({ teamId }: { teamId: TeamId }) {
   return (
     <span class="di-team" data-team={teamId}>
       <span class="team-swatch" aria-hidden="true" />
-      {teamLabel(teamId)} team
+      {gt('games.describeIt.view.teamName', '{team} team', { team: teamLabel(teamId) })}
     </span>
   );
 }
@@ -48,14 +49,16 @@ export function GotChips({ got }: { got: readonly string[] }) {
 
 /** Who is being called on to guess, in the room's own words. */
 function callTo(teamId: TeamId | null): string {
-  return teamId === null ? 'Everyone' : `${teamLabel(teamId)} team`;
+  return teamId === null
+    ? gt('games.describeIt.view.everyone', 'Everyone')
+    : gt('games.describeIt.view.teamName', '{team} team', { team: teamLabel(teamId) });
 }
 
 function Describing({ turn, players }: { turn: HostTurn; players: readonly PublicPlayer[] }) {
   return (
     <>
       {turn.teamId !== null && <TeamPill teamId={turn.teamId} />}
-      <p class="di-describer">{nameOf(players, turn.describer)} is describing</p>
+      <p class="di-describer">{gt('games.describeIt.view.isDescribing', '{name} is describing', { name: nameOf(players, turn.describer) })}</p>
     </>
   );
 }
@@ -63,32 +66,32 @@ function Describing({ turn, players }: { turn: HostTurn; players: readonly Publi
 /** The get-ready: the room turns to face the describer before the clock starts. */
 export function HostQuestion({ snapshot, view }: HostViewProps) {
   const turn = readHostTurn(view);
-  if (turn === null) return <Nothing line="Nothing to describe this turn." />;
+  if (turn === null) return <Nothing line={gt('games.describeIt.view.nothingToDescribe', 'Nothing to describe this turn.')} />;
   return (
     <section class="di di-host">
       <Describing turn={turn} players={snapshot.players} />
-      <p class="di-call">{callTo(turn.teamId)}, get ready to guess out loud.</p>
+      <p class="di-call">{gt('games.describeIt.view.callReady', '{who}, get ready to guess out loud.', { who: callTo(turn.teamId) })}</p>
     </section>
   );
 }
 
 export function HostAnswering({ snapshot, view }: HostViewProps) {
   const turn = readHostTurn(view);
-  if (turn === null) return <Nothing line="Nothing to describe this turn." />;
+  if (turn === null) return <Nothing line={gt('games.describeIt.view.nothingToDescribe', 'Nothing to describe this turn.')} />;
   return (
     <section class="di di-host">
       <Describing turn={turn} players={snapshot.players} />
-      <p class="di-call">{callTo(turn.teamId)}, guess out loud.</p>
+      <p class="di-call">{gt('games.describeIt.view.callGuess', '{who}, guess out loud.', { who: callTo(turn.teamId) })}</p>
       {turn.deckOut && (
         <p class="di-notice" role="status">
           {turn.deckSize === 0
-            ? 'There are no cards to describe on this server.'
-            : 'That was every card in the deck. End the turn when you are ready.'}
+            ? gt('games.describeIt.view.noCards', 'There are no cards to describe on this server.')
+            : gt('games.describeIt.view.deckOutEnd', 'That was every card in the deck. End the turn when you are ready.')}
         </p>
       )}
       {turn.got.length > 0 && (
         <div class="di-got">
-          <p class="di-label">Got so far · {turn.got.length}</p>
+          <p class="di-label">{gt('games.describeIt.view.gotSoFar', 'Got so far · {count}', { count: turn.got.length })}</p>
           <GotChips got={turn.got} />
         </div>
       )}
@@ -98,7 +101,7 @@ export function HostAnswering({ snapshot, view }: HostViewProps) {
 
 export function HostReveal({ snapshot, reveal }: HostViewProps) {
   const detail = readReveal(reveal?.detail);
-  if (reveal === null || detail === null) return <Nothing line="Nothing to show for this turn." />;
+  if (reveal === null || detail === null) return <Nothing line={gt('games.describeIt.view.nothingToShow', 'Nothing to show for this turn.')} />;
 
   const describer = nameOf(snapshot.players, detail.describer);
   const last = detail.next === null || snapshot.round + 1 >= snapshot.totalRounds;
@@ -106,31 +109,36 @@ export function HostReveal({ snapshot, reveal }: HostViewProps) {
   return (
     <section class="di di-host di-turn-end">
       <div class="di-column">
-        <p class="di-label">Time</p>
+        <p class="di-label">{gt('games.describeIt.view.time', 'Time')}</p>
         <h2 class="di-total">{reveal.correctLabel}</h2>
         {detail.got.length > 0 && <GotChips got={detail.got} />}
-        {detail.deckOut && <p class="di-muted">They got through the whole deck.</p>}
+        {detail.deckOut && <p class="di-muted">{gt('games.describeIt.view.wholeDeck', 'They got through the whole deck.')}</p>}
         <p class="di-thanks">
-          {detail.got.length > 0 ? `Well described, ${describer}.` : `Thanks for describing, ${describer}.`}
+          {detail.got.length > 0
+            ? gt('games.describeIt.view.wellDescribed', 'Well described, {name}.', { name: describer })
+            : gt('games.describeIt.view.thanksDescribing', 'Thanks for describing, {name}.', { name: describer })}
         </p>
       </div>
       <div class="di-column">
         {last || detail.next === null ? (
-          <p class="di-label">That was the last turn</p>
+          <p class="di-label">{gt('games.describeIt.view.lastTurn', 'That was the last turn')}</p>
         ) : (
           <>
-            <p class="di-label">Up next</p>
+            <p class="di-label">{gt('games.describeIt.view.upNext', 'Up next')}</p>
             <p class="di-next" data-team={detail.next.teamId ?? 'none'}>
               {detail.next.teamId !== null && <span class="team-swatch" aria-hidden="true" />}
               <span>
                 {detail.next.teamId === null
-                  ? `${nameOf(snapshot.players, detail.next.describer)} describes`
-                  : `${teamLabel(detail.next.teamId)} team — ${nameOf(snapshot.players, detail.next.describer)} describes`}
+                  ? gt('games.describeIt.view.nextDescribes', '{name} describes', { name: nameOf(snapshot.players, detail.next.describer) })
+                  : gt('games.describeIt.view.nextTeamDescribes', '{team} team — {name} describes', {
+                      team: teamLabel(detail.next.teamId),
+                      name: nameOf(snapshot.players, detail.next.describer),
+                    })}
               </span>
             </p>
           </>
         )}
-        <p class="di-muted">Team totals wait for the end of the game.</p>
+        <p class="di-muted">{gt('games.describeIt.view.totalsWait', 'Team totals wait for the end of the game.')}</p>
       </div>
     </section>
   );

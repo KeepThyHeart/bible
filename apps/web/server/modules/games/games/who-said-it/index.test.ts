@@ -70,6 +70,10 @@ function settingsWith(overrides: Partial<RoomSettings> = {}): RoomSettings {
     teamsEnabled: false,
     rounds: 5,
     answerWindowMs: 20_000,
+    teamCount: 2,
+    openEnded: false,
+    autoAdvanceMs: null,
+    scoresAfterEachAnswer: true,
     showIndividualScores: false,
     solo: false,
     groupVote: false,
@@ -553,6 +557,8 @@ describe('teams voting together, through the room', () => {
       state = apply(state, { role: 'player', playerId }, { kind: 'join', name: playerId, teamId }, 1_100 + position);
     });
     state = apply(state, HOST, { kind: 'host', command: { cmd: 'start' } }, 2_000);
+    // Past how to play, straight into the first round.
+    state = apply(state, HOST, { kind: 'host', command: { cmd: 'nextRound' } }, 2_000);
     // The quotation is read first; the names go up when that phase ends.
     return apply(state, { role: 'system' }, { kind: 'timer', round: 0, tag: TIMER_QUESTION_END }, state.phaseEndsAt ?? 0);
   }
@@ -658,5 +664,15 @@ describe('teams voting together, through the room', () => {
     // voting is off.
     expect(scoresOf(state, ['ann', 'bo', 'cy'])).toEqual([ROUND_POINTS, 0, 0]);
     expect(projectReveal(state)?.groups).toBeUndefined();
+  });
+});
+
+describe('the answer shown before the reveal', () => {
+  it('is the same answer the reveal will name', () => {
+    const round: Round<typeof SECRET> = { index: 0, secret: SECRET, hostView: null, playerView: null };
+    const preview = whoSaidIt.answerPreview?.(round);
+
+    expect(preview).toBeTruthy();
+    expect(preview).toBe(whoSaidIt.scoreRound(round, [], { seats: [], log: [] }).correctLabel);
   });
 });

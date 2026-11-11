@@ -34,6 +34,10 @@ const SETTINGS: RoomSettings = {
   teamsEnabled: false,
   rounds: 8,
   answerWindowMs: 90_000,
+  teamCount: 2,
+  openEnded: false,
+  autoAdvanceMs: null,
+  scoresAfterEachAnswer: true,
   showIndividualScores: false,
   solo: false,
   groupVote: false,
@@ -252,7 +256,7 @@ describe('the big screen during play', () => {
     expect(root.textContent).toContain('I kept the flock of my father-in-law Jethro.');
     expect(root.querySelectorAll('.det-option')).toHaveLength(4);
     expect(root.querySelector('.det-letter')?.textContent).toBe('A');
-    expect(root.textContent).toContain('the room’s majority is the answer');
+    expect(root.textContent).toContain('the group’s majority is the answer');
   });
 
   it('tells a room playing in teams that each team decides for itself', () => {
@@ -295,13 +299,13 @@ describe('the big screen at the reveal', () => {
   it('says so when the room was split, and still shows the answer', () => {
     drawHost('reveal', { reveal: revealWith([groupRoom({ decided: null, correct: null })]) });
 
-    expect(root.textContent).toContain('The room was split — nobody scores');
+    expect(root.textContent).toContain('The group was split — nobody scores');
     expect(root.querySelector('.det-answer')?.textContent).toBe('Moses');
   });
 
   it('says what a wrong room chose, and when nobody voted', () => {
     drawHost('reveal', { reveal: revealWith([groupRoom({ decided: 'Aaron', correct: false })]) });
-    expect(root.textContent).toContain('The room chose Aaron — not this time');
+    expect(root.textContent).toContain('The group chose Aaron — not this time');
 
     drawHost('reveal', { reveal: revealWith([groupRoom({ split: [], decided: null, correct: null })]) });
     expect(root.textContent).toContain('Nobody voted');
@@ -338,7 +342,7 @@ describe('the phone during play', () => {
 
     expect(root.querySelector('.det-clue-text')?.textContent).toBe(PHONE_CASE.clue);
     expect(root.textContent).toContain('Only this phone has it.');
-    expect(root.textContent).toContain('the room needs every clue');
+    expect(root.textContent).toContain('the group needs every clue');
   });
 
   it('says so when another phone holds the same clue, and speaks of the team with teams on', () => {
@@ -454,7 +458,7 @@ describe('the phone at the reveal', () => {
     drawPhone('reveal', { reveal: REVEAL, yourResult: dissent });
 
     expect(root.querySelector('.det-answer')?.textContent).toBe('Moses');
-    expect(root.textContent).toContain('The room got it');
+    expect(root.textContent).toContain('The group got it');
     expect(root.textContent).toContain(PHONE_CASE.clue);
     expect(root.textContent).toContain('Exodus 17:6');
   });
@@ -463,7 +467,7 @@ describe('the phone at the reveal', () => {
     drawPhone('reveal', { reveal: REVEAL, yourResult: dissent });
 
     expect(root.querySelector('.det-own')?.textContent).toBe(
-      'You voted Aaron — the room carried it, and you score with them.'
+      'You voted Aaron — the group carried it, and you score with them.'
     );
   });
 
@@ -487,7 +491,7 @@ describe('the phone at the reveal', () => {
       yourResult: { ...dissent, correct: false, pointsAwarded: 0 },
     });
 
-    expect(root.textContent).toContain('The room was split — no answer');
+    expect(root.textContent).toContain('The group was split — no answer');
   });
 
   it('waits for a reveal it can read', () => {
@@ -528,5 +532,15 @@ describe('registration', () => {
     expect(registered).toBe(detectiveViews);
     expect(Object.keys(registered?.host ?? {}).sort()).toEqual(['answering', 'question', 'reveal']);
     expect(Object.keys(registered?.player ?? {}).sort()).toEqual(['answering', 'question', 'reveal']);
+  });
+});
+
+describe('the big screen has no controls', () => {
+  it('draws no button in any phase', () => {
+    for (const phase of ['question', 'answering', 'reveal'] as const) {
+      drawHost(phase, { reveal: phase === 'reveal' ? REVEAL : null });
+
+      expect(root.querySelector('button, [role="button"]'), phase).toBeNull();
+    }
   });
 });

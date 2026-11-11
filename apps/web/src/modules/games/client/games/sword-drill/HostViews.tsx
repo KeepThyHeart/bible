@@ -14,16 +14,10 @@
  * module's doc comment): the room is still racing the reference on the wall,
  * not reading the answer off it.
  *
- * Once someone taps, the screen names who is reading, because the host and the
- * room need to know whose voice to listen for. It never keeps a list of anyone
- * the host moved on from. The button that passes the turn says "Next in line"
- * rather than "Wrong": a reading that went astray is heard by the room once and
- * then left behind, and nothing on this screen makes a record of it.
- *
- * The confirm buttons wait until the reader's phone has reported in. That is
- * what puts their "found it" on file for the host's ruling to land on, and it
- * stops a double tap from confirming the next person before they have said a
- * word.
+ *  * Once someone taps, the screen names who is reading, because the room needs to
+ * know whose voice to listen for. It never keeps a list of anyone the organizer
+ * moved on from. The screen is read-only: calling on a reader, confirming and
+ * passing the turn are the organizer's, in `ControlViews.tsx`.
  *
  * This game runs two different clocks under the same timer bar, and a host
  * confirming a reading watches the number change meaning without changing
@@ -39,21 +33,19 @@
  * words, in each of the two views, rather than changing the timer itself.
  *
  * In the room's default mode (`buzzModeOf`), a phone has no "Found it"
- * button at all: the host reads the reference aloud, listens for whoever
- * found it, and taps that player's own name in `CallOnPanel` to put them on
- * the buzzer — same queue, same confirm/next-in-line flow, as if they had
- * tapped it themselves. `buttons` mode (the original mechanic, still on
- * offer for a room that wants it) hides that panel; the phones carry their
- * own button instead.
+ * button at all: the organizer reads the reference aloud, listens for whoever
+ * found it and calls on that player from their own device, which queues them
+ * exactly as if they had tapped it themselves. `buttons` mode (the original
+ * mechanic) puts the button on each phone instead.
  */
 
 import type { HostViewProps } from '../../shell/gameViews.js';
+import { gt } from '../../shell/t.js';
 import {
   buzzModeOf,
   confirmedIn,
   nameOf,
   namesOf,
-  placeOf,
   readDrill,
   readReveal,
   tappedCount,
@@ -74,7 +66,7 @@ function Reference({ drill, size }: { drill: Drill; size: 'huge' | 'large' }) {
       <p class={`sd-ref sd-ref-${size}`}>{drill.reference}</p>
       {drill.translation.length > 0 && <p class="sd-translation">{drill.translation}</p>}
       {drill.text !== undefined && (
-        <p class="sd-host-hint" aria-label="Verse text, for the host only">
+        <p class="sd-host-hint" aria-label={gt('games.swordDrill.view.verseHostOnly', 'Verse text, for the organizer only')}>
           {drill.text}
         </p>
       )}
@@ -97,39 +89,7 @@ function ConfirmedList({ heading, names }: { heading: string; names: readonly st
 }
 
 function tappedLine(count: number): string {
-  return count === 1 ? '1 tapped Found it' : `${count} tapped Found it`;
-}
-
-/**
- * The host's own way to put a reader on the buzzer, in `hostCalls` mode:
- * every connected player not already reading, waiting, spent or confirmed —
- * i.e. exactly who `placeOf` would call `free` on their own phone. A tap
- * sends `{cmd: 'callOn'}`, which the reducer treats exactly as that player's
- * own buzz: it queues behind whoever the room is already listening to.
- */
-function CallOnPanel({ snapshot, send }: HostViewProps) {
-  const candidates = snapshot.players.filter(
-    (player) => player.connected && placeOf(snapshot.buzz, player.id, snapshot.control?.spent ?? []).kind === 'free'
-  );
-  if (candidates.length === 0) return null;
-
-  return (
-    <div class="sd-call-on">
-      <p class="sd-label">Who found it?</p>
-      <div class="sd-call-on-grid" role="group" aria-label="Call on a reader">
-        {candidates.map((player) => (
-          <button
-            key={player.id}
-            type="button"
-            class="sd-call-on-button"
-            onClick={() => send({ cmd: 'callOn', playerId: player.id })}
-          >
-            {player.name}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
+  return count === 1 ? gt('games.swordDrill.view.tappedOne', '1 tapped Found it') : gt('games.swordDrill.view.tappedMany', '{count} tapped Found it', { count });
 }
 
 /**
@@ -140,34 +100,33 @@ function CallOnPanel({ snapshot, send }: HostViewProps) {
 export function HostQuestion(props: HostViewProps) {
   const { snapshot, view } = props;
   const drill = readDrill(view);
-  if (!drill) return <Nothing line="Nothing to find this round." />;
+  if (!drill) return <Nothing line={gt('games.swordDrill.view.nothingToFind', 'Nothing to find this round.')} />;
   const tapped = tappedCount(snapshot.buzz, snapshot.control?.spent ?? []);
   const soFar = namesOf(snapshot.players, confirmedIn(snapshot.buzz));
   const hostCalls = buzzModeOf(snapshot.settings.gameOptions) === 'hostCalls';
 
   return (
     <section class="sd sd-host">
-      <p class="sd-ask">Find it</p>
+      <p class="sd-ask">{gt('games.swordDrill.view.find', 'Find it')}</p>
       <Reference drill={drill} size="huge" />
       <p class="sd-hint">
         {hostCalls
-          ? 'Listen for a reader, keep your finger on the verse, and tap their name below.'
-          : 'Tap Found it on your phone, keep your finger on the verse, and be ready to read it aloud.'}
+          ? gt('games.swordDrill.view.hintCalls', 'Listen for a reader, keep your finger on the verse, and wait to be called on.')
+          : gt('games.swordDrill.view.hintButtons', 'Tap Found it on your phone, keep your finger on the verse, and be ready to read it aloud.')}
       </p>
       {tapped > 0 && (
         <p class="sd-count" role="status">
           {tappedLine(tapped)}
         </p>
       )}
-      {hostCalls && <CallOnPanel {...props} />}
       {soFar.length > 0 && (
         <>
-          <ConfirmedList heading="Confirmed so far" names={soFar} />
+          <ConfirmedList heading={gt('games.swordDrill.view.confirmedSoFar', 'Confirmed so far')} names={soFar} />
           {/* The search clock (above) pauses the instant someone buzzes and
-              picks back up, undiminished, once you rule on them — this is the
+              picks back up, undiminished, once the reader is ruled on — this is the
               search resuming, not restarting. See `sd-reader-note` for the
               other timer this round uses, while someone is reading aloud. */}
-          <p class="sd-hint">The clock pauses while you confirm a reader — no search time is lost.</p>
+          <p class="sd-hint">{gt('games.swordDrill.view.clockPauses', 'The clock pauses while a reader is confirmed — no search time is lost.')}</p>
         </>
       )}
     </section>
@@ -175,9 +134,9 @@ export function HostQuestion(props: HostViewProps) {
 }
 
 export function HostAnswering(props: HostViewProps) {
-  const { snapshot, view, send } = props;
+  const { snapshot, view } = props;
   const drill = readDrill(view);
-  if (!drill) return <Nothing line="Nothing to find this round." />;
+  if (!drill) return <Nothing line={gt('games.swordDrill.view.nothingToFind', 'Nothing to find this round.')} />;
 
   const queue = snapshot.buzz?.queue ?? [];
   const head = queue[0];
@@ -185,60 +144,26 @@ export function HostAnswering(props: HostViewProps) {
   // search is what the room is doing, so the search is what it sees.
   if (!head) return <HostQuestion {...props} />;
 
-  const name = nameOf(snapshot.players, head.playerId) ?? 'The next reader';
-  // `pendingJudge` lives on the control block now: present only on the
-  // screen that actually holds control (see `ControlPanel`'s own doc
-  // comment on the protocol). A screen that has handed control away simply
-  // never sees this become true, so the buttons below stay disabled there.
-  const ready = snapshot.control?.pendingJudge?.playerId === head.playerId;
+  const name = nameOf(snapshot.players, head.playerId) ?? gt('games.swordDrill.control.nextReader', 'The next reader');
   const waiting = queue.length - 1;
   const soFar = namesOf(snapshot.players, confirmedIn(snapshot.buzz));
-  const hostCalls = buzzModeOf(snapshot.settings.gameOptions) === 'hostCalls';
 
   return (
     <section class="sd sd-host">
       <Reference drill={drill} size="large" />
       <div class="sd-reader-card">
-        <p class="sd-label">Reading aloud</p>
+        <p class="sd-label">{gt('games.swordDrill.view.readingAloud', 'Reading aloud')}</p>
         <p class="sd-reader">{name}</p>
         {waiting > 0 && (
-          <p class="sd-count">{waiting === 1 ? '1 more in line' : `${waiting} more in line`}</p>
+          <p class="sd-count">{waiting === 1 ? gt('games.swordDrill.view.oneMore', '1 more in line') : gt('games.swordDrill.view.manyMore', '{count} more in line', { count: waiting })}</p>
         )}
         {/* The number above is now {name}'s own time to answer, not the room's
             search clock — a fresh window every time someone reaches the head
             of the queue, on purpose, so a new reader is never shorted by
             whatever the room used up finding the verse. */}
-        <p class="sd-hint sd-reader-note">{name}’s own time to answer — the search clock is paused.</p>
+        <p class="sd-hint sd-reader-note">{gt('games.swordDrill.view.ownTime', '{name}’s own time to answer — the search clock is paused.', { name })}</p>
       </div>
-      <div class="sd-judge" role="group" aria-label={`Did ${name} find it?`}>
-        <button
-          type="button"
-          class="sd-confirm"
-          disabled={!ready}
-          onClick={() => send({ cmd: 'judge', verdict: 'correct' })}
-        >
-          Confirm
-        </button>
-        <button
-          type="button"
-          class="sd-pass"
-          disabled={!ready}
-          onClick={() => send({ cmd: 'judge', verdict: 'incorrect' })}
-        >
-          Next in line
-        </button>
-      </div>
-      {!ready && (
-        <p class="sd-hint" role="status">
-          Waiting for {name}’s phone…
-        </p>
-      )}
-      {/* A second (or third) reader can still be waiting behind {name} — call
-          them on now, so they are already queued the moment {name}'s turn
-          ends, the same as a second phone tapping Found it while the first
-          reads. */}
-      {hostCalls && <CallOnPanel {...props} />}
-      {soFar.length > 0 && <ConfirmedList heading="Confirmed so far" names={soFar} />}
+      {soFar.length > 0 && <ConfirmedList heading={gt('games.swordDrill.view.confirmedSoFar', 'Confirmed so far')} names={soFar} />}
     </section>
   );
 }
@@ -250,7 +175,7 @@ export function HostAnswering(props: HostViewProps) {
  */
 export function HostReveal({ snapshot, reveal }: HostViewProps) {
   const detail = readReveal(reveal?.detail);
-  if (!reveal || !detail) return <Nothing line="Nothing to show for this round." />;
+  if (!reveal || !detail) return <Nothing line={gt('games.swordDrill.view.nothingToShow', 'Nothing to show for this round.')} />;
 
   const names = namesOf(snapshot.players, detail.confirmed);
   const confirmed = detail.confirmed.length;
@@ -258,7 +183,7 @@ export function HostReveal({ snapshot, reveal }: HostViewProps) {
 
   return (
     <section class="sd sd-host sd-reveal">
-      <p class="sd-label">The verse</p>
+      <p class="sd-label">{gt('games.swordDrill.view.theVerse', 'The verse')}</p>
       <h2 class="sd-answer">{detail.reference}</h2>
       {detail.text.length > 0 && (
         <figure class="sd-quote">
@@ -268,9 +193,9 @@ export function HostReveal({ snapshot, reveal }: HostViewProps) {
           )}
         </figure>
       )}
-      {names.length > 0 && <ConfirmedList heading="Found and read aloud" names={names} />}
+      {names.length > 0 && <ConfirmedList heading={gt('games.swordDrill.view.foundAndRead', 'Found and read aloud')} names={names} />}
       <p class="sd-count">
-        {confirmed === 1 ? '1 confirmed' : `${confirmed} confirmed`}
+        {confirmed === 1 ? gt('games.swordDrill.view.confirmedOne', '1 confirmed') : gt('games.swordDrill.view.confirmedMany', '{count} confirmed', { count: confirmed })}
         {tapped > 0 && ` · ${tappedLine(tapped)}`}
       </p>
     </section>

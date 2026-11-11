@@ -38,42 +38,45 @@ describe('PhoneHeaderActions dialogs', () => {
       render(<PhoneHeaderActions code="5HK27" joinUrl="https://x.test/play?room=5HK27" themeControl={control} onLeave={() => undefined} />, host);
     });
   }
-  const opener = (name: string) =>
-    [...host.querySelectorAll<HTMLButtonElement>('button.icon-button')].find((b) => b.textContent?.includes(name))!;
+  const toggle = () => host.querySelector<HTMLButtonElement>('button[aria-haspopup="menu"]')!;
+  const item = (name: string) =>
+    [...host.querySelectorAll<HTMLButtonElement>('[role="menuitem"]')].find((b) => b.textContent?.includes(name))!;
+  /** Opens the menu and chooses an item, the way a tap does. */
+  function choose(name: string): HTMLButtonElement {
+    toggle().focus();
+    act(() => toggle().click());
+    const picked = item(name);
+    picked.focus();
+    act(() => picked.click());
+    return picked;
+  }
 
-  it('Settings is a modal dialog: focus moves in, background is inert, Escape closes and focus returns to the opener', async () => {
+  it('Settings is a modal dialog: focus moves in, background is inert, Escape closes and focus returns to the menu button', () => {
     draw();
-    const settings = opener('Settings');
-    settings.focus();
-    act(() => settings.click());
-    await act(async () => { await new Promise((r) => setTimeout(r, 30)); });
+    choose('Settings');
     const dialog = host.querySelector('[role="dialog"]') as HTMLElement;
     expect(dialog.getAttribute('aria-modal')).toBe('true');
     expect(dialog.contains(document.activeElement)).toBe(true);
-    expect(opener('Leave').hasAttribute('inert')).toBe(true);
+    expect(toggle().hasAttribute('inert')).toBe(true);
     key(document.body, 'Escape');
-    await act(async () => { await new Promise((r) => setTimeout(r, 30)); });
     expect(host.querySelector('[role="dialog"]')).toBeNull();
-    expect(document.activeElement).toBe(opener('Settings'));
+    expect(document.activeElement).toBe(toggle());
   });
 
-  it('Leave -> Stay returns focus to the Leave button', async () => {
+  it('Leave -> Stay returns focus to the menu button', () => {
     draw();
-    const leave = opener('Leave');
-    leave.focus();
-    act(() => leave.click());
-    await act(async () => { await new Promise((r) => setTimeout(r, 30)); });
+    choose('Leave');
     const dialog = host.querySelector('[role="dialog"]') as HTMLElement;
     expect(dialog.getAttribute('aria-modal')).toBe('true');
     const stay = [...dialog.querySelectorAll('button')].find((b) => b.textContent === 'Stay')!;
     act(() => stay.click());
-    await act(async () => { await new Promise((r) => setTimeout(r, 30)); });
-    expect(document.activeElement).toBe(opener('Leave'));
+    expect(document.activeElement).toBe(toggle());
   });
 
-  it('the Theme button names the current theme', () => {
+  it('the Theme item names the current theme', () => {
     draw();
-    expect(opener('Theme').getAttribute('aria-label')).toContain('Light');
+    act(() => toggle().click());
+    expect(item('Theme').getAttribute('aria-label')).toContain('Light');
   });
 });
 
@@ -81,7 +84,7 @@ describe('ThemeEditor radios', () => {
   it('uses radio semantics with a roving tabindex and arrow keys', () => {
     const picked: ThemeTokens[] = [];
     act(() => {
-      render(<ThemeEditor theme={LIGHT_THEME} onChange={(t) => picked.push(t)} label="Room theme" />, host);
+      render(<ThemeEditor theme={LIGHT_THEME} onChange={(t) => picked.push(t)} label="Game theme" />, host);
     });
     const radios = [...host.querySelectorAll<HTMLElement>('[role="radio"]')];
     expect(radios.length).toBeGreaterThan(1);

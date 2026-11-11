@@ -62,6 +62,10 @@ function settingsWith(overrides: Partial<RoomSettings> = {}): RoomSettings {
     teamsEnabled: false,
     rounds: 5,
     answerWindowMs: 20_000,
+    teamCount: 2,
+    openEnded: false,
+    autoAdvanceMs: null,
+    scoresAfterEachAnswer: true,
     showIndividualScores: false,
     solo: false,
     groupVote: false,
@@ -596,7 +600,9 @@ describe('teams voting together, through the room', () => {
     TEAMS.forEach(([playerId, teamId], position) => {
       state = apply(state, { role: 'player', playerId }, { kind: 'join', name: playerId, teamId }, 1_100 + position);
     });
-    return apply(state, HOST, { kind: 'host', command: { cmd: 'start' } }, STARTED);
+    const started = apply(state, HOST, { kind: 'host', command: { cmd: 'start' } }, STARTED);
+    // Past how to play, straight into the first round.
+    return apply(started, HOST, { kind: 'host', command: { cmd: 'nextRound' } }, STARTED);
   }
 
   /**
@@ -743,5 +749,16 @@ describe('teams voting together, through the room', () => {
     expect(JSON.stringify(voting.playerView)).not.toContain('correct');
     expect(voting.hostView).toBe(voting.playerView);
     expect(Object.keys(viewOf(normal))).not.toContain('groupVote');
+  });
+});
+
+describe('the answer shown before the reveal', () => {
+  it('is the same answer the reveal will name', () => {
+    const game = createWhoAmI();
+    const round: Round<WhoAmISecret | null> = { index: 0, secret: SECRET, hostView: null, playerView: null };
+    const preview = game.answerPreview?.(round);
+
+    expect(preview).toBeTruthy();
+    expect(preview).toBe(game.scoreRound(round, [], { seats: [], log: [] }).correctLabel);
   });
 });

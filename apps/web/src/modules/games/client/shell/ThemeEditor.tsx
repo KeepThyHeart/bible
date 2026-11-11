@@ -16,10 +16,11 @@ import { useRef } from 'preact/hooks';
 import {
   THEME_PRESETS,
   THEME_PRESET_IDS,
-  THEME_PRESET_LABELS,
   presetIdOf,
   type ThemeTokens,
 } from '../../shared/theme.js';
+import { themeName } from './gameLabels.js';
+import { gt } from './t.js';
 
 export interface ThemeEditorProps {
   theme: ThemeTokens;
@@ -28,7 +29,7 @@ export interface ThemeEditorProps {
   label?: string;
 }
 
-export function ThemeEditor({ theme, onChange, label = 'Theme' }: ThemeEditorProps) {
+export function ThemeEditor({ theme, onChange, label = gt('games.phone.theme', 'Theme') }: ThemeEditorProps) {
   const activePreset = presetIdOf(theme);
   const groupRef = useRef<HTMLDivElement>(null);
   const ids = THEME_PRESET_IDS.filter((id) => THEME_PRESETS[id]);
@@ -69,7 +70,7 @@ export function ThemeEditor({ theme, onChange, label = 'Theme' }: ThemeEditorPro
               style={{ '--swatch': preset.accent, '--swatch-bg': preset.bg, '--swatch-fg': preset.fg }}
               onClick={() => onChange(preset)}
             >
-              {THEME_PRESET_LABELS[id]}
+              {themeName(id)}
             </button>
           );
         })}

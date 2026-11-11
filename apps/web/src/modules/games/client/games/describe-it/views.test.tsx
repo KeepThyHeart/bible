@@ -37,6 +37,10 @@ const SETTINGS: RoomSettings = {
   teamsEnabled: true,
   rounds: 8,
   answerWindowMs: 20_000,
+  teamCount: 2,
+  openEnded: false,
+  autoAdvanceMs: null,
+  scoresAfterEachAnswer: true,
   showIndividualScores: false,
   solo: false,
   groupVote: false,
@@ -400,5 +404,19 @@ describe('the end of a turn', () => {
     );
     expect(screen.textContent).toContain('Blue team got 5');
     expect(screen.textContent).toContain('You’re describing next');
+  });
+});
+
+describe('the big screen has no controls', () => {
+  it('draws no button in any phase', () => {
+    for (const phase of ['question', 'answering', 'reveal'] as const) {
+      drawHost(
+        describeItViews.host[phase],
+        hostSnapshot({ phase }),
+        phase === 'reveal' ? REVEAL : null
+      );
+
+      expect(screen.querySelector('button, [role="button"]'), phase).toBeNull();
+    }
   });
 });

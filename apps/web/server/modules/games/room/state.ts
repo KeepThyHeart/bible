@@ -146,7 +146,7 @@ export interface RoomState {
   deniedControlPlayers: PlayerId[];
   /** Any screen connected. Written by the transport, like `connected`. */
   screenPresent: boolean;
-  /** An owner-credentialled screen connected. Decides whether owner-held control is attended. */
+  /** An owner-credentialled stream connected, screen or remote. Decides whether owner-held control is attended. */
   ownerPresent: boolean;
 
   phase: PhaseName;
@@ -249,8 +249,13 @@ export const DEFAULT_SETTINGS: RoomSettings = {
   familiarity: 'broad',
   translation: 'KJV',
   teamsEnabled: false,
+  teamCount: 2,
   rounds: 10,
+  openEnded: false,
   answerWindowMs: 20_000,
+  // Off until a room asks: the organizer moving on is the expected rhythm.
+  autoAdvanceMs: null,
+  scoresAfterEachAnswer: true,
   // Off by design: the big screen shows a top three, never a bottom.
   showIndividualScores: false,
   solo: false,
@@ -383,15 +388,17 @@ export function withConnected(
 }
 
 /**
- * Screen presence, following `withConnected`'s own precedent: not an intent,
- * nobody asked for it, and it must not enter the intent stream. The
- * transport calls this on a screen stream's subscribe and close.
+ * Screen and owner presence, following `withConnected`'s own precedent: not an
+ * intent, nobody asked for it, and it must not enter the intent stream. The
+ * transport calls this whenever a screen or remote stream opens or closes.
+ * `ownerAttended` is any stream the owner credential opened — the owner screen
+ * or the organizer's remote — since either means someone is running the room.
  */
 export function withScreenPresence(
   state: RoomState,
-  presence: { anyScreen: boolean; ownerScreen: boolean }
+  presence: { anyScreen: boolean; ownerAttended: boolean }
 ): RoomState {
-  return { ...state, screenPresent: presence.anyScreen, ownerPresent: presence.ownerScreen };
+  return { ...state, screenPresent: presence.anyScreen, ownerPresent: presence.ownerAttended };
 }
 
 // ---------------------------------------------------------------------------

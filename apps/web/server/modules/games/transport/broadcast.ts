@@ -28,6 +28,10 @@ export function sendSnapshot(context: TransportContext, room: Room, subscriber: 
     subscriber.send({ type: 'snapshot', snapshot });
     return;
   }
+  if (subscriber.role.kind === 'remote') {
+    subscriber.send({ type: 'snapshot', snapshot: context.port.projectForRemote(room.state) });
+    return;
+  }
 
   const snapshot = context.port.projectForPlayer(room.state, subscriber.role.playerId);
   if (snapshot === null) {
@@ -74,10 +78,13 @@ export function sendFullStandings(context: TransportContext, room: Room): void {
  * Whether this subscriber is the room's current controller. Read from the
  * same `controller` field every snapshot already carries, rather than from
  * state directly — state stays opaque to the transport even here. A
- * display-credentialled screen is never the controller, whatever else is
+ * display screen is never the controller, whatever else is
  * happening in the room.
  */
 function isController(context: TransportContext, room: Room, subscriber: Subscriber): boolean {
+  if (subscriber.role.kind === 'remote') {
+    return context.port.projectForRemote(room.state).controller.kind === 'owner';
+  }
   if (subscriber.role.kind === 'screen') {
     if (!subscriber.role.owner) return false;
     return context.port.projectForScreen(room.state, true).controller.kind === 'owner';
@@ -108,7 +115,7 @@ export function sendReveal(context: TransportContext, room: Room, round: number)
 
   for (const subscriber of [...room.subscribers]) {
     if (subscriber.closed) continue;
-    if (subscriber.role.kind === 'screen') {
+    if (subscriber.role.kind === 'screen' || subscriber.role.kind === 'remote') {
       subscriber.send({ type: 'reveal', reveal, yourResult: null });
       continue;
     }

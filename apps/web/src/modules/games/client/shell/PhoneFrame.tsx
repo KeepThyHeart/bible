@@ -11,17 +11,25 @@
 
 import type { ComponentChildren } from 'preact';
 import { useEffect } from 'preact/hooks';
-import type { PersonalResult, PlayerSnapshot } from '../../shared/protocol.js';
+import type { GameId, PersonalResult, PlayerSnapshot } from '../../shared/protocol.js';
 import { PhoneHeaderActions } from './PhoneHeaderActions.js';
 import { TimerBar } from './TimerBar.js';
 import { ordinal, teamColour, teamLabel } from './teams.js';
 import type { ThemeControl } from './theme.js';
 import type { StreamStatus } from './useRoomStream.js';
 import { gt } from './t.js';
+import { gameName } from './gameLabels.js';
+import '../styles/phone.css';
 import { useHeadingFocus } from './useHeadingFocus.js';
 
 /** The top three is the whole of what a phone may be told about its position. */
 export const RANK_SHOWN_THROUGH = 3;
+
+/** The game's name for a phone that only has its id: the translated name, else the id read as words. */
+export function phoneGameName(id: GameId): string {
+  const words = id.replace(/-/g, ' ');
+  return gameName(id, `${words.charAt(0).toUpperCase()}${words.slice(1)}`);
+}
 
 export function rankToShow(rank: number | null): number | null {
   return rank !== null && rank >= 1 && rank <= RANK_SHOWN_THROUGH ? rank : null;
@@ -71,7 +79,7 @@ export function PhoneFrame({
   }, [phase, round]);
   // `round` is the index intents carry, counted from zero. People count from
   // one, and a lobby is not question zero of ten — it is not a question yet.
-  const inRound = phase !== 'lobby' && phase !== 'summary';
+  const inRound = phase !== 'lobby' && phase !== 'summary' && phase !== 'intro';
   const rank = rankToShow(snapshot.yourRank);
 
   return (
@@ -86,13 +94,21 @@ export function PhoneFrame({
     >
       <header class="phone-chrome">
         <div class="chrome-row">
-          <span class="chrome-code" aria-label={gt('games.frame.roomAria', 'Room {code}', { code: code.split('').join(' ') })}>
-            #{code}
-          </span>
-          {inRound && (
+          {inRound ? (
             <span class="chrome-round">
-              {snapshot.chrome?.roundWord ?? 'Q'} {round + 1} / {totalRounds}
+              {settings.openEnded
+                ? gt('games.phone.roundOpen', '{word} {n}', {
+                    word: snapshot.chrome?.roundWord ?? gt('games.phone.question', 'Question'),
+                    n: round + 1,
+                  })
+                : gt('games.phone.roundOf', '{word} {n} of {total}', {
+                    word: snapshot.chrome?.roundWord ?? gt('games.phone.question', 'Question'),
+                    n: round + 1,
+                    total: totalRounds,
+                  })}
             </span>
+          ) : (
+            <span class="chrome-game">{phoneGameName(settings.gameId)}</span>
           )}
           {settings.teamsEnabled && (
             <span class="team-chip" data-team={you.teamId ?? 'none'}>
@@ -124,7 +140,13 @@ export function PhoneFrame({
 
       <footer class="phone-score">
         <span class="score-total">
-          {gt('games.frame.total', 'Total')} <strong>{snapshot.yourScore}</strong>
+          {gt('games.phone.scoreYou', 'You:')} <strong>{snapshot.yourScore}</strong>
+          {rank !== null && (
+            <span class="score-rank">
+              {' '}
+              {gt('games.phone.scoreRank', '· {rank}', { rank: ordinal(rank) })}
+            </span>
+          )}
         </span>
         {yourResult !== null && (
           <span class="score-delta" data-correct={yourResult.correct ? 'true' : 'false'}>
@@ -132,7 +154,6 @@ export function PhoneFrame({
             {yourResult.pointsAwarded}
           </span>
         )}
-        {rank !== null && <span class="score-rank">{ordinal(rank)}</span>}
       </footer>
     </div>
   );

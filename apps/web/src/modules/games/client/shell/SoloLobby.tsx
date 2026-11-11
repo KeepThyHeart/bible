@@ -69,7 +69,7 @@ export function SoloLobby({
   return (
     <main class="screen screen-lobby screen-solo-lobby centre">
       <Brand />
-      <p class="lobby-name">{gt('games.solo.onYourOwn', 'On your own — nobody else can see this room.')}</p>
+      <p class="lobby-name">{gt('games.solo.onYourOwn', 'On your own — nobody else can see this game.')}</p>
 
       {noBibleModule && (
         <p class="alert" role="alert">
@@ -102,7 +102,7 @@ export function SoloLobby({
 
         {showSet && (
           <label class="field">
-            <span class="field-label">{gt('games.lobby.set', 'Set')}</span>
+            <span class="field-label">{gt('games.lobby.set', 'Topic')}</span>
             <select
               value={settings.setId ?? ''}
               onChange={(event) =>
@@ -137,7 +137,7 @@ export function SoloLobby({
 
         {showFamiliarity && (
           <label class="field">
-            <span class="field-label">{gt('games.lobby.howWellKnown', 'How well known')}</span>
+            <span class="field-label">{gt('games.lobby.howWellKnown', 'Difficulty')}</span>
             <select
               value={settings.familiarity}
               onChange={(event) => onSettings({ familiarity: event.currentTarget.value as Familiarity })}

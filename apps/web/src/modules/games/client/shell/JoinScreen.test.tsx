@@ -42,14 +42,14 @@ describe('the room code field', () => {
     type(input, 'abcd2345');
     expect(input.value).toBe('CD2345');
     const status = host.querySelector('[role="status"]')!;
-    expect(status.textContent).toContain('Room codes only use these characters: 2 3 4 5 6 7 8 9 C D E F H J K M');
+    expect(status.textContent).toContain('Game codes only use these characters: 2 3 4 5 6 7 8 9 C D E F H J K M');
 
     type(input, 'zzzz');
     expect(input.value).toBe('');
-    expect(host.querySelector('[role="status"]')!.textContent).toContain('Room codes only use these characters');
+    expect(host.querySelector('[role="status"]')!.textContent).toContain('Game codes only use these characters');
 
     type(input, 'cd23');
-    expect(host.querySelector('[role="status"]')!.textContent).not.toContain('Room codes only use');
+    expect(host.querySelector('[role="status"]')!.textContent).not.toContain('Game codes only use');
   });
 
   it('does not complain about spaces and dashes, which are only tidied away', () => {
@@ -57,7 +57,7 @@ describe('the room code field', () => {
     const input = host.querySelector<HTMLInputElement>('input[name="room-code"]')!;
     type(input, 'cd2-34');
     expect(input.value).toBe('CD234');
-    expect(host.querySelector('[role="status"]')!.textContent).not.toContain('Room codes only use');
+    expect(host.querySelector('[role="status"]')!.textContent).not.toContain('Game codes only use');
   });
 
   it('takes focus back after a refused join', () => {

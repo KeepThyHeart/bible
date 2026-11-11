@@ -29,6 +29,30 @@ export const whoAmIViews: GameViews = {
     answering: PhoneAnswering,
     reveal: PhoneReveal,
   },
+  card: {
+    descriptionKey: 'games.whoAmI.card.description',
+    descriptionFallback: 'Clues about a person, vaguest first. Name them early for more.',
+    tags: ['everyone'],
+    minutes: 10,
+  },
+  howToPlay: {
+    summaryKey: 'games.whoAmI.howToPlay.summary',
+    summaryFallback: 'Clues about a person from the Bible appear one at a time, vaguest first.',
+    steps: [
+      {
+        key: 'games.whoAmI.howToPlay.stepPick',
+        fallback: 'Tap who you think it is. You get one guess.',
+      },
+      {
+        key: 'games.whoAmI.howToPlay.stepPoints',
+        fallback: '100 points for a right answer at the first clue, and 20 less for each clue after that.',
+      },
+      {
+        key: 'games.whoAmI.howToPlay.stepWrong',
+        fallback: 'A wrong guess sits you out for the rest of the question.',
+      },
+    ],
+  },
 };
 
 registerGameViews(whoAmIViews);

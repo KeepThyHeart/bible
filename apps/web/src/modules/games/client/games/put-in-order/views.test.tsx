@@ -35,6 +35,10 @@ const SETTINGS: RoomSettings = {
   teamsEnabled: false,
   rounds: 8,
   answerWindowMs: 20_000,
+  teamCount: 2,
+  openEnded: false,
+  autoAdvanceMs: null,
+  scoresAfterEachAnswer: true,
   showIndividualScores: false,
   solo: false,
   groupVote: false,
@@ -458,5 +462,15 @@ describe('registration', () => {
     expect(registered).toBe(putInOrderViews);
     expect(Object.keys(registered?.host ?? {}).sort()).toEqual(['answering', 'question', 'reveal']);
     expect(Object.keys(registered?.player ?? {}).sort()).toEqual(['answering', 'question', 'reveal']);
+  });
+});
+
+describe('the big screen has no controls', () => {
+  it('draws no button in any phase', () => {
+    for (const phase of ['question', 'answering', 'reveal'] as const) {
+      drawHost(phase, QUESTION, phase === 'reveal' ? REVEAL : null);
+
+      expect(host.querySelector('button, [role="button"]'), phase).toBeNull();
+    }
   });
 });

@@ -96,6 +96,8 @@ function open(settings: Partial<RoomSettings>, seats: readonly [PlayerId, TeamId
     step(player(id), intent, T0 - 5_000 + index);
   });
   host({ cmd: 'start' }, T0);
+  // Past how to play, straight into the first round.
+  host({ cmd: 'nextRound' }, T0);
 }
 
 /** Red: anna, caleb, eve. Blue: dinah. Uneven on purpose. */

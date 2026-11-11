@@ -23,7 +23,8 @@
 
 import { useEffect, useState } from 'preact/hooks';
 import type { PlayerViewProps } from '../../shell/gameViews.js';
-import { AWAITING_REVEAL, AWAITING_ROUND } from '../../shell/waitingCopy.js';
+import { gt } from '../../shell/t.js';
+import { awaitingReveal, awaitingRound } from '../../shell/waitingCopy.js';
 import { buzzModeOf, placeOf, pressedAt, readDrill, readReveal } from './payload.js';
 import type { Place } from './payload.js';
 
@@ -32,7 +33,7 @@ function Nothing({ line }: { line: string }) {
 }
 
 function waitingLine(ahead: number): string {
-  return ahead === 1 ? 'You are next.' : `${ahead} ahead of you.`;
+  return ahead === 1 ? gt('games.swordDrill.view.youAreNext', 'You are next.') : gt('games.swordDrill.view.ahead', '{count} ahead of you.', { count: ahead });
 }
 
 function Status({ place, tapped }: { place: Place; tapped: boolean }) {
@@ -40,28 +41,28 @@ function Status({ place, tapped }: { place: Place; tapped: boolean }) {
     case 'reading':
       return (
         <div class="sd-status" data-tone="now" role="status">
-          <p class="sd-status-main">Read it aloud now</p>
-          <p class="sd-status-sub">The host is listening.</p>
+          <p class="sd-status-main">{gt('games.swordDrill.view.readNow', 'Read it aloud now')}</p>
+          <p class="sd-status-sub">{gt('games.swordDrill.view.organizerListening', 'The organizer is listening.')}</p>
         </div>
       );
     case 'waiting':
       return (
         <div class="sd-status" role="status">
-          <p class="sd-status-main">Found it — you’re in line</p>
-          <p class="sd-status-sub">Keep your finger on the verse. {waitingLine(place.ahead)}</p>
+          <p class="sd-status-main">{gt('games.swordDrill.view.inLine', 'Found it — you’re in line')}</p>
+          <p class="sd-status-sub">{gt('games.swordDrill.view.keepFinger', 'Keep your finger on the verse.')} {waitingLine(place.ahead)}</p>
         </div>
       );
     case 'confirmed':
       return (
         <div class="sd-status" data-tone="good" role="status">
-          <p class="sd-status-main">Confirmed — well found</p>
+          <p class="sd-status-main">{gt('games.swordDrill.view.confirmedWell', 'Confirmed — well found')}</p>
         </div>
       );
     case 'passed':
       return (
         <div class="sd-status" role="status">
-          <p class="sd-status-main">Not that one this time</p>
-          <p class="sd-status-sub">The verse goes up at the reveal.</p>
+          <p class="sd-status-main">{gt('games.swordDrill.view.notThatOne', 'Not that one this time')}</p>
+          <p class="sd-status-sub">{gt('games.swordDrill.view.verseAtReveal', 'The verse goes up at the reveal.')}</p>
         </div>
       );
     case 'free':
@@ -69,7 +70,7 @@ function Status({ place, tapped }: { place: Place; tapped: boolean }) {
       // someone unsure their tap landed taps again.
       return tapped ? (
         <div class="sd-status" role="status">
-          <p class="sd-status-main">Found it — you’re in line</p>
+          <p class="sd-status-main">{gt('games.swordDrill.view.inLine', 'Found it — you’re in line')}</p>
         </div>
       ) : null;
   }
@@ -79,8 +80,8 @@ function Status({ place, tapped }: { place: Place; tapped: boolean }) {
 function RaiseYourHand() {
   return (
     <div class="sd-status" role="status">
-      <p class="sd-status-main">Found it? Raise your hand.</p>
-      <p class="sd-status-sub">The host will call on you.</p>
+      <p class="sd-status-main">{gt('games.swordDrill.view.raiseHand', 'Found it? Raise your hand.')}</p>
+      <p class="sd-status-sub">{gt('games.swordDrill.view.organizerWillCall', 'The organizer will call on you.')}</p>
     </div>
   );
 }
@@ -104,7 +105,7 @@ export function PhoneSearch({ snapshot, view, send }: PlayerViewProps) {
     send({ kind: 'answer', round, value: { type: 'found' } });
   }, [reading, youAnswered, paused, phase, round, send]);
 
-  if (!drill) return <Nothing line={AWAITING_ROUND} />;
+  if (!drill) return <Nothing line={awaitingRound()} />;
 
   const tapped = tappedRound === round;
   const canTap = mode === 'buttons' && place.kind === 'free' && !tapped;
@@ -118,12 +119,12 @@ export function PhoneSearch({ snapshot, view, send }: PlayerViewProps) {
 
   return (
     <section class="sd sd-phone">
-      <p class="sd-ask">Find</p>
+      <p class="sd-ask">{gt('games.swordDrill.view.findShort', 'Find')}</p>
       <p class="sd-ref sd-ref-phone">{drill.reference}</p>
       {drill.translation.length > 0 && <p class="sd-translation">{drill.translation}</p>}
       {canTap ? (
         <button type="button" class="sd-found" disabled={paused} onClick={tap}>
-          Found it
+          {gt('games.swordDrill.view.foundIt', 'Found it')}
         </button>
       ) : mode === 'hostCalls' && place.kind === 'free' ? (
         <RaiseYourHand />
@@ -141,27 +142,27 @@ export function PhoneSearch({ snapshot, view, send }: PlayerViewProps) {
  */
 export function PhoneReveal({ snapshot, reveal, yourResult }: PlayerViewProps) {
   const detail = readReveal(reveal?.detail);
-  if (!reveal || !detail) return <Nothing line={AWAITING_REVEAL} />;
+  if (!reveal || !detail) return <Nothing line={awaitingReveal()} />;
 
   const place = placeOf(snapshot.buzz, snapshot.you.id, snapshot.youAreSpent ? [snapshot.you.id] : []);
   let line: string;
   let tone: 'good' | 'quiet' = 'quiet';
   if (yourResult?.correct || place.kind === 'confirmed') {
-    line = 'Confirmed — well found.';
+    line = gt('games.swordDrill.view.confirmedWellDot', 'Confirmed — well found.');
     tone = 'good';
   } else if (yourResult !== null) {
-    line = yourResult.note ?? 'Not that one this time.';
+    line = yourResult.note ?? gt('games.swordDrill.view.notThatOneDot', 'Not that one this time.');
   } else if (place.kind === 'passed') {
-    line = 'Not that one this time.';
+    line = gt('games.swordDrill.view.notThatOneDot', 'Not that one this time.');
   } else if (place.kind === 'reading' || place.kind === 'waiting') {
-    line = 'You found it too.';
+    line = gt('games.swordDrill.view.foundToo', 'You found it too.');
   } else {
-    line = 'Here it is, for next time.';
+    line = gt('games.swordDrill.view.hereItIs', 'Here it is, for next time.');
   }
 
   return (
     <section class="sd sd-phone sd-reveal">
-      <p class="sd-label">The verse</p>
+      <p class="sd-label">{gt('games.swordDrill.view.theVerse', 'The verse')}</p>
       <h2 class="sd-answer">{detail.reference}</h2>
       {detail.text.length > 0 && <blockquote class="sd-verse sd-verse-phone">{detail.text}</blockquote>}
       {detail.translation.length > 0 && <p class="sd-translation">{detail.translation}</p>}

@@ -9,25 +9,27 @@
  */
 
 import type { PlayerSnapshot, ScreenSnapshot } from '../../shared/protocol.js';
-import { TEAM_LABELS, ordinal } from './teams.js';
+import { ordinal, teamLabel } from './teams.js';
 import { rankToShow } from './PhoneFrame.js';
+import { gt } from './t.js';
+import { waitingForOrganizer } from './waitingCopy.js';
 
 export function HostSummary({ snapshot }: { snapshot: ScreenSnapshot }) {
   const { standings, teamStandings, settings } = snapshot;
 
   return (
     <section class="summary">
-      <h2>That is the game</h2>
+      <h2>{gt('games.summary.thatIsTheGame', 'That is the game')}</h2>
 
       {settings.teamsEnabled && teamStandings.length > 0 && (
         <ol class="team-standings">
           {teamStandings.map((team) => (
             <li key={team.teamId} data-team={team.teamId}>
               <span class="team-swatch" aria-hidden="true" />
-              <span class="team-name">{TEAM_LABELS[team.teamId]}</span>
+              <span class="team-name">{teamLabel(team.teamId)}</span>
               <span class="team-score">{team.score}</span>
               <span class="muted small">
-                {team.playerCount} {team.playerCount === 1 ? 'player' : 'players'}
+                {team.playerCount === 1 ? gt('games.screen.onePlayer', '1 player') : gt('games.screen.playerCount', '{count} players', { count: team.playerCount })}
               </span>
             </li>
           ))}
@@ -49,17 +51,22 @@ export function HostSummary({ snapshot }: { snapshot: ScreenSnapshot }) {
   );
 }
 
+/**
+ * A player's own result. A phone that is not running the game is told what
+ * the room is waiting on; a phone that holds control is given the organizer's
+ * summary beside this one instead.
+ */
 export function PhoneSummary({ snapshot }: { snapshot: PlayerSnapshot }) {
   const rank = rankToShow(snapshot.yourRank);
 
   return (
     <section class="summary">
-      <h2>Well played</h2>
+      <h2>{gt('games.summary.wellPlayed', 'Well played')}</h2>
       <p class="final-total">
-        Your total <strong>{snapshot.yourScore}</strong>
+        {gt('games.phone.scoreYou', 'You:')} <strong>{snapshot.yourScore}</strong>
+        {rank !== null && ` ${gt('games.phone.scoreRank', '· {rank}', { rank: ordinal(rank) })}`}
       </p>
-      {rank !== null && <p class="final-rank">{ordinal(rank)} place</p>}
-      <p class="muted">Look up at the big screen.</p>
+      {snapshot.control === undefined && <p class="muted">{waitingForOrganizer()}</p>}
     </section>
   );
 }
@@ -73,11 +80,11 @@ export function PhoneSummary({ snapshot }: { snapshot: PlayerSnapshot }) {
 export function SoloSummary({ snapshot }: { snapshot: PlayerSnapshot }) {
   return (
     <section class="summary">
-      <h2>That’s the game</h2>
+      <h2>{gt('games.summary.thatsTheGame', 'That’s the game')}</h2>
       <p class="final-total">
-        Your total <strong>{snapshot.yourScore}</strong>
+        {gt('games.summary.yourTotal', 'Your total')} <strong>{snapshot.yourScore}</strong>
       </p>
-      <p class="muted">Played {snapshot.totalRounds} rounds on your own.</p>
+      <p class="muted">{gt('games.summary.playedSolo', 'Played {count} rounds on your own.', { count: snapshot.totalRounds })}</p>
     </section>
   );
 }

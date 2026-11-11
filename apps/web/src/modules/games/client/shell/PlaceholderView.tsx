@@ -8,16 +8,17 @@
  */
 
 import type { HostViewProps, PlayerViewProps } from './gameViews.js';
+import { gt } from './t.js';
 
 export function HostPlaceholder({ snapshot }: HostViewProps) {
   return (
     <section class="placeholder">
-      <h2>No view for this game</h2>
+      <h2>{gt('games.placeholder.noView', 'No view for this game')}</h2>
       <p class="muted">
-        The room is playing <strong>{snapshot.settings.gameId}</strong>, which this screen does not
-        know how to draw.
+        {gt('games.placeholder.playingBefore', 'The game being played is')} <strong>{snapshot.settings.gameId}</strong>
+        {gt('games.placeholder.playingAfter', ', which this screen does not know how to draw.')}
       </p>
-      <p class="muted">Phase: {snapshot.phase}</p>
+      <p class="muted">{gt('games.placeholder.phase', 'Phase:')} {snapshot.phase}</p>
     </section>
   );
 }
@@ -25,10 +26,10 @@ export function HostPlaceholder({ snapshot }: HostViewProps) {
 export function PlayerPlaceholder({ snapshot }: PlayerViewProps) {
   return (
     <section class="placeholder">
-      <h2>Nothing to do here yet</h2>
+      <h2>{gt('games.placeholder.nothingYet', 'Nothing to do here yet')}</h2>
       <p class="muted">
-        This phone has no screen for <strong>{snapshot.settings.gameId}</strong>. Reload the page,
-        and tell the host if it stays this way.
+        {gt('games.placeholder.noScreenBefore', 'This phone has no screen for')} <strong>{snapshot.settings.gameId}</strong>
+        {gt('games.placeholder.noScreenAfter', '. Reload the page, and tell the organizer if it stays this way.')}
       </p>
     </section>
   );

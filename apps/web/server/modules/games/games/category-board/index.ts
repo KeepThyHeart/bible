@@ -311,6 +311,10 @@ export function createCategoryBoard(): GameModule<CategoryBoardSecret> {
       };
     },
 
+    answerPreview(round): string | null {
+      return round.secret.question === null ? null : tileAnswerLabel(round.secret.question);
+    },
+
     scoreRound(round, answers): RoundOutcome {
       return scoreCategoryBoard(round.secret, answers);
     },
@@ -339,6 +343,11 @@ function firstPerPlayer(answers: readonly ScoredAnswer[]): ScoredAnswer[] {
     kept.push(answer);
   }
   return kept;
+}
+
+/** The current tile's answer, as the reveal names it and the organizer sees it beforehand. */
+function tileAnswerLabel(question: NonNullable<CategoryBoardSecret['question']>): string {
+  return question.answer;
 }
 
 export function scoreCategoryBoard(
@@ -396,5 +405,5 @@ export function scoreCategoryBoard(
     options: secret.options,
   };
 
-  return { perPlayer, aggregates, correctLabel: question.answer, detail };
+  return { perPlayer, aggregates, correctLabel: tileAnswerLabel(question), detail };
 }

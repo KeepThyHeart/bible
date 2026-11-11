@@ -14,7 +14,7 @@ import { useState } from 'preact/hooks';
 import type { PlayerSnapshot, TeamId } from '../../shared/protocol.js';
 import { TEAM_IDS } from '../../shared/protocol.js';
 import { PhoneHeaderActions } from './PhoneHeaderActions.js';
-import { TEAM_LABELS, teamColour } from './teams.js';
+import { teamColour, teamLabel } from './teams.js';
 import type { ThemeControl } from './theme.js';
 import { useHeadingFocus } from './useHeadingFocus.js';
 import { gt } from './t.js';
@@ -88,7 +88,7 @@ function RunTheGame({
   if (request === 'pending') {
     return (
       <p class="waiting" role="status">
-        {gt('games.phone.waitingYes', 'Waiting for the room to say yes')}
+        {gt('games.phone.waitingYes', 'Waiting for the organizer to say yes')}
         <button type="button" class="btn-quiet" onClick={onWithdrawControlRequest}>
           {gt('games.phone.neverMind', 'Never mind')}
         </button>
@@ -99,7 +99,7 @@ function RunTheGame({
   return (
     <div class="run-the-game">
       <p class="waiting" role="status">
-        {gt('games.phone.waitingStart', 'Waiting for the room to start')}<span class="dots" aria-hidden="true" />
+        {gt('games.phone.waitingStart', 'Waiting for the game to start')}<span class="dots" aria-hidden="true" />
       </p>
       {request === 'denied' && <p class="muted small">{gt('games.phone.denied', 'Not this time — try again?')}</p>}
       <RunTheGameButton onRequestControl={onRequestControl} />
@@ -127,7 +127,7 @@ function RunTheGameButton({ onRequestControl }: { onRequestControl(): void }) {
         onRequestControl();
       }}
     >
-      {gt('games.phone.runTheGame', 'Run the game')}
+      {gt('games.phone.runTheGame', 'Ask to be the organizer')}
     </button>
   );
 }
@@ -151,7 +151,7 @@ export function PhoneLobby({
   return (
     <main class="screen screen-lobby" style={{ '--team': teamColour(you.teamId) }}>
       <header class="chrome-row lobby-header">
-        <span class="chrome-code" aria-label={gt('games.host.roomCodeAria', 'Room code {code}', { code: code.split('').join(' ') })}>
+        <span class="chrome-code" aria-label={gt('games.host.roomCodeAria', 'Game code {code}', { code: code.split('').join(' ') })}>
           #{code}
         </span>
         <span class="lobby-count">
@@ -162,7 +162,7 @@ export function PhoneLobby({
         <PhoneHeaderActions code={code} joinUrl={joinUrl} themeControl={themeControl} onLeave={onLeave} />
       </header>
 
-      <h1 class="sr-only" tabIndex={-1} ref={headingRef}>{gt('games.phone.lobbyHeading', 'Room lobby')}</h1>
+      <h1 class="sr-only" tabIndex={-1} ref={headingRef}>{gt('games.phone.lobbyHeading', 'Game lobby')}</h1>
 
       <p class="lobby-name">
         {gt('games.phone.yourName', 'Your name:')} <strong>{you.name}</strong>
@@ -182,7 +182,7 @@ export function PhoneLobby({
                 onClick={() => onPickTeam(teamId)}
               >
                 <span class="team-swatch" aria-hidden="true" />
-                {TEAM_LABELS[teamId]}
+                {teamLabel(teamId)}
               </button>
             ))}
           </div>
@@ -212,7 +212,7 @@ export function PhoneLobby({
                 {!player.connected && <span class="away-marker">{gt('games.common.away', '(away)')}</span>}
                 {settings.teamsEnabled && player.teamId !== null && (
                   <span class="team-chip small" data-team={player.teamId}>
-                    {TEAM_LABELS[player.teamId]}
+                    {teamLabel(player.teamId)}
                   </span>
                 )}
               </li>

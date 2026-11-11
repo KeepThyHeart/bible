@@ -12,6 +12,8 @@
  * current server would never send, and it can only do that by checking.
  */
 
+import { gt } from '../../shell/t.js';
+
 export interface TileOption {
   index: number;
   label: string;
@@ -172,5 +174,5 @@ export function indexForLetter(key: string): number | null {
 
 /** "Prophets for 300", the way a host would say it. */
 export function tileCaption(category: string, value: number): string {
-  return `${category} for ${value}`;
+  return gt('games.categoryBoard.view.tileCaption', '{category} for {value}', { category, value });
 }

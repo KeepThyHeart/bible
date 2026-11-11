@@ -40,6 +40,10 @@ function snapshot(phase: PhaseName): ScreenSnapshot {
       teamsEnabled: false,
       rounds: 10,
       answerWindowMs: 20_000,
+      teamCount: 2,
+      openEnded: false,
+      autoAdvanceMs: null,
+      scoresAfterEachAnswer: true,
       showIndividualScores: false,
       solo: false,
       groupVote: false,
@@ -180,5 +184,18 @@ describe('the projector at the reveal', () => {
     draw(hostViews.reveal, { reveal: null });
 
     expect(screen.querySelector('.fitb-missing')).not.toBeNull();
+  });
+});
+
+describe('the projector has no controls', () => {
+  it('draws no button in any phase', () => {
+    draw(hostViews.question);
+    expect(screen.querySelector('button, [role="button"]')).toBeNull();
+
+    draw(hostViews.answering);
+    expect(screen.querySelector('button, [role="button"]')).toBeNull();
+
+    draw(hostViews.reveal, { reveal: revealPayload() });
+    expect(screen.querySelector('button, [role="button"]')).toBeNull();
   });
 });

@@ -215,7 +215,7 @@ describe('roster', () => {
 
   it('places joiners on the emptiest team when teams are on', () => {
     const game = fakeGame();
-    const state = run(newRoom({ settings: { teamsEnabled: true } }), game, [
+    const state = run(newRoom({ settings: { teamsEnabled: true, teamCount: 4 } }), game, [
       join('a', 1_100),
       join('b', 1_101),
       join('c', 1_102),
@@ -236,6 +236,7 @@ describe('roster', () => {
     const started = run(newRoom({ settings: { teamsEnabled: true, rounds: 2 } }), game, [
       join('alice', 1_100),
       host({ cmd: 'start' }, 2_000),
+      host({ cmd: 'nextRound' }, 2_000),
     ]);
     const attempted = step(started, game, {
       actor: asPlayer('alice'),
@@ -271,6 +272,7 @@ describe('rejoin', () => {
       join('alice', 1_100),
       join('bob', 1_101),
       host({ cmd: 'start' }, 2_000),
+      host({ cmd: 'nextRound' }, 2_000),
       answer('alice', 0, 'answer-0', 2_100),
       answer('bob', 0, 'nope', 2_200),
     ]);
@@ -326,6 +328,7 @@ describe('answering', () => {
       join('bob', 1_101),
       join('cleo', 1_102),
       host({ cmd: 'start' }, 2_000),
+      host({ cmd: 'nextRound' }, 2_000),
     ]);
 
   it('stands by the first answer and rejects a second', () => {
@@ -401,6 +404,7 @@ describe('pausing', () => {
       join('alice', 1_100),
       join('bob', 1_101),
       host({ cmd: 'start' }, 2_000),
+      host({ cmd: 'nextRound' }, 2_000),
     ]);
 
   it('keeps the phase and gives the time back on resume', () => {
@@ -457,6 +461,7 @@ describe('buzzing', () => {
       join('bob', 1_101),
       join('cleo', 1_102),
       host({ cmd: 'start' }, 2_000),
+      host({ cmd: 'nextRound' }, 2_000),
     ]);
   }
 
@@ -828,6 +833,7 @@ describe('a settled round', () => {
       join('alice', 1_100),
       join('bob', 1_101),
       host({ cmd: 'start' }, 2_000),
+      host({ cmd: 'nextRound' }, 2_000),
       buzz('alice', 0, 40, 2_400, 2_420),
       buzz('bob', 0, 41, 2_430, 2_450),
       answer('alice', 0, 'answer-0', 3_000),
@@ -905,6 +911,7 @@ describe('host authority', () => {
       join('alice', 1_100),
       join('bob', 1_101),
       host({ cmd: 'start' }, 2_000),
+      host({ cmd: 'nextRound' }, 2_000),
       buzz('alice', 0, 40, 2_400, 2_420),
       buzz('bob', 0, 41, 2_430, 2_450),
     ]);
@@ -927,6 +934,7 @@ describe('host authority', () => {
     const game = fakeGame();
     const state = run(lobby(game), game, [
       host({ cmd: 'start' }, 2_000),
+      host({ cmd: 'nextRound' }, 2_000),
       answer('alice', 0, 'answer-0', 2_100),
       host({ cmd: 'skip' }, 2_500),
     ]);
@@ -940,6 +948,7 @@ describe('host authority', () => {
     const game = fakeGame();
     const state = run(lobby(game), game, [
       host({ cmd: 'start' }, 2_000),
+      host({ cmd: 'nextRound' }, 2_000),
       answer('alice', 0, 'answer-0', 2_100),
       host({ cmd: 'revealNow' }, 2_500),
     ]);
@@ -954,6 +963,7 @@ describe('host authority', () => {
     const game = fakeGame();
     const revealed = run(lobby(game), game, [
       host({ cmd: 'start' }, 2_000),
+      host({ cmd: 'nextRound' }, 2_000),
       answer('alice', 0, 'answer-0', 2_100),
       host({ cmd: 'revealNow' }, 2_500),
     ]);
@@ -966,6 +976,7 @@ describe('host authority', () => {
     const state = run(newRoom({ settings: { rounds: 1 } }), game, [
       join('alice', 1_100),
       host({ cmd: 'start' }, 2_000),
+      host({ cmd: 'nextRound' }, 2_000),
       host({ cmd: 'revealNow' }, 2_500),
       host({ cmd: 'nextRound' }, 3_000),
     ]);
@@ -992,6 +1003,7 @@ describe('host authority', () => {
     const game = fakeGame();
     const midGame = run(lobby(game), game, [
       host({ cmd: 'start' }, 2_000),
+      host({ cmd: 'nextRound' }, 2_000),
       answer('alice', 0, 'answer-0', 2_100),
       host({ cmd: 'revealNow' }, 2_500),
     ]);
@@ -1019,7 +1031,10 @@ describe('host authority', () => {
     );
     expect(reconfigured.state.settings.gameId).toBe('sword-drill');
 
-    const startedAgain = run(restarted.state, game, [host({ cmd: 'start' }, 3_300)]);
+    const startedAgain = run(restarted.state, game, [
+      host({ cmd: 'start' }, 3_300),
+      host({ cmd: 'nextRound' }, 3_300),
+    ]);
     expect(startedAgain.phase).not.toBe('lobby');
     expect(startedAgain.roundIndex).toBe(0);
   });
@@ -1028,6 +1043,7 @@ describe('host authority', () => {
     const game = fakeGame();
     const firstGame = run(lobby(game), game, [
       host({ cmd: 'start' }, 2_000),
+      host({ cmd: 'nextRound' }, 2_000),
       answer('alice', 0, 'answer-0', 2_100),
       host({ cmd: 'revealNow' }, 2_500),
     ]);
@@ -1041,6 +1057,7 @@ describe('host authority', () => {
     // A second game's points add to the running total rather than replacing it.
     const secondGame = run(afterFirstReset, game, [
       host({ cmd: 'start' }, 3_100),
+      host({ cmd: 'nextRound' }, 3_100),
       answer('alice', 0, 'answer-0', 3_200),
       host({ cmd: 'revealNow' }, 3_600),
     ]);
@@ -1102,6 +1119,7 @@ describe('control', () => {
     // round, but Bob — not Alice — is not the controller.
     const state = run(grantedToAlice(game), game, [
       { actor: asPlayer('alice'), intent: { kind: 'host', command: { cmd: 'start' } }, at: 1_300 },
+      { actor: asPlayer('alice'), intent: { kind: 'host', command: { cmd: 'nextRound' } }, at: 1_350 },
       { actor: asPlayer('bob'), intent: { kind: 'host', command: { cmd: 'nextRound' } }, at: 1_400 },
     ]);
     expect(state.roundIndex).toBe(0);
@@ -1337,6 +1355,7 @@ describe('control request expiry', () => {
       join('alice', 1_100),
       join('bob', 1_101),
       host({ cmd: 'start' }, 2_000),
+      host({ cmd: 'nextRound' }, 2_000),
       host({ cmd: 'pause' }, 2_100),
       requested('bob', 2_150),
     ]);
@@ -1356,6 +1375,7 @@ describe('determinism', () => {
       run(newRoom({ seed, settings: { rounds: 3 } }), game, [
         join('alice', 1_100),
         host({ cmd: 'start' }, 2_000),
+        host({ cmd: 'nextRound' }, 2_000),
       ]).rounds.map((round) => (round.secret as FakeSecret).draw);
 
     expect(draws(7)).toEqual(draws(7));
@@ -1400,6 +1420,7 @@ function buzzRoom(game: GameModule): RoomState {
     join('bob', 1_101),
     join('cleo', 1_102),
     host({ cmd: 'start' }, 2_000),
+    host({ cmd: 'nextRound' }, 2_000),
   ]);
 }
 
@@ -1409,6 +1430,7 @@ describe('when answering opened', () => {
       join('alice', 1_100),
       join('bob', 1_101),
       host({ cmd: 'start' }, 2_000),
+      host({ cmd: 'nextRound' }, 2_000),
     ]);
   }
 
@@ -1583,6 +1605,7 @@ describe('the host choosing the next round', () => {
     return run(newRoom({ settings: { rounds } }), game, [
       join('alice', 1_100),
       host({ cmd: 'start' }, 2_000),
+      host({ cmd: 'nextRound' }, 2_000),
       host({ cmd: 'revealNow' }, 2_500),
     ]);
   }
@@ -1626,6 +1649,7 @@ describe('the host choosing the next round', () => {
     const playing = run(newRoom({ settings: { rounds: 3 } }), game, [
       join('alice', 1_100),
       host({ cmd: 'start' }, 2_000),
+      host({ cmd: 'nextRound' }, 2_000),
     ]);
     const after = run(playing, game, [host({ cmd: 'choose', choice: 'left' }, 2_200)]);
     expect(after.roundIndex).toBe(0);

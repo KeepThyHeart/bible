@@ -26,7 +26,8 @@ import { useEffect, useState } from 'preact/hooks';
 import type { AnswerValue, PersonalResult } from '../../../shared/protocol.js';
 import { BOOK_NAMES, formatRef, toVerseId } from '../../../shared/verseId.js';
 import type { PlayerViewProps } from '../../shell/gameViews.js';
-import { AWAITING_REVEAL, AWAITING_ROUND } from '../../shell/waitingCopy.js';
+import { gt } from '../../shell/t.js';
+import { awaitingReveal, awaitingRound } from '../../shell/waitingCopy.js';
 import { chapterCount, chaptersOf } from './chapters.js';
 import { indexForLetter, letterFor, readDetail, readQuestion } from './payload.js';
 
@@ -36,13 +37,13 @@ function Nothing({ line }: { line: string }) {
 
 export function PhoneQuestion({ view }: PlayerViewProps) {
   const question = readQuestion(view);
-  if (!question) return <Nothing line={AWAITING_ROUND} />;
+  if (!question) return <Nothing line={awaitingRound()} />;
 
   return (
     <section class="ntr ntr-phone">
-      <p class="ntr-ask">Where is this from?</p>
+      <p class="ntr-ask">{gt('games.nameThatReference.view.whereFrom', 'Where is this from?')}</p>
       <blockquote class="ntr-verse">{question.text}</blockquote>
-      <p class="ntr-hint">Answers open in a moment.</p>
+      <p class="ntr-hint">{gt('games.nameThatReference.view.answersOpenSoon', 'Answers open in a moment.')}</p>
     </section>
   );
 }
@@ -102,7 +103,7 @@ export function PhoneAnswering({ snapshot, view, send }: PlayerViewProps) {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [question, done, chosen, voting, snapshot.round]);
 
-  if (!question) return <Nothing line={AWAITING_ROUND} />;
+  if (!question) return <Nothing line={awaitingRound()} />;
 
   if (question.answerShape === 'choice') {
     const chosenLabel = question.options.find((option) => option.index === chosen)?.label ?? null;
@@ -129,11 +130,11 @@ export function PhoneAnswering({ snapshot, view, send }: PlayerViewProps) {
         {voting ? (
           <p class="ntr-sent" role="status">
             {chosenLabel === null
-              ? 'Tap a reference to vote. You can change it until time runs out.'
-              : `Your vote: ${chosenLabel}. Tap another reference to change it until time runs out.`}
+              ? gt('games.nameThatReference.view.tapToVote', 'Tap a reference to vote. You can change it until time runs out.')
+              : gt('games.nameThatReference.view.yourVote', 'Your vote: {answer}. Tap another reference to change it until time runs out.', { answer: chosenLabel })}
           </p>
         ) : (
-          done && <p class="ntr-sent">{mine ? `Sent: ${mine.label}` : 'Answer sent.'}</p>
+          done && <p class="ntr-sent">{mine ? gt('games.nameThatReference.view.sentLabel', 'Sent: {answer}', { answer: mine.label }) : gt('games.nameThatReference.view.answerSent', 'Answer sent.')}</p>
         )}
       </section>
     );
@@ -157,7 +158,7 @@ export function PhoneAnswering({ snapshot, view, send }: PlayerViewProps) {
       <blockquote class="ntr-verse ntr-verse-small">{question.text}</blockquote>
       <div class="ntr-picker">
         <label class="ntr-field">
-          <span class="ntr-field-label">Book</span>
+          <span class="ntr-field-label">{gt('games.nameThatReference.view.book', 'Book')}</span>
           <select
             class="ntr-select"
             disabled={done}
@@ -173,7 +174,7 @@ export function PhoneAnswering({ snapshot, view, send }: PlayerViewProps) {
         </label>
 
         <label class="ntr-field">
-          <span class="ntr-field-label">Chapter</span>
+          <span class="ntr-field-label">{gt('games.nameThatReference.view.chapter', 'Chapter')}</span>
           <select
             class="ntr-select"
             disabled={done || chapterCount(book) === 1}
@@ -191,7 +192,7 @@ export function PhoneAnswering({ snapshot, view, send }: PlayerViewProps) {
         </label>
 
         <label class="ntr-field">
-          <span class="ntr-field-label">Verse</span>
+          <span class="ntr-field-label">{gt('games.nameThatReference.view.verse', 'Verse')}</span>
           <input
             class="ntr-number"
             type="number"
@@ -218,15 +219,15 @@ export function PhoneAnswering({ snapshot, view, send }: PlayerViewProps) {
           )
         }
       >
-        Send {formatRef(picked)}
+        {gt('games.nameThatReference.view.sendReference', 'Send {reference}', { reference: formatRef(picked) })}
       </button>
       {changeable
         ? sentLabel && (
             <p class="ntr-sent" role="status">
-              Sent: {sentLabel}. You can change it until time runs out.
+              {gt('games.nameThatReference.view.sentChange', 'Sent: {answer}. You can change it until time runs out.', { answer: sentLabel })}
             </p>
           )
-        : done && <p class="ntr-sent">{sentLabel ? `Sent: ${sentLabel}` : 'Answer sent.'}</p>}
+        : done && <p class="ntr-sent">{sentLabel ? gt('games.nameThatReference.view.sentLabel', 'Sent: {answer}', { answer: sentLabel }) : gt('games.nameThatReference.view.answerSent', 'Answer sent.')}</p>}
     </section>
   );
 }
@@ -236,13 +237,13 @@ export function PhoneAnswering({ snapshot, view, send }: PlayerViewProps) {
  * that was right. The result is the team's, so every phone on it reads the same.
  */
 function teamVerdict(result: PersonalResult): string {
-  const verdict = result.correct ? 'Right.' : 'Not this time.';
+  const verdict = result.correct ? gt('games.nameThatReference.view.right', 'Right.') : gt('games.nameThatReference.view.notThisTime', 'Not this time.');
   return result.note === null ? verdict : `${result.note}. ${verdict}`;
 }
 
 export function PhoneReveal({ reveal, yourResult }: PlayerViewProps) {
   const detail = readDetail(reveal?.detail);
-  if (!reveal || !detail) return <Nothing line={AWAITING_REVEAL} />;
+  if (!reveal || !detail) return <Nothing line={awaitingReveal()} />;
 
   const submitted = yourResult?.submitted ?? null;
   const picked = submitted?.type === 'choice' ? (detail.options[submitted.index] ?? null) : null;
@@ -259,25 +260,25 @@ export function PhoneReveal({ reveal, yourResult }: PlayerViewProps) {
 
   return (
     <section class="ntr ntr-phone">
-      <p class="ntr-answer-label">The answer</p>
+      <p class="ntr-answer-label">{gt('games.nameThatReference.view.theAnswer', 'The answer')}</p>
       <h2 class="ntr-answer">{reveal.correctLabel}</h2>
       {detail.text.length > 0 && (
         <blockquote class="ntr-verse ntr-verse-small">{detail.text}</blockquote>
       )}
 
       {yourResult === null ? (
-        <p class="ntr-yours">No answer from this phone.</p>
+        <p class="ntr-yours">{gt('games.nameThatReference.view.noAnswer', 'No answer from this phone.')}</p>
       ) : teamVote ? (
         <p class="ntr-yours" data-correct={yourResult.correct ? 'true' : 'false'}>
           {teamVerdict(yourResult)}
           {picked !== null && !(yourResult.correct && picked.correct) && (
-            <span class="ntr-muted"> You voted {picked.label}.</span>
+            <span class="ntr-muted"> {gt('games.nameThatReference.view.youVoted', 'You voted {answer}.', { answer: picked.label })}</span>
           )}
         </p>
       ) : (
         <p class="ntr-yours" data-correct={yourResult.correct ? 'true' : 'false'}>
-          {yourResult.correct ? 'Right.' : (yourResult.note ?? 'Not this time.')}
-          {yours !== null && !yourResult.correct && <span class="ntr-muted"> You said {yours}.</span>}
+          {yourResult.correct ? gt('games.nameThatReference.view.right', 'Right.') : (yourResult.note ?? gt('games.nameThatReference.view.notThisTime', 'Not this time.'))}
+          {yours !== null && !yourResult.correct && <span class="ntr-muted"> {gt('games.nameThatReference.view.youSaid', 'You said {answer}.', { answer: yours })}</span>}
         </p>
       )}
     </section>

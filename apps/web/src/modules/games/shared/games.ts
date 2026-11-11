@@ -333,6 +333,14 @@ export interface GameModule<Secret = unknown> {
    */
   hostChrome?(round: Round<Secret>, table: Table, phase: PhaseName): HostChrome;
   /**
+   * The round's answer as the organizer should see it before the reveal —
+   * "LORD", "Moses", "Isaiah 64:8" — normally the same words the reveal's
+   * `correctLabel` will use. Reaches only a remote (see `ControlPanel.answer`),
+   * never a screen and never a seated controller. Pure and cheap; leave it out,
+   * or return null, when there is nothing useful to show.
+   */
+  answerPreview?(round: Round<Secret>): string | null;
+  /**
    * Whether the room should take this answer from this player now, given what
    * has been sent so far. A refused answer changes nothing and is not an
    * error: it is how a stale tap, a tap from the wrong player or a second tap
@@ -367,5 +375,6 @@ export function catalogEntryFor(game: GameModule): CatalogGame {
     usesFamiliarity: game.usesFamiliarity ?? true,
     usesTranslation: game.usesTranslation ?? true,
     usesSet: game.usesSet ?? true,
+    usesBuzz: game.usesBuzz ?? false,
   };
 }

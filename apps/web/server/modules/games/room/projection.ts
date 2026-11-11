@@ -24,6 +24,7 @@ import type {
   PlayerSnapshot,
   PublicBuzzState,
   PublicPlayer,
+  RemoteSnapshot,
   RevealPayload,
   SnapshotCommon,
   Standing,
@@ -187,7 +188,7 @@ export function projectForPlayer(
     youAreSpent: state.buzz?.spent.includes(playerId) ?? false,
     // Present only on the phone that currently holds control — see
     // `controlPanel`'s own doc comment for what it carries.
-    ...(isController ? { control: controlPanel(state, game) } : {}),
+    ...(isController ? { control: controlPanel(state, game, 'seatedPlayer') } : {}),
     yourControlRequest: state.controlRequests.some((request) => request.playerId === playerId)
       ? 'pending'
       : state.deniedControlPlayers.includes(playerId)
@@ -211,19 +212,83 @@ export function visibleStandings(state: RoomState): Standing[] {
 }
 
 /**
+ * Whether a running score is kept off the screen for now: a game where it
+ * would spoil the play keeps the leaderboard for the end, and so does a room
+ * whose organizer turned scores after each answer off. Left out rather than
+ * hidden, like every other trim here.
+ */
+function standingsWithheld(state: RoomState, game: GameModule): boolean {
+  if (state.phase === 'summary') return false;
+  return game.standingsAtSummaryOnly === true || !state.settings.scoresAfterEachAnswer;
+}
+
+/**
+ * Who a control block is being assembled for. The three differ in what the
+ * block may carry, and naming them keeps that decision in one place:
+ *
+ * - `remote`: the organizer's own device, which is not a seat and not the
+ *   shared screen. The only audience that is shown the answer before the
+ *   reveal.
+ * - `ownerScreen`: the shared screen holding the owner credential. The whole
+ *   room can see it, so it never gets the answer, and a pending judgement
+ *   reaches it with only enough to rule Correct or Incorrect on.
+ * - `seatedPlayer`: a player who was granted control and is also playing. It
+ *   gets what it needs to rule on an answer, but nothing that would give away
+ *   the round to someone who is competing in it.
+ */
+type ControlAudience = 'remote' | 'ownerScreen' | 'seatedPlayer';
+
+/** True from the moment a round is asked until the reveal has closed. */
+function roundIsLive(state: RoomState): boolean {
+  return state.phase === 'question' || state.phase === 'answering' || state.phase === 'reveal';
+}
+
+/**
+ * The pending judgement as a seated controller may see it. The player's own
+ * answer and what they had read are needed to rule, so they stay; the
+ * canonical answer, the accepted alternatives and the context note would tell
+ * a competitor what to say, so they are blank until the reveal has shown the
+ * answer to everyone anyway.
+ */
+function judgeForAudience(
+  request: NonNullable<ControlPanel['pendingJudge']>,
+  state: RoomState,
+  audience: ControlAudience
+): NonNullable<ControlPanel['pendingJudge']> {
+  if (audience === 'remote') return request;
+  if (state.phase === 'reveal' || state.phase === 'summary') return request;
+  const blanked = { ...request, canonicalAnswer: '', accept: [], contextNote: null };
+  if (audience === 'seatedPlayer') return blanked;
+  // The owner screen is the one the room is looking at. A buzz answer is said
+  // aloud, so the organizer rules on what they heard: nothing typed, and no
+  // provider's reasoning, which may quote either answer.
+  return {
+    ...blanked,
+    playerAnswer: '',
+    seenPrefix: '',
+    suggestion: request.suggestion === null ? null : { ...request.suggestion, reason: '' },
+  };
+}
+
+/**
  * Everything running the room needs that is either private or absent from
  * the device's own snapshot, in one block addressed to whichever socket
- * actually holds control (§4.2 of the design). Built the same way whether
- * that socket is a screen or a phone, so the two can never drift apart in
- * what a controller is allowed to see.
+ * actually holds control. Built the same way whether that socket is a screen,
+ * a remote or a phone, so the three can never drift apart in what a controller
+ * is allowed to see; the audience is the only thing that varies.
  */
-function controlPanel(state: RoomState, game: GameModule): ControlPanel {
+function controlPanel(state: RoomState, game: GameModule, audience: ControlAudience): ControlPanel {
   const request = judgeRequestOf(state);
-  // A game where a running score would spoil the play keeps the leaderboard
-  // for the end. Left out rather than hidden, like every other trim here.
-  const standingsHidden = game.standingsAtSummaryOnly === true && state.phase !== 'summary';
+  const round = currentRound(state);
+  const standingsHidden = standingsWithheld(state, game);
+  const answer =
+    audience === 'remote' && round !== null && roundIsLive(state)
+      ? (game.answerPreview?.(round) ?? null)
+      : null;
   return {
-    pendingJudge: request ? { ...request, suggestion: state.judging?.suggestion ?? null } : null,
+    pendingJudge: request
+      ? judgeForAudience({ ...request, suggestion: state.judging?.suggestion ?? null }, state, audience)
+      : null,
     requests: state.controlRequests,
     // A count, never a list: how many answered is a fact about the group. It
     // counts people, because a changed vote or a run of taps is still one
@@ -233,24 +298,16 @@ function controlPanel(state: RoomState, game: GameModule): ControlPanel {
     teamStandings: standingsHidden ? [] : teamStandings(state),
     overallStandings: overallStandings(state),
     spent: state.buzz?.spent ?? [],
+    answer,
+    ...(audience === 'seatedPlayer' ? { screenView: viewOf(state, game, null) } : {}),
   };
 }
 
-/**
- * `owner` is the transport handing over a fact it proved from a token,
- * exactly as it already hands over a `playerId` for a player's own
- * projection — proved by which credential opened the stream, not asked of
- * the room. Projection stays a pure function of its arguments.
- */
-export function projectForScreen(state: RoomState, installed: GameModule, owner: boolean): ScreenSnapshot {
-  const game = effectiveGame(installed, state.settings);
-  // A game where a running score would spoil the play keeps the leaderboard
-  // for the end. Left out rather than hidden, like every other trim here.
-  const standingsHidden = game.standingsAtSummaryOnly === true && state.phase !== 'summary';
-
+/** The fields the shared screen and the organizer's remote have in common. */
+function displayFields(state: RoomState, game: GameModule): Omit<ScreenSnapshot, 'viewer' | 'control'> {
+  const standingsHidden = standingsWithheld(state, game);
   return {
     ...common(state, game),
-    viewer: 'screen',
     standings: standingsHidden ? [] : visibleStandings(state),
     teamStandings: standingsHidden ? [] : teamStandings(state),
     // Unlike the per-round standings above, never hidden by
@@ -263,11 +320,44 @@ export function projectForScreen(state: RoomState, installed: GameModule, owner:
     // players' snapshots never carry this.
     view: viewOf(state, game, null),
     buzz: publicBuzz(state.buzz),
+  };
+}
+
+/**
+ * `owner` is the transport handing over a fact it proved from a token,
+ * exactly as it already hands over a `playerId` for a player's own
+ * projection — proved by which credential opened the stream, not asked of
+ * the room. Projection stays a pure function of its arguments.
+ */
+export function projectForScreen(state: RoomState, installed: GameModule, owner: boolean): ScreenSnapshot {
+  const game = effectiveGame(installed, state.settings);
+  return {
+    ...displayFields(state, game),
+    viewer: 'screen',
     // Present only on the screen whose credential is the room's owner token
     // (`owner`, proved by the transport), and only while that credential
-    // holds control. A display-token screen never carries it, whatever else
-    // is happening in the room — see `ScreenSnapshot.control`'s own comment.
-    ...(owner && state.controller.kind === 'owner' ? { control: controlPanel(state, game) } : {}),
+    // holds control. A display screen never carries it, whatever else is
+    // happening in the room — see `ScreenSnapshot.control`'s own comment.
+    // Never the answer: this screen is the one the room is looking at.
+    ...(owner && state.controller.kind === 'owner'
+      ? { control: controlPanel(state, game, 'ownerScreen') }
+      : {}),
+  };
+}
+
+/**
+ * The organizer's own device. The transport proves the owner credential
+ * opened this stream; the room then decides what it carries. It has the
+ * screen's public fields so a game's control slot reads the same view, plus
+ * the control block while the owner credential holds control, and in that
+ * block, the answer for the live round.
+ */
+export function projectForRemote(state: RoomState, installed: GameModule): RemoteSnapshot {
+  const game = effectiveGame(installed, state.settings);
+  return {
+    ...displayFields(state, game),
+    viewer: 'remote',
+    ...(state.controller.kind === 'owner' ? { control: controlPanel(state, game, 'remote') } : {}),
   };
 }
 

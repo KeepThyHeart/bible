@@ -460,6 +460,7 @@ describe('a buzz that had to be clamped', () => {
     const stream = test.stream(ann.sessionToken);
     test.at(2_000);
     test.post({ kind: 'host', command: { cmd: 'start' } }, test.hostToken);
+    test.post({ kind: 'host', command: { cmd: 'nextRound' } }, test.hostToken);
 
     test.at(2_500);
     // A timestamp from before the question existed. It cannot honestly have
@@ -478,6 +479,7 @@ describe('a buzz that had to be clamped', () => {
     const stream = test.stream(ann.sessionToken);
     test.at(2_000);
     test.post({ kind: 'host', command: { cmd: 'start' } }, test.hostToken);
+    test.post({ kind: 'host', command: { cmd: 'nextRound' } }, test.hostToken);
 
     test.at(2_500);
     // Ann's phone is a second behind. Her buzz reads as 1_200 to her and as
@@ -509,6 +511,7 @@ describe('a reveal', () => {
 
     test.at(2_000);
     test.post({ kind: 'host', command: { cmd: 'start' } }, test.hostToken);
+    test.post({ kind: 'host', command: { cmd: 'nextRound' } }, test.hostToken);
     test.at(2_500);
     test.post({ kind: 'buzz', round: 0, charsSeen: 4, tClient: 2_400 }, ann.sessionToken);
     test.at(2_600);
@@ -577,6 +580,7 @@ describe('a view computed for each phone', () => {
     const benStream = test.stream(ben.sessionToken);
     const hostStream = test.stream(test.hostToken);
     test.post({ kind: 'host', command: { cmd: 'start' } }, test.hostToken);
+    test.post({ kind: 'host', command: { cmd: 'nextRound' } }, test.hostToken);
 
     expect(lastSnapshot(annStream).view).toEqual({ mine: `view-of-${ann.playerId}`, seated: 2 });
     expect(lastSnapshot(benStream).view).toEqual({ mine: `view-of-${ben.playerId}`, seated: 2 });

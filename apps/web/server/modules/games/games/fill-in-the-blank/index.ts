@@ -179,6 +179,11 @@ function otherAnswers(answers: readonly ScoredAnswer[], correct: ReadonlySet<Pla
     .slice(0, OTHER_ANSWERS_SHOWN);
 }
 
+/** The missing word, as the reveal names it and the organizer sees it beforehand. */
+function blankAnswerLabel(secret: BlankSecret): string {
+  return secret.word;
+}
+
 export const fillInTheBlank: GameModule<BlankSecret | null> = {
   id: GAME_ID,
   name: 'Fill in the blank',
@@ -205,6 +210,10 @@ export const fillInTheBlank: GameModule<BlankSecret | null> = {
     };
   },
 
+  answerPreview(round: Round<BlankSecret | null>): string | null {
+    return round.secret === null ? null : blankAnswerLabel(round.secret);
+  },
+
   scoreRound(round: Round<BlankSecret | null>, answers: ScoredAnswer[]): RoundOutcome {
     const secret = round.secret;
     const perPlayer = new Map<PlayerId, PersonalResult>();
@@ -227,7 +236,7 @@ export const fillInTheBlank: GameModule<BlankSecret | null> = {
       });
     }
 
-    const label = secret?.word ?? '';
+    const label = secret === null ? '' : blankAnswerLabel(secret);
     const aggregates: RevealAggregate[] = [{ label, count: correct.size }];
 
     return {

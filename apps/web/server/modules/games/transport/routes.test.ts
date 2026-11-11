@@ -259,7 +259,7 @@ describe('opening a stream', () => {
     const { transport } = harness();
     const res = fakeResponse();
 
-    transport.stream(fakeRequest({ code: 'CDEFH' }), res);
+    transport.stream(fakeRequest({ code: 'CDEFH', query: { token: 'some-token' } }), res);
 
     expect(res.statusCode).toBe(404);
     expect(res.body).toEqual({
@@ -276,10 +276,10 @@ describe('opening a stream', () => {
 
   it('refuses a token that belongs to no session, without opening a stream', () => {
     const { transport, code } = harness();
-    for (const token of [undefined, 'not-a-token', '']) {
+    for (const token of ['not-a-token', 'x'.repeat(64)]) {
       const res = fakeResponse();
       transport.stream(
-        fakeRequest({ code, ...(token === undefined ? {} : { query: { token } }) }),
+        fakeRequest({ code, query: { token } }),
         res
       );
       expect(res.statusCode).toBe(401);
@@ -603,6 +603,46 @@ describe('validating an intent', () => {
     expect(test.post({ kind: 'host', command: { cmd: 'kick' } }, test.hostToken).statusCode).toBe(
       400
     );
+  });
+
+  it('carries the organizer’s commands for teams, names, finishing and carrying on', () => {
+    const test = harness();
+    const last = () => test.state().received.at(-1)?.intent;
+    const send = (command: unknown): number | null =>
+      test.post({ kind: 'host', command }, test.hostToken).statusCode;
+
+    for (const command of [
+      { cmd: 'shuffleTeams' },
+      { cmd: 'finish' },
+      { cmd: 'continueGame' },
+      { cmd: 'moveToTeam', playerId: 'p1', teamId: 'blue' },
+      { cmd: 'moveToTeam', playerId: 'p1', teamId: null },
+    ]) {
+      expect(send(command)).toBe(200);
+      expect(last()).toEqual({ kind: 'host', command });
+    }
+
+    expect(send({ cmd: 'rename', playerId: 'p1', name: '  Grandma\nEllen  ' })).toBe(200);
+    expect(last()).toEqual({ kind: 'host', command: { cmd: 'rename', playerId: 'p1', name: 'Grandma Ellen' } });
+
+    expect(send({ cmd: 'moveToTeam', playerId: 'p1', teamId: 'purple' })).toBe(400);
+    expect(send({ cmd: 'moveToTeam', teamId: 'red' })).toBe(400);
+    expect(send({ cmd: 'rename', playerId: 'p1', name: '   ' })).toBe(400);
+    expect(send({ cmd: 'rename', playerId: 'p1' })).toBe(400);
+  });
+
+  it('carries the newer settings, and drops values that are not theirs', () => {
+    const test = harness();
+    const settingsSent = (settings: unknown) => {
+      test.post({ kind: 'host', command: { cmd: 'setSettings', settings } }, test.hostToken);
+      const intent = test.state().received.at(-1)?.intent as { command: { settings: unknown } };
+      return intent.command.settings;
+    };
+    expect(
+      settingsSent({ teamCount: 3, openEnded: true, autoAdvanceMs: 8000, scoresAfterEachAnswer: false })
+    ).toEqual({ teamCount: 3, openEnded: true, autoAdvanceMs: 8000, scoresAfterEachAnswer: false });
+    expect(settingsSent({ autoAdvanceMs: null })).toEqual({ autoAdvanceMs: null });
+    expect(settingsSent({ teamCount: 5, openEnded: 'yes', autoAdvanceMs: -1, scoresAfterEachAnswer: 1 })).toEqual({});
   });
 
   it('takes a host choice only as a short piece of text, leaving its meaning to the room', () => {

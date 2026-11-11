@@ -11,6 +11,8 @@
  * passes between the two is the wire, not a type.
  */
 
+import { gt } from '../../shell/t.js';
+
 export const GAME_ID = 'put-in-order';
 
 /** Said aloud on the big screen when a list has no instruction of its own. */
@@ -75,7 +77,7 @@ export function readQuestion(view: unknown): OrderQuestion | null {
   const instructions = stringAt(view, 'instructions') ?? '';
   return {
     title: stringAt(view, 'title') ?? '',
-    instructions: instructions.length > 0 ? instructions : DEFAULT_INSTRUCTIONS,
+    instructions: instructions.length > 0 ? instructions : gt('games.putInOrder.view.defaultInstructions', DEFAULT_INSTRUCTIONS),
     items: itemsAt(view),
   };
 }

@@ -7,11 +7,12 @@
  * reference rather than a made-up one.
  */
 
+import { gt } from '../../shell/t.js';
 import type { RevealedItem } from './payload.js';
 
 export function RightOrder({ items }: { items: readonly RevealedItem[] }) {
   return (
-    <ol class="pio-answer" aria-label="The right order">
+    <ol class="pio-answer" aria-label={gt('games.putInOrder.view.rightOrder', 'The right order')}>
       {items.map((item, index) => (
         <li key={`${index}:${item.label}`} class="pio-answer-row">
           <span class="pio-number">{index + 1}</span>

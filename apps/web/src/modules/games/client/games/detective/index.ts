@@ -32,6 +32,30 @@ export const detectiveViews: GameViews = {
   },
   // The reveal shows the room's split and verdict in its own layout.
   revealDrawsRoomVote: true,
+  card: {
+    descriptionKey: 'games.detective.card.description',
+    descriptionFallback: 'Each phone holds a clue. Talk it over, then vote.',
+    tags: ['teams', 'outLoud', 'fourPlus'],
+    minutes: 15,
+  },
+  howToPlay: {
+    summaryKey: 'games.detective.howToPlay.summary',
+    summaryFallback: 'Each phone holds a different clue about a mystery person.',
+    steps: [
+      {
+        key: 'games.detective.howToPlay.stepRead',
+        fallback: 'Read your clue aloud and talk it over.',
+      },
+      {
+        key: 'games.detective.howToPlay.stepVote',
+        fallback: 'Vote for who you think it is before the timer ends.',
+      },
+      {
+        key: 'games.detective.howToPlay.stepPoints',
+        fallback: '100 points for everyone in a group whose most common answer is right.',
+      },
+    ],
+  },
 };
 
 registerGameViews(detectiveViews);

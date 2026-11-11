@@ -11,26 +11,31 @@
  */
 
 import type { GroupResult } from '../../shared/protocol.js';
-import { TEAM_LABELS } from './teams.js';
+import { gt } from './t.js';
+import { teamLabel } from './teams.js';
 
 export interface GroupRevealProps {
   groups: readonly GroupResult[];
 }
 
 function groupName(group: GroupResult, only: boolean): string {
-  if (group.teamId !== null) return TEAM_LABELS[group.teamId];
-  return only ? 'The room' : 'No team';
+  if (group.teamId !== null) return teamLabel(group.teamId);
+  return only ? gt('games.reveal.everyone', 'Everyone') : teamLabel(null);
 }
 
 function outcome(group: GroupResult): string {
-  if (group.decided === null) return group.split.length === 0 ? 'No votes' : 'Split — no answer';
-  return group.correct === true ? `${group.decided} — right` : `${group.decided} — not this time`;
+  if (group.decided === null) {
+    return group.split.length === 0 ? gt('games.reveal.noVotes', 'No votes') : gt('games.reveal.split', 'Split — no answer');
+  }
+  return group.correct === true
+    ? gt('games.reveal.right', '{answer} — right', { answer: group.decided })
+    : gt('games.reveal.notThisTime', '{answer} — not this time', { answer: group.decided });
 }
 
 export function GroupReveal({ groups }: GroupRevealProps) {
   const only = groups.length === 1;
   return (
-    <section class="group-reveal" aria-label="How each team voted">
+    <section class="group-reveal" aria-label={gt('games.reveal.teamsVoted', 'How each team voted')}>
       {groups.map((group) => (
         <div
           key={group.teamId ?? 'none'}

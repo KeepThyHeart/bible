@@ -29,6 +29,10 @@ function snapshot(overrides: Partial<PlayerSnapshot> = {}): PlayerSnapshot {
       teamsEnabled: false,
       rounds: 10,
       answerWindowMs: 20_000,
+      teamCount: 2,
+      openEnded: false,
+      autoAdvanceMs: null,
+      scoresAfterEachAnswer: true,
       showIndividualScores: false,
       solo: false,
       groupVote: false,
@@ -94,6 +98,12 @@ function button(label: string): HTMLButtonElement | null {
   );
 }
 
+/** Opens the "..." menu if it is closed, then returns the item with that label. */
+function menuItem(label: string): HTMLButtonElement | null {
+  if (!host.querySelector('[role="menu"]')) click(host.querySelector('button[aria-haspopup="menu"]'));
+  return [...host.querySelectorAll<HTMLButtonElement>('[role="menuitem"]')].find((item) => item.textContent?.includes(label)) ?? null;
+}
+
 function click(target: HTMLButtonElement | null): void {
   act(() => {
     target?.click();
@@ -123,32 +133,33 @@ describe('the phone lobby header', () => {
 
   it('labels the room code and the player count, and has an h1', () => {
     draw(themeControl());
-    expect(host.querySelector('.chrome-code')?.getAttribute('aria-label')).toContain('Room code');
+    expect(host.querySelector('.chrome-code')?.getAttribute('aria-label')).toContain('Game code');
     expect(host.querySelector('.lobby-count .sr-only')?.textContent).toBe('Players: 3');
     expect(host.querySelector('h1')).not.toBeNull();
   });
 
-  it('offers no inline theme editor any more — theme, settings and leave are icon buttons', () => {
+  it('offers no inline theme editor any more — theme, settings and leave sit behind the more button', () => {
     draw(themeControl());
     expect(host.querySelector('.theme-editor')).toBeNull();
-    expect(button('Theme')).not.toBeNull();
-    expect(button('Settings')).not.toBeNull();
-    expect(button('Leave')).not.toBeNull();
+    expect(host.querySelector('[role="menu"]')).toBeNull();
+    expect(menuItem('Theme')).not.toBeNull();
+    expect(menuItem('Settings')).not.toBeNull();
+    expect(menuItem('Leave')).not.toBeNull();
   });
 
   it('cycles the theme through the built-in presets on tap, wrapping back to light', () => {
     draw(themeControl(LIGHT_THEME));
-    click(button('Theme'));
+    click(menuItem('Theme'));
     expect(overrides).toEqual([DARK_THEME]);
   });
 
   it('cycles from dark to sepia, and from sepia back to light', () => {
     draw(themeControl(DARK_THEME));
-    click(button('Theme'));
+    click(menuItem('Theme'));
     expect(overrides).toEqual([SEPIA_THEME]);
 
     draw(themeControl(SEPIA_THEME));
-    click(button('Theme'));
+    click(menuItem('Theme'));
     expect(overrides).toEqual([SEPIA_THEME, LIGHT_THEME]);
   });
 });
@@ -174,34 +185,34 @@ describe('the settings panel', () => {
 
   it('opens on the settings icon, with the QR code, the room code, and a theme picker', () => {
     draw(themeControl());
-    click(button('Settings'));
+    click(menuItem('Settings'));
     expect(host.querySelector('.overlay')).not.toBeNull();
-    expect(host.querySelector('[role="img"]')?.getAttribute('aria-label')).toBe('QR code to join room QK7P');
+    expect(host.querySelector('[role="img"]')?.getAttribute('aria-label')).toBe('QR code to join game QK7P');
     expect(host.querySelector('.settings-code')?.textContent).toBe('#QK7P');
     expect(host.querySelector('.theme-editor')).not.toBeNull();
   });
 
   it('offers no way to customize individual colours here either', () => {
     draw(themeControl());
-    click(button('Settings'));
+    click(menuItem('Settings'));
     expect(host.querySelector('input[type="color"]')).toBeNull();
   });
 
   it('closes on its own Close button', () => {
     draw(themeControl());
-    click(button('Settings'));
+    click(menuItem('Settings'));
     click(button('Close'));
     expect(host.querySelector('.overlay')).toBeNull();
   });
 
   it('offers a way back to the room’s own theme only once overridden', () => {
     draw(themeControl(LIGHT_THEME, false));
-    click(button('Settings'));
-    expect(host.textContent).not.toContain("Use the room's theme");
+    click(menuItem('Settings'));
+    expect(host.textContent).not.toContain("Use the game's theme");
 
     draw(themeControl(DARK_THEME, true));
-    click(button('Settings'));
-    expect(host.textContent).toContain("Use the room's theme");
+    click(menuItem('Settings'));
+    expect(host.textContent).toContain("Use the game's theme");
   });
 });
 
@@ -224,9 +235,9 @@ describe('leaving the room', () => {
     draw(themeControl(), () => {
       left = true;
     });
-    click(button('Leave'));
+    click(menuItem('Leave'));
     expect(left).toBe(false);
-    expect(host.textContent).toContain('Leave the room?');
+    expect(host.textContent).toContain('Leave the game?');
   });
 
   it('leaves once confirmed', () => {
@@ -234,8 +245,8 @@ describe('leaving the room', () => {
     draw(themeControl(), () => {
       left = true;
     });
-    click(button('Leave'));
-    click(button('Leave the room'));
+    click(menuItem('Leave'));
+    click(button('Leave the game'));
     expect(left).toBe(true);
   });
 
@@ -244,10 +255,10 @@ describe('leaving the room', () => {
     draw(themeControl(), () => {
       left = true;
     });
-    click(button('Leave'));
+    click(menuItem('Leave'));
     click(button('Stay'));
     expect(left).toBe(false);
-    expect(host.textContent).not.toContain('Leave the room?');
+    expect(host.textContent).not.toContain('Leave the game?');
   });
 });
 
@@ -301,7 +312,7 @@ describe('running the room from the phone lobby', () => {
 
   it('offers Run the game by default, and sends requestControl once', () => {
     drawWith({});
-    const runButton = textButton('Run the game');
+    const runButton = textButton('Ask to be the organizer');
     expect(runButton).not.toBeNull();
     act(() => runButton?.click());
     act(() => runButton?.click());
@@ -312,8 +323,8 @@ describe('running the room from the phone lobby', () => {
 
   it('shows a pending request, and lets it be withdrawn', () => {
     drawWith({ yourControlRequest: 'pending' });
-    expect(host.textContent).toContain('Waiting for the room to say yes');
-    expect(textButton('Run the game')).toBeNull();
+    expect(host.textContent).toContain('Waiting for the organizer to say yes');
+    expect(textButton('Ask to be the organizer')).toBeNull();
     act(() => textButton('Never mind')?.click());
     expect(withdrawn).toBe(1);
   });
@@ -321,7 +332,7 @@ describe('running the room from the phone lobby', () => {
   it('offers to ask again after a denial', () => {
     drawWith({ yourControlRequest: 'denied' });
     expect(host.textContent).toContain('Not this time');
-    expect(textButton('Run the game')).not.toBeNull();
+    expect(textButton('Ask to be the organizer')).not.toBeNull();
   });
 
   it('offers Start once this phone holds control, disabled until someone has joined', () => {
@@ -333,10 +344,11 @@ describe('running the room from the phone lobby', () => {
       teamStandings: [],
       overallStandings: [],
       spent: [],
+      answer: null,
     };
     drawWith({ control, players: [] });
     expect(textButton('Start game')?.disabled).toBe(true);
-    expect(textButton('Run the game')).toBeNull();
+    expect(textButton('Ask to be the organizer')).toBeNull();
 
     act(() => {
       render(null, host);

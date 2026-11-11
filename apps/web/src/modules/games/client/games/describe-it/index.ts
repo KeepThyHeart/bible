@@ -30,6 +30,30 @@ export const describeItViews: GameViews = {
     answering: PhoneTurnView,
     reveal: PhoneReveal,
   },
+  card: {
+    descriptionKey: 'games.describeIt.card.description',
+    descriptionFallback: 'Describe the word without saying the forbidden words.',
+    tags: ['teams', 'outLoud'],
+    minutes: 15,
+  },
+  howToPlay: {
+    summaryKey: 'games.describeIt.howToPlay.summary',
+    summaryFallback: 'One player describes a word to their team without saying the forbidden words.',
+    steps: [
+      {
+        key: 'games.describeIt.howToPlay.stepDescribe',
+        fallback: 'The describer taps Got it for each word the team guesses, or Pass to skip.',
+      },
+      {
+        key: 'games.describeIt.howToPlay.stepListen',
+        fallback: 'The other team listens for forbidden words and taps They said one.',
+      },
+      {
+        key: 'games.describeIt.howToPlay.stepPoints',
+        fallback: '50 points to the describing team for each word.',
+      },
+    ],
+  },
 };
 
 registerGameViews(describeItViews);

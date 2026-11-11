@@ -4,7 +4,7 @@ import { act } from 'preact/test-utils';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { PlayerSnapshot } from '../../shared/protocol.js';
 import { DEFAULT_THEME } from '../../shared/theme.js';
-import { SoloSummary } from './Summary.js';
+import { PhoneSummary, SoloSummary } from './Summary.js';
 
 function soloSnapshot(overrides: Partial<PlayerSnapshot> = {}): PlayerSnapshot {
   return {
@@ -21,6 +21,10 @@ function soloSnapshot(overrides: Partial<PlayerSnapshot> = {}): PlayerSnapshot {
       teamsEnabled: false,
       rounds: 10,
       answerWindowMs: 20_000,
+      teamCount: 2,
+      openEnded: false,
+      autoAdvanceMs: null,
+      scoresAfterEachAnswer: true,
       showIndividualScores: false,
       solo: true,
       groupVote: false,
@@ -72,5 +76,43 @@ describe('solo’s own ending', () => {
     expect(host.textContent).toContain('Played 10 rounds');
     expect(host.textContent).not.toContain('big screen');
     expect(host.textContent).not.toContain('place');
+  });
+});
+
+describe('a player’s own result', () => {
+  const control = {
+    pendingJudge: null,
+    requests: [],
+    answeredCount: 0,
+    standings: [],
+    teamStandings: [],
+    overallStandings: [],
+    spent: [],
+    answer: null,
+  };
+
+  function draw(overrides: Partial<PlayerSnapshot>): void {
+    act(() => {
+      render(<PhoneSummary snapshot={soloSnapshot({ settings: { ...soloSnapshot().settings, solo: false }, ...overrides })} />, host);
+    });
+  }
+
+  it('shows the total with the place in the top three, and waits for the organizer', () => {
+    draw({ yourScore: 200, yourRank: 2 });
+
+    expect(host.querySelector('.final-total')?.textContent?.replace(/\s+/g, ' ').trim()).toBe('You: 200 · 2nd');
+    expect(host.textContent).toContain('Waiting for the organizer.');
+  });
+
+  it('shows no place outside the top three', () => {
+    draw({ yourScore: 200, yourRank: 5 });
+
+    expect(host.querySelector('.final-total')?.textContent?.replace(/\s+/g, ' ').trim()).toBe('You: 200');
+  });
+
+  it('does not tell the organizer’s own phone to wait for the organizer', () => {
+    draw({ control });
+
+    expect(host.textContent).not.toContain('Waiting for the organizer.');
   });
 });

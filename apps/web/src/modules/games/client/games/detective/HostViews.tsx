@@ -15,7 +15,9 @@
 
 import type { GroupResult } from '../../../shared/protocol.js';
 import type { HostViewProps } from '../../shell/gameViews.js';
-import { WHERE_CAPTIONS, letterFor, readHostCase, readReveal } from './payload.js';
+import { gt } from '../../shell/t.js';
+import { awaitingReveal } from '../../shell/waitingCopy.js';
+import { letterFor, readHostCase, readReveal, whereCaption } from './payload.js';
 
 function Nothing({ line }: { line: string }) {
   return (
@@ -27,20 +29,20 @@ function Nothing({ line }: { line: string }) {
 
 function howToPlay(teamsEnabled: boolean): string {
   return teamsEnabled
-    ? 'Every phone holds a different clue. Talk it over with your team, then vote on your phone — each team’s majority is its answer.'
-    : 'Every phone holds a different clue. Talk it over, then vote on your phone — the room’s majority is the answer.';
+    ? gt('games.detective.view.howTeams', 'Every phone holds a different clue. Talk it over with your team, then vote on your phone — each team’s majority is its answer.')
+    : gt('games.detective.view.howGroup', 'Every phone holds a different clue. Talk it over, then vote on your phone — the group’s majority is the answer.');
 }
 
 function CaseBoard({ snapshot, view }: HostViewProps) {
   const board = readHostCase(view);
-  if (!board) return <Nothing line="Nothing to show for this round." />;
+  if (!board) return <Nothing line={gt('games.detective.view.nothingToShow', 'Nothing to show for this round.')} />;
 
   return (
     <section class="det det-host">
       <p class="det-ask">{board.question}</p>
       <p class="det-opening">“{board.opening}”</p>
       <p class="det-muted det-how">{howToPlay(snapshot.settings.teamsEnabled)}</p>
-      <ol class="det-options" aria-label="The suspects">
+      <ol class="det-options" aria-label={gt('games.detective.view.suspects', 'The suspects')}>
         {board.options.map((option) => (
           <li key={option.index} class="det-option">
             <span class="det-letter">{letterFor(option.index)}</span>
@@ -55,17 +57,17 @@ function CaseBoard({ snapshot, view }: HostViewProps) {
 export const HostQuestion = CaseBoard;
 export const HostAnswering = CaseBoard;
 
-/** The room's verdict, in words, for a room playing as one group. */
+/** The group's verdict, in words, for everyone playing as one group. */
 function roomVerdict(group: GroupResult): { line: string; tone: 'correct' | 'wrong' | 'none' } {
-  if (group.correct === true) return { line: 'Case solved — every detective scores', tone: 'correct' };
-  if (group.decided !== null) return { line: `The room chose ${group.decided} — not this time`, tone: 'wrong' };
-  if (group.split.length === 0) return { line: 'Nobody voted', tone: 'none' };
-  return { line: 'The room was split — nobody scores', tone: 'none' };
+  if (group.correct === true) return { line: gt('games.detective.view.solved', 'Case solved — every detective scores'), tone: 'correct' };
+  if (group.decided !== null) return { line: gt('games.detective.view.groupChose', 'The group chose {answer} — not this time', { answer: group.decided }), tone: 'wrong' };
+  if (group.split.length === 0) return { line: gt('games.detective.view.nobodyVoted', 'Nobody voted'), tone: 'none' };
+  return { line: gt('games.detective.view.groupSplit', 'The group was split — nobody scores'), tone: 'none' };
 }
 
 export function HostReveal({ reveal }: HostViewProps) {
   const detail = readReveal(reveal?.detail);
-  if (!reveal || !detail) return <Nothing line="Waiting for the answer." />;
+  if (!reveal || !detail) return <Nothing line={awaitingReveal()} />;
 
   const groups = reveal.groups ?? [];
   // One group is the whole room, teams on or off, and the shell leaves its
@@ -80,7 +82,7 @@ export function HostReveal({ reveal }: HostViewProps) {
   return (
     <section class="det det-host det-reveal">
       <div class="det-column">
-        <p class="det-label">The answer</p>
+        <p class="det-label">{gt('games.detective.view.answer', 'The answer')}</p>
         <h2 class="det-answer">{detail.person}</h2>
         {verdict !== null && (
           <p class="det-verdict" data-tone={verdict.tone}>
@@ -88,9 +90,9 @@ export function HostReveal({ reveal }: HostViewProps) {
             {verdict.line}
           </p>
         )}
-        {groups.length > 1 && <p class="det-muted">Each team’s verdict is below.</p>}
+        {groups.length > 1 && <p class="det-muted">{gt('games.detective.view.teamVerdicts', 'Each team’s verdict is below.')}</p>}
 
-        <ul class="det-split" aria-label="How the room voted">
+        <ul class="det-split" aria-label={gt('games.detective.view.howVoted', 'How the group voted')}>
           {rows.map((row) => (
             <li key={row.label} class="det-split-row" data-correct={row.label === detail.person}>
               <span class="det-split-label">{row.label}</span>
@@ -104,18 +106,20 @@ export function HostReveal({ reveal }: HostViewProps) {
             </li>
           ))}
         </ul>
-        <p class="det-muted">{votes === 1 ? '1 vote' : `${votes} votes`} — nobody is named.</p>
+        <p class="det-muted">{votes === 1
+            ? gt('games.detective.view.oneVote', '1 vote — nobody is named.')
+            : gt('games.detective.view.manyVotes', '{count} votes — nobody is named.', { count: votes })}</p>
       </div>
 
       <div class="det-column">
-        <p class="det-label">The evidence</p>
-        <ul class="det-evidence" aria-label="Every clue">
+        <p class="det-label">{gt('games.detective.view.evidence', 'The evidence')}</p>
+        <ul class="det-evidence" aria-label={gt('games.detective.view.everyClue', 'Every clue')}>
           {detail.clues.map((clue) => (
             <li key={clue.text} class="det-clue" data-where={clue.where}>
               <span>{clue.text}</span>
               <span class="det-muted det-small">
-                {clue.reference === null ? '' : `${clue.reference} · `}
-                {WHERE_CAPTIONS[clue.where]}
+                {clue.reference === null ? '' : gt('games.detective.view.referencePrefix', '{reference} · ', { reference: clue.reference })}
+                {whereCaption(clue.where)}
               </span>
             </li>
           ))}

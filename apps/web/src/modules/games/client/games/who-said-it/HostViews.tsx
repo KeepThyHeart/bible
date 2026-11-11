@@ -15,6 +15,8 @@
  */
 
 import type { HostViewProps } from '../../shell/gameViews.js';
+import { gt } from '../../shell/t.js';
+import { awaitingReveal } from '../../shell/waitingCopy.js';
 import { citation, letterFor, readDetail, readQuestion } from './payload.js';
 
 function Nothing({ line }: { line: string }) {
@@ -31,26 +33,26 @@ function Quote({ quote, size }: { quote: string; size: 'large' | 'medium' }) {
 
 export function HostQuestion({ view }: HostViewProps) {
   const question = readQuestion(view);
-  if (!question) return <Nothing line="Nothing to show for this round." />;
+  if (!question) return <Nothing line={gt('games.whoSaidIt.view.nothingToShow', 'Nothing to show for this round.')} />;
 
   return (
     <section class="wsi wsi-host">
-      <h2 class="wsi-ask">Who said it?</h2>
+      <h2 class="wsi-ask">{gt('games.whoSaidIt.view.ask', 'Who said it?')}</h2>
       <Quote quote={question.quote} size="large" />
-      <p class="wsi-hint">Read it. The names come up in a moment.</p>
+      <p class="wsi-hint">{gt('games.whoSaidIt.view.readIt', 'Read it. The names come up in a moment.')}</p>
     </section>
   );
 }
 
 export function HostAnswering({ view }: HostViewProps) {
   const question = readQuestion(view);
-  if (!question) return <Nothing line="Nothing to show for this round." />;
+  if (!question) return <Nothing line={gt('games.whoSaidIt.view.nothingToShow', 'Nothing to show for this round.')} />;
 
   return (
     <section class="wsi wsi-host">
-      <h2 class="wsi-ask">Who said it?</h2>
+      <h2 class="wsi-ask">{gt('games.whoSaidIt.view.ask', 'Who said it?')}</h2>
       <Quote quote={question.quote} size="medium" />
-      <ol class="wsi-options" aria-label="The names">
+      <ol class="wsi-options" aria-label={gt('games.whoSaidIt.view.names', 'The names')}>
         {question.options.map((option) => (
           <li key={option.index} class="wsi-option">
             <span class="wsi-letter">{letterFor(option.index)}</span>
@@ -65,7 +67,7 @@ export function HostAnswering({ view }: HostViewProps) {
 export function HostReveal({ view, reveal }: HostViewProps) {
   const detail = readDetail(reveal?.detail);
   const question = readQuestion(view);
-  if (!reveal || !detail) return <Nothing line="Waiting for the answer." />;
+  if (!reveal || !detail) return <Nothing line={awaitingReveal()} />;
 
   const aggregates = reveal.aggregates;
   const most = aggregates.reduce((high, row) => Math.max(high, row.count), 0);
@@ -79,9 +81,9 @@ export function HostReveal({ view, reveal }: HostViewProps) {
 
   return (
     <section class="wsi wsi-host">
-      <p class="wsi-answer-label">Who said it</p>
+      <p class="wsi-answer-label">{gt('games.whoSaidIt.view.answerLabel', 'Who said it')}</p>
       <h2 class="wsi-answer">{detail.speaker}</h2>
-      {detail.listener !== null && <p class="wsi-listener">to {detail.listener}</p>}
+      {detail.listener !== null && <p class="wsi-listener">{gt('games.whoSaidIt.view.toListener', 'to {name}', { name: detail.listener })}</p>}
 
       <figure class="wsi-verse-figure">
         <blockquote class="wsi-verse">{words}</blockquote>
@@ -90,7 +92,7 @@ export function HostReveal({ view, reveal }: HostViewProps) {
 
       {!teamVote && (
         <>
-          <ul class="wsi-split" aria-label="How the room answered">
+          <ul class="wsi-split" aria-label={gt('games.whoSaidIt.view.howAnswered', 'How everyone answered')}>
             {aggregates.map((row) => (
               <li key={row.label} class="wsi-split-row" data-correct={row.label === reveal.correctLabel}>
                 <span class="wsi-split-label">{row.label}</span>
@@ -105,7 +107,7 @@ export function HostReveal({ view, reveal }: HostViewProps) {
             ))}
           </ul>
           <p class="wsi-muted">
-            {answered === 1 ? '1 answer' : `${answered} answers`} — nobody is named.
+            {answered === 1 ? gt('games.whoSaidIt.view.answerOne', '1 answer — nobody is named.') : gt('games.whoSaidIt.view.answerMany', '{count} answers — nobody is named.', { count: answered })}
           </p>
         </>
       )}

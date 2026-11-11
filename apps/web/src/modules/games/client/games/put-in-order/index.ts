@@ -29,6 +29,26 @@ export const putInOrderViews: GameViews = {
     answering: PhoneAnswering,
     reveal: PhoneReveal,
   },
+  card: {
+    descriptionKey: 'games.putInOrder.card.description',
+    descriptionFallback: 'Events from one story, shuffled. Put them back in order.',
+    tags: ['everyone'],
+    minutes: 10,
+  },
+  howToPlay: {
+    summaryKey: 'games.putInOrder.howToPlay.summary',
+    summaryFallback: 'Events from one story appear in the wrong order.',
+    steps: [
+      {
+        key: 'games.putInOrder.howToPlay.stepOrder',
+        fallback: 'Tap the items into the order they happened on your phone.',
+      },
+      {
+        key: 'games.putInOrder.howToPlay.stepPoints',
+        fallback: '100 points for the right order. A nearly right order earns part of that.',
+      },
+    ],
+  },
 };
 
 registerGameViews(putInOrderViews);

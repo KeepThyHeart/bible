@@ -236,6 +236,41 @@ describe('projecting to subscribers', () => {
   });
 });
 
+describe('the remote', () => {
+  it('is projected as a remote on every change, with its own payload', () => {
+    const { context, room, join } = harness();
+    join('p1', 'Ann');
+    const remote = recordingSubscriber({ kind: 'remote' });
+    room.subscribers.add(remote);
+
+    broadcast(context, room);
+    join('p2', 'Ben');
+
+    const snapshots = snapshotsOf(remote);
+    expect(snapshots).toHaveLength(2);
+    expect(snapshots.every((snapshot) => snapshot.viewer === 'remote')).toBe(true);
+    expect(snapshots[1]?.players).toHaveLength(2);
+  });
+
+  it('receives the full leaderboard when it asks while the owner holds control', () => {
+    const { context, room, join } = harness();
+    join('p1', 'Ann');
+    const remote = recordingSubscriber({ kind: 'remote' });
+    const display = recordingSubscriber({ kind: 'screen', owner: false });
+    room.subscribers.add(remote);
+    room.subscribers.add(display);
+
+    dispatch(context, room, {
+      actor: { role: 'owner' },
+      intent: { kind: 'host', command: { cmd: 'requestFullStandings' } },
+      receivedAt: 1_000,
+    });
+
+    expect(remote.events.some((event) => event.type === 'standingsFull')).toBe(true);
+    expect(display.events.some((event) => event.type === 'standingsFull')).toBe(false);
+  });
+});
+
 describe('the full leaderboard', () => {
   it('reaches the host who asked and nobody else', () => {
     const { context, room, join } = harness();

@@ -7,7 +7,6 @@ import type {
   HostCommand,
   RevealPayload,
   ScreenSnapshot,
-  Standing,
 } from '../../shared/protocol.js';
 import { DEFAULT_THEME } from '../../shared/theme.js';
 import { ClockContext, type ClockPort } from './clockPort.js';
@@ -38,6 +37,10 @@ function snapshot(overrides: Partial<ScreenSnapshot> = {}): ScreenSnapshot {
       teamsEnabled: true,
       rounds: 10,
       answerWindowMs: 20_000,
+      teamCount: 2,
+      openEnded: false,
+      autoAdvanceMs: null,
+      scoresAfterEachAnswer: true,
       showIndividualScores: false,
       solo: false,
       groupVote: true,
@@ -58,10 +61,8 @@ function snapshot(overrides: Partial<ScreenSnapshot> = {}): ScreenSnapshot {
     answeredCount: 0,
     view: null,
     buzz: null,
-    // This screen holds control by default, so the existing behaviour here —
-    // pause, skip, the menu — exercises the extracted `ControlBar` exactly as
-    // it did before the extraction. See the 'not controlling' describe block
-    // below for the other state.
+    // This screen holds control by default; the screen still draws no
+    // controls of its own either way.
     control: {
       pendingJudge: null,
       requests: [],
@@ -70,6 +71,7 @@ function snapshot(overrides: Partial<ScreenSnapshot> = {}): ScreenSnapshot {
       teamStandings: [],
       overallStandings: [],
       spent: [],
+      answer: null,
     },
     ...overrides,
   };
@@ -86,12 +88,7 @@ const REVEAL: RevealPayload = {
 let host: HTMLDivElement;
 let commands: HostCommand[];
 
-function draw(
-  shown: ScreenSnapshot,
-  reveal: RevealPayload | null = null,
-  onCommand: (command: HostCommand) => void = () => undefined,
-  fullStandings: Standing[] | null = null
-): void {
+function draw(shown: ScreenSnapshot, reveal: RevealPayload | null = null): void {
   act(() => {
     render(
       <ClockContext.Provider value={stillClock}>
@@ -99,9 +96,8 @@ function draw(
           snapshot={shown}
           status="open"
           reveal={reveal}
-          fullStandings={fullStandings}
           isOwner={true}
-          onCommand={onCommand}
+          onReclaim={() => undefined}
           onReconnectNow={() => undefined}
         >
           <p>the game's own screen</p>
@@ -110,10 +106,6 @@ function draw(
       host
     );
   });
-}
-
-function drawInteractive(shown: ScreenSnapshot, reveal: RevealPayload | null = null): void {
-  draw(shown, reveal, (command) => commands.push(command));
 }
 
 function fill(): string | null | undefined {
@@ -178,10 +170,10 @@ describe('the host frame', () => {
   it('words the chrome as the shell does when the game says nothing', () => {
     draw(snapshot());
     expect(host.querySelector('.chrome-round')?.textContent).toBe('Q 3 / 10');
+    const base = snapshot();
+    draw(snapshot({ settings: { ...base.settings, openEnded: true } }));
+    expect(host.querySelector('.chrome-round')?.textContent).toBe('Q 3');
     expect(host.querySelector('.chrome-answered')?.textContent).toBe('Answered 0 / 0');
-    expect(host.textContent).toContain('Reveal now');
-    draw(snapshot({ phase: 'reveal', phaseEndsAt: null, phaseDurationMs: null }));
-    expect(host.textContent).toContain('Next question');
   });
 
   it('words the chrome in the game’s own terms, and hides the answered count when asked', () => {
@@ -189,13 +181,9 @@ describe('the host frame', () => {
     draw(snapshot({ chrome }));
     expect(host.querySelector('.chrome-round')?.textContent).toBe('Turn 3 / 10');
     expect(host.querySelector('.chrome-answered')).toBeNull();
-    expect(host.textContent).toContain('End turn');
-    expect(host.textContent).not.toContain('Reveal now');
-    draw(snapshot({ chrome, phase: 'reveal', phaseEndsAt: null, phaseDurationMs: null }));
-    expect(host.textContent).toContain('Start Blue’s turn');
   });
 
-  it('offers a retry outside the code/round/menu row while reconnecting', () => {
+  it('offers a retry outside the code and round row while reconnecting', () => {
     let retried = 0;
     act(() => {
       render(
@@ -204,9 +192,8 @@ describe('the host frame', () => {
             snapshot={snapshot()}
             status="reconnecting"
             reveal={null}
-            fullStandings={null}
             isOwner={true}
-            onCommand={() => undefined}
+            onReclaim={() => undefined}
             onReconnectNow={() => {
               retried += 1;
             }}
@@ -218,7 +205,7 @@ describe('the host frame', () => {
       );
     });
     // Not a child of the row that carries the room code, so a long banner
-    // cannot push the code or the menu button around.
+    // cannot push the code or the round counter around.
     expect(host.querySelector('.chrome-row .banner')).toBeNull();
     const banner = host.querySelector('.banner-row');
     expect(banner?.textContent).toContain('Reconnecting…');
@@ -228,279 +215,6 @@ describe('the host frame', () => {
       retry?.dispatchEvent(new Event('click', { bubbles: true }));
     });
     expect(retried).toBe(1);
-  });
-});
-
-describe('pause and next, in the main control bar', () => {
-  beforeEach(() => {
-    host = document.createElement('div');
-    document.body.appendChild(host);
-    commands = [];
-  });
-
-  afterEach(() => {
-    act(() => {
-      render(null, host);
-    });
-    host.remove();
-  });
-
-  it('sends pause, and shows resume once the room says it is paused', () => {
-    drawInteractive(snapshot({ paused: false }));
-    click(button('Pause'));
-    expect(commands).toEqual([{ cmd: 'pause' }]);
-
-    drawInteractive(snapshot({ paused: true }));
-    expect(button('Resume')).not.toBeNull();
-    expect(button('Pause')).toBeNull();
-  });
-
-  it('asks before skipping a question still in play, and only skips once confirmed', () => {
-    drawInteractive(snapshot({ phase: 'answering' }));
-    click(button('Skip'));
-    expect(commands).toEqual([]);
-    expect(host.textContent).toContain('Keep going');
-
-    click(button('Skip it'));
-    expect(commands).toEqual([{ cmd: 'skip' }]);
-  });
-
-  it('backing out of the skip confirmation sends nothing', () => {
-    drawInteractive(snapshot({ phase: 'answering' }));
-    click(button('Skip'));
-    click(button('Keep going'));
-    expect(commands).toEqual([]);
-    expect(button('Skip')).not.toBeNull();
-  });
-
-  it('moves straight on from a reveal, with no confirmation', () => {
-    drawInteractive(snapshot({ phase: 'reveal', phaseEndsAt: null, phaseDurationMs: null }));
-    click(button('Next question'));
-    expect(commands).toEqual([{ cmd: 'nextRound' }]);
-  });
-
-  it('drops Pause and Next once the game has reached its summary — only Back is left to press', () => {
-    drawInteractive(snapshot({ phase: 'summary', phaseEndsAt: null, phaseDurationMs: null }));
-    expect(button('Pause')).toBeNull();
-    expect(button('Resume')).toBeNull();
-    expect(button('Skip')).toBeNull();
-    expect(button('Next question')).toBeNull();
-    expect(button('Back')).not.toBeNull();
-  });
-});
-
-describe('the room menu', () => {
-  beforeEach(() => {
-    host = document.createElement('div');
-    document.body.appendChild(host);
-    commands = [];
-  });
-
-  afterEach(() => {
-    act(() => {
-      render(null, host);
-    });
-    host.remove();
-  });
-
-  function openMenu(): void {
-    click(host.querySelector('.host-menu-toggle'));
-  }
-
-  it('keeps New game, Close room and the scores switch out of the main control bar', () => {
-    drawInteractive(snapshot());
-    expect(button('New game')).toBeNull();
-    expect(button('Close room')).toBeNull();
-    expect(host.textContent).not.toContain('Scores:');
-  });
-
-  it('opens on the hamburger, and offers them there instead', () => {
-    drawInteractive(snapshot());
-    openMenu();
-    expect(button('New game')).not.toBeNull();
-    expect(button('Close room')).not.toBeNull();
-    expect(host.querySelector('[role="menuitemcheckbox"]')?.getAttribute('aria-checked')).toBe('false');
-  });
-
-  it('sends the scores toggle and closes nothing else by doing it', () => {
-    drawInteractive(snapshot());
-    openMenu();
-    click(button("Show everyone's scores"));
-    expect(commands).toEqual([{ cmd: 'setSettings', settings: { showIndividualScores: true } }]);
-  });
-
-  it('warns before starting a new game while this one is not finished, and still asks to confirm', () => {
-    drawInteractive(snapshot({ phase: 'answering' }));
-    openMenu();
-    click(button('New game'));
-    expect(host.textContent).toContain('not finished yet');
-    expect(commands).toEqual([]);
-
-    click(button('Start a new game'));
-    expect(commands).toEqual([{ cmd: 'newGame' }]);
-  });
-
-  it('does not warn once the game has reached its summary', () => {
-    drawInteractive(snapshot({ phase: 'summary', phaseEndsAt: null, phaseDurationMs: null }));
-    openMenu();
-    click(button('New game'));
-    expect(host.textContent).not.toContain('not finished yet');
-  });
-
-  it('closes room only after a second confirming tap', () => {
-    drawInteractive(snapshot());
-    openMenu();
-    click(button('Close room'));
-    expect(commands).toEqual([]);
-    click(button('End it'));
-    expect(commands).toEqual([{ cmd: 'end' }]);
-  });
-
-  it('opens Overall winners from the menu, showing the whole session’s top three', () => {
-    const withOverall = snapshot({
-      control: {
-        pendingJudge: null,
-        requests: [],
-        answeredCount: 0,
-        standings: [],
-        teamStandings: [],
-        overallStandings: [
-          { playerId: 'p-1', name: 'Miriam', teamId: null, score: 140 },
-          { playerId: 'p-2', name: 'Jonah', teamId: null, score: 90 },
-        ],
-        spent: [],
-      },
-    });
-    drawInteractive(withOverall);
-    openMenu();
-    click(button('Overall winners'));
-    expect(host.textContent).toContain('Overall winners');
-    expect(host.textContent).toContain('Miriam');
-    expect(host.textContent).toContain('140');
-    expect(host.textContent).toContain('Jonah');
-  });
-
-  it('says so plainly when nobody has an overall score yet', () => {
-    drawInteractive(snapshot());
-    openMenu();
-    click(button('Overall winners'));
-    expect(host.textContent).toContain('Nobody has scored yet.');
-  });
-
-  it('opens Manage players from the menu, listing the roster', () => {
-    const withPlayers = snapshot({
-      players: [
-        { id: 'p-1', name: 'Miriam', teamId: null, connected: true },
-        { id: 'p-2', name: 'Jonah', teamId: null, connected: false },
-      ],
-    });
-    drawInteractive(withPlayers);
-    openMenu();
-    click(button('Manage players'));
-    expect(host.textContent).toContain('Manage players');
-    expect(host.textContent).toContain('Miriam');
-    expect(host.textContent).toContain('Jonah');
-    expect(host.textContent).toContain('(away)');
-  });
-
-  it('adjusts a player’s score by the tapped increment', () => {
-    const withPlayers = snapshot({
-      players: [{ id: 'p-1', name: 'Miriam', teamId: null, connected: true }],
-    });
-    drawInteractive(withPlayers);
-    openMenu();
-    click(button('Manage players'));
-    click(button('+10'));
-    expect(commands).toEqual([{ cmd: 'adjust', playerId: 'p-1', delta: 10 }]);
-  });
-
-  it('kicks a player only after a second confirming tap', () => {
-    const withPlayers = snapshot({
-      players: [{ id: 'p-1', name: 'Miriam', teamId: null, connected: true }],
-    });
-    drawInteractive(withPlayers);
-    openMenu();
-    click(button('Manage players'));
-    click(button('Kick'));
-    expect(commands).toEqual([]);
-    click(button('Remove'));
-    expect(commands).toEqual([{ cmd: 'kick', playerId: 'p-1' }]);
-  });
-
-  it('asks the room for full standings the moment the menu item is tapped, and shows them once they arrive', () => {
-    draw(snapshot(), null, (command) => commands.push(command));
-    openMenu();
-    click(button('Full standings'));
-    expect(commands).toEqual([{ cmd: 'requestFullStandings' }]);
-    expect(host.textContent).toContain('Asking the room…');
-
-    draw(
-      snapshot(),
-      null,
-      (command) => commands.push(command),
-      [
-        { playerId: 'p-1', name: 'Miriam', teamId: null, score: 90 },
-        { playerId: 'p-2', name: 'Jonah', teamId: null, score: 10 },
-      ]
-    );
-    expect(host.textContent).toContain('Miriam');
-    expect(host.textContent).toContain('Jonah');
-    expect(host.textContent).not.toContain('Asking the room…');
-  });
-});
-
-describe('looking Back at the previous question', () => {
-  beforeEach(() => {
-    host = document.createElement('div');
-    document.body.appendChild(host);
-    commands = [];
-  });
-
-  afterEach(() => {
-    act(() => {
-      render(null, host);
-    });
-    host.remove();
-  });
-
-  const LAST_REVEAL: RevealPayload = {
-    round: 1,
-    correctLabel: 'Genesis 1:1',
-    aggregates: [{ label: 'Correct', count: 3 }],
-    detail: null,
-  };
-
-  it('has nothing to show, and no button worth pressing, before any round has been revealed', () => {
-    draw(snapshot({ round: 0, phase: 'question' }));
-    expect(button('Back')?.hasAttribute('disabled')).toBe(true);
-  });
-
-  it('remembers the last reveal seen, even once the room has moved past it and cleared its own copy', () => {
-    // The reveal arrives for round 1...
-    draw(snapshot({ round: 1, phase: 'reveal', phaseEndsAt: null, phaseDurationMs: null }), LAST_REVEAL);
-    // ...and by the time round 2 opens, the room's own `reveal` prop has gone
-    // back to null (a reveal belongs to one round) — exactly the moment Back
-    // has to still work.
-    draw(snapshot({ round: 2, phase: 'question' }), null);
-
-    expect(button('Back')?.hasAttribute('disabled')).toBe(false);
-    click(button('Back'));
-    expect(host.textContent).toContain('Genesis 1:1');
-    expect(host.textContent).toContain('nothing here changes the room');
-  });
-
-  it('sends no command at all — it only ever reads what already happened', () => {
-    draw(snapshot({ round: 1, phase: 'reveal', phaseEndsAt: null, phaseDurationMs: null }), LAST_REVEAL, (command) =>
-      commands.push(command)
-    );
-    draw(snapshot({ round: 2, phase: 'question' }), null, (command) => commands.push(command));
-    click(button('Back'));
-    expect(commands).toEqual([]);
-  });
-
-  it('is disabled again while the round on screen is itself the reveal', () => {
-    draw(snapshot({ round: 1, phase: 'reveal', phaseEndsAt: null, phaseDurationMs: null }), LAST_REVEAL);
-    expect(button('Back')?.hasAttribute('disabled')).toBe(true);
   });
 });
 
@@ -562,9 +276,8 @@ describe('not holding control', () => {
             snapshot={shown}
             status="open"
             reveal={null}
-            fullStandings={null}
             isOwner={isOwner}
-            onCommand={(command) => commands.push(command)}
+            onReclaim={() => commands.push({ cmd: 'reclaimControl' })}
             onReconnectNow={() => undefined}
           >
             <p>the game's own screen</p>
@@ -582,7 +295,7 @@ describe('not holding control', () => {
     return rest;
   }
 
-  it('renders no control bar, and names whoever is running the room instead', () => {
+  it('names whoever is running the room instead', () => {
     drawAs(
       withoutControl(
         snapshot({
@@ -592,9 +305,7 @@ describe('not holding control', () => {
       ),
       true
     );
-    expect(host.querySelector('.host-controls')).toBeNull();
-    expect(host.querySelector('.host-menu')).toBeNull();
-    expect(host.textContent).toContain('Ellen is running the room.');
+    expect(host.textContent).toContain('Ellen is the organizer.');
   });
 
   it('offers Take back control on the owner credential only', () => {
@@ -616,11 +327,11 @@ describe('not holding control', () => {
   });
 });
 
-describe('a phone asking to run the room', () => {
+
+describe('a screen that holds control', () => {
   beforeEach(() => {
     host = document.createElement('div');
     document.body.appendChild(host);
-    commands = [];
   });
 
   afterEach(() => {
@@ -630,41 +341,36 @@ describe('a phone asking to run the room', () => {
     host.remove();
   });
 
-  it('shows a waiting request and lets the controller approve or decline it', () => {
-    drawInteractive(
-      snapshot({
-        control: {
-          pendingJudge: null,
-          requests: [{ playerId: 'p-2', askedAt: 1_000, decidesAt: 46_000 }],
-          answeredCount: 0,
-          standings: [],
-          teamStandings: [],
-          overallStandings: [],
-          spent: [],
-        },
-      })
-    );
-    expect(button('Let them')).not.toBeNull();
-
-    click(button('Let them'));
-    expect(commands).toEqual([{ cmd: 'grantControl', playerId: 'p-2' }]);
+  it('still draws nothing to press: no menu, skip, reveal button or judge card', () => {
+    draw(snapshot({ phase: 'answering' }));
+    expect(host.querySelectorAll('button')).toHaveLength(0);
+    expect(host.querySelector('.host-controls')).toBeNull();
+    expect(host.querySelector('.judge-card')).toBeNull();
   });
 
-  it('declines with denyControl', () => {
-    drawInteractive(
+  it('draws the top three under a reveal', () => {
+    draw(
       snapshot({
-        control: {
-          pendingJudge: null,
-          requests: [{ playerId: 'p-2', askedAt: 1_000, decidesAt: 46_000 }],
-          answeredCount: 0,
-          standings: [],
-          teamStandings: [],
-          overallStandings: [],
-          spent: [],
-        },
+        phase: 'reveal',
+        phaseEndsAt: null,
+        phaseDurationMs: null,
+        standings: [
+          { playerId: 'p-1', name: 'Miriam', teamId: null, score: 300 },
+          { playerId: 'p-2', name: 'Jonah', teamId: null, score: 200 },
+        ],
       })
     );
-    click(button('No'));
-    expect(commands).toEqual([{ cmd: 'denyControl', playerId: 'p-2' }]);
+    expect(host.querySelector('.score-strip')?.textContent).toContain('Miriam');
+  });
+
+  it('draws no score strip while a question is open', () => {
+    draw(snapshot({ standings: [{ playerId: 'p-1', name: 'Miriam', teamId: null, score: 300 }] }));
+    expect(host.querySelector('.score-strip')).toBeNull();
+  });
+
+  it('shows neither a question number nor a timer bar during the rules', () => {
+    draw(snapshot({ phase: 'intro', round: 0 }));
+    expect(host.querySelector('.chrome-round')).toBeNull();
+    expect(host.querySelector('[role="progressbar"]')).toBeNull();
   });
 });

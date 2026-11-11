@@ -1,5 +1,5 @@
 /**
- * Phase progression: lobby → question → answering → reveal → summary.
+ * Phase progression: lobby → intro → question → answering → reveal → summary.
  *
  * Two things make this worth its own module. The first is that `paused` is an
  * overlay rather than a phase, so pausing has to shift every deadline by the
@@ -27,6 +27,14 @@ export interface Transition {
 export const TIMER_QUESTION_END = 'questionEnd';
 export const TIMER_ANSWER_END = 'answerEnd';
 export const TIMER_BUZZ_ANSWER = 'buzzAnswer';
+export const TIMER_AUTO_ADVANCE = 'autoAdvance';
+export const TIMER_INTRO_END = 'introEnd';
+
+/**
+ * How long the how-to-play screen holds before the first round starts by
+ * itself. The organizer can start sooner; this is the longest anyone waits.
+ */
+export const INTRO_MS = 8_000;
 
 export function answerWindowFor(state: RoomState, round: Round | null): number {
   return round?.answerWindowMs ?? state.settings.answerWindowMs;
@@ -58,6 +66,8 @@ export function readingMsFor(game: GameModule, state: RoomState, round: Round): 
  */
 export function phaseDurationOf(state: RoomState, game: GameModule): number | null {
   if (state.phaseEndsAt === null) return null;
+  if (state.phase === 'intro') return INTRO_MS;
+  if (state.phase === 'reveal') return state.settings.autoAdvanceMs;
   const round = currentRound(state);
   if (state.phase === 'question') {
     return round === null ? null : (readingMsFor(game, state, round) ?? null);
@@ -105,9 +115,21 @@ export function buildRounds(
   from: number,
   choice: string | null
 ): RoomState {
+  // An open-ended game may already have built past its batch size; a host's
+  // choice rebuilds what was there, not only the first batch.
+  return buildRoundsTo(state, game, from, Math.max(state.settings.rounds, state.rounds.length), choice);
+}
+
+function buildRoundsTo(
+  state: RoomState,
+  game: GameModule,
+  from: number,
+  to: number,
+  choice: string | null = null
+): RoomState {
   const rng = seededRandom(state.rngSeed);
   const rounds: Round[] = state.rounds.slice(0, from);
-  for (let index = from; index < state.settings.rounds; index += 1) {
+  for (let index = from; index < to; index += 1) {
     rounds.push(
       game.buildRound(
         {
@@ -128,9 +150,32 @@ export function buildRounds(
  * room replayed from the same seed produces the same questions, and means a
  * game module is never called from inside a timer path — a host's choice
  * rebuilds from a host command, never from a timer.
+ *
+ * A group first sees how the game is played, for a fixed few seconds. A solo
+ * player started the game themselves a moment ago and is waiting to play, so
+ * they go straight to the first question.
  */
 export function startGame(state: RoomState, game: GameModule, now: ServerTime): Transition {
-  return enterRound(buildRounds(state, game, 0, null), game, 0, now);
+  const built = buildRounds(state, game, 0, null);
+  if (state.settings.solo) return enterRound(built, game, 0, now);
+  return enterIntro(built, now);
+}
+
+/**
+ * The how-to-play screen. It sits before round 0, so `roundIndex` is still -1
+ * and its timer is keyed to that round: entering round 0 leaves it stale, and a
+ * stale timer is ignored.
+ */
+export function enterIntro(state: RoomState, now: ServerTime): Transition {
+  const endsAt = now + INTRO_MS;
+  return {
+    state: { ...state, phase: 'intro', phaseStartedAt: now, phaseEndsAt: endsAt },
+    effects: [
+      { type: 'cancelTimers', round: state.roundIndex },
+      { type: 'timer', at: endsAt, round: state.roundIndex, tag: TIMER_INTRO_END },
+      { type: 'persist' },
+    ],
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -138,11 +183,12 @@ export function startGame(state: RoomState, game: GameModule, now: ServerTime): 
 // ---------------------------------------------------------------------------
 
 export function enterRound(
-  state: RoomState,
+  before: RoomState,
   game: GameModule,
   index: number,
   now: ServerTime
 ): Transition {
+  const state = extendOpenEnded(before, game, index);
   const round = state.rounds[index];
   if (!round) return enterSummary(state, now);
 
@@ -215,9 +261,12 @@ export function openAnswering(state: RoomState, now: ServerTime): Transition {
 // ---------------------------------------------------------------------------
 
 /**
- * Scores the round and stops the clock. The reveal waits on the host rather
- * than on a timer: a leader wants to talk over it, and a room that advances
- * itself mid-sentence is worse than one that needs a tap.
+ * Scores the round and stops the clock. By default the reveal waits on the
+ * host rather than on a timer: a leader wants to talk over it, and a room that
+ * advances itself mid-sentence is worse than one that needs a tap. A room that
+ * has asked for auto-advance gets a timer instead, but never after the last
+ * round, where the next step is the summary and the organizer should choose
+ * when the room sees it.
  */
 export function enterReveal(state: RoomState, game: GameModule, now: ServerTime): Transition {
   const round = currentRound(state);
@@ -238,18 +287,70 @@ export function enterReveal(state: RoomState, game: GameModule, now: ServerTime)
     judging: null,
     streamFrozenAt: null,
     phaseStartedAt: now,
-    phaseEndsAt: null,
+    phaseEndsAt: autoAdvanceDeadline(state, now),
   };
   return {
     state: next,
     effects: [
       { type: 'cancelTimers', round: state.roundIndex },
+      ...timerForPhase(next),
       // Scoring is done and nothing else will change it, so this is the one
       // moment at which the public payload and every private result agree.
       { type: 'reveal', round: state.roundIndex },
       { type: 'persist' },
     ],
   };
+}
+
+/**
+ * Rounds an open-ended game will ever build, so a room left running all
+ * evening still ends rather than drawing on content without limit.
+ */
+export const OPEN_ENDED_MAX_ROUNDS = 100;
+
+/**
+ * An open-ended game builds its rounds a batch at a time, the next batch when
+ * the room reaches the end of the last. Built from the room's seed exactly as
+ * the first batch was, so a replay of the same intents still draws the same
+ * questions, wherever in the evening it was asked for.
+ */
+export function extendOpenEnded(state: RoomState, game: GameModule, index: number): RoomState {
+  if (!state.settings.openEnded || index < state.rounds.length) return state;
+  if (state.rounds.length === 0 || state.rounds.length >= OPEN_ENDED_MAX_ROUNDS) return state;
+  const batch = Math.max(1, state.settings.rounds);
+  const target = Math.min(state.rounds.length + batch, OPEN_ENDED_MAX_ROUNDS);
+  return buildRoundsTo(state, game, state.rounds.length, target);
+}
+
+/**
+ * Back into play from the results with everything kept: the next round if one
+ * is built, another batch of the room's length if not.
+ */
+export function continueFromSummary(state: RoomState, game: GameModule, now: ServerTime): Transition | null {
+  if (state.phase !== 'summary' || state.rounds.length === 0) return null;
+  const next = state.roundIndex + 1;
+  const built =
+    next < state.rounds.length
+      ? state
+      : buildRoundsTo(state, game, state.rounds.length, Math.min(state.rounds.length + Math.max(1, state.settings.rounds), OPEN_ENDED_MAX_ROUNDS));
+  if (next >= built.rounds.length) return null;
+  return enterRound(built, game, next, now);
+}
+
+/** True when moving on from the current round would end the game. */
+export function onLastRound(state: RoomState): boolean {
+  if (state.roundIndex + 1 < state.rounds.length) return false;
+  return !state.settings.openEnded || state.rounds.length >= OPEN_ENDED_MAX_ROUNDS;
+}
+
+/**
+ * When the reveal moves on by itself, or null when it waits for the organizer:
+ * auto-advance is off, or no round is left to move on to.
+ */
+export function autoAdvanceDeadline(state: RoomState, now: ServerTime): ServerTime | null {
+  const wait = state.settings.autoAdvanceMs;
+  if (wait === null || onLastRound(state)) return null;
+  return now + wait;
 }
 
 export function enterSummary(state: RoomState, now: ServerTime): Transition {
@@ -308,6 +409,9 @@ export function timerForPhase(state: RoomState): Effect[] {
   if (state.phase === 'answering' && state.phaseEndsAt !== null) {
     const tag = state.buzz ? TIMER_BUZZ_ANSWER : TIMER_ANSWER_END;
     return [{ type: 'timer', at: state.phaseEndsAt, round: state.roundIndex, tag }];
+  }
+  if (state.phase === 'reveal' && state.phaseEndsAt !== null) {
+    return [{ type: 'timer', at: state.phaseEndsAt, round: state.roundIndex, tag: TIMER_AUTO_ADVANCE }];
   }
   return [];
 }

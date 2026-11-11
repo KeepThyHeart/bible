@@ -232,6 +232,10 @@ export function createPutInOrder(
       return roundFrom(list, index, context);
     },
 
+    answerPreview(round): string | null {
+      return round.secret === null ? null : orderLabel(round.secret);
+    },
+
     scoreRound(round, answers): RoundOutcome {
       return scorePutInOrder(round.secret, answers);
     },
@@ -301,6 +305,11 @@ function detailFor(secret: PutInOrderSecret): PutInOrderDetail {
   };
 }
 
+/** The items in their right order, as the reveal names them and the organizer sees them beforehand. */
+function orderLabel(secret: PutInOrderSecret): string {
+  return secret.items.map((item) => item.label).join(' → ');
+}
+
 export function scorePutInOrder(
   secret: PutInOrderSecret | null,
   answers: readonly ScoredAnswer[]
@@ -333,7 +342,7 @@ export function scorePutInOrder(
   return {
     perPlayer,
     aggregates,
-    correctLabel: secret.items.map((item) => item.label).join(' → '),
+    correctLabel: orderLabel(secret),
     detail: detailFor(secret),
   };
 }

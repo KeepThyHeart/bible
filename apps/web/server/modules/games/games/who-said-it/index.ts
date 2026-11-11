@@ -275,6 +275,10 @@ export const whoSaidIt: GameModule<WhoSaidItSecret | null> = {
     };
   },
 
+  answerPreview(round: Round<WhoSaidItSecret | null>): string | null {
+    return round.secret === null ? null : speakerLabel(round.secret);
+  },
+
   scoreRound(round: Round<WhoSaidItSecret | null>, answers: ScoredAnswer[]): RoundOutcome {
     return scoreWhoSaidIt(round.secret, answers);
   },
@@ -303,6 +307,11 @@ function firstPerPlayer(answers: readonly ScoredAnswer[]): ScoredAnswer[] {
 
 function resultFor(correct: boolean, value: AnswerValue, note: string | null): PersonalResult {
   return { correct, pointsAwarded: correct ? ROUND_POINTS : 0, submitted: value, note };
+}
+
+/** The speaker's name, as the reveal names it and the organizer sees it beforehand. */
+function speakerLabel(secret: WhoSaidItSecret): string {
+  return secret.speaker;
 }
 
 export function scoreWhoSaidIt(
@@ -353,5 +362,5 @@ export function scoreWhoSaidIt(
     options: secret.options.map((option) => ({ ...option })),
   };
 
-  return { perPlayer, aggregates, correctLabel: secret.speaker, detail };
+  return { perPlayer, aggregates, correctLabel: speakerLabel(secret), detail };
 }

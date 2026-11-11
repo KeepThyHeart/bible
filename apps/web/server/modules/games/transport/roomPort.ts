@@ -22,6 +22,7 @@ import type {
   PersonalResult,
   PlayerId,
   PlayerSnapshot,
+  RemoteSnapshot,
   RevealPayload,
   RoomCode,
   RoomSettings,
@@ -78,6 +79,13 @@ export interface RoomPort {
   projectForScreen(state: RoomState, owner: boolean): ScreenSnapshot;
 
   /**
+   * The organizer's own device, opened by the owner token and nothing else.
+   * The only projection that may carry the round's answer, and only inside the
+   * control block while the owner credential holds control.
+   */
+  projectForRemote(state: RoomState): RemoteSnapshot;
+
+  /**
    * Connection status is not an intent. A phone that locks has not left the
    * room and has not asked for anything; the roster simply needs to show it as
    * away until it comes back. Keeping it out of the intent stream also keeps a
@@ -88,12 +96,14 @@ export interface RoomPort {
   /**
    * Screen presence, following `setConnected`'s own precedent exactly: not an
    * intent, nobody asked for it, and it must not enter the intent stream. The
-   * transport calls this on a screen stream's subscribe and close, with what
-   * is connected right now.
+   * transport calls this on a screen or remote stream's subscribe and close,
+   * with what is connected right now. `ownerAttended` is true while a stream
+   * holding the owner credential is open, whether it is the owner's screen or
+   * the organizer's remote.
    */
   setScreenPresence(
     state: RoomState,
-    presence: { anyScreen: boolean; ownerScreen: boolean }
+    presence: { anyScreen: boolean; ownerAttended: boolean }
   ): RoomState;
 
   /**

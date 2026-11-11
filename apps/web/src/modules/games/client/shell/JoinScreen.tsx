@@ -62,11 +62,11 @@ export function JoinScreen({ initialCode, initialName, busy, error, onJoin, onSo
 
   // Said only once someone has tried (Enter) or typed a part-code, never on a pristine form.
   const problem = dropped && !attempted
-    ? gt('games.join.codeFiltered', 'Room codes only use these characters: {chars}. Others were left out.', {
+    ? gt('games.join.codeFiltered', 'Game codes only use these characters: {chars}. Others were left out.', {
         chars: ROOM_CODE_ALPHABET.split('').join(' '),
       })
     : code.length < MIN_CODE_LENGTH && (attempted || code.length > 0)
-      ? gt('games.join.codeInvalid', 'A room code is {length} letters and numbers, like 5HK27. Check the big screen.', { length: MIN_CODE_LENGTH })
+      ? gt('games.join.codeInvalid', 'A game code is {length} letters and numbers, like 5HK27. Check the big screen.', { length: MIN_CODE_LENGTH })
       : attempted && trimmedName.length === 0
         ? gt('games.join.nameNeeded', 'Enter your name to join.')
         : null;
@@ -84,7 +84,7 @@ export function JoinScreen({ initialCode, initialName, busy, error, onJoin, onSo
         }}
       >
         <label class="field">
-          <span class="field-label">{gt('games.join.enterCode', 'Enter room code')}</span>
+          <span class="field-label">{gt('games.join.enterCode', 'Game code')}</span>
           <input
             class="code-input"
             name="room-code"
@@ -135,7 +135,7 @@ export function JoinScreen({ initialCode, initialName, busy, error, onJoin, onSo
         )}
 
         <button class="btn-primary" type="submit" disabled={!ready}>
-          {busy ? gt('games.join.joining', 'Joining…') : gt('games.join.joinRoom', 'Join room')}
+          {busy ? gt('games.join.joining', 'Joining…') : gt('games.join.joinRoom', 'Join')}
         </button>
       </form>
 
@@ -144,7 +144,7 @@ export function JoinScreen({ initialCode, initialName, busy, error, onJoin, onSo
       </div>
 
       <button type="button" class="btn-quiet" onClick={onSolo} disabled={busy}>
-        {gt('games.join.solo', 'Play solo')}
+        {gt('games.join.solo', 'Play on my own')}
       </button>
     </main>
   );

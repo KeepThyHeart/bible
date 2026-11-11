@@ -287,3 +287,43 @@ describe('sweeping idle rooms', () => {
     expect(registry.sweep()).toHaveLength(0);
   });
 });
+
+describe('presence', () => {
+  it('reports nothing when nobody is connected', () => {
+    const { registry, room } = harness();
+    expect(registry.presence(room)).toEqual({ anyScreen: false, ownerAttended: false });
+  });
+
+  it('counts an owner screen as a screen and as the owner being attended', () => {
+    const { registry, room } = harness();
+    registry.subscribe(room, recordingSubscriber({ kind: 'screen', owner: true }));
+    expect(registry.presence(room)).toEqual({ anyScreen: true, ownerAttended: true });
+  });
+
+  it('counts a display screen as a screen but not as the owner being attended', () => {
+    const { registry, room } = harness();
+    registry.subscribe(room, recordingSubscriber({ kind: 'screen', owner: false }));
+    expect(registry.presence(room)).toEqual({ anyScreen: true, ownerAttended: false });
+  });
+
+  it('counts a remote as the owner being attended and not as a screen', () => {
+    const { registry, room } = harness();
+    registry.subscribe(room, recordingSubscriber({ kind: 'remote' }));
+    expect(registry.presence(room)).toEqual({ anyScreen: false, ownerAttended: true });
+  });
+
+  it('counts a player as neither', () => {
+    const { registry, room } = harness();
+    registry.subscribe(room, recordingSubscriber({ kind: 'player', playerId: 'p1' }));
+    expect(registry.presence(room)).toEqual({ anyScreen: false, ownerAttended: false });
+  });
+
+  it('keeps the owner attended while either of two owner-credentialled streams is still open', () => {
+    const { registry, room } = harness();
+    const remote = recordingSubscriber({ kind: 'remote' });
+    registry.subscribe(room, remote);
+    registry.subscribe(room, recordingSubscriber({ kind: 'screen', owner: true }));
+    registry.unsubscribe(room, remote);
+    expect(registry.presence(room)).toEqual({ anyScreen: true, ownerAttended: true });
+  });
+});

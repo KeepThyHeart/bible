@@ -23,9 +23,15 @@ export const PATHS = {
   play: '/games/play',
   screen: '/games/screen',
   solo: '/games/solo',
+  /** The organizer setting up a game: pick, choose options, find a screen. */
+  organize: '/games/organize',
+  /** The organizer running the room without playing. */
+  remote: '/games/remote',
+  /** A TV or projector joining by code as a display. */
+  tv: '/games/tv',
 } as const;
 
-export type RouteName = 'home' | 'screen' | 'play' | 'solo';
+export type RouteName = 'home' | 'screen' | 'play' | 'solo' | 'organize' | 'remote' | 'tv';
 
 export interface Route {
   name: RouteName;
@@ -78,7 +84,13 @@ export function readRoute(pathname: string, search: string): Route {
       ? 'screen'
       : path === '/solo'
         ? 'solo'
-        : path === '' && code.length === 0
+        : path === '/organize'
+          ? 'organize'
+          : path === '/remote'
+            ? 'remote'
+            : path === '/tv'
+              ? 'tv'
+              : path === '' && code.length === 0
           ? 'home'
           : 'play';
   const t = name === 'screen' ? params.get('t') : null;
@@ -87,6 +99,15 @@ export function readRoute(pathname: string, search: string): Route {
     code: code.length > 0 ? code : null,
     displayToken: t && t.length > 0 ? t : null,
   };
+}
+
+export function remoteUrl(code: RoomCode): string {
+  return `${PATHS.remote}?room=${encodeURIComponent(code)}`;
+}
+
+/** What the organizer reads out or types on the TV: the address with no code. */
+export function tvUrl(origin: string): string {
+  return `${origin}${PATHS.tv}`;
 }
 
 export function joinUrl(origin: string, code: RoomCode): string {

@@ -34,11 +34,18 @@ export interface StreamRequest {
 /**
  * `owner` distinguishes the two credentials that may open a screen stream:
  * the owner token (opens the control panel too, when the owner holds
- * control) or a display token (never does, whatever else is happening in
- * the room). See `HostToken`'s own doc comment in the protocol.
+ * control) or no credential at all, or a display token (neither ever does,
+ * whatever else is happening in the room). See `HostToken`'s own doc comment
+ * in the protocol.
  */
 export type SubscriberRole =
   | { kind: 'screen'; owner: boolean }
+  /**
+   * The organizer's own device: the owner credential, no seat, and not the
+   * shared screen. It is attended-ness for the unattended-control rule, but
+   * never a screen, so it does not move the question onto a phone-less room.
+   */
+  | { kind: 'remote' }
   | { kind: 'player'; playerId: PlayerId };
 
 /**

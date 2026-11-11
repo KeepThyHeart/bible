@@ -15,31 +15,16 @@
  */
 
 import { useCallback, useEffect, useState } from 'preact/hooks';
-import type {
-  Catalog,
-  HostCommand,
-  RoomCode,
-  RoomSettings,
-  ScreenSnapshot,
-} from '../../shared/protocol.js';
-import { EMPTY_CATALOG, createRoom, fetchCatalog, joinRoom, sendIntent } from './api.js';
+import type { HostCommand, RoomCode } from '../../shared/protocol.js';
+import { createRoom, sendIntent } from './api.js';
 import { Brand } from './Brand.js';
-import { HostFrame } from './HostFrame.js';
-import { HostLobby } from './HostLobby.js';
-import { HostSummary } from './Summary.js';
-import { useClock } from './clockPort.js';
-import { useRoomTheme } from './theme.js';
-import { hostViewFor, isGamePhase } from './gameViews.js';
-import { PATHS, joinUrl } from './routes.js';
+import { ScreenStage } from './ScreenStage.js';
 import type { OwnerSession } from './session.js';
 import {
   clearOwnerSession,
   lastOwnedRoom,
   loadOwnerSession,
-  rememberName,
-  rememberedName,
   saveOwnerSession,
-  saveSession,
   touchOwnerSession,
 } from './session.js';
 import { useRoomStream } from './useRoomStream.js';
@@ -47,9 +32,6 @@ import { gt } from './t.js';
 
 /** How often an open owner screen refreshes its own session's touch time. */
 const TOUCH_INTERVAL_MS = 5 * 60 * 1000;
-
-/** Nobody prompts for a name before this; a good-enough default beats a blank roster row. */
-const PLAY_TOO_FALLBACK_NAME = 'Leader';
 
 export interface ScreenAppProps {
   /** A code in the link means "resume that room", not "make a new one". */
@@ -64,25 +46,6 @@ export interface ScreenAppProps {
 export function ScreenApp({ code, displayToken, onLeaveHosting, onLiveChange }: ScreenAppProps) {
   const [session, setSession] = useState<OwnerSession | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [catalog, setCatalog] = useState<Catalog>(EMPTY_CATALOG);
-  // An empty catalog is ambiguous on its own: it is either "still loading" or
-  // "the server truly has nothing installed", and only the second is worth a
-  // warning. This is what tells the two apart.
-  const [catalogLoaded, setCatalogLoaded] = useState(false);
-  const clock = useClock();
-
-  useEffect(() => {
-    let live = true;
-    void fetchCatalog().then((value) => {
-      if (!live) return;
-      setCatalog(value);
-      setCatalogLoaded(true);
-    });
-    return () => {
-      live = false;
-    };
-  }, []);
-
   useEffect(() => {
     // A display token in the link opens a screen stream on its own; there is
     // no owner session to create, resume or remember for this device.
@@ -134,10 +97,6 @@ export function ScreenApp({ code, displayToken, onLeaveHosting, onLiveChange }: 
 
   const stream = useRoomStream({ code: streamCode, token: streamToken });
 
-  // The projector shows the room's theme with no private override: everyone
-  // is looking at the same screen.
-  useRoomTheme(stream.snapshot?.settings.theme ?? null);
-
   const roomOpen = stream.snapshot !== null && stream.ended === null;
   useEffect(() => {
     onLiveChange?.(roomOpen);
@@ -153,37 +112,6 @@ export function ScreenApp({ code, displayToken, onLeaveHosting, onLiveChange }: 
     },
     [session]
   );
-
-  const onSettings = useCallback(
-    (settings: Partial<RoomSettings>) => onCommand({ cmd: 'setSettings', settings }),
-    [onCommand]
-  );
-
-  /**
-   * "Play too, and run it from here" (§8.1 of the design): the three
-   * ordinary calls that make phone-led play what it is — join, grant, switch
-   * route — with no mode flag anywhere. Only offered when this device holds
-   * the owner session, since only the owner token may grant control.
-   */
-  const onPlayToo = useCallback((): void => {
-    if (!session) return;
-    const { code, ownerToken } = session;
-    void (async () => {
-      const name = rememberedName() || gt('games.host.leaderName', PLAY_TOO_FALLBACK_NAME);
-      const joined = await joinRoom(code, name, null);
-      if (!joined.ok) {
-        setError(joined.error);
-        return;
-      }
-      saveSession({ code, playerId: joined.value.playerId, token: joined.value.sessionToken, name });
-      rememberName(name);
-      await sendIntent(code, ownerToken, {
-        kind: 'host',
-        command: { cmd: 'grantControl', playerId: joined.value.playerId },
-      });
-      location.assign(`${PATHS.play}?room=${encodeURIComponent(code)}`);
-    })();
-  }, [session]);
 
   if (error !== null) {
     return (
@@ -212,7 +140,7 @@ export function ScreenApp({ code, displayToken, onLeaveHosting, onLiveChange }: 
             onLeaveHosting();
           }}
         >
-          {gt('games.host.newRoom', 'Start a new room')}
+          {gt('games.host.newRoom', 'Run a game for a group')}
         </button>
       </main>
     );
@@ -223,57 +151,19 @@ export function ScreenApp({ code, displayToken, onLeaveHosting, onLiveChange }: 
     return (
       <main class="screen centre">
         <Brand />
-        <p role="status">{gt('games.host.opening', 'Opening the room…')}</p>
+        <p role="status">{gt('games.host.opening', 'Opening the game…')}</p>
       </main>
     );
   }
 
-  const host: ScreenSnapshot = snapshot;
-
-  if (host.phase === 'lobby') {
-    return (
-      <HostLobby
-        snapshot={host}
-        catalog={catalog}
-        catalogLoaded={catalogLoaded}
-        joinUrl={joinUrl(location.origin, host.code)}
-        isOwner={isOwner}
-        onSettings={onSettings}
-        onStart={() => onCommand({ cmd: 'start' })}
-        onReclaim={() => onCommand({ cmd: 'reclaimControl' })}
-        {...(isOwner ? { onPlayToo } : {})}
-      />
-    );
-  }
-
-  const body = isGamePhase(host.phase) ? (
-    (() => {
-      const View = hostViewFor(host.settings.gameId, host.phase);
-      return (
-        <View
-          snapshot={host}
-          view={host.view}
-          reveal={stream.reveal}
-          clock={clock}
-          send={onCommand}
-        />
-      );
-    })()
-  ) : (
-    <HostSummary snapshot={host} />
-  );
-
   return (
-    <HostFrame
-      snapshot={host}
+    <ScreenStage
+      snapshot={snapshot}
       status={stream.status}
       reveal={stream.reveal}
-      fullStandings={stream.fullStandings}
       isOwner={isOwner}
       onCommand={onCommand}
       onReconnectNow={stream.reconnectNow}
-    >
-      {body}
-    </HostFrame>
+    />
   );
 }

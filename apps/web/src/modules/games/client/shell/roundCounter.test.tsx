@@ -29,6 +29,10 @@ function snapshotAt(phase: PhaseName, round: number): PlayerSnapshot {
       teamsEnabled: false,
       rounds: 10,
       answerWindowMs: 20_000,
+      teamCount: 2,
+      openEnded: false,
+      autoAdvanceMs: null,
+      scoresAfterEachAnswer: true,
       showIndividualScores: false,
       solo: false,
       groupVote: false,
@@ -58,10 +62,11 @@ function snapshotAt(phase: PhaseName, round: number): PlayerSnapshot {
 
 let host: HTMLDivElement;
 
-function counterText(phase: PhaseName, round: number): string | null {
+function counterText(phase: PhaseName, round: number, openEnded = false): string | null {
+  const base = snapshotAt(phase, round);
   act(() => {
     render(
-      <PhoneFrame snapshot={snapshotAt(phase, round)} yourResult={null} status="open" onReconnectNow={() => undefined}>
+      <PhoneFrame snapshot={{ ...base, settings: { ...base.settings, openEnded } }} yourResult={null} status="open" onReconnectNow={() => undefined}>
         <p>a question</p>
       </PhoneFrame>,
       host
@@ -83,20 +88,28 @@ describe('the round counter', () => {
     host.remove();
   });
 
+  it('drops "of N" when the game has no set length', () => {
+    expect(counterText('question', 6, true)).toBe('Question 7');
+  });
+
   it('counts the first question as one, not zero', () => {
-    expect(counterText('question', 0)).toBe('Q 1 / 10');
+    expect(counterText('question', 0)).toBe('Question 1 of 10');
   });
 
   it('counts the last question as the total', () => {
-    expect(counterText('answering', 9)).toBe('Q 10 / 10');
+    expect(counterText('answering', 9)).toBe('Question 10 of 10');
   });
 
   it('keeps the question number through its own reveal', () => {
-    expect(counterText('reveal', 4)).toBe('Q 5 / 10');
+    expect(counterText('reveal', 4)).toBe('Question 5 of 10');
   });
 
   it('shows nothing in the lobby, which is not a question yet', () => {
     expect(counterText('lobby', 0)).toBeNull();
+  });
+
+  it('shows nothing during the pause before the first question', () => {
+    expect(counterText('intro', -1)).toBeNull();
   });
 
   it('shows nothing on the final summary, which is no longer one', () => {

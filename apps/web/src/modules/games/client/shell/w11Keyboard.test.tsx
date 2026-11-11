@@ -5,8 +5,6 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { DEFAULT_THEME } from '../../shared/theme.js';
 import type { ControlPanel, RoomSettings, SnapshotCommon } from '../../shared/protocol.js';
 import { ClockContext, type ClockPort } from './clockPort.js';
-import { ControlBar } from './ControlBar.js';
-import { HostLobby } from './HostLobby.js';
 import { PhoneFrame } from './PhoneFrame.js';
 import { HostFrame } from './HostFrame.js';
 import { TimerBar } from './TimerBar.js';
@@ -31,10 +29,11 @@ const clockFor = (ms: number): ClockPort => ({
 
 const settings: RoomSettings = {
   gameId: 'case', setId: null, translation: 'KJV', teamsEnabled: false, rounds: 10, answerWindowMs: 20_000,
+  teamCount: 2, openEnded: false, autoAdvanceMs: null, scoresAfterEachAnswer: true,
   showIndividualScores: false, solo: false, groupVote: false, familiarity: 'broad', gameOptions: {}, theme: DEFAULT_THEME,
 };
 const panel: ControlPanel = {
-  pendingJudge: null, requests: [], answeredCount: 0, standings: [], teamStandings: [], overallStandings: [], spent: [],
+  pendingJudge: null, requests: [], answeredCount: 0, standings: [], teamStandings: [], overallStandings: [], spent: [], answer: null,
 };
 const common = { paused: false, phase: 'reveal', settings, players: [], round: 0, totalRounds: 3 } as unknown as SnapshotCommon;
 
@@ -43,74 +42,6 @@ function key(target: Element | null, k: string): void {
     target?.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true, cancelable: true }));
   });
 }
-
-describe('Room menu keyboard model', () => {
-  function draw(): void {
-    act(() => {
-      render(<ControlBar common={common} panel={panel} reveal={null} fullStandings={null} onCommand={() => undefined} />, host);
-    });
-  }
-  const toggle = () => host.querySelector<HTMLButtonElement>('.host-menu-toggle')!;
-
-  it('opens, focuses the first item, moves with arrows, closes on Escape back to the button', () => {
-    draw();
-    act(() => toggle().click());
-    const items = () => [...host.querySelectorAll<HTMLElement>('[role^="menuitem"]')];
-    expect(document.activeElement).toBe(items()[0]);
-    key(items()[0], 'ArrowDown');
-    expect(document.activeElement).toBe(items()[1]);
-    key(items()[1], 'End');
-    expect(document.activeElement).toBe(items()[items().length - 1]);
-    key(document.activeElement, 'Home');
-    expect(document.activeElement).toBe(items()[0]);
-    key(document.activeElement, 'Escape');
-    expect(host.querySelector('[role="menu"]')).toBeNull();
-    expect(toggle().getAttribute('aria-expanded')).toBe('false');
-    expect(document.activeElement).toBe(toggle());
-  });
-
-  it('opens on ArrowDown from the button', () => {
-    draw();
-    toggle().focus();
-    key(toggle(), 'ArrowDown');
-    expect(host.querySelector('[role="menu"]')).not.toBeNull();
-  });
-
-  it('the scores item is a checkbox with a stable name', () => {
-    draw();
-    act(() => toggle().click());
-    const item = host.querySelector<HTMLElement>('[role="menuitemcheckbox"]')!;
-    expect(item.getAttribute('aria-checked')).toBe('false');
-    expect(item.hasAttribute('aria-pressed')).toBe(false);
-    expect(item.textContent).not.toMatch(/everyone$|top three/i);
-  });
-
-  it('closes when an item opens a dialog', () => {
-    draw();
-    act(() => toggle().click());
-    const manage = [...host.querySelectorAll<HTMLElement>('[role="menuitem"]')].find((b) => b.textContent === 'Manage players')!;
-    act(() => manage.click());
-    expect(host.querySelector('[role="menu"]')).toBeNull();
-  });
-});
-
-describe('host settings toggles', () => {
-  it('Teams has a stable name and aria-pressed', () => {
-    const snapshot = { viewer: 'screen', code: 'QK7P', phase: 'lobby', paused: false, round: -1, totalRounds: 10, settings, players: [], controller: { kind: 'owner' }, standings: [], teamStandings: [], overallStandings: [], control: panel } as never;
-    act(() => {
-      render(
-        <HostLobby snapshot={snapshot} catalog={{ games: [], sets: [], translations: ['KJV'] }} catalogLoaded={true}
-          joinUrl="https://x.test/j" isOwner={true} onSettings={() => undefined} onStart={() => undefined} onReclaim={() => undefined} />,
-        host
-      );
-    });
-    const label = host.querySelector('#lobby-teams-label')!;
-    const btn = host.querySelector<HTMLButtonElement>('[aria-labelledby="lobby-teams-label"]')!;
-    expect(label.textContent).toBe('Teams');
-    expect(btn.getAttribute('aria-pressed')).toBe('false');
-    expect(btn.textContent).toBe('Off');
-  });
-});
 
 describe('timer plural', () => {
   const text = (ms: number): string | null => {
@@ -137,7 +68,7 @@ describe('focus after Start game', () => {
     act(() => {
       render(
         <ClockContext.Provider value={clockFor(1000)}>
-          <HostFrame snapshot={snap} status="open" reveal={null} fullStandings={null} isOwner={true} onCommand={() => undefined} onReconnectNow={() => undefined}>
+          <HostFrame snapshot={snap} status="open" reveal={null} isOwner={true} onReclaim={() => undefined} onReconnectNow={() => undefined}>
             <p>screen</p>
           </HostFrame>
         </ClockContext.Provider>,

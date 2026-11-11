@@ -180,20 +180,28 @@ export class RoomRegistry {
   }
 
   /**
-   * Whether at least one screen is connected, and whether one of them is the
-   * owner-credentialled one — read from the subscribers actually connected
-   * right now, so it is always current rather than tracked separately and
-   * liable to drift from it.
+   * Whether at least one screen is connected, and whether the owner credential
+   * is being attended — read from the subscribers actually connected right now,
+   * so it is always current rather than tracked separately and liable to drift
+   * from it.
+   *
+   * The owner credential is attended by an owner-credentialled screen or by a
+   * remote; only the former is a screen. A display screen, with or without a
+   * token, attends nothing: it cannot rule on anything.
    */
-  screenPresence(room: Room): { anyScreen: boolean; ownerScreen: boolean } {
+  presence(room: Room): { anyScreen: boolean; ownerAttended: boolean } {
     let anyScreen = false;
-    let ownerScreen = false;
+    let ownerAttended = false;
     for (const subscriber of room.subscribers) {
+      if (subscriber.role.kind === 'remote') {
+        ownerAttended = true;
+        continue;
+      }
       if (subscriber.role.kind !== 'screen') continue;
       anyScreen = true;
-      if (subscriber.role.owner) ownerScreen = true;
+      if (subscriber.role.owner) ownerAttended = true;
     }
-    return { anyScreen, ownerScreen };
+    return { anyScreen, ownerAttended };
   }
 
   /**

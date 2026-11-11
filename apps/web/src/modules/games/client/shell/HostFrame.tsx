@@ -1,29 +1,20 @@
 /**
- * The chrome every screen sits inside: the room code, the round counter, the
+ * The chrome every screen sits inside: the game code, the round counter, the
  * answered count, the timer bar and a reconnecting banner. All of it is
- * public and unconditional — shown to a screen whether or not it currently
- * holds control, because it is what makes this device useful as a *display*
- * even when it is not running the room.
+ * public and unconditional.
  *
- * Control itself — pause/back/next, the room menu, the judge card — lives in
- * `ControlBar` and `ControlPanel`, rendered here only while `snapshot.control`
- * is present. When it is not, this shows who is running the room instead, and,
- * on the owner credential only, a way to take control back.
+ * Nothing in here can be pressed, apart from the reconnect retry and, on the
+ * owner credential while someone else runs the room, a way to take control
+ * back. The organizer's controls live on their own device; a screen that holds
+ * control draws them as a separate bar (`OrganizerBar`) over this frame.
  */
 
 import { getGameViews } from './gameViews.js';
 import { GroupReveal } from './GroupReveal.js';
-import { ControlBar } from './ControlBar.js';
-import { ControlPanel } from './ControlPanel.js';
+import { ScoreStrip } from './ScoreStrip.js';
 import { TimerBar } from './TimerBar.js';
 import type { ComponentChildren } from 'preact';
-import type {
-  HostChrome,
-  HostCommand,
-  RevealPayload,
-  ScreenSnapshot,
-  Standing,
-} from '../../shared/protocol.js';
+import type { HostChrome, RevealPayload, ScreenSnapshot } from '../../shared/protocol.js';
 import type { StreamStatus } from './useRoomStream.js';
 import { gt } from './t.js';
 import { useHeadingFocus } from './useHeadingFocus.js';
@@ -34,22 +25,14 @@ export interface HostFrameProps {
   /** The latest reveal, for the parts of it the shell draws itself. */
   reveal: RevealPayload | null;
   /**
-   * The complete ordering, last place included — `null` until the controller
-   * has asked for it this session, via the `requestFullStandings` command
-   * sent from `onCommand`. A one-off reply (`standingsFull`), not part of the
-   * snapshot: `useRoomStream` holds the latest one it has seen. Only ever
-   * filled in while this screen holds control.
-   */
-  fullStandings: readonly Standing[] | null;
-  /**
    * Whether this screen opened with the room's owner token, rather than a
-   * display token. Only the owner credential may reclaim control — see
+   * display token. Only the owner credential may reclaim control: see
    * `HostToken`'s own doc comment in the protocol.
    */
   isOwner: boolean;
-  onCommand(command: HostCommand): void;
+  onReclaim(): void;
   /**
-   * Short-circuits the backoff wait and tries the stream again right away —
+   * Short-circuits the backoff wait and tries the stream again right away:
    * `useRoomStream`'s own `reconnectNow`, wired to a button rather than left
    * for a phone to wake the tab into eventually.
    */
@@ -58,41 +41,22 @@ export interface HostFrameProps {
 }
 
 /**
- * Shown in place of the control bar when this device is not the controller:
- * who is, by name when it is a player, and — on the owner credential only —
- * a way to take control back.
+ * Shown to the owner's screen when someone else is running the room: who is,
+ * by name when it is a player, and a way to take control back. Other screens
+ * have nothing to do about it and show nothing.
  */
-function NotControlling({
-  controllerLine,
-  isOwner,
-  onCommand,
-}: {
-  controllerLine: string;
-  isOwner: boolean;
-  onCommand(command: HostCommand): void;
-}) {
+function NotControlling({ controllerLine, onReclaim }: { controllerLine: string; onReclaim(): void }) {
   return (
     <div class="not-controlling">
       <p class="muted">{controllerLine}</p>
-      {isOwner && (
-        <button type="button" class="btn-quiet" onClick={() => onCommand({ cmd: 'reclaimControl' })}>
-          {gt('games.common.takeBackControl', 'Take back control')}
-        </button>
-      )}
+      <button type="button" class="btn-quiet" onClick={onReclaim}>
+        {gt('games.common.takeBackControl', 'Take back control')}
+      </button>
     </div>
   );
 }
 
-export function HostFrame({
-  snapshot,
-  status,
-  reveal,
-  fullStandings,
-  isOwner,
-  onCommand,
-  onReconnectNow,
-  children,
-}: HostFrameProps) {
+export function HostFrame({ snapshot, status, reveal, isOwner, onReclaim, onReconnectNow, children }: HostFrameProps) {
   const { code, round, totalRounds, paused, phase, phaseEndsAt, settings, players, controller } = snapshot;
   // The lobby (with the focused Start button) is gone once this frame mounts.
   const bodyRef = useHeadingFocus<HTMLElement>();
@@ -101,8 +65,9 @@ export function HostFrame({
   const chrome: HostChrome = snapshot.chrome ?? {};
   const playing = phase === 'question' || phase === 'answering';
   // `round` is the index intents carry, counted from zero. People count from
-  // one, and a lobby is not question zero of ten — it is not a question yet.
-  const inRound = phase !== 'lobby' && phase !== 'summary';
+  // one, and neither a lobby nor the rules are question zero of ten.
+  const inRound = phase === 'question' || phase === 'answering' || phase === 'reveal';
+  const roundWord = chrome.roundWord ?? gt('games.screen.roundWordShort', 'Q');
   // Only a reveal of the round on screen: a payload that arrived for the last
   // round must not be drawn under the next one.
   const voted = phase === 'reveal' && reveal?.round === round ? (reveal.groups ?? []) : [];
@@ -114,21 +79,23 @@ export function HostFrame({
 
   const controllerLine =
     controller.kind === 'player'
-      ? gt('games.host.runningBy', '{name} is running the room.', {
+      ? gt('games.host.runningBy', '{name} is the organizer.', {
           name: players.find((player) => player.id === controller.playerId)?.name ?? gt('games.host.someone', 'Someone'),
         })
-      : gt('games.host.runningByOwner', "The room's owner is running it.");
+      : gt('games.host.runningByOwner', "The organizer is running it.");
 
   return (
     <div class="host">
       <header class="host-chrome">
         <div class="chrome-row">
-          <span class="chrome-code" aria-label={gt('games.host.roomCodeAria', 'Room code {code}', { code: code.split('').join(' ') })}>
+          <span class="chrome-code" aria-label={gt('games.screen.codeAria', 'Game code {code}', { code: code.split('').join(' ') })}>
             #{code}
           </span>
           {inRound && (
             <span class="chrome-round">
-              {chrome.roundWord ?? 'Q'} {round + 1} / {totalRounds}
+              {settings.openEnded
+                ? gt('games.screen.roundOpen', '{word} {number}', { word: roundWord, number: round + 1 })
+                : gt('games.screen.roundOf', '{word} {number} / {total}', { word: roundWord, number: round + 1, total: totalRounds })}
             </span>
           )}
           {playing && chrome.hideAnswered !== true && (
@@ -148,32 +115,25 @@ export function HostFrame({
             </button>
           </p>
         )}
-        <TimerBar endsAt={phaseEndsAt} durationMs={snapshot.phaseDurationMs} paused={paused} />
+        {phase !== 'intro' && phase !== 'summary' && (
+          <TimerBar endsAt={phaseEndsAt} durationMs={snapshot.phaseDurationMs} paused={paused} />
+        )}
       </header>
 
       <main class="host-body" tabIndex={-1} ref={bodyRef}>
         {children}
-        {snapshot.control !== undefined && playing && (
-          <button type="button" class="btn-reveal-now" onClick={() => onCommand({ cmd: 'revealNow' })}>
-            {chrome.revealLabel ?? gt('games.frame.revealNow', 'Reveal now')}
-          </button>
-        )}
         {groups.length > 0 && <GroupReveal groups={groups} />}
+        {phase === 'reveal' && (
+          <ScoreStrip
+            standings={snapshot.standings}
+            teamStandings={snapshot.teamStandings}
+            teamsEnabled={settings.teamsEnabled}
+          />
+        )}
       </main>
 
-      {snapshot.control !== undefined ? (
-        <>
-          <ControlPanel pendingJudge={snapshot.control.pendingJudge} onCommand={onCommand} />
-          <ControlBar
-            common={snapshot}
-            panel={snapshot.control}
-            reveal={reveal}
-            fullStandings={fullStandings}
-            onCommand={onCommand}
-          />
-        </>
-      ) : (
-        <NotControlling controllerLine={controllerLine} isOwner={isOwner} onCommand={onCommand} />
+      {snapshot.control === undefined && isOwner && (
+        <NotControlling controllerLine={controllerLine} onReclaim={onReclaim} />
       )}
     </div>
   );

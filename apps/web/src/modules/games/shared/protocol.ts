@@ -63,6 +63,13 @@ export type TeamId = 'red' | 'blue' | 'green' | 'gold';
 
 export const TEAM_IDS: readonly TeamId[] = ['red', 'blue', 'green', 'gold'];
 
+export type TeamCount = 2 | 3 | 4;
+
+/** The teams in play for a given count: always the first of `TEAM_IDS`. */
+export function teamsInPlay(count: TeamCount): readonly TeamId[] {
+  return TEAM_IDS.slice(0, count);
+}
+
 // ---------------------------------------------------------------------------
 // Time
 // ---------------------------------------------------------------------------
@@ -92,10 +99,13 @@ export interface TimeSyncResponse {
  * buzz questions and progressive clue reveals live in. Games with nothing to
  * read first go straight to `answering`.
  *
+ * `intro` is how to play: shown once, between `lobby` and the first round, for
+ * a fixed time the controller may cut short. Solo goes straight past it.
+ *
  * `paused` is not a phase. It is an overlay flag on the room, so that pausing
  * does not destroy the phase a round is in.
  */
-export type PhaseName = 'lobby' | 'question' | 'answering' | 'reveal' | 'summary';
+export type PhaseName = 'lobby' | 'intro' | 'question' | 'answering' | 'reveal' | 'summary';
 
 // ---------------------------------------------------------------------------
 // Players and teams
@@ -172,9 +182,35 @@ export interface RoomSettings {
   /** Module abbreviation, e.g. `KJV`. */
   translation: string;
   teamsEnabled: boolean;
+  /**
+   * How many of `TEAM_IDS` are in play while teams are on, counted from the
+   * front of that list. Inert with teams off.
+   */
+  teamCount: TeamCount;
+  /**
+   * How many rounds a game has — or, with `openEnded`, how many are built at a
+   * time as the game goes on.
+   */
   rounds: number;
+  /**
+   * No set length: the game keeps going until the organizer finishes it, for
+   * a group that plays as long as the mood lasts. Not structural — a game can
+   * be turned into one mid-play, and back.
+   */
+  openEnded: boolean;
   /** Milliseconds allowed for the answering phase. */
   answerWindowMs: number;
+  /**
+   * How long a reveal stays up before the room moves on by itself, or null to
+   * wait for the controller. Not structural: it can change mid-game.
+   */
+  autoAdvanceMs: number | null;
+  /**
+   * Whether the big screen carries the top three after each answer. Off keeps
+   * the standings for the summary, as a game with `standingsAtSummaryOnly`
+   * always does.
+   */
+  scoresAfterEachAnswer: boolean;
   /**
    * Off by default, and deliberately so: the big screen shows aggregates and a
    * top three, never a bottom of the leaderboard.
@@ -231,8 +267,26 @@ export type HostCommand =
   | { cmd: 'revealNow' }
   | { cmd: 'nextRound' }
   | { cmd: 'kick'; playerId: PlayerId }
+  /** The controller puts a player on a team, or on none. */
+  | { cmd: 'moveToTeam'; playerId: PlayerId; teamId: TeamId | null }
+  /** The controller corrects a player's name, under the same rules as joining. */
+  | { cmd: 'rename'; playerId: PlayerId; name: string }
+  /** Deals every player onto the teams in play, as evenly as the numbers allow. */
+  | { cmd: 'shuffleTeams' }
   | { cmd: 'adjust'; playerId: PlayerId; delta: number }
   | { cmd: 'end' }
+  /**
+   * Ends the game in play now and shows its results, keeping the room and
+   * everyone in it, so the next game — the same again or another — is one
+   * step away. `end` is what closes the room for everyone.
+   */
+  | { cmd: 'finish' }
+  /**
+   * From the results, carries on with the same game and the same scores: the
+   * next round, building another batch when none is left. Whether the game
+   * ended by itself or the organizer finished it early.
+   */
+  | { cmd: 'continueGame' }
   /**
    * Ends the current game but keeps the room open: every connected player's
    * session and stream survive, the room drops back to `lobby`, and the host
@@ -505,6 +559,21 @@ export interface ControlPanel {
   overallStandings: Standing[];
   /** Who is out of this round's buzz, for a controller deciding who to call on. */
   spent: PlayerId[];
+  /**
+   * The current round's answer, before the reveal, from
+   * `GameModule.answerPreview`. Filled only on a remote's snapshot: an owner
+   * screen is the shared screen, and a controller holding a seat is playing.
+   * Null everywhere else, and whenever the game has nothing to say.
+   */
+  answer: string | null;
+  /**
+   * The screen's own public payload, for a controller whose snapshot carries
+   * a phone's view instead — so a game's control slot (the category board's
+   * tile pick) reads the same board on a playing organizer's phone as on the
+   * remote. Public by construction: it is what the big screen shows. Present
+   * only on a seated controller's panel.
+   */
+  screenView?: unknown;
 }
 
 // ---------------------------------------------------------------------------
@@ -636,7 +705,18 @@ export interface ScreenSnapshot extends SnapshotCommon {
   control?: ControlPanel;
 }
 
-export type ClientSnapshot = PlayerSnapshot | ScreenSnapshot;
+/**
+ * What the organizer's own device receives when it runs the room without
+ * playing: the owner credential, no seat, and not a screen — it never counts
+ * towards `questionOnScreen`. It carries the screen's public payload, so a
+ * game's control slot can read the same `view` the screen draws, plus the
+ * control panel while the owner credential holds control.
+ */
+export interface RemoteSnapshot extends Omit<ScreenSnapshot, 'viewer'> {
+  viewer: 'remote';
+}
+
+export type ClientSnapshot = PlayerSnapshot | ScreenSnapshot | RemoteSnapshot;
 
 // ---------------------------------------------------------------------------
 // Reveal
@@ -789,6 +869,8 @@ export interface CatalogGame {
   usesFamiliarity: boolean;
   usesTranslation: boolean;
   usesSet: boolean;
+  /** True when the organizer rules on answers said aloud, as in a buzz-in race. */
+  usesBuzz: boolean;
 }
 
 export type GroupVoteMode = 'none' | 'optional' | 'always';

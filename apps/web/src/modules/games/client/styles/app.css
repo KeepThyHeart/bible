@@ -1161,6 +1161,305 @@
   font-weight: 700;
 }
 
+/* ---- The big screen ------------------------------------------------------- */
+
+/* Sizes are viewport-relative so the same markup reads from the back row of a
+   room on a TV and still fits a laptop; the clamps keep either end sane. */
+
+.games-root .lobby-join {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-5);
+}
+
+.games-root .lobby-join-text {
+  flex: 1 1 16rem;
+  min-inline-size: 0;
+}
+
+.games-root .lobby-join .join-at {
+  font-size: clamp(var(--text-lg), 2.6vw, 3rem);
+}
+
+.games-root .lobby-join .big-code {
+  font-size: clamp(var(--text-3xl), 14vw, 14rem);
+}
+
+.games-root .screen-host-lobby .qr-svg svg,
+.games-root .screen-host-lobby .qr-empty {
+  inline-size: clamp(8rem, 18vw, 22rem);
+  block-size: clamp(8rem, 18vw, 22rem);
+}
+
+.games-root .lobby-roster {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.games-root .lobby-next {
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: clamp(var(--text-lg), 2.2vw, 2.5rem);
+}
+
+.games-root .lobby-count {
+  margin: 0;
+  font-size: clamp(var(--text-base), 1.6vw, 2rem);
+  font-variant-numeric: tabular-nums;
+}
+
+.games-root .name-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.games-root .name-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  max-inline-size: 100%;
+  padding: var(--space-1) var(--space-4);
+  border: 2px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg-raised);
+  font-size: clamp(var(--text-base), 1.8vw, 2.25rem);
+}
+
+.games-root .name-chip[data-team='red'] { border-color: var(--team-red); }
+.games-root .name-chip[data-team='blue'] { border-color: var(--team-blue); }
+.games-root .name-chip[data-team='green'] { border-color: var(--team-green); }
+.games-root .name-chip[data-team='gold'] { border-color: var(--team-gold); }
+
+.games-root .name-chip[data-connected='false'] {
+  color: var(--fg-muted);
+}
+
+/* How to play */
+
+.games-root .how-to-play {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--space-5);
+}
+
+.games-root .how-to-play-card {
+  padding: var(--space-5) var(--space-6);
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  background: var(--bg-raised);
+}
+
+.games-root .how-to-play-title {
+  margin: 0;
+  font-size: clamp(var(--text-2xl), 4vw, 5rem);
+}
+
+.games-root .how-to-play-summary {
+  margin: var(--space-2) 0 0;
+  color: var(--fg-muted);
+  font-size: clamp(var(--text-lg), 2.4vw, 3rem);
+}
+
+.games-root .how-to-play-steps {
+  margin: var(--space-4) 0 0;
+  padding-inline-start: 2ch;
+  font-size: clamp(var(--text-lg), 2.6vw, 3.25rem);
+}
+
+.games-root .how-to-play-steps li {
+  margin-block-end: var(--space-2);
+}
+
+.games-root .how-to-play-countdown {
+  margin: 0;
+  text-align: center;
+  font-size: clamp(var(--text-xl), 3.2vw, 4rem);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Scores along the foot of a reveal */
+
+.games-root .score-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: clamp(var(--text-base), 2vw, 2.5rem);
+}
+
+.games-root .score-strip li {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-raised);
+  white-space: nowrap;
+}
+
+.games-root .score-strip li[data-team='red'] { border-color: var(--team-red); }
+.games-root .score-strip li[data-team='blue'] { border-color: var(--team-blue); }
+.games-root .score-strip li[data-team='green'] { border-color: var(--team-green); }
+.games-root .score-strip li[data-team='gold'] { border-color: var(--team-gold); }
+
+.games-root .score-strip-place {
+  color: var(--warn);
+  font-weight: 800;
+}
+
+.games-root .score-strip-score {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The end of a game */
+
+.games-root .podium-screen {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--space-5);
+  text-align: center;
+}
+
+.games-root .podium-title {
+  margin: 0;
+  font-size: clamp(var(--text-2xl), 4vw, 5rem);
+}
+
+.games-root .podium {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.games-root .podium-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: var(--space-1);
+  inline-size: clamp(7rem, 22vw, 26rem);
+  padding: var(--space-3);
+  border: 2px solid var(--border);
+  border-block-end: 0;
+  border-radius: 1rem 1rem 0 0;
+  background: var(--bg-raised);
+  font-size: clamp(var(--text-lg), 2.4vw, 3rem);
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.games-root .podium-step[data-place='1'] { order: 2; block-size: clamp(9rem, 26vh, 22rem); border-color: var(--warn); }
+.games-root .podium-step[data-place='2'] { order: 1; block-size: clamp(7rem, 19vh, 16rem); }
+.games-root .podium-step[data-place='3'] { order: 3; block-size: clamp(5.5rem, 14vh, 12rem); }
+
+.games-root .podium-step[data-team='red'] { border-color: var(--team-red); }
+.games-root .podium-step[data-team='blue'] { border-color: var(--team-blue); }
+.games-root .podium-step[data-team='green'] { border-color: var(--team-green); }
+.games-root .podium-step[data-team='gold'] { border-color: var(--team-gold); }
+
+.games-root .podium-place {
+  color: var(--fg-muted);
+  font-size: 0.7em;
+}
+
+.games-root .podium-score {
+  font-variant-numeric: tabular-nums;
+}
+
+.games-root .podium-teams {
+  display: flex;
+  justify-content: center;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: clamp(var(--text-base), 1.8vw, 2.25rem);
+}
+
+.games-root .podium-teams li {
+  display: flex;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.games-root .podium-teams li[data-team='red'] { border-color: var(--team-red); }
+.games-root .podium-teams li[data-team='blue'] { border-color: var(--team-blue); }
+.games-root .podium-teams li[data-team='green'] { border-color: var(--team-green); }
+.games-root .podium-teams li[data-team='gold'] { border-color: var(--team-gold); }
+
+.games-root .podium-note {
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: clamp(var(--text-base), 1.6vw, 2rem);
+}
+
+/* The code entry on a TV */
+
+.games-root .tv-code-input {
+  font-size: clamp(var(--text-3xl), 8vw, 8rem);
+  text-align: center;
+}
+
+/* The organizer bar over a screen that holds control */
+
+.games-root .organizer-bar {
+  position: fixed;
+  inset-inline: 0;
+  inset-block-end: 0;
+  z-index: 40;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-5);
+  background: var(--bg-raised);
+  border-block-start: 2px solid var(--border);
+  box-shadow: 0 -0.5rem 1.5rem rgb(0 0 0 / 0.35);
+  font-size: clamp(var(--text-base), 1.5vw, 1.75rem);
+}
+
+.games-root .organizer-bar-spacer {
+  flex: 1;
+}
+
+.games-root .organizer-bar-hint {
+  color: var(--fg-muted);
+}
+
+.games-root .organizer-bar-judge {
+  display: flex;
+  flex: 1 0 100%;
+  align-items: center;
+  gap: var(--space-3);
+  font-weight: 700;
+}
+
+.games-root--embedded .organizer-bar {
+  position: absolute;
+}
+
 /* Embedded in the reader: fill the app stage and scroll inside it, instead of
    owning the page the way the phone page does. */
 .games-root--embedded {

@@ -409,6 +409,10 @@ export function createNameThatReference(
       };
     },
 
+    answerPreview(round): string | null {
+      return referenceLabel(round.secret);
+    },
+
     scoreRound(round, answers): RoundOutcome {
       return scoreNameThatReference(round.secret, answers);
     },
@@ -465,6 +469,11 @@ function firstPerPlayer(answers: readonly ScoredAnswer[]): ScoredAnswer[] {
     kept.push(answer);
   }
   return kept;
+}
+
+/** The verse's reference, as the reveal names it and the organizer sees it beforehand. */
+function referenceLabel(secret: NameThatReferenceSecret): string {
+  return formatRef(secret.verseId);
 }
 
 export function scoreNameThatReference(
@@ -554,7 +563,7 @@ export function scoreNameThatReference(
   return {
     perPlayer,
     aggregates: rows.filter((row) => row.count > 0 || secret.answerShape === 'choice'),
-    correctLabel: formatRef(secret.verseId),
+    correctLabel: referenceLabel(secret),
     detail,
   };
 }

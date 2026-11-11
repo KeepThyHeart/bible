@@ -1,0 +1,101 @@
+/* The player's phone: the "..." menu, the sent card, the pause before the
+   first question and the organizer's summary. Phone-first, logical
+   properties only. */
+
+.games-root .phone-menu {
+  margin-inline-start: auto;
+}
+
+.games-root .phone-menu .host-menu-panel {
+  width: max-content;
+  min-width: 12rem;
+  max-width: calc(100vw - var(--space-4) * 2);
+}
+
+.games-root .phone-menu .host-menu-panel button {
+  min-block-size: var(--tap);
+}
+
+.games-root .sent-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  text-align: center;
+}
+
+.games-root .sent-label {
+  color: var(--fg-muted);
+  font-size: var(--text-sm);
+}
+
+.games-root .sent-answer {
+  font-size: var(--text-xl);
+  overflow-wrap: anywhere;
+}
+
+.games-root .phone-intro {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.games-root .phone-intro h2 {
+  margin: 0;
+}
+
+.games-root .phone-intro-steps {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding-inline-start: var(--space-5);
+}
+
+.games-root .organizer-summary {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.games-root .organizer-summary h2 {
+  margin: 0;
+}
+
+.games-root .tonight {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.games-root .tonight p {
+  margin: 0;
+}
+
+.games-root .tonight-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.games-root .organizer-summary .confirm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-sunken);
+}
+
+.games-root .organizer-summary .confirm p {
+  margin: 0;
+  font-weight: 600;
+}

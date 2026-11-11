@@ -29,6 +29,7 @@ import type {
   PersonalResult,
   PlayerId,
   PlayerSnapshot,
+  RemoteSnapshot,
   RevealPayload,
   RoomSettings,
   Standing,
@@ -42,6 +43,7 @@ import type {
 import { reduce } from './reducer.js';
 import {
   projectForPlayer,
+  projectForRemote,
   projectForScreen,
   projectFullStandings,
   projectPersonalResult,
@@ -109,13 +111,18 @@ export function createRoomPort(resolveGame: GameResolver): RoomPort {
       return projectForScreen(current, resolveGame(current.settings), owner);
     },
 
+    projectForRemote(state: OpaqueState): RemoteSnapshot {
+      const current = room(state);
+      return projectForRemote(current, resolveGame(current.settings));
+    },
+
     setConnected(state: OpaqueState, playerId: PlayerId, connected: boolean): OpaqueState {
       return withConnected(room(state), playerId, connected);
     },
 
     setScreenPresence(
       state: OpaqueState,
-      presence: { anyScreen: boolean; ownerScreen: boolean }
+      presence: { anyScreen: boolean; ownerAttended: boolean }
     ): OpaqueState {
       return withScreenPresence(room(state), presence);
     },

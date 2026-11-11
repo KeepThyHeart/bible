@@ -13,6 +13,8 @@
  */
 
 import type { HostViewProps } from '../../shell/gameViews.js';
+import { gt } from '../../shell/t.js';
+import { awaitingReveal } from '../../shell/waitingCopy.js';
 import { letterFor, readDetail, readHostView, tileCaption } from './payload.js';
 import type { BoardColumn, TileState } from './payload.js';
 
@@ -24,36 +26,31 @@ function Nothing({ line }: { line: string }) {
   );
 }
 
-const STATE_WORDS: Record<TileState, string> = {
-  open: '',
-  played: 'played',
-  current: 'now',
-};
+function stateWord(state: TileState): string {
+  if (state === 'played') return gt('games.categoryBoard.view.tilePlayed', 'played');
+  if (state === 'current') return gt('games.categoryBoard.view.tileNow', 'now');
+  return '';
+}
 
 /**
- * The grid. At the reveal the tile in play is shown as played, because by then
- * it is: the next thing the room sees is the board without it.
- *
- * Given `onChoose`, every open tile becomes a button that picks it. Played
- * tiles never do, so the host cannot ask for a question the room has seen; the
- * server refuses one anyway, since a stale screen could still send it.
+ * The grid, read-only. At the reveal the tile in play is shown as played,
+ * because by then it is: the next thing the room sees is the board without it.
+ * Picking the next tile happens on the organizer's own device.
  */
 function Board({
   columns,
   size,
   settled = false,
-  onChoose,
 }: {
   columns: BoardColumn[];
   size: 'large' | 'small';
   settled?: boolean;
-  onChoose?: (choice: string) => void;
 }) {
   return (
     <ol
       class={`cb-board cb-board-${size}`}
       style={`--cb-columns: ${columns.length}`}
-      aria-label="The board"
+      aria-label={gt('games.categoryBoard.view.board', 'The board')}
     >
       {columns.map((column) => (
         <li key={column.name} class="cb-column">
@@ -61,14 +58,13 @@ function Board({
           <ol class="cb-tiles">
             {column.tiles.map((tile) => {
               const state: TileState = settled && tile.state === 'current' ? 'played' : tile.state;
-              const word = STATE_WORDS[state];
+              const word = stateWord(state);
               const face = (
                 <>
                   <span class="cb-tile-value">{tile.value}</span>
                   {word.length > 0 && <span class="cb-tile-word">{word}</span>}
                 </>
               );
-              const choice = tile.choice;
               return (
                 <li
                   key={tile.value}
@@ -76,18 +72,7 @@ function Board({
                   data-state={state}
                   aria-current={state === 'current' ? 'true' : undefined}
                 >
-                  {onChoose && state === 'open' && choice !== null ? (
-                    <button
-                      type="button"
-                      class="cb-tile-pick"
-                      aria-label={`${column.name} for ${tile.value}`}
-                      onClick={() => onChoose(choice)}
-                    >
-                      {face}
-                    </button>
-                  ) : (
-                    face
-                  )}
+                  {face}
                 </li>
               );
             })}
@@ -101,7 +86,7 @@ function Board({
 function Cleared({ columns }: { columns: BoardColumn[] }) {
   return (
     <section class="cb cb-host">
-      <h2 class="cb-ask">The board is cleared.</h2>
+      <h2 class="cb-ask">{gt('games.categoryBoard.view.cleared', 'The board is cleared.')}</h2>
       <Board columns={columns} size="large" />
     </section>
   );
@@ -109,7 +94,7 @@ function Cleared({ columns }: { columns: BoardColumn[] }) {
 
 export function HostQuestion({ view }: HostViewProps) {
   const board = readHostView(view);
-  if (!board) return <Nothing line="Nothing to show for this round." />;
+  if (!board) return <Nothing line={gt('games.categoryBoard.view.nothingToShow', 'Nothing to show for this round.')} />;
   if (!board.tile) return <Cleared columns={board.columns} />;
 
   return (
@@ -117,21 +102,21 @@ export function HostQuestion({ view }: HostViewProps) {
       <Board columns={board.columns} size="large" />
       <p class="cb-caption">{tileCaption(board.tile.category, board.tile.value)}</p>
       <h2 class="cb-prompt cb-prompt-large">{board.tile.prompt}</h2>
-      <p class="cb-hint">Read it. Answers open in a moment.</p>
+      <p class="cb-hint">{gt('games.categoryBoard.view.readIt', 'Read it. Answers open in a moment.')}</p>
     </section>
   );
 }
 
 export function HostAnswering({ view }: HostViewProps) {
   const board = readHostView(view);
-  if (!board) return <Nothing line="Nothing to show for this round." />;
+  if (!board) return <Nothing line={gt('games.categoryBoard.view.nothingToShow', 'Nothing to show for this round.')} />;
   if (!board.tile) return <Cleared columns={board.columns} />;
 
   return (
     <section class="cb cb-host">
       <p class="cb-caption">{tileCaption(board.tile.category, board.tile.value)}</p>
       <h2 class="cb-prompt">{board.tile.prompt}</h2>
-      <ol class="cb-options" aria-label="The options">
+      <ol class="cb-options" aria-label={gt('games.categoryBoard.view.options', 'The options')}>
         {board.tile.options.map((option) => (
           <li key={option.index} class="cb-option">
             <span class="cb-letter">{letterFor(option.index)}</span>
@@ -144,21 +129,17 @@ export function HostAnswering({ view }: HostViewProps) {
 }
 
 /**
- * The answer, the split, and the board — which is where the host picks the next
- * tile. Picking is offered only while there is a next question to pick; Next
- * question in the control bar still plays the next tile along without anyone
- * choosing.
+ * The answer, the split, and the board with the tile just played marked.
+ * Picking the next tile is the organizer's, on their own device; Next question
+ * still plays the next tile along without anyone choosing.
  */
-export function HostReveal({ snapshot, view, reveal, send }: HostViewProps) {
+export function HostReveal({ view, reveal }: HostViewProps) {
   const board = readHostView(view);
-  if (!board) return <Nothing line="Nothing to show for this round." />;
+  if (!board) return <Nothing line={gt('games.categoryBoard.view.nothingToShow', 'Nothing to show for this round.')} />;
   if (!board.tile) return <Cleared columns={board.columns} />;
 
   const detail = readDetail(reveal?.detail);
-  if (!reveal || !detail) return <Nothing line="Waiting for the answer." />;
-
-  const moreToPlay = snapshot.round + 1 < snapshot.totalRounds;
-  const choose = moreToPlay ? (choice: string) => send({ cmd: 'choose', choice }) : undefined;
+  if (!reveal || !detail) return <Nothing line={awaitingReveal()} />;
 
   const aggregates = reveal.aggregates;
   const most = aggregates.reduce((high, row) => Math.max(high, row.count), 0);
@@ -170,13 +151,13 @@ export function HostReveal({ snapshot, view, reveal, send }: HostViewProps) {
   return (
     <section class="cb cb-host">
       <p class="cb-caption">{tileCaption(detail.category, detail.value)}</p>
-      <p class="cb-answer-label">The answer</p>
+      <p class="cb-answer-label">{gt('games.categoryBoard.view.answer', 'The answer')}</p>
       <h2 class="cb-answer">{reveal.correctLabel}</h2>
       {detail.reference !== null && <p class="cb-reference">{detail.reference}</p>}
 
       {!teamVote && (
         <>
-          <ul class="cb-split" aria-label="How the room answered">
+          <ul class="cb-split" aria-label={gt('games.categoryBoard.view.howAnswered', 'How the group answered')}>
             {aggregates.map((row) => (
               <li key={row.label} class="cb-split-row" data-correct={row.label === reveal.correctLabel}>
                 <span class="cb-split-label">{row.label}</span>
@@ -191,13 +172,14 @@ export function HostReveal({ snapshot, view, reveal, send }: HostViewProps) {
             ))}
           </ul>
           <p class="cb-muted">
-            {answered === 1 ? '1 answer' : `${answered} answers`} — nobody is named.
+            {answered === 1
+              ? gt('games.categoryBoard.view.oneAnswer', '1 answer — nobody is named.')
+              : gt('games.categoryBoard.view.manyAnswers', '{count} answers — nobody is named.', { count: answered })}
           </p>
         </>
       )}
 
-      {choose && <p class="cb-hint">Tap a tile to choose the next question.</p>}
-      <Board columns={board.columns} size="small" settled {...(choose ? { onChoose: choose } : {})} />
+      <Board columns={board.columns} size="small" settled />
     </section>
   );
 }

@@ -45,6 +45,10 @@ function settings(overrides: Partial<RoomSettings> = {}): RoomSettings {
     teamsEnabled: false,
     rounds: 5,
     answerWindowMs: 20_000,
+    teamCount: 2,
+    openEnded: false,
+    autoAdvanceMs: null,
+    scoresAfterEachAnswer: true,
     showIndividualScores: false,
     solo: false,
     groupVote: false,
@@ -502,5 +506,15 @@ describe('what the module tells the catalog', () => {
     const answers = [order('p-1', ['A', 'C', 'D', 'B'])];
 
     expect(putInOrder.scoreRound(round, answers, { seats: [], log: [] })).toEqual(scorePutInOrder(SECRET, answers));
+  });
+});
+
+describe('the answer shown before the reveal', () => {
+  it('is the same answer the reveal will name', () => {
+    const round: Round<typeof SECRET> = { index: 0, secret: SECRET, hostView: null, playerView: null };
+    const preview = putInOrder.answerPreview?.(round);
+
+    expect(preview).toBeTruthy();
+    expect(preview).toBe(putInOrder.scoreRound(round, [], { seats: [], log: [] }).correctLabel);
   });
 });

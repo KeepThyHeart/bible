@@ -62,6 +62,8 @@ function started(): void {
     step(player(name), { kind: 'join', name }, T0 - 5_000 + index);
   }
   step(HOST, { kind: 'host', command: { cmd: 'start' } }, T0);
+  // Past how to play, straight into the first round.
+  step(HOST, { kind: 'host', command: { cmd: 'nextRound' } }, T0);
 }
 
 beforeEach(() => {

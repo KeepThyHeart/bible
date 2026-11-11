@@ -186,6 +186,7 @@ function openRound(game: GameModule, settings: Partial<RoomSettings> = {}): Room
     join('bob', 1_101),
     join('cleo', 1_102),
     host({ cmd: 'start' }, 2_000),
+    host({ cmd: 'nextRound' }, 2_000),
   ]);
 }
 
@@ -382,6 +383,7 @@ function turnRoom(game: GameModule): RoomState {
     join('cy', 1_102, 'red'),
     join('di', 1_103, 'blue'),
     host({ cmd: 'start' }, 2_000),
+    host({ cmd: 'nextRound' }, 2_000),
     timer(0, 'questionEnd', 7_000),
   ]);
 }
@@ -495,6 +497,7 @@ describe('the seats at the table', () => {
       join('zed', 1_100),
       join('amy', 1_101),
       host({ cmd: 'start' }, 2_000),
+      host({ cmd: 'nextRound' }, 2_000),
     ]);
     expect(state.roundSeats).toEqual([
       { playerId: 'zed', teamId: null },
@@ -507,6 +510,7 @@ describe('the seats at the table', () => {
     const state = run(newRoom({ rounds: 2 }), game, [
       join('zed', 1_100, 'red'),
       host({ cmd: 'start' }, 2_000),
+      host({ cmd: 'nextRound' }, 2_000),
     ]);
     expect(state.players[0]?.teamId).toBe('red');
     expect(state.roundSeats).toEqual([{ playerId: 'zed', teamId: null }]);
@@ -514,10 +518,11 @@ describe('the seats at the table', () => {
 
   it('carry each team with teams on', () => {
     const game = plainGame();
-    const state = run(newRoom({ rounds: 2, teamsEnabled: true }), game, [
+    const state = run(newRoom({ rounds: 2, teamsEnabled: true, teamCount: 4 }), game, [
       join('zed', 1_100, 'gold'),
       join('amy', 1_101, 'red'),
       host({ cmd: 'start' }, 2_000),
+      host({ cmd: 'nextRound' }, 2_000),
     ]);
     expect(state.roundSeats.map((seat) => seat.teamId)).toEqual(['gold', 'red']);
   });
@@ -601,6 +606,7 @@ describe('a view computed per viewer', () => {
       join('r4', 1_104, 'red'),
       join('r5', 1_105, 'red'),
       host({ cmd: 'start' }, 2_000),
+      host({ cmd: 'nextRound' }, 2_000),
     ]);
     const clueOf = (playerId: PlayerId): unknown =>
       (projectForPlayer(state, playerId, game).view as { clue: string }).clue;
@@ -754,6 +760,7 @@ function caseRoom(game: GameModule, settings: Partial<RoomSettings> = {}): RoomS
     join('cy', 1_102),
     join('di', 1_103),
     host({ cmd: 'start' }, 2_000),
+    host({ cmd: 'nextRound' }, 2_000),
   ]);
 }
 
@@ -837,6 +844,7 @@ describe('a group vote', () => {
       join('di', 1_103, 'blue'),
       join('ed', 1_104, 'blue'),
       host({ cmd: 'start' }, 2_000),
+      host({ cmd: 'nextRound' }, 2_000),
       vote('ann', 0, 2_100),
       vote('bo', 0, 2_200),
       vote('cy', 1, 2_300),
@@ -1054,6 +1062,7 @@ describe('replaying the same room', () => {
         join('bo', 1_101),
         join('cy', 1_102),
         host({ cmd: 'start' }, 2_000),
+        host({ cmd: 'nextRound' }, 2_000),
         vote('ann', 0, 2_100),
         vote('bo', 2, 2_200),
         vote('ann', 3, 2_300),

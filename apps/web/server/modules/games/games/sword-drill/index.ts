@@ -176,6 +176,11 @@ function rulingsFrom(answers: readonly ScoredAnswer[]): Map<PlayerId, Ruling> {
   return rulings;
 }
 
+/** The reference to find, as the reveal names it and the organizer sees it beforehand. */
+function referenceLabel(secret: SwordDrillSecret): string {
+  return secret.reference;
+}
+
 export function scoreSwordDrill(
   secret: SwordDrillSecret | null,
   answers: readonly ScoredAnswer[]
@@ -208,7 +213,7 @@ export function scoreSwordDrill(
   return {
     perPlayer,
     aggregates,
-    correctLabel: secret.reference,
+    correctLabel: referenceLabel(secret),
     detail: {
       reference: secret.reference,
       text: secret.text,
@@ -262,6 +267,10 @@ export const swordDrill: GameModule<SwordDrillSecret | null> = {
       // while the host listens.
       questionPhaseMs: searchWindowMs(settings),
     };
+  },
+
+  answerPreview(round: Round<SwordDrillSecret | null>): string | null {
+    return round.secret === null ? null : referenceLabel(round.secret);
   },
 
   scoreRound(round: Round<SwordDrillSecret | null>, answers: ScoredAnswer[]): RoundOutcome {

@@ -8,6 +8,7 @@
  */
 
 import type { TeamId } from '../../shared/protocol.js';
+import { gt } from './t.js';
 
 export const TEAM_LABELS: Record<TeamId, string> = {
   red: 'Red',
@@ -17,7 +18,7 @@ export const TEAM_LABELS: Record<TeamId, string> = {
 };
 
 export function teamLabel(teamId: TeamId | null): string {
-  return teamId === null ? 'No team' : TEAM_LABELS[teamId];
+  return teamId === null ? gt('games.teams.none', 'No team') : gt(`games.teams.${teamId}`, TEAM_LABELS[teamId]);
 }
 
 /** The tokens are defined per team in the stylesheet. */

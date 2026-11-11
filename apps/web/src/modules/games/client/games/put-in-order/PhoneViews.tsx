@@ -20,7 +20,8 @@
 
 import { useState } from 'preact/hooks';
 import type { PlayerViewProps } from '../../shell/gameViews.js';
-import { AWAITING_REVEAL, AWAITING_ROUND } from '../../shell/waitingCopy.js';
+import { gt } from '../../shell/t.js';
+import { awaitingReveal, awaitingRound } from '../../shell/waitingCopy.js';
 import { labelsFor, letterFor, readDetail, readQuestion } from './payload.js';
 import type { OrderItem } from './payload.js';
 import { RightOrder } from './RightOrder.js';
@@ -33,13 +34,13 @@ function Nothing({ line }: { line: string }) {
   );
 }
 
-const UNREADABLE = AWAITING_ROUND;
-const NO_LISTS = 'Nothing to put in order this round.';
+const unreadable = () => awaitingRound();
+const noLists = () => gt('games.putInOrder.view.nothingToOrder', 'Nothing to put in order this round.');
 
 export function PhoneQuestion({ view }: PlayerViewProps) {
   const question = readQuestion(view);
-  if (!question) return <Nothing line={UNREADABLE} />;
-  if (question.items.length === 0) return <Nothing line={NO_LISTS} />;
+  if (!question) return <Nothing line={unreadable()} />;
+  if (question.items.length === 0) return <Nothing line={noLists()} />;
 
   return (
     <section class="pio pio-phone">
@@ -52,7 +53,7 @@ export function PhoneQuestion({ view }: PlayerViewProps) {
           </li>
         ))}
       </ul>
-      <p class="pio-hint">Ordering opens in a moment.</p>
+      <p class="pio-hint">{gt('games.putInOrder.view.orderingOpensSoon', 'Ordering opens in a moment.')}</p>
     </section>
   );
 }
@@ -63,8 +64,8 @@ export function PhoneAnswering({ snapshot, view, send }: PlayerViewProps) {
   const [taps, setTaps] = useState<{ round: number; keys: string[] }>({ round: -1, keys: [] });
   const [sent, setSent] = useState<{ round: number; order: string[] } | null>(null);
 
-  if (!question) return <Nothing line={UNREADABLE} />;
-  if (question.items.length === 0) return <Nothing line={NO_LISTS} />;
+  if (!question) return <Nothing line={unreadable()} />;
+  if (question.items.length === 0) return <Nothing line={noLists()} />;
 
   const round = snapshot.round;
   const items = question.items;
@@ -86,10 +87,10 @@ export function PhoneAnswering({ snapshot, view, send }: PlayerViewProps) {
     return (
       <section class="pio pio-phone">
         <p class="pio-sent" role="status">
-          {mine ? 'Order sent' : 'Answer sent.'}
+          {mine ? gt('games.putInOrder.view.orderSent', 'Order sent') : gt('games.putInOrder.view.answerSent', 'Answer sent.')}
         </p>
         {mine && (
-          <ol class="pio-slots" aria-label="Your order">
+          <ol class="pio-slots" aria-label={gt('games.putInOrder.view.yourOrder', 'Your order')}>
             {mine.order.map((key, index) => (
               <li key={key} class="pio-slot">
                 <span class="pio-number">{index + 1}</span>
@@ -98,7 +99,7 @@ export function PhoneAnswering({ snapshot, view, send }: PlayerViewProps) {
             ))}
           </ol>
         )}
-        <p class="pio-hint">Waiting for the rest of the room.</p>
+        <p class="pio-hint">{gt('games.putInOrder.view.waitingForOthers', 'Waiting for everyone else.')}</p>
       </section>
     );
   }
@@ -117,7 +118,7 @@ export function PhoneAnswering({ snapshot, view, send }: PlayerViewProps) {
     <section class="pio pio-phone">
       <p class="pio-instructions">{question.instructions}</p>
 
-      <ol class="pio-slots" aria-label="Your order">
+      <ol class="pio-slots" aria-label={gt('games.putInOrder.view.yourOrder', 'Your order')}>
         {items.map((_, index) => {
           const key = order[index];
           if (key === undefined) {
@@ -148,7 +149,7 @@ export function PhoneAnswering({ snapshot, view, send }: PlayerViewProps) {
 
       {implied === null && (
         <>
-          <p class="pio-prompt">{tapped.length === 0 ? 'Tap what comes first' : 'Tap what comes next'}</p>
+          <p class="pio-prompt">{tapped.length === 0 ? gt('games.putInOrder.view.tapFirst', 'Tap what comes first') : gt('games.putInOrder.view.tapNext', 'Tap what comes next')}</p>
           <ul class="pio-taps">
             {pool.map((item) => (
               <li key={item.key}>
@@ -164,20 +165,20 @@ export function PhoneAnswering({ snapshot, view, send }: PlayerViewProps) {
 
       <div class="pio-actions">
         <button type="button" class="pio-send" disabled={!complete} onClick={submit}>
-          Send this order
+          {gt('games.putInOrder.view.sendOrder', 'Send this order')}
         </button>
         <button type="button" class="pio-clear" disabled={tapped.length === 0} onClick={startOver}>
-          Start over
+          {gt('games.putInOrder.view.startOver', 'Start over')}
         </button>
       </div>
-      {tapped.length > 0 && <p class="pio-hint">Tap a placed item to take it back.</p>}
+      {tapped.length > 0 && <p class="pio-hint">{gt('games.putInOrder.view.takeBack', 'Tap a placed item to take it back.')}</p>}
     </section>
   );
 }
 
 export function PhoneReveal({ reveal, yourResult }: PlayerViewProps) {
   const detail = readDetail(reveal?.detail);
-  if (!reveal || !detail) return <Nothing line={AWAITING_REVEAL} />;
+  if (!reveal || !detail) return <Nothing line={awaitingReveal()} />;
 
   const submitted = yourResult?.submitted ?? null;
   const yours =
@@ -187,21 +188,21 @@ export function PhoneReveal({ reveal, yourResult }: PlayerViewProps) {
 
   return (
     <section class="pio pio-phone">
-      <p class="pio-answer-label">The right order</p>
+      <p class="pio-answer-label">{gt('games.putInOrder.view.rightOrder', 'The right order')}</p>
       {detail.title.length > 0 && <h2 class="pio-title pio-title-small">{detail.title}</h2>}
       <RightOrder items={detail.items} />
 
       {yourResult === null ? (
-        <p class="pio-yours">No answer from this phone.</p>
+        <p class="pio-yours">{gt('games.putInOrder.view.noAnswer', 'No answer from this phone.')}</p>
       ) : (
         <p class="pio-yours" data-correct={yourResult.correct ? 'true' : 'false'} role="status">
-          {yourResult.correct ? 'All in order.' : (yourResult.note ?? 'Not this time.')}
+          {yourResult.correct ? gt('games.putInOrder.view.allInOrderSentence', 'All in order.') : (yourResult.note ?? gt('games.putInOrder.view.notThisTime', 'Not this time.'))}
         </p>
       )}
 
       {yourResult !== null && !yourResult.correct && yours !== null && (
         <div class="pio-your-order">
-          <p class="pio-muted">Your order</p>
+          <p class="pio-muted">{gt('games.putInOrder.view.yourOrder', 'Your order')}</p>
           <ol class="pio-your-list">
             {yours.map((label, index) => (
               <li key={`${index}:${label}`}>{label}</li>

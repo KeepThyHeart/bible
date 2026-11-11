@@ -19,7 +19,8 @@
 import { useEffect, useState } from 'preact/hooks';
 import type { PersonalResult } from '../../../shared/protocol.js';
 import type { PlayerViewProps } from '../../shell/gameViews.js';
-import { AWAITING_REVEAL, AWAITING_ROUND } from '../../shell/waitingCopy.js';
+import { gt } from '../../shell/t.js';
+import { awaitingReveal, awaitingRound } from '../../shell/waitingCopy.js';
 import { groupOf, indexForLetter, letterFor, readPhoneCase, readReveal } from './payload.js';
 import type { CaseOption } from './payload.js';
 
@@ -30,7 +31,7 @@ function Nothing({ line }: { line: string }) {
 function Waiting() {
   return (
     <section class="det det-phone">
-      <p class="det-nothing">The clues were dealt before you joined. You are in from the next case.</p>
+      <p class="det-nothing">{gt('games.detective.view.dealtBefore', 'The clues were dealt before you joined. You are in from the next case.')}</p>
     </section>
   );
 }
@@ -45,19 +46,23 @@ function LockIcon() {
 }
 
 function ClueCard({ clue, shared, teamsEnabled }: { clue: string; shared: boolean; teamsEnabled: boolean }) {
-  const who = teamsEnabled ? 'your team' : 'the room';
+  const needs = teamsEnabled
+    ? gt('games.detective.view.readOutTeam', 'Read it out — your team needs every clue.')
+    : gt('games.detective.view.readOutGroup', 'Read it out — the group needs every clue.');
   return (
-    <section class="det-yours" aria-label="Your clue">
+    <section class="det-yours" aria-label={gt('games.detective.view.yourClue', 'Your clue')}>
       <p class="det-label det-label-icon">
         <LockIcon />
-        Your clue
+        {gt('games.detective.view.yourClue', 'Your clue')}
       </p>
       <div class="det-clue-card">
         <p class="det-clue-text">{clue}</p>
       </div>
       <p class="det-muted det-small">
-        {shared ? 'Another phone has this one too.' : 'Only this phone has it.'} Read it out — {who} needs
-        every clue.
+        {shared
+          ? gt('games.detective.view.sharedClue', 'Another phone has this one too.')
+          : gt('games.detective.view.soloClue', 'Only this phone has it.')}{' '}
+        {needs}
       </p>
     </section>
   );
@@ -65,12 +70,12 @@ function ClueCard({ clue, shared, teamsEnabled }: { clue: string; shared: boolea
 
 export function PhoneQuestion({ snapshot, view }: PlayerViewProps) {
   const dealt = readPhoneCase(view);
-  if (!dealt) return <Nothing line={AWAITING_ROUND} />;
+  if (!dealt) return <Nothing line={awaitingRound()} />;
   if (dealt.kind === 'waiting') return <Waiting />;
   return (
     <section class="det det-phone">
       <ClueCard clue={dealt.clue} shared={dealt.shared} teamsEnabled={snapshot.settings.teamsEnabled} />
-      <p class="det-muted">Voting opens in a moment.</p>
+      <p class="det-muted">{gt('games.detective.view.votingOpens', 'Voting opens in a moment.')}</p>
     </section>
   );
 }
@@ -116,7 +121,7 @@ export function PhoneAnswering({ snapshot, view, send }: PlayerViewProps) {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [dealt, standing, snapshot.paused, here]);
 
-  if (!dealt) return <Nothing line={AWAITING_ROUND} />;
+  if (!dealt) return <Nothing line={awaitingRound()} />;
   if (dealt.kind === 'waiting') return <Waiting />;
 
   const labelOf = (index: number | null): string | null =>
@@ -128,8 +133,8 @@ export function PhoneAnswering({ snapshot, view, send }: PlayerViewProps) {
     <section class="det det-phone">
       <ClueCard clue={dealt.clue} shared={dealt.shared} teamsEnabled={snapshot.settings.teamsEnabled} />
 
-      <section class="det-vote" aria-label="Your vote">
-        <p class="det-ask">Your vote</p>
+      <section class="det-vote" aria-label={gt('games.detective.view.yourVote', 'Your vote')}>
+        <p class="det-ask">{gt('games.detective.view.yourVote', 'Your vote')}</p>
         <ul class="det-taps">
           {dealt.options.map((option) => (
             <li key={option.index}>
@@ -148,10 +153,10 @@ export function PhoneAnswering({ snapshot, view, send }: PlayerViewProps) {
         </ul>
         <p class="det-muted det-small" role="status">
           {snapshot.paused
-            ? 'Paused.'
+            ? gt('games.detective.view.paused', 'Paused.')
             : current === null
-              ? 'Tap a name to vote. You can change it until time runs out.'
-              : `Voted: ${current}. You can change it until time runs out.`}
+              ? gt('games.detective.view.tapToVote', 'Tap a name to vote. You can change it until time runs out.')
+              : gt('games.detective.view.voted', 'Voted: {name}. You can change it until time runs out.', { name: current })}
         </p>
       </section>
     </section>
@@ -166,24 +171,26 @@ export function ownLine(
   carried: boolean,
   who: string
 ): string {
-  if (result === null) return 'This phone was not dealt in to this case.';
+  if (result === null) return gt('games.detective.view.notDealt', 'This phone was not dealt in to this case.');
   const voted = result.submitted?.type === 'choice' ? (options[result.submitted.index] ?? null) : null;
   if (voted === null) {
-    return carried ? `You didn’t vote — ${who} carried it, and you score with them.` : 'No vote from this phone.';
+    return carried
+      ? gt('games.detective.view.didntVoteCarried', 'You didn’t vote — {who} carried it, and you score with them.', { who })
+      : gt('games.detective.view.noVote', 'No vote from this phone.');
   }
-  if (!carried) return `You voted ${voted}.`;
+  if (!carried) return gt('games.detective.view.youVoted', 'You voted {name}.', { name: voted });
   return voted === person
-    ? `You voted ${voted} with ${who}.`
-    : `You voted ${voted} — ${who} carried it, and you score with them.`;
+    ? gt('games.detective.view.votedWith', 'You voted {name} with {who}.', { name: voted, who })
+    : gt('games.detective.view.votedCarried', 'You voted {name} — {who} carried it, and you score with them.', { name: voted, who });
 }
 
 export function PhoneReveal({ snapshot, view, reveal, yourResult }: PlayerViewProps) {
   const detail = readReveal(reveal?.detail);
-  if (!reveal || !detail) return <Nothing line={AWAITING_REVEAL} />;
+  if (!reveal || !detail) return <Nothing line={awaitingReveal()} />;
 
   const teams = snapshot.settings.teamsEnabled;
-  const who = teams ? 'your team' : 'the room';
-  const Who = teams ? 'Your team' : 'The room';
+  const who = teams ? gt('games.detective.view.whoTeam', 'your team') : gt('games.detective.view.whoGroup', 'the group');
+  const Who = teams ? gt('games.detective.view.WhoTeam', 'Your team') : gt('games.detective.view.WhoGroup', 'The group');
   const group = groupOf(reveal.groups, teams, snapshot.you.teamId);
   const carried = group?.correct === true;
 
@@ -191,12 +198,12 @@ export function PhoneReveal({ snapshot, view, reveal, yourResult }: PlayerViewPr
     group === null
       ? null
       : group.correct === true
-        ? `${Who} got it`
+        ? gt('games.detective.view.gotIt', '{who} got it', { who: Who })
         : group.decided !== null
-          ? `${Who} chose ${group.decided}`
+          ? gt('games.detective.view.chose', '{who} chose {answer}', { who: Who, answer: group.decided })
           : group.split.length === 0
-            ? 'Nobody voted'
-            : `${Who} was split — no answer`;
+            ? gt('games.detective.view.nobodyVoted', 'Nobody voted')
+            : gt('games.detective.view.wasSplit', '{who} was split — no answer', { who: Who });
 
   const dealt = readPhoneCase(view);
   const mine = dealt?.kind === 'clue' ? dealt.clue : null;
@@ -204,7 +211,7 @@ export function PhoneReveal({ snapshot, view, reveal, yourResult }: PlayerViewPr
 
   return (
     <section class="det det-phone">
-      <p class="det-label">The answer</p>
+      <p class="det-label">{gt('games.detective.view.answer', 'The answer')}</p>
       <h2 class="det-answer">{detail.person}</h2>
       {headline !== null && (
         <p class="det-verdict" data-tone={carried ? 'correct' : 'none'}>
@@ -215,7 +222,7 @@ export function PhoneReveal({ snapshot, view, reveal, yourResult }: PlayerViewPr
 
       {mine !== null && (
         <div class="det-clue-card det-clue-card-quiet">
-          <span class="det-label">Your clue</span>
+          <span class="det-label">{gt('games.detective.view.yourClue', 'Your clue')}</span>
           <span>{mine}</span>
           {reference !== null && <span class="det-muted det-small">{reference}</span>}
         </div>

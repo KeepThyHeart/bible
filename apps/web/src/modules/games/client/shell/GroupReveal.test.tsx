@@ -68,6 +68,6 @@ describe('how each team voted', () => {
 
   it('calls a single teamless group the room', () => {
     draw([{ teamId: null, split: [{ label: 'Moses', count: 3 }], decided: 'Moses', correct: true }]);
-    expect(host.querySelector('.group-name')?.textContent).toBe('The room');
+    expect(host.querySelector('.group-name')?.textContent).toBe('Everyone');
   });
 });

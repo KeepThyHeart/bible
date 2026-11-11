@@ -13,17 +13,19 @@
  * nothing happened.
  */
 
-import { useCallback, useEffect, useState } from 'preact/hooks';
-import type { HostCommand, Intent, PlayerSnapshot, RoomCode, TeamId } from '../../shared/protocol.js';
+import { useCallback, useEffect, useMemo, useState } from 'preact/hooks';
+import type { Catalog, HostCommand, Intent, PlayerSnapshot, RoomCode, TeamId } from '../../shared/protocol.js';
 import { Brand } from './Brand.js';
-import { ControlBar } from './ControlBar.js';
-import { ControlPanel } from './ControlPanel.js';
 import { JoinScreen } from './JoinScreen.js';
+import { OrganizerControls } from './OrganizerControls.js';
+import { OrganizerLobby } from './OrganizerLobby.js';
 import { PhoneFrame } from './PhoneFrame.js';
+import { OrganizerSummary } from './OrganizerSummary.js';
+import { PhoneIntro } from './PhoneIntro.js';
 import { PhoneLobby } from './PhoneLobby.js';
 import { QrCode } from './QrCode.js';
 import { PhoneSummary } from './Summary.js';
-import { joinRoom, sendIntent } from './api.js';
+import { EMPTY_CATALOG, fetchCatalog, joinRoom, sendIntent } from './api.js';
 import { clockReportFor, useClock } from './clockPort.js';
 import { isGamePhase, playerViewFor } from './gameViews.js';
 import { PATHS, joinUrl, screenUrl } from './routes.js';
@@ -37,6 +39,7 @@ import {
   rememberedName,
   saveSession,
 } from './session.js';
+import { serialSender } from './serialSender.js';
 import { useTheme } from './theme.js';
 import { useRoomStream } from './useRoomStream.js';
 import { gt } from './t.js';
@@ -65,7 +68,7 @@ function ShowOnTV({ code }: { code: RoomCode }) {
     <div class="overlay" role="dialog" aria-label={gt('games.play.showOnTv', 'Show on a TV')}>
       <div class="overlay-card">
         <h2 class="overlay-title">{gt('games.play.scanOnTv', 'Scan on the TV')}</h2>
-        <QrCode url={url} label={gt('games.play.tvQr', 'QR code to add this room to a TV or a second screen')} />
+        <QrCode url={url} label={gt('games.play.tvQr', 'QR code to add this game to a TV or a second screen')} />
         <button type="button" class="btn-primary" onClick={() => setOpen(false)}>
           {gt('games.common.close', 'Close')}
         </button>
@@ -91,6 +94,19 @@ function resume(code: RoomCode | null): RoomSession | null {
 
 export function PlayApp({ code, onNavigate }: PlayAppProps) {
   const [session, setSession] = useState<RoomSession | null>(() => resume(code));
+  const [catalog, setCatalog] = useState<Catalog>(EMPTY_CATALOG);
+  // Set by "Pick another game": the next lobby opens on the picker.
+  const [pickNext, setPickNext] = useState(false);
+
+  useEffect(() => {
+    let live = true;
+    void fetchCatalog().then((value) => {
+      if (live) setCatalog(value);
+    });
+    return () => {
+      live = false;
+    };
+  }, []);
   const [joining, setJoining] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const clock = useClock();
@@ -150,12 +166,16 @@ export function PlayApp({ code, onNavigate }: PlayAppProps) {
    * the design): the reducer decides whether this player actually controls
    * the room. Refused silently, like any other command, when they do not.
    */
-  const onCommand = useCallback(
-    (command: HostCommand) => {
-      if (!session) return;
-      void sendIntent(session.code, session.token, { kind: 'host', command });
-    },
-    [session]
+  const sessionCode = session?.code ?? null;
+  const sessionToken = session?.token ?? null;
+  const onCommand = useMemo(
+    () =>
+      serialSender((command: HostCommand) =>
+        sessionCode === null || sessionToken === null
+          ? Promise.resolve()
+          : sendIntent(sessionCode, sessionToken, { kind: 'host', command })
+      ),
+    [sessionCode, sessionToken]
   );
 
   const forget = useCallback(() => {
@@ -191,7 +211,7 @@ export function PlayApp({ code, onNavigate }: PlayAppProps) {
         <Brand />
         <p role="status">{stream.ended}</p>
         <button type="button" class="btn-primary" onClick={forget}>
-          {gt('games.play.joinAnother', 'Join another room')}
+          {gt('games.play.joinAnother', 'Join another game')}
         </button>
       </main>
     );
@@ -205,10 +225,10 @@ export function PlayApp({ code, onNavigate }: PlayAppProps) {
         <p role="status">
           {stream.status === 'reconnecting'
             ? gt('games.common.reconnecting', 'Reconnecting…')
-            : gt('games.play.joining', 'Joining the room…')}
+            : gt('games.play.joining', 'Joining the game…')}
         </p>
         <p class="muted">
-          {gt('games.play.room', 'Room')} <strong>{session.code}</strong>
+          {gt('games.play.room', 'Game')} <strong>{session.code}</strong>
         </p>
         <button type="button" class="btn-quiet" onClick={forget}>
           {gt('games.play.startAgain', 'Start again')}
@@ -218,6 +238,23 @@ export function PlayApp({ code, onNavigate }: PlayAppProps) {
   }
 
   const player: PlayerSnapshot = snapshot;
+
+  // A playing organizer runs the lobby from here: the same lobby as the
+  // remote's, so they can arrange teams and change the game too.
+  if (player.phase === 'lobby' && player.control !== undefined) {
+    return (
+      <OrganizerLobby
+        snapshot={player}
+        catalog={catalog}
+        startPicking={pickNext}
+        onCommand={(command) => {
+          if (command.cmd === 'start') setPickNext(false);
+          onCommand(command);
+        }}
+        onNavigate={onNavigate}
+      />
+    );
+  }
 
   if (player.phase === 'lobby') {
     return (
@@ -234,7 +271,9 @@ export function PlayApp({ code, onNavigate }: PlayAppProps) {
     );
   }
 
-  const body = isGamePhase(player.phase) ? (
+  const body = player.phase === 'intro' ? (
+    <PhoneIntro snapshot={player} />
+  ) : isGamePhase(player.phase) ? (
     (() => {
       const View = playerViewFor(player.settings.gameId, player.phase);
       return (
@@ -262,14 +301,24 @@ export function PlayApp({ code, onNavigate }: PlayAppProps) {
     >
       {player.control !== undefined && (
         <>
-          <ControlPanel pendingJudge={player.control.pendingJudge} onCommand={onCommand} />
-          <ControlBar
-            common={player}
-            panel={player.control}
-            reveal={stream.reveal}
-            fullStandings={stream.fullStandings}
-            onCommand={onCommand}
-          />
+          {player.phase === 'summary' ? (
+            <OrganizerSummary
+              panel={player.control}
+              onCommand={onCommand}
+              onPickAnother={() => {
+                setPickNext(true);
+                onCommand({ cmd: 'newGame' });
+              }}
+            />
+          ) : (
+            <OrganizerControls
+              snapshot={player}
+              panel={player.control}
+              reveal={stream.reveal}
+              fullStandings={stream.fullStandings}
+              onCommand={onCommand}
+            />
+          )}
           <ShowOnTV code={player.code} />
         </>
       )}

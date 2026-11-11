@@ -57,6 +57,7 @@ const CONTROL_PANEL: ControlPanel = {
   teamStandings: [],
   overallStandings: [],
   spent: [],
+  answer: null,
 };
 
 function playerSnapshot(overrides: Partial<PlayerSnapshot> = {}): PlayerSnapshot {
@@ -74,6 +75,10 @@ function playerSnapshot(overrides: Partial<PlayerSnapshot> = {}): PlayerSnapshot
       teamsEnabled: false,
       rounds: 10,
       answerWindowMs: 20_000,
+      teamCount: 2,
+      openEnded: false,
+      autoAdvanceMs: null,
+      scoresAfterEachAnswer: true,
       showIndividualScores: false,
       solo: false,
       groupVote: false,
@@ -122,7 +127,7 @@ describe('arriving on a phone', () => {
     });
 
     expect(codeField().value).toBe('');
-    expect(host.textContent).toContain('Enter room code');
+    expect(host.textContent).toContain('Game code');
   });
 
   it('fills in the code a scanned link carried', () => {
@@ -151,7 +156,7 @@ describe('arriving on a phone', () => {
       render(<PlayApp code={null} onNavigate={navigate} />, host);
     });
     const solo = [...host.querySelectorAll('button')].find(
-      (button) => button.textContent === 'Play solo'
+      (button) => button.textContent === 'Play on my own'
     );
     act(() => {
       solo?.click();
@@ -197,10 +202,33 @@ describe('control on a phone', () => {
     act(() => latestSource().onopen?.());
 
     sendSnapshot(playerSnapshot({ phase: 'answering' }));
-    expect(host.querySelector('.control-bar')).toBeNull();
+    expect(host.querySelector('.organizer')).toBeNull();
 
     sendSnapshot(playerSnapshot({ phase: 'answering', control: CONTROL_PANEL }));
-    expect(host.querySelector('.control-bar')).not.toBeNull();
+    expect(host.querySelector('.organizer')).not.toBeNull();
+  });
+
+  it('shows the main button and the secondary row above the player view, with no answer card', async () => {
+    act(() => {
+      render(<PlayApp code="QK7P" onNavigate={() => undefined} />, host);
+    });
+    act(() => latestSource().onopen?.());
+    sendSnapshot(playerSnapshot({ phase: 'answering', control: CONTROL_PANEL }));
+
+    const labels = [...host.querySelectorAll('.organizer button')].map((b) => b.textContent?.trim());
+    expect(labels).toContain('Show the answer');
+    expect(labels).toContain('Pause');
+    expect(labels).toContain('Skip');
+    expect(host.textContent).not.toContain('Only you see this');
+
+    const main = [...host.querySelectorAll('button')].find((b) => b.textContent === 'Show the answer');
+    await act(async () => main?.click());
+    const sent = posted.filter((body) => {
+      const intent = body['intent'] as { kind?: string } | undefined;
+      return intent?.kind === 'host';
+    });
+    expect(sent).toHaveLength(1);
+    expect((sent[0]?.['intent'] as { command: { cmd: string } }).command.cmd).toBe('revealNow');
   });
 
   it('the request button posts requestControl once and then shows its status', () => {
@@ -211,7 +239,7 @@ describe('control on a phone', () => {
     sendSnapshot(playerSnapshot());
 
     const runButton = [...host.querySelectorAll('button')].find(
-      (button) => button.textContent === 'Run the game'
+      (button) => button.textContent === 'Ask to be the organizer'
     );
     act(() => runButton?.click());
     act(() => runButton?.click());
@@ -223,7 +251,7 @@ describe('control on a phone', () => {
     expect(requested).toHaveLength(1);
 
     sendSnapshot(playerSnapshot({ yourControlRequest: 'pending' }));
-    expect(host.textContent).toContain('Waiting for the room to say yes');
-    expect(host.querySelector('button')?.textContent).not.toBe('Run the game');
+    expect(host.textContent).toContain('Waiting for the organizer to say yes');
+    expect(host.querySelector('button')?.textContent).not.toBe('Ask to be the organizer');
   });
 });

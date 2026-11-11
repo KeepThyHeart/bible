@@ -18,6 +18,7 @@ import type {
   PersonalResult,
   PhaseName,
   PlayerSnapshot,
+  RemoteSnapshot,
   RevealPayload,
   ScreenSnapshot,
 } from '../../shared/protocol.js';
@@ -50,7 +51,7 @@ export type PhaseViews<P> = Record<GamePhase, ComponentType<P>>;
 
 /** What a game's own slot in the control area is given to work with. */
 export interface ControlViewProps {
-  snapshot: ScreenSnapshot | PlayerSnapshot;
+  snapshot: ScreenSnapshot | RemoteSnapshot | PlayerSnapshot;
   send(command: HostCommand): void;
 }
 
@@ -76,6 +77,39 @@ export interface GameViews {
    * a screen or a phone, exactly like the rest of the control area.
    */
   control?: ComponentType<ControlViewProps>;
+  /**
+   * True when `control` draws its own verdict buttons, so the shell leaves its
+   * judge card out rather than offering Correct twice.
+   */
+  controlJudges?: boolean;
+  /** What the organizer's game picker says about this game. */
+  card?: GameCard;
+  /** The rules the big screen shows once, before the first round. */
+  howToPlay?: HowToPlay;
+}
+
+/** What a game needs or how it plays, as a picker tag. */
+export type GameTag = 'everyone' | 'teams' | 'outLoud' | 'bibles' | 'fourPlus';
+
+/**
+ * Locale keys, not text, so the picker words every card through `gt` like the
+ * rest of the shell.
+ */
+export interface GameCard {
+  /** One line on how the game plays. */
+  descriptionKey: string;
+  descriptionFallback: string;
+  tags: readonly GameTag[];
+  /** Roughly how long a default game takes, for the card. */
+  minutes: number;
+}
+
+export interface HowToPlay {
+  /** One line on what the room will see. */
+  summaryKey: string;
+  summaryFallback: string;
+  /** Two or three short steps, in order. */
+  steps: readonly { key: string; fallback: string }[];
 }
 
 const registry = new Map<GameId, GameViews>();

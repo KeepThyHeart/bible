@@ -34,6 +34,7 @@ import {
   rememberedName,
   saveSoloSession,
 } from './session.js';
+import { gt } from './t.js';
 import { useTheme } from './theme.js';
 import { useRoomStream } from './useRoomStream.js';
 
@@ -59,25 +60,25 @@ function SoloControls({
   onCommand(command: HostCommand): void;
 }) {
   return (
-    <nav class="host-controls solo-controls" aria-label="Game controls">
+    <nav class="host-controls solo-controls" aria-label={gt('games.organizer.controls', 'Game controls')}>
       {(phase === 'question' || phase === 'answering') && (
         <button type="button" onClick={() => onCommand({ cmd: paused ? 'resume' : 'pause' })}>
-          {paused ? 'Resume' : 'Pause'}
+          {paused ? gt('games.organizer.resume', 'Resume') : gt('games.organizer.pause', 'Pause')}
         </button>
       )}
       {(phase === 'question' || phase === 'answering') && (
         <button type="button" onClick={() => onCommand({ cmd: 'skip' })}>
-          Skip
+          {gt('games.organizer.skip', 'Skip')}
         </button>
       )}
       {phase === 'reveal' ? (
         <button type="button" class="btn-primary" onClick={() => onCommand({ cmd: 'nextRound' })}>
-          Next question
+          {gt('games.organizer.nextQuestion', 'Next question')}
         </button>
       ) : (
         (phase === 'question' || phase === 'answering') && (
           <button type="button" onClick={() => onCommand({ cmd: 'revealNow' })}>
-            Reveal now
+            {gt('games.organizer.showAnswer', 'Show the answer')}
           </button>
         )
       )}
@@ -196,10 +197,10 @@ export function SoloApp({ onLeaveSolo }: SoloAppProps) {
           {error}
         </p>
         <button type="button" class="btn-primary" onClick={startFresh}>
-          Try again
+          {gt('games.common.tryAgain', 'Try again')}
         </button>
         <button type="button" class="btn-quiet" onClick={onLeaveSolo}>
-          Join a room instead
+          {gt('games.solo.joinInstead', 'Join a game instead')}
         </button>
       </main>
     );
@@ -211,10 +212,10 @@ export function SoloApp({ onLeaveSolo }: SoloAppProps) {
         <Brand />
         <p role="status">{stream.ended}</p>
         <button type="button" class="btn-primary" onClick={startFresh}>
-          Play again
+          {gt('games.summary.playAgain', 'Play again')}
         </button>
         <button type="button" class="btn-quiet" onClick={onLeaveSolo}>
-          Join a room instead
+          {gt('games.solo.joinInstead', 'Join a game instead')}
         </button>
       </main>
     );
@@ -226,7 +227,7 @@ export function SoloApp({ onLeaveSolo }: SoloAppProps) {
       <main class="screen centre">
         <Brand />
         <p role="status">
-          {stream.status === 'reconnecting' ? 'Reconnecting…' : 'Setting up your game…'}
+          {stream.status === 'reconnecting' ? gt('games.common.reconnecting', 'Reconnecting…') : gt('games.solo.settingUp', 'Setting up your game…')}
         </p>
       </main>
     );
@@ -256,12 +257,12 @@ export function SoloApp({ onLeaveSolo }: SoloAppProps) {
         onReconnectNow={stream.reconnectNow}
       >
         <SoloSummary snapshot={player} />
-        <nav class="host-controls solo-controls" aria-label="Game controls">
+        <nav class="host-controls solo-controls" aria-label={gt('games.organizer.controls', 'Game controls')}>
           <button type="button" class="btn-primary" onClick={startFresh}>
-            Play again
+            {gt('games.summary.playAgain', 'Play again')}
           </button>
           <button type="button" onClick={onLeaveSolo}>
-            Done
+            {gt('games.solo.done', 'Done')}
           </button>
         </nav>
       </PhoneFrame>

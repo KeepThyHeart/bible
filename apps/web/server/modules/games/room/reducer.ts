@@ -32,16 +32,18 @@ import type {
   ServerTime,
   TeamId,
 } from '../../../../src/modules/games/shared/protocol.js';
-import { TEAM_IDS } from '../../../../src/modules/games/shared/protocol.js';
+import { teamsInPlay } from '../../../../src/modules/games/shared/protocol.js';
 import type { GameModule } from '../../../../src/modules/games/shared/games.js';
 import { MAX_LOG_ENTRIES } from '../../../../src/modules/games/shared/games.js';
 import { correctBuzzTime } from '../clock/offsetTracking.js';
 import { effectiveGame } from './groupVote.js';
 import {
   answerWindowFor,
+  autoAdvanceDeadline,
   buildRounds,
   enterReveal,
   enterRound,
+  continueFromSummary,
   enterSummary,
   freezeStream,
   openAnswering,
@@ -51,7 +53,9 @@ import {
   startGame,
   timerForPhase,
   TIMER_ANSWER_END,
+  TIMER_AUTO_ADVANCE,
   TIMER_BUZZ_ANSWER,
+  TIMER_INTRO_END,
   TIMER_QUESTION_END,
   type Transition,
 } from './phases.js';
@@ -71,6 +75,11 @@ export type ReduceResult = Transition;
 
 /** Long enough for a real name, short enough to fit a phone's roster row. */
 const MAX_NAME_LENGTH = 24;
+
+/** The name as the roster stores it: trimmed and cut to length. May be empty. */
+function cleanName(raw: string): string {
+  return raw.trim().slice(0, MAX_NAME_LENGTH);
+}
 
 /**
  * Two "Dave"s in the same room are not a typo, and are indistinguishable
@@ -157,7 +166,10 @@ function mintPlayerId(state: RoomState): { id: PlayerId; seed: number } {
   return { id, seed: rng.seedAfter() };
 }
 
-/** Fills the emptiest team, so that a room that fills up stays balanced. */
+/**
+ * Fills the emptiest team in play, so that a room that fills up stays
+ * balanced. A team outside the count is never chosen, however empty.
+ */
 function autoTeam(state: RoomState): TeamId | null {
   if (!state.settings.teamsEnabled) return null;
   const counts = new Map<TeamId, number>();
@@ -166,7 +178,7 @@ function autoTeam(state: RoomState): TeamId | null {
   }
   let chosen: TeamId | null = null;
   let smallest = Number.POSITIVE_INFINITY;
-  for (const teamId of TEAM_IDS) {
+  for (const teamId of teamsInPlay(state.settings.teamCount)) {
     const count = counts.get(teamId) ?? 0;
     if (count < smallest) {
       chosen = teamId;
@@ -174,6 +186,25 @@ function autoTeam(state: RoomState): TeamId | null {
     }
   }
   return chosen;
+}
+
+/**
+ * Fewer teams leaves somebody on a team that no longer exists. Each such
+ * player goes to whichever team in play is smallest at that moment, one at a
+ * time, so the room stays as even as `autoTeam` keeps it on joining.
+ */
+function reseatOutOfPlay(state: RoomState): RoomState {
+  if (!state.settings.teamsEnabled) return state;
+  let next = state;
+  for (const player of state.players) {
+    if (player.teamId === null || inPlay(next, player.teamId)) continue;
+    next = replacePlayer(next, { ...player, teamId: autoTeam(next) });
+  }
+  return next;
+}
+
+function inPlay(state: RoomState, teamId: TeamId): boolean {
+  return teamsInPlay(state.settings.teamCount).includes(teamId);
 }
 
 function roundIsLive(state: RoomState): boolean {
@@ -191,7 +222,7 @@ function handleJoin(
   teamId: TeamId | undefined,
   now: ServerTime
 ): ReduceResult {
-  const name = rawName.trim().slice(0, MAX_NAME_LENGTH);
+  const name = cleanName(rawName);
   if (!name) return unchanged(state);
 
   // A join addressed as an existing player is a returning phone, not a second
@@ -215,7 +246,7 @@ function handleJoin(
   const player: PlayerState = {
     id,
     name: uniqueName(state, name),
-    teamId: teamId ?? autoTeam(state),
+    teamId: teamId !== undefined && inPlay(state, teamId) ? teamId : autoTeam(state),
     connected: true,
     score: 0,
     joinedAt: now,
@@ -340,6 +371,7 @@ function removePlayer(
 function handleSetTeam(state: RoomState, actor: Actor, teamId: TeamId): ReduceResult {
   const player = actingPlayer(state, actor);
   if (!player || !state.settings.teamsEnabled) return unchanged(state);
+  if (!inPlay(state, teamId)) return unchanged(state);
   // Switching sides mid-round would let a player move their points; between
   // rounds it is just someone sitting with their friends.
   if (roundIsLive(state)) return unchanged(state);
@@ -964,6 +996,14 @@ function handleHost(
     case 'adjust':
       return handleAdjust(state, command.playerId, command.delta);
 
+    case 'finish':
+      // The results, and the room kept: nothing about who is here changes.
+      if (state.phase === 'lobby' || state.phase === 'summary') return unchanged(state);
+      return enterSummary(state, now);
+
+    case 'continueGame':
+      return continueFromSummary(state, game, now) ?? unchanged(state);
+
     case 'end': {
       const ended = enterSummary(state, now);
       return {
@@ -976,13 +1016,7 @@ function handleHost(
       return startNewGame(state, now);
 
     case 'setSettings':
-      return {
-        state: {
-          ...state,
-          settings: mergeSettings(state.settings, command.settings, state.rounds.length > 0),
-        },
-        effects: [{ type: 'persist' }],
-      };
+      return handleSetSettings(state, command.settings, now);
 
     case 'requestFullStandings':
       // A one-off private reply, assembled by the runtime from the projection
@@ -1004,9 +1038,116 @@ function handleHost(
     case 'denyControl':
       return handleDenyControl(state, command.playerId);
 
+    case 'moveToTeam':
+      return handleMoveToTeam(state, command.playerId, command.teamId);
+
+    case 'rename':
+      return handleRename(state, command.playerId, command.name);
+
+    case 'shuffleTeams':
+      return handleShuffleTeams(state);
+
     // 'reclaimControl' is handled above, before the controller check, and
     // is excluded from `command`'s type here by that early return.
   }
+}
+
+/**
+ * Applies the settings and, when the room is sitting on a reveal, makes the
+ * reveal's countdown agree with the new auto-advance setting straight away:
+ * switching it on arms the countdown, switching it off disarms it. A paused
+ * reveal is left alone, because resuming is what re-arms it.
+ */
+function handleSetSettings(
+  state: RoomState,
+  patch: Partial<RoomSettings>,
+  now: ServerTime
+): ReduceResult {
+  const settings = mergeSettings(state.settings, patch, state.rounds.length > 0);
+  const updated = reseatOutOfPlay({ ...state, settings });
+  if (
+    state.phase !== 'reveal' ||
+    state.paused ||
+    settings.autoAdvanceMs === state.settings.autoAdvanceMs
+  ) {
+    return { state: updated, effects: [{ type: 'persist' }] };
+  }
+  const phaseEndsAt = autoAdvanceDeadline(updated, now);
+  const rearmed: RoomState = { ...updated, phaseEndsAt };
+  return {
+    state: rearmed,
+    effects: [
+      { type: 'cancelTimers', round: state.roundIndex },
+      ...timerForPhase(rearmed),
+      { type: 'persist' },
+    ],
+  };
+}
+
+/**
+ * Moves one player to a team in play, or off teams altogether with null.
+ * Allowed in the middle of a round: the round's seats were taken when it began
+ * and scoring reads those, so the move counts from the next round.
+ */
+function handleMoveToTeam(
+  state: RoomState,
+  playerId: PlayerId,
+  teamId: TeamId | null
+): ReduceResult {
+  const player = findPlayer(state, playerId);
+  if (!player || !state.settings.teamsEnabled) return unchanged(state);
+  if (teamId !== null && !inPlay(state, teamId)) return unchanged(state);
+  if (player.teamId === teamId) return unchanged(state);
+  return {
+    state: replacePlayer(state, { ...player, teamId }),
+    effects: [{ type: 'persist' }],
+  };
+}
+
+/**
+ * Renames a player by the same rules a join follows: trimmed, cut to length,
+ * never empty, and kept distinct from everyone else's name.
+ */
+function handleRename(state: RoomState, playerId: PlayerId, rawName: string): ReduceResult {
+  const player = findPlayer(state, playerId);
+  const name = cleanName(rawName);
+  if (!player || !name) return unchanged(state);
+  const others: RoomState = {
+    ...state,
+    players: state.players.filter((other) => other.id !== playerId),
+  };
+  const unique = uniqueName(others, name);
+  if (unique === player.name) return unchanged(state);
+  return {
+    state: replacePlayer(state, { ...player, name: unique }),
+    effects: [{ type: 'persist' }],
+  };
+}
+
+/**
+ * Deals everyone into the teams in play, as evenly as the head count allows,
+ * in an order drawn from the room's seed. Like a single move it is allowed
+ * mid-round, and for the same reason: scoring reads the seats frozen when the
+ * round began.
+ */
+function handleShuffleTeams(state: RoomState): ReduceResult {
+  if (!state.settings.teamsEnabled || state.players.length === 0) return unchanged(state);
+  const teams = teamsInPlay(state.settings.teamCount);
+  const rng = seededRandom(state.rngSeed);
+  const order = [...state.players];
+  for (let i = order.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(rng.random() * (i + 1));
+    [order[i], order[j]] = [order[j] as PlayerState, order[i] as PlayerState];
+  }
+  const dealt = new Map(order.map((player, index) => [player.id, teams[index % teams.length] ?? null]));
+  return {
+    state: {
+      ...state,
+      players: state.players.map((player) => ({ ...player, teamId: dealt.get(player.id) ?? null })),
+      rngSeed: rng.seedAfter(),
+    },
+    effects: [{ type: 'persist' }],
+  };
 }
 
 /**
@@ -1082,7 +1223,10 @@ function startNewGame(state: RoomState, now: ServerTime): ReduceResult {
 }
 
 function handlePause(state: RoomState, now: ServerTime): ReduceResult {
-  if (state.paused || !roundIsLive(state)) return unchanged(state);
+  // A reveal can be paused only while its countdown to the next round is
+  // running; one that waits for the organizer has no clock to hold.
+  const holdsClock = roundIsLive(state) || (state.phase === 'reveal' && state.phaseEndsAt !== null);
+  if (state.paused || !holdsClock) return unchanged(state);
   // The phase is left exactly as it was. Pausing is an overlay, so that
   // resuming puts the room back mid-sentence rather than at the start.
   return {
@@ -1230,6 +1374,17 @@ function handleTimer(
   // A timer that outlived its round, or that fired while the room was paused,
   // is stale by definition: the phase it was scheduled for has moved on.
   if (round !== state.roundIndex || state.paused) return unchanged(state);
+
+  if (tag === TIMER_INTRO_END) {
+    if (state.phase !== 'intro') return unchanged(state);
+    return enterRound(state, game, 0, now);
+  }
+
+  if (tag === TIMER_AUTO_ADVANCE) {
+    // A countdown the organizer has since switched off leaves no deadline.
+    if (state.phase !== 'reveal' || state.phaseEndsAt === null) return unchanged(state);
+    return enterRound(state, game, state.roundIndex + 1, now);
+  }
 
   if (tag === TIMER_QUESTION_END) {
     if (state.phase !== 'question') return unchanged(state);

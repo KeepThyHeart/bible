@@ -123,21 +123,61 @@
   font-size: var(--text-base);
 }
 
-/* A tile the host can pick fills its cell, so the whole tile is the target. */
-.games-root .cb-tile-pick {
+/* The organizer's pick: only the tiles still open, as a compact grid. */
+.games-root .cb-control {
   display: flex;
-  flex: 1;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  min-height: inherit;
+  gap: var(--space-2);
+}
+
+.games-root .cb-control-heading {
+  margin: 0;
+  font-weight: 600;
+}
+
+.games-root .cb-control-columns {
+  display: grid;
+  gap: var(--space-2);
+  grid-template-columns: repeat(auto-fit, minmax(5.5rem, 1fr));
+  margin: 0;
   padding: 0;
-  border: 0;
-  border-radius: inherit;
-  background: transparent;
-  color: inherit;
-  font: inherit;
+  list-style: none;
+}
+
+.games-root .cb-control-column {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.games-root .cb-control-category {
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: var(--text-sm);
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.games-root .cb-control-tiles {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.games-root .cb-tile-pick {
+  width: 100%;
+  min-height: var(--tap);
+  padding: 0;
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-raised);
+  color: var(--accent);
+  font-size: var(--text-base);
+  font-weight: 700;
   cursor: pointer;
 }
 

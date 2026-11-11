@@ -12,6 +12,8 @@
  */
 
 import type { HostViewProps } from '../../shell/gameViews.js';
+import { gt } from '../../shell/t.js';
+import { awaitingReveal } from '../../shell/waitingCopy.js';
 import { DISTANCE_CAPTIONS, letterFor, readDetail, readQuestion } from './payload.js';
 import type { Question } from './payload.js';
 
@@ -36,26 +38,26 @@ function Verse({ question, size }: { question: Question; size: 'large' | 'medium
 
 export function HostQuestion({ view }: HostViewProps) {
   const question = readQuestion(view);
-  if (!question) return <Nothing line="Nothing to show for this round." />;
+  if (!question) return <Nothing line={gt('games.nameThatReference.view.nothingToShow', 'Nothing to show for this round.')} />;
 
   return (
     <section class="ntr ntr-host">
-      <h2 class="ntr-ask">Where is this from?</h2>
+      <h2 class="ntr-ask">{gt('games.nameThatReference.view.whereFrom', 'Where is this from?')}</h2>
       <Verse question={question} size="large" />
-      <p class="ntr-hint">Read it. Answers open in a moment.</p>
+      <p class="ntr-hint">{gt('games.nameThatReference.view.readIt', 'Read it. Answers open in a moment.')}</p>
     </section>
   );
 }
 
 export function HostAnswering({ view }: HostViewProps) {
   const question = readQuestion(view);
-  if (!question) return <Nothing line="Nothing to show for this round." />;
+  if (!question) return <Nothing line={gt('games.nameThatReference.view.nothingToShow', 'Nothing to show for this round.')} />;
 
   return (
     <section class="ntr ntr-host">
       <Verse question={question} size="medium" />
       {question.answerShape === 'choice' ? (
-        <ol class="ntr-options" aria-label="The options">
+        <ol class="ntr-options" aria-label={gt('games.nameThatReference.view.options', 'The options')}>
           {question.options.map((option) => (
             <li key={option.index} class="ntr-option">
               <span class="ntr-letter">{letterFor(option.index)}</span>
@@ -64,7 +66,7 @@ export function HostAnswering({ view }: HostViewProps) {
           ))}
         </ol>
       ) : (
-        <p class="ntr-hint">Type the book, the chapter and the verse on your phone.</p>
+        <p class="ntr-hint">{gt('games.nameThatReference.view.typeReference', 'Type the book, the chapter and the verse on your phone.')}</p>
       )}
     </section>
   );
@@ -73,7 +75,7 @@ export function HostAnswering({ view }: HostViewProps) {
 export function HostReveal({ view, reveal }: HostViewProps) {
   const detail = readDetail(reveal?.detail);
   const question = readQuestion(view);
-  if (!reveal || !detail) return <Nothing line="Waiting for the answer." />;
+  if (!reveal || !detail) return <Nothing line={awaitingReveal()} />;
 
   const aggregates = reveal.aggregates;
   const most = aggregates.reduce((high, row) => Math.max(high, row.count), 0);
@@ -84,7 +86,7 @@ export function HostReveal({ view, reveal }: HostViewProps) {
 
   return (
     <section class="ntr ntr-host">
-      <p class="ntr-answer-label">The answer</p>
+      <p class="ntr-answer-label">{gt('games.nameThatReference.view.theAnswer', 'The answer')}</p>
       <h2 class="ntr-answer">{reveal.correctLabel}</h2>
       <figure class="ntr-quote">
         <blockquote class="ntr-verse ntr-verse-medium">
@@ -96,14 +98,14 @@ export function HostReveal({ view, reveal }: HostViewProps) {
       </figure>
 
       {detail.options.length > 0 && (
-        <ul class="ntr-why" aria-label="Where the other options came from">
+        <ul class="ntr-why" aria-label={gt('games.nameThatReference.view.otherOptions', 'Where the other options came from')}>
           {detail.options
             .filter((option) => !option.correct && option.distance !== null)
             .map((option) => (
               <li key={option.label}>
                 <span class="ntr-ref">{option.label}</span>
                 <span class="ntr-muted">
-                  {DISTANCE_CAPTIONS[option.distance ?? 'anywhere']}
+                  {gt(`games.nameThatReference.view.distance.${option.distance ?? 'anywhere'}`, DISTANCE_CAPTIONS[option.distance ?? 'anywhere'])}
                 </span>
               </li>
             ))}
@@ -112,7 +114,7 @@ export function HostReveal({ view, reveal }: HostViewProps) {
 
       {!teamVote && (
         <>
-          <ul class="ntr-split" aria-label="How the room answered">
+          <ul class="ntr-split" aria-label={gt('games.nameThatReference.view.howAnswered', 'How everyone answered')}>
             {aggregates.map((row) => (
               <li key={row.label} class="ntr-split-row" data-correct={row.label === reveal.correctLabel}>
                 <span class="ntr-split-label">{row.label}</span>
@@ -127,7 +129,9 @@ export function HostReveal({ view, reveal }: HostViewProps) {
             ))}
           </ul>
           <p class="ntr-muted">
-            {answered === 1 ? '1 answer' : `${answered} answers`} — nobody is named.
+            {answered === 1
+              ? gt('games.nameThatReference.view.oneAnswerAnonymous', '1 answer — nobody is named.')
+              : gt('games.nameThatReference.view.manyAnswersAnonymous', '{count} answers — nobody is named.', { count: answered })}
           </p>
         </>
       )}

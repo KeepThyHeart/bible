@@ -13,6 +13,8 @@
  */
 
 import type { HostViewProps } from '../../shell/gameViews.js';
+import { gt } from '../../shell/t.js';
+import { awaitingReveal } from '../../shell/waitingCopy.js';
 import type { ScreenSnapshot } from '../../../shared/protocol.js';
 import type { ClockPort } from '../../shell/clockPort.js';
 import { LiveClues, RevealClues } from './ClueList.js';
@@ -30,7 +32,7 @@ function Nothing({ line }: { line: string }) {
 
 function Options({ round }: { round: WhoAmIRound }) {
   return (
-    <ol class="wai-options" aria-label="The options">
+    <ol class="wai-options" aria-label={gt('games.whoAmI.view.options', 'The options')}>
       {round.options.map((option) => (
         <li key={option.index} class="wai-option">
           <span class="wai-letter">{letterFor(option.index)}</span>
@@ -48,13 +50,13 @@ function Options({ round }: { round: WhoAmIRound }) {
  */
 export function HostQuestion({ view }: HostViewProps) {
   const round = readRound(view);
-  if (!round) return <Nothing line="Nothing to show for this round." />;
+  if (!round) return <Nothing line={gt('games.whoAmI.view.nothingToShow', 'Nothing to show for this round.')} />;
 
   return (
     <section class="wai wai-host">
-      <h2 class="wai-ask">Who am I?</h2>
+      <h2 class="wai-ask">{gt('games.whoAmI.view.ask', 'Who am I?')}</h2>
       <LiveClues clues={round.clues} shown={1} size="large" />
-      <p class="wai-muted">Answers open in a moment.</p>
+      <p class="wai-muted">{gt('games.whoAmI.view.answersOpen', 'Answers open in a moment.')}</p>
     </section>
   );
 }
@@ -64,18 +66,18 @@ function LiveQuestion({ round, snapshot, clock }: { round: WhoAmIRound; snapshot
 
   return (
     <section class="wai wai-host">
-      <h2 class="wai-ask">Who am I?</h2>
+      <h2 class="wai-ask">{gt('games.whoAmI.view.ask', 'Who am I?')}</h2>
       <LiveClues clues={round.clues} shown={shown} size="large" />
       <p class="wai-worth">
-        Clue {shown} of {round.clues.length} · worth {worthAt(shown)}
+        {gt('games.whoAmI.view.clueWorth', 'Clue {shown} of {total} · worth {worth}', { shown, total: round.clues.length, worth: worthAt(shown) })}
       </p>
       <Options round={round} />
       <p class="wai-muted">
         {round.groupVote
-          ? 'Each team votes on its phones, and can change its mind until time runs out. The sooner a team agrees, the more it is worth.'
+          ? gt('games.whoAmI.view.hostTeamRule', 'Each team votes on its phones, and can change its mind until time runs out. The sooner a team agrees, the more it is worth.')
           : round.pacing === 'player'
-            ? 'One guess each. Turn the clues over on your phone.'
-            : 'One guess each, on your phone. The sooner you are sure, the more it is worth.'}
+            ? gt('games.whoAmI.view.hostPlayerPaced', 'One guess each. Turn the clues over on your phone.')
+            : gt('games.whoAmI.view.hostOneGuess', 'One guess each, on your phone. The sooner you are sure, the more it is worth.')}
       </p>
     </section>
   );
@@ -83,7 +85,7 @@ function LiveQuestion({ round, snapshot, clock }: { round: WhoAmIRound; snapshot
 
 export function HostAnswering({ view, snapshot, clock }: HostViewProps) {
   const round = readRound(view);
-  if (!round) return <Nothing line="Nothing to show for this round." />;
+  if (!round) return <Nothing line={gt('games.whoAmI.view.nothingToShow', 'Nothing to show for this round.')} />;
   return <LiveQuestion round={round} snapshot={snapshot} clock={clock} />;
 }
 
@@ -95,20 +97,24 @@ export function HostAnswering({ view, snapshot, clock }: HostViewProps) {
  */
 export function HostReveal({ reveal }: HostViewProps) {
   const detail = readReveal(reveal?.detail);
-  if (!reveal || !detail) return <Nothing line="Waiting for the answer." />;
+  if (!reveal || !detail) return <Nothing line={awaitingReveal()} />;
   const teamVote = reveal.groups !== undefined;
 
   return (
     <section class="wai wai-host">
-      <p class="wai-answer-label">I am</p>
+      <p class="wai-answer-label">{gt('games.whoAmI.view.iAm', 'I am')}</p>
       <h2 class="wai-answer">{detail.person}</h2>
       <RevealClues clues={detail.clues} counts={true} size="large" />
       <p class="wai-muted">
         {detail.gotIt === 0
-          ? 'A hard one — nobody had it this time.'
+          ? gt('games.whoAmI.view.nobodyHadIt', 'A hard one — nobody had it this time.')
           : teamVote
-            ? `${detail.gotIt === 1 ? '1 vote' : `${detail.gotIt} votes`} named ${detail.person}. Nobody is named.`
-            : `${detail.gotIt === 1 ? '1 person' : `${detail.gotIt} people`} got it. Nobody is named.`}
+            ? (detail.gotIt === 1
+              ? gt('games.whoAmI.view.votesNamedOne', '1 vote named {person}. Nobody is named.', { person: detail.person })
+              : gt('games.whoAmI.view.votesNamedMany', '{count} votes named {person}. Nobody is named.', { count: detail.gotIt, person: detail.person }))
+            : detail.gotIt === 1
+              ? gt('games.whoAmI.view.peopleGotItOne', '1 person got it. Nobody is named.')
+              : gt('games.whoAmI.view.peopleGotItMany', '{count} people got it. Nobody is named.', { count: detail.gotIt })}
       </p>
     </section>
   );

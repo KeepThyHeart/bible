@@ -17,6 +17,26 @@ export const fillInTheBlankViews: GameViews = {
   id: GAME_ID,
   host: hostViews,
   player: playerViews,
+  card: {
+    descriptionKey: 'games.fillInTheBlank.card.description',
+    descriptionFallback: 'A verse with a word missing. Everyone types it.',
+    tags: ['everyone'],
+    minutes: 10,
+  },
+  howToPlay: {
+    summaryKey: 'games.fillInTheBlank.howToPlay.summary',
+    summaryFallback: 'A verse appears with one word missing.',
+    steps: [
+      {
+        key: 'games.fillInTheBlank.howToPlay.stepType',
+        fallback: 'Type the missing word on your phone before the timer ends.',
+      },
+      {
+        key: 'games.fillInTheBlank.howToPlay.stepPoints',
+        fallback: '100 points for each right answer.',
+      },
+    ],
+  },
 };
 
 registerGameViews(fillInTheBlankViews);

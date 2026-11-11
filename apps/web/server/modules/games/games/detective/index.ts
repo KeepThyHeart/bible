@@ -321,6 +321,10 @@ export function createDetective(options: DetectiveOptions = {}): GameModule<Dete
       return chosenIndex(round.secret, value) !== null;
     },
 
+    answerPreview(round): string | null {
+      return round.secret === null ? null : culpritLabel(round.secret);
+    },
+
     scoreRound(round, answers, table): RoundOutcome {
       return scoreDetective(round.secret, answers, table);
     },
@@ -342,6 +346,11 @@ export const UNREADABLE_NOTE = 'Not one of the options';
  * twice: once with everyone's real votes, for the big screen's split, and once
  * per group with the group's choice given to every member, for the points.
  */
+/** The culprit's name, as the reveal names it and the organizer sees it beforehand. */
+function culpritLabel(secret: DetectiveSecret): string {
+  return secret.person;
+}
+
 export function scoreDetective(
   secret: DetectiveSecret | null,
   answers: readonly ScoredAnswer[],
@@ -398,5 +407,5 @@ export function scoreDetective(
     ],
   };
 
-  return { perPlayer, aggregates, correctLabel: secret.person, detail };
+  return { perPlayer, aggregates, correctLabel: culpritLabel(secret), detail };
 }

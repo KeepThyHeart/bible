@@ -30,7 +30,8 @@ import { useEffect, useState } from 'preact/hooks';
 import type { PersonalResult, PlayerSnapshot } from '../../../shared/protocol.js';
 import type { ClockPort } from '../../shell/clockPort.js';
 import type { PlayerViewProps } from '../../shell/gameViews.js';
-import { AWAITING_REVEAL, AWAITING_ROUND } from '../../shell/waitingCopy.js';
+import { gt } from '../../shell/t.js';
+import { awaitingReveal, awaitingRound } from '../../shell/waitingCopy.js';
 import { decodeChoice, encodeChoice } from './answerCode.js';
 import { LiveClues, RevealClues } from './ClueList.js';
 import { useCluesShown } from './clues.js';
@@ -50,13 +51,13 @@ export const TEAM_VOTE_RULE =
 
 export function PhoneQuestion({ view }: PlayerViewProps) {
   const round = readRound(view);
-  if (!round) return <Nothing line={AWAITING_ROUND} />;
+  if (!round) return <Nothing line={awaitingRound()} />;
 
   return (
     <section class="wai wai-phone">
-      <p class="wai-ask">Who am I?</p>
+      <p class="wai-ask">{gt('games.whoAmI.view.ask', 'Who am I?')}</p>
       <LiveClues clues={round.clues} shown={1} size="small" />
-      <p class="wai-muted">Answers open in a moment.</p>
+      <p class="wai-muted">{gt('games.whoAmI.view.answersOpen', 'Answers open in a moment.')}</p>
     </section>
   );
 }
@@ -117,22 +118,24 @@ function LiveGuess({ round, snapshot, clock, send }: LiveProps) {
 
   return (
     <section class="wai wai-phone">
-      <p class="wai-ask">Who am I?</p>
+      <p class="wai-ask">{gt('games.whoAmI.view.ask', 'Who am I?')}</p>
       <LiveClues clues={round.clues} shown={shown} size="small" />
       <p class="wai-worth">
-        Clue {shown} of {count} · worth {worthAt(shown)}
+        {gt('games.whoAmI.view.clueWorth', 'Clue {shown} of {total} · worth {worth}', { shown, total: count, worth: worthAt(shown) })}
       </p>
 
       {done ? (
         <div class="wai-locked" role="status">
           <p class="wai-locked-head">
-            {mine !== null ? `Locked in: ${labelOf(mine) ?? 'your guess'}` : 'Your guess is in.'}
+            {mine !== null
+              ? gt('games.whoAmI.view.lockedIn', 'Locked in: {guess}', { guess: labelOf(mine) ?? gt('games.whoAmI.view.yourGuess', 'your guess') })
+              : gt('games.whoAmI.view.guessIn', 'Your guess is in.')}
           </p>
-          <p class="wai-muted">One guess each, so you are done with this one. The answer comes at the reveal.</p>
+          <p class="wai-muted">{gt('games.whoAmI.view.doneWithThis', 'One guess each, so you are done with this one. The answer comes at the reveal.')}</p>
         </div>
       ) : (
         <>
-          <p class="wai-rule">{ONE_GUESS_RULE}</p>
+          <p class="wai-rule">{gt('games.whoAmI.view.oneGuessRule', ONE_GUESS_RULE)}</p>
           <ul class="wai-taps">
             {round.options.map((option) => (
               <li key={option.index}>
@@ -155,10 +158,10 @@ function LiveGuess({ round, snapshot, clock, send }: LiveProps) {
             onClick={lockIn}
           >
             {snapshot.paused
-              ? 'Paused'
+              ? gt('games.whoAmI.view.paused', 'Paused')
               : choice === null
-                ? 'Tap a name first'
-                : `Lock in ${labelOf(choice) ?? ''}`}
+                ? gt('games.whoAmI.view.tapNameFirst', 'Tap a name first')
+                : gt('games.whoAmI.view.lockIn', 'Lock in {guess}', { guess: labelOf(choice) ?? '' })}
           </button>
           {solo && shown < count && (
             <button
@@ -167,7 +170,7 @@ function LiveGuess({ round, snapshot, clock, send }: LiveProps) {
               disabled={snapshot.paused}
               onClick={() => setTurned({ round: here, value: shown + 1 })}
             >
-              Next clue · worth {worthAt(shown + 1)}
+              {gt('games.whoAmI.view.nextClue', 'Next clue · worth {worth}', { worth: worthAt(shown + 1) })}
             </button>
           )}
         </>
@@ -219,12 +222,12 @@ function TeamVote({ round, snapshot, clock, send }: LiveProps) {
 
   return (
     <section class="wai wai-phone">
-      <p class="wai-ask">Who am I?</p>
+      <p class="wai-ask">{gt('games.whoAmI.view.ask', 'Who am I?')}</p>
       <LiveClues clues={round.clues} shown={shown} size="small" />
       <p class="wai-worth">
-        Clue {shown} of {round.clues.length} · worth {worthAt(shown)}
+        {gt('games.whoAmI.view.clueWorth', 'Clue {shown} of {total} · worth {worth}', { shown, total: round.clues.length, worth: worthAt(shown) })}
       </p>
-      <p class="wai-rule">{TEAM_VOTE_RULE}</p>
+      <p class="wai-rule">{gt('games.whoAmI.view.teamVoteRule', TEAM_VOTE_RULE)}</p>
       <ul class="wai-taps">
         {round.options.map((option) => (
           <li key={option.index}>
@@ -243,10 +246,10 @@ function TeamVote({ round, snapshot, clock, send }: LiveProps) {
       </ul>
       <p class="wai-muted" role="status">
         {snapshot.paused
-          ? 'Paused.'
+          ? gt('games.whoAmI.view.pausedDot', 'Paused.')
           : standingLabel === null
-            ? 'Tap a name to vote.'
-            : `Your vote: ${standingLabel}. Tap another name to change it.`}
+            ? gt('games.whoAmI.view.tapToVote', 'Tap a name to vote.')
+            : gt('games.whoAmI.view.yourVoteChange', 'Your vote: {name}. Tap another name to change it.', { name: standingLabel })}
       </p>
     </section>
   );
@@ -254,7 +257,7 @@ function TeamVote({ round, snapshot, clock, send }: LiveProps) {
 
 export function PhoneAnswering({ snapshot, view, clock, send }: PlayerViewProps) {
   const round = readRound(view);
-  if (!round) return <Nothing line={AWAITING_ROUND} />;
+  if (!round) return <Nothing line={awaitingRound()} />;
   // The room says whether a guess may change, and in this game only a team
   // vote lets it.
   return snapshot.canChangeAnswer ? (
@@ -269,13 +272,13 @@ export function PhoneAnswering({ snapshot, view, clock, send }: PlayerViewProps)
  * that was right. The result is the team's, so every phone on it reads the same.
  */
 function teamVerdict(result: PersonalResult): string {
-  const verdict = result.correct ? 'Right.' : 'Not this time.';
+  const verdict = result.correct ? gt('games.whoAmI.view.right', 'Right.') : gt('games.whoAmI.view.notThisTime', 'Not this time.');
   return result.note === null ? verdict : `${result.note}. ${verdict}`;
 }
 
 export function PhoneReveal({ reveal, yourResult }: PlayerViewProps) {
   const detail = readReveal(reveal?.detail);
-  if (!reveal || !detail) return <Nothing line={AWAITING_REVEAL} />;
+  if (!reveal || !detail) return <Nothing line={awaitingReveal()} />;
 
   const submitted = yourResult?.submitted ?? null;
   const option = submitted?.type === 'choice' ? decodeChoice(submitted.index).option : null;
@@ -285,22 +288,24 @@ export function PhoneReveal({ reveal, yourResult }: PlayerViewProps) {
 
   return (
     <section class="wai wai-phone">
-      <p class="wai-answer-label">I am</p>
+      <p class="wai-answer-label">{gt('games.whoAmI.view.iAm', 'I am')}</p>
       <h2 class="wai-answer">{detail.person}</h2>
 
       {yourResult === null ? (
-        <p class="wai-yours">No guess from this phone.</p>
+        <p class="wai-yours">{gt('games.whoAmI.view.noGuess', 'No guess from this phone.')}</p>
       ) : teamVote ? (
         <p class="wai-yours" data-correct={yourResult.correct ? 'true' : 'false'} role="status">
           {teamVerdict(yourResult)}
           {said !== null && !(yourResult.correct && option === detail.correctIndex) && (
-            <span class="wai-muted"> You voted {said}.</span>
+            <span class="wai-muted"> {gt('games.whoAmI.view.youVoted', 'You voted {name}.', { name: said })}</span>
           )}
         </p>
       ) : (
         <p class="wai-yours" data-correct={yourResult.correct ? 'true' : 'false'} role="status">
-          {yourResult.correct ? `Right. ${yourResult.note ?? ''}`.trim() : (yourResult.note ?? 'Not this time.')}
-          {said !== null && !yourResult.correct && <span class="wai-muted"> You said {said}.</span>}
+          {yourResult.correct
+            ? `${gt('games.whoAmI.view.rightPlain', 'Right.')} ${yourResult.note ?? ''}`.trim()
+            : (yourResult.note ?? gt('games.whoAmI.view.notThisTime', 'Not this time.'))}
+          {said !== null && !yourResult.correct && <span class="wai-muted"> {gt('games.whoAmI.view.youSaid', 'You said {name}.', { name: said })}</span>}
         </p>
       )}
 

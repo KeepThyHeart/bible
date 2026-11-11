@@ -348,6 +348,10 @@ export function createWhoAmI(options: WhoAmIOptions = {}): GameModule<WhoAmISecr
       };
     },
 
+    answerPreview(round): string | null {
+      return round.secret === null ? null : personLabel(round.secret);
+    },
+
     scoreRound(round, answers): RoundOutcome {
       return scoreWhoAmI(round.secret, answers);
     },
@@ -405,6 +409,11 @@ function firstPerPlayer(answers: readonly ScoredAnswer[]): ScoredAnswer[] {
 
 export function clueLabel(clue: number): string {
   return `Clue ${clue}`;
+}
+
+/** The person's name, as the reveal names it and the organizer sees it beforehand. */
+function personLabel(secret: WhoAmISecret): string {
+  return secret.person;
 }
 
 export function scoreWhoAmI(
@@ -473,7 +482,7 @@ export function scoreWhoAmI(
     gotIt: gotIt.reduce((total, count) => total + count, 0),
   };
 
-  return { perPlayer, aggregates, correctLabel: secret.person, detail };
+  return { perPlayer, aggregates, correctLabel: personLabel(secret), detail };
 }
 
 export { decodeChoice, encodeChoice, OPTION_SLOTS } from './answerCode.js';

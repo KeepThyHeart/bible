@@ -25,6 +25,7 @@ import type {
   Standing,
 } from '../../shared/protocol.js';
 import { API } from '../../shared/protocol.js';
+import { gt } from './t.js';
 
 export interface StreamHandlers {
   onOpen(): void;
@@ -63,10 +64,19 @@ export interface RoomStream {
 
 export interface RoomStreamOptions {
   code: RoomCode | null;
-  /** Session token for a player, host token for a host. Null waits. */
+  /** Session token for a player, host token for a host. Null waits, unless `as` is `codeOnly`. */
   token: string | null;
+  /**
+   * What the stream asks to be. Left out, the token decides (a player, the
+   * owner screen or a display). `remote` opens the organizer's own device with
+   * the owner token; `codeOnly` opens a display screen with the room code and
+   * no token at all, as a TV does.
+   */
+  as?: StreamAs;
   factory?: StreamFactory;
 }
+
+export type StreamAs = 'remote' | 'codeOnly';
 
 /** Deterministic, and short at the start: most drops recover on the first try. */
 const BACKOFF_MS = [250, 500, 1000, 2000, 4000, 8000] as const;
@@ -89,8 +99,10 @@ const IDLE: StreamState = {
   ended: null,
 };
 
-export function streamUrl(code: RoomCode, token: string): string {
-  return `${API.stream(code)}?token=${encodeURIComponent(token)}`;
+export function streamUrl(code: RoomCode, token: string | null, as?: StreamAs): string {
+  if (as === 'codeOnly' || token === null) return API.stream(code);
+  const base = `${API.stream(code)}?token=${encodeURIComponent(token)}`;
+  return as === 'remote' ? `${base}&as=remote` : base;
 }
 
 /** A truncated or foreign frame is worth ignoring, not worth crashing on. */
@@ -117,8 +129,8 @@ async function refusalReason(url: string): Promise<string | null> {
   const controller = new AbortController();
   try {
     const response = await fetch(url, { signal: controller.signal });
-    if (response.status === 404) return 'That room no longer exists.';
-    if (response.status === 401) return 'This device is no longer part of that room.';
+    if (response.status === 404) return gt('games.errors.gameGone', 'That game no longer exists.');
+    if (response.status === 401) return gt('games.errors.notInGame', 'This device is no longer part of that game.');
     return null;
   } catch {
     return null;
@@ -129,7 +141,9 @@ async function refusalReason(url: string): Promise<string | null> {
 }
 
 export function useRoomStream(options: RoomStreamOptions): RoomStream {
-  const { code, token } = options;
+  const { code, as } = options;
+  // A code-only stream carries no token; every other kind waits for one.
+  const token = as === 'codeOnly' ? null : options.token;
   const [state, setState] = useState<StreamState>(IDLE);
 
   // Held in a ref so that swapping in a different factory never tears down a
@@ -140,7 +154,7 @@ export function useRoomStream(options: RoomStreamOptions): RoomStream {
   const wakeRef = useRef<() => void>(() => {});
 
   useEffect(() => {
-    if (!code || !token) {
+    if (!code || (token === null && as !== 'codeOnly') || token === '') {
       setState(IDLE);
       return;
     }
@@ -195,7 +209,7 @@ export function useRoomStream(options: RoomStreamOptions): RoomStream {
         }
         case 'kicked':
         case 'roomClosed': {
-          const reason = typeof event['reason'] === 'string' ? event['reason'] : 'The room ended.';
+          const reason = typeof event['reason'] === 'string' ? event['reason'] : gt('games.errors.gameEnded', 'The game ended.');
           stopped = true;
           cancelRetry();
           handle?.close();
@@ -218,7 +232,7 @@ export function useRoomStream(options: RoomStreamOptions): RoomStream {
         ...previous,
         status: previous.snapshot === null ? 'connecting' : 'reconnecting',
       }));
-      handle = factoryRef.current(streamUrl(code, token), {
+      handle = factoryRef.current(streamUrl(code, token, as), {
         onOpen() {
           if (stopped || mine !== generation) return;
           attempt = 0;
@@ -234,7 +248,7 @@ export function useRoomStream(options: RoomStreamOptions): RoomStream {
             scheduleRetry();
             return;
           }
-          void refusalReason(streamUrl(code, token)).then((reason) => {
+          void refusalReason(streamUrl(code, token, as)).then((reason) => {
             if (stopped || mine !== generation) return;
             if (reason === null) {
               scheduleRetry();
@@ -292,7 +306,7 @@ export function useRoomStream(options: RoomStreamOptions): RoomStream {
       removeEventListener('online', wake);
       removeEventListener('pageshow', onVisible);
     };
-  }, [code, token]);
+  }, [code, token, as]);
 
   const reconnectNow = useCallback(() => wakeRef.current(), []);
 

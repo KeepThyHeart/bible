@@ -29,6 +29,26 @@ export const whoSaidItViews: GameViews = {
     answering: PhoneAnswering,
     reveal: PhoneReveal,
   },
+  card: {
+    descriptionKey: 'games.whoSaidIt.card.description',
+    descriptionFallback: 'A line of Scripture. Pick who said it.',
+    tags: ['everyone'],
+    minutes: 10,
+  },
+  howToPlay: {
+    summaryKey: 'games.whoSaidIt.howToPlay.summary',
+    summaryFallback: 'A line of Scripture appears. Work out who said it.',
+    steps: [
+      {
+        key: 'games.whoSaidIt.howToPlay.stepPick',
+        fallback: 'Tap the name of the speaker on your phone before the timer ends.',
+      },
+      {
+        key: 'games.whoSaidIt.howToPlay.stepPoints',
+        fallback: '100 points for each right answer.',
+      },
+    ],
+  },
 };
 
 registerGameViews(whoSaidItViews);

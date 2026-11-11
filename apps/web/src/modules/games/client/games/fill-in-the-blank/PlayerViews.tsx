@@ -19,6 +19,7 @@
 
 import { useCallback, useEffect, useState } from 'preact/hooks';
 import type { PlayerViewProps } from '../../shell/gameViews.js';
+import { gt } from '../../shell/t.js';
 import { asPrompt, asReveal, hasVerse } from './payload.js';
 import { BlankedVerse, FilledVerse, NoVerse } from './VerseText.js';
 
@@ -30,15 +31,15 @@ function Question({ snapshot, view }: PlayerViewProps) {
   if (snapshot.questionOnScreen) {
     return (
       <section class="fitb-phone">
-        <p class="fitb-lead">Which word is missing?</p>
-        <p class="fitb-hint">Look at the screen.</p>
+        <p class="fitb-lead">{gt('games.fillInTheBlank.view.whichWord', 'Which word is missing?')}</p>
+        <p class="fitb-hint">{gt('games.fillInTheBlank.view.lookAtScreen', 'Look at the screen.')}</p>
       </section>
     );
   }
 
   return (
     <section class="fitb-phone">
-      <p class="fitb-lead">Which word is missing?</p>
+      <p class="fitb-lead">{gt('games.fillInTheBlank.view.whichWord', 'Which word is missing?')}</p>
       {hasVerse(prompt) ? <BlankedVerse prompt={prompt} /> : <NoVerse />}
     </section>
   );
@@ -74,10 +75,10 @@ function Answering({ snapshot, view, send }: PlayerViewProps) {
     return (
       <section class="fitb-phone">
         <p class="fitb-sent" role="status">
-          Answer sent
+          {gt('games.fillInTheBlank.view.answerSent', 'Answer sent')}
         </p>
         {sent !== null && <p class="fitb-sent-word">{sent}</p>}
-        <p class="fitb-hint">Waiting for the rest of the room.</p>
+        <p class="fitb-hint">{gt('games.fillInTheBlank.view.waitingForOthers', 'Waiting for everyone else.')}</p>
       </section>
     );
   }
@@ -90,7 +91,7 @@ function Answering({ snapshot, view, send }: PlayerViewProps) {
       {!snapshot.questionOnScreen && (hasVerse(prompt) ? <BlankedVerse prompt={prompt} /> : <NoVerse />)}
       <form class="fitb-form" onSubmit={submit}>
         <label class="fitb-label" for="fitb-answer">
-          The missing word
+          {gt('games.fillInTheBlank.view.missingWord', 'The missing word')}
         </label>
         <input
           id="fitb-answer"
@@ -105,12 +106,12 @@ function Answering({ snapshot, view, send }: PlayerViewProps) {
           enterkeyhint="send"
         />
         <button type="submit" class="fitb-submit" disabled={text.trim() === ''}>
-          Send
+          {gt('games.fillInTheBlank.view.send', 'Send')}
         </button>
       </form>
       {voting && sent !== null && (
         <p class="fitb-sent" role="status">
-          Sent: {sent}. You can change it until time runs out.
+          {gt('games.fillInTheBlank.view.sentChange', 'Sent: {answer}. You can change it until time runs out.', { answer: sent })}
         </p>
       )}
     </section>
@@ -133,10 +134,10 @@ function Reveal({ reveal, yourResult }: PlayerViewProps) {
       )}
       {yourResult !== null && (
         <p class="fitb-verdict" data-correct={yourResult.correct ? 'true' : 'false'} role="status">
-          {yourResult.note ?? (yourResult.correct ? 'Correct' : 'Not this time')}
+          {yourResult.note ?? (yourResult.correct ? gt('games.fillInTheBlank.view.correct', 'Correct') : gt('games.fillInTheBlank.view.notThisTime', 'Not this time'))}
         </p>
       )}
-      {submitted?.type === 'text' && <p class="fitb-hint">You typed “{submitted.text}”</p>}
+      {submitted?.type === 'text' && <p class="fitb-hint">{gt('games.fillInTheBlank.view.youTyped', 'You typed “{answer}”', { answer: submitted.text })}</p>}
     </section>
   );
 }

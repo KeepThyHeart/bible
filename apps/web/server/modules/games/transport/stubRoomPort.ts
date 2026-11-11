@@ -18,6 +18,7 @@ import type {
   PlayerId,
   PlayerSnapshot,
   PublicPlayer,
+  RemoteSnapshot,
   RevealPayload,
   RoomCode,
   RoomSettings,
@@ -62,6 +63,10 @@ const DEFAULT_SETTINGS: RoomSettings = {
   teamsEnabled: false,
   rounds: 10,
   answerWindowMs: 20_000,
+  teamCount: 2,
+  openEnded: false,
+  autoAdvanceMs: null,
+  scoresAfterEachAnswer: true,
   showIndividualScores: false,
   solo: false,
   groupVote: false,
@@ -281,6 +286,11 @@ export function createStubRoomPort(options: StubOptions = {}): RoomPort & {
         view: null,
         buzz: null,
       };
+    },
+
+    projectForRemote(state: RoomState): RemoteSnapshot {
+      const { viewer: _viewer, ...screen } = this.projectForScreen(state, false);
+      return { ...screen, viewer: 'remote' };
     },
 
     projectReveal(state: RoomState): RevealPayload | null {

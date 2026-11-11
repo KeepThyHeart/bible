@@ -30,8 +30,8 @@ const OFFLINE = 'Could not reach the server. Check the wifi and try again.';
  * sentence as the fallback for any code (or language) not covered.
  */
 const KNOWN_ERRORS: Readonly<Record<string, string>> = {
-  roomNotFound: 'No room is using that code. Check the code on the big screen.',
-  roomsFull: 'This server is hosting as many rooms as it can. Try again in a little while.',
+  roomNotFound: 'No game is using that code. Check the code on the big screen.',
+  roomsFull: 'This server is running as many games as it can. Try again in a little while.',
 };
 
 function describeError(code: string | null, message: string | null): string | null {

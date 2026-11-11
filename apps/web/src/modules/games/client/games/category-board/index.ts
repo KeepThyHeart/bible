@@ -11,6 +11,7 @@
 
 import { registerGameViews } from '../../shell/gameViews.js';
 import type { GameViews } from '../../shell/gameViews.js';
+import { ControlTilePick } from './ControlViews.js';
 import { HostAnswering, HostQuestion, HostReveal } from './HostViews.js';
 import { PhoneAnswering, PhoneQuestion, PhoneReveal } from './PhoneViews.js';
 import './categoryBoard.css';
@@ -28,6 +29,27 @@ export const categoryBoardViews: GameViews = {
     question: PhoneQuestion,
     answering: PhoneAnswering,
     reveal: PhoneReveal,
+  },
+  control: ControlTilePick,
+  card: {
+    descriptionKey: 'games.categoryBoard.card.description',
+    descriptionFallback: 'A board of categories. Harder tiles are worth more.',
+    tags: ['everyone'],
+    minutes: 10,
+  },
+  howToPlay: {
+    summaryKey: 'games.categoryBoard.howToPlay.summary',
+    summaryFallback: 'A board of categories, each with tiles of rising value.',
+    steps: [
+      {
+        key: 'games.categoryBoard.howToPlay.stepPick',
+        fallback: 'The organizer picks a tile. Choose the answer on your phone.',
+      },
+      {
+        key: 'games.categoryBoard.howToPlay.stepPoints',
+        fallback: 'Each right answer earns the number on the tile.',
+      },
+    ],
   },
 };
 

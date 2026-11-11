@@ -186,30 +186,88 @@ clue 2"). A vote's split is drawn once: the shell draws a card per group under
 the game's reveal, except that a game whose reveal draws the room's vote itself
 (the detective game) keeps a room of one group to itself.
 
-**A room now distributes three capabilities across devices** — the screen, the
+****A room distributes three capabilities across devices** — the screen, the
 authority to run it (control), and a seat — instead of assuming one device is
-all three (see [ADR 0006](adr/0006-screen-control-and-seat.md)). `/screen` (the
-`/host` path still works, as an alias) opens the projector or TV as before,
-storing the room's owner token and a second, display-only token; a QR built
-from the display token adds a second screen to a room that already has one,
-carrying no authority at all. A phone in the lobby offers "Run the game",
-which asks the current controller to hand it over; once granted, that phone
-carries the control bar and the judge card above its own player view, and can
-start the room itself if it was still in the lobby. The screen lobby offers
-"Play too, and run it from here" for the phone-led case: it joins the owner's
-own device as a player, grants it control, and switches routes — the same
-three calls solo already made, now with no mode flag anywhere. An
-unattended controller (the owner's screen gone, or a controlling player's
+all three (see [ADR 0006](adr/0006-screen-control-and-seat.md)). Control is
+held by one holder at a time: the owner credential or one player's session. An
+unattended controller (the owner's devices gone, or a controlling player's
 phone dropped) loses control to a waiting request after 45 seconds, which is
 what lets a room whose screen went to sleep still be finished; the owner
 credential may always reclaim it regardless. `fill-in-the-blank` and
 `who-said-it` adopt `questionOnScreen` to leave the verse or quote to the
-screen when one is present, rather than repeating it on every phone; no other
-game was changed. Alongside this, `BuzzState.spent` — a pre-existing leak that
-named a player who had already answered wrong to the whole room — was fixed
-the same way: it now reaches only that player's own snapshot
+screen when one is present, rather than repeating it on every phone.
+`BuzzState.spent`, a pre-existing leak that named a player who had already
+answered wrong to the whole room, now reaches only that player's own snapshot
 (`youAreSpent`) and the controller's (`ControlPanel.spent`), never the public
 `buzz`.
+
+**The organizer runs the room from their own device, and the screen only
+displays.** Setting a game up happens on the organizer's phone or laptop, not
+on the big screen:
+
+- **Setup flow.** Home offers the game code and Join first, then "Run a game
+  for a group" and "Play on my own". A group goes through `/games/organize`:
+  pick a game from the cards (`GamePicker`, filters for all, quick quiz, teams
+  and out loud), choose its options (`GameSetup`: length, difficulty, teams
+  of two to four, teams answering together where the game offers it, "I'm
+  playing too", and under more options the time per question, translation,
+  topic and sword drill's buzz mode), then say where the screen is
+  (`ScreenStep`). "Open the game" creates the room on that device, which keeps
+  the owner token.
+- **Display-only screens.** A TV or projector computer opens `/games/tv` and
+  types the game code (`TvJoin`); the code alone opens a display-only stream.
+  No credential that grants control is ever shown on a screen, so the old
+  corner QR is gone. The screen lobby shows the address, the code, a QR to
+  join, the game and the players' names, and nothing on the screen can send a
+  command: the menu, Skip, score edits, kick and settings are all gone from it.
+  The category board's tile pick and sword drill's call-on and confirm buttons
+  moved to the controller's own slot (`GameViews.control`), so no game's screen
+  view sends anything.
+- **Two kinds of organizer.** One who is not playing gets the **remote**
+  (`/games/remote`, `RemoteApp`): the owner credential with no seat, opened
+  with `as=remote`. It is the only stream sent the private answer
+  (`ControlPanel.answer`, from the game's `answerPreview`), drawn as an "Only
+  you see this" card. One who is playing is an ordinary player the owner
+  granted control to, with the same controls above the player view; the
+  server never sends it the answer and blanks the judge card's answer, accepted
+  answers and context note until the reveal.
+- **One main button** (`mainActionFor`): Start with N players, Start now,
+  Show the answer, Next question, See the results. The remote, a playing
+  organizer's phone and the laptop bar all use it. Beneath it are Pause,
+  Skip or Back, and a menu for scores, players and teams, time per question,
+  restarting with different options and ending the game. On the reveal,
+  switches turn on auto-advance (a timer the reducer emits and cancels like any
+  other) and scores after each question.
+- **How to play.** Starting a game enters an `intro` phase of eight seconds on
+  the screen (`HowToPlay`, from each game's `GameViews.howToPlay`), which the
+  organizer can end early with Start now. Solo skips it.
+- **Organizer team commands.** `moveToTeam`, `rename` and `shuffleTeams` in the
+  lobby and between rounds, from the roster's per-player menu. The seats a round
+  froze stay frozen. The number of teams is `RoomSettings.teamCount`.
+- **The laptop bar.** "Use this device as the screen instead" turns the
+  organizer's own computer into the shared screen. Because that screen is
+  watched by the room it carries only an `OrganizerBar`, shown on pointer
+  movement for three seconds: the main button, Pause and Skip, with Space for
+  the main action and P for pause. It never draws an answer. A pending judgement
+  is shown as "Answer to check" with Correct and Incorrect, and the projection
+  blanks the player's text and the canonical answer on an owner screen.
+  Buzz-judged games are easier from a phone, and the screen step says so.
+- **Play as long as the group wants.** Setup's Length offers Short, Normal,
+  Long or Keep going. Keep going (`RoomSettings.openEnded`) builds rounds a
+  batch at a time from the seed, up to a hundred, and the counters drop "of N".
+  It can be switched on or off mid-game from the organizer's menu. Finish
+  (`finish`) ends the game in play now and shows its results, keeping the room;
+  only End for everyone (`end`) closes it.
+- **After the results.** The organizer's summary shows the running total
+  across games and offers Keep going (`continueGame`: the same game and the
+  same scores, the next round or another batch, whether the game ran out or
+  was finished early), Play again (fresh scores, the same settings, room and
+  players), Pick another game (the picker, still in the same room) and End for
+  everyone. The running total survives all three. Players see their own result
+  and wait.
+- **Rate limit.** Opening a stream by code alone is limited per client
+  address, so codes cannot be guessed in bulk. A request that presents any
+  token is not counted.
 
 Owner decisions in this wave:
 
@@ -290,7 +348,7 @@ to `any` asked about Dedan. That contrast is the whole feature.
 | --- | --- |
 | `src/shared/` | protocol (including the screen/control/seat split — `Controller`, `ControlPanel`, `PublicBuzzState`, see [adr 0006](adr/0006-screen-control-and-seat.md)), verse identity, game seam (answer opening and a controller's ruling on each scored answer, confirm-every-buzz, host choices, per-player views told the phase, answer policies, group voting and which vote stands for a team, ending a round early, host chrome wording), answer matching |
 | `server/room/` | reducer, phases, scoring, projection, the port factory; tracks `controller`/`controlRequests`/screen presence and the §5.1 authorisation rule; rebuilds the rounds after a host's choice; freezes the seats per round; carries out group votes (`groupVote.ts`); ends a round when the game says it is complete; projects the game's chrome wording and the control panel to whichever device holds control |
-| `server/transport/` | streams, registry (owner and display tokens), sessions, auth, broadcast; resolves a stream credential to a screen (owner or display) or a player, and accepts a host command from a session token as well as the owner token |
+| `server/transport/` | streams, registry (owner and display tokens), sessions, auth, broadcast; resolves a stream credential to a screen (owner, display or the game code alone), the owner's remote, or a player, rate-limits the code-only screen, and accepts a host command from a session token as well as the owner token |
 | `server/clock/`, `src/client/clock/` | offsets, scheduler, clamping, `showAt` |
 | `server/content/` | module reader, catalog, content database (clues since schema 2), importer, verse pool |
 | `server/content/generator/` | question generator: facts in, importer JSON out, wrong answers ranked by resemblance |
@@ -299,7 +357,7 @@ to `any` asked about Dedan. That contrast is the whole feature.
 | `content/` | 566 curated verses in five tiers, 107 prompt cards |
 | `content/source/` | facts for five games: 96 people with five clues each and more as wrong answers, places, 84 sayings, 17 timelines, 12 board categories |
 | `server/judge/` | provider interface, null provider, chat-completions provider |
-| `src/client/shell/` | join, both lobbies, the screen frame (`ScreenApp`, `/screen` with `/host` as an alias) and the phone route (`PlayApp`), `ControlBar`/`ControlPanel` (shared between whichever device holds control), timer, routes, solo; posts the clock offset beside every buzz; draws each group's vote under a reveal; takes a game's wording for the host chrome |
+| `src/client/shell/` | the setup flow (home, `GamePicker`, `GameSetup`, `ScreenStep`), the organizer's remote (`RemoteApp`, `OrganizerLobby`, `OrganizerControls`, `OrganizerSummary`, `mainActionFor`), the display-only screen (`ScreenApp`, `ScreenStage`, `HowToPlay`, `Podium`, the laptop `OrganizerBar`), `/games/tv` by code (`TvJoin`), the phone route (`PlayApp`) with the same controls when it holds control, `ControlPanel`, timer, routes, solo; posts the clock offset beside every buzz; draws each group's vote under a reveal; takes a game's wording for the host chrome |
 | `server/games/`, `src/client/games/` | fill in the blank, name that reference, sword drill, who said it, who am I, put in order, category board, detective, describe-it |
 | `deploy/`, the deployment notes | systemd unit, nginx site, `.env.example` |
 

@@ -7,6 +7,7 @@
  */
 
 import type { BlankPrompt, BlankReveal } from './payload.js';
+import { gt } from '../../shell/t.js';
 
 /** What the blank is called out loud, for anyone reading with a screen reader. */
 const BLANK_LABEL = 'missing word';
@@ -48,7 +49,7 @@ export function FilledVerse({ reveal }: { reveal: BlankReveal }) {
 export function NoVerse() {
   return (
     <p class="fitb-missing" role="status">
-      No verse to show. The server has no Bible module installed.
+      {gt('games.fillInTheBlank.view.noVerse', 'No verse to show. The server has no Bible module installed.')}
     </p>
   );
 }

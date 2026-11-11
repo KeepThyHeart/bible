@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type {
   Actor,
+  ControlPanel,
   AddressedIntent,
   Intent,
   PersonalResult,
@@ -10,6 +11,7 @@ import type { GameModule, Round, RoundOutcome, ScoredAnswer } from '../../../../
 import { reduce } from './reducer.js';
 import { createRoom, type RoomState } from './state.js';
 import {
+  projectForRemote,
   projectForScreen,
   projectForPlayer,
   projectFullStandings,
@@ -54,6 +56,11 @@ function echoGame(usesBuzz = false): GameModule {
       };
       if (usesBuzz) round.questionPhaseMs = 30_000;
       return round;
+    },
+    // Prefixed so that a search of a whole payload for the preview cannot be
+    // satisfied by the answer the screen's own view legitimately carries.
+    answerPreview(round: Round<EchoSecret>): string | null {
+      return `preview:${round.secret.answer}`;
     },
     scoreRound(round: Round<EchoSecret>, answers: ScoredAnswer[]): RoundOutcome {
       const perPlayer = new Map<PlayerId, PersonalResult>();
@@ -221,6 +228,7 @@ describe('what a player is allowed to see', () => {
     const game = echoGame();
     const revealed = run(fivePlayers(game), game, [
       { actor: HOST, intent: { kind: 'host', command: { cmd: 'start' } }, at: 2_000 },
+      { actor: HOST, intent: { kind: 'host', command: { cmd: 'nextRound' } }, at: 2_001 },
       {
         actor: asPlayer('alice'),
         intent: { kind: 'answer', round: 0, value: { type: 'text', text: 'naomi-0' } },
@@ -239,6 +247,7 @@ describe('what a player is allowed to see', () => {
     const game = echoGame();
     const answered = run(fivePlayers(game), game, [
       { actor: HOST, intent: { kind: 'host', command: { cmd: 'start' } }, at: 2_000 },
+      { actor: HOST, intent: { kind: 'host', command: { cmd: 'nextRound' } }, at: 2_001 },
       {
         actor: asPlayer('alice'),
         intent: { kind: 'answer', round: 0, value: { type: 'text', text: 'naomi-0' } },
@@ -353,6 +362,7 @@ describe('what the big screen is allowed to see', () => {
     const game = echoGame();
     const answered = run(fivePlayers(game), game, [
       { actor: HOST, intent: { kind: 'host', command: { cmd: 'start' } }, at: 2_000 },
+      { actor: HOST, intent: { kind: 'host', command: { cmd: 'nextRound' } }, at: 2_001 },
       {
         actor: asPlayer('alice'),
         intent: { kind: 'answer', round: 0, value: { type: 'text', text: 'naomi-0' } },
@@ -374,14 +384,16 @@ describe('what the big screen is allowed to see', () => {
     const game = echoGame();
     const started = run(fivePlayers(game), game, [
       { actor: HOST, intent: { kind: 'host', command: { cmd: 'start' } }, at: 2_000 },
+      { actor: HOST, intent: { kind: 'host', command: { cmd: 'nextRound' } }, at: 2_001 },
     ]);
     expect(projectForScreen(started, game, true).view).toEqual({ prompt: QUESTION, answer: 'naomi-0' });
   });
 
-  it('asks for a verdict with the prefix the player had actually read', () => {
+  it('asks the remote for a verdict with the prefix the player had actually read', () => {
     const game = echoGame(true);
     const buzzed = run(fivePlayers(game), game, [
       { actor: HOST, intent: { kind: 'host', command: { cmd: 'start' } }, at: 2_000 },
+      { actor: HOST, intent: { kind: 'host', command: { cmd: 'nextRound' } }, at: 2_001 },
       {
         actor: asPlayer('alice'),
         intent: { kind: 'buzz', round: 0, charsSeen: 5, tClient: 2_400 },
@@ -393,7 +405,7 @@ describe('what the big screen is allowed to see', () => {
         at: 3_000,
       },
     ]);
-    const pending = projectForScreen(buzzed, game, true).control?.pendingJudge;
+    const pending = projectForRemote(buzzed, game).control?.pendingJudge;
     expect(pending?.playerId).toBe('alice');
     expect(pending?.playerAnswer).toBe('a woman');
     expect(pending?.seenPrefix).toBe(QUESTION.slice(0, 5));
@@ -412,6 +424,7 @@ describe('control', () => {
   function withAPendingJudge(game: GameModule): RoomState {
     return run(fivePlayers(game), game, [
       { actor: HOST, intent: { kind: 'host', command: { cmd: 'start' } }, at: 2_000 },
+      { actor: HOST, intent: { kind: 'host', command: { cmd: 'nextRound' } }, at: 2_001 },
       {
         actor: asPlayer('alice'),
         intent: { kind: 'buzz', round: 0, charsSeen: 5, tClient: 2_400 },
@@ -502,6 +515,7 @@ describe('the spent leak', () => {
   function withASpentPlayer(game: GameModule): RoomState {
     return run(fivePlayers(game), game, [
       { actor: HOST, intent: { kind: 'host', command: { cmd: 'start' } }, at: 2_000 },
+      { actor: HOST, intent: { kind: 'host', command: { cmd: 'nextRound' } }, at: 2_001 },
       {
         actor: asPlayer('alice'),
         intent: { kind: 'buzz', round: 0, charsSeen: 5, tClient: 2_400 },
@@ -575,6 +589,7 @@ describe('the reveal', () => {
   const played = (game: GameModule): RoomState =>
     run(fivePlayers(game), game, [
       { actor: HOST, intent: { kind: 'host', command: { cmd: 'start' } }, at: 2_000 },
+      { actor: HOST, intent: { kind: 'host', command: { cmd: 'nextRound' } }, at: 2_001 },
       {
         actor: asPlayer('alice'),
         intent: { kind: 'answer', round: 0, value: { type: 'text', text: 'naomi-0' } },
@@ -624,5 +639,274 @@ describe('the reveal', () => {
     const game = echoGame();
     expect(projectReveal(fivePlayers(game))).toBeNull();
     expect(projectPersonalResult(fivePlayers(game), 'alice')).toBeNull();
+  });
+});
+
+
+// ---------------------------------------------------------------------------
+// The organizer's remote, and who may be told the answer
+// ---------------------------------------------------------------------------
+
+type Role = 'ownerScreen' | 'displayScreen' | 'codeOnlyScreen' | 'remote' | 'controllingPlayer' | 'plainPlayer';
+
+const PREVIEW = 'preview:naomi-0';
+
+function snapshotFor(role: Role, state: RoomState, game: GameModule): unknown {
+  switch (role) {
+    case 'ownerScreen':
+      return projectForScreen(state, game, true);
+    // A screen opened with a display token and one opened by code alone are
+    // both projected as a screen that is not the owner's; the transport is
+    // what tells them apart, and it hands the projection the same fact.
+    case 'displayScreen':
+    case 'codeOnlyScreen':
+      return projectForScreen(state, game, false);
+    case 'remote':
+      return projectForRemote(state, game);
+    case 'controllingPlayer':
+      return projectForPlayer(state, 'bob', game);
+    case 'plainPlayer':
+      return projectForPlayer(state, 'alice', game);
+  }
+}
+
+function controlOf(snapshot: unknown): ControlPanel | undefined {
+  return (snapshot as { control?: ControlPanel }).control;
+}
+
+/** A buzz game paused at each live phase, with the owner or with bob in control. */
+function livePhases(game: GameModule, controlGrantedTo: PlayerId | null): Record<'question' | 'answering' | 'reveal', RoomState> {
+  const grant: Step[] =
+    controlGrantedTo === null
+      ? []
+      : [
+          {
+            actor: HOST,
+            intent: { kind: 'host', command: { cmd: 'grantControl', playerId: controlGrantedTo } },
+            at: 1_900,
+          },
+        ];
+  const controller: Actor = controlGrantedTo === null ? HOST : asPlayer(controlGrantedTo);
+  const started: Step[] = [
+    ...grant,
+    { actor: controller, intent: { kind: 'host', command: { cmd: 'start' } }, at: 2_000 },
+    { actor: controller, intent: { kind: 'host', command: { cmd: 'nextRound' } }, at: 2_001 },
+  ];
+  const question = run(fivePlayers(game), game, started);
+  const answering = run(question, game, [
+    { actor: asPlayer('alice'), intent: { kind: 'buzz', round: 0, charsSeen: 5, tClient: 2_400 }, at: 2_420 },
+    {
+      actor: asPlayer('alice'),
+      intent: { kind: 'answer', round: 0, value: { type: 'text', text: 'a very particular phrase' } },
+      at: 3_000,
+    },
+  ]);
+  const reveal = run(question, game, [
+    {
+      actor: controller,
+      intent: { kind: 'host', command: { cmd: 'revealNow' } },
+      at: 2_500,
+    },
+  ]);
+  expect(question.phase).toBe('question');
+  expect(answering.phase).toBe('answering');
+  expect(reveal.phase).toBe('reveal');
+  return { question, answering, reveal };
+}
+
+describe('who may be told the answer, role by role', () => {
+  const game = echoGame(true);
+  const ownerHolds = livePhases(game, null);
+  const bobHolds = livePhases(game, 'bob');
+
+  type Expectation = {
+    /** The preview string appears nowhere in the payload when false. */
+    answer: boolean;
+    /**
+     * What a pending judgement carries in the answering phase: everything, the
+     * typed answer without the canonical one (`blank`), only enough to rule
+     * on what was heard (`ruleOnly`), or no judgement at all.
+     */
+    canonical: 'present' | 'blank' | 'ruleOnly' | 'absent';
+    control: boolean;
+  };
+
+  const ownerHeld: Record<Role, Expectation> = {
+    // The shared screen: the room is looking at it.
+    ownerScreen: { answer: false, canonical: 'ruleOnly', control: true },
+    displayScreen: { answer: false, canonical: 'absent', control: false },
+    codeOnlyScreen: { answer: false, canonical: 'absent', control: false },
+    remote: { answer: true, canonical: 'present', control: true },
+    // Not the controller while the owner holds control.
+    controllingPlayer: { answer: false, canonical: 'absent', control: false },
+    plainPlayer: { answer: false, canonical: 'absent', control: false },
+  };
+
+  const playerHeld: Record<Role, Expectation> = {
+    ownerScreen: { answer: false, canonical: 'absent', control: false },
+    displayScreen: { answer: false, canonical: 'absent', control: false },
+    codeOnlyScreen: { answer: false, canonical: 'absent', control: false },
+    // The owner credential does not hold control, so there is no panel to
+    // carry an answer.
+    remote: { answer: false, canonical: 'absent', control: false },
+    controllingPlayer: { answer: false, canonical: 'blank', control: true },
+    plainPlayer: { answer: false, canonical: 'absent', control: false },
+  };
+
+  const roles = Object.keys(ownerHeld) as Role[];
+
+  for (const [label, states, table] of [
+    ['the owner holds control', ownerHolds, ownerHeld],
+    ['a seated player holds control', bobHolds, playerHeld],
+  ] as const) {
+    for (const phase of ['question', 'answering', 'reveal'] as const) {
+      for (const role of roles) {
+        const expected = table[role];
+        it(`${label}, ${phase}: ${role}`, () => {
+          const snapshot = snapshotFor(role, states[phase], game);
+          const wire = JSON.stringify(snapshot);
+          const control = controlOf(snapshot);
+
+          expect(control !== undefined).toBe(expected.control);
+          expect(wire.includes(PREVIEW)).toBe(expected.answer);
+          expect(control?.answer ?? null).toBe(expected.answer ? PREVIEW : null);
+
+          if (phase === 'answering') {
+            const judge = control?.pendingJudge ?? null;
+            if (expected.canonical === 'absent') {
+              expect(judge).toBeNull();
+              expect(wire).not.toContain('pendingJudge');
+              expect(wire).not.toContain('a very particular phrase');
+            } else if (expected.canonical === 'ruleOnly') {
+              expect(judge).not.toBeNull();
+              expect(wire).not.toContain('a very particular phrase');
+              // The stub game's own view carries its answer; the judgement must not.
+              expect(JSON.stringify(judge)).not.toContain('naomi-0');
+            } else {
+              expect(judge?.playerAnswer).toBe('a very particular phrase');
+              expect(judge?.canonicalAnswer).toBe(expected.canonical === 'present' ? 'naomi-0' : '');
+            }
+          }
+        });
+      }
+    }
+  }
+
+  it('hands a seated controller what it needs to rule, and nothing that gives the round away', () => {
+    const judge = controlOf(projectForPlayer(bobHolds.answering, 'bob', game))?.pendingJudge;
+    expect(judge).not.toBeNull();
+    expect(judge?.question).toBe(QUESTION);
+    expect(judge?.seenPrefix).toBe(QUESTION.slice(0, 5));
+    expect(judge?.playerAnswer).toBe('a very particular phrase');
+    expect(judge?.canonicalAnswer).toBe('');
+    expect(judge?.accept).toEqual([]);
+    expect(judge?.contextNote).toBeNull();
+    // The stub game's screen view carries its answer, which no real game's
+    // does before the reveal; everything else on the phone must not.
+    const { screenView: _screen, ...panel } = controlOf(projectForPlayer(bobHolds.answering, 'bob', game)) ?? {};
+    const { control: _control, ...rest } = projectForPlayer(bobHolds.answering, 'bob', game);
+    expect(JSON.stringify({ ...rest, control: panel })).not.toContain('naomi-0');
+  });
+
+  it('hands a seated controller the screen’s own view for the game’s control slot, and nobody else', () => {
+    const screenView = projectForScreen(bobHolds.reveal, game, false).view;
+    expect(controlOf(projectForPlayer(bobHolds.reveal, 'bob', game))?.screenView).toEqual(screenView);
+    expect(controlOf(projectForRemote(ownerHolds.reveal, game))?.screenView).toBeUndefined();
+    expect(controlOf(projectForScreen(ownerHolds.reveal, game, true))?.screenView).toBeUndefined();
+  });
+
+  it('gives the owner screen a judgement to rule on, with nothing typed and no answer on it', () => {
+    const judge = controlOf(projectForScreen(ownerHolds.answering, game, true))?.pendingJudge;
+    expect(judge?.playerId).toBe('alice');
+    expect(judge?.playerAnswer).toBe('');
+    expect(judge?.seenPrefix).toBe('');
+    expect(judge?.canonicalAnswer).toBe('');
+    expect(judge?.accept).toEqual([]);
+    expect(judge?.contextNote).toBeNull();
+  });
+
+  it('shows the owner screen the full judgement once the reveal is up', () => {
+    const judge = controlOf(projectForScreen(ownerHolds.reveal, game, true))?.pendingJudge ?? null;
+    if (judge !== null) expect(judge.canonicalAnswer).toBe('naomi-0');
+  });
+});
+
+describe('the remote', () => {
+  const game = echoGame();
+
+  it('is a remote snapshot with the same public fields as the screen', () => {
+    const state = fivePlayers(game);
+    const remote = projectForRemote(state, game);
+    const screen = projectForScreen(state, game, true);
+    const { viewer: remoteViewer, ...remoteRest } = remote;
+    const { viewer: screenViewer, ...screenRest } = screen;
+    expect(remoteViewer).toBe('remote');
+    expect(screenViewer).toBe('screen');
+    expect(remoteRest).toEqual(screenRest);
+  });
+
+  it('carries no answer in the lobby or the summary, where there is no round to answer', () => {
+    const lobby = fivePlayers(game);
+    expect(controlOf(projectForRemote(lobby, game))?.answer).toBeNull();
+    const ended = run(lobby, game, [
+      { actor: HOST, intent: { kind: 'host', command: { cmd: 'start' } }, at: 2_000 },
+      { actor: HOST, intent: { kind: 'host', command: { cmd: 'nextRound' } }, at: 2_001 },
+      { actor: HOST, intent: { kind: 'host', command: { cmd: 'revealNow' } }, at: 2_100 },
+      { actor: HOST, intent: { kind: 'host', command: { cmd: 'end' } }, at: 2_200 },
+    ]);
+    expect(ended.phase).toBe('summary');
+    expect(controlOf(projectForRemote(ended, game))?.answer).toBeNull();
+  });
+
+  it('has a null answer when the game offers no preview', () => {
+    const silent: GameModule = { ...echoGame(), answerPreview: undefined } as GameModule;
+    const live = run(fivePlayers(silent), silent, [
+      { actor: HOST, intent: { kind: 'host', command: { cmd: 'start' } }, at: 2_000 },
+      { actor: HOST, intent: { kind: 'host', command: { cmd: 'nextRound' } }, at: 2_001 },
+    ]);
+    expect(controlOf(projectForRemote(live, silent))?.answer).toBeNull();
+  });
+
+  it('follows the controller: no control block while a player holds control', () => {
+    const handed = run(fivePlayers(game), game, [
+      { actor: HOST, intent: { kind: 'host', command: { cmd: 'grantControl', playerId: 'alice' } }, at: 2_000 },
+    ]);
+    expect(projectForRemote(handed, game).control).toBeUndefined();
+  });
+
+  it('never carries a score for anyone beyond the top three', () => {
+    const { standings, control } = projectForRemote(fivePlayers(game), game);
+    expect(standings.map((standing) => standing.playerId)).toEqual(['alice', 'bob', 'cleo']);
+    expect(control?.standings.map((standing) => standing.playerId)).toEqual(['alice', 'bob', 'cleo']);
+  });
+});
+
+describe('scores after each answer', () => {
+  const game = echoGame();
+  const hidden = (): RoomState => fivePlayers(game, { scoresAfterEachAnswer: false });
+
+  it('leaves the screen and the remote with no standings until the summary', () => {
+    for (const snapshot of [projectForScreen(hidden(), game, true), projectForRemote(hidden(), game)]) {
+      expect(snapshot.standings).toEqual([]);
+      expect(snapshot.teamStandings).toEqual([]);
+      expect(snapshot.control?.standings).toEqual([]);
+    }
+  });
+
+  it('shows them again at the summary', () => {
+    const ended = run(hidden(), game, [
+      { actor: HOST, intent: { kind: 'host', command: { cmd: 'end' } }, at: 2_000 },
+    ]);
+    expect(ended.phase).toBe('summary');
+    expect(projectForScreen(ended, game, false).standings).toHaveLength(3);
+    expect(projectForRemote(ended, game).standings).toHaveLength(3);
+  });
+
+  it('keeps them when the setting is on', () => {
+    expect(projectForScreen(fivePlayers(game), game, false).standings).toHaveLength(3);
+  });
+
+  it('still tells a player their own score', () => {
+    expect(projectForPlayer(hidden(), 'alice', game).yourScore).toBe(50);
   });
 });

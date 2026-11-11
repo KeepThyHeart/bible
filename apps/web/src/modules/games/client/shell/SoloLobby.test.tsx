@@ -16,6 +16,10 @@ function solo(settings: Partial<RoomSettings> = {}): PlayerSnapshot {
     teamsEnabled: false,
     rounds: 10,
     answerWindowMs: 20_000,
+    teamCount: 2,
+    openEnded: false,
+    autoAdvanceMs: null,
+    scoresAfterEachAnswer: true,
     showIndividualScores: false,
     solo: true,
     groupVote: false,
@@ -65,6 +69,7 @@ const soloCatalog = catalogWith([
     usesFamiliarity: true,
     usesTranslation: true,
     usesSet: true,
+    usesBuzz: false,
   },
   {
     id: 'who-am-i',
@@ -75,6 +80,7 @@ const soloCatalog = catalogWith([
     usesFamiliarity: true,
     usesTranslation: false,
     usesSet: false,
+    usesBuzz: false,
   },
   {
     id: 'sword-drill',
@@ -84,6 +90,7 @@ const soloCatalog = catalogWith([
     usesFamiliarity: true,
     usesTranslation: true,
     usesSet: true,
+    usesBuzz: false,
   },
 ]);
 
@@ -156,18 +163,18 @@ describe('solo’s own settings screen', () => {
     expect(asked).toEqual([{ gameId: 'who-am-i' }]);
   });
 
-  it('hides Translation and Set for a game that does not use them', () => {
+  it('hides Translation and Topic for a game that does not use them', () => {
     draw({ gameId: 'who-am-i' });
     const labels = fieldLabels();
-    expect(labels).toContain('How well known');
+    expect(labels).toContain('Difficulty');
     expect(labels).not.toContain('Translation');
-    expect(labels).not.toContain('Set');
+    expect(labels).not.toContain('Topic');
   });
 
   it('shows every setting for a game that uses all three', () => {
     draw({ gameId: 'fill-in-the-blank' });
     expect(fieldLabels()).toEqual(
-      expect.arrayContaining(['Game', 'Set', 'Translation', 'How well known', 'Rounds', 'Time per question'])
+      expect.arrayContaining(['Game', 'Topic', 'Translation', 'Difficulty', 'Rounds', 'Time per question'])
     );
   });
 
@@ -238,7 +245,7 @@ describe('game picker labelling and translation (0209 R2 W14)', () => {
       const options = [...(select('Game')?.querySelectorAll('option') ?? [])].map((o) => o.textContent);
       expect(options).toEqual(['Completar el espacio', 'Quién soy']);
       expect(host.querySelector('#games-solo-game-hint')?.textContent).toBe('Personajes de la Biblia');
-      const levels = [...(select('How well known')?.querySelectorAll('option') ?? [])].map((o) => o.textContent);
+      const levels = [...(select('Difficulty')?.querySelectorAll('option') ?? [])].map((o) => o.textContent);
       expect(levels).toContain('Conocidos y más allá');
       // Anything without an entry keeps the server's English.
       expect(levels).toContain('Verses everyone knows');

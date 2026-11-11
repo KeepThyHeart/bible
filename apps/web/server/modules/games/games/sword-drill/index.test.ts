@@ -41,6 +41,10 @@ function settings(overrides: Partial<RoomSettings> = {}): RoomSettings {
     teamsEnabled: false,
     rounds: 5,
     answerWindowMs: 20_000,
+    teamCount: 2,
+    openEnded: false,
+    autoAdvanceMs: null,
+    scoresAfterEachAnswer: true,
     showIndividualScores: false,
     solo: false,
     groupVote: false,
@@ -367,5 +371,15 @@ describe('what the module tells the catalog', () => {
 
   it('does not offer solo play, because nobody would be there to hear the reading', () => {
     expect(swordDrill.supportsSolo).toBe(false);
+  });
+});
+
+describe('the answer shown before the reveal', () => {
+  it('is the same answer the reveal will name', () => {
+    const round: Round<typeof ROMANS> = { index: 0, secret: ROMANS, hostView: null, playerView: null };
+    const preview = swordDrill.answerPreview?.(round);
+
+    expect(preview).toBeTruthy();
+    expect(preview).toBe(swordDrill.scoreRound(round, [], { seats: [], log: [] }).correctLabel);
   });
 });

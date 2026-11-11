@@ -1,0 +1,261 @@
+/*
+ * The organizer's own screens: picking a game, choosing its options, finding
+ * a big screen and the lobby. Phone-first, one column, logical properties only.
+ */
+
+.games-root .org-screen {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  max-inline-size: 32rem;
+  margin-inline: auto;
+}
+
+.games-root .org-title {
+  margin: 0;
+  font-size: var(--text-xl);
+}
+
+.games-root .org-header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.games-root .org-header p {
+  margin: 0;
+}
+
+/* ---- Picker ---------------------------------------------------------------- */
+
+.games-root .org-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.games-root .org-chip {
+  min-block-size: 2.5rem;
+  padding-inline: var(--space-3);
+  border-radius: 999px;
+  background: var(--bg-sunken);
+  color: var(--fg-muted);
+  font-size: var(--text-sm);
+}
+
+.games-root .org-chip[aria-pressed='true'] {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-fg);
+  font-weight: 600;
+}
+
+.games-root .org-cards {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.games-root .org-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-1);
+  inline-size: 100%;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius);
+  background: var(--bg-raised);
+  color: var(--fg);
+  text-align: start;
+}
+
+.games-root .org-card-name {
+  font-size: var(--text-base);
+  font-weight: 700;
+}
+
+.games-root .org-card-text {
+  color: var(--fg-muted);
+  font-size: var(--text-sm);
+}
+
+.games-root .org-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin-block-start: var(--space-1);
+}
+
+.games-root .org-tag {
+  padding-inline: var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: 0.25rem;
+  color: var(--fg-muted);
+  font-size: var(--text-sm);
+}
+
+/* ---- Options --------------------------------------------------------------- */
+
+.games-root .org-seg {
+  display: flex;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.games-root .org-seg button {
+  flex: 1;
+  min-inline-size: 0;
+  min-block-size: var(--tap);
+  padding-inline: var(--space-1);
+  border: 0;
+  border-radius: 0;
+  border-inline-start: 1px solid var(--border);
+  background: var(--bg-raised);
+  color: var(--fg-muted);
+  font-size: var(--text-sm);
+}
+
+.games-root .org-seg button:first-child {
+  border-inline-start: 0;
+}
+
+.games-root .org-seg button[aria-pressed='true'] {
+  background: var(--accent);
+  color: var(--accent-fg);
+  font-weight: 700;
+}
+
+.games-root .org-check {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-block-size: var(--tap);
+}
+
+.games-root .org-more {
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.games-root .org-more > summary {
+  min-block-size: var(--tap);
+  display: flex;
+  align-items: center;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.games-root .org-more[open] > summary {
+  margin-block-end: var(--space-3);
+}
+
+/* ---- Screen step ----------------------------------------------------------- */
+
+.games-root .org-code {
+  margin: 0;
+  padding: var(--space-3);
+  border: 2px dashed var(--accent);
+  border-radius: var(--radius);
+  color: var(--accent);
+  font-size: var(--text-3xl);
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-align: center;
+}
+
+/* ---- Lobby ----------------------------------------------------------------- */
+
+.games-root .org-lobby-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.games-root .org-lobby-game {
+  margin: 0;
+}
+
+.games-root .org-link {
+  min-block-size: var(--tap);
+  padding-inline: var(--space-2);
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+.games-root .org-roster {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.games-root .org-player-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.games-root .org-player-row .name-text {
+  flex: 1;
+  min-inline-size: 0;
+}
+
+.games-root .org-rename {
+  display: flex;
+  flex: 1;
+  gap: var(--space-2);
+  min-inline-size: 0;
+}
+
+.games-root .org-rename input {
+  flex: 1;
+  min-inline-size: 0;
+}
+
+.games-root .org-menu-anchor {
+  position: relative;
+}
+
+.games-root .org-menu-button {
+  min-inline-size: 2.5rem;
+  min-block-size: 2.5rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+}
+
+.games-root .org-menu {
+  position: absolute;
+  inset-block-start: 100%;
+  inset-inline-end: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  min-inline-size: 10rem;
+  padding-block: var(--space-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-raised);
+  box-shadow: 0 0.25rem 0.9rem rgb(0 0 0 / 0.2);
+}
+
+.games-root .org-menu button {
+  min-block-size: var(--tap);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  text-align: start;
+}
+
+.games-root .org-join-info {
+  margin: 0;
+  font-size: var(--text-sm);
+  text-align: center;
+}

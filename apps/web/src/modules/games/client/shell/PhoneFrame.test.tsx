@@ -22,6 +22,10 @@ function snapshotWithRank(yourRank: number | null): PlayerSnapshot {
       teamsEnabled: false,
       rounds: 10,
       answerWindowMs: 20_000,
+      teamCount: 2,
+      openEnded: false,
+      autoAdvanceMs: null,
+      scoresAfterEachAnswer: true,
       showIndividualScores: false,
       solo: false,
       groupVote: false,
@@ -88,6 +92,18 @@ describe('what a phone is told about its place', () => {
     expect(host.textContent).toContain('270');
   });
 
+  it('writes the score line as the total, then the place', () => {
+    draw(2);
+
+    expect(host.querySelector('.phone-score')?.textContent?.replace(/\s+/g, ' ').trim()).toBe('You: 270 · 2nd');
+  });
+
+  it('writes the score line without a place outside the top three', () => {
+    draw(4);
+
+    expect(host.querySelector('.phone-score')?.textContent?.replace(/\s+/g, ' ').trim()).toBe('You: 270');
+  });
+
   it('says nothing about a place the server withheld', () => {
     draw(null);
 
@@ -116,7 +132,7 @@ describe('the round counter’s word', () => {
     host.remove();
   });
 
-  it('says "Q" by default, the same as the projector', () => {
+  it('says "Question" by default', () => {
     act(() => {
       render(
         <PhoneFrame snapshot={snapshotWithRank(null)} yourResult={null} status="open" onReconnectNow={() => undefined}>
@@ -125,7 +141,7 @@ describe('the round counter’s word', () => {
         host
       );
     });
-    expect(host.querySelector('.chrome-round')?.textContent).toBe('Q 4 / 10');
+    expect(host.querySelector('.chrome-round')?.textContent).toBe('Question 4 of 10');
   });
 
   it('uses the game’s own word once the room says one, not only on the projector', () => {
@@ -142,7 +158,7 @@ describe('the round counter’s word', () => {
         host
       );
     });
-    expect(host.querySelector('.chrome-round')?.textContent).toBe('Turn 4 / 10');
+    expect(host.querySelector('.chrome-round')?.textContent).toBe('Turn 4 of 10');
   });
 });
 
@@ -174,7 +190,7 @@ describe('the theme/settings/leave icons during play', () => {
         host
       );
     });
-    expect(host.querySelector('.lobby-actions')).toBeNull();
+    expect(host.querySelector('.phone-menu')).toBeNull();
   });
 
   it('offers theme, settings and leave once a game has started, not only in the lobby', () => {
@@ -192,11 +208,15 @@ describe('the theme/settings/leave icons during play', () => {
         host
       );
     });
-    const actions = host.querySelector('.lobby-actions');
-    expect(actions).not.toBeNull();
-    expect(actions?.textContent).toContain('Theme');
-    expect(actions?.textContent).toContain('Settings');
-    expect(actions?.textContent).toContain('Leave');
+    const toggle = host.querySelector<HTMLButtonElement>('.phone-menu button[aria-haspopup="menu"]');
+    expect(toggle).not.toBeNull();
+    // The top row is the game; the actions stay behind the button until it is pressed.
+    expect(host.querySelector('[role="menu"]')).toBeNull();
+    act(() => toggle?.click());
+    const menu = host.querySelector('[role="menu"]');
+    expect(menu?.textContent).toContain('Theme');
+    expect(menu?.textContent).toContain('Settings');
+    expect(menu?.textContent).toContain('Leave');
   });
 });
 

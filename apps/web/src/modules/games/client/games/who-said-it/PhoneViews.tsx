@@ -24,7 +24,8 @@
 import { useEffect, useState } from 'preact/hooks';
 import type { PersonalResult } from '../../../shared/protocol.js';
 import type { PlayerViewProps } from '../../shell/gameViews.js';
-import { AWAITING_REVEAL, AWAITING_ROUND } from '../../shell/waitingCopy.js';
+import { gt } from '../../shell/t.js';
+import { awaitingReveal, awaitingRound } from '../../shell/waitingCopy.js';
 import { citation, indexForLetter, letterFor, readDetail, readQuestion } from './payload.js';
 
 function Nothing({ line }: { line: string }) {
@@ -33,24 +34,24 @@ function Nothing({ line }: { line: string }) {
 
 export function PhoneQuestion({ snapshot, view }: PlayerViewProps) {
   const question = readQuestion(view);
-  if (!question) return <Nothing line={AWAITING_ROUND} />;
+  if (!question) return <Nothing line={awaitingRound()} />;
 
   // Already up on the big screen; this phone only needs to say where to
   // look, not repeat it in a smaller type.
   if (snapshot.questionOnScreen) {
     return (
       <section class="wsi wsi-phone">
-        <p class="wsi-ask">Who said it?</p>
-        <p class="wsi-hint">Look at the screen. The names come up in a moment.</p>
+        <p class="wsi-ask">{gt('games.whoSaidIt.view.ask', 'Who said it?')}</p>
+        <p class="wsi-hint">{gt('games.whoSaidIt.view.lookAtScreen', 'Look at the screen. The names come up in a moment.')}</p>
       </section>
     );
   }
 
   return (
     <section class="wsi wsi-phone">
-      <p class="wsi-ask">Who said it?</p>
+      <p class="wsi-ask">{gt('games.whoSaidIt.view.ask', 'Who said it?')}</p>
       <blockquote class="wsi-quote">“{question.quote}”</blockquote>
-      <p class="wsi-hint">The names come up in a moment.</p>
+      <p class="wsi-hint">{gt('games.whoSaidIt.view.namesSoon', 'The names come up in a moment.')}</p>
     </section>
   );
 }
@@ -101,7 +102,7 @@ export function PhoneAnswering({ snapshot, view, send }: PlayerViewProps) {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [question, done, chosen, voting, snapshot.round]);
 
-  if (!question) return <Nothing line={AWAITING_ROUND} />;
+  if (!question) return <Nothing line={awaitingRound()} />;
 
   const chosenLabel = question.options.find((option) => option.index === chosen)?.label ?? null;
 
@@ -132,11 +133,11 @@ export function PhoneAnswering({ snapshot, view, send }: PlayerViewProps) {
       {voting ? (
         <p class="wsi-sent" role="status">
           {chosenLabel === null
-            ? 'Tap a name to vote. You can change it until time runs out.'
-            : `Your vote: ${chosenLabel}. Tap another name to change it until time runs out.`}
+            ? gt('games.whoSaidIt.view.tapToVote', 'Tap a name to vote. You can change it until time runs out.')
+            : gt('games.whoSaidIt.view.yourVote', 'Your vote: {name}. Tap another name to change it until time runs out.', { name: chosenLabel })}
         </p>
       ) : (
-        done && <p class="wsi-sent">{mine ? `Sent: ${mine.label}` : 'Answer sent.'}</p>
+        done && <p class="wsi-sent">{mine ? gt('games.whoSaidIt.view.sentName', 'Sent: {name}', { name: mine.label }) : gt('games.whoSaidIt.view.answerSent', 'Answer sent.')}</p>
       )}
     </section>
   );
@@ -147,13 +148,13 @@ export function PhoneAnswering({ snapshot, view, send }: PlayerViewProps) {
  * that was right. The result is the team's, so every phone on it reads the same.
  */
 function teamVerdict(result: PersonalResult): string {
-  const verdict = result.correct ? 'Right.' : 'Not this time.';
+  const verdict = result.correct ? gt('games.whoSaidIt.view.right', 'Right.') : gt('games.whoSaidIt.view.notThisTime', 'Not this time.');
   return result.note === null ? verdict : `${result.note}. ${verdict}`;
 }
 
 export function PhoneReveal({ reveal, yourResult }: PlayerViewProps) {
   const detail = readDetail(reveal?.detail);
-  if (!reveal || !detail) return <Nothing line={AWAITING_REVEAL} />;
+  if (!reveal || !detail) return <Nothing line={awaitingReveal()} />;
 
   const submitted = yourResult?.submitted ?? null;
   const picked = submitted?.type === 'choice' ? (detail.options[submitted.index] ?? null) : null;
@@ -163,25 +164,25 @@ export function PhoneReveal({ reveal, yourResult }: PlayerViewProps) {
 
   return (
     <section class="wsi wsi-phone">
-      <p class="wsi-answer-label">Who said it</p>
+      <p class="wsi-answer-label">{gt('games.whoSaidIt.view.answerLabel', 'Who said it')}</p>
       <h2 class="wsi-answer">{detail.speaker}</h2>
-      {detail.listener !== null && <p class="wsi-listener">to {detail.listener}</p>}
+      {detail.listener !== null && <p class="wsi-listener">{gt('games.whoSaidIt.view.toListener', 'to {name}', { name: detail.listener })}</p>}
       {detail.text.length > 0 && <blockquote class="wsi-verse wsi-verse-small">{detail.text}</blockquote>}
       {cited.length > 0 && <p class="wsi-citation">{cited}</p>}
 
       {yourResult === null ? (
-        <p class="wsi-yours">No answer from this phone.</p>
+        <p class="wsi-yours">{gt('games.whoSaidIt.view.noAnswer', 'No answer from this phone.')}</p>
       ) : teamVote ? (
         <p class="wsi-yours" data-correct={yourResult.correct ? 'true' : 'false'}>
           {teamVerdict(yourResult)}
           {picked !== null && !(yourResult.correct && picked.correct) && (
-            <span class="wsi-muted"> You voted {picked.label}.</span>
+            <span class="wsi-muted"> {gt('games.whoSaidIt.view.youVoted', 'You voted {name}.', { name: picked.label })}</span>
           )}
         </p>
       ) : (
         <p class="wsi-yours" data-correct={yourResult.correct ? 'true' : 'false'}>
-          {yourResult.correct ? 'Right.' : (yourResult.note ?? 'Not this time.')}
-          {picked !== null && !yourResult.correct && <span class="wsi-muted"> You said {picked.label}.</span>}
+          {yourResult.correct ? gt('games.whoSaidIt.view.right', 'Right.') : (yourResult.note ?? gt('games.whoSaidIt.view.notThisTime', 'Not this time.'))}
+          {picked !== null && !yourResult.correct && <span class="wsi-muted"> {gt('games.whoSaidIt.view.youSaid', 'You said {name}.', { name: picked.label })}</span>}
         </p>
       )}
     </section>

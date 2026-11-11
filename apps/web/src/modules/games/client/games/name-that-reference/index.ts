@@ -29,6 +29,30 @@ export const nameThatReferenceViews: GameViews = {
     answering: PhoneAnswering,
     reveal: PhoneReveal,
   },
+  card: {
+    descriptionKey: 'games.nameThatReference.card.description',
+    descriptionFallback: 'A verse goes up. Pick where it is from.',
+    tags: ['everyone'],
+    minutes: 10,
+  },
+  howToPlay: {
+    summaryKey: 'games.nameThatReference.howToPlay.summary',
+    summaryFallback: 'A verse appears on the screen. Work out where it is from.',
+    steps: [
+      {
+        key: 'games.nameThatReference.howToPlay.stepPick',
+        fallback: 'Choose the reference on your phone before the timer ends.',
+      },
+      {
+        key: 'games.nameThatReference.howToPlay.stepPoints',
+        fallback: '100 points for each right answer.',
+      },
+      {
+        key: 'games.nameThatReference.howToPlay.stepTyped',
+        fallback: 'When answers are typed, the right book earns 40 and the right book and chapter earns 70.',
+      },
+    ],
+  },
 };
 
 registerGameViews(nameThatReferenceViews);

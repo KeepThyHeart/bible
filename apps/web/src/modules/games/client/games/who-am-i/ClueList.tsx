@@ -7,11 +7,12 @@
  * because the reference is what someone looks up on the way home.
  */
 
+import { gt } from '../../shell/t.js';
 import type { RevealClue } from './payload.js';
 
 export function LiveClues({ clues, shown, size }: { clues: readonly string[]; shown: number; size: 'large' | 'small' }) {
   return (
-    <ol class={`wai-clues wai-clues-${size}`} aria-label="Clues so far" aria-live="polite">
+    <ol class={`wai-clues wai-clues-${size}`} aria-label={gt('games.whoAmI.view.cluesSoFar', 'Clues so far')} aria-live="polite">
       {clues.slice(0, shown).map((text, position) => (
         <li key={position} class="wai-clue" data-latest={position === shown - 1 ? 'true' : 'false'}>
           <span class="wai-clue-number">{position + 1}</span>
@@ -29,7 +30,7 @@ export function LiveClues({ clues, shown, size }: { clues: readonly string[]; sh
 export function RevealClues({ clues, counts, size }: { clues: readonly RevealClue[]; counts: boolean; size: 'large' | 'small' }) {
   const most = clues.reduce((high, clue) => Math.max(high, clue.gotIt), 0);
   return (
-    <ol class={`wai-clues wai-clues-${size}`} aria-label="All the clues">
+    <ol class={`wai-clues wai-clues-${size}`} aria-label={gt('games.whoAmI.view.allClues', 'All the clues')}>
       {clues.map((clue, position) => (
         <li key={position} class="wai-clue wai-reveal-clue">
           <span class="wai-clue-number">{position + 1}</span>
@@ -45,7 +46,7 @@ export function RevealClues({ clues, counts, size }: { clues: readonly RevealClu
                   style={{ width: `${most === 0 ? 0 : Math.round((clue.gotIt / most) * 100)}%` }}
                 />
               </span>
-              <span class="wai-got-count">{clue.gotIt === 1 ? '1 got it' : `${clue.gotIt} got it`}</span>
+              <span class="wai-got-count">{clue.gotIt === 1 ? gt('games.whoAmI.view.gotItOne', '1 got it') : gt('games.whoAmI.view.gotItMany', '{count} got it', { count: clue.gotIt })}</span>
             </span>
           )}
         </li>

@@ -12,6 +12,7 @@
 
 import type { PlayerId, PublicPlayer, TeamId } from '../../../shared/protocol.js';
 import { TEAM_IDS } from '../../../shared/protocol.js';
+import { gt } from '../../shell/t.js';
 
 /** Stable identifier for this game, matching the server module's. */
 export const GAME_ID = 'describe-it';
@@ -167,5 +168,5 @@ export function readReveal(detail: unknown): TurnReveal | null {
 
 /** A name for an id, or a word that names nobody when the player has left. */
 export function nameOf(players: readonly PublicPlayer[], id: PlayerId | null): string {
-  return players.find((player) => player.id === id)?.name ?? 'Someone';
+  return players.find((player) => player.id === id)?.name ?? gt('games.host.someone', 'Someone');
 }
