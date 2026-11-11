@@ -17,7 +17,7 @@ vi.mock('@bible/core', async () => {
 import { Crypto, Sync } from '@bible/core/browser';
 import { IndexedDbSecretStore } from '../IndexedDbSecretStore';
 import type { UserDbRequest } from '../protocol';
-import { deviceNameFromUserAgent, sanitizeSyncError } from './syncHost';
+import { applyServerLimit, deviceNameFromUserAgent, sanitizeSyncError } from './syncHost';
 import {
   CONSENT, PASSWORD, WRONG_PASSWORD, WireFailure, createBrowser, findSecrets, freshEmail, idbNames, loadSqlite,
   rawSecretRecords, seedLegacyUserData, serverRecordCount, signUpVerified, startWorker, startWorld, until,
@@ -424,5 +424,18 @@ describe('deviceNameFromUserAgent', () => {
     expect(deviceNameFromUserAgent('Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Version/17.0 Mobile/15E148 Safari/604.1'))
       .toBe('Safari on iOS');
     expect(deviceNameFromUserAgent(undefined)).toBe('Browser');
+  });
+});
+
+describe('applyServerLimit (R1 M1)', () => {
+  it('applies the advertised limit before the first run; keeps the default on failure or timeout', async () => {
+    const set = vi.fn();
+    await applyServerLimit(async () => ({ maxRecordBytes: 4096 }), { setMaxRecordBytes: set });
+    expect(set).toHaveBeenCalledWith(4096);
+    set.mockClear();
+    await applyServerLimit(async () => ({}), { setMaxRecordBytes: set });
+    await applyServerLimit(async () => { throw new Error('offline'); }, { setMaxRecordBytes: set });
+    await applyServerLimit(() => new Promise(() => undefined), { setMaxRecordBytes: set }, 20);
+    expect(set).not.toHaveBeenCalled();
   });
 });

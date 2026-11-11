@@ -71,6 +71,7 @@
       "never": "Never",
       "pending": "{n} changes waiting to sync",
       "opaque": "{n} items from a newer version are stored safely but not shown here.",
+      "tooLarge": "{n} notes are too large to sync (over {size}) and stay only on this device.",
       "devices": "Devices",
       "thisDevice": "This device",
       "lastSeen": "Last seen",
@@ -109,7 +110,7 @@
       "deleteConfirm": "Delete my account permanently",
       "deleteAccount": "Delete account...",
       "busy": "Working...",
-      "exportPartial": "Both backup buttons download the backup of the data kept in this browser. A full backup that includes your synced data is coming later."
+      "exportPartial": "Both exports hold everything kept in this browser: highlights, notes, bookmarks, Memory and your reading data. Anyone with the readable export can read it; the encrypted backup needs your password."
     },
     "syncStatus": {
       "signedOut": "Not signed in",

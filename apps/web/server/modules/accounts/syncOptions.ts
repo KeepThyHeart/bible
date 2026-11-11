@@ -85,6 +85,15 @@ export function buildEmailSender(email: AccountsSettings['email'], f: EmailFacto
   });
 }
 
+/** `accounts.maxRecordKB` (KiB of note content) to the sync server's blob limit (content plus 64 bytes of envelope slack). */
+export function maxRecordBytesFor(kb: number): number {
+  // 64 KiB .. 16 MiB of content, matching the sync server's accepted range (64 KiB + 64 .. 16 MiB + 64 blob bytes).
+  if (!Number.isInteger(kb) || kb < 64 || kb > 16 * 1024) {
+    throw new AccountsConfigError('accounts.maxRecordKB must be an integer between 64 and 16384');
+  }
+  return kb * 1024 + 64;
+}
+
 export function buildSyncOptions(
   settings: AccountsSettings,
   parts: Pick<SyncServerOptions, 'sql' | 'serverSecret' | 'email'> & Partial<Pick<SyncServerOptions, 'log'>>,
@@ -97,6 +106,7 @@ export function buildSyncOptions(
       publicUrl: publicUrl.origin + publicUrl.pathname.replace(/\/+$/, ''),
       signupOpen: settings.signupOpen,
       ...(settings.quotaBytes !== undefined ? { quotaBytes: settings.quotaBytes } : {}),
+      ...(settings.maxRecordKB !== undefined ? { maxRecordBytes: maxRecordBytesFor(settings.maxRecordKB) } : {}),
       ...(settings.minAge !== undefined ? { minAge: settings.minAge } : {}),
       ...(settings.termsUrl ? { termsUrl: settings.termsUrl } : {}),
       ...(settings.privacyUrl ? { privacyUrl: settings.privacyUrl } : {}),

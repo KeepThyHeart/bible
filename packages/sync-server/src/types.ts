@@ -9,6 +9,8 @@ export interface SyncServerOptions {
   email: EmailSender;
   signupOpen?: boolean; quotaBytes?: number; minAge?: number; defaultKdf?: { m: number; t: number; p: number };
   maxRecordsPerAccount?: number;       // default 1,000,000
+  /** Largest sealed record blob accepted, in bytes (advertised in GET info). Default Sync.LIMITS.maxRecordBytes (1 MiB + 64); integer in [64 KiB + 64, 16 MiB + 64]. */
+  maxRecordBytes?: number;
   termsUrl?: string; privacyUrl?: string;
   allowedOrigins: string[];                // Origin check for cookie-auth writes
   cookieSecure?: boolean;                  // false only for http://localhost dev

@@ -60,6 +60,7 @@
   "accounts.accountPanel.never": "⟦Ñéṽéŕ ··⟧",
   "accounts.accountPanel.pending": "⟦{n} çĥåñĝéš ŵåîţîñĝ ţø šýñç ·······⟧",
   "accounts.accountPanel.opaque": "⟦{n} îţéɱš ƒŕøɱ å ñéŵéŕ ṽéŕšîøñ åŕé šţøŕéð šåƒéļý ƀüţ ñøţ šĥøŵñ ĥéŕé. ···················⟧",
+  "accounts.accountPanel.tooLarge": "⟦{n} ñøţéš åŕé ţøø ļåŕĝé ţø šýñç (øṽéŕ {size}) åñð šţåý øñļý øñ ţĥîš ðéṽîçé. ···················⟧",
   "accounts.accountPanel.devices": "⟦Ðéṽîçéš ··⟧",
   "accounts.accountPanel.thisDevice": "⟦Ţĥîš ðéṽîçé ···⟧",
   "accounts.accountPanel.lastSeen": "⟦Ļåšţ šééñ ··⟧",

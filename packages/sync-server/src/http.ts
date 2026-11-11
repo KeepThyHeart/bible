@@ -33,6 +33,12 @@ export interface ResolvedOptions {
   minAge: number;
   /** Cost the server hands out for new accounts; fake prelogin answers use the same numbers. */
   maxRecordsPerAccount: number;
+  /** Largest sealed record blob (bytes); advertised in info. */
+  maxRecordBytes: number;
+  /** Push body limit: at least 8 MiB and always enough for one max-size record (base64) plus 64 KiB. */
+  maxPushBodyBytes: number;
+  /** /changes byte budget per page (a page always holds at least one record, however large). */
+  maxPullBytes: number;
   defaultKdf: { m: number; t: number; p: number };
   termsUrl?: string;
   privacyUrl?: string;

@@ -227,3 +227,38 @@
   .kth-annot-dialog { width: 100%; max-width: 100vw; border-radius: 12px 12px 0 0; align-self: flex-end; }
   .kth-annot-toast { inset-block-end: 80px; }
 }
+
+.kth-annot-mark__count {
+  margin-inline-start: 2px;
+  font-size: calc(10px * var(--ui-font-scale, 1));
+  font-weight: 600;
+  line-height: 1;
+}
+
+.kth-annot-switch {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 4px 16px 0;
+}
+
+.kth-annot-switch__label {
+  font-size: calc(13px * var(--ui-font-scale, 1));
+  color: var(--text-secondary);
+}
+
+.kth-annot-conflict {
+  margin: 6px 16px 0;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: calc(13px * var(--ui-font-scale, 1));
+  background: color-mix(in srgb, var(--accent, #c9a227) 18%, transparent);
+  color: var(--text-primary);
+}
+
+.kth-annot-hint {
+  margin: 6px 16px 0;
+  font-size: calc(13px * var(--ui-font-scale, 1));
+  color: var(--text-secondary, var(--text-primary));
+}

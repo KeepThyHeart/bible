@@ -12,7 +12,7 @@
  * - No error message ever contains a request body, a token or record content.
  */
 import { b64urlDecode, b64urlEncode } from '../../Crypto';
-import { SYNC_API_PREFIX } from '../api';
+import { SYNC_API_PREFIX, isValidMaxRecordBytes } from '../api';
 import type {
   AccountResponse, ApiError, ApiErrorCode, DeleteAccountRequest, DeviceNameRequest, DevicesResponse,
   EncryptedRecordWire, InfoResponse, KeysRequest, LoginRequest, PreloginRequest, PreloginResponse, PullResponse,
@@ -66,6 +66,8 @@ function checkInfo(v: unknown): InfoResponse {
   bool(o, 'signupOpen', 'info'); int(o, 'quotaBytes', 'info'); int(o, 'minAge', 'info');
   const k = obj(o.minKdf, 'info.minKdf'); int(k, 'm', 'info.minKdf'); int(k, 't', 'info.minKdf');
   optStr(o, 'termsUrl', 'info'); optStr(o, 'privacyUrl', 'info');
+  // Optional record limit: out-of-range or malformed values are treated as absent (callers fall back to the default).
+  if (o.maxRecordBytes !== undefined && !isValidMaxRecordBytes(o.maxRecordBytes)) delete o.maxRecordBytes;
   return o as unknown as InfoResponse;
 }
 function checkPrelogin(v: unknown): PreloginResponse {

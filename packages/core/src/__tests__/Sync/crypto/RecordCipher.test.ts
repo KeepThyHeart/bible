@@ -4,7 +4,7 @@ import {
   AuthError, aesGcmSeal, concatBytes, defaultRandom, hexDecode, hexEncode, utf8Encode,
 } from '../../../Crypto';
 import {
-  MAX_RECORD_JSON, RECORD_BLOB_VERSION, RecordTooLargeError, UnknownEpochError, createRecordCipher, paddedLength,
+  MAX_RECORD_JSON, RECORD_BLOB_VERSION, maxJsonFor, maxPaddedFor, RecordTooLargeError, UnknownEpochError, createRecordCipher, paddedLength,
   recordAad,
 } from '../../../Sync/crypto/RecordCipher';
 import type { UnlockedAccount } from '../../../Sync/crypto/keys';
@@ -164,6 +164,38 @@ describe('RecordCipher', () => {
       expect(blob.length, `json ${n}`).toBe(OVERHEAD + padded);
       expect(await c.open(id, blob)).toEqual(p);
     }
+  });
+
+  it('pins the v1 padded sizes (changing them would break existing blobs)', () => {
+    const pinned: Array<[number, number]> = [[0, 1024], [100, 1024], [1020, 1024], [1021, 2048], [30000, 30720],
+      [65532, 65536], [65533, 66560], [65537, 81920], [100000, 114688], [500000, 507904], [1048572, 1048576]];
+    for (const [json, padded] of pinned) expect(paddedLength(json), `json ${json}`).toBe(padded);
+  });
+
+  it('derives the max json from the blob limit; the default stays exactly MAX_RECORD_JSON', () => {
+    expect(maxJsonFor(1024 * 1024 + 64)).toBe(MAX_RECORD_JSON);
+    expect(maxPaddedFor(1024 * 1024 + 64)).toBe(1024 * 1024);
+    expect(maxPaddedFor(2 * 1024 * 1024 + 64)).toBe(2 * 1024 * 1024);
+    expect(maxPaddedFor(2 * 1024 * 1024 + 32)).toBe(2 * 1024 * 1024 - 16384);
+  });
+
+  it('a raised limit seals and opens a 1.5 MiB json; the default refuses it; setMaxRecordBytes updates', async () => {
+    const id = hexId();
+    const n = 1536 * 1024;
+    const raised = createRecordCipher(account(), undefined, { maxRecordBytes: 2 * 1024 * 1024 + 64 });
+    const p = ptOfJsonLength(n);
+    const blob = await raised.seal(id, p);
+    expect(blob.length).toBe(OVERHEAD + paddedLength(n));
+    expect(await raised.open(id, blob)).toEqual(p);
+
+    const def = createRecordCipher(account());
+    expect(def.maxJson).toBe(MAX_RECORD_JSON);
+    await expect(def.seal(id, p)).rejects.toBeInstanceOf(RecordTooLargeError);
+    def.setMaxRecordBytes(2 * 1024 * 1024 + 64);
+    expect(def.maxJson).toBe(2 * 1024 * 1024 - 4);
+    await def.seal(id, p);
+    def.setMaxRecordBytes(5);            // out of range: ignored
+    expect(def.maxJson).toBe(2 * 1024 * 1024 - 4);
   });
 
   it('accepts MAX_RECORD_JSON and refuses one byte more with RecordTooLargeError', async () => {

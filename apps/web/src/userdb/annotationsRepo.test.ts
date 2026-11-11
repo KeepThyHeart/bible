@@ -31,13 +31,55 @@ describe('annotations repo', () => {
     expect(a).toMatchObject({ moduleId: 1, start: JOHN_3_16, end: JOHN_3_16, color: '#FFF3A3' });
     const b = await call<HighlightDto>('setHighlight', { moduleId: 1, start: JOHN_3_16, end: JOHN_3_16, color: '#b7e4c7' });
     expect(b.color).toBe('#B7E4C7');
-    expect(b.id).not.toBe(a.id);
+    expect(b.id).toBe(a.id); // updated in place: the sync record id is kept
     expect((await chapter(1)).highlights).toEqual([b]);
     expect((await chapter(2)).highlights).toEqual([]); // other module
     expect(events.some((e) => e.event === 'changed' && e.tables.includes('user_text_markup'))).toBe(true);
     expect(await call<number>('removeHighlight', { moduleId: 1, start: JOHN_3_16, end: JOHN_3_16 })).toBe(1);
     expect(await call<number>('removeHighlight', { moduleId: 1, start: JOHN_3_16, end: JOHN_3_16 })).toBe(0);
     expect((await chapter(1)).highlights).toEqual([]);
+  }, 60_000);
+
+  it('highlights: recolouring updates the row in place and removes duplicates left by concurrent edits', async () => {
+    const { call, chapter, db } = setup();
+    const a = await call<HighlightDto>('setHighlight', { moduleId: 1, start: JOHN_3_16, end: JOHN_3_16, color: 'yellow' });
+    // simulate the other device's concurrent recolour arriving as a second row
+    db.exec({ sql: "INSERT INTO user_text_markup (module_id, verse_id_start, verse_id_end, color, metadata) VALUES (1, ?, ?, '#B8DDF5', '{\"markupType\":\"highlight\"}')", bind: [JOHN_3_16, JOHN_3_16] });
+    expect((await chapter(1)).highlights).toHaveLength(2);
+    const c = await call<HighlightDto>('setHighlight', { moduleId: 1, start: JOHN_3_16, end: JOHN_3_16, color: '#F7B7B7' });
+    const after = (await chapter(1)).highlights;
+    expect(after).toHaveLength(1);
+    expect(after[0].id).toBe(c.id);
+    expect(after[0].color).toBe('#F7B7B7');
+    expect(typeof after[0].created).toBe('string');
+    expect(a.created).toBeDefined();
+  }, 60_000);
+
+  it('highlights: with equal created dates the keeper is the display-order winner (colour), not the local id', async () => {
+    const { call, chapter, db } = setup();
+    const ins = (c: string) => db.exec({ sql: "INSERT INTO user_text_markup (module_id, verse_id_start, verse_id_end, color, created_date, metadata) VALUES (1, ?, ?, ?, '2026-01-01T00:00:00Z', '{\"markupType\":\"highlight\"}')", bind: [JOHN_3_16, JOHN_3_16, c] });
+    await chapter(1); // opens the db
+    ins('#F7B7B7'); // lower id, colour sorts after #B8DDF5 -> display winner
+    ins('#B8DDF5'); // higher id
+    const { compareHighlights } = await import('../modules/annotations/highlightOrder');
+    const shown = [...(await chapter(1)).highlights].sort(compareHighlights).pop()!;
+    expect(shown.color).toBe('#F7B7B7');
+    const kept = await call<HighlightDto>('setHighlight', { moduleId: 1, start: JOHN_3_16, end: JOHN_3_16, color: '#C0FFEE' });
+    expect(kept.id).toBe(shown.id);
+    const after = (await chapter(1)).highlights;
+    expect(after).toHaveLength(1);
+    expect(after[0].id).toBe(shown.id);
+    expect(after[0].color).toBe('#C0FFEE');
+  }, 60_000);
+
+  it('notes: a conflict copy is flagged from its metadata', async () => {
+    const { call, chapter, db } = setup();
+    const n = await call<NoteDto>('saveNote', { start: JOHN_3_16, end: JOHN_3_16, content: 'mine' });
+    expect(n.conflict).toBe(false);
+    db.exec({ sql: "UPDATE user_note SET metadata = ? WHERE note_id = ?", bind: [JSON.stringify({ conflictOf: 'abc' }), n.id] });
+    expect((await chapter(1)).notes[0].conflict).toBe(true);
+    db.exec({ sql: "UPDATE user_note SET metadata = ? WHERE note_id = ?", bind: [JSON.stringify({ other: 1 }), n.id] });
+    expect((await chapter(1)).notes[0].conflict).toBe(false);
   }, 60_000);
 
   it('notes: create, edit, delete; module-independent; link written', async () => {

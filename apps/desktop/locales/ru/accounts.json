@@ -60,6 +60,7 @@
   "accounts.accountPanel.never": "Никогда",
   "accounts.accountPanel.pending": "Изменений, ожидающих синхронизации: {n}",
   "accounts.accountPanel.opaque": "Элементов из более новой версии: {n}. Они надёжно сохранены, но здесь не показываются.",
+  "accounts.accountPanel.tooLarge": "Заметок, слишком больших для синхронизации (больше {size}): {n}. Они остаются только на этом устройстве.",
   "accounts.accountPanel.devices": "Устройства",
   "accounts.accountPanel.thisDevice": "Это устройство",
   "accounts.accountPanel.lastSeen": "Последняя активность",

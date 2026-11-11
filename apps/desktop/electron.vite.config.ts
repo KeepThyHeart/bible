@@ -159,6 +159,9 @@ const APP_CONFIG_DEFINES: Record<string, string> = {
 };
 
 const MAIN_ONLY_DEFINES: Record<string, string> = {
+  // Feature flags baked into a demo or test build (`VITE_KTH_FLAGS=localUserDb,accounts`, the same variable the
+  // renderer reads), so a packaged build can have a flagged main module on too. Unset in release builds.
+  __BIBLE_BUILD_FLAGS__: JSON.stringify(envOrEmpty('VITE_KTH_FLAGS')),
   __BIBLE_REMOTE_SEMANTIC_URL__: JSON.stringify(REMOTE_SEMANTIC_URL),
   __BIBLE_REMOTE_SEMANTIC_API_KEY__: JSON.stringify(REMOTE_SEMANTIC_API_KEY),
 };

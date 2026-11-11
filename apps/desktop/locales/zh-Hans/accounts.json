@@ -60,6 +60,7 @@
   "accounts.accountPanel.never": "从未",
   "accounts.accountPanel.pending": "有 {n} 项更改等待同步",
   "accounts.accountPanel.opaque": "来自较新版本的 {n} 个项目已安全存储，但不会在此显示。",
+  "accounts.accountPanel.tooLarge": "{n} 条笔记过大，无法同步（超过 {size}），仅保留在此设备上。",
   "accounts.accountPanel.devices": "设备",
   "accounts.accountPanel.thisDevice": "此设备",
   "accounts.accountPanel.lastSeen": "上次活动",

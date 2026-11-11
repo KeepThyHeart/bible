@@ -30,15 +30,39 @@ export function finishOpen(db: unknown, path: string, wipeFiles?: () => Promise<
   };
 }
 
-interface SahPool {
+export interface SahPool {
   OpfsSAHPoolDb: new (filename: string) => unknown;
   wipeFiles(): Promise<void>;
 }
 
-export async function openUserDb(): Promise<OpenedUserDb> {
+async function initSahPool(): Promise<SahPool> {
   const { default: sqlite3InitModule } = await import('@sqlite.org/sqlite-wasm');
   const sqlite3 = await sqlite3InitModule();
   const install = (sqlite3 as unknown as { installOpfsSAHPoolVfs(o: { name: string }): Promise<SahPool> }).installOpfsSAHPoolVfs;
-  const pool = await install.call(sqlite3, { name: USER_DB_VFS_NAME });
+  return install.call(sqlite3, { name: USER_DB_VFS_NAME });
+}
+
+/**
+ * One sqlite3 module and one installed SAH pool per worker. A second init (after a wipe) would create another wasm
+ * instance whose pool fights the first for the OPFS access handles; `wipeFiles()` leaves the pool's handles reusable,
+ * so a reopen simply creates a new `OpfsSAHPoolDb` on the same pool. A failed init is not remembered (a retry can run).
+ */
+let poolPromise: Promise<SahPool> | undefined;
+
+export function getSahPool(init: () => Promise<SahPool> = initSahPool): Promise<SahPool> {
+  poolPromise ??= init().catch((e) => {
+    poolPromise = undefined;
+    throw e;
+  });
+  return poolPromise;
+}
+
+/** Tests only. */
+export function resetSahPoolForTests(): void {
+  poolPromise = undefined;
+}
+
+export async function openUserDb(init?: () => Promise<SahPool>): Promise<OpenedUserDb> {
+  const pool = await getSahPool(init);
   return finishOpen(new pool.OpfsSAHPoolDb(USER_DB_PATH), USER_DB_PATH, () => pool.wipeFiles());
 }

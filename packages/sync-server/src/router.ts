@@ -4,7 +4,6 @@
  * modules, then a JSON error handler.
  */
 import express, { Router } from 'express';
-import { Sync } from '@bible/core';
 import { clientIp, errorHandler, handler, originCheck, sendError, type ServerContext } from './http';
 import { enforceLimit } from './rateLimit';
 import { accountRoutes } from './routes/account';
@@ -28,7 +27,7 @@ export function buildRouter(ctx: ServerContext): Router {
   r.use(originCheck(ctx));
   // Small bodies everywhere; only the record push may be large (auth routes never need MBs).
   const smallJson = express.json({ limit: 64 * 1024, strict: true });
-  const pushJson = express.json({ limit: Sync.LIMITS.maxPushBodyBytes, strict: true });
+  const pushJson = express.json({ limit: ctx.opts.maxPushBodyBytes, strict: true });
   r.use((req, res, next) => (req.path === '/push' ? pushJson : smallJson)(req, res, next));
 
   // Email flows first: they register the verification mail on ctx.onAccountCreated before any signup.

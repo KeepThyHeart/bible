@@ -28,6 +28,21 @@ import {
 } from './moduleResolver';
 import { createWorkerScheduler } from './scheduler';
 
+/** R1 M1: wait briefly for the server's advertised record limit before the first sync, so it runs under that limit. */
+const INFO_WAIT_MS = 5000;
+export async function applyServerLimit(info: () => Promise<{ maxRecordBytes?: number }>, cipher: { setMaxRecordBytes(n: number): void }, waitMs = INFO_WAIT_MS): Promise<void> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    const i = await Promise.race([
+      info(),
+      new Promise<null>((resolve) => { timer = setTimeout(() => resolve(null), waitMs); }),
+    ]);
+    if (i && i.maxRecordBytes !== undefined) cipher.setMaxRecordBytes(i.maxRecordBytes);
+  } catch { /* keep the default */ } finally {
+    if (timer !== undefined) clearTimeout(timer);
+  }
+}
+
 export interface SyncHost {
   handle(req: Extract<UserDbRequest, { op: 'sync' }>, ctx: ExtCtx): Promise<unknown>;
   notifyLocalChange(tables: string[]): void;
@@ -286,6 +301,7 @@ interface DbState {
   bundle: Bundle | null;
   tracker: Sync.ChangeTracker | null;
   engine: Sync.SyncEngine | null;
+  cipher?: Sync.RecordCipher;
   ready: Promise<void>;
   /** Tail of the configure queue: configures run one at a time, in arrival order. */
   configuring: Promise<unknown>;
@@ -409,10 +425,16 @@ export function createSyncHost(o: SyncHostOptions): SyncHost {
     tracker.install(TRACKED);
     tracker.state.set('device_id', s.deviceId);
     s.tracker = tracker;
+    const cipher = Sync.createRecordCipher(u, o.account?.random);
+    // The server advertises its record limit in info: wait briefly for it so the first run uses it (default on timeout);
+    // the engine also retries rows skipped as too large once the limit is raised.
+    s.cipher = cipher;
+    await applyServerLimit(() => bundle.api.info(), cipher);
+    if (s.disposed || s.bundle !== bundle || s.cipher !== cipher) return;
     const engine = new Sync.SyncEngine({
       sql: s.sql, tracker,
       codecs: Sync.createCodecRegistry(Sync.createCoreCodecs({ extKvSyncs: () => false })),
-      cipher: Sync.createRecordCipher(u, o.account?.random), transport: bundle.api.transport(), unlocked: u,
+      cipher, transport: bundle.api.transport(), unlocked: u,
       hlc: Sync.createHlc(s.deviceId, tracker.state.get('hlc_last') as Sync.HlcString | undefined),
       status: s.status, modules: s.resolver, now: o.now, random: o.account?.random,
       timers: o.timers, debounceMs: o.engine?.debounceMs, pageSize: o.engine?.pageSize,
@@ -585,8 +607,11 @@ export function createSyncHost(o: SyncHostOptions): SyncHost {
       return u;
     };
     switch (method as SyncApiMethod) {
-      case 'info':
-        return client.info();
+      case 'info': {
+        const info = await client.info();
+        if (info.maxRecordBytes !== undefined) s.cipher?.setMaxRecordBytes(info.maxRecordBytes);
+        return info;
+      }
       case 'account':
         // Signed out here: a session cookie left behind by a logout that never reached the server must not show
         // the previous user's account.

@@ -28,12 +28,18 @@
       "cancel": "Cancelar",
       "delete": "Eliminar nota",
       "deleteConfirm": "Eliminar",
-      "confirmDelete": "¿Eliminar esta nota? No se puede deshacer."
+      "confirmDelete": "¿Eliminar esta nota? No se puede deshacer.",
+      "previous": "Nota anterior",
+      "next": "Nota siguiente",
+      "position": "Nota {n} de {total}",
+      "conflict": "Copia en conflicto de otro dispositivo",
+      "unsavedSwitch": "Guarda o cancela tus cambios antes de cambiar de nota."
     },
     "mark": {
       "editNote": "Editar nota",
       "editNoteTitled": "Editar nota: {title}",
-      "bookmarked": "Con marcador"
+      "bookmarked": "Con marcador",
+      "editNotes": "Editar notas ({count})"
     }
   }
 }

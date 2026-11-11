@@ -271,7 +271,7 @@ export async function createBackupPayload(src: BackupSources, o: WriteOptions): 
     const columns = spec.columns.filter((c) => have.has(c));
     if (columns.length === 0) continue;
     const order = spec.pk.filter((k) => have.has(k)).map((k) => `"${k}"`).join(', ');
-    const rows = src.sql.queryAll<Row>(`SELECT ${columns.map((c) => `"${c}"`).join(', ')} FROM "${spec.name}"${order ? ` ORDER BY ${order}` : ''}`);
+    const rows = src.sql.queryAll<Row>(`SELECT ${columns.map((c) => `"${c}"`).join(', ')} FROM "${spec.name}"${spec.skipInExport ? ` WHERE NOT (${spec.skipInExport.sql})` : ''}${order ? ` ORDER BY ${order}` : ''}`);
     if (idkFp !== undefined && carriesSyncId(spec) && columns.includes(spec.pk[0])) {
       const ids = readLiveRecordIds(src.sql, spec.name);
       for (const r of rows) r[SYNC_ID_COLUMN] = ids.get(String(r[spec.pk[0]])) ?? null;

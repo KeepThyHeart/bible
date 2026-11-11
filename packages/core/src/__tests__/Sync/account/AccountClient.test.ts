@@ -301,6 +301,20 @@ describe('signOut and deleteAccount', () => {
     assertNoSecrets(t.server, t.secrets);
   });
 
+  it('overwrites the key bytes after the engine stopped (onSignedOut sees them intact)', async () => {
+    let seenDuringSignOut: number[] = [];
+    let held: { accountKey: Uint8Array; recordIdKey: Uint8Array; dataKeys: Map<number, Uint8Array> } | null = null;
+    const t = await signedUp({ onSignedOut: () => { seenDuringSignOut = held ? [...held.accountKey] : []; } });
+    held = t.client.unlocked!;
+    const before = [...held.accountKey];
+    expect(before.some((b) => b !== 0)).toBe(true);
+    await t.client.signOut({ wipeLocal: false });
+    expect(seenDuringSignOut).toEqual(before);
+    expect(held.accountKey.every((b) => b === 0)).toBe(true);
+    expect(held.recordIdKey.every((b) => b === 0)).toBe(true);
+    for (const k of held.dataKeys.values()) expect(k.every((b) => b === 0)).toBe(true);
+  });
+
   it('signs out locally even when the server is unreachable', async () => {
     const t = await signedUp();
     (t.deps.api as { logout: () => Promise<void> }).logout = async () => { throw new TypeError('fetch failed'); };

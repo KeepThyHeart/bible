@@ -5,6 +5,7 @@
  * Extensions (M3): `sync` = the sync host (S4), `import` = the one-shot `kth-user-data` copy (S1). After a wipe the
  * IndexedDB stores `kth-secrets` and `kth-user-data` are deleted too.
  */
+import { handleBackup } from './backupExport';
 import { createUserDbHandler } from './handler';
 import { importKthUserData } from './importKthUserData';
 import { openUserDb } from './openUserDb';
@@ -19,7 +20,7 @@ const sync = createSyncHost({ fetch: scope.fetch.bind(scope), indexedDB: scope.i
 const handler = createUserDbHandler({
   open: openUserDb,
   emit: (event: UserDbEvent) => scope.postMessage(event),
-  extensions: { sync: (req, ctx) => sync.handle(req, ctx), import: importKthUserData },
+  extensions: { backup: handleBackup, sync: (req, ctx) => sync.handle(req, ctx), import: importKthUserData },
   onLocalWrite: (tables) => sync.notifyLocalChange(tables),
   onWipe: () => wipeBrowserStores(scope.indexedDB),
 });

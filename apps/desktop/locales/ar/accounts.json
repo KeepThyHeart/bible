@@ -60,6 +60,7 @@
   "accounts.accountPanel.never": "أبدًا",
   "accounts.accountPanel.pending": "{n} تغييرات بانتظار المزامنة",
   "accounts.accountPanel.opaque": "{n} عنصرًا من إصدار أحدث مخزَّنة بأمان لكنها غير معروضة هنا.",
+  "accounts.accountPanel.tooLarge": "{n} ملاحظات أكبر من أن تتم مزامنتها (أكثر من {size}) وتبقى على هذا الجهاز فقط.",
   "accounts.accountPanel.devices": "الأجهزة",
   "accounts.accountPanel.thisDevice": "هذا الجهاز",
   "accounts.accountPanel.lastSeen": "آخر ظهور",

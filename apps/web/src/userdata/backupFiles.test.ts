@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { IDBFactory } from 'fake-indexeddb';
 import { UserData } from '@bible/core/browser';
 import { WebUserData } from './WebUserData';
-import { downloadBackup, restoreBackupFile } from './backupFiles';
+import { downloadBackup, downloadWorkerBackup, restoreBackupFile } from './backupFiles';
 
 const { UserDataItem } = UserData;
 
@@ -27,5 +27,19 @@ describe('backup files', () => {
     expect(b.items.get('app:t', 'c', 'k')!.parsedValue()).toEqual({ v: 1 });
     a.close();
     b.close();
+  });
+});
+
+describe('worker backup download', () => {
+  it('downloads the bytes the worker built under the dated name', async () => {
+    let blob: Blob | undefined;
+    URL.createObjectURL = vi.fn((b: Blob) => ((blob = b), 'blob:x'));
+    URL.revokeObjectURL = vi.fn();
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+    const exportBackup = vi.fn(async () => ({ bytes: new Uint8Array([1, 2, 3]), extension: 'bbk' as const }));
+    const name = await downloadWorkerBackup({ exportBackup }, { password: 'pw', now: new Date('2026-09-29T12:00:00Z') });
+    expect(exportBackup).toHaveBeenCalledWith('pw');
+    expect(name).toBe('keep-thy-heart-2026-09-29.bbk');
+    expect(blob!.size).toBe(3);
   });
 });

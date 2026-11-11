@@ -60,6 +60,7 @@
   "accounts.accountPanel.never": "Nunca",
   "accounts.accountPanel.pending": "{n} cambios en espera de sincronizar",
   "accounts.accountPanel.opaque": "{n} elementos de una versión más reciente se guardan de forma segura, pero no se muestran aquí.",
+  "accounts.accountPanel.tooLarge": "{n} notas son demasiado grandes para sincronizarse (más de {size}) y se quedan solo en este dispositivo.",
   "accounts.accountPanel.devices": "Dispositivos",
   "accounts.accountPanel.thisDevice": "Este dispositivo",
   "accounts.accountPanel.lastSeen": "Última conexión",

@@ -75,6 +75,7 @@ export const DEFAULT_ACCOUNT_PANEL_LABELS: AccountPanelLabels = {
   never: 'Never',
   pending: '{n} changes waiting to sync',
   opaque: '{n} items from a newer version are stored safely but not shown here.',
+  tooLarge: '{n} notes are too large to sync (over {size}) and stay only on this device.',
   devices: 'Devices',
   thisDevice: 'This device',
   lastSeen: 'Last seen',

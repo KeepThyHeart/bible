@@ -95,6 +95,17 @@ describe('main feature modules', () => {
     expect(packaged.load).not.toHaveBeenCalled(); // quiz defaults off
   });
 
+  it('build-time flags (VITE_KTH_FLAGS baked in) turn a flagged module on, packaged too', async () => {
+    const flagged: FeatureModuleManifest = { ...manifest, flag: 'quiz' };
+    const baked = { manifest: flagged, load: vi.fn(async () => ({ default: fixture })) };
+    await registerMainModules(fakeIpcMain(), deps, { modules: [baked], packaged: true, buildFlagText: 'quiz' });
+    expect(baked.load).toHaveBeenCalledTimes(1);
+    await closeMainModules();
+    const none = { manifest: flagged, load: vi.fn(async () => ({ default: fixture })) };
+    await registerMainModules(fakeIpcMain(), deps, { modules: [none], packaged: true, buildFlagText: 'not a flag list {' });
+    expect(none.load).not.toHaveBeenCalled();
+  });
+
   it('a module whose load hangs times out, is reported, and does not block startup', async () => {
     const warn = vi.fn();
     const hung = entry(vi.fn(() => new Promise<{ default: FeatureMainModule }>(() => {})));

@@ -13,7 +13,16 @@ function resolveOptions(o: SyncServerOptions): ResolvedOptions {
   if (!(o.serverSecret instanceof Uint8Array) || o.serverSecret.length < 32) {
     throw new Error('createSyncServer: serverSecret must be at least 32 bytes');
   }
+  const maxRecordBytes = o.maxRecordBytes ?? Sync.LIMITS.maxRecordBytes;
+  if (!Sync.isValidMaxRecordBytes(maxRecordBytes)) {
+    throw new Error(`createSyncServer: maxRecordBytes must be an integer between ${Sync.RECORD_LIMIT_MIN} and ${Sync.RECORD_LIMIT_MAX}`);
+  }
+  // Room for one max-size record as base64 JSON plus 64 KiB of envelope, never below the 8 MiB default.
+  const maxPushBodyBytes = Math.max(Sync.LIMITS.maxPushBodyBytes, Math.ceil((maxRecordBytes * 4) / 3) + 64 * 1024);
   return {
+    maxRecordBytes,
+    maxPushBodyBytes,
+    maxPullBytes: maxPushBodyBytes,
     serverSecret: o.serverSecret,
     publicUrl: o.publicUrl,
     email: o.email,

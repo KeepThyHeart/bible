@@ -65,6 +65,9 @@ export function createUserDbHandler(opts: UserDbHandlerOptions): {
 } {
   let opened: Promise<OpenedUserDb> | undefined;
   let repos: RepoBag | undefined;
+  let wiping: Promise<void> | undefined;
+  /** Bumped by each wipe, so a request can tell whether a wipe ran while its open was in flight. */
+  let wipes = 0;
   let nextCallId = 1;
   const hostPending = new Map<number, { resolve(v: unknown): void; reject(e: unknown): void; timer: ReturnType<typeof setTimeout> }>();
 
@@ -82,13 +85,27 @@ export function createUserDbHandler(opts: UserDbHandlerOptions): {
   const repoCtx: RepoCtx = { emit: opts.emit, hostCall };
 
   const ensure = async (): Promise<{ db: OpenedUserDb; repos: RepoBag }> => {
-    opened ??= opts.open().catch((e) => {
-      opened = undefined; // let the next request retry
-      throw e;
-    });
-    const db = await opened;
-    repos ??= createRepos(db.sql, repoCtx);
-    return { db, repos };
+    for (;;) {
+      while (wiping) await wiping;
+      const gen = wipes;
+      const current = (opened ??= opts.open().catch((e) => {
+        if (opened === current) opened = undefined; // let the next request retry
+        throw e;
+      }));
+      let db: OpenedUserDb;
+      try {
+        db = await current;
+      } catch (e) {
+        // Only a wipe that ran meanwhile earns a retry (on its fresh db, R3 L-1); a plain failed open is reported, never looped.
+        if (wiping || wipes !== gen) continue;
+        throw e;
+      }
+      // A wipe that started while this open was in flight owns that handle now: wait for it and take the fresh one,
+      // never bind repos to the handle being wiped.
+      if (wiping || opened !== current) continue;
+      repos ??= createRepos(db.sql, repoCtx);
+      return { db, repos };
+    }
   };
 
   const notifyLocalWrite = (tables: string[]) => {
@@ -100,9 +117,16 @@ export function createUserDbHandler(opts: UserDbHandlerOptions): {
   };
 
   async function wipe(): Promise<void> {
-    if (repos) disposeRepos(repos);
-    repos = undefined;
-    {
+    // Barrier: until the old database is closed and wiped and the marker is in the fresh one, every other request
+    // (the worker does not serialise them) waits in `ensure()` and then gets the fresh database, never the old
+    // handle and never a second connection opened over the files being deleted.
+    while (wiping) await wiping;
+    let release!: () => void;
+    wiping = new Promise<void>((r) => (release = r));
+    wipes++;
+    try {
+      if (repos) disposeRepos(repos);
+      repos = undefined;
       // Open first when this leader never did: the OPFS files of an earlier session must go too.
       const pending = opened ?? opts.open();
       opened = undefined;
@@ -111,12 +135,18 @@ export function createUserDbHandler(opts: UserDbHandlerOptions): {
       // The import marker lived in the deleted database. Write it into a fresh one before anything that can hang or
       // fail (the IndexedDB deletes), so a surviving `kth-user-data` can never be imported again.
       try {
-        const fresh = opts.open();
-        opened = fresh;
-        writeImportMarker((await fresh).sql, 'wiped');
+        const fresh = await opts.open();
+        writeImportMarker(fresh.sql, 'wiped');
+        opened = Promise.resolve(fresh);
       } catch {
         opened = undefined; // the next request reopens; the IndexedDB delete below is the fallback guard
       }
+    } finally {
+      // Repos a request may have built over the old handle while the wipe waited for it are dropped too.
+      if (repos) disposeRepos(repos);
+      repos = undefined;
+      wiping = undefined;
+      release();
     }
     try {
       await opts.onWipe?.();

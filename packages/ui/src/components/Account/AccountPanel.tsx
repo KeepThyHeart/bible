@@ -30,6 +30,11 @@ export function AccountPanel({ email, status, usage, devices, onSyncNow, onRevok
         {l.lastSynced}: {status.lastSyncedAt ? formatDateTime(status.lastSyncedAt) : l.never}
       </p>
       {status.pending > 0 ? <p className="kth-account__muted">{fill(l.pending, { n: status.pending })}</p> : null}
+      {status.tooLarge ? (
+        <p className="kth-account__notice" role="status">
+          {fill(l.tooLarge, { n: status.tooLarge, size: formatBytes(Math.ceil((status.tooLargeLimit ?? 0) / 1024) * 1024) })}
+        </p>
+      ) : null}
       {status.opaque > 0 ? <p className="kth-account__notice">{fill(l.opaque, { n: status.opaque })}</p> : null}
 
       <div className="kth-account__section">

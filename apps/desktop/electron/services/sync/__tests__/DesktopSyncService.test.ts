@@ -3,11 +3,11 @@ import { mkdtempSync, mkdirSync, readdirSync, existsSync, writeFileSync, rmSync,
 import { tmpdir } from 'os';
 import { join } from 'path';
 import Database from 'better-sqlite3';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Sync, createUserSchema, type ISql, type SqlParameter, type SqlResult } from '@bible/core';
 import { IpcKnownError } from '../../../ipc/result';
 import { NetworkBlockedError } from '../../NetworkGateway';
-import { DesktopSyncService, toAccountsError, type DesktopSyncDeps } from '../DesktopSyncService';
+import { DesktopSyncService, applyServerLimit, toAccountsError, type DesktopSyncDeps } from '../DesktopSyncService';
 import { createSyncSettingsStore } from '../syncSettings';
 import { createFakeSyncServer, type FakeSyncServer } from './fakeSyncServer';
 
@@ -379,5 +379,18 @@ describe('toAccountsError', () => {
     expect(JSON.stringify(names)).not.toContain('secret-pw');
     expect(toAccountsError('secret-pw', (n) => names.push(n)).message).toBe('internal');
     expect(names[1]).toBe('UnknownError');
+  });
+});
+
+describe('applyServerLimit (R1 M1)', () => {
+  it('applies the advertised limit before the first run; keeps the default on failure or timeout', async () => {
+    const set = vi.fn();
+    await applyServerLimit(async () => ({ maxRecordBytes: 4096 }), { setMaxRecordBytes: set });
+    expect(set).toHaveBeenCalledWith(4096);
+    set.mockClear();
+    await applyServerLimit(async () => ({}), { setMaxRecordBytes: set });
+    await applyServerLimit(async () => { throw new Error('offline'); }, { setMaxRecordBytes: set });
+    await applyServerLimit(() => new Promise(() => undefined), { setMaxRecordBytes: set }, 20);
+    expect(set).not.toHaveBeenCalled();
   });
 });

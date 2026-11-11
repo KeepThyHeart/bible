@@ -6,6 +6,7 @@
  * refetched, coalesced, after our own writes and on the worker's `changed` event for its tables (other tabs, sync pulls).
  * Consumers read `revision` through `useStore(store, () => store.revision)`.
  */
+import { compareHighlights } from './highlightOrder';
 import { Store } from '../../stores/Store';
 import type { AnnotationsRepo, BookmarkDto, ChapterAnnotations, HighlightDto, NoteDto } from '../../userdb/annotationsRepo';
 
@@ -44,7 +45,7 @@ function index(entry: Entry, data: ChapterAnnotations): Map<number, VerseAnnotat
   const clip = (s: number, e: number, fn: (id: number) => void) => {
     for (let id = Math.max(s, entry.start); id <= Math.min(e, entry.end); id++) fn(id);
   };
-  for (const h of [...data.highlights].sort((a, b) => a.id - b.id)) clip(h.start, h.end, (id) => { at(id).highlight = h; });
+  for (const h of [...data.highlights].sort(compareHighlights)) clip(h.start, h.end, (id) => { at(id).highlight = h; });
   for (const n of [...data.notes].sort((a, b) => a.modified.localeCompare(b.modified))) clip(n.start, n.end, (id) => { at(id).notes.unshift(n); });
   for (const b of data.bookmarks) clip(b.start, b.end, (id) => { at(id).bookmark ??= b; });
   return drafts as Map<number, VerseAnnotations>;

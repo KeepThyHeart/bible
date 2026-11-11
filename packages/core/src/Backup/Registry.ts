@@ -88,12 +88,29 @@ export interface TableSpec {
   mergeKeepsLocal?: boolean;
   /** In replace, rows matching `sql` (and `test`, the same rule for a backup row) are this machine's own and stay. */
   keepInReplace?: { sql: string; test: (row: Row) => boolean };
+  /** Rows matching `sql` are never written to a backup (device-local bookkeeping). */
+  skipInExport?: { sql: string };
   /** A 0/1 "is the default" column: merge never lets a restored row become a second default. */
   defaultFlag?: string;
   /** External-content FTS table to rebuild after rows change. */
   fts?: string;
   /** Row upgraders keyed by the schema version the row came from: `upgraders[v]` turns a v row into a v+1 row. */
   upgraders?: Record<number, (row: Row) => Row>;
+}
+
+/**
+ * `setting` rows that belong to this install only: category 'system', the web sync host's own rows (category 'web',
+ * key prefix 'sync.': device id, e-mail, base URL, signed-in/remember flags, module list) and the one-shot web
+ * import marker. Desktop keeps its sync bookkeeping in a settings file, not in `setting`.
+ */
+const SYNC_LOCAL_SETTING_SQL =
+  "(category = 'web' AND (substr(key, 1, 5) = 'sync.' OR key = 'userData.importedFromIdb'))";
+const DEVICE_LOCAL_SETTING_SQL = `(category = 'system' OR ${SYNC_LOCAL_SETTING_SQL})`;
+export function isDeviceLocalSetting(row: Row): boolean {
+  if (row.category === 'system') return true;
+  if (row.category !== 'web') return false;
+  const key = String(row.key ?? '');
+  return key.startsWith('sync.') || key === 'userData.importedFromIdb';
 }
 
 const contentAll = (exclude: string[] = []): IdentitySpec => ({ kind: 'content', exclude });
@@ -290,8 +307,10 @@ export const USER_TABLES: readonly TableSpec[] = [
     name: 'setting', pk: ['setting_id'], autoId: true, cls: 'content', origin: 'both',
     columns: ['setting_id', 'category', 'key', 'value', 'value_type', 'description', 'metadata'],
     fks: [], identity: { kind: 'unique', columns: ['category', 'key'], conflict: 'keepLocal' },
-    skipInMerge: (row) => row.category === 'system',
-    keepInReplace: { sql: "category = 'system'", test: (row) => row.category === 'system' },
+    skipInMerge: isDeviceLocalSetting,
+    keepInReplace: { sql: DEVICE_LOCAL_SETTING_SQL, test: isDeviceLocalSetting },
+    // Sync bookkeeping (device id, signed-in state) must never travel in a backup (it would clone the device).
+    skipInExport: { sql: SYNC_LOCAL_SETTING_SQL },
   },
   {
     name: 'layout_preset', pk: ['layout_id'], autoId: true, cls: 'workspace', origin: 'both',

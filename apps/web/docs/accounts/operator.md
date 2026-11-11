@@ -1,6 +1,6 @@
 # Accounts and sync: operator guide
 
-**Last verified:** 0150-web-accounts (2026-10-09)
+**Last verified:** 0218-web-accounts-ready (2026-11-10)
 
 Accounts give a reader end-to-end encrypted sync of notes, highlights, bookmarks and memory data between devices. The server only stores encrypted blobs. This page is for the person who runs the web server: how to turn it on, what to configure and what the server can and cannot see. Code map:
 
@@ -45,7 +45,8 @@ The sync routes mount after the site password gate, like every other module. If 
 The rate limiters count requests per `req.ip`. Behind a reverse proxy that address is the proxy's unless Express is told to trust the forwarded header.
 
 - `server.trustProxy` accepts `true`, `false`, a hop count (`1`), a subnet string (`"loopback, 10.0.0.0/8"`) or a list of them, exactly as Express's `trust proxy`.
-- **The accounts module requires an explicit value.** `true` and the unset default (which behaves as `true` for the rest of the site, unchanged) are refused: with `true` Express trusts the left-most `X-Forwarded-For` entry, which a client chooses, so it could dodge the per-IP rate limits. With either, the module logs an error saying how to set `server.trustProxy` and the sync API answers 503; the rest of the site keeps working.
+- Unset, the rest of the site uses the `TRUST_PROXY` environment variable, else `"loopback"` (only a proxy on the same machine is trusted; `apps/web/server/trustProxy.ts`).
+- **The accounts module requires an explicit `server.trustProxy`.** Unset is refused, because it defers to `TRUST_PROXY`, which may be `true`, and the per-IP rate limits are only as good as this setting. `true` is refused: with `true` Express trusts the left-most `X-Forwarded-For` entry, which a client chooses, so it could dodge the per-IP rate limits. With either, the module logs an error saying how to set `server.trustProxy` and the sync API answers 503; the rest of the site keeps working.
 - Set a hop count (`1` behind a single nginx/Apache/Caddy), the proxy's subnet (`"loopback, 10.0.0.0/8"`), or `false` when the server is reached directly.
 
 The sync API is exempt from the main server's global and tier rate limits (`isGloballyRateLimitExempt` in `apps/web/server/middleware/rateLimiter.ts`), because the sync server enforces its own.
@@ -97,9 +98,11 @@ The Content-Security-Policy (`apps/web/server/cspDirectives.ts`) keeps `'unsafe-
 
 The service worker never caches `/api/sync` or anything under it (`NEVER_CACHE_PATHS` in `apps/web/src/sw/cacheRules.ts`, covered by `apps/web/src/sw/cacheRules.test.ts`). Responses carry `Cache-Control: no-store`.
 
-## Request size
+## Request and record size
 
-The record push may be up to 8 MiB. The sync router parses the push body itself (after its per-IP limit and origin check), and the host's 100 kB parser skips that one path; every other route under `/api/sync/v1` and the rest of the site keep small limits. If a reverse proxy sits in front, allow at least 9 MB request bodies for that path (nginx: `client_max_body_size 9m;`).
+The largest note (or other record) that syncs is one setting, `accounts.maxRecordKB` (KiB of note content, integer 64 to 16384, default 1024). Records are padded to 16 KiB buckets before encryption, so the effective limit is the setting rounded down to a multiple of 16 KiB; pick a multiple of 16. The server advertises it in `GET /api/sync/v1/info`, and both apps read it from there, so raising it needs no app update. A note over the limit stays on the device that has it; the account panel says how many notes are too large to sync. Bigger notes than 16 MiB would need a chunked record format (a new envelope version), not a bigger setting.
+
+The record push may be up to 8 MiB, or about 1.4 times `maxRecordKB` when that is larger. The sync router parses the push body itself (after its per-IP limit and origin check), and the host's 100 kB parser skips that one path; every other route under `/api/sync/v1` and the rest of the site keep small limits. If a reverse proxy sits in front, allow at least 9 MB request bodies for that path (nginx: `client_max_body_size 9m;`), more if you raise `maxRecordKB`.
 
 ## See also
 

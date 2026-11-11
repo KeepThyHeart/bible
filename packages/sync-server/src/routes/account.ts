@@ -58,6 +58,7 @@ export function accountRoutes(ctx: ServerContext): Router {
     const body: Sync.InfoResponse = {
       apiVersion: 1, signupOpen: opts.signupOpen, quotaBytes: opts.quotaBytes,
       minKdf: { m: Crypto.KDF_LIMITS.minM, t: Crypto.KDF_LIMITS.minT }, minAge: opts.minAge,
+      maxRecordBytes: opts.maxRecordBytes,
     };
     if (opts.termsUrl) body.termsUrl = opts.termsUrl;
     if (opts.privacyUrl) body.privacyUrl = opts.privacyUrl;

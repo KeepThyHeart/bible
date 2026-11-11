@@ -108,8 +108,11 @@ function HighlightPopover({ state }: { state: HighlightPopoverState }) {
 
 function NoteDialog({ state }: { state: NoteDialogState }) {
   const { t } = useTranslation();
-  const [title, setTitle] = useState(state.note?.title ?? '');
-  const [text, setText] = useState(() => (state.note ? htmlToText(state.note.content) : ''));
+  const list = state.notes && state.notes.length > 1 ? state.notes : null;
+  const [index, setIndex] = useState(() => Math.max(0, list && state.note ? list.findIndex((n) => n.id === state.note!.id) : 0));
+  const current = list ? list[index] : state.note;
+  const [title, setTitle] = useState(current?.title ?? '');
+  const [text, setText] = useState(() => (current ? htmlToText(current.content) : ''));
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -129,6 +132,18 @@ function NoteDialog({ state }: { state: NoteDialogState }) {
     };
   }, []);
 
+  const go = (delta: number) => {
+    if (!list || busy || dirty) return;
+    const next = (index + delta + list.length) % list.length;
+    setIndex(next);
+    setTitle(list[next].title ?? '');
+    setText(htmlToText(list[next].content));
+    setConfirmDelete(false);
+    setFailed(false);
+  };
+
+  // Unsaved edits: switching notes would discard them silently, so prev/next stay disabled until saved or cancelled.
+  const dirty = current ? title !== (current.title ?? '') || text !== htmlToText(current.content) : false;
   const empty = text.trim() === '' && title.trim() === '';
 
   const run = async (fn: () => Promise<unknown>) => {
@@ -149,22 +164,22 @@ function NoteDialog({ state }: { state: NoteDialogState }) {
     const content = textToHtml(text);
     const cleanTitle = title.trim() || undefined;
     void run(async () => {
-      let id = state.note?.id;
+      let id = current?.id;
       if (id === undefined && attempted.current !== null) {
         const { notes } = await annotationStore.fetch(0, state.start, state.end);
         id = notes.find((n) => n.start === state.start && n.end === state.end && n.content === attempted.current)?.id;
       }
-      if (state.note === null) attempted.current = content;
-      return annotationStore.saveNote({ id, start: state.start, end: state.end, title: cleanTitle, content });
+      if (current === null) attempted.current = content;
+      return annotationStore.saveNote({ id, start: current?.start ?? state.start, end: current?.end ?? state.end, title: cleanTitle, content });
     });
   };
   const remove = () => {
-    if (!state.note) return;
+    if (!current) return;
     if (!confirmDelete) {
       setConfirmDelete(true);
       return;
     }
-    void run(() => annotationStore.deleteNote(state.note!.id));
+    void run(() => annotationStore.deleteNote(current.id));
   };
 
   return (
@@ -187,6 +202,21 @@ function NoteDialog({ state }: { state: NoteDialogState }) {
               <i class="fa-solid fa-xmark" aria-hidden="true" />
             </button>
           </div>
+          {list && (
+            <div class="kth-annot-switch">
+              <button type="button" class="kth-annot-btn kth-annot-btn--quiet" onClick={() => go(-1)} disabled={busy || dirty} title={t('annotations.note.previous')} aria-label={t('annotations.note.previous')}>
+                <i class="fa-solid fa-chevron-left" aria-hidden="true" />
+              </button>
+              <span class="kth-annot-switch__label" role="status" aria-live="polite">
+                {t('annotations.note.position', { n: index + 1, total: list.length })}
+              </span>
+              <button type="button" class="kth-annot-btn kth-annot-btn--quiet" onClick={() => go(1)} disabled={busy || dirty} title={t('annotations.note.next')} aria-label={t('annotations.note.next')}>
+                <i class="fa-solid fa-chevron-right" aria-hidden="true" />
+              </button>
+            </div>
+          )}
+          {list && dirty && <p class="kth-annot-hint" role="note">{t('annotations.note.unsavedSwitch')}</p>}
+          {current?.conflict && <p class="kth-annot-conflict" role="note">{t('annotations.note.conflict')}</p>}
           <div class="kth-annot-dialog__body">
             <label class="kth-annot-field">
               <span>{t('annotations.note.titleLabel')}</span>
@@ -212,7 +242,7 @@ function NoteDialog({ state }: { state: NoteDialogState }) {
             {confirmDelete && <p class="kth-annot-error" role="alert">{t('annotations.note.confirmDelete')}</p>}
           </div>
           <div class="kth-annot-dialog__actions">
-            {state.note && (
+            {current && (
               <button type="button" class="kth-annot-btn kth-annot-btn--danger" onClick={remove} disabled={busy}>
                 {confirmDelete ? t('annotations.note.deleteConfirm') : t('annotations.note.delete')}
               </button>

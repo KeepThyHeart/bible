@@ -3,6 +3,7 @@ import type { VerseActionContext, VerseActionHandler } from '@bible/core/browser
 import i18n from '../../i18n';
 import { moduleStore } from '../../stores/moduleStore';
 import { formatVerseRange } from '../../utils/verseId';
+import { compareHighlights } from './highlightOrder';
 import { annotationUi } from './annotationUi';
 import { annotationStore } from './instance';
 
@@ -35,7 +36,7 @@ export const highlightHandler: VerseActionHandler = {
     const { moduleId, start, end } = target;
     const { highlights } = await annotationStore.fetch(moduleId, start, end);
     const mine = highlights.filter((h) => overlaps(h, start, end));
-    const first = mine.filter((h) => overlaps(h, start, start)).sort((a, b) => b.id - a.id)[0];
+    const first = mine.filter((h) => overlaps(h, start, start)).sort((a, b) => compareHighlights(b, a))[0];
     annotationUi.openHighlight({ moduleId, start, end, color: first?.color ?? null, hasHighlight: mine.length > 0 });
   }),
 };
@@ -46,9 +47,13 @@ export const noteHandler: VerseActionHandler = {
     if (!target) return;
     const { moduleId, start, end } = target;
     const { notes } = await annotationStore.fetch(moduleId, start, end);
-    const existing = notes.filter((n) => overlaps(n, start, end)).sort((a, b) => b.modified.localeCompare(a.modified))[0] ?? null;
+    const mine = notes.filter((n) => overlaps(n, start, end)).sort((a, b) => b.modified.localeCompare(a.modified));
+    const existing = mine[0] ?? null;
     const range = existing ?? { start, end };
-    annotationUi.openNote({ start: range.start, end: range.end, reference: formatVerseRange(range.start, range.end), note: existing });
+    annotationUi.openNote({
+      start: range.start, end: range.end, reference: formatVerseRange(range.start, range.end), note: existing,
+      notes: mine.length > 1 ? mine : undefined,
+    });
   }),
 };
 

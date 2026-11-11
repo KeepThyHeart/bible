@@ -1,7 +1,7 @@
 /**
  * Maps the shared Account components' label sets onto the `accounts` i18n namespace: every field of a
  * `DEFAULT_*_LABELS` object is the key `accounts.<component>.<field>` (`strengthScores` becomes
- * `accounts.signUp.strengthScore0..4`). The components fill `{age}`, `{n}` and `{time}` themselves, so those
+ * `accounts.signUp.strengthScore0..4`). The components fill `{age}`, `{n}`, `{size}` and `{time}` themselves, so those
  * placeholders are handed back verbatim.
  */
 import {
@@ -13,7 +13,7 @@ import {
 
 export type Translate = (key: string, params?: Record<string, unknown>) => string;
 
-const KEEP = { age: '{age}', n: '{n}', time: '{time}' };
+const KEEP = { age: '{age}', n: '{n}', size: '{size}', time: '{time}' };
 
 function map<L extends object>(defaults: L, prefix: string, t: Translate): L {
   const out: Record<string, unknown> = {};

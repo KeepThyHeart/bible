@@ -80,6 +80,16 @@ describe('SyncApiClient routes', () => {
     for (const call of calls) expect(call.init.redirect).toBe('error');
   });
 
+  it('info keeps a valid maxRecordBytes and drops an invalid one', async () => {
+    const base = { apiVersion: 1, signupOpen: true, quotaBytes: 1, minKdf: { m: 1, t: 1 }, minAge: 13 };
+    const ask = async (extra: Record<string, unknown>) => client(() => json({ ...base, ...extra })).c.info();
+    expect((await ask({ maxRecordBytes: 2 * 1024 * 1024 + 64 })).maxRecordBytes).toBe(2 * 1024 * 1024 + 64);
+    expect((await ask({})).maxRecordBytes).toBeUndefined();
+    for (const bad of [0, -5, 1.5, 100, 17 * 1024 * 1024 + 64, '1048640', null]) {
+      expect((await ask({ maxRecordBytes: bad })).maxRecordBytes, String(bad)).toBeUndefined();
+    }
+  });
+
   it('cookie auth sends credentials: include and no Authorization; bearer sends the token and omits cookies', async () => {
     const cookie = client(() => json({ kdf: KDF }));
     await cookie.c.prelogin({ email: 'x' });

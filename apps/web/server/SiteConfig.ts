@@ -142,6 +142,8 @@ interface AccountsBlockConfig {
   publicUrl?: string;
   signupOpen?: boolean;
   quotaMB?: number;
+  /** Largest note (record content) that syncs, in KiB (default 1024). */
+  maxRecordKB?: number;
   minAge?: number;
   termsUrl?: string;
   privacyUrl?: string;
@@ -169,6 +171,8 @@ export interface AccountsSettings {
   publicUrl: string;
   signupOpen: boolean;
   quotaBytes?: number;
+  /** Largest note that syncs, in KiB; range-checked when the sync server is built. */
+  maxRecordKB?: number;
   minAge?: number;
   termsUrl?: string;
   privacyUrl?: string;
@@ -384,6 +388,7 @@ export class SiteConfig {
       publicUrl: str(a.publicUrl) ?? '',
       signupOpen: a.signupOpen !== false,
       quotaBytes: typeof a.quotaMB === 'number' && a.quotaMB > 0 ? Math.floor(a.quotaMB * 1024 * 1024) : undefined,
+      maxRecordKB: typeof a.maxRecordKB === 'number' ? a.maxRecordKB : undefined,
       minAge: typeof a.minAge === 'number' && Number.isInteger(a.minAge) && a.minAge >= 0 ? a.minAge : undefined,
       termsUrl: str(a.termsUrl),
       privacyUrl: str(a.privacyUrl),

@@ -452,7 +452,7 @@
       "additionalProperties": false,
       "properties": {
         "trustProxy": {
-          "description": "Express 'trust proxy': true, a number of proxy hops, or a subnet list ('loopback, 10.0.0.0/8'). Makes req.ip the real client address behind a reverse proxy (rate limiting). Unset keeps the legacy behaviour (true); set false when the server is exposed directly.",
+          "description": "Express 'trust proxy': true, a number of proxy hops, or a subnet list ('loopback, 10.0.0.0/8'). Makes req.ip the real client address behind a reverse proxy (rate limiting). Unset: the TRUST_PROXY environment variable, else 'loopback'. Set false when the server is exposed directly. The accounts module requires an explicit value other than true.",
           "oneOf": [
             {
               "type": "boolean"
@@ -493,6 +493,13 @@
           "type": "number",
           "exclusiveMinimum": 0,
           "description": "Per-account storage quota in MB (default 50)."
+        },
+        "maxRecordKB": {
+          "type": "integer",
+          "minimum": 64,
+          "maximum": 16384,
+          "default": 1024,
+          "description": "Largest note that syncs, in KiB of note content (default 1024 = 1 MiB). Larger notes stay only on the device that has them, with a visible warning. Advertised to clients, so raising it needs no client update."
         },
         "minAge": {
           "type": "integer",

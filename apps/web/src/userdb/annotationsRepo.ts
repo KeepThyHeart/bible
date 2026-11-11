@@ -7,13 +7,19 @@
  * The core repositories are async or sync as they were written, so every method here returns a Promise.
  * The model classes are not in the browser barrel, so new rows are passed as plain objects (the repos read fields
  * only); an existing note comes from the repo itself. Retries on a leader handoff are safe: `setHighlight` replaces
- * same-range markup and `setBookmark(on)` is idempotent (`toggleBookmark` is kept for callers that cannot retry).
+ * same-range markup (in place) and `setBookmark(on)` is idempotent (`toggleBookmark` is kept for callers that cannot retry).
  * No side effects at module load.
  */
 import { UserRepositories, getBookName, normalizeMarkupColor, type Sync } from '@bible/core/browser';
 
-export interface HighlightDto { id: number; moduleId: number; start: number; end: number; color: string /* #RRGGBB */ }
-export interface NoteDto { id: number; start: number; end: number; title: string | null; content: string; modified: string }
+export interface HighlightDto { id: number; moduleId: number; start: number; end: number; color: string /* #RRGGBB */;
+  /** The row's created_date (identical on every synced device; used to pick a deterministic winner among duplicates). */
+  created: string }
+export interface NoteDto {
+  id: number; start: number; end: number; title: string | null; content: string; modified: string;
+  /** The note is the loser copy of an offline-edit conflict (metadata `conflictOf`). */
+  conflict: boolean;
+}
 export interface BookmarkDto { id: number; start: number; end: number; title: string | null }
 export interface ChapterAnnotations { highlights: HighlightDto[]; notes: NoteDto[]; bookmarks: BookmarkDto[] }
 
@@ -33,19 +39,47 @@ export interface AnnotationsRepo {
   listBookmarks(): Promise<BookmarkDto[]>;
 }
 
-interface MarkupLike { markupId?: number; moduleId: number; verseIdStart: number; verseIdEnd?: number | null; textStart?: number | null; color: string }
-interface NoteLike { noteId?: number; verseIdStart?: number; verseIdEnd?: number | null; title?: string; content: string; modifiedDate?: string; noteType: string }
+interface MarkupLike { markupId?: number; moduleId: number; verseIdStart: number; verseIdEnd?: number | null; textStart?: number | null; color: string; createdDate?: string; metadata?: Record<string, unknown> | null }
+interface NoteLike { noteId?: number; verseIdStart?: number; verseIdEnd?: number | null; title?: string; content: string; modifiedDate?: string; noteType: string; metadata?: unknown }
 interface PinLike { pinId?: number; verseIdStart?: number; verseIdEnd?: number | null; title?: string }
 
 const endOf = (start: number, end: number | null | undefined): number => end ?? start;
 const overlaps = (aStart: number, aEnd: number, bStart: number, bEnd: number): boolean => aStart <= bEnd && aEnd >= bStart;
 
+/**
+ * The ONE ordering of same-verse highlights, used by the repo (which row `setHighlight` keeps) and by the display
+ * (`modules/annotations/highlightOrder.ts`): created date, then colour, then the local id as the last tie-break.
+ * The LAST in this order wins. Created date has one-second resolution, so colour breaks ties identically on every
+ * device; the sync record id is not read here (acceptable: two rows with the same second AND colour are equivalent).
+ */
+export function compareHighlightKeys(
+  a: { created?: string; color: string; id: number },
+  b: { created?: string; color: string; id: number },
+): number {
+  const ca = a.created ?? '';
+  const cb = b.created ?? '';
+  if (ca !== cb) return ca < cb ? -1 : 1;
+  const ka = normalizeMarkupColor(a.color);
+  const kb = normalizeMarkupColor(b.color);
+  if (ka !== kb) return ka < kb ? -1 : 1;
+  return a.id - b.id;
+}
+
 function toHighlight(m: MarkupLike): HighlightDto {
-  return { id: m.markupId!, moduleId: m.moduleId, start: m.verseIdStart, end: endOf(m.verseIdStart, m.verseIdEnd), color: normalizeMarkupColor(m.color) };
+  return { id: m.markupId!, moduleId: m.moduleId, start: m.verseIdStart, end: endOf(m.verseIdStart, m.verseIdEnd), color: normalizeMarkupColor(m.color), created: m.createdDate ?? '' };
+}
+/** Metadata may be an object or a JSON string; anything unreadable counts as no conflict. */
+function isConflictCopy(metadata: unknown): boolean {
+  try {
+    const meta = typeof metadata === 'string' ? JSON.parse(metadata) : metadata;
+    return meta != null && typeof meta === 'object' && !Array.isArray(meta) && (meta as Record<string, unknown>).conflictOf != null;
+  } catch {
+    return false;
+  }
 }
 function toNote(n: NoteLike): NoteDto {
   const start = n.verseIdStart!;
-  return { id: n.noteId!, start, end: endOf(start, n.verseIdEnd), title: n.title ?? null, content: n.content, modified: n.modifiedDate ?? '' };
+  return { id: n.noteId!, start, end: endOf(start, n.verseIdEnd), title: n.title ?? null, content: n.content, modified: n.modifiedDate ?? '', conflict: isConflictCopy(n.metadata) };
 }
 function toBookmark(p: PinLike): BookmarkDto {
   const start = p.verseIdStart!;
@@ -88,9 +122,23 @@ export function createAnnotationsRepo(sql: Sync.ISql): AnnotationsRepo {
 
     async setHighlight({ moduleId, start, end, color }) {
       const old = await sameRangeMarkup(moduleId, start, end);
-      const row = { moduleId, verseIdStart: start, verseIdEnd: end, color: normalizeMarkupColor(color), metadata: { markupType: 'highlight' } };
+      const hex = normalizeMarkupColor(color);
+      if (old.length > 0) {
+        // Keeper = the last row in the shared display order, picked BEFORE recolouring so every device that sees the
+        // same rows keeps the same one. Update it in place first (keeps its sync record id), and only then delete
+        // the others: a failure in between leaves duplicates, never a lost highlight.
+        const ordered = [...old]
+          .map((m) => ({ m, k: { created: m.createdDate, color: m.color, id: m.markupId! } }))
+          .sort((a, b) => compareHighlightKeys(a.k, b.k))
+          .map((x) => x.m);
+        const keep = ordered[ordered.length - 1];
+        keep.color = hex;
+        await markup.update(keep as never);
+        for (const m of ordered.slice(0, -1)) await markup.delete(m.markupId!);
+        return toHighlight(keep);
+      }
+      const row = { moduleId, verseIdStart: start, verseIdEnd: end, color: hex, metadata: { markupType: 'highlight' } };
       const created = (await markup.create(row as never)) as unknown as MarkupLike;
-      for (const m of old) await markup.delete(m.markupId!);
       return toHighlight(created);
     },
 

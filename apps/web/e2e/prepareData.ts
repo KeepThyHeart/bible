@@ -119,6 +119,29 @@ function snapshotRegistry(sourceDb: string, destDb: string): void {
 
 
 /**
+ * Data directory for the accounts server (flags `localUserDb` + `accounts` on): a private copy of the
+ * registry (`main.db`, the module paths resolve against `base.modulesDir`) and a site-config.json that is
+ * the e2e fixture config plus those flags. The server writes into it, so it is never shared with the
+ * other servers. Only the main process (re)creates it; workers load the config too while the server runs.
+ */
+export function prepareAccountsData(base: E2eDataPaths, accountsDir: string, publicUrl: string): string {
+  const main = join(accountsDir, 'main.db');
+  // A reused server (PW_REUSE_SERVER=1) is still running on this dir: never delete it under it (R3 L-5).
+  const reused = process.env.PW_REUSE_SERVER === '1' && existsSync(main);
+  if (!reused && (!process.env.TEST_WORKER_INDEX || !existsSync(main))) {
+    rmSync(accountsDir, { recursive: true, force: true });
+    mkdirSync(accountsDir, { recursive: true });
+    snapshotRegistry(join(base.dataDir, 'main.db'), main);
+    const cfg = JSON.parse(readFileSync(join(packageRoot, 'e2e', 'fixtures', 'site-config.json'), 'utf-8')) as Record<string, any>;
+    cfg.features = { ...cfg.features, localUserDb: true, accounts: true };
+    cfg.server = { ...cfg.server, trustProxy: false };
+    cfg.accounts = { publicUrl, signupOpen: true, minAge: 16, email: { kind: 'console' } };
+    writeFileSync(join(accountsDir, 'site-config.json'), JSON.stringify(cfg, null, 2));
+  }
+  return accountsDir;
+}
+
+/**
  * Assemble `e2e/.data` and return the paths the server should be given.
  * Throws with a fixable message rather than letting the run fail later as a
  * wall of selector timeouts.

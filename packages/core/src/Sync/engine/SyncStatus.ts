@@ -5,6 +5,11 @@ import type { ApiErrorCode } from '../api';
 export interface SyncStatus {
   state: 'signed-out' | 'locked' | 'idle' | 'syncing' | 'offline' | 'error';
   accountEmail?: string; lastSyncedAt?: string; pending: number; opaque: number;
+  /**
+   * Rows skipped as too large this session (they stay on this device only); kept while those rows remain failed,
+   * cleared when a row is edited smaller / succeeds. Absent when none. `tooLargeLimit` is the max note content in bytes.
+   */
+  tooLarge?: number; tooLargeLimit?: number;
   error?: { code: ApiErrorCode | 'crypto' | 'network' | 'internal'; message: string };
 }
 export interface SyncStatusStore extends ReadableStore<SyncStatus> { set(patch: Partial<SyncStatus>): void }

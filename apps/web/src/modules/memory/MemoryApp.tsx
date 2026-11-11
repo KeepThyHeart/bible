@@ -12,6 +12,7 @@ import { bibleStore } from '../../stores/bibleStore';
 import { formatPassageRef } from '../../constants';
 import { onJustAdded, takeJustAdded } from './justAdded';
 import { getWebMemoryApi } from './webMemoryApi';
+import { loadMemoryTranslator } from './memoryT';
 
 /** The reader's current reference ("John 3:16"), or null before a chapter is open. */
 export function activeReference(): string | null {
@@ -22,7 +23,8 @@ export function activeReference(): string | null {
 }
 
 export function MemoryApp() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const locale = i18n.resolvedLanguage || i18n.language || 'en';
   const headingId = useId();
   const hostRef = useRef<HTMLDivElement>(null);
   const [failed, setFailed] = useState(false);
@@ -31,22 +33,39 @@ export function MemoryApp() {
     const container = hostRef.current;
     if (!container) return;
     let handle: MemoryUiHandle | undefined;
-    try {
-      const { api, subscribe } = getWebMemoryApi();
-      handle = mountMemoryUi(container, { api, subscribe, activeReference: activeReference(), justAdded: takeJustAdded() });
-    } catch (e) {
-      console.warn('[memory] could not start:', e);
-      setFailed(true);
-      return;
-    }
-    const off = bibleStore.subscribe(() => handle?.setActiveReference(activeReference()));
-    const offAdded = onJustAdded((added) => handle?.offerPractice(added));
+    let off: (() => void) | undefined;
+    let offAdded: (() => void) | undefined;
+    let cancelled = false;
+    // Mount once the UI language's catalog is in (English: at once); a language change re-mounts.
+    // "Just added" is taken and listened for only after the mount, so an add made while the
+    // catalog loads stays pending and reaches this mount instead of being lost.
+    void loadMemoryTranslator(locale).then((memoryT) => {
+      if (cancelled) return;
+      try {
+        const { api, subscribe } = getWebMemoryApi();
+        handle = mountMemoryUi(container, {
+          api,
+          subscribe,
+          activeReference: activeReference(),
+          justAdded: takeJustAdded(),
+          t: memoryT,
+          locale,
+        });
+      } catch (e) {
+        console.warn('[memory] could not start:', e);
+        setFailed(true);
+        return;
+      }
+      off = bibleStore.subscribe(() => handle?.setActiveReference(activeReference()));
+      offAdded = onJustAdded((added) => handle?.offerPractice(added));
+    });
     return () => {
-      off();
-      offAdded();
+      cancelled = true;
+      off?.();
+      offAdded?.();
       handle?.dispose();
     };
-  }, []);
+  }, [locale]);
 
   return (
     <section class="memory-app" data-app="memory" aria-labelledby={headingId}>

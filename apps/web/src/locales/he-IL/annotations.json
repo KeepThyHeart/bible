@@ -28,12 +28,18 @@
       "cancel": "ביטול",
       "delete": "מחיקת הערה",
       "deleteConfirm": "מחיקה",
-      "confirmDelete": "למחוק את ההערה? לא ניתן לבטל פעולה זו."
+      "confirmDelete": "למחוק את ההערה? לא ניתן לבטל פעולה זו.",
+      "previous": "הערה קודמת",
+      "next": "הערה הבאה",
+      "position": "הערה {n} מתוך {total}",
+      "conflict": "עותק סותר ממכשיר אחר",
+      "unsavedSwitch": "שמרו או בטלו את השינויים לפני המעבר בין הערות."
     },
     "mark": {
       "editNote": "עריכת הערה",
       "editNoteTitled": "עריכת הערה: {title}",
-      "bookmarked": "מסומן בסימנייה"
+      "bookmarked": "מסומן בסימנייה",
+      "editNotes": "עריכת הערות ({count})"
     }
   }
 }

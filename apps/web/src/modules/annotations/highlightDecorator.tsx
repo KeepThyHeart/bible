@@ -21,6 +21,7 @@ function classesFor(color: string): readonly string[] {
 export function AnnotationMarks({ verseId, data }: { verseId: number; data: VerseAnnotations }) {
   const { t } = useTranslation();
   const note = data.notes[0];
+  const count = data.notes.length;
   return (
     <span class="kth-annot-marks">
       {note && (
@@ -28,13 +29,14 @@ export function AnnotationMarks({ verseId, data }: { verseId: number; data: Vers
           type="button"
           class="kth-annot-mark kth-annot-mark--note"
           title={note.title ? t('annotations.mark.editNoteTitled', { title: note.title }) : t('annotations.mark.editNote')}
-          aria-label={t('annotations.mark.editNote')}
+          aria-label={count > 1 ? t('annotations.mark.editNotes', { count }) : t('annotations.mark.editNote')}
           onClick={(e) => {
             e.stopPropagation();
-            annotationUi.openNote({ start: note.start, end: note.end, reference: formatVerseRange(note.start, note.end), note });
+            annotationUi.openNote({ start: note.start, end: note.end, reference: formatVerseRange(note.start, note.end), note, notes: count > 1 ? data.notes : undefined });
           }}
         >
           <i class="fa-solid fa-note-sticky" aria-hidden="true" />
+          {count > 1 && <span class="kth-annot-mark__count" aria-hidden="true">{count}</span>}
         </button>
       )}
       {data.bookmark && (

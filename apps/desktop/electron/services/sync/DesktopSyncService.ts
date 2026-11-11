@@ -28,6 +28,21 @@ import { createLocalChangePoller, type SchedulerTimers } from './scheduler';
 import type { SyncSettingsStore } from './syncSettings';
 import { normalizeServerUrl } from './syncSettings';
 
+/** R1 M1: wait briefly for the server's advertised record limit before the first sync, so it runs under that limit. */
+const INFO_WAIT_MS = 5000;
+export async function applyServerLimit(info: () => Promise<{ maxRecordBytes?: number }>, cipher: { setMaxRecordBytes(n: number): void }, waitMs = INFO_WAIT_MS): Promise<void> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    const i = await Promise.race([
+      info(),
+      new Promise<null>((resolve) => { timer = setTimeout(() => resolve(null), waitMs); }),
+    ]);
+    if (i && i.maxRecordBytes !== undefined) cipher.setMaxRecordBytes(i.maxRecordBytes);
+  } catch { /* keep the default */ } finally {
+    if (timer !== undefined) clearTimeout(timer);
+  }
+}
+
 export interface DesktopSyncLog {
   info(...args: unknown[]): void;
   warn(...args: unknown[]): void;
@@ -200,9 +215,12 @@ export class DesktopSyncService {
   private bundle: ClientBundle | null = null;
   private tracker: Sync.ChangeTracker | null = null;
   private engine: Sync.SyncEngine | null = null;
+  private cipher: Sync.RecordCipher | null = null;
   private stopPoll: (() => void) | null = null;
   private paused = false;
   private closed = false;
+  /** A key rotation asked for every record to be re-encrypted; drained once the engine runs. */
+  private pendingReencrypt = false;
   private readonly bnWarnings = new Map<string, { path: string; reason: string }>();
 
   constructor(private readonly d: DesktopSyncDeps) {
@@ -292,10 +310,16 @@ export class DesktopSyncService {
     const bn = this.makeBnAdapter(tracker);
     const bundle = this.client();
     const email = this.status.getSnapshot().accountEmail ?? settings.email ?? undefined;
+    const cipher = Sync.createRecordCipher(u, this.d.random);
+    this.cipher = cipher;
+    // The server advertises its record limit in info: wait briefly for it so the first run uses it (default on timeout);
+    // the engine also retries rows skipped as too large once the limit is raised.
+    await applyServerLimit(() => bundle.api.info(), cipher);
+    if (this.cipher !== cipher || this.closed) return; // signed out / replaced / app closing while waiting
     const engine = new Sync.SyncEngine({
       sql: db, tracker,
       codecs: Sync.createCodecRegistry(Sync.createCoreCodecs({ extKvSyncs: (id) => this.d.extKvSyncs?.(id) ?? false })),
-      cipher: Sync.createRecordCipher(u, this.d.random), transport: bundle.api.transport(), unlocked: u,
+      cipher, transport: bundle.api.transport(), unlocked: u,
       hlc: Sync.createHlc(settings.deviceId, tracker.state.get('hlc_last') as Sync.HlcString | undefined),
       status: this.status, modules: this.d.moduleResolver, adapters: [bn],
       pageSize: this.d.pageSize ?? DEFAULT_PAGE_SIZE, now: this.d.now, random: this.d.random,
@@ -305,13 +329,19 @@ export class DesktopSyncService {
     this.engine = engine;
     this.d.settings.update({ signedIn: true, email: email ?? null });
     if (email) this.status.set({ accountEmail: email });
-    this.paused = false;
-    this.startEngine();
-    if (bundle.account.consumeReencrypt()) void engine.reencryptAll().catch((err: unknown) => this.d.log.warn('[accounts] re-encrypt failed', errName(err)));
+    // A key rotation asks for a re-encrypt once; keep the request until the engine actually runs (R3 M-1).
+    if (bundle.account.consumeReencrypt()) this.pendingReencrypt = true;
+    if (this.paused) {
+      // A backup restore is in progress (paused before or during the wait): leave the engine stopped; resume() starts it.
+    } else {
+      this.startEngine();
+      this.drainReencrypt();
+    }
   }
 
   private async onSignedOut(): Promise<void> {
     this.stopEngine();
+    this.pendingReencrypt = false;
     let tracker = this.tracker;
     this.tracker = null;
     try {
@@ -337,6 +367,7 @@ export class DesktopSyncService {
       },
       stateFile: this.d.bnStateFile,
       onFilesChanged: (c) => { try { this.d.onFilesChanged?.(c); } catch { /* host callback */ } },
+      maxRecordJson: () => this.cipher?.maxJson ?? 1024 * 1024 - 4,
     });
     const collect = bn.collect?.bind(bn);
     if (collect) {
@@ -401,6 +432,14 @@ export class DesktopSyncService {
     if (this.closed || !this.engine) return;
     this.startEngine();
     this.engine.notifyLocalChange();
+    this.drainReencrypt();
+  }
+
+  private drainReencrypt(): void {
+    const engine = this.engine;
+    if (!this.pendingReencrypt || !engine) return;
+    this.pendingReencrypt = false;
+    void engine.reencryptAll().catch((err: unknown) => this.d.log.warn('[accounts] re-encrypt failed', errName(err)));
   }
 
   private waitNotSyncing(timeoutMs: number): Promise<void> {
@@ -443,6 +482,7 @@ export class DesktopSyncService {
     if (stored.serverUrl !== '' && settings.networkAllowed) {
       const { api, account: client } = this.client();
       try { server = await api.info(); } catch { server = null; }
+      if (server?.maxRecordBytes !== undefined) this.cipher?.setMaxRecordBytes(server.maxRecordBytes);
       if (stored.signedIn && client.unlocked) {
         try { account = await api.account(); } catch { account = null; }
       }

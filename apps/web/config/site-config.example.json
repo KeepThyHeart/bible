@@ -24,6 +24,7 @@
     "publicUrl": "https://bible.example.org",
     "signupOpen": true,
     "quotaMB": 50,
+    "maxRecordKB": 1024,
     "minAge": 16,
     "termsUrl": "",
     "privacyUrl": "",

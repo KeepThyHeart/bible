@@ -4,7 +4,7 @@ import type { ComponentChildren } from 'preact';
 
 vi.mock('react-i18next', () => ({
   initReactI18next: { type: '3rdParty', init: vi.fn() },
-  useTranslation: () => ({ t: (key: string) => key, i18n: { language: 'en' } }),
+  useTranslation: () => ({ t: (key: string, o?: Record<string, unknown>) => (o?.count ? `${key}:${o.count}` : key), i18n: { language: 'en' } }),
 }));
 vi.mock('../../utils/verseId', () => ({ formatVerseRange: (a: number) => `ref${a}` }));
 
@@ -27,8 +27,8 @@ describe('highlight decorator', () => {
 
   it('adds tint classes from the palette name, custom colours get the neutral class', () => {
     const d = createHighlightDecorator(storeWith({
-      1: { highlight: { id: 1, moduleId: 1, start: 1, end: 1, color: '#B7E4C7' }, notes: [] },
-      2: { highlight: { id: 2, moduleId: 1, start: 2, end: 2, color: '#123456' }, notes: [] },
+      1: { highlight: { id: 1, moduleId: 1, start: 1, end: 1, color: '#B7E4C7', created: '' }, notes: [] },
+      2: { highlight: { id: 2, moduleId: 1, start: 2, end: 2, color: '#123456', created: '' }, notes: [] },
     }));
     expect(d(ctx(1))).toEqual({ classes: ['kth-annot-hl', 'kth-annot-hl--green'] });
     expect(d(ctx(2))).toEqual({ classes: ['kth-annot-hl', 'kth-annot-hl--custom'] });
@@ -36,7 +36,7 @@ describe('highlight decorator', () => {
   });
 
   it('renders note and bookmark marks in the rail; the note mark opens the editor without selecting the verse', () => {
-    const note = { id: 4, start: 5, end: 5, title: 'Tit', content: '<p>c</p>', modified: 'm' };
+    const note = { id: 4, start: 5, end: 5, title: 'Tit', content: '<p>c</p>', modified: 'm', conflict: false };
     const d = createHighlightDecorator(storeWith({ 5: { notes: [note], bookmark: { id: 8, start: 5, end: 5, title: null } } }));
     const out = d(ctx(5))!;
     expect(out.classes).toBeUndefined();
@@ -45,7 +45,7 @@ describe('highlight decorator', () => {
     expect(screen.getByRole('img', { name: 'annotations.mark.bookmarked' })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'annotations.mark.editNote' }));
     expect(onVerseClick).not.toHaveBeenCalled();
-    expect(annotationUi.note).toEqual({ start: 5, end: 5, reference: 'ref5', note });
+    expect(annotationUi.note).toEqual({ start: 5, end: 5, reference: 'ref5', note, notes: undefined });
   });
 
   it('shows only the bookmark mark when there is no note', () => {
@@ -53,5 +53,16 @@ describe('highlight decorator', () => {
     render(<div>{d(ctx(5))!.rail as ComponentChildren}</div>);
     expect(screen.queryByRole('button')).toBeNull();
     expect(screen.getByRole('img')).toBeTruthy();
+  });
+
+  it('with several notes the mark shows the count, labels it, and opens the dialog with all of them', () => {
+    const n1 = { id: 4, start: 5, end: 5, title: null, content: '<p>new</p>', modified: 'b', conflict: false };
+    const n2 = { id: 3, start: 5, end: 5, title: null, content: '<p>old</p>', modified: 'a', conflict: true };
+    const d = createHighlightDecorator(storeWith({ 5: { notes: [n1, n2] } }));
+    render(<div>{d(ctx(5))!.rail as ComponentChildren}</div>);
+    const btn = screen.getByRole('button', { name: 'annotations.mark.editNotes:2' });
+    expect(btn.textContent).toBe('2');
+    fireEvent.click(btn);
+    expect(annotationUi.note).toMatchObject({ note: n1, notes: [n1, n2] });
   });
 });

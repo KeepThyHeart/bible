@@ -6,6 +6,7 @@ import type { AesKey } from '../../Crypto/aesGcm';
 import type { RandomSource } from '../../Crypto';
 import type { RecordId, RecordPlaintext } from '../types';
 import type { UnlockedAccount } from './keys';
+import { LIMITS, isValidMaxRecordBytes } from '../api';
 import { NONCE_LEN, TAG_LEN, checkKey32, id16, readU32be, u32be } from './internal';
 import { LABELS } from './labels';
 
@@ -13,12 +14,26 @@ import { LABELS } from './labels';
  * blob = 0x01 | u32be(epoch) | nonce(12) | AES-256-GCM(dataKey[epoch], padded, aad) (ct || tag16)
  * aad  = utf8("kth-rec-v1") || version(1 B, = blob[0]) || accountId(16 B) || recordId(16 B) || u32be(epoch)
  * padded = u32be(len(json)) || json || 0x00.. up to the next multiple of 1024 (json <= 64 KiB) or 16384 (larger)
- * Max plaintext json 1 MiB - 4 (RecordTooLargeError above).
+ * Max plaintext json: by default 1 MiB - 4 (RecordTooLargeError above); the server advertises its own blob limit
+ * (`InfoResponse.maxRecordBytes`) and the cipher follows it (`maxJsonFor`). The bucket rule simply continues past
+ * 1 MiB. Larger notes than any limit would need a chunked format: that is envelope version 2 (not built; the version
+ * byte is the route to it).
  *
  * The version byte is bound into the AAD (0150 W1-B) so a future envelope version can never be replayed as v1.
  */
 export const RECORD_BLOB_VERSION = 1;
+/** Default max json (for the default blob limit `LIMITS.maxRecordBytes`). */
 export const MAX_RECORD_JSON = 1024 * 1024 - 4;
+const BLOB_OVERHEAD = 1 + 4 + NONCE_LEN + TAG_LEN;   // 33
+
+/** Largest valid padded length that fits a blob of at most `maxRecordBytes` (same bucket rule: 16384-multiples above 64 KiB). */
+export function maxPaddedFor(maxRecordBytes: number): number {
+  return Math.floor((maxRecordBytes - BLOB_OVERHEAD) / LARGE_BUCKET) * LARGE_BUCKET;
+}
+/** Largest plaintext json whose padded blob fits `maxRecordBytes`. Default limit gives exactly MAX_RECORD_JSON. */
+export function maxJsonFor(maxRecordBytes: number): number {
+  return maxPaddedFor(maxRecordBytes) - 4;
+}
 
 export class RecordTooLargeError extends Error {}
 /** Blob version or epoch this client cannot read (keep the record opaque; do not treat as damage). */
@@ -36,6 +51,10 @@ export interface RecordCipher {
    * below it; a key rotation (new epoch) resets it.
    */
   readonly sealsThisEpoch: number;
+  /** Current max plaintext json in bytes (follows the server's advertised record limit). */
+  readonly maxJson: number;
+  /** Set the max sealed-blob size (from `InfoResponse.maxRecordBytes`); invalid values are ignored. */
+  setMaxRecordBytes(maxRecordBytes: number): void;
 }
 
 const HEADER_LEN = 1 + 4 + NONCE_LEN;
@@ -89,12 +108,14 @@ function parsePlaintext(json: Uint8Array): RecordPlaintext {
   return o as unknown as RecordPlaintext;
 }
 
-export function createRecordCipher(u: UnlockedAccount, random?: RandomSource): RecordCipher {
+export function createRecordCipher(u: UnlockedAccount, random?: RandomSource,
+  opts?: { maxRecordBytes?: number }): RecordCipher {
   const rnd = random ?? defaultRandom;
   const acct = id16(u.accountId, 'account id');
   const keys = new Map<number, Promise<AesKey>>();
   let seals = 0;
   let sealEpoch = u.currentEpoch;
+  let maxJson = maxJsonFor(isValidMaxRecordBytes(opts?.maxRecordBytes) ? opts.maxRecordBytes : LIMITS.maxRecordBytes);
 
   const keyFor = (epoch: number): Promise<AesKey> | null => {
     let k = keys.get(epoch);
@@ -113,11 +134,19 @@ export function createRecordCipher(u: UnlockedAccount, random?: RandomSource): R
       return sealEpoch === u.currentEpoch ? seals : 0;
     },
 
+    get maxJson() {
+      return maxJson;
+    },
+
+    setMaxRecordBytes(n: number): void {
+      if (isValidMaxRecordBytes(n)) maxJson = maxJsonFor(n);
+    },
+
     async seal(id: RecordId, pt: RecordPlaintext): Promise<Uint8Array> {
       const rid = id16(id, 'record id');
       const epoch = u.currentEpoch;
       const json = utf8Encode(JSON.stringify(pt));
-      if (json.length > MAX_RECORD_JSON) throw new RecordTooLargeError(`Record is ${json.length} bytes; the limit is ${MAX_RECORD_JSON}`);
+      if (json.length > maxJson) throw new RecordTooLargeError(`Record is ${json.length} bytes; the limit is ${maxJson}`);
       const key = keyFor(epoch);
       if (!key) throw new UnknownEpochError('No data key for the current epoch');
       const nonce = rnd.bytes(NONCE_LEN);

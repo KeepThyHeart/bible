@@ -128,6 +128,14 @@ export class UserDbClient {
     });
   }
 
+  /** The full privacy export from the worker DB (plain `.zip`, or encrypted `.bbk` with a password). */
+  exportBackup(password?: string): Promise<{ bytes: Uint8Array; extension: 'zip' | 'bbk' }> {
+    const req: UserDbRequest = password
+      ? { op: 'backup', action: 'exportEncrypted', password }
+      : { op: 'backup', action: 'exportPlain' };
+    return this.node.request(req) as Promise<{ bytes: Uint8Array; extension: 'zip' | 'bbk' }>;
+  }
+
   wipe(): Promise<void> {
     return this.node.request({ op: 'wipe' }).then(() => undefined);
   }

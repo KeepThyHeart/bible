@@ -3,7 +3,7 @@ import { render, screen, fireEvent, waitFor, cleanup, act } from '@testing-libra
 
 vi.mock('react-i18next', () => ({
   initReactI18next: { type: '3rdParty', init: vi.fn() },
-  useTranslation: () => ({ t: (key: string, o?: Record<string, string>) => (o?.reference ? `${key}:${o.reference}` : key), i18n: { language: 'en' } }),
+  useTranslation: () => ({ t: (key: string, o?: Record<string, string | number>) => (o?.reference ? `${key}:${o.reference}` : o?.total ? `${key}:${o.n}/${o.total}` : key), i18n: { language: 'en' } }),
 }));
 
 const store = vi.hoisted(() => ({
@@ -18,7 +18,7 @@ vi.mock('./instance', () => ({ annotationStore: store }));
 import { AnnotationOverlay } from './AnnotationOverlay';
 import { annotationUi } from './annotationUi';
 
-const note = { id: 9, start: 5, end: 5, title: 'T', content: '<p>a &lt;b&gt;</p><p>second</p>', modified: 'm' };
+const note = { id: 9, start: 5, end: 5, title: 'T', content: '<p>a &lt;b&gt;</p><p>second</p>', modified: 'm', conflict: false };
 
 beforeEach(() => {
   annotationUi.reset();
@@ -163,5 +163,68 @@ describe('toast', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+describe('several notes on one verse', () => {
+  const newer = { ...note, id: 10, title: 'Newer', content: '<p>from here</p>', modified: '2' };
+  const copy = { ...note, id: 11, title: 'Copy', content: '<p>other device</p>', modified: '1', conflict: true };
+
+  it('shows the position, switches between notes, labels the conflicted copy and edits the one shown', async () => {
+    render(<AnnotationOverlay />);
+    act(() => annotationUi.openNote({ start: 5, end: 5, reference: 'r', note: newer, notes: [newer, copy] }));
+    const text = (await screen.findByLabelText('annotations.note.textLabel')) as HTMLTextAreaElement;
+    expect(screen.getByText('annotations.note.position:1/2')).toBeTruthy();
+    expect(screen.queryByText('annotations.note.conflict')).toBeNull();
+    expect(text.value).toBe('from here');
+    fireEvent.click(screen.getByRole('button', { name: 'annotations.note.next' }));
+    expect(screen.getByText('annotations.note.position:2/2')).toBeTruthy();
+    expect(screen.getByText('annotations.note.conflict')).toBeTruthy();
+    expect(text.value).toBe('other device');
+    fireEvent.click(screen.getByRole('button', { name: 'annotations.note.save' }));
+    await waitFor(() => expect(store.saveNote).toHaveBeenCalledWith(expect.objectContaining({ id: 11, content: '<p>other device</p>' })));
+  });
+
+  it('disables prev/next with a hint while the current note has unsaved edits', async () => {
+    render(<AnnotationOverlay />);
+    act(() => annotationUi.openNote({ start: 5, end: 5, reference: 'r', note: newer, notes: [newer, copy] }));
+    const text = (await screen.findByLabelText('annotations.note.textLabel')) as HTMLTextAreaElement;
+    const next = screen.getByRole('button', { name: 'annotations.note.next' }) as HTMLButtonElement;
+    expect(next.disabled).toBe(false);
+    expect(screen.queryByText('annotations.note.unsavedSwitch')).toBeNull();
+    fireEvent.input(text, { target: { value: 'edited' } });
+    await waitFor(() => expect(next.disabled).toBe(true));
+    expect((screen.getByRole('button', { name: 'annotations.note.previous' }) as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.getByText('annotations.note.unsavedSwitch')).toBeTruthy();
+    fireEvent.click(next);
+    expect(text.value).toBe('edited');
+  });
+
+  it('saving a note that a sync pull deleted shows the error state instead of crashing', async () => {
+    store.saveNote.mockRejectedValue(new Error('Note not found'));
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    render(<AnnotationOverlay />);
+    act(() => annotationUi.openNote({ start: 5, end: 5, reference: 'r', note: newer, notes: [newer, copy] }));
+    await screen.findByLabelText('annotations.note.textLabel');
+    fireEvent.click(screen.getByRole('button', { name: 'annotations.note.save' }));
+    expect((await screen.findByRole('alert')).textContent).toBe('annotations.error');
+    expect(annotationUi.note).not.toBeNull();
+  });
+
+  it('deleting removes the note on screen, not the first one', async () => {
+    render(<AnnotationOverlay />);
+    act(() => annotationUi.openNote({ start: 5, end: 5, reference: 'r', note: newer, notes: [newer, copy] }));
+    await screen.findByLabelText('annotations.note.textLabel');
+    fireEvent.click(screen.getByRole('button', { name: 'annotations.note.previous' })); // wraps to the last
+    fireEvent.click(screen.getByText('annotations.note.delete'));
+    fireEvent.click(screen.getByText('annotations.note.deleteConfirm'));
+    await waitFor(() => expect(store.deleteNote).toHaveBeenCalledWith(11));
+  });
+
+  it('a single note shows no switcher', async () => {
+    render(<AnnotationOverlay />);
+    act(() => annotationUi.openNote({ start: 5, end: 5, reference: 'r', note }));
+    await screen.findByLabelText('annotations.note.textLabel');
+    expect(screen.queryByRole('button', { name: 'annotations.note.next' })).toBeNull();
   });
 });

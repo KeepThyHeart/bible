@@ -43,7 +43,7 @@ Optional accounts with end-to-end encrypted sync of personal content (notes, hig
 
 `accounts` is off by default and `requires` `localUserDb` (declared in `packages/core/src/Settings/FeatureFlags.ts`), so both must be on. With the flag off the module registers nothing and no sync code is loaded.
 
-- **Main process:** the `KTH_FLAGS` environment variable, for example `KTH_FLAGS=localUserDb,accounts`. Ignored in a packaged app (`electron/modules/mainModules.ts`).
+- **Main process:** `VITE_KTH_FLAGS=localUserDb,accounts` at build time bakes the flags in (`__BIBLE_BUILD_FLAGS__` in `electron.vite.config.ts`; packaged builds too), and in a development run the `KTH_FLAGS` environment variable, for example `KTH_FLAGS=localUserDb,accounts` (ignored in a packaged app; `electron/modules/mainModules.ts`). So one `VITE_KTH_FLAGS` build switches both processes on for a test build.
 - **Renderer:** `VITE_KTH_FLAGS=localUserDb,accounts` baked into a demo or e2e build, or in a development build `localStorage['kth.flags'] = 'localUserDb,accounts'` (`src/ui/settings/featureFlags.ts`). Dev overrides are ignored in production builds.
 
 Enable both sides, or the renderer shows no section while the main process serves it (or the reverse).

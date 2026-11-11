@@ -18,6 +18,8 @@ export interface NoteDialogState {
   /** Localised reference, shown in the title. */
   reference: string;
   note: NoteDto | null;
+  /** Every note on the verse, newest first, when there are several (offline-edit conflicts leave extra copies). */
+  notes?: readonly NoteDto[];
 }
 
 export class AnnotationUi extends Store {

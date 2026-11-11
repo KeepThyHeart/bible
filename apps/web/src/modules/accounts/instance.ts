@@ -28,7 +28,10 @@ export const accountStore = new AccountStore({
   },
   saveFile: saveTextFile,
   backup: async (password) => {
-    const { downloadBackup } = await import('../../userdata/backupFiles');
-    return downloadBackup({ password });
+    const [{ downloadWorkerBackup }, { getUserDbClient }] = await Promise.all([
+      import('../../userdata/backupFiles'),
+      import('../../userdb/client'),
+    ]);
+    return downloadWorkerBackup(await getUserDbClient(), { password });
   },
 });

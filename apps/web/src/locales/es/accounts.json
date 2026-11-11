@@ -71,6 +71,7 @@
       "never": "Nunca",
       "pending": "{n} cambios esperando sincronizarse",
       "opaque": "{n} elementos de una versión más reciente se guardan de forma segura pero no se muestran aquí.",
+      "tooLarge": "{n} notas son demasiado grandes para sincronizarse (más de {size}) y se quedan solo en este dispositivo.",
       "devices": "Dispositivos",
       "thisDevice": "Este dispositivo",
       "lastSeen": "Visto por última vez",
@@ -109,7 +110,7 @@
       "deleteConfirm": "Eliminar mi cuenta de forma permanente",
       "deleteAccount": "Eliminar cuenta...",
       "busy": "Procesando...",
-      "exportPartial": "Ambos botones de copia descargan la copia de los datos guardados en este navegador. Más adelante llegará una copia completa que incluya tus datos sincronizados."
+      "exportPartial": "Ambas exportaciones contienen todo lo guardado en este navegador: resaltados, notas, marcadores, Memoria y tus datos de lectura. Cualquiera que tenga la exportación legible puede leerla; la copia cifrada necesita tu contraseña."
     },
     "syncStatus": {
       "signedOut": "Sin sesión iniciada",

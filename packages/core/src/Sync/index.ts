@@ -19,7 +19,7 @@ export {
 } from './crypto/keys';
 export type { RecordCipher } from './crypto/RecordCipher';
 export {
-  RECORD_BLOB_VERSION, MAX_RECORD_JSON, RecordTooLargeError, UnknownEpochError, createRecordCipher,
+  RECORD_BLOB_VERSION, MAX_RECORD_JSON, maxJsonFor, maxPaddedFor, RecordTooLargeError, UnknownEpochError, createRecordCipher,
 } from './crypto/RecordCipher';
 
 // tracking
@@ -42,7 +42,7 @@ export {
 } from './merge/MergePolicy';
 
 // server API
-export { SYNC_API_PREFIX, LIMITS } from './api';
+export { SYNC_API_PREFIX, LIMITS, RECORD_LIMIT_MIN, RECORD_LIMIT_MAX, isValidMaxRecordBytes } from './api';
 export type {
   ApiError, ApiErrorCode, InfoResponse, DeviceWire, PreloginRequest, PreloginResponse, SignupRequest, SessionResponse,
   LoginRequest, RecoverRequest, VerifyEmailRequest, ResetRequest, ResendVerificationRequest, DeviceNameRequest, ResetConfirmRequest, KeysRequest, PullResponse,

@@ -42,8 +42,18 @@ describe('info and prelogin', () => {
     const res = await request(t.app).get(`${PREFIX}/info`);
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ apiVersion: 1, signupOpen: false, quotaBytes: 5000, minKdf: { m: 19456, t: 2 },
-      minAge: 13, termsUrl: 'https://x/terms' });
+      minAge: 13, termsUrl: 'https://x/terms', maxRecordBytes: 1024 * 1024 + 64 });
     expect(res.headers['cache-control']).toBe('no-store');
+  });
+
+  it('GET info advertises a configured maxRecordBytes; invalid settings are refused at creation', async () => {
+    const t = makeServer({ maxRecordBytes: 3 * 1024 * 1024 + 64 });
+    expect((await request(t.app).get(`${PREFIX}/info`)).body.maxRecordBytes).toBe(3 * 1024 * 1024 + 64);
+    for (const bad of [0, 1000, 64 * 1024 + 63, 16 * 1024 * 1024 + 65, 1.5 + 70000, Number.NaN]) {
+      expect(() => makeServer({ maxRecordBytes: bad }), String(bad)).toThrow(/maxRecordBytes/);
+    }
+    expect(() => makeServer({ maxRecordBytes: 64 * 1024 + 64 })).not.toThrow();
+    expect(() => makeServer({ maxRecordBytes: 16 * 1024 * 1024 + 64 })).not.toThrow();
   });
 
   it('unknown email: identical fake params twice, same shape as a real account', async () => {

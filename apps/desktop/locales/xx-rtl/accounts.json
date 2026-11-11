@@ -60,6 +60,7 @@
   "accounts.accountPanel.never": "‏Never‏",
   "accounts.accountPanel.pending": "‏{n} changes waiting to sync‏",
   "accounts.accountPanel.opaque": "‏{n} items from a newer version are stored safely but not shown here.‏",
+  "accounts.accountPanel.tooLarge": "‏{n} notes are too large to sync (over {size}) and stay only on this device.‏",
   "accounts.accountPanel.devices": "‏Devices‏",
   "accounts.accountPanel.thisDevice": "‏This device‏",
   "accounts.accountPanel.lastSeen": "‏Last seen‏",

@@ -60,6 +60,7 @@
   "accounts.accountPanel.never": "אף פעם",
   "accounts.accountPanel.pending": "{n} שינויים ממתינים לסנכרון",
   "accounts.accountPanel.opaque": "{n} פריטים מגרסה חדשה יותר נשמרים בבטחה אך אינם מוצגים כאן.",
+  "accounts.accountPanel.tooLarge": "{n} הערות גדולות מדי לסנכרון (מעל {size}) ויישארו במכשיר זה בלבד.",
   "accounts.accountPanel.devices": "מכשירים",
   "accounts.accountPanel.thisDevice": "מכשיר זה",
   "accounts.accountPanel.lastSeen": "נראה לאחרונה",

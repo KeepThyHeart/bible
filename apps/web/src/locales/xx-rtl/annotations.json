@@ -28,12 +28,18 @@
       "cancel": "‏Cancel‏",
       "delete": "‏Delete note‏",
       "deleteConfirm": "‏Delete‏",
-      "confirmDelete": "‏Delete this note? This cannot be undone.‏"
+      "confirmDelete": "‏Delete this note? This cannot be undone.‏",
+      "previous": "‏Previous note‏",
+      "next": "‏Next note‏",
+      "position": "‏Note {n} of {total}‏",
+      "conflict": "‏Conflicted copy from another device‏",
+      "unsavedSwitch": "‏Save or cancel your changes before switching notes.‏"
     },
     "mark": {
       "editNote": "‏Edit note‏",
       "editNoteTitled": "‏Edit note: {title}‏",
-      "bookmarked": "‏Bookmarked‏"
+      "bookmarked": "‏Bookmarked‏",
+      "editNotes": "‏Edit notes ({count})‏"
     }
   }
 }

@@ -1,8 +1,8 @@
 import { defineConfig, devices } from '@playwright/test';
 import { rmSync } from 'fs';
 import { join, resolve } from 'path';
-import { prepareE2eData } from './prepareData';
-import { E2E_PORT, E2E_PWA_PORT, PLAIN_URL, PWA_URL } from './ports';
+import { prepareAccountsData, prepareE2eData } from './prepareData';
+import { ACCOUNTS_DIR, ACCOUNTS_SERVER_LOG, ACCOUNTS_URL, E2E_ACCOUNTS_PORT, E2E_PORT, E2E_PWA_PORT, PLAIN_URL, PWA_URL } from './ports';
 
 const packageRoot = resolve(import.meta.dirname, '..');
 const SERVER_COMMAND = 'node node_modules/tsx/dist/cli.mjs server/index.ts';
@@ -11,6 +11,8 @@ const SERVER_COMMAND = 'node node_modules/tsx/dist/cli.mjs server/index.ts';
 // globalSetup because Playwright starts webServer during plugin setup, which
 // happens first — see the header of prepareData.ts.
 const { dataDir, modulesDir } = prepareE2eData();
+// The accounts server's own data dir; its state dir (`<dir>/state`) is emptied with it (prepareAccountsData recreates the whole dir).
+const accountsDataDir = prepareAccountsData({ dataDir, modulesDir }, ACCOUNTS_DIR, ACCOUNTS_URL);
 
 // What each server writes (presenter sessions in present.db, logs, plugin data): a fresh directory per
 // server and per run, never the checkout's apps/web/data. Sessions used to pile up there across runs until
@@ -68,7 +70,7 @@ export default defineConfig({
       use: { ...devices['Desktop Safari'] },
     },
   ],
-  // Two servers on the same data: 3100 is the default deployment (PWA off, so
+  // Servers (a third, for accounts, is the last entry): two on the same data: 3100 is the default deployment (PWA off, so
   // every other spec runs against a plain website), 3101 has `features.pwa` on
   // for pwa-e2e.spec.ts. They are separate origins, so a worker installed by
   // one can never leak into the other.
@@ -111,6 +113,21 @@ export default defineConfig({
       stdout: 'pipe',
       stderr: 'pipe',
       // SIGTERM first, so the server closes its databases; SIGKILL after 10 s.
+      gracefulShutdown: { signal: 'SIGTERM', timeout: 10000 },
+    },
+    {
+      // Accounts + local user DB on (apps/web/e2e/tests/accounts-sync-e2e.spec.ts). The wrapper tees stdout
+      // (the console mailer's links) into ACCOUNTS_SERVER_LOG; its state dir is fresh per run.
+      command: `node e2e/serverWithLog.mjs ${JSON.stringify(ACCOUNTS_SERVER_LOG)}`,
+      cwd: packageRoot,
+      env: { ...serverEnv(String(E2E_ACCOUNTS_PORT), '0'), BIBLE_DATA_DIR: accountsDataDir, BIBLE_APP_STATE_DIR: join(accountsDataDir, 'state'),
+        // A developer's BIBLE_FEATURE_FLAGS must not switch the accounts flags off here (R3 L-9).
+        BIBLE_FEATURE_FLAGS: '' },
+      url: `${ACCOUNTS_URL}/api/health`,
+      reuseExistingServer: process.env.PW_REUSE_SERVER === '1',
+      timeout: 300000,
+      stdout: 'pipe',
+      stderr: 'pipe',
       gracefulShutdown: { signal: 'SIGTERM', timeout: 10000 },
     },
   ],

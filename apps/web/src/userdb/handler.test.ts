@@ -69,6 +69,102 @@ describe('user-DB handler', () => {
     expect(opens()).toBe(2);
   }, 60_000);
 
+  it('wipe is a barrier: a request issued mid-wipe waits and runs against the fresh db, never the old handle', async () => {
+    const dbs: Array<ReturnType<typeof finishOpen>> = [];
+    let releaseWipe!: () => void;
+    const wipeGate = new Promise<void>((r) => (releaseWipe = r));
+    let wipeStarted!: () => void;
+    const started = new Promise<void>((r) => (wipeStarted = r));
+    const handler = createUserDbHandler({
+      open: async () => {
+        const idx = dbs.length;
+        const db = finishOpen(new sqlite3.oo1.DB(':memory:'), ':memory:', idx === 0 ? async () => { wipeStarted(); await wipeGate; } : undefined);
+        dbs.push(db);
+        return db;
+      },
+      emit: () => {},
+    });
+    await handler.handle({ op: 'open' });
+    const old = dbs[0];
+    const oldQueries: string[] = [];
+    const origQ = old.sql.queryAll.bind(old.sql);
+    old.sql.queryAll = ((q: string, p?: never) => { oldQueries.push(q); return origQ(q, p); }) as typeof old.sql.queryAll;
+    const wiping = handler.handle({ op: 'wipe' });
+    await started;
+    const during = handler.handle({ op: 'call', repo: 'notes', method: 'getAll', args: [] });
+    await new Promise((r) => setTimeout(r, 20));
+    expect(dbs).toHaveLength(1); // no second open while the old files are being wiped
+    releaseWipe();
+    await wiping;
+    expect(await during).toEqual([]);
+    expect(dbs).toHaveLength(2);
+    expect(oldQueries).toEqual([]);
+    // the marker is in the fresh db
+    expect(dbs[1].sql.queryOne("SELECT value FROM setting WHERE category = 'web' AND key = 'userData.importedFromIdb'")).toBeTruthy();
+  }, 60_000);
+
+  it('a request whose first open is still in flight when a wipe starts ends on the fresh db (no repos on the wiped handle)', async () => {
+    const dbs: Array<ReturnType<typeof finishOpen>> = [];
+    let releaseOpen!: () => void;
+    const openGate = new Promise<void>((r) => (releaseOpen = r));
+    const handler = createUserDbHandler({
+      open: async () => {
+        const idx = dbs.length;
+        const db = finishOpen(new sqlite3.oo1.DB(':memory:'), ':memory:');
+        dbs.push(db);
+        if (idx === 0) await openGate;
+        return db;
+      },
+      emit: () => {},
+    });
+    const first = handler.handle({ op: 'call', repo: 'notes', method: 'getAll', args: [] });
+    await new Promise((r) => setTimeout(r, 10));
+    const wiping = handler.handle({ op: 'wipe' });
+    releaseOpen();
+    await wiping;
+    expect(await first).toEqual([]);
+    const oldQueries: string[] = [];
+    const origQ = dbs[0].sql.queryAll.bind(dbs[0].sql);
+    dbs[0].sql.queryAll = ((q: string, p?: never) => { oldQueries.push(q); return origQ(q, p); }) as typeof origQ;
+    expect(await handler.handle({ op: 'call', repo: 'notes', method: 'getAll', args: [] })).toEqual([]);
+    expect(oldQueries).toEqual([]);
+    expect(dbs).toHaveLength(2);
+  }, 60_000);
+
+  it('a request whose in-flight open fails while a wipe replaces it retries on the fresh db (R3 L-1)', async () => {
+    let n = 0;
+    let failOpen!: (e: Error) => void;
+    const handler = createUserDbHandler({
+      open: async () => {
+        if (n++ === 0) await new Promise<never>((_r, rej) => (failOpen = rej));
+        return finishOpen(new sqlite3.oo1.DB(':memory:'), ':memory:');
+      },
+      emit: () => {},
+    });
+    const first = handler.handle({ op: 'call', repo: 'notes', method: 'getAll', args: [] });
+    await new Promise((r) => setTimeout(r, 10));
+    const wiping = handler.handle({ op: 'wipe' });
+    failOpen(new Error('stale open failed'));
+    await wiping;
+    expect(await first).toEqual([]);
+    expect(n).toBe(2);
+  }, 60_000);
+
+  it('a failed open with no wipe is reported to the caller once, not retried in a loop; the next request retries', async () => {
+    let n = 0;
+    const handler = createUserDbHandler({
+      open: async () => {
+        if (n++ === 0) throw new Error('access handle busy');
+        return finishOpen(new sqlite3.oo1.DB(':memory:'), ':memory:');
+      },
+      emit: () => {},
+    });
+    await expect(handler.handle({ op: 'call', repo: 'notes', method: 'getAll', args: [] })).rejects.toThrow(/access handle busy/);
+    expect(n).toBe(1);
+    expect(await handler.handle({ op: 'call', repo: 'notes', method: 'getAll', args: [] })).toEqual([]);
+    expect(n).toBe(2);
+  }, 60_000);
+
   it('reports writes to onLocalWrite (not reads, not reserveIds-style change-free calls)', async () => {
     const writes: string[][] = [];
     const { handler } = setup({ onLocalWrite: (t) => writes.push(t) });

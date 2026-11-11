@@ -72,6 +72,8 @@ export interface RegisterMainModulesOptions {
    * flagged module can be switched on in both processes in a dev build. Ignored when packaged.
    */
   readonly flagOverrideText?: string;
+  /** Flags baked in at build time (`VITE_KTH_FLAGS`, see electron.vite.config.ts); default the build's value. Applies to packaged builds too. */
+  readonly buildFlagText?: string;
   /** Per-module activation timeout in ms (default 10 s): a hung module is reported and skipped, never blocks startup. */
   readonly activationTimeoutMs?: number;
 }
@@ -95,6 +97,18 @@ interface Running {
 
 let running: Running | null = null;
 
+declare const __BIBLE_BUILD_FLAGS__: string | undefined;
+/** The build's baked-in flags ('' in release builds and in tests, where the define is absent). */
+const BUILD_FLAG_TEXT = typeof __BIBLE_BUILD_FLAGS__ === 'string' ? __BIBLE_BUILD_FLAGS__ : '';
+
+function safeFlags(text: string): Record<string, boolean> {
+  try {
+    return parseFlagOverrides(text);
+  } catch {
+    return {};
+  }
+}
+
 /** Add every table entry to a host and fire `onStartupFinished`. Resolves when enabled modules are active. */
 export async function registerMainModules(
   ipcMain: IpcMainLike,
@@ -104,6 +118,7 @@ export async function registerMainModules(
   if (running) throw new Error('registerMainModules called twice');
   const table = options.modules ?? MAIN_MODULES;
   const flags = createFeatureFlags({
+    site: safeFlags(options.buildFlagText ?? BUILD_FLAG_TEXT),
     overrides: options.packaged ? {} : parseFlagOverrides(options.flagOverrideText ?? process.env.KTH_FLAGS),
   });
   const timeoutMs = options.activationTimeoutMs ?? DEFAULT_MAIN_MODULE_TIMEOUT_MS;

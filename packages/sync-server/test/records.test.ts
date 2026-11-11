@@ -2,6 +2,7 @@ import request from 'supertest';
 import { describe, expect, it, vi } from 'vitest';
 import { Sync } from '@bible/core';
 const { LIMITS } = Sync;
+import { isV1BlobShape } from '../src/routes/records';
 import { PREFIX, ORIGIN } from './helpers/server';
 import { account, blob, paddedLen, sealed, makeMailServer, rid } from './helpers/flows';
 
@@ -202,6 +203,44 @@ describe('push and changes', () => {
       () => ({ id: rid(), baseSeq: null, deleted: false, blob: sealed(1024 * 1024 - 4) })));
     expect(huge.status).toBe(413);
     expect(huge.body.error).toBe('too_large');
+  });
+
+  it('maxRecordBytes is one setting: a smaller server rejects above it and accepts at it', async () => {
+    const max = 128 * 1024 + 64;                         // json up to 128 KiB - 4... padded 128 KiB
+    const t = makeMailServer({ maxRecordBytes: max });
+    const a = await account(t);
+    const at = await push(t, a, [{ id: rid(), baseSeq: null, deleted: false, blob: sealed(128 * 1024 - 4) }]);
+    expect(at.status).toBe(200);
+    const over = await push(t, a, [{ id: rid(), baseSeq: null, deleted: false, blob: sealed(128 * 1024 - 3) }]);
+    expect(over.status).toBe(413);
+    expect(over.body.error).toBe('too_large');
+    const dflt = makeMailServer();
+    const b = await account(dflt);
+    expect((await push(dflt, b, [{ id: rid(), baseSeq: null, deleted: false, blob: sealed(2 * 1024 * 1024 - 4) }])).status).toBe(413);
+  });
+
+  it('a raised limit accepts a 2 MiB-bucket blob and still pulls it back (one record always passes the page budget)', async () => {
+    const t = makeMailServer({ maxRecordBytes: 3 * 1024 * 1024 + 64 });
+    const a = await account(t);
+    const id = rid();
+    const res = await push(t, a, [{ id, baseSeq: null, deleted: false, blob: sealed(2 * 1024 * 1024 - 4) }]);
+    expect(res.status).toBe(200);
+    const big2 = await push(t, a, [{ id: rid(), baseSeq: null, deleted: false, blob: sealed(2 * 1024 * 1024 - 4) }]);
+    expect(big2.status).toBe(200);
+    const ch = await changes(t, a, '?limit=10');
+    expect(ch.status).toBe(200);
+    expect(ch.body.records.length).toBeGreaterThanOrEqual(1);
+    expect(ch.body.records[0].id).toBe(id);
+  });
+
+  it('isV1BlobShape: the upper padded bound is configurable and keeps the 16384 bucket rule', () => {
+    const mk = (padded: number): Uint8Array => { const b = new Uint8Array(33 + padded); b[0] = 1; return b; };
+    const MiB = 1024 * 1024;
+    expect(isV1BlobShape(mk(MiB))).toBe(true);
+    expect(isV1BlobShape(mk(2 * MiB))).toBe(false);
+    expect(isV1BlobShape(mk(2 * MiB), Sync.maxPaddedFor(3 * MiB + 64))).toBe(true);
+    expect(isV1BlobShape(mk(2 * MiB + 1024), Sync.maxPaddedFor(3 * MiB + 64))).toBe(false);   // not a 16384 multiple
+    expect(isV1BlobShape(mk(2 * MiB), Sync.maxPaddedFor(MiB + 64))).toBe(false);
   });
 
   it('validates ids, baseSeq, blob presence and duplicates', async () => {

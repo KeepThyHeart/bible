@@ -25,8 +25,8 @@ const tick = () => new Promise((r) => setTimeout(r, 0));
 describe('AnnotationStore', () => {
   it('fetches a watched chapter once and indexes it per verse', async () => {
     const { api } = fakeApi({
-      highlights: [{ id: 1, moduleId: 1, start: J + 2, end: J + 3, color: '#FFF3A3' }],
-      notes: [{ id: 2, start: J + 3, end: J + 3, title: 'T', content: '<p>c</p>', modified: '2026-01-01' }],
+      highlights: [{ id: 1, moduleId: 1, start: J + 2, end: J + 3, color: '#FFF3A3', created: '' }],
+      notes: [{ id: 2, start: J + 3, end: J + 3, title: 'T', content: '<p>c</p>', modified: '2026-01-01', conflict: false }],
       bookmarks: [{ id: 3, start: J + 16, end: J + 16, title: null }],
     });
     const store = new AnnotationStore(async () => api);
@@ -59,7 +59,7 @@ describe('AnnotationStore', () => {
     emit(['memory_card']);
     await tick();
     expect(api.getChapter).toHaveBeenCalledTimes(1);
-    set({ ...EMPTY, highlights: [{ id: 7, moduleId: 1, start: J + 5, end: J + 5, color: '#B7E4C7' }] });
+    set({ ...EMPTY, highlights: [{ id: 7, moduleId: 1, start: J + 5, end: J + 5, color: '#B7E4C7', created: '' }] });
     emit(['user_text_markup']);
     emit(['pinned_item']);
     emit(['user_note']);
@@ -85,8 +85,8 @@ describe('AnnotationStore', () => {
     const { api, set } = fakeApi({
       ...EMPTY,
       highlights: [
-        { id: 1, moduleId: 1, start: J + 2, end: J + 2, color: '#FFF3A3' },
-        { id: 2, moduleId: 1, start: J + 3, end: J + 4, color: '#B7E4C7' },
+        { id: 1, moduleId: 1, start: J + 2, end: J + 2, color: '#FFF3A3', created: '' },
+        { id: 2, moduleId: 1, start: J + 3, end: J + 4, color: '#B7E4C7', created: '' },
       ],
     });
     const store = new AnnotationStore(async () => api);
@@ -104,5 +104,23 @@ describe('AnnotationStore', () => {
     await store.deleteNote(5);
     await store.setBookmark({ start: J + 2, end: J + 2, on: true });
     expect(api.setBookmark).toHaveBeenCalledWith({ start: J + 2, end: J + 2, on: true });
+  });
+
+  it('picks the same winning highlight regardless of local id order (created, then colour, then id)', async () => {
+    const blue = { moduleId: 1, start: J + 4, end: J + 4, color: '#B8DDF5', created: '2026-01-01 10:00:00' };
+    const green = { moduleId: 1, start: J + 4, end: J + 4, color: '#B7E4C7', created: '2026-01-01 10:00:05' };
+    const winner = async (hs: ChapterAnnotations['highlights']) => {
+      const { api } = fakeApi({ ...EMPTY, highlights: hs });
+      const store = new AnnotationStore(async () => api);
+      store.watch('t', 1, J + 1, J + 36);
+      await tick();
+      return store.forVerse('t', J + 4)?.highlight?.color;
+    };
+    expect(await winner([{ ...blue, id: 1 }, { ...green, id: 2 }])).toBe('#B7E4C7');
+    expect(await winner([{ ...blue, id: 2 }, { ...green, id: 1 }])).toBe('#B7E4C7'); // ids swapped
+    // same created: colour string decides, again independent of id
+    const a = { ...blue, created: 'x' };
+    const b = { ...green, created: 'x' };
+    expect(await winner([{ ...a, id: 1 }, { ...b, id: 2 }])).toBe(await winner([{ ...a, id: 2 }, { ...b, id: 1 }]));
   });
 });

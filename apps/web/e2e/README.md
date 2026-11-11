@@ -144,3 +144,18 @@ Notes:
   specs were written in (the Bible modules are git-ignored). Generate them on a machine with data,
   review the images by eye, then commit the `*-snapshots/` folder next to the spec.
 - Masked regions (version strings, clocks, offline badge) are blanked before comparison.
+
+## The accounts server (base port + 2)
+
+A third server starts on `E2E_PORT + 2` (default 3102) for `tests/accounts-sync-e2e.spec.ts`, with
+`features.localUserDb` and `features.accounts` on, `accounts.email.kind = console` and
+`accounts.publicUrl` = its own URL. It has a private data dir, `e2e/.data/accounts-<port>/` (a snapshot of
+`main.db` plus a generated `site-config.json`, built by `prepareAccountsData` in `prepareData.ts`) and a
+fresh state dir `accounts-<port>/state` (the sync server's database lives there). The other servers
+are unchanged. The console mailer prints mails to stdout, so the server is started through
+`serverWithLog.mjs`, which tees stdout/stderr into `accounts-<port>/state/stdout.log`; the spec reads the
+verification link from there (`verificationLink()` in `accountsHelpers.ts`).
+
+The spec runs on `desktop-chrome` only (the worker DB needs OPFS), uses one browser context per "device",
+and its four scenarios run in order on one account: sync between two devices, an offline edit conflict,
+"Sign out and delete my data from this browser", and "Export readable data".

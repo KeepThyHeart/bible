@@ -27,11 +27,11 @@
 import fs from 'fs';
 import * as path from 'path';
 import { createHash, randomBytes } from 'crypto';
-import type { Sync } from '@bible/core';
+import { Sync } from '@bible/core';
 
 export const BN_KIND = 'bn.file';
-/** Same as Sync.MAX_RECORD_JSON (1 MiB - 4), kept local to avoid a runtime import of the barrel. */
-const MAX_RECORD_JSON = 1024 * 1024 - 4;
+/** Fallback when the host passes no limit: Sync.MAX_RECORD_JSON (1 MiB - 4), kept local to avoid a runtime import of the barrel. */
+const DEFAULT_MAX_RECORD_JSON = 1024 * 1024 - 4;
 /** Room for the RecordPlaintext wrapper (t, cv, h, dev) around `d`. */
 const WRAPPER_OVERHEAD = 256;
 
@@ -49,6 +49,8 @@ export interface BnFileSyncAdapterOptions {
   /** Optional JSON file (in the user data dir) that persists the scan state across restarts. */
   stateFile?: string;
   now?: () => Date;
+  /** Current max record json in bytes (the cipher's `maxJson`, which follows the server's advertised limit). Read on every encode. */
+  maxRecordJson?(): number;
 }
 
 export interface BnFileSyncAdapter extends Sync.SyncAdapter {
@@ -227,9 +229,10 @@ export function createBnFileSyncAdapter(o: BnFileSyncAdapterOptions): BnFileSync
       const parsed = readParsed(localKey);
       if (!parsed) return null;
       const d = { path: localKey, bn: parsed.bn, mtime: parsed.mtime };
-      if (Buffer.byteLength(JSON.stringify(d)) + WRAPPER_OVERHEAD > MAX_RECORD_JSON) {
+      if (Buffer.byteLength(JSON.stringify(d)) + WRAPPER_OVERHEAD > (o.maxRecordJson?.() ?? DEFAULT_MAX_RECORD_JSON)) {
         warn(localKey, 'too-large');
-        return null;
+        // Signalled distinctly (not "unsyncable"), so the engine keeps the change dirty, counts it and retries it when the limit rises.
+        throw new Sync.RecordTooLargeError('bn file over the record limit');
       }
       return d;
     },

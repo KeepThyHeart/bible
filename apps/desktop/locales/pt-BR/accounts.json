@@ -60,6 +60,7 @@
   "accounts.accountPanel.never": "Nunca",
   "accounts.accountPanel.pending": "{n} alterações aguardando sincronização",
   "accounts.accountPanel.opaque": "{n} itens de uma versão mais recente estão armazenados com segurança, mas não são exibidos aqui.",
+  "accounts.accountPanel.tooLarge": "{n} anotações são grandes demais para sincronizar (mais de {size}) e ficam apenas neste dispositivo.",
   "accounts.accountPanel.devices": "Dispositivos",
   "accounts.accountPanel.thisDevice": "Este dispositivo",
   "accounts.accountPanel.lastSeen": "Visto pela última vez",

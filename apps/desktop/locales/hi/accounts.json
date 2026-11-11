@@ -60,6 +60,7 @@
   "accounts.accountPanel.never": "कभी नहीं",
   "accounts.accountPanel.pending": "{n} बदलाव सिंक होने की प्रतीक्षा में हैं",
   "accounts.accountPanel.opaque": "नए संस्करण की {n} वस्तुएँ सुरक्षित रूप से संग्रहीत हैं, लेकिन यहाँ दिखाई नहीं जातीं।",
+  "accounts.accountPanel.tooLarge": "{n} नोट्स सिंक करने के लिए बहुत बड़े हैं ({size} से अधिक) और केवल इसी डिवाइस पर रहेंगे।",
   "accounts.accountPanel.devices": "डिवाइस",
   "accounts.accountPanel.thisDevice": "यह डिवाइस",
   "accounts.accountPanel.lastSeen": "अंतिम बार देखा गया",

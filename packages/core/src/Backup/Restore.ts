@@ -681,8 +681,15 @@ function fillSection(spec: TableSpec, section: ManifestSection, ctx: Ctx, tr: Ta
         return;
       }
       tr.nulled += verdict.nulled;
-      insertRow(sql, spec.name, insertCols, verdict.row, section.id, i);
-      if (spec.autoId) idMap.set(row[pk[0]], row[pk[0]]);
+      if (spec.autoId && spec.keepInReplace && sql.queryOne(`SELECT 1 FROM ${q(spec.name)} WHERE ${q(pk[0])} = ?`, [row[pk[0]] as SqlParameter])) {
+        // A kept local row already holds this id: let SQLite assign a new one.
+        const cols = insertCols.filter((c) => c !== pk[0]);
+        const { id } = insertRow(sql, spec.name, cols, verdict.row, section.id, i);
+        idMap.set(row[pk[0]], id);
+      } else {
+        insertRow(sql, spec.name, insertCols, verdict.row, section.id, i);
+        if (spec.autoId) idMap.set(row[pk[0]], row[pk[0]]);
+      }
       const syncId = syncIds.get(row[pk[0]]);
       if (ctx.sync && syncId !== undefined) {
         let byKey = ctx.sync.restored.get(spec.name);

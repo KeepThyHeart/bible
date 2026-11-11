@@ -83,6 +83,26 @@ describe('replace', () => {
     expect(rows['system/schema']).toBe('LOCAL');
   });
 
+  it('never exports the web sync bookkeeping or import marker, and replace keeps the local ones', async () => {
+    const local = "('web', 'sync.deviceId', 'DEV-A'), ('web', 'sync.signedIn', 'true'), ('web', 'userData.importedFromIdb', 'wiped')";
+    const a = newUserDb();
+    a.execute(`INSERT INTO setting (category, key, value) VALUES ('ui', 'zoom', '150'), ('web', 'other', 'x'), ${local}`);
+    const archive = await archiveOf({ sql: a });
+    const exported = (archive.manifest.sections.find((x) => x.id === 'user.setting')?.count) ?? -1;
+    const expected = a.queryAll<{ c: string }>("SELECT category AS c FROM setting WHERE NOT (category = 'web' AND (key LIKE 'sync.%' OR key = 'userData.importedFromIdb'))").length;
+    expect(exported).toBe(expected);
+    expect(exported).toBe(snapshot(a).setting.length - 3);
+    const b = newUserDb();
+    b.execute("INSERT INTO setting (category, key, value) VALUES ('web', 'sync.deviceId', 'DEV-B'), ('web', 'userData.importedFromIdb', 'imported'), ('ui', 'old', '1')");
+    await restore(a, b, 'replace', ['user.setting']);
+    const rows = Object.fromEntries(snapshot(b).setting.map((r) => [`${r.category}/${r.key}`, r.value]));
+    expect(rows['web/sync.deviceId']).toBe('DEV-B');
+    expect(rows['web/userData.importedFromIdb']).toBe('imported');
+    expect(rows['web/sync.signedIn']).toBeUndefined();
+    expect(rows['ui/zoom']).toBe('150');
+    expect(rows['ui/old']).toBeUndefined();
+  });
+
   it('only touches the selected sections', async () => {
     const a = newUserDb();
     seedRich(a, ' A');

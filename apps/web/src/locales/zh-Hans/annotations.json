@@ -28,12 +28,18 @@
       "cancel": "取消",
       "delete": "删除笔记",
       "deleteConfirm": "删除",
-      "confirmDelete": "要删除这条笔记吗？此操作无法撤销。"
+      "confirmDelete": "要删除这条笔记吗？此操作无法撤销。",
+      "previous": "上一条笔记",
+      "next": "下一条笔记",
+      "position": "第 {n} 条，共 {total} 条笔记",
+      "conflict": "来自其他设备的冲突副本",
+      "unsavedSwitch": "切换笔记前，请先保存或取消您的更改。"
     },
     "mark": {
       "editNote": "编辑笔记",
       "editNoteTitled": "编辑笔记：{title}",
-      "bookmarked": "已加书签"
+      "bookmarked": "已加书签",
+      "editNotes": "编辑笔记（{count} 条）"
     }
   }
 }

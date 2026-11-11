@@ -3,6 +3,7 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { createBnFileSyncAdapter, sanitizeBnPath, type BnFileSyncAdapter } from '../BnFileSyncAdapter';
+import { Sync } from '@bible/core';
 
 let tmp: string;
 let notes: string;
@@ -112,10 +113,10 @@ describe('codec', () => {
     expect(k2).toEqual(k1);
   });
 
-  it('skips files over the record limit with a warning', () => {
+  it('signals files over the record limit as too large (RecordTooLargeError) with a warning', () => {
     const a = make();
     write('big.bn', { blob: 'x'.repeat(1024 * 1024) });
-    expect(a.codec.encode('big.bn', ctx)).toBeNull();
+    expect(() => a.codec.encode('big.bn', ctx)).toThrow(Sync.RecordTooLargeError);
     expect(warns).toEqual([['big.bn', 'too-large']]);
     write('ok.bn', { blob: 'x'.repeat(1000) });
     expect(a.codec.encode('ok.bn', ctx)).not.toBeNull();

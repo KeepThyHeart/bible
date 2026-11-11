@@ -54,7 +54,7 @@ export interface AccountStoreDeps {
   now?: () => number;
   /** Save a file the user asked for (a Blob download in the page). */
   saveFile?(name: string, mime: string, text: string): void;
-  /** The existing web user-data backup (until full backups land). */
+  /** The full export of the worker database (instance.ts asks the user-DB worker for it and downloads the file). */
   backup?(password?: string): Promise<unknown>;
 }
 
@@ -409,7 +409,7 @@ export class AccountStore {
     });
   }
 
-  /** Readable (zip) backup: the existing web user-data backup until full backups land. */
+  /** Readable (zip) export of all local user data. */
   exportPlain(): Promise<boolean> {
     return this.run('privacy', async () => {
       await this.deps.backup?.();

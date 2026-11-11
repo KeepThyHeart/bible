@@ -1,7 +1,7 @@
 /** SyncEngine (contracts 0063 §8, task 0150 W3-A): two real engines against an in-memory §7 server. */
 import { describe, it, expect, vi } from 'vitest';
 import { deterministicRandom, hexEncode } from '../../../Crypto';
-import { createRecordCipher, type RecordCipher } from '../../../Sync/crypto/RecordCipher';
+import { createRecordCipher, RecordTooLargeError, type RecordCipher } from '../../../Sync/crypto/RecordCipher';
 import { SyncHttpError, SyncNetworkError, type ISyncTransport } from '../../../Sync/engine/ISyncTransport';
 import { SEAL_LIMIT, type SyncAdapter, type SyncScheduler } from '../../../Sync/engine/SyncEngine';
 import { createCodecRegistry, createCoreCodecs, type RecordCodec } from '../../../Sync/codecs/RecordCodec';
@@ -444,13 +444,100 @@ describe('SyncEngine: errors and status', () => {
     expect(notes(b).map((n) => n.content)).toEqual(['small 1', 'small 2']);
     // The failed record is not retried until it changes.
     const calls = server.pushCalls.length;
+    expect(a.status.getSnapshot().tooLarge).toBe(1);
     await a.engine.syncNow();
     expect(server.pushCalls.length).toBe(calls);
+    // D9: the skipped-row count stays visible over the next run (the transient error does not).
+    expect(a.status.getSnapshot()).toMatchObject({ tooLarge: 1, tooLargeLimit: a.cipher.maxJson });
 
     server.failPush = (recs) => (recs.length > 0 ? new SyncHttpError(413, { error: 'quota_exceeded' }) : undefined);
     addNote(a, 'over quota');
     await a.engine.syncNow();
     expect(a.status.getSnapshot().error?.code).toBe('quota_exceeded');
+  });
+});
+
+describe('SyncEngine: too-large notes (D9)', () => {
+  it('counts a note over the cipher limit, keeps the count, clears it on an edit, and retries after a raised limit', async () => {
+    const { a } = pair();
+    a.cipher.setMaxRecordBytes(64 * 1024 + 64);          // max json 64 KiB - 4
+    const big = addNote(a, 'x'.repeat(80 * 1024));
+    addNote(a, 'small');
+    await a.engine.syncNow();
+    expect(a.status.getSnapshot()).toMatchObject({ tooLarge: 1, tooLargeLimit: 64 * 1024 - 4, error: { code: 'too_large' } });
+    await a.engine.syncNow();
+    expect(a.status.getSnapshot()).toMatchObject({ tooLarge: 1 });
+    // The server limit is raised (host got a new info): the row is retried without any edit.
+    a.cipher.setMaxRecordBytes(256 * 1024 + 64);
+    await a.engine.syncNow();
+    expect(a.status.getSnapshot().tooLarge).toBeUndefined();
+
+    // Edited smaller: the count clears.
+    a.cipher.setMaxRecordBytes(64 * 1024 + 64);
+    const big2 = addNote(a, 'y'.repeat(80 * 1024));
+    await a.engine.syncNow();
+    expect(a.status.getSnapshot().tooLarge).toBe(1);
+    a.db.execute('UPDATE user_note SET content = ? WHERE note_id = ?', ['short now', big2]);
+    void big;
+    await a.engine.syncNow();
+    expect(a.status.getSnapshot().tooLarge).toBeUndefined();
+  });
+});
+
+describe('SyncEngine: codec-signalled too large (R1 M1)', () => {
+  it('a synced row whose encode throws RecordTooLargeError stays dirty, counts as too large, and retries when the limit rises', async () => {
+    const server = new FakeServer();
+    const u = testAccount();
+    const files = new Map<string, string>();
+    let limitOk = true;
+    const codec: RecordCodec = {
+      type: 'bn.file', kind: 'bn.file', version: 1,
+      encode: (key) => {
+        if (!files.has(key)) return null;
+        if (!limitOk) throw new RecordTooLargeError('too big');
+        return { path: key, bn: { text: files.get(key) }, mtime: 'm' };
+      },
+      decode: (d) => ({ ok: true, row: { path: String(d.path), text: String((d.bn as { text: string }).text) } }),
+      upsert: (row) => { files.set(String(row.path), String(row.text)); return String(row.path); },
+      remove: (key) => { files.delete(key); },
+      naturalKey: (d) => ({ scope: 'bn.file', key: String(d.path).toLowerCase() }),
+    };
+    const dev = makeDevice(server, 1, u, { adapters: [{ kind: 'bn.file', codec }] });
+    files.set('A.bn', 'one');
+    dev.tracker.touch('bn.file', 'A.bn', { deleted: false });
+    await dev.engine.syncNow();
+    expect(dirtyRow(dev, 'bn.file', 'A.bn')).toMatchObject({ dirty: 0 });
+    // Edit while the (lower) limit rejects it.
+    dev.cipher.setMaxRecordBytes(64 * 1024 + 64);
+    limitOk = false;
+    files.set('A.bn', 'two');
+    dev.tracker.touch('bn.file', 'A.bn', { deleted: false });
+    await dev.engine.syncNow();
+    expect(dirtyRow(dev, 'bn.file', 'A.bn')).toMatchObject({ dirty: 1 });
+    expect(dev.status.getSnapshot()).toMatchObject({ tooLarge: 1, error: { code: 'too_large' } });
+    // The limit is raised: retried without any edit.
+    limitOk = true;
+    dev.cipher.setMaxRecordBytes(4 * 1024 * 1024);
+    await dev.engine.syncNow();
+    expect(dirtyRow(dev, 'bn.file', 'A.bn')).toMatchObject({ dirty: 0 });
+    expect(dev.status.getSnapshot().tooLarge).toBeUndefined();
+  });
+});
+
+describe('SyncEngine: stop (R1 L1)', () => {
+  it('after stop(), syncNow and reencryptAll are no-ops that do not touch the server; start() revives', async () => {
+    const { server, a } = pair();
+    addNote(a, 'x');
+    a.engine.stop();
+    const r = await a.engine.syncNow();
+    expect(r).toEqual({ pulled: 0, pushed: 0, conflicts: 0, conflictCopies: 0, opaque: 0 });
+    expect(await a.engine.reencryptAll()).toMatchObject({ pushed: 0 });
+    expect(server.pushCalls.length).toBe(0);
+    expect(a.tracker.pendingCount()).toBe(1);
+    a.engine.start({ every: () => () => undefined, onOnline: () => () => undefined });
+    await a.engine.syncNow();
+    expect(a.tracker.pendingCount()).toBe(0);
+    a.engine.stop();
   });
 });
 
@@ -523,7 +610,8 @@ describe('SyncEngine: push details', () => {
     const u = testAccount();
     const onNeedNewEpoch = vi.fn();
     const base = createRecordCipher(u, deterministicRandom(1));
-    const worn: RecordCipher = { seal: (i, p) => base.seal(i, p), open: (i, b) => base.open(i, b), sealsThisEpoch: SEAL_LIMIT };
+    const worn: RecordCipher = { seal: (i, p) => base.seal(i, p), open: (i, b) => base.open(i, b), sealsThisEpoch: SEAL_LIMIT,
+      maxJson: base.maxJson, setMaxRecordBytes: (n) => base.setMaxRecordBytes(n) };
     const a = makeDevice(server, 1, u, { cipher: worn, onNeedNewEpoch });
     addNote(a, 'x');
     await a.engine.syncNow();

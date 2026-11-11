@@ -60,6 +60,7 @@
   "accounts.accountPanel.never": "هرگز",
   "accounts.accountPanel.pending": "{n} تغییر در انتظار همگام‌سازی",
   "accounts.accountPanel.opaque": "{n} مورد از نسخه‌ای جدیدتر با امنیت نگهداری می‌شوند اما اینجا نمایش داده نمی‌شوند.",
+  "accounts.accountPanel.tooLarge": "{n} یادداشت برای همگام‌سازی بیش از حد بزرگ است (بیش از {size}) و فقط در این دستگاه می‌ماند.",
   "accounts.accountPanel.devices": "دستگاه‌ها",
   "accounts.accountPanel.thisDevice": "این دستگاه",
   "accounts.accountPanel.lastSeen": "آخرین بازدید",

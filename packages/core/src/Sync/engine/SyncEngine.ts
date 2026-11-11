@@ -211,11 +211,15 @@ export class SyncEngine {
   private unsubs: Array<() => void> = [];
   private stopController: AbortController | null = null;
   private locked = false;
+  /** True after `stop()` until the next `start()`: a late `syncNow()` / `reencryptAll()` must not begin a new run. */
+  private stopped = false;
   private opaqueRetried = false;
   private identityChecked = false;
   private epochWarned = false;
   /** Rows that failed for good this session (too large, over quota, unmergeable): key -> rev when it failed. */
   private readonly failed = new Map<string, number>();
+  /** The subset of `failed` that failed for size (D9: shown to the user): key -> rev and the limit it exceeded. */
+  private readonly tooLarge = new Map<string, { rev: number; limit: number }>();
   /** Rows that do not encode (not syncable) and were never on the server: key -> rev. */
   private readonly unsyncable = new Map<string, number>();
 
@@ -244,6 +248,7 @@ export class SyncEngine {
 
   /** pull -> merge -> push; retries conflicts up to 3 times; single-flight (concurrent calls share one run). */
   syncNow(signal?: AbortSignal): Promise<SyncResult> {
+    if (this.stopped) return Promise.resolve(emptyResult());
     if (this.running) return this.running;
     const p = this.run(signal).finally(() => {
       this.running = null;
@@ -271,12 +276,14 @@ export class SyncEngine {
   /** Start/stop the 5 min timer + online/visibility hooks supplied by the host. Starting also syncs once. */
   start(scheduler: SyncScheduler): void {
     this.stop();
+    this.stopped = false;
     const kick = (): void => { void this.syncNow(); };
     this.unsubs = [scheduler.every(SYNC_INTERVAL_MS, kick), scheduler.onOnline(kick)];
     kick();
   }
 
   stop(): void {
+    this.stopped = true;
     for (const u of this.unsubs) {
       try { u(); } catch { /* host callback */ }
     }
@@ -293,11 +300,14 @@ export class SyncEngine {
    * carries an HLC just above its previous one). Opaque records are left untouched.
    */
   async reencryptAll(signal?: AbortSignal): Promise<SyncResult> {
+    if (this.stopped) return emptyResult();
     if (this.running) await this.running;
+    if (this.stopped) return emptyResult(); // signed out while the previous run finished: the keys are gone
     this.epochWarned = false;
     this.sql.execute(
       'UPDATE sync_record SET dirty = 1, rev = rev + 1 WHERE dirty = 0 AND deleted = 0 AND server_seq IS NOT NULL');
     this.failed.clear();
+    this.tooLarge.clear();
     return this.syncNow(signal);
   }
 
@@ -311,8 +321,8 @@ export class SyncEngine {
   }
 
   private async run(external?: AbortSignal): Promise<SyncResult> {
-    const result: SyncResult = { pulled: 0, pushed: 0, conflicts: 0, conflictCopies: 0, opaque: 0 };
-    if (this.locked) return result;
+    const result: SyncResult = emptyResult();
+    if (this.locked || this.stopped) return result;
     const controller = new AbortController();
     this.stopController = controller;
     const onAbort = (): void => controller.abort();
@@ -365,13 +375,19 @@ export class SyncEngine {
     return { state: 'error', error: { code: 'internal', message: 'Sync failed unexpectedly' } };
   }
 
-  private counts(): { pending: number; opaque: number } {
+  private tooLargeCounts(): { tooLarge: number | undefined; tooLargeLimit: number | undefined } {
+    if (this.tooLarge.size === 0) return { tooLarge: undefined, tooLargeLimit: undefined };
+    return { tooLarge: this.tooLarge.size, tooLargeLimit: this.o.cipher.maxJson };
+  }
+
+  private counts(): { pending: number; opaque: number; tooLarge?: number; tooLargeLimit?: number } {
     try {
       const pending = this.tracker.pendingCount();
       const opaque = this.sql.queryOne<{ n: number }>('SELECT COUNT(*) AS n FROM sync_opaque')?.n ?? 0;
-      return { pending, opaque };
+      return { pending, opaque, ...this.tooLargeCounts() };
     } catch {
-      return { pending: this.o.status.getSnapshot().pending, opaque: this.o.status.getSnapshot().opaque };
+      const s = this.o.status.getSnapshot();
+      return { pending: s.pending, opaque: s.opaque, ...this.tooLargeCounts() };
     }
   }
 
@@ -415,6 +431,7 @@ export class SyncEngine {
     });
     if (!same) {
       this.failed.clear();
+      this.tooLarge.clear();
       this.unsyncable.clear();
     }
     this.identityChecked = true;
@@ -926,6 +943,7 @@ export class SyncEngine {
     while (!stopPushing) {
       this.check(run);
       const skip = attempts.size + run.defer.size + this.failed.size + this.unsyncable.size;
+      this.releaseTooLarge();
       const rows = this.tracker.dirty(this.maxPushRecords + skip).filter((d) => {
         const k = keyOf(d.kind, d.localKey);
         if (run.defer.has(k)) return false;
@@ -955,6 +973,20 @@ export class SyncEngine {
         }
       }
     }
+    this.pruneTooLarge();
+  }
+
+  /** Forget too-large rows that are no longer dirty (deleted before ever syncing, or reset). */
+  private pruneTooLarge(): void {
+    if (this.tooLarge.size === 0) return;
+    for (const k of [...this.tooLarge.keys()]) {
+      const i = k.indexOf(US);
+      const row = this.rowByKey(k.slice(0, i), k.slice(i + 1));
+      if (!row || !row.dirty) {
+        this.tooLarge.delete(k);
+        this.failed.delete(k);
+      }
+    }
   }
 
   private async prepare(run: Run, keys: string[]): Promise<PushItem[]> {
@@ -979,6 +1011,8 @@ export class SyncEngine {
         d = entry.codec.encode(row.local_key, this.ctx);
       } catch (e) {
         if (e instanceof NeedParentIdError) { run.defer.add(k); continue; }
+        // A codec/adapter that sizes its own rows (e.g. .bn files) signals "too large" the same way the cipher does.
+        if (e instanceof RecordTooLargeError) { this.failRecord(run, k, row.rev, 'too_large', 'A change is too large to sync'); continue; }
         this.failRecord(run, k, row.rev, 'internal', 'A change could not be prepared for upload');
         continue;
       }
@@ -1045,8 +1079,21 @@ export class SyncEngine {
     return items;
   }
 
+  /** A raised record limit (the host updated the cipher after `info`) gives every too-large row another try. */
+  private releaseTooLarge(): void {
+    const limit = this.o.cipher.maxJson;
+    for (const [k, t] of this.tooLarge) {
+      if (limit > t.limit) {
+        this.tooLarge.delete(k);
+        this.failed.delete(k);
+      }
+    }
+  }
+
   private failRecord(run: Run, key: string, rev: number, code: ApiErrorCode | 'crypto' | 'internal', message: string): void {
     this.failed.set(key, rev);
+    if (code === 'too_large') this.tooLarge.set(key, { rev, limit: this.o.cipher.maxJson });
+    else this.tooLarge.delete(key);
     run.error = { code, message };
   }
 
@@ -1099,6 +1146,7 @@ export class SyncEngine {
         });
         run.result.pushed++;
         this.failed.delete(keyOf(it.kind, it.localKey));
+        this.tooLarge.delete(keyOf(it.kind, it.localKey));
       }
     });
     for (const a of res.accepted) {
@@ -1156,4 +1204,8 @@ function httpMessage(e: SyncHttpError): string {
     case 'server_error': return 'The sync server had a problem';
     default: return e.status >= 500 ? 'The sync server had a problem' : 'The sync server rejected the request';
   }
+}
+
+function emptyResult(): SyncResult {
+  return { pulled: 0, pushed: 0, conflicts: 0, conflictCopies: 0, opaque: 0 };
 }

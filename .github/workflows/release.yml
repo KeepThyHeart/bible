@@ -182,6 +182,8 @@ jobs:
           for name in CSC_LINK CSC_KEY_PASSWORD APPLE_ID APPLE_APP_SPECIFIC_PASSWORD APPLE_TEAM_ID; do
             [ -n "${!name}" ] || unset "$name"
           done
+          # Release builds never bake feature flags in (VITE_KTH_FLAGS is for demo and test builds).
+          if [ -n "${VITE_KTH_FLAGS:-}" ]; then echo "VITE_KTH_FLAGS must be empty for a release build" >&2; exit 1; fi
           pnpm --filter @bible/desktop run package:code-only:${{ matrix.target }} --publish ${{ github.event_name == 'push' && 'always' || 'never' }}
 
       # Verifiable with: gh attestation verify <file> -R <owner>/<repo>

@@ -13,15 +13,25 @@ import type { AccountId, DeviceId, RecordId } from './types';
 import type { AccountKeyMaterial, KeysetWire, WrappedKey } from './crypto/keys';
 
 export const SYNC_API_PREFIX = '/api/sync/v1';
+/** `maxRecordBytes` is the DEFAULT sealed-blob limit; a server may raise or lower it (`InfoResponse.maxRecordBytes`). */
 export const LIMITS = { maxRecordBytes: 1024 * 1024 + 64, maxPushRecords: 500, maxPushBodyBytes: 8 * 1024 * 1024,
   maxPullLimit: 1000, defaultQuotaBytes: 100 * 1024 * 1024 } as const;
+
+/** Bounds a server's configured (and a client's accepted) `maxRecordBytes`, in sealed-blob bytes. */
+export const RECORD_LIMIT_MIN = 64 * 1024 + 64;
+export const RECORD_LIMIT_MAX = 16 * 1024 * 1024 + 64;
+export function isValidMaxRecordBytes(n: unknown): n is number {
+  return typeof n === 'number' && Number.isSafeInteger(n) && n >= RECORD_LIMIT_MIN && n <= RECORD_LIMIT_MAX;
+}
 
 export interface ApiError { error: ApiErrorCode; message?: string; retryAfterSec?: number }
 export type ApiErrorCode = 'bad_request' | 'unauthorized' | 'forbidden' | 'not_found' | 'conflict_email'
   | 'email_unverified' | 'quota_exceeded' | 'too_large' | 'rate_limited' | 'signup_closed' | 'server_error';
 
 export interface InfoResponse { apiVersion: 1; signupOpen: boolean; quotaBytes: number; minKdf: { m: number; t: number };
-  termsUrl?: string; privacyUrl?: string; minAge: number }
+  termsUrl?: string; privacyUrl?: string; minAge: number;
+  /** Largest sealed record blob the server accepts, in bytes. Absent on older servers: use `LIMITS.maxRecordBytes`. */
+  maxRecordBytes?: number }
 
 export interface DeviceWire { id: DeviceId; nameSealed: string }
 

@@ -558,12 +558,25 @@ export class AccountClient {
   private async forget(wipeLocal: boolean): Promise<void> {
     await this.d.secrets.delete('sync.unlocked');
     await this.d.secrets.delete('sync.token');
+    const dropped = this.current;
     this.current = null;
     this.email = null;
     this.reencrypt = false;
     this.d.status.set({ state: 'signed-out', accountEmail: undefined, lastSyncedAt: undefined, error: undefined, pending: 0, opaque: 0 });
-    await this.d.onSignedOut?.();
-    if (wipeLocal) await this.d.onWipe?.();
+    try {
+      await this.d.onSignedOut?.();
+      if (wipeLocal) await this.d.onWipe?.();
+    } finally {
+      // The engine has stopped (onSignedOut): overwrite the key bytes so they do not linger in memory. Best effort:
+      // the cipher's non-extractable CryptoKeys and any copies the JS engine made are out of reach.
+      if (dropped) zeroUnlocked(dropped);
+    }
   }
 }
 
+/** Overwrite an unlocked account's key bytes in place (after sign-out). */
+export function zeroUnlocked(u: UnlockedAccount): void {
+  u.accountKey.fill(0);
+  u.recordIdKey.fill(0);
+  for (const k of u.dataKeys.values()) k.fill(0);
+}

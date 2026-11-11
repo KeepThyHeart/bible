@@ -15,7 +15,7 @@ import type {
 
 export type Translate = (key: string, params?: Record<string, unknown>) => string;
 
-const KEEP = { age: '{age}', n: '{n}', time: '{time}' };
+const KEEP = { age: '{age}', n: '{n}', size: '{size}', time: '{time}' };
 
 function map<L extends object>(defaults: L, prefix: string, t: Translate): L {
   const out: Record<string, unknown> = {};

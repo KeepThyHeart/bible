@@ -33,7 +33,9 @@ export interface RecoverFormLabels {
 }
 export interface AccountPanelLabels {
   title: string; signedInAs: string; usage: string; syncNow: string; lastSynced: string; never: string;
-  pending: string; opaque: string; devices: string; thisDevice: string; lastSeen: string; revoke: string;
+  pending: string; opaque: string;
+  /** `{n}` notes skipped as too large, `{size}` the limit (e.g. "1.0 MB"). */
+  tooLarge: string; devices: string; thisDevice: string; lastSeen: string; revoke: string;
   changePassword: string; newRecoveryCode: string; signOut: string; signOutKeep: string; signOutWipe: string;
   signOutWipeWarning: string; cancel: string;
 }

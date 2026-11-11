@@ -273,6 +273,16 @@ describe('AccountPanel', () => {
     expect(screen.queryByText(/will be lost/)).toBeNull();
   });
 
+  it('shows the too-large notice with the count and limit, and nothing when there are none', () => {
+    setup({ status: { state: 'idle', pending: 0, opaque: 0, tooLarge: 3, tooLargeLimit: 1048572 } });
+    expect(screen.getByText('3 notes are too large to sync (over 1.0 MB) and stay only on this device.')).toBeInTheDocument();
+  });
+
+  it('has no too-large notice by default', () => {
+    setup();
+    expect(screen.queryByText(/too large to sync/)).toBeNull();
+  });
+
   it('shows Never when nothing has synced', () => {
     setup({ status: { state: 'idle', pending: 0, opaque: 0 } });
     expect(screen.getByText(/Last synced: Never/)).toBeInTheDocument();

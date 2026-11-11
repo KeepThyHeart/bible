@@ -276,7 +276,7 @@ describe('exports', () => {
     expect(JSON.parse(saved[0].text)).toEqual({ format: 'kth-sync-export', version: 1 });
   });
 
-  it('plain and encrypted exports use the existing user-data backup', async () => {
+  it('plain and encrypted exports go through the backup dependency', async () => {
     const backup = vi.fn(async () => undefined);
     const { store } = setup({ backup });
     await store.exportPlain();
