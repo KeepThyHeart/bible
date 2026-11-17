@@ -526,7 +526,15 @@ class AudioStore extends Store {
       if (this.status === 'paused') this.resume();
       return;
     }
-    void this.startPlayback(tab, { ...current, moduleAbbr: this.playingModule ?? current.moduleAbbr, verse });
+    const from = { ...current, moduleAbbr: this.playingModule ?? current.moduleAbbr, verse };
+    // Same chapter, same source: move within it, so the highlight changes at once. Anything else
+    // (no chapter open yet, still resolving) restarts.
+    const player = this.system?.player;
+    if (player && !this.preparing) {
+      void player.seekToVerse(verse).then(moved => { if (!moved) void this.startPlayback(tab, from); });
+      return;
+    }
+    void this.startPlayback(tab, from);
   }
 
   // ---------------------------------------------------------------- sources and voices

@@ -307,6 +307,22 @@ export class AudioPlayer implements IAudioPlayer {
     return this.goToVerse({ ...base, verse: targetVerse });
   }
 
+  /**
+   * Move to a verse of the chapter in hand, playing from there. The current verse changes at once
+   * (the highlight must not snap back while the verse is prepared); the status shows "buffering"
+   * until sound starts. Returns false, doing nothing, when no chapter is open or it lacks the verse,
+   * so the caller can restart playback instead.
+   */
+  async seekToVerse(verse: number): Promise<boolean> {
+    const chapter = this.chapter;
+    const base = this._state.current;
+    if (this.disposed || !chapter || !base || this._state.status === 'idle' || this._state.status === 'error') return false;
+    if (!chapter.verses.includes(verse)) return false;
+    this.wantPlaying = true;
+    await this.goToVerse({ ...base, verse });
+    return true;
+  }
+
   async seekChapter(delta: 1 | -1): Promise<void> {
     if (this.disposed || !this.provider) return;
     if (this._state.status === 'idle') return;

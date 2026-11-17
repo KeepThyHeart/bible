@@ -376,6 +376,8 @@ export interface IAudioPlayer {
   resume(): void;
   stop(): void;
   seekVerse(delta: 1 | -1): Promise<void>;
+  /** Jump to a verse of the open chapter and play from it; false (nothing done) when it is not there. */
+  seekToVerse(verse: number): Promise<boolean>;
   seekChapter(delta: 1 | -1): Promise<void>;
   setRate(rate: number): void;
   on(e: 'state', cb: (s: PlayerState) => void): () => void;

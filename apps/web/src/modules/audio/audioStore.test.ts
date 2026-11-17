@@ -646,6 +646,17 @@ describe('sources, voices and the phone player', () => {
     expect(audioStore.providerId).toBe('recorded');
   });
 
+  it('jumpToVerse moves within the open chapter at once, without reopening it', async () => {
+    await flush();
+    await playNow();
+    const opens = rig.recorded.openCalls.length;
+    audioStore.jumpToVerse(4);
+    expect(audioStore.follow.verseId).toBe(43003004);
+    await flush();
+    expect(rig.recorded.openCalls.length).toBe(opens);
+    expect(audioStore.follow.verseId).toBe(43003004);
+  });
+
   it('the phone player opens and closes, and a stopped playback closes it', async () => {
     audioStore.setLayout('phone');
     audioStore.openPlayer();
