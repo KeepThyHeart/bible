@@ -18,15 +18,18 @@ Usage:
 Options:
   --module=ABBR         translation to record (required); its module file is bible_<abbr>.db
   --engine=ID           kokoro | piper (default kokoro)
-  --voice=ID            voice id (default: the engine's default for the translation's language)
-  --narrator=ID         narrator id in the hosting layout (default <engine>-<voice>)
+  --voice=ID            voice id (default: the engine's default for the translation's language);
+                        Kokoro also takes a blend, am_michael:0.5+bm_george:0.5 (the first voice sets the accent)
+  --narrator=ID         narrator id in the hosting layout (default <engine>-<voice>, plus -clear with --clear-speech)
   --rev=N               audio build id (default 1)
   --books=JHN,PSA       books to record (USFM code, number or English name)
   --chapters=JHN.3,PSA.23-25   chapters to record (JHN alone is the whole book)
   --out=DIR             audio root (default $BIBLE_DATA_DIR/audio, as fetch:piper)
   --modules-dir=DIR     where bible_<abbr>.db lives (default $BIBLE_DATA_DIR/modules); or --module-file=PATH
   --formats=opus,mp3    output formats, first is preferred by players (default opus,mp3)
+  --opus-kbps=32        Ogg Opus bitrate (default 32; 24 is fine for one voice)
   --rate=1.0            speech speed
+  --clear-speech        careful diction: real t for flaps and glottal stops, full vowels for reduced ones
   --gap=350             silence between verses, ms        --intro-gap=700  silence after the chapter intro, ms
   --quantization=q8     Kokoro model: q8 (default) or fp32
   --jobs=N              parallel workers, each with its own model copy (default cores-1)
@@ -55,7 +58,7 @@ export function parseCli(argv: string[], env: NodeJS.ProcessEnv = process.env): 
     options: {
       module: { type: 'string' }, engine: { type: 'string' }, voice: { type: 'string' }, narrator: { type: 'string' }, rev: { type: 'string' },
       books: { type: 'string' }, chapters: { type: 'string' }, out: { type: 'string' }, 'modules-dir': { type: 'string' }, 'module-file': { type: 'string' },
-      formats: { type: 'string' }, rate: { type: 'string' }, gap: { type: 'string' }, 'intro-gap': { type: 'string' }, quantization: { type: 'string' },
+      formats: { type: 'string' }, 'opus-kbps': { type: 'string' }, 'clear-speech': { type: 'boolean' }, rate: { type: 'string' }, gap: { type: 'string' }, 'intro-gap': { type: 'string' }, quantization: { type: 'string' },
       jobs: { type: 'string' }, 'cache-dir': { type: 'string' }, ffmpeg: { type: 'string' }, label: { type: 'string' },
       pronunciation: { type: 'string' }, 'no-pronunciation': { type: 'boolean' },
       force: { type: 'boolean' }, 'dry-run': { type: 'boolean' }, 'i-have-rights': { type: 'boolean' }, help: { type: 'boolean', short: 'h' },
@@ -106,6 +109,8 @@ export function parseCli(argv: string[], env: NodeJS.ProcessEnv = process.env): 
       ffmpeg: v.ffmpeg ?? env.FFMPEG ?? 'ffmpeg',
       iHaveRights: !!v['i-have-rights'],
       label: v.label,
+      opusKbps: Math.round(num('opus-kbps', v['opus-kbps'], 32, 6, 256)),
+      clearSpeech: !!v['clear-speech'],
     },
   };
 }

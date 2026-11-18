@@ -14,6 +14,8 @@ export interface EngineContext {
   /** ONNX Runtime intra-op threads for this engine instance. */
   threads: number;
   quantization: Quantization;
+  /** Rewrite phonemes for careful diction (core `clearSpeechIpa`); engines without phoneme access ignore it. */
+  clearSpeech?: boolean;
   log(message: string): void;
 }
 
@@ -42,5 +44,13 @@ export interface EngineDefinition {
   nominalRtf(ctx: Pick<EngineContext, 'quantization'>): number;
   /** True: the engine speaks pronunciation markers (`⟦word|ipa⟧`), so the run applies the overlay. */
   pronunciation?: boolean;
+  /** True: the engine honours `EngineContext.clearSpeech`. */
+  clearSpeech?: boolean;
+  /** The BCP-47 language a voice id speaks, for ids not in `voices` (for example a Kokoro blend). */
+  voiceLanguage?(voiceId: string): string | undefined;
+  /** A short, file-safe name for the voice in the default narrator id (default: the voice id). */
+  voiceSlug?(voiceId: string): string;
+  /** The voice's name for readers, in the default narrator label (default: the voice id). */
+  voiceLabel?(voiceId: string): string;
   create(ctx: EngineContext): ITtsEngine;
 }

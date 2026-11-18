@@ -6,3 +6,4 @@ export * from './config';
 export * from './TextPreparer';
 export * from './piperPhonemes';
 export * from './pronunciation';
+export * from './clearSpeech';

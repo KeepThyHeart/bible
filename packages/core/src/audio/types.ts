@@ -190,6 +190,10 @@ export interface AudioBuildInfo {
   /** Silence after each verse and after the intro, milliseconds. */
   gapMs: number;
   introGapMs: number;
+  /** True when the phonemes were rewritten for careful diction (`clearSpeechIpa`); absent means off. */
+  clearSpeech?: boolean;
+  /** Ogg Opus bitrate, kbps, when it is not the tool's default; absent means the default. */
+  opusKbps?: number;
   /** The producing tool and version. */
   tool?: string;
 }

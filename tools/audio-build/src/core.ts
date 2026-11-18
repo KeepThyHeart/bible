@@ -23,6 +23,8 @@ export {
   piperPhonemizerArgs,
   parsePhonemizerLines,
   phonemizePiper,
+  clearSpeechIpa,
+  clearSpeechSymbols,
   applyPronunciation,
   hasPronunciation,
   parsePronunciationLexicon,

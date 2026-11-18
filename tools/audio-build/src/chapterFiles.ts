@@ -98,7 +98,8 @@ export async function writeChapter(
 export interface ResumeCheck { ok: boolean; reason?: string; manifest?: ChapterManifest }
 
 const sameBuild = (a: AudioBuildInfo | undefined, b: AudioBuildInfo): boolean =>
-  !!a && a.engine === b.engine && a.voice === b.voice && (a.model ?? '') === (b.model ?? '') && a.rate === b.rate && a.gapMs === b.gapMs && a.introGapMs === b.introGapMs;
+  !!a && a.engine === b.engine && a.voice === b.voice && (a.model ?? '') === (b.model ?? '') && a.rate === b.rate && a.gapMs === b.gapMs && a.introGapMs === b.introGapMs
+  && !!a.clearSpeech === !!b.clearSpeech && a.opusKbps === b.opusKbps;
 
 /**
  * A chapter can be skipped when its manifest exists and validates, its text hash and build

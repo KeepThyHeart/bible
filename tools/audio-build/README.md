@@ -32,6 +32,10 @@ pnpm --filter @bible/audio-build run build       # tsc to dist/
 pnpm audio:build --module=KJV --engine=kokoro --voice=am_michael --chapters=JHN.3,PSA.23
 pnpm audio:build --module=KJV --engine=piper --voice=en_US-amy-low --books=JHN --formats=opus
 pnpm audio:build --module=KJV --engine=kokoro --dry-run          # what would be rendered, no model loaded
+
+# A blended voice, clear speech, Ogg Opus only at 24 kbps, a little slower
+pnpm audio:build --module=KJV --engine=kokoro --voice=am_michael:0.5+bm_george:0.5 --clear-speech \
+  --rate=0.9 --formats=opus --opus-kbps=24 --chapters=JHN.3
 ```
 
 `pnpm audio:build --help` lists every option. The main ones:
@@ -39,11 +43,13 @@ pnpm audio:build --module=KJV --engine=kokoro --dry-run          # what would be
 | Option | Meaning |
 |---|---|
 | `--module=ABBR` | translation to record; the file is `<modules-dir>/bible_<abbr>.db` (`--modules-dir`, default `$BIBLE_DATA_DIR/modules`, or `--module-file=PATH`) |
-| `--engine`, `--voice` | `kokoro` (default) or `piper`; a voice id. Defaults per language: Kokoro `am_michael`, Piper `en_US-amy-medium` |
-| `--narrator`, `--rev` | narrator id (default `<engine>-<voice>`) and audio build id (default `1`) |
+| `--engine`, `--voice` | `kokoro` (default) or `piper`; a voice id, or for Kokoro a blend (below). Defaults per language: Kokoro `am_michael`, Piper `en_US-amy-medium` |
+| `--narrator`, `--rev` | narrator id (default `<engine>-<voice>`, with `-clear` added for `--clear-speech`; a blend uses its short name, `kokoro-michael50-george50-clear`) and audio build id (default `1`) |
 | `--books=JHN,PSA`, `--chapters=JHN.3,PSA.23-25` | what to record (USFM code, number or English name); neither: the whole module |
 | `--out` | audio root, default `$BIBLE_DATA_DIR/audio` (the same rule as `fetch:piper`; the server serves it at `/audio`) |
 | `--formats=opus,mp3` | Ogg Opus 32 kbps mono first, MP3 64 kbps mono second |
+| `--opus-kbps=N` | Opus bitrate (32 default). 24 sounds the same for one voice and is a quarter smaller (the whole KJV is about 1 GB at 24) |
+| `--clear-speech` | careful diction (below), for Kokoro and Piper |
 | `--rate`, `--gap`, `--intro-gap` | speed (1.0), silence between verses (350 ms) and after the intro (700 ms) |
 | `--quantization=q8\|fp32` | Kokoro model precision (q8 default) |
 | `--jobs=N` | parallel workers (default cores - 1); each has its own copy of the model |
@@ -54,6 +60,14 @@ Needs `ffmpeg` with libopus and libmp3lame on the PATH (or `--ffmpeg=` / `$FFMPE
 downloads models: Kokoro from `onnx-community/Kokoro-82M-v1.0-ONNX` (about 90 MB for q8, 330 MB for
 fp32, plus 0.5 MB per voice), Piper voices from `rhasspy/piper-voices` (the files `fetch:piper` uses).
 
+## Voice blends (Kokoro)
+
+A Kokoro voice is a table of style vectors (510 rows, one per input length, of 256 floats; the files ship in the `kokoro-js` package). `--voice=am_michael:0.5+bm_george:0.5` averages the voices' tables by weight (weights are shares and are normalised; `am_michael+bm_george` is an even blend) and runs the model with the blend, choosing the row by input length as kokoro-js does. The **first voice sets the accent**: the text is phonemized in its language and gets that locale's pronunciation corrections, so `am_michael:0.5+bm_george:0.5` reads American English with some of George's timbre, while `bm_george:0.5+am_michael:0.5` reads British English. The blend recipe is the build record's `voice`, the narrator's provenance names it, and the default reader label is "Kokoro-82M, Michael 50% + George 50%".
+
+## Clear speech
+
+`--clear-speech` rewrites the phonemes for careful, distinct diction before they reach the model (core `clearSpeechIpa`, applied after the pronunciation corrections, so those are clarified too): a real `t` for the glottal stop and the flap (be**got**ten, ci**t**y, wa**t**er), a full vowel for the syllabic `n̩ l̩` and the reduced `ᵻ ɐ` (writ-**ten**, **be**fore, **a**gainst) and "the" as `ðʌ`. Stress marks and punctuation are kept, so the intonation stays natural. In the KJV it touches about 2,200 of 12,452 distinct words plus every "the". Kokoro then always goes through our phonemes (a plain voice without clear speech still uses kokoro-js's own pipeline, as before); Piper applies the rules to the phonemizer output, skipping any rule whose new symbols the voice lacks. It is part of the build record, and adds `-clear` to the default narrator id, so a clear build never resumes a plain one.
+
 ## What a run does
 
 For each chapter: prepare the text with core's `TextPreparer`; synthesize the intro ("John, chapter
@@ -61,7 +75,8 @@ For each chapter: prepare the text with core's `TextPreparer`; synthesize the in
 (`--gap`, and `--intro-gap` after the intro) and record `[verse, start, end]` from **sample counts**,
 so the times are exact; encode with ffmpeg; write the audio files (each under a temp name, then
 renamed), then the manifest, which carries `bytes`, `sha256`, `duration`, `textHash` (a hash of the
-prepared text of the whole chapter) and a `build` record (engine, model, voice, rate, gaps).
+prepared text of the whole chapter) and a `build` record (engine, model, voice, rate, gaps, and
+`clearSpeech` and `opusKbps` when they are not the defaults).
 
 Layout, under `--out`:
 
@@ -74,8 +89,8 @@ v1/{module}/{narrator}/{rev}/{book}/{ccc}.mp3    fallback
 
 - **Resume.** A chapter is skipped when its manifest exists and validates, its `textHash` and `build`
   record equal the ones this run would produce, and every listed file is on disk with the recorded
-  size. A different voice is a different narrator. Changing the speed, gaps, model precision, or the
-  text re-renders; so does asking for a format the chapter lacks. `--force` re-renders everything selected.
+  size. A different voice is a different narrator. Changing the speed, gaps, model precision, clear
+  speech, the Opus bitrate, or the text re-renders; so does asking for a format the chapter lacks. `--force` re-renders everything selected.
   A manifest is written last, so an interrupted run leaves no chapter that looks finished.
 - **Index.** After a run `index.json` is rebuilt from the manifests on disk: `books` lists books with
   every chapter recorded, `chapters` the chapters of partial books. Other narrators' entries are kept

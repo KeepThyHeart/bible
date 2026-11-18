@@ -87,6 +87,45 @@ describe('a run end to end (fake engine, real ffmpeg)', () => {
     expect(forced).toMatchObject({ done: 1, skipped: 0 });
   });
 
+  it('records clear speech and a non-default Opus bitrate, and renders again when either changes', async () => {
+    const def = { ...fakeDefinition, clearSpeech: true };
+    const run = (o: BuildOptions) => runBuild(o, { moduleText: john(), engineDef: def, engine: new FakeEngine(), ...quiet });
+    const plain = base({ chapters: 'JHN.2', formats: ['opus'] });
+    await run(plain);
+    const m0 = await readManifest(43, 2);
+    expect(m0.build).not.toHaveProperty('clearSpeech');
+    expect(m0.build).not.toHaveProperty('opusKbps');
+    expect((await run({ ...plain, opusKbps: 32 })).skipped).toBe(1); // the default bitrate, stated, is the same build
+
+    const low = { ...plain, opusKbps: 24 };
+    expect((await run(low)).done).toBe(1);
+    expect((await readManifest(43, 2)).build).toMatchObject({ opusKbps: 24 });
+    expect((await run(low)).skipped).toBe(1);
+
+    // Clear speech is a narrator of its own by default...
+    const clear = { ...low, clearSpeech: true };
+    expect((await run(clear)).done).toBe(1);
+    const mc = await readManifest(43, 2, 'fake-v1-clear');
+    expect(mc.build).toMatchObject({ clearSpeech: true, opusKbps: 24 });
+    expect((await run(clear)).skipped).toBe(1);
+    // ...and under a fixed narrator id, switching it off renders again.
+    expect((await run({ ...clear, narrator: 'n' })).done).toBe(1);
+    expect((await run({ ...low, narrator: 'n' })).done).toBe(1);
+    expect((await readIndex()).narrators.find(n => n.id === 'fake-v1-clear')?.label).toBe('Fake, v1, clear speech');
+  });
+
+  it('refuses clear speech for an engine that cannot do it', async () => {
+    await expect(runBuild(base({ chapters: 'JHN.2', clearSpeech: true }), { moduleText: john(), engineDef: fakeDefinition, engine: new FakeEngine(), ...quiet }))
+      .rejects.toThrow(RunError);
+  });
+
+  it('names the default narrator and label from the engine\'s voice slug and label', async () => {
+    const def = { ...fakeDefinition, checkVoice: () => undefined, voiceSlug: () => 'a50-b50', voiceLabel: () => 'A 50% + B 50%' };
+    const s = await runBuild(base({ chapters: 'JHN.2', voice: 'a:1+b:1', formats: ['opus'] }), { moduleText: john(), engineDef: def, engine: new FakeEngine(), ...quiet });
+    expect(s.narrator).toBe('fake-a50-b50');
+    expect((await readIndex()).narrators[0].label).toBe('Fake, A 50% + B 50%');
+  });
+
   it('renders again when the text, the voice settings or the formats change', async () => {
     const opts = base({ chapters: 'JHN.2' });
     await runBuild(opts, { moduleText: john(), engineDef: fakeDefinition, engine: new FakeEngine(), ...quiet });
