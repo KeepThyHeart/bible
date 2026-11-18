@@ -7,6 +7,7 @@ import { ReadingPlans } from '@bible/core/browser';
 import { Checkbox, MessageBox, Notice, ProgressBar } from '@bible/ui';
 import { useI18n } from '../../../contexts/useI18n';
 import type { ReadingPlanLabelSet } from './useReadingPlanLabels';
+import { shownPercent } from './readingPlanData';
 
 export interface ReadingTarget { day: number; index: number; reading: ReadingPlans.Reading }
 
@@ -168,7 +169,7 @@ const PlanHome: React.FC<PlanHomeProps> = ({
   };
 
   // One decimal while the plan is young, so the first days do not read as 0%.
-  const percentShown = stats.percent > 0 && stats.percent < 10 ? Math.round(stats.percent * 10) / 10 : Math.round(stats.percent);
+  const percentShown = shownPercent(stats.percent);
   const currentDay = windowDays.current ?? today.day;
   const noticeEl = notice();
 

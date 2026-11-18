@@ -258,7 +258,7 @@ export function ReadingPlanAutoFillForm({
           <button type="button" className="kth-btn kth-btn--sm" onClick={() => setBookSet(OT)}>{L.oldTestament}</button>
           <button type="button" className="kth-btn kth-btn--sm" onClick={() => setBookSet(NT)}>{L.newTestament}</button>
           <button type="button" className="kth-btn kth-btn--sm" onClick={() => setBookSet([40, 41, 42, 43])}>{L.gospels}</button>
-          <button type="button" className="kth-btn kth-btn--sm" onClick={() => { setBookSet([]); setPassages([]); }}>{L.clear}</button>
+          <button type="button" className="kth-btn kth-btn--sm" onClick={() => { setBookSet([]); setPassages([]); setPassageText(''); }}>{L.clear}</button>
         </div>
         <div className="kth-rp-autofill__passage">
           <ReferencePicker

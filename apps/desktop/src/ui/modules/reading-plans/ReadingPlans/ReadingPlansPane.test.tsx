@@ -203,4 +203,22 @@ describe('ReadingPlansPane', () => {
     await waitFor(async () => expect((await service.library()).some((p) => p.key === plan.key)).toBe(false));
     expect(screen.getByRole('heading', { name: 'Add a reading plan' })).toBeInTheDocument();
   });
+
+  it('docked in Study it leaves the reader\'s request to the app, and resets when its app is hidden', async () => {
+    const { service } = installTestService();
+    const e = await service.startPlan('stock:gospels-30');
+    const user = userEvent.setup();
+    render(<div data-app="study"><ReadingPlansPane /></div>);
+    await screen.findByTestId('plan-home');
+    useReadingPlanNavStore.getState().show({ enrollmentId: e.id, day: 1, index: 0 });
+    await new Promise((r) => setTimeout(r, 50));
+    expect(useReadingPlanNavStore.getState().request).not.toBeNull();
+    expect(screen.getByTestId('plan-home')).toBeInTheDocument();
+    useReadingPlanNavStore.getState().consume();
+    await user.click(screen.getByRole('button', { name: 'Plan settings' }));
+    expect(await screen.findByRole('dialog')).toBeInTheDocument();
+    window.dispatchEvent(new Event('app:will-hide'));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(screen.getByTestId('plan-home')).toBeInTheDocument();
+  });
 });

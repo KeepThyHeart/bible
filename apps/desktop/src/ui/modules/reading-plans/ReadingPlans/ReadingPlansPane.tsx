@@ -16,6 +16,9 @@ import AddPlanView from './AddPlanView';
 import PlanSettingsDialog from './PlanSettingsDialog';
 import type { PlanSettingsMode } from './PlanSettingsDialog';
 
+/** `APP_WILL_HIDE_EVENT` of `apps/DesktopAppStage` (not imported: the stage imports the app views). */
+const APP_WILL_HIDE_EVENT = 'app:will-hide';
+
 type View =
   | { kind: 'home' }
   | { kind: 'add' }
@@ -74,10 +77,23 @@ const ReadingPlansPane: React.FC = () => {
     }
   }, []);
 
+  // Docked in Study, the pane stays mounted while another app is shown: close its dialogs (they are portalled to
+  // <body>) and go back to "where am I" when its app is hidden. As an app it is unmounted instead.
+  const rootRef = useRef<HTMLDivElement>(null);
+  const [epoch, setEpoch] = useState(0);
+  useEffect(() => {
+    const onHide = () => { setSettings(null); setView({ kind: 'home' }); setEpoch((n) => n + 1); };
+    window.addEventListener(APP_WILL_HIDE_EVENT, onHide);
+    return () => window.removeEventListener(APP_WILL_HIDE_EVENT, onHide);
+  }, []);
+
   // The reader's "View reading plan": open the plan view on that reading.
   const request = useReadingPlanNavStore((s) => s.request);
   useEffect(() => {
     if (!request || !loaded) return;
+    // The request is for the Reading plans app (the reader opens it next). A copy of this pane docked in the
+    // Study workspace must leave it alone, or the app would open without it.
+    if (rootRef.current?.closest('[data-app]')?.getAttribute('data-app') === 'study') return;
     const r = useReadingPlanNavStore.getState().consume(); // allow-getstate: event handler
     if (r && data.enrollments.some((e) => e.id === r.enrollmentId)) {
       setSelectedId(r.enrollmentId);
@@ -161,9 +177,9 @@ const ReadingPlansPane: React.FC = () => {
   const showAddButton = view.kind === 'home' && loaded && ordered.length > 0;
 
   return (
-    <div className="h-full w-full overflow-auto" data-testid="reading-plans-pane"
+    <div ref={rootRef} className="h-full w-full overflow-auto" data-testid="reading-plans-pane"
       style={{ backgroundColor: 'var(--theme-bg-primary)', color: 'var(--theme-text-primary)' }}>
-      <div className="flex flex-col gap-md p-md" style={{ maxInlineSize: '46rem', marginInline: 'auto' }}>
+      <div key={epoch} className="flex flex-col gap-md p-md" style={{ maxInlineSize: '46rem', marginInline: 'auto' }}>
         <div className="flex items-center gap-sm">
           {/* The app stage focuses the first h1[tabindex=-1] when the app opens. */}
           <h1 ref={headingRef} tabIndex={-1} className="m-0 text-2xl font-semibold me-auto">{t('readingPlans.title')}</h1>

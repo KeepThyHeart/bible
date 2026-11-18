@@ -12,6 +12,7 @@ import { getReadingPlanService } from '../readingPlansAPI';
 import { openPlanReading } from '../useActiveReadingStore';
 import { usePreferencesStore } from '../../../stores/usePreferencesStore';
 import type { ReadingPlanLabelSet } from './useReadingPlanLabels';
+import { shownPercent } from './readingPlanData';
 
 interface Props {
   enrollmentId: string;
@@ -121,7 +122,8 @@ const ReadingPlanDetail: React.FC<Props> = ({ enrollmentId, labels, displayName,
 
       <section className="flex flex-col gap-xs text-sm" aria-label={t('readingPlans.detail.stats')}>
         <div>{t('readingPlans.detail.daysRead', { done: stats.daysDone, total: stats.dayCount })}</div>
-        <ProgressBar value={stats.percent} label={t('readingPlans.detail.percent', { percent: stats.percent })} />
+        <ProgressBar value={stats.percent} label={t('readingPlans.detail.percent', { percent: shownPercent(stats.percent) })}
+          valueText={t('readingPlans.card.percent', { percent: shownPercent(stats.percent) })} />
         {stats.finishBasis === 'pace' && stats.estimatedFinish ? (
           <div>
             {t('readingPlans.detail.estimatedFinish', { date: labels.formatDate(stats.estimatedFinish) })}
