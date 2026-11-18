@@ -5,6 +5,7 @@
  */
 import type { PlanDefinition, Reading, VerseIdNumber } from './types';
 import type { ProgressIndex } from './scheduler';
+import { firstUnreadDay } from './scheduler';
 import { splitVid } from './versification';
 
 /** One reading with its place in the plan (`day` is 1-based, `index` 0-based within the day). */
@@ -74,4 +75,18 @@ export function blockPlacement(
   const start = verseId >= reading.start && (prev === null ? sameChapter(reading.start, verseId) : prev < reading.start);
   const end = verseId <= reading.end && (next === null ? sameChapter(reading.end, verseId) : next > reading.end);
   return { start: start && verseId <= reading.end, end: end && verseId >= reading.start };
+}
+
+/**
+ * The plan days around the reader's place: `current` is the first day with an unfinished reading, `previous`
+ * and `next` its neighbours (null at the plan's edges). A finished plan has no current or next day and
+ * `previous` is the last day.
+ */
+export function currentDayWindow(
+  plan: PlanDefinition, progress: ProgressIndex,
+): { previous: number | null; current: number | null; next: number | null } {
+  const current = firstUnreadDay(plan, progress);
+  const count = plan.days.length;
+  if (current === null) return { previous: count > 0 ? count : null, current: null, next: null };
+  return { previous: current > 1 ? current - 1 : null, current, next: current < count ? current + 1 : null };
 }

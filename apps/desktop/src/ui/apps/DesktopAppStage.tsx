@@ -13,6 +13,9 @@ import { resolveLabelRef, toNavEntries } from './navEntries';
 /** Window event fired when the app on screen is about to be hidden, so body-level popups close. */
 export const APP_WILL_HIDE_EVENT = 'app:will-hide';
 
+/** Rail icon box in px at the default UI size; the buttons are sized in app-stage.css (task 0222). */
+const RAIL_ICON_SIZE = 24;
+
 const BoundView: React.FC<{ id: string }> = ({ id }) => {
   const View = getAppView(id);
   return View ? <View /> : null;
@@ -81,7 +84,7 @@ export const DesktopAppStage: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeId]);
 
-  const entries = toNavEntries(railItems, t, i18n);
+  const entries = toNavEntries(railItems, t, i18n, undefined, RAIL_ICON_SIZE);
   return (
     <>
       {showRail && (

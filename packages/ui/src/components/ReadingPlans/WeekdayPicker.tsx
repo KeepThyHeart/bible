@@ -1,5 +1,6 @@
-/** WeekdayPicker: seven toggle buttons for the days a plan is read on; the last selected day cannot be cleared (task 0073). */
+/** WeekdayPicker: seven checkboxes for the days a plan is read on; the last selected day cannot be cleared (task 0073). */
 import type { ReadingPlans } from '@bible/core/browser';
+import { Checkbox } from '../Checkbox';
 
 type Weekday = ReadingPlans.Weekday;
 
@@ -20,10 +21,12 @@ export interface WeekdayPickerProps {
   firstDay?: 0 | 1;
   disabled?: boolean;
   labels?: Partial<WeekdayPickerLabels>;
+  /** Visible group legend; without it the group is named by `labels.group`. */
+  legend?: string;
   dir?: 'ltr' | 'rtl';
 }
 
-export function WeekdayPicker({ value, onChange, weekdayNames = DEFAULT_WEEKDAY_NAMES, firstDay = 0, disabled, labels, dir }: WeekdayPickerProps) {
+export function WeekdayPicker({ value, onChange, weekdayNames = DEFAULT_WEEKDAY_NAMES, firstDay = 0, disabled, labels, legend, dir }: WeekdayPickerProps) {
   const L = { ...DEFAULT_WEEKDAY_PICKER_LABELS, ...labels };
   const order: Weekday[] = Array.from({ length: 7 }, (_, i) => ((i + firstDay) % 7) as Weekday);
   const toggle = (d: Weekday) => {
@@ -35,13 +38,18 @@ export function WeekdayPicker({ value, onChange, weekdayNames = DEFAULT_WEEKDAY_
     }
   };
   return (
-    <div className="kth-rp-weekdays" role="group" aria-label={L.group} dir={dir}>
+    <fieldset className="kth-rp-weekdays" aria-label={legend ? undefined : L.group} disabled={disabled} dir={dir}>
+      {legend ? <legend className="kth-rp-weekdays__legend">{legend}</legend> : null}
       {order.map((d) => (
-        <button key={d} type="button" className="kth-rp-weekdays__day" aria-pressed={value.includes(d)} disabled={disabled}
-          onClick={() => toggle(d)}>
-          {weekdayNames[d] ?? DEFAULT_WEEKDAY_NAMES[d]}
-        </button>
+        <Checkbox
+          key={d}
+          checked={value.includes(d)}
+          onChange={() => toggle(d)}
+          label={weekdayNames[d] ?? DEFAULT_WEEKDAY_NAMES[d]}
+          disabled={disabled}
+          className="kth-rp-weekdays__day"
+        />
       ))}
-    </div>
+    </fieldset>
   );
 }

@@ -12,7 +12,7 @@ export {
 export type { BuildOptions, PlanPreview } from './builder';
 export {
   indexCompletions, isDayDone, firstUnreadDay, isReadingDay, scheduledDay, dateForDay, todayView, planStats,
-  shiftedStartDate, catchUpSuggestion, dayStatuses,
+  shiftedStartDate, catchUpSuggestion, dayStatuses, measurePace, PACE_WINDOW_DAYS, PACE_MIN_READING_DAYS, PACE_MIN_PLAN_DAYS, PACE_MAX_PLAN_DAYS_PER_DATE,
 } from './scheduler';
 export type { ProgressIndex, TodayView, TodayReading, PlanStats, DayStatus } from './scheduler';
 export {
@@ -27,12 +27,12 @@ export {
   COMPLETIONS_COLLECTION, snapshotKey,
 } from './store';
 export type { IReadingPlanStore, CompletionChange } from './store';
-export { flattenPlan, readingNeighbours, overdueReadings, nextReadingAfter, blockPlacement } from './cursor';
+export { flattenPlan, readingNeighbours, overdueReadings, nextReadingAfter, blockPlacement, currentDayWindow } from './cursor';
 export type { PlanReadingRef } from './cursor';
 export { ReadingPlanService } from './service';
 export type {
   ReadingPlanEvent, ReadingPlanListener, ReadingScope, IReadingScopeProvider, StartPlanOptions, EnrollmentPatch,
-  EnrollmentDetail, ReadingPlanServiceOptions,
+  EnrollmentDetail, ReadingPlanServiceOptions, SavePlanInput,
 } from './service';
 export { NO_REMINDERS, RecordingReminderPort } from './reminders';
 export type { ReadingPlanReminderPort, PlanReminderRule } from './reminders';

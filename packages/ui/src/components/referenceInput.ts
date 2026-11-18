@@ -13,6 +13,7 @@ import {
   ReferenceParser,
   VerseIdHelper,
   getLocalizer,
+  versesInChapter,
   isSingleChapterBook,
   referenceLocalesVersion,
 } from '@bible/core/browser';
@@ -22,7 +23,7 @@ import type { Localizer, ParsedReference } from '@bible/core/browser';
 export interface ReferenceValue {
   /** `VerseIdHelper.calculate(book, chapter, verse ?? 1)`. */
   verseId: number;
-  /** Ranges only: same-chapter "3:16-18" or cross-chapter "3:16-4:2". */
+  /** Ranges only: same-chapter "3:16-18", cross-chapter "3:16-4:2" or a chapter range "3-5" (ends at the last verse). */
   endVerseId?: number;
   /** Canonical reference in the active locale, e.g. "Juan 3:16". */
   ref: string;
@@ -31,7 +32,7 @@ export interface ReferenceValue {
 }
 
 export interface ReferenceInputOptions {
-  /** Reject "3:16-18" and "3:16-4:2". */
+  /** Reject "3:16-18", "3:16-4:2" and chapter ranges ("3-5"). */
   noRanges?: boolean;
   /** Reject a bare chapter ("John 3"). */
   noWholeChapter?: boolean;
@@ -153,8 +154,45 @@ export function parseReferenceInput(
   const parsed: ParsedReference = { isValid: true, book, chapter: c, originalText: text };
 
   if (v === undefined) {
-    // "John 3". A chapter range ("3-5", "3-4:2") is rejected in v1.
-    if (w !== undefined || d !== undefined) return { ok: false };
+    // "John 3", or a chapter range: "3-5" (d undefined, w = end chapter) and "3-4:2" (to a verse).
+    if (w !== undefined) {
+      if (opts.noRanges) return { ok: false };
+      const endChapter = d ?? w;
+      if (endChapter > maxChapter || endChapter < c || w < 1) return { ok: false };
+      if (d !== undefined) {
+        // "3-4:2": chapter start (verse 1) to a verse of the end chapter.
+        if (d === c || w > versesInChapter(book, endChapter)) return { ok: false };
+        parsed.verse = 1;
+        parsed.endChapter = endChapter;
+        parsed.endVerse = w;
+        return {
+          ok: true,
+          value: {
+            verseId: VerseIdHelper.calculate(book, c, 1),
+            endVerseId: VerseIdHelper.calculate(book, endChapter, w),
+            ref: parsers.primary.format(parsed),
+          },
+          book,
+          fuzzy,
+        };
+      }
+      if (endChapter > c) {
+        parsed.endChapter = endChapter;
+        const last = versesInChapter(book, endChapter);
+        if (last < 1) return { ok: false };
+        return {
+          ok: true,
+          value: {
+            verseId: VerseIdHelper.calculate(book, c, 1),
+            endVerseId: VerseIdHelper.calculate(book, endChapter, last),
+            ref: parsers.primary.format(parsed),
+          },
+          book,
+          fuzzy,
+        };
+      }
+      // "3-3" is just chapter 3: fall through to the whole-chapter result.
+    }
     if (opts.noWholeChapter) return { ok: false };
     const value: ReferenceValue = {
       verseId: VerseIdHelper.calculate(book, c, 1),

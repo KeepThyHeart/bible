@@ -60,6 +60,12 @@ describe('reading-plans main module', () => {
     expect((await call('getPlan', 'stock:gospels-30@1')).value).toMatchObject({ key: 'stock:gospels-30', version: 1 });
   });
 
+  it('snapshots user plans, but not extension plans', async () => {
+    expect((await call('putSnapshot', plan)).ok).toBe(true);
+    expect((await call('getPlan', 'user:p1@1')).value).toMatchObject({ key: 'user:p1', version: 1, source: 'user' });
+    expect(await call('putSnapshot', { ...plan, key: 'ext:x/p', source: 'extension' })).toMatchObject({ ok: false, error: { code: 'invalid_input' } });
+  });
+
   it('rejects invalid input', async () => {
     expect(await call('putPlan', { ...plan, days: [] })).toMatchObject({ ok: false, error: { code: 'invalid_input' } });
     expect(await call('putPlan', { ...plan, key: 'stock:x', source: 'stock' })).toMatchObject({ ok: false, error: { code: 'invalid_input' } });

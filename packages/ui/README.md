@@ -103,7 +103,7 @@ autocomplete). Unlike `BookChapterPicker` it is a single field, not a dialog bod
 
 Keys: ArrowDown/ArrowUp move (wrap), Alt+ArrowDown opens, Enter commits the active option or the typed text (invalid sets
 `aria-invalid` and a live-region message), Escape closes then clears, Tab closes. A whole chapter has no verse bound in core, so
-`"John 3"` gives `verseId` chapter:1 with `wholeChapter: true`; chapter ranges (`John 3-5`) are rejected in v1; single-chapter books
+`"John 3"` gives `verseId` chapter:1 with `wholeChapter: true`; chapter ranges (`John 3-5`, `John 3-4:2`) are accepted unless `noRanges`: `verseId` is the first verse of the first chapter and `endVerseId` the last verse of the end chapter (KJV verse counts from `ReadingPlans.versesInChapter`), with no `wholeChapter` flag and `ref` like `John 3-5`; `John 3-3` is just `John 3`; descending ranges and chapters past the book's end are rejected; single-chapter books
 read `Jude 5` as verse 5. Classes: `kth-combobox`, `__label`, `__list` (the list also carries `kth-menu`/`kth-menu__item`).
 
 The pure logic is in `src/components/referenceInput.ts` and exported: `parseReferenceInput(text, locale, opts)` and
@@ -137,6 +137,22 @@ Opt-in classes in `css/kth-classes.css` for DOM-built UIs such as the Memory app
 | Back: `kth-back`, `__icon` | `button.kth-back` with a leading `span.kth-back__icon` chevron (it mirrors in RTL). |
 | Tabs: `kth-tabs`, `__tab` | `div.kth-tabs[role=tablist] > button.kth-tabs__tab[role=tab][aria-selected]`; the selected tab is styled from `aria-selected`. |
 | Table: `kth-table`, `__head`, `__cell` | `table.kth-table > thead > tr > th.kth-table__head`, `td.kth-table__cell`; `data-muted` on a cell dims it. |
+
+### Stock controls
+
+App UIs must use these instead of hand-rolled dialogs, checkboxes, tabs, progress bars, notices and lists. All are `kth-*` classes over tokens, logical properties, light/dark/RTL safe; labels come in as props with English defaults.
+
+| Control | Use |
+|---|---|
+| `Dialog` (`kth-dialog*`) | Centred modal: `title`, `subtitle`, `footer` (actions, inline-end), `size` `sm`/`md`/`lg`. Focus in and back, Tab kept inside, Escape closes only the top-most open dialog, body scrolls. `labels.close`, `role`, `showClose`, `closeOnBackdropPress`, `portal`, `dir`. |
+| `MessageBox` | Confirm / message `alertdialog` on `Dialog` (`confirmLabel`, optional `cancelLabel`, `tone` `danger`, `busy`). Danger focuses Cancel first. |
+| `Checkbox`, `Radio` (`kth-check*`) | Styled native input + label + `hint`; `tone="success"` for green; `ariaLabel` when there is no visible label. |
+| `Tabs`, `tabPanelProps(idPrefix, id)` (`kth-tabs*`) | Tab list with roving tabindex, arrows (mirrored in RTL), Home/End; selection follows focus. Spread `tabPanelProps` on the panel. |
+| `ProgressBar` (`kth-progress*`) | Thin bar, value clamped 0-100, optional `valueText`, `tone` `success`. |
+| `Notice` (`kth-notice*`) | Inline message strip: `tone` info/warning/error/success, `title`, `actions`; role `alert` for errors. |
+| `.kth-list`, `__item`, `__item--current`, `.kth-list--plain` | List reset with row dividers (none for `--plain`), current-row highlight. CSS only. |
+| `.kth-link` | A button or anchor that looks like a link. CSS only. |
+| `.kth-text-muted` | Muted, slightly smaller text. CSS only. |
 
 ### `Popover`, `HoverCard`, `BottomSheet` (popups)
 

@@ -141,8 +141,10 @@ export { ReadingPlanLibrary, DEFAULT_READING_PLAN_LIBRARY_LABELS } from './compo
 export type { ReadingPlanLibraryProps, ReadingPlanLibraryLabels } from './components/ReadingPlans/ReadingPlanLibrary';
 export { WeekdayPicker, DEFAULT_WEEKDAY_PICKER_LABELS, DEFAULT_WEEKDAY_NAMES } from './components/ReadingPlans/WeekdayPicker';
 export type { WeekdayPickerProps, WeekdayPickerLabels } from './components/ReadingPlans/WeekdayPicker';
-export { ReadingPlanBuilderForm, DEFAULT_READING_PLAN_BUILDER_FORM_LABELS } from './components/ReadingPlans/ReadingPlanBuilderForm';
-export type { ReadingPlanBuilderFormProps, ReadingPlanBuilderFormLabels, ReadingPlanBuilderStart } from './components/ReadingPlans/ReadingPlanBuilderForm';
+export { ReadingPlanDayEditor, DEFAULT_READING_PLAN_DAY_EDITOR_LABELS } from './components/ReadingPlans/ReadingPlanDayEditor';
+export type { ReadingPlanDayEditorProps, ReadingPlanDayEditorLabels } from './components/ReadingPlans/ReadingPlanDayEditor';
+export { ReadingPlanAutoFillForm, DEFAULT_READING_PLAN_AUTO_FILL_FORM_LABELS } from './components/ReadingPlans/ReadingPlanAutoFillForm';
+export type { ReadingPlanAutoFillFormProps, ReadingPlanAutoFillFormLabels } from './components/ReadingPlans/ReadingPlanAutoFillForm';
 
 // Direction primitives (task 0076): UI direction provider + hooks, isolated runs, content containers.
 export {
@@ -180,3 +182,17 @@ export {
   DEFAULT_ACCOUNT_PANEL_LABELS, DEFAULT_CHANGE_PASSWORD_LABELS, DEFAULT_PRIVACY_LABELS, DEFAULT_SYNC_STATUS_LABELS,
 } from './components/Account';
 export type * from './components/Account/types';
+
+// Stock controls: dialog, message box, checkbox/radio, tabs, progress bar, notice (lists, links: CSS only).
+export { Dialog, DEFAULT_DIALOG_LABELS } from './components/Dialog';
+export type { DialogProps, DialogLabels } from './components/Dialog';
+export { MessageBox } from './components/MessageBox';
+export type { MessageBoxProps } from './components/MessageBox';
+export { Checkbox, Radio } from './components/Checkbox';
+export type { CheckboxProps, RadioProps } from './components/Checkbox';
+export { Tabs, tabPanelProps } from './components/Tabs';
+export type { TabsProps, TabItem } from './components/Tabs';
+export { ProgressBar } from './components/ProgressBar';
+export type { ProgressBarProps } from './components/ProgressBar';
+export { Notice } from './components/Notice';
+export type { NoticeProps } from './components/Notice';
