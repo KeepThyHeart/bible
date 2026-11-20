@@ -46,10 +46,11 @@ describe('theme token use', () => {
     expect(css).toMatch(/input\[type="radio"\][^{]*\{[^}]*accent-color:\s*var\(--theme-accent-primary\)/);
   });
   it('plan progress track is visible against the card', () => {
-    const src = readFileSync(resolve(SRC, 'modules/reading-plans/ReadingPlans/TodayPlanCard.tsx'), 'utf8');
-    const track = src.split('\n').find((l) => l.includes('role="progressbar"') || l.includes('h-1.5 rounded overflow-hidden')) ?? '';
-    expect(track).toContain('--theme-bg-strong');
-    expect(track).toContain('--theme-border-primary');
+    // The plan views use the stock ProgressBar (task 0222): its track must keep a border, so the empty part of the
+    // bar never vanishes where the track colour equals the card's.
+    const css = readFileSync(resolve(__dirname, '../../../../../packages/ui/css/kth-classes.css'), 'utf8');
+    expect(css).toMatch(/\.kth-progress__track\s*\{[^}]*border:\s*1px solid var\(--kth-border\)/);
+    expect(css).toMatch(/\.kth-progress__track\s*\{[^}]*background:\s*var\(--kth-bg-active\)/);
   });
   it('quiz radio is filled with the accent', () => {
     const css = readFileSync(resolve(__dirname, '../../../../../packages/ui/css/kth-quiz.css'), 'utf8');

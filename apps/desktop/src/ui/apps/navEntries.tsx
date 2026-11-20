@@ -40,6 +40,8 @@ export function toNavEntries(
   t: T,
   i18n: Pick<II18nService, 'resolve'>,
   isMac = typeof navigator !== 'undefined' && /Mac/i.test(navigator.platform),
+  /** Icon box in px at the default UI size (rendered in rem). The rail passes a larger one (task 0222). */
+  iconSize = 20,
 ): AppNavEntry[] {
   return items.map((item) => {
     const hint = shortcutHint(item.shortcutSlot, isMac);
@@ -47,7 +49,7 @@ export function toNavEntries(
       id: item.id,
       title: resolveLabelRef(item.title, t, i18n),
       ...(item.shortTitle ? { shortTitle: resolveLabelRef(item.shortTitle, t, i18n) } : {}),
-      icon: <AppIconGlyph icon={item.icon} />,
+      icon: <AppIconGlyph icon={item.icon} size={iconSize} />,
       ...(item.badge ? { badge: item.badge } : {}),
       busy: item.busy,
       ...(hint ? { shortcutHint: hint } : {}),

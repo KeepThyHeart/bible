@@ -77,7 +77,8 @@ const readingPlansModule: FeatureMainModule = {
 
     handle('putSnapshot', async (raw) => {
       const plan = check(() => ReadingPlans.validatePlanDefinition(raw));
-      if (plan.source !== 'stock') throw new IpcKnownError('invalid_input', 'Only stock plans are snapshotted.');
+      const userPlan = plan.source === 'user' && plan.key.startsWith('user:');
+      if (plan.source !== 'stock' && !userPlan) throw new IpcKnownError('invalid_input', 'Only stock and user plans are snapshotted.');
       await (await getStore()).putSnapshot(plan);
     });
 

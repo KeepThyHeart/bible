@@ -57,6 +57,8 @@ export interface ReferencePickerProps {
   maxSuggestions?: number;
   disabled?: boolean;
   autoFocus?: boolean;
+  /** Also show the `invalid` message as visible text under the input (default: screen readers only). */
+  showInvalidMessage?: boolean;
 }
 
 type Option =
@@ -78,6 +80,7 @@ export function ReferencePicker({
   maxSuggestions = 8,
   disabled,
   autoFocus,
+  showInvalidMessage = false,
 }: ReferencePickerProps) {
   const labels: ReferencePickerLabels = { ...DEFAULT_REFERENCE_PICKER_LABELS, ...labelOverrides };
   const generatedId = useId();
@@ -243,6 +246,7 @@ export function ReferencePicker({
             </li>
           ))}
       </ul>
+      {showInvalidMessage && invalid ? <div className="kth-combobox__error" aria-hidden="true">{labels.invalid}</div> : null}
       <div role="status" className="kth-visually-hidden">
         {status}
       </div>

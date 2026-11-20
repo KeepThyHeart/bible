@@ -25,3 +25,28 @@
 .app-stage > .kth-app-stage__app[hidden] * {
   visibility: hidden !important;
 }
+
+/*
+ * The desktop app rail (task 0222): larger hit targets and icons than the shared default
+ * (2.5rem buttons, 1.25rem icons), a little under VS Code's activity bar (48px / 24px).
+ * Desktop only: the web rail keeps the shared size. The icon box itself is set by
+ * RAIL_ICON_SIZE in DesktopAppStage.tsx.
+ */
+.app-rail {
+  flex: none;
+  overflow-y: auto;
+  scrollbar-width: none;
+  border-inline-end: 1px solid var(--theme-border-primary);
+}
+.app-rail .kth-app-rail__list {
+  gap: 0.375rem;
+  padding: 0.375rem;
+}
+.app-rail .kth-app-rail__btn {
+  inline-size: 2.875rem;
+  block-size: 2.875rem;
+  border-radius: 8px;
+}
+.app-rail .kth-app-rail__icon {
+  font-size: 1.5rem;
+}

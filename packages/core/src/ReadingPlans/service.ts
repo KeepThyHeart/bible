@@ -4,19 +4,20 @@
  * implements IReadingScopeProvider.
  */
 import type {
-  BuilderSpec, Completion, CompletionVia, Enrollment, IsoDate, Pacing, PlanDefinition, PlanSummary, Reading, Weekday,
+  BuilderSpec, Completion, CompletionVia, Enrollment, IsoDate, Pacing, PlanDay, PlanDefinition, PlanSummary, Reading, Weekday,
 } from './types';
 import { ALL_WEEKDAYS } from './types';
 import type { IReadingPlanStore } from './store';
 import { snapshotKey } from './store';
-import { buildPlanDays } from './builder';
+import { buildPlanDays, MAX_PLAN_DAYS, MAX_READINGS_PER_DAY } from './builder';
+import { isValidVerseId, splitVid } from './versification';
 import { getStockPlan, isStockPlanKey, listStockPlans, summarizePlan } from './stock';
 import {
   dayStatuses, firstUnreadDay, indexCompletions, isDayDone, planStats, shiftedStartDate, todayView,
 } from './scheduler';
 import type { DayStatus, PlanStats, TodayView } from './scheduler';
 import { DEFAULT_ROLLOVER_HOUR, readingDate } from './dates';
-import { validateBuilderSpec, validateWeekdays, ReadingPlanDataError } from './validate';
+import { validateBuilderSpec, validatePlanDefinition, validateWeekdays, ReadingPlanDataError } from './validate';
 import { NO_REMINDERS } from './reminders';
 import type { ReadingPlanReminderPort } from './reminders';
 
@@ -50,6 +51,14 @@ export interface StartPlanOptions {
   startDate?: IsoDate;
   pacing?: Pacing;
   readingDays?: Weekday[];
+}
+
+/** A hand-made plan to save (see `ReadingPlanService.savePlan`). Without `key` a new plan is created. */
+export interface SavePlanInput {
+  key?: string;
+  name: string;
+  description?: string;
+  days: PlanDay[];
 }
 
 export type EnrollmentPatch = Partial<Pick<Enrollment, 'pacing' | 'readingDays' | 'status' | 'startDate' | 'reminder'>>;
@@ -136,11 +145,74 @@ export class ReadingPlanService implements IReadingScopeProvider {
     return plan;
   }
 
-  /** Delete a user plan. Refused while an enrollment still follows it. */
+  /**
+   * Save a hand-made plan. Without `key`: a new `user:` plan at version 1. With `key`: an edit of an existing
+   * user plan; enrollments that still point at it directly are first moved onto a snapshot of the old days, so
+   * no reader moves, and the version is bumped. The builder `spec` is dropped on edit (it no longer describes the days);
+   * tracks and the description are kept.
+   */
+  async savePlan(input: SavePlanInput): Promise<PlanDefinition> {
+    const name = typeof input.name === 'string' ? input.name.trim() : '';
+    if (name.length < 1 || name.length > 200) throw new ReadingPlanDataError('The plan needs a name of 1-200 characters.');
+    if (!Array.isArray(input.days) || input.days.length < 1 || input.days.length > MAX_PLAN_DAYS) {
+      throw new ReadingPlanDataError(`A plan needs 1-${MAX_PLAN_DAYS} days.`);
+    }
+    const old = input.key === undefined
+      ? null
+      : input.key.startsWith('user:') && !input.key.includes('@') ? await this.store.getPlan(input.key) : null;
+    if (input.key !== undefined && !old) throw new ReadingPlanDataError('Only your own existing plans can be edited.');
+    // An edited plan keeps its tracks (a builder plan with parallel readings); a reading keeps its track label
+    // while that track still exists.
+    const tracks = old?.tracks?.length ? old.tracks : undefined;
+    const trackIds = new Set(tracks?.map((t) => t.id));
+    const days: PlanDay[] = input.days.map((d, i) => {
+      const readings = d?.readings;
+      if (!Array.isArray(readings) || readings.length < 1) throw new ReadingPlanDataError(`Day ${i + 1} needs at least one reading.`);
+      if (readings.length > MAX_READINGS_PER_DAY) throw new ReadingPlanDataError(`Day ${i + 1} has too many readings.`);
+      return {
+        readings: readings.map((r, j) => {
+          const start = r?.start;
+          const end = r?.end;
+          if (!isValidVerseId(start) || !isValidVerseId(end) || end < start) {
+            throw new ReadingPlanDataError(`Day ${i + 1}, reading ${j + 1} is not a valid verse range.`);
+          }
+          if (splitVid(start).book !== splitVid(end).book) {
+            throw new ReadingPlanDataError(`Day ${i + 1}, reading ${j + 1} must stay within one book.`);
+          }
+          return typeof r.track === 'string' && trackIds.has(r.track) ? { start, end, track: r.track } : { start, end };
+        }),
+      };
+    });
+    // `description` absent keeps the old one; an empty string clears it.
+    const description = input.description === undefined ? old?.description : input.description.trim();
+    const extras = { ...(description ? { description } : {}), ...(tracks ? { tracks } : {}) };
+    const plan: PlanDefinition = old
+      ? { key: old.key, version: old.version + 1, name, source: 'user', days, ...extras }
+      : { key: `user:${this.newId()}`, version: 1, name, source: 'user', days, ...extras };
+    validatePlanDefinition(plan);
+    if (old) await this.detachEnrollments(old);
+    await this.store.putPlan(plan);
+    this.emit({ type: 'changed' });
+    return plan;
+  }
+
+  /**
+   * Move every enrollment that points straight at a user plan (how plans were followed before user plans were
+   * snapshotted) onto a snapshot of the plan as it is now, so editing or deleting the plan never moves a reader.
+   */
+  private async detachEnrollments(old: PlanDefinition): Promise<void> {
+    const direct = (await this.store.listEnrollments()).filter((e) => e.planKey === old.key);
+    if (direct.length === 0) return;
+    await this.store.putSnapshot(old);
+    const key = snapshotKey(old.key, old.version);
+    for (const e of direct) await this.store.putEnrollment({ ...e, planKey: key, planVersion: old.version });
+  }
+
+  /** Delete a user plan. Enrollments that follow it keep working: they move onto a snapshot first. */
   async deletePlan(key: string): Promise<void> {
-    if (!key.startsWith('user:')) throw new ReadingPlanDataError('Only your own plans can be deleted.');
-    const used = (await this.store.listEnrollments()).some((e) => e.planKey === key);
-    if (used) throw new ReadingPlanDataError('This plan is in use. Remove it from My plans first.');
+    if (!key.startsWith('user:') || key.includes('@')) throw new ReadingPlanDataError('Only your own plans can be deleted.');
+    const old = await this.store.getPlan(key);
+    if (old) await this.detachEnrollments(old);
     await this.store.removePlan(key);
     this.emit({ type: 'changed' });
   }
@@ -151,12 +223,12 @@ export class ReadingPlanService implements IReadingScopeProvider {
     return this.store.listEnrollments();
   }
 
-  /** Start following a plan. Stock plans are snapshotted so a later stock update never moves the reader. */
+  /** Start following a plan. Stock and user plans are snapshotted so a later update or edit never moves the reader. */
   async startPlan(planKey: string, options: StartPlanOptions = {}): Promise<Enrollment> {
     const plan = await this.getPlan(planKey);
     if (!plan) throw new ReadingPlanDataError(`Unknown plan ${planKey}`);
     let storedKey = plan.key;
-    if (plan.source === 'stock') {
+    if (plan.source === 'stock' || (plan.source === 'user' && plan.key.startsWith('user:'))) {
       await this.store.putSnapshot(plan);
       storedKey = snapshotKey(plan.key, plan.version);
     }

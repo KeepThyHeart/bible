@@ -167,6 +167,20 @@ export function todayView(plan: PlanDefinition, e: Enrollment, completions: read
   };
 }
 
+/** Pace is measured over this many calendar days, ending today. */
+export const PACE_WINDOW_DAYS = 28;
+/** A pace needs at least this many of the reader's reading days in the window... */
+export const PACE_MIN_READING_DAYS = 3;
+/** ...and at least this many plan days' worth of ticked readings. */
+export const PACE_MIN_PLAN_DAYS = 2;
+/**
+ * One reading date counts at most this many plan days toward the pace, so ticking weeks of readings in one sitting
+ * (back-filling a plan already read on paper, or a catch-up spree) does not pass for a reading speed.
+ */
+export const PACE_MAX_PLAN_DAYS_PER_DATE = 3;
+/** Upper bound on the reading days an estimate may need (about a century); guards against absurd dates. */
+const MAX_ESTIMATE_DAYS = 36600;
+
 export interface PlanStats {
   daysDone: number;
   dayCount: number;
@@ -174,12 +188,61 @@ export interface PlanStats {
   readingsTotal: number;
   /** Share of the plan's verses read, 0..100. */
   percent: number;
-  /** The remaining days laid on reading days from today (fixed and on schedule: the scheduled last day). */
+  /**
+   * Extrapolated from the reader's real pace (see `measurePace`): the remaining plan days at the measured
+   * plan days per reading day, laid on the reader's reading weekdays from today (tomorrow when something
+   * was already read today). null when there is too little history to measure a pace, or the plan is finished.
+   */
   estimatedFinish: IsoDate | null;
-  /** Fixed: the date the plan was scheduled to end. */
+  /**
+   * What the plan itself promises, ignoring real progress. Fixed pacing: the calendar date of the last plan
+   * day. Flexible: one plan day per reading day from today (tomorrow when something was already read today).
+   * null when the plan is finished.
+   */
   scheduledFinish: IsoDate | null;
+  /** Which date to lead with: 'pace' when `estimatedFinish` is set, else 'schedule' when `scheduledFinish` is set, else null. */
+  finishBasis: 'pace' | 'schedule' | null;
+  /** The measured pace in plan days per reading day, or null when not measurable. */
+  pacePerReadingDay: number | null;
   /** Consecutive reading days, up to today, on which something was read (computed, never stored). */
   streak: number;
+}
+
+/**
+ * The reader's real pace over the last `PACE_WINDOW_DAYS` days. Each ticked reading counts
+ * 1 / (readings in its plan day) plan days, and one date counts at most `PACE_MAX_PLAN_DAYS_PER_DATE` of them. The window starts at the first tick inside it and ends today
+ * (today counts only once something was read today); `readingDays` counts the reader's reading weekdays in it.
+ * null unless there are at least `PACE_MIN_READING_DAYS` reading days and `PACE_MIN_PLAN_DAYS` plan days.
+ */
+export function measurePace(
+  plan: PlanDefinition, e: Enrollment, completions: readonly Completion[], today: IsoDate, rolloverHour?: number,
+): { planDays: number; readingDays: number; pace: number } | null {
+  const earliestAllowed = addDays(today, -(PACE_WINDOW_DAYS - 1));
+  const perDate = new Map<IsoDate, number>();
+  let first: IsoDate | null = null;
+  let readToday = false;
+  for (const c of completions) {
+    if (c.enrollmentId !== e.id) continue;
+    const readings = plan.days[c.day - 1]?.readings.length ?? 0;
+    if (c.reading < 0 || c.reading >= readings) continue;
+    const t = new Date(c.at);
+    if (Number.isNaN(t.getTime())) continue;
+    const date = readingDate(t, rolloverHour);
+    if (date < earliestAllowed || date > today) continue;
+    perDate.set(date, (perDate.get(date) ?? 0) + 1 / readings);
+    if (first === null || date < first) first = date;
+    if (date === today) readToday = true;
+  }
+  if (first === null) return null;
+  let planDays = 0;
+  for (const n of perDate.values()) planDays += Math.min(n, PACE_MAX_PLAN_DAYS_PER_DATE);
+  let readingDays = 0;
+  for (let d = first; d <= today; d = addDays(d, 1)) {
+    if (d === today && !readToday) continue;
+    if (isReadingDay(e, d)) readingDays++;
+  }
+  if (readingDays < PACE_MIN_READING_DAYS || planDays < PACE_MIN_PLAN_DAYS - 1e-9) return null;
+  return { planDays, readingDays, pace: planDays / readingDays };
 }
 
 export function planStats(
@@ -192,9 +255,11 @@ export function planStats(
   let readingsDone = 0;
   let versesTotal = 0;
   let versesDone = 0;
+  let doneEquivalents = 0;
   plan.days.forEach((d, i) => {
     const set = progress.get(i + 1);
     if (isDayDone(plan, progress, i + 1)) daysDone++;
+    let ticked = 0;
     d.readings.forEach((r, j) => {
       const v = countVerses(r.start, r.end);
       readingsTotal++;
@@ -202,20 +267,30 @@ export function planStats(
       if (set?.has(j)) {
         readingsDone++;
         versesDone += v;
+        ticked++;
       }
     });
+    if (d.readings.length > 0) doneEquivalents += ticked / d.readings.length;
+    else doneEquivalents += 1;
   });
-  const remaining = plan.days.length - daysDone;
-  const scheduledFinish = e.pacing === 'fixed' && plan.days.length > 0 ? dateForDay(e, plan.days.length) : null;
+  const remainingDays = plan.days.length - daysDone;
+  const finished = remainingDays === 0;
+  const readToday = mine.some((c) => readingDate(new Date(c.at), rolloverHour) === today);
+  const from = readToday ? addDays(today, 1) : today;
+  let scheduledFinish: IsoDate | null = null;
+  if (!finished) {
+    scheduledFinish = e.pacing === 'fixed' ? dateForDay(e, plan.days.length) : nthReadingDayFrom(e, from, remainingDays);
+  }
   let estimatedFinish: IsoDate | null = null;
-  const onSchedule = e.pacing === 'fixed' && todayView(plan, e, mine, today).behindBy === 0;
-  if (remaining === 0) estimatedFinish = null;
-  else if (onSchedule && scheduledFinish && scheduledFinish >= today) estimatedFinish = scheduledFinish;
-  else {
-    const todayDay = firstUnreadDay(plan, progress);
-    const readToday = mine.some((c) => readingDate(new Date(c.at), rolloverHour) === today);
-    const from = readToday && todayDay !== null ? addDays(today, 1) : today;
-    estimatedFinish = nthReadingDayFrom(e, from, remaining);
+  let pacePerReadingDay: number | null = null;
+  if (!finished) {
+    const m = measurePace(plan, e, mine, today, rolloverHour);
+    if (m) {
+      pacePerReadingDay = m.pace;
+      const remaining = plan.days.length - doneEquivalents;
+      const needed = Math.min(MAX_ESTIMATE_DAYS, Math.max(1, Math.ceil(remaining / m.pace - 1e-9)));
+      estimatedFinish = nthReadingDayFrom(e, from, needed);
+    }
   }
   return {
     daysDone,
@@ -225,6 +300,8 @@ export function planStats(
     percent: versesTotal === 0 ? 0 : Math.floor((versesDone / versesTotal) * 1000) / 10,
     estimatedFinish,
     scheduledFinish,
+    finishBasis: estimatedFinish ? 'pace' : scheduledFinish ? 'schedule' : null,
+    pacePerReadingDay,
     streak: computeStreak(e, mine, today, rolloverHour),
   };
 }

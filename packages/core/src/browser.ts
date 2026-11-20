@@ -355,6 +355,8 @@ export * as Recite from './recite';
 // Plan engine (builder, scheduler, stock library, store over user_data_item, service).
 // Namespaced: names such as `Reading`, `addDays` and `vid` are too generic for the flat barrel.
 export * as ReadingPlans from './ReadingPlans';
+/** Direct export (not through the namespace) so a bundle that only needs verse counts stays small (ui kit budget). */
+export { versesInChapter } from './ReadingPlans/versification';
 
 // --- Notifications and reminders engine (task 0083) -------------------------------
 // Rule model (fixed times, windows, one-offs, quiet hours), DST-safe expansion,

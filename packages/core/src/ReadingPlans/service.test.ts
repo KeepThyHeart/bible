@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { MemoryUserDb } from '../UserData/MemoryUserDb';
 import { UserDataReadingPlanStore, READING_PLANS_OWNER, COMPLETIONS_COLLECTION, SNAPSHOTS_COLLECTION } from './store';
+import type { PlanDay } from './types';
 import { ReadingPlanService } from './service';
 import type { ReadingPlanEvent } from './service';
 import { RecordingReminderPort } from './reminders';
-import { booksRange } from './versification';
+import { booksRange, vid } from './versification';
 import { planToIcs } from './ics';
 import { ReadingPlanDataError } from './validate';
 
@@ -72,16 +73,23 @@ describe('ReadingPlanService', () => {
     expect((await service.enrollments())[0].status).toBe('active');
   });
 
-  it('refuses to delete a plan in use, and removes progress with the enrollment', async () => {
+  it('deletes a plan in use: the enrollment keeps its days and progress', async () => {
     const { service, db } = setup();
     const plan = await service.createPlan({ name: 'Ruth', scope: [booksRange(8)], order: 'canonical', pace: { by: 'days', days: 4 }, split: 'chapter' });
     const e = await service.startPlan(plan.key);
     await service.setDayDone(e.id, 1, true);
-    await expect(service.deletePlan(plan.key)).rejects.toThrow(ReadingPlanDataError);
-    await service.removeEnrollment(e.id);
-    expect(db.items.list(READING_PLANS_OWNER, COMPLETIONS_COLLECTION)).toEqual([]);
     await service.deletePlan(plan.key);
     expect((await service.library()).some((p) => p.key === plan.key)).toBe(false);
+    const d = await service.detail(e.id);
+    expect(d.plan.days).toHaveLength(4);
+    expect(d.stats.daysDone).toBe(1);
+    await service.removeEnrollment(e.id);
+    expect(db.items.list(READING_PLANS_OWNER, COMPLETIONS_COLLECTION)).toEqual([]);
+  });
+
+  it('refuses to delete stock plans', async () => {
+    const { service } = setup();
+    await expect(service.deletePlan('stock:mcheyne')).rejects.toThrow(ReadingPlanDataError);
   });
 
   it('hands reminders to the reminder port', async () => {
@@ -135,5 +143,114 @@ describe('pause and resume', () => {
     setNow(new Date(2026, 9, 20, 12, 0));
     await service.resume(e.id);
     expect((await service.todayViews())[0]).toMatchObject({ day: 2, behindBy: 0 });
+  });
+});
+
+describe('hand-made plans (savePlan)', () => {
+  const single = (b: number, c: number, v: number) => ({ start: vid(b, c, v), end: vid(b, c, v) });
+  const days = (): PlanDay[] => [
+    { readings: [{ start: vid(1, 1, 1), end: vid(1, 1, 31) }, single(43, 3, 16), { start: vid(19, 23, 1), end: vid(19, 23, 6) }] },
+    { readings: [single(20, 3, 5)] },
+  ];
+
+  it('creates a user plan with several passages a day', async () => {
+    const { service } = setup();
+    const plan = await service.savePlan({ name: '  My plan ', description: 'Mine', days: days() });
+    expect(plan).toMatchObject({ key: 'user:id1', version: 1, source: 'user', name: 'My plan', description: 'Mine' });
+    expect(plan.spec).toBeUndefined();
+    expect(plan.days[0].readings).toHaveLength(3);
+    expect(await service.getPlan(plan.key)).toEqual(plan);
+    expect((await service.library()).at(-1)).toMatchObject({ key: plan.key, dayCount: 2 });
+  });
+
+  it('rejects bad input', async () => {
+    const { service } = setup();
+    const bad = (input: Parameters<typeof service.savePlan>[0]) => expect(service.savePlan(input)).rejects.toThrow(ReadingPlanDataError);
+    await bad({ name: '   ', days: days() });
+    await bad({ name: 'x', days: [] });
+    await bad({ name: 'x', days: [{ readings: [] }] });
+    await bad({ name: 'x', days: [{ readings: [{ start: vid(1, 1, 5), end: vid(1, 1, 2) }] }] });
+    await bad({ name: 'x', days: [{ readings: [{ start: vid(1, 1, 1), end: vid(2, 1, 1) }] }] });
+    await bad({ name: 'x', days: [{ readings: [{ start: 1, end: 2 }] }] });
+    await bad({ name: 'x', key: 'stock:mcheyne', days: days() });
+    await bad({ name: 'x', key: 'user:nope', days: days() });
+  });
+
+  it('an edit keeps the description and the tracks of a built plan', async () => {
+    const { service } = setup();
+    const built = await service.createPlan({
+      name: 'Two tracks', description: 'OT and NT', scope: [], order: 'canonical', pace: { by: 'days', days: 2 }, split: 'chapter',
+      tracks: [{ id: 'ot', name: 'Old', scope: [booksRange(8)] }, { id: 'nt', name: 'New', scope: [booksRange(65)] }],
+    });
+    expect(built.days[0].readings.some((r) => r.track === 'nt')).toBe(true);
+    const edited = await service.savePlan({ key: built.key, name: 'Two tracks', days: built.days.slice(0, 1) });
+    expect(edited.description).toBe('OT and NT');
+    expect(edited.tracks).toEqual(built.tracks);
+    expect(edited.days[0].readings).toEqual(built.days[0].readings);
+    expect(edited.spec).toBeUndefined();
+    // An explicit empty description clears it; an unknown track label is dropped.
+    const cleared = await service.savePlan({
+      key: built.key, name: 'Two tracks', description: '', days: [{ readings: [{ start: vid(1, 1, 1), end: vid(1, 1, 3), track: 'gone' }] }],
+    });
+    expect(cleared.description).toBeUndefined();
+    expect(cleared.days[0].readings[0]).toEqual({ start: vid(1, 1, 1), end: vid(1, 1, 3) });
+  });
+
+  it('snapshots on start; editing later never moves the reader', async () => {
+    const { service, events } = setup();
+    const plan = await service.savePlan({ name: 'Mine', days: days() });
+    const e = await service.startPlan(plan.key);
+    expect(e.planKey).toBe('user:id1@1');
+    await service.setDayDone(e.id, 1, true);
+    events.length = 0;
+    const edited = await service.savePlan({ key: plan.key, name: 'Mine v2', days: [{ readings: [single(1, 1, 1)] }] });
+    expect(edited).toMatchObject({ key: plan.key, version: 2, name: 'Mine v2' });
+    expect(events).toEqual([{ type: 'changed' }]);
+    const d = await service.detail(e.id);
+    expect(d.plan.days).toHaveLength(2);
+    expect(d.stats.daysDone).toBe(1);
+    expect((await service.library()).at(-1)).toMatchObject({ key: plan.key, version: 2, dayCount: 1 });
+    const e2 = await service.startPlan(plan.key);
+    expect(e2.planKey).toBe('user:id1@2');
+    expect((await service.detail(e2.id)).plan.days).toHaveLength(1);
+  });
+
+  it('drops the builder spec when a built plan is edited by hand', async () => {
+    const { service } = setup();
+    const built = await service.createPlan({ name: 'Ruth', scope: [booksRange(8)], order: 'canonical', pace: { by: 'days', days: 4 }, split: 'chapter' });
+    expect(built.spec).toBeDefined();
+    const edited = await service.savePlan({ key: built.key, name: 'Ruth', days: built.days });
+    expect(edited.spec).toBeUndefined();
+  });
+
+  describe('legacy enrollments pointing at the bare user key', () => {
+    async function legacy() {
+      const ctx = setup();
+      const plan = await ctx.service.savePlan({ name: 'Old', days: days() });
+      const e = {
+        id: 'legacy', planKey: plan.key, planVersion: 1, planName: 'Old', startDate: '2026-10-01', pacing: 'flexible' as const,
+        readingDays: [0, 1, 2, 3, 4, 5, 6] as never, status: 'active' as const, createdAt: '2026-10-01T00:00:00Z',
+      };
+      await ctx.store.putEnrollment(e);
+      await ctx.service.setDayDone('legacy', 1, true);
+      return { ...ctx, plan };
+    }
+
+    it('keeps its days and completions after an edit', async () => {
+      const { service, plan } = await legacy();
+      await service.savePlan({ key: plan.key, name: 'Old', days: [{ readings: [single(1, 1, 1)] }] });
+      const d = await service.detail('legacy');
+      expect(d.enrollment.planKey).toBe('user:id1@1');
+      expect(d.plan.days).toHaveLength(2);
+      expect(d.stats.daysDone).toBe(1);
+    });
+
+    it('keeps its days and completions after the plan is deleted', async () => {
+      const { service, plan } = await legacy();
+      await service.deletePlan(plan.key);
+      const d = await service.detail('legacy');
+      expect(d.plan.days).toHaveLength(2);
+      expect(d.stats.daysDone).toBe(1);
+    });
   });
 });
