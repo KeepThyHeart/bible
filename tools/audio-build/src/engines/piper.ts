@@ -104,8 +104,10 @@ function runPhonemizer(assets: PhonemizerAssets, args: string[]): Promise<string
  * The phonemes of each sentence of `text`, which may carry pronunciation markers (spliced in
  * by core's `phonemizePiper`, as the browser worker does). `known` is the voice's symbol test.
  */
-export function phonemizeWith(assets: PhonemizerAssets, text: string, espeakVoice: string, known?: (symbol: string) => boolean): Promise<string[][]> {
-  return phonemizePiper(args => runPhonemizer(assets, args), espeakVoice, text, known);
+export function phonemizeWith(
+  assets: PhonemizerAssets, text: string, espeakVoice: string, known?: (symbol: string) => boolean, options?: { clearSpeech?: boolean },
+): Promise<string[][]> {
+  return phonemizePiper(args => runPhonemizer(assets, args), espeakVoice, text, known, options);
 }
 
 interface LoadedVoice { id: string; session: OrtSession; config: PiperVoiceConfig }
@@ -116,7 +118,7 @@ export interface PiperNodeDeps {
   phonemizer(): Promise<PhonemizerAssets>;
   /** Paths of the voice's `.onnx` and `.onnx.json`, downloading them when needed. */
   voiceFiles(voiceId: string): Promise<{ onnx: string; json: string }>;
-  phonemize?(assets: PhonemizerAssets, text: string, espeakVoice: string, known?: (symbol: string) => boolean): Promise<string[][]>;
+  phonemize?(assets: PhonemizerAssets, text: string, espeakVoice: string, known?: (symbol: string) => boolean, options?: { clearSpeech?: boolean }): Promise<string[][]>;
   readJson?(path: string): Promise<unknown>;
 }
 
@@ -177,7 +179,11 @@ export class PiperNodeEngine implements ITtsEngine {
     const text = req.text.trim();
     if (!text) return { pcm: new Float32Array(piperSilenceSamples(c)), sampleRate: c.sampleRate };
     const phonemize = this.deps.phonemize ?? phonemizeWith;
-    const ids = phonemesToIds(await phonemize(this.assets!, text, c.espeakVoice, s => s in c.phonemeIdMap), c.phonemeIdMap);
+    const known = (s: string): boolean => s in c.phonemeIdMap;
+    const sentences = this.ctx.clearSpeech
+      ? await phonemize(this.assets!, text, c.espeakVoice, known, { clearSpeech: true })
+      : await phonemize(this.assets!, text, c.espeakVoice, known);
+    const ids = phonemesToIds(sentences, c.phonemeIdMap);
     if (ids.length === 0) return { pcm: new Float32Array(piperSilenceSamples(c)), sampleRate: c.sampleRate };
     const { Tensor } = this.ort!;
     const feeds: Record<string, unknown> = {
@@ -221,6 +227,7 @@ const DEFAULT_VOICES: Record<string, string> = {
 export const piperDefinition: EngineDefinition = {
   id: 'piper',
   pronunciation: true,
+  clearSpeech: true,
   label: 'Piper (native, onnxruntime-node)',
   languages: PIPER_LANGUAGES,
   voices: PIPER_VOICES,

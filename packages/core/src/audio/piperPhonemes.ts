@@ -20,6 +20,7 @@
  * 3. Speed is `length_scale / rate`.
  */
 
+import { clearSpeechSymbols } from './clearSpeech';
 import { hasPronunciation, splitPronunciation, stripPronunciation } from './pronunciation';
 import type { AudioError } from './types';
 
@@ -278,14 +279,22 @@ export async function phonemizePiper(
   espeakVoice: string,
   text: string,
   known?: (symbol: string) => boolean,
+  options: PiperPhonemizeOptions = {},
 ): Promise<string[][]> {
-  if (!hasPronunciation(text)) return parsePhonemizerLines(await run(piperPhonemizerArgs(espeakVoice, text)));
+  const finish = (sentences: string[][]): string[][] =>
+    options.clearSpeech ? sentences.map(s => clearSpeechSymbols(s, known)) : sentences;
+  if (!hasPronunciation(text)) return finish(parsePhonemizerLines(await run(piperPhonemizerArgs(espeakVoice, text))));
   for (const mode of ['placeholder', 'split'] as const) {
     const plan = planPiperPhonemizer(espeakVoice, text, known, mode);
     const out = plan.assemble(await run(plan.args));
-    if (out) return out;
+    if (out) return finish(out);
   }
-  return parsePhonemizerLines(await run(piperPhonemizerArgs(espeakVoice, text)));
+  return finish(parsePhonemizerLines(await run(piperPhonemizerArgs(espeakVoice, text))));
+}
+
+export interface PiperPhonemizeOptions {
+  /** Rewrite the phonemes for careful diction (`clearSpeechIpa`), after corrections are spliced in. Off by default. */
+  clearSpeech?: boolean;
 }
 
 /** The phonemes of each sentence from the phonemizer's printed lines (non-JSON lines are skipped). */

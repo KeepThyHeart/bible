@@ -190,6 +190,10 @@ export interface AudioBuildInfo {
   /** Silence after each verse and after the intro, milliseconds. */
   gapMs: number;
   introGapMs: number;
+  /** True when the phonemes were rewritten for careful diction (`clearSpeechIpa`); absent means off. */
+  clearSpeech?: boolean;
+  /** Ogg Opus bitrate, kbps, when it is not the tool's default; absent means the default. */
+  opusKbps?: number;
   /** The producing tool and version. */
   tool?: string;
 }
@@ -376,6 +380,8 @@ export interface IAudioPlayer {
   resume(): void;
   stop(): void;
   seekVerse(delta: 1 | -1): Promise<void>;
+  /** Jump to a verse of the open chapter and play from it; false (nothing done) when it is not there. */
+  seekToVerse(verse: number): Promise<boolean>;
   seekChapter(delta: 1 | -1): Promise<void>;
   setRate(rate: number): void;
   on(e: 'state', cb: (s: PlayerState) => void): () => void;

@@ -145,6 +145,7 @@ Alt+P play/pause, Alt+Left / Alt+Right previous / next verse, Alt+Shift+Left / R
 | `registry.ts` | `Registry<T>`, the shape of the plugin registries, for providers and engine factories |
 | `TextPreparer.ts` | Verse markup to speakable text; chapter intro ("John, chapter 3.") per language. Shared by live speech and `tools/audio-build` |
 | `piperPhonemes.ts` | The pure Piper pieces: voice config, phonemizer arguments and output, phoneme-to-id mapping, scales. Shared by the browser worker and `tools/audio-build` |
+| `clearSpeech.ts` | Clear-speech rules: rewrite espeak-style IPA for careful diction (real t for flaps and glottal stops, full vowels for reduced ones). Used by `tools/audio-build --clear-speech`; see `audio-pronunciation.md` |
 
 ### Server (`apps/web/server/`)
 
