@@ -69,6 +69,12 @@ interface ModuleSelectorProps {
    * first row used to be announced as "current" whatever the pane held.
    */
   currentId?: string;
+  /**
+   * Opt-in "Recent" group: ids of modules the reader recently chose, most recent first. Shown above
+   * the full list (a recent module also stays in its normal place). Ids that are not in `modules`
+   * (uninstalled) are dropped, and the group is hidden while filtering so each match appears once.
+   */
+  recentIds?: string[];
   /** When true, renders without the outer modal overlay (for embedding in another dialog) */
   embedded?: boolean;
 }
@@ -87,6 +93,7 @@ const ModuleSelector: React.FC<ModuleSelectorProps> = ({
   removeLabel,
   onClose,
   currentId,
+  recentIds,
   embedded = false
 }) => {
   const { t } = useI18n();
@@ -119,6 +126,15 @@ const ModuleSelector: React.FC<ModuleSelectorProps> = ({
     );
   });
 
+  // The Recent group (not while filtering), resolved against what is available.
+  const recentModules: ModuleItem[] = searchQuery.trim() || !recentIds
+    ? []
+    : recentIds
+        .map(id => modules.find(m => m.id === id))
+        .filter((m): m is ModuleItem => !!m);
+  // One flat, keyboard-navigable sequence: Recent first, then the full list.
+  const displayModules: ModuleItem[] = [...recentModules, ...filteredModules];
+
   // Reset selected index when search query changes or filtered results change
   useEffect(() => {
     setSelectedIndex(0);
@@ -126,97 +142,42 @@ const ModuleSelector: React.FC<ModuleSelectorProps> = ({
 
   // Scroll selected item into view
   useEffect(() => {
-    if (listRef.current && filteredModules.length > 0) {
+    if (listRef.current && displayModules.length > 0) {
       const selectedItem = listRef.current.querySelector(`[data-index="${selectedIndex}"]`);
       if (selectedItem) {
         selectedItem.scrollIntoView({ block: 'nearest' });
       }
     }
-  }, [selectedIndex, filteredModules.length]);
+  }, [selectedIndex, displayModules.length]);
 
   // Handle keyboard events
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Escape') {
       onClose();
-    } else if (e.key === 'Enter' && filteredModules.length > 0) {
+    } else if (e.key === 'Enter' && displayModules.length > 0) {
       // Select the currently highlighted result
-      onSelect(filteredModules[selectedIndex]);
+      onSelect(displayModules[selectedIndex]);
     } else if (e.key === 'ArrowDown') {
       e.preventDefault();
-      setSelectedIndex(prev => Math.min(prev + 1, filteredModules.length - 1));
+      setSelectedIndex(prev => Math.min(prev + 1, displayModules.length - 1));
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
       setSelectedIndex(prev => Math.max(prev - 1, 0));
     }
-  }, [filteredModules, selectedIndex, onSelect, onClose]);
+  }, [displayModules, selectedIndex, onSelect, onClose]);
 
 
-  const innerContent = (
-    <>
-        {/* Search Input */}
-        <div className={embedded ? "px-xl py-md" : "px-xl py-md border-b border-border"}>
-          <input
-            ref={searchInputRef}
-            type="text"
-            placeholder={t('ui.moduleSelector.filterPlaceholder')}
-            className="w-full px-md py-sm border border-border rounded focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            onKeyDown={handleKeyDown}
-          />
-          {filteredModules.length > 0 && (
-            <div className="mt-1 text-xs text-text-secondary">
-              {/*
-                One whole ICU message: the count is a real ICU plural and the
-                two key names are element placeholders the translator can move.
-                Concatenating an English plural suffix (`result` + `s`) with a
-                hardcoded English hint and its own ` - ` separator would leave
-                no translator able to reach the word order, the separator, or
-                the plural rule.
-              */}
-              {tElements(
-                t,
-                'ui.moduleSelector.resultsHint',
-                {
-                  navKeys: (
-                    <>
-                      <Kbd>↑</Kbd> <Kbd>↓</Kbd>
-                    </>
-                  ),
-                  enterKey: <Kbd>{t('ui.moduleSelector.enterKey')}</Kbd>,
-                },
-                { count: filteredModules.length },
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Module List */}
-        <div ref={listRef} className="overflow-y-auto max-h-[50vh] p-xl">
-          {isLoading ? (
-            <div className="text-center text-text-secondary">{t('ui.moduleSelector.loading')}</div>
-          ) : filteredModules.length === 0 ? (
-            <div className="text-center text-text-secondary">
-              {modules.length === 0
-                ? (emptyMessage ?? t('ui.moduleSelector.noModules'))
-                : t('ui.moduleSelector.noMatches')}
-            </div>
-          ) : (
-            <div className="space-y-sm">
-              {/*
-                Real buttons, not clickable divs: the rows were unreachable by
-                keyboard and announced as plain text, so the only way to pick a
-                module was the arrow/Enter handling bound to the search input.
-              */}
-              {filteredModules.map((module, index) => {
+  const renderRow = (module: ModuleItem, index: number, group: 'recent' | 'all') => {
                 const isOpen = (module.openCount ?? 0) > 0;
                 // The x is a sibling of the row button, not a child: a nested
                 // <button> is invalid HTML and swallows the outer click.
                 return (
-                <div key={module.id} className="relative">
+                <div key={`${group}-${module.id}`} className="relative">
                 <button
                   type="button"
+                  id={`module-selector-${group}-${module.id}`}
                   data-testid="module-selector-item"
+                  data-group={group}
                   data-index={index}
                   aria-current={currentId !== undefined && module.id === currentId ? 'true' : undefined}
                   className={`
@@ -278,7 +239,74 @@ const ModuleSelector: React.FC<ModuleSelectorProps> = ({
                 )}
                 </div>
                 );
-              })}
+              };
+
+  const innerContent = (
+    <>
+        {/* Search Input */}
+        <div className={embedded ? "px-xl py-md" : "px-xl py-md border-b border-border"}>
+          <input
+            ref={searchInputRef}
+            type="text"
+            placeholder={t('ui.moduleSelector.filterPlaceholder')}
+            className="w-full px-md py-sm border border-border rounded focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyDown={handleKeyDown}
+          />
+          {filteredModules.length > 0 && (
+            <div className="mt-1 text-xs text-text-secondary">
+              {/*
+                One whole ICU message: the count is a real ICU plural and the
+                two key names are element placeholders the translator can move.
+                Concatenating an English plural suffix (`result` + `s`) with a
+                hardcoded English hint and its own ` - ` separator would leave
+                no translator able to reach the word order, the separator, or
+                the plural rule.
+              */}
+              {tElements(
+                t,
+                'ui.moduleSelector.resultsHint',
+                {
+                  navKeys: (
+                    <>
+                      <Kbd>↑</Kbd> <Kbd>↓</Kbd>
+                    </>
+                  ),
+                  enterKey: <Kbd>{t('ui.moduleSelector.enterKey')}</Kbd>,
+                },
+                { count: filteredModules.length },
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Module List */}
+        <div ref={listRef} className="overflow-y-auto max-h-[50vh] p-xl">
+          {isLoading ? (
+            <div className="text-center text-text-secondary">{t('ui.moduleSelector.loading')}</div>
+          ) : displayModules.length === 0 ? (
+            <div className="text-center text-text-secondary">
+              {modules.length === 0
+                ? (emptyMessage ?? t('ui.moduleSelector.noModules'))
+                : t('ui.moduleSelector.noMatches')}
+            </div>
+          ) : (
+            <div className="space-y-sm">
+              {/*
+                Real buttons, not clickable divs: the rows were unreachable by
+                keyboard and announced as plain text, so the only way to pick a
+                module was the arrow/Enter handling bound to the search input.
+              */}
+              {recentModules.length > 0 && (
+                <div role="group" aria-labelledby="module-selector-recent" className="space-y-sm">
+                  <div id="module-selector-recent" className="text-xs font-semibold uppercase text-text-secondary">
+                    {t('ui.moduleSelector.recent')}
+                  </div>
+                  {recentModules.map((module, index) => renderRow(module, index, 'recent'))}
+                </div>
+              )}
+              {filteredModules.map((module, i) => renderRow(module, recentModules.length + i, 'all'))}
             </div>
           )}
         </div>

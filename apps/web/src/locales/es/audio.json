@@ -151,6 +151,45 @@
     },
     "shortcut": {
       "focusPlayer": "Ir al reproductor de audio"
+    },
+    "downloads": {
+      "title": "Descargar audio para escuchar sin conexión",
+      "heading": "Escucha sin conexión",
+      "settingsHint": "Guarda libros grabados en este dispositivo para escucharlos sin conexión.",
+      "open": "Descargar audio…",
+      "hint": "Elige los libros que guardar en este dispositivo. El texto de la traducción también se guarda si aún no está aquí.",
+      "translation": "Traducción",
+      "narrator": "Narrador",
+      "loading": "Cargando grabaciones…",
+      "none": "No hay grabaciones disponibles para {module}.",
+      "ot": "Antiguo Testamento",
+      "nt": "Nuevo Testamento",
+      "selectAll": "Seleccionar todo",
+      "clear": "Borrar",
+      "selectGroup": "Seleccionar todos los libros del {testament}",
+      "clearGroup": "Borrar la selección del {testament}",
+      "wholeBible": "Biblia completa",
+      "sizeLoading": "calculando tamaño…",
+      "state": {
+        "downloaded": "Descargado",
+        "partial": "Descargado en parte"
+      },
+      "chapters": "{count} de {total} capítulos",
+      "removeBook": "Quitar {book} de este dispositivo",
+      "selected": "{count, plural, one {# libro seleccionado} other {# libros seleccionados}} · {size}",
+      "free": "{size} libres",
+      "noFit": "La selección es mayor que el espacio libre en este dispositivo.",
+      "download": "Descargar",
+      "confirmTitle": "Descarga grande",
+      "confirmBody": "Esta descarga ocupa {size}. Comprueba la conexión y el espacio de este dispositivo antes de empezar.",
+      "confirmNoFit": "Esta descarga ocupa {size}, pero solo hay {free} libres en este dispositivo. Puede que no quepa.",
+      "confirmGo": "Descargar de todos modos",
+      "back": "Atrás",
+      "progress": "Descargando {book} · {done} de {total} libros · {loaded} de {size}",
+      "done": "La descarga ha terminado.",
+      "cancelled": "La descarga se detuvo. El progreso se conserva, así que la próxima descarga continúa desde aquí.",
+      "failed": "La descarga no terminó. {message}",
+      "close": "Cerrar"
     }
   }
 }

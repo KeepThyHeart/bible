@@ -71,6 +71,7 @@
     "noMatches": "Sin coincidencias",
     "popular": "Populares",
     "allTranslations": "Todas las traducciones",
+    "recent": "Recientes",
     "other": "Otras",
     "modeStandard": "Estándar",
     "modeReading": "Lectura",
@@ -347,7 +348,8 @@
           "overQuota": "Se necesitan unos {size} más de espacio."
         },
         "remove": "Quitar",
-        "keepHint": "Seleccionar un elemento que ya está en este dispositivo lo conserva aquí; nunca se elimina automáticamente."
+        "keepHint": "Seleccionar un elemento que ya está en este dispositivo lo conserva aquí; nunca se elimina automáticamente.",
+        "selectAllGroup": "Seleccionar todo en {group}"
       }
     },
     "downloads": {

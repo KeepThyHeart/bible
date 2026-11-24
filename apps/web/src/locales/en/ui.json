@@ -71,6 +71,7 @@
     "noMatches": "No matches",
     "popular": "Popular",
     "allTranslations": "All Translations",
+    "recent": "Recent",
     "other": "Other",
     "modeStandard": "Standard",
     "modeReading": "Reading",
@@ -347,7 +348,8 @@
           "overQuota": "About {size} more space is needed."
         },
         "remove": "Remove",
-        "keepHint": "Selecting an item on this device keeps it here; it is never cleaned up automatically."
+        "keepHint": "Selecting an item on this device keeps it here; it is never cleaned up automatically.",
+        "selectAllGroup": "Select all in {group}"
       }
     },
     "downloads": {

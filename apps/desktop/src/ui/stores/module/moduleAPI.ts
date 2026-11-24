@@ -45,6 +45,9 @@ export const moduleAPI = {
   async dismissInstall(jobId: number): Promise<void> {
     return unwrap(requireElectronAPI().moduleManager.dismissInstall(jobId));
   },
+  async getFreeSpace(): Promise<number | null> {
+    return unwrap(requireElectronAPI().moduleManager.getFreeSpace());
+  },
   async installFromFile() {
     return unwrap(requireElectronAPI().moduleManager.installFromFile());
   },

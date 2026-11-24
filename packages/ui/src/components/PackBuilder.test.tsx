@@ -85,6 +85,30 @@ describe('PackBuilder', () => {
     expect(onPreset).toHaveBeenCalledWith('p1');
   });
 
+  it('offers a select-all per group when onToggleGroup is given, over the selectable rows only', async () => {
+    const onToggleGroup = vi.fn();
+    const { user } = setup({
+      onToggleGroup,
+      rows: [row({ key: 'a' }), row({ key: 'b' }), row({ key: 'c', disabled: true }), row({ key: 'd', status: 'installed' }), row({ key: 'e', group: 'audio' })],
+    });
+    await user.click(screen.getByRole('checkbox', { name: 'Select all in Text' }));
+    expect(onToggleGroup).toHaveBeenCalledWith('text', ['a', 'b'], true);
+    await user.click(screen.getByRole('checkbox', { name: 'Select all in Audio' }));
+    expect(onToggleGroup).toHaveBeenLastCalledWith('audio', ['e'], true);
+  });
+
+  it('the group checkbox is checked when all are selected and indeterminate when some are', () => {
+    setup({ onToggleGroup: vi.fn(), rows: [row({ key: 'a', selected: true }), row({ key: 'b' })] });
+    const box = screen.getByRole('checkbox', { name: 'Select all in Text' }) as HTMLInputElement;
+    expect(box.checked).toBe(false);
+    expect(box.indeterminate).toBe(true);
+  });
+
+  it('has no group checkbox without onToggleGroup', () => {
+    setup();
+    expect(screen.queryByRole('checkbox', { name: /Select all in/ })).toBeNull();
+  });
+
   it('disabled rows show their reason and cannot be toggled', async () => {
     const { user, onToggle } = setup({
       rows: [row({ key: 'x', disabled: true, disabledReason: 'Needs a newer app' })],

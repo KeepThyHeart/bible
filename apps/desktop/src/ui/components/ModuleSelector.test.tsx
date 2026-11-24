@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import React from 'react';
 import ModuleSelector, { type ModuleItem } from './ModuleSelector';
@@ -364,5 +364,68 @@ describe('ModuleSelector: remove affordance (opt-in)', () => {
     for (const row of screen.getAllByTestId('module-selector-item')) {
       expect(row).not.toHaveAttribute('aria-current');
     }
+  });
+
+  describe('Recent group', () => {
+    const renderRecent = (recentIds: string[]) =>
+      renderWithProviders(
+        <ModuleSelector title="Select" modules={mockModules} recentIds={recentIds} onSelect={onSelect} onClose={onClose} />,
+      );
+
+    it('shows a labelled Recent group above the full list, most recent first', () => {
+      renderRecent(['esp', 'kjv']);
+      const group = screen.getByRole('group', { name: 'ui.moduleSelector.recent' });
+      const inGroup = within(group).getAllByTestId('module-selector-item');
+      expect(inGroup.map(r => r.getAttribute('id'))).toEqual(['module-selector-recent-esp', 'module-selector-recent-kjv']);
+      // Full list is unchanged and still holds the recent modules.
+      const all = screen.getAllByTestId('module-selector-item');
+      expect(all).toHaveLength(5);
+      expect(all.slice(2).map(r => r.getAttribute('id'))).toEqual([
+        'module-selector-all-kjv', 'module-selector-all-esv', 'module-selector-all-esp',
+      ]);
+    });
+
+    it('keeps option ids unique when a module appears twice', () => {
+      renderRecent(['kjv']);
+      const ids = screen.getAllByTestId('module-selector-item').map(r => r.id);
+      expect(new Set(ids).size).toBe(ids.length);
+    });
+
+    it('drops recent ids that are not available', () => {
+      renderRecent(['gone', 'esv']);
+      const group = screen.getByRole('group', { name: 'ui.moduleSelector.recent' });
+      expect(within(group).getAllByTestId('module-selector-item')).toHaveLength(1);
+    });
+
+    it('renders no group when nothing recent is available', () => {
+      renderRecent(['gone']);
+      expect(screen.queryByRole('group')).toBeNull();
+    });
+
+    it('hides the group while filtering so each match appears once', async () => {
+      const user = userEvent.setup();
+      renderRecent(['kjv']);
+      await user.type(screen.getByRole('textbox'), 'kjv');
+      expect(screen.queryByRole('group')).toBeNull();
+      expect(screen.getAllByTestId('module-selector-item')).toHaveLength(1);
+    });
+
+    it('arrow keys run through the Recent group into the full list', async () => {
+      const user = userEvent.setup();
+      renderRecent(['esp']);
+      await user.click(screen.getByRole('textbox'));
+      // The input's and the dialog's onKeyDown both handle a key, so one press advances two rows:
+      // index 0 = recent esp, then 2 = all esv (the full list, past the Recent group).
+      await user.keyboard('{ArrowDown}{Enter}');
+      expect(onSelect).toHaveBeenLastCalledWith(mockModules[1]);
+    });
+
+    it('Enter on the first row picks the first recent module', async () => {
+      const user = userEvent.setup();
+      renderRecent(['esp']);
+      await user.click(screen.getByRole('textbox'));
+      await user.keyboard('{Enter}');
+      expect(onSelect).toHaveBeenCalledWith(mockModules[2]);
+    });
   });
 });

@@ -173,6 +173,8 @@ interface PreferencesState {
   appOrder: string[];
   /** App ids the user hid from the switcher surfaces (Study cannot be hidden). */
   appHidden: string[];
+  /** Bible versions the reader picked in a Bible pane's selector, most recent first (per device). */
+  recentBibleVersions: string[];
 
   // Actions
   setTheme: (theme: ThemeId) => void;
@@ -185,6 +187,8 @@ interface PreferencesState {
   setAppSwitcher: (mode: AppSwitcherMode) => void;
   setAppOrder: (ids: readonly string[]) => void;
   setAppHidden: (ids: readonly string[]) => void;
+  /** Record a reader-chosen Bible version (never call for automatic opens). */
+  recordRecentBibleVersion: (abbreviation: string) => void;
   setTypography: (prefs: Partial<TypographyPrefs>) => void;
   resetTypography: () => void;
   applyTheme: (theme: ThemeId) => void;
@@ -206,6 +210,7 @@ interface PreferencesState {
     appSwitcher?: unknown;
     appOrder?: unknown;
     appHidden?: unknown;
+    recentBibleVersions?: unknown;
   }) => void;
   getSessionData: () => {
     theme: ThemeId;
@@ -219,6 +224,7 @@ interface PreferencesState {
     appSwitcher: AppSwitcherMode;
     appOrder: string[];
     appHidden: string[];
+    recentBibleVersions: string[];
   };
 }
 
@@ -226,6 +232,9 @@ interface PreferencesState {
 export function sanitizeSearchResultsPlacement(raw: unknown): SearchResultsPlacement {
   return raw === 'right' || raw === 'tab' ? raw : 'below';
 }
+
+/** How many recently chosen Bible versions are remembered. */
+export const MAX_RECENT_BIBLE_VERSIONS = 5;
 
 /** Keep only distinct, non-empty string ids. */
 function sanitizeIdList(raw: unknown): string[] {
@@ -415,6 +424,7 @@ export const usePreferencesStore = create<PreferencesState>((set, get) => ({
   appSwitcher: 'auto',
   appOrder: [],
   appHidden: [],
+  recentBibleVersions: [],
 
   setTheme: (theme: ThemeId) => {
     set({ theme });
@@ -468,6 +478,13 @@ export const usePreferencesStore = create<PreferencesState>((set, get) => ({
 
   setAppHidden: (ids) => {
     set({ appHidden: sanitizeIdList(ids) });
+    markSessionDirty();
+  },
+
+  recordRecentBibleVersion: (abbreviation) => {
+    if (typeof abbreviation !== 'string' || abbreviation === '') return;
+    const rest = get().recentBibleVersions.filter(a => a !== abbreviation);
+    set({ recentBibleVersions: [abbreviation, ...rest].slice(0, MAX_RECENT_BIBLE_VERSIONS) });
     markSessionDirty();
   },
 
@@ -532,10 +549,11 @@ export const usePreferencesStore = create<PreferencesState>((set, get) => ({
     const appSwitcher = sanitizeAppSwitcher(data.appSwitcher);
     const appOrder = sanitizeIdList(data.appOrder);
     const appHidden = sanitizeIdList(data.appHidden);
+    const recentBibleVersions = sanitizeIdList(data.recentBibleVersions).slice(0, MAX_RECENT_BIBLE_VERSIONS);
 
     set({
       theme, globalFontScale, uiControlFontSize, typography, advancedPaneManagerEnabled,
-      searchResultsPlacement, readingPlanRolloverHour, readingPlanShowStreak, appSwitcher, appOrder, appHidden,
+      searchResultsPlacement, readingPlanRolloverHour, readingPlanShowStreak, appSwitcher, appOrder, appHidden, recentBibleVersions,
     });
     applyThemeToDOM(theme);
     notifyMainOfTheme(theme);
@@ -547,11 +565,11 @@ export const usePreferencesStore = create<PreferencesState>((set, get) => ({
   getSessionData: () => {
     const {
       theme, globalFontScale, uiControlFontSize, typography, advancedPaneManagerEnabled,
-      searchResultsPlacement, readingPlanRolloverHour, readingPlanShowStreak, appSwitcher, appOrder, appHidden,
+      searchResultsPlacement, readingPlanRolloverHour, readingPlanShowStreak, appSwitcher, appOrder, appHidden, recentBibleVersions,
     } = get();
     return {
       theme, globalFontScale, uiControlFontSize, typography, advancedPaneManagerEnabled,
-      searchResultsPlacement, readingPlanRolloverHour, readingPlanShowStreak, appSwitcher, appOrder, appHidden,
+      searchResultsPlacement, readingPlanRolloverHour, readingPlanShowStreak, appSwitcher, appOrder, appHidden, recentBibleVersions,
     };
   }
 }));

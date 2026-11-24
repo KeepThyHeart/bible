@@ -22,6 +22,7 @@
  */
 
 import accounts from '../../../locales/en/accounts.json';
+import audio from '../../../locales/en/audio.json';
 import commands from '../../../locales/en/commands.json';
 import downloads from '../../../locales/en/downloads.json';
 import genealogy from '../../../locales/en/genealogy.json';
@@ -75,6 +76,7 @@ export function loadEnCatalog(): Record<string, string> {
     ...(searchBar as Record<string, string>),
     ...(timeline as Record<string, string>),
     ...(similar as Record<string, string>),
+    ...(audio as Record<string, string>),
     ...(wordStudy as Record<string, string>),
     ...(xrefGraph as Record<string, string>),
     ...(ui as Record<string, string>),

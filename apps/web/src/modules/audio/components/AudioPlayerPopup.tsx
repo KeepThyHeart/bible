@@ -18,7 +18,7 @@ import { AudioProgress } from './AudioProgress';
 import { AudioTransportButtons } from './AudioTransportButtons';
 import { useSources } from './useSources';
 import { sourceChipText } from './sourceChip';
-import { setAudioPlayerFocuser } from '../lib/audioShortcuts';
+import { setAudioPlayerFocuser } from '@bible/audio';
 
 /** After docking, the pop-up unmounts and the bar mounts a frame or two later: focus the bar's first usable control once it is there. */
 function focusBarSoon(tries = 20): void {

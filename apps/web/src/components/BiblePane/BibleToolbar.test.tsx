@@ -22,6 +22,10 @@ vi.mock('react-i18next', () => ({
 }));
 
 // ---- Module descriptions -------------------------------------------------
+vi.mock('../../stores/settingsStore', () => ({
+  settingsStore: { recentBibleVersions: [] as string[], recordRecentBibleVersion: () => {} },
+}));
+
 vi.mock('../../moduleDescriptions', () => {
   const descriptions: Record<string, { tagline?: string; description: string }> = {
     KJV: { tagline: 'King James Version', description: 'The classic English Bible' },

@@ -13,12 +13,15 @@
  * exist. `IPackSpecStore` is the stand-in for the user-data layer (task 0084).
  */
 
-/** Reserved for later: 'audio' | 'feature' | 'user-data'. */
-export type PackItemKind = 'module' | 'asset';
+/** Reserved for later: 'feature' | 'user-data'. */
+export type PackItemKind = 'module' | 'asset' | 'audio';
 
 export type PackItemRef =
   | { kind: 'module'; id: string } // web: server abbreviation key; desktop: catalog module_id
-  | { kind: 'asset'; id: string }; // an AssetManager catalog id (tts-voice, data, ...)
+  | { kind: 'asset'; id: string } // an AssetManager catalog id (tts-voice, data, ...)
+  // One book of a recorded translation (task 0223): `audioBookId()` = `<module>/<narrator>/<rev>/<book>`,
+  // e.g. `KJV/amy/1/43`. Requires the translation's text module.
+  | { kind: 'audio'; id: string };
 
 /** Stable, case-insensitive key of a ref, e.g. `module:kjv`. */
 export const packKey = (r: PackItemRef): string => `${r.kind}:${r.id.toLowerCase()}`;
@@ -31,7 +34,7 @@ export interface OfflinePackSpec {
   updatedAt: string;
 }
 
-export type PackGroup = 'bible' | 'commentary' | 'dictionary' | 'crossref' | 'topical' | 'other' | 'speech' | 'data';
+export type PackGroup = 'bible' | 'commentary' | 'dictionary' | 'crossref' | 'topical' | 'other' | 'speech' | 'data' | 'audio';
 
 export interface PackOffer {
   ref: PackItemRef;

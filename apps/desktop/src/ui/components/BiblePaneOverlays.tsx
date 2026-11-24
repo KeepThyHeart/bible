@@ -5,6 +5,7 @@ import { revealNotesPanel } from './bible/revealNotesPanel';
 import VerseContextMenu from './VerseContextMenu';
 import CopyOptionsDialog from './CopyOptionsDialog';
 import ModuleSelector, { ModuleItem } from './ModuleSelector';
+import { usePreferencesStore } from '../stores/usePreferencesStore';
 import BookChapterPicker from './BookChapterPicker';
 import { HighlightMenu } from './highlights/HighlightMenu';
 import { FloatingAnnotationToolbar } from './highlights/FloatingAnnotationToolbar';
@@ -265,6 +266,7 @@ const BiblePaneOverlays: React.FC<BiblePaneOverlaysProps> = ({
     [setShowParallelPicker]
   );
   useEscapeKey(showParallelPicker, closeParallelPicker);
+  const recentBibleVersions = usePreferencesStore(state => state.recentBibleVersions);
 
   return (
     <>
@@ -297,8 +299,11 @@ const BiblePaneOverlays: React.FC<BiblePaneOverlaysProps> = ({
             openCount: openTabs.filter(tab => tab.abbreviation === bible.abbreviation).length
           }))}
           isLoading={loadingBibles}
+          recentIds={recentBibleVersions}
           emptyMessage={t('biblePaneOverlays.noBibleTranslationsInstalledPleaseInstall')}
           onSelect={(module) => {
+            // A reader's pick in the selector (not an automatic open): remember it for the Recent group.
+            usePreferencesStore.getState().recordRecentBibleVersion(module.id); // allow-getstate: event handler - imperative write, no subscription needed
             if (versionSelectorTabId) {
               changeTabVersion(versionSelectorTabId, module.abbreviation, module.name);
               setVersionSelectorTabId(null);

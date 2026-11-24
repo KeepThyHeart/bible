@@ -512,6 +512,8 @@ export interface ElectronAPI {
     cancelInstall: (jobId: number) => Promise<Result<boolean>>;
     retryInstall: (jobId: number) => Promise<Result<InstallJob | null>>;
     dismissInstall: (jobId: number) => Promise<Result<void>>;
+    /** Free bytes on the modules volume, or null when unknown. */
+    getFreeSpace: () => Promise<Result<number | null>>;
     // Download management
     getDownloadProgress: (queueId: number) => Promise<Result<any>>;
     getActiveDownloads: () => Promise<Result<any[]>>;
@@ -1219,6 +1221,7 @@ const electronAPI: ElectronAPI = {
     cancelInstall: (jobId: number) => typedInvoke('module:install-cancel', jobId),
     retryInstall: (jobId: number) => typedInvoke('module:install-retry', jobId),
     dismissInstall: (jobId: number) => typedInvoke('module:install-dismiss', jobId),
+    getFreeSpace: () => typedInvoke('module:free-space'),
     // Download management
     getDownloadProgress: (queueId: number) => typedInvoke('download:get-progress', queueId),
     getActiveDownloads: () => typedInvoke('download:get-active'),

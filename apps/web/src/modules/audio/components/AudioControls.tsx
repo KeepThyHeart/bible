@@ -6,11 +6,11 @@
 
 import { useTranslation } from 'react-i18next';
 import type { AudioCapabilities, RateRange } from '@bible/core/browser';
-import type { SourceStatus } from '../lib/AudioSourceResolver';
+import type { SourceStatus } from '@bible/audio';
 import { audioStore } from '../audioStore';
-import { effectiveRate } from '../lib/audioPrefs';
-import { unusableText, uiOptions, usableEngines } from '../lib/sourceChoice';
-import type { UiSource } from '../lib/sourceChoice';
+import { effectiveRate } from '@bible/audio';
+import { unusableText, uiOptions, usableEngines } from '@bible/audio';
+import type { UiSource } from '@bible/audio';
 
 /** Why a source cannot be chosen, in words. */
 export { unusableText };

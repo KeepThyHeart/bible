@@ -121,6 +121,7 @@ import {
   registerExtUiProtocol,
   registerExtUiSchemePrivileged,
 } from './extensions/extUiProtocol';
+import { AUDIO_SCHEME_PRIVILEGE } from './modules/audio/audioScheme';
 import { setActiveHostTheme } from './extensions/hostThemeCss';
 import { isZoomInAlias } from './zoomShortcuts';
 import { clampZoomLevel, readZoomLevel, writeZoomLevel } from './zoomState';
@@ -1461,7 +1462,7 @@ async function initializeUserContentInBackground(): Promise<void> {
 
 // Register the `ext-ui://` custom scheme as privileged BEFORE app.whenReady().
 // The actual file handler is wired further down once `extensionHost` exists.
-registerExtUiSchemePrivileged();
+registerExtUiSchemePrivileged([AUDIO_SCHEME_PRIVILEGE]);
 
 // App lifecycle
 app.whenReady().then(async () => {

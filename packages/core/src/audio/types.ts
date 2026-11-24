@@ -155,6 +155,8 @@ export interface IAudioProvider {
   voices(moduleAbbr: string, language: string): Promise<AudioVoice[]>;
   /** False: the first play downloads something. */
   isReady(voiceId?: string): Promise<boolean>;
+  /** Bytes the first play still downloads for this voice (runtime included), when known. */
+  pendingBytes?(voiceId?: string): Promise<number | undefined>;
   prepare(voiceId: string | undefined, onProgress: (p: LoadProgress) => void, signal: AbortSignal): Promise<void>;
   openChapter(ref: ChapterRef, opts: OpenChapterOptions, signal: AbortSignal): Promise<IChapterAudio>;
   prefetch?(ref: ChapterRef, opts: OpenChapterOptions, signal: AbortSignal): Promise<void>;
@@ -340,6 +342,8 @@ export interface ITtsEngine {
   /** From app config, filtered to what the engine can run. */
   listVoices(): Promise<AudioVoice[]>;
   isVoiceReady(voiceId: string): Promise<boolean>;
+  /** Bytes still to download before this voice can speak (shared runtime included), when known. */
+  pendingBytes?(voiceId: string): Promise<number | undefined>;
   prepare(voiceId: string, onProgress: (p: LoadProgress) => void, signal: AbortSignal): Promise<void>;
   synthesize(req: SynthesisRequest, signal: AbortSignal): Promise<SynthesisResult>;
   evictVoice(voiceId: string): Promise<void>;

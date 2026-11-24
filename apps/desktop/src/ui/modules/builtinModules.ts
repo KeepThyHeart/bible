@@ -21,6 +21,7 @@ import { memoryModule } from './memory/memoryModule';
 import { presentModule } from './present/binding';
 import { downloadsModule } from './downloads/binding';
 import { speechModule } from './speech/binding';
+import { audioModule } from './audio/binding';
 import { accountsModule } from './accounts/binding';
 import { addDesktopModule, fireStartupFinished, reconcileModules } from './moduleHost';
 import type { DesktopFeatureModule } from './moduleHost';
@@ -39,6 +40,7 @@ export const BUILTIN_MODULES: readonly DesktopFeatureModule[] = [
   keywordMarksModule,
   downloadsModule,
   speechModule,
+  audioModule,
   notificationsModule,
   memoryModule,
   presentModule,

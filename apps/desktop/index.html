@@ -7,11 +7,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="Content-Security-Policy"
         content="default-src 'self';
-                 script-src 'self' 'wasm-unsafe-eval';
+                 script-src 'self' 'wasm-unsafe-eval' kth-audio:;
                  style-src 'self' 'unsafe-inline';
                  img-src 'self' data: ext-ui:;
                  font-src 'self';
-                 connect-src 'self';
+                 connect-src 'self' kth-audio:;
+                 media-src 'self' blob: kth-audio:;
                  frame-src ext-ui:;
                  object-src 'none';
                  base-uri 'self';">

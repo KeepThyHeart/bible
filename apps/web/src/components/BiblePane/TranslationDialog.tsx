@@ -4,6 +4,7 @@ import { moduleStore } from '../../stores/moduleStore';
 import { useStore } from '../../hooks/useStore';
 import { useModalFocus } from '../../hooks/useModalFocus';
 import { RECOMMENDED_BIBLES, getBibleDescription } from '../../moduleDescriptions';
+import { settingsStore } from '../../stores/settingsStore';
 import type { ModuleSection } from '../../types';
 
 interface TranslationDialogProps {
@@ -51,6 +52,15 @@ export function TranslationDialog({ isOpen, onClose, currentAbbr, onSelect }: Tr
         return aAbbrLower.localeCompare(bAbbrLower);
       })
     : bibleModules;
+
+  // Recently chosen versions, most recent first. Filtered here against what is installed, so an
+  // uninstalled version simply drops out; hidden while filtering (each match then appears once).
+  const recentAbbrs = useStore(settingsStore, () => settingsStore.recentBibleVersions);
+  const recentModules = translationFilter
+    ? []
+    : recentAbbrs
+        .map(abbr => bibleModules.find(m => m.abbreviation.toLowerCase() === abbr.toLowerCase()))
+        .filter((m): m is NonNullable<typeof m> => !!m);
 
   // Auto-focus the filter input when the dialog opens.
   useEffect(() => {
@@ -164,8 +174,9 @@ export function TranslationDialog({ isOpen, onClose, currentAbbr, onSelect }: Tr
               // Roving tabindex: one radio is in the Tab order (the arrowed-to one, else the current
               // translation, else the first); Arrow keys move real focus along the group.
               const hasCurrent = filteredModules.some(m => m.abbreviation === currentAbbr);
+              const recentHasCurrent = recentModules.some(m => m.abbreviation === currentAbbr);
 
-              const renderCard = (m: typeof filteredModules[0], idx: number, showTagline: boolean) => {
+              const renderCard = (m: typeof filteredModules[0], idx: number, showTagline: boolean, inRecent = false) => {
                 const isActive = m.abbreviation === currentAbbr;
                 // Settings.json description override, then the catalog entry
                 const settingsDesc = moduleStore.getModuleDescription('bibles', m.abbreviation);
@@ -174,12 +185,18 @@ export function TranslationDialog({ isOpen, onClose, currentAbbr, onSelect }: Tr
                 return (
                   <div
                     key={m.abbreviation}
+                    // A version in Recent also appears in the full list: ids stay unique per copy.
+                    id={`translation-option-${inRecent ? 'recent-' : ''}${m.abbreviation}`}
                     class={`module-card module-card--single${idx === focusedIndex ? ' module-card--focused' : ''}`}
                     role="radio"
                     aria-checked={isActive}
-                    tabIndex={(focusedIndex >= 0 ? idx === focusedIndex : hasCurrent ? isActive : idx === 0) ? 0 : -1}
+                    tabIndex={(focusedIndex >= 0 ? idx === focusedIndex : hasCurrent ? isActive && (inRecent || !recentHasCurrent) : idx === 0) ? 0 : -1}
                     onFocus={() => setFocusedIndex(idx)}
-                    onClick={() => onSelect(m.abbreviation)}
+                    onClick={() => {
+                      // Only a pick in this dialog is recorded; versions opened automatically never come through here.
+                      settingsStore.recordRecentBibleVersion(m.abbreviation);
+                      onSelect(m.abbreviation);
+                    }}
                   >
                     <div class="module-card__top">
                       <div class="module-card__check">
@@ -203,6 +220,14 @@ export function TranslationDialog({ isOpen, onClose, currentAbbr, onSelect }: Tr
                 );
               };
 
+              // Recent group first; its cards take the first indices so arrow keys run through it, then the full list.
+              const recentBlock = recentModules.length > 0 ? (
+                <div role="group" aria-labelledby="translation-dialog-recent">
+                  <div class="module-dialog__section-label" id="translation-dialog-recent">{t('bibleToolbar.recent')}</div>
+                  {recentModules.map(m => renderCard(m, globalIdx++, false, true))}
+                </div>
+              ) : null;
+
               // Use server-provided sections if configured, otherwise fall back to hardcoded
               const serverSections: ModuleSection[] | null = isFiltering ? null : moduleStore.getBibleSections();
 
@@ -213,6 +238,7 @@ export function TranslationDialog({ isOpen, onClose, currentAbbr, onSelect }: Tr
 
                 return (
                   <>
+                    {recentBlock}
                     {serverSections.map(section => {
                       const sectionModules = section.modules
                         .map(abbr => modulesByAbbr.get(abbr.toLowerCase()))
@@ -257,6 +283,7 @@ export function TranslationDialog({ isOpen, onClose, currentAbbr, onSelect }: Tr
 
               return (
                 <>
+                  {recentBlock}
                   {recommendedModules.length > 0 && (
                     <>
                       <div class="module-dialog__section-label">{t('bibleToolbar.popular')}</div>

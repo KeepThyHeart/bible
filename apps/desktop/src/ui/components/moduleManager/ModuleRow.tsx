@@ -32,6 +32,12 @@ export function findRowDownload(row: ModuleRow, downloads: DownloadProgress[]): 
   return downloads.find(d => d.status !== 'completed' && ids.has(String(d.moduleId)));
 }
 
+/** Can this row be ticked for "Install selected"? Not installed (with a catalog entry), or has an update. */
+export function isRowSelectable(row: ModuleRow): boolean {
+  if (row.installed) return row.updateAvailable && !!row.installedModule;
+  return !!row.catalogModule;
+}
+
 export type ModuleRowStatus = 'installed' | 'update' | 'available';
 
 export function getRowStatus(row: ModuleRow): ModuleRowStatus {
@@ -53,6 +59,14 @@ export interface ModuleTableRowProps {
   onCancelInstall?: (jobId: number) => void;
   onRetryInstall?: (jobId: number) => void;
   onDismissInstall?: (jobId: number) => void;
+  /** Render the leading checkbox cell (batch install). Rows that cannot be ticked get an empty cell. */
+  showCheckbox?: boolean;
+  /** This row can be ticked for "Install selected". */
+  checkable?: boolean;
+  checked?: boolean;
+  /** Checkbox disabled (network off, or a batch is running). */
+  checkDisabled?: boolean;
+  onToggleCheck?: (row: ModuleRow, checked: boolean) => void;
   onSelect: (row: ModuleRow) => void;
   onInstall: (row: ModuleRow) => void;
   onUpdate: (row: ModuleRow) => void;
@@ -74,6 +88,11 @@ export const ModuleTableRow: React.FC<ModuleTableRowProps> = ({
   onCancelInstall,
   onRetryInstall,
   onDismissInstall,
+  showCheckbox = false,
+  checkable = false,
+  checked = false,
+  checkDisabled = false,
+  onToggleCheck,
   onSelect,
   onInstall,
   onUpdate,
@@ -106,6 +125,21 @@ export const ModuleTableRow: React.FC<ModuleTableRowProps> = ({
         selected ? 'bg-accent-soft' : 'hover:bg-background-hover'
       }`}
     >
+      {showCheckbox && (
+        <td className="ps-4 py-2 align-middle w-8" onClick={stop}>
+          {checkable && (
+            <input
+              type="checkbox"
+              data-testid={`module-row-check-${abbrev}`}
+              checked={checked}
+              disabled={checkDisabled}
+              onChange={(e) => onToggleCheck?.(row, e.currentTarget.checked)}
+              aria-label={td('moduleTable.selectAria', 'Select {name}', { name: row.name })}
+              className="h-4 w-4 accent-accent"
+            />
+          )}
+        </td>
+      )}
       <td className="px-4 py-2 align-middle">
         <button
           type="button"

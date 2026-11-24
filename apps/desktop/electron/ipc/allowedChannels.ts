@@ -335,6 +335,7 @@ export const TYPED_IPC_CHANNELS = [
   'module:install-cancel',
   'module:install-retry',
   'module:install-dismiss',
+  'module:free-space',
   'module:install-from-file',
   'module:install-from-path',
   'module:install-pack-from-path',

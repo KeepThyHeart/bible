@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { setClientConfig } from '../../../utils/clientConfig';
 import { getAudioConfig, isAudioEnabled } from './config';
-import { createEngineRegistry, createProviderRegistry } from './registries';
+import { createEngineRegistry, createProviderRegistry } from '@bible/audio';
 import type { IAudioProvider } from '@bible/core/browser';
 
 describe('getAudioConfig', () => {

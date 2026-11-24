@@ -33,6 +33,7 @@ import { memoryManifest } from '@bible/memory/manifest';
 import { speechMainManifest } from './speech/manifest';
 import { presentMainManifest } from './present/manifest';
 import { accountsMainManifest } from './accounts/manifest';
+import { audioMainManifest } from './audio/manifest';
 
 export interface MainModuleEntry {
   readonly manifest: FeatureModuleManifest;
@@ -57,6 +58,8 @@ export const MAIN_MODULES: readonly MainModuleEntry[] = [
   { manifest: presentMainManifest, load: () => import('./present') },
   // Accounts + end-to-end encrypted sync (0150): flag `accounts`, off by default.
   { manifest: accountsMainManifest, load: () => import('./accounts') },
+  // Audio Bible (0223): flag `audio`, off by default. Serves kth-audio:// and describes the Piper assets.
+  { manifest: audioMainManifest, load: () => import('./audio') },
 ];
 
 export interface RegisterMainModulesOptions {

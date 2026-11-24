@@ -11,7 +11,7 @@ import { useTranslation } from 'react-i18next';
 import { audioStore } from '../audioStore';
 import { useStore } from '../../../hooks/useStore';
 import { useNowPlaying } from '../hooks/useNowPlaying';
-import { formatClock } from '../lib/audioStorage';
+import { formatClock } from '@bible/audio';
 
 /** Dense chapters (Psalm 119) would smear the ticks into a solid bar. */
 const MAX_TICKS = 60;

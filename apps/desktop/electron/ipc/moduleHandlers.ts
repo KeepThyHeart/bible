@@ -1,6 +1,6 @@
 import { IpcMain, dialog, app } from 'electron';
 import { basename, join } from 'path';
-import { existsSync, statSync } from 'fs';
+import { existsSync, statSync, promises as fsp } from 'fs';
 import log from 'electron-log';
 import { ipcHandler, IpcKnownError } from './handler-helper';
 import { getBundledMainDbPath, getUserDataPath, getUserModulesPath, resolveMainDbPath } from '../utils/appPaths';
@@ -670,6 +670,18 @@ export function registerModuleHandlers(_ipc: IpcMain): void {
     validatePositiveInt(jobId, 'jobId');
     initializeModuleManager();
     return installManager.retry(jobId) ?? null;
+  });
+
+  // Free bytes on the volume that holds the installed modules (null when it cannot be read);
+  // the Module Manager uses it to warn before a batch install that would not fit.
+  ipcHandler<[], number | null>('module:free-space', async () => {
+    try {
+      const dir = getUserModulesPath();
+      const s = await fsp.statfs(existsSync(dir) ? dir : app.getPath('userData'));
+      return Number(s.bavail) * Number(s.bsize);
+    } catch {
+      return null;
+    }
   });
 
   ipcHandler<[number], void>('module:install-dismiss', (jobId) => {
