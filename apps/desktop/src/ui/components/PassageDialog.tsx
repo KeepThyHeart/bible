@@ -109,8 +109,10 @@ import { isTextEntryTarget } from '../utils/textEntry';
 import { sanitizeHtml } from '../utils/sanitize';
 import { themeRedLetterPreview } from '../utils/themePassagePreview';
 import { useToastStore } from '../stores/useToastStore';
-import { exportDocumentPdf, printDocument } from '../services/fileNotesAPI';
-import { buildPassagePrintDocument, passageFileName, textToPrintBody } from '../utils/passagePrintDocument';
+import { passageFileName, textToPrintBody } from '../utils/passagePrintDocument';
+import PrintDialog from './PrintDialog';
+import { loadPrintPreferences, savePrintPreferences } from '../services/copyFormats/printPreferences';
+import { DEFAULT_FORMAT_OPTIONS, printLayoutFormatId, printWantsRedLetters, type PrintPreferences } from '@bible/core';
 
 /**
  * Above the notes editor's own fixed-position chrome, which sits at 9998.
@@ -222,6 +224,12 @@ const PassageDialog: React.FC<PassageDialogProps> = ({
       ? (printFirst ? getLastPrintFormatId() : getLastUsedPassageFormatId())
       : getLastInsertFormatId())),
   );
+  // Print has its own remembered choices (layout, notes margin), apart from Copy's format and options.
+  // `print` shows the Print dialog (its own settings and live preview); `copy` is this dialog.
+  const [view, setView] = useState<'print' | 'copy'>(printFirst ? 'print' : 'copy');
+  // Set once the user went through "Use a copy format...": Print then follows that format.
+  const viaCopyFormatRef = useRef(false);
+  const showingPrint = isCopy && view === 'print' && activeVerses.length > 0;
   const [skipMenu, setSkipMenu] = useState<boolean>(() => getSkipFormatMenu());
 
   const dialogRef = useFocusTrap<HTMLDivElement>(true);
@@ -398,6 +406,8 @@ const PassageDialog: React.FC<PassageDialogProps> = ({
   }, [focusFormatListOnOpen, hasPassage, focusFormatList]);
 
   useEffect(() => {
+    // The Print dialog on top handles its own Escape and clicks.
+    if (showingPrint) return undefined;
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.preventDefault();
@@ -415,7 +425,7 @@ const PassageDialog: React.FC<PassageDialogProps> = ({
       document.removeEventListener('keydown', handleEscape);
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [onClose, dialogRef]);
+  }, [onClose, dialogRef, showingPrint]);
 
   // -- Rendering the chosen format -----------------------------------
 
@@ -530,41 +540,31 @@ const PassageDialog: React.FC<PassageDialogProps> = ({
    * prints as its blocks (a real block quote, real headings); every other format prints its source text.
    * Red letters are always off here so the page reads on a black-and-white printer.
    */
-  const buildPrintPage = useCallback((): { html: string; fileName: string } | null => {
+  /**
+   * The passage as the print dialog prints it: the chosen print layout picks the format (numbered verses
+   * by default); only the copy-format layout follows this dialog's own format and options.
+   */
+  const buildPrintBody = useCallback((prefs: PrintPreferences): string => {
     const verseList = activeVerses;
-    if (verseList.length === 0) return null;
     const ctx = buildVerseContext(verseList, activeTranslation);
-    const printOptions = { ...options, wordsOfChristInRed: false };
-    const body = isPassageMarkupFormat(formatId) && !isTemplateFormat
-      ? passageMarkupToHtml(renderPassageMarkup(verseList, ctx, formatId, printOptions, labels))
+    const layoutFormatId = printLayoutFormatId(prefs.layout);
+    const printFormatId = layoutFormatId ?? formatId;
+    // Print keeps its own verse-number choice (Copy's applies only through "Use a copy format...") and
+    // shows the reference once: in the printed title (so "full reference on first verse" falls back to plain
+    // numbers while the title is on), or above the text when the title is off.
+    const printOptions = {
+      ...(layoutFormatId ? { ...DEFAULT_FORMAT_OPTIONS, verseNumbers: prefs.verseNumbers === 'first-full' && prefs.showTitle ? 'parenthetical' as const : prefs.verseNumbers, referencePosition: prefs.showTitle ? 'none' as const : 'before' as const } : options),
+      wordsOfChristInRed: printWantsRedLetters(prefs),
+    };
+    return isPassageMarkupFormat(printFormatId) && (layoutFormatId !== null || !isTemplateFormat)
+      ? passageMarkupToHtml(renderPassageMarkup(verseList, ctx, printFormatId, printOptions, labels))
       : textToPrintBody(renderCopyOutput(verseList).replace(/<[^>]*>/g, ''));
-    const reference = resolver.reference || ctx.bookName;
-    const fileName = passageFileName(reference, activeTranslation);
-    return { html: buildPassagePrintDocument(`${reference} (${activeTranslation})`, body, 'ltr', fileName), fileName };
-  }, [activeVerses, activeTranslation, options, formatId, isTemplateFormat, labels, renderCopyOutput, resolver.reference]);
+  }, [activeVerses, activeTranslation, options, formatId, isTemplateFormat, labels, renderCopyOutput]);
 
-  const handlePrint = useCallback(async () => {
-    const page = buildPrintPage();
-    if (!page) return;
-    const result = await printDocument(page.html);
-    if (result.success) {
-      onClose();
-    } else if (!result.canceled) {
-      useToastStore.getState().addToast(result.error || t('passageDialog.printFailed'), 'error'); // allow-getstate: event handler
-    }
-  }, [buildPrintPage, onClose, t]);
-
-  /** Save as PDF: the printed page, through a save dialog that suggests "John 3-16 KJV.pdf". */
-  const handleSavePdf = useCallback(async () => {
-    const page = buildPrintPage();
-    if (!page) return;
-    const result = await exportDocumentPdf(page.html, page.fileName);
-    if (result.success) {
-      onClose();
-    } else if (!result.canceled) {
-      useToastStore.getState().addToast(result.error || t('passageDialog.savePdfFailed'), 'error'); // allow-getstate: event handler
-    }
-  }, [buildPrintPage, onClose, t]);
+  const printReference = activeVerses.length > 0
+    ? resolver.reference || buildVerseContext(activeVerses, activeTranslation).bookName
+    : '';
+  const printTitle = printReference ? `${printReference} (${activeTranslation})` : '';
 
   const handleInsert = useCallback(() => {
     if (activeVerses.length === 0) return;
@@ -594,9 +594,9 @@ const PassageDialog: React.FC<PassageDialogProps> = ({
   const canCommit = hasPassage && !isStale;
   const commit = useCallback(() => {
     if (!canCommit) return;
-    if (isCopy) void (printFirst ? handlePrint() : handleCopy());
+    if (isCopy) void handleCopy();
     else handleInsert();
-  }, [canCommit, isCopy, printFirst, handleCopy, handlePrint, handleInsert]);
+  }, [canCommit, isCopy, handleCopy, handleInsert]);
 
   const handleSaveTemplate = useCallback(() => {
     const name = saveName.trim();
@@ -667,7 +667,7 @@ const PassageDialog: React.FC<PassageDialogProps> = ({
   // -- Labels --------------------------------------------------------
 
   const dialogTitle = isCopy
-    ? printFirst ? t('copyOptionsDialog.printTitle') : t('copyOptionsDialog.title')
+    ? t('copyOptionsDialog.title')
     : promptForReference
       ? t('insertPassageDialog.title')
       : resolver.reference;
@@ -679,7 +679,7 @@ const PassageDialog: React.FC<PassageDialogProps> = ({
       : t('ui.noteEditor.expandDialogLabel');
 
   const primaryLabel = isCopy
-    ? printFirst ? t('copyOptionsDialog.printButton') : t('copyOptionsDialog.copyButton')
+    ? t('copyOptionsDialog.copyButton')
     : isReformat
       ? t('ui.noteEditor.expandApply')
       : t('ui.noteEditor.expandInsert');
@@ -707,10 +707,20 @@ const PassageDialog: React.FC<PassageDialogProps> = ({
   const overCap = activeVerses.length > MAX_EXPAND_VERSES;
 
   return (
+    <>
+    {showingPrint && (
+      <PrintDialog
+        title={printTitle}
+        fileName={passageFileName(printReference, activeTranslation)}
+        buildBody={buildPrintBody}
+        onClose={onClose}
+        onUseCopyFormat={() => { viaCopyFormatRef.current = true; setView('copy'); }}
+      />
+    )}
     <PopupPortal>
       <div
         className="fixed inset-0 bg-background-overlay flex items-center justify-center p-4"
-        style={{ zIndex: MODAL_Z_INDEX }}
+        style={{ zIndex: MODAL_Z_INDEX, display: showingPrint ? 'none' : undefined }}
       >
         <div
           ref={dialogRef}
@@ -1203,25 +1213,16 @@ const PassageDialog: React.FC<PassageDialogProps> = ({
               {isCopy && (
                 <button
                   type="button"
-                  onClick={() => void (printFirst ? handleCopy() : handlePrint())}
+                  onClick={() => {
+                    // "As in the preview": the print dialog follows this dialog's copy format.
+                    if (viaCopyFormatRef.current) savePrintPreferences({ ...loadPrintPreferences(), layout: 'preview' });
+                    setView('print');
+                  }}
                   disabled={!canCommit}
-                  data-testid={printFirst ? 'passage-dialog-copy' : 'passage-dialog-print'}
+                  data-testid="passage-dialog-print"
                   className="px-4 py-2 text-sm font-medium text-text-secondary bg-background-tertiary rounded hover:bg-background-active transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {printFirst ? t('copyOptionsDialog.copyButton') : t('copyOptionsDialog.printButton')}
-                </button>
-              )}
-              {/* In the Print dialog: the page as a PDF, named after the passage ("John 3-16 KJV.pdf").
-                  The system print dialog cannot be told a file name, so "Print to file" there says output.pdf. */}
-              {isCopy && printFirst && (
-                <button
-                  type="button"
-                  onClick={() => void handleSavePdf()}
-                  disabled={!canCommit}
-                  data-testid="passage-dialog-save-pdf"
-                  className="px-4 py-2 text-sm font-medium text-text-secondary bg-background-tertiary rounded hover:bg-background-active transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {t('copyOptionsDialog.savePdfButton')}
+                  {t('copyOptionsDialog.printButton')}
                 </button>
               )}
               <button
@@ -1240,6 +1241,7 @@ const PassageDialog: React.FC<PassageDialogProps> = ({
         </div>
       </div>
     </PopupPortal>
+    </>
   );
 };
 

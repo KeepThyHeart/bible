@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { DEFAULT_PRINT_PREFERENCES } from '@bible/core';
 import { buildPassagePrintDocument, passageFileName, textToPrintBody } from './passagePrintDocument';
 
 describe('buildPassagePrintDocument', () => {
@@ -9,6 +10,21 @@ describe('buildPassagePrintDocument', () => {
     expect(html).toContain('color: #000 !important');
     expect(html).not.toContain('<script>alert');
     expect(html).toContain('<h1>John 3:16</h1>');
+  });
+
+  it('has no block-quote line by default, and draws one for the block-quote layout', () => {
+    expect(buildPassagePrintDocument('t', '<blockquote>x</blockquote>')).not.toContain('border-inline-start: 2px');
+    expect(buildPassagePrintDocument('t', '<blockquote>x</blockquote>', 'ltr', { ...DEFAULT_PRINT_PREFERENCES, layout: 'blockquote' }))
+      .toContain('border-inline-start: 2px solid #000');
+  });
+
+  it('adds the notes margin at the chosen width, narrowing the text rather than the font', () => {
+    const html = buildPassagePrintDocument('t', '<p>x</p>', 'rtl', { ...DEFAULT_PRINT_PREFERENCES, notesMargin: true, notesMarginCm: 4, notesRule: true });
+    expect(html).toContain('padding-inline-end: 4.5cm');
+    expect(html).toContain('class="notes-rule"');
+    expect(html).toContain('font-size: 14pt');
+    expect(html).toContain('dir="rtl"');
+    expect(buildPassagePrintDocument('t', '<p>x</p>')).not.toContain('notes-rule');
   });
 
   it('escapes the title and honours the text direction', () => {
@@ -35,7 +51,7 @@ describe('passageFileName', () => {
   });
 
   it('uses the file name as the document title when given', () => {
-    const html = buildPassagePrintDocument('John 3:16 (KJV)', '<p>x</p>', 'ltr', 'John 3-16 KJV');
+    const html = buildPassagePrintDocument('John 3:16 (KJV)', '<p>x</p>', 'ltr', DEFAULT_PRINT_PREFERENCES, 'John 3-16 KJV');
     expect(html).toContain('<title>John 3-16 KJV</title>');
     expect(html).toContain('<h1>John 3:16 (KJV)</h1>');
   });
