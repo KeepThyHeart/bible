@@ -96,7 +96,7 @@ do nothing is absent rather than inert. Which ones apply comes from core's
 | Option | Formats | Effect |
 |---|---|---|
 | Reference | all four | Before, After, or None |
-| Verse numbers | all four | In parentheses (16), Superscript ¹⁶, or None |
+| Verse numbers | all four | In parentheses (16), Superscript ¹⁶, Full reference on first verse (`(John 3:16)` then `(17)`; the separate reference block is dropped), or None |
 | Heading level | Verse headings | H1–H6 |
 | Quote marks | Inline quote | `“”`, `‘’`, or none |
 | Room to comment | Numbered quote, Verse headings | A labelled paragraph under each verse |
@@ -219,3 +219,7 @@ re-derived here.
 
 `e2e/tests/ui-e2e.spec.ts` checks the dialog opens from the context menu with
 its four-radio format list and closes on Escape.
+
+## Printing
+
+The Copy dialog's **Print** button prints the previewed passage: note-shaped formats as blocks, others as text, in a hidden `<iframe sandbox="allow-modals allow-same-origin">` (no scripts) with a sanitized body, a restrictive CSP and a black-on-white print stylesheet (no red letters). The frame removes itself after printing.

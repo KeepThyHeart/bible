@@ -1,6 +1,7 @@
-import React, { useRef, useLayoutEffect, useState, useCallback, useEffect } from 'react';
+import React, { useRef, useLayoutEffect, useState, useCallback, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { HighlightColor, UnderlineStyle } from '@bible/core';
+import { isLookUpCandidate, normalizeLookUpText } from '@bible/core/browser';
 import { useI18n } from '../../contexts/useI18n';
 import { useHighlightStore } from '../../stores/useHighlightStore';
 import { markupStyleKey, type MarkupStyle } from '../../services/recentMarkupStyles';
@@ -26,6 +27,8 @@ interface FloatingAnnotationToolbarProps {
    * toolbar's own viewport position, so the menu opens where the toolbar was.
    */
   onMore: (position: { x: number; y: number }) => void;
+  /** Look the selected word or short phrase up in every dictionary; the button shows only when this is given and the selection is a word or short phrase. */
+  onLookUp?: (text: string) => void;
   /** Re-apply a remembered style from the "Recent" row, in one click. */
   onApplyStyle: (style: MarkupStyle) => void;
   /** The current text selection state (word indices and verse IDs) */
@@ -82,6 +85,7 @@ export const FloatingAnnotationToolbar: React.FC<FloatingAnnotationToolbarProps>
   onRemoveFormatting,
   onDismiss,
   onMore,
+  onLookUp,
   onApplyStyle,
   selection: _selection,
   hasExistingMarkup = false,
@@ -89,6 +93,11 @@ export const FloatingAnnotationToolbar: React.FC<FloatingAnnotationToolbarProps>
   const { t } = useI18n();
   // Suppress unused variable warning for selection (kept in API for future use)
   void _selection;
+  // The selected text, read once when the toolbar appears; only a word or short phrase can be looked up.
+  const lookUpText = useMemo(() => {
+    const raw = typeof window !== 'undefined' ? window.getSelection?.()?.toString() ?? '' : '';
+    return isLookUpCandidate(raw) ? normalizeLookUpText(raw) : '';
+  }, [_selection]);
 
   /*
     Read from the store rather than taken as props. The toolbar's props all
@@ -270,6 +279,24 @@ export const FloatingAnnotationToolbar: React.FC<FloatingAnnotationToolbarProps>
             <path d="M12 17c3.31 0 6-2.69 6-6V3h-2.5v8c0 1.93-1.57 3.5-3.5 3.5S8.5 12.93 8.5 11V3H6v8c0 3.31 2.69 6 6 6zm-7 2v2h14v-2H5z"/>
           </svg>
         </button>
+
+        {/* Look up: a single word or short phrase only (a sentence is not a dictionary query). */}
+        {onLookUp && lookUpText && (
+          <>
+            <div className="floating-toolbar-separator" />
+            <button
+              className="floating-toolbar-btn"
+              onClick={() => onLookUp(lookUpText)}
+              title={t('lookUp.toolbarButton', { word: lookUpText })}
+              aria-label={t('lookUp.toolbarButton', { word: lookUpText })}
+              data-testid="floating-look-up"
+            >
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+              </svg>
+            </button>
+          </>
+        )}
 
         {/* Remove formatting (only shown if text has existing markup) */}
         {hasExistingMarkup && (

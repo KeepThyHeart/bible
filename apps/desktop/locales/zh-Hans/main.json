@@ -1,6 +1,7 @@
 {
   "main.about.title": "关于 {productName}",
   "main.about.detail": "版本 {version}\n\n一款圣经研读桌面应用程序。\n\n© {year}",
+  "main.about.credits": "大多数圣经、注释和词典均转换自 The SWORD Project 的模块，由 CrossWire Bible Society（crosswire.org）发布。每个模块各自的版权和许可协议仍然适用。",
   "main.about.build": "构建 {buildId}",
   "main.about.ok": "确定",
   "main.dialog.saveBackup": "保存备份文件",

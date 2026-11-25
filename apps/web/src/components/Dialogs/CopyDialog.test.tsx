@@ -241,6 +241,17 @@ describe('CopyDialog', () => {
   // ------------------------------------------------------------------
   // Open / closed state
   // ------------------------------------------------------------------
+  it('Print renders the passage into a sandboxed hidden frame with black text', () => {
+    render(<CopyDialog isOpen={true} onClose={onClose} />);
+    fireEvent.click(screen.getByTestId('copy-dialog-print'));
+    const frame = document.querySelector('iframe[sandbox]') as HTMLIFrameElement | null;
+    expect(frame).toBeTruthy();
+    expect(frame!.getAttribute('sandbox')).not.toContain('allow-scripts');
+    expect(frame!.srcdoc).toContain("default-src 'none'");
+    expect(frame!.srcdoc).toContain('color:#000!important');
+    frame!.remove();
+  });
+
   it('renders nothing when isOpen is false', () => {
     const { container } = render(<CopyDialog isOpen={false} onClose={onClose} />);
     expect(container.querySelector('.copy-dialog')).toBeNull();

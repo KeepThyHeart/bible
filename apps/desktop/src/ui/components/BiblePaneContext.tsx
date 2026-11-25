@@ -61,6 +61,8 @@ export interface ContextMenuState {
 export interface CopyOptionsDialogState {
   visible: boolean;
   verses: BibleVerseCopy[];
+  /** Opened from "Print...": the dialog's primary action prints. */
+  print?: boolean;
 }
 
 export interface NoteTooltipState {

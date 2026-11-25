@@ -421,3 +421,56 @@ describe('BookChapterPicker: search', () => {
     expect(input()).toHaveValue('jo');
   });
 });
+
+describe('BookChapterPicker: verse step', () => {
+  const verseCount = (_book: number, chapter: number) => (chapter === 3 ? 36 : 1);
+
+  it('without verseCount a chapter pick is final', async () => {
+    const user = userEvent.setup();
+    const { onPick } = setup();
+    await user.click(screen.getByRole('button', { name: 'John' }));
+    await user.click(screen.getByRole('button', { name: 'John chapter 3' }));
+    expect(onPick).toHaveBeenCalledWith(43, 3);
+  });
+
+  it('opens a verse grid after the chapter and picks a verse', async () => {
+    const user = userEvent.setup();
+    const { onPick } = setup({ verseCount });
+    await user.click(screen.getByRole('button', { name: 'John' }));
+    await user.click(screen.getByRole('button', { name: 'John chapter 3' }));
+    expect(onPick).not.toHaveBeenCalled();
+    expect(screen.getAllByRole('button', { name: /^John 3:\d+$/ })).toHaveLength(36);
+    await user.click(screen.getByRole('button', { name: 'John 3:16' }));
+    expect(onPick).toHaveBeenCalledWith(43, 3, 16);
+  });
+
+  it('"Go to chapter" skips the verse step', async () => {
+    const user = userEvent.setup();
+    const { onPick } = setup({ verseCount });
+    await user.click(screen.getByRole('button', { name: 'John' }));
+    await user.click(screen.getByRole('button', { name: 'John chapter 3' }));
+    await user.click(screen.getByTestId('picker-go-chapter'));
+    expect(onPick).toHaveBeenCalledWith(43, 3);
+  });
+
+  it('a one-verse chapter goes straight there', async () => {
+    const user = userEvent.setup();
+    const { onPick } = setup({ verseCount });
+    await user.click(screen.getByRole('button', { name: 'John' }));
+    await user.click(screen.getByRole('button', { name: 'John chapter 4' }));
+    expect(onPick).toHaveBeenCalledWith(43, 4);
+  });
+
+  it('Escape and Back step verses to chapters to books', async () => {
+    const user = userEvent.setup();
+    const { onClose } = setup({ verseCount });
+    await user.click(screen.getByRole('button', { name: 'John' }));
+    await user.click(screen.getByRole('button', { name: 'John chapter 3' }));
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(screen.getByText('Select a chapter')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'John chapter 3' }));
+    await user.click(screen.getByRole('button', { name: 'Back' }));
+    expect(screen.getByText('Select a chapter')).toBeInTheDocument();
+    expect(onClose).not.toHaveBeenCalled();
+  });
+});

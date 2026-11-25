@@ -359,6 +359,7 @@
   font-size: 0.9em;
   font-weight: 700;
 }
+.kth-picker__chapter-go { margin-block-end: var(--kth-space-3); inline-size: 100%; }
 .kth-picker__status {
   padding-block: var(--kth-space-4);
   padding-inline: var(--kth-space-4);

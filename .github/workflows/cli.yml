@@ -23,6 +23,12 @@ on:
 permissions:
   contents: read
 
+# onnxruntime-node (via @huggingface/transformers) downloads CUDA EP binaries from
+# GitHub on Linux x64 during postinstall; that download now 404s and fails
+# `pnpm install`. The apps use the CPU provider only, so skip it.
+env:
+  ONNXRUNTIME_NODE_INSTALL_CUDA: skip
+
 jobs:
   build:
     # One Linux runner produces all four executables; that cross-compilation is

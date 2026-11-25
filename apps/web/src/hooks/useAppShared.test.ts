@@ -59,6 +59,8 @@ const h = vi.hoisted(() => {
      * means module, book, chapter AND loaded verses all agree with the hash,
      * and the hook's whole behaviour turns on that distinction.
      */
+    openBookPicker = vi.fn();
+
     matchesHash(hash: string): boolean {
       const m = hash.match(/^#\/([^/]+)\/(\d+)\/(\d+)(?:\/(\d+))?$/);
       const tab = this.activeTab;
@@ -89,6 +91,7 @@ const h = vi.hoisted(() => {
     studyFontSize = 16;
     studyFontFamily = 'serif';
     fontFamily = 'serif';
+    setFontSize = vi.fn((n: number) => { this.fontSize = n; });
     headingFontFamily = 'sans-serif';
   }
 
@@ -132,6 +135,11 @@ function setTab(patch: Record<string, unknown>): void {
       h.bibleStore.activeTab = { ...h.bibleStore.activeTab, ...patch } as never;
     });
   });
+}
+
+/** A wheel event whose ctrlKey/deltaY survive this test environment's WheelEvent. */
+function wheel(props: { ctrlKey: boolean; deltaY: number }): WheelEvent {
+  return Object.assign(new Event('wheel', { bubbles: true, cancelable: true }), props) as unknown as WheelEvent;
 }
 
 function press(init: KeyboardEventInit): KeyboardEvent {
@@ -342,7 +350,6 @@ describe('keyboard shortcuts', () => {
   it.each([
     ['Ctrl+K', { key: 'k', ctrlKey: true }],
     ['Cmd+K', { key: 'k', metaKey: true }],
-    ['Ctrl+G', { key: 'g', ctrlKey: true }],
     ['slash', { key: '/' }],
   ])('focuses the search field on %s', (_label, init) => {
     const input = searchField();
@@ -352,6 +359,33 @@ describe('keyboard shortcuts', () => {
 
     expect(document.activeElement).toBe(input);
     expect(event.defaultPrevented).toBe(true);
+  });
+
+  it('opens the go-to-passage picker on Ctrl+G when a tab is open', () => {
+    render();
+    const event = press({ key: 'g', ctrlKey: true });
+    expect(h.bibleStore.openBookPicker).toHaveBeenCalled();
+    expect(event.defaultPrevented).toBe(true);
+  });
+
+  it('Ctrl + wheel over the Bible text changes its size and cancels the page zoom', () => {
+    render();
+    const el = document.createElement('div');
+    el.className = 'bible-content';
+    document.body.appendChild(el);
+    const before = h.settingsStore.fontSize;
+    const ev = wheel({ ctrlKey: true, deltaY: -100 });
+    act(() => { el.dispatchEvent(ev); });
+    expect(h.settingsStore.setFontSize).toHaveBeenCalledWith(before + 1);
+    expect(ev.defaultPrevented).toBe(true);
+    el.remove();
+  });
+
+  it('Ctrl + wheel elsewhere is left to the browser', () => {
+    render();
+    const ev = wheel({ ctrlKey: true, deltaY: -100 });
+    act(() => { document.body.dispatchEvent(ev); });
+    expect(ev.defaultPrevented).toBe(false);
   });
 
   it('selects the existing query rather than appending to it', () => {

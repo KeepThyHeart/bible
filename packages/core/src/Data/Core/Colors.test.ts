@@ -11,8 +11,8 @@ import {
 describe('markup colours', () => {
   it('maps every palette name to a distinct hex value', () => {
     const hexes = HIGHLIGHT_COLOR_NAMES.map(n => HIGHLIGHT_COLOR_HEX[n]);
-    expect(hexes).toHaveLength(6);
-    expect(new Set(hexes).size).toBe(6);
+    expect(hexes).toHaveLength(10);
+    expect(new Set(hexes).size).toBe(10);
     expect(hexes.every(h => isHexColor(h))).toBe(true);
   });
 
@@ -60,5 +60,17 @@ describe('markup colours', () => {
       expect(isHighlightColorName('yellow')).toBe(true);
       expect(isHighlightColorName('#FFF3A3')).toBe(false);
     });
+  });
+});
+
+describe('extended palette (pink, teal, gray, brown)', () => {
+  it('has a distinct hex for every name and round-trips name <-> hex', () => {
+    const hexes = HIGHLIGHT_COLOR_NAMES.map((n) => HIGHLIGHT_COLOR_HEX[n]);
+    expect(new Set(hexes).size).toBe(HIGHLIGHT_COLOR_NAMES.length);
+    for (const name of ['pink', 'teal', 'gray', 'brown'] as const) {
+      expect(HIGHLIGHT_COLOR_NAMES).toContain(name);
+      expect(normalizeMarkupColor(name)).toBe(HIGHLIGHT_COLOR_HEX[name]);
+      expect(markupColorName(HIGHLIGHT_COLOR_HEX[name])).toBe(name);
+    }
   });
 });

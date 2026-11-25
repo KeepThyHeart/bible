@@ -26,6 +26,7 @@ export type { KeywordLegendLabels, KeywordLegendProps, LegendRow, LegendSuggesti
 export { KeywordMarkEditor, DEFAULT_KEYWORD_MARK_EDITOR_LABELS } from './components/KeywordMarkEditor';
 export type { KeywordMarkEditorLabels, KeywordMarkEditorProps, KeywordMarkEditorField } from './components/KeywordMarkEditor';
 export { markCssColor } from './components/markStyle';
+export { isFontInstalled, resetFontAvailabilityCache } from './fontAvailability';
 
 // Genealogy explorer (task 0067). Layouts are computed by the app and passed in; nothing here imports them.
 export { GenealogyView, DEFAULT_GENEALOGY_VIEW_LABELS } from './components/Genealogy/GenealogyView';

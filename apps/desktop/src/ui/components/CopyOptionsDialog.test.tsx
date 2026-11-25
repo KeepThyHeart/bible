@@ -89,6 +89,9 @@ vi.mock('../services/verseCopyService', async (importOriginal) => {
   };
 });
 
+const printDocument = vi.fn();
+vi.mock('../services/fileNotesAPI', () => ({ printDocument: (html: string) => printDocument(html) }));
+
 function createMockServices(): AppServices {
   return {
     registry: {} as AppServices['registry'],
@@ -307,7 +310,12 @@ describe('CopyOptionsDialog', () => {
       const select = screen.getByRole('combobox', { name: /Verse numbers/i });
       const labels = Array.from(select.querySelectorAll('option')).map(o => o.textContent);
 
-      expect(labels).toEqual(['In parentheses (16)', 'Superscript ¹⁶', 'None']);
+      expect(labels).toEqual([
+        'In parentheses (16)',
+        'Superscript ¹⁶',
+        'Full reference on first verse (John 3:16), then numbers',
+        'None',
+      ]);
     });
   });
 
@@ -620,5 +628,55 @@ describe('CopyOptionsDialog: keyboard focus and Enter on buttons', () => {
     help.focus();
     fireEvent.keyDown(help, { key: 'Enter' });
     expect(onClose).not.toHaveBeenCalled();
+  });
+});
+
+describe('CopyOptionsDialog: printing', () => {
+  beforeEach(() => {
+    printDocument.mockReset();
+    printDocument.mockResolvedValue({ success: true });
+  });
+
+  it('Print sends the passage as a sanitized page with black text and no red letters', async () => {
+    const user = userEvent.setup();
+    const onClose = vi.fn();
+    openDialog(mockVerses, onClose);
+
+    await user.click(screen.getByTestId('passage-dialog-print'));
+
+    expect(printDocument).toHaveBeenCalledTimes(1);
+    const html = printDocument.mock.calls[0][0] as string;
+    expect(html).toContain("Content-Security-Policy");
+    expect(html).toContain(JOHN_3_16);
+    expect(html).toContain(JOHN_3_17);
+    expect(html).toContain('color: #000 !important');
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it('prints in the chosen format (Verse headings print as real headings)', async () => {
+    const user = userEvent.setup();
+    openDialog(mockVerses);
+    await user.click(format('Verse headings'));
+    await user.click(screen.getByTestId('passage-dialog-print'));
+    const html = printDocument.mock.calls[0][0] as string;
+    expect(html).toContain('<h3>');
+    expect(html).toContain('<blockquote>');
+  });
+
+  it('a cancelled print dialog leaves the dialog open and shows no error', async () => {
+    const user = userEvent.setup();
+    const onClose = vi.fn();
+    printDocument.mockResolvedValue({ success: false, canceled: true });
+    openDialog(mockVerses, onClose);
+    await user.click(screen.getByTestId('passage-dialog-print'));
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it('opened from "Print...", the primary button prints and Copy is the other one', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<CopyOptionsDialog verses={mockVerses} context={mockContext} onClose={vi.fn()} printFirst />);
+    expect(screen.getByRole('heading', { name: 'Print Passage' })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /^Print/ }));
+    expect(printDocument).toHaveBeenCalledTimes(1);
   });
 });

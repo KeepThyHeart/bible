@@ -1,4 +1,6 @@
 import { create } from 'zustand';
+import { FONT_CATALOG } from '@bible/core/browser';
+import type { FontKind, FontOrigin } from '@bible/core/browser';
 
 import { markSessionDirty } from './helpers/sessionNotifier';
 import { registerSessionSerializer } from './helpers/sessionRegistry';
@@ -37,16 +39,25 @@ export interface FontOption {
   label: string;
   labelKey?: string;
   css: string;
+  kind?: FontKind;
+  family?: string;
+  origin?: FontOrigin;
 }
 
-export const AVAILABLE_FONTS: FontOption[] = [
-  { name: 'Georgia', label: 'Georgia', labelKey: 'preferencesDialog.fontDefaultLabel', css: 'Georgia, serif' },
-  { name: 'Merriweather', label: 'Merriweather', css: 'Merriweather, Georgia, serif' },
-  { name: 'Garamond', label: 'Garamond', css: 'Garamond, "Times New Roman", serif' },
-  { name: 'Times New Roman', label: 'Times New Roman', css: '"Times New Roman", Times, serif' },
-  { name: 'Crimson Text', label: 'Crimson Text', css: '"Crimson Text", Georgia, serif' },
-  { name: 'Libre Baskerville', label: 'Libre Baskerville', css: '"Libre Baskerville", Georgia, serif' }
-];
+/**
+ * The per-pane typefaces: the shared curated catalogue (`FONT_CATALOG` in `@bible/core`), keyed by the
+ * face's display name (what this store has always stored). Not filtered by installation - validation and
+ * `getFontFamilyCSS` need to know every name; the pickers filter with `useOfferedFonts`.
+ */
+export const AVAILABLE_FONTS: FontOption[] = FONT_CATALOG.map((f): FontOption => ({
+  name: f.label,
+  label: f.label,
+  ...(f.id === 'georgia' ? { labelKey: 'preferencesDialog.fontDefaultLabel' } : {}),
+  css: f.stack,
+  kind: f.kind,
+  family: f.family,
+  origin: f.origin,
+}));
 
 /**
  * Get CSS font-family value from font name.

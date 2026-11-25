@@ -67,6 +67,7 @@ export * from './Core/BundledStarterPacks';
 export * from './Core/ModuleVersion';
 export * from './Core/StrongsNumberHelper';
 export * from './Core/JsonHelpers';
+export * from './Core/ModuleProvenance';
 export * from './Core/RowTypes';
 export * from './Core/VerseRangeQuery';
 export * from './Core/Errors';

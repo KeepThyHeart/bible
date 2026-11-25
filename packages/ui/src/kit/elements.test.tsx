@@ -113,7 +113,7 @@ describe('kit elements', () => {
     it('renders the palette, with the group label attribute', async () => {
       const el = mount('kth-highlight-swatch', { 'group-label': 'Colour' });
       const group = await within(el).findByRole('radiogroup', { name: 'Colour' });
-      expect(within(group).getAllByRole('radio')).toHaveLength(6);
+      expect(within(group).getAllByRole('radio')).toHaveLength(10);
     });
 
     it('colors attribute limits and orders the palette; unknown tokens are dropped', async () => {

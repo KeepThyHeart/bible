@@ -188,6 +188,20 @@ export function BibleToolbar({ onOpenSettings }: BibleToolbarProps) {
           ))}
         </select>
 
+        {/* Current reference, always visible: opens the book/chapter picker that BibleContent renders. */}
+        {tab.book && tab.chapter && (
+          <button
+            class="bible-toolbar__btn bible-toolbar__reference-btn"
+            onClick={() => bibleStore.openBookPicker()}
+            title={t('bibleContent.goToBookChapter')}
+            aria-label={t('bibleToolbar.currentReference', { reference: `${moduleStore.getBookName(tab.book)} ${tab.chapter}` })}
+            aria-haspopup="dialog"
+            data-testid="toolbar-reference"
+          >
+            <Bdi>{moduleStore.getBookName(tab.book)} {tab.chapter}</Bdi> <i class="fa-solid fa-caret-down" style={{ fontSize: '10px', opacity: 0.6 }} />
+          </button>
+        )}
+
         <button
           class="bible-toolbar__translation-btn"
           onClick={() => setShowTranslationDialog(true)}

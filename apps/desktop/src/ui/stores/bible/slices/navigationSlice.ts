@@ -1,4 +1,5 @@
 import type { StateCreator } from 'zustand';
+import { VerseIdHelper } from '@bible/core';
 import { bibleAPI } from '../../../services/electronAPI';
 import { updatePanelState } from '../../helpers/panelStateHelpers';
 import { BibleState, ChapterVisit, HistoryEntry, createDefaultPanelState } from '../types';
@@ -27,6 +28,12 @@ export interface NavigationSlice {
   goForward: (panelId: string) => Promise<void>;
   getHistory: (panelId: string) => HistoryEntry[];
   navigateToHistoryEntry: (panelId: string, index: number) => Promise<void>;
+
+  /**
+   * Clear history (task 0224): every pane keeps only the passage it is
+   * showing. Empties the history list and the Back stack, nothing else.
+   */
+  clearAllHistory: () => void;
 
   // -- Back button (visit stack) - a separate feature from the history above.
   /** True when the panel has a previously viewed chapter to return to. */
@@ -171,6 +178,37 @@ export const createNavigationSlice: StateCreator<BibleState, [], [], NavigationS
     set({ panels: updatePanelState(get().panels, panelId, { historyIndex: result.slot.historyIndex }, createDefaultPanelState) });
 
     await get()._navigateWithoutHistory(panelId, result.entry.bookNumber, result.entry.chapter, result.entry.verseId);
+  },
+
+  clearAllHistory: () => {
+    let panels = get().panels;
+    for (const [panelId, ps] of get().panels.entries()) {
+      const tab = ps.openTabs[ps.activeTabIndex] ?? ps.openTabs[0];
+      if (!tab) continue;
+      const verseId = ps.selectedVerseId ?? VerseIdHelper.calculate(ps.currentBook, ps.currentChapter, 1);
+      const entry: HistoryEntry = {
+        verseId,
+        bookNumber: ps.currentBook,
+        chapter: ps.currentChapter,
+        bookName: ps.currentBookName,
+      };
+      const visit: ChapterVisit = { ...entry, abbreviation: tab.abbreviation };
+      const openTabs = ps.openTabs.map((t, i) => (i === ps.activeTabIndex
+        ? { ...t, history: [entry], historyIndex: 0 }
+        : t));
+      panels = updatePanelState(panels, panelId, {
+        navigationHistory: [entry],
+        historyIndex: 0,
+        visitStack: [visit],
+        openTabs,
+      }, createDefaultPanelState);
+    }
+    // Panes not shown yet this launch still hold their saved history, waiting to be adopted.
+    const staged = new Map(get().sessionPanelStates);
+    for (const [id, session] of staged) {
+      staged.set(id, { ...session, tab: { ...session.tab, history: [], historyIndex: -1 }, visitStack: undefined });
+    }
+    set({ panels, sessionPanelStates: staged });
   },
 
   // -- Back button (visit stack) -----------------------------------------

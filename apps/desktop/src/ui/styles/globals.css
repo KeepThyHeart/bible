@@ -87,6 +87,18 @@
 
 /* Bible text styling */
 @layer components {
+  /* Reading width preference (Typography > Reading layout): the Bible and Study columns centre
+     within a cap that --bible-max-width / --study-max-width set from usePreferencesStore.
+     The fallbacks are the long-standing caps (max-w-3xl, max-w-4xl). */
+  .bible-reading-column {
+    max-width: var(--bible-max-width, 48rem);
+    margin-inline: auto;
+  }
+  .study-reading-column {
+    max-width: var(--study-max-width, 56rem);
+    margin-inline: auto;
+  }
+
   .bible-text {
     /* Inherit font settings from parent pane-content-bible class */
     font-family: inherit;

@@ -180,7 +180,7 @@ Three things the clipboard path decides for these shapes:
 | Option | Formats | Effect |
 |---|---|---|
 | `referencePosition` | all four | Reference **Before**, **After**, or **None** |
-| `verseNumbers` | all four | **In parentheses (16)**, **Superscript ¹⁶**, or **None**. Each option is a *name* with its example beside it |
+| `verseNumbers` | all four | **In parentheses (16)**, **Superscript ¹⁶**, **Full reference on first verse**, or **None**. Each option is a *name* with its example beside it. *Full reference on first verse* writes `(John 3:16)` before the first verse and a bare `(17)` before each later one, switching to `(4:1)` where a multi-chapter passage crosses a chapter; the separate reference block is dropped for this style (it would only repeat the first verse), and an inline quote already leads with its reference so it is unchanged. Stored in the note's expansion options like the others |
 | `headingLevel` | Verse headings | H1-H3 (`EDITOR_HEADING_LEVELS`; the note editor's schema has no more, though the core type allows H1-H6) |
 | `quoteMarks` | Inline quote | `“”`, `‘’`, or none |
 | `commentPlaceholders` | the per-verse shapes | A labelled paragraph under each verse to write into |
@@ -255,3 +255,7 @@ The markup shape options *are* serialised there, as `PassageInsertOptions` (`For
 ## Exporting notes
 
 The export path a user can reach is **Export My Notes...**, the `notes.export` command in `commands/notesCommands.ts`, handled directly in `App.tsx`; see [notes-writing.md](notes-writing.md).
+
+## Printing a passage
+
+The Copy Passage dialog has a **Print...** button beside Copy, and the verse context menu has **Print...**, which opens the same dialog with Print as the primary action (`printFirst`). Print uses the dialog's format and options and its verses: a note-shaped format prints as its blocks (real block quote, real headings), every other format prints its source text. `utils/passagePrintDocument.ts` wraps the result in a standalone page (sanitized body, restrictive CSP, black-on-white print stylesheet; red letters are always off so it reads on a black-and-white printer) and `printDocument()` (`fileNotesAPI.ts`) sends it over `document:print`. That channel shares one handler with `notes:print` in `electron/main.ts`: the hidden, locked-down, JavaScript-less window with the CSP injected, and the system print dialog. A cancelled print dialog is not an error and leaves the dialog open.

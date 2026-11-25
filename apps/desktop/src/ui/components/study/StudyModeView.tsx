@@ -2,6 +2,10 @@ import React, { useRef, useState, useEffect } from 'react';
 import { bibleAPI } from '../../services/electronAPI';
 import { StudyModeOptions } from '../../stores/useBibleStore';
 import { useBiblePanel } from '../../stores/hooks/useBiblePanel';
+import { useI18n } from '../../contexts/useI18n';
+import { usePreferencesStore } from '../../stores/usePreferencesStore';
+import { verseLabelText, verseGutterClass } from '../../utils/verseLabel';
+import BibleHeader from '../BibleHeader';
 import StudyControls from './StudyControls';
 import FootnoteDisplay from './FootnoteDisplay';
 import CrossReferenceDisplay from './CrossReferenceDisplay';
@@ -102,7 +106,6 @@ const StudyModeView: React.FC<StudyModeViewProps> = ({
   panelId,
   tabId,
   currentBookNumber,
-  currentBookName,
   currentChapter,
   selectedVerseId,
   selectionEndVerseId,
@@ -117,6 +120,8 @@ const StudyModeView: React.FC<StudyModeViewProps> = ({
   scrollTrigger,
   scrollMode,
 }) => {
+  const { localizer } = useI18n();
+  const verseLabelMode = usePreferencesStore(st => st.typography.verseLabelMode);
   const { getStudyOptions, setStudyOptions, openTabs, activeTabIndex, interlinearByModule, studyOptionsByTab, navigateToVerse } = useBiblePanel(panelId);
   // Read through the panel's options map (a subscribed value) rather than only
   // calling getStudyOptions, so a toolbar toggle re-renders this view instead of
@@ -326,11 +331,9 @@ const StudyModeView: React.FC<StudyModeViewProps> = ({
 
   return (
     <div className="px-xl py-lg" ref={rootRef}>
-      <div className="max-w-4xl mx-auto">
+      <div className="study-reading-column">
         {/* Chapter Heading */}
-        <h2 className="text-3xl font-bold text-text-heading mb-lg border-b border-border pb-sm">
-          {currentBookName} {currentChapter}
-        </h2>
+        <BibleHeader />
 
         {/* Study Controls */}
         <StudyControls
@@ -413,11 +416,11 @@ const StudyModeView: React.FC<StudyModeViewProps> = ({
                          target, and a second highlighted affordance on the
                          number implied it did something different. The handler
                          and the pointer cursor stay - it is still a way in. */
-                      className="flex-shrink-0 w-10 text-end pe-2 cursor-pointer rounded text-lg font-bold text-text-secondary bidi-isolate"
+                      className={`flex-shrink-0 ${verseGutterClass(verseLabelMode, 'study')} text-end pe-2 cursor-pointer rounded text-lg font-bold text-text-secondary bidi-isolate`}
                       onMouseDown={handleVerseMouseDown}
                       onClick={(e) => onVerseClick(verse.verse_id, e.shiftKey)}
                     >
-                      {verse.verse}
+                      {verseLabelText(verseLabelMode, { book: verse.book_number, chapter: verse.chapter, verse: verse.verse }, localizer)}
                     </span>
                   )}
 

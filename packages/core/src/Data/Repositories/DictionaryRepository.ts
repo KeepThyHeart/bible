@@ -11,6 +11,7 @@ import { buildPagination } from '../Core/SafeQuery';
 import { escapeFts5Query } from '../Access/Fts5/Fts5QueryCompiler';
 import { VerseLinkRepository } from './VerseLinkRepository';
 import { IIndexSource } from '../Access/KeywordTypes';
+import { getStemmer } from '../../Text/stemmers';
 
 /**
  * Repository for Dictionary module databases (dictionary_*.db)
@@ -235,8 +236,18 @@ export class DictionaryRepository extends BaseModuleRepository<DictionaryModuleI
     );
 
     const rows = [...titleRows];
+    const seen = new Set(rows.map(r => r.entry_id));
+    // Stemmed title tier: "walking" -> "walk" prefix-matches WALK, WALKED...
+    // ahead of full text. Each title appears once (seen set).
     if (rows.length < limit) {
-      const seen = new Set(rows.map(r => r.entry_id));
+      for (const row of this.stemmedTitleRows(query, limit)) {
+        if (rows.length >= limit) break;
+        if (seen.has(row.entry_id)) continue;
+        seen.add(row.entry_id);
+        rows.push(row);
+      }
+    }
+    if (rows.length < limit) {
       // Raw input cannot go into MATCH: an apostrophe, a hyphen or a bare
       // "not" is a syntax error, which the API surfaced as a 500.
       const ftsQuery = escapeFts5Query(query);
@@ -260,6 +271,31 @@ export class DictionaryRepository extends BaseModuleRepository<DictionaryModuleI
     }
 
     return this.hydrateExampleVerses(rows.map(row => this.mapRowToEntry(row)));
+  }
+
+  /**
+   * Titles starting with the stem of a single-word query, using the module
+   * language's stemmer. Empty when the language has no stemmer, the query is
+   * not one word, or stemming changes nothing (the contains tier covers it).
+   */
+  private stemmedTitleRows(query: string, limit: number): DictionaryEntryRow[] {
+    const word = query.trim().toLowerCase();
+    if (!word || /\s/.test(word)) return [];
+    const lang = this.sql.queryOne<{ language_code: string | null }>(
+      'SELECT language_code FROM module_info WHERE info_id = 1'
+    )?.language_code ?? undefined;
+    const stemmer = getStemmer(lang ?? undefined);
+    if (!stemmer) return [];
+    const stem = stemmer(word);
+    if (stem.length < 2 || stem === word) return [];
+    const prefix = escapeLike(stem);
+    return this.sql.queryAll<DictionaryEntryRow>(
+      `SELECT * FROM dictionary_entry
+       WHERE word LIKE ? || '%' ESCAPE '\\' OR entry_key LIKE ? || '%' ESCAPE '\\'
+       ORDER BY LENGTH(COALESCE(word, entry_key)), entry_key
+       LIMIT ?`,
+      [prefix, prefix, limit]
+    );
   }
 
   /**

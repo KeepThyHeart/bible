@@ -29,7 +29,7 @@ export interface VerseSlice {
    */
   followToChapter: (panelId: string, bookNumber: number, chapter: number) => Promise<void>;
   loadVerse: (panelId: string, verseId: number) => Promise<void>;
-  navigateToVerse: (panelId: string, verseId: number) => Promise<void>;
+  navigateToVerse: (panelId: string, verseId: number, endVerseId?: number) => Promise<void>;
   setSelectedVerse: (panelId: string, verseId: number | null) => void;
   /**
    * Shift-click: widen the selection out to `verseId` without moving the
@@ -296,7 +296,7 @@ export const createVerseSlice: StateCreator<BibleState, [], [], VerseSlice> = (s
   },
 
   // Navigate to a specific verse (parses verseId and loads the chapter) - active tab only
-  navigateToVerse: async (panelId: string, verseId: number) => {
+  navigateToVerse: async (panelId: string, verseId: number, endVerseId?: number) => {
     try {
       const { bookNumber, chapter } = VerseIdHelper.parse(verseId);
       const bookName = await bibleAPI.getBookName(bookNumber);
@@ -327,6 +327,8 @@ export const createVerseSlice: StateCreator<BibleState, [], [], VerseSlice> = (s
           verseId, bookNumber, chapter, bookName,
           abbreviation: activeTab.abbreviation,
         });
+        // A passage (a range bookmark) selects every verse, as a shift-click would.
+        if (endVerseId !== undefined && endVerseId !== verseId) get().extendSelectionTo(panelId, endVerseId);
         return;
       }
 
@@ -374,6 +376,7 @@ export const createVerseSlice: StateCreator<BibleState, [], [], VerseSlice> = (s
         };
         set({ panels: updatePanelState(get().panels, panelId, { openTabs: updatedTabs }, createDefaultPanelState) });
       }
+      if (endVerseId !== undefined && endVerseId !== verseId) get().extendSelectionTo(panelId, endVerseId);
     } catch (error) {
       console.error('[useBibleStore] Error navigating to verse:', error);
     }

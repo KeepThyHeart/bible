@@ -657,6 +657,9 @@ export function SettingsPanel({ isOpen, onClose, scrollToSection }: SettingsPane
                     <i class="fa-solid fa-scale-balanced" style={{ marginInlineEnd: '6px', opacity: 0.6 }} />
                     <span dangerouslySetInnerHTML={{ __html: t('settings.about.license') }} />
                   </p>
+                  <p class="settings-panel__about-text" data-testid="about-credits">
+                    {t('settings.about.credits')}
+                  </p>
                   <p class="settings-panel__about-text">
                     {t('settings.about.licenseDetails')}
                     {repoUrl && (

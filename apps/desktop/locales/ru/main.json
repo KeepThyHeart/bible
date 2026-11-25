@@ -1,6 +1,7 @@
 {
   "main.about.title": "О программе {productName}",
   "main.about.detail": "Версия {version}\n\nНастольное приложение для изучения Библии.\n\n© {year}",
+  "main.about.credits": "Большинство Библий, комментариев и словарей преобразованы из модулей The SWORD Project, распространяемых CrossWire Bible Society (crosswire.org). К каждому модулю применяются его собственные авторские права и лицензия.",
   "main.about.build": "Сборка {buildId}",
   "main.about.ok": "OK",
   "main.dialog.saveBackup": "Сохранить файл резервной копии",

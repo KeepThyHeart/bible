@@ -126,6 +126,23 @@ export const ModuleDetailsPanel: React.FC<ModuleDetailsPanelProps> = ({
     return () => clearDetails();
   }, [installedModuleId, loadModuleDetails, clearDetails]);
 
+  // Attribution + source live in the installed module's own module_info (the
+  // catalog JSON has neither), so they load per installed row.
+  const [provenance, setProvenance] = useState<{ moduleId: number; attribution: string | null; sourceUrl: string | null } | null>(null);
+  useEffect(() => {
+    setProvenance(null);
+    if (typeof installedModuleId !== 'number') return;
+    let cancelled = false;
+    Promise.resolve()
+      .then(() => moduleAPI.getModuleProvenance(installedModuleId))
+      .then((p) => {
+        if (!cancelled) setProvenance({ moduleId: installedModuleId, attribution: p.attribution, sourceUrl: p.source_url });
+      })
+      .catch(() => { /* optional info: stay silent */ });
+    return () => { cancelled = true; };
+  }, [installedModuleId]);
+  const shownProvenance = provenance && provenance.moduleId === installedModuleId ? provenance : null;
+
   // Only trust details that belong to the row on screen.
   const details =
     typeof installedModuleId === 'number' && selectedModuleDetails?.module_id === installedModuleId
@@ -240,6 +257,27 @@ export const ModuleDetailsPanel: React.FC<ModuleDetailsPanelProps> = ({
         )
         : catalog.license
       : undefined
+  );
+  addField(
+    'attribution',
+    tr('moduleDetails.attributionLabel', 'Attribution'),
+    shownProvenance?.attribution ? shownProvenance.attribution : undefined
+  );
+  addField(
+    'sourceLink',
+    tr('moduleDetails.sourceLinkLabel', 'Source'),
+    isHttpUrl(shownProvenance?.sourceUrl ?? undefined) ? (
+      <a
+        href={shownProvenance!.sourceUrl!}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-accent hover:underline break-all"
+        data-testid="module-details-source-link"
+        onClick={(e) => openExternal(e, shownProvenance!.sourceUrl!)}
+      >
+        {shownProvenance!.sourceUrl}
+      </a>
+    ) : undefined
   );
   addField('downloadSize', tr('moduleDetails.downloadSizeLabel', 'Download size'), downloadSize);
   addField('installedSize', tr('moduleDetails.installedSizeLabel', 'Installed size'), installedSize);

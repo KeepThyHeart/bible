@@ -14,9 +14,19 @@ import {
  */
 const TRANSIENT_CONTENT_TYPES = new Set<string>(['newtab']);
 
-function isTransient(state: SerializedPanelState): boolean {
+export interface StripOptions {
+  /**
+   * Also drop search panels (task 0224). Their tab title and params carry the
+   * query text, so with "Reopen search tabs on startup" off the whole panel is
+   * left out of the snapshot: nothing a reader searched for is ever written.
+   */
+  dropSearchPanels?: boolean;
+}
+
+function isTransient(state: SerializedPanelState, opts: StripOptions): boolean {
   const contentType = (state.params as { contentType?: unknown } | undefined)?.contentType;
-  return typeof contentType === 'string' && TRANSIENT_CONTENT_TYPES.has(contentType);
+  if (typeof contentType !== 'string') return false;
+  return TRANSIENT_CONTENT_TYPES.has(contentType) || (opts.dropSearchPanels === true && contentType === 'search');
 }
 
 /**
@@ -36,6 +46,7 @@ function isTransient(state: SerializedPanelState): boolean {
  */
 export function stripTransientPanels(
   layout: SerializedDockview | null | undefined,
+  opts: StripOptions = {},
 ): SerializedDockview | null {
   if (!layout || typeof layout !== 'object') return layout ?? null;
 
@@ -46,7 +57,7 @@ export function stripTransientPanels(
   const kept: Record<string, SerializedPanelState> = {};
   let removedAny = false;
   for (const [panelId, state] of Object.entries(panels)) {
-    if (isTransient(state)) {
+    if (isTransient(state, opts)) {
       removedAny = true;
       continue;
     }

@@ -97,6 +97,7 @@ const REFERENCE_POSITION_LABELS: Record<PassageReferencePosition, string> = {
 const VERSE_NUMBER_LABELS: Record<VerseNumberStyle, string> = {
   parenthetical: 'ui.passageInsert.verseNumbersParenthetical',
   superscript: 'ui.passageInsert.verseNumbersSuperscript',
+  'first-full': 'ui.passageInsert.verseNumbersFirstFull',
   none: 'ui.passageInsert.verseNumbersNone',
 };
 
@@ -667,6 +668,33 @@ export function CopyDialog({ isOpen, onClose }: CopyDialogProps) {
     return true;
   };
 
+  /**
+   * Print the passage the preview shows: a note-shaped format prints as its blocks, anything else as its text.
+   * Rendered into a hidden, script-less iframe (its document is sanitized and gets a black-on-white print
+   * stylesheet, so red letters never reach a black-and-white printer) and removed again afterwards.
+   */
+  const handlePrint = (): void => {
+    const body = useRichCopy
+      ? sanitizeHtml(stripBidiControls(passageMarkupToHtml(markup)))
+      : `<p>${plainText.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').split(/\n{2,}/).map(p => p.replace(/\n/g, '<br>')).join('</p><p>')}</p>`;
+    const doc = `<!DOCTYPE html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'"><style>body{font-family:Georgia,serif;font-size:14pt;line-height:1.6;max-width:38em;margin:2em auto;color:#000;background:#fff}*{color:#000!important;background:transparent!important}blockquote{border-inline-start:2px solid #000;margin-inline:0;padding-inline-start:1em}@page{margin:2cm}</style></head><body>${body}</body></html>`;
+    const frame = document.createElement('iframe');
+    frame.setAttribute('sandbox', 'allow-modals allow-same-origin');
+    frame.setAttribute('aria-hidden', 'true');
+    frame.style.cssText = 'position:fixed;inset-inline-end:0;inset-block-end:0;inline-size:0;block-size:0;border:0';
+    frame.srcdoc = doc;
+    frame.onload = () => {
+      const win = frame.contentWindow;
+      if (!win) { frame.remove(); return; }
+      win.addEventListener('afterprint', () => frame.remove());
+      win.focus();
+      win.print();
+      // Some browsers never fire afterprint; do not leave the frame behind.
+      setTimeout(() => frame.remove(), 60_000);
+    };
+    document.body.appendChild(frame);
+  };
+
   const canCopy = !fetchingVerses && selectedVerses.length > 0;
 
   // Enter is "copy and be done" — the dialog exists only to produce the copy,
@@ -937,6 +965,14 @@ export function CopyDialog({ isOpen, onClose }: CopyDialogProps) {
               disabled={!canCopy}
             >
               {copied ? t('copyDialog.copied') : t('copyDialog.copyToClipboard')}
+            </button>
+            <button
+              class="copy-dialog__copy-btn"
+              onClick={handlePrint}
+              disabled={!canCopy}
+              data-testid="copy-dialog-print"
+            >
+              {t('copyDialog.print')}
             </button>
             {copyFailed && (
               <div class="copy-dialog__error" role="alert">

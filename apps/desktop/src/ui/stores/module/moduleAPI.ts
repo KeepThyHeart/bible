@@ -76,6 +76,9 @@ export const moduleAPI = {
   async getModuleDetails(moduleId: number) {
     return unwrap(requireElectronAPI().moduleManager.getModuleDetails(moduleId));
   },
+  async getModuleProvenance(moduleId: number) {
+    return unwrap(requireElectronAPI().moduleManager.getModuleProvenance(moduleId));
+  },
   async getKeywordIndexStatus(moduleId: number): Promise<KeywordIndexStatusDto> {
     return unwrap(requireElectronAPI().moduleManager.getKeywordIndexStatus(moduleId));
   },

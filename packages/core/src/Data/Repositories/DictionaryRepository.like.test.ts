@@ -39,3 +39,33 @@ describe('DictionaryRepository LIKE escaping (W-051)', () => {
     expect(repo.searchByTitle('ab')[0].word).toBe('ABBA');
   });
 });
+
+describe('DictionaryRepository stemmed title tier (B15)', () => {
+  function stemRepo(): DictionaryRepository {
+    const sql = new TestSqliteProvider(':memory:');
+    open.push(sql);
+    sql.exec(loadSchemaSql(SCHEMA));
+    sql.execute(
+      `INSERT INTO module_info (info_id, module_uuid, module_type, abbreviation, full_name, format, format_version, language_code)
+       VALUES (1, 'u', 'dictionary', 'FIX', 'Fixture', 'dictionary-module', '0.2', 'en')`,
+    );
+    ['WALK', 'WALKED', 'BELIEVE', 'BELIEF', 'G25'].forEach((w, i) =>
+      sql.execute(`INSERT INTO dictionary_entry (entry_id, entry_key, word, definition) VALUES (?, ?, ?, 'd')`, [i + 1, w, w]));
+    return new DictionaryRepository(sql);
+  }
+
+  it('walking finds WALK, once', () => {
+    const words = stemRepo().searchEntries('walking').map(e => e.word);
+    expect(words[0]).toBe('WALK');
+    expect(words.filter(w => w === 'WALK')).toHaveLength(1);
+  });
+
+  it('believed finds BELIEVE', () => {
+    expect(stemRepo().searchEntries('believed').map(e => e.word)).toContain('BELIEVE');
+  });
+
+  it('exact and Strong\'s lookups are unchanged', () => {
+    expect(stemRepo().searchEntries('walk')[0].word).toBe('WALK');
+    expect(stemRepo().searchEntries('G25').map(e => e.word)).toEqual(['G25']);
+  });
+});

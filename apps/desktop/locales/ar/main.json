@@ -1,6 +1,7 @@
 {
   "main.about.title": "حول {productName}",
   "main.about.detail": "الإصدار {version}\n\nتطبيق مكتبي لدراسة الكتاب المقدس.\n\n© {year}",
+  "main.about.credits": "تم تحويل معظم نسخ الكتاب المقدس والتفاسير والقواميس من وحدات مشروع The SWORD Project، التي توزعها جمعية CrossWire Bible Society (crosswire.org). تسري حقوق النشر والترخيص الخاصان بكل وحدة.",
   "main.about.build": "البناء {buildId}",
   "main.about.ok": "موافق",
   "main.dialog.saveBackup": "حفظ ملف النسخة الاحتياطية",

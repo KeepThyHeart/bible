@@ -164,6 +164,12 @@
     gap: 6px;
   }
 
+  // The current passage (opens the book/chapter picker): primary text, not the muted icon colour.
+  &__btn.bible-toolbar__reference-btn {
+    color: var(--text-primary);
+    gap: 6px;
+  }
+
   &__nav-btn {
     padding: 8px 10px;
     font-size: calc(0.75rem * var(--ui-font-scale, 1));

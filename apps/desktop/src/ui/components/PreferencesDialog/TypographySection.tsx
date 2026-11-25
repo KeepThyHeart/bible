@@ -19,6 +19,12 @@ import {
   getFontFamilyStack,
   usePreferencesStore
 } from '../../stores/usePreferencesStore';
+import { FontOptions } from './FontOptions';
+import type { PickableFont } from '../../hooks/useOfferedFonts';
+import type { ReadingWidth, VerseLabelMode } from '../../stores/usePreferencesStore';
+
+/** The Typography list in the shape the shared font picker takes (id as the stored value). */
+const FONT_PICKER_ENTRIES: PickableFont[] = AVAILABLE_FONT_FAMILIES.map(f => ({ ...f, value: f.id }));
 
 interface SliderRowProps {
   /** DOM id for the range input; the label points at it with `htmlFor`. */
@@ -133,11 +139,7 @@ export const TypographySection: React.FC = () => {
               fontFamily: getFontFamilyStack(typography.bibleFontFamily)
             }}
           >
-            {AVAILABLE_FONT_FAMILIES.map((f) => (
-              <option key={f.id} value={f.id} style={{ fontFamily: f.stack }}>
-                {f.labelKey ? t(f.labelKey, { fontName: f.label }) : f.label}
-              </option>
-            ))}
+            <FontOptions fonts={FONT_PICKER_ENTRIES} value={typography.bibleFontFamily} />
           </select>
           <div
             className="mt-2 rounded p-3"
@@ -181,17 +183,93 @@ export const TypographySection: React.FC = () => {
               fontFamily: getFontFamilyStack(typography.studyFontFamily)
             }}
           >
-            {AVAILABLE_FONT_FAMILIES.map((f) => (
-              <option key={f.id} value={f.id} style={{ fontFamily: f.stack }}>
-                {f.labelKey ? t(f.labelKey, { fontName: f.label }) : f.label}
-              </option>
-            ))}
+            <FontOptions fonts={FONT_PICKER_ENTRIES} value={typography.studyFontFamily} />
           </select>
         </div>
 
         <p className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>
           {t('preferencesDialog.fontInstallNote')}
         </p>
+      </section>
+
+      {/* --- Reading layout --- */}
+      <section className="space-y-4" aria-labelledby="typography-layout-heading">
+        <h4
+          id="typography-layout-heading"
+          className="text-sm font-semibold"
+          style={{ color: 'var(--theme-text-heading)' }}
+        >
+          {t('preferencesDialog.readingLayoutHeading')}
+        </h4>
+
+        {/* Reading width */}
+        <div>
+          <label
+            htmlFor="typography-reading-width"
+            className="block text-sm font-medium mb-1"
+            style={{ color: 'var(--theme-text-primary)' }}
+          >
+            {t('preferencesDialog.readingWidthLabel')}
+          </label>
+          <p
+            id="typography-reading-width-description"
+            className="text-xs mb-2"
+            style={{ color: 'var(--theme-text-secondary)' }}
+          >
+            {t('preferencesDialog.readingWidthDescription')}
+          </p>
+          <select
+            id="typography-reading-width"
+            aria-describedby="typography-reading-width-description"
+            value={typography.readingWidth}
+            onChange={(e) => setTypography({ readingWidth: e.target.value as ReadingWidth })}
+            className="w-full px-3 py-2 rounded text-sm focus:outline-none"
+            style={{
+              backgroundColor: 'var(--theme-input-bg)',
+              border: '1px solid var(--theme-input-border)',
+              color: 'var(--theme-input-text)'
+            }}
+          >
+            <option value="narrow">{t('preferencesDialog.readingWidthNarrow')}</option>
+            <option value="medium">{t('preferencesDialog.readingWidthMedium')}</option>
+            <option value="wide">{t('preferencesDialog.readingWidthWide')}</option>
+            <option value="full">{t('preferencesDialog.readingWidthFull')}</option>
+          </select>
+        </div>
+
+        {/* Verse labels */}
+        <div>
+          <label
+            htmlFor="typography-verse-labels"
+            className="block text-sm font-medium mb-1"
+            style={{ color: 'var(--theme-text-primary)' }}
+          >
+            {t('preferencesDialog.verseLabelsLabel')}
+          </label>
+          <p
+            id="typography-verse-labels-description"
+            className="text-xs mb-2"
+            style={{ color: 'var(--theme-text-secondary)' }}
+          >
+            {t('preferencesDialog.verseLabelsDescription')}
+          </p>
+          <select
+            id="typography-verse-labels"
+            aria-describedby="typography-verse-labels-description"
+            value={typography.verseLabelMode}
+            onChange={(e) => setTypography({ verseLabelMode: e.target.value as VerseLabelMode })}
+            className="w-full px-3 py-2 rounded text-sm focus:outline-none"
+            style={{
+              backgroundColor: 'var(--theme-input-bg)',
+              border: '1px solid var(--theme-input-border)',
+              color: 'var(--theme-input-text)'
+            }}
+          >
+            <option value="number">{t('preferencesDialog.verseLabelsNumber')}</option>
+            <option value="chapterVerse">{t('preferencesDialog.verseLabelsChapterVerse')}</option>
+            <option value="bookChapterVerse">{t('preferencesDialog.verseLabelsBookChapterVerse')}</option>
+          </select>
+        </div>
       </section>
 
       {/* --- Text Size --- */}

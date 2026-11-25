@@ -120,6 +120,25 @@ safe; every value binds as a parameter.
 `module_uuid` - not `abbreviation` - is the cross-database join key. An
 abbreviation is a display and lookup convenience and is not stable.
 
+### `metadata.provenance` (SWORD-derived modules)
+
+Modules converted from a SWORD module carry, inside the `module_info.metadata` JSON, a `provenance` object.
+`description` credits the source text, `publisher` is the rights holder; `provenance` credits the conversion.
+
+| Key | Meaning |
+|---|---|
+| `converted_from` | Always `"sword"`. |
+| `project` | `"The SWORD Project"`. |
+| `publisher` | Repository/organisation that distributed the SWORD module: `"CrossWire Bible Society"` unless the converter was given `--source-repo` (e.g. `"Xiphos"`). |
+| `publisher_url` | That publisher's URL (`https://crosswire.org/sword/` by default). |
+| `module` | The SWORD module name (same as `sword_module`). |
+| `module_version` | The `.conf` `Version` (same as `module_info.content_version`). |
+| `attribution` | Ready-to-display sentence. CrossWire: `Converted from the SWORD module "KJV" (version 3.1), distributed by the CrossWire Bible Society (crosswire.org).` Other repository: `... distributed through Xiphos (xiphos.org).` |
+
+The existing `sword_*` keys (`sword_module`, `sword_lang`, `sword_source_type`, `sword_distribution_license`, `sword_text_source`, ...) are unchanged.
+`xref_tsk.db` (TSK) carries `sword_module` and `provenance` from the source commentary alongside `sourceModule`.
+Consumers (the app credits screen, task 0228) read `metadata.provenance.attribution`; absent on modules not converted from SWORD.
+
 ### Compression
 
 `module_info.compression` (default `'none'`) names the codec applied to a

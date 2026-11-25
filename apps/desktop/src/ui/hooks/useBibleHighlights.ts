@@ -324,7 +324,82 @@ export function useBibleHighlights(
     dismissFloatingToolbar();
   }, [activeTab, deleteHighlight, highlightRepository, dismissFloatingToolbar, bibleTextRef]);
 
+  /**
+   * Delete every highlight and underline that touches these verses (the whole mark, not a trimmed part),
+   * through the range IPC, then reload the chapter's marks so the page repaints.
+   */
+  const clearMarksInVerses = useCallback(async (startVerseId: number, endVerseId?: number) => {
+    if (!activeTab?.moduleId) return;
+    const end = endVerseId ?? startVerseId;
+    const [from, to] = startVerseId <= end ? [startVerseId, end] : [end, startVerseId];
+    try {
+      await highlightRepository.deleteForVerseRange(from, to, activeTab.moduleId);
+      await loadHighlightsForVerseRange(activeTab.moduleId, from, to, highlightRepository);
+      announceKey('a11y.announce.highlightRemoved');
+    } catch (error) {
+      console.error('[BiblePane] Failed to clear highlights for verses:', error);
+    }
+  }, [activeTab, highlightRepository, loadHighlightsForVerseRange]);
+
+  /** Marks (ids) under the words of a captured word selection, read from the painted words. */
+  const markupIdsInSelection = useCallback((sel: WordSelection): number[] => {
+    const root = bibleTextRef.current;
+    if (!root) return [];
+    const ids = new Set<number>();
+    root.querySelectorAll<HTMLElement>('.word[data-markup-id]').forEach(word => {
+      const verseEl = word.closest<HTMLElement>('[data-verse-id]');
+      const verseId = verseEl ? Number(verseEl.getAttribute('data-verse-id')) : NaN;
+      const index = Number(word.getAttribute('data-word-index'));
+      if (!Number.isFinite(verseId) || !Number.isFinite(index)) return;
+      const lastVerse = sel.endVerseId ?? sel.startVerseId;
+      if (verseId < sel.startVerseId || verseId > lastVerse) return;
+      if (verseId === sel.startVerseId && index < sel.startWordIndex) return;
+      if (verseId === lastVerse && sel.endWordIndex !== undefined && index > sel.endWordIndex) return;
+      (word.getAttribute('data-markup-id') ?? '').split(',').forEach(id => {
+        const n = parseInt(id, 10);
+        if (!Number.isNaN(n)) ids.add(n);
+      });
+    });
+    return [...ids];
+  }, [bibleTextRef]);
+
+  const selectionHasMarkup = useCallback((sel: WordSelection | null): boolean => (
+    sel ? markupIdsInSelection(sel).length > 0 : false
+  ), [markupIdsInSelection]);
+
+  /** "Remove highlights and underlines" from the full highlight menu: whole marks under the selected words. */
+  const removeMarksInWordSelection = useCallback(async (sel: WordSelection) => {
+    if (!activeTab?.moduleId) return;
+    for (const id of markupIdsInSelection(sel)) {
+      try {
+        await deleteHighlight(id, activeTab.moduleId, highlightRepository);
+      } catch (error) {
+        console.error('[BiblePane] Failed to remove highlight:', id, error);
+      }
+    }
+    announceKey('a11y.announce.highlightRemoved');
+    setHighlightMenu({ visible: false, position: { x: 0, y: 0 }, selection: null });
+    window.getSelection()?.removeAllRanges();
+  }, [activeTab, deleteHighlight, highlightRepository, markupIdsInSelection]);
+
+  /**
+   * The keyboard path: with words selected, remove the marks under them; otherwise clear every mark in the
+   * selected verse or verse range.
+   */
+  const clearSelectionMarks = useCallback(async (selectedVerseId: number | null, selectionEndVerseId?: number | null) => {
+    const domSelection = buildSelectionFromDOM();
+    if (domSelection) {
+      await removeMarksInWordSelection(domSelection);
+      return;
+    }
+    if (selectedVerseId) await clearMarksInVerses(selectedVerseId, selectionEndVerseId ?? undefined);
+  }, [buildSelectionFromDOM, removeMarksInWordSelection, clearMarksInVerses]);
+
   return {
+    clearMarksInVerses,
+    selectionHasMarkup,
+    removeMarksInWordSelection,
+    clearSelectionMarks,
     highlightRepository,
     highlightMenu,
     setHighlightMenu,

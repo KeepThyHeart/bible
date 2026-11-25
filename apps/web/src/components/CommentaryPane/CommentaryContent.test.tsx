@@ -7,7 +7,7 @@
  * State is kept in a mutable container to avoid vi.mock hoisting TDZ issues.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/preact';
+import { render, screen, fireEvent, waitFor } from '@testing-library/preact';
 import type { CommentaryEntryData } from '../../types';
 
 // ---- i18n ----------------------------------------------------------------
@@ -132,7 +132,8 @@ vi.mock('../../stores/settingsStore', () => ({
 }));
 
 // ---- Component import (after mocks) -------------------------------------
-import { CommentaryContent } from './CommentaryContent';
+import { CommentaryContent, CommentaryAbout } from './CommentaryContent';
+import { commentaryStore } from '../../stores/commentaryStore';
 
 describe('CommentaryContent', () => {
   beforeEach(() => {
@@ -245,5 +246,40 @@ describe('CommentaryContent', () => {
     state.tabs = [{ id: 'ctab-other', moduleAbbr: 'MHC', moduleName: 'Matthew Henry' }];
     const { container } = render(<CommentaryContent />);
     expect(container.querySelector('.commentary-content')).toBeTruthy();
+  });
+});
+
+describe('CommentaryAbout', () => {
+  const baseInfo = {
+    abbreviation: 'MHC', fullName: 'Matthew Henry', author: null, yearPublished: null, version: null,
+    languageCode: 'en', copyright: 'Public domain', description: null, publisher: null, createdDate: null,
+  };
+
+  it('shows copyright, license, attribution and source on separate lines', async () => {
+    vi.mocked(commentaryStore.getModuleInfo).mockResolvedValueOnce({
+      ...baseInfo,
+      licenseSpdx: 'PD',
+      licenseUrl: 'https://example.com/pd',
+      sourceUrl: 'https://crosswire.org/sword/',
+      attribution: 'Converted from the SWORD module "MHC" (version 1), distributed by the CrossWire Bible Society (crosswire.org).',
+    });
+    render(<CommentaryAbout moduleAbbr="MHC" />);
+    fireEvent.click(screen.getByText('commentaryContent.about'));
+    await waitFor(() => expect(screen.getByText('commentaryContent.aboutCopyright')).toBeTruthy());
+    expect(screen.getByText('Public domain')).toBeTruthy();
+    expect(screen.getByText('commentaryContent.aboutLicense')).toBeTruthy();
+    expect(screen.getByText('PD').closest('a')?.getAttribute('href')).toBe('https://example.com/pd');
+    expect(screen.getByTestId('commentary-about-attribution').textContent).toContain('CrossWire Bible Society');
+    expect(screen.getByText('https://crosswire.org/sword/').closest('a')).toBeTruthy();
+  });
+
+  it('omits license, attribution and source when the module has none', async () => {
+    vi.mocked(commentaryStore.getModuleInfo).mockResolvedValueOnce({ ...baseInfo, licenseSpdx: null, licenseUrl: null, sourceUrl: null, attribution: null });
+    render(<CommentaryAbout moduleAbbr="MHC" />);
+    fireEvent.click(screen.getByText('commentaryContent.about'));
+    await waitFor(() => expect(screen.getByText('commentaryContent.aboutCopyright')).toBeTruthy());
+    expect(screen.queryByText('commentaryContent.aboutLicense')).toBeNull();
+    expect(screen.queryByTestId('commentary-about-attribution')).toBeNull();
+    expect(screen.queryByText('commentaryContent.aboutSource')).toBeNull();
   });
 });
