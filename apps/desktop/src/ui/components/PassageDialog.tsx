@@ -107,6 +107,8 @@ import { isTextEntryTarget } from '../utils/textEntry';
 import { sanitizeHtml } from '../utils/sanitize';
 import { themeRedLetterPreview } from '../utils/themePassagePreview';
 import { useToastStore } from '../stores/useToastStore';
+import { printDocument } from '../services/fileNotesAPI';
+import { buildPassagePrintDocument, textToPrintBody } from '../utils/passagePrintDocument';
 
 /**
  * Above the notes editor's own fixed-position chrome, which sits at 9998.
@@ -166,6 +168,11 @@ export interface PassageDialogProps {
    * from the toolbar the user came here precisely to make a choice.
    */
   offerSkipFormatMenu?: boolean;
+  /**
+   * copy mode only: the dialog was opened by "Print...", so Enter / the primary button print instead of
+   * copying. The Print and Copy buttons are both there either way.
+   */
+  printFirst?: boolean;
 }
 
 const PassageDialog: React.FC<PassageDialogProps> = ({
@@ -182,6 +189,7 @@ const PassageDialog: React.FC<PassageDialogProps> = ({
   initialOptions,
   asBlock = false,
   offerSkipFormatMenu = false,
+  printFirst = false,
 }) => {
   const { t } = useI18n();
   const isCopy = mode === 'copy';
@@ -509,6 +517,31 @@ const PassageDialog: React.FC<PassageDialogProps> = ({
     formatId, activeTranslation, labels, onCopied, onClose, t,
   ]);
 
+  /**
+   * Print: the same passage, format and options the preview shows, but as a clean page. A note-shaped format
+   * prints as its blocks (a real block quote, real headings); every other format prints its source text.
+   * Red letters are always off here so the page reads on a black-and-white printer.
+   */
+  const handlePrint = useCallback(async () => {
+    const verseList = activeVerses;
+    if (verseList.length === 0) return;
+    const ctx = buildVerseContext(verseList, activeTranslation);
+    const printOptions = { ...options, wordsOfChristInRed: false };
+    const body = isPassageMarkupFormat(formatId) && !isTemplateFormat
+      ? passageMarkupToHtml(renderPassageMarkup(verseList, ctx, formatId, printOptions, labels))
+      : textToPrintBody(renderCopyOutput(verseList).replace(/<[^>]*>/g, ''));
+    const title = `${resolver.reference || ctx.bookName} (${activeTranslation})`;
+    const result = await printDocument(buildPassagePrintDocument(title, body));
+    if (result.success) {
+      onClose();
+    } else if (!result.canceled) {
+      useToastStore.getState().addToast(result.error || t('passageDialog.printFailed'), 'error'); // allow-getstate: event handler
+    }
+  }, [
+    activeVerses, activeTranslation, options, formatId, isTemplateFormat, labels, renderCopyOutput,
+    resolver.reference, onClose, t,
+  ]);
+
   const handleInsert = useCallback(() => {
     if (activeVerses.length === 0) return;
     rememberFormatId(formatId);
@@ -537,9 +570,9 @@ const PassageDialog: React.FC<PassageDialogProps> = ({
   const canCommit = hasPassage && !isStale;
   const commit = useCallback(() => {
     if (!canCommit) return;
-    if (isCopy) void handleCopy();
+    if (isCopy) void (printFirst ? handlePrint() : handleCopy());
     else handleInsert();
-  }, [canCommit, isCopy, handleCopy, handleInsert]);
+  }, [canCommit, isCopy, printFirst, handleCopy, handlePrint, handleInsert]);
 
   const handleSaveTemplate = useCallback(() => {
     const name = saveName.trim();
@@ -610,7 +643,7 @@ const PassageDialog: React.FC<PassageDialogProps> = ({
   // -- Labels --------------------------------------------------------
 
   const dialogTitle = isCopy
-    ? t('copyOptionsDialog.title')
+    ? printFirst ? t('copyOptionsDialog.printTitle') : t('copyOptionsDialog.title')
     : promptForReference
       ? t('insertPassageDialog.title')
       : resolver.reference;
@@ -622,7 +655,7 @@ const PassageDialog: React.FC<PassageDialogProps> = ({
       : t('ui.noteEditor.expandDialogLabel');
 
   const primaryLabel = isCopy
-    ? t('copyOptionsDialog.copyButton')
+    ? printFirst ? t('copyOptionsDialog.printButton') : t('copyOptionsDialog.copyButton')
     : isReformat
       ? t('ui.noteEditor.expandApply')
       : t('ui.noteEditor.expandInsert');
@@ -1143,6 +1176,17 @@ const PassageDialog: React.FC<PassageDialogProps> = ({
               {/* The hint is `aria-hidden` so the accessible name stays the
                   bare verb - "Copy", "Insert", "Apply" - which is what the
                   action is, and what a screen reader should announce. */}
+              {isCopy && (
+                <button
+                  type="button"
+                  onClick={() => void (printFirst ? handleCopy() : handlePrint())}
+                  disabled={!canCommit}
+                  data-testid={printFirst ? 'passage-dialog-copy' : 'passage-dialog-print'}
+                  className="px-4 py-2 text-sm font-medium text-text-secondary bg-background-tertiary rounded hover:bg-background-active transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {printFirst ? t('copyOptionsDialog.copyButton') : t('copyOptionsDialog.printButton')}
+                </button>
+              )}
               <button
                 type="button"
                 onClick={commit}

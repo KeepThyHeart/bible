@@ -21,6 +21,8 @@ export interface CopyOptionsDialogProps {
   bibleAbbreviation?: string;
   onClose: () => void;
   onCopy?: () => void;
+  /** Opened by "Print...": the primary action prints instead of copying. */
+  printFirst?: boolean;
 }
 
 const CopyOptionsDialog: React.FC<CopyOptionsDialogProps> = ({
@@ -29,6 +31,7 @@ const CopyOptionsDialog: React.FC<CopyOptionsDialogProps> = ({
   bibleAbbreviation,
   onClose,
   onCopy,
+  printFirst,
 }) => {
   const versesArray = useMemo(() => (Array.isArray(verses) ? verses : [verses]), [verses]);
   const reference = useMemo(
@@ -44,6 +47,7 @@ const CopyOptionsDialog: React.FC<CopyOptionsDialogProps> = ({
       translation={bibleAbbreviation || context.translation}
       onClose={onClose}
       onCopied={onCopy}
+      printFirst={printFirst}
     />
   );
 };

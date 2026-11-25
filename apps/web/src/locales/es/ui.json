@@ -78,7 +78,8 @@
     "modeLabel": "Modo de visualización",
     "recentPassages": "Pasajes recientes",
     "noHistory": "Todavía no se ha visitado ningún pasaje",
-    "translationButton": "Traducción: {abbr}"
+    "translationButton": "Traducción: {abbr}",
+    "currentReference": "{reference}: ir a un libro y capítulo"
   },
   "bibleContent": {
     "votdLabel": "Versículo del día",
@@ -464,7 +465,8 @@
     "copyToClipboard": "Copiar al portapapeles",
     "loading": "Cargando los versículos...",
     "copyFailed": "No se pudo copiar al portapapeles. Comprueba que este sitio tenga permiso para usarlo.",
-    "referencePosition": "Posición de la referencia"
+    "referencePosition": "Posición de la referencia",
+    "print": "Imprimir"
   },
   "ui": {
     "passageInsert": {
@@ -500,7 +502,8 @@
       "quoteMarksNone": "Ninguna",
       "commentPlaceholdersLabel": "Espacio para comentar debajo de cada versículo",
       "verseHeading": "Versículo {verse}",
-      "commentPlaceholderText": "[Comentarios sobre {reference}]"
+      "commentPlaceholderText": "[Comentarios sobre {reference}]",
+      "verseNumbersFirstFull": "Referencia completa en el primer versículo (Jn 3:16), luego números"
     }
   },
   "feedbackDialog": {
@@ -869,7 +872,10 @@
     "noResults": "Sin resultados.",
     "searchFor": "Buscar \"{query}\"",
     "back": "Atrás",
-    "chapterOption": "{book}, capítulo {chapter}"
+    "chapterOption": "{book}, capítulo {chapter}",
+    "selectAVerse": "Elija un versículo, o vaya al capítulo completo",
+    "goToChapter": "Ir a {book} {chapter}",
+    "verseOption": "{book} {chapter}:{verse}"
   },
   "helpDialog": {
     "esc": "Esc"

@@ -30,6 +30,7 @@ import { useHighlightStore } from '../../stores/useHighlightStore';
 import { bibleAPI } from '../../services/electronAPI';
 import { UserTextMarkup } from '@bible/core';
 
+vi.mock('../BibleHeader', () => ({ default: () => <h2 data-testid="bible-chapter-heading" /> }));
 vi.mock('../../contexts/useI18n', () => ({
   useI18n: () => ({ t: (key: string) => key, locale: 'en', i18n: {} }),
 }));

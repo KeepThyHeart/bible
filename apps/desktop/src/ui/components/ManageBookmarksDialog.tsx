@@ -128,7 +128,7 @@ const ManageBookmarksDialog: React.FC<ManageBookmarksDialogProps> = ({ onClose }
   const goTo = useCallback(
     (item: SerializedPinnedItem) => {
       if (item.verseIdStart === undefined) return;
-      useBibleStore.getState().navigateToVerseInPrimary(item.verseIdStart); // allow-getstate: event handler - imperative navigation
+      useBibleStore.getState().navigateToVerseInPrimary(item.verseIdStart, item.verseIdEnd); // allow-getstate: event handler - imperative navigation
       onClose();
     },
     [onClose],

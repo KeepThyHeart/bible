@@ -155,6 +155,7 @@ export interface ElectronAPI {
     searchEntries: (abbreviation: string, query: string, limit?: number) => Promise<Result<any[]>>;
     getAllEntries: (abbreviation: string, limit?: number, offset?: number) => Promise<Result<any[]>>;
     getOccurrences: (abbreviation: string, entryKey: string) => Promise<Result<any[]>>;
+    lookUp: (text: string, strongs?: string, limit?: number) => Promise<Result<any[]>>;
     getOccurrencesForVerse: (abbreviation: string, verseId: number) => Promise<Result<any[]>>;
   };
 
@@ -823,6 +824,8 @@ const electronAPI: ElectronAPI = {
       ipcRenderer.invoke('dictionary:getEntryByKey', abbreviation, entryKey),
     searchEntries: (abbreviation: string, query: string, limit?: number) =>
       ipcRenderer.invoke('dictionary:searchEntries', abbreviation, query, limit),
+    lookUp: (text: string, strongs?: string, limit?: number) =>
+      ipcRenderer.invoke('dictionary:lookUp', text, strongs, limit),
     getAllEntries: (abbreviation: string, limit?: number, offset?: number) =>
       ipcRenderer.invoke('dictionary:getAllEntries', abbreviation, limit, offset),
     getOccurrences: (abbreviation: string, entryKey: string) =>

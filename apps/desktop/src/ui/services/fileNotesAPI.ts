@@ -229,3 +229,8 @@ export async function exportNotePdf(html: string, defaultName: string): Promise<
 export async function printNote(html: string): Promise<NoteRenderResult> {
   return window.electron.ipcRenderer.invoke<NoteRenderResult>('notes:print', html);
 }
+
+/** Send any standalone HTML document (the Bible pane's printed passage) to the OS print dialog. */
+export async function printDocument(html: string): Promise<NoteRenderResult> {
+  return window.electron.ipcRenderer.invoke<NoteRenderResult>('document:print', html);
+}

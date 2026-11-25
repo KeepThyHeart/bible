@@ -140,7 +140,7 @@ describe('@bible/core/browser barrel', { timeout: 60_000 }, () => {
 
   it('exports the highlight palette helpers the shared UI needs', async () => {
     const barrel = await import('../browser');
-    expect(barrel.HIGHLIGHT_COLOR_NAMES).toHaveLength(6);
+    expect(barrel.HIGHLIGHT_COLOR_NAMES).toHaveLength(10);
     expect(barrel.HIGHLIGHT_COLOR_HEX.yellow).toBe('#FFF3A3');
     expect(barrel.markupColorName('#FFF3A3')).toBe('yellow');
     expect(barrel.normalizeMarkupColor('green')).toBe('#B7E4C7');

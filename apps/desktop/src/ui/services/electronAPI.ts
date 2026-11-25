@@ -212,6 +212,11 @@ export const dictionaryAPI = {
     return unwrap(api.dictionary.searchEntries(abbreviation, query, limit));
   },
 
+  async lookUp(text: string, strongs?: string, limit?: number) {
+    const api = requireElectronAPI();
+    return unwrap(api.dictionary.lookUp(text, strongs, limit));
+  },
+
   async getAllEntries(abbreviation: string, limit?: number, offset?: number) {
     const api = requireElectronAPI();
     return unwrap(api.dictionary.getAllEntries(abbreviation, limit, offset));

@@ -23,6 +23,15 @@ export {
   getBookNumber,
   isSingleChapterBook,
 } from './Data/Core/BookNames';
+export { VERSE_COUNTS, verseCount } from './Data/Core/VerseCounts';
+export {
+  createLookUpRegistry, lookUpAll, isLookUpCandidate, normalizeLookUpText, orderLookUpGroups, strongsEntryKey,
+} from './Services/LookUp';
+export type { LookUpQuery, LookUpEntry, LookUpGroup, LookUpProvider, LookUpRegistry } from './Services/LookUp';
+export { searchDictionariesForWord } from './Services/LookUp';
+export type { LookUpDictionary } from './Services/LookUp';
+export { FONT_CATALOG, fontCatalogEntry, offeredFonts } from './Data/Core/FontCatalog';
+export type { FontCatalogEntry, FontKind, FontOrigin } from './Data/Core/FontCatalog';
 
 // Locale identity metadata and the per-language `Localizer` interface. Also
 // re-exported from `./browser` (this package's platform-free entry point) -

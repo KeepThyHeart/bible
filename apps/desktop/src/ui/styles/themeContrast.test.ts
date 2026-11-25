@@ -63,7 +63,11 @@ const HL: Record<string, RGB> = {
   blue: [173, 216, 230],
   red: [255, 182, 193],
   purple: [216, 191, 216],
-  orange: [255, 200, 124]
+  orange: [255, 200, 124],
+  pink: [255,180,220],
+  teal: [130,222,212],
+  gray: [205,205,205],
+  brown: [228,194,162]
 };
 
 const RULES: Array<[string, string[], number]> = [

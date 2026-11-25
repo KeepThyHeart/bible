@@ -10,11 +10,11 @@ function setup(props: HighlightSwatchProps = {}) {
 }
 
 describe('HighlightSwatch', () => {
-  it('renders a radiogroup with six named radios filled from the palette', () => {
+  it('renders a radiogroup with ten named radios filled from the palette', () => {
     setup();
     expect(screen.getByRole('radiogroup', { name: 'Highlight colour' })).toBeInTheDocument();
     const radios = screen.getAllByRole('radio');
-    expect(radios.map((r) => r.getAttribute('aria-label'))).toEqual(['Yellow', 'Green', 'Blue', 'Red', 'Purple', 'Orange']);
+    expect(radios.map((r) => r.getAttribute('aria-label'))).toEqual(['Yellow', 'Green', 'Blue', 'Red', 'Purple', 'Orange', 'Pink', 'Teal', 'Gray', 'Brown']);
     expect((radios[0] as HTMLElement).style.backgroundColor).toBe('rgb(255, 243, 163)');
     expect(radios[0]).toHaveAttribute('title', 'Yellow');
   });
@@ -24,7 +24,7 @@ describe('HighlightSwatch', () => {
     const radios = screen.getAllByRole('radio');
     expect(radios[0]).toHaveAttribute('aria-checked', 'true');
     expect(radios.filter((r) => r.getAttribute('aria-checked') === 'true')).toHaveLength(1);
-    expect(radios.map((r) => r.tabIndex)).toEqual([0, -1, -1, -1, -1, -1]);
+    expect(radios.map((r) => r.tabIndex)).toEqual([0, -1, -1, -1, -1, -1, -1, -1, -1, -1]);
   });
 
   it('matches a palette name and lower-case hex', () => {
@@ -54,7 +54,7 @@ describe('HighlightSwatch', () => {
   });
 
   it('wraps, and Home/End/Down/Up work', async () => {
-    const { onChange, user } = setup({ value: 'yellow' });
+    const { onChange, user } = setup({ value: 'yellow', colors: ['yellow', 'green', 'blue', 'red', 'purple', 'orange'] });
     screen.getByRole('radio', { name: 'Yellow' }).focus();
     await user.keyboard('{ArrowLeft}');
     expect(onChange).toHaveBeenLastCalledWith({ color: 'orange', hex: '#FBD1A2' });

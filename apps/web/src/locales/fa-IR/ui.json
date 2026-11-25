@@ -78,7 +78,8 @@
     "modeLabel": "حالت نمایش",
     "recentPassages": "قسمت‌های اخیر",
     "noHistory": "هنوز قسمتی بازدید نشده است",
-    "translationButton": "ترجمه: {abbr}"
+    "translationButton": "ترجمه: {abbr}",
+    "currentReference": "{reference}: رفتن به کتاب و باب"
   },
   "bibleContent": {
     "votdLabel": "آیهٔ امروز",
@@ -464,7 +465,8 @@
     "copyToClipboard": "کپی در کلیپ‌بورد",
     "loading": "در حال بارگذاری آیات...",
     "copyFailed": "کپی در کلیپ‌بورد ممکن نشد. بررسی کنید که این سایت اجازهٔ استفاده از آن را دارد.",
-    "referencePosition": "جای ارجاع"
+    "referencePosition": "جای ارجاع",
+    "print": "چاپ"
   },
   "ui": {
     "passageInsert": {
@@ -500,7 +502,8 @@
       "quoteMarksNone": "هیچ",
       "commentPlaceholdersLabel": "جا برای نظر در زیر هر آیه",
       "verseHeading": "آیهٔ {verse}",
-      "commentPlaceholderText": "[نظرات دربارهٔ {reference}]"
+      "commentPlaceholderText": "[نظرات دربارهٔ {reference}]",
+      "verseNumbersFirstFull": "ارجاع کامل در آیه اول (یو 3:16)، سپس شماره‌ها"
     }
   },
   "feedbackDialog": {
@@ -869,7 +872,10 @@
     "noResults": "نتیجه‌ای یافت نشد.",
     "searchFor": "جستجوی «{query}»",
     "back": "بازگشت",
-    "chapterOption": "{book} باب {chapter}"
+    "chapterOption": "{book} باب {chapter}",
+    "selectAVerse": "یک آیه انتخاب کنید یا به کل باب بروید",
+    "goToChapter": "رفتن به {book} {chapter}",
+    "verseOption": "{book} {chapter}:{verse}"
   },
   "helpDialog": {
     "esc": "Esc"

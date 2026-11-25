@@ -1,6 +1,6 @@
 import { IpcMain } from 'electron';
 import { missingModuleError } from './moduleErrors';
-import { DictionaryRepository, readNewlineHandling, type NewlineHandling } from '@bible/core';
+import { DictionaryRepository, readNewlineHandling, searchDictionariesForWord, type LookUpGroup, type NewlineHandling } from '@bible/core';
 import { listInstalledModules } from '../services/installedModules';
 import { ModuleLoader } from '../services/ModuleLoader';
 import { ipcHandler, IpcKnownError } from './handler-helper';
@@ -254,6 +254,26 @@ export function registerDictionaryHandlers(_ipcMain: IpcMain): void {
         transliteration: entry.transliteration,
         part_of_speech: entry.partOfSpeech
       }));
+    }
+  );
+
+  // Handler: look a word up in every installed dictionary (the "Look up" action). Mirrors the web app's
+  // /api/dictionary/search, but groups by dictionary and shares its matching (stemmed title tier, then full
+  // text) and ordering (the Strong's entry first for a tagged word) with the other clients through core.
+  ipcHandler<[string, string | undefined, number | undefined], LookUpGroup[]>(
+    'dictionary:lookUp',
+    (text, strongs, limit) => {
+      validateString(text, 'look-up text', 200);
+      if (strongs !== undefined) validateString(strongs, 'strongs', 20);
+      const perDictionary = Math.min(Math.max(limit ?? 8, 1), 25);
+      const dictionaries = listInstalledModules('dictionary').flatMap(module => {
+        const abbreviation = module.abbreviation || module.getAbbreviation();
+        const repo = getDictionaryRepository(abbreviation);
+        return repo
+          ? [{ abbreviation, name: module.moduleName, strongs: /^strongs/i.test(abbreviation), repo }]
+          : [];
+      });
+      return searchDictionariesForWord(dictionaries, { text, strongs }, perDictionary);
     }
   );
 

@@ -97,6 +97,6 @@ describe('useTextSettingsStore - customized/sync', () => {
     const { getFontFamilyCSS } = await import('./useTextSettingsStore');
     expect(getFontFamilyCSS('"Lora", Georgia, serif')).toBe('"Lora", Georgia, serif');
     // Still resolves named AVAILABLE_FONTS options normally.
-    expect(getFontFamilyCSS('Merriweather')).toBe('Merriweather, Georgia, serif');
+    expect(getFontFamilyCSS('Merriweather')).toBe('"Merriweather", Georgia, "Times New Roman", serif');
   });
 });

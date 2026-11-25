@@ -34,6 +34,7 @@ export const PASSAGE_REFERENCE_POSITIONS: readonly PassageReferencePosition[] = 
 export const VERSE_NUMBER_STYLES: readonly VerseNumberStyle[] = [
   'parenthetical',
   'superscript',
+  'first-full',
   'none',
 ];
 

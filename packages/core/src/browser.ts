@@ -55,6 +55,13 @@ export {
   isSingleChapterBook,
 } from './Data/Core/BookNames';
 export type { BookNameFormat } from './Data/Core/BookNames';
+export { VERSE_COUNTS, verseCount } from './Data/Core/VerseCounts';
+export {
+  createLookUpRegistry, lookUpAll, isLookUpCandidate, normalizeLookUpText, orderLookUpGroups, strongsEntryKey,
+} from './Services/LookUp';
+export type { LookUpQuery, LookUpEntry, LookUpGroup, LookUpProvider, LookUpRegistry } from './Services/LookUp';
+export { FONT_CATALOG, fontCatalogEntry, offeredFonts } from './Data/Core/FontCatalog';
+export type { FontCatalogEntry, FontKind, FontOrigin } from './Data/Core/FontCatalog';
 
 // --- Reference parsing / formatting ----------------------------------------
 export { ReferenceParser } from './Services/ReferenceParser';

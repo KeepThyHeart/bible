@@ -530,7 +530,13 @@ function describeRenderError(err: unknown): string {
  * same page.
  */
 function registerPrintHandler(): void {
-  ipcMain.handle('notes:print', async (_event, html: string): Promise<NoteRenderResult> => {
+  // `document:print` is the same page-to-printer path for anything that is not a note (the Bible pane's
+  // Print passage); it exists as its own channel so a caller is named for what it prints, and both share one
+  // handler, so one sanitising / CSP / lock-down policy.
+  const printHtml = async (_event: unknown, html: string): Promise<NoteRenderResult> => {
+    if (typeof html !== 'string' || html.length > 20 * 1024 * 1024) {
+      return { success: false, error: 'Invalid document' };
+    }
     return renderNoteDocument(
       html,
       contents =>
@@ -547,10 +553,12 @@ function registerPrintHandler(): void {
           });
         })
     ).catch(err => {
-      log.error('[IPC] notes:print failed:', err);
+      log.error('[IPC] document print failed:', err);
       return { success: false, error: describeRenderError(err) };
     });
-  });
+  };
+  ipcMain.handle('notes:print', printHtml);
+  ipcMain.handle('document:print', printHtml);
 
   // Save a text file the renderer built (reading-plan .ics, keyword-set JSON).
   // A hidden <a download> click was silently dropped here (B-078); a native save

@@ -343,3 +343,37 @@ describe('resolvePassageMarkupOptions', () => {
     expect(passageMarkupToHtml(markup)).toBe('');
   });
 });
+
+describe('verseNumbers: first-full', () => {
+  const FIRST_FULL: PassageInsertOptions = { ...PLAIN, displayVersionNumber: false, verseNumbers: 'first-full', referencePosition: 'before' };
+  const CH4: PassageVerse = { ...V16, verse_id: 43004001, chapter: 4, verse: 1, text: 'When therefore', text_html: 'When therefore' };
+
+  it('puts the full reference on the first verse and bare numbers on the rest', () => {
+    const out = html('blockquote-numbered', FIRST_FULL);
+    expect(out).toContain('(John 3:16) For God so loved the world');
+    expect(out).toContain('(17) For God sent not his Son');
+  });
+
+  it('drops the separate reference block, which would only repeat the first verse', () => {
+    const out = passageMarkupToText(renderPassageMarkup([V16, V17], CONTEXT, 'blockquote-numbered', FIRST_FULL));
+    expect(out.match(/John 3:16/g)).toHaveLength(1);
+  });
+
+  it('switches to chapter:verse where a multi-chapter passage crosses a chapter', () => {
+    const out = html('blockquote-numbered', FIRST_FULL, [V16, V17, CH4]);
+    expect(out).toContain('(John 3:16)');
+    expect(out).toContain('(17)');
+    expect(out).toContain('(4:1)');
+  });
+
+  it('works for the plain blockquote and heading-per-verse too', () => {
+    expect(html('blockquote', FIRST_FULL)).toContain('(John 3:16) For God so loved the world');
+    expect(html('heading-per-verse', FIRST_FULL)).toContain('(John 3:16) For God');
+  });
+
+  it('is accepted by the stored-options reader and reaches inline quotes without a doubled reference', () => {
+    expect(resolvePassageMarkupOptions('blockquote', { verseNumbers: 'first-full' }).verseNumbers).toBe('first-full');
+    const inline = passageMarkupToText(renderPassageMarkup([V16, V17], CONTEXT, 'inline-quote', FIRST_FULL));
+    expect(inline.match(/John 3:16/g)).toHaveLength(1);
+  });
+});

@@ -78,7 +78,8 @@
     "modeLabel": "מצב תצוגה",
     "recentPassages": "קטעים אחרונים",
     "noHistory": "טרם בוקרו קטעים",
-    "translationButton": "תרגום: {abbr}"
+    "translationButton": "תרגום: {abbr}",
+    "currentReference": "{reference}: מעבר לספר ולפרק"
   },
   "bibleContent": {
     "votdLabel": "פסוק היום",
@@ -464,7 +465,8 @@
     "copyToClipboard": "העתקה ללוח",
     "loading": "טוען פסוקים...",
     "copyFailed": "לא ניתן להעתיק ללוח. בדקו שלאתר זה יש הרשאה להשתמש בו.",
-    "referencePosition": "מיקום ההפניה"
+    "referencePosition": "מיקום ההפניה",
+    "print": "הדפסה"
   },
   "ui": {
     "passageInsert": {
@@ -500,7 +502,8 @@
       "quoteMarksNone": "ללא",
       "commentPlaceholdersLabel": "מקום להערות מתחת לכל פסוק",
       "verseHeading": "פסוק {verse}",
-      "commentPlaceholderText": "[הערות עבור {reference}]"
+      "commentPlaceholderText": "[הערות עבור {reference}]",
+      "verseNumbersFirstFull": "הפניה מלאה בפסוק הראשון (יוחנן 3:16), ואחריו מספרים"
     }
   },
   "feedbackDialog": {
@@ -869,7 +872,10 @@
     "noResults": "אין תוצאות.",
     "searchFor": "חיפוש \"{query}\"",
     "back": "חזרה",
-    "chapterOption": "{book} פרק {chapter}"
+    "chapterOption": "{book} פרק {chapter}",
+    "selectAVerse": "בחרו פסוק, או עברו לפרק כולו",
+    "goToChapter": "מעבר ל{book} {chapter}",
+    "verseOption": "{book} {chapter}:{verse}"
   },
   "helpDialog": {
     "esc": "Esc"

@@ -198,4 +198,26 @@ describe('verseSlice — shift-click range selection', () => {
       expect(store().getPanelState('another_panel').selectionEndVerseId).toBeNull();
     });
   });
+
+  describe('navigateToVerse with an end verse (opening a range bookmark)', () => {
+    it('selects the whole passage', async () => {
+      await store().navigateToVerse(PANEL, JOHN_3_16, JOHN_3_18);
+
+      expect(panelState().selectedVerseId).toBe(JOHN_3_16);
+      expect(panelState().selectionEndVerseId).toBe(JOHN_3_18);
+    });
+
+    it('selects the whole passage when already in that chapter', async () => {
+      await store().navigateToVerse(PANEL, JOHN_3_14);
+      await store().navigateToVerse(PANEL, JOHN_3_16, JOHN_3_18);
+
+      expect(panelState().selectedVerseId).toBe(JOHN_3_16);
+      expect(panelState().selectionEndVerseId).toBe(JOHN_3_18);
+    });
+
+    it('without an end verse leaves a single verse selected', async () => {
+      await store().navigateToVerse(PANEL, JOHN_3_16);
+      expect(panelState().selectionEndVerseId).toBeNull();
+    });
+  });
 });

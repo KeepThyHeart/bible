@@ -78,7 +78,8 @@
     "modeLabel": "‏Display mode‏",
     "recentPassages": "‏Recent passages‏",
     "noHistory": "‏No passages visited yet‏",
-    "translationButton": "‏Translation: {abbr}‏"
+    "translationButton": "‏Translation: {abbr}‏",
+    "currentReference": "‏{reference}: go to book and chapter‏"
   },
   "bibleContent": {
     "votdLabel": "‏Verse of the Day‏",
@@ -141,6 +142,7 @@
     "slashDesktopOnly": "‏Slash commands (like /note or /plan) are only available in the desktop app.‏",
     "loadingMore": "‏Loading...‏",
     "showMore": "‏Show more results‏",
+    "showMoreCount": "‏Show {count} more‏",
     "loadAll": "‏{count, plural, one {Load all (# more)} other {Load all (# more)}}‏",
     "wordFamily": "‏Word family:‏",
     "includeRelated": "‏Include related words‏",
@@ -463,7 +465,8 @@
     "copyToClipboard": "‏Copy to Clipboard‏",
     "loading": "‏Loading verses...‏",
     "copyFailed": "‏Could not copy to the clipboard. Check that this site is allowed to use it.‏",
-    "referencePosition": "‏Reference position‏"
+    "referencePosition": "‏Reference position‏",
+    "print": "‏Print‏"
   },
   "ui": {
     "passageInsert": {
@@ -499,7 +502,8 @@
       "quoteMarksNone": "‏None‏",
       "commentPlaceholdersLabel": "‏Room to comment under each verse‏",
       "verseHeading": "‏Verse {verse}‏",
-      "commentPlaceholderText": "‏[Comments for {reference}]‏"
+      "commentPlaceholderText": "‏[Comments for {reference}]‏",
+      "verseNumbersFirstFull": "‏Full reference on first verse (John 3:16), then numbers‏"
     }
   },
   "feedbackDialog": {
@@ -868,7 +872,10 @@
     "noResults": "‏No results.‏",
     "searchFor": "‏Search for \"{query}\"‏",
     "back": "‏Back‏",
-    "chapterOption": "‏{book} chapter {chapter}‏"
+    "chapterOption": "‏{book} chapter {chapter}‏",
+    "selectAVerse": "‏Select a verse, or go to the whole chapter‏",
+    "goToChapter": "‏Go to {book} {chapter}‏",
+    "verseOption": "‏{book} {chapter}:{verse}‏"
   },
   "helpDialog": {
     "esc": "‏Esc‏"

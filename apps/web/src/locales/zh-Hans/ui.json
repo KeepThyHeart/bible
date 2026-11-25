@@ -78,7 +78,8 @@
     "modeLabel": "显示模式",
     "recentPassages": "最近查看的经文",
     "noHistory": "尚未浏览过任何经文",
-    "translationButton": "译本：{abbr}"
+    "translationButton": "译本：{abbr}",
+    "currentReference": "{reference}：前往书卷和章"
   },
   "bibleContent": {
     "votdLabel": "每日经文",
@@ -464,7 +465,8 @@
     "copyToClipboard": "复制到剪贴板",
     "loading": "正在加载经节…",
     "copyFailed": "无法复制到剪贴板。请检查是否允许此网站使用剪贴板。",
-    "referencePosition": "出处位置"
+    "referencePosition": "出处位置",
+    "print": "打印"
   },
   "ui": {
     "passageInsert": {
@@ -500,7 +502,8 @@
       "quoteMarksNone": "无",
       "commentPlaceholdersLabel": "在每节经文下方留出批注空间",
       "verseHeading": "第 {verse} 节",
-      "commentPlaceholderText": "[{reference} 的批注]"
+      "commentPlaceholderText": "[{reference} 的批注]",
+      "verseNumbersFirstFull": "首节显示完整出处（约 3:16），其后只显示节号"
     }
   },
   "feedbackDialog": {
@@ -869,7 +872,10 @@
     "noResults": "没有结果。",
     "searchFor": "搜索“{query}”",
     "back": "返回",
-    "chapterOption": "{book}第{chapter}章"
+    "chapterOption": "{book}第{chapter}章",
+    "selectAVerse": "选择一节，或前往整章",
+    "goToChapter": "前往 {book} {chapter}",
+    "verseOption": "{book} {chapter}:{verse}"
   },
   "helpDialog": {
     "esc": "Esc"

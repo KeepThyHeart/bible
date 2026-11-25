@@ -143,6 +143,7 @@ export const ALLOWED_IPC_CHANNELS = [
   // Print / PDF - registered in main.ts beside the hidden-window plumbing
   // they share, not in fileNotesHandlers.
   'notes:print',
+  'document:print',
   'notes:export-pdf',
   // Native save dialog for a text file the renderer built (.ics, keyword sets).
   'app:save-text-file',
@@ -240,6 +241,7 @@ export const TYPED_IPC_CHANNELS = [
   'dictionary:getEntry',
   'dictionary:getEntryByKey',
   'dictionary:searchEntries',
+  'dictionary:lookUp',
   'dictionary:getAllEntries',
   'dictionary:getOccurrences',
   'dictionary:getOccurrencesForVerse',

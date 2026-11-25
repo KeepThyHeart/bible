@@ -3,7 +3,8 @@ import { whenContextService } from '../services/WhenContextService';
 import { preferencesChanged } from '../modules/host/readerHooks';
 import { useTextSettingsStore } from './useTextSettingsStore';
 import type { SearchResultsPlacement } from './useLayoutStore';
-import type { AppSwitcherMode } from '@bible/core/browser';
+import type { AppSwitcherMode, FontKind, FontOrigin } from '@bible/core/browser';
+import { FONT_CATALOG } from '@bible/core/browser';
 import { THEME_TOKENS, isValidThemeId, type ThemeId } from '../styles/themeTokens';
 
 /**
@@ -44,17 +45,23 @@ export interface FontFamilyOption {
   labelKey?: string;
   /** CSS font-family stack (with fallbacks) */
   stack: string;
+  /** Serif or sans, for grouping the picker. Absent on System Default. */
+  kind?: FontKind;
+  /** The family looked for on this machine (catalogue entries only). */
+  family?: string;
+  /** `bundled` faces are always offered; the rest only where installed. */
+  origin?: FontOrigin;
 }
 
+/**
+ * Every font the Typography pickers can store: System Default plus the whole curated catalogue
+ * (`FONT_CATALOG` in `@bible/core`, shared with the per-pane list and the web app). This list is what saved
+ * settings are validated against, so it is deliberately NOT filtered by what is installed - a choice made on
+ * another machine survives. The pickers filter with `useOfferedFonts`.
+ */
 export const AVAILABLE_FONT_FAMILIES: FontFamilyOption[] = [
   { id: 'system', label: 'System Default', labelKey: 'preferencesDialog.fontSystemDefault', stack: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif' },
-  { id: 'georgia', label: 'Georgia', stack: 'Georgia, "Times New Roman", serif' },
-  { id: 'times', label: 'Times New Roman', stack: '"Times New Roman", Times, serif' },
-  { id: 'palatino', label: 'Palatino', stack: 'Palatino, "Palatino Linotype", "Book Antiqua", Georgia, serif' },
-  { id: 'garamond', label: 'Garamond', stack: 'Garamond, "EB Garamond", "Times New Roman", serif' },
-  { id: 'lora', label: 'Lora', stack: '"Lora", Georgia, "Times New Roman", serif' },
-  { id: 'merriweather', label: 'Merriweather', stack: '"Merriweather", Georgia, "Times New Roman", serif' },
-  { id: 'eb-garamond', label: 'EB Garamond', stack: '"EB Garamond", Garamond, "Times New Roman", serif' }
+  ...FONT_CATALOG.map((f): FontFamilyOption => ({ id: f.id, label: f.label, stack: f.stack, kind: f.kind, family: f.family, origin: f.origin })),
 ];
 
 export function getFontFamilyStack(id: string): string {
@@ -110,7 +117,26 @@ import { registerSessionSerializer } from './helpers/sessionRegistry';
  * These are separate from the per-pane settings in useTextSettingsStore -
  * they set global CSS variables consumed by pane styles.
  */
+/** What stands beside each verse: the number, `chapter:verse`, or an abbreviated `Book chapter:verse`. */
+export type VerseLabelMode = 'number' | 'chapterVerse' | 'bookChapterVerse';
+const VERSE_LABEL_MODES: readonly VerseLabelMode[] = ['number', 'chapterVerse', 'bookChapterVerse'];
+
+/** How wide the Bible and Study text column may grow in a wide pane. `medium` is the long-standing cap. */
+export type ReadingWidth = 'narrow' | 'medium' | 'wide' | 'full';
+const READING_WIDTHS: readonly ReadingWidth[] = ['narrow', 'medium', 'wide', 'full'];
+/** Column cap per width as [Bible, Study] CSS lengths. Rem, so the default equals the old max-w-3xl / max-w-4xl. */
+export const READING_WIDTH_CAPS: Record<ReadingWidth, readonly [string, string]> = {
+  narrow: ['36rem', '44rem'],
+  medium: ['48rem', '56rem'],
+  wide: ['64rem', '72rem'],
+  full: ['none', 'none'],
+};
+
 export interface TypographyPrefs {
+  /** Cap on the reading column width (Bible and Study views). Default `medium`. */
+  readingWidth: ReadingWidth;
+  /** Verse labels in the Bible pane (standard, study and parallel views). Default `number`. */
+  verseLabelMode: VerseLabelMode;
   bibleFontSize: number;   // 12-48px, default 20
   studyFontSize: number;   // 12-36px, default 16
   uiFontSize: number;      // 10-24px, default 13
@@ -123,6 +149,8 @@ export interface TypographyPrefs {
 }
 
 export const DEFAULT_TYPOGRAPHY: TypographyPrefs = {
+  readingWidth: 'medium',
+  verseLabelMode: 'number',
   bibleFontSize: 20,
   studyFontSize: 16,
   uiFontSize: 13,
@@ -174,6 +202,9 @@ interface PreferencesState {
   /** App ids the user hid from the switcher surfaces (Study cannot be hidden). */
   appHidden: string[];
 
+  /** Scrollbar thickness: `standard` (14px) or `large` (20px). Default `standard`. */
+  scrollbarSize: ScrollbarSize;
+
   // Actions
   setTheme: (theme: ThemeId) => void;
   setGlobalFontScale: (scale: number) => void;
@@ -183,6 +214,7 @@ interface PreferencesState {
   setReadingPlanRolloverHour: (hour: number) => void;
   setReadingPlanShowStreak: (show: boolean) => void;
   setAppSwitcher: (mode: AppSwitcherMode) => void;
+  setScrollbarSize: (size: ScrollbarSize) => void;
   setAppOrder: (ids: readonly string[]) => void;
   setAppHidden: (ids: readonly string[]) => void;
   setTypography: (prefs: Partial<TypographyPrefs>) => void;
@@ -204,6 +236,7 @@ interface PreferencesState {
     readingPlanRolloverHour?: number;
     readingPlanShowStreak?: boolean;
     appSwitcher?: unknown;
+    scrollbarSize?: unknown;
     appOrder?: unknown;
     appHidden?: unknown;
   }) => void;
@@ -217,6 +250,7 @@ interface PreferencesState {
     readingPlanRolloverHour: number;
     readingPlanShowStreak: boolean;
     appSwitcher: AppSwitcherMode;
+    scrollbarSize: ScrollbarSize;
     appOrder: string[];
     appHidden: string[];
   };
@@ -233,6 +267,21 @@ function sanitizeIdList(raw: unknown): string[] {
   const seen = new Set<string>();
   for (const v of raw) if (typeof v === 'string' && v !== '') seen.add(v);
   return [...seen];
+}
+
+export type ScrollbarSize = 'standard' | 'large';
+
+/** Anything but `large` (a missing, old or hand-edited value) means the default, `standard`. */
+export function sanitizeScrollbarSize(raw: unknown): ScrollbarSize {
+  return raw === 'large' ? 'large' : 'standard';
+}
+
+function applyScrollbarSizeToDOM(size: ScrollbarSize): void {
+  if (typeof document !== 'undefined') {
+    // `large` = 20px, anything else the 14px default (see themes.css).
+    if (size === 'large') document.documentElement.setAttribute('data-scrollbar-size', 'large');
+    else document.documentElement.removeAttribute('data-scrollbar-size');
+  }
 }
 
 function sanitizeAppSwitcher(raw: unknown): AppSwitcherMode {
@@ -337,6 +386,9 @@ function applyUiScaleToDOM(): void {
 function applyTypographyToDOM(prefs: TypographyPrefs): void {
   if (typeof document !== 'undefined') {
     const root = document.documentElement.style;
+    const [bibleMax, studyMax] = READING_WIDTH_CAPS[prefs.readingWidth] ?? READING_WIDTH_CAPS.medium;
+    root.setProperty('--bible-max-width', bibleMax);
+    root.setProperty('--study-max-width', studyMax);
     root.setProperty('--bible-font-size', `${prefs.bibleFontSize}px`);
     root.setProperty('--study-font-size', `${prefs.studyFontSize}px`);
     root.setProperty('--ui-font-size', `${prefs.uiFontSize}px`);
@@ -391,6 +443,8 @@ function isValidFontFamilyId(value: unknown): value is string {
 function sanitizeTypography(saved: Partial<TypographyPrefs> | undefined): TypographyPrefs {
   const s = saved ?? {};
   return {
+    readingWidth: READING_WIDTHS.includes(s.readingWidth as ReadingWidth) ? (s.readingWidth as ReadingWidth) : DEFAULT_TYPOGRAPHY.readingWidth,
+    verseLabelMode: VERSE_LABEL_MODES.includes(s.verseLabelMode as VerseLabelMode) ? (s.verseLabelMode as VerseLabelMode) : DEFAULT_TYPOGRAPHY.verseLabelMode,
     bibleFontSize: isFiniteInRange(s.bibleFontSize, 12, 48) ? s.bibleFontSize : DEFAULT_TYPOGRAPHY.bibleFontSize,
     studyFontSize: isFiniteInRange(s.studyFontSize, 12, 36) ? s.studyFontSize : DEFAULT_TYPOGRAPHY.studyFontSize,
     uiFontSize: isFiniteInRange(s.uiFontSize, 10, 24) ? s.uiFontSize : DEFAULT_TYPOGRAPHY.uiFontSize,
@@ -413,6 +467,7 @@ export const usePreferencesStore = create<PreferencesState>((set, get) => ({
   readingPlanRolloverHour: 3,
   readingPlanShowStreak: false,
   appSwitcher: 'auto',
+  scrollbarSize: 'standard',
   appOrder: [],
   appHidden: [],
 
@@ -458,6 +513,13 @@ export const usePreferencesStore = create<PreferencesState>((set, get) => ({
 
   setAppSwitcher: (mode: AppSwitcherMode) => {
     set({ appSwitcher: sanitizeAppSwitcher(mode) });
+    markSessionDirty();
+  },
+
+  setScrollbarSize: (size: ScrollbarSize) => {
+    const next = sanitizeScrollbarSize(size);
+    set({ scrollbarSize: next });
+    applyScrollbarSizeToDOM(next);
     markSessionDirty();
   },
 
@@ -507,6 +569,7 @@ export const usePreferencesStore = create<PreferencesState>((set, get) => ({
     applyGlobalFontScaleToDOM(globalFontScale);
     applyUiControlFontSizeToDOM(uiControlFontSize);
     applyTypographyToDOM(typography);
+    applyScrollbarSizeToDOM(get().scrollbarSize);
   },
 
   loadFromSession: (data) => {
@@ -530,28 +593,30 @@ export const usePreferencesStore = create<PreferencesState>((set, get) => ({
 
     const searchResultsPlacement = sanitizeSearchResultsPlacement(data.searchResultsPlacement);
     const appSwitcher = sanitizeAppSwitcher(data.appSwitcher);
+    const scrollbarSize = sanitizeScrollbarSize(data.scrollbarSize);
     const appOrder = sanitizeIdList(data.appOrder);
     const appHidden = sanitizeIdList(data.appHidden);
 
     set({
       theme, globalFontScale, uiControlFontSize, typography, advancedPaneManagerEnabled,
-      searchResultsPlacement, readingPlanRolloverHour, readingPlanShowStreak, appSwitcher, appOrder, appHidden,
+      searchResultsPlacement, readingPlanRolloverHour, readingPlanShowStreak, appSwitcher, scrollbarSize, appOrder, appHidden,
     });
     applyThemeToDOM(theme);
     notifyMainOfTheme(theme);
     applyGlobalFontScaleToDOM(globalFontScale);
     applyUiControlFontSizeToDOM(uiControlFontSize);
     applyTypographyToDOM(typography);
+    applyScrollbarSizeToDOM(scrollbarSize);
   },
 
   getSessionData: () => {
     const {
       theme, globalFontScale, uiControlFontSize, typography, advancedPaneManagerEnabled,
-      searchResultsPlacement, readingPlanRolloverHour, readingPlanShowStreak, appSwitcher, appOrder, appHidden,
+      searchResultsPlacement, readingPlanRolloverHour, readingPlanShowStreak, appSwitcher, scrollbarSize, appOrder, appHidden,
     } = get();
     return {
       theme, globalFontScale, uiControlFontSize, typography, advancedPaneManagerEnabled,
-      searchResultsPlacement, readingPlanRolloverHour, readingPlanShowStreak, appSwitcher, appOrder, appHidden,
+      searchResultsPlacement, readingPlanRolloverHour, readingPlanShowStreak, appSwitcher, scrollbarSize, appOrder, appHidden,
     };
   }
 }));

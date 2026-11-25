@@ -78,7 +78,8 @@
     "modeLabel": "وضع العرض",
     "recentPassages": "المقاطع الأخيرة",
     "noHistory": "لم تتم زيارة أي مقطع بعد",
-    "translationButton": "الترجمة: {abbr}"
+    "translationButton": "الترجمة: {abbr}",
+    "currentReference": "{reference}: الانتقال إلى سفر وأصحاح"
   },
   "bibleContent": {
     "votdLabel": "عدد اليوم",
@@ -464,7 +465,8 @@
     "copyToClipboard": "نسخ إلى الحافظة",
     "loading": "جارٍ تحميل الأعداد...",
     "copyFailed": "تعذّر النسخ إلى الحافظة. تحقّق من أن هذا الموقع مسموح له باستخدامها.",
-    "referencePosition": "موضع المرجع"
+    "referencePosition": "موضع المرجع",
+    "print": "طباعة"
   },
   "ui": {
     "passageInsert": {
@@ -500,7 +502,8 @@
       "quoteMarksNone": "بلا",
       "commentPlaceholdersLabel": "مساحة للتعليق تحت كل عدد",
       "verseHeading": "العدد {verse}",
-      "commentPlaceholderText": "[تعليقات على {reference}]"
+      "commentPlaceholderText": "[تعليقات على {reference}]",
+      "verseNumbersFirstFull": "المرجع كاملاً عند الآية الأولى (يو 3:16)، ثم الأرقام"
     }
   },
   "feedbackDialog": {
@@ -869,7 +872,10 @@
     "noResults": "لا توجد نتائج.",
     "searchFor": "بحث عن «{query}»",
     "back": "رجوع",
-    "chapterOption": "{book} الأصحاح {chapter}"
+    "chapterOption": "{book} الأصحاح {chapter}",
+    "selectAVerse": "اختر آية، أو انتقل إلى الأصحاح كاملاً",
+    "goToChapter": "الانتقال إلى {book} {chapter}",
+    "verseOption": "{book} {chapter}:{verse}"
   },
   "helpDialog": {
     "esc": "Esc"

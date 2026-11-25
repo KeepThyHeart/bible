@@ -2,9 +2,10 @@
  * Markup colour handling.
  *
  * `user_text_markup.color` and `collection.color` both store hex. Reads also
- * accept one of six literal palette *names* (`yellow`, `green`, ...), which
- * standardises on hex `#RRGGBB` everywhere; the six names survive as a UI
- * palette constant.
+ * accept one of the literal palette *names* (`yellow`, `green`, ... `brown`), which
+ * standardises on hex `#RRGGBB` everywhere; the names survive as a UI
+ * palette constant. The first six are the original palette; pink, teal, gray
+ * and brown were added later and are never stored by name (writes emit hex).
  *
  * This is **live user data**, so the read path must accept both shapes forever
  * (or at least until a user-database migration rewrites existing rows). Writes
@@ -13,14 +14,18 @@
 
 import { HighlightColor } from './Types';
 
-/** The six-name UI palette, in display order. */
+/** The ten-name UI palette, in display order. */
 export const HIGHLIGHT_COLOR_NAMES: readonly HighlightColor[] = [
   'yellow',
   'green',
   'blue',
   'red',
   'purple',
-  'orange'
+  'orange',
+  'pink',
+  'teal',
+  'gray',
+  'brown'
 ] as const;
 
 /**
@@ -35,7 +40,11 @@ export const HIGHLIGHT_COLOR_HEX: Readonly<Record<HighlightColor, string>> = Obj
   blue: '#B8DDF5',
   red: '#F7B7B7',
   purple: '#D9C2F0',
-  orange: '#FBD1A2'
+  orange: '#FBD1A2',
+  pink: '#F9B8DA',
+  teal: '#9EDDD6',
+  gray: '#D0D0D0',
+  brown: '#D2B48C'
 });
 
 /** Reverse lookup, hex (upper-case) -> palette name. */

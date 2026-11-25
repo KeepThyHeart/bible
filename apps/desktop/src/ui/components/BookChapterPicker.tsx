@@ -9,7 +9,7 @@ import { BookChapterPicker as SharedBookChapterPicker, Bdi } from '@bible/ui';
 import type { BookChapterPickerLabels } from '@bible/ui';
 import { useI18n } from '../contexts/useI18n';
 import { localizedBookNames, localizedBookAliases } from '../constants/bibleBooks';
-import { VerseIdHelper, referenceLocalesVersion } from '@bible/core';
+import { VerseIdHelper, referenceLocalesVersion, verseCount } from '@bible/core';
 import { useSearchStore } from '../stores/useSearchStore';
 import { sanitizeHtml } from '../utils/sanitize';
 // Section colour coding for the book grid lives in `constants/bibleSections`,
@@ -95,6 +95,9 @@ const BookChapterPicker: React.FC<BookChapterPickerProps> = ({ isOpen, onClose, 
     searchFor: (query: string) => t('bookChapterPicker.searchFor', { query }),
     // The number alone is not a name - say which chapter of which book, so it reads as a passage, not a digit.
     chapterOption: (book: string, chapter: number) => t('bookChapterPicker.chapterOption', { book, chapter }),
+    selectVerse: t('bookChapterPicker.selectVerse'),
+    goToChapter: (book: string, chapter: number) => t('bookChapterPicker.goToChapter', { book, chapter }),
+    verseOption: (book: string, chapter: number, verse: number) => t('bookChapterPicker.verseOption', { book, chapter, verse }),
   }), [t]);
   const icons = useMemo(() => ({
     back: <span aria-hidden="true" className="rtl-mirror">&larr;</span>,
@@ -128,6 +131,7 @@ const BookChapterPicker: React.FC<BookChapterPickerProps> = ({ isOpen, onClose, 
           onClose={onClose}
           bookName={(book) => bookNames[book]}
           bookAliases={bookAliases}
+          verseCount={verseCount}
           labels={labels}
           icons={icons}
           titleId={TITLE_ID}
