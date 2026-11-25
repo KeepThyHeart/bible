@@ -31,6 +31,12 @@ concurrency:
   group: release-${{ github.ref }}
   cancel-in-progress: false
 
+# onnxruntime-node (via @huggingface/transformers) downloads CUDA EP binaries from
+# GitHub on Linux x64 during postinstall; that download now 404s and fails
+# `pnpm install`. The apps use the CPU provider only, so skip it.
+env:
+  ONNXRUNTIME_NODE_INSTALL_CUDA: skip
+
 jobs:
   draft:
     # Created once, up front. electron-builder uploads into an existing draft
