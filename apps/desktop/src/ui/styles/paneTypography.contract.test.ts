@@ -152,13 +152,16 @@ describe('parallel version picker sizing', () => {
   });
 });
 
-describe('reading width', () => {
-  it('caps the Bible and Study columns from the preference variables, not a fixed Tailwind width', () => {
-    expect(read('components/BibleVerseList.tsx')).toContain('bible-reading-column');
-    expect(read('components/BibleVerseList.tsx')).not.toMatch(/bible-text[^\n]*max-w-3xl|max-w-3xl[^\n]*bible-text/);
+describe('text width', () => {
+  it('caps each mode\'s column from its own preference variable, not a fixed Tailwind width', () => {
+    const verseList = read('components/BibleVerseList.tsx');
+    expect(verseList).toContain('bible-standard-column');
+    expect(verseList).toContain('bible-reading-column');
+    expect(verseList).not.toMatch(/bible-text[^\n]*max-w-3xl|max-w-3xl[^\n]*bible-text/);
     expect(read('components/study/StudyModeView.tsx')).toContain('study-reading-column');
     const globals = read('styles/globals.css');
-    expect(globals).toMatch(/\.bible-reading-column\s*{[^}]*var\(--bible-max-width, 48rem\)/);
+    expect(globals).toMatch(/\.bible-standard-column\s*{[^}]*var\(--standard-max-width, 48rem\)/);
+    expect(globals).toMatch(/\.bible-reading-column\s*{[^}]*var\(--reading-max-width, 48rem\)/);
     expect(globals).toMatch(/\.study-reading-column\s*{[^}]*var\(--study-max-width, 56rem\)/);
   });
 });

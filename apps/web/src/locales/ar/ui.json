@@ -879,7 +879,8 @@
     "chapterOption": "{book} الأصحاح {chapter}",
     "selectAVerse": "اختر آية، أو انتقل إلى الأصحاح كاملاً",
     "goToChapter": "الانتقال إلى {book} {chapter}",
-    "verseOption": "{book} {chapter}:{verse}"
+    "verseOption": "{book} {chapter}:{verse}",
+    "alsoChooseVerse": "اختيار آية أيضًا"
   },
   "helpDialog": {
     "esc": "Esc"

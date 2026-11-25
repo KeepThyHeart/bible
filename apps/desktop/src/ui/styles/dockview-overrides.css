@@ -67,7 +67,8 @@
 
    Two changes:
 
-   1. A `::before` overlay widens the *hit* area to 12px without moving the
+   1. A `::before` overlay widens the *hit* area (to 12px; 10px, all on one
+      side, between side-by-side panes - see below) without moving the
       sash. The element itself cannot simply be made wider - dockview positions
       it by its own 4px width, so a 12px sash would sit 4px off the boundary it
       resizes. The overlay hangs 4px past each edge instead, which leaves the
@@ -93,9 +94,23 @@
   inset: 0;
 }
 
+/* Side-by-side panes: the pane before the sash has its vertical scrollbar
+   against the boundary, and dockview centres the 4px sash on that boundary, so
+   a symmetric overlay took the outer 6px of the 14px scrollbar and made its
+   thumb hard to grab. Instead the sash itself takes no pointer events and the
+   overlay (whose events still go to the sash) starts at the boundary and hangs
+   only into the pane after it. Logical insets keep that right in RTL, where the
+   scrollbar sits on the other side of the boundary. */
+.dockview-theme-light.dockview-theme-light
+  .dv-split-view-container.dv-horizontal > .dv-sash-container > .dv-sash {
+  pointer-events: none;
+}
+
 .dockview-theme-light.dockview-theme-light
   .dv-split-view-container.dv-horizontal > .dv-sash-container > .dv-sash::before {
-  inset-inline: -4px;
+  pointer-events: auto;
+  inset-inline-start: 2px;
+  inset-inline-end: -8px;
 }
 
 .dockview-theme-light.dockview-theme-light

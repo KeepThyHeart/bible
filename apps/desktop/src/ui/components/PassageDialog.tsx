@@ -53,6 +53,8 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   copyToClipboard,
   getLastUsedPassageFormatId,
+  getLastPrintFormatId,
+  setLastPrintFormatId,
   setLastUsedFormatId,
   setLastUsedFormatOptions,
   type FormatOptions,
@@ -107,8 +109,8 @@ import { isTextEntryTarget } from '../utils/textEntry';
 import { sanitizeHtml } from '../utils/sanitize';
 import { themeRedLetterPreview } from '../utils/themePassagePreview';
 import { useToastStore } from '../stores/useToastStore';
-import { printDocument } from '../services/fileNotesAPI';
-import { buildPassagePrintDocument, textToPrintBody } from '../utils/passagePrintDocument';
+import { exportDocumentPdf, printDocument } from '../services/fileNotesAPI';
+import { buildPassagePrintDocument, passageFileName, textToPrintBody } from '../utils/passagePrintDocument';
 
 /**
  * Above the notes editor's own fixed-position chrome, which sits at 9998.
@@ -212,11 +214,12 @@ const PassageDialog: React.FC<PassageDialogProps> = ({
 
   const [formatId, setFormatId] = useState<string>(() => {
     if (initialFormatId) return initialFormatId;
+    if (isCopy && printFirst) return getLastPrintFormatId();
     return isCopy ? getLastUsedPassageFormatId() : getLastInsertFormatId();
   });
   const [options, setOptions] = useState<PassageInsertOptions>(
     () => initialOptions ?? loadInsertOptions(initialFormatId ?? (isCopy
-      ? getLastUsedPassageFormatId()
+      ? (printFirst ? getLastPrintFormatId() : getLastUsedPassageFormatId())
       : getLastInsertFormatId())),
   );
   const [skipMenu, setSkipMenu] = useState<boolean>(() => getSkipFormatMenu());
@@ -274,6 +277,11 @@ const PassageDialog: React.FC<PassageDialogProps> = ({
    */
   const rememberFormatId = useCallback(
     (id: string) => {
+      // A dialog opened by Print remembers the print format, apart from Copy's.
+      if (isCopy && printFirst) {
+        setLastPrintFormatId(id);
+        return;
+      }
       if (isCopy) {
         setLastUsedFormatId(id);
         return;
@@ -281,7 +289,7 @@ const PassageDialog: React.FC<PassageDialogProps> = ({
       setLastInsertFormatId(id);
       if (!isPassageMarkupFormat(id)) setLastUsedFormatId(id);
     },
-    [isCopy],
+    [isCopy, printFirst],
   );
 
   /** Selecting a format swaps in that format's remembered options. */
@@ -522,25 +530,41 @@ const PassageDialog: React.FC<PassageDialogProps> = ({
    * prints as its blocks (a real block quote, real headings); every other format prints its source text.
    * Red letters are always off here so the page reads on a black-and-white printer.
    */
-  const handlePrint = useCallback(async () => {
+  const buildPrintPage = useCallback((): { html: string; fileName: string } | null => {
     const verseList = activeVerses;
-    if (verseList.length === 0) return;
+    if (verseList.length === 0) return null;
     const ctx = buildVerseContext(verseList, activeTranslation);
     const printOptions = { ...options, wordsOfChristInRed: false };
     const body = isPassageMarkupFormat(formatId) && !isTemplateFormat
       ? passageMarkupToHtml(renderPassageMarkup(verseList, ctx, formatId, printOptions, labels))
       : textToPrintBody(renderCopyOutput(verseList).replace(/<[^>]*>/g, ''));
-    const title = `${resolver.reference || ctx.bookName} (${activeTranslation})`;
-    const result = await printDocument(buildPassagePrintDocument(title, body));
+    const reference = resolver.reference || ctx.bookName;
+    const fileName = passageFileName(reference, activeTranslation);
+    return { html: buildPassagePrintDocument(`${reference} (${activeTranslation})`, body, 'ltr', fileName), fileName };
+  }, [activeVerses, activeTranslation, options, formatId, isTemplateFormat, labels, renderCopyOutput, resolver.reference]);
+
+  const handlePrint = useCallback(async () => {
+    const page = buildPrintPage();
+    if (!page) return;
+    const result = await printDocument(page.html);
     if (result.success) {
       onClose();
     } else if (!result.canceled) {
       useToastStore.getState().addToast(result.error || t('passageDialog.printFailed'), 'error'); // allow-getstate: event handler
     }
-  }, [
-    activeVerses, activeTranslation, options, formatId, isTemplateFormat, labels, renderCopyOutput,
-    resolver.reference, onClose, t,
-  ]);
+  }, [buildPrintPage, onClose, t]);
+
+  /** Save as PDF: the printed page, through a save dialog that suggests "John 3-16 KJV.pdf". */
+  const handleSavePdf = useCallback(async () => {
+    const page = buildPrintPage();
+    if (!page) return;
+    const result = await exportDocumentPdf(page.html, page.fileName);
+    if (result.success) {
+      onClose();
+    } else if (!result.canceled) {
+      useToastStore.getState().addToast(result.error || t('passageDialog.savePdfFailed'), 'error'); // allow-getstate: event handler
+    }
+  }, [buildPrintPage, onClose, t]);
 
   const handleInsert = useCallback(() => {
     if (activeVerses.length === 0) return;
@@ -1185,6 +1209,19 @@ const PassageDialog: React.FC<PassageDialogProps> = ({
                   className="px-4 py-2 text-sm font-medium text-text-secondary bg-background-tertiary rounded hover:bg-background-active transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {printFirst ? t('copyOptionsDialog.copyButton') : t('copyOptionsDialog.printButton')}
+                </button>
+              )}
+              {/* In the Print dialog: the page as a PDF, named after the passage ("John 3-16 KJV.pdf").
+                  The system print dialog cannot be told a file name, so "Print to file" there says output.pdf. */}
+              {isCopy && printFirst && (
+                <button
+                  type="button"
+                  onClick={() => void handleSavePdf()}
+                  disabled={!canCommit}
+                  data-testid="passage-dialog-save-pdf"
+                  className="px-4 py-2 text-sm font-medium text-text-secondary bg-background-tertiary rounded hover:bg-background-active transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {t('copyOptionsDialog.savePdfButton')}
                 </button>
               )}
               <button

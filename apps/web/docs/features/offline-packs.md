@@ -13,7 +13,7 @@ Pick Bibles (and later other content), see the size, and download them for offli
 | `PackBuilder` component | `packages/ui/src/components/PackBuilder.tsx`, styles `.kth-pack-*` |
 | Web server manifest and files | `GET /api/offline/manifest`, `GET /api/offline/files/:id/:version/:name` (`server/routes/offlineRoutes.ts`) |
 | Web module store | `src/offline/OpfsModuleStore.ts` (modules gunzipped into OPFS `modules/<abbr>.db`), `moduleAssets.ts` (second `AssetManager`, separate from the Downloads list) |
-| Web UI | Settings, Offline tab: `components/Dialogs/OfflinePackSection.tsx` (behind `features.offlineDownloads`) |
+| Web UI | Settings, Offline tab: `src/modules/downloads/OfflinePackSection.tsx` (behind `features.offlineDownloads`) |
 | Desktop UI | Module Manager, "Offline packs" tab (`OfflinePacksPanel.tsx`); installs go through the existing module install path |
 
 ## Server manifest

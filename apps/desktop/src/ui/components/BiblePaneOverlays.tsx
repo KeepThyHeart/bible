@@ -26,6 +26,7 @@ import { isLookUpCandidate, normalizeLookUpText } from '@bible/core/browser';
 import { openLookUp } from './bible/openLookUp';
 import { useWordStrongs } from './bible/hooks/useWordStrongs';
 import { syncPanesWithVerse } from '../stores/syncPanesWithVerse';
+import { ConfirmDialog } from './shared/ConfirmDialog';
 
 interface BibleTabInfo {
   tabId: string;
@@ -102,8 +103,12 @@ export interface BiblePaneOverlaysProps {
   } | null>>;
   activeTab: BibleTabInfo | undefined;
   handleRemoveHighlight: (markupId: number) => Promise<void>;
-  /** Delete every mark touching these verses (range IPC). */
+  /** Delete every mark touching these verses (range IPC), after the confirmation below. */
   clearMarksInVerses?: (startVerseId: number, endVerseId?: number) => Promise<void>;
+  /** A clear waiting on the reader's confirmation (Ctrl+Shift+X, or the menu's clear for several verses). */
+  pendingClear?: { scope: 'words' | 'verse' | 'verses' } | null;
+  onConfirmClear?: () => void;
+  onCancelClear?: () => void;
   /** Whether a captured word selection already carries highlights or underlines. */
   selectionHasMarkup?: (selection: WordSelection | null) => boolean;
   /** Delete the whole marks under a captured word selection. */
@@ -212,6 +217,9 @@ const BiblePaneOverlays: React.FC<BiblePaneOverlaysProps> = ({
   activeTab,
   handleRemoveHighlight,
   clearMarksInVerses,
+  pendingClear,
+  onConfirmClear,
+  onCancelClear,
   selectionHasMarkup,
   removeMarksInWordSelection,
   syncAllNotesPanelsWithVerse,
@@ -528,6 +536,18 @@ const BiblePaneOverlays: React.FC<BiblePaneOverlaysProps> = ({
               }
             });
           }}
+        />
+      )}
+
+      {onConfirmClear && onCancelClear && (
+        <ConfirmDialog
+          open={!!pendingClear}
+          title={t('biblePane.clearMarksConfirm.title')}
+          message={t(`biblePane.clearMarksConfirm.${pendingClear?.scope ?? 'verses'}`)}
+          confirmLabel={t('biblePane.clearMarksConfirm.confirm')}
+          destructive
+          onConfirm={onConfirmClear}
+          onCancel={onCancelClear}
         />
       )}
 

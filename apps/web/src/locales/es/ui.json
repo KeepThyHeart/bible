@@ -879,7 +879,8 @@
     "chapterOption": "{book}, capítulo {chapter}",
     "selectAVerse": "Elija un versículo, o vaya al capítulo completo",
     "goToChapter": "Ir a {book} {chapter}",
-    "verseOption": "{book} {chapter}:{verse}"
+    "verseOption": "{book} {chapter}:{verse}",
+    "alsoChooseVerse": "Elegir también un versículo"
   },
   "helpDialog": {
     "esc": "Esc"

@@ -230,6 +230,14 @@ export async function printNote(html: string): Promise<NoteRenderResult> {
   return window.electron.ipcRenderer.invoke<NoteRenderResult>('notes:print', html);
 }
 
+/**
+ * Save any standalone HTML document (the Bible pane's printed passage) as a PDF, through a save dialog
+ * that suggests `defaultName` (no extension). A cancelled dialog comes back as `{ success: false, canceled: true }`.
+ */
+export async function exportDocumentPdf(html: string, defaultName: string): Promise<NoteRenderResult> {
+  return window.electron.ipcRenderer.invoke<NoteRenderResult>('document:export-pdf', html, defaultName);
+}
+
 /** Send any standalone HTML document (the Bible pane's printed passage) to the OS print dialog. */
 export async function printDocument(html: string): Promise<NoteRenderResult> {
   return window.electron.ipcRenderer.invoke<NoteRenderResult>('document:print', html);

@@ -145,6 +145,7 @@ export const ALLOWED_IPC_CHANNELS = [
   'notes:print',
   'document:print',
   'notes:export-pdf',
+  'document:export-pdf',
   // Native save dialog for a text file the renderer built (.ics, keyword sets).
   'app:save-text-file',
   // App-shell commands invoked by command handlers (about dialog,

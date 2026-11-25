@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { useI18n } from '../contexts/useI18n';
 import { cleanModuleName } from '../utils/verseFormatting';
 import { BOOK_PANE_TAB_ICONS } from './paneIcons';
+import DictionaryWordSearch from './dictionary/DictionaryWordSearch';
 
 /**
  * The subset of `BookModule` / `DictionaryModule` this shelf needs. Declared
@@ -33,6 +34,11 @@ interface LibraryHomeProps {
   loadingDictionaries?: boolean;
   onOpen: (kind: LibraryKind, abbreviation: string, name: string) => void;
   onInstall: (kind: LibraryKind) => void;
+  /**
+   * Dictionaries: open an entry picked from the word search's results. With it, the shelf leads with a
+   * word search across every dictionary, and the name filter shrinks to a small control by the list.
+   */
+  onOpenEntry?: (abbreviation: string, name: string, key: string) => void;
 }
 
 interface SectionProps {
@@ -44,10 +50,12 @@ interface SectionProps {
   filtered: boolean;
   onOpen: LibraryHomeProps['onOpen'];
   onInstall: LibraryHomeProps['onInstall'];
+  /** A control shown at the end of the heading row (the dictionaries' name filter). */
+  headingControl?: React.ReactNode;
 }
 
 const LibrarySection: React.FC<SectionProps> = ({
-  kind, heading, modules, open, isLoading, filtered, onOpen, onInstall,
+  kind, heading, modules, open, isLoading, filtered, onOpen, onInstall, headingControl,
 }) => {
   const { t } = useI18n();
 
@@ -59,6 +67,7 @@ const LibrarySection: React.FC<SectionProps> = ({
         <span className="font-normal normal-case tracking-normal opacity-70">
           ({modules.length})
         </span>
+        {headingControl && <span className="ms-auto normal-case tracking-normal font-normal">{headingControl}</span>}
       </h3>
 
       {isLoading ? (
@@ -141,7 +150,7 @@ const LibrarySection: React.FC<SectionProps> = ({
  */
 const LibraryHome: React.FC<LibraryHomeProps> = ({
   kind, books, dictionaries, openBooks, openDictionaries,
-  loadingBooks = false, loadingDictionaries = false, onOpen, onInstall,
+  loadingBooks = false, loadingDictionaries = false, onOpen, onInstall, onOpenEntry,
 }) => {
   const { t } = useI18n();
   const [filter, setFilter] = useState('');
@@ -159,6 +168,7 @@ const LibraryHome: React.FC<LibraryHomeProps> = ({
 
   const isDictionary = kind === 'dictionary';
   const totalInstalled = isDictionary ? dictionaries.length : books.length;
+  const hasWordSearch = isDictionary && !!onOpenEntry && totalInstalled > 0;
 
   return (
     <div className="h-full overflow-auto p-4" data-testid="library-home">
@@ -178,7 +188,9 @@ const LibraryHome: React.FC<LibraryHomeProps> = ({
       {/* Hidden rather than disabled when there is nothing to filter: an empty
           shelf's problem is that nothing is installed, and a search box implies
           the opposite. */}
-      {totalInstalled > 0 && (
+      {hasWordSearch && <DictionaryWordSearch onOpenEntry={onOpenEntry!} />}
+
+      {totalInstalled > 0 && !hasWordSearch && (
         <input
           type="text"
           value={filter}
@@ -196,6 +208,17 @@ const LibraryHome: React.FC<LibraryHomeProps> = ({
         <LibrarySection
           kind="dictionary"
           heading={t('libraryHome.dictionariesHeading')}
+          headingControl={hasWordSearch ? (
+            <input
+              type="search"
+              value={filter}
+              onChange={e => setFilter(e.target.value)}
+              placeholder={t('libraryHome.dictionaryFilterPlaceholder')}
+              aria-label={t('libraryHome.dictionaryFilterLabel')}
+              data-testid="library-filter"
+              className="w-40 px-2 py-0.5 text-xs rounded border border-border-secondary bg-surface text-text-primary"
+            />
+          ) : undefined}
           modules={matches.dictionaries}
           open={openDictionaries}
           isLoading={loadingDictionaries}

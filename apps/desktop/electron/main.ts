@@ -596,13 +596,18 @@ function registerPrintHandler(): void {
   // and meaning a cancelled dialog costs no rendering at all. A cancel is
   // reported as `{ success: false, canceled: true }` so no caller can mistake
   // it for a written file.
-  ipcMain.handle(
-    'notes:export-pdf',
-    async (_event, html: string, defaultName: string): Promise<NoteRenderResult> => {
+  // `document:export-pdf` is the same path for the Bible pane's printed passage, named for what it saves
+  // (as `document:print` is beside `notes:print`). The suggested name is reduced to a bare file name.
+  const exportPdf = async (_event: unknown, html: string, defaultName: string): Promise<NoteRenderResult> => {
+      if (typeof html !== 'string' || html.length > 20 * 1024 * 1024) {
+        return { success: false, error: 'Invalid document' };
+      }
+      const safeName = basename(typeof defaultName === 'string' ? defaultName : '')
+        .replace(/[\\/:*?"<>|\0]/g, '-').trim() || 'document';
       const parent = BrowserWindow.getFocusedWindow();
       const options = {
         title: t('main.dialog.exportPdf'),
-        defaultPath: `${defaultName}.pdf`,
+        defaultPath: `${safeName}.pdf`,
         filters: [
           { name: t('main.filter.pdf'), extensions: ['pdf'] },
           { name: t('main.filter.allFiles'), extensions: ['*'] }
@@ -621,11 +626,12 @@ function registerPrintHandler(): void {
           return { success: true };
         })
         .catch(err => {
-          log.error('[IPC] notes:export-pdf failed:', err);
+          log.error('[IPC] PDF export failed:', err);
           return { success: false, error: describeRenderError(err) };
         });
-    }
-  );
+  };
+  ipcMain.handle('notes:export-pdf', exportPdf);
+  ipcMain.handle('document:export-pdf', exportPdf);
 }
 
 let windowShownOnce = false;

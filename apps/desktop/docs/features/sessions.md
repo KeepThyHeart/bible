@@ -35,13 +35,13 @@ Study session persistence with auto-save and restore. Captures the full UI state
 |---|---|
 | `packages/core/src/Data/Models/User/Session.ts` | `SessionData` interface with `dockviewState` field for layout persistence, plus the `ui.preferences` / `ui.textSettings` / `ui.textSettingsCustomized` / `ui.notesPanels` sub-objects |
 | `packages/core/src/Data/Repositories/SessionRepository.ts` | Reads/writes the `session` table in the user DB (interface: `ISessionRepository.ts`) |
-| `packages/core/src/Services/SessionSerializationService.ts` | A platform-agnostic controller-registry alternative to the Zustand serializer registry. Exported from `@bible/core` but **unused** - the desktop path is `helpers/sessionRegistry.ts` above |
+| `packages/core/src/Services/SessionSerializationService.ts` | A platform-agnostic controller-registry alternative to the Zustand serializer registry. Exported from `@bible/core` but **unused** - the desktop path is `src/ui/stores/helpers/sessionRegistry.ts` above |
 
 ### Tests
 
 | File | Description |
 |---|---|
-| `src/ui/stores/__tests__/sessionMigration.test.ts` | `stores/bible/sessionMigration.ts`: normalizing a saved Bible-pane payload without losing a passage, without crashing on an unexpected shape, and idempotently |
+| `src/ui/stores/__tests__/sessionMigration.test.ts` | `src/ui/stores/bible/sessionMigration.ts`: normalizing a saved Bible-pane payload without losing a passage, without crashing on an unexpected shape, and idempotently |
 | `src/ui/stores/__tests__/notesPanelSession.test.ts` | `ui.notesPanels` serialize/restore/prune |
 | `src/ui/stores/bible/slices/sessionSlice.test.ts` | Bible store session slice |
 | `src/ui/stores/commentary/slices/sessionSlice.test.ts` | Commentary store session slice |
@@ -52,12 +52,12 @@ Study session persistence with auto-save and restore. Captures the full UI state
 
 - Auto-save runs periodically via the `useSessionAutoSave()` hook, and once more on `beforeunload`.
 - On startup, the app loads the autosave session and restores all pane states.
-- Each store registers a session serializer via `registerSessionSerializer()` in `helpers/sessionRegistry.ts`.
-- Each store calls `markSessionDirty()` from `helpers/sessionNotifier.ts` instead of importing useSessionStore.
+- Each store registers a session serializer via `registerSessionSerializer()` in `src/ui/stores/helpers/sessionRegistry.ts`.
+- Each store calls `markSessionDirty()` from `src/ui/stores/helpers/sessionNotifier.ts` instead of importing useSessionStore.
 - Each store has a `restoreFromSession()` method that rehydrates from session data.
 - The active app and its routes are saved as `SessionData.appHost` and restored after the session loads (a pending restore keeps the saved app through early autosaves) - see [Apps](apps.md#session-persistence).
 - Dockview layout is serialized via `useLayoutStore.serializeLayout()` into `SessionData.dockviewState`. That call runs the layout through `stripTransientPanels()` first, so a "New Tab" chooser left open is not restored on the next launch.
 - On restore, the saved layout is passed to `DockviewLayout`, which calls `api.fromJSON()` to recreate the panel arrangement. A session with no `dockviewState`, or one dockview cannot read, falls back to the default layout.
-- Theme, global font scale, UI control size, and typography (`usePreferencesStore`) live under `SessionData.ui.preferences`; per-pane font settings (`useTextSettingsStore`) live under `ui.textSettings`, with their `customized` flags in the sibling `ui.textSettingsCustomized` field. Both are restored synchronously and early in `AppInitService.initializeApp()` - before the async commentary/dictionary/bookmark loads - and both use the same registry pattern as other stores (`registerSessionSerializer()` in `helpers/sessionRegistry.ts`), but restoration is called directly from `AppInitService.ts` rather than through the (unused) `registerSessionRestorer()` half of that registry. See [settings-preferences.md](./settings-preferences.md#session-persistence) for the full contract, including per-field corrupt-data fallback.
+- Theme, global font scale, UI control size, and typography (`usePreferencesStore`) live under `SessionData.ui.preferences`; per-pane font settings (`useTextSettingsStore`) live under `ui.textSettings`, with their `customized` flags in the sibling `ui.textSettingsCustomized` field. Both are restored synchronously and early in `AppInitService.initializeApp()` - before the async commentary/dictionary/bookmark loads - and both use the same registry pattern as other stores (`registerSessionSerializer()` in `src/ui/stores/helpers/sessionRegistry.ts`), but restoration is called directly from `AppInitService.ts` rather than through the (unused) `registerSessionRestorer()` half of that registry. See [settings-preferences.md](./settings-preferences.md#session-persistence) for the full contract, including per-field corrupt-data fallback.
 - A saved session carrying no `ui.textSettingsCustomized` object, or only part of one, restores the panes it does not name as **not** customized, so they keep following the Typography section live.
 - The Writing pane's *contents* are session state too: each notes panel's view, sidebar sub-tab, folder and open note ride under `SessionData.ui.notesPanels`, keyed by dockview panel id, via the `fileNotes` serializer. Restored (and pruned against the restored layout) in `AppInitService.initializeApp()`, and claimed panel-by-panel on mount - see [notes-writing.md](./notes-writing.md#the-writing-pane-reopens-where-you-left-it).

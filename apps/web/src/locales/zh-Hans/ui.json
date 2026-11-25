@@ -879,7 +879,8 @@
     "chapterOption": "{book}第{chapter}章",
     "selectAVerse": "选择一节，或前往整章",
     "goToChapter": "前往 {book} {chapter}",
-    "verseOption": "{book} {chapter}:{verse}"
+    "verseOption": "{book} {chapter}:{verse}",
+    "alsoChooseVerse": "同时选择一节"
   },
   "helpDialog": {
     "esc": "Esc"

@@ -18,6 +18,7 @@ import { isPrefaceVerse, getSectionHeading, SectionHeadingBlock, PREFACE_TEXT_CL
 import PaneLoadingSkeleton from './onboarding/PaneLoadingSkeleton';
 import PaneEmptyState from './onboarding/PaneEmptyState';
 import { useCtrlWheelBibleSize } from '../hooks/useCtrlWheelBibleSize';
+import { useVerseLabelWidth } from '../hooks/useVerseLabelWidth';
 import { useDeferredLoading } from '../hooks/useDeferredLoading';
 import { isInSelectedRange } from '../stores/bible/internals/verseRange';
 import { useBookmarkStore } from '../stores/useBookmarkStore';
@@ -85,6 +86,7 @@ const BibleVerseList: React.FC = () => {
 
   // Ctrl + mouse wheel over the text changes the Bible text size (not the window zoom).
   useCtrlWheelBibleSize(bibleTextRef as React.RefObject<HTMLElement | null>);
+  useVerseLabelWidth(bibleTextRef as React.RefObject<HTMLElement | null>, verseLabelMode);
 
   // Brief chapter loads (cache hit, fast query) shouldn't flicker a loading
   // UI in at all - only fetches still running past 80ms show it.
@@ -390,7 +392,8 @@ const BibleVerseList: React.FC = () => {
               // Standard/Reading modes with highlighting support
               <>
                 <div className="px-xl py-lg">
-                <div className="bible-reading-column bible-text">
+                {/* Each mode has its own width cap (Typography > Reading layout > Text width). */}
+                <div className={`${displayMode === 'reading' ? 'bible-reading-column' : 'bible-standard-column'} bible-text`}>
                   {/* Chapter Heading */}
                   <BibleHeader />
 
@@ -567,7 +570,7 @@ const BibleVerseList: React.FC = () => {
                                   <button
                                     type="button"
                                     data-verse-select=""
-                                    className={`flex-shrink-0 ${verseGutterClass(verseLabelMode, 'standard')} text-end pe-2 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-accent`}
+                                    className={`flex-shrink-0 ${verseGutterClass(verseLabelMode, 'standard')} rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-accent`}
                                     aria-label={t(
                                       'biblePane.selectVerse',
                                       { book: currentBookName, chapter: currentChapter, verse: verse.verse, },
@@ -580,6 +583,7 @@ const BibleVerseList: React.FC = () => {
                                         reordered out of its column. */}
                                     <bdi
                                       aria-hidden="true"
+                                      data-verse-label=""
                                       className="text-[0.9em] font-bold text-accent inline-block py-1"
                                     >
                                       {verseLabelText(verseLabelMode, { book: verse.book_number, chapter: verse.chapter, verse: verse.verse }, localizer)}

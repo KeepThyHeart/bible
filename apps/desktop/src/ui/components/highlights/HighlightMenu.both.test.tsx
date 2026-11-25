@@ -21,7 +21,8 @@ describe('HighlightMenu both mode', () => {
     fireEvent.click(screen.getByRole('button', { name: 'highlightMenu.applyHighlightColor:highlightMenu.color.green' }));
     expect(onSelect).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: 'highlightMenu.apply' }));
-    expect(onSelect).toHaveBeenCalledWith('green', 'both', 'wavy', 'yellow');
+    // The underline colour starts at red (DEFAULT_UNDERLINE_COLOR); only the highlight colour was changed.
+    expect(onSelect).toHaveBeenCalledWith('green', 'both', 'wavy', 'red');
   });
 
   it('highlight-only still applies on a single swatch click', () => {

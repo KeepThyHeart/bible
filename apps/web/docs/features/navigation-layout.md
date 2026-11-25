@@ -12,7 +12,7 @@ Header, URL hash routing, history navigation, resizable panes, and keyboard shor
 |---|---|
 | `index.html` | App shell: boot splash, error fallback, boot-loop detector, and an inline script that applies the saved theme before anything paints |
 | `src/main.tsx`, `src/boot/runBoot.ts` | Boot: `main.tsx` imports styles and calls `runBoot`; `runBoot` is the sequence in "Boot sequence" below |
-| `src/host/AppShell.tsx` | The root the boot renders: `[AppRail][AppStage]` plus the shell-wide shortcuts (see "App shell"). It replaced the old `src/App.tsx` mobile/desktop router |
+| `src/host/AppShell.tsx` | The root the boot renders: `[AppRail][AppStage]` plus the shell-wide shortcuts (see "App shell"). It replaced the old `App.tsx` mobile/desktop router (since removed) |
 | `src/apps/study/StudyView.tsx` | The Study app's view: picks `DesktopApp` or `MobileApp` by `useIsMobile()` (768px breakpoint) and adds the follow banner |
 | `src/DesktopApp.tsx` | Desktop layout with side-by-side resizable panes, resize handle, right-pane tabs; resolves `paneMode` (see "Right-pane mode") |
 | `src/MobileApp.tsx` | Mobile layout with bottom nav, single-pane view switching, auto-hiding header on scroll |
@@ -102,7 +102,7 @@ The "Boot sequence" below describes what Study does when it activates; the splas
 
 ### Entry-chunk check
 
-`scripts/check-entry-chunk.mjs` (run by `build:client`, or `pnpm --filter @bible/web check:entry-chunk` after a build) reads `dist/client/.vite/chunk-report.json` and fails when the entry chunk's static import graph contains a module that must stay lazy: `src/apps/**`, `DesktopApp`, `MobileApp`, the bible/search/commentary/study/dictionary stores, `src/offline/`, the browser search provider, and everything of the Presenter module (`src/modules/present/`) except its manifest, binding, runtime probe and `lib/controlLink.ts`/`lib/sessionKey.ts`. Host code reaches those only through dynamic `import()`. Tested by `scripts/check-entry-chunk.test.ts`.
+`scripts/check-entry-chunk.mjs` (run by `build:client`, or `pnpm --filter @bible/web check:entry-chunk` after a build) reads `dist/client/.vite/chunk-report.json` and fails when the entry chunk's static import graph contains a module that must stay lazy: `src/apps/**`, `DesktopApp`, `MobileApp`, the bible/search/commentary/study/dictionary stores, `src/offline/`, the browser search provider, and everything of the Presenter module (`src/modules/present/`) except its manifest, binding, runtime probe and `src/modules/present/lib/controlLink.ts`/`src/modules/present/lib/sessionKey.ts`. Host code reaches those only through dynamic `import()`. Tested by `scripts/check-entry-chunk.test.ts`.
 
 ## Boot sequence
 

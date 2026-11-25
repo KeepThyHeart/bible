@@ -208,7 +208,7 @@ This is a *tab presentation* rule, not a change to the icon vocabulary: `PANEL_C
 
 `DockviewLayout` subscribes to `api.onDidActivePanelChange` and forwards it to `useLayoutStore.setActivePanelId()`, which records both `activePanelId` (whatever dockview panel currently has focus) and `lastActiveBiblePanelId` (the most recent *Bible* panel to have been active - sticky across focus moving to a non-Bible pane, or to the search bar, which lives outside dockview and never becomes the active panel at all).
 
-`navigateToVerseInPrimary` (in `stores/bible/slices/sharedSlice.ts`, called by search results and reference navigation) prefers `lastActiveBiblePanelId`, so search results land in whichever Bible pane the user was actually reading. It falls back to `DEFAULT_PANEL_ID`, else the first Map key, when no Bible panel has ever been focused.
+`navigateToVerseInPrimary` (in `src/ui/stores/bible/slices/sharedSlice.ts`, called by search results and reference navigation) prefers `lastActiveBiblePanelId`, so search results land in whichever Bible pane the user was actually reading. It falls back to `DEFAULT_PANEL_ID`, else the first Map key, when no Bible panel has ever been focused.
 
 ### The search-results panel
 
@@ -227,7 +227,7 @@ Dragging a pane (move/split/re-dock) is opt-in, gated by `usePreferencesStore`'s
 - `api.onWillDragPanel` / `api.onWillDragGroup` fire *before* the drag begins and are canceled via `event.nativeEvent.preventDefault()` - preferred over letting the drag start and rejecting the drop.
 - `api.onWillDrop` is a backstop for any drop path that doesn't route through the will-drag events, canceled via `event.preventDefault()`.
 
-All three call `services/AdvancedPaneManagerGate.ts`'s `gateDragEvent()` - the pure decision (`shouldGateDrag`) is factored out from the event-specific cancel mechanics so it's unit-testable without a real `DragEvent`.
+All three call `src/ui/services/AdvancedPaneManagerGate.ts`'s `gateDragEvent()` - the pure decision (`shouldGateDrag`) is factored out from the event-specific cancel mechanics so it's unit-testable without a real `DragEvent`.
 
 **Movement threshold.** dockview owns the native HTML5 drag, whose own threshold is a pixel or two, so without a threshold of its own the gate fires on a twitch. `exceedsDragThreshold(origin, current, thresholdPx = DRAG_GATE_THRESHOLD_PX)` (8px, straight-line distance, strictly greater; `false` when `origin` is `null`) decides whether an intercepted drag has earned the modal. `DockviewLayout` records the origin from a capture-phase `pointerdown` on the workbench container and passes the drag event's own `clientX/clientY` as `current`. Below the threshold the drag is still canceled, just silently - and because the native drag never started, `pointermove` keeps firing for that same button-down gesture, so a window-level listener raises the dialog the moment the movement becomes deliberate. Without that second half, an 8px gate against the browser's ~3px native one would mean the dialog essentially never appeared. A gated attempt opens `AdvancedPaneManagerGateDialog`, which requires an explicit checkbox before calling `setAdvancedPaneManagerEnabled(true)`; canceling leaves the preference and the layout untouched. The preference is read fresh from the store on every drag attempt (not captured once at effect-setup time), so flipping it from the dialog or from Preferences takes effect on the next attempt without a new dockview instance.
 

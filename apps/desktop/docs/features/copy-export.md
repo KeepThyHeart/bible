@@ -4,7 +4,7 @@
 
 Verse copying with **five numbered formats**: Block quote, Numbered quote, Inline quote, Verse headings, Custom template. The first four come from `passageMarkup.ts` and render a block tree, written out as source text for the clipboard; the fifth is a user-written Handlebars-style template.
 
-**One dialog, three modes.** `PassageDialog.tsx` is the whole of it. Copying a passage to the clipboard, inserting one into a note and re-formatting one already in a note differ by a `mode` prop and nothing else. `CopyOptionsDialog.tsx` is the Bible pane's adapter on to it (mode `copy`); `notes/editor/VerseExpandPopover.tsx` is the notes editor's (modes `insert` and `reformat`). See [notes-writing.md](notes-writing.md) for the notes side.
+**One dialog, three modes.** `PassageDialog.tsx` is the whole of it. Copying a passage to the clipboard, inserting one into a note and re-formatting one already in a note differ by a `mode` prop and nothing else. `CopyOptionsDialog.tsx` is the Bible pane's adapter on to it (mode `copy`); `src/ui/components/notes/editor/VerseExpandPopover.tsx` is the notes editor's (modes `insert` and `reformat`). See [notes-writing.md](notes-writing.md) for the notes side.
 
 **One catalog, one order, one set of numbers.** `formatCatalog.ts` is the single source of truth, so a format number means the same thing in both dialogs. See "The numbered format list" below.
 
@@ -26,7 +26,7 @@ The dialog has a **fixed** height and a fixed left-column width. Every format br
 | **4** | Verse headings | markup | A heading per verse with the verse quoted beneath it | its own, plus `markdown` and `textFormat` |
 | **5** | Custom template | clipboard | Whatever the template says | none - a template is fully user-controlled |
 
-**The numbers are keys.** Pressing `1`-`5` selects that format, and a badge in front of each name says so, with a hint line beneath the list. `resolveFormatShortcut()` claims only a **bare** digit `1`-`9` (`MAX_FORMAT_SHORTCUT`), and the dialog only acts on it when focus is outside a text entry (`utils/textEntry.ts` - inputs, textareas, `<select>`s and contenteditable regions): a reference box is mostly digits, so claiming them there would make the field unusable.
+**The numbers are keys.** Pressing `1`-`5` selects that format, and a badge in front of each name says so, with a hint line beneath the list. `resolveFormatShortcut()` claims only a **bare** digit `1`-`9` (`MAX_FORMAT_SHORTCUT`), and the dialog only acts on it when focus is outside a text entry (`src/ui/utils/textEntry.ts` - inputs, textareas, `<select>`s and contenteditable regions): a reference box is mostly digits, so claiming them there would make the field unusable.
 
 **Where focus lands decides whether the digits work**, which is why the dialog chooses per mode: a path that arrives with its passage already resolved (Tab, re-format) opens on the *format list*, so "John 3:16-17, Tab, `2`, Enter" is a complete insertion; copy mode and "+ Bible Passage" open on the reference box, because there the passage is what the user came to say.
 
@@ -254,8 +254,8 @@ The markup shape options *are* serialised there, as `PassageInsertOptions` (`For
 
 ## Exporting notes
 
-The export path a user can reach is **Export My Notes...**, the `notes.export` command in `commands/notesCommands.ts`, handled directly in `App.tsx`; see [notes-writing.md](notes-writing.md).
+The export path a user can reach is **Export My Notes...**, the `notes.export` command in `src/ui/commands/notesCommands.ts`, handled directly in `App.tsx`; see [notes-writing.md](notes-writing.md).
 
 ## Printing a passage
 
-The Copy Passage dialog has a **Print...** button beside Copy, and the verse context menu has **Print...**, which opens the same dialog with Print as the primary action (`printFirst`). Print uses the dialog's format and options and its verses: a note-shaped format prints as its blocks (real block quote, real headings), every other format prints its source text. `utils/passagePrintDocument.ts` wraps the result in a standalone page (sanitized body, restrictive CSP, black-on-white print stylesheet; red letters are always off so it reads on a black-and-white printer) and `printDocument()` (`fileNotesAPI.ts`) sends it over `document:print`. That channel shares one handler with `notes:print` in `electron/main.ts`: the hidden, locked-down, JavaScript-less window with the CSP injected, and the system print dialog. A cancelled print dialog is not an error and leaves the dialog open.
+The Copy Passage dialog has a **Print...** button beside Copy, and the verse context menu has **Print...**, which opens the same dialog with Print as the primary action (`printFirst`). Print uses the dialog's format and options and its verses: a note-shaped format prints as its blocks (real block quote, real headings), every other format prints its source text. `src/ui/utils/passagePrintDocument.ts` wraps the result in a standalone page (sanitized body, restrictive CSP, black-on-white print stylesheet; red letters are always off so it reads on a black-and-white printer) and `printDocument()` (`fileNotesAPI.ts`) sends it over `document:print`. That channel shares one handler with `notes:print` in `electron/main.ts`: the hidden, locked-down, JavaScript-less window with the CSP injected, and the system print dialog. A cancelled print dialog is not an error and leaves the dialog open.

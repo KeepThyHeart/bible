@@ -474,3 +474,33 @@ describe('BookChapterPicker: verse step', () => {
     expect(onClose).not.toHaveBeenCalled();
   });
 });
+
+describe('BookChapterPicker: optional verse step', () => {
+  const verseCount = (_book: number, chapter: number) => (chapter === 3 ? 36 : 1);
+
+  it('goes straight to the chapter when the verse step is off', async () => {
+    const user = userEvent.setup();
+    const { onPick } = setup({ verseCount, verseStep: false, onVerseStepChange: vi.fn() });
+    await user.click(screen.getByRole('button', { name: 'John' }));
+    await user.click(screen.getByRole('button', { name: 'John chapter 3' }));
+    expect(onPick).toHaveBeenCalledWith(43, 3);
+  });
+
+  it('offers the checkbox under the chapter grid and reports changes', async () => {
+    const user = userEvent.setup();
+    const onVerseStepChange = vi.fn();
+    setup({ verseCount, verseStep: false, onVerseStepChange });
+    await user.click(screen.getByRole('button', { name: 'John' }));
+    const box = screen.getByRole('checkbox', { name: 'Also choose a verse' });
+    expect(box).not.toBeChecked();
+    await user.click(box);
+    expect(onVerseStepChange).toHaveBeenCalledWith(true);
+  });
+
+  it('shows no checkbox without a change handler or without verse counts', async () => {
+    const user = userEvent.setup();
+    setup({ verseCount });
+    await user.click(screen.getByRole('button', { name: 'John' }));
+    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+  });
+});

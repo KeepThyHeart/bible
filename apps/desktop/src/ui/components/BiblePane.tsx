@@ -180,7 +180,7 @@ const BiblePane: React.FC<BiblePaneProps> = (props) => {
     highlightRepository: highlights.highlightRepository,
     loadChapter,
     setShowBookPicker: bookPicker.setShowBookPicker,
-    clearSelectionMarks: highlights.clearSelectionMarks,
+    clearSelectionMarks: highlights.requestClearSelectionMarks,
   });
 
   // Restore first, then contentKey, then defaults - each step stands down when
@@ -285,7 +285,10 @@ const BiblePane: React.FC<BiblePaneProps> = (props) => {
           setContextMenu={verseContextMenu.setContextMenu}
           activeTab={activeTab}
           handleRemoveHighlight={highlights.handleRemoveHighlight}
-          clearMarksInVerses={highlights.clearMarksInVerses}
+          clearMarksInVerses={highlights.requestClearMarksInVerses}
+          pendingClear={highlights.pendingClear}
+          onConfirmClear={highlights.confirmPendingClear}
+          onCancelClear={highlights.cancelPendingClear}
           selectionHasMarkup={highlights.selectionHasMarkup}
           removeMarksInWordSelection={highlights.removeMarksInWordSelection}
           syncAllNotesPanelsWithVerse={verseHandlers.syncAllNotesPanelsWithVerse}

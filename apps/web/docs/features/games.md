@@ -23,7 +23,7 @@ strings and its routes.
 | Authored content (curated verses, prompt cards, generator facts) | `apps/web/server/modules/games/content-src/` |
 | Locale strings (app shell only) | `apps/web/src/locales/<lng>/games.json` |
 
-**Privacy.** Answer judging can use an external model (`BIBLE_GAMES_JUDGE_*`), but only when the site's `privacy.mode` is `relaxed`. Under `strict` (the default, also when the mode is unknown) the key is ignored and the local judge (`judge/localProvider.ts`: exact or near-spelling match, otherwise no suggestion) is used, so no answer text leaves the server. This is enforced server-side in `createJudgeProvider`. Nothing else in games makes an outbound request.
+**Privacy.** Answer judging can use an external model (`BIBLE_GAMES_JUDGE_*`), but only when the site's `privacy.mode` is `relaxed`. Under `strict` (the default, also when the mode is unknown) the key is ignored and the local judge (`server/modules/games/judge/localProvider.ts`: exact or near-spelling match, otherwise no suggestion) is used, so no answer text leaves the server. This is enforced server-side in `createJudgeProvider`. Nothing else in games makes an outbound request.
 
 ## How it fits the app
 

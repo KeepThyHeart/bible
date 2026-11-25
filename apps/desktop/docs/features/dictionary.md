@@ -11,7 +11,7 @@ Dictionary/lexicon pane for Strong's numbers and other reference lookups.
 Dictionaries are core to Bible study; study books are opened occasionally. The layout reflects that:
 
 - **Default layout.** `createDefaultLayout` opens `dictionary_default` as a tab in the right-hand group beside Study and Commentary. Books and Notes stay one click away via the "+" menu.
-- **Study Mode.** `presets/studyMode.ts` lists `dictionary` in both `autoOpen` and the group's `order`, so the study column reads Study -> Commentary -> Topics -> Dictionary -> Notes on every profile.
+- **Study Mode.** `src/ui/presets/studyMode.ts` lists `dictionary` in both `autoOpen` and the group's `order`, so the study column reads Study -> Commentary -> Topics -> Dictionary -> Notes on every profile.
 - **A Strong's-number click** goes through `revealDictionaryPanel`, which finds a `'dictionary'` panel and otherwise creates one, titled Dictionary. A Books pane is never used as a host: it lists no dictionary tabs, so a lexicon sent there would open as a tab nothing displays.
 
 A dictionary is *detached* as a Books window (`POP_OUT_PANE_TYPE`, `popOutModuleToWindow`), because `BookPane` is the component behind both; `electron/config/paneConfig.ts` has no `dictionary` entry and `COMPONENT_MAP` no `DictionaryPane`. What makes the new window a dictionary rather than an empty bookshelf is `paneKind: 'dictionary'` in the detach payload - `popOutModule.ts` and `DockviewTabRenderer` both set it, and `paneConfig.ts` reads it to title the window. See [sidebar-layout.md](sidebar-layout.md) -> Detached Windows.
@@ -30,7 +30,7 @@ What that means in practice:
 
 ## The toolbar
 
-`DictionaryPane`'s toolbar is built from `shared/PaneToolbar.tsx` - the Bible pane's shape: a full-height band of flush cells separated by 2px borders, with `overflow-hidden` so the row never spills out of a narrow pane.
+`DictionaryPane`'s toolbar is built from `src/ui/components/shared/PaneToolbar.tsx` - the Bible pane's shape: a full-height band of flush cells separated by 2px borders, with `overflow-hidden` so the row never spills out of a narrow pane.
 
 | Cell | Notes |
 |---|---|
@@ -103,7 +103,7 @@ Enter (or the "Look up" button) opens whichever match is highlighted. With no ma
 
 `DictionaryPane` unmounts on an ordinary tab switch, so its unmount cleanup calls `detachPanel` rather than deleting the panel's state; that keeps `openTabs`, `activeTabIndex` and `entriesByTab` across a switch and out of the persisted session as empty. The mechanism is documented in **[books.md](books.md) -> Panel lifecycle - detach vs. destroy**.
 
-A Strong's-number click also dispatches `bible:show-dictionary-pane` (`BookPane/showDictionaryPane.ts`) after opening the tab, because the Overview shelf covers the pane's content and a lookup arriving underneath it would be invisible; the event dismisses the shelf.
+A Strong's-number click also dispatches `bible:show-dictionary-pane` (`src/ui/components/BookPane/showDictionaryPane.ts`) after opening the tab, because the Overview shelf covers the pane's content and a lookup arriving underneath it would be invisible; the event dismisses the shelf.
 
 ## Rendering a definition: newlines are content
 
@@ -139,7 +139,7 @@ All four HTML sinks for a definition go through the shared helper. Two shapes, b
 
 The web pair must not use `dictionaryDefinitionToHtml`: `processCommentaryLinks` already HTML-escapes each text segment as it inserts anchors, so escaping again would double-encode. They take the decision on the *raw* definition - before any anchors exist, so the HTML fallback cannot see markup this code just generated - and apply only the break step afterwards. `newlinesToLineBreaks` keeps the newline after each `<br />` so that pass's line-context resolution still sees the lines.
 
-The Strong's surfaces (`study/InterlinearDisplay.tsx`, the web `StrongsPopup` and `StrongsTooltip`) parse a definition into fields and render them as text nodes, never as HTML, so they are unaffected - and the Strong's lexicons contain no newlines anyway.
+The Strong's surfaces (`src/ui/components/study/InterlinearDisplay.tsx`, the web `StrongsPopup` and `StrongsTooltip`) parse a definition into fields and render them as text nodes, never as HTML, so they are unaffected - and the Strong's lexicons contain no newlines anyway.
 
 ### Sanitisation
 
@@ -178,6 +178,6 @@ Two rules a module such as `Webster's Dictionary 1828` - registered but absent, 
 "Look up" asks every installed dictionary about a word or short phrase (at most four words) and shows the answers grouped by dictionary in the Dictionary pane.
 
 - **Where it starts:** the verse context menu's "Look up “word”" when a word is right-clicked (the Strong's number of a tagged word travels with it), and a magnifier button on the floating selection toolbar when the selection is a word or short phrase. There is deliberately no double-click handler: it fought drag selection (`useBibleSelection.ts`), and double-click already selects the word and raises that toolbar.
-- **Providers:** `LookUpProvider` in `@bible/core` (`Services/LookUp.ts`) is the interface; the desktop registry is `src/ui/lookUp/lookUpRegistry.ts` and only the dictionary provider is registered. A genealogy or word-study provider registers the same way and its groups simply appear beside the dictionaries'.
+- **Providers:** `LookUpProvider` in `@bible/core` (`packages/core/src/Services/LookUp.ts`) is the interface; the desktop registry is `src/ui/lookUp/lookUpRegistry.ts` and only the dictionary provider is registered. A genealogy or word-study provider registers the same way and its groups simply appear beside the dictionaries'.
 - **Data path:** `dictionary:lookUp` (IPC, `dictionaryHandlers.ts`) runs `searchDictionariesForWord` over every installed dictionary - `DictionaryRepository.searchEntries`, so the stemmed title tier applies ("walked" finds WALK) - and, for a tagged word, puts the Strong's entry first in the matching Greek or Hebrew lexicon. Empty dictionaries are dropped and the Strong's lexicon sorts first.
-- **UI:** `openLookUp()` (`components/bible/openLookUp.ts`) reveals the Dictionary pane and runs `useLookUpStore`; `components/dictionary/LookUpResults.tsx` renders at the top of the pane. Choosing an entry opens it in its dictionary and dismisses the list; Close dismisses it. A later look-up cannot be overwritten by a slower earlier one.
+- **UI:** `openLookUp()` (`src/ui/components/bible/openLookUp.ts`) reveals the Dictionary pane and runs `useLookUpStore`; `src/ui/components/dictionary/LookUpResults.tsx` renders at the top of the pane. Choosing an entry opens it in its dictionary and dismisses the list; Close dismisses it. A later look-up cannot be overwritten by a slower earlier one.

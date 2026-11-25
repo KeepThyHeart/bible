@@ -879,7 +879,8 @@
     "chapterOption": "{book} باب {chapter}",
     "selectAVerse": "یک آیه انتخاب کنید یا به کل باب بروید",
     "goToChapter": "رفتن به {book} {chapter}",
-    "verseOption": "{book} {chapter}:{verse}"
+    "verseOption": "{book} {chapter}:{verse}",
+    "alsoChooseVerse": "انتخاب آیه هم"
   },
   "helpDialog": {
     "esc": "Esc"

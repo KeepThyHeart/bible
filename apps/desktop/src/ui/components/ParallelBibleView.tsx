@@ -5,6 +5,7 @@ import React, { useRef, useEffect, useState } from 'react';
 import { useI18n } from '../contexts/useI18n';
 import { usePreferencesStore } from '../stores/usePreferencesStore';
 import { verseLabelText, verseGutterClass } from '../utils/verseLabel';
+import { useVerseLabelWidth } from '../hooks/useVerseLabelWidth';
 import { useBiblePanel } from '../stores/hooks/useBiblePanel';
 import { useCommentaryStore } from '../stores/useCommentaryStore';
 import { useNotesStore } from '../stores/useNotesStore';
@@ -66,6 +67,7 @@ const ParallelBibleView: React.FC<ParallelBibleViewProps> = ({ panelId }) => {
 
   const tableRef = useRef<HTMLTableElement>(null);
   const selectedVerseRef = useRef<HTMLTableRowElement>(null);
+  useVerseLabelWidth(tableRef, verseLabelMode);
 
   // Load verse data for all parallel versions
   useEffect(() => {
@@ -413,7 +415,7 @@ const ParallelBibleView: React.FC<ParallelBibleViewProps> = ({ panelId }) => {
                           */
                           <button
                             type="button"
-                            className={`flex-shrink-0 ${verseGutterClass(verseLabelMode, 'parallel')} text-end pe-2 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-accent`}
+                            className={`flex-shrink-0 ${verseGutterClass(verseLabelMode, 'parallel')} rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-accent`}
                             aria-label={t(
                               'biblePane.selectVerse',
                               { book: getBookName(verse.book_number), chapter: verse.chapter, verse: verse.verse, },
@@ -422,7 +424,7 @@ const ParallelBibleView: React.FC<ParallelBibleViewProps> = ({ panelId }) => {
                             {/* <bdi> rather than a bare <span>: a bare numeral is
                                 weak-directional and would otherwise be reordered
                                 out of its column in RTL scripture. */}
-                            <bdi aria-hidden="true" className="font-bold text-accent">
+                            <bdi aria-hidden="true" data-verse-label="" className="font-bold text-accent">
                               {verseLabelText(verseLabelMode, { book: verse.book_number, chapter: verse.chapter, verse: verse.verse }, localizer)}
                             </bdi>
                           </button>

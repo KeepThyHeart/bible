@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildPassagePrintDocument, textToPrintBody } from './passagePrintDocument';
+import { buildPassagePrintDocument, passageFileName, textToPrintBody } from './passagePrintDocument';
 
 describe('buildPassagePrintDocument', () => {
   it('carries a CSP, forces black text and strips scripts from the body', () => {
@@ -19,5 +19,24 @@ describe('buildPassagePrintDocument', () => {
 
   it('turns plain text into paragraphs and line breaks', () => {
     expect(textToPrintBody('a\nb\n\nc & d')).toBe('<p>a<br>b</p><p>c &amp; d</p>');
+  });
+});
+
+describe('passageFileName', () => {
+  it('turns a reference into a file name', () => {
+    expect(passageFileName('John 3:16', 'KJV')).toBe('John 3-16 KJV');
+    expect(passageFileName('John 3:16-18', 'KJV')).toBe('John 3-16-18 KJV');
+    expect(passageFileName('1 Cor 13:4–7', 'ESV')).toBe('1 Cor 13-4–7 ESV');
+  });
+
+  it('drops characters a file system rejects and never comes back empty', () => {
+    expect(passageFileName('A/B?<x>', 'K*J')).toBe('ABx KJ');
+    expect(passageFileName('', '')).toBe('Passage');
+  });
+
+  it('uses the file name as the document title when given', () => {
+    const html = buildPassagePrintDocument('John 3:16 (KJV)', '<p>x</p>', 'ltr', 'John 3-16 KJV');
+    expect(html).toContain('<title>John 3-16 KJV</title>');
+    expect(html).toContain('<h1>John 3:16 (KJV)</h1>');
   });
 });

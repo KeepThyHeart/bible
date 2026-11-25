@@ -64,10 +64,12 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          # e.g. "KeepThyHeart Bible Desktop v1.0.0-beta.2"
+          title="KeepThyHeart Bible Desktop $GITHUB_REF_NAME"
           if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
             echo "Release $GITHUB_REF_NAME already exists; the build jobs upload into it."
           else
-            gh release create "$GITHUB_REF_NAME" --draft --verify-tag --title "$GITHUB_REF_NAME" --generate-notes
+            gh release create "$GITHUB_REF_NAME" --draft --verify-tag --title "$title" --generate-notes
           fi
 
   build:

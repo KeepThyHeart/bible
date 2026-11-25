@@ -5,6 +5,7 @@ import { useBiblePanel } from '../../stores/hooks/useBiblePanel';
 import { useI18n } from '../../contexts/useI18n';
 import { usePreferencesStore } from '../../stores/usePreferencesStore';
 import { verseLabelText, verseGutterClass } from '../../utils/verseLabel';
+import { useVerseLabelWidth } from '../../hooks/useVerseLabelWidth';
 import BibleHeader from '../BibleHeader';
 import StudyControls from './StudyControls';
 import FootnoteDisplay from './FootnoteDisplay';
@@ -261,6 +262,7 @@ const StudyModeView: React.FC<StudyModeViewProps> = ({
   // navigation and cannot fight a user who scrolled away on their own.
   /** This view's own subtree, so a verse lookup cannot reach another pane. */
   const rootRef = useRef<HTMLDivElement>(null);
+  useVerseLabelWidth(rootRef, verseLabelMode);
   const reflowedScrollTriggerRef = useRef<number | null>(null);
   useEffect(() => {
     if (scrollMode !== 'center') return;
@@ -416,11 +418,13 @@ const StudyModeView: React.FC<StudyModeViewProps> = ({
                          target, and a second highlighted affordance on the
                          number implied it did something different. The handler
                          and the pointer cursor stay - it is still a way in. */
-                      className={`flex-shrink-0 ${verseGutterClass(verseLabelMode, 'study')} text-end pe-2 cursor-pointer rounded text-lg font-bold text-text-secondary bidi-isolate`}
+                      className={`flex-shrink-0 ${verseGutterClass(verseLabelMode, 'study')} cursor-pointer rounded text-lg font-bold text-text-secondary bidi-isolate`}
                       onMouseDown={handleVerseMouseDown}
                       onClick={(e) => onVerseClick(verse.verse_id, e.shiftKey)}
                     >
-                      {verseLabelText(verseLabelMode, { book: verse.book_number, chapter: verse.chapter, verse: verse.verse }, localizer)}
+                      <span data-verse-label="">
+                        {verseLabelText(verseLabelMode, { book: verse.book_number, chapter: verse.chapter, verse: verse.verse }, localizer)}
+                      </span>
                     </span>
                   )}
 

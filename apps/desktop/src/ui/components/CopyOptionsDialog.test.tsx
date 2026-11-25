@@ -90,7 +90,11 @@ vi.mock('../services/verseCopyService', async (importOriginal) => {
 });
 
 const printDocument = vi.fn();
-vi.mock('../services/fileNotesAPI', () => ({ printDocument: (html: string) => printDocument(html) }));
+const exportDocumentPdf = vi.fn();
+vi.mock('../services/fileNotesAPI', () => ({
+  printDocument: (html: string) => printDocument(html),
+  exportDocumentPdf: (html: string, name: string) => exportDocumentPdf(html, name),
+}));
 
 function createMockServices(): AppServices {
   return {
@@ -678,5 +682,51 @@ describe('CopyOptionsDialog: printing', () => {
     expect(screen.getByRole('heading', { name: 'Print Passage' })).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: /^Print/ }));
     expect(printDocument).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('CopyOptionsDialog: the Print dialog', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    printDocument.mockReset();
+    printDocument.mockResolvedValue({ success: true });
+    exportDocumentPdf.mockReset();
+    exportDocumentPdf.mockResolvedValue({ success: true });
+  });
+
+  function openPrint() {
+    return renderWithProviders(<CopyOptionsDialog verses={mockVerses} context={mockContext} onClose={vi.fn()} printFirst />);
+  }
+
+  it('opens on Numbered, whatever Copy last used', () => {
+    localStorage.setItem('bible-desktop-last-copy-format', 'inline-quote');
+    openPrint();
+    expect(format('Numbered').checked).toBe(true);
+  });
+
+  it('remembers the format chosen for printing, apart from Copy', async () => {
+    const user = userEvent.setup();
+    const { unmount } = openPrint();
+    await user.click(format('Verse headings'));
+    unmount();
+    openPrint();
+    expect(format('Verse headings').checked).toBe(true);
+    expect(localStorage.getItem('bible-desktop-last-copy-format')).not.toBe('heading-per-verse');
+  });
+
+  it('Save as PDF suggests a file name built from the passage', async () => {
+    const user = userEvent.setup();
+    openPrint();
+    await user.click(screen.getByTestId('passage-dialog-save-pdf'));
+    expect(exportDocumentPdf).toHaveBeenCalledTimes(1);
+    const [html, name] = exportDocumentPdf.mock.calls[0] as [string, string];
+    expect(name).not.toMatch(/[:/\\]/);
+    expect(name).toMatch(/^John 3-16/);
+    expect(html).toContain(`<title>${name}</title>`);
+  });
+
+  it('the Copy dialog has no Save as PDF button', () => {
+    openDialog(mockVerses);
+    expect(screen.queryByTestId('passage-dialog-save-pdf')).not.toBeInTheDocument();
   });
 });

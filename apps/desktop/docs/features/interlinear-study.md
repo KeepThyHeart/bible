@@ -87,7 +87,7 @@ Study mode view with interlinear Greek/Hebrew display, cross-references, footnot
 
 ## Interlinear defaults
 
-`showInterlinear` is seeded on for a passage in Study mode. `DEFAULT_DISPLAY_MODE` is `standard`, so a passage is born standard and switched with the toolbar's display-mode dropdown; `tabOptionsSlice.setDisplayMode` therefore seeds the study defaults when the passage has no recorded preference, and `tabSlice.openBible` does the same for a tab created in Study mode. See [Bible Pane -> chapter toggles](bible-pane.md) for the tri-state `tab.showInterlinear` this depends on. Pinned by `stores/__tests__/useBibleStore.studyInterlinearDefault.test.ts` (switching in seeds it; a preference the reader set is never overridden; a restored passage that never recorded one still gets the default) and by the tri-state case in `stores/__tests__/sessionMigration.test.ts`.
+`showInterlinear` is seeded on for a passage in Study mode. `DEFAULT_DISPLAY_MODE` is `standard`, so a passage is born standard and switched with the toolbar's display-mode dropdown; `tabOptionsSlice.setDisplayMode` therefore seeds the study defaults when the passage has no recorded preference, and `tabSlice.openBible` does the same for a tab created in Study mode. See [Bible Pane -> chapter toggles](bible-pane.md) for the tri-state `tab.showInterlinear` this depends on. Pinned by `src/ui/stores/__tests__/useBibleStore.studyInterlinearDefault.test.ts` (switching in seeds it; a preference the reader set is never overridden; a restored passage that never recorded one still gets the default) and by the tri-state case in `src/ui/stores/__tests__/sessionMigration.test.ts`.
 
 The chapter-top `StudyControls` strip is the only surface for the switch; the Bible toolbar carries no duplicate.
 
@@ -142,7 +142,7 @@ An externally generated cache is treated as a **seed**: the schema migration add
 
 Module type is inferred from the filename prefix, and a cross-reference source such as TSK exists as two files: `commentary_tsk.db` (the SWORD import's input) and `xref_tsk.db` (its output, and what the app queries). Registering both would give one body of references three renderings under a single verse, one of them inside `Commentaries:`, where clicking it opens a raw import the user was never meant to browse.
 
-The rule, in `@bible/core`'s `Services/ModuleRegistrationPolicy.ts` and stated over filenames rather than over any particular module's name:
+The rule, in `@bible/core`'s `packages/core/src/Services/ModuleRegistrationPolicy.ts` and stated over filenames rather than over any particular module's name:
 
 > **A `commentary_<slug>.db` is not registered when an `xref_<slug>.db` is installed alongside it.**
 

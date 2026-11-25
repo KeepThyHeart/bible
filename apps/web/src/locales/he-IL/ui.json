@@ -879,7 +879,8 @@
     "chapterOption": "{book} פרק {chapter}",
     "selectAVerse": "בחרו פסוק, או עברו לפרק כולו",
     "goToChapter": "מעבר ל{book} {chapter}",
-    "verseOption": "{book} {chapter}:{verse}"
+    "verseOption": "{book} {chapter}:{verse}",
+    "alsoChooseVerse": "לבחור גם פסוק"
   },
   "helpDialog": {
     "esc": "Esc"

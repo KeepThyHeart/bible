@@ -4,7 +4,7 @@
 
 ## Where the app code lives
 
-Word study is a feature module (id `word-study`, task 0126; see `features/feature-modules-migration.md`). Each app keeps its half in one folder, with a manifest and a lazy binding:
+Word study is a feature module (id `word-study`, task 0126; see `docs/features/feature-modules-migration.md`). Each app keeps its half in one folder, with a manifest and a lazy binding:
 
 | Half | Folder |
 |---|---|
@@ -30,15 +30,15 @@ Word studies are **not limited to Greek/Hebrew**. A `WordGroup` is a user-define
 
 | File | Purpose |
 |---|---|
-| `Text/tokenize.ts`, `Text/normalize.ts` | `tokenizeVerseWords` (whitespace index space, same as highlights/interlinear), `foldWord` (NFD, strips accents, Hebrew points; final sigma), `foldLemma` |
-| `WordStudy/stemmers.ts` | `porterStem` (English, plus archaic `-eth`), light suffix stemmers for es/pt/fr/it/de/nl, `getStemmer(lang)`, `registerStemmer(lang, fn)` |
-| `WordStudy/wordGroup.ts` | `WordGroup`, `compileWordGroup(group, language)` -> `matchText(text)`, `normalizeWordGroup`, `groupFromQuery`, `countForms` |
-| `WordStudy/strongsDefinition.ts` | `parseStrongsDefinition` - the one parser for CrossWire Strong's definitions (header, sense, KJV list, from/see/compare) |
-| `WordStudy/renderings.ts` | `normalizeRendering`, `groupRenderings` (head or phrase mode; head folds inflections through the stemmer), `glossMatchesRendering` |
-| `WordStudy/types.ts` | DTOs (`WordStudyOverview`, `WordOccurrencePage`, ...), `IWordStudyProvider`, `ISemanticRangeSource` |
-| `Services/WordStudyService.ts` | `resolve`, `getOverview`, `getOccurrences`; `StrongsSenseSource` |
-| `Services/WordGroupStore.ts` | Saved groups in the core user-data store (owner `app:word-study`, collection `groups`) so they back up and sync like other user data. Desktop only. The web app is read-only for groups (policy 2026-09-29, until web accounts, task 0063): ad-hoc groups typed in the lookup box are studied but nothing is saved, and there is no notes field. The model stays in core so web saving can return once accounts exist |
-| `Data/Repositories/BibleRepository.ts` | `countStrongs`, `countStrongsByBook`, `getStrongsGlossCounts`, `getStrongsMorphCounts`, `getStrongsHits` |
+| `src/Text/tokenize.ts`, `src/Text/normalize.ts` | `tokenizeVerseWords` (whitespace index space, same as highlights/interlinear), `foldWord` (NFD, strips accents, Hebrew points; final sigma), `foldLemma` |
+| `src/Text/stemmers.ts` | `porterStem` (English, plus archaic `-eth`), light suffix stemmers for es/pt/fr/it/de/nl, `getStemmer(lang)`, `registerStemmer(lang, fn)` |
+| `src/WordStudy/wordGroup.ts` | `WordGroup`, `compileWordGroup(group, language)` -> `matchText(text)`, `normalizeWordGroup`, `groupFromQuery`, `countForms` |
+| `src/WordStudy/strongsDefinition.ts` | `parseStrongsDefinition` - the one parser for CrossWire Strong's definitions (header, sense, KJV list, from/see/compare) |
+| `src/WordStudy/renderings.ts` | `normalizeRendering`, `groupRenderings` (head or phrase mode; head folds inflections through the stemmer), `glossMatchesRendering` |
+| `src/WordStudy/types.ts` | DTOs (`WordStudyOverview`, `WordOccurrencePage`, ...), `IWordStudyProvider`, `ISemanticRangeSource` |
+| `src/Services/WordStudyService.ts` | `resolve`, `getOverview`, `getOccurrences`; `StrongsSenseSource` |
+| `src/Services/WordGroupStore.ts` | Saved groups in the core user-data store (owner `app:word-study`, collection `groups`) so they back up and sync like other user data. Desktop only. The web app is read-only for groups (policy 2026-09-29, until web accounts, task 0063): ad-hoc groups typed in the lookup box are studied but nothing is saved, and there is no notes field. The model stays in core so web saving can return once accounts exist |
+| `src/Data/Repositories/BibleRepository.ts` | `countStrongs`, `countStrongsByBook`, `getStrongsGlossCounts`, `getStrongsMorphCounts`, `getStrongsHits` |
 
 ## Word group syntax
 
