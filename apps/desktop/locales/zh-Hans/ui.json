@@ -2538,5 +2538,17 @@
   "lookUp.resultsLabel": "“{word}”的查词结果",
   "lookUp.close": "关闭",
   "lookUp.searching": "正在搜索词典…",
-  "lookUp.noResults": "没有词典收录“{word}”。"
+  "lookUp.noResults": "没有词典收录“{word}”。",
+  "preferencesDialog.privacyHistoryHeading": "搜索和阅读历史",
+  "preferencesDialog.privacyHistoryIntro": "默认情况下，搜索和阅读历史仅保留到应用关闭为止，不会保存任何相关内容。",
+  "preferencesDialog.reopenSearchTabsLabel": "启动时重新打开搜索标签页",
+  "preferencesDialog.reopenSearchTabsDescription": "保存已打开的搜索标签页，并在下次启动应用时重新运行。",
+  "preferencesDialog.rememberReadingHistoryLabel": "在多次会话之间记住阅读历史",
+  "preferencesDialog.rememberReadingHistoryDescription": "应用关闭后保留每个窗格的历史列表和“后退”按钮。",
+  "preferencesDialog.clearHistoryButton": "清除历史记录…",
+  "preferencesDialog.clearHistoryConfirmTitle": "清除搜索和阅读历史？",
+  "preferencesDialog.clearHistoryConfirmBody": "将关闭所有搜索标签页，并清空每个窗格的历史列表和“后退”按钮。笔记、高亮、书签和读经计划进度不会更改。",
+  "preferencesDialog.clearHistoryConfirmButton": "清除历史记录",
+  "preferencesDialog.clearHistoryCancel": "取消",
+  "preferencesDialog.clearHistoryDone": "历史记录已清除。"
 }

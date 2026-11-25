@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { createPanelSlice } from '../helpers/createPanelSlice';
 import { DEFAULT_PANEL_ID } from '../helpers/panelStateHelpers';
 import { whenContextService } from '../../services/WhenContextService';
+import { getPrivacyPrefs } from '../helpers/privacyPrefs';
 import { registerSessionSerializer } from '../helpers/sessionRegistry';
 import { bibleStateChanged } from '../../modules/host/readerHooks';
 
@@ -96,7 +97,7 @@ useBibleStore.subscribe(bibleStateChanged);
  * The panel-level `current*` fields are the source of truth while the pane is
  * open; the tab only catches up when it is serialized.
  */
-function serializePanel(ps: BiblePanelState): BiblePanelSession | undefined {
+function serializePanel(ps: BiblePanelState, keepHistory: boolean): BiblePanelSession | undefined {
   const tab = ps.openTabs[ps.activeTabIndex] ?? ps.openTabs[0];
   if (!tab) return undefined;
   return {
@@ -106,14 +107,16 @@ function serializePanel(ps: BiblePanelState): BiblePanelSession | undefined {
       chapter: ps.currentChapter,
       bookName: ps.currentBookName,
       selectedVerseId: ps.selectedVerseId,
-      history: ps.navigationHistory,
-      historyIndex: ps.historyIndex,
+      // Reading history is session-only unless the reader opted in (task 0224):
+      // an empty list restores as a single entry for the current passage.
+      history: keepHistory ? ps.navigationHistory : [],
+      historyIndex: keepHistory ? ps.historyIndex : -1,
     },
     isParallelViewMode: ps.isParallelViewMode,
     parallelVersions: ps.parallelVersions,
     // Additive and optional - an older build reading this simply ignores it,
     // and a session written by an older build restores with an empty stack.
-    visitStack: ps.visitStack,
+    ...(keepHistory ? { visitStack: ps.visitStack } : {}),
   };
 }
 
@@ -126,14 +129,15 @@ function serializePanel(ps: BiblePanelState): BiblePanelSession | undefined {
 registerSessionSerializer('bible', () => {
   const bibleState = useBibleStore.getState();
 
+  const keepHistory = getPrivacyPrefs().rememberReadingHistory;
   const panels: Record<string, BiblePanelSession> = {};
   for (const [panelId, ps] of bibleState.panels.entries()) {
-    const serialized = serializePanel(ps);
+    const serialized = serializePanel(ps, keepHistory);
     if (serialized) panels[panelId] = serialized;
   }
 
   const primary = bibleState.panels.values().next().value;
-  const primaryTab = primary ? serializePanel(primary)?.tab : undefined;
+  const primaryTab = primary ? serializePanel(primary, keepHistory)?.tab : undefined;
 
   const data: BibleSessionData = {
     version: BIBLE_SESSION_VERSION,

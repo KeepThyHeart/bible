@@ -3,6 +3,10 @@ import userEvent from '@testing-library/user-event';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { PrivacySection } from './PrivacySection';
 import { useNetworkStore } from '../../stores/useNetworkStore';
+import { usePreferencesStore } from '../../stores/usePreferencesStore';
+
+const clearHistory = vi.fn();
+vi.mock('../../services/clearHistory', () => ({ clearHistory: () => clearHistory() }));
 
 /**
  * The one property that matters here: this checkbox never lies about the
@@ -93,11 +97,43 @@ describe('PrivacySection', () => {
     expect(box).not.toBeDisabled();
     expect(box).toHaveFocus();
     expect(box).toHaveAttribute('aria-busy', 'true');
-    expect(screen.getByRole('status')).toHaveTextContent(/confirmation/i);
+    expect(screen.getByTestId('privacy-allow-web-requests-status')).toHaveTextContent(/confirmation/i);
 
     resolve({ ok: true, value: false });
     await waitFor(() => expect(box).toHaveAttribute('aria-busy', 'false'));
     expect(box).toHaveFocus();
-    expect(screen.getByRole('status')).toHaveTextContent('');
+    expect(screen.getByTestId('privacy-allow-web-requests-status')).toHaveTextContent('');
+  });
+});
+
+describe('PrivacySection: history (task 0224)', () => {
+  beforeEach(() => {
+    clearHistory.mockReset();
+    usePreferencesStore.setState({ reopenSearchTabs: false, rememberReadingHistory: false });
+  });
+
+  it('both history switches start unchecked and toggle the preferences', async () => {
+    render(<PrivacySection />);
+    const search = screen.getByTestId('privacy-reopen-search-tabs');
+    const reading = screen.getByTestId('privacy-remember-reading-history');
+    expect(search).not.toBeChecked();
+    expect(reading).not.toBeChecked();
+    await userEvent.click(search);
+    await userEvent.click(reading);
+    expect(usePreferencesStore.getState().reopenSearchTabs).toBe(true);
+    expect(usePreferencesStore.getState().rememberReadingHistory).toBe(true);
+  });
+
+  it('Clear history asks first, and only clears after confirming', async () => {
+    render(<PrivacySection />);
+    await userEvent.click(screen.getByTestId('privacy-clear-history'));
+    expect(clearHistory).not.toHaveBeenCalled();
+    expect(screen.getByTestId('privacy-clear-history-confirm')).toHaveTextContent('preferencesDialog.clearHistoryConfirmBody');
+    await userEvent.click(screen.getByTestId('privacy-clear-history-cancel'));
+    expect(clearHistory).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByTestId('privacy-clear-history'));
+    await userEvent.click(screen.getByTestId('privacy-clear-history-confirm-button'));
+    expect(clearHistory).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId('privacy-clear-history-status')).toHaveTextContent('preferencesDialog.clearHistoryDone');
   });
 });

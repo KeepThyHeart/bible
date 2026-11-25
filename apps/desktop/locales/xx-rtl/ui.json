@@ -2521,5 +2521,17 @@
   "lookUp.resultsLabel": "‏Look up results for {word}‏",
   "lookUp.close": "‏Close‏",
   "lookUp.searching": "‏Searching dictionaries…‏",
-  "lookUp.noResults": "‏No dictionary has an entry for “{word}”.‏"
+  "lookUp.noResults": "‏No dictionary has an entry for “{word}”.‏",
+  "preferencesDialog.privacyHistoryHeading": "‏Search and reading history‏",
+  "preferencesDialog.privacyHistoryIntro": "‏By default, searches and reading history last only until the app is closed. Nothing about them is saved.‏",
+  "preferencesDialog.reopenSearchTabsLabel": "‏Reopen search tabs on startup‏",
+  "preferencesDialog.reopenSearchTabsDescription": "‏Save open search tabs and run them again the next time the app starts.‏",
+  "preferencesDialog.rememberReadingHistoryLabel": "‏Remember reading history between sessions‏",
+  "preferencesDialog.rememberReadingHistoryDescription": "‏Keep each pane’s history list and Back button after the app is closed.‏",
+  "preferencesDialog.clearHistoryButton": "‏Clear history…‏",
+  "preferencesDialog.clearHistoryConfirmTitle": "‏Clear search and reading history?‏",
+  "preferencesDialog.clearHistoryConfirmBody": "‏Closes all search tabs and empties the history list and Back button of every pane. Notes, highlights, bookmarks and reading plan progress are not changed.‏",
+  "preferencesDialog.clearHistoryConfirmButton": "‏Clear history‏",
+  "preferencesDialog.clearHistoryCancel": "‏Cancel‏",
+  "preferencesDialog.clearHistoryDone": "‏History cleared.‏"
 }

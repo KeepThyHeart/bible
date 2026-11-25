@@ -2536,5 +2536,17 @@
   "lookUp.resultsLabel": "{word} के खोज परिणाम",
   "lookUp.close": "बंद करें",
   "lookUp.searching": "शब्दकोशों में खोज रहे हैं…",
-  "lookUp.noResults": "किसी शब्दकोश में “{word}” की प्रविष्टि नहीं है।"
+  "lookUp.noResults": "किसी शब्दकोश में “{word}” की प्रविष्टि नहीं है।",
+  "preferencesDialog.privacyHistoryHeading": "खोज और पढ़ने का इतिहास",
+  "preferencesDialog.privacyHistoryIntro": "डिफ़ॉल्ट रूप से, खोज और पढ़ने का इतिहास केवल ऐप बंद होने तक रहता है। इनके बारे में कुछ भी सहेजा नहीं जाता।",
+  "preferencesDialog.reopenSearchTabsLabel": "शुरू होने पर खोज टैब फिर से खोलें",
+  "preferencesDialog.reopenSearchTabsDescription": "खुले खोज टैब सहेजें और ऐप अगली बार शुरू होने पर उन्हें फिर से चलाएँ।",
+  "preferencesDialog.rememberReadingHistoryLabel": "सत्रों के बीच पढ़ने का इतिहास याद रखें",
+  "preferencesDialog.rememberReadingHistoryDescription": "ऐप बंद होने के बाद हर पैन की इतिहास सूची और पीछे बटन रखें।",
+  "preferencesDialog.clearHistoryButton": "इतिहास साफ़ करें…",
+  "preferencesDialog.clearHistoryConfirmTitle": "खोज और पढ़ने का इतिहास साफ़ करें?",
+  "preferencesDialog.clearHistoryConfirmBody": "सभी खोज टैब बंद करता है और हर पैन की इतिहास सूची और पीछे बटन खाली करता है। नोट्स, हाइलाइट, बुकमार्क और पठन योजना की प्रगति नहीं बदलती।",
+  "preferencesDialog.clearHistoryConfirmButton": "इतिहास साफ़ करें",
+  "preferencesDialog.clearHistoryCancel": "रद्द करें",
+  "preferencesDialog.clearHistoryDone": "इतिहास साफ़ हो गया।"
 }

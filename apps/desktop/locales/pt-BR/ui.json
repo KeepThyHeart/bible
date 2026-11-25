@@ -2536,5 +2536,17 @@
   "lookUp.resultsLabel": "Resultados da consulta de {word}",
   "lookUp.close": "Fechar",
   "lookUp.searching": "Pesquisando nos dicionários…",
-  "lookUp.noResults": "Nenhum dicionário tem um verbete para “{word}”."
+  "lookUp.noResults": "Nenhum dicionário tem um verbete para “{word}”.",
+  "preferencesDialog.privacyHistoryHeading": "Histórico de pesquisa e leitura",
+  "preferencesDialog.privacyHistoryIntro": "Por padrão, as pesquisas e o histórico de leitura duram apenas até o aplicativo ser fechado. Nada sobre eles é salvo.",
+  "preferencesDialog.reopenSearchTabsLabel": "Reabrir abas de pesquisa ao iniciar",
+  "preferencesDialog.reopenSearchTabsDescription": "Salvar as abas de pesquisa abertas e executá-las novamente na próxima vez que o aplicativo iniciar.",
+  "preferencesDialog.rememberReadingHistoryLabel": "Lembrar o histórico de leitura entre sessões",
+  "preferencesDialog.rememberReadingHistoryDescription": "Manter a lista de histórico e o botão Voltar de cada painel depois que o aplicativo for fechado.",
+  "preferencesDialog.clearHistoryButton": "Limpar histórico…",
+  "preferencesDialog.clearHistoryConfirmTitle": "Limpar o histórico de pesquisa e leitura?",
+  "preferencesDialog.clearHistoryConfirmBody": "Fecha todas as abas de pesquisa e esvazia a lista de histórico e o botão Voltar de cada painel. Notas, destaques, marcadores e o progresso dos planos de leitura não são alterados.",
+  "preferencesDialog.clearHistoryConfirmButton": "Limpar histórico",
+  "preferencesDialog.clearHistoryCancel": "Cancelar",
+  "preferencesDialog.clearHistoryDone": "Histórico limpo."
 }

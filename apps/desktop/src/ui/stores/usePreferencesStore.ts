@@ -111,6 +111,7 @@ export const AVAILABLE_THEMES: ThemeOption[] = THEME_TOKENS.map((token) => ({
 
 import { markSessionDirty } from './helpers/sessionNotifier';
 import { registerSessionSerializer } from './helpers/sessionRegistry';
+import { registerPrivacyPrefsReader } from './helpers/privacyPrefs';
 
 /**
  * Fine-grained typography preferences (Bible / Study / UI).
@@ -190,6 +191,14 @@ interface PreferencesState {
    */
   searchResultsPlacement: SearchResultsPlacement;
 
+  /**
+   * Privacy (task 0224). Off by default: search tabs (queries) and each Bible
+   * pane's history / Back stack last only for the session, and are never
+   * written to the saved session. On = they are saved and come back.
+   */
+  reopenSearchTabs: boolean;
+  rememberReadingHistory: boolean;
+
   /** Hour (0-12) at which a new reading-plan day begins (task 0073). */
   readingPlanRolloverHour: number;
   /** Show reading streaks in reading plans (task 0073). */
@@ -211,6 +220,8 @@ interface PreferencesState {
   setUiControlFontSize: (size: number) => void;
   setAdvancedPaneManagerEnabled: (enabled: boolean) => void;
   setSearchResultsPlacement: (placement: SearchResultsPlacement) => void;
+  setReopenSearchTabs: (on: boolean) => void;
+  setRememberReadingHistory: (on: boolean) => void;
   setReadingPlanRolloverHour: (hour: number) => void;
   setReadingPlanShowStreak: (show: boolean) => void;
   setAppSwitcher: (mode: AppSwitcherMode) => void;
@@ -233,6 +244,8 @@ interface PreferencesState {
     typography?: Partial<TypographyPrefs>;
     advancedPaneManagerEnabled?: boolean;
     searchResultsPlacement?: unknown;
+    reopenSearchTabs?: unknown;
+    rememberReadingHistory?: unknown;
     readingPlanRolloverHour?: number;
     readingPlanShowStreak?: boolean;
     appSwitcher?: unknown;
@@ -247,6 +260,8 @@ interface PreferencesState {
     typography: TypographyPrefs;
     advancedPaneManagerEnabled: boolean;
     searchResultsPlacement: SearchResultsPlacement;
+    reopenSearchTabs: boolean;
+    rememberReadingHistory: boolean;
     readingPlanRolloverHour: number;
     readingPlanShowStreak: boolean;
     appSwitcher: AppSwitcherMode;
@@ -464,6 +479,8 @@ export const usePreferencesStore = create<PreferencesState>((set, get) => ({
   typography: { ...DEFAULT_TYPOGRAPHY },
   advancedPaneManagerEnabled: false,
   searchResultsPlacement: 'below',
+  reopenSearchTabs: false,
+  rememberReadingHistory: false,
   readingPlanRolloverHour: 3,
   readingPlanShowStreak: false,
   appSwitcher: 'auto',
@@ -497,6 +514,16 @@ export const usePreferencesStore = create<PreferencesState>((set, get) => ({
 
   setSearchResultsPlacement: (placement: SearchResultsPlacement) => {
     set({ searchResultsPlacement: sanitizeSearchResultsPlacement(placement) });
+    markSessionDirty();
+  },
+
+  setReopenSearchTabs: (on: boolean) => {
+    set({ reopenSearchTabs: on === true });
+    markSessionDirty();
+  },
+
+  setRememberReadingHistory: (on: boolean) => {
+    set({ rememberReadingHistory: on === true });
     markSessionDirty();
   },
 
@@ -592,6 +619,9 @@ export const usePreferencesStore = create<PreferencesState>((set, get) => ({
     const readingPlanShowStreak = typeof data.readingPlanShowStreak === 'boolean' ? data.readingPlanShowStreak : false;
 
     const searchResultsPlacement = sanitizeSearchResultsPlacement(data.searchResultsPlacement);
+    // Absent (every session written before 0224) means the private default: off.
+    const reopenSearchTabs = data.reopenSearchTabs === true;
+    const rememberReadingHistory = data.rememberReadingHistory === true;
     const appSwitcher = sanitizeAppSwitcher(data.appSwitcher);
     const scrollbarSize = sanitizeScrollbarSize(data.scrollbarSize);
     const appOrder = sanitizeIdList(data.appOrder);
@@ -599,7 +629,8 @@ export const usePreferencesStore = create<PreferencesState>((set, get) => ({
 
     set({
       theme, globalFontScale, uiControlFontSize, typography, advancedPaneManagerEnabled,
-      searchResultsPlacement, readingPlanRolloverHour, readingPlanShowStreak, appSwitcher, scrollbarSize, appOrder, appHidden,
+      searchResultsPlacement, reopenSearchTabs, rememberReadingHistory,
+      readingPlanRolloverHour, readingPlanShowStreak, appSwitcher, scrollbarSize, appOrder, appHidden,
     });
     applyThemeToDOM(theme);
     notifyMainOfTheme(theme);
@@ -612,11 +643,13 @@ export const usePreferencesStore = create<PreferencesState>((set, get) => ({
   getSessionData: () => {
     const {
       theme, globalFontScale, uiControlFontSize, typography, advancedPaneManagerEnabled,
-      searchResultsPlacement, readingPlanRolloverHour, readingPlanShowStreak, appSwitcher, scrollbarSize, appOrder, appHidden,
+      searchResultsPlacement, reopenSearchTabs, rememberReadingHistory,
+      readingPlanRolloverHour, readingPlanShowStreak, appSwitcher, scrollbarSize, appOrder, appHidden,
     } = get();
     return {
       theme, globalFontScale, uiControlFontSize, typography, advancedPaneManagerEnabled,
-      searchResultsPlacement, readingPlanRolloverHour, readingPlanShowStreak, appSwitcher, scrollbarSize, appOrder, appHidden,
+      searchResultsPlacement, reopenSearchTabs, rememberReadingHistory,
+      readingPlanRolloverHour, readingPlanShowStreak, appSwitcher, scrollbarSize, appOrder, appHidden,
     };
   }
 }));
@@ -636,6 +669,10 @@ usePreferencesStore.subscribe(preferencesChanged);
 // NOT symmetric via the registry - AppInitService calls loadFromSession()
 // directly and early, alongside useTextSettingsStore's, since registered
 // "restorers" in sessionRegistry.ts are dead infrastructure nothing reads.
+registerPrivacyPrefsReader(() => {
+  const { reopenSearchTabs, rememberReadingHistory } = usePreferencesStore.getState();
+  return { reopenSearchTabs, rememberReadingHistory };
+});
 registerSessionSerializer('preferences', () => usePreferencesStore.getState().getSessionData());
 
 // Sync useTextSettingsStore's non-customized panes to the initial typography

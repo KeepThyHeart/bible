@@ -2536,5 +2536,17 @@
   "lookUp.resultsLabel": "Результаты поиска: {word}",
   "lookUp.close": "Закрыть",
   "lookUp.searching": "Поиск по словарям…",
-  "lookUp.noResults": "Ни в одном словаре нет статьи «{word}»."
+  "lookUp.noResults": "Ни в одном словаре нет статьи «{word}».",
+  "preferencesDialog.privacyHistoryHeading": "История поиска и чтения",
+  "preferencesDialog.privacyHistoryIntro": "По умолчанию поиски и история чтения хранятся только до закрытия приложения. Ничего из этого не сохраняется.",
+  "preferencesDialog.reopenSearchTabsLabel": "Открывать вкладки поиска при запуске",
+  "preferencesDialog.reopenSearchTabsDescription": "Сохранять открытые вкладки поиска и снова выполнять их при следующем запуске приложения.",
+  "preferencesDialog.rememberReadingHistoryLabel": "Помнить историю чтения между сеансами",
+  "preferencesDialog.rememberReadingHistoryDescription": "Сохранять список истории и кнопку «Назад» каждой панели после закрытия приложения.",
+  "preferencesDialog.clearHistoryButton": "Очистить историю…",
+  "preferencesDialog.clearHistoryConfirmTitle": "Очистить историю поиска и чтения?",
+  "preferencesDialog.clearHistoryConfirmBody": "Закрывает все вкладки поиска и очищает список истории и кнопку «Назад» каждой панели. Заметки, выделения, закладки и прогресс планов чтения не изменяются.",
+  "preferencesDialog.clearHistoryConfirmButton": "Очистить историю",
+  "preferencesDialog.clearHistoryCancel": "Отмена",
+  "preferencesDialog.clearHistoryDone": "История очищена."
 }

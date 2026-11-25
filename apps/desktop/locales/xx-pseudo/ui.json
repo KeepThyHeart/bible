@@ -2521,5 +2521,17 @@
   "lookUp.resultsLabel": "⟦Ļøøķ üþ ŕéšüļţš ƒøŕ {word} ······⟧",
   "lookUp.close": "⟦Çļøšé ··⟧",
   "lookUp.searching": "⟦Šéåŕçĥîñĝ ðîçţîøñåŕîéš… ······⟧",
-  "lookUp.noResults": "⟦Ñø ðîçţîøñåŕý ĥåš åñ éñţŕý ƒøŕ “{word}”. ··········⟧"
+  "lookUp.noResults": "⟦Ñø ðîçţîøñåŕý ĥåš åñ éñţŕý ƒøŕ “{word}”. ··········⟧",
+  "preferencesDialog.privacyHistoryHeading": "⟦Šéåŕçĥ åñð ŕéåðîñĝ ĥîšţøŕý ·······⟧",
+  "preferencesDialog.privacyHistoryIntro": "⟦Ɓý ðéƒåüļţ, šéåŕçĥéš åñð ŕéåðîñĝ ĥîšţøŕý ļåšţ øñļý üñţîļ ţĥé åþþ îš çļøšéð. Ñøţĥîñĝ åƀøüţ ţĥéɱ îš šåṽéð. ·······························⟧",
+  "preferencesDialog.reopenSearchTabsLabel": "⟦Ŕéøþéñ šéåŕçĥ ţåƀš øñ šţåŕţüþ ········⟧",
+  "preferencesDialog.reopenSearchTabsDescription": "⟦Šåṽé øþéñ šéåŕçĥ ţåƀš åñð ŕüñ ţĥéɱ åĝåîñ ţĥé ñéẋţ ţîɱé ţĥé åþþ šţåŕţš. ·····················⟧",
+  "preferencesDialog.rememberReadingHistoryLabel": "⟦Ŕéɱéɱƀéŕ ŕéåðîñĝ ĥîšţøŕý ƀéţŵééñ šéššîøñš ············⟧",
+  "preferencesDialog.rememberReadingHistoryDescription": "⟦Ķééþ éåçĥ þåñé’š ĥîšţøŕý ļîšţ åñð Ɓåçķ ƀüţţøñ åƒţéŕ ţĥé åþþ îš çļøšéð. ·····················⟧",
+  "preferencesDialog.clearHistoryButton": "⟦Çļéåŕ ĥîšţøŕý… ····⟧",
+  "preferencesDialog.clearHistoryConfirmTitle": "⟦Çļéåŕ šéåŕçĥ åñð ŕéåðîñĝ ĥîšţøŕý? ·········⟧",
+  "preferencesDialog.clearHistoryConfirmBody": "⟦Çļøšéš åļļ šéåŕçĥ ţåƀš åñð éɱþţîéš ţĥé ĥîšţøŕý ļîšţ åñð Ɓåçķ ƀüţţøñ øƒ éṽéŕý þåñé. Ñøţéš, ĥîĝĥļîĝĥţš, ƀøøķɱåŕķš åñð ŕéåðîñĝ þļåñ þŕøĝŕéšš åŕé ñøţ çĥåñĝéð. ··············································⟧",
+  "preferencesDialog.clearHistoryConfirmButton": "⟦Çļéåŕ ĥîšţøŕý ···⟧",
+  "preferencesDialog.clearHistoryCancel": "⟦Çåñçéļ ··⟧",
+  "preferencesDialog.clearHistoryDone": "⟦Ĥîšţøŕý çļéåŕéð. ····⟧"
 }

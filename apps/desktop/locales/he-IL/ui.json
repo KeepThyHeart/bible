@@ -2521,5 +2521,17 @@
   "lookUp.resultsLabel": "תוצאות החיפוש עבור {word}",
   "lookUp.close": "סגירה",
   "lookUp.searching": "מחפש במילונים…",
-  "lookUp.noResults": "אין במילונים ערך עבור «{word}»."
+  "lookUp.noResults": "אין במילונים ערך עבור «{word}».",
+  "preferencesDialog.privacyHistoryHeading": "היסטוריית חיפוש וקריאה",
+  "preferencesDialog.privacyHistoryIntro": "כברירת מחדל, חיפושים והיסטוריית קריאה נשארים רק עד סגירת היישום. דבר מהם לא נשמר.",
+  "preferencesDialog.reopenSearchTabsLabel": "פתיחה מחדש של כרטיסיות חיפוש בהפעלה",
+  "preferencesDialog.reopenSearchTabsDescription": "שמירת כרטיסיות החיפוש הפתוחות והרצתן מחדש בהפעלה הבאה של היישום.",
+  "preferencesDialog.rememberReadingHistoryLabel": "זכירת היסטוריית הקריאה בין הפעלות",
+  "preferencesDialog.rememberReadingHistoryDescription": "שמירת רשימת ההיסטוריה וכפתור החזרה של כל חלונית לאחר סגירת היישום.",
+  "preferencesDialog.clearHistoryButton": "ניקוי היסטוריה…",
+  "preferencesDialog.clearHistoryConfirmTitle": "לנקות את היסטוריית החיפוש והקריאה?",
+  "preferencesDialog.clearHistoryConfirmBody": "סוגר את כל כרטיסיות החיפוש ומרוקן את רשימת ההיסטוריה וכפתור החזרה בכל חלונית. הערות, הדגשות, סימניות והתקדמות בתוכניות קריאה אינן משתנות.",
+  "preferencesDialog.clearHistoryConfirmButton": "ניקוי היסטוריה",
+  "preferencesDialog.clearHistoryCancel": "ביטול",
+  "preferencesDialog.clearHistoryDone": "ההיסטוריה נוקתה."
 }

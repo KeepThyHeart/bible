@@ -2536,5 +2536,17 @@
   "lookUp.resultsLabel": "نتائج البحث عن {word}",
   "lookUp.close": "إغلاق",
   "lookUp.searching": "جارٍ البحث في القواميس…",
-  "lookUp.noResults": "لا يوجد في أي قاموس مدخل لـ «{word}»."
+  "lookUp.noResults": "لا يوجد في أي قاموس مدخل لـ «{word}».",
+  "preferencesDialog.privacyHistoryHeading": "سجل البحث والقراءة",
+  "preferencesDialog.privacyHistoryIntro": "افتراضيًا، تبقى عمليات البحث وسجل القراءة حتى إغلاق التطبيق فقط. لا يُحفظ شيء منها.",
+  "preferencesDialog.reopenSearchTabsLabel": "إعادة فتح علامات تبويب البحث عند بدء التشغيل",
+  "preferencesDialog.reopenSearchTabsDescription": "حفظ علامات تبويب البحث المفتوحة وتشغيلها مرة أخرى عند بدء التطبيق في المرة القادمة.",
+  "preferencesDialog.rememberReadingHistoryLabel": "تذكّر سجل القراءة بين الجلسات",
+  "preferencesDialog.rememberReadingHistoryDescription": "الاحتفاظ بقائمة السجل وزر الرجوع لكل لوحة بعد إغلاق التطبيق.",
+  "preferencesDialog.clearHistoryButton": "مسح السجل…",
+  "preferencesDialog.clearHistoryConfirmTitle": "هل تريد مسح سجل البحث والقراءة؟",
+  "preferencesDialog.clearHistoryConfirmBody": "يغلق جميع علامات تبويب البحث ويفرغ قائمة السجل وزر الرجوع في كل لوحة. لا تتغير الملاحظات والتمييزات والإشارات المرجعية وتقدم خطط القراءة.",
+  "preferencesDialog.clearHistoryConfirmButton": "مسح السجل",
+  "preferencesDialog.clearHistoryCancel": "إلغاء",
+  "preferencesDialog.clearHistoryDone": "تم مسح السجل."
 }

@@ -2521,5 +2521,17 @@
   "lookUp.resultsLabel": "نتایج جستجوی {word}",
   "lookUp.close": "بستن",
   "lookUp.searching": "در حال جستجو در فرهنگ‌ها…",
-  "lookUp.noResults": "هیچ فرهنگی مدخلی برای «{word}» ندارد."
+  "lookUp.noResults": "هیچ فرهنگی مدخلی برای «{word}» ندارد.",
+  "preferencesDialog.privacyHistoryHeading": "تاریخچهٔ جستجو و مطالعه",
+  "preferencesDialog.privacyHistoryIntro": "به‌طور پیش‌فرض، جستجوها و تاریخچهٔ مطالعه فقط تا بسته شدن برنامه باقی می‌مانند. چیزی از آن‌ها ذخیره نمی‌شود.",
+  "preferencesDialog.reopenSearchTabsLabel": "بازکردن دوبارهٔ زبانه‌های جستجو هنگام شروع",
+  "preferencesDialog.reopenSearchTabsDescription": "زبانه‌های جستجوی باز را ذخیره کنید و دفعهٔ بعد که برنامه شروع می‌شود دوباره اجرا کنید.",
+  "preferencesDialog.rememberReadingHistoryLabel": "به خاطر سپردن تاریخچهٔ مطالعه بین نشست‌ها",
+  "preferencesDialog.rememberReadingHistoryDescription": "فهرست تاریخچه و دکمهٔ بازگشت هر پنل را پس از بسته شدن برنامه نگه دارید.",
+  "preferencesDialog.clearHistoryButton": "پاک‌کردن تاریخچه…",
+  "preferencesDialog.clearHistoryConfirmTitle": "تاریخچهٔ جستجو و مطالعه پاک شود؟",
+  "preferencesDialog.clearHistoryConfirmBody": "همهٔ زبانه‌های جستجو را می‌بندد و فهرست تاریخچه و دکمهٔ بازگشت هر پنل را خالی می‌کند. یادداشت‌ها، هایلایت‌ها، نشانک‌ها و پیشرفت برنامه‌های مطالعه تغییر نمی‌کنند.",
+  "preferencesDialog.clearHistoryConfirmButton": "پاک‌کردن تاریخچه",
+  "preferencesDialog.clearHistoryCancel": "انصراف",
+  "preferencesDialog.clearHistoryDone": "تاریخچه پاک شد."
 }

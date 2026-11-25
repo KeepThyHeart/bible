@@ -2538,5 +2538,17 @@
   "lookUp.resultsLabel": "Resultados de la búsqueda de {word}",
   "lookUp.close": "Cerrar",
   "lookUp.searching": "Buscando en los diccionarios…",
-  "lookUp.noResults": "Ningún diccionario tiene una entrada para «{word}»."
+  "lookUp.noResults": "Ningún diccionario tiene una entrada para «{word}».",
+  "preferencesDialog.privacyHistoryHeading": "Historial de búsqueda y lectura",
+  "preferencesDialog.privacyHistoryIntro": "De forma predeterminada, las búsquedas y el historial de lectura duran solo hasta que se cierra la aplicación. No se guarda nada de ellos.",
+  "preferencesDialog.reopenSearchTabsLabel": "Reabrir las pestañas de búsqueda al iniciar",
+  "preferencesDialog.reopenSearchTabsDescription": "Guardar las pestañas de búsqueda abiertas y ejecutarlas de nuevo la próxima vez que se inicie la aplicación.",
+  "preferencesDialog.rememberReadingHistoryLabel": "Recordar el historial de lectura entre sesiones",
+  "preferencesDialog.rememberReadingHistoryDescription": "Conservar la lista de historial y el botón Atrás de cada panel después de cerrar la aplicación.",
+  "preferencesDialog.clearHistoryButton": "Borrar historial…",
+  "preferencesDialog.clearHistoryConfirmTitle": "¿Borrar el historial de búsqueda y lectura?",
+  "preferencesDialog.clearHistoryConfirmBody": "Cierra todas las pestañas de búsqueda y vacía la lista de historial y el botón Atrás de cada panel. Las notas, los resaltados, los marcadores y el progreso de los planes de lectura no se modifican.",
+  "preferencesDialog.clearHistoryConfirmButton": "Borrar historial",
+  "preferencesDialog.clearHistoryCancel": "Cancelar",
+  "preferencesDialog.clearHistoryDone": "Historial borrado."
 }
