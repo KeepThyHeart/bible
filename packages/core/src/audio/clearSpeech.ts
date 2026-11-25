@@ -12,7 +12,10 @@
  * | flap `ɾ`                    | `t`           | city, water, mighty                       |
  * | reduced `ᵻ`                 | `ɪ`           | before, behold, believeth                 |
  * | reduced `ɐ`                 | `ʌ`           | against, among, about                     |
- * | the word "the" `ðə`         | `ðʌ`          | whole word only                           |
+ *
+ * "The" is left as espeak writes it (`ðə`, `ðɪ` before a vowel). Version 1 made a free-standing
+ * "the" a full `ðʌ`, but Kokoro joins most of them to the word before (`ʌvðə`, `ɪnðə`), so only
+ * some became heavy and the reading sounded halting.
  *
  * Stress marks and punctuation are left as they are: they carry the intonation. The input is
  * any phoneme string an engine is about to speak, after pronunciation corrections have been
@@ -20,7 +23,9 @@
  */
 
 const SYLLABIC = '̩';
-const WORD_EDGE = '\\s,.;:!?—…"«»“”()';
+
+/** Bump on any change to the rules: recordings store it in their build record, so a change re-renders. */
+export const CLEAR_SPEECH_VERSION = 2;
 
 interface Rule { pattern: RegExp; replacement: string; adds: string[] }
 
@@ -31,7 +36,6 @@ const RULES: Rule[] = [
   { pattern: /ɾ/gu, replacement: 't', adds: ['t'] },
   { pattern: /ᵻ/gu, replacement: 'ɪ', adds: ['ɪ'] },
   { pattern: /ɐ/gu, replacement: 'ʌ', adds: ['ʌ'] },
-  { pattern: new RegExp(`(?<=^|[${WORD_EDGE}])ðə(?=$|[${WORD_EDGE}])`, 'gu'), replacement: 'ðʌ', adds: ['ʌ'] },
 ];
 
 /**

@@ -24,6 +24,7 @@ export {
   parsePhonemizerLines,
   phonemizePiper,
   clearSpeechIpa,
+  CLEAR_SPEECH_VERSION,
   clearSpeechSymbols,
   applyPronunciation,
   hasPronunciation,

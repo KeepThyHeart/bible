@@ -106,7 +106,7 @@ describe('a run end to end (fake engine, real ffmpeg)', () => {
     const clear = { ...low, clearSpeech: true };
     expect((await run(clear)).done).toBe(1);
     const mc = await readManifest(43, 2, 'fake-v1-clear');
-    expect(mc.build).toMatchObject({ clearSpeech: true, opusKbps: 24 });
+    expect(mc.build).toMatchObject({ clearSpeech: true, clearSpeechVersion: 2, opusKbps: 24 });
     expect((await run(clear)).skipped).toBe(1);
     // ...and under a fixed narrator id, switching it off renders again.
     expect((await run({ ...clear, narrator: 'n' })).done).toBe(1);

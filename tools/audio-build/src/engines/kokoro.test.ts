@@ -100,14 +100,14 @@ describe('Kokoro engine paths (stand-in kokoro-js)', () => {
   it('clear speech rewrites the phonemes before the tokenizer', async () => {
     const { tts, log } = fake();
     await say(KokoroNodeEngine.withInstance(ctx(true), tts, T), 'the begotten Son', 'am_michael');
-    expect(log.tokens.at(-1)).toBe('ðʌ bɪɡˈɑːtən sˈʌn');
+    expect(log.tokens.at(-1)).toBe('ðə bɪɡˈɑːtən sˈʌn');
     expect(log.fromIds.at(-1)).toBe('am_michael');
   });
 
   it('clear speech also applies to pronunciation corrections', async () => {
     const { tts, log } = fake();
     await say(KokoroNodeEngine.withInstance(ctx(true), tts, T), 'the ⟦Melchisedec|mɛlkˈɪzᵻdɛk⟧ city', 'am_michael');
-    expect(log.tokens.at(-1)).toBe('ðʌ mɛlkˈɪzɪdɛk sˈɪti');
+    expect(log.tokens.at(-1)).toBe('ðə mɛlkˈɪzɪdɛk sˈɪti');
   });
 
   it('a blend is phonemized in the first voice\'s accent and run with the blended style row', async () => {
@@ -117,7 +117,7 @@ describe('Kokoro engine paths (stand-in kokoro-js)', () => {
     expect(log.generate.every(g => g.voice === 'am_michael')).toBe(true); // only the phoneme probe, in Michael's accent
     expect(log.fromIds).toEqual([]);
     const tokens = log.tokens.at(-1)!;
-    expect(tokens).toBe('ðʌ mɛlkˈɪzɪdɛk');
+    expect(tokens).toBe('ðə mɛlkˈɪzɪdɛk');
     const inputs = log.model[0] as { style: T; speed: T };
     const { parts } = parseKokoroVoice(spec) as { parts: Array<{ id: string; weight: number }> };
     const expected = kokoroStyleRow(blendKokoroStyles(parts, readKokoroVoiceData), tokens.length + 2);

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { clearSpeechIpa, clearSpeechSymbols } from '../audio/clearSpeech';
+import { CLEAR_SPEECH_VERSION, clearSpeechIpa, clearSpeechSymbols } from '../audio/clearSpeech';
 import { phonemizePiper } from '../audio/piperPhonemes';
 
 // espeak-ng en-us output (1.52), as printed by `espeak-ng -q --ipa -v en-us`.
@@ -8,7 +8,7 @@ const JOHN_3_16 = 'fɔːɹ ɡˈɑːd sˌoʊ lˈʌvd ðə wˈɜːld, ðæt hiː �
 describe('clear speech', () => {
   it('rewrites John 3:16 as heard in the A/B, keeping stress and punctuation', () => {
     expect(clearSpeechIpa(JOHN_3_16)).toBe(
-      'fɔːɹ ɡˈɑːd sˌoʊ lˈʌvd ðʌ wˈɜːld, ðæt hiː ɡˈeɪv hɪz ˈoʊnli bɪɡˈɑːtən sˈʌn, ðæt huːsˌoʊˈɛvɚ bɪlˈiːvəθ ɪn hˌɪm ʃˌʊd nˌɑːt pˈɛɹɪʃ, bˌʌt hæv ˌɛvɚlˈæstɪŋ lˈaɪf.',
+      'fɔːɹ ɡˈɑːd sˌoʊ lˈʌvd ðə wˈɜːld, ðæt hiː ɡˈeɪv hɪz ˈoʊnli bɪɡˈɑːtən sˈʌn, ðæt huːsˌoʊˈɛvɚ bɪlˈiːvəθ ɪn hˌɪm ʃˌʊd nˌɑːt pˈɛɹɪʃ, bˌʌt hæv ˌɛvɚlˈæstɪŋ lˈaɪf.',
     );
   });
 
@@ -24,11 +24,10 @@ describe('clear speech', () => {
     expect(clearSpeechIpa(from)).toBe(to);
   });
 
-  it('changes "the" only as a whole word', () => {
-    expect(clearSpeechIpa('ðə')).toBe('ðʌ');
-    expect(clearSpeechIpa('ʌv ðə ˈɔːɹdɚ')).toBe('ʌv ðʌ ˈɔːɹdɚ');
-    expect(clearSpeechIpa('“ðə”')).toBe('“ðʌ”');
-    expect(clearSpeechIpa('ðəm bɹˈʌðə ɹˈʌðəfɚd')).toBe('ðəm bɹˈʌðə ɹˈʌðəfɚd');
+  it('leaves "the" light, joined or free-standing (version 2)', () => {
+    expect(clearSpeechIpa('ðə')).toBe('ðə');
+    expect(clearSpeechIpa('ʌv ðə ˈɔːɹdɚ ʌvðə')).toBe('ʌv ðə ˈɔːɹdɚ ʌvðə');
+    expect(CLEAR_SPEECH_VERSION).toBe(2);
   });
 
   it('leaves text without reductions unchanged', () => {
@@ -67,6 +66,6 @@ describe('phonemizePiper clearSpeech option', () => {
 
   it('applies after pronunciation markers are spliced in', async () => {
     const out = await phonemizePiper(run, 'en-us', 'the ⟦Melchisedec|mɛlkˈɪzᵻdɛk⟧', undefined, { clearSpeech: true });
-    expect(out[0].join('')).toBe('ðʌ mɛlkˈɪzɪdɛk');
+    expect(out[0].join('')).toBe('ðə mɛlkˈɪzɪdɛk');
   });
 });

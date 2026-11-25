@@ -194,6 +194,8 @@ export interface AudioBuildInfo {
   introGapMs: number;
   /** True when the phonemes were rewritten for careful diction (`clearSpeechIpa`); absent means off. */
   clearSpeech?: boolean;
+  /** The clear-speech rules' version (`CLEAR_SPEECH_VERSION`) when `clearSpeech` is on; absent means 1. */
+  clearSpeechVersion?: number;
   /** Ogg Opus bitrate, kbps, when it is not the tool's default; absent means the default. */
   opusKbps?: number;
   /** The producing tool and version. */

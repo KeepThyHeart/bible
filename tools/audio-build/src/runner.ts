@@ -7,7 +7,7 @@ import { cpus } from 'node:os';
 import { checkExisting } from './chapterFiles';
 import type { ChapterResult, ChapterTask } from './chapterTask';
 import {
-  TextPreparer, applyPronunciation, pronunciationLocale, pronunciationVerseKey, spokenTextHash,
+  CLEAR_SPEECH_VERSION, TextPreparer, applyPronunciation, pronunciationLocale, pronunciationVerseKey, spokenTextHash,
   type AudioBuildInfo, type AudioProvenance, type ITextPreparer, type ITtsEngine, type PronunciationOverlay,
 } from './core';
 import { DEFAULT_ENCODE, type EncodeOptions } from './encode';
@@ -139,7 +139,7 @@ export async function runBuild(o: BuildOptions, deps: RunDeps): Promise<RunSumma
     rate: o.rate,
     gapMs: o.gapMs,
     introGapMs: o.introGapMs,
-    ...(o.clearSpeech ? { clearSpeech: true } : {}),
+    ...(o.clearSpeech ? { clearSpeech: true, clearSpeechVersion: CLEAR_SPEECH_VERSION } : {}),
     // Recorded only when it differs from the default, so earlier builds stay up to date.
     ...(o.formats.includes('opus') && enc.opusKbps !== DEFAULT_ENCODE.opusKbps ? { opusKbps: enc.opusKbps } : {}),
     tool: TOOL_NAME,
