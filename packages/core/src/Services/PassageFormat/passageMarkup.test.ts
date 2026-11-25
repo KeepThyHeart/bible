@@ -372,7 +372,7 @@ describe('verseNumbers: first-full', () => {
   });
 
   it('is accepted by the stored-options reader and reaches inline quotes without a doubled reference', () => {
-    expect(resolvePassageMarkupOptions('blockquote', { verseNumbers: 'first-full' }).verseNumbers).toBe('first-full');
+    expect(resolvePassageMarkupOptions('blockquote', { ...PLAIN, verseNumbers: 'first-full' }).verseNumbers).toBe('first-full');
     const inline = passageMarkupToText(renderPassageMarkup([V16, V17], CONTEXT, 'inline-quote', FIRST_FULL));
     expect(inline.match(/John 3:16/g)).toHaveLength(1);
   });
