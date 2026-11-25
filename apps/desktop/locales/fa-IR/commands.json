@@ -93,5 +93,8 @@
   "wordStudy.open.category": "مطالعه",
   "wordStudy.open.alias.0": "مطالعه واژه",
   "wordStudy.open.alias.1": "مطالعه استرانگ",
-  "wordStudy.open.alias.2": "فهرست الفبایی"
+  "wordStudy.open.alias.2": "فهرست الفبایی",
+  "help.sendFeedback": "ارسال بازخورد",
+  "notes.compilePassageNotes": "گردآوری یادداشت‌های قطعه‌ها",
+  "notes.compilePassageNotes.category": "یادداشت‌ها"
 }

@@ -25,6 +25,7 @@ vi.mock('../../services/NetworkGateway', () => ({ NetworkBlockedError: class ext
 
 const saveNote = vi.fn();
 const saveNoteAbsolute = vi.fn();
+const saveVerseNote = vi.fn();
 vi.mock('../../services/BibleNotesFileService', () => ({
   BibleNotesFileService: class {
     getNotesDir() { return '/notes'; }
@@ -32,6 +33,7 @@ vi.mock('../../services/BibleNotesFileService', () => ({
     isVerseNotePath() { return false; }
     saveNote = saveNote;
     saveNoteAbsolute = saveNoteAbsolute;
+    saveVerseNote = saveVerseNote;
   },
   NoteConflictError: class NoteConflictError extends Error {},
   NoteMissingError: class NoteMissingError extends Error {},
@@ -46,6 +48,7 @@ beforeEach(() => {
   sent.length = 0;
   saveNote.mockReset();
   saveNoteAbsolute.mockReset();
+  saveVerseNote.mockReset();
   handlers.clear();
   initializeFileNotesService('/notes');
   registerFileNotesHandlers();
@@ -77,5 +80,40 @@ describe('file-notes save broadcast', () => {
     const res = (await handlers.get('file-notes:save-note')!(event(2), 'a.bn', note, 'x')) as { ok: boolean };
     expect(res.ok).toBe(false);
     expect(sent).toHaveLength(0);
+  });
+});
+
+describe('file-notes:save-verse-note', () => {
+  it('creates/updates and tells the other windows, with the saved path and updated', async () => {
+    saveVerseNote.mockReturnValue({ note: { updated: 'u9' }, relativePath: 'Verse Notes/John/3/16.bn' });
+    const res = await handlers.get('file-notes:save-verse-note')!(event(2), 43003016, '<p>x</p>', undefined, 'John');
+    expect(saveVerseNote).toHaveBeenCalledWith('John', 43003016, '<p>x</p>', undefined);
+    expect((res as { ok: boolean }).ok).toBe(true);
+    expect(sent.map(s => s.id)).toEqual([1, 3]);
+    expect(sent[0].payload).toEqual({
+      absolutePath: resolve('/notes', 'Verse Notes/John/3/16.bn'),
+      updated: 'u9',
+      senderId: 2,
+    });
+  });
+
+  it('a refused save sends nothing, and a bad book name is rejected before the service', async () => {
+    saveVerseNote.mockImplementation(() => { throw new Error('boom'); });
+    const bad = (await handlers.get('file-notes:save-verse-note')!(event(2), 43003016, 'x', 'old', 'John')) as { ok: boolean };
+    expect(bad.ok).toBe(false);
+    saveVerseNote.mockClear();
+    const evil = (await handlers.get('file-notes:save-verse-note')!(event(2), 43003016, 'x', undefined, '../x')) as { ok: boolean };
+    expect(evil.ok).toBe(false);
+    expect(saveVerseNote).not.toHaveBeenCalled();
+    expect(sent).toHaveLength(0);
+  });
+
+  it('rejects a bad verse id before the service', async () => {
+    saveVerseNote.mockClear();
+    for (const bad of [0, 12.5, 999999, '43003016' as unknown as number]) {
+      const r = (await handlers.get('file-notes:save-verse-note')!(event(2), bad, 'x', undefined, 'John')) as { ok: boolean };
+      expect(r.ok).toBe(false);
+    }
+    expect(saveVerseNote).not.toHaveBeenCalled();
   });
 });

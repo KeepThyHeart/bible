@@ -8,7 +8,7 @@ import {
 import { saveWithBaseline, staleSaveKind, saveConflictCopy } from './noteSave';
 
 interface UseActiveNoteFlushArgs {
-  view: 'browser' | 'editor';
+  view: 'browser' | 'editor' | 'chapter';
   currentNote: BnFile | null;
   currentNotePath: string;
   setCurrentNote: (note: BnFile) => void;

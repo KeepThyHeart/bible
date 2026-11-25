@@ -472,6 +472,22 @@ describe('pop out: Notes state handover', () => {
     expect(state.initialCurrentNotePath).toBe('C:/notes/romans/ch8.bn');
   });
 
+  it('carries the chapter position and titles the window with it', async () => {
+    mockGetNotesPanelNavState.mockReturnValue({
+      view: 'chapter',
+      currentPath: 'Verse Notes/Romans/8',
+      currentNotePath: '',
+      chapter: { book: 45, chapter: 8, follow: true, onlyWithNotes: false },
+    });
+
+    await popOut('notes');
+    const state = detachCall()[1];
+
+    expect(state.initialView).toBe('chapter');
+    expect(state.initialChapter).toEqual({ book: 45, chapter: 8, follow: true, onlyWithNotes: false });
+    expect(state.noteName).toMatch(/ 8$/);
+  });
+
   it('still pops out when the pane has no recorded nav state', async () => {
     mockGetNotesPanelNavState.mockReturnValue(undefined);
     await popOut('notes');

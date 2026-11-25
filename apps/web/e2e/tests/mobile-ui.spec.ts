@@ -1,4 +1,5 @@
 import { test, expect } from '../fixtures';
+import { usingFixtureData } from '../prepareData';
 
 test.describe('Mobile UI Tests', () => {
   test.beforeEach(async ({ page }, testInfo) => {
@@ -133,6 +134,8 @@ test.describe('Mobile UI Tests', () => {
   });
 
   test('chapter navigation within Read tab', async ({ page }) => {
+    // The Read tab opens on Genesis 1 and this steps on to Genesis 2, which the fixture lacks.
+    test.skip(usingFixtureData(), 'needs Genesis 2 (the fixture holds Genesis 1 and 3 only): set BIBLE_E2E_DATA_DIR');
     // Go to Read tab
     await page.locator('.mobile-nav__btn', { hasText: 'Read' }).click();
     await page.waitForSelector('.verse', { timeout: 10000 });

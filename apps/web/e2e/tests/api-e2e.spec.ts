@@ -1,4 +1,5 @@
 import { test, expect } from '../fixtures';
+import { usingFixtureData } from '../prepareData';
 
 test.describe('API E2E Tests', () => {
   test('loads books list', async ({ request }) => {
@@ -55,6 +56,7 @@ test.describe('API E2E Tests', () => {
   });
 
   test('Strong\'s lookup works', async ({ request }) => {
+    test.skip(usingFixtureData(), 'needs the Strong\'s dictionaries (not in the fixture): set BIBLE_E2E_DATA_DIR');
     const res = await request.get('/api/strongs/G2316');
     expect(res.ok()).toBe(true);
     const entry = await res.json();
@@ -71,8 +73,8 @@ test.describe('API E2E Tests', () => {
   });
 
   test('chapter navigation across books', async ({ request }) => {
-    // Last chapter of Genesis
-    const res1 = await request.get('/api/bible/KJV/1/50');
+    // Last chapter of Genesis (the fixture's last one is chapter 3: it holds Genesis 1 and 3 only)
+    const res1 = await request.get(`/api/bible/KJV/1/${usingFixtureData() ? 3 : 50}`);
     expect(res1.ok()).toBe(true);
     const gen50 = await res1.json();
     expect(gen50.verses.length).toBeGreaterThan(0);

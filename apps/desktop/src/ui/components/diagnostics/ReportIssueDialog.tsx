@@ -36,6 +36,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
 import { useI18n } from '../../contexts/useI18n';
+import { DIAGNOSTICS_DEFAULT_ENDPOINT } from '../../../../electron/config/constants';
 import { getDiagnosticsPrivacyBlurb } from './privacyBlurb';
 import {
   deliverWithDeadline,
@@ -94,6 +95,15 @@ export type DialogMode = 'feedback' | 'issue';
 export type DeliveryNotice = 'sent' | 'background' | 'webOff' | 'waiting' | 'noEndpoint';
 
 /** `null` means the server refused the report outright (it is not queued). */
+/** The host a report goes to: the endpoint set in Diagnostics settings, else the build's default. */
+export function reportHost(endpointUrl: string | undefined): string {
+  for (const url of [endpointUrl?.trim(), DIAGNOSTICS_DEFAULT_ENDPOINT]) {
+    if (!url) continue;
+    try { return new URL(url).host; } catch { /* not a URL: try the next */ }
+  }
+  return '';
+}
+
 export function noticeForResult(result: DeliveryResult): DeliveryNotice | null {
   if (result.status === 'sent') return 'sent';
   if (result.status === 'rejected') return null;
@@ -195,6 +205,19 @@ const ReportIssueDialog: React.FC = () => {
       setSnapshotLoading(false);
     }
   }, [snapshot, snapshotLoading]);
+
+  // Show where the report will go (the configured endpoint can differ from the default).
+  const [host, setHost] = useState(() => reportHost(undefined));
+  useEffect(() => {
+    if (!open) return;
+    let live = true;
+    const api = window.electron?.diagnostics;
+    void api?.getConfig?.().then((raw: unknown) => {
+      const cfg = raw as { ok?: boolean; value?: { endpointUrl?: string } } | undefined;
+      if (live && cfg?.ok) setHost(reportHost(cfg.value?.endpointUrl));
+    }).catch(() => undefined);
+    return () => { live = false; };
+  }, [open]);
 
   useEffect(() => {
     const openAs = (next: DialogMode) => (): void => {
@@ -393,6 +416,11 @@ const ReportIssueDialog: React.FC = () => {
                 style={{ ...FIELD_STYLE, resize: 'vertical' }}
               />
             </label>
+            {host && (
+              <div style={{ fontSize: '0.75rem', marginTop: 4, opacity: 0.8 }} data-testid="report-destination">
+                {t('reportIssueDialog.destination', { host })}
+              </div>
+            )}
 
             {isFeedback ? (
               <>

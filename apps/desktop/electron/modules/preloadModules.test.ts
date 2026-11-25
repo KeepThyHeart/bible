@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 
 const exposed: Record<string, any> = {};
-const ipcRenderer = { invoke: vi.fn(async () => ({ ok: true, value: 1 })), on: vi.fn(), removeListener: vi.fn(), send: vi.fn() };
+const ipcRenderer = { invoke: vi.fn(async () => ({ ok: true, value: 1 })), on: vi.fn(), removeListener: vi.fn(), send: vi.fn(), sendSync: vi.fn(() => '') };
 vi.mock('electron', () => ({
   contextBridge: { exposeInMainWorld: (k: string, v: unknown) => void (exposed[k] = v) },
   ipcRenderer,

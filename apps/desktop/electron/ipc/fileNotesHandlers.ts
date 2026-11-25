@@ -8,6 +8,7 @@ import { broadcastNoteSaved } from './noteSavedBroadcast';
 import { blessPath, isPathBlessed, isPathWithin } from './blessedPaths';
 import { t } from '../services/MainI18n';
 import { buildNoteDocx } from './noteDocx';
+import { type VerseNoteQuery, type VerseNoteRecord } from './verseNoteBulk';
 import { moveNoteDirectionKeys, clearNoteDirectionKeys } from './noteDirectionHandlers';
 import { isEmptyNoteContent } from '../services/noteContent';
 
@@ -301,6 +302,37 @@ export function registerFileNotesHandlers(): void {
     return getService().createVerseNote(bookName, chapter, verse, verseId);
   });
 
+  // Creates the verse note's file on its first save with content, or updates it
+  // (conflict-checked when `expectedUpdated` is given). Other windows are told,
+  // like `file-notes:save-note`. `bookName` is the notes folder's name for the
+  // book - main has no localized book-name table.
+  ipcHandlerWithSender<
+    [number, string, string | undefined, string],
+    { note: BnFile; relativePath: string }
+  >('file-notes:save-verse-note', (senderId, verseId, html, expectedUpdated, bookName) => {
+    if (!Number.isInteger(verseId) || verseId < 1000000) {
+      throw new IpcKnownError('invalid_input', 'Invalid verse id');
+    }
+    if (typeof html !== 'string') {
+      throw new IpcKnownError('invalid_input', 'Invalid note content');
+    }
+    if (typeof bookName !== 'string' || !bookName || /[\\/]|\.\./.test(bookName)) {
+      throw new IpcKnownError('invalid_input', 'Invalid book name');
+    }
+    let result: { note: BnFile; relativePath: string };
+    try {
+      result = getService().saveVerseNote(bookName, verseId, html, expectedUpdated);
+    } catch (err) {
+      throw toConflictError(err);
+    }
+    broadcastNoteSaved({
+      absolutePath: resolvePath(getService().getNotesDir(), result.relativePath),
+      updated: result.note.updated,
+      senderId,
+    });
+    return result;
+  });
+
   ipcHandler<
     [string, number, number],
     { note: BnFile; relativePath: string } | null
@@ -329,6 +361,11 @@ export function registerFileNotesHandlers(): void {
       return getService().listVerseNotesInChapter(bookName, chapter);
     }
   );
+
+  // Bulk read: the verse notes with content for several chapters/ranges at once.
+  ipcHandler<[VerseNoteQuery[]], VerseNoteRecord[]>('file-notes:read-verse-notes', (queries) => {
+    return getService().readVerseNotes(queries);
+  });
 
   ipcHandler<[], void>('file-notes:ensure-verse-notes-folder', () => {
     getService().ensureVerseNotesFolder();

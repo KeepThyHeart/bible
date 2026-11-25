@@ -45,6 +45,7 @@ export class RemoteSemanticService {
   async search(query: string, maxResults: number, hydration: RemoteHydration): Promise<RemoteSemanticResponse> {
     const t0 = Date.now();
     const res = await this.client.search(query, { k: maxResults });
+    if (res.hits.length > maxResults) res.hits = res.hits.slice(0, maxResults); // never hand on more than was asked for
     const tRemote = Date.now() - t0;
 
     const results = res.hits.map((hit): OrchestrationSearchResult => {

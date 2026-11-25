@@ -85,9 +85,10 @@ test.describe('Search', () => {
 
       await dialog.locator('select').first().selectOption('allBibles');
       // The tab reads KJV, so a hit labelled with any other translation proves the scope reached past it.
-      // "ghost" keeps the result count small (results are one per verse across translations and stop at a
-      // limit) and has ASV hits ("gave up the ghost").
-      await dialog.locator('input[type="text"]').first().fill('ghost');
+      // "Nicodemus" keeps the result count small (results are one per verse across translations and stop at
+      // a limit) and is in both KJV and ASV, including in the few chapters the e2e fixture holds ("ghost"
+      // is not: the ASV says "Holy Spirit" and its "gave up the ghost" verses are not in the fixture).
+      await dialog.locator('input[type="text"]').first().fill('Nicodemus');
       await dialog.locator('button', { hasText: 'Search' }).click({ force: true });
 
       await expect(resultsPane(window)).toBeVisible({ timeout: SEARCH_TIMEOUT });

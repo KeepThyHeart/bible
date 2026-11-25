@@ -8,6 +8,12 @@
 
 import type { AllowedIpcChannel } from '../../../electron/ipc/allowedChannels';
 import { unwrap } from './ipcResult';
+import { noteVerseNoteSaved, noteVerseNoteRemoved } from './verseNoteMarkerEvents';
+import { announceLocalNoteSaved } from './noteSavedLocal';
+import type { VerseNoteQuery, VerseNoteRecord } from '../../../electron/ipc/verseNoteBulk';
+import { parseVerseId, getBookNameFromCache } from '../utils/verseReference';
+
+export type { VerseNoteQuery, VerseNoteRecord };
 
 export interface BnFile {
   bn: number;
@@ -84,13 +90,19 @@ export async function createNote(relativePath: string, title: string, type?: str
  *   `new Date().toISOString()` guess - as the new baseline for the next save's
  *   `expectedUpdated`. Using a guess causes a false conflict on the very next
  *   save, since it will never match what's actually on disk.
+ * @param origin - Who is saving; announced on the same-window bus
+ *   (`noteSavedLocal`) so that listener can skip its own saves.
  */
 export async function saveNote(
   relativePath: string,
   note: BnFile,
-  expectedUpdated?: string
+  expectedUpdated?: string,
+  origin?: string
 ): Promise<string> {
-  return invoke<string>('file-notes:save-note', relativePath, note, expectedUpdated);
+  const updated = await invoke<string>('file-notes:save-note', relativePath, note, expectedUpdated);
+  noteVerseNoteSaved(relativePath, note.content);
+  announceLocalNoteSaved({ path: relativePath, updated, origin });
+  return updated;
 }
 
 /**
@@ -100,9 +112,12 @@ export async function saveNote(
 export async function saveNoteAbsolute(
   absolutePath: string,
   note: BnFile,
-  expectedUpdated?: string
+  expectedUpdated?: string,
+  origin?: string
 ): Promise<string> {
-  return invoke<string>('file-notes:save-note-absolute', absolutePath, note, expectedUpdated);
+  const updated = await invoke<string>('file-notes:save-note-absolute', absolutePath, note, expectedUpdated);
+  announceLocalNoteSaved({ path: absolutePath, updated, origin });
+  return updated;
 }
 
 /** Pushed by the main process to every window except the one that saved a note. */
@@ -128,11 +143,13 @@ export async function createFolder(relativePath: string): Promise<void> {
 /** Rename a file or folder */
 export async function renameEntry(oldPath: string, newPath: string): Promise<void> {
   await invoke<void>('file-notes:rename', oldPath, newPath);
+  noteVerseNoteRemoved(oldPath);
 }
 
 /** Delete a file or folder (moves to recycling bin) */
 export async function deleteEntry(relativePath: string): Promise<void> {
   await invoke<void>('file-notes:delete', relativePath);
+  noteVerseNoteRemoved(relativePath);
 }
 
 /** Open the notes folder or a specific file in the OS file manager */
@@ -166,13 +183,54 @@ export async function createVerseNote(
   );
 }
 
-/** Read a verse note if it exists, returns { note, relativePath } or null */
+/** Read a verse note if it exists (never creates one), returns { note, relativePath } or null */
 export async function readVerseNote(
   bookName: string, chapter: number, verse: number
 ): Promise<{ note: BnFile; relativePath: string } | null> {
   return invoke<{ note: BnFile; relativePath: string } | null>(
     'file-notes:read-verse-note', bookName, chapter, verse
   );
+}
+
+/**
+ * Save the verse note for `verseId`: creates its file (type `verse_note`, title
+ * "Book c:v", primary passage) when none exists, otherwise updates the content.
+ * A verse note is a draft in the editor until this first writes it, so callers
+ * must only call it for content worth keeping (`noteHasContent`) or for a note
+ * that already has a file.
+ *
+ * @param expectedUpdated - The `updated` the note was loaded at; when given, a
+ *   changed file rejects with `code === 'conflict'` and a vanished one with
+ *   `'not_found'`. Omit for a draft (no file yet) or to force an overwrite.
+ * @param bookName - The notes-folder name of the book; defaults to the book-name
+ *   cache's. Pass the one a draft was opened with so the path cannot change.
+ * @param origin - Who is saving; announced on the same-window bus.
+ * @returns The note as written (`note.updated` is the new baseline) and its
+ *   path relative to the notes folder.
+ */
+export async function saveVerseNote(
+  verseId: number,
+  html: string,
+  expectedUpdated?: string,
+  bookName?: string,
+  origin?: string
+): Promise<{ note: BnFile; relativePath: string }> {
+  const name = bookName ?? getBookNameFromCache(parseVerseId(verseId).bookNumber);
+  const result = await invoke<{ note: BnFile; relativePath: string }>(
+    'file-notes:save-verse-note', verseId, html, expectedUpdated, name
+  );
+  noteVerseNoteSaved(result.relativePath, html);
+  announceLocalNoteSaved({ path: result.relativePath, updated: result.note.updated, origin });
+  return result;
+}
+
+/**
+ * Read the verse notes WITH content for several chapters (or verse ranges of
+ * them) in one call: query order, then verse number. A chapter with no notes
+ * contributes nothing. At most `MAX_VERSE_NOTE_QUERIES` queries.
+ */
+export async function readVerseNotes(queries: VerseNoteQuery[]): Promise<VerseNoteRecord[]> {
+  return invoke<VerseNoteRecord[]>('file-notes:read-verse-notes', queries);
 }
 
 /** Check if a verse has a note file */
@@ -236,6 +294,20 @@ export async function printNote(html: string): Promise<NoteRenderResult> {
  */
 export async function exportDocumentPdf(html: string, defaultName: string): Promise<NoteRenderResult> {
   return window.electron.ipcRenderer.invoke<NoteRenderResult>('document:export-pdf', html, defaultName);
+}
+
+/**
+ * Export `html` as a Word document through a native Save dialog. Resolves with
+ * the saved path, or null/undefined when the user cancelled.
+ */
+export async function exportNoteDocx(
+  defaultName: string,
+  html: string,
+  title: string
+): Promise<string | null | undefined> {
+  return unwrap<string | null | undefined>(
+    window.electron.ipcRenderer.invoke('file-notes:export-docx', defaultName, html, title)
+  );
 }
 
 /** Send any standalone HTML document (the Bible pane's printed passage) to the OS print dialog. */

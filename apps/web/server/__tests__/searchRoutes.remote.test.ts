@@ -109,4 +109,40 @@ describe('GET /api/search/semantic (remote mode)', () => {
     expect(res.status).toBe(200);
     expect(f).not.toHaveBeenCalled();
   });
+
+  it('pages through results with a single remote call fetched at k=100', async () => {
+    const hits = Array.from({ length: 150 }, (_, i) => ({ rank: i + 1, id: `KJV.JHN.3.${i + 1}`, score: 0.9 }));
+    const f = vi.fn(async (_u: unknown, _i?: unknown) => new Response(JSON.stringify({
+      mode: 'semantic', degraded: false, results: hits,
+    }), { status: 200, headers: { 'content-type': 'application/json' } }));
+    const app = setup(f);
+    const lengths: number[] = [];
+    for (const n of [20, 40, 60, 100, 250, 500]) {
+      const res = await request(app).get(`/api/search/semantic?q=paging&maxResults=${n}`).set('X-Remote-Search-Consent', CONSENT);
+      expect(res.status).toBe(200);
+      expect(res.body.total).toBe(res.body.results.length);
+      lengths.push(res.body.results.length);
+    }
+    expect(f).toHaveBeenCalledTimes(1);
+    const sent = JSON.stringify((f.mock.calls[0][1] as RequestInit).body ?? '') + String(f.mock.calls[0][0]);
+    expect(sent).toMatch(/\bk\b\W+100\b|k=100/);
+    expect(lengths).toEqual([20, 40, 60, 100, 100, 100]);
+  });
+
+  it('concurrent misses for the same query share one remote call', async () => {
+    let release!: () => void;
+    const gate = new Promise<void>(r => { release = r; });
+    const f = vi.fn(async (_u: unknown, _i?: unknown) => { await gate; return okResponse(); });
+    const app = setup(f);
+    const get = () => request(app).get('/api/search/semantic?q=same%20idea').set('X-Remote-Search-Consent', CONSENT).then(r => r);
+    const a = get();
+    const b = get();
+    // Let both requests reach the route before the remote answers.
+    await new Promise(r => setTimeout(r, 50));
+    release();
+    const [ra, rb] = await Promise.all([a, b]);
+    expect(ra.status).toBe(200);
+    expect(rb.status).toBe(200);
+    expect(f).toHaveBeenCalledTimes(1);
+  });
 });

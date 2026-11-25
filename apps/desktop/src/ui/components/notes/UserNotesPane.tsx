@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNotesStore } from '../../stores/useNotesStore';
 import { useNotesPanel } from '../../stores/hooks/useNotesPanel';
 import NotesFolderBrowser from './NotesFolderBrowser';
@@ -18,6 +18,15 @@ import { useNoteFileActions } from './UserNotesPane/hooks/useNoteFileActions';
 import { useNoteCrud } from './UserNotesPane/hooks/useNoteCrud';
 import { useEditorShortcuts } from './UserNotesPane/hooks/useEditorShortcuts';
 import { useNotesInit } from './UserNotesPane/hooks/useNotesInit';
+import { isDraftNote } from './UserNotesPane/draftNote';
+import { isEnabled } from '../../settings/featureFlags';
+import { useChapterMode } from './UserNotesPane/hooks/useChapterMode';
+import { compileRequestForFolder, isCompilableVerseFolder } from './UserNotesPane/chapterPaneHelpers';
+import { useNoteOpenRequest } from './UserNotesPane/noteOpenRequest';
+import { requestCompilePassageNotes } from '../../services/compile/compileRequest';
+import ChapterNotesView from './chapter/ChapterNotesView';
+import { useDetachedVerseFollow } from './chapter/useDetachedVerseFollow';
+import type { ChapterModeNavState } from '../../stores/notesChapterNavState';
 import { useVerseNoteOpener } from './UserNotesPane/hooks/useVerseNoteOpener';
 import { usePopOutListener } from './UserNotesPane/hooks/usePopOutListener';
 import { useNoteSavedListener } from './UserNotesPane/hooks/useNoteSavedListener';
@@ -30,13 +39,15 @@ import ConfirmDialog from '../shared/ConfirmDialog';
 import { useI18n } from '../../contexts/useI18n';
 import { entryDisplayName } from './verseNoteName';
 
-type NotesView = 'browser' | 'editor';
+type NotesView = 'browser' | 'editor' | 'chapter';
 
 interface UserNotesPaneProps {
   panelId?: string;
   isDetached?: boolean;
   windowId?: string;
-  initialView?: 'browser' | 'editor';
+  initialView?: NotesView;
+  /** Chapter mode position handed over by a pop-out. */
+  initialChapter?: ChapterModeNavState;
   initialSideTab?: NotesSideTab;
   initialCurrentPath?: string;
   initialCurrentNotePath?: string;
@@ -45,12 +56,19 @@ interface UserNotesPaneProps {
 const UserNotesPane: React.FC<UserNotesPaneProps> = ({
   panelId = DEFAULT_PANEL_ID,
   isDetached = false,
-  initialView,
+  initialView: initialViewProp,
+  initialChapter: initialChapterProp,
   initialSideTab,
   initialCurrentPath,
   initialCurrentNotePath,
 }) => {
   const { t, localizer } = useI18n();
+  // Chapter mode is behind the default-off `chapterNotes` flag: while off, nothing of it is reachable
+  // and any saved or popped-out 'chapter' state falls back to the browser view.
+  const chapterOn = isEnabled('chapterNotes');
+  const initialView = chapterOn || initialViewProp !== 'chapter' ? initialViewProp : undefined;
+  const initialChapter = chapterOn ? initialChapterProp : undefined;
+  useDetachedVerseFollow(isDetached && chapterOn, panelId);
   const { currentVerseId } = useNotesPanel(panelId);
   // Entry awaiting delete confirmation (goes to the system trash).
   const [deleteTarget, setDeleteTarget] = useState<FileEntry | null>(null);
@@ -117,6 +135,34 @@ const UserNotesPane: React.FC<UserNotesPaneProps> = ({
     setFileError,
   });
 
+  // Chapter mode (third view). The navigation hook and the verse-note opener are created
+  // after it, so it reaches them through refs.
+  const loadDirectoryRef = useRef<((path: string) => void | Promise<void>) | null>(null);
+  const openVerseRef = useRef<((verseId?: number) => Promise<void>) | null>(null);
+  const {
+    chapterState,
+    setChapterState,
+    handleRef: chapterHandleRef,
+    onStateChange: onChapterStateChange,
+    flushChapter,
+    deactivateChapter,
+    setChapterView,
+    routeToChapter,
+    enterChapter,
+    exitToSingle,
+  } = useChapterMode({
+    isDetached,
+    initialChapter,
+    view,
+    currentPath,
+    currentNotePath,
+    editorIsDirty,
+    handleSaveNote,
+    setView,
+    loadDirectoryRef,
+    openVerseRef,
+  });
+
   // Folder/note navigation, breadcrumbs, rename-current, pop-out
   const {
     loadDirectory,
@@ -129,6 +175,8 @@ const UserNotesPane: React.FC<UserNotesPaneProps> = ({
   } = useNotesNavigation({
     panelId,
     view,
+    chapter: chapterState,
+    flushChapter,
     currentPath,
     currentNote,
     currentNotePath,
@@ -143,6 +191,8 @@ const UserNotesPane: React.FC<UserNotesPaneProps> = ({
     handleSaveNote,
   });
 
+  loadDirectoryRef.current = loadDirectory;
+
   // Mount-time init (including restoring the note this panel was left on) +
   // dynamic subtitle + nav-state registration.
   const { restoreDone } = useNotesInit({
@@ -150,10 +200,12 @@ const UserNotesPane: React.FC<UserNotesPaneProps> = ({
     panelId,
     isDetached,
     initialView,
+    initialChapter,
     initialSideTab,
     initialCurrentPath,
     initialCurrentNotePath,
     view,
+    chapter: chapterState,
     sideTab,
     currentPath,
     currentNotePath,
@@ -163,6 +215,9 @@ const UserNotesPane: React.FC<UserNotesPaneProps> = ({
     setCurrentNote,
     setCurrentNotePath,
     setView,
+    setChapterView: chapterOn ? setChapterView : undefined,
+    setChapterState,
+    setCurrentPath,
     setSideTab,
   });
 
@@ -213,7 +268,7 @@ const UserNotesPane: React.FC<UserNotesPaneProps> = ({
   useActiveNoteFlush({ view, currentNote, currentNotePath, setCurrentNote });
 
   // Verse-note open (event from Bible pane)
-  useVerseNoteOpener({
+  const { handleOpenVerseNote } = useVerseNoteOpener({
     ready: restoreDone && !showSetup,
     pendingRef: pendingVerseOpenRef,
     currentVerseId,
@@ -222,7 +277,12 @@ const UserNotesPane: React.FC<UserNotesPaneProps> = ({
     setCurrentPath,
     setView,
     setFileError,
+    routeToChapter,
   });
+  openVerseRef.current = handleOpenVerseNote;
+
+  // A note created elsewhere (the compile dialog) asks this pane to open it.
+  useNoteOpenRequest(handleOpenNote);
 
   // Verse navigation listeners (Alt+Click / Ctrl+Click in notes)
   useVerseNavigationListeners();
@@ -236,6 +296,7 @@ const UserNotesPane: React.FC<UserNotesPaneProps> = ({
     currentPath,
     handleSaveNote,
     loadDirectory,
+    deactivateChapter,
   });
 
   // Live sync: a save of this note in another window reloads it here (or flags a conflict if we have unsaved edits)
@@ -270,7 +331,7 @@ const UserNotesPane: React.FC<UserNotesPaneProps> = ({
 
   // Editor keyboard shortcuts (Ctrl/Cmd+S / Shift+S / P)
   useEditorShortcuts({
-    view,
+    view: view === 'chapter' ? 'browser' : view,
     onSave: handleSaveNote,
     onSaveAs: handleSaveAs,
     onPrint: handlePrint,
@@ -287,6 +348,29 @@ const UserNotesPane: React.FC<UserNotesPaneProps> = ({
 
   // Verse Notes folder check + permissions
   const isInVerseNotesFolder = isInVerseNotesFolderPath(currentPath);
+
+  /** Editor "Delete": ask first, through the same confirm dialog as the browser's menu. */
+  const requestDeleteCurrentNote = () => {
+    if (!currentNote || !currentNotePath) return;
+    const name = currentNotePath.replace(/\\/g, '/').split('/').pop() ?? currentNotePath;
+    setDeleteTarget({
+      name: name.replace(/\.bn$/, ''),
+      path: currentNotePath,
+      isDirectory: false,
+      modified: currentNote.updated,
+    });
+  };
+  /** Folder browser "Compile passage notes...": prefill the dialog from a Verse Notes book/chapter folder. */
+  const handleCompileFolder = useCallback((entry: FileEntry) => {
+    if (!entry.isDirectory || !isCompilableVerseFolder(entry.path)) return;
+    compileRequestForFolder(entry.path).then(
+      req => { if (req) requestCompilePassageNotes(req); },
+      (err: unknown) => setFileError(`Failed to compile passage notes: ${err instanceof Error ? err.message : String(err)}`)
+    );
+  }, []);
+
+  // A verse note with no file yet: nothing to move, delete or reveal until it is saved.
+  const isDraft = isDraftNote(currentNote);
   const canCreateNewNote = !isInVerseNotesFolder;
   const canCreateNewFolder = !isInVerseNotesFolder;
 
@@ -328,7 +412,7 @@ const UserNotesPane: React.FC<UserNotesPaneProps> = ({
           )}
 
           <div className="flex-1 overflow-hidden flex">
-            {(view === 'browser' || showEditorSidebar) && (
+            {(view === 'browser' || (view === 'editor' && showEditorSidebar)) && (
               <UserNotesSidebar
                 view={view}
                 sideTab={sideTab}
@@ -347,6 +431,8 @@ const UserNotesPane: React.FC<UserNotesPaneProps> = ({
                 onOpenFile={handleOpenFile}
                 onShowMoveDialog={() => setShowMoveDialog(true)}
                 onRequestRename={requestRenameCurrentNote}
+                onRequestDelete={isDraft ? undefined : requestDeleteCurrentNote}
+                isDraft={isDraft}
                 onExportMarkdown={handleExportMarkdown}
                 onExportDocx={handleExportDocx}
                 onExportPdf={handleExportPdf}
@@ -379,6 +465,8 @@ const UserNotesPane: React.FC<UserNotesPaneProps> = ({
                   onMoveTo={setMoveEntry}
                   onOpenInExplorer={handleOpenInExplorer}
                   isVerseNotesFolder={isInVerseNotesFolder}
+                  onOpenChapter={chapterOn && isInVerseNotesFolder && currentPath !== VERSE_NOTES_FOLDER ? () => { void enterChapter(); } : undefined}
+                  onCompileFolder={handleCompileFolder}
                   verseNotesFolderPath={VERSE_NOTES_FOLDER}
                   recentFiles={recentFiles}
                   onRemoveRecentFile={removeRecentFile}
@@ -386,6 +474,18 @@ const UserNotesPane: React.FC<UserNotesPaneProps> = ({
                   // Only offered where creating a note is actually allowed -
                   // the Verse Notes folder is populated from the Bible pane.
                   onCreateNote={canCreateNewNote ? () => setShowNewNoteDialog(true) : undefined}
+                />
+              )}
+
+              {view === 'chapter' && chapterState && (
+                <ChapterNotesView
+                  panelId={panelId}
+                  isDetached={isDetached}
+                  state={chapterState}
+                  onStateChange={onChapterStateChange}
+                  onExitToSingle={(verseId) => { void exitToSingle(verseId); }}
+                  handleRef={chapterHandleRef}
+                  onPopOut={() => { void handlePopOut(); }}
                 />
               )}
 
@@ -405,12 +505,15 @@ const UserNotesPane: React.FC<UserNotesPaneProps> = ({
                   breadcrumbs={buildEditorBreadcrumbs()}
                   onBreadcrumbNavigate={handleBreadcrumbNavigate}
                   onRequestRenameTitle={requestRenameCurrentNote}
+                  onRequestDelete={currentNote.type === 'verse_note' && !isDraft ? requestDeleteCurrentNote : undefined}
                   // Verse notes derive their title from the linked verse
                   // reference (e.g. "John 3:16") and aren't user-renameable;
                   // documents/journal/prayer notes keep the free-text title.
                   titleEditable={currentNote.type !== 'verse_note'}
                   onPopOut={handlePopOut}
+                  onOpenChapter={chapterOn && currentNote.type === 'verse_note' ? () => { void enterChapter(); } : undefined}
                   isDetached={isDetached}
+                  isDraft={isDraft}
                   notePath={currentNotePath}
                   previousNote={previousNote && previousNote.path !== currentNotePath ? previousNote : null}
                   onBackToPrevious={() => { if (previousNote) void handleOpenNote(previousNote.path); }}
@@ -445,7 +548,16 @@ const UserNotesPane: React.FC<UserNotesPaneProps> = ({
         onConfirm={() => {
           const target = deleteTarget;
           setDeleteTarget(null);
-          if (target) void handleDelete(target);
+          if (!target) return;
+          if (view === 'editor' && target.path === currentNotePath) {
+            // Deleting the open note: drop its unsaved edits (nothing to flush
+            // to a file that is going away) and land in its folder.
+            useNoteEditorStore.getState().markSaved(); // allow-getstate: confirm callback - imperative store write
+            const parent = target.path.replace(/\\/g, '/').split('/').slice(0, -1).join('/');
+            void handleDelete(target, parent);
+          } else {
+            void handleDelete(target);
+          }
         }}
         onCancel={() => setDeleteTarget(null)}
       />

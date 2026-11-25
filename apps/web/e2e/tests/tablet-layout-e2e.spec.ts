@@ -100,12 +100,15 @@ test.describe('Tablet Layout (1024px)', () => {
     await expect(page.locator('.kth-picker__books')).toBeVisible({ timeout: 3000 });
     await page.locator('.kth-picker__cell--book').first().click();
     await page.locator('.kth-picker__cell--chapter').first().click();
+    await page.locator('.kth-picker__chapter-go').click(); // the verse step: go to the whole chapter
     await waitForVerses(page);
 
     await page.locator('.bible-tab-bar__add').click();
     await expect(page.locator('.kth-picker__books')).toBeVisible({ timeout: 3000 });
     await page.locator('.kth-picker__cell--book', { hasText: /^Psalms$/ }).click();
-    await page.locator('.kth-picker__cell--chapter').first().click();
+    // Psalm 23: the one Psalms chapter the e2e fixture holds (Psalm 1 is not in it).
+    await page.locator('.kth-picker__cell--chapter', { hasText: /^23$/ }).click();
+    await page.locator('.kth-picker__chapter-go').click(); // the verse step: go to the whole chapter
     await waitForVerses(page);
 
     // All 3 tabs should be present and the tab bar should not overflow the viewport

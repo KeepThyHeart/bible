@@ -10,6 +10,7 @@ vi.mock('../../../../services/fileNotesAPI', () => ({
   onNoteSaved: (cb: typeof emit) => { emit = cb; return () => {}; },
 }));
 
+import { announceLocalNoteSaved } from '../../../../services/noteSavedLocal';
 import { useNoteSavedListener, normalizeNotePath } from './useNoteSavedListener';
 import { useNoteEditorStore } from '../../../../stores/useNoteEditorStore';
 import { CONFLICT_MESSAGE, hasNoteConflict, clearNoteConflict, beginSave, endSave } from './noteSave';
@@ -113,6 +114,33 @@ describe('useNoteSavedListener', () => {
     expect(setCurrentNote).toHaveBeenCalledTimes(1);
     expect(setCurrentNote).toHaveBeenCalledWith(expect.objectContaining({ updated: 't3' }));
     expect(useNoteEditorStore.getState().content).toBe('newest');
+  });
+
+  it('a clean pane reloads on a same-window (local bus) save of its note', async () => {
+    readNote.mockResolvedValue(note('t2', 'from-other-pane'));
+    mount();
+    announceLocalNoteSaved({ path: PATH, updated: 't2', origin: 'chapter:2' });
+    await flush(); await flush();
+    expect(setCurrentNote).toHaveBeenCalledWith(expect.objectContaining({ updated: 't2' }));
+    expect(useNoteEditorStore.getState().content).toBe('from-other-pane');
+  });
+
+  it('a dirty pane gets the conflict banner on a differing local save', async () => {
+    useNoteEditorStore.setState({ content: 'mine', isDirty: true });
+    readNote.mockResolvedValue(note('t2', 'theirs'));
+    mount();
+    announceLocalNoteSaved({ path: PATH, updated: 't2', origin: 'chapter:2' });
+    await flush(); await flush();
+    expect(setFileError).toHaveBeenCalledWith(CONFLICT_MESSAGE);
+    expect(setCurrentNote).not.toHaveBeenCalled();
+  });
+
+  it('a local save of another note, or an echo of the same updated, is ignored', async () => {
+    mount();
+    announceLocalNoteSaved({ path: 'other.bn', updated: 't2' });
+    announceLocalNoteSaved({ path: PATH, updated: 't1' });
+    await flush(); await flush();
+    expect(readNote).not.toHaveBeenCalled();
   });
 
   it('normalizes separators and Windows case', () => {

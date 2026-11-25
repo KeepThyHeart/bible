@@ -409,6 +409,13 @@ function registerWindowHandlers(): void {
     }
   });
 
+  // The Bible pane loaded another chapter: tell the detached windows (a popped-out Notes pane in
+  // Chapter mode follows it). Not a verse pick, so extensions and study panes are not told.
+  ipcMain.handle('window:broadcast-chapter-change', async (event, verseId: number) => {
+    windowManager.sendToDetached('bible-chapter-changed', verseId, event.sender.id);
+    return { success: true };
+  });
+
   // Broadcast verse change to every *other* window (for syncing)
   ipcMain.handle('window:broadcast-verse-change', async (event, verseId: number, moduleId?: string) => {
     try {
@@ -809,6 +816,12 @@ const registerAllHandlersOnce = runOnce(() => {
   // notification path - or worse, poll - `ext-ui://host/theme.css` rides on
   // this existing one, so the extension panels' token sheet re-renders on
   // exactly the events that already move the View menu's radio buttons.
+  // Feature-flag override text for the renderer (KTH_FLAGS), only when not packaged: read once, synchronously,
+  // by the preload (src/ui/settings/featureFlags.ts). A packaged install always gets ''.
+  ipcMain.on('app:dev-flag-overrides', (event) => {
+    event.returnValue = app.isPackaged ? '' : (process.env.KTH_FLAGS ?? '');
+  });
+
   ipcMain.on('menu:update-theme', (_event, themeId: string) => {
     menuBuilder?.updateTheme(themeId);
     setActiveHostTheme(themeId);

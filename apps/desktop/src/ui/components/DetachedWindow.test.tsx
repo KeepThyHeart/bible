@@ -52,6 +52,7 @@ vi.mock('./TopicsPane', () => stubPane('TopicsPane'));
 // `ContextProvider` that `detached.tsx` wraps the tree in, and mounts an
 // `ext-ui://` iframe that has no meaning in jsdom.
 vi.mock('./extensions/ExtensionPanelHost', () => stubPane('ExtensionPanelHost'));
+vi.mock('./notes/compile/CompilePassageNotesHost', () => ({ default: () => null }));
 
 // Only the singleton is stubbed: `enT` imports the real `I18nService` class
 // from this same module, so replacing the whole module would break it.

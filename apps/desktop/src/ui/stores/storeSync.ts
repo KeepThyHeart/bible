@@ -14,6 +14,7 @@
 // component renders that depends on the bridges or when-context flags. The
 // current call site is `App.tsx`.
 
+import { isEnabled } from '../settings/featureFlags';
 import { useBibleStore } from './useBibleStore';
 import { useCommentaryStore } from './useCommentaryStore';
 import { useDictionaryStore } from './useDictionaryStore';
@@ -220,6 +221,24 @@ export function wireStoreSync(): void {
   window.electron?.window?.onVerseChanged?.((verseId: number) => {
     detachedBibleVerseId = verseId;
     syncPanesWithVerse(verseId);
+  });
+
+  // A popped-out Notes pane in Chapter mode follows the chapter the main Bible pane has loaded.
+  // Chapter moves are not verse picks (no `verse-changed`), so announce them on their own channel.
+  // Mirrors `usePrimaryBibleChapter`: the first verse of the primary panel's active tab, standing
+  // down while a cross-reference preview shows.
+  let lastAnnouncedChapterVerse: number | null = null;
+  useBibleStore.subscribe((state) => {
+    const panel = state.panels.values().next().value;
+    if (!panel || (panel.previewVerseId ?? null) !== null) return;
+    const tab = panel.openTabs[panel.activeTabIndex];
+    const verses = tab ? panel.versesByTab.get(tab.tabId) : undefined;
+    const first = verses && verses.length > 0 && verses[0].verse_id ? verses[0].verse_id : null;
+    // Only Chapter mode's Follow listens to this: nothing to announce while the flag is off.
+    if (!isEnabled('chapterNotes')) return;
+    if (first === null || first === lastAnnouncedChapterVerse) return;
+    lastAnnouncedChapterVerse = first;
+    window.electron?.window?.broadcastChapterChange?.(first)?.catch?.(() => { /* no listeners is fine */ });
   });
 
   // Search store uses this to gather the full set of open module

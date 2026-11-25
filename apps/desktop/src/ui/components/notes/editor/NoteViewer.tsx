@@ -4,6 +4,8 @@ import { previewVerseInPrimary } from '../../../stores/crossStoreBridge';
 import VersePreviewTooltip from '../../VersePreviewTooltip';
 import { reprocessCommentaryLinks } from '../../../utils/commentaryLinkProcessor';
 import { useI18n } from '../../../contexts/useI18n';
+import { useNotesZoomStyle } from '../NotesZoom';
+import { useCtrlWheelNotesZoom } from '../../../hooks/useCtrlWheelNotesZoom';
 import { useDirection } from '../../../contexts/useDirection';
 
 interface NoteViewerProps {
@@ -11,11 +13,28 @@ interface NoteViewerProps {
   onEdit?: () => void;  // Optional - not currently used but kept for future use
   /** The note's own default direction; unset follows the UI direction. */
   defaultDirection?: 'ltr' | 'rtl';
+  /**
+   * Also show what a full note can hold (headings, blockquotes, tables, data: images, code ...).
+   * Used by chapter mode's rows and the compile preview; the default keeps the narrow allow-list.
+   */
+  rich?: boolean;
 }
 
-const NoteViewer: React.FC<NoteViewerProps> = ({ content, defaultDirection }) => {
+const BASE_TAGS = ['p', 'br', 'strong', 'em', 'u', 'mark', 'a', 'ul', 'ol', 'li', 'span'];
+const BASE_ATTRS = ['class', 'data-verse-id', 'href', 'style', 'data-color', 'dir'];
+const RICH_TAGS = [
+  ...BASE_TAGS, 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'hr', 'table', 'thead', 'tbody', 'tr', 'th', 'td',
+  'img', 's', 'sub', 'sup', 'code', 'pre',
+];
+const RICH_ATTRS = [...BASE_ATTRS, 'src', 'colspan', 'rowspan'];
+/** Only inline data: images; a remote src would make a note phone home. */
+const DATA_IMAGE_URI = /^data:image\/(?:png|jpe?g|gif|webp);/i;
+
+const NoteViewer: React.FC<NoteViewerProps> = ({ content, defaultDirection, rich = false }) => {
   const uiDir = useDirection();
   const contentRef = useRef<HTMLDivElement>(null);
+  const zoomStyle = useNotesZoomStyle();
+  useCtrlWheelNotesZoom(contentRef);
   const { t } = useI18n();
   // A reference in a note is a citation the reader is checking, so it
   // previews - see `stores/bible/slices/previewSlice.ts`.
@@ -38,11 +57,18 @@ const NoteViewer: React.FC<NoteViewerProps> = ({ content, defaultDirection }) =>
     // First, auto-link any verse references in the content (no context book for user notes)
     const linkedContent = reprocessCommentaryLinks(content);
     // Then sanitize the HTML
-    return DOMPurify.sanitize(linkedContent, {
-      ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'u', 'mark', 'a', 'ul', 'ol', 'li', 'span'],
-      ALLOWED_ATTR: ['class', 'data-verse-id', 'href', 'style', 'data-color', 'dir'],
+    if (!rich) {
+      return DOMPurify.sanitize(linkedContent, { ALLOWED_TAGS: BASE_TAGS, ALLOWED_ATTR: BASE_ATTRS });
+    }
+    const clean = DOMPurify.sanitize(linkedContent, { ALLOWED_TAGS: RICH_TAGS, ALLOWED_ATTR: RICH_ATTRS });
+    if (!clean.includes('<img')) return clean;
+    const tpl = document.createElement('template');
+    tpl.innerHTML = clean;
+    tpl.content.querySelectorAll('img').forEach(img => {
+      if (!DATA_IMAGE_URI.test(img.getAttribute('src') ?? '')) img.remove();
     });
-  }, [content]);
+    return tpl.innerHTML;
+  }, [content, rich]);
 
   // Handle click on verse links (supports both data-verse-id and scripture-link with href)
   useEffect(() => {
@@ -149,7 +175,8 @@ const NoteViewer: React.FC<NoteViewerProps> = ({ content, defaultDirection }) =>
           // other content pane's `.pane-content-*` rule in globals.css - see
           // NoteEditor.tsx's comment for why a literal 16px here would go dead.
           fontSize: 'calc(var(--study-font-size, 16px) * var(--global-font-scale, 1))',
-          lineHeight: '1.7'
+          lineHeight: '1.7',
+          ...zoomStyle,
         }}
       >
         <style>{`

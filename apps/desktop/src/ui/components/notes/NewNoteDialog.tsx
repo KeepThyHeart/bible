@@ -14,7 +14,7 @@ function escapeHtml(text: string): string {
   return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
-function buildTemplates(t: (key: string) => string, localizer: Localizer, noteTitle: string): NoteTemplate[] {
+export function buildNoteTemplates(t: (key: string) => string, localizer: Localizer, noteTitle: string): NoteTemplate[] {
   const typedTitle = escapeHtml(noteTitle.trim());
   const verseStudy =
     '<h2>' + t('newNoteDialog.tplVerseStudy.heading') + '</h2>' +
@@ -103,7 +103,7 @@ const NewNoteDialog: React.FC<NewNoteDialogProps> = ({ isOpen, onConfirm, onCanc
   const [title, setTitle] = useState('');
   const [selectedTemplate, setSelectedTemplate] = useState('blank');
 
-  const templates = useMemo(() => buildTemplates(t, localizer, title), [t, localizer, title]);
+  const templates = useMemo(() => buildNoteTemplates(t, localizer, title), [t, localizer, title]);
 
   useEffect(() => {
     if (isOpen) {
