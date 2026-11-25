@@ -1,6 +1,6 @@
 {
   "name": "bible",
-  "version": "1.0.0-beta.1",
+  "version": "1.0.0-beta.2",
   "description": "Bible study software",
   "private": false,
   "workspaces": [
@@ -23,6 +23,7 @@
     "init:check": "node scripts/init/checks.js",
     "verify": "node admin/scripts/verify.js",
     "test:installer": "node admin/scripts/test-installer.js",
+    "set-version": "node admin/scripts/set-version.js",
     "dev": "pnpm --filter @bible/desktop run dev",
     "dev:web": "pnpm --filter @bible/web run dev",
     "install:local": "pnpm --filter @bible/desktop run install:local",
