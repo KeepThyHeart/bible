@@ -1,0 +1,241 @@
+/* Proposed web styles for the pane "..." menu, the phone sheet and Module Info.
+   Wireframe only: every value is an existing web token (apps/web/src/themes/*),
+   and the menu rows copy .verse-context-menu (styles/_context-menu.scss) so the
+   new menu reads as the same family as the verse right-click menu. */
+
+/* ---- Trigger: a toolbar button like its neighbours ------------------------ */
+.pane-menu {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+}
+
+.pane-menu__trigger.is-open,
+.pane-menu__trigger[aria-expanded="true"] {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+/* In the commentary tab bar the trigger sits after "+", same size as "+". */
+.commentary-tab-bar .pane-menu__trigger {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 32px;
+  border: none;
+  border-inline-start: 1px solid var(--border-color);
+  background: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.commentary-tab-bar .pane-menu__trigger:hover { background: var(--bg-tertiary); color: var(--text-primary); }
+
+/* ---- Drop-down: .verse-context-menu, anchored under the trigger ----------- */
+.pane-menu__list.verse-context-menu {
+  position: absolute;
+  top: calc(100% + 2px);
+  inset-inline-end: 0;
+  min-width: 240px;
+  z-index: 120;
+}
+
+.pane-menu__item-sub {
+  margin-inline-start: auto;
+  padding-inline-start: 12px;
+  font-size: calc(0.75rem * var(--ui-font-scale, 1));
+  color: var(--text-muted);
+}
+
+.verse-context-menu__item[aria-checked="true"] .pane-menu__check { visibility: visible; }
+.pane-menu__check { visibility: hidden; color: var(--accent-color) !important; }
+
+/* The text size row keeps the Aa popover's stepper (TextSizeButton). */
+.pane-menu__row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px 6px 12px;
+  font-size: calc(0.8125rem * var(--ui-font-scale, 1));
+  color: var(--text-primary);
+}
+
+.pane-menu__row > i { width: 16px; text-align: center; color: var(--text-muted); }
+
+.pane-menu__stepper {
+  margin-inline-start: auto;
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.pane-menu__stepper button {
+  border: none;
+  background: none;
+  color: var(--text-primary);
+  inline-size: 30px;
+  block-size: 26px;
+  cursor: pointer;
+}
+
+.pane-menu__stepper button:hover { background: var(--bg-tertiary); }
+
+.pane-menu__stepper output {
+  min-inline-size: 44px;
+  text-align: center;
+  font-size: calc(0.75rem * var(--ui-font-scale, 1));
+  color: var(--text-secondary);
+  border-inline: 1px solid var(--border-color);
+  line-height: 26px;
+}
+
+/* ---- Phone: the same items as a bottom sheet ----------------------------- */
+.pane-sheet-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 250;
+  background: var(--overlay-bg);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+.pane-sheet {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  border-radius: 14px 14px 0 0;
+  box-shadow: 0 -8px 24px var(--dropdown-shadow);
+  padding: 6px 8px calc(12px + env(safe-area-inset-bottom, 0px));
+  max-block-size: 85vh;
+  overflow-y: auto;
+}
+
+.pane-sheet__grip {
+  inline-size: 36px;
+  block-size: 4px;
+  border-radius: 2px;
+  background: var(--border-color);
+  margin: 4px auto 8px;
+}
+
+.pane-sheet__title {
+  padding: 2px 12px 8px;
+  font-size: calc(0.75rem * var(--ui-font-scale, 1));
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* Sheet rows are the menu rows with a 44px touch target. */
+.pane-sheet .verse-context-menu__item {
+  min-block-size: 44px;
+  font-size: calc(0.9375rem * var(--ui-font-scale, 1));
+}
+
+.pane-sheet .pane-menu__row { min-block-size: 44px; font-size: calc(0.9375rem * var(--ui-font-scale, 1)); }
+.pane-sheet .pane-menu__stepper button { inline-size: 40px; block-size: 34px; }
+.pane-sheet .pane-menu__stepper output { line-height: 34px; }
+
+.pane-sheet__cancel {
+  display: block;
+  inline-size: 100%;
+  margin-top: 6px;
+  padding: 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: calc(0.9375rem * var(--ui-font-scale, 1));
+  font-weight: 600;
+}
+
+/* Phone commentary detail: the back bar gains the trigger at its end. */
+.mobile-study-pane__sticky-back--commentary-detail { display: flex; align-items: center; }
+.mobile-study-pane__sticky-back--commentary-detail .mobile-commentary-detail__back-title { flex: 1; min-width: 0; }
+.mobile-study-pane__sticky-back .pane-menu__trigger {
+  border: none;
+  background: none;
+  color: var(--text-secondary);
+  inline-size: 44px;
+  block-size: 44px;
+  flex-shrink: 0;
+  font-size: calc(1rem * var(--ui-font-scale, 1));
+}
+
+/* ---- Module Info: the module dialog, sized to its content ---------------- */
+.module-dialog.module-info {
+  height: auto;
+  width: 480px;
+}
+
+.module-info__body {
+  padding: 16px 20px;
+  overflow-y: auto;
+  font-size: calc(0.8125rem * var(--ui-font-scale, 1));
+  color: var(--text-primary);
+}
+
+.module-info__subtitle {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 2px;
+  font-size: calc(0.75rem * var(--ui-font-scale, 1));
+  color: var(--text-secondary);
+  font-weight: 400;
+}
+
+.module-info__badge {
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  font-size: calc(0.6875rem * var(--ui-font-scale, 1));
+}
+
+.module-info__desc {
+  margin: 0 0 14px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.module-info__details.commentary-about__details {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 8px 16px;
+  margin: 0;
+}
+
+.module-info__details dt { color: var(--text-secondary); font-weight: 600; }
+.module-info__details dd { margin: 0; overflow-wrap: anywhere; }
+.module-info__details a { color: var(--accent-color); }
+
+.module-info__attribution {
+  margin-top: 14px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  background: var(--bg-secondary);
+  border-inline-start: 3px solid var(--accent-color);
+  font-size: calc(0.75rem * var(--ui-font-scale, 1));
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.module-info__attribution-label {
+  display: block;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 2px;
+}
+
+/* Phone: Module Info is a full-height sheet rather than a centred dialog. */
+.pane-sheet.module-info-sheet { padding: 0; max-block-size: 92vh; display: flex; flex-direction: column; }
+.module-info-sheet .module-dialog__header { padding: 12px 16px; }
+.module-info-sheet .module-info__body { padding: 14px 16px 20px; font-size: calc(0.875rem * var(--ui-font-scale, 1)); }
+.module-info-sheet .module-info__details.commentary-about__details { grid-template-columns: 1fr; gap: 2px; }
+.module-info-sheet .module-info__details dd { margin-bottom: 10px; }

@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="en" data-default-open="bible" data-states="bible:Bible sheet,commentary:Commentary sheet,info:Module Info,closed:Closed">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pane menu - phone (wireframe)</title>
+<link rel="stylesheet" href="vendor/fontawesome/css/fontawesome.min.css">
+<link rel="stylesheet" href="vendor/fontawesome/css/solid.min.css">
+<link rel="stylesheet" href="css/web-app.css">
+<link rel="stylesheet" href="web-pane-menu.css">
+<link rel="stylesheet" href="wf.css">
+<style>
+  html, body { height: 100%; margin: 0; }
+  body { background: var(--bg-primary); }
+</style>
+<script src="wf.js"></script>
+</head>
+<body>
+<!-- One phone screen. ?open=bible shows the Read view, commentary/info the Commentary view. -->
+<div class="app app--mobile app--mobile-bible" data-show="bible closed">
+  <div class="mobile-scroll-wrapper">
+    <header class="header">
+      <div class="header__logo">
+        <i class="fa-solid fa-book-bible"></i>
+        <span class="header__wordmark"><span class="header__wordmark-name">Keep Thy Heart</span><span class="header__wordmark-tagline">Bible Reader</span></span>
+      </div>
+      <div class="header__actions">
+        <button class="header__action-btn"><i class="fa-solid fa-sun"></i></button>
+        <button class="header__action-btn"><i class="fa-solid fa-gear"></i></button>
+      </div>
+    </header>
+    <main class="app-main">
+      <div class="bible-tab-bar">
+        <div class="bible-tab-bar__tab bible-tab-bar__tab--active">
+          <span class="bible-tab-bar__tab-content"><span class="bible-tab-bar__tab-title">KJV</span><span class="bible-tab-bar__tab-subtitle">John 3</span></span>
+          <button class="bible-tab-bar__close"><i class="fa-solid fa-xmark fa-xs"></i></button>
+        </div>
+        <button class="bible-tab-bar__add"><i class="fa-solid fa-plus"></i></button>
+      </div>
+      <div class="bible-toolbar">
+        <div class="bible-toolbar__left">
+          <div class="bible-toolbar__nav">
+            <button class="bible-toolbar__nav-btn"><i class="fa-solid fa-reply"></i></button>
+            <button class="bible-toolbar__nav-btn"><i class="fa-solid fa-clock-rotate-left"></i></button>
+          </div>
+          <select class="bible-toolbar__mode-select"><option>Standard</option></select>
+          <button class="bible-toolbar__translation-btn">KJV <i class="fa-solid fa-caret-down" style="font-size:10px;opacity:.6"></i></button>
+        </div>
+        <div class="bible-toolbar__right">
+          <button class="text-size__button bible-toolbar__btn"><span class="text-size__glyph">Aa</span></button>
+          <div class="pane-menu">
+            <button class="bible-toolbar__btn pane-menu__trigger" aria-label="Pane options" aria-haspopup="dialog" data-pressed-when="bible" style="border-inline-start:2px solid var(--border-color)"><i class="fa-solid fa-ellipsis"></i></button>
+          </div>
+        </div>
+      </div>
+      <div class="main-layout__bible">
+        <div class="bible-pane">
+          <div class="bible-pane__scroll-container">
+            <div class="bible-content bible-content--standard">
+              <div class="bible-content__chapter-header">
+                <button class="bible-content__nav-btn"><i class="fa-solid fa-chevron-left"></i></button>
+                <h2 class="bible-content__chapter-title bible-content__chapter-title--tappable">John 3 <i class="fa-solid fa-caret-down bible-content__chapter-caret"></i></h2>
+                <button class="bible-content__nav-btn"><i class="fa-solid fa-chevron-right"></i></button>
+              </div>
+              <div>
+                <span class="verse"><sup class="verse__number">14</sup>And as Moses lifted up the serpent in the wilderness, even so must the Son of man be lifted up: </span>
+                <span class="verse"><sup class="verse__number">15</sup>That whosoever believeth in him should not perish, but have eternal life. </span>
+                <span class="verse verse--study"><sup class="verse__number">16</sup>For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life. </span>
+                <span class="verse"><sup class="verse__number">17</sup>For God sent not his Son into the world to condemn the world; but that the world through him might be saved. </span>
+                <span class="verse"><sup class="verse__number">18</sup>He that believeth on him is not condemned: but he that believeth not is condemned already, because he hath not believed in the name of the only begotten Son of God. </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+  <nav class="mobile-nav">
+    <button class="mobile-nav__btn"><i class="fa-solid fa-house"></i><span>Home</span></button>
+    <button class="mobile-nav__btn"><i class="fa-solid fa-bookmark"></i><span>Study</span></button>
+    <button class="mobile-nav__btn mobile-nav__btn--active"><i class="fa-solid fa-book-bible"></i><span>Read</span></button>
+    <button class="mobile-nav__btn"><i class="fa-solid fa-comment-dots"></i><span>Commentary</span></button>
+    <button class="mobile-nav__btn"><i class="fa-solid fa-magnifying-glass"></i><span>Search</span></button>
+  </nav>
+
+  <!-- Bible pane options as a bottom sheet -->
+  <div class="pane-sheet-overlay" data-show="bible">
+    <div class="pane-sheet" role="dialog" aria-label="Pane options">
+      <div class="pane-sheet__grip"></div>
+      <div class="pane-sheet__title">KJV - John 3</div>
+      <button class="verse-context-menu__item"><i class="fa-solid fa-circle-info"></i> Module Info<span class="pane-menu__item-sub">KJV</span></button>
+      <div class="verse-context-menu__divider"></div>
+      <button class="verse-context-menu__item"><i class="fa-solid fa-copy"></i> Copy verses...<span class="pane-menu__item-sub">John 3:16</span></button>
+      <div class="pane-menu__row"><i class="fa-solid fa-font"></i> Text size
+        <span class="pane-menu__stepper"><button aria-label="Smaller"><i class="fa-solid fa-minus"></i></button><output>100%</output><button aria-label="Larger"><i class="fa-solid fa-plus"></i></button></span>
+      </div>
+      <button class="verse-context-menu__item"><i class="fa-solid fa-sliders"></i> More text options...</button>
+      <button class="pane-sheet__cancel">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div class="app app--mobile app--mobile-commentary" data-show="commentary info">
+  <div class="mobile-scroll-wrapper">
+    <header class="header">
+      <div class="header__logo">
+        <i class="fa-solid fa-book-bible"></i>
+        <span class="header__wordmark"><span class="header__wordmark-name">Keep Thy Heart</span><span class="header__wordmark-tagline">Bible Reader</span></span>
+      </div>
+      <div class="header__actions">
+        <button class="header__action-btn"><i class="fa-solid fa-sun"></i></button>
+        <button class="header__action-btn"><i class="fa-solid fa-gear"></i></button>
+      </div>
+    </header>
+    <main class="app-main">
+      <div class="mobile-study-pane mobile-study-pane--commentary">
+        <div class="mobile-study-pane__content">
+          <h2 class="mobile-study-pane__title">Commentary</h2>
+          <a class="mobile-commentary-detail__see-all" href="#"><i class="fa-solid fa-arrow-left fa-xs"></i> See all commentaries</a>
+          <div class="mobile-study-pane__sticky-back mobile-study-pane__sticky-back--commentary-detail">
+            <button class="mobile-commentary-detail__back-title"><i class="fa-solid fa-arrow-left fa-xs"></i> <span class="mobile-commentary-detail__back-title-text">John Gill's Exposition of the Bible</span></button>
+            <!-- NEW: pane options at the end of the back bar -->
+            <button class="pane-menu__trigger" aria-label="Commentary options" aria-haspopup="dialog" data-pressed-when="commentary"><i class="fa-solid fa-ellipsis"></i></button>
+          </div>
+          <div class="study-verse-header">
+            <div class="study-verse-header__center">
+              <div class="study-verse-header__ref-line">
+                <button class="study-verse-header__ref">John 3:16</button>
+                <button class="study-verse-header__pin"><i class="fa-solid fa-thumbtack fa-rotate-by" style="--fa-rotate-angle:30deg"></i></button>
+              </div>
+            </div>
+          </div>
+          <div class="mobile-commentary-detail">
+            <div class="mobile-commentary-detail__content">
+              <div class="mobile-commentary-detail__entry">
+                <div class="mobile-commentary-detail__ref">John 3:16</div>
+                <div>For God so loved the world, ... These words are a continuation of Christ's discourse with Nicodemus, and contain the reason of the former, why the Son of man must be lifted up, and why whosoever believes in him shall not perish, but have eternal life; namely, because of the great love of God to the world...</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+  <nav class="mobile-nav">
+    <button class="mobile-nav__btn"><i class="fa-solid fa-house"></i><span>Home</span></button>
+    <button class="mobile-nav__btn"><i class="fa-solid fa-bookmark"></i><span>Study</span></button>
+    <button class="mobile-nav__btn"><i class="fa-solid fa-book-bible"></i><span>Read</span></button>
+    <button class="mobile-nav__btn mobile-nav__btn--active"><i class="fa-solid fa-comment-dots"></i><span>Commentary</span></button>
+    <button class="mobile-nav__btn"><i class="fa-solid fa-magnifying-glass"></i><span>Search</span></button>
+  </nav>
+
+  <!-- Commentary options as a bottom sheet -->
+  <div class="pane-sheet-overlay" data-show="commentary">
+    <div class="pane-sheet" role="dialog" aria-label="Commentary options">
+      <div class="pane-sheet__grip"></div>
+      <div class="pane-sheet__title">Gill - John 3:16</div>
+      <button class="verse-context-menu__item"><i class="fa-solid fa-circle-info"></i> Module Info<span class="pane-menu__item-sub">Gill</span></button>
+      <div class="verse-context-menu__divider"></div>
+      <button class="verse-context-menu__item"><i class="fa-solid fa-thumbtack"></i> Pin to John 3:16</button>
+      <div class="pane-menu__row"><i class="fa-solid fa-font"></i> Text size
+        <span class="pane-menu__stepper"><button aria-label="Smaller"><i class="fa-solid fa-minus"></i></button><output>100%</output><button aria-label="Larger"><i class="fa-solid fa-plus"></i></button></span>
+      </div>
+      <button class="verse-context-menu__item"><i class="fa-solid fa-sliders"></i> More text options...</button>
+      <button class="pane-sheet__cancel">Cancel</button>
+    </div>
+  </div>
+
+  <!-- Module Info as a tall sheet -->
+  <div class="pane-sheet-overlay" data-show="info">
+    <div class="pane-sheet module-info-sheet" role="dialog" aria-modal="true" aria-labelledby="mi-title">
+      <div class="pane-sheet__grip"></div>
+      <div class="module-dialog__header">
+        <div>
+          <h3 id="mi-title">John Gill's Exposition of the Bible</h3>
+          <div class="module-info__subtitle"><span>Gill</span><span class="module-info__badge">Commentary</span><span class="module-info__badge">English</span></div>
+        </div>
+        <button class="module-dialog__close" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="module-info__body">
+        <p class="module-info__desc">A verse-by-verse exposition of the whole Bible by the Baptist pastor and theologian John Gill (1697-1771), first published 1746-1763.</p>
+        <dl class="module-info__details commentary-about__details">
+          <dt>Copyright</dt><dd>Public domain</dd>
+          <dt>License</dt><dd><a href="#">Public Domain <i class="fa-solid fa-arrow-up-right-from-square fa-xs"></i></a></dd>
+          <dt>Source</dt><dd>SWORD module "Gill", Xiphos package repository</dd>
+          <dt>Version</dt><dd>1.2</dd>
+        </dl>
+        <div class="module-info__attribution">
+          <span class="module-info__attribution-label">Attribution</span>
+          John Gill, Exposition of the Old and New Testaments (1746-1763). Text from the SWORD Project module "Gill".
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

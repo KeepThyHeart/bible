@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="en" data-default-open="bible" data-states="bible:Bible menu,commentary:Commentary menu,info:Module Info,closed:Closed">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pane menu - web (wireframe)</title>
+<link rel="stylesheet" href="vendor/fontawesome/css/fontawesome.min.css">
+<link rel="stylesheet" href="vendor/fontawesome/css/solid.min.css">
+<link rel="stylesheet" href="css/web-app.css">
+<link rel="stylesheet" href="web-pane-menu.css">
+<link rel="stylesheet" href="wf.css">
+<style>
+  html, body { height: 100%; margin: 0; }
+  body { display: flex; flex-direction: column; background: var(--bg-primary); }
+  .app { flex: 1; min-height: 0; position: relative; }
+  .wf-pinned { position: relative; }
+</style>
+<script src="wf.js"></script>
+</head>
+<body>
+<div class="app">
+  <header class="header">
+    <div class="header__logo">
+      <i class="fa-solid fa-book-bible"></i>
+      <span class="header__wordmark">
+        <span class="header__wordmark-name">Keep Thy Heart</span>
+        <span class="header__wordmark-tagline">Bible Reader</span>
+      </span>
+    </div>
+    <form class="header__search" onsubmit="return false">
+      <div class="header__search-type-wrapper">
+        <button type="button" class="header__search-type-btn"><i class="fa-solid fa-magnifying-glass"></i> <span class="header__search-type-label">Keyword</span> <i class="fa-solid fa-chevron-down header__search-type-caret"></i></button>
+      </div>
+      <input class="header__search-field" placeholder="Search or go to a passage">
+      <button type="button" class="header__toc-btn"><i class="fa-solid fa-book-open"></i></button>
+    </form>
+    <div class="header__actions">
+      <button class="header__action-btn" title="Theme"><i class="fa-solid fa-sun"></i></button>
+      <button class="header__action-btn" title="Help"><i class="fa-solid fa-circle-question"></i></button>
+      <button class="header__action-btn" title="Settings"><i class="fa-solid fa-gear"></i></button>
+    </div>
+  </header>
+
+  <main class="main-layout">
+    <div class="main-layout__bible" style="width:58%">
+      <div class="bible-tab-bar">
+        <button class="bible-tab-bar__home"><i class="fa-solid fa-house"></i></button>
+        <div class="bible-tab-bar__tab bible-tab-bar__tab--active">
+          <span class="bible-tab-bar__tab-content"><span class="bible-tab-bar__tab-title">KJV</span><span class="bible-tab-bar__tab-subtitle">John 3</span></span>
+          <button class="bible-tab-bar__close"><i class="fa-solid fa-xmark fa-xs"></i></button>
+        </div>
+        <div class="bible-tab-bar__tab">
+          <span class="bible-tab-bar__tab-content"><span class="bible-tab-bar__tab-title">WEB</span><span class="bible-tab-bar__tab-subtitle">Psalm 23</span></span>
+          <button class="bible-tab-bar__close"><i class="fa-solid fa-xmark fa-xs"></i></button>
+        </div>
+        <button class="bible-tab-bar__add"><i class="fa-solid fa-plus"></i></button>
+      </div>
+
+      <div class="bible-toolbar">
+        <div class="bible-toolbar__left">
+          <div class="bible-toolbar__nav">
+            <button class="bible-toolbar__nav-btn" title="Go back"><i class="fa-solid fa-reply kth-rtl-mirror"></i></button>
+            <button class="bible-toolbar__nav-btn" title="Recent passages"><i class="fa-solid fa-clock-rotate-left"></i></button>
+          </div>
+          <select class="bible-toolbar__mode-select"><option>Standard</option></select>
+          <button class="bible-toolbar__btn bible-toolbar__reference-btn">John 3 <i class="fa-solid fa-caret-down" style="font-size:10px;opacity:.6"></i></button>
+          <button class="bible-toolbar__translation-btn">KJV <i class="fa-solid fa-caret-down" style="font-size:10px;opacity:.6"></i></button>
+        </div>
+        <div class="bible-toolbar__right">
+          <button class="text-size__button bible-toolbar__btn"><span class="text-size__glyph">Aa</span></button>
+          <div class="bible-toolbar__nav bible-toolbar__chapter-nav">
+            <button class="bible-toolbar__nav-btn" title="Previous chapter"><i class="fa-solid fa-chevron-left kth-rtl-mirror"></i></button>
+            <button class="bible-toolbar__nav-btn" title="Next chapter"><i class="fa-solid fa-chevron-right kth-rtl-mirror"></i></button>
+          </div>
+          <!-- NEW: pane options -->
+          <div class="pane-menu">
+            <button class="bible-toolbar__btn pane-menu__trigger" title="Pane options" aria-label="Pane options" aria-haspopup="menu" data-pressed-when="bible" style="border-inline-start:2px solid var(--border-color)"><i class="fa-solid fa-ellipsis"></i></button>
+            <div class="verse-context-menu pane-menu__list" role="menu" aria-label="Pane options" data-show="bible">
+              <button class="verse-context-menu__item" role="menuitem"><i class="fa-solid fa-circle-info"></i> Module Info<span class="pane-menu__item-sub">KJV</span></button>
+              <div class="verse-context-menu__divider"></div>
+              <button class="verse-context-menu__item" role="menuitem"><i class="fa-solid fa-copy"></i> Copy verses...<span class="pane-menu__item-sub">John 3:16</span></button>
+              <div class="pane-menu__row"><i class="fa-solid fa-font"></i> Text size
+                <span class="pane-menu__stepper"><button aria-label="Smaller"><i class="fa-solid fa-minus"></i></button><output>100%</output><button aria-label="Larger"><i class="fa-solid fa-plus"></i></button></span>
+              </div>
+              <button class="verse-context-menu__item" role="menuitem"><i class="fa-solid fa-sliders"></i> More text options...</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="bible-pane">
+        <div class="bible-pane__scroll-container">
+          <div class="bible-content bible-content--standard">
+            <div class="bible-content__chapter-header">
+              <button class="bible-content__nav-btn"><i class="fa-solid fa-chevron-left"></i></button>
+              <h2 class="bible-content__chapter-title bible-content__chapter-title--tappable">John 3 <i class="fa-solid fa-caret-down bible-content__chapter-caret"></i></h2>
+              <button class="bible-content__nav-btn"><i class="fa-solid fa-chevron-right"></i></button>
+            </div>
+            <div class="bible-content__text">
+              <span class="verse"><sup class="verse__number">14</sup>And as Moses lifted up the serpent in the wilderness, even so must the Son of man be lifted up: </span>
+              <span class="verse"><sup class="verse__number">15</sup>That whosoever believeth in him should not perish, but have eternal life. </span>
+              <span class="verse verse--study"><sup class="verse__number">16</sup>For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life. </span>
+              <span class="verse"><sup class="verse__number">17</sup>For God sent not his Son into the world to condemn the world; but that the world through him might be saved. </span>
+              <span class="verse"><sup class="verse__number">18</sup>He that believeth on him is not condemned: but he that believeth not is condemned already, because he hath not believed in the name of the only begotten Son of God. </span>
+              <span class="verse"><sup class="verse__number">19</sup>And this is the condemnation, that light is come into the world, and men loved darkness rather than light, because their deeds were evil. </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="resize-handle"><div class="resize-handle__line"></div></div>
+
+    <aside class="main-layout__right-pane" style="width:42%">
+      <div class="right-pane-tabs">
+        <div class="right-pane-tabs__list" role="tablist">
+          <button class="right-pane-tabs__tab right-pane-tabs__tab--active" role="tab">Commentary</button>
+          <button class="right-pane-tabs__tab" role="tab">Study</button>
+          <button class="right-pane-tabs__tab" role="tab">Dictionary</button>
+        </div>
+        <button class="right-pane-tabs__collapse"><i class="fa-solid fa-chevron-right kth-rtl-mirror"></i></button>
+      </div>
+      <div class="commentary-pane">
+        <div class="commentary-tab-bar">
+          <div role="tablist" style="display:contents">
+            <div class="commentary-tab-bar__tab commentary-tab-bar__tab--home"><span class="commentary-tab-bar__label"><i class="fa-solid fa-house fa-xs"></i> Overview</span></div>
+            <div class="commentary-tab-bar__tab commentary-tab-bar__tab--active commentary-tab-bar__tab--has-content"><span class="commentary-tab-bar__label">Gill</span><button class="commentary-tab-bar__close"><i class="fa-solid fa-xmark fa-xs"></i></button></div>
+            <div class="commentary-tab-bar__tab commentary-tab-bar__tab--has-content"><span class="commentary-tab-bar__label">Matthew Henry</span><button class="commentary-tab-bar__close"><i class="fa-solid fa-xmark fa-xs"></i></button></div>
+          </div>
+          <button class="commentary-tab-bar__add" title="Add commentary"><i class="fa-solid fa-plus"></i></button>
+          <!-- NEW: pane options, after "+" -->
+          <div class="pane-menu" style="margin-inline-start:auto">
+            <button class="pane-menu__trigger" title="Commentary options" aria-label="Commentary options" aria-haspopup="menu" data-pressed-when="commentary"><i class="fa-solid fa-ellipsis"></i></button>
+            <div class="verse-context-menu pane-menu__list" role="menu" aria-label="Commentary options" data-show="commentary">
+              <button class="verse-context-menu__item" role="menuitem"><i class="fa-solid fa-circle-info"></i> Module Info<span class="pane-menu__item-sub">Gill</span></button>
+              <div class="verse-context-menu__divider"></div>
+              <button class="verse-context-menu__item" role="menuitemcheckbox" aria-checked="false"><i class="fa-solid fa-thumbtack"></i> Pin to John 3:16</button>
+              <div class="pane-menu__row"><i class="fa-solid fa-font"></i> Text size
+                <span class="pane-menu__stepper"><button aria-label="Smaller"><i class="fa-solid fa-minus"></i></button><output>100%</output><button aria-label="Larger"><i class="fa-solid fa-plus"></i></button></span>
+              </div>
+              <button class="verse-context-menu__item" role="menuitem"><i class="fa-solid fa-sliders"></i> More text options...</button>
+            </div>
+          </div>
+        </div>
+        <div class="commentary-pane__scroll">
+          <div class="commentary-passage-header">
+            <div class="commentary-passage-header__ref-group">
+              <span class="commentary-passage-header__label">John 3:16</span>
+              <button class="commentary-passage-header__pin"><i class="fa-solid fa-thumbtack fa-rotate-by" style="--fa-rotate-angle:45deg"></i></button>
+            </div>
+            <div class="commentary-passage-header__actions">
+              <button class="commentary-passage-header__nav"><i class="fa-solid fa-chevron-left fa-xs"></i></button>
+              <button class="commentary-passage-header__nav"><i class="fa-solid fa-chevron-right fa-xs"></i></button>
+              <span class="commentary-passage-header__divider"></span>
+              <button class="text-size__button commentary-passage-header__settings"><span class="text-size__glyph">Aa</span></button>
+            </div>
+          </div>
+          <div class="commentary-verse-text">For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life.</div>
+          <div class="commentary-content">
+            <div class="commentary-entry">
+              <div class="commentary-entry__ref">John 3:16</div>
+              <div class="commentary-entry__text">For God so loved the world, ... These words are a continuation of Christ's discourse with Nicodemus, and contain the reason of the former, why the Son of man must be lifted up, and why whosoever believes in him shall not perish, but have eternal life; namely, because of the great love of God to the world...</div>
+            </div>
+            <div class="commentary-about">
+              <button class="commentary-about__toggle"><i class="fa-solid fa-circle-info fa-xs"></i> About this commentary</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </aside>
+  </main>
+
+  <!-- Module Info dialog (opened from either menu) -->
+  <div class="module-dialog-overlay" data-show="info">
+    <div class="module-dialog module-info" role="dialog" aria-modal="true" aria-labelledby="mi-title">
+      <div class="module-dialog__header">
+        <div>
+          <h3 id="mi-title">John Gill's Exposition of the Bible</h3>
+          <div class="module-info__subtitle"><span>Gill</span><span class="module-info__badge">Commentary</span><span class="module-info__badge">English</span></div>
+        </div>
+        <button class="module-dialog__close" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="module-info__body">
+        <p class="module-info__desc">A verse-by-verse exposition of the whole Bible by the Baptist pastor and theologian John Gill (1697-1771), first published 1746-1763.</p>
+        <dl class="module-info__details commentary-about__details">
+          <dt>Copyright</dt><dd>Public domain</dd>
+          <dt>License</dt><dd><a href="#">Public Domain <i class="fa-solid fa-arrow-up-right-from-square fa-xs"></i></a></dd>
+          <dt>Source</dt><dd>SWORD module "Gill", Xiphos package repository</dd>
+          <dt>Version</dt><dd>1.2</dd>
+        </dl>
+        <div class="module-info__attribution">
+          <span class="module-info__attribution-label">Attribution</span>
+          John Gill, Exposition of the Old and New Testaments (1746-1763). Text from the SWORD Project module "Gill".
+        </div>
+      </div>
+      <div class="module-dialog__footer">
+        <button class="module-dialog__btn module-dialog__btn--cancel">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<section class="wf-notes" aria-label="Notes">
+  <h2>Notes</h2>
+  <ol>
+    <li><b>Bible pane:</b> the "..." button is the last control of <code>.bible-toolbar__right</code>, after the chapter arrows, styled as a <code>.bible-toolbar__btn</code>. It acts on the active tab's translation.</li>
+    <li><b>Commentary pane:</b> the "..." sits at the end of <code>.commentary-tab-bar</code>, after "+". The tab bar stays put; the passage header scrolls with the content, so a menu there would scroll away.</li>
+    <li>The drop-down reuses <code>.verse-context-menu</code> rows, so it matches the verse right-click menu. <b>Module Info</b> is first, with the module's short name on the right.</li>
+    <li>Other items are only things the pane already offers: <b>Copy verses...</b> (opens the existing Copy dialog for the selected verse), <b>Text size</b> (the Aa stepper), <b>More text options...</b> (Settings, font section), and for commentary <b>Pin / Unpin</b> (the pin button).</li>
+    <li>The existing toolbar buttons stay (open question 1). In this proposal the menu only adds a second route to them.</li>
+    <li><b>Module Info</b> is a <code>.module-dialog</code> sized to its content. It replaces the "About this commentary" expander at the foot of the commentary; that link would open this dialog instead.</li>
+    <li>Fields: name, short name, type and language, description, copyright, license link, source, version, and the attribution line (0227 <code>provenance.attribution</code>). Empty fields are left out, as the expander does today.</li>
+    <li>Sample data in these pages is illustrative.</li>
+  </ol>
+</section>
+</body>
+</html>

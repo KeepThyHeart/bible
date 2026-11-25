@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en" data-default-open="all" data-states="all:Phone screens">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pane menu - phone (wireframe)</title>
+<link rel="stylesheet" href="wf.css">
+<style>
+  body { margin: 0; background: #e9e6df; font: 13px system-ui, sans-serif; }
+  [data-theme="dark"] body { background: #14161c; color: #ddd; }
+  .phones { display: flex; flex-wrap: wrap; gap: 20px; justify-content: center; padding: 20px 16px 8px; }
+  figure { margin: 0; text-align: center; }
+  figcaption { margin-top: 8px; font-weight: 600; }
+  iframe { width: 360px; height: 720px; border: 10px solid #222; border-radius: 28px; background: #fff; display: block; }
+  @media (max-width: 440px) { iframe { width: 100%; } }
+</style>
+<script src="wf.js"></script>
+</head>
+<body>
+<div class="phones">
+  <figure><iframe title="Read view, options sheet" data-src="mobile-frame.html?open=bible"></iframe><figcaption>1. Read: "..." in the toolbar, options sheet</figcaption></figure>
+  <figure><iframe title="Commentary view, options sheet" data-src="mobile-frame.html?open=commentary"></iframe><figcaption>2. Commentary: "..." in the back bar</figcaption></figure>
+  <figure><iframe title="Module Info sheet" data-src="mobile-frame.html?open=info"></iframe><figcaption>3. Module Info as a tall sheet</figcaption></figure>
+</div>
+<section class="wf-notes" aria-label="Notes">
+  <h2>Notes</h2>
+  <ol>
+    <li><b>Read view:</b> "..." is the last toolbar button. The chapter arrows are already hidden on phones, so it lands next to Aa.</li>
+    <li><b>Commentary view</b> (<code>MobileCommentaryView</code>): "..." sits at the end of the sticky back bar that names the open commentary, so it is always reachable while reading the entry. The commentary list (no single module open) shows no "...".</li>
+    <li>On phones the menu is a <b>bottom sheet</b>: the same rows as the desktop-width drop-down, 44px tall, with a title naming the module and passage and a Cancel button. Tapping outside closes it.</li>
+    <li><b>Module Info</b> opens as a taller sheet with the same fields, stacked one under another. Swipe down or the close button closes it.</li>
+    <li>The Study view (<code>MobileStudyPane</code>) mixes several modules (cross-references, topics, dictionary), so it gets no pane-level "..." in this proposal; each section could get its own later (open question 2).</li>
+  </ol>
+</section>
+</body>
+</html>

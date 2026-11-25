@@ -1,0 +1,31 @@
+[hidden] { display: none !important; }
+/* Wireframe-only chrome: the switcher bar and the numbered notes.
+   Not a proposal for app styles; those are in web-pane-menu.css / desktop-pane-menu.css. */
+.wf-bar {
+  position: fixed; inset-inline-end: 12px; bottom: 12px; z-index: 99999;
+  display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+  padding: 6px 8px; border-radius: 8px;
+  background: #1f2430; color: #fff; font: 12px/1.2 system-ui, sans-serif;
+  box-shadow: 0 4px 16px rgba(0,0,0,.3); opacity: .92;
+}
+.wf-bar a { color: #cdd6f4; text-decoration: none; padding: 4px 8px; border-radius: 5px; }
+.wf-bar a[aria-current="page"] { background: #f9e2af; color: #1f2430; font-weight: 600; }
+.wf-bar__home { font-weight: 700; color: #fff !important; }
+.wf-bar__group { display: inline-flex; gap: 2px; border-inline-start: 1px solid #45475a; padding-inline-start: 8px; }
+
+/* Numbered callouts on the mock, and the notes they point to. */
+.wf-pin {
+  position: absolute; z-index: 9000; inline-size: 20px; block-size: 20px; border-radius: 50%;
+  background: #e8590c; color: #fff; font: 700 11px/20px system-ui, sans-serif; text-align: center;
+  box-shadow: 0 0 0 2px #fff; pointer-events: none;
+}
+.wf-notes {
+  font: 13px/1.45 system-ui, sans-serif; color: #222; background: #fff8e6;
+  border-top: 2px dashed #e8590c; padding: 12px 20px 56px; flex-shrink: 0;
+}
+[data-theme="dark"] .wf-notes { background: #2b2414; color: #eee; }
+.wf-notes h2 { font-size: 13px; margin: 0 0 6px; text-transform: uppercase; letter-spacing: .04em; color: #e8590c; }
+.wf-notes ol { list-style: decimal; margin: 0; padding-inline-start: 22px; columns: 2; column-gap: 32px; }
+.wf-notes li { margin-bottom: 4px; break-inside: avoid; }
+.wf-notes code { font-size: 12px; }
+@media (max-width: 700px) { .wf-notes ol { columns: 1; } }

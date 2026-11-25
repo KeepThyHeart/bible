@@ -1,0 +1,76 @@
+/* Proposed desktop styles for the pane "..." button and its menu.
+   Wireframe only. Values copy DockviewHeaderActions' "+" button and
+   DockviewTabListMenu's menu (both inline styles today), using --theme-* tokens. */
+
+.pane-actions-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  align-self: stretch;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: var(--theme-text-secondary);
+  line-height: 1;
+  flex-shrink: 0;
+  padding: 0;
+}
+
+.pane-actions-btn:hover,
+.pane-actions-btn[aria-expanded="true"] {
+  background-color: var(--theme-tab-bg-hover);
+  color: var(--theme-text-primary);
+}
+
+.pane-actions-menu {
+  position: absolute;
+  top: calc(100% + 2px);
+  inset-inline-end: 0;
+  z-index: 10000;
+  min-width: 240px;
+  max-width: 360px;
+  background-color: var(--theme-bg-primary);
+  border: 1px solid var(--theme-border-primary);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  padding: 4px 0;
+}
+
+.pane-actions-menu__item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 12px;
+  border: none;
+  border-inline-start: 3px solid transparent;
+  background: transparent;
+  cursor: pointer;
+  color: var(--theme-text-primary);
+  text-align: start;
+  font-size: 0.8125rem;
+}
+
+.pane-actions-menu__item:hover { background-color: var(--theme-tab-bg-hover); }
+.pane-actions-menu__item svg { width: 14px; height: 14px; flex-shrink: 0; color: var(--theme-text-secondary); }
+
+.pane-actions-menu__hint {
+  margin-inline-start: auto;
+  padding-inline-start: 16px;
+  font-size: 0.6875rem;
+  color: var(--theme-text-secondary);
+}
+
+.pane-actions-menu__sep { height: 1px; background-color: var(--theme-border-primary); margin: 4px 0; }
+
+/* Wireframe layout stand-in for dockview's grid (the real one is absolutely positioned). */
+.wf-dock { display: flex; flex: 1; min-height: 0; }
+.wf-dock > .dv-groupview { display: flex; flex-direction: column; min-width: 0; position: relative; }
+.wf-dock .dv-tabs-and-actions-container { position: relative; display: flex; height: 35px; flex-shrink: 0; }
+.wf-dock .dv-scrollable { display: flex; flex: 0 1 auto; min-width: 0; }
+.wf-dock .dv-tabs-container { display: flex; }
+.wf-dock .dv-void-container { flex: 1; }
+.wf-dock .dv-right-actions-container { display: flex; position: relative; }
+.wf-dock .dv-content-container { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
+.wf-sash { width: 1px; background: var(--theme-border-primary); flex-shrink: 0; }

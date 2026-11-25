@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="en" data-default-open="bible" data-states="bible:Bible menu,commentary:Commentary menu,info:Module Info,closed:Closed">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pane menu - desktop (wireframe)</title>
+<link rel="stylesheet" href="css/desktop-app.css">
+<link rel="stylesheet" href="desktop-pane-menu.css">
+<link rel="stylesheet" href="wf.css">
+<style>
+  html, body { height: 100%; margin: 0; }
+  body { display: flex; flex-direction: column; background: var(--theme-bg-primary); color: var(--theme-text-primary); }
+</style>
+<script src="wf.js"></script>
+</head>
+<body>
+<!-- Icons used in the menus -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-info" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></symbol>
+  <symbol id="i-text" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19l5-14 5 14M6 14h6M15 19l3-8 3 8M16 16.5h4"/></symbol>
+  <symbol id="i-pin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4h6l-1 6 3 3H7l3-3-1-6zM12 13v7"/></symbol>
+  <symbol id="i-dots" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></symbol>
+</svg>
+
+<div class="flex-1 min-h-0 flex flex-col" style="position:relative">
+  <!-- App top bar (simplified) -->
+  <div class="flex items-center gap-3 px-3 border-b border-border bg-background-secondary" style="height:40px">
+    <span class="text-sm font-semibold text-text-heading">Keep Thy Heart</span>
+    <div class="flex-1"></div>
+    <div class="text-xs text-text-secondary border border-border rounded px-2 py-1 bg-background-primary" style="width:280px">Search the Bible...</div>
+  </div>
+
+  <div class="dv-dockview dockview-theme-light wf-dock">
+    <!-- Bible group -->
+    <div class="dv-groupview dv-active-group" style="flex: 0 0 56%">
+      <div class="dv-tabs-and-actions-container">
+        <div class="dv-scrollable">
+          <div class="dv-tabs-container">
+            <div class="dv-tab dv-active-tab">
+              <div class="dockview-tab-content" style="display:flex;align-items:center;gap:6px;padding:0 10px;height:100%">
+                <div class="dockview-tab-text" style="display:flex;flex-direction:column;line-height:1.2">
+                  <span class="dockview-tab-title" style="font-weight:600">Bible</span>
+                  <span class="dockview-tab-title" style="font-size:10px;color:var(--theme-text-secondary)">John 3 &middot; KJV</span>
+                </div>
+              </div>
+            </div>
+            <div class="dv-tab dv-inactive-tab">
+              <div class="dockview-tab-content" style="display:flex;align-items:center;gap:6px;padding:0 10px;height:100%">
+                <span class="dockview-tab-title">Notes</span>
+              </div>
+            </div>
+          </div>
+          <button class="pane-actions-btn" title="New tab" style="font-size:1.125rem">+</button>
+        </div>
+        <div class="dv-void-container"></div>
+        <div class="dv-right-actions-container">
+          <!-- NEW: pane options for the active panel -->
+          <button class="pane-actions-btn" title="Pane options" aria-label="Pane options" aria-haspopup="menu" data-pressed-when="bible"><svg width="16" height="16"><use href="#i-dots"/></svg></button>
+          <div class="pane-actions-menu" role="menu" aria-label="Pane options" data-show="bible">
+            <button class="pane-actions-menu__item" role="menuitem"><svg><use href="#i-info"/></svg> Module Info<span class="pane-actions-menu__hint">KJV</span></button>
+            <div class="pane-actions-menu__sep"></div>
+            <button class="pane-actions-menu__item" role="menuitem"><svg><use href="#i-copy"/></svg> Copy verses...<span class="pane-actions-menu__hint">John 3:16</span></button>
+            <button class="pane-actions-menu__item" role="menuitem"><svg><use href="#i-text"/></svg> Text settings...</button>
+          </div>
+        </div>
+      </div>
+      <div class="dv-content-container">
+        <!-- BibleToolbar (classes copied from BibleToolbar.tsx) -->
+        <div class="flex flex-wrap items-stretch justify-between border-b border-border flex-shrink-0 min-w-0" style="background:var(--theme-bg-secondary)">
+          <div class="flex flex-wrap items-stretch min-w-0 flex-shrink">
+            <button class="flex items-center px-2.5 hover:bg-background-active transition-colors" title="Go back"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg></button>
+            <button class="flex items-center px-2.5 hover:bg-background-active transition-colors" title="History"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></button>
+            <button class="flex items-center gap-1 text-xs font-semibold cursor-pointer text-text-primary hover:bg-background-active transition-colors min-w-0" style="padding:6px 10px;border-inline-start:2px solid var(--theme-border-primary)">John 3 <svg class="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg></button>
+            <button class="flex items-center gap-1 text-xs font-semibold cursor-pointer text-text-primary hover:bg-background-active transition-colors" style="padding:6px 10px;border-inline-start:2px solid var(--theme-border-primary)">KJV <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg></button>
+            <select class="text-xs font-medium cursor-pointer text-text-primary outline-none hover:bg-background-active transition-colors" style="padding:6px 8px;background:transparent;border:none;border-inline-start:2px solid var(--theme-border-primary)"><option>Standard</option></select>
+            <button class="flex items-center text-xs font-medium transition-colors text-text-secondary" style="padding:6px 10px;border-inline-start:2px solid var(--theme-border-primary);border-inline-end:2px solid var(--theme-border-primary)"><span class="me-1">&#x2AF4;</span>Parallel</button>
+          </div>
+          <div class="flex items-stretch flex-shrink-0">
+            <button class="flex items-center px-2.5 text-text-secondary hover:bg-background-active transition-colors text-sm font-semibold" style="border-inline-start:2px solid var(--theme-border-primary)">Aa</button>
+            <button class="flex items-center px-2.5 hover:bg-background-active transition-colors" style="border-inline-start:2px solid var(--theme-border-primary)"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg></button>
+            <button class="flex items-center px-2.5 hover:bg-background-active transition-colors" style="border-inline-start:2px solid var(--theme-border-primary)"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg></button>
+          </div>
+        </div>
+        <div class="flex-1 overflow-hidden px-xl py-lg">
+          <div class="flex items-center justify-between mb-lg border-b border-border pb-sm">
+            <span class="px-2 py-1 text-text-secondary">&lsaquo;</span>
+            <span class="text-3xl font-bold text-text-heading">John 3</span>
+            <span class="px-2 py-1 text-text-secondary">&rsaquo;</span>
+          </div>
+          <p class="font-bible text-bible text-text-primary">
+            <sup class="text-accent font-semibold">14</sup> And as Moses lifted up the serpent in the wilderness, even so must the Son of man be lifted up:
+            <sup class="text-accent font-semibold">15</sup> That whosoever believeth in him should not perish, but have eternal life.
+            <span class="bg-accent-soft rounded px-0.5"><sup class="text-accent font-semibold">16</sup> For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life.</span>
+            <sup class="text-accent font-semibold">17</sup> For God sent not his Son into the world to condemn the world; but that the world through him might be saved.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div class="wf-sash"></div>
+
+    <!-- Commentary group -->
+    <div class="dv-groupview" style="flex: 1 1 44%">
+      <div class="dv-tabs-and-actions-container">
+        <div class="dv-scrollable">
+          <div class="dv-tabs-container">
+            <div class="dv-tab dv-active-tab">
+              <div class="dockview-tab-content" style="display:flex;align-items:center;gap:6px;padding:0 10px;height:100%">
+                <div class="dockview-tab-text" style="display:flex;flex-direction:column;line-height:1.2">
+                  <span class="dockview-tab-title" style="font-weight:600">Commentary</span>
+                  <span class="dockview-tab-title" style="font-size:10px;color:var(--theme-text-secondary)">Gill</span>
+                </div>
+              </div>
+            </div>
+            <div class="dv-tab dv-inactive-tab">
+              <div class="dockview-tab-content" style="display:flex;align-items:center;gap:6px;padding:0 10px;height:100%"><span class="dockview-tab-title">Dictionary</span></div>
+            </div>
+          </div>
+          <button class="pane-actions-btn" title="New tab" style="font-size:1.125rem">+</button>
+        </div>
+        <div class="dv-void-container"></div>
+        <div class="dv-right-actions-container">
+          <button class="pane-actions-btn" title="Commentary options" aria-label="Commentary options" aria-haspopup="menu" data-pressed-when="commentary"><svg width="16" height="16"><use href="#i-dots"/></svg></button>
+          <div class="pane-actions-menu" role="menu" aria-label="Commentary options" data-show="commentary">
+            <button class="pane-actions-menu__item" role="menuitem"><svg><use href="#i-info"/></svg> Module Info<span class="pane-actions-menu__hint">Gill</span></button>
+            <div class="pane-actions-menu__sep"></div>
+            <button class="pane-actions-menu__item" role="menuitemcheckbox" aria-checked="false"><svg><use href="#i-pin"/></svg> Pin to John 3:16</button>
+            <button class="pane-actions-menu__item" role="menuitem"><svg><use href="#i-text"/></svg> Text settings...</button>
+          </div>
+          <button class="pane-actions-btn" title="Collapse pane"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></button>
+        </div>
+      </div>
+      <div class="dv-content-container" style="background:var(--theme-bg-primary)">
+        <!-- Commentary inner tab bar (DraggableTabBar) -->
+        <div class="flex items-stretch border-b border-border" style="background:var(--theme-bg-secondary);height:30px">
+          <div class="flex items-center gap-1.5 px-3 text-sm text-text-secondary border-e border-border">Overview</div>
+          <div class="flex items-center gap-1.5 px-3 text-sm border-e border-border bg-warning-soft text-text-primary font-semibold">Gill <span class="text-text-muted font-normal">&times;</span></div>
+          <div class="flex items-center gap-1.5 px-3 text-sm border-e border-border bg-warning-soft text-text-secondary">Matthew Henry <span class="text-text-muted">&times;</span></div>
+          <div class="px-2.5 flex items-center text-text-muted text-sm font-medium">+</div>
+        </div>
+        <!-- CommentaryPassageHeader -->
+        <div class="flex items-center justify-between flex-shrink-0" style="padding:4px 12px;background:var(--theme-bg-secondary);border-bottom:1px solid var(--theme-border-primary)">
+          <div class="flex items-center gap-0.5"><span class="font-semibold text-text-primary" style="font-size:.8125rem">John 3:16</span><span class="text-text-muted px-1"><svg width="13" height="13"><use href="#i-pin"/></svg></span></div>
+          <button class="text-text-secondary font-semibold rounded" style="padding:2px 8px;border:1px solid var(--theme-border-primary);font-size:.8125rem">Aa</button>
+        </div>
+        <div class="flex-1 overflow-hidden p-lg text-text-primary" style="font-size:15px;line-height:1.6">
+          <div class="text-xs font-semibold text-accent mb-1">John 3:16</div>
+          For God so loved the world, ... These words are a continuation of Christ's discourse with Nicodemus, and contain the reason of the former, why the Son of man must be lifted up, and why whosoever believes in him shall not perish, but have eternal life; namely, because of the great love of God to the world...
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Module Info: a light dialog in ModuleDetailsPanel's visual language -->
+  <div data-show="info">
+    <div class="fixed inset-0 bg-background-overlay z-40"></div>
+    <div class="fixed inset-0 flex items-center justify-center z-50 p-lg">
+      <div class="bg-surface rounded-lg shadow-xl w-full max-w-lg max-h-[85vh] flex flex-col overflow-hidden" role="dialog" aria-modal="true" aria-labelledby="dmi-title">
+        <div class="flex items-start justify-between gap-2 p-4 border-b border-border bg-surface-secondary">
+          <div class="min-w-0 flex-1">
+            <h2 id="dmi-title" class="text-base font-semibold text-text-heading break-words">John Gill's Exposition of the Bible</h2>
+            <div class="flex flex-wrap items-center gap-2 mt-1">
+              <span class="text-sm text-text-secondary font-mono">Gill</span>
+              <span class="text-xs px-2 py-0.5 bg-accent-soft text-accent-strong rounded">Commentary</span>
+              <span class="text-xs px-2 py-0.5 bg-success-soft text-success-text rounded">Installed</span>
+            </div>
+          </div>
+          <button class="p-1 rounded text-text-secondary hover:bg-surface-hover hover:text-text-primary" aria-label="Close">
+            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+          </button>
+        </div>
+        <div class="flex-1 min-h-0 overflow-y-auto p-4 space-y-4">
+          <p class="text-sm text-text-secondary whitespace-pre-line">A verse-by-verse exposition of the whole Bible by the Baptist pastor and theologian John Gill (1697-1771), first published 1746-1763.</p>
+          <dl class="grid grid-cols-[auto,1fr] gap-x-3 gap-y-1.5 text-xs">
+            <dt class="font-medium text-text-secondary">Copyright</dt><dd class="text-text-primary min-w-0 break-words">Public domain</dd>
+            <dt class="font-medium text-text-secondary">License</dt><dd class="text-text-primary min-w-0 break-words"><a href="#" class="text-accent hover:underline">Public Domain &#x2197;</a></dd>
+            <dt class="font-medium text-text-secondary">Source</dt><dd class="text-text-primary min-w-0 break-words">SWORD module "Gill", Xiphos package repository</dd>
+            <dt class="font-medium text-text-secondary">Version</dt><dd class="text-text-primary min-w-0 break-words">1.2</dd>
+            <dt class="font-medium text-text-secondary">Language</dt><dd class="text-text-primary min-w-0 break-words">English</dd>
+          </dl>
+          <div class="text-xs text-text-secondary rounded p-3 bg-background-secondary" style="border-inline-start:3px solid var(--theme-accent-primary)">
+            <div class="font-semibold text-text-primary mb-0.5">Attribution</div>
+            John Gill, Exposition of the Old and New Testaments (1746-1763). Text from the SWORD Project module "Gill".
+          </div>
+        </div>
+        <div class="flex items-center justify-between gap-2 p-4 border-t border-border">
+          <button class="text-xs text-accent hover:underline">Open in Module Manager</button>
+          <button class="px-4 py-1.5 text-sm font-medium text-text-primary border border-border rounded hover:bg-surface-hover transition-colors">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<section class="wf-notes" aria-label="Notes">
+  <h2>Notes</h2>
+  <ol>
+    <li><b>Placement:</b> "..." is a new button in <code>DockviewHeaderActions</code>, in the right-hand actions, before the collapse chevron. Same size and hover as the "+" button. It acts on the group's <b>active</b> panel.</li>
+    <li><b>Pane actions contract:</b> each panel type registers what it shows: <code>getModule()</code> (type + abbreviation, or none) and <code>getItems()</code> (extra rows). The header asks the active panel; a panel with no module and no items gets no "..." (open question 2).</li>
+    <li><b>Bible:</b> Module Info (the active tab's translation), Copy verses... (the existing Copy Options dialog for the selected verses), Text settings... (what the toolbar's Aa does).</li>
+    <li><b>Commentary:</b> Module Info acts on the active inner tab (Gill here), then Pin / Unpin (the passage header's pin), Text settings... (the passage header's Aa).</li>
+    <li>The menu copies <code>DockviewTabListMenu</code>: same border, radius, shadow, row padding and hover. Keyboard: arrows move, Escape closes and returns focus to "...".</li>
+    <li><b>Module Info</b> is a light dialog drawn with <code>ModuleDetailsPanel</code>'s header, badges and field grid, without its install, update, reindex and remove actions. "Open in Module Manager" leads to the full panel (open question 3).</li>
+    <li>Fields: name, abbreviation, type, description, copyright, license link, source, version, language, and the attribution line (0227 <code>provenance.attribution</code>). Missing fields are left out.</li>
+    <li>Sample data in these pages is illustrative.</li>
+  </ol>
+</section>
+</body>
+</html>
