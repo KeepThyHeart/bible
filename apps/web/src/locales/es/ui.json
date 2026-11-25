@@ -379,7 +379,8 @@
       "desktopOnly": "Las notas, los resaltados, los marcadores, la memorización de Escritura, los planes de lectura y las listas de oración están disponibles en la aplicación de escritorio.",
       "license": "Con licencia <strong>GNU General Public License v3.0</strong> (GPL-3.0).",
       "licenseDetails": "Este software se puede usar, modificar y distribuir libremente según los términos de la GPL v3. Se agradecen el código fuente y las contribuciones.",
-      "viewOnGithub": "Ver en GitHub"
+      "viewOnGithub": "Ver en GitHub",
+      "credits": "La mayoría de las Biblias, comentarios y diccionarios se convirtieron a partir de módulos de The SWORD Project, distribuidos por la CrossWire Bible Society (crosswire.org). Se aplican los derechos de autor y la licencia propios de cada módulo."
     },
     "language": {
       "title": "Idioma",
@@ -570,7 +571,10 @@
     "aboutAuthor": "Autor",
     "aboutYear": "Año",
     "aboutDescription": "Descripción",
+    "aboutCopyright": "Derechos de autor",
     "aboutLicense": "Licencia",
+    "aboutSource": "Fuente",
+    "aboutConvertedFrom": "Conversión",
     "aboutPublisher": "Editorial",
     "aboutLanguage": "Idioma",
     "aboutUnavailable": "No hay información del módulo disponible."

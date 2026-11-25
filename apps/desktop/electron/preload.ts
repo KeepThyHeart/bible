@@ -500,6 +500,8 @@ export interface ElectronAPI {
     checkForUpdates: (moduleId: number) => Promise<Result<{ hasUpdate: boolean; currentVersion?: string; availableVersion?: string }>>;
     // Get module details
     getModuleDetails: (moduleId: number) => Promise<Result<any>>;
+    // Attribution/source of an installed module, from its own module_info
+    getModuleProvenance: (moduleId: number) => Promise<Result<{ attribution: string | null; source_url: string | null; license_spdx: string | null; license_url: string | null }>>;
     // Keyword index (F8, task 0027 revision 2): status + Rebuild/Delete for a
     // module's keyword-search sidecar index. See `KeywordIndexStatusDto`'s own
     // doc comment for the state machine. `rebuild`/`delete` resolve with the
@@ -1209,6 +1211,7 @@ const electronAPI: ElectronAPI = {
     checkForUpdates: (moduleId: number) => typedInvoke('module:check-for-updates', moduleId),
     // Get module details
     getModuleDetails: (moduleId: number) => typedInvoke('module:get-details', moduleId),
+    getModuleProvenance: (moduleId: number) => typedInvoke('module:get-provenance', moduleId),
     // Keyword index (F8)
     getKeywordIndexStatus: (moduleId: number) =>
       typedInvoke('module:get-keyword-index-status', moduleId),

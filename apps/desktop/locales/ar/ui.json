@@ -1451,6 +1451,8 @@
   "moduleDetails.removeData": "إزالة بياناتي الخاصة بهذه الوحدة أيضًا",
   "moduleDetails.requiresLabel": "يتطلب",
   "moduleDetails.sourceLabel": "مصدر الفهرس",
+  "moduleDetails.attributionLabel": "الإسناد",
+  "moduleDetails.sourceLinkLabel": "المصدر",
   "moduleDetails.sourceRepository": "المستودع رقم {id}",
   "moduleDetails.status.completed": "اكتمل",
   "moduleDetails.status.downloading": "جارٍ التنزيل",

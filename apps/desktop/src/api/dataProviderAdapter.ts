@@ -165,7 +165,24 @@ class DesktopCommentaryDataProvider implements ICommentaryDataProvider {
 
   async getModuleInfo(module: string): Promise<CommentaryModuleInfoData | null> {
     try {
-      return await commentaryAPI.getCommentaryInfo(module) as unknown as CommentaryModuleInfoData;
+      // The IPC DTO is snake_case; the shared provider contract is camelCase.
+      const r = await commentaryAPI.getCommentaryInfo(module) as unknown as Record<string, any>;
+      return {
+        abbreviation: r.abbreviation,
+        fullName: r.full_name,
+        author: r.author ?? null,
+        yearPublished: r.year_published ?? null,
+        version: r.version ?? null,
+        languageCode: r.language_code,
+        copyright: r.copyright ?? null,
+        description: r.description ?? null,
+        publisher: r.publisher ?? null,
+        createdDate: r.created_date ?? null,
+        licenseSpdx: r.license_spdx ?? null,
+        licenseUrl: r.license_url ?? null,
+        sourceUrl: r.source_url ?? null,
+        attribution: r.attribution ?? null,
+      };
     } catch {
       return null;
     }

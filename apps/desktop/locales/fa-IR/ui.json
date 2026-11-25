@@ -1454,6 +1454,8 @@
   "moduleDetails.removeData": "داده‌های من برای این ماژول نیز حذف شود",
   "moduleDetails.requiresLabel": "نیازمند",
   "moduleDetails.sourceLabel": "منبع فهرست",
+  "moduleDetails.attributionLabel": "نسبت‌دهی",
+  "moduleDetails.sourceLinkLabel": "منبع",
   "moduleDetails.sourceRepository": "مخزن شماره {id}",
   "moduleDetails.status.completed": "تکمیل‌شده",
   "moduleDetails.status.downloading": "در حال دانلود",

@@ -84,6 +84,7 @@ export const BibleSearchService: typeof BibleSearchServiceType = core.BibleSearc
 export const SearchController: typeof SearchControllerType = core.SearchController;
 export const SemanticSearchService: typeof SemanticSearchServiceType = core.SemanticSearchService;
 export const VerseIdHelper: typeof VerseIdHelperType = core.VerseIdHelper;
+export const getProvenanceAttribution: (metadata: unknown) => string | null = core.getProvenanceAttribution;
 export const VerseOfTheDayService: typeof VerseOfTheDayServiceType = core.VerseOfTheDayService;
 export const CrossReferenceRepository: typeof CrossReferenceRepositoryType = core.CrossReferenceRepository;
 export const TopicalIndexRepository: typeof TopicalIndexRepositoryType = core.TopicalIndexRepository;

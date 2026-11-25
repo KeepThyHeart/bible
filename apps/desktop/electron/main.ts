@@ -822,6 +822,7 @@ const registerAllHandlersOnce = runOnce(() => {
       version: app.getVersion(),
       year: APP_CONFIG.copyrightYear,
     });
+    const credits = `\n\n${t('main.about.credits')}`;
     const build = APP_CONFIG.buildId
       ? `\n\n${t('main.about.build', { buildId: APP_CONFIG.buildId })}`
       : '';
@@ -829,7 +830,7 @@ const registerAllHandlersOnce = runOnce(() => {
       type: 'info',
       title: t('main.about.title', { productName: APP_CONFIG.productName }),
       message: APP_CONFIG.productName,
-      detail: detail + build,
+      detail: detail + credits + build,
       buttons: [t('main.about.ok')]
     });
   });

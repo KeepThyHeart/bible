@@ -379,7 +379,8 @@
       "desktopOnly": "الملاحظات والتظليلات والإشارات المرجعية وحفظ الأعداد وخطط القراءة وقوائم الصلاة متاحة في تطبيق سطح المكتب.",
       "license": "مرخَّص بموجب <strong>رخصة جنو العمومية الإصدار 3.0</strong> (GPL-3.0).",
       "licenseDetails": "هذا البرنامج حر في الاستخدام والتعديل والتوزيع بموجب شروط GPL v3. ونرحّب بالشيفرة المصدرية والمساهمات.",
-      "viewOnGithub": "عرض على GitHub"
+      "viewOnGithub": "عرض على GitHub",
+      "credits": "تم تحويل معظم نسخ الكتاب المقدس والتفاسير والقواميس من وحدات مشروع The SWORD Project، التي توزعها جمعية CrossWire Bible Society (crosswire.org). تسري حقوق النشر والترخيص الخاصان بكل وحدة."
     },
     "language": {
       "title": "اللغة",
@@ -570,7 +571,10 @@
     "aboutAuthor": "المؤلف",
     "aboutYear": "السنة",
     "aboutDescription": "الوصف",
+    "aboutCopyright": "حقوق النشر",
     "aboutLicense": "الترخيص",
+    "aboutSource": "المصدر",
+    "aboutConvertedFrom": "التحويل",
     "aboutPublisher": "الناشر",
     "aboutLanguage": "اللغة",
     "aboutUnavailable": "معلومات الوحدة غير متاحة."

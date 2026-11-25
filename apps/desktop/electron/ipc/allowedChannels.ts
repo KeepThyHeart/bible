@@ -346,6 +346,7 @@ export const TYPED_IPC_CHANNELS = [
   'module:update',
   'module:check-for-updates',
   'module:get-details',
+  'module:get-provenance',
   'module:get-keyword-index-status',
   'module:rebuild-keyword-index',
   'module:delete-keyword-index',

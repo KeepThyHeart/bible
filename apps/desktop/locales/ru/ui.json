@@ -1454,6 +1454,8 @@
   "moduleDetails.removeData": "Также удалить мои данные для этого модуля",
   "moduleDetails.requiresLabel": "Требуется",
   "moduleDetails.sourceLabel": "Источник каталога",
+  "moduleDetails.attributionLabel": "Атрибуция",
+  "moduleDetails.sourceLinkLabel": "Источник",
   "moduleDetails.sourceRepository": "Репозиторий №{id}",
   "moduleDetails.status.completed": "Завершено",
   "moduleDetails.status.downloading": "Загрузка",

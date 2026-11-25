@@ -379,7 +379,8 @@
       "desktopOnly": "笔记、高亮、书签、经文背诵、读经计划和祷告清单可在桌面应用中使用。",
       "license": "采用 <strong>GNU 通用公共许可证 v3.0</strong>（GPL-3.0）授权。",
       "licenseDetails": "本软件可依据 GPL v3 条款自由使用、修改和分发。欢迎查看源代码并提交贡献。",
-      "viewOnGithub": "在 GitHub 上查看"
+      "viewOnGithub": "在 GitHub 上查看",
+      "credits": "大多数圣经、注释和词典均转换自 The SWORD Project 的模块，由 CrossWire Bible Society（crosswire.org）发布。每个模块各自的版权和许可协议仍然适用。"
     },
     "language": {
       "title": "语言",
@@ -570,7 +571,10 @@
     "aboutAuthor": "作者",
     "aboutYear": "年份",
     "aboutDescription": "描述",
+    "aboutCopyright": "版权",
     "aboutLicense": "许可证",
+    "aboutSource": "来源",
+    "aboutConvertedFrom": "转换",
     "aboutPublisher": "出版方",
     "aboutLanguage": "语言",
     "aboutUnavailable": "无法获取模块信息。"

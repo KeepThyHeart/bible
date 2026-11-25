@@ -379,7 +379,8 @@
       "desktopOnly": "Notes, highlights, bookmarks, Scripture memory, reading plans and prayer lists are available in the desktop app.",
       "license": "Licensed under the <strong>GNU General Public License v3.0</strong> (GPL-3.0).",
       "licenseDetails": "This software is free to use, modify, and distribute under the terms of the GPL v3. Source code and contributions are welcome.",
-      "viewOnGithub": "View on GitHub"
+      "viewOnGithub": "View on GitHub",
+      "credits": "Most Bibles, commentaries and dictionaries were converted from modules of The SWORD Project, distributed by the CrossWire Bible Society (crosswire.org). Each module's own copyright and license apply."
     },
     "language": {
       "title": "Language",
@@ -570,7 +571,10 @@
     "aboutAuthor": "Author",
     "aboutYear": "Year",
     "aboutDescription": "Description",
+    "aboutCopyright": "Copyright",
     "aboutLicense": "License",
+    "aboutSource": "Source",
+    "aboutConvertedFrom": "Conversion",
     "aboutPublisher": "Publisher",
     "aboutLanguage": "Language",
     "aboutUnavailable": "Module information is not available."

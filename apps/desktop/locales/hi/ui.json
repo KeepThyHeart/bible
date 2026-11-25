@@ -1454,6 +1454,8 @@
   "moduleDetails.removeData": "इस मॉड्यूल का मेरा डेटा भी हटाएँ",
   "moduleDetails.requiresLabel": "आवश्यक",
   "moduleDetails.sourceLabel": "कैटलॉग स्रोत",
+  "moduleDetails.attributionLabel": "श्रेय",
+  "moduleDetails.sourceLinkLabel": "स्रोत",
   "moduleDetails.sourceRepository": "रिपॉज़िटरी #{id}",
   "moduleDetails.status.completed": "पूर्ण",
   "moduleDetails.status.downloading": "डाउनलोड हो रहा है",

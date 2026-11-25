@@ -1456,6 +1456,8 @@
   "moduleDetails.removeData": "⟦Åļšø ŕéɱøṽé ɱý ðåţå ƒøŕ ţĥîš ɱøðüļé ··········⟧",
   "moduleDetails.requiresLabel": "⟦Ŕéǫüîŕéš ··⟧",
   "moduleDetails.sourceLabel": "⟦Çåţåļøĝ šøüŕçé ····⟧",
+  "moduleDetails.attributionLabel": "⟦Åţţŕîƀüţîøñ ···⟧",
+  "moduleDetails.sourceLinkLabel": "⟦Šøüŕçé ··⟧",
   "moduleDetails.sourceRepository": "⟦Ŕéþøšîţøŕý #{id} ···⟧",
   "moduleDetails.status.completed": "⟦Çøɱþļéţéð ··⟧",
   "moduleDetails.status.downloading": "⟦Ðøŵñļøåðîñĝ ···⟧",

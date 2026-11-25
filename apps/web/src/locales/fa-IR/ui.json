@@ -379,7 +379,8 @@
       "desktopOnly": "یادداشت‌ها، هایلایت‌ها، نشانک‌ها، حفظ کلام، برنامه‌های مطالعه و فهرست‌های دعا در برنامهٔ رایانه‌ای موجودند.",
       "license": "تحت مجوز <strong>GNU General Public License v3.0</strong> (GPL-3.0) منتشر شده است.",
       "licenseDetails": "این نرم‌افزار طبق شرایط GPL v3 برای استفاده، تغییر و توزیع آزاد است. کد منبع و مشارکت‌ها پذیرفته می‌شود.",
-      "viewOnGithub": "مشاهده در GitHub"
+      "viewOnGithub": "مشاهده در GitHub",
+      "credits": "بیشتر کتاب‌های مقدس، تفسیرها و فرهنگ‌های لغت از ماژول‌های The SWORD Project تبدیل شده‌اند که توسط CrossWire Bible Society (crosswire.org) توزیع می‌شوند. حق نشر و مجوز هر ماژول به‌طور جداگانه اعمال می‌شود."
     },
     "language": {
       "title": "زبان",
@@ -570,7 +571,10 @@
     "aboutAuthor": "نویسنده",
     "aboutYear": "سال",
     "aboutDescription": "توضیحات",
+    "aboutCopyright": "حق نشر",
     "aboutLicense": "مجوز",
+    "aboutSource": "منبع",
+    "aboutConvertedFrom": "تبدیل",
     "aboutPublisher": "ناشر",
     "aboutLanguage": "زبان",
     "aboutUnavailable": "اطلاعات ماژول در دسترس نیست."

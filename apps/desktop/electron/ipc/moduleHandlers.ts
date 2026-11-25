@@ -3,7 +3,7 @@ import { basename, join } from 'path';
 import { existsSync, statSync } from 'fs';
 import log from 'electron-log';
 import { ipcHandler, IpcKnownError } from './handler-helper';
-import { getBundledMainDbPath, getUserDataPath, getUserModulesPath, resolveMainDbPath } from '../utils/appPaths';
+import { getBundledMainDbPath, getUserDataPath, getUserModulesPath, resolveMainDbPath, resolveModulePath } from '../utils/appPaths';
 import { SqliteProvider } from '../providers/SqliteProvider';
 import { initializeMainDatabase } from '../utils/initMainDatabase';
 import {
@@ -12,8 +12,17 @@ import {
   ModuleMetadataRepository,
   DownloadQueueRepository,
   ModuleFilter,
-  compareModuleVersions
+  compareModuleVersions,
+  getProvenanceAttributionFromJson
 } from '@bible/core';
+
+/** Attribution and source of an installed module (its own `module_info`). */
+interface ModuleProvenanceDto {
+  attribution: string | null;
+  source_url: string | null;
+  license_spdx: string | null;
+  license_url: string | null;
+}
 import type { StarterPack, OfferedStarterPack, CatalogModule } from '@bible/core';
 import { DownloadService } from '../services/DownloadService';
 import { validateString, validatePositiveInt } from '../utils/validation';
@@ -989,6 +998,43 @@ export function registerModuleHandlers(_ipc: IpcMain): void {
         throw new IpcKnownError('not_found', `Module not found: ${moduleId}`);
       }
       return module;
+    }
+  );
+
+  // Attribution + source of an installed module, read from its own
+  // `module_info` row (the catalog JSON carries neither). Any module type: the
+  // table is common to all. Absent fields come back null.
+  ipcHandler<[number], ModuleProvenanceDto>(
+    'module:get-provenance',
+    (moduleId) => {
+      validatePositiveInt(moduleId, 'moduleId');
+      initializeModuleManager();
+      const ctrl = requireModuleController();
+      const module = ctrl.getModuleDetails(moduleId) as unknown as
+        { databasePath?: string; database_path?: string } | undefined;
+      const relPath = module?.databasePath ?? module?.database_path;
+      const empty: ModuleProvenanceDto = { attribution: null, source_url: null, license_spdx: null, license_url: null };
+      if (!relPath) return empty;
+      const absPath = resolveModulePath(relPath);
+      if (!existsSync(absPath)) return empty;
+      let db: SqliteProvider | undefined;
+      try {
+        db = new SqliteProvider(absPath, { readonly: true });
+        const row = db.queryOne<Record<string, unknown>>('SELECT * FROM module_info WHERE info_id = 1');
+        if (!row) return empty;
+        const str = (v: unknown): string | null => (typeof v === 'string' && v !== '' ? v : null);
+        return {
+          attribution: getProvenanceAttributionFromJson(str(row.metadata)),
+          source_url: str(row.source_url),
+          license_spdx: str(row.license_spdx),
+          license_url: str(row.license_url),
+        };
+      } catch (error) {
+        log.warn(`[module:get-provenance] ${relPath}:`, error);
+        return empty;
+      } finally {
+        db?.close();
+      }
     }
   );
 

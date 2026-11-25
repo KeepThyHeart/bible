@@ -147,6 +147,14 @@ export interface CommentaryModuleInfoData {
   description: string | null;
   publisher: string | null;
   createdDate: string | null;
+  /** SPDX licence id of the module (`module_info.license_spdx`). */
+  licenseSpdx?: string | null;
+  /** URL of the full licence terms. */
+  licenseUrl?: string | null;
+  /** Where the module's content came from. */
+  sourceUrl?: string | null;
+  /** `metadata.provenance.attribution`; null/absent when the module has none. */
+  attribution?: string | null;
 }
 
 /**

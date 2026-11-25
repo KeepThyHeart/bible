@@ -1451,6 +1451,8 @@
   "moduleDetails.removeData": "הסר גם את הנתונים שלי עבור מודול זה",
   "moduleDetails.requiresLabel": "דורש",
   "moduleDetails.sourceLabel": "מקור הקטלוג",
+  "moduleDetails.attributionLabel": "ייחוס",
+  "moduleDetails.sourceLinkLabel": "מקור",
   "moduleDetails.sourceRepository": "מאגר #{id}",
   "moduleDetails.status.completed": "הושלם",
   "moduleDetails.status.downloading": "מוריד",

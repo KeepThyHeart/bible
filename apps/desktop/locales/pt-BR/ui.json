@@ -1454,6 +1454,8 @@
   "moduleDetails.removeData": "Remover também meus dados deste módulo",
   "moduleDetails.requiresLabel": "Requer",
   "moduleDetails.sourceLabel": "Origem do catálogo",
+  "moduleDetails.attributionLabel": "Atribuição",
+  "moduleDetails.sourceLinkLabel": "Fonte",
   "moduleDetails.sourceRepository": "Repositório nº {id}",
   "moduleDetails.status.completed": "Concluído",
   "moduleDetails.status.downloading": "Baixando",

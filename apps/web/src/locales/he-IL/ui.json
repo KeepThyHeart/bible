@@ -379,7 +379,8 @@
       "desktopOnly": "הערות, הדגשות, סימניות, שינון כתבי הקודש, תוכניות קריאה ורשימות תפילה זמינים ביישום לשולחן העבודה.",
       "license": "ברישיון <strong>GNU General Public License v3.0</strong> (GPL-3.0).",
       "licenseDetails": "תוכנה זו חופשית לשימוש, לשינוי ולהפצה בהתאם לתנאי ה-GPL v3. קוד המקור ותרומות מתקבלים בברכה.",
-      "viewOnGithub": "צפייה ב-GitHub"
+      "viewOnGithub": "צפייה ב-GitHub",
+      "credits": "רוב המקראות, הפירושים והמילונים הומרו ממודולים של The SWORD Project, המופצים על ידי CrossWire Bible Society (crosswire.org). זכויות היוצרים והרישיון של כל מודול חלים."
     },
     "language": {
       "title": "שפה",
@@ -570,7 +571,10 @@
     "aboutAuthor": "מחבר",
     "aboutYear": "שנה",
     "aboutDescription": "תיאור",
+    "aboutCopyright": "זכויות יוצרים",
     "aboutLicense": "רישיון",
+    "aboutSource": "מקור",
+    "aboutConvertedFrom": "המרה",
     "aboutPublisher": "מו״ל",
     "aboutLanguage": "שפה",
     "aboutUnavailable": "פרטי המודול אינם זמינים."

@@ -1454,6 +1454,8 @@
   "moduleDetails.removeData": "同时删除我在此模块中的数据",
   "moduleDetails.requiresLabel": "依赖",
   "moduleDetails.sourceLabel": "目录来源",
+  "moduleDetails.attributionLabel": "署名",
+  "moduleDetails.sourceLinkLabel": "来源",
   "moduleDetails.sourceRepository": "资源库 #{id}",
   "moduleDetails.status.completed": "已完成",
   "moduleDetails.status.downloading": "正在下载",
