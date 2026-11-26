@@ -32,6 +32,7 @@ export const ListenButton: React.FC<{ tabId: string }> = () => {
     : playing ? t('audio.pause') : paused ? t('audio.action.resume') : t('audio.listenTooltip');
 
   return (
+    <span className="audio-listen-group">
     <button
       type="button"
       className="audio-toolbar-btn"
@@ -51,6 +52,19 @@ export const ListenButton: React.FC<{ tabId: string }> = () => {
         </span>
       )}
     </button>
+    <button
+      type="button"
+      className="audio-toolbar-btn audio-toolbar-btn--chevron"
+      onClick={() => { audioStore.setTargetTab(panelId); audioStore.openPlayer(); }}
+      onMouseDown={(e) => e.stopPropagation()}
+      title={t('audio.passages.open')}
+      aria-label={t('audio.passages.open')}
+      aria-haspopup="dialog"
+      data-testid="audio-passages-open"
+    >
+      <AudioIcon name="chevronDown" size={14} />
+    </button>
+    </span>
   );
 };
 

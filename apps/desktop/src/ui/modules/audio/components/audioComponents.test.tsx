@@ -31,6 +31,8 @@ import { AudioGateDialog } from './AudioGateDialog';
 import { AudioLiveRegion } from './AudioLiveRegion';
 import { AudioQuickSettings } from './AudioQuickSettings';
 import { AudioSection } from './AudioSection';
+import { BiblePaneProvider } from '../../../components/BiblePaneContext';
+import type { BiblePaneContextValue } from '../../../components/BiblePaneContext';
 import { markAudioRequestedPane } from './paneRequest';
 
 const en = enAudio as Record<string, string>;
@@ -276,5 +278,139 @@ describe('Preferences > Audio section', () => {
     fireEvent.click(screen.getByText(en['audio.settings.removeVoices']));
     await waitFor(() => expect(assetsAPI.remove).toHaveBeenCalledWith('tts-voice:en_US-amy-low'));
     expect(assetsAPI.remove).not.toHaveBeenCalledWith('module:kjv');
+  });
+});
+
+describe('passages playlist', () => {
+  const typeList = async (text: string) => {
+    const input = await screen.findByTestId('audio-passages-input');
+    fireEvent.change(input, { target: { value: text } });
+    return input;
+  };
+
+  it('the Listen chevron opens the pop-up idle, with the editor prefilled with the current chapter', async () => {
+    await start({}, 'bar');
+    renderAudio(<><ListenButton tabId="tab-1" /><AudioPlayerPopup /></>);
+    expect(screen.queryByTestId('audio-popup')).toBeNull();
+    fireEvent.click(await screen.findByTestId('audio-passages-open'));
+    expect(await screen.findByTestId('audio-popup')).toBeInTheDocument();
+    expect(store.targetTabId).toBe(PANEL);
+    expect(screen.getByTestId('audio-passages-input')).toHaveValue('John 3');
+    await waitFor(() => expect(screen.getByTestId('audio-passages-play')).toBeEnabled());
+    expect(screen.queryByTestId('audio-play-pause')).toBeNull();
+  });
+
+  it('shows chips, an error for a bad name, and disables Play until the list parses', async () => {
+    await start({}, 'bar');
+    store.openPlayer();
+    renderAudio(<AudioPlayerPopup />);
+    await typeList('Ps 23; Rom 8:28-39');
+    await waitFor(() => expect(screen.getAllByTestId('audio-passage-chip')).toHaveLength(2));
+    expect(screen.getByTestId('audio-passages-play')).toBeEnabled();
+    await typeList('Ps 23; Blorp 3');
+    await waitFor(() => expect(screen.getByTestId('audio-passages-error')).toHaveTextContent('“Blorp 3” does not name a book of the Bible.'));
+    expect(screen.getByTestId('audio-passages-error')).toHaveAttribute('role', 'alert');
+    expect(screen.getByTestId('audio-passages-play')).toBeDisabled();
+    await typeList('Ps 999');
+    await waitFor(() => expect(screen.getByTestId('audio-passages-error')).toHaveTextContent('past the end'));
+  });
+
+  it('Enter plays the typed list through the store', async () => {
+    await start({}, 'popup');
+    store.openPlayer();
+    renderAudio(<AudioPlayerPopup />);
+    const play = vi.spyOn(store, 'playPassages').mockResolvedValue();
+    const input = await typeList('John 3:16-18; John 4');
+    await waitFor(() => expect(screen.getAllByTestId('audio-passage-chip')).toHaveLength(2));
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(play).toHaveBeenCalledTimes(1);
+    expect(play.mock.calls[0][1]).toEqual([{ book: 43, chapter: 3, verse: 16, endVerse: 18 }, { book: 43, chapter: 4 }]);
+    play.mockRestore();
+  });
+
+  it('removing a chip rewrites the list', async () => {
+    await start({}, 'bar');
+    store.openPlayer();
+    renderAudio(<AudioPlayerPopup />);
+    await typeList('Ps 23; John 3');
+    await waitFor(() => expect(screen.getAllByTestId('audio-passage-chip')).toHaveLength(2));
+    fireEvent.click(within(screen.getAllByTestId('audio-passage-chip')[0]).getByRole('button'));
+    await waitFor(() => expect(screen.getAllByTestId('audio-passage-chip')).toHaveLength(1));
+    expect(screen.getByTestId('audio-passages-input')).toHaveValue('John 3');
+  });
+
+  it('removing a chip splices that item out of the typed text and leaves the rest as typed', async () => {
+    await start({}, 'bar');
+    store.openPlayer();
+    renderAudio(<AudioPlayerPopup />);
+    await typeList('ps 23;  Rom 8:28-39 , gen 1');
+    await waitFor(() => expect(screen.getAllByTestId('audio-passage-chip')).toHaveLength(3));
+    fireEvent.click(within(screen.getAllByTestId('audio-passage-chip')[1]).getByRole('button'));
+    await waitFor(() => expect(screen.getAllByTestId('audio-passage-chip')).toHaveLength(2));
+    expect(screen.getByTestId('audio-passages-input')).toHaveValue('ps 23;  gen 1');
+  });
+
+  it('Play targets the pane picked on the Listen chevron over the playing tab', async () => {
+    await start({}, 'popup');
+    store.playingTabId = 'other-pane';
+    store.setTargetTab(PANEL);
+    store.openPlayer();
+    renderAudio(<AudioPlayerPopup />);
+    const play = vi.spyOn(store, 'playPassages').mockResolvedValue();
+    const input = await typeList('John 3');
+    await waitFor(() => expect(screen.getAllByTestId('audio-passage-chip')).toHaveLength(1));
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(play.mock.calls[0][0]).toBe(PANEL);
+    play.mockRestore();
+  });
+
+  it('plays a list: progress, prev/next passage, no chapter buttons', async () => {
+    await start({}, 'popup');
+    renderAudio(<AudioPlayerPopup />);
+    await act(async () => { await store.playPassages(PANEL, [{ book: 43, chapter: 3, verse: 2, endVerse: 4 }, { book: 43, chapter: 3, verse: 5 }]); await flush(); });
+    await screen.findByTestId('audio-popup');
+    expect(screen.getByTestId('audio-passage-progress')).toHaveTextContent('1 of 2 · John 3:2-4');
+    expect(screen.queryByTestId('audio-prev-chapter')).toBeNull();
+    expect(screen.queryByTestId('audio-next-chapter')).toBeNull();
+    expect(screen.getByTestId('audio-prev-passage')).toBeDisabled();
+    await act(async () => { fireEvent.click(screen.getByTestId('audio-next-passage')); await flush(); });
+    expect(screen.getByTestId('audio-passage-progress')).toHaveTextContent('2 of 2 · John 3:5');
+    expect(screen.getByTestId('audio-next-passage')).toBeDisabled();
+    expect(screen.getByTestId('audio-prev-passage')).toBeEnabled();
+  });
+
+  it('the continue checkbox and loop control are the shared prefs', async () => {
+    await start({}, 'bar');
+    store.openPlayer();
+    renderAudio(<AudioPlayerPopup />);
+    const cont = await screen.findByTestId('audio-continue');
+    expect(cont).toBeChecked();
+    fireEvent.click(cont);
+    expect(store.prefs.continueAfterChapter).toBe('stop');
+    fireEvent.click(screen.getByTestId('audio-loop-list'));
+    expect(store.prefs.passageLoop).toBe('list');
+    expect(screen.getByTestId('audio-loop-list')).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('quick settings carry the same loop and continue controls', async () => {
+    await start({}, 'bar');
+    renderAudio(<AudioQuickSettings moduleAbbr="KJV" />);
+    fireEvent.click(await screen.findByTestId('audio-quick-loop-passage'));
+    expect(store.prefs.passageLoop).toBe('passage');
+    fireEvent.click(screen.getByTestId('audio-quick-continue'));
+    expect(store.prefs.continueAfterChapter).toBe('stop');
+  });
+
+  it('in a pane that is not the one being read, the bar shows the elsewhere strip', async () => {
+    await start({}, 'bar');
+    await playNow();
+    const other = { panelId: 'pane-2', activeTab: { tabId: 'tab-2', abbreviation: 'KJV' }, currentVerses: [], isLoading: false } as unknown as BiblePaneContextValue;
+    renderAudio(<BiblePaneProvider value={other}><AudioTransportBar {...BarProps} /></BiblePaneProvider>, { pane: false });
+    const strip = await screen.findByTestId('audio-elsewhere');
+    expect(strip).toHaveTextContent('Reading in another tab');
+    const reveal = vi.spyOn(store, 'revealPlayingTab');
+    fireEvent.click(screen.getByTestId('audio-goto-tab'));
+    expect(reveal).toHaveBeenCalled();
+    expect(screen.queryByTestId('audio-transport')).toBeNull();
   });
 });

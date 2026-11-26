@@ -54,7 +54,8 @@
     "notice": {
       "noAudio": "No recording or speech voice is available for this translation yet.",
       "preferredUnavailable": "Your preferred audio source is not available for this translation, so another source is playing instead.",
-      "voiceUnavailable": "Your chosen voice is no longer available, so another voice is being used."
+      "voiceUnavailable": "Your chosen voice is no longer available, so another voice is being used.",
+      "passageSkipped": "Skipped a passage this translation does not have."
     },
     "error": {
       "network": "{ref} could not be downloaded. Check your connection, then retry.",
@@ -190,6 +191,47 @@
       "cancelled": "The download stopped. Progress is kept, so the next download continues from here.",
       "failed": "The download did not finish. {message}",
       "close": "Close"
+    },
+    "passages": {
+      "open": "Play passages…",
+      "title": "Play passages",
+      "input": "Passages to read",
+      "placeholder": "e.g. Ps 23; Rom 8:28-39; Gen 1-2",
+      "play": "Play list",
+      "remove": "Remove {ref}",
+      "progress": "{index} of {count} · {ref}",
+      "prev": "Previous passage",
+      "next": "Next passage",
+      "error": {
+        "empty": "Type one or more references.",
+        "noBook": "“{text}” does not name a book of the Bible.",
+        "badNumbers": "“{text}” has chapter or verse numbers that could not be read.",
+        "outOfRange": "“{text}” is past the end of {book}.",
+        "tooMany": "Up to {max} passages at a time."
+      }
+    },
+    "playlist": {
+      "label": "Playlist",
+      "edit": "Change",
+      "chapter": "Current chapter"
+    },
+    "continue": {
+      "label": "Continue to the next chapter",
+      "listHint": "Applies when reading by chapter; a typed list ends at its last verse."
+    },
+    "loop": {
+      "label": "Repeat",
+      "once": "Play once",
+      "list": "Loop the list",
+      "passage": "Loop this passage"
+    },
+    "elsewhere": {
+      "label": "Reading in another tab: {ref} ({module})",
+      "goto": "Go to it"
+    },
+    "live": {
+      "passage": "Now reading {ref}, {index} of {count}",
+      "retarget": "Now reading this tab. The other tab keeps its place."
     }
   }
 }

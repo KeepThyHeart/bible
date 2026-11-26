@@ -8,15 +8,25 @@ import './audio.css';
 export const AudioTransportButtons: React.FC = () => {
   const { t } = useI18n();
   const status = useAudio((s) => s.status);
+  const queue = useAudio((s) => s.queue);
+  const chapters = useAudio((s) => s.canSeekChapter);
+  const typed = !!queue && queue.kind === 'list';
   const playing = status === 'playing' || status === 'preparing' || status === 'buffering' || status === 'resolving';
   // After an error nothing here can do anything; Retry is in the status line.
   const dead = status === 'error';
   const busy = status === 'resolving' || status === 'preparing';
   return (
     <div className="audio-transport__buttons" role="group" aria-label={t('audio.transport.controls')}>
-      <button type="button" className="audio-btn" disabled={dead} onClick={() => audioStore.seekChapter(-1)} title={t('audio.transport.prevChapter')} aria-label={t('audio.transport.prevChapter')} data-testid="audio-prev-chapter">
-        <AudioIcon name="prevChapter" />
-      </button>
+      {typed && queue && (
+        <button type="button" className="audio-btn" disabled={dead || queue.index <= 0} onClick={() => audioStore.prevPassage()} title={t('audio.passages.prev')} aria-label={t('audio.passages.prev')} data-testid="audio-prev-passage">
+          <AudioIcon name="prevChapter" />
+        </button>
+      )}
+      {chapters && (
+        <button type="button" className="audio-btn" disabled={dead} onClick={() => audioStore.seekChapter(-1)} title={t('audio.transport.prevChapter')} aria-label={t('audio.transport.prevChapter')} data-testid="audio-prev-chapter">
+          <AudioIcon name="prevChapter" />
+        </button>
+      )}
       <button type="button" className="audio-btn" disabled={dead} onClick={() => audioStore.seekVerse(-1)} title={t('audio.transport.prevVerse')} aria-label={t('audio.transport.prevVerse')} data-testid="audio-prev-verse">
         <AudioIcon name="prevVerse" />
       </button>
@@ -34,9 +44,16 @@ export const AudioTransportButtons: React.FC = () => {
       <button type="button" className="audio-btn" disabled={dead} onClick={() => audioStore.seekVerse(1)} title={t('audio.transport.nextVerse')} aria-label={t('audio.transport.nextVerse')} data-testid="audio-next-verse">
         <AudioIcon name="nextVerse" />
       </button>
-      <button type="button" className="audio-btn" disabled={dead} onClick={() => audioStore.seekChapter(1)} title={t('audio.transport.nextChapter')} aria-label={t('audio.transport.nextChapter')} data-testid="audio-next-chapter">
-        <AudioIcon name="nextChapter" />
-      </button>
+      {chapters && (
+        <button type="button" className="audio-btn" disabled={dead} onClick={() => audioStore.seekChapter(1)} title={t('audio.transport.nextChapter')} aria-label={t('audio.transport.nextChapter')} data-testid="audio-next-chapter">
+          <AudioIcon name="nextChapter" />
+        </button>
+      )}
+      {typed && queue && (
+        <button type="button" className="audio-btn" disabled={dead || queue.index >= queue.passages.length - 1} onClick={() => audioStore.nextPassage()} title={t('audio.passages.next')} aria-label={t('audio.passages.next')} data-testid="audio-next-passage">
+          <AudioIcon name="nextChapter" />
+        </button>
+      )}
     </div>
   );
 };

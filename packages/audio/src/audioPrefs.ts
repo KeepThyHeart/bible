@@ -11,6 +11,8 @@
 
 import type { AudioCapabilities, AudioPrefs, AudioSourceChoice, RateRange } from '@bible/core/browser';
 
+import type { PassageLoop } from './passageQueue';
+
 export const AUDIO_PREFS_KEY = 'bible-audio-prefs';
 const VERSION = 1;
 
@@ -23,7 +25,7 @@ const SOURCE_PATTERN = /^(auto|recorded|tts:[a-z0-9_-]+)$/;
 /** Where the desktop player lives: docked under the toolbar, or in a floating pop-up. */
 export type PlayerStyle = 'bar' | 'popup';
 /** The app's preferences: the core contract plus UI-only fields the resolver never sees. */
-export type AudioUiPrefs = AudioPrefs & { playerStyle: PlayerStyle };
+export type AudioUiPrefs = AudioPrefs & { playerStyle: PlayerStyle; passageLoop: PassageLoop };
 
 /** The speeds the on-screen stepper walks through (each is clamped to what the source supports). */
 export const RATE_PRESETS = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2] as const;
@@ -39,6 +41,7 @@ export const DEFAULT_AUDIO_PREFS: AudioUiPrefs = {
   readChapterIntro: true,
   phoneBatteryNoticeSeen: {},
   playerStyle: 'popup',
+  passageLoop: 'once',
 };
 
 export function defaultAudioPrefs(): AudioUiPrefs {
@@ -90,6 +93,7 @@ export function sanitizeAudioPrefs(raw: unknown): AudioUiPrefs {
     out.continueAfterChapter = raw.continueAfterChapter;
   }
   if (typeof raw.readChapterIntro === 'boolean') out.readChapterIntro = raw.readChapterIntro;
+  if (raw.passageLoop === 'once' || raw.passageLoop === 'list' || raw.passageLoop === 'passage') out.passageLoop = raw.passageLoop;
   if (raw.playerStyle === 'bar' || raw.playerStyle === 'popup') out.playerStyle = raw.playerStyle;
 
   if (isObject(raw.phoneBatteryNoticeSeen)) {

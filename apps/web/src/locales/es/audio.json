@@ -54,7 +54,8 @@
     "notice": {
       "noAudio": "Aún no hay grabación ni voz sintética disponible para esta traducción.",
       "preferredUnavailable": "La fuente de audio que prefieres no está disponible para esta traducción, así que se usa otra.",
-      "voiceUnavailable": "La voz que elegiste ya no está disponible, así que se usa otra."
+      "voiceUnavailable": "La voz que elegiste ya no está disponible, así que se usa otra.",
+      "passageSkipped": "Se omitió un pasaje que esta traducción no tiene."
     },
     "error": {
       "network": "No se pudo descargar {ref}. Comprueba tu conexión y reintenta.",
@@ -190,6 +191,47 @@
       "cancelled": "La descarga se detuvo. El progreso se conserva, así que la próxima descarga continúa desde aquí.",
       "failed": "La descarga no terminó. {message}",
       "close": "Cerrar"
+    },
+    "passages": {
+      "open": "Reproducir pasajes…",
+      "title": "Reproducir pasajes",
+      "input": "Pasajes para leer",
+      "placeholder": "p. ej. Sal 23; Rom 8:28-39; Gén 1-2",
+      "play": "Reproducir lista",
+      "remove": "Quitar {ref}",
+      "progress": "{index} de {count} · {ref}",
+      "prev": "Pasaje anterior",
+      "next": "Pasaje siguiente",
+      "error": {
+        "empty": "Escribe una o más referencias.",
+        "noBook": "«{text}» no es el nombre de un libro de la Biblia.",
+        "badNumbers": "No se pudieron leer los números de capítulo o versículo de «{text}».",
+        "outOfRange": "«{text}» está más allá del final de {book}.",
+        "tooMany": "Hasta {max} pasajes a la vez."
+      }
+    },
+    "playlist": {
+      "label": "Lista",
+      "edit": "Cambiar",
+      "chapter": "Capítulo actual"
+    },
+    "continue": {
+      "label": "Continuar con el capítulo siguiente",
+      "listHint": "Se aplica al leer por capítulos; una lista escrita termina en su último versículo."
+    },
+    "loop": {
+      "label": "Repetir",
+      "once": "Reproducir una vez",
+      "list": "Repetir la lista",
+      "passage": "Repetir este pasaje"
+    },
+    "elsewhere": {
+      "label": "Leyendo en otra pestaña: {ref} ({module})",
+      "goto": "Ir allí"
+    },
+    "live": {
+      "passage": "Leyendo {ref}, {index} de {count}",
+      "retarget": "Ahora se lee esta pestaña. La otra conserva su lugar."
     }
   }
 }

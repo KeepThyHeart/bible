@@ -10,6 +10,9 @@ vi.mock('./AudioQuickSettings', () => ({ AudioQuickSettings: () => <div data-tes
 vi.mock('./AudioSpeedControl', () => ({ AudioSpeedControl: () => <div data-testid="speed-control" /> }));
 vi.mock('./AudioStatusLine', () => ({ AudioStatusLine: () => null }));
 vi.mock('./AudioProgress', () => ({ AudioProgress: () => null }));
+vi.mock('./AudioPlaylist', () => ({ AudioPlaylist: () => <div data-testid="playlist" /> }));
+vi.mock('./AudioElsewhere', () => ({ AudioElsewhere: () => null }));
+vi.mock('./AudioPassageProgress', () => ({ AudioPassageProgress: () => null }));
 vi.mock('./AudioTransportButtons', () => ({ AudioTransportButtons: () => <div /> }));
 vi.mock('./useSources', () => ({ useSources: () => [] }));
 vi.mock('../hooks/useNowPlaying', () => ({
@@ -26,11 +29,12 @@ import { AudioPlayerScreen } from './AudioPlayerScreen';
 describe('AudioPlayerScreen', () => {
   beforeEach(() => {
     audioStore.enabled = true;
+    audioStore.status = 'playing';
     audioStore.setLayout('phone');
     audioStore.playerOpen = true;
     audioStore.quickSettingsOpen = false;
   });
-  afterEach(() => { cleanup(); audioStore.playerOpen = false; audioStore.quickSettingsOpen = false; });
+  afterEach(() => { cleanup(); audioStore.status = 'idle'; audioStore.playerOpen = false; audioStore.quickSettingsOpen = false; });
 
   it('has the speed control and stop, and no source chips', () => {
     const { container } = render(<AudioPlayerScreen />);
@@ -38,6 +42,14 @@ describe('AudioPlayerScreen', () => {
     expect(screen.getByTestId('audio-player-stop')).toBeTruthy();
     expect(container.querySelector('.audio-chip')).toBeNull();
     expect(screen.getByTestId('verse-pane')).toBeTruthy();
+  });
+
+  it('idle: opened to type a list, it shows only the playlist (no verse pane or transport)', () => {
+    audioStore.status = 'idle';
+    render(<AudioPlayerScreen />);
+    expect(screen.getByTestId('playlist')).toBeTruthy();
+    expect(screen.queryByTestId('verse-pane')).toBeNull();
+    expect(screen.queryByTestId('audio-player-stop')).toBeNull();
   });
 
   it('opens the sheet from the gear', () => {

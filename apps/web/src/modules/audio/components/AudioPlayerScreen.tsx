@@ -13,12 +13,16 @@ import { BottomSheet } from '@bible/ui';
 import { audioStore } from '../audioStore';
 import { useStore } from '../../../hooks/useStore';
 import { useEscapeKey } from '../../../hooks/useEscapeKey';
+import { bibleStore } from '../../../stores/bibleStore';
 import { useNowPlaying } from '../hooks/useNowPlaying';
 import { AudioProgress } from './AudioProgress';
 import { AudioStatusLine } from './AudioStatusLine';
 import { AudioTransportButtons } from './AudioTransportButtons';
 import { AudioVersePane } from './AudioVersePane';
 import { AudioQuickSettings } from './AudioQuickSettings';
+import { AudioPlaylist } from './AudioPlaylist';
+import { AudioPassageProgress } from './AudioPassageProgress';
+import { AudioElsewhere } from './AudioElsewhere';
 import { AudioSpeedControl } from './AudioSpeedControl';
 import { useSources } from './useSources';
 import { sourceChipText } from './sourceChip';
@@ -31,6 +35,7 @@ export function AudioPlayerScreen({ onOpenSettings }: { onOpenSettings?: (sectio
   const voiceId = useStore(audioStore, () => audioStore.voiceId);
   const sheetOpen = useStore(audioStore, () => audioStore.quickSettingsOpen);
   const providerId = useStore(audioStore, () => audioStore.providerId);
+  const status = useStore(audioStore, () => audioStore.status);
   const now = useNowPlaying();
   const sources = useSources(now.moduleAbbr);
   const closeRef = useRef<HTMLButtonElement>(null);
@@ -52,6 +57,7 @@ export function AudioPlayerScreen({ onOpenSettings }: { onOpenSettings?: (sectio
 
   const active = sources.find(s => s.provider.id === providerId);
   const voiceLabel = active?.voices.find(v => v.id === voiceId)?.label;
+  const idle = status === 'idle';
   const sub = sourceChipText(t, providerId, active?.provider.label, voiceLabel, now.moduleAbbr ?? '');
 
   return (
@@ -61,30 +67,35 @@ export function AudioPlayerScreen({ onOpenSettings }: { onOpenSettings?: (sectio
           <i class="fa-solid fa-chevron-down" aria-hidden="true" />
         </button>
         <div class="audio-screen__ref">
-          <span class="audio-screen__ref-main">{now.refLabel}</span>
-          <span class="audio-screen__ref-sub">{sub}</span>
+          <span class="audio-screen__ref-main">{idle ? t('audio.passages.title') : now.refLabel}</span>
+          {!idle && <span class="audio-screen__ref-sub">{sub}</span>}
+          {!idle && <AudioPassageProgress />}
         </div>
         <button type="button" class="audio-btn audio-btn--large" onClick={() => audioStore.openQuickSettings()} title={t('audio.quick.title')} aria-label={t('audio.quick.title')} aria-haspopup="dialog" aria-expanded={sheetOpen} data-testid="audio-player-gear">
           <i class="fa-solid fa-gear" aria-hidden="true" />
         </button>
       </div>
 
-      <AudioVersePane variant="phone" />
+      {!idle && <AudioElsewhere />}
+      {!idle && <AudioVersePane variant="phone" />}
       <AudioStatusLine />
-      <AudioProgress />
-      <AudioTransportButtons large />
+      {!idle && <AudioProgress />}
+      {!idle && <AudioTransportButtons large />}
 
-      <div class="audio-screen__bottom">
-        <AudioSpeedControl large />
-        <button type="button" class="audio-btn audio-btn--large" onClick={() => audioStore.stop()} title={t('audio.transport.close')} aria-label={t('audio.transport.close')} data-testid="audio-player-stop">
-          <i class="fa-solid fa-stop" aria-hidden="true" />
-        </button>
-      </div>
+      {!idle && (
+        <div class="audio-screen__bottom">
+          <AudioSpeedControl large />
+          <button type="button" class="audio-btn audio-btn--large" onClick={() => audioStore.stop()} title={t('audio.transport.close')} aria-label={t('audio.transport.close')} data-testid="audio-player-stop">
+            <i class="fa-solid fa-stop" aria-hidden="true" />
+          </button>
+        </div>
+      )}
+      <AudioPlaylist startExpanded={idle} />
 
-      {sheetOpen && now.moduleAbbr && (
+      {sheetOpen && (now.moduleAbbr || bibleStore.getActiveTab()?.moduleAbbr) && (
         <BottomSheet open onClose={() => audioStore.closeQuickSettings()} title={t('audio.quick.title')} labels={{ close: t('audio.action.cancel') }} maxHeight="80dvh" className="audio-quick-sheet">
           <AudioQuickSettings
-            moduleAbbr={now.moduleAbbr}
+            moduleAbbr={(now.moduleAbbr ?? bibleStore.getActiveTab()?.moduleAbbr) as string}
             variant="phone"
             onOpenSettings={section => { audioStore.closeQuickSettings(); audioStore.closePlayer(); onOpenSettings?.(section ?? 'audio'); }}
           />

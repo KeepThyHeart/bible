@@ -25,6 +25,9 @@ export const webReaderPort: AudioReaderPort = {
   // The selection belongs to the active tab only.
   selectionStart: tabId => (tabId === bibleStore.activeTabId ? bibleStore.getSelectedRange()?.start ?? null : null),
   followTo: (tabId, book, chapter) => bibleStore.navigateTo(book, chapter, undefined, { follow: true, tabId }),
+  // Reading stopped here: the verse becomes the tab's selected verse. No scroll (no pendingScrollVerse), no history entry.
+  markStopped: (tabId, verseId) => bibleStore.markAudioStop(tabId, verseId),
+  reveal: tabId => bibleStore.setActiveTab(tabId),
 };
 
 export const webModulesPort: AudioModulesPort = {

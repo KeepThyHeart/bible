@@ -637,3 +637,105 @@ describe('with the real HtmlAudioOutput', () => {
     real.dispose();
   });
 });
+
+describe('setStopAfter / stopReached', () => {
+  it('recorded: fires once at the end of the stop verse, silently, then idles on it', async () => {
+    const stops: VerseRef[] = [];
+    player.on('stopReached', v => stops.push(v));
+    await player.play(at(2), provider, { rate: 1 });
+    player.setStopAfter(at(3));
+    out.tick(29.9); // verse 3 is 20-30
+    expect(stops).toEqual([]);
+    out.tick(30.1);
+    out.tick(31);
+    expect(stops).toEqual([at(3)]);
+    expect(verses).not.toContain(4);
+    expect(player.state).toMatchObject({ status: 'idle', current: at(3) });
+  });
+
+  it('per-verse (TTS): stops when the segment holding the stop verse ends', async () => {
+    setup('tts:fake', 'engine');
+    const stops: VerseRef[] = [];
+    player.on('stopReached', v => stops.push(v));
+    await player.play(at(1), provider, { rate: 1 });
+    player.setStopAfter(at(2));
+    out.end();
+    await flush();
+    expect(stops).toEqual([]);
+    expect(player.state.current).toEqual(at(2));
+    out.end();
+    await flush();
+    expect(stops).toEqual([at(2)]);
+    expect(player.state).toMatchObject({ status: 'idle', current: at(2) });
+  });
+
+  it('a listener that plays inside stopReached keeps the player from idling', async () => {
+    player.on('stopReached', () => { void player.play(at(1, 2), provider, { rate: 1 }); });
+    await player.play(at(1), provider, { rate: 1 });
+    player.setStopAfter(at(1));
+    out.tick(10.1);
+    await flush();
+    expect(statuses()).not.toContain('idle');
+    expect(player.state).toMatchObject({ status: 'playing', current: at(1, 2) });
+  });
+
+  it('stop() clears it, and a stop verse not in the chapter still gives chapterEnd', async () => {
+    const stops: VerseRef[] = [];
+    const ends: Array<ChapterRef | null> = [];
+    player.on('stopReached', v => stops.push(v));
+    player.on('chapterEnd', n => ends.push(n));
+    await player.play(at(1), provider, { rate: 1 });
+    player.setStopAfter(at(1));
+    player.stop();
+    await player.play(at(1), provider, { rate: 1 });
+    out.tick(10.1);
+    expect(stops).toEqual([]);
+    player.setStopAfter(at(99));
+    out.tick(20);
+    out.end();
+    await flush();
+    expect(stops).toEqual([]);
+    expect(ends.length).toBe(1);
+  });
+
+  it('a stop verse the chapter lacks stops at the first later verse (recorded)', async () => {
+    provider.factory = ref => new FakeChapterAudio(ref, [1, 2, 4, 5], 'whole');
+    const stops: VerseRef[] = [];
+    player.on('stopReached', v => stops.push(v));
+    await player.play(at(1), provider, { rate: 1 });
+    player.setStopAfter({ book: 43, chapter: 1, verse: 3 });
+    out.tick(15);
+    expect(stops).toEqual([]);
+    out.tick(20.1); // verse 4 starts at 20
+    expect(stops).toEqual([at(2)]);
+    expect(player.state.status).toBe('idle');
+  });
+
+  it('a stop verse the chapter lacks stops before the next segment plays (per-verse)', async () => {
+    setup('tts:fake', 'engine');
+    provider.factory = ref => new FakeChapterAudio(ref, [1, 2, 4, 5], 'per-verse');
+    const stops: VerseRef[] = [];
+    player.on('stopReached', v => stops.push(v));
+    await player.play(at(2), provider, { rate: 1 });
+    player.setStopAfter({ book: 43, chapter: 1, verse: 3 });
+    out.end();
+    await flush();
+    expect(stops).toEqual([at(2)]);
+    expect(out.loaded.length).toBe(1);
+    expect(player.state.status).toBe('idle');
+  });
+
+  it('a stop less than one tick away fires on a timer', async () => {
+    vi.useFakeTimers();
+    const stops: VerseRef[] = [];
+    player.on('stopReached', v => stops.push(v));
+    await player.play(at(2), provider, { rate: 1 });
+    player.setStopAfter({ book: 43, chapter: 1, verse: 3 });
+    out.tick(29.9); // 0.1 s before the end of verse 3
+    expect(stops).toEqual([]);
+    out.currentTime = 30;
+    await vi.advanceTimersByTimeAsync(100);
+    expect(stops).toEqual([at(3)]);
+    expect(player.state.status).toBe('idle');
+  });
+});

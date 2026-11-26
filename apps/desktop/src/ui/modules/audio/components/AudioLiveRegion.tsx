@@ -6,6 +6,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useAudio } from '../audioState';
 import { useI18n } from '../../../contexts/useI18n';
 import { useNowPlaying } from './useNowPlaying';
+import { usePassageLabel } from './usePassageLabel';
 
 export const AudioLiveRegion: React.FC = () => {
   const { t } = useI18n();
@@ -13,6 +14,11 @@ export const AudioLiveRegion: React.FC = () => {
   const status = useAudio((s) => s.status);
   const notice = useAudio((s) => s.notice);
   const now = useNowPlaying();
+  const queue = useAudio((s) => s.queue);
+  const tabId = useAudio((s) => s.playingTabId);
+  const { label } = usePassageLabel();
+  const prevList = useRef<{ index: number } | null>(null);
+  const prevTab = useRef<string | null>(null);
   const [message, setMessage] = useState('');
   const last = useRef<{ status: string; chapter: string; notice: string | null }>({ status: 'idle', chapter: '', notice: null });
 
@@ -33,6 +39,22 @@ export const AudioLiveRegion: React.FC = () => {
     if (next) setMessage(next);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status, notice, now.chapterLabel]);
+
+  // A typed list moving to its next passage, and playback moving to another tab, are said too.
+  useEffect(() => {
+    const cur = queue && queue.kind === 'list' && status !== 'idle' ? { index: queue.index } : null;
+    const prev = prevList.current;
+    const before = prevTab.current;
+    prevList.current = cur;
+    prevTab.current = status === 'idle' ? null : tabId;
+    if (status === 'idle') return;
+    if (before && tabId && before !== tabId) { setMessage(t('audio.live.retarget')); return; }
+    if (cur && prev && prev.index !== cur.index && queue) {
+      const passage = queue.passages[queue.index];
+      if (passage) setMessage(t('audio.live.passage', { ref: label(passage), index: cur.index + 1, count: queue.passages.length }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [queue, status, tabId]);
 
   if (!enabled) return null;
   return <div className="sr-only" role="status" aria-live="polite" aria-atomic="true" data-testid="audio-live">{message}</div>;

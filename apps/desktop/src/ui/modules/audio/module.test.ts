@@ -6,6 +6,7 @@ vi.mock('./audioSystem', () => ({ createDesktopAudioSystem: vi.fn(() => ({ fake:
 const init = vi.fn();
 const dispose = vi.fn();
 vi.mock('./audioState', () => ({ audioStore: { init: (s: unknown) => init(s), dispose: () => dispose(), enabled: false, status: 'idle' }, useAudio: vi.fn(), useFollow: vi.fn() }));
+vi.mock('./audioBookmarksSession', () => ({ installAudioBookmarksSession: vi.fn(() => ({ dispose: vi.fn() })) }));
 vi.mock('./shortcuts', () => ({ installAudioShortcuts: vi.fn(() => vi.fn()) }));
 vi.mock('./components/ListenButton', () => ({ ListenButton: () => null }));
 vi.mock('./components/AudioTransportBar', () => ({ AudioTransportBar: () => null }));

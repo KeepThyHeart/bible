@@ -14,6 +14,7 @@ import { createDesktopAudioSystem } from './audioSystem';
 import { installAudioShortcuts } from './shortcuts';
 import { setDesktopRecordings } from './downloads/recordingsHandle';
 import { resetDesktopDownloadsModel } from './downloads/AudioDownloads';
+import { installAudioBookmarksSession } from './audioBookmarksSession';
 import { PlayingVerseController } from './PlayingVerseController';
 import { ListenButton } from './components/ListenButton';
 import { AudioTransportBar } from './components/AudioTransportBar';
@@ -43,6 +44,7 @@ export async function activate(ctx: FeatureModuleContext): Promise<void> {
     shellOverlays.register(AudioGateDialog),
     shellOverlays.register(AudioLiveRegion),
     readerPaintControllers.register(PlayingVerseController),
+    installAudioBookmarksSession(),
     { dispose: installAudioShortcuts(audioStore) },
     // Stops the audio and releases the system.
     // Ends a download run too: its model belongs to this audio system.

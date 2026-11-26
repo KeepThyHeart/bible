@@ -80,6 +80,21 @@ describe('desktopReaderPort', () => {
     await desktopReaderPort.followTo(P, 43, 4);
     expect(desktopReaderPort.tab(P)).toMatchObject({ book: 43, chapter: 4, studyVerse: 43003016 });
   });
+
+  it('markStopped selects the verse (collapsing a range) and reveal activates the dockview panel', () => {
+    useBibleStore.getState().setSelectedVerse(P, 43003014);
+    useBibleStore.getState().extendSelectionTo(P, 43003016);
+    desktopReaderPort.markStopped!(P, 43003001);
+    const ps = useBibleStore.getState().getPanelState(P);
+    expect(ps.selectedVerseId).toBe(43003001);
+    expect(ps.selectionEndVerseId).toBeNull();
+    const setActive = vi.fn();
+    useLayoutStore.setState({ dockviewApi: { getPanel: (id: string) => (id === P ? { api: { setActive } } : undefined) } as never });
+    desktopReaderPort.reveal!(P);
+    desktopReaderPort.reveal!('gone');
+    expect(setActive).toHaveBeenCalledTimes(1);
+    useLayoutStore.setState({ dockviewApi: null as never });
+  });
 });
 
 describe('desktopModulesPort', () => {

@@ -6,6 +6,7 @@
 import { useAudio, useFollow } from '../audioState';
 import { useBibleStore } from '../../../stores/useBibleStore';
 import type { BibleVerse } from '../../../stores/useBibleStore';
+import { useLayoutStore } from '../../../stores/useLayoutStore';
 import { useI18n } from '../../../contexts/useI18n';
 import { localizedBookNames } from '../../../constants/bibleBooks';
 
@@ -44,8 +45,21 @@ export function useNowPlaying(): NowPlaying {
   const status = useAudio(s => s.status);
   const module = useAudio(s => s.playingModule);
   const { verseId } = useFollow();
-  const panel = useBibleStore(s => (panelId ? s.panels.get(panelId) : undefined));
-  if (!panelId || status === 'idle') return EMPTY;
+  const targetTabId = useAudio(s => s.targetTabId);
+  const lastActive = useLayoutStore(s => s.lastActiveBiblePanelId);
+  // Idle with the player open (to type a list): describe the pane the editor is aimed at, not "nothing".
+  const idlePanelId = useBibleStore(s => (targetTabId && s.panels.has(targetTabId) ? targetTabId
+    : lastActive && s.panels.has(lastActive) ? lastActive : (s.panels.keys().next().value as string | undefined) ?? null));
+  const idle = status === 'idle';
+  const panel = useBibleStore(s => { const id = idle ? idlePanelId : panelId; return id ? s.panels.get(id) : undefined; });
+  if (idle) {
+    const open = panel?.openTabs[panel.activeTabIndex];
+    if (!idlePanelId || !open) return EMPTY;
+    const name = localizedBookNames(localizer)[open.book] ?? open.bookName ?? '';
+    const label = open.book && open.chapter ? `${name} ${open.chapter}` : '';
+    return { ...EMPTY, panelId: idlePanelId, moduleAbbr: open.abbreviation ?? null, book: open.book ?? null, chapter: open.chapter ?? null, chapterLabel: label, refLabel: label };
+  }
+  if (!panelId) return EMPTY;
 
   const tab = panel?.openTabs[0];
   // The verse being read names the chapter; the pane follows a moment later, on a page turn.

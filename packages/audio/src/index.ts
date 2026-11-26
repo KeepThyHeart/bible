@@ -12,6 +12,7 @@ export * from './AudioPlayer';
 export * from './AudioSourceResolver';
 export * from './AssetCache';
 export * from './audioPrefs';
+export * from './passageQueue';
 export * from './audioSettings';
 export * from './audioShortcuts';
 export * from './audioStorage';

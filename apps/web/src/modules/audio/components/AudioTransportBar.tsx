@@ -17,6 +17,8 @@ import { AudioProgress } from './AudioProgress';
 import { AudioStatusLine } from './AudioStatusLine';
 import { AudioSpeedControl } from './AudioSpeedControl';
 import { AudioQuickSettings } from './AudioQuickSettings';
+import { AudioPassageProgress } from './AudioPassageProgress';
+import { AudioElsewhere } from './AudioElsewhere';
 
 export function AudioTransportBar({ onOpenSettings }: { onOpenSettings?: (section?: string) => void }) {
   const { t } = useTranslation();
@@ -52,6 +54,7 @@ export function AudioTransportBar({ onOpenSettings }: { onOpenSettings?: (sectio
         <AudioTransportButtons />
         <AudioProgress />
         <span class="audio-transport__now" data-testid="audio-now-playing">{now.refLabel}</span>
+        <AudioPassageProgress />
         <AudioSpeedControl />
         <button
           type="button"
@@ -73,6 +76,7 @@ export function AudioTransportBar({ onOpenSettings }: { onOpenSettings?: (sectio
           <i class="fa-solid fa-xmark" aria-hidden="true" />
         </button>
       </div>
+      <AudioElsewhere strip />
       <AudioStatusLine />
       <Popover
         open={gearOpen && !!now.moduleAbbr}

@@ -1,6 +1,6 @@
 /**
  * The audio fixture for the desktop e2e suite (a copy of apps/web/e2e/audioFixture.ts): one recorded chapter,
- * John 3 in the KJV, written under `<dir>/audio/v1/...` the way a real recordings host publishes it.
+ * John 3, John 4 and Psalm 23 in the KJV, written under `<dir>/audio/v1/...` the way a real recordings host publishes it.
  * A quiet tone, half a second per verse, as a WAV.
  */
 
@@ -35,27 +35,38 @@ function wav(seconds: number): Buffer {
   return buf;
 }
 
+/** Every recorded chapter the fixture publishes: John 3 (the original), then John 4 and Psalm 23 for the passage-list specs. */
+export const FIXTURE_CHAPTERS: ReadonlyArray<{ book: number; chapter: number; verses: number }> = [
+  { book: FIXTURE_BOOK, chapter: FIXTURE_CHAPTER, verses: FIXTURE_VERSES },
+  { book: 43, chapter: 4, verses: 54 },
+  { book: 19, chapter: 23, verses: 6 },
+];
+
 export function writeAudioFixture(dataDir: string): void {
-  const chapterDir = join(dataDir, 'audio', 'v1', FIXTURE_MODULE, 'fixture', 'r1', String(FIXTURE_BOOK));
-  mkdirSync(chapterDir, { recursive: true });
-  const duration = FIXTURE_VERSES * FIXTURE_VERSE_SECONDS;
-  const audio = wav(duration);
-  const ccc = String(FIXTURE_CHAPTER).padStart(3, '0');
-  writeFileSync(join(chapterDir, `${ccc}.wav`), audio);
-  writeFileSync(join(chapterDir, `${ccc}.json`), JSON.stringify({
-    schema: 'kth-audio-chapter/1',
-    module: FIXTURE_MODULE,
-    book: FIXTURE_BOOK,
-    chapter: FIXTURE_CHAPTER,
-    narrator: 'fixture',
-    rev: 'r1',
-    duration,
-    files: [{ codec: 'pcm', mime: 'audio/wav', path: `${FIXTURE_BOOK}/${ccc}.wav`, bytes: audio.length }],
-    verses: Array.from({ length: FIXTURE_VERSES }, (_, i) => [i + 1, i * FIXTURE_VERSE_SECONDS, (i + 1) * FIXTURE_VERSE_SECONDS]),
-  }, null, 2));
+  const byBook: Record<string, number[]> = {};
+  for (const { book, chapter, verses } of FIXTURE_CHAPTERS) {
+    const chapterDir = join(dataDir, 'audio', 'v1', FIXTURE_MODULE, 'fixture', 'r1', String(book));
+    mkdirSync(chapterDir, { recursive: true });
+    const duration = verses * FIXTURE_VERSE_SECONDS;
+    const audio = wav(duration);
+    const ccc = String(chapter).padStart(3, '0');
+    writeFileSync(join(chapterDir, `${ccc}.wav`), audio);
+    writeFileSync(join(chapterDir, `${ccc}.json`), JSON.stringify({
+      schema: 'kth-audio-chapter/1',
+      module: FIXTURE_MODULE,
+      book,
+      chapter,
+      narrator: 'fixture',
+      rev: 'r1',
+      duration,
+      files: [{ codec: 'pcm', mime: 'audio/wav', path: `${book}/${ccc}.wav`, bytes: audio.length }],
+      verses: Array.from({ length: verses }, (_, i) => [i + 1, i * FIXTURE_VERSE_SECONDS, (i + 1) * FIXTURE_VERSE_SECONDS]),
+    }, null, 2));
+    (byBook[String(book)] ??= []).push(chapter);
+  }
   writeFileSync(join(dataDir, 'audio', 'v1', FIXTURE_MODULE, 'index.json'), JSON.stringify({
     schema: 'kth-audio-index/1',
     module: FIXTURE_MODULE,
-    narrators: [{ id: 'fixture', label: 'Fixture narrator', language: 'en', rev: 'r1', books: [], chapters: { [String(FIXTURE_BOOK)]: [FIXTURE_CHAPTER] } }],
+    narrators: [{ id: 'fixture', label: 'Fixture narrator', language: 'en', rev: 'r1', books: [], chapters: byBook }],
   }, null, 2));
 }

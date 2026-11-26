@@ -101,3 +101,18 @@ describe('effectiveRate', () => {
   });
 });
 
+describe('passageLoop pref', () => {
+  it('defaults to once, keeps valid values, repairs bad ones', () => {
+    expect(DEFAULT_AUDIO_PREFS.passageLoop).toBe('once');
+    expect(sanitizeAudioPrefs({}).passageLoop).toBe('once');
+    expect(sanitizeAudioPrefs({ passageLoop: 'list' }).passageLoop).toBe('list');
+    expect(sanitizeAudioPrefs({ passageLoop: 'passage' }).passageLoop).toBe('passage');
+    expect(sanitizeAudioPrefs({ passageLoop: 'forever' }).passageLoop).toBe('once');
+    expect(sanitizeAudioPrefs({ passageLoop: 3 }).passageLoop).toBe('once');
+  });
+  it('round-trips through storage', () => {
+    const s = store();
+    saveAudioPrefs({ ...defaultAudioPrefs(), passageLoop: 'passage' }, s);
+    expect(loadAudioPrefs(s).passageLoop).toBe('passage');
+  });
+});

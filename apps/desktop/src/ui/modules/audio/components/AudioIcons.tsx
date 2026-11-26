@@ -3,7 +3,7 @@ import React from 'react';
 
 export type AudioIconName =
   | 'play' | 'pause' | 'prevVerse' | 'nextVerse' | 'prevChapter' | 'nextChapter' | 'stop' | 'close'
-  | 'gear' | 'speaker' | 'spinner' | 'popOut' | 'dock' | 'chevron';
+  | 'gear' | 'speaker' | 'spinner' | 'popOut' | 'dock' | 'chevron' | 'chevronDown';
 
 const PATHS: Record<AudioIconName, string> = {
   play: 'M8 5v14l11-7z',
@@ -20,6 +20,7 @@ const PATHS: Record<AudioIconName, string> = {
   popOut: 'M14 4h6v6M20 4l-9 9M18 14v5H5V6h5',
   dock: 'M5 18h14',
   chevron: 'M9 5l7 7-7 7',
+  chevronDown: 'M6 9l6 6 6-6',
 };
 // Solid shapes are filled; the rest are stroked.
 const FILLED = new Set<AudioIconName>(['play', 'pause', 'prevVerse', 'nextVerse', 'prevChapter', 'nextChapter', 'stop', 'gear']);

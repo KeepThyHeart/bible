@@ -10,6 +10,7 @@ import { useStore } from '../../../hooks/useStore';
 import { choiceOfUi, uiSourceOf } from '@bible/audio';
 import { EngineSelect, SourceSegmented } from './AudioControls';
 import { useSources } from './useSources';
+import { PassageOptions } from './PassageOptions';
 import { downloadsDialog, getAudioDownloadsHandle } from '../lib/downloads';
 
 export interface AudioQuickSettingsProps {
@@ -106,6 +107,8 @@ export function AudioQuickSettings({ moduleAbbr, variant, onOpenSettings }: Audi
           </div>
         </div>
       )}
+
+      <PassageOptions prefix="audio-quick" />
 
       {getAudioDownloadsHandle() && (
         <button type="button" class="audio-panel__more" data-testid="audio-quick-downloads" onClick={() => downloadsDialog.open(moduleAbbr)}>

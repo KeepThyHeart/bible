@@ -30,6 +30,10 @@ export interface AudioReaderPort {
    * and the Study / Commentary panes are not moved.
    */
   followTo(tabId: string, book: number, chapter: number): void | Promise<void>;
+  /** Reading stopped here: make it the tab's selected verse. No scroll jump, no history entry. */
+  markStopped?(tabId: string, verseId: number): void;
+  /** Bring the tab to the front (activate its pane / switch to the web tab). */
+  reveal?(tabId: string): void;
 }
 
 export interface AudioModulesPort {
