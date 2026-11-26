@@ -5,7 +5,7 @@ import { parseReferenceList } from '../list';
 import { encodeRange } from './helpers';
 
 beforeAll(async () => {
-  await loadReferenceLocales(['zh-Hans']);
+  await loadReferenceLocales(['zh-Hans', 'ar', 'fa']);
 });
 
 const en = () => ReferenceEngine.create({ locales: ['en'] });
@@ -88,5 +88,32 @@ describe('parseReferenceList', () => {
     expect(r.items).toHaveLength(2);
     expect(r.errors).toHaveLength(1);
     expect(r.errors[0].text).toBe('Foo 1');
+  });
+
+  it('full-width digits and separators', () => {
+    const r = parseReferenceList(en(), '１ John 2；Ps 23');
+    expect(r.ok).toBe(true);
+    expect(r.items.map((i) => encodeRange(i.range))).toEqual(['62:2', '19:23']);
+    expect(r.items[0].text).toBe('１ John 2');
+  });
+
+  it('Arabic-Indic digits start a numbered book (ar)', () => {
+    const ar = ReferenceEngine.create({ locales: ['ar', 'en'] });
+    const r = parseReferenceList(ar, '١ يوحنا 2؛ Ps 23', {});
+    expect(r.errors).toEqual([]);
+    expect(r.items.map((i) => encodeRange(i.range))).toEqual(['62:2', '19:23']);
+  });
+
+  it('Persian digits (fa)', () => {
+    const fa = ReferenceEngine.create({ locales: ['fa', 'en'] });
+    const r = parseReferenceList(fa, 'John ۳؛ Ps ۲۳');
+    expect(r.items.map((i) => encodeRange(i.range))).toEqual(['43:3', '19:23']);
+  });
+
+  it('a cross-book range is a clean error', () => {
+    const r = parseReferenceList(en(), 'Gen 50-Exod 2');
+    expect(r.ok).toBe(false);
+    expect(r.errors.length).toBeGreaterThan(0);
+    expect(r.items).toEqual([]);
   });
 });

@@ -115,3 +115,15 @@ describe('sanitizeQueue / sanitizeBookmark', () => {
     expect(sanitizeBookmark(null)).toBeNull();
   });
 });
+
+describe('selAtSave and chapter counts', () => {
+  it('sanitizeBookmark keeps a valid selAtSave and drops a bad one', () => {
+    const base = { moduleAbbr: 'KJV', book: 43, chapter: 3, verse: 16 };
+    expect(sanitizeBookmark({ ...base, selAtSave: 43_003_016 })?.selAtSave).toBe(43_003_016);
+    expect(sanitizeBookmark({ ...base, selAtSave: 'x' })?.selAtSave).toBeUndefined();
+  });
+  it('drops passages beyond the book\'s chapter count', () => {
+    const q = sanitizeQueue({ kind: 'list', index: 0, passages: [{ book: 43, chapter: 3 }, { book: 43, chapter: 40 }, { book: 43, chapter: 2, endChapter: 30 }] }, () => 21);
+    expect(q?.passages).toEqual([{ book: 43, chapter: 3 }]);
+  });
+});

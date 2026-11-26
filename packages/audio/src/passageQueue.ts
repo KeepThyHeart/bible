@@ -35,6 +35,8 @@ export interface AudioBookmark {
   chapter: number;
   verse: number;
   queue?: PassageQueue;
+  /** The tab's selected verse (verse id) when this was saved: a selection equal to it is stale, not a new choice. */
+  selAtSave?: number;
 }
 
 export const MAX_PASSAGES = 50;
@@ -118,7 +120,7 @@ function sanitizePassage(raw: unknown): AudioPassage | null {
 }
 
 /** Validate an unknown payload (session restore) into a queue; null when unusable. Never throws. */
-export function sanitizeQueue(raw: unknown): PassageQueue | null {
+export function sanitizeQueue(raw: unknown, chapterCount?: (book: number) => number): PassageQueue | null {
   if (!isObject(raw)) return null;
   if (raw.kind !== 'chapter' && raw.kind !== 'list') return null;
   if (!Array.isArray(raw.passages)) return null;
@@ -126,6 +128,10 @@ export function sanitizeQueue(raw: unknown): PassageQueue | null {
   for (const item of raw.passages) {
     if (passages.length >= MAX_PASSAGES) break;
     const p = sanitizePassage(item);
+    if (p && chapterCount) {
+      const last = chapterCount(p.book);
+      if (last < 1 || p.chapter > last || (p.endChapter ?? p.chapter) > last) continue;
+    }
     if (p) passages.push(p);
   }
   if (passages.length === 0) return null;
@@ -135,12 +141,13 @@ export function sanitizeQueue(raw: unknown): PassageQueue | null {
 }
 
 /** Validate an unknown payload into a bookmark; null when unusable. A bad queue is dropped, the bookmark kept. */
-export function sanitizeBookmark(raw: unknown): AudioBookmark | null {
+export function sanitizeBookmark(raw: unknown, chapterCount?: (book: number) => number): AudioBookmark | null {
   if (!isObject(raw)) return null;
   if (typeof raw.moduleAbbr !== 'string' || !raw.moduleAbbr) return null;
   if (!isPosInt(raw.book) || !isPosInt(raw.chapter) || !isPosInt(raw.verse)) return null;
   const out: AudioBookmark = { moduleAbbr: raw.moduleAbbr, book: raw.book, chapter: raw.chapter, verse: raw.verse };
-  const queue = sanitizeQueue(raw.queue);
+  const queue = sanitizeQueue(raw.queue, chapterCount);
   if (queue) out.queue = queue;
+  if (isPosInt(raw.selAtSave)) out.selAtSave = raw.selAtSave;
   return out;
 }

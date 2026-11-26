@@ -27,6 +27,11 @@ import {
   referenceLocalesVersion,
 } from './registry';
 import { parseTail, type RawRange } from './tail';
+import type { ReferenceListError, ReferenceListItem, ReferenceListOptions, ReferenceListResult } from './list';
+
+/** List separators after normalisation (NFKC already folds the full-width forms). */
+const LIST_SEPARATORS = /[;,\u060C\u061B\u3001]/u;
+const LIST_BOOK_START = /^(?:\d\s*)?\p{L}/u;
 import type {
   BookNameStyle,
   RefBook,
@@ -282,6 +287,71 @@ export class ReferenceEngine {
     }
 
     return partial !== undefined ? { ok: false, reason: failure === 'no-book' ? 'bad-numbers' : failure, book: partial } : { ok: false, reason: 'no-book' };
+  }
+
+  /**
+   * Parses a list that may span several books ("Ps 23; Rom 8:28-39"). Splits
+   * the normalised text (so any Unicode digit or separator form is handled as
+   * `parse` does) at list separators; a piece opens a new book group when a
+   * book name starts there (`candidatesAt`, as in `parseTail`) or it looks
+   * like one ("1 Foo", "Deuter"); other pieces continue the previous group.
+   * Offsets are mapped back to `input`.
+   */
+  parseList(input: string, opts: ReferenceListOptions = {}): ReferenceListResult {
+    const allowWholeBook = opts.allowWholeBook ?? true;
+    const checkChapters = opts.checkChapters ?? true;
+    const fuzzy = opts.fuzzy ?? false;
+    const maxItems = opts.maxItems ?? 50;
+    const norm = normalizeText(input);
+    const s = norm.text;
+    const folds = new Map<string, FoldedText>();
+    const origStart = (i: number) => norm.start[i] ?? input.length;
+    const origEnd = (i: number) => (i > 0 ? norm.end[i - 1] : 0);
+    const bookAt = (i: number) => this.locs.some((l) => this.candidatesAt(l, s, i, folds).length > 0);
+
+    const pieces: Array<{ a: number; b: number }> = [];
+    const push = (from: number, to: number) => {
+      const a = from + (s.slice(from, to).length - s.slice(from, to).trimStart().length);
+      const b = from + s.slice(from, to).trimEnd().length;
+      if (a < b) pieces.push({ a, b });
+    };
+    let from = 0;
+    for (let i = 0; i < s.length; i++) {
+      if (LIST_SEPARATORS.test(s[i])) {
+        push(from, i);
+        from = i + 1;
+      }
+    }
+    push(from, s.length);
+
+    if (pieces.length === 0) {
+      return { ok: false, items: [], errors: [{ text: input.trim(), start: 0, end: input.length, reason: 'empty' }] };
+    }
+
+    const groups: Array<{ a: number; b: number }> = [];
+    for (const p of pieces) {
+      if (groups.length === 0 || LIST_BOOK_START.test(s.slice(p.a, p.b)) || bookAt(p.a)) groups.push({ ...p });
+      else groups[groups.length - 1].b = p.b;
+    }
+
+    const items: ReferenceListItem[] = [];
+    const errors: ReferenceListError[] = [];
+    for (const g of groups) {
+      const start = origStart(g.a);
+      const end = origEnd(g.b);
+      const text = input.slice(start, end);
+      const res = this.parse(text, { allowWholeBook, checkChapters, fuzzy, lists: true });
+      if (res.ok) {
+        for (const range of res.ranges) items.push({ range, text, start, end });
+      } else {
+        errors.push({ text, start, end, reason: res.reason, ...(res.book !== undefined ? { book: res.book } : {}) });
+      }
+    }
+    if (items.length > maxItems) {
+      items.length = maxItems;
+      errors.push({ text: input.trim(), start: 0, end: input.length, reason: 'too-many' });
+    }
+    return { ok: errors.length === 0 && items.length > 0, items, errors };
   }
 
   /** Exact name terminals starting at normalised index `at`, longest first, with boundaries checked. */

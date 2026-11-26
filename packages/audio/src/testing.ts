@@ -10,6 +10,7 @@
 
 import { vi } from 'vitest';
 import type { Mock } from 'vitest';
+import type { AudioReaderPort, AudioReaderTab } from './ports';
 import { buildFixtureManifest } from '@bible/core/browser';
 import type {
   AudioCapabilities,
@@ -467,3 +468,46 @@ export class FakeProvider implements IAudioProvider {
     return this.chapters.get(`${module}:${book}:${chapter}`)!;
   }
 }
+
+// ---------------------------------------------------------------------------
+// Store-level doubles
+// ---------------------------------------------------------------------------
+
+/**
+ * An `AudioReaderPort` over in-memory tabs, with `markStopped` / `reveal` spies. `followTo` turns the
+ * tab at once and notifies, like a reader whose page turn is synchronous; `navigate` is the reader
+ * moving a tab by hand.
+ */
+export class FakeAudioReader implements AudioReaderPort {
+  tabs = new Map<string, AudioReaderTab>();
+  activeId = 'A';
+  selection = new Map<string, number>();
+  listeners = new Set<() => void>();
+  markStopped = vi.fn((tabId: string, verseId: number) => { this.selection.set(tabId, verseId); });
+  reveal = vi.fn();
+  followCalls: Array<[string, number, number]> = [];
+
+  addTab(id: string, book = 43, chapter = 1): AudioReaderTab {
+    const tab: AudioReaderTab = { id, moduleAbbr: 'KJV', book, chapter, loading: false, verses: [1, 2, 3, 4, 5].map(verse => ({ verse })) };
+    this.tabs.set(id, tab);
+    return tab;
+  }
+  emit(): void { for (const l of [...this.listeners]) l(); }
+  subscribe(l: () => void): () => void { this.listeners.add(l); return () => this.listeners.delete(l); }
+  tab(id: string): AudioReaderTab | undefined { return this.tabs.get(id); }
+  activeTab(): AudioReaderTab | undefined { return this.tabs.get(this.activeId); }
+  selectionStart(tabId: string): number | null { return this.selection.get(tabId) ?? null; }
+  followTo(tabId: string, book: number, chapter: number): void {
+    this.followCalls.push([tabId, book, chapter]);
+    const tab = this.tabs.get(tabId);
+    if (tab) { tab.book = book; tab.chapter = chapter; }
+    this.emit();
+  }
+  /** The reader navigates a tab by hand. */
+  navigate(tabId: string, book: number, chapter: number): void {
+    const tab = this.tabs.get(tabId)!;
+    tab.book = book; tab.chapter = chapter;
+    this.emit();
+  }
+}
+

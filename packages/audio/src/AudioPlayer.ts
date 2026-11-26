@@ -78,6 +78,8 @@ const IDLE_STATE: PlayerState = {
 const EPSILON = 0.01;
 /** Position changes smaller than this (seconds) do not produce a state event. */
 const POSITION_STEP = 0.2;
+/** A stop closer than this (seconds) to a tick is fired on a timer: HtmlAudioOutput ticks about every 100 ms. */
+const STOP_TIMER_WINDOW = 0.25;
 
 export function isAbort(e: unknown): boolean {
   const x = e as { code?: string; name?: string } | null;
@@ -120,7 +122,9 @@ export class AudioPlayer implements IAudioPlayer {
   private readonly endListeners = new Set<(next: ChapterRef | null) => void>();
   private readonly stopListeners = new Set<(at: VerseRef) => void>();
   /** Stop after this verse (cleared when it fires, and by `stop()`). */
-  private stopAfter: VerseRef | null = null;
+  private stopAfter: { book: number; chapter: number; verse: number } | null = null;
+  /** One-shot timer that fires the stop between two output ticks. */
+  private stopTimer: ReturnType<typeof setTimeout> | null = null;
   private readonly offOutput: Array<() => void> = [];
 
   private gen = 0;
@@ -217,8 +221,13 @@ export class AudioPlayer implements IAudioPlayer {
     await this.start(from, g, signal, true);
   }
 
-  setStopAfter(ref: VerseRef | null): void {
-    this.stopAfter = ref ? { ...ref } : null;
+  setStopAfter(ref: { book: number; chapter: number; verse: number } | null): void {
+    this.clearStopTimer();
+    this.stopAfter = ref ? { book: ref.book, chapter: ref.chapter, verse: ref.verse } : null;
+  }
+
+  private clearStopTimer(): void {
+    if (this.stopTimer !== null) { clearTimeout(this.stopTimer); this.stopTimer = null; }
   }
 
   pause(): void {
@@ -226,6 +235,7 @@ export class AudioPlayer implements IAudioPlayer {
     const s = this._state.status;
     if (s === 'idle' || s === 'error') return;
     this.wantPlaying = false;
+    this.clearStopTimer();
     this.output.pause();
     this.setState({ status: 'paused' });
   }
@@ -391,6 +401,7 @@ export class AudioPlayer implements IAudioPlayer {
   /** Start a new generation: everything still in flight for the old one is stale. */
   private begin(): { g: number; signal: AbortSignal } {
     this.gen++;
+    this.clearStopTimer();
     this.ctrl.abort();
     this.ctrl = new AbortController();
     return { g: this.gen, signal: this.ctrl.signal };
@@ -628,10 +639,13 @@ export class AudioPlayer implements IAudioPlayer {
     // The stop verse is over: stop before the next verse can be announced or heard.
     const stop = this.stopAfter;
     if (stop && ref && this.stopMatches(stop, ref)) {
-      const timing = seg.verses.find(v => v.verse === stop.verse);
-      if (timing && t + EPSILON >= timing.end) {
-        this.reachStop({ ...ref, verse: stop.verse }, this.gen);
-        return;
+      const stopTime = this.stopTimeIn(seg, stop.verse);
+      if (stopTime !== null) {
+        if (t + EPSILON >= stopTime) {
+          this.reachStop(this.stopRef(ref, stop.verse), this.gen);
+          return;
+        }
+        this.armStopTimer(stopTime, t);
       }
     }
     // Silent bookkeeping first, so a verse change and its position arrive together.
@@ -683,7 +697,8 @@ export class AudioPlayer implements IAudioPlayer {
     // A stop verse inside the segment that just ended (per-verse audio).
     const stop = this.stopAfter;
     const lastVerse = seg.verses[seg.verses.length - 1]?.verse;
-    if (stop && this.stopMatches(stop, chapter.ref) && lastVerse !== undefined && lastVerse >= stop.verse) {
+    const stopHere = !!stop && this.stopMatches(stop, chapter.ref);
+    if (stop && stopHere && lastVerse !== undefined && lastVerse >= stop.verse) {
       this.reachStop({ ...chapter.ref, verse: lastVerse }, g);
       return;
     }
@@ -716,6 +731,13 @@ export class AudioPlayer implements IAudioPlayer {
       if (next && this.seg !== next) this.releaseOnce(next);
       return;
     }
+    // The stop verse is missing: the next segment already starts past it.
+    const after = next?.verses[0]?.verse;
+    if (stop && stopHere && next && after !== undefined && after > stop.verse && lastVerse !== undefined) {
+      this.releaseOnce(next);
+      this.reachStop({ ...chapter.ref, verse: lastVerse }, g);
+      return;
+    }
     try {
       if (next) {
         await this.loadSegment(next, null, g);
@@ -743,13 +765,44 @@ export class AudioPlayer implements IAudioPlayer {
     }
   }
 
-  private stopMatches(stop: VerseRef, ref: ChapterRef): boolean {
-    return stop.moduleAbbr === ref.moduleAbbr && stop.book === ref.book && stop.chapter === ref.chapter;
+  private stopMatches(stop: { book: number; chapter: number }, ref: ChapterRef): boolean {
+    return stop.book === ref.book && stop.chapter === ref.chapter;
+  }
+
+  /** When (segment seconds) the stop falls: the end of the stop verse, or the start of the first later verse if it is missing. */
+  private stopTimeIn(seg: AudioSegment, verse: number): number | null {
+    const own = seg.verses.find(v => v.verse === verse);
+    if (own) return own.end;
+    let later: number | null = null;
+    for (const v of seg.verses) if (v.verse > verse && (later === null || v.start < later)) later = v.start;
+    return later;
+  }
+
+  /** The verse reported as the one read last: the stop verse, or the closest earlier one the chapter has. */
+  private stopRef(ref: ChapterRef, verse: number): VerseRef {
+    const have = this.chapter?.verses ?? [];
+    if (have.includes(verse)) return { ...ref, verse };
+    const earlier = have.filter(v => v < verse);
+    return { ...ref, verse: earlier.length ? earlier[earlier.length - 1] : verse };
+  }
+
+  /** Output ticks are ~100 ms apart: when the stop is nearer than that, fire it on a timer instead. */
+  private armStopTimer(stopTime: number, t: number): void {
+    this.clearStopTimer();
+    const remaining = stopTime - EPSILON - t;
+    if (remaining > STOP_TIMER_WINDOW) return;
+    const g = this.gen;
+    const rate = this.output.rate > 0 ? this.output.rate : 1;
+    this.stopTimer = setTimeout(() => {
+      this.stopTimer = null;
+      if (g === this.gen && !this.disposed && this._state.status === 'playing') this.handleTime(this.output.currentTime);
+    }, Math.max(0, (remaining / rate) * 1000));
   }
 
   /** The stop verse has been read: tell listeners, then go idle unless one of them continued. */
   private reachStop(at: VerseRef, g: number): void {
     if (g !== this.gen || !this.stopAfter) return;
+    this.clearStopTimer();
     this.stopAfter = null; // fires once; a listener that continues sets a new one
     this.output.pause();
     if (!sameVerse(this._state.current, at)) this.setState({ current: at });

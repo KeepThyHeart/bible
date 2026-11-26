@@ -2,11 +2,10 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { ChapterRef, VerseRef } from '@bible/core/browser';
 import { AudioStore } from './AudioStore';
 import type { AudioSystem } from './AudioStore';
-import type { AudioReaderPort, AudioReaderTab } from './ports';
 import { AudioPlayer } from './AudioPlayer';
 import type { AudioSourceResolver } from './AudioSourceResolver';
 import type { AudioPassage } from './passageQueue';
-import { FakeOutput, FakeProvider } from './testing';
+import { FakeAudioReader, FakeOutput, FakeProvider } from './testing';
 
 // John (43) has chapters 1-3 of five verses each (10 s per verse: verse n ends at n * 10); Acts follows.
 const nextChapter = (r: ChapterRef): ChapterRef | null =>
@@ -14,42 +13,7 @@ const nextChapter = (r: ChapterRef): ChapterRef | null =>
 const prevChapter = (r: ChapterRef): ChapterRef | null =>
   r.book === 43 && r.chapter > 1 ? { ...r, chapter: r.chapter - 1 } : null;
 
-interface TestTab extends AudioReaderTab { }
-
-class FakeReader implements AudioReaderPort {
-  tabs = new Map<string, TestTab>();
-  activeId = 'A';
-  selection = new Map<string, number>();
-  listeners = new Set<() => void>();
-  markStopped = vi.fn((tabId: string, verseId: number) => { this.selection.set(tabId, verseId); });
-  reveal = vi.fn();
-  followCalls: Array<[string, number, number]> = [];
-
-  addTab(id: string, book = 43, chapter = 1): TestTab {
-    const tab: TestTab = { id, moduleAbbr: 'KJV', book, chapter, loading: false, verses: [1, 2, 3, 4, 5].map(verse => ({ verse })) };
-    this.tabs.set(id, tab);
-    return tab;
-  }
-  emit(): void { for (const l of [...this.listeners]) l(); }
-  subscribe(l: () => void): () => void { this.listeners.add(l); return () => this.listeners.delete(l); }
-  tab(id: string): TestTab | undefined { return this.tabs.get(id); }
-  activeTab(): TestTab | undefined { return this.tabs.get(this.activeId); }
-  selectionStart(tabId: string): number | null { return this.selection.get(tabId) ?? null; }
-  followTo(tabId: string, book: number, chapter: number): void {
-    this.followCalls.push([tabId, book, chapter]);
-    const tab = this.tabs.get(tabId);
-    if (tab) { tab.book = book; tab.chapter = chapter; }
-    this.emit();
-  }
-  /** The reader navigates a tab by hand. */
-  navigate(tabId: string, book: number, chapter: number): void {
-    const tab = this.tabs.get(tabId)!;
-    tab.book = book; tab.chapter = chapter;
-    this.emit();
-  }
-}
-
-let reader: FakeReader;
+let reader: FakeAudioReader;
 let out: FakeOutput;
 let provider: FakeProvider;
 let player: AudioPlayer;
@@ -63,7 +27,7 @@ const readTo = async (v: number) => { out.tick(v * 10); await flush(); };
 const endChapter = async () => { out.end(); await flush(); };
 
 function build(providerId = 'recorded'): void {
-  reader = new FakeReader();
+  reader = new FakeAudioReader();
   reader.addTab('A');
   out = new FakeOutput();
   provider = new FakeProvider(providerId);
@@ -149,6 +113,7 @@ describe('typed list', () => {
     expect(store.queue?.index).toBe(0);
     expect(cur()).toEqual(at(2));
     expect(store.status).toBe('playing');
+    expect(out.loaded).toHaveLength(1); // looped by seeking inside the open recording, not by reopening
   });
 
   it('a passage ending at the chapter end moves on through chapterEnd', async () => {
@@ -250,12 +215,15 @@ describe('default chapter list', () => {
     expect(reader.followCalls).toHaveLength(0);
   });
 
-  it('loop "list" also replays the one-item chapter list', async () => {
+  it('loop "list" does not repeat a plain chapter: it still follows "continue to the next chapter"', async () => {
     store.setPassageLoop('list');
     await store.play('A');
     await flush();
     await endChapter();
-    expect(cur()).toEqual(at(1));
+    expect(cur()).toEqual(at(1, 2));
+    store.setContinueAfterChapter(false);
+    await endChapter();
+    expect(store.status).toBe('idle');
   });
 });
 
@@ -460,5 +428,124 @@ describe('prefs', () => {
     expect(store.prefs.continueAfterChapter).toBe('stop');
     store.setContinueAfterChapter(true);
     expect(store.prefs.continueAfterChapter).toBe('next-chapter');
+  });
+});
+
+describe('review fixes', () => {
+  it('transport controls without a tab act on the playing tab, not the active one', async () => {
+    reader.addTab('B', 43, 2);
+    await store.play('A');
+    await flush();
+    reader.activeId = 'B';
+    store.togglePlay();
+    expect(store.status).toBe('paused');
+    expect(store.playingTabId).toBe('A');
+    store.togglePlay();
+    expect(store.status).not.toBe('paused');
+    expect(store.playingTabId).toBe('A');
+    store.togglePlay('B'); // an explicit tab (its Listen button) may retarget
+    await flush();
+    expect(store.playingTabId).toBe('B');
+  });
+
+  it('a stale selection does not override the saved place; a new one does', async () => {
+    await store.play('A');
+    await flush();
+    out.tick(25);
+    await flush();
+    reader.selection.set('A', 43_001_001); // what the reader had selected before
+    store.stop(); // select: markStopped sets verse 3
+    expect(reader.selection.get('A')).toBe(43_001_003);
+    reader.selection.set('A', 43_001_001); // the app resets the selection (e.g. a chapter reload)
+    store.restoreBookmarks({ A: { ...store.bookmarkFor('A')!, selAtSave: 43_001_001 } });
+    await store.play('A');
+    await flush();
+    expect(cur()).toEqual(at(3)); // the stale selection (== selAtSave) is not a new choice
+    store.stop();
+    reader.selection.set('A', 43_001_005);
+    await store.play('A');
+    await flush();
+    expect(cur()).toEqual(at(5));
+  });
+
+  it('media-key pause and stop (straight on the player) keep the place', async () => {
+    await store.play('A');
+    await flush();
+    out.tick(15);
+    await flush();
+    player.pause();
+    expect(reader.markStopped).toHaveBeenCalledWith('A', 43_001_002);
+    expect(store.bookmarkFor('A')).toMatchObject({ verse: 2 });
+    reader.markStopped.mockClear();
+    out.tick(25);
+    player.resume();
+    await flush();
+    out.tick(25);
+    await flush();
+    player.stop();
+    expect(store.status).toBe('idle');
+    expect(store.bookmarkFor('A')).toMatchObject({ verse: 3 });
+    expect(reader.markStopped).toHaveBeenCalledWith('A', 43_001_003);
+  });
+
+  it('the bookmark names the playing translation', async () => {
+    await store.play('A');
+    await flush();
+    store.stop();
+    expect(store.bookmarkFor('A')?.moduleAbbr).toBe('KJV');
+  });
+
+  it('jumping or chapter-stepping out of a typed passage turns it into the plain chapter list', async () => {
+    await store.playPassages('A', [range({ chapter: 1, verse: 1, endVerse: 2 })]);
+    await flush();
+    expect(store.canSeekChapter).toBe(false);
+    store.jumpToVerse(4);
+    await flush();
+    expect(store.queue?.kind).toBe('chapter');
+    expect(store.canSeekChapter).toBe(true);
+    await readTo(4); // no stop at verse 2 any more
+    expect(cur()).toEqual(at(5));
+    expect(store.status).toBe('playing');
+  });
+
+  it('a passage the translation lacks is skipped with a notice', async () => {
+    await store.playPassages('A', [range({ chapter: 1, verse: 1, endVerse: 1 }), range({ chapter: 2 }), range({ chapter: 3, verse: 2, endVerse: 2 })]);
+    await flush();
+    provider.openFails = { code: 'not-found', message: 'x', retryable: false };
+    await readTo(1);
+    await flush();
+    expect(store.queue?.index).toBe(2);
+    expect(cur()).toEqual(at(2, 3));
+    expect(store.notice?.key).toBe('audio.notice.passageSkipped');
+    expect(store.status).toBe('playing');
+  });
+
+  it('a list with nothing playable does not spin, even looping', async () => {
+    store.setPassageLoop('list');
+    provider.openChapter = () => Promise.reject({ code: 'not-found', message: 'x', retryable: false });
+    await store.playPassages('A', [range({ chapter: 1 }), range({ chapter: 2 })]);
+    await flush();
+    expect(store.status).toBe('error');
+  });
+
+  it('restored bookmarks for unknown tabs survive; a seen tab that closes loses its bookmark', () => {
+    store.restoreBookmarks({ ghost: { moduleAbbr: 'KJV', book: 43, chapter: 1, verse: 2 } });
+    reader.emit();
+    reader.emit();
+    expect(store.bookmarkFor('ghost')).not.toBeNull();
+    reader.addTab('ghost');
+    reader.emit();
+    reader.tabs.delete('ghost');
+    reader.emit();
+    expect(store.bookmarkFor('ghost')).toBeNull();
+  });
+
+  it('stopping closes the player pop-up state', async () => {
+    store.openPlayer();
+    await store.play('A');
+    await flush();
+    expect(store.playerOpen).toBe(true);
+    store.stop();
+    expect(store.playerOpen).toBe(false);
   });
 });

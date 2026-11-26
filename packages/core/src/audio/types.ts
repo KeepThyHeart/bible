@@ -391,10 +391,11 @@ export interface IAudioPlayer {
   seekChapter(delta: 1 | -1): Promise<void>;
   setRate(rate: number): void;
   /**
-   * Stop after this verse has been read (null: no stop). Survives `play()`; `stop()` clears it.
+   * Stop after this verse has been read (null: no stop). Not tied to a module, so it survives a restart on another one.
+   * A missing verse stops at the first later verse instead. Survives `play()`; `stop()` clears it.
    * Reaching it emits `stopReached` and then goes idle unless a listener continued.
    */
-  setStopAfter(ref: VerseRef | null): void;
+  setStopAfter(ref: { book: number; chapter: number; verse: number } | null): void;
   on(e: 'state', cb: (s: PlayerState) => void): () => void;
   on(e: 'verse', cb: (v: VerseRef) => void): () => void;
   on(e: 'chapterEnd', cb: (next: ChapterRef | null) => void): () => void;
