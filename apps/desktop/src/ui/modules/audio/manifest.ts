@@ -7,6 +7,9 @@ import type { FeatureModuleManifest } from '@bible/core/browser';
 
 export const AUDIO_MODULE_ID = 'audio';
 
+/** Session key (`sessionData.ui.audio`) of the per-pane resume points. Persisted: never rename. */
+export const AUDIO_SESSION_KEY = 'audio';
+
 export const audioManifest: FeatureModuleManifest = {
   id: AUDIO_MODULE_ID,
   platforms: ['desktop'],

@@ -54,7 +54,8 @@
     "notice": {
       "noAudio": "此译本暂无录音或合成语音。",
       "preferredUnavailable": "您偏好的音频来源不适用于此译本，已改用其他来源。",
-      "voiceUnavailable": "您选择的声音已不可用，已改用其他声音。"
+      "voiceUnavailable": "您选择的声音已不可用，已改用其他声音。",
+      "passageSkipped": "已跳过此译本没有的经文段落。"
     },
     "error": {
       "network": "无法下载 {ref}。请检查网络连接后重试。",
@@ -190,6 +191,47 @@
       "cancelled": "下载已停止。进度已保留，下次下载会从这里继续。",
       "failed": "下载未完成。{message}",
       "close": "关闭"
+    },
+    "passages": {
+      "open": "播放经文段落…",
+      "title": "播放经文段落",
+      "input": "要朗读的经文",
+      "placeholder": "例如 诗 23; 罗 8:28-39; 创 1-2",
+      "play": "播放列表",
+      "remove": "移除 {ref}",
+      "progress": "第 {index} 段，共 {count} 段 · {ref}",
+      "prev": "上一段",
+      "next": "下一段",
+      "error": {
+        "empty": "请输入一处或多处经文。",
+        "noBook": "“{text}”不是圣经的书卷名。",
+        "badNumbers": "无法识别“{text}”中的章或节数字。",
+        "outOfRange": "“{text}”超出了{book}的末尾。",
+        "tooMany": "一次最多 {max} 段。"
+      }
+    },
+    "playlist": {
+      "label": "播放列表",
+      "edit": "更改",
+      "chapter": "当前章"
+    },
+    "continue": {
+      "label": "继续播放下一章",
+      "listHint": "按章阅读时适用；输入的列表在最后一节结束。"
+    },
+    "loop": {
+      "label": "重复",
+      "once": "播放一次",
+      "list": "循环列表",
+      "passage": "循环本段"
+    },
+    "elsewhere": {
+      "label": "正在另一个标签页阅读：{ref}（{module}）",
+      "goto": "前往"
+    },
+    "live": {
+      "passage": "正在朗读 {ref}，第 {index} 段，共 {count} 段",
+      "retarget": "现在朗读本标签页。另一个标签页保留其位置。"
     }
   }
 }

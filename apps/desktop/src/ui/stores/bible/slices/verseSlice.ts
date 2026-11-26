@@ -32,6 +32,12 @@ export interface VerseSlice {
   navigateToVerse: (panelId: string, verseId: number, endVerseId?: number) => Promise<void>;
   setSelectedVerse: (panelId: string, verseId: number | null) => void;
   /**
+   * Audio stopped here: make `verseId` the pane's selected verse (a range selection collapses to it).
+   * Like `setSelectedVerse`, but a no-op unless the verse is in the pane's current chapter, and it
+   * neither scrolls (`scrollTrigger` / `scrollMode` untouched) nor needs a click.
+   */
+  markReadingStop: (panelId: string, verseId: number) => void;
+  /**
    * Shift-click: widen the selection out to `verseId` without moving the
    * anchor. See `internals/verseRange.ts` for the anchor/end model.
    */
@@ -421,6 +427,34 @@ export const createVerseSlice: StateCreator<BibleState, [], [], VerseSlice> = (s
     }
     if (verseId && window.electron?.window?.broadcastVerseChange) {
       const moduleAbbr = updatedTabs[ps.activeTabIndex]?.abbreviation;
+      window.electron.window.broadcastVerseChange(verseId, moduleAbbr).catch(err => {
+        console.error('[useBibleStore] Error broadcasting verse change:', err);
+      });
+    }
+  },
+
+  markReadingStop: (panelId: string, verseId: number) => {
+    const ps = get().getPanelState(panelId);
+    if (ps.currentBook == null || ps.currentChapter == null) return;
+    const at = VerseIdHelper.parse(verseId);
+    if (at.bookNumber !== ps.currentBook || at.chapter !== ps.currentChapter) return;
+    const updatedTabs = [...ps.openTabs];
+    if (updatedTabs[ps.activeTabIndex]) {
+      updatedTabs[ps.activeTabIndex] = { ...updatedTabs[ps.activeTabIndex], selectedVerseId: verseId };
+    }
+    set({
+      panels: updatePanelState(get().panels, panelId, {
+        selectedVerseId: verseId,
+        selectionEndVerseId: null,
+        previewVerseId: null,
+        previewVerseEndId: null,
+        backBarVerseId: null,
+        openTabs: updatedTabs,
+      }, createDefaultPanelState),
+    });
+    const moduleAbbr = updatedTabs[ps.activeTabIndex]?.abbreviation;
+    publishActiveVerseBroadcast({ verseId, module: moduleAbbr });
+    if (window.electron?.window?.broadcastVerseChange) {
       window.electron.window.broadcastVerseChange(verseId, moduleAbbr).catch(err => {
         console.error('[useBibleStore] Error broadcasting verse change:', err);
       });

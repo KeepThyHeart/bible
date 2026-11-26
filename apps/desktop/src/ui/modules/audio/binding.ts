@@ -4,7 +4,7 @@
  */
 import type { DesktopFeatureModule } from '../moduleHost';
 import { audioGlyph } from './glyph';
-import { audioManifest } from './manifest';
+import { audioManifest, AUDIO_SESSION_KEY } from './manifest';
 
 export const audioModule: DesktopFeatureModule = {
   manifest: audioManifest,
@@ -16,4 +16,5 @@ export const audioModule: DesktopFeatureModule = {
     },
   },
   preferencesGlyphs: { audio: audioGlyph },
+  sessionKeys: [AUDIO_SESSION_KEY],
 };

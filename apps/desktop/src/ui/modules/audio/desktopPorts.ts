@@ -78,6 +78,12 @@ export const desktopReaderPort: AudioReaderPort = {
     // A page turn only: no selection change, no history, no Study / Commentary movement.
     return useBibleStore.getState().followToChapter(panelId, book, chapter); // allow-getstate: command
   },
+  markStopped(panelId, verseId) {
+    useBibleStore.getState().markReadingStop(panelId, verseId); // allow-getstate: command
+  },
+  reveal(panelId) {
+    useLayoutStore.getState().dockviewApi?.getPanel(panelId)?.api.setActive(); // allow-getstate: command
+  },
 };
 
 const languageOf = (abbr: string): string =>
