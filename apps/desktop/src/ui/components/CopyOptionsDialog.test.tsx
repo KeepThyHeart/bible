@@ -669,6 +669,12 @@ describe('CopyOptionsDialog: printing', () => {
     }
   });
 
+  it('the Print dialog is not made inert by the hidden Copy dialog beneath it (Ctrl+P, verse menu Print...)', async () => {
+    renderWithProviders(<CopyOptionsDialog verses={mockVerses} context={mockContext} onClose={vi.fn()} printFirst />);
+    await new Promise(r => requestAnimationFrame(() => r(undefined)));
+    expect(screen.getByTestId('print-dialog').closest('[inert]')).toBeNull();
+  });
+
   it('opened with printFirst (Print... from the verse menu) shows the Print dialog straight away', async () => {
     renderWithProviders(<CopyOptionsDialog verses={mockVerses} context={mockContext} onClose={vi.fn()} printFirst />);
     expect(screen.getByTestId('print-dialog')).toBeInTheDocument();

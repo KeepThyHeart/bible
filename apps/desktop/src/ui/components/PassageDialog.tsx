@@ -232,7 +232,9 @@ const PassageDialog: React.FC<PassageDialogProps> = ({
   const showingPrint = isCopy && view === 'print' && activeVerses.length > 0;
   const [skipMenu, setSkipMenu] = useState<boolean>(() => getSkipFormatMenu());
 
-  const dialogRef = useFocusTrap<HTMLDivElement>(true);
+  // Off while the Print dialog shows: each trap inerts everything outside its own dialog, and this one
+  // (activated after the child Print dialog's) would otherwise inert the Print dialog itself.
+  const dialogRef = useFocusTrap<HTMLDivElement>(!showingPrint);
   const referenceInputRef = useRef<HTMLInputElement>(null);
 
   const [showReferenceHelp, setShowReferenceHelp] = useState(false);
