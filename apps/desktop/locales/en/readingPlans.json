@@ -284,5 +284,8 @@
   "readingPlans.table.markThroughUnread": "Mark everything up to here as unread",
   "readingPlans.table.markThroughUnreadTitle": "Mark days as unread?",
   "readingPlans.table.markThroughConfirm": "Days 1 to {day} will be marked unread. The record of when you read them is lost.",
-  "readingPlans.table.markThroughUnreadConfirm": "Mark as unread"
+  "readingPlans.table.markThroughUnreadConfirm": "Mark as unread",
+  "readingPlans.library.export": "Export",
+  "readingPlans.library.exportNamed": "Export {name}",
+  "readingPlans.add.importButton": "Import plan file…"
 }

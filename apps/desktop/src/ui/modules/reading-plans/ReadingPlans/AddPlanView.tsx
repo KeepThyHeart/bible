@@ -3,6 +3,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { ReadingPlans } from '@bible/core/browser';
 import { MessageBox, ReadingPlanLibrary } from '@bible/ui';
 import { useI18n } from '../../../contexts/useI18n';
+import { saveTextFile } from '../../../utils/saveTextFile';
 import { getReadingPlanService } from '../readingPlansAPI';
 import type { ReadingPlanLabelSet } from './useReadingPlanLabels';
 
@@ -21,6 +22,7 @@ const AddPlanView: React.FC<AddPlanViewProps> = ({ library, labels, onBack, onEd
   const headingRef = useRef<HTMLHeadingElement>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
   const own = library.filter((p) => p.source === 'user');
   const stock = library.filter((p) => p.source !== 'user');
   const target = library.find((p) => p.key === deleting) ?? null;
@@ -44,6 +46,34 @@ const AddPlanView: React.FC<AddPlanViewProps> = ({ library, labels, onBack, onEd
     }
   };
 
+  const exportPlan = async (key: string) => {
+    try {
+      onError(null);
+      const plan = await getReadingPlanService().getPlan(key);
+      if (!plan) return;
+      await saveTextFile(ReadingPlans.planFileName(plan.name), ReadingPlans.serializePlanFile(plan), 'application/json');
+    } catch (err) {
+      onError(err instanceof Error ? err.message : String(err));
+    }
+  };
+
+  const importFile = async (file: File | undefined) => {
+    if (!file) return;
+    try {
+      onError(null);
+      const saved = await getReadingPlanService().savePlan(ReadingPlans.parsePlanFile(await file.text()));
+      onStart(saved.key);
+    } catch (err) {
+      onError(err instanceof Error ? err.message : String(err));
+    }
+  };
+
+  const libraryLabels = {
+    ...labels.library,
+    export: t('readingPlans.library.export'),
+    exportNamed: (name: string) => t('readingPlans.library.exportNamed', { name }),
+  };
+
   return (
     <div className="flex flex-col gap-md" data-testid="add-plan-view">
       <div>
@@ -57,6 +87,17 @@ const AddPlanView: React.FC<AddPlanViewProps> = ({ library, labels, onBack, onEd
         <h3 className="m-0 text-base font-semibold">{t('readingPlans.add.customTitle')}</h3>
         <p className="m-0 text-sm" style={{ color: 'var(--theme-text-secondary)' }}>{t('readingPlans.add.customBody')}</p>
         <div><button type="button" className="kth-btn" onClick={() => onEdit(null)}>{t('readingPlans.add.customButton')}</button></div>
+        <div>
+          <button type="button" className="kth-btn" onClick={() => fileRef.current?.click()}>{t('readingPlans.add.importButton')}</button>
+          <input
+            ref={fileRef}
+            type="file"
+            accept=".json,.readingplan.json,application/json"
+            hidden
+            data-testid="import-plan-input"
+            onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; void importFile(f); }}
+          />
+        </div>
       </section>
       {own.length > 0 ? (
         <section className="flex flex-col gap-sm" aria-label={t('readingPlans.add.yourPlans')}>
@@ -65,8 +106,9 @@ const AddPlanView: React.FC<AddPlanViewProps> = ({ library, labels, onBack, onEd
             plans={own}
             nameOf={labels.stockName}
             descriptionOf={labels.stockDescription}
-            labels={labels.library}
+            labels={libraryLabels}
             onStart={onStart}
+            onExport={(key) => { void exportPlan(key); }}
             onEdit={(key) => onEdit(key)}
             onDelete={(key) => setDeleting(key)}
           />

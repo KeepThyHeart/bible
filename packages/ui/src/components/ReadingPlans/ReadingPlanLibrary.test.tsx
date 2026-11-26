@@ -32,6 +32,15 @@ describe('ReadingPlanLibrary', () => {
     expect(onPreview).toHaveBeenCalledWith('user:abc');
   });
 
+  it('offers Export on user plans only', async () => {
+    const onExport = vi.fn();
+    render(<ReadingPlanLibrary plans={plans} onStart={vi.fn()} onExport={onExport} />);
+    const items = screen.getAllByRole('listitem');
+    expect(within(items[0]).queryByRole('button', { name: /Export/ })).toBeNull();
+    await userEvent.setup().click(within(items[1]).getByRole('button', { name: 'Export Mine' }));
+    expect(onExport).toHaveBeenCalledWith('user:abc');
+  });
+
   it('uses nameOf/descriptionOf and shows an empty message', () => {
     const { rerender } = render(<ReadingPlanLibrary plans={plans} nameOf={(p) => `L:${p.name}`} descriptionOf={() => 'Localized'} onStart={vi.fn()} />);
     expect(screen.getByText('L:Mine')).toBeInTheDocument();
