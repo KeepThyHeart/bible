@@ -42,7 +42,7 @@ export interface TodayExtras {
   justAdded?: { passageId: number; reference: string; outcome?: AddVersesOutcome } | null;
   /** Reminder cards waiting to be answered. */
   reminders?: { waiting: number } | null;
-  /** Consecutive days practiced; shown on the done screen, hidden at 0. */
+  /** Fallback when the plan has no `streakDays`; the plan's own value wins (no analytics call needed). */
   streak?: number | null;
   /** Verses started today across ALL lists (the new-verse cap is global). */
   startedToday?: number;
@@ -64,7 +64,7 @@ export function renderToday(host: PanelHost, plan: PlanView, extras: TodayExtras
   } else if (queue.items.length > 0) {
     root.appendChild(renderQueue(host, plan, queue, now));
   } else {
-    root.appendChild(renderDone(host, plan, queue, now, extras.streak ?? 0));
+    root.appendChild(renderDone(host, plan, queue, now, plan.streakDays ?? extras.streak ?? 0));
   }
   return root;
 }

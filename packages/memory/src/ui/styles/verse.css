@@ -1,8 +1,11 @@
 /* Scripture Memory - verse page (A7). Scoped under .sm-app, logical properties only. */
 
 .sm-app .sm-verse-page {
-  max-inline-size: 44rem;
-  margin-inline: auto;
+  /* Width comes from the shell column. */
+}
+
+.sm-app .sm-verse-back {
+  align-self: flex-start;
 }
 
 .sm-app .sm-verse-text {

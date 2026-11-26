@@ -1,201 +1,344 @@
 /**
- * My verses (A6): every verse with a status and a next review, filtered by list.
+ * My verses (R2-7..R2-10): an overall progress bar, one "List:" picker, and one list of verses
+ * sorted by need, each with its activity blocks.
  *
- * CALLER CONTRACT: `renderMyVerses(host, plan, allPlan, view)`.
- *   - `plan` is the ordinary (focus-scoped) plan: it tells us the focus
- *     (`plan.scope`) and the shell chip uses it.
- *   - `allPlan` MUST be `getPlan({ scope: { kind: 'all' } })`: it holds every
- *     list's verses even when a focus is set. The coordinator fetches both for
- *     the verses tab; this view never fetches.
- *   - `view.list`: `'focus'` follows the focus (all lists when there is none),
- *     `'all'` or a list id is an explicit chip. A list id that no longer
- *     exists shows all lists.
+ * CALLER CONTRACT: `renderMyVerses(host, plan, view)`.
+ *   - `plan` is the cached all-scope plan (`host.data.get()`); this view never fetches and a filter
+ *     change is just a re-render from that cache (`goVerses`).
+ *   - `view.list`: 'all' or a list id. A list id that no longer exists shows all lists.
+ *   - `view.highlight`: a just-added verse id (shown highlighted with "Practice now").
  *
- * Lists are filters here, not a mode: pressing a chip changes only what is
- * listed. "Focus Today on this list" (chip menu) is the one thing that changes
- * what Today does. The add field adds to the filtered list (or the Default one
- * when showing all), with a picker when there are several lists.
+ * The "..." menu keeps Practice now / Move to list / Show in Bible / Remove. List management and the
+ * focus control live on the Lists tab.
  */
 
-import type { ListSummary, PassageView, PlanView } from '../core/types';
+import { activityBlocks, overallProgress, sortByNeed } from '../core/progress';
+import { reciteEnabled } from '../core/features';
 import { verseStatus } from '../core/today';
+import type { ListSummary, PassageView, PlanView } from '../core/types';
+import type { ActivityBlock } from '../core/progress';
+import { blocksFocusin, blocksKeydown, fillActivitySummary, renderActivityBlocks, renderActivitySummary, startBlock } from './activityBlocks';
+import { openAddVerseDialog } from './addVerseDialog';
 import { button, el } from './dom';
 import { emptyState, menu, translationTag } from './components';
-import { renderAddVerseForm } from './addVerseForm';
-import { createList, listMenuItems } from './listActions';
 import type { PanelHost } from './host';
 import { tr } from './i18n';
 import { renderStarterChips } from './starterSets';
 import type { VersesFilter } from './state';
-import { nextReviewText, statusChip } from './verseStatusUi';
+import { nextReviewText } from './verseStatusUi';
 import { practiceVerse, verseMenuItems } from './verseActions';
 import './styles/verses.css';
 
 /** The filter actually in force: a number (one list) or 'all'. */
-function effectiveFilter(plan: PlanView, allPlan: PlanView, view: { list: VersesFilter }): 'all' | number {
-  const wanted: VersesFilter = view.list === 'focus' ? plan.scope : view.list;
-  if (typeof wanted === 'number' && allPlan.lists.some((l) => l.id === wanted)) return wanted;
+function effectiveFilter(plan: PlanView, wanted: VersesFilter): 'all' | number {
+  if (typeof wanted === 'number' && plan.lists.some((l) => l.id === wanted)) return wanted;
   return 'all';
 }
 
 export function renderMyVerses(
   host: PanelHost,
   plan: PlanView,
-  allPlan: PlanView,
   view: { list: VersesFilter; highlight?: number },
 ): HTMLElement {
   const now = host.now();
-  const lists = allPlan.lists;
-  const filter = effectiveFilter(plan, allPlan, view);
+  const lists = plan.lists;
+  const filter = effectiveFilter(plan, view.list);
   const listName = new Map(lists.map((l) => [l.id, l.name] as const));
+  // While the speech probe has not answered, the recite block is hidden (it would wrongly read "not available").
+  const speechUnknown = (plan.speech as { unknown?: boolean } | undefined)?.unknown === true;
+  const reciteShown = reciteEnabled() && !speechUnknown;
 
   const root = el('section', { class: 'sm-screen sm-verses' });
-  root.appendChild(el('h1', { class: 'sm-screen-title sm-verses-title', text: tr('memory.ui.verses.title', 'My verses') }));
 
-  // --- add area ---
-  const defaultListId = typeof filter === 'number' ? filter : plan.collectionId;
-  const form = renderAddVerseForm(host, {
-    lists,
-    defaultListId,
-    onAdded: (passage) => {
-      // Show the new row highlighted, in a filter that contains it.
-      const list: VersesFilter = typeof filter === 'number' && filter !== passage.collectionId ? passage.collectionId : filter;
-      host.go({ type: 'goVerses', list, highlight: passage.id });
-      host.reload();
-    },
-  });
-  root.appendChild(form.element);
-  root.appendChild(renderStarters(host, allPlan, allPlan.passages.length === 0));
+  const addVerse = (): void =>
+    openAddVerseDialog(host, {
+      lists,
+      listId: typeof filter === 'number' ? filter : null,
+      onAdded: (passage) => {
+        const list: VersesFilter = typeof filter === 'number' && filter !== passage.collectionId ? passage.collectionId : filter;
+        host.go({ type: 'goVerses', list, highlight: passage.id });
+      },
+    });
 
-  // --- list chips ---
-  root.appendChild(renderChips(host, plan, allPlan, filter));
+  root.appendChild(
+    el('div', { class: 'sm-verses-head' }, [
+      el('h1', { class: 'sm-screen-title sm-verses-title', text: tr('memory.ui.verses.title', 'My verses') }),
+      button(tr('memory.ui.verses.addVerse', 'Add verse'), addVerse, { class: 'sm-btn sm-btn-primary sm-verses-add-btn' }),
+    ]),
+  );
+
+  const shown = plan.passages.filter((pv) => filter === 'all' || pv.passage.collectionId === filter);
+
+  // --- overall progress (follows the List filter) ---
+  if (shown.length > 0) root.appendChild(renderProgress(shown));
+
+  // --- the one List picker ---
+  root.appendChild(renderPicker(host, plan, filter));
 
   // --- rows ---
-  const shown = allPlan.passages.filter((pv) => filter === 'all' || pv.passage.collectionId === filter);
-  if (allPlan.passages.length === 0) {
+  if (plan.passages.length === 0) {
     root.appendChild(
       emptyState(
         tr('memory.ui.verses.emptyAll', 'No verses yet.'),
-        tr('memory.ui.verses.emptyAllHint', 'Add one above, or begin with a starter set.'),
+        tr('memory.ui.verses.emptyAllHint', 'Add a verse, or begin with a starter set.'),
+        button(tr('memory.ui.verses.addVerse', 'Add verse'), addVerse, { class: 'sm-btn sm-btn-primary' }),
       ),
     );
   } else if (shown.length === 0) {
     root.appendChild(
       emptyState(
         tr('memory.ui.verses.emptyList', 'No verses in this list yet.'),
-        tr('memory.ui.verses.emptyListHint', 'Add one above.'),
+        tr('memory.ui.verses.emptyListHint', 'Add one with "Add verse".'),
       ),
     );
   } else {
-    root.appendChild(
-      el(
-        'ul',
-        { class: 'sm-list sm-verse-rows', attrs: { 'aria-label': tr('memory.ui.verses.rowsLabel', 'Your verses') } },
-        shown.map((pv) => renderRow(host, pv, lists, listName, now, filter === 'all' && lists.length > 1, view.highlight === pv.passage.id)),
-      ),
-    );
+    const showList = filter === 'all' && lists.length > 1;
+    const derived = deriveRows(plan, shown, filter, now, reciteShown);
+    const ctx: RowCtx = { host, lists, listName, now, showList, reciteShown, derived, byId: new Map() };
+    const list = el('ul', { class: 'sm-list sm-verse-rows', attrs: { 'aria-label': tr('memory.ui.verses.rowsLabel', 'Your verses') } });
+    installRowDelegation(list, ctx);
+    renderRowsChunked(list, ctx, view.highlight);
+    root.appendChild(list);
   }
+
+  root.appendChild(renderStarters(host, plan, plan.passages.length === 0));
   return root;
 }
 
-function renderStarters(host: PanelHost, allPlan: PlanView, open: boolean): HTMLElement {
+function renderProgress(shown: readonly PassageView[]): HTMLElement {
+  const p = overallProgress(shown);
+  const label = tr('memory.ui.verses.progressActivities', '{percent}% of activities complete · {learned} of {verses} verses learned', {
+    percent: p.percent,
+    learned: p.versesLearned,
+    verses: p.verses,
+  });
+  return el('div', { class: 'sm-verses-progress' }, [
+    el(
+      'div',
+      {
+        class: 'sm-bar sm-progress-bar',
+        attrs: {
+          role: 'progressbar',
+          'aria-label': tr('memory.ui.verses.progressName', 'Overall progress'),
+          'aria-valuemin': '0',
+          'aria-valuemax': '100',
+          'aria-valuenow': String(p.percent),
+          'aria-valuetext': label,
+        },
+      },
+      [el('div', { class: 'sm-bar-fill sm-progress-fill', style: { width: `${p.percent}%` } })],
+    ),
+    el('p', { class: 'sm-progress-text', text: label }),
+  ]);
+}
+
+function renderPicker(host: PanelHost, plan: PlanView, filter: 'all' | number): HTMLElement {
+  const countOf = (id: number): number => plan.passages.filter((pv) => pv.passage.collectionId === id).length;
+  const select = el('select', { class: 'sm-select sm-list-picker', id: 'sm-verses-list' });
+  select.appendChild(el('option', { text: tr('memory.ui.verses.listAll', '(All)'), value: 'all' }));
+  for (const list of plan.lists) {
+    select.appendChild(
+      el('option', { text: tr('memory.ui.verses.chipList', '{name} ({count})', { name: list.name, count: countOf(list.id) }), value: String(list.id) }),
+    );
+  }
+  select.value = String(filter);
+  select.addEventListener('change', () => {
+    host.go({ type: 'goVerses', list: select.value === 'all' ? 'all' : Number(select.value) });
+  });
+  return el('div', { class: 'sm-verses-picker' }, [
+    el('label', { class: 'sm-label sm-label-inline', text: tr('memory.ui.verses.listLabel', 'List:'), attrs: { for: 'sm-verses-list' } }),
+    select,
+  ]);
+}
+
+function renderStarters(host: PanelHost, plan: PlanView, open: boolean): HTMLElement {
   const details = el('details', { class: 'sm-verses-starters' }, [
     el('summary', { text: tr('memory.ui.verses.starterSets', 'Starter sets') }),
     el('p', { class: 'sm-hint', text: tr('memory.ui.verses.starterHint', 'A ready-made list of well-known verses. Each makes its own list.') }),
-    renderStarterChips(host, allPlan),
+    renderStarterChips(host, plan),
   ]);
   if (open) details.open = true;
   return details;
 }
 
-function renderChips(host: PanelHost, plan: PlanView, allPlan: PlanView, filter: 'all' | number): HTMLElement {
-  const lists = allPlan.lists;
-  const countOf = (id: number): number => allPlan.passages.filter((pv) => pv.passage.collectionId === id).length;
-  const go = (list: VersesFilter): void => host.go({ type: 'goVerses', list });
+/** Rows painted before the first frame; the rest follow in chunks. */
+const FIRST_ROWS = 40;
+const CHUNK_ROWS = 60;
 
-  const chip = (label: string, pressed: boolean, onClick: () => void, extra?: HTMLElement): HTMLButtonElement => {
-    const b = button(label, onClick, {
-      class: `sm-chip sm-list-chip${pressed ? ' sm-chip-on' : ''}`,
-      attrs: { 'aria-pressed': String(pressed) },
-    });
-    if (extra) b.appendChild(extra);
-    return b;
-  };
-
-  const items: HTMLElement[] = [
-    el('li', { class: 'sm-chip-item' }, [
-      chip(tr('memory.ui.verses.chipAll', 'All ({count})', { count: allPlan.passages.length }), filter === 'all', () => go('all')),
-    ]),
-  ];
-  for (const list of lists) {
-    const focused = plan.scope === list.id;
-    const focusTag = focused ? el('span', { class: 'sm-chip-focus', text: tr('memory.ui.verses.focusTag', 'Focus') }) : undefined;
-    items.push(
-      el('li', { class: 'sm-chip-item sm-chip-group' }, [
-        chip(
-          tr('memory.ui.verses.chipList', '{name} ({count})', { name: list.name, count: countOf(list.id) }),
-          filter === list.id,
-          () => go(list.id),
-          focusTag,
-        ),
-        menu({
-          label: tr('memory.ui.verses.listOptions', 'Options for {name}', { name: list.name }),
-          items: listMenuItems(host, list, lists, focused),
-        }),
-      ]),
-    );
-  }
-  items.push(
-    el('li', { class: 'sm-chip-item' }, [
-      button(tr('memory.ui.verses.newListChip', '+ New list'), () => createList(host), { class: 'sm-chip sm-list-chip sm-chip-new' }),
-    ]),
-  );
-  return el('ul', { class: 'sm-chips sm-list-chips', attrs: { 'aria-label': tr('memory.ui.verses.listsLabel', 'Lists') } }, items);
+interface Derived {
+  sorted: PassageView[];
+  blocks: Map<number, ActivityBlock[]>;
 }
 
-function renderRow(
-  host: PanelHost,
-  pv: PassageView,
-  lists: ListSummary[],
-  listName: Map<number, string>,
+interface RowCtx {
+  host: PanelHost;
+  lists: ListSummary[];
+  listName: Map<number, string>;
+  now: number;
+  showList: boolean;
+  reciteShown: boolean;
+  derived: Derived;
+  /** Verses of the rows built so far, by passage id (for the delegated handlers). */
+  byId: Map<number, PassageView>;
+}
+
+/** The sorted rows and their blocks, computed once per cache version (plan object), filter and minute. */
+const derivedCache = new WeakMap<PlanView, Map<string, Derived>>();
+
+function deriveRows(
+  plan: PlanView,
+  shown: readonly PassageView[],
+  filter: 'all' | number,
   now: number,
-  showList: boolean,
-  highlighted: boolean,
-): HTMLElement {
+  reciteShown: boolean,
+): Derived {
+  let perPlan = derivedCache.get(plan);
+  if (!perPlan) derivedCache.set(plan, (perPlan = new Map()));
+  const key = `${filter}|${reciteShown ? 1 : 0}|${Math.floor(now / 60_000)}`;
+  let hit = perPlan.get(key);
+  if (!hit) {
+    if (perPlan.size > 24) perPlan.clear();
+    perPlan.set(key, (hit = { sorted: sortByNeed(shown, now), blocks: new Map() }));
+  }
+  return hit;
+}
+
+function blocksOf(ctx: RowCtx, pv: PassageView): ActivityBlock[] {
+  let b = ctx.derived.blocks.get(pv.passage.id);
+  if (!b) ctx.derived.blocks.set(pv.passage.id, (b = activityBlocks(pv, { reciteShown: ctx.reciteShown })));
+  return b;
+}
+
+/** One set of listeners for the whole list instead of several per row. */
+function installRowDelegation(list: HTMLElement, ctx: RowCtx): void {
+  const rowOf = (t: EventTarget | null): { pv: PassageView; target: Element } | null => {
+    const target = t instanceof Element ? t : null;
+    const li = target?.closest('li.sm-verse-row');
+    const pv = li ? ctx.byId.get(Number(li.getAttribute('data-passage-id'))) : undefined;
+    return target && pv ? { pv, target } : null;
+  };
+  list.addEventListener('click', (ev) => {
+    const hit = rowOf(ev.target);
+    if (!hit) return;
+    const { pv, target } = hit;
+    const blockBtn = target.closest('.sm-block-btn');
+    if (blockBtn) {
+      const block = blocksOf(ctx, pv).find((b) => b.rung === blockBtn.getAttribute('data-rung'));
+      if (block) startBlock(ctx.host, pv, block);
+      return;
+    }
+    if (target.closest('.sm-verse-ref')) {
+      ctx.host.go({ type: 'goVerse', passageId: pv.passage.id });
+      return;
+    }
+    const lazy = target.closest('.sm-menu-lazy');
+    if (lazy) {
+      // Build the real menu on first use, then press its trigger so it opens as usual.
+      const real = menu({
+        label: tr('memory.ui.verses.rowMenu', 'Actions for {reference}', { reference: pv.passage.reference }),
+        items: verseMenuItems(ctx.host, pv, ctx.lists, { practice: true, open: true, onRemoved: () => ctx.host.reload() }),
+      });
+      lazy.replaceWith(real);
+      real.querySelector<HTMLElement>('.sm-menu-btn')?.click();
+    }
+  });
+  list.addEventListener('keydown', blocksKeydown);
+  list.addEventListener('focusin', blocksFocusin);
+  // `toggle` does not bubble; capture it to fill a row's text summary the first time it opens.
+  list.addEventListener(
+    'toggle',
+    (ev) => {
+      const details = ev.target instanceof Element && ev.target.matches('details.sm-block-summary') ? ev.target : null;
+      const hit = details ? rowOf(details) : null;
+      if (details && hit) fillActivitySummary(details, blocksOf(ctx, hit.pv));
+    },
+    true,
+  );
+}
+
+/** Builds the first rows now and the rest in later frames; stops if the list is replaced meanwhile. */
+function renderRowsChunked(list: HTMLElement, ctx: RowCtx, highlightId: number | undefined): void {
+  const all = ctx.derived.sorted;
+  const total = all.length;
+  const hi = highlightId === undefined ? -1 : all.findIndex((pv) => pv.passage.id === highlightId);
+  let next = 0;
+  const build = (until: number): void => {
+    const frag = document.createDocumentFragment();
+    for (; next < Math.min(until, total); next++) {
+      const pv = all[next]!;
+      ctx.byId.set(pv.passage.id, pv);
+      const li = renderRow(ctx, pv, highlightId === pv.passage.id);
+      li.setAttribute('aria-setsize', String(total));
+      li.setAttribute('aria-posinset', String(next + 1));
+      frag.appendChild(li);
+    }
+    list.appendChild(frag);
+  };
+  build(Math.max(FIRST_ROWS, hi + 1));
+  if (next >= total || typeof requestAnimationFrame !== 'function') {
+    build(total);
+    return;
+  }
+  let wasConnected = false;
+  const step = (): void => {
+    if (list.isConnected) wasConnected = true;
+    else if (wasConnected) return; // the screen was replaced (filter change, tab switch): stop
+    build(next + CHUNK_ROWS);
+    if (next < total) requestAnimationFrame(step);
+  };
+  // Skip the frame that is being measured / painted, then fill in.
+  requestAnimationFrame(() => {
+    wasConnected = list.isConnected;
+    requestAnimationFrame(step);
+  });
+}
+
+function renderRow(ctx: RowCtx, pv: PassageView, highlighted: boolean): HTMLElement {
+  const { host, listName, now, showList } = ctx;
   const info = verseStatus(pv, now);
   const ref = pv.passage.reference;
+  const blocks = blocksOf(ctx, pv);
 
-  const open = button(ref, () => host.go({ type: 'goVerse', passageId: pv.passage.id }), {
+  const open = el('button', {
     class: 'sm-verse-ref',
+    text: ref,
+    type: 'button',
     attrs: { 'aria-label': tr('memory.ui.verses.openRef', 'Open {reference}', { reference: ref }) },
   });
 
-  const row = el('li', { class: `sm-verse-row${highlighted ? ' sm-verse-row-new' : ''}`, attrs: { 'data-passage-id': String(pv.passage.id) } }, [
-    el('div', { class: 'sm-verse-main' }, [
-      open,
-      translationTag(pv.passage.moduleId),
-      showList ? el('span', { class: 'sm-row-meta sm-verse-list', text: listName.get(pv.passage.collectionId) ?? '' }) : null,
-    ]),
-    el('div', { class: 'sm-verse-state' }, [
-      statusChip(info.status),
-      el('span', { class: 'sm-verse-next', text: nextReviewText(info, now) }),
-    ]),
-    el('div', { class: 'sm-verse-acts' }, [
-      highlighted
-        ? button(tr('memory.ui.verses.practiceNow', 'Practice now'), () => practiceVerse(host, pv), {
-            class: 'sm-btn sm-btn-primary sm-btn-small sm-verse-practice',
-            attrs: { 'aria-label': tr('memory.ui.verses.practiceRefNow', 'Practice {reference} now', { reference: ref }) },
-          })
-        : null,
-      menu({
-        label: tr('memory.ui.verses.rowMenu', 'Actions for {reference}', { reference: ref }),
-        items: verseMenuItems(host, pv, lists, {
-          practice: true,
-          open: true,
-          onRemoved: () => host.reload(),
-        }),
-      }),
-    ]),
+  const details = [nextReviewText(info, now)];
+  if (showList) details.push(listName.get(pv.passage.collectionId) ?? '');
+
+  const menuLabel = tr('memory.ui.verses.rowMenu', 'Actions for {reference}', { reference: ref });
+  // A stand-in trigger; the real menu (five buttons) is built when it is first pressed.
+  const lazyMenu = el('div', { class: 'sm-menu sm-menu-lazy' }, [
+    el(
+      'button',
+      {
+        class: 'sm-btn sm-btn-quiet sm-btn-small sm-menu-btn',
+        type: 'button',
+        title: menuLabel,
+        attrs: { 'aria-haspopup': 'menu', 'aria-expanded': 'false', 'aria-label': menuLabel },
+      },
+      [el('span', { class: 'sm-menu-btn-glyph', text: '\u2026', attrs: { 'aria-hidden': 'true' } })],
+    ),
   ]);
-  return row;
+
+  return el('li', { class: `sm-verse-row${highlighted ? ' sm-verse-row-new' : ''}`, attrs: { 'data-passage-id': String(pv.passage.id) } }, [
+    el('div', { class: 'sm-verse-line' }, [
+      el('div', { class: 'sm-verse-main' }, [open, translationTag(pv.passage.moduleId)]),
+      renderActivityBlocks(host, pv, blocks, { delegated: true }),
+      el('div', { class: 'sm-verse-acts' }, [
+        highlighted
+          ? button(tr('memory.ui.verses.practiceNow', 'Practice now'), () => practiceVerse(host, pv), {
+              class: 'sm-btn sm-btn-primary sm-btn-small sm-verse-practice',
+              attrs: { 'aria-label': tr('memory.ui.verses.practiceRefNow', 'Practice {reference} now', { reference: ref }) },
+            })
+          : null,
+        lazyMenu,
+      ]),
+    ]),
+    el('div', { class: 'sm-verse-details' }, [el('span', { class: 'sm-verse-detail-text', text: details.join(' · ') })]),
+    renderActivitySummary(blocks, { lazy: true }),
+  ]);
 }

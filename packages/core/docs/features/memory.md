@@ -16,7 +16,7 @@ Words: a **verse** is one memorized item (a range such as John 3:16-18 is still 
 where a range must be told apart from a single verse), verses live in **lists**, each exercise type is an
 **activity**, doing one is to **practice**, and coming back to a verse later is a **review**.
 
-The app is three tabs plus a settings gear: **Today**, **My verses** and **Progress**. Practice, the verse page,
+The app is four tabs plus a settings gear: **Today**, **My verses**, **Lists** and **Progress**. Practice, the verse page,
 reminders and recite are focused screens with a close button and no tabs.
 
 ### Today
@@ -36,6 +36,9 @@ an activity.
   verse by typing a reference, or start from a set of starter verses.
 - **Practice something else** (a menu) lists Mixed, then each activity that has at least one verse it can run on,
   and starts that kind of practice across the lists in focus.
+- **Move on automatically** (a setting, off by default): after a perfect answer the next question or verse opens by
+  itself after a short countdown ("Next: {reference} in 3"). Any key press or **Stay here** cancels it, and it
+  announces itself to screen readers.
 - **Reminders** row: when reminders are waiting, a line with a Review button opens the reminder stack.
 - After "Memorize" in the Bible, Today shows "Added {reference} to Memory" with a **Practice now** button.
 
@@ -49,18 +52,36 @@ these screens. Scheduling, intervals and thresholds underneath are unchanged.
 ### Lists and focus
 
 A verse belongs to one list. **Focus** is the one list Today and Practice something else draw from; the default is
-all lists. When a focus is set, both Today and My verses show a "Focus: {name}" chip with a clear button. A focused
-list with no verses shows an empty-focus message instead of the welcome screen. Focus is stored in the existing
-`practiceScope` setting.
+all lists, stored in the existing `practiceScope` setting. Focus is set on the **Lists** tab ("Practice only this
+list on Today" / "Practice all lists on Today"); the focused list carries a "Today" tag. A focused list with no
+verses shows an empty-focus message instead of the welcome screen.
+
+### Lists tab
+
+One block per list: name, verse count, rename and delete (typing the name to confirm when the list has history),
+and the verses in **practice order**, which is the order Today draws new verses from (the `position` column,
+`reorderList`). Verses move with Move up and Move down buttons (keyboard friendly; a status message says "{reference}
+moved to position 2 of 5"). **Add verse** opens the Add verse dialog for that list, and starter sets are offered
+when the user has few verses.
 
 ### My verses
 
-Every verse in every list as a table (verse, status, next review), with list chips ("All (12)", "{name} (4)") and
-a New list chip. A list menu offers rename, delete (typing the name to confirm when the list has history) and
-"Focus Today on this list". The add field takes one reference to a chosen list; "Add several at once" takes many.
-Row actions: Practice, move to another list, remove (restorable for seven days). Starter sets are offered when the
-user has few verses. A row opens the **verse page**: its activities (only those that apply), Practice, answer mode
-(first letters or full words), move, remove and reset progress.
+All verses, grouped in one block per verse with its **activity blocks** (one small block per activity: not
+started, practicing with stages passed, complete, or not applicable, always text as well as color). A **List**
+picker ("(All)" or one list) filters the table; the sort order is by list order, status or next review. An overall
+**progress** bar reads "{percent}% complete, {learned} of {verses} verses learned". **Add verse** opens the dialog
+below. Row actions: Practice, move to another list, remove (restorable for seven days). A row opens the **verse
+page**: its activities (only those that apply), Practice, answer mode (first letters or full words), move, remove
+and reset progress; its back button names the tab it came from ("Back to list").
+
+### Adding a verse
+
+The **Add verse** dialog (My verses and Lists) uses one reusable verse selector: a typed reference with
+Book/Chapter/Verse/To dropdowns and a live verse-text preview. The selector is `VerseSelector` in `@bible/ui`,
+also shipped to extensions as `<kth-verse-selector>`. Memory's UI is framework-free and imports no `@bible/*`, so
+each host injects the selector (`verseSelectorPort.ts`); where none is injected a plain reference field is the
+fallback. The dialog also has a list choice (including "New list..."), "Add several at once" for a pasted list of
+references, and **Add and start**.
 
 ### Practice screen
 
@@ -68,7 +89,8 @@ Close button, title "{reference} · {activity}" (just the activity name when the
 total" bar and a "More" menu: Switch activity, Skip this verse, Show in Bible, and Harder or Easier version when the
 activity has levels. Escape closes. The activity code itself (keyboard A-D and Enter, hints, reveal) is unchanged.
 
-After the last step the **after-verse screen** shows the reference, "{correct} of {total} right first time", when
+A **queue bar** shows progress through the day's queue ("3 of 8 done, 5 left"), and a practice session reports a
+single result ("Perfect." or "Finished.") rather than per-step noise. After the last step the **after-verse screen** shows the reference, "{correct} of {total} right first time", when
 the verse is next due and its status. Buttons: **Continue (n left)** moves to the next verse in the queue, **Again**
 repeats the verse, **Stop for today** returns to Today; a single verse started from a menu offers **Done**.
 
@@ -91,23 +113,34 @@ recent level-ups and the next milestone. It has no close button.
 
 ### Memorize becomes Practice now
 
-The Bible's "Memorize" verse action adds the verse (to the focused list, or the default list) and, on desktop,
-shows a toast "Added {reference} to Memory" with a **Practice now** button that opens Memory and starts that verse.
-On the web the app opens with the same offer on Today. The verse is added once; adding it again says it is already
-in Memory.
+The Bible's verse action (right-click, "Add to Memory") opens a small dialog to **pick the list** (or make a new
+one); the verse is added to it and, on desktop, a toast "Added {reference} to {list}" with a **Practice now**
+button opens Memory and starts that verse. On the web the app opens with the same offer on Today. A verse already in
+the list says so ("{reference} is already in {list}"); a soft-deleted one is restored ("Restored ... to {list}").
 
 ## Where things are
 
 | Layer | Where |
 |---|---|
 | Domain, store, scheduler, recite, reminders, `MemoryService` | `packages/memory/src/core/` (platform-free; talks to a `MemorySql` and a `MemoryHostApi`) |
-| Storage | host user-database tables `memory_*` (Backup Registry classes, `USER_SCHEMA_VERSION` 2); `packages/memory/src/core/schema.ts` |
+| Storage | host user-database tables `memory_*` (Backup Registry classes, `USER_SCHEMA_VERSION` 4: v4 adds `memory_passage.position`, the per-list practice order, filled in once for existing verses); `packages/memory/src/core/schema.ts` |
 | UI | `packages/memory/src/ui/` (framework-free DOM, scoped `memory.css` mapped to KTH tokens); `mountMemoryUi(container, { api, subscribe, t, locale })` |
 | Manifest | `packages/memory/src/manifest.ts`: app `memory` (`#/@memory`), verse action `memory.memorize`, `platforms: ['desktop']`, activation `onStartupFinished`, namespace `memory` |
 | Desktop main | `apps/desktop/electron/modules/memory/`: IPC `module:memory:*` over `MemoryService`, the `app:memory` reminder source, restore hooks, retirement of the old extension |
 | Desktop renderer | `apps/desktop/src/ui/modules/memory/`: `memoryModule.ts` (entry chunk, loaders), `module.ts` (activation), `MemoryAppView.tsx` (lazy app view), `memorize.ts` (verse action) |
 | Web | `apps/web/src/modules/memory/binding.ts`: registered, off for the platform |
 | Strings | `apps/desktop/locales/<lng>/memory.json` (all locales); manifest labels (`apps.memory.title`, `verseActions.memorize`) stay in `ui.json` |
+
+## Speed and layout
+
+- **Data cache.** `ui/dataCache.ts` keeps the plan, passage views and analytics at module level (the app unmounts
+  when left), keyed by an `epoch`/`version` the service stamps on each plan, so tabs paint at once from the cache
+  and refresh in the background. Replies to list and verse changes are built with scope `all` so the cache applies
+  them as they are.
+- **Nothing blocks on speech.** Reads use `ReciteService.availabilityNow()` (the cached probe, never awaited); the
+  probe runs in the background and a push updates Settings when it arrives. Reads are batched (`listCardsFor`,
+  `listResumes`) and the streak is one query.
+- **Layout.** The shell bar and every screen share one centred column, so the tabs line up with the content.
 
 ## How it runs on desktop
 

@@ -1543,3 +1543,54 @@
 
 /* --- Muted text helper ---------------------------------------------------------------------------------- */
 .kth-text-muted { color: var(--kth-text-muted); }
+
+/* --- Verse selector (VerseSelector: reference field, Book/Chapter/Verse/To selects, text preview) ---------- */
+.kth-verse-selector {
+  display: flex;
+  flex-direction: column;
+  gap: var(--kth-space-2);
+  color: var(--kth-text);
+  font-family: var(--kth-font-ui);
+  font-size: var(--kth-font-size-ui);
+}
+.kth-verse-selector__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--kth-space-2);
+}
+.kth-verse-selector__ref { flex: 1 1 100%; min-inline-size: 0; }
+.kth-verse-selector__field {
+  display: flex;
+  flex: 1 1 5rem;
+  flex-direction: column;
+  gap: var(--kth-space-1);
+  min-inline-size: 0;
+}
+.kth-verse-selector__field:first-child:not(:only-child) { flex-basis: 10rem; }
+.kth-verse-selector__label {
+  color: var(--kth-text-muted);
+  font-size: calc(var(--kth-font-size-ui) * 0.9);
+}
+.kth-verse-selector__select { min-inline-size: 0; }
+.kth-verse-selector__status {
+  min-block-size: 1.25em;
+  color: var(--kth-danger);
+  font-size: calc(var(--kth-font-size-ui) * 0.9);
+}
+.kth-verse-selector__status:empty { display: none; }
+.kth-verse-selector__preview {
+  margin: 0;
+  max-block-size: 12rem;
+  overflow-y: auto;
+  padding-block: var(--kth-space-2);
+  padding-inline: var(--kth-space-3);
+  border-inline-start: 3px solid var(--kth-border);
+  background: var(--kth-bg-hover);
+  border-radius: var(--kth-radius);
+  line-height: 1.5;
+}
+.kth-verse-selector__preview:empty { display: none; }
+.kth-verse-selector__preview[aria-busy="true"] { opacity: 0.7; }
+.kth-verse-selector__verse sup { color: var(--kth-text-muted); font-size: 0.75em; }
+.kth-verse-selector__more { color: var(--kth-text-muted); font-style: italic; }

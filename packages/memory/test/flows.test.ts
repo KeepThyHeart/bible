@@ -6,7 +6,7 @@
 // @ts-nocheck
 
 import { describe, it, expect } from 'vitest';
-import { flowRemaining, listTargets, nextFlowTarget, pickActivityTarget, pickShuffledTarget, pickerFlows } from '../src/ui/flows';
+import { flowRemaining, listTargets, nextFlowTarget, planNextTarget, pickActivityTarget, pickShuffledTarget, pickerFlows } from '../src/ui/flows';
 import { mulberry32 } from '../src/core/exercises/rng';
 import type { Passage, PassageView, PlanView, RungView } from '../src/core/types';
 
@@ -179,5 +179,28 @@ describe('today flow with startedToday', () => {
     expect(nextFlowTarget(p, { kind: 'today', skipped: [] }, NOW, Math.random, { startedToday: 3 })).toBeNull();
     expect(flowRemaining(p, { kind: 'today', skipped: [] }, NOW, { startedToday: 3 })).toBe(0);
     expect(flowRemaining(p, { kind: 'today', skipped: [] }, NOW)).toBe(1);
+  });
+});
+
+describe('planNextTarget', () => {
+  it('returns a full target (with reference) and null when nothing is on offer', () => {
+    const pl = plan([practised(1, { dueAt: NOW - DAY }), practised(2, { dueAt: NOW - 2 * DAY })]);
+    const t = planNextTarget(pl, { kind: 'today', skipped: [1] }, NOW);
+    expect(t).toMatchObject({ passageId: 2, reference: 'Ref 2' });
+    expect(['ordering', 'blanks', 'firstletters']).toContain(t.rung);
+    expect(planNextTarget(pl, { kind: 'today', skipped: [1, 2] }, NOW)).toBeNull();
+  });
+
+  it('draws the rng once: the target it returns is the one nextFlowTarget picks from that draw', () => {
+    const pl = plan([practised(1), practised(2), practised(3), practised(4)]);
+    const flow = { kind: 'mixed', visited: [] };
+    let calls = 0;
+    const rng = () => { calls += 1; return mulberry32(7)(); };
+    const first = planNextTarget(pl, flow, NOW, rng);
+    const callsAfter = calls;
+    // Reusing the planned target needs no further draw: nothing here calls the rng again.
+    expect(first).not.toBeNull();
+    expect(calls).toBe(callsAfter);
+    expect(nextFlowTarget(pl, flow, NOW, () => mulberry32(7)())).toEqual({ passageId: first.passageId, rung: first.rung });
   });
 });

@@ -93,7 +93,26 @@ document.getElementById('ref')?.addEventListener('kth-change', (e) => {
 });
 ```
 
-Components: `kth-reference-picker` (`kth-change`, detail `KthReferenceChangeDetail`), `kth-book-chapter-picker` (`kth-pick`, `KthPickDetail`), `kth-highlight-swatch` (`kth-change`, `KthSwatchChangeDetail`). Events bubble. Render `kth-*` elements childless (the kit owns their contents), and set object properties such as `labels` from script. For panel tests, `@bible/extension-testing` has `createMockPanelHost()` and `loadUiKit()`.
+Components: `kth-reference-picker` (`kth-change`, detail `KthReferenceChangeDetail`), `kth-verse-selector` (`kth-change`, `KthVerseSelectionDetail`; `kth-submit`, `KthVerseSubmitDetail`), `kth-book-chapter-picker` (`kth-pick`, `KthPickDetail`), `kth-highlight-swatch` (`kth-change`, `KthSwatchChangeDetail`). Events bubble. Render `kth-*` elements childless (the kit owns their contents), and set object properties such as `labels` from script. For panel tests, `@bible/extension-testing` has `createMockPanelHost()` and `loadUiKit()`.
+
+### Verse selector with a text preview
+
+`<kth-verse-selector>` combines a typed reference, Book/Chapter/Verse/To dropdowns and a live preview of the verse text. The kit calls no host method for the preview: set the `lookup` property yourself (properties are not attributes). `value` is the only seed ("John 3:16"); a changed value re-seeds. Attributes: `value`, `locale`, `dir`, `disabled`, `no-cross-chapter`, `no-whole-chapter`, `preview-max`. Properties: `labels`, `lookup`.
+
+```typescript
+import type { KthVerseSelectionDetail, KthVerseTextLookup } from '@bible/extension-ui';
+
+const el = document.getElementById('picker') as HTMLElement & { lookup?: KthVerseTextLookup };
+el.lookup = async (range, signal) => {
+  const rows = await fetchVerseText(range.verseId, range.endVerseId ?? range.verseId); // your own host call
+  return signal.aborted ? null : rows; // [{ verseId, text }]
+};
+el.addEventListener('kth-change', (e) => {
+  const d = (e as CustomEvent<KthVerseSelectionDetail>).detail;
+  if ('cleared' in d) return; // the text stopped being a valid selection
+  console.log(d.verseId, d.endVerseId, d.ref, d.wholeChapter);
+});
+```
 
 ## Verse ids
 

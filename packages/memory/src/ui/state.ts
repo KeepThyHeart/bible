@@ -14,9 +14,9 @@
 
 import type { Rung } from '../core/types';
 
-export type Tab = 'today' | 'verses' | 'progress';
-/** My verses filter: 'focus' follows the persisted focus (the plan's scope), else an explicit chip. */
-export type VersesFilter = 'focus' | 'all' | number;
+export type Tab = 'today' | 'verses' | 'lists' | 'progress';
+/** My verses List filter: all lists, or one list's id. */
+export type VersesFilter = 'all' | number;
 
 /**
  * The screens. Today, My verses and Progress are tabs; settings, the verse page,
@@ -28,6 +28,7 @@ export type VersesFilter = 'focus' | 'all' | number;
 export type View =
   | { name: 'today' }
   | { name: 'verses'; list: VersesFilter; highlight?: number }
+  | { name: 'lists'; listId: number | null }
   | { name: 'verse'; passageId: number }
   | { name: 'progress' }
   | { name: 'settings' }
@@ -40,10 +41,10 @@ export type View =
  * skip or visit creates a new one.
  */
 export type Flow =
-  | { kind: 'today'; skipped: readonly number[] }
-  | { kind: 'anyway'; visited: readonly number[] }
-  | { kind: 'mixed'; visited: readonly number[] }
-  | { kind: 'activity'; rung: Rung; visited: readonly number[] }
+  | { kind: 'today'; skipped: readonly number[]; startTotal?: number }
+  | { kind: 'anyway'; visited: readonly number[]; startTotal?: number }
+  | { kind: 'mixed'; visited: readonly number[]; startTotal?: number }
+  | { kind: 'activity'; rung: Rung; visited: readonly number[]; startTotal?: number }
   | { kind: 'verse'; passageId: number };
 
 export interface NavState {
@@ -54,6 +55,8 @@ export interface NavState {
   flow: Flow | null;
   /** The My verses filter last used, so leaving and returning keeps it. */
   versesList: VersesFilter;
+  /** The list selected on the Lists tab; session only. */
+  listsSelected: number | null;
 }
 
 export type NavAction =
@@ -61,6 +64,7 @@ export type NavAction =
   | { type: 'goSettings' }
   | { type: 'goCard' }
   | { type: 'goVerses'; list?: VersesFilter; highlight?: number }
+  | { type: 'goLists'; listId?: number | null }
   | { type: 'goVerse'; passageId: number }
   /** The verse page's close: back to wherever the verse was opened from. */
   | { type: 'leaveVerse' }
@@ -77,7 +81,8 @@ export const INITIAL_NAV: NavState = {
   view: { name: 'today' },
   returnTo: { name: 'today' },
   flow: null,
-  versesList: 'focus',
+  versesList: 'all',
+  listsSelected: null,
 };
 
 /**
@@ -92,6 +97,7 @@ function verseOrigin(state: NavState): View {
     case 'today':
     case 'progress':
     case 'settings':
+    case 'lists':
       return v;
     case 'verses':
       return { name: 'verses', list: v.list };
@@ -107,19 +113,21 @@ function returnToFor(view: View): View {
   return view.name === 'settings' || view.name === 'card' ? { name: 'today' } : view;
 }
 
-function tabView(tab: Tab, versesList: VersesFilter): View {
+function tabView(tab: Tab, versesList: VersesFilter, listsSelected: number | null): View {
   return tab === 'today'
     ? { name: 'today' }
     : tab === 'verses'
       ? { name: 'verses', list: versesList }
-      : { name: 'progress' };
+      : tab === 'lists'
+        ? { name: 'lists', listId: listsSelected }
+        : { name: 'progress' };
 }
 
 export function navReduce(state: NavState, action: NavAction): NavState {
-  const keep = { flow: state.flow, versesList: state.versesList };
+  const keep = { flow: state.flow, versesList: state.versesList, listsSelected: state.listsSelected };
   switch (action.type) {
     case 'goTab': {
-      const view = tabView(action.tab, state.versesList);
+      const view = tabView(action.tab, state.versesList, state.listsSelected);
       return { ...keep, view, returnTo: view };
     }
 
@@ -127,6 +135,12 @@ export function navReduce(state: NavState, action: NavAction): NavState {
       const list = action.list ?? state.versesList;
       const view: View = { name: 'verses', list, highlight: action.highlight };
       return { ...keep, versesList: list, view, returnTo: { name: 'verses', list } };
+    }
+
+    case 'goLists': {
+      const listId = action.listId === undefined ? state.listsSelected : action.listId;
+      const view: View = { name: 'lists', listId };
+      return { ...keep, listsSelected: listId, view, returnTo: view };
     }
 
     case 'goSettings':
@@ -169,7 +183,7 @@ export function navReduce(state: NavState, action: NavAction): NavState {
     case 'reciteStarted': {
       const v = state.view.name;
       const returnTo: View =
-        v === 'today' || v === 'verses' || v === 'verse'
+        v === 'today' || v === 'verses' || v === 'lists' || v === 'verse'
           ? state.view
           : v === 'recite'
             ? state.returnTo
@@ -205,6 +219,7 @@ export function navReduce(state: NavState, action: NavAction): NavState {
 export function sameView(a: View, b: View): boolean {
   if (a.name !== b.name) return false;
   if (a.name === 'verses' && b.name === 'verses') return a.list === b.list;
+  if (a.name === 'lists' && b.name === 'lists') return a.listId === b.listId;
   if (a.name === 'verse' && b.name === 'verse') return a.passageId === b.passageId;
   if (a.name === 'practice' && b.name === 'practice') return a.sessionId === b.sessionId;
   if (a.name === 'recite' && b.name === 'recite') return a.reciteId === b.reciteId;

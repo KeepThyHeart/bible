@@ -407,7 +407,7 @@ export * as RemoteSemantic from './RemoteSemantic';
 // End-to-end encrypted sync: contracts, crypto, tracking, engine, account client. Browser-safe.
 export * as Sync from './Sync';
 // Core user schema (one DDL for desktop and web) and the Memory tables it owns.
-export { createUserSchema, migrateUserSchema, USER_SCHEMA_DDL, MEMORY_DDL, MEMORY_TABLES, MEMORY_IMPORT_TABLE, installMemorySchema } from './Data/UserSchema';
+export { createUserSchema, migrateUserSchema, USER_SCHEMA_DDL, MEMORY_DDL, MEMORY_TABLES, MEMORY_IMPORT_TABLE, installMemorySchema, ensureMemoryPassagePosition } from './Data/UserSchema';
 export type { MemoryTable } from './Data/UserSchema';
 // Browser-safe user repositories (notes, highlights, collections, ...), for the web user-DB worker.
 export * as UserRepositories from './Data/Repositories/userRepositories';

@@ -31,6 +31,10 @@
       "types": "./src/ui/mount.ts",
       "default": "./src/ui/mount.ts"
     },
+    "./add-to-memory": {
+      "types": "./src/ui/addToMemoryDialog.ts",
+      "default": "./src/ui/addToMemoryDialog.ts"
+    },
     "./status": {
       "types": "./src/core/status.ts",
       "default": "./src/core/status.ts"

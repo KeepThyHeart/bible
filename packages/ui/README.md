@@ -85,6 +85,26 @@ Classes: `kth-picker`, `__header`, `__title`, `__form`, `__input`, `__offer`, `_
 
 The pure matcher (`parseReference`, `filterBooks`, `getBookFilterText`) lives in `src/components/bookReference.ts` and is exported.
 
+### `VerseSelector`
+
+Pick a verse, a range or a whole chapter by typing a reference **or** with Book/Chapter/Verse/To dropdowns (the two stay in step),
+with a live preview of the verse text. `mountVerseSelector(container, props) => { update(partialProps), dispose() }` mounts it
+without React. Never passes `noRanges` to the inner `ReferencePicker`.
+
+| Prop | Purpose |
+|---|---|
+| `initialReference` | The ONE seed, uncontrolled ("John 3:16"). A different value later re-seeds; an equal one does nothing. There is no controlled `value`. |
+| `onChange(sel \| null)` | Every valid change as `{ verseId, endVerseId?, ref, wholeChapter? }`; `null` when the text stops being valid (or a cross-chapter range is rejected). Typed text commits live. |
+| `onSubmit?(sel)` | Enter on a valid selection (or choosing the reference suggestion). |
+| `lookup?(range, signal)` | Async verse text `{ verseId, text }[] \| null`; absent = no preview. Debounced 200 ms, aborted on change. A whole chapter arrives with `endVerseId` = its last verse. |
+| `previewMaxVerses` | Default 12, then "and {count} more". |
+| `crossChapter`, `wholeChapter` | Both default true. `crossChapter: false` rejects ranges that span chapters and hides "End of chapter N" entries; `wholeChapter: false` removes "All". |
+| `locale`, `dir`, `disabled`, `autoFocus`, `id`, `labels` | As the other pickers; English defaults in `DEFAULT_VERSE_SELECTOR_LABELS`. |
+
+Classes `kth-verse-selector` (`__row`, `__field`, `__label`, `__select`, `__preview`, `__verse`, `__more`, `__status`). The preview is a
+`<blockquote aria-live="polite">`; the status line is a `role="status"` region. Every control is a native element or the APG combobox, so
+keyboard and screen-reader use needs nothing extra. `mountVerseSelector` imports `react-dom/client` (preact/compat resolves it).
+
 ### `ReferencePicker`
 
 One text input that turns a typed reference (`John 3:16`, `Juan 3:16-18`, `John 3:16-4:2`, `约翰福音3:16`, `John ٣:١٦`) into a
@@ -293,6 +313,7 @@ Classes `kth-similar` (`__row`, `__head`, `__ref`, `__bar`, `__seg`, `__badge`, 
 | Tag | Attributes | Property only | Events (all bubble, composed) |
 |---|---|---|---|
 | `kth-reference-picker` | `value`, `placeholder`, `label`, `locale`, `dir`, `disabled`, `show-label`, `no-ranges`, `no-whole-chapter`, `max-suggestions` | `labels` | `kth-change`, detail `{ verseId, endVerseId?, ref, wholeChapter? }` (on Enter or choosing the reference option) |
+| `kth-verse-selector` | `value` (the one seed), `locale`, `dir`, `disabled`, `no-cross-chapter`, `no-whole-chapter`, `preview-max` | `labels`, `lookup` (`(range, signal) => Promise<{ verseId, text }[] \| null>`) | `kth-change`, detail `{ verseId, endVerseId?, ref, wholeChapter? }` or `{ cleared: true }`; `kth-submit`, same detail (Enter on a valid selection) |
 | `kth-book-chapter-picker` | `book`, `chapter` (the current passage), `locale`, `dir`, `no-autofocus` | `labels` (strings and the two label functions) | `kth-pick`, detail `{ book, chapter, verseId, endVerseId? }`; `kth-close` (Escape at the book list, close button) |
 | `kth-highlight-swatch` | `value`, `colors` (space-separated palette names), `group-label`, `size` (`sm`/`md`), `dir`, `disabled` | `labels` (`{ group?, colors? }`) | `kth-change`, detail `{ color, hex }` |
 

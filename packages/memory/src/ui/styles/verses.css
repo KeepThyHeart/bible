@@ -1,11 +1,9 @@
-/* Scripture Memory - My verses (A6): add field, list chips, verse rows. Scoped under .sm-app, logical properties only. */
+/* Scripture Memory - My verses: progress bar, List picker, verse rows with activity blocks. Scoped under .sm-app, logical properties only. */
 
 .sm-app .sm-verses {
   display: flex;
   flex-direction: column;
   gap: var(--sm-s3);
-  max-inline-size: 44rem;
-  margin-inline: auto;
 }
 
 .sm-app .sm-verses-title {
@@ -15,88 +13,9 @@
   color: var(--sm-heading);
 }
 
-.sm-app .sm-verses-add .sm-add-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--sm-s2);
-}
-
-.sm-app .sm-verses-add .sm-add-row .sm-input {
-  flex: 1 1 12rem;
-  min-inline-size: 0;
-}
-
-.sm-app .sm-verses-add .sm-add-row .sm-add-list {
-  flex: 0 1 10rem;
-}
-
 .sm-app .sm-verses-starters > summary {
   cursor: pointer;
   color: var(--sm-text-dim);
-}
-
-/* List chips */
-.sm-app .sm-list-chips {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--sm-s2);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.sm-app .sm-chip-item {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--sm-s1);
-}
-
-.sm-app .sm-list-chip {
-  font: inherit;
-  padding-block: var(--sm-s1);
-  padding-inline: var(--sm-s3);
-  border: 1px solid var(--sm-border-strong);
-  border-radius: 999px;
-  background: var(--sm-control-bg);
-  color: var(--sm-control-text);
-  cursor: pointer;
-}
-
-.sm-app .sm-list-chip:hover {
-  background: var(--sm-accent-light);
-  border-color: var(--sm-accent);
-}
-
-.sm-app .sm-list-chip[aria-pressed='true'] {
-  background: var(--sm-accent);
-  border-color: var(--sm-accent);
-  color: var(--sm-accent-text);
-  font-weight: 600;
-}
-
-.sm-app .sm-chip-focus {
-  margin-inline-start: var(--sm-s2);
-  font-size: 0.8em;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-
-/* A list chip and its "..." menu read as one control: a shared pill outline. */
-.sm-app .sm-chip-group {
-  gap: 0;
-  border: 1px solid var(--sm-border-strong);
-  border-radius: 999px;
-  background: var(--sm-control-bg);
-}
-
-.sm-app .sm-chip-group .sm-list-chip {
-  border-color: transparent;
-}
-
-.sm-app .sm-chip-group .sm-menu-btn {
-  border-radius: 999px;
-  padding-inline: var(--sm-s2);
 }
 
 /* Verse rows */
@@ -106,14 +25,68 @@
   list-style: none;
 }
 
-.sm-app .sm-verse-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
+.sm-app .sm-verses-head {
+  display: flex;
   align-items: center;
-  gap: var(--sm-s2) var(--sm-s3);
+  justify-content: space-between;
+  gap: var(--sm-s3);
+}
+
+.sm-app .sm-verses-add-btn {
+  min-block-size: 24px;
+}
+
+.sm-app .sm-verses-progress {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sm-s1);
+}
+
+.sm-app .sm-progress-bar {
+  height: 12px;
+}
+
+.sm-app .sm-bar-fill.sm-progress-fill {
+  background: var(--sm-success);
+}
+
+.sm-app .sm-progress-text {
+  margin: 0;
+  color: var(--sm-text-dim);
+  font-size: 0.9em;
+}
+
+.sm-app .sm-verses-picker {
+  display: flex;
+  align-items: center;
+  gap: var(--sm-s2);
+}
+
+.sm-app .sm-list-picker {
+  min-block-size: 24px;
+  max-inline-size: 100%;
+}
+
+/* Rows. The container query lets the blocks wrap under the reference in a narrow column. */
+.sm-app .sm-verse-row {
+  container-type: inline-size;
+  /* Off-screen rows skip layout and paint (300 rows would otherwise all lay out on every visit). */
+  content-visibility: auto;
+  contain-intrinsic-size: auto 5.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sm-s1);
   padding-block: var(--sm-s2);
   padding-inline: var(--sm-s2);
   border-block-end: 1px solid var(--sm-border);
+}
+
+/* The tooltip must not be clipped by content-visibility containment. */
+.sm-app .sm-verse-row:hover,
+.sm-app .sm-verse-row:focus-within {
+  content-visibility: visible;
+  position: relative;
+  z-index: 1;
 }
 
 .sm-app .sm-verse-row-new {
@@ -121,8 +94,16 @@
   border-radius: var(--sm-radius);
 }
 
+.sm-app .sm-verse-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sm-s1) var(--sm-s3);
+}
+
 .sm-app .sm-verse-main {
   display: flex;
+  flex: 1 1 8rem;
   flex-wrap: wrap;
   align-items: baseline;
   gap: var(--sm-s1) var(--sm-s2);
@@ -134,6 +115,7 @@
   background: transparent;
   border: 0;
   padding: 0;
+  min-block-size: 24px;
   font: inherit;
   font-weight: 600;
   color: var(--sm-heading);
@@ -146,54 +128,179 @@
   text-decoration-color: currentColor;
 }
 
-.sm-app .sm-verse-state {
-  display: flex;
-  align-items: center;
-  gap: var(--sm-s3);
-}
-
-.sm-app .sm-verse-next {
-  color: var(--sm-text-dim);
-  min-inline-size: 6.5em;
-}
-
 .sm-app .sm-verse-acts {
   display: flex;
   align-items: center;
   gap: var(--sm-s2);
+  order: 2;
 }
 
-/* Status chips: the word is always shown; colour only adds. Reset the status-line rules of .sm-status. */
-.sm-app .sm-verse-row .sm-status {
-  flex: 0 0 auto;
-  padding-block: 0;
-  padding-inline: var(--sm-s2);
-  border: 1px solid var(--sm-border);
-  border-radius: 999px;
-  background: transparent;
-  font-size: 0.85em;
+.sm-app .sm-verse-details {
   color: var(--sm-text-dim);
+  font-size: 0.9em;
 }
 
-.sm-app .sm-verse-row .sm-status-learning {
-  border-color: var(--sm-info-border);
-  background: var(--sm-info-soft);
-  color: var(--sm-info-text);
+/* Activity blocks. State is drawn in CSS and never depends on colour alone:
+   not started = empty outline, practicing = diagonal half fill, complete = solid fill + large check,
+   not applicable = neutral dashed hatch. A short tag names the activity. */
+.sm-app .sm-blocks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sm-s1);
+  order: 1;
 }
 
-.sm-app .sm-verse-row .sm-status-known {
-  border-color: var(--sm-success-border);
-  background: var(--sm-success-soft);
-  color: var(--sm-success-text);
+.sm-app .sm-block-btn {
+  --sm-block-fill: transparent;
+  position: relative;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  inline-size: 34px;
+  block-size: 38px;
+  min-inline-size: 24px;
+  min-block-size: 24px;
+  padding: 0;
+  font: inherit;
+  line-height: 1;
+  border: 2px solid var(--sm-block-border, var(--sm-border-strong));
+  border-radius: var(--sm-radius);
+  background: var(--sm-control-bg, transparent);
+  color: var(--sm-block-fg, var(--sm-text));
+  cursor: pointer;
 }
 
-/* Phones: the row stacks (reference, then status and next review, then actions) */
-@media (max-width: 34rem) {
-  .sm-app .sm-verse-row {
-    grid-template-columns: minmax(0, 1fr) auto;
+.sm-app .sm-block-btn:hover {
+  border-color: var(--sm-focus);
+}
+
+.sm-app .sm-block-glyph {
+  font-size: 1.1rem;
+  font-weight: 800;
+  line-height: 1;
+  min-block-size: 1.1rem;
+}
+
+.sm-app .sm-block-tag {
+  font-size: 0.7rem;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.02em;
+}
+
+.sm-app .sm-block-btn[data-state='notStarted'] {
+  --sm-block-border: var(--sm-block-grey-border, #6b7280);
+  --sm-block-fg: var(--sm-text-dim);
+}
+
+.sm-app .sm-block-btn[data-state='practicing'] {
+  --sm-block-fill: var(--sm-block-yellow, #fde68a);
+  --sm-block-border: var(--sm-block-yellow-border, #a16207);
+  --sm-block-fg: var(--sm-block-yellow-fg, #713f12);
+  background: linear-gradient(135deg, var(--sm-block-fill) 50%, var(--sm-control-bg, transparent) 50%);
+}
+
+.sm-app .sm-block-btn[data-state='complete'] {
+  --sm-block-fill: var(--sm-block-green, #86efac);
+  --sm-block-border: var(--sm-block-green-border, #15803d);
+  --sm-block-fg: var(--sm-block-green-fg, #14532d);
+  background: var(--sm-block-fill);
+}
+
+/* Not applicable: light green, dashed, with a dash; complete is saturated green with a check. */
+.sm-app .sm-block-btn[data-state='notApplicable'] {
+  --sm-block-fill: var(--sm-block-na-fill, #dcfce7);
+  --sm-block-border: var(--sm-block-na-border, #16a34a);
+  --sm-block-fg: var(--sm-block-na-fg, #166534);
+  background: var(--sm-block-fill);
+  border-style: dashed;
+  cursor: default;
+}
+
+/* The CSS tooltip (the accessible name is the hidden text, so no title attribute). */
+.sm-app .sm-block-btn:hover::after,
+.sm-app .sm-block-btn:focus-visible::after {
+  content: attr(data-tip);
+  position: absolute;
+  inset-block-end: calc(100% + 4px);
+  inset-inline-start: 0;
+  z-index: 5;
+  inline-size: max-content;
+  max-inline-size: 16rem;
+  padding: 2px var(--sm-s2);
+  border: 1px solid var(--sm-border-strong);
+  border-radius: var(--sm-radius);
+  background: var(--sm-surface-raised);
+  color: var(--sm-text);
+  font-size: 0.8rem;
+  font-weight: 400;
+  white-space: normal;
+  pointer-events: none;
+}
+
+@media (prefers-color-scheme: dark) {
+  .sm-app:not([data-theme='light']) .sm-block-btn[data-state='notStarted'] {
+    --sm-block-border: #9ca3af;
   }
+  .sm-app:not([data-theme='light']) .sm-block-btn[data-state='practicing'] {
+    --sm-block-fill: #854d0e;
+    --sm-block-border: #facc15;
+    --sm-block-fg: #fef9c3;
+  }
+  .sm-app:not([data-theme='light']) .sm-block-btn[data-state='complete'] {
+    --sm-block-fill: #166534;
+    --sm-block-border: #4ade80;
+    --sm-block-fg: #dcfce7;
+  }
+  .sm-app:not([data-theme='light']) .sm-block-btn[data-state='notApplicable'] {
+    --sm-block-fill: rgba(74, 222, 128, 0.14);
+    --sm-block-border: #4ade80;
+    --sm-block-fg: #bbf7d0;
+  }
+}
 
+.sm-app[data-theme='dark'] .sm-block-btn[data-state='notStarted'] {
+  --sm-block-border: #9ca3af;
+}
+.sm-app[data-theme='dark'] .sm-block-btn[data-state='practicing'] {
+  --sm-block-fill: #854d0e;
+  --sm-block-border: #facc15;
+  --sm-block-fg: #fef9c3;
+}
+.sm-app[data-theme='dark'] .sm-block-btn[data-state='complete'] {
+  --sm-block-fill: #166534;
+  --sm-block-border: #4ade80;
+  --sm-block-fg: #dcfce7;
+}
+.sm-app[data-theme='dark'] .sm-block-btn[data-state='notApplicable'] {
+  --sm-block-fill: rgba(74, 222, 128, 0.14);
+  --sm-block-border: #4ade80;
+  --sm-block-fg: #bbf7d0;
+}
+
+.sm-app .sm-block-summary > summary {
+  cursor: pointer;
+  color: var(--sm-text-dim);
+  font-size: 0.85em;
+}
+
+.sm-app .sm-block-summary-list {
+  margin: var(--sm-s1) 0 0;
+  padding-inline-start: var(--sm-s4, 1.25rem);
+  font-size: 0.85em;
+}
+
+/* Narrow rows (about 390 px phones): the blocks wrap under the reference. */
+@container (max-width: 30rem) {
   .sm-app .sm-verse-main {
-    grid-column: 1 / -1;
+    flex-basis: calc(100% - 3rem);
+  }
+  .sm-app .sm-verse-acts {
+    order: 1;
+  }
+  .sm-app .sm-blocks {
+    order: 2;
+    flex: 1 1 100%;
   }
 }

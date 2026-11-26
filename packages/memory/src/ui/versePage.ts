@@ -32,6 +32,10 @@ export interface VersePageExtras {
   speech?: SpeechAvailability | null;
   /** The verse text; omitted or null shows no text block. */
   verses?: VerseText[] | null;
+  /** Loading the verse text failed: show a line instead of the empty text block. */
+  textError?: boolean;
+  /** Label of the back button; mount passes the origin ("My verses", "Lists"). Default "Back to list". */
+  backLabel?: string;
 }
 
 export function renderVersePage(
@@ -60,11 +64,18 @@ export function renderVersePage(
   });
 
   const root = el('section', { class: 'sm-screen sm-verse-page' });
+  // R2-11: the shell (tabs) is drawn around this page by mount; this is the way back.
+  const backLabel = extras.backLabel ?? tr('memory.ui.verse.backToList', 'Back to list');
+  root.appendChild(
+    button('← ' + backLabel, () => host.go({ type: 'leaveVerse' }), {
+      class: 'kth-back sm-btn sm-btn-quiet sm-btn-small sm-verse-back',
+      attrs: { 'aria-label': backLabel },
+    }),
+  );
   root.appendChild(
     focusedHeader({
       title: ref,
       meta: translationTag(pv.passage.moduleId),
-      onClose: () => host.go({ type: 'leaveVerse' }),
       menu: menu({ label: tr('memory.ui.verses.rowMenu', 'Actions for {reference}', { reference: ref }), items }),
     }),
   );
@@ -72,6 +83,15 @@ export function renderVersePage(
   if (extras.verses && extras.verses.length > 0) {
     root.appendChild(
       el('div', { class: 'sm-verse-text' }, renderPassage(extras.verses, () => ({ renderWord: plainWord }))),
+    );
+  }
+
+  if (!extras.verses && extras.textError) {
+    root.appendChild(
+      el('p', {
+        class: 'sm-error',
+        text: tr('memory.ui.verse.textUnavailable', 'The verse text could not be loaded.'),
+      }),
     );
   }
 
@@ -107,7 +127,7 @@ function renderActivities(
   const rungs = inLadderOrder(pv.rungs).filter((rv) => (rv.rung === 'recite' ? showRecite : rv.applicable));
 
   const body = el('ul', { class: 'sm-activity-list' }, rungs.map((rv) => renderActivityRow(host, pv, rv, now, speech)));
-  const details = el('details', { class: 'sm-verse-activities' }, [
+  const details = el('details', { class: 'sm-verse-activities', attrs: { open: '' } }, [
     el('summary', { text: tr('memory.ui.verse.activities', 'Activities') }),
     body,
     rungs.some((rv) => rv.rung === 'recite') ? renderReciteExtras(host, pv, speech) : null,

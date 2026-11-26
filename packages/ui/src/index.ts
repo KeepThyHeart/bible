@@ -10,6 +10,10 @@ export { parseReference, filterBooks, getBookFilterText } from './components/boo
 export type { ParsedReference, ReferenceLookup } from './components/bookReference';
 export { ReferencePicker, DEFAULT_REFERENCE_PICKER_LABELS } from './components/ReferencePicker';
 export type { ReferencePickerLabels, ReferencePickerProps } from './components/ReferencePicker';
+export { VerseSelector, DEFAULT_VERSE_SELECTOR_LABELS } from './components/VerseSelector';
+export type { VerseSelection, VerseSelectorLabels, VerseSelectorProps, VerseTextLookup } from './components/VerseSelector';
+export { mountVerseSelector } from './components/mountVerseSelector';
+export type { VerseSelectorHandle } from './components/mountVerseSelector';
 export { parseReferenceInput, suggestBooks } from './components/referenceInput';
 export type { ReferenceValue, ReferenceInputOptions, ParseReferenceInputResult, BookSuggestion } from './components/referenceInput';
 export { HighlightSwatch, DEFAULT_HIGHLIGHT_SWATCH_LABELS } from './components/HighlightSwatch';

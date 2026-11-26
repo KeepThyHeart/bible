@@ -56,6 +56,7 @@ import type {
   OrderingStep,
   PassageContext,
   PassageView,
+  PlanView,
   RefMatchStep,
   RefProvideStep,
   Rung,
@@ -77,7 +78,10 @@ import type { WordRenderer } from './scripture';
 import { resolveWrongPositions, revealedWord } from './stepResult';
 import type { HiddenWords } from './stepResult';
 import { tr } from './i18n';
-import { flowRemaining } from './flows';
+import { scopedView } from './dataCache';
+import { flowRemaining, planNextTarget } from './flows';
+import type { PracticeTarget } from './flows';
+import { queueBar } from './queueBar';
 import { MAX_NEW_PER_DAY, countStartedToday } from '../core/today';
 import { focusedHeader } from './shell';
 import { nextReviewText, statusChip } from './verseStatusUi';
@@ -89,6 +93,20 @@ const WRONG_MARK_MS = 3000;
 /** How long a correct pick shows as correct before the next step replaces it. */
 const CORRECT_FLASH_MS = 420;
 
+/** The last "Put in order" verse is placed automatically after this pause. */
+const AUTO_PLACE_MS = 400;
+
+/** A typed step answered with no misses moves on after this pause (auto-advance on). */
+const STEP_ADVANCE_MS = 900;
+
+/** Seconds counted down before the next verse starts by itself. */
+const COUNTDOWN_SECONDS = 3;
+/** After an imperfect verse: a little longer, so the result can be read first. */
+const COUNTDOWN_SECONDS_IMPERFECT = 5;
+
+/** The activities whose prompt is a reference: a countdown line must not name the next verse for these. */
+const HIDES_REFERENCE: readonly Rung[] = ['refmatch', 'refprovide'];
+
 export class PracticeView {
   readonly root: HTMLElement;
 
@@ -99,6 +117,8 @@ export class PracticeView {
   private readonly actionsEl: HTMLElement;
   /** Wraps exercise prompt/hint, feedback and actions; sticks to the bottom on typed steps (see `renderExercise`). */
   private readonly dockEl: HTMLElement;
+  /** The compact queue status bar (non-verse flows); empty until the plan arrives. */
+  private readonly queueEl: HTMLElement;
   /** Document-level key handlers of the current step (letter picks); removed on re-render and destroy. */
   private keyCleanups: (() => void)[] = [];
 
@@ -142,6 +162,15 @@ export class PracticeView {
   private disposed = false;
   private readonly timers = new Set<number>();
 
+  /** `SettingsView.autoAdvance` (default on); read with the speech probe in `loadSpeechReady`. */
+  private autoAdvanceOn = true;
+  /** Bumped by every `renderExercise`; a timer from an earlier render must not act on a later one. */
+  private renderEpoch = 0;
+  /** The running auto-advance countdown, if any (see `startCountdown`). */
+  private countdown: { stop: () => void } | null = null;
+  /** A next verse has been started (by button or countdown); blocks a second start. */
+  private starting = false;
+
   constructor(
     private readonly host: PanelHost,
     session: SessionView,
@@ -169,7 +198,9 @@ export class PracticeView {
     this.actionsEl = el('div', { class: 'sm-exercise-actions' });
     this.dockEl = el('div', { class: 'sm-dock' }, [this.exerciseEl, this.feedbackEl, this.actionsEl]);
 
-    this.root = el('section', { class: 'sm-screen sm-practice' }, [this.headEl, this.contextEl, this.dockEl]);
+    this.queueEl = el('div', { class: 'sm-queue', hidden: true });
+
+    this.root = el('section', { class: 'sm-screen sm-practice' }, [this.headEl, this.queueEl, this.contextEl, this.dockEl]);
 
     // Whichever blank gets focus (typing, Tab, Enter, a click) scrolls into view
     // and is announced in the dock, so a long passage never loses the user's place.
@@ -191,6 +222,7 @@ export class PracticeView {
     this.render();
     void this.loadContext();
     void this.loadPassageView();
+    void this.loadQueue();
   }
 
   /**
@@ -225,6 +257,7 @@ export class PracticeView {
     this.layoutObserver?.disconnect();
     this.layoutObserver = null;
     this.clearKeyHandlers();
+    this.countdown?.stop();
     for (const id of this.timers) window.clearTimeout(id);
     this.timers.clear();
     this.root.remove();
@@ -305,6 +338,7 @@ export class PracticeView {
   private async loadSpeechReady(): Promise<void> {
     const reply = await this.host.request({ type: 'getSettings' });
     if (this.disposed || !reply.ok) return;
+    this.autoAdvanceOn = reply.data.autoAdvance !== false;
     const ready = reciteEnabled() && reply.data.speech?.state === 'ready';
     if (ready === this.reciteReady) return;
     this.reciteReady = ready;
@@ -352,7 +386,7 @@ export class PracticeView {
         closeLabel: tr('memory.ui.practice.closePractice', 'Close practice'),
         menu: this.buildMenu(),
       }),
-      step !== null
+      step !== null && step.totalSteps > 1
         ? el('div', { class: 'sm-practice-progress' }, [
             el(
               'div',
@@ -370,7 +404,7 @@ export class PracticeView {
                 el('div', {
                   class: 'sm-bar-fill',
                   style: {
-                    width: `${stepFraction(step.stepNumber, step.totalSteps) * 100}%`,
+                    width: `${(this.doneStep === step.stepNumber ? 1 : stepFraction(step.stepNumber, step.totalSteps)) * 100}%`,
                   },
                 }),
               ],
@@ -745,12 +779,14 @@ export class PracticeView {
     clear(this.actionsEl);
     this.clearKeyHandlers();
     this.slotCounterEl = null;
+    this.renderEpoch += 1;
+    this.countdown?.stop();
     const typed = this.session.step?.kind === 'blanks' || this.session.step?.kind === 'firstletters';
     this.dockEl.classList.toggle('sm-dock-sticky', typed);
     this.setFeedback(null);
 
     if (this.summary !== null && this.session.step === null) {
-      this.renderSummary(this.summary);
+      this.renderResult(this.summary);
       return;
     }
 
@@ -807,6 +843,34 @@ export class PracticeView {
    * to lose your keyboard focus.
    */
   private renderOrdering(step: OrderingStep): void {
+    const only = step.candidates.length === 1 ? step.candidates[0]! : null;
+    if (only !== null) {
+      // One verse left: there is nothing to choose, so no question. It is shown as placed and then
+      // submitted exactly like a click, so scoring and step counts are the core's, unchanged.
+      const placed = el('button', {
+        class: 'sm-choice sm-choice-placed',
+        attrs: { 'data-verse-id': String(only.verseId) },
+        disabled: true,
+      });
+      placed.type = 'button';
+      append(placed, [
+        el('span', { class: 'sm-choice-text', text: only.truncated ? `${only.preview}…` : only.preview }),
+        el('span', { class: 'sm-choice-mark', attrs: { 'aria-hidden': 'true' } }),
+      ]);
+      this.exerciseEl.appendChild(
+        el('ul', { class: 'sm-choices', attrs: { 'aria-label': tr('memory.ui.practice.placedVerse', 'Placed') } }, [
+          el('li', {}, [placed]),
+        ]),
+      );
+      this.markStepDone(step);
+      this.setFeedback(tr('memory.ui.practice.lastVersePlaced', 'Last verse placed.'), 'good');
+      const epoch = this.renderEpoch;
+      this.after(AUTO_PLACE_MS, () => {
+        if (epoch === this.renderEpoch) void this.pickOrdering(step, only.verseId, placed);
+      });
+      return;
+    }
+
     this.exerciseEl.appendChild(
       el('h2', { class: 'sm-prompt', text: tr('memory.ui.practice.whichVerseNext', 'Which verse comes next?') }),
     );
@@ -900,7 +964,7 @@ export class PracticeView {
       // seen. Without it the screen changes at the same instant as the click
       // and the user cannot tell whether they were right or the picker simply
       // moved on.
-      this.after(CORRECT_FLASH_MS, () => this.advance());
+      this.afterCorrectPick(reply.summary);
       return;
     }
 
@@ -991,7 +1055,7 @@ export class PracticeView {
       this.busy = false;
       choice.classList.add('sm-choice-correct');
       this.setFeedback(tr('memory.ui.practice.yes', 'Yes.'), 'good');
-      this.after(CORRECT_FLASH_MS, () => this.advance());
+      this.afterCorrectPick(reply.summary);
       return;
     }
 
@@ -1082,7 +1146,7 @@ export class PracticeView {
 
     if (reply.result.correct) {
       this.setFeedback(tr('memory.ui.practice.yes', 'Yes.'), 'good');
-      this.after(CORRECT_FLASH_MS, () => this.advance());
+      this.afterCorrectPick(reply.summary);
       return;
     }
 
@@ -1755,8 +1819,14 @@ export class PracticeView {
       return null;
     }
 
+    const answered = this.session.step;
     this.session = reply.data.session;
     this.summary = reply.data.summary;
+    // The step advanced (or the session ended): the step just graded is done, so its share of
+    // the bar is full now, while the head still names it (the head is redrawn on Next).
+    if (answered !== null && (this.session.step === null || this.session.step.stepNumber > answered.stepNumber)) {
+      this.markStepDone(answered);
+    }
     // The head is NOT redrawn here: the session has already advanced, but the review of the
     // step just graded is still on screen, so "Step N of M" must keep naming that step until
     // Next/Finish (B-121). advance() and the Finish handler redraw it. The tally does not name
@@ -1768,13 +1838,22 @@ export class PracticeView {
     return { result: reply.data.result, summary: reply.data.summary };
   }
 
+  /** Fills the step bar to the full share of a step that has just been answered (M4). */
+  private markStepDone(step: { stepNumber: number; totalSteps: number }): void {
+    this.doneStep = step.stepNumber; // a head redraw (context arriving) keeps the bar full
+    const fill = this.headEl.querySelector<HTMLElement>('.sm-practice-progress .sm-bar-fill');
+    if (!fill) return;
+    const total = Math.max(step.totalSteps, step.stepNumber, 1);
+    fill.style.width = `${Math.min(1, step.stepNumber / total) * 100}%`;
+  }
+
   /**
    * The verdict line for a typed exercise, plus the button that moves on.
    *
-   * Typed steps do not auto-advance the way the picker does. The user has just
-   * been shown which words they missed, in place, inside the verse - taking
-   * that away after a fixed delay would be taking away the only part of the
-   * exercise that teaches anything.
+   * A typed step with misses never moves on by itself: the user has just been shown which words
+   * they missed, in place, and taking that away after a delay would remove the only part of the
+   * exercise that teaches anything. With no misses (and "Move on automatically" on) there is
+   * nothing to study, so it moves on after a short pause; Next is still there.
    */
   private reportTyped(missed: number, total: number, summary: SessionSummary | null): void {
     const right = Math.max(0, total - missed);
@@ -1785,38 +1864,47 @@ export class PracticeView {
       missed === 0 ? 'good' : 'bad',
     );
     this.appendAdvanceButton(summary);
+    if (missed === 0 && summary === null && this.autoAdvanceOn) {
+      const epoch = this.renderEpoch;
+      this.after(STEP_ADVANCE_MS, () => {
+        if (epoch === this.renderEpoch) this.advance();
+      });
+    }
   }
 
   /**
-   * The "Next"/"Finish" control shared by every non-blocking typed exercise
-   * (`blanks`, `firstletters` via `reportTyped`, and `refprovide`'s own
-   * graded-wrong case) - the user has just been shown what they missed, and
-   * moving on is a deliberate action, not a timed auto-advance, so the
-   * feedback stays readable until they choose to continue.
+   * The "Next" control shared by every non-blocking typed exercise (`blanks`, `firstletters` via
+   * `reportTyped`, and `refprovide`'s own graded-wrong case). The last step of a verse has no Next:
+   * the result (`renderResult`) is added under the review instead of a "Finish" button.
    */
   private appendAdvanceButton(summary: SessionSummary | null): void {
     clear(this.actionsEl);
-    const label =
-      summary !== null ? tr('memory.ui.practice.finish', 'Finish') : tr('memory.ui.practice.next', 'Next');
-    const next = button(
-      label,
-      () => {
-        if (summary !== null) {
-          this.renderHead();
-          this.renderExercise();
-          return;
-        }
-        this.advance();
-      },
-      { class: 'sm-btn sm-btn-primary' },
-    );
+    if (summary !== null) {
+      this.busy = true;
+      this.renderHead();
+      this.renderResult(summary);
+      return;
+    }
+    const next = button(tr('memory.ui.practice.next', 'Next'), () => this.advance(), { class: 'sm-btn sm-btn-primary' });
     this.actionsEl.appendChild(next);
     focusQuietly(next);
+  }
+
+  /** A correct picker answer: flash, then the next step, or the verse's result when it was the last. */
+  private afterCorrectPick(summary: SessionSummary | null): void {
+    if (summary !== null) this.busy = true;
+    this.after(CORRECT_FLASH_MS, () => this.advance());
   }
 
   /** Draws whatever the session now says the current step is. */
   private advance(): void {
     if (this.disposed) return;
+    if (this.summary !== null && this.session.step === null) {
+      // The review of the last step stays on screen; the result is added under it.
+      this.renderHead();
+      this.renderResult(this.summary);
+      return;
+    }
     this.renderAfterStepChange();
   }
 
@@ -1826,103 +1914,206 @@ export class PracticeView {
     this.renderExercise();
   }
 
+  // -------------------------------------------------------------------------
+  // The queue bar and the one result (R2-3, R2-4)
+  // -------------------------------------------------------------------------
+
+  /** Finished (or skipped) items of a flow, as recorded in the flow itself. */
+  private doneCount(flow: Flow): number {
+    switch (flow.kind) {
+      case 'today':
+        return flow.skipped.length;
+      case 'verse':
+        return 0;
+      default:
+        return flow.visited.length;
+    }
+  }
+
+  /** The step number whose bar share is already full (see `markStepDone`). */
+  private doneStep: number | null = null;
+
+  private async loadQueue(): Promise<void> {
+    if (this.flow.kind === 'verse') return;
+    this.renderQueue(this.flow, null);
+    if (this.flow.kind !== 'today' && this.flow.kind !== 'anyway') return;
+    const snap = await this.snapshotFlow(this.flow, false);
+    if (this.disposed || snap === null) return;
+    this.renderQueue(this.flow, snap.left);
+  }
+
+  /** `left` null: only "{n} done". */
+  private renderQueue(flow: Flow, left: number | null): void {
+    if (flow.kind === 'verse') return;
+    this.queueEl.hidden = false;
+    const startTotal = flow.startTotal;
+    replace(this.queueEl, [
+      queueBar({ done: this.doneCount(flow), left, ...(startTotal !== undefined ? { startTotal } : {}) }),
+    ]);
+  }
+
   /**
-   * The after-verse screen (A5): reference or activity, score, next review,
-   * status chip, then Continue (N left) / Done, Again and Stop for today.
+   * What is left in `flow` and what it would start next, from ONE plan read (and, for today, the
+   * all-lists plan the new-verse cap needs). The target is computed once here and then started as
+   * it is, so a random flow never redraws between the preview and the start. `null`: unreadable.
    */
-  private renderSummary(summary: SessionSummary): void {
-    this.contextEl.hidden = true;
-    const hidesReference = summary.rung === 'refprovide' || summary.rung === 'refmatch';
-    const reference = this.context?.reference ?? '';
-    const heading = hidesReference || reference === '' ? RUNG_LABEL[summary.rung] : reference;
+  private async snapshotFlow(
+    flow: Flow,
+    wantTarget: boolean,
+  ): Promise<{ left: number | null; target: PracticeTarget | null } | null> {
+    if (this.host.data) {
+      // One read of the all-lists plan feeds both the scope view and the new-verse cap, and leaves
+      // the cache fresh for the screens after practice.
+      let all: PlanView;
+      try {
+        all = await this.host.data.refresh();
+      } catch {
+        return null;
+      }
+      const now = this.host.now();
+      const plan = scopedView(all, all.focus ?? 'all', now);
+      const opts = flow.kind === 'today' ? { startedToday: countStartedToday(all.passages, now) } : {};
+      return {
+        left: flowRemaining(plan, flow, now, opts),
+        target: wantTarget ? planNextTarget(plan, flow, now, Math.random, opts) : null,
+      };
+    }
+    const reply = await this.host.request({ type: 'getPlan' });
+    if (!reply.ok) return null;
+    let startedToday: number | undefined;
+    if (flow.kind === 'today') {
+      const all = reply.data.scope === 'all' ? reply : await this.host.request({ type: 'getPlan', scope: { kind: 'all' } });
+      // The cap counts every list; if they cannot be read, treat it as reached rather than undercount.
+      startedToday = all.ok ? countStartedToday(all.data.passages, this.host.now()) : MAX_NEW_PER_DAY;
+    }
+    const opts = startedToday !== undefined ? { startedToday } : {};
+    const now = this.host.now();
+    return {
+      left: flowRemaining(reply.data, flow, now, opts),
+      target: wantTarget ? planNextTarget(reply.data, flow, now, Math.random, opts) : null,
+    };
+  }
+
+  /**
+   * The one message when an activity ends (R2-4): the review of the last step stays where it is and
+   * this section is added under it: verdict, score, next review and status, then Continue (N left)
+   * or Done, Again, and Stop for today (in flows). Also serves the `summary && step === null`
+   * re-render.
+   */
+  private renderResult(summary: SessionSummary): void {
+    this.countdown?.stop();
+    clear(this.actionsEl);
+    // The result block is the one place that says how it went: the verdict (title) and one
+    // count line. A leftover per-step line ("0 of 11 correct.") would repeat it (N3).
+    this.setFeedback(null);
     const now = this.host.now();
     const status = summary.passageWellLearned ? 'known' : 'learning';
+    const perfect = summary.totalSteps > 0 && summary.correctFirst >= summary.totalSteps;
 
-    this.exerciseEl.appendChild(
-      el('div', { class: 'sm-summary' }, [
-        el('h2', { class: 'sm-summary-title', text: heading }),
-        el('p', {
-          class: 'sm-summary-detail',
-          text: tr('memory.ui.practice.summaryRightFirstTime', '{correct} of {total} right first time ({score}).', {
-            correct: summary.correctFirst,
-            total: summary.totalSteps,
-            score: formatScore(summary.score),
-          }),
+    const title = el('h2', {
+      class: 'sm-result-title',
+      text: perfect ? tr('memory.ui.practice.resultPerfect', 'Perfect.') : tr('memory.ui.practice.resultFinished', 'Finished.'),
+    });
+    title.tabIndex = -1;
+    const autoLine = el('p', { class: 'sm-result-auto', hidden: true });
+    const buttonsEl = el('div', { class: 'sm-result-actions' });
+    const text = el('div', { class: 'sm-result-text', attrs: { role: 'status' } }, [
+      title,
+      el('p', {
+        class: 'sm-result-detail',
+        text: tr('memory.ui.practice.summaryRightFirstTime', '{correct} of {total} right first time ({score}).', {
+          correct: summary.correctFirst,
+          total: summary.totalSteps,
+          score: formatScore(summary.score),
         }),
-        el('p', { class: 'sm-summary-detail sm-summary-next' }, [
-          textNode(
-            summary.nextDueAt !== null
-              ? tr('memory.ui.practice.nextReviewIn', 'Next review: {when}', {
-                  when: nextReviewText({ status, nextReviewAt: summary.nextDueAt }, now),
-                })
-              : tr('memory.ui.practice.noFurtherReview', 'No further review scheduled.'),
-          ),
-          textNode(' '),
-          statusChip(status),
-        ]),
+      }),
+      el('p', { class: 'sm-result-detail sm-result-next' }, [
+        textNode(
+          summary.nextDueAt !== null
+            ? tr('memory.ui.practice.nextReviewIn', 'Next review: {when}', {
+                when: nextReviewText({ status, nextReviewAt: summary.nextDueAt }, now),
+              })
+            : tr('memory.ui.practice.noFurtherReview', 'No further review scheduled.'),
+        ),
+        textNode(' '),
+        statusChip(status),
       ]),
-    );
+      autoLine,
+    ]);
+    const section = el('section', { class: 'sm-result' }, [text, buttonsEl]);
+    this.actionsEl.appendChild(section);
 
-    // B-113: the step controls that had focus are gone; land on the summary heading (never <body>).
-    const headingEl = this.exerciseEl.querySelector<HTMLElement>('.sm-summary-title');
-    if (headingEl) {
-      headingEl.tabIndex = -1;
-      headingEl.focus({ preventScroll: true });
-    }
+    const epoch = this.renderEpoch;
+    const next = this.flowWithVisited();
+    const show = (left: number | null, target: PracticeTarget | null): void => {
+      if (this.disposed || this.summary !== summary || epoch !== this.renderEpoch) return;
+      this.renderResultActions(buttonsEl, autoLine, section, summary, next, left, target, perfect);
+    };
 
-    // Today and "anyway" count what is left, which needs the plan; the
-    // open-ended flows say plain "Continue" and a single verse says "Done".
-    const counted = this.flow.kind === 'today' || this.flow.kind === 'anyway';
-    if (!counted) {
-      this.renderSummaryActions(summary, this.flow.kind === 'verse' ? 0 : null);
+    if (this.flow.kind === 'verse') {
+      show(0, null);
       return;
     }
+    // Today and "anyway" count what is left, which needs the plan; open-ended flows say plain
+    // Continue at once (and show this verse as done) and learn their next target when the plan arrives.
+    const counted = this.flow.kind === 'today' || this.flow.kind === 'anyway';
+    if (!counted) {
+      this.renderQueue(next, null);
+      show(null, null);
+    }
     void (async () => {
-      const reply = await this.host.request({ type: 'getPlan' });
-      let startedToday: number | undefined;
-      if (reply.ok) {
-        const all = reply.data.scope === 'all' ? reply : await this.host.request({ type: 'getPlan', scope: { kind: 'all' } });
-        // The cap counts every list; if they cannot be read, treat it as
-        // reached rather than undercount from the focused list alone.
-        startedToday = all.ok ? countStartedToday(all.data.passages, this.host.now()) : MAX_NEW_PER_DAY;
+      const snap = await this.snapshotFlow(next, true);
+      if (this.disposed || this.summary !== summary || epoch !== this.renderEpoch) return;
+      if (counted) {
+        show(snap === null ? 0 : (snap.left ?? 0), snap?.target ?? null);
+      } else if (snap !== null && snap.target !== null) {
+        this.plannedTarget = snap.target;
+        this.maybeStartCountdown(buttonsEl, autoLine, section, next, snap.target, perfect);
       }
-      if (this.disposed || this.summary !== summary) return;
-      const left = reply.ok
-        ? flowRemaining(reply.data, this.flowWithVisited(), this.host.now(), startedToday !== undefined ? { startedToday } : {})
-        : 0;
-      this.renderSummaryActions(summary, left ?? 0);
+      if (snap !== null && (this.flow.kind === 'today' || this.flow.kind === 'anyway')) this.renderQueue(next, snap.left);
     })();
   }
 
+  /** The target the Continue button (and the countdown) will start; computed once per result. */
+  private plannedTarget: PracticeTarget | null = null;
+
   /** `left`: items remaining; 0 = nothing more (Done); null = open-ended (plain Continue). */
-  private renderSummaryActions(summary: SessionSummary, left: number | null): void {
-    clear(this.actionsEl);
-    const next = this.flowWithVisited();
+  private renderResultActions(
+    buttonsEl: HTMLElement,
+    autoLine: HTMLElement,
+    section: HTMLElement,
+    summary: SessionSummary,
+    next: Flow,
+    left: number | null,
+    target: PracticeTarget | null,
+    perfect: boolean,
+  ): void {
+    clear(buttonsEl);
+    this.plannedTarget = target;
+    let primary: HTMLButtonElement;
     if (left === null || left > 0) {
-      this.actionsEl.appendChild(
-        button(
-          left === null
-            ? tr('memory.ui.practice.continue', 'Continue')
-            : tr('memory.ui.practice.continueLeft', 'Continue ({count} left)', { count: left }),
-          () => void this.host.startFlow(next),
-          { class: 'sm-btn sm-btn-primary' },
-        ),
+      primary = button(
+        left === null
+          ? tr('memory.ui.practice.continue', 'Continue')
+          : tr('memory.ui.practice.continueLeft', 'Continue ({count} left)', { count: left }),
+        () => void this.startNext(next, this.plannedTarget),
+        { class: 'sm-btn sm-btn-primary' },
       );
     } else {
-      this.actionsEl.appendChild(
-        button(tr('memory.ui.practice.done', 'Done'), () => void this.endSession(), { class: 'sm-btn sm-btn-primary' }),
-      );
+      primary = button(tr('memory.ui.practice.done', 'Done'), () => void this.endSession(), {
+        class: 'sm-btn sm-btn-primary',
+      });
     }
-    this.actionsEl.appendChild(
+    buttonsEl.appendChild(primary);
+    buttonsEl.appendChild(
       button(
         tr('memory.ui.practice.again', 'Again'),
-        () =>
-          void this.host.startSession(this.session.passageId, summary.rung, undefined, undefined, this.flow),
+        () => void this.host.startSession(this.session.passageId, summary.rung, undefined, undefined, this.flow),
         { class: 'sm-btn' },
       ),
     );
     if (this.flow.kind !== 'verse') {
-      this.actionsEl.appendChild(
+      buttonsEl.appendChild(
         button(
           tr('memory.ui.practice.stopForToday', 'Stop for today'),
           () => void this.endSession({ type: 'stopForToday' }),
@@ -1930,6 +2121,124 @@ export class PracticeView {
         ),
       );
     }
+    // The step's controls are gone; land on the primary button, never <body>.
+    focusQuietly(primary);
+    if (left !== null && left > 0) this.maybeStartCountdown(buttonsEl, autoLine, section, next, target, perfect);
+  }
+
+  /** Starts the planned target when the host can, else the host's own pick for the flow. */
+  private async startNext(flow: Flow, target: PracticeTarget | null): Promise<void> {
+    if (this.disposed || this.starting) return;
+    this.starting = true;
+    this.countdown?.stop();
+    const started =
+      target !== null && this.host.startTarget !== undefined
+        ? await this.host.startTarget(target, flow)
+        : await this.host.startFlow(flow);
+    // Nothing started (an error or nothing left): hand the buttons back.
+    if (!started) this.starting = false;
+  }
+
+  /**
+   * The auto-advance countdown (R2-3): after any verse, with "Move on automatically" on (3 s after a
+   * perfect one, 5 s after an imperfect one), and only when a next target exists. Visible ("Next: {reference} in 3"), announced once to
+   * screen readers, and cancelled by a key, pointer or focus inside the result or by "Stay here".
+   * A reference activity next says "Next verse" instead: the reference is the answer there.
+   */
+  private maybeStartCountdown(
+    buttonsEl: HTMLElement,
+    autoLine: HTMLElement,
+    section: HTMLElement,
+    next: Flow,
+    target: PracticeTarget | null,
+    perfect: boolean,
+  ): void {
+    if (!this.autoAdvanceOn || target === null || this.starting || this.countdown !== null) return;
+    if (this.flow.kind === 'verse') return;
+
+    const total = perfect ? COUNTDOWN_SECONDS : COUNTDOWN_SECONDS_IMPERFECT;
+    const hide = HIDES_REFERENCE.includes(target.rung);
+    const line = (seconds: number): string =>
+      hide
+        ? tr('memory.ui.practice.nextVerseIn', 'Next verse in {seconds}', { seconds })
+        : tr('memory.ui.practice.nextIn', 'Next: {reference} in {seconds}', { reference: target.reference, seconds });
+    const announce = hide
+      ? tr('memory.ui.practice.nextVerseAnnounce', 'Next verse in {seconds} seconds. Press any key or choose Stay here to cancel.', {
+          seconds: total,
+        })
+      : tr('memory.ui.practice.nextAnnounce', 'Next: {reference} in {seconds} seconds. Press any key or choose Stay here to cancel.', {
+          reference: target.reference,
+          seconds: total,
+        });
+
+    // The visible number ticks silently (aria-hidden); the sr-only sentence is the one announcement.
+    const visible = el('span', { class: 'sm-result-count', text: line(total), attrs: { 'aria-hidden': 'true' } });
+    const spoken = el('span', { class: 'sm-sr-only', text: announce });
+    const stay = button(tr('memory.ui.practice.stayHere', 'Stay here'), () => this.countdown?.stop(), {
+      class: 'sm-btn sm-btn-quiet sm-result-stay',
+    });
+    replace(autoLine, [visible, spoken]);
+    autoLine.hidden = false;
+    buttonsEl.appendChild(stay);
+
+    let seconds = total;
+    const state: { id: number | null; stop: (deferVisuals?: boolean) => void } = { id: null, stop: () => undefined };
+    const cancelEvents = ['keydown', 'pointerdown', 'focusin'] as const;
+    // A pointer press cancels the countdown at once but leaves the layout alone for a moment: hiding the
+    // line and the "Stay here" button between pointerdown and pointerup shifts the buttons and the click
+    // on Continue / Done would miss.
+    const onCancel = (ev: Event): void => state.stop(ev.type === 'pointerdown');
+    state.stop = (deferVisuals?: boolean): void => {
+      if (this.countdown !== state) return;
+      this.countdown = null;
+      if (state.id !== null) {
+        window.clearTimeout(state.id);
+        this.timers.delete(state.id);
+        state.id = null;
+      }
+      for (const name of cancelEvents) section.removeEventListener(name, onCancel);
+      if (deferVisuals === true) {
+        const tid = window.setTimeout(() => {
+          this.timers.delete(tid);
+          tidyVisuals();
+        }, 600);
+        this.timers.add(tid);
+        return;
+      }
+      tidyVisuals();
+    };
+    const tidyVisuals = (): void => {
+      if (stay.isConnected) {
+        const hadFocus = stay.ownerDocument.activeElement === stay;
+        stay.remove();
+        if (hadFocus) focusQuietly(buttonsEl.querySelector<HTMLElement>('.sm-btn-primary'));
+      }
+      autoLine.hidden = true;
+      clear(autoLine);
+    };
+    this.countdown = state;
+
+    const schedule = (): void => {
+      const id = window.setTimeout(() => {
+        this.timers.delete(id);
+        state.id = null;
+        if (this.disposed || this.countdown !== state) return;
+        seconds -= 1;
+        if (seconds <= 0) {
+          state.stop();
+          void this.startNext(next, target);
+          return;
+        }
+        visible.textContent = line(seconds);
+        schedule();
+      }, 1000);
+      state.id = id;
+      this.timers.add(id);
+    };
+    schedule();
+
+    // Listen only after the primary button took focus, so that does not cancel its own countdown.
+    for (const name of cancelEvents) section.addEventListener(name, onCancel);
   }
 
   private async endSession(dest: NavAction = { type: 'sessionEnded' }): Promise<void> {

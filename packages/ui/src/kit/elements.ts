@@ -12,6 +12,8 @@ import type { HighlightColor } from '@bible/core/browser';
 import { BookChapterPicker } from '../components/BookChapterPicker';
 import { HighlightSwatch } from '../components/HighlightSwatch';
 import { ReferencePicker } from '../components/ReferencePicker';
+import { VerseSelector } from '../components/VerseSelector';
+import type { VerseSelection } from '../components/VerseSelector';
 import { getPickerParsers } from '../components/referenceInput';
 import type { ReferenceValue } from '../components/referenceInput';
 import type { KthElementSpec } from './defineKthElement';
@@ -55,10 +57,10 @@ function KitReferencePicker(props: Loose) {
   return createElement(ReferencePicker, { ...rest, value: text, onInputChange: setText });
 }
 
-function plainReference(v: ReferenceValue): ReferenceValue {
+function plainReference(v: ReferenceValue | VerseSelection): ReferenceValue {
   const out: ReferenceValue = { verseId: v.verseId, ref: v.ref };
   if (v.endVerseId !== undefined) out.endVerseId = v.endVerseId;
-  if (v.wholeChapter) out.wholeChapter = true;
+  if (v.wholeChapter === true) out.wholeChapter = true;
   return out;
 }
 
@@ -78,6 +80,37 @@ const referencePicker: KthElementSpec = {
   props: ['labels'],
   events: { onChange: { event: 'kth-change', detail: plainReference } },
   mapProps: (props, l) => mergeLabels(withLocale(props, l), { placeholder: 'placeholder', label: 'label' }),
+};
+
+// --- kth-verse-selector -----------------------------------------------------------------------------------------
+
+/** The `value` attribute is the one seed (`initialReference`); the component re-seeds on a real change only. */
+function KitVerseSelector(props: Loose) {
+  const { value, noCrossChapter, noWholeChapter, ...rest } = props;
+  return createElement(VerseSelector as unknown as ComponentType<Loose>, {
+    ...rest,
+    initialReference: typeof value === 'string' ? value : '',
+    crossChapter: noCrossChapter === true ? false : undefined,
+    wholeChapter: noWholeChapter === true ? false : undefined,
+  });
+}
+
+const verseSelector: KthElementSpec = {
+  attrs: {
+    value: { prop: 'value', type: 'string' },
+    locale: { prop: 'locale', type: 'string' },
+    dir: { prop: 'dir', type: { enum: ['ltr', 'rtl'] } },
+    disabled: { prop: 'disabled', type: 'boolean' },
+    'no-cross-chapter': { prop: 'noCrossChapter', type: 'boolean' },
+    'no-whole-chapter': { prop: 'noWholeChapter', type: 'boolean' },
+    'preview-max': { prop: 'previewMaxVerses', type: 'number' },
+  },
+  props: ['labels', 'lookup'],
+  events: {
+    onChange: { event: 'kth-change', detail: (v: VerseSelection | null) => (v ? plainReference(v) : { cleared: true }) },
+    onSubmit: { event: 'kth-submit', detail: (v: VerseSelection) => plainReference(v) },
+  },
+  mapProps: withLocale,
 };
 
 // --- kth-book-chapter-picker ------------------------------------------------------------------------------------
@@ -160,5 +193,6 @@ export interface KitElement {
 export const KIT_ELEMENTS: Readonly<Record<string, KitElement>> = {
   'kth-reference-picker': { component: KitReferencePicker, spec: referencePicker },
   'kth-book-chapter-picker': { component: KitBookChapterPicker, spec: bookChapterPicker },
+  'kth-verse-selector': { component: KitVerseSelector, spec: verseSelector },
   'kth-highlight-swatch': { component: HighlightSwatch as unknown as ComponentType<Loose>, spec: highlightSwatch },
 };

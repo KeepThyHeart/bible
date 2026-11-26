@@ -145,6 +145,30 @@ describe('requestVia', () => {
 });
 
 describe('mountMemoryUi', () => {
+  it('draws the shell at once and does not wait on a getReciteState that never answers', async () => {
+    vi.useFakeTimers();
+    const c = makeContainer();
+    const api = fakeApi({ getReciteState: vi.fn(() => new Promise(() => undefined)) });
+    mountMemoryUi(c, { api, subscribe: fakeBus().subscribe });
+    expect(c.querySelector('.sm-main [role="tablist"], .sm-main [role="tab"]')).not.toBeNull();
+    await vi.advanceTimersByTimeAsync(1600);
+    for (let i = 0; i < 30; i++) await Promise.resolve();
+    expect(c.querySelector('.sm-main h1')).not.toBeNull();
+  });
+
+  it('sends refreshSpeech after My verses renders (and force from Settings)', async () => {
+    vi.useFakeTimers();
+    const c = makeContainer();
+    const refreshSpeech = vi.fn(async () => ({}));
+    const api = fakeApi({ refreshSpeech });
+    mountMemoryUi(c, { api, subscribe: fakeBus().subscribe });
+    await vi.advanceTimersByTimeAsync(10);
+    c.querySelector<HTMLElement>('[role="tab"][id*="verses"], [data-tab="verses"]')?.click();
+    await vi.advanceTimersByTimeAsync(1000);
+    for (let i = 0; i < 30; i++) await Promise.resolve();
+    expect(refreshSpeech.mock.calls.length).toBeGreaterThanOrEqual(1);
+  });
+
   it('builds the shell markup and renders the plan', async () => {
     const c = makeContainer();
     const bus = fakeBus();
@@ -329,29 +353,116 @@ describe('mountMemoryUi same-screen refresh', () => {
 });
 
 describe('mountMemoryUi today extras', () => {
-  it('passes the streak and the all-lists started-today count', async () => {
+  it('passes the all-lists started-today count and asks for no analytics', async () => {
     const c = makeContainer();
-    const api = fakeApi({ getAnalytics: vi.fn(async () => ({ streakDays: 12 })) });
+    const getAnalytics = vi.fn(async () => ({ streakDays: 12 }));
+    const api = fakeApi({ getAnalytics });
     mountMemoryUi(c, { api, subscribe: fakeBus().subscribe });
     await flush();
     const last = todayCalls[todayCalls.length - 1]!;
-    expect(last.extras.streak).toBe(12);
     expect(last.extras.startedToday).toBe(0);
+    expect(last.extras.streak).toBeUndefined();
+    expect(getAnalytics).not.toHaveBeenCalled();
   });
 
-  it('treats the new-verse cap as reached when the all-lists plan cannot be read', async () => {
+  it('shows the error when the first load fails, with the tabs already drawn', async () => {
     const c = makeContainer();
-    const scoped = { ...plan(), scope: 1 };
-    const getPlan = vi.fn(async (req?: { scope?: { kind: string } }) => {
-      if (req?.scope?.kind === 'all') throw new Error('offline');
-      return scoped;
-    });
-    const api = fakeApi({ getPlan, getAnalytics: vi.fn(async () => ({ streakDays: 0 })) });
+    const api = fakeApi({ getPlan: vi.fn(async () => { throw new Error('offline'); }) });
     mountMemoryUi(c, { api, subscribe: fakeBus().subscribe });
     await flush();
-    const last = todayCalls[todayCalls.length - 1]!;
-    expect(last.extras.startedToday).toBe(3);
-    expect(c.querySelector('.sm-status-error')?.textContent).toContain('offline');
+    expect(c.textContent).toContain('offline');
+    expect(todayCalls).toHaveLength(0);
+  });
+
+  it('draws the shell busy before the first load lands, then the screen', async () => {
+    const c = makeContainer();
+    let release!: (p: PlanView) => void;
+    const api = fakeApi({ getPlan: vi.fn(() => new Promise<PlanView>((r) => { release = r; })) });
+    mountMemoryUi(c, { api, subscribe: fakeBus().subscribe });
+    await flush();
+    expect(c.querySelector('[role="tabpanel"]')!.getAttribute('aria-busy')).toBe('true');
+    release(plan());
+    await flush();
+    expect(c.querySelector('[role="tabpanel"]')!.hasAttribute('aria-busy')).toBe(false);
+    expect(c.querySelector('h1')!.textContent).toBe('Today');
+  });
+
+  it('a tab switch after the first load sends no request', async () => {
+    const c = makeContainer();
+    const api = fakeApi();
+    mountMemoryUi(c, { api, subscribe: fakeBus().subscribe });
+    await flush();
+    const calls = api.getPlan.mock.calls.length;
+    c.querySelector<HTMLElement>('[role="tab"]:nth-child(2)')!.click();
+    await flush();
+    c.querySelector<HTMLElement>('[role="tab"]:nth-child(3)')!.click();
+    await flush();
+    c.querySelector<HTMLElement>('[role="tab"]:nth-child(1)')!.click();
+    await flush();
+    expect(api.getPlan.mock.calls.length).toBe(calls);
+  });
+
+  it('the Lists tab draws from the cache inside the shell', async () => {
+    const c = makeContainer();
+    const api = fakeApi();
+    mountMemoryUi(c, { api, subscribe: fakeBus().subscribe });
+    await flush();
+    const calls = api.getPlan.mock.calls.length;
+    c.querySelector<HTMLElement>('[role="tab"]:nth-child(3)')!.click();
+    await flush();
+    expect(c.querySelector('[role="tab"][aria-selected="true"]')!.textContent).toBe('Lists');
+    expect(c.querySelector('.sm-lists')).not.toBeNull();
+    expect(api.getPlan.mock.calls.length).toBe(calls);
+  });
+
+  it('cardsWaitingChanged patches the cached count without a request', async () => {
+    const c = makeContainer();
+    const bus = fakeBus();
+    const api = fakeApi();
+    mountMemoryUi(c, { api, subscribe: bus.subscribe });
+    await flush();
+    const calls = api.getPlan.mock.calls.length;
+    bus.emit({ type: 'cardsWaitingChanged', count: 4 } as MemoryPush);
+    await flush();
+    expect(todayCalls[todayCalls.length - 1]!.extras.reminders).toEqual({ waiting: 4 });
+    expect(api.getPlan.mock.calls.length).toBe(calls);
+  });
+
+  it('a plan push while on Settings does not rebuild it', async () => {
+    const c = makeContainer();
+    const bus = fakeBus();
+    let version = 1;
+    const api = fakeApi({
+      getPlan: vi.fn(async () => ({ ...plan(), epoch: 'e', version })),
+      getSettings: vi.fn(async () => ({ defaultAnswerMode: 'firstLetter' })),
+      getPushSettings: vi.fn(async () => { throw new Error('x'); }),
+      getImportStatus: vi.fn(async () => null),
+    });
+    mountMemoryUi(c, { api, subscribe: bus.subscribe });
+    await flush();
+    c.querySelector<HTMLElement>('.sm-shell-gear')!.click();
+    await flush();
+    const box = c.querySelector<HTMLInputElement>('input[type="checkbox"]')!;
+    box.setAttribute('data-keep', '1');
+    version = 2;
+    bus.emit({ type: 'planChanged', epoch: 'e', version: 2 } as MemoryPush);
+    await flush();
+    expect(c.querySelector('input[data-keep="1"]')).toBe(box);
+  });
+
+  it('a planChanged push with a newer version refreshes the cache once', async () => {
+    const c = makeContainer();
+    const bus = fakeBus();
+    const api = fakeApi({ getPlan: vi.fn(async () => ({ ...plan(), epoch: 'e', version: 1 })) });
+    mountMemoryUi(c, { api, subscribe: bus.subscribe });
+    await flush();
+    const calls = api.getPlan.mock.calls.length;
+    bus.emit({ type: 'planChanged', epoch: 'e', version: 1 } as MemoryPush);
+    await flush();
+    expect(api.getPlan.mock.calls.length).toBe(calls);
+    bus.emit({ type: 'planChanged', epoch: 'e', version: 2 } as MemoryPush);
+    await flush();
+    expect(api.getPlan.mock.calls.length).toBe(calls + 1);
   });
 });
 
@@ -361,9 +472,9 @@ describe('mountMemoryUi shell', () => {
     mountMemoryUi(c, { api: fakeApi(), subscribe: fakeBus().subscribe });
     await flush();
     const tabs = [...c.querySelectorAll<HTMLElement>('[role="tablist"] [role="tab"]')];
-    expect(tabs.map((t) => t.textContent)).toEqual(['Today', 'My verses', 'Progress']);
-    expect(tabs.map((t) => t.getAttribute('aria-selected'))).toEqual(['true', 'false', 'false']);
-    expect(tabs.map((t) => t.tabIndex)).toEqual([0, -1, -1]);
+    expect(tabs.map((t) => t.textContent)).toEqual(['Today', 'My verses', 'Lists', 'Progress']);
+    expect(tabs.map((t) => t.getAttribute('aria-selected'))).toEqual(['true', 'false', 'false', 'false']);
+    expect(tabs.map((t) => t.tabIndex)).toEqual([0, -1, -1, -1]);
     const panel = c.querySelector('[role="tabpanel"]')!;
     expect(panel.querySelector('h1')).not.toBeNull();
     expect(panel.getAttribute('aria-labelledby')).toBe(tabs[0]!.id);
@@ -386,7 +497,7 @@ describe('mountMemoryUi shell', () => {
     await flush();
     expect(document.activeElement).toBe(c.querySelector('h1'));
 
-    const progress = c.querySelector<HTMLElement>('[role="tab"]:nth-child(3)')!;
+    const progress = c.querySelector<HTMLElement>('[role="tab"]:nth-child(4)')!;
     progress.focus();
     progress.click();
     await flush();
@@ -412,7 +523,7 @@ describe('mountMemoryUi shell', () => {
     expect(c.querySelector('.sm-shell-gear')!.getAttribute('aria-current')).toBe('page');
   });
 
-  it('settings reads the all-lists plan, not the focused one', async () => {
+  it('settings reads the cached all-lists plan (no plan request)', async () => {
     const c = makeContainer();
     const api = fakeApi({
       getSettings: vi.fn(async () => ({ defaultAnswerMode: 'firstLetter' })),
@@ -424,13 +535,14 @@ describe('mountMemoryUi shell', () => {
     api.getPlan.mockClear();
     c.querySelector<HTMLElement>('.sm-shell-gear')!.click();
     await flush();
-    expect(api.getPlan.mock.calls).toEqual([[{ scope: { kind: 'all' } }]]);
+    expect(api.getPlan.mock.calls).toEqual([]);
   });
 
   it('shows the focus chip when scoped, and clearing it sets scope all', async () => {
     const c = makeContainer();
     const setScope = vi.fn(async () => plan());
-    const scoped = { ...plan(), scope: 1, lists: [{ id: 1, name: 'Psalms', passageCount: 0, verseCount: 0 }] };
+    // The cache holds the all-lists plan and the persisted focus; Today is the focused view of it.
+    const scoped = { ...plan(), focus: 1, lists: [{ id: 1, name: 'Psalms', passageCount: 0, verseCount: 0 }] };
     const api = fakeApi({ getPlan: vi.fn(async () => scoped), setScope });
     mountMemoryUi(c, { api, subscribe: fakeBus().subscribe });
     await flush();
@@ -493,13 +605,15 @@ describe('mountMemoryUi shell', () => {
     mountMemoryUi(c, { api, subscribe: fakeBus().subscribe, now: () => t });
     await flush();
     const calls = api.getPlan.mock.calls.length;
-    window.dispatchEvent(new Event('focus'));
-    await flush();
-    expect(api.getPlan.mock.calls.length).toBe(calls);
-    t = new Date(2026, 10, 11, 0, 5, 0).getTime();
+    // Focus revalidates the cache (one throttled request) but the day has not changed.
     window.dispatchEvent(new Event('focus'));
     await flush();
     expect(api.getPlan.mock.calls.length).toBe(calls + 1);
+    const draws = todayCalls.length;
+    t = new Date(2026, 10, 11, 0, 5, 0).getTime();
+    window.dispatchEvent(new Event('focus'));
+    await flush();
+    expect(todayCalls.length).toBeGreaterThan(draws);
   });
 
   it('re-renders at midnight on the timer, and dispose clears it', async () => {
@@ -509,10 +623,10 @@ describe('mountMemoryUi shell', () => {
     const api = fakeApi();
     const handle = mountMemoryUi(c, { api, subscribe: fakeBus().subscribe, now: () => t });
     await vi.advanceTimersByTimeAsync(10);
-    const calls = api.getPlan.mock.calls.length;
+    const draws = todayCalls.length;
     t = new Date(2026, 10, 11, 0, 0, 1).getTime();
     await vi.advanceTimersByTimeAsync(61_000);
-    expect(api.getPlan.mock.calls.length).toBeGreaterThan(calls);
+    expect(todayCalls.length).toBeGreaterThan(draws);
     handle.dispose();
     expect(vi.getTimerCount()).toBe(0);
   });
@@ -520,7 +634,14 @@ describe('mountMemoryUi shell', () => {
 
 describe('ui css scoping', () => {
   const uiDir = resolve(__dirname, '../src/ui');
-  const files = ['memory.css', ...readdirSync(resolve(uiDir, 'styles')).filter((f) => f.endsWith('.css')).map((f) => `styles/${f}`)];
+  // addDialog.css is the one deliberately unscoped sheet: the dialog also opens from the reader, outside
+  // `.sm-app`, so it carries its own tokens under `.sm-add-dialog*` (checked below).
+  const files = [
+    'memory.css',
+    ...readdirSync(resolve(uiDir, 'styles'))
+      .filter((f) => f.endsWith('.css') && f !== 'addDialog.css')
+      .map((f) => `styles/${f}`),
+  ];
   const css = files.map((f) => readFileSync(resolve(uiDir, f), 'utf8')).join('\n').replace(/\/\*[\s\S]*?\*\//g, '');
 
   /** Selector lists of every style rule, descending into @media blocks. */
@@ -558,6 +679,15 @@ describe('ui css scoping', () => {
     expect(files).toContain('styles/shell.css');
     const bad = all.map((s) => s.trim()).filter((s) => !s.startsWith('.sm-app'));
     expect(bad).toEqual([]);
+  });
+
+  it('the add dialog sheet stays under its own .sm-add-dialog prefix', () => {
+    const text = readFileSync(resolve(uiDir, 'styles/addDialog.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+    const all = selectors(text).flatMap((list) => list.split(',')).map((x) => x.trim());
+    expect(all.length).toBeGreaterThan(10);
+    // A theme prefix (:root:not([data-theme='light']) / :root[data-theme='dark']) may precede the dialog class.
+    const scoped = (x: string) => x.startsWith('.sm-add-dialog') || /^:root(:not\(\[data-theme='light'\]\)|\[data-theme='dark'\]) \.sm-add-dialog/.test(x);
+    expect(all.filter((x) => !scoped(x))).toEqual([]);
   });
 
   it('does not restyle html, body or :root', () => {

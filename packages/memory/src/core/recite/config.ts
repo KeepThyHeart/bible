@@ -41,7 +41,7 @@ export const LOOP = {
   /** Consecutive `lost` events before a pick-up hint. */
   lostLimit: 2,
   /** Speech-status cache. */
-  probeCacheMs: 30000,
+  probeCacheMs: 5 * 60 * 1000,
 } as const;
 
 export const SETTING_RECITE = 'reciteSettings';

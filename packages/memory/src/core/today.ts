@@ -182,6 +182,39 @@ function byAdded(a: Entry, b: Entry): number {
   return a.pv.passage.id - b.pv.passage.id;
 }
 
+function byPosition(a: Entry, b: Entry): number {
+  const ap = a.pv.passage.position ?? Infinity;
+  const bp = b.pv.passage.position ?? Infinity;
+  if (ap !== bp) return ap < bp ? -1 : 1;
+  return byAdded(a, b);
+}
+
+/**
+ * New verses in Today order (design 4e): one sequence per list, ordered by `position` (unset last), then
+ * `addedAt`, then id; then a k-way merge that always takes the head with the oldest `addedAt` (ties: id).
+ * Until a list is reordered this is exactly "oldest added first".
+ */
+function mergeNewByList(news: readonly Entry[]): Entry[] {
+  const lists = new Map<number, Entry[]>();
+  for (const e of news) {
+    const seq = lists.get(e.pv.passage.collectionId);
+    if (seq) seq.push(e);
+    else lists.set(e.pv.passage.collectionId, [e]);
+  }
+  const seqs = [...lists.values()].map((seq) => seq.sort(byPosition));
+  const heads = seqs.map(() => 0);
+  const out: Entry[] = [];
+  for (;;) {
+    let best = -1;
+    for (let i = 0; i < seqs.length; i++) {
+      if (heads[i]! >= seqs[i]!.length) continue;
+      if (best === -1 || byAdded(seqs[i]![heads[i]!]!, seqs[best]![heads[best]!]!) < 0) best = i;
+    }
+    if (best === -1) return out;
+    out.push(seqs[best]![heads[best]!++]!);
+  }
+}
+
 export function todayQueue(
   passages: readonly PassageView[],
   now: number,
@@ -199,7 +232,7 @@ export function todayQueue(
   );
 
   const reviews = open.filter((e) => e.info.dueNow && e.info.status !== 'new').sort(byDueThenAdded);
-  const news = open.filter((e) => e.info.status === 'new').sort(byAdded);
+  const news = mergeNewByList(open.filter((e) => e.info.status === 'new'));
   // Callers that see only one list pass the count across all lists.
   const startedToday = opts.startedToday ?? entries.filter((e) => e.info.startedToday).length;
   const room = Math.max(0, MAX_NEW_PER_DAY - startedToday);
@@ -264,6 +297,6 @@ export function anywayOrder(
   const old = entries.filter((e) => e.info.status !== 'new');
   const due = old.filter((e) => e.info.dueNow).sort(byDueThenAdded);
   const rest = old.filter((e) => !e.info.dueNow).sort(byDueThenAdded);
-  const fresh = entries.filter((e) => e.info.status === 'new').sort(byAdded);
+  const fresh = mergeNewByList(entries.filter((e) => e.info.status === 'new'));
   return [...due, ...rest].map((e) => toItem(e, 'review')).concat(fresh.map((e) => toItem(e, 'new')));
 }

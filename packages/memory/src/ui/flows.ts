@@ -196,6 +196,34 @@ export function nextFlowTarget(
 }
 
 /**
+ * The next target of a flow, computed ONCE as a full `PracticeTarget` (with its reference), so
+ * the auto-advance preview and the start use the very same pick: a random flow never redraws
+ * between "Next: John 3:16 in 3" and the verse that opens. Hand the result to
+ * `host.startTarget(target, flow)`. `null` when the flow has nothing to offer.
+ */
+export function planNextTarget(
+  plan: PlanView,
+  flow: Flow,
+  now: number,
+  rng: () => number = Math.random,
+  opts: FlowOpts = {},
+): PracticeTarget | null {
+  const pick = nextFlowTarget(plan, flow, now, rng, opts);
+  if (pick === null) return null;
+  const pv = findPassage(plan, pick.passageId);
+  if (!pv) return null;
+  const rv = pv.rungs.find((r) => r.rung === pick.rung);
+  return {
+    passageId: pick.passageId,
+    rung: pick.rung,
+    reference: pv.passage.reference,
+    dueAt: rv ? rv.dueAt : null,
+    due: rv ? isDue(rv, now) : false,
+    level: rv ? rv.level : 0,
+  };
+}
+
+/**
  * Items left in a flow: counted for `today` and `anyway`, `null` (unknown, not
  * counted) for the open-ended flows.
  */

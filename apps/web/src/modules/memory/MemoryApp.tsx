@@ -7,6 +7,7 @@ import './memory.scss';
 import { useEffect, useId, useRef, useState } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { mountMemoryUi } from '@bible/memory/ui';
+import { mountVerseSelector } from '@bible/ui';
 import type { MemoryUiHandle } from '@bible/memory/ui';
 import { bibleStore } from '../../stores/bibleStore';
 import { formatPassageRef } from '../../constants';
@@ -50,6 +51,7 @@ export function MemoryApp() {
           justAdded: takeJustAdded(),
           t: memoryT,
           locale,
+          verseSelector: { mount: mountVerseSelector },
         });
       } catch (e) {
         console.warn('[memory] could not start:', e);

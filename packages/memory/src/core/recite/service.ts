@@ -23,7 +23,7 @@ import { BIAS_LEVEL, DEFAULT_RECITE_SETTINGS, SETTING_RECITE } from './config';
 import { HandsFreeLoop } from './handsFreeLoop';
 import type { LoopCard, LoopDeps } from './handsFreeLoop';
 import { spokenReference, spokenReferenceWords } from './spokenReference';
-import { probeSpeech, unavailableMessage } from './speechAvailability';
+import { cachedAvailability, probeSpeech, unavailableMessage, UNKNOWN_AVAILABILITY } from './speechAvailability';
 
 export interface RecordAndScheduleArgs {
   cardId: number;
@@ -74,6 +74,8 @@ export interface ReciteServiceOptions {
   recordAndSchedule(a: RecordAndScheduleArgs): Promise<RecordAndScheduleResult>;
   /** Push a state to the panel (fire-and-forget). */
   push(state: ReciteStateView): void;
+  /** Called when a probe finds an availability different from the one reads were using. */
+  onAvailabilityChange?(next: SpeechAvailability): void;
 }
 
 export type ReciteStartRequest = {
@@ -115,14 +117,37 @@ export class ReciteService {
   private loop: HandsFreeLoop | null = null;
   private last: ReciteStateView | null = null;
   private counter = 0;
+  private announced: string | null = null;
   private settingsCache: ReciteSettings = { ...DEFAULT_RECITE_SETTINGS };
 
   constructor(private readonly o: ReciteServiceOptions) {}
 
   // -- availability -------------------------------------------------------------
 
-  probe(force = false): Promise<SpeechAvailability> {
-    return probeSpeech({ speech: this.o.speech }, this.o.now(), { force });
+  /**
+   * The cached availability (stale or not), or "unavailable" when there is
+   * none. Never starts a probe: plan and settings reads must not wait on the
+   * speech engine (which can load a model on its first call).
+   */
+  availabilityNow(): SpeechAvailability {
+    return cachedAvailability({ speech: this.o.speech }) ?? UNKNOWN_AVAILABILITY;
+  }
+
+  async probe(force = false): Promise<SpeechAvailability> {
+    const before = this.availabilityNow();
+    const next = await probeSpeech({ speech: this.o.speech }, this.o.now(), { force });
+    // `announced` keeps joined callers of one probe from each reporting the same change.
+    const key = JSON.stringify(next);
+    const prev = this.announced ?? JSON.stringify(before);
+    this.announced = key;
+    if (this.o.onAvailabilityChange && prev !== key) {
+      try {
+        this.o.onAvailabilityChange(next);
+      } catch {
+        /* a push failure must not fail a probe */
+      }
+    }
+    return next;
   }
 
   // -- settings -----------------------------------------------------------------

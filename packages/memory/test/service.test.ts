@@ -577,14 +577,19 @@ describe('multiple lists through the panel protocol', () => {
       type: 'setScope',
       scope: { kind: 'list', id: secondList!.id },
     });
-    expect(scoped.passages).toHaveLength(1);
-    expect(scoped.passages[0]!.passage.reference).toBe('John 3:16');
-    expect(scoped.collectionName).toBe('Topical verses');
-    expect(scoped.scope).toBe(secondList!.id);
+    // The reply is built with scope all (the UI cache applies it as it is) and
+    // names the new focus.
+    expect(scoped.passages).toHaveLength(2);
+    expect(scoped.scope).toBe('all');
+    expect(scoped.focus).toBe(secondList!.id);
 
     // The scope is persisted, so the next `getPlan` (a fresh panel opening,
     // say) still sees just this list without setting scope again.
-    expect((await deliver<PlanView>(svc, { type: 'getPlan' })).passages).toHaveLength(1);
+    const focused = await deliver<PlanView>(svc, { type: 'getPlan' });
+    expect(focused.passages).toHaveLength(1);
+    expect(focused.passages[0]!.passage.reference).toBe('John 3:16');
+    expect(focused.collectionName).toBe('Topical verses');
+    expect(focused.scope).toBe(secondList!.id);
   });
 
   it('persists the passage sort order over the protocol, broadcasts planChanged, and reports it on the plan', async () => {
@@ -596,7 +601,7 @@ describe('multiple lists through the panel protocol', () => {
     const before = pushes.length;
     await deliver(svc, { type: 'setPassageSortOrder', order: 'bible' });
 
-    expect(pushes.slice(before)).toContainEqual({ type: 'planChanged' });
+    expect(pushes.slice(before)).toContainEqual(expect.objectContaining({ type: 'planChanged' }));
     expect((await deliver<PlanView>(svc, { type: 'getPlan' })).sortOrder).toBe('bible');
 
     await deliver(svc, { type: 'setPassageSortOrder', order: 'need' });
@@ -677,7 +682,7 @@ describe('multiple lists through the panel protocol', () => {
       type: 'setScope',
       scope: { kind: 'list', id: tempList.id },
     });
-    expect(scoped.scope).toBe(tempList.id);
+    expect(scoped.focus).toBe(tempList.id);
 
     // Simulated as if a different call path deleted the scoped list.
     await deliver<PlanView>(svc, {

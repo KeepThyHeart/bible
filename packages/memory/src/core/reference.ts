@@ -123,12 +123,36 @@ export async function resolveReference(
     }
   }
 
-  // The host parser hands back verse ids for "John 3:999" without checking the
-  // verse exists: bound both ends against the chapter extents (B-038).
-  const extents = await api.bible.listChapters(parsed.bookNumber, moduleId);
+  // The extents, order and size checks are shared with the verse selector
+  // (`addPassageRange`, `previewVerses`) and the menu path.
+  const range = await resolveRange(api, startVerseId, endVerseId, moduleId);
+  return {
+    startVerseId: range.startVerseId,
+    endVerseId: range.endVerseId,
+    verseCount: range.verseCount,
+    reference: formatRange(parsed, range.verseCount),
+  };
+}
+
+/**
+ * Validate a verse-id range and describe it: both ends exist in the module's
+ * chapter extents (the host parser hands back ids for "John 3:999" without
+ * checking, B-038), the range does not end before it starts, stays in one
+ * book, and holds at most `MAX_PASSAGE_VERSES` verses (counted across chapter
+ * boundaries). The `reference` is built from the book name and ids, for
+ * callers that have no typed spelling to keep.
+ */
+export async function resolveRange(
+  api: { bible: MemoryBibleApi },
+  startVerseId: number,
+  endVerseId: number,
+  moduleId?: string,
+): Promise<{ startVerseId: number; endVerseId: number; verseCount: number; reference: string }> {
+  const bookNumber = Math.floor(startVerseId / 1_000_000);
+  const extents = await api.bible.listChapters(bookNumber, moduleId);
   for (const id of [startVerseId, endVerseId]) {
     const chapterNo = Math.floor(id / 1000) % 1000;
-    const extent = extents.find((c) => c.chapter === chapterNo);
+    const extent = Math.floor(id / 1_000_000) === bookNumber ? extents.find((c) => c.chapter === chapterNo) : undefined;
     if (!extent) {
       throw new ReferenceError(
         tc('memory.core.refNoChapter', 'That book does not have a chapter {chapter} in this translation.', { chapter: chapterNo }),
@@ -145,19 +169,37 @@ export async function resolveReference(
     throw new ReferenceError(tc('memory.core.refRangeBackwards', 'That range ends before it starts.'));
   }
 
-  const verseCount = await countVerses(api, parsed.bookNumber, startVerseId, endVerseId, moduleId);
+  const verseCount = await countVerses(api, bookNumber, startVerseId, endVerseId, moduleId);
   if (verseCount > MAX_PASSAGE_VERSES) {
     throw new ReferenceError(
       tc('memory.core.refTooLong', 'That is {count} verses. Passages are limited to {max}; add it in smaller pieces.', { count: verseCount, max: MAX_PASSAGE_VERSES }),
     );
   }
 
-  return {
-    startVerseId,
-    endVerseId,
-    verseCount,
-    reference: formatRange(parsed, verseCount),
-  };
+  return { startVerseId, endVerseId, verseCount, reference: await describeRange(api, bookNumber, startVerseId, endVerseId) };
+}
+
+async function describeRange(
+  api: { bible: MemoryBibleApi },
+  bookNumber: number,
+  startVerseId: number,
+  endVerseId: number,
+): Promise<string> {
+  let book = '';
+  try {
+    const name = (await api.bible.listBooks()).find((b) => b.bookNumber === bookNumber)?.name;
+    if (typeof name === 'string') book = name;
+  } catch {
+    /* names are cosmetic */
+  }
+  const ch = (id: number) => Math.floor(id / 1000) % 1000;
+  const vs = (id: number) => id % 1000;
+  const startLabel = `${ch(startVerseId)}:${vs(startVerseId)}`;
+  let range = startLabel;
+  if (endVerseId !== startVerseId) {
+    range += ch(endVerseId) === ch(startVerseId) ? `-${vs(endVerseId)}` : `-${ch(endVerseId)}:${vs(endVerseId)}`;
+  }
+  return book ? `${book} ${range}` : range;
 }
 
 /**

@@ -9,10 +9,10 @@ import type { ISql } from '../Core/ISql';
 import { repairUserSchema } from '../Migration/repairUserSchema';
 import { USER_SCHEMA_VERSION, readUserSchemaVersion, stampUserSchemaVersion } from '../../Backup/Registry';
 import { USER_SCHEMA_DDL } from './ddl';
-import { MEMORY_DDL } from './memory';
+import { MEMORY_DDL, ensureMemoryPassagePosition } from './memory';
 
 export { USER_SCHEMA_DDL, DESKTOP_USER_DDL, CORE_USER_DDL } from './ddl';
-export { MEMORY_DDL, MEMORY_TABLES, MEMORY_IMPORT_TABLE, installMemorySchema } from './memory';
+export { MEMORY_DDL, MEMORY_TABLES, MEMORY_IMPORT_TABLE, installMemorySchema, ensureMemoryPassagePosition } from './memory';
 export type { MemoryTable } from './memory';
 
 function runDdl(db: ISql): void {
@@ -31,6 +31,8 @@ export function createUserSchema(db: ISql): void {
   // that build's constraints; the repair fixes the shapes that matter. It runs once the tables exist.
   repairUserSchema(db);
   migrateUserSchema(db);
+  // Also on a current database: NULL positions can arrive through a merge, an import or sync.
+  ensureMemoryPassagePosition(db);
 }
 
 /**
@@ -53,6 +55,8 @@ export function migrateUserSchema(db: ISql): { from: number; to: number } {
       db.execute('DROP TRIGGER IF EXISTS user_note_fts_delete');
     }
     runDdl(db);
+    // Version 4: memory_passage.position (the one ALTER; CREATE IF NOT EXISTS cannot add a column).
+    ensureMemoryPassagePosition(db);
     if (hadNotes) db.execute("INSERT INTO user_note_fts(user_note_fts) VALUES ('rebuild')");
     stampUserSchemaVersion(db);
   });

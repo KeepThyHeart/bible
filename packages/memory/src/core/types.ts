@@ -153,6 +153,8 @@ export interface Passage {
   answerMode: AnswerMode | null;
   /** Include this passage in "Recite what's due" before its first recitation. */
   reciteOn: boolean;
+  /** Stored order within its list (schema v4); `null`/absent: not numbered yet (sorted by `addedAt`). */
+  position?: number | null;
 }
 
 /** A schedulable unit: one passage at one rung. Never locked; always practisable. */
@@ -330,6 +332,28 @@ export interface PlanView {
   speech: SpeechAvailability;
   /** Recite cards due (or untried and switched on); kept apart from `totalDue`. */
   reciteDueCount: number;
+  /** The persisted scope (the Today focus), also present on a `getPlan({ scope: all })` reply. */
+  focus?: 'all' | number;
+  /** Random per service instance; with `version` it orders plan snapshots for the UI cache. */
+  epoch?: string;
+  /** Per-instance counter, captured before the plan's first read. */
+  version?: number;
+  /** Consecutive days with at least one attempt, ending today (or yesterday). */
+  streakDays?: number;
+  /** The list the last explicit add went to, when it still exists. */
+  lastAddListId?: number | null;
+}
+
+/** The reply to `getAddTargets`. */
+export interface AddTargets {
+  lists: ListSummary[];
+  /** The list the last explicit add went to; `null` when none or it no longer exists. */
+  lastListId: number | null;
+  defaultListId: number;
+  /** The label of the verse range, or `null` when no verses were given. */
+  reference: string | null;
+  /** Lists that already hold this range in this module. */
+  existingIn: number[];
 }
 
 /** The user's answer-mode preference, and how it applies. */
@@ -337,6 +361,8 @@ export interface SettingsView {
   defaultAnswerMode: AnswerMode;
   recite?: ReciteSettings;
   speech?: SpeechAvailability;
+  /** "Move on automatically" between steps and verses (default on). */
+  autoAdvance?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -359,6 +385,8 @@ export interface SpeechAvailability {
   onDevice: boolean;
   /** Spoken prompts and feedback are possible (speech:speak granted and a speaker exists). */
   handsFree: boolean;
+  /** Set only on the placeholder shown before the first probe lands; never on a probed value. */
+  unknown?: boolean;
 }
 
 export type ReciteStrictness = 'lenient' | 'normal' | 'strict';
@@ -782,6 +810,24 @@ export type PanelRequest =
   | { type: 'setPassageAnswerMode'; passageId: number; mode: AnswerMode | null }
   | { type: 'getContext'; passageId: number }
   | { type: 'addPassage'; reference: string; collectionId?: number }
+  /** Add a verse-id range picked in the selector (a separate request so `addPassage` stays as it was). */
+  | {
+      type: 'addPassageRange';
+      startVerseId: number;
+      endVerseId: number;
+      module?: string;
+      collectionId?: number;
+      newListName?: string;
+    }
+  /** The selector's preview: validates the range, returns its reference and (capped) text. */
+  | { type: 'previewVerses'; startVerseId: number; endVerseId: number; module?: string }
+  /** What the "Add to Memory" dialog needs; never builds the plan. */
+  | { type: 'getAddTargets'; verseIds?: readonly number[]; module?: string }
+  /** Put a list's passages in the given order (schema v4 `position`). */
+  | { type: 'reorderList'; collectionId: number; passageIds: readonly number[] }
+  /** A recite surface asks for a speech probe (reads never start one). */
+  | { type: 'refreshSpeech'; force?: boolean }
+  | { type: 'setAutoAdvance'; on: boolean }
   | { type: 'removePassage'; passageId: number }
   /**
    * "Reset progress for this passage": the ONLY way a level ever goes down.
@@ -875,6 +921,13 @@ export interface RequestMap {
   getContext: PassageContext;
   /** `existed`: the reference was already in the target list (nothing new was added). */
   addPassage: { passage: Passage; existed?: boolean };
+  addPassageRange: { passage: Passage; existed?: boolean };
+  previewVerses: { reference: string; verses: VerseText[] };
+  getAddTargets: AddTargets;
+  /** The rebuilt all-scope plan. */
+  reorderList: PlanView;
+  refreshSpeech: Record<string, never>;
+  setAutoAdvance: Record<string, never>;
   removePassage: Record<string, never>;
   /**
    * The rebuilt plan, so the screen that asked for the reset can redraw from
@@ -929,7 +982,7 @@ export interface RequestMap {
  * panel re-reads on open.
  */
 export type WorkerPush =
-  | { type: 'planChanged' }
+  | { type: 'planChanged'; epoch?: string; version?: number }
   | { type: 'dueCountChanged'; count: number }
   /** A notification was clicked: open the card stack (task 0072). */
   | { type: 'showCard'; key: string | null }

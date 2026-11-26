@@ -51,6 +51,8 @@ export const UI_KIT_COMPONENTS: Readonly<Record<UiKitVersion, readonly UiKitComp
     // Pure core logic (books, MAX_CHAPTERS) runs inside the iframe; locale via `ui.getLocale`.
     { tag: 'kth-book-chapter-picker', hostMethods: [], requiresPermissions: [] },
     { tag: 'kth-reference-picker', hostMethods: [], requiresPermissions: [] },
+    // The extension supplies the text `lookup` property itself (a function), so the kit needs no host call.
+    { tag: 'kth-verse-selector', hostMethods: [], requiresPermissions: [] },
     { tag: 'kth-highlight-swatch', hostMethods: [], requiresPermissions: [] },
   ],
 };

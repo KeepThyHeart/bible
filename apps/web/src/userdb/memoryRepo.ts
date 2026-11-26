@@ -31,6 +31,8 @@ export function createMemoryRepo(sql: Sync.ISql, ctx: RepoCtx): MemoryApi {
   const ensure = (): Promise<MemoryService> => {
     if (!service) {
       const starting = (async () => {
+        // Also numbers passages that have no stored position (installMemorySchema runs ensureMemoryPassagePosition).
+        // The worker has no restore/merge path of its own; a fresh start after a wipe goes through here too.
         installMemorySchema(sql as never);
         return MemoryService.start({
           sql: createSqlPort(sql as never),

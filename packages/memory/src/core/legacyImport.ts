@@ -75,6 +75,7 @@ export const LEGACY_TABLES: readonly TableMap[] = [
       answer_mode: null, // v2
       deleted_at: null, // v5
       recite_on: 0, // v6
+      position: null, // v4 (filled in by ensureMemoryPassagePosition after the import)
     },
   },
   {

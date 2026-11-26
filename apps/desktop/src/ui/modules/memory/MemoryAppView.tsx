@@ -4,6 +4,7 @@
  */
 import React from 'react';
 import { mountMemoryUi } from '@bible/memory/ui';
+import { mountVerseSelector } from '@bible/ui';
 import type { MemoryUiHandle } from '@bible/memory/ui';
 import { useI18n } from '../../contexts/useI18n';
 import { translateWithDefault } from '../../utils/translateWithDefault';
@@ -35,6 +36,7 @@ export const MemoryAppView: React.FC = () => {
       subscribe: (listener) => memoryClient.on('push', listener),
       t: memoryT,
       locale: i18n.currentLocale,
+      verseSelector: { mount: mountVerseSelector },
       initialView: takePendingMemoryCards() ? 'card' : 'plan',
       initialPractice: takePendingMemoryPractice() ?? undefined,
     });

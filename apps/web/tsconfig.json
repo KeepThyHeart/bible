@@ -30,6 +30,7 @@
       "@bible/speech": ["../../packages/speech/src"],
       "@bible/memory/recite/*": ["../../packages/memory/src/core/recite/*"],
       "@bible/memory/core": ["../../packages/memory/src/core"],
+      "@bible/memory/add-to-memory": ["../../packages/memory/src/ui/addToMemoryDialog.ts"],
       // Shared UI kit, consumed as source (never a built dist). Its CSS is
       // reached through side-effect imports, which need no path entry.
       "@bible/ui": ["../../packages/ui/src"],

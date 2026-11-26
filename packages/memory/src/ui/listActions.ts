@@ -65,7 +65,8 @@ function nameDialog(
   focusQuietly(input);
 }
 
-export function createList(host: PanelHost): void {
+/** `onCreated` gets the new list's id (the Lists tab selects it). */
+export function createList(host: PanelHost, onCreated?: (listId: number) => void): void {
   nameDialog(host, {
     title: tr('memory.ui.verses.newListTitle', 'New list'),
     label: tr('memory.ui.verses.newListLabel', 'List name'),
@@ -75,6 +76,8 @@ export function createList(host: PanelHost): void {
       const reply = await host.request({ type: 'createList', name });
       if (!reply.ok) return reply.error;
       host.announce(tr('memory.ui.verses.createdName', 'Created {name}.', { name }));
+      const made = reply.data.lists.find((l) => l.name === name);
+      if (made && onCreated) onCreated(made.id);
       host.reload();
       return null;
     },
@@ -216,6 +219,20 @@ export function listMenuItems(host: PanelHost, list: ListSummary, lists: ListSum
     focused
       ? { label: tr('memory.ui.verses.clearFocus', 'Clear focus'), onClick: () => void setFocus(host, null) }
       : { label: tr('memory.ui.verses.focusOnList', 'Focus Today on this list'), onClick: () => void setFocus(host, list) },
+    { label: tr('memory.ui.verses.rename', 'Rename'), onClick: () => renameList(host, list) },
+    { label: tr('memory.ui.verses.deleteList', 'Delete'), onClick: () => deleteList(host, list, lists) },
+  ];
+}
+
+/**
+ * The menu of a row on the Lists tab (design-r2 4b/4e): the Today focus item first, then Rename and
+ * Delete. `focused` = Today currently follows this list.
+ */
+export function listRowMenuItems(host: PanelHost, list: ListSummary, lists: ListSummary[], focused: boolean): MenuItem[] {
+  return [
+    focused
+      ? { label: tr('memory.ui.lists.practiceAll', 'Practice all lists on Today'), onClick: () => void setFocus(host, null) }
+      : { label: tr('memory.ui.lists.practiceOnly', 'Practice only this list on Today'), onClick: () => void setFocus(host, list) },
     { label: tr('memory.ui.verses.rename', 'Rename'), onClick: () => renameList(host, list) },
     { label: tr('memory.ui.verses.deleteList', 'Delete'), onClick: () => deleteList(host, list, lists) },
   ];

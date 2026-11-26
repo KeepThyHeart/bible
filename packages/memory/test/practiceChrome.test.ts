@@ -8,10 +8,11 @@
 // Fixtures are hand-built and loosely typed.
 // @ts-nocheck
 
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type {
   BlanksStep,
+  OrderingStep,
   PanelReply,
   PanelRequest,
   PassageContext,
@@ -145,11 +146,11 @@ let view: PracticeView | null = null;
 async function mountView(
   over: Partial<SessionView> = {},
   flow?: Flow,
-  opts: { ctx?: PassageContext; pv?: PassageView; speech?: boolean } = {},
+  opts: { ctx?: PassageContext; pv?: PassageView; speech?: boolean; autoAdvance?: boolean } = {},
 ): Promise<PracticeView> {
   host.handlers.getContext = () => ({ ok: true, data: opts.ctx ?? context() });
   host.handlers.getPassageView = () => ({ ok: true, data: opts.pv ?? passageView(1) });
-  host.handlers.getSettings = () => ({ ok: true, data: { speech: { state: opts.speech ? 'ready' : 'unavailable' } } });
+  host.handlers.getSettings = () => ({ ok: true, data: { speech: { state: opts.speech ? 'ready' : 'unavailable' }, ...(opts.autoAdvance === undefined ? {} : { autoAdvance: opts.autoAdvance }) } });
   host.handlers.endSession = () => ({ ok: true, data: { summary: null } });
   const p = new PracticeView(host, session(over), flow);
   p.mount(container);
@@ -205,6 +206,31 @@ describe('header', () => {
     const buttons = Array.from(p.root.querySelectorAll('.sm-practice-head button')).map((b) => b.textContent);
     expect(buttons.some((t) => t === 'Next')).toBe(false);
     expect(p.root.textContent).not.toContain('Tier');
+  });
+});
+
+describe('step progress bar (M4, S7)', () => {
+  it('is not drawn when there is only one step (S7)', async () => {
+    const p = await mountView({ step: { ...blanks(), stepNumber: 1, totalSteps: 1 } });
+    expect(p.root.querySelectorAll('[role="progressbar"]').length).toBe(0);
+    expect(p.root.querySelector('.sm-step-count')).toBeNull();
+  });
+
+  it('fills the full share of a step once it is answered (M4)', async () => {
+    host.handlers.submitStep = () => ({
+      ok: true,
+      data: {
+        result: { correct: true, wrong: [], blocking: false },
+        session: session({ step: { ...blanks(), stepNumber: 3, totalSteps: 3 } }),
+        summary: null,
+      },
+    });
+    const p = await mountView({ step: { ...blanks(), stepNumber: 2, totalSteps: 3 } });
+    const fill = () => p.root.querySelector<HTMLElement>('.sm-practice-progress .sm-bar-fill')!;
+    expect(fill().style.width.startsWith('33.3')).toBe(true);
+    p.root.querySelector<HTMLButtonElement>('.sm-exercise-actions button')!.click();
+    await settle();
+    expect(parseFloat(fill().style.width)).toBeCloseTo(66.67, 1);
   });
 });
 
@@ -380,7 +406,7 @@ describe('Esc', () => {
   });
 });
 
-describe('after-verse screen (A5)', () => {
+describe('the one result message (R2-4)', () => {
   async function finish(
     flow: Flow | undefined,
     sum = summary(),
@@ -393,27 +419,30 @@ describe('after-verse screen (A5)', () => {
       data: { result: { correct: true, wrong: [], blocking: false }, session: session({ step: null }), summary: sum },
     });
     const p = await mountView({}, flow);
-    // Drive the last step to the summary: a fullWord blanks step graded correct, then Finish.
+    // Drive the last step to the result: a fullWord blanks step graded correct (no Finish button).
     p.root.querySelector<HTMLButtonElement>('.sm-exercise-actions button')!.click();
     await settle();
-    const finishBtn = p.root.querySelector<HTMLButtonElement>('.sm-exercise-actions button');
-    if (finishBtn && finishBtn.textContent === 'Finish') {
-      finishBtn.click();
-      await settle();
-    }
     return p;
   }
   const actions = (p: PracticeView) =>
-    Array.from(p.root.querySelectorAll('.sm-exercise-actions button')).map((b) => b.textContent);
+    Array.from(p.root.querySelectorAll('.sm-exercise-actions button')).map((b) => b.textContent).filter((t) => t !== 'Stay here');
 
   it('shows reference, score, next review and a status chip', async () => {
     const p = await finish(undefined);
-    const text = p.root.querySelector('.sm-summary')!.textContent!;
-    expect(p.root.querySelector('.sm-summary-title')!.textContent).toBe('Psalm 23');
+    const text = p.root.querySelector('.sm-result')!.textContent!;
+    // The live region wraps the text only, not the buttons.
+    expect(p.root.querySelector('.sm-result')!.hasAttribute('role')).toBe(false);
+    const live = p.root.querySelector('.sm-result-text')!;
+    expect(live.getAttribute('role')).toBe('status');
+    expect(live.querySelector('button')).toBeNull();
+    // The review of the step stays on screen: the passage is still there, and there is no Finish.
+    expect(p.root.querySelector('.sm-context')!.hasAttribute('hidden')).toBe(false);
+    expect(Array.from(p.root.querySelectorAll('button')).some((b) => b.textContent === 'Finish')).toBe(false);
+    expect(p.root.querySelectorAll('.sm-result').length).toBe(1);
     expect(text).toContain('5 of 6 right first time');
     expect(text).toContain('In 3 days');
     expect(p.root.querySelector('.sm-status')!.textContent).toBe('Learning');
-    expect(p.root.querySelector('.sm-summary-level, .sm-level-box')).toBeNull();
+    expect(p.root.querySelector('.sm-result-level, .sm-level-box')).toBeNull();
     expect(text).not.toContain('Tier');
   });
 
@@ -483,5 +512,218 @@ describe('after-verse screen (A5)', () => {
     p.root.querySelector<HTMLButtonElement>('.sm-exercise-actions button')!.click();
     await settle();
     expect(host.navigations).toEqual([{ type: 'sessionEnded' }]);
+  });
+});
+
+describe('queue status bar (R2-3)', () => {
+  const pl = () => plan([passageView(1, NOW - DAY), passageView(2, NOW - 2 * DAY), passageView(3, NOW - DAY)]);
+
+  it('is absent for a single verse', async () => {
+    const p = await mountView();
+    expect(p.root.querySelector('.sm-queue-bar')).toBeNull();
+  });
+
+  it('shows done / total / left with a track for the today flow, total = max(startTotal, done + left)', async () => {
+    host.handlers.getPlan = () => ({ ok: true, data: pl() });
+    const p = await mountView({}, { kind: 'today', skipped: [9], startTotal: 6 });
+    expect(p.root.querySelector('.sm-queue-text')!.textContent).toBe('1 of 6 done · 3 left');
+    const track = p.root.querySelector('.sm-queue-track')!;
+    expect(track.getAttribute('role')).toBe('progressbar');
+    expect(track.getAttribute('aria-valuemax')).toBe('6');
+  });
+
+  it('grows the total past startTotal when more turned up', async () => {
+    host.handlers.getPlan = () => ({ ok: true, data: pl() });
+    const p = await mountView({}, { kind: 'today', skipped: [], startTotal: 1 });
+    expect(p.root.querySelector('.sm-queue-text')!.textContent).toBe('0 of 3 done · 3 left');
+  });
+
+  it('shows only "{n} done" for a mixed flow, with no track', async () => {
+    const p = await mountView({}, { kind: 'mixed', visited: [4, 5] });
+    expect(p.root.querySelector('.sm-queue-text')!.textContent).toBe('2 done');
+    expect(p.root.querySelector('.sm-queue-track')).toBeNull();
+  });
+});
+
+describe('auto-advance between verses (R2-3)', () => {
+  const perfect = () => summary({ correctFirst: 6, totalSteps: 6 });
+  const pl = () => plan([passageView(1, NOW - DAY), passageView(2, NOW - 2 * DAY)]);
+  const flow = (): Flow => ({ kind: 'today', skipped: [] });
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  async function finishWith(sum: SessionSummary, opts: { autoAdvance?: boolean; startTarget?: boolean; plan?: PlanView } = {}) {
+    host.handlers.getPlan = () => ({ ok: true, data: opts.plan ?? pl() });
+    host.handlers.submitStep = () => ({
+      ok: true,
+      data: { result: { correct: true, wrong: [], blocking: false }, session: session({ step: null }), summary: sum },
+    });
+    const targets: unknown[] = [];
+    if (opts.startTarget) host.startTarget = async (t, f) => { targets.push({ t, f }); return true; };
+    const p = await mountView({}, flow(), opts.autoAdvance === undefined ? {} : { autoAdvance: opts.autoAdvance });
+    p.root.querySelector<HTMLButtonElement>('.sm-exercise-actions button')!.click();
+    await settle();
+    return { p, targets };
+  }
+  const line = (p: PracticeView) => p.root.querySelector('.sm-result-auto')!;
+
+  it('counts down visibly, announces once, then starts the SAME planned target', async () => {
+    const { p, targets } = await finishWith(perfect(), { startTarget: true });
+    expect(line(p).hasAttribute('hidden')).toBe(false);
+    expect(line(p).querySelector('[aria-hidden="true"]')!.textContent).toBe('Next: Ref 2 in 3');
+    expect(line(p).querySelector('.sm-sr-only')!.textContent).toContain('Next: Ref 2 in 3 seconds');
+    const spoken = line(p).querySelector('.sm-sr-only')!;
+    vi.advanceTimersByTime(1000);
+    expect(line(p).querySelector('[aria-hidden="true"]')!.textContent).toBe('Next: Ref 2 in 2');
+    expect(line(p).querySelector('.sm-sr-only')).toBe(spoken); // not re-announced
+    expect(targets).toEqual([]);
+    vi.advanceTimersByTime(2000);
+    await settle();
+    expect(targets).toEqual([{ t: expect.objectContaining({ passageId: 2, rung: 'ordering', reference: 'Ref 2' }), f: { kind: 'today', skipped: [1] } }]);
+    expect(host.flows).toEqual([]);
+  });
+
+  it('Continue starts the same planned target (no redraw)', async () => {
+    const { p, targets } = await finishWith(perfect(), { startTarget: true });
+    Array.from(p.root.querySelectorAll<HTMLButtonElement>('.sm-exercise-actions button')).find((b) => b.textContent!.startsWith('Continue'))!.click();
+    await settle();
+    expect(targets.length).toBe(1);
+    vi.advanceTimersByTime(5000);
+    await settle();
+    expect(targets.length).toBe(1);
+  });
+
+  it('falls back to host.startFlow when the host has no startTarget', async () => {
+    await finishWith(perfect());
+    vi.advanceTimersByTime(3000);
+    await settle();
+    expect(host.flows).toEqual([{ kind: 'today', skipped: [1] }]);
+  });
+
+  it('"Stay here" cancels it', async () => {
+    const { p, targets } = await finishWith(perfect(), { startTarget: true });
+    Array.from(p.root.querySelectorAll<HTMLButtonElement>('.sm-result button')).find((b) => b.textContent === 'Stay here')!.click();
+    expect(line(p).hasAttribute('hidden')).toBe(true);
+    expect(p.root.querySelector('.sm-result-stay')).toBeNull();
+    vi.advanceTimersByTime(5000);
+    await settle();
+    expect(targets).toEqual([]);
+  });
+
+  it('a key press or a pointer press inside the result cancels it', async () => {
+    for (const ev of [new KeyboardEvent('keydown', { key: 'a', bubbles: true }), new MouseEvent('pointerdown', { bubbles: true })]) {
+      const { p, targets } = await finishWith(perfect(), { startTarget: true });
+      p.root.querySelector('.sm-result')!.dispatchEvent(ev);
+      vi.advanceTimersByTime(5000);
+      await settle();
+      expect(targets).toEqual([]);
+      p.destroy();
+      container.innerHTML = '';
+    }
+  });
+
+  it('after an imperfect result it counts down 5 s, then starts the next target', async () => {
+    const { p, targets } = await finishWith(summary({ correctFirst: 5, totalSteps: 6 }), { startTarget: true });
+    expect(line(p).querySelector('[aria-hidden="true"]')!.textContent).toBe('Next: Ref 2 in 5');
+    expect(line(p).querySelector('.sm-sr-only')!.textContent).toContain('in 5 seconds');
+    vi.advanceTimersByTime(4000);
+    await settle();
+    expect(targets).toEqual([]);
+    vi.advanceTimersByTime(1000);
+    await settle();
+    expect(targets.length).toBe(1);
+  });
+
+  it('an imperfect result can be cancelled with Stay here', async () => {
+    const { p, targets } = await finishWith(summary({ correctFirst: 5, totalSteps: 6 }), { startTarget: true });
+    Array.from(p.root.querySelectorAll<HTMLButtonElement>('.sm-result button')).find((b) => b.textContent === 'Stay here')!.click();
+    vi.advanceTimersByTime(10000);
+    await settle();
+    expect(targets).toEqual([]);
+  });
+
+  it('an imperfect result does not count down when the setting is off', async () => {
+    const { p, targets } = await finishWith(summary({ correctFirst: 5, totalSteps: 6 }), { startTarget: true, autoAdvance: false });
+    await vi.advanceTimersByTimeAsync(10);
+    expect(p.root.querySelector('.sm-result-stay')).toBeNull();
+    vi.advanceTimersByTime(10000);
+    await settle();
+    expect(targets).toEqual([]);
+  });
+
+  it('is off when the Move on automatically setting is off', async () => {
+    const { p, targets } = await finishWith(perfect(), { startTarget: true, autoAdvance: false });
+    await vi.advanceTimersByTimeAsync(10);
+    expect(p.root.querySelector('.sm-result-stay')).toBeNull();
+    vi.advanceTimersByTime(5000);
+    await settle();
+    expect(targets).toEqual([]);
+  });
+
+  it('does not run for a single verse or when nothing is left', async () => {
+    host.handlers.getPlan = () => ({ ok: true, data: plan([passageView(1, NOW + DAY)]) });
+    host.handlers.submitStep = () => ({
+      ok: true,
+      data: { result: { correct: true, wrong: [], blocking: false }, session: session({ step: null }), summary: perfect() },
+    });
+    const p = await mountView({}, flow());
+    p.root.querySelector<HTMLButtonElement>('.sm-exercise-actions button')!.click();
+    await settle();
+    expect(p.root.querySelector('.sm-result-stay')).toBeNull();
+    expect(Array.from(p.root.querySelectorAll('.sm-result button')).map((b) => b.textContent)).toEqual(['Done', 'Again', 'Stop for today']);
+  });
+
+  it('never names the next verse before Match / Name the reference', async () => {
+    const refmatchPlan = plan([
+      passageView(1, NOW - DAY),
+      passageView(2, NOW - 2 * DAY, [rungView({ rung: 'refmatch', dueAt: NOW - 2 * DAY, attempts: 1 })]),
+    ]);
+    const { p } = await finishWith(perfect(), { startTarget: true, plan: refmatchPlan });
+    expect(line(p).querySelector('[aria-hidden="true"]')!.textContent).toBe('Next verse in 3');
+    expect(line(p).textContent).not.toContain('Ref 2');
+  });
+});
+
+describe('last verse auto-placed (R2 item 14)', () => {
+  it('fills the progress bar for the step while "Last verse placed." shows', async () => {
+    const step: OrderingStep = {
+      kind: 'ordering',
+      placed: [VERSE],
+      candidates: [{ verseId: 19023002, preview: 'He maketh me', truncated: false }],
+      stepNumber: 3,
+      totalSteps: 3,
+    };
+    const p = await mountView({ rung: 'ordering', step });
+    expect(p.root.querySelector('.sm-feedback')?.textContent ?? p.root.textContent).toContain('Last verse placed.');
+    const fill = p.root.querySelector<HTMLElement>('.sm-practice-progress .sm-bar-fill')!;
+    expect(fill.style.width).toBe('100%');
+  });
+});
+
+describe('snapshotFlow with a data cache (R2 item 6)', () => {
+  it('reads the plan through host.data.refresh and sends no getPlan', async () => {
+    vi.useFakeTimers();
+    try {
+      const all = { ...plan([passageView(1, NOW - DAY), passageView(2, NOW - 2 * DAY)]), focus: 'all' as const };
+      let refreshes = 0;
+      (host as unknown as { data: unknown }).data = { refresh: async () => { refreshes += 1; return all; } };
+      host.handlers.submitStep = () => ({
+        ok: true,
+        data: { result: { correct: true, wrong: [], blocking: false }, session: session({ step: null }), summary: summary({ correctFirst: 6, totalSteps: 6 }) },
+      });
+      const p = await mountView({}, { kind: 'today', skipped: [] });
+      p.root.querySelector<HTMLButtonElement>('.sm-exercise-actions button')!.click();
+      await settle();
+      expect(refreshes).toBeGreaterThan(0);
+      expect(host.requests.filter((r) => r.type === 'getPlan')).toEqual([]);
+      expect(Array.from(p.root.querySelectorAll('.sm-result button')).map((b) => b.textContent)[0]).toMatch(/^Continue/);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

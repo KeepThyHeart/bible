@@ -8,6 +8,8 @@ export default defineConfig({
       { find: /^@bible\/core\/recite$/, replacement: resolve(__dirname, '../core/src/recite/index.ts') },
       { find: /^@bible\/core\/speech$/, replacement: resolve(__dirname, '../core/src/speech/index.ts') },
       { find: /^@bible\/core\/browser$/, replacement: resolve(__dirname, '../core/src/browser.ts') },
+      // Any other subpath (for example @bible/core/Settings/FeatureFlags) resolves like tsconfig's "@bible/core/*".
+      { find: /^@bible\/core\/(?!recite$|speech$|browser$)(.+)$/, replacement: resolve(__dirname, '../core/src/$1') },
       { find: /^@bible\/core$/, replacement: resolve(__dirname, '../core/src/index.ts') },
       { find: /^@bible\/extension-testing$/, replacement: resolve(__dirname, '../extension-testing/src/index.ts') },
     ],

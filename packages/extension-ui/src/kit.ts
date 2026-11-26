@@ -108,6 +108,21 @@ export interface KthReferenceChangeDetail {
   wholeChapter?: true;
 }
 
+/** `kth-change` detail of `<kth-verse-selector>`, or `{ cleared: true }` when the text stops being a valid selection. */
+export type KthVerseSelectionDetail = KthReferenceChangeDetail | { cleared: true };
+
+/** `kth-submit` detail of `<kth-verse-selector>` (Enter on a valid selection). */
+export type KthVerseSubmitDetail = KthReferenceChangeDetail;
+
+/**
+ * The `lookup` property of `<kth-verse-selector>`: resolves the verse text for the live preview. `endVerseId` is
+ * always set for a whole chapter (its last verse). Honor `signal`; resolve `null` when no text is available.
+ */
+export type KthVerseTextLookup = (
+  range: { verseId: number; endVerseId?: number },
+  signal: AbortSignal,
+) => Promise<ReadonlyArray<{ verseId: number; text: string }> | null>;
+
 /** `kth-pick` detail of `<kth-book-chapter-picker>`. */
 export interface KthPickDetail {
   book: number;

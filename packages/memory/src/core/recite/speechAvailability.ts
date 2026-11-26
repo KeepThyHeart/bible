@@ -1,6 +1,6 @@
 /**
  * Whether reciting aloud can run, and why not. Probed through `api.speech`
- * (ungated `status()`), cached for 30 s, refreshed by settings and start.
+ * (ungated `status()`), cached for 5 min, de-duplicated while in flight, refreshed by settings and start.
  */
 
 import { tc } from '../messages';
@@ -18,9 +18,32 @@ const EMPTY = { missingPermissions: [] as SpeechPermission[], engineLabel: '', o
 
 let cache: { api: ISpeechApi | undefined; at: number; value: SpeechAvailability } | null = null;
 
+const UNKNOWN_PLACEHOLDER = null as unknown as SpeechAvailability;
+
+let inflight: { api: ISpeechApi | undefined; promise: Promise<SpeechAvailability> } | null = null;
+
 export function resetProbeCache(): void {
   cache = null;
+  inflight = null;
 }
+
+/**
+ * The last probed value for this host (stale or not), or null. Never starts a
+ * probe, so a read path can use it without waiting on the speech engine.
+ */
+export function cachedAvailability(api: SpeechHost): SpeechAvailability | null {
+  return cache && cache.api === api.speech ? cache.value : null;
+}
+
+/** Shown until the first probe lands: recite surfaces ask for a probe after they render. */
+export const UNKNOWN_AVAILABILITY: SpeechAvailability = {
+  state: 'unavailable',
+  missingPermissions: [],
+  handsFree: false,
+  engineLabel: '',
+  onDevice: true,
+  unknown: true,
+};
 
 export function isUnknownRpc(err: unknown): boolean {
   const msg = err instanceof Error ? err.message : String(err);
@@ -35,9 +58,24 @@ export async function probeSpeech(
   if (!opts.force && cache && cache.api === api.speech && now - cache.at < LOOP.probeCacheMs && now >= cache.at) {
     return cache.value;
   }
-  const value = await probeOnce(api);
-  cache = { api: api.speech, at: now, value };
-  return value;
+  // One probe at a time per host: a second caller joins the first.
+  if (inflight && inflight.api === api.speech) return inflight.promise;
+  const entry: { api: ISpeechApi | undefined; promise: Promise<SpeechAvailability> } = {
+    api: api.speech,
+    promise: Promise.resolve(UNKNOWN_PLACEHOLDER),
+  };
+  entry.promise = (async () => {
+    await Promise.resolve(); // let `inflight` be set before the finally can run
+    try {
+      const value = await probeOnce(api);
+      cache = { api: api.speech, at: now, value };
+      return value;
+    } finally {
+      if (inflight === entry) inflight = null;
+    }
+  })();
+  inflight = entry;
+  return entry.promise;
 }
 
 async function probeOnce(api: SpeechHost): Promise<SpeechAvailability> {

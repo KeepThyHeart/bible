@@ -1,0 +1,196 @@
+/* Memory - Lists tab (R2-12). Scoped under .sm-app, logical properties only. */
+
+.sm-app .sm-lists {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sm-s3);
+  container-type: inline-size;
+  container-name: sm-lists;
+}
+
+.sm-app .sm-lists-title {
+  margin: 0;
+  font-size: 1.15em;
+  font-weight: 600;
+  color: var(--sm-heading);
+}
+
+.sm-app .sm-lists-cols {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--sm-s4);
+  align-items: start;
+}
+
+@container sm-lists (min-width: 40rem) {
+  .sm-app .sm-lists-cols {
+    grid-template-columns: minmax(14rem, 1fr) minmax(0, 2fr);
+  }
+}
+
+.sm-app .sm-lists-index,
+.sm-app .sm-list-verses {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sm-s2);
+  min-inline-size: 0;
+}
+
+.sm-app .sm-list-rows,
+.sm-app .sm-order-rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sm-app .sm-list-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sm-s2);
+  padding-block: var(--sm-s1);
+  padding-inline: var(--sm-s2);
+  border: 1px solid transparent;
+  border-block-end-color: var(--sm-border);
+}
+
+.sm-app .sm-list-row-on {
+  background: var(--sm-accent-light);
+  border-color: var(--sm-accent);
+  border-radius: var(--sm-radius);
+}
+
+.sm-app .sm-list-pick {
+  flex: 1 1 auto;
+  min-inline-size: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--sm-s1) var(--sm-s2);
+  appearance: none;
+  background: transparent;
+  border: 0;
+  padding-block: var(--sm-s2);
+  padding-inline: 0;
+  font: inherit;
+  color: var(--sm-heading);
+  text-align: start;
+  cursor: pointer;
+}
+
+.sm-app .sm-list-name {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.sm-app .sm-list-count {
+  color: var(--sm-text-dim);
+}
+
+.sm-app .sm-list-today {
+  padding-inline: var(--sm-s2);
+  border: 1px solid var(--sm-accent);
+  border-radius: 999px;
+  font-size: 0.8em;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.sm-app .sm-lists-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sm-s2);
+  align-items: center;
+}
+
+.sm-app .sm-lists-starters > summary {
+  cursor: pointer;
+  color: var(--sm-text-dim);
+}
+
+.sm-app .sm-list-verses-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sm-s2);
+}
+
+.sm-app .sm-list-verses-title {
+  margin: 0;
+  font-size: 1.05em;
+  font-weight: 600;
+  color: var(--sm-heading);
+  overflow-wrap: anywhere;
+}
+
+/* An ordered verse row: handle, reference, up/down, menu */
+.sm-app .sm-order-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sm-s2);
+  padding-block: var(--sm-s1);
+  padding-inline: var(--sm-s2);
+  border-block-end: 1px solid var(--sm-border);
+  background: var(--sm-bg, transparent);
+  content-visibility: auto;
+  contain-intrinsic-size: auto 2.75rem;
+}
+
+.sm-app .sm-order-row-drag,
+.sm-app .sm-order-row:focus-within {
+  content-visibility: visible;
+}
+
+.sm-app .sm-order-row-drag {
+  background: var(--sm-accent-light);
+  border-radius: var(--sm-radius);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+}
+
+.sm-app .sm-drag-handle {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 2.25rem;
+  block-size: 2.25rem;
+  color: var(--sm-text-dim);
+  opacity: 0.7;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.sm-app .sm-order-ref {
+  flex: 1 1 auto;
+  min-inline-size: 0;
+  appearance: none;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  font-weight: 600;
+  color: var(--sm-heading);
+  text-align: start;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+
+.sm-app .sm-order-moves {
+  display: flex;
+  gap: var(--sm-s1);
+  flex: 0 0 auto;
+}
+
+.sm-app .sm-order-moves .sm-btn {
+  min-inline-size: 2.25rem;
+  min-block-size: 2.25rem;
+  color: inherit;
+  font-size: 1.15em;
+  font-weight: 700;
+}
+
+.sm-app .sm-order-moves .sm-btn:disabled {
+  opacity: 0.55;
+}
+

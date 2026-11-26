@@ -1703,7 +1703,7 @@ describe('the ordering picker - letter shortcuts', () => {
     expect(letters).toEqual(['A', 'B', 'C']);
   });
 
-  it('labels the sole remaining candidate on the last step A, and "a" picks it', async () => {
+  it('the sole remaining candidate is placed automatically: no question, "Placed", then the normal submit', async () => {
     const step = orderingStep();
     const lastStep: OrderingStep = { ...step, candidates: [step.candidates[0]!] };
     host.handlers.submitStep = () => ({
@@ -1711,16 +1711,22 @@ describe('the ordering picker - letter shortcuts', () => {
       data: { result: stepResult({ correct: true }), session: session(null, { rung: 'ordering' }), summary: null },
     });
 
-    const practice = await mountPractice(lastStep, { rung: 'ordering' });
-    const letters = Array.from(
-      practice.root.querySelectorAll<HTMLElement>('.sm-choice-letter'),
-    ).map((el) => el.textContent);
-    expect(letters).toEqual(['A']);
+    vi.useFakeTimers();
+    try {
+      const practice = await mountPractice(lastStep, { rung: 'ordering' });
+      expect(practice.root.querySelector('.sm-prompt')).toBeNull();
+      expect(practice.root.querySelectorAll('.sm-choice-letter').length).toBe(0);
+      const placed = practice.root.querySelector<HTMLButtonElement>('.sm-choice-placed')!;
+      expect(placed.disabled).toBe(true);
+      expect(practice.root.querySelector('.sm-feedback')!.textContent).toContain('Last verse placed.');
+      expect(submitAnswers()).toEqual([]);
 
-    press(practice.root.querySelector('.sm-choices')!, 'a');
-    await settle();
-
-    expect(submitAnswers()).toEqual([{ kind: 'ordering', verseId: lastStep.candidates[0]!.verseId }]);
+      vi.advanceTimersByTime(400);
+      await settle();
+      expect(submitAnswers()).toEqual([{ kind: 'ordering', verseId: lastStep.candidates[0]!.verseId }]);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('pressing a candidate\'s letter activates it, the same as clicking it', async () => {

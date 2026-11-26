@@ -913,14 +913,14 @@ describe('ReciteService', () => {
 describe('probeSpeech', () => {
   afterEach(() => resetProbeCache());
 
-  it('maps host status to availability and caches for 30 s', async () => {
+  it('maps host status to availability and caches for 5 min', async () => {
     const api = new FakeSpeechApi({ status: { engineLabel: 'Whisper', onDevice: true } });
     const a = await probeSpeech({ speech: api }, 1000);
     expect(a).toEqual({ state: 'ready', missingPermissions: [], engineLabel: 'Whisper', onDevice: true, handsFree: true });
     api.granted = { listen: false, speak: false };
     expect((await probeSpeech({ speech: api }, 2000)).state).toBe('ready'); // cached
-    expect((await probeSpeech({ speech: api }, 40_000)).state).toBe('permission-missing');
-    expect((await probeSpeech({ speech: api }, 40_001, { force: true })).missingPermissions).toEqual(['speech:listen', 'speech:speak']);
+    expect((await probeSpeech({ speech: api }, 301_000)).state).toBe('permission-missing');
+    expect((await probeSpeech({ speech: api }, 301_001, { force: true })).missingPermissions).toEqual(['speech:listen', 'speech:speak']);
   });
 
   it('unknown RPC means host-too-old; other failures mean unavailable; states pass through', async () => {

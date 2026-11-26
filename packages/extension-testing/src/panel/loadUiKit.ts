@@ -1,6 +1,6 @@
 /**
  * Load the extension UI kit (`kth-*` custom elements) into the CURRENT realm,
- * for tests that render `<kth-reference-picker>` etc. under jsdom.
+ * for tests that render `<kth-reference-picker>`, `<kth-verse-selector>` etc. under jsdom.
  *
  * This is test tooling that runs in Node, never shipped to a panel: it
  * evaluates the kit bundle with an indirect `eval`, which is exactly what a
