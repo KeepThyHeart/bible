@@ -157,7 +157,42 @@ describe('BookmarkMenu', () => {
     await user.click(screen.getByTestId('bookmark-toggle'));
     await user.click(screen.getByTestId('bookmark-jump-1'));
 
-    expect(h.bible.navigateToVerse).toHaveBeenCalledWith(PANEL, 19023001);
+    expect(h.bible.navigateToVerse).toHaveBeenCalledWith(PANEL, 19023001, undefined);
+  });
+
+  it('opens a range bookmark with every verse selected', async () => {
+    const user = userEvent.setup();
+    useBookmarkStore.setState({
+      bookmarks: [
+        { pinId: 1, itemType: 'passage', referenceText: 'Psalm 23:1-6',
+          verseIdStart: 19023001, verseIdEnd: 19023006, sortOrder: 0 },
+      ],
+    });
+    render(<BookmarkMenu />);
+
+    await user.click(screen.getByTestId('bookmark-toggle'));
+    await user.click(screen.getByTestId('bookmark-jump-1'));
+
+    expect(h.bible.navigateToVerse).toHaveBeenCalledWith(PANEL, 19023001, 19023006);
+  });
+
+  it('removes the whole range bookmark from a later verse inside it', async () => {
+    const user = userEvent.setup();
+    h.ctx.value = makeCtx({ selectedVerseId: JOHN_3_17 });
+    useBookmarkStore.setState({
+      bookmarks: [
+        { pinId: 1, itemType: 'passage', referenceText: 'John 3:16-18',
+          verseIdStart: JOHN_3_16, verseIdEnd: 43003018, sortOrder: 0 },
+      ],
+      bookmarkedVerses: new Set([JOHN_3_16]),
+    });
+    render(<BookmarkMenu />);
+
+    await user.click(screen.getByTestId('bookmark-toggle'));
+    await user.click(screen.getByTestId('bookmark-remove-current'));
+
+    expect(removeVerseFromAllCollections).toHaveBeenCalledWith(JOHN_3_16);
+    expect(addBookmark).not.toHaveBeenCalled();
   });
 
   it('caps the dropdown and says how many are not shown', async () => {

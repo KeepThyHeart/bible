@@ -71,6 +71,7 @@
     "noMatches": "موردی یافت نشد",
     "popular": "پرطرفدار",
     "allTranslations": "همهٔ ترجمه‌ها",
+    "recent": "اخیر",
     "other": "سایر",
     "modeStandard": "معمولی",
     "modeReading": "مطالعه",
@@ -79,7 +80,8 @@
     "modeLabel": "حالت نمایش",
     "recentPassages": "قسمت‌های اخیر",
     "noHistory": "هنوز قسمتی بازدید نشده است",
-    "translationButton": "ترجمه: {abbr}"
+    "translationButton": "ترجمه: {abbr}",
+    "currentReference": "{reference}: رفتن به کتاب و باب"
   },
   "bibleContent": {
     "votdLabel": "آیهٔ امروز",
@@ -347,7 +349,8 @@
           "overQuota": "حدود {size} فضای بیشتر لازم است."
         },
         "remove": "حذف",
-        "keepHint": "انتخاب یک مورد روی این دستگاه آن را اینجا نگه می‌دارد؛ هرگز به‌طور خودکار پاک نمی‌شود."
+        "keepHint": "انتخاب یک مورد روی این دستگاه آن را اینجا نگه می‌دارد؛ هرگز به‌طور خودکار پاک نمی‌شود.",
+        "selectAllGroup": "انتخاب همه در {group}"
       }
     },
     "downloads": {
@@ -380,7 +383,8 @@
       "desktopOnly": "یادداشت‌ها، هایلایت‌ها، نشانک‌ها، حفظ کلام، برنامه‌های مطالعه و فهرست‌های دعا در برنامهٔ رایانه‌ای موجودند.",
       "license": "تحت مجوز <strong>GNU General Public License v3.0</strong> (GPL-3.0) منتشر شده است.",
       "licenseDetails": "این نرم‌افزار طبق شرایط GPL v3 برای استفاده، تغییر و توزیع آزاد است. کد منبع و مشارکت‌ها پذیرفته می‌شود.",
-      "viewOnGithub": "مشاهده در GitHub"
+      "viewOnGithub": "مشاهده در GitHub",
+      "credits": "بیشتر کتاب‌های مقدس، تفسیرها و فرهنگ‌های لغت از ماژول‌های The SWORD Project تبدیل شده‌اند که توسط CrossWire Bible Society (crosswire.org) توزیع می‌شوند. حق نشر و مجوز هر ماژول به‌طور جداگانه اعمال می‌شود."
     },
     "language": {
       "title": "زبان",
@@ -466,7 +470,8 @@
     "copyToClipboard": "کپی در کلیپ‌بورد",
     "loading": "در حال بارگذاری آیات...",
     "copyFailed": "کپی در کلیپ‌بورد ممکن نشد. بررسی کنید که این سایت اجازهٔ استفاده از آن را دارد.",
-    "referencePosition": "جای ارجاع"
+    "referencePosition": "جای ارجاع",
+    "print": "چاپ"
   },
   "ui": {
     "passageInsert": {
@@ -502,7 +507,8 @@
       "quoteMarksNone": "هیچ",
       "commentPlaceholdersLabel": "جا برای نظر در زیر هر آیه",
       "verseHeading": "آیهٔ {verse}",
-      "commentPlaceholderText": "[نظرات دربارهٔ {reference}]"
+      "commentPlaceholderText": "[نظرات دربارهٔ {reference}]",
+      "verseNumbersFirstFull": "ارجاع کامل در آیه اول (یو 3:16)، سپس شماره‌ها"
     }
   },
   "feedbackDialog": {
@@ -569,7 +575,10 @@
     "aboutAuthor": "نویسنده",
     "aboutYear": "سال",
     "aboutDescription": "توضیحات",
+    "aboutCopyright": "حق نشر",
     "aboutLicense": "مجوز",
+    "aboutSource": "منبع",
+    "aboutConvertedFrom": "تبدیل",
     "aboutPublisher": "ناشر",
     "aboutLanguage": "زبان",
     "aboutUnavailable": "اطلاعات ماژول در دسترس نیست."
@@ -871,7 +880,10 @@
     "noResults": "نتیجه‌ای یافت نشد.",
     "searchFor": "جستجوی «{query}»",
     "back": "بازگشت",
-    "chapterOption": "{book} باب {chapter}"
+    "chapterOption": "{book} باب {chapter}",
+    "selectAVerse": "یک آیه انتخاب کنید یا به کل باب بروید",
+    "goToChapter": "رفتن به {book} {chapter}",
+    "verseOption": "{book} {chapter}:{verse}"
   },
   "helpDialog": {
     "esc": "Esc"

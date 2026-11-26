@@ -71,6 +71,7 @@
     "noMatches": "אין התאמות",
     "popular": "פופולריים",
     "allTranslations": "כל התרגומים",
+    "recent": "אחרונים",
     "other": "אחר",
     "modeStandard": "רגיל",
     "modeReading": "קריאה",
@@ -79,7 +80,8 @@
     "modeLabel": "מצב תצוגה",
     "recentPassages": "קטעים אחרונים",
     "noHistory": "טרם בוקרו קטעים",
-    "translationButton": "תרגום: {abbr}"
+    "translationButton": "תרגום: {abbr}",
+    "currentReference": "{reference}: מעבר לספר ולפרק"
   },
   "bibleContent": {
     "votdLabel": "פסוק היום",
@@ -347,7 +349,8 @@
           "overQuota": "נדרש מקום נוסף של כ-{size}."
         },
         "remove": "הסרה",
-        "keepHint": "בחירה בפריט שנמצא במכשיר זה משאירה אותו כאן; הוא לעולם אינו מנוקה אוטומטית."
+        "keepHint": "בחירה בפריט שנמצא במכשיר זה משאירה אותו כאן; הוא לעולם אינו מנוקה אוטומטית.",
+        "selectAllGroup": "בחירת הכול ב{group}"
       }
     },
     "downloads": {
@@ -380,7 +383,8 @@
       "desktopOnly": "הערות, הדגשות, סימניות, שינון כתבי הקודש, תוכניות קריאה ורשימות תפילה זמינים ביישום לשולחן העבודה.",
       "license": "ברישיון <strong>GNU General Public License v3.0</strong> (GPL-3.0).",
       "licenseDetails": "תוכנה זו חופשית לשימוש, לשינוי ולהפצה בהתאם לתנאי ה-GPL v3. קוד המקור ותרומות מתקבלים בברכה.",
-      "viewOnGithub": "צפייה ב-GitHub"
+      "viewOnGithub": "צפייה ב-GitHub",
+      "credits": "רוב המקראות, הפירושים והמילונים הומרו ממודולים של The SWORD Project, המופצים על ידי CrossWire Bible Society (crosswire.org). זכויות היוצרים והרישיון של כל מודול חלים."
     },
     "language": {
       "title": "שפה",
@@ -466,7 +470,8 @@
     "copyToClipboard": "העתקה ללוח",
     "loading": "טוען פסוקים...",
     "copyFailed": "לא ניתן להעתיק ללוח. בדקו שלאתר זה יש הרשאה להשתמש בו.",
-    "referencePosition": "מיקום ההפניה"
+    "referencePosition": "מיקום ההפניה",
+    "print": "הדפסה"
   },
   "ui": {
     "passageInsert": {
@@ -502,7 +507,8 @@
       "quoteMarksNone": "ללא",
       "commentPlaceholdersLabel": "מקום להערות מתחת לכל פסוק",
       "verseHeading": "פסוק {verse}",
-      "commentPlaceholderText": "[הערות עבור {reference}]"
+      "commentPlaceholderText": "[הערות עבור {reference}]",
+      "verseNumbersFirstFull": "הפניה מלאה בפסוק הראשון (יוחנן 3:16), ואחריו מספרים"
     }
   },
   "feedbackDialog": {
@@ -569,7 +575,10 @@
     "aboutAuthor": "מחבר",
     "aboutYear": "שנה",
     "aboutDescription": "תיאור",
+    "aboutCopyright": "זכויות יוצרים",
     "aboutLicense": "רישיון",
+    "aboutSource": "מקור",
+    "aboutConvertedFrom": "המרה",
     "aboutPublisher": "מו״ל",
     "aboutLanguage": "שפה",
     "aboutUnavailable": "פרטי המודול אינם זמינים."
@@ -871,7 +880,10 @@
     "noResults": "אין תוצאות.",
     "searchFor": "חיפוש \"{query}\"",
     "back": "חזרה",
-    "chapterOption": "{book} פרק {chapter}"
+    "chapterOption": "{book} פרק {chapter}",
+    "selectAVerse": "בחרו פסוק, או עברו לפרק כולו",
+    "goToChapter": "מעבר ל{book} {chapter}",
+    "verseOption": "{book} {chapter}:{verse}"
   },
   "helpDialog": {
     "esc": "Esc"

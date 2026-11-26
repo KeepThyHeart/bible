@@ -81,4 +81,13 @@ describe('audioExternalOrigins', () => {
     });
     expect(audioExternalOrigins(cfg).sort()).toEqual(['https://audio.example.com', 'https://models.example.org']);
   });
+
+  it('accepts an app scheme only when the caller allows it (desktop kth-audio:)', () => {
+    const raw = { base: 'kth-audio://app/audio', tts: { engines: [{ id: 'piper', assetBase: 'kth-audio://app/audio/tts/piper' }] } };
+    expect(parseAudioSiteConfig(raw).base).toBe('/audio');
+    const cfg = parseAudioSiteConfig(raw, { allowSchemes: ['kth-audio'] });
+    expect(cfg.base).toBe('kth-audio://app/audio');
+    expect(cfg.engines[0].assetBase).toBe('kth-audio://app/audio/tts/piper');
+    expect(audioExternalOrigins(cfg)).toEqual([]);
+  });
 });

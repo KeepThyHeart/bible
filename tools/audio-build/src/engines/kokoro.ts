@@ -4,9 +4,10 @@
  * downloaded once into the cache dir.
  */
 
-import { join } from 'node:path';
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 import { ensureDownloaded } from './download';
-import { hasPronunciation, splitPronunciation, stripPronunciation } from '../core';
+import { clearSpeechIpa, hasPronunciation, splitPronunciation, stripPronunciation } from '../core';
 import type {
   AudioError, AudioVoice, ITtsEngine, LoadProgress, SynthesisRequest, SynthesisResult, TtsEngineCapabilities,
 } from '../core';
@@ -68,10 +69,102 @@ export function splitForKokoro(text: string, maxChars = 280): string[] {
 const PIECE_GAP_SECONDS = 0.2;
 
 type KokoroAudio = { audio: Float32Array; sampling_rate: number };
+/** The token ids tensor the tokenizer returns; `dims` is [1, n]. */
+export interface KokoroIds { dims: number[] }
+export interface KokoroTokenizer {
+  (text: string, opts?: { truncation?: boolean }): { input_ids: KokoroIds };
+  model?: { tokens_to_ids?: Map<string, number> };
+}
 export interface KokoroInstance {
   generate(text: string, opts: { voice: string; speed: number }): Promise<KokoroAudio>;
-  generate_from_ids?(ids: unknown, opts: { voice: string; speed: number }): Promise<KokoroAudio>;
-  tokenizer?: (text: string, opts?: { truncation?: boolean }) => { input_ids: unknown };
+  generate_from_ids?(ids: KokoroIds, opts: { voice: string; speed: number }): Promise<KokoroAudio>;
+  tokenizer?: KokoroTokenizer;
+  /** The StyleTTS2 model: `{ input_ids, style [1,256], speed [1] }` to `{ waveform }`. */
+  model?: (inputs: Record<string, unknown>) => Promise<{ waveform: { data: Float32Array } }>;
+}
+
+// -- Voice blends -------------------------------------------------------------------
+
+/** One voice of a blend and its share (the shares of a blend sum to 1). */
+export interface KokoroVoicePart { id: string; weight: number }
+
+/** Each voice's style data: 510 rows (one per input length) of 256 floats. */
+export const KOKORO_STYLE_ROWS = 510;
+export const KOKORO_STYLE_DIM = 256;
+
+/**
+ * A Kokoro voice id or a blend, `am_michael:0.5+bm_george:0.5` (weights are shares, normalised
+ * to sum to 1; `am_michael+bm_george` is an even blend). The first voice sets the accent: the
+ * text is phonemized, and gets pronunciation corrections, in its language.
+ */
+export function parseKokoroVoice(spec: string): { parts: KokoroVoicePart[] } | { error: string } {
+  const raw = spec.split('+').map(p => p.trim());
+  const parts: KokoroVoicePart[] = [];
+  for (const p of raw) {
+    const m = /^([a-z]{2}_[a-z]+)(?::(\d+(?:\.\d+)?|\.\d+))?$/.exec(p);
+    if (!m) return { error: `"${spec}" is not a Kokoro voice or blend (for example am_michael:0.5+bm_george:0.5).` };
+    if (!KOKORO_VOICES.some(x => x.id === m[1])) return { error: `"${m[1]}" is not a Kokoro voice. Known: ${KOKORO_VOICES.map(x => x.id).join(', ')}.` };
+    if (parts.some(x => x.id === m[1])) return { error: `"${m[1]}" appears twice in the blend "${spec}".` };
+    const weight = m[2] === undefined ? 1 : Number(m[2]);
+    if (!(weight > 0)) return { error: `Each voice in a blend needs a weight above 0 ("${p}").` };
+    parts.push({ id: m[1], weight });
+  }
+  const total = parts.reduce((n, x) => n + x.weight, 0);
+  return { parts: parts.map(x => ({ id: x.id, weight: x.weight / total })) };
+}
+
+/** True when the id is a blend (or a single voice written with a weight), which takes our own model call. */
+export const isKokoroBlend = (spec: string): boolean => /[:+]/.test(spec);
+
+const blendParts = (spec: string): KokoroVoicePart[] => {
+  const r = parseKokoroVoice(spec);
+  if ('error' in r) throw engineError(r.error, false);
+  return r.parts;
+};
+
+/** The weighted average of the voices' style data. */
+export function blendKokoroStyles(parts: KokoroVoicePart[], load: (voiceId: string) => Float32Array): Float32Array {
+  const out = new Float32Array(KOKORO_STYLE_ROWS * KOKORO_STYLE_DIM);
+  for (const { id, weight } of parts) {
+    const data = load(id);
+    if (data.length !== out.length) throw engineError(`Kokoro voice ${id} has ${data.length} style values, expected ${out.length}.`, false);
+    for (let i = 0; i < out.length; i++) out[i] += weight * data[i];
+  }
+  return out;
+}
+
+/** The style row kokoro-js picks for `tokens` input ids (BOS and EOS included). */
+export function kokoroStyleRow(style: Float32Array, tokens: number): Float32Array {
+  const at = KOKORO_STYLE_DIM * Math.min(Math.max(tokens - 2, 0), KOKORO_STYLE_ROWS - 1);
+  return style.slice(at, at + KOKORO_STYLE_DIM);
+}
+
+/** A voice's style data as shipped in the kokoro-js package (`voices/<id>.bin`, little-endian float32), which kokoro-js itself reads in Node. */
+export function readKokoroVoiceData(voiceId: string): Float32Array {
+  const file = join(dirname(require.resolve('kokoro-js')), '..', 'voices', `${voiceId}.bin`);
+  const buf = readFileSync(file);
+  return new Float32Array(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength));
+}
+
+const firstVoice = (spec: string): string => (isKokoroBlend(spec) ? blendParts(spec)[0].id : spec);
+
+const voiceName = (id: string): string => KOKORO_VOICES.find(x => x.id === id)?.label.split(' (')[0] ?? id;
+
+export function kokoroVoiceLanguage(spec: string): string | undefined {
+  const r = parseKokoroVoice(spec);
+  return 'error' in r ? undefined : KOKORO_VOICES.find(x => x.id === r.parts[0].id)?.language;
+}
+
+/** `michael50-george50` for a blend; the id itself for one voice. */
+export function kokoroVoiceSlug(spec: string): string {
+  if (!isKokoroBlend(spec)) return spec;
+  return blendParts(spec).map(p => `${p.id.split('_')[1]}${Math.round(p.weight * 100)}`).join('-');
+}
+
+/** `Michael 50% + George 50%` for a blend; the id itself for one voice. */
+export function kokoroVoiceLabel(spec: string): string {
+  if (!isKokoroBlend(spec)) return spec;
+  return blendParts(spec).map(p => `${voiceName(p.id)} ${Math.round(p.weight * 100)}%`).join(' + ');
 }
 
 const PROBE_STOP = Symbol('kokoro-phonemes');
@@ -115,8 +208,10 @@ export async function kokoroMarkedPhonemes(phonemize: (text: string) => Promise<
 /** The corrections are American English: British voices get the words. */
 const speaksOverlay = (voiceId: string): boolean => KOKORO_VOICES.find(x => x.id === voiceId)?.language === 'en-US';
 interface KokoroModule { KokoroTTS: new (model: unknown, tokenizer: unknown) => KokoroInstance }
+type TensorClass = new (type: string, data: Float32Array | number[], dims: number[]) => unknown;
 interface TransformersModule {
   env: { cacheDir: string };
+  Tensor: TensorClass;
   StyleTextToSpeech2Model: { from_pretrained(id: string, opts: Record<string, unknown>): Promise<unknown> };
   AutoTokenizer: { from_pretrained(id: string, opts?: Record<string, unknown>): Promise<unknown> };
 }
@@ -133,8 +228,19 @@ export class KokoroNodeEngine implements ITtsEngine {
     approxRuntimeBytes: 600 * 1024 * 1024,
   };
   private tts: KokoroInstance | null = null;
+  private Tensor: TensorClass | null = null;
+  /** Blended style data by voice spec. */
+  private readonly styles = new Map<string, Float32Array>();
 
-  constructor(private readonly ctx: EngineContext) {}
+  constructor(private readonly ctx: EngineContext, private readonly loadVoiceData: (voiceId: string) => Float32Array = readKokoroVoiceData) {}
+
+  /** For tests: an engine around a stand-in instance and tensor class (no model files). */
+  static withInstance(ctx: EngineContext, tts: KokoroInstance, Tensor: TensorClass, loadVoiceData?: (voiceId: string) => Float32Array): KokoroNodeEngine {
+    const e = new KokoroNodeEngine(ctx, loadVoiceData);
+    e.tts = tts;
+    e.Tensor = Tensor;
+    return e;
+  }
 
   async isSupported(): Promise<boolean> { return true; }
   async listVoices(): Promise<AudioVoice[]> { return KOKORO_VOICES; }
@@ -168,6 +274,8 @@ export class KokoroNodeEngine implements ITtsEngine {
       transformers.AutoTokenizer.from_pretrained(KOKORO_MODEL_ID, { progress_callback }),
     ]);
     this.tts = new kokoro.KokoroTTS(model, tokenizer);
+    this.Tensor = transformers.Tensor;
+    if (isKokoroBlend(voiceId)) this.style(voiceId);
     onProgress({ phase: 'engine', loaded: 1, total: 1 });
   }
 
@@ -191,14 +299,51 @@ export class KokoroNodeEngine implements ITtsEngine {
     return { pcm, sampleRate };
   }
 
-  /** One piece: through Kokoro's own pipeline, or, with markers, our phonemes and `generate_from_ids`. */
+  /**
+   * One piece. Plain voice, no clear speech: through Kokoro's own pipeline, or, with markers,
+   * our phonemes and `generate_from_ids` (unchanged from before blends and clear speech).
+   * Otherwise always our phonemes (in the first voice's accent, with the corrections, then the
+   * clear-speech rules), then the tokenizer and, for a blend, the model with the blended style.
+   */
   private async generate(piece: string, voice: string, speed: number): Promise<KokoroAudio> {
     const tts = this.tts!;
-    if (!hasPronunciation(piece)) return tts.generate(piece, { voice, speed });
-    if (!speaksOverlay(voice) || !tts.tokenizer || !tts.generate_from_ids) return tts.generate(stripPronunciation(piece), { voice, speed });
-    const phonemes = await kokoroMarkedPhonemes(t => kokoroPhonemes(tts, t, voice), piece);
+    const blend = isKokoroBlend(voice);
+    if (!blend && !this.ctx.clearSpeech) {
+      if (!hasPronunciation(piece)) return tts.generate(piece, { voice, speed });
+      if (!speaksOverlay(voice) || !tts.tokenizer || !tts.generate_from_ids) return tts.generate(stripPronunciation(piece), { voice, speed });
+      const phonemes = await kokoroMarkedPhonemes(t => kokoroPhonemes(tts, t, voice), piece);
+      const { input_ids } = tts.tokenizer(phonemes, { truncation: true });
+      return tts.generate_from_ids(input_ids, { voice, speed });
+    }
+    if (!tts.tokenizer || !tts.generate_from_ids || (blend && (!tts.model || !this.Tensor))) {
+      throw engineError('This kokoro-js build does not expose its tokenizer and model; blends and clear speech need them.', false);
+    }
+    const accent = firstVoice(voice);
+    const phonemize = (t: string): Promise<string> => kokoroPhonemes(tts, t, accent);
+    let phonemes = hasPronunciation(piece) && speaksOverlay(accent)
+      ? await kokoroMarkedPhonemes(phonemize, piece)
+      : await phonemize(stripPronunciation(piece));
+    if (this.ctx.clearSpeech) {
+      const vocab = tts.tokenizer.model?.tokens_to_ids;
+      phonemes = clearSpeechIpa(phonemes, vocab ? s => vocab.has(s) : undefined);
+    }
     const { input_ids } = tts.tokenizer(phonemes, { truncation: true });
-    return tts.generate_from_ids(input_ids, { voice, speed });
+    if (!blend) return tts.generate_from_ids(input_ids, { voice, speed });
+    // What kokoro-js `generate_from_ids` does, with the blended style in place of one voice's.
+    const style = kokoroStyleRow(this.style(voice), input_ids.dims.at(-1) ?? 0);
+    const T = this.Tensor!;
+    const { waveform } = await tts.model!({
+      input_ids,
+      style: new T('float32', style, [1, KOKORO_STYLE_DIM]),
+      speed: new T('float32', [speed], [1]),
+    });
+    return { audio: waveform.data, sampling_rate: 24000 };
+  }
+
+  private style(spec: string): Float32Array {
+    let s = this.styles.get(spec);
+    if (!s) { s = blendKokoroStyles(blendParts(spec), this.loadVoiceData); this.styles.set(spec, s); }
+    return s;
   }
 
   async evictVoice(): Promise<void> { /* the model serves every voice */ }
@@ -213,7 +358,8 @@ export async function fetchKokoroFiles(ctx: Pick<EngineContext, 'cacheDir' | 'qu
 }
 
 export function checkKokoroVoice(id: string): string | undefined {
-  return KOKORO_VOICES.some(x => x.id === id) ? undefined : `"${id}" is not a Kokoro voice. Known: ${KOKORO_VOICES.map(x => x.id).join(', ')}.`;
+  const r = parseKokoroVoice(id);
+  return 'error' in r ? r.error : undefined;
 }
 
 const modelLabel = (q: Pick<{ quantization: Quantization }, 'quantization'>): string => `Kokoro-82M-v1.0-ONNX ${q.quantization}`;
@@ -221,6 +367,10 @@ const modelLabel = (q: Pick<{ quantization: Quantization }, 'quantization'>): st
 export const kokoroDefinition: EngineDefinition = {
   id: 'kokoro',
   pronunciation: true,
+  clearSpeech: true,
+  voiceLanguage: kokoroVoiceLanguage,
+  voiceSlug: kokoroVoiceSlug,
+  voiceLabel: kokoroVoiceLabel,
   label: 'Kokoro-82M (native, onnxruntime-node)',
   languages: ['en'],
   voices: KOKORO_VOICES,
@@ -234,7 +384,11 @@ export const kokoroDefinition: EngineDefinition = {
     return {
       engine: { name: 'kokoro-js with onnxruntime-node', license: 'Apache-2.0', url: 'https://github.com/hexgrad/kokoro' },
       model: { name: modelLabel(ctx), license: 'Apache-2.0', url: `https://huggingface.co/${KOKORO_MODEL_ID}`, attribution: 'Kokoro-82M by hexgrad, ONNX conversion by onnx-community' },
-      voice: { name: `Kokoro voice ${voiceId}`, license: 'Apache-2.0', url: 'https://huggingface.co/hexgrad/Kokoro-82M' },
+      voice: {
+        name: isKokoroBlend(voiceId) ? `Kokoro voice blend ${blendParts(voiceId).map(p => `${p.id} ${Math.round(p.weight * 100)}%`).join(' + ')}` : `Kokoro voice ${voiceId}`,
+        license: 'Apache-2.0',
+        url: 'https://huggingface.co/hexgrad/Kokoro-82M',
+      },
     };
   },
   create: ctx => new KokoroNodeEngine(ctx),

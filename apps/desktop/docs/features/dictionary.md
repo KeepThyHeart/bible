@@ -172,3 +172,12 @@ Two rules a module such as `Webster's Dictionary 1828` - registered but absent, 
 | `src/ui/stores/useDictionaryStore.tabsAndPaging.test.ts` | Tab open/close/reorder and browse paging |
 | `src/ui/components/DictionaryPane.test.tsx` | Pane rendering, the Search-all-occurrences button, toolbar cells |
 | `src/ui/components/dictionary/DictionarySinglePanel.test.tsx` | The single-module panel's lookup flow |
+
+## Look up (word to every dictionary)
+
+"Look up" asks every installed dictionary about a word or short phrase (at most four words) and shows the answers grouped by dictionary in the Dictionary pane.
+
+- **Where it starts:** the verse context menu's "Look up “word”" when a word is right-clicked (the Strong's number of a tagged word travels with it), and a magnifier button on the floating selection toolbar when the selection is a word or short phrase. There is deliberately no double-click handler: it fought drag selection (`useBibleSelection.ts`), and double-click already selects the word and raises that toolbar.
+- **Providers:** `LookUpProvider` in `@bible/core` (`Services/LookUp.ts`) is the interface; the desktop registry is `src/ui/lookUp/lookUpRegistry.ts` and only the dictionary provider is registered. A genealogy or word-study provider registers the same way and its groups simply appear beside the dictionaries'.
+- **Data path:** `dictionary:lookUp` (IPC, `dictionaryHandlers.ts`) runs `searchDictionariesForWord` over every installed dictionary - `DictionaryRepository.searchEntries`, so the stemmed title tier applies ("walked" finds WALK) - and, for a tagged word, puts the Strong's entry first in the matching Greek or Hebrew lexicon. Empty dictionaries are dropped and the Strong's lexicon sorts first.
+- **UI:** `openLookUp()` (`components/bible/openLookUp.ts`) reveals the Dictionary pane and runs `useLookUpStore`; `components/dictionary/LookUpResults.tsx` renders at the top of the pane. Choosing an entry opens it in its dictionary and dismisses the list; Close dismisses it. A later look-up cannot be overwritten by a slower earlier one.

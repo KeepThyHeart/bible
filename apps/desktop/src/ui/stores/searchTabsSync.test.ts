@@ -79,7 +79,7 @@ beforeEach(() => {
     panels: new Map(),
     activePanelId: null,
   });
-  usePreferencesStore.setState({ searchResultsPlacement: 'below' });
+  usePreferencesStore.setState({ searchResultsPlacement: 'below', reopenSearchTabs: true });
   off = null;
 });
 
@@ -140,6 +140,25 @@ describe('restoreSearchTabsFromLayout', () => {
     restoreSearchTabsFromLayout(fakeApi as never);
 
     expect(useSearchStore.getState().parkedSessions.s1).toMatchObject({ query: 'faith', pendingRerun: true });
+  });
+});
+
+describe('restoreSearchTabsFromLayout with "Reopen search tabs" off (task 0224)', () => {
+  it('closes every search panel, even ones saved with a query, and restores nothing', () => {
+    usePreferencesStore.setState({ reopenSearchTabs: false });
+    setPanels(searchPanel('s1'), hostPanel('h1'), biblePanel('b1'));
+    addDock('s1', { searchQuery: 'faith' });
+    addDock('h1', { searchTabs: [{ id: 'x', query: 'grace' }] });
+    addDock('b1', {});
+    const removePanel = vi.fn();
+    useLayoutStore.setState({ removePanel: removePanel as never });
+    const restoreSessions = vi.fn();
+    useSearchStore.setState({ restoreSessions });
+
+    restoreSearchTabsFromLayout(fakeApi as never);
+
+    expect(restoreSessions).not.toHaveBeenCalled();
+    expect(removePanel.mock.calls.map((c) => c[0]).sort()).toEqual(['h1', 's1']);
   });
 });
 

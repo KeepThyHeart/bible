@@ -76,7 +76,7 @@ describe('shipped cache rules', () => {
   it('keep the large caches on reset, including the external transformers cache', () => {
     expect(preservedOnReset(CACHE_RULES).sort()).toEqual(
       [
-        'assets-v1', 'audio-chapters-v1', 'audio-manifests-v1', 'embedding-model-v1', 'semantic-index-v1',
+        'assets-v1', 'audio-chapters-v1', 'audio-downloads-v1', 'audio-manifests-v1', 'embedding-model-v1', 'semantic-index-v1',
         'transformers-cache', 'tts-models-v1',
       ].sort(),
     );
@@ -138,7 +138,7 @@ describe('isApiPath', () => {
 
 describe('audio rules', () => {
   it('resolve to the cache names the page writes to', async () => {
-    const { AUDIO_CACHE_NAMES } = await import('../modules/audio/lib/cacheNames');
+    const { AUDIO_CACHE_NAMES } = await import('@bible/audio/cacheNames');
     const names = Object.values(AUDIO_CACHE_NAMES).sort();
     const fromRules = CACHE_RULES.filter(r => r.owner === 'audio').map(resolveCacheName).sort();
     expect(fromRules).toEqual(names);

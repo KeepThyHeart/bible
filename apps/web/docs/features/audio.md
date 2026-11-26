@@ -1,6 +1,6 @@
 # Audio Bible
 
-**Last verified:** this task (0059), on branch `feature/audio`
+**Last verified:** task 0223, on branch `feature/audio-desktop` (the engine moved to `packages/audio`, shared with the desktop app; see `apps/desktop/docs/features/audio.md`)
 
 Listening to a chapter: pre-generated recordings where an installation has them, and on-device text-to-speech (Piper) for everything else. Both channels sit behind one player and a set of interfaces, so any part that renders, fetches, caches or times audio can be replaced without touching the rest.
 
@@ -125,6 +125,7 @@ A second engine (Kokoro, phase 2) would add a `TtsEngineFactory` to the registry
 |---|---|
 | Cache API `audio-manifests-v1`, `audio-chapters-v1` | manifests and recorded chapter files (recently played chapters, size-limited LRU) |
 | Cache API `tts-models-v1` | engine runtimes and voices, never expired automatically |
+| Cache API `audio-downloads-v1` | books the reader downloaded for offline listening (manifests, the playable file per chapter, the translation's `index.json`). Pinned: never evicted, read before the LRU caches, kept on "Reset app cache", removed per book by the reader. Played as blob URLs, so seeking works offline without the service worker. `navigator.storage.persist()` is asked on the first download |
 | `localStorage` `bible-audio-prefs` | source (global and per translation), voice per engine and language, speed, follow-along, auto-scroll, continue, chapter intro, battery notice seen. Validated on load. The four "while playing" toggles are declared in the settings registry (`audio/audioSettings.ts`, a port over `audioStore.prefs`) and drawn by `SettingsForm`; the rest of the tab is custom |
 
 The Cache API is used directly from the page (not through the service worker) so recordings and voices are cached whether or not the PWA is enabled; the PWA build adds routes for the same caches so seeking in a cached chapter works offline.
@@ -145,6 +146,7 @@ Alt+P play/pause, Alt+Left / Alt+Right previous / next verse, Alt+Shift+Left / R
 | `registry.ts` | `Registry<T>`, the shape of the plugin registries, for providers and engine factories |
 | `TextPreparer.ts` | Verse markup to speakable text; chapter intro ("John, chapter 3.") per language. Shared by live speech and `tools/audio-build` |
 | `piperPhonemes.ts` | The pure Piper pieces: voice config, phonemizer arguments and output, phoneme-to-id mapping, scales. Shared by the browser worker and `tools/audio-build` |
+| `clearSpeech.ts` | Clear-speech rules: rewrite espeak-style IPA for careful diction (real t for flaps and glottal stops, full vowels for reduced ones). Used by `tools/audio-build --clear-speech`; see `audio-pronunciation.md` |
 
 ### Server (`apps/web/server/`)
 
@@ -154,11 +156,15 @@ Alt+P play/pause, Alt+Left / Alt+Right previous / next verse, Alt+Shift+Left / R
 | `cspDirectives.ts` | `media-src 'self' blob:` (only when audio is on) plus the configured remote origins |
 | `SiteConfig.ts` | `features.audio`, the `audio` getter (dir, client block, external origins) |
 
-### Client, audio layer (`apps/web/src/modules/audio/lib/`)
+### Shared audio engine (`packages/audio/src/`, `@bible/audio`)
+
+Everything below is framework-free and shared by the web and desktop apps (task 0223). The store talks to the host app through two ports (`ports.ts`: `AudioReaderPort` for tabs or panes, the selection and the follow page turn; `AudioModulesPort` for a translation's language); each app passes its own (web: `src/modules/audio/audioStore.ts`). Entry points: `@bible/audio`, `@bible/audio/piper` (engine and worker handlers), `@bible/audio/cacheNames`, `@bible/audio/testing`.
 
 | File | Description |
 |---|---|
-| `bootstrap.ts`, `initAudio.ts` | Assemble providers, resolver, player and media session from the config; connect them to the stores. `initAudio` is loaded by the module's `activate()` only when the feature is on |
+| `AudioStore.ts`, `Store.ts`, `ports.ts` | The framework-neutral store (preferences, gates, resolved source, player mirror, `PositionStore`, `FollowStore`) and the host ports |
+| `bootstrap.ts` | Assemble providers, resolver, player and media session from the config. The app passes its engine factories (`createPiperFactory({ assets, storage })`) and may override the caches (`caches.downloads` puts downloaded books in front of the others) |
+| `downloads/audioDownloads.ts`, `downloads/cacheDownloadStore.ts` | Per-book downloads for offline listening: `AudioDownloadsModel` (books per narrator, partial books, sizes, selection, Whole Bible warning, free-space check, run, cancel, remove), the `audio` pack installer, the app's `IAudioDownloadStore`; the web store over a pinned cache and `layeredAssetCache` |
 | `AudioPlayer.ts` | The one player: generation-guarded queue, verse events, seek, chapter end, prefetch. Rules are in its header |
 | `HtmlAudioOutput.ts` | One shared `<audio>` element behind `IAudioOutput` |
 | `RecordedAudioProvider.ts`, `HttpManifestSource.ts`, `CdnAudioLocator.ts` | The recorded channel and its URL scheme |
@@ -166,17 +172,24 @@ Alt+P play/pause, Alt+Left / Alt+Right previous / next verse, Alt+Shift+Left / R
 | `tts/WorkerTtsEngine.ts`, `tts/serveTtsWorker.ts`, `tts/ttsWorkerProtocol.ts`, `tts/LazyTtsEngine.ts` | Engine-independent worker plumbing and lazy loading |
 | `tts/piper/` | `PiperEngine`, `piperFactory`, `piperWorker` (entry), `piperHandlers` (the browser wiring, dependency-injected for tests; the pure phoneme mapping is `piperPhonemes.ts` in core), `piperConfig` (file layout) |
 | `AudioSourceResolver.ts` | Which provider and voice plays a translation; `sourceStatus` |
-| `AssetCache.ts`, `cacheNames.ts`, `audioStorage.ts` | Cache API and in-memory `IAssetCache`, cache names shared with the service worker, storage usage and clearing |
+| `AssetCache.ts`, `cacheNames.ts`, `audioStorage.ts` | Cache API and in-memory `IAssetCache`, cache names shared with the service worker (plus `AUDIO_DOWNLOADS_CACHE`, page-only), storage usage and clearing |
 | `MediaSessionBridge.ts` | Lock-screen and media-key controls |
 | `sourceChoice.ts` | Auto / Recorded / Generated over the providers |
 | `audioPrefs.ts`, `audioSettings.ts`, `config.ts`, `registries.ts`, `wav.ts`, `audioShortcuts.ts` | Preferences, client config accessor, registries, WAV encoding, shortcuts |
-| `testing.ts`, `uiRig.ts` | Test doubles: fake media element, output, providers, TTS engine, manifest source; a rig wiring the real store and player to them |
+| `testing.ts` | Test doubles: fake media element, output, providers, TTS engine, manifest source |
+
+### Client, audio layer (`apps/web/src/modules/audio/lib/`)
+
+| File | Description |
+|---|---|
+| `initAudio.ts` | Builds the audio system with the web's Piper assets (`AssetManager`, Cache API storage) and connects it to the stores. Loaded by the module's `activate()` only when the feature is on |
+| `uiRig.ts` | A test rig wiring the real store and player to the fakes |
 
 ### Client, state and UI
 
 | File | Description |
 |---|---|
-| `src/modules/audio/audioStore.ts` | The store the UI talks to (plus `PositionStore` and `FollowStore`) |
+| `src/modules/audio/audioStore.ts` | The web adapter: `AudioStore` from `@bible/audio` with the web reader and module ports |
 | `src/stores/bibleStore.ts` | `navigateTo({ follow, tabId })`: a page turn that leaves the selection, hash and Study panes alone |
 | `src/modules/audio/hooks/useFollowScroll.ts`, `useNowPlaying.ts` | Auto-scroll to the verse being read; the "what is playing" view model |
 | `src/modules/audio/{manifest,binding,module}.ts` | The feature-module contract: manifest (flag, Settings tab, namespace), lazy binding, `activate()` that fills the host slots below |
@@ -185,13 +198,13 @@ Alt+P play/pause, Alt+Left / Alt+Right previous / next verse, Alt+Shift+Left / R
 | `src/modules/audio/components/` | Shared pieces: status line, transport buttons, progress, verse pane, quick settings, speed picker, source controls, gate dialog, live region, source list hook |
 | `src/modules/audio/components/AudioSettingsTab.tsx` | Settings > Audio (the lazy view `preferences:audio`) |
 | `src/modules/audio/audio.scss`, `styles/_audio*.scss` | Audio styles (imported by the module, not `main.scss`) split by piece: shared, bar, phone, verses, pop-up, quick settings (theme tokens only) |
-| `src/sw/rules/audio.ts`, `src/utils/swCachePatterns.ts`, `src/modules/audio/lib/cacheNames.ts`, `public/sw-kill.js` | Cache rules for manifests, chapters and engine runtimes (registered in the service-worker cache-rule registry; the page's Cache API names derive from them; the kill switch keeps them on reset) |
+| `src/sw/rules/audio.ts`, `src/utils/swCachePatterns.ts`, `packages/audio/src/cacheNames.ts`, `public/sw-kill.js` | Cache rules for manifests, chapters and engine runtimes (registered in the service-worker cache-rule registry; the page's Cache API names derive from them; the kill switch keeps them on reset) |
 | `scripts/fetch-piper-assets.mjs` | Installs the Piper runtime and voices |
 | `e2e/audioFixture.ts`, `e2e/tests/audio-e2e.spec.ts` | Fixture recording of John 3 (KJV) and the specs |
 
 ## Testing
 
-Unit tests sit beside the code and use fakes only (`FakeManifestSource.withChapters` is the fixture manifest; `FakeTtsEngine` stands in for Piper), so everything runs with zero recordings. The Piper handlers are tested with a fake ONNX Runtime and phonemizer, and `PiperEngine` through the real worker protocol. `src/modules/audio/lib/localeKeys.test.ts` checks that every `audio.*` locale key the code uses exists in English (`locales/<lng>/audio.json`) and that es and zh-Hans have the same keys and parameters. E2E: `pnpm exec playwright test --config=e2e/playwright.config.ts audio-e2e` (needs a built client and the modules the suite lists; see `e2e/README.md`).
+Unit tests sit beside the code and use fakes only (`FakeManifestSource.withChapters` is the fixture manifest; `FakeTtsEngine` stands in for Piper), so everything runs with zero recordings. The Piper handlers are tested with a fake ONNX Runtime and phonemizer, and `PiperEngine` through the real worker protocol. Engine tests are in `packages/audio` (`pnpm --filter @bible/audio test`). `src/modules/audio/lib/localeKeys.test.ts` checks that every `audio.*` locale key the code uses exists in English (`locales/<lng>/audio.json`) and that es and zh-Hans have the same keys and parameters. E2E: `pnpm exec playwright test --config=e2e/playwright.config.ts audio-e2e` (needs a built client and the modules the suite lists; see `e2e/README.md`).
 
 ## Not verified here
 

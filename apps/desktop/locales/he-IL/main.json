@@ -1,6 +1,7 @@
 {
   "main.about.title": "אודות {productName}",
   "main.about.detail": "גרסה {version}\n\nיישום שולחני ללימוד המקרא.\n\n© {year}",
+  "main.about.credits": "רוב המקראות, הפירושים והמילונים הומרו ממודולים של The SWORD Project, המופצים על ידי CrossWire Bible Society (crosswire.org). זכויות היוצרים והרישיון של כל מודול חלים.",
   "main.about.build": "בנייה {buildId}",
   "main.about.ok": "אישור",
   "main.dialog.saveBackup": "שמירת קובץ גיבוי",

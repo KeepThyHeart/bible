@@ -155,6 +155,8 @@ export interface IAudioProvider {
   voices(moduleAbbr: string, language: string): Promise<AudioVoice[]>;
   /** False: the first play downloads something. */
   isReady(voiceId?: string): Promise<boolean>;
+  /** Bytes the first play still downloads for this voice (runtime included), when known. */
+  pendingBytes?(voiceId?: string): Promise<number | undefined>;
   prepare(voiceId: string | undefined, onProgress: (p: LoadProgress) => void, signal: AbortSignal): Promise<void>;
   openChapter(ref: ChapterRef, opts: OpenChapterOptions, signal: AbortSignal): Promise<IChapterAudio>;
   prefetch?(ref: ChapterRef, opts: OpenChapterOptions, signal: AbortSignal): Promise<void>;
@@ -190,6 +192,12 @@ export interface AudioBuildInfo {
   /** Silence after each verse and after the intro, milliseconds. */
   gapMs: number;
   introGapMs: number;
+  /** True when the phonemes were rewritten for careful diction (`clearSpeechIpa`); absent means off. */
+  clearSpeech?: boolean;
+  /** The clear-speech rules' version (`CLEAR_SPEECH_VERSION`) when `clearSpeech` is on; absent means 1. */
+  clearSpeechVersion?: number;
+  /** Ogg Opus bitrate, kbps, when it is not the tool's default; absent means the default. */
+  opusKbps?: number;
   /** The producing tool and version. */
   tool?: string;
 }
@@ -336,6 +344,8 @@ export interface ITtsEngine {
   /** From app config, filtered to what the engine can run. */
   listVoices(): Promise<AudioVoice[]>;
   isVoiceReady(voiceId: string): Promise<boolean>;
+  /** Bytes still to download before this voice can speak (shared runtime included), when known. */
+  pendingBytes?(voiceId: string): Promise<number | undefined>;
   prepare(voiceId: string, onProgress: (p: LoadProgress) => void, signal: AbortSignal): Promise<void>;
   synthesize(req: SynthesisRequest, signal: AbortSignal): Promise<SynthesisResult>;
   evictVoice(voiceId: string): Promise<void>;
@@ -376,6 +386,8 @@ export interface IAudioPlayer {
   resume(): void;
   stop(): void;
   seekVerse(delta: 1 | -1): Promise<void>;
+  /** Jump to a verse of the open chapter and play from it; false (nothing done) when it is not there. */
+  seekToVerse(verse: number): Promise<boolean>;
   seekChapter(delta: 1 | -1): Promise<void>;
   setRate(rate: number): void;
   on(e: 'state', cb: (s: PlayerState) => void): () => void;

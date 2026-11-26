@@ -4,6 +4,7 @@ import { whenContextService } from '../services/WhenContextService';
 import { registerSessionSerializer } from './helpers/sessionRegistry';
 import { collapseGroups, expandGroups, measureGroup, type CollapsedGroup } from '../services/PresetApplier';
 import { genericEnglishTitle } from '../utils/paneNames';
+import { getPrivacyPrefs } from './helpers/privacyPrefs';
 import { stripTransientPanels } from '../services/stripTransientPanels';
 
 /**
@@ -420,7 +421,11 @@ export const useLayoutStore = create<LayoutState>((set, get) => ({
     // closed on the live API. Session autosave calls this every 30s, so
     // closing here would delete a New Tab the user had just opened with `+`
     // - sporadically, depending on where the click fell in the interval.
-    return stripTransientPanels(api.toJSON());
+    // Search panels carry the reader's queries (title and params); unless they
+    // opted in to reopening them, they are left out of the saved layout (task 0224).
+    return stripTransientPanels(api.toJSON(), {
+      dropSearchPanels: !getPrivacyPrefs().reopenSearchTabs,
+    });
   },
 
   addPanel: (contentType: PanelContentType, contentKey?: string, displayName?: string, position?: Record<string, unknown>, subtitle?: string, panelIdOverride?: string, extras?: AddPanelExtras) => {

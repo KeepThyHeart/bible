@@ -1,6 +1,7 @@
 {
   "main.about.title": "Sobre o {productName}",
   "main.about.detail": "Versão {version}\n\nUm aplicativo de estudo bíblico para desktop.\n\n© {year}",
+  "main.about.credits": "A maioria das Bíblias, comentários e dicionários foi convertida de módulos do The SWORD Project, distribuídos pela CrossWire Bible Society (crosswire.org). Aplicam-se os direitos autorais e a licença de cada módulo.",
   "main.about.build": "Build {buildId}",
   "main.about.ok": "OK",
   "main.dialog.saveBackup": "Salvar arquivo de backup",

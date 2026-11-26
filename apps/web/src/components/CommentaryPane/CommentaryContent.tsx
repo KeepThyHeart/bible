@@ -261,6 +261,11 @@ export function CommentaryContent({ bibleProvider }: CommentaryContentProps) {
   );
 }
 
+/** Only http(s) links are rendered as anchors. */
+function isHttpUrl(url: string | null | undefined): url is string {
+  return !!url && /^https?:\/\//i.test(url);
+}
+
 /** Expandable "About" section at the bottom of commentary content */
 export function CommentaryAbout({ moduleAbbr }: { moduleAbbr: string }) {
   const { t } = useTranslation();
@@ -312,7 +317,30 @@ export function CommentaryAbout({ moduleAbbr }: { moduleAbbr: string }) {
                 <><dt>{t('commentaryContent.aboutDescription')}</dt><dd>{info.description}</dd></>
               )}
               {info.copyright && (
-                <><dt>{t('commentaryContent.aboutLicense')}</dt><dd>{info.copyright}</dd></>
+                <><dt>{t('commentaryContent.aboutCopyright')}</dt><dd>{info.copyright}</dd></>
+              )}
+              {(info.licenseSpdx || info.licenseUrl) && (
+                <>
+                  <dt>{t('commentaryContent.aboutLicense')}</dt>
+                  <dd>
+                    {isHttpUrl(info.licenseUrl) ? (
+                      <a href={info.licenseUrl} target="_blank" rel="noopener noreferrer">
+                        {info.licenseSpdx || info.licenseUrl}
+                      </a>
+                    ) : (info.licenseSpdx || info.licenseUrl)}
+                  </dd>
+                </>
+              )}
+              {info.attribution && (
+                <><dt>{t('commentaryContent.aboutConvertedFrom')}</dt><dd data-testid="commentary-about-attribution">{info.attribution}</dd></>
+              )}
+              {isHttpUrl(info.sourceUrl) && (
+                <>
+                  <dt>{t('commentaryContent.aboutSource')}</dt>
+                  <dd>
+                    <a href={info.sourceUrl} target="_blank" rel="noopener noreferrer">{info.sourceUrl}</a>
+                  </dd>
+                </>
               )}
               {info.publisher && (
                 <><dt>{t('commentaryContent.aboutPublisher')}</dt><dd>{info.publisher}</dd></>

@@ -144,6 +144,20 @@ function markedVerses(items: SerializedPinnedItem[]): Set<number> {
   );
 }
 
+/**
+ * The first verse of the range bookmark that contains `verseId`, if any.
+ * Single-verse bookmarks only cover their own verse.
+ */
+export function coveringBookmarkStart(items: SerializedPinnedItem[], verseId: number): number | undefined {
+  const hit = items.find(
+    item =>
+      item.verseIdStart !== undefined &&
+      item.verseIdStart <= verseId &&
+      verseId <= (item.verseIdEnd ?? item.verseIdStart)
+  );
+  return hit?.verseIdStart;
+}
+
 export const useBookmarkStore = create<BookmarkState>((set, get) => ({
   // Initial state
   collections: [],
@@ -265,6 +279,14 @@ export const useBookmarkStore = create<BookmarkState>((set, get) => ({
     // disagree with what the reader is looking at.
     if (get().bookmarkedVerses.has(verseId)) {
       await get().removeVerseFromAllCollections(verseId);
+      await get().loadBookmarks();
+      return;
+    }
+    // A verse inside a range bookmark (not its first verse) removes that whole
+    // bookmark - the marker only sits on the first verse, but the passage is saved.
+    const covering = coveringBookmarkStart(get().bookmarks, verseId);
+    if (covering !== undefined) {
+      await get().removeVerseFromAllCollections(covering);
       await get().loadBookmarks();
       return;
     }

@@ -2,7 +2,8 @@ import { Bdi } from '@bible/ui';
 import React from 'react';
 import { useI18n } from '../../contexts/useI18n';
 import { useBiblePaneContext } from '../BiblePaneContext';
-import { useBookmarkStore } from '../../stores/useBookmarkStore';
+import { getBookmarkRange } from '../../services/verseCopyService';
+import { useBookmarkStore, coveringBookmarkStart } from '../../stores/useBookmarkStore';
 import { useBibleStore } from '../../stores/useBibleStore';
 import { BookmarkIcon, BOOKMARK_COLOR } from '../shared/icons/BookmarkIcon';
 import ToolbarPopover from './ToolbarPopover';
@@ -38,16 +39,15 @@ const BookmarkMenu: React.FC = () => {
   const close = React.useCallback(() => setOpen(false), []);
   useOverlayDismissal(open, close);
 
-  const isBookmarked = selectedVerseId !== null && bookmarkedVerses.has(selectedVerseId);
+  const isBookmarked =
+    selectedVerseId !== null &&
+    (bookmarkedVerses.has(selectedVerseId) || coveringBookmarkStart(bookmarks, selectedVerseId) !== undefined);
 
   const toggle = async () => {
     if (selectedVerseId === null) return;
-    // A shift-click passage is bookmarked whole; a plain click is one verse.
-    const end =
-      selectionEndVerseId !== null && selectionEndVerseId !== selectedVerseId
-        ? selectionEndVerseId
-        : undefined;
-    await toggleVerseBookmark(selectedVerseId, end, activeTab?.moduleId);
+    // A shift-click or mouse-drag passage is bookmarked whole; a plain click is one verse.
+    const range = getBookmarkRange(selectedVerseId, selectionEndVerseId);
+    await toggleVerseBookmark(range?.start ?? selectedVerseId, range?.end, activeTab?.moduleId);
   };
 
   const shown = bookmarks.slice(0, MAX_DROPDOWN_ITEMS);
@@ -129,7 +129,7 @@ const BookmarkMenu: React.FC = () => {
                 role="menuitem"
                 onClick={() => {
                   if (item.verseIdStart !== undefined) {
-                    useBibleStore.getState().navigateToVerse(panelId, item.verseIdStart); // allow-getstate: event handler - imperative navigation
+                    useBibleStore.getState().navigateToVerse(panelId, item.verseIdStart, item.verseIdEnd); // allow-getstate: event handler - imperative navigation
                   }
                   setOpen(false);
                 }}

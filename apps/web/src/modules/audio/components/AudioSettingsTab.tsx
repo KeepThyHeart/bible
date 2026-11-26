@@ -13,14 +13,16 @@ import type { AudioVoice, ITtsEngine, LoadProgress } from '@bible/core/browser';
 import { audioStore } from '../audioStore';
 import { bibleStore } from '../../../stores/bibleStore';
 import { useStore } from '../../../hooks/useStore';
-import { audioStorageUsage, clearChapters, clearModels, formatBytes } from '../lib/audioStorage';
-import type { AudioStorageUsage } from '../lib/audioStorage';
-import { effectiveRate } from '../lib/audioPrefs';
+import { audioStorageUsage, clearChapters, clearModels, formatBytes, openAudioCaches } from '@bible/audio';
+import { getReadyAssetManager } from '../../../assets/webAssets';
+import type { AudioStorageUsage } from '@bible/audio';
+import { effectiveRate } from '@bible/audio';
 import { EngineSelect, RateSlider, SourceSegmented } from './AudioControls';
-import { choiceOfUi, uiSourceOf } from '../lib/sourceChoice';
+import { choiceOfUi, uiSourceOf } from '@bible/audio';
 import { useSources } from './useSources';
-import { AUDIO_SETTINGS, createAudioSettingsStore } from '../lib/audioSettings';
+import { AUDIO_SETTINGS, createAudioSettingsStore } from '@bible/audio';
 import { isEnabled } from '../../../utils/featureFlags';
+import { downloadsDialog, getAudioDownloadsHandle } from '../lib/downloads';
 
 interface VoiceRow { engineId: string; engine: ITtsEngine; engineLabel: string; voice: AudioVoice }
 const keyOf = (engineId: string, voiceId: string) => `${engineId}:${voiceId}`;
@@ -37,7 +39,7 @@ export function AudioSettingsTab() {
   const lang = language.toLowerCase().split(/[-_]/)[0];
 
   // The "While playing" toggles come from the shared settings registry.
-  const audioSettings = useMemo(createAudioSettingsStore, []);
+  const audioSettings = useMemo(() => createAudioSettingsStore(audioStore), []);
   const toggleValues = useSyncExternalStore(audioSettings.subscribe, audioSettings.getSnapshot);
   useEffect(() => audioStore.subscribe(() => { void audioSettings.reload(); }), [audioSettings]);
   const toggleFields = AUDIO_SETTINGS.toFields('audio', { translate: (key, fallback) => t(key, fallback), isEnabled, values: toggleValues });
@@ -48,7 +50,7 @@ export function AudioSettingsTab() {
   const [failed, setFailed] = useState<Record<string, string | false>>({});
   const controllers = useRef(new Map<string, AbortController>());
 
-  const refreshUsage = useCallback(() => { void audioStorageUsage().then(setUsage, () => setUsage(null)); }, []);
+  const refreshUsage = useCallback(() => { void getReadyAssetManager().then(a => audioStorageUsage(openAudioCaches(), a)).then(setUsage, () => setUsage(null)); }, []);
   useEffect(() => { refreshUsage(); }, []);
   // Leaving the tab cancels downloads in flight: nothing keeps running behind a closed panel.
   useEffect(() => () => { for (const c of controllers.current.values()) c.abort(); }, []);
@@ -240,17 +242,29 @@ export function AudioSettingsTab() {
         />
       </div>
 
+      {getAudioDownloadsHandle() && (
+        <div class="audio-settings__group" data-testid="audio-offline">
+          <h5 class="audio-settings__heading">{t('audio.downloads.heading')}</h5>
+          <p class="audio-settings__hint">{t('audio.downloads.settingsHint')}</p>
+          <div>
+            <button type="button" class="audio-settings__btn" data-testid="audio-open-downloads" onClick={() => downloadsDialog.open(moduleAbbr)}>
+              {t('audio.downloads.open')}
+            </button>
+          </div>
+        </div>
+      )}
+
       <div class="audio-settings__group" data-testid="audio-storage">
         <h5 class="audio-settings__heading">{t('audio.settings.storage')}</h5>
         <div class="audio-settings__storage">
           <span>{t('audio.settings.storageVoices', { size: formatBytes(usage?.modelBytes ?? 0) })}</span>
-          <button type="button" class="audio-settings__btn" disabled={!usage?.modelBytes} onClick={() => { void clearModels().then(() => { for (const e of audioStore.engines.values()) e.dispose(); setReady({}); audioStore.invalidateSources(); refreshUsage(); }); }}>
+          <button type="button" class="audio-settings__btn" disabled={!usage?.modelBytes} onClick={() => { void getReadyAssetManager().then(a => clearModels(openAudioCaches(), a)).then(() => { for (const e of audioStore.engines.values()) e.dispose(); setReady({}); audioStore.invalidateSources(); refreshUsage(); }); }}>
             {t('audio.settings.remove')}
           </button>
         </div>
         <div class="audio-settings__storage">
           <span>{t('audio.settings.storageChapters', { size: formatBytes(usage?.chapterBytes ?? 0), count: usage?.chapterCount ?? 0 })}</span>
-          <button type="button" class="audio-settings__btn" disabled={!usage?.chapterBytes} onClick={() => { void clearChapters().then(refreshUsage); }}>
+          <button type="button" class="audio-settings__btn" disabled={!usage?.chapterBytes} onClick={() => { void clearChapters(openAudioCaches()).then(refreshUsage); }}>
             {t('audio.settings.clear')}
           </button>
         </div>

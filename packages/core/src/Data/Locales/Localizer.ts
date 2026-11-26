@@ -41,6 +41,7 @@ import { isSingleChapter } from '../../Reference/canon';
 import {
   ENGLISH_BOOK_NAMES,
   ENGLISH_DISPLAY_NAMES,
+  SHORT_NAMES,
   ENGLISH_SINGLE_CHAPTER_BOOKS,
 } from '../Core/BookNames';
 import {
@@ -191,8 +192,9 @@ export function referenceParserConfigFor(tag: string): ReferenceParserConfig | u
       }
     }
     const displayNames = Array.from({ length: 66 }, (_, i) => engine.bookName(i + 1));
+    const shortNames = Array.from({ length: 66 }, (_, i) => engine.bookName(i + 1, 'short'));
     const singleChapterBooks = new Set(Array.from({ length: 66 }, (_, i) => i + 1).filter(isSingleChapter));
-    config = { bookNames, displayNames, singleChapterBooks, locale: dataTag };
+    config = { bookNames, displayNames, shortNames, singleChapterBooks, locale: dataTag };
   }
   configCache.set(tag, { version, config });
   return config;
@@ -208,6 +210,7 @@ export const EnglishLocalizer: Localizer = createIntlLocalizer('en', {
   referenceParserConfig: {
     bookNames: ENGLISH_BOOK_NAMES,
     displayNames: ENGLISH_DISPLAY_NAMES,
+    shortNames: Array.from({ length: 66 }, (_, i) => SHORT_NAMES[i + 1]),
     singleChapterBooks: ENGLISH_SINGLE_CHAPTER_BOOKS,
   },
 });

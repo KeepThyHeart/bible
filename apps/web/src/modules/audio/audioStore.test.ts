@@ -11,10 +11,10 @@ import { audioStore } from './audioStore';
 import type { AudioSystem } from './audioStore';
 import { bibleStore } from '../../stores/bibleStore';
 import { eventBus } from '../../events/eventBus';
-import { AudioPlayer } from './lib/AudioPlayer';
-import { AudioSourceResolver } from './lib/AudioSourceResolver';
-import { AUDIO_PREFS_KEY } from './lib/audioPrefs';
-import { FakeOutput, FakeProvider } from './lib/testing';
+import { AudioPlayer } from '@bible/audio';
+import { AudioSourceResolver } from '@bible/audio';
+import { AUDIO_PREFS_KEY } from '@bible/audio';
+import { FakeOutput, FakeProvider } from '@bible/audio/testing';
 import type { VerseData } from '../../types';
 
 const flush = async () => { for (let i = 0; i < 3; i++) await new Promise<void>(r => setTimeout(r, 0)); };
@@ -236,6 +236,17 @@ describe('gates', () => {
     await playNow();
     expect(audioStore.providerId).toBe('recorded');
     expect(audioStore.pendingGate).toBeNull();
+  });
+
+  it('the download gate counts the runtime too when the provider knows what is still missing', async () => {
+    rig.tts.ready = false;
+    Object.assign(rig.tts, { pendingBytes: async () => 93_000_000 });
+    await flush();
+    const p = audioStore.play();
+    await flush();
+    expect(audioStore.pendingGate).toMatchObject({ kind: 'download', bytes: 93_000_000 });
+    audioStore.cancelGate();
+    await p;
   });
 
   it('a voice that is not downloaded asks first (with its size); cancel downloads nothing, confirm does', async () => {
@@ -644,6 +655,17 @@ describe('sources, voices and the phone player', () => {
     expect(rig.recorded.openCalls.at(-1)!.ref).toMatchObject({ chapter: 3 });
     expect(audioStore.follow.verseId).toBe(43003004);
     expect(audioStore.providerId).toBe('recorded');
+  });
+
+  it('jumpToVerse moves within the open chapter at once, without reopening it', async () => {
+    await flush();
+    await playNow();
+    const opens = rig.recorded.openCalls.length;
+    audioStore.jumpToVerse(4);
+    expect(audioStore.follow.verseId).toBe(43003004);
+    await flush();
+    expect(rig.recorded.openCalls.length).toBe(opens);
+    expect(audioStore.follow.verseId).toBe(43003004);
   });
 
   it('the phone player opens and closes, and a stopped playback closes it', async () => {

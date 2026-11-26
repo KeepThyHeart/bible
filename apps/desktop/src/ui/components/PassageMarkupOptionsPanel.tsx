@@ -105,6 +105,9 @@ const PassageMarkupOptionsPanel: React.FC<PassageMarkupOptionsPanelProps> = ({
             <option value="superscript">
               {t('ui.passageInsert.verseNumbersSuperscript')}
             </option>
+            <option value="first-full">
+              {t('ui.passageInsert.verseNumbersFirstFull')}
+            </option>
             <option value="none">{t('ui.passageInsert.verseNumbersNone')}</option>
           </select>
         </label>

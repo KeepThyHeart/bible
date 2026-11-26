@@ -391,7 +391,7 @@ export type Visibility = 'private' | 'public';
  * names remain the UI palette. See `Core/Colors.ts` for the name<->hex mapping and
  * {@link normalizeMarkupColor} for the read path that accepts both.
  */
-export type HighlightColor = 'yellow' | 'green' | 'blue' | 'red' | 'purple' | 'orange';
+export type HighlightColor = 'yellow' | 'green' | 'blue' | 'red' | 'purple' | 'orange' | 'pink' | 'teal' | 'gray' | 'brown';
 
 /**
  * Underline styles

@@ -155,6 +155,7 @@ export interface ElectronAPI {
     searchEntries: (abbreviation: string, query: string, limit?: number) => Promise<Result<any[]>>;
     getAllEntries: (abbreviation: string, limit?: number, offset?: number) => Promise<Result<any[]>>;
     getOccurrences: (abbreviation: string, entryKey: string) => Promise<Result<any[]>>;
+    lookUp: (text: string, strongs?: string, limit?: number) => Promise<Result<any[]>>;
     getOccurrencesForVerse: (abbreviation: string, verseId: number) => Promise<Result<any[]>>;
   };
 
@@ -499,6 +500,8 @@ export interface ElectronAPI {
     checkForUpdates: (moduleId: number) => Promise<Result<{ hasUpdate: boolean; currentVersion?: string; availableVersion?: string }>>;
     // Get module details
     getModuleDetails: (moduleId: number) => Promise<Result<any>>;
+    // Attribution/source of an installed module, from its own module_info
+    getModuleProvenance: (moduleId: number) => Promise<Result<{ attribution: string | null; source_url: string | null; license_spdx: string | null; license_url: string | null }>>;
     // Keyword index (F8, task 0027 revision 2): status + Rebuild/Delete for a
     // module's keyword-search sidecar index. See `KeywordIndexStatusDto`'s own
     // doc comment for the state machine. `rebuild`/`delete` resolve with the
@@ -512,6 +515,8 @@ export interface ElectronAPI {
     cancelInstall: (jobId: number) => Promise<Result<boolean>>;
     retryInstall: (jobId: number) => Promise<Result<InstallJob | null>>;
     dismissInstall: (jobId: number) => Promise<Result<void>>;
+    /** Free bytes on the modules volume, or null when unknown. */
+    getFreeSpace: () => Promise<Result<number | null>>;
     // Download management
     getDownloadProgress: (queueId: number) => Promise<Result<any>>;
     getActiveDownloads: () => Promise<Result<any[]>>;
@@ -823,6 +828,8 @@ const electronAPI: ElectronAPI = {
       ipcRenderer.invoke('dictionary:getEntryByKey', abbreviation, entryKey),
     searchEntries: (abbreviation: string, query: string, limit?: number) =>
       ipcRenderer.invoke('dictionary:searchEntries', abbreviation, query, limit),
+    lookUp: (text: string, strongs?: string, limit?: number) =>
+      ipcRenderer.invoke('dictionary:lookUp', text, strongs, limit),
     getAllEntries: (abbreviation: string, limit?: number, offset?: number) =>
       ipcRenderer.invoke('dictionary:getAllEntries', abbreviation, limit, offset),
     getOccurrences: (abbreviation: string, entryKey: string) =>
@@ -1206,6 +1213,7 @@ const electronAPI: ElectronAPI = {
     checkForUpdates: (moduleId: number) => typedInvoke('module:check-for-updates', moduleId),
     // Get module details
     getModuleDetails: (moduleId: number) => typedInvoke('module:get-details', moduleId),
+    getModuleProvenance: (moduleId: number) => typedInvoke('module:get-provenance', moduleId),
     // Keyword index (F8)
     getKeywordIndexStatus: (moduleId: number) =>
       typedInvoke('module:get-keyword-index-status', moduleId),
@@ -1219,6 +1227,7 @@ const electronAPI: ElectronAPI = {
     cancelInstall: (jobId: number) => typedInvoke('module:install-cancel', jobId),
     retryInstall: (jobId: number) => typedInvoke('module:install-retry', jobId),
     dismissInstall: (jobId: number) => typedInvoke('module:install-dismiss', jobId),
+    getFreeSpace: () => typedInvoke('module:free-space'),
     // Download management
     getDownloadProgress: (queueId: number) => typedInvoke('download:get-progress', queueId),
     getActiveDownloads: () => typedInvoke('download:get-active'),

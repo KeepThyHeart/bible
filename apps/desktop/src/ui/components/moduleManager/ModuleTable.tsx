@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import type { ModuleRow } from '../../stores/module/moduleRows';
 import type { ModuleInstallFilter, ModuleType, DownloadProgress } from '../../stores/module/types';
-import { ModuleTableRow, findRowDownload, findRowInstallJob } from './ModuleRow';
+import { ModuleTableRow, findRowDownload, findRowInstallJob, isRowSelectable } from './ModuleRow';
 import type { InstallJob } from '../../stores/module/moduleAPI';
 import { useTd } from './moduleManagerI18n';
 
@@ -54,6 +54,17 @@ export interface ModuleTableProps {
   onRetryInstall?: (jobId: number) => void;
   onDismissInstall?: (jobId: number) => void;
   ariaLabel?: string;
+  /**
+   * Batch selection. When `onToggleCheck` is given the table gains a checkbox
+   * column: a header checkbox (tri-state) over the visible selectable rows and one
+   * per selectable row. `checkedAbbreviations` holds the ticked rows.
+   */
+  checkedAbbreviations?: ReadonlySet<string>;
+  /** Checkboxes are disabled (network off, or a batch is running). */
+  checkDisabled?: boolean;
+  onToggleCheck?: (row: ModuleRow, checked: boolean) => void;
+  /** Header checkbox: tick or untick every visible selectable row (`rows`). */
+  onToggleAllChecks?: (rows: ModuleRow[], checked: boolean) => void;
   onSelect: (row: ModuleRow) => void;
   onInstall: (row: ModuleRow) => void;
   onUpdate: (row: ModuleRow) => void;
@@ -79,12 +90,26 @@ export const ModuleTable: React.FC<ModuleTableProps> = ({
   onRetryInstall,
   onDismissInstall,
   ariaLabel,
+  checkedAbbreviations = EMPTY_SET,
+  checkDisabled = false,
+  onToggleCheck,
+  onToggleAllChecks,
   onSelect,
   onInstall,
   onUpdate,
 }) => {
   const td = useTd();
   const visible = filterModuleRows(rows, type, installFilter, searchQuery);
+  const showCheckbox = !!onToggleCheck;
+  const isCheckable = (row: ModuleRow) => isRowSelectable(row) && !findRowInstallJob(row, installJobs);
+  const checkableRows = visible.filter(isCheckable);
+  const checkedCount = checkableRows.filter((r) => checkedAbbreviations.has(r.abbreviation)).length;
+  const allChecked = checkableRows.length > 0 && checkedCount === checkableRows.length;
+  const someChecked = checkedCount > 0 && !allChecked;
+  const headerCheckRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (headerCheckRef.current) headerCheckRef.current.indeterminate = someChecked;
+  }, [someChecked, visible.length]);
 
   if (visible.length === 0) {
     if (loading) {
@@ -136,6 +161,21 @@ export const ModuleTable: React.FC<ModuleTableProps> = ({
       <table className="w-full text-start border-collapse" aria-label={ariaLabel}>
         <thead>
           <tr className="border-b border-border text-xs uppercase tracking-wide text-text-tertiary">
+            {showCheckbox && (
+              <th scope="col" className="ps-4 py-2 w-8">
+                <input
+                  ref={headerCheckRef}
+                  type="checkbox"
+                  data-testid={`module-table-check-all-${type}`}
+                  checked={allChecked}
+                  disabled={checkDisabled || checkableRows.length === 0}
+                  onChange={(e) => onToggleAllChecks?.(checkableRows, e.currentTarget.checked)}
+                  aria-label={td('moduleTable.selectAllAria', 'Select all listed modules that can be installed or updated')}
+                  aria-checked={someChecked ? 'mixed' : allChecked}
+                  className="h-4 w-4 accent-accent"
+                />
+              </th>
+            )}
             <th scope="col" className="px-4 py-2 text-start font-medium">
               {td('moduleTable.colName', 'Name')}
             </th>
@@ -166,6 +206,11 @@ export const ModuleTable: React.FC<ModuleTableProps> = ({
               onCancelInstall={onCancelInstall}
               onRetryInstall={onRetryInstall}
               onDismissInstall={onDismissInstall}
+              showCheckbox={showCheckbox}
+              checkable={isCheckable(row)}
+              checked={checkedAbbreviations.has(row.abbreviation)}
+              checkDisabled={checkDisabled}
+              onToggleCheck={onToggleCheck}
               onSelect={onSelect}
               onInstall={onInstall}
               onUpdate={onUpdate}

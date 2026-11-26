@@ -344,6 +344,9 @@ importers:
         specifier: ^5.0.2
         version: 5.0.15(@types/react@18.3.31)(react@18.3.1)(use-sync-external-store@1.6.0(react@18.3.1))
     devDependencies:
+      '@bible/audio':
+        specifier: workspace:*
+        version: link:../../packages/audio
       '@bible/core':
         specifier: workspace:*
         version: link:../../packages/core
@@ -456,6 +459,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@bible/audio':
+        specifier: workspace:*
+        version: link:../../packages/audio
       '@bible/core':
         specifier: workspace:*
         version: link:../../packages/core
@@ -661,6 +667,24 @@ importers:
       workbox-strategies:
         specifier: ^7.4.1
         version: 7.4.1
+
+  packages/audio:
+    devDependencies:
+      '@bible/core':
+        specifier: workspace:^
+        version: link:../core
+      '@types/node':
+        specifier: ^20.14.0
+        version: 20.19.43
+      happy-dom:
+        specifier: ^20.14.5
+        version: 20.14.5
+      typescript:
+        specifier: ^5.5.0
+        version: 5.9.3
+      vitest:
+        specifier: ^4.1.11
+        version: 4.1.11(@types/node@20.19.43)(@vitest/coverage-v8@4.1.11)(@vitest/ui@4.1.11)(happy-dom@20.14.5)(jsdom@29.1.1(@noble/hashes@2.4.0))(vite@7.3.6(@types/node@20.19.43)(jiti@2.7.0)(lightningcss@1.33.0)(sass@1.104.0)(terser@5.51.2)(tsx@4.23.13))
 
   packages/core:
     dependencies:

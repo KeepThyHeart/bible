@@ -38,6 +38,12 @@ export interface BookChapterPickerLabels {
   searchFor: (query: string) => string;
   /** Accessible name of a chapter cell, e.g. "Genesis chapter 3". */
   chapterOption: (bookName: string, chapter: number) => string;
+  /** Caption above the verse grid. */
+  selectVerse: string;
+  /** Button that skips the verse step: "Go to John 3". */
+  goToChapter: (bookName: string, chapter: number) => string;
+  /** Accessible name of a verse cell, e.g. "John 3:16". */
+  verseOption: (bookName: string, chapter: number, verse: number) => string;
 }
 
 export const DEFAULT_BOOK_CHAPTER_PICKER_LABELS: BookChapterPickerLabels = {
@@ -52,6 +58,9 @@ export const DEFAULT_BOOK_CHAPTER_PICKER_LABELS: BookChapterPickerLabels = {
   selectChapter: 'Select a chapter',
   searchFor: (query) => `Search for "${query}"`,
   chapterOption: (bookName, chapter) => `${bookName} chapter ${chapter}`,
+  selectVerse: 'Select a verse, or go to the whole chapter',
+  goToChapter: (bookName, chapter) => `Go to ${bookName} ${chapter}`,
+  verseOption: (bookName, chapter, verse) => `${bookName} ${chapter}:${verse}`,
 };
 
 export interface BookChapterPickerSearch {
@@ -104,6 +113,11 @@ export interface BookChapterPickerProps {
   search?: BookChapterPickerSearch;
   /** Rendered under the reference box (web: the translation selector). */
   afterReference?: ReactNode;
+  /**
+   * Verses in a chapter. When given, picking a chapter opens a verse grid (with a "Go to chapter" button
+   * that skips it) instead of going straight to the chapter. Omit it for the chapter-only picker.
+   */
+  verseCount?: (book: number, chapter: number) => number;
   /** Rendered under the chapter grid for the chosen book (web: topics). */
   chapterExtras?: (book: number) => ReactNode;
 }
@@ -130,10 +144,12 @@ export function BookChapterPicker({
   search,
   afterReference,
   chapterExtras,
+  verseCount,
 }: BookChapterPickerProps) {
   const labels: BookChapterPickerLabels = { ...DEFAULT_BOOK_CHAPTER_PICKER_LABELS, ...labelOverrides };
   const uid = useId();
   const [selectedBook, setSelectedBook] = useState<number | null>(null);
+  const [selectedChapter, setSelectedChapter] = useState<number | null>(null);
   const [refValue, setRefValue] = useState('');
   const [searchMode, setSearchMode] = useState(false);
   const [submittedQuery, setSubmittedQuery] = useState('');
@@ -160,15 +176,17 @@ export function BookChapterPicker({
 
   // Escape steps back to the book list, then closes. Registered for the component's life (layout effect,
   // so it is live before the first frame) with state read from a ref.
-  const escapeRef = useRef({ selectedBook, onClose, escapeSuspended });
-  escapeRef.current = { selectedBook, onClose, escapeSuspended };
+  const escapeRef = useRef({ selectedBook, selectedChapter, onClose, escapeSuspended });
+  escapeRef.current = { selectedBook, selectedChapter, onClose, escapeSuspended };
   useLayoutEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
       const state = escapeRef.current;
       if (state.escapeSuspended) return;
       e.preventDefault();
-      if (state.selectedBook) {
+      if (state.selectedChapter) {
+        setSelectedChapter(null);
+      } else if (state.selectedBook) {
         setSelectedBook(null);
         focusInput();
       } else {
@@ -223,8 +241,19 @@ export function BookChapterPicker({
   };
 
   const goBack = () => {
+    // From the verse step back to the chapters; from the chapters back to the books.
+    if (selectedChapter) {
+      setSelectedChapter(null);
+      return;
+    }
     setSelectedBook(null);
     focusInput();
+  };
+
+  const pickChapter = (book: number, chapter: number) => {
+    // A single-verse chapter has nothing to choose between; skip the step.
+    if (verseCount && verseCount(book, chapter) > 1) setSelectedChapter(chapter);
+    else onPick(book, chapter);
   };
 
   const bookFilter = !selectedBook && !searchMode ? getBookFilterText(refValue) : '';
@@ -278,6 +307,39 @@ export function BookChapterPicker({
       </>
     );
 
+  const renderVerses = (book: number, chapter: number) => {
+    const labelId = `${uid}-verses`;
+    const name = bookName(book);
+    const total = verseCount ? verseCount(book, chapter) : 0;
+    return (
+      <div className="kth-picker__body kth-picker__verses">
+        <button
+          type="button"
+          className="kth-btn kth-btn--primary kth-picker__chapter-go"
+          autoFocus
+          data-testid="picker-go-chapter"
+          onClick={() => onPick(book, chapter)}
+        >
+          {labels.goToChapter(name, chapter)}
+        </button>
+        <div id={labelId} className="kth-picker__label">{labels.selectVerse}</div>
+        <div role="group" aria-labelledby={labelId} className="kth-picker__grid">
+          {Array.from({ length: total }, (_, i) => i + 1).map((v) => (
+            <button
+              key={v}
+              type="button"
+              aria-label={labels.verseOption(name, chapter, v)}
+              className={cx('kth-picker__cell', 'kth-picker__cell--chapter')}
+              onClick={() => onPick(book, chapter, v)}
+            >
+              {v}
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
   const renderChapters = (book: number) => {
     const labelId = `${uid}-chapters`;
     const name = bookName(book);
@@ -294,7 +356,7 @@ export function BookChapterPicker({
                 aria-current={isCurrent ? 'true' : undefined}
                 aria-label={labels.chapterOption(name, ch)}
                 className={cx('kth-picker__cell', 'kth-picker__cell--chapter', isCurrent && 'kth-picker__cell--active')}
-                onClick={() => onPick(book, ch)}
+                onClick={() => pickChapter(book, ch)}
               >
                 {ch}
               </button>
@@ -316,7 +378,9 @@ export function BookChapterPicker({
               {icons?.back ? ' ' : null}
               {labels.back}
             </button>
-            <h3 id={titleId} className="kth-picker__title">{bookName(selectedBook)}</h3>
+            <h3 id={titleId} className="kth-picker__title">
+              {selectedChapter ? `${bookName(selectedBook)} ${selectedChapter}` : bookName(selectedBook)}
+            </h3>
           </>
         ) : (
           <h3 id={titleId} className="kth-picker__title">{labels.title}</h3>
@@ -360,6 +424,8 @@ export function BookChapterPicker({
 
       {searchMode && search ? (
         <div className="kth-picker__body kth-picker__results">{search.results(submittedQuery)}</div>
+      ) : selectedBook && selectedChapter ? (
+        renderVerses(selectedBook, selectedChapter)
       ) : selectedBook ? (
         renderChapters(selectedBook)
       ) : (

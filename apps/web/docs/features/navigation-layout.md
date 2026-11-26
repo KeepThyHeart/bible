@@ -270,7 +270,7 @@ document-level listener is attached and the tab visibly changes).
 |---|---|
 | `/` | Focus search input and select its contents |
 | Ctrl+K (Cmd+K) | Focus search input and select its contents |
-| Ctrl+G (Cmd+G) | Focus search input and select its contents (verse jump) |
+| Ctrl+G (Cmd+G) | Open the go-to-passage picker (book, chapter, optional verse); with no tab open, focus the search input |
 | Ctrl+C (no selection) | Open copy dialog |
 | Enter (copy dialog) | Copy and close |
 | ESC | Close any open dialog |

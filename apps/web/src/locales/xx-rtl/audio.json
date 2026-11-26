@@ -151,6 +151,45 @@
     },
     "shortcut": {
       "focusPlayer": "‏Go to the audio player‏"
+    },
+    "downloads": {
+      "title": "‏Download audio for offline listening‏",
+      "heading": "‏Offline listening‏",
+      "settingsHint": "‏Keep recorded books on this device to listen without a connection.‏",
+      "open": "‏Download audio…‏",
+      "hint": "‏Choose the books to keep on this device. The translation’s text is saved too when it is not already here.‏",
+      "translation": "‏Translation‏",
+      "narrator": "‏Narrator‏",
+      "loading": "‏Loading recordings…‏",
+      "none": "‏No recordings are available for {module}.‏",
+      "ot": "‏Old Testament‏",
+      "nt": "‏New Testament‏",
+      "selectAll": "‏Select all‏",
+      "clear": "‏Clear‏",
+      "selectGroup": "‏Select all books in the {testament}‏",
+      "clearGroup": "‏Clear the selection in the {testament}‏",
+      "wholeBible": "‏Whole Bible‏",
+      "sizeLoading": "‏size loading…‏",
+      "state": {
+        "downloaded": "‏Downloaded‏",
+        "partial": "‏Partly downloaded‏"
+      },
+      "chapters": "‏{count} of {total} chapters‏",
+      "removeBook": "‏Remove {book} from this device‏",
+      "selected": "‏{count, plural, one {# book} other {# books}} selected · {size}‏",
+      "free": "‏{size} free‏",
+      "noFit": "‏This selection is larger than the free space on this device.‏",
+      "download": "‏Download‏",
+      "confirmTitle": "‏Large download‏",
+      "confirmBody": "‏This download is {size}. Check the connection and the space on this device before starting.‏",
+      "confirmNoFit": "‏This download is {size}, but only {free} is free on this device. It may not fit.‏",
+      "confirmGo": "‏Download anyway‏",
+      "back": "‏Back‏",
+      "progress": "‏Downloading {book} · {done} of {total} books · {loaded} of {size}‏",
+      "done": "‏The download finished.‏",
+      "cancelled": "‏The download stopped. Progress is kept, so the next download continues from here.‏",
+      "failed": "‏The download did not finish. {message}‏",
+      "close": "‏Close‏"
     }
   }
 }

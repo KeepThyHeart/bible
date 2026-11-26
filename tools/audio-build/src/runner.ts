@@ -7,7 +7,7 @@ import { cpus } from 'node:os';
 import { checkExisting } from './chapterFiles';
 import type { ChapterResult, ChapterTask } from './chapterTask';
 import {
-  TextPreparer, applyPronunciation, pronunciationLocale, pronunciationVerseKey, spokenTextHash,
+  CLEAR_SPEECH_VERSION, TextPreparer, applyPronunciation, pronunciationLocale, pronunciationVerseKey, spokenTextHash,
   type AudioBuildInfo, type AudioProvenance, type ITextPreparer, type ITtsEngine, type PronunciationOverlay,
 } from './core';
 import { DEFAULT_ENCODE, type EncodeOptions } from './encode';
@@ -51,6 +51,8 @@ export interface BuildOptions {
   label?: string;
   opusKbps?: number;
   mp3Kbps?: number;
+  /** Rewrite phonemes for careful diction (core `clearSpeechIpa`); needs an engine that supports it. */
+  clearSpeech?: boolean;
 }
 
 export class RunError extends Error {}
@@ -124,7 +126,8 @@ export async function runBuild(o: BuildOptions, deps: RunDeps): Promise<RunSumma
   const langBase = mod.language.toLowerCase().split(/[-_]/)[0];
   if (!def.languages.includes(langBase)) throw new RunError(`${def.label} does not speak "${mod.language}".`);
 
-  const narrator = safeNarrator(o.narrator ?? `${def.id}-${voice}`);
+  if (o.clearSpeech && !def.clearSpeech) throw new RunError(`${def.label} does not support clear speech.`);
+  const narrator = safeNarrator(o.narrator ?? `${def.id}-${def.voiceSlug?.(voice) ?? voice}${o.clearSpeech ? '-clear' : ''}`);
   if (!narrator) throw new RunError('The narrator id is empty.');
   const settings: RenderSettings = { rate: o.rate, gapMs: o.gapMs, introGapMs: o.introGapMs, trim: DEFAULT_RENDER.trim };
   const layout: LayoutRef = { out: o.out, module: o.module, narrator, rev: o.rev };
@@ -136,6 +139,9 @@ export async function runBuild(o: BuildOptions, deps: RunDeps): Promise<RunSumma
     rate: o.rate,
     gapMs: o.gapMs,
     introGapMs: o.introGapMs,
+    ...(o.clearSpeech ? { clearSpeech: true, clearSpeechVersion: CLEAR_SPEECH_VERSION } : {}),
+    // Recorded only when it differs from the default, so earlier builds stay up to date.
+    ...(o.formats.includes('opus') && enc.opusKbps !== DEFAULT_ENCODE.opusKbps ? { opusKbps: enc.opusKbps } : {}),
     tool: TOOL_NAME,
   };
 
@@ -205,7 +211,7 @@ export async function runBuild(o: BuildOptions, deps: RunDeps): Promise<RunSumma
   if (todo.length > 0) {
     const jobs = deps.engine ? 1 : Math.max(1, Math.min(o.jobs, todo.length));
     const threads = Math.max(1, Math.floor(cpus().length / jobs));
-    const ctx: Omit<EngineContext, 'log'> = { cacheDir: o.cacheDir, threads, quantization: o.quantization };
+    const ctx: Omit<EngineContext, 'log'> = { cacheDir: o.cacheDir, threads, quantization: o.quantization, clearSpeech: !!o.clearSpeech };
     let executor: Executor;
     if (deps.engine) {
       executor = new InProcessExecutor(deps.engine);
@@ -254,7 +260,7 @@ export async function runBuild(o: BuildOptions, deps: RunDeps): Promise<RunSumma
   await rebuildIndex({
     out: o.out,
     module: o.module,
-    built: [{ id: narrator, label: o.label ?? `${def.label.split(' (')[0]}, ${voice}`, language: mod.language, rev: o.rev, provenance }],
+    built: [{ id: narrator, label: o.label ?? `${def.label.split(' (')[0]}, ${def.voiceLabel?.(voice) ?? voice}${o.clearSpeech ? ', clear speech' : ''}`, language: mod.language, rev: o.rev, provenance }],
     chaptersOfBook: available,
   });
 

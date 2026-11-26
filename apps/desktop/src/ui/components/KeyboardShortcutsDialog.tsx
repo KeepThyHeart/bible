@@ -31,6 +31,7 @@
 import React, { useEffect, useRef, useCallback } from 'react';
 import { activateFocusTrap } from '../utils/focusTrap';
 import { useI18n } from '../contexts/useI18n';
+import { isEnabled } from '../settings/featureFlags';
 
 // --- Types -------------------------------------------------------------------
 
@@ -87,6 +88,7 @@ titleKey: 'ui.keyboardShortcuts.category.editing',
       { descriptionKey: 'ui.keyboardShortcuts.editing.cut', keys: 'Mod+X' },
       { descriptionKey: 'ui.keyboardShortcuts.editing.paste', keys: 'Mod+V' },
       { descriptionKey: 'ui.keyboardShortcuts.editing.highlight', keys: 'Mod+Shift+H' },
+      { descriptionKey: 'ui.keyboardShortcuts.editing.removeMarks', keys: 'Mod+Shift+X' },
       { descriptionKey: 'ui.keyboardShortcuts.editing.addNote', keys: 'Mod+Shift+N' },
       { descriptionKey: 'ui.keyboardShortcuts.editing.bookmark', keys: 'Mod+D' },
       { descriptionKey: 'ui.keyboardShortcuts.editing.keywordMarks', keys: 'Mod+Shift+K' },
@@ -112,6 +114,20 @@ titleKey: 'ui.keyboardShortcuts.category.application',
     ],
   },
 ];
+
+/** Shown only with the `audio` flag on. Strings live in the lazily loaded `audio` namespace. */
+const AUDIO_SHORTCUT_CATEGORY: ShortcutCategory = {
+  titleKey: 'audio.shortcuts.category',
+  shortcuts: [
+    { descriptionKey: 'audio.shortcuts.playPause', keys: 'Alt+P' },
+    { descriptionKey: 'audio.shortcuts.prevVerse', keys: 'Alt+Left' },
+    { descriptionKey: 'audio.shortcuts.nextVerse', keys: 'Alt+Right' },
+    { descriptionKey: 'audio.shortcuts.prevChapter', keys: 'Alt+Shift+Left' },
+    { descriptionKey: 'audio.shortcuts.nextChapter', keys: 'Alt+Shift+Right' },
+    { descriptionKey: 'audio.shortcuts.goToPlayer', keys: 'Alt+Shift+P' },
+    { descriptionKey: 'audio.shortcuts.returnFocus', keys: 'Escape' },
+  ],
+};
 
 // --- Helpers -----------------------------------------------------------------
 
@@ -283,7 +299,7 @@ const KeyboardShortcutsDialog: React.FC<KeyboardShortcutsDialogProps> = ({ onClo
             </p>
 
             <div className="space-y-xl">
-              {SHORTCUT_CATEGORIES.map((category) => (
+              {(isEnabled('audio') ? [...SHORTCUT_CATEGORIES, AUDIO_SHORTCUT_CATEGORY] : SHORTCUT_CATEGORIES).map((category) => (
                 <section key={category.titleKey}>
                   <h3 className="text-sm font-semibold text-text-heading uppercase tracking-wide mb-sm">
                     {t(category.titleKey)}

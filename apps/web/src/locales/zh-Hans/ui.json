@@ -71,6 +71,7 @@
     "noMatches": "无匹配项",
     "popular": "常用",
     "allTranslations": "所有译本",
+    "recent": "最近使用",
     "other": "其他",
     "modeStandard": "标准",
     "modeReading": "阅读",
@@ -79,7 +80,8 @@
     "modeLabel": "显示模式",
     "recentPassages": "最近查看的经文",
     "noHistory": "尚未浏览过任何经文",
-    "translationButton": "译本：{abbr}"
+    "translationButton": "译本：{abbr}",
+    "currentReference": "{reference}：前往书卷和章"
   },
   "bibleContent": {
     "votdLabel": "每日经文",
@@ -347,7 +349,8 @@
           "overQuota": "还需要约 {size} 空间。"
         },
         "remove": "移除",
-        "keepHint": "选中已在此设备上的项目会将其保留在此处，不会被自动清理。"
+        "keepHint": "选中已在此设备上的项目会将其保留在此处，不会被自动清理。",
+        "selectAllGroup": "全选{group}"
       }
     },
     "downloads": {
@@ -380,7 +383,8 @@
       "desktopOnly": "笔记、高亮、书签、经文背诵、读经计划和祷告清单可在桌面应用中使用。",
       "license": "采用 <strong>GNU 通用公共许可证 v3.0</strong>（GPL-3.0）授权。",
       "licenseDetails": "本软件可依据 GPL v3 条款自由使用、修改和分发。欢迎查看源代码并提交贡献。",
-      "viewOnGithub": "在 GitHub 上查看"
+      "viewOnGithub": "在 GitHub 上查看",
+      "credits": "大多数圣经、注释和词典均转换自 The SWORD Project 的模块，由 CrossWire Bible Society（crosswire.org）发布。每个模块各自的版权和许可协议仍然适用。"
     },
     "language": {
       "title": "语言",
@@ -466,7 +470,8 @@
     "copyToClipboard": "复制到剪贴板",
     "loading": "正在加载经节…",
     "copyFailed": "无法复制到剪贴板。请检查是否允许此网站使用剪贴板。",
-    "referencePosition": "出处位置"
+    "referencePosition": "出处位置",
+    "print": "打印"
   },
   "ui": {
     "passageInsert": {
@@ -502,7 +507,8 @@
       "quoteMarksNone": "无",
       "commentPlaceholdersLabel": "在每节经文下方留出批注空间",
       "verseHeading": "第 {verse} 节",
-      "commentPlaceholderText": "[{reference} 的批注]"
+      "commentPlaceholderText": "[{reference} 的批注]",
+      "verseNumbersFirstFull": "首节显示完整出处（约 3:16），其后只显示节号"
     }
   },
   "feedbackDialog": {
@@ -569,7 +575,10 @@
     "aboutAuthor": "作者",
     "aboutYear": "年份",
     "aboutDescription": "描述",
+    "aboutCopyright": "版权",
     "aboutLicense": "许可证",
+    "aboutSource": "来源",
+    "aboutConvertedFrom": "转换",
     "aboutPublisher": "出版方",
     "aboutLanguage": "语言",
     "aboutUnavailable": "无法获取模块信息。"
@@ -871,7 +880,10 @@
     "noResults": "没有结果。",
     "searchFor": "搜索“{query}”",
     "back": "返回",
-    "chapterOption": "{book}第{chapter}章"
+    "chapterOption": "{book}第{chapter}章",
+    "selectAVerse": "选择一节，或前往整章",
+    "goToChapter": "前往 {book} {chapter}",
+    "verseOption": "{book} {chapter}:{verse}"
   },
   "helpDialog": {
     "esc": "Esc"

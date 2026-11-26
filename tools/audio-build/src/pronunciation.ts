@@ -66,7 +66,7 @@ export function loadPronunciation(dir: string, locale: string, moduleAbbr: strin
 
 /** The voice's language (`en-US`): from the engine's voice list, else a Piper-style id (`en_US-amy-low`). */
 export function voiceLanguage(def: EngineDefinition, voiceId: string): string | undefined {
-  const known = def.voices.find(v => v.id === voiceId)?.language;
+  const known = def.voices.find(v => v.id === voiceId)?.language ?? def.voiceLanguage?.(voiceId);
   if (known) return known;
   const m = /^([a-z]{2,3})_([A-Za-z]{2})-/.exec(voiceId);
   return m ? `${m[1]}-${m[2].toUpperCase()}` : undefined;

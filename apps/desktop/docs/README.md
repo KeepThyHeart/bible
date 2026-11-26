@@ -22,6 +22,7 @@ This folder contains feature-oriented documentation for the `@bible/desktop` pac
 | [Bible Pane](features/bible-pane.md) | Core Bible reading with multi-tab, parallel view, display modes, and verse interaction |
 | [Interlinear & Study Mode](features/interlinear-study.md) | Study mode with interlinear display, cross-references, footnotes, and verse links |
 | [Commentary](features/commentary.md) | Commentary pane with tree view, reference linking, and multi-commentary support |
+| [Audio Bible](features/audio.md) | Listen to a chapter: downloaded or streamed recordings and on-device Piper speech, follow-along highlight, per-book downloads (flag `audio`) |
 | [Search](features/search.md) | Keyword, advanced, and semantic search, and find-in-page |
 | [Dictionary](features/dictionary.md) | Dictionary/lexicon pane for Strong's and other reference lookups |
 | [Notes & Writing](features/notes-writing.md) | File-backed user notes (browser + rich text editor) and the Prayer pane |

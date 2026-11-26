@@ -26,6 +26,7 @@ import { useBibleScrolling } from '../../hooks/useBibleScrolling';
 import { DEFAULT_STUDY_OPTIONS } from '../../stores/useBibleStore';
 import { bibleAPI } from '../../services/electronAPI';
 
+vi.mock('../BibleHeader', () => ({ default: () => <h2 data-testid="bible-chapter-heading" /> }));
 vi.mock('../../contexts/useI18n', () => ({
   useI18n: () => ({ t: (key: string) => key, locale: 'en', i18n: {} }),
 }));
@@ -160,6 +161,12 @@ describe('StudyModeView scroll wiring (FIX 1)', () => {
     vi.mocked(bibleAPI.getInterlinearWordsForChapter).mockImplementation(
       () => new Promise(() => {}), // never resolves unless a test overrides it
     );
+  });
+
+  it('renders the shared clickable chapter header (B2)', () => {
+    vi.mocked(bibleAPI.getInterlinearWordsForChapter).mockResolvedValue({});
+    render(<Harness selectedVerseId={19003002} scrollTrigger={0} scrollMode="center" />);
+    expect(screen.getByTestId('bible-chapter-heading')).toBeInTheDocument();
   });
 
   it('scrolls the DOM node for the selected verse specifically, not just any verse', async () => {

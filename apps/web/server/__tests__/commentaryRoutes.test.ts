@@ -130,6 +130,10 @@ describe('GET /api/commentary/info/:module', () => {
     expect(res.body).toHaveProperty('abbreviation');
     expect(res.body).toHaveProperty('fullName');
     expect(res.body).toHaveProperty('languageCode');
+    // Licence/source/attribution fields are always present (null when the module has none).
+    for (const key of ['licenseSpdx', 'licenseUrl', 'sourceUrl', 'attribution']) {
+      expect(res.body).toHaveProperty(key);
+    }
   });
 
   it('returns 404 for nonexistent module', async () => {

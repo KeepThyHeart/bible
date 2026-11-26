@@ -21,8 +21,15 @@ export interface LoadChapterOptions {
 export interface VerseSlice {
   loadChapterForTab: (panelId: string, tabId: string, abbreviation: string, bookNumber: number, chapter: number) => Promise<void>;
   loadChapter: (panelId: string, bookNumber: number, chapter: number, options?: LoadChapterOptions) => Promise<void>;
+  /**
+   * Turn one pane's page to a chapter without navigating (the Audio Bible following the reading):
+   * the chapter is fetched for the pane's active tab and shown from its top, but the selection
+   * (`selectedVerseId` / `selectionEndVerseId`) stays, no history entry and no visit is added, and
+   * nothing is broadcast, so the Study / Commentary panes and other panes do not move.
+   */
+  followToChapter: (panelId: string, bookNumber: number, chapter: number) => Promise<void>;
   loadVerse: (panelId: string, verseId: number) => Promise<void>;
-  navigateToVerse: (panelId: string, verseId: number) => Promise<void>;
+  navigateToVerse: (panelId: string, verseId: number, endVerseId?: number) => Promise<void>;
   setSelectedVerse: (panelId: string, verseId: number | null) => void;
   /**
    * Shift-click: widen the selection out to `verseId` without moving the
@@ -197,6 +204,42 @@ export const createVerseSlice: StateCreator<BibleState, [], [], VerseSlice> = (s
     }
   },
 
+  // Follow the audio reading to another chapter: a page turn that is not a navigation (see the interface).
+  followToChapter: async (panelId: string, bookNumber: number, chapter: number) => {
+    const ps = get().getPanelState(panelId);
+    const activeTab = ps.openTabs[ps.activeTabIndex];
+    if (!activeTab) return;
+    // Book and chapter first, synchronously: the audio store compares the pane with the chapter it
+    // is reading on every store change, and must never see the old chapter after the turn began.
+    set({
+      panels: updatePanelState(get().panels, panelId, {
+        currentBook: bookNumber,
+        currentChapter: chapter,
+        // Show the chapter from its heading. The selection is deliberately left alone.
+        scrollMode: 'top',
+        scrollTrigger: ps.scrollTrigger + 1,
+      }, createDefaultPanelState)
+    });
+    let bookName = ps.currentBookName;
+    try {
+      bookName = await bibleAPI.getBookName(bookNumber);
+    } catch {
+      // Keep the old name rather than fail the page turn.
+    }
+    if (get().getPanelState(panelId).currentBook === bookNumber) {
+      set({ panels: updatePanelState(get().panels, panelId, { currentBookName: bookName }, createDefaultPanelState) });
+    }
+    await get().loadChapterForTab(panelId, activeTab.tabId, activeTab.abbreviation, bookNumber, chapter);
+    // Keep the tab's mirror (what the session saves) on the chapter shown; history and selection untouched.
+    const current = get().getPanelState(panelId);
+    const idx = current.openTabs.findIndex(t => t.tabId === activeTab.tabId);
+    if (idx >= 0) {
+      const tabs = [...current.openTabs];
+      tabs[idx] = { ...tabs[idx], book: bookNumber, chapter, bookName };
+      set({ panels: updatePanelState(get().panels, panelId, { openTabs: tabs }, createDefaultPanelState) });
+    }
+  },
+
   // Load a single verse (active tab only)
   loadVerse: async (panelId: string, verseId: number) => {
     const ps = get().getPanelState(panelId);
@@ -253,7 +296,7 @@ export const createVerseSlice: StateCreator<BibleState, [], [], VerseSlice> = (s
   },
 
   // Navigate to a specific verse (parses verseId and loads the chapter) - active tab only
-  navigateToVerse: async (panelId: string, verseId: number) => {
+  navigateToVerse: async (panelId: string, verseId: number, endVerseId?: number) => {
     try {
       const { bookNumber, chapter } = VerseIdHelper.parse(verseId);
       const bookName = await bibleAPI.getBookName(bookNumber);
@@ -284,6 +327,8 @@ export const createVerseSlice: StateCreator<BibleState, [], [], VerseSlice> = (s
           verseId, bookNumber, chapter, bookName,
           abbreviation: activeTab.abbreviation,
         });
+        // A passage (a range bookmark) selects every verse, as a shift-click would.
+        if (endVerseId !== undefined && endVerseId !== verseId) get().extendSelectionTo(panelId, endVerseId);
         return;
       }
 
@@ -331,6 +376,7 @@ export const createVerseSlice: StateCreator<BibleState, [], [], VerseSlice> = (s
         };
         set({ panels: updatePanelState(get().panels, panelId, { openTabs: updatedTabs }, createDefaultPanelState) });
       }
+      if (endVerseId !== undefined && endVerseId !== verseId) get().extendSelectionTo(panelId, endVerseId);
     } catch (error) {
       console.error('[useBibleStore] Error navigating to verse:', error);
     }

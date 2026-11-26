@@ -31,6 +31,17 @@ describe('OfflinePackSection', () => {
     expect(screen.getByText(/offline app shell/)).toBeTruthy();
   });
 
+  it('a group select-all ticks every readable row of the group and updates the summary', async () => {
+    render(<OfflinePackSection source={source([offer('KJV', 'bible', true), offer('ASV', 'bible', true), offer('MHC', 'commentary', false)])} installers={{}} />);
+    await screen.findByText('KJV');
+    fireEvent.click(screen.getByLabelText('Select all in Bibles'));
+    await waitFor(() => expect(screen.getByText('Download: 3.8 MB')).toBeTruthy());
+    expect((screen.getByLabelText(/KJV/) as HTMLInputElement).checked).toBe(true);
+    expect((screen.getByLabelText(/ASV/) as HTMLInputElement).checked).toBe(true);
+    fireEvent.click(screen.getByLabelText('Select all in Bibles'));
+    await waitFor(() => expect(screen.getByText('Download: 0 B')).toBeTruthy());
+  });
+
   it('hides the shell notice when asked', async () => {
     render(<OfflinePackSection source={source([offer('KJV', 'bible', true)])} installers={{}} showShellNotice={false} />);
     await screen.findByText('KJV');

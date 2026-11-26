@@ -115,7 +115,15 @@ function syncSearchPanelParams(): void {
 export function restoreSearchTabsFromLayout(api: DockviewApi): void {
   const layout = useLayoutStore.getState();
   const restored: RestoredSearchTab[] = [];
+  // Search tabs come back only when the reader opted in (task 0224). Otherwise
+  // a layout saved by an older version still holds them: close every one, and
+  // the next save no longer has any query in it.
+  const reopen = usePreferencesStore.getState().reopenSearchTabs;
   for (const panel of layout.getPanelsByType('search')) {
+    if (!reopen) {
+      layout.removePanel(panel.panelId);
+      continue;
+    }
     const params = (api.getPanel(panel.panelId)?.params ?? {}) as SearchPanelParams;
     if (panel.contentKey === SEARCH_HOST_CONTENT_KEY) {
       const tabs = Array.isArray(params.searchTabs) ? params.searchTabs : [];

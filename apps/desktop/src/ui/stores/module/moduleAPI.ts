@@ -45,6 +45,9 @@ export const moduleAPI = {
   async dismissInstall(jobId: number): Promise<void> {
     return unwrap(requireElectronAPI().moduleManager.dismissInstall(jobId));
   },
+  async getFreeSpace(): Promise<number | null> {
+    return unwrap(requireElectronAPI().moduleManager.getFreeSpace());
+  },
   async installFromFile() {
     return unwrap(requireElectronAPI().moduleManager.installFromFile());
   },
@@ -72,6 +75,9 @@ export const moduleAPI = {
   },
   async getModuleDetails(moduleId: number) {
     return unwrap(requireElectronAPI().moduleManager.getModuleDetails(moduleId));
+  },
+  async getModuleProvenance(moduleId: number) {
+    return unwrap(requireElectronAPI().moduleManager.getModuleProvenance(moduleId));
   },
   async getKeywordIndexStatus(moduleId: number): Promise<KeywordIndexStatusDto> {
     return unwrap(requireElectronAPI().moduleManager.getKeywordIndexStatus(moduleId));

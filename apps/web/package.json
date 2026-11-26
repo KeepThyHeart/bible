@@ -42,6 +42,7 @@
     "test:e2e:rtl-visual:update": "pnpm run build:client && RTL_VISUAL=1 playwright test --config=e2e/playwright.config.ts rtl-visual --project=desktop-chrome --project=mobile-chrome --update-snapshots"
   },
   "dependencies": {
+    "@bible/audio": "workspace:*",
     "@bible/core": "workspace:*",
     "@bible/memory": "workspace:*",
     "@bible/speech": "workspace:^",

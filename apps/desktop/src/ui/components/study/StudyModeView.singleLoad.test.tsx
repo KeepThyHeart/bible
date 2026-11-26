@@ -26,6 +26,7 @@ import { DEFAULT_STUDY_OPTIONS } from '../../stores/useBibleStore';
 import { bibleAPI } from '../../services/electronAPI';
 import { studyOverviewProvider } from '../../services/studyOverviewProvider';
 
+vi.mock('../BibleHeader', () => ({ default: () => <h2 data-testid="bible-chapter-heading" /> }));
 vi.mock('../../contexts/useI18n', () => ({
   useI18n: () => ({ t: (key: string) => key, locale: 'en', i18n: {} }),
 }));

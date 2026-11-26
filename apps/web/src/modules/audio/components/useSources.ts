@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'preact/hooks';
-import type { SourceStatus } from '../lib/AudioSourceResolver';
+import type { SourceStatus } from '@bible/audio';
 import { audioStore } from '../audioStore';
 import { useStore } from '../../../hooks/useStore';
 

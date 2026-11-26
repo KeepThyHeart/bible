@@ -168,6 +168,7 @@ export const GeneralSection: React.FC = () => {
     globalFontScale, setGlobalFontScale,
     uiControlFontSize, setUiControlFontSize,
     advancedPaneManagerEnabled, setAdvancedPaneManagerEnabled,
+    scrollbarSize, setScrollbarSize,
   } = usePreferencesStore();
 
   const scalePercent = Math.round(globalFontScale * 100);
@@ -440,6 +441,38 @@ export const GeneralSection: React.FC = () => {
             {t('preferencesDialog.uiControlPreview')}
           </span>
         </div>
+      </div>
+
+      {/* Scrollbar size */}
+      <div>
+        <label
+          htmlFor="preferences-scrollbar-size"
+          className="block text-sm font-medium mb-1"
+          style={{ color: 'var(--theme-text-primary)' }}
+        >
+          {t('preferencesDialog.scrollbarSizeLabel')}
+        </label>
+        <p
+          id="preferences-scrollbar-size-description"
+          className="text-xs mb-2"
+          style={{ color: 'var(--theme-text-secondary)' }}
+        >
+          {t('preferencesDialog.scrollbarSizeDescription')}
+        </p>
+        <select
+          id="preferences-scrollbar-size"
+          aria-describedby="preferences-scrollbar-size-description"
+          value={scrollbarSize}
+          onChange={(e) => setScrollbarSize(e.target.value === 'large' ? 'large' : 'standard')}
+          className="px-2 py-1 rounded text-sm"
+          style={{
+            color: 'var(--theme-text-primary)',
+            border: '1px solid var(--theme-border-primary)'
+          }}
+        >
+          <option value="standard">{t('preferencesDialog.scrollbarSizeStandard')}</option>
+          <option value="large">{t('preferencesDialog.scrollbarSizeLarge')}</option>
+        </select>
       </div>
 
       {/* Advanced Pane Manager (KAN QA 4.5) */}

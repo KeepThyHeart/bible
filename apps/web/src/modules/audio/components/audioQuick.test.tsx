@@ -18,7 +18,7 @@ vi.mock('@bible/ui', () => ({
 import { audioStore } from '../audioStore';
 import { buildUiRig, flush, openChapter } from '../lib/uiRig';
 import type { UiRig } from '../lib/uiRig';
-import type { SourceStatus } from '../lib/AudioSourceResolver';
+import type { SourceStatus } from '@bible/audio';
 import { AudioQuickSettings } from './AudioQuickSettings';
 import { AudioSpeedControl } from './AudioSpeedControl';
 import { EngineSelect } from './AudioControls';

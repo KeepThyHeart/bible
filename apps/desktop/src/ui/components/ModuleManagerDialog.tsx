@@ -7,6 +7,9 @@ import { useNetworkStore } from '../stores/useNetworkStore';
 import { moduleAPI } from '../stores/module/moduleAPI';
 import { mergeAndSortModules, getTabTypes, type ModuleRow } from '../stores/module/moduleRows';
 import ModuleTable from './moduleManager/ModuleTable';
+import BatchInstallBar from './moduleManager/BatchInstallBar';
+import { selectableVisibleRows } from './moduleManager/batchInstall';
+import { useBatchInstall } from './moduleManager/useBatchInstall';
 import { findRowDownload, findRowInstallJob } from './moduleManager/ModuleRow';
 import ModuleDetailsPanel from './moduleManager/ModuleDetailsPanel';
 import { MODULE_TYPE_LABELS, useTd } from './moduleManager/moduleManagerI18n';
@@ -391,6 +394,45 @@ const ModuleManagerDialog: React.FC<ModuleManagerDialogProps> = ({ onClose, init
       });
     }
   };
+
+  // Batch install: ticked rows (by abbreviation). Only ticked rows that are still visible under the
+  // current tab, filter and search text - and still installable - count toward "Install selected".
+  const [checked, setChecked] = useState<ReadonlySet<string>>(() => new Set());
+  const { batch, start: startBatch, cancel: cancelBatch, dismiss: dismissBatch } = useBatchInstall(installJobs);
+  const selectableRows = useMemo(
+    () => selectableVisibleRows(rows, activeTypeTab as ModuleType, installFilter, searchInput, installJobs),
+    [rows, activeTypeTab, installFilter, searchInput, installJobs]
+  );
+  const selectedRows = useMemo(() => selectableRows.filter((r) => checked.has(r.abbreviation)), [selectableRows, checked]);
+  const updateRows = useMemo(
+    () => (installFilter === 'updates' ? selectableRows.filter((r) => r.installed && r.updateAvailable) : []),
+    [selectableRows, installFilter]
+  );
+  const handleToggleCheck = useCallback((row: ModuleRow, on: boolean) => {
+    setChecked((prev) => {
+      const next = new Set(prev);
+      if (on) next.add(row.abbreviation);
+      else next.delete(row.abbreviation);
+      return next;
+    });
+  }, []);
+  const handleToggleAll = useCallback((target: ModuleRow[], on: boolean) => {
+    setChecked((prev) => {
+      const next = new Set(prev);
+      for (const r of target) {
+        if (on) next.add(r.abbreviation);
+        else next.delete(r.abbreviation);
+      }
+      return next;
+    });
+  }, []);
+  const handleStartBatch = useCallback(
+    (target: ModuleRow[]) => {
+      setChecked(new Set());
+      void startBatch(target);
+    },
+    [startBatch]
+  );
 
   const handleInstallRow = (row: ModuleRow) => {
     const catalogModule = row.catalogModule;
@@ -948,6 +990,18 @@ const ModuleManagerDialog: React.FC<ModuleManagerDialogProps> = ({ onClose, init
           </div>
         )}
 
+        {!panelTab && (
+          <BatchInstallBar
+            selectedRows={selectedRows}
+            updateRows={updateRows}
+            offline={!allowWebRequests}
+            batch={batch}
+            onStart={handleStartBatch}
+            onCancel={cancelBatch}
+            onDismiss={dismissBatch}
+          />
+        )}
+
         {/* Main Content: the active tab's panel, plus the module details panel
             (in-dialog, not a nested modal) once a row is selected. */}
         <div className="flex-1 min-h-0 flex">
@@ -979,6 +1033,10 @@ const ModuleManagerDialog: React.FC<ModuleManagerDialogProps> = ({ onClose, init
                 onRetryInstall={(id) => void retryInstall(id)}
                 onDismissInstall={(id) => void dismissInstall(id)}
                 ariaLabel={typeLabel(activeTypeTab)}
+                checkedAbbreviations={checked}
+                checkDisabled={!allowWebRequests || !!batch?.running}
+                onToggleCheck={handleToggleCheck}
+                onToggleAllChecks={handleToggleAll}
                 onSelect={(row) => setSelectedAbbreviation(row.abbreviation)}
                 onInstall={handleInstallRow}
                 onUpdate={handleUpdateRow}

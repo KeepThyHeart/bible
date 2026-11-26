@@ -151,6 +151,45 @@
     },
     "shortcut": {
       "focusPlayer": "转到音频播放器"
+    },
+    "downloads": {
+      "title": "下载音频以离线收听",
+      "heading": "离线收听",
+      "settingsHint": "将录音书卷保存在此设备上，无需网络即可收听。",
+      "open": "下载音频…",
+      "hint": "选择要保存在此设备上的书卷。若译本文字尚未在此设备上，也会一并保存。",
+      "translation": "译本",
+      "narrator": "朗读者",
+      "loading": "正在加载录音…",
+      "none": "{module} 暂无可用录音。",
+      "ot": "旧约",
+      "nt": "新约",
+      "selectAll": "全选",
+      "clear": "清除",
+      "selectGroup": "选择{testament}的所有书卷",
+      "clearGroup": "清除{testament}的选择",
+      "wholeBible": "整本圣经",
+      "sizeLoading": "正在计算大小…",
+      "state": {
+        "downloaded": "已下载",
+        "partial": "部分已下载"
+      },
+      "chapters": "{count}/{total} 章",
+      "removeBook": "从此设备移除{book}",
+      "selected": "已选 {count, plural, other {# 卷}} · {size}",
+      "free": "剩余 {size}",
+      "noFit": "所选内容超过了此设备的可用空间。",
+      "download": "下载",
+      "confirmTitle": "大型下载",
+      "confirmBody": "此次下载为 {size}。开始前请检查网络连接和此设备的空间。",
+      "confirmNoFit": "此次下载为 {size}，但此设备仅剩 {free}，可能放不下。",
+      "confirmGo": "仍然下载",
+      "back": "返回",
+      "progress": "正在下载 {book} · 第 {done}/{total} 卷 · {loaded}/{size}",
+      "done": "下载完成。",
+      "cancelled": "下载已停止。进度已保留，下次下载会从这里继续。",
+      "failed": "下载未完成。{message}",
+      "close": "关闭"
     }
   }
 }

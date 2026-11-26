@@ -7,9 +7,10 @@
 import { useTranslation } from 'react-i18next';
 import { audioStore } from '../audioStore';
 import { useStore } from '../../../hooks/useStore';
-import { choiceOfUi, uiSourceOf } from '../lib/sourceChoice';
+import { choiceOfUi, uiSourceOf } from '@bible/audio';
 import { EngineSelect, SourceSegmented } from './AudioControls';
 import { useSources } from './useSources';
+import { downloadsDialog, getAudioDownloadsHandle } from '../lib/downloads';
 
 export interface AudioQuickSettingsProps {
   moduleAbbr: string;
@@ -104,6 +105,12 @@ export function AudioQuickSettings({ moduleAbbr, variant, onOpenSettings }: Audi
             ))}
           </div>
         </div>
+      )}
+
+      {getAudioDownloadsHandle() && (
+        <button type="button" class="audio-panel__more" data-testid="audio-quick-downloads" onClick={() => downloadsDialog.open(moduleAbbr)}>
+          {t('audio.downloads.open')} <i class="fa-solid fa-cloud-arrow-down" aria-hidden="true" />
+        </button>
       )}
 
       {onOpenSettings && (

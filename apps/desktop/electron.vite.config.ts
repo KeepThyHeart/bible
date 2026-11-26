@@ -98,6 +98,9 @@ const PRODUCT_NAME = envOrEmpty('BIBLE_PRODUCT_NAME') || 'Keep Thy Heart Bible R
 const ISSUE_REPORT_URL = envOrEmpty('BIBLE_ISSUE_REPORT_URL');
 const MODULE_CATALOG_URL =
   envOrEmpty('BIBLE_MODULE_CATALOG_URL') || brandingValue('moduleRepositoryUrl');
+// Audio Bible recordings host (task 0223): no default; a build may bake one in.
+const AUDIO_RECORDINGS_BASE =
+  envOrEmpty('BIBLE_AUDIO_RECORDINGS_BASE') || brandingValue('audioRecordingsBase');
 const COPYRIGHT_YEAR = envOrEmpty('BIBLE_COPYRIGHT_YEAR') || String(new Date().getFullYear());
 const APP_VERSION = envOrEmpty('BIBLE_APP_VERSION') || resolveAppVersion();
 // Not defaulted from `branding.json`'s `siteUrl`: the docs site is served under
@@ -142,6 +145,7 @@ const APP_CONFIG_DEFINES: Record<string, string> = {
   __BIBLE_PRODUCT_NAME__: JSON.stringify(PRODUCT_NAME),
   __BIBLE_ISSUE_REPORT_URL__: JSON.stringify(ISSUE_REPORT_URL),
   __BIBLE_MODULE_CATALOG_URL__: JSON.stringify(MODULE_CATALOG_URL),
+  __BIBLE_AUDIO_RECORDINGS_BASE__: JSON.stringify(AUDIO_RECORDINGS_BASE),
   __BIBLE_COPYRIGHT_YEAR__: JSON.stringify(COPYRIGHT_YEAR),
   __BIBLE_APP_VERSION__: JSON.stringify(APP_VERSION),
   // In APP_CONFIG_DEFINES rather than the `main` block alone: `appConfig.ts`

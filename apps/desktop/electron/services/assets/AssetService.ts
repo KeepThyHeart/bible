@@ -222,9 +222,16 @@ export function getAssetService(): AssetService {
         // so nothing of @bible/speech loads otherwise.
         const { isReciteEnabled } = await import('../../modules/speech/permissions');
         const { app } = await import('electron');
-        if (!isReciteEnabled(app.isPackaged)) return [];
-        const { whisperManifests } = await import('@bible/speech/models');
-        return whisperManifests(process.env.BIBLE_SPEECH_MODEL_BASE_URL || undefined);
+        const out: AssetManifest[] = [];
+        if (isReciteEnabled(app.isPackaged)) {
+          const { whisperManifests } = await import('@bible/speech/models');
+          out.push(...whisperManifests(process.env.BIBLE_SPEECH_MODEL_BASE_URL || undefined));
+        }
+        // Piper TTS (0223): only with the `audio` flag.
+        if ((await import('../../modules/audio/flag')).isAudioEnabled(app.isPackaged)) {
+          out.push(...(await import('../../modules/audio/piperManifests')).piperManifests());
+        }
+        return out;
       },
     });
   }

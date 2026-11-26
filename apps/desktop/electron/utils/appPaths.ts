@@ -93,6 +93,14 @@ export function getAssetStoreRoot(): string {
 }
 
 /**
+ * Root of the downloaded Audio Bible recordings (task 0223). Laid out like the hosted tree
+ * (`v1/<module>/...`), so the `kth-audio://` handler serves a file here before it asks the network.
+ */
+export function getAudioDownloadsRoot(): string {
+  return join(getUserDataPath(), 'audio-downloads');
+}
+
+/**
  * Absolute path to the persisted main-window geometry.
  *
  * Deliberately NOT under `getUserDataPath()`. That helper resolves to the

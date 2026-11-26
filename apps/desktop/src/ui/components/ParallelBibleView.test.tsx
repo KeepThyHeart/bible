@@ -8,6 +8,7 @@ import { bibleAPI } from '../services/electronAPI';
 
 // Mock hooks
 const mockUseBiblePanel = vi.fn();
+vi.mock('./BibleHeader', () => ({ default: () => <h2 data-testid="bible-chapter-heading" /> }));
 vi.mock('../stores/hooks/useBiblePanel', () => ({
   useBiblePanel: (...args: unknown[]) => mockUseBiblePanel(...args),
 }));
@@ -58,6 +59,12 @@ describe('ParallelBibleView', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockUseBiblePanel.mockReturnValue(defaultBiblePanel);
+  });
+
+  it('renders the shared chapter header above the columns (B2)', () => {
+    mockUseBiblePanel.mockReturnValue({ ...defaultBiblePanel, parallelVersions: ['KJV', 'ESV'] });
+    renderWithProviders(<ParallelBibleView />);
+    expect(screen.getByTestId('bible-chapter-heading')).toBeInTheDocument();
   });
 
   it('shows message when fewer than 2 versions selected', () => {

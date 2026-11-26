@@ -34,10 +34,10 @@ describe('highlightHelpers colour handling', () => {
   });
 
   describe('getHighlightStats', () => {
-    it('always reports the six palette colours, zero when unused', () => {
+    it('always reports every palette colour, zero when unused', () => {
       const stats = getHighlightStats([]);
 
-      expect(Object.keys(stats.byColor)).toHaveLength(6);
+      expect(Object.keys(stats.byColor)).toHaveLength(10);
       expect(stats.byColor[YELLOW]).toBe(0);
       expect(stats.total).toBe(0);
     });

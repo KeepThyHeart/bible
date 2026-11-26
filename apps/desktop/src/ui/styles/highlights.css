@@ -45,6 +45,22 @@
   background-color: rgb(var(--theme-highlight-orange-rgb) / var(--theme-highlight-alpha));
 }
 
+.highlight-pink {
+  background-color: rgb(var(--theme-highlight-pink-rgb) / var(--theme-highlight-alpha));
+}
+
+.highlight-teal {
+  background-color: rgb(var(--theme-highlight-teal-rgb) / var(--theme-highlight-alpha));
+}
+
+.highlight-gray {
+  background-color: rgb(var(--theme-highlight-gray-rgb) / var(--theme-highlight-alpha));
+}
+
+.highlight-brown {
+  background-color: rgb(var(--theme-highlight-brown-rgb) / var(--theme-highlight-alpha));
+}
+
 /* Highlighted words keep the theme's own text colour. The wash is a low-alpha tint of
    the swatch over the theme background, so on dark themes it stays dark and the light
    text stays readable; a fixed dark text colour here measured about 2:1 (B-103). The
@@ -125,6 +141,10 @@
   --underline-color-red: rgba(255, 0, 0, 1);
   --underline-color-purple: rgba(128, 0, 128, 1);
   --underline-color-orange: rgba(255, 140, 0, 1);
+  --underline-color-pink: rgba(230, 60, 150, 1);
+  --underline-color-teal: rgba(0, 128, 128, 1);
+  --underline-color-gray: rgba(110, 110, 110, 1);
+  --underline-color-brown: rgba(139, 90, 43, 1);
 }
 
 /* Underlines on dark backgrounds: the saturated dark blues/purples above are
@@ -136,6 +156,9 @@
   --underline-color-blue: rgba(120, 160, 255, 1);
   --underline-color-purple: rgba(200, 140, 240, 1);
   --underline-color-green: rgba(80, 200, 110, 1);
+  --underline-color-teal: rgba(70, 200, 190, 1);
+  --underline-color-gray: rgba(180, 180, 180, 1);
+  --underline-color-brown: rgba(200, 150, 100, 1);
 }
 
 .word.underline-color-yellow {
@@ -160,6 +183,22 @@
 
 .word.underline-color-orange {
   text-decoration-color: var(--underline-color-orange) !important;
+}
+
+.word.underline-color-pink {
+  text-decoration-color: var(--underline-color-pink) !important;
+}
+
+.word.underline-color-teal {
+  text-decoration-color: var(--underline-color-teal) !important;
+}
+
+.word.underline-color-gray {
+  text-decoration-color: var(--underline-color-gray) !important;
+}
+
+.word.underline-color-brown {
+  text-decoration-color: var(--underline-color-brown) !important;
 }
 
 /* =============================================
