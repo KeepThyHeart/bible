@@ -28,9 +28,17 @@ export function endModelOf(e: TodayEntry, book: number, chapter: number): EndBlo
 export function activeEndModel(info: ActiveReadingInfo, book: number, chapter: number): EndBlockModel {
   return {
     enrollmentId: info.enrollmentId, planKey: info.planKey, planName: info.planName, day: info.day, index: info.index,
-    reading: info.reading, done: info.done, next: info.next, nextDay: info.day < info.dayCount ? info.day + 1 : null,
+    reading: info.reading, done: info.done,
+    // A read-ahead stops at its own day's last reading: never chain into the next day.
+    next: info.next && info.next.day === info.day ? info.next : null, nextDay: info.day < info.dayCount ? info.day + 1 : null,
     chapter: ReadingPlans.chapterOf(info.reading, book, chapter),
   };
+}
+
+/** A ticked reading keeps its end block only while it is the active one (undo), not all day in every pane. */
+function showsEnd(e: TodayEntry, info: ActiveReadingInfo | null): boolean {
+  if (!e.r.done) return true;
+  return !!info && info.enrollmentId === e.view.enrollmentId && info.day === e.r.day && info.index === e.r.index;
 }
 
 /** End-block models for readings that end in this chapter: today's set, then the opened reading unless it is in it. */
@@ -38,7 +46,7 @@ export function endModelsForChapter(
   todays: readonly ReadingPlans.TodayView[], info: ActiveReadingInfo | null, book: number, chapter: number,
 ): EndBlockModel[] {
   const set = todaySetFor(todays);
-  const out = set.filter((e) => ReadingPlans.endsInChapter(e.r.reading, book, chapter)).map((e) => endModelOf(e, book, chapter));
+  const out = set.filter((e) => showsEnd(e, info) && ReadingPlans.endsInChapter(e.r.reading, book, chapter)).map((e) => endModelOf(e, book, chapter));
   if (info && ReadingPlans.endsInChapter(info.reading, book, chapter)
     && !set.some((e) => e.view.enrollmentId === info.enrollmentId && e.r.day === info.day && e.r.index === info.index)) {
     out.push(activeEndModel(info, book, chapter));
@@ -59,7 +67,7 @@ const ReadingPlanVerseBlocks: React.FC<ReaderVerseBlockProps> = ({ verseId, prev
   const { book, chapter } = ReadingPlans.splitVid(verseId);
   const models: EndBlockModel[] = [];
   for (const e of todaySetFor(todays)) {
-    if (ReadingPlans.blockPlacement(e.r.reading, verseId, prevVerseId, nextVerseId).end) models.push(endModelOf(e, book, chapter));
+    if (showsEnd(e, info) && ReadingPlans.blockPlacement(e.r.reading, verseId, prevVerseId, nextVerseId).end) models.push(endModelOf(e, book, chapter));
   }
   if (info && ReadingPlans.blockPlacement(info.reading, verseId, prevVerseId, nextVerseId).end
     && !models.some((m) => m.enrollmentId === info.enrollmentId && m.day === info.day && m.index === info.index)) {

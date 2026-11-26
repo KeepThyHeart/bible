@@ -69,6 +69,13 @@ describe('plan reading tab', () => {
     expect(inScope(s, 1, 5)).toBe(true);
     expect(inScope(s, 1, 7)).toBe(false);
     expect(inScope(s, 2, 5)).toBe(false);
+    // A reading across books (Genesis 49 - Exodus 2): the last book's chapters count too.
+    const x = scopeOf({ start: ReadingPlans.vid(1, 49, 1), end: ReadingPlans.vid(2, 2, 10) }, 't');
+    expect(x).toMatchObject({ book: 1, chapterFrom: 49, lastBook: 2, lastChapter: 2 });
+    expect(inScope(x, 1, 50)).toBe(true);
+    expect(inScope(x, 2, 2)).toBe(true);
+    expect(inScope(x, 2, 3)).toBe(false);
+    expect(inScope(x, 1, 48)).toBe(false);
   });
 
   it('creates the tab with the fixed panel id and the plan title, then reuses it', async () => {

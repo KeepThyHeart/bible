@@ -119,7 +119,7 @@ export function dueReadings(view: TodayView): PlanReadingRef[] {
 
 /**
  * The next unticked reading after (`day`, `index`) in `todaysReadings(view)` order (positional, so it works right after
- * the reading was ticked), or null when none is left: "Day N done". A flexible plan stays within the reading's own day.
+ * the reading was ticked), else (wrapping to earlier ones) the first unticked one before it, or null when none is left: "Day N done". A flexible plan stays within the reading's own day.
  */
 export function nextDueReading(view: TodayView, day: number, index: number): PlanReadingRef | null {
   const all = todaysReadings(view);
@@ -128,6 +128,12 @@ export function nextDueReading(view: TodayView, day: number, index: number): Pla
   for (let i = at + 1; i < all.length; i++) {
     const r = all[i];
     if (view.pacing === 'flexible' && r.day !== day) return null;
+    if (!r.done) return { day: r.day, index: r.index, reading: r.reading };
+  }
+  // Nothing unticked after it: wrap to unticked entries before it (out-of-order ticking; a flexible plan stays in the day).
+  for (let i = 0; i < at; i++) {
+    const r = all[i];
+    if (view.pacing === 'flexible' && r.day !== day) continue;
     if (!r.done) return { day: r.day, index: r.index, reading: r.reading };
   }
   return null;

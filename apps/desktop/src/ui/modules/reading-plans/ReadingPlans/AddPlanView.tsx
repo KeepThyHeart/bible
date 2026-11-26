@@ -4,6 +4,7 @@ import { ReadingPlans } from '@bible/core/browser';
 import { MessageBox, ReadingPlanLibrary } from '@bible/ui';
 import { useI18n } from '../../../contexts/useI18n';
 import { saveTextFile } from '../../../utils/saveTextFile';
+import { rpTextWith } from '../rpText';
 import { getReadingPlanService } from '../readingPlansAPI';
 import type { ReadingPlanLabelSet } from './useReadingPlanLabels';
 
@@ -61,11 +62,18 @@ const AddPlanView: React.FC<AddPlanViewProps> = ({ library, labels, onBack, onEd
     if (!file) return;
     try {
       onError(null);
-      if (file.size > ReadingPlans.MAX_PLAN_FILE_BYTES) throw new Error('This file is too large to be a reading plan.');
+      if (file.size > ReadingPlans.MAX_PLAN_FILE_BYTES) {
+        onError(rpTextWith(t, 'readingPlans.file.tooLarge', 'This file is too large to be a reading plan.'));
+        return;
+      }
       const saved = await getReadingPlanService().savePlan(ReadingPlans.parsePlanFile(await file.text()));
       onStart(saved.key);
     } catch (err) {
-      onError(err instanceof Error ? err.message : String(err));
+      if (err instanceof ReadingPlans.ReadingPlanDataError) {
+        onError(rpTextWith(t, 'readingPlans.file.importFailed', 'This is not a reading plan file. {detail}', { detail: err.message }));
+      } else {
+        onError(err instanceof Error ? err.message : String(err));
+      }
     }
   };
 

@@ -23,16 +23,21 @@ export interface ScheduleUndo {
   oldCatchUp: { extraPerDay: number } | null;
   /** The `startDate` the move produced: a different one later means the schedule was edited since. */
   newStartDate: string;
+  /** The pacing and reading days the move left in place: a different value later means the schedule was edited since. */
+  pacing: string;
+  readingDays: readonly number[];
   /** The reading date the move happened on. */
   movedOn: string;
 }
 
 /** The undo for this enrollment while it still applies, else null. `today` is the current reading date. */
 export function validScheduleUndo(
-  undo: ScheduleUndo | null, enrollment: { id: string; startDate: string }, today: string | null,
+  undo: ScheduleUndo | null, enrollment: { id: string; startDate: string; pacing: string; readingDays: readonly number[] }, today: string | null,
 ): ScheduleUndo | null {
   if (!undo || undo.enrollmentId !== enrollment.id) return null;
   if (enrollment.startDate !== undo.newStartDate) return null;
+  if (enrollment.pacing !== undo.pacing) return null;
+  if (enrollment.readingDays.length !== undo.readingDays.length || enrollment.readingDays.some((d, i) => d !== undo.readingDays[i])) return null;
   if (today !== null && today !== undo.movedOn) return null;
   return undo;
 }

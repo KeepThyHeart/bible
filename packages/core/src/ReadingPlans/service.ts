@@ -229,7 +229,23 @@ export class ReadingPlanService implements IReadingScopeProvider {
   // ---- enrollments -------------------------------------------------------
 
   async enrollments(): Promise<Enrollment[]> {
-    return this.store.listEnrollments();
+    const list = await this.store.listEnrollments();
+    return Promise.all(list.map((e) => this.settleCatchUp(e)));
+  }
+
+  /**
+   * Catch-up ends itself lazily: once nothing is behind and today's extras are gone (a later reading day), not
+   * mid-day, so the extras a reader just ticked stay in that day's set ("Day N done").
+   */
+  private async settleCatchUp(e: Enrollment): Promise<Enrollment> {
+    if (!e.catchUp || e.status !== 'active') return e;
+    try {
+      const view = todayView(await this.planFor(e), e, await this.store.listCompletions(e.id), this.today(), this.rollover());
+      if (view.behindBy !== 0 || view.catchUp) return e;
+    } catch { return e; }
+    const next = { ...e, catchUp: null };
+    await this.store.putEnrollment(next);
+    return next;
   }
 
   /** Start following a plan. Stock and user plans are snapshotted so a later update or edit never moves the reader. */
@@ -410,11 +426,8 @@ export class ReadingPlanService implements IReadingScopeProvider {
     if (done) {
       const quiet = via === 'bulk';
       // Catch-up is over once no scheduled day is unread.
-      let next: Enrollment = e;
-      if (e.catchUp) {
-        const after = await this.store.listCompletions(enrollmentId);
-        if (todayView(plan, e, after, this.today(), this.rollover()).behindBy === 0) next = { ...e, catchUp: null };
-      }
+      // (Cleared lazily by `settleCatchUp`, so today's extras stay in the day's set.)
+      const next: Enrollment = e;
       this.emit({ type: 'changed' });
       if (!quiet) {
         for (const c of changes) {
@@ -468,8 +481,9 @@ export class ReadingPlanService implements IReadingScopeProvider {
     const today = this.today();
     const out: TodayView[] = [];
     const completions = await this.store.listCompletions();
-    for (const e of await this.store.listEnrollments()) {
-      if (e.status !== 'active') continue;
+    for (const listed of await this.store.listEnrollments()) {
+      if (listed.status !== 'active') continue;
+      const e = await this.settleCatchUp(listed);
       try {
         out.push(todayView(await this.planFor(e), e, completions, today, this.rollover()));
       } catch { /* a broken plan does not hide the others */ }
@@ -478,7 +492,7 @@ export class ReadingPlanService implements IReadingScopeProvider {
   }
 
   async detail(enrollmentId: string): Promise<EnrollmentDetail> {
-    const enrollment = await this.getEnrollment(enrollmentId);
+    const enrollment = await this.settleCatchUp(await this.getEnrollment(enrollmentId));
     const plan = await this.planFor(enrollment);
     const completions = await this.store.listCompletions(enrollmentId);
     const today = this.today();

@@ -108,7 +108,13 @@ const ReadingPlanDetail: React.FC<Props> = ({ enrollmentId, labels, displayName,
 
   const statusText = t(`readingPlans.status.${e.status}`);
 
-  const current = ReadingPlans.currentDayWindow(plan, progress).current;
+  // The same "today" as Home and the Today tab.
+  const current = detail.today.completed ? null : ReadingPlans.focusDay(detail.today);
+  const focusKind = detail.today.focusKind ?? 'current';
+  const focusTag = focusKind === 'today' ? rpTextWith(t, 'readingPlans.home.tag.today', 'Today')
+    : focusKind === 'nextUnread' ? rpTextWith(t, 'readingPlans.home.tag.nextUnread', 'Next unread')
+      : focusKind === 'upcoming' ? rpTextWith(t, 'readingPlans.home.tag.upcoming', 'Next')
+        : t('readingPlans.home.tag.current');
   const showSchedule = stats.finishBasis === 'schedule' || (stats.finishBasis === 'pace' && e.pacing === 'fixed'
     && stats.scheduledFinish && stats.scheduledFinish !== stats.estimatedFinish);
 
@@ -179,7 +185,7 @@ const ReadingPlanDetail: React.FC<Props> = ({ enrollmentId, labels, displayName,
                     style={isCurrent ? { backgroundColor: 'var(--theme-accent-bg, rgba(59,130,246,0.14))' } : status === 'missed' ? { backgroundColor: 'var(--theme-warning-bg, rgba(250,180,40,0.14))' } : undefined}>
                     <th scope="row" className="kth-table__cell text-start font-medium whitespace-nowrap align-top"
                       onContextMenu={(ev) => { ev.preventDefault(); setRowMenu({ x: ev.clientX, y: ev.clientY, day }); }}>
-                      {day}{isCurrent ? <span className="text-xs ms-xs" style={{ color: 'var(--theme-accent-primary, #3b82f6)' }}>{t('readingPlans.home.tag.current')}</span> : null}
+                      {day}{isCurrent ? <span className="text-xs ms-xs" style={{ color: 'var(--theme-accent-primary, #3b82f6)' }}>{focusTag}</span> : null}
                       <button type="button" className="kth-btn kth-btn--sm kth-btn--ghost ms-xs" aria-haspopup="menu"
                         aria-label={rpTextWith(t, 'readingPlans.table.rowActions', 'Actions for day {day}', { day })}
                         onClick={(ev) => { const r = ev.currentTarget.getBoundingClientRect(); setRowMenu({ x: r.left, y: r.bottom, day }); }}>

@@ -255,7 +255,7 @@
   "readingPlans.behind.move": "Сдвинуть даты",
   "readingPlans.behind.moveHint": "Начните оставшиеся дни заново с сегодняшнего дня. Дата окончания сдвинется на более позднюю; прочитанные дни останутся прочитанными.",
   "readingPlans.behind.moveConfirmTitle": "Сдвинуть даты?",
-  "readingPlans.behind.moveConfirmText": "Оставшиеся {n, plural, one {# день} few {# дня} many {# дней} other {# дня}} чтения начнутся заново {restart}. Раньше план начинался {oldStart}; теперь он начнётся {newStart}. Дата окончания сдвинется с {oldEnd} на {newEnd}. Прочитанные дни останутся прочитанными.",
+  "readingPlans.behind.moveConfirmText": "Оставшиеся {n, plural, one {# день} few {# дня} many {# дней} other {# дня}} чтения начнутся заново {restart}. Дата начала сдвинется с {oldStart} на {newStart}, а дата окончания — с {oldEnd} на {newEnd}. Прочитанные дни останутся прочитанными. Сразу после этого можно отменить.",
   "readingPlans.behind.moved": "Даты сдвинуты. Раньше план начинался {oldStart}. Дату начала можно также изменить в настройках плана.",
   "readingPlans.behind.undo": "Отменить",
   "readingPlans.behind.stopDates": "Не отслеживать даты",
@@ -288,5 +288,9 @@
   "readingPlans.library.export": "Экспорт",
   "readingPlans.library.exportNamed": "Экспортировать {name}",
   "readingPlans.add.importButton": "Импортировать файл плана…",
-  "readingPlans.home.catchUpNow": "Наверстать: {reading}"
+  "readingPlans.home.catchUpNow": "Наверстать: {reading}",
+  "readingPlans.file.importFailed": "Это не файл плана чтения. {detail}",
+  "readingPlans.file.tooLarge": "Этот файл слишком велик для плана чтения.",
+  "readingPlans.home.markDayN": "Отметить день {day} прочитанным",
+  "readingPlans.newTab.heading": "План чтения"
 }

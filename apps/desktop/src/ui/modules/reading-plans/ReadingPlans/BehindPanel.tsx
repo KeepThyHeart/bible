@@ -65,6 +65,33 @@ const BehindPanel: React.FC<BehindPanelProps> = ({
     </li>
   );
 
+  const missedList = () => (
+        <ul className="m-0 p-0 list-none flex flex-col gap-sm" aria-label={tx('readingPlans.home.earlierList', 'Earlier days unread')}>
+          {missed.map((day) => (
+            <li key={day} className="flex flex-col gap-xs">
+              <span className="text-sm font-medium">{t('readingPlans.home.day', { day })}</span>
+              <ul className="m-0 p-0 list-none flex flex-col gap-xs">
+                {(plan.days[day - 1]?.readings ?? []).map((r, i) => {
+                  const text = readingText(r);
+                  const done = progress.get(day)?.has(i) ?? false;
+                  return (
+                    <li key={i} className="flex items-center gap-sm">
+                      <Checkbox checked={done} tone="success" ariaLabel={t('readingPlans.today.markReading', { reading: text })}
+                        onChange={(checked) => onToggleReading(day, i, checked)} />
+                      <button type="button" className="kth-link text-sm" style={done ? { textDecoration: 'line-through', opacity: 0.7 } : undefined}
+                        aria-label={labels.todayCard.openReading(text)} onClick={() => onOpenReading({ day, index: i, reading: r })}>{text}</button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </li>
+          ))}
+          {today.missedDays.length > MAX_DAYS_SHOWN ? (
+            <li className="text-xs kth-text-muted">{labels.todayCard.missedMore(today.missedDays.length - MAX_DAYS_SHOWN)}</li>
+          ) : null}
+        </ul>
+  );
+
   return (
     <details className="kth-card" data-testid="behind-panel">
       <summary className="cursor-pointer text-sm font-medium">
@@ -98,30 +125,12 @@ const BehindPanel: React.FC<BehindPanelProps> = ({
           )}
         </ul>
 
-        <ul className="m-0 p-0 list-none flex flex-col gap-sm" aria-label={tx('readingPlans.home.earlierList', 'Earlier days unread')}>
-          {missed.map((day) => (
-            <li key={day} className="flex flex-col gap-xs">
-              <span className="text-sm font-medium">{t('readingPlans.home.day', { day })}</span>
-              <ul className="m-0 p-0 list-none flex flex-col gap-xs">
-                {(plan.days[day - 1]?.readings ?? []).map((r, i) => {
-                  const text = readingText(r);
-                  const done = progress.get(day)?.has(i) ?? false;
-                  return (
-                    <li key={i} className="flex items-center gap-sm">
-                      <Checkbox checked={done} tone="success" ariaLabel={t('readingPlans.today.markReading', { reading: text })}
-                        onChange={(checked) => onToggleReading(day, i, checked)} />
-                      <button type="button" className="kth-link text-sm" style={done ? { textDecoration: 'line-through', opacity: 0.7 } : undefined}
-                        aria-label={labels.todayCard.openReading(text)} onClick={() => onOpenReading({ day, index: i, reading: r })}>{text}</button>
-                    </li>
-                  );
-                })}
-              </ul>
-            </li>
-          ))}
-          {today.missedDays.length > MAX_DAYS_SHOWN ? (
-            <li className="text-xs kth-text-muted">{labels.todayCard.missedMore(today.missedDays.length - MAX_DAYS_SHOWN)}</li>
-          ) : null}
-        </ul>
+        {catchingUp > 0 ? (
+          <details data-testid="missed-collapsed">
+            <summary className="cursor-pointer text-xs kth-text-muted">{tx('readingPlans.home.earlierList', 'Earlier days unread')}</summary>
+            {missedList()}
+          </details>
+        ) : missedList()}
       </div>
 
       <MessageBox
@@ -130,8 +139,8 @@ const BehindPanel: React.FC<BehindPanelProps> = ({
         message={preview ? tx(
           'readingPlans.behind.moveConfirmText',
           `Your remaining ${preview.remainingDays} days of reading start again on ${labels.formatDate(preview.restartDate)}. `
-          + `The plan used to start on ${labels.formatDate(enrollment.startDate)}; it will start on ${labels.formatDate(preview.newStartDate)}. `
-          + `The end date moves from ${labels.formatDate(preview.oldEnd)} to ${labels.formatDate(preview.newEnd)}. Days you have read stay read.`,
+          + `The start date moves from ${labels.formatDate(enrollment.startDate)} to ${labels.formatDate(preview.newStartDate)} and the end date from ${labels.formatDate(preview.oldEnd)} to ${labels.formatDate(preview.newEnd)}. `
+          + 'Days you have read stay read. You can undo this right after.',
           {
             n: preview.remainingDays,
             restart: labels.formatDate(preview.restartDate),

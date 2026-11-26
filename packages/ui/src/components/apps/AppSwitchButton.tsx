@@ -23,10 +23,12 @@ export interface AppSwitchButtonProps {
   badge?: AppNavBadge;
   onClick: () => void;
   className?: string;
+  /** Show a small chevron after the icon, hinting that the button opens a menu. */
+  caret?: boolean;
 }
 
 /** The single compact button an app puts in its own header to open the switcher. */
-export function AppSwitchButton({ title, icon, badge, onClick, className }: AppSwitchButtonProps) {
+export function AppSwitchButton({ title, icon, badge, onClick, className, caret }: AppSwitchButtonProps) {
   return (
     <button
       type="button"
@@ -35,6 +37,7 @@ export function AppSwitchButton({ title, icon, badge, onClick, className }: AppS
       onClick={onClick}
     >
       <span className="kth-app-switch__icon" aria-hidden="true">{icon}</span>
+      {caret && <span className="kth-app-switch__caret" aria-hidden="true">{'\u25BE'}</span>}
       <span className="kth-visually-hidden">{title}</span>
       {badge && <AppBadge badge={badge} className="kth-app-switch__badge" />}
     </button>

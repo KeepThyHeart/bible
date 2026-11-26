@@ -49,6 +49,10 @@ describe('AppRail', () => {
     const { container, rerender } = render(<AppRail items={items} activeId="read" onSelect={() => {}} />);
     expect(screen.getByRole('button', { name: /Study/ })).toHaveAttribute('title', 'Study · 3 unread');
     expect(container.querySelector('.kth-app-rail__label')).toBeNull();
+    // Badge label and shortcut together: the tooltip says what the badge means.
+    rerender(<AppRail items={[{ ...items[1], shortcutHint: 'Ctrl+2' }]} activeId="read" onSelect={() => {}} />);
+    expect(screen.getByRole('button', { name: /Study/ })).toHaveAttribute('title', 'Study · 3 unread (Ctrl+2)');
+    rerender(<AppRail items={items} activeId="read" onSelect={() => {}} />);
     rerender(<AppRail items={[{ ...items[2], shortTitle: 'Qz' }]} activeId="read" onSelect={() => {}} showLabels />);
     expect(container.querySelector('.kth-app-rail--labels')).not.toBeNull();
     expect(container.querySelector('.kth-app-rail__label')?.textContent).toBe('Qz');

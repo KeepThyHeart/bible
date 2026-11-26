@@ -255,7 +255,7 @@
   "readingPlans.behind.move": "Move the dates",
   "readingPlans.behind.moveHint": "Start your remaining days again from today. The end date moves later; days you have read stay read.",
   "readingPlans.behind.moveConfirmTitle": "Move the dates?",
-  "readingPlans.behind.moveConfirmText": "Your remaining {n, plural, one {# day} other {# days}} of reading start again on {restart}. The plan used to start on {oldStart}; it will start on {newStart}. The end date moves from {oldEnd} to {newEnd}. Days you have read stay read.",
+  "readingPlans.behind.moveConfirmText": "Your remaining {n, plural, one {# day} other {# days}} of reading start again on {restart}. The start date moves from {oldStart} to {newStart} and the end date from {oldEnd} to {newEnd}. Days you have read stay read. You can undo this right after.",
   "readingPlans.behind.moved": "Dates moved. The plan used to start on {oldStart}. You can also change the start date in Plan settings.",
   "readingPlans.behind.undo": "Undo",
   "readingPlans.behind.stopDates": "Stop tracking dates",
@@ -288,5 +288,9 @@
   "readingPlans.library.export": "Export",
   "readingPlans.library.exportNamed": "Export {name}",
   "readingPlans.add.importButton": "Import plan file…",
-  "readingPlans.home.catchUpNow": "Catch up: {reading}"
+  "readingPlans.home.catchUpNow": "Catch up: {reading}",
+  "readingPlans.file.importFailed": "This is not a reading plan file. {detail}",
+  "readingPlans.file.tooLarge": "This file is too large to be a reading plan.",
+  "readingPlans.home.markDayN": "Mark Day {day} read",
+  "readingPlans.newTab.heading": "Reading plan"
 }

@@ -255,7 +255,7 @@
   "readingPlans.behind.move": "तारीखें आगे बढ़ाएँ",
   "readingPlans.behind.moveHint": "अपने शेष दिन आज से फिर शुरू करें। समाप्ति तिथि आगे खिसक जाती है; जो दिन आप पढ़ चुके हैं वे पढ़े हुए ही रहते हैं।",
   "readingPlans.behind.moveConfirmTitle": "तारीखें आगे बढ़ाएँ?",
-  "readingPlans.behind.moveConfirmText": "आपके पठन के शेष {n, plural, one {# दिन} other {# दिन}} {restart} से फिर शुरू होंगे। योजना पहले {oldStart} को शुरू होती थी; अब वह {newStart} को शुरू होगी। समाप्ति तिथि {oldEnd} से {newEnd} हो जाएगी। जो दिन आप पढ़ चुके हैं वे पढ़े हुए ही रहेंगे।",
+  "readingPlans.behind.moveConfirmText": "आपके पठन के शेष {n, plural, one {# दिन} other {# दिन}} {restart} से फिर शुरू होंगे। आरंभ तिथि {oldStart} से {newStart} हो जाएगी और समाप्ति तिथि {oldEnd} से {newEnd}। जो दिन आप पढ़ चुके हैं वे पढ़े हुए ही रहेंगे। आप इसके तुरंत बाद इसे पूर्ववत कर सकते हैं।",
   "readingPlans.behind.moved": "तारीखें आगे बढ़ा दी गईं। योजना पहले {oldStart} को शुरू होती थी। आप योजना सेटिंग में प्रारंभ तिथि भी बदल सकते हैं।",
   "readingPlans.behind.undo": "पूर्ववत करें",
   "readingPlans.behind.stopDates": "तारीखों का पीछा करना बंद करें",
@@ -288,5 +288,9 @@
   "readingPlans.library.export": "निर्यात करें",
   "readingPlans.library.exportNamed": "{name} निर्यात करें",
   "readingPlans.add.importButton": "योजना फ़ाइल आयात करें…",
-  "readingPlans.home.catchUpNow": "पीछे का पढ़ना पूरा करें: {reading}"
+  "readingPlans.home.catchUpNow": "पीछे का पढ़ना पूरा करें: {reading}",
+  "readingPlans.file.importFailed": "यह पठन योजना की फ़ाइल नहीं है। {detail}",
+  "readingPlans.file.tooLarge": "यह फ़ाइल पठन योजना के लिए बहुत बड़ी है।",
+  "readingPlans.home.markDayN": "दिन {day} को पढ़ा हुआ चिह्नित करें",
+  "readingPlans.newTab.heading": "पठन योजना"
 }

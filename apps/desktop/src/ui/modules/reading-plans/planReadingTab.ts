@@ -17,12 +17,17 @@ import { formatReadingText, rpText } from './rpText';
 
 export const PLAN_READING_PANEL_ID = 'bible_plan-reading';
 
-/** What the tab title applies to: a book and an inclusive chapter range (`chapterTo` 999: to the book's end). */
+/**
+ * What the tab title applies to: from (`book`, `chapterFrom`) to (`lastBook`, `lastChapter`), inclusive. A reading inside
+ * one book has `lastBook === book` and `chapterTo === lastChapter`; one across books has `chapterTo` 999.
+ */
 export interface ReadingTabScope {
   title: string;
   book: number;
   chapterFrom: number;
   chapterTo: number;
+  lastBook: number;
+  lastChapter: number;
 }
 
 let scope: ReadingTabScope | null = null;
@@ -39,12 +44,17 @@ export function scopeOf(reading: ReadingPlans.Reading, title: string): ReadingTa
     book: span.first.book,
     chapterFrom: span.first.chapter,
     chapterTo: span.last.book === span.first.book ? span.last.chapter : 999,
+    lastBook: span.last.book,
+    lastChapter: span.last.chapter,
   };
 }
 
 /** True when the chapter lies inside the scope. */
 export function inScope(s: ReadingTabScope, book: number, chapter: number): boolean {
-  return book === s.book && chapter >= s.chapterFrom && chapter <= s.chapterTo;
+  if (s.lastBook === s.book) return book === s.book && chapter >= s.chapterFrom && chapter <= s.lastChapter;
+  if (book === s.book) return chapter >= s.chapterFrom;
+  if (book === s.lastBook) return chapter <= s.lastChapter;
+  return book > s.book && book < s.lastBook;
 }
 
 /** The dockview panel exists: both the layout store and dockview know it. */

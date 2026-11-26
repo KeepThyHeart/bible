@@ -55,7 +55,7 @@ describe('ReadingPlanDetail', () => {
     expect(screen.getByText(/one day of the plan on each of your reading days/)).toBeInTheDocument();
   });
 
-  it('ticks a reading through the service and moves the current row on', async () => {
+  it('ticks a reading through the service and keeps the Home focus row', async () => {
     const { service, e } = await setup();
     const user = userEvent.setup();
     renderDetail(e.id);
@@ -64,7 +64,9 @@ describe('ReadingPlanDetail', () => {
     const row1 = rows[0];
     for (const box of within(row1).getAllByRole('checkbox')) await user.click(box);
     await waitFor(async () => expect(await service.dayProgress(e.id, 1)).toEqual([0, 1]));
-    await waitFor(() => expect(screen.getAllByTestId('plan-table-row').find((r) => r.getAttribute('data-today') === 'true')).toHaveAttribute('data-day', '2'));
+    // The same stable "today" as Home: ticking does not move the focus day on until the next reading day.
+    await waitFor(() => expect(screen.getAllByTestId('plan-table-row')[0].querySelector('input[type="checkbox"]')).toBeChecked());
+    expect(screen.getAllByTestId('plan-table-row').find((r) => r.getAttribute('data-today') === 'true')).toHaveAttribute('data-day', '1');
   });
 
   it('marks and labels the highlighted reading, even when the filter hides read days', async () => {

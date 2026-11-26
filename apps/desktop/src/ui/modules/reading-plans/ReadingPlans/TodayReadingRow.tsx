@@ -25,13 +25,24 @@ const TodayReadingRow: React.FC<{ onDone: () => void }> = ({ onDone }) => {
     .slice(0, MAX_TODAY_ROWS);
   if (rows.length === 0) return null;
 
+  const multi = todays.length >= 2;
   return (
     <div className="flex flex-col gap-xs" data-testid="new-tab-today-reading">
+      {multi ? null : (
+        <span className="text-xs font-medium kth-text-muted" data-testid="new-tab-today-heading">
+          {rpTextWith(t, 'readingPlans.newTab.heading', 'Reading plan')}
+        </span>
+      )}
       {rows.map(({ view, first }) => {
         const reading = labels.formatReading(first.reading);
         return (
+          <React.Fragment key={view.enrollmentId}>
+          {multi ? (
+            <span className="text-xs font-medium kth-text-muted" data-testid="new-tab-today-heading">
+              {labels.localizePlanName(view.planKey, view.planName)}
+            </span>
+          ) : null}
           <button
-            key={view.enrollmentId}
             type="button"
             className="kth-btn"
             title={labels.localizePlanName(view.planKey, view.planName)}
@@ -42,6 +53,7 @@ const TodayReadingRow: React.FC<{ onDone: () => void }> = ({ onDone }) => {
           >
             {rpTextWith(t, 'readingPlans.newTab.today', "Today's reading: {reading}", { reading })}
           </button>
+          </React.Fragment>
         );
       })}
     </div>

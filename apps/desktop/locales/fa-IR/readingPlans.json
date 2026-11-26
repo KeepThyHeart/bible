@@ -255,7 +255,7 @@
   "readingPlans.behind.move": "جابه‌جایی تاریخ‌ها",
   "readingPlans.behind.moveHint": "روزهای باقی‌مانده را از امروز دوباره شروع کنید. تاریخ پایان عقب می‌رود؛ روزهایی که خوانده‌اید خوانده‌شده می‌مانند.",
   "readingPlans.behind.moveConfirmTitle": "تاریخ‌ها جابه‌جا شوند؟",
-  "readingPlans.behind.moveConfirmText": "{n, plural, one {# روز باقی‌مانده} other {# روز باقی‌مانده}} از مطالعه شما از {restart} دوباره شروع می‌شود. برنامه قبلاً از {oldStart} شروع می‌شد؛ از {newStart} شروع خواهد شد. تاریخ پایان از {oldEnd} به {newEnd} می‌رود. روزهایی که خوانده‌اید خوانده‌شده می‌مانند.",
+  "readingPlans.behind.moveConfirmText": "{n, plural, one {# روز باقی‌مانده} other {# روز باقی‌مانده}} از مطالعه شما از {restart} دوباره شروع می‌شود. تاریخ شروع از {oldStart} به {newStart} و تاریخ پایان از {oldEnd} به {newEnd} می‌رود. روزهایی که خوانده‌اید خوانده‌شده می‌مانند. می‌توانید بلافاصله پس از آن این کار را واگرد کنید.",
   "readingPlans.behind.moved": "تاریخ‌ها جابه‌جا شدند. برنامه قبلاً از {oldStart} شروع می‌شد. می‌توانید تاریخ شروع را در تنظیمات برنامه هم تغییر دهید.",
   "readingPlans.behind.undo": "واگرد",
   "readingPlans.behind.stopDates": "توقف پیگیری تاریخ‌ها",
@@ -288,5 +288,9 @@
   "readingPlans.library.export": "برون‌بری",
   "readingPlans.library.exportNamed": "برون‌بری {name}",
   "readingPlans.add.importButton": "درون‌ریزی فایل برنامه…",
-  "readingPlans.home.catchUpNow": "جبران عقب‌ماندگی: {reading}"
+  "readingPlans.home.catchUpNow": "جبران عقب‌ماندگی: {reading}",
+  "readingPlans.file.importFailed": "این یک فایل برنامه مطالعه نیست. {detail}",
+  "readingPlans.file.tooLarge": "این فایل برای یک برنامه مطالعه بیش از حد بزرگ است.",
+  "readingPlans.home.markDayN": "علامت‌گذاری روز {day} به‌عنوان خوانده‌شده",
+  "readingPlans.newTab.heading": "برنامه مطالعه"
 }

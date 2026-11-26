@@ -255,7 +255,7 @@
   "readingPlans.behind.move": "Mover las fechas",
   "readingPlans.behind.moveHint": "Empieza de nuevo tus días restantes desde hoy. La fecha de fin se retrasa; los días que ya leíste siguen como leídos.",
   "readingPlans.behind.moveConfirmTitle": "¿Mover las fechas?",
-  "readingPlans.behind.moveConfirmText": "Tus {n, plural, one {# día restante} many {# días restantes} other {# días restantes}} de lectura empiezan de nuevo el {restart}. El plan solía empezar el {oldStart}; empezará el {newStart}. La fecha de fin pasa del {oldEnd} al {newEnd}. Los días que ya leíste siguen como leídos.",
+  "readingPlans.behind.moveConfirmText": "Tus {n, plural, one {# día restante} many {# días restantes} other {# días restantes}} de lectura empiezan de nuevo el {restart}. La fecha de inicio pasa del {oldStart} al {newStart} y la de fin del {oldEnd} al {newEnd}. Los días que ya leíste siguen como leídos. Puedes deshacerlo justo después.",
   "readingPlans.behind.moved": "Fechas movidas. El plan solía empezar el {oldStart}. También puedes cambiar la fecha de inicio en los ajustes del plan.",
   "readingPlans.behind.undo": "Deshacer",
   "readingPlans.behind.stopDates": "Dejar de seguir las fechas",
@@ -288,5 +288,9 @@
   "readingPlans.library.export": "Exportar",
   "readingPlans.library.exportNamed": "Exportar {name}",
   "readingPlans.add.importButton": "Importar archivo de plan…",
-  "readingPlans.home.catchUpNow": "Ponerse al día: {reading}"
+  "readingPlans.home.catchUpNow": "Ponerse al día: {reading}",
+  "readingPlans.file.importFailed": "Esto no es un archivo de plan de lectura. {detail}",
+  "readingPlans.file.tooLarge": "Este archivo es demasiado grande para ser un plan de lectura.",
+  "readingPlans.home.markDayN": "Marcar el día {day} como leído",
+  "readingPlans.newTab.heading": "Plan de lectura"
 }

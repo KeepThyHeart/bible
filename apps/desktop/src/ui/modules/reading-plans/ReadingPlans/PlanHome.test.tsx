@@ -94,9 +94,10 @@ describe('PlanHome', () => {
     const box = await screen.findByRole('alertdialog');
     const text = box.textContent ?? '';
     expect(cb.loadPreview).toHaveBeenCalled();
-    expect(text).toContain('The plan used to start on');
+    expect(text).toContain('The start date moves from');
+    expect(text).toContain('You can undo this right after.');
     expect(text).toMatch(/Sep 28, 2026/);
-    expect(text).toMatch(/The end date moves from .*2026 to .*2026/);
+    expect(text).toMatch(/the end date from .*2026 to .*2026/);
     await user.click(within(box).getByRole('button', { name: 'Cancel' }));
     expect(cb.onMoveDates).not.toHaveBeenCalled();
     await user.click(within(panel).getByRole('button', { name: 'Move the dates' }));
@@ -137,7 +138,7 @@ describe('PlanHome', () => {
   });
 
   it('shows the Undo notice for a move that still applies, naming the old start date', async () => {
-    const undo = { enrollmentId: 'x', oldStartDate: '2026-09-28', oldCatchUp: null, newStartDate: '2026-10-01', movedOn: '2026-10-01' };
+    const undo = { enrollmentId: 'x', oldStartDate: '2026-09-28', oldCatchUp: null, newStartDate: '2026-10-01', pacing: 'fixed', readingDays: [0, 1, 2, 3, 4, 5, 6], movedOn: '2026-10-01' };
     const { cb } = await setup('2026-10-01', 'fixed', { props: { scheduleUndo: undo } });
     expect(screen.getByTestId('moved-notice')).toHaveTextContent(/Dates moved\. The plan used to start on Sep 28, 2026\..*start date in Plan settings\./);
     await userEvent.setup().click(screen.getByRole('button', { name: 'Undo' }));

@@ -5,7 +5,7 @@ import { ReadingPlans } from '@bible/core/browser';
 import { enT, enLocalizer } from '../../../testing/enCatalog';
 import { installTestService, uninstallTestService } from './testSupport';
 import { useReadingPlanNavStore, resetReadingPlanNavForTests } from '../useReadingPlanNavStore';
-import ReadingPlanVerseBlocks from './ReadingPlanVerseBlocks';
+import ReadingPlanVerseBlocks, { activeEndModel } from './ReadingPlanVerseBlocks';
 import { openPlanReading, resetActiveReadingForTests, useActiveReadingStore } from '../useActiveReadingStore';
 
 vi.mock('../../../contexts/useI18n', () => ({
@@ -104,8 +104,8 @@ describe('start / end of reading blocks', () => {
     expect(block.previousElementSibling).toHaveAttribute('data-testid', `v${reading.end}`);
     expect(screen.queryByTestId('reading-plan-start-block')).not.toBeInTheDocument();
     await service.setReadingDone(e.id, 1, 0, true);
-    await waitFor(() => expect(screen.getByRole('checkbox')).toBeChecked());
-    expect(screen.getByTestId('reading-plan-end-block')).toBeInTheDocument();
+    // A ticked reading keeps its end block only while it is the active one (not all day in every pane).
+    await waitFor(() => expect(screen.queryByTestId('reading-plan-end-block')).not.toBeInTheDocument());
     expect(await service.dayProgress(e.id, 1)).toEqual([0]);
   });
 
@@ -177,5 +177,15 @@ describe('start / end of reading blocks', () => {
     expect(useActiveReadingStore.getState().info?.readingCount).toBeGreaterThan(1);
     render(<Chapter ids={[first.start, first.end]} />);
     expect(await screen.findByTestId('reading-plan-start-block')).toHaveTextContent(/passage 1 of/);
+  });
+
+  it('a read-ahead reading stops at its own day: next never chains into the next day', () => {
+    const reading = { start: vid(1, 1, 1), end: vid(1, 1, 5) };
+    const info = {
+      enrollmentId: 'e', planKey: 'k', planName: 'P', day: 3, index: 0, dayCount: 10, readingCount: 1, reading, done: false,
+      next: { day: 4, index: 0, reading },
+    } as never;
+    expect(activeEndModel(info, 1, 1)).toMatchObject({ next: null, nextDay: 4 });
+    expect(activeEndModel({ ...(info as object), next: { day: 3, index: 1, reading } } as never, 1, 1).next).toMatchObject({ day: 3, index: 1 });
   });
 });

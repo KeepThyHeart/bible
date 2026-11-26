@@ -255,7 +255,7 @@
   "readingPlans.behind.move": "نقل التواريخ",
   "readingPlans.behind.moveHint": "ابدأ أيامك المتبقية من جديد اعتبارًا من اليوم. يتأخر تاريخ الانتهاء؛ وتبقى الأيام التي قرأتها مقروءة.",
   "readingPlans.behind.moveConfirmTitle": "نقل التواريخ؟",
-  "readingPlans.behind.moveConfirmText": "ستبدأ {n, plural, zero {لا أيام متبقية} one {يوم واحد متبقٍ} two {يومان متبقيان} few {# أيام متبقية} many {# يومًا متبقيًا} other {# يوم متبقٍ}} من قراءتك من جديد في {restart}. كانت الخطة تبدأ في {oldStart}؛ وستبدأ في {newStart}. ينتقل تاريخ الانتهاء من {oldEnd} إلى {newEnd}. تبقى الأيام التي قرأتها مقروءة.",
+  "readingPlans.behind.moveConfirmText": "ستبدأ {n, plural, zero {لا أيام متبقية} one {يوم واحد متبقٍ} two {يومان متبقيان} few {# أيام متبقية} many {# يومًا متبقيًا} other {# يوم متبقٍ}} من قراءتك من جديد في {restart}. ينتقل تاريخ البدء من {oldStart} إلى {newStart} وتاريخ الانتهاء من {oldEnd} إلى {newEnd}. تبقى الأيام التي قرأتها مقروءة. يمكنك التراجع عن ذلك مباشرة بعد ذلك.",
   "readingPlans.behind.moved": "تم نقل التواريخ. كانت الخطة تبدأ في {oldStart}. يمكنك أيضًا تغيير تاريخ البدء في إعدادات الخطة.",
   "readingPlans.behind.undo": "تراجع",
   "readingPlans.behind.stopDates": "إيقاف تتبع التواريخ",
@@ -288,5 +288,9 @@
   "readingPlans.library.export": "تصدير",
   "readingPlans.library.exportNamed": "تصدير {name}",
   "readingPlans.add.importButton": "استيراد ملف خطة…",
-  "readingPlans.home.catchUpNow": "اللحاق بالقراءة: {reading}"
+  "readingPlans.home.catchUpNow": "اللحاق بالقراءة: {reading}",
+  "readingPlans.file.importFailed": "هذا ليس ملف خطة قراءة. {detail}",
+  "readingPlans.file.tooLarge": "هذا الملف أكبر من أن يكون خطة قراءة.",
+  "readingPlans.home.markDayN": "وضع علامة مقروء على اليوم {day}",
+  "readingPlans.newTab.heading": "خطة القراءة"
 }

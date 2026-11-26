@@ -53,6 +53,7 @@ export function ReadingPlanWeekStrip({ days, weekdayNames, formatDate, labels, d
           <li
             key={d.date}
             aria-label={label}
+            title={label}
             data-state={d.state}
             data-today={d.today ? 'true' : undefined}
             className="flex flex-col items-center flex-1 text-xs"
@@ -63,13 +64,19 @@ export function ReadingPlanWeekStrip({ days, weekdayNames, formatDate, labels, d
               outline: d.today ? '2px solid var(--theme-accent-primary)' : undefined,
               outlineOffset: d.today ? '-2px' : undefined,
               opacity: d.state === 'future' || d.state === 'rest' ? 0.6 : 1,
+              // Today still to read: tinted cell, so the day left to do stands out.
+              backgroundColor: d.today && d.state === 'unread' ? 'var(--theme-accent-bg, rgba(59,130,246,0.14))' : undefined,
             }}
           >
             <span className="kth-text-muted" aria-hidden="true">{name}</span>
             <span
               aria-hidden="true"
               className="text-base"
-              style={{ color: d.state === 'read' ? 'var(--theme-success, var(--theme-accent-primary))' : undefined }}
+              style={{
+                color: d.state === 'read' ? 'var(--theme-success, var(--theme-accent-primary))'
+                  : d.today && d.state === 'unread' ? 'var(--theme-accent-primary)' : undefined,
+                fontWeight: d.today && d.state === 'unread' ? 700 : undefined,
+              }}
             >
               {GLYPH[d.state]}
             </span>

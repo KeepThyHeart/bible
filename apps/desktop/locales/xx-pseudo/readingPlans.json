@@ -255,7 +255,7 @@
   "readingPlans.behind.move": "⟦Ṁøṽé ţĥé ðåţéš ····⟧",
   "readingPlans.behind.moveHint": "⟦Šţåŕţ ýøüŕ ŕéɱåîñîñĝ ðåýš åĝåîñ ƒŕøɱ ţøðåý. Ţĥé éñð ðåţé ɱøṽéš ļåţéŕ; ðåýš ýøü ĥåṽé ŕéåð šţåý ŕéåð. ·····························⟧",
   "readingPlans.behind.moveConfirmTitle": "⟦Ṁøṽé ţĥé ðåţéš? ····⟧",
-  "readingPlans.behind.moveConfirmText": "⟦Ýøüŕ ŕéɱåîñîñĝ {n, plural, one {# day} other {# days}} øƒ ŕéåðîñĝ šţåŕţ åĝåîñ øñ {restart}. Ţĥé þļåñ üšéð ţø šţåŕţ øñ {oldStart}; îţ ŵîļļ šţåŕţ øñ {newStart}. Ţĥé éñð ðåţé ɱøṽéš ƒŕøɱ {oldEnd} ţø {newEnd}. Ðåýš ýøü ĥåṽé ŕéåð šţåý ŕéåð. ···············································⟧",
+  "readingPlans.behind.moveConfirmText": "⟦Ýøüŕ ŕéɱåîñîñĝ {n, plural, one {# day} other {# days}} øƒ ŕéåðîñĝ šţåŕţ åĝåîñ øñ {restart}. Ţĥé šţåŕţ ðåţé ɱøṽéš ƒŕøɱ {oldStart} ţø {newStart} åñð ţĥé éñð ðåţé ƒŕøɱ {oldEnd} ţø {newEnd}. Ðåýš ýøü ĥåṽé ŕéåð šţåý ŕéåð. Ýøü çåñ üñðø ţĥîš ŕîĝĥţ åƒţéŕ. ···················································⟧",
   "readingPlans.behind.moved": "⟦Ðåţéš ɱøṽéð. Ţĥé þļåñ üšéð ţø šţåŕţ øñ {oldStart}. Ýøü çåñ åļšø çĥåñĝé ţĥé šţåŕţ ðåţé îñ Þļåñ šéţţîñĝš. ···························⟧",
   "readingPlans.behind.undo": "⟦Üñðø ··⟧",
   "readingPlans.behind.stopDates": "⟦Šţøþ ţŕåçķîñĝ ðåţéš ·····⟧",
@@ -288,5 +288,9 @@
   "readingPlans.library.export": "⟦Éẋþøŕţ ··⟧",
   "readingPlans.library.exportNamed": "⟦Éẋþøŕţ {name} ··⟧",
   "readingPlans.add.importButton": "⟦Îɱþøŕţ þļåñ ƒîļé… ·····⟧",
-  "readingPlans.home.catchUpNow": "⟦Çåţçĥ üþ: {reading} ···⟧"
+  "readingPlans.home.catchUpNow": "⟦Çåţçĥ üþ: {reading} ···⟧",
+  "readingPlans.file.importFailed": "⟦Ţĥîš îš ñøţ å ŕéåðîñĝ þļåñ ƒîļé. {detail} ·········⟧",
+  "readingPlans.file.tooLarge": "⟦Ţĥîš ƒîļé îš ţøø ļåŕĝé ţø ƀé å ŕéåðîñĝ þļåñ. ·············⟧",
+  "readingPlans.home.markDayN": "⟦Ṁåŕķ Ðåý {day} ŕéåð ····⟧",
+  "readingPlans.newTab.heading": "⟦Ŕéåðîñĝ þļåñ ···⟧"
 }

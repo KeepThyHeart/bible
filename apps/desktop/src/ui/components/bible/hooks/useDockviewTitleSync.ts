@@ -19,7 +19,7 @@ export function useDockviewTitleSync(args: {
 }) {
   const { dockviewPanelApi, panelId, hasPassage, abbreviation, currentBookName, currentChapter } = args;
 
-  // A module may override the title (task 0222: "Plan - Day N"); it wins while set and the passage title returns when cleared.
+  // A module may override the title (task 0222: the plan reading tab, "{reading} · plan"); it wins while set and the passage title returns when cleared.
   const titleOverride = useLayoutStore((s) => s.titleOverrides.get(panelId));
 
   useEffect(() => {

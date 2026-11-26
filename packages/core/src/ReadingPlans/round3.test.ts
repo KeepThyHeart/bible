@@ -211,8 +211,27 @@ describe('cursor helpers (R3)', () => {
     expect(dueReadings(view).map((r) => [r.day, r.index])).toEqual([[5, 0], [5, 1], [1, 0]]);
     expect(nextDueReading(view, 5, 0)).toMatchObject({ day: 5, index: 1 });
     expect(nextDueReading(view, 5, 1)).toMatchObject({ day: 1, index: 0 });
-    expect(nextDueReading(view, 1, 0)).toBeNull();
+    // Out of order: from the catch-up extra it wraps to today's own unticked reading.
+    expect(nextDueReading(view, 1, 0)).toMatchObject({ day: 5, index: 0 });
     expect(nextDueReading(view, 9, 0)).toBeNull();
+  });
+  it('nextDueReading wraps to unticked readings before the position (out-of-order ticking)', () => {
+    const p5 = { ...plan, days: plan.days.map((d, i) => (i === 4 ? { readings: [d.readings[0], d.readings[0], d.readings[0]] } : d)) };
+    const T = '2026-10-05';
+    const fixed = enrollment({ catchUp: { extraPerDay: 1 } });
+    const mk = (extra: object[]) => todayView(p5, fixed, [done(2), done(3), done(4), ...extra] as never, '2026-10-05');
+    // Day 5's last passage ticked first: the wrap finds the earlier passages.
+    const v = mk([done(1, T), { ...done(5, T), reading: 2 }]);
+    expect(nextDueReading(v, 5, 2)).toMatchObject({ day: 5, index: 0 });
+    // The catch-up extra (day 1) ticked before day 5's own reading: from day 5 it still goes to day 5's rest, then none.
+    const w = mk([done(1, T)]);
+    expect(nextDueReading(w, 1, 0)).toMatchObject({ day: 5, index: 0 });
+    // Everything ticked: Day done.
+    const all = mk([done(1, T), done(5, T), { ...done(5, T), reading: 1 }, { ...done(5, T), reading: 2 }]);
+    expect(nextDueReading(all, 5, 1)).toBeNull();
+    // Flexible stays in its own day.
+    const flex = todayView(p5, enrollment({ pacing: 'flexible' }), [{ ...done(1, T), reading: 0 }] as never, '2026-10-05');
+    expect(nextDueReading(flex, 1, 0)).toBeNull();
   });
   it('chapter helpers', () => {
     const rd = { start: vid(1, 4, 1), end: vid(1, 6, 8) };
@@ -306,6 +325,11 @@ describe('service (R3)', () => {
     for (const d of [1, 2, 3]) await service.setDayDone(e.id, d, true);
     expect((await service.enrollments())[0].catchUp).toBeTruthy(); // 4 still missed
     await service.setDayDone(e.id, 4, true);
+    await service.setDayDone(e.id, 5, true);
+    // Not mid-day: today's extras stay in the day's set until a later reading day.
+    expect((await service.enrollments())[0].catchUp).toBeTruthy();
+    expect((await service.todayViews())[0].catchUp).toBeTruthy();
+    setNow(new Date(2026, 9, 6, 12, 0));
     expect((await service.enrollments())[0].catchUp).toBeNull();
     setNow(new Date(2026, 9, 9, 12, 0));
     await service.startCatchUp(e.id);

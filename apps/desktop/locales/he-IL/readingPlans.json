@@ -255,7 +255,7 @@
   "readingPlans.behind.move": "הזז את התאריכים",
   "readingPlans.behind.moveHint": "התחל מחדש את הימים שנותרו מהיום. תאריך הסיום יידחה; ימים שקראת נשארים כנקראים.",
   "readingPlans.behind.moveConfirmTitle": "להזיז את התאריכים?",
-  "readingPlans.behind.moveConfirmText": "{n, plural, one {היום הנותר אחד} two {היומיים הנותרים} other {# הימים הנותרים}} של הקריאה שלך יתחילו מחדש ב-{restart}. התוכנית הייתה אמורה להתחיל ב-{oldStart}; היא תתחיל ב-{newStart}. תאריך הסיום יעבור מ-{oldEnd} ל-{newEnd}. ימים שקראת נשארים כנקראים.",
+  "readingPlans.behind.moveConfirmText": "{n, plural, one {היום הנותר אחד} two {היומיים הנותרים} other {# הימים הנותרים}} של הקריאה שלך יתחילו מחדש ב-{restart}. תאריך ההתחלה יעבור מ-{oldStart} ל-{newStart} ותאריך הסיום מ-{oldEnd} ל-{newEnd}. ימים שקראת נשארים כנקראים. אפשר לבטל זאת מיד אחר כך.",
   "readingPlans.behind.moved": "התאריכים הוזזו. התוכנית הייתה אמורה להתחיל ב-{oldStart}. אפשר גם לשנות את תאריך ההתחלה בהגדרות התוכנית.",
   "readingPlans.behind.undo": "בטל",
   "readingPlans.behind.stopDates": "הפסק לעקוב אחר תאריכים",
@@ -288,5 +288,9 @@
   "readingPlans.library.export": "ייצוא",
   "readingPlans.library.exportNamed": "ייצא {name}",
   "readingPlans.add.importButton": "ייבא קובץ תוכנית…",
-  "readingPlans.home.catchUpNow": "השלמת פערים: {reading}"
+  "readingPlans.home.catchUpNow": "השלמת פערים: {reading}",
+  "readingPlans.file.importFailed": "זה אינו קובץ תוכנית קריאה. {detail}",
+  "readingPlans.file.tooLarge": "הקובץ גדול מדי מכדי להיות תוכנית קריאה.",
+  "readingPlans.home.markDayN": "סמן את יום {day} כנקרא",
+  "readingPlans.newTab.heading": "תוכנית קריאה"
 }

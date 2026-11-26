@@ -55,16 +55,27 @@ const TodayTab: React.FC<TodayTabProps> = ({ items, labels, onToggleReading, onO
             </div>
             {rows.length > 0 ? (
               <ul className="m-0 p-0 list-none flex flex-col gap-xs" aria-label={labels.todayCard.readings}>
-                {rows.map((r) => {
+                {rows.map((r, i) => {
                   const label = text(plan, r.reading);
+                  const extra = r.day !== focus;
+                  const firstExtra = extra && (i === 0 || rows[i - 1].day === focus);
+                  const extraDays = [...new Set(rows.filter((x) => x.day !== focus).map((x) => x.day))];
                   return (
-                    <li key={`${r.day}:${r.index}`} className="flex items-center gap-sm">
+                    <React.Fragment key={`${r.day}:${r.index}`}>
+                    {firstExtra ? (
+                      <li className="text-xs font-medium kth-text-muted" data-testid="today-catching-up">
+                        {tx('readingPlans.home.catchingUp', `Catching up: ${extraDays.map((d) => `Day ${d}`).join(', ')}`,
+                          { days: extraDays.map((d) => t('readingPlans.home.day', { day: d })).join(', ') })}
+                      </li>
+                    ) : null}
+                    <li className="flex items-center gap-sm">
                       <Checkbox checked={r.done} tone="success" ariaLabel={t('readingPlans.today.markReading', { reading: label })}
                         onChange={(checked) => onToggleReading(enrollment.id, r.day, r.index, checked)} />
                       <button type="button" className="kth-link" style={r.done ? { textDecoration: 'line-through', opacity: 0.7 } : undefined}
                         aria-label={labels.todayCard.openReading(label)}
                         onClick={() => onOpenReading(enrollment.id, { day: r.day, index: r.index, reading: r.reading })}>{label}</button>
                     </li>
+                    </React.Fragment>
                   );
                 })}
               </ul>

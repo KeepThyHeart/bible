@@ -46,6 +46,7 @@ export const DesktopAppSwitch: React.FC = () => {
     <>
       <AppSwitchButton
         className="flex-shrink-0"
+        caret
         title={title}
         icon={active?.icon ?? null}
         badge={aggregateBadge(entries, activeId)}

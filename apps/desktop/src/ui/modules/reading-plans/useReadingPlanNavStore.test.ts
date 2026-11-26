@@ -26,14 +26,16 @@ describe('useReadingPlanNavStore', () => {
   });
 
   it('keeps the move-the-dates undo only until the next reading day or a schedule edit', () => {
-    const undo = { enrollmentId: 'e1', oldStartDate: '2026-11-01', oldCatchUp: null, newStartDate: '2026-11-10', movedOn: '2026-11-10' };
+    const undo = { enrollmentId: 'e1', oldStartDate: '2026-11-01', oldCatchUp: null, newStartDate: '2026-11-10', pacing: 'fixed', readingDays: [0, 1, 2, 3, 4, 5, 6], movedOn: '2026-11-10' };
     useReadingPlanNavStore.getState().setScheduleUndo(undo);
     expect(useReadingPlanNavStore.getState().scheduleUndo).toEqual(undo);
-    expect(validScheduleUndo(undo, { id: 'e1', startDate: '2026-11-10' }, '2026-11-10')).toBe(undo);
-    expect(validScheduleUndo(undo, { id: 'e1', startDate: '2026-11-10' }, null)).toBe(undo);
-    expect(validScheduleUndo(undo, { id: 'e1', startDate: '2026-11-10' }, '2026-11-11')).toBeNull();
-    expect(validScheduleUndo(undo, { id: 'e1', startDate: '2026-11-12' }, '2026-11-10')).toBeNull();
-    expect(validScheduleUndo(undo, { id: 'e2', startDate: '2026-11-10' }, '2026-11-10')).toBeNull();
-    expect(validScheduleUndo(null, { id: 'e1', startDate: '2026-11-10' }, '2026-11-10')).toBeNull();
+    expect(validScheduleUndo(undo, { id: 'e1', startDate: '2026-11-10', pacing: 'fixed', readingDays: [0, 1, 2, 3, 4, 5, 6] }, '2026-11-10')).toBe(undo);
+    expect(validScheduleUndo(undo, { id: 'e1', startDate: '2026-11-10', pacing: 'fixed', readingDays: [0, 1, 2, 3, 4, 5, 6] }, null)).toBe(undo);
+    expect(validScheduleUndo(undo, { id: 'e1', startDate: '2026-11-10', pacing: 'fixed', readingDays: [0, 1, 2, 3, 4, 5, 6] }, '2026-11-11')).toBeNull();
+    expect(validScheduleUndo(undo, { id: 'e1', startDate: '2026-11-12', pacing: 'fixed', readingDays: [0, 1, 2, 3, 4, 5, 6] }, '2026-11-10')).toBeNull();
+    expect(validScheduleUndo(undo, { id: 'e2', startDate: '2026-11-10', pacing: 'fixed', readingDays: [0, 1, 2, 3, 4, 5, 6] }, '2026-11-10')).toBeNull();
+    expect(validScheduleUndo(undo, { id: 'e1', startDate: '2026-11-10', pacing: 'flexible', readingDays: [0, 1, 2, 3, 4, 5, 6] }, '2026-11-10')).toBeNull();
+    expect(validScheduleUndo(undo, { id: 'e1', startDate: '2026-11-10', pacing: 'fixed', readingDays: [1, 2, 3] }, '2026-11-10')).toBeNull();
+    expect(validScheduleUndo(null, { id: 'e1', startDate: '2026-11-10', pacing: 'fixed', readingDays: [0, 1, 2, 3, 4, 5, 6] }, '2026-11-10')).toBeNull();
   });
 });

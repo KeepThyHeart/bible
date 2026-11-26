@@ -255,7 +255,7 @@
   "readingPlans.behind.move": "移动日期",
   "readingPlans.behind.moveHint": "从今天起重新开始剩余的天数。结束日期会后移；已读的日子保持为已读。",
   "readingPlans.behind.moveConfirmTitle": "移动日期？",
-  "readingPlans.behind.moveConfirmText": "剩余的 {n, plural, other {# 天}}读经将从 {restart} 重新开始。计划原定于 {oldStart} 开始，现将于 {newStart} 开始。结束日期将从 {oldEnd} 移到 {newEnd}。已读的日子保持为已读。",
+  "readingPlans.behind.moveConfirmText": "剩余的 {n, plural, other {# 天}}读经将从 {restart} 重新开始。开始日期将从 {oldStart} 改为 {newStart}，结束日期将从 {oldEnd} 改为 {newEnd}。已读的日子保持为已读。你可以在操作后立即撤销。",
   "readingPlans.behind.moved": "日期已移动。计划原定于 {oldStart} 开始。你也可以在计划设置中更改开始日期。",
   "readingPlans.behind.undo": "撤销",
   "readingPlans.behind.stopDates": "停止跟踪日期",
@@ -288,5 +288,9 @@
   "readingPlans.library.export": "导出",
   "readingPlans.library.exportNamed": "导出 {name}",
   "readingPlans.add.importButton": "导入计划文件…",
-  "readingPlans.home.catchUpNow": "补读：{reading}"
+  "readingPlans.home.catchUpNow": "补读：{reading}",
+  "readingPlans.file.importFailed": "这不是读经计划文件。{detail}",
+  "readingPlans.file.tooLarge": "此文件太大，不可能是读经计划。",
+  "readingPlans.home.markDayN": "将第 {day} 天标记为已读",
+  "readingPlans.newTab.heading": "读经计划"
 }

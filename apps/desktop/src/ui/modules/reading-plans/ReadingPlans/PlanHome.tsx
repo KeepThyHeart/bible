@@ -162,7 +162,9 @@ const PlanHome: React.FC<PlanHomeProps> = ({
             </button>
           ) : null}
           <button type="button" className="kth-link text-sm" onClick={() => onToggleDay(focus, !dayDone)}>
-            {dayDone ? labels.todayCard.markDayUnread : labels.todayCard.markDayRead}
+            {dayDone ? labels.todayCard.markDayUnread
+              : extraDays.length > 0 ? tx('readingPlans.home.markDayN', `Mark Day ${focus} read`, { day: focus })
+                : labels.todayCard.markDayRead}
           </button>
         </div>
       </section>
