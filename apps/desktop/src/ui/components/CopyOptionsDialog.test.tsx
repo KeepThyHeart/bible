@@ -770,12 +770,16 @@ describe('CopyOptionsDialog: printing', () => {
     expect(screen.getByTestId('print-red-letters')).toBeInTheDocument();
   });
 
-  it('"Use a copy format..." goes to the Copy dialog, and its Print follows the chosen format', async () => {
+  it('"More options..." goes to the Copy dialog, whose one action is "Print this format..." in the chosen format', async () => {
     const { user } = await openPrintDialog();
-    await user.click(screen.getByTestId('print-use-copy-format'));
+    await user.click(screen.getByTestId('print-more-options'));
     expect(screen.queryByTestId('print-dialog')).toBeNull();
+    expect(screen.getByRole('heading', { name: 'Print Passage' })).toBeInTheDocument();
+    expect(screen.queryByTestId('passage-dialog-print')).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Copy/ })).toBeNull();
     await user.click(format('Verse headings'));
-    await user.click(screen.getByTestId('passage-dialog-print'));
+    await user.click(screen.getByRole('button', { name: /^Print this format/ }));
+    expect(screen.getByTestId('print-layout')).toHaveValue('preview');
     const doc = previewDoc();
     expect(doc).toContain('<h3>');
     expect(doc).toContain('<blockquote>');

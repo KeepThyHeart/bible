@@ -491,7 +491,8 @@
     "printThemeSepia": "Sepia",
     "printRedLetters": "Palabras de Cristo en rojo",
     "printShowTitle": "Imprimir el título",
-    "printUseCopyFormat": "Usar un formato de copia…",
+    "printMoreOptions": "Más opciones…",
+    "printThisFormat": "Imprimir con este formato…",
     "printSavePdf": "Guardar como PDF…",
     "printTitle": "Imprimir pasaje",
     "printPdfHint": "Para guardar un PDF, elige «Guardar como PDF» como impresora en la ventana de impresión."

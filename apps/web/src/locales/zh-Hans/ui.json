@@ -491,7 +491,8 @@
     "printThemeSepia": "深褐色",
     "printRedLetters": "耶稣的话用红字",
     "printShowTitle": "打印标题",
-    "printUseCopyFormat": "使用复制格式…",
+    "printMoreOptions": "更多选项…",
+    "printThisFormat": "以此格式打印…",
     "printSavePdf": "另存为 PDF…",
     "printTitle": "打印经文",
     "printPdfHint": "要保存为 PDF，请在打印窗口中选择“另存为 PDF”作为打印机。"

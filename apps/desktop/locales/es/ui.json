@@ -2685,6 +2685,7 @@
   "passageDialog.printThemeSepia": "Sepia",
   "passageDialog.printRedLetters": "Palabras de Cristo en rojo",
   "passageDialog.printShowTitle": "Imprimir el título",
-  "passageDialog.printUseCopyFormat": "Usar un formato de copia…",
+  "passageDialog.printMoreOptions": "Más opciones…",
+  "passageDialog.printThisFormat": "Imprimir con este formato…",
   "passageDialog.printSavePdf": "Guardar como PDF…"
 }

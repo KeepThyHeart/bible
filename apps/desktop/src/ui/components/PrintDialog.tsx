@@ -3,8 +3,8 @@
  * narrow windows). Print and Save as PDF are its buttons.
  *
  * The preview is the very document that is printed or saved, so what the user sees is what they get. The
- * settings are remembered apart from Copy's (`printPreferences`). "Use a copy format..." hands over to the
- * Copy dialog, whose Print button comes back here following that format.
+ * settings are remembered apart from Copy's (`printPreferences`). "More options..." hands over to the
+ * Copy dialog's full list of formats and options, whose "Print this format..." comes back here following it.
  */
 import { useCallback, useMemo, useState } from 'react';
 import {
@@ -49,13 +49,13 @@ export interface PrintDialogProps {
   /** The passage as HTML for the given print settings (the layout decides the format). */
   buildBody: (prefs: PrintPreferences) => string;
   onClose: () => void;
-  /** Open the Copy dialog to print in one of its formats. */
-  onUseCopyFormat: () => void;
+  /** Open the Copy dialog's formats and options, to print in one of them. */
+  onMoreOptions: () => void;
 }
 
 const SELECT = 'bg-background-tertiary border border-border rounded px-2 py-1 text-text-primary';
 
-export default function PrintDialog({ title, fileName, buildBody, onClose, onUseCopyFormat }: PrintDialogProps) {
+export default function PrintDialog({ title, fileName, buildBody, onClose, onMoreOptions }: PrintDialogProps) {
   const { t } = useI18n();
   const dialogRef = useFocusTrap<HTMLDivElement>(true, onClose);
   const [prefs, setPrefs] = useState<PrintPreferences>(() => loadPrintPreferences());
@@ -139,11 +139,11 @@ export default function PrintDialog({ title, fileName, buildBody, onClose, onUse
               </label>
               <button
                 type="button"
-                onClick={onUseCopyFormat}
-                data-testid="print-use-copy-format"
+                onClick={onMoreOptions}
+                data-testid="print-more-options"
                 className="self-start text-xs text-accent underline hover:no-underline"
               >
-                {t('passageDialog.printUseCopyFormat')}
+                {t('passageDialog.printMoreOptions')}
               </button>
 
               {prefs.layout !== 'preview' && (

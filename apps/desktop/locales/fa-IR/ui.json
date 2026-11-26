@@ -2668,6 +2668,7 @@
   "passageDialog.printThemeSepia": "قهوه‌ای کم‌رنگ",
   "passageDialog.printRedLetters": "سخنان مسیح به رنگ قرمز",
   "passageDialog.printShowTitle": "چاپ عنوان",
-  "passageDialog.printUseCopyFormat": "استفاده از قالب کپی…",
+  "passageDialog.printMoreOptions": "گزینه‌های بیشتر…",
+  "passageDialog.printThisFormat": "چاپ با این قالب…",
   "passageDialog.printSavePdf": "ذخیره به‌عنوان PDF…"
 }

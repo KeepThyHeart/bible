@@ -2683,6 +2683,7 @@
   "passageDialog.printThemeSepia": "Сепия",
   "passageDialog.printRedLetters": "Слова Христа красным",
   "passageDialog.printShowTitle": "Печатать заголовок",
-  "passageDialog.printUseCopyFormat": "Использовать формат копирования…",
+  "passageDialog.printMoreOptions": "Другие параметры…",
+  "passageDialog.printThisFormat": "Печать в этом формате…",
   "passageDialog.printSavePdf": "Сохранить как PDF…"
 }

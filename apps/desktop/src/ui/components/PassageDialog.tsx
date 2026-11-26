@@ -227,8 +227,9 @@ const PassageDialog: React.FC<PassageDialogProps> = ({
   // Print has its own remembered choices (layout, notes margin), apart from Copy's format and options.
   // `print` shows the Print dialog (its own settings and live preview); `copy` is this dialog.
   const [view, setView] = useState<'print' | 'copy'>(printFirst ? 'print' : 'copy');
-  // Set once the user went through "Use a copy format...": Print then follows that format.
-  const viaCopyFormatRef = useRef(false);
+  // Reached from the Print dialog's "More options...": this dialog then picks a format to print, so its
+  // primary action is "Print this format..." (back to the Print dialog, following that format), not Copy.
+  const [choosingPrintFormat, setChoosingPrintFormat] = useState(false);
   const showingPrint = isCopy && view === 'print' && activeVerses.length > 0;
   const [skipMenu, setSkipMenu] = useState<boolean>(() => getSkipFormatMenu());
 
@@ -551,7 +552,7 @@ const PassageDialog: React.FC<PassageDialogProps> = ({
     const ctx = buildVerseContext(verseList, activeTranslation);
     const layoutFormatId = printLayoutFormatId(prefs.layout);
     const printFormatId = layoutFormatId ?? formatId;
-    // Print keeps its own verse-number choice (Copy's applies only through "Use a copy format...") and
+    // Print keeps its own verse-number choice (Copy's applies only through "More options...") and
     // shows the reference once: in the printed title (so "full reference on first verse" falls back to plain
     // numbers while the title is on), or above the text when the title is off.
     const printOptions = {
@@ -594,11 +595,19 @@ const PassageDialog: React.FC<PassageDialogProps> = ({
    * arrives a moment later and a second Enter takes it.
    */
   const canCommit = hasPassage && !isStale;
+  /** "Print this format...": back to the Print dialog, printing "as in the preview" of this format. */
+  const printThisFormat = useCallback(() => {
+    setLastPrintFormatId(formatId);
+    savePrintPreferences({ ...loadPrintPreferences(), layout: 'preview' });
+    setView('print');
+  }, [formatId]);
+
   const commit = useCallback(() => {
     if (!canCommit) return;
-    if (isCopy) void handleCopy();
+    if (isCopy && choosingPrintFormat) printThisFormat();
+    else if (isCopy) void handleCopy();
     else handleInsert();
-  }, [canCommit, isCopy, handleCopy, handleInsert]);
+  }, [canCommit, isCopy, choosingPrintFormat, printThisFormat, handleCopy, handleInsert]);
 
   const handleSaveTemplate = useCallback(() => {
     const name = saveName.trim();
@@ -669,19 +678,19 @@ const PassageDialog: React.FC<PassageDialogProps> = ({
   // -- Labels --------------------------------------------------------
 
   const dialogTitle = isCopy
-    ? t('copyOptionsDialog.title')
+    ? t(choosingPrintFormat ? 'copyOptionsDialog.printTitle' : 'copyOptionsDialog.title')
     : promptForReference
       ? t('insertPassageDialog.title')
       : resolver.reference;
 
   const dialogLabel = isCopy
-    ? t('copyOptionsDialog.title')
+    ? t(choosingPrintFormat ? 'copyOptionsDialog.printTitle' : 'copyOptionsDialog.title')
     : promptForReference
       ? t('insertPassageDialog.title')
       : t('ui.noteEditor.expandDialogLabel');
 
   const primaryLabel = isCopy
-    ? t('copyOptionsDialog.copyButton')
+    ? t(choosingPrintFormat ? 'passageDialog.printThisFormat' : 'copyOptionsDialog.copyButton')
     : isReformat
       ? t('ui.noteEditor.expandApply')
       : t('ui.noteEditor.expandInsert');
@@ -716,7 +725,7 @@ const PassageDialog: React.FC<PassageDialogProps> = ({
         fileName={passageFileName(printReference, activeTranslation)}
         buildBody={buildPrintBody}
         onClose={onClose}
-        onUseCopyFormat={() => { viaCopyFormatRef.current = true; setView('copy'); }}
+        onMoreOptions={() => { setChoosingPrintFormat(true); setView('copy'); }}
       />
     )}
     <PopupPortal>
@@ -1212,14 +1221,11 @@ const PassageDialog: React.FC<PassageDialogProps> = ({
               {/* The hint is `aria-hidden` so the accessible name stays the
                   bare verb - "Copy", "Insert", "Apply" - which is what the
                   action is, and what a screen reader should announce. */}
-              {isCopy && (
+              {/* Choosing a format to print, the primary button is the print action, so this one is not shown. */}
+              {isCopy && !choosingPrintFormat && (
                 <button
                   type="button"
-                  onClick={() => {
-                    // "As in the preview": the print dialog follows this dialog's copy format.
-                    if (viaCopyFormatRef.current) savePrintPreferences({ ...loadPrintPreferences(), layout: 'preview' });
-                    setView('print');
-                  }}
+                  onClick={() => setView('print')}
                   disabled={!canCommit}
                   data-testid="passage-dialog-print"
                   className="px-4 py-2 text-sm font-medium text-text-secondary bg-background-tertiary rounded hover:bg-background-active transition-colors disabled:opacity-50 disabled:cursor-not-allowed"

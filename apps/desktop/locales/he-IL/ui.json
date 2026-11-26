@@ -2668,6 +2668,7 @@
   "passageDialog.printThemeSepia": "ספיה",
   "passageDialog.printRedLetters": "דברי המשיח באדום",
   "passageDialog.printShowTitle": "הדפס את הכותרת",
-  "passageDialog.printUseCopyFormat": "השתמש בתבנית העתקה…",
+  "passageDialog.printMoreOptions": "אפשרויות נוספות…",
+  "passageDialog.printThisFormat": "הדפסה בתבנית זו…",
   "passageDialog.printSavePdf": "שמור כ-PDF…"
 }

@@ -2683,6 +2683,7 @@
   "passageDialog.printThemeSepia": "सेपिया",
   "passageDialog.printRedLetters": "मसीह के वचन लाल में",
   "passageDialog.printShowTitle": "शीर्षक प्रिंट करें",
-  "passageDialog.printUseCopyFormat": "कॉपी प्रारूप का उपयोग करें…",
+  "passageDialog.printMoreOptions": "अधिक विकल्प…",
+  "passageDialog.printThisFormat": "इस प्रारूप में प्रिंट करें…",
   "passageDialog.printSavePdf": "PDF के रूप में सहेजें…"
 }

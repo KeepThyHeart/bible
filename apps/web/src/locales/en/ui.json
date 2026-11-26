@@ -491,7 +491,8 @@
     "printThemeSepia": "Sepia",
     "printRedLetters": "Words of Christ in red",
     "printShowTitle": "Print the title",
-    "printUseCopyFormat": "Use a copy format…",
+    "printMoreOptions": "More options…",
+    "printThisFormat": "Print this format…",
     "printSavePdf": "Save as PDF…",
     "printTitle": "Print Passage",
     "printPdfHint": "To save a PDF, choose “Save as PDF” as the printer in the print window."

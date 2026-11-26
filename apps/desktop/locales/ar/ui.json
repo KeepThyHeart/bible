@@ -2683,6 +2683,7 @@
   "passageDialog.printThemeSepia": "بني داكن",
   "passageDialog.printRedLetters": "كلمات المسيح بالأحمر",
   "passageDialog.printShowTitle": "طباعة العنوان",
-  "passageDialog.printUseCopyFormat": "استخدام تنسيق نسخ…",
+  "passageDialog.printMoreOptions": "مزيد من الخيارات…",
+  "passageDialog.printThisFormat": "طباعة بهذا التنسيق…",
   "passageDialog.printSavePdf": "حفظ كملف PDF…"
 }

@@ -3,7 +3,7 @@
  * narrow screens). The preview is the very document handed to the browser's print dialog, which also
  * offers "Save as PDF".
  *
- * Settings are remembered apart from Copy's (`copyPreferences`). "Use a copy format..." returns to the
+ * Settings are remembered apart from Copy's (`copyPreferences`). "More options..." returns to the
  * Copy dialog, whose Print button comes back here following that format.
  */
 import { useState } from 'preact/hooks';
@@ -70,11 +70,11 @@ interface PrintDialogProps {
   buildBody: (prefs: PrintPreferences) => string;
   onClose: () => void;
   /** Go back to the Copy dialog to print in one of its formats. */
-  onUseCopyFormat: () => void;
+  onMoreOptions: () => void;
   dialogRef: RefObject<HTMLDivElement>;
 }
 
-export function PrintDialog({ title, buildBody, onClose, onUseCopyFormat, dialogRef }: PrintDialogProps) {
+export function PrintDialog({ title, buildBody, onClose, onMoreOptions, dialogRef }: PrintDialogProps) {
   const { t } = useTranslation();
   const [prefs, setPrefs] = useState<PrintPreferences>(loadPrintPreferences);
   const change = (partial: Partial<PrintPreferences>): void => {
@@ -117,8 +117,8 @@ export function PrintDialog({ title, buildBody, onClose, onUseCopyFormat, dialog
                 {prefs.layout === 'preview' && <option value="preview">{t('copyDialog.printLayoutPreview')}</option>}
               </select>
             </label>
-            <button type="button" class="print-dialog__link" onClick={onUseCopyFormat} data-testid="print-use-copy-format">
-              {t('copyDialog.printUseCopyFormat')}
+            <button type="button" class="print-dialog__link" onClick={onMoreOptions} data-testid="print-more-options">
+              {t('copyDialog.printMoreOptions')}
             </button>
 
             <label class="copy-dialog__option">

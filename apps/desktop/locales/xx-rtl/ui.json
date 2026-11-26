@@ -2668,6 +2668,7 @@
   "passageDialog.printThemeSepia": "‏Sepia‏",
   "passageDialog.printRedLetters": "‏Words of Christ in red‏",
   "passageDialog.printShowTitle": "‏Print the title‏",
-  "passageDialog.printUseCopyFormat": "‏Use a copy format…‏",
+  "passageDialog.printMoreOptions": "‏More options…‏",
+  "passageDialog.printThisFormat": "‏Print this format…‏",
   "passageDialog.printSavePdf": "‏Save as PDF…‏"
 }

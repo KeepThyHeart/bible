@@ -491,7 +491,8 @@
     "printThemeSepia": "بني داكن",
     "printRedLetters": "كلمات المسيح بالأحمر",
     "printShowTitle": "طباعة العنوان",
-    "printUseCopyFormat": "استخدام تنسيق نسخ…",
+    "printMoreOptions": "مزيد من الخيارات…",
+    "printThisFormat": "طباعة بهذا التنسيق…",
     "printSavePdf": "حفظ كملف PDF…",
     "printTitle": "طباعة المقطع",
     "printPdfHint": "لحفظ ملف PDF، اختر «حفظ كملف PDF» كطابعة في نافذة الطباعة."

@@ -357,7 +357,9 @@ export function CopyDialog({ isOpen, onClose }: CopyDialogProps) {
   const [advanced, setAdvanced] = useState<AdvancedCopyOptions>(loadAdvancedOptions);
   // The Print dialog (its own settings and live preview) replaces this one while open.
   const [printOpen, setPrintOpen] = useState(false);
-  const viaCopyFormatRef = useRef(false);
+  // Reached from the Print dialog's "More options...": this dialog then picks a format to print, so its
+  // main action is "Print this format..." (back to the Print dialog, following that format), not Copy.
+  const [choosingPrintFormat, setChoosingPrintFormat] = useState(false);
 
   const [refInput, setRefInput] = useState('');
   const [parsedBookNumber, setParsedBookNumber] = useState(0);
@@ -432,6 +434,11 @@ export function CopyDialog({ isOpen, onClose }: CopyDialogProps) {
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
   }, []);
+
+  // Each opening starts as the Copy dialog, not still choosing a format to print.
+  useEffect(() => {
+    if (isOpen) setChoosingPrintFormat(false);
+  }, [isOpen]);
 
   useEffect(() => {
     if (isOpen && tab?.book && tab.chapter) {
@@ -715,8 +722,15 @@ export function CopyDialog({ isOpen, onClose }: CopyDialogProps) {
   // so leaving it open afterwards just makes the user reach for Escape too.
   // Clicking the button instead leaves the dialog in place showing "Copied!",
   // so a second copy after tweaking options costs no reopen.
+  /** "Print this format...": back to the Print dialog, printing "as in the preview" of this format. */
+  const printThisFormat = (): void => {
+    savePrintPreferences({ ...loadPrintPreferences(), layout: 'preview' });
+    setPrintOpen(true);
+  };
+
   confirmRef.current = () => {
     if (!canCopy) return;
+    if (choosingPrintFormat) { printThisFormat(); return; }
     void handleCopy().then((ok) => { if (ok) onClose(); });
   };
 
@@ -768,7 +782,7 @@ export function CopyDialog({ isOpen, onClose }: CopyDialogProps) {
         title={buildPassageReference(selectedVerses, context, true)}
         buildBody={buildPrintBody}
         onClose={() => setPrintOpen(false)}
-        onUseCopyFormat={() => { viaCopyFormatRef.current = true; setPrintOpen(false); }}
+        onMoreOptions={() => { setChoosingPrintFormat(true); setPrintOpen(false); }}
         dialogRef={dialogRef}
       />
     );
@@ -776,9 +790,9 @@ export function CopyDialog({ isOpen, onClose }: CopyDialogProps) {
 
   return (
     <div class="copy-dialog-overlay" onMouseDown={onClose}>
-      <div ref={dialogRef} role="dialog" aria-modal="true" aria-label={t('copyDialog.title')} class="copy-dialog" onMouseDown={(e) => e.stopPropagation()}>
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-label={t(choosingPrintFormat ? 'copyDialog.printTitle' : 'copyDialog.title')} class="copy-dialog" onMouseDown={(e) => e.stopPropagation()}>
         <div class="copy-dialog__header">
-          <h3>{t('copyDialog.title')}</h3>
+          <h3>{t(choosingPrintFormat ? 'copyDialog.printTitle' : 'copyDialog.title')}</h3>
           <button onClick={onClose} aria-label={t('common.close')}><i class="fa-solid fa-xmark" /></button>
         </div>
 
@@ -985,24 +999,23 @@ export function CopyDialog({ isOpen, onClose }: CopyDialogProps) {
             >
               {renderPreview()}
             </div>
+            {/* Choosing a format to print ("More options..."), printing it is the only action. */}
+            {!choosingPrintFormat && (
+              <button
+                class="copy-dialog__copy-btn"
+                onClick={() => { void handleCopy(); }}
+                disabled={!canCopy}
+              >
+                {copied ? t('copyDialog.copied') : t('copyDialog.copyToClipboard')}
+              </button>
+            )}
             <button
               class="copy-dialog__copy-btn"
-              onClick={() => { void handleCopy(); }}
-              disabled={!canCopy}
-            >
-              {copied ? t('copyDialog.copied') : t('copyDialog.copyToClipboard')}
-            </button>
-            <button
-              class="copy-dialog__copy-btn"
-              onClick={() => {
-                // "Use a copy format..." came from here: Print then follows the chosen format.
-                if (viaCopyFormatRef.current) savePrintPreferences({ ...loadPrintPreferences(), layout: 'preview' });
-                setPrintOpen(true);
-              }}
+              onClick={() => (choosingPrintFormat ? printThisFormat() : setPrintOpen(true))}
               disabled={!canCopy}
               data-testid="copy-dialog-print"
             >
-              {t('copyDialog.print')}
+              {t(choosingPrintFormat ? 'copyDialog.printThisFormat' : 'copyDialog.print')}
             </button>
             {copyFailed && (
               <div class="copy-dialog__error" role="alert">

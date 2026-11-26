@@ -307,10 +307,12 @@ describe('CopyDialog', () => {
     expect(previewDoc()).not.toContain('class="notes-rule"');
   });
 
-  it('"Use a copy format..." returns to the Copy dialog, whose Print follows the chosen format', () => {
+  it('"More options..." returns to the Copy dialog, whose only action is "Print this format..."', () => {
     openPrint();
-    fireEvent.click(screen.getByTestId('print-use-copy-format'));
+    fireEvent.click(screen.getByTestId('print-more-options'));
     expect(screen.queryByTestId('print-dialog')).toBeNull();
+    expect(screen.queryByText('Copy to Clipboard')).toBeNull();
+    expect(screen.getByTestId('copy-dialog-print').textContent).toBe('Print this format…');
     fireEvent.click(screen.getByTestId('copy-dialog-print'));
     expect((screen.getByTestId('print-layout') as HTMLSelectElement).value).toBe('preview');
   });

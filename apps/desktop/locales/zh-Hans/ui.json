@@ -2685,6 +2685,7 @@
   "passageDialog.printThemeSepia": "深褐色",
   "passageDialog.printRedLetters": "耶稣的话用红字",
   "passageDialog.printShowTitle": "打印标题",
-  "passageDialog.printUseCopyFormat": "使用复制格式…",
+  "passageDialog.printMoreOptions": "更多选项…",
+  "passageDialog.printThisFormat": "以此格式打印…",
   "passageDialog.printSavePdf": "另存为 PDF…"
 }

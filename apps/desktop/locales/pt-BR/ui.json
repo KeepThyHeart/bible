@@ -2683,6 +2683,7 @@
   "passageDialog.printThemeSepia": "Sépia",
   "passageDialog.printRedLetters": "Palavras de Cristo em vermelho",
   "passageDialog.printShowTitle": "Imprimir o título",
-  "passageDialog.printUseCopyFormat": "Usar um formato de cópia…",
+  "passageDialog.printMoreOptions": "Mais opções…",
+  "passageDialog.printThisFormat": "Imprimir neste formato…",
   "passageDialog.printSavePdf": "Salvar como PDF…"
 }
