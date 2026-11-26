@@ -93,5 +93,7 @@
   "wordStudy.open.category": "Study",
   "wordStudy.open.alias.0": "word study",
   "wordStudy.open.alias.1": "strongs study",
-  "wordStudy.open.alias.2": "concordance"
+  "wordStudy.open.alias.2": "concordance",
+  "readingPlans.continue": "Продолжить план чтения",
+  "readingPlans.openBeside": "Открыть планы чтения рядом с Библией"
 }

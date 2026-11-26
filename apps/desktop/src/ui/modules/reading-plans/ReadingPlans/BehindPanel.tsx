@@ -71,31 +71,6 @@ const BehindPanel: React.FC<BehindPanelProps> = ({
         {tx('readingPlans.home.earlierUnread', n === 1 ? '1 earlier day unread' : `${n} earlier days unread`, { n })}
       </summary>
       <div className="flex flex-col gap-md pt-sm">
-        <ul className="m-0 p-0 list-none flex flex-col gap-sm" aria-label={tx('readingPlans.home.earlierList', 'Earlier days unread')}>
-          {missed.map((day) => (
-            <li key={day} className="flex flex-col gap-xs">
-              <span className="text-sm font-medium">{t('readingPlans.home.day', { day })}</span>
-              <ul className="m-0 p-0 list-none flex flex-col gap-xs">
-                {(plan.days[day - 1]?.readings ?? []).map((r, i) => {
-                  const text = readingText(r);
-                  const done = progress.get(day)?.has(i) ?? false;
-                  return (
-                    <li key={i} className="flex items-center gap-sm">
-                      <Checkbox checked={done} tone="success" ariaLabel={t('readingPlans.today.markReading', { reading: text })}
-                        onChange={(checked) => onToggleReading(day, i, checked)} />
-                      <button type="button" className="kth-link text-sm" style={done ? { textDecoration: 'line-through', opacity: 0.7 } : undefined}
-                        aria-label={labels.todayCard.openReading(text)} onClick={() => onOpenReading({ day, index: i, reading: r })}>{text}</button>
-                    </li>
-                  );
-                })}
-              </ul>
-            </li>
-          ))}
-          {today.missedDays.length > MAX_DAYS_SHOWN ? (
-            <li className="text-xs kth-text-muted">{labels.todayCard.missedMore(today.missedDays.length - MAX_DAYS_SHOWN)}</li>
-          ) : null}
-        </ul>
-
         <ul className="m-0 p-0 list-none flex flex-col gap-sm" aria-label={tx('readingPlans.behind.choices', 'What would you like to do?')}>
           {!pastEnd && suggestion ? (
             catchingUp > 0 ? (
@@ -121,6 +96,31 @@ const BehindPanel: React.FC<BehindPanelProps> = ({
             tx('readingPlans.behind.stopDatesHint', 'Switch to a flexible plan: no dates, nothing is ever behind.'),
             () => setConfirmFlexible(true), 'choice-flexible',
           )}
+        </ul>
+
+        <ul className="m-0 p-0 list-none flex flex-col gap-sm" aria-label={tx('readingPlans.home.earlierList', 'Earlier days unread')}>
+          {missed.map((day) => (
+            <li key={day} className="flex flex-col gap-xs">
+              <span className="text-sm font-medium">{t('readingPlans.home.day', { day })}</span>
+              <ul className="m-0 p-0 list-none flex flex-col gap-xs">
+                {(plan.days[day - 1]?.readings ?? []).map((r, i) => {
+                  const text = readingText(r);
+                  const done = progress.get(day)?.has(i) ?? false;
+                  return (
+                    <li key={i} className="flex items-center gap-sm">
+                      <Checkbox checked={done} tone="success" ariaLabel={t('readingPlans.today.markReading', { reading: text })}
+                        onChange={(checked) => onToggleReading(day, i, checked)} />
+                      <button type="button" className="kth-link text-sm" style={done ? { textDecoration: 'line-through', opacity: 0.7 } : undefined}
+                        aria-label={labels.todayCard.openReading(text)} onClick={() => onOpenReading({ day, index: i, reading: r })}>{text}</button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </li>
+          ))}
+          {today.missedDays.length > MAX_DAYS_SHOWN ? (
+            <li className="text-xs kth-text-muted">{labels.todayCard.missedMore(today.missedDays.length - MAX_DAYS_SHOWN)}</li>
+          ) : null}
         </ul>
       </div>
 

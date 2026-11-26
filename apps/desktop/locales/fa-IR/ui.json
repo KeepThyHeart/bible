@@ -2553,5 +2553,10 @@
   "preferencesDialog.clearHistoryConfirmBody": "همهٔ زبانه‌های جستجو را می‌بندد و فهرست تاریخچه و دکمهٔ بازگشت هر پنل را خالی می‌کند. یادداشت‌ها، هایلایت‌ها، نشانک‌ها و پیشرفت برنامه‌های مطالعه تغییر نمی‌کنند.",
   "preferencesDialog.clearHistoryConfirmButton": "پاک‌کردن تاریخچه",
   "preferencesDialog.clearHistoryCancel": "انصراف",
-  "preferencesDialog.clearHistoryDone": "تاریخچه پاک شد."
+  "preferencesDialog.clearHistoryDone": "تاریخچه پاک شد.",
+  "apps.readingPlans.shortTitle": "برنامه‌ها",
+  "apps.present.shortTitle": "ارائه",
+  "apps.rail.showLabels": "نمایش برچسب‌ها",
+  "apps.switcher.open": "تعویض برنامه",
+  "settings.apps.railLabels": "نمایش برچسب‌ها در نوار برنامه‌ها"
 }

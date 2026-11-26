@@ -2568,5 +2568,10 @@
   "preferencesDialog.clearHistoryConfirmBody": "Fecha todas as abas de pesquisa e esvazia a lista de histórico e o botão Voltar de cada painel. Notas, destaques, marcadores e o progresso dos planos de leitura não são alterados.",
   "preferencesDialog.clearHistoryConfirmButton": "Limpar histórico",
   "preferencesDialog.clearHistoryCancel": "Cancelar",
-  "preferencesDialog.clearHistoryDone": "Histórico limpo."
+  "preferencesDialog.clearHistoryDone": "Histórico limpo.",
+  "apps.readingPlans.shortTitle": "Planos",
+  "apps.present.shortTitle": "Apresentar",
+  "apps.rail.showLabels": "Mostrar rótulos",
+  "apps.switcher.open": "Trocar de aplicativo",
+  "settings.apps.railLabels": "Mostrar rótulos na barra de aplicativos"
 }

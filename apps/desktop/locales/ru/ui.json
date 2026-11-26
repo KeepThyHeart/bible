@@ -2568,5 +2568,10 @@
   "preferencesDialog.clearHistoryConfirmBody": "Закрывает все вкладки поиска и очищает список истории и кнопку «Назад» каждой панели. Заметки, выделения, закладки и прогресс планов чтения не изменяются.",
   "preferencesDialog.clearHistoryConfirmButton": "Очистить историю",
   "preferencesDialog.clearHistoryCancel": "Отмена",
-  "preferencesDialog.clearHistoryDone": "История очищена."
+  "preferencesDialog.clearHistoryDone": "История очищена.",
+  "apps.readingPlans.shortTitle": "Планы",
+  "apps.present.shortTitle": "Показ",
+  "apps.rail.showLabels": "Показывать подписи",
+  "apps.switcher.open": "Переключить приложение",
+  "settings.apps.railLabels": "Показывать подписи на панели приложений"
 }

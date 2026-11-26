@@ -2570,5 +2570,10 @@
   "preferencesDialog.clearHistoryConfirmBody": "Cierra todas las pestañas de búsqueda y vacía la lista de historial y el botón Atrás de cada panel. Las notas, los resaltados, los marcadores y el progreso de los planes de lectura no se modifican.",
   "preferencesDialog.clearHistoryConfirmButton": "Borrar historial",
   "preferencesDialog.clearHistoryCancel": "Cancelar",
-  "preferencesDialog.clearHistoryDone": "Historial borrado."
+  "preferencesDialog.clearHistoryDone": "Historial borrado.",
+  "apps.readingPlans.shortTitle": "Planes",
+  "apps.present.shortTitle": "Presentar",
+  "apps.rail.showLabels": "Mostrar etiquetas",
+  "apps.switcher.open": "Cambiar de aplicación",
+  "settings.apps.railLabels": "Mostrar etiquetas en la barra de aplicaciones"
 }

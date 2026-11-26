@@ -2553,5 +2553,10 @@
   "preferencesDialog.clearHistoryConfirmBody": "סוגר את כל כרטיסיות החיפוש ומרוקן את רשימת ההיסטוריה וכפתור החזרה בכל חלונית. הערות, הדגשות, סימניות והתקדמות בתוכניות קריאה אינן משתנות.",
   "preferencesDialog.clearHistoryConfirmButton": "ניקוי היסטוריה",
   "preferencesDialog.clearHistoryCancel": "ביטול",
-  "preferencesDialog.clearHistoryDone": "ההיסטוריה נוקתה."
+  "preferencesDialog.clearHistoryDone": "ההיסטוריה נוקתה.",
+  "apps.readingPlans.shortTitle": "תוכניות",
+  "apps.present.shortTitle": "הצגה",
+  "apps.rail.showLabels": "הצג תוויות",
+  "apps.switcher.open": "החלף אפליקציה",
+  "settings.apps.railLabels": "הצג תוויות בסרגל האפליקציות"
 }
