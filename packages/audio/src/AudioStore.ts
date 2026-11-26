@@ -36,6 +36,11 @@ import {
   defaultAudioPrefs, effectiveRate, loadAudioPrefs, saveAudioPrefs, sanitizeAudioPrefs, stepRate,
 } from './audioPrefs';
 import type { AudioUiPrefs, PlayerStyle } from './audioPrefs';
+import type { PassageLoop } from './passageQueue';
+import {
+  MAX_PASSAGES, nextIndex, passageContains, passageLastChapter, passageStart, prevIndex, sanitizeBookmark, stopVerseIn,
+} from './passageQueue';
+import type { AudioBookmark, AudioPassage, PassageQueue } from './passageQueue';
 import type { AudioSourceResolver, SourceStatus } from './AudioSourceResolver';
 import type {
   AudioCapabilities,
@@ -109,6 +114,11 @@ export class FollowStore extends Store {
   }
 }
 
+/** Notifies when a tab's resume point is saved, moved or dropped (the desktop session serializer listens). */
+export class BookmarksStore extends Store {
+  changed(): void { this.notify(); }
+}
+
 interface FollowTarget { tabId: string; module: string; book: number; chapter: number }
 
 /** A check that failed, or a "no" that has expired, is asked again no sooner than this. */
@@ -119,6 +129,8 @@ const verseIdOf = (book: number, chapter: number, verse: number): number => book
 export class AudioStore extends Store {
   readonly position = new PositionStore();
   readonly follow = new FollowStore();
+  /** Notifies when any tab's bookmark changes. Does not fire as the verse moves during play (read `allBookmarks()` for the live place). */
+  readonly bookmarksChanged = new BookmarksStore();
 
   prefs: AudioUiPrefs = defaultAudioPrefs();
   status: AudioUiStatus = 'idle';
@@ -141,6 +153,14 @@ export class AudioStore extends Store {
   quickSettingsOpen = false;
   /** Bumped when what can play changes, so source lists re-ask. */
   sourcesVersion = 0;
+  /**
+   * The playlist of the playing tab (null while idle). Always set while something plays:
+   * `kind: 'chapter'` is the default list (the chapter in hand), `kind: 'list'` the typed passages;
+   * `index` is the passage being read ("n of m" is `index + 1` of `passages.length`).
+   */
+  queue: PassageQueue | null = null;
+  /** The tab the player's playlist editor is aimed at (set by the pane's Listen chevron), or null. */
+  targetTabId: string | null = null;
 
   private system: AudioSystem | null = null;
   private resolution: SourceResolution | null = null;
@@ -157,6 +177,12 @@ export class AudioStore extends Store {
   private offPlayer: Array<() => void> = [];
   private offModules: (() => void) | null = null;
   private storage: AudioPrefsStorage | null | undefined;
+  /** Each tab's resume point; the playing tab's entry is stale while it plays (see `bookmarkFor`). */
+  private readonly bookmarks = new Map<string, AudioBookmark>();
+  /** True while the store itself stops the player, so an idle state is not mistaken for a natural end. */
+  private stopping = false;
+  /** Where the playback being prepared will start (the place to keep if it is stopped while resolving). */
+  private pendingFrom: VerseRef | null = null;
   private readonly reader: AudioReaderPort;
   private readonly modules: AudioModulesPort;
 
@@ -184,6 +210,7 @@ export class AudioStore extends Store {
       p.on('state', s => this.onPlayerState(s)),
       p.on('verse', v => this.onVerse(v)),
       p.on('chapterEnd', next => this.onChapterEnd(next)),
+      p.on('stopReached', at => this.onStopReached(at)),
     ];
     this.offBible = this.reader.subscribe(() => this.onBibleChanged());
     this.offModules = this.modules.subscribe(() => {
@@ -201,7 +228,9 @@ export class AudioStore extends Store {
     this.offPlayer = [];
     this.offBible?.(); this.offBible = null;
     this.offModules?.(); this.offModules = null;
-    this.system?.player.stop();
+    const at = this.playingTabId ? this.livePosition() : null;
+    if (this.playingTabId && at) this.bookmark(this.playingTabId, at, false); // quitting keeps the place
+    this.stopPlayer();
     this.system = null;
     this.resetPlayback();
     this.enabled = false;
@@ -212,6 +241,13 @@ export class AudioStore extends Store {
   openPlayer(): void {
     if (this.playerOpen) return;
     this.playerOpen = true;
+    this.notify();
+  }
+
+  /** Aim the player's playlist editor at a tab (null: the active one). */
+  setTargetTab(tabId: string | null): void {
+    if (this.targetTabId === tabId) return;
+    this.targetTabId = tabId;
     this.notify();
   }
 
@@ -303,12 +339,20 @@ export class AudioStore extends Store {
   // ---------------------------------------------------------------- play
 
   /** Where playback starts: the selected verse (or range start) of this chapter, else the first verse. */
+  /** The reader's own selection (a verse number) when it lies in the tab's chapter, else null. */
+  private selectedVerse(tab: AudioReaderTab): number | null {
+    const id = this.reader.selectionStart(tab.id);
+    return id != null && Math.floor(id / 1_000_000) === tab.book && Math.floor(id / 1_000) % 1_000 === tab.chapter
+      ? id % 1_000 : null;
+  }
+
   private startVerse(tab: AudioReaderTab): VerseRef {
     const base = { moduleAbbr: tab.moduleAbbr, book: tab.book!, chapter: tab.chapter! };
     const inChapter = (id: number | null | undefined): id is number =>
       id != null && Math.floor(id / 1_000_000) === tab.book && Math.floor(id / 1_000) % 1_000 === tab.chapter;
-    const selected = this.reader.selectionStart(tab.id);
-    const picked = inChapter(selected) ? selected : inChapter(tab.studyVerse) ? tab.studyVerse : null;
+    const selected = this.selectedVerse(tab);
+    const picked = selected !== null ? tab.book! * 1_000_000 + tab.chapter! * 1_000 + selected
+      : inChapter(tab.studyVerse) ? tab.studyVerse : null;
     if (picked !== null) return { ...base, verse: picked % 1_000 };
     const first = tab.verses.find(v => v.verse >= 1) ?? tab.verses[0];
     return { ...base, verse: first?.verse ?? 1 };
@@ -321,16 +365,200 @@ export class AudioStore extends Store {
     // just runs the check as part of starting (`startPlayback` resolves the source).
     if (!this.system || !this.tabReady(tab) || this.availability(tab.moduleAbbr) === 'none') return;
     if (this.status === 'resolving' && this.playingTabId === tab.id) return; // a double click
-    await this.startPlayback(tab, this.startVerse(tab));
+    const bm = this.bookmarks.get(tab.id);
+    const selected = this.selectedVerse(tab);
+    const chapterQueue = chapterQueueOf(tab.book!, tab.chapter!);
+    if (bm?.queue?.kind === 'list') {
+      // Resume the typed list, unless the reader selected a verse of this chapter outside its current passage.
+      const q = bm.queue;
+      const outside = selected !== null && !passageContains(q.passages[q.index], tab.book!, tab.chapter!, selected);
+      if (!outside) {
+        await this.beginAt(tab, { moduleAbbr: tab.moduleAbbr, book: bm.book, chapter: bm.chapter, verse: bm.verse }, q);
+        return;
+      }
+    } else if (bm && bm.book === tab.book && bm.chapter === tab.chapter) {
+      // The selection (set when reading stopped) wins; without one, the saved verse.
+      await this.startPlayback(tab, { moduleAbbr: tab.moduleAbbr, book: bm.book, chapter: bm.chapter, verse: selected ?? bm.verse }, chapterQueue);
+      return;
+    }
+    await this.startPlayback(tab, this.startVerse(tab), chapterQueue);
   }
 
-  private async startPlayback(tab: AudioReaderTab, from: VerseRef): Promise<void> {
+  /**
+   * Play a list of passages in a tab, from `startIndex`. Replaces whatever the tab was reading.
+   * The tab is turned to the first passage's chapter when it shows another.
+   */
+  async playPassages(tabId: string, passages: readonly AudioPassage[], startIndex = 0): Promise<void> {
+    const tab = this.reader.tab(tabId);
+    const list = passages.slice(0, MAX_PASSAGES);
+    if (!this.system || !tab || list.length === 0 || tab.loading) return;
+    if (this.availability(tab.moduleAbbr) === 'none') return;
+    const index = Number.isInteger(startIndex) ? Math.min(Math.max(0, startIndex), list.length - 1) : 0;
+    await this.startPassage(tab, { kind: 'list', passages: list, index });
+  }
+
+  /** Start the queue's current passage (turning the tab's page first when needed). */
+  private startPassage(tab: AudioReaderTab, queue: PassageQueue): Promise<void> {
+    const start = passageStart(queue.passages[queue.index]);
+    return this.beginAt(tab, { moduleAbbr: tab.moduleAbbr, ...start }, queue);
+  }
+
+  private async beginAt(tab: AudioReaderTab, from: VerseRef, queue: PassageQueue): Promise<void> {
     const system = this.system;
     if (!system) return;
+    if (tab.book !== from.book || tab.chapter !== from.chapter) {
+      const seq = ++this.playSeq;
+      // Whatever plays now must not go on (or move on) while the page turns.
+      if (system.player.state.status !== 'idle') system.player.pause();
+      system.player.setStopAfter(null);
+      // Our own page turn must not look like the reader navigating away.
+      if (this.playingTabId === tab.id && this.followTarget) {
+        this.followTarget = { ...this.followTarget, book: from.book, chapter: from.chapter };
+      }
+      await this.reader.followTo(tab.id, from.book, from.chapter);
+      if (seq !== this.playSeq || this.system !== system) return; // replaced meanwhile
+    }
+    const fresh = this.reader.tab(tab.id);
+    if (!fresh) return;
+    await this.startPlayback(fresh, { ...from, moduleAbbr: fresh.moduleAbbr }, queue);
+  }
+
+  /** Next passage of the typed list (no-op at its end, or when no list plays). */
+  nextPassage(): void {
+    const q = this.queue;
+    const tab = this.playingTabId ? this.reader.tab(this.playingTabId) : undefined;
+    if (!q || q.kind !== 'list' || !tab) return;
+    const j = nextIndex(q, 'once');
+    if (j === null) return;
+    void this.startPassage(tab, { ...q, index: j });
+  }
+
+  /** Previous passage of the typed list (no-op at its start). */
+  prevPassage(): void {
+    const q = this.queue;
+    const tab = this.playingTabId ? this.reader.tab(this.playingTabId) : undefined;
+    if (!q || q.kind !== 'list' || !tab) return;
+    const j = prevIndex(q);
+    if (j === null) return;
+    void this.startPassage(tab, { ...q, index: j });
+  }
+
+  /** Drop the typed list and go back to the default list: the chapter being read, from the verse in hand to its end. */
+  useChapterList(): void {
+    const system = this.system;
+    const q = this.queue;
+    if (system && this.playingTabId && q && q.kind === 'list') {
+      const current = this.livePosition();
+      if (!current) return;
+      this.queue = chapterQueueOf(current.book, current.chapter);
+      system.player.setStopAfter(null);
+      this.notify();
+      return;
+    }
+    // Idle: change the saved place of the tab Listen would act on.
+    const tab = this.reader.activeTab();
+    const bm = tab ? this.bookmarks.get(tab.id) : undefined;
+    if (tab && bm?.queue?.kind === 'list') {
+      this.bookmarks.set(tab.id, { ...bm, queue: chapterQueueOf(bm.book, bm.chapter) });
+      this.bookmarksChanged.changed();
+      this.notify();
+    }
+  }
+
+  setPassageLoop(loop: PassageLoop): void {
+    if (this.prefs.passageLoop === loop) return;
+    this.setPrefs({ passageLoop: loop });
+  }
+
+  /** The shared "Continue to the next chapter" setting (also in Settings > Audio). */
+  setContinueAfterChapter(on: boolean): void {
+    const value = on ? 'next-chapter' : 'stop';
+    if (this.prefs.continueAfterChapter === value) return;
+    this.setPrefs({ continueAfterChapter: value });
+  }
+
+  // ---------------------------------------------------------------- bookmarks
+
+  /** Where the playing tab is right now, or (while resolving) where it will start; null when idle. */
+  private livePosition(): VerseRef | null {
+    if (this.status === 'idle' || !this.system) return null;
+    if (this.status === 'resolving') return this.pendingFrom;
+    const current = this.system.player.state.current;
+    return current ? { ...current, moduleAbbr: this.playingModule ?? current.moduleAbbr } : null;
+  }
+
+  /** Save a tab's place; `select` also makes the verse the tab's selected verse (no scroll, no history). */
+  private bookmark(tabId: string, at: VerseRef | null, select: boolean): void {
+    if (!at) return;
+    const mark: AudioBookmark = { moduleAbbr: at.moduleAbbr, book: at.book, chapter: at.chapter, verse: at.verse };
+    if (this.queue) mark.queue = this.queue;
+    this.bookmarks.set(tabId, mark);
+    this.bookmarksChanged.changed();
+    if (select) this.reader.markStopped?.(tabId, verseIdOf(at.book, at.chapter, at.verse));
+  }
+
+  private dropBookmark(tabId: string): void {
+    if (this.bookmarks.delete(tabId)) this.bookmarksChanged.changed();
+  }
+
+  /** A tab's resume point; for the playing tab, its live position. */
+  bookmarkFor(tabId: string): AudioBookmark | null {
+    if (this.playingTabId === tabId) {
+      const at = this.livePosition();
+      if (at) {
+        const mark: AudioBookmark = { moduleAbbr: at.moduleAbbr, book: at.book, chapter: at.chapter, verse: at.verse };
+        if (this.queue) mark.queue = this.queue;
+        return mark;
+      }
+    }
+    return this.bookmarks.get(tabId) ?? null;
+  }
+
+  /** Every tab's resume point (the playing tab's is live), for the session serializer. */
+  allBookmarks(): ReadonlyMap<string, AudioBookmark> {
+    const out = new Map(this.bookmarks);
+    if (this.playingTabId) {
+      const live = this.bookmarkFor(this.playingTabId);
+      if (live) out.set(this.playingTabId, live);
+    }
+    return out;
+  }
+
+  /** Load saved bookmarks (session restore). Anything unusable is skipped. Never starts playback or touches the reader. */
+  restoreBookmarks(raw: ReadonlyMap<string, unknown> | Record<string, unknown> | null | undefined): void {
+    if (!raw || typeof raw !== 'object') return;
+    const entries: Array<[string, unknown]> = raw instanceof Map ? [...raw.entries()] : Object.entries(raw);
+    let any = false;
+    for (const [tabId, value] of entries) {
+      const mark = typeof tabId === 'string' && tabId ? sanitizeBookmark(value) : null;
+      if (!mark) continue;
+      this.bookmarks.set(tabId, mark);
+      any = true;
+    }
+    if (any) { this.bookmarksChanged.changed(); this.notify(); }
+  }
+
+  /** Bring the tab being read to the front (the app decides what that means). */
+  revealPlayingTab(): void {
+    if (this.playingTabId && this.status !== 'idle') this.reader.reveal?.(this.playingTabId);
+  }
+
+  private async startPlayback(tab: AudioReaderTab, from: VerseRef, queue?: PassageQueue): Promise<void> {
+    const system = this.system;
+    if (!system) return;
+    // Listen on another tab while one plays: the first keeps its place (and its selection, which
+    // the reader is not looking at).
+    if (this.playingTabId && this.playingTabId !== tab.id) {
+      this.bookmark(this.playingTabId, this.livePosition(), false);
+    }
+    if (queue) this.queue = queue;
+    else if (!this.queue) this.queue = chapterQueueOf(from.book, from.chapter);
+    this.pendingFrom = from;
     const seq = ++this.playSeq;
     this.cancelGate(false);
     this.staleSource = false;
     this.preparing = true;
+    system.player.setStopAfter(null);
     // The old playback must not go on sounding (or moving on to a next chapter the
     // page will not follow) while this one resolves or waits behind a gate. Callers
     // have already captured where to resume from.
@@ -352,7 +580,7 @@ export class AudioStore extends Store {
     if (seq !== this.playSeq) return;
 
     if (!resolution) {
-      system.player.stop();
+      this.stopPlayer();
       this.resetPlayback();
       this.notice = { key: 'audio.notice.noAudio', tone: 'info', actions: [] };
       this.notify();
@@ -408,6 +636,7 @@ export class AudioStore extends Store {
 
     this.preparing = false;
     this.rate = effectiveRate(this.prefs.rate, caps);
+    system.player.setStopAfter(this.stopAfterFor(from));
     await system.player.play(from, resolution.provider, {
       voiceId: resolution.voiceId,
       rate: this.rate,
@@ -426,7 +655,7 @@ export class AudioStore extends Store {
 
   private abandon(seq: number): void {
     if (seq !== this.playSeq) return;
-    this.system?.player.stop();
+    this.stopPlayer();
     this.resetPlayback();
     this.notify();
   }
@@ -456,7 +685,7 @@ export class AudioStore extends Store {
     resolve?.(false);
     if (had && notify) {
       this.playSeq++; // a cancelled gate ends this play
-      this.system?.player.stop();
+      this.stopPlayer();
       this.resetPlayback();
       this.notify();
     }
@@ -475,7 +704,10 @@ export class AudioStore extends Store {
   }
 
   pause(): void {
+    const tab = this.playingTabId;
+    const at = tab && this.status !== 'resolving' ? this.livePosition() : null;
     this.system?.player.pause();
+    if (tab && at) this.bookmark(tab, at, true);
   }
 
   resume(): void {
@@ -488,16 +720,44 @@ export class AudioStore extends Store {
     this.system?.player.resume();
   }
 
+  /** Stop sound. The tab keeps its place: a bookmark, and the last verse read becomes its selected verse. */
   stop(): void {
+    this.stopAndKeepPlace(true);
+  }
+
+  private stopAndKeepPlace(select: boolean): void {
+    const tab = this.playingTabId;
+    const at = tab ? this.livePosition() : null; // before the player forgets it
+    const resolving = this.status === 'resolving';
+    if (tab && at) this.bookmark(tab, at, select && !resolving); // while the queue is still known
     this.playSeq++;
     this.cancelGate(false);
-    this.system?.player.stop();
+    this.stopPlayer();
     this.resetPlayback();
     this.notify();
   }
 
+  /** `player.stop()` that the store itself asked for (its idle state is not a natural end). */
+  private stopPlayer(): void {
+    this.stopping = true;
+    try { this.system?.player.stop(); } finally { this.stopping = false; }
+  }
+
   seekVerse(delta: 1 | -1): void {
-    void this.system?.player.seekVerse(delta);
+    const q = this.queue;
+    const player = this.system?.player;
+    const current = player?.state.current;
+    if (player && q?.kind === 'list' && current && player.state.status !== 'idle') {
+      const p = q.passages[q.index];
+      const stop = stopVerseIn(p, current.book, current.chapter);
+      if (delta === 1 && stop !== null && current.verse >= stop) { this.nextPassage(); return; }
+      const start = passageStart(p);
+      if (delta === -1 && current.book === start.book && current.chapter === start.chapter && current.verse <= start.verse) {
+        void player.seekToVerse(current.verse); // the passage's first verse: restart it, never leave the passage
+        return;
+      }
+    }
+    void player?.seekVerse(delta);
   }
 
   seekChapter(delta: 1 | -1): void {
@@ -649,12 +909,18 @@ export class AudioStore extends Store {
     if (s.current && this.followTarget && this.playingTabId
         && (s.current.book !== this.followTarget.book || s.current.chapter !== this.followTarget.chapter)) {
       this.followTarget = { ...this.followTarget, module: s.current.moduleAbbr, book: s.current.book, chapter: s.current.chapter };
+      // The default list is "the chapter in hand": it moves along as reading does.
+      if (this.queue?.kind === 'chapter') this.queue = chapterQueueOf(s.current.book, s.current.chapter);
       void this.reader.followTo(this.playingTabId, s.current.book, s.current.chapter);
     }
 
     if (s.status === 'idle') {
-      // Stopped, or the chapter (or the book) ended and nobody continued.
-      if (this.status !== 'idle') { this.resetPlayback(); this.notify(); }
+      if (this.status === 'idle') return;
+      // Stopped by the store: it keeps the place itself. Otherwise the reading ran out (a chapter, a book
+      // or a list ended and nobody continued): nothing to resume, and the selection stays where it is.
+      if (!this.stopping && this.playingTabId) this.dropBookmark(this.playingTabId);
+      this.resetPlayback();
+      this.notify();
       return;
     }
     const error = s.status === 'error' ? s.error : null;
@@ -698,26 +964,102 @@ export class AudioStore extends Store {
   private onChapterEnd(next: ChapterRef | null): void {
     const t = this.followTarget;
     // Not while a new playback is still resolving: the page would not follow it.
-    if (this.preparing || !this.system || !t || !next) return;
+    if (this.preparing || !this.system || !t) return;
+    const q = this.queue;
+    if (q?.kind === 'list') {
+      // A typed list ignores "continue to the next chapter": the passage decides.
+      const p = q.passages[q.index];
+      if (t.book === p.book && t.chapter < passageLastChapter(p) && next && next.book === t.book) {
+        this.continueTo({ moduleAbbr: t.module, book: next.book, chapter: next.chapter, verse: 1 });
+        return;
+      }
+      this.afterPassage(q); // also when the stop verse never existed in this chapter
+      return;
+    }
+    // The default list: the chapter in hand.
+    if (this.prefs.passageLoop !== 'once') {
+      this.continueTo({ moduleAbbr: t.module, book: t.book, chapter: t.chapter, verse: 1 }); // looping beats continuing
+      return;
+    }
     // "Continue to the next chapter (stops at the end of the book)".
-    if (this.prefs.continueAfterChapter === 'next-chapter' && next.book === t.book) {
+    if (next && this.prefs.continueAfterChapter === 'next-chapter' && next.book === t.book) {
       void this.system.player.seekChapter(1);
     }
+  }
+
+  /** The stop verse of the current passage was read. */
+  private onStopReached(_at: VerseRef): void {
+    const q = this.queue;
+    if (this.preparing || !this.system || !this.followTarget || q?.kind !== 'list') return;
+    this.afterPassage(q);
+  }
+
+  /** The current passage is done: go on to what the loop mode says, or end (the player goes idle). */
+  private afterPassage(q: PassageQueue): void {
+    const j = nextIndex(q, this.prefs.passageLoop);
+    if (j === null) return;
+    const next: PassageQueue = { ...q, index: j };
+    const start = passageStart(next.passages[j]);
+    const module = this.playingModule;
+    if (!module) return;
+    const prev = this.queue;
+    this.queue = next;
+    if (!this.continueTo({ moduleAbbr: module, ...start })) { this.queue = prev; return; }
+    this.notify();
+  }
+
+  /**
+   * Play on from `from`, synchronously: called inside the player's own `chapterEnd` / `stopReached`
+   * emission, which is the only moment a browser still lets audio carry on without a gesture.
+   * Same source and translation, so no gates or resolving.
+   */
+  private continueTo(from: VerseRef): boolean {
+    const system = this.system;
+    const resolution = this.resolution;
+    const t = this.followTarget;
+    if (!system || !resolution || !t || from.moduleAbbr !== this.playingModule) return false;
+    this.followTarget = { ...t, module: from.moduleAbbr, book: from.book, chapter: from.chapter };
+    if (this.queue?.kind === 'chapter') this.queue = chapterQueueOf(from.book, from.chapter);
+    system.player.setStopAfter(this.stopAfterFor(from));
+    void system.player.play(from, resolution.provider, {
+      voiceId: resolution.voiceId, rate: this.rate, readIntro: this.prefs.readChapterIntro,
+    });
+    if (t.book !== from.book || t.chapter !== from.chapter) void this.reader.followTo(t.tabId, from.book, from.chapter);
+    return true;
+  }
+
+  /** Where the player must stop in this chapter for the current passage (null: read to the chapter's end). */
+  private stopAfterFor(from: VerseRef): VerseRef | null {
+    const q = this.queue;
+    if (!q || q.kind !== 'list') return null;
+    const verse = stopVerseIn(q.passages[q.index], from.book, from.chapter);
+    return verse === null ? null : { moduleAbbr: from.moduleAbbr, book: from.book, chapter: from.chapter, verse };
   }
 
   // ---------------------------------------------------------------- Bible store coupling
 
   private onBibleChanged(): void {
+    // Closed tabs lose their place (only once the reader has tabs at all: a restore may come first).
+    if (this.bookmarks.size > 0 && this.reader.activeTab()) {
+      for (const id of [...this.bookmarks.keys()]) {
+        if (id !== this.playingTabId && !this.reader.tab(id)) this.dropBookmark(id);
+      }
+    }
     if (!this.playingTabId || this.status === 'idle') return;
     const tab = this.reader.tab(this.playingTabId);
-    if (!tab) { this.stop(); return; } // the playing tab was closed
+    if (!tab) { // the playing tab was closed
+      const id = this.playingTabId;
+      this.stopAndKeepPlace(false);
+      this.dropBookmark(id);
+      return;
+    }
     const target = this.followTarget;
     if (!target) return;
     // The reader moved the playing tab to another chapter. Our own page turns
     // update `followTarget` before they navigate, so they never trip this.
     if (tab.book !== target.book || tab.chapter !== target.chapter) {
       if (tab.book === null || tab.chapter === null) return; // a load in progress with no passage yet
-      this.stop();
+      this.stopAndKeepPlace(false); // that chapter is no longer on screen: keep the place, select nothing
       return;
     }
     if (tab.moduleAbbr !== this.playingModule) {
@@ -758,6 +1100,8 @@ export class AudioStore extends Store {
   }
 
   private resetPlayback(): void {
+    this.queue = null;
+    this.pendingFrom = null;
     this.playerOpen = false;
     this.quickSettingsOpen = false;
     this.preparing = false;
@@ -785,6 +1129,8 @@ export class AudioStore extends Store {
   reset(): void {
     this.dispose();
     this.prefs = defaultAudioPrefs();
+    this.bookmarks.clear();
+    this.targetTabId = null;
     this.notice = null;
     this.layout = 'desktop';
   }
@@ -794,6 +1140,10 @@ export class AudioStore extends Store {
     this.notice = null;
     this.notify();
   }
+}
+
+function chapterQueueOf(book: number, chapter: number): PassageQueue {
+  return { kind: 'chapter', passages: [{ book, chapter }], index: 0 };
 }
 
 function sameProgress(a: LoadProgress | null, b: LoadProgress | null): boolean {

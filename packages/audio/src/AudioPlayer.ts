@@ -118,6 +118,9 @@ export class AudioPlayer implements IAudioPlayer {
   private readonly stateListeners = new Set<(s: PlayerState) => void>();
   private readonly verseListeners = new Set<(v: VerseRef) => void>();
   private readonly endListeners = new Set<(next: ChapterRef | null) => void>();
+  private readonly stopListeners = new Set<(at: VerseRef) => void>();
+  /** Stop after this verse (cleared when it fires, and by `stop()`). */
+  private stopAfter: VerseRef | null = null;
   private readonly offOutput: Array<() => void> = [];
 
   private gen = 0;
@@ -168,8 +171,10 @@ export class AudioPlayer implements IAudioPlayer {
   on(e: 'state', cb: (s: PlayerState) => void): () => void;
   on(e: 'verse', cb: (v: VerseRef) => void): () => void;
   on(e: 'chapterEnd', cb: (next: ChapterRef | null) => void): () => void;
-  on(e: 'state' | 'verse' | 'chapterEnd', cb: (arg: never) => void): () => void {
-    const set = (e === 'state' ? this.stateListeners : e === 'verse' ? this.verseListeners : this.endListeners) as Set<typeof cb>;
+  on(e: 'stopReached', cb: (at: VerseRef) => void): () => void;
+  on(e: 'state' | 'verse' | 'chapterEnd' | 'stopReached', cb: (arg: never) => void): () => void {
+    const set = (e === 'state' ? this.stateListeners : e === 'verse' ? this.verseListeners
+      : e === 'stopReached' ? this.stopListeners : this.endListeners) as Set<typeof cb>;
     set.add(cb);
     return () => { set.delete(cb); };
   }
@@ -210,6 +215,10 @@ export class AudioPlayer implements IAudioPlayer {
       position: 0, duration: null, rate: opts.rate, progress: null, error: null,
     });
     await this.start(from, g, signal, true);
+  }
+
+  setStopAfter(ref: VerseRef | null): void {
+    this.stopAfter = ref ? { ...ref } : null;
   }
 
   pause(): void {
@@ -272,6 +281,7 @@ export class AudioPlayer implements IAudioPlayer {
     this.chapterRef = null;
     this.target = null;
     this.chapterMove = null;
+    this.stopAfter = null;
     this.wantPlaying = false;
     this.lastEmitted = null;
     this.setState({
@@ -373,6 +383,7 @@ export class AudioPlayer implements IAudioPlayer {
     this.stateListeners.clear();
     this.verseListeners.clear();
     this.endListeners.clear();
+    this.stopListeners.clear();
   }
 
   // -- generations ------------------------------------------------------------
@@ -613,9 +624,18 @@ export class AudioPlayer implements IAudioPlayer {
   private handleTime(t: number): void {
     const seg = this.seg;
     if (this.disposed || !seg || !this.segLoaded) return;
+    const ref = this.chapterRef;
+    // The stop verse is over: stop before the next verse can be announced or heard.
+    const stop = this.stopAfter;
+    if (stop && ref && this.stopMatches(stop, ref)) {
+      const timing = seg.verses.find(v => v.verse === stop.verse);
+      if (timing && t + EPSILON >= timing.end) {
+        this.reachStop({ ...ref, verse: stop.verse }, this.gen);
+        return;
+      }
+    }
     // Silent bookkeeping first, so a verse change and its position arrive together.
     const verse = verseAt(seg, t);
-    const ref = this.chapterRef;
     const patch: Partial<PlayerState> = {};
     let changed = false;
     if (Math.abs(t - this._state.position) >= POSITION_STEP) {
@@ -660,6 +680,14 @@ export class AudioPlayer implements IAudioPlayer {
     this.segEnded = true;
     const g = this.gen;
     const signal = this.ctrl.signal;
+    // A stop verse inside the segment that just ended (per-verse audio).
+    const stop = this.stopAfter;
+    const lastVerse = seg.verses[seg.verses.length - 1]?.verse;
+    if (stop && this.stopMatches(stop, chapter.ref) && lastVerse !== undefined && lastVerse >= stop.verse) {
+      this.reachStop({ ...chapter.ref, verse: lastVerse }, g);
+      return;
+    }
+
     // A verse-to-verse gap is normally instant: only show "buffering" if it is
     // not (and never over a pause: the user asked for silence).
     let pending = true;
@@ -706,6 +734,30 @@ export class AudioPlayer implements IAudioPlayer {
     }
     if (g === this.gen && !this.disposed) {
       // Nobody continued: stop, keeping the last verse as the place we finished.
+      this.begin();
+      this.output.pause();
+      this.discardPlayback();
+      this.wantPlaying = false;
+      this.target = null;
+      this.setState({ status: 'idle', position: 0, duration: null, progress: null, error: null });
+    }
+  }
+
+  private stopMatches(stop: VerseRef, ref: ChapterRef): boolean {
+    return stop.moduleAbbr === ref.moduleAbbr && stop.book === ref.book && stop.chapter === ref.chapter;
+  }
+
+  /** The stop verse has been read: tell listeners, then go idle unless one of them continued. */
+  private reachStop(at: VerseRef, g: number): void {
+    if (g !== this.gen || !this.stopAfter) return;
+    this.stopAfter = null; // fires once; a listener that continues sets a new one
+    this.output.pause();
+    if (!sameVerse(this._state.current, at)) this.setState({ current: at });
+    this.emitVerse(at);
+    for (const cb of [...this.stopListeners]) {
+      try { cb(at); } catch (err) { console.error('[audio] stopReached listener failed', err); }
+    }
+    if (g === this.gen && !this.disposed) {
       this.begin();
       this.output.pause();
       this.discardPlayback();
