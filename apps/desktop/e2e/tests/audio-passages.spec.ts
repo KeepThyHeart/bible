@@ -323,4 +323,32 @@ test.describe.serial('Audio passage lists (desktop)', () => {
     const seen = await seenPlaying(window);
     expect(seen[0]).toBe(stopped[0]);
   });
+
+  test('(f) quitting the app mid-play (no Stop): the verse last read is selected after relaunch and Listen resumes there', async () => {
+    let { app, window } = await launch('profile-quit-mid-play');
+    await expect(window.getByTestId('audio-listen').first()).toBeEnabled({ timeout: 30_000 });
+    await window.getByTestId('audio-listen').first().click();
+    await expect(window.getByTestId('audio-popup')).toBeVisible({ timeout: 20_000 });
+    await expect.poll(async () => Math.max(0, ...(await playingIds(window))), { timeout: 20_000 }).toBeGreaterThanOrEqual(43003018);
+    // Let the live selection settle for a moment, then quit while still playing (no Stop, no close).
+    await window.waitForTimeout(1_000);
+    const lastRead = Math.max(0, ...(await playingIds(window)));
+    await app.close();
+
+    ({ app, window } = await launch('profile-quit-mid-play'));
+    const listen = window.getByTestId('audio-listen').first();
+    await expect(listen).toBeEnabled({ timeout: 30_000 });
+    await expect.poll(async () => (await selectedIds(window)).length, { timeout: 20_000 }).toBe(1);
+    const [sel] = await selectedIds(window);
+    expect(sel).toBeGreaterThanOrEqual(43003017);
+    expect(sel).toBeLessThanOrEqual(lastRead + 1);
+
+    await watchPlaying(window);
+    await listen.click();
+    await expect(window.getByTestId('audio-popup')).toBeVisible({ timeout: 20_000 });
+    await expect.poll(() => seenPlaying(window), { timeout: 20_000 }).not.toHaveLength(0);
+    const seen = await seenPlaying(window);
+    expect(seen[0]).toBeGreaterThanOrEqual(sel);
+    expect(seen[0]).toBeLessThanOrEqual(sel + 1);
+  });
 });
