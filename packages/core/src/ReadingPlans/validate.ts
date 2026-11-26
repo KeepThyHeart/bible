@@ -164,6 +164,13 @@ export function validateEnrollment(raw: unknown): Enrollment {
       out.reminder = { time: raw.reminder.time };
     } else fail('reminder is invalid');
   }
+  if (raw.catchUp !== undefined) {
+    if (raw.catchUp === null) out.catchUp = null;
+    else if (isObj(raw.catchUp) && Number.isInteger(raw.catchUp.extraPerDay) && (raw.catchUp.extraPerDay as number) >= 1) {
+      // `since` (an earlier draft) is dropped; the cap keeps a hand-edited value sane.
+      out.catchUp = { extraPerDay: Math.min(2, raw.catchUp.extraPerDay as number) };
+    } else fail('catchUp is invalid');
+  }
   return out;
 }
 
@@ -172,7 +179,7 @@ export function validateCompletion(raw: unknown): Completion {
   if (!Number.isInteger(raw.day) || (raw.day as number) < 1 || (raw.day as number) > MAX_DAYS) fail('day is invalid');
   if (!Number.isInteger(raw.reading) || (raw.reading as number) < 0 || (raw.reading as number) >= MAX_READINGS_PER_DAY) fail('reading is invalid');
   const via = raw.via;
-  if (via !== 'manual' && via !== 'reader' && via !== 'audio') fail('via is invalid');
+  if (via !== 'manual' && via !== 'reader' && via !== 'audio' && via !== 'bulk') fail('via is invalid');
   return {
     enrollmentId: str(raw.enrollmentId, 'enrollmentId', 80),
     day: raw.day as number,

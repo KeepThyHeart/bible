@@ -19,7 +19,7 @@ describe('ReadingPlanDayGrid', () => {
   });
 
   it('works with core dayStatuses', () => {
-    const statuses = ReadingPlans.dayStatuses(smallPlan(), enrollment(), [], '2026-01-07');
+    const statuses = ReadingPlans.dayStatuses(smallPlan(), enrollment(), [], '2026-01-07', 3);
     render(<ReadingPlanDayGrid statuses={statuses} onSelectDay={vi.fn()} />);
     expect(screen.getByRole('button', { name: 'Day 1, missed' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Day 3, today' })).toBeInTheDocument();

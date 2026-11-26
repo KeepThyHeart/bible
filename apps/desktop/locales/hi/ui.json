@@ -2568,5 +2568,11 @@
   "preferencesDialog.clearHistoryConfirmBody": "सभी खोज टैब बंद करता है और हर पैन की इतिहास सूची और पीछे बटन खाली करता है। नोट्स, हाइलाइट, बुकमार्क और पठन योजना की प्रगति नहीं बदलती।",
   "preferencesDialog.clearHistoryConfirmButton": "इतिहास साफ़ करें",
   "preferencesDialog.clearHistoryCancel": "रद्द करें",
-  "preferencesDialog.clearHistoryDone": "इतिहास साफ़ हो गया।"
+  "preferencesDialog.clearHistoryDone": "इतिहास साफ़ हो गया।",
+  "apps.readingPlans.shortTitle": "योजनाएँ",
+  "apps.present.shortTitle": "प्रस्तुति",
+  "apps.rail.showLabels": "लेबल दिखाएँ",
+  "apps.switcher.open": "ऐप बदलें",
+  "settings.apps.railLabels": "ऐप रेल में लेबल दिखाएँ",
+  "apps.sheet.close": "बंद करें"
 }

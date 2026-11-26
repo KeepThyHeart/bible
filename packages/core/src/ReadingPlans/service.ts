@@ -4,7 +4,7 @@
  * implements IReadingScopeProvider.
  */
 import type {
-  BuilderSpec, Completion, CompletionVia, Enrollment, IsoDate, Pacing, PlanDay, PlanDefinition, PlanSummary, Reading, Weekday,
+  BuilderSpec, Completion, CompletionVia, Enrollment, IsoDate, Pacing, PlanDay, PlanDefinition, PlanSummary, PlanTrack, Reading, Weekday,
 } from './types';
 import { ALL_WEEKDAYS } from './types';
 import type { IReadingPlanStore } from './store';
@@ -13,9 +13,9 @@ import { buildPlanDays, MAX_PLAN_DAYS, MAX_READINGS_PER_DAY } from './builder';
 import { isValidVerseId, splitVid } from './versification';
 import { getStockPlan, isStockPlanKey, listStockPlans, summarizePlan } from './stock';
 import {
-  dayStatuses, firstUnreadDay, indexCompletions, isDayDone, planStats, shiftedStartDate, todayView,
+  catchUpSuggestion, dayStatuses, firstUnreadDay, indexCompletions, isDayDone, planStats, reschedulePreview, shiftedStartDate, startDateFor, todayView, weekStrip,
 } from './scheduler';
-import type { DayStatus, PlanStats, TodayView } from './scheduler';
+import type { DayStatus, PlanStats, TodayView, WeekStripDay } from './scheduler';
 import { DEFAULT_ROLLOVER_HOUR, readingDate } from './dates';
 import { validateBuilderSpec, validatePlanDefinition, validateWeekdays, ReadingPlanDataError } from './validate';
 import { NO_REMINDERS } from './reminders';
@@ -51,6 +51,11 @@ export interface StartPlanOptions {
   startDate?: IsoDate;
   pacing?: Pacing;
   readingDays?: Weekday[];
+  /**
+   * Start part-way: days 1..startDay-1 are marked read (`via: 'bulk'`) and, for fixed pacing, the start date is
+   * set so `startDay` is today's day. Must be 1..dayCount; 1 or absent starts at the beginning.
+   */
+  startDay?: number;
 }
 
 /** A hand-made plan to save (see `ReadingPlanService.savePlan`). Without `key` a new plan is created. */
@@ -59,9 +64,11 @@ export interface SavePlanInput {
   name: string;
   description?: string;
   days: PlanDay[];
+  /** New plans only (an edit keeps the old plan's tracks). Readings may name a track by id. */
+  tracks?: PlanTrack[];
 }
 
-export type EnrollmentPatch = Partial<Pick<Enrollment, 'pacing' | 'readingDays' | 'status' | 'startDate' | 'reminder'>>;
+export type EnrollmentPatch = Partial<Pick<Enrollment, 'pacing' | 'readingDays' | 'status' | 'startDate' | 'reminder' | 'catchUp'>>;
 
 export interface EnrollmentDetail {
   enrollment: Enrollment;
@@ -69,6 +76,8 @@ export interface EnrollmentDetail {
   today: TodayView;
   stats: PlanStats;
   statuses: DayStatus[];
+  /** The week strip for the current calendar week (Monday first). */
+  week: WeekStripDay[];
 }
 
 export interface ReadingPlanServiceOptions {
@@ -163,7 +172,7 @@ export class ReadingPlanService implements IReadingScopeProvider {
     if (input.key !== undefined && !old) throw new ReadingPlanDataError('Only your own existing plans can be edited.');
     // An edited plan keeps its tracks (a builder plan with parallel readings); a reading keeps its track label
     // while that track still exists.
-    const tracks = old?.tracks?.length ? old.tracks : undefined;
+    const tracks = old ? (old.tracks?.length ? old.tracks : undefined) : (input.tracks?.length ? input.tracks : undefined);
     const trackIds = new Set(tracks?.map((t) => t.id));
     const days: PlanDay[] = input.days.map((d, i) => {
       const readings = d?.readings;
@@ -220,7 +229,23 @@ export class ReadingPlanService implements IReadingScopeProvider {
   // ---- enrollments -------------------------------------------------------
 
   async enrollments(): Promise<Enrollment[]> {
-    return this.store.listEnrollments();
+    const list = await this.store.listEnrollments();
+    return Promise.all(list.map((e) => this.settleCatchUp(e)));
+  }
+
+  /**
+   * Catch-up ends itself lazily: once nothing is behind and today's extras are gone (a later reading day), not
+   * mid-day, so the extras a reader just ticked stay in that day's set ("Day N done").
+   */
+  private async settleCatchUp(e: Enrollment): Promise<Enrollment> {
+    if (!e.catchUp || e.status !== 'active') return e;
+    try {
+      const view = todayView(await this.planFor(e), e, await this.store.listCompletions(e.id), this.today(), this.rollover());
+      if (view.behindBy !== 0 || view.catchUp) return e;
+    } catch { return e; }
+    const next = { ...e, catchUp: null };
+    await this.store.putEnrollment(next);
+    return next;
   }
 
   /** Start following a plan. Stock and user plans are snapshotted so a later update or edit never moves the reader. */
@@ -231,6 +256,11 @@ export class ReadingPlanService implements IReadingScopeProvider {
     if (plan.source === 'stock' || (plan.source === 'user' && plan.key.startsWith('user:'))) {
       await this.store.putSnapshot(plan);
       storedKey = snapshotKey(plan.key, plan.version);
+    }
+    const dayCount = plan.days.length;
+    const startDay = options.startDay ?? 1;
+    if (!Number.isInteger(startDay) || startDay < 1 || startDay > dayCount) {
+      throw new ReadingPlanDataError(`startDay must be 1-${dayCount}.`);
     }
     const enrollment: Enrollment = {
       id: this.newId(),
@@ -243,7 +273,13 @@ export class ReadingPlanService implements IReadingScopeProvider {
       status: 'active',
       createdAt: this.now().toISOString(),
     };
+    if (startDay > 1 && enrollment.pacing === 'fixed') enrollment.startDate = startDateFor(enrollment, startDay, this.today());
     await this.store.putEnrollment(enrollment);
+    if (startDay > 1) {
+      const wanted: { day: number; reading: number }[] = [];
+      for (let d = 1; d < startDay; d++) plan.days[d - 1].readings.forEach((_, reading) => wanted.push({ day: d, reading }));
+      await this.applyChanges(enrollment, plan, wanted, true, 'bulk', true);
+    }
     this.emit({ type: 'changed' });
     await this.syncReminders();
     return enrollment;
@@ -258,6 +294,9 @@ export class ReadingPlanService implements IReadingScopeProvider {
   async updateEnrollment(id: string, patch: EnrollmentPatch): Promise<Enrollment> {
     const e = await this.getEnrollment(id);
     const next: Enrollment = { ...e, ...patch };
+    // A catch-up quota belongs to one schedule: changing the dates, pacing or reading days ends it (unless the patch sets it).
+    if (e.catchUp && patch.catchUp === undefined && !('catchUp' in patch)
+      && (patch.startDate !== undefined || patch.pacing !== undefined || patch.readingDays !== undefined)) next.catchUp = null;
     if (patch.readingDays) next.readingDays = validateWeekdays(patch.readingDays);
     if (patch.status && patch.status !== 'completed') delete next.completedAt;
     await this.store.putEnrollment(next);
@@ -277,7 +316,13 @@ export class ReadingPlanService implements IReadingScopeProvider {
     const e = await this.getEnrollment(id);
     const plan = await this.planFor(e);
     const completions = await this.store.listCompletions(id);
-    return this.updateEnrollment(id, { startDate: shiftedStartDate(plan, e, completions, this.today()) });
+    return this.updateEnrollment(id, { startDate: shiftedStartDate(plan, e, completions, this.today()), catchUp: null });
+  }
+
+  /** What "Move the dates" would do for this enrollment (see `reschedulePreview`). */
+  async reschedulePreview(id: string): Promise<ReturnType<typeof reschedulePreview>> {
+    const e = await this.getEnrollment(id);
+    return reschedulePreview(await this.planFor(e), e, await this.store.listCompletions(id), this.today());
   }
 
   /** Pause a plan: it leaves Today and its reminders stop. */
@@ -294,7 +339,26 @@ export class ReadingPlanService implements IReadingScopeProvider {
 
   /** Stop tracking a schedule: today becomes the first unread day and nothing is ever overdue. */
   async switchToFlexible(id: string): Promise<Enrollment> {
-    return this.updateEnrollment(id, { pacing: 'flexible' });
+    return this.updateEnrollment(id, { pacing: 'flexible', catchUp: null });
+  }
+
+  /**
+   * Fixed pacing, behind: read the oldest `extraPerDay` missed days with each day's reading until level.
+   * `extraPerDay` is fixed now (`catchUpSuggestion`); it clears itself once nothing is behind.
+   */
+  async startCatchUp(id: string): Promise<Enrollment> {
+    const e = await this.getEnrollment(id);
+    if (e.pacing !== 'fixed') throw new ReadingPlanDataError('Only a fixed schedule can be caught up.');
+    const plan = await this.planFor(e);
+    const today = this.today();
+    const view = todayView(plan, e, await this.store.listCompletions(id), today, this.rollover());
+    const suggestion = catchUpSuggestion(view.behindBy);
+    if (!suggestion) throw new ReadingPlanDataError('This plan is not behind.');
+    return this.updateEnrollment(id, { catchUp: { extraPerDay: Math.min(2, suggestion.extraPerDay) } });
+  }
+
+  async stopCatchUp(id: string): Promise<Enrollment> {
+    return this.updateEnrollment(id, { catchUp: null });
   }
 
   /** The plan an enrollment follows (its snapshot). */
@@ -325,32 +389,62 @@ export class ReadingPlanService implements IReadingScopeProvider {
   private async setReadings(enrollmentId: string, day: number, readings: number[], done: boolean, via: CompletionVia): Promise<void> {
     const e = await this.getEnrollment(enrollmentId);
     const plan = await this.planFor(e);
-    const dayDef = plan.days[day - 1];
-    if (!dayDef) throw new ReadingPlanDataError(`Day ${day} is not in this plan`);
+    if (!plan.days[day - 1]) throw new ReadingPlanDataError(`Day ${day} is not in this plan`);
+    await this.applyChanges(e, plan, readings.map((reading) => ({ day, reading })), done, via);
+  }
+
+  /**
+   * Tick or untick readings (all in one direction), as one store batch and one `changed`. Emits the reading and
+   * day events (not for `bulk` marks), completes or reopens the plan, and ends catch-up once nothing is behind.
+   */
+  private async applyChanges(
+    e: Enrollment, plan: PlanDefinition, wanted: { day: number; reading: number }[], done: boolean, via: CompletionVia, silent = false,
+  ): Promise<void> {
+    const enrollmentId = e.id;
     const before = await this.store.listCompletions(enrollmentId);
     const progress = indexCompletions(before);
-    const wasDayDone = isDayDone(plan, progress, day);
+    const wasDone = new Map<number, boolean>();
     const at = this.now().toISOString();
-    const changes = readings
-      .filter((r) => r >= 0 && r < dayDef.readings.length && (progress.get(day)?.has(r) ?? false) !== done)
-      .map((r) => ({ completion: { enrollmentId, day, reading: r, at, via } as Completion, done }));
+    const changes = wanted
+      .filter((w) => {
+        const count = plan.days[w.day - 1]?.readings.length ?? 0;
+        return w.reading >= 0 && w.reading < count && (progress.get(w.day)?.has(w.reading) ?? false) !== done;
+      })
+      .map((w) => ({ completion: { enrollmentId, day: w.day, reading: w.reading, at, via } as Completion, done }));
     if (changes.length === 0) return;
-    await this.store.setCompletions(changes);
     for (const c of changes) {
-      const set = progress.get(day) ?? new Set<number>();
+      if (!wasDone.has(c.completion.day)) wasDone.set(c.completion.day, isDayDone(plan, progress, c.completion.day));
+    }
+    await this.store.setCompletions(changes);
+    if (silent) return;
+    for (const c of changes) {
+      const set = progress.get(c.completion.day) ?? new Set<number>();
       if (done) set.add(c.completion.reading);
       else set.delete(c.completion.reading);
-      progress.set(day, set);
+      progress.set(c.completion.day, set);
     }
     if (done) {
+      const quiet = via === 'bulk';
+      // Catch-up is over once no scheduled day is unread.
+      // (Cleared lazily by `settleCatchUp`, so today's extras stay in the day's set.)
+      const next: Enrollment = e;
       this.emit({ type: 'changed' });
-      for (const c of changes) this.emit({ type: 'readingCompleted', enrollmentId, day, reading: dayDef.readings[c.completion.reading], via });
-      if (!wasDayDone && isDayDone(plan, progress, day)) this.emit({ type: 'dayCompleted', enrollmentId, day, readings: dayDef.readings });
+      if (!quiet) {
+        for (const c of changes) {
+          this.emit({ type: 'readingCompleted', enrollmentId, day: c.completion.day, reading: plan.days[c.completion.day - 1].readings[c.completion.reading], via });
+        }
+        for (const [d, was] of wasDone) {
+          if (!was && isDayDone(plan, progress, d)) this.emit({ type: 'dayCompleted', enrollmentId, day: d, readings: plan.days[d - 1].readings });
+        }
+      }
       if (firstUnreadDay(plan, progress) === null && e.status !== 'completed') {
-        await this.store.putEnrollment({ ...e, status: 'completed', completedAt: at });
+        await this.store.putEnrollment({ ...next, status: 'completed', completedAt: at, ...(next.catchUp ? { catchUp: null } : {}) });
         this.emit({ type: 'planCompleted', enrollmentId });
         this.emit({ type: 'changed' });
         await this.syncReminders();
+      } else if (next !== e) {
+        await this.store.putEnrollment(next);
+        this.emit({ type: 'changed' });
       }
     } else {
       // Reopen a completed plan before anyone re-reads it.
@@ -365,6 +459,16 @@ export class ReadingPlanService implements IReadingScopeProvider {
     }
   }
 
+  /** Mark days 1..`day` all read (or all unread) in one batch and one `changed` ("start part-way", "mark up to here"). */
+  async setDaysDoneThrough(enrollmentId: string, day: number, done: boolean, via: CompletionVia = 'bulk'): Promise<void> {
+    const e = await this.getEnrollment(enrollmentId);
+    const plan = await this.planFor(e);
+    if (!Number.isInteger(day) || day < 1 || day > plan.days.length) throw new ReadingPlanDataError(`Day ${day} is not in this plan`);
+    const wanted: { day: number; reading: number }[] = [];
+    for (let d = 1; d <= day; d++) plan.days[d - 1].readings.forEach((_, reading) => wanted.push({ day: d, reading }));
+    await this.applyChanges(e, plan, wanted, done, via);
+  }
+
   /** Every ticked reading of one enrollment (for exports). */
   async completions(enrollmentId: string): Promise<Completion[]> {
     return this.store.listCompletions(enrollmentId);
@@ -377,26 +481,28 @@ export class ReadingPlanService implements IReadingScopeProvider {
     const today = this.today();
     const out: TodayView[] = [];
     const completions = await this.store.listCompletions();
-    for (const e of await this.store.listEnrollments()) {
-      if (e.status !== 'active') continue;
+    for (const listed of await this.store.listEnrollments()) {
+      if (listed.status !== 'active') continue;
+      const e = await this.settleCatchUp(listed);
       try {
-        out.push(todayView(await this.planFor(e), e, completions, today));
+        out.push(todayView(await this.planFor(e), e, completions, today, this.rollover()));
       } catch { /* a broken plan does not hide the others */ }
     }
     return out;
   }
 
   async detail(enrollmentId: string): Promise<EnrollmentDetail> {
-    const enrollment = await this.getEnrollment(enrollmentId);
+    const enrollment = await this.settleCatchUp(await this.getEnrollment(enrollmentId));
     const plan = await this.planFor(enrollment);
     const completions = await this.store.listCompletions(enrollmentId);
     const today = this.today();
     return {
       enrollment,
       plan,
-      today: todayView(plan, enrollment, completions, today),
+      today: todayView(plan, enrollment, completions, today, this.rollover()),
       stats: planStats(plan, enrollment, completions, today, this.rollover()),
-      statuses: dayStatuses(plan, enrollment, completions, today),
+      statuses: dayStatuses(plan, enrollment, completions, today, this.rollover()),
+      week: weekStrip(plan, enrollment, completions, today, this.rollover()),
     };
   }
 

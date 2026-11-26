@@ -93,5 +93,7 @@
   "wordStudy.open.category": "Estudio",
   "wordStudy.open.alias.0": "estudio de palabras",
   "wordStudy.open.alias.1": "estudio strong",
-  "wordStudy.open.alias.2": "concordancia"
+  "wordStudy.open.alias.2": "concordancia",
+  "readingPlans.continue": "Continuar plan de lectura",
+  "readingPlans.openBeside": "Abrir planes de lectura junto a la Biblia"
 }

@@ -13,6 +13,7 @@ import type { DockviewPanelApi } from 'dockview-react';
 import { AppTileGrid } from '@bible/ui';
 import { hasMultipleApps } from '@bible/core/browser';
 import { translateWithDefault } from '../utils/translateWithDefault';
+import { NewTabRows } from '../modules/host/slots';
 import { openApp, prefetchApp } from '../apps/appHost';
 import { useNavItems } from '../apps/navPrefs';
 import { toNavEntries } from '../apps/navEntries';
@@ -382,6 +383,9 @@ const NewTabPage: React.FC<NewTabPageProps> = ({ panelId, dockviewPanelApi }) =>
             </div>
           </>
         )}
+
+        {/* Rows an active module adds above Apps (task 0222: the reading plan's due reading). */}
+        <NewTabRows onDone={() => dockviewPanelApi?.close()} />
 
         {/* Apps (task 0080, moved below the tabs by task 0200): the pane kinds are
             what a new tab is usually for, so they come first; the apps section follows,

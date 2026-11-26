@@ -2570,5 +2570,11 @@
   "preferencesDialog.clearHistoryConfirmBody": "将关闭所有搜索标签页，并清空每个窗格的历史列表和“后退”按钮。笔记、高亮、书签和读经计划进度不会更改。",
   "preferencesDialog.clearHistoryConfirmButton": "清除历史记录",
   "preferencesDialog.clearHistoryCancel": "取消",
-  "preferencesDialog.clearHistoryDone": "历史记录已清除。"
+  "preferencesDialog.clearHistoryDone": "历史记录已清除。",
+  "apps.readingPlans.shortTitle": "计划",
+  "apps.present.shortTitle": "演示",
+  "apps.rail.showLabels": "显示标签",
+  "apps.switcher.open": "切换应用",
+  "settings.apps.railLabels": "在应用栏中显示标签",
+  "apps.sheet.close": "关闭"
 }

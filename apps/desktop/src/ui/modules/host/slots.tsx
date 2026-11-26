@@ -95,7 +95,7 @@ export function useSlot<T>(slot: Slot<T>): readonly T[] {
 export interface ReaderBarProps {
   currentBook: number;
   currentChapter: number;
-  /** The pane's display mode; the verse blocks (task 0196) only draw in 'standard' and 'reading'. */
+  /** The pane's display mode ('parallel' in the parallel view); the verse blocks (task 0196) only draw in 'standard' and 'reading'. */
   displayMode?: string;
 }
 
@@ -314,6 +314,50 @@ export function ShellOverlays(): React.ReactElement | null {
     <>
       {items.map((C) => (
         <C key={componentKey(C)} />
+      ))}
+    </>
+  );
+}
+
+/** What a reader gives the chapter-end slot (task 0222 R3): the chapter just read and how to go on. */
+export interface ReaderChapterEndProps {
+  book: number;
+  chapter: number;
+  displayMode: 'standard' | 'reading' | 'study' | 'parallel';
+  /** Go to the next chapter. */
+  onNext: () => void;
+}
+
+export const readerChapterEnd = createSlot<ComponentType<ReaderChapterEndProps>>();
+
+/** Renders every item registered in `readerChapterEnd` (each returns null when it has nothing here). */
+export function ReaderChapterEnd(props: ReaderChapterEndProps): React.ReactElement | null {
+  const items = useSlot(readerChapterEnd);
+  if (items.length === 0) return null;
+  return (
+    <>
+      {items.map((C) => (
+        <C key={componentKey(C)} {...props} />
+      ))}
+    </>
+  );
+}
+
+export interface NewTabRowProps {
+  /** Close the New Tab page's choice (the row calls it after it opened something). */
+  onDone: () => void;
+}
+
+export const newTabRows = createSlot<ComponentType<NewTabRowProps>>();
+
+/** Renders every row registered in `newTabRows`. */
+export function NewTabRows(props: NewTabRowProps): React.ReactElement | null {
+  const items = useSlot(newTabRows);
+  if (items.length === 0) return null;
+  return (
+    <>
+      {items.map((C) => (
+        <C key={componentKey(C)} {...props} />
       ))}
     </>
   );

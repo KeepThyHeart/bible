@@ -6,8 +6,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { getBookName, ReadingPlans } from '@bible/core/browser';
 import type {
-  ReadingPlanDayGridLabels, ReadingPlanLibraryLabels, ReadingPlanTodayCardLabels,
+  ReadingPlanDayGridLabels, ReadingPlanLibraryLabels, ReadingPlanTodayCardLabels, ReadingPlanWeekStripLabels,
 } from '@bible/ui';
+import { rpTextWith } from '../rpText';
 import { useI18n } from '../../../contexts/useI18n';
 import { bibleAPI } from '../../../services/electronAPI';
 import { loadBookNamesCache, getBookNameFromCache } from '../../../utils/verseReference';
@@ -30,6 +31,7 @@ export interface ReadingPlanLabelSet {
   todayCard: ReadingPlanTodayCardLabels;
   dayGrid: ReadingPlanDayGridLabels;
   library: ReadingPlanLibraryLabels;
+  weekStrip: ReadingPlanWeekStripLabels;
   schedule: ScheduleLabels;
   weekdayGroup: string;
   weekdayNames: string[];
@@ -155,6 +157,15 @@ export function useReadingPlanLabels(): ReadingPlanLabelSet {
     editNamed: (name) => t('readingPlans.library.editNamed', { name }),
   }), [t]);
 
+  const weekStrip = useMemo<ReadingPlanWeekStripLabels>(() => ({
+    strip: rpTextWith(t, 'readingPlans.home.week.strip', 'This week'),
+    read: rpTextWith(t, 'readingPlans.home.week.read', 'read'),
+    unread: rpTextWith(t, 'readingPlans.home.week.unread', 'not read'),
+    rest: rpTextWith(t, 'readingPlans.home.week.rest', 'rest day'),
+    future: rpTextWith(t, 'readingPlans.home.week.future', 'coming up'),
+    today: rpTextWith(t, 'readingPlans.home.week.today', 'today'),
+  }), [t]);
+
   const schedule = useMemo<ScheduleLabels>(() => ({
     schedule: t('readingPlans.builder.schedule'),
     flexible: t('readingPlans.builder.flexible'),
@@ -165,7 +176,7 @@ export function useReadingPlanLabels(): ReadingPlanLabelSet {
   }), [t]);
 
   return {
-    todayCard, dayGrid, library, schedule, weekdayGroup: t('readingPlans.weekdays.group'), weekdayNames,
+    todayCard, dayGrid, library, weekStrip, schedule, weekdayGroup: t('readingPlans.weekdays.group'), weekdayNames,
     formatReading, bookName, trackName, stockName, stockDescription, localizePlanName, formatDate,
   };
 }

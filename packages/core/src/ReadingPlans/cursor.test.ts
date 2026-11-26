@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { PlanDefinition } from './types';
 import { indexCompletions } from './scheduler';
-import { blockPlacement, flattenPlan, nextReadingAfter, overdueReadings, readingNeighbours, currentDayWindow } from './cursor';
+import { blockPlacement, flattenPlan, nextReadingAfter, overdueReadings, readingNeighbours, currentDayWindow, nextChapterIn } from './cursor';
 import { vid } from './versification';
 
 const r = (b: number, c1: number, v1: number, c2: number, v2: number) => ({ start: vid(b, c1, v1), end: vid(b, c2, v2) });
@@ -106,5 +106,15 @@ describe('currentDayWindow', () => {
   });
   it('a finished plan has only a previous day', () => {
     expect(currentDayWindow(plan, prog([1, 0], [2, 0], [2, 1], [3, 0], [4, 0]))).toEqual({ previous: 4, current: null, next: null });
+  });
+});
+
+describe('nextChapterIn', () => {
+  it('steps through the reading and across book boundaries', () => {
+    const reading = { start: vid(1, 50, 1), end: vid(2, 2, 3) };
+    expect(nextChapterIn(reading, 1, 50)).toEqual({ book: 2, chapter: 1 });
+    expect(nextChapterIn(reading, 2, 1)).toEqual({ book: 2, chapter: 2 });
+    expect(nextChapterIn(reading, 2, 2)).toBeNull();
+    expect(nextChapterIn(reading, 3, 1)).toBeNull();
   });
 });

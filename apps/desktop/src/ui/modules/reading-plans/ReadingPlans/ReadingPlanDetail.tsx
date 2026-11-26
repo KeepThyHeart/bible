@@ -6,7 +6,9 @@
 import { saveTextFile } from '../../../utils/saveTextFile';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ReadingPlans } from '@bible/core/browser';
-import { Checkbox, ProgressBar } from '@bible/ui';
+import { Checkbox, MessageBox, ProgressBar } from '@bible/ui';
+import PointerMenu from '../../../components/shared/PointerMenu';
+import { rpTextWith } from '../rpText';
 import { useI18n } from '../../../contexts/useI18n';
 import { getReadingPlanService } from '../readingPlansAPI';
 import { openPlanReading } from '../useActiveReadingStore';
@@ -38,6 +40,8 @@ const ReadingPlanDetail: React.FC<Props> = ({ enrollmentId, labels, displayName,
   const tableBoxRef = useRef<HTMLDivElement | null>(null);
   const scrolled = useRef(false);
   const [alarm, setAlarm] = useState('');
+  const [rowMenu, setRowMenu] = useState<{ x: number; y: number; day: number } | null>(null);
+  const [confirmUnread, setConfirmUnread] = useState<number | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -104,7 +108,13 @@ const ReadingPlanDetail: React.FC<Props> = ({ enrollmentId, labels, displayName,
 
   const statusText = t(`readingPlans.status.${e.status}`);
 
-  const current = ReadingPlans.currentDayWindow(plan, progress).current;
+  // The same "today" as Home and the Today tab.
+  const current = detail.today.completed ? null : ReadingPlans.focusDay(detail.today);
+  const focusKind = detail.today.focusKind ?? 'current';
+  const focusTag = focusKind === 'today' ? rpTextWith(t, 'readingPlans.home.tag.today', 'Today')
+    : focusKind === 'nextUnread' ? rpTextWith(t, 'readingPlans.home.tag.nextUnread', 'Next unread')
+      : focusKind === 'upcoming' ? rpTextWith(t, 'readingPlans.home.tag.upcoming', 'Next')
+        : t('readingPlans.home.tag.current');
   const showSchedule = stats.finishBasis === 'schedule' || (stats.finishBasis === 'pace' && e.pacing === 'fixed'
     && stats.scheduledFinish && stats.scheduledFinish !== stats.estimatedFinish);
 
@@ -173,8 +183,14 @@ const ReadingPlanDetail: React.FC<Props> = ({ enrollmentId, labels, displayName,
                   <tr key={day} ref={hasHighlight ? highlightRowRef : isCurrent ? currentRowRef : undefined} data-testid="plan-table-row" data-day={day}
                     data-today={isCurrent ? 'true' : undefined} aria-current={isCurrent ? (e.pacing === 'fixed' ? 'date' : 'step') : undefined}
                     style={isCurrent ? { backgroundColor: 'var(--theme-accent-bg, rgba(59,130,246,0.14))' } : status === 'missed' ? { backgroundColor: 'var(--theme-warning-bg, rgba(250,180,40,0.14))' } : undefined}>
-                    <th scope="row" className="kth-table__cell text-start font-medium whitespace-nowrap align-top">
-                      {day}{isCurrent ? <span className="text-xs ms-xs" style={{ color: 'var(--theme-accent-primary, #3b82f6)' }}>{t('readingPlans.home.tag.current')}</span> : null}
+                    <th scope="row" className="kth-table__cell text-start font-medium whitespace-nowrap align-top"
+                      onContextMenu={(ev) => { ev.preventDefault(); setRowMenu({ x: ev.clientX, y: ev.clientY, day }); }}>
+                      {day}{isCurrent ? <span className="text-xs ms-xs" style={{ color: 'var(--theme-accent-primary, #3b82f6)' }}>{focusTag}</span> : null}
+                      <button type="button" className="kth-btn kth-btn--sm kth-btn--ghost ms-xs" aria-haspopup="menu"
+                        aria-label={rpTextWith(t, 'readingPlans.table.rowActions', 'Actions for day {day}', { day })}
+                        onClick={(ev) => { const r = ev.currentTarget.getBoundingClientRect(); setRowMenu({ x: r.left, y: r.bottom, day }); }}>
+                        {'\u22EF'}
+                      </button>
                     </th>
                     {e.pacing === 'fixed' ? <td className="kth-table__cell whitespace-nowrap align-top">{labels.formatDate(ReadingPlans.dateForDay(e, day))}</td> : null}
                     <td className="kth-table__cell">
@@ -211,6 +227,36 @@ const ReadingPlanDetail: React.FC<Props> = ({ enrollmentId, labels, displayName,
         </label>
         <button type="button" className="kth-btn kth-btn--sm" onClick={() => void run(exportIcs)}>{t('readingPlans.detail.exportIcs')}</button>
       </section>
+      {rowMenu ? (
+        <PointerMenu
+          x={rowMenu.x}
+          y={rowMenu.y}
+          role="menu"
+          className="border rounded shadow text-sm"
+          style={{ backgroundColor: 'var(--theme-bg-primary)', borderColor: 'var(--theme-border-primary)' }}
+          onMouseDown={(ev) => ev.stopPropagation()}
+          onKeyDown={(ev) => { if (ev.key === 'Escape') setRowMenu(null); }}
+        >
+          <button type="button" role="menuitem" autoFocus className="block w-full text-start px-3 py-1.5 hover:bg-background-hover"
+            onClick={() => { const day = rowMenu.day; setRowMenu(null); void run(() => service.setDaysDoneThrough(e.id, day, true)); }}>
+            {rpTextWith(t, 'readingPlans.table.markThroughRead', 'Mark everything up to here as read')}
+          </button>
+          <button type="button" role="menuitem" className="block w-full text-start px-3 py-1.5 hover:bg-background-hover"
+            onClick={() => { setConfirmUnread(rowMenu.day); setRowMenu(null); }}>
+            {rpTextWith(t, 'readingPlans.table.markThroughUnread', 'Mark everything up to here as unread')}
+          </button>
+        </PointerMenu>
+      ) : null}
+      <MessageBox
+        open={confirmUnread !== null}
+        tone="danger"
+        title={rpTextWith(t, 'readingPlans.table.markThroughUnreadTitle', 'Mark days as unread?')}
+        message={rpTextWith(t, 'readingPlans.table.markThroughConfirm', 'Days 1 to {day} will be marked unread. The record of when you read them is lost.', { day: confirmUnread ?? 0 })}
+        confirmLabel={rpTextWith(t, 'readingPlans.table.markThroughUnreadConfirm', 'Mark as unread')}
+        cancelLabel={t('readingPlans.card.cancel')}
+        onConfirm={() => { const day = confirmUnread; setConfirmUnread(null); if (day !== null) void run(() => service.setDaysDoneThrough(e.id, day, false)); }}
+        onCancel={() => setConfirmUnread(null)}
+      />
     </div>
   );
 };

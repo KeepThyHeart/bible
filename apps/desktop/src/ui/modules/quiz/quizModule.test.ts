@@ -63,7 +63,7 @@ describe('quiz manifest', () => {
       },
     ]);
     expect(c.apps?.map((a) => a.id)).toEqual(['quiz']);
-    expect(c.apps?.[0]).toMatchObject({ order: 20, platforms: ['desktop'], lifecycle: { keepAlive: 'while-busy', restore: 'default' } });
+    expect(c.apps?.[0]).toMatchObject({ order: 35, platforms: ['desktop'], lifecycle: { keepAlive: 'while-busy', restore: 'default' } });
     expect(c.i18nNamespace).toBe('quizPane');
   });
 });

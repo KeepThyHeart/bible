@@ -130,9 +130,12 @@ export interface Enrollment {
   completedAt?: string;
   /** Daily reminder (needs a reminder port; see ReadingPlanReminders). */
   reminder?: { time: string } | null;
+  /** Fixed pacing: read `extraPerDay` missed days with each day's reading until level (1 or 2; see `ReadingPlanService.startCatchUp`). */
+  catchUp?: { extraPerDay: number } | null;
 }
 
-export type CompletionVia = 'manual' | 'reader' | 'audio';
+/** `bulk`: marked in one go ("start part-way", "mark up to here"); never counts toward pace, streak or "read today". */
+export type CompletionVia = 'manual' | 'reader' | 'audio' | 'bulk';
 
 /** One ticked reading. A day is done when every reading in it is ticked. */
 export interface Completion {

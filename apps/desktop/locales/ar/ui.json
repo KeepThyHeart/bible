@@ -2568,5 +2568,11 @@
   "preferencesDialog.clearHistoryConfirmBody": "يغلق جميع علامات تبويب البحث ويفرغ قائمة السجل وزر الرجوع في كل لوحة. لا تتغير الملاحظات والتمييزات والإشارات المرجعية وتقدم خطط القراءة.",
   "preferencesDialog.clearHistoryConfirmButton": "مسح السجل",
   "preferencesDialog.clearHistoryCancel": "إلغاء",
-  "preferencesDialog.clearHistoryDone": "تم مسح السجل."
+  "preferencesDialog.clearHistoryDone": "تم مسح السجل.",
+  "apps.readingPlans.shortTitle": "الخطط",
+  "apps.present.shortTitle": "العرض",
+  "apps.rail.showLabels": "إظهار التسميات",
+  "apps.switcher.open": "تبديل التطبيق",
+  "settings.apps.railLabels": "إظهار التسميات في شريط التطبيقات",
+  "apps.sheet.close": "إغلاق"
 }

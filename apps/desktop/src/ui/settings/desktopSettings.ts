@@ -21,7 +21,7 @@ import {
   type SettingsStoragePort,
   type AppSwitcherMode,
 } from '@bible/core/browser';
-import { usePreferencesStore } from '../stores/usePreferencesStore';
+import { usePreferencesStore, type ReadingPlanOpenIn } from '../stores/usePreferencesStore';
 import { modulePoints } from '../modules/moduleHost';
 
 const DESKTOP_OWN_SETTINGS = defineSettings([
@@ -58,6 +58,30 @@ const DESKTOP_OWN_SETTINGS = defineSettings([
     group: 'readingPlans',
     labelKey: 'readingPlans.settings.showStreak',
     label: 'Show reading streaks',
+  },
+  {
+    key: 'readingPlanOpenIn',
+    type: 'enum',
+    values: ['tab', 'current'],
+    default: 'tab',
+    scope: 'device',
+    group: 'readingPlans',
+    labelKey: 'readingPlans.settings.openIn',
+    label: 'Open plan readings in',
+    valueLabelKeys: {
+      tab: 'readingPlans.settings.openInTab',
+      current: 'readingPlans.settings.openInCurrent',
+    },
+  },
+  {
+    key: 'appRailLabels',
+    type: 'boolean',
+    default: true,
+    scope: 'device',
+    group: 'apps',
+    order: 2,
+    labelKey: 'settings.apps.railLabels',
+    label: 'Show labels in the app rail',
   },
 ]);
 
@@ -119,6 +143,8 @@ export const preferencesStoragePort: SettingsStoragePort = {
     advancedPaneManagerEnabled: usePreferencesStore.getState().advancedPaneManagerEnabled,
     readingPlanRolloverHour: usePreferencesStore.getState().readingPlanRolloverHour,
     readingPlanShowStreak: usePreferencesStore.getState().readingPlanShowStreak,
+    readingPlanOpenIn: usePreferencesStore.getState().readingPlanOpenIn,
+    appRailLabels: usePreferencesStore.getState().appRailLabels,
     appSwitcher: usePreferencesStore.getState().appSwitcher,
     appOrder: usePreferencesStore.getState().appOrder,
     appHidden: usePreferencesStore.getState().appHidden,
@@ -152,6 +178,12 @@ export const preferencesStoragePort: SettingsStoragePort = {
       ) {
         usePreferencesStore.getState().setReadingPlanShowStreak(change.value as boolean);
       }
+      if (change.key === 'readingPlanOpenIn' && usePreferencesStore.getState().readingPlanOpenIn !== change.value) {
+        usePreferencesStore.getState().setReadingPlanOpenIn(change.value as ReadingPlanOpenIn);
+      }
+      if (change.key === 'appRailLabels' && usePreferencesStore.getState().appRailLabels !== change.value) {
+        usePreferencesStore.getState().setAppRailLabels(change.value as boolean);
+      }
     }
   },
 };
@@ -168,6 +200,8 @@ export function getDesktopSettingsStore(): SettingsStore {
       store!.set('advancedPaneManagerEnabled', state.advancedPaneManagerEnabled);
       store!.set('readingPlanRolloverHour', state.readingPlanRolloverHour);
       store!.set('readingPlanShowStreak', state.readingPlanShowStreak);
+      store!.set('readingPlanOpenIn', state.readingPlanOpenIn);
+      store!.set('appRailLabels', state.appRailLabels);
       store!.set('appSwitcher', state.appSwitcher);
       store!.set('appOrder', state.appOrder);
       store!.set('appHidden', state.appHidden);

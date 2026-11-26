@@ -234,20 +234,20 @@ describe('PlanScheduler', () => {
 
   it('flexible: today is the first unread day, never behind', () => {
     const e = enrollment({ pacing: 'flexible' });
-    const v = todayView(plan, e, [done(1)], '2026-12-01');
+    const v = todayView(plan, e, [done(1)], '2026-12-01', 3);
     expect(v.day).toBe(2);
     expect(v.behindBy).toBe(0);
   });
 
   it('B-068: fixed, long past the end: flagged pastEnd (and not before the end)', () => {
     const e = enrollment();
-    expect(todayView(plan, e, [done(1)], '2026-12-01').pastEnd).toBe(true);
-    expect(todayView(plan, e, [done(1), done(3)], '2026-10-05').pastEnd).toBeUndefined();
+    expect(todayView(plan, e, [done(1)], '2026-12-01', 3).pastEnd).toBe(true);
+    expect(todayView(plan, e, [done(1), done(3)], '2026-10-05', 3).pastEnd).toBeUndefined();
   });
 
   it('fixed: shows days behind and the missed days', () => {
     const e = enrollment();
-    const v = todayView(plan, e, [done(1), done(3)], '2026-10-05'); // day 5 today
+    const v = todayView(plan, e, [done(1), done(3)], '2026-10-05', 3); // day 5 today
     expect(v.day).toBe(5);
     expect(v.missedDays).toEqual([2, 4]);
     expect(v.behindBy).toBe(2);
@@ -256,7 +256,7 @@ describe('PlanScheduler', () => {
 
   it('fixed: a rest day has no reading and counts the last scheduled day as due', () => {
     const e = enrollment({ readingDays: [1, 2, 3, 4, 5] as Weekday[], startDate: '2026-10-05' });
-    const v = todayView(plan, e, [done(1), done(2), done(3), done(4)], '2026-10-10'); // Saturday
+    const v = todayView(plan, e, [done(1), done(2), done(3), done(4)], '2026-10-10', 3); // Saturday
     expect(v.restDay).toBe(true);
     expect(v.day).toBeNull();
     expect(v.missedDays).toEqual([5]);
@@ -266,7 +266,7 @@ describe('PlanScheduler', () => {
     const e = enrollment();
     const start = shiftedStartDate(plan, e, [done(1), done(2)], '2026-10-08');
     expect(start).toBe('2026-10-06');
-    expect(todayView(plan, { ...e, startDate: start }, [done(1), done(2)], '2026-10-08')).toMatchObject({ day: 3, behindBy: 0 });
+    expect(todayView(plan, { ...e, startDate: start }, [done(1), done(2)], '2026-10-08', 3)).toMatchObject({ day: 3, behindBy: 0 });
   });
 
   it('computes stats and day statuses', () => {
@@ -278,12 +278,12 @@ describe('PlanScheduler', () => {
     expect(s.estimatedFinish).toBeNull(); // only two reading days of history
     expect(s.finishBasis).toBe('schedule');
     const fixed = enrollment();
-    expect(dayStatuses(plan, fixed, [done(1)], '2026-10-03').slice(0, 4)).toEqual(['done', 'missed', 'current', 'upcoming']);
+    expect(dayStatuses(plan, fixed, [done(1)], '2026-10-03', 3).slice(0, 4)).toEqual(['done', 'missed', 'current', 'upcoming']);
   });
 
   it('reports completion', () => {
     const all = plan.days.map((_, i) => done(i + 1));
-    expect(todayView(plan, enrollment(), all, '2026-10-03').completed).toBe(true);
+    expect(todayView(plan, enrollment(), all, '2026-10-03', 3).completed).toBe(true);
   });
 });
 
@@ -307,7 +307,7 @@ describe('review fixes', () => {
   });
 
   it('after the scheduled end, every unread day is missed and the first one is shown', () => {
-    const v = todayView(plan, enrollment(), [done(1), done(3)], '2026-11-30');
+    const v = todayView(plan, enrollment(), [done(1), done(3)], '2026-11-30', 3);
     expect(v.day).toBe(2);
     expect(v.missedDays).toEqual([2, 4, 5, 6, 7, 8, 9, 10]);
   });

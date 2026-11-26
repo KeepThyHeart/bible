@@ -16,7 +16,7 @@ export const readingPlansModule: DesktopFeatureModule = {
   apps: [
     {
       id: 'reading-plans',
-      load: async () => ({ View: (await import('./ReadingPlans/ReadingPlansPane')).default }),
+      load: async () => ({ View: (await import('./ReadingPlans/ReadingPlansPane')).ReadingPlansApp }),
     },
   ],
   commands: registerReadingPlanCommands,

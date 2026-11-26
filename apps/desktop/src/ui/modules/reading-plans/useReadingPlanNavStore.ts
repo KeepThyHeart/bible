@@ -12,8 +12,40 @@ export interface NavRequest {
   nonce: number;
 }
 
+/**
+ * "Move the dates" can be undone (task 0222 R3-1): the schedule as it was, held here (not in a pane's state) so it
+ * survives the pane being closed and reopened. It is valid until the next reading day or the next schedule edit.
+ */
+export interface ScheduleUndo {
+  enrollmentId: string;
+  /** The enrollment's `startDate` and `catchUp` before the move. */
+  oldStartDate: string;
+  oldCatchUp: { extraPerDay: number } | null;
+  /** The `startDate` the move produced: a different one later means the schedule was edited since. */
+  newStartDate: string;
+  /** The pacing and reading days the move left in place: a different value later means the schedule was edited since. */
+  pacing: string;
+  readingDays: readonly number[];
+  /** The reading date the move happened on. */
+  movedOn: string;
+}
+
+/** The undo for this enrollment while it still applies, else null. `today` is the current reading date. */
+export function validScheduleUndo(
+  undo: ScheduleUndo | null, enrollment: { id: string; startDate: string; pacing: string; readingDays: readonly number[] }, today: string | null,
+): ScheduleUndo | null {
+  if (!undo || undo.enrollmentId !== enrollment.id) return null;
+  if (enrollment.startDate !== undo.newStartDate) return null;
+  if (enrollment.pacing !== undo.pacing) return null;
+  if (enrollment.readingDays.length !== undo.readingDays.length || enrollment.readingDays.some((d, i) => d !== undo.readingDays[i])) return null;
+  if (today !== null && today !== undo.movedOn) return null;
+  return undo;
+}
+
 interface State {
   request: NavRequest | null;
+  scheduleUndo: ScheduleUndo | null;
+  setScheduleUndo: (u: ScheduleUndo | null) => void;
   show: (r: Omit<NavRequest, 'nonce'>) => void;
   /** Take the pending request (and clear it). */
   consume: () => NavRequest | null;
@@ -23,6 +55,8 @@ let nonce = 0;
 
 export const useReadingPlanNavStore = create<State>((set, get) => ({
   request: null,
+  scheduleUndo: null,
+  setScheduleUndo: (scheduleUndo) => set({ scheduleUndo }),
   show: (r) => set({ request: { ...r, nonce: ++nonce } }),
   consume: () => {
     const request = get().request;
@@ -39,5 +73,5 @@ export function viewPlanReading(ref: { enrollmentId: string; day: number; index:
 
 /** Tests only. */
 export function resetReadingPlanNavForTests(): void {
-  useReadingPlanNavStore.setState({ request: null });
+  useReadingPlanNavStore.setState({ request: null, scheduleUndo: null });
 }

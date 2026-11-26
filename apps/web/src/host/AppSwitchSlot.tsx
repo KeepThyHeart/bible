@@ -7,26 +7,13 @@
  */
 import { useState } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
-import { AppSheet, AppSwitchButton } from '@bible/ui';
-import type { AppNavBadge } from '@bible/ui';
+import { AppSheet, AppSwitchButton, aggregateBadge } from '@bible/ui';
 import { appHost, openApp, prefetchApp } from './appHost';
 import { useNavEntries } from './appNavEntries';
 import { useNavItems, useRailVisible } from './navPrefs';
 import { useReadable } from './useReadable';
 
-/** The most urgent badge among the apps other than the one on screen. */
-export function aggregateBadge(
-  entries: readonly { id: string; badge?: AppNavBadge }[],
-  activeId: string | null,
-): AppNavBadge | undefined {
-  const rank = { attention: 2, live: 1, neutral: 0 } as const;
-  let best: AppNavBadge | undefined;
-  for (const e of entries) {
-    if (e.id === activeId || !e.badge) continue;
-    if (!best || rank[e.badge.tone] > rank[best.tone]) best = e.badge;
-  }
-  return best;
-}
+export { aggregateBadge };
 
 export function AppSwitchSlot({ className }: { className?: string }) {
   const { t } = useTranslation();

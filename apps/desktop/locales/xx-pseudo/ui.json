@@ -2554,5 +2554,11 @@
   "preferencesDialog.clearHistoryConfirmBody": "⟦Çļøšéš åļļ šéåŕçĥ ţåƀš åñð éɱþţîéš ţĥé ĥîšţøŕý ļîšţ åñð Ɓåçķ ƀüţţøñ øƒ éṽéŕý þåñé. Ñøţéš, ĥîĝĥļîĝĥţš, ƀøøķɱåŕķš åñð ŕéåðîñĝ þļåñ þŕøĝŕéšš åŕé ñøţ çĥåñĝéð. ··············································⟧",
   "preferencesDialog.clearHistoryConfirmButton": "⟦Çļéåŕ ĥîšţøŕý ···⟧",
   "preferencesDialog.clearHistoryCancel": "⟦Çåñçéļ ··⟧",
-  "preferencesDialog.clearHistoryDone": "⟦Ĥîšţøŕý çļéåŕéð. ····⟧"
+  "preferencesDialog.clearHistoryDone": "⟦Ĥîšţøŕý çļéåŕéð. ····⟧",
+  "apps.readingPlans.shortTitle": "⟦Þļåñš ··⟧",
+  "apps.present.shortTitle": "⟦Þŕéšéñţ ··⟧",
+  "apps.rail.showLabels": "⟦Šĥøŵ ļåƀéļš ···⟧",
+  "apps.switcher.open": "⟦Šŵîţçĥ åþþ ···⟧",
+  "settings.apps.railLabels": "⟦Šĥøŵ ļåƀéļš îñ ţĥé åþþ ŕåîļ ········⟧",
+  "apps.sheet.close": "⟦Çļøšé ··⟧"
 }

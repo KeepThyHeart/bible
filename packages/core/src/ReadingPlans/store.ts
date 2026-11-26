@@ -56,7 +56,7 @@ function parseCompletion(item: UserDataItem): Completion | null {
   const m = /^(.+)\/(\d+)\/(\d+)$/.exec(item.itemKey);
   if (!m) return null;
   const v = item.parsedValue() as { at?: unknown; via?: unknown } | undefined;
-  const via: CompletionVia = v?.via === 'reader' || v?.via === 'audio' ? v.via : 'manual';
+  const via: CompletionVia = v?.via === 'reader' || v?.via === 'audio' || v?.via === 'bulk' ? v.via : 'manual';
   return { enrollmentId: m[1], day: Number(m[2]), reading: Number(m[3]), at: typeof v?.at === 'string' ? v.at : '', via };
 }
 

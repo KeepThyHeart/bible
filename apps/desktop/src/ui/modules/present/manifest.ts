@@ -16,6 +16,7 @@ export const presentManifest: FeatureModuleManifest = {
         id: PRESENT_APP_ID,
         title: { key: 'apps.present.title', fallback: 'Presenter' },
         icon: { kind: 'builtin', name: 'presentation' },
+        shortTitle: { key: 'apps.present.shortTitle', fallback: 'Present' },
         order: 40,
         platforms: ['desktop'],
         // The presentation lives in the main process; the view re-reads it from there when opened.

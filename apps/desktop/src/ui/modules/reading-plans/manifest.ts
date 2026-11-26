@@ -30,7 +30,8 @@ export const readingPlansApp: AppDescriptor = {
   id: 'reading-plans',
   title: { key: 'apps.readingPlans.title', fallback: 'Reading plans' },
   icon: { kind: 'builtin', name: 'calendar-check' },
-  order: 30,
+  shortTitle: { key: 'apps.readingPlans.shortTitle', fallback: 'Plans' },
+  order: 10,
   platforms: ['desktop'],
   lifecycle: { keepAlive: 'never', restore: 'default' },
 };

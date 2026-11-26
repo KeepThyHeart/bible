@@ -6,7 +6,7 @@ export { AppTileGrid, DEFAULT_APP_TILE_GRID_LABELS } from './AppTileGrid';
 export type { AppTileGridProps, AppTileGridLabels } from './AppTileGrid';
 export { AppSheet } from './AppSheet';
 export type { AppSheetProps } from './AppSheet';
-export { AppSwitchButton } from './AppSwitchButton';
+export { AppSwitchButton, aggregateBadge } from './AppSwitchButton';
 export type { AppSwitchButtonProps } from './AppSwitchButton';
 export { AppStage } from './AppStage';
 export type { AppStageProps, AppStageApp } from './AppStage';
