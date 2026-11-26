@@ -50,3 +50,23 @@
 .app-rail .kth-app-rail__icon {
   font-size: 1.5rem;
 }
+/* With labels (task 0222 R3-12): a ~62px rail, the short title under each icon. */
+.app-rail.kth-app-rail--labels .kth-app-rail__btn {
+  inline-size: 3.75rem;
+  min-block-size: 3.5rem;
+  block-size: auto;
+  padding-block: 0.25rem;
+  flex-direction: column;
+  gap: 2px;
+}
+.app-rail.kth-app-rail--labels .kth-app-rail__label {
+  font-size: 0.6875rem;
+  line-height: 1.05;
+  max-inline-size: 3.5rem;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}

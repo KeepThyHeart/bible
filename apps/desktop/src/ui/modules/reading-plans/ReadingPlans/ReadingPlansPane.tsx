@@ -5,13 +5,17 @@ import { useI18n } from '../../../contexts/useI18n';
 import { getReadingPlanService } from '../readingPlansAPI';
 import { openPlanReading } from '../useActiveReadingStore';
 import { useReadingPlanStore } from '../useReadingPlanStore';
-import { useReadingPlanNavStore } from '../useReadingPlanNavStore';
+import { useReadingPlanNavStore, validScheduleUndo } from '../useReadingPlanNavStore';
+import { openReadingPlansBeside } from '../openBeside';
+import { rpTextWith } from '../rpText';
 import { ensureReferenceLocales } from '../../../services/localizedReferenceParser';
 import { useReadingPlanLabels } from './useReadingPlanLabels';
 import { useReadingPlanData } from './readingPlanData';
 import ReadingPlanDetail from './ReadingPlanDetail';
 import PlanEditorView from './PlanEditorView';
 import PlanHome from './PlanHome';
+import TodayTab from './TodayTab';
+import type { ReschedulePreview } from './BehindPanel';
 import AddPlanView from './AddPlanView';
 import PlanSettingsDialog from './PlanSettingsDialog';
 import type { PlanSettingsMode } from './PlanSettingsDialog';
@@ -30,12 +34,14 @@ type SettingsTarget = { kind: 'start'; planKey: string } | { kind: 'edit'; id: s
 const EMPTY_PROGRESS: ReadingPlans.ProgressIndex = new Map();
 const STATUS_ORDER: Record<ReadingPlans.Enrollment['status'], number> = { active: 0, paused: 1, completed: 2 };
 const TAB_PREFIX = 'rp-plans';
+/** Id of the Today tab (an enrollment id is never this). */
+const TODAY_TAB = 'today';
 
 /**
  * Reading plans app (tasks 0073, 0222): Home for the selected plan, tabs when several are followed, and drill-in
  * views (add a plan, plan editor, full plan). One settings dialog serves starting and editing a plan.
  */
-const ReadingPlansPane: React.FC = () => {
+const ReadingPlansPane: React.FC<{ asApp?: boolean }> = ({ asApp = false }) => {
   const { t, locale } = useI18n();
   const labels = useReadingPlanLabels();
   // The editor's passage picker parses in the UI language: load that language's reference data first.
@@ -63,7 +69,13 @@ const ReadingPlansPane: React.FC = () => {
     () => [...data.enrollments].sort((a, b) => STATUS_ORDER[a.status] - STATUS_ORDER[b.status]),
     [data.enrollments],
   );
-  const selected = ordered.find((e) => e.id === selectedId) ?? ordered[0] ?? null;
+  // Two or more active plans: a Today tab comes first and is the default, unless a plan was picked (or deep-linked).
+  const activeWithDetail = ordered.filter((e) => e.status === 'active' && data.details.has(e.id));
+  const todayTabOn = activeWithDetail.length >= 2;
+  const explicitId = selectedId && selectedId !== TODAY_TAB && ordered.some((e) => e.id === selectedId) ? selectedId : null;
+  const tab = explicitId ?? (todayTabOn ? TODAY_TAB : (ordered[0]?.id ?? ''));
+  const selected = tab === TODAY_TAB ? null : (ordered.find((e) => e.id === tab) ?? null);
+  const scheduleUndo = useReadingPlanNavStore((s) => s.scheduleUndo);
   const displayName = labels.localizePlanName;
   const error = actionError ?? dataError ?? storeError;
 
@@ -141,16 +153,32 @@ const ReadingPlansPane: React.FC = () => {
       );
     }
     const detail = selected ? data.details.get(selected.id) : undefined;
+    const todayDate = detail?.week?.find((d) => d.today)?.date ?? null;
+    const undo = selected ? validScheduleUndo(scheduleUndo, selected, todayDate) : null;
     return (
       <div className="flex flex-col gap-md">
         {ordered.length >= 2 ? (
           <Tabs
             idPrefix={TAB_PREFIX}
             label={t('readingPlans.nav.plansTabs')}
-            value={selected?.id ?? ''}
+            value={tab}
             onChange={setSelectedId}
-            tabs={ordered.map((e) => ({ id: e.id, label: tabLabel(e) }))}
+            tabs={[
+              ...(todayTabOn ? [{ id: TODAY_TAB, label: rpTextWith(t, 'readingPlans.nav.todayTab', 'Today') }] : []),
+              ...ordered.map((e) => ({ id: e.id, label: tabLabel(e) })),
+            ]}
           />
+        ) : null}
+        {tab === TODAY_TAB ? (
+          <div {...tabPanelProps(TAB_PREFIX, TODAY_TAB)}>
+            <TodayTab
+              items={activeWithDetail.map((e) => ({ detail: data.details.get(e.id)!, displayName: displayName(e.planKey, e.planName) }))}
+              labels={labels}
+              onToggleReading={(id, day, index, done) => { void run(() => service.setReadingDone(id, day, index, done)); }}
+              onOpenReading={(id, r) => openPlanReading({ enrollmentId: id, ...r })}
+              onSelectPlan={setSelectedId}
+            />
+          </div>
         ) : null}
         {selected && detail ? (
           <div {...(ordered.length >= 2 ? tabPanelProps(TAB_PREFIX, selected.id) : {})}>
@@ -164,7 +192,29 @@ const ReadingPlansPane: React.FC = () => {
               onOpenReading={(r) => openPlanReading({ enrollmentId: selected.id, ...r })}
               onOpenSettings={() => openSettings(selected.id)}
               onViewPlan={() => go({ kind: 'plan', id: selected.id, highlight: null })}
-              onShift={() => { void run(() => service.shiftSchedule(selected.id)); }}
+              scheduleUndo={undo}
+              onStartCatchUp={() => { void run(() => service.startCatchUp(selected.id)); }}
+              onStopCatchUp={() => { void run(() => service.stopCatchUp(selected.id)); }}
+              loadPreview={() => service.reschedulePreview(selected.id)}
+              onMoveDates={(preview: ReschedulePreview) => {
+                const before = selected;
+                void run(async () => {
+                  await service.shiftSchedule(before.id);
+                  useReadingPlanNavStore.getState().setScheduleUndo({ // allow-getstate: event handler
+                    enrollmentId: before.id,
+                    oldStartDate: before.startDate,
+                    oldCatchUp: before.catchUp ?? null,
+                    newStartDate: preview.newStartDate,
+                    movedOn: todayDate ?? '',
+                  });
+                });
+              }}
+              onUndoMove={(u) => {
+                void run(async () => {
+                  await service.updateEnrollment(u.enrollmentId, { startDate: u.oldStartDate, catchUp: u.oldCatchUp });
+                  useReadingPlanNavStore.getState().setScheduleUndo(null); // allow-getstate: event handler
+                });
+              }}
               onSwitchToFlexible={() => { void run(() => service.switchToFlexible(selected.id)); }}
               onResume={() => { void run(() => service.resume(selected.id)); }}
             />
@@ -183,6 +233,11 @@ const ReadingPlansPane: React.FC = () => {
         <div className="flex items-center gap-sm">
           {/* The app stage focuses the first h1[tabindex=-1] when the app opens. */}
           <h1 ref={headingRef} tabIndex={-1} className="m-0 text-2xl font-semibold me-auto">{t('readingPlans.title')}</h1>
+          {asApp ? (
+            <button type="button" className="kth-btn" onClick={() => { void openReadingPlansBeside().catch((err: unknown) => setActionError(err instanceof Error ? err.message : String(err))); }}>
+              {rpTextWith(t, 'readingPlans.home.openBeside', 'Open beside the Bible')}
+            </button>
+          ) : null}
           {showAddButton ? (
             <button type="button" className="kth-btn" onClick={() => go({ kind: 'add' })}>+ {t('readingPlans.nav.add')}</button>
           ) : null}
@@ -246,5 +301,8 @@ const ReadingPlansPane: React.FC = () => {
     </div>
   );
 };
+
+/** The app form of the pane (the Reading plans app's view): the same pane plus the "Open beside the Bible" button. */
+export const ReadingPlansApp: React.FC = () => <ReadingPlansPane asApp />;
 
 export default ReadingPlansPane;

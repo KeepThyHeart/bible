@@ -2554,5 +2554,10 @@
   "preferencesDialog.clearHistoryConfirmBody": "Closes all search tabs and empties the history list and Back button of every pane. Notes, highlights, bookmarks and reading plan progress are not changed.",
   "preferencesDialog.clearHistoryConfirmButton": "Clear history",
   "preferencesDialog.clearHistoryCancel": "Cancel",
-  "preferencesDialog.clearHistoryDone": "History cleared."
+  "preferencesDialog.clearHistoryDone": "History cleared.",
+  "apps.readingPlans.shortTitle": "Plans",
+  "apps.present.shortTitle": "Present",
+  "apps.rail.showLabels": "Show labels",
+  "apps.switcher.open": "Switch app",
+  "settings.apps.railLabels": "Show labels in the app rail"
 }

@@ -19,11 +19,18 @@ export function useDockviewTitleSync(args: {
 }) {
   const { dockviewPanelApi, panelId, hasPassage, abbreviation, currentBookName, currentChapter } = args;
 
+  // A module may override the title (task 0222: "Plan - Day N"); it wins while set and the passage title returns when cleared.
+  const titleOverride = useLayoutStore((s) => s.titleOverrides.get(panelId));
+
   useEffect(() => {
     if (!dockviewPanelApi) return;
+    if (titleOverride) {
+      dockviewPanelApi.setTitle(titleOverride);
+      return;
+    }
     if (!hasPassage || !currentBookName || !currentChapter) return;
     dockviewPanelApi.setTitle(`${currentBookName} ${currentChapter}`);
-  }, [dockviewPanelApi, hasPassage, currentBookName, currentChapter]);
+  }, [dockviewPanelApi, hasPassage, currentBookName, currentChapter, titleOverride]);
 
   useEffect(() => {
     if (!dockviewPanelApi || !abbreviation) return;

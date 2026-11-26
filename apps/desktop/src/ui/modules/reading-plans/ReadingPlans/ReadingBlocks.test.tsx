@@ -69,37 +69,62 @@ describe('start / end of reading blocks', () => {
     expect(navigate).toHaveBeenCalledWith(reading.start);
   });
 
-  it('marks and unmarks from the end block, syncing to the plan', async () => {
+  it('last reading of the day: Mark as read, then "Day 1 done" and a Read ahead link; the checkbox stays for undo', async () => {
     const { service, e, plan } = await setup();
-    const reading = plan.days[0].readings[0];
-    openPlanReading({ enrollmentId: e.id, day: 1, index: 0, reading });
+    openPlanReading({ enrollmentId: e.id, day: 1, index: 0, reading: plan.days[0].readings[0] });
     render(<Chapter ids={seq(1, 1, 1, 12)} />);
     const user = userEvent.setup();
     const box = await screen.findByRole('checkbox', { name: /^Mark .* as read$/ });
     expect(box).not.toBeChecked();
     expect(within(screen.getByTestId('reading-plan-end-block')).getByText(/^Genesis 1:3/)).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Mark as read?' }));
+    // Rendering never ticks.
+    expect(await service.dayProgress(e.id, 1)).toEqual([]);
+    expect(screen.queryByText('Day 1 done')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Read ahead/ })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Mark as read' }));
     await waitFor(async () => expect(await service.dayProgress(e.id, 1)).toEqual([0]));
     await waitFor(() => expect(screen.getByRole('checkbox', { name: /^Mark .* as read$/ })).toBeChecked());
     expect(screen.getByText('Marked as read')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Mark as read?' })).not.toBeInTheDocument();
-    // The link is gone: focus must sit on the checkbox, not fall to <body> (the reader would scroll to the top).
+    expect(await screen.findByText('Day 1 done')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Read ahead: Day 2' })).toBeInTheDocument();
+    // The button is gone: focus must sit on the checkbox, not fall to <body> (the reader would scroll to the top).
     expect(screen.getByRole('checkbox')).toHaveFocus();
     expect(screen.getByRole('checkbox').closest('label')).toHaveClass('kth-check--success');
     await user.click(screen.getByRole('checkbox'));
     await waitFor(async () => expect(await service.dayProgress(e.id, 1)).toEqual([]));
-    expect(await screen.findByRole('button', { name: 'Mark as read?' })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Mark as read' })).toBeInTheDocument();
+  });
+
+  it('is drawn for a reading of today even when none was opened from the plan, ticked or not', async () => {
+    const { service, e, plan } = await setup();
+    expect(useActiveReadingStore.getState().info).toBeNull();
+    render(<Chapter ids={seq(1, 1, 1, 12)} />);
+    const reading = plan.days[0].readings[0];
+    const block = await screen.findByTestId('reading-plan-end-block');
+    expect(block.previousElementSibling).toHaveAttribute('data-testid', `v${reading.end}`);
+    expect(screen.queryByTestId('reading-plan-start-block')).not.toBeInTheDocument();
+    await service.setReadingDone(e.id, 1, 0, true);
+    await waitFor(() => expect(screen.getByRole('checkbox')).toBeChecked());
+    expect(screen.getByTestId('reading-plan-end-block')).toBeInTheDocument();
+    expect(await service.dayProgress(e.id, 1)).toEqual([0]);
+  });
+
+  it('marking from a block without an active reading activates it first', async () => {
+    const { e } = await setup();
+    render(<Chapter ids={seq(1, 1, 1, 12)} />);
+    await userEvent.setup().click(await screen.findByRole('button', { name: 'Mark as read' }));
+    await waitFor(() => expect(useActiveReadingStore.getState().ref).toMatchObject({ enrollmentId: e.id, day: 1, index: 0 }));
   });
 
   it('reflects a tick made elsewhere in the plan views', async () => {
     const { service, e, plan } = await setup();
     openPlanReading({ enrollmentId: e.id, day: 1, index: 0, reading: plan.days[0].readings[0] });
     render(<Chapter ids={seq(1, 1, 1, 12)} />);
-    await screen.findByRole('button', { name: 'Mark as read?' });
+    await screen.findByRole('button', { name: 'Mark as read' });
     await service.setReadingDone(e.id, 1, 0, true);
     expect(await screen.findByText('Marked as read')).toBeInTheDocument();
     await service.setReadingDone(e.id, 1, 0, false);
-    expect(await screen.findByRole('button', { name: 'Mark as read?' })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Mark as read' })).toBeInTheDocument();
   });
 
   it('View reading plan asks the Reading plans app to highlight this reading', async () => {
@@ -112,14 +137,34 @@ describe('start / end of reading blocks', () => {
     expect(openApp).toHaveBeenCalledWith('reading-plans');
   });
 
-  it('Next reading opens the next passage and swaps the blocks', async () => {
-    const { e, plan } = await setup();
+  it('Read ahead opens the first reading of the next day', async () => {
+    const { service, e, plan } = await setup();
     openPlanReading({ enrollmentId: e.id, day: 1, index: 0, reading: plan.days[0].readings[0] });
     render(<Chapter ids={seq(1, 1, 1, 12)} />);
-    await userEvent.setup().click(await screen.findByRole('button', { name: /^Next reading: / }));
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: 'Mark as read' }));
+    await waitFor(async () => expect(await service.dayProgress(e.id, 1)).toEqual([0]));
+    await user.click(await screen.findByRole('button', { name: 'Read ahead: Day 2' }));
     const next = plan.days[1].readings[0];
-    expect(navigate).toHaveBeenLastCalledWith(next.start);
+    await waitFor(() => expect(navigate).toHaveBeenLastCalledWith(next.start));
     await waitFor(() => expect(useActiveReadingStore.getState().info).toMatchObject({ day: 2, index: 0 }));
+  });
+
+  it('Mark read and continue ticks the reading, then opens the next due reading of the day', async () => {
+    const { service } = installTestService();
+    const e = await service.startPlan('stock:mcheyne');
+    const plan = await service.planFor(e);
+    const [first, second] = plan.days[0].readings;
+    openPlanReading({ enrollmentId: e.id, day: 1, index: 0, reading: first });
+    const { vid: v } = ReadingPlans;
+    const f = ReadingPlans.splitVid(first.end);
+    render(<Chapter ids={[first.end, v(f.book, f.chapter, f.verse + 1)]} />);
+    const btn = await screen.findByRole('button', { name: /^Mark read and continue: / });
+    expect(await service.dayProgress(e.id, 1)).toEqual([]);
+    await userEvent.setup().click(btn);
+    await waitFor(async () => expect(await service.dayProgress(e.id, 1)).toEqual([0]));
+    await waitFor(() => expect(navigate).toHaveBeenLastCalledWith(second.start));
+    await waitFor(() => expect(useActiveReadingStore.getState().info).toMatchObject({ day: 1, index: 1 }));
   });
 
   it('offers the next passage of the same day on a multi-passage day', async () => {

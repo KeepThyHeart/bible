@@ -203,6 +203,10 @@ interface PreferencesState {
   readingPlanRolloverHour: number;
   /** Show reading streaks in reading plans (task 0073). */
   readingPlanShowStreak: boolean;
+  /** Where a plan reading opens: a dedicated reading tab, or the current Bible tab (task 0222 R3-7). */
+  readingPlanOpenIn: ReadingPlanOpenIn;
+  /** Show short app names under the rail icons (task 0222 R3-12). */
+  appRailLabels: boolean;
 
   /** App switcher rail: `auto` (only with more than one app), `rail` (always), `none` (task 0080). */
   appSwitcher: AppSwitcherMode;
@@ -226,6 +230,8 @@ interface PreferencesState {
   setRememberReadingHistory: (on: boolean) => void;
   setReadingPlanRolloverHour: (hour: number) => void;
   setReadingPlanShowStreak: (show: boolean) => void;
+  setReadingPlanOpenIn: (where: ReadingPlanOpenIn) => void;
+  setAppRailLabels: (show: boolean) => void;
   setAppSwitcher: (mode: AppSwitcherMode) => void;
   setScrollbarSize: (size: ScrollbarSize) => void;
   setAppOrder: (ids: readonly string[]) => void;
@@ -252,6 +258,8 @@ interface PreferencesState {
     rememberReadingHistory?: unknown;
     readingPlanRolloverHour?: number;
     readingPlanShowStreak?: boolean;
+    readingPlanOpenIn?: unknown;
+    appRailLabels?: unknown;
     appSwitcher?: unknown;
     scrollbarSize?: unknown;
     appOrder?: unknown;
@@ -269,6 +277,8 @@ interface PreferencesState {
     rememberReadingHistory: boolean;
     readingPlanRolloverHour: number;
     readingPlanShowStreak: boolean;
+    readingPlanOpenIn: ReadingPlanOpenIn;
+    appRailLabels: boolean;
     appSwitcher: AppSwitcherMode;
     scrollbarSize: ScrollbarSize;
     appOrder: string[];
@@ -292,6 +302,9 @@ function sanitizeIdList(raw: unknown): string[] {
   for (const v of raw) if (typeof v === 'string' && v !== '') seen.add(v);
   return [...seen];
 }
+
+/** Where a plan reading opens (task 0222 R3-7). */
+export type ReadingPlanOpenIn = 'tab' | 'current';
 
 export type ScrollbarSize = 'standard' | 'large';
 
@@ -492,6 +505,8 @@ export const usePreferencesStore = create<PreferencesState>((set, get) => ({
   rememberReadingHistory: false,
   readingPlanRolloverHour: 3,
   readingPlanShowStreak: false,
+  readingPlanOpenIn: 'tab',
+  appRailLabels: true,
   appSwitcher: 'auto',
   scrollbarSize: 'standard',
   appOrder: [],
@@ -545,6 +560,16 @@ export const usePreferencesStore = create<PreferencesState>((set, get) => ({
 
   setReadingPlanShowStreak: (show: boolean) => {
     set({ readingPlanShowStreak: show });
+    markSessionDirty();
+  },
+
+  setReadingPlanOpenIn: (where: ReadingPlanOpenIn) => {
+    set({ readingPlanOpenIn: where === 'current' ? 'current' : 'tab' });
+    markSessionDirty();
+  },
+
+  setAppRailLabels: (show: boolean) => {
+    set({ appRailLabels: show });
     markSessionDirty();
   },
 
@@ -634,6 +659,8 @@ export const usePreferencesStore = create<PreferencesState>((set, get) => ({
       ? Math.round(data.readingPlanRolloverHour)
       : 3;
     const readingPlanShowStreak = typeof data.readingPlanShowStreak === 'boolean' ? data.readingPlanShowStreak : false;
+    const readingPlanOpenIn: ReadingPlanOpenIn = data.readingPlanOpenIn === 'current' ? 'current' : 'tab';
+    const appRailLabels = typeof data.appRailLabels === 'boolean' ? data.appRailLabels : true;
 
     const searchResultsPlacement = sanitizeSearchResultsPlacement(data.searchResultsPlacement);
     // Absent (every session written before 0224) means the private default: off.
@@ -648,7 +675,7 @@ export const usePreferencesStore = create<PreferencesState>((set, get) => ({
     set({
       theme, globalFontScale, uiControlFontSize, typography, advancedPaneManagerEnabled,
       searchResultsPlacement, reopenSearchTabs, rememberReadingHistory,
-      readingPlanRolloverHour, readingPlanShowStreak, appSwitcher, scrollbarSize, appOrder, appHidden, recentBibleVersions,
+      readingPlanRolloverHour, readingPlanShowStreak, readingPlanOpenIn, appRailLabels, appSwitcher, scrollbarSize, appOrder, appHidden, recentBibleVersions,
     });
     applyThemeToDOM(theme);
     notifyMainOfTheme(theme);
@@ -662,12 +689,12 @@ export const usePreferencesStore = create<PreferencesState>((set, get) => ({
     const {
       theme, globalFontScale, uiControlFontSize, typography, advancedPaneManagerEnabled,
       searchResultsPlacement, reopenSearchTabs, rememberReadingHistory,
-      readingPlanRolloverHour, readingPlanShowStreak, appSwitcher, scrollbarSize, appOrder, appHidden, recentBibleVersions,
+      readingPlanRolloverHour, readingPlanShowStreak, readingPlanOpenIn, appRailLabels, appSwitcher, scrollbarSize, appOrder, appHidden, recentBibleVersions,
     } = get();
     return {
       theme, globalFontScale, uiControlFontSize, typography, advancedPaneManagerEnabled,
       searchResultsPlacement, reopenSearchTabs, rememberReadingHistory,
-      readingPlanRolloverHour, readingPlanShowStreak, appSwitcher, scrollbarSize, appOrder, appHidden, recentBibleVersions,
+      readingPlanRolloverHour, readingPlanShowStreak, readingPlanOpenIn, appRailLabels, appSwitcher, scrollbarSize, appOrder, appHidden, recentBibleVersions,
     };
   }
 }));

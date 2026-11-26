@@ -1285,6 +1285,7 @@
 .kth-app-rail__marker--active { background: var(--kth-accent); }
 .kth-app-rail__icon { display: inline-flex; font-size: 1.25rem; }
 /* Small and pinned to the top inline-end corner so it never covers the icon; a ring in the rail colour separates it from the glyph. */
+.kth-app-rail__label { font-size: 0.6875rem; line-height: 1; text-align: center; overflow: hidden; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .kth-app-rail__badge { position: absolute; inset-block-start: 0; inset-inline-end: 0; box-shadow: 0 0 0 1px var(--kth-bg, transparent); pointer-events: none; }
 
 .kth-app-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(8rem, 1fr)); gap: var(--kth-space-3); margin: 0; padding: 0; list-style: none; }

@@ -91,4 +91,32 @@ describe('ReadingPlanDetail', () => {
     expect(onBack).toHaveBeenCalledTimes(1);
     expect(screen.queryByText('Settings for this plan')).not.toBeInTheDocument();
   });
+
+  it('row menu: mark everything up to here as read', async () => {
+    const { service, e } = await setup();
+    renderDetail(e.id);
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: 'Actions for day 3' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Mark everything up to here as read' }));
+    await waitFor(async () => expect((await service.completions(e.id)).filter((c) => c.day <= 3)).toHaveLength(6));
+    expect((await service.completions(e.id)).every((c) => c.via === 'bulk')).toBe(true);
+  });
+
+  it('row menu: unread asks first, warns history is lost, and Cancel changes nothing', async () => {
+    const { service, e } = await setup();
+    await service.setDaysDoneThrough(e.id, 4, true);
+    renderDetail(e.id);
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: 'Actions for day 2' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Mark everything up to here as unread' }));
+    const box = await screen.findByRole('alertdialog');
+    expect(box).toHaveTextContent(/record of when you read them is lost/);
+    await user.click(within(box).getByRole('button', { name: 'Cancel' }));
+    expect(await service.completions(e.id)).toHaveLength(8);
+    await user.click(screen.getByRole('button', { name: 'Actions for day 2' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Mark everything up to here as unread' }));
+    await user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Mark as unread' }));
+    await waitFor(async () => expect((await service.completions(e.id)).filter((c) => c.day <= 2)).toHaveLength(0));
+    expect((await service.completions(e.id)).filter((c) => c.day > 2)).toHaveLength(4);
+  });
 });

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { DesktopAppSwitch } from './apps/DesktopAppSwitch';
 import React from 'react';
 import ErrorBoundary from './components/ErrorBoundary';
 import TopSearchBar from './components/TopSearchBar';
@@ -488,6 +489,7 @@ function App() {
         {/* Top bar */}
         <header data-kth-region="header" className="relative z-30 border-b border-border px-lg py-sm flex-shrink-0" style={{ backgroundColor: 'var(--theme-pane-header-bg)' }}>
           <div className="flex flex-wrap items-center gap-x-lg gap-y-sm min-w-0">
+            <DesktopAppSwitch />
             <AppWordmark />
             {studyActive && <LayoutDropdown />}
             <TopSearchBar />

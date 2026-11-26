@@ -72,7 +72,7 @@ describe('reading-plans manifest', () => {
       },
     ]);
     expect(c.apps?.map((a) => a.id)).toEqual(['reading-plans']);
-    expect(c.apps?.[0]).toMatchObject({ order: 30, platforms: ['desktop'], lifecycle: { keepAlive: 'never', restore: 'default' } });
+    expect(c.apps?.[0]).toMatchObject({ order: 10, platforms: ['desktop'], lifecycle: { keepAlive: 'never', restore: 'default' } });
     expect(c.i18nNamespace).toBe('readingPlans');
   });
 });

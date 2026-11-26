@@ -86,4 +86,50 @@ describe('PlanSettingsDialog', () => {
     await userEvent.setup().click(screen.getByRole('button', { name: 'Pause plan' }));
     await waitFor(async () => expect((await service.enrollments())[0].status).toBe('paused'));
   });
+
+  describe('Start at', () => {
+    it('Day N starts part-way: the start date is hidden and days before it are read', async () => {
+      const { service } = installTestService();
+      const plan = (await service.library()).find((p) => p.key === 'stock:gospels-30')!;
+      const onStarted = vi.fn();
+      render(<Harness mode={{ kind: 'start', plan }} onClose={() => {}} onStarted={onStarted} />);
+      const user = userEvent.setup();
+      expect(screen.getByRole('radio', { name: 'Day 1' })).toBeChecked();
+      expect(screen.queryByRole('radio', { name: /calendar day/ })).not.toBeInTheDocument();
+      const input = screen.getByLabelText('Start day number');
+      await user.clear(input);
+      await user.type(input, '10');
+      expect(screen.queryByLabelText('Start date')).not.toBeInTheDocument();
+      await user.click(screen.getByRole('button', { name: /^Start Reading Plan/ }));
+      await waitFor(() => expect(onStarted).toHaveBeenCalled());
+      const e = (await service.enrollments())[0];
+      const done = await service.completions(e.id);
+      expect(new Set(done.map((c) => c.day))).toEqual(new Set(Array.from({ length: 9 }, (_, i) => i + 1)));
+      expect(done.every((c) => c.via === 'bulk')).toBe(true);
+    });
+
+    it('an out-of-range day disables Start', async () => {
+      const { service } = installTestService();
+      const plan = (await service.library()).find((p) => p.key === 'stock:gospels-30')!;
+      render(<Harness mode={{ kind: 'start', plan }} onClose={() => {}} />);
+      const user = userEvent.setup();
+      const input = screen.getByLabelText('Start day number');
+      await user.clear(input);
+      await user.type(input, '99');
+      expect(screen.getByRole('button', { name: /^Start Reading Plan/ })).toBeDisabled();
+    });
+
+    it("offers today's calendar day for a 365-day plan read every day", async () => {
+      const { service } = installTestService(new Date(2026, 1, 1, 12, 0));
+      const plan = (await service.library()).find((p) => p.dayCount === 365 || p.dayCount === 366)!;
+      const onStarted = vi.fn();
+      render(<Harness mode={{ kind: 'start', plan }} onClose={() => {}} onStarted={onStarted} />);
+      const user = userEvent.setup();
+      await user.click(screen.getByRole('radio', { name: /calendar day \(Day 32\)/ }));
+      await user.click(screen.getByRole('button', { name: /^Start Reading Plan/ }));
+      await waitFor(() => expect(onStarted).toHaveBeenCalled());
+      const e = (await service.enrollments())[0];
+      expect((await service.completions(e.id)).length).toBeGreaterThan(0);
+    });
+  });
 });

@@ -176,6 +176,18 @@ describe('AVAILABLE_THEMES', () => {
   });
 });
 
+describe('usePreferencesStore - rail labels and open-in', () => {
+  it('defaults, validates and serializes', () => {
+    const s = usePreferencesStore.getState();
+    s.loadFromSession({});
+    expect(usePreferencesStore.getState()).toMatchObject({ appRailLabels: true, readingPlanOpenIn: 'tab' });
+    s.loadFromSession({ appRailLabels: false, readingPlanOpenIn: 'current' });
+    expect(usePreferencesStore.getState().getSessionData()).toMatchObject({ appRailLabels: false, readingPlanOpenIn: 'current' });
+    s.loadFromSession({ appRailLabels: 'x', readingPlanOpenIn: 'zzz' });
+    expect(usePreferencesStore.getState()).toMatchObject({ appRailLabels: true, readingPlanOpenIn: 'tab' });
+  });
+});
+
 describe('usePreferencesStore - reading plan preferences', () => {
   it('defaults, validates on load and serializes', () => {
     const s = usePreferencesStore.getState();

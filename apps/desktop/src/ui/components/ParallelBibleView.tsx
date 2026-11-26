@@ -1,10 +1,12 @@
 import { Bdi } from '@bible/ui';
 import BibleHeader from './BibleHeader';
 import { contentDirAttrs } from '../utils/contentDirection';
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useContext, useRef, useEffect, useState } from 'react';
 import { useI18n } from '../contexts/useI18n';
 import { usePreferencesStore } from '../stores/usePreferencesStore';
 import { verseLabelText, verseGutterClass } from '../utils/verseLabel';
+import BiblePaneContext from './BiblePaneContext';
+import { ReaderChapterEnd } from '../modules/host/slots';
 import { useBiblePanel } from '../stores/hooks/useBiblePanel';
 import { useCommentaryStore } from '../stores/useCommentaryStore';
 import { useNotesStore } from '../stores/useNotesStore';
@@ -47,6 +49,10 @@ const ParallelBibleView: React.FC<ParallelBibleViewProps> = ({ panelId }) => {
     setSelectedVerse,
     extendSelectionTo
   } = useBiblePanel(panelId);
+
+  // The pane context is absent in isolated renders; the chapter-end slot then gets a no-op.
+  const paneContext = useContext(BiblePaneContext);
+  const handleNextChapter = paneContext?.handleNextChapter;
 
   const { syncAllPanelsWithVerse } = useCommentaryStore();
   const { syncAllPanelsWithVerse: syncAllNotesPanelsWithVerse } = useNotesStore();
@@ -442,6 +448,14 @@ const ParallelBibleView: React.FC<ParallelBibleViewProps> = ({ panelId }) => {
           })}
         </tbody>
       </table>
+      <div className="px-xl">
+        <ReaderChapterEnd
+          book={currentBook}
+          chapter={currentChapter}
+          displayMode="parallel"
+          onNext={handleNextChapter ?? (() => {})}
+        />
+      </div>
     </div>
   );
 };

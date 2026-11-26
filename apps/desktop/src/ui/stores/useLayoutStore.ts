@@ -151,6 +151,8 @@ interface LayoutState {
 
   /** Dynamic subtitles set by panel components at runtime (e.g., Notes showing current doc name) */
   dynamicSubtitles: Map<string, string>;
+  /** A panel title a module sets over the panel's own (task 0222); the title sync applies it. */
+  titleOverrides: Map<string, string>;
 
   /**
    * Groups squeezed to zero size - by a layout preset (Reading Mode collapses
@@ -178,6 +180,8 @@ interface LayoutState {
 
   /** Set or clear a dynamic subtitle for a panel */
   setDynamicSubtitle: (panelId: string, subtitle: string | null) => void;
+  /** Set (or, with null, clear) a panel's title override. */
+  setTitleOverride: (panelId: string, title: string | null) => void;
 
   /** Serialize current layout for session persistence */
   serializeLayout: () => SerializedDockview | null;
@@ -351,6 +355,7 @@ export const useLayoutStore = create<LayoutState>((set, get) => ({
   activePanelId: null,
   lastActiveBiblePanelId: null,
   dynamicSubtitles: new Map(),
+  titleOverrides: new Map(),
   collapsedGroups: [],
 
   setDockviewApi: (api: DockviewApi) => {
@@ -410,6 +415,19 @@ export const useLayoutStore = create<LayoutState>((set, get) => ({
         dynamicSubtitles.delete(panelId);
       }
       return { dynamicSubtitles };
+    });
+  },
+
+  setTitleOverride: (panelId: string, title: string | null) => {
+    set((state) => {
+      if ((state.titleOverrides.get(panelId) ?? null) === (title || null)) return state;
+      const titleOverrides = new Map(state.titleOverrides);
+      if (title) {
+        titleOverrides.set(panelId, title);
+      } else {
+        titleOverrides.delete(panelId);
+      }
+      return { titleOverrides };
     });
   },
 

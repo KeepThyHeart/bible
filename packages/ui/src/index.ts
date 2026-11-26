@@ -136,6 +136,8 @@ export type { QuizPanelProps, QuizLabels } from './components/Quiz/types';
 
 export { ReadingPlanTodayCard, DEFAULT_READING_PLAN_TODAY_CARD_LABELS } from './components/ReadingPlans/ReadingPlanTodayCard';
 export type { ReadingPlanTodayCardProps, ReadingPlanTodayCardLabels } from './components/ReadingPlans/ReadingPlanTodayCard';
+export { ReadingPlanWeekStrip, DEFAULT_READING_PLAN_WEEK_STRIP_LABELS } from './components/ReadingPlans/ReadingPlanWeekStrip';
+export type { ReadingPlanWeekStripProps, ReadingPlanWeekStripLabels } from './components/ReadingPlans/ReadingPlanWeekStrip';
 export { ReadingPlanDayGrid, DEFAULT_READING_PLAN_DAY_GRID_LABELS } from './components/ReadingPlans/ReadingPlanDayGrid';
 export type { ReadingPlanDayGridProps, ReadingPlanDayGridLabels } from './components/ReadingPlans/ReadingPlanDayGrid';
 export { ReadingPlanLibrary, DEFAULT_READING_PLAN_LIBRARY_LABELS } from './components/ReadingPlans/ReadingPlanLibrary';
@@ -167,7 +169,7 @@ export type {
 
 // App host surfaces (task 0080).
 export {
-  AppBadge, AppRail, AppTileGrid, AppSheet, AppSwitchButton, AppStage,
+  AppBadge, AppRail, AppTileGrid, AppSheet, AppSwitchButton, aggregateBadge, AppStage,
   DEFAULT_APP_RAIL_LABELS, DEFAULT_APP_TILE_GRID_LABELS,
   AppsPreferences, DEFAULT_APPS_PREFERENCES_LABELS,
 } from './components/apps';

@@ -45,6 +45,15 @@ describe('AppRail', () => {
     expect(study).toHaveAccessibleName(/Study.*3 unread/ );
   });
 
+  it('adds the badge label to the tooltip, and labels only when asked', () => {
+    const { container, rerender } = render(<AppRail items={items} activeId="read" onSelect={() => {}} />);
+    expect(screen.getByRole('button', { name: /Study/ })).toHaveAttribute('title', 'Study · 3 unread');
+    expect(container.querySelector('.kth-app-rail__label')).toBeNull();
+    rerender(<AppRail items={[{ ...items[2], shortTitle: 'Qz' }]} activeId="read" onSelect={() => {}} showLabels />);
+    expect(container.querySelector('.kth-app-rail--labels')).not.toBeNull();
+    expect(container.querySelector('.kth-app-rail__label')?.textContent).toBe('Qz');
+  });
+
   it('uses a roving tabindex starting at the active item', () => {
     render(<AppRail items={items} activeId="study" onSelect={() => {}} />);
     const tabs = screen.getAllByRole('button').map((b) => b.getAttribute('tabindex'));

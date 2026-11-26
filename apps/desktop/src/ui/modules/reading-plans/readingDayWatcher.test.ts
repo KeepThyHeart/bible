@@ -31,3 +31,23 @@ describe('watchReadingDay', () => {
     expect(onTick).toHaveBeenCalledTimes(3);
   });
 });
+
+describe('watchReadingDay re-arming', () => {
+  it('re-aims the timeout when the rollover preference changes', async () => {
+    const { usePreferencesStore } = await import('../../stores/usePreferencesStore');
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 9, 1, 22, 0));
+    let hour = 3;
+    usePreferencesStore.setState({ readingPlanRolloverHour: 3 });
+    const onTick = vi.fn();
+    const stop = watchReadingDay(onTick, () => hour);
+    hour = 23; // would fire in 1 hour, not 5
+    usePreferencesStore.setState({ readingPlanRolloverHour: 23 });
+    vi.advanceTimersByTime(3600_000);
+    expect(onTick).toHaveBeenCalledTimes(1);
+    stop();
+    usePreferencesStore.setState({ readingPlanRolloverHour: 4 });
+    vi.advanceTimersByTime(48 * 3600_000);
+    expect(onTick).toHaveBeenCalledTimes(1);
+  });
+});

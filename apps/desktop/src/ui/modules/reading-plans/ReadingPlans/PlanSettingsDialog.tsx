@@ -9,6 +9,7 @@ import { useI18n } from '../../../contexts/useI18n';
 import { getReadingPlanService } from '../readingPlansAPI';
 import { DESKTOP_SETTINGS, getDesktopSettingsStore } from '../../../settings/desktopSettings';
 import { isEnabled } from '../../../settings/featureFlags';
+import { rpTextWith } from '../rpText';
 import type { ReadingPlanLabelSet } from './useReadingPlanLabels';
 
 type Weekday = ReadingPlans.Weekday;
@@ -45,6 +46,17 @@ export const ReadingPlanSettings: React.FC = () => {
   );
 };
 
+type StartAt = 'day1' | 'dayN' | 'calendar';
+
+/** The plan day matching today's calendar day for a 365/366-day plan (day of the year, capped at the plan's length). */
+export function calendarDayFor(iso: string, dayCount: number): number {
+  const ms = ReadingPlans.parseIsoDate(iso);
+  if (ms === null) return 1;
+  const d = new Date(ms);
+  const dayOfYear = Math.floor((ms - Date.UTC(d.getUTCFullYear(), 0, 0)) / 86_400_000);
+  return Math.min(Math.max(dayOfYear, 1), dayCount);
+}
+
 const sameDays = (a: Weekday[], b: Weekday[]) => a.length === b.length && a.every((d, i) => d === b[i]);
 
 const PlanSettingsDialog: React.FC<PlanSettingsDialogProps> = ({
@@ -57,6 +69,8 @@ const PlanSettingsDialog: React.FC<PlanSettingsDialogProps> = ({
   const [pacing, setPacing] = useState<Pacing>('flexible');
   const [startDate, setStartDate] = useState('');
   const [reminder, setReminder] = useState('');
+  const [startAt, setStartAt] = useState<StartAt>('day1');
+  const [startDayText, setStartDayText] = useState('2');
   const [busy, setBusy] = useState(false);
   const [confirmRemove, setConfirmRemove] = useState(false);
   const [confirmFlexible, setConfirmFlexible] = useState(false);
@@ -70,6 +84,8 @@ const PlanSettingsDialog: React.FC<PlanSettingsDialogProps> = ({
       setPacing('flexible');
       setStartDate(service.today());
       setReminder('');
+      setStartAt('day1');
+      setStartDayText('2');
     } else {
       const e = mode.detail.enrollment;
       setReadingDays([...e.readingDays]);
@@ -88,8 +104,19 @@ const PlanSettingsDialog: React.FC<PlanSettingsDialogProps> = ({
     ? labels.stockName(mode.plan)
     : displayName(mode.detail.enrollment.planKey, mode.detail.enrollment.planName);
   const dateValid = ReadingPlans.isIsoDate(startDate);
-  const showDate = mode.kind === 'start' || pacing === 'fixed';
-  const needsDate = showDate && !dateValid;
+  const startPlanInfo = mode.kind === 'start' ? mode.plan : null;
+  const dayCount = startPlanInfo?.dayCount ?? 0;
+  // "Today's calendar day" only suits a plan laid out over a year that is read every day of the week.
+  const calendarOffered = !!startPlanInfo && (dayCount === 365 || dayCount === 366) && readingDays.length === 7;
+  const calendarDay = calendarOffered ? calendarDayFor(service.today(), dayCount) : 1;
+  const effectiveStartAt: StartAt = startAt === 'calendar' && !calendarOffered ? 'day1' : startAt;
+  const typedDay = Number(startDayText);
+  const dayNValid = Number.isInteger(typedDay) && typedDay >= 2 && typedDay <= dayCount;
+  const startDay = effectiveStartAt === 'calendar' ? calendarDay : effectiveStartAt === 'dayN' ? (dayNValid ? typedDay : 0) : 1;
+  const partWay = mode.kind === 'start' && effectiveStartAt !== 'day1';
+  // Part-way, the chosen day is today: there is no start date to ask for.
+  const showDate = (mode.kind === 'start' && !partWay) || (mode.kind === 'edit' && pacing === 'fixed');
+  const needsDate = (showDate && !dateValid) || (partWay && startDay === 0);
 
   const attempt = async (fn: () => Promise<void>): Promise<boolean> => {
     setBusy(true);
@@ -109,7 +136,10 @@ const PlanSettingsDialog: React.FC<PlanSettingsDialogProps> = ({
     if (mode.kind !== 'start') return;
     let created: ReadingPlans.Enrollment | null = null;
     const ok = await attempt(async () => {
-      created = await service.startPlan(mode.plan.key, { startDate, pacing, readingDays });
+      created = await service.startPlan(mode.plan.key, {
+        pacing, readingDays,
+        ...(partWay ? { startDay } : { startDate }),
+      });
     });
     if (ok && created) onStarted(created);
   };
@@ -188,6 +218,29 @@ const PlanSettingsDialog: React.FC<PlanSettingsDialogProps> = ({
             <Radio name="rp-pacing" checked={pacing === 'fixed'} onChange={() => setPacing('fixed')}
               label={labels.schedule.fixed} hint={labels.schedule.fixedHint} />
           </fieldset>
+          {startPlanInfo && dayCount > 1 ? (
+            <fieldset className="kth-fieldset" data-testid="start-at">
+              <legend>{rpTextWith(t, 'readingPlans.settings.startAt', 'Start at')}</legend>
+              <Radio name="rp-start-at" checked={effectiveStartAt === 'day1'} onChange={() => setStartAt('day1')}
+                label={rpTextWith(t, 'readingPlans.settings.startDay1', 'Day 1')} />
+              <div className="flex items-center gap-sm">
+                <Radio name="rp-start-at" checked={effectiveStartAt === 'dayN'} onChange={() => setStartAt('dayN')}
+                  label={rpTextWith(t, 'readingPlans.settings.startDayN', 'Day')} />
+                <input type="number" className="kth-input" style={{ inlineSize: '5rem' }} min={2} max={dayCount} value={startDayText}
+                  aria-label={rpTextWith(t, 'readingPlans.settings.startDayNumber', 'Start day number')}
+                  onFocus={() => setStartAt('dayN')} onChange={(ev) => { setStartDayText(ev.target.value); setStartAt('dayN'); }} />
+              </div>
+              {effectiveStartAt === 'dayN' && !dayNValid ? (
+                <div className="kth-text-muted text-xs" role="status">
+                  {rpTextWith(t, 'readingPlans.settings.startDayRange', 'Choose a day from 2 to {max}.', { max: dayCount })}
+                </div>
+              ) : null}
+              {calendarOffered ? (
+                <Radio name="rp-start-at" checked={effectiveStartAt === 'calendar'} onChange={() => setStartAt('calendar')}
+                  label={rpTextWith(t, 'readingPlans.settings.startCalendar', "Today's calendar day (Day {day})", { day: calendarDay })} />
+              ) : null}
+            </fieldset>
+          ) : null}
           {showDate ? (
             <div className="kth-field">
               <label htmlFor="rp-start-date">{labels.schedule.startDate}</label>

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { KeyboardEvent } from 'react';
+import type { KeyboardEvent, MouseEvent } from 'react';
 import { AppBadge } from './AppBadge';
 import type { AppNavEntry } from './types';
 
@@ -18,10 +18,15 @@ export interface AppRailProps {
   labels?: Partial<AppRailLabels>;
   orientation?: 'vertical' | 'horizontal';
   className?: string;
+  /** Show each app's short title under its icon. Default false (the web rail stays icon-only). */
+  showLabels?: boolean;
+  /** Right-click on the rail (the desktop opens its "Show labels" menu). */
+  onContextMenu?: (e: MouseEvent<HTMLElement>) => void;
 }
 
 export function appTooltip(item: AppNavEntry): string {
-  return item.shortcutHint ? `${item.title} (${item.shortcutHint})` : item.title;
+  const base = item.badge?.label ? `${item.title} · ${item.badge.label}` : item.title;
+  return item.shortcutHint ? `${base} (${item.shortcutHint})` : base;
 }
 
 /**
@@ -29,7 +34,7 @@ export function appTooltip(item: AppNavEntry): string {
  * move focus; Enter/Space activate. The active app carries aria-current="page" and a marker bar.
  */
 export function AppRail(props: AppRailProps) {
-  const { items, activeId, onSelect, onPrefetch, orientation = 'vertical', className } = props;
+  const { items, activeId, onSelect, onPrefetch, orientation = 'vertical', className, showLabels = false, onContextMenu } = props;
   const l = { ...DEFAULT_APP_RAIL_LABELS, ...props.labels };
   const [focusId, setFocusId] = useState<string | null>(null);
   const tabId = items.some((i) => i.id === focusId)
@@ -53,9 +58,9 @@ export function AppRail(props: AppRailProps) {
     buttons[to].focus();
   };
 
-  const cls = ['kth-app-rail', `kth-app-rail--${orientation}`, className].filter(Boolean).join(' ');
+  const cls = ['kth-app-rail', `kth-app-rail--${orientation}`, showLabels ? 'kth-app-rail--labels' : '', className].filter(Boolean).join(' ');
   return (
-    <nav className={cls} aria-label={l.railLabel} onKeyDown={onKeyDown}>
+    <nav className={cls} aria-label={l.railLabel} onKeyDown={onKeyDown} onContextMenu={onContextMenu}>
       <ul className="kth-app-rail__list">
         {items.map((item) => {
           const active = item.id === activeId;
@@ -75,6 +80,7 @@ export function AppRail(props: AppRailProps) {
               >
                 <span className={`kth-app-rail__marker kth-app-rail__marker--${orientation}${active ? ' kth-app-rail__marker--active' : ''}`} aria-hidden="true" />
                 <span className="kth-app-rail__icon" aria-hidden="true">{item.icon}</span>
+                {showLabels && <span className="kth-app-rail__label" aria-hidden="true">{item.shortTitle ?? item.title}</span>}
                 <span className="kth-visually-hidden">{item.title}</span>
                 {item.badge && <AppBadge badge={item.badge} className="kth-app-rail__badge" />}
               </button>

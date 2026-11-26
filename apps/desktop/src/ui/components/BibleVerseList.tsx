@@ -27,7 +27,7 @@ import { VerseIdHelper } from '@bible/core';
 import { useVerseDecorationStore } from '../extensions/verseDecorationStore';
 import { VerseGutter, useHasEnabledDecoratorLayers } from '../extensions/VerseGutterLane';
 import { useVerseHoverTrigger } from '../extensions/useVerseHoverTrigger';
-import { ReaderPaintControllers, ReaderVerseBlocks } from '../modules/host/slots';
+import { ReaderChapterEnd, ReaderPaintControllers, ReaderVerseBlocks } from '../modules/host/slots';
 
 /**
  * The main content area of the Bible pane: renders verses in reading/standard/study
@@ -385,6 +385,7 @@ const BibleVerseList: React.FC = () => {
                   scrollTrigger={scrollTrigger}
                   scrollMode={scrollMode}
                 />
+                <ReaderChapterEnd book={currentBook} chapter={currentChapter} displayMode="study" onNext={handleNextChapter} />
               </HighlightSelector>
             ) : (
               // Standard/Reading modes with highlighting support
@@ -604,6 +605,12 @@ const BibleVerseList: React.FC = () => {
                       </div>
                     )}
                   </HighlightSelector>
+                  <ReaderChapterEnd
+                    book={currentBook}
+                    chapter={currentChapter}
+                    displayMode={displayMode === 'reading' ? 'reading' : 'standard'}
+                    onNext={handleNextChapter}
+                  />
                   <ChapterEndLinks
                     book={currentBook}
                     chapter={currentChapter}
