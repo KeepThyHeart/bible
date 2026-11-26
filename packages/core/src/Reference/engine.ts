@@ -29,9 +29,6 @@ import {
 import { parseTail, type RawRange } from './tail';
 import type { ReferenceListError, ReferenceListItem, ReferenceListOptions, ReferenceListResult } from './list';
 
-/** List separators after normalisation (NFKC already folds the full-width forms). */
-const LIST_SEPARATORS = /[;,\u060C\u061B\u3001]/u;
-const LIST_BOOK_START = /^(?:\d\s*)?\p{L}/u;
 import type {
   BookNameStyle,
   RefBook,
@@ -45,6 +42,10 @@ import type {
   ReferenceScanOptions,
   ReferenceRange,
 } from './types';
+
+/** List separators after normalisation (NFKC already folds the full-width forms). */
+const LIST_SEPARATORS = /[;,\u060C\u061B\u3001]/u;
+const LIST_BOOK_START = /^(?:\d\s*)?\p{L}/u;
 
 export interface ReferenceEngineOptions {
   /** BCP 47 tags in priority order, e.g. [uiLocale, 'en']. Tags with no loaded data are skipped. */

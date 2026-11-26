@@ -26,7 +26,7 @@ export function ListenButton({ tab }: ReaderToolbarActionProps) {
       if (!audioActive) void audioStore.play();
       return;
     }
-    audioStore.togglePlay();
+    audioStore.togglePlay(tab?.id);
   };
 
   // "Play passages…": open the player aimed at this tab, to type a list before anything plays.

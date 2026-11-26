@@ -38,8 +38,8 @@ const ElsewhereStrip: React.FC<{ now: ReturnType<typeof useNowPlaying>; status: 
       <button type="button" className="audio-btn" onClick={() => audioStore.togglePlay()} title={playing ? t('audio.pause') : t('audio.play')} aria-label={playing ? t('audio.pause') : t('audio.play')} data-testid="audio-elsewhere-play-pause">
         <AudioIcon name={playing ? 'pause' : 'play'} />
       </button>
-      <button type="button" className="audio-btn" onClick={() => audioStore.stop()} title={t('audio.transport.close')} aria-label={t('audio.transport.close')} data-testid="audio-elsewhere-stop">
-        <AudioIcon name="close" />
+      <button type="button" className="audio-btn" onClick={() => audioStore.stop()} title={t('audio.player.stop')} aria-label={t('audio.player.stop')} data-testid="audio-elsewhere-stop">
+        <AudioIcon name="stop" />
       </button>
     </div>
   );

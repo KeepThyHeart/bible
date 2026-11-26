@@ -45,6 +45,25 @@ describe('AudioPlaylist', () => {
     expect(spy.mock.calls[0][0]).toBe(bibleStore.activeTabId);
   });
 
+  it('Play targets the pane picked on the Listen button over the playing tab', () => {
+    const spy = vi.spyOn(audioStore, 'playPassages').mockResolvedValue();
+    audioStore.playingTabId = 'playing-tab';
+    audioStore.targetTabId = 'picked-tab';
+    render(<AudioPlaylist startExpanded />);
+    const input = screen.getByTestId('audio-passages-input');
+    fireEvent.input(input, { target: { value: 'Ps 23' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(spy.mock.calls[0][0]).toBe('picked-tab');
+  });
+
+  it('removing a chip splices that item out of the typed text and leaves the rest as typed', () => {
+    render(<AudioPlaylist startExpanded />);
+    const input = screen.getByTestId('audio-passages-input') as HTMLInputElement;
+    fireEvent.input(input, { target: { value: 'ps 23;  Rom 8:28-39 , gen 1' } });
+    fireEvent.click(screen.getAllByTestId('audio-passage-chip')[1].querySelector('button')!);
+    expect(input.value).toBe('ps 23;  gen 1');
+  });
+
   it('shows an error and does not play for a bad reference', () => {
     const spy = vi.spyOn(audioStore, 'playPassages').mockResolvedValue();
     render(<AudioPlaylist startExpanded />);
@@ -63,7 +82,7 @@ describe('AudioPlaylist', () => {
     expect(audioStore.prefs.continueAfterChapter).toBe(before === 'stop' ? 'next-chapter' : 'stop');
     fireEvent.click(screen.getByTestId('audio-quick-loop-passage'));
     expect(audioStore.prefs.passageLoop).toBe('passage');
-    expect(screen.getByTestId('audio-quick-loop-passage').getAttribute('aria-checked')).toBe('true');
+    expect(screen.getByTestId('audio-quick-loop-passage').getAttribute('aria-pressed')).toBe('true');
   });
 
   it('progress and prev/next passage show only for a typed list', async () => {

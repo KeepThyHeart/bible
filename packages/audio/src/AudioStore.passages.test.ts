@@ -525,7 +525,18 @@ describe('review fixes', () => {
     provider.openChapter = () => Promise.reject({ code: 'not-found', message: 'x', retryable: false });
     await store.playPassages('A', [range({ chapter: 1 }), range({ chapter: 2 })]);
     await flush();
-    expect(store.status).toBe('error');
+    expect(store.status).toBe('idle'); // ended cleanly, not left in an error state
+    expect(store.notice?.key).toBe('audio.notice.passageSkipped');
+  });
+
+  it('a missing last passage ends cleanly (idle, notice), not in an error state', async () => {
+    await store.playPassages('A', [range({ chapter: 1, verse: 1, endVerse: 1 }), range({ chapter: 2 })]);
+    await flush();
+    provider.openFails = { code: 'not-found', message: 'x', retryable: false };
+    await readTo(1);
+    await flush();
+    expect(store.status).toBe('idle');
+    expect(store.notice?.key).toBe('audio.notice.passageSkipped');
   });
 
   it('restored bookmarks for unknown tabs survive; a seen tab that closes loses its bookmark', () => {
@@ -547,5 +558,101 @@ describe('review fixes', () => {
     expect(store.playerOpen).toBe(true);
     store.stop();
     expect(store.playerOpen).toBe(false);
+  });
+});
+
+describe('review round 1', () => {
+  const sel = (verse: number, chapter = 1) => 43_000_000 + chapter * 1_000 + verse;
+
+  it('the live bookmark carries the live selection, so a restored one resumes at the live verse', async () => {
+    reader.selection.set('A', sel(1)); // the navigation default
+    await store.play('A');
+    await flush();
+    out.tick(25);
+    await flush();
+    const saved = new Map(store.allBookmarks());
+    expect(saved.get('A')).toMatchObject({ verse: 3, selAtSave: sel(1) });
+    store.dispose();
+    build();
+    reader.selection.set('A', sel(1));
+    store.restoreBookmarks(saved);
+    await store.play('A');
+    await flush();
+    expect(cur()).toEqual(at(3));
+  });
+
+  it('a verse clicked during play is the live selection too', async () => {
+    await store.play('A');
+    await flush();
+    out.tick(25);
+    await flush();
+    reader.selection.set('A', sel(5));
+    const saved = new Map(store.allBookmarks());
+    expect(saved.get('A')).toMatchObject({ verse: 3, selAtSave: sel(5) });
+    store.dispose();
+    build();
+    reader.selection.set('A', sel(5));
+    store.restoreBookmarks(saved);
+    await store.play('A');
+    await flush();
+    expect(cur()).toEqual(at(3));
+  });
+
+  it('Listen on a pane picked with setTargetTab retargets and keeps the first pane\'s place', async () => {
+    reader.addTab('B', 43, 2);
+    await store.play('A');
+    await flush();
+    out.tick(15);
+    await flush();
+    store.openPlayer();
+    store.setTargetTab('B');
+    await store.playPassages('B', [range({ chapter: 2, verse: 3, endVerse: 3 })]);
+    await flush();
+    expect(store.playingTabId).toBe('B');
+    expect(store.targetTabId).toBeNull();
+    expect(store.bookmarkFor('A')).toMatchObject({ chapter: 1, verse: 2 });
+    expect(reader.markStopped).not.toHaveBeenCalled();
+    store.setTargetTab('A');
+    store.closePlayer();
+    expect(store.targetTabId).toBeNull();
+  });
+
+  it('useChapterList while idle acts on the target tab\'s bookmark', () => {
+    reader.addTab('B');
+    store.restoreBookmarks({ B: { moduleAbbr: 'KJV', book: 43, chapter: 2, verse: 1, queue: { kind: 'list', index: 0, passages: [{ book: 43, chapter: 2 }] } } });
+    store.setTargetTab('B');
+    store.useChapterList();
+    expect(store.bookmarkFor('B')?.queue?.kind).toBe('chapter');
+  });
+
+  it('coming back to a chapter: the default verse-1 selection does not beat the remembered verse, a click elsewhere does', async () => {
+    await store.play('A');
+    await flush();
+    out.tick(25);
+    await flush();
+    reader.navigate('A', 43, 3); // leave mid-chapter: quiet bookmark, playback stops
+    reader.navigate('A', 43, 1); // come back; the app selects verse 1 by itself
+    reader.selection.set('A', sel(1));
+    await store.play('A');
+    await flush();
+    expect(cur()).toEqual(at(3));
+    store.stop();
+    reader.selection.set('A', sel(4));
+    await store.play('A');
+    await flush();
+    expect(cur()).toEqual(at(4));
+  });
+
+  it('a loop that cannot seek (verse not shown) reopens synchronously and keeps playing', async () => {
+    store.setPassageLoop('passage');
+    await store.playPassages('A', [range({ chapter: 1, verse: 4, endVerse: 4 })]);
+    await flush();
+    reader.tab('A')!.verses = [{ verse: 1 }, { verse: 2 }];
+    const opened = provider.openCalls.length;
+    await readTo(4);
+    expect(provider.openCalls.length).toBe(opened + 1);
+    expect(store.status).toBe('playing');
+    await flush();
+    expect(provider.openCalls.length).toBe(opened + 1); // nothing started late
   });
 });

@@ -30,13 +30,12 @@ export function PassageOptions({ prefix, showHint }: { prefix: 'audio' | 'audio-
       {showHint && queue?.kind === 'list' && <div class="audio-passage-options__hint">{t('audio.continue.listHint')}</div>}
       <div class="audio-panel__row">
         <span class="audio-panel__label" id={labelId}>{t('audio.loop.label')}</span>
-        <div class="audio-segmented" role="radiogroup" aria-labelledby={labelId} data-testid={`${prefix}-loop`}>
+        <div class="audio-segmented" role="group" aria-labelledby={labelId} data-testid={`${prefix}-loop`}>
           {LOOPS.map(loop => (
             <button
               key={loop}
               type="button"
-              role="radio"
-              aria-checked={prefs.passageLoop === loop}
+              aria-pressed={prefs.passageLoop === loop}
               class={`audio-segmented__btn${prefs.passageLoop === loop ? ' audio-segmented__btn--active' : ''}`}
               data-testid={`${prefix}-loop-${loop}`}
               onClick={() => audioStore.setPassageLoop(loop)}

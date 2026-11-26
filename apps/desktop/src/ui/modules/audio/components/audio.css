@@ -387,7 +387,8 @@
 
 /* Listen button with its "Play passages…" chevron */
 .audio-listen-group { display: inline-flex; align-items: center; }
-.audio-listen-group .audio-toolbar-btn--chevron { padding-inline: 4px; min-inline-size: 0; }
+.audio-listen-group .audio-toolbar-btn--chevron { padding-inline: 4px; min-inline-size: 0; background: transparent; border-inline-end: 2px solid var(--theme-border-primary); color: inherit; }
+.audio-listen-group .audio-toolbar-btn--chevron:hover:not(:disabled) { background: var(--theme-bg-active); }
 
 /* Playlist (pop-up) */
 .audio-playlist { display: flex; flex-direction: column; gap: 8px; font-size: 0.8125rem; }
@@ -427,4 +428,3 @@
 }
 .audio-elsewhere__text { flex: 1; min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .audio-btn--text.audio-btn--primary { border-radius: 6px; }
-.audio-chevron-down { transform: rotate(90deg); }

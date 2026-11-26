@@ -14,6 +14,7 @@ import { bibleStore } from '../../../stores/bibleStore';
 import { moduleStore } from '../../../stores/moduleStore';
 import { useStore } from '../../../hooks/useStore';
 import { chapterCountOf, engineFor, rangeOf } from '../hooks/usePassageLabel';
+import { removeSpan } from '../lib/removeSpan';
 import { PassageOptions } from './PassageOptions';
 
 const ERROR_KEY: Record<string, string> = {
@@ -64,14 +65,16 @@ export function AudioPlaylist({ startExpanded }: { startExpanded?: boolean }) {
     if (timer.current) clearTimeout(timer.current);
     const r = parse(text);
     setResult(r);
-    if (!r.ok || !tabId) return;
+    // The pane picked on the Listen button wins; else the one playing; else the active pane.
+    const target = audioStore.targetTabId ?? audioStore.playingTabId ?? activeId;
+    if (!r.ok || !target) return;
     dirty.current = false;
     setOpen(false);
-    void audioStore.playPassages(tabId, toPassages(r.items.map(i => i.range), chapterCountOf));
+    void audioStore.playPassages(target, toPassages(r.items.map(i => i.range), chapterCountOf));
   };
   const remove = (index: number) => {
-    const kept = (parsed?.items ?? []).filter((_, i) => i !== index).map(i => i.text);
-    onInput(kept.join('; '));
+    const it = parsed?.items[index];
+    if (it) onInput(removeSpan(text, it.start, it.end));
   };
 
   const errorText = (e: { reason: string; text: string; book?: number }) =>

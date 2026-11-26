@@ -62,7 +62,7 @@ export const ListenButton: React.FC<{ tabId: string }> = () => {
       aria-haspopup="dialog"
       data-testid="audio-passages-open"
     >
-      <AudioIcon name="chevron" size={10} className="audio-chevron-down" />
+      <AudioIcon name="chevronDown" size={14} />
     </button>
     </span>
   );

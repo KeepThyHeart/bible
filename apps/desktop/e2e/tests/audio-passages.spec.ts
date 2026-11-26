@@ -212,7 +212,7 @@ test.describe.serial('Audio passage lists (desktop)', () => {
       await expect(window.getByTestId('audio-passage-chip')).toHaveCount(2);
       const loopList = window.getByTestId('audio-loop-list');
       await loopList.click();
-      await expect(loopList).toHaveAttribute('aria-checked', 'true');
+      await expect(loopList).toHaveAttribute('aria-pressed', 'true');
 
       await window.getByTestId('audio-passages-play').click();
       const progress = window.getByTestId('audio-passage-progress');
@@ -226,7 +226,7 @@ test.describe.serial('Audio passage lists (desktop)', () => {
       // Back to play-once for the cases that follow.
       await window.getByTestId('audio-passages-open').first().click();
       await window.getByTestId('audio-loop-once').click();
-      await expect(window.getByTestId('audio-loop-once')).toHaveAttribute('aria-checked', 'true');
+      await expect(window.getByTestId('audio-loop-once')).toHaveAttribute('aria-pressed', 'true');
       await window.getByTestId('audio-popup-close').click();
       await expect(window.getByTestId('audio-popup')).toHaveCount(0);
     });

@@ -261,8 +261,9 @@ export class AudioStore extends Store {
   }
 
   closePlayer(): void {
-    if (!this.playerOpen) return;
+    if (!this.playerOpen && this.targetTabId === null) return;
     this.playerOpen = false;
+    this.targetTabId = null;
     this.notify();
   }
 
@@ -380,7 +381,9 @@ export class AudioStore extends Store {
     // A selection is the reader's own, new choice only when it differs from the one left at the
     // last save and from the saved verse (a stale selection must not override the saved place).
     const bmId = bm ? verseIdOf(bm.book, bm.chapter, bm.verse) : null;
-    const fresh = selected !== null && selId !== bm?.selAtSave && selId !== bmId;
+    // Navigation selects verse 1 of the new chapter by itself, so with a saved place verse 1 is not
+    // a choice either (a deliberate click of verse 1 loses to the saved place; any other verse wins).
+    const fresh = selected !== null && selId !== bm?.selAtSave && selId !== bmId && !(bm && selected === 1);
     const chapterQueue = chapterQueueOf(tab.book!, tab.chapter!);
     if (bm?.queue?.kind === 'list') {
       // Resume the typed list, unless the reader picked a verse of this chapter outside its current passage.
@@ -410,6 +413,7 @@ export class AudioStore extends Store {
     if (!this.system || !tab || list.length === 0 || tab.loading) return;
     if (this.availability(tab.moduleAbbr) === 'none') return;
     const index = Number.isInteger(startIndex) ? Math.min(Math.max(0, startIndex), list.length - 1) : 0;
+    this.targetTabId = null; // the explicit tab was the target; it is used up
     await this.startPassage(tab, { kind: 'list', passages: list, index });
   }
 
@@ -461,7 +465,7 @@ export class AudioStore extends Store {
       return;
     }
     // Idle: change the saved place of the tab Listen would act on.
-    const tab = this.reader.activeTab();
+    const tab = (this.targetTabId ? this.reader.tab(this.targetTabId) : undefined) ?? this.reader.activeTab();
     const bm = tab ? this.bookmarks.get(tab.id) : undefined;
     if (tab && bm?.queue?.kind === 'list') {
       this.bookmarks.set(tab.id, { ...bm, queue: chapterQueueOf(bm.book, bm.chapter) });
@@ -514,8 +518,8 @@ export class AudioStore extends Store {
       if (at) {
         const mark: AudioBookmark = { moduleAbbr: this.playingModule ?? at.moduleAbbr, book: at.book, chapter: at.chapter, verse: at.verse };
         if (this.queue) mark.queue = this.queue;
-        const selAtSave = this.bookmarks.get(tabId)?.selAtSave;
-        if (selAtSave !== undefined) mark.selAtSave = selAtSave;
+        const live = this.reader.selectionStart(tabId); // what is selected now, not what was at the last save
+        if (live != null) mark.selAtSave = live;
         return mark;
       }
     }
@@ -568,6 +572,11 @@ export class AudioStore extends Store {
     this.place = { ...from };
     this.ended = false;
     this.advancesWithoutVerse = 0;
+    const stored = this.bookmarks.get(tab.id);
+    if (stored) { // the selection at the start of this play is the one a later resume must treat as stale
+      const sel = this.reader.selectionStart(tab.id);
+      this.bookmarks.set(tab.id, { ...stored, ...(sel != null ? { selAtSave: sel } : {}) });
+    }
     const seq = ++this.playSeq;
     this.cancelGate(false);
     this.staleSource = false;
@@ -1065,9 +1074,17 @@ export class AudioStore extends Store {
     const q = this.queue;
     if (!this.system || !q || q.kind !== 'list') return false;
     const j = nextIndex(q, this.prefs.passageLoop);
-    if (j === null || j === q.index) { this.ended = true; return false; }
-    if (!this.goToPassage(q, j)) { this.ended = true; return false; }
-    this.notice = { key: 'audio.notice.passageSkipped', tone: 'info', actions: [] };
+    const notice: AudioNotice = { key: 'audio.notice.passageSkipped', tone: 'info', actions: [] };
+    if (j === null || j === q.index || !this.goToPassage(q, j)) {
+      // Nothing else to read (end of the list, loop "passage", or a whole cycle of missing passages):
+      // end cleanly, telling the reader, rather than leaving an error state.
+      this.ended = true;
+      this.stopAndEnd('drop');
+      this.notice = notice;
+      this.notify();
+      return true;
+    }
+    this.notice = notice;
     this.notify();
     return true;
   }
@@ -1092,9 +1109,13 @@ export class AudioStore extends Store {
     const play = () => system.player.play(from, resolution.provider, {
       voiceId: resolution.voiceId, rate: this.rate, readIntro: this.prefs.readChapterIntro,
     });
-    if (sameChapter && system.player.state.status !== 'idle') {
-      void system.player.seekToVerse(from.verse).then(moved => { if (!moved) void play(); });
-    } else {
+    const shown = this.followTarget ? this.reader.tab(this.followTarget.tabId)?.verses.some(v => v.verse === from.verse) : false;
+    if (sameChapter && shown && system.player.state.status !== 'idle') {
+      const seq = this.playSeq;
+      void system.player.seekToVerse(from.verse).then(moved => {
+        if (!moved && seq === this.playSeq && this.status !== 'idle') void play();
+      });
+    } else { // a verse the page does not show: reopen, synchronously, so nothing can start late
       void play();
     }
     if (!sameChapter) void this.reader.followTo(t.tabId, from.book, from.chapter);

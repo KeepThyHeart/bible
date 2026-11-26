@@ -339,6 +339,31 @@ describe('passages playlist', () => {
     expect(screen.getByTestId('audio-passages-input')).toHaveValue('John 3');
   });
 
+  it('removing a chip splices that item out of the typed text and leaves the rest as typed', async () => {
+    await start({}, 'bar');
+    store.openPlayer();
+    renderAudio(<AudioPlayerPopup />);
+    await typeList('ps 23;  Rom 8:28-39 , gen 1');
+    await waitFor(() => expect(screen.getAllByTestId('audio-passage-chip')).toHaveLength(3));
+    fireEvent.click(within(screen.getAllByTestId('audio-passage-chip')[1]).getByRole('button'));
+    await waitFor(() => expect(screen.getAllByTestId('audio-passage-chip')).toHaveLength(2));
+    expect(screen.getByTestId('audio-passages-input')).toHaveValue('ps 23;  gen 1');
+  });
+
+  it('Play targets the pane picked on the Listen chevron over the playing tab', async () => {
+    await start({}, 'popup');
+    store.playingTabId = 'other-pane';
+    store.setTargetTab(PANEL);
+    store.openPlayer();
+    renderAudio(<AudioPlayerPopup />);
+    const play = vi.spyOn(store, 'playPassages').mockResolvedValue();
+    const input = await typeList('John 3');
+    await waitFor(() => expect(screen.getAllByTestId('audio-passage-chip')).toHaveLength(1));
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(play.mock.calls[0][0]).toBe(PANEL);
+    play.mockRestore();
+  });
+
   it('plays a list: progress, prev/next passage, no chapter buttons', async () => {
     await start({}, 'popup');
     renderAudio(<AudioPlayerPopup />);
@@ -364,7 +389,7 @@ describe('passages playlist', () => {
     expect(store.prefs.continueAfterChapter).toBe('stop');
     fireEvent.click(screen.getByTestId('audio-loop-list'));
     expect(store.prefs.passageLoop).toBe('list');
-    expect(screen.getByTestId('audio-loop-list')).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByTestId('audio-loop-list')).toHaveAttribute('aria-pressed', 'true');
   });
 
   it('quick settings carry the same loop and continue controls', async () => {

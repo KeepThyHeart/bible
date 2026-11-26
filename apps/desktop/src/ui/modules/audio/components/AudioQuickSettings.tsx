@@ -92,8 +92,8 @@ export const AudioQuickSettings: React.FC<AudioQuickSettingsProps> = ({ moduleAb
         </div>
       </div>
 
-      <LoopControl testId="audio-quick-loop" />
       <ContinueCheckbox testId="audio-quick-continue" />
+      <LoopControl testId="audio-quick-loop" />
 
       <button type="button" className="audio-panel__more" data-testid="audio-all-settings" onClick={() => { openAudioPreferences(); onOpenedSettings?.(); }}>
         {t('audio.quick.all')} <AudioIcon name="chevron" size={10} />

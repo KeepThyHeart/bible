@@ -9,7 +9,7 @@ import { audioStore, useAudio } from '../audioState';
 import { useI18n } from '../../../contexts/useI18n';
 import { useNowPlaying } from './useNowPlaying';
 import { usePassageLabel } from './usePassageLabel';
-import { parsePassageInput } from './passageParse';
+import { parsePassageInput, removeSpan } from './passageParse';
 import type { PassageParse } from './passageParse';
 import { AudioIcon } from './AudioIcons';
 import './audio.css';
@@ -24,13 +24,12 @@ export const LoopControl: React.FC<{ testId: string }> = ({ testId }) => {
   return (
     <div className="audio-panel__row">
       <span className="audio-panel__label" id={`${id}-loop`}>{t('audio.loop.label')}</span>
-      <div className="audio-segmented" role="radiogroup" aria-labelledby={`${id}-loop`} data-testid={testId}>
+      <div className="audio-segmented" role="group" aria-labelledby={`${id}-loop`} data-testid={testId}>
         {LOOPS.map((l) => (
           <button
             key={l}
             type="button"
-            role="radio"
-            aria-checked={loop === l}
+            aria-pressed={loop === l}
             className={`audio-segmented__btn${loop === l ? ' audio-segmented__btn--active' : ''}`}
             data-testid={`${testId}-${l}`}
             onClick={() => audioStore.setPassageLoop(l)}
@@ -130,22 +129,26 @@ export const AudioPlaylist: React.FC<{ startOpen?: boolean }> = ({ startOpen = f
     setParsed(text.trim() ? parsePassageInput(labeler.engine, text) : null);
   }, [editing, touched, text, labeler.engine]);
 
-  const tabId = (!idle ? audioStore.playingTabId : null) ?? now.panelId;
+  // The pane picked on the Listen chevron wins; else the one playing; else the pane in hand.
+  const targetTab = () => audioStore.targetTabId ?? audioStore.playingTabId ?? now.panelId;
+  const tabId = audioStore.targetTabId ?? audioStore.playingTabId ?? now.panelId;
 
   const play = () => {
     const fresh = parsePassageInput(labeler.engine, text);
     setParsed(fresh);
-    if (!fresh.ok || !tabId) return;
-    void audioStore.playPassages(tabId, fresh.items.map((i) => i.passage));
+    const target = targetTab();
+    if (!fresh.ok || !target) return;
+    void audioStore.playPassages(target, fresh.items.map((i) => i.passage));
     setEditing(false);
     if (style === 'bar') audioStore.closePlayer();
   };
 
   const removeChip = (index: number) => {
     if (!parsed) return;
-    const rest = parsed.items.filter((_, i) => i !== index);
+    const it = parsed.items[index];
+    if (!it) return;
     setTouched(true);
-    setText(rest.map((i) => labeler.engine.format(i.range)).join('; '));
+    setText(removeSpan(text, it.start, it.end));
   };
 
   const chapterList = () => {

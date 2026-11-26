@@ -87,6 +87,16 @@ describe('Listen button', () => {
     expect(audioStore.status).toBe('paused');
   });
 
+  it('desktop: passes its own tab to togglePlay (never pauses another tab)', async () => {
+    await start();
+    const spy = vi.spyOn(audioStore, 'togglePlay');
+    render(<BibleToolbar />);
+    const btn = await screen.findByTestId('audio-listen') as HTMLButtonElement;
+    await waitFor(() => expect(btn.disabled).toBe(false));
+    fireEvent.click(btn);
+    expect(spy).toHaveBeenCalledWith(bibleStore.activeTabId);
+  });
+
   it('phone: opens the full-screen player and starts playback', async () => {
     await start({ layout: 'phone' });
     render(<BibleToolbar />);
