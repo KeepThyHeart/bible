@@ -1,6 +1,6 @@
 import React, { useRef, useLayoutEffect, useState, useCallback, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { HighlightColor, UnderlineStyle } from '@bible/core';
+import { HIGHLIGHT_COLOR_NAMES, HighlightColor, UnderlineStyle } from '@bible/core';
 import { isLookUpCandidate, normalizeLookUpText } from '@bible/core/browser';
 import { useI18n } from '../../contexts/useI18n';
 import { useHighlightStore } from '../../stores/useHighlightStore';
@@ -17,7 +17,8 @@ interface FloatingAnnotationToolbarProps {
   /** Callback when user clicks a highlight color swatch */
   onHighlight: (color: HighlightColor) => void;
   /** Callback when user clicks underline toggle */
-  onUnderline: () => void;
+  /** Underline the selection: in `color` when one was picked from the colour row, else the last-used colour. */
+  onUnderline: (color?: HighlightColor) => void;
   /** Callback when user clicks remove formatting */
   onRemoveFormatting: () => void;
   /** Callback when toolbar should be dismissed */
@@ -91,6 +92,9 @@ export const FloatingAnnotationToolbar: React.FC<FloatingAnnotationToolbarProps>
   hasExistingMarkup = false,
 }) => {
   const { t } = useI18n();
+  const underlineColor = useHighlightStore(s => s.lastUnderlineColor);
+  /** The underline colour row, opened from the square beside the Underline button. */
+  const [underlineColorsOpen, setUnderlineColorsOpen] = useState(false);
   // Suppress unused variable warning for selection (kept in API for future use)
   void _selection;
   // The selected text, read once when the toolbar appears; only a word or short phrase can be looked up.
@@ -271,13 +275,28 @@ export const FloatingAnnotationToolbar: React.FC<FloatingAnnotationToolbarProps>
         {/* Underline toggle */}
         <button
           className="floating-toolbar-btn"
-          onClick={onUnderline}
+          onClick={() => onUnderline()}
           title={t('ui.floatingAnnotation.toggleUnderlineShortcut')}
           aria-label={t('ui.floatingAnnotation.toggleUnderline')}
+          data-underline-color={underlineColor}
         >
-          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M12 17c3.31 0 6-2.69 6-6V3h-2.5v8c0 1.93-1.57 3.5-3.5 3.5S8.5 12.93 8.5 11V3H6v8c0 3.31 2.69 6 6 6zm-7 2v2h14v-2H5z"/>
+          {/* The bar under the U is drawn in the colour this button will underline with (the last one used). */}
+          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false">
+            <path d="M12 17c3.31 0 6-2.69 6-6V3h-2.5v8c0 1.93-1.57 3.5-3.5 3.5S8.5 12.93 8.5 11V3H6v8c0 3.31 2.69 6 6 6z"/>
+            <rect x="4" y="18.5" width="16" height="3" rx="0.5" style={{ fill: `var(--underline-color-${underlineColor})` }} data-testid="underline-button-bar" />
           </svg>
+        </button>
+        {/* The other half of a split button: the underline colour, opening a row of colours to pick from. */}
+        <button
+          type="button"
+          className="floating-toolbar-underline-color"
+          onClick={() => setUnderlineColorsOpen(open => !open)}
+          title={t('ui.floatingAnnotation.underlineColor', { color: colorName(underlineColor) })}
+          aria-label={t('ui.floatingAnnotation.underlineColor', { color: colorName(underlineColor) })}
+          aria-expanded={underlineColorsOpen}
+          data-testid="underline-color-toggle"
+        >
+          <span style={{ background: `var(--underline-color-${underlineColor})` }} />
         </button>
 
         {/* Look up: a single word or short phrase only (a sentence is not a dictionary query). */}
@@ -339,6 +358,30 @@ export const FloatingAnnotationToolbar: React.FC<FloatingAnnotationToolbarProps>
         been applied - an empty row would just be a second band of chrome over
         the text the reader is looking at.
       */}
+      {underlineColorsOpen && (
+        <div
+          className="floating-toolbar-row floating-toolbar-recent-row"
+          role="group"
+          aria-label={t('ui.floatingAnnotation.underlineColors')}
+          data-testid="underline-color-row"
+        >
+          {HIGHLIGHT_COLOR_NAMES.map(color => (
+            <button
+              key={color}
+              type="button"
+              className="floating-toolbar-underline-swatch"
+              onClick={() => { setUnderlineColorsOpen(false); onUnderline(color); }}
+              title={t('ui.floatingAnnotation.underlineIn', { color: colorName(color) })}
+              aria-label={t('ui.floatingAnnotation.underlineIn', { color: colorName(color) })}
+              aria-pressed={color === underlineColor}
+              data-color={color}
+            >
+              <span style={{ background: `var(--underline-color-${color})` }} />
+            </button>
+          ))}
+        </div>
+      )}
+
       {recentStyles.length > 0 && (
         <div
           className="floating-toolbar-row floating-toolbar-recent-row"

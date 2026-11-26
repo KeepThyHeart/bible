@@ -10,7 +10,7 @@ There is exactly one exception, documented as layer 0 below: the first-run langu
 
 ## Layer 0 - first-run language question (the one modal)
 
-`components/onboarding/LanguageFirstRun.tsx`, rendered by `App.tsx` after the tour so it sits above everything on a genuinely fresh install. It renders `null` once answered, so it costs nothing on every later launch.
+`src/ui/components/onboarding/LanguageFirstRun.tsx`, rendered by `App.tsx` after the tour so it sits above everything on a genuinely fresh install. It renders `null` once answered, so it costs nothing on every later launch.
 
 **Why this one is modal** when the welcome bar deliberately is not: the welcome bar's argument - "a new user's first interaction should be with the app, not a wizard" - does not transfer to language. It is one click, asked once per install, and everything else is unreadable until it is settled.
 
@@ -30,10 +30,10 @@ Every `getStarterPackModules` / `installModule` call this step makes carries the
 
 **Two implementation points worth knowing:**
 
-* The dialog waits for `whenLocaleCatalogsReady()` (`services/localeCatalogsReady.ts`) before appearing. Locale catalogs load asynchronously and `loadCatalog()` fires no event, so a picker rendered at first paint would list only the statically-bundled `en` and never learn about the rest.
+* The dialog waits for `whenLocaleCatalogsReady()` (`src/ui/services/localeCatalogsReady.ts`) before appearing. Locale catalogs load asynchronously and `loadCatalog()` fires no event, so a picker rendered at first paint would list only the statically-bundled `en` and never learn about the rest.
 * `languageChosen` is read **once at mount**, not subscribed to. Committing the language marks it chosen while the dialog is still on screen, and a live subscription would unmount the dialog mid-flow so the user would never see step 2.
 
-`languageChosen` is stored separately from the locale itself (`bible.ui.locale`, owned by `utils/documentDirection.ts`): "the UI is in English" and "the user was asked and said English" are different facts, and only the second should suppress the question.
+`languageChosen` is stored separately from the locale itself (`bible.ui.locale`, owned by `src/ui/utils/documentDirection.ts`): "the UI is in English" and "the user was asked and said English" are different facts, and only the second should suppress the question.
 
 Detached pane windows render `detached.tsx`, not `App.tsx`, so they never mount this dialog.
 
@@ -43,7 +43,7 @@ Detached pane windows render `detached.tsx`, not `App.tsx`, so they never mount 
 
 When a pane holds nothing, it explains what it is for and offers the single action that fills it. This is the highest-value layer: it teaches at the exact moment of confusion, costs an experienced user nothing, and never has to be dismissed.
 
-`components/onboarding/PaneEmptyState.tsx` is the shared presentation: optional decorative icon (`aria-hidden`), title, one or two explanatory sentences, an optional quieter hint, and zero or more actions.
+`src/ui/components/onboarding/PaneEmptyState.tsx` is the shared presentation: optional decorative icon (`aria-hidden`), title, one or two explanatory sentences, an optional quieter hint, and zero or more actions.
 
 | Empty state | Rendered by | `data-testid` |
 |---|---|---|
@@ -54,10 +54,10 @@ When a pane holds nothing, it explains what it is for and offers the single acti
 | No commentary available | `CommentaryPane.tsx` | `commentary-empty-state` |
 | No tabs open in a Books **or** Dictionary pane (two variants of one state - bookshelf vs. dictionary shelf) | `BookPane.tsx` | `book-dict-empty-state` |
 | Single-module dictionary panel: nothing looked up / lookup failed | `src/ui/components/dictionary/DictionarySinglePanel.tsx` | `dictionary-single-no-entry-state`, `dictionary-single-error-state` |
-| Notes folder empty | `notes/NotesFolderBrowser.tsx` | `notes-empty-state` |
-| Verse Notes folder empty | `notes/NotesFolderBrowser.tsx` | `verse-notes-empty-state` |
-| No topical index installed | `TopicsPane/BrowseView.tsx` | `topics-no-modules-state` |
-| Topics filtered to nothing | `TopicsPane/BrowseView.tsx` | `topics-empty-state` |
+| Notes folder empty | `src/ui/components/notes/NotesFolderBrowser.tsx` | `notes-empty-state` |
+| Verse Notes folder empty | `src/ui/components/notes/NotesFolderBrowser.tsx` | `verse-notes-empty-state` |
+| No topical index installed | `src/ui/components/TopicsPane/BrowseView.tsx` | `topics-no-modules-state` |
+| Topics filtered to nothing | `src/ui/components/TopicsPane/BrowseView.tsx` | `topics-empty-state` |
 | All panels closed | `DockviewWatermark.tsx` | - |
 | New tab | `NewTabPage.tsx` | - |
 
@@ -68,13 +68,13 @@ Two notes on the pane wiring:
 
 ### 2. Welcome bar (first run only)
 
-`components/onboarding/WelcomeBar.tsx`, rendered by `App.tsx` directly beneath the header. One sentence of orientation, a "Take a tour" button and a dismiss control. It is a `role="region"`, not a dialog - it blocks nothing and steals no focus.
+`src/ui/components/onboarding/WelcomeBar.tsx`, rendered by `App.tsx` directly beneath the header. One sentence of orientation, a "Take a tour" button and a dismiss control. It is a `role="region"`, not a dialog - it blocks nothing and steals no focus.
 
 It retires permanently on dismissal **or** on completing the tour, since finishing the tour already answers the question the bar was asking.
 
 ### 3. Guided tour (on demand, re-runnable)
 
-`components/onboarding/GuidedTour.tsx` - five steps over the Bible pane, study tools, search, adding a pane, and a close. Reachable from the header's `?` -> **Take a tour** (see "The Help panel" below), from **Help -> Take a Tour** in the native menu bar, and from the command palette, forever, not just on first run.
+`src/ui/components/onboarding/GuidedTour.tsx` - five steps over the Bible pane, study tools, search, adding a pane, and a close. Reachable from the header's `?` -> **Take a tour** (see "The Help panel" below), from **Help -> Take a Tour** in the native menu bar, and from the command palette, forever, not just on first run.
 
 * **Escapable at every step.** Escape is handled at the document in the capture phase and stopped, so it closes the tour without also closing what is behind it. Skip and Done do the same thing.
 * **No orphaned overlay is possible by construction.** The whole tour is one conditionally-mounted React subtree (`{isTourActive && <GuidedTour />}`), so leaving it removes the scrim, the spotlight and the card together. If a future step needs to mark an element, mark it with React state - never with `classList.add`.
@@ -92,9 +92,9 @@ It retires permanently on dismissal **or** on completing the tour, since finishi
 
 ## The Help panel (the header's `?`)
 
-`components/HelpPanel.tsx`, opened by the `?` button in `components/HeaderActions.tsx` (which owns the open/closed state; the panel is anchored under the button). It lists every way into help - the in-app documentation, the tour, the keyboard shortcuts, and the two build-configured external rows.
+`src/ui/components/HelpPanel.tsx`, opened by the `?` button in `src/ui/components/HeaderActions.tsx` (which owns the open/closed state; the panel is anchored under the button). It lists every way into help - the in-app documentation, the tour, the keyboard shortcuts, and the two build-configured external rows.
 
-**Every row dispatches the same `command:*` DOM event** the native menu (`menu/buildMenuSpec.ts`) and the command palette (`commands/appCommands.ts`) dispatch - one code path per action, nothing to keep in sync. That is the rule `HeaderActions` follows for Preferences and the Module Manager too.
+**Every row dispatches the same `command:*` DOM event** the native menu (`src/ui/menu/buildMenuSpec.ts`) and the command palette (`src/ui/commands/appCommands.ts`) dispatch - one code path per action, nothing to keep in sync. That is the rule `HeaderActions` follows for Preferences and the Module Manager too.
 
 | Row | Event / action | Present when |
 |---|---|---|
@@ -122,7 +122,7 @@ All `helpPanel.*` keys are in `locales/en/ui.json`, resolved with plain `t()`.
 
 ## Persistence
 
-`stores/useOnboardingStore.ts`, backed by `localStorage` - the same mechanism as `useSearchStore`'s semantic-mode flag and `utils/documentDirection.ts`, and shared across every window of the renderer origin so a detached pane sees the same flags with no IPC round trip.
+`src/ui/stores/useOnboardingStore.ts`, backed by `localStorage` - the same mechanism as `useSearchStore`'s semantic-mode flag and `src/ui/utils/documentDirection.ts`, and shared across every window of the renderer origin so a detached pane sees the same flags with no IPC round trip.
 
 | Key | Meaning |
 |---|---|
@@ -154,7 +154,7 @@ When a Bible module is installed, `notifyLibraryChanged` (via `crossStoreBridge.
 
 The same signal reaches every other store that caches an installed list: commentaries (which also rebuilds the Commentary overview for the verse it is on), dictionaries and books. The Study pane re-reads its sections when the installed list changes. A pane whose module kind has none installed at all says that ("No commentaries installed yet", "No cross-reference module is installed. Install one") rather than "nothing for this verse", and links to the Module Manager.
 
-Restoring a saved session drops tabs for modules that are not installed (`services/pruneSessionTabs.ts`), so a session carried onto a machine without a module cannot ask for content that is not there.
+Restoring a saved session drops tabs for modules that are not installed (`src/ui/services/pruneSessionTabs.ts`), so a session carried onto a machine without a module cannot ask for content that is not there.
 
 Catalog modules of type `topical` and `xref` are registered as `topical_index` and `cross_reference` (`normalizeModuleType` in `@bible/core`); registered under the short spelling they installed but never appeared in the Study pane or as a Module Manager tab.
 

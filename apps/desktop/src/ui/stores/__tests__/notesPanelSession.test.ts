@@ -201,4 +201,41 @@ describe('notes panel session persistence', () => {
       expect(panelIdsFromLayout({ panels: 'nope' }, ['notes'])).toEqual([]);
     });
   });
+  describe('chapter view', () => {
+    const CHAPTER = { book: 45, chapter: 8, follow: true, onlyWithNotes: false, activeVerse: 28, translation: 'KJV' };
+
+    it('round-trips a chapter view through the session blob', () => {
+      setNotesPanelNavState(PANEL, { view: 'chapter', currentPath: 'Verse Notes/Romans/8', currentNotePath: '', chapter: CHAPTER });
+      useFileNotesStore.getState().loadFromSession({ notesPanels: uiOf(throughSessionBlob()).notesPanels });
+      expect(getNotesPanelNavState(PANEL)).toEqual({
+        view: 'chapter', currentPath: 'Verse Notes/Romans/8', currentNotePath: '', chapter: CHAPTER,
+      });
+    });
+
+    it('keeps the chapter position while another view is showing', () => {
+      const out = sanitizeNotesPanelNavStates({ [PANEL]: { view: 'editor', currentPath: '', currentNotePath: 'a.bn', chapter: CHAPTER } });
+      expect(out[PANEL].view).toBe('editor');
+      expect(out[PANEL].chapter).toEqual(CHAPTER);
+    });
+
+    it('falls back to the browser when view is chapter without a valid chapter', () => {
+      const out = sanitizeNotesPanelNavStates({
+        a: { view: 'chapter', currentPath: 'x', currentNotePath: '' },
+        b: { view: 'chapter', currentPath: 'x', currentNotePath: '', chapter: { book: 67, chapter: 1 } },
+      });
+      expect(out.a.view).toBe('browser');
+      expect(out.b.view).toBe('browser');
+      expect(out.b.chapter).toBeUndefined();
+    });
+
+    it('treats a changed chapter field as a change (and an identical one as none)', () => {
+      const nav: NotesPanelNavState = { view: 'chapter', currentPath: '', currentNotePath: '', chapter: CHAPTER };
+      setNotesPanelNavState(PANEL, nav);
+      vi.mocked(markSessionDirty).mockClear();
+      setNotesPanelNavState(PANEL, { ...nav, chapter: { ...CHAPTER } });
+      expect(markSessionDirty).not.toHaveBeenCalled();
+      setNotesPanelNavState(PANEL, { ...nav, chapter: { ...CHAPTER, anchorVerse: 12 } });
+      expect(markSessionDirty).toHaveBeenCalledTimes(1);
+    });
+  });
 });

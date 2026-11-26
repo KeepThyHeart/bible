@@ -31,6 +31,11 @@ import {
   type VerseNumberStyle,
   type VerseTextFormat,
   stripBidiControls,
+  PRINT_LAYOUTS,
+  printLayoutFormatId,
+  printWantsRedLetters,
+  buildPassageReference,
+  type PrintPreferences,
 } from '@bible/core/browser';
 import { bibleStore } from '../../stores/bibleStore';
 import { moduleStore } from '../../stores/moduleStore';
@@ -46,11 +51,20 @@ import {
   loadAdvancedOptions,
   loadFormatId,
   loadMarkupOptions,
+  loadPrintPreferences,
   saveAdvancedOptions,
   saveFormatId,
   saveMarkupOptions,
+  savePrintPreferences,
 } from './copyPreferences';
+import { PrintDialog } from './PrintDialog';
 import type { VerseData } from '../../types';
+
+const PRINT_LAYOUT_LABEL_KEYS = {
+  numbered: 'copyDialog.printLayoutNumbered',
+  blockquote: 'copyDialog.printLayoutBlockquote',
+  preview: 'copyDialog.printLayoutPreview',
+} as const;
 
 // Cap simultaneous chapter fetches for multi-chapter/whole-book copies. A book
 // like Psalms (150 chapters) would otherwise open 150 connections at once,
@@ -341,6 +355,11 @@ export function CopyDialog({ isOpen, onClose }: CopyDialogProps) {
     loadMarkupOptions(loadFormatId(offeredFormatIds())),
   );
   const [advanced, setAdvanced] = useState<AdvancedCopyOptions>(loadAdvancedOptions);
+  // The Print dialog (its own settings and live preview) replaces this one while open.
+  const [printOpen, setPrintOpen] = useState(false);
+  // Reached from the Print dialog's "More options...": this dialog then picks a format to print, so its
+  // main action is "Print this format..." (back to the Print dialog, following that format), not Copy.
+  const [choosingPrintFormat, setChoosingPrintFormat] = useState(false);
 
   const [refInput, setRefInput] = useState('');
   const [parsedBookNumber, setParsedBookNumber] = useState(0);
@@ -385,7 +404,7 @@ export function CopyDialog({ isOpen, onClose }: CopyDialogProps) {
   chooseFormatRef.current = chooseFormat;
 
   const openRef = useRef(isOpen);
-  openRef.current = isOpen;
+  openRef.current = isOpen && !printOpen;
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -415,6 +434,11 @@ export function CopyDialog({ isOpen, onClose }: CopyDialogProps) {
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
   }, []);
+
+  // Each opening starts as the Copy dialog, not still choosing a format to print.
+  useEffect(() => {
+    if (isOpen) setChoosingPrintFormat(false);
+  }, [isOpen]);
 
   useEffect(() => {
     if (isOpen && tab?.book && tab.chapter) {
@@ -673,26 +697,23 @@ export function CopyDialog({ isOpen, onClose }: CopyDialogProps) {
    * Rendered into a hidden, script-less iframe (its document is sanitized and gets a black-on-white print
    * stylesheet, so red letters never reach a black-and-white printer) and removed again afterwards.
    */
-  const handlePrint = (): void => {
-    const body = useRichCopy
-      ? sanitizeHtml(stripBidiControls(passageMarkupToHtml(markup)))
-      : `<p>${plainText.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').split(/\n{2,}/).map(p => p.replace(/\n/g, '<br>')).join('</p><p>')}</p>`;
-    const doc = `<!DOCTYPE html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'"><style>body{font-family:Georgia,serif;font-size:14pt;line-height:1.6;max-width:38em;margin:2em auto;color:#000;background:#fff}*{color:#000!important;background:transparent!important}blockquote{border-inline-start:2px solid #000;margin-inline:0;padding-inline-start:1em}@page{margin:2cm}</style></head><body>${body}</body></html>`;
-    const frame = document.createElement('iframe');
-    frame.setAttribute('sandbox', 'allow-modals allow-same-origin');
-    frame.setAttribute('aria-hidden', 'true');
-    frame.style.cssText = 'position:fixed;inset-inline-end:0;inset-block-end:0;inline-size:0;block-size:0;border:0';
-    frame.srcdoc = doc;
-    frame.onload = () => {
-      const win = frame.contentWindow;
-      if (!win) { frame.remove(); return; }
-      win.addEventListener('afterprint', () => frame.remove());
-      win.focus();
-      win.print();
-      // Some browsers never fire afterprint; do not leave the frame behind.
-      setTimeout(() => frame.remove(), 60_000);
-    };
-    document.body.appendChild(frame);
+  /**
+   * The passage body for the Print dialog. The print layout picks the format (numbered verses by default);
+   * only the copy-format layout follows this dialog's own format and options.
+   */
+  const buildPrintBody = (prefs: PrintPreferences): string => {
+    const layoutFormatId = printLayoutFormatId(prefs.layout);
+    if (layoutFormatId || useRichCopy) {
+      const printFormatId = (layoutFormatId ?? formatId) as PassageMarkupFormatId;
+      const printOptions = {
+        ...(layoutFormatId ? loadMarkupOptions(printFormatId) : options),
+        wordsOfChristInRed: printWantsRedLetters(prefs),
+      };
+      return sanitizeHtml(stripBidiControls(passageMarkupToHtml(
+        renderPassageMarkup(selectedVerses, context, printFormatId, printOptions, labels),
+      )));
+    }
+    return `<p>${plainText.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').split(/\n{2,}/).map(p => p.replace(/\n/g, '<br>')).join('</p><p>')}</p>`;
   };
 
   const canCopy = !fetchingVerses && selectedVerses.length > 0;
@@ -701,8 +722,15 @@ export function CopyDialog({ isOpen, onClose }: CopyDialogProps) {
   // so leaving it open afterwards just makes the user reach for Escape too.
   // Clicking the button instead leaves the dialog in place showing "Copied!",
   // so a second copy after tweaking options costs no reopen.
+  /** "Print this format...": back to the Print dialog, printing "as in the preview" of this format. */
+  const printThisFormat = (): void => {
+    savePrintPreferences({ ...loadPrintPreferences(), layout: 'preview' });
+    setPrintOpen(true);
+  };
+
   confirmRef.current = () => {
     if (!canCopy) return;
+    if (choosingPrintFormat) { printThisFormat(); return; }
     void handleCopy().then((ok) => { if (ok) onClose(); });
   };
 
@@ -748,11 +776,23 @@ export function CopyDialog({ isOpen, onClose }: CopyDialogProps) {
     return <MarkupPreview markup={markup} blockQuote={wantsBlockQuote} />;
   };
 
+  if (printOpen) {
+    return (
+      <PrintDialog
+        title={buildPassageReference(selectedVerses, context, true)}
+        buildBody={buildPrintBody}
+        onClose={() => setPrintOpen(false)}
+        onMoreOptions={() => { setChoosingPrintFormat(true); setPrintOpen(false); }}
+        dialogRef={dialogRef}
+      />
+    );
+  }
+
   return (
     <div class="copy-dialog-overlay" onMouseDown={onClose}>
-      <div ref={dialogRef} role="dialog" aria-modal="true" aria-label={t('copyDialog.title')} class="copy-dialog" onMouseDown={(e) => e.stopPropagation()}>
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-label={t(choosingPrintFormat ? 'copyDialog.printTitle' : 'copyDialog.title')} class="copy-dialog" onMouseDown={(e) => e.stopPropagation()}>
         <div class="copy-dialog__header">
-          <h3>{t('copyDialog.title')}</h3>
+          <h3>{t(choosingPrintFormat ? 'copyDialog.printTitle' : 'copyDialog.title')}</h3>
           <button onClick={onClose} aria-label={t('common.close')}><i class="fa-solid fa-xmark" /></button>
         </div>
 
@@ -959,20 +999,23 @@ export function CopyDialog({ isOpen, onClose }: CopyDialogProps) {
             >
               {renderPreview()}
             </div>
+            {/* Choosing a format to print ("More options..."), printing it is the only action. */}
+            {!choosingPrintFormat && (
+              <button
+                class="copy-dialog__copy-btn"
+                onClick={() => { void handleCopy(); }}
+                disabled={!canCopy}
+              >
+                {copied ? t('copyDialog.copied') : t('copyDialog.copyToClipboard')}
+              </button>
+            )}
             <button
               class="copy-dialog__copy-btn"
-              onClick={() => { void handleCopy(); }}
-              disabled={!canCopy}
-            >
-              {copied ? t('copyDialog.copied') : t('copyDialog.copyToClipboard')}
-            </button>
-            <button
-              class="copy-dialog__copy-btn"
-              onClick={handlePrint}
+              onClick={() => (choosingPrintFormat ? printThisFormat() : setPrintOpen(true))}
               disabled={!canCopy}
               data-testid="copy-dialog-print"
             >
-              {t('copyDialog.print')}
+              {t(choosingPrintFormat ? 'copyDialog.printThisFormat' : 'copyDialog.print')}
             </button>
             {copyFailed && (
               <div class="copy-dialog__error" role="alert">

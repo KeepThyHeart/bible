@@ -76,6 +76,18 @@ const WEB_OWN_SETTINGS = defineSettings([
     description:
       'How far you must swipe across the Commentary pane before navigating to the previous or next verse.',
   },
+  {
+    // Set from the checkbox under the Go to Passage picker's chapter grid, not from a Settings tab.
+    key: 'pickerVerseStep',
+    type: 'boolean',
+    default: false,
+    scope: 'device',
+    group: 'navigation',
+    order: 1,
+    labelKey: 'bookChapterPicker.alsoChooseVerse',
+    label: 'Also choose a verse',
+    description: 'After a chapter, the Go to Passage picker offers its verses as well.',
+  },
 ]);
 
 /** The web's own settings plus Preferences > Apps (task 0080) core declares. Module settings come from `contributedSettings`. */

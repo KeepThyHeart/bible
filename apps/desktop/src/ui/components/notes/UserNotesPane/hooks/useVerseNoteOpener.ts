@@ -6,6 +6,8 @@ import { useNoteEditorStore } from '../../../../stores/useNoteEditorStore';
 import { parseVerseId, getBookNameFromCache } from '../../../../utils/verseReference';
 import { VERSE_NOTES_FOLDER } from '../utils';
 import { consumeVerseNoteRequest, claimRecentVerseNoteRequest } from '../verseNoteRequest';
+import { draftForVerse } from '../draftNote';
+import { flushActiveNote } from '../../../../services/activeNoteFlush';
 
 interface UseVerseNoteOpenerArgs {
   currentVerseId: number | undefined;
@@ -18,14 +20,20 @@ interface UseVerseNoteOpenerArgs {
   ready?: boolean;
   /** Remembers a request that arrived before the pane was ready. */
   pendingRef?: MutableRefObject<boolean>;
+  /**
+   * Chapter mode: called with the verse to open before anything else. Returning
+   * true means the chapter view took it, and no single note is opened.
+   */
+  routeToChapter?: (verseId: number) => boolean;
 }
 
 /**
- * Opens (creating if needed) the verse note for the currently-selected verse,
- * and listens for the `open-verse-note` window event from the Bible pane.
+ * Opens the verse note for the currently-selected verse - its file if it has
+ * one, otherwise an in-memory draft (the file is written only by the first
+ * save with content, see draftNote.ts) - and listens for the `open-verse-note` window event from the Bible pane.
  */
 export function useVerseNoteOpener(args: UseVerseNoteOpenerArgs): { handleOpenVerseNote: (verseId?: number) => Promise<void> } {
-  const { currentVerseId, setCurrentNote, setCurrentNotePath, setCurrentPath, setView, setFileError, ready = true, pendingRef } = args;
+  const { currentVerseId, setCurrentNote, setCurrentNotePath, setCurrentPath, setView, setFileError, ready = true, pendingRef, routeToChapter } = args;
 
   // The verse the event asked for. The pane's own currentVerseId may still be
   // the previous verse when the event fires (the sync re-renders after it).
@@ -42,20 +50,25 @@ export function useVerseNoteOpener(args: UseVerseNoteOpenerArgs): { handleOpenVe
       pendingRef.current = true;
       return;
     }
+    if (routeToChapter?.(verseIdToOpen)) return;
     const { bookNumber, chapter, verse } = parseVerseId(verseIdToOpen);
     const bookName = getBookNameFromCache(bookNumber);
     try {
-      const result = await fileNotesAPI.createVerseNote(bookName, chapter, verse, verseIdToOpen);
+      // Save what is being edited first (a draft of this very verse may be about
+      // to get its file), so the read below sees the disk as it will be.
+      await flushActiveNote();
+      const existing = await fileNotesAPI.readVerseNote(bookName, chapter, verse);
+      const result = existing ?? draftForVerse(verseIdToOpen);
       setCurrentNote(result.note);
       setCurrentNotePath(result.relativePath);
       setCurrentPath(`${VERSE_NOTES_FOLDER}/${bookName}/${chapter}`);
       setView('editor');
       useNoteEditorStore.getState().resetContent(result.note.content || ''); // allow-getstate: async event-handler callback - imperative store reset outside render
-      useFileNotesStore.getState().addRecentFile(result.relativePath, result.note.title); // allow-getstate: async event-handler callback - imperative store update outside render
+      if (existing) useFileNotesStore.getState().addRecentFile(result.relativePath, result.note.title); // allow-getstate: async event-handler callback - imperative store update outside render
     } catch (err: unknown) {
       setFileError(`Failed to open verse note: ${err instanceof Error ? err.message : String(err)}`);
     }
-  }, [currentVerseId, ready, pendingRef, setCurrentNote, setCurrentNotePath, setCurrentPath, setView, setFileError]);
+  }, [currentVerseId, ready, pendingRef, routeToChapter, setCurrentNote, setCurrentNotePath, setCurrentPath, setView, setFileError]);
 
   useEffect(() => {
     if (ready && pendingRef?.current) {

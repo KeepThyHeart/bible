@@ -98,7 +98,7 @@ A handful of user-visible values are baked in at build time rather than hard-cod
 | `BIBLE_REMOTE_SEMANTIC_URL` / `BIBLE_REMOTE_SEMANTIC_API_KEY` | `remoteSemantic.url` / `.apiKey` | Online meaning search (see [search.md](search.md)). Defined for the **main bundle only**; the preload hands the renderer `toRendererAppConfig(APP_CONFIG)`, which blanks both. Invalid (non-http(s)) URL = not configured |
 | `BIBLE_ABOUT_TEXT` | `aboutText` | The blurb at the top of the Help panel; passed through untranslated |
 
-Three further build-time variables are read by `electron.vite.config.ts` but do not belong to `AppConfig`: `BIBLE_BUILD_ID` (`__BIBLE_BUILD_ID__`, the source revision attached to diagnostics reports) and `BIBLE_DIAGNOSTICS_URL` / `BIBLE_DIAGNOSTICS_TOKEN`, which land in `electron/config/constants.ts`. See [diagnostics-reporting.md](diagnostics-reporting.md).
+Three further build-time variables are read by `electron.vite.config.ts` but do not belong to `AppConfig`: `BIBLE_BUILD_ID` (`__BIBLE_BUILD_ID__`, the source revision attached to diagnostics reports) and `BIBLE_DIAGNOSTICS_URL` (empty = the production site's `/api/desktop-report`), which lands in `electron/config/constants.ts`. See [diagnostics-reporting.md](diagnostics-reporting.md).
 
 The user-facing table with defaults and an example invocation is in `apps/desktop/README.md` (Build Configuration).
 

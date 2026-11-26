@@ -1,6 +1,6 @@
 # Notes & Writing
 
-**Last verified:** 2026-09-08
+**Last verified:** 2026-11-09
 
 The Writing pane: file-backed `.bn` notes with a rich text editor and a folder browser, plus the separate Prayer pane. (There is no Journal or Documents tab - see "Not implemented".)
 
@@ -12,12 +12,13 @@ The Writing pane: file-backed `.bn` notes with a rich text editor and a folder b
 |---|---|
 | `src/ui/components/notes/UserNotesPane.tsx` | Main notes pane container with tab switching, file browser, editor |
 | `src/ui/components/notes/UserNotesPane/hooks/useNotesInit.ts` | Mount-time bootstrap for the pane: initialises the notes folder, restores the position this panel was left on (session or pop-out handover), keeps the dockview tab subtitle on the open note's title, and registers the position for both pop-out and the next launch |
+| `src/ui/components/notes/UserNotesPane/draftNote.ts` | Draft verse notes: `isDraftNote` (`type: 'verse_note'` and `updated === ''`), `draftForVerse` / `draftForPath` (build the in-memory note and its future path), and `saveDraftNote` (writes nothing for an empty draft, calls `fileNotesAPI.saveVerseNote` on the first save with content). `saveWithBaseline` and `handleSaveNote` route drafts through it |
 | `src/ui/components/notes/UserNotesPane/hooks/useNotesNavigation.ts` | Navigation actions for the pane: folder/note navigation, the breadcrumb pop-out (`handlePopOut`), and `requestRenameCurrentNote` |
 | `src/ui/components/notes/UserNotesPane/UserNotesEditorView.tsx` | The editor view's breadcrumb header, rename-title control and pop-out button |
 | `src/ui/components/notes/UserNotesPane/UserNotesSidebar.tsx` | The editor's collapsible sidebar: file actions, "Move to...", export buttons |
 | `src/ui/components/notes/editor/NoteEditor.tsx` | TipTap rich text editor with extensions (tables, task lists, typography, color) |
 | `src/ui/components/notes/editor/NoteViewer.tsx` | Read-only note display |
-| `src/ui/components/notes/editor/EditorToolbar.tsx` | Two rows. **Formatting row:** headings, text formatting, font family/size, alignment, subscript/superscript, highlight, blockquote, lists, tables, task lists, colour, image, the print/export menu, word count. **Insert row:** just `+ Bible Passage`, with a visible text label (see "The insert row" and "Getting a note back out" below) |
+| `src/ui/components/notes/editor/EditorToolbar.tsx` | Two rows, plus an **advanced row** that opens on demand (see "The advanced toolbar row"). **Formatting row:** headings, text formatting, font family/size, alignment, highlight, blockquote, lists, tables, task lists, colour, image, the print/export menu, word count. **Insert row:** just `+ Bible Passage`, with a visible text label (see "The insert row" and "Getting a note back out" below) |
 | `src/ui/components/notes/editor/ToolbarMenu.tsx` | The toolbar's dropdown shell (highlight swatches, text colours, list styles, table actions). Anchors the panel to its trigger with viewport-clamped `position: fixed` so it cannot render off the edge of a narrow pane or be clipped by it (see "Toolbar dropdowns are clamped to the viewport" below) |
 | `src/ui/components/notes/editor/VerseReferencePlugin.ts` | ProseMirror plugin that auto-detects Bible verse references in text, with Ctrl/Alt+Click navigation. Holds `{ decorations, ranges }` in plugin state and exposes `getVerseReferenceRanges(state)` - consumers ask it "is there a reference at this position?" instead of digging into DecorationSet internals |
 | `src/ui/components/notes/editor/verseReferenceRanges.ts` | Pure doc -> `VerseRefRange[]` scan plus `findRangeContainingPos` / `findRangeEndingAt` / `findRangeAtCaret`. No DOM, no layout - every decision the expansion feature makes lives here so it is unit-testable |
@@ -35,7 +36,7 @@ The Writing pane: file-backed `.bn` notes with a rich text editor and a folder b
 | `src/ui/components/notes/editor/FontSizeExtension.ts` | Custom TipTap extension for font size via TextStyle mark |
 | `src/ui/components/notes/editor/SlashCommands.tsx` | Slash command extension + popup UI: type "/" at start of empty line for command palette (headings, lists, tables, images, passages). "Passage (block)" and "Passage (verse-by-verse)" open the same dialog `+ Bible Passage` does, preselected to `blockquote` and `heading-per-verse` respectively |
 | `src/ui/components/notes/NotesBreadcrumb.tsx` | Breadcrumb navigation bar for folder hierarchy |
-| `src/ui/components/notes/NotesFolderBrowser.tsx` | File/folder list view with context menus, recent files section. The right-click menu is Open / Rename / Delete / **Move to...** / Reveal in Explorer (see "Moving a note into another folder" below) |
+| `src/ui/components/notes/NotesFolderBrowser.tsx` | File/folder list view with context menus, recent files section. The right-click menu is Open / Rename / Delete / **Move to...** / Reveal in Explorer (see "Moving a note into another folder" below). The menu is portalled to `document.body` and placed at the pointer (see "Context menus open at the pointer"); inside Verse Notes, book/chapter folders with no note that has content are not listed |
 | `src/ui/components/notes/UserNotesPane/UserNotesDialogs.tsx` | Every modal the pane owns, so the pane itself stays layout. One `MoveToFolderDialog` serves both ways in: the sidebar's "move the note I have open" (`showMoveDialog`) and the browser's "move this one" (`moveEntry`) |
 | `src/ui/components/notes/UserNotesPane/MoveToFolderDialog.tsx` | The destination list. Shows each folder's full path, indented by depth, with the entry's name in the header when it is moving something other than the open note |
 | `src/ui/components/notes/UserNotesPane/hooks/useMoveDialogFolders.ts` | Loads that list - a bounded recursive walk of the notes folder (see "Moving a note into another folder") |
@@ -81,7 +82,7 @@ The Writing pane: file-backed `.bn` notes with a rich text editor and a folder b
 | `electron/ipc/notesHandlers.ts` | IPC handlers for SQLite-based notes CRUD operations |
 | `electron/ipc/fileNotesHandlers.ts` | IPC handlers for file-based .bn notes (CRUD, dialogs, verse notes, export to .md/.docx) |
 | `electron/ipc/noteDocx.ts` | Note HTML to .docx for `file-notes:export-docx`: parses the editor HTML into a small tree and emits real Word formatting (headings, bold/italic/underline/strike/sub/sup, hyperlinks, nested bullet and numbered lists, block quotes, soft-tab indent, rules, code). Test: `noteDocx.test.ts` parses `word/document.xml` and checks no HTML leaks into text runs |
-| `electron/services/BibleNotesFileService.ts` | File service for .bn file operations, .bak backups, directory management, verse notes |
+| `electron/services/BibleNotesFileService.ts` | File service for .bn file operations, .bak backups, directory management, verse notes (`saveVerseNote` creates or updates a verse note's file; `readVerseNote` never creates) |
 | `electron/main.ts` | `renderNoteDocument` plus the `notes:print` and `notes:export-pdf` channels that share it |
 
 ### Utilities
@@ -106,9 +107,19 @@ The Writing pane: file-backed `.bn` notes with a rich text editor and a folder b
 | `src/ui/services/verseExpansionService.test.ts` | `resolveReferenceRange` / `buildExpandedHtml` table tests, plus the single-undo contract and the over-cap refusal |
 | `src/ui/services/verseCopyService.persistence.test.ts` | Last-used format/options survive a restart, and degrade to defaults on a stale id, malformed JSON, or a throwing localStorage |
 | `src/ui/components/VersePreviewTooltip.test.tsx` | The per-consumer `hint`, the "Go to verse" action, and red-letter rendering (formatted html, plain-text fallback, `.no-red-letter` when the setting is off) |
-| `src/ui/components/notes/UserNotesPane/UserNotesEditorView.test.tsx` | Breadcrumb rename-title icon hidden (not just disabled) for verse notes; pop-out icon click wiring |
-| `src/ui/components/notes/UserNotesPane/UserNotesSidebar.test.tsx` | Sidebar "Rename" action hidden for verse notes; "Move to..." stays available |
+| `src/ui/components/notes/UserNotesPane/UserNotesEditorView.test.tsx` | Breadcrumb rename-title icon hidden (not just disabled) for verse notes; pop-out icon click wiring; header Delete button shown only when the host supplies `onRequestDelete` |
+| `src/ui/components/notes/UserNotesPane/UserNotesSidebar.test.tsx` | Sidebar "Rename" action hidden for verse notes; "Move to..." stays available; "Delete" present only with a handler |
+| `src/ui/components/notes/editor/editorToolbarAdvanced.test.tsx` | The advanced row: direction buttons and sub/superscript hidden until the toggle opens it, Auto pressed by default, open/closed remembered in localStorage (and surviving throwing storage) |
+| `src/ui/components/notes/NotesFolderBrowser.contextMenu.test.tsx` | Right-click menu: `left`/`top` equal `clientX`/`clientY`, rendered under `document.body` outside the `.dv-dockview` pane, clamped to the viewport near an edge, Delete on a verse note |
+| `src/ui/components/notes/UserNotesPane.delete.test.tsx` | Delete is always confirmed (browser menu and open editor); confirming an open note drops its unsaved edits and reloads its parent folder; header Delete only for verse notes |
+| `src/ui/components/notes/UserNotesPane/draftNote.test.ts` | Drafts: built in memory from a verse id or path; `saveWithBaseline` writes nothing for an empty draft and creates the file on content; a note with a file saves normally (clearing keeps it); autosave and the shutdown flush of an empty draft write nothing and create the file on typed content; the opener opens a draft with no create/save call; pop-out of an empty draft (by path) and of a typed one (saved first) |
+| `src/ui/services/fileNotesAPI.saveVerseNote.test.ts` | `saveVerseNote` IPC arguments, result unwrap, marker refresh after the first save, `conflict` rejection |
+| `electron/services/__tests__/BibleNotesFileService.saveVerseNote.test.ts` | `saveVerseNote` creates on first save (envelope, title, passage) and updates after, clearing keeps the file, stale `expectedUpdated` is a conflict, a baseline with no file is refused |
+| `electron/ipc/__tests__/fileNotesHandlers.broadcast.test.ts` | `file-notes:save-note*` and `file-notes:save-verse-note` push `file-notes:note-saved` to every window but the saver; refused saves send nothing |
+| `electron/utils/noteHasContent.test.ts` | The shared "real content" rule over HTML strings and TipTap JSON |
+| `electron/services/__tests__/BibleNotesFileService.verseNoteContent.test.ts` | Marker list counts only verse notes with content (cleared note keeps its file); empty Verse Notes book/chapter folders hidden and reappearing |
 | `src/ui/components/notes/NotesFolderBrowser.test.tsx` | The browser's right-click menu: "Move to..." on a note, and not on a folder or inside Verse Notes |
+| `src/ui/components/bible/hooks/useVersesWithNotes.test.ts` | Marker set includes verse-note files; refreshes (marker gone) after a delete, after a note is saved cleared to empty, and when another window saves a verse note |
 | `src/ui/components/notes/UserNotesPane/hooks/useMoveDialogFolders.test.ts` | The recursive destination list: nested folders reachable, files excluded, the depth cap stopping a symlink loop, an unreadable folder skipped rather than fatal, and no disk access until the dialog opens |
 | `src/ui/components/notes/editor/editorExportMenu.test.tsx` | The toolbar export menu: each item routing to its action, the menu closing on choice, all four in one menu, and nothing rendered when the host supplies no actions |
 | `src/ui/components/notes/UserNotesPane/hooks/useNoteFileActions.test.ts` | Save-conflict handling and PDF export wiring: a complete sanitized standalone document, a file-safe default name, a reported failure reaching the banner, and a cancelled dialog saying nothing |
@@ -159,9 +170,9 @@ Two ways in, both landing on the same picker. **Tab** with the caret immediately
 
 Two further ids, `standard` and `combined` (`LEGACY_PASSAGE_FORMAT_IDS`), are **retired**: still renderable, so a note already carrying `data-expansion-format="standard"` keeps its shape and can still be re-formatted, but never offered as a new choice. Re-formatting such a passage shows its format in the picker marked as no longer offered and carrying number `0`, so it cannot be reached by a digit. `remapLegacyFormatId` maps a stored preference on one of them onto the closest offered format (`standard` -> Numbered quote, `combined` -> Inline quote). See [copy-export.md](copy-export.md).
 
-**The numbers are the same numbers everywhere**, because there is one dialog and one ordered list - `@bible/core`'s `PassageFormat/formatCatalog.ts` (`PASSAGE_FORMAT_ORDER`). The badge in front of each name is the key, and a hint line beneath the list says so. Only the first `MAX_FORMAT_SHORTCUT` (9) entries get a digit shortcut; anything past that is still selectable by mouse and arrow key.
+**The numbers are the same numbers everywhere**, because there is one dialog and one ordered list - `@bible/core`'s `packages/core/src/Services/PassageFormat/formatCatalog.ts` (`PASSAGE_FORMAT_ORDER`). The badge in front of each name is the key, and a hint line beneath the list says so. Only the first `MAX_FORMAT_SHORTCUT` (9) entries get a digit shortcut; anything past that is still selectable by mouse and arrow key.
 
-**"John 3:16-17, Tab, 2, Enter" is the whole flow.** Tab opens the dialog with the passage already resolved and focus on the selected format *radio* - not a text field - so a digit is live from the moment the dialog appears, and Enter inserts. The digit is claimed only when focus is outside a text entry (`utils/textEntry.ts`), which is what keeps the `+ Bible Passage` reference field typable: "John 3:16" is mostly digits. Copy mode and `+ Bible Passage` focus the reference box instead, because there the passage is what the user came to say.
+**"John 3:16-17, Tab, 2, Enter" is the whole flow.** Tab opens the dialog with the passage already resolved and focus on the selected format *radio* - not a text field - so a digit is live from the moment the dialog appears, and Enter inserts. The digit is claimed only when focus is outside a text entry (`src/ui/utils/textEntry.ts`), which is what keeps the `+ Bible Passage` reference field typable: "John 3:16" is mostly digits. Copy mode and `+ Bible Passage` focus the reference box instead, because there the passage is what the user came to say.
 
 **Options are remembered per format, not globally.** Someone who quotes with H2 headings and drops the numbers from their inline quotations wants both back; one shared option set would make them re-choose on every switch. Selecting a format therefore loads that format's own record (`passageMarkupPreferences.ts`), and changing an option writes it immediately - dismissing the picker with Escape throws away the insertion, never the settings. The last-used format is remembered too, and pre-selected.
 
@@ -189,7 +200,7 @@ Because a keymap cannot await a fetch before deciding whether to consume the key
 
 ### One passage dialog, four ways in
 
-There is one dialog for putting scripture anywhere: `components/PassageDialog.tsx`, with a `mode` prop. `VerseExpandPopover.tsx` is the notes editor's adapter on to it and `CopyOptionsDialog.tsx` is the Bible pane's. What the mode decides is small and enumerable: which store the format choice is remembered in, whether the primary button says Copy / Insert / Apply, whether the preview shows source text or HTML, and whether committing writes to the clipboard or calls `onInsert`.
+There is one dialog for putting scripture anywhere: `src/ui/components/PassageDialog.tsx`, with a `mode` prop. `VerseExpandPopover.tsx` is the notes editor's adapter on to it and `CopyOptionsDialog.tsx` is the Bible pane's. What the mode decides is small and enumerable: which store the format choice is remembered in, whether the primary button says Copy / Insert / Apply, whether the preview shows source text or HTML, and whether committing writes to the clipboard or calls `onInsert`.
 
 The four ways in:
 
@@ -344,6 +355,50 @@ All four exports are available from the notes sidebar and, because that sidebar 
 - The Markdown and Word exports go through `unwrap`, since their channels *do* answer with the `Result<T>` envelope (`ok` / `value` / `error`); their `catch` shows the message.
 
 The PDF label is `userNotesPane.exportPdfLabel` in `locales/en/`. The six draft locales are behind English by hundreds of keys, and a missing key falls back to English at runtime.
+
+### The advanced toolbar row
+
+The formatting row ends with a "More" toggle (`aria-expanded`, `aria-controls="notes-toolbar-advanced-row"`) that shows or hides a second row between the formatting row and the insert row. Open/closed is remembered per user in `localStorage` key `notesToolbarAdvancedOpen` (every access in try/catch; closed when storage is unavailable). Contents, moved out of the main row because most writers (English included) never touch them: the **writing-direction group** (LTR / RTL / Auto - Auto is the default and is the pressed state when the block has no explicit `dir`) and **subscript / superscript**. Alignment, text colour and highlight stay in the main row: they are everyday formatting.
+
+### Notes zoom (viewing size)
+
+The notes editor, the read-only viewer and Chapter mode's view scale with a zoom of 50-300% (steps of 10).
+Ctrl+wheel over the content changes it (`useCtrlWheelNotesZoom`, same pattern as `useCtrlWheelBibleSize`), and the
+toolbar shows a percentage with -/+ and a click-to-reset (`NotesZoomControl` in `NotesZoom.tsx`). It is a view-only
+scale (CSS `zoom` on the content area): font sizes stored in a note are never changed. The value lives in
+`useNotesZoomStore` and is remembered in `localStorage['kth.notesZoom']`. Chapter mode zooms its whole scroll area
+once; the editor and viewers inside it skip their own zoom (`NotesZoomApplied`).
+
+### Chapter mode is behind the `chapterNotes` flag
+
+Chapter mode (and its toolbar, shortcuts and in-view Compile button) is declared as the default-off feature flag
+`chapterNotes` (`packages/core/src/Settings/FeatureFlags.ts`). While it is off nothing of it is reachable: the
+"Chapter" entry points are not offered and a saved or popped-out "chapter" state falls back to the browser view
+(`UserNotesPane.tsx`). Compile from the command palette and the folder context menu is not gated. To review it in
+a development build, run in the dev tools console and reload:
+`localStorage.setItem('kth.flags', 'chapterNotes')` (dev builds), or start an unpackaged build (e2e, review) with `KTH_FLAGS=chapterNotes` (main answers the preload's `app:dev-flag-overrides` only when `!app.isPackaged`). Both are ignored in a packaged install.
+
+### Verse notes are drafts until saved
+
+Opening a verse note that has no file (Add/Edit note in the Bible pane, `open-verse-note`) no longer writes anything. `useVerseNoteOpener` calls `fileNotesAPI.readVerseNote` (never creates); with no file it opens an in-memory **draft** (`draftNote.ts`): a `verse_note` `BnFile` titled "Book c:v" with `updated: ''`, shown with the usual verse-reference breadcrumb and a usable editor. `file-notes:create-verse-note` still exists for other callers but the opener does not use it.
+
+- The file `Verse Notes/<Book>/<chapter>/<verse>.bn` is written only by the first save **with real content** (`noteHasContent`), through `fileNotesAPI.saveVerseNote(verseId, html, expectedUpdated?, bookName?)` (IPC `file-notes:save-verse-note`; the renderer adds the notes-folder book name because main has no localized book table). It creates the file (type `verse_note`, title, primary passage) or, if it exists, updates the content with the same conflict check as `save-note` when `expectedUpdated` is given (`conflict` / `not_found`). It broadcasts `file-notes:note-saved` to the other windows and fires the marker refresh, so the Bible pane marker appears right after the first save.
+- Every save path goes through the same rule (`saveWithBaseline` for autosave, the leave-the-note saver and the shutdown flush; `handleSaveNote` for Ctrl+S, breadcrumb navigation and the pop-out listener): an empty draft returns without writing and stays a draft; typed content creates the file and the note then carries the real `updated` as its baseline. Leaving an empty draft leaves nothing on disk.
+- Clearing an existing note is an ordinary save: the file stays, the marker goes. Deleting stays the deliberate Delete action. Old empty files from earlier versions are left alone (they already show no marker).
+- Move to..., Delete, and Reveal in Explorer are hidden while the note is a draft; print/export of the current content work. Pop-out of a draft with text saves it first; an empty draft is handed over by path and the detached window (and a restart) reopens it as a draft (`useNotesInit` -> `draftForPath`).
+- The opener first flushes the note being edited (`flushActiveNote`), so re-opening the very verse whose draft was just typed sees its new file.
+
+### Deleting a verse note
+
+Delete is offered in three places and always goes through the pane's `ConfirmDialog` (items go to the system trash): the folder browser's right-click menu (verse notes and everything else), the editor's header (a trash button, **verse notes only**, so it is not buried in the collapsed sidebar), and the editor sidebar's Document section (any note). Deleting the open note first marks the editor clean (`markSaved`) so the unmount flush cannot try to save into a file that is going away, then reloads the note's parent folder. `fileNotesAPI.deleteEntry` / `renameEntry` call `noteVerseNoteRemoved`, and every `saveNote` calls `noteVerseNoteSaved`, both in `src/ui/services/verseNoteMarkerEvents.ts`; `useVersesWithNotes` subscribes (and also to `onNoteSaved` pushes from other windows for paths under Verse Notes) and re-reads the chapter, so the Bible pane's marker disappears.
+
+### Only notes with content count
+
+`electron/utils/noteHasContent.ts` is the one definition of "real content": non-whitespace text, or an image / table / rule / video / audio / embed. `&nbsp;`, zero-width characters, empty paragraphs and `<br>` do not count; both HTML strings (what the renderer saves) and TipTap JSON (what `createNote` writes) are understood. `BibleNotesFileService` uses it on the main-process side: `listVerseNotesInChapter` (which feeds the Bible-pane markers) drops files with no content, and `listDirectory` hides book/chapter folders under `Verse Notes` that contain no note with content (recursive, stops at the first hit). Clearing a verse note keeps its file; the marker goes, and the folder reappears as soon as it is written to again. `hasVerseNote` still means "the file exists". Note files directly inside a visible chapter folder are listed even if empty.
+
+### Context menus open at the pointer
+
+`.dv-dockview { contain: layout }` makes the dock pane the containing block for `position: fixed` descendants, so a menu positioned from `clientX/clientY` inside a pane opened too far down and right. The folder browser's menu (`PointerMenu`) and the editor's reference menu (`NoteEditorVerseMenu`) now render through `PopupPortal` (`document.body`) and are positioned by the shared `PointerMenu` (`components/shared/PointerMenu.tsx`): first paint exactly at the pointer, then (layout effect, before paint) pulled back by an 8px margin if it would overflow the viewport; in an RTL document it unfolds leftwards.
 
 ### The insert row
 

@@ -354,6 +354,12 @@ describe('verseNumbers: first-full', () => {
     expect(out).toContain('(17) For God sent not his Son');
   });
 
+  it('separates the version with a comma inside the parentheses', () => {
+    const out = html('blockquote-numbered', { ...FIRST_FULL, displayVersionNumber: true });
+    expect(out).toContain('(John 3:16, KJV) For God so loved the world');
+    expect(out).not.toContain('(KJV))');
+  });
+
   it('drops the separate reference block, which would only repeat the first verse', () => {
     const out = passageMarkupToText(renderPassageMarkup([V16, V17], CONTEXT, 'blockquote-numbered', FIRST_FULL));
     expect(out.match(/John 3:16/g)).toHaveLength(1);

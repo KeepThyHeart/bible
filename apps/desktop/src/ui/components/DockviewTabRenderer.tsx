@@ -11,6 +11,7 @@ import { useCommentaryStore } from '../stores/useCommentaryStore';
 import { useStudyStore } from '../stores/useStudyStore';
 import { useTopicsStore } from '../stores/useTopicsStore';
 import { getNotesPanelNavState } from '../stores/useFileNotesStore';
+import { chapterTitle } from './notes/chapter/chapterTitle';
 import { formatVerseReference } from '../utils/verseReference';
 import type { PaneType } from '../../../electron/config/paneConfig';
 import { useI18n } from '../contexts/useI18n';
@@ -438,6 +439,10 @@ const DockviewTabRenderer: React.FC<IDockviewPanelHeaderProps> = (props) => {
             initialSideTab: navState.sideTab,
             initialCurrentPath: navState.currentPath,
             initialCurrentNotePath: navState.currentNotePath,
+            // Chapter view: the window opens on the same chapter and is titled with it.
+            ...(navState.view === 'chapter' && navState.chapter
+              ? { initialChapter: navState.chapter, noteName: chapterTitle(navState.chapter) }
+              : {}),
           };
         }
       } else if (contentType === 'study') {
@@ -601,6 +606,37 @@ const DockviewTabRenderer: React.FC<IDockviewPanelHeaderProps> = (props) => {
           >
             {badge}
           </span>
+        )}
+        {isSearchTab && (
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); handleToggleSearchPin(); }}
+            data-testid="search-tab-pin-button"
+            data-pinned={searchPinned ? 'true' : 'false'}
+            aria-pressed={searchPinned}
+            tabIndex={-1}
+            title={searchPinned ? t('searchTabs.unpin') : t('searchTabs.pin')}
+            aria-label={searchPinned ? t('searchTabs.unpin') : t('searchTabs.pin')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: controlScaled(16),
+              height: controlScaled(16),
+              border: 'none',
+              background: 'transparent',
+              borderRadius: '3px',
+              cursor: 'pointer',
+              padding: 0,
+              color: searchPinned ? 'var(--theme-accent-primary)' : 'var(--theme-text-secondary)',
+              opacity: searchPinned ? 1 : 0.7,
+            }}
+          >
+            <svg width="100%" height="100%" viewBox="0 0 24 24" aria-hidden="true" focusable="false"
+              fill={searchPinned ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <path d="M9 3h6l-1 6 3 3v2H7v-2l3-3-1-6zM12 14v7" />
+            </svg>
+          </button>
         )}
         {groupTabCount > 1 && (
           <button

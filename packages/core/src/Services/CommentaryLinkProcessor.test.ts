@@ -68,6 +68,24 @@ describe('processCommentaryLinks - full references', () => {
     expect(result).toContain('#verse-45008028-45008039');
   });
 
+  it('links a cross-chapter range like "Romans 7:24-8:4" as one reference', () => {
+    const result = processCommentaryLinks('Romans 7:24-8:4', romansContext());
+    expect(result).toBe('<a href="#verse-45007024-45008004" class="scripture-link">Romans 7:24-8:4</a>');
+  });
+
+  it('links cross-chapter ranges in a list and keeps later bare verses in the end chapter', () => {
+    const result = processCommentaryLinks('Romans 7:24-8:4, 9', romansContext());
+    expect(result).toContain('href="#verse-45007024-45008004"');
+    expect(result).toContain('href="#verse-45008009"');
+    expect(textOf(result)).toBe('Romans 7:24-8:4, 9');
+  });
+
+  it('links a bare cross-chapter range using the context book', () => {
+    const result = processCommentaryLinks('see 7:24-8:4', romansContext({ matchBareChapterVerse: true }));
+    expect(result).toContain('href="#verse-45007024-45008004"');
+    expect(textOf(result)).toBe('see 7:24-8:4');
+  });
+
   it('should link comma-separated verses like "1Jo 4:9,10,19"', () => {
     const result = processCommentaryLinks('Read 1Jo 4:9,10,19', romansContext());
     // Should produce multiple links separated by commas

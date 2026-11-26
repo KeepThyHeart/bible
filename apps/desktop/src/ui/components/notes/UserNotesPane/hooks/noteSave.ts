@@ -2,6 +2,7 @@ import * as fileNotesAPI from '../../../../services/fileNotesAPI';
 import type { BnFile } from '../../../../services/fileNotesAPI';
 import { IpcResultError } from '../../../../services/ipcResult';
 import { isAbsolutePath } from '../utils';
+import { isDraftNote, saveDraftNote } from '../draftNote';
 import { useNotesStore } from '../../../../stores/useNotesStore';
 import { useFileNotesStore } from '../../../../stores/useFileNotesStore';
 
@@ -9,14 +10,19 @@ import { useFileNotesStore } from '../../../../stores/useFileNotesStore';
  * Save a note with the baseline (`updated`) it was loaded or last saved at, so
  * the main process refuses a save that would overwrite another window's edits
  * (`conflict`) or re-create a note that was renamed, moved or trashed since
- * (`not_found`). Returns the `updated` the main process wrote.
+ * (`not_found`). Returns the `updated` the main process wrote. `origin` is
+ * announced on the same-window bus so the saver can skip its own echo.
  */
-export async function saveWithBaseline(path: string, note: BnFile): Promise<string> {
+export async function saveWithBaseline(path: string, note: BnFile, origin?: string): Promise<string> {
   beginSave(path);
   try {
+    // A verse note with no file yet: written only once it has content.
+    if (isDraftNote(note)) return await saveDraftNote(path, note);
+    // `origin` is only appended when given, so the plain single-view call shape is unchanged.
+    const extra = origin === undefined ? [] : [origin];
     const updated = isAbsolutePath(path)
-      ? await fileNotesAPI.saveNoteAbsolute(path, note, note.updated)
-      : await fileNotesAPI.saveNote(path, note, note.updated);
+      ? await fileNotesAPI.saveNoteAbsolute(path, note, note.updated, ...extra)
+      : await fileNotesAPI.saveNote(path, note, note.updated, ...extra);
     afterNoteSaved(path, updated);
     return updated;
   } finally {

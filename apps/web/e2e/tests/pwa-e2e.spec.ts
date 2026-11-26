@@ -93,6 +93,15 @@ test.describe('PWA on (features.pwa = true)', () => {
     // browser see a new worker the other way: register a different script URL for
     // the same scope. It installs, skips waiting and claims the page, exactly as a
     // rebuilt sw.js does, which is the path under test.
+    //
+    // A new worker taking control is not enough to reload: the page asks the server which build it
+    // serves and reloads only on a mismatch (a page already on the current build is left alone, see
+    // onNewVersionActive in utils/appUpdate.ts). So the server is made to name another build, as it
+    // would after a deploy.
+    await page.route('**/api/version', route => route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify({ buildId: 'a-newer-build' }),
+    }));
     const reloaded = page.waitForEvent('load');
     await page.evaluate(() => navigator.serviceWorker.register('/sw.js?v=next', { scope: '/' }).then(() => undefined));
     await reloaded;

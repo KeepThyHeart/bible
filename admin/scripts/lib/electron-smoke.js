@@ -82,11 +82,15 @@ async function dismissFirstRunDialog(window) {
   const dialog = window.locator('[data-testid="first-run-language-dialog"]');
   const appeared = await dialog.waitFor({ state: 'visible', timeout: 10000 }).then(() => true, () => false);
   if (!appeared) return 'not shown';
-  for (let step = 0; step < 4; step++) {
+  for (let step = 0; step < 5; step++) {
     const done = window.locator('[data-testid="first-run-language-done"]:visible');
+    // The network-consent step ("Stay offline" / "Go online"): stay offline, as the e2e fixture does.
+    const stayOffline = window.locator('[data-testid="first-run-network-stay-offline"]:visible');
     const advance = (await done.count()) > 0
       ? done.first()
-      : window.locator('[data-testid="first-run-language-continue"]:visible').first();
+      : (await stayOffline.count()) > 0
+        ? stayOffline.first()
+        : window.locator('[data-testid="first-run-language-continue"]:visible').first();
     if (await advance.count() === 0) break;
     await advance.click();
     if (await dialog.waitFor({ state: 'detached', timeout: 5000 }).then(() => true, () => false)) return 'dismissed';

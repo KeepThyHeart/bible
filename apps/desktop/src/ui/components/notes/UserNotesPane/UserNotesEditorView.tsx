@@ -1,6 +1,7 @@
 import React from 'react';
 import { Bdi } from '@bible/ui';
 import { useI18n } from '../../../contexts/useI18n';
+import { deleteKey } from '../../../utils/platformLabels';
 import NoteEditor from '../editor/NoteEditor';
 import { useNoteEditorStore } from '../../../stores/useNoteEditorStore';
 import type { NoteExportActions } from '../editor/EditorToolbar';
@@ -20,6 +21,8 @@ interface UserNotesEditorViewProps {
   onRequestRenameTitle: () => void;
   /** False for verse notes: their title is derived from the verse reference. */
   titleEditable: boolean;
+  /** Delete the open note (host confirms). Passed for verse notes so Delete is visible, not buried in the sidebar. */
+  onRequestDelete?: () => void;
   onPopOut: () => void;
   /** True in a popped-out notes window: there is nothing further to pop out to. */
   isDetached?: boolean;
@@ -31,6 +34,10 @@ interface UserNotesEditorViewProps {
   previousNote?: { path: string; title: string } | null;
   /** Reopen `previousNote` (the current note is saved first). */
   onBackToPrevious?: () => void;
+  /** Verse notes: switch the pane to Chapter mode (the whole chapter with each verse's note). */
+  onOpenChapter?: () => void;
+  /** The note is an unsaved verse-note draft with no file yet: there is nothing to call "Saved". */
+  isDraft?: boolean;
 }
 
 // allow-getstate: editor callback - imperative store write outside render
@@ -51,12 +58,15 @@ const UserNotesEditorView: React.FC<UserNotesEditorViewProps> = ({
   onBreadcrumbNavigate,
   onRequestRenameTitle,
   titleEditable,
+  onRequestDelete,
   onPopOut,
   isDetached = false,
   exportActions,
   notePath,
   previousNote,
   onBackToPrevious,
+  onOpenChapter,
+  isDraft = false,
 }) => {
   const { t, localizer } = useI18n();
   const [noteDirection, setNoteDirection] = useNoteDirection(notePath);
@@ -68,7 +78,7 @@ const UserNotesEditorView: React.FC<UserNotesEditorViewProps> = ({
   return (
     <>
       {/* Breadcrumb + action bar */}
-      <div className="border-b border-border px-4 py-2 bg-background-warm flex items-center gap-2">
+      <div className="border-b border-border px-4 py-2 bg-background-warm flex flex-wrap items-center gap-2">
         {/* Sidebar toggle */}
         <button
           type="button"
@@ -90,7 +100,7 @@ const UserNotesEditorView: React.FC<UserNotesEditorViewProps> = ({
 
         {/* Inline breadcrumbs with editable title */}
         <nav
-          className="flex items-center gap-1 text-sm min-w-0 flex-1 overflow-hidden whitespace-nowrap"
+          className="flex items-center gap-1 text-sm min-w-[10rem] basis-[14rem] flex-1 overflow-hidden whitespace-nowrap"
           aria-label={t('userNotesPane.breadcrumbLabel')}
         >
           {breadcrumbs.map((seg, i, arr) => (
@@ -104,7 +114,7 @@ const UserNotesEditorView: React.FC<UserNotesEditorViewProps> = ({
                 <button
                   type="button"
                   onClick={() => onBreadcrumbNavigate(seg.path)}
-                  className="min-w-0 text-accent-strong hover:text-accent-strong hover:underline transition-colors"
+                  className="min-w-[2.5rem] max-w-[10rem] shrink text-accent-strong hover:text-accent-strong hover:underline transition-colors"
                   title={seg.label}
                 >
                   {/* dir=auto on the truncating box itself: the ellipsis follows the label's own
@@ -148,8 +158,20 @@ const UserNotesEditorView: React.FC<UserNotesEditorViewProps> = ({
           </button>
         )}
 
+        {onOpenChapter && (
+          <button
+            type="button"
+            onClick={onOpenChapter}
+            className="flex-shrink-0 px-2 py-1 text-xs rounded border border-border-secondary hover:bg-background-hover transition-colors"
+            title={t('chapterNotes.openChapterTitle')}
+            data-testid="notes-open-chapter"
+          >
+            {t('chapterNotes.openChapter')}
+          </button>
+        )}
+
         {/* Auto-save status indicator */}
-        {(isSaving || !editorIsDirty) && (
+        {(isSaving || (!editorIsDirty && !isDraft)) && (
           <span
             className={`text-xs flex-shrink-0 ${isSaving ? 'text-text-muted' : 'text-success-text'}`}
             role="status"
@@ -161,8 +183,18 @@ const UserNotesEditorView: React.FC<UserNotesEditorViewProps> = ({
           </span>
         )}
 
-        {notePath && (
-          <NoteDirectionControl value={noteDirection} onChange={setNoteDirection} />
+        {onRequestDelete && (
+          <button
+            type="button"
+            onClick={onRequestDelete}
+            className="ms-auto flex-shrink-0 px-2 py-1 rounded border border-border-secondary hover:bg-background-hover text-danger transition-colors"
+            title={t(deleteKey('notesFolderBrowser.menuDelete'))}
+            aria-label={t(deleteKey('notesFolderBrowser.menuDelete'))}
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+          </button>
         )}
 
         {/* Pop-out - a window-level action, not a title action. It must not sit
@@ -174,7 +206,7 @@ const UserNotesEditorView: React.FC<UserNotesEditorViewProps> = ({
         {!isDetached && (<button
           type="button"
           onClick={onPopOut}
-          className={`${notePath ? '' : 'ms-auto '}flex-shrink-0 px-2 py-1 rounded border border-border-secondary hover:bg-background-hover transition-colors`}
+          className={`${onRequestDelete ? '' : 'ms-auto '}flex-shrink-0 px-2 py-1 rounded border border-border-secondary hover:bg-background-hover transition-colors`}
           title={t('userNotesPane.popOutTitle')}
           aria-label={t('userNotesPane.popOutTitle')}
         >
@@ -194,6 +226,7 @@ const UserNotesEditorView: React.FC<UserNotesEditorViewProps> = ({
           placeholder={t('userNotesPane.startWritingPlaceholder')}
           exportActions={exportActions}
           defaultDirection={noteDirection ?? undefined}
+          directionControl={notePath ? <NoteDirectionControl value={noteDirection} onChange={setNoteDirection} /> : undefined}
         />
       </div>
 

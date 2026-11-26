@@ -467,7 +467,35 @@
     "loading": "جارٍ تحميل الأعداد...",
     "copyFailed": "تعذّر النسخ إلى الحافظة. تحقّق من أن هذا الموقع مسموح له باستخدامها.",
     "referencePosition": "موضع المرجع",
-    "print": "طباعة"
+    "print": "طباعة",
+    "printLayout": "تخطيط الطباعة",
+    "printLayoutNumbered": "آيات مرقمة",
+    "printLayoutBlockquote": "اقتباس كتلة",
+    "printLayoutPreview": "كما في المعاينة",
+    "printNotesMargin": "ترك هامش للملاحظات",
+    "printMarginWidth": "عرض الهامش: {{width}} سم",
+    "printMarginRule": "رسم خط عند الهامش",
+    "printUnits": "الوحدات",
+    "printUnitCm": "سنتيمترات",
+    "printUnitIn": "بوصات",
+    "printMarginWidthIn": "عرض الهامش: {{width}} بوصة",
+    "printLineSpacing": "تباعد الأسطر",
+    "printLineSpacingNormal": "عادي",
+    "printFontSize": "حجم النص: {{size}} نقطة",
+    "printPreviewLabel": "معاينة الصفحة المطبوعة",
+    "printTheme": "سمة الألوان",
+    "printThemeBw": "أبيض وأسود",
+    "printThemeClassic": "كلاسيكي (أحمر داكن)",
+    "printThemeBlue": "أزرق",
+    "printThemeGreen": "أخضر",
+    "printThemeSepia": "بني داكن",
+    "printRedLetters": "كلمات المسيح بالأحمر",
+    "printShowTitle": "طباعة العنوان",
+    "printMoreOptions": "مزيد من الخيارات…",
+    "printThisFormat": "طباعة بهذا التنسيق…",
+    "printSavePdf": "حفظ كملف PDF…",
+    "printTitle": "طباعة المقطع",
+    "printPdfHint": "لحفظ ملف PDF، اختر «حفظ كملف PDF» كطابعة في نافذة الطباعة."
   },
   "ui": {
     "passageInsert": {
@@ -879,7 +907,8 @@
     "chapterOption": "{book} الأصحاح {chapter}",
     "selectAVerse": "اختر آية، أو انتقل إلى الأصحاح كاملاً",
     "goToChapter": "الانتقال إلى {book} {chapter}",
-    "verseOption": "{book} {chapter}:{verse}"
+    "verseOption": "{book} {chapter}:{verse}",
+    "alsoChooseVerse": "اختيار آية أيضًا"
   },
   "helpDialog": {
     "esc": "Esc"

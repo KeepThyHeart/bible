@@ -7,6 +7,7 @@
 
 import type { ICommandRegistry } from '../services/ICommandRegistry';
 import type { IDisposable } from '../types/Command';
+import { requestCompilePassageNotes } from '../services/compile/compileRequest';
 
 function dispatchAppEvent(name: string): void {
   window.dispatchEvent(new CustomEvent(name));
@@ -19,6 +20,12 @@ export function registerNotesCommands(registry: ICommandRegistry): IDisposable[]
       title: { key: 'notes.export' },
       category: { key: 'notes.export.category' },
       handler: () => dispatchAppEvent('command:notes:export'),
+    }),
+    registry.register({
+      id: 'notes.compilePassageNotes',
+      title: { key: 'notes.compilePassageNotes' },
+      category: { key: 'notes.compilePassageNotes.category' },
+      handler: () => requestCompilePassageNotes(),
     }),
   ];
 }

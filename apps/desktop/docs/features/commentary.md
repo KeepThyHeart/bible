@@ -126,7 +126,7 @@ The digest tab is labelled **"Combined Summary"** (`DIGEST_DISPLAY_NAME`), never
 
 **`SYNTHESIS` is never user-facing copy.** `isDigestModule(abbr)` guards every place the abbreviation could reach a reader:
 
-- `study/VerseLinksDisplay.tsx` - the "Commentaries:" chips in the Bible pane's Study Mode.
+- `src/ui/components/study/VerseLinksDisplay.tsx` - the "Commentaries:" chips in the Bible pane's Study Mode.
 - `CommentaryPane.tsx`'s **Add Commentary** list. `ModuleSelector` renders `module.abbreviation` as each row's secondary line, so the guard is at the call site - the generic selector has no business knowing about one module. That makes `ModuleItem.abbreviation` display text; `ModuleItem.id` is the identity, and this call site's `onSelect`/`onRemove` act on `id`.
 - `CommentaryTreeView.tsx` - the "Browse {abbreviation} Commentary" heading, which is prose about the module rather than a reference to its identity.
 
@@ -145,4 +145,4 @@ Both are hidden when only one commentary is open, matching the gate on the conte
 
 `ModuleSelector`'s list re-sorts as the per-verse availability check resolves ("has content for this verse" first), so a row located a moment ago is routinely replaced before a click reaches it - and `{ force: true }` makes that worse, not better, because forcing skips the actionability wait that would otherwise catch the swap. Filter, then press **Enter**: `handleKeyDown` reads the current list.
 
-Note also that `ModuleSelector` in `embedded` mode (the Books/Dictionary picker, `BookPane/BookModuleSelectorModal.tsx`) renders no `data-testid="module-selector"` wrapper - reach it through the modal's `role="dialog"` instead.
+Note also that `ModuleSelector` in `embedded` mode (the Books/Dictionary picker, `src/ui/components/BookPane/BookModuleSelectorModal.tsx`) renders no `data-testid="module-selector"` wrapper - reach it through the modal's `role="dialog"` instead.

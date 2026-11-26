@@ -232,3 +232,30 @@ describe('a search tab as a preview tab', () => {
     expect(useSearchStore.getState().sessionMeta[PANEL_ID]?.pinned).toBe(false);
   });
 });
+
+describe('search tab pin button (task 0216)', () => {
+  it('shows an unpinned pin icon on a preview search tab; clicking pins it', async () => {
+    const user = userEvent.setup();
+    setActiveSession({ query: 'love', resultsForQuery: 'love', sessionMeta: { [PANEL_ID]: { pinned: false, lastUsed: 1 } as SearchSessionMeta } });
+    renderTab(makeProps('search'));
+    const pin = screen.getByTestId('search-tab-pin-button');
+    expect(pin).toHaveAttribute('data-pinned', 'false');
+    await user.click(pin);
+    expect(useSearchStore.getState().sessionMeta[PANEL_ID]?.pinned).toBe(true);
+  });
+
+  it('a pinned tab shows the active pin; clicking again unpins', async () => {
+    const user = userEvent.setup();
+    setActiveSession({ query: 'love', resultsForQuery: 'love', sessionMeta: { [PANEL_ID]: { pinned: true, lastUsed: 1 } as SearchSessionMeta } });
+    renderTab(makeProps('search'));
+    const pin = screen.getByTestId('search-tab-pin-button');
+    expect(pin).toHaveAttribute('data-pinned', 'true');
+    await user.click(pin);
+    expect(useSearchStore.getState().sessionMeta[PANEL_ID]?.pinned).toBe(false);
+  });
+
+  it('other tab types have no pin button', () => {
+    renderTab(makeProps('bible', 'bible_1', 'Bible'));
+    expect(screen.queryByTestId('search-tab-pin-button')).toBeNull();
+  });
+});

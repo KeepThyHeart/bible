@@ -6,6 +6,7 @@ import { useFocusTrap } from '../../hooks/useFocusTrap';
 import { onRadioGroupKeyDown } from '../../utils/radioGroupKeys';
 import { UnderlineSwatch } from './UnderlineSwatch';
 import PointerMenu from '../shared/PointerMenu';
+import { useHighlightStore } from '../../stores/useHighlightStore';
 
 interface HighlightMenuProps {
   position: { x: number; y: number };
@@ -29,7 +30,7 @@ export const HighlightMenu: React.FC<HighlightMenuProps> = ({
   const { t } = useI18n();
   const [selectedMarkupType, setSelectedMarkupType] = useState<MarkupType>('highlight');
   const [selectedUnderlineStyle, setSelectedUnderlineStyle] = useState<UnderlineStyle>('solid');
-  const [selectedUnderlineColor, setSelectedUnderlineColor] = useState<HighlightColor>('yellow');
+  const [selectedUnderlineColor, setSelectedUnderlineColor] = useState<HighlightColor>(() => useHighlightStore.getState().lastUnderlineColor /* allow-getstate: initial value */);
   // 'both' needs the highlight colour AND the underline choices before anything is applied.
   const [selectedHighlightColor, setSelectedHighlightColor] = useState<HighlightColor>('yellow');
   const trapRef = useFocusTrap<HTMLDivElement>(true);

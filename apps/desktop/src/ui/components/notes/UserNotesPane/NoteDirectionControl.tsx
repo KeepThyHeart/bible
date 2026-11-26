@@ -11,8 +11,7 @@ interface Props {
 const NoteDirectionControl: React.FC<Props> = ({ value, onChange }) => {
   const { t } = useI18n();
   return (
-    // ms-auto pushes this and the pop-out button to the far end of the header.
-    <label className="ms-auto flex-shrink-0 flex items-center gap-1 text-xs text-text-secondary">
+    <label className="flex-shrink-0 flex items-center gap-1 text-xs text-text-secondary">
       <span>{t('editorToolbar.noteDirectionLabel')}</span>
       <select
         value={value ?? 'default'}

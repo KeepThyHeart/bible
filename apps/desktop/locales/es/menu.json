@@ -28,5 +28,6 @@
   "menu.help.reportIssue": "Informar de un problema",
   "menu.help.about": "Acerca de Biblia",
   "menu.tools.title": "Herramientas",
-  "menu.view.apps": "Aplicaciones"
+  "menu.view.apps": "Aplicaciones",
+  "menu.help.sendFeedback": "Enviar comentarios…"
 }

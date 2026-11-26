@@ -467,7 +467,35 @@
     "loading": "Cargando los versículos...",
     "copyFailed": "No se pudo copiar al portapapeles. Comprueba que este sitio tenga permiso para usarlo.",
     "referencePosition": "Posición de la referencia",
-    "print": "Imprimir"
+    "print": "Imprimir",
+    "printLayout": "Diseño de impresión",
+    "printLayoutNumbered": "Versículos numerados",
+    "printLayoutBlockquote": "Cita en bloque",
+    "printLayoutPreview": "Como en la vista previa",
+    "printNotesMargin": "Dejar margen para notas",
+    "printMarginWidth": "Ancho del margen: {{width}} cm",
+    "printMarginRule": "Dibujar una línea en el margen",
+    "printUnits": "Unidades",
+    "printUnitCm": "Centímetros",
+    "printUnitIn": "Pulgadas",
+    "printMarginWidthIn": "Ancho del margen: {{width}} pulg.",
+    "printLineSpacing": "Interlineado",
+    "printLineSpacingNormal": "Normal",
+    "printFontSize": "Tamaño del texto: {{size}} pt",
+    "printPreviewLabel": "Vista previa de la página impresa",
+    "printTheme": "Tema de color",
+    "printThemeBw": "Blanco y negro",
+    "printThemeClassic": "Clásico (rojo oscuro)",
+    "printThemeBlue": "Azul",
+    "printThemeGreen": "Verde",
+    "printThemeSepia": "Sepia",
+    "printRedLetters": "Palabras de Cristo en rojo",
+    "printShowTitle": "Imprimir el título",
+    "printMoreOptions": "Más opciones…",
+    "printThisFormat": "Imprimir con este formato…",
+    "printSavePdf": "Guardar como PDF…",
+    "printTitle": "Imprimir pasaje",
+    "printPdfHint": "Para guardar un PDF, elige «Guardar como PDF» como impresora en la ventana de impresión."
   },
   "ui": {
     "passageInsert": {
@@ -879,7 +907,8 @@
     "chapterOption": "{book}, capítulo {chapter}",
     "selectAVerse": "Elija un versículo, o vaya al capítulo completo",
     "goToChapter": "Ir a {book} {chapter}",
-    "verseOption": "{book} {chapter}:{verse}"
+    "verseOption": "{book} {chapter}:{verse}",
+    "alsoChooseVerse": "Elegir también un versículo"
   },
   "helpDialog": {
     "esc": "Esc"

@@ -93,5 +93,8 @@
   "wordStudy.open.category": "Estudio",
   "wordStudy.open.alias.0": "estudio de palabras",
   "wordStudy.open.alias.1": "estudio strong",
-  "wordStudy.open.alias.2": "concordancia"
+  "wordStudy.open.alias.2": "concordancia",
+  "help.sendFeedback": "Enviar comentarios",
+  "notes.compilePassageNotes": "Compilar notas de pasajes",
+  "notes.compilePassageNotes.category": "Notas"
 }

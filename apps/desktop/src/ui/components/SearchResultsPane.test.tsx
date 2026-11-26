@@ -251,7 +251,7 @@ describe('SearchResultsPane', () => {
       semanticAvailable: true,
     });
     renderWithProviders(<SearchResultsPane />);
-    expect(screen.getByText('Ideas Search')).toBeInTheDocument();
+    expect(screen.getAllByText(/Ideas Search/).length).toBeGreaterThan(0);
   });
 
   it('renders semantic results when in semantic mode', () => {
@@ -288,6 +288,45 @@ describe('SearchResultsPane', () => {
     renderWithProviders(<SearchResultsPane />);
     await user.click(screen.getByTitle('Close Search Results'));
     expect(mockSetQuery).toHaveBeenCalledWith('');
+  });
+
+  describe('Ideas -> Keyword suggestion (task 0216)', () => {
+    const ideasState = {
+      ...defaultSearchState,
+      isSemanticMode: true,
+      semanticAvailable: true,
+      resultsForQuery: 'God so loved',
+      semanticResults: [
+        { id: '1', reference: 'John 3:16', text: 'Text', startVerseId: 43003016, similarity: 0.85, level: 'verse', textPreview: '' },
+      ],
+    };
+
+    it('shows the link only when the exact phrase matches, and switches only on click', async () => {
+      const user = userEvent.setup();
+      const toggle = vi.fn();
+      Object.assign(mockSearchStore, { ...ideasState, toggleSemanticMode: toggle, hasExactPhraseMatch: vi.fn().mockResolvedValue(true) });
+      renderWithProviders(<SearchResultsPane />);
+      const link = await screen.findByTestId('suggest-keyword-link');
+      expect(toggle).not.toHaveBeenCalled();
+      await user.click(link);
+      expect(toggle).toHaveBeenCalledTimes(1);
+    });
+
+    it('shows nothing when there is no exact phrase match', async () => {
+      const probe = vi.fn().mockResolvedValue(false);
+      Object.assign(mockSearchStore, { ...ideasState, hasExactPhraseMatch: probe });
+      renderWithProviders(<SearchResultsPane />);
+      await vi.waitFor(() => expect(probe).toHaveBeenCalledWith('God so loved'));
+      expect(screen.queryByTestId('suggest-keyword')).toBeNull();
+    });
+
+    it('does not probe in a keyword search', () => {
+      const probe = vi.fn().mockResolvedValue(true);
+      Object.assign(mockSearchStore, { ...ideasState, isSemanticMode: false, hasExactPhraseMatch: probe });
+      renderWithProviders(<SearchResultsPane />);
+      expect(probe).not.toHaveBeenCalled();
+      expect(screen.queryByTestId('suggest-keyword')).toBeNull();
+    });
   });
 
   describe('Ideas search suggestion (opt-in, never automatic)', () => {

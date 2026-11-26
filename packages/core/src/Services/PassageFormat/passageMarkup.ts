@@ -329,7 +329,8 @@ function verseLabel(
   if (style === 'first-full') {
     style = 'parenthetical';
     if (position?.index === 0) {
-      number = buildPassageReference([verse], position.context, options.displayVersionNumber);
+      // Already inside the label's parentheses, so the version follows a comma: (John 3:16, KJV).
+      number = buildPassageReference([verse], position.context, options.displayVersionNumber, 'appended');
     } else if (position && position.list[position.index - 1]?.chapter !== verse.chapter) {
       number = `${verse.chapter}:${verse.verse}`;
     } else {

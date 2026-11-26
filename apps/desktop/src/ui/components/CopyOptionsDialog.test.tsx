@@ -19,11 +19,12 @@
  *     render, so old notes keep their shape, but they are not offered.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import React from 'react';
 import CopyOptionsDialog from './CopyOptionsDialog';
 import { ContextProvider, type AppServices } from '../contexts/ContextProvider';
+import { loadPassageMarkupOptions, savePassageMarkupOptions } from '../services/copyFormats/passageMarkupPreferences';
 import {
   PASSAGE_INSERT_KEYS,
   getPassageFormatCatalog,
@@ -90,7 +91,11 @@ vi.mock('../services/verseCopyService', async (importOriginal) => {
 });
 
 const printDocument = vi.fn();
-vi.mock('../services/fileNotesAPI', () => ({ printDocument: (html: string) => printDocument(html) }));
+const exportDocumentPdf = vi.fn();
+vi.mock('../services/fileNotesAPI', () => ({
+  printDocument: (html: string) => printDocument(html),
+  exportDocumentPdf: (html: string, name: string) => exportDocumentPdf(html, name),
+}));
 
 function createMockServices(): AppServices {
   return {
@@ -635,48 +640,157 @@ describe('CopyOptionsDialog: printing', () => {
   beforeEach(() => {
     printDocument.mockReset();
     printDocument.mockResolvedValue({ success: true });
+    exportDocumentPdf.mockReset();
+    exportDocumentPdf.mockResolvedValue({ success: true });
+    localStorage.removeItem('bible-desktop-print-preferences');
   });
 
-  it('Print sends the passage as a sanitized page with black text and no red letters', async () => {
+  /** Copy dialog, then its Print button, which opens the Print dialog. */
+  async function openPrintDialog(onClose = vi.fn()) {
     const user = userEvent.setup();
-    const onClose = vi.fn();
-    openDialog(mockVerses, onClose);
-
-    await user.click(screen.getByTestId('passage-dialog-print'));
-
-    expect(printDocument).toHaveBeenCalledTimes(1);
-    const html = printDocument.mock.calls[0][0] as string;
-    expect(html).toContain("Content-Security-Policy");
-    expect(html).toContain(JOHN_3_16);
-    expect(html).toContain(JOHN_3_17);
-    expect(html).toContain('color: #000 !important');
-    expect(onClose).toHaveBeenCalled();
-  });
-
-  it('prints in the chosen format (Verse headings print as real headings)', async () => {
-    const user = userEvent.setup();
-    openDialog(mockVerses);
-    await user.click(format('Verse headings'));
-    await user.click(screen.getByTestId('passage-dialog-print'));
-    const html = printDocument.mock.calls[0][0] as string;
-    expect(html).toContain('<h3>');
-    expect(html).toContain('<blockquote>');
-  });
-
-  it('a cancelled print dialog leaves the dialog open and shows no error', async () => {
-    const user = userEvent.setup();
-    const onClose = vi.fn();
-    printDocument.mockResolvedValue({ success: false, canceled: true });
     openDialog(mockVerses, onClose);
     await user.click(screen.getByTestId('passage-dialog-print'));
-    expect(onClose).not.toHaveBeenCalled();
+    return { user, onClose };
+  }
+
+  const sentDoc = () => printDocument.mock.calls[0][0] as string;
+  const bodyDoc = () => previewDoc().replace(/<title>.*?<\/title>/s, '');
+  const previewDoc = () => (screen.getByTestId('print-page-preview-frame') as HTMLIFrameElement).srcdoc;
+
+  it('the Copy dialog\'s Print button opens the Print dialog with a live preview and the print settings', async () => {
+    await openPrintDialog();
+    expect(screen.getByTestId('print-dialog')).toBeInTheDocument();
+    const frame = screen.getByTestId('print-page-preview-frame') as HTMLIFrameElement;
+    expect(frame.getAttribute('sandbox')).toBe('');
+    expect(frame.srcdoc).toContain("script-src 'none'");
+    expect(frame.srcdoc).toContain(JOHN_3_16);
+    for (const id of ['print-layout', 'print-font-size', 'print-line-spacing', 'print-notes-margin', 'print-theme', 'print-title']) {
+      expect(screen.getByTestId(id)).toBeInTheDocument();
+    }
   });
 
-  it('opened from "Print...", the primary button prints and Copy is the other one', async () => {
-    const user = userEvent.setup();
+  it('the Print dialog is not made inert by the hidden Copy dialog beneath it (Ctrl+P, verse menu Print...)', async () => {
     renderWithProviders(<CopyOptionsDialog verses={mockVerses} context={mockContext} onClose={vi.fn()} printFirst />);
-    expect(screen.getByRole('heading', { name: 'Print Passage' })).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: /^Print/ }));
+    await new Promise(r => requestAnimationFrame(() => r(undefined)));
+    expect(screen.getByTestId('print-dialog').closest('[inert]')).toBeNull();
+  });
+
+  it('opened with printFirst (Print... from the verse menu) shows the Print dialog straight away', async () => {
+    renderWithProviders(<CopyOptionsDialog verses={mockVerses} context={mockContext} onClose={vi.fn()} printFirst />);
+    expect(screen.getByTestId('print-dialog')).toBeInTheDocument();
+  });
+
+  it('Print sends exactly the previewed page: black text, numbered verses, no block-quote line, bold title', async () => {
+    const user = userEvent.setup();
+    const onClose = vi.fn();
+    await openPrintDialog(onClose);
+    const shown = previewDoc();
+    await user.click(screen.getByTestId('print-dialog-print'));
     expect(printDocument).toHaveBeenCalledTimes(1);
+    expect(sentDoc()).toBe(shown);
+    expect(shown).toContain('Content-Security-Policy');
+    expect(shown).toContain('color: #000 !important');
+    expect(shown).not.toContain('border-inline-start: 2px');
+    expect(shown).not.toContain('notes-rule');
+    expect(shown).toContain('<h1>');
+    expect(shown).toContain('font-weight: 700');
+    expect(shown).not.toContain('h1, sup { color');
+  });
+
+  it('Save as PDF sends the same document to the PDF export', async () => {
+    const { user } = await openPrintDialog();
+    const shown = previewDoc();
+    await user.click(screen.getByTestId('print-save-pdf'));
+    expect(exportDocumentPdf).toHaveBeenCalledTimes(1);
+    expect(exportDocumentPdf.mock.calls[0][0]).toBe(shown);
+  });
+
+  it('Save as PDF suggests a file name built from the passage, also used as the page title', async () => {
+    const { user } = await openPrintDialog();
+    await user.click(screen.getByTestId('print-save-pdf'));
+    const [html, name] = exportDocumentPdf.mock.calls[0] as [string, string];
+    expect(name).not.toMatch(/[:/\\]/);
+    expect(name).toMatch(/^John 3-16/);
+    expect(html).toContain(`<title>${name}</title>`);
+  });
+
+  it('Print has its own verse-number choice: Copy\'s style does not leak in, and the reference shows once (B17)', async () => {
+    savePassageMarkupOptions('blockquote-numbered', { ...loadPassageMarkupOptions('blockquote-numbered'), verseNumbers: 'first-full' });
+    const { user } = await openPrintDialog();
+    expect((screen.getByTestId('print-verse-numbers') as HTMLSelectElement).value).toBe('parenthetical');
+    expect(previewDoc()).not.toMatch(/\(John 3:\d+/);
+    await user.selectOptions(screen.getByTestId('print-verse-numbers'), 'first-full');
+    expect(previewDoc()).not.toContain('(KJV))');
+    expect(bodyDoc().match(/John 3:1/g)).toHaveLength(1); // the title only
+    await user.click(screen.getByTestId('print-title'));
+    expect(bodyDoc().match(/John 3:1/g)).toHaveLength(1); // title off: on the first verse only
+    expect(JSON.parse(localStorage.getItem('bible-desktop-print-preferences') ?? '{}').verseNumbers).toBe('first-full');
+  });
+
+  it('the settings change the preview live and are remembered', async () => {
+    const { user } = await openPrintDialog();
+    await user.selectOptions(screen.getByTestId('print-layout'), 'blockquote');
+    await user.selectOptions(screen.getByTestId('print-line-spacing'), '3');
+    fireEvent.change(screen.getByTestId('print-font-size'), { target: { value: '12' } });
+    await user.selectOptions(screen.getByTestId('print-theme'), 'blue');
+    await user.click(screen.getByTestId('print-notes-margin'));
+    await user.selectOptions(screen.getByTestId('print-unit'), 'cm');
+    fireEvent.change(screen.getByTestId('print-margin-width'), { target: { value: '6.5' } });
+    await user.click(screen.getByTestId('print-notes-rule'));
+    const doc = previewDoc();
+    expect(doc).toContain('border-inline-start: 2px solid #000');
+    expect(doc).toContain('font-size: 12pt; line-height: 3');
+    expect(doc).toContain('h1, sup { color: #1f4e8c !important; }');
+    expect(doc).toContain('padding-inline-end: 7cm');
+    expect(doc).toContain('class="notes-rule"');
+    cleanup();
+
+    const again = await openPrintDialog();
+    expect(screen.getByTestId('print-layout')).toHaveValue('blockquote');
+    expect(screen.getByTestId('print-theme')).toHaveValue('blue');
+    expect(again.user).toBeTruthy();
+  });
+
+  it('shows the margin in inches and has no rule unless asked', async () => {
+    const { user } = await openPrintDialog();
+    await user.click(screen.getByTestId('print-notes-margin'));
+    await user.selectOptions(screen.getByTestId('print-unit'), 'in');
+    fireEvent.change(screen.getByTestId('print-margin-width'), { target: { value: '2.5' } });
+    const doc = previewDoc();
+    expect(doc).toContain('padding-inline-end: 6.35cm');
+    expect(doc).not.toContain('class="notes-rule"');
+  });
+
+  it('the title can be switched off; red letters are offered only in a colour theme', async () => {
+    const { user } = await openPrintDialog();
+    expect(screen.queryByTestId('print-red-letters')).toBeNull();
+    await user.click(screen.getByTestId('print-title'));
+    expect(previewDoc()).not.toContain('<h1>');
+    await user.selectOptions(screen.getByTestId('print-theme'), 'sepia');
+    expect(screen.getByTestId('print-red-letters')).toBeInTheDocument();
+  });
+
+  it('"More options..." goes to the Copy dialog, whose one action is "Print this format..." in the chosen format', async () => {
+    const { user } = await openPrintDialog();
+    await user.click(screen.getByTestId('print-more-options'));
+    expect(screen.queryByTestId('print-dialog')).toBeNull();
+    expect(screen.getByRole('heading', { name: 'Print Passage' })).toBeInTheDocument();
+    expect(screen.queryByTestId('passage-dialog-print')).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Copy/ })).toBeNull();
+    await user.click(format('Verse headings'));
+    await user.click(screen.getByRole('button', { name: /^Print this format/ }));
+    expect(screen.getByTestId('print-layout')).toHaveValue('preview');
+    const doc = previewDoc();
+    expect(doc).toContain('<h3>');
+    expect(doc).toContain('<blockquote>');
+  });
+
+  it('a cancelled print dialog leaves the Print dialog open and shows no error', async () => {
+    const { user, onClose } = await openPrintDialog();
+    printDocument.mockResolvedValue({ success: false, canceled: true });
+    await user.click(screen.getByTestId('print-dialog-print'));
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByTestId('print-dialog')).toBeInTheDocument();
   });
 });
+

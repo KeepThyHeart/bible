@@ -467,7 +467,35 @@
     "loading": "טוען פסוקים...",
     "copyFailed": "לא ניתן להעתיק ללוח. בדקו שלאתר זה יש הרשאה להשתמש בו.",
     "referencePosition": "מיקום ההפניה",
-    "print": "הדפסה"
+    "print": "הדפסה",
+    "printLayout": "פריסת הדפסה",
+    "printLayoutNumbered": "פסוקים ממוספרים",
+    "printLayoutBlockquote": "ציטוט בלוק",
+    "printLayoutPreview": "כמו בתצוגה המקדימה",
+    "printNotesMargin": "השאר שוליים להערות",
+    "printMarginWidth": "רוחב השוליים: {{width}} ס״מ",
+    "printMarginRule": "צייר קו בשוליים",
+    "printUnits": "יחידות",
+    "printUnitCm": "סנטימטרים",
+    "printUnitIn": "אינצ׳ים",
+    "printMarginWidthIn": "רוחב השוליים: {{width}} אינץ׳",
+    "printLineSpacing": "מרווח שורות",
+    "printLineSpacingNormal": "רגיל",
+    "printFontSize": "גודל הטקסט: {{size}} נק׳",
+    "printPreviewLabel": "תצוגה מקדימה של הדף המודפס",
+    "printTheme": "ערכת צבעים",
+    "printThemeBw": "שחור-לבן",
+    "printThemeClassic": "קלאסי (אדום כהה)",
+    "printThemeBlue": "כחול",
+    "printThemeGreen": "ירוק",
+    "printThemeSepia": "ספיה",
+    "printRedLetters": "דברי המשיח באדום",
+    "printShowTitle": "הדפס את הכותרת",
+    "printMoreOptions": "אפשרויות נוספות…",
+    "printThisFormat": "הדפסה בתבנית זו…",
+    "printSavePdf": "שמור כ-PDF…",
+    "printTitle": "הדפסת קטע",
+    "printPdfHint": "כדי לשמור כ-PDF, בחרו ב״שמור כ-PDF״ כמדפסת בחלון ההדפסה."
   },
   "ui": {
     "passageInsert": {
@@ -879,7 +907,8 @@
     "chapterOption": "{book} פרק {chapter}",
     "selectAVerse": "בחרו פסוק, או עברו לפרק כולו",
     "goToChapter": "מעבר ל{book} {chapter}",
-    "verseOption": "{book} {chapter}:{verse}"
+    "verseOption": "{book} {chapter}:{verse}",
+    "alsoChooseVerse": "לבחור גם פסוק"
   },
   "helpDialog": {
     "esc": "Esc"

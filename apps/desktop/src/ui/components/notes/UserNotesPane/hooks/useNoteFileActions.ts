@@ -5,9 +5,10 @@ import { useNoteEditorStore } from '../../../../stores/useNoteEditorStore';
 import { useToastStore } from '../../../../stores/useToastStore';
 import { useFileNotesStore } from '../../../../stores/useFileNotesStore';
 import { htmlToMarkdown } from '../../../../utils/exportNote';
-import { sanitizeHtml } from '../../../../utils/sanitize';
 import { IpcResultError, unwrap } from '../../../../services/ipcResult';
-import { escapeHtmlText, isAbsolutePath } from '../utils';
+import { isAbsolutePath } from '../utils';
+import { buildNoteDocumentHtml, exportFileName } from '../../../../services/noteDocument';
+import { isDraftNote, saveDraftNote } from '../draftNote';
 import { MISSING_MESSAGE, hasNoteConflict, markNoteConflict, clearNoteConflict, beginSave, endSave, afterNoteSaved } from './noteSave';
 
 interface UseNoteFileActionsArgs {
@@ -30,35 +31,6 @@ export interface NoteFileActions {
   handleExportDocx: () => Promise<void>;
   handleOpenFile: () => Promise<void>;
   handleOpenInExplorer: (relativePath?: string) => Promise<void>;
-}
-
-/**
- * The note as a standalone HTML document: sanitized body, print stylesheet,
- * restrictive CSP.
- *
- * Printing and PDF export are the same page through two different exits, so
- * they build it once here. (The main process injects the CSP again on its own
- * side - this copy is not load-bearing, it just means the document is already
- * correct if anything else ever renders it.)
- */
-function buildNoteDocumentHtml(title: string, bodyHtml: string): string {
-  const safeTitle = escapeHtmlText(title);
-  const safeBody = sanitizeHtml(bodyHtml);
-  const csp = `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:; script-src 'none'">`;
-  return `<!DOCTYPE html><html><head>${csp}<title>${safeTitle}</title><style>
-      body { font-family: Georgia, serif; font-size: 16px; line-height: 1.7; max-width: 700px; margin: 40px auto; padding: 0 20px; color: #111; }
-      h1 { font-size: 24px; margin-bottom: 8px; }
-      h2 { font-size: 20px; } h3 { font-size: 18px; }
-      table { border-collapse: collapse; width: 100%; margin: 1em 0; }
-      td, th { border: 1px solid #ccc; padding: 6px 10px; }
-      blockquote { border-inline-start: 3px solid #ccc; margin-inline-start: 0; padding-inline-start: 16px; color: #555; }
-      ul { list-style: disc; padding-inline-start: 2em; } ol { list-style: decimal; padding-inline-start: 2em; }
-    </style></head><body><h1>${safeTitle}</h1>${safeBody}</body></html>`;
-}
-
-/** File-name-safe version of a note title, for the export dialogs' default. */
-function exportFileName(title: string): string {
-  return (title || 'note').replace(/[<>:"/\\|?*]/g, '_');
 }
 
 /** Short confirmation after an export wrote a file (failures use the error banner). */
@@ -123,9 +95,16 @@ export function useNoteFileActions(args: UseNoteFileActionsArgs): NoteFileAction
       // root cause of a false conflict on every save after the first: the
       // guess would never exactly match what the main process actually wrote,
       // so the *next* save's expectedUpdated would always mismatch the disk.
-      const savedUpdated = isAbsolutePath(currentNotePath)
-        ? await fileNotesAPI.saveNoteAbsolute(currentNotePath, updatedNote, expectedUpdated)
-        : await fileNotesAPI.saveNote(currentNotePath, updatedNote, expectedUpdated);
+      // A draft verse note has no file: it is created by the first save with
+      // content, and an empty one writes nothing (it stays a draft).
+      // A draft whose create was refused because the file appeared meanwhile: the
+      // deliberate second Save overwrites it, against the baseline just re-read.
+      const draftOverwrite = isDraftNote(currentNote) && hasNoteConflict(currentNotePath) && !isAbsolutePath(currentNotePath);
+      const savedUpdated = isDraftNote(currentNote) && !(draftOverwrite && expectedUpdated !== currentNote.updated)
+        ? await saveDraftNote(currentNotePath, updatedNote)
+        : isAbsolutePath(currentNotePath)
+          ? await fileNotesAPI.saveNoteAbsolute(currentNotePath, updatedNote, expectedUpdated)
+          : await fileNotesAPI.saveNote(currentNotePath, updatedNote, expectedUpdated);
       clearNoteConflict(currentNotePath);
       afterNoteSaved(currentNotePath, savedUpdated);
       setCurrentNote({ ...updatedNote, updated: savedUpdated });

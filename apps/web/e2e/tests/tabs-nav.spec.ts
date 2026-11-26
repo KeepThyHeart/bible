@@ -30,6 +30,7 @@ test.describe('Tab Management', () => {
     // Select chapter 1
     const chapter1 = page.locator('.kth-picker__cell--chapter').first();
     await chapter1.click();
+    await page.locator('.kth-picker__chapter-go').click(); // the verse step: go to the whole chapter
 
     // Should now have 2 tabs
     await expect(page.locator('.bible-tab-bar__tab')).toHaveCount(2);
@@ -52,6 +53,7 @@ test.describe('Tab Management', () => {
     await expect(page.locator('.kth-picker__books')).toBeVisible({ timeout: 3000 });
     await page.locator('.kth-picker__cell--book').first().click();
     await page.locator('.kth-picker__cell--chapter').first().click();
+    await page.locator('.kth-picker__chapter-go').click(); // the verse step: go to the whole chapter
     await expect(page.locator('.bible-tab-bar__tab')).toHaveCount(2);
 
     // Close buttons should be visible when there are 2+ tabs
@@ -74,6 +76,7 @@ test.describe('Tab Management', () => {
     await expect(page.locator('.kth-picker__books')).toBeVisible({ timeout: 3000 });
     await page.locator('.kth-picker__cell--book').first().click();
     await page.locator('.kth-picker__cell--chapter').first().click();
+    await page.locator('.kth-picker__chapter-go').click(); // the verse step: go to the whole chapter
     await page.waitForSelector('.verse', { timeout: 10000 });
 
     // Tab 2 should show Genesis 1

@@ -353,6 +353,13 @@ interface SearchState {
   showAllKeywordResults: () => Promise<void>;
   /** Reveal every semantic result already fetched but not yet shown. */
   showMoreSemanticResults: () => void;
+  /**
+   * Does the exact phrase `query` occur in a verse? One local keyword phrase
+   * search limited to a single hit (no server involved); false for single
+   * words, queries that already use operators, and any failure. Drives the
+   * "switch to Keyword search" suggestion shown in an Ideas search (task 0216).
+   */
+  hasExactPhraseMatch: (query: string) => Promise<boolean>;
 
   // Actions - Strong's word family
   toggleIncludeRelatedWords: () => Promise<void>;
@@ -1251,6 +1258,8 @@ export const useSearchStore = create<SearchState>((set, get) => {
       if (nextSemanticMode && isIdeasSelectable(get()) && !isStrongs) {
         void get().performSemanticSearch(queryToSearch, { sessionId, reveal: opts.reveal });
       }
+      // A search never switches itself to Ideas/meanings search (task 0216): with
+      // no keyword hits the results pane offers a link, and only a click switches.
     } catch (error) {
       if (!isLatestRequest(sessionId, 'keyword', ticket)) return;
       patchSession(sessionId, {
@@ -1545,6 +1554,28 @@ export const useSearchStore = create<SearchState>((set, get) => {
   // ========================================================================
   // Result Paging Actions
   // ========================================================================
+
+  hasExactPhraseMatch: async (query: string) => {
+    const phrase = normalizeSearchQuery(query);
+    if (/["()*~|&!^\\\[\]{}<>+\-:?]/.test(phrase) || StrongsNumberHelper.isStrongsNumber(phrase)) return false;
+    if (phrase.split(/\s+/).filter(Boolean).length < 2) return false;
+    try {
+      const options = {
+        ...buildKeywordRequestOptions(
+          { searchOptions: get().searchOptions, includeRelatedWords: false },
+          phrase,
+          1,
+        ),
+        autoFuzzy: false,
+        fuzzyDistance: 0,
+        proximityDistance: 0,
+      };
+      const hits = await runKeywordSearch(`"${phrase}"`, options);
+      return hits.length > 0;
+    } catch {
+      return false;
+    }
+  },
 
   showAllKeywordResults: async () => {
     const { resultsForQuery, query, isSearching, isShowingAllKeywordResults } = get();

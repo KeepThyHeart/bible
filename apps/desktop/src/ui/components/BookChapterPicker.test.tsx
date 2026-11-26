@@ -31,6 +31,7 @@ vi.mock('../stores/useSearchStore', () => ({
 }));
 
 import BookChapterPicker from './BookChapterPicker';
+import { usePreferencesStore } from '../stores/usePreferencesStore';
 import { ContextProvider, type AppServices } from '../contexts/ContextProvider';
 import { enString, enT } from '../testing/enCatalog';
 
@@ -183,9 +184,8 @@ describe('BookChapterPicker: dialog frame and shared picker wiring', () => {
     );
     await user.click(screen.getByRole('button', { name: 'Genesis' }));
     expect(screen.getByRole('button', { name: 'Genesis chapter 3' })).toHaveAttribute('aria-current', 'true');
+    // With the verse step off (the default) a chapter goes straight there.
     await user.click(screen.getByRole('button', { name: 'Genesis chapter 2' }));
-    // A chapter opens the verse step; "Go to chapter" skips it, a verse goes to that verse.
-    await user.click(screen.getByTestId('picker-go-chapter'));
     expect(onSelect).toHaveBeenCalledWith(1, 2);
   });
 
@@ -372,7 +372,21 @@ describe('BookChapterPicker: search fallback', () => {
 });
 
 describe('BookChapterPicker: verse step', () => {
+  beforeEach(() => usePreferencesStore.setState({ pickerVerseStep: false }));
+
+  it('is off by default, and "Also choose a verse" turns it on and is remembered', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<BookChapterPicker isOpen onClose={vi.fn()} onSelect={vi.fn()} currentBook={1} currentChapter={1} />);
+    await user.click(screen.getByRole('button', { name: 'Genesis' }));
+    const box = screen.getByRole('checkbox', { name: enString('bookChapterPicker.alsoChooseVerse') });
+    expect(box).not.toBeChecked();
+    await user.click(box);
+    expect(usePreferencesStore.getState().pickerVerseStep).toBe(true);
+    expect(usePreferencesStore.getState().getSessionData().pickerVerseStep).toBe(true);
+  });
+
   it('picking a verse passes it to onSelect', async () => {
+    usePreferencesStore.setState({ pickerVerseStep: true });
     const user = userEvent.setup();
     const onSelect = vi.fn();
     renderWithProviders(<BookChapterPicker isOpen onClose={vi.fn()} onSelect={onSelect} currentBook={1} currentChapter={1} />);

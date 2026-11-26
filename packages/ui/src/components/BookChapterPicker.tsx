@@ -44,6 +44,8 @@ export interface BookChapterPickerLabels {
   goToChapter: (bookName: string, chapter: number) => string;
   /** Accessible name of a verse cell, e.g. "John 3:16". */
   verseOption: (bookName: string, chapter: number, verse: number) => string;
+  /** Checkbox under the chapter grid that turns the verse step on or off. */
+  alsoChooseVerse: string;
 }
 
 export const DEFAULT_BOOK_CHAPTER_PICKER_LABELS: BookChapterPickerLabels = {
@@ -61,6 +63,7 @@ export const DEFAULT_BOOK_CHAPTER_PICKER_LABELS: BookChapterPickerLabels = {
   selectVerse: 'Select a verse, or go to the whole chapter',
   goToChapter: (bookName, chapter) => `Go to ${bookName} ${chapter}`,
   verseOption: (bookName, chapter, verse) => `${bookName} ${chapter}:${verse}`,
+  alsoChooseVerse: 'Also choose a verse',
 };
 
 export interface BookChapterPickerSearch {
@@ -118,6 +121,16 @@ export interface BookChapterPickerProps {
    * that skips it) instead of going straight to the chapter. Omit it for the chapter-only picker.
    */
   verseCount?: (book: number, chapter: number) => number;
+  /**
+   * Whether picking a chapter goes on to the verse grid (needs `verseCount`). Default true, so a caller
+   * that only passes `verseCount` keeps the verse step.
+   */
+  verseStep?: boolean;
+  /**
+   * When given (with `verseCount`), an "Also choose a verse" checkbox under the chapter grid turns the
+   * verse step on and off; the app stores the choice and passes it back as `verseStep`.
+   */
+  onVerseStepChange?: (on: boolean) => void;
   /** Rendered under the chapter grid for the chosen book (web: topics). */
   chapterExtras?: (book: number) => ReactNode;
 }
@@ -145,6 +158,8 @@ export function BookChapterPicker({
   afterReference,
   chapterExtras,
   verseCount,
+  verseStep = true,
+  onVerseStepChange,
 }: BookChapterPickerProps) {
   const labels: BookChapterPickerLabels = { ...DEFAULT_BOOK_CHAPTER_PICKER_LABELS, ...labelOverrides };
   const uid = useId();
@@ -252,7 +267,7 @@ export function BookChapterPicker({
 
   const pickChapter = (book: number, chapter: number) => {
     // A single-verse chapter has nothing to choose between; skip the step.
-    if (verseCount && verseCount(book, chapter) > 1) setSelectedChapter(chapter);
+    if (verseCount && verseStep && verseCount(book, chapter) > 1) setSelectedChapter(chapter);
     else onPick(book, chapter);
   };
 
@@ -363,6 +378,17 @@ export function BookChapterPicker({
             );
           })}
         </div>
+        {verseCount && onVerseStepChange && (
+          <label className="kth-picker__option">
+            <input
+              type="checkbox"
+              checked={verseStep}
+              onChange={(e) => onVerseStepChange(e.currentTarget.checked)}
+              data-testid="picker-verse-step"
+            />
+            <span>{labels.alsoChooseVerse}</span>
+          </label>
+        )}
         {chapterExtras?.(book)}
       </div>
     );

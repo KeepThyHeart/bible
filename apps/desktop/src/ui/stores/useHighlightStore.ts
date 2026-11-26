@@ -3,7 +3,10 @@ import { UserTextMarkup, IUserTextMarkupRepository, HighlightColor, VerseId } fr
 import { useToastStore } from './useToastStore';
 import {
   clearStoredRecentMarkupStyles,
+  loadLastUnderlineColor,
   loadRecentMarkupStyles,
+  persistLastUnderlineColor,
+  underlineColorOf,
   persistRecentMarkupStyles,
   withRecentMarkupStyle,
   type MarkupStyle,
@@ -41,6 +44,9 @@ interface HighlightState {
    * underline style, so a wavy red underline can be offered back as such.
    */
   recentMarkupStyles: MarkupStyle[];
+
+  /** The colour last underlined in (red at first), for the quick Underline, Ctrl+U and the Highlight menu. */
+  lastUnderlineColor: HighlightColor;
 
   // Loading state
   loading: boolean;
@@ -89,6 +95,7 @@ export const useHighlightStore = create<HighlightState>((set, get) => ({
   // Read once at store creation: the row has to be populated before the first
   // selection, and a re-read per render would be a localStorage hit per keystroke.
   recentMarkupStyles: loadRecentMarkupStyles(),
+  lastUnderlineColor: loadLastUnderlineColor(),
   loading: false,
   error: null,
 
@@ -99,6 +106,13 @@ export const useHighlightStore = create<HighlightState>((set, get) => ({
   recordMarkupStyle: (style) => {
     const next = withRecentMarkupStyle(get().recentMarkupStyles, style);
     persistRecentMarkupStyles(next);
+    // Every applied underline (any path that records its style) becomes the next quick underline's colour.
+    const underline = underlineColorOf(style);
+    if (underline && underline !== get().lastUnderlineColor) {
+      persistLastUnderlineColor(underline);
+      set({ recentMarkupStyles: next, lastUnderlineColor: underline });
+      return;
+    }
     set({ recentMarkupStyles: next });
   },
 

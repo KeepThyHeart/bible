@@ -23,7 +23,7 @@ export const LightbulbIcon: React.FC<{ className?: string }> = ({ className = 'w
 );
 
 const ChevronDownIcon: React.FC = () => (
-  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true" data-testid="search-type-chevron">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
   </svg>
 );

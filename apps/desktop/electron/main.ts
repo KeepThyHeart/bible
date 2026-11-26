@@ -409,6 +409,13 @@ function registerWindowHandlers(): void {
     }
   });
 
+  // The Bible pane loaded another chapter: tell the detached windows (a popped-out Notes pane in
+  // Chapter mode follows it). Not a verse pick, so extensions and study panes are not told.
+  ipcMain.handle('window:broadcast-chapter-change', async (event, verseId: number) => {
+    windowManager.sendToDetached('bible-chapter-changed', verseId, event.sender.id);
+    return { success: true };
+  });
+
   // Broadcast verse change to every *other* window (for syncing)
   ipcMain.handle('window:broadcast-verse-change', async (event, verseId: number, moduleId?: string) => {
     try {
@@ -596,13 +603,18 @@ function registerPrintHandler(): void {
   // and meaning a cancelled dialog costs no rendering at all. A cancel is
   // reported as `{ success: false, canceled: true }` so no caller can mistake
   // it for a written file.
-  ipcMain.handle(
-    'notes:export-pdf',
-    async (_event, html: string, defaultName: string): Promise<NoteRenderResult> => {
+  // `document:export-pdf` is the same path for the Bible pane's printed passage, named for what it saves
+  // (as `document:print` is beside `notes:print`). The suggested name is reduced to a bare file name.
+  const exportPdf = async (_event: unknown, html: string, defaultName: string): Promise<NoteRenderResult> => {
+      if (typeof html !== 'string' || html.length > 20 * 1024 * 1024) {
+        return { success: false, error: 'Invalid document' };
+      }
+      const safeName = basename(typeof defaultName === 'string' ? defaultName : '')
+        .replace(/[\\/:*?"<>|\0]/g, '-').trim() || 'document';
       const parent = BrowserWindow.getFocusedWindow();
       const options = {
         title: t('main.dialog.exportPdf'),
-        defaultPath: `${defaultName}.pdf`,
+        defaultPath: `${safeName}.pdf`,
         filters: [
           { name: t('main.filter.pdf'), extensions: ['pdf'] },
           { name: t('main.filter.allFiles'), extensions: ['*'] }
@@ -621,11 +633,12 @@ function registerPrintHandler(): void {
           return { success: true };
         })
         .catch(err => {
-          log.error('[IPC] notes:export-pdf failed:', err);
+          log.error('[IPC] PDF export failed:', err);
           return { success: false, error: describeRenderError(err) };
         });
-    }
-  );
+  };
+  ipcMain.handle('notes:export-pdf', exportPdf);
+  ipcMain.handle('document:export-pdf', exportPdf);
 }
 
 let windowShownOnce = false;
@@ -803,6 +816,12 @@ const registerAllHandlersOnce = runOnce(() => {
   // notification path - or worse, poll - `ext-ui://host/theme.css` rides on
   // this existing one, so the extension panels' token sheet re-renders on
   // exactly the events that already move the View menu's radio buttons.
+  // Feature-flag override text for the renderer (KTH_FLAGS), only when not packaged: read once, synchronously,
+  // by the preload (src/ui/settings/featureFlags.ts). A packaged install always gets ''.
+  ipcMain.on('app:dev-flag-overrides', (event) => {
+    event.returnValue = app.isPackaged ? '' : (process.env.KTH_FLAGS ?? '');
+  });
+
   ipcMain.on('menu:update-theme', (_event, themeId: string) => {
     menuBuilder?.updateTheme(themeId);
     setActiveHostTheme(themeId);

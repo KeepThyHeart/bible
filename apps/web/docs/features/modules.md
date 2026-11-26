@@ -30,8 +30,8 @@ Loading and managing Bible, Commentary, and Dictionary modules.
 
 | File | Description |
 |---|---|
-| `schemas/site-config.schema.json` (repo root) | **Not in this repo** — the root `schemas/` directory was never imported. The schema for the unified `site-config.json` now lives at `config/site-config.schema.json` (below) |
-| `schemas/settings.schema.json` (repo root) | **Not in this repo** — the root `schemas/` directory was never imported. JSON Schema for the legacy standalone `settings.json` |
+| `config/site-config.schema.json` (repo root) | **Not in this repo** — the root `schemas/` directory was never imported. The schema for the unified `site-config.json` now lives at `config/site-config.schema.json` (below) |
+| `config/settings.schema.json` (repo root) | **Not in this repo** — the root `schemas/` directory was never imported. JSON Schema for the legacy standalone `settings.json` |
 | `config/site-config.example.json` | Example unified config; copy to `data/site-config.json` |
 | `config/site-config.schema.json` | JSON Schema for the above; editor validation only, never read at runtime |
 | `config/settings.sample.json` | Sample legacy settings file; copy to `data/settings.json` (repo root) and customize |

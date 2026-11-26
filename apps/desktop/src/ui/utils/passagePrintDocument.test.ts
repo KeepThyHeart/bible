@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { buildPassagePrintDocument, textToPrintBody } from './passagePrintDocument';
+import { DEFAULT_PRINT_PREFERENCES } from '@bible/core';
+import { buildPassagePrintDocument, passageFileName, textToPrintBody } from './passagePrintDocument';
 
 describe('buildPassagePrintDocument', () => {
   it('carries a CSP, forces black text and strips scripts from the body', () => {
@@ -11,6 +12,21 @@ describe('buildPassagePrintDocument', () => {
     expect(html).toContain('<h1>John 3:16</h1>');
   });
 
+  it('has no block-quote line by default, and draws one for the block-quote layout', () => {
+    expect(buildPassagePrintDocument('t', '<blockquote>x</blockquote>')).not.toContain('border-inline-start: 2px');
+    expect(buildPassagePrintDocument('t', '<blockquote>x</blockquote>', 'ltr', { ...DEFAULT_PRINT_PREFERENCES, layout: 'blockquote' }))
+      .toContain('border-inline-start: 2px solid #000');
+  });
+
+  it('adds the notes margin at the chosen width, narrowing the text rather than the font', () => {
+    const html = buildPassagePrintDocument('t', '<p>x</p>', 'rtl', { ...DEFAULT_PRINT_PREFERENCES, notesMargin: true, notesMarginCm: 4, notesRule: true });
+    expect(html).toContain('padding-inline-end: 4.5cm');
+    expect(html).toContain('class="notes-rule"');
+    expect(html).toContain('font-size: 14pt');
+    expect(html).toContain('dir="rtl"');
+    expect(buildPassagePrintDocument('t', '<p>x</p>')).not.toContain('notes-rule');
+  });
+
   it('escapes the title and honours the text direction', () => {
     const html = buildPassagePrintDocument('<b>x</b>', '<p>y</p>', 'rtl');
     expect(html).toContain('&lt;b&gt;x&lt;/b&gt;');
@@ -19,5 +35,24 @@ describe('buildPassagePrintDocument', () => {
 
   it('turns plain text into paragraphs and line breaks', () => {
     expect(textToPrintBody('a\nb\n\nc & d')).toBe('<p>a<br>b</p><p>c &amp; d</p>');
+  });
+});
+
+describe('passageFileName', () => {
+  it('turns a reference into a file name', () => {
+    expect(passageFileName('John 3:16', 'KJV')).toBe('John 3-16 KJV');
+    expect(passageFileName('John 3:16-18', 'KJV')).toBe('John 3-16-18 KJV');
+    expect(passageFileName('1 Cor 13:4–7', 'ESV')).toBe('1 Cor 13-4–7 ESV');
+  });
+
+  it('drops characters a file system rejects and never comes back empty', () => {
+    expect(passageFileName('A/B?<x>', 'K*J')).toBe('ABx KJ');
+    expect(passageFileName('', '')).toBe('Passage');
+  });
+
+  it('uses the file name as the document title when given', () => {
+    const html = buildPassagePrintDocument('John 3:16 (KJV)', '<p>x</p>', 'ltr', DEFAULT_PRINT_PREFERENCES, 'John 3-16 KJV');
+    expect(html).toContain('<title>John 3-16 KJV</title>');
+    expect(html).toContain('<h1>John 3:16 (KJV)</h1>');
   });
 });

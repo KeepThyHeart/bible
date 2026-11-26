@@ -143,7 +143,8 @@ describe('StudyModeView verse-0 / section-heading handling', () => {
 
     // jsdom cannot measure layout, so pin the class: without it the flex
     // default `stretch` centers the number in a tall row.
-    const row = screen.getByText('1').parentElement!;
+    // The text sits in the measured label span, inside the gutter, inside the row.
+    const row = screen.getByText('1').parentElement!.parentElement!;
     expect(row.className).toContain('items-start');
   });
 

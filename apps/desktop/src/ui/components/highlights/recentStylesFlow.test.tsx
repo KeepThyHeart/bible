@@ -167,9 +167,9 @@ describe('floating toolbar: More… and the Recent row', () => {
 
       await selectFirstTwoWords(true);
       expect(recentSwatchKeys()).toEqual([
-        // The underline is remembered as a solid underline in the last-used
-        // colour, not merely as "green".
-        key({ markupType: 'underline', color: 'green', underlineStyle: 'solid', underlineColor: 'green' }),
+        // The underline is remembered as a solid red underline (the quick
+        // Underline colour), separately from the green highlight.
+        key({ markupType: 'underline', color: 'red', underlineStyle: 'solid', underlineColor: 'red' }),
         key({ markupType: 'highlight', color: 'green' }),
       ]);
     });
@@ -207,11 +207,11 @@ describe('floating toolbar: More… and the Recent row', () => {
       await selectFirstTwoWords(true);
       const preview = document.querySelector<HTMLElement>('[data-recent-style] span')!;
       expect(preview.className).toContain('underline-solid');
-      expect(preview.className).toContain('underline-color-yellow');
+      expect(preview.className).toContain('underline-color-red');
       expect(preview.className).not.toContain('highlight-');
     });
 
-    it('keeps at most three, dropping the oldest', async () => {
+    it('keeps at most four, dropping the oldest', async () => {
       render(<Harness />);
 
       for (const color of ['Yellow', 'Blue', 'Green', 'Pink']) {
@@ -220,9 +220,14 @@ describe('floating toolbar: More… and the Recent row', () => {
           fireEvent.click(screen.getByLabelText(`Highlight ${color}`));
         });
       }
+      await selectFirstTwoWords(true);
+      await act(async () => {
+        fireEvent.click(screen.getByLabelText(enString('ui.floatingAnnotation.toggleUnderline')));
+      });
 
       await selectFirstTwoWords(true);
       expect(recentSwatchKeys()).toEqual([
+        key({ markupType: 'underline', color: 'red', underlineStyle: 'solid', underlineColor: 'red' }),
         key({ markupType: 'highlight', color: 'red' }),
         key({ markupType: 'highlight', color: 'green' }),
         key({ markupType: 'highlight', color: 'blue' }),
@@ -355,7 +360,7 @@ describe('floating toolbar: More… and the Recent row', () => {
     expect(sent).toHaveLength(1);
     expect(sent[0].metadata?.underlineStyle).toBe('wavy');
     expect(useHighlightStore.getState().recentMarkupStyles).toEqual([
-      { markupType: 'underline', color: 'yellow', underlineStyle: 'wavy', underlineColor: 'yellow' },
+      { markupType: 'underline', color: 'red', underlineStyle: 'wavy', underlineColor: 'red' },
     ]);
   });
 });

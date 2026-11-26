@@ -28,5 +28,6 @@
   "menu.help.reportIssue": "समस्या की रिपोर्ट करें",
   "menu.help.about": "बाइबल के बारे में",
   "menu.tools.title": "टूल",
-  "menu.view.apps": "ऐप्स"
+  "menu.view.apps": "ऐप्स",
+  "menu.help.sendFeedback": "प्रतिक्रिया भेजें…"
 }

@@ -119,6 +119,7 @@ const SearchResultsPane: React.FC<SearchResultsPaneProps> = ({ dockviewPanelApi,
   const showMoreSemanticResults = useSearchStore(s => s.showMoreSemanticResults);
   const semanticAvailable = useSearchStore(isIdeasSelectable);
   const toggleSemanticMode = useSearchStore(s => s.toggleSemanticMode);
+  const hasExactPhraseMatch = useSearchStore(s => s.hasExactPhraseMatch);
   const setSemanticMode = useSearchStore(s => s.setSemanticMode);
   const toggleIncludeRelatedWords = useSearchStore(s => s.toggleIncludeRelatedWords);
   const searchStrongsNumber = useSearchStore(s => s.searchStrongsNumber);
@@ -394,6 +395,23 @@ const SearchResultsPane: React.FC<SearchResultsPaneProps> = ({ dockviewPanelApi,
   };
 
   const isLoading = isSearching || isSemanticSearching || pendingRerun;
+
+  // Ideas search whose exact phrase also occurs in a verse: suggest Keyword
+  // search (task 0216). One local, single-hit phrase probe; nothing switches
+  // until the user clicks the link.
+  const [exactPhraseQuery, setExactPhraseQuery] = useState<string | null>(null);
+  useEffect(() => {
+    if (!isSemanticMode || isLoading || !resultsForQuery || typeof hasExactPhraseMatch !== 'function') {
+      setExactPhraseQuery(null);
+      return;
+    }
+    let cancelled = false;
+    void hasExactPhraseMatch(resultsForQuery).then((found) => {
+      if (!cancelled) setExactPhraseQuery(found ? resultsForQuery : null);
+    });
+    return () => { cancelled = true; };
+  }, [isSemanticMode, isLoading, resultsForQuery, hasExactPhraseMatch]);
+  const showKeywordSuggestion = isSemanticMode && exactPhraseQuery !== null && exactPhraseQuery === resultsForQuery;
 
   // Offline banner's "Turn on": same confirmation-gated path as the Module Manager
   // banner; once confirmed, retry the meaning search that just failed.
@@ -674,6 +692,24 @@ const SearchResultsPane: React.FC<SearchResultsPaneProps> = ({ dockviewPanelApi,
                 {t('remoteConsent.getPack')}
               </button>
             )}
+          </div>
+        )}
+
+        {/* Exact phrase found: suggest Keyword search (click to switch; never automatic) */}
+        {!isLoading && !error && showKeywordSuggestion && (
+          <div
+            className="px-md py-sm bg-accent-light border-b border-accent-soft text-sm text-accent-strong"
+            data-testid="suggest-keyword"
+          >
+            {t('searchResultsPane.suggestKeywordNotice')}
+            <button
+              type="button"
+              onClick={toggleSemanticMode}
+              data-testid="suggest-keyword-link"
+              className="ms-2 text-accent-strong hover:text-accent-strong underline cursor-pointer"
+            >
+              {t('searchResultsPane.suggestKeywordLink')}
+            </button>
           </div>
         )}
 

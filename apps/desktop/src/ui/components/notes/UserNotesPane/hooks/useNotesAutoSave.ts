@@ -5,7 +5,7 @@ import { useToastStore } from '../../../../stores/useToastStore';
 import { saveWithBaseline, staleSaveKind, saveConflictCopy, markNoteConflict, CONFLICT_MESSAGE, MISSING_MESSAGE } from './noteSave';
 
 interface UseNotesAutoSaveArgs {
-  view: 'browser' | 'editor';
+  view: 'browser' | 'editor' | 'chapter';
   currentNote: BnFile | null;
   currentNotePath: string;
   setCurrentNote: (note: BnFile) => void;

@@ -22,7 +22,7 @@
  * of it both vanish. Browsers have a real DOM and are unaffected.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/preact';
+import { render, screen, fireEvent, cleanup } from '@testing-library/preact';
 
 // ---- i18n ----------------------------------------------------------------
 vi.mock('react-i18next', async () => {
@@ -241,15 +241,80 @@ describe('CopyDialog', () => {
   // ------------------------------------------------------------------
   // Open / closed state
   // ------------------------------------------------------------------
-  it('Print renders the passage into a sandboxed hidden frame with black text', () => {
+  const openPrint = () => {
     render(<CopyDialog isOpen={true} onClose={onClose} />);
     fireEvent.click(screen.getByTestId('copy-dialog-print'));
-    const frame = document.querySelector('iframe[sandbox]') as HTMLIFrameElement | null;
+  };
+  const previewDoc = () => (screen.getByTestId('print-page-preview-frame')).getAttribute('srcdoc') ?? '';
+
+  it('Print opens the Print dialog with a live preview in a script-less sandboxed frame', () => {
+    openPrint();
+    expect(screen.getByTestId('print-dialog')).toBeTruthy();
+    const frame = screen.getByTestId('print-page-preview-frame');
+    expect(frame.getAttribute('sandbox')).toBe('');
+    const doc = previewDoc();
+    expect(doc).toContain("default-src 'none'");
+    expect(doc).toContain('color: #000 !important');
+    // Numbered verses by default: no block-quote line, no notes margin, bold title, black and white.
+    expect(doc).not.toContain('border-inline-start: 2px');
+    expect(doc).not.toContain('notes-rule');
+    expect(doc).toContain('<h1>');
+    expect(doc).not.toContain('h1, sup { color');
+  });
+
+  it('Print sends exactly the previewed page through a sandboxed hidden frame', () => {
+    openPrint();
+    const shown = previewDoc();
+    fireEvent.click(screen.getByTestId('print-dialog-print'));
+    const frame = document.querySelector('iframe[sandbox="allow-modals allow-same-origin"]') as HTMLIFrameElement | null;
     expect(frame).toBeTruthy();
-    expect(frame!.getAttribute('sandbox')).not.toContain('allow-scripts');
-    expect(frame!.srcdoc).toContain("default-src 'none'");
-    expect(frame!.srcdoc).toContain('color:#000!important');
+    expect(frame!.srcdoc).toBe(shown);
     frame!.remove();
+  });
+
+  it('the settings change the preview and are remembered', () => {
+    openPrint();
+    fireEvent.change(screen.getByTestId('print-layout'), { target: { value: 'blockquote' } });
+    fireEvent.change(screen.getByTestId('print-theme'), { target: { value: 'green' } });
+    fireEvent.click(screen.getByTestId('print-notes-margin'));
+    fireEvent.change(screen.getByTestId('print-unit'), { target: { value: 'cm' } });
+    fireEvent.input(screen.getByTestId('print-margin-width'), { target: { value: '7' } });
+    fireEvent.click(screen.getByTestId('print-notes-rule'));
+    fireEvent.change(screen.getByTestId('print-line-spacing'), { target: { value: '2.5' } });
+    fireEvent.input(screen.getByTestId('print-font-size'), { target: { value: '12' } });
+    fireEvent.click(screen.getByTestId('print-title'));
+    const doc = previewDoc();
+    expect(doc).toContain('border-inline-start: 2px solid #000');
+    expect(doc).toContain('h1, sup { color: #2e6b3a !important; }');
+    expect(doc).toContain('padding-inline-end: 7.5cm');
+    expect(doc).toContain('class="notes-rule"');
+    expect(doc).toContain('font-size: 12pt; line-height: 2.5');
+    expect(doc).not.toContain('<h1>');
+    cleanup();
+
+    openPrint();
+    expect((screen.getByTestId('print-layout') as HTMLSelectElement).value).toBe('blockquote');
+    expect((screen.getByTestId('print-theme') as HTMLSelectElement).value).toBe('green');
+    expect(previewDoc()).not.toContain('<h1>');
+  });
+
+  it('shows the margin in inches when asked, with no rule by default', () => {
+    openPrint();
+    fireEvent.click(screen.getByTestId('print-notes-margin'));
+    fireEvent.change(screen.getByTestId('print-unit'), { target: { value: 'in' } });
+    fireEvent.input(screen.getByTestId('print-margin-width'), { target: { value: '2.5' } });
+    expect(previewDoc()).toContain('padding-inline-end: 6.35cm');
+    expect(previewDoc()).not.toContain('class="notes-rule"');
+  });
+
+  it('"More options..." returns to the Copy dialog, whose only action is "Print this format..."', () => {
+    openPrint();
+    fireEvent.click(screen.getByTestId('print-more-options'));
+    expect(screen.queryByTestId('print-dialog')).toBeNull();
+    expect(screen.queryByText('Copy to Clipboard')).toBeNull();
+    expect(screen.getByTestId('copy-dialog-print').textContent).toBe('Print this format…');
+    fireEvent.click(screen.getByTestId('copy-dialog-print'));
+    expect((screen.getByTestId('print-layout') as HTMLSelectElement).value).toBe('preview');
   });
 
   it('renders nothing when isOpen is false', () => {

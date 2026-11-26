@@ -3,10 +3,9 @@
  *
  * Three defects motivated most of these: the toolbar clips its own overflow, so
  * the history dropdown was rendered *inside* a ~33px-tall clip rectangle and
- * never appeared (the button looked dead); the Interlinear/Notes toggles were
+ * never appeared (the button looked dead); and the Interlinear/Notes toggles were
  * shown in every display mode even though only Study mode renders anything they
- * control; and the gear made you open a two-item menu to reach the only setting
- * it had.
+ * control. The gear opens a panel of the Bible pane's settings.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { act, render, screen, fireEvent } from '@testing-library/react';
@@ -29,7 +28,12 @@ const h = vi.hoisted(() => ({
 }));
 
 vi.mock('../contexts/useI18n', () => ({
-  useI18n: () => ({ t: (key: string) => `[${key}]`, locale: 'en', i18n: {} }),
+  useI18n: () => ({
+    t: (key: string) => `[${key}]`,
+    locale: 'en',
+    i18n: {},
+    localizer: { formatNumber: (n: number) => String(n) },
+  }),
 }));
 
 vi.mock('./BiblePaneContext', () => ({
@@ -46,6 +50,8 @@ vi.mock('../stores/useBibleStore', () => ({
 vi.mock('../utils/openModuleManager', () => ({ openModuleManager: vi.fn() }));
 
 import BibleToolbar from './BibleToolbar';
+import { usePreferencesStore } from '../stores/usePreferencesStore';
+import { useTextSettingsStore } from '../stores/useTextSettingsStore';
 import { readerToolbarItems } from '../modules/host/slots';
 
 const PANEL = 'bible_1';
@@ -164,38 +170,88 @@ describe('BibleToolbar — navigation history', () => {
   });
 });
 
-describe('BibleToolbar — text settings gear', () => {
-  it('opens text settings on the first click, with no intermediate menu', () => {
-    const listener = vi.fn();
-    window.addEventListener('open-preferences-fonts', listener);
-    render(<BibleToolbar />);
-
-    fireEvent.click(screen.getByTestId('passage-settings'));
-
-    expect(listener).toHaveBeenCalledTimes(1);
-    // The gear opens Text Settings directly; nothing menu-like should appear.
-    expect(screen.queryByRole('menuitem', { name: 'Text settings…' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('menuitem', { name: 'Pop out to window' })).not.toBeInTheDocument();
-    window.removeEventListener('open-preferences-fonts', listener);
+describe('BibleToolbar — settings panel', () => {
+  beforeEach(() => {
+    usePreferencesStore.getState().resetTypography();
+    useTextSettingsStore.getState().resetSettings('bible');
   });
 
-  it('targets the Bible pane font settings', () => {
-    const listener = vi.fn();
-    window.addEventListener('open-preferences-fonts', listener);
-    render(<BibleToolbar />);
-
+  const openPanel = () => {
     fireEvent.click(screen.getByTestId('passage-settings'));
+    return screen.getByRole('dialog', { name: '[biblePane.settingsPanelTitle]' });
+  };
 
-    expect((listener.mock.calls[0]![0] as CustomEvent<string>).detail).toBe('bible');
-    window.removeEventListener('open-preferences-fonts', listener);
-  });
-
-  it('is not advertised as a menu button', () => {
+  it('opens a panel of Bible pane settings in place, not the Preferences dialog', () => {
+    const fonts = vi.fn();
+    window.addEventListener('open-preferences-fonts', fonts);
     render(<BibleToolbar />);
 
     const gear = screen.getByTestId('passage-settings');
-    expect(gear.getAttribute('aria-haspopup')).toBeNull();
-    expect(gear.getAttribute('aria-expanded')).toBeNull();
+    expect(gear.getAttribute('aria-haspopup')).toBe('dialog');
+    expect(gear.getAttribute('aria-expanded')).toBe('false');
+    openPanel();
+    expect(gear.getAttribute('aria-expanded')).toBe('true');
+    expect(fonts).not.toHaveBeenCalled();
+    window.removeEventListener('open-preferences-fonts', fonts);
+  });
+
+  it('changes the Typography Bible size while the pane follows Typography', () => {
+    render(<BibleToolbar />);
+    openPanel();
+    fireEvent.click(screen.getByTestId('bible-settings-larger'));
+    expect(usePreferencesStore.getState().typography.bibleFontSize).toBe(21);
+    expect(useTextSettingsStore.getState().customized.bible).toBe(false);
+  });
+
+  it('changes the pane override instead once Preferences > Fonts has customized the Bible pane', () => {
+    useTextSettingsStore.getState().updateSettings('bible', { fontSize: 24 });
+    render(<BibleToolbar />);
+    openPanel();
+    fireEvent.click(screen.getByTestId('bible-settings-smaller'));
+    expect(useTextSettingsStore.getState().settings.bible.fontSize).toBe(23);
+    expect(usePreferencesStore.getState().typography.bibleFontSize).toBe(20);
+  });
+
+  it('sets the text width of the display mode on screen only', () => {
+    h.ctx.value = makeCtx({ displayMode: 'reading' });
+    render(<BibleToolbar />);
+    openPanel();
+    fireEvent.change(screen.getByTestId('bible-settings-width'), { target: { value: 'full' } });
+    const { standardWidth, readingWidth, studyWidth } = usePreferencesStore.getState().typography;
+    expect([standardWidth, readingWidth, studyWidth]).toEqual(['medium', 'full', 'medium']);
+  });
+
+  it('has no text width in Parallel view, which fills the pane', () => {
+    h.ctx.value = makeCtx({ isParallelViewMode: true });
+    render(<BibleToolbar />);
+    openPanel();
+    expect(screen.queryByTestId('bible-settings-width')).not.toBeInTheDocument();
+  });
+
+  it('links to the full Typography preferences and closes', () => {
+    const section = vi.fn();
+    window.addEventListener('open-preferences-section', section);
+    render(<BibleToolbar />);
+    openPanel();
+    fireEvent.click(screen.getByTestId('bible-settings-all'));
+    expect((section.mock.calls[0]![0] as CustomEvent<string>).detail).toBe('typography');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    window.removeEventListener('open-preferences-section', section);
+  });
+
+  it('sets the app-wide scrollbar size', () => {
+    render(<BibleToolbar />);
+    openPanel();
+    fireEvent.change(screen.getByTestId('bible-settings-scrollbar'), { target: { value: 'large' } });
+    expect(usePreferencesStore.getState().scrollbarSize).toBe('large');
+    usePreferencesStore.getState().setScrollbarSize('standard');
+  });
+
+  it('closes on Escape', () => {
+    render(<BibleToolbar />);
+    openPanel();
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 });
 

@@ -74,7 +74,8 @@ describe('Bible text selection -> floating annotation toolbar', () => {
   beforeEach(() => {
     sent.length = 0;
     stored.length = 0;
-    useHighlightStore.setState({ highlightsByModule: new Map(), lastUsedColor: 'yellow' });
+    useHighlightStore.setState({ highlightsByModule: new Map(), lastUsedColor: 'yellow', lastUnderlineColor: 'red' });
+    localStorage.clear();
     vi.useFakeTimers();
     installResizeObserverStub();
   });
@@ -153,6 +154,30 @@ describe('Bible text selection -> floating annotation toolbar', () => {
     expect(words[2].className).not.toContain('highlight-');
   });
 
+  it('the Underline button shows, and uses, the last underline colour', async () => {
+    render(<Harness />);
+    await selectFirstTwoWords(true);
+    expect(screen.getByTestId('underline-button-bar').getAttribute('style')).toContain('--underline-color-red');
+
+    // Pick blue from the colour row: it underlines in blue at once and becomes the button's colour.
+    await act(async () => { fireEvent.click(screen.getByTestId('underline-color-toggle')); });
+    const blue = screen.getByTestId('underline-color-row').querySelector<HTMLElement>('[data-color="blue"]')!;
+    await act(async () => { fireEvent.click(blue); });
+    expect(sent).toHaveLength(1);
+    expect(sent[0].metadata?.markupType).toBe('underline');
+    expect(useHighlightStore.getState().lastUnderlineColor).toBe('blue');
+    expect(localStorage.getItem('bible-desktop-last-underline-color')).toBe('blue');
+
+    await selectFirstTwoWords(true);
+    expect(screen.getByTestId('underline-button-bar').getAttribute('style')).toContain('--underline-color-blue');
+    await act(async () => {
+      fireEvent.click(screen.getByLabelText(enString('ui.floatingAnnotation.toggleUnderline')));
+    });
+    expect(sent).toHaveLength(2);
+    const words = document.querySelectorAll<HTMLElement>('.word');
+    expect(words[0].className).toContain('underline-color-blue');
+  });
+
   it('renders an underline with its palette colour class', async () => {
     render(<Harness />);
     await selectFirstTwoWords(true);
@@ -163,7 +188,8 @@ describe('Bible text selection -> floating annotation toolbar', () => {
 
     const words = document.querySelectorAll<HTMLElement>('.word');
     expect(words[0].className).toContain('underline-solid');
-    expect(words[0].className).toContain('underline-color-yellow');
+    // The quick Underline button is always red (DEFAULT_UNDERLINE_COLOR), whatever was highlighted last.
+    expect(words[0].className).toContain('underline-color-red');
   });
 
   /*

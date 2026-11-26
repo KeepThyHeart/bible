@@ -93,5 +93,8 @@
   "wordStudy.open.category": "研究",
   "wordStudy.open.alias.0": "词语研究",
   "wordStudy.open.alias.1": "斯特朗研究",
-  "wordStudy.open.alias.2": "串珠"
+  "wordStudy.open.alias.2": "串珠",
+  "help.sendFeedback": "发送反馈",
+  "notes.compilePassageNotes": "汇编经文笔记",
+  "notes.compilePassageNotes.category": "笔记"
 }

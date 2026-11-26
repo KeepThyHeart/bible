@@ -93,5 +93,8 @@
   "wordStudy.open.category": "לימוד",
   "wordStudy.open.alias.0": "לימוד מילים",
   "wordStudy.open.alias.1": "לימוד סטרונג",
-  "wordStudy.open.alias.2": "מקראה"
+  "wordStudy.open.alias.2": "מקראה",
+  "help.sendFeedback": "שליחת משוב",
+  "notes.compilePassageNotes": "הרכבת הערות לקטעים",
+  "notes.compilePassageNotes.category": "הערות"
 }

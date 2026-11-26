@@ -10,6 +10,7 @@ import DraggableTabBar, { TabItem } from './DraggableTabBar';
 import type { PaneMenuOption } from './PaneOptionsMenu';
 import { BOOK_PANE_TAB_ICONS } from './paneIcons';
 import LibraryHome from './LibraryHome';
+import { useLookUpStore } from '../stores/useLookUpStore';
 import { cleanModuleName } from '../utils/verseFormatting';
 import { DEFAULT_PANEL_ID } from '../stores/helpers/panelStateHelpers';
 import { useLayoutStore } from '../stores/useLayoutStore';
@@ -125,6 +126,7 @@ const BookPane: React.FC<BookPaneProps> = (props) => {
     closeDictionary,
     setActiveTab: setDictActiveTab,
     reorderTabs: reorderDictTabs,
+    lookupEntry,
   } = useDictionaryPanel(panelId);
 
   const textSettings = useTextSettingsStore(state => state.getSettings('book'));
@@ -180,6 +182,19 @@ const BookPane: React.FC<BookPaneProps> = (props) => {
     window.addEventListener(SHOW_DICTIONARY_PANE_EVENT, onShowDictionary);
     return () => window.removeEventListener(SHOW_DICTIONARY_PANE_EVENT, onShowDictionary);
   }, [panelId]);
+
+  /*
+    "Look up" from the Bible pane: its results are on the Overview, so show it. A request made before
+    this pane mounted (the look-up opened it) is still in the store and is honoured on mount.
+  */
+  const lookUpShowRequest = useLookUpStore(s => s.showRequest);
+  useEffect(() => {
+    if (!isDictionaryPane || !lookUpShowRequest || lookUpShowRequest.panelId !== panelId) return;
+    shelfChosenByUser.current = true;
+    setOverviewActive(true);
+    // One-shot: handled, so a later remount of this pane does not replay it.
+    useLookUpStore.setState({ showRequest: null });
+  }, [isDictionaryPane, lookUpShowRequest, panelId]);
 
   // Context menu for internal tabs (right-click -> "Pop Out to Window")
   const [tabContextMenu, setTabContextMenu] = useState<{ x: number; y: number; tabType: 'book' | 'dictionary'; abbreviation: string } | null>(null);
@@ -355,6 +370,12 @@ const BookPane: React.FC<BookPaneProps> = (props) => {
     // to the first tab in the strip (Overview), which is not the one just opened.
     focusActiveStripTab();
   }, [bookTabs, dictTabs, setBookActiveTab, setDictActiveTab, openBook, openDictionary, focusActiveStripTab]);
+
+  /** An entry picked from the Overview's word search: open (or switch to) its dictionary, then the entry. */
+  const handleOpenEntryFromOverview = useCallback((abbreviation: string, name: string, key: string) => {
+    handleOpenFromOverview('dictionary', abbreviation, name);
+    void lookupEntry(abbreviation, key);
+  }, [handleOpenFromOverview, lookupEntry]);
 
   const openBookAbbrs = useMemo(() => new Set(bookTabs.map(tab => tab.abbreviation)), [bookTabs]);
   const openDictAbbrs = useMemo(() => new Set(dictTabs.map(tab => tab.abbreviation)), [dictTabs]);
@@ -664,6 +685,7 @@ const BookPane: React.FC<BookPaneProps> = (props) => {
             loadingBooks={loadingBooks}
             loadingDictionaries={loadingDictionaries}
             onOpen={handleOpenFromOverview}
+            onOpenEntry={isDictionaryPane ? handleOpenEntryFromOverview : undefined}
             onInstall={openModuleManager}
           />
         </div>

@@ -14,6 +14,7 @@ import { isNamedModuleVisible } from '../utils/moduleVisibility.js';
 import type { SiteSettings } from '../siteSettings.js';
 import { RemoteSemantic } from '@bible/core';
 import { RemoteSemanticService, hasRemoteConsent, CONSENT_HEADER } from '../search/RemoteSemanticService.js';
+import type { RemoteSemanticResponse } from '../search/RemoteSemanticService.js';
 
 /**
  * Concurrency gate for semantic search.
@@ -79,6 +80,12 @@ const MAX_STRONGS_RESULTS = 5000;
 /** Semantic result count: default and ceiling (W-010). */
 const DEFAULT_SEMANTIC_RESULTS = 20;
 const MAX_SEMANTIC_RESULTS = 500;
+/**
+ * Most hits the web server ever asks the online meanings (Go) server for. One call per
+ * query fetches this many; every "Show more" page is a slice of that cached answer.
+ * Local vector search keeps MAX_SEMANTIC_RESULTS.
+ */
+const REMOTE_FETCH_K = 100;
 
 /**
  * Verse-proximity (`a b ~Nv`) limits (W-003). Each term is a separate lookup
@@ -171,6 +178,8 @@ export function createSearchRoutes(db: DatabaseManager, routeOptions: SearchRout
   // Recent remote answers, oldest first (a Map keeps insertion order). Results
   // carry no user data, so one reader's answer can serve the next.
   const remoteCache = new Map<string, { at: number; result: unknown }>();
+  /** Remote calls in flight by cache key, so concurrent misses share one call and one quota charge. */
+  const remoteInflight = new Map<string, Promise<RemoteSemanticResponse | null>>();
 
   // Cache book names for reference resolution (loaded once on first use)
   let bookNames: Map<number, string> | null = null;
@@ -410,14 +419,23 @@ export function createSearchRoutes(db: DatabaseManager, routeOptions: SearchRout
           });
           return;
         }
-        const cacheKey = `${query.trim().toLowerCase()}\u0000${maxResults}\u0000${hydrationModule}`;
+        // Keyed by query and translation only (not maxResults): one remote call serves every page size.
+        const cacheKey = `${query.trim().toLowerCase()}\u0000${hydrationModule}`;
+        const sliceFor = (full: RemoteSemanticResponse): RemoteSemanticResponse => {
+          if (full.results.length <= maxResults) return full;
+          return { ...full, results: full.results.slice(0, maxResults), total: maxResults };
+        };
         const cached = remoteCache.get(cacheKey);
         if (cached && Date.now() - cached.at < REMOTE_CACHE_TTL_MS) {
-          res.json(cached.result);
+          // Served from cache: no remote call, so no quota is charged.
+          res.json(sliceFor(cached.result as RemoteSemanticResponse));
           return;
         }
         // Charged only for a query that will actually reach bibsearch.
-        const retryAfter = remoteQuota.take(req);
+        // A concurrent miss for the same query joins the call already in flight: one
+        // remote call and one quota charge serve them all.
+        let pending = remoteInflight.get(cacheKey);
+        const retryAfter = pending ? null : remoteQuota.take(req);
         if (retryAfter !== null) {
           res.setHeader('Retry-After', String(retryAfter));
           res.status(429).json({
@@ -429,14 +447,29 @@ export function createSearchRoutes(db: DatabaseManager, routeOptions: SearchRout
         }
         let remoteResult;
         try {
-          remoteResult = await semanticGate.run(async () => {
-            if (req.timedout) return null;
-            return remote.search(query, maxResults, {
-              repo: hydrationRepo ?? undefined,
-              module: hydrationModule,
-              bookNames: getBookNames(),
-            });
-          });
+          if (!pending) {
+            // No req.timedout short-circuit here: other requests may join this call, and
+            // its result is cached either way, so a caller that timed out wastes nothing.
+            const started = semanticGate.run(async () => {
+              return remote.search(query, REMOTE_FETCH_K, {
+                repo: hydrationRepo ?? undefined,
+                module: hydrationModule,
+                bookNames: getBookNames(),
+              });
+            }).then(result => {
+              if (result !== null) {
+                remoteCache.delete(cacheKey);
+                remoteCache.set(cacheKey, { at: Date.now(), result });
+                if (remoteCache.size > REMOTE_CACHE_MAX_ENTRIES) {
+                  remoteCache.delete(remoteCache.keys().next().value as string);
+                }
+              }
+              return result;
+            }).finally(() => { remoteInflight.delete(cacheKey); });
+            remoteInflight.set(cacheKey, started);
+            pending = started;
+          }
+          remoteResult = await pending;
         } catch (err) {
           if (err instanceof QueueFullError) {
             res.setHeader('Retry-After', '5');
@@ -461,14 +494,20 @@ export function createSearchRoutes(db: DatabaseManager, routeOptions: SearchRout
           }
           throw err;
         }
-        if (remoteResult === null || req.timedout) return;
-        remoteCache.delete(cacheKey);
-        remoteCache.set(cacheKey, { at: Date.now(), result: remoteResult });
-        if (remoteCache.size > REMOTE_CACHE_MAX_ENTRIES) {
-          remoteCache.delete(remoteCache.keys().next().value as string);
+        if (req.timedout) return;
+        if (remoteResult === null) {
+          // Defensive: the shared call produced no result.
+          res.setHeader('Retry-After', '5');
+          res.status(503).json({
+            error: { code: 'SERVICE_BUSY', message: 'Search is busy, please retry shortly' },
+            results: [],
+            total: 0,
+          });
+          return;
         }
-        res.json(remoteResult);
-        hooks?.fireActions('search:performed', { query, resultCount: remoteResult.total });
+        const page = sliceFor(remoteResult);
+        res.json(page);
+        hooks?.fireActions('search:performed', { query, resultCount: page.total });
         return;
       }
 

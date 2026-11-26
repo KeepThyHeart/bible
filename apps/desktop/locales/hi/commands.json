@@ -93,5 +93,8 @@
   "wordStudy.open.category": "Study",
   "wordStudy.open.alias.0": "word study",
   "wordStudy.open.alias.1": "strongs study",
-  "wordStudy.open.alias.2": "concordance"
+  "wordStudy.open.alias.2": "concordance",
+  "help.sendFeedback": "प्रतिक्रिया भेजें",
+  "notes.compilePassageNotes": "अंश टिप्पणियाँ संकलित करें",
+  "notes.compilePassageNotes.category": "टिप्पणियाँ"
 }

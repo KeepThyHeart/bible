@@ -46,6 +46,10 @@ interface NotesFolderBrowserProps {
    * the Verse Notes folder) the empty state explains itself without a button.
    */
   onCreateNote?: () => void;
+  /** Inside a Verse Notes book/chapter folder: switch the pane to Chapter mode. Omitted elsewhere. */
+  onOpenChapter?: () => void;
+  /** Right-click "Compile passage notes..." on a Verse Notes book or chapter folder. */
+  onCompileFolder?: (entry: FileEntry) => void;
 }
 
 const NotesFolderBrowser: React.FC<NotesFolderBrowserProps> = ({
@@ -66,6 +70,8 @@ const NotesFolderBrowser: React.FC<NotesFolderBrowserProps> = ({
   onRemoveRecentFile,
   sideTab = 'browse',
   onCreateNote,
+  onOpenChapter,
+  onCompileFolder,
 }) => {
   const { t, localizer } = useI18n();
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; entry: FileEntry } | null>(null);
@@ -131,6 +137,13 @@ const NotesFolderBrowser: React.FC<NotesFolderBrowserProps> = ({
   // Check if an entry is the protected Verse Notes root
   const isProtectedEntry = (entry: FileEntry) => {
     return verseNotesFolderPath && entry.path === verseNotesFolderPath;
+  };
+
+  /** Compile is offered only on a book or chapter folder under Verse Notes (not on the root or outside it). */
+  const isCompilableFolder = (entry: FileEntry) => {
+    const root = verseNotesFolderPath ?? 'Verse Notes';
+    const parts = entry.path.replace(/\\/g, '/').split('/').filter(Boolean);
+    return parts[0] === root && (parts.length === 2 || parts.length === 3);
   };
 
   const formatDate = (dateStr: string) => {
@@ -428,12 +441,12 @@ const NotesFolderBrowser: React.FC<NotesFolderBrowserProps> = ({
                     </svg>
                   )}
                   {isLast ? (
-                    <span className="font-medium text-text-heading" aria-current="true">{seg.label}</span>
+                    <span className="flex-shrink-0 font-medium text-text-heading" aria-current="true">{seg.label}</span>
                   ) : (
                     <button
                       type="button"
                       onClick={() => onBreadcrumbNavigate?.(seg.path)}
-                      className="text-accent-strong hover:text-accent-strong hover:underline transition-colors"
+                      className="flex-shrink-0 text-accent-strong hover:text-accent-strong hover:underline transition-colors"
                     >
                       {seg.label}
                     </button>
@@ -441,6 +454,17 @@ const NotesFolderBrowser: React.FC<NotesFolderBrowserProps> = ({
                 </React.Fragment>
               );
             })}
+            {onOpenChapter && (
+              <button
+                type="button"
+                onClick={onOpenChapter}
+                className="ms-auto flex-shrink-0 px-2 py-0.5 text-xs rounded border border-border-secondary hover:bg-background-hover transition-colors"
+                title={t('chapterNotes.openChapterTitle')}
+                data-testid="notes-open-chapter"
+              >
+                {t('chapterNotes.openChapter')}
+              </button>
+            )}
           </nav>
         )}
 
@@ -689,6 +713,18 @@ const NotesFolderBrowser: React.FC<NotesFolderBrowserProps> = ({
               className="w-full px-4 py-1.5 text-sm text-start hover:bg-background-hover"
             >
               {t('userNotesPane.moveToLabel')}
+            </button>
+          )}
+          {onCompileFolder && isVerseNotesFolder && contextMenu.entry.isDirectory && isCompilableFolder(contextMenu.entry) && (
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => onCompileFolder(contextMenu.entry)}
+              aria-haspopup="dialog"
+              className="w-full px-4 py-1.5 text-sm text-start hover:bg-background-hover"
+              data-testid="menu-compile-passage-notes"
+            >
+              {t('chapterNotes.compileFolder')}
             </button>
           )}
           <div className="border-t border-border my-1" />

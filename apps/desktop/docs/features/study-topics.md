@@ -55,7 +55,7 @@ The Study Pane is a verse-centric hub that brings together topics, commentary su
 - `apps/desktop/src/ui/components/TopicsPane/EntityDetailView.tsx` - Tag graph entity detail
 - `apps/desktop/src/ui/components/TopicsPane/RelatedTagGraphSection.tsx` - "Related (Tag Graph)" block inside `TopicView`
 - `apps/desktop/src/ui/components/TopicsPane/types.ts` - View result types, `PAGE_SIZE` (50), `VERSE_PAGE_SIZE` (100), category/source labels
-- `apps/desktop/src/ui/components/TopicsPane/hooks/useTopicsPaneData.ts` - All data-loading effects for the pane, including topic verse paging. Topic detail, first-page passages, and also-in go through `services/topicalContentCache.ts`; the `loading` it returns is run through `hooks/useDeferredLoading.ts`
+- `apps/desktop/src/ui/components/TopicsPane/hooks/useTopicsPaneData.ts` - All data-loading effects for the pane, including topic verse paging. Topic detail, first-page passages, and also-in go through `src/ui/services/topicalContentCache.ts`; the `loading` it returns is run through `src/ui/hooks/useDeferredLoading.ts`
 - `apps/desktop/src/ui/services/topicalContentCache.ts` - TTL + in-flight cache over `topical:getTopic` / `getVersesForTopic` / `getAlsoIn`, shared by the Topics pane and the Study pane's prefetch
 - `apps/desktop/src/ui/services/paneHandoff.ts` - `activateWhenContentReady`: holds a cross-pane tab switch until the target's content has loaded, capped at `PANE_HANDOFF_CAP_MS` (50 ms)
 
@@ -86,9 +86,9 @@ Dockview mounts a pane's content the moment its tab is activated, so a cross-pan
 
 Three pieces prevent that, and any new cross-pane gesture should use the same shape:
 
-1. **Point first, switch second.** `StudyPane.handleTopicClick` calls `useTopicsStore.navigateToTopic` before it touches `panel.api.setActive()`. Same for `study/VerseLinksDisplay.tsx` (commentary) and `bible/openStrongsInDictionary.ts`, which reveals the Dictionary pane with `revealDictionaryPanel({ deferActivation: true })` and activates it itself.
-2. **Hold the switch, but not for long.** `activateWhenContentReady(activate, work, capMs)` in `services/paneHandoff.ts` runs `activate` when `work` settles or after 50 ms, whichever is first, and only ever once. Past the cap the reader gets the tab regardless and sees the pane's own loading state - a switch that waits on a slow query stops reading as a switch.
-3. **Make the wait short enough to be worth holding.** The Study pane prefetches through `services/topicalContentCache.ts`, whose entries the Topics pane then reads instead of refetching. Topic content comes from read-only module databases, so the TTL (5 minutes) exists only to bound memory, not for freshness.
+1. **Point first, switch second.** `StudyPane.handleTopicClick` calls `useTopicsStore.navigateToTopic` before it touches `panel.api.setActive()`. Same for `src/ui/components/study/VerseLinksDisplay.tsx` (commentary) and `src/ui/components/bible/openStrongsInDictionary.ts`, which reveals the Dictionary pane with `revealDictionaryPanel({ deferActivation: true })` and activates it itself.
+2. **Hold the switch, but not for long.** `activateWhenContentReady(activate, work, capMs)` in `src/ui/services/paneHandoff.ts` runs `activate` when `work` settles or after 50 ms, whichever is first, and only ever once. Past the cap the reader gets the tab regardless and sees the pane's own loading state - a switch that waits on a slow query stops reading as a switch.
+3. **Make the wait short enough to be worth holding.** The Study pane prefetches through `src/ui/services/topicalContentCache.ts`, whose entries the Topics pane then reads instead of refetching. Topic content comes from read-only module databases, so the TTL (5 minutes) exists only to bound memory, not for freshness.
 
 `useDeferredLoading` (80 ms) covers the remainder: a load that resolves from cache never flips a loading placeholder on at all.
 
@@ -105,7 +105,7 @@ Choosing a verse fans out to the four panes that follow the Bible pane through o
 - `apps/desktop/src/ui/stores/syncPanesWithVerse.ts` - `syncPanesWithVerse(verseId)` calls `syncAllPanelsWithVerse` on the commentary, notes, study and topics stores. It is deliberately read through `getState()` rather than hooks so store actions and event handlers can use it too.
 - `apps/desktop/src/ui/components/bible/hooks/useVerseInteractionHandlers.ts` - `handleVerseClick` calls it (used by `BiblePane.tsx`). Any other "the reader picked this verse" path - typing a reference into the search bar, for instance - calls the same helper, so the workbench agrees however the verse was reached.
 
-Previewing is not navigating: a scripture link goes through `previewVerseInPrimary` (`stores/crossStoreBridge.ts`) and deliberately leaves the panes where they are.
+Previewing is not navigating: a scripture link goes through `previewVerseInPrimary` (`src/ui/stores/crossStoreBridge.ts`) and deliberately leaves the panes where they are.
 
 ### Study Pane sync behaviour
 
@@ -148,13 +148,13 @@ The browse view has a single input. It is sized to be the way into tens of thous
 
 ### Topic verse paging
 
-- **A topic's passages are a page, not a ceiling.** `VERSE_PAGE_SIZE = 100` (`TopicsPane/types.ts`) is a page size: `useTopicsPaneData` returns `hasMoreVerses` / `loadingMoreVerses` / `loadMoreVerses`, and `TopicView` passes them to `VerseListWithPreview` as `hasMore` / `loadingMore` / `onLoadMore`.
+- **A topic's passages are a page, not a ceiling.** `VERSE_PAGE_SIZE = 100` (`src/ui/components/TopicsPane/types.ts`) is a page size: `useTopicsPaneData` returns `hasMoreVerses` / `loadingMoreVerses` / `loadMoreVerses`, and `TopicView` passes them to `VerseListWithPreview` as `hasMore` / `loadingMore` / `onLoadMore`.
 - **Two counts, and only one of them can bound the list.** `verse_count` expands ranges - John 3:16-18 counts three - while `reference_count` counts the stored links, so the same passage counts one. `getVersesForTopic` returns one row per stored reference, so `reference_count` is exactly how many rows exist; comparing loaded rows against the *expanded* count would leave a Load more button that never goes away. `topical:getTopic` returns both (`repo.getRecursiveVerseCount` and `repo.getRecursiveReferenceCount`).
 - **Fallback when no reference count arrives.** `reference_count` is optional on `TopicDetail`. When it is absent the hook falls back to "the last page came back short" (`versesExhausted`) - the same signal the browse list uses. The flag is reset when a new topic loads, and set on a failed fetch so the button stops offering a query that is failing.
 
 ### Verse count wording
 
-`TopicView` prefers `reference_count` and renders "{count} verses/passages" (`topicsPane.passageCount`, singular `topicsPane.passageCountOne`), falling back to `verse_count` and `topicsPane.verseCount` when no reference count arrived. `shared/TopicCard.tsx` is fed `verse_count` and therefore says "verses".
+`TopicView` prefers `reference_count` and renders "{count} verses/passages" (`topicsPane.passageCount`, singular `topicsPane.passageCountOne`), falling back to `verse_count` and `topicsPane.verseCount` when no reference count arrived. `src/ui/components/shared/TopicCard.tsx` is fed `verse_count` and therefore says "verses".
 
 ### One rendering of "topics for this verse"
 
@@ -166,7 +166,7 @@ Both panes render `shared/VerseTopicsList`, so a topic appears as its full ances
 
 ### Clicking a passage previews it
 
-`TopicsPane.handleVerseClick` calls `previewVerseInPrimary` (`stores/crossStoreBridge.ts` -> `stores/bible/slices/previewSlice.ts`), not the select path. Working down a list of a topic's passages is browsing, not choosing a new subject, so the commentary and notes panes that follow `selectedVerseId` stay where they are. `storeSync.ts` wires the preview to offer the verse to the Study and Topics panes via `suggestPanelsWithVerse` - a banner, not a jump - so adopting a side trip as the new subject is still one click away. Notes are deliberately not offered.
+`TopicsPane.handleVerseClick` calls `previewVerseInPrimary` (`src/ui/stores/crossStoreBridge.ts` -> `src/ui/stores/bible/slices/previewSlice.ts`), not the select path. Working down a list of a topic's passages is browsing, not choosing a new subject, so the commentary and notes panes that follow `selectedVerseId` stay where they are. `storeSync.ts` wires the preview to offer the verse to the Study and Topics panes via `suggestPanelsWithVerse` - a banner, not a jump - so adopting a side trip as the new subject is still one click away. Notes are deliberately not offered.
 
 ### Verse list controls (`shared/VerseListWithPreview`)
 
@@ -233,10 +233,10 @@ Entity relationship graph for people, places, objects, and themes. It uses `enti
 "Verily" - Mt 5:18; Jn 1:51; 2Co 1:19-20; Re 3:14
 ```
 
-- `collapseReferencesStructured` from `@bible/core` (via the shared `study/CrossReferenceDisplay.tsx` `ReferenceRun`) sorts canonically, collapses consecutive verses into ranges, and elides a repeated book or chapter. `ReferenceRun` takes a `format` prop: the Study pane passes `'short'` for parity with the web pane, while the inline row under each verse keeps its deliberate `'medium'`.
-- `targetVerseIdsFromGroup` (`study/useChapterStudyData.ts`) pre-expands same-chapter ranges so the collapser can re-render them as `1:19-20`.
-- `tskPhraseKeyword` / `tskPhraseAside` (`utils/tskPhrase.ts`) split the raw TSK phrase; the keyword runs inline before a dash with its trailing period stripped, and the aside becomes the `title` attribute.
+- `collapseReferencesStructured` from `@bible/core` (via the shared `src/ui/components/study/CrossReferenceDisplay.tsx` `ReferenceRun`) sorts canonically, collapses consecutive verses into ranges, and elides a repeated book or chapter. `ReferenceRun` takes a `format` prop: the Study pane passes `'short'` for parity with the web pane, while the inline row under each verse keeps its deliberate `'medium'`.
+- `targetVerseIdsFromGroup` (`src/ui/components/study/useChapterStudyData.ts`) pre-expands same-chapter ranges so the collapser can re-render them as `1:19-20`.
+- `tskPhraseKeyword` / `tskPhraseAside` (`src/ui/utils/tskPhrase.ts`) split the raw TSK phrase; the keyword runs inline before a dash with its trailing period stripped, and the aside becomes the `title` attribute.
 - The Study pane passes `maxRefs={null}` - it is the surface the reader opened *to* read cross-references, and it scrolls - while the inline row under a verse keeps its 12-reference budget so it stays out of the reading.
 - `ReferenceRun`'s `onNavigateToVerse` also passes the range end, so previewing a collapsed range shows the whole passage. Both the run and its hover tooltip preview rather than select, so the commentary and notes panes do not move.
 
-`XrefGroupWithEntries` is declared once, in `services/studyOverviewProvider.ts`, and imported by `StudyPane` and `study/useChapterStudyData.ts`. `CrossReferenceRepository` maps a NULL phrase to `undefined`, so `phrase` is optional rather than `string | null` - whole-verse grouping turns on that one field.
+`XrefGroupWithEntries` is declared once, in `src/ui/services/studyOverviewProvider.ts`, and imported by `StudyPane` and `src/ui/components/study/useChapterStudyData.ts`. `CrossReferenceRepository` maps a NULL phrase to `undefined`, so `phrase` is optional rather than `string | null` - whole-verse grouping turns on that one field.

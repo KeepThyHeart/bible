@@ -45,6 +45,14 @@ vi.mock('../../../../stores/useNoteEditorStore', () => ({
 }));
 
 const setDynamicSubtitle = vi.fn();
+vi.mock('../../../../utils/verseReference', () => ({
+  getBookNameFromCache: (b: number) => (b === 45 ? 'Romans' : `Book${b}`),
+}));
+
+vi.mock('../../chapter/chapterTitle', () => ({
+  chapterTitle: (c: { book: number; chapter: number }) => `T${c.book}:${c.chapter}`,
+}));
+
 vi.mock('../../../../stores/useLayoutStore', () => ({
   useLayoutStore: { getState: () => ({ setDynamicSubtitle }) },
 }));
@@ -296,5 +304,70 @@ describe('useNotesInit - registering the position', () => {
 
     expect(fileNotesAPI.readNote).toHaveBeenCalledWith('Journal/2026-09-02.bn');
     expect(args.setView).toHaveBeenCalledWith('editor');
+  });
+});
+
+describe('useNotesInit - chapter view', () => {
+  const CH = { book: 45, chapter: 8, follow: true, onlyWithNotes: false, activeVerse: 28 };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    useFileNotesStore.setState({ notesDirectory: 'C:/Users/pete/Notes', recentFiles: [], panelNavStates: {} });
+    vi.mocked(fileNotesAPI.isInitialized).mockResolvedValue(true);
+  });
+
+  it('restores the chapter view from the session without reading any note', async () => {
+    setNotesPanelNavState(PANEL, { view: 'chapter', currentPath: '', currentNotePath: 'Verse Notes/Romans/8/28.bn', chapter: CH });
+    const args = baseArgs({ setChapterState: vi.fn(), setChapterView: vi.fn(), setCurrentPath: vi.fn() });
+
+    await mount(args);
+
+    expect(fileNotesAPI.readNote).not.toHaveBeenCalled();
+    expect(fileNotesAPI.readNoteAbsolute).not.toHaveBeenCalled();
+    expect(args.setChapterState).toHaveBeenCalledWith(CH);
+    expect(args.setCurrentPath).toHaveBeenCalledWith('Verse Notes/Romans/8');
+    expect(args.setChapterView).toHaveBeenCalledTimes(1);
+    expect(args.loadDirectory).not.toHaveBeenCalled();
+  });
+
+  it('a detached window restores from initialChapter', async () => {
+    const args = baseArgs({
+      isDetached: true,
+      initialView: 'chapter',
+      initialChapter: CH,
+      setChapterState: vi.fn(),
+      setChapterView: vi.fn(),
+      setCurrentPath: vi.fn(),
+    });
+
+    await mount(args);
+
+    expect(args.setChapterState).toHaveBeenCalledWith(CH);
+    expect(args.setChapterView).toHaveBeenCalledTimes(1);
+    expect(fileNotesAPI.readNote).not.toHaveBeenCalled();
+  });
+
+  it('a detached window with an invalid initialChapter opens the browser', async () => {
+    const args = baseArgs({
+      isDetached: true,
+      initialView: 'chapter',
+      initialChapter: { ...CH, book: 99 },
+      initialCurrentPath: 'Verse Notes',
+      setChapterView: vi.fn(),
+    });
+
+    await mount(args);
+
+    expect(args.setChapterView).not.toHaveBeenCalled();
+    expect(args.loadDirectory).toHaveBeenCalledWith('Verse Notes');
+  });
+
+  it('registers the chapter with the panel position and titles the tab with it', async () => {
+    const args = baseArgs({ view: 'chapter', chapter: CH });
+
+    await mount(args);
+
+    expect(getNotesPanelNavState(PANEL)).toEqual(expect.objectContaining({ view: 'chapter', chapter: CH }));
+    expect(setDynamicSubtitle).toHaveBeenLastCalledWith(PANEL, 'T45:8');
   });
 });

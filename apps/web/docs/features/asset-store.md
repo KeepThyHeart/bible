@@ -30,7 +30,7 @@ directory instead of changing one.
 ## Piper (speech)
 
 Piper files stay under `<data dir>/audio/tts/piper`. `scripts/fetch-piper-assets.mjs` now also writes
-sidecars and `tts/piper/index.json` (same schema, urls relative to that file).
+sidecars and `<data dir>/audio/tts/piper/index.json` (same schema, urls relative to that file).
 `--index-only` rebuilds them from the files on disk without any download.
 
 ## Serving notes

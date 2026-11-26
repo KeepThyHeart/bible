@@ -19,6 +19,7 @@
 
 import { test, expect } from '../fixtures/electron.fixture';
 import type { Page } from '@playwright/test';
+import { hasModule } from '../fixtures/dataDir';
 
 /** Set the interlinear layout via the radio in Study controls. */
 async function useLayout(window: Page, layout: 'inline' | 'stacked'): Promise<void> {
@@ -131,6 +132,9 @@ test.describe('Interlinear Display', () => {
 
   test.describe('Strong\'s lookup', () => {
     test('clicking a Strong\'s number opens its dictionary entry', async ({ window }) => {
+      // The entry comes from the Strong's dictionaries, which the committed e2e fixture does not hold
+      // ("Dictionary not available"). Runs with real data (BIBLE_E2E_DATA_DIR), like dictionary.spec.ts.
+      test.skip(!hasModule('StrongsGreek'), 'needs real data (StrongsGreek): set BIBLE_E2E_DATA_DIR');
       // Assert unconditionally. `if (dictCount > 0)` would assert only once the
       // dictionary had opened, which is the whole thing being tested.
       const strongs = window.locator('[data-testid="strongs-number"]').first();

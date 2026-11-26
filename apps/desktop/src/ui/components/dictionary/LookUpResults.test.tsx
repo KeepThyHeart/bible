@@ -5,16 +5,12 @@ vi.mock('../../contexts/useI18n', () => ({
   useI18n: () => ({ t: (key: string, p?: Record<string, string>) => (p?.word ? `${key}:${p.word}` : key), locale: 'en', i18n: {} }),
 }));
 
-const dict = vi.hoisted(() => ({
-  setStudyPaneActiveTab: vi.fn(), openDictionary: vi.fn(), lookupEntry: vi.fn().mockResolvedValue(undefined),
-}));
-vi.mock('../../stores/useDictionaryStore', () => ({
-  useDictionaryStore: Object.assign(() => ({}), { getState: () => dict }),
-}));
 vi.mock('../../services/electronAPI', () => ({ dictionaryAPI: { lookUp: vi.fn() } }));
 
 import { LookUpResults } from './LookUpResults';
 import { useLookUpStore } from '../../stores/useLookUpStore';
+
+const onOpenEntry = vi.fn();
 
 describe('LookUpResults', () => {
   beforeEach(() => {
@@ -31,27 +27,26 @@ describe('LookUpResults', () => {
 
   it('renders nothing without a query', () => {
     useLookUpStore.setState({ query: null });
-    const { container } = render(<LookUpResults panelId="p1" />);
+    const { container } = render(<LookUpResults onOpenEntry={onOpenEntry} />);
     expect(container.firstChild).toBeNull();
   });
 
   it('groups entries by dictionary', () => {
-    render(<LookUpResults panelId="p1" />);
+    render(<LookUpResults onOpenEntry={onOpenEntry} />);
     expect(screen.getAllByTestId('lookup-group')).toHaveLength(2);
     expect(screen.getByText('WALK')).toBeInTheDocument();
   });
 
-  it('opens the picked entry in its dictionary and dismisses the results', async () => {
-    render(<LookUpResults panelId="p1" />);
+  it('hands the picked entry to the caller, and keeps the results for coming back', async () => {
+    render(<LookUpResults onOpenEntry={onOpenEntry} />);
     await act(async () => { fireEvent.click(screen.getAllByTestId('lookup-entry')[0]); });
-    expect(dict.openDictionary).toHaveBeenCalledWith('p1', 'Easton', 'Easton');
-    expect(dict.lookupEntry).toHaveBeenCalledWith('p1', 'Easton', 'WALK');
-    expect(useLookUpStore.getState().query).toBeNull();
+    expect(onOpenEntry).toHaveBeenCalledWith('Easton', 'Easton', 'WALK');
+    expect(useLookUpStore.getState().query?.text).toBe('walking');
   });
 
   it('says so when no dictionary has an entry', () => {
     useLookUpStore.setState({ groups: [] });
-    render(<LookUpResults panelId="p1" />);
+    render(<LookUpResults onOpenEntry={onOpenEntry} />);
     expect(screen.getByTestId('lookup-empty')).toBeInTheDocument();
   });
 });

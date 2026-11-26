@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { getVersesWithNotes } from '../../../services/notesAPI';
-import { listVerseNotesInChapter } from '../../../services/fileNotesAPI';
+import { listVerseNotesInChapter, onNoteSaved } from '../../../services/fileNotesAPI';
+import { onVerseNotesChanged, isVerseNotePath } from '../../../services/verseNoteMarkerEvents';
 import { useNotesStore } from '../../../stores/useNotesStore';
 import { useFileNotesStore } from '../../../stores/useFileNotesStore';
 import { useToastStore } from '../../../stores/useToastStore';
@@ -12,7 +13,9 @@ import { getBookNameFromCache } from '../../../utils/verseReference';
  * chapter changes or any note is added/removed/updated.
  *
  * Covers both stores: database notes, and the per-verse `.bn` files the Notes
- * pane writes (`Verse Notes/<Book>/<chapter>/<verse>.bn`).
+ * pane writes (`Verse Notes/<Book>/<chapter>/<verse>.bn`). A file counts only
+ * when it has real content (the main process filters, see `noteHasContent`), so
+ * a note cleared to empty or deleted loses its marker.
  */
 export function useVersesWithNotes(
   currentVerses: Array<{ verse_id: number }>,
@@ -23,6 +26,15 @@ export function useVersesWithNotes(
   const noteChangeCounter = useNotesStore(state => state.noteChangeCounter);
   // A verse note file is opened (and so created) through addRecentFile.
   const recentFiles = useFileNotesStore(state => state.recentFiles);
+  // A verse note was deleted, moved, or saved to/from empty (this window), or
+  // saved by another window: the marker set may have changed.
+  const [verseNoteTick, setVerseNoteTick] = useState(0);
+  useEffect(() => {
+    const bump = () => setVerseNoteTick(n => n + 1);
+    const offLocal = onVerseNotesChanged(bump);
+    const offRemote = onNoteSaved(e => { if (isVerseNotePath(e.absolutePath)) bump(); });
+    return () => { offLocal(); offRemote(); };
+  }, []);
 
   useEffect(() => {
     if (currentVerses.length > 0) {
@@ -53,7 +65,7 @@ export function useVersesWithNotes(
       return () => { cancelled = true; };
     }
     return undefined;
-  }, [currentBook, currentChapter, currentVerses.length, noteChangeCounter, recentFiles]);
+  }, [currentBook, currentChapter, currentVerses.length, noteChangeCounter, recentFiles, verseNoteTick]);
 
   return versesWithNotes;
 }

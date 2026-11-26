@@ -16,6 +16,7 @@ async function addTab(page: Page) {
   await expect(page.locator('.kth-picker__books')).toBeVisible({ timeout: 3000 });
   await page.locator('.kth-picker__cell--book').first().click();
   await page.locator('.kth-picker__cell--chapter').first().click();
+  await page.locator('.kth-picker__chapter-go').click(); // the verse step: go to the whole chapter
 }
 
 async function focusedRole(page: Page) {

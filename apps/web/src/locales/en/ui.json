@@ -467,7 +467,35 @@
     "loading": "Loading verses...",
     "copyFailed": "Could not copy to the clipboard. Check that this site is allowed to use it.",
     "referencePosition": "Reference position",
-    "print": "Print"
+    "print": "Print",
+    "printLayout": "Print layout",
+    "printLayoutNumbered": "Numbered verses",
+    "printLayoutBlockquote": "Block quote",
+    "printLayoutPreview": "As in the preview",
+    "printNotesMargin": "Leave a margin for notes",
+    "printMarginWidth": "Margin width: {{width}} cm",
+    "printMarginRule": "Draw a line at the margin",
+    "printUnits": "Units",
+    "printUnitCm": "Centimetres",
+    "printUnitIn": "Inches",
+    "printMarginWidthIn": "Margin width: {{width}} in",
+    "printLineSpacing": "Line spacing",
+    "printLineSpacingNormal": "Normal",
+    "printFontSize": "Text size: {{size}} pt",
+    "printPreviewLabel": "Preview of the printed page",
+    "printTheme": "Colour theme",
+    "printThemeBw": "Black and white",
+    "printThemeClassic": "Classic (dark red)",
+    "printThemeBlue": "Blue",
+    "printThemeGreen": "Green",
+    "printThemeSepia": "Sepia",
+    "printRedLetters": "Words of Christ in red",
+    "printShowTitle": "Print the title",
+    "printMoreOptions": "More options…",
+    "printThisFormat": "Print this format…",
+    "printSavePdf": "Save as PDF…",
+    "printTitle": "Print Passage",
+    "printPdfHint": "To save a PDF, choose “Save as PDF” as the printer in the print window."
   },
   "ui": {
     "passageInsert": {
@@ -879,7 +907,8 @@
     "chapterOption": "{book} chapter {chapter}",
     "selectAVerse": "Select a verse, or go to the whole chapter",
     "goToChapter": "Go to {book} {chapter}",
-    "verseOption": "{book} {chapter}:{verse}"
+    "verseOption": "{book} {chapter}:{verse}",
+    "alsoChooseVerse": "Also choose a verse"
   },
   "helpDialog": {
     "esc": "Esc"

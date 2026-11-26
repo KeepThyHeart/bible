@@ -40,11 +40,11 @@ export interface MarkupStyle {
 const RECENT_MARKUP_STYLES_KEY = 'bible-desktop-recent-markup-styles';
 
 /**
- * Three, because the row sits under a toolbar that is already as wide as the
- * shortest phrase people select - a fourth entry starts overhanging the text
- * it points at.
+ * Four: the row of `Aa` samples is then about as wide as the four quick colour
+ * swatches above it, so remembering one more style does not widen the toolbar
+ * over the text it points at.
  */
-export const RECENT_MARKUP_STYLES_LIMIT = 3;
+export const RECENT_MARKUP_STYLES_LIMIT = 4;
 
 const MARKUP_TYPES: readonly MarkupType[] = ['highlight', 'underline', 'both'];
 const UNDERLINE_STYLES: readonly UnderlineStyle[] = ['solid', 'wavy', 'dotted', 'dashed'];
@@ -174,3 +174,36 @@ export function clearStoredRecentMarkupStyles(): void {
 
 /** Exported for tests, so they do not hardcode the storage key. */
 export const RECENT_MARKUP_STYLES_STORAGE_KEY = RECENT_MARKUP_STYLES_KEY;
+
+/**
+ * The quick Underline's colour (the floating toolbar's Underline button, Ctrl+U, and the Highlight
+ * menu's starting underline colour): whichever colour the reader last underlined in, kept across
+ * restarts. Red until then - it reads as an underline on every theme and is not confused with the
+ * default yellow highlight.
+ */
+export const DEFAULT_UNDERLINE_COLOR: HighlightColor = 'red';
+const LAST_UNDERLINE_COLOR_KEY = 'bible-desktop-last-underline-color';
+
+export function loadLastUnderlineColor(): HighlightColor {
+  try {
+    const raw = localStorage.getItem(LAST_UNDERLINE_COLOR_KEY);
+    if (raw && (HIGHLIGHT_COLOR_NAMES as readonly string[]).includes(raw)) return raw as HighlightColor;
+  } catch {
+    // fall through to the default
+  }
+  return DEFAULT_UNDERLINE_COLOR;
+}
+
+export function persistLastUnderlineColor(color: HighlightColor): void {
+  try {
+    localStorage.setItem(LAST_UNDERLINE_COLOR_KEY, color);
+  } catch {
+    // Best-effort.
+  }
+}
+
+/** The underline colour a style draws with, or null for a plain highlight. */
+export function underlineColorOf(style: MarkupStyle): HighlightColor | null {
+  if (style.markupType === 'highlight') return null;
+  return style.underlineColor ?? style.color;
+}

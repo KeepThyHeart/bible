@@ -27,6 +27,7 @@ import './routes/topicalRoutes.js';
 import './routes/tagGraphRoutes.js';
 import './routes/dictionaryRoutes.js';
 import './routes/studyOverviewRoutes.js';
+import { dataAllowlist } from './utils/dataAllowlist.js';
 import './routes/feedbackRoutes.js';
 import './routes/desktopReportRoutes.js';
 import { getRegisteredRoutes, getRegisteredBodyParsers } from './routes/routeRegistry.js';
@@ -503,30 +504,7 @@ app.use('/assets', createAssetRouter(siteConfig.assets.dir));
  * more now that `dataDir` is the shared store and a fallthrough would offer up
  * every module database in `modules/`.
  */
-const SEMANTIC_ASSET = /^semantic_[A-Za-z0-9._-]+\.(bin|json)$/;
-app.use('/data', (req, res, next) => {
-  // Normalise before matching: `models/../main.db` resolves inside the static
-  // root, so a prefix test alone would let it through.
-  let requested: string;
-  try {
-    requested = decodeURIComponent(req.path);
-  } catch {
-    res.status(400).end();
-    return;
-  }
-  const segments = requested.replace(/\\/g, '/').split('/').filter(Boolean);
-  if (segments.includes('..') || segments.length === 0) {
-    res.status(404).end();
-    return;
-  }
-  const isModelAsset = segments[0] === 'models';
-  const isSemanticAsset = segments.length === 1 && SEMANTIC_ASSET.test(segments[0]);
-  if (!isModelAsset && !isSemanticAsset) {
-    res.status(404).end();
-    return;
-  }
-  next();
-});
+app.use('/data', dataAllowlist);
 
 // These are large binary files — set long cache headers since they're versioned by filename
 app.use('/data', express.static(dataDir, {

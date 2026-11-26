@@ -93,5 +93,8 @@
   "wordStudy.open.category": "Study",
   "wordStudy.open.alias.0": "word study",
   "wordStudy.open.alias.1": "strongs study",
-  "wordStudy.open.alias.2": "concordance"
+  "wordStudy.open.alias.2": "concordance",
+  "help.sendFeedback": "Send Feedback",
+  "notes.compilePassageNotes": "Compile Passage Notes",
+  "notes.compilePassageNotes.category": "Notes"
 }
