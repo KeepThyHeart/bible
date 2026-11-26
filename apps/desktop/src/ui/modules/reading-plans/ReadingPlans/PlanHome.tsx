@@ -67,16 +67,27 @@ const PlanHome: React.FC<PlanHomeProps> = ({
   const extraDays = completed ? [] : (today.catchUp?.days ?? []);
   const anyTicked = ReadingPlans.todaysReadings(today).some((r) => r.done);
 
-  // The primary action: the first reading still due today, else read ahead on the first unread day.
-  const { continueTarget, readAhead } = useMemo(() => {
-    if (completed) return { continueTarget: null, readAhead: false };
+  // The primary action: the first reading still due today; else catch up on the oldest missed day when behind;
+  // else read ahead on the first unread day AFTER the focus day (never an earlier one).
+  const { continueTarget, mode } = useMemo(() => {
+    const none = { continueTarget: null as ReadingTarget | null, mode: 'due' as 'due' | 'catchUp' | 'ahead' };
+    if (completed) return none;
     const due = ReadingPlans.dueReadings(today)[0];
-    if (due) return { continueTarget: due as ReadingTarget, readAhead: false };
-    const next = ReadingPlans.firstUnreadDay(plan, progress);
-    const rows = next === null ? heroRows : rowsOf(plan, progress, next);
-    const row = rows.find((r) => !r.done) ?? rows[0];
-    return { continueTarget: row ? { day: row.day, index: row.index, reading: row.reading } : null, readAhead: true };
-  }, [completed, today, plan, progress, heroRows]);
+    if (due) return { continueTarget: due as ReadingTarget, mode: 'due' as const };
+    const pick = (day: number) => {
+      const rows = rowsOf(plan, progress, day);
+      return rows.find((r) => !r.done) ?? rows[0];
+    };
+    const missed = paused ? undefined : today.behindBy > 0 ? today.missedDays[0] : undefined;
+    if (missed !== undefined) {
+      const row = pick(missed);
+      if (row) return { continueTarget: { day: row.day, index: row.index, reading: row.reading }, mode: 'catchUp' as const };
+    }
+    let next: number | null = null;
+    for (let d = (focus ?? 0) + 1; d <= dayCount; d++) if (!ReadingPlans.isDayDone(plan, progress, d)) { next = d; break; }
+    const row = next === null ? undefined : pick(next);
+    return { continueTarget: row ? { day: row.day, index: row.index, reading: row.reading } : null, mode: 'ahead' as const };
+  }, [completed, paused, today, plan, progress, focus, dayCount]);
 
   const readingRow = (r: Row, hero: boolean) => {
     const text = readingText(r.reading);
@@ -143,7 +154,9 @@ const PlanHome: React.FC<PlanHomeProps> = ({
         <div className="flex flex-wrap items-center gap-md pt-xs">
           {continueTarget ? (
             <button type="button" className="kth-btn kth-btn--primary" onClick={() => onOpenReading(continueTarget)}>
-              {readAhead
+              {mode === 'catchUp'
+                ? tx('readingPlans.home.catchUpNow', `Catch up: ${readingText(continueTarget.reading)}`, { reading: readingText(continueTarget.reading) })
+                : mode === 'ahead'
                 ? tx('readingPlans.home.readAhead', `Read ahead: ${readingText(continueTarget.reading)}`, { reading: readingText(continueTarget.reading) })
                 : t(anyTicked ? 'readingPlans.home.continue' : 'readingPlans.home.start', { reading: readingText(continueTarget.reading) })}
             </button>
@@ -160,7 +173,8 @@ const PlanHome: React.FC<PlanHomeProps> = ({
     if (focus === null || focus <= 1) return null;
     const day = focus - 1;
     const readings = (plan.days[day - 1]?.readings ?? []).map(readingText).join(', ');
-    const state = ReadingPlans.isDayDone(plan, progress, day) ? labels.weekStrip.read : labels.weekStrip.unread;
+    if (!ReadingPlans.isDayDone(plan, progress, day)) return null;
+    const state = labels.weekStrip.read;
     return (
       <p className="m-0 text-xs kth-text-muted" data-testid="plan-day-previous">
         {tx('readingPlans.home.previousLine', `Day ${day} \u00B7 ${readings} \u00B7 ${state}`, { day, readings, state })}

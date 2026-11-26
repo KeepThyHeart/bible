@@ -2573,5 +2573,6 @@
   "apps.present.shortTitle": "Показ",
   "apps.rail.showLabels": "Показывать подписи",
   "apps.switcher.open": "Переключить приложение",
-  "settings.apps.railLabels": "Показывать подписи на панели приложений"
+  "settings.apps.railLabels": "Показывать подписи на панели приложений",
+  "apps.sheet.close": "Закрыть"
 }

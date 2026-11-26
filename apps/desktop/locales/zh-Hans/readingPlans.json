@@ -287,5 +287,6 @@
   "readingPlans.table.markThroughUnreadConfirm": "标为未读",
   "readingPlans.library.export": "导出",
   "readingPlans.library.exportNamed": "导出 {name}",
-  "readingPlans.add.importButton": "导入计划文件…"
+  "readingPlans.add.importButton": "导入计划文件…",
+  "readingPlans.home.catchUpNow": "补读：{reading}"
 }

@@ -2559,5 +2559,6 @@
   "apps.present.shortTitle": "Present",
   "apps.rail.showLabels": "Show labels",
   "apps.switcher.open": "Switch app",
-  "settings.apps.railLabels": "Show labels in the app rail"
+  "settings.apps.railLabels": "Show labels in the app rail",
+  "apps.sheet.close": "Close"
 }

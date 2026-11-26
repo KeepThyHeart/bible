@@ -168,3 +168,12 @@ export function endsInChapter(reading: Pick<Reading, 'end'>, book: number, chapt
   const e = splitVid(reading.end);
   return e.book === book && e.chapter === chapter;
 }
+
+/** The chapter after (`book`, `chapter`) within the reading's own chapter list (across book boundaries), or null. */
+export function nextChapterIn(
+  reading: Pick<Reading, 'start' | 'end'>, book: number, chapter: number,
+): { book: number; chapter: number } | null {
+  const list = chaptersOf(reading);
+  const i = list.findIndex((c) => c.book === book && c.chapter === chapter);
+  return i >= 0 && i + 1 < list.length ? list[i + 1] : null;
+}

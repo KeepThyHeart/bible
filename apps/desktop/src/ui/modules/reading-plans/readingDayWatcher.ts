@@ -29,6 +29,7 @@ export function watchReadingDay(onTick: () => void, getRolloverHour: () => numbe
     if (state.readingPlanRolloverHour === lastHour) return;
     lastHour = state.readingPlanRolloverHour;
     arm();
+    tick();
   });
   window.addEventListener('focus', tick);
   document.addEventListener('visibilitychange', onVisibility);

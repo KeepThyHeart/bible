@@ -287,5 +287,6 @@
   "readingPlans.table.markThroughUnreadConfirm": "علامت‌گذاری به‌عنوان خوانده‌نشده",
   "readingPlans.library.export": "برون‌بری",
   "readingPlans.library.exportNamed": "برون‌بری {name}",
-  "readingPlans.add.importButton": "درون‌ریزی فایل برنامه…"
+  "readingPlans.add.importButton": "درون‌ریزی فایل برنامه…",
+  "readingPlans.home.catchUpNow": "جبران عقب‌ماندگی: {reading}"
 }

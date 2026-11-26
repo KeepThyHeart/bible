@@ -43,11 +43,12 @@ describe('watchReadingDay re-arming', () => {
     const stop = watchReadingDay(onTick, () => hour);
     hour = 23; // would fire in 1 hour, not 5
     usePreferencesStore.setState({ readingPlanRolloverHour: 23 });
+    expect(onTick).toHaveBeenCalledTimes(1); // the change itself ticks at once
     vi.advanceTimersByTime(3600_000);
-    expect(onTick).toHaveBeenCalledTimes(1);
+    expect(onTick).toHaveBeenCalledTimes(2);
     stop();
     usePreferencesStore.setState({ readingPlanRolloverHour: 4 });
     vi.advanceTimersByTime(48 * 3600_000);
-    expect(onTick).toHaveBeenCalledTimes(1);
+    expect(onTick).toHaveBeenCalledTimes(2);
   });
 });

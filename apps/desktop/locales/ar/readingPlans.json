@@ -287,5 +287,6 @@
   "readingPlans.table.markThroughUnreadConfirm": "وضع علامة غير مقروء",
   "readingPlans.library.export": "تصدير",
   "readingPlans.library.exportNamed": "تصدير {name}",
-  "readingPlans.add.importButton": "استيراد ملف خطة…"
+  "readingPlans.add.importButton": "استيراد ملف خطة…",
+  "readingPlans.home.catchUpNow": "اللحاق بالقراءة: {reading}"
 }

@@ -287,5 +287,6 @@
   "readingPlans.table.markThroughUnreadConfirm": "סמן כלא נקרא",
   "readingPlans.library.export": "ייצוא",
   "readingPlans.library.exportNamed": "ייצא {name}",
-  "readingPlans.add.importButton": "ייבא קובץ תוכנית…"
+  "readingPlans.add.importButton": "ייבא קובץ תוכנית…",
+  "readingPlans.home.catchUpNow": "השלמת פערים: {reading}"
 }

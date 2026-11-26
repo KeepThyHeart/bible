@@ -2558,5 +2558,6 @@
   "apps.present.shortTitle": "ارائه",
   "apps.rail.showLabels": "نمایش برچسب‌ها",
   "apps.switcher.open": "تعویض برنامه",
-  "settings.apps.railLabels": "نمایش برچسب‌ها در نوار برنامه‌ها"
+  "settings.apps.railLabels": "نمایش برچسب‌ها در نوار برنامه‌ها",
+  "apps.sheet.close": "بستن"
 }

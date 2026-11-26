@@ -2573,5 +2573,6 @@
   "apps.present.shortTitle": "प्रस्तुति",
   "apps.rail.showLabels": "लेबल दिखाएँ",
   "apps.switcher.open": "ऐप बदलें",
-  "settings.apps.railLabels": "ऐप रेल में लेबल दिखाएँ"
+  "settings.apps.railLabels": "ऐप रेल में लेबल दिखाएँ",
+  "apps.sheet.close": "बंद करें"
 }

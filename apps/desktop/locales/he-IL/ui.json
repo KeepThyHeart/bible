@@ -2558,5 +2558,6 @@
   "apps.present.shortTitle": "הצגה",
   "apps.rail.showLabels": "הצג תוויות",
   "apps.switcher.open": "החלף אפליקציה",
-  "settings.apps.railLabels": "הצג תוויות בסרגל האפליקציות"
+  "settings.apps.railLabels": "הצג תוויות בסרגל האפליקציות",
+  "apps.sheet.close": "סגירה"
 }

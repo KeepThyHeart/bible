@@ -205,7 +205,7 @@ const ReadingPlansPane: React.FC<{ asApp?: boolean }> = ({ asApp = false }) => {
                     oldStartDate: before.startDate,
                     oldCatchUp: before.catchUp ?? null,
                     newStartDate: preview.newStartDate,
-                    movedOn: todayDate ?? '',
+                    movedOn: todayDate ?? service.today(),
                   });
                 });
               }}

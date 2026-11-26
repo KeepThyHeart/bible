@@ -67,10 +67,17 @@ describe('PlanHome', () => {
     expect(within(hero).getByTestId('hero-title')).toHaveTextContent(/^Today · .* · Day 4$/);
     expect(screen.getByText('3 earlier days unread')).toBeInTheDocument();
     expect(screen.getByTestId('behind-panel')).not.toHaveAttribute('open');
-    expect(screen.getByTestId('plan-day-previous')).toHaveTextContent(/^Day 3 · .* · not read$/);
+    expect(screen.queryByTestId('plan-day-previous')).not.toBeInTheDocument(); // Day 3 is not done: no previous line
     expect(screen.queryByText(/behind schedule/)).not.toBeInTheDocument();
     // The hero's checkboxes are today's readings (Day 4), not Day 1's.
     for (const box of within(hero).getAllByRole('checkbox')) expect(box).toBeInTheDocument();
+  });
+
+  it('fixed, behind, today done: the primary button catches up on the oldest missed day', async () => {
+    const { cb } = await setup('2026-09-28', 'fixed', { tick: [[4, 0]] });
+    await userEvent.setup().click(screen.getByRole('button', { name: /^Catch up: / }));
+    expect(cb.onOpenReading).toHaveBeenCalledWith(expect.objectContaining({ day: 1 }));
+    expect(screen.queryByRole('button', { name: /^Read ahead: / })).not.toBeInTheDocument();
   });
 
   it('shows three named choices; each does its own thing', async () => {

@@ -287,5 +287,6 @@
   "readingPlans.table.markThroughUnreadConfirm": "Marcar como não lido",
   "readingPlans.library.export": "Exportar",
   "readingPlans.library.exportNamed": "Exportar {name}",
-  "readingPlans.add.importButton": "Importar arquivo de plano…"
+  "readingPlans.add.importButton": "Importar arquivo de plano…",
+  "readingPlans.home.catchUpNow": "Pôr em dia: {reading}"
 }

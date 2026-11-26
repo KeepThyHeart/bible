@@ -101,6 +101,7 @@ describe('DesktopAppStage', () => {
       fireEvent.contextMenu(screen.getByRole('navigation'), { clientX: 10, clientY: 10 });
       const item = screen.getByRole('menuitemcheckbox');
       expect(item.getAttribute('aria-checked')).toBe('true');
+      expect(screen.getByRole('menuitemcheckbox', { name: 'Show labels' })).toBe(item);
       fireEvent.click(item);
       expect(usePreferencesStore.getState().appRailLabels).toBe(false);
       expect(container.querySelector('.kth-app-rail--labels')).toBeNull();

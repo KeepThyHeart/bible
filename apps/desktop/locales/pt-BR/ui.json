@@ -2573,5 +2573,6 @@
   "apps.present.shortTitle": "Apresentar",
   "apps.rail.showLabels": "Mostrar rótulos",
   "apps.switcher.open": "Trocar de aplicativo",
-  "settings.apps.railLabels": "Mostrar rótulos na barra de aplicativos"
+  "settings.apps.railLabels": "Mostrar rótulos na barra de aplicativos",
+  "apps.sheet.close": "Fechar"
 }

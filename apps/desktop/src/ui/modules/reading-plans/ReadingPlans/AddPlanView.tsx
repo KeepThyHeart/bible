@@ -61,6 +61,7 @@ const AddPlanView: React.FC<AddPlanViewProps> = ({ library, labels, onBack, onEd
     if (!file) return;
     try {
       onError(null);
+      if (file.size > ReadingPlans.MAX_PLAN_FILE_BYTES) throw new Error('This file is too large to be a reading plan.');
       const saved = await getReadingPlanService().savePlan(ReadingPlans.parsePlanFile(await file.text()));
       onStart(saved.key);
     } catch (err) {

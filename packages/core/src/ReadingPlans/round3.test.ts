@@ -76,6 +76,18 @@ describe('todayView focus (R3)', () => {
     expect(focusDay(v)).toBe(6);
   });
 
+  it('fixed rest day: upcoming is the first unread day after the scheduled day', () => {
+    const e = enrollment({ readingDays: [1, 2, 3, 4, 5] as Weekday[], startDate: '2026-10-05' });
+    const v = todayView(plan, e, [1, 2, 3, 4, 6].map((d) => done(d)), '2026-10-10', 3); // day 5 missed, 6 done
+    expect(v).toMatchObject({ day: null, restDay: true, upcomingDay: 7 });
+  });
+
+  it('a completion with an invalid timestamp counts as before today', () => {
+    const e = enrollment({ pacing: 'flexible' });
+    const bad = { ...done(1), at: '' };
+    expect(todayView(plan, e, [bad], '2026-10-05', 3)).toMatchObject({ day: 2 });
+  });
+
   it('fixed not started: upcoming day 1', () => {
     const v = todayView(plan, enrollment({ startDate: '2026-10-10' }), [], '2026-10-05', 3);
     expect(v).toMatchObject({ notStarted: true, focusKind: 'upcoming', upcomingDay: 1, upcomingDate: '2026-10-10', dueUnread: false });

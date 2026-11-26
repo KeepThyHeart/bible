@@ -2575,5 +2575,6 @@
   "apps.present.shortTitle": "演示",
   "apps.rail.showLabels": "显示标签",
   "apps.switcher.open": "切换应用",
-  "settings.apps.railLabels": "在应用栏中显示标签"
+  "settings.apps.railLabels": "在应用栏中显示标签",
+  "apps.sheet.close": "关闭"
 }

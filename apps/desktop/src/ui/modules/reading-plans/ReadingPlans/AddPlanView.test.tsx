@@ -63,4 +63,17 @@ describe('AddPlanView import/export', () => {
     await waitFor(() => expect(onError).toHaveBeenCalledWith(expect.stringContaining('not a reading plan')));
     expect(onStart).not.toHaveBeenCalled();
   });
+
+  it('refuses an oversized file by size before reading it', async () => {
+    installTestService();
+    const onStart = vi.fn(); const onError = vi.fn();
+    render(<AddPlanView library={[]} labels={labels} onBack={vi.fn()} onEdit={vi.fn()} onStart={onStart} onError={onError} />);
+    const file = new File(['x'], 'big.json');
+    Object.defineProperty(file, 'size', { value: ReadingPlans.MAX_PLAN_FILE_BYTES + 1 });
+    const textSpy = vi.spyOn(file, 'text');
+    await userEvent.setup({ applyAccept: false }).upload(screen.getByTestId('import-plan-input'), file);
+    await waitFor(() => expect(onError).toHaveBeenCalledWith(expect.stringContaining('too large')));
+    expect(textSpy).not.toHaveBeenCalled();
+    expect(onStart).not.toHaveBeenCalled();
+  });
 });

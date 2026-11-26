@@ -287,5 +287,6 @@
   "readingPlans.table.markThroughUnreadConfirm": "⟦Ṁåŕķ åš üñŕéåð ····⟧",
   "readingPlans.library.export": "⟦Éẋþøŕţ ··⟧",
   "readingPlans.library.exportNamed": "⟦Éẋþøŕţ {name} ··⟧",
-  "readingPlans.add.importButton": "⟦Îɱþøŕţ þļåñ ƒîļé… ·····⟧"
+  "readingPlans.add.importButton": "⟦Îɱþøŕţ þļåñ ƒîļé… ·····⟧",
+  "readingPlans.home.catchUpNow": "⟦Çåţçĥ üþ: {reading} ···⟧"
 }

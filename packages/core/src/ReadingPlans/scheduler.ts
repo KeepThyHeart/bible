@@ -149,7 +149,8 @@ export function progressAtDayStart(
     completions.filter((c) => {
       if (c.via === 'bulk') return true;
       const t = new Date(c.at);
-      return !Number.isNaN(t.getTime()) && readingDate(t, rolloverHour) < today;
+      // An empty or invalid timestamp cannot be placed today, so it counts as before today.
+      return Number.isNaN(t.getTime()) || readingDate(t, rolloverHour) < today;
     }),
     enrollmentId,
   );
@@ -218,7 +219,10 @@ export function todayView(
   let upcomingDay: number | null = null;
   let upcomingDate: IsoDate | null = null;
   if (day === null) {
-    upcomingDay = scheduled < dayCount ? scheduled + 1 : firstUnread;
+    // On a rest day: the first unread day after the scheduled one (the scheduled day itself counts as missed).
+    let after: number | null = null;
+    for (let d = scheduled + 1; d <= dayCount; d++) if (!isDayDone(plan, progress, d)) { after = d; break; }
+    upcomingDay = after ?? firstUnread;
     upcomingDate = dateForDay(e, upcomingDay);
   }
   const focusKind: FocusKind = pastEnd ? 'nextUnread' : day === null ? 'upcoming' : 'today';

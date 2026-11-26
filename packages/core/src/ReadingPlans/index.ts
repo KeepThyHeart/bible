@@ -29,7 +29,7 @@ export {
 export type { IReadingPlanStore, CompletionChange } from './store';
 export {
   flattenPlan, readingNeighbours, overdueReadings, nextReadingAfter, blockPlacement, currentDayWindow,
-  focusDay, todaysReadings, dueReadings, nextDueReading, chapterSpan, chapterOf, endsInChapter,
+  focusDay, todaysReadings, dueReadings, nextDueReading, chapterSpan, chapterOf, endsInChapter, nextChapterIn,
 } from './cursor';
 export type { PlanReadingRef, TodayReadingRef } from './cursor';
 export { ReadingPlanService } from './service';

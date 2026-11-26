@@ -39,7 +39,13 @@ export const DesktopAppStage: React.FC = () => {
   const showRail = !narrow && shouldShowRail(mode, railItems.length);
   const showLabels = usePreferencesStore((s) => s.appRailLabels);
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
-  const closeMenu = useCallback(() => setMenu(null), []);
+  const menuTrigger = useRef<HTMLElement | null>(null);
+  const closeMenu = useCallback(() => {
+    setMenu(null);
+    const el = menuTrigger.current;
+    menuTrigger.current = null;
+    if (el?.isConnected) el.focus(); // back to where the menu was opened from
+  }, []);
   useOverlayDismissal(menu !== null, closeMenu);
   const stageRef = useRef<HTMLDivElement>(null);
   const lastFocus = useRef(new Map<string, HTMLElement>());
@@ -106,7 +112,7 @@ export const DesktopAppStage: React.FC = () => {
           labels={{ railLabel: translateWithDefault(t, 'apps.rail.label', 'Apps') }}
           className="app-rail"
           showLabels={showLabels}
-          onContextMenu={(e) => { e.preventDefault(); setMenu({ x: e.clientX, y: e.clientY }); }}
+          onContextMenu={(e) => { e.preventDefault(); menuTrigger.current = document.activeElement instanceof HTMLElement ? document.activeElement : null; setMenu({ x: e.clientX, y: e.clientY }); }}
         />
       )}
       {showRail && menu && (
@@ -134,7 +140,7 @@ export const DesktopAppStage: React.FC = () => {
             style={{ color: 'var(--theme-text-primary)' }}
             onClick={() => { usePreferencesStore.getState().setAppRailLabels(!showLabels); closeMenu(); }} // allow-getstate: event handler
           >
-            {showLabels ? '\u2713 ' : '\u2003'}
+            <span aria-hidden="true">{showLabels ? '\u2713 ' : '\u2003'}</span>
             {translateWithDefault(t, 'apps.rail.showLabels', 'Show labels')}
           </button>
         </PointerMenu>

@@ -287,5 +287,6 @@
   "readingPlans.table.markThroughUnreadConfirm": "Отметить непрочитанным",
   "readingPlans.library.export": "Экспорт",
   "readingPlans.library.exportNamed": "Экспортировать {name}",
-  "readingPlans.add.importButton": "Импортировать файл плана…"
+  "readingPlans.add.importButton": "Импортировать файл плана…",
+  "readingPlans.home.catchUpNow": "Наверстать: {reading}"
 }

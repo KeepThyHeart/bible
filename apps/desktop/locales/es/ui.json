@@ -2575,5 +2575,6 @@
   "apps.present.shortTitle": "Presentar",
   "apps.rail.showLabels": "Mostrar etiquetas",
   "apps.switcher.open": "Cambiar de aplicación",
-  "settings.apps.railLabels": "Mostrar etiquetas en la barra de aplicaciones"
+  "settings.apps.railLabels": "Mostrar etiquetas en la barra de aplicaciones",
+  "apps.sheet.close": "Cerrar"
 }

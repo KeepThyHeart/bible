@@ -33,14 +33,14 @@ const ReadingPlanChapterEnd: React.FC<ReaderChapterEndProps> = ({ book, chapter,
   const tx = (key: string, fallback: string, params: Record<string, unknown> = {}) => rpTextWith(t, key, fallback, params);
 
   // Readings that continue past this chapter: due ones of today's set and the opened one.
-  const continuing: { key: string; n: number; count: number }[] = [];
+  const continuing: { key: string; n: number; count: number; next: { book: number; chapter: number } | null }[] = [];
   const seen = new Set<string>();
   const consider = (key: string, reading: ReadingPlans.Reading, done: boolean, active: boolean) => {
     if ((done && !active) || ReadingPlans.endsInChapter(reading, book, chapter)) return;
     const at = ReadingPlans.chapterOf(reading, book, chapter);
     if (!at || at.n >= at.count || seen.has(key)) return;
     seen.add(key);
-    continuing.push({ key, ...at });
+    continuing.push({ key, ...at, next: ReadingPlans.nextChapterIn(reading, book, chapter) });
   };
   for (const e of todaySetFor(todays)) {
     const active = !!info && info.enrollmentId === e.view.enrollmentId && info.day === e.r.day && info.index === e.r.index;
@@ -52,7 +52,7 @@ const ReadingPlanChapterEnd: React.FC<ReaderChapterEndProps> = ({ book, chapter,
   if (continuing.length === 0 && ends.length === 0) return null;
 
   const first = continuing[0];
-  const nextName = `${labels.bookName(book)} ${chapter + 1}`;
+  const nextName = first?.next ? `${labels.bookName(first.next.book)} ${first.next.chapter}` : `${labels.bookName(book)} ${chapter + 1}`;
   return (
     <div data-testid="reading-plan-chapter-end">
       {first ? (

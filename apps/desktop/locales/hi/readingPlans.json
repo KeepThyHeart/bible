@@ -287,5 +287,6 @@
   "readingPlans.table.markThroughUnreadConfirm": "अपठित चिह्नित करें",
   "readingPlans.library.export": "निर्यात करें",
   "readingPlans.library.exportNamed": "{name} निर्यात करें",
-  "readingPlans.add.importButton": "योजना फ़ाइल आयात करें…"
+  "readingPlans.add.importButton": "योजना फ़ाइल आयात करें…",
+  "readingPlans.home.catchUpNow": "पीछे का पढ़ना पूरा करें: {reading}"
 }

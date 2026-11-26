@@ -2573,5 +2573,6 @@
   "apps.present.shortTitle": "العرض",
   "apps.rail.showLabels": "إظهار التسميات",
   "apps.switcher.open": "تبديل التطبيق",
-  "settings.apps.railLabels": "إظهار التسميات في شريط التطبيقات"
+  "settings.apps.railLabels": "إظهار التسميات في شريط التطبيقات",
+  "apps.sheet.close": "إغلاق"
 }
