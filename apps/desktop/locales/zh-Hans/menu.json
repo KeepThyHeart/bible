@@ -28,5 +28,6 @@
   "menu.help.reportIssue": "报告问题",
   "menu.help.about": "关于圣经",
   "menu.tools.title": "工具",
-  "menu.view.apps": "应用"
+  "menu.view.apps": "应用",
+  "menu.help.sendFeedback": "发送反馈…"
 }

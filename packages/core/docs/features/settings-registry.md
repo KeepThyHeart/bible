@@ -6,12 +6,12 @@ Task 0087. A feature declares its settings once and reads flags with one call; i
 
 | Where | What |
 |---|---|
-| `@bible/core/browser` `Settings/SettingsRegistry.ts` | `defineSettings([...])`: key, type (`boolean`, `string`, `enum`, `number`, `integer`, `string-array`), default, `scope` (`device` or `synced`), `group`, `order`, `labelKey`/`label`, `descriptionKey`/`description`, `dependsOn`, `flag`, `validate`. Validates (numbers clamp, the rest reject), sanitizes stored data per key, and builds the field model with `toFields(group, { translate, isEnabled, values })`. `mergeSettings(a, b)` combines feature registries. |
-| `Settings/SettingsStore.ts` | `createSettingsStore(registry, port)`: `get`, `set` (returns `{ ok }`), `setMany` (all or nothing), `reset`, `reload`, `subscribe`/`getSnapshot` (a `ReadableStore`; a new frozen snapshot per change). |
+| `@bible/core/browser` `src/Settings/SettingsRegistry.ts` | `defineSettings([...])`: key, type (`boolean`, `string`, `enum`, `number`, `integer`, `string-array`), default, `scope` (`device` or `synced`), `group`, `order`, `labelKey`/`label`, `descriptionKey`/`description`, `dependsOn`, `flag`, `validate`. Validates (numbers clamp, the rest reject), sanitizes stored data per key, and builds the field model with `toFields(group, { translate, isEnabled, values })`. `mergeSettings(a, b)` combines feature registries. |
+| `src/Settings/SettingsStore.ts` | `createSettingsStore(registry, port)`: `get`, `set` (returns `{ ok }`), `setMany` (all or nothing), `reset`, `reload`, `subscribe`/`getSnapshot` (a `ReadableStore`; a new frozen snapshot per change). |
 | `SettingsStoragePort` | `read()` and `write(changes)` (each change carries its scope). The only thing an app supplies. Sync or async. |
-| `Settings/settingsFields.ts` | The flat field model and helpers formerly in the desktop extension renderer (`extractFields`, `validateSettingValue`, ...). Desktop's `extensionSettingsSchema.ts` re-exports them. |
+| `src/Settings/settingsFields.ts` | The flat field model and helpers formerly in the desktop extension renderer (`extractFields`, `validateSettingValue`, ...). Desktop's `extensionSettingsSchema.ts` re-exports them. |
 | `@bible/ui` `SettingsForm` | Renders fields. Used by the registry sections and the desktop extension settings. |
-| `Settings/FeatureFlags.ts` | `FEATURE_FLAGS` (name, default, description, `requires`), `createFeatureFlags({ site, overrides })`, `isEnabled(name)`, `parseFlagOverrides`, `lazyFeature`. |
+| `src/Settings/FeatureFlags.ts` | `FEATURE_FLAGS` (name, default, description, `requires`), `createFeatureFlags({ site, overrides })`, `isEnabled(name)`, `parseFlagOverrides`, `lazyFeature`. |
 
 ## Adding a setting
 

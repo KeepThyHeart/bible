@@ -95,5 +95,8 @@
   "wordStudy.open.alias.1": "strongs study",
   "wordStudy.open.alias.2": "concordance",
   "readingPlans.continue": "Продолжить план чтения",
-  "readingPlans.openBeside": "Открыть планы чтения рядом с Библией"
+  "readingPlans.openBeside": "Открыть планы чтения рядом с Библией",
+  "help.sendFeedback": "Отправить отзыв",
+  "notes.compilePassageNotes": "Собрать заметки к отрывкам",
+  "notes.compilePassageNotes.category": "Заметки"
 }

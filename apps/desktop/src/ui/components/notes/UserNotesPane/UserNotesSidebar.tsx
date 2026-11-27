@@ -1,5 +1,5 @@
 import React from 'react';
-import { revealKey } from '../../../utils/platformLabels';
+import { deleteKey, revealKey } from '../../../utils/platformLabels';
 import { useI18n } from '../../../contexts/useI18n';
 import { BnFile } from '../../../services/fileNotesAPI';
 
@@ -21,6 +21,10 @@ interface UserNotesSidebarProps {
   onOpenFile: () => void;
   onShowMoveDialog: () => void;
   onRequestRename: () => void;
+  /** Ask to delete the open note (the host shows the confirmation). */
+  onRequestDelete?: () => void;
+  /** A verse note with no file yet: Move to... and Reveal make no sense. */
+  isDraft?: boolean;
   onExportMarkdown: () => void;
   onExportDocx: () => void;
   onExportPdf: () => void;
@@ -52,6 +56,8 @@ const UserNotesSidebar: React.FC<UserNotesSidebarProps> = ({
   onOpenFile,
   onShowMoveDialog,
   onRequestRename,
+  onRequestDelete,
+  isDraft = false,
   onExportMarkdown,
   onExportDocx,
   onExportPdf,
@@ -173,6 +179,7 @@ const UserNotesSidebar: React.FC<UserNotesSidebarProps> = ({
               {t('userNotesPane.renameLabel')}
             </button>
           )}
+          {!isDraft && (
           <button
             type="button"
             onClick={onShowMoveDialog}
@@ -184,6 +191,19 @@ const UserNotesSidebar: React.FC<UserNotesSidebarProps> = ({
             </svg>
             {t('userNotesPane.moveToLabel')}
           </button>
+          )}
+          {onRequestDelete && (
+            <button
+              type="button"
+              onClick={onRequestDelete}
+              className="text-start text-sm px-2 py-1.5 rounded hover:bg-background-active text-danger transition-colors flex items-center gap-2"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+              {t(deleteKey('notesFolderBrowser.menuDelete'))}
+            </button>
+          )}
           <div className="border-t border-border my-1" />
           <div className="text-xs font-semibold text-text-secondary uppercase tracking-wide px-2 py-1">
             {t('userNotesPane.exportSection')}
@@ -246,6 +266,8 @@ const UserNotesSidebar: React.FC<UserNotesSidebarProps> = ({
 
       <div className="flex-1" />
 
+      {!(view === 'editor' && isDraft) && (
+        <>
       <div className="border-t border-border my-1" />
       <button
         type="button"
@@ -260,6 +282,8 @@ const UserNotesSidebar: React.FC<UserNotesSidebarProps> = ({
         </svg>
         {t(revealKey('userNotesPane.revealInExplorerLabel'))}
       </button>
+        </>
+      )}
     </div>
   );
 };

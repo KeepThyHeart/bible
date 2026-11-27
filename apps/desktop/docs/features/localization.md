@@ -80,7 +80,7 @@ Renderer API:
 
 * `i18n.getLocaleMetadata(code)` - resolved from that locale's **own** catalog, never through the English fallback (otherwise every locale would report itself as English and `complete`). Unknown/absent status defaults to `draft`, direction to `ltr`.
 * `i18n.availableLocaleInfos` - every loaded locale with metadata, sorted English -> `complete` -> `beta` -> `draft` -> native name, ready to render in a picker.
-* `i18n.currentDirection` - `ltr`/`rtl` for the active locale. Bound to `<html dir>` by `utils/documentDirection.ts` (see below).
+* `i18n.currentDirection` - `ltr`/`rtl` for the active locale. Bound to `<html dir>` by `src/ui/utils/documentDirection.ts` (see below).
 
 ## English data in modules: resolve at render, never at import
 
@@ -88,11 +88,11 @@ A module body runs **once**, when it is first imported, and that is almost alway
 
 | Holder | Field | Resolved by |
 |---|---|---|
-| `stores/usePreferencesStore.ts` `AVAILABLE_THEMES` | `labelKey` / `descriptionKey` | `ThemesSection.tsx` |
-| `stores/usePreferencesStore.ts` `AVAILABLE_FONT_FAMILIES` | `labelKey` (only for `System Default`) | `TypographySection.tsx` |
-| `stores/useTextSettingsStore.ts` `AVAILABLE_FONTS` | `labelKey` (only for `Georgia (Default)`) | `PaneFontSettings.tsx` |
-| `components/PreferencesDialog/sectionDefs.tsx` `SECTIONS` | `labelKey` | `PreferencesDialog.tsx` |
-| `utils/paneNames.ts` `PANE_NAME_KEYS` | the key itself | `FontsSection.tsx`, and `localizePaneLabel()` in `DockviewTabRenderer.tsx` / `DockviewWatermark.tsx` |
+| `src/ui/stores/usePreferencesStore.ts` `AVAILABLE_THEMES` | `labelKey` / `descriptionKey` | `ThemesSection.tsx` |
+| `src/ui/stores/usePreferencesStore.ts` `AVAILABLE_FONT_FAMILIES` | `labelKey` (only for `System Default`) | `TypographySection.tsx` |
+| `src/ui/stores/useTextSettingsStore.ts` `AVAILABLE_FONTS` | `labelKey` (only for `Georgia (Default)`) | `PaneFontSettings.tsx` |
+| `src/ui/components/PreferencesDialog/sectionDefs.tsx` `SECTIONS` | `labelKey` | `PreferencesDialog.tsx` |
+| `src/ui/utils/paneNames.ts` `PANE_NAME_KEYS` | the key itself | `FontsSection.tsx`, and `localizePaneLabel()` in `DockviewTabRenderer.tsx` / `DockviewWatermark.tsx` |
 
 Typeface **names** (`Georgia`, `Merriweather`, `EB Garamond`) are proper nouns and stay Latin in every locale - only the prose around them is a key, which is why `preferencesDialog.fontDefaultLabel` takes `{fontName}` instead of spelling the face name out per locale.
 
@@ -114,7 +114,7 @@ The reason is reviewability rather than translation: the wording has to be reada
 
 ## Language picker
 
-There are two pickers - `PreferencesDialog/GeneralSection.tsx` (the app's only call to `setLocale()` outside onboarding) and `onboarding/LanguageFirstRun.tsx` - and both list `i18n.availableLocaleInfos` passed through `selectableLocales()`. `LanguageFirstRun` waits on `whenLocaleCatalogsReady()` first, so it never decides how many languages there are while only the bundled `en` has loaded.
+There are two pickers - `src/ui/components/PreferencesDialog/GeneralSection.tsx` (the app's only call to `setLocale()` outside onboarding) and `src/ui/components/onboarding/LanguageFirstRun.tsx` - and both list `i18n.availableLocaleInfos` passed through `selectableLocales()`. `LanguageFirstRun` waits on `whenLocaleCatalogsReady()` first, so it never decides how many languages there are while only the bundled `en` has loaded.
 
 ### Which locales are offered
 
@@ -139,7 +139,7 @@ Each row shows the endonym (`nativeName`) plus the English name and BCP-47 code,
 
 Switching applies immediately - direction included. The one thing that does not follow live is an already-detached pane window; it picks up the new locale when reopened, and the picker's help text says so.
 
-The chosen locale is persisted to `localStorage` under `bible.ui.locale` (`LOCALE_STORAGE_KEY` in `utils/documentDirection.ts`). `localStorage` is shared across every window of the renderer origin, so detached windows read the same value with no main-process round trip.
+The chosen locale is persisted to `localStorage` under `bible.ui.locale` (`LOCALE_STORAGE_KEY` in `src/ui/utils/documentDirection.ts`). `localStorage` is shared across every window of the renderer origin, so detached windows read the same value with no main-process round trip.
 
 ## Right-to-left (RTL)
 
@@ -155,7 +155,7 @@ The chosen locale is persisted to `localStorage` under `bible.ui.locale` (`LOCAL
 Conventions:
 
 * **Use logical Tailwind utilities** for anything direction-sensitive: `ps-`/`pe-`, `ms-`/`me-`, `start-`/`end-`, `text-start`/`text-end`, `border-s`/`border-e`, `rounded-s`/`rounded-e`. Same for inline styles: `paddingInlineStart`, `marginInlineEnd`, `borderInlineStart`, `textAlign: 'start'`. Physical `pl-`/`ml-`/`left-`/`text-left` should not appear in `src/ui/**`.
-* **Exceptions that stay physical**, and why: `left-1/2` paired with `-translate-x-1/2` (a centering idiom - `start-1/2` would throw it off-centre in RTL); TipTap's `textAlign: 'left' | 'right'` in `notes/editor/EditorToolbar.tsx` (that is the *user's* paragraph alignment inside a note, i.e. content, not chrome); and the monospace stack-trace block in `ErrorBoundary.tsx`.
+* **Exceptions that stay physical**, and why: `left-1/2` paired with `-translate-x-1/2` (a centering idiom - `start-1/2` would throw it off-centre in RTL); TipTap's `textAlign: 'left' | 'right'` in `src/ui/components/notes/editor/EditorToolbar.tsx` (that is the *user's* paragraph alignment inside a note, i.e. content, not chrome); and the monospace stack-trace block in `ErrorBoundary.tsx`.
 * **`.rtl-mirror`** goes on leaf glyphs whose meaning is relative - next/previous, expand/collapse, back, breadcrumb separators. Never on absolute glyphs (play, check, plus, magnifier, logo) and never on a flex container. It uses the independent `scale` property, not `transform: scaleX(-1)`, so it composes with Tailwind's `rotate-90` instead of replacing it.
 * **Content direction is not UI direction.** Scripture follows the *module's* language: `BibleVerseList` resolves `availableBibles[].language_code` through `directionForLanguage()` and sets `dir`/`lang`/`data-content-dir` on the text container. An Arabic UI reading the KJV keeps the KJV left-to-right, and vice versa.
 * **Isolate embedded Latin/numeric runs** in scripture - verse numbers (`<bdi>`), Strong's tags, references, keyboard accelerators. `.verse-number`, `.strongs-number`, `.footnote-marker`, `.cross-ref-marker`, `.scripture-link` and `.verse-ref-detected` already carry `unicode-bidi: isolate` in `globals.css`; use `.bidi-isolate` for new sites.

@@ -166,3 +166,48 @@ describe('useBibleKeyboard — Ctrl+C', () => {
     expect(setCopyOptionsDialog).not.toHaveBeenCalled();
   });
 });
+
+describe('useBibleKeyboard — Ctrl+P', () => {
+  beforeEach(() => {
+    document.body.innerHTML = '';
+    useLayoutStore.setState({ activePanelId: 'bible_default', lastActiveBiblePanelId: 'bible_default' });
+  });
+
+  function pressCtrlP(): KeyboardEvent {
+    const e = new KeyboardEvent('keydown', { key: 'p', ctrlKey: true, bubbles: true, cancelable: true });
+    window.dispatchEvent(e);
+    return e;
+  }
+
+  it('opens Print for the selected passage when this Bible pane has focus', () => {
+    const setCopyOptionsDialog = mountPane();
+    const e = pressCtrlP();
+    expect(e.defaultPrevented).toBe(true);
+    expect(setCopyOptionsDialog).toHaveBeenCalledWith({ visible: true, verses: VERSES, print: true });
+  });
+
+  it('runs before, and stops, a window-level Ctrl+P such as the notes editor\'s', () => {
+    const notesPrint = vi.fn();
+    window.addEventListener('keydown', notesPrint);
+    try {
+      mountPane();
+      pressCtrlP();
+      expect(notesPrint).not.toHaveBeenCalled();
+    } finally {
+      window.removeEventListener('keydown', notesPrint);
+    }
+  });
+
+  it('leaves Ctrl+P alone when another pane has focus', () => {
+    useLayoutStore.setState({ activePanelId: 'notes_1' });
+    const setCopyOptionsDialog = mountPane();
+    expect(pressCtrlP().defaultPrevented).toBe(false);
+    expect(setCopyOptionsDialog).not.toHaveBeenCalled();
+  });
+
+  it('leaves Ctrl+P alone with no verse selected', () => {
+    const setCopyOptionsDialog = mountPane({ selectedVerseId: null, selectionEndVerseId: null });
+    expect(pressCtrlP().defaultPrevented).toBe(false);
+    expect(setCopyOptionsDialog).not.toHaveBeenCalled();
+  });
+});

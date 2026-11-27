@@ -19,7 +19,7 @@ The service worker (`src/sw.ts`) has no route list of its own. What it caches at
 
 ## Add a rule
 
-1. Create `src/sw/rules/<feature>.ts` exporting a `CacheRule[]`, and spread it into `CACHE_RULES` in `rules/index.ts`.
+1. Create `src/sw/rules/<feature>.ts` exporting a `CacheRule[]`, and spread it into `CACHE_RULES` in `src/sw/rules/index.ts`.
 2. Write the rule:
 
 ```ts

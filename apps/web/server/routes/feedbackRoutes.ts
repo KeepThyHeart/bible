@@ -16,7 +16,7 @@
  */
 
 import { Router } from 'express';
-import { mkdirSync, writeFileSync } from 'fs';
+import { mkdirSync, writeFileSync, chmodSync } from 'fs';
 import { randomUUID } from 'crypto';
 import { resolve, join } from 'path';
 import { sendError, ErrorCodes } from '../utils/errorResponse.js';
@@ -84,7 +84,11 @@ export function createFeedbackRoutes(
   // Created once at factory time rather than per request, mirroring the
   // lite-cache directory in moduleRoutes.
   const feedbackDir = resolve(dataDir, 'feedback');
-  mkdirSync(feedbackDir, { recursive: true });
+  // Owner-only: submissions can hold free text and diagnostics, and are meant to
+  // be read by the operator alone. mkdirSync's mode is ignored for a directory
+  // that already exists (and is masked by umask), so chmod explicitly.
+  mkdirSync(feedbackDir, { recursive: true, mode: 0o700 });
+  try { chmodSync(feedbackDir, 0o700); } catch { /* best effort (e.g. not the owner) */ }
   const quota = createClientQuota({ limit: limits.perClientPerHour, windowMs: 60 * 60_000 });
   const budget = createDirectoryBudget(feedbackDir, limits);
 
@@ -169,7 +173,7 @@ export function createFeedbackRoutes(
 
       const stamp = submittedAt.toISOString().replace(/[:.]/g, '-');
       const filePath = join(feedbackDir, `${stamp}-${id}.json`);
-      writeFileSync(filePath, serialised, 'utf-8');
+      writeFileSync(filePath, serialised, { encoding: 'utf-8', mode: 0o600 });
       budget.recordWrite(bytes);
 
       // Deliberately no path in the response: where submissions live on disk is

@@ -19,6 +19,9 @@ import {
  * - Show/hide the floating annotation toolbar after text selection
  * - Build selection data from DOM
  */
+
+export { DEFAULT_UNDERLINE_COLOR } from '../services/recentMarkupStyles';
+
 export function useBibleHighlights(
   activeTab: BibleTabInfo | undefined,
   currentBook: number,
@@ -31,7 +34,6 @@ export function useBibleHighlights(
   const loadHighlightsForVerseRange = useHighlightStore(s => s.loadHighlightsForVerseRange);
   const createHighlight = useHighlightStore(s => s.createHighlight);
   const deleteHighlight = useHighlightStore(s => s.deleteHighlight);
-  const lastUsedColor = useHighlightStore(s => s.lastUsedColor);
   const setLastUsedColor = useHighlightStore(s => s.setLastUsedColor);
   const recordMarkupStyle = useHighlightStore(s => s.recordMarkupStyle);
 
@@ -253,7 +255,9 @@ export function useBibleHighlights(
   }, [floatingToolbar.selection, activeTab, createHighlight, highlightRepository, dismissFloatingToolbar, setLastUsedColor, recordMarkupStyle]);
 
   // Floating toolbar: underline
-  const handleFloatingUnderline = useCallback(async () => {
+  /** Underline the selection in `color` (picked from the toolbar's colour row), else the last-used underline colour. */
+  const handleFloatingUnderline = useCallback(async (color?: HighlightColor) => {
+    const underlineColor = color ?? useHighlightStore.getState().lastUnderlineColor; // allow-getstate: event handler - the colour at the moment of the click
     if (!floatingToolbar.selection || !activeTab?.moduleId) return;
 
     const { startVerseId, startWordIndex, endVerseId, endWordIndex } = floatingToolbar.selection;
@@ -263,11 +267,11 @@ export function useBibleHighlights(
       verseIdEnd: endVerseId,
       textStart: startWordIndex,
       textEnd: endWordIndex,
-      color: lastUsedColor,
+      color: underlineColor,
       metadata: {
         markupType: 'underline' as MarkupType,
         underlineStyle: 'solid',
-        underlineColor: lastUsedColor,
+        underlineColor: underlineColor,
         version: 1
       }
     });
@@ -277,9 +281,9 @@ export function useBibleHighlights(
       announceKey('a11y.announce.underlineApplied');
       recordMarkupStyle({
         markupType: 'underline',
-        color: lastUsedColor,
+        color: underlineColor,
         underlineStyle: 'solid',
-        underlineColor: lastUsedColor,
+        underlineColor: underlineColor,
       });
     } catch (error) {
       console.error('[BiblePane] Failed to create underline from floating toolbar:', error);
@@ -287,7 +291,7 @@ export function useBibleHighlights(
 
     window.getSelection()?.removeAllRanges();
     dismissFloatingToolbar();
-  }, [floatingToolbar.selection, activeTab, lastUsedColor, createHighlight, highlightRepository, dismissFloatingToolbar, recordMarkupStyle]);
+  }, [floatingToolbar.selection, activeTab, createHighlight, highlightRepository, dismissFloatingToolbar, recordMarkupStyle]);
 
   // Floating toolbar: remove formatting
   const handleFloatingRemoveFormatting = useCallback(async () => {
@@ -383,23 +387,59 @@ export function useBibleHighlights(
   }, [activeTab, deleteHighlight, highlightRepository, markupIdsInSelection]);
 
   /**
-   * The keyboard path: with words selected, remove the marks under them; otherwise clear every mark in the
-   * selected verse or verse range.
+   * Clearing is confirmed first (Ctrl+Shift+X always; the verse menu's "Clear highlights and underlines"
+   * for several verses), so it waits here until the reader answers the dialog in BiblePaneOverlays.
+   * `scope` picks the dialog's wording. A selection with nothing on it asks nothing.
    */
-  const clearSelectionMarks = useCallback(async (selectedVerseId: number | null, selectionEndVerseId?: number | null) => {
+  const [pendingClear, setPendingClear] = useState<
+    { run: () => Promise<void>; scope: 'words' | 'verse' | 'verses' } | null
+  >(null);
+
+  /** Whether any mark in this module touches verses [from, to]. */
+  const versesHaveMarkup = useCallback((from: number, to: number): boolean => {
+    if (!activeTab?.moduleId) return false;
+    const marks = useHighlightStore.getState().highlightsByModule.get(activeTab.moduleId) ?? []; // allow-getstate: event handler - one read at the moment of the request
+    return marks.some(m => m.verseIdStart <= to && (m.verseIdEnd ?? m.verseIdStart) >= from);
+  }, [activeTab]);
+
+  /** Ctrl+Shift+X: ask, then clear the marks under the selected words, or in the selected verse(s). */
+  const requestClearSelectionMarks = useCallback(async (selectedVerseId: number | null, selectionEndVerseId?: number | null) => {
     const domSelection = buildSelectionFromDOM();
     if (domSelection) {
-      await removeMarksInWordSelection(domSelection);
+      if (markupIdsInSelection(domSelection).length === 0) return;
+      setPendingClear({ run: () => removeMarksInWordSelection(domSelection), scope: 'words' });
       return;
     }
-    if (selectedVerseId) await clearMarksInVerses(selectedVerseId, selectionEndVerseId ?? undefined);
-  }, [buildSelectionFromDOM, removeMarksInWordSelection, clearMarksInVerses]);
+    if (!selectedVerseId) return;
+    const end = selectionEndVerseId ?? selectedVerseId;
+    const [from, to] = selectedVerseId <= end ? [selectedVerseId, end] : [end, selectedVerseId];
+    if (!versesHaveMarkup(from, to)) return;
+    setPendingClear({ run: () => clearMarksInVerses(from, to), scope: from === to ? 'verse' : 'verses' });
+  }, [buildSelectionFromDOM, markupIdsInSelection, removeMarksInWordSelection, clearMarksInVerses, versesHaveMarkup]);
+
+  /** The verse menu's clear for several verses: ask, then clear. */
+  const requestClearMarksInVerses = useCallback(async (startVerseId: number, endVerseId?: number) => {
+    const end = endVerseId ?? startVerseId;
+    setPendingClear({ run: () => clearMarksInVerses(startVerseId, end), scope: startVerseId === end ? 'verse' : 'verses' });
+  }, [clearMarksInVerses]);
+
+  const confirmPendingClear = useCallback(() => {
+    setPendingClear(current => {
+      if (current) void current.run();
+      return null;
+    });
+  }, []);
+  const cancelPendingClear = useCallback(() => setPendingClear(null), []);
 
   return {
     clearMarksInVerses,
+    requestClearSelectionMarks,
+    requestClearMarksInVerses,
+    pendingClear,
+    confirmPendingClear,
+    cancelPendingClear,
     selectionHasMarkup,
     removeMarksInWordSelection,
-    clearSelectionMarks,
     highlightRepository,
     highlightMenu,
     setHighlightMenu,

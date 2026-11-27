@@ -108,6 +108,19 @@ describe('BookmarkMenu', () => {
     expect(addBookmark).toHaveBeenCalledWith(JOHN_3_16, JOHN_3_17, 7);
   });
 
+  it('names the item for what it saves: one verse or the selected passage', async () => {
+    const user = userEvent.setup();
+    const { unmount } = render(<BookmarkMenu />);
+    await user.click(screen.getByTestId('bookmark-toggle'));
+    expect(screen.getByTestId('bookmark-add-current')).toHaveTextContent('[biblePane.addCurrentVerse]');
+    unmount();
+
+    h.ctx.value = makeCtx({ selectionEndVerseId: JOHN_3_17 });
+    render(<BookmarkMenu />);
+    await user.click(screen.getByTestId('bookmark-toggle'));
+    expect(screen.getByTestId('bookmark-add-current')).toHaveTextContent('[biblePane.addSelectedPassage]');
+  });
+
   it('offers removal instead when the verse already has a bookmark', async () => {
     const user = userEvent.setup();
     useBookmarkStore.setState({ bookmarkedVerses: new Set([JOHN_3_16]) });

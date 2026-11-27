@@ -95,5 +95,8 @@
   "wordStudy.open.alias.1": "strongs study",
   "wordStudy.open.alias.2": "concordance",
   "readingPlans.continue": "Continue Reading Plan",
-  "readingPlans.openBeside": "Open Reading Plans Beside the Bible"
+  "readingPlans.openBeside": "Open Reading Plans Beside the Bible",
+  "help.sendFeedback": "Send Feedback",
+  "notes.compilePassageNotes": "Compile Passage Notes",
+  "notes.compilePassageNotes.category": "Notes"
 }

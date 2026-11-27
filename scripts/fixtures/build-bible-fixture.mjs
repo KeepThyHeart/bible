@@ -35,10 +35,10 @@ const FIXED_DATE = '2026-01-01T00:00:00Z';
 
 /** Chapters kept, as [book number, chapter]. One constant: edit and regenerate to add more. */
 export const FIXTURE_CHAPTERS = [
-  [1, 1], [1, 3], [2, 1], [3, 1], [19, 23], [20, 19],
+  [1, 1], [1, 2], [1, 3], [1, 50], [2, 1], [3, 1], [19, 1], [19, 23], [19, 119], [20, 19], [23, 53],
   [40, 10], [40, 15], [40, 18], [41, 2], [42, 15],
   [43, 1], [43, 2], [43, 3], [43, 4],
-  [45, 1], [45, 8], [66, 1],
+  [45, 1], [45, 7], [45, 8], [46, 15], [66, 1],
 ];
 
 /** Modules kept. `whole` keeps every row (small public-domain dictionary). */

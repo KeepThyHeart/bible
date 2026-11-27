@@ -192,7 +192,7 @@ describe('useNoteFileActions - PDF export wiring', () => {
     expect(html).toContain('<h1>Romans 8: Hope</h1>');
     // ':' is not legal in a Windows filename, and this string is the save
     // dialog's default path.
-    expect(defaultName).toBe('Romans 8_ Hope');
+    expect(defaultName).toBe('Romans 8. Hope');
   });
 
   it('strips scripts out of the note body before it leaves the renderer', async () => {

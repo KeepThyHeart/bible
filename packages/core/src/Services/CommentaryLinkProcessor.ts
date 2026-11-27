@@ -128,7 +128,7 @@ function processTextSegment(text: string, context: LinkProcessorContext, formatt
   // Matches: "John 3:16", "1 Cor 13:1", "1Jo 4:9,10,19", "Ro 5:5", "I John 5:7", "Mt 10:16"
   // Also handles cross-chapter comma refs: "Jeremiah 7:16, 14:11"
   // Also handles abbreviations with trailing period: "2 Tim. 1:7", "Col. 3:16"
-  const fullReferencePattern = /\b((?:(?:[123]\s*|I{1,3}\s+)[A-Za-z]+)|[A-Za-z]+)\.?\s+(\d+):(\d+(?:\s*[-–]\s*\d+)?(?:\s*,\s*(?:\d+:)?\d+(?:\s*[-–]\s*\d+)?)*)\b/g;
+  const fullReferencePattern = /\b((?:(?:[123]\s*|I{1,3}\s+)[A-Za-z]+)|[A-Za-z]+)\.?\s+(\d+):(\d+(?:\s*[-–]\s*(?:\d+:)?\d+)?(?:\s*,\s*(?:\d+:)?\d+(?:\s*[-–]\s*(?:\d+:)?\d+)?)*)\b/g;
 
   let match;
   while ((match = fullReferencePattern.exec(text)) !== null) {
@@ -154,7 +154,7 @@ function processTextSegment(text: string, context: LinkProcessorContext, formatt
 
   // Pattern 2: Context-dependent chapter:verse references (no book name)
   // Matches: "1:14,18", "3:16-17", "8:9-16,26", "7:16,14:11"
-  const contextReferencePattern = /(?<![A-Za-z])(\d+):(\d+(?:\s*[-–]\s*\d+)?(?:\s*,\s*(?:\d+:)?\d+(?:\s*[-–]\s*\d+)?)*)\b/g;
+  const contextReferencePattern = /(?<![A-Za-z])(\d+):(\d+(?:\s*[-–]\s*(?:\d+:)?\d+)?(?:\s*,\s*(?:\d+:)?\d+(?:\s*[-–]\s*(?:\d+:)?\d+)?)*)\b/g;
 
   while ((match = contextReferencePattern.exec(text)) !== null) {
     const fullMatch = match[0];
@@ -320,22 +320,26 @@ function buildLinkedReference(
     let linkText: string;
 
     // Check for chapter:verse pattern (cross-chapter reference)
-    const chapterVerseMatch = segment.match(/^(\d+):(\d+)(?:\s*[-–]\s*(\d+))?$/);
-    const rangeMatch = chapterVerseMatch ? null : segment.match(/^(\d+)(?:\s*[-–]\s*(\d+))?$/);
+    // An end of the form "8:4" is a cross-chapter range ("Romans 7:24-8:4"): one link, not "7:24-8" + ":4".
+    const chapterVerseMatch = segment.match(/^(\d+):(\d+)(?:\s*[-–]\s*(?:(\d+):)?(\d+))?$/);
+    const rangeMatch = chapterVerseMatch ? null : segment.match(/^(\d+)(?:\s*[-–]\s*(?:(\d+):)?(\d+))?$/);
 
     if (chapterVerseMatch) {
       currentChapter = parseInt(chapterVerseMatch[1]);
       const startVerse = parseInt(chapterVerseMatch[2]);
-      const endVerse = chapterVerseMatch[3] ? parseInt(chapterVerseMatch[3]) : null;
+      const endChapter = chapterVerseMatch[3] ? parseInt(chapterVerseMatch[3]) : currentChapter;
+      const endVerse = chapterVerseMatch[4] ? parseInt(chapterVerseMatch[4]) : null;
       startVerseId = (bookNumber * 1000000) + (currentChapter * 1000) + startVerse;
-      endVerseId = endVerse ? (bookNumber * 1000000) + (currentChapter * 1000) + endVerse : null;
+      endVerseId = endVerse ? (bookNumber * 1000000) + (endChapter * 1000) + endVerse : null;
+      if (chapterVerseMatch[3]) currentChapter = endChapter;
       // Segment 0 carries the book name; later segments already spell out their chapter.
       linkText = i === 0 && prefix ? prefix + segment : segment;
     } else if (rangeMatch) {
       const startVerse = parseInt(rangeMatch[1]);
-      const endVerse = rangeMatch[2] ? parseInt(rangeMatch[2]) : null;
+      const endChapter = rangeMatch[2] ? parseInt(rangeMatch[2]) : currentChapter;
+      const endVerse = rangeMatch[3] ? parseInt(rangeMatch[3]) : null;
       startVerseId = (bookNumber * 1000000) + (currentChapter * 1000) + startVerse;
-      endVerseId = endVerse ? (bookNumber * 1000000) + (currentChapter * 1000) + endVerse : null;
+      endVerseId = endVerse ? (bookNumber * 1000000) + (endChapter * 1000) + endVerse : null;
 
       if (i === 0 && prefix) {
         // First segment: prepend the book name and chapter from the original match.
@@ -346,6 +350,8 @@ function buildLinkedReference(
       } else {
         linkText = segment;
       }
+      // A cross-chapter end moves the chapter that later bare verses in this list belong to.
+      if (rangeMatch[2]) currentChapter = endChapter;
     } else {
       continue;
     }

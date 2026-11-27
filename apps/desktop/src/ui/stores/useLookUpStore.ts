@@ -10,6 +10,13 @@ interface LookUpState {
   loading: boolean;
   /** Bumps per request so a slow earlier answer cannot overwrite a newer one. */
   seq: number;
+  /**
+   * The Dictionary pane a "Look up" from the Bible pane is for, and a counter bumped per request. The
+   * pane shows its Overview (where the results are) when it sees a request for itself - read from the
+   * store rather than an event, so a pane that is only just being opened for the look-up cannot miss it.
+   */
+  showRequest: { panelId: string; id: number } | null;
+  requestShow: (panelId: string) => void;
   run: (query: LookUpQuery) => Promise<void>;
   clear: () => void;
 }
@@ -19,6 +26,9 @@ export const useLookUpStore = create<LookUpState>((set, get) => ({
   groups: [],
   loading: false,
   seq: 0,
+  showRequest: null,
+
+  requestShow: (panelId) => set({ showRequest: { panelId, id: (get().showRequest?.id ?? 0) + 1 } }),
 
   run: async (raw) => {
     const query: LookUpQuery = { text: normalizeLookUpText(raw.text), strongs: raw.strongs };

@@ -6,20 +6,30 @@ import {
   setNotesPanelNavState,
   getNotesPanelNavState,
   type NotesPanelNavState,
+  type NotesPanelView,
   type NotesSideTab,
 } from '../../../../stores/useFileNotesStore';
 import { useNoteEditorStore } from '../../../../stores/useNoteEditorStore';
 import { useLayoutStore } from '../../../../stores/useLayoutStore';
 import { isAbsolutePath } from '../utils';
+import { draftForPath } from '../draftNote';
+import { sanitizeChapterModeNavState, type ChapterModeNavState } from '../../../../stores/notesChapterNavState';
+import { chapterTitle } from '../../chapter/chapterTitle';
+import { getBookNameFromCache } from '../../../../utils/verseReference';
+import { VERSE_NOTES_FOLDER } from '../utils';
 
 interface UseNotesInitArgs {
   panelId: string;
   isDetached: boolean;
-  initialView: 'browser' | 'editor' | undefined;
+  initialView: NotesPanelView | undefined;
+  /** Chapter mode position handed over by a pop-out. */
+  initialChapter?: ChapterModeNavState;
   initialSideTab: NotesSideTab | undefined;
   initialCurrentPath: string | undefined;
   initialCurrentNotePath: string | undefined;
-  view: 'browser' | 'editor';
+  view: NotesPanelView;
+  /** Current Chapter mode state (kept while another view shows). */
+  chapter?: ChapterModeNavState | null;
   sideTab: NotesSideTab;
   currentPath: string;
   currentNotePath: string;
@@ -31,7 +41,13 @@ interface UseNotesInitArgs {
   setCurrentNote: (note: BnFile | null) => void;
   setCurrentNotePath: (path: string) => void;
   setView: (view: 'browser' | 'editor') => void;
+  /** Switches the pane to the chapter view (the pane's own setView('chapter')). Required for chapter restore. */
+  setChapterView?: () => void;
   setSideTab: (tab: NotesSideTab) => void;
+  /** Restoring a chapter view stores its state here (no note is read). */
+  setChapterState?: (state: ChapterModeNavState) => void;
+  /** Used when restoring a chapter view: the folder the "Single note" button falls back to. */
+  setCurrentPath?: (path: string) => void;
 }
 
 /**
@@ -47,10 +63,12 @@ export function useNotesInit(args: UseNotesInitArgs): { restoreDone: boolean } {
     panelId,
     isDetached,
     initialView,
+    initialChapter,
     initialSideTab,
     initialCurrentPath,
     initialCurrentNotePath,
     view,
+    chapter,
     sideTab,
     currentPath,
     currentNotePath,
@@ -62,6 +80,9 @@ export function useNotesInit(args: UseNotesInitArgs): { restoreDone: boolean } {
     setCurrentNotePath,
     setView,
     setSideTab,
+    setChapterState,
+    setChapterView,
+    setCurrentPath,
   } = args;
 
   // Registration of this panel's position is held back until the restore below
@@ -82,6 +103,7 @@ export function useNotesInit(args: UseNotesInitArgs): { restoreDone: boolean } {
       panelId,
       isDetached,
       initialView,
+      initialChapter,
       initialSideTab,
       initialCurrentPath,
       initialCurrentNotePath,
@@ -114,6 +136,14 @@ export function useNotesInit(args: UseNotesInitArgs): { restoreDone: boolean } {
         // let the folder listing flip the view back to the browser afterwards.
         if (pendingVerseOpenRef?.current) return;
 
+        // Chapter view: nothing to read. The chapter view loads its own notes.
+        if (restore?.view === 'chapter' && restore.chapter && setChapterView) {
+          setChapterState?.(restore.chapter);
+          setCurrentPath?.(`${VERSE_NOTES_FOLDER}/${getBookNameFromCache(restore.chapter.book)}/${restore.chapter.chapter}`);
+          setChapterView();
+          return;
+        }
+
         if (!notePath || restore?.view !== 'editor') {
           await loadDirectory(folderPath);
           return;
@@ -135,7 +165,17 @@ export function useNotesInit(args: UseNotesInitArgs): { restoreDone: boolean } {
             useNoteEditorStore.getState().resetContent(note.content || ''); // allow-getstate: restore async callback - imperative store reset outside render
             useFileNotesStore.getState().addRecentFile(notePath, note.title); // allow-getstate: restore async callback - imperative store update outside render
           } else {
-            loadDirectory(folderPath);
+            // A verse note that was only ever a draft (or a pop-out of one) has no
+            // file: reopen it as a draft. Anything else falls back to its folder.
+            const draft = isAbsolutePath(notePath) ? null : draftForPath(notePath);
+            if (draft) {
+              setCurrentNote(draft.note);
+              setCurrentNotePath(draft.relativePath);
+              setView('editor');
+              useNoteEditorStore.getState().resetContent(''); // allow-getstate: restore async callback - imperative store reset outside render
+            } else {
+              loadDirectory(folderPath);
+            }
           }
         } catch (err) {
           console.warn('[UserNotesPane] Could not reopen the remembered note:', notePath, err);
@@ -156,10 +196,12 @@ export function useNotesInit(args: UseNotesInitArgs): { restoreDone: boolean } {
   useEffect(() => {
     if (view === 'editor' && currentNote?.title) {
       useLayoutStore.getState().setDynamicSubtitle(panelId, currentNote.title); // allow-getstate: effect - imperative dockview subtitle update outside render
+    } else if (view === 'chapter' && chapter) {
+      useLayoutStore.getState().setDynamicSubtitle(panelId, chapterTitle(chapter)); // allow-getstate: effect - imperative dockview subtitle update outside render
     } else {
       useLayoutStore.getState().setDynamicSubtitle(panelId, null); // allow-getstate: effect - imperative dockview subtitle clear outside render
     }
-  }, [panelId, view, currentNote?.title]);
+  }, [panelId, view, currentNote?.title, chapter?.book, chapter?.chapter]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Register this panel's position. Read back by DockviewTabRenderer when the
   // pane is popped out, and serialized into the session (ui.notesPanels) so the
@@ -171,8 +213,14 @@ export function useNotesInit(args: UseNotesInitArgs): { restoreDone: boolean } {
   // did go away are pruned on the next session restore (AppInitService).
   useEffect(() => {
     if (isDetached || !restoreDone) return;
-    setNotesPanelNavState(panelId, { view, sideTab, currentPath, currentNotePath });
-  }, [panelId, view, sideTab, currentPath, currentNotePath, isDetached, restoreDone]);
+    setNotesPanelNavState(panelId, {
+      view,
+      sideTab,
+      currentPath,
+      currentNotePath,
+      ...(chapter ? { chapter } : {}),
+    });
+  }, [panelId, view, sideTab, currentPath, currentNotePath, chapter, isDetached, restoreDone]);
 
   return { restoreDone };
 }
@@ -188,20 +236,33 @@ export function useNotesInit(args: UseNotesInitArgs): { restoreDone: boolean } {
 function resolveRestoreTarget(args: {
   panelId: string;
   isDetached: boolean;
-  initialView: 'browser' | 'editor' | undefined;
+  initialView: NotesPanelView | undefined;
+  initialChapter?: ChapterModeNavState;
   initialSideTab: NotesSideTab | undefined;
   initialCurrentPath: string | undefined;
   initialCurrentNotePath: string | undefined;
 }): NotesPanelNavState | undefined {
-  const { panelId, isDetached, initialView, initialSideTab, initialCurrentPath, initialCurrentNotePath } = args;
+  const { panelId, isDetached, initialView, initialChapter, initialSideTab, initialCurrentPath, initialCurrentNotePath } = args;
 
   if (!isDetached) return getNotesPanelNavState(panelId);
+
+  // The payload crossed a window boundary: validate it like a persisted blob.
+  const chapter = sanitizeChapterModeNavState(initialChapter);
+  if (initialView === 'chapter' && chapter) {
+    return {
+      view: 'chapter',
+      sideTab: initialSideTab,
+      currentPath: initialCurrentPath ?? '',
+      currentNotePath: initialCurrentNotePath ?? '',
+      chapter,
+    };
+  }
 
   if (initialCurrentNotePath === undefined && initialCurrentPath === undefined) return undefined;
   return {
     // A pop-out that carried a note path is opening that note, even when the
     // (older) payload didn't say which view it was in.
-    view: initialView ?? (initialCurrentNotePath ? 'editor' : 'browser'),
+    view: initialView === 'chapter' ? 'browser' : initialView ?? (initialCurrentNotePath ? 'editor' : 'browser'),
     sideTab: initialSideTab,
     currentPath: initialCurrentPath ?? '',
     currentNotePath: initialCurrentNotePath ?? '',

@@ -472,7 +472,35 @@
     "loading": "در حال بارگذاری آیات...",
     "copyFailed": "کپی در کلیپ‌بورد ممکن نشد. بررسی کنید که این سایت اجازهٔ استفاده از آن را دارد.",
     "referencePosition": "جای ارجاع",
-    "print": "چاپ"
+    "print": "چاپ",
+    "printLayout": "طرح چاپ",
+    "printLayoutNumbered": "آیه‌های شماره‌دار",
+    "printLayoutBlockquote": "نقل‌قول بلوکی",
+    "printLayoutPreview": "مانند پیش‌نمایش",
+    "printNotesMargin": "حاشیه برای یادداشت‌ها",
+    "printMarginWidth": "پهنای حاشیه: {{width}} سانتی‌متر",
+    "printMarginRule": "کشیدن خط در حاشیه",
+    "printUnits": "واحدها",
+    "printUnitCm": "سانتی‌متر",
+    "printUnitIn": "اینچ",
+    "printMarginWidthIn": "پهنای حاشیه: {{width}} اینچ",
+    "printLineSpacing": "فاصله خطوط",
+    "printLineSpacingNormal": "عادی",
+    "printFontSize": "اندازه متن: {{size}} پوینت",
+    "printPreviewLabel": "پیش‌نمایش صفحه چاپی",
+    "printTheme": "پوسته رنگی",
+    "printThemeBw": "سیاه و سفید",
+    "printThemeClassic": "کلاسیک (قرمز تیره)",
+    "printThemeBlue": "آبی",
+    "printThemeGreen": "سبز",
+    "printThemeSepia": "قهوه‌ای کم‌رنگ",
+    "printRedLetters": "سخنان مسیح به رنگ قرمز",
+    "printShowTitle": "چاپ عنوان",
+    "printMoreOptions": "گزینه‌های بیشتر…",
+    "printThisFormat": "چاپ با این قالب…",
+    "printSavePdf": "ذخیره به‌عنوان PDF…",
+    "printTitle": "چاپ بخش",
+    "printPdfHint": "برای ذخیره PDF، در پنجره چاپ «ذخیره به‌عنوان PDF» را به‌عنوان چاپگر انتخاب کنید."
   },
   "ui": {
     "passageInsert": {
@@ -884,7 +912,8 @@
     "chapterOption": "{book} باب {chapter}",
     "selectAVerse": "یک آیه انتخاب کنید یا به کل باب بروید",
     "goToChapter": "رفتن به {book} {chapter}",
-    "verseOption": "{book} {chapter}:{verse}"
+    "verseOption": "{book} {chapter}:{verse}",
+    "alsoChooseVerse": "انتخاب آیه هم"
   },
   "helpDialog": {
     "esc": "Esc"

@@ -49,6 +49,8 @@ import type { PassageInsertOptions } from '../../../services/copyFormats';
 import type { CachedVerse } from '../../../services/verseFetchCache';
 import { VerseIdHelper } from '@bible/core';
 import { useI18n } from '../../../contexts/useI18n';
+import { useNotesZoomStyle } from '../NotesZoom';
+import { useCtrlWheelNotesZoom } from '../../../hooks/useCtrlWheelNotesZoom';
 import { getLocalizedReferenceParser } from '../../../services/localizedReferenceParser';
 
 interface NoteEditorProps {
@@ -78,7 +80,20 @@ interface NoteEditorProps {
    * (`noteDirectionAPI`) and passes it here.
    */
   defaultDirection?: 'ltr' | 'rtl';
+  /** The note-direction control, shown in the toolbar's "More" row beside the LTR/RTL/Auto buttons. */
+  directionControl?: React.ReactNode;
+  /**
+   * The one-shot "keep the caret on the next external value swap" flag. Defaults to the
+   * window-wide `useNoteEditorStore` one; chapter mode passes its own because its editor
+   * does not use that store.
+   */
+  preserveSelectionFlag?: { get(): boolean; clear(): void };
 }
+
+const storePreserveSelectionFlag = {
+  get: (): boolean => useNoteEditorStore.getState().preserveSelection === true, // allow-getstate: effect-time read of a one-shot flag, not render state
+  clear: (): void => useNoteEditorStore.getState().clearPreserveSelection(), // allow-getstate: one-shot flag reset in an effect
+};
 
 /**
  * Why a Tab expansion did not happen. Tab claims the key synchronously, before
@@ -139,8 +154,12 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
   autoFocus = false,
   exportActions,
   defaultDirection,
+  directionControl,
+  preserveSelectionFlag,
 }) => {
   const { t } = useI18n();
+  const selectionFlagRef = useRef(preserveSelectionFlag ?? storePreserveSelectionFlag);
+  selectionFlagRef.current = preserveSelectionFlag ?? storePreserveSelectionFlag;
   const uiDir = useDirection();
   const rootDir = defaultDirection ?? uiDir;
   const resolvedPlaceholder = placeholder ?? t('ui.noteEditor.placeholder');
@@ -158,6 +177,8 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
     expansionId: string;
   } | null>(null);
   const editorContainerRef = useRef<HTMLDivElement>(null);
+  const zoomStyle = useNotesZoomStyle();
+  useCtrlWheelNotesZoom(editorContainerRef);
   const noteRootRef = useRef<HTMLDivElement>(null);
   const [showFind, setShowFind] = useState(false);
 
@@ -826,7 +847,7 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
       isInternalUpdate.current = true;
       // A reload of the same note saved by another window keeps the caret and
       // scroll where they were (clamped to the new document), instead of jumping to the top.
-      const keep = useNoteEditorStore.getState().preserveSelection === true; // allow-getstate: effect-time read of a one-shot flag, not render state
+      const keep = selectionFlagRef.current.get();
       const prevSel = keep ? { from: editor.state.selection.from, to: editor.state.selection.to } : null;
       const scroller = editorContainerRef.current;
       const prevScroll = keep && scroller ? scroller.scrollTop : 0;
@@ -846,7 +867,7 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
           }
         }
         if (scroller) scroller.scrollTop = prevScroll;
-        useNoteEditorStore.getState().clearPreserveSelection(); // allow-getstate: one-shot flag reset in an effect
+        selectionFlagRef.current.clear();
       }
       isInternalUpdate.current = false;
     }
@@ -902,6 +923,7 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
           onInsertPassage={openPassageBlock}
           onInsertImage={insertImageFromFile}
           exportActions={exportActions}
+          advancedExtras={directionControl}
         />
       )}
 
@@ -914,6 +936,7 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
         ref={editorContainerRef}
         dir={rootDir}
         className="flex-1 overflow-auto p-4"
+        style={zoomStyle}
         onKeyDown={handleEditorContainerKeyDown}
         onContextMenu={handleEditorContextMenu}
       >

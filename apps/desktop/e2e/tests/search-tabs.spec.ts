@@ -74,6 +74,18 @@ async function setPlacement(w: Page, value: 'below' | 'tab' | 'right'): Promise<
   await expect(w.locator('#preferences-tab-search')).toHaveCount(0, { timeout: 10000 });
 }
 
+/**
+ * Search tabs come back after a restart only when the reader opted in (task 0224, Preferences >
+ * Privacy > "Reopen my search tabs"; off by default). The restart tests opt in first.
+ */
+async function enableReopenSearchTabs(w: Page): Promise<void> {
+  await w.evaluate(() => (globalThis as unknown as { __services: { registry: { execute(id: string): unknown } } }).__services.registry.execute('app.openPreferences'));
+  await w.locator('#preferences-tab-privacy').click();
+  await w.locator('[data-testid="privacy-reopen-search-tabs"]').check({ force: true });
+  await w.keyboard.press('Escape');
+  await expect(w.locator('#preferences-tab-privacy')).toHaveCount(0, { timeout: 10000 });
+}
+
 test.describe('Search tabs', () => {
   test.beforeEach(async ({ window }) => {
     await waitForAppReady(window);
@@ -307,6 +319,7 @@ test('search tabs come back after a restart', async () => {
     const app1 = await launch();
     try {
       const w = await boot(app1);
+      await enableReopenSearchTabs(w);
       await openTwo(w);
       // Force the session save the periodic timer would do.
       await w.evaluate(() => window.dispatchEvent(new Event('beforeunload')));
@@ -360,6 +373,7 @@ test('right-pane search sub-tabs come back after a restart', async () => {
     const app1 = await launch();
     try {
       const w = await boot(app1);
+      await enableReopenSearchTabs(w);
       await setPlacement(w, 'tab');
       await openTwoHosted(w);
       // Select the first sub-tab so the saved selection is not just "the last one".

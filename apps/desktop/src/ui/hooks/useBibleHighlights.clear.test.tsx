@@ -13,6 +13,7 @@ vi.mock('../services/highlightsAPI', () => ({
 vi.mock('../services/announcer', () => ({ announceKey: vi.fn() }));
 
 import { useBibleHighlights } from './useBibleHighlights';
+import { useHighlightStore } from '../stores/useHighlightStore';
 
 const TAB = { tabId: 't1', moduleId: 7, abbreviation: 'KJV' } as never;
 
@@ -49,5 +50,47 @@ describe('clearing highlights and underlines', () => {
     root.innerHTML = '<div data-verse-id="43003016"><span class="word" data-word-index="0">For</span></div>';
     const { result } = setup(root);
     expect(result.current.selectionHasMarkup({ startVerseId: 43003016, startWordIndex: 0 } as never)).toBe(false);
+  });
+});
+
+describe('clearing asks first', () => {
+  beforeEach(() => {
+    calls.range.length = 0;
+    calls.deleted.length = 0;
+    useHighlightStore.setState({
+      highlightsByModule: new Map([[7, [{ id: 1, verseIdStart: 43003017, verseIdEnd: 43003017 } as never]]]),
+    });
+  });
+
+  it('Ctrl+Shift+X on verses waits for the confirmation, then clears', async () => {
+    const { result } = setup(document.createElement('div'));
+    await act(async () => { await result.current.requestClearSelectionMarks(43003016, 43003018); });
+    expect(result.current.pendingClear?.scope).toBe('verses');
+    expect(calls.range).toEqual([]);
+    await act(async () => { result.current.confirmPendingClear(); });
+    expect(calls.range).toEqual([[43003016, 43003018, 7]]);
+    expect(result.current.pendingClear).toBeNull();
+  });
+
+  it('cancelling clears nothing', async () => {
+    const { result } = setup(document.createElement('div'));
+    await act(async () => { await result.current.requestClearSelectionMarks(43003017, null); });
+    expect(result.current.pendingClear?.scope).toBe('verse');
+    await act(async () => { result.current.cancelPendingClear(); });
+    expect(result.current.pendingClear).toBeNull();
+    expect(calls.range).toEqual([]);
+  });
+
+  it('asks nothing when the selected verses carry no marks', async () => {
+    const { result } = setup(document.createElement('div'));
+    await act(async () => { await result.current.requestClearSelectionMarks(43003020, 43003021); });
+    expect(result.current.pendingClear).toBeNull();
+  });
+
+  it('the verse menu\'s clear for several verses asks too', async () => {
+    const { result } = setup(document.createElement('div'));
+    await act(async () => { await result.current.requestClearMarksInVerses(43003016, 43003018); });
+    expect(result.current.pendingClear?.scope).toBe('verses');
+    expect(calls.range).toEqual([]);
   });
 });

@@ -72,6 +72,11 @@ export type { RemoteSemanticStatus, RemoteSemanticStatusReply, SemanticRow, Sema
 // Define the API interface for type safety
 export interface ElectronAPI {
   /**
+   * Feature-flag override text (`KTH_FLAGS`, same format as `localStorage['kth.flags']`) for builds that are
+   * not packaged (dev runs, e2e, review builds); main returns '' for a packaged install.
+   */
+  devFlagOverrides: string;
+  /**
    * Build-time application configuration (product name, issue reporting
    * target, default module catalog URL). Exposed as a plain frozen object
    * rather than an IPC call so the renderer can read it synchronously while
@@ -381,6 +386,10 @@ export interface ElectronAPI {
     broadcastVerseChange: (verseId: number, moduleId?: string) => Promise<{ success: boolean; error?: string }>;
     // Listen for verse changes (for detached windows)
     onVerseChanged: (callback: (verseId: number) => void) => void;
+    // Tell detached windows which chapter the main Bible pane loaded (any verse in it; not a verse pick)
+    broadcastChapterChange: (verseId: number) => Promise<{ success: boolean }>;
+    // Listen for the main Bible pane's loaded chapter (for detached windows)
+    onBibleChapterChanged: (callback: (verseId: number) => void) => void;
     // Listen for extension-driven verse navigation requests
     onExtensionNavigateToVerse: (callback: (verseId: number) => void) => void;
     // Ask the main window to open a passage (a detached window has no Bible pane of its own)
@@ -730,6 +739,7 @@ export interface ElectronAPI {
 const MODULE_IDENT_RE = /^[A-Za-z][A-Za-z0-9_-]*$/;
 
 const electronAPI: ElectronAPI = {
+  devFlagOverrides: String(ipcRenderer.sendSync('app:dev-flag-overrides') ?? ''),
   // The remote-search URL and key stay in the main process.
   appConfig: toRendererAppConfig(APP_CONFIG),
 
@@ -1125,6 +1135,13 @@ const electronAPI: ElectronAPI = {
     // Listen for verse changes (for detached windows)
     onVerseChanged: (callback: (verseId: number) => void) => {
       ipcRenderer.on('verse-changed', (_event, verseId: number) => callback(verseId));
+    },
+
+    // The main Bible pane loaded another chapter (any verse in it); not a verse pick
+    broadcastChapterChange: (verseId: number) =>
+      ipcRenderer.invoke('window:broadcast-chapter-change', verseId),
+    onBibleChapterChanged: (callback: (verseId: number) => void) => {
+      ipcRenderer.on('bible-chapter-changed', (_event, verseId: number) => callback(verseId));
     },
 
     // Listen for extension-driven verse navigation requests

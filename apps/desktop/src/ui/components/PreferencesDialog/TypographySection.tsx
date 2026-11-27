@@ -21,10 +21,30 @@ import {
 } from '../../stores/usePreferencesStore';
 import { FontOptions } from './FontOptions';
 import type { PickableFont } from '../../hooks/useOfferedFonts';
-import type { ReadingWidth, VerseLabelMode } from '../../stores/usePreferencesStore';
+import type { ColumnWidth, TypographyPrefs, VerseLabelMode } from '../../stores/usePreferencesStore';
 
 /** The Typography list in the shape the shared font picker takes (id as the stored value). */
 const FONT_PICKER_ENTRIES: PickableFont[] = AVAILABLE_FONT_FAMILIES.map(f => ({ ...f, value: f.id }));
+
+/** The display modes that have a text width, in the order the Bible toolbar's mode menu lists them. */
+const TEXT_WIDTH_ROWS: { key: keyof Pick<TypographyPrefs, 'standardWidth' | 'readingWidth' | 'studyWidth'>; modeLabelKey: string }[] = [
+  { key: 'standardWidth', modeLabelKey: 'biblePane.displayModeStandard' },
+  { key: 'readingWidth', modeLabelKey: 'biblePane.displayModeReading' },
+  { key: 'studyWidth', modeLabelKey: 'biblePane.displayModeStudy' },
+];
+
+/** The four text widths, shared with the Bible toolbar's settings panel. */
+export const TextWidthOptions: React.FC = () => {
+  const { t } = useI18n();
+  return (
+    <>
+      <option value="narrow">{t('preferencesDialog.textWidthNarrow')}</option>
+      <option value="medium">{t('preferencesDialog.textWidthMedium')}</option>
+      <option value="wide">{t('preferencesDialog.textWidthWide')}</option>
+      <option value="full">{t('preferencesDialog.textWidthFull')}</option>
+    </>
+  );
+};
 
 interface SliderRowProps {
   /** DOM id for the range input; the label points at it with `htmlFor`. */
@@ -202,39 +222,48 @@ export const TypographySection: React.FC = () => {
           {t('preferencesDialog.readingLayoutHeading')}
         </h4>
 
-        {/* Reading width */}
-        <div>
-          <label
-            htmlFor="typography-reading-width"
+        {/* Text width, one per display mode */}
+        <div role="group" aria-labelledby="typography-text-width-label" aria-describedby="typography-text-width-description">
+          <div
+            id="typography-text-width-label"
             className="block text-sm font-medium mb-1"
             style={{ color: 'var(--theme-text-primary)' }}
           >
-            {t('preferencesDialog.readingWidthLabel')}
-          </label>
+            {t('preferencesDialog.textWidthLabel')}
+          </div>
           <p
-            id="typography-reading-width-description"
+            id="typography-text-width-description"
             className="text-xs mb-2"
             style={{ color: 'var(--theme-text-secondary)' }}
           >
-            {t('preferencesDialog.readingWidthDescription')}
+            {t('preferencesDialog.textWidthDescription')}
           </p>
-          <select
-            id="typography-reading-width"
-            aria-describedby="typography-reading-width-description"
-            value={typography.readingWidth}
-            onChange={(e) => setTypography({ readingWidth: e.target.value as ReadingWidth })}
-            className="w-full px-3 py-2 rounded text-sm focus:outline-none"
-            style={{
-              backgroundColor: 'var(--theme-input-bg)',
-              border: '1px solid var(--theme-input-border)',
-              color: 'var(--theme-input-text)'
-            }}
-          >
-            <option value="narrow">{t('preferencesDialog.readingWidthNarrow')}</option>
-            <option value="medium">{t('preferencesDialog.readingWidthMedium')}</option>
-            <option value="wide">{t('preferencesDialog.readingWidthWide')}</option>
-            <option value="full">{t('preferencesDialog.readingWidthFull')}</option>
-          </select>
+          <div className="grid gap-2 items-center" style={{ gridTemplateColumns: 'auto 1fr' }}>
+            {TEXT_WIDTH_ROWS.map(({ key, modeLabelKey }) => (
+              <React.Fragment key={key}>
+                <label
+                  htmlFor={`typography-text-width-${key}`}
+                  className="text-sm"
+                  style={{ color: 'var(--theme-text-primary)' }}
+                >
+                  {t(modeLabelKey)}
+                </label>
+                <select
+                  id={`typography-text-width-${key}`}
+                  value={typography[key]}
+                  onChange={(e) => setTypography({ [key]: e.target.value as ColumnWidth })}
+                  className="w-full px-3 py-2 rounded text-sm focus:outline-none"
+                  style={{
+                    backgroundColor: 'var(--theme-input-bg)',
+                    border: '1px solid var(--theme-input-border)',
+                    color: 'var(--theme-input-text)'
+                  }}
+                >
+                  <TextWidthOptions />
+                </select>
+              </React.Fragment>
+            ))}
+          </div>
         </div>
 
         {/* Verse labels */}

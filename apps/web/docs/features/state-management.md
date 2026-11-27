@@ -75,7 +75,7 @@ When the overview *is* fetched and has the chapter, it answers cross-references
 and topics together; `section` narrows only the fallback, so opening
 cross-references does not drag topics along behind it.
 
-`isTagGraphEnabled()` (from `utils/clientConfig.ts`) decides in `main.tsx`
+`isTagGraphEnabled()` (from `src/utils/clientConfig.ts`) decides in `main.tsx`
 whether `studyStore` gets a tag-graph provider at all. With `features.tagGraph`
 off — the default — there is no provider, so no `/api/taggraph/verse/:id`
 request. The server already short-circuits that route to `[]` when disabled; this
@@ -107,4 +107,4 @@ Abstraction layer between UI and server API. All providers use fetch-based HTTP 
 - Stores are singletons imported directly (not context-based)
 - Components subscribe via `useStore(store, selector)` hook
 - Data providers injected as props from `App` component
-- localStorage used for session and settings persistence. New user-owned data goes in the user-data store instead (`src/userdata/`, `getUserData()`); the Study verse history (`stores/studyHistoryStorage.ts`) is the first store on it. See `packages/core/docs/features/user-data-store.md`.
+- localStorage used for session and settings persistence. New user-owned data goes in the user-data store instead (`src/userdata/`, `getUserData()`); the Study verse history (`src/stores/studyHistoryStorage.ts`) is the first store on it. See `packages/core/docs/features/user-data-store.md`.

@@ -95,5 +95,8 @@
   "wordStudy.open.alias.1": "مطالعه استرانگ",
   "wordStudy.open.alias.2": "فهرست الفبایی",
   "readingPlans.continue": "ادامه برنامه مطالعه",
-  "readingPlans.openBeside": "باز کردن برنامه‌های مطالعه کنار کتاب مقدس"
+  "readingPlans.openBeside": "باز کردن برنامه‌های مطالعه کنار کتاب مقدس",
+  "help.sendFeedback": "ارسال بازخورد",
+  "notes.compilePassageNotes": "گردآوری یادداشت‌های قطعه‌ها",
+  "notes.compilePassageNotes.category": "یادداشت‌ها"
 }

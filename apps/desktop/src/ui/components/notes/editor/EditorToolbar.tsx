@@ -1,6 +1,7 @@
 import React from 'react';
 import { Editor } from '@tiptap/react';
 import { useI18n } from '../../../contexts/useI18n';
+import { NotesZoomControl, useNotesZoomCounterStyle } from '../NotesZoom';
 import ToolbarMenu from './ToolbarMenu';
 import { indentSelection, outdentSelection, canOutdent } from './indentCommands';
 import { currentBlockDirection } from './TextDirectionExtension';
@@ -27,6 +28,8 @@ interface EditorToolbarProps {
    * looking for "print this" looks at the toolbar.
    */
   exportActions?: NoteExportActions;
+  /** Extra controls for the "More" (advanced) row, after the text-direction buttons (the note-direction select). */
+  advancedExtras?: React.ReactNode;
 }
 
 const fontFamilies = [
@@ -41,13 +44,20 @@ const fontFamilies = [
 
 const fontSizes = ['10px', '12px', '14px', '16px', '18px', '20px', '24px', '28px', '32px', '36px', '48px'];
 
+const ADVANCED_ROW_KEY = 'notesToolbarAdvancedOpen';
+function readAdvancedOpen(): boolean {
+  try { return localStorage.getItem(ADVANCED_ROW_KEY) === '1'; } catch { return false; }
+}
+
 const EditorToolbar: React.FC<EditorToolbarProps> = ({
   editor,
   onInsertPassage,
   onInsertImage,
   exportActions,
+  advancedExtras,
 }) => {
   const { t } = useI18n();
+  const counterZoom = useNotesZoomCounterStyle();
   if (!editor) return null;
 
   // The swatch shows the exact colour the mark applies, so the fill comes from
@@ -66,6 +76,14 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
   const [showTableMenu, setShowTableMenu] = React.useState(false);
   const [showListMenu, setShowListMenu] = React.useState(false);
   const [showExportMenu, setShowExportMenu] = React.useState(false);
+  const [showAdvanced, setShowAdvanced] = React.useState<boolean>(readAdvancedOpen);
+  const toggleAdvanced = () => {
+    setShowAdvanced((prev) => {
+      const next = !prev;
+      try { localStorage.setItem(ADVANCED_ROW_KEY, next ? '1' : '0'); } catch { /* storage unavailable */ }
+      return next;
+    });
+  };
 
   const listStyles = [
     { label: t('editorToolbar.listStyle.decimal'), style: 'decimal' },
@@ -100,7 +118,7 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
   const characters = charCount?.characters() ?? 0;
 
   return (
-    <div className="flex flex-col border-b border-border bg-surface-secondary">
+    <div className="flex flex-col border-b border-border bg-surface-secondary" style={counterZoom}>
       <div className="flex items-center gap-1 px-2 py-1 flex-wrap">
         {/* Undo */}
         <button
@@ -268,30 +286,6 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
           </svg>
         </button>
 
-        {/* Subscript */}
-        <button
-          type="button"
-          onClick={() => editor.chain().focus().toggleSubscript().run()}
-          className={btnClass(editor.isActive('subscript'))}
-          title={t('editorToolbar.subscriptTitle')}
-          aria-label={t('editorToolbar.subscriptTitle')}
-          aria-pressed={editor.isActive('subscript')}
-        >
-          <span className="text-xs w-4 h-4 flex items-center justify-center" aria-hidden="true">X<sub className="text-[0.5rem]">2</sub></span>
-        </button>
-
-        {/* Superscript */}
-        <button
-          type="button"
-          onClick={() => editor.chain().focus().toggleSuperscript().run()}
-          className={btnClass(editor.isActive('superscript'))}
-          title={t('editorToolbar.superscriptTitle')}
-          aria-label={t('editorToolbar.superscriptTitle')}
-          aria-pressed={editor.isActive('superscript')}
-        >
-          <span className="text-xs w-4 h-4 flex items-center justify-center" aria-hidden="true">X<sup className="text-[0.5rem]">2</sup></span>
-        </button>
-
         <div className="w-px h-5 bg-border-secondary mx-1" />
 
         {/* Text Alignment */}
@@ -343,38 +337,6 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
             <path d="M3 21h18v-2H3v2zm0-4h18v-2H3v2zm0-4h18v-2H3v2zm0-4h18V7H3v2zm0-6v2h18V3H3z"/>
           </svg>
         </button>
-
-        <div className="w-px h-5 bg-border-secondary mx-1" />
-
-        {/* Text direction. Content controls: the labels are not mirrored in an
-            RTL UI, because LTR/RTL name the text's direction, not a side of
-            the toolbar. `dir="ltr"` keeps "LTR"/"RTL" in reading order. */}
-        <div role="group" aria-label={t('editorToolbar.directionGroup')} className="flex items-center">
-          {(() => {
-            const dir = currentBlockDirection(editor);
-            const items = [
-              { id: 'ltr', value: 'ltr' as const, label: t('editorToolbar.directionLtr'), title: t('editorToolbar.directionLtrTitle', { shortcut: 'Ctrl+Alt+L' }) },
-              { id: 'rtl', value: 'rtl' as const, label: t('editorToolbar.directionRtl'), title: t('editorToolbar.directionRtlTitle', { shortcut: 'Ctrl+Alt+R' }) },
-              { id: 'auto', value: null, label: t('editorToolbar.directionAuto'), title: t('editorToolbar.directionAutoTitle') },
-            ];
-            return items.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => {
-                  const chain = editor.chain().focus();
-                  (item.value ? chain.setBlockDirection(item.value) : chain.unsetBlockDirection()).run();
-                }}
-                className={`${btnClass(dir === item.value)} text-xs font-medium`}
-                title={item.title}
-                aria-label={item.title}
-                aria-pressed={dir === item.value}
-              >
-                <span aria-hidden="true">{item.label}</span>
-              </button>
-            ));
-          })()}
-        </div>
 
         <div className="w-px h-5 bg-border-secondary mx-1" />
 
@@ -745,12 +707,93 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
           </svg>
         </button>
 
+        {/* Advanced row toggle: rarely used controls (text direction,
+            subscript/superscript) live in their own row that opens on demand. */}
+        <button
+          type="button"
+          onClick={toggleAdvanced}
+          className={`${btnClass(showAdvanced)} text-xs font-medium`}
+          title={t('editorToolbar.advancedTitle')}
+          aria-label={t('editorToolbar.advancedTitle')}
+          aria-expanded={showAdvanced}
+          aria-controls="notes-toolbar-advanced-row"
+        >
+          <span aria-hidden="true">{t('editorToolbar.advancedLabel')}</span>
+        </button>
+
         {/* Word/Character Count - end-aligned */}
         <div className="ms-auto text-[0.625rem] text-text-muted flex items-center gap-2 pe-1">
+          <NotesZoomControl />
           <span>{t('editorToolbar.wordCount', { count: words })}</span>
           <span>{t('editorToolbar.charCount', { count: characters })}</span>
         </div>
       </div>
+
+      {showAdvanced && (
+        <div
+          id="notes-toolbar-advanced-row"
+          className="flex items-center gap-1 px-2 py-1 border-t border-border-secondary flex-wrap"
+          data-testid="notes-toolbar-advanced-row"
+        >
+        {/* Text direction. Content controls: the labels are not mirrored in an
+            RTL UI, because LTR/RTL name the text's direction, not a side of
+            the toolbar. `dir="ltr"` keeps "LTR"/"RTL" in reading order. */}
+        <div role="group" aria-label={t('editorToolbar.directionGroup')} className="flex items-center">
+          {(() => {
+            const dir = currentBlockDirection(editor);
+            const items = [
+              { id: 'ltr', value: 'ltr' as const, label: t('editorToolbar.directionLtr'), title: t('editorToolbar.directionLtrTitle', { shortcut: 'Ctrl+Alt+L' }) },
+              { id: 'rtl', value: 'rtl' as const, label: t('editorToolbar.directionRtl'), title: t('editorToolbar.directionRtlTitle', { shortcut: 'Ctrl+Alt+R' }) },
+              { id: 'auto', value: null, label: t('editorToolbar.directionAuto'), title: t('editorToolbar.directionAutoTitle') },
+            ];
+            return items.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => {
+                  const chain = editor.chain().focus();
+                  (item.value ? chain.setBlockDirection(item.value) : chain.unsetBlockDirection()).run();
+                }}
+                className={`${btnClass(dir === item.value)} text-xs font-medium`}
+                title={item.title}
+                aria-label={item.title}
+                aria-pressed={dir === item.value}
+              >
+                <span aria-hidden="true">{item.label}</span>
+              </button>
+            ));
+          })()}
+        </div>
+
+        {advancedExtras}
+
+        <div className="w-px h-5 bg-border-secondary mx-1" />
+
+        {/* Subscript */}
+        <button
+          type="button"
+          onClick={() => editor.chain().focus().toggleSubscript().run()}
+          className={btnClass(editor.isActive('subscript'))}
+          title={t('editorToolbar.subscriptTitle')}
+          aria-label={t('editorToolbar.subscriptTitle')}
+          aria-pressed={editor.isActive('subscript')}
+        >
+          <span className="text-xs w-4 h-4 flex items-center justify-center" aria-hidden="true">X<sub className="text-[0.5rem]">2</sub></span>
+        </button>
+
+        {/* Superscript */}
+        <button
+          type="button"
+          onClick={() => editor.chain().focus().toggleSuperscript().run()}
+          className={btnClass(editor.isActive('superscript'))}
+          title={t('editorToolbar.superscriptTitle')}
+          aria-label={t('editorToolbar.superscriptTitle')}
+          aria-pressed={editor.isActive('superscript')}
+        >
+          <span className="text-xs w-4 h-4 flex items-center justify-center" aria-hidden="true">X<sup className="text-[0.5rem]">2</sup></span>
+        </button>
+        </div>
+      )}
 
       {/* Insert row - content actions, not formatting.
           A bare icon at the tail of the formatting row would be

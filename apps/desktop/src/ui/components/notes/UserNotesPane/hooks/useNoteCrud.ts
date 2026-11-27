@@ -28,7 +28,8 @@ export interface NoteCrudActions {
   handleRename: (entry: FileEntry, newName: string) => Promise<void>;
   handleMoveCurrentNote: (targetFolder: string) => Promise<void>;
   handleMoveEntry: (entry: FileEntry, targetFolder: string) => Promise<void>;
-  handleDelete: (entry: FileEntry) => Promise<void>;
+  /** `reloadPath`: folder to show afterwards (default: the current one). */
+  handleDelete: (entry: FileEntry, reloadPath?: string) => Promise<void>;
 }
 
 /**
@@ -200,11 +201,11 @@ export function useNoteCrud(args: UseNoteCrudArgs): NoteCrudActions {
   );
 
   const handleDelete = useCallback(
-    async (entry: FileEntry) => {
+    async (entry: FileEntry, reloadPath?: string) => {
       try {
         await fileNotesAPI.deleteEntry(entry.path);
         useFileNotesStore.getState().removeRecentUnder(entry.path); // allow-getstate: async CRUD callback - imperative store update
-        loadDirectory(currentPath);
+        loadDirectory(reloadPath ?? currentPath);
       } catch (err: unknown) {
         setFileError(`Failed to delete: ${err instanceof Error ? err.message : String(err)}`);
       }

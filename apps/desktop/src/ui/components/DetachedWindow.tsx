@@ -8,6 +8,7 @@ import PrayerTab from './notes/tabs/PrayerTab';
 import StudyPane from './StudyPane';
 import TopicsPane from './TopicsPane';
 import ExtensionPanelHost from './extensions/ExtensionPanelHost';
+import CompilePassageNotesHost from './notes/compile/CompilePassageNotesHost';
 import { useBibleStore } from '../stores/useBibleStore';
 import { DEFAULT_PANEL_ID } from '../stores/helpers/panelStateHelpers';
 import FindBar from './FindBar';
@@ -205,6 +206,7 @@ export function DetachedWindow() {
       <div className="flex-1 min-h-0">
         <Component {...paneState} isDetached={true} windowId={payload.windowId} />
       </div>
+      <CompilePassageNotesHost isDetached />
     </div>
   );
 }

@@ -5,7 +5,7 @@
  * names in the module's own language. Prefer it over the English tables in
  * `@bible/core` for anything the user reads.
  */
-import { VerseIdHelper } from '@bible/core';
+import { VerseIdHelper, getBookName } from '@bible/core';
 
 // Cache for book names to avoid repeated API calls
 let bookNamesCache: Map<number, string> | null = null;
@@ -96,6 +96,18 @@ export function formatVerseRange(startVerseId: number, endVerseId?: number, book
 
   // Different chapters
   return `${bookName} ${start.chapter}:${start.verse} - ${end.chapter}:${end.verse}`;
+}
+
+/**
+ * Book number for a book name as the notes folders spell it: the module's own
+ * name (cache) first, the English name as a fallback. 0 when unknown.
+ */
+export function getBookNumberFromName(name: string): number {
+  if (bookNamesCache) {
+    for (const [num, n] of bookNamesCache) if (n === name) return num;
+  }
+  for (let n = 1; n <= 66; n++) if (getBookName(n) === name) return n;
+  return 0;
 }
 
 /**

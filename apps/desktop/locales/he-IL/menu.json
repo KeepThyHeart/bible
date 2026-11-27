@@ -28,5 +28,6 @@
   "menu.help.reportIssue": "דווח על בעיה",
   "menu.help.about": "אודות מקרא",
   "menu.tools.title": "כלים",
-  "menu.view.apps": "אפליקציות"
+  "menu.view.apps": "אפליקציות",
+  "menu.help.sendFeedback": "שליחת משוב…"
 }

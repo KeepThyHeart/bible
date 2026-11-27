@@ -431,7 +431,7 @@ const DiagnosticsSettings: React.FC = () => {
               fontStyle: 'italic',
             }}
           >
-            {t('diagnosticsSettings.noEndpointConfiguredReportsAreQueued')}
+            {t('diagnosticsSettings.noEndpointUsesDefault')}
           </p>
         )}
       </section>
@@ -500,12 +500,7 @@ const DiagnosticsSettings: React.FC = () => {
           <button
             type="button"
             onClick={() => void handleFlushNow()}
-            disabled={flushing || endpointEmpty}
-            title={
-              endpointEmpty
-                ? t('diagnosticsSettings.sendDisabledHint')
-                : undefined
-            }
+            disabled={flushing}
             style={{
               fontSize: '0.75rem',
               padding: '6px 12px',
@@ -513,8 +508,8 @@ const DiagnosticsSettings: React.FC = () => {
               border: '1px solid var(--theme-border-primary)',
               borderRadius: 4,
               color: 'var(--theme-text-primary)',
-              cursor: flushing || endpointEmpty ? 'default' : 'pointer',
-              opacity: flushing || endpointEmpty ? 0.6 : 1,
+              cursor: flushing ? 'default' : 'pointer',
+              opacity: flushing ? 0.6 : 1,
             }}
           >
             {flushing ? td('diagnosticsSettings.sending', 'Sending\u2026') : td('diagnosticsSettings.sendAllNow', 'Send all now')}

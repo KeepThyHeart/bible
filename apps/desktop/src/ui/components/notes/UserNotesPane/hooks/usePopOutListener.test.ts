@@ -135,3 +135,15 @@ describe('usePopOutListener', () => {
     expect(loadDirectory).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('usePopOutListener - chapter view', () => {
+  it('keeps a chapter view in place, closing its open editor, without the single-note save', () => {
+    const deactivateChapter = vi.fn();
+    renderHook(() => usePopOutListener(baseArgs({ view: 'chapter', editorIsDirty: true, deactivateChapter })));
+    firePopOut();
+
+    expect(handleSaveNote).not.toHaveBeenCalled();
+    expect(loadDirectory).not.toHaveBeenCalled();
+    expect(deactivateChapter).toHaveBeenCalledTimes(1);
+  });
+});

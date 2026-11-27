@@ -106,6 +106,21 @@ describe('SearchTypeSelector', () => {
     expect(screen.getByTestId('search-type-button')).toHaveAttribute('data-search-type', 'ideas');
   });
 
+  it('shows a down chevron so the control reads as switchable', () => {
+    renderSelector();
+    expect(screen.getByTestId('search-type-button')).toContainElement(screen.getByTestId('search-type-chevron'));
+  });
+
+  it('opens the menu in a body-level portal above everything else', async () => {
+    const user = userEvent.setup();
+    renderSelector();
+    await user.click(screen.getByTestId('search-type-button'));
+    const menu = screen.getByTestId('search-type-menu');
+    expect(menu.parentElement).toBe(document.body);
+    expect(menu.style.position).toBe('fixed');
+    expect(Number(menu.style.zIndex)).toBeGreaterThanOrEqual(10000);
+  });
+
   it('follows a mode change made elsewhere (the results-pane link)', () => {
     renderSelector();
     act(() => useSearchStore.setState({ isSemanticMode: true }));
@@ -118,5 +133,34 @@ describe('SearchTypeSelector', () => {
     await user.click(screen.getByTestId('search-type-button'));
     await user.keyboard('{Escape}');
     expect(screen.queryByTestId('search-type-menu')).toBeNull();
+  });
+
+  it('opening focuses the checked option; arrows move between options', async () => {
+    const user = userEvent.setup();
+    useSearchStore.setState({ isSemanticMode: true });
+    renderSelector();
+    await user.click(screen.getByTestId('search-type-button'));
+    expect(screen.getByTestId('search-type-ideas')).toHaveFocus();
+    await user.keyboard('{ArrowUp}');
+    expect(screen.getByTestId('search-type-keyword')).toHaveFocus();
+    await user.keyboard('{ArrowDown}');
+    expect(screen.getByTestId('search-type-ideas')).toHaveFocus();
+  });
+
+  it('Escape returns focus to the button', async () => {
+    const user = userEvent.setup();
+    renderSelector();
+    await user.click(screen.getByTestId('search-type-button'));
+    await user.keyboard('{Escape}');
+    expect(screen.getByTestId('search-type-button')).toHaveFocus();
+  });
+
+  it('Tab closes the menu instead of leaving focus inside it', async () => {
+    const user = userEvent.setup();
+    renderSelector();
+    await user.click(screen.getByTestId('search-type-button'));
+    expect(screen.getByTestId('search-type-menu')).toBeInTheDocument();
+    await user.tab();
+    expect(screen.queryByTestId('search-type-menu')).not.toBeInTheDocument();
   });
 });

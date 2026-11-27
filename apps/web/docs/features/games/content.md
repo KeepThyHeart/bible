@@ -74,7 +74,7 @@ ignores small words like "the" and "of". The four forbidden words should be the
 *obvious* ones: taking away what a person would actually reach for is what
 makes the game, while taking away an obscure synonym only makes it feel unfair.
 
-Questions, sets and ordered lists use the same importer; `server/content/importer.ts`
+Questions, sets and ordered lists use the same importer; `server/modules/games/content/importer.ts`
 documents every field and every rejection reason.
 
 ## Generated questions
@@ -96,7 +96,7 @@ The split exists so that a playtest's findings are fixed in one place. Wrong
 answers are *chosen*, not written: each candidate is scored by how much it
 resembles the true answer — same sex first, then the same part of the story,
 then shared roles — and the most plausible three lead. When a group finds them
-too easy, the fix is a weight in `server/content/generator/distractors.ts` and a
+too easy, the fix is a weight in `server/modules/games/content/generator/distractors.ts` and a
 regeneration, not three hundred hand edits.
 
 A game finds its own material by tag: `who-said-it`, `who-am-i`, `detective`,
@@ -122,7 +122,7 @@ A directory stands for the `.csv` and `.json` files directly inside it, because
 a Windows shell will not expand `*.json` for you.
 
 After importing, `check` and `import` run the content checks in
-`server/content/validate.ts` over everything the database holds. These fail the
+`server/modules/games/content/validate.ts` over everything the database holds. These fail the
 run:
 
 - a who-said-it quotation that is not, word for word, in the verse it cites;

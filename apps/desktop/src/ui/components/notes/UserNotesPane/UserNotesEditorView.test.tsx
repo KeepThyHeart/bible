@@ -14,8 +14,10 @@ import { ContextProvider, type AppServices } from '../../../contexts/ContextProv
 const dirApi = vi.hoisted(() => ({ get: vi.fn(), set: vi.fn() }));
 vi.mock('../../../services/noteDirectionAPI', () => ({ noteDirectionAPI: dirApi }));
 vi.mock('../editor/NoteEditor', () => ({
-  default: ({ defaultDirection }: { defaultDirection?: string }) => (
-    <div data-testid="note-editor" dir={defaultDirection ?? 'ltr-ui'} />
+  default: ({ defaultDirection, directionControl }: { defaultDirection?: string; directionControl?: React.ReactNode }) => (
+    <div data-testid="note-editor" dir={defaultDirection ?? 'ltr-ui'}>
+      <div data-testid="more-row">{directionControl}</div>
+    </div>
   ),
 }));
 
@@ -137,5 +139,41 @@ describe('UserNotesEditorView - sidebar toggle', () => {
     renderView({ showEditorSidebar: true });
     const btn = screen.getByRole('button', { name: 'userNotesPane.hideSidebar' });
     expect(btn).not.toHaveAttribute('aria-pressed');
+  });
+});
+
+describe('UserNotesEditorView - Delete button', () => {
+  it('shows a visible Delete button in the header when the host supplies onRequestDelete', () => {
+    const onRequestDelete = vi.fn();
+    renderView({ titleEditable: false, onRequestDelete });
+    fireEvent.click(screen.getByRole('button', { name: /notesFolderBrowser\.menuDelete/ }));
+    expect(onRequestDelete).toHaveBeenCalledTimes(1);
+  });
+
+  it('omits it otherwise', () => {
+    renderView();
+    expect(screen.queryByRole('button', { name: /notesFolderBrowser\.menuDelete/ })).not.toBeInTheDocument();
+  });
+});
+
+describe('UserNotesEditorView - save status', () => {
+  it('shows "Saved" for a note with a file', () => {
+    renderView({ editorIsDirty: false });
+    expect(screen.getByText('userNotesPane.savedStatus')).toBeInTheDocument();
+  });
+
+  it('shows no saved status for an unsaved draft', () => {
+    renderView({ editorIsDirty: false, isDraft: true });
+    expect(screen.queryByText('userNotesPane.savedStatus')).not.toBeInTheDocument();
+  });
+});
+
+describe('UserNotesEditorView - header layout', () => {
+  it('lets the header wrap and keeps the note direction select out of it (it lives in the toolbar More row)', () => {
+    renderView({ notePath: 'Docs/a.bn' });
+    const nav = screen.getByLabelText('userNotesPane.breadcrumbLabel');
+    expect(nav.parentElement?.className).toContain('flex-wrap');
+    expect(nav.querySelector('select')).toBeNull();
+    expect(screen.getByTestId('more-row').querySelector('select')).not.toBeNull();
   });
 });

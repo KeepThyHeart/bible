@@ -173,6 +173,29 @@ export function useBibleKeyboard({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [currentVerses, selectedVerseId, selectionEndVerseId, setCopyOptionsDialog, panelId]);
 
+  // Ctrl+P: print the selected verse or passage, when this Bible pane has focus. Listens in the capture
+  // phase and stops the event there, so the notes editor's own window-level Ctrl+P (print the note)
+  // never also fires. With focus anywhere else, or no verse selected, the key is left alone.
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'p')) return;
+      if (isEditableTarget(document.activeElement)) return;
+      if (useLayoutStore.getState().activePanelId !== panelId) return; // allow-getstate: event handler - reads latest focus tracking, not a render
+      if (!selectedVerseId) return;
+      const range = computeSelectedRange(selectedVerseId, selectionEndVerseId);
+      const verses = range
+        ? currentVerses.filter(v => v.verse_id >= range.start && v.verse_id <= range.end)
+        : [];
+      if (verses.length === 0) return;
+      e.preventDefault();
+      e.stopPropagation();
+      setCopyOptionsDialog({ visible: true, verses, print: true });
+    };
+
+    window.addEventListener('keydown', handleKeyDown, true);
+    return () => window.removeEventListener('keydown', handleKeyDown, true);
+  }, [currentVerses, selectedVerseId, selectionEndVerseId, setCopyOptionsDialog, panelId]);
+
   // Alt+Left for navigation history. There is deliberately no Alt+Right: the
   // pane has no forward button either - anything ahead of the cursor is
   // reachable by name from the history menu.
@@ -343,17 +366,18 @@ export function useBibleKeyboard({
         if (!selectionData || !activeTab?.moduleId) return;
 
         const { startVerseId, startWordIndex, endVerseId, endWordIndex } = selectionData;
+        const underlineColor = useHighlightStore.getState().lastUnderlineColor; // allow-getstate: event handler
         const markup = new UserTextMarkup({
           moduleId: activeTab.moduleId,
           verseIdStart: startVerseId,
           verseIdEnd: endVerseId,
           textStart: startWordIndex,
           textEnd: endWordIndex,
-          color: lastUsedColor,
+          color: underlineColor,
           metadata: {
             markupType: 'underline' as MarkupType,
             underlineStyle: 'solid',
-            underlineColor: lastUsedColor,
+            underlineColor: underlineColor,
             version: 1
           }
         });

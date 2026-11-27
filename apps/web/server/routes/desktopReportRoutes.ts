@@ -32,12 +32,12 @@
  * ## Bot protection without an IP
  *
  * Discarding the address also discards the usual way of blocking a flood, so
- * the endpoint leans on three cheaper defences instead:
+ * the endpoint leans on cheaper defences instead:
  *
- *  1. A shared token (`X-Report-Token`) baked into the build. It is the same
- *     value in every copy of a release and identifies nobody — it just means a
- *     scanner that finds the URL cannot post to it without also having read a
- *     build config. Configure `desktopReports.token` to require one.
+ *  1. An optional shared token (`X-Report-Token`, server setting
+ *     `desktopReports.token`). The desktop app sends none: a token baked into
+ *     an open-source build is public and would stop nothing, so it is only for
+ *     deployments that front the endpoint with their own client.
  *  2. Structural validation: a body that is not a recognised report type with
  *     a plausible `report_id` and `timestamp` is rejected before it touches
  *     disk.
@@ -50,7 +50,7 @@
  */
 
 import { Router } from 'express';
-import { mkdirSync, writeFileSync } from 'fs';
+import { mkdirSync, writeFileSync, chmodSync } from 'fs';
 import { randomUUID, timingSafeEqual } from 'crypto';
 import { resolve, join } from 'path';
 import { sendError, ErrorCodes } from '../utils/errorResponse.js';
@@ -146,7 +146,11 @@ export function createDesktopReportRoutes(
 
   // Created once at factory time, mirroring feedbackRoutes.
   const reportDir = resolve(dataDir, 'desktop-reports');
-  mkdirSync(reportDir, { recursive: true });
+  // Owner-only: submissions can hold free text and diagnostics, and are meant to
+  // be read by the operator alone. mkdirSync's mode is ignored for a directory
+  // that already exists (and is masked by umask), so chmod explicitly.
+  mkdirSync(reportDir, { recursive: true, mode: 0o700 });
+  try { chmodSync(reportDir, 0o700); } catch { /* best effort (e.g. not the owner) */ }
   const quota = createClientQuota({ limit: limits.perClientPerHour, windowMs: 60 * 60_000 });
   const budget = createDirectoryBudget(reportDir, limits);
 
@@ -240,7 +244,7 @@ export function createDesktopReportRoutes(
       // with ':' and '.' removed, the report type, and a UUID — so nothing the
       // caller sent ever reaches a path.
       const stamp = receivedAt.toISOString().replace(/[:.]/g, '-');
-      writeFileSync(join(reportDir, `${stamp}-${record.type}-${id}.json`), serialised, 'utf-8');
+      writeFileSync(join(reportDir, `${stamp}-${record.type}-${id}.json`), serialised, { encoding: 'utf-8', mode: 0o600 });
       budget.recordWrite(bytes);
 
       res.status(201).json({ ok: true, id, receivedAt: record.receivedAt });

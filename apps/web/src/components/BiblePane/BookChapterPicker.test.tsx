@@ -112,6 +112,7 @@ vi.mock('../../stores/bibleStore', () => ({
 }));
 
 import { BookChapterPicker } from './BookChapterPicker';
+import { webSettings } from '../../stores/settingsRegistry';
 import { enString } from '../../testing/enCatalog';
 
 const defaultProps = {
@@ -286,14 +287,34 @@ describe('BookChapterPicker', () => {
     });
     const chapterBtns = container.querySelectorAll<HTMLElement>('.kth-picker__cell--chapter');
     expect(chapterBtns.length).toBeGreaterThan(0);
+    // With the verse step off (the default) a chapter goes straight there.
     await act(async () => {
       fireEvent.click(chapterBtns[2]); // chapter 3
     });
-    // The chapter opens the verse step; "Go to chapter" skips it.
-    await act(async () => {
-      fireEvent.click(container.querySelector<HTMLElement>('[data-testid="picker-go-chapter"]')!);
-    });
     expect(onSelect).toHaveBeenCalledWith(43, 3);
+  });
+
+  it('offers the verse step behind "Also choose a verse", stored for this device', async () => {
+    try {
+      const onSelect = vi.fn();
+      const { container } = render(<BookChapterPicker {...defaultProps} onSelect={onSelect} currentBook={43} />);
+      await act(async () => {
+        fireEvent.click(container.querySelector<HTMLElement>('.kth-picker__cell--book')!);
+      });
+      const box = container.querySelector<HTMLInputElement>('[data-testid="picker-verse-step"]')!;
+      expect(box.checked).toBe(false);
+      await act(async () => {
+        fireEvent.click(box);
+      });
+      expect(webSettings.get<boolean>('pickerVerseStep')).toBe(true);
+      await act(async () => {
+        fireEvent.click(container.querySelector<HTMLElement>('.kth-picker__cell--chapter')!);
+      });
+      expect(onSelect).not.toHaveBeenCalled();
+      expect(container.querySelector('[data-testid="picker-go-chapter"]')).not.toBeNull();
+    } finally {
+      webSettings.set('pickerVerseStep', false);
+    }
   });
 
   it('shows back button when chapter grid is visible', async () => {
@@ -477,8 +498,6 @@ describe('BookChapterPicker', () => {
     fireEvent.click(container.querySelector('.kth-picker__cell--book')!);
     await new Promise((r) => setTimeout(r, 20));
     fireEvent.click(container.querySelector('.kth-picker__cell--chapter')!);
-    await new Promise((r) => setTimeout(r, 20));
-    fireEvent.click(container.querySelector('[data-testid="picker-go-chapter"]')!);
     expect(onSelect).toHaveBeenCalled();
     (document.activeElement as HTMLElement | null)?.blur();
     rerender(<BookChapterPicker {...defaultProps} onSelect={onSelect} isOpen={false} />);

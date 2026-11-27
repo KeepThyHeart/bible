@@ -18,8 +18,8 @@ Contents (about 8 MB; the generator refuses 10 MB or more):
 | `manifest.json` | per-file sha256, source and subset `content_sha256`, chapter list |
 | `LICENSES.md` | per-module licence (see it: KJV is GPL-2.0-or-later, the rest public domain) |
 
-Chapters (book:chapter): Gen 1, 3; Ex 1; Lev 1; Ps 23; Prov 19; Mt 10, 15, 18; Mk 2; Lk 15;
-John 1-4; Rom 1, 8; Rev 1. The list is `FIXTURE_CHAPTERS` in the generator.
+Chapters (book:chapter): Gen 1, 3; Ex 1; Lev 1; Ps 23, 119; Prov 19; Isa 53; Mt 10, 15, 18; Mk 2; Lk 15;
+John 1-4; Rom 1, 7, 8; 1 Cor 15; Rev 1. The list is `FIXTURE_CHAPTERS` in the generator.
 
 ## Never use in place
 

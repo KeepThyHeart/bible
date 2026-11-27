@@ -2,13 +2,20 @@ import { useCallback } from 'react';
 import { useI18n } from '../../../../contexts/useI18n';
 import * as fileNotesAPI from '../../../../services/fileNotesAPI';
 import { FileEntry, BnFile } from '../../../../services/fileNotesAPI';
-import { useFileNotesStore } from '../../../../stores/useFileNotesStore';
+import { useFileNotesStore, type NotesPanelView } from '../../../../stores/useFileNotesStore';
 import { useNoteEditorStore } from '../../../../stores/useNoteEditorStore';
 import { BreadcrumbSegment } from '../../NotesBreadcrumb';
+import { isDraftNote } from '../draftNote';
+import type { ChapterModeNavState } from '../../../../stores/notesChapterNavState';
+import { chapterTitle } from '../../chapter/chapterTitle';
 
 interface UseNotesNavigationArgs {
   panelId: string;
-  view: 'browser' | 'editor';
+  view: NotesPanelView;
+  /** Chapter mode position, sent with a pop-out from the chapter view. */
+  chapter?: ChapterModeNavState | null;
+  /** Saves the chapter view's open editor; awaited before a pop-out. */
+  flushChapter?: () => Promise<void>;
   currentPath: string;
   currentNote: BnFile | null;
   currentNotePath: string;
@@ -20,7 +27,7 @@ interface UseNotesNavigationArgs {
   setCurrentNotePath: (path: string) => void;
   setFileError: (msg: string | null) => void;
   setRenameEntry: (entry: FileEntry | null) => void;
-  handleSaveNote: () => void;
+  handleSaveNote: () => void | Promise<void>;
 }
 
 interface NotesNavigationApi {
@@ -33,6 +40,13 @@ interface NotesNavigationApi {
   handlePopOut: () => void;
 }
 
+/** The folder part of a notes-relative path ('' for the notes root). */
+export function folderOfNotePath(relativePath: string): string {
+  const normalized = relativePath.replace(/\\/g, '/');
+  const i = normalized.lastIndexOf('/');
+  return i < 0 ? '' : normalized.slice(0, i);
+}
+
 /**
  * Folder/note navigation, breadcrumb building, and the small
  * editor-only helpers (rename-current-note, pop-out) that sit alongside.
@@ -42,6 +56,8 @@ export function useNotesNavigation(args: UseNotesNavigationArgs): NotesNavigatio
   const {
     panelId,
     view,
+    chapter,
+    flushChapter,
     currentPath,
     currentNote,
     currentNotePath,
@@ -77,6 +93,9 @@ export function useNotesNavigation(args: UseNotesNavigationArgs): NotesNavigatio
         setFileError(null); // B-144: a banner about the previous note does not follow us here
         setCurrentNote(note);
         setCurrentNotePath(relativePath);
+        // The breadcrumb shows the folder the note lives in, wherever the request came from
+        // (a compiled note lands at the notes root while the pane may sit in Verse Notes/...).
+        setCurrentPath(folderOfNotePath(relativePath));
         setView('editor');
         useNoteEditorStore.getState().resetContent(note.content || ''); // allow-getstate: open-note async callback - imperative store reset outside render
         useFileNotesStore.getState().addRecentFile(relativePath, note.title); // allow-getstate: open-note async callback - imperative store update outside render
@@ -88,7 +107,7 @@ export function useNotesNavigation(args: UseNotesNavigationArgs): NotesNavigatio
     } catch (err: unknown) {
       setFileError(`Failed to open note: ${err instanceof Error ? err.message : String(err)}`);
     }
-  }, [view, editorIsDirty, currentNotePath, setCurrentNote, setCurrentNotePath, setView, setFileError]);
+  }, [view, editorIsDirty, currentNotePath, setCurrentNote, setCurrentNotePath, setCurrentPath, setView, setFileError]);
 
   const handleBreadcrumbNavigate = useCallback((navPath: string) => {
     if (view === 'editor' && editorIsDirty) {
@@ -133,8 +152,13 @@ export function useNotesNavigation(args: UseNotesNavigationArgs): NotesNavigatio
   }, [currentNote, currentNotePath, setRenameEntry]);
 
   const handlePopOut = useCallback(async () => {
-    if (!currentNote) return;
+    const inChapter = view === 'chapter' && !!chapter;
+    if (!inChapter && !currentNote) return;
     try {
+      if (inChapter) await flushChapter?.();
+      // A draft with text gets its file first, so the new window opens the saved
+      // note; an empty draft is passed on as a path and reopens as a draft there.
+      if (!inChapter && currentNote && isDraftNote(currentNote) && editorIsDirty) await handleSaveNote();
       // Same detach path as DockviewTabRenderer's "Pop Out to Window" context
       // menu item: 'verse-notes' is the registered PaneType (electron/config/
       // paneConfig.ts) whose component is UserNotesPane; the initial-state
@@ -144,6 +168,8 @@ export function useNotesNavigation(args: UseNotesNavigationArgs): NotesNavigatio
         initialView: view,
         initialCurrentPath: currentPath,
         initialCurrentNotePath: currentNotePath,
+        // Chapter view: the window opens on the same chapter and is titled with it.
+        ...(inChapter && chapter ? { initialChapter: chapter, noteName: chapterTitle(chapter) } : {}),
       });
       if (!result.success) {
         setFileError(`Failed to pop out note: ${result.error || 'Unknown error'}`);
@@ -155,7 +181,7 @@ export function useNotesNavigation(args: UseNotesNavigationArgs): NotesNavigatio
     } catch (err: unknown) {
       setFileError(`Failed to pop out note: ${err instanceof Error ? err.message : String(err)}`);
     }
-  }, [currentNote, view, currentPath, currentNotePath, panelId, setFileError]);
+  }, [currentNote, view, chapter, flushChapter, currentPath, currentNotePath, panelId, editorIsDirty, handleSaveNote, setFileError]);
 
   return {
     loadDirectory,

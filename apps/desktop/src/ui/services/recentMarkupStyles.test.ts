@@ -89,15 +89,17 @@ describe('recent markup styles', () => {
       ]);
     });
 
-    it('keeps only the three most recent', () => {
+    it('keeps only the four most recent', () => {
+      const GREEN_HIGHLIGHT: MarkupStyle = { markupType: 'highlight', color: 'green' };
       let list: MarkupStyle[] = [];
-      for (const style of [YELLOW_HIGHLIGHT, RED_HIGHLIGHT, BLUE_HIGHLIGHT, WAVY_RED_UNDERLINE]) {
+      for (const style of [YELLOW_HIGHLIGHT, RED_HIGHLIGHT, BLUE_HIGHLIGHT, GREEN_HIGHLIGHT, WAVY_RED_UNDERLINE]) {
         list = withRecentMarkupStyle(list, style);
       }
-      expect(RECENT_MARKUP_STYLES_LIMIT).toBe(3);
-      expect(list).toHaveLength(3);
+      expect(RECENT_MARKUP_STYLES_LIMIT).toBe(4);
+      expect(list).toHaveLength(4);
       expect(list.map(markupStyleKey)).toEqual([
         markupStyleKey(WAVY_RED_UNDERLINE),
+        markupStyleKey(GREEN_HIGHLIGHT),
         markupStyleKey(BLUE_HIGHLIGHT),
         markupStyleKey(RED_HIGHLIGHT),
       ]);

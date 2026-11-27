@@ -145,6 +145,40 @@ describe('useNotesNavigation - handlePopOut', () => {
   });
 });
 
+describe('useNotesNavigation - handlePopOut from the chapter view', () => {
+  const CH = { book: 45, chapter: 8, follow: true, onlyWithNotes: false };
+
+  beforeEach(() => {
+    window.electron.window.detachPane = vi.fn().mockResolvedValue({ success: true, windowId: 'detached-1' });
+  });
+
+  it('sends initialChapter and a chapter noteName, after flushing the open row', async () => {
+    const flushChapter = vi.fn().mockResolvedValue(undefined);
+    const args = baseArgs({ view: 'chapter', chapter: CH, currentNote: null, currentNotePath: '', flushChapter });
+    const { result } = renderHook(() => useNotesNavigation(args));
+
+    await result.current.handlePopOut();
+
+    expect(flushChapter).toHaveBeenCalledTimes(1);
+    const [type, payload] = (window.electron.window.detachPane as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(type).toBe('verse-notes');
+    expect(payload).toEqual(expect.objectContaining({
+      initialView: 'chapter',
+      initialChapter: CH,
+      noteName: expect.stringMatching(/ 8$/),
+    }));
+  });
+
+  it('does not add chapter fields for a single-note pop-out', async () => {
+    const args = baseArgs({ chapter: CH });
+    const { result } = renderHook(() => useNotesNavigation(args));
+    await result.current.handlePopOut();
+    const payload = (window.electron.window.detachPane as ReturnType<typeof vi.fn>).mock.calls[0][1];
+    expect(payload.initialChapter).toBeUndefined();
+    expect(payload.noteName).toBeUndefined();
+  });
+});
+
 describe('useNotesNavigation - requestRenameCurrentNote', () => {
   it('opens the rename dialog for a regular document note', () => {
     const args = baseArgs({ currentNote: makeNote({ type: 'document', title: 'Sermon Prep' }) });
@@ -196,5 +230,18 @@ describe('useNotesNavigation - handleOpenNote with unsaved edits', () => {
     await result.current.handleOpenNote('Documents/Broken.bn');
     expect(args.setFileError).toHaveBeenCalledWith(expect.stringContaining('could not be read'));
     expect(args.setCurrentNote).not.toHaveBeenCalled();
+  });
+});
+
+describe('useNotesNavigation - handleOpenNote sets the folder', () => {
+  it('moves the current folder to the opened note\'s folder (F3)', async () => {
+    const fileNotesAPI = await import('../../../../services/fileNotesAPI');
+    vi.mocked(fileNotesAPI.readNote).mockResolvedValue(makeNote({ title: 'Compiled' }));
+    const args = baseArgs({ view: 'browser' as never, currentPath: 'Verse Notes/Isaiah/53' });
+    const { result } = renderHook(() => useNotesNavigation(args));
+    await result.current.handleOpenNote('Romans 7.24-8.4.bn');
+    expect(args.setCurrentPath).toHaveBeenCalledWith('');
+    await result.current.handleOpenNote('Documents/Deep/Other.bn');
+    expect(args.setCurrentPath).toHaveBeenLastCalledWith('Documents/Deep');
   });
 });

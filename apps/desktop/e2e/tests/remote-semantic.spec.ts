@@ -92,7 +92,7 @@ async function runSemanticSearch(window: Page, query: string): Promise<void> {
   const input = window.locator('[data-testid="search-input"]');
   await input.fill(query);
   await input.press('Enter');
-  const toggle = window.getByRole('button', { name: /semantic/i }).first();
+  const toggle = window.getByRole('button', { name: /ideas search/i }).first();
   await expect(toggle).toBeVisible({ timeout: 20000 });
   await toggle.click({ force: true });
 }

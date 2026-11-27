@@ -122,11 +122,18 @@ import { registerPrivacyPrefsReader } from './helpers/privacyPrefs';
 export type VerseLabelMode = 'number' | 'chapterVerse' | 'bookChapterVerse';
 const VERSE_LABEL_MODES: readonly VerseLabelMode[] = ['number', 'chapterVerse', 'bookChapterVerse'];
 
-/** How wide the Bible and Study text column may grow in a wide pane. `medium` is the long-standing cap. */
-export type ReadingWidth = 'narrow' | 'medium' | 'wide' | 'full';
-const READING_WIDTHS: readonly ReadingWidth[] = ['narrow', 'medium', 'wide', 'full'];
-/** Column cap per width as [Bible, Study] CSS lengths. Rem, so the default equals the old max-w-3xl / max-w-4xl. */
-export const READING_WIDTH_CAPS: Record<ReadingWidth, readonly [string, string]> = {
+/**
+ * How wide the Bible text column may grow in a wide pane, set separately for each display mode
+ * (`standardWidth`, `readingWidth`, `studyWidth`), so Standard can fill the pane while Reading keeps a
+ * book-like measure. `medium` is the long-standing cap. Parallel view has no cap.
+ */
+export type ColumnWidth = 'narrow' | 'medium' | 'wide' | 'full';
+const COLUMN_WIDTHS: readonly ColumnWidth[] = ['narrow', 'medium', 'wide', 'full'];
+/**
+ * Column cap per width as [Standard/Reading, Study] CSS lengths. Rem, so the default equals the old
+ * max-w-3xl / max-w-4xl. Study's caps are a step wider because its column carries the interlinear.
+ */
+export const COLUMN_WIDTH_CAPS: Record<ColumnWidth, readonly [string, string]> = {
   narrow: ['36rem', '44rem'],
   medium: ['48rem', '56rem'],
   wide: ['64rem', '72rem'],
@@ -134,8 +141,12 @@ export const READING_WIDTH_CAPS: Record<ReadingWidth, readonly [string, string]>
 };
 
 export interface TypographyPrefs {
-  /** Cap on the reading column width (Bible and Study views). Default `medium`. */
-  readingWidth: ReadingWidth;
+  /** Cap on the text column width in Standard view. Default `medium`. */
+  standardWidth: ColumnWidth;
+  /** Cap on the text column width in Reading view. Default `medium`. */
+  readingWidth: ColumnWidth;
+  /** Cap on the text column width in Study view. Default `medium`. */
+  studyWidth: ColumnWidth;
   /** Verse labels in the Bible pane (standard, study and parallel views). Default `number`. */
   verseLabelMode: VerseLabelMode;
   bibleFontSize: number;   // 12-48px, default 20
@@ -150,7 +161,9 @@ export interface TypographyPrefs {
 }
 
 export const DEFAULT_TYPOGRAPHY: TypographyPrefs = {
+  standardWidth: 'medium',
   readingWidth: 'medium',
+  studyWidth: 'medium',
   verseLabelMode: 'number',
   bibleFontSize: 20,
   studyFontSize: 16,
@@ -207,6 +220,8 @@ interface PreferencesState {
   readingPlanOpenIn: ReadingPlanOpenIn;
   /** Show short app names under the rail icons (task 0222 R3-12). */
   appRailLabels: boolean;
+  /** The Go to Passage picker goes on to a verse grid after the chapter ("Also choose a verse"). Default off. */
+  pickerVerseStep: boolean;
 
   /** App switcher rail: `auto` (only with more than one app), `rail` (always), `none` (task 0080). */
   appSwitcher: AppSwitcherMode;
@@ -232,6 +247,7 @@ interface PreferencesState {
   setReadingPlanShowStreak: (show: boolean) => void;
   setReadingPlanOpenIn: (where: ReadingPlanOpenIn) => void;
   setAppRailLabels: (show: boolean) => void;
+  setPickerVerseStep: (on: boolean) => void;
   setAppSwitcher: (mode: AppSwitcherMode) => void;
   setScrollbarSize: (size: ScrollbarSize) => void;
   setAppOrder: (ids: readonly string[]) => void;
@@ -260,6 +276,7 @@ interface PreferencesState {
     readingPlanShowStreak?: boolean;
     readingPlanOpenIn?: unknown;
     appRailLabels?: unknown;
+    pickerVerseStep?: unknown;
     appSwitcher?: unknown;
     scrollbarSize?: unknown;
     appOrder?: unknown;
@@ -279,6 +296,7 @@ interface PreferencesState {
     readingPlanShowStreak: boolean;
     readingPlanOpenIn: ReadingPlanOpenIn;
     appRailLabels: boolean;
+    pickerVerseStep: boolean;
     appSwitcher: AppSwitcherMode;
     scrollbarSize: ScrollbarSize;
     appOrder: string[];
@@ -423,9 +441,9 @@ function applyUiScaleToDOM(): void {
 function applyTypographyToDOM(prefs: TypographyPrefs): void {
   if (typeof document !== 'undefined') {
     const root = document.documentElement.style;
-    const [bibleMax, studyMax] = READING_WIDTH_CAPS[prefs.readingWidth] ?? READING_WIDTH_CAPS.medium;
-    root.setProperty('--bible-max-width', bibleMax);
-    root.setProperty('--study-max-width', studyMax);
+    root.setProperty('--standard-max-width', (COLUMN_WIDTH_CAPS[prefs.standardWidth] ?? COLUMN_WIDTH_CAPS.medium)[0]);
+    root.setProperty('--reading-max-width', (COLUMN_WIDTH_CAPS[prefs.readingWidth] ?? COLUMN_WIDTH_CAPS.medium)[0]);
+    root.setProperty('--study-max-width', (COLUMN_WIDTH_CAPS[prefs.studyWidth] ?? COLUMN_WIDTH_CAPS.medium)[1]);
     root.setProperty('--bible-font-size', `${prefs.bibleFontSize}px`);
     root.setProperty('--study-font-size', `${prefs.studyFontSize}px`);
     root.setProperty('--ui-font-size', `${prefs.uiFontSize}px`);
@@ -479,8 +497,15 @@ function isValidFontFamilyId(value: unknown): value is string {
  */
 function sanitizeTypography(saved: Partial<TypographyPrefs> | undefined): TypographyPrefs {
   const s = saved ?? {};
+  const width = (v: unknown, fallback: ColumnWidth): ColumnWidth =>
+    COLUMN_WIDTHS.includes(v as ColumnWidth) ? (v as ColumnWidth) : fallback;
+  // Pre-release builds had one `readingWidth` for every view; a profile saved by one (it has no
+  // `standardWidth`) keeps that width in all three.
+  const legacyAll = s.standardWidth === undefined ? width(s.readingWidth, DEFAULT_TYPOGRAPHY.readingWidth) : undefined;
   return {
-    readingWidth: READING_WIDTHS.includes(s.readingWidth as ReadingWidth) ? (s.readingWidth as ReadingWidth) : DEFAULT_TYPOGRAPHY.readingWidth,
+    standardWidth: width(s.standardWidth, legacyAll ?? DEFAULT_TYPOGRAPHY.standardWidth),
+    readingWidth: width(s.readingWidth, DEFAULT_TYPOGRAPHY.readingWidth),
+    studyWidth: width(s.studyWidth, legacyAll ?? DEFAULT_TYPOGRAPHY.studyWidth),
     verseLabelMode: VERSE_LABEL_MODES.includes(s.verseLabelMode as VerseLabelMode) ? (s.verseLabelMode as VerseLabelMode) : DEFAULT_TYPOGRAPHY.verseLabelMode,
     bibleFontSize: isFiniteInRange(s.bibleFontSize, 12, 48) ? s.bibleFontSize : DEFAULT_TYPOGRAPHY.bibleFontSize,
     studyFontSize: isFiniteInRange(s.studyFontSize, 12, 36) ? s.studyFontSize : DEFAULT_TYPOGRAPHY.studyFontSize,
@@ -507,6 +532,7 @@ export const usePreferencesStore = create<PreferencesState>((set, get) => ({
   readingPlanShowStreak: false,
   readingPlanOpenIn: 'tab',
   appRailLabels: true,
+  pickerVerseStep: false,
   appSwitcher: 'auto',
   scrollbarSize: 'standard',
   appOrder: [],
@@ -570,6 +596,11 @@ export const usePreferencesStore = create<PreferencesState>((set, get) => ({
 
   setAppRailLabels: (show: boolean) => {
     set({ appRailLabels: show });
+    markSessionDirty();
+  },
+
+  setPickerVerseStep: (on: boolean) => {
+    set({ pickerVerseStep: on });
     markSessionDirty();
   },
 
@@ -661,6 +692,7 @@ export const usePreferencesStore = create<PreferencesState>((set, get) => ({
     const readingPlanShowStreak = typeof data.readingPlanShowStreak === 'boolean' ? data.readingPlanShowStreak : false;
     const readingPlanOpenIn: ReadingPlanOpenIn = data.readingPlanOpenIn === 'current' ? 'current' : 'tab';
     const appRailLabels = typeof data.appRailLabels === 'boolean' ? data.appRailLabels : true;
+    const pickerVerseStep = data.pickerVerseStep === true;
 
     const searchResultsPlacement = sanitizeSearchResultsPlacement(data.searchResultsPlacement);
     // Absent (every session written before 0224) means the private default: off.
@@ -675,7 +707,8 @@ export const usePreferencesStore = create<PreferencesState>((set, get) => ({
     set({
       theme, globalFontScale, uiControlFontSize, typography, advancedPaneManagerEnabled,
       searchResultsPlacement, reopenSearchTabs, rememberReadingHistory,
-      readingPlanRolloverHour, readingPlanShowStreak, readingPlanOpenIn, appRailLabels, appSwitcher, scrollbarSize, appOrder, appHidden, recentBibleVersions,
+      readingPlanRolloverHour, readingPlanShowStreak, readingPlanOpenIn, appRailLabels, pickerVerseStep,
+      appSwitcher, scrollbarSize, appOrder, appHidden, recentBibleVersions,
     });
     applyThemeToDOM(theme);
     notifyMainOfTheme(theme);
@@ -689,12 +722,14 @@ export const usePreferencesStore = create<PreferencesState>((set, get) => ({
     const {
       theme, globalFontScale, uiControlFontSize, typography, advancedPaneManagerEnabled,
       searchResultsPlacement, reopenSearchTabs, rememberReadingHistory,
-      readingPlanRolloverHour, readingPlanShowStreak, readingPlanOpenIn, appRailLabels, appSwitcher, scrollbarSize, appOrder, appHidden, recentBibleVersions,
+      readingPlanRolloverHour, readingPlanShowStreak, readingPlanOpenIn, appRailLabels, pickerVerseStep,
+      appSwitcher, scrollbarSize, appOrder, appHidden, recentBibleVersions,
     } = get();
     return {
       theme, globalFontScale, uiControlFontSize, typography, advancedPaneManagerEnabled,
       searchResultsPlacement, reopenSearchTabs, rememberReadingHistory,
-      readingPlanRolloverHour, readingPlanShowStreak, readingPlanOpenIn, appRailLabels, appSwitcher, scrollbarSize, appOrder, appHidden, recentBibleVersions,
+      readingPlanRolloverHour, readingPlanShowStreak, readingPlanOpenIn, appRailLabels, pickerVerseStep,
+      appSwitcher, scrollbarSize, appOrder, appHidden, recentBibleVersions,
     };
   }
 }));

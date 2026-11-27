@@ -50,6 +50,10 @@ const BookmarkMenu: React.FC = () => {
     await toggleVerseBookmark(range?.start ?? selectedVerseId, range?.end, activeTab?.moduleId);
   };
 
+  // More than one verse selected (shift-click or drag): the item saves the whole passage, and says so.
+  const selectedRange = selectedVerseId === null ? null : getBookmarkRange(selectedVerseId, selectionEndVerseId);
+  const isPassage = !!selectedRange && selectedRange.end !== undefined && selectedRange.end !== selectedRange.start;
+
   const shown = bookmarks.slice(0, MAX_DROPDOWN_ITEMS);
   const overflow = bookmarks.length - shown.length;
 
@@ -108,7 +112,9 @@ const BookmarkMenu: React.FC = () => {
             <span>
               {isBookmarked
                 ? t('biblePane.removeBookmarkTitle')
-                : t('biblePane.addCurrentVerse')}
+                : isPassage
+                  ? t('biblePane.addSelectedPassage')
+                  : t('biblePane.addCurrentVerse')}
             </span>
           </button>
 

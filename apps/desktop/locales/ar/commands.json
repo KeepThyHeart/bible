@@ -95,5 +95,8 @@
   "wordStudy.open.alias.1": "strongs study",
   "wordStudy.open.alias.2": "concordance",
   "readingPlans.continue": "متابعة خطة القراءة",
-  "readingPlans.openBeside": "فتح خطط القراءة بجانب الكتاب المقدس"
+  "readingPlans.openBeside": "فتح خطط القراءة بجانب الكتاب المقدس",
+  "help.sendFeedback": "إرسال ملاحظات",
+  "notes.compilePassageNotes": "تجميع ملاحظات المقاطع",
+  "notes.compilePassageNotes.category": "الملاحظات"
 }

@@ -28,5 +28,6 @@
   "menu.help.reportIssue": "Сообщить о проблеме",
   "menu.help.about": "О программе «Библия»",
   "menu.tools.title": "Инструменты",
-  "menu.view.apps": "Приложения"
+  "menu.view.apps": "Приложения",
+  "menu.help.sendFeedback": "Отправить отзыв…"
 }

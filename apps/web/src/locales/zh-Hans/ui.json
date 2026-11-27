@@ -472,7 +472,35 @@
     "loading": "正在加载经节…",
     "copyFailed": "无法复制到剪贴板。请检查是否允许此网站使用剪贴板。",
     "referencePosition": "出处位置",
-    "print": "打印"
+    "print": "打印",
+    "printLayout": "打印版式",
+    "printLayoutNumbered": "带编号的经文",
+    "printLayoutBlockquote": "引用块",
+    "printLayoutPreview": "与预览相同",
+    "printNotesMargin": "留出批注边距",
+    "printMarginWidth": "边距宽度：{{width}} 厘米",
+    "printMarginRule": "在边距处画一条线",
+    "printUnits": "单位",
+    "printUnitCm": "厘米",
+    "printUnitIn": "英寸",
+    "printMarginWidthIn": "边距宽度：{{width}} 英寸",
+    "printLineSpacing": "行距",
+    "printLineSpacingNormal": "正常",
+    "printFontSize": "文字大小：{{size}} 磅",
+    "printPreviewLabel": "打印页面预览",
+    "printTheme": "配色主题",
+    "printThemeBw": "黑白",
+    "printThemeClassic": "经典（深红）",
+    "printThemeBlue": "蓝色",
+    "printThemeGreen": "绿色",
+    "printThemeSepia": "深褐色",
+    "printRedLetters": "耶稣的话用红字",
+    "printShowTitle": "打印标题",
+    "printMoreOptions": "更多选项…",
+    "printThisFormat": "以此格式打印…",
+    "printSavePdf": "另存为 PDF…",
+    "printTitle": "打印经文",
+    "printPdfHint": "要保存为 PDF，请在打印窗口中选择“另存为 PDF”作为打印机。"
   },
   "ui": {
     "passageInsert": {
@@ -884,7 +912,8 @@
     "chapterOption": "{book}第{chapter}章",
     "selectAVerse": "选择一节，或前往整章",
     "goToChapter": "前往 {book} {chapter}",
-    "verseOption": "{book} {chapter}:{verse}"
+    "verseOption": "{book} {chapter}:{verse}",
+    "alsoChooseVerse": "同时选择一节"
   },
   "helpDialog": {
     "esc": "Esc"

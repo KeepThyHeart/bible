@@ -12,6 +12,9 @@ import React from 'react';
 import LibraryHome, { type LibraryModule } from './LibraryHome';
 import { ContextProvider, type AppServices } from '../contexts/ContextProvider';
 import { enT } from '../testing/enCatalog';
+import { useLookUpStore } from '../stores/useLookUpStore';
+
+vi.mock('../services/electronAPI', () => ({ dictionaryAPI: { lookUp: vi.fn() } }));
 
 function createMockServices(): AppServices {
   return {
@@ -143,5 +146,41 @@ describe('LibraryHome', () => {
     // would be a claim the component cannot support.
     expect(within(bookSection).queryByTestId('library-install-book')).not.toBeInTheDocument();
     expect(within(bookSection).getByText('Loading…')).toBeInTheDocument();
+  });
+});
+
+describe('LibraryHome: the dictionary word search', () => {
+  it('leads with a word search across every dictionary, and keeps a small name filter for the list', () => {
+    renderShelf({ kind: 'dictionary', onOpenEntry: vi.fn() });
+    const search = screen.getByTestId('library-word-search');
+    expect(search).toHaveAttribute('placeholder', 'Search for a word in every dictionary');
+    expect(screen.getByTestId('library-filter')).toHaveAttribute('placeholder', 'Filter dictionaries…');
+  });
+
+  it('looks the typed word up in every dictionary and opens a picked entry', async () => {
+    const user = userEvent.setup();
+    const run = vi.spyOn(useLookUpStore.getState(), 'run').mockImplementation(async (q) => {
+      useLookUpStore.setState({
+        query: q,
+        loading: false,
+        groups: [{ providerId: 'dictionary', sourceId: 'easton', sourceName: 'Easton', entries: [{ key: 'GRACE', title: 'Grace' }] }],
+      });
+    });
+    const onOpenEntry = vi.fn();
+    renderShelf({ kind: 'dictionary', onOpenEntry });
+
+    await user.type(screen.getByTestId('library-word-search'), 'grace{Enter}');
+    expect(run).toHaveBeenCalledWith({ text: 'grace' });
+    await user.click(await screen.findByText('Grace'));
+    expect(onOpenEntry).toHaveBeenCalledWith('easton', 'Easton', 'GRACE');
+    run.mockRestore();
+    useLookUpStore.getState().clear();
+  });
+
+  it('shows a look-up started elsewhere (the verse menu) in the box', () => {
+    useLookUpStore.setState({ query: { text: 'love' }, groups: [], loading: false });
+    renderShelf({ kind: 'dictionary', onOpenEntry: vi.fn() });
+    expect(screen.getByTestId('library-word-search')).toHaveValue('love');
+    useLookUpStore.getState().clear();
   });
 });

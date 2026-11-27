@@ -95,5 +95,8 @@
   "wordStudy.open.alias.1": "strongs study",
   "wordStudy.open.alias.2": "concordance",
   "readingPlans.continue": "Continuar plano de leitura",
-  "readingPlans.openBeside": "Abrir planos de leitura ao lado da Bíblia"
+  "readingPlans.openBeside": "Abrir planos de leitura ao lado da Bíblia",
+  "help.sendFeedback": "Enviar feedback",
+  "notes.compilePassageNotes": "Compilar notas de passagens",
+  "notes.compilePassageNotes.category": "Notas"
 }

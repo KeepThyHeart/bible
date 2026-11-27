@@ -4,6 +4,9 @@ import * as crypto from 'crypto';
 import { app, shell } from 'electron';
 import log from 'electron-log';
 import { NOTES_BACKUP_INTERVAL_MS } from '../config/constants';
+import { noteHasContent } from '../utils/noteHasContent';
+import { VerseIdHelper } from '@bible/core';
+import { assertVerseNoteQueries, type VerseNoteQuery, type VerseNoteRecord } from '../ipc/verseNoteBulk';
 
 /**
  * .bn file envelope structure
@@ -252,10 +255,14 @@ export class BibleNotesFileService {
 
     const entries = fs.readdirSync(fullPath, { withFileTypes: true });
     const result: FileEntry[] = [];
+    // Inside Verse Notes, a book or chapter folder with no note that has
+    // content is hidden (cleared notes keep their file but leave no trace).
+    const inVerseNotes = BibleNotesFileService.isInVerseNotes(relativePath);
 
     for (const entry of entries) {
       // Skip .bak files and hidden files
       if (entry.name.startsWith('.') || entry.name.endsWith('.bak')) continue;
+      if (inVerseNotes && entry.isDirectory() && !this.dirHasNoteWithContent(path.join(fullPath, entry.name))) continue;
 
       const entryPath = path.join(fullPath, entry.name);
       const stat = fs.statSync(entryPath);
@@ -286,6 +293,39 @@ export class BibleNotesFileService {
     });
 
     return result;
+  }
+
+  /** Is `relativePath` the Verse Notes folder or inside it? */
+  private static isInVerseNotes(relativePath: string): boolean {
+    const norm = relativePath.replace(/\\/g, '/').replace(/^\/+|\/+$/g, '');
+    const root = BibleNotesFileService.VERSE_NOTES_FOLDER;
+    return norm === root || norm.startsWith(root + '/');
+  }
+
+  /** Does this .bn file hold real content (see {@link noteHasContent})? Unreadable files count as empty. */
+  private fileHasContent(absolutePath: string): boolean {
+    const note = this.readNoteTracked(absolutePath, false);
+    return !!note && noteHasContent(note.content);
+  }
+
+  /** Is there at least one .bn with content anywhere below this directory? Stops at the first. */
+  private dirHasNoteWithContent(absoluteDir: string): boolean {
+    let entries: fs.Dirent[];
+    try {
+      entries = fs.readdirSync(absoluteDir, { withFileTypes: true });
+    } catch {
+      return false;
+    }
+    for (const entry of entries) {
+      if (entry.name.startsWith('.') || entry.name.endsWith('.bak')) continue;
+      const full = path.join(absoluteDir, entry.name);
+      if (entry.isDirectory()) {
+        if (this.dirHasNoteWithContent(full)) return true;
+      } else if (entry.name.endsWith('.bn') && this.fileHasContent(full)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   /**
@@ -446,6 +486,59 @@ export class BibleNotesFileService {
   }
 
   /**
+   * Save the verse note for `verseId`, creating its file (envelope, type
+   * `verse_note`, title and primary passage) when it does not exist yet, or
+   * updating the content of the existing one. A new verse note lives only in
+   * the editor until its first save with content; this is what writes it.
+   *
+   * @param bookName - Folder name of the book (the localized name the notes
+   *   folder uses); the caller supplies it, main has no book-name table.
+   * @param expectedUpdated - Same conflict check as {@link saveNote}: when given
+   *   and the file changed (or vanished) since, the save is refused. Without it
+   *   the save is create-only: an existing file (or an unreadable one) is a conflict.
+   */
+  saveVerseNote(
+    bookName: string,
+    verseId: number,
+    html: string,
+    expectedUpdated?: string
+  ): { note: BnFile; relativePath: string } {
+    const { chapter, verse } = VerseIdHelper.parse(verseId);
+    const relativePath = this.getVerseNotePath(bookName, chapter, verse);
+    const fullPath = this.resolveNotePath(relativePath);
+    const fileExists = fs.existsSync(fullPath);
+    const existing = fileExists ? this.readNoteTracked(fullPath, false) : null;
+
+    // Create-only without a baseline: a draft (no file when it was opened) must
+    // never overwrite a note that appeared meanwhile. An unreadable file is
+    // never replaced either.
+    if (fileExists && !existing) throw new NoteConflictError('', expectedUpdated ?? '');
+    if (existing && expectedUpdated === undefined) {
+      throw new NoteConflictError(existing.updated, '');
+    }
+
+    let note: BnFile;
+    if (existing) {
+      note = { ...existing, content: html };
+    } else {
+      const now = new Date().toISOString();
+      note = {
+        bn: BN_VERSION,
+        type: 'verse_note',
+        title: `${bookName} ${chapter}:${verse}`,
+        tags: [],
+        passages: [{ start: verseId, end: verseId, association: 'primary' }],
+        created: now,
+        updated: now,
+        content: html,
+        metadata: {}
+      };
+    }
+    this.saveNote(relativePath, note, expectedUpdated); // sets note.updated
+    return { note, relativePath };
+  }
+
+  /**
    * Read a verse note if it exists.
    */
   readVerseNote(
@@ -483,7 +576,51 @@ export class BibleNotesFileService {
       bookName,
       String(chapter)
     );
-    return this.listDirectory(relPath);
+    // Markers count only notes with content: a note cleared to empty keeps
+    // its file but no longer marks its verse.
+    return this.listDirectory(relPath).filter(
+      (e) => e.isDirectory || this.fileHasContent(this.resolveNotePath(e.path))
+    );
+  }
+
+  /**
+   * Read the verse notes with content for each query (a chapter, or a verse
+   * range of it), in query order then verse number. Only `<verse>.bn` files
+   * count (so `3 (unsaved changes).bn` is ignored); a missing chapter folder
+   * yields nothing. Invalid queries throw `IpcKnownError('invalid_input')`.
+   */
+  readVerseNotes(queries: VerseNoteQuery[]): VerseNoteRecord[] {
+    assertVerseNoteQueries(queries);
+    const out: VerseNoteRecord[] = [];
+    for (const q of queries) {
+      const dirRel = path.join(BibleNotesFileService.VERSE_NOTES_FOLDER, q.bookName, String(q.chapter));
+      let names: string[];
+      try {
+        names = fs.readdirSync(this.safeResolve(dirRel));
+      } catch {
+        continue; // missing folder
+      }
+      const from = q.fromVerse ?? 1;
+      const to = q.toVerse ?? 999;
+      const verses = names
+        .map((n) => /^(\d+)\.bn$/.exec(n))
+        .filter((m): m is RegExpExecArray => !!m)
+        .map((m) => Number(m[1]))
+        .filter((v) => v >= from && v <= to)
+        .sort((a, b) => a - b);
+      for (const verse of verses) {
+        const relativePath = this.getVerseNotePath(q.bookName, q.chapter, verse);
+        let note: BnFile | null = null;
+        try {
+          note = this.readNoteTracked(this.resolveNotePath(relativePath), false);
+        } catch {
+          note = null; // unreadable counts as empty
+        }
+        if (!note || !noteHasContent(note.content)) continue;
+        out.push({ bookName: q.bookName, chapter: q.chapter, verse, relativePath: relativePath.replace(/\\/g, '/'), note });
+      }
+    }
+    return out;
   }
 
   /** Whether `relativePath` is a verse note: Verse Notes/<Book>/<Chapter>/<Verse>.bn */

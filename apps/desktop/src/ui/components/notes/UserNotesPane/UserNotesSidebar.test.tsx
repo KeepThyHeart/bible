@@ -5,7 +5,7 @@
  */
 import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import UserNotesSidebar from './UserNotesSidebar';
 import { ContextProvider, type AppServices } from '../../../contexts/ContextProvider';
 import type { BnFile } from '../../../services/fileNotesAPI';
@@ -97,5 +97,19 @@ describe('UserNotesSidebar - Rename action visibility', () => {
   it('still shows Move to... for a verse note (only rename is blocked)', () => {
     renderSidebar({ currentNote: makeNote({ type: 'verse_note', title: 'John 3:16' }) });
     expect(screen.getByText('Move to...')).toBeInTheDocument();
+  });
+});
+
+describe('UserNotesSidebar - Delete action', () => {
+  it('shows Delete for an open verse note and calls onRequestDelete', () => {
+    const onRequestDelete = vi.fn();
+    renderSidebar({ currentNote: makeNote({ type: 'verse_note', title: 'John 3:16' }), onRequestDelete });
+    fireEvent.click(screen.getByText(/^Delete \(/));
+    expect(onRequestDelete).toHaveBeenCalledTimes(1);
+  });
+
+  it('has no Delete without a handler', () => {
+    renderSidebar({ currentNote: makeNote({ type: 'verse_note', title: 'John 3:16' }) });
+    expect(screen.queryByText(/^Delete \(/)).not.toBeInTheDocument();
   });
 });

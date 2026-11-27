@@ -21,25 +21,39 @@ describe('verse label preference', () => {
   });
 });
 
-describe('reading width preference', () => {
+describe('text width preference (one per display mode)', () => {
   beforeEach(() => usePreferencesStore.getState().resetTypography());
+  const css = (name: string) => document.documentElement.style.getPropertyValue(name);
 
-  it('defaults to medium, which keeps the old 48rem / 56rem caps', () => {
-    expect(usePreferencesStore.getState().typography.readingWidth).toBe('medium');
-    expect(document.documentElement.style.getPropertyValue('--bible-max-width')).toBe('48rem');
-    expect(document.documentElement.style.getPropertyValue('--study-max-width')).toBe('56rem');
+  it('defaults every mode to medium, which keeps the old 48rem / 56rem caps', () => {
+    const { standardWidth, readingWidth, studyWidth } = usePreferencesStore.getState().typography;
+    expect([standardWidth, readingWidth, studyWidth]).toEqual(['medium', 'medium', 'medium']);
+    expect(css('--standard-max-width')).toBe('48rem');
+    expect(css('--reading-max-width')).toBe('48rem');
+    expect(css('--study-max-width')).toBe('56rem');
   });
 
-  it('publishes the caps as CSS variables and "full" removes the cap', () => {
-    usePreferencesStore.getState().setTypography({ readingWidth: 'wide' });
-    expect(document.documentElement.style.getPropertyValue('--bible-max-width')).toBe('64rem');
-    usePreferencesStore.getState().setTypography({ readingWidth: 'full' });
-    expect(document.documentElement.style.getPropertyValue('--bible-max-width')).toBe('none');
+  it('sets each mode on its own: Standard can fill the pane while Reading keeps its cap', () => {
+    usePreferencesStore.getState().setTypography({ standardWidth: 'full' });
+    expect(css('--standard-max-width')).toBe('none');
+    expect(css('--reading-max-width')).toBe('48rem');
+    expect(css('--study-max-width')).toBe('56rem');
+    usePreferencesStore.getState().setTypography({ readingWidth: 'narrow', studyWidth: 'wide' });
+    expect(css('--reading-max-width')).toBe('36rem');
+    expect(css('--study-max-width')).toBe('72rem');
   });
 
   it('drops an unknown saved width', () => {
     const data = usePreferencesStore.getState().getSessionData();
-    usePreferencesStore.getState().loadFromSession({ ...data, typography: { ...data.typography, readingWidth: 'huge' as never } });
-    expect(usePreferencesStore.getState().typography.readingWidth).toBe('medium');
+    usePreferencesStore.getState().loadFromSession({ ...data, typography: { ...data.typography, standardWidth: 'huge' as never } });
+    expect(usePreferencesStore.getState().typography.standardWidth).toBe('medium');
+  });
+
+  it('gives all three modes the single width a pre-release profile saved', () => {
+    const data = usePreferencesStore.getState().getSessionData();
+    const { standardWidth: _s, studyWidth: _t, ...legacy } = data.typography;
+    usePreferencesStore.getState().loadFromSession({ ...data, typography: { ...legacy, readingWidth: 'wide' } as never });
+    const { standardWidth, readingWidth, studyWidth } = usePreferencesStore.getState().typography;
+    expect([standardWidth, readingWidth, studyWidth]).toEqual(['wide', 'wide', 'wide']);
   });
 });

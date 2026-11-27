@@ -1,5 +1,10 @@
 import { create } from 'zustand';
 import { registerSessionSerializer } from './helpers/sessionRegistry';
+import {
+  sanitizeChapterModeNavState,
+  chapterStatesEqual,
+  type ChapterModeNavState,
+} from './notesChapterNavState';
 
 const MAX_RECENT_FILES = 20;
 
@@ -9,7 +14,7 @@ export interface RecentFile {
   openedAt: string; // ISO 8601
 }
 
-export type NotesPanelView = 'browser' | 'editor';
+export type NotesPanelView = 'browser' | 'editor' | 'chapter';
 export type NotesSideTab = 'browse' | 'recent';
 
 /**
@@ -26,6 +31,8 @@ export interface NotesPanelNavState {
   sideTab?: NotesSideTab;
   currentPath: string;
   currentNotePath: string;
+  /** Chapter mode position; kept while another view is showing so toggling back returns to the same place. */
+  chapter?: ChapterModeNavState;
 }
 
 interface FileNotesSessionData {
@@ -94,14 +101,19 @@ import { markSessionDirty } from './helpers/sessionNotifier';
 export function sanitizeNotesPanelNavState(raw: unknown): NotesPanelNavState | undefined {
   if (typeof raw !== 'object' || raw === null) return undefined;
   const value = raw as Record<string, unknown>;
+  const chapter = sanitizeChapterModeNavState(value.chapter);
+  // 'chapter' is only meaningful with a valid chapter position.
+  const view: NotesPanelView =
+    value.view === 'editor' ? 'editor' : value.view === 'chapter' && chapter ? 'chapter' : 'browser';
   const sanitized: NotesPanelNavState = {
-    view: value.view === 'editor' ? 'editor' : 'browser',
+    view,
     currentPath: typeof value.currentPath === 'string' ? value.currentPath : '',
     currentNotePath: typeof value.currentNotePath === 'string' ? value.currentNotePath : '',
   };
   if (value.sideTab === 'browse' || value.sideTab === 'recent') {
     sanitized.sideTab = value.sideTab;
   }
+  if (chapter) sanitized.chapter = chapter;
   return sanitized;
 }
 
@@ -123,7 +135,8 @@ function navStatesEqual(a: NotesPanelNavState | undefined, b: NotesPanelNavState
     a.view === b.view &&
     a.sideTab === b.sideTab &&
     a.currentPath === b.currentPath &&
-    a.currentNotePath === b.currentNotePath
+    a.currentNotePath === b.currentNotePath &&
+    chapterStatesEqual(a.chapter, b.chapter)
   );
 }
 

@@ -19,11 +19,14 @@ import {
   DEFAULT_PASSAGE_FORMAT_ID,
   isPassageMarkupFormat,
   normalizeAdvancedCopyOptions,
+  defaultPrintUnit,
   normalizePassageMarkupOptions,
+  normalizePrintPreferences,
   remapLegacyFormatId,
   type AdvancedCopyOptions,
   type PassageMarkupFormatId,
   type PassageMarkupOptions,
+  type PrintPreferences,
 } from '@bible/core/browser';
 
 /**
@@ -170,3 +173,15 @@ export const COPY_PREFERENCE_KEYS = {
   markdown: MARKDOWN_KEY,
   markup: MARKUP_KEY,
 } as const;
+
+/** Print's own layout and notes-margin choices, kept apart from Copy's format and options. */
+const PRINT_KEY = 'bible-reader-print-preferences';
+
+export function loadPrintPreferences(): PrintPreferences {
+  // Inches for a US locale, centimetres elsewhere, until the user chooses.
+  return normalizePrintPreferences(readJson(PRINT_KEY), defaultPrintUnit(navigator.language));
+}
+
+export function savePrintPreferences(prefs: PrintPreferences): void {
+  writeRaw(PRINT_KEY, JSON.stringify(normalizePrintPreferences(prefs, prefs.unit)));
+}

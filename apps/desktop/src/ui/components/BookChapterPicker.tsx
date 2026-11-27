@@ -11,6 +11,7 @@ import { useI18n } from '../contexts/useI18n';
 import { localizedBookNames, localizedBookAliases } from '../constants/bibleBooks';
 import { VerseIdHelper, referenceLocalesVersion, verseCount } from '@bible/core';
 import { useSearchStore } from '../stores/useSearchStore';
+import { usePreferencesStore } from '../stores/usePreferencesStore';
 import { sanitizeHtml } from '../utils/sanitize';
 // Section colour coding for the book grid lives in `constants/bibleSections`,
 // shared with the search distribution sparkline so a book is the same hue
@@ -98,7 +99,12 @@ const BookChapterPicker: React.FC<BookChapterPickerProps> = ({ isOpen, onClose, 
     selectVerse: t('bookChapterPicker.selectVerse'),
     goToChapter: (book: string, chapter: number) => t('bookChapterPicker.goToChapter', { book, chapter }),
     verseOption: (book: string, chapter: number, verse: number) => t('bookChapterPicker.verseOption', { book, chapter, verse }),
+    alsoChooseVerse: t('bookChapterPicker.alsoChooseVerse'),
   }), [t]);
+  // Off by default: a chapter pick goes straight to the chapter. "Also choose a verse" under the chapter
+  // grid turns the verse step on, and the choice is kept with the other preferences.
+  const pickerVerseStep = usePreferencesStore(s => s.pickerVerseStep);
+  const setPickerVerseStep = usePreferencesStore(s => s.setPickerVerseStep);
   const icons = useMemo(() => ({
     back: <span aria-hidden="true" className="rtl-mirror">&larr;</span>,
   }), []);
@@ -132,6 +138,8 @@ const BookChapterPicker: React.FC<BookChapterPickerProps> = ({ isOpen, onClose, 
           bookName={(book) => bookNames[book]}
           bookAliases={bookAliases}
           verseCount={verseCount}
+          verseStep={pickerVerseStep}
+          onVerseStepChange={setPickerVerseStep}
           labels={labels}
           icons={icons}
           titleId={TITLE_ID}

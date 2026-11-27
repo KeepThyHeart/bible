@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import * as fileNotesAPI from '../../../../services/fileNotesAPI';
 import type { BnFile, NoteSavedEvent } from '../../../../services/fileNotesAPI';
+import { onLocalNoteSaved } from '../../../../services/noteSavedLocal';
 import { useNoteEditorStore } from '../../../../stores/useNoteEditorStore';
 import { isAbsolutePath } from '../utils';
 import { CONFLICT_MESSAGE, MISSING_MESSAGE, markNoteConflict, clearNoteConflict, isSaveInFlight } from './noteSave';
@@ -22,7 +23,8 @@ interface Args {
 /**
  * Keeps the open note in step with saves made in OTHER windows (main window or
  * pop-out). The main process pushes `file-notes:note-saved` to every window except
- * the saver, so this never sees its own save.
+ * the saver; saves by other panes of this same window arrive on the local bus
+ * (`noteSavedLocal`). A save of this pane's own is dropped by the `updated` check.
  *
  * - editor clean: the saved copy is read and loaded into the editor (caret and
  *   scroll kept by `reloadExternal`);
@@ -109,6 +111,17 @@ export function useNoteSavedListener(args: Args): void {
       }
     };
 
-    return fileNotesAPI.onNoteSaved((e) => { void onSaved(e); });
+    // Saves by another pane of THIS window arrive on the local bus (the main
+    // process does not push a window its own saves). Same handling, once the
+    // path is made absolute; the `updated` check drops this pane's own echo.
+    const unsubLocal = onLocalNoteSaved((e) => {
+      void (async () => {
+        let absolutePath: string;
+        try { absolutePath = await absoluteOf(e.path); } catch { return; }
+        await onSaved({ absolutePath, updated: e.updated, senderId: -1 });
+      })();
+    });
+    const unsubRemote = fileNotesAPI.onNoteSaved((e) => { void onSaved(e); });
+    return () => { unsubLocal(); unsubRemote(); };
   }, []);
 }

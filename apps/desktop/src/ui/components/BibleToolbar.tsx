@@ -4,7 +4,7 @@ import { adjacentChapter } from './bible/adjacentChapter';
 import { useI18n } from '../contexts/useI18n';
 import { useBiblePaneContext } from './BiblePaneContext';
 import { useBibleStore } from '../stores/useBibleStore';
-import PassageSettingsMenu from './bible/PassageSettingsMenu';
+import BibleSettingsMenu from './bible/BibleSettingsMenu';
 import BookmarkMenu from './bible/BookmarkMenu';
 import ToolbarPopover from './bible/ToolbarPopover';
 import { useOverlayDismissal } from '../hooks/useOverlayDismissal';
@@ -25,7 +25,7 @@ const NO_HISTORY: never[] = [];
  * This is deliberately the *only* persistent chrome the pane owns. The passage
  * itself is a dockview tab (so there is no second tab strip), and the
  * Interlinear/Notes toggles live here rather than in a strip of their own.
- * Anything new and rarely-used belongs in the settings menu, not in another
+ * Anything new and rarely-used belongs in the settings panel, not in another
  * row.
  */
 const BibleToolbar: React.FC = () => {
@@ -305,8 +305,8 @@ const BibleToolbar: React.FC = () => {
             write to the passage record as well. One control, at the top of the
             passage it governs, is enough. */}
 
-        {/* Gear - opens Text Settings directly (no intermediate menu). */}
-        <PassageSettingsMenu />
+        {/* Gear - the Bible pane's settings panel, with a link to Preferences. */}
+        <BibleSettingsMenu />
 
         {/* Previous Chapter */}
         <button

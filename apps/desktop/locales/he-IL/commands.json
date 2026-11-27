@@ -95,5 +95,8 @@
   "wordStudy.open.alias.1": "לימוד סטרונג",
   "wordStudy.open.alias.2": "מקראה",
   "readingPlans.continue": "המשך תוכנית קריאה",
-  "readingPlans.openBeside": "פתח תוכניות קריאה לצד התנ\"ך"
+  "readingPlans.openBeside": "פתח תוכניות קריאה לצד התנ\"ך",
+  "help.sendFeedback": "שליחת משוב",
+  "notes.compilePassageNotes": "הרכבת הערות לקטעים",
+  "notes.compilePassageNotes.category": "הערות"
 }

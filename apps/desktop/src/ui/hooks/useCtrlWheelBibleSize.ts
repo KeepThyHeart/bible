@@ -20,12 +20,28 @@ const STEP_INTERVAL_MS = 60;
  * override is changed instead (it is already detached, so nothing new is detached).
  */
 export function stepBibleFontSize(direction: 1 | -1): void {
-  const text = useTextSettingsStore.getState(); // allow-getstate: event handler - reads the live size, no subscription
-  const current = text.getSettings('bible').fontSize;
+  const current = useTextSettingsStore.getState().getSettings('bible').fontSize; // allow-getstate: event handler - reads the live size, no subscription
   const next = Math.min(BIBLE_FONT_MAX, Math.max(BIBLE_FONT_MIN, Math.round(current) + direction));
   if (next === current) return;
-  if (text.customized.bible) text.updateSettings('bible', { fontSize: next });
-  else usePreferencesStore.getState().setTypography({ bibleFontSize: next }); // allow-getstate: event handler
+  updateBibleText({ fontSize: next });
+}
+
+/**
+ * Change the Bible pane's text size or line height wherever it is actually set: the Bible pane's own
+ * override when Preferences > Fonts has customized it, otherwise Preferences > Typography's Bible values.
+ * Shared by Ctrl + wheel and the Bible toolbar's settings panel, so neither detaches the pane from
+ * Typography as a side effect.
+ */
+export function updateBibleText(values: { fontSize?: number; lineHeight?: number }): void {
+  const text = useTextSettingsStore.getState(); // allow-getstate: event handler
+  if (text.customized.bible) {
+    text.updateSettings('bible', values);
+    return;
+  }
+  usePreferencesStore.getState().setTypography({ // allow-getstate: event handler
+    ...(values.fontSize !== undefined ? { bibleFontSize: values.fontSize } : {}),
+    ...(values.lineHeight !== undefined ? { bibleLineHeight: values.lineHeight } : {}),
+  });
 }
 
 export function useCtrlWheelBibleSize(containerRef: React.RefObject<HTMLElement | null>): void {

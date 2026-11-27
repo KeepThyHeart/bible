@@ -427,6 +427,60 @@
   flex-shrink: 0;
 }
 
+/*
+  The Underline button's other half: a small square in the colour the button underlines with. It
+  opens the underline colour row; narrow, so the pair reads as one control.
+*/
+.floating-toolbar-underline-color {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 28px;
+  margin-inline-start: -2px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.floating-toolbar-underline-color span {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  outline: 1px solid rgb(var(--theme-text-primary-rgb) / 0.35);
+}
+.floating-toolbar-underline-color:hover,
+.floating-toolbar-underline-color[aria-expanded="true"] {
+  background-color: var(--theme-bg-hover);
+}
+
+/* The underline colour row: every palette colour as a small square; wraps rather than widening the toolbar. */
+[data-testid="underline-color-row"] {
+  flex-wrap: wrap;
+  max-width: 180px;
+}
+.floating-toolbar-underline-swatch {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  cursor: pointer;
+}
+.floating-toolbar-underline-swatch span {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+}
+.floating-toolbar-underline-swatch:hover,
+.floating-toolbar-underline-swatch[aria-pressed="true"] {
+  border-color: rgb(var(--theme-text-primary-rgb) / 0.5);
+}
+
 .floating-toolbar-btn:hover {
   background-color: var(--theme-bg-hover);
 }

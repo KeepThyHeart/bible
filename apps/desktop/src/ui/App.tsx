@@ -5,6 +5,7 @@ import ErrorBoundary from './components/ErrorBoundary';
 import TopSearchBar from './components/TopSearchBar';
 import LayoutDropdown from './components/LayoutDropdown';
 import ExtensionUiHost from './components/extensions/ExtensionUiHost';
+import CompilePassageNotesHost from './components/notes/compile/CompilePassageNotesHost';
 import ToastContainer from './components/ToastContainer';
 import LiveAnnouncer from './components/LiveAnnouncer';
 import DesktopAppStage from './apps/DesktopAppStage';
@@ -577,6 +578,7 @@ function App() {
 
         {/* Extension-driven notification + modal stack */}
         <ExtensionUiHost />
+        <CompilePassageNotesHost />
         {/* Extension install consent dialog */}
         <ExtensionConsentDialog />
         {/* Toast notifications */}

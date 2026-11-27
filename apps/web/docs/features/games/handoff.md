@@ -38,8 +38,8 @@ brief or the wireframes; where they do, **this document wins**.
 | Privacy enforced by server-side projection, never by hiding fields in the client. | [adr 0004](adr/0004-privacy-by-projection.md) |
 | Judging is a suggestion; the null provider is the default and every game is playable without one. | [adr 0005](adr/0005-judging-is-a-suggestion.md) |
 | A room distributes three capabilities — the screen, control, and a seat — across devices instead of assuming one device is all three. Control is granted by naming a session, never by handing out a token. | [adr 0006](adr/0006-screen-control-and-seat.md) |
-| The game is a property of the room, not of the process. `createRoomPort` takes a resolver and looks the module up per intent from that room's own settings. | `server/room/port.ts` |
-| Per-game settings live in `RoomSettings.gameOptions`, an opaque string map. Naming each game's options in the protocol would grow the type with every game and teach the shell what a difficulty is. | `src/shared/protocol.ts` |
+| The game is a property of the room, not of the process. `createRoomPort` takes a resolver and looks the module up per intent from that room's own settings. | `server/modules/games/room/port.ts` |
+| Per-game settings live in `RoomSettings.gameOptions`, an opaque string map. Naming each game's options in the protocol would grow the type with every game and teach the shell what a difficulty is. | `src/modules/games/shared/protocol.ts` |
 
 Licence is GPL-3.0-or-later. Deployment target is a Linux VM — systemd plus
 nginx, and the stream route needs `proxy_buffering off` or it dies silently.
@@ -352,8 +352,8 @@ to `any` asked about Dedan. That contrast is the whole feature.
 | `server/clock/`, `src/client/clock/` | offsets, scheduler, clamping, `showAt` |
 | `server/content/` | module reader, catalog, content database (clues since schema 2), importer, verse pool |
 | `server/content/generator/` | question generator: facts in, importer JSON out, wrong answers ranked by resemblance |
-| `server/content/validate.ts` | content checks: quotations against verses, giveaways, wrong answers the matcher credits |
-| `server/tools/content.ts` | generate, check, import and stats |
+| `server/modules/games/content/validate.ts` | content checks: quotations against verses, giveaways, wrong answers the matcher credits |
+| `server/modules/games/tools/content.ts` | generate, check, import and stats |
 | `content/` | 566 curated verses in five tiers, 107 prompt cards |
 | `content/source/` | facts for five games: 96 people with five clues each and more as wrong answers, places, 84 sayings, 17 timelines, 12 board categories |
 | `server/judge/` | provider interface, null provider, chat-completions provider |
@@ -378,7 +378,7 @@ expect a playtest to argue with some of them.
 
 **A Bible module must be installed to play**, though not to run the tests — the
 content layer builds its own fixtures. Drop a `.db` in `modules/`; see
-[modules.md](modules.md). One is never committed. To make one from a full
+[modules.md](../modules.md). One is never committed. To make one from a full
 module: `npm run slim-module <source.db> modules/kjv.db`, which trims about
 50 MB to 4.4 MB by keeping only the two tables the games read.
 
@@ -388,19 +388,19 @@ written on Windows. Expect to fix a path on the first deploy.
 
 ### Things deliberately left for the next person
 
-- **`server/games/index.ts` holds a stand-in game module** whose rounds carry
+- **`server/modules/games/games/index.ts` holds a stand-in game module** whose rounds carry
   nothing. It is what a room gets when it names a game this build does not
   carry — deliberately, rather than quietly substituting a real game, because a
   room playing something nobody chose is worse than blank screens that say so.
 - **`CatalogSet.gameId` is always null.** A question set is authored against
   content, not against a game, so nothing on the server can honestly fill it in.
-- **`src/shared/verseId.ts` could use a range-containment helper**
+- **`src/modules/games/shared/verseId.ts` could use a range-containment helper**
   (`isWithin(id, range)`); the module reader, the importer and the distractor
   arithmetic all re-derive bounds. Separately, `sectionOf` silently returns
   `law` for an out-of-canon book rather than signalling, so every caller in
   name-that-reference has to guard the book number first.
-- **Two test helpers ship in the build.** `server/content/fixtures.ts` and
-  `server/games/name-that-reference/fixtureCanon.ts` are not named `*.test.ts`,
+- **Two test helpers ship in the build.** `server/modules/games/content/fixtures.ts` and
+  `server/modules/games/games/name-that-reference/fixtureCanon.ts` are not named `*.test.ts`,
   so `tsc` emits them into `dist`. Harmless; if they should stay out, both want
   the same exclusion.
 
@@ -421,7 +421,7 @@ curated questions in the database.
 1. ~~The content generation script and its validator.~~ **Done**, with a first
    batch of 336 questions and 85 orderings. What remains here is tuning after
    the playtest: wrong-answer quality is one function
-   (`server/content/generator/distractors.ts`), difficulty is a field in the
+   (`server/modules/games/content/generator/distractors.ts`), difficulty is a field in the
    source files, and both are fixed by regenerating.
 2. ~~The remaining games.~~ **Done**: all nine are registered, built in one
    shared working tree with no baseline commit, each agent owning

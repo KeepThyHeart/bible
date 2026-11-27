@@ -95,5 +95,8 @@
   "wordStudy.open.alias.1": "斯特朗研究",
   "wordStudy.open.alias.2": "串珠",
   "readingPlans.continue": "继续读经计划",
-  "readingPlans.openBeside": "在圣经旁打开读经计划"
+  "readingPlans.openBeside": "在圣经旁打开读经计划",
+  "help.sendFeedback": "发送反馈",
+  "notes.compilePassageNotes": "汇编经文笔记",
+  "notes.compilePassageNotes.category": "笔记"
 }

@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'preact/hooks';
+import { useSyncExternalStore } from 'preact/compat';
 import { useTranslation } from 'react-i18next';
 import { BookChapterPicker as SharedBookChapterPicker } from '@bible/ui';
 import type { BookChapterPickerLabels } from '@bible/ui';
@@ -7,6 +8,7 @@ import { localizedBookAliases } from '../../constants';
 import { getLocalizedBookName } from '../../utils/bookNames';
 import { bibleStore } from '../../stores/bibleStore';
 import { searchStore } from '../../stores/searchStore';
+import { webSettings } from '../../stores/settingsRegistry';
 import { useStore } from '../../hooks/useStore';
 import { useModalFocus } from '../../hooks/useModalFocus';
 import { useLocalizer } from '../../hooks/useLocalizer';
@@ -193,7 +195,12 @@ function PickerDialog({ onClose, onSelect: onSelectProp, currentBook, currentCha
     selectVerse: t('bookChapterPicker.selectAVerse'),
     goToChapter: (book: string, chapter: number) => t('bookChapterPicker.goToChapter', { book, chapter }),
     verseOption: (book: string, chapter: number, verse: number) => t('bookChapterPicker.verseOption', { book, chapter, verse }),
+    alsoChooseVerse: t('bookChapterPicker.alsoChooseVerse'),
   };
+  // Off by default: a chapter pick goes straight to the chapter; the checkbox under the chapter grid
+  // turns the verse step on for this device.
+  const settings = useSyncExternalStore(webSettings.subscribe, webSettings.getSnapshot);
+  const pickerVerseStep = settings.pickerVerseStep === true;
 
   return (
     <div class="book-chapter-picker__overlay" onClick={onClose}>
@@ -205,6 +212,8 @@ function PickerDialog({ onClose, onSelect: onSelectProp, currentBook, currentCha
           bookName={getLocalizedBookName}
           bookAliases={bookAliases}
           verseCount={verseCount}
+          verseStep={pickerVerseStep}
+          onVerseStepChange={(on) => { webSettings.set('pickerVerseStep', on); }}
           labels={labels}
           icons={{
             back: <i class="fa-solid fa-chevron-left kth-rtl-mirror" />,

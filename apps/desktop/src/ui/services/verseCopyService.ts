@@ -148,6 +148,36 @@ export function setLastUsedFormatId(formatId: string): void {
 }
 
 /**
+ * The format Print opens on, remembered apart from Copy's: a page to hand out
+ * is usually wanted numbered even by someone who pastes inline quotes. Numbered
+ * (`blockquote-numbered`) until the reader picks another format in a Print
+ * dialog; a retired or unknown saved id falls back to it.
+ */
+const LAST_PRINT_FORMAT_KEY = 'bible-desktop-last-print-format';
+export const DEFAULT_PRINT_FORMAT_ID = 'blockquote-numbered';
+
+export function getLastPrintFormatId(): string {
+  try {
+    const raw = localStorage.getItem(LAST_PRINT_FORMAT_KEY);
+    if (raw) {
+      const remapped = remapLegacyFormatId(raw);
+      if (getPassageFormatEntry(remapped)) return remapped;
+    }
+  } catch {
+    // fall through to the default
+  }
+  return DEFAULT_PRINT_FORMAT_ID;
+}
+
+export function setLastPrintFormatId(formatId: string): void {
+  try {
+    localStorage.setItem(LAST_PRINT_FORMAT_KEY, formatId);
+  } catch {
+    // Best-effort.
+  }
+}
+
+/**
  * Get the last used format options
  */
 export function getLastUsedFormatOptions(): FormatOptions {

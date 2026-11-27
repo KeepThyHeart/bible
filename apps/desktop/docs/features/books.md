@@ -100,11 +100,11 @@ The shelf **opens by default on a pane with nothing in it**, and stays out of th
 
 Search runs against the module's keyword index - its own `book_section_fts` for a v0.1 module, otherwise the sidecar index built for it (see the core [Search](../../../../packages/core/docs/features/search.md) doc) - via `packages/core/src/Data/Repositories/BookRepository.ts#searchSections`, through the `book:searchSections` channel. Hits are listed with their section titles, and the contents tree below opens the path down to each one, so "which chapter mentions this" is one query rather than a manual walk. Responses are sequenced against the query that asked for them, so a slow search for `gr` cannot land after a fast one for `grace`.
 
-**Toolbars:** `BookNavigationToolbar` and the Dictionary toolbar are both built from `shared/PaneToolbar.tsx`, the same band of flush icon cells the Bible pane uses. `bible/PassageSettingsMenu` takes a `paneKey` and is the single text-settings ("Aa") button across every pane.
+**Toolbars:** `BookNavigationToolbar` and the Dictionary toolbar are both built from `src/ui/components/shared/PaneToolbar.tsx`, the same band of flush icon cells the Bible pane uses. `bible/PassageSettingsMenu` takes a `paneKey` and is the single text-settings ("Aa") button across every pane.
 
 **Dialogs and the pane splitter:** Dockview's `.dv-dockview` sets `contain: layout`, which makes it both a stacking context *and* the containing block for `position: fixed` descendants. A `fixed inset-0 ... z-50` backdrop rendered inside a pane therefore never reaches the document, and its z-index competes with `.dv-sash { z-index: 99 }` - dockview's own splitter - inside that same context. 99 wins, so the drag handle paints over the dialog and lights up on hover *through* it.
 
-`shared/PaneOverlay.tsx` is the answer: it portals the backdrop to `<body>`, where an ordinary modal z-index is enough again - the same approach `bible/ToolbarPopover` uses for the toolbar menus. `BookTreeView`, `BookModuleSelectorModal`, `ModuleSelector` and the dictionary Browse dialog all go through it.
+`src/ui/components/shared/PaneOverlay.tsx` is the answer: it portals the backdrop to `<body>`, where an ordinary modal z-index is enough again - the same approach `bible/ToolbarPopover` uses for the toolbar menus. `BookTreeView`, `BookModuleSelectorModal`, `ModuleSelector` and the dictionary Browse dialog all go through it.
 
 **Tab markers:** Each tab carries its type glyph (`paneIcons.ts`, the same glyphs the dockview header uses) and is shaded once its content has loaded. The type is announced through the tab's accessible name (`"{label} {subtitle}"`), not the glyph, which is decorative.
 

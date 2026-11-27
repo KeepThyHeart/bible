@@ -339,7 +339,9 @@ const UpdateCheckDialog: React.FC<UpdateCheckDialogProps> = ({ onClose }) => {
           >
             {phase.kind === 'confirm'
               ? t('updateCheck.cancel')
-              : t('updateCheck.close')}
+              : phase.kind === 'downloaded'
+                ? t('updateCheck.later')
+                : t('updateCheck.close')}
           </button>
         </div>
       </div>

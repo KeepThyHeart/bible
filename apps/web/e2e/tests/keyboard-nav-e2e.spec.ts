@@ -189,6 +189,7 @@ test.describe('Keyboard Navigation', () => {
       const ch23 = chapterBtns.filter({ hasText: /^23$/ }).first();
       if (await ch23.isVisible().catch(() => false)) {
         await ch23.click();
+        await page.locator('.kth-picker__chapter-go').click(); // the verse step: go to the whole chapter
         await page.waitForSelector('.verse', { timeout: 10000 });
 
         // Should display Psalm 23

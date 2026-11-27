@@ -316,3 +316,73 @@
     font-size: 0.9em;
   }
 }
+
+// ============================================================
+// Print dialog: live preview beside the settings (above them on narrow screens)
+// ============================================================
+.print-dialog {
+  background: var(--bg-primary);
+  border-radius: 12px;
+  box-shadow: 0 12px 40px var(--dropdown-shadow);
+  padding: 24px;
+  width: 1040px;
+  max-width: 95vw;
+  height: 90vh;
+  display: flex;
+  flex-direction: column;
+
+  &__body {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    gap: 16px;
+  }
+
+  &__settings {
+    flex: 0 0 18rem;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding-inline-end: 8px;
+  }
+
+  &__preview {
+    flex: 1;
+    min-width: 0;
+    overflow: auto;
+    background: var(--bg-secondary);
+    border-radius: 8px;
+    padding: 12px;
+  }
+
+  &__link {
+    align-self: flex-start;
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    color: var(--accent, var(--text-primary));
+    text-decoration: underline;
+    font-size: calc(0.8125rem * var(--ui-font-scale, 1));
+  }
+
+  &__footer {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 12px;
+    margin-top: 12px;
+  }
+
+  &__hint {
+    flex: 1;
+    font-size: calc(0.75rem * var(--ui-font-scale, 1));
+    color: var(--text-muted);
+  }
+
+  @media (max-width: 720px) {
+    &__body { flex-direction: column; }
+    &__settings { flex: 0 0 auto; max-height: 40%; }
+  }
+}

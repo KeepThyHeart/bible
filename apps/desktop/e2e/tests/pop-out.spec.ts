@@ -15,6 +15,7 @@
 
 import { test, expect } from '../fixtures/electron.fixture';
 import type { Page } from '@playwright/test';
+import { hasModule } from '../fixtures/dataDir';
 import { ensurePaneOpen, selectVerse, waitForAppReady } from '../fixtures/test-utils';
 
 /**
@@ -190,6 +191,9 @@ test.describe('Pop Out to Window', () => {
   });
 
   test('Books: open a book, pop out, verify book content preserved', async ({ electronApp, window }) => {
+    // The Books shelf lists installed books, and the committed e2e fixture holds none: with the fixture the
+    // shelf is empty. Runs with real data (BIBLE_E2E_DATA_DIR), like the other specs that need a module.
+    test.skip(!hasModule('Concord'), 'needs real data (Concord): set BIBLE_E2E_DATA_DIR');
     await waitForAppReady(window);
 
     // Open/activate the Books pane - not part of the first-run layout
