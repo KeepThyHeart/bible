@@ -11,7 +11,7 @@ import { BottomSheet } from '@bible/ui';
 import { audioStore } from '../audioStore';
 import { useStore } from '../../../hooks/useStore';
 import { useEscapeKey } from '../../../hooks/useEscapeKey';
-import { formatBytes } from '../lib/audioStorage';
+import { formatBytes } from '@bible/audio';
 
 export function AudioGateDialog() {
   const { t } = useTranslation();

@@ -433,6 +433,8 @@ export default defineConfig({
       // Dev harness only: the hands-free loop and grading are not on the memory core's public surface.
       '@bible/memory/recite': resolve(__dirname, '../../packages/memory/src/core/recite'),
       '@bible/memory/core': resolve(__dirname, '../../packages/memory/src/core/index.ts'),
+      // The lazy "Add to Memory" dialog (reader context menu), consumed as source like core above.
+      '@bible/memory/add-to-memory': resolve(__dirname, '../../packages/memory/src/ui/addToMemoryDialog.ts'),
       // Shared UI kit, consumed as source. Order matters: Vite string aliases
       // match `id === key || id.startsWith(key + '/')` and the first entry wins,
       // so the more specific css entry must precede the bare package entry.

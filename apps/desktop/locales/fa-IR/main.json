@@ -1,6 +1,7 @@
 {
   "main.about.title": "درباره {productName}",
   "main.about.detail": "نسخه {version}\n\nبرنامه‌ی دسکتاپ مطالعه کتاب مقدس.\n\n© {year}",
+  "main.about.credits": "بیشتر کتاب‌های مقدس، تفسیرها و فرهنگ‌های لغت از ماژول‌های The SWORD Project تبدیل شده‌اند که توسط CrossWire Bible Society (crosswire.org) توزیع می‌شوند. حق نشر و مجوز هر ماژول به‌طور جداگانه اعمال می‌شود.",
   "main.about.build": "ساخت {buildId}",
   "main.about.ok": "تأیید",
   "main.dialog.saveBackup": "ذخیره فایل پشتیبان",

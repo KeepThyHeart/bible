@@ -260,7 +260,7 @@ These are token/utility-class offers, not component takeovers: only `--`-prefixe
 
 ### Serving the UI kit (`ext-ui://host/kit/1/`)
 
-The kit is the custom elements from `packages/ui/src/kit/` (`kth-reference-picker`, `kth-book-chapter-picker`, `kth-highlight-swatch`; contract in `packages/ui/README.md`, "Extension UI kit"), bundled as a classic-script IIFE on preact/compat with a stylesheet. The reserved `host` origin serves two more exact paths:
+The kit is the custom elements from `packages/ui/src/kit/` (`kth-reference-picker`, `kth-verse-selector`, `kth-book-chapter-picker`, `kth-highlight-swatch`; contract in `packages/ui/README.md`, "Extension UI kit"), bundled as a classic-script IIFE on preact/compat with a stylesheet. The reserved `host` origin serves two more exact paths:
 
 - **`ext-ui://host/kit/1/kth-kit.js`** - `text/javascript; charset=utf-8`. Loading it only assigns `globalThis.KthKit`; `KthKit.init({ rpc, components })` defines the listed elements and reads `ui.getLocale`. Use a classic `<script src>` (not `type="module"`: a module script from an opaque origin needs CORS).
 - **`ext-ui://host/kit/1/kth.css`** - `text/css; charset=utf-8`. The KTH tokens mapped from `theme.css`, base rules, and the `.kth-*` classes. Link it after `theme.css`.
@@ -295,6 +295,8 @@ document.getElementById('ref')?.addEventListener('kth-change', (e) => {
   void bible.navigateToVerse(verseId);
 });
 ```
+
+`<kth-verse-selector value="John 3:16">` is a reference field plus Book/Chapter/Verse/To dropdowns (ranges, whole chapters and cross-chapter ranges allowed) with an optional live verse-text preview. It calls no host method: the extension sets the `lookup` property (a function `(range, signal) => Promise<{ verseId, text }[] | null>`, debounced 200 ms and aborted on change), typically from `bible.getVerses`. It fires `kth-change` (detail `KthVerseSelectionDetail`: the reference value, or `{ cleared: true }`) and `kth-submit` (Enter on a valid selection). Attributes: `value` (the only seed; a changed value re-seeds), `locale`, `dir`, `disabled`, `no-cross-chapter`, `no-whole-chapter`, `preview-max`; properties: `labels`, `lookup`.
 
 The component list passed to `loadKit` should match `uiKit.components`. The scaffold (`create-bible-extension`) does not declare `uiKit` (it would add an extra permission consent line); its README shows this opt-in. Render `kth-*` elements childless. For tests, `@bible/extension-testing` provides `createMockPanelHost()` and `loadUiKit()`.
 

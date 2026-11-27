@@ -82,6 +82,8 @@ export interface PackBuilderLabels {
   remove?: string;
   /** Tooltip of the checkbox of an installed row when `onRemove` is given ("selecting keeps it on this device"). */
   keepHint?: string;
+  /** Label of the per-group "select all" checkbox when `onToggleGroup` is given; `{group}` is replaced. Default 'Select all in {group}'. */
+  selectAllGroup?: string;
 }
 
 export interface PackBuilderProps {
@@ -95,6 +97,11 @@ export interface PackBuilderProps {
   /** Already localized; what applying a preset did, announced politely under the chips. */
   presetStatus?: string;
   onToggle: (key: string, selected: boolean) => void;
+  /**
+   * When given, each group gets a "select all" checkbox that ticks (or unticks) every row of the group the
+   * reader can select. The app applies it, typically by calling its own `onToggle` for each key in `keys`.
+   */
+  onToggleGroup?: (groupId: string, keys: string[], selected: boolean) => void;
   /**
    * When given, installed / update-available rows (not installing) get a Remove button, and installed rows
    * become selectable (selecting one keeps it on this device) instead of a fixed checked box.
@@ -161,6 +168,50 @@ function Bar({ label, percent, tone }: { label: string; percent: number | undefi
   );
 }
 
+/** The rows of a group that a "select all" can tick: not disabled, not installing, and (outside the keep flow) not already installed. */
+function selectableKeys(rows: readonly PackBuilderRow[], groupId: string, keepFlow: boolean): PackBuilderRow[] {
+  return rows.filter((r) => r.group === groupId && !r.disabled && r.status !== 'installing' && (keepFlow || r.status !== 'installed'));
+}
+
+function GroupSelectAll({
+  group,
+  rows,
+  keepFlow,
+  running,
+  labels,
+  onToggleGroup,
+}: {
+  group: { id: string; label: string };
+  rows: readonly PackBuilderRow[];
+  keepFlow: boolean;
+  running: boolean;
+  labels: PackBuilderLabels;
+  onToggleGroup: (groupId: string, keys: string[], selected: boolean) => void;
+}) {
+  const selectable = selectableKeys(rows, group.id, keepFlow);
+  const ticked = selectable.filter((r) => r.selected).length;
+  const all = selectable.length > 0 && ticked === selectable.length;
+  const id = `pack-check-all-${group.id}`;
+  return (
+    <li className="kth-pack-row">
+      <input
+        id={id}
+        type="checkbox"
+        className="kth-pack-row__check"
+        checked={all}
+        ref={(el) => {
+          if (el) el.indeterminate = ticked > 0 && !all;
+        }}
+        disabled={running || selectable.length === 0}
+        onChange={(e) => onToggleGroup(group.id, selectable.map((r) => r.key), e.currentTarget.checked)}
+      />
+      <label htmlFor={id} className="kth-pack-row__info">
+        <span className="kth-pack-row__title">{fill(labels.selectAllGroup ?? 'Select all in {group}', { group: group.label })}</span>
+      </label>
+    </li>
+  );
+}
+
 export function PackBuilder({
   groups,
   rows,
@@ -169,6 +220,7 @@ export function PackBuilder({
   activePresetId,
   presetStatus,
   onToggle,
+  onToggleGroup,
   onRemove,
   headingLevel = 3,
   notice,
@@ -255,6 +307,7 @@ export function PackBuilder({
         <fieldset key={g.id} className="kth-pack-group">
           <legend className="kth-pack-group__label">{g.label}</legend>
           <ul className="kth-pack-list">
+            {onToggleGroup ? <GroupSelectAll group={g} rows={rows} keepFlow={!!onRemove} running={running} labels={l} onToggleGroup={onToggleGroup} /> : null}
             {rows
               .filter((r) => r.group === g.id)
               .map((r) => {

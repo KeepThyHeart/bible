@@ -63,7 +63,13 @@ describe('MemoryService.addVerses', () => {
     const { svc, notices } = await startTestService();
 
     const first = await svc.addVerses({ verseIds: [19023001, 19023002, 19023003], module: 'KJV' });
-    expect(first).toEqual({ outcome: 'added', passageId: first.passageId, reference: expect.any(String) });
+    expect(first).toEqual({
+      outcome: 'added',
+      passageId: first.passageId,
+      reference: expect.any(String),
+      collectionId: expect.any(Number),
+      listName: expect.any(String),
+    });
     expect(first.reference.length).toBeGreaterThan(0);
     expect(notices()).toEqual([]); // the host shows the result now
 
@@ -115,5 +121,34 @@ describe('MemoryService.addVerses', () => {
   it('refuses an empty selection with a readable error', async () => {
     const { svc } = await startTestService();
     await expect(svc.addVerses({ verseIds: [] })).rejects.toThrow(/Select a verse/);
+  });
+});
+
+describe('importLegacyData', () => {
+  it('numbers NULL-position rows after a merged import', async () => {
+    const { svc, db } = await startTestService();
+    const r = await svc.addVerses({ verseIds: [19023001] });
+    const merge = () => {
+      db.host.execute(`UPDATE memory_passage SET position = NULL`);
+      return { status: 'merged', added: {}, matched: {}, revived: 0 } as never;
+    };
+    const { MemoryService } = await import('../src/core/service');
+    const { createMockApi } = await import('@bible/extension-testing');
+    const mock = createMockApi({ bible: { listModules: async () => [MODULE_KJV] } });
+    const s2 = await MemoryService.start({
+      sql: db.sql,
+      host: { bible: mock.bible },
+      emit: () => undefined,
+      log: { warn: () => undefined, error: () => undefined },
+      legacy: { available: () => true, merge },
+    });
+    try {
+      await s2.importLegacyData();
+    } finally {
+      s2.dispose();
+    }
+    const rows = db.host.queryAll<{ position: number | null }>(`SELECT position FROM memory_passage WHERE collection_id = ?`, [r.collectionId]);
+    expect(rows.length).toBeGreaterThan(0);
+    expect(rows.every((x) => x.position !== null)).toBe(true);
   });
 });

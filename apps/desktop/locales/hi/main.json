@@ -1,6 +1,7 @@
 {
   "main.about.title": "{productName} के बारे में",
   "main.about.detail": "संस्करण {version}\n\nबाइबल अध्ययन के लिए एक डेस्कटॉप एप्लिकेशन।\n\n© {year}",
+  "main.about.credits": "अधिकांश बाइबिलें, टीकाएँ और शब्दकोश The SWORD Project के मॉड्यूल से रूपांतरित किए गए हैं, जिन्हें CrossWire Bible Society (crosswire.org) वितरित करती है। प्रत्येक मॉड्यूल का अपना कॉपीराइट और लाइसेंस लागू होता है।",
   "main.about.build": "बिल्ड {buildId}",
   "main.about.ok": "ठीक है",
   "main.dialog.saveBackup": "बैकअप फ़ाइल सहेजें",

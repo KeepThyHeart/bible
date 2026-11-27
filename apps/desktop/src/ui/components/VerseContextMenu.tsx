@@ -46,6 +46,11 @@ export interface VerseContextMenuProps {
   isMultipleVerses?: boolean;
   /** Callback to open copy options dialog */
   onOpenCopyOptions?: () => void;
+  /** Open the Copy Passage dialog in print mode. */
+  onPrint?: () => void;
+  /** The right-clicked word or short phrase, and the action that looks it up in every dictionary. */
+  lookUpWord?: string;
+  onLookUp?: () => void;
   /** Callback to open highlight menu */
   onOpenHighlightMenu?: () => void;
   /** Callback to open/create a verse note */
@@ -56,6 +61,8 @@ export interface VerseContextMenuProps {
   markupId?: number;
   /** Callback to remove a highlight */
   onRemoveHighlight?: (markupId: number) => void;
+  /** Delete every highlight and underline on the selected verse(s). Offered for a verse range. */
+  onClearVerseMarks?: () => void;
   /**
    * Existing bookmarks, offered as targets to re-point at this verse. Ordered
    * as the user ordered them in the manager.
@@ -108,11 +115,15 @@ const VerseContextMenu: React.FC<VerseContextMenuProps> = ({
   onClose,
   isMultipleVerses: _isMultipleVerses = false,
   onOpenCopyOptions,
+  onPrint,
+  lookUpWord,
+  onLookUp,
   onOpenHighlightMenu,
   onAddNote,
   hasNote,
   markupId,
   onRemoveHighlight,
+  onClearVerseMarks,
   bookmarks = [],
   isBookmarked = false,
   onAddBookmark,
@@ -425,6 +436,25 @@ const VerseContextMenu: React.FC<VerseContextMenuProps> = ({
         </button>
       )}
 
+      {onPrint && (
+        <button
+          onClick={() => {
+            onClose();
+            onPrint();
+          }}
+          className="w-full px-4 py-2 text-start text-sm hover:bg-background-hover transition-colors flex items-center gap-2 cursor-pointer"
+          role="menuitem"
+          data-testid="verse-menu-print"
+        >
+          <span className="text-base">
+            <svg className="w-4 h-4 inline" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+            </svg>
+          </span>
+          <span>{t('ui.verseContextMenu.printPassage')}</span>
+        </button>
+      )}
+
       {/* Entries from active feature modules that need the selected word (e.g. "Study word 'x'"). */}
       <VerseMenuItems selectedWord={selectedWord} onClose={onClose} />
 
@@ -661,6 +691,24 @@ const VerseContextMenu: React.FC<VerseContextMenuProps> = ({
         </button>
       )}
 
+      {onClearVerseMarks && (
+        <button
+          onClick={() => {
+            onClearVerseMarks();
+            onClose();
+          }}
+          className="w-full px-4 py-2 text-start text-sm hover:bg-background-hover transition-colors flex items-center gap-2 cursor-pointer"
+          role="menuitem"
+          data-testid="verse-menu-clear-marks"
+        >
+          <svg className="w-4 h-4" aria-hidden="true" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M16.24 3.56l4.95 4.94c.78.79.78 2.05 0 2.84L12 20.53a4.008 4.008 0 0 1-5.66 0L2.81 17c-.78-.79-.78-2.05 0-2.84l10.6-10.6c.79-.78 2.05-.78 2.83 0M4.22 15.58l3.54 3.53c.78.79 2.04.79 2.83 0l3.53-3.53-4.95-4.95-4.95 4.95z"/>
+          </svg>
+          <span className="flex-1">{t('ui.verseContextMenu.clearMarks')}</span>
+          <span className="text-xs text-text-muted ms-4 bidi-isolate">{'Ctrl+Shift+X'}</span>
+        </button>
+      )}
+
       {/*
         Extension-contributed items, beneath the built-ins and separated from
         them. The order is deliberate: the app's own actions are what a reader
@@ -694,6 +742,20 @@ const VerseContextMenu: React.FC<VerseContextMenuProps> = ({
             </button>
           ))}
         </>
+      )}
+
+      {lookUpWord && onLookUp && (
+        <button
+          onClick={() => {
+            onLookUp();
+            onClose();
+          }}
+          className="w-full px-4 py-2 text-start text-sm hover:bg-background-hover transition-colors flex items-center gap-2 cursor-pointer"
+          role="menuitem"
+          data-testid="verse-menu-look-up"
+        >
+          <span>{t('lookUp.menuItem', { word: lookUpWord })}</span>
+        </button>
       )}
 
       {wordText && wordTabId && (

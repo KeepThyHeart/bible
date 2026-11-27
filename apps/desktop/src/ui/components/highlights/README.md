@@ -19,7 +19,7 @@ A comprehensive highlighting and underlining system for Bible text with word-lev
 
 - **Word-Level Precision**: Highlight specific word ranges, not character positions
 - **Multi-Verse Support**: Seamlessly highlight across verse boundaries
-- **Six Colors**: yellow, green, blue, red, purple, orange
+- **Ten Colors**: yellow, green, blue, red, purple, orange, pink, teal, gray, brown
 - **Four Underline Styles**: solid, wavy, dotted, dashed
 - **Combined Markup**: Highlight + underline simultaneously with independent colors
 - **Overlapping Markup**: Multiple markups may cover the same words; a word carries every id that claims it

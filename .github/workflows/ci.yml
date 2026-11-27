@@ -32,6 +32,12 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
+# onnxruntime-node (via @huggingface/transformers) downloads CUDA EP binaries from
+# GitHub on Linux x64 during postinstall; that download now 404s and fails
+# `pnpm install`. The apps use the CPU provider only, so skip it.
+env:
+  ONNXRUNTIME_NODE_INSTALL_CUDA: skip
+
 jobs:
   test:
     runs-on: ubuntu-latest

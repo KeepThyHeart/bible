@@ -32,4 +32,15 @@ describe('loadUiKit', () => {
     expect(el.querySelector('[role=combobox]')).not.toBeNull();
     el.remove();
   });
+
+  it.skipIf(!bundled)('renders <kth-verse-selector> seeded from its value', async () => {
+    const kit = (await loadUiKit()) as { init(o: object): Promise<void> };
+    await kit.init({ locale: 'en', components: ['kth-verse-selector'] });
+    const el = document.createElement('kth-verse-selector');
+    el.setAttribute('value', 'John 3:16');
+    document.body.appendChild(el);
+    await new Promise((r) => setTimeout(r, 10));
+    expect((el.querySelector('input[role=combobox]') as HTMLInputElement | null)?.value).toBe('John 3:16');
+    el.remove();
+  });
 });

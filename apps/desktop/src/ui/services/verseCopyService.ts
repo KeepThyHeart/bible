@@ -611,3 +611,25 @@ export function getSelectedVerseIds(): number[] {
 
   return verseIds;
 }
+
+/**
+ * The passage a bookmark action should save: a mouse-drag selection across
+ * several verses wins (it is the most recent gesture, as for the context
+ * menu), otherwise the shift-click anchor/end. `end` is undefined for one verse.
+ */
+export function getBookmarkRange(
+  selectedVerseId: number | null,
+  selectionEndVerseId: number | null,
+): { start: number; end?: number } | null {
+  const dragged = getSelectedVerseIds();
+  if (dragged.length > 1) {
+    return { start: dragged[0], end: dragged[dragged.length - 1] };
+  }
+  if (selectedVerseId === null) return null;
+  if (selectionEndVerseId !== null && selectionEndVerseId !== selectedVerseId) {
+    const lo = Math.min(selectedVerseId, selectionEndVerseId);
+    const hi = Math.max(selectedVerseId, selectionEndVerseId);
+    return { start: lo, end: hi };
+  }
+  return { start: selectedVerseId };
+}

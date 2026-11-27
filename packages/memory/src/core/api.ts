@@ -83,7 +83,12 @@ export interface MemoryCommandApi {
   /** "Recite what's due aloud": starts a recitation when speech and due cards allow; otherwise a notice. */
   practiceDueAloud(): Promise<{ started: boolean }>;
   /** "Memorize" on verses in the reader: a contiguous run in one chapter becomes one passage. */
-  addVerses(args: { verseIds: readonly number[]; module?: string }): Promise<AddVersesResult>;
+  addVerses(args: {
+    verseIds: readonly number[];
+    module?: string;
+    collectionId?: number;
+    newListName?: string;
+  }): Promise<AddVersesResult & { collectionId: number; listName: string }>;
   getStatus(): Promise<MemoryStatus>;
   getImportStatus(): Promise<MemoryImportStatus>;
   /** Settings > "Import data from the old Scripture Memory extension": merge, never overwrite. */
@@ -141,6 +146,12 @@ const METHODS = {
   setPassageAnswerMode: true,
   getContext: true,
   addPassage: true,
+  addPassageRange: true,
+  previewVerses: true,
+  getAddTargets: true,
+  reorderList: true,
+  refreshSpeech: true,
+  setAutoAdvance: true,
   removePassage: true,
   resetPassageProgress: true,
   startSession: true,

@@ -20,12 +20,23 @@ export const DEFAULT_AUDIO_BASE = '/audio';
 const isObject = (x: unknown): x is Record<string, unknown> =>
   typeof x === 'object' && x !== null && !Array.isArray(x);
 
-/** `/path` on this origin, or an absolute http(s) URL. Trailing slashes are dropped. */
-function normalizeBase(value: unknown): string | null {
+/** Options for `parseAudioSiteConfig`. */
+export interface AudioConfigParseOptions {
+  /**
+   * Extra URL schemes a base may use besides http(s) and `/path`: the desktop app serves
+   * audio on its own privileged scheme (`kth-audio://app/audio`). Never from a site config.
+   */
+  allowSchemes?: readonly string[];
+}
+
+/** `/path` on this origin, or an absolute http(s) URL (or an allowed app scheme). Trailing slashes are dropped. */
+function normalizeBase(value: unknown, schemes: readonly string[] = []): string | null {
   if (typeof value !== 'string') return null;
   const v = value.trim().replace(/\/+$/, '');
   if (v === '') return null;
   if (/^https?:\/\/[^\s/]+(\/[^\s]*)?$/i.test(v)) return v;
+  const scheme = /^([a-z][a-z0-9+.-]*):\/\/[^\s/]+(\/[^\s]*)?$/i.exec(v)?.[1]?.toLowerCase();
+  if (scheme && schemes.includes(scheme)) return v;
   if (v.startsWith('/') && !v.startsWith('//') && !/\s/.test(v)) return v;
   return null;
 }
@@ -54,10 +65,10 @@ function parseVoice(raw: unknown): TtsVoiceConfig | null {
   return voice;
 }
 
-function parseEngine(raw: unknown, base: string): TtsEngineConfig | null {
+function parseEngine(raw: unknown, base: string, schemes: readonly string[]): TtsEngineConfig | null {
   if (!isObject(raw) || typeof raw.id !== 'string' || !raw.id) return null;
   if (raw.enabled === false) return null;
-  const assetBase = normalizeBase(raw.assetBase) ?? `${base}/tts/${raw.id}`;
+  const assetBase = normalizeBase(raw.assetBase, schemes) ?? `${base}/tts/${raw.id}`;
   const seen = new Set<string>();
   const voices: TtsVoiceConfig[] = [];
   for (const v of Array.isArray(raw.voices) ? raw.voices : []) {
@@ -85,9 +96,10 @@ function parseEngine(raw: unknown, base: string): TtsEngineConfig | null {
  * channel is on, and no TTS engine is enabled (an engine needs its runtime and
  * voice files hosted first, which only the operator can arrange).
  */
-export function parseAudioSiteConfig(raw: unknown): AudioSiteConfig {
+export function parseAudioSiteConfig(raw: unknown, opts: AudioConfigParseOptions = {}): AudioSiteConfig {
+  const schemes = (opts.allowSchemes ?? []).map(s => s.toLowerCase());
   const block = isObject(raw) ? raw : {};
-  const base = normalizeBase(block.base) ?? DEFAULT_AUDIO_BASE;
+  const base = normalizeBase(block.base, schemes) ?? DEFAULT_AUDIO_BASE;
   const tts = isObject(block.tts) ? block.tts : {};
   // The operator's shape nests engines under `tts`; this function's own output (what the
   // server sends in /api/config, parsed again by the client) has them at the top level.
@@ -95,7 +107,7 @@ export function parseAudioSiteConfig(raw: unknown): AudioSiteConfig {
   const engines: TtsEngineConfig[] = [];
   const seen = new Set<string>();
   for (const e of rawEngines) {
-    const engine = parseEngine(e, base);
+    const engine = parseEngine(e, base, schemes);
     if (engine && !seen.has(engine.id)) {
       seen.add(engine.id);
       engines.push(engine);

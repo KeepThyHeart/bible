@@ -54,7 +54,8 @@
     "notice": {
       "noAudio": "هنوز هیچ ضبط یا صدای گفتاری برای این ترجمه در دسترس نیست.",
       "preferredUnavailable": "منبع صوتی دلخواه شما برای این ترجمه در دسترس نیست، بنابراین به جای آن منبع دیگری پخش می‌شود.",
-      "voiceUnavailable": "صدای انتخابی شما دیگر در دسترس نیست، بنابراین صدای دیگری استفاده می‌شود."
+      "voiceUnavailable": "صدای انتخابی شما دیگر در دسترس نیست، بنابراین صدای دیگری استفاده می‌شود.",
+      "passageSkipped": "Skipped a passage this translation does not have."
     },
     "error": {
       "network": "{ref} دانلود نشد. اتصال خود را بررسی کنید، سپس دوباره تلاش کنید.",
@@ -151,6 +152,86 @@
     },
     "shortcut": {
       "focusPlayer": "رفتن به پخش‌کنندهٔ صوتی"
+    },
+    "downloads": {
+      "title": "دانلود صدا برای گوش دادن بدون اینترنت",
+      "heading": "گوش دادن بدون اینترنت",
+      "settingsHint": "کتاب‌های ضبط‌شده را روی این دستگاه نگه دارید تا بدون اتصال گوش دهید.",
+      "open": "دانلود صدا…",
+      "hint": "کتاب‌هایی را که می‌خواهید روی این دستگاه بماند انتخاب کنید. اگر متن ترجمه هنوز اینجا نیست، آن هم ذخیره می‌شود.",
+      "translation": "ترجمه",
+      "narrator": "گوینده",
+      "loading": "در حال بارگذاری ضبط‌ها…",
+      "none": "برای {module} ضبطی موجود نیست.",
+      "ot": "عهد عتیق",
+      "nt": "عهد جدید",
+      "selectAll": "انتخاب همه",
+      "clear": "پاک کردن",
+      "selectGroup": "انتخاب همه کتاب‌های {testament}",
+      "clearGroup": "پاک کردن انتخاب {testament}",
+      "wholeBible": "کل کتاب مقدس",
+      "sizeLoading": "در حال محاسبه حجم…",
+      "state": {
+        "downloaded": "دانلود شده",
+        "partial": "تا حدی دانلود شده"
+      },
+      "chapters": "{count} از {total} باب",
+      "removeBook": "حذف {book} از این دستگاه",
+      "selected": "{count, plural, one {# کتاب انتخاب‌شده} other {# کتاب انتخاب‌شده}} · {size}",
+      "free": "{size} فضای آزاد",
+      "noFit": "انتخاب شما از فضای آزاد این دستگاه بزرگ‌تر است.",
+      "download": "دانلود",
+      "confirmTitle": "دانلود حجیم",
+      "confirmBody": "حجم این دانلود {size} است. پیش از شروع، اتصال و فضای این دستگاه را بررسی کنید.",
+      "confirmNoFit": "حجم این دانلود {size} است، اما فقط {free} فضای آزاد در این دستگاه هست. ممکن است جا نشود.",
+      "confirmGo": "به هر حال دانلود کن",
+      "back": "بازگشت",
+      "progress": "در حال دانلود {book} · {done} از {total} کتاب · {loaded} از {size}",
+      "done": "دانلود تمام شد.",
+      "cancelled": "دانلود متوقف شد. پیشرفت حفظ می‌شود و دانلود بعدی از همین‌جا ادامه می‌یابد.",
+      "failed": "دانلود کامل نشد. {message}",
+      "close": "بستن"
+    },
+    "passages": {
+      "open": "Play passages…",
+      "title": "Play passages",
+      "input": "Passages to read",
+      "placeholder": "e.g. Ps 23; Rom 8:28-39; Gen 1-2",
+      "play": "Play list",
+      "remove": "Remove {ref}",
+      "progress": "{index} of {count} · {ref}",
+      "prev": "Previous passage",
+      "next": "Next passage",
+      "error": {
+        "empty": "Type one or more references.",
+        "noBook": "“{text}” does not name a book of the Bible.",
+        "badNumbers": "“{text}” has chapter or verse numbers that could not be read.",
+        "outOfRange": "“{text}” is past the end of {book}.",
+        "tooMany": "Up to {max} passages at a time."
+      }
+    },
+    "playlist": {
+      "label": "Playlist",
+      "edit": "Change",
+      "chapter": "Current chapter"
+    },
+    "continue": {
+      "label": "Continue to the next chapter",
+      "listHint": "Applies when reading by chapter; a typed list ends at its last verse."
+    },
+    "loop": {
+      "label": "Repeat",
+      "once": "Play once",
+      "list": "Loop the list",
+      "passage": "Loop this passage"
+    },
+    "elsewhere": {
+      "label": "Reading in another tab: {ref} ({module})",
+      "goto": "Go to it"
+    },
+    "live": {
+      "passage": "Now reading {ref}, {index} of {count}",
+      "retarget": "Now reading this tab. The other tab keeps its place."
     }
   }
 }

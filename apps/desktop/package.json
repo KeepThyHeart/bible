@@ -100,6 +100,7 @@
     "keytar": "^7.9.0"
   },
   "devDependencies": {
+    "@bible/audio": "workspace:*",
     "@bible/core": "workspace:*",
     "@bible/extension-testing": "workspace:*",
     "@bible/memory": "workspace:*",

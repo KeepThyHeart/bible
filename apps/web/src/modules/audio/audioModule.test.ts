@@ -101,7 +101,7 @@ describe('flag on', () => {
     const items = h.slots.studyLayoutItems.list();
     expect(items.filter((i) => i.layout === 'desktop').map((i) => i.placement)).toEqual(['overlay', 'overlay']);
     expect(items.filter((i) => i.layout === 'phone').map((i) => i.placement).sort()).toEqual(['dock', 'overlay', 'overlay']);
-    expect(items.filter((i) => i.placement === 'dialogs' && i.layout === 'both')).toHaveLength(2);
+    expect(items.filter((i) => i.placement === 'dialogs' && i.layout === 'both')).toHaveLength(3);
   });
 
   it('with no usable audio block it registers nothing and never starts the player', async () => {

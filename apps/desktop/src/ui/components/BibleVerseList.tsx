@@ -1,6 +1,8 @@
 import React from 'react';
 import { useI18n } from '../contexts/useI18n';
 import { useBiblePaneContext } from './BiblePaneContext';
+import { usePreferencesStore } from '../stores/usePreferencesStore';
+import { verseLabelText, verseGutterClass } from '../utils/verseLabel';
 import { useTextSettingsStore, getFontFamilyCSS } from '../stores/useTextSettingsStore';
 import { useSessionStore } from '../stores/useSessionStore';
 import { Panel, PanelGroup } from 'react-resizable-panels';
@@ -15,6 +17,7 @@ import { directionForLanguage, resolveVerseDecorations, resolveThemeColor } from
 import { isPrefaceVerse, getSectionHeading, SectionHeadingBlock, PREFACE_TEXT_CLASSNAME } from './bible/SectionHeading';
 import PaneLoadingSkeleton from './onboarding/PaneLoadingSkeleton';
 import PaneEmptyState from './onboarding/PaneEmptyState';
+import { useCtrlWheelBibleSize } from '../hooks/useCtrlWheelBibleSize';
 import { useDeferredLoading } from '../hooks/useDeferredLoading';
 import { isInSelectedRange } from '../stores/bible/internals/verseRange';
 import { useBookmarkStore } from '../stores/useBookmarkStore';
@@ -24,7 +27,7 @@ import { VerseIdHelper } from '@bible/core';
 import { useVerseDecorationStore } from '../extensions/verseDecorationStore';
 import { VerseGutter, useHasEnabledDecoratorLayers } from '../extensions/VerseGutterLane';
 import { useVerseHoverTrigger } from '../extensions/useVerseHoverTrigger';
-import { ReaderPaintControllers, ReaderVerseBlocks } from '../modules/host/slots';
+import { ReaderChapterEnd, ReaderPaintControllers, ReaderVerseBlocks } from '../modules/host/slots';
 
 /**
  * The main content area of the Bible pane: renders verses in reading/standard/study
@@ -35,7 +38,8 @@ import { ReaderPaintControllers, ReaderVerseBlocks } from '../modules/host/slots
  * and have that stick.
  */
 const BibleVerseList: React.FC = () => {
-  const { t, locale } = useI18n();
+  const { t, locale, localizer } = useI18n();
+  const verseLabelMode = usePreferencesStore(st => st.typography.verseLabelMode);
   const ctx = useBiblePaneContext();
   // Marked in the text so a reader can see what they saved without opening
   // anything. A passage is marked at its opening verse - see `markedVerses`.
@@ -78,6 +82,9 @@ const BibleVerseList: React.FC = () => {
     versesWithNotes,
     availableBibles,
   } = ctx;
+
+  // Ctrl + mouse wheel over the text changes the Bible text size (not the window zoom).
+  useCtrlWheelBibleSize(bibleTextRef as React.RefObject<HTMLElement | null>);
 
   // Brief chapter loads (cache hit, fast query) shouldn't flicker a loading
   // UI in at all - only fetches still running past 80ms show it.
@@ -378,12 +385,13 @@ const BibleVerseList: React.FC = () => {
                   scrollTrigger={scrollTrigger}
                   scrollMode={scrollMode}
                 />
+                <ReaderChapterEnd book={currentBook} chapter={currentChapter} displayMode="study" onNext={handleNextChapter} />
               </HighlightSelector>
             ) : (
               // Standard/Reading modes with highlighting support
               <>
                 <div className="px-xl py-lg">
-                <div className="max-w-3xl mx-auto bible-text">
+                <div className="bible-reading-column bible-text">
                   {/* Chapter Heading */}
                   <BibleHeader />
 
@@ -560,7 +568,7 @@ const BibleVerseList: React.FC = () => {
                                   <button
                                     type="button"
                                     data-verse-select=""
-                                    className="flex-shrink-0 w-11 text-end pe-2 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                                    className={`flex-shrink-0 ${verseGutterClass(verseLabelMode, 'standard')} text-end pe-2 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-accent`}
                                     aria-label={t(
                                       'biblePane.selectVerse',
                                       { book: currentBookName, chapter: currentChapter, verse: verse.verse, },
@@ -575,7 +583,7 @@ const BibleVerseList: React.FC = () => {
                                       aria-hidden="true"
                                       className="text-[0.9em] font-bold text-accent inline-block py-1"
                                     >
-                                      {verse.verse}
+                                      {verseLabelText(verseLabelMode, { book: verse.book_number, chapter: verse.chapter, verse: verse.verse }, localizer)}
                                     </bdi>
                                   </button>
                                 )}
@@ -597,6 +605,12 @@ const BibleVerseList: React.FC = () => {
                       </div>
                     )}
                   </HighlightSelector>
+                  <ReaderChapterEnd
+                    book={currentBook}
+                    chapter={currentChapter}
+                    displayMode={displayMode === 'reading' ? 'reading' : 'standard'}
+                    onNext={handleNextChapter}
+                  />
                   <ChapterEndLinks
                     book={currentBook}
                     chapter={currentChapter}

@@ -40,13 +40,16 @@ export function renderSettings(
       el('h2', { class: 'sm-block-title', text: tr('memory.ui.settings.answering', 'Answering') }),
       renderAnswerModeGroup(host, settings.defaultAnswerMode),
       el('p', { class: 'sm-hint', text: tr('memory.ui.settings.capitalsNeverCount', 'Capitals and punctuation never count.') }),
+      renderMoveOnToggle(host, settings.autoAdvance !== false),
     ]),
   );
 
   if (push) root.appendChild(renderPushSettings(host, push));
 
   // `recite`/`speech` are absent on a host that predates Recite aloud.
-  if (reciteEnabled() && settings.recite && settings.speech) root.appendChild(renderReciteSettings(host, settings.recite, settings.speech));
+  // The speech value is the cached one (mount passes it; `updateSpeechBanner` applies later pushes).
+  const speech = settings.speech ?? plan.speech;
+  if (reciteEnabled() && settings.recite && speech) root.appendChild(renderReciteSettings(host, settings.recite, speech));
 
   root.appendChild(renderOverrides(host, plan));
 
@@ -54,6 +57,41 @@ export function renderSettings(
   if (legacySection) root.appendChild(legacySection);
 
   return root;
+}
+
+/** "Move on automatically" (R2 auto-advance, default on): a persisted setting, saved on change. */
+function renderMoveOnToggle(host: PanelHost, on: boolean): HTMLElement {
+  const id = 'sm-move-on';
+  const input = el('input', { id, type: 'checkbox' }) as HTMLInputElement;
+  input.checked = on;
+  input.addEventListener('change', () => {
+    const wanted = input.checked;
+    void host.request({ type: 'setAutoAdvance', on: wanted }).then((reply) => {
+      if (!reply.ok) {
+        input.checked = !wanted;
+        host.announce(reply.error);
+      }
+    });
+  });
+  return el('div', { class: 'sm-radio-row sm-move-on' }, [
+    input,
+    el('label', { attrs: { for: id } }, [
+      el('span', { class: 'sm-radio-label', text: tr('memory.ui.settings.moveOn', 'Move on automatically') }),
+      el('span', {
+        class: 'sm-hint',
+        text: ` ${tr('memory.ui.settings.moveOnHintAll', 'Go to the next question or verse by itself after a few seconds (a little longer after mistakes). You can stop it any time.')}`,
+      }),
+    ]),
+  ]);
+}
+
+/**
+ * Replaces the speech banner of an already drawn settings screen when a push
+ * brings a new availability (no re-fetch, no redraw). No-op without the Recite section.
+ */
+export function updateSpeechBanner(root: ParentNode, host: PanelHost, speech: SpeechAvailability): void {
+  const old = root.querySelector('.sm-block-recite > [data-speech-state]');
+  if (old) old.replaceWith(availabilityBanner(speech, host));
 }
 
 function renderAnswerModeGroup(host: PanelHost, current: AnswerMode): HTMLElement {
@@ -163,6 +201,14 @@ export function permissionSettingsButton(host: PanelHost, speech: SpeechAvailabi
 }
 
 export function availabilityBanner(speech: SpeechAvailability, host?: PanelHost): HTMLElement {
+  if (speech.unknown) {
+    // Not probed yet: a neutral state, never a guess ("needs to be downloaded").
+    return el('p', {
+      class: 'sm-banner',
+      text: tr('memory.ui.settings.speechChecking', 'Checking speech recognition...'),
+      attrs: { role: 'status', 'data-speech-state': 'checking' },
+    });
+  }
   const msg = availabilityMessage(speech);
   if (msg === null) {
     const where = speech.onDevice ? tr('memory.ui.settings.onThisDevice', 'on this device') : tr('memory.ui.settings.online', 'online');

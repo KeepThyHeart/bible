@@ -179,6 +179,8 @@ const BiblePane: React.FC<BiblePaneProps> = (props) => {
     dismissFloatingToolbar: highlights.dismissFloatingToolbar,
     highlightRepository: highlights.highlightRepository,
     loadChapter,
+    setShowBookPicker: bookPicker.setShowBookPicker,
+    clearSelectionMarks: highlights.clearSelectionMarks,
   });
 
   // Restore first, then contentKey, then defaults - each step stands down when
@@ -253,7 +255,7 @@ const BiblePane: React.FC<BiblePaneProps> = (props) => {
           onDismiss={handleDismissBackBar}
         />
         <BibleToolbar />
-        <ReaderBars currentBook={currentBook} currentChapter={currentChapter} displayMode={displayMode} />
+        <ReaderBars currentBook={currentBook} currentChapter={currentChapter} displayMode={isParallelViewMode ? 'parallel' : displayMode} />
         <BibleVerseList />
 
         <BiblePaneOverlays
@@ -283,6 +285,9 @@ const BiblePane: React.FC<BiblePaneProps> = (props) => {
           setContextMenu={verseContextMenu.setContextMenu}
           activeTab={activeTab}
           handleRemoveHighlight={highlights.handleRemoveHighlight}
+          clearMarksInVerses={highlights.clearMarksInVerses}
+          selectionHasMarkup={highlights.selectionHasMarkup}
+          removeMarksInWordSelection={highlights.removeMarksInWordSelection}
           syncAllNotesPanelsWithVerse={verseHandlers.syncAllNotesPanelsWithVerse}
           setSelectedVerse={panel.setSelectedVerse}
           setStudyPaneActiveTab={verseHandlers.setStudyPaneActiveTab}

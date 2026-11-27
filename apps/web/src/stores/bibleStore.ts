@@ -1063,6 +1063,24 @@ class BibleStore extends Store {
     this.notify();
   }
 
+  /**
+   * Audio stopped at this verse: make it the tab's selected verse, so Study follows it and a later
+   * Listen resumes there. Unlike a click, it never scrolls (no `pendingScrollVerse`), adds no history
+   * entry and works on any tab, not just the active one. A shift-click range collapses to the verse.
+   */
+  markAudioStop(tabId: string, verseId: number): void {
+    const tab = this.tabs.find(t => t.id === tabId);
+    if (!tab || tab.studyVerse === verseId && !tab.selectionEndVerse && !tab.hiddenStudyVerse) return;
+    tab.previewVerse = null;
+    tab.previewVerseEnd = null;
+    tab.selectionEndVerse = null;
+    tab.hiddenStudyVerse = null;
+    tab.studyVerse = verseId;
+    if (tab.id === this.activeTabId) this.syncCommentaryToSelection();
+    this.saveSession();
+    this.notify();
+  }
+
   setActiveTab(tabId: string): void {
     if (this.activeTabId === tabId) return;
 

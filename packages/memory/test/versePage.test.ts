@@ -100,12 +100,20 @@ const learning = () =>
   ]);
 
 describe('header and status', () => {
-  it('shows the reference as the title, the translation, and a close button back to where it was opened', () => {
+  it('shows the reference as the title, the translation, and a "Back to list" button back to where it was opened', () => {
     const root = mount(learning());
     expect(text(root.querySelector('h1')!)).toBe('John 3:16');
     expect(text(root.querySelector('.sm-focused-head')!)).toContain('kjv');
-    root.querySelector<HTMLElement>('.sm-focused-close')!.click();
+    expect(root.querySelector('.sm-focused-close')).toBeNull();
+    const back = root.querySelector<HTMLElement>('button.kth-back')!;
+    expect(text(back)).toContain('Back to list');
+    back.click();
     expect(host.navigations).toEqual([{ type: 'leaveVerse' }]);
+  });
+
+  it('names the origin on the back button when mount passes one', () => {
+    const root = mount(learning(), { backLabel: 'My verses' } as never);
+    expect(text(root.querySelector('button.kth-back')!)).toContain('My verses');
   });
 
   it('shows status and next review as text', () => {
@@ -137,10 +145,10 @@ describe('Practice now', () => {
 });
 
 describe('Activities', () => {
-  it('is a collapsed details listing only applicable activities, with no level boxes or n/5', () => {
+  it('is an expanded details listing only applicable activities, with no level boxes or n/5', () => {
     const root = mount(learning());
     const details = root.querySelector('details')!;
-    expect(details.open).toBe(false);
+    expect(details.open).toBe(true);
     expect(text(details.querySelector('summary')!)).toBe('Activities');
     const names = Array.from(details.querySelectorAll('.sm-activity-name')).map(text);
     expect(names).toEqual(['Fill in the blanks', 'First letters']);
@@ -294,5 +302,12 @@ describe('menu trigger', () => {
     const trigger = root.querySelector<HTMLButtonElement>('button[aria-label^="Actions for"]')!;
     expect(text(trigger)).toBe('…');
     expect(trigger.querySelector('svg')).toBeNull();
+  });
+
+  it('shows a line instead of the empty text block when the verse text failed', () => {
+    const root = mount(learning(), { verses: null, textError: true });
+    expect(root.querySelector('.sm-error')?.textContent).toBe('The verse text could not be loaded.');
+    expect(root.querySelector('.sm-verse-text')).toBeNull();
+    expect(mount(learning(), { verses: null }).querySelector('.sm-error')).toBeNull();
   });
 });

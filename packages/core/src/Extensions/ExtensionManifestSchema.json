@@ -310,7 +310,7 @@
         "components": {
           "type": "array",
           "uniqueItems": true,
-          "items": { "type": "string", "enum": ["kth-book-chapter-picker", "kth-reference-picker", "kth-highlight-swatch"] },
+          "items": { "type": "string", "enum": ["kth-book-chapter-picker", "kth-reference-picker", "kth-verse-selector", "kth-highlight-swatch"] },
           "description": "Component tags the panel intends to use."
         }
       }

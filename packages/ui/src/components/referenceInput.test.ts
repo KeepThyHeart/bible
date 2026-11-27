@@ -58,8 +58,17 @@ describe('parseReferenceInput', () => {
     const fuzzy = parseReferenceInput('Jhon 3:16');
     expect(fuzzy).toMatchObject({ ok: true, fuzzy: true, value: { verseId: 43003016 } });
   });
+  it('parses chapter ranges', () => {
+    const r = ok('John 1-3');
+    expect(r).toEqual({ verseId: 43001001, endVerseId: 43003036, ref: 'John 1-3' });
+    expect(r).not.toHaveProperty('wholeChapter');
+    expect(ok('John 3-4:2')).toMatchObject({ verseId: 43003001, endVerseId: 43004002 });
+    expect(ok('John 3-3')).toEqual({ verseId: 43003001, ref: 'John 3', wholeChapter: true });
+    expect(ok('Juan 1-3', 'es').ref).toMatch(/^Juan 1.3$/);
+    expect(parseReferenceInput('John 1-3', 'en', { noRanges: true }).ok).toBe(false);
+  });
   it('rejects invalid input', () => {
-    for (const bad of ['John 22:1', 'John 3:18-16', 'John 3-5', 'Foo 1:1', '', 'John', 'John 3:', 'John 0:1', 'John 3:0', 'John 3:1-4:0']) {
+    for (const bad of ['John 22:1', 'John 3:18-16', 'John 3-1', 'John 3-23', 'John 3-4:99', 'John 3-3:2', 'Foo 1:1', '', 'John', 'John 3:', 'John 0:1', 'John 3:0', 'John 3:1-4:0']) {
       expect(parseReferenceInput(bad).ok, bad).toBe(false);
     }
   });

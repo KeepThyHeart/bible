@@ -22,8 +22,10 @@ import type { ISql } from '../Data/Core/ISql';
  *   upgrader; the bump stops an older build from restoring a backup whose memory rows it would drop.
  * - 3: every user table on every platform (core `createUserSchema`, task 0150); sync bookkeeping excluded.
  *   New tables only, no upgrader.
+ * - 4: `memory_passage.position` (stored order of a list, task 0219). Nullable; the v3 upgrader supplies NULL and
+ *   `ensureMemoryPassagePosition` numbers the rows after a restore.
  */
-export const USER_SCHEMA_VERSION = 3;
+export const USER_SCHEMA_VERSION = 4;
 
 /**
  * - `content`: what the user wrote or collected; losing it is data loss. Always backed up.
@@ -243,7 +245,8 @@ export const USER_TABLES: readonly TableSpec[] = [
   {
     name: 'memory_passage', pk: ['id'], autoId: true, cls: 'content', origin: 'both',
     columns: ['id', 'collection_id', 'module_id', 'start_verse_id', 'end_verse_id', 'reference', 'verse_count', 'added_at',
-      'answer_mode', 'deleted_at', 'recite_on'],
+      'answer_mode', 'deleted_at', 'recite_on', 'position'],
+    upgraders: { 3: (r) => ({ ...r, position: null }) },
     fks: [{ column: 'collection_id', table: 'memory_collection', sql: true, onMissing: 'drop' }],
     // The DDL's unique index: one range per translation per list.
     identity: { kind: 'unique', columns: ['collection_id', 'module_id', 'start_verse_id', 'end_verse_id'], conflict: 'keepLocal' },

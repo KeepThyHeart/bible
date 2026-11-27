@@ -4,8 +4,9 @@
  * end blocks belong in a chapter. Pure: plan + progress in, positions out.
  */
 import type { PlanDefinition, Reading, VerseIdNumber } from './types';
-import type { ProgressIndex } from './scheduler';
-import { splitVid } from './versification';
+import type { ProgressIndex, TodayView } from './scheduler';
+import { firstUnreadDay } from './scheduler';
+import { chapterCount, splitVid } from './versification';
 
 /** One reading with its place in the plan (`day` is 1-based, `index` 0-based within the day). */
 export interface PlanReadingRef {
@@ -74,4 +75,111 @@ export function blockPlacement(
   const start = verseId >= reading.start && (prev === null ? sameChapter(reading.start, verseId) : prev < reading.start);
   const end = verseId <= reading.end && (next === null ? sameChapter(reading.end, verseId) : next > reading.end);
   return { start: start && verseId <= reading.end, end: end && verseId >= reading.start };
+}
+
+/**
+ * The plan days around the reader's place: `current` is the first day with an unfinished reading, `previous`
+ * and `next` its neighbours (null at the plan's edges). A finished plan has no current or next day and
+ * `previous` is the last day.
+ */
+export function currentDayWindow(
+  plan: PlanDefinition, progress: ProgressIndex,
+): { previous: number | null; current: number | null; next: number | null } {
+  const current = firstUnreadDay(plan, progress);
+  const count = plan.days.length;
+  if (current === null) return { previous: count > 0 ? count : null, current: null, next: null };
+  return { previous: current > 1 ? current - 1 : null, current, next: current < count ? current + 1 : null };
+}
+
+/** The one shared "today" for Home, the Today tab and the reader bar: the day to read now, else the next one due. */
+export function focusDay(view: TodayView): number | null {
+  return view.day ?? view.upcomingDay;
+}
+
+/** One of today's readings with its tick state. */
+export interface TodayReadingRef extends PlanReadingRef {
+  done: boolean;
+}
+
+/**
+ * Today's readings, ticked and unticked, in reading order: the focus day, then the catch-up quota days.
+ * The set is stable through the day (see `todayView`), so a reading stays in it after it is ticked.
+ */
+export function todaysReadings(view: TodayView): TodayReadingRef[] {
+  const out: TodayReadingRef[] = [];
+  if (view.day !== null) for (const r of view.readings) out.push({ day: view.day, index: r.index, reading: r.reading, done: r.done });
+  for (const c of view.catchUp?.days ?? []) for (const r of c.readings) out.push({ day: c.day, index: r.index, reading: r.reading, done: r.done });
+  return out;
+}
+
+/** The unticked subset of `todaysReadings(view)`. */
+export function dueReadings(view: TodayView): PlanReadingRef[] {
+  return todaysReadings(view).filter((r) => !r.done).map(({ day, index, reading }) => ({ day, index, reading }));
+}
+
+/**
+ * The next unticked reading after (`day`, `index`) in `todaysReadings(view)` order (positional, so it works right after
+ * the reading was ticked), else (wrapping to earlier ones) the first unticked one before it, or null when none is left: "Day N done". A flexible plan stays within the reading's own day.
+ */
+export function nextDueReading(view: TodayView, day: number, index: number): PlanReadingRef | null {
+  const all = todaysReadings(view);
+  const at = all.findIndex((r) => r.day === day && r.index === index);
+  if (at < 0) return null;
+  for (let i = at + 1; i < all.length; i++) {
+    const r = all[i];
+    if (view.pacing === 'flexible' && r.day !== day) return null;
+    if (!r.done) return { day: r.day, index: r.index, reading: r.reading };
+  }
+  // Nothing unticked after it: wrap to unticked entries before it (out-of-order ticking; a flexible plan stays in the day).
+  for (let i = 0; i < at; i++) {
+    const r = all[i];
+    if (view.pacing === 'flexible' && r.day !== day) continue;
+    if (!r.done) return { day: r.day, index: r.index, reading: r.reading };
+  }
+  return null;
+}
+
+function chaptersOf(reading: Pick<Reading, 'start' | 'end'>): { book: number; chapter: number }[] {
+  const a = splitVid(reading.start);
+  const b = splitVid(reading.end);
+  const out: { book: number; chapter: number }[] = [];
+  for (let book = a.book; book <= b.book; book++) {
+    const from = book === a.book ? a.chapter : 1;
+    const to = book === b.book ? b.chapter : chapterCount(book);
+    for (let chapter = from; chapter <= to; chapter++) out.push({ book, chapter });
+  }
+  return out;
+}
+
+/** The first and last chapter a reading touches and how many chapters it spans. */
+export function chapterSpan(
+  reading: Pick<Reading, 'start' | 'end'>,
+): { first: { book: number; chapter: number }; last: { book: number; chapter: number }; count: number } {
+  const a = splitVid(reading.start);
+  const b = splitVid(reading.end);
+  return { first: { book: a.book, chapter: a.chapter }, last: { book: b.book, chapter: b.chapter }, count: chaptersOf(reading).length };
+}
+
+/** "Chapter n of count" of a reading for the chapter on screen, or null when the chapter is not part of it. */
+export function chapterOf(
+  reading: Pick<Reading, 'start' | 'end'>, book: number, chapter: number,
+): { n: number; count: number } | null {
+  const list = chaptersOf(reading);
+  const i = list.findIndex((c) => c.book === book && c.chapter === chapter);
+  return i < 0 ? null : { n: i + 1, count: list.length };
+}
+
+/** The reading's last verse is in this chapter. */
+export function endsInChapter(reading: Pick<Reading, 'end'>, book: number, chapter: number): boolean {
+  const e = splitVid(reading.end);
+  return e.book === book && e.chapter === chapter;
+}
+
+/** The chapter after (`book`, `chapter`) within the reading's own chapter list (across book boundaries), or null. */
+export function nextChapterIn(
+  reading: Pick<Reading, 'start' | 'end'>, book: number, chapter: number,
+): { book: number; chapter: number } | null {
+  const list = chaptersOf(reading);
+  const i = list.findIndex((c) => c.book === book && c.chapter === chapter);
+  return i >= 0 && i + 1 < list.length ? list[i + 1] : null;
 }

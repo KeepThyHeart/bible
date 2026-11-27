@@ -17,7 +17,7 @@ const NO_HISTORY: never[] = [];
 /**
  * The Bible pane's single control band.
  *
- * Contains: back (visit stack), history dropdown, the bookmark menu (jump
+ * Contains: back (visit stack), history dropdown, the current-reference button (opens the book/chapter picker), the bookmark menu (jump
  * list, with saving inside it), version selector, display mode dropdown, parallel view toggle,
  * the Interlinear/Notes chapter toggles, the passage settings menu, and
  * chapter navigation.
@@ -41,6 +41,8 @@ const BibleToolbar: React.FC = () => {
     isLoading,
     currentBook,
     currentChapter,
+    currentBookName,
+    setShowBookPicker,
     displayMode,
     showHistoryDropdown,
     setShowHistoryDropdown,
@@ -165,6 +167,31 @@ const BibleToolbar: React.FC = () => {
 
         {/* Bookmarks: the ribbon menu - jump list, with saving inside it. */}
         <BookmarkMenu />
+
+        {/* Current reference: always visible, so the reader can jump elsewhere
+            without scrolling back up to the in-content heading. Opens the same
+            book/chapter picker (portalled by BiblePaneOverlays, so the toolbar's
+            overflow clip does not hide it). */}
+        <button
+          onClick={() => setShowBookPicker(true)}
+          className="flex items-center gap-1 text-xs font-semibold cursor-pointer text-text-primary hover:bg-background-active transition-colors min-w-0"
+          style={{
+            background: 'none',
+            border: 'none',
+            borderInlineEnd: '2px solid var(--theme-border-primary)',
+            borderRadius: 0,
+            padding: '8px 12px',
+          }}
+          title={t('biblePane.goToBookChapterTitle')}
+          aria-label={t('biblePane.currentReferenceLabel', { reference: `${currentBookName} ${currentChapter}` })}
+          aria-haspopup="dialog"
+          data-testid="toolbar-reference"
+        >
+          <Bdi className="truncate">{currentBookName} {currentChapter}</Bdi>
+          <svg className="w-3 h-3 flex-shrink-0" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
 
         {/* Version selector button */}
         <button

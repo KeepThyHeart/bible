@@ -8,6 +8,8 @@
  */
 
 import React from 'react';
+import { FontOptions } from './FontOptions';
+import type { PickableFont } from '../../hooks/useOfferedFonts';
 import { useI18n } from '../../contexts/useI18n';
 import {
   PaneType,
@@ -15,6 +17,9 @@ import {
   TextSettings,
   getFontFamilyCSS
 } from '../../stores/useTextSettingsStore';
+
+/** The per-pane list in the shape the shared font picker takes (the face name as the stored value). */
+const PANE_FONT_ENTRIES: PickableFont[] = AVAILABLE_FONTS.map(f => ({ ...f, value: f.name, stack: f.css }));
 
 export interface PaneFontSettingsProps {
   paneType: PaneType;
@@ -114,11 +119,7 @@ export const PaneFontSettings: React.FC<PaneFontSettingsProps> = ({
                 color: 'var(--theme-input-text)'
               }}
             >
-              {AVAILABLE_FONTS.map((font) => (
-                <option key={font.name} value={font.name}>
-                  {font.labelKey ? t(font.labelKey, { fontName: font.label }) : font.label}
-                </option>
-              ))}
+              <FontOptions fonts={PANE_FONT_ENTRIES} value={settings.fontFamily} />
             </select>
           </div>
 

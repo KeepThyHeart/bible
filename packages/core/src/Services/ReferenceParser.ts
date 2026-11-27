@@ -95,6 +95,8 @@ export interface ReferenceParserConfig {
   bookNames?: Map<string, number>;
   /** Display names indexed by (bookNumber - 1). Length should be 66. */
   displayNames?: string[];
+  /** Abbreviated names indexed by (bookNumber - 1) ("Jn", "Gn"), for tight labels. Falls back to the display names. */
+  shortNames?: string[];
   /** Book numbers that have only one chapter (e.g., Obadiah, Philemon, Jude). */
   singleChapterBooks?: Set<number>;
   /**

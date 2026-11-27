@@ -71,6 +71,7 @@
     "noMatches": "Sin coincidencias",
     "popular": "Populares",
     "allTranslations": "Todas las traducciones",
+    "recent": "Recientes",
     "other": "Otras",
     "modeStandard": "Estándar",
     "modeReading": "Lectura",
@@ -79,7 +80,8 @@
     "modeLabel": "Modo de visualización",
     "recentPassages": "Pasajes recientes",
     "noHistory": "Todavía no se ha visitado ningún pasaje",
-    "translationButton": "Traducción: {abbr}"
+    "translationButton": "Traducción: {abbr}",
+    "currentReference": "{reference}: ir a un libro y capítulo"
   },
   "bibleContent": {
     "votdLabel": "Versículo del día",
@@ -347,7 +349,8 @@
           "overQuota": "Se necesitan unos {size} más de espacio."
         },
         "remove": "Quitar",
-        "keepHint": "Seleccionar un elemento que ya está en este dispositivo lo conserva aquí; nunca se elimina automáticamente."
+        "keepHint": "Seleccionar un elemento que ya está en este dispositivo lo conserva aquí; nunca se elimina automáticamente.",
+        "selectAllGroup": "Seleccionar todo en {group}"
       }
     },
     "downloads": {
@@ -380,7 +383,8 @@
       "desktopOnly": "Las notas, los resaltados, los marcadores, la memorización de Escritura, los planes de lectura y las listas de oración están disponibles en la aplicación de escritorio.",
       "license": "Con licencia <strong>GNU General Public License v3.0</strong> (GPL-3.0).",
       "licenseDetails": "Este software se puede usar, modificar y distribuir libremente según los términos de la GPL v3. Se agradecen el código fuente y las contribuciones.",
-      "viewOnGithub": "Ver en GitHub"
+      "viewOnGithub": "Ver en GitHub",
+      "credits": "La mayoría de las Biblias, comentarios y diccionarios se convirtieron a partir de módulos de The SWORD Project, distribuidos por la CrossWire Bible Society (crosswire.org). Se aplican los derechos de autor y la licencia propios de cada módulo."
     },
     "language": {
       "title": "Idioma",
@@ -466,7 +470,8 @@
     "copyToClipboard": "Copiar al portapapeles",
     "loading": "Cargando los versículos...",
     "copyFailed": "No se pudo copiar al portapapeles. Comprueba que este sitio tenga permiso para usarlo.",
-    "referencePosition": "Posición de la referencia"
+    "referencePosition": "Posición de la referencia",
+    "print": "Imprimir"
   },
   "ui": {
     "passageInsert": {
@@ -502,7 +507,8 @@
       "quoteMarksNone": "Ninguna",
       "commentPlaceholdersLabel": "Espacio para comentar debajo de cada versículo",
       "verseHeading": "Versículo {verse}",
-      "commentPlaceholderText": "[Comentarios sobre {reference}]"
+      "commentPlaceholderText": "[Comentarios sobre {reference}]",
+      "verseNumbersFirstFull": "Referencia completa en el primer versículo (Jn 3:16), luego números"
     }
   },
   "feedbackDialog": {
@@ -569,7 +575,10 @@
     "aboutAuthor": "Autor",
     "aboutYear": "Año",
     "aboutDescription": "Descripción",
+    "aboutCopyright": "Derechos de autor",
     "aboutLicense": "Licencia",
+    "aboutSource": "Fuente",
+    "aboutConvertedFrom": "Conversión",
     "aboutPublisher": "Editorial",
     "aboutLanguage": "Idioma",
     "aboutUnavailable": "No hay información del módulo disponible."
@@ -871,7 +880,10 @@
     "noResults": "Sin resultados.",
     "searchFor": "Buscar \"{query}\"",
     "back": "Atrás",
-    "chapterOption": "{book}, capítulo {chapter}"
+    "chapterOption": "{book}, capítulo {chapter}",
+    "selectAVerse": "Elija un versículo, o vaya al capítulo completo",
+    "goToChapter": "Ir a {book} {chapter}",
+    "verseOption": "{book} {chapter}:{verse}"
   },
   "helpDialog": {
     "esc": "Esc"

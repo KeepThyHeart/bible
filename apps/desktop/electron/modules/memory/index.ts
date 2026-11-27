@@ -17,7 +17,7 @@
  * the core is not running, so the badge never starts it.
  */
 
-import type { ISql } from '@bible/core';
+import { ensureMemoryPassagePosition, type ISql } from '@bible/core';
 import { MEMORY_API_METHODS, type MemoryPush } from '@bible/memory/api';
 import { MEMORY_MODULE_ID } from '@bible/memory/manifest';
 import { readMemoryStatus } from '@bible/memory/status';
@@ -206,6 +206,8 @@ export function createMemoryMainModule(envOverrides: Partial<MemoryMainEnv> = {}
     // start the core again for push-card users. Restores that touch no memory table change nothing.
     const touches = (event: UserDataRestoredEvent) => event.tables.some((t) => t.startsWith(MEMORY_TABLE_PREFIX));
     const afterRestore = async (db: ISql): Promise<void> => {
+      // A v3 backup or a merge brings rows with no stored position: number them before the UI redraws.
+      ensureMemoryPassagePosition(db);
       emit({ type: 'planChanged' });
       emit({ type: 'status', status: readMemoryStatus(db, now()) });
       if (pushCardsEnabled(db)) void get().catch(() => undefined);

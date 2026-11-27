@@ -65,6 +65,8 @@ function makeCtx(overrides: Record<string, unknown> = {}) {
     isLoading: false,
     currentBook: 43,
     currentChapter: 3,
+    currentBookName: 'John',
+    setShowBookPicker: vi.fn(),
     displayMode: 'standard',
     showHistoryDropdown: false,
     setShowHistoryDropdown: vi.fn(),
@@ -241,5 +243,18 @@ describe('BibleToolbar — chapter arrows at the Bible boundaries (B-002)', () =
     render(<BibleToolbar />);
     expect(screen.getByTestId('prev-chapter')).toBeDisabled();
     expect(screen.getByTestId('next-chapter')).not.toBeDisabled();
+  });
+});
+
+describe('BibleToolbar — current reference', () => {
+  it('shows book and chapter and opens the picker', () => {
+    const setShowBookPicker = vi.fn();
+    h.ctx.value = makeCtx({ setShowBookPicker });
+    render(<BibleToolbar />);
+
+    const btn = screen.getByTestId('toolbar-reference');
+    expect(btn).toHaveTextContent('John 3');
+    fireEvent.click(btn);
+    expect(setShowBookPicker).toHaveBeenCalledWith(true);
   });
 });

@@ -54,7 +54,8 @@
     "notice": {
       "noAudio": "‏No recording or speech voice is available for this translation yet.‏",
       "preferredUnavailable": "‏Your preferred audio source is not available for this translation, so another source is playing instead.‏",
-      "voiceUnavailable": "‏Your chosen voice is no longer available, so another voice is being used.‏"
+      "voiceUnavailable": "‏Your chosen voice is no longer available, so another voice is being used.‏",
+      "passageSkipped": "‏Skipped a passage this translation does not have.‏"
     },
     "error": {
       "network": "‏{ref} could not be downloaded. Check your connection, then retry.‏",
@@ -151,6 +152,86 @@
     },
     "shortcut": {
       "focusPlayer": "‏Go to the audio player‏"
+    },
+    "downloads": {
+      "title": "‏Download audio for offline listening‏",
+      "heading": "‏Offline listening‏",
+      "settingsHint": "‏Keep recorded books on this device to listen without a connection.‏",
+      "open": "‏Download audio…‏",
+      "hint": "‏Choose the books to keep on this device. The translation’s text is saved too when it is not already here.‏",
+      "translation": "‏Translation‏",
+      "narrator": "‏Narrator‏",
+      "loading": "‏Loading recordings…‏",
+      "none": "‏No recordings are available for {module}.‏",
+      "ot": "‏Old Testament‏",
+      "nt": "‏New Testament‏",
+      "selectAll": "‏Select all‏",
+      "clear": "‏Clear‏",
+      "selectGroup": "‏Select all books in the {testament}‏",
+      "clearGroup": "‏Clear the selection in the {testament}‏",
+      "wholeBible": "‏Whole Bible‏",
+      "sizeLoading": "‏size loading…‏",
+      "state": {
+        "downloaded": "‏Downloaded‏",
+        "partial": "‏Partly downloaded‏"
+      },
+      "chapters": "‏{count} of {total} chapters‏",
+      "removeBook": "‏Remove {book} from this device‏",
+      "selected": "‏{count, plural, one {# book} other {# books}} selected · {size}‏",
+      "free": "‏{size} free‏",
+      "noFit": "‏This selection is larger than the free space on this device.‏",
+      "download": "‏Download‏",
+      "confirmTitle": "‏Large download‏",
+      "confirmBody": "‏This download is {size}. Check the connection and the space on this device before starting.‏",
+      "confirmNoFit": "‏This download is {size}, but only {free} is free on this device. It may not fit.‏",
+      "confirmGo": "‏Download anyway‏",
+      "back": "‏Back‏",
+      "progress": "‏Downloading {book} · {done} of {total} books · {loaded} of {size}‏",
+      "done": "‏The download finished.‏",
+      "cancelled": "‏The download stopped. Progress is kept, so the next download continues from here.‏",
+      "failed": "‏The download did not finish. {message}‏",
+      "close": "‏Close‏"
+    },
+    "passages": {
+      "open": "‏Play passages…‏",
+      "title": "‏Play passages‏",
+      "input": "‏Passages to read‏",
+      "placeholder": "‏e.g. Ps 23; Rom 8:28-39; Gen 1-2‏",
+      "play": "‏Play list‏",
+      "remove": "‏Remove {ref}‏",
+      "progress": "‏{index} of {count} · {ref}‏",
+      "prev": "‏Previous passage‏",
+      "next": "‏Next passage‏",
+      "error": {
+        "empty": "‏Type one or more references.‏",
+        "noBook": "‏“{text}” does not name a book of the Bible.‏",
+        "badNumbers": "‏“{text}” has chapter or verse numbers that could not be read.‏",
+        "outOfRange": "‏“{text}” is past the end of {book}.‏",
+        "tooMany": "‏Up to {max} passages at a time.‏"
+      }
+    },
+    "playlist": {
+      "label": "‏Playlist‏",
+      "edit": "‏Change‏",
+      "chapter": "‏Current chapter‏"
+    },
+    "continue": {
+      "label": "‏Continue to the next chapter‏",
+      "listHint": "‏Applies when reading by chapter; a typed list ends at its last verse.‏"
+    },
+    "loop": {
+      "label": "‏Repeat‏",
+      "once": "‏Play once‏",
+      "list": "‏Loop the list‏",
+      "passage": "‏Loop this passage‏"
+    },
+    "elsewhere": {
+      "label": "‏Reading in another tab: {ref} ({module})‏",
+      "goto": "‏Go to it‏"
+    },
+    "live": {
+      "passage": "‏Now reading {ref}, {index} of {count}‏",
+      "retarget": "‏Now reading this tab. The other tab keeps its place.‏"
     }
   }
 }

@@ -39,6 +39,9 @@ export type {
   KthKitGlobal,
   LoadKitOptions,
   KthReferenceChangeDetail,
+  KthVerseSelectionDetail,
+  KthVerseSubmitDetail,
+  KthVerseTextLookup,
   KthPickDetail,
   KthSwatchChangeDetail,
 } from './kit';

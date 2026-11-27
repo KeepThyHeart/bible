@@ -31,7 +31,7 @@
  * any path arithmetic happens.
  */
 
-import { protocol, type Session } from 'electron';
+import { protocol, type CustomScheme, type Session } from 'electron';
 import { existsSync, realpathSync, statSync } from 'fs';
 import { join, normalize, sep } from 'path';
 import log from 'electron-log';
@@ -102,7 +102,8 @@ const HOST_RESOURCES: ReadonlyMap<string, HostResource> = new Map<string, HostRe
  * Call ONCE before `app.whenReady()`. Marks the scheme as standard +
  * secure + supportsFetchAPI so the renderer treats it like https://.
  */
-export function registerExtUiSchemePrivileged(): void {
+export function registerExtUiSchemePrivileged(extraSchemes: readonly CustomScheme[] = []): void {
+  // Electron honours only ONE registerSchemesAsPrivileged call, so other schemes (kth-audio) ride along.
   protocol.registerSchemesAsPrivileged([
     {
       scheme: EXT_UI_SCHEME,
@@ -114,6 +115,7 @@ export function registerExtUiSchemePrivileged(): void {
         stream: true,
       },
     },
+    ...extraSchemes,
   ]);
 }
 

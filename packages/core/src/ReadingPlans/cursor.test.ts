@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { PlanDefinition } from './types';
 import { indexCompletions } from './scheduler';
-import { blockPlacement, flattenPlan, nextReadingAfter, overdueReadings, readingNeighbours } from './cursor';
+import { blockPlacement, flattenPlan, nextReadingAfter, overdueReadings, readingNeighbours, currentDayWindow, nextChapterIn } from './cursor';
 import { vid } from './versification';
 
 const r = (b: number, c1: number, v1: number, c2: number, v2: number) => ({ start: vid(b, c1, v1), end: vid(b, c2, v2) });
@@ -86,5 +86,35 @@ describe('blockPlacement', () => {
     const reading = r(1, 1, 1, 1, 31);
     const ids = [vid(1, 1, 30), vid(1, 1, 31)];
     expect(place(reading, ids).map((p) => p.end)).toEqual([false, true]);
+  });
+});
+
+describe('currentDayWindow', () => {
+  const prog = (...ticks: [number, number][]) => {
+    const p = indexCompletions([]);
+    for (const [d, i] of ticks) p.set(d, (p.get(d) ?? new Set()).add(i));
+    return p;
+  };
+  it('starts at day 1 with no previous', () => {
+    expect(currentDayWindow(plan, prog())).toEqual({ previous: null, current: 1, next: 2 });
+  });
+  it('follows the first unfinished day, including a half-read one', () => {
+    expect(currentDayWindow(plan, prog([1, 0], [2, 0]))).toEqual({ previous: 1, current: 2, next: 3 });
+  });
+  it('has no next on the last day', () => {
+    expect(currentDayWindow(plan, prog([1, 0], [2, 0], [2, 1], [3, 0]))).toEqual({ previous: 3, current: 4, next: null });
+  });
+  it('a finished plan has only a previous day', () => {
+    expect(currentDayWindow(plan, prog([1, 0], [2, 0], [2, 1], [3, 0], [4, 0]))).toEqual({ previous: 4, current: null, next: null });
+  });
+});
+
+describe('nextChapterIn', () => {
+  it('steps through the reading and across book boundaries', () => {
+    const reading = { start: vid(1, 50, 1), end: vid(2, 2, 3) };
+    expect(nextChapterIn(reading, 1, 50)).toEqual({ book: 2, chapter: 1 });
+    expect(nextChapterIn(reading, 2, 1)).toEqual({ book: 2, chapter: 2 });
+    expect(nextChapterIn(reading, 2, 2)).toBeNull();
+    expect(nextChapterIn(reading, 3, 1)).toBeNull();
   });
 });

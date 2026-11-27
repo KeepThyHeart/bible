@@ -26,8 +26,9 @@ describe('appShell', () => {
     const root = appShell(host(), 'verses', null, document.createElement('p'));
     document.body.appendChild(root);
     const tabs = [...root.querySelectorAll<HTMLButtonElement>('[role="tab"]')];
-    expect(tabs.map((t) => t.getAttribute('aria-selected'))).toEqual(['false', 'true', 'false']);
-    expect(tabs.map((t) => t.tabIndex)).toEqual([-1, 0, -1]);
+    expect(tabs.map((t) => t.getAttribute('aria-selected'))).toEqual(['false', 'true', 'false', 'false']);
+    expect(tabs.map((t) => t.tabIndex)).toEqual([-1, 0, -1, -1]);
+    expect(tabs.map((t) => t.textContent)).toEqual(['Today', 'My verses', 'Lists', 'Progress']);
     expect(root.querySelector('[role="tablist"]')).not.toBeNull();
     expect(root.querySelector('[role="tabpanel"]')!.getAttribute('aria-labelledby')).toBe(tabs[1]!.id);
     expect(root.querySelector('[role="tabpanel"] p')).not.toBeNull();
@@ -60,12 +61,14 @@ describe('appShell', () => {
     expect(tabs.filter((t) => t.tabIndex === 0)).toHaveLength(1);
   });
 
-  it('shows the focus chip only for a scoped plan on Today / My verses', () => {
+  it('shows the focus chip only for a scoped plan on Today', () => {
     const c = document.createElement('div');
     expect(appShell(host(), 'today', plan('all'), c).querySelector('.sm-shell-chip')).toBeNull();
     expect(appShell(host(), 'progress', plan(3), c).querySelector('.sm-shell-chip')).toBeNull();
     expect(appShell(host(), 'today', null, c).querySelector('.sm-shell-chip')).toBeNull();
-    const chip = appShell(host(), 'verses', plan(3), c).querySelector('.sm-shell-chip')!;
+    expect(appShell(host(), 'verses', plan(3), c).querySelector('.sm-shell-chip')).toBeNull();
+    expect(appShell(host(), 'lists', plan(3), c).querySelector('.sm-shell-chip')).toBeNull();
+    const chip = appShell(host(), 'today', plan(3), c).querySelector('.sm-shell-chip')!;
     expect(chip.textContent).toContain('Focus: Psalms');
   });
 
@@ -79,6 +82,42 @@ describe('appShell', () => {
     expect(h.request).toHaveBeenCalledTimes(1);
     expect(h.announce).toHaveBeenCalledWith('Today now follows all your lists.');
     expect(h.reload).toHaveBeenCalled();
+  });
+
+  it('rail layout marks the tablist vertical; other layouts do not', () => {
+    const rail = appShell(host(), 'today', null, document.createElement('div'), { layout: 'rail' });
+    expect(rail.querySelector('[role="tablist"]')!.getAttribute('aria-orientation')).toBe('vertical');
+    const col = appShell(host(), 'today', null, document.createElement('div'));
+    expect(col.querySelector('[role="tablist"]')!.hasAttribute('aria-orientation')).toBe(false);
+  });
+
+  it('layout option sets data-layout; default column; unknown falls back', () => {
+    const c = document.createElement('div');
+    expect(appShell(host(), 'today', null, c).getAttribute('data-layout')).toBe('column');
+    expect(appShell(host(), 'today', null, c, { layout: 'start' }).getAttribute('data-layout')).toBe('start');
+    expect(appShell(host(), 'today', null, c, { layout: 'rail' }).getAttribute('data-layout')).toBe('rail');
+    expect(appShell(host(), 'today', null, c, { layout: 'bogus' }).getAttribute('data-layout')).toBe('column');
+  });
+
+  it('draws at once with aria-busy while the content is null', () => {
+    const root = appShell(host(), 'today', null, null);
+    const panel = root.querySelector('[role="tabpanel"]')!;
+    expect(panel.getAttribute('aria-busy')).toBe('true');
+    expect(panel.children).toHaveLength(0);
+    expect(root.querySelectorAll('[role="tab"]')).toHaveLength(4);
+    const done = appShell(host(), 'today', null, document.createElement('div'));
+    expect(done.querySelector('[role="tabpanel"]')!.hasAttribute('aria-busy')).toBe(false);
+  });
+
+  it('Up/Down also move focus between tabs (rail)', () => {
+    const root = appShell(host(), 'today', null, null, { layout: 'rail' });
+    document.body.appendChild(root);
+    const tabs = [...root.querySelectorAll<HTMLButtonElement>('[role="tab"]')];
+    tabs[0]!.focus();
+    key(tabs[0]!, 'ArrowDown');
+    expect(document.activeElement).toBe(tabs[1]);
+    key(tabs[1]!, 'ArrowUp');
+    expect(document.activeElement).toBe(tabs[0]);
   });
 
   it('does not use a menu button or breadcrumbs', () => {

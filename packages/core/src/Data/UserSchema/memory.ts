@@ -50,7 +50,8 @@ export const MEMORY_DDL: readonly string[] = [
      added_at       INTEGER NOT NULL,
      answer_mode    TEXT,
      deleted_at     INTEGER,
-     recite_on      INTEGER NOT NULL DEFAULT 0
+     recite_on      INTEGER NOT NULL DEFAULT 0,
+     position       INTEGER
    )`,
   // The same range in two translations is two different tasks, so the module is part of the key.
   `CREATE UNIQUE INDEX IF NOT EXISTS memory_passage_range_unique
@@ -141,4 +142,40 @@ export const MEMORY_DDL: readonly string[] = [
 /** Create the memory tables if missing. Idempotent; safe on every open. */
 export function installMemorySchema(db: ISql): void {
   for (const statement of MEMORY_DDL) db.execute(statement);
+  ensureMemoryPassagePosition(db);
+}
+
+/**
+ * Add `memory_passage.position` (schema version 4) to a database that predates it, index it, and number
+ * every row whose position is NULL. Idempotent and safe on every open.
+ *
+ * The index is not part of `MEMORY_DDL` because `runDdl` runs before the column exists on an old database.
+ * Backfill: per list, the NULL rows are numbered after the list's current `MAX(position)` (from 0 when the
+ * list has none), in `(added_at, id)` order. That covers v3 databases, v3 backups, merges and sync that bring
+ * NULLs in. Rows that already have a position are never touched, so a second run changes nothing.
+ *
+ * Sync note: the UPDATEs fire the change-tracking triggers, so each backfilled passage is sent once.
+ * Does nothing when `memory_passage` does not exist. Call it inside a transaction when atomicity matters.
+ */
+export function ensureMemoryPassagePosition(db: ISql): void {
+  const table = db.queryOne("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'memory_passage'");
+  if (!table) return;
+  const cols = db.queryAll<{ name: string }>('PRAGMA table_info(memory_passage)').map((c) => c.name);
+  if (!cols.includes('position')) db.execute('ALTER TABLE memory_passage ADD COLUMN position INTEGER');
+  db.execute('CREATE INDEX IF NOT EXISTS memory_passage_collection_position ON memory_passage (collection_id, position)');
+
+  const nulls = db.queryAll<{ id: number; collection_id: number }>(
+    'SELECT id, collection_id FROM memory_passage WHERE position IS NULL ORDER BY collection_id, added_at, id');
+  if (nulls.length === 0) return;
+  let current = -1;
+  let next = 0;
+  for (const row of nulls) {
+    if (row.collection_id !== current) {
+      current = row.collection_id;
+      const max = db.queryOne<{ m: number | null }>(
+        'SELECT MAX(position) AS m FROM memory_passage WHERE collection_id = ?', [current])?.m;
+      next = max === null || max === undefined ? 0 : max + 1;
+    }
+    db.execute('UPDATE memory_passage SET position = ? WHERE id = ?', [next++, row.id]);
+  }
 }

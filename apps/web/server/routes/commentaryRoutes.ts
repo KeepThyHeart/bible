@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { VerseIdHelper } from '../core.js';
+import { VerseIdHelper, getProvenanceAttribution } from '../core.js';
 import type { DatabaseManager } from '../DatabaseManager.js';
 import { validateBookNumber, validateChapter, validateVerse, validateModuleName } from '../utils/validation.js';
 import { sendError, ErrorCodes } from '../utils/errorResponse.js';
@@ -268,6 +268,10 @@ export function createCommentaryRoutes(db: DatabaseManager, siteSettings: SiteSe
         description: info.description ?? null,
         publisher: info.publisher ?? null,
         createdDate: info.createdDate ?? null,
+        licenseSpdx: info.licenseSpdx ?? null,
+        licenseUrl: info.licenseUrl ?? null,
+        sourceUrl: info.sourceUrl ?? null,
+        attribution: getProvenanceAttribution(info.metadata),
       });
     } catch (error) {
       console.error('Error getting commentary info:', error);

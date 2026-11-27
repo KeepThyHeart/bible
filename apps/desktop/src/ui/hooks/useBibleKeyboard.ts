@@ -11,6 +11,7 @@ import { useFindStore, FindMatch } from '../stores/useFindStore';
 import { computeSelectedRange } from '../stores/bible/internals/verseRange';
 import { useLayoutStore } from '../stores/useLayoutStore';
 import { useBookmarkStore } from '../stores/useBookmarkStore';
+import { getBookmarkRange } from '../services/verseCopyService';
 
 /**
  * Is this node inside a Bible pane's text? Walks up looking for the markers
@@ -63,6 +64,10 @@ interface UseBibleKeyboardParams {
   dismissFloatingToolbar: () => void;
   highlightRepository: IPCHighlightRepository;
   loadChapter: (book: number, chapter: number) => void;
+  /** Opens the book/chapter/verse picker of this pane (Ctrl+G). */
+  setShowBookPicker?: (open: boolean) => void;
+  /** Ctrl+Shift+X: remove the marks under the selected words, or on the selected verse(s). */
+  clearSelectionMarks?: (selectedVerseId: number | null, selectionEndVerseId?: number | null) => Promise<void>;
 }
 
 /**
@@ -70,10 +75,11 @@ interface UseBibleKeyboardParams {
  * - Ctrl+C: copy selected text / open copy dialog
  * - Alt+Left: navigation history (back)
  * - Alt+Up/Down: chapter navigation
- * - Ctrl+G: go-to-verse
+ * - Ctrl+G: open the go-to-passage picker of the pane the reader was last in
  * - Ctrl+D: bookmark the selected verse (or remove its bookmark)
  * - Ctrl+Shift+N: add note on selected verse
  * - Ctrl+Shift+H: apply highlight with last-used color
+ * - Ctrl+Shift+X: remove highlights and underlines from the selection
  * - Ctrl+U: apply underline
  */
 export function useBibleKeyboard({
@@ -93,6 +99,8 @@ export function useBibleKeyboard({
   dismissFloatingToolbar,
   highlightRepository,
   loadChapter: _loadChapter,
+  setShowBookPicker,
+  clearSelectionMarks,
 }: UseBibleKeyboardParams) {
   const { createHighlight } = useHighlightStore();
   const { lastUsedColor } = useHighlightStore();
@@ -195,6 +203,13 @@ export function useBibleKeyboard({
       }
       if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 'g') {
         e.preventDefault();
+        if (setShowBookPicker) {
+          // Every pane installs this window listener; only the one the reader was last in answers.
+          const lastActive = useLayoutStore.getState().lastActiveBiblePanelId; // allow-getstate: event handler - reads latest focus tracking, not a render
+          if (lastActive && lastActive !== panelId) return;
+          setShowBookPicker(true);
+          return;
+        }
         const searchInput = document.querySelector<HTMLInputElement>('[data-testid="search-input"]');
         if (searchInput) {
           searchInput.focus();
@@ -210,17 +225,25 @@ export function useBibleKeyboard({
         if (isEditableTarget(document.activeElement)) return;
         e.preventDefault();
         if (selectedVerseId) {
-          const end =
-            selectionEndVerseId !== null && selectionEndVerseId !== selectedVerseId
-              ? selectionEndVerseId
-              : undefined;
+          const range = getBookmarkRange(selectedVerseId, selectionEndVerseId);
           useBookmarkStore
             .getState()
-            .toggleVerseBookmark(selectedVerseId, end, activeTab?.moduleId)
+            .toggleVerseBookmark(range?.start ?? selectedVerseId, range?.end, activeTab?.moduleId)
             .catch(error => {
               console.error('[BiblePane] Failed to toggle bookmark via shortcut:', error);
             });
         }
+        return;
+      }
+
+      // Ctrl+Shift+X: clear the marks on the selected words, or on the selected verse(s).
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && !e.altKey && e.key.toLowerCase() === 'x') {
+        if (isEditableTarget(document.activeElement)) return;
+        const lastActive = useLayoutStore.getState().lastActiveBiblePanelId; // allow-getstate: event handler - reads latest focus tracking, not a render
+        // Destructive: only the pane the reader was last in may act (null = unknown = nobody).
+        if (lastActive !== panelId) return;
+        e.preventDefault();
+        void clearSelectionMarks?.(selectedVerseId, selectionEndVerseId);
         return;
       }
 
@@ -255,6 +278,9 @@ export function useBibleKeyboard({
     activeTab,
     handlePreviousChapter,
     handleNextChapter,
+    setShowBookPicker,
+    clearSelectionMarks,
+    panelId,
   ]);
 
   // Ctrl+Shift+H: highlight, Ctrl+U: underline

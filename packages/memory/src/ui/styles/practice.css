@@ -29,15 +29,96 @@
   gap: var(--sm-s2);
 }
 
-.sm-app .sm-summary-next {
+/* The queue status bar (today / anyway / mixed / activity flows). */
+.sm-app .sm-queue {
+  margin-block: var(--sm-s1);
+}
+
+.sm-app .sm-queue-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--sm-s2);
+  color: var(--sm-text-dim);
+  font-size: 0.88em;
+}
+
+.sm-app .sm-queue-text {
+  white-space: nowrap;
+}
+
+.sm-app .sm-queue-track {
+  display: flex;
+  flex: 1;
+  gap: 2px;
+  min-inline-size: 4rem;
+  block-size: 6px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--sm-border);
+}
+
+.sm-app .sm-queue-seg {
+  flex: 1;
+  background: var(--sm-border);
+}
+
+.sm-app .sm-queue-seg-done,
+.sm-app .sm-queue-fill {
+  background: var(--sm-success-text);
+}
+
+.sm-app .sm-queue-fill {
+  display: block;
+  block-size: 100%;
+}
+
+/* "Put in order": the last verse, placed automatically. */
+.sm-app .sm-choice-placed {
+  opacity: 0.85;
+}
+
+/* The one result message under the last step's review. */
+.sm-app .sm-result {
+  flex: 1 1 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sm-s2);
+}
+
+.sm-app .sm-result-title {
+  margin: 0;
+}
+
+.sm-app .sm-result-title:focus,
+.sm-app .sm-result-title:focus-visible {
+  outline: none;
+}
+
+.sm-app .sm-result-detail {
+  margin: 0;
+}
+
+.sm-app .sm-result-next {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: var(--sm-s2);
 }
 
-/* The after-verse screen's status chip: reset the pinned status-line rules of .sm-status (no rule above it). */
-.sm-app .sm-summary .sm-status {
+.sm-app .sm-result-auto {
+  margin: 0;
+  color: var(--sm-text-dim);
+}
+
+.sm-app .sm-result-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sm-s2);
+}
+
+/* The status chip: reset the pinned status-line rules of .sm-status (no rule above it). */
+.sm-app .sm-result .sm-status {
   flex: 0 0 auto;
   padding-block: 0;
   padding-inline: var(--sm-s2);
@@ -48,24 +129,14 @@
   color: var(--sm-text-dim);
 }
 
-.sm-app .sm-summary .sm-status-learning {
+.sm-app .sm-result .sm-status-learning {
   border-color: var(--sm-info-border);
   background: var(--sm-info-soft);
   color: var(--sm-info-text);
 }
 
-.sm-app .sm-summary .sm-status-known {
+.sm-app .sm-result .sm-status-known {
   border-color: var(--sm-success-border);
   background: var(--sm-success-soft);
   color: var(--sm-success-text);
-}
-
-/* The heading takes programmatic focus (a screen-reader landing point); it is not a control, so no box. */
-.sm-app .sm-summary-title:focus,
-.sm-app .sm-summary-title:focus-visible {
-  outline: none;
-}
-
-.sm-app .sm-summary-next {
-  justify-content: center;
 }

@@ -17,7 +17,7 @@ import { audioStore } from '../audioStore';
 import { buildUiRig, flush, openChapter } from '../lib/uiRig';
 import { AudioPlayerPopup } from './AudioPlayerPopup';
 import { AudioTransportBar } from './AudioTransportBar';
-import { focusAudioPlayer } from '../lib/audioShortcuts';
+import { focusAudioPlayer } from '@bible/audio';
 
 async function start() {
   buildUiRig({});

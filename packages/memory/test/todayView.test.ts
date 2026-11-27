@@ -412,6 +412,8 @@ describe('Today: streak and Practice anyway (review items 8, 12)', () => {
     expect(text(mount(donePlan, { streak: 12 }))).toContain('12 day streak');
     container.innerHTML = '';
     expect(text(mount(donePlan, { streak: 0 }))).not.toContain('streak');
+    // The plan's own streakDays wins over the extras (no analytics call needed).
+    expect(text(mount({ ...donePlan, streakDays: 5 } as never))).toContain('5 day streak');
   });
 
   it('hides Practice anyway when nothing can be practiced; offers it with only beyond-cap new verses', () => {

@@ -13,6 +13,8 @@ import { createRef } from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 
+vi.mock('../BibleHeader', () => ({ default: () => <h2 data-testid="bible-chapter-heading" /> }));
+vi.mock('../../contexts/useI18n', () => ({ useI18n: () => ({ t: (key: string) => key, locale: 'en', i18n: {} }) }));
 vi.mock('dockview-react', () => ({}));
 
 vi.mock('../../services/electronAPI', () => ({

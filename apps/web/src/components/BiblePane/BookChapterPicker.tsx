@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useRef } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { BookChapterPicker as SharedBookChapterPicker } from '@bible/ui';
 import type { BookChapterPickerLabels } from '@bible/ui';
+import { verseCount } from '@bible/core/browser';
 import { localizedBookAliases } from '../../constants';
 import { getLocalizedBookName } from '../../utils/bookNames';
 import { bibleStore } from '../../stores/bibleStore';
@@ -189,6 +190,9 @@ function PickerDialog({ onClose, onSelect: onSelectProp, currentBook, currentCha
     selectChapter: t('bookChapterPicker.selectAChapter'),
     searchFor: (query: string) => t('bookChapterPicker.searchFor', { query }),
     chapterOption: (book: string, chapter: number) => t('bookChapterPicker.chapterOption', { book, chapter }),
+    selectVerse: t('bookChapterPicker.selectAVerse'),
+    goToChapter: (book: string, chapter: number) => t('bookChapterPicker.goToChapter', { book, chapter }),
+    verseOption: (book: string, chapter: number, verse: number) => t('bookChapterPicker.verseOption', { book, chapter, verse }),
   };
 
   return (
@@ -200,6 +204,7 @@ function PickerDialog({ onClose, onSelect: onSelectProp, currentBook, currentCha
           onClose={onClose}
           bookName={getLocalizedBookName}
           bookAliases={bookAliases}
+          verseCount={verseCount}
           labels={labels}
           icons={{
             back: <i class="fa-solid fa-chevron-left kth-rtl-mirror" />,

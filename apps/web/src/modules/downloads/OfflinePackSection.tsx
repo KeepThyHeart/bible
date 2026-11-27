@@ -194,6 +194,7 @@ export function OfflinePackSection({
     runFailed: tt('run.failed', 'The download failed.'),
     runCancelled: tt('run.cancelled', 'Cancelled. Partial downloads are kept and resume next time.'),
     remove: tt('remove', 'Remove'),
+    selectAllGroup: tt('selectAllGroup', 'Select all in {group}'),
     keepHint: tt('keepHint', 'Selecting an item on this device keeps it here; it is never cleaned up automatically.'),
   };
 
@@ -201,6 +202,15 @@ export function OfflinePackSection({
     const next = new Set(selected);
     if (on) next.add(key);
     else next.delete(key);
+    setSelected(next);
+  };
+
+  const onToggleGroup = (_groupId: string, keys: string[], on: boolean): void => {
+    const next = new Set(selected);
+    for (const k of keys) {
+      if (on) next.add(k);
+      else next.delete(k);
+    }
     setSelected(next);
   };
 
@@ -260,6 +270,7 @@ export function OfflinePackSection({
         presets={presets.map((p) => ({ id: p.id, label: p.name }))}
         onPreset={onPreset}
         onToggle={onToggle}
+        onToggleGroup={onToggleGroup}
         summary={{
           downloadBytes: plan.downloadBytes,
           newStoredBytes: plan.newStoredBytes,

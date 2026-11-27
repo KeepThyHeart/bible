@@ -45,6 +45,8 @@ Schema: `sql/schemas/initial/UserDatabase.sql`. Models: `src/Data/Models/User/`.
 | `src/Data/Repositories/BibleSearchRepository.ts` | `IBibleSearchRepository.ts` | whichever database holds the search tables | `bible_search_index`, `bible_search_index_metadata`, `bible_search_verse_positions`, `saved_search` |
 | `src/Data/Repositories/CommentaryRepository.ts` | `ICommentaryRepository.ts` | `commentary_*.db` | `commentary_entry`, `verse_reference`, `verse_link` |
 | `src/Data/Repositories/DictionaryRepository.ts` | `IDictionaryRepository.ts` | `dictionary_*.db` | `dictionary_entry`, `word_occurrence` |
+
+`DictionaryRepository.searchEntries` ranks exact, prefix and contains title matches first, then a stemmed title tier (a single-word query is stemmed with the module language's stemmer from `src/Text/stemmers.ts` and prefix-matched against titles, so "walking" finds WALK), then full text. Each entry appears once.
 | `src/Data/Repositories/BookRepository.ts` | `IBookRepository.ts` | `book_*.db` | `book_section`, `scripture_reference`, `verse_link` |
 | `src/Data/Repositories/CrossReferenceRepository.ts` | `ICrossReferenceRepository.ts` | `xref_*.db` | `cross_reference_group`, `cross_reference_entry`, `verse_link` |
 | `src/Data/Repositories/TopicalIndexRepository.ts` | `ITopicalIndexRepository.ts` | `topical_*.db` | `topic`, `verse_link` (+ `topic_fts` in a v0.1 module; see [Search](search.md#where-the-keyword-index-lives)) |

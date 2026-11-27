@@ -11,7 +11,7 @@ import { audioStore } from '../audioStore';
 import type { NoticeAction } from '../audioStore';
 import { useStore } from '../../../hooks/useStore';
 import { useNowPlaying } from '../hooks/useNowPlaying';
-import { formatBytes } from '../lib/audioStorage';
+import { formatBytes } from '@bible/audio';
 
 export function AudioStatusLine() {
   const { t } = useTranslation();

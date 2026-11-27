@@ -7,6 +7,15 @@ import { ReadingPlans } from '@bible/core/browser';
 import { currentRolloverHour, getReadingPlanService } from '../readingPlansAPI';
 import { watchReadingDay } from '../readingDayWatcher';
 
+/**
+ * A plan's progress for display: one decimal while it is young (so the first days do not read as 0%), whole
+ * numbers after, and never 100 before the plan is finished.
+ */
+export function shownPercent(percent: number): number {
+  if (percent >= 100) return 100;
+  return percent > 0 && percent < 10 ? Math.floor(percent * 10) / 10 : Math.floor(percent);
+}
+
 export interface ReadingPlanData {
   enrollments: ReadingPlans.Enrollment[];
   details: Map<string, ReadingPlans.EnrollmentDetail>;

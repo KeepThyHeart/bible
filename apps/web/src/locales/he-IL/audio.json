@@ -54,7 +54,8 @@
     "notice": {
       "noAudio": "עדיין אין הקלטה או קול דיבור זמינים עבור תרגום זה.",
       "preferredUnavailable": "מקור השמע המועדף עליך אינו זמין עבור תרגום זה, ולכן מנוגן מקור אחר.",
-      "voiceUnavailable": "הקול שבחרת אינו זמין עוד, ולכן נעשה שימוש בקול אחר."
+      "voiceUnavailable": "הקול שבחרת אינו זמין עוד, ולכן נעשה שימוש בקול אחר.",
+      "passageSkipped": "Skipped a passage this translation does not have."
     },
     "error": {
       "network": "לא ניתן היה להוריד את {ref}. יש לבדוק את החיבור ולנסות שוב.",
@@ -151,6 +152,86 @@
     },
     "shortcut": {
       "focusPlayer": "מעבר לנגן השמע"
+    },
+    "downloads": {
+      "title": "הורדת שמע להאזנה ללא חיבור",
+      "heading": "האזנה ללא חיבור",
+      "settingsHint": "שמרו ספרים מוקלטים במכשיר הזה כדי להאזין להם ללא חיבור.",
+      "open": "הורדת שמע…",
+      "hint": "בחרו את הספרים לשמירה במכשיר הזה. טקסט התרגום יישמר גם הוא אם אינו כאן עדיין.",
+      "translation": "תרגום",
+      "narrator": "מקריא",
+      "loading": "טוען הקלטות…",
+      "none": "אין הקלטות זמינות עבור {module}.",
+      "ot": "הברית הישנה",
+      "nt": "הברית החדשה",
+      "selectAll": "בחירת הכול",
+      "clear": "נקה",
+      "selectGroup": "בחירת כל הספרים ב{testament}",
+      "clearGroup": "ניקוי הבחירה ב{testament}",
+      "wholeBible": "כל המקרא",
+      "sizeLoading": "מחשב גודל…",
+      "state": {
+        "downloaded": "הורד",
+        "partial": "הורד חלקית"
+      },
+      "chapters": "{count} מתוך {total} פרקים",
+      "removeBook": "הסרת {book} מהמכשיר הזה",
+      "selected": "{count, plural, one {נבחר ספר #} other {נבחרו # ספרים}} · {size}",
+      "free": "{size} פנויים",
+      "noFit": "הבחירה גדולה מהמקום הפנוי במכשיר הזה.",
+      "download": "הורדה",
+      "confirmTitle": "הורדה גדולה",
+      "confirmBody": "ההורדה הזו היא {size}. לפני ההתחלה בדקו את החיבור ואת המקום במכשיר הזה.",
+      "confirmNoFit": "ההורדה הזו היא {size}, אבל במכשיר הזה פנויים רק {free}. ייתכן שלא תיכנס.",
+      "confirmGo": "להוריד בכל זאת",
+      "back": "חזרה",
+      "progress": "מוריד את {book} · {done} מתוך {total} ספרים · {loaded} מתוך {size}",
+      "done": "ההורדה הסתיימה.",
+      "cancelled": "ההורדה נעצרה. ההתקדמות נשמרת, וההורדה הבאה תמשיך מכאן.",
+      "failed": "ההורדה לא הסתיימה. {message}",
+      "close": "סגירה"
+    },
+    "passages": {
+      "open": "Play passages…",
+      "title": "Play passages",
+      "input": "Passages to read",
+      "placeholder": "e.g. Ps 23; Rom 8:28-39; Gen 1-2",
+      "play": "Play list",
+      "remove": "Remove {ref}",
+      "progress": "{index} of {count} · {ref}",
+      "prev": "Previous passage",
+      "next": "Next passage",
+      "error": {
+        "empty": "Type one or more references.",
+        "noBook": "“{text}” does not name a book of the Bible.",
+        "badNumbers": "“{text}” has chapter or verse numbers that could not be read.",
+        "outOfRange": "“{text}” is past the end of {book}.",
+        "tooMany": "Up to {max} passages at a time."
+      }
+    },
+    "playlist": {
+      "label": "Playlist",
+      "edit": "Change",
+      "chapter": "Current chapter"
+    },
+    "continue": {
+      "label": "Continue to the next chapter",
+      "listHint": "Applies when reading by chapter; a typed list ends at its last verse."
+    },
+    "loop": {
+      "label": "Repeat",
+      "once": "Play once",
+      "list": "Loop the list",
+      "passage": "Loop this passage"
+    },
+    "elsewhere": {
+      "label": "Reading in another tab: {ref} ({module})",
+      "goto": "Go to it"
+    },
+    "live": {
+      "passage": "Now reading {ref}, {index} of {count}",
+      "retarget": "Now reading this tab. The other tab keeps its place."
     }
   }
 }

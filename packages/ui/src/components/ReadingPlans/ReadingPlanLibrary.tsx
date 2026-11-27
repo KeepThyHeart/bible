@@ -9,9 +9,14 @@ export interface ReadingPlanLibraryLabels {
   start: string;
   preview: string;
   delete: string;
+  edit: string;
   startNamed: (name: string) => string;
   previewNamed: (name: string) => string;
   deleteNamed: (name: string) => string;
+  editNamed: (name: string) => string;
+  /** Optional so existing label sets stay valid. */
+  export?: string;
+  exportNamed?: (name: string) => string;
   list: string;
 }
 
@@ -22,9 +27,13 @@ export const DEFAULT_READING_PLAN_LIBRARY_LABELS: ReadingPlanLibraryLabels = {
   start: 'Start',
   preview: 'Preview',
   delete: 'Delete',
-  startNamed: (n) => `Start ${n}`,
+  edit: 'Edit',
+  startNamed: (n) => `Start Reading Plan: ${n}`,
   previewNamed: (n) => `Preview ${n}`,
   deleteNamed: (n) => `Delete ${n}`,
+  editNamed: (n) => `Edit ${n}`,
+  export: 'Export',
+  exportNamed: (n) => `Export ${n}`,
   list: 'Reading plans',
 };
 
@@ -34,12 +43,15 @@ export interface ReadingPlanLibraryProps {
   descriptionOf?: (p: ReadingPlans.PlanSummary) => string | undefined;
   onStart: (key: string) => void;
   onDelete?: (key: string) => void;
+  onEdit?: (key: string) => void;
+  /** Offered on user plans only. */
+  onExport?: (key: string) => void;
   onPreview?: (key: string) => void;
   labels?: Partial<ReadingPlanLibraryLabels>;
   dir?: 'ltr' | 'rtl';
 }
 
-export function ReadingPlanLibrary({ plans, nameOf, descriptionOf, onStart, onDelete, onPreview, labels, dir }: ReadingPlanLibraryProps) {
+export function ReadingPlanLibrary({ plans, nameOf, descriptionOf, onStart, onDelete, onEdit, onExport, onPreview, labels, dir }: ReadingPlanLibraryProps) {
   const L = { ...DEFAULT_READING_PLAN_LIBRARY_LABELS, ...labels };
   if (plans.length === 0) return <p className="kth-rp-library__empty" dir={dir}>{L.empty}</p>;
   return (
@@ -61,6 +73,12 @@ export function ReadingPlanLibrary({ plans, nameOf, descriptionOf, onStart, onDe
             <div className="kth-rp-library__actions">
               {onPreview ? (
                 <button type="button" className="kth-btn kth-btn--sm" aria-label={L.previewNamed(name)} onClick={() => onPreview(p.key)}>{L.preview}</button>
+              ) : null}
+              {onEdit && p.source === 'user' ? (
+                <button type="button" className="kth-btn kth-btn--sm" aria-label={L.editNamed(name)} onClick={() => onEdit(p.key)}>{L.edit}</button>
+              ) : null}
+              {onExport && p.source === 'user' ? (
+                <button type="button" className="kth-btn kth-btn--sm" aria-label={(L.exportNamed ?? ((n: string) => `Export ${n}`))(name)} onClick={() => onExport(p.key)}>{L.export ?? 'Export'}</button>
               ) : null}
               {onDelete && p.source === 'user' ? (
                 <button type="button" className="kth-btn kth-btn--sm kth-btn--danger" aria-label={L.deleteNamed(name)} onClick={() => onDelete(p.key)}>{L.delete}</button>

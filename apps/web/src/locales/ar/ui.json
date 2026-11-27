@@ -71,6 +71,7 @@
     "noMatches": "لا توجد نتائج مطابقة",
     "popular": "الأكثر شيوعًا",
     "allTranslations": "كل الترجمات",
+    "recent": "الأخيرة",
     "other": "أخرى",
     "modeStandard": "قياسي",
     "modeReading": "قراءة",
@@ -79,7 +80,8 @@
     "modeLabel": "وضع العرض",
     "recentPassages": "المقاطع الأخيرة",
     "noHistory": "لم تتم زيارة أي مقطع بعد",
-    "translationButton": "الترجمة: {abbr}"
+    "translationButton": "الترجمة: {abbr}",
+    "currentReference": "{reference}: الانتقال إلى سفر وأصحاح"
   },
   "bibleContent": {
     "votdLabel": "عدد اليوم",
@@ -347,7 +349,8 @@
           "overQuota": "يلزم نحو {size} من المساحة الإضافية."
         },
         "remove": "إزالة",
-        "keepHint": "تحديد عنصر موجود على هذا الجهاز يُبقيه هنا؛ ولا يُحذف تلقائيًا أبدًا."
+        "keepHint": "تحديد عنصر موجود على هذا الجهاز يُبقيه هنا؛ ولا يُحذف تلقائيًا أبدًا.",
+        "selectAllGroup": "تحديد كل ما في {group}"
       }
     },
     "downloads": {
@@ -380,7 +383,8 @@
       "desktopOnly": "الملاحظات والتظليلات والإشارات المرجعية وحفظ الأعداد وخطط القراءة وقوائم الصلاة متاحة في تطبيق سطح المكتب.",
       "license": "مرخَّص بموجب <strong>رخصة جنو العمومية الإصدار 3.0</strong> (GPL-3.0).",
       "licenseDetails": "هذا البرنامج حر في الاستخدام والتعديل والتوزيع بموجب شروط GPL v3. ونرحّب بالشيفرة المصدرية والمساهمات.",
-      "viewOnGithub": "عرض على GitHub"
+      "viewOnGithub": "عرض على GitHub",
+      "credits": "تم تحويل معظم نسخ الكتاب المقدس والتفاسير والقواميس من وحدات مشروع The SWORD Project، التي توزعها جمعية CrossWire Bible Society (crosswire.org). تسري حقوق النشر والترخيص الخاصان بكل وحدة."
     },
     "language": {
       "title": "اللغة",
@@ -466,7 +470,8 @@
     "copyToClipboard": "نسخ إلى الحافظة",
     "loading": "جارٍ تحميل الأعداد...",
     "copyFailed": "تعذّر النسخ إلى الحافظة. تحقّق من أن هذا الموقع مسموح له باستخدامها.",
-    "referencePosition": "موضع المرجع"
+    "referencePosition": "موضع المرجع",
+    "print": "طباعة"
   },
   "ui": {
     "passageInsert": {
@@ -502,7 +507,8 @@
       "quoteMarksNone": "بلا",
       "commentPlaceholdersLabel": "مساحة للتعليق تحت كل عدد",
       "verseHeading": "العدد {verse}",
-      "commentPlaceholderText": "[تعليقات على {reference}]"
+      "commentPlaceholderText": "[تعليقات على {reference}]",
+      "verseNumbersFirstFull": "المرجع كاملاً عند الآية الأولى (يو 3:16)، ثم الأرقام"
     }
   },
   "feedbackDialog": {
@@ -569,7 +575,10 @@
     "aboutAuthor": "المؤلف",
     "aboutYear": "السنة",
     "aboutDescription": "الوصف",
+    "aboutCopyright": "حقوق النشر",
     "aboutLicense": "الترخيص",
+    "aboutSource": "المصدر",
+    "aboutConvertedFrom": "التحويل",
     "aboutPublisher": "الناشر",
     "aboutLanguage": "اللغة",
     "aboutUnavailable": "معلومات الوحدة غير متاحة."
@@ -871,7 +880,10 @@
     "noResults": "لا توجد نتائج.",
     "searchFor": "بحث عن «{query}»",
     "back": "رجوع",
-    "chapterOption": "{book} الأصحاح {chapter}"
+    "chapterOption": "{book} الأصحاح {chapter}",
+    "selectAVerse": "اختر آية، أو انتقل إلى الأصحاح كاملاً",
+    "goToChapter": "الانتقال إلى {book} {chapter}",
+    "verseOption": "{book} {chapter}:{verse}"
   },
   "helpDialog": {
     "esc": "Esc"

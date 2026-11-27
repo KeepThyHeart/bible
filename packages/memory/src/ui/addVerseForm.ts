@@ -1,18 +1,16 @@
 /**
- * The add-a-verse field of My verses (A6), its list picker (shown when there is
- * more than one list), and the "Add several at once" dialog.
+ * The batch half of adding verses: `addBatch`, `announceBatch` and the "Add several
+ * at once" dialog. The single-verse dialog is `addVerseDialog.ts` (the inline field,
+ * `renderAddVerseForm`, is gone).
  *
  * Carried over from the old Manage Passages screen with its behaviour intact:
  * pasting several references, confirming a batch first, and consolidating
  * references that overlap inside one batch (`dropContainedRanges`). New:
  * every add names its list (`addPassage.collectionId`), so the user's focus is
  * never switched as a side effect.
- *
- * The input keeps the id `sm-add-reference`; the host pokes that id to show the
- * Bible's current verse as the placeholder.
  */
 
-import type { ListSummary, Passage } from '../core/types';
+import type { Passage } from '../core/types';
 import { button, el, focusQuietly, replace } from './dom';
 import { errorBanner } from './components';
 import { dropContainedRanges, extractReferenceCandidates } from './referenceInput';
@@ -188,120 +186,4 @@ export function openBatchModal(
     if (found.length > 0) showConfirm(found);
     else showEntry();
   } else showEntry();
-}
-
-export interface AddVerseFormOptions {
-  lists: ListSummary[];
-  /** The list preselected in the picker (and used when there is only one list). */
-  defaultListId: number;
-  /** One verse was added (or was already there). Not called for a batch (announceBatch reloads). */
-  onAdded: (passage: Passage, existed: boolean) => void;
-}
-
-/**
- * The add field: `[reference] [list picker, only with more than one list] [Add]`
- * and an "Add several at once" button. The error slot is always in the DOM so
- * the rows below do not jump when a reference fails to parse; the worker's own
- * message is shown verbatim (it is the only thing that says what went wrong).
- */
-export function renderAddVerseForm(host: PanelHost, opts: AddVerseFormOptions): { element: HTMLElement; openBatch: (lines?: string[]) => void } {
-  const input = el('input', {
-    class: 'sm-input',
-    id: 'sm-add-reference',
-    type: 'text',
-    placeholder: host.activeReference ?? tr('memory.ui.verses.addPlaceholder', 'e.g. Psalm 23:1-6'),
-    attrs: { autocomplete: 'off', autocapitalize: 'words', spellcheck: 'false', enterkeyhint: 'done' },
-  }) as HTMLInputElement;
-  const errorSlot = el('div', { class: 'sm-error-slot', attrs: { 'aria-live': 'polite' } });
-  const submit = el('button', { class: 'sm-btn sm-btn-primary', text: tr('memory.ui.verses.add', 'Add') }) as HTMLButtonElement;
-  submit.type = 'submit';
-
-  let select: HTMLSelectElement | null = null;
-  if (opts.lists.length > 1) {
-    select = el('select', {
-      class: 'sm-input sm-add-list',
-      id: 'sm-add-list',
-      attrs: { 'aria-label': tr('memory.ui.verses.addToList', 'Add to list') },
-    }) as HTMLSelectElement;
-    for (const l of opts.lists) {
-      const o = el('option', { text: l.name, value: String(l.id) });
-      if (l.id === opts.defaultListId) o.selected = true;
-      select.appendChild(o);
-    }
-  }
-  const targetList = (): number => (select ? Number(select.value) : opts.defaultListId);
-
-  const openBatch = (lines?: string[]): void =>
-    openBatchModal(host, targetList, lines ? lines.join('\n') : '', lines);
-
-  const form = el('form', { class: 'sm-add sm-verses-add' }, [
-    el('label', { class: 'sm-label', text: tr('memory.ui.verses.addAVerse', 'Add a verse'), attrs: { for: 'sm-add-reference' } }),
-    el('div', { class: 'sm-add-row' }, [input, select, submit]),
-    errorSlot,
-    el('p', {
-      class: 'sm-hint',
-      text: tr('memory.ui.verses.addTranslationHint', 'Add a translation after the reference to use it, e.g. Psalm 23:1-3 ASV. Without one, the last translation you chose here (or your default) is used.'),
-    }),
-    button(tr('memory.ui.verses.addSeveral', 'Add several at once'), () => openBatch(), {
-      class: 'sm-btn sm-btn-quiet sm-btn-small sm-link-btn',
-    }),
-  ]) as HTMLFormElement;
-
-  async function addReferences(references: string[]): Promise<void> {
-    submit.disabled = true;
-    input.disabled = true;
-    replace(errorSlot, []);
-    const outcome = await addBatch(host, references, targetList());
-    submit.disabled = false;
-    input.disabled = false;
-    const { added, failed } = outcome;
-
-    if (failed.length > 0) {
-      replace(errorSlot, failed.map((f) => errorBanner(addFailureMessage(references, f))));
-      focusQuietly(input);
-    }
-    if (added.length === 0) return;
-    input.value = '';
-    if (added.length === 1 && failed.length === 0 && outcome.dropped.length === 0) {
-      const passage = added[0]!;
-      host.announce(
-        outcome.existing === 1
-          ? tr('memory.ui.verses.alreadyInList', '{reference} is already in your list.', { reference: passage.reference })
-          : tr('memory.ui.verses.addedReference', 'Added {reference}.', { reference: passage.reference }),
-      );
-      opts.onAdded(passage, outcome.existing === 1);
-      return;
-    }
-    announceBatch(host, outcome);
-  }
-
-  input.addEventListener('paste', (event: ClipboardEvent) => {
-    const text = event.clipboardData?.getData('text/plain') ?? '';
-    const candidates = extractReferenceCandidates(text);
-    if (candidates.length > 1) {
-      // Take the paste over: a single-line field can mangle newlines.
-      event.preventDefault();
-      openBatchModal(host, targetList, text, candidates);
-    }
-  });
-
-  form.addEventListener('submit', (event) => {
-    event.preventDefault();
-    const candidates = extractReferenceCandidates(input.value);
-    // An empty field falls back to the Bible's current verse (the placeholder).
-    const references = candidates.length > 0 ? candidates : host.activeReference ? [host.activeReference.trim()] : [];
-    if (references.length === 0) {
-      replace(errorSlot, [errorBanner(tr('memory.ui.verses.typeReferenceFirst', 'Type a reference first, for example "John 3:16-18".'))]);
-      focusQuietly(input);
-      return;
-    }
-    // Typed text can name several references; confirm them first.
-    if (references.length > 1) {
-      openBatchModal(host, targetList, input.value, references);
-      return;
-    }
-    void addReferences(references);
-  });
-
-  return { element: el('div', { class: 'sm-add-wrapper' }, [form]), openBatch };
 }

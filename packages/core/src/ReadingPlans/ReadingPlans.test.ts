@@ -9,7 +9,7 @@ import {
 import { buildPlanDays, countReadingDays, mergeRanges, previewPlan, PlanBuildError } from './builder';
 import { addDays, readingDate, weekdayOf, daysBetween } from './dates';
 import {
-  catchUpSuggestion, dateForDay, dayStatuses, planStats, scheduledDay, shiftedStartDate, todayView,
+  catchUpSuggestion, dateForDay, dayStatuses, measurePace, planStats, scheduledDay, shiftedStartDate, todayView,
 } from './scheduler';
 import { CHRONOLOGICAL_ORDER, getStockPlan, listStockPlans, stockPlanIds, stockPlanKey } from './stock';
 import type { BuilderSpec, Completion, Enrollment, PlanDay, PlanDefinition, Weekday } from './types';
@@ -234,20 +234,20 @@ describe('PlanScheduler', () => {
 
   it('flexible: today is the first unread day, never behind', () => {
     const e = enrollment({ pacing: 'flexible' });
-    const v = todayView(plan, e, [done(1)], '2026-12-01');
+    const v = todayView(plan, e, [done(1)], '2026-12-01', 3);
     expect(v.day).toBe(2);
     expect(v.behindBy).toBe(0);
   });
 
   it('B-068: fixed, long past the end: flagged pastEnd (and not before the end)', () => {
     const e = enrollment();
-    expect(todayView(plan, e, [done(1)], '2026-12-01').pastEnd).toBe(true);
-    expect(todayView(plan, e, [done(1), done(3)], '2026-10-05').pastEnd).toBeUndefined();
+    expect(todayView(plan, e, [done(1)], '2026-12-01', 3).pastEnd).toBe(true);
+    expect(todayView(plan, e, [done(1), done(3)], '2026-10-05', 3).pastEnd).toBeUndefined();
   });
 
   it('fixed: shows days behind and the missed days', () => {
     const e = enrollment();
-    const v = todayView(plan, e, [done(1), done(3)], '2026-10-05'); // day 5 today
+    const v = todayView(plan, e, [done(1), done(3)], '2026-10-05', 3); // day 5 today
     expect(v.day).toBe(5);
     expect(v.missedDays).toEqual([2, 4]);
     expect(v.behindBy).toBe(2);
@@ -256,7 +256,7 @@ describe('PlanScheduler', () => {
 
   it('fixed: a rest day has no reading and counts the last scheduled day as due', () => {
     const e = enrollment({ readingDays: [1, 2, 3, 4, 5] as Weekday[], startDate: '2026-10-05' });
-    const v = todayView(plan, e, [done(1), done(2), done(3), done(4)], '2026-10-10'); // Saturday
+    const v = todayView(plan, e, [done(1), done(2), done(3), done(4)], '2026-10-10', 3); // Saturday
     expect(v.restDay).toBe(true);
     expect(v.day).toBeNull();
     expect(v.missedDays).toEqual([5]);
@@ -266,7 +266,7 @@ describe('PlanScheduler', () => {
     const e = enrollment();
     const start = shiftedStartDate(plan, e, [done(1), done(2)], '2026-10-08');
     expect(start).toBe('2026-10-06');
-    expect(todayView(plan, { ...e, startDate: start }, [done(1), done(2)], '2026-10-08')).toMatchObject({ day: 3, behindBy: 0 });
+    expect(todayView(plan, { ...e, startDate: start }, [done(1), done(2)], '2026-10-08', 3)).toMatchObject({ day: 3, behindBy: 0 });
   });
 
   it('computes stats and day statuses', () => {
@@ -274,14 +274,16 @@ describe('PlanScheduler', () => {
     const s = planStats(plan, e, [done(1), done(2)], '2026-10-03');
     expect(s.daysDone).toBe(2);
     expect(s.percent).toBeGreaterThan(0);
-    expect(s.estimatedFinish).toBe(addDays('2026-10-03', 7));
+    expect(s.scheduledFinish).toBe(addDays('2026-10-03', 7));
+    expect(s.estimatedFinish).toBeNull(); // only two reading days of history
+    expect(s.finishBasis).toBe('schedule');
     const fixed = enrollment();
-    expect(dayStatuses(plan, fixed, [done(1)], '2026-10-03').slice(0, 4)).toEqual(['done', 'missed', 'current', 'upcoming']);
+    expect(dayStatuses(plan, fixed, [done(1)], '2026-10-03', 3).slice(0, 4)).toEqual(['done', 'missed', 'current', 'upcoming']);
   });
 
   it('reports completion', () => {
     const all = plan.days.map((_, i) => done(i + 1));
-    expect(todayView(plan, enrollment(), all, '2026-10-03').completed).toBe(true);
+    expect(todayView(plan, enrollment(), all, '2026-10-03', 3).completed).toBe(true);
   });
 });
 
@@ -305,7 +307,7 @@ describe('review fixes', () => {
   });
 
   it('after the scheduled end, every unread day is missed and the first one is shown', () => {
-    const v = todayView(plan, enrollment(), [done(1), done(3)], '2026-11-30');
+    const v = todayView(plan, enrollment(), [done(1), done(3)], '2026-11-30', 3);
     expect(v.day).toBe(2);
     expect(v.missedDays).toEqual([2, 4, 5, 6, 7, 8, 9, 10]);
   });
@@ -313,6 +315,101 @@ describe('review fixes', () => {
   it('estimates the finish from today when a fixed plan is behind', () => {
     const s = planStats(plan, enrollment(), [done(1)], '2026-10-05');
     expect(s.scheduledFinish).toBe('2026-10-10');
-    expect(s.estimatedFinish).toBe(addDays('2026-10-05', 8));
+    expect(s.estimatedFinish).toBeNull(); // one plan day ticked: no pace yet
+    expect(s.finishBasis).toBe('schedule');
+  });
+});
+
+describe('estimated finish from real pace', () => {
+  const plan = tenDayPlan();
+  /** A tick at local noon on `date`. */
+  const tick = (date: string, day: number, reading = 0): Completion => {
+    const [y, m, d] = date.split('-').map(Number);
+    return { enrollmentId: 'e1', day, reading, at: new Date(y, m - 1, d, 12).toISOString(), via: 'manual' };
+  };
+  const flex = (over: Partial<Enrollment> = {}) => enrollment({ pacing: 'flexible', ...over });
+
+  it('too little history: no estimate, schedule basis', () => {
+    const s = planStats(plan, flex(), [tick('2026-10-01', 1), tick('2026-10-02', 2)], '2026-10-03');
+    expect(s.estimatedFinish).toBeNull();
+    expect(s.pacePerReadingDay).toBeNull();
+    expect(s.finishBasis).toBe('schedule');
+    expect(s.scheduledFinish).toBe('2026-10-10');
+  });
+
+  it('a steady one-day-per-day reader finishes on the scheduled date', () => {
+    const ticks = [1, 2, 3, 4, 5].map((d) => tick(`2026-10-0${d}`, d));
+    const s = planStats(plan, flex(), ticks, '2026-10-05');
+    expect(s.pacePerReadingDay).toBe(1);
+    expect(s.estimatedFinish).toBe('2026-10-10');
+    expect(s.scheduledFinish).toBe('2026-10-10');
+    expect(s.finishBasis).toBe('pace');
+  });
+
+  it('a reader doing two plan days per reading day finishes in about half the days', () => {
+    const ticks = [tick('2026-10-01', 1), tick('2026-10-01', 2), tick('2026-10-02', 3), tick('2026-10-02', 4), tick('2026-10-03', 5), tick('2026-10-03', 6)];
+    const s = planStats(plan, flex(), ticks, '2026-10-04'); // nothing read yet today
+    expect(s.pacePerReadingDay).toBe(2);
+    expect(s.estimatedFinish).toBe('2026-10-05');
+    expect(s.scheduledFinish).toBe('2026-10-07');
+  });
+
+  it('a slow reader gets a later date than the schedule', () => {
+    const ticks = [tick('2026-10-01', 1), tick('2026-10-03', 2), tick('2026-10-05', 3), tick('2026-10-07', 4)];
+    const s = planStats(plan, flex(), ticks, '2026-10-07');
+    expect(s.scheduledFinish).toBe('2026-10-13');
+    expect(s.estimatedFinish).toBe('2026-10-18');
+    expect(s.estimatedFinish! > s.scheduledFinish!).toBe(true);
+  });
+
+  it('a bulk tick in one sitting does not pass for a reading speed', () => {
+    // Days 1-6 ticked at once (read on paper before), then one plan day a day.
+    const ticks = [1, 2, 3, 4, 5, 6].map((d) => tick('2026-10-01', d)).concat([tick('2026-10-02', 7), tick('2026-10-03', 8)]);
+    const m = measurePace(plan, flex(), ticks, '2026-10-03');
+    expect(m).toMatchObject({ planDays: 5, readingDays: 3 }); // 3 (capped) + 1 + 1, not 8
+    expect(m!.pace).toBeLessThan(2);
+  });
+
+  it('counts only the reader\'s reading weekdays', () => {
+    const e = flex({ readingDays: [1, 2, 3, 4, 5] as Weekday[], startDate: '2026-10-05' }); // Monday
+    const ticks = [5, 6, 7, 8, 9].map((d) => tick(`2026-10-0${d}`, d - 4));
+    const s = planStats(plan, e, ticks, '2026-10-09'); // Friday
+    expect(measurePace(plan, e, ticks, '2026-10-09')).toMatchObject({ planDays: 5, readingDays: 5, pace: 1 });
+    expect(s.estimatedFinish).toBe('2026-10-16'); // Mon-Fri again: the 5th reading day after Friday
+  });
+
+  it('ignores ticks older than the 28-day window', () => {
+    const long = { ...plan, days: buildPlanDays(spec({ pace: { by: 'days', days: 40 } })) };
+    const bulk = [1, 2, 3, 4, 5, 6, 7, 8].map((d) => tick('2026-08-01', d));
+    const ticks = [...bulk, tick('2026-10-04', 9)];
+    expect(measurePace(long, flex(), ticks, '2026-10-05')).toBeNull();
+    expect(planStats(long, flex(), ticks, '2026-10-05').estimatedFinish).toBeNull();
+  });
+
+  it('counts partial days fractionally', () => {
+    const g = (v: number) => ({ start: vid(1, 1, v), end: vid(1, 1, v) });
+    const two: PlanDefinition = {
+      key: 'user:two', version: 1, name: 'Two', source: 'user',
+      days: [1, 2, 3, 4].map((n) => ({ readings: [g(n), g(n + 10)] })),
+    };
+    const ticks = [tick('2026-10-01', 1, 0), tick('2026-10-01', 1, 1), tick('2026-10-02', 2, 0), tick('2026-10-03', 2, 1), tick('2026-10-03', 3, 0)];
+    const m = measurePace(two, flex(), ticks, '2026-10-04');
+    expect(m!.planDays).toBeCloseTo(2.5);
+    expect(m!.readingDays).toBe(3);
+    // 4 - 2.5 = 1.5 plan days left at 0.833 a day: 2 reading days from today
+    expect(planStats(two, flex(), ticks, '2026-10-04').estimatedFinish).toBe('2026-10-05');
+  });
+
+  it('a finished plan has no dates', () => {
+    const all = plan.days.map((_, i) => tick('2026-10-01', i + 1));
+    const s = planStats(plan, flex(), all, '2026-10-05');
+    expect(s).toMatchObject({ estimatedFinish: null, scheduledFinish: null, finishBasis: null, pacePerReadingDay: null });
+  });
+
+  it('a fixed plan on schedule keeps the calendar\'s last day', () => {
+    const s = planStats(plan, enrollment(), [tick('2026-10-01', 1), tick('2026-10-02', 2), tick('2026-10-03', 3)], '2026-10-03');
+    expect(s.scheduledFinish).toBe('2026-10-10');
+    expect(s.estimatedFinish).toBe('2026-10-10');
+    expect(s.finishBasis).toBe('pace');
   });
 });

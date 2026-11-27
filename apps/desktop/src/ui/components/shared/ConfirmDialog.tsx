@@ -88,7 +88,8 @@ const ConfirmDialogInner: React.FC<ConfirmDialogInnerProps> = ({
           <p
             id="confirm-dialog-message"
             className="text-sm mb-4"
-            style={{ color: 'var(--theme-text-secondary)' }}
+            // A caller may put paragraphs on their own lines.
+            style={{ color: 'var(--theme-text-secondary)', whiteSpace: 'pre-line' }}
           >
             {message}
           </p>

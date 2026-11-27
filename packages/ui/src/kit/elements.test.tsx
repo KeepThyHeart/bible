@@ -109,11 +109,43 @@ describe('kit elements', () => {
     });
   });
 
+  describe('kth-verse-selector', () => {
+    it('value seeds; kth-change carries a plain detail; the lookup property drives the preview', async () => {
+      const seen = collect('kth-change');
+      const el = mount<HTMLElement & { lookup?: unknown }>('kth-verse-selector', { value: 'John 3:16-17' });
+      el.lookup = async (r: { verseId: number }) => [{ verseId: r.verseId, text: 'For God so loved' }];
+      const input = (await within(el).findByLabelText('Bible reference')) as HTMLInputElement;
+      expect(input.value).toBe('John 3:16-17');
+      await waitFor(() => expect(seen.map((e) => e.detail)).toContainEqual({ verseId: 43003016, endVerseId: 43003017, ref: 'John 3:16-17' }));
+      await waitFor(() => expect(within(el).getByText('For God so loved')).toBeInTheDocument(), { timeout: 2000 });
+    });
+
+    it('Enter fires kth-submit; a cleared selection fires { cleared: true }', async () => {
+      const submits = collect('kth-submit');
+      const changes = collect('kth-change');
+      const el = mount('kth-verse-selector', { value: 'John 3:16' });
+      const input = (await within(el).findByLabelText('Bible reference')) as HTMLInputElement;
+      const user = userEvent.setup();
+      await user.type(input, '{Enter}');
+      await waitFor(() => expect(submits.map((e) => e.detail)).toEqual([{ verseId: 43003016, ref: 'John 3:16' }]));
+      await user.type(input, 'x');
+      await waitFor(() => expect(changes.map((e) => e.detail)).toContainEqual({ cleared: true }));
+    });
+
+    it('no-cross-chapter and no-whole-chapter attributes apply; a changed value re-seeds', async () => {
+      const el = mount('kth-verse-selector', { value: 'John 3:16', 'no-whole-chapter': '', 'no-cross-chapter': '' });
+      const input = (await within(el).findByLabelText('Bible reference')) as HTMLInputElement;
+      expect(Array.from((within(el).getByLabelText('Verse') as HTMLSelectElement).options).map((o) => o.textContent)).not.toContain('All');
+      el.setAttribute('value', 'Jude 5');
+      await waitFor(() => expect(input.value).toBe('Jude 5'));
+    });
+  });
+
   describe('kth-highlight-swatch', () => {
     it('renders the palette, with the group label attribute', async () => {
       const el = mount('kth-highlight-swatch', { 'group-label': 'Colour' });
       const group = await within(el).findByRole('radiogroup', { name: 'Colour' });
-      expect(within(group).getAllByRole('radio')).toHaveLength(6);
+      expect(within(group).getAllByRole('radio')).toHaveLength(10);
     });
 
     it('colors attribute limits and orders the palette; unknown tokens are dropped', async () => {

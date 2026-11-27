@@ -149,6 +149,51 @@ test.describe('Audio Bible: desktop', () => {
     await expect(listen).toHaveAttribute('title', NO_AUDIO);
   });
 
+  test('downloading John for offline listening: it plays and seeks with the network off', async ({ page, context }) => {
+    // This test site publishes no offline module catalog (404), so the text step finds nothing to add.
+    expectConsoleProblems('the offline module catalog is not published on the e2e site (404)');
+    await open(page, '#/KJV/43/3/1');
+    await page.locator('.header__action-btn[title="Settings"]').click();
+    await page.locator('.settings-panel__tab', { hasText: 'Audio' }).click();
+    await page.getByTestId('audio-open-downloads').click();
+
+    const dialog = page.getByTestId('audio-downloads-dialog');
+    await expect(dialog).toBeVisible();
+    // John is the one recorded book, and only chapter 3 of it is recorded.
+    const john = dialog.getByRole('checkbox', { name: 'John' });
+    await expect(john).toBeVisible({ timeout: 15000 });
+    await expect(dialog.getByTestId('audio-dl-book-43')).toContainText('1 of 21 chapters');
+    await john.check();
+    await expect(dialog.getByTestId('audio-dl-summary')).toContainText('1 book selected');
+    await dialog.getByTestId('audio-dl-start').click();
+    await expect(dialog.getByTestId('audio-dl-status')).toHaveText('The download finished.', { timeout: 60000 });
+    await expect(dialog.getByTestId('audio-dl-book-43')).toContainText('Downloaded');
+    await dialog.getByTestId('audio-dl-close').click();
+    await expect(dialog).toHaveCount(0);
+
+    // Network off: the downloaded chapter still plays, and seeking works (it plays from a blob).
+    await context.setOffline(true);
+    await page.keyboard.press('Escape'); // close Settings
+    await expect(page.locator('.settings-panel-overlay')).toHaveCount(0);
+    const listen = page.getByTestId('audio-listen');
+    await expect(listen).toBeEnabled({ timeout: 15000 });
+    await listen.click();
+    await expect(page.getByTestId('audio-popup')).toBeVisible({ timeout: 10000 });
+    await expect(playingVerse(page)).toBeVisible({ timeout: 10000 });
+    const slider = page.getByTestId('audio-progress');
+    await expect(slider).toBeVisible();
+    await slider.evaluate((el: HTMLInputElement) => {
+      el.value = '18';
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+      el.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    await expect.poll(async () => verseIdOf(page, '.verse--playing'), { timeout: 10000 }).toBeGreaterThanOrEqual(43003018);
+    // Still playing after the jump (the position keeps moving).
+    const first = await verseIdOf(page, '.verse--playing');
+    await expect.poll(async () => verseIdOf(page, '.verse--playing'), { timeout: 10000 }).toBeGreaterThan(first);
+    await context.setOffline(false);
+  });
+
   test('Settings has an Audio tab with the toggles and no voice list (there are no engines)', async ({ page }) => {
     await open(page, '#/KJV/43/3/1');
     await page.locator('.header__action-btn[title="Settings"]').click();

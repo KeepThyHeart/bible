@@ -101,6 +101,7 @@ interface PassageRow {
   answer_mode: string | null;
   deleted_at: number | null;
   recite_on?: number | null;
+  position?: number | null;
 }
 
 interface CardRow {
@@ -175,6 +176,7 @@ function toPassage(r: PassageRow): Passage {
     addedAt: r.added_at,
     answerMode: r.answer_mode === 'firstLetter' || r.answer_mode === 'fullWord' ? r.answer_mode : null,
     reciteOn: r.recite_on === 1,
+    position: r.position ?? null,
   };
 }
 
@@ -215,6 +217,9 @@ const DEFAULT_PASSAGE_SORT_ORDER: PassageSortOrder = 'need';
 const SETTING_PASSAGE_SORT_ORDER = 'passageSortOrder';
 const SETTING_SCOPE = 'practiceScope';
 
+/** Stored order within a list: numbered rows first, then not-yet-numbered ones by age. */
+const PASSAGE_ORDER = 'position IS NULL, position, added_at, id';
+
 export class MemoryStore {
   constructor(private readonly db: MemorySql) {}
 
@@ -222,7 +227,7 @@ export class MemoryStore {
 
   async listPassages(collectionId: number): Promise<Passage[]> {
     const rows = await this.db.query<PassageRow>(
-      `SELECT * FROM memory_passage WHERE collection_id = ? AND deleted_at IS NULL ORDER BY start_verse_id`,
+      `SELECT * FROM memory_passage WHERE collection_id = ? AND deleted_at IS NULL ORDER BY ${PASSAGE_ORDER}`,
       [collectionId],
     );
     return rows.map(toPassage);
@@ -288,8 +293,9 @@ export class MemoryStore {
           ],
         );
       }
-      await this.db.run(`UPDATE memory_passage SET deleted_at = NULL, collection_id = ? WHERE id = ?`, [
+      await this.db.run(`UPDATE memory_passage SET deleted_at = NULL, collection_id = ?, position = ? WHERE id = ?`, [
         input.collectionId,
+        await this.nextPosition(this.db, input.collectionId),
         revivable.id,
       ]);
       await this.syncLadders(input.collectionId);
@@ -299,8 +305,8 @@ export class MemoryStore {
 
     const res = await this.db.run(
       `INSERT INTO memory_passage
-         (collection_id, module_id, start_verse_id, end_verse_id, reference, verse_count, added_at, answer_mode)
-       VALUES (?, ?, ?, ?, ?, ?, ?, NULL)`,
+         (collection_id, module_id, start_verse_id, end_verse_id, reference, verse_count, added_at, answer_mode, position)
+       VALUES (?, ?, ?, ?, ?, ?, ?, NULL, ?)`,
       [
         input.collectionId,
         input.moduleId,
@@ -309,6 +315,7 @@ export class MemoryStore {
         input.reference,
         input.verseCount,
         input.addedAt,
+        await this.nextPosition(this.db, input.collectionId),
       ],
     );
     const id = Number(res.lastInsertRowid);
@@ -368,7 +375,7 @@ export class MemoryStore {
    */
   async listPassagesInScope(scope: Scope): Promise<Passage[]> {
     if (scope.kind === 'all') {
-      const rows = await this.db.query<PassageRow>(`SELECT * FROM memory_passage WHERE deleted_at IS NULL ORDER BY start_verse_id`);
+      const rows = await this.db.query<PassageRow>(`SELECT * FROM memory_passage WHERE deleted_at IS NULL ORDER BY ${PASSAGE_ORDER}`);
       return rows.map(toPassage);
     }
     return this.listPassages(scope.id);
@@ -490,10 +497,19 @@ export class MemoryStore {
                            AND t.end_verse_id = memory_passage.end_verse_id)`,
         [id, movePassagesTo],
       );
-      await tx.run(`UPDATE memory_passage SET collection_id = ? WHERE collection_id = ?`, [
-        movePassagesTo,
-        id,
-      ]);
+      // Moved rows keep their relative order and land after the target's last one.
+      const moving = await tx.query<{ id: number }>(
+        `SELECT id FROM memory_passage WHERE collection_id = ? ORDER BY ${PASSAGE_ORDER}`,
+        [id],
+      );
+      let next = await this.nextPosition(tx, movePassagesTo);
+      for (const row of moving) {
+        await tx.run(`UPDATE memory_passage SET collection_id = ?, position = ? WHERE id = ?`, [
+          movePassagesTo,
+          next++,
+          row.id,
+        ]);
+      }
       await tx.run(`DELETE FROM memory_collection WHERE id = ?`, [id]);
     });
   }
@@ -533,12 +549,88 @@ export class MemoryStore {
           AND deleted_at IS NOT NULL`,
       [collectionId, passage.moduleId, passage.startVerseId, passage.endVerseId],
     );
-    await this.db.run(`UPDATE memory_passage SET collection_id = ? WHERE id = ?`, [
+    await this.db.run(`UPDATE memory_passage SET collection_id = ?, position = ? WHERE id = ?`, [
       collectionId,
+      await this.nextPosition(this.db, collectionId),
       passageId,
     ]);
     const moved = await this.getPassage(passageId);
     return { passage: moved as Passage, moved: true };
+  }
+
+  /** Ids of the lists that hold this exact range (active rows) in this module. */
+  async listsHoldingRange(moduleId: string, startVerseId: number, endVerseId: number): Promise<number[]> {
+    const rows = await this.db.query<{ collection_id: number }>(
+      `SELECT DISTINCT collection_id FROM memory_passage
+        WHERE module_id = ? AND start_verse_id = ? AND end_verse_id = ? AND deleted_at IS NULL
+        ORDER BY collection_id`,
+      [moduleId, startVerseId, endVerseId],
+    );
+    return rows.map((r) => r.collection_id);
+  }
+
+  /** The position a new row takes at the end of a list. */
+  private async nextPosition(db: MemorySql, collectionId: number): Promise<number> {
+    const row = await db.queryOne<{ n: number | null }>(
+      `SELECT COALESCE(MAX(position) + 1, 0) AS n FROM memory_passage WHERE collection_id = ?`,
+      [collectionId],
+    );
+    return Number(row?.n ?? 0);
+  }
+
+  /**
+   * Put a list's active passages in the given order. Ids that are foreign to the list, soft-deleted or unknown
+   * (or repeated) are rejected. Rows not given follow in their old order. Only rows whose position changed
+   * are written.
+   */
+  async reorderList(collectionId: number, passageIds: readonly number[]): Promise<void> {
+    await this.db.transaction(async (tx) => {
+      const rows = await tx.query<{ id: number; position: number | null }>(
+        `SELECT id, position FROM memory_passage
+          WHERE collection_id = ? AND deleted_at IS NULL ORDER BY ${PASSAGE_ORDER}`,
+        [collectionId],
+      );
+      const known = new Set(rows.map((r) => r.id));
+      const seen = new Set<number>();
+      for (const pid of passageIds) {
+        if (!known.has(pid) || seen.has(pid)) {
+          throw new Error(tc('memory.core.reorderBadVerse', 'That order includes a verse that is not in this list.'));
+        }
+        seen.add(pid);
+      }
+      const order = [...passageIds, ...rows.map((r) => r.id).filter((rid) => !seen.has(rid))];
+      const current = new Map(rows.map((r) => [r.id, r.position]));
+      let index = 0;
+      for (const pid of order) {
+        if (current.get(pid) !== index) {
+          await tx.run(`UPDATE memory_passage SET position = ? WHERE id = ?`, [index, pid]);
+        }
+        index++;
+      }
+    });
+  }
+
+  /**
+   * Number every row whose position is NULL after its list's current maximum, in `(added_at, id)` order.
+   * The async twin of core's `ensureMemoryPassagePosition` (the service only has the async port), without
+   * the column/index DDL, which the schema installers own.
+   */
+  async ensurePositions(): Promise<void> {
+    const nulls = await this.db.query<{ id: number; collection_id: number }>(
+      `SELECT id, collection_id FROM memory_passage WHERE position IS NULL ORDER BY collection_id, added_at, id`,
+    );
+    if (nulls.length === 0) return;
+    await this.db.transaction(async (tx) => {
+      let current = -1;
+      let next = 0;
+      for (const row of nulls) {
+        if (row.collection_id !== current) {
+          current = row.collection_id;
+          next = await this.nextPosition(tx, current);
+        }
+        await tx.run(`UPDATE memory_passage SET position = ? WHERE id = ?`, [next++, row.id]);
+      }
+    });
   }
 
   // -- settings ---------------------------------------------------------------
@@ -623,6 +715,29 @@ export class MemoryStore {
       [passageId],
     );
     return rows.map(toCard);
+  }
+
+  /**
+   * Every card of several passages in one query per 500 ids (the plan and
+   * passage views need all of them; asking per passage cost one query each).
+   * Every requested id has an entry, empty when it has no cards.
+   */
+  async listCardsFor(passageIds: readonly number[]): Promise<Map<number, Card[]>> {
+    const out = new Map<number, Card[]>();
+    for (const id of passageIds) out.set(id, []);
+    for (const chunk of chunksOf(passageIds, IN_CHUNK)) {
+      const rows = await this.db.query<CardRow>(
+        `SELECT * FROM memory_card WHERE passage_id IN (${chunk.map(() => '?').join(', ')}) AND rung <> 'recall' ORDER BY id`,
+        chunk,
+      );
+      for (const r of rows) {
+        const card = toCard(r);
+        const list = out.get(card.passageId);
+        if (list) list.push(card);
+        else out.set(card.passageId, [card]);
+      }
+    }
+    return out;
   }
 
   async getCard(passageId: number, rung: Rung): Promise<Card | undefined> {
@@ -748,6 +863,19 @@ export class MemoryStore {
       [cardId],
     );
     return row ? toResume(row) : undefined;
+  }
+
+  /** The resume rows of several cards, keyed by card id (cards without one are absent). */
+  async listResumes(cardIds: readonly number[]): Promise<Map<number, ResumeRow>> {
+    const out = new Map<number, ResumeRow>();
+    for (const chunk of chunksOf(cardIds, IN_CHUNK)) {
+      const rows = await this.db.query<ResumeSqlRow>(
+        `SELECT * FROM memory_resume_state WHERE card_id IN (${chunk.map(() => '?').join(', ')})`,
+        chunk,
+      );
+      for (const r of rows) out.set(r.card_id, toResume(r));
+    }
+    return out;
   }
 
   async saveResume(
@@ -1194,11 +1322,12 @@ export class MemoryStore {
 
     let versesLearned = 0;
     let passagesWellLearned = 0;
+    const cardsFor = await this.listCardsFor(passages.map((p) => p.id));
     for (const p of passages) {
       // The new rule, not `max(level) >= 4`: every applicable activity has to
       // be satisfied, so a passage whose `firstletters` was aced once but
       // whose ordering has never been opened no longer counts itself learned.
-      const cards = await this.listCards(p.id);
+      const cards = cardsFor.get(p.id) ?? [];
       const levels = activityLevels(p, cards, tierRows, facts);
       if (passageWellLearned(levels)) {
         versesLearned += p.verseCount;
@@ -1222,7 +1351,7 @@ export class MemoryStore {
   }
 
   /** Consecutive calendar days, ending today, with at least one attempt. */
-  private async streakDays(now: number): Promise<number> {
+  async streakDays(now: number): Promise<number> {
     const rows = await this.db.query<{ day: string }>(
       `SELECT DISTINCT date(at / 1000, 'unixepoch', 'localtime') AS day FROM memory_attempt`,
     );
@@ -1280,22 +1409,37 @@ export class MemoryStore {
    */
   private async recentlyReached(passages: Passage[]): Promise<Milestone[]> {
     const found: Milestone[] = [];
+    if (passages.length === 0) return found;
+
+    const cardsByPassage = await this.listCardsFor(passages.map((p) => p.id));
+    // One query for every attempt of the scope's cards. Same reset window as
+    // `listTierProgress`, and the same strictly-greater boundary: a reset
+    // discards the run it ends.
+    const attemptsByCard = new Map<number, { at: number; score: number; tier: number }[]>();
+    for (const chunk of chunksOf(
+      passages.map((p) => p.id),
+      IN_CHUNK,
+    )) {
+      const rows = await this.db.query<{ card_id: number; at: number; score: number; tier: number }>(
+        `SELECT a.card_id AS card_id, a.at AS at, a.score AS score, a.tier AS tier
+           FROM memory_attempt a
+           JOIN memory_card c ON c.id = a.card_id
+          WHERE c.passage_id IN (${chunk.map(() => '?').join(', ')})
+            AND c.rung <> 'recall'
+            AND (c.progress_reset_at IS NULL OR a.at > c.progress_reset_at)
+          ORDER BY a.card_id, a.at ASC, a.id ASC`,
+        chunk,
+      );
+      for (const r of rows) {
+        const list = attemptsByCard.get(r.card_id);
+        if (list) list.push(r);
+        else attemptsByCard.set(r.card_id, [r]);
+      }
+    }
 
     for (const passage of passages) {
-      const cards = await this.listCards(passage.id);
-      for (const card of cards) {
-        // Same reset window as `listTierProgress`, and the same strictly-
-        // greater boundary: a reset discards the run it ends.
-        const attempts = await this.db.query<{ at: number; score: number; tier: number }>(
-          `SELECT a.at AS at, a.score AS score, a.tier AS tier
-             FROM memory_attempt a
-             JOIN memory_card c ON c.id = a.card_id
-            WHERE a.card_id = ?
-              AND (c.progress_reset_at IS NULL OR a.at > c.progress_reset_at)
-            ORDER BY a.at ASC, a.id ASC`,
-          [card.id],
-        );
-
+      for (const card of cardsByPassage.get(passage.id) ?? []) {
+        const attempts = attemptsByCard.get(card.id) ?? [];
         // Replayed rather than aggregated, because the level at the instant
         // of the pass is part of what is being recorded.
         const seen = new Map<number, TierBest>();
@@ -1336,6 +1480,15 @@ export class MemoryStore {
  * view and the analytics screen must not end up with two ways of turning rows
  * into levels.
  */
+/** Ids per `IN (...)` query; well under any SQLite variable limit. */
+const IN_CHUNK = 500;
+
+function chunksOf<T>(items: readonly T[], size: number): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
+  return out;
+}
+
 export function byCard(rows: readonly TierProgressRow[]): Map<number, TierProgressRow[]> {
   const grouped = new Map<number, TierProgressRow[]>();
   for (const row of rows) {

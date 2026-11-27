@@ -7,14 +7,14 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { Registry } from '@bible/core/browser';
 import type { AudioCapabilities, IAudioProvider } from '@bible/core/browser';
-import { audioStore } from './audioStore';
+import { audioStore, webReaderPort } from './audioStore';
 import type { AudioSystem } from './audioStore';
 import { bibleStore } from '../../stores/bibleStore';
 import { eventBus } from '../../events/eventBus';
-import { AudioPlayer } from './lib/AudioPlayer';
-import { AudioSourceResolver } from './lib/AudioSourceResolver';
-import { AUDIO_PREFS_KEY } from './lib/audioPrefs';
-import { FakeOutput, FakeProvider } from './lib/testing';
+import { AudioPlayer } from '@bible/audio';
+import { AudioSourceResolver } from '@bible/audio';
+import { AUDIO_PREFS_KEY } from '@bible/audio';
+import { FakeOutput, FakeProvider } from '@bible/audio/testing';
 import type { VerseData } from '../../types';
 
 const flush = async () => { for (let i = 0; i < 3; i++) await new Promise<void>(r => setTimeout(r, 0)); };
@@ -236,6 +236,17 @@ describe('gates', () => {
     await playNow();
     expect(audioStore.providerId).toBe('recorded');
     expect(audioStore.pendingGate).toBeNull();
+  });
+
+  it('the download gate counts the runtime too when the provider knows what is still missing', async () => {
+    rig.tts.ready = false;
+    Object.assign(rig.tts, { pendingBytes: async () => 93_000_000 });
+    await flush();
+    const p = audioStore.play();
+    await flush();
+    expect(audioStore.pendingGate).toMatchObject({ kind: 'download', bytes: 93_000_000 });
+    audioStore.cancelGate();
+    await p;
   });
 
   it('a voice that is not downloaded asks first (with its size); cancel downloads nothing, confirm does', async () => {
@@ -646,6 +657,17 @@ describe('sources, voices and the phone player', () => {
     expect(audioStore.providerId).toBe('recorded');
   });
 
+  it('jumpToVerse moves within the open chapter at once, without reopening it', async () => {
+    await flush();
+    await playNow();
+    const opens = rig.recorded.openCalls.length;
+    audioStore.jumpToVerse(4);
+    expect(audioStore.follow.verseId).toBe(43003004);
+    await flush();
+    expect(rig.recorded.openCalls.length).toBe(opens);
+    expect(audioStore.follow.verseId).toBe(43003004);
+  });
+
   it('the phone player opens and closes, and a stopped playback closes it', async () => {
     audioStore.setLayout('phone');
     audioStore.openPlayer();
@@ -656,6 +678,70 @@ describe('sources, voices and the phone player', () => {
     await playNow();
     audioStore.openPlayer();
     audioStore.stop();
+    expect(audioStore.playerOpen).toBe(false);
+  });
+});
+
+describe('passage lists on the web reader port', () => {
+  beforeEach(async () => {
+    await openTab(43, 1);
+    rig = build({ recordings: true });
+    await flush();
+  });
+
+  it('plays a typed list: the queue is a list, the passage ends, and Stop selects the verse without scrolling', async () => {
+    const tab = bibleStore.getActiveTab()!;
+    const p = audioStore.playPassages(tab.id, [{ book: 43, chapter: 1, verse: 2, endVerse: 3 }, { book: 43, chapter: 2 }]);
+    await flush();
+    await p;
+    await flush();
+    expect(audioStore.queue?.kind).toBe('list');
+    expect(audioStore.queue?.passages).toHaveLength(2);
+    expect(audioStore.follow.verseId).toBe(43001002);
+    tab.pendingScrollVerse = null;
+    audioStore.stop();
+    await flush();
+    expect(tab.studyVerse).toBe(43001002); // the stopped verse is the selection ...
+    expect(tab.pendingScrollVerse ?? null).toBeNull(); // ... and nothing scrolled
+    expect(audioStore.bookmarkFor(tab.id)?.verse).toBe(2);
+  });
+
+  it('markStopped selects in a tab that is not the active one, and drops a range or hidden selection', () => {
+    const first = bibleStore.getActiveTab()!;
+    first.selectionEndVerse = 43001004;
+    first.hiddenStudyVerse = 43001001;
+    bibleStore.addTab('KJV');
+    expect(bibleStore.activeTabId).not.toBe(first.id);
+    webReaderPort.markStopped!(first.id, 43001003);
+    expect(first.studyVerse).toBe(43001003);
+    expect(first.selectionEndVerse).toBeNull();
+    expect(first.hiddenStudyVerse).toBeNull();
+    expect(bibleStore.activeTabId).not.toBe(first.id); // it does not activate the tab
+  });
+
+  it('reveal activates the playing tab (Go to it)', async () => {
+    const playing = bibleStore.getActiveTab()!;
+    await playNow();
+    bibleStore.addTab('KJV');
+    expect(bibleStore.activeTabId).not.toBe(playing.id);
+    audioStore.revealPlayingTab();
+    expect(bibleStore.activeTabId).toBe(playing.id);
+  });
+
+  it('loop and continue are prefs in the existing audio prefs key (no new storage)', () => {
+    audioStore.setPassageLoop('list');
+    audioStore.setContinueAfterChapter(true);
+    expect(audioStore.prefs.passageLoop).toBe('list');
+    expect(audioStore.prefs.continueAfterChapter).toBe('next-chapter');
+    expect([...rig.storage.keys()]).toEqual([AUDIO_PREFS_KEY]);
+  });
+
+  it('opening the player idle (the Play passages chevron) keeps it open until closed', () => {
+    audioStore.setTargetTab(bibleStore.activeTabId);
+    audioStore.openPlayer();
+    expect(audioStore.playerOpen).toBe(true);
+    expect(audioStore.status).toBe('idle');
+    audioStore.closePlayer();
     expect(audioStore.playerOpen).toBe(false);
   });
 });

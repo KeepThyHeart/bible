@@ -38,6 +38,7 @@ import type {
 import type {
   AnswerMode,
   Card,
+  AddTargets,
   Passage,
   PanelRequest,
   PassageContext,
@@ -55,7 +56,7 @@ import type {
 } from './types';
 import { localDayStart } from './status';
 import { MemoryStore, activityLevels, byCard, scopeOf, ensureDefaultCollection } from './store';
-import type { ScopeFacts, TierProgressRow } from './store';
+import type { ResumeRow, ScopeFacts, TierProgressRow } from './store';
 import {
   applicableRungs,
   inRungOrder,
@@ -74,7 +75,7 @@ import type { Calendar } from './reminderPlan';
 import { Session, nextSessionId, MAX_REFERENCE_STEPS } from './session';
 import type { ReferenceCatalog } from './session';
 import { toVerseText, CONTEXT_VERSES } from './verses';
-import { resolveReference, ReferenceError, MAX_PASSAGE_VERSES } from './reference';
+import { resolveReference, resolveRange, ReferenceError, MAX_PASSAGE_VERSES } from './reference';
 import { reciteEnabled } from './features';
 import { ReciteService } from './recite/service';
 import type { RecordAndScheduleArgs, RecordAndScheduleResult } from './recite/service';
@@ -89,6 +90,8 @@ import { LEGACY_SOURCE_KEY } from './legacyImport';
 
 /** memory_setting key: the translation last chosen explicitly in Memory (a tag in the Add field). */
 const SETTING_LAST_TRANSLATION = 'lastTranslation';
+const SETTING_LAST_ADD_LIST = 'lastAddList';
+const SETTING_AUTO_ADVANCE = 'autoAdvance';
 
 const DEFAULT_COLLECTION_NAME = 'Default';
 /**
@@ -212,6 +215,10 @@ export class MemoryService implements MemoryApi {
    * this field pointing at a row that no longer exists.
    */
   private defaultCollectionId = 0;
+  /** Random per service instance; with `version` it orders plan snapshots for the UI cache. */
+  private readonly epoch = Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+  /** Bumped on every plan push; a plan view captures it before its first read. */
+  private version = 0;
   /**
    * Abbreviation of the translation new passages are recorded against. Null:
    * the first installed module. A later UI step may set it to the reader's.
@@ -272,6 +279,8 @@ export class MemoryService implements MemoryApi {
 
     this.defaultCollectionId = await ensureDefaultCollection(this.sql, DEFAULT_COLLECTION_NAME, this.now());
     await this.renameLegacyDefaultCollection();
+    // Number any passage that has no stored position yet (v3 data, a restore, a merge or sync).
+    await this.store.ensurePositions();
     // Housekeeping only: a failed purge must never block start.
     try {
       await this.store.purgeOldDeletedPassages(this.now(), DELETED_PASSAGE_RETENTION_MS);
@@ -578,8 +587,13 @@ export class MemoryService implements MemoryApi {
    * reminders to hand the host (the plan, the due dates or the lists moved).
    */
   private planChanged(): void {
-    this.emit({ type: 'planChanged' });
+    this.emit({ type: 'planChanged', epoch: this.epoch, version: ++this.version });
     this.push?.requestRecompute('plan');
+  }
+
+  /** Availability moved: tell the UI, but do not recompute reminders (nothing they use changed). */
+  private planChangedQuiet(): void {
+    this.emit({ type: 'planChanged', epoch: this.epoch, version: ++this.version });
   }
 
   private notice(message: string): void {
@@ -643,9 +657,10 @@ export class MemoryService implements MemoryApi {
   getSettings(): Promise<RequestMap['getSettings']> {
     return this.guard('getSettings', async () => ({
       defaultAnswerMode: await this.store.getDefaultAnswerMode(),
+      autoAdvance: await this.readAutoAdvance(),
       // Absent while recite is off (see features.ts): the UI then draws no recite block.
       ...(reciteEnabled()
-        ? { recite: await this.getRecite().getSettings(), speech: await this.getRecite().probe(true) }
+        ? { recite: await this.getRecite().getSettings(), speech: this.getRecite().availabilityNow() }
         : {}),
     }));
   }
@@ -689,6 +704,7 @@ export class MemoryService implements MemoryApi {
     return this.guard('removePassage', async () => {
       await this.store.removePassage(args.passageId, this.now());
       await this.refreshStatus();
+      this.planChanged();
       return {};
     });
   }
@@ -702,10 +718,11 @@ export class MemoryService implements MemoryApi {
       await this.store.resetPassageProgress(args.passageId, this.now());
       await this.refreshStatus();
       this.planChanged();
-      // Unlike `removePassage`, the reply carries the rebuilt plan: the
-      // screen that asked is showing the levels that just changed, and
-      // waiting for the push to come round would flash the old ones.
-      return this.buildPlanView();
+      // The reply carries the rebuilt plan: the screen that asked is showing
+      // the levels that just changed, and waiting for the push to come round
+      // would flash the old ones. Built with scope all (and `focus`) so the UI
+      // cache can apply it as it is.
+      return this.buildPlanView({ kind: 'all' });
     });
   }
 
@@ -746,7 +763,7 @@ export class MemoryService implements MemoryApi {
     return this.guard('createList', async () => {
       await this.store.createCollection(args.name, this.now());
       this.planChanged();
-      return this.buildPlanView();
+      return this.buildPlanView({ kind: 'all' });
     });
   }
 
@@ -754,7 +771,7 @@ export class MemoryService implements MemoryApi {
     return this.guard('renameList', async () => {
       await this.store.renameCollection(args.id, args.name);
       this.planChanged();
-      return this.buildPlanView();
+      return this.buildPlanView({ kind: 'all' });
     });
   }
 
@@ -766,7 +783,7 @@ export class MemoryService implements MemoryApi {
       await this.store.deleteCollection(args.id, args.movePassagesTo);
       await this.refreshStatus();
       this.planChanged();
-      return this.buildPlanView();
+      return this.buildPlanView({ kind: 'all' });
     });
   }
 
@@ -779,7 +796,7 @@ export class MemoryService implements MemoryApi {
       await this.store.movePassage(args.passageId, args.collectionId);
       await this.refreshStatus();
       this.planChanged();
-      return this.buildPlanView();
+      return this.buildPlanView({ kind: 'all' });
     });
   }
 
@@ -789,7 +806,7 @@ export class MemoryService implements MemoryApi {
       // The badge counts the focus, so a new focus can change it.
       await this.refreshStatus();
       this.planChanged();
-      return this.buildPlanView();
+      return this.buildPlanView({ kind: 'all' });
     });
   }
 
@@ -917,13 +934,154 @@ export class MemoryService implements MemoryApi {
   async addVerses(args: {
     verseIds: readonly number[];
     module?: string;
-  }): Promise<AddVersesResult> {
+    collectionId?: number;
+    newListName?: string;
+  }): Promise<AddVersesResult & { collectionId: number; listName: string }> {
     // The verses the user selected, which need not be the reader's active
     // verse: a contiguous run within one chapter becomes one passage,
     // anything else just its first verse.
     const picked = versesFromMenuArgs(args);
     if (!picked) throw new Error(tc('memory.core.selectVerseFirst', 'Select a verse first, then add it to Memory.'));
-    return this.addPassageFromVerseId(picked.start, picked.end, picked.module);
+    // Two steps, not one transaction: if the add fails, a newly created list stays (empty).
+    let explicitListId: number | undefined;
+    if (args.newListName !== undefined) {
+      explicitListId = await this.findOrCreateList(args.newListName);
+    } else if (args.collectionId !== undefined) {
+      explicitListId = args.collectionId;
+    }
+    const result = await this.addPassageFromVerseId(picked.start, picked.end, picked.module, explicitListId);
+    const passage = await this.store.getPassage(result.passageId);
+    const collectionId = passage?.collectionId ?? 0;
+    const listName = (await this.store.listCollections()).find((l) => l.id === collectionId)?.name ?? '';
+    if (explicitListId !== undefined && passage) await this.store.setSetting(SETTING_LAST_ADD_LIST, listName);
+    return { ...result, collectionId, listName };
+  }
+
+  /**
+   * Add the verse selector's range. Validated like a typed reference (extents,
+   * order, the 25-verse cap, counted across chapters) and recorded in the
+   * translation `addPassageFromReference` would use.
+   */
+  addPassageRange(args: {
+    startVerseId: number;
+    endVerseId: number;
+    module?: string;
+    collectionId?: number;
+    newListName?: string;
+  }): Promise<{ passage: Passage; existed?: boolean }> {
+    return this.guard('addPassageRange', async () => {
+      const moduleId = await this.activeModuleId(args.module ?? (await this.lastChosenTranslation()));
+      const resolved = await resolveRange(this.host, args.startVerseId, args.endVerseId, moduleId);
+      let targetCollectionId: number;
+      if (args.newListName !== undefined) {
+        targetCollectionId = await this.findOrCreateList(args.newListName);
+      } else {
+        targetCollectionId = await this.resolveAddTargetCollectionId(args.collectionId);
+      }
+      const { passage, created, revived } = await this.store.addPassage({
+        collectionId: targetCollectionId,
+        moduleId,
+        startVerseId: resolved.startVerseId,
+        endVerseId: resolved.endVerseId,
+        reference: resolved.reference,
+        verseCount: resolved.verseCount,
+        addedAt: this.now(),
+      });
+      if (args.newListName !== undefined || args.collectionId !== undefined) {
+        const targetName = (await this.store.listCollections()).find((l) => l.id === targetCollectionId)?.name;
+        if (targetName !== undefined) await this.store.setSetting(SETTING_LAST_ADD_LIST, targetName);
+      }
+      if (created || revived) await this.refreshStatus();
+      this.planChanged();
+      return { passage, ...(!created && !revived ? { existed: true } : {}) };
+    });
+  }
+
+  /** The selector's preview: validates the range, then up to 30 verses of text. */
+  previewVerses(args: {
+    startVerseId: number;
+    endVerseId: number;
+    module?: string;
+  }): Promise<{ reference: string; verses: VerseText[] }> {
+    return this.guard('previewVerses', async () => {
+      const moduleId = await this.activeModuleId(args.module ?? (await this.lastChosenTranslation()));
+      const resolved = await resolveRange(this.host, args.startVerseId, args.endVerseId, moduleId);
+      const verses = await this.fetchVersesSafely(
+        resolved.startVerseId,
+        resolved.endVerseId,
+        moduleId,
+        this.makeLabeller(resolved.startVerseId, resolved.endVerseId),
+      );
+      return { reference: resolved.reference, verses: verses.slice(0, 30) };
+    });
+  }
+
+  /** What the Add dialog needs: lists, the last list used (if it still exists) and where the range already is. */
+  getAddTargets(args?: { verseIds?: readonly number[]; module?: string }): Promise<AddTargets> {
+    return this.guard('getAddTargets', async () => {
+      const lists = await this.store.listCollections();
+      const defaultListId = this.findDefaultListId(lists) ?? lists[0]?.id ?? this.defaultCollectionId;
+      const lastListId = await this.readLastAddListId(lists);
+      let reference: string | null = null;
+      let existingIn: number[] = [];
+      const picked = args?.verseIds ? versesFromMenuArgs({ verseIds: args.verseIds, module: args.module }) : null;
+      if (picked) {
+        const moduleId = await this.activeModuleId(picked.module);
+        reference = this.referenceFor(picked.start, picked.end);
+        existingIn = await this.store.listsHoldingRange(moduleId, picked.start, picked.end);
+      }
+      return { lists, lastListId, defaultListId, reference, existingIn };
+    });
+  }
+
+  /** Put a list's verses in the given order; replies with the all-scope plan. */
+  reorderList(args: { collectionId: number; passageIds: readonly number[] }): Promise<PlanView> {
+    return this.guard('reorderList', async () => {
+      await this.store.reorderList(args.collectionId, args.passageIds);
+      this.planChanged();
+      return this.buildPlanView({ kind: 'all' });
+    });
+  }
+
+  /** Reuse a list of this name (trimmed, case-insensitive) or create it. An empty name throws. */
+  private async findOrCreateList(rawName: string): Promise<number> {
+    const name = rawName.trim();
+    if (name === '') throw new Error(tc('memory.core.newListNameEmpty', 'Give the new list a name.'));
+    const lists = await this.store.listCollections();
+    const same = lists.find((l) => l.name.toLowerCase() === name.toLowerCase());
+    return same ? same.id : (await this.store.createCollection(name, this.now())).id;
+  }
+
+  /** The id of the list the last explicit add went to. The setting holds the list NAME (so it syncs between devices); null when the list no longer exists. */
+  private async readLastAddListId(lists?: readonly { id: number; name: string }[]): Promise<number | null> {
+    const raw = await this.store.getSetting(SETTING_LAST_ADD_LIST);
+    if (raw === undefined || raw.trim() === '') return null;
+    const known = lists ?? (await this.store.listCollections());
+    const want = raw.trim().toLowerCase();
+    return known.find((l) => l.name.toLowerCase() === want)?.id ?? null;
+  }
+
+  private async readAutoAdvance(): Promise<boolean> {
+    return (await this.store.getSetting(SETTING_AUTO_ADVANCE)) !== 'false';
+  }
+
+  /**
+   * Probe the speech engine now (de-duplicated, cached 5 min). Reads never do
+   * this; a recite surface asks after it has rendered. A change in
+   * availability reaches the UI as a quiet `planChanged` push.
+   */
+  refreshSpeech(args: { force?: boolean } = {}): Promise<Record<string, never>> {
+    return this.guard('refreshSpeech', async () => {
+      if (reciteEnabled()) await this.getRecite().probe(args?.force === true);
+      return {};
+    });
+  }
+
+  setAutoAdvance(args: { on: boolean }): Promise<Record<string, never>> {
+    return this.guard('setAutoAdvance', async () => {
+      await this.store.setSetting(SETTING_AUTO_ADVANCE, args.on ? 'true' : 'false');
+      return {};
+    });
   }
 
   async getStatus(): Promise<MemoryStatus> {
@@ -956,6 +1114,7 @@ export class MemoryService implements MemoryApi {
       }
       const result = await legacy.merge();
       if (result.status === 'merged') {
+        await this.store.ensurePositions();
         await this.refreshStatus();
         this.planChanged();
       }
@@ -994,6 +1153,7 @@ export class MemoryService implements MemoryApi {
       bookNames: () => Array.from(this.bookNames.values()),
       recordAndSchedule: (a) => this.recordAndSchedule(a),
       push: (state) => this.pushReciteState(state),
+      onAvailabilityChange: () => this.planChangedQuiet(),
     });
     return this.recite;
   }
@@ -1033,6 +1193,7 @@ export class MemoryService implements MemoryApi {
     passage: Passage,
     cards: Card[],
     tierRows: Map<number, TierProgressRow[]>,
+    resumes: Map<number, ResumeRow>,
     scope: ScopeFacts,
     now: number,
     availability: SpeechAvailability,
@@ -1067,7 +1228,7 @@ export class MemoryService implements MemoryApi {
       // tier, so sizing this against today's suggested tier could make a
       // perfectly valid tier-0 resume point read as "past the end" (or vice
       // versa) the moment `nextTier` moves on.
-      const resumeRow = await this.store.getResume(c.id);
+      const resumeRow = resumes.get(c.id);
       const totalSteps = totalStepsFor(c.rung, passage.verseCount, resumeRow?.tier ?? 0);
       const resume =
         resumeRow && resumeRow.cursor > 0 && resumeRow.cursor < totalSteps
@@ -1119,8 +1280,12 @@ export class MemoryService implements MemoryApi {
 
   /** `scopeOverride`: a one-off scope for this view; never persisted. */
   private async buildPlanView(scopeOverride?: Scope): Promise<PlanView> {
+    // Captured before the first read: a push that lands while this builds
+    // carries a higher version, so the UI keeps the newer of the two.
+    const version = this.version;
     const now = this.now();
-    const scope = scopeOverride ?? (await this.store.getScope());
+    const focusScope = await this.store.getScope();
+    const scope = scopeOverride ?? focusScope;
     const passages = await this.store.listPassagesInScope(scope);
     const scopeFacts = scopeOf(passages);
     // Applicability is per passage's OWN list (as startSession and
@@ -1142,14 +1307,20 @@ export class MemoryService implements MemoryApi {
     const tierRows = byCard(await this.store.listTierProgress(passages.map((p) => p.id)));
     const views: PassageView[] = [];
     let totalDue = 0;
-    const speech = await this.getRecite().probe();
+    // Never waits on the speech engine: the cached value, or "unavailable".
+    const speech = this.getRecite().availabilityNow();
+    const cardsByPassage = await this.store.listCardsFor(passages.map((p) => p.id));
+    const resumes = await this.store.listResumes(
+      [...cardsByPassage.values()].flatMap((cs) => cs.map((c) => c.id)),
+    );
 
     for (const passage of passages) {
-      const cards = await this.store.listCards(passage.id);
+      const cards = cardsByPassage.get(passage.id) ?? [];
       const view = await this.assemblePassageView(
         passage,
         cards,
         tierRows,
+        resumes,
         factsByList.get(passage.collectionId) ?? scopeFacts,
         now,
         speech,
@@ -1180,6 +1351,11 @@ export class MemoryService implements MemoryApi {
       sortOrder: await this.store.getPassageSortOrder(),
       speech,
       reciteDueCount: reciteEnabled() ? await this.store.reciteDueCount(scope, now) : 0,
+      focus: focusScope.kind === 'all' ? 'all' : focusScope.id,
+      epoch: this.epoch,
+      version,
+      streakDays: await this.store.streakDays(now),
+      lastAddListId: await this.readLastAddListId(lists),
     };
   }
 
@@ -1199,16 +1375,18 @@ export class MemoryService implements MemoryApi {
 
     const siblings = await this.store.listPassages(passage.collectionId);
     const scopeFacts = scopeOf(siblings);
-    const cards = await this.store.listCards(passage.id);
+    const cards = (await this.store.listCardsFor([passage.id])).get(passage.id) ?? [];
     const tierRows = byCard(await this.store.listTierProgress([passage.id]));
+    const resumes = await this.store.listResumes(cards.map((c) => c.id));
 
     return this.assemblePassageView(
       passage,
       cards,
       tierRows,
+      resumes,
       scopeFacts,
       this.now(),
-      await this.getRecite().probe(),
+      this.getRecite().availabilityNow(),
     );
   }
 
@@ -1376,10 +1554,19 @@ export class MemoryService implements MemoryApi {
     startVerseId: number,
     endVerseId = startVerseId,
     preferredModule?: string,
+    explicitListId?: number,
   ): Promise<AddVersesResult> {
     const moduleId = await this.activeModuleId(preferredModule);
     const now = this.now();
-    const targetCollectionId = await this.resolveAddTargetCollectionId();
+    // A run inside one chapter is counted by subtraction (the reader only
+    // offers verses that exist). One that crosses chapters goes through
+    // `resolveRange`, which counts across the boundary and enforces the cap.
+    const sameChapter = Math.floor(startVerseId / CHAPTER_FACTOR) === Math.floor(endVerseId / CHAPTER_FACTOR);
+    const verseCount =
+      this.verseIdEncodingTrusted && !sameChapter
+        ? (await resolveRange(this.host, startVerseId, endVerseId, moduleId)).verseCount
+        : endVerseId - startVerseId + 1;
+    const targetCollectionId = await this.resolveAddTargetCollectionId(explicitListId);
 
     const { passage, created, revived } = await this.store.addPassage({
       collectionId: targetCollectionId,
@@ -1387,7 +1574,7 @@ export class MemoryService implements MemoryApi {
       startVerseId,
       endVerseId,
       reference: this.referenceFor(startVerseId, endVerseId),
-      verseCount: endVerseId - startVerseId + 1,
+      verseCount,
       addedAt: now,
     });
 

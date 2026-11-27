@@ -184,6 +184,8 @@ describe('BookChapterPicker: dialog frame and shared picker wiring', () => {
     await user.click(screen.getByRole('button', { name: 'Genesis' }));
     expect(screen.getByRole('button', { name: 'Genesis chapter 3' })).toHaveAttribute('aria-current', 'true');
     await user.click(screen.getByRole('button', { name: 'Genesis chapter 2' }));
+    // A chapter opens the verse step; "Go to chapter" skips it, a verse goes to that verse.
+    await user.click(screen.getByTestId('picker-go-chapter'));
     expect(onSelect).toHaveBeenCalledWith(1, 2);
   });
 
@@ -366,5 +368,17 @@ describe('BookChapterPicker: search fallback', () => {
     await user.clear(input);
     expect(screen.queryByText('No results found.')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Genesis' })).toBeInTheDocument();
+  });
+});
+
+describe('BookChapterPicker: verse step', () => {
+  it('picking a verse passes it to onSelect', async () => {
+    const user = userEvent.setup();
+    const onSelect = vi.fn();
+    renderWithProviders(<BookChapterPicker isOpen onClose={vi.fn()} onSelect={onSelect} currentBook={1} currentChapter={1} />);
+    await user.click(screen.getByRole('button', { name: 'Genesis' }));
+    await user.click(screen.getByRole('button', { name: 'Genesis chapter 1' }));
+    await user.click(screen.getByRole('button', { name: /Genesis 1:3$/ }));
+    expect(onSelect).toHaveBeenCalledWith(1, 1, 3);
   });
 });

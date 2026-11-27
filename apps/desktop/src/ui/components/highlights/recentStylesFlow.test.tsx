@@ -318,10 +318,10 @@ describe('floating toolbar: More… and the Recent row', () => {
     });
 
     const swatches = screen.getAllByTestId('underline-swatch');
-    // One per palette colour, each drawn in the style just chosen.
-    expect(swatches).toHaveLength(6);
+    // One per palette colour (ten), each drawn in the style just chosen.
+    expect(swatches).toHaveLength(10);
     expect(swatches.map(s => s.getAttribute('data-underline-color'))).toEqual([
-      'yellow', 'green', 'blue', 'red', 'purple', 'orange',
+      'yellow', 'green', 'blue', 'red', 'purple', 'orange', 'pink', 'teal', 'gray', 'brown',
     ]);
     for (const swatch of swatches) {
       expect(swatch.getAttribute('data-underline-style')).toBe('wavy');

@@ -1,4 +1,49 @@
-/* Scripture Memory - app shell (tab bar, focus chip, focused header). Scoped under .sm-app. */
+/* Scripture Memory - app shell (tab bar, focus chip, focused header). Scoped under .sm-app.
+ *
+ * Layout variants (R2-13), picked by `data-layout` on `.sm-shell`:
+ *   column (default)  tab bar and content share one centered column
+ *   start             the same column, pinned to the start edge
+ *   rail              vertical tabs beside the content (falls back to column on narrow screens)
+ */
+
+.sm-app .sm-shell {
+  --sm-column: 48rem;
+  --sm-rail: 11rem;
+  inline-size: 100%;
+  max-inline-size: var(--sm-column);
+  margin-inline: auto;
+  /* The size container for the rail fallback: the panel's own width, not the window's. */
+  container-type: inline-size;
+  container-name: sm-shell;
+}
+
+.sm-app .sm-shell[data-layout='start'] {
+  margin-inline: 0;
+}
+
+.sm-app .sm-shell[data-layout='rail'] {
+  max-inline-size: 64rem;
+  margin-inline: 0 auto;
+  padding-inline-start: var(--sm-s3);
+}
+
+.sm-app .sm-shell[data-layout='rail'] > .sm-shell-grid {
+  display: grid;
+  grid-template-columns: var(--sm-rail) minmax(0, 1fr);
+  column-gap: var(--sm-s4);
+  align-items: start;
+}
+
+/* Every screen fills the column: no per-screen widths. */
+.sm-app .sm-shell .sm-screen {
+  max-inline-size: none;
+  max-width: none;
+  margin-inline: 0;
+}
+
+.sm-app .sm-shell-main {
+  min-inline-size: 0;
+}
 
 .sm-app .sm-shell-bar {
   display: flex;
@@ -8,6 +53,7 @@
   margin-block-end: var(--sm-s3);
 }
 
+/* Four equal-width tabs; the list never scrolls. */
 .sm-app .sm-shell-tabs {
   display: flex;
   flex: 1;
@@ -17,14 +63,18 @@
 
 .sm-app .sm-shell-tab {
   appearance: none;
+  flex: 1 1 0;
+  min-inline-size: 0;
   background: transparent;
   border: 0;
   border-block-end: 3px solid transparent;
   color: var(--sm-text-dim);
   font: inherit;
   font-weight: 600;
+  text-align: center;
+  white-space: nowrap;
   padding-block: var(--sm-s2);
-  padding-inline: var(--sm-s3);
+  padding-inline: var(--sm-s2);
   cursor: pointer;
 }
 
@@ -37,6 +87,94 @@
   border-block-end-color: var(--sm-accent);
 }
 
+/* Rail: the bar becomes a vertical strip in the first column. */
+.sm-app .sm-shell[data-layout='rail'] .sm-shell-bar {
+  flex-direction: column;
+  align-items: stretch;
+  border-block-end: 0;
+  border-inline-end: 1px solid var(--sm-border);
+  margin-block-end: 0;
+  padding-inline-end: var(--sm-s2);
+}
+
+.sm-app .sm-shell[data-layout='rail'] .sm-shell-tabs {
+  flex-direction: column;
+  flex: none;
+}
+
+.sm-app .sm-shell[data-layout='rail'] .sm-shell-tab {
+  flex: none;
+  text-align: start;
+  border-block-end: 0;
+  border-inline-start: 3px solid transparent;
+  border-radius: var(--sm-radius);
+}
+
+.sm-app .sm-shell[data-layout='rail'] .sm-shell-tab[aria-selected='true'] {
+  border-inline-start-color: var(--sm-accent);
+  background: var(--sm-hover);
+}
+
+.sm-app .sm-shell[data-layout='rail'] .sm-shell-gear {
+  align-self: flex-start;
+}
+
+/* Narrow panel (phone or a side panel): tighter tabs that still fit four to a line. */
+@container sm-shell (max-width: 30rem) {
+  .sm-app .sm-shell-tab {
+    padding-inline: var(--sm-s1);
+    font-size: 0.9em;
+  }
+
+  .sm-app .sm-shell-gear {
+    padding-inline: var(--sm-s1);
+  }
+}
+
+/* The rail falls back to a column when the panel (not the window) is narrow. */
+@container sm-shell (max-width: 39.99rem) {
+  .sm-app .sm-shell[data-layout='rail'] > .sm-shell-grid {
+    display: block;
+  }
+
+  .sm-app .sm-shell[data-layout='rail'] .sm-shell-bar {
+    flex-direction: row;
+    align-items: center;
+    border-inline-end: 0;
+    border-block-end: 1px solid var(--sm-border);
+    margin-block-end: var(--sm-s3);
+    padding-inline-end: 0;
+  }
+
+  .sm-app .sm-shell[data-layout='rail'] .sm-shell-tabs {
+    flex-direction: row;
+    flex: 1;
+  }
+
+  .sm-app .sm-shell[data-layout='rail'] .sm-shell-tab {
+    flex: 1 1 0;
+    text-align: center;
+    border-inline-start: 0;
+    border-block-end: 3px solid transparent;
+    border-radius: 0;
+    background: transparent;
+  }
+
+  .sm-app .sm-shell[data-layout='rail'] .sm-shell-tab[aria-selected='true'] {
+    border-block-end-color: var(--sm-accent);
+    background: transparent;
+  }
+}
+
+/* The column must not shift ~7 px between tabs with and without a scrollbar. */
+.sm-app .sm-main {
+  scrollbar-gutter: stable;
+}
+
+.sm-app .sm-shell-panel[aria-busy='true'] {
+  min-block-size: 8rem;
+}
+
 .sm-app .sm-shell-gear {
   appearance: none;
   background: transparent;
@@ -47,6 +185,7 @@
   padding-block: var(--sm-s1);
   padding-inline: var(--sm-s2);
   cursor: pointer;
+  flex: none;
 }
 
 .sm-app .sm-shell-gear:hover,

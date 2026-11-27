@@ -875,8 +875,8 @@ reset and \`.kth-*\` classes such as \`.kth-btn\`). \`src/panel.ts\` calls
 it is open.
 
 The host also serves a small kit of ready-made custom elements
-(\`<kth-reference-picker>\`, \`<kth-book-chapter-picker>\`,
-\`<kth-highlight-swatch>\`). It is opt-in and this template does not use it.
+(\`<kth-reference-picker>\`, \`<kth-verse-selector>\`,
+\`<kth-book-chapter-picker>\`, \`<kth-highlight-swatch>\`). It is opt-in and this template does not use it.
 To use it, declare it in \`extension.json\` (the kit needs the
 \`ui:contribute-pane\` permission, which is not granted by default, so users
 will see an extra permission line):

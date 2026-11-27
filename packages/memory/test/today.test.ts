@@ -235,3 +235,28 @@ describe('re-exports', () => {
     expect(fmtStart).toBe(startOfLocalDay);
   });
 });
+
+describe('todayQueue new-verse order across lists (design 4e)', () => {
+  const inList = (id: number, listId: number, addedAt: number, position?: number | null) => {
+    const v = fresh(id, addedAt);
+    v.passage.collectionId = listId;
+    if (position !== undefined) v.passage.position = position;
+    return v;
+  };
+  const ids = (q: ReturnType<typeof todayQueue>) => [...q.items.map((i) => i.passageId), ...(q.nextNewAvailable ? [q.nextNewAvailable.passageId] : [])];
+
+  it('unset positions: oldest added first across lists (migrated fixture unchanged)', () => {
+    const ps = [inList(1, 1, 50), inList(2, 2, 10), inList(3, 1, 30), inList(4, 2, 20)];
+    expect(ids(todayQueue(ps, NOW))).toEqual([2, 4, 3, 1]);
+    const withPositions = ps.map((p, i) => ({ ...p, passage: { ...p.passage, position: [3, 1, 2, 2][i]! } }));
+    // positions that agree with addedAt within each list leave the queue unchanged
+    expect(ids(todayQueue(withPositions, NOW))).toEqual([2, 4, 3, 1]);
+  });
+
+  it('position reorders within a list only; lists merge by head addedAt', () => {
+    // list 1: id1 (added 10, pos 2), id3 (added 30, pos 1) -> sequence 3, 1; list 2: id2 (added 20)
+    const ps = [inList(1, 1, 10, 2), inList(2, 2, 20, 1), inList(3, 1, 30, 1)];
+    // heads: 3 (30) vs 2 (20) -> 2 first, then 3 (30) vs nothing -> 3, then 1
+    expect(ids(todayQueue(ps, NOW))).toEqual([2, 3, 1]);
+  });
+});

@@ -264,7 +264,7 @@ describe('.kth-toolbar* parity with desktop controls.css (.control-toolbar*)', (
 describe('component class coverage', () => {
   // Every kth-* class a shared component renders must have a rule, or the component silently loses its styling.
   // Structural hooks: rendered for app CSS and e2e selectors, deliberately without rules of their own.
-  const HOOKS = ['kth-picker__books', 'kth-picker__chapters'];
+  const HOOKS = ['kth-picker__books', 'kth-picker__chapters', 'kth-picker__verses'];
   const defined = new Set<string>(HOOKS);
   for (const file of ['kth-classes.css', 'kth-rtl.css']) {
     for (const { selector } of parseRules(read(join(CSS_DIR, file)))) {

@@ -10,8 +10,8 @@ const plans: ReadingPlans.PlanSummary[] = [
 
 describe('ReadingPlanLibrary', () => {
   it('lists plans with summary, tracks and only offers delete for user plans', async () => {
-    const onStart = vi.fn(); const onDelete = vi.fn(); const onPreview = vi.fn();
-    render(<ReadingPlanLibrary plans={plans} onStart={onStart} onDelete={onDelete} onPreview={onPreview} />);
+    const onStart = vi.fn(); const onDelete = vi.fn(); const onEdit = vi.fn(); const onPreview = vi.fn();
+    render(<ReadingPlanLibrary plans={plans} onStart={onStart} onDelete={onDelete} onEdit={onEdit} onPreview={onPreview} />);
     const items = screen.getAllByRole('listitem');
     expect(items).toHaveLength(2);
     expect(items[0]).toHaveTextContent('Bible in a year');
@@ -19,13 +19,26 @@ describe('ReadingPlanLibrary', () => {
     expect(items[1]).toHaveTextContent('10 days · about 10 min a day');
     expect(items[1]).toHaveTextContent('4 tracks');
     expect(within(items[0]).queryByRole('button', { name: /Delete/ })).toBeNull();
+    expect(within(items[0]).queryByRole('button', { name: /Edit/ })).toBeNull();
     const user = userEvent.setup();
-    await user.click(within(items[0]).getByRole('button', { name: 'Start Bible in a year' }));
+    await user.click(within(items[0]).getByRole('button', { name: 'Start Reading Plan: Bible in a year' }));
     expect(onStart).toHaveBeenCalledWith('stock:bible-365');
+    await user.click(within(items[1]).getByRole('button', { name: 'Edit Mine' }));
+    expect(onEdit).toHaveBeenCalledWith('user:abc');
+    expect(within(items[1]).getByRole('button', { name: 'Start Reading Plan: Mine' })).toHaveTextContent('Start');
     await user.click(within(items[1]).getByRole('button', { name: 'Delete Mine' }));
     expect(onDelete).toHaveBeenCalledWith('user:abc');
     await user.click(within(items[1]).getByRole('button', { name: 'Preview Mine' }));
     expect(onPreview).toHaveBeenCalledWith('user:abc');
+  });
+
+  it('offers Export on user plans only', async () => {
+    const onExport = vi.fn();
+    render(<ReadingPlanLibrary plans={plans} onStart={vi.fn()} onExport={onExport} />);
+    const items = screen.getAllByRole('listitem');
+    expect(within(items[0]).queryByRole('button', { name: /Export/ })).toBeNull();
+    await userEvent.setup().click(within(items[1]).getByRole('button', { name: 'Export Mine' }));
+    expect(onExport).toHaveBeenCalledWith('user:abc');
   });
 
   it('uses nameOf/descriptionOf and shows an empty message', () => {

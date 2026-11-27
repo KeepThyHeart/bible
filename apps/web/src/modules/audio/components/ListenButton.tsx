@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next';
 import type { ReaderToolbarActionProps } from '../../../host/slots';
 import { useStore } from '../../../hooks/useStore';
 import { audioStore } from '../audioStore';
+import { bibleStore } from '../../../stores/bibleStore';
 
 export function ListenButton({ tab }: ReaderToolbarActionProps) {
   const { t } = useTranslation();
@@ -25,10 +26,17 @@ export function ListenButton({ tab }: ReaderToolbarActionProps) {
       if (!audioActive) void audioStore.play();
       return;
     }
-    audioStore.togglePlay();
+    audioStore.togglePlay(tab?.id);
+  };
+
+  // "Play passages…": open the player aimed at this tab, to type a list before anything plays.
+  const onPassages = () => {
+    audioStore.setTargetTab(tab?.id ?? bibleStore.activeTabId);
+    audioStore.openPlayer();
   };
 
   return (
+    <>
     <button
       class="bible-toolbar__btn bible-toolbar__listen"
       onClick={onListen}
@@ -41,5 +49,16 @@ export function ListenButton({ tab }: ReaderToolbarActionProps) {
       <i class={`fa-solid ${audioPlaying && audioLayout === 'desktop' ? 'fa-pause' : 'fa-play'}`} aria-hidden="true" />
       <span class="bible-toolbar__btn-label">{audioPlaying && audioLayout === 'desktop' ? t('audio.pause') : t('audio.listen')}</span>
     </button>
+    <button
+      class="bible-toolbar__btn bible-toolbar__passages"
+      onClick={onPassages}
+      disabled={!audioActive && !audioCanPlay}
+      title={t('audio.passages.open')}
+      aria-label={t('audio.passages.open')}
+      data-testid="audio-passages-open"
+    >
+      <i class="fa-solid fa-list-ol" aria-hidden="true" />
+    </button>
+    </>
   );
 }

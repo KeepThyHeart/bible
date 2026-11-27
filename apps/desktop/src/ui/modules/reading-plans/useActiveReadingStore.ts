@@ -10,7 +10,9 @@ import { currentRolloverHour, getReadingPlanService } from './readingPlansAPI';
 import { watchReadingDay } from './readingDayWatcher';
 import { navigateToVerseInPrimary } from '../../stores/crossStoreBridge';
 import { syncPanesWithVerse } from '../../stores/syncPanesWithVerse';
+import { usePreferencesStore } from '../../stores/usePreferencesStore';
 import { openApp } from '../../apps/appHost';
+import { canUseReadingTab, clearReadingTabScope, openInReadingTab, readingTabTitle } from './planReadingTab';
 
 export interface ActiveReadingRef {
   enrollmentId: string;
@@ -101,15 +103,68 @@ export const useActiveReadingStore = create<State>((set, get) => ({
     await getReadingPlanService().setReadingDone(ref.enrollmentId, ref.day, ref.index, done, 'reader');
     await get().refresh();
   },
-  clear: () => { loadToken++; set({ ref: null, info: null }); },
+  clear: () => { loadToken++; clearReadingTabScope(); set({ ref: null, info: null }); },
 }));
 
-/** Open a plan reading in the normal reader, at its first verse, and remember it for the reader's blocks. */
+/** One of today's readings with the plan facts the end block needs; see `todaySetFor`. */
+export interface TodayEntry {
+  view: ReadingPlans.TodayView;
+  r: ReadingPlans.TodayReadingRef;
+  /** `nextDueReading`: the next unticked reading of today's set (null: the day, or today's set, is done). */
+  next: ReadingPlans.PlanReadingRef | null;
+  /** The plan day after `r.day`, or null at the plan's end (for "Read ahead"). */
+  nextDay: number | null;
+}
+
+const todaySets = new WeakMap<readonly ReadingPlans.TodayView[], TodayEntry[]>();
+
+/**
+ * Every reading of today's set (ticked and unticked) over all active plans, computed once per `todays` array
+ * (the plan store replaces the array on each refresh), so the per-verse reader slot only filters a short list.
+ */
+export function todaySetFor(todays: readonly ReadingPlans.TodayView[]): TodayEntry[] {
+  let set = todaySets.get(todays);
+  if (!set) {
+    set = todays.flatMap((view) => ReadingPlans.todaysReadings(view).map((r) => ({
+      view,
+      r,
+      next: ReadingPlans.nextDueReading(view, r.day, r.index),
+      nextDay: r.day < view.dayCount ? r.day + 1 : null,
+    })));
+    todaySets.set(todays, set);
+  }
+  return set;
+}
+
+/** Tick (or untick) a reading from the reader. The reading becomes the active one first, so its end block stays for undo. */
+export async function markReadingFromReader(ref: ActiveReadingRef, done: boolean): Promise<void> {
+  const store = useActiveReadingStore.getState(); // allow-getstate: event handler
+  const cur = store.ref;
+  if (!cur || cur.enrollmentId !== ref.enrollmentId || cur.day !== ref.day || cur.index !== ref.index) {
+    await store.activate(ref);
+  }
+  await useActiveReadingStore.getState().setDone(done); // allow-getstate: event handler
+}
+
+function openInCurrentTab(start: number): void {
+  navigateToVerseInPrimary(start);
+  syncPanesWithVerse(start);
+  void openApp('study');
+}
+
+/**
+ * Open a plan reading at its first verse and remember it for the reader's blocks. Where it opens follows the
+ * `readingPlanOpenIn` pref: a reusable reading tab ('tab', default) or the current Bible tab ('current', the
+ * old behaviour, also the fallback when no tab can be made).
+ */
 export function openPlanReading(target: { enrollmentId: string; day: number; index: number; reading: ReadingPlans.Reading }): void {
   void useActiveReadingStore.getState().activate({ enrollmentId: target.enrollmentId, day: target.day, index: target.index }); // allow-getstate: event handler
-  navigateToVerseInPrimary(target.reading.start);
-  syncPanesWithVerse(target.reading.start);
-  void openApp('study');
+  const start = target.reading.start;
+  if (usePreferencesStore.getState().readingPlanOpenIn === 'tab' && canUseReadingTab()) { // allow-getstate: event handler
+    void openInReadingTab(target, readingTabTitle(target.reading)).then((ok) => { if (!ok) openInCurrentTab(start); });
+    return;
+  }
+  openInCurrentTab(start);
 }
 
 /** Tests only. */

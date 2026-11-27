@@ -38,6 +38,17 @@ vi.mock('../../moduleDescriptions', () => {
   };
 });
 
+// The real store pulls in the module host and i18n; the dialog only needs these two members.
+vi.mock('../../stores/settingsStore', () => {
+  const settingsStore = {
+    recentBibleVersions: [] as string[],
+    recordRecentBibleVersion(abbr: string) {
+      settingsStore.recentBibleVersions = [abbr, ...settingsStore.recentBibleVersions.filter(a => a !== abbr)];
+    },
+  };
+  return { settingsStore };
+});
+
 interface TestModule { abbreviation: string; name: string; type: string }
 
 let mockModules: TestModule[] = [];
@@ -53,6 +64,7 @@ vi.mock('../../stores/moduleStore', () => ({
 }));
 
 const { TranslationDialog } = await import('./TranslationDialog');
+const { settingsStore } = await import('../../stores/settingsStore');
 
 const mod = (abbreviation: string, name = abbreviation): TestModule => ({ abbreviation, name, type: 'bible' });
 
@@ -75,6 +87,7 @@ beforeEach(() => {
   mockModules = [mod('KJV', 'King James Version'), mod('ASV', 'American Standard'), mod('WEB', 'World English Bible')];
   mockSections = null;
   mockDescriptions = {};
+  settingsStore.recentBibleVersions = [];
 });
 
 afterEach(cleanup);
@@ -610,5 +623,61 @@ describe('TranslationDialog keyboard reach (roving tabindex)', () => {
     close.focus();
     const notPrevented = fireEvent.keyDown(close, { key: 'Enter' });
     expect(notPrevented).toBe(true);
+  });
+});
+
+describe('Recent group', () => {
+  beforeEach(() => {
+    settingsStore.recentBibleVersions = [];
+  });
+
+  it('shows a labelled Recent group first, most recent first, and keeps the full list', () => {
+    settingsStore.recentBibleVersions = ['WEB', 'ASV'];
+    const { container } = open();
+    const group = container.querySelector('[role="group"]')!;
+    const heading = document.getElementById(group.getAttribute('aria-labelledby')!);
+    expect(heading?.textContent).toBe('bibleToolbar.recent');
+    expect(cards(group).map(c => c.querySelector('.module-card__abbr')?.textContent)).toEqual(['WEB', 'ASV']);
+    expect(cards(container)).toHaveLength(5);
+  });
+
+  it('keeps option ids unique', () => {
+    settingsStore.recentBibleVersions = ['KJV'];
+    const { container } = open();
+    const ids = cards(container).map(c => c.id);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it('drops uninstalled versions and hides the group when none remain', () => {
+    settingsStore.recentBibleVersions = ['GONE'];
+    const { container } = open();
+    expect(container.querySelector('[role="group"]')).toBeNull();
+    expect(cards(container)).toHaveLength(3);
+  });
+
+  it('hides the group while filtering', () => {
+    settingsStore.recentBibleVersions = ['KJV'];
+    const { container } = open();
+    fireEvent.input(container.querySelector('input')!, { target: { value: 'kjv' } });
+    expect(container.querySelector('[role="group"]')).toBeNull();
+    expect(cards(container)).toHaveLength(1);
+  });
+
+  it('arrow keys move through the Recent group into the full list', async () => {
+    settingsStore.recentBibleVersions = ['WEB'];
+    const { container } = open();
+    const radios = Array.from(container.querySelectorAll<HTMLElement>('[role="radio"]'));
+    await act(async () => { fireEvent.keyDown(window, { key: 'ArrowDown' }); });
+    expect(document.activeElement).toBe(radios[0]);
+    await act(async () => { fireEvent.keyDown(window, { key: 'ArrowDown' }); });
+    expect(document.activeElement).toBe(radios[1]);
+  });
+
+  it('records a pick made in the dialog', () => {
+    const onSelect = vi.fn();
+    const { container } = open({ onSelect });
+    fireEvent.click(cards(container).find(c => c.textContent?.includes('ASV'))!);
+    expect(onSelect).toHaveBeenCalledWith('ASV');
+    expect(settingsStore.recentBibleVersions[0]).toBe('ASV');
   });
 });

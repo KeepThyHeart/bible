@@ -59,3 +59,19 @@ describe('HighlightMenu both mode', () => {
     }
   });
 });
+
+describe('HighlightMenu remove option', () => {
+  it('offers removal only when the caller says the selection carries marks', () => {
+    const { rerender } = render(<HighlightMenu position={{ x: 10, y: 10 }} onSelectHighlight={vi.fn()} onCancel={vi.fn()} />);
+    expect(screen.queryByTestId('highlight-menu-remove')).toBeNull();
+    const onRemove = vi.fn();
+    rerender(<HighlightMenu position={{ x: 10, y: 10 }} onSelectHighlight={vi.fn()} onCancel={vi.fn()} onRemove={onRemove} />);
+    fireEvent.click(screen.getByTestId('highlight-menu-remove'));
+    expect(onRemove).toHaveBeenCalledTimes(1);
+  });
+
+  it('offers all ten palette colours', () => {
+    render(<HighlightMenu position={{ x: 10, y: 10 }} onSelectHighlight={vi.fn()} onCancel={vi.fn()} />);
+    expect(screen.getAllByRole('button', { name: /^highlightMenu\.applyHighlightColor:/ })).toHaveLength(10);
+  });
+});

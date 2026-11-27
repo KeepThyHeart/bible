@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { Popover } from '@bible/ui';
 import { audioStore } from '../audioStore';
 import { useStore } from '../../../hooks/useStore';
-import { RATE_PRESETS, effectiveRate } from '../lib/audioPrefs';
+import { RATE_PRESETS, effectiveRate } from '@bible/audio';
 import { formatRate } from './AudioControls';
 
 export function AudioSpeedControl({ large }: { large?: boolean }) {

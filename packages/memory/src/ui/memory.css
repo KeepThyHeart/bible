@@ -245,11 +245,12 @@
   display: flex;
   flex-direction: column;
   height: 100%;
-  overflow: auto;
+  overflow: hidden;
 }
 
 .sm-app .sm-main {
   flex: 1 1 auto;
+  min-block-size: 0;
   overflow-y: auto;
   overflow-x: hidden;
   --sm-main-pad: var(--sm-s4);
@@ -282,6 +283,12 @@
   display: flex;
   flex-direction: column;
   gap: var(--sm-s4);
+}
+
+/* "Loading..." line of the busy shell panel (shown after 400 ms; no spinner). */
+.sm-app .sm-loading {
+  margin: 0;
+  color: var(--sm-text-dim);
 }
 
 .sm-app .sm-screen-title {
@@ -524,16 +531,6 @@
    Plan
    ========================================================================== */
 
-.sm-app .sm-add {
-  display: flex;
-  flex-direction: column;
-}
-
-.sm-app .sm-add-row {
-  display: flex;
-  gap: var(--sm-s2);
-}
-
 /* Reserved height. The parse error for a mistyped reference is the single most
    likely thing to appear here, and a list of passages that jumps down a line
    the moment it does is a list the user loses their place in. */
@@ -548,11 +545,6 @@
   border: 1px solid var(--sm-danger-border);
   border-radius: var(--sm-radius);
   padding: var(--sm-s1) var(--sm-s2);
-}
-
-.sm-app .sm-add-wrapper {
-  display: flex;
-  flex-direction: column;
 }
 
 /* The parsed-lines list in the "add several at once" modal's confirm view. */
@@ -1300,27 +1292,6 @@
   border-bottom-width: 3px;
   box-shadow: 0 0 0 2px var(--sm-accent);
   border-radius: 3px;
-}
-
-.sm-app .sm-summary {
-  border: 1px solid var(--sm-border);
-  border-radius: var(--sm-radius-lg);
-  background: var(--sm-surface);
-  padding: var(--sm-s4);
-  display: flex;
-  flex-direction: column;
-  gap: var(--sm-s1);
-  text-align: center;
-}
-
-.sm-app .sm-summary-title {
-  font-size: 1.15em;
-  font-weight: 600;
-  color: var(--sm-heading);
-}
-
-.sm-app .sm-summary-detail {
-  color: var(--sm-text-dim);
 }
 
 /* ==========================================================================

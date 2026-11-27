@@ -43,8 +43,14 @@ export function isPassageMarkupFormat(id: string): id is PassageMarkupFormatId {
   return (PASSAGE_MARKUP_FORMAT_IDS as readonly string[]).includes(id);
 }
 
-/** How a verse number is written in front of its text. */
-export type VerseNumberStyle = 'parenthetical' | 'superscript' | 'none';
+/**
+ * How a verse number is written in front of its text.
+ *
+ * `first-full` writes the whole reference in parentheses before the first verse - `(John 3:16)` - and a bare
+ * `(17)` before each later one, switching to `(4:1)` where a multi-chapter passage crosses a chapter. The
+ * passage's own reference block is dropped for this style (it would only repeat what the first verse says).
+ */
+export type VerseNumberStyle = 'parenthetical' | 'superscript' | 'none' | 'first-full';
 
 /** Quote marks around an inline quotation. */
 export type QuoteMarkStyle = 'double' | 'single' | 'none';
@@ -316,9 +322,21 @@ function verseLabel(
   verse: PassageVerse,
   options: PassageMarkupOptions,
   multiChapter: boolean,
+  position?: { list: PassageVerse[]; index: number; context: VerseContext },
 ): PassageMarkupLine {
-  const number = multiChapter ? `${verse.chapter}:${verse.verse}` : String(verse.verse);
-  switch (options.verseNumbers) {
+  let number = multiChapter ? `${verse.chapter}:${verse.verse}` : String(verse.verse);
+  let style = options.verseNumbers;
+  if (style === 'first-full') {
+    style = 'parenthetical';
+    if (position?.index === 0) {
+      number = buildPassageReference([verse], position.context, options.displayVersionNumber);
+    } else if (position && position.list[position.index - 1]?.chapter !== verse.chapter) {
+      number = `${verse.chapter}:${verse.verse}`;
+    } else {
+      number = String(verse.verse);
+    }
+  }
+  switch (style) {
     case 'parenthetical':
       return plain(`(${number}) `);
     case 'superscript':
@@ -380,11 +398,15 @@ export function renderPassageMarkup(
   }
 
   const reference = buildPassageReference(list, context, resolved.displayVersionNumber);
-  const { before, after } = referenceBlocks(reference, resolved.referencePosition);
+  // `first-full` puts the reference on the first verse, so a separate reference block would only repeat it.
+  const { before, after } = referenceBlocks(
+    reference,
+    resolved.verseNumbers === 'first-full' ? 'none' : resolved.referencePosition,
+  );
 
   if (formatId === 'heading-per-verse') {
     const blocks: PassageMarkupBlock[] = [...before];
-    for (const verse of list) {
+    for (const [index, verse] of list.entries()) {
       blocks.push({
         kind: 'heading',
         level: resolved.headingLevel,
@@ -392,7 +414,7 @@ export function renderPassageMarkup(
       });
       blocks.push({
         kind: 'quote',
-        lines: [prefix(verseLabel(verse, resolved, multiChapter), verseText(verse, resolved))],
+        lines: [prefix(verseLabel(verse, resolved, multiChapter, { list, index, context }), verseText(verse, resolved))],
       });
       if (resolved.commentPlaceholders) {
         blocks.push({ kind: 'placeholder', line: plain(placeholderFor(verse, context, labels)) });
@@ -407,10 +429,10 @@ export function renderPassageMarkup(
   // the format is named for.
   if (formatId === 'blockquote-numbered' && resolved.commentPlaceholders) {
     const blocks: PassageMarkupBlock[] = [...before];
-    for (const verse of list) {
+    for (const [index, verse] of list.entries()) {
       blocks.push({
         kind: 'quote',
-        lines: [prefix(verseLabel(verse, resolved, multiChapter), verseText(verse, resolved))],
+        lines: [prefix(verseLabel(verse, resolved, multiChapter, { list, index, context }), verseText(verse, resolved))],
       });
       blocks.push({ kind: 'placeholder', line: plain(placeholderFor(verse, context, labels)) });
     }
@@ -427,7 +449,10 @@ export function renderPassageMarkup(
   const lines: PassageMarkupLine[] = paragraphsOf(list).map(paragraph =>
     joinLines(
       paragraph.map(verse =>
-        prefix(verseLabel(verse, resolved, multiChapter), verseText(verse, resolved)),
+        prefix(
+          verseLabel(verse, resolved, multiChapter, { list, index: list.indexOf(verse), context }),
+          verseText(verse, resolved),
+        ),
       ),
       separator,
     ),
@@ -469,7 +494,7 @@ function renderInlineQuote(
   const body = joinLines(
     verses.map((verse, index) =>
       // The first verse's number is redundant - the reference just gave it.
-      prefix(index === 0 ? { html: '', text: '' } : verseLabel(verse, options, multiChapter), verseText(verse, options)),
+      prefix(index === 0 ? { html: '', text: '' } : verseLabel(verse, options, multiChapter, { list: verses, index, context }), verseText(verse, options)),
     ),
   );
   const quoted: PassageMarkupLine = {

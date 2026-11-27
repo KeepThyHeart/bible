@@ -11,12 +11,21 @@ export function AudioTransportButtons({ large }: { large?: boolean }) {
   // After an error (for example no recording of this chapter) nothing here can do anything; Retry is in the status line.
   const dead = status === 'error';
   const busy = status === 'resolving' || status === 'preparing';
+  const queue = useStore(audioStore, () => audioStore.queue);
+  const canChapter = useStore(audioStore, () => audioStore.canSeekChapter);
+  const typed = queue?.kind === 'list';
   const cls = `audio-btn${large ? ' audio-btn--large' : ''}`;
   return (
     <div class="audio-transport__buttons" role="group" aria-label={t('audio.transport.controls')}>
-      <button type="button" class={cls} disabled={dead} onClick={() => audioStore.seekChapter(-1)} title={t('audio.transport.prevChapter')} aria-label={t('audio.transport.prevChapter')}>
-        <i class="fa-solid fa-backward-fast" aria-hidden="true" />
-      </button>
+      {typed ? (
+        <button type="button" class={cls} disabled={dead || queue.index <= 0} onClick={() => audioStore.prevPassage()} title={t('audio.passages.prev')} aria-label={t('audio.passages.prev')} data-testid="audio-prev-passage">
+          <i class="fa-solid fa-backward-fast" aria-hidden="true" />
+        </button>
+      ) : (
+        <button type="button" class={cls} disabled={dead || !canChapter} onClick={() => audioStore.seekChapter(-1)} title={t('audio.transport.prevChapter')} aria-label={t('audio.transport.prevChapter')}>
+          <i class="fa-solid fa-backward-fast" aria-hidden="true" />
+        </button>
+      )}
       <button type="button" class={cls} disabled={dead} onClick={() => audioStore.seekVerse(-1)} title={t('audio.transport.prevVerse')} aria-label={t('audio.transport.prevVerse')}>
         <i class="fa-solid fa-backward-step" aria-hidden="true" />
       </button>
@@ -34,9 +43,15 @@ export function AudioTransportButtons({ large }: { large?: boolean }) {
       <button type="button" class={cls} disabled={dead} onClick={() => audioStore.seekVerse(1)} title={t('audio.transport.nextVerse')} aria-label={t('audio.transport.nextVerse')}>
         <i class="fa-solid fa-forward-step" aria-hidden="true" />
       </button>
-      <button type="button" class={cls} disabled={dead} onClick={() => audioStore.seekChapter(1)} title={t('audio.transport.nextChapter')} aria-label={t('audio.transport.nextChapter')}>
-        <i class="fa-solid fa-forward-fast" aria-hidden="true" />
-      </button>
+      {typed ? (
+        <button type="button" class={cls} disabled={dead || queue.index >= queue.passages.length - 1} onClick={() => audioStore.nextPassage()} title={t('audio.passages.next')} aria-label={t('audio.passages.next')} data-testid="audio-next-passage">
+          <i class="fa-solid fa-forward-fast" aria-hidden="true" />
+        </button>
+      ) : (
+        <button type="button" class={cls} disabled={dead || !canChapter} onClick={() => audioStore.seekChapter(1)} title={t('audio.transport.nextChapter')} aria-label={t('audio.transport.nextChapter')}>
+          <i class="fa-solid fa-forward-fast" aria-hidden="true" />
+        </button>
+      )}
     </div>
   );
 }

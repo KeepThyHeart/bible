@@ -18,7 +18,7 @@ const plan = smallPlan();
 
 describe('ReadingPlanTodayCard', () => {
   it('shows the day, percent, readings with minutes and toggles them', async () => {
-    const view = ReadingPlans.todayView(plan, enrollment(), [], '2026-01-05');
+    const view = ReadingPlans.todayView(plan, enrollment(), [], '2026-01-05', 3);
     const { user, onToggleReading, onToggleDay, onOpenReading } = setup(view);
     expect(screen.getByText('Day 1 of 5')).toBeInTheDocument();
     expect(screen.getByText('12.5%')).toBeInTheDocument();
@@ -38,14 +38,14 @@ describe('ReadingPlanTodayCard', () => {
   });
 
   it('offers to mark a finished day unread', async () => {
-    const view = { ...ReadingPlans.todayView(plan, enrollment(), [], '2026-01-05'), dayDone: true };
+    const view = { ...ReadingPlans.todayView(plan, enrollment(), [], '2026-01-05', 3), dayDone: true };
     const { user, onToggleDay } = setup(view);
     await user.click(screen.getByRole('button', { name: 'Mark day unread' }));
     expect(onToggleDay).toHaveBeenCalledWith(false);
   });
 
   it('prefixes the track name and opens the plan from the title', async () => {
-    const base = ReadingPlans.todayView(plan, enrollment(), [], '2026-01-05');
+    const base = ReadingPlans.todayView(plan, enrollment(), [], '2026-01-05', 3);
     const view = { ...base, readings: base.readings.map((r) => ({ ...r, reading: { ...r.reading, track: 't1' } })) };
     const { user, onOpenPlan } = setup(view, { trackName: () => 'Family' });
     expect(screen.getAllByRole('checkbox')[0]).toHaveAccessibleName(/^Family: /);
@@ -54,7 +54,7 @@ describe('ReadingPlanTodayCard', () => {
   });
 
   it('shows the behind banner, catch-up hint and missed days', async () => {
-    const view = ReadingPlans.todayView(plan, enrollment(), [], '2026-01-08');
+    const view = ReadingPlans.todayView(plan, enrollment(), [], '2026-01-08', 3);
     expect(view.behindBy).toBe(3);
     const { user, onShift } = setup(view, { catchUp: ReadingPlans.catchUpSuggestion(3, 3) });
     expect(screen.getByRole('status')).toHaveTextContent('You are 3 days behind');
@@ -65,13 +65,13 @@ describe('ReadingPlanTodayCard', () => {
   });
 
   it('truncates a long missed-days list', () => {
-    const base = ReadingPlans.todayView(plan, enrollment(), [], '2026-01-08');
+    const base = ReadingPlans.todayView(plan, enrollment(), [], '2026-01-08', 3);
     setup({ ...base, missedDays: Array.from({ length: 14 }, (_, i) => i + 1) });
     expect(screen.getByText('Missed: day 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 and 4 more')).toBeInTheDocument();
   });
 
   it('switch to flexible needs confirmation; Cancel does nothing', async () => {
-    const view = ReadingPlans.todayView(plan, enrollment(), [], '2026-01-08');
+    const view = ReadingPlans.todayView(plan, enrollment(), [], '2026-01-08', 3);
     const { user, onSwitchToFlexible } = setup(view);
     await user.click(screen.getByRole('button', { name: 'Switch to flexible' }));
     expect(onSwitchToFlexible).not.toHaveBeenCalled();
@@ -85,19 +85,19 @@ describe('ReadingPlanTodayCard', () => {
   });
 
   it('shows no banner for flexible plans', () => {
-    const view = ReadingPlans.todayView(plan, enrollment({ pacing: 'flexible' }), [], '2026-01-20');
+    const view = ReadingPlans.todayView(plan, enrollment({ pacing: 'flexible' }), [], '2026-01-20', 3);
     setup(view);
     expect(screen.queryByRole('status')).toBeNull();
   });
 
   it('renders the completed, not started and rest day states', () => {
-    const done = { ...ReadingPlans.todayView(plan, enrollment(), [], '2026-01-05'), completed: true, day: null, readings: [] };
+    const done = { ...ReadingPlans.todayView(plan, enrollment(), [], '2026-01-05', 3), completed: true, day: null, readings: [] };
     const first = render(<ReadingPlanTodayCard view={done} formatReading={fmt} onToggleReading={vi.fn()} onToggleDay={vi.fn()} onOpenReading={vi.fn()} />);
     expect(screen.getByText(/plan is finished/)).toBeInTheDocument();
     expect(screen.queryByRole('checkbox')).toBeNull();
     first.unmount();
 
-    const future = ReadingPlans.todayView(plan, enrollment(), [], '2026-01-01');
+    const future = ReadingPlans.todayView(plan, enrollment(), [], '2026-01-01', 3);
     expect(future.notStarted).toBe(true);
     const second = render(<ReadingPlanTodayCard view={future} formatReading={fmt} onToggleReading={vi.fn()} onToggleDay={vi.fn()} onOpenReading={vi.fn()} />);
     expect(screen.getByText(/not started/)).toBeInTheDocument();
@@ -105,7 +105,7 @@ describe('ReadingPlanTodayCard', () => {
     second.unmount();
 
     // 2026-01-11 is a Sunday; Monday-Friday plan.
-    const rest = ReadingPlans.todayView(plan, enrollment({ readingDays: [1, 2, 3, 4, 5] }), [], '2026-01-11');
+    const rest = ReadingPlans.todayView(plan, enrollment({ readingDays: [1, 2, 3, 4, 5] }), [], '2026-01-11', 3);
     expect(rest.restDay).toBe(true);
     expect(rest.day).toBeNull();
     setup(rest);

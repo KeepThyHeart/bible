@@ -146,6 +146,7 @@ describe('recite through the worker', () => {
     const speech = new FakeSpeechApi({ granted: { listen: false, speak: false } });
     const { channel, passageId } = await setup(speech);
 
+    await call(channel, { type: 'refreshSpeech' });
     const plan = await call<PlanView>(channel, { type: 'getPlan' });
     expect(plan.speech.state).toBe('permission-missing');
     expect(plan.speech.missingPermissions).toContain('speech:listen');
@@ -170,6 +171,7 @@ describe('recite through the worker', () => {
 
   it('still starts when the host has no speech (host-too-old)', async () => {
     const { channel } = await setup(undefined);
+    await call(channel, { type: 'refreshSpeech' });
     const plan = await call<PlanView>(channel, { type: 'getPlan' });
     expect(plan.speech.state).toBe('host-too-old');
     expect(plan.reciteDueCount).toBe(0);

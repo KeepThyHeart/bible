@@ -33,4 +33,46 @@ describe('createWebPackInstallers', () => {
     const { asset } = createWebPackInstallers({ assetManager: () => ({ install: async () => { throw new Error('aborted'); } }) as unknown as IAssetManager });
     await expect(asset.install(step('asset', 'a'), { signal: new AbortController().signal, onBytes: () => {} })).rejects.toThrow('aborted');
   });
+
+  it('a speech voice also caches its pronunciation overlay after it installs', async () => {
+    const order: string[] = [];
+    const install = vi.fn(async () => { order.push('install'); });
+    const prefetchPronunciation = vi.fn(async () => { order.push('overlay'); });
+    const am = { install, getSnapshot: () => ({ entries: [{ id: 'amy', kind: 'tts-voice' }, { id: 'piper-runtime', kind: 'tts-runtime' }] }) } as unknown as IAssetManager;
+    const { asset } = createWebPackInstallers({ assetManager: () => am, prefetchPronunciation });
+    const ctl = new AbortController();
+    await asset.install(step('asset', 'amy'), { signal: ctl.signal, onBytes: () => {} });
+    expect(prefetchPronunciation).toHaveBeenCalledWith('amy', ctl.signal);
+    expect(order).toEqual(['install', 'overlay']);
+    // The runtime and other assets carry no overlay.
+    await asset.install(step('asset', 'piper-runtime'), { signal: ctl.signal, onBytes: () => {} });
+    expect(prefetchPronunciation).toHaveBeenCalledTimes(1);
+  });
+
+  it('a failing overlay fetch does not fail the voice install', async () => {
+    const am = { install: async () => {}, getSnapshot: () => ({ entries: [{ id: 'amy', kind: 'tts-voice' }] }) } as unknown as IAssetManager;
+    const { asset } = createWebPackInstallers({ assetManager: () => am, prefetchPronunciation: async () => { throw new Error('x'); } });
+    await expect(asset.install(step('asset', 'amy'), { signal: new AbortController().signal, onBytes: () => {} })).resolves.toBeUndefined();
+  });
+
+  it('a Bible module that installs after its voice also caches the overlay', async () => {
+    const installModule = vi.fn(async () => {});
+    const prefetchPronunciationForModule = vi.fn(async () => {});
+    const am = { getSnapshot: () => ({ entries: [{ id: 'amy', kind: 'tts-voice', status: 'installed' }, { id: 'bob', kind: 'tts-voice', status: 'available' }] }) } as unknown as IAssetManager;
+    const { module } = createWebPackInstallers({ installModule: installModule as never, assetManager: () => am, prefetchPronunciationForModule });
+    const ctl = new AbortController();
+    await module.install(step('module', 'KJV'), { signal: ctl.signal, onBytes: () => {} });
+    expect(prefetchPronunciationForModule).toHaveBeenCalledWith('KJV', ['amy'], ctl.signal);
+  });
+
+  it('a module with no installed voice skips the overlay and a failing overlay does not fail the module', async () => {
+    const prefetchPronunciationForModule = vi.fn(async () => { throw new Error('x'); });
+    const none = { getSnapshot: () => ({ entries: [] }) } as unknown as IAssetManager;
+    const a = createWebPackInstallers({ installModule: vi.fn(async () => {}) as never, assetManager: () => none, prefetchPronunciationForModule });
+    await a.module.install(step('module', 'KJV'), { signal: new AbortController().signal, onBytes: () => {} });
+    expect(prefetchPronunciationForModule).not.toHaveBeenCalled();
+    const some = { getSnapshot: () => ({ entries: [{ id: 'amy', kind: 'tts-voice', status: 'installed' }] }) } as unknown as IAssetManager;
+    const b = createWebPackInstallers({ installModule: vi.fn(async () => {}) as never, assetManager: () => some, prefetchPronunciationForModule });
+    await expect(b.module.install(step('module', 'KJV'), { signal: new AbortController().signal, onBytes: () => {} })).resolves.toBeUndefined();
+  });
 });

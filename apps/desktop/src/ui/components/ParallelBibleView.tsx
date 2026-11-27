@@ -1,7 +1,12 @@
 import { Bdi } from '@bible/ui';
+import BibleHeader from './BibleHeader';
 import { contentDirAttrs } from '../utils/contentDirection';
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useContext, useRef, useEffect, useState } from 'react';
 import { useI18n } from '../contexts/useI18n';
+import { usePreferencesStore } from '../stores/usePreferencesStore';
+import { verseLabelText, verseGutterClass } from '../utils/verseLabel';
+import BiblePaneContext from './BiblePaneContext';
+import { ReaderChapterEnd } from '../modules/host/slots';
 import { useBiblePanel } from '../stores/hooks/useBiblePanel';
 import { useCommentaryStore } from '../stores/useCommentaryStore';
 import { useNotesStore } from '../stores/useNotesStore';
@@ -30,7 +35,8 @@ interface ParallelBibleViewProps {
 }
 
 const ParallelBibleView: React.FC<ParallelBibleViewProps> = ({ panelId }) => {
-  const { t } = useI18n();
+  const { t, localizer } = useI18n();
+  const verseLabelMode = usePreferencesStore(st => st.typography.verseLabelMode);
   const {
     parallelVersions,
     availableBibles,
@@ -43,6 +49,10 @@ const ParallelBibleView: React.FC<ParallelBibleViewProps> = ({ panelId }) => {
     setSelectedVerse,
     extendSelectionTo
   } = useBiblePanel(panelId);
+
+  // The pane context is absent in isolated renders; the chapter-end slot then gets a no-op.
+  const paneContext = useContext(BiblePaneContext);
+  const handleNextChapter = paneContext?.handleNextChapter;
 
   const { syncAllPanelsWithVerse } = useCommentaryStore();
   const { syncAllPanelsWithVerse: syncAllNotesPanelsWithVerse } = useNotesStore();
@@ -237,6 +247,10 @@ const ParallelBibleView: React.FC<ParallelBibleViewProps> = ({ panelId }) => {
 
   return (
     <div className="h-full overflow-auto">
+      {/* Same clickable chapter heading + prev/next arrows as Standard/Reading/Study */}
+      <div className="px-xl pt-lg">
+        <BibleHeader />
+      </div>
       <table
         ref={tableRef}
         className="w-full border-collapse"
@@ -405,7 +419,7 @@ const ParallelBibleView: React.FC<ParallelBibleViewProps> = ({ panelId }) => {
                           */
                           <button
                             type="button"
-                            className="flex-shrink-0 w-9 text-end pe-2 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                            className={`flex-shrink-0 ${verseGutterClass(verseLabelMode, 'parallel')} text-end pe-2 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-accent`}
                             aria-label={t(
                               'biblePane.selectVerse',
                               { book: getBookName(verse.book_number), chapter: verse.chapter, verse: verse.verse, },
@@ -415,7 +429,7 @@ const ParallelBibleView: React.FC<ParallelBibleViewProps> = ({ panelId }) => {
                                 weak-directional and would otherwise be reordered
                                 out of its column in RTL scripture. */}
                             <bdi aria-hidden="true" className="font-bold text-accent">
-                              {verse.verse}
+                              {verseLabelText(verseLabelMode, { book: verse.book_number, chapter: verse.chapter, verse: verse.verse }, localizer)}
                             </bdi>
                           </button>
                         )}
@@ -434,6 +448,14 @@ const ParallelBibleView: React.FC<ParallelBibleViewProps> = ({ panelId }) => {
           })}
         </tbody>
       </table>
+      <div className="px-xl">
+        <ReaderChapterEnd
+          book={currentBook}
+          chapter={currentChapter}
+          displayMode="parallel"
+          onNext={handleNextChapter ?? (() => {})}
+        />
+      </div>
     </div>
   );
 };

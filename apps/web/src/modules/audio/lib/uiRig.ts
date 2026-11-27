@@ -10,9 +10,9 @@ import type { AudioCapabilities, AudioVoice, IAudioProvider, ITtsEngine } from '
 import { audioStore } from '../audioStore';
 import type { AudioSystem } from '../audioStore';
 import { bibleStore } from '../../../stores/bibleStore';
-import { AudioPlayer } from './AudioPlayer';
-import { AudioSourceResolver } from './AudioSourceResolver';
-import { FakeOutput, FakeProvider, FakeTtsEngine } from './testing';
+import { AudioPlayer } from '@bible/audio';
+import { AudioSourceResolver } from '@bible/audio';
+import { FakeOutput, FakeProvider, FakeTtsEngine } from '@bible/audio/testing';
 import type { VerseData } from '../../../types';
 
 export const flush = async (n = 3) => { for (let i = 0; i < n; i++) await new Promise<void>(r => setTimeout(r, 0)); };

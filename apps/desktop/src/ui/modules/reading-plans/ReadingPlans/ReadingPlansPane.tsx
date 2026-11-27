@@ -1,56 +1,50 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ReadingPlans } from '@bible/core/browser';
-import {
-  ReadingPlanBuilderForm, ReadingPlanLibrary, SettingsForm, WeekdayPicker,
-} from '@bible/ui';
+import { Notice, Tabs, tabPanelProps } from '@bible/ui';
 import { useI18n } from '../../../contexts/useI18n';
 import { getReadingPlanService } from '../readingPlansAPI';
 import { openPlanReading } from '../useActiveReadingStore';
 import { useReadingPlanStore } from '../useReadingPlanStore';
-import { useInlineConfirm } from './useInlineConfirm';
-import { DESKTOP_SETTINGS, getDesktopSettingsStore } from '../../../settings/desktopSettings';
-import { isEnabled } from '../../../settings/featureFlags';
+import { useReadingPlanNavStore, validScheduleUndo } from '../useReadingPlanNavStore';
+import { openReadingPlansBeside } from '../openBeside';
+import { rpTextWith } from '../rpText';
 import { ensureReferenceLocales } from '../../../services/localizedReferenceParser';
 import { useReadingPlanLabels } from './useReadingPlanLabels';
 import { useReadingPlanData } from './readingPlanData';
 import ReadingPlanDetail from './ReadingPlanDetail';
-import TodayPlanCard from './TodayPlanCard';
+import PlanEditorView from './PlanEditorView';
+import PlanHome from './PlanHome';
+import TodayTab from './TodayTab';
+import type { ReschedulePreview } from './BehindPanel';
+import AddPlanView from './AddPlanView';
+import PlanSettingsDialog from './PlanSettingsDialog';
+import type { PlanSettingsMode } from './PlanSettingsDialog';
 
-type Weekday = ReadingPlans.Weekday;
+/** `APP_WILL_HIDE_EVENT` of `apps/DesktopAppStage` (not imported: the stage imports the app views). */
+const APP_WILL_HIDE_EVENT = 'app:will-hide';
+
 type View =
-  | { kind: 'today' }
-  | { kind: 'plans' }
-  | { kind: 'new' }
-  | { kind: 'detail'; id: string; from: 'today' | 'plans' };
+  | { kind: 'home' }
+  | { kind: 'add' }
+  | { kind: 'editor'; planKey: string | null }
+  | { kind: 'plan'; id: string; highlight: { day: number; index: number } | null };
+
+type SettingsTarget = { kind: 'start'; planKey: string } | { kind: 'edit'; id: string } | null;
 
 const EMPTY_PROGRESS: ReadingPlans.ProgressIndex = new Map();
-const ALL_DAYS: Weekday[] = [0, 1, 2, 3, 4, 5, 6];
-const field = 'px-sm py-xs rounded border border-border bg-transparent';
-const secondary = { color: 'var(--theme-text-secondary)' } as const;
-
-/** Settings group rendered from the registry (task 0087), exactly like Preferences > Advanced. */
-const ReadingPlanSettings: React.FC = () => {
-  const { t } = useI18n();
-  const store = getDesktopSettingsStore();
-  const values = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
-  const fields = useMemo(
-    () => DESKTOP_SETTINGS.toFields('readingPlans', { translate: (key) => t(key), isEnabled, values }),
-    [t, values],
-  );
-  return (
-    <SettingsForm fields={fields} values={values} idPrefix="rp-pref" onChange={(key, value) => { store.set(key, value); }} />
-  );
-};
+const STATUS_ORDER: Record<ReadingPlans.Enrollment['status'], number> = { active: 0, paused: 1, completed: 2 };
+const TAB_PREFIX = 'rp-plans';
+/** Id of the Today tab (an enrollment id is never this). */
+const TODAY_TAB = 'today';
 
 /**
- * Reading plans pane (task 0073): today's readings for every active plan, the plan library and
- * "my plans", a plan detail view, and the plan builder. Simple in-pane navigation, no router.
+ * Reading plans app (tasks 0073, 0222): Home for the selected plan, tabs when several are followed, and drill-in
+ * views (add a plan, plan editor, full plan). One settings dialog serves starting and editing a plan.
  */
-const ReadingPlansPane: React.FC = () => {
+const ReadingPlansPane: React.FC<{ asApp?: boolean }> = ({ asApp = false }) => {
   const { t, locale } = useI18n();
   const labels = useReadingPlanLabels();
-  // The builder's passage picker parses in the UI language: make sure that language's reference data is
-  // loaded, and re-render the picker once it is (it caches nothing, so a version bump is enough).
+  // The editor's passage picker parses in the UI language: load that language's reference data first.
   const [, setRefLocaleReady] = useState(0);
   useEffect(() => {
     let cancelled = false;
@@ -58,340 +52,259 @@ const ReadingPlansPane: React.FC = () => {
     return () => { cancelled = true; };
   }, [locale]);
   const service = getReadingPlanService();
-  const todays = useReadingPlanStore((s) => s.todays);
   const storeLoaded = useReadingPlanStore((s) => s.loaded);
   const storeError = useReadingPlanStore((s) => s.error);
-  const { data, loaded, error: dataError } = useReadingPlanData();
-  const [view, setView] = useState<View>({ kind: 'today' });
-  const [actionError, setActionError] = useState<string | null>(null);
-  const [startKey, setStartKey] = useState<string | null>(null);
-  const [startDate, setStartDate] = useState('');
-  const [pacing, setPacing] = useState<'flexible' | 'fixed'>('flexible');
-  const [readingDays, setReadingDays] = useState<Weekday[]>(ALL_DAYS);
-  const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
-  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
-
-  // Inline Remove / Delete confirmations: focus goes in, Escape cancels, and focus returns to the
-  // trigger (or, when the row is gone, to the list's first control) instead of dropping to <body>.
-  const paneRootRef = useRef<HTMLDivElement>(null);
-  const removeButtons = useRef(new Map<string, HTMLButtonElement | null>());
-  const cancelRemove = () => {
-    const id = confirmRemove;
-    setConfirmRemove(null);
-    if (id) removeButtons.current.get(id)?.focus();
-  };
-  const removeConfirm = useInlineConfirm(confirmRemove, cancelRemove);
-  const cancelDelete = () => {
-    const key = confirmDelete;
-    setConfirmDelete(null);
-    if (!key) return;
-    const plan = data.library.find((p) => p.key === key);
-    const trigger = plan
-      ? Array.from(paneRootRef.current?.querySelectorAll<HTMLElement>('button') ?? [])
-          .find((b) => b.getAttribute('aria-label') === labels.library.deleteNamed(plan.name))
-      : undefined;
-    trigger?.focus();
-  };
-  const deleteConfirm = useInlineConfirm(confirmDelete, cancelDelete);
-  // Start form: Escape / Cancel close it and hand focus back to the "Start <plan>" button that opened it.
-  // (Its own focus-in effect lives with startRef below, so only the Escape handling is shared here.)
-  const cancelStart = () => {
-    const key = startKey;
-    setStartKey(null);
-    if (!key) return;
-    const plan = data.library.find((p) => p.key === key);
-    const trigger = plan
-      ? Array.from(paneRootRef.current?.querySelectorAll<HTMLElement>('button') ?? [])
-          .find((b) => b.getAttribute('aria-label') === labels.library.startNamed(labels.stockName(plan)))
-      : undefined;
-    trigger?.focus();
-  };
-  const onStartKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key !== 'Escape') return;
-    e.preventDefault();
-    e.stopPropagation();
-    cancelStart();
-  };
-  const focusAfterRowGone = () => {
-    requestAnimationFrame(() => {
-      const first = paneRootRef.current?.querySelector<HTMLElement>('[data-testid="reading-plans-enrollment"] button');
-      (first ?? plansTabRef.current)?.focus();
-    });
-  };
-
   const refreshStore = useReadingPlanStore((s) => s.refresh);
   useEffect(() => { void refreshStore(); }, [refreshStore]);
+  const { data, loaded, error: dataError } = useReadingPlanData();
 
+  const [view, setView] = useState<View>({ kind: 'home' });
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [settings, setSettings] = useState<SettingsTarget>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const focusHeading = useRef(false);
+
+  const ordered = useMemo(
+    () => [...data.enrollments].sort((a, b) => STATUS_ORDER[a.status] - STATUS_ORDER[b.status]),
+    [data.enrollments],
+  );
+  // Two or more active plans: a Today tab comes first and is the default, unless a plan was picked (or deep-linked).
+  const activeWithDetail = ordered.filter((e) => e.status === 'active' && data.details.has(e.id));
+  const todayTabOn = activeWithDetail.length >= 2;
+  const explicitId = selectedId && selectedId !== TODAY_TAB && ordered.some((e) => e.id === selectedId) ? selectedId : null;
+  const tab = explicitId ?? (todayTabOn ? TODAY_TAB : (ordered[0]?.id ?? ''));
+  const selected = tab === TODAY_TAB ? null : (ordered.find((e) => e.id === tab) ?? null);
+  const scheduleUndo = useReadingPlanNavStore((s) => s.scheduleUndo);
+  const displayName = labels.localizePlanName;
   const error = actionError ?? dataError ?? storeError;
-  const run = useCallback(async (fn: () => Promise<unknown>): Promise<boolean> => {
+
+  const go = (next: View) => { setActionError(null); setView(next); };
+  const run = useCallback(async (fn: () => Promise<unknown>) => {
     try {
       setActionError(null);
       await fn();
-      return true;
     } catch (err) {
       setActionError(err instanceof Error ? err.message : String(err));
-      return false;
     }
   }, []);
 
-  const displayName = labels.localizePlanName;
-
-  const go = (next: View) => { setActionError(null); setView(next); };
-
-  const beginStart = (key: string) => {
-    setStartKey(key);
-    setStartDate(service.today());
-    setPacing('flexible');
-    setReadingDays(ALL_DAYS);
-  };
-
-  const startRef = React.useRef<HTMLElement | null>(null);
+  // Docked in Study, the pane stays mounted while another app is shown: close its dialogs (they are portalled to
+  // <body>) and go back to "where am I" when its app is hidden. As an app it is unmounted instead.
+  const rootRef = useRef<HTMLDivElement>(null);
+  const [epoch, setEpoch] = useState(0);
   useEffect(() => {
-    if (!startKey) return;
-    const el = startRef.current;
-    if (!el) return;
-    el.scrollIntoView?.({ block: 'center', behavior: 'smooth' });
-    el.querySelector<HTMLElement>('input, button')?.focus({ preventScroll: true });
-  }, [startKey]);
+    const onHide = () => { setSettings(null); setView({ kind: 'home' }); setEpoch((n) => n + 1); };
+    window.addEventListener(APP_WILL_HIDE_EVENT, onHide);
+    return () => window.removeEventListener(APP_WILL_HIDE_EVENT, onHide);
+  }, []);
 
-  // "Start plan" unmounts with the Plans view it sits in; focus would fall out
-  // to <body>. Hand it to the Today tab, which survives and leads into the new
-  // plan's card.
-  const todayTabRef = React.useRef<HTMLButtonElement | null>(null);
-  const focusTodayTabRef = React.useRef(false);
+  // The reader's "View reading plan": open the plan view on that reading.
+  const request = useReadingPlanNavStore((s) => s.request);
   useEffect(() => {
-    if (view.kind !== 'today' || !focusTodayTabRef.current) return;
-    focusTodayTabRef.current = false;
-    todayTabRef.current?.focus();
+    if (!request || !loaded) return;
+    // The request is for the Reading plans app (the reader opens it next). A copy of this pane docked in the
+    // Study workspace must leave it alone, or the app would open without it.
+    if (rootRef.current?.closest('[data-app]')?.getAttribute('data-app') === 'study') return;
+    const r = useReadingPlanNavStore.getState().consume(); // allow-getstate: event handler
+    if (r && data.enrollments.some((e) => e.id === r.enrollmentId)) {
+      setSelectedId(r.enrollmentId);
+      setActionError(null);
+      setView({ kind: 'plan', id: r.enrollmentId, highlight: { day: r.day, index: r.index } });
+    }
+  }, [request, loaded, data.enrollments]);
+
+  // After a plan was started the Add view is gone: hand focus to the pane heading.
+  useEffect(() => {
+    if (view.kind !== 'home' || !focusHeading.current) return;
+    focusHeading.current = false;
+    headingRef.current?.focus({ preventScroll: true });
   }, [view]);
 
-  // "Choose a plan" (empty Today tab) unmounts with the Today view; hand focus
-  // to the Plans tab so it does not drop to <body>.
-  const plansTabRef = React.useRef<HTMLButtonElement | null>(null);
-  const focusPlansTabRef = React.useRef(false);
-  useEffect(() => {
-    if (view.kind !== 'plans' || !focusPlansTabRef.current) return;
-    focusPlansTabRef.current = false;
-    plansTabRef.current?.focus();
-  }, [view]);
-  const [settingsOpen, setSettingsOpen] = useState(false);
+  const settingsMode: PlanSettingsMode | null = (() => {
+    if (!settings) return null;
+    if (settings.kind === 'start') {
+      const plan = data.library.find((p) => p.key === settings.planKey);
+      return plan ? { kind: 'start', plan } : null;
+    }
+    const detail = data.details.get(settings.id);
+    return detail ? { kind: 'edit', detail } : null;
+  })();
 
-  const confirmStart = async () => {
-    if (!startKey) return;
-    const ok = await run(() => service.startPlan(startKey, { startDate, pacing, readingDays }));
-    if (ok) { focusTodayTabRef.current = true; setStartKey(null); go({ kind: 'today' }); }
+  const openSettings = (id: string) => setSettings({ kind: 'edit', id });
+  const back = () => go(view.kind === 'editor' ? { kind: 'add' } : { kind: 'home' });
+
+  const tabLabel = (e: ReadingPlans.Enrollment) => {
+    const name = displayName(e.planKey, e.planName);
+    if (e.status === 'paused') return t('readingPlans.nav.tabPaused', { name });
+    if (e.status === 'completed') return t('readingPlans.nav.tabCompleted', { name });
+    return name;
   };
 
-  const shell = { backgroundColor: 'var(--theme-bg-primary)', color: 'var(--theme-text-primary)' } as const;
-  const tabClass = (active: boolean) => `kth-btn kth-btn--sm${active ? ' kth-btn--primary' : ''}`;
-  const activeKind = view.kind === 'detail' ? view.from : view.kind;
-
-  const renderToday = () => {
-    if (!storeLoaded || !loaded) return <div className="p-md" aria-busy="true" />;
-    if (todays.length === 0) {
+  const renderHome = () => {
+    if (!storeLoaded || !loaded) return <div aria-busy="true" />;
+    if (ordered.length === 0) {
       return (
         <div className="flex flex-col items-center gap-sm text-center p-lg" data-testid="reading-plans-empty">
-          <div style={{ fontSize: '1rem', fontWeight: 500 }}>{t('readingPlans.empty.title')}</div>
-          <p className="m-0" style={secondary}>{t('readingPlans.empty.body')}</p>
-          <button type="button" className="kth-btn kth-btn--primary" onClick={() => { focusPlansTabRef.current = true; go({ kind: 'plans' }); }}>{t('readingPlans.empty.choose')}</button>
+          <h2 className="m-0 text-lg font-medium">{t('readingPlans.empty.title')}</h2>
+          <p className="m-0 text-sm" style={{ color: 'var(--theme-text-secondary)' }}>{t('readingPlans.empty.body')}</p>
+          <button type="button" className="kth-btn kth-btn--primary" onClick={() => go({ kind: 'add' })}>{t('readingPlans.nav.add')}</button>
         </div>
       );
     }
+    const detail = selected ? data.details.get(selected.id) : undefined;
+    const todayDate = detail?.week?.find((d) => d.today)?.date ?? null;
+    const undo = selected ? validScheduleUndo(scheduleUndo, selected, todayDate) : null;
     return (
-      <div className="flex flex-col gap-md p-md">
-        {todays.map((v) => {
-          const detail = data.details.get(v.enrollmentId);
-          return (
-            <TodayPlanCard
-              key={v.enrollmentId}
-              view={v}
-              plan={detail?.plan}
-              progress={data.progress.get(v.enrollmentId) ?? EMPTY_PROGRESS}
-              percent={detail?.stats.percent}
-              displayName={displayName(v.planKey, v.planName)}
-              labels={labels}
-              onToggleReading={(day, index, done) => { void run(() => service.setReadingDone(v.enrollmentId, day, index, done)); }}
-              onToggleDay={(day, done) => { void run(() => service.setDayDone(v.enrollmentId, day, done)); }}
-              onOpenReading={(r) => openPlanReading({ enrollmentId: v.enrollmentId, ...r })}
-              onOpenPlan={() => go({ kind: 'detail', id: v.enrollmentId, from: 'today' })}
-              onShift={() => void run(() => service.shiftSchedule(v.enrollmentId))}
-              onSwitchToFlexible={() => void run(() => service.switchToFlexible(v.enrollmentId))}
-            />
-          );
-        })}
-      </div>
-    );
-  };
-
-  const renderEnrollment = (e: ReadingPlans.Enrollment) => {
-    const detail = data.details.get(e.id);
-    const name = displayName(e.planKey, e.planName);
-    return (
-      <li key={e.id} className="flex flex-wrap items-center gap-sm py-xs border-b border-border" data-testid="reading-plans-enrollment">
-        <span className="flex-1 min-w-0">
-          <span className="font-medium">{name}</span>{' '}
-          <span className="text-xs" style={secondary}>
-            {t(`readingPlans.status.${e.status}`)}{detail ? ` · ${t('readingPlans.card.percent', { percent: detail.stats.percent })}` : ''}
-          </span>
-        </span>
-        <button type="button" className="kth-btn kth-btn--sm" aria-label={t('readingPlans.action.openNamed', { name })}
-          onClick={() => go({ kind: 'detail', id: e.id, from: 'plans' })}>{t('readingPlans.action.openDetail')}</button>
-        {e.status !== 'completed' ? (
-          <button type="button" className="kth-btn kth-btn--sm" aria-label={t(e.status === 'paused' ? 'readingPlans.action.resumeNamed' : 'readingPlans.action.pauseNamed', { name })}
-            onClick={() => void run(() => (e.status === 'paused' ? service.resume(e.id) : service.pause(e.id)))}>
-            {e.status === 'paused' ? t('readingPlans.action.resume') : t('readingPlans.action.pause')}
-          </button>
+      <div className="flex flex-col gap-md">
+        {ordered.length >= 2 ? (
+          <Tabs
+            idPrefix={TAB_PREFIX}
+            label={t('readingPlans.nav.plansTabs')}
+            value={tab}
+            onChange={setSelectedId}
+            tabs={[
+              ...(todayTabOn ? [{ id: TODAY_TAB, label: rpTextWith(t, 'readingPlans.nav.todayTab', 'Today') }] : []),
+              ...ordered.map((e) => ({ id: e.id, label: tabLabel(e) })),
+            ]}
+          />
         ) : null}
-        <button type="button" className="kth-btn kth-btn--sm kth-btn--danger" aria-label={t('readingPlans.action.removeNamed', { name })}
-          ref={(el) => { removeButtons.current.set(e.id, el); }}
-          onClick={() => setConfirmRemove(e.id)}>{t('readingPlans.action.remove')}</button>
-        {confirmRemove === e.id ? (
-          <div role="group" aria-label={t('readingPlans.action.removeNamed', { name })} className="w-full flex flex-col gap-xs"
-            ref={removeConfirm.groupRef} onKeyDown={removeConfirm.onKeyDown}>
-            <p className="text-sm m-0">{t('readingPlans.action.removeConfirm', { name })}</p>
-            <div className="flex gap-sm">
-              <button type="button" className="kth-btn kth-btn--sm kth-btn--danger"
-                onClick={() => { setConfirmRemove(null); void run(() => service.removeEnrollment(e.id)).then(focusAfterRowGone); }}>{t('readingPlans.action.confirmRemove')}</button>
-              <button type="button" className="kth-btn kth-btn--sm" onClick={cancelRemove}>{labels.todayCard.cancel}</button>
-            </div>
+        {tab === TODAY_TAB ? (
+          <div {...tabPanelProps(TAB_PREFIX, TODAY_TAB)}>
+            <TodayTab
+              items={activeWithDetail.map((e) => ({ detail: data.details.get(e.id)!, displayName: displayName(e.planKey, e.planName) }))}
+              labels={labels}
+              onToggleReading={(id, day, index, done) => { void run(() => service.setReadingDone(id, day, index, done)); }}
+              onOpenReading={(id, r) => openPlanReading({ enrollmentId: id, ...r })}
+              onSelectPlan={setSelectedId}
+            />
           </div>
         ) : null}
-      </li>
-    );
-  };
-
-  const startSection = () => {
-    const plan = data.library.find((p) => p.key === startKey);
-    if (!plan) return null;
-    const name = labels.stockName(plan);
-    return (
-      <section ref={startRef} className="flex flex-col gap-sm p-md rounded border border-border" aria-label={t('readingPlans.start.title', { name })} data-testid="reading-plans-start" onKeyDown={onStartKeyDown}>
-        <h3 className="text-sm font-semibold m-0">{t('readingPlans.start.title', { name })}</h3>
-        <label className="flex items-center gap-sm text-sm">
-          {labels.builder.startDate}
-          <input type="date" className={field} value={startDate} onChange={(ev) => setStartDate(ev.target.value)} />
-        </label>
-        <fieldset className="border-0 p-0 m-0 flex flex-col gap-xs text-sm">
-          <legend className="font-medium">{labels.builder.schedule}</legend>
-          <label className="flex items-center gap-xs">
-            <input type="radio" name="rp-pacing" checked={pacing === 'flexible'} onChange={() => setPacing('flexible')} />
-            {labels.builder.flexible} <span style={secondary}>{labels.builder.flexibleHint}</span>
-          </label>
-          <label className="flex items-center gap-xs">
-            <input type="radio" name="rp-pacing" checked={pacing === 'fixed'} onChange={() => setPacing('fixed')} />
-            {labels.builder.fixed} <span style={secondary}>{labels.builder.fixedHint}</span>
-          </label>
-        </fieldset>
-        <WeekdayPicker value={readingDays} onChange={setReadingDays} weekdayNames={labels.weekdayNames} labels={{ group: labels.weekdayGroup }} />
-        <div className="flex gap-sm">
-          <button type="button" className="kth-btn kth-btn--primary" disabled={!ReadingPlans.isIsoDate(startDate)} onClick={() => void confirmStart()}>{t('readingPlans.start.begin')}</button>
-          <button type="button" className="kth-btn" onClick={cancelStart}>{labels.todayCard.cancel}</button>
-        </div>
-      </section>
-    );
-  };
-
-  const renderPlans = () => {
-    const deleting = data.library.find((p) => p.key === confirmDelete);
-    return (
-      <div className="flex flex-col gap-md p-md">
-        <section aria-label={t('readingPlans.myPlans')}>
-          <h2 className="text-base font-semibold mt-0 mb-sm">{t('readingPlans.myPlans')}</h2>
-          {data.enrollments.length === 0 ? (
-            <p className="m-0 text-sm" style={secondary}>{t('readingPlans.noEnrollments')}</p>
-          ) : (
-            <ul className="m-0 p-0 list-none">{data.enrollments.map(renderEnrollment)}</ul>
-          )}
-        </section>
-
-        {startSection()}
-
-        <section aria-label={t('readingPlans.libraryTitle')}>
-          <h2 className="text-base font-semibold mt-0 mb-sm">{t('readingPlans.libraryTitle')}</h2>
-          <ReadingPlanLibrary
-            plans={data.library}
-            nameOf={labels.stockName}
-            descriptionOf={labels.stockDescription}
-            labels={labels.library}
-            onStart={beginStart}
-            onDelete={(key) => setConfirmDelete(key)}
-          />
-          {deleting ? (
-            <div role="group" aria-label={labels.library.deleteNamed(deleting.name)} className="flex flex-col gap-xs mt-sm"
-              ref={deleteConfirm.groupRef} onKeyDown={deleteConfirm.onKeyDown}>
-              <p className="text-sm m-0">{t('readingPlans.library.deleteConfirm', { name: deleting.name })}</p>
-              <div className="flex gap-sm">
-                <button type="button" className="kth-btn kth-btn--sm kth-btn--danger"
-                  onClick={() => { const key = deleting.key; setConfirmDelete(null); void run(() => service.deletePlan(key)).then(focusAfterRowGone); }}>{t('readingPlans.action.confirmDelete')}</button>
-                <button type="button" className="kth-btn kth-btn--sm" onClick={cancelDelete}>{labels.todayCard.cancel}</button>
-              </div>
-            </div>
-          ) : null}
-        </section>
-
-        <details open={settingsOpen} onToggle={(e) => setSettingsOpen((e.currentTarget as HTMLDetailsElement).open)}>
-          <summary className="cursor-pointer font-medium" aria-expanded={settingsOpen}>{t('readingPlans.settings.title')}</summary>
-          <div className="mt-sm"><ReadingPlanSettings /></div>
-        </details>
+        {selected && detail ? (
+          <div {...(ordered.length >= 2 ? tabPanelProps(TAB_PREFIX, selected.id) : {})}>
+            <PlanHome
+              detail={detail}
+              progress={data.progress.get(selected.id) ?? EMPTY_PROGRESS}
+              labels={labels}
+              displayName={displayName(selected.planKey, selected.planName)}
+              onToggleReading={(day, index, done) => { void run(() => service.setReadingDone(selected.id, day, index, done)); }}
+              onToggleDay={(day, done) => { void run(() => service.setDayDone(selected.id, day, done)); }}
+              onOpenReading={(r) => openPlanReading({ enrollmentId: selected.id, ...r })}
+              onOpenSettings={() => openSettings(selected.id)}
+              onViewPlan={() => go({ kind: 'plan', id: selected.id, highlight: null })}
+              scheduleUndo={undo}
+              onStartCatchUp={() => { void run(() => service.startCatchUp(selected.id)); }}
+              onStopCatchUp={() => { void run(() => service.stopCatchUp(selected.id)); }}
+              loadPreview={() => service.reschedulePreview(selected.id)}
+              onMoveDates={(preview: ReschedulePreview) => {
+                const before = selected;
+                void run(async () => {
+                  await service.shiftSchedule(before.id);
+                  useReadingPlanNavStore.getState().setScheduleUndo({ // allow-getstate: event handler
+                    enrollmentId: before.id,
+                    oldStartDate: before.startDate,
+                    oldCatchUp: before.catchUp ?? null,
+                    newStartDate: preview.newStartDate,
+                    pacing: before.pacing,
+                    readingDays: before.readingDays,
+                    movedOn: todayDate ?? service.today(),
+                  });
+                });
+              }}
+              onUndoMove={(u) => {
+                void run(async () => {
+                  await service.updateEnrollment(u.enrollmentId, { startDate: u.oldStartDate, catchUp: u.oldCatchUp });
+                  useReadingPlanNavStore.getState().setScheduleUndo(null); // allow-getstate: event handler
+                });
+              }}
+              onSwitchToFlexible={() => { void run(() => service.switchToFlexible(selected.id)); }}
+              onResume={() => { void run(() => service.resume(selected.id)); }}
+            />
+          </div>
+        ) : null}
       </div>
     );
   };
 
-  const renderNew = () => (
-    <div className="p-md">
-      <ReadingPlanBuilderForm
-        today={service.today()}
-        locale={locale}
-        bookName={labels.bookName}
-        weekdayNames={labels.weekdayNames}
-        labels={labels.builder}
-        onCancel={() => go({ kind: 'plans' })}
-        onCreate={(spec, start) => {
-          void (async () => {
-            const ok = await run(async () => {
-              const plan = await service.createPlan(spec);
-              try {
-                await service.startPlan(plan.key, start);
-              } catch (err) {
-                // Do not leave a plan behind that the reader never got to start.
-                await service.deletePlan(plan.key).catch(() => {});
-                throw err;
-              }
-            });
-            if (ok) go({ kind: 'today' });
-          })();
-        }}
-      />
-    </div>
-  );
+  const showAddButton = view.kind === 'home' && loaded && ordered.length > 0;
 
   return (
-    <div ref={paneRootRef} className="h-full w-full flex flex-col overflow-hidden" data-testid="reading-plans-pane" style={shell}>
-      {/* Heading for the app view: DesktopAppStage focuses the first h1[tabindex=-1] when the app opens. */}
-      <h1 tabIndex={-1} className="sr-only">{t('readingPlans.title')}</h1>
-      <div className="flex items-center gap-xs px-md py-xs border-b border-border" role="toolbar" aria-label={t('readingPlans.title')}>
-        <button type="button" ref={todayTabRef} className={tabClass(activeKind === 'today')} aria-pressed={activeKind === 'today'} onClick={() => go({ kind: 'today' })}>{t('readingPlans.nav.today')}</button>
-        <button type="button" ref={plansTabRef} className={tabClass(activeKind === 'plans')} aria-pressed={activeKind === 'plans'} onClick={() => go({ kind: 'plans' })}>{t('readingPlans.nav.plans')}</button>
-        <button type="button" className={tabClass(activeKind === 'new')} aria-pressed={activeKind === 'new'} onClick={() => go({ kind: 'new' })}>{t('readingPlans.nav.new')}</button>
-      </div>
-      {error ? <p className="m-0 px-md py-xs text-sm" role="alert" style={{ color: 'var(--theme-error, #c0392b)' }}>{t('readingPlans.error', { message: error })}</p> : null}
-      <div className="flex-1 min-h-0 overflow-auto">
-        {view.kind === 'today' ? renderToday() : null}
-        {view.kind === 'plans' ? renderPlans() : null}
-        {view.kind === 'new' ? renderNew() : null}
-        {view.kind === 'detail' ? (
+    <div ref={rootRef} className="h-full w-full overflow-auto" data-testid="reading-plans-pane"
+      style={{ backgroundColor: 'var(--theme-bg-primary)', color: 'var(--theme-text-primary)' }}>
+      <div key={epoch} className="flex flex-col gap-md p-md" style={{ maxInlineSize: '46rem', marginInline: 'auto' }}>
+        <div className="flex items-center gap-sm">
+          {/* The app stage focuses the first h1[tabindex=-1] when the app opens. */}
+          <h1 ref={headingRef} tabIndex={-1} className="m-0 text-2xl font-semibold me-auto">{t('readingPlans.title')}</h1>
+          {asApp ? (
+            <button type="button" className="kth-btn" onClick={() => { void openReadingPlansBeside().catch((err: unknown) => setActionError(err instanceof Error ? err.message : String(err))); }}>
+              {rpTextWith(t, 'readingPlans.home.openBeside', 'Open beside the Bible')}
+            </button>
+          ) : null}
+          {showAddButton ? (
+            <button type="button" className="kth-btn" onClick={() => go({ kind: 'add' })}>+ {t('readingPlans.nav.add')}</button>
+          ) : null}
+        </div>
+        {error ? <Notice tone="error">{t('readingPlans.error', { message: error })}</Notice> : null}
+        {view.kind === 'home' ? renderHome() : null}
+        {view.kind === 'add' ? (
+          <AddPlanView
+            library={data.library}
+            labels={labels}
+            onBack={back}
+            onEdit={(key) => go({ kind: 'editor', planKey: key })}
+            onStart={(key) => setSettings({ kind: 'start', planKey: key })}
+            onError={setActionError}
+          />
+        ) : null}
+        {view.kind === 'editor' ? (
+          <PlanEditorView
+            planKey={view.planKey}
+            labels={labels}
+            onClose={back}
+            onSaved={(plan, isNew) => {
+              go({ kind: 'add' });
+              if (isNew) setSettings({ kind: 'start', planKey: plan.key });
+            }}
+            onError={setActionError}
+          />
+        ) : null}
+        {view.kind === 'plan' ? (
           <ReadingPlanDetail
             enrollmentId={view.id}
             labels={labels}
             displayName={displayName}
-            onBack={() => go({ kind: view.from })}
-            onRemoved={() => go({ kind: view.from })}
+            highlight={view.highlight}
+            onBack={back}
+            onOpenSettings={() => openSettings(view.id)}
             onError={setActionError}
           />
         ) : null}
       </div>
+      <PlanSettingsDialog
+        mode={settingsMode}
+        open={settingsMode !== null}
+        onClose={() => setSettings(null)}
+        labels={labels}
+        displayName={displayName}
+        onError={setActionError}
+        onStarted={(enrollment) => {
+          focusHeading.current = true;
+          setSettings(null);
+          setSelectedId(enrollment.id);
+          go({ kind: 'home' });
+        }}
+        onRemoved={() => {
+          setSettings(null);
+          setSelectedId(null);
+          focusHeading.current = true;
+          go({ kind: 'home' });
+        }}
+      />
     </div>
   );
 };
+
+/** The app form of the pane (the Reading plans app's view): the same pane plus the "Open beside the Bible" button. */
+export const ReadingPlansApp: React.FC = () => <ReadingPlansPane asApp />;
 
 export default ReadingPlansPane;

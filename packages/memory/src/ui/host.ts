@@ -13,9 +13,35 @@
  * itself cannot be shown a fixed moment.
  */
 
-import type { PanelReply, PanelRequest, RequestMap, Rung } from '../core/types';
+import type { AnalyticsView, PanelReply, PanelRequest, PassageView, PlanView, RequestMap, Rung, VerseText } from '../core/types';
+import type { PracticeTarget } from './flows';
 import type { Flow, NavAction } from './state';
 import type { WordMeasurer } from './measure';
+import type { VerseSelectorPort } from './verseSelectorPort';
+
+/**
+ * The module-level data cache (design-r2 section 1b). `ui/dataCache.ts#MemoryDataCache`
+ * (subtask E) implements it; views depend only on this shape.
+ */
+export interface MemoryData {
+  /** Sync; `null` before the first load. */
+  get(): PlanView | null;
+  ensure(): Promise<PlanView>;
+  refresh(): Promise<PlanView>;
+  revalidate(): void;
+  onPlanChanged(epoch?: string, version?: number): void;
+  applyPlan(plan: PlanView): void;
+  patchCardsWaiting(count: number): void;
+  patchPassage(pv: PassageView): void;
+  dropPassage(id: number): void;
+  verseText(id: number): VerseText[] | undefined;
+  loadVerseText(id: number): Promise<VerseText[] | null>;
+  /** True when loading this passage's text failed (cleared by a later plan fetch). */
+  verseTextFailed(id: number): boolean;
+  analytics(): AnalyticsView | null;
+  loadAnalytics(): Promise<AnalyticsView | null>;
+  subscribe(listener: () => void): () => void;
+}
 
 export interface PanelHost {
   /** Current wall-clock time in epoch ms. */
@@ -91,4 +117,19 @@ export interface PanelHost {
 
   /** Like `announce`, but styled as an error (stays red until it times out). Optional for stubs. */
   fail?(message: string): void;
+
+  /**
+   * The cached plan and friends (section 1b). Optional until the coordinator wires `mount.ts`
+   * (wave 4); views written in waves 2-3 may use it when present.
+   */
+  readonly data?: MemoryData;
+
+  /**
+   * Starts exactly this target in `flow` (no new random pick) and switches to practice; the auto-advance
+   * countdown and `startFlow` share it. Optional until `mount.ts` implements it.
+   */
+  startTarget?(target: PracticeTarget, flow: Flow): Promise<boolean>;
+
+  /** The reusable verse selector, when the host injected one (`MemoryUiOptions.verseSelector`). */
+  readonly verseSelector?: VerseSelectorPort;
 }

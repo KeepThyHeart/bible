@@ -7,6 +7,10 @@ import { useEffect } from 'react';
 import { act, cleanup, render, screen } from '@testing-library/react';
 import {
   ReaderPaintControllers,
+  ReaderChapterEnd,
+  NewTabRows,
+  readerChapterEnd,
+  newTabRows,
   ReaderToolbarItems,
   StudyPaneSections,
   StrongsTooltipActions,
@@ -106,5 +110,41 @@ describe('stable keys', () => {
     expect(mounts).toHaveBeenCalledTimes(2);
     regs[1]!.dispose();
     regs[3]!.dispose();
+  });
+});
+
+describe('readerChapterEnd and newTabRows (task 0222)', () => {
+  it('render nothing while empty', () => {
+    const { container } = render(
+      <>
+        <ReaderChapterEnd book={1} chapter={1} displayMode="standard" onNext={() => {}} />
+        <NewTabRows onDone={() => {}} />
+      </>,
+    );
+    expect(container.innerHTML).toBe('');
+  });
+
+  it('pass the props through and drop an item when disposed', () => {
+    const onNext = vi.fn();
+    const onDone = vi.fn();
+    const End = (p: { book: number; chapter: number; displayMode: string; onNext: () => void }) => (
+      <button data-testid="end" onClick={p.onNext}>{`${p.book}:${p.chapter}:${p.displayMode}`}</button>
+    );
+    const Row = (p: { onDone: () => void }) => <button data-testid="row" onClick={p.onDone} />;
+    const regs = [readerChapterEnd.register(End), newTabRows.register(Row)];
+    render(
+      <>
+        <ReaderChapterEnd book={43} chapter={3} displayMode="parallel" onNext={onNext} />
+        <NewTabRows onDone={onDone} />
+      </>,
+    );
+    expect(screen.getByTestId('end').textContent).toBe('43:3:parallel');
+    screen.getByTestId('end').click();
+    screen.getByTestId('row').click();
+    expect(onNext).toHaveBeenCalledTimes(1);
+    expect(onDone).toHaveBeenCalledTimes(1);
+    act(() => regs.forEach((r) => r.dispose()));
+    expect(screen.queryByTestId('end')).toBeNull();
+    expect(screen.queryByTestId('row')).toBeNull();
   });
 });

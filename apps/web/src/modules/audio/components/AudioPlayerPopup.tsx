@@ -16,9 +16,12 @@ import { AudioSpeedControl } from './AudioSpeedControl';
 import { AudioStatusLine } from './AudioStatusLine';
 import { AudioProgress } from './AudioProgress';
 import { AudioTransportButtons } from './AudioTransportButtons';
+import { AudioPlaylist } from './AudioPlaylist';
+import { AudioPassageProgress } from './AudioPassageProgress';
+import { AudioElsewhere } from './AudioElsewhere';
 import { useSources } from './useSources';
 import { sourceChipText } from './sourceChip';
-import { setAudioPlayerFocuser } from '../lib/audioShortcuts';
+import { setAudioPlayerFocuser } from '@bible/audio';
 
 /** After docking, the pop-up unmounts and the bar mounts a frame or two later: focus the bar's first usable control once it is there. */
 function focusBarSoon(tries = 20): void {
@@ -36,6 +39,7 @@ export function AudioPlayerPopup({ onOpenSettings }: { onOpenSettings?: (section
   const layout = useStore(audioStore, () => audioStore.layout);
   const status = useStore(audioStore, () => audioStore.status);
   const style = useStore(audioStore, () => audioStore.prefs.playerStyle);
+  const open = useStore(audioStore, () => audioStore.playerOpen);
   const providerId = useStore(audioStore, () => audioStore.providerId);
   const voiceId = useStore(audioStore, () => audioStore.voiceId);
   const now = useNowPlaying();
@@ -46,7 +50,10 @@ export function AudioPlayerPopup({ onOpenSettings }: { onOpenSettings?: (section
   const returnRef = useRef<Element | null>(null);
   const [gearOpen, setGearOpen] = useState(false);
 
-  const visible = enabled && layout === 'desktop' && style === 'popup' && status !== 'idle';
+  const idle = status === 'idle';
+  // The pop-up is the player: it shows while audio runs in pop-up style, and whenever it was opened (idle: just the playlist editor).
+  const visible = enabled && layout === 'desktop' && ((style === 'popup' && !idle) || open);
+  const closeIt = () => { if (idle || style !== 'popup') audioStore.closePlayer(); else audioStore.stop(); };
 
   useEffect(() => { if (!visible) setGearOpen(false); }, [visible]);
 
@@ -71,7 +78,7 @@ export function AudioPlayerPopup({ onOpenSettings }: { onOpenSettings?: (section
     const el = back instanceof HTMLElement && back.isConnected ? back : document.querySelector<HTMLElement>('[data-testid="audio-listen"]');
     returnRef.current = null;
     e.preventDefault();
-    audioStore.stop();
+    closeIt();
     el?.focus();
   };
 
@@ -90,10 +97,11 @@ export function AudioPlayerPopup({ onOpenSettings }: { onOpenSettings?: (section
     >
       <div class="audio-popup__header">
         <div class="audio-popup__titles">
-          <h2 class="audio-popup__title" id="audio-popup-title" data-testid="audio-now-playing">{now.refLabel}</h2>
-          {sub && <div class="audio-popup__sub" data-testid="audio-popup-sub">{sub}</div>}
+          <h2 class="audio-popup__title" id="audio-popup-title" data-testid="audio-now-playing">{idle ? t('audio.passages.title') : now.refLabel}</h2>
+          {!idle && <AudioPassageProgress />}
+          {sub && !idle && <div class="audio-popup__sub" data-testid="audio-popup-sub">{sub}</div>}
         </div>
-        <button
+        {!idle && <button
           type="button"
           class="audio-btn"
           ref={gearRef}
@@ -105,23 +113,29 @@ export function AudioPlayerPopup({ onOpenSettings }: { onOpenSettings?: (section
           onClick={() => setGearOpen(o => !o)}
         >
           <i class="fa-solid fa-gear" aria-hidden="true" />
-        </button>
-        <button type="button" class="audio-btn" onClick={() => { audioStore.setPlayerStyle('bar'); focusBarSoon(); }} title={t('audio.popup.dock')} aria-label={t('audio.popup.dock')} data-testid="audio-dock">
+        </button>}
+        {!idle && <button type="button" class="audio-btn" onClick={() => { audioStore.setPlayerStyle('bar'); focusBarSoon(); }} title={t('audio.popup.dock')} aria-label={t('audio.popup.dock')} data-testid="audio-dock">
           <i class="fa-solid fa-window-minimize" aria-hidden="true" />
-        </button>
-        <button type="button" class="audio-btn" onClick={() => { audioStore.stop(); document.querySelector<HTMLElement>('[data-testid="audio-listen"]')?.focus(); }} title={t('audio.player.stop')} aria-label={t('audio.player.stop')} data-testid="audio-close">
+        </button>}
+        <button type="button" class="audio-btn" onClick={() => { closeIt(); document.querySelector<HTMLElement>('[data-testid="audio-listen"]')?.focus(); }} title={t('audio.player.stop')} aria-label={t('audio.player.stop')} data-testid="audio-close">
           <i class="fa-solid fa-xmark" aria-hidden="true" />
         </button>
       </div>
-      <div class="audio-popup__pane" ref={paneRef}>
-        <AudioVersePane variant="popup" />
-      </div>
+      {!idle && <AudioElsewhere />}
+      {!idle && (
+        <div class="audio-popup__pane" ref={paneRef}>
+          <AudioVersePane variant="popup" />
+        </div>
+      )}
       <AudioStatusLine />
-      <AudioProgress />
-      <div class="audio-popup__controls">
-        <AudioTransportButtons />
-        <AudioSpeedControl />
-      </div>
+      {!idle && <AudioProgress />}
+      {!idle && (
+        <div class="audio-popup__controls">
+          <AudioTransportButtons />
+          <AudioSpeedControl />
+        </div>
+      )}
+      <AudioPlaylist startExpanded={idle} />
       <Popover
         open={gearOpen && !!now.moduleAbbr}
         anchor={gearOpen && gearRef.current ? gearRef.current.getBoundingClientRect() : null}

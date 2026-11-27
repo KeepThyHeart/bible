@@ -31,8 +31,9 @@ import { registerCatalogSource } from '../../assets/webAssets';
 import { audioStore } from './audioStore';
 import { getAudioConfig } from './lib/config';
 import { initAudio } from './lib/initAudio';
-import { loadPiperManifests } from './lib/tts/piper/piperAssets';
+import { loadPiperManifests } from '@bible/audio';
 import { playingVerseDecorator, watchFollow } from './verseDecorator';
+import { AudioDownloadsDialog } from './components/AudioDownloadsDialog';
 import { AudioGateDialog } from './components/AudioGateDialog';
 import { AudioLiveRegion } from './components/AudioLiveRegion';
 import { AudioMiniPlayer } from './components/AudioMiniPlayer';
@@ -81,6 +82,7 @@ export async function activate(ctx: FeatureModuleContext): Promise<void> {
     // Gate dialog and live region sit with the shared dialogs, in both layouts.
     studyLayoutItems.register({ layout: 'both', placement: 'dialogs', Component: AudioGateDialog }),
     studyLayoutItems.register({ layout: 'both', placement: 'dialogs', Component: AudioLiveRegion }),
+    studyLayoutItems.register({ layout: 'both', placement: 'dialogs', Component: AudioDownloadsDialog }),
     studyLayoutItems.register({ layout: 'desktop', placement: 'overlay', Component: DesktopLayoutMark }),
     studyLayoutItems.register({ layout: 'desktop', placement: 'overlay', Component: AudioPlayerPopup }),
     studyLayoutItems.register({ layout: 'phone', placement: 'overlay', Component: PhoneLayoutMark }),

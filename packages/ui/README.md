@@ -85,6 +85,26 @@ Classes: `kth-picker`, `__header`, `__title`, `__form`, `__input`, `__offer`, `_
 
 The pure matcher (`parseReference`, `filterBooks`, `getBookFilterText`) lives in `src/components/bookReference.ts` and is exported.
 
+### `VerseSelector`
+
+Pick a verse, a range or a whole chapter by typing a reference **or** with Book/Chapter/Verse/To dropdowns (the two stay in step),
+with a live preview of the verse text. `mountVerseSelector(container, props) => { update(partialProps), dispose() }` mounts it
+without React. Never passes `noRanges` to the inner `ReferencePicker`.
+
+| Prop | Purpose |
+|---|---|
+| `initialReference` | The ONE seed, uncontrolled ("John 3:16"). A different value later re-seeds; an equal one does nothing. There is no controlled `value`. |
+| `onChange(sel \| null)` | Every valid change as `{ verseId, endVerseId?, ref, wholeChapter? }`; `null` when the text stops being valid (or a cross-chapter range is rejected). Typed text commits live. |
+| `onSubmit?(sel)` | Enter on a valid selection (or choosing the reference suggestion). |
+| `lookup?(range, signal)` | Async verse text `{ verseId, text }[] \| null`; absent = no preview. Debounced 200 ms, aborted on change. A whole chapter arrives with `endVerseId` = its last verse. |
+| `previewMaxVerses` | Default 12, then "and {count} more". |
+| `crossChapter`, `wholeChapter` | Both default true. `crossChapter: false` rejects ranges that span chapters and hides "End of chapter N" entries; `wholeChapter: false` removes "All". |
+| `locale`, `dir`, `disabled`, `autoFocus`, `id`, `labels` | As the other pickers; English defaults in `DEFAULT_VERSE_SELECTOR_LABELS`. |
+
+Classes `kth-verse-selector` (`__row`, `__field`, `__label`, `__select`, `__preview`, `__verse`, `__more`, `__status`). The preview is a
+`<blockquote aria-live="polite">`; the status line is a `role="status"` region. Every control is a native element or the APG combobox, so
+keyboard and screen-reader use needs nothing extra. `mountVerseSelector` imports `react-dom/client` (preact/compat resolves it).
+
 ### `ReferencePicker`
 
 One text input that turns a typed reference (`John 3:16`, `Juan 3:16-18`, `John 3:16-4:2`, `约翰福音3:16`, `John ٣:١٦`) into a
@@ -103,7 +123,7 @@ autocomplete). Unlike `BookChapterPicker` it is a single field, not a dialog bod
 
 Keys: ArrowDown/ArrowUp move (wrap), Alt+ArrowDown opens, Enter commits the active option or the typed text (invalid sets
 `aria-invalid` and a live-region message), Escape closes then clears, Tab closes. A whole chapter has no verse bound in core, so
-`"John 3"` gives `verseId` chapter:1 with `wholeChapter: true`; chapter ranges (`John 3-5`) are rejected in v1; single-chapter books
+`"John 3"` gives `verseId` chapter:1 with `wholeChapter: true`; chapter ranges (`John 3-5`, `John 3-4:2`) are accepted unless `noRanges`: `verseId` is the first verse of the first chapter and `endVerseId` the last verse of the end chapter (KJV verse counts from `ReadingPlans.versesInChapter`), with no `wholeChapter` flag and `ref` like `John 3-5`; `John 3-3` is just `John 3`; descending ranges and chapters past the book's end are rejected; single-chapter books
 read `Jude 5` as verse 5. Classes: `kth-combobox`, `__label`, `__list` (the list also carries `kth-menu`/`kth-menu__item`).
 
 The pure logic is in `src/components/referenceInput.ts` and exported: `parseReferenceInput(text, locale, opts)` and
@@ -137,6 +157,22 @@ Opt-in classes in `css/kth-classes.css` for DOM-built UIs such as the Memory app
 | Back: `kth-back`, `__icon` | `button.kth-back` with a leading `span.kth-back__icon` chevron (it mirrors in RTL). |
 | Tabs: `kth-tabs`, `__tab` | `div.kth-tabs[role=tablist] > button.kth-tabs__tab[role=tab][aria-selected]`; the selected tab is styled from `aria-selected`. |
 | Table: `kth-table`, `__head`, `__cell` | `table.kth-table > thead > tr > th.kth-table__head`, `td.kth-table__cell`; `data-muted` on a cell dims it. |
+
+### Stock controls
+
+App UIs must use these instead of hand-rolled dialogs, checkboxes, tabs, progress bars, notices and lists. All are `kth-*` classes over tokens, logical properties, light/dark/RTL safe; labels come in as props with English defaults.
+
+| Control | Use |
+|---|---|
+| `Dialog` (`kth-dialog*`) | Centred modal: `title`, `subtitle`, `footer` (actions, inline-end), `size` `sm`/`md`/`lg`. Focus in and back, Tab kept inside, Escape closes only the top-most open dialog, body scrolls. `labels.close`, `role`, `showClose`, `closeOnBackdropPress`, `portal`, `dir`. |
+| `MessageBox` | Confirm / message `alertdialog` on `Dialog` (`confirmLabel`, optional `cancelLabel`, `tone` `danger`, `busy`). Danger focuses Cancel first. |
+| `Checkbox`, `Radio` (`kth-check*`) | Styled native input + label + `hint`; `tone="success"` for green; `ariaLabel` when there is no visible label. |
+| `Tabs`, `tabPanelProps(idPrefix, id)` (`kth-tabs*`) | Tab list with roving tabindex, arrows (mirrored in RTL), Home/End; selection follows focus. Spread `tabPanelProps` on the panel. |
+| `ProgressBar` (`kth-progress*`) | Thin bar, value clamped 0-100, optional `valueText`, `tone` `success`. |
+| `Notice` (`kth-notice*`) | Inline message strip: `tone` info/warning/error/success, `title`, `actions`; role `alert` for errors. |
+| `.kth-list`, `__item`, `__item--current`, `.kth-list--plain` | List reset with row dividers (none for `--plain`), current-row highlight. CSS only. |
+| `.kth-link` | A button or anchor that looks like a link. CSS only. |
+| `.kth-text-muted` | Muted, slightly smaller text. CSS only. |
 
 ### `Popover`, `HoverCard`, `BottomSheet` (popups)
 
@@ -277,6 +313,7 @@ Classes `kth-similar` (`__row`, `__head`, `__ref`, `__bar`, `__seg`, `__badge`, 
 | Tag | Attributes | Property only | Events (all bubble, composed) |
 |---|---|---|---|
 | `kth-reference-picker` | `value`, `placeholder`, `label`, `locale`, `dir`, `disabled`, `show-label`, `no-ranges`, `no-whole-chapter`, `max-suggestions` | `labels` | `kth-change`, detail `{ verseId, endVerseId?, ref, wholeChapter? }` (on Enter or choosing the reference option) |
+| `kth-verse-selector` | `value` (the one seed), `locale`, `dir`, `disabled`, `no-cross-chapter`, `no-whole-chapter`, `preview-max` | `labels`, `lookup` (`(range, signal) => Promise<{ verseId, text }[] \| null>`) | `kth-change`, detail `{ verseId, endVerseId?, ref, wholeChapter? }` or `{ cleared: true }`; `kth-submit`, same detail (Enter on a valid selection) |
 | `kth-book-chapter-picker` | `book`, `chapter` (the current passage), `locale`, `dir`, `no-autofocus` | `labels` (strings and the two label functions) | `kth-pick`, detail `{ book, chapter, verseId, endVerseId? }`; `kth-close` (Escape at the book list, close button) |
 | `kth-highlight-swatch` | `value`, `colors` (space-separated palette names), `group-label`, `size` (`sm`/`md`), `dir`, `disabled` | `labels` (`{ group?, colors? }`) | `kth-change`, detail `{ color, hex }` |
 

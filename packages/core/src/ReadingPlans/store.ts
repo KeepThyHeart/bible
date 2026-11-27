@@ -5,7 +5,8 @@
  *
  * Owner `app:reading-plans`, collections (value = JSON):
  *   plans        itemKey `user:<uuid>`             PlanDefinition of a user-built plan
- *   snapshots    itemKey `stock:<id>@<version>`     the stock plan's days as they were when started
+ *   snapshots    itemKey `<plan key>@<version>`      a stock or user plan's days as they were when started
+ *                                                   (`stock:<id>@1`, `user:<uuid>@2`), so later edits never move a reader
  *   enrollments  itemKey `<enrollment id>`          Enrollment
  *   completions  itemKey `<enrollment id>/<day>/<reading>`  { at, via }  (one row per ticked reading,
  *                so merges and sync are a union, never a lost update of one big blob)
@@ -33,7 +34,7 @@ export interface IReadingPlanStore {
   getPlan(key: string): Promise<PlanDefinition | null>;
   putPlan(plan: PlanDefinition): Promise<void>;
   removePlan(key: string): Promise<void>;
-  /** Store a stock plan's days under `<key>@<version>` (no-op when already there). */
+  /** Store a stock or user plan's days under `<key>@<version>` (no-op when already there). */
   putSnapshot(plan: PlanDefinition): Promise<void>;
   listEnrollments(): Promise<Enrollment[]>;
   putEnrollment(e: Enrollment): Promise<void>;
@@ -55,7 +56,7 @@ function parseCompletion(item: UserDataItem): Completion | null {
   const m = /^(.+)\/(\d+)\/(\d+)$/.exec(item.itemKey);
   if (!m) return null;
   const v = item.parsedValue() as { at?: unknown; via?: unknown } | undefined;
-  const via: CompletionVia = v?.via === 'reader' || v?.via === 'audio' ? v.via : 'manual';
+  const via: CompletionVia = v?.via === 'reader' || v?.via === 'audio' || v?.via === 'bulk' ? v.via : 'manual';
   return { enrollmentId: m[1], day: Number(m[2]), reading: Number(m[3]), at: typeof v?.at === 'string' ? v.at : '', via };
 }
 

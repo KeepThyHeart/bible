@@ -289,6 +289,10 @@ describe('BookChapterPicker', () => {
     await act(async () => {
       fireEvent.click(chapterBtns[2]); // chapter 3
     });
+    // The chapter opens the verse step; "Go to chapter" skips it.
+    await act(async () => {
+      fireEvent.click(container.querySelector<HTMLElement>('[data-testid="picker-go-chapter"]')!);
+    });
     expect(onSelect).toHaveBeenCalledWith(43, 3);
   });
 
@@ -473,6 +477,8 @@ describe('BookChapterPicker', () => {
     fireEvent.click(container.querySelector('.kth-picker__cell--book')!);
     await new Promise((r) => setTimeout(r, 20));
     fireEvent.click(container.querySelector('.kth-picker__cell--chapter')!);
+    await new Promise((r) => setTimeout(r, 20));
+    fireEvent.click(container.querySelector('[data-testid="picker-go-chapter"]')!);
     expect(onSelect).toHaveBeenCalled();
     (document.activeElement as HTMLElement | null)?.blur();
     rerender(<BookChapterPicker {...defaultProps} onSelect={onSelect} isOpen={false} />);

@@ -16,6 +16,7 @@ const client = vi.hoisted(() => ({
   addVerses: vi.fn(),
   takeNotices: vi.fn(),
 }));
+const openDialog = vi.hoisted(() => vi.fn<(...args: any[]) => any>());
 const visibility = vi.hoisted(() => ({ value: 'visible' }));
 
 vi.mock('../moduleHost', () => ({ featureModules: { isActive: () => listening.value } }));
@@ -25,6 +26,7 @@ vi.mock('../../services/I18nService', () => ({
 }));
 vi.mock('../../stores/useToastStore', () => ({ useToastStore: { getState: () => ({ addToast }) } }));
 vi.mock('./memoryClient', () => ({ memoryClient: client }));
+vi.mock('@bible/memory/add-to-memory', () => ({ openAddToMemoryDialog: openDialog }));
 
 import { memoryModule, requestMemoryCards, onMemoryCardsRequest, takePendingMemoryCards, onMemoryPracticeRequest, requestMemoryPractice, takePendingMemoryPractice } from './memoryModule';
 import { activate, collectNotices, startMemoryClickRouting, INITIAL_STATUS_DELAY_MS, STATUS_REFRESH_MS } from './module';
@@ -45,7 +47,7 @@ beforeEach(() => {
   listening.value = false;
   visibility.value = 'visible';
   Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => visibility.value });
-  for (const m of [addAppBinding, bindHandler, setBadge, addToast, client.on, client.getStatus, client.addVerses, client.takeNotices]) m.mockReset();
+  for (const m of [addAppBinding, bindHandler, setBadge, addToast, client.on, client.getStatus, client.addVerses, client.takeNotices, openDialog]) m.mockReset();
   client.takeNotices.mockResolvedValue([]);
   addAppBinding.mockReturnValue({ dispose: vi.fn() });
   bindAppLinkHandler.mockReset();
@@ -71,22 +73,29 @@ describe('installMemoryHost', () => {
     expect(memoryModule.verseActionHandlers?.map((x) => x.id)).toEqual(['memorize'.replace('memorize', 'memory.memorize')]);
   });
 
-  it('the verse handler adds the selected verses', async () => {
+  it('the verse handler opens the Add to Memory dialog for the selected verses', async () => {
     const binding = memoryModule.verseActionHandlers![0]!;
-    client.addVerses.mockResolvedValue({ outcome: 'added', passageId: 1, reference: 'John 3:16-17' });
+    openDialog.mockResolvedValue({ outcome: 'added', passageId: 1, reference: 'John 3:16-17', collectionId: 1, listName: 'Default' });
     const handler = await binding.load();
     await handler.run({ verseId: 43003016, verseIds: [43003016, 43003017], module: 'KJV', surface: 'reader' });
-    expect(client.addVerses).toHaveBeenCalledWith({ verseIds: [43003016, 43003017], module: 'KJV' });
+    expect(openDialog).toHaveBeenCalledWith(expect.objectContaining({ api: client, verseIds: [43003016, 43003017], module: 'KJV' }));
+  });
+
+  it('does nothing when the dialog is cancelled', async () => {
+    openDialog.mockResolvedValue(null);
+    const handler = await memoryModule.verseActionHandlers![0]!.load();
+    await handler.run({ verseId: 43003016, verseIds: [43003016], module: 'KJV', surface: 'reader' });
+    expect(addToast).not.toHaveBeenCalled();
   });
 
   it('toasts the result with a Practice now action that opens Memory and requests practice', async () => {
-    client.addVerses.mockResolvedValue({ outcome: 'exists', passageId: 7, reference: 'John 3:16' });
+    openDialog.mockResolvedValue({ outcome: 'exists', passageId: 7, reference: 'John 3:16', collectionId: 1, listName: 'Default' });
     openApp.mockResolvedValue({ status: 'activated', id: 'memory' });
     const handler = await memoryModule.verseActionHandlers![0]!.load();
     await handler.run({ verseId: 43003016, verseIds: [43003016], module: 'KJV', surface: 'reader' });
     expect(addToast).toHaveBeenCalledTimes(1);
     const [message, type, duration, action] = addToast.mock.calls[0]!;
-    expect(message).toBe('memory.toast.exists:');
+    expect(message).toBe('memory.toast.existsInList:');
     expect(type).toBe('info');
     expect(duration).toBeUndefined();
     const heard: number[] = [];

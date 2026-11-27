@@ -64,7 +64,7 @@ describe('navReduce: tabs and focused screens', () => {
 
   it('a verse opened from a transient screen falls back to My verses', () => {
     const s = run([{ type: 'goCard' }, { type: 'goVerse', passageId: 3 }]);
-    expect(s.returnTo).toEqual({ name: 'verses', list: 'focus' });
+    expect(s.returnTo).toEqual({ name: 'verses', list: 'all' });
   });
 
   it('leaveVerse off a verse page changes nothing', () => {
@@ -135,19 +135,19 @@ describe('navReduce: recite and removal', () => {
   it('removing the verse behind a session repairs only the destination', () => {
     const s = navReduce(run([{ type: 'goVerse', passageId: 7 }, started('s1')]), { type: 'passageRemoved', passageId: 7 });
     expect(s.view).toEqual({ name: 'practice', sessionId: 's1' });
-    expect(navReduce(s, { type: 'sessionEnded' }).view).toEqual({ name: 'verses', list: 'focus' });
+    expect(navReduce(s, { type: 'sessionEnded' }).view).toEqual({ name: 'verses', list: 'all' });
   });
 
   it('removing the verse behind a recite repairs only the destination', () => {
     const s = run([{ type: 'goVerse', passageId: 7 }, { type: 'reciteStarted', reciteId: 'r1', mode: 'tap' }, { type: 'passageRemoved', passageId: 7 }]);
     expect(s.view.name).toBe('recite');
-    expect(s.returnTo).toEqual({ name: 'verses', list: 'focus' });
+    expect(s.returnTo).toEqual({ name: 'verses', list: 'all' });
   });
 
   it('closing a verse page after practice started from it goes to My verses, not nowhere', () => {
     const s = run([{ type: 'goTab', tab: 'today' }, { type: 'goVerse', passageId: 3 }, started('s1'), { type: 'sessionEnded' }]);
     expect(s.view).toEqual({ name: 'verse', passageId: 3 });
-    expect(navReduce(s, { type: 'leaveVerse' }).view).toEqual({ name: 'verses', list: 'focus' });
+    expect(navReduce(s, { type: 'leaveVerse' }).view).toEqual({ name: 'verses', list: 'all' });
   });
 });
 

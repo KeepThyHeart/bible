@@ -160,8 +160,23 @@ describe('ManageBookmarksDialog', () => {
 
     await user.click(screen.getByTestId('bookmark-goto-1'));
 
-    expect(navigateToVerseInPrimary).toHaveBeenCalledWith(43003016);
+    expect(navigateToVerseInPrimary).toHaveBeenCalledWith(43003016, undefined);
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it('navigates to the whole range of a passage bookmark', async () => {
+    const user = userEvent.setup();
+    const navigateToVerseInPrimary = vi.fn();
+    useBibleStore.setState({ navigateToVerseInPrimary });
+    useBookmarkStore.setState({
+      bookmarks: [bookmark(1, 'John 3:16-18', { verseIdStart: 43003016, verseIdEnd: 43003018 })],
+    });
+
+    render(<ManageBookmarksDialog onClose={vi.fn()} />);
+    await settle();
+    await user.click(screen.getByTestId('bookmark-goto-1'));
+
+    expect(navigateToVerseInPrimary).toHaveBeenCalledWith(43003016, 43003018);
   });
 
   it('lets Escape back out of an inline rename without closing the dialog', async () => {

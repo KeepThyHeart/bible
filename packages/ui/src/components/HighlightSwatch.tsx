@@ -26,7 +26,7 @@ export interface HighlightSwatchLabels {
 
 export const DEFAULT_HIGHLIGHT_SWATCH_LABELS: HighlightSwatchLabels = {
   group: 'Highlight colour',
-  colors: { yellow: 'Yellow', green: 'Green', blue: 'Blue', red: 'Red', purple: 'Purple', orange: 'Orange' },
+  colors: { yellow: 'Yellow', green: 'Green', blue: 'Blue', red: 'Red', purple: 'Purple', orange: 'Orange', pink: 'Pink', teal: 'Teal', gray: 'Gray', brown: 'Brown' },
 };
 
 export interface HighlightSwatchProps {

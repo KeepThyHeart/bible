@@ -22,6 +22,10 @@ vi.mock('react-i18next', () => ({
 }));
 
 // ---- Module descriptions -------------------------------------------------
+vi.mock('../../stores/settingsStore', () => ({
+  settingsStore: { recentBibleVersions: [] as string[], recordRecentBibleVersion: () => {} },
+}));
+
 vi.mock('../../moduleDescriptions', () => {
   const descriptions: Record<string, { tagline?: string; description: string }> = {
     KJV: { tagline: 'King James Version', description: 'The classic English Bible' },
@@ -75,6 +79,7 @@ vi.mock('../../hooks/useStore', () => ({
 
 const mockSetTabTranslation = vi.fn();
 const mockGoBack = vi.fn();
+const mockOpenBookPicker = vi.fn();
 const mockSetDisplayMode = vi.fn();
 const mockScrollToVerse = vi.fn();
 const mockNavigateTo = vi.fn();
@@ -88,6 +93,7 @@ vi.mock('../../stores/bibleStore', () => ({
     goToHistoryEntry: (i: number) => mockGoToHistoryEntry(i),
     setTabTranslation: (id: string, abbr: string) => mockSetTabTranslation(id, abbr),
     goBack: () => mockGoBack(),
+    openBookPicker: () => mockOpenBookPicker(),
     setDisplayMode: (id: string, mode: string) => mockSetDisplayMode(id, mode),
     scrollToVerse: (id: number) => mockScrollToVerse(id),
     // Options are forwarded: the chapter buttons must mark their move as a
@@ -133,6 +139,17 @@ function chapterNavButtons(container: Element): HTMLButtonElement[] {
     container.querySelectorAll<HTMLButtonElement>('.bible-toolbar__chapter-nav .bible-toolbar__nav-btn')
   );
 }
+
+describe('BibleToolbar current reference', () => {
+  it('shows the book and chapter and opens the picker', () => {
+    mockActiveTab = makeTab();
+    render(<BibleToolbar />);
+    const btn = screen.getByTestId('toolbar-reference');
+    expect(btn.textContent).toContain('Book 43 3');
+    fireEvent.click(btn);
+    expect(mockOpenBookPicker).toHaveBeenCalled();
+  });
+});
 
 describe('BibleToolbar', () => {
   beforeEach(() => {

@@ -54,7 +54,8 @@
     "notice": {
       "noAudio": "Aún no hay grabación ni voz sintética disponible para esta traducción.",
       "preferredUnavailable": "La fuente de audio que prefieres no está disponible para esta traducción, así que se usa otra.",
-      "voiceUnavailable": "La voz que elegiste ya no está disponible, así que se usa otra."
+      "voiceUnavailable": "La voz que elegiste ya no está disponible, así que se usa otra.",
+      "passageSkipped": "Se omitió un pasaje que esta traducción no tiene."
     },
     "error": {
       "network": "No se pudo descargar {ref}. Comprueba tu conexión y reintenta.",
@@ -151,6 +152,86 @@
     },
     "shortcut": {
       "focusPlayer": "Ir al reproductor de audio"
+    },
+    "downloads": {
+      "title": "Descargar audio para escuchar sin conexión",
+      "heading": "Escucha sin conexión",
+      "settingsHint": "Guarda libros grabados en este dispositivo para escucharlos sin conexión.",
+      "open": "Descargar audio…",
+      "hint": "Elige los libros que guardar en este dispositivo. El texto de la traducción también se guarda si aún no está aquí.",
+      "translation": "Traducción",
+      "narrator": "Narrador",
+      "loading": "Cargando grabaciones…",
+      "none": "No hay grabaciones disponibles para {module}.",
+      "ot": "Antiguo Testamento",
+      "nt": "Nuevo Testamento",
+      "selectAll": "Seleccionar todo",
+      "clear": "Borrar",
+      "selectGroup": "Seleccionar todos los libros del {testament}",
+      "clearGroup": "Borrar la selección del {testament}",
+      "wholeBible": "Biblia completa",
+      "sizeLoading": "calculando tamaño…",
+      "state": {
+        "downloaded": "Descargado",
+        "partial": "Descargado en parte"
+      },
+      "chapters": "{count} de {total} capítulos",
+      "removeBook": "Quitar {book} de este dispositivo",
+      "selected": "{count, plural, one {# libro seleccionado} other {# libros seleccionados}} · {size}",
+      "free": "{size} libres",
+      "noFit": "La selección es mayor que el espacio libre en este dispositivo.",
+      "download": "Descargar",
+      "confirmTitle": "Descarga grande",
+      "confirmBody": "Esta descarga ocupa {size}. Comprueba la conexión y el espacio de este dispositivo antes de empezar.",
+      "confirmNoFit": "Esta descarga ocupa {size}, pero solo hay {free} libres en este dispositivo. Puede que no quepa.",
+      "confirmGo": "Descargar de todos modos",
+      "back": "Atrás",
+      "progress": "Descargando {book} · {done} de {total} libros · {loaded} de {size}",
+      "done": "La descarga ha terminado.",
+      "cancelled": "La descarga se detuvo. El progreso se conserva, así que la próxima descarga continúa desde aquí.",
+      "failed": "La descarga no terminó. {message}",
+      "close": "Cerrar"
+    },
+    "passages": {
+      "open": "Reproducir pasajes…",
+      "title": "Reproducir pasajes",
+      "input": "Pasajes para leer",
+      "placeholder": "p. ej. Sal 23; Rom 8:28-39; Gén 1-2",
+      "play": "Reproducir lista",
+      "remove": "Quitar {ref}",
+      "progress": "{index} de {count} · {ref}",
+      "prev": "Pasaje anterior",
+      "next": "Pasaje siguiente",
+      "error": {
+        "empty": "Escribe una o más referencias.",
+        "noBook": "«{text}» no es el nombre de un libro de la Biblia.",
+        "badNumbers": "No se pudieron leer los números de capítulo o versículo de «{text}».",
+        "outOfRange": "«{text}» está más allá del final de {book}.",
+        "tooMany": "Hasta {max} pasajes a la vez."
+      }
+    },
+    "playlist": {
+      "label": "Lista",
+      "edit": "Cambiar",
+      "chapter": "Capítulo actual"
+    },
+    "continue": {
+      "label": "Continuar con el capítulo siguiente",
+      "listHint": "Se aplica al leer por capítulos; una lista escrita termina en su último versículo."
+    },
+    "loop": {
+      "label": "Repetir",
+      "once": "Reproducir una vez",
+      "list": "Repetir la lista",
+      "passage": "Repetir este pasaje"
+    },
+    "elsewhere": {
+      "label": "Leyendo en otra pestaña: {ref} ({module})",
+      "goto": "Ir allí"
+    },
+    "live": {
+      "passage": "Leyendo {ref}, {index} de {count}",
+      "retarget": "Ahora se lee esta pestaña. La otra conserva su lugar."
     }
   }
 }

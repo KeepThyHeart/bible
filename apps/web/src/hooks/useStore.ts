@@ -1,7 +1,10 @@
 import { useState, useEffect, useRef } from 'preact/hooks';
-import type { Store } from '../stores/Store';
+/** Anything with `subscribe` (the app's `Store`, and the shared `@bible/audio` stores). */
+export interface Subscribable {
+  subscribe(listener: () => void): () => void;
+}
 
-export function useStore<T>(store: Store, selector: () => T): T {
+export function useStore<T>(store: Subscribable, selector: () => T): T {
   const [, forceUpdate] = useState(0);
   const valueRef = useRef<T>(selector());
 

@@ -12,16 +12,29 @@ import { bibleStore } from '../../../stores/bibleStore';
 import { moduleStore } from '../../../stores/moduleStore';
 import { audioStore } from '../audioStore';
 import { appRegistry } from '../../../host/appHost';
-import { createAudioSystem } from './bootstrap';
-import { createKeybindingRegistry, registerAudioShortcuts } from './audioShortcuts';
+import { AUDIO_DOWNLOADS_CACHE } from '@bible/audio/cacheNames';
+import { createAssetCache, createAudioSystem, createKeybindingRegistry, createPiperFactory, registerAudioShortcuts } from '@bible/audio';
+import { setAudioDownloadsHandle } from './downloads';
+import { FetchTransport } from '../../../assets/FetchTransport';
+import { getReadyAssetManager } from '../../../assets/webAssets';
 
 /** Build the audio system and hand it to `audioStore`. Returns the undo: shortcuts off, store disposed. */
 export function initAudio(config: AudioSiteConfig, bible: IBibleDataProvider): () => void {
   const languageOf = (moduleAbbr: string): string =>
     moduleStore.getBibleModules().find(m => m.abbreviation === moduleAbbr)?.language_code ?? '';
 
+  // Books the reader downloaded for offline listening: a pinned cache the player reads first.
+  const downloads = createAssetCache(AUDIO_DOWNLOADS_CACHE);
   const system = createAudioSystem(config, {
     baseUrl: import.meta.env.BASE_URL,
+    caches: { downloads },
+    // Piper's runtime and voices go through the shared web asset manager into the Cache API,
+    // where the worker reads them by URL.
+    engineFactories: [createPiperFactory({
+      assets: getReadyAssetManager,
+      fetchText: (url, signal) => new FetchTransport().getText(url, signal),
+      storage: 'cache',
+    })],
     getChapter: async (moduleAbbr, book, chapter) => (await bible.getChapter(moduleAbbr, book, chapter)).verses,
     loadedVerses: ref => {
       // The chapter on screen is already in memory; reading it again would fetch it twice.
@@ -33,11 +46,13 @@ export function initAudio(config: AudioSiteConfig, bible: IBibleDataProvider): (
     chapterCount: book => moduleStore.getBookByNumber(book)?.chapter_count ?? 0,
   });
   audioStore.init(system);
+  if (system.recordings) setAudioDownloadsHandle({ recordings: system.recordings, cache: downloads });
   // Alt+arrows stand down while an app with a live session (the Presenter) is busy.
   const keys = createKeybindingRegistry();
   const offShortcuts = registerAudioShortcuts(keys, audioStore, () => appRegistry.state.getSnapshot().apps.some((a) => a.busy));
   return () => {
     offShortcuts();
+    setAudioDownloadsHandle(null);
     keys.dispose();
     audioStore.dispose();
   };

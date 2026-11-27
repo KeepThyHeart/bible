@@ -1,17 +1,24 @@
-import React, { useEffect, useRef, useSyncExternalStore } from 'react';
+import React, { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { AppRail, AppStage } from '@bible/ui';
 import { announce } from '../services/announcer';
 import { shouldShowRail } from '@bible/core/browser';
 import { useI18n } from '../contexts/useI18n';
 import { translateWithDefault } from '../utils/translateWithDefault';
 import { useExtensionUiStore } from '../extensions/extensionUiStore';
+import { usePreferencesStore } from '../stores/usePreferencesStore';
+import PointerMenu from '../components/shared/PointerMenu';
+import { useOverlayDismissal } from '../hooks/useOverlayDismissal';
 import { useLayoutStore } from '../stores/useLayoutStore';
 import { appHostStore, getAppView, openApp, prefetchApp } from './appHost';
 import { useNavItems, useRailMode } from './navPrefs';
+import { useNarrowApps } from './DesktopAppSwitch';
 import { resolveLabelRef, toNavEntries } from './navEntries';
 
 /** Window event fired when the app on screen is about to be hidden, so body-level popups close. */
 export const APP_WILL_HIDE_EVENT = 'app:will-hide';
+
+/** Rail icon box in px at the default UI size; the buttons are sized in app-stage.css (task 0222). */
+const RAIL_ICON_SIZE = 24;
 
 const BoundView: React.FC<{ id: string }> = ({ id }) => {
   const View = getAppView(id);
@@ -28,7 +35,18 @@ export const DesktopAppStage: React.FC = () => {
   const snap = useSyncExternalStore(appHostStore.subscribe, appHostStore.getSnapshot);
   const railItems = useNavItems('rail');
   const mode = useRailMode();
-  const showRail = shouldShowRail(mode, railItems.length);
+  const narrow = useNarrowApps();
+  const showRail = !narrow && shouldShowRail(mode, railItems.length);
+  const showLabels = usePreferencesStore((s) => s.appRailLabels);
+  const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
+  const menuTrigger = useRef<HTMLElement | null>(null);
+  const closeMenu = useCallback(() => {
+    setMenu(null);
+    const el = menuTrigger.current;
+    menuTrigger.current = null;
+    if (el?.isConnected) el.focus(); // back to where the menu was opened from
+  }, []);
+  useOverlayDismissal(menu !== null, closeMenu);
   const stageRef = useRef<HTMLDivElement>(null);
   const lastFocus = useRef(new Map<string, HTMLElement>());
   const prevActive = useRef<string | null>(null);
@@ -81,7 +99,7 @@ export const DesktopAppStage: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeId]);
 
-  const entries = toNavEntries(railItems, t, i18n);
+  const entries = toNavEntries(railItems, t, i18n, undefined, RAIL_ICON_SIZE);
   return (
     <>
       {showRail && (
@@ -93,7 +111,39 @@ export const DesktopAppStage: React.FC = () => {
           onPrefetch={prefetchApp}
           labels={{ railLabel: translateWithDefault(t, 'apps.rail.label', 'Apps') }}
           className="app-rail"
+          showLabels={showLabels}
+          onContextMenu={(e) => { e.preventDefault(); menuTrigger.current = document.activeElement instanceof HTMLElement ? document.activeElement : null; setMenu({ x: e.clientX, y: e.clientY }); }}
         />
+      )}
+      {showRail && menu && (
+        <PointerMenu
+          x={menu.x}
+          y={menu.y}
+          role="menu"
+          style={{
+            minWidth: '180px',
+            backgroundColor: 'var(--theme-bg-primary)',
+            border: '1px solid var(--theme-border-primary)',
+            borderRadius: '6px',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+            padding: '4px 0',
+          }}
+          onMouseDown={(e) => e.stopPropagation()}
+          onKeyDown={(e) => { if (e.key === 'Escape') closeMenu(); }}
+        >
+          <button
+            type="button"
+            role="menuitemcheckbox"
+            aria-checked={showLabels}
+            autoFocus
+            className="w-full text-left px-3 py-1 bg-transparent border-0 cursor-pointer"
+            style={{ color: 'var(--theme-text-primary)' }}
+            onClick={() => { usePreferencesStore.getState().setAppRailLabels(!showLabels); closeMenu(); }} // allow-getstate: event handler
+          >
+            <span aria-hidden="true">{showLabels ? '\u2713 ' : '\u2003'}</span>
+            {translateWithDefault(t, 'apps.rail.showLabels', 'Show labels')}
+          </button>
+        </PointerMenu>
       )}
       <div key="stage" className="app-stage relative flex-1 min-w-0 min-h-0" ref={stageRef}>
         <AppStage

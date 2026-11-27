@@ -12,9 +12,9 @@ export {
 export type { BuildOptions, PlanPreview } from './builder';
 export {
   indexCompletions, isDayDone, firstUnreadDay, isReadingDay, scheduledDay, dateForDay, todayView, planStats,
-  shiftedStartDate, catchUpSuggestion, dayStatuses,
+  shiftedStartDate, startDateFor, progressAtDayStart, reschedulePreview, weekStrip, catchUpSuggestion, dayStatuses, measurePace, PACE_WINDOW_DAYS, PACE_MIN_READING_DAYS, PACE_MIN_PLAN_DAYS, PACE_MAX_PLAN_DAYS_PER_DATE,
 } from './scheduler';
-export type { ProgressIndex, TodayView, TodayReading, PlanStats, DayStatus } from './scheduler';
+export type { ProgressIndex, TodayView, TodayReading, PlanStats, DayStatus, FocusKind, WeekStripDay } from './scheduler';
 export {
   STOCK_PREFIX, CHRONOLOGICAL_ORDER, CHRONOLOGICAL_BASIS, stockPlanKey, isStockPlanKey, stockPlanIds, getStockPlan,
   summarizePlan, listStockPlans,
@@ -27,14 +27,19 @@ export {
   COMPLETIONS_COLLECTION, snapshotKey,
 } from './store';
 export type { IReadingPlanStore, CompletionChange } from './store';
-export { flattenPlan, readingNeighbours, overdueReadings, nextReadingAfter, blockPlacement } from './cursor';
-export type { PlanReadingRef } from './cursor';
+export {
+  flattenPlan, readingNeighbours, overdueReadings, nextReadingAfter, blockPlacement, currentDayWindow,
+  focusDay, todaysReadings, dueReadings, nextDueReading, chapterSpan, chapterOf, endsInChapter, nextChapterIn,
+} from './cursor';
+export type { PlanReadingRef, TodayReadingRef } from './cursor';
 export { ReadingPlanService } from './service';
 export type {
   ReadingPlanEvent, ReadingPlanListener, ReadingScope, IReadingScopeProvider, StartPlanOptions, EnrollmentPatch,
-  EnrollmentDetail, ReadingPlanServiceOptions,
+  EnrollmentDetail, ReadingPlanServiceOptions, SavePlanInput,
 } from './service';
 export { NO_REMINDERS, RecordingReminderPort } from './reminders';
 export type { ReadingPlanReminderPort, PlanReminderRule } from './reminders';
 export { planToIcs } from './ics';
 export type { IcsOptions } from './ics';
+export { PLAN_FILE_FORMAT, MAX_PLAN_FILE_BYTES, serializePlanFile, parsePlanFile, planFileName } from './planFile';
+export type { PlanFileV1 } from './planFile';

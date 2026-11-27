@@ -1,7 +1,7 @@
 import { IpcMain } from 'electron';
 import { missingModuleError } from './moduleErrors';
 import log from 'electron-log/main';
-import { CommentaryRepository, VerseIdHelper, getBookName } from '@bible/core';
+import { CommentaryRepository, VerseIdHelper, getBookName, getProvenanceAttribution } from '@bible/core';
 import { getSharedModuleMetadataRepo } from '../services/sharedMainDb';
 import { ModuleLoader } from '../services/ModuleLoader';
 import { ipcHandler, IpcKnownError } from './handler-helper';
@@ -45,6 +45,11 @@ interface CommentaryInfoDto {
   description: string | undefined;
   language_code: string | undefined;
   version: string | undefined;
+  publisher: string | undefined;
+  license_spdx: string | undefined;
+  license_url: string | undefined;
+  source_url: string | undefined;
+  attribution: string | null;
 }
 
 interface CommentaryEntryDto {
@@ -184,7 +189,12 @@ export function registerCommentaryHandlers(_ipcMain: IpcMain): void {
         copyright: info.copyright,
         description: info.description,
         language_code: info.languageCode,
-        version: info.version
+        version: info.version,
+        publisher: info.publisher,
+        license_spdx: info.licenseSpdx,
+        license_url: info.licenseUrl,
+        source_url: info.sourceUrl,
+        attribution: getProvenanceAttribution(info.metadata)
       };
     }
   );

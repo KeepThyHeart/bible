@@ -6,8 +6,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { getBookName, ReadingPlans } from '@bible/core/browser';
 import type {
-  ReadingPlanBuilderFormLabels, ReadingPlanDayGridLabels, ReadingPlanLibraryLabels, ReadingPlanTodayCardLabels,
+  ReadingPlanDayGridLabels, ReadingPlanLibraryLabels, ReadingPlanTodayCardLabels, ReadingPlanWeekStripLabels,
 } from '@bible/ui';
+import { rpTextWith } from '../rpText';
 import { useI18n } from '../../../contexts/useI18n';
 import { bibleAPI } from '../../../services/electronAPI';
 import { loadBookNamesCache, getBookNameFromCache } from '../../../utils/verseReference';
@@ -17,24 +18,21 @@ const TRANSLATED_TRACKS = new Set(['family1', 'family2', 'secret1', 'secret2', '
 
 const DAY_STATUSES: ReadingPlans.DayStatus[] = ['done', 'partial', 'missed', 'current', 'upcoming'];
 
-const BUILDER_KEYS = [
-  'name', 'namePlaceholder', 'whatToRead', 'wholeBible', 'oldTestament', 'newTestament', 'gospels', 'clear', 'books',
-  'addPassage', 'passages', 'order', 'orderCanonical', 'orderAsListed', 'orderChronological', 'pace', 'paceDays',
-  'paceEndDate', 'paceChapters', 'paceVerses', 'split', 'splitChapter', 'splitVerse', 'readingDays', 'schedule',
-  'flexible', 'flexibleHint', 'fixed', 'fixedHint', 'startDate', 'preview', 'chooseSomething', 'create', 'cancel',
-  'addPassagePlaceholder', 'addPassageSuggestions', 'addPassageInvalid', 'addPassageCount',
-] as const;
-
-const BUILDER_ERROR_KEYS = {
-  errorEmptyScope: 'emptyScope', errorInvalidRange: 'invalidRange', errorInvalidPace: 'invalidPace',
-  errorTooManyDays: 'tooManyDays', errorTooManyReadings: 'tooManyReadings',
-} as const;
+export interface ScheduleLabels {
+  schedule: string;
+  flexible: string;
+  flexibleHint: string;
+  fixed: string;
+  fixedHint: string;
+  startDate: string;
+}
 
 export interface ReadingPlanLabelSet {
   todayCard: ReadingPlanTodayCardLabels;
   dayGrid: ReadingPlanDayGridLabels;
   library: ReadingPlanLibraryLabels;
-  builder: ReadingPlanBuilderFormLabels;
+  weekStrip: ReadingPlanWeekStripLabels;
+  schedule: ScheduleLabels;
   weekdayGroup: string;
   weekdayNames: string[];
   /** Localized "Genesis 1-3". */
@@ -155,26 +153,30 @@ export function useReadingPlanLabels(): ReadingPlanLabelSet {
     previewNamed: (name) => t('readingPlans.library.previewNamed', { name }),
     deleteNamed: (name) => t('readingPlans.library.deleteNamed', { name }),
     list: t('readingPlans.library.list'),
+    edit: t('readingPlans.library.edit'),
+    editNamed: (name) => t('readingPlans.library.editNamed', { name }),
   }), [t]);
 
-  const builder = useMemo<ReadingPlanBuilderFormLabels>(() => {
-    const simple: Record<string, string> = Object.fromEntries(BUILDER_KEYS.map((k) => [k, t(`readingPlans.builder.${k}`)]));
-    // The picker fills {count} itself: hand the placeholder through the formatter unchanged.
-    simple.addPassageCount = t('readingPlans.builder.addPassageCount', { count: '{count}' });
-    const errors = Object.fromEntries(
-      Object.entries(BUILDER_ERROR_KEYS).map(([label, key]) => [label, t(`readingPlans.builder.error.${key}`)]),
-    );
-    return {
-      ...simple,
-      ...errors,
-      removePassage: (label: string) => t('readingPlans.builder.removePassage', { label }),
-      previewSummary: (days: number, minutes: number) => t('readingPlans.builder.previewSummary', { days, minutes }),
-      previewDay: (day: number, readings: string) => t('readingPlans.builder.previewDay', { day, readings }),
-    } as ReadingPlanBuilderFormLabels;
-  }, [t]);
+  const weekStrip = useMemo<ReadingPlanWeekStripLabels>(() => ({
+    strip: rpTextWith(t, 'readingPlans.home.week.strip', 'This week'),
+    read: rpTextWith(t, 'readingPlans.home.week.read', 'read'),
+    unread: rpTextWith(t, 'readingPlans.home.week.unread', 'not read'),
+    rest: rpTextWith(t, 'readingPlans.home.week.rest', 'rest day'),
+    future: rpTextWith(t, 'readingPlans.home.week.future', 'coming up'),
+    today: rpTextWith(t, 'readingPlans.home.week.today', 'today'),
+  }), [t]);
+
+  const schedule = useMemo<ScheduleLabels>(() => ({
+    schedule: t('readingPlans.builder.schedule'),
+    flexible: t('readingPlans.builder.flexible'),
+    flexibleHint: t('readingPlans.builder.flexibleHint'),
+    fixed: t('readingPlans.builder.fixed'),
+    fixedHint: t('readingPlans.builder.fixedHint'),
+    startDate: t('readingPlans.builder.startDate'),
+  }), [t]);
 
   return {
-    todayCard, dayGrid, library, builder, weekdayGroup: t('readingPlans.weekdays.group'), weekdayNames,
+    todayCard, dayGrid, library, weekStrip, schedule, weekdayGroup: t('readingPlans.weekdays.group'), weekdayNames,
     formatReading, bookName, trackName, stockName, stockDescription, localizePlanName, formatDate,
   };
 }

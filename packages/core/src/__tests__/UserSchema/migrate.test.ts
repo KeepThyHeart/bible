@@ -5,7 +5,7 @@
  */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { TestSqliteProvider } from '../helpers/TestSqliteProvider';
-import { createUserSchema, migrateUserSchema } from '../../Data/UserSchema';
+import { createUserSchema, migrateUserSchema, ensureMemoryPassagePosition } from '../../Data/UserSchema';
 import { USER_TABLES, USER_SCHEMA_VERSION, readUserSchemaVersion, isClassified } from '../../Backup/Registry';
 
 let db: TestSqliteProvider;
@@ -172,5 +172,90 @@ describe('note FTS triggers (task 0150)', () => {
     db.execute("UPDATE user_note SET content = 'two' WHERE note_id = ?", [id]);
     db.execute("UPDATE user_note SET content = 'three' WHERE note_id = ?", [id]);
     expect(db.queryAll("SELECT rowid FROM user_note_fts WHERE user_note_fts MATCH 'three'")).toHaveLength(1);
+  });
+});
+
+describe('memory_passage.position (schema version 4, task 0219)', () => {
+  const addPassage = (id: number, list: number, addedAt: number, position?: number | null): void => {
+    const hasPosition = db.queryAll<{ name: string }>('PRAGMA table_info(memory_passage)').some((c) => c.name === 'position');
+    db.execute(
+      `INSERT INTO memory_passage (id, collection_id, module_id, start_verse_id, end_verse_id, reference, verse_count, added_at${hasPosition ? ', position' : ''}) VALUES (?, ?, 'KJV', ?, ?, 'ref', 1, ?${hasPosition ? ', ?' : ''})`,
+      [id, list, 1000 + id, 1000 + id, addedAt, ...(hasPosition ? [position ?? null] : [])],
+    );
+  };
+  const positions = (): Array<{ id: number; collection_id: number; position: number | null }> =>
+    db.queryAll('SELECT id, collection_id, position FROM memory_passage ORDER BY id');
+
+  /** A v3 fixture: 2 lists, 5 passages, ids deliberately not in added_at order. */
+  function seedV3(): void {
+    db.exec(V1_DESKTOP_DDL);
+    db.exec(V2_MEMORY_DDL);
+    db.execute("INSERT INTO memory_collection (id, name, created_at) VALUES (1, 'A', 1), (2, 'B', 1)");
+    addPassage(10, 1, 300);
+    addPassage(11, 1, 100);
+    addPassage(12, 1, 200);
+    addPassage(13, 2, 50);
+    addPassage(14, 2, 40);
+    db.execute('PRAGMA user_version = 3');
+  }
+
+  it('adds the column and index and backfills in (added_at, id) order per list', () => {
+    seedV3();
+    createUserSchema(db);
+    expect(db.queryAll<{ name: string }>('PRAGMA table_info(memory_passage)').map((c) => c.name)).toContain('position');
+    expect(db.queryOne("SELECT name FROM sqlite_master WHERE type='index' AND name='memory_passage_collection_position'")).toBeTruthy();
+    expect(positions()).toEqual([
+      { id: 10, collection_id: 1, position: 2 },
+      { id: 11, collection_id: 1, position: 0 },
+      { id: 12, collection_id: 1, position: 1 },
+      { id: 13, collection_id: 2, position: 1 },
+      { id: 14, collection_id: 2, position: 0 },
+    ]);
+    expect(readUserSchemaVersion(db)).toBe(4);
+  });
+
+  it('breaks added_at ties by id', () => {
+    seedV3();
+    addPassage(9, 1, 300);
+    createUserSchema(db);
+    const p = (id: number) => positions().find((r) => r.id === id)!.position;
+    expect(p(9)).toBeLessThan(p(10)!);
+  });
+
+  it('a second run changes nothing', () => {
+    seedV3();
+    createUserSchema(db);
+    const snap = () => ({ rows: positions(), schema: db.queryAll('SELECT type, name, sql FROM sqlite_master ORDER BY type, name') });
+    const before = snap();
+    createUserSchema(db);
+    ensureMemoryPassagePosition(db);
+    expect(snap()).toEqual(before);
+  });
+
+  it('leaves an already-v4 database with positions alone', () => {
+    createUserSchema(db);
+    db.execute("INSERT INTO memory_collection (id, name, created_at) VALUES (1, 'A', 1)");
+    addPassage(1, 1, 500, 7);
+    addPassage(2, 1, 100, 3);
+    createUserSchema(db);
+    expect(positions().map((r) => r.position)).toEqual([7, 3]);
+  });
+
+  it('numbers NULL rows after the list max (a merge or sync brought them in)', () => {
+    createUserSchema(db);
+    db.execute("INSERT INTO memory_collection (id, name, created_at) VALUES (1, 'A', 1), (2, 'B', 1)");
+    addPassage(1, 1, 100, 0);
+    addPassage(2, 1, 200, 1);
+    addPassage(3, 1, 400);
+    addPassage(4, 1, 300);
+    addPassage(5, 2, 10);
+    ensureMemoryPassagePosition(db);
+    expect(positions().map((r) => r.position)).toEqual([0, 1, 3, 2, 0]);
+    ensureMemoryPassagePosition(db);
+    expect(positions().map((r) => r.position)).toEqual([0, 1, 3, 2, 0]);
+  });
+
+  it('works without a memory_passage table', () => {
+    expect(() => ensureMemoryPassagePosition(db)).not.toThrow();
   });
 });

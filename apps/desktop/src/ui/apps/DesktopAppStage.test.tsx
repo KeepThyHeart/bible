@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeAll } from 'vitest';
+import { describe, it, expect, vi, beforeAll, afterEach } from 'vitest';
 import { render, screen, act } from '@testing-library/react';
 import { ContextProvider, type AppServices } from '../contexts/ContextProvider';
 
@@ -7,6 +7,8 @@ vi.mock('./StudyView', () => ({ StudyView: () => <div data-testid="study-view" /
 import { appHost, appRegistry, addAppBinding } from './appHost';
 import { registerBuiltinApps } from './builtinApps';
 import { DesktopAppStage } from './DesktopAppStage';
+import { DesktopAppSwitch } from './DesktopAppSwitch';
+import { fireEvent } from '@testing-library/react';
 import * as announcer from '../services/announcer';
 import { usePreferencesStore } from '../stores/usePreferencesStore';
 
@@ -80,5 +82,41 @@ describe('DesktopAppStage', () => {
     await act(async () => { await appHost.activate('study'); });
     expect(studyWrapper.hasAttribute('hidden')).toBe(false);
     expect(fxWrapper.hasAttribute('hidden')).toBe(true);
+  });
+
+  describe('rail labels and the narrow fold', () => {
+    const original = window.matchMedia;
+    afterEach(() => { window.matchMedia = original; usePreferencesStore.setState({ appRailLabels: true, appSwitcher: 'auto' }); });
+    const narrowWindow = (narrow: boolean) => {
+      window.matchMedia = ((q: string) => ({
+        matches: narrow && q.includes('599'), media: q, addEventListener: () => {}, removeEventListener: () => {},
+      })) as unknown as typeof window.matchMedia;
+    };
+
+    it('shows labels by pref and a right-click menu toggles it', () => {
+      usePreferencesStore.setState({ appSwitcher: 'rail', appRailLabels: true });
+      narrowWindow(false);
+      const { container } = mount();
+      expect(container.querySelector('.kth-app-rail--labels')).not.toBeNull();
+      fireEvent.contextMenu(screen.getByRole('navigation'), { clientX: 10, clientY: 10 });
+      const item = screen.getByRole('menuitemcheckbox');
+      expect(item.getAttribute('aria-checked')).toBe('true');
+      expect(screen.getByRole('menuitemcheckbox', { name: 'Show labels' })).toBe(item);
+      fireEvent.click(item);
+      expect(usePreferencesStore.getState().appRailLabels).toBe(false);
+      expect(container.querySelector('.kth-app-rail--labels')).toBeNull();
+    });
+
+    it('folds the rail into the app-switch button below 600px', () => {
+      usePreferencesStore.setState({ appSwitcher: 'rail' });
+      narrowWindow(true);
+      render(
+        <ContextProvider services={services}>
+          <div className="flex"><DesktopAppSwitch /><DesktopAppStage /></div>
+        </ContextProvider>,
+      );
+      expect(screen.queryByRole('navigation')).toBeNull();
+      expect(screen.getByRole('button', { name: /apps\.switcher\.open|Switch app/ })).toBeTruthy();
+    });
   });
 });

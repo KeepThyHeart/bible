@@ -16,12 +16,15 @@ interface HighlightMenuProps {
     underlineColor?: HighlightColor
   ) => void;
   onCancel: () => void;
+  /** Offered only when the selection already carries marks: delete them (the whole highlight/underline). */
+  onRemove?: () => void;
 }
 
 export const HighlightMenu: React.FC<HighlightMenuProps> = ({
   position,
   onSelectHighlight,
-  onCancel
+  onCancel,
+  onRemove
 }) => {
   const { t } = useI18n();
   const [selectedMarkupType, setSelectedMarkupType] = useState<MarkupType>('highlight');
@@ -31,7 +34,7 @@ export const HighlightMenu: React.FC<HighlightMenuProps> = ({
   const [selectedHighlightColor, setSelectedHighlightColor] = useState<HighlightColor>('yellow');
   const trapRef = useFocusTrap<HTMLDivElement>(true);
 
-  const colors: HighlightColor[] = ['yellow', 'green', 'blue', 'red', 'purple', 'orange'];
+  const colors: HighlightColor[] = ['yellow', 'green', 'blue', 'red', 'purple', 'orange', 'pink', 'teal', 'gray', 'brown'];
   const underlineStyles: UnderlineStyle[] = ['solid', 'wavy', 'dotted', 'dashed'];
 
   const handleColorSelect = (color: HighlightColor) => {
@@ -227,6 +230,19 @@ export const HighlightMenu: React.FC<HighlightMenuProps> = ({
               )}
             >
               {selectedMarkupType === 'both' ? t('highlightMenu.apply') : t('highlightMenu.applyUnderline')}
+            </button>
+          </div>
+        )}
+
+        {onRemove && (
+          <div className="mt-4 pt-4 border-t border-border-secondary">
+            <button
+              type="button"
+              className="w-full px-4 py-2 text-sm font-medium text-text-primary bg-control rounded hover:bg-background-hover transition-colors cursor-pointer"
+              onClick={onRemove}
+              data-testid="highlight-menu-remove"
+            >
+              {t('highlightMenu.removeMarks')}
             </button>
           </div>
         )}

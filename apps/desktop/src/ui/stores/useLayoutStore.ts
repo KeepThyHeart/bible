@@ -4,6 +4,7 @@ import { whenContextService } from '../services/WhenContextService';
 import { registerSessionSerializer } from './helpers/sessionRegistry';
 import { collapseGroups, expandGroups, measureGroup, type CollapsedGroup } from '../services/PresetApplier';
 import { genericEnglishTitle } from '../utils/paneNames';
+import { getPrivacyPrefs } from './helpers/privacyPrefs';
 import { stripTransientPanels } from '../services/stripTransientPanels';
 
 /**
@@ -150,6 +151,8 @@ interface LayoutState {
 
   /** Dynamic subtitles set by panel components at runtime (e.g., Notes showing current doc name) */
   dynamicSubtitles: Map<string, string>;
+  /** A panel title a module sets over the panel's own (task 0222); the title sync applies it. */
+  titleOverrides: Map<string, string>;
 
   /**
    * Groups squeezed to zero size - by a layout preset (Reading Mode collapses
@@ -177,6 +180,8 @@ interface LayoutState {
 
   /** Set or clear a dynamic subtitle for a panel */
   setDynamicSubtitle: (panelId: string, subtitle: string | null) => void;
+  /** Set (or, with null, clear) a panel's title override. */
+  setTitleOverride: (panelId: string, title: string | null) => void;
 
   /** Serialize current layout for session persistence */
   serializeLayout: () => SerializedDockview | null;
@@ -350,6 +355,7 @@ export const useLayoutStore = create<LayoutState>((set, get) => ({
   activePanelId: null,
   lastActiveBiblePanelId: null,
   dynamicSubtitles: new Map(),
+  titleOverrides: new Map(),
   collapsedGroups: [],
 
   setDockviewApi: (api: DockviewApi) => {
@@ -412,6 +418,19 @@ export const useLayoutStore = create<LayoutState>((set, get) => ({
     });
   },
 
+  setTitleOverride: (panelId: string, title: string | null) => {
+    set((state) => {
+      if ((state.titleOverrides.get(panelId) ?? null) === (title || null)) return state;
+      const titleOverrides = new Map(state.titleOverrides);
+      if (title) {
+        titleOverrides.set(panelId, title);
+      } else {
+        titleOverrides.delete(panelId);
+      }
+      return { titleOverrides };
+    });
+  },
+
   serializeLayout: () => {
     const api = get().dockviewApi;
     if (!api) return null;
@@ -420,7 +439,11 @@ export const useLayoutStore = create<LayoutState>((set, get) => ({
     // closed on the live API. Session autosave calls this every 30s, so
     // closing here would delete a New Tab the user had just opened with `+`
     // - sporadically, depending on where the click fell in the interval.
-    return stripTransientPanels(api.toJSON());
+    // Search panels carry the reader's queries (title and params); unless they
+    // opted in to reopening them, they are left out of the saved layout (task 0224).
+    return stripTransientPanels(api.toJSON(), {
+      dropSearchPanels: !getPrivacyPrefs().reopenSearchTabs,
+    });
   },
 
   addPanel: (contentType: PanelContentType, contentKey?: string, displayName?: string, position?: Record<string, unknown>, subtitle?: string, panelIdOverride?: string, extras?: AddPanelExtras) => {

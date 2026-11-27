@@ -55,6 +55,13 @@ export {
   isSingleChapterBook,
 } from './Data/Core/BookNames';
 export type { BookNameFormat } from './Data/Core/BookNames';
+export { VERSE_COUNTS, verseCount } from './Data/Core/VerseCounts';
+export {
+  createLookUpRegistry, lookUpAll, isLookUpCandidate, normalizeLookUpText, orderLookUpGroups, strongsEntryKey,
+} from './Services/LookUp';
+export type { LookUpQuery, LookUpEntry, LookUpGroup, LookUpProvider, LookUpRegistry } from './Services/LookUp';
+export { FONT_CATALOG, fontCatalogEntry, offeredFonts } from './Data/Core/FontCatalog';
+export type { FontCatalogEntry, FontKind, FontOrigin } from './Data/Core/FontCatalog';
 
 // --- Reference parsing / formatting ----------------------------------------
 export { ReferenceParser } from './Services/ReferenceParser';
@@ -355,6 +362,8 @@ export * as Recite from './recite';
 // Plan engine (builder, scheduler, stock library, store over user_data_item, service).
 // Namespaced: names such as `Reading`, `addDays` and `vid` are too generic for the flat barrel.
 export * as ReadingPlans from './ReadingPlans';
+/** Direct export (not through the namespace) so a bundle that only needs verse counts stays small (ui kit budget). */
+export { versesInChapter } from './ReadingPlans/versification';
 
 // --- Notifications and reminders engine (task 0083) -------------------------------
 // Rule model (fixed times, windows, one-offs, quiet hours), DST-safe expansion,
@@ -398,7 +407,7 @@ export * as RemoteSemantic from './RemoteSemantic';
 // End-to-end encrypted sync: contracts, crypto, tracking, engine, account client. Browser-safe.
 export * as Sync from './Sync';
 // Core user schema (one DDL for desktop and web) and the Memory tables it owns.
-export { createUserSchema, migrateUserSchema, USER_SCHEMA_DDL, MEMORY_DDL, MEMORY_TABLES, MEMORY_IMPORT_TABLE, installMemorySchema } from './Data/UserSchema';
+export { createUserSchema, migrateUserSchema, USER_SCHEMA_DDL, MEMORY_DDL, MEMORY_TABLES, MEMORY_IMPORT_TABLE, installMemorySchema, ensureMemoryPassagePosition } from './Data/UserSchema';
 export type { MemoryTable } from './Data/UserSchema';
 // Browser-safe user repositories (notes, highlights, collections, ...), for the web user-DB worker.
 export * as UserRepositories from './Data/Repositories/userRepositories';

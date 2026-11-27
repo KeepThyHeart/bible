@@ -13,6 +13,7 @@ import { enT } from '../../testing/enCatalog';
 vi.mock('../../stores/module/moduleAPI', () => ({
   moduleAPI: {
     getModuleDetails: vi.fn(),
+    getModuleProvenance: vi.fn(),
     reindexModule: vi.fn(),
     getKeywordIndexStatus: vi.fn(),
     rebuildKeywordIndex: vi.fn(),
@@ -21,6 +22,7 @@ vi.mock('../../stores/module/moduleAPI', () => ({
 }));
 
 const getModuleDetails = vi.mocked(moduleAPI.getModuleDetails);
+const getModuleProvenance = vi.mocked(moduleAPI.getModuleProvenance);
 const reindexModule = vi.mocked(moduleAPI.reindexModule);
 const getKeywordIndexStatus = vi.mocked(moduleAPI.getKeywordIndexStatus);
 
@@ -140,6 +142,7 @@ describe('ModuleDetailsPanel', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     getModuleDetails.mockResolvedValue({ ...installedEsv });
+    getModuleProvenance.mockResolvedValue({ attribution: null, source_url: null, license_spdx: null, license_url: null });
     reindexModule.mockResolvedValue(undefined as never);
     getKeywordIndexStatus.mockResolvedValue({
       moduleUuid: 'esv-uuid',
@@ -155,6 +158,27 @@ describe('ModuleDetailsPanel', () => {
 
   it('exports both named and default', () => {
     expect(DefaultExport).toBe(ModuleDetailsPanel);
+  });
+
+  describe('SWORD provenance (installed module_info)', () => {
+    it('shows the attribution line and a source link', async () => {
+      getModuleProvenance.mockResolvedValue({
+        attribution: 'Converted from the SWORD module "ESV" (version 1), distributed by the CrossWire Bible Society (crosswire.org).',
+        source_url: 'https://crosswire.org/sword/',
+        license_spdx: null,
+        license_url: null,
+      });
+      renderPanel(rowFor([catalogKjv], [installedEsv], 'ESV'));
+      await waitFor(() => expect(screen.getByTestId('module-details-attribution')).toHaveTextContent('CrossWire Bible Society'));
+      expect(screen.getByTestId('module-details-source-link')).toHaveAttribute('href', 'https://crosswire.org/sword/');
+    });
+
+    it('renders nothing for a module without provenance', async () => {
+      renderPanel(rowFor([catalogKjv], [installedEsv], 'ESV'));
+      await waitFor(() => expect(getModuleProvenance).toHaveBeenCalled());
+      expect(screen.queryByTestId('module-details-attribution')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('module-details-source-link')).not.toBeInTheDocument();
+    });
   });
 
   describe('catalog-only module', () => {

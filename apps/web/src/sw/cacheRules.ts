@@ -86,6 +86,8 @@ export const NEVER_CACHE_PATHS: readonly string[] = [
 export const EXTERNAL_CACHES: readonly string[] = [
   // Written by @huggingface/transformers from the search worker: the ~130 MB model.
   'transformers-cache',
+  // Audio books the reader downloaded for offline listening (page-only, played as blob URLs; task 0223).
+  'audio-downloads-v1',
 ];
 
 /** Cache Storage name for a rule, e.g. `commentary-text-v1`. */

@@ -10,6 +10,10 @@ export { parseReference, filterBooks, getBookFilterText } from './components/boo
 export type { ParsedReference, ReferenceLookup } from './components/bookReference';
 export { ReferencePicker, DEFAULT_REFERENCE_PICKER_LABELS } from './components/ReferencePicker';
 export type { ReferencePickerLabels, ReferencePickerProps } from './components/ReferencePicker';
+export { VerseSelector, DEFAULT_VERSE_SELECTOR_LABELS } from './components/VerseSelector';
+export type { VerseSelection, VerseSelectorLabels, VerseSelectorProps, VerseTextLookup } from './components/VerseSelector';
+export { mountVerseSelector } from './components/mountVerseSelector';
+export type { VerseSelectorHandle } from './components/mountVerseSelector';
 export { parseReferenceInput, suggestBooks } from './components/referenceInput';
 export type { ReferenceValue, ReferenceInputOptions, ParseReferenceInputResult, BookSuggestion } from './components/referenceInput';
 export { HighlightSwatch, DEFAULT_HIGHLIGHT_SWATCH_LABELS } from './components/HighlightSwatch';
@@ -26,6 +30,7 @@ export type { KeywordLegendLabels, KeywordLegendProps, LegendRow, LegendSuggesti
 export { KeywordMarkEditor, DEFAULT_KEYWORD_MARK_EDITOR_LABELS } from './components/KeywordMarkEditor';
 export type { KeywordMarkEditorLabels, KeywordMarkEditorProps, KeywordMarkEditorField } from './components/KeywordMarkEditor';
 export { markCssColor } from './components/markStyle';
+export { isFontInstalled, resetFontAvailabilityCache } from './fontAvailability';
 
 // Genealogy explorer (task 0067). Layouts are computed by the app and passed in; nothing here imports them.
 export { GenealogyView, DEFAULT_GENEALOGY_VIEW_LABELS } from './components/Genealogy/GenealogyView';
@@ -135,14 +140,18 @@ export type { QuizPanelProps, QuizLabels } from './components/Quiz/types';
 
 export { ReadingPlanTodayCard, DEFAULT_READING_PLAN_TODAY_CARD_LABELS } from './components/ReadingPlans/ReadingPlanTodayCard';
 export type { ReadingPlanTodayCardProps, ReadingPlanTodayCardLabels } from './components/ReadingPlans/ReadingPlanTodayCard';
+export { ReadingPlanWeekStrip, DEFAULT_READING_PLAN_WEEK_STRIP_LABELS } from './components/ReadingPlans/ReadingPlanWeekStrip';
+export type { ReadingPlanWeekStripProps, ReadingPlanWeekStripLabels } from './components/ReadingPlans/ReadingPlanWeekStrip';
 export { ReadingPlanDayGrid, DEFAULT_READING_PLAN_DAY_GRID_LABELS } from './components/ReadingPlans/ReadingPlanDayGrid';
 export type { ReadingPlanDayGridProps, ReadingPlanDayGridLabels } from './components/ReadingPlans/ReadingPlanDayGrid';
 export { ReadingPlanLibrary, DEFAULT_READING_PLAN_LIBRARY_LABELS } from './components/ReadingPlans/ReadingPlanLibrary';
 export type { ReadingPlanLibraryProps, ReadingPlanLibraryLabels } from './components/ReadingPlans/ReadingPlanLibrary';
 export { WeekdayPicker, DEFAULT_WEEKDAY_PICKER_LABELS, DEFAULT_WEEKDAY_NAMES } from './components/ReadingPlans/WeekdayPicker';
 export type { WeekdayPickerProps, WeekdayPickerLabels } from './components/ReadingPlans/WeekdayPicker';
-export { ReadingPlanBuilderForm, DEFAULT_READING_PLAN_BUILDER_FORM_LABELS } from './components/ReadingPlans/ReadingPlanBuilderForm';
-export type { ReadingPlanBuilderFormProps, ReadingPlanBuilderFormLabels, ReadingPlanBuilderStart } from './components/ReadingPlans/ReadingPlanBuilderForm';
+export { ReadingPlanDayEditor, DEFAULT_READING_PLAN_DAY_EDITOR_LABELS } from './components/ReadingPlans/ReadingPlanDayEditor';
+export type { ReadingPlanDayEditorProps, ReadingPlanDayEditorLabels } from './components/ReadingPlans/ReadingPlanDayEditor';
+export { ReadingPlanAutoFillForm, DEFAULT_READING_PLAN_AUTO_FILL_FORM_LABELS } from './components/ReadingPlans/ReadingPlanAutoFillForm';
+export type { ReadingPlanAutoFillFormProps, ReadingPlanAutoFillFormLabels } from './components/ReadingPlans/ReadingPlanAutoFillForm';
 
 // Direction primitives (task 0076): UI direction provider + hooks, isolated runs, content containers.
 export {
@@ -164,7 +173,7 @@ export type {
 
 // App host surfaces (task 0080).
 export {
-  AppBadge, AppRail, AppTileGrid, AppSheet, AppSwitchButton, AppStage,
+  AppBadge, AppRail, AppTileGrid, AppSheet, AppSwitchButton, aggregateBadge, AppStage,
   DEFAULT_APP_RAIL_LABELS, DEFAULT_APP_TILE_GRID_LABELS,
   AppsPreferences, DEFAULT_APPS_PREFERENCES_LABELS,
 } from './components/apps';
@@ -180,3 +189,17 @@ export {
   DEFAULT_ACCOUNT_PANEL_LABELS, DEFAULT_CHANGE_PASSWORD_LABELS, DEFAULT_PRIVACY_LABELS, DEFAULT_SYNC_STATUS_LABELS,
 } from './components/Account';
 export type * from './components/Account/types';
+
+// Stock controls: dialog, message box, checkbox/radio, tabs, progress bar, notice (lists, links: CSS only).
+export { Dialog, DEFAULT_DIALOG_LABELS } from './components/Dialog';
+export type { DialogProps, DialogLabels } from './components/Dialog';
+export { MessageBox } from './components/MessageBox';
+export type { MessageBoxProps } from './components/MessageBox';
+export { Checkbox, Radio } from './components/Checkbox';
+export type { CheckboxProps, RadioProps } from './components/Checkbox';
+export { Tabs, tabPanelProps } from './components/Tabs';
+export type { TabsProps, TabItem } from './components/Tabs';
+export { ProgressBar } from './components/ProgressBar';
+export type { ProgressBarProps } from './components/ProgressBar';
+export { Notice } from './components/Notice';
+export type { NoticeProps } from './components/Notice';

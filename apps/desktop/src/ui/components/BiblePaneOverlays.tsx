@@ -5,6 +5,7 @@ import { revealNotesPanel } from './bible/revealNotesPanel';
 import VerseContextMenu from './VerseContextMenu';
 import CopyOptionsDialog from './CopyOptionsDialog';
 import ModuleSelector, { ModuleItem } from './ModuleSelector';
+import { usePreferencesStore } from '../stores/usePreferencesStore';
 import BookChapterPicker from './BookChapterPicker';
 import { HighlightMenu } from './highlights/HighlightMenu';
 import { FloatingAnnotationToolbar } from './highlights/FloatingAnnotationToolbar';
@@ -17,10 +18,13 @@ import NotePreviewTooltip from './NotePreviewTooltip';
 import { BibleVerse as BibleVerseCopy } from '../services/verseCopyService';
 import { HighlightColor, MarkupType, UnderlineStyle } from '@bible/core';
 import { StudyPaneTab } from '../stores/useDictionaryStore';
+import type { WordSelection } from './BiblePaneContext';
 import { useI18n } from '../contexts/useI18n';
 import { useEscapeKey } from '../hooks/useOverlayDismissal';
 import { useBookmarkStore } from '../stores/useBookmarkStore';
 import { wordMenuItems, useSlot } from '../modules/host/slots';
+import { isLookUpCandidate, normalizeLookUpText } from '@bible/core/browser';
+import { openLookUp } from './bible/openLookUp';
 import { useWordStrongs } from './bible/hooks/useWordStrongs';
 import { syncPanesWithVerse } from '../stores/syncPanesWithVerse';
 
@@ -99,6 +103,12 @@ export interface BiblePaneOverlaysProps {
   } | null>>;
   activeTab: BibleTabInfo | undefined;
   handleRemoveHighlight: (markupId: number) => Promise<void>;
+  /** Delete every mark touching these verses (range IPC). */
+  clearMarksInVerses?: (startVerseId: number, endVerseId?: number) => Promise<void>;
+  /** Whether a captured word selection already carries highlights or underlines. */
+  selectionHasMarkup?: (selection: WordSelection | null) => boolean;
+  /** Delete the whole marks under a captured word selection. */
+  removeMarksInWordSelection?: (selection: WordSelection) => Promise<void>;
   syncAllNotesPanelsWithVerse: (verseId: number) => void;
   setSelectedVerse: (verseId: number) => void;
   setStudyPaneActiveTab: (tab: StudyPaneTab) => void;
@@ -107,10 +117,12 @@ export interface BiblePaneOverlaysProps {
   copyOptionsDialog: {
     visible: boolean;
     verses: BibleVerseCopy[];
+    print?: boolean;
   } | null;
   setCopyOptionsDialog: React.Dispatch<React.SetStateAction<{
     visible: boolean;
     verses: BibleVerseCopy[];
+    print?: boolean;
   } | null>>;
 
   // Highlight Menu
@@ -200,6 +212,9 @@ const BiblePaneOverlays: React.FC<BiblePaneOverlaysProps> = ({
   setContextMenu,
   activeTab,
   handleRemoveHighlight,
+  clearMarksInVerses,
+  selectionHasMarkup,
+  removeMarksInWordSelection,
   syncAllNotesPanelsWithVerse,
   setSelectedVerse,
   setStudyPaneActiveTab,
@@ -236,10 +251,15 @@ const BiblePaneOverlays: React.FC<BiblePaneOverlaysProps> = ({
     hasWordMenuItems && contextMenu && contextMenu.wordIndex !== undefined && contextMenu.wordText?.trim() && activeTab
       ? { tabId: activeTab.tabId, text: contextMenu.wordText.trim() }
       : undefined;
+  // "Look up": offered on any right-clicked word or short phrase, whether or not a module adds word items.
+  const lookUpWord =
+    contextMenu && contextMenu.wordIndex !== undefined && activeTab && contextMenu.wordText && isLookUpCandidate(contextMenu.wordText)
+      ? normalizeLookUpText(contextMenu.wordText)
+      : undefined;
   const wordStrongs = useWordStrongs(
-    menuWord ? activeTab?.abbreviation : undefined,
+    menuWord || lookUpWord ? activeTab?.abbreviation : undefined,
     clickedVerseId,
-    menuWord ? contextMenu?.wordIndex : undefined,
+    menuWord || lookUpWord ? contextMenu?.wordIndex : undefined,
   );
 
   /**
@@ -265,6 +285,7 @@ const BiblePaneOverlays: React.FC<BiblePaneOverlaysProps> = ({
     [setShowParallelPicker]
   );
   useEscapeKey(showParallelPicker, closeParallelPicker);
+  const recentBibleVersions = usePreferencesStore(state => state.recentBibleVersions);
 
   return (
     <>
@@ -297,8 +318,11 @@ const BiblePaneOverlays: React.FC<BiblePaneOverlaysProps> = ({
             openCount: openTabs.filter(tab => tab.abbreviation === bible.abbreviation).length
           }))}
           isLoading={loadingBibles}
+          recentIds={recentBibleVersions}
           emptyMessage={t('biblePaneOverlays.noBibleTranslationsInstalledPleaseInstall')}
           onSelect={(module) => {
+            // A reader's pick in the selector (not an automatic open): remember it for the Recent group.
+            usePreferencesStore.getState().recordRecentBibleVersion(module.id); // allow-getstate: event handler - imperative write, no subscription needed
             if (versionSelectorTabId) {
               changeTabVersion(versionSelectorTabId, module.abbreviation, module.name);
               setVersionSelectorTabId(null);
@@ -411,6 +435,13 @@ const BiblePaneOverlays: React.FC<BiblePaneOverlaysProps> = ({
             // Clear every mark on the clicked word, so "remove" really clears the spot.
             for (const markId of contextMenu.markupIds ?? [id]) void handleRemoveHighlight(markId);
           }}
+          lookUpWord={lookUpWord}
+          onLookUp={lookUpWord ? () => openLookUp(lookUpWord, wordStrongs) : undefined}
+          onClearVerseMarks={
+            clearMarksInVerses && contextMenu.verses.length > 1
+              ? () => { void clearMarksInVerses(contextMenu.verses[0].verse_id, contextMenu.verses[contextMenu.verses.length - 1].verse_id); }
+              : undefined
+          }
           wordText={menuWord?.text}
           wordTabId={menuWord?.tabId}
           wordStrongs={wordStrongs}
@@ -453,6 +484,13 @@ const BiblePaneOverlays: React.FC<BiblePaneOverlaysProps> = ({
             setCopyOptionsDialog({
               visible: true,
               verses: contextMenu.verses
+            });
+          }}
+          onPrint={() => {
+            setCopyOptionsDialog({
+              visible: true,
+              verses: contextMenu.verses,
+              print: true
             });
           }}
           onOpenHighlightMenu={() => {
@@ -509,6 +547,7 @@ const BiblePaneOverlays: React.FC<BiblePaneOverlaysProps> = ({
             translation: activeTab?.abbreviation || ''
           }}
           bibleAbbreviation={activeTab?.abbreviation}
+          printFirst={copyOptionsDialog.print}
           onClose={() => setCopyOptionsDialog(null)}
         />
       )}
@@ -520,6 +559,11 @@ const BiblePaneOverlays: React.FC<BiblePaneOverlaysProps> = ({
           position={highlightMenu.position}
           onSelectHighlight={handleSelectHighlight}
           onCancel={handleCancelHighlightMenu}
+          onRemove={
+            highlightMenu.selection && removeMarksInWordSelection && selectionHasMarkup?.(highlightMenu.selection)
+              ? () => { void removeMarksInWordSelection(highlightMenu.selection!); }
+              : undefined
+          }
         />
       )}
 
@@ -531,6 +575,11 @@ const BiblePaneOverlays: React.FC<BiblePaneOverlaysProps> = ({
           onHighlight={handleFloatingHighlight}
           onUnderline={handleFloatingUnderline}
           onRemoveFormatting={handleFloatingRemoveFormatting}
+          onLookUp={(text) => {
+            const strongs = undefined;
+            dismissFloatingToolbar();
+            openLookUp(text, strongs);
+          }}
           onDismiss={dismissFloatingToolbar}
           /*
             "More..." is a handoff between two siblings: close the toolbar, open

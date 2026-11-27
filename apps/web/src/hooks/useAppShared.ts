@@ -152,14 +152,34 @@ export function useAppShared(providers: IDataProviders) {
         e.preventDefault();
         focusSearchField();
       }
-      // Ctrl+G / Cmd+G: focus search bar for quick verse jump
+      // Ctrl+G / Cmd+G: open the go-to-passage picker (book, chapter, verse); no open tab: focus search
       if ((e.ctrlKey || e.metaKey) && e.key === 'g') {
         e.preventDefault();
-        focusSearchField();
+        if (bibleStore.getActiveTab()) bibleStore.openBookPicker();
+        else focusSearchField();
       }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
+  }, []);
+
+  // Ctrl + mouse wheel over the Bible text changes the Bible text size instead of zooming the page.
+  // Native and non-passive: a passive listener cannot cancel the browser's own zoom. Throttled, because a
+  // trackpad pinch arrives as a burst of ctrl+wheel events.
+  useEffect(() => {
+    let last = -Infinity;
+    const onWheel = (e: WheelEvent) => {
+      if (!e.ctrlKey) return;
+      if (!(e.target instanceof Element) || !e.target.closest('.bible-content')) return;
+      e.preventDefault();
+      if (e.deltaY === 0) return;
+      const now = performance.now();
+      if (now - last < 60) return;
+      last = now;
+      settingsStore.setFontSize(settingsStore.fontSize + (e.deltaY < 0 ? 1 : -1));
+    };
+    document.addEventListener('wheel', onWheel, { passive: false });
+    return () => document.removeEventListener('wheel', onWheel);
   }, []);
 
   // Sync study store when study verse changes

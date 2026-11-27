@@ -809,13 +809,16 @@ CREATE TABLE memory_passage (
      added_at       INTEGER NOT NULL,
      answer_mode    TEXT,
      deleted_at     INTEGER,
-     recite_on      INTEGER NOT NULL DEFAULT 0
+     recite_on      INTEGER NOT NULL DEFAULT 0,
+     position       INTEGER
    );
 
 CREATE UNIQUE INDEX memory_passage_range_unique
      ON memory_passage (collection_id, module_id, start_verse_id, end_verse_id);
 
 CREATE INDEX memory_passage_deleted_at ON memory_passage (deleted_at);
+
+CREATE INDEX memory_passage_collection_position ON memory_passage (collection_id, position);
 
 CREATE TABLE memory_card (
      id                INTEGER PRIMARY KEY,

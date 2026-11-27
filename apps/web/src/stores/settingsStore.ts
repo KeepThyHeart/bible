@@ -6,6 +6,9 @@ import type { ModuleInfo } from '../types';
 import { watchSettingsStore } from '../modules/host/readerHooks';
 
 
+/** How many recently chosen Bible versions are remembered. */
+export const MAX_RECENT_BIBLE_VERSIONS = 5;
+
 /** Used only when there is no configured default and no installed Bible to name. */
 const LAST_RESORT_BIBLE = 'KJV';
 
@@ -78,6 +81,7 @@ export const DEFAULT_SETTINGS = {
   showCommentaryOverview: true,
   leftHandedMode: false,
   dismissedDisclaimerModules: [] as string[],
+  recentBibleVersions: [] as string[],
   // Owned by the settings registry (`settingsRegistry.ts`); read from there so there is one default.
   swipeChaptersEnabled: WEB_SETTINGS.defaultFor('swipeChaptersEnabled') as boolean,
   swipeChapterThresholdPx: WEB_SETTINGS.defaultFor('swipeChapterThresholdPx') as number,
@@ -153,7 +157,7 @@ function sanitizeStoredSize(range: { min: number; max: number }, stored: unknown
   return Number.isFinite(n) ? clampTo(range, n) : fallback;
 }
 
-class SettingsStore extends Store {
+export class SettingsStore extends Store {
   theme: ThemeName = DEFAULT_SETTINGS.theme;
   fontSchemeId = DEFAULT_SETTINGS.fontSchemeId;
   fontFamily = DEFAULT_SETTINGS.fontFamily;
@@ -175,6 +179,8 @@ class SettingsStore extends Store {
   leftHandedMode = DEFAULT_SETTINGS.leftHandedMode;
   /** Module abbreviations whose disclaimer banners the user has dismissed */
   dismissedDisclaimerModules: string[] = [...DEFAULT_SETTINGS.dismissedDisclaimerModules];
+  /** Bible versions the reader picked in the translation dialog, most recent first (per device). */
+  recentBibleVersions: string[] = [...DEFAULT_SETTINGS.recentBibleVersions];
   /*
    * The three swipe settings live in the settings registry (`settingsRegistry.ts`), which
    * owns their defaults, clamping and persistence. These getters keep the existing
@@ -218,6 +224,7 @@ class SettingsStore extends Store {
     this.showCommentaryOverview = DEFAULT_SETTINGS.showCommentaryOverview;
     this.leftHandedMode = DEFAULT_SETTINGS.leftHandedMode;
     this.dismissedDisclaimerModules = [...DEFAULT_SETTINGS.dismissedDisclaimerModules];
+    this.recentBibleVersions = [...DEFAULT_SETTINGS.recentBibleVersions];
     webSettings.reset(['swipeChaptersEnabled', 'swipeChapterThresholdPx', 'swipeCommentaryVerseThresholdPx']);
     this.interlinearLayout = DEFAULT_SETTINGS.interlinearLayout;
     this.fontSchemeId = DEFAULT_SETTINGS.fontSchemeId;
@@ -436,6 +443,18 @@ class SettingsStore extends Store {
     this.notify();
   }
 
+  /** Records a version the reader chose (never call for automatic opens). Most recent first, capped. */
+  recordRecentBibleVersion(abbreviation: string): void {
+    if (!abbreviation) return;
+    const lower = abbreviation.toLowerCase();
+    this.recentBibleVersions = [
+      abbreviation,
+      ...this.recentBibleVersions.filter(a => a.toLowerCase() !== lower),
+    ].slice(0, MAX_RECENT_BIBLE_VERSIONS);
+    this.save();
+    this.notify();
+  }
+
   isDisclaimerDismissed(module: string): boolean {
     return this.dismissedDisclaimerModules.includes(module);
   }
@@ -604,6 +623,7 @@ class SettingsStore extends Store {
         showCommentaryOverview: this.showCommentaryOverview,
         leftHandedMode: this.leftHandedMode,
         dismissedDisclaimerModules: this.dismissedDisclaimerModules,
+        recentBibleVersions: this.recentBibleVersions,
         // The swipe settings are written by the registry store, which merges into this blob.
         // Carry them over here so a save() that rewrites the blob does not drop them.
         swipeChaptersEnabled: this.swipeChaptersEnabled,
@@ -637,6 +657,9 @@ class SettingsStore extends Store {
         this.dismissedDisclaimerModules = Array.isArray(parsed.dismissedDisclaimerModules)
           ? parsed.dismissedDisclaimerModules
           : this.dismissedDisclaimerModules;
+        this.recentBibleVersions = Array.isArray(parsed.recentBibleVersions)
+          ? parsed.recentBibleVersions.filter((a: unknown): a is string => typeof a === 'string').slice(0, MAX_RECENT_BIBLE_VERSIONS)
+          : this.recentBibleVersions;
         this.interlinearLayout = parsed.interlinearLayout === 'stacked' || parsed.interlinearLayout === 'inline'
           ? parsed.interlinearLayout
           : this.interlinearLayout;

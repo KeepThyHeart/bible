@@ -27,3 +27,10 @@ export { toDigits } from './format';
 export { OSIS_IDS, osisId } from './canon';
 export { compileLocale, mergeLocaleData, ROOT_FORMAT, ROOT_SYNTAX, type CompiledLocale } from './compile';
 export { validateReferenceLocale, type LocaleValidationReport } from './validate';
+export {
+  parseReferenceList,
+  type ReferenceListError,
+  type ReferenceListItem,
+  type ReferenceListOptions,
+  type ReferenceListResult,
+} from './list';

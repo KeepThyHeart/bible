@@ -1,5 +1,6 @@
 import type { StateCreator } from 'zustand';
 import { VerseIdHelper } from '@bible/core';
+import { getPrivacyPrefs } from '../../helpers/privacyPrefs';
 import { bibleAPI } from '../../../services/electronAPI';
 import { updatePanelState } from '../../helpers/panelStateHelpers';
 import {
@@ -83,6 +84,20 @@ export const createSessionSlice: StateCreator<BibleState, [], [], SessionSlice> 
 
   loadSessionData: (raw, existingBiblePanelIds) => {
     const { panels, pending, report } = migrateBibleSession(raw, existingBiblePanelIds);
+
+    // Reading history is session-only unless the reader opted in (task 0224).
+    // A session saved by an older version still carries it: drop it here, so
+    // it neither shows up nor is written again. Each pane then starts with the
+    // single entry its current passage seeds (see `restorePanelFromSession`).
+    if (!getPrivacyPrefs().rememberReadingHistory) {
+      for (const [id, session] of Object.entries(panels)) {
+        panels[id] = {
+          ...session,
+          tab: { ...session.tab, history: [], historyIndex: -1 },
+          visitStack: undefined,
+        };
+      }
+    }
 
     set({
       sessionPanelStates: new Map(Object.entries(panels)),
