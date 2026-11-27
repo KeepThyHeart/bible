@@ -58,6 +58,12 @@ describe('parseAudioSiteConfig', () => {
     expect(cfg.engines[0].defaultVoices).toEqual({ en: voice.id });
   });
 
+  it('is idempotent: the client re-parsing what the server sent keeps the engines', () => {
+    const once = parseAudioSiteConfig({ tts: { engines: [{ id: 'piper', voices: [voice], defaultVoices: { en: voice.id } }] } });
+    expect(once.engines).toHaveLength(1);
+    expect(parseAudioSiteConfig(JSON.parse(JSON.stringify(once)))).toEqual(once);
+  });
+
   it('never returns a config whose engines list is shared with the input', () => {
     const raw = { tts: { engines: [{ id: 'piper', voices: [voice] }] } };
     const a = parseAudioSiteConfig(raw);

@@ -89,9 +89,12 @@ export function parseAudioSiteConfig(raw: unknown): AudioSiteConfig {
   const block = isObject(raw) ? raw : {};
   const base = normalizeBase(block.base) ?? DEFAULT_AUDIO_BASE;
   const tts = isObject(block.tts) ? block.tts : {};
+  // The operator's shape nests engines under `tts`; this function's own output (what the
+  // server sends in /api/config, parsed again by the client) has them at the top level.
+  const rawEngines = Array.isArray(tts.engines) ? tts.engines : Array.isArray(block.engines) ? block.engines : [];
   const engines: TtsEngineConfig[] = [];
   const seen = new Set<string>();
-  for (const e of Array.isArray(tts.engines) ? tts.engines : []) {
+  for (const e of rawEngines) {
     const engine = parseEngine(e, base);
     if (engine && !seen.has(engine.id)) {
       seen.add(engine.id);
