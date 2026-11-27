@@ -1,4 +1,5 @@
 import { useLayoutStore, type PanelContentType } from '../../stores/useLayoutStore';
+import { rightHandPosition } from '../../utils/rightHandGroup';
 
 /**
  * Panes that make up the workbench's right-hand group in the first-run layout
@@ -35,24 +36,6 @@ export function revealNotesPanel(): string | null {
     return panelId;
   }
 
-  return layout.addPanel('notes', undefined, 'Notes', rightHandPosition());
+  return layout.addPanel('notes', undefined, 'Notes', rightHandPosition(RIGHT_HAND_TYPES));
 }
 
-/**
- * Where a new Notes pane should go: as a tab inside the existing right-hand
- * group when there is one, otherwise let dockview place it (which drops it
- * beside the active panel).
- */
-function rightHandPosition(): Record<string, unknown> | undefined {
-  const layout = useLayoutStore.getState(); // allow-getstate: event handler - imperative panel lookup outside render
-  const api = layout.dockviewApi;
-  if (!api) return undefined;
-
-  for (const contentType of RIGHT_HAND_TYPES) {
-    for (const panel of layout.getPanelsByType(contentType)) {
-      const group = api.getPanel(panel.panelId)?.group;
-      if (group) return { referenceGroup: group, direction: 'within' };
-    }
-  }
-  return undefined;
-}

@@ -3,7 +3,7 @@ import { MemoryUserDb } from '../UserData/MemoryUserDb';
 import { UserDataReadingPlanStore } from './store';
 import { ReadingPlanService } from './service';
 import {
-  measurePace, planStats, reschedulePreview, scheduledDay, startDateFor, todayView, weekStrip,
+  agenda, agendaStartDate, measurePace, monthCalendar, planStats, weekRange, reschedulePreview, scheduledDay, startDateFor, todayView, weekStrip,
 } from './scheduler';
 import { chapterOf, chapterSpan, dueReadings, endsInChapter, focusDay, nextDueReading, todaysReadings } from './cursor';
 import { parsePlanFile, planFileName, serializePlanFile, MAX_PLAN_FILE_BYTES, PLAN_FILE_FORMAT } from './planFile';
@@ -76,10 +76,31 @@ describe('todayView focus (R3)', () => {
     expect(focusDay(v)).toBe(6);
   });
 
-  it('fixed rest day: upcoming is the first unread day after the scheduled day', () => {
-    const e = enrollment({ readingDays: [1, 2, 3, 4, 5] as Weekday[], startDate: '2026-10-05' });
+  it('fixed rest day while catching up: upcoming is the first unread day after the scheduled day', () => {
+    const e = enrollment({ readingDays: [1, 2, 3, 4, 5] as Weekday[], startDate: '2026-10-05', catchUp: { extraPerDay: 1 } });
     const v = todayView(plan, e, [1, 2, 3, 4, 6].map((d) => done(d)), '2026-10-10', 3); // day 5 missed, 6 done
     expect(v).toMatchObject({ day: null, restDay: true, upcomingDay: 7 });
+  });
+
+  it('fixed and behind: the oldest missed day stays the focus through the day, then today\'s day', () => {
+    const e = enrollment();
+    const today = '2026-10-05'; // day 5 scheduled; days 2 and 4 missed
+    const at = new Date(2026, 9, 5, 12, 0).toISOString();
+    const v = todayView(plan, e, [done(1), done(3)], today, 3);
+    expect(v).toMatchObject({ day: 2, focusKind: 'nextUnread', behindBy: 2, scheduledToday: 5 });
+    // Ticking day 2 today keeps it the focus (stable), day 4 is still missed.
+    const ticked2 = [done(1), done(3), { ...done(2), at }];
+    expect(todayView(plan, e, ticked2, today, 3)).toMatchObject({ day: 2, behindBy: 1 });
+    // Level again: the focus moves to today's own day.
+    const level = [...ticked2, { ...done(4), at }];
+    expect(todayView(plan, e, level, today, 3)).toMatchObject({ day: 5, focusKind: 'today', behindBy: 0 });
+  });
+
+  it('fixed and behind while catching up gradually: today\'s day stays the focus with the extras', () => {
+    const e = enrollment({ catchUp: { extraPerDay: 1 } });
+    const v = todayView(plan, e, [done(1), done(3)], '2026-10-05', 3);
+    expect(v).toMatchObject({ day: 5, focusKind: 'today', behindBy: 2 });
+    expect(v.catchUp?.days.map((d) => d.day)).toEqual([2]);
   });
 
   it('a completion with an invalid timestamp counts as before today', () => {
@@ -425,5 +446,96 @@ describe('plan file', () => {
     await expect(service.savePlan(parsePlanFile(JSON.stringify({
       format: PLAN_FILE_FORMAT, version: 1, name: 'x', days: [{ readings: [{ start: 5, end: 1 }] }],
     })))).rejects.toThrow(ReadingPlanDataError);
+  });
+});
+
+describe('agenda and monthCalendar', () => {
+  const one = (e: Enrollment, completions: Completion[] = [], p: PlanDefinition = plan) => [{ plan: p, enrollment: e, completions }];
+  const at = <T extends { date: string }>(cells: readonly T[], date: string) => cells.find((c) => c.date === date)!;
+  const days = (c: { entries: { day: number }[] }) => c.entries.map((x) => x.day);
+
+  it('the month grid is whole weeks, Monday first by default', () => {
+    const cells = monthCalendar(one(enrollment()), '2026-10', '2026-10-05', 3);
+    expect(cells[0].date).toBe('2026-09-28');
+    expect(cells.at(-1)!.date).toBe('2026-11-01');
+    expect(at(cells, '2026-09-30').inMonth).toBe(false);
+    expect(cells.filter((c) => c.today).map((c) => c.date)).toEqual(['2026-10-05']);
+    expect(monthCalendar(one(enrollment()), '2026-10', '2026-10-05', 3, 0)[0].date).toBe('2026-09-27');
+    expect(monthCalendar(one(enrollment()), '2026-13', '2026-10-05', 3)).toEqual([]);
+  });
+
+  it('fixed: done (even ahead), missed, due today, upcoming, rest and outside the plan', () => {
+    const e = enrollment({ readingDays: [1, 2, 3, 4, 5] as Weekday[] }); // Mon-Fri from Thu Oct 1
+    const cells = monthCalendar(one(e, [done(1, '2026-10-01'), done(6, '2026-10-05')]), '2026-10', '2026-10-05', 3);
+    expect(at(cells, '2026-09-30')).toMatchObject({ entries: [], state: 'none' });
+    expect(at(cells, '2026-10-01')).toMatchObject({ entries: [{ day: 1, state: 'done' }], state: 'done' });
+    expect(at(cells, '2026-10-02')).toMatchObject({ entries: [{ day: 2, state: 'missed' }], state: 'missed' });
+    expect(at(cells, '2026-10-03')).toMatchObject({ entries: [], state: 'rest' });
+    expect(at(cells, '2026-10-05')).toMatchObject({ entries: [{ day: 3, state: 'due' }], state: 'due' });
+    expect(at(cells, '2026-10-08')).toMatchObject({ entries: [{ day: 6, state: 'done' }], state: 'done' }); // read ahead
+    expect(days(at(cells, '2026-10-14'))).toEqual([10]);
+    expect(at(cells, '2026-10-15').state).toBe('none'); // after the end
+  });
+
+  it('flexible: finished days on the date they were read, today\'s day and later ones laid ahead (read or not)', () => {
+    const e = enrollment({ pacing: 'flexible', readingDays: [1, 2, 3, 4, 5] as Weekday[] });
+    // Days 1-2 read Oct 1; today (Mon Oct 5) the focus is day 3; day 5 was read ahead today.
+    const cells = monthCalendar(one(e, [done(1, '2026-10-01'), done(2, '2026-10-01'), done(5, '2026-10-05')]), '2026-10', '2026-10-05', 3);
+    expect(at(cells, '2026-10-01')).toMatchObject({ state: 'done' });
+    expect(days(at(cells, '2026-10-01'))).toEqual([1, 2]);
+    expect(at(cells, '2026-10-02')).toMatchObject({ entries: [], state: 'none' }); // nothing read: never missed
+    expect(at(cells, '2026-10-03').state).toBe('rest');
+    expect(at(cells, '2026-10-05')).toMatchObject({ entries: [{ day: 3, state: 'due' }] });
+    expect(at(cells, '2026-10-06')).toMatchObject({ entries: [{ day: 4, state: 'upcoming' }] });
+    // The day read ahead keeps its own date, with its check.
+    expect(at(cells, '2026-10-07')).toMatchObject({ entries: [{ day: 5, state: 'done' }], state: 'done' });
+    expect(days(at(cells, '2026-10-14'))).toEqual([10]);
+    expect(at(cells, '2026-10-15').state).toBe('none');
+  });
+
+  it('flexible on a rest day: today\'s day goes to the next reading day', () => {
+    const e = enrollment({ pacing: 'flexible', readingDays: [1, 2, 3, 4, 5] as Weekday[] });
+    const cells = monthCalendar(one(e), '2026-10', '2026-10-03', 3); // Saturday
+    expect(at(cells, '2026-10-03')).toMatchObject({ entries: [], state: 'rest', today: true });
+    expect(days(at(cells, '2026-10-05'))).toEqual([1]);
+  });
+
+  it('a week and the month agree date for date', () => {
+    for (const e of [enrollment(), enrollment({ pacing: 'flexible' })]) {
+      const comps = [done(1, '2026-10-01'), done(4, '2026-10-02')];
+      const month = monthCalendar(one(e, comps), '2026-10', '2026-10-05', 3);
+      const w = weekRange('2026-10-05');
+      for (const d of agenda(one(e, comps), w.from, w.to, '2026-10-05', 3)) {
+        const { inMonth: _ignored, ...cell } = at(month, d.date);
+        expect(cell).toEqual(d);
+      }
+    }
+  });
+
+  it('several plans share one calendar: missed wins, then due; done only when all are', () => {
+    const a = enrollment({ id: 'a' });
+    const b = enrollment({ id: 'b', pacing: 'flexible' });
+    const ticks = (id: string, day: number, date: string): Completion => ({ ...done(day, date), enrollmentId: id });
+    const inputs = [
+      { plan, enrollment: a, completions: [ticks('a', 1, '2026-10-01')] },
+      { plan, enrollment: b, completions: [ticks('b', 1, '2026-10-01'), ticks('b', 2, '2026-10-02')] },
+    ];
+    const cells = agenda(inputs, '2026-10-01', '2026-10-04', '2026-10-03', 3);
+    expect(at(cells, '2026-10-01')).toMatchObject({ state: 'done', entries: [{ enrollmentId: 'a', day: 1 }, { enrollmentId: 'b', day: 1 }] });
+    expect(at(cells, '2026-10-02')).toMatchObject({ state: 'missed' }); // a's day 2 missed, b's day 2 read
+    expect(at(cells, '2026-10-03')).toMatchObject({ state: 'due', entries: [{ enrollmentId: 'a', day: 3 }, { enrollmentId: 'b', day: 3 }] });
+    expect(at(cells, '2026-10-04')).toMatchObject({ state: 'upcoming' });
+  });
+
+  it('the agenda opens on the earliest unread date, at most a week back', () => {
+    const long = { ...plan, days: Array.from({ length: 30 }, (_, i) => ({ readings: [{ start: vid(1, i + 1, 1), end: vid(1, i + 1, 2) }] })) };
+    // Fixed from Oct 1, nothing read; today Oct 20: missed days go back to Oct 1, but the agenda opens on Oct 13.
+    expect(agendaStartDate(one(enrollment(), [], long), '2026-10-20', 3)).toBe('2026-10-13');
+    // Read up to day 17 (Oct 17): opens on Oct 18.
+    const read = Array.from({ length: 10 }, (_, i) => done(i + 1, '2026-10-01'));
+    const upTo17 = Array.from({ length: 17 }, (_, i) => done(i + 1, '2026-10-01'));
+    expect(agendaStartDate(one(enrollment(), upTo17, long), '2026-10-20', 3)).toBe('2026-10-18');
+    // All caught up (flexible): today.
+    expect(agendaStartDate(one(enrollment({ pacing: 'flexible' }), read), '2026-10-20', 3)).toBe('2026-10-20');
   });
 });

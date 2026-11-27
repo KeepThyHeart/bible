@@ -421,7 +421,7 @@ const ParallelBibleView: React.FC<ParallelBibleViewProps> = ({ panelId }) => {
                           */
                           <button
                             type="button"
-                            className={`flex-shrink-0 ${verseGutterClass(verseLabelMode, 'parallel')} rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-accent`}
+                            className={`flex-shrink-0 self-start ${verseGutterClass(verseLabelMode, 'parallel')} rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-accent`}
                             aria-label={t(
                               'biblePane.selectVerse',
                               { book: getBookName(verse.book_number), chapter: verse.chapter, verse: verse.verse, },

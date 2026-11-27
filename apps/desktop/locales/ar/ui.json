@@ -2709,5 +2709,8 @@
   "passageDialog.printShowTitle": "طباعة العنوان",
   "passageDialog.printMoreOptions": "مزيد من الخيارات…",
   "passageDialog.printThisFormat": "طباعة بهذا التنسيق…",
-  "passageDialog.printSavePdf": "حفظ كملف PDF…"
+  "passageDialog.printSavePdf": "حفظ كملف PDF…",
+  "readingPlans.settings.weekStart": "يبدأ الأسبوع يوم",
+  "readingPlans.settings.weekStartMonday": "الاثنين",
+  "readingPlans.settings.weekStartSunday": "الأحد"
 }

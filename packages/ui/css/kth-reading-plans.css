@@ -1,4 +1,5 @@
-/* KTH reading-plan components (ReadingPlanTodayCard, DayGrid, Library, WeekdayPicker, DayEditor, AutoFillForm). --kth-* tokens only. */
+/* KTH reading-plan components (ReadingPlanTodayCard, DayGrid, Library, WeekdayPicker, DayEditor, AutoFillForm,
+   WeekStrip, MonthCalendar). --kth-* tokens only. */
 
 .kth-rp-card { display: flex; flex-direction: column; gap: var(--kth-space-2); padding: var(--kth-space-3); border: 1px solid var(--kth-border); border-radius: var(--kth-radius); background: var(--kth-surface); color: var(--kth-text); font-size: var(--kth-font-size-ui); }
 .kth-rp-card__header { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--kth-space-2); }
@@ -91,3 +92,115 @@
 .kth-rp-autofill__error { margin: 0; color: var(--kth-text-muted); }
 /* Stays in view at the bottom of a scrolling dialog body (it cancels that body's bottom padding). */
 .kth-rp-autofill__actions { position: sticky; inset-block-end: calc(-1 * var(--kth-space-4)); display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--kth-space-2); margin-block-end: calc(-1 * var(--kth-space-4)); padding-block: var(--kth-space-3); border-block-start: 1px solid var(--kth-border); background: var(--kth-surface-raised); }
+
+/* --- Week strip (ul.kth-weekstrip > li.kth-weekstrip__day) ------------------------------------------------ */
+.kth-weekstrip { display: flex; gap: var(--kth-space-1); margin: 0; padding: 0; list-style: none; }
+.kth-weekstrip__day {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--kth-space-1);
+  font-size: 0.85em;
+}
+.kth-weekstrip__name { color: var(--kth-text-muted); }
+
+/* --- Week strip box (span.kth-weekbox[data-state]; also drawn in each month-calendar cell) ----------------- */
+.kth-weekbox {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  inline-size: var(--_kth-weekbox-size, 1.4rem);
+  block-size: var(--_kth-weekbox-size, 1.4rem);
+  border: 2px solid var(--kth-border-strong);
+  border-radius: 4px;
+  background: var(--kth-input-bg);
+  color: var(--kth-text-muted);
+  font-weight: 700;
+  line-height: 1;
+}
+.kth-weekbox > svg { max-inline-size: 100%; max-block-size: 100%; }
+.kth-weekbox[data-state="read"] { border-color: var(--kth-success); background-color: var(--kth-success); color: var(--kth-accent-text); }
+.kth-weekbox[data-state="unread"][data-today="true"] { border-color: var(--kth-accent); }
+.kth-weekbox[data-state="rest"] { border-style: dashed; background: transparent; }
+.kth-weekbox[data-state="future"] { border-width: 1px; background: transparent; }
+.kth-weekbox[data-state="missed"] {
+  border-color: var(--kth-warning);
+  background-color: color-mix(in srgb, var(--kth-warning) 22%, transparent);
+  color: var(--kth-warning);
+}
+.kth-weekbox[data-state="partial"] {
+  border-color: var(--kth-success);
+  background-image: linear-gradient(to top, color-mix(in srgb, var(--kth-success) 45%, transparent) 50%, transparent 50%);
+}
+.kth-weekbox[data-state="none"] { visibility: hidden; }
+
+/* --- Month calendar (div.kth-rpcal[data-size] > .kth-rpcal__head + table.kth-rpcal__grid) ---------------------
+   Sizes are private knobs on the root, so the compact variant (data-size="compact", for a calendar beside a side
+   panel) only re-sets them: smaller cells, numerals and boxes, a narrower grid. */
+.kth-rpcal {
+  --_kth-rpcal-max: 30rem;
+  --_kth-rpcal-gap: 3px;
+  --_kth-rpcal-cell-pad: 0.3rem;
+  --_kth-rpcal-font: 0.9em;
+  display: flex;
+  flex-direction: column;
+  gap: var(--kth-space-2);
+}
+.kth-rpcal[data-size="compact"] {
+  --_kth-rpcal-max: 21rem;
+  --_kth-rpcal-gap: 2px;
+  --_kth-rpcal-cell-pad: 0.15rem;
+  --_kth-rpcal-font: 0.85em;
+  --_kth-weekbox-size: 1.05rem;
+  --_kth-rpcal-month-min: 7rem;
+  gap: var(--kth-space-1);
+  font-size: 0.9em;
+}
+.kth-rpcal[data-size="week"] {
+  --_kth-rpcal-max: 40rem;
+  --_kth-rpcal-gap: 4px;
+  --_kth-rpcal-cell-pad: 0.75rem;
+  --_kth-rpcal-font: 1em;
+  --_kth-rpcal-month-min: 12rem;
+}
+.kth-rpcal[data-size="week"] .kth-rpcal__weekday { font-size: 0.9em; font-weight: 600; color: var(--kth-text); }
+.kth-rpcal[data-size="week"] .kth-rpcal__mark { font-size: 1em; }
+.kth-rpcal__head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--kth-space-2); }
+.kth-rpcal__month { font-weight: 600; min-inline-size: var(--_kth-rpcal-month-min, 9rem); text-align: center; }
+.kth-rpcal__nav { min-inline-size: 2rem; font-size: 1.1em; line-height: 1; }
+.kth-rpcal__grid { inline-size: 100%; max-inline-size: var(--_kth-rpcal-max); border-collapse: separate; border-spacing: var(--_kth-rpcal-gap); table-layout: fixed; }
+.kth-rpcal__weekday { font-size: var(--_kth-rpcal-font); font-weight: 500; color: var(--kth-text-muted); padding-block-end: var(--kth-space-1); }
+.kth-rpcal__td { padding: 0; }
+.kth-rpcal__cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  inline-size: 100%;
+  padding: var(--_kth-rpcal-cell-pad) 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--kth-text);
+  font: inherit;
+  font-size: var(--_kth-rpcal-font);
+  cursor: pointer;
+}
+.kth-rpcal__cell:hover { background: var(--kth-surface-raised); }
+.kth-rpcal__cell:focus-visible { outline: 2px solid var(--kth-focus); outline-offset: 1px; }
+.kth-rpcal__cell[data-in-month="false"] { opacity: 0.45; }
+.kth-rpcal__cell[data-today="true"] { --_kth-rpcal-num-color: var(--kth-accent); --_kth-rpcal-num-weight: 700; box-shadow: inset 0 0 0 2px var(--kth-accent); }
+/* Selected: a ring in text colour (the cell keeps its state tint); today keeps its accent number. */
+.kth-rpcal__cell[data-selected="true"] { box-shadow: inset 0 0 0 2px var(--kth-text); }
+.kth-rpcal__num { color: var(--_kth-rpcal-num-color, inherit); font-weight: var(--_kth-rpcal-num-weight, inherit); }
+/* The state of a date: a soft tint of the whole cell plus a small mark under the number (never a box: the cell is
+   not a checkbox). */
+.kth-rpcal__mark { min-block-size: 1em; line-height: 1; font-size: 0.85em; font-weight: 700; color: var(--_kth-rpcal-mark-color, var(--kth-text-muted)); }
+.kth-rpcal__cell[data-state="done"] { background: color-mix(in srgb, var(--kth-success) 20%, transparent); --_kth-rpcal-mark-color: var(--kth-success); }
+.kth-rpcal__cell[data-state="partial"] { background: color-mix(in srgb, var(--kth-success) 9%, transparent); --_kth-rpcal-mark-color: var(--kth-success); }
+.kth-rpcal__cell[data-state="missed"] { background: color-mix(in srgb, var(--kth-warning) 22%, transparent); --_kth-rpcal-mark-color: var(--kth-warning); }
+.kth-rpcal__cell[data-state="due"] { --_kth-rpcal-mark-color: var(--kth-accent); }
+.kth-rpcal__cell[data-state="upcoming"] { --_kth-rpcal-mark-color: var(--kth-border-strong); }
+.kth-rpcal__cell[data-state="rest"] { --_kth-rpcal-mark-color: var(--kth-border-strong); }

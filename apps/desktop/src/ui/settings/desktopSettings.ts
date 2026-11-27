@@ -21,7 +21,7 @@ import {
   type SettingsStoragePort,
   type AppSwitcherMode,
 } from '@bible/core/browser';
-import { usePreferencesStore, type ReadingPlanOpenIn } from '../stores/usePreferencesStore';
+import { usePreferencesStore, type ReadingPlanOpenIn, type ReadingPlanWeekStart } from '../stores/usePreferencesStore';
 import { modulePoints } from '../modules/moduleHost';
 
 const DESKTOP_OWN_SETTINGS = defineSettings([
@@ -42,6 +42,7 @@ const DESKTOP_OWN_SETTINGS = defineSettings([
     default: 3,
     min: 0,
     max: 12,
+    widget: 'hour',
     scope: 'device',
     group: 'readingPlans',
     labelKey: 'readingPlans.settings.rolloverHour',
@@ -71,6 +72,20 @@ const DESKTOP_OWN_SETTINGS = defineSettings([
     valueLabelKeys: {
       tab: 'readingPlans.settings.openInTab',
       current: 'readingPlans.settings.openInCurrent',
+    },
+  },
+  {
+    key: 'readingPlanWeekStart',
+    type: 'enum',
+    values: ['sunday', 'monday'],
+    default: 'sunday',
+    scope: 'device',
+    group: 'readingPlans',
+    labelKey: 'readingPlans.settings.weekStart',
+    label: 'Weeks start on',
+    valueLabelKeys: {
+      monday: 'readingPlans.settings.weekStartMonday',
+      sunday: 'readingPlans.settings.weekStartSunday',
     },
   },
   {
@@ -144,6 +159,7 @@ export const preferencesStoragePort: SettingsStoragePort = {
     readingPlanRolloverHour: usePreferencesStore.getState().readingPlanRolloverHour,
     readingPlanShowStreak: usePreferencesStore.getState().readingPlanShowStreak,
     readingPlanOpenIn: usePreferencesStore.getState().readingPlanOpenIn,
+    readingPlanWeekStart: usePreferencesStore.getState().readingPlanWeekStart,
     appRailLabels: usePreferencesStore.getState().appRailLabels,
     appSwitcher: usePreferencesStore.getState().appSwitcher,
     appOrder: usePreferencesStore.getState().appOrder,
@@ -181,6 +197,9 @@ export const preferencesStoragePort: SettingsStoragePort = {
       if (change.key === 'readingPlanOpenIn' && usePreferencesStore.getState().readingPlanOpenIn !== change.value) {
         usePreferencesStore.getState().setReadingPlanOpenIn(change.value as ReadingPlanOpenIn);
       }
+      if (change.key === 'readingPlanWeekStart' && usePreferencesStore.getState().readingPlanWeekStart !== change.value) {
+        usePreferencesStore.getState().setReadingPlanWeekStart(change.value as ReadingPlanWeekStart);
+      }
       if (change.key === 'appRailLabels' && usePreferencesStore.getState().appRailLabels !== change.value) {
         usePreferencesStore.getState().setAppRailLabels(change.value as boolean);
       }
@@ -201,6 +220,7 @@ export function getDesktopSettingsStore(): SettingsStore {
       store!.set('readingPlanRolloverHour', state.readingPlanRolloverHour);
       store!.set('readingPlanShowStreak', state.readingPlanShowStreak);
       store!.set('readingPlanOpenIn', state.readingPlanOpenIn);
+      store!.set('readingPlanWeekStart', state.readingPlanWeekStart);
       store!.set('appRailLabels', state.appRailLabels);
       store!.set('appSwitcher', state.appSwitcher);
       store!.set('appOrder', state.appOrder);

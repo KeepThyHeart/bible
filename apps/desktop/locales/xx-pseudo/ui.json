@@ -2695,5 +2695,8 @@
   "passageDialog.printShowTitle": "⟦Þŕîñţ ţĥé ţîţļé ····⟧",
   "passageDialog.printMoreOptions": "⟦Ṁøŕé øþţîøñš… ···⟧",
   "passageDialog.printThisFormat": "⟦Þŕîñţ ţĥîš ƒøŕɱåţ… ·····⟧",
-  "passageDialog.printSavePdf": "⟦Šåṽé åš ÞÐƑ… ···⟧"
+  "passageDialog.printSavePdf": "⟦Šåṽé åš ÞÐƑ… ···⟧",
+  "readingPlans.settings.weekStart": "⟦Ŵééķš šţåŕţ øñ ····⟧",
+  "readingPlans.settings.weekStartMonday": "⟦Ṁøñðåý ··⟧",
+  "readingPlans.settings.weekStartSunday": "⟦Šüñðåý ··⟧"
 }

@@ -2668,6 +2668,7 @@
   "apps.rail.showLabels": "‏Show labels‏",
   "apps.switcher.open": "‏Switch app‏",
   "settings.apps.railLabels": "‏Show labels in the app rail‏",
+  "apps.sheet.close": "‏Close‏",
   "passageDialog.printOptions": "‏Print options‏",
   "passageDialog.printLayout": "‏Print layout‏",
   "passageDialog.printLayoutNumbered": "‏Numbered verses‏",
@@ -2694,5 +2695,8 @@
   "passageDialog.printShowTitle": "‏Print the title‏",
   "passageDialog.printMoreOptions": "‏More options…‏",
   "passageDialog.printThisFormat": "‏Print this format…‏",
-  "passageDialog.printSavePdf": "‏Save as PDF…‏"
+  "passageDialog.printSavePdf": "‏Save as PDF…‏",
+  "readingPlans.settings.weekStart": "‏Weeks start on‏",
+  "readingPlans.settings.weekStartMonday": "‏Monday‏",
+  "readingPlans.settings.weekStartSunday": "‏Sunday‏"
 }

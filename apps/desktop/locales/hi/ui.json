@@ -2709,5 +2709,8 @@
   "passageDialog.printShowTitle": "शीर्षक प्रिंट करें",
   "passageDialog.printMoreOptions": "अधिक विकल्प…",
   "passageDialog.printThisFormat": "इस प्रारूप में प्रिंट करें…",
-  "passageDialog.printSavePdf": "PDF के रूप में सहेजें…"
+  "passageDialog.printSavePdf": "PDF के रूप में सहेजें…",
+  "readingPlans.settings.weekStart": "सप्ताह शुरू होता है",
+  "readingPlans.settings.weekStartMonday": "सोमवार",
+  "readingPlans.settings.weekStartSunday": "रविवार"
 }

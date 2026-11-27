@@ -218,6 +218,10 @@ interface PreferencesState {
   readingPlanShowStreak: boolean;
   /** Where a plan reading opens: a dedicated reading tab, or the current Bible tab (task 0222 R3-7). */
   readingPlanOpenIn: ReadingPlanOpenIn;
+  /** The first day of the week in the Reading plans Week and Month views. */
+  readingPlanWeekStart: ReadingPlanWeekStart;
+  /** The Reading plans Agenda view last chosen (List, Week or Month); it opens there next time. */
+  readingPlanAgendaView: ReadingPlanAgendaView;
   /** Show short app names under the rail icons (task 0222 R3-12). */
   appRailLabels: boolean;
   /** The Go to Passage picker goes on to a verse grid after the chapter ("Also choose a verse"). Default off. */
@@ -246,6 +250,8 @@ interface PreferencesState {
   setReadingPlanRolloverHour: (hour: number) => void;
   setReadingPlanShowStreak: (show: boolean) => void;
   setReadingPlanOpenIn: (where: ReadingPlanOpenIn) => void;
+  setReadingPlanWeekStart: (day: ReadingPlanWeekStart) => void;
+  setReadingPlanAgendaView: (view: ReadingPlanAgendaView) => void;
   setAppRailLabels: (show: boolean) => void;
   setPickerVerseStep: (on: boolean) => void;
   setAppSwitcher: (mode: AppSwitcherMode) => void;
@@ -275,6 +281,8 @@ interface PreferencesState {
     readingPlanRolloverHour?: number;
     readingPlanShowStreak?: boolean;
     readingPlanOpenIn?: unknown;
+    readingPlanWeekStart?: unknown;
+    readingPlanAgendaView?: unknown;
     appRailLabels?: unknown;
     pickerVerseStep?: unknown;
     appSwitcher?: unknown;
@@ -295,6 +303,8 @@ interface PreferencesState {
     readingPlanRolloverHour: number;
     readingPlanShowStreak: boolean;
     readingPlanOpenIn: ReadingPlanOpenIn;
+    readingPlanWeekStart: ReadingPlanWeekStart;
+    readingPlanAgendaView: ReadingPlanAgendaView;
     appRailLabels: boolean;
     pickerVerseStep: boolean;
     appSwitcher: AppSwitcherMode;
@@ -323,6 +333,9 @@ function sanitizeIdList(raw: unknown): string[] {
 
 /** Where a plan reading opens (task 0222 R3-7). */
 export type ReadingPlanOpenIn = 'tab' | 'current';
+export type ReadingPlanWeekStart = 'monday' | 'sunday';
+export type ReadingPlanAgendaView = 'list' | 'week' | 'month';
+const toAgendaView = (v: unknown): ReadingPlanAgendaView => (v === 'week' || v === 'month' ? v : 'list');
 
 export type ScrollbarSize = 'standard' | 'large';
 
@@ -531,6 +544,8 @@ export const usePreferencesStore = create<PreferencesState>((set, get) => ({
   readingPlanRolloverHour: 3,
   readingPlanShowStreak: false,
   readingPlanOpenIn: 'tab',
+  readingPlanWeekStart: 'sunday',
+  readingPlanAgendaView: 'list',
   appRailLabels: true,
   pickerVerseStep: false,
   appSwitcher: 'auto',
@@ -591,6 +606,16 @@ export const usePreferencesStore = create<PreferencesState>((set, get) => ({
 
   setReadingPlanOpenIn: (where: ReadingPlanOpenIn) => {
     set({ readingPlanOpenIn: where === 'current' ? 'current' : 'tab' });
+    markSessionDirty();
+  },
+
+  setReadingPlanAgendaView: (view: ReadingPlanAgendaView) => {
+    set({ readingPlanAgendaView: toAgendaView(view) });
+    markSessionDirty();
+  },
+
+  setReadingPlanWeekStart: (day: ReadingPlanWeekStart) => {
+    set({ readingPlanWeekStart: day === 'monday' ? 'monday' : 'sunday' });
     markSessionDirty();
   },
 
@@ -691,6 +716,8 @@ export const usePreferencesStore = create<PreferencesState>((set, get) => ({
       : 3;
     const readingPlanShowStreak = typeof data.readingPlanShowStreak === 'boolean' ? data.readingPlanShowStreak : false;
     const readingPlanOpenIn: ReadingPlanOpenIn = data.readingPlanOpenIn === 'current' ? 'current' : 'tab';
+    const readingPlanWeekStart: ReadingPlanWeekStart = data.readingPlanWeekStart === 'monday' ? 'monday' : 'sunday';
+    const readingPlanAgendaView = toAgendaView(data.readingPlanAgendaView);
     const appRailLabels = typeof data.appRailLabels === 'boolean' ? data.appRailLabels : true;
     const pickerVerseStep = data.pickerVerseStep === true;
 
@@ -707,7 +734,7 @@ export const usePreferencesStore = create<PreferencesState>((set, get) => ({
     set({
       theme, globalFontScale, uiControlFontSize, typography, advancedPaneManagerEnabled,
       searchResultsPlacement, reopenSearchTabs, rememberReadingHistory,
-      readingPlanRolloverHour, readingPlanShowStreak, readingPlanOpenIn, appRailLabels, pickerVerseStep,
+      readingPlanRolloverHour, readingPlanShowStreak, readingPlanOpenIn, readingPlanWeekStart, readingPlanAgendaView, appRailLabels, pickerVerseStep,
       appSwitcher, scrollbarSize, appOrder, appHidden, recentBibleVersions,
     });
     applyThemeToDOM(theme);
@@ -722,13 +749,13 @@ export const usePreferencesStore = create<PreferencesState>((set, get) => ({
     const {
       theme, globalFontScale, uiControlFontSize, typography, advancedPaneManagerEnabled,
       searchResultsPlacement, reopenSearchTabs, rememberReadingHistory,
-      readingPlanRolloverHour, readingPlanShowStreak, readingPlanOpenIn, appRailLabels, pickerVerseStep,
+      readingPlanRolloverHour, readingPlanShowStreak, readingPlanOpenIn, readingPlanWeekStart, readingPlanAgendaView, appRailLabels, pickerVerseStep,
       appSwitcher, scrollbarSize, appOrder, appHidden, recentBibleVersions,
     } = get();
     return {
       theme, globalFontScale, uiControlFontSize, typography, advancedPaneManagerEnabled,
       searchResultsPlacement, reopenSearchTabs, rememberReadingHistory,
-      readingPlanRolloverHour, readingPlanShowStreak, readingPlanOpenIn, appRailLabels, pickerVerseStep,
+      readingPlanRolloverHour, readingPlanShowStreak, readingPlanOpenIn, readingPlanWeekStart, readingPlanAgendaView, appRailLabels, pickerVerseStep,
       appSwitcher, scrollbarSize, appOrder, appHidden, recentBibleVersions,
     };
   }

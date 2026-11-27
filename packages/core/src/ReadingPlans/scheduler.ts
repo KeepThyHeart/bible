@@ -112,10 +112,15 @@ export interface TodayView {
   /** Fixed pacing: the scheduled period has ended with days still unread. */
   pastEnd?: boolean;
   /**
-   * fixed: 'today' (scheduled today), 'nextUnread' (pastEnd), 'upcoming' (rest day / not started);
-   * flexible: 'current'; null when completed.
+   * fixed: 'today' (scheduled today), 'nextUnread' (behind and not catching up, or pastEnd), 'upcoming' (rest day /
+   * not started); flexible: 'current'; null when completed.
    */
   focusKind: FocusKind | null;
+  /**
+   * Fixed pacing: the plan day scheduled for today when it is a reading day within the plan, else null. Differs from
+   * `day` when the reader is behind and the focus is the oldest missed day instead.
+   */
+  scheduledToday?: number | null;
   /** Fixed rest day or not started: the next plan day due. */
   upcomingDay: number | null;
   upcomingDate: IsoDate | null;
@@ -209,7 +214,10 @@ export function todayView(
   }
   let aheadBy = 0;
   for (let d = scheduled + 1; d <= dayCount && isDayDone(plan, progress, d); d++) aheadBy++;
-  const day = pastEnd ? (startFirstUnread ?? firstUnread) : restDay ? null : scheduled;
+  // Behind (and not catching up gradually): the focus is the oldest day missed at the start of today, so the reader
+  // goes on in order instead of skipping ahead. It holds while missed days remain, then moves to today's own day.
+  const behindFocus = !pastEnd && !e.catchUp && missedDays.length > 0 ? (missedAtStart[0] ?? missedDays[0]) : null;
+  const day = pastEnd ? (startFirstUnread ?? firstUnread) : behindFocus ?? (restDay ? null : scheduled);
   const dayDone = day !== null && isDayDone(plan, progress, day);
   const behindBy = missedDays.length;
   const quota = e.catchUp && !pastEnd ? missedAtStart.filter((d) => d !== day).slice(0, e.catchUp.extraPerDay) : [];
@@ -225,7 +233,7 @@ export function todayView(
     upcomingDay = after ?? firstUnread;
     upcomingDate = dateForDay(e, upcomingDay);
   }
-  const focusKind: FocusKind = pastEnd ? 'nextUnread' : day === null ? 'upcoming' : 'today';
+  const focusKind: FocusKind = pastEnd || behindFocus !== null ? 'nextUnread' : day === null ? 'upcoming' : 'today';
   const readings = readingsOf(plan, progress, day);
   const dueUnread = !restDay
     && (readings.some((r) => !r.done) || (catchUp?.days.some((c) => c.readings.some((r) => !r.done)) ?? false));
@@ -244,6 +252,7 @@ export function todayView(
     upcomingDate,
     catchUp,
     dueUnread,
+    scheduledToday: !pastEnd && !restDay ? scheduled : null,
     ...(pastEnd ? { pastEnd: true } : {}),
   };
 }
@@ -297,6 +306,195 @@ export function weekStrip(
     out.push({ date, weekday: weekdayOf(date), state, today: date === today });
   }
   return out;
+}
+
+/**
+ * How one plan day stands on one date: `done` (every reading ticked), `partial` (some ticked), `missed` (fixed: an
+ * earlier date, not finished), `due` (today, not finished), `upcoming` (a later date, nothing ticked).
+ */
+export type AgendaDayState = 'done' | 'partial' | 'missed' | 'due' | 'upcoming';
+
+/** How a whole date stands: the worst of its entries, or `rest` / `none` when it has none. */
+export type AgendaDateState = AgendaDayState | 'rest' | 'none';
+
+/** One plan day on one date. */
+export interface AgendaEntry {
+  enrollmentId: string;
+  day: number;
+  state: AgendaDayState;
+}
+
+/** One date of the agenda: every plan day that belongs to it, across the plans given. */
+export interface AgendaDate {
+  date: IsoDate;
+  weekday: Weekday;
+  today: boolean;
+  /** In plan order (as given), then day order. */
+  entries: AgendaEntry[];
+  /**
+   * `missed` if any entry is missed, else `due`, else `partial` (some but not all read), else `done` (all read), else
+   * `upcoming`. With no entries: `rest` when every plan running on that date rests on it, else `none`.
+   */
+  state: AgendaDateState;
+}
+
+/** One plan as the agenda needs it. */
+export interface AgendaInput {
+  plan: PlanDefinition;
+  enrollment: Enrollment;
+  completions: readonly Completion[];
+}
+
+/**
+ * The plan days of one plan on each date from `from` to `to` (inclusive), and the dates it rests on.
+ * Fixed: each reading date carries its scheduled day. Flexible (no dates): a day before today's day sits on the date
+ * it was finished (bulk marks have no date and are left out); today's day and every later day, read or not, are laid
+ * one per reading day from today on, so a day read ahead keeps its place. A paused or finished flexible plan lays
+ * nothing ahead.
+ */
+export function planDates(
+  input: AgendaInput, from: IsoDate, to: IsoDate, today: IsoDate, rolloverHour: number,
+): { days: Map<IsoDate, number[]>; rest: Set<IsoDate> } {
+  const { plan, enrollment: e, completions } = input;
+  const days = new Map<IsoDate, number[]>();
+  const rest = new Set<IsoDate>();
+  const add = (date: IsoDate, day: number) => {
+    if (date < from || date > to) return;
+    const list = days.get(date);
+    if (list) { if (!list.includes(day)) list.push(day); } else days.set(date, [day]);
+  };
+  const dayCount = plan.days.length;
+  if (dayCount === 0) return { days, rest };
+  if (e.pacing === 'fixed') {
+    const end = dateForDay(e, dayCount);
+    const first = from > e.startDate ? from : e.startDate;
+    const last = to < end ? to : end;
+    for (let date = first; date <= last; date = addDays(date, 1)) {
+      if (isReadingDay(e, date)) add(date, scheduledDay(e, date)); else rest.add(date);
+    }
+    return { days, rest };
+  }
+  const view = todayView(plan, e, completions, today, rolloverHour);
+  const focus = view.day;
+  const progress = indexCompletions(completions, e.id);
+  // The date each day was finished on: the latest dated tick of its readings.
+  const finishedOn = new Map<number, IsoDate>();
+  for (const c of completions) {
+    if (c.enrollmentId !== e.id || c.via === 'bulk') continue;
+    const t = new Date(c.at);
+    if (Number.isNaN(t.getTime())) continue;
+    const date = readingDate(t, rolloverHour);
+    const prev = finishedOn.get(c.day);
+    if (prev === undefined || date > prev) finishedOn.set(c.day, date);
+  }
+  for (const [day, date] of finishedOn) {
+    if ((focus === null || day < focus) && isDayDone(plan, progress, day)) add(date, day);
+  }
+  if (focus !== null && e.status !== 'paused') {
+    // Today's day on today (or the next reading day), then one day per reading day.
+    for (let date = today, day = focus; day <= dayCount && date <= to; date = addDays(date, 1)) {
+      if (isReadingDay(e, date)) add(date, day++);
+    }
+  }
+  if (!view.completed) {
+    const first = from > e.startDate ? from : e.startDate;
+    for (let date = first; date <= to; date = addDays(date, 1)) if (!isReadingDay(e, date)) rest.add(date);
+  }
+  return { days, rest };
+}
+
+/**
+ * Every date from `from` to `to` (inclusive) with the plan days of all the given plans on it: the one model the
+ * list, week and month views are drawn from, so they always agree.
+ */
+export function agenda(
+  inputs: readonly AgendaInput[], from: IsoDate, to: IsoDate, today: IsoDate, rolloverHour: number,
+): AgendaDate[] {
+  if (parseIsoDate(from) === null || parseIsoDate(to) === null || from > to) return [];
+  const perPlan = inputs.map((input) => ({
+    input,
+    progress: indexCompletions(input.completions, input.enrollment.id),
+    ...planDates(input, from, to, today, rolloverHour),
+  }));
+  const out: AgendaDate[] = [];
+  for (let date = from; date <= to; date = addDays(date, 1)) {
+    const entries: AgendaEntry[] = [];
+    let running = 0;
+    let resting = 0;
+    for (const p of perPlan) {
+      const list = p.days.get(date);
+      if (p.rest.has(date)) resting++;
+      if (list || p.rest.has(date)) running++;
+      for (const day of [...(list ?? [])].sort((a, b) => a - b)) {
+        entries.push({ enrollmentId: p.input.enrollment.id, day, state: dayState(p.input, p.progress, day, date, today) });
+      }
+    }
+    out.push({ date, weekday: weekdayOf(date), today: date === today, entries, state: dateState(entries, running > 0 && resting === running) });
+  }
+  return out;
+}
+
+function dayState(input: AgendaInput, progress: ProgressIndex, day: number, date: IsoDate, today: IsoDate): AgendaDayState {
+  if (isDayDone(input.plan, progress, day)) return 'done';
+  if (date < today) return input.enrollment.pacing === 'fixed' ? 'missed' : 'partial';
+  if (date === today) return 'due';
+  return (progress.get(day)?.size ?? 0) > 0 ? 'partial' : 'upcoming';
+}
+
+function dateState(entries: readonly AgendaEntry[], allResting: boolean): AgendaDateState {
+  if (entries.length === 0) return allResting ? 'rest' : 'none';
+  const has = (s: AgendaDayState) => entries.some((x) => x.state === s);
+  if (has('missed')) return 'missed';
+  if (has('due')) return 'due';
+  if (entries.every((x) => x.state === 'done')) return 'done';
+  if (has('partial') || has('done')) return 'partial';
+  return 'upcoming';
+}
+
+/** One date of the month grid: an agenda date, and whether it is in the month asked for. */
+export interface CalendarDay extends AgendaDate {
+  inMonth: boolean;
+}
+
+/** The first and last dates of the whole weeks (starting on `weekStart`, 1 = Monday) covering `month` (`YYYY-MM`). */
+export function monthRange(month: string, weekStart: 0 | 1 = 1): { from: IsoDate; to: IsoDate } | null {
+  const first = `${month}-01`;
+  if (!/^\d{4}-\d{2}$/.test(month) || parseIsoDate(first) === null) return null;
+  const last = addDays(`${addDays(first, 31).slice(0, 7)}-01`, -1);
+  return {
+    from: addDays(first, -((weekdayOf(first) - weekStart + 7) % 7)),
+    to: addDays(last, (weekStart + 6 - weekdayOf(last) + 7) % 7),
+  };
+}
+
+/** The week (starting on `weekStart`) that contains `date`. */
+export function weekRange(date: IsoDate, weekStart: 0 | 1 = 1): { from: IsoDate; to: IsoDate } {
+  const from = addDays(date, -((weekdayOf(date) - weekStart + 7) % 7));
+  return { from, to: addDays(from, 6) };
+}
+
+/** The month `month` as whole weeks, one agenda date per cell, across all the given plans. */
+export function monthCalendar(
+  inputs: readonly AgendaInput[], month: string, today: IsoDate, rolloverHour: number, weekStart: 0 | 1 = 1,
+): CalendarDay[] {
+  const range = monthRange(month, weekStart);
+  if (!range) return [];
+  return agenda(inputs, range.from, range.to, today, rolloverHour).map((d) => ({ ...d, inMonth: d.date.slice(0, 7) === month }));
+}
+
+/** How far back the agenda starts by default. */
+export const AGENDA_LOOKBACK_DAYS = 7;
+
+/**
+ * Where the agenda opens: the earliest date with something unread, but never more than `AGENDA_LOOKBACK_DAYS` before
+ * today (and never after it).
+ */
+export function agendaStartDate(inputs: readonly AgendaInput[], today: IsoDate, rolloverHour: number): IsoDate {
+  const from = addDays(today, -AGENDA_LOOKBACK_DAYS);
+  for (const d of agenda(inputs, from, today, today, rolloverHour)) {
+    if (d.entries.some((x) => x.state !== 'done')) return d.date;
+  }
+  return today;
 }
 
 /** Pace is measured over this many calendar days, ending today. */
@@ -520,8 +718,8 @@ export function dayStatuses(
   return plan.days.map((_, i) => {
     const day = i + 1;
     if (isDayDone(plan, progress, day)) return 'done';
-    if (day === view.day) return 'current';
     if (missed.has(day)) return 'missed';
+    if (day === (view.scheduledToday ?? view.day)) return 'current';
     if ((progress.get(day)?.size ?? 0) > 0) return 'partial';
     return 'upcoming';
   });

@@ -248,17 +248,18 @@ describe('PlanScheduler', () => {
   it('fixed: shows days behind and the missed days', () => {
     const e = enrollment();
     const v = todayView(plan, e, [done(1), done(3)], '2026-10-05', 3); // day 5 today
-    expect(v.day).toBe(5);
+    // Behind: the focus is the oldest missed day, today's own day is still known.
+    expect(v).toMatchObject({ day: 2, focusKind: 'nextUnread', scheduledToday: 5 });
     expect(v.missedDays).toEqual([2, 4]);
     expect(v.behindBy).toBe(2);
     expect(catchUpSuggestion(v.behindBy)).toEqual({ extraPerDay: 1, days: 2 });
   });
 
-  it('fixed: a rest day has no reading and counts the last scheduled day as due', () => {
+  it('fixed: a rest day counts the last scheduled day as due and focuses it', () => {
     const e = enrollment({ readingDays: [1, 2, 3, 4, 5] as Weekday[], startDate: '2026-10-05' });
     const v = todayView(plan, e, [done(1), done(2), done(3), done(4)], '2026-10-10', 3); // Saturday
     expect(v.restDay).toBe(true);
-    expect(v.day).toBeNull();
+    expect(v).toMatchObject({ day: 5, focusKind: 'nextUnread', scheduledToday: null, dueUnread: false });
     expect(v.missedDays).toEqual([5]);
   });
 

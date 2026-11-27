@@ -76,8 +76,11 @@ export interface NumberSetting extends SettingBase {
   min?: number;
   max?: number;
   step?: number;
-  /** Render as a slider (needs `min` and `max`). */
-  widget?: 'slider';
+  /**
+   * `slider`: a slider (needs `min` and `max`). `hour`: an hour of the day, picked from a list of clock times
+   * (integer, `min`..`max` within 0-23).
+   */
+  widget?: 'slider' | 'hour';
 }
 export interface StringArraySetting extends SettingBase {
   type: 'string-array';
@@ -308,6 +311,10 @@ function definitionProblem(def: SettingDef): string | null {
     if (def.max !== undefined && def.default > def.max) return 'default is above max';
     if (def.widget === 'slider' && (def.min === undefined || def.max === undefined)) {
       return 'slider needs min and max';
+    }
+    if (def.widget === 'hour') {
+      if (def.type !== 'integer') return 'hour needs an integer setting';
+      if ((def.min ?? 0) < 0 || (def.max ?? 23) > 23) return 'hour min and max must be within 0-23';
     }
   }
   return null;

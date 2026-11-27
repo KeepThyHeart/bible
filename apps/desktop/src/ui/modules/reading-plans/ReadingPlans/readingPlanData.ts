@@ -21,10 +21,12 @@ export interface ReadingPlanData {
   details: Map<string, ReadingPlans.EnrollmentDetail>;
   /** Ticked readings per enrollment (`day -> reading indexes`). */
   progress: Map<string, ReadingPlans.ProgressIndex>;
+  /** Each plan's ticked readings, with when they were ticked (the month calendar places them on dates). */
+  completions: Map<string, ReadingPlans.Completion[]>;
   library: ReadingPlans.PlanSummary[];
 }
 
-const EMPTY: ReadingPlanData = { enrollments: [], details: new Map(), progress: new Map(), library: [] };
+const EMPTY: ReadingPlanData = { enrollments: [], details: new Map(), progress: new Map(), completions: new Map(), library: [] };
 
 export function useReadingPlanData(): { data: ReadingPlanData; loaded: boolean; error: string | null; reload: () => Promise<void> } {
   const [data, setData] = useState<ReadingPlanData>(EMPTY);
@@ -38,15 +40,17 @@ export function useReadingPlanData(): { data: ReadingPlanData; loaded: boolean; 
       const [enrollments, library] = await Promise.all([service.enrollments(), service.library()]);
       const details = new Map<string, ReadingPlans.EnrollmentDetail>();
       const progress = new Map<string, ReadingPlans.ProgressIndex>();
+      const completionsById = new Map<string, ReadingPlans.Completion[]>();
       await Promise.all(enrollments.map(async (e) => {
         try {
           const [detail, completions] = await Promise.all([service.detail(e.id), service.completions(e.id)]);
           details.set(e.id, detail);
           progress.set(e.id, ReadingPlans.indexCompletions(completions, e.id));
+          completionsById.set(e.id, completions);
         } catch { /* a broken plan does not hide the others */ }
       }));
       if (!alive.current) return;
-      setData({ enrollments, details, progress, library });
+      setData({ enrollments, details, progress, completions: completionsById, library });
       setError(null);
     } catch (err) {
       if (alive.current) setError(err instanceof Error ? err.message : String(err));

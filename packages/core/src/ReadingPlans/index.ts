@@ -12,9 +12,9 @@ export {
 export type { BuildOptions, PlanPreview } from './builder';
 export {
   indexCompletions, isDayDone, firstUnreadDay, isReadingDay, scheduledDay, dateForDay, todayView, planStats,
-  shiftedStartDate, startDateFor, progressAtDayStart, reschedulePreview, weekStrip, catchUpSuggestion, dayStatuses, measurePace, PACE_WINDOW_DAYS, PACE_MIN_READING_DAYS, PACE_MIN_PLAN_DAYS, PACE_MAX_PLAN_DAYS_PER_DATE,
+  shiftedStartDate, startDateFor, progressAtDayStart, reschedulePreview, weekStrip, monthCalendar, agenda, planDates, monthRange, weekRange, agendaStartDate, AGENDA_LOOKBACK_DAYS, catchUpSuggestion, dayStatuses, measurePace, PACE_WINDOW_DAYS, PACE_MIN_READING_DAYS, PACE_MIN_PLAN_DAYS, PACE_MAX_PLAN_DAYS_PER_DATE,
 } from './scheduler';
-export type { ProgressIndex, TodayView, TodayReading, PlanStats, DayStatus, FocusKind, WeekStripDay } from './scheduler';
+export type { ProgressIndex, TodayView, TodayReading, PlanStats, DayStatus, FocusKind, WeekStripDay, CalendarDay, AgendaDate, AgendaEntry, AgendaInput, AgendaDayState, AgendaDateState } from './scheduler';
 export {
   STOCK_PREFIX, CHRONOLOGICAL_ORDER, CHRONOLOGICAL_BASIS, stockPlanKey, isStockPlanKey, stockPlanIds, getStockPlan,
   summarizePlan, listStockPlans,

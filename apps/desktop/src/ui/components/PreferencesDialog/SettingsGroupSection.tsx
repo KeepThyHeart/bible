@@ -11,7 +11,11 @@ import { fireActivation } from '../../modules/moduleHost';
 import { isEnabled } from '../../settings/featureFlags';
 
 export const SettingsGroupSection: React.FC<{ group: string }> = ({ group }) => {
-  const { t } = useI18n();
+  const { t, localizer } = useI18n();
+  // Hours as clock times in the app's language ("3:00 AM", "03:00").
+  const formLabels = useMemo(() => ({
+    formatHour: (hour: number) => localizer.formatDate(new Date(2000, 0, 1, hour), { hour: 'numeric', minute: '2-digit' }),
+  }), [localizer]);
   // A group a module contributed uses the contributed registry; otherwise the desktop one.
   const contributed = getContributedSettings();
   const isContributed = contributed.registry.toFields(group, { translate: (k) => k, isEnabled, values: {} }).length > 0;
@@ -24,7 +28,7 @@ export const SettingsGroupSection: React.FC<{ group: string }> = ({ group }) => 
   );
   return (
     <div data-testid={`settings-group-${group}`}>
-      <SettingsForm fields={fields} values={values} idPrefix={`pref-${group}`} onChange={(key, value) => { store.set(key, value); fireActivation(`onSetting:${key}`); }} />
+      <SettingsForm fields={fields} values={values} labels={formLabels} idPrefix={`pref-${group}`} onChange={(key, value) => { store.set(key, value); fireActivation(`onSetting:${key}`); }} />
     </div>
   );
 };

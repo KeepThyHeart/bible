@@ -608,27 +608,128 @@
   font-weight: 600;
 }
 
-/* --- Table (a plain data table: kth-table > thead/tbody) --------------- */
+/* --- Segmented control (div[role=radiogroup].kth-segmented > button.kth-segmented__option[role=radio][aria-checked]) ---
+   A small single-choice switch (List / Week / Month). */
+.kth-segmented {
+  display: inline-flex;
+  flex-wrap: wrap;
+  /* Its own width, also inside a flex column or grid (which would otherwise stretch it). */
+  align-self: start;
+  justify-self: start;
+  inline-size: fit-content;
+  max-inline-size: 100%;
+  border: 1px solid var(--kth-border-strong);
+  border-radius: var(--kth-radius);
+  background: var(--kth-surface);
+  overflow: hidden;
+}
+.kth-segmented__option {
+  padding: 2px var(--kth-space-3);
+  border: 0;
+  background: transparent;
+  color: var(--kth-text-muted);
+  font: inherit;
+  font-size: 0.9em;
+  line-height: 1.6;
+  cursor: pointer;
+}
+.kth-segmented__option:where(:not(:first-child)) { border-inline-start: 1px solid var(--kth-border-strong); }
+.kth-segmented__option:where(:hover) { color: var(--kth-text); background: var(--kth-bg-hover); }
+.kth-segmented__option:where(:focus-visible) { outline: 2px solid var(--kth-focus); outline-offset: -2px; }
+.kth-segmented__option:where([aria-checked="true"]) { background: var(--kth-accent-soft); color: var(--kth-text-heading); font-weight: 600; }
+
+/* --- App page (AppPage) -------------------------------------------------------------------------------------
+   div.kth-app-page[--full] > div.kth-app-page__column > div.kth-app-page__header (h1.kth-app-page__title[tabindex=-1]
+   + div.kth-app-page__actions) + [div.kth-tabs.kth-app-page__tabs] + div.kth-app-page__body[role=tabpanel].
+   Fills its container's height and scrolls. The column sits at the inline-start edge (never centred) with a
+   reading-width cap; --full drops the cap. */
+.kth-app-page {
+  --_kth-app-page-max: 46rem;
+  box-sizing: border-box;
+  block-size: 100%;
+  min-block-size: 0;
+  overflow: auto;
+  padding: var(--kth-space-4);
+  color: var(--kth-text);
+  /* An app page is read, not dense chrome: a step above the UI size (13px -> 15px at the defaults), still following
+     the reader's UI size and scale. */
+  font-size: calc(var(--kth-font-size-ui) * 1.15);
+}
+.kth-app-page__column {
+  display: flex;
+  flex-direction: column;
+  gap: var(--kth-space-4);
+  max-inline-size: var(--_kth-app-page-max);
+  min-inline-size: 0;
+}
+.kth-app-page--full { --_kth-app-page-max: none; }
+.kth-app-page__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--kth-space-2) var(--kth-space-3);
+}
+.kth-app-page__title {
+  flex: 1 1 auto;
+  min-inline-size: 0;
+  margin: 0;
+  color: var(--kth-text-heading);
+  font-size: 1.4em;
+  font-weight: 600;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+.kth-app-page__title:where(:focus) { outline: none; }
+.kth-app-page__title:where(:focus-visible) { outline: 2px solid var(--kth-focus); outline-offset: 2px; }
+.kth-app-page__actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--kth-space-2); margin-inline-start: auto; }
+.kth-app-page__tabs { margin-block-end: calc(-1 * var(--kth-space-2)); }
+.kth-app-page__body { display: flex; flex-direction: column; gap: var(--kth-space-3); min-inline-size: 0; }
+
+/* --- Table (a plain bordered data table) -----------------------------------------------------------------
+   Markup: table.kth-table > thead > tr > th.kth-table__head[scope=col]
+                           > tbody > tr > (th.kth-table__cell[scope=row] | td.kth-table__cell)
+   Optional: caption.kth-table__caption (first child of the table); div.kth-table-wrap around the table lets a
+   wide table scroll on its own instead of widening the page. Cell hints: [data-muted] (muted text),
+   [data-nowrap] (no wrapping), [data-numeric] (tabular figures, end-aligned), [data-top] (align to the top).
+   A light border runs round the outside and between all cells; the header row is a subtle tint; rows are not
+   striped. Tokens only, so it follows light and dark themes. */
+.kth-table-wrap { max-inline-size: 100%; overflow: auto; }
 .kth-table {
   inline-size: 100%;
   border-collapse: collapse;
+  border: 1px solid var(--kth-border);
+  color: var(--kth-text);
   font-size: var(--kth-font-size-ui);
+}
+.kth-table__caption {
+  padding-block-end: var(--kth-space-1);
+  color: var(--kth-text-muted);
+  font-size: 0.9em;
+  text-align: start;
+  caption-side: top;
 }
 .kth-table__head {
   padding: var(--kth-space-1) var(--kth-space-2);
-  border-block-end: 1px solid var(--kth-border-strong);
+  border: 1px solid var(--kth-border);
+  background: var(--kth-bg-subtle);
   color: var(--kth-text-muted);
   font-size: 0.85em;
   font-weight: 600;
   text-align: start;
+  vertical-align: bottom;
   white-space: nowrap;
 }
 .kth-table__cell {
-  padding: var(--kth-space-2);
-  border-block-end: 1px solid var(--kth-border);
+  padding: var(--kth-space-1) var(--kth-space-2);
+  border: 1px solid var(--kth-border);
+  text-align: start;
   vertical-align: middle;
 }
+.kth-table__cell:where(th) { color: var(--kth-text-heading); font-weight: 500; }
 .kth-table__cell:where([data-muted]) { color: var(--kth-text-muted); }
+.kth-table__cell:where([data-nowrap]) { white-space: nowrap; }
+.kth-table__cell:where([data-top]) { vertical-align: top; }
+.kth-table__cell:where([data-numeric]), .kth-table__head:where([data-numeric]) { font-variant-numeric: tabular-nums; text-align: end; }
 
 /* --- Visually hidden (screen-reader only) ------------------------------------ */
 .kth-visually-hidden {
@@ -1494,6 +1595,25 @@
 }
 .kth-progress__fill--success { background: var(--kth-success); }
 .kth-progress__value { flex: none; color: var(--kth-text-muted); font-size: 0.9em; font-variant-numeric: tabular-nums; }
+
+/* --- Progress ring (div.kth-progress-ring[data-size][data-tone] > svg.kth-progress-ring__svg + span.kth-progress-ring__value)
+   One percentage as a thin arc on a gray track, the value in the middle in text colour. */
+.kth-progress-ring {
+  --_ring-size: 3.5rem;
+  --_ring-color: var(--kth-accent);
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  inline-size: var(--_ring-size);
+  block-size: var(--_ring-size);
+}
+.kth-progress-ring[data-size="sm"] { --_ring-size: 2.75rem; }
+.kth-progress-ring[data-tone="success"] { --_ring-color: var(--kth-success); }
+.kth-progress-ring__svg { grid-area: 1 / 1; inline-size: 100%; block-size: 100%; }
+.kth-progress-ring__track { fill: none; stroke: var(--kth-border); stroke-width: 3.5; }
+.kth-progress-ring__fill { fill: none; stroke: var(--_ring-color); stroke-width: 3.5; stroke-linecap: round; transition: stroke-dasharray 200ms ease; }
+.kth-progress-ring__value { grid-area: 1 / 1; color: var(--kth-text); font-size: 0.75rem; font-weight: 600; font-variant-numeric: tabular-nums; }
 
 /* --- Notice (inline message strip) --------------------------------------------------------------------- */
 .kth-notice {

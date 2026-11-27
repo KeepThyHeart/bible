@@ -2709,5 +2709,8 @@
   "passageDialog.printShowTitle": "Imprimir o título",
   "passageDialog.printMoreOptions": "Mais opções…",
   "passageDialog.printThisFormat": "Imprimir neste formato…",
-  "passageDialog.printSavePdf": "Salvar como PDF…"
+  "passageDialog.printSavePdf": "Salvar como PDF…",
+  "readingPlans.settings.weekStart": "A semana começa na",
+  "readingPlans.settings.weekStartMonday": "Segunda-feira",
+  "readingPlans.settings.weekStartSunday": "Domingo"
 }

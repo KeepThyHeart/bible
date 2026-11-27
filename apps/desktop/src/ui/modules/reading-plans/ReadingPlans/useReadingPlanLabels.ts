@@ -6,7 +6,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { getBookName, ReadingPlans } from '@bible/core/browser';
 import type {
-  ReadingPlanDayGridLabels, ReadingPlanLibraryLabels, ReadingPlanTodayCardLabels, ReadingPlanWeekStripLabels,
+  ReadingPlanDayGridLabels, ReadingPlanLibraryLabels, ReadingPlanMonthCalendarLabels, ReadingPlanTodayCardLabels,
+  ReadingPlanWeekStripLabels,
 } from '@bible/ui';
 import { rpTextWith } from '../rpText';
 import { useI18n } from '../../../contexts/useI18n';
@@ -32,6 +33,7 @@ export interface ReadingPlanLabelSet {
   dayGrid: ReadingPlanDayGridLabels;
   library: ReadingPlanLibraryLabels;
   weekStrip: ReadingPlanWeekStripLabels;
+  monthCalendar: ReadingPlanMonthCalendarLabels;
   schedule: ScheduleLabels;
   weekdayGroup: string;
   weekdayNames: string[];
@@ -45,6 +47,12 @@ export interface ReadingPlanLabelSet {
   localizePlanName: (planKey: string, fallback: string) => string;
   /** An ISO date in the active locale. */
   formatDate: (iso: string) => string;
+  /** "Monday, Oct 5" for an ISO date: the heading of a day's readings. */
+  formatDayHeading: (iso: string) => string;
+  /** "October 2026" for `YYYY-MM`. */
+  formatMonth: (month: string) => string;
+  /** A day-of-month numeral in the active locale's digits. */
+  formatDayNumber: (n: number) => string;
 }
 
 export function useReadingPlanLabels(): ReadingPlanLabelSet {
@@ -166,6 +174,37 @@ export function useReadingPlanLabels(): ReadingPlanLabelSet {
     today: rpTextWith(t, 'readingPlans.home.week.today', 'today'),
   }), [t]);
 
+  const monthCalendar = useMemo<ReadingPlanMonthCalendarLabels>(() => ({
+    grid: rpTextWith(t, 'readingPlans.calendar.grid', 'Reading calendar'),
+    previousMonth: rpTextWith(t, 'readingPlans.calendar.previous', 'Previous month'),
+    nextMonth: rpTextWith(t, 'readingPlans.calendar.next', 'Next month'),
+    thisMonth: rpTextWith(t, 'readingPlans.calendar.thisMonth', 'Today'),
+    today: rpTextWith(t, 'readingPlans.home.week.today', 'today'),
+    entries: (entries) => rpTextWith(t, 'readingPlans.calendar.entries',
+      entries.length === 1 ? '1 reading' : `${entries.length} readings`, { n: entries.length }),
+    states: {
+      done: rpTextWith(t, 'readingPlans.calendar.state.done', 'read'),
+      partial: rpTextWith(t, 'readingPlans.calendar.state.partial', 'partly read'),
+      missed: rpTextWith(t, 'readingPlans.calendar.state.missed', 'not read, behind'),
+      due: rpTextWith(t, 'readingPlans.calendar.state.due', 'to read today'),
+      upcoming: rpTextWith(t, 'readingPlans.calendar.state.upcoming', 'coming up'),
+      rest: rpTextWith(t, 'readingPlans.calendar.state.rest', 'rest day'),
+      none: rpTextWith(t, 'readingPlans.calendar.state.none', 'no reading'),
+    },
+  }), [t]);
+
+  const formatMonth = useCallback((month: string) => {
+    const [y, m] = month.split('-').map(Number);
+    if (!y || !m) return month;
+    return localizer.formatDate(new Date(Date.UTC(y, m - 1, 1)), { month: 'long', year: 'numeric', timeZone: 'UTC' });
+  }, [localizer]);
+  const formatDayNumber = useCallback((n: number) => localizer.formatNumber(n), [localizer]);
+  const formatDayHeading = useCallback((iso: string) => {
+    const [y, m, d] = iso.split('-').map(Number);
+    if (!y || !m || !d) return iso;
+    return localizer.formatDate(new Date(Date.UTC(y, m - 1, d)), { weekday: 'long', month: 'short', day: 'numeric', timeZone: 'UTC' });
+  }, [localizer]);
+
   const schedule = useMemo<ScheduleLabels>(() => ({
     schedule: t('readingPlans.builder.schedule'),
     flexible: t('readingPlans.builder.flexible'),
@@ -176,7 +215,7 @@ export function useReadingPlanLabels(): ReadingPlanLabelSet {
   }), [t]);
 
   return {
-    todayCard, dayGrid, library, weekStrip, schedule, weekdayGroup: t('readingPlans.weekdays.group'), weekdayNames,
-    formatReading, bookName, trackName, stockName, stockDescription, localizePlanName, formatDate,
+    todayCard, dayGrid, library, weekStrip, monthCalendar, schedule, weekdayGroup: t('readingPlans.weekdays.group'), weekdayNames,
+    formatReading, bookName, trackName, stockName, stockDescription, localizePlanName, formatDate, formatDayHeading, formatMonth, formatDayNumber,
   };
 }

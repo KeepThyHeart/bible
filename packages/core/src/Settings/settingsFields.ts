@@ -71,7 +71,7 @@ export interface SettingsField {
    * Rendering hint for numbers: `slider` draws a range input (registry
    * settings only; JSON Schema extensions get the plain number input).
    */
-  widget?: 'slider';
+  widget?: 'slider' | 'hour';
   /** Display text per enum value (registry settings; defaults to the raw value). */
   enumLabels?: Record<string, string>;
   /** Catalog keys the registry passes through, for hosts that translate. */

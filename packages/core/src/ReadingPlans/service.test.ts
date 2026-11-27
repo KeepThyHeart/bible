@@ -52,7 +52,7 @@ describe('ReadingPlanService', () => {
     const { service, setNow } = setup();
     const e = await service.startPlan('stock:gospels-30', { pacing: 'fixed' });
     setNow(new Date(2026, 9, 5, 12, 0));
-    expect((await service.todayViews())[0]).toMatchObject({ day: 5, behindBy: 4, missedDays: [1, 2, 3, 4] });
+    expect((await service.todayViews())[0]).toMatchObject({ day: 1, focusKind: 'nextUnread', scheduledToday: 5, behindBy: 4, missedDays: [1, 2, 3, 4] });
     const shifted = await service.shiftSchedule(e.id);
     expect(shifted.startDate).toBe('2026-10-05');
     expect((await service.todayViews())[0]).toMatchObject({ day: 1, behindBy: 0 });

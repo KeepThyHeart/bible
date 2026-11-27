@@ -21,11 +21,14 @@ export interface SettingsFormLabels {
   select: string;
   /** Link text for a field's help URL. */
   learnMore: (field: string) => string;
+  /** An hour of the day (0-23) as a clock time, for `widget: 'hour'` fields. Default: the browser's own format. */
+  formatHour: (hour: number) => string;
 }
 
 export const DEFAULT_SETTINGS_FORM_LABELS: SettingsFormLabels = {
   select: 'Select...',
   learnMore: (field) => `Learn more about ${field}`,
+  formatHour: (hour) => new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' }).format(new Date(2000, 0, 1, hour)),
 };
 
 export interface SettingsFormProps {
@@ -198,6 +201,22 @@ function FieldInput({ id, field, value, onChange, describedBy, labels, disabled 
       );
     case 'number':
     case 'integer':
+      if (field.widget === 'hour') {
+        const lo = field.numberConstraints?.minimum ?? 0;
+        const hi = field.numberConstraints?.maximum ?? 23;
+        const hours: number[] = [];
+        for (let h = Math.max(0, lo); h <= Math.min(23, hi); h++) hours.push(h);
+        return (
+          <select
+            {...common}
+            className="kth-select"
+            value={typeof value === 'number' ? String(value) : ''}
+            onChange={(e) => { const h = parseInt(e.currentTarget.value, 10); if (!Number.isNaN(h)) set(h); }}
+          >
+            {hours.map((h) => <option key={h} value={String(h)}>{labels.formatHour(h)}</option>)}
+          </select>
+        );
+      }
       return (
         <input
           {...common}

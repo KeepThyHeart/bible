@@ -29,7 +29,7 @@ const TodayReadingRow: React.FC<{ onDone: () => void }> = ({ onDone }) => {
   return (
     <div className="flex flex-col gap-xs" data-testid="new-tab-today-reading">
       {multi ? null : (
-        <span className="text-xs font-medium kth-text-muted" data-testid="new-tab-today-heading">
+        <span className="text-sm font-medium kth-text-muted" data-testid="new-tab-today-heading">
           {rpTextWith(t, 'readingPlans.newTab.heading', 'Reading plan')}
         </span>
       )}
@@ -38,7 +38,7 @@ const TodayReadingRow: React.FC<{ onDone: () => void }> = ({ onDone }) => {
         return (
           <React.Fragment key={view.enrollmentId}>
           {multi ? (
-            <span className="text-xs font-medium kth-text-muted" data-testid="new-tab-today-heading">
+            <span className="text-sm font-medium kth-text-muted" data-testid="new-tab-today-heading">
               {labels.localizePlanName(view.planKey, view.planName)}
             </span>
           ) : null}

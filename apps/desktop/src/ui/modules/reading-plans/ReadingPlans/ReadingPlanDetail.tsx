@@ -8,6 +8,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ReadingPlans } from '@bible/core/browser';
 import { Checkbox, MessageBox, ProgressBar } from '@bible/ui';
 import PointerMenu from '../../../components/shared/PointerMenu';
+import { useOverlayDismissal } from '../../../hooks/useOverlayDismissal';
 import { rpTextWith } from '../rpText';
 import { useI18n } from '../../../contexts/useI18n';
 import { getReadingPlanService } from '../readingPlansAPI';
@@ -41,6 +42,9 @@ const ReadingPlanDetail: React.FC<Props> = ({ enrollmentId, labels, displayName,
   const scrolled = useRef(false);
   const [alarm, setAlarm] = useState('');
   const [rowMenu, setRowMenu] = useState<{ x: number; y: number; day: number } | null>(null);
+  const closeRowMenu = useCallback(() => setRowMenu(null), []);
+  // A click anywhere else or Escape closes the row menu (the menu itself stops its own mousedown).
+  useOverlayDismissal(rowMenu !== null, closeRowMenu);
   const [confirmUnread, setConfirmUnread] = useState<number | null>(null);
 
   const load = useCallback(async () => {
@@ -126,7 +130,7 @@ const ReadingPlanDetail: React.FC<Props> = ({ enrollmentId, labels, displayName,
           {t('readingPlans.nav.back')}
         </button>
         <h2 className="text-lg font-semibold m-0">{name}</h2>
-        <span className="kth-text-muted text-xs flex-1">{statusText}</span>
+        <span className="kth-text-muted text-sm flex-1">{statusText}</span>
         <button type="button" className="kth-btn kth-btn--sm" onClick={onOpenSettings}>{t('readingPlans.home.planSettings')}</button>
       </div>
 
@@ -137,14 +141,14 @@ const ReadingPlanDetail: React.FC<Props> = ({ enrollmentId, labels, displayName,
         {stats.finishBasis === 'pace' && stats.estimatedFinish ? (
           <div>
             {t('readingPlans.detail.estimatedFinish', { date: labels.formatDate(stats.estimatedFinish) })}
-            <div className="kth-text-muted text-xs">{t('readingPlans.detail.estimatedFinishHint')}</div>
+            <div className="kth-text-muted text-sm">{t('readingPlans.detail.estimatedFinishHint')}</div>
           </div>
         ) : null}
         {showSchedule && stats.scheduledFinish ? (
           <div>
             {t('readingPlans.detail.scheduledFinish', { date: labels.formatDate(stats.scheduledFinish) })}
             {stats.finishBasis === 'schedule' && e.pacing === 'flexible' ? (
-              <div className="kth-text-muted text-xs">{t('readingPlans.detail.scheduledFinishHint')}</div>
+              <div className="kth-text-muted text-sm">{t('readingPlans.detail.scheduledFinishHint')}</div>
             ) : null}
           </div>
         ) : null}
@@ -185,7 +189,7 @@ const ReadingPlanDetail: React.FC<Props> = ({ enrollmentId, labels, displayName,
                     style={isCurrent ? { backgroundColor: 'var(--theme-accent-bg, rgba(59,130,246,0.14))' } : status === 'missed' ? { backgroundColor: 'var(--theme-warning-bg, rgba(250,180,40,0.14))' } : undefined}>
                     <th scope="row" className="kth-table__cell text-start font-medium whitespace-nowrap align-top"
                       onContextMenu={(ev) => { ev.preventDefault(); setRowMenu({ x: ev.clientX, y: ev.clientY, day }); }}>
-                      {day}{isCurrent ? <span className="text-xs ms-xs" style={{ color: 'var(--theme-accent-primary, #3b82f6)' }}>{focusTag}</span> : null}
+                      {day}{isCurrent ? <span className="text-sm ms-xs" style={{ color: 'var(--theme-accent-primary, #3b82f6)' }}>{focusTag}</span> : null}
                       <button type="button" className="kth-btn kth-btn--sm kth-btn--ghost ms-xs" aria-haspopup="menu"
                         aria-label={rpTextWith(t, 'readingPlans.table.rowActions', 'Actions for day {day}', { day })}
                         onClick={(ev) => { const r = ev.currentTarget.getBoundingClientRect(); setRowMenu({ x: r.left, y: r.bottom, day }); }}>

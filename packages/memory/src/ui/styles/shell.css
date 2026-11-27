@@ -21,6 +21,11 @@
   margin-inline: 0;
 }
 
+/* Pinned to the start edge all the way down: the screens inside keep their measure but do not centre in the column. */
+.sm-app .sm-shell[data-layout='start'] .sm-screen {
+  margin-inline: 0;
+}
+
 .sm-app .sm-shell[data-layout='rail'] {
   max-inline-size: 64rem;
   margin-inline: 0 auto;

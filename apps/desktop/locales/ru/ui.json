@@ -2709,5 +2709,8 @@
   "passageDialog.printShowTitle": "Печатать заголовок",
   "passageDialog.printMoreOptions": "Другие параметры…",
   "passageDialog.printThisFormat": "Печать в этом формате…",
-  "passageDialog.printSavePdf": "Сохранить как PDF…"
+  "passageDialog.printSavePdf": "Сохранить как PDF…",
+  "readingPlans.settings.weekStart": "Неделя начинается с",
+  "readingPlans.settings.weekStartMonday": "Понедельник",
+  "readingPlans.settings.weekStartSunday": "Воскресенье"
 }

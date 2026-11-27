@@ -104,8 +104,9 @@ describe('ReadingPlanTodayCard', () => {
     expect(screen.queryByRole('button', { name: 'Mark day read' })).toBeNull();
     second.unmount();
 
-    // 2026-01-11 is a Sunday; Monday-Friday plan.
-    const rest = ReadingPlans.todayView(plan, enrollment({ readingDays: [1, 2, 3, 4, 5] }), [], '2026-01-11', 3);
+    // 2026-01-11 is a Sunday; Monday-Friday plan. Catching up gradually, so a behind plan keeps its rest day
+    // (otherwise the oldest missed day would be the focus).
+    const rest = ReadingPlans.todayView(plan, enrollment({ readingDays: [1, 2, 3, 4, 5], catchUp: { extraPerDay: 1 } }), [], '2026-01-11', 3);
     expect(rest.restDay).toBe(true);
     expect(rest.day).toBeNull();
     setup(rest);

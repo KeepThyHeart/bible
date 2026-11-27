@@ -53,19 +53,20 @@ describe('ReadingPlanBar', () => {
     await waitFor(() => expect(screen.queryByTestId('reading-plan-bar')).not.toBeInTheDocument());
   });
 
-  it('lists the same readings as the plan store focus (a fixed plan three days behind shows today, not day 1)', async () => {
+  it('lists the same readings as the plan store focus (a fixed plan three days behind shows day 1, not today)', async () => {
     const { service, setNow } = installTestService(new Date(2026, 9, 1, 12, 0));
-    await service.startPlan('stock:gospels-30', { pacing: 'fixed' });
+    const e = await service.startPlan('stock:gospels-30', { pacing: 'fixed' });
     setNow(new Date(2026, 9, 4, 12, 0));
     const view = (await service.todayViews())[0];
     const [first] = ReadingPlans.todaysReadings(view);
-    expect(first.day).toBe(4);
-    const first4 = first.reading;
-    const span = ReadingPlans.chapterSpan(first4);
+    expect(first.day).toBe(1);
+    const span = ReadingPlans.chapterSpan(first.reading);
     render(<ReadingPlanBar currentBook={span.first.book} currentChapter={span.first.chapter} />);
     expect(await screen.findByTestId('reading-plan-bar')).toHaveTextContent(`chapter 1 of ${span.count}`);
     cleanup();
-    render(<ReadingPlanBar currentBook={40} currentChapter={1} />);
+    // Today's own scheduled day (4) is not on the bar while day 1 is the focus.
+    const day4 = ReadingPlans.chapterSpan((await service.detail(e.id)).plan.days[3].readings[0]);
+    render(<ReadingPlanBar currentBook={day4.last.book} currentChapter={day4.last.chapter} />);
     await new Promise((r) => setTimeout(r, 20));
     expect(screen.queryByTestId('reading-plan-bar')).not.toBeInTheDocument();
   });

@@ -193,7 +193,7 @@ const PlanEditorView: React.FC<PlanEditorViewProps> = ({ planKey, labels, onClos
               <h3 className="text-sm font-semibold m-0 flex-1">{t('readingPlans.editor.daysTitle')}</h3>
               <button type="button" className="kth-btn" onClick={() => setFillOpen(true)}>{t('readingPlans.editor.autoFill')}</button>
             </div>
-            <p className="kth-text-muted text-xs m-0">{t('readingPlans.editor.daysHint')}</p>
+            <p className="kth-text-muted text-sm m-0">{t('readingPlans.editor.daysHint')}</p>
             <ReadingPlanDayEditor days={days} onChange={changeDays} locale={locale} bookName={labels.bookName} labels={dayLabels} />
           </section>
 

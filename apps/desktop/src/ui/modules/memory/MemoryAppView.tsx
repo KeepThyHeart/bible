@@ -38,6 +38,8 @@ export const MemoryAppView: React.FC = () => {
       locale: i18n.currentLocale,
       verseSelector: { mount: mountVerseSelector },
       initialView: takePendingMemoryCards() ? 'card' : 'plan',
+      // Desktop: pinned to the start edge like the other desktop apps (not centred).
+      shellLayout: 'start',
       initialPractice: takePendingMemoryPractice() ?? undefined,
     });
     const offCards = onMemoryCardsRequest(() => handle.showCards());

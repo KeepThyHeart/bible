@@ -2694,5 +2694,8 @@
   "passageDialog.printShowTitle": "چاپ عنوان",
   "passageDialog.printMoreOptions": "گزینه‌های بیشتر…",
   "passageDialog.printThisFormat": "چاپ با این قالب…",
-  "passageDialog.printSavePdf": "ذخیره به‌عنوان PDF…"
+  "passageDialog.printSavePdf": "ذخیره به‌عنوان PDF…",
+  "readingPlans.settings.weekStart": "هفته شروع می‌شود از",
+  "readingPlans.settings.weekStartMonday": "دوشنبه",
+  "readingPlans.settings.weekStartSunday": "یکشنبه"
 }

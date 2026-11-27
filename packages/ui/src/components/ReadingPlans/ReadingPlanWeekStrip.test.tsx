@@ -19,7 +19,8 @@ describe('ReadingPlanWeekStrip', () => {
     const items = within(screen.getByRole('list', { name: 'This week' })).getAllByRole('listitem');
     expect(items).toHaveLength(7);
     expect(items[0]).toHaveAttribute('aria-label', 'Mon 2026-11-16: read');
-    expect(items[0]).toHaveTextContent('✓');
+    expect(items[0].querySelector('.kth-weekbox[data-state="read"] svg')).not.toBeNull();
+    expect(items[1].querySelector('.kth-weekbox[data-state="unread"] svg')).toBeNull();
     expect(items[1]).toHaveAttribute('aria-label', 'Tue 2026-11-17: not read');
     expect(items[5]).toHaveAttribute('aria-label', 'Sat 2026-11-21: rest day');
     expect(items[6]).toHaveAttribute('aria-label', 'Sun 2026-11-22: rest day');

@@ -1,5 +1,6 @@
 import { useLayoutStore, type PanelContentType } from '../../stores/useLayoutStore';
 import { genericEnglishTitle } from '../../utils/paneNames';
+import { rightHandPosition } from '../../utils/rightHandGroup';
 
 /**
  * Panes that make up the workbench's right-hand group in the first-run layout
@@ -75,25 +76,7 @@ export function revealDictionaryPanel(options?: RevealDictionaryPanelOptions): s
     'dictionary',
     undefined,
     genericEnglishTitle('dictionary'),
-    rightHandPosition(),
+    rightHandPosition(RIGHT_HAND_TYPES),
   );
 }
 
-/**
- * Where a new Dictionary pane should go: as a tab inside the existing
- * right-hand group when there is one, otherwise let dockview place it (which
- * drops it beside the active panel).
- */
-function rightHandPosition(): Record<string, unknown> | undefined {
-  const layout = useLayoutStore.getState(); // allow-getstate: event handler - imperative panel lookup outside render
-  const api = layout.dockviewApi;
-  if (!api) return undefined;
-
-  for (const contentType of RIGHT_HAND_TYPES) {
-    for (const panel of layout.getPanelsByType(contentType)) {
-      const group = api.getPanel(panel.panelId)?.group;
-      if (group) return { referenceGroup: group, direction: 'within' };
-    }
-  }
-  return undefined;
-}

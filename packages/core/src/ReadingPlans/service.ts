@@ -121,6 +121,11 @@ export class ReadingPlanService implements IReadingScopeProvider {
     }
   }
 
+  /** The hour a new reading day begins (the setting), for views worked out outside the service. */
+  rolloverHour(): number {
+    return this.rollover();
+  }
+
   /** Today's reading date (local, after the rollover hour). */
   today(): IsoDate {
     return readingDate(this.now(), this.rollover());

@@ -2694,5 +2694,8 @@
   "passageDialog.printShowTitle": "הדפס את הכותרת",
   "passageDialog.printMoreOptions": "אפשרויות נוספות…",
   "passageDialog.printThisFormat": "הדפסה בתבנית זו…",
-  "passageDialog.printSavePdf": "שמור כ-PDF…"
+  "passageDialog.printSavePdf": "שמור כ-PDF…",
+  "readingPlans.settings.weekStart": "השבוע מתחיל ביום",
+  "readingPlans.settings.weekStartMonday": "שני",
+  "readingPlans.settings.weekStartSunday": "ראשון"
 }

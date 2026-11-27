@@ -1,6 +1,7 @@
 /**
  * ReadingPlanWeekStrip: the current calendar week of one plan as seven small cells (task 0222 R3-11): the
- * weekday, a glyph for read / unread / rest / future, and a ring on today. No streak, no counting; the glyph
+ * weekday, a square box (green with a white check = read, bold outline = unread, dash = rest, faint = future),
+ * and a ring on today. No streak, no counting; the glyph
  * and a full aria-label per cell carry the state. Stateless; the days come from `weekStrip()` in core.
  */
 import type { ReadingPlans } from '@bible/core/browser';
@@ -24,7 +25,6 @@ export const DEFAULT_READING_PLAN_WEEK_STRIP_LABELS: ReadingPlanWeekStripLabels 
   today: 'today',
 };
 
-const GLYPH: Record<ReadingPlans.WeekStripDay['state'], string> = { read: '✓', unread: '○', rest: '–', future: '·' };
 
 export interface ReadingPlanWeekStripProps {
   days: readonly ReadingPlans.WeekStripDay[];
@@ -40,7 +40,7 @@ export function ReadingPlanWeekStrip({ days, weekdayNames, formatDate, labels, d
   const l = { ...DEFAULT_READING_PLAN_WEEK_STRIP_LABELS, ...labels };
   return (
     <ul
-      className="m-0 p-0 list-none flex gap-xs"
+      className="kth-weekstrip"
       aria-label={l.strip}
       dir={dir}
       data-testid="week-strip"
@@ -56,7 +56,7 @@ export function ReadingPlanWeekStrip({ days, weekdayNames, formatDate, labels, d
             title={label}
             data-state={d.state}
             data-today={d.today ? 'true' : undefined}
-            className="flex flex-col items-center flex-1 text-xs"
+            className="kth-weekstrip__day"
             style={{
               minInlineSize: 0,
               padding: '0.25rem 0',
@@ -68,17 +68,12 @@ export function ReadingPlanWeekStrip({ days, weekdayNames, formatDate, labels, d
               backgroundColor: d.today && d.state === 'unread' ? 'var(--theme-accent-bg, rgba(59,130,246,0.14))' : undefined,
             }}
           >
-            <span className="kth-text-muted" aria-hidden="true">{name}</span>
-            <span
-              aria-hidden="true"
-              className="text-base"
-              style={{
-                color: d.state === 'read' ? 'var(--theme-success, var(--theme-accent-primary))'
-                  : d.today && d.state === 'unread' ? 'var(--theme-accent-primary)' : undefined,
-                fontWeight: d.today && d.state === 'unread' ? 700 : undefined,
-              }}
-            >
-              {GLYPH[d.state]}
+            <span className="kth-weekstrip__name" aria-hidden="true">{name}</span>
+            <span aria-hidden="true" className="kth-weekbox" data-state={d.state} data-today={d.today ? 'true' : undefined}>
+              {d.state === 'read' ? (
+                <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5"
+                  strokeLinecap="round" strokeLinejoin="round"><path d="M3.5 8.5l3 3 6-7" /></svg>
+              ) : d.state === 'rest' ? '–' : null}
             </span>
           </li>
         );

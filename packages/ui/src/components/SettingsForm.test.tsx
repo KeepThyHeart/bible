@@ -58,4 +58,24 @@ describe('SettingsForm', () => {
     expect(screen.getByRole('group', { name: 'Advanced' })).toBeInTheDocument();
     expect(screen.getByLabelText('Count')).toHaveAttribute('id', 'ext-setting-group-n');
   });
+
+  it('an hour field is a list of clock times between its min and max, and reports the hour', async () => {
+    const hours = defineSettings([
+      { key: 'rollover', type: 'integer', default: 3, min: 0, max: 12, widget: 'hour', scope: 'device', group: 'h', labelKey: 'k.r', label: 'New day starts at' },
+    ]);
+    const onChange = vi.fn();
+    render(<SettingsForm fields={hours.toFields('h', { values: { rollover: 3 } })} values={{ rollover: 3 }} onChange={onChange}
+      labels={{ formatHour: (h) => `${h}h` }} />);
+    const select = screen.getByLabelText('New day starts at');
+    expect(select.tagName).toBe('SELECT');
+    expect(screen.getAllByRole('option').map((o) => o.textContent)).toEqual(Array.from({ length: 13 }, (_, i) => `${i}h`));
+    expect(select).toHaveValue('3');
+    await userEvent.setup().selectOptions(select, '5');
+    expect(onChange).toHaveBeenCalledWith('rollover', 5);
+  });
+
+  it('refuses an hour widget on a non-integer or out-of-range setting', () => {
+    expect(() => defineSettings([{ key: 'x', type: 'number', default: 1, widget: 'hour', scope: 'device', group: 'h', labelKey: 'k', label: 'x' }])).toThrow();
+    expect(() => defineSettings([{ key: 'x', type: 'integer', default: 1, max: 30, widget: 'hour', scope: 'device', group: 'h', labelKey: 'k', label: 'x' }])).toThrow();
+  });
 });

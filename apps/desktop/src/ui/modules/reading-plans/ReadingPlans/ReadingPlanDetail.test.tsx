@@ -55,6 +55,22 @@ describe('ReadingPlanDetail', () => {
     expect(screen.getByText(/one day of the plan on each of your reading days/)).toBeInTheDocument();
   });
 
+  it('leads with the scheduled finish at first and the estimated finish once there is a pace', async () => {
+    const { service, setNow } = installTestService(new Date(2026, 9, 1, 12, 0));
+    const e = await service.startPlan('stock:gospels-30');
+    const first = renderDetail(e.id);
+    expect(await screen.findByText(/^Scheduled finish: /)).toBeInTheDocument();
+    expect(screen.queryByText(/^Estimated finish: /)).not.toBeInTheDocument();
+    first.unmount();
+    for (const [d, day] of [[1, 1], [2, 2], [3, 3]] as const) {
+      setNow(new Date(2026, 9, d, 12, 0));
+      await service.setReadingDone(e.id, day, 0, true);
+    }
+    setNow(new Date(2026, 9, 4, 12, 0));
+    renderDetail(e.id);
+    expect(await screen.findByText(/^Estimated finish: /)).toBeInTheDocument();
+  });
+
   it('ticks a reading through the service and keeps the Home focus row', async () => {
     const { service, e } = await setup();
     const user = userEvent.setup();
