@@ -2670,5 +2670,18 @@
   "passageDialog.printShowTitle": "הדפס את הכותרת",
   "passageDialog.printMoreOptions": "אפשרויות נוספות…",
   "passageDialog.printThisFormat": "הדפסה בתבנית זו…",
-  "passageDialog.printSavePdf": "שמור כ-PDF…"
+  "passageDialog.printSavePdf": "שמור כ-PDF…",
+  "preferencesDialog.sectionUpdates": "עדכונים",
+  "preferencesDialog.updatesIntro": "עדכונים נבדקים רק כשאתם מבקשים. שום דבר לא יורד ולא מותקן ללא אישורכם.",
+  "preferencesDialog.updatesVersion": "גרסה {version}",
+  "preferencesDialog.updatesBuild": "build {buildId}",
+  "preferencesDialog.updatesChannelStable": "ערוץ שחרור: יציב",
+  "preferencesDialog.updatesChannelPre": "ערוץ שחרור: {channel} (טרום-שחרור)",
+  "preferencesDialog.updatesCheckButton": "בדיקת עדכונים…",
+  "preferencesDialog.updatesOfflineNote": "האפשרות “אפשר בקשות אינטרנט” כבויה, ולכן אי אפשר לבדוק. הפעילו אותה ב״פרטיות״.",
+  "preferencesDialog.updatesStartupLabel": "בדיקת עדכונים בהפעלה",
+  "preferencesDialog.updatesStartupDescription": "כשהאפשרות פועלת, היישום מחפש גרסה חדשה פעם אחת בכל הפעלה ומודיע רק אם יש כזו. הוא לעולם לא מוריד או מתקין דבר מעצמו. דורש “אפשר בקשות אינטרנט”.",
+  "preferencesDialog.updatesNoteLinuxPackage": "עותק זה הותקן מחבילת .deb או .rpm, ולכן העדכונים מגיעים דרך מנהל החבילות של המערכת. “בדיקת עדכונים” יפנה אתכם לדף ההורדה.",
+  "preferencesDialog.updatesNoteMacUnsigned": "גרסת macOS זו אינה חתומה, ולכן היא יכולה למצוא עדכונים אך לא להתקין אותם בעצמה. הורידו את הגרסה החדשה מדף ההורדה והחליפו את היישום הזה.",
+  "preferencesDialog.updatesStartupAvailable": "גרסה {version} זמינה. פתחו הגדרות ← עדכונים כדי לקבל אותה."
 }

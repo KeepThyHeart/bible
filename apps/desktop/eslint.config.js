@@ -72,6 +72,17 @@ const gatewayOnlyRules = {
         'Electron net.request is banned outside NetworkGateway. Route egress through electron/services/NetworkGateway.ts.',
     },
     {
+      // Lazy-loading a CommonJS package with `await import()` hands back a namespace whose named exports
+      // Node may fail to detect (the 1.0.0-beta.2 "setting 'autoDownload'" bug). Use `require()` through a
+      // helper that reads `default` too (electron/services/updaterLoader.ts), or, after checking the
+      // package in `scripts/check-lazy-imports.mjs`, add it to this list AND to ALLOWED_DYNAMIC_IMPORTS in
+      // electron/__tests__/lazyImportGuard.test.ts.
+      selector:
+        'ImportExpression[source.type="Literal"][source.value=/^(?!\\.|electron$|dns$|fs$|path$|os$|unzipper$|@huggingface|@jitl|@bible)/]',
+      message:
+        "Do not `await import()` a CommonJS package in electron/** (named exports may be missing). Use require() via updaterLoader's pickExport, or vet the package in scripts/check-lazy-imports.mjs and allow-list it.",
+    },
+    {
       selector: "ImportDeclaration[source.value='electron'] ImportSpecifier[imported.name='net']",
       message:
         "Importing `net` from electron is banned outside NetworkGateway. Route egress through electron/services/NetworkGateway.ts.",

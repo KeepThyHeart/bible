@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import React from 'react';
 import ErrorBoundary from './components/ErrorBoundary';
 import TopSearchBar from './components/TopSearchBar';
@@ -37,6 +37,7 @@ import {
 import { useBackupStore } from './stores/useBackupStore';
 import { getIssueReportUrl, getProductName } from './config/appConfig';
 import { useI18n } from './contexts/useI18n';
+import { runStartupUpdateCheck } from './services/startupUpdateCheck';
 import { ShellOverlays } from './modules/host/slots';
 import './styles/highlights.css';
 import './styles/extensionDecorations.css';
@@ -182,6 +183,9 @@ function App() {
   const [showModuleManager, setShowModuleManager] = useState(false);
   const [moduleManagerFilter, setModuleManagerFilter] = useState<ModuleManagerTab | null>(null);
   const [showUpdateCheck, setShowUpdateCheck] = useState(false);
+  const { t: translate } = useI18n();
+  const tRef = useRef(translate); // latest translator for one-shot startup callbacks
+  tRef.current = translate;
   const [showPreferences, setShowPreferences] = useState(false);
   const [preferencesInitialSection, setPreferencesInitialSection] = useState<string>('general');
   const [preferencesFontPane, setPreferencesFontPane] = useState<PaneType | undefined>(undefined);
@@ -225,6 +229,8 @@ function App() {
       }
       setLayoutDecided(true);
       void restoreActiveApp(persistedAppHost);
+      // Opt-in only (Settings > Updates, default off); preferences are loaded by now. Checks, never downloads.
+      void runStartupUpdateCheck((version) => tRef.current('preferencesDialog.updatesStartupAvailable', { version }));
     });
 
     registerSaveBeforeCloseHandler();
@@ -377,6 +383,8 @@ function App() {
       setShowModuleManager(true);
     };
     const checkForUpdates = () => {
+      // Preferences (Updates section) draws above this dialog; close it first, as the module manager does.
+      setShowPreferences(false);
       setShowUpdateCheck(true);
     };
     const exportNotes = () => {

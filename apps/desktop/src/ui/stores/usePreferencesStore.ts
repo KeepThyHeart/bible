@@ -212,6 +212,13 @@ interface PreferencesState {
   reopenSearchTabs: boolean;
   rememberReadingHistory: boolean;
 
+  /**
+   * Opt-in "Check for updates at startup" (task 0234). Off by default and only ever set by the user.
+   * When on, one launch runs the same manual check the Updates section runs - it never downloads or
+   * installs - and only when "Allow web requests" is on.
+   */
+  checkUpdatesAtStartup: boolean;
+
   /** Hour (0-12) at which a new reading-plan day begins (task 0073). */
   readingPlanRolloverHour: number;
   /** Show reading streaks in reading plans (task 0073). */
@@ -237,6 +244,7 @@ interface PreferencesState {
   setSearchResultsPlacement: (placement: SearchResultsPlacement) => void;
   setReopenSearchTabs: (on: boolean) => void;
   setRememberReadingHistory: (on: boolean) => void;
+  setCheckUpdatesAtStartup: (on: boolean) => void;
   setReadingPlanRolloverHour: (hour: number) => void;
   setReadingPlanShowStreak: (show: boolean) => void;
   setPickerVerseStep: (on: boolean) => void;
@@ -262,6 +270,7 @@ interface PreferencesState {
     searchResultsPlacement?: unknown;
     reopenSearchTabs?: unknown;
     rememberReadingHistory?: unknown;
+    checkUpdatesAtStartup?: unknown;
     readingPlanRolloverHour?: number;
     readingPlanShowStreak?: boolean;
     pickerVerseStep?: unknown;
@@ -279,6 +288,7 @@ interface PreferencesState {
     searchResultsPlacement: SearchResultsPlacement;
     reopenSearchTabs: boolean;
     rememberReadingHistory: boolean;
+    checkUpdatesAtStartup: boolean;
     readingPlanRolloverHour: number;
     readingPlanShowStreak: boolean;
     pickerVerseStep: boolean;
@@ -506,6 +516,7 @@ export const usePreferencesStore = create<PreferencesState>((set, get) => ({
   searchResultsPlacement: 'below',
   reopenSearchTabs: false,
   rememberReadingHistory: false,
+  checkUpdatesAtStartup: false,
   readingPlanRolloverHour: 3,
   readingPlanShowStreak: false,
   pickerVerseStep: false,
@@ -550,6 +561,11 @@ export const usePreferencesStore = create<PreferencesState>((set, get) => ({
 
   setRememberReadingHistory: (on: boolean) => {
     set({ rememberReadingHistory: on === true });
+    markSessionDirty();
+  },
+
+  setCheckUpdatesAtStartup: (on: boolean) => {
+    set({ checkUpdatesAtStartup: on === true });
     markSessionDirty();
   },
 
@@ -654,6 +670,8 @@ export const usePreferencesStore = create<PreferencesState>((set, get) => ({
     // Absent (every session written before 0224) means the private default: off.
     const reopenSearchTabs = data.reopenSearchTabs === true;
     const rememberReadingHistory = data.rememberReadingHistory === true;
+    // Absent (every session before 0234) means off: nothing checks unless the user ticked it.
+    const checkUpdatesAtStartup = data.checkUpdatesAtStartup === true;
     const appSwitcher = sanitizeAppSwitcher(data.appSwitcher);
     const scrollbarSize = sanitizeScrollbarSize(data.scrollbarSize);
     const appOrder = sanitizeIdList(data.appOrder);
@@ -661,7 +679,7 @@ export const usePreferencesStore = create<PreferencesState>((set, get) => ({
 
     set({
       theme, globalFontScale, uiControlFontSize, typography, advancedPaneManagerEnabled,
-      searchResultsPlacement, reopenSearchTabs, rememberReadingHistory,
+      searchResultsPlacement, reopenSearchTabs, rememberReadingHistory, checkUpdatesAtStartup,
       readingPlanRolloverHour, readingPlanShowStreak, pickerVerseStep, appSwitcher, scrollbarSize, appOrder, appHidden,
     });
     applyThemeToDOM(theme);
@@ -675,12 +693,12 @@ export const usePreferencesStore = create<PreferencesState>((set, get) => ({
   getSessionData: () => {
     const {
       theme, globalFontScale, uiControlFontSize, typography, advancedPaneManagerEnabled,
-      searchResultsPlacement, reopenSearchTabs, rememberReadingHistory,
+      searchResultsPlacement, reopenSearchTabs, rememberReadingHistory, checkUpdatesAtStartup,
       readingPlanRolloverHour, readingPlanShowStreak, pickerVerseStep, appSwitcher, scrollbarSize, appOrder, appHidden,
     } = get();
     return {
       theme, globalFontScale, uiControlFontSize, typography, advancedPaneManagerEnabled,
-      searchResultsPlacement, reopenSearchTabs, rememberReadingHistory,
+      searchResultsPlacement, reopenSearchTabs, rememberReadingHistory, checkUpdatesAtStartup,
       readingPlanRolloverHour, readingPlanShowStreak, pickerVerseStep, appSwitcher, scrollbarSize, appOrder, appHidden,
     };
   }

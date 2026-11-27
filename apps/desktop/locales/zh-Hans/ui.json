@@ -2687,5 +2687,18 @@
   "passageDialog.printShowTitle": "打印标题",
   "passageDialog.printMoreOptions": "更多选项…",
   "passageDialog.printThisFormat": "以此格式打印…",
-  "passageDialog.printSavePdf": "另存为 PDF…"
+  "passageDialog.printSavePdf": "另存为 PDF…",
+  "preferencesDialog.sectionUpdates": "更新",
+  "preferencesDialog.updatesIntro": "仅在您要求时才会检查更新。未经您同意，不会下载或安装任何内容。",
+  "preferencesDialog.updatesVersion": "版本 {version}",
+  "preferencesDialog.updatesBuild": "构建 {buildId}",
+  "preferencesDialog.updatesChannelStable": "发布渠道：稳定版",
+  "preferencesDialog.updatesChannelPre": "发布渠道：{channel}（预发布）",
+  "preferencesDialog.updatesCheckButton": "检查更新…",
+  "preferencesDialog.updatesOfflineNote": "“允许网络请求”已关闭，因此无法检查。请在“隐私”中开启。",
+  "preferencesDialog.updatesStartupLabel": "启动时检查更新",
+  "preferencesDialog.updatesStartupDescription": "开启后，应用每次启动时会检查一次是否有新版本，并且仅在有新版本时通知您。它绝不会自行下载或安装任何内容。需要开启“允许网络请求”。",
+  "preferencesDialog.updatesNoteLinuxPackage": "此副本是通过 .deb 或 .rpm 软件包安装的，因此更新需通过系统的软件包管理器进行。“检查更新”会将您引导至下载页面。",
+  "preferencesDialog.updatesNoteMacUnsigned": "此 macOS 版本未签名，因此可以发现更新，但无法自行安装。请从下载页面下载新版本并替换此应用。",
+  "preferencesDialog.updatesStartupAvailable": "版本 {version} 可用。打开 设置 → 更新 即可获取。"
 }

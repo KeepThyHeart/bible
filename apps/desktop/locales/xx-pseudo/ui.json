@@ -2670,5 +2670,18 @@
   "passageDialog.printShowTitle": "⟦Þŕîñţ ţĥé ţîţļé ····⟧",
   "passageDialog.printMoreOptions": "⟦Ṁøŕé øþţîøñš… ···⟧",
   "passageDialog.printThisFormat": "⟦Þŕîñţ ţĥîš ƒøŕɱåţ… ·····⟧",
-  "passageDialog.printSavePdf": "⟦Šåṽé åš ÞÐƑ… ···⟧"
+  "passageDialog.printSavePdf": "⟦Šåṽé åš ÞÐƑ… ···⟧",
+  "preferencesDialog.sectionUpdates": "⟦Üþðåţéš ··⟧",
+  "preferencesDialog.updatesIntro": "⟦Üþðåţéš åŕé çĥéçķéð øñļý ŵĥéñ ýøü åšķ. Ñøţĥîñĝ îš ðøŵñļøåðéð øŕ îñšţåļļéð ŵîţĥøüţ ýøüŕ šåý-šø. ····························⟧",
+  "preferencesDialog.updatesVersion": "⟦Ṽéŕšîøñ {version} ··⟧",
+  "preferencesDialog.updatesBuild": "⟦Ɓüîļð {buildId} ··⟧",
+  "preferencesDialog.updatesChannelStable": "⟦Ŕéļéåšé çĥåññéļ: Šţåƀļé ······⟧",
+  "preferencesDialog.updatesChannelPre": "⟦Ŕéļéåšé çĥåññéļ: {channel} (þŕé-ŕéļéåšé) ·········⟧",
+  "preferencesDialog.updatesCheckButton": "⟦Çĥéçķ ƒøŕ üþðåţéš… ·····⟧",
+  "preferencesDialog.updatesOfflineNote": "⟦“Åļļøŵ ŵéƀ ŕéǫüéšţš” îš øƒƒ, šø ñø çĥéçķ çåñ ŕüñ. Ţüŕñ îţ øñ îñ Þŕîṽåçý. ·····················⟧",
+  "preferencesDialog.updatesStartupLabel": "⟦Çĥéçķ ƒøŕ üþðåţéš åţ šţåŕţüþ ········⟧",
+  "preferencesDialog.updatesStartupDescription": "⟦Ŵĥéñ øñ, ţĥé åþþ ļøøķš ƒøŕ å ñéŵéŕ ṽéŕšîøñ øñçé éåçĥ ţîɱé îţ šţåŕţš åñð øñļý ţéļļš ýøü îƒ ţĥéŕé îš øñé. Îţ ñéṽéŕ ðøŵñļøåðš øŕ îñšţåļļš åñýţĥîñĝ ƀý îţšéļƒ. Ñééðš “Åļļøŵ ŵéƀ ŕéǫüéšţš”. ······················································⟧",
+  "preferencesDialog.updatesNoteLinuxPackage": "⟦Ţĥîš çøþý ŵåš îñšţåļļéð ƒŕøɱ å .ðéƀ øŕ .ŕþɱ þåçķåĝé, šø üþðåţéš çøɱé ţĥŕøüĝĥ ýøüŕ šýšţéɱ’š þåçķåĝé ɱåñåĝéŕ. “Çĥéçķ ƒøŕ üþðåţéš” ŵîļļ þøîñţ ýøü ţø ţĥé ðøŵñļøåð þåĝé. ·················································⟧",
+  "preferencesDialog.updatesNoteMacUnsigned": "⟦Ţĥîš ɱåçØŠ ƀüîļð îš ñøţ šîĝñéð, šø îţ çåñ ƒîñð üþðåţéš ƀüţ çåññøţ îñšţåļļ ţĥéɱ îţšéļƒ. Ðøŵñļøåð ţĥé ñéŵ ṽéŕšîøñ ƒŕøɱ ţĥé ðøŵñļøåð þåĝé åñð ŕéþļåçé ţĥîš åþþ. ··············································⟧",
+  "preferencesDialog.updatesStartupAvailable": "⟦Ṽéŕšîøñ {version} îš åṽåîļåƀļé. Øþéñ Þŕéƒéŕéñçéš → Üþðåţéš ţø ĝéţ îţ. ··················⟧"
 }

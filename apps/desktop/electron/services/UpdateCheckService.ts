@@ -3,9 +3,13 @@
  *
  * ## What it is (and, deliberately, is not)
  *
- * This service runs ONLY when the user clicks Help > Check for Updates.... There
+ * This service runs only when the user asks: Help > Check for Updates..., the
+ * Settings > Updates button, or - once the user has ticked "Check for updates at
+ * startup" themselves (off by default) - one check per launch, started by the
+ * renderer (`ui/services/startupUpdateCheck.ts`), never by this process. There
  * is:
- *   - no auto-check on launch,
+ *   - no auto-check on launch unless that opt-in is on, and even then it only
+ *     checks: nothing is downloaded or installed,
  *   - no background polling / timer,
  *   - no `electron-updater` auto-updater,
  *   - no telemetry beacon.
@@ -47,6 +51,7 @@ import {
   UPDATE_CHECK_TIMEOUT_MS,
   UPDATE_MAX_RESPONSE_BYTES,
 } from '../config/constants';
+import { APP_CONFIG } from '../config/appConfig';
 import { getNetworkGateway, type INetworkGateway } from './NetworkGateway';
 
 /** Pre-flight info the UI shows before contacting anything. */
@@ -61,6 +66,10 @@ export interface UpdateCheckInfo {
   offline: boolean;
   /** False when no manifest URL is configured for this build. */
   configured: boolean;
+  /** The install's pre-release channel (`beta`), or null on a stable release. See {@link prereleaseChannel}. */
+  channel: string | null;
+  /** Short source revision this binary was built from; empty when unknown. */
+  buildId: string;
 }
 
 export type UpdateCheckOutcome =
@@ -125,6 +134,8 @@ export class UpdateCheckService {
       currentVersion: app.getVersion(),
       offline: this.gateway.isOffline(),
       configured: manifestUrl !== '',
+      channel: prereleaseChannel(app.getVersion()),
+      buildId: APP_CONFIG.buildId,
     };
   }
 

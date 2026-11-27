@@ -67,3 +67,11 @@ jobs:
       - run: pnpm run typecheck
       - run: pnpm --filter @bible/ui-driver exec playwright-core install --with-deps --only-shell chromium
       - run: pnpm test
+
+      # The built main bundle's lazy modules, loaded for real inside Electron (no
+      # mocks): the class of bug that shipped in 1.0.0-beta.2 ("Download & Update"
+      # failed because `import('electron-updater')` had no `autoUpdater`). The
+      # desktop's `postbuild` runs scripts/check-lazy-imports.mjs, so building is the
+      # check. Last, because the build leaves the SQLite driver built for Electron.
+      - run: pnpm run init:electron
+      - run: pnpm run build:desktop

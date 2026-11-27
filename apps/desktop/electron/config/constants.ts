@@ -130,8 +130,8 @@ export const CATALOG_INDEX_MAX_RESPONSE_BYTES = 64 * 1024;
 /**
  * Manual "Check for Updates" tunables.
  *
- * The updater fetches a small version manifest ONLY when the user clicks the
- * Help > Check for Updates... menu item - never on launch, never on a timer - and
+ * The updater fetches a small version manifest only when the user asks (the
+ * Help menu, Preferences > Updates, or the opt-in startup check, off by default) - never on a timer - and
  * only through the single `NetworkGateway` (so the master offline switch and the
  * system proxy both apply). `DEFAULT_UPDATE_MANIFEST_URL` points at the GitHub
  * Releases API "latest" endpoint; a build can override it with the

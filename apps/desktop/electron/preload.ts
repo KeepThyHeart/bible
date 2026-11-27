@@ -636,7 +636,7 @@ export interface ElectronAPI {
   // via the NetworkGateway. Replies use the `Result<T>` envelope.
   updates: {
     getInfo: () => Promise<Result<UpdateCheckInfo>>;
-    check: () => Promise<Result<UpdateCheckOutcome>>;
+    check: (opts?: { skipBlocklist?: boolean }) => Promise<Result<UpdateCheckOutcome>>;
     /** Makes no network request - reports whether this install can self-update. */
     canInstall: () => Promise<Result<{ supported: boolean; reason?: UnsupportedReason }>>;
     download: () => Promise<Result<UpdateDownloadOutcome>>;
@@ -1362,7 +1362,7 @@ const electronAPI: ElectronAPI = {
 
   updates: {
     getInfo: () => typedInvoke('update:get-info'),
-    check: () => typedInvoke('update:check'),
+    check: (opts?: { skipBlocklist?: boolean }) => typedInvoke('update:check', opts),
     canInstall: () => typedInvoke('update:can-install'),
     download: () => typedInvoke('update:download'),
     install: () => typedInvoke('update:install'),

@@ -2685,5 +2685,18 @@
   "passageDialog.printShowTitle": "शीर्षक प्रिंट करें",
   "passageDialog.printMoreOptions": "अधिक विकल्प…",
   "passageDialog.printThisFormat": "इस प्रारूप में प्रिंट करें…",
-  "passageDialog.printSavePdf": "PDF के रूप में सहेजें…"
+  "passageDialog.printSavePdf": "PDF के रूप में सहेजें…",
+  "preferencesDialog.sectionUpdates": "अपडेट",
+  "preferencesDialog.updatesIntro": "अपडेट केवल तभी जाँचे जाते हैं जब आप कहते हैं। आपकी अनुमति के बिना कुछ भी डाउनलोड या इंस्टॉल नहीं किया जाता।",
+  "preferencesDialog.updatesVersion": "संस्करण {version}",
+  "preferencesDialog.updatesBuild": "बिल्ड {buildId}",
+  "preferencesDialog.updatesChannelStable": "रिलीज़ चैनल: स्थिर",
+  "preferencesDialog.updatesChannelPre": "रिलीज़ चैनल: {channel} (प्री-रिलीज़)",
+  "preferencesDialog.updatesCheckButton": "अपडेट जाँचें…",
+  "preferencesDialog.updatesOfflineNote": "“वेब अनुरोधों की अनुमति दें” बंद है, इसलिए जाँच नहीं हो सकती। इसे गोपनीयता में चालू करें।",
+  "preferencesDialog.updatesStartupLabel": "शुरू होने पर अपडेट जाँचें",
+  "preferencesDialog.updatesStartupDescription": "चालू होने पर, ऐप हर बार शुरू होने पर एक बार नया संस्करण खोजता है और केवल तभी बताता है जब कोई उपलब्ध हो। यह अपने आप कुछ भी डाउनलोड या इंस्टॉल नहीं करता। इसके लिए “वेब अनुरोधों की अनुमति दें” आवश्यक है।",
+  "preferencesDialog.updatesNoteLinuxPackage": "यह प्रति .deb या .rpm पैकेज से इंस्टॉल की गई थी, इसलिए अपडेट आपके सिस्टम के पैकेज मैनेजर से मिलते हैं। “अपडेट जाँचें” आपको डाउनलोड पेज पर भेजेगा।",
+  "preferencesDialog.updatesNoteMacUnsigned": "यह macOS बिल्ड साइन किया हुआ नहीं है, इसलिए यह अपडेट खोज सकता है पर खुद इंस्टॉल नहीं कर सकता। डाउनलोड पेज से नया संस्करण डाउनलोड करें और इस ऐप को बदल दें।",
+  "preferencesDialog.updatesStartupAvailable": "संस्करण {version} उपलब्ध है। इसे पाने के लिए सेटिंग्स → अपडेट खोलें।"
 }

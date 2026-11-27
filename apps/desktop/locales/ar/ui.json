@@ -2685,5 +2685,18 @@
   "passageDialog.printShowTitle": "طباعة العنوان",
   "passageDialog.printMoreOptions": "مزيد من الخيارات…",
   "passageDialog.printThisFormat": "طباعة بهذا التنسيق…",
-  "passageDialog.printSavePdf": "حفظ كملف PDF…"
+  "passageDialog.printSavePdf": "حفظ كملف PDF…",
+  "preferencesDialog.sectionUpdates": "التحديثات",
+  "preferencesDialog.updatesIntro": "يتم التحقق من التحديثات فقط عندما تطلب ذلك. لا يتم تنزيل أو تثبيت أي شيء دون موافقتك.",
+  "preferencesDialog.updatesVersion": "الإصدار {version}",
+  "preferencesDialog.updatesBuild": "رقم البناء {buildId}",
+  "preferencesDialog.updatesChannelStable": "قناة الإصدار: مستقرة",
+  "preferencesDialog.updatesChannelPre": "قناة الإصدار: {channel} (إصدار تجريبي)",
+  "preferencesDialog.updatesCheckButton": "التحقق من وجود تحديثات…",
+  "preferencesDialog.updatesOfflineNote": "خيار «السماح بطلبات الويب» متوقف، لذا لا يمكن إجراء التحقق. فعّله في «الخصوصية».",
+  "preferencesDialog.updatesStartupLabel": "التحقق من وجود تحديثات عند بدء التشغيل",
+  "preferencesDialog.updatesStartupDescription": "عند التفعيل، يبحث التطبيق عن إصدار أحدث مرة واحدة عند كل بدء تشغيل ولا يخبرك إلا إذا وُجد. لا يقوم أبدًا بتنزيل أو تثبيت أي شيء من تلقاء نفسه. يتطلب «السماح بطلبات الويب».",
+  "preferencesDialog.updatesNoteLinuxPackage": "تم تثبيت هذه النسخة من حزمة .deb أو .rpm، لذلك تصل التحديثات عبر مدير الحزم في نظامك. سيوجّهك «التحقق من وجود تحديثات» إلى صفحة التنزيل.",
+  "preferencesDialog.updatesNoteMacUnsigned": "إصدار macOS هذا غير موقّع، لذا يمكنه العثور على التحديثات لكنه لا يستطيع تثبيتها بنفسه. نزّل الإصدار الجديد من صفحة التنزيل واستبدل هذا التطبيق.",
+  "preferencesDialog.updatesStartupAvailable": "الإصدار {version} متاح. افتح الإعدادات ← التحديثات للحصول عليه."
 }

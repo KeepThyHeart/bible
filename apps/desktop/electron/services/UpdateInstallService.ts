@@ -21,9 +21,12 @@
  *
  * ## No background behaviour
  *
- * `autoDownload` and `autoInstallOnAppQuit` are both disabled in the
- * constructor. Nothing here runs on a timer, at startup, or on quit; every
- * method is reached only from an IPC handler that the user triggered. Do not
+ * `autoDownload` and `autoInstallOnAppQuit` are both disabled in `configure()`.
+ * Nothing here runs on a timer, at startup, or on quit; every method is reached
+ * only from an IPC handler that the user triggered. (The one startup network
+ * touch in the app is the opt-in "Check for updates at startup" preference:
+ * it only runs `UpdateCheckService.check()`, never this service, so it can
+ * never download or install anything.) Do not
  * enable either flag - `autoInstallOnAppQuit` in particular would apply an
  * update the user never agreed to install.
  *
@@ -39,28 +42,15 @@
  *     reports `unsupported` there and the UI points at the download page.
  */
 
+import { mkdtempSync, writeFileSync } from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import { app } from 'electron';
 import log from 'electron-log';
-import type { UpdateInfo, ProgressInfo } from 'electron-updater';
+import type { AppUpdater, UpdateInfo, ProgressInfo } from 'electron-updater';
 import { prereleaseChannel } from './UpdateCheckService';
+import { loadAutoUpdater } from './updaterLoader';
 
-// `electron-updater` is a heavy CommonJS tree (js-yaml,
-// builder-util-runtime, lodash helpers) that was required at main-process
-// module-eval time even though nothing touches it until the user picks
-// "Check for Updates". Resolved on first use instead. Cached, so the
-// synchronous `quitAndInstall` path below always finds it loaded -- it can
-// only be reached after a download, which loads the module.
-let updaterModule: typeof import('electron-updater') | null = null;
-async function getAutoUpdater(): Promise<typeof import('electron-updater').autoUpdater> {
-  updaterModule ??= await import('electron-updater');
-  return updaterModule.autoUpdater;
-}
-function requireLoadedAutoUpdater(): typeof import('electron-updater').autoUpdater {
-  if (!updaterModule) {
-    throw new Error('electron-updater has not been loaded; download() must run first');
-  }
-  return updaterModule.autoUpdater;
-}
 import { isNetworkAllowed } from '../ipc/networkHandlers';
 
 /** Why an update cannot be applied in-app on this install. */
@@ -84,6 +74,18 @@ export interface UpdateDownloadProgress {
 }
 
 /**
+ * Test seam: a local "generic provider" feed for the Playwright e2e
+ * (`e2e/tests/updater-download.spec.ts`), which drives the real
+ * electron-updater against a fake server. Honoured ONLY in an unpackaged build,
+ * so it cannot redirect a shipped app's updates; and never a default - nothing
+ * sets it outside that test.
+ */
+function testFeedUrl(): string {
+  if (app.isPackaged) return '';
+  return (process.env.BIBLE_E2E_UPDATE_FEED_URL ?? '').trim();
+}
+
+/**
  * Can this install apply an update in place?
  *
  * Returns the reason it cannot, or `null` when it can. Checked before any
@@ -91,7 +93,7 @@ export interface UpdateDownloadProgress {
  * have used the result of.
  */
 export function resolveUnsupportedReason(): UnsupportedReason | null {
-  if (!app.isPackaged) return 'not-packaged';
+  if (!app.isPackaged) return testFeedUrl() ? null : 'not-packaged';
 
   if (process.platform === 'linux') {
     // electron-updater sets/reads APPIMAGE; its absence means the app was
@@ -111,10 +113,23 @@ export function resolveUnsupportedReason(): UnsupportedReason | null {
 
 export class UpdateInstallService {
   private configured = false;
+  private updater: AppUpdater | null = null;
 
-  private async configure(): Promise<void> {
+  /**
+   * @param load Resolves electron-updater's `autoUpdater` on first use (lazy:
+   *   it is a heavy CommonJS tree). Injectable for tests; see `updaterLoader.ts`
+   *   for why it is a `require` and not a dynamic `import()`.
+   */
+  constructor(private readonly load: () => AppUpdater = loadAutoUpdater) {}
+
+  private getAutoUpdater(): AppUpdater {
+    this.updater ??= this.load();
+    return this.updater;
+  }
+
+  private configure(): void {
     if (this.configured) return;
-    const autoUpdater = await getAutoUpdater();
+    const autoUpdater = this.getAutoUpdater();
     // No background download, and no install slipped in at quit time. Both must
     // stay false: the user consents to the check, then to the download, then to
     // the restart - three explicit acts.
@@ -125,6 +140,16 @@ export class UpdateInstallService {
     // (`pickLatestRelease`), which are written to match it.
     autoUpdater.allowPrerelease = prereleaseChannel(app.getVersion()) !== null;
     autoUpdater.logger = log;
+    const feed = testFeedUrl();
+    if (feed) {
+      // electron-updater reads its feed from `dev-app-update.yml` in an unpackaged app; point it at a
+      // temp one for the fake server rather than writing into the build folder.
+      const dir = mkdtempSync(path.join(os.tmpdir(), 'bible-update-feed-'));
+      const configPath = path.join(dir, 'dev-app-update.yml');
+      writeFileSync(configPath, `provider: generic\nurl: ${JSON.stringify(feed)}\n`);
+      autoUpdater.forceDevUpdateConfig = true;
+      autoUpdater.updateConfigPath = configPath;
+    }
     this.configured = true;
   }
 
@@ -145,8 +170,15 @@ export class UpdateInstallService {
       return { status: 'blocked' };
     }
 
-    await this.configure();
-    const autoUpdater = await getAutoUpdater();
+    let autoUpdater: AppUpdater;
+    try {
+      this.configure();
+      autoUpdater = this.getAutoUpdater();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      log.error('[UpdateInstall] could not load electron-updater:', error);
+      return { status: 'error', message };
+    }
 
     const progressHandler = (info: ProgressInfo): void => {
       onProgress?.({
@@ -190,6 +222,6 @@ export class UpdateInstallService {
     log.info('[UpdateInstall] quitting to install');
     // `isSilent: false` shows the installer UI, so the user can see what is
     // happening and cancel; `isForceRunAfter: true` relaunches when it is done.
-    requireLoadedAutoUpdater().quitAndInstall(false, true);
+    this.getAutoUpdater().quitAndInstall(false, true);
   }
 }

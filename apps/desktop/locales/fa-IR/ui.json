@@ -2670,5 +2670,18 @@
   "passageDialog.printShowTitle": "چاپ عنوان",
   "passageDialog.printMoreOptions": "گزینه‌های بیشتر…",
   "passageDialog.printThisFormat": "چاپ با این قالب…",
-  "passageDialog.printSavePdf": "ذخیره به‌عنوان PDF…"
+  "passageDialog.printSavePdf": "ذخیره به‌عنوان PDF…",
+  "preferencesDialog.sectionUpdates": "به‌روزرسانی‌ها",
+  "preferencesDialog.updatesIntro": "به‌روزرسانی‌ها فقط وقتی شما بخواهید بررسی می‌شوند. بدون اجازهٔ شما هیچ چیزی دانلود یا نصب نمی‌شود.",
+  "preferencesDialog.updatesVersion": "نسخهٔ {version}",
+  "preferencesDialog.updatesBuild": "ساخت {buildId}",
+  "preferencesDialog.updatesChannelStable": "کانال انتشار: پایدار",
+  "preferencesDialog.updatesChannelPre": "کانال انتشار: {channel} (پیش‌انتشار)",
+  "preferencesDialog.updatesCheckButton": "بررسی به‌روزرسانی‌ها…",
+  "preferencesDialog.updatesOfflineNote": "گزینهٔ «اجازه درخواست‌های وب» خاموش است، بنابراین بررسی ممکن نیست. آن را در «حریم خصوصی» روشن کنید.",
+  "preferencesDialog.updatesStartupLabel": "بررسی به‌روزرسانی‌ها هنگام راه‌اندازی",
+  "preferencesDialog.updatesStartupDescription": "در صورت روشن بودن، برنامه هر بار که شروع می‌شود یک بار نسخهٔ جدیدتر را جست‌وجو می‌کند و فقط در صورت وجود آن به شما اطلاع می‌دهد. هرگز خودش چیزی را دانلود یا نصب نمی‌کند. به «اجازه درخواست‌های وب» نیاز دارد.",
+  "preferencesDialog.updatesNoteLinuxPackage": "این نسخه از طریق بستهٔ .deb یا .rpm نصب شده است، بنابراین به‌روزرسانی‌ها از طریق مدیر بستهٔ سیستم شما می‌رسند. «بررسی به‌روزرسانی‌ها» شما را به صفحهٔ دانلود راهنمایی می‌کند.",
+  "preferencesDialog.updatesNoteMacUnsigned": "این ساخت macOS امضا نشده است، بنابراین می‌تواند به‌روزرسانی را پیدا کند اما نمی‌تواند خودش آن را نصب کند. نسخهٔ جدید را از صفحهٔ دانلود بگیرید و جایگزین این برنامه کنید.",
+  "preferencesDialog.updatesStartupAvailable": "نسخهٔ {version} در دسترس است. برای دریافت آن، تنظیمات ← به‌روزرسانی‌ها را باز کنید."
 }

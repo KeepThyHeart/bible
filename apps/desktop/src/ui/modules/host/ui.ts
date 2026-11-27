@@ -65,6 +65,8 @@ export const HOST_PREFERENCES_SECTIONS: readonly PreferencesSectionContribution[
   section(15, 'fonts', 'preferencesDialog.sectionFonts', 'Fonts'),
   section(20, 'themes', 'preferencesDialog.sectionThemes', 'Themes'),
   section(25, 'privacy', 'preferencesDialog.sectionPrivacy', 'Privacy'),
+  // Updates (task 0234): manual check, channel, and the opt-in startup check.
+  section(27, 'updates', 'preferencesDialog.sectionUpdates', 'Updates'),
   // Meaning search: online / on this computer / off. Always present; the online
   // choice appears only when the build configures a service (task 0190).
   section(30, 'search', 'preferencesDialog.sectionSearch', 'Search'),
@@ -98,6 +100,7 @@ export const hostUiBinding: FeatureModuleBinding = {
     'preferences:fonts': prefsView(() => import('../../components/PreferencesDialog/FontsSection').then((m) => ({ default: m.FontsSection }))),
     'preferences:themes': prefsView(() => import('../../components/PreferencesDialog/ThemesSection').then((m) => ({ default: m.ThemesSection }))),
     'preferences:privacy': prefsView(() => import('../../components/PreferencesDialog/PrivacySection').then((m) => ({ default: m.PrivacySection }))),
+    'preferences:updates': prefsView(() => import('../../components/PreferencesDialog/UpdatesSection').then((m) => ({ default: m.UpdatesSection }))),
     'preferences:search': prefsView(() => import('../../components/PreferencesDialog/SearchSection').then((m) => ({ default: m.SearchSection }))),
     'preferences:extensions': prefsView(() => import('../../components/ExtensionsSection').then((m) => ({ default: m.ExtensionsSection }))),
     'preferences:apps': prefsView(() => import('../../components/PreferencesDialog/AppsSection').then((m) => ({ default: m.AppsSection }))),

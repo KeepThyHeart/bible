@@ -2685,5 +2685,18 @@
   "passageDialog.printShowTitle": "Печатать заголовок",
   "passageDialog.printMoreOptions": "Другие параметры…",
   "passageDialog.printThisFormat": "Печать в этом формате…",
-  "passageDialog.printSavePdf": "Сохранить как PDF…"
+  "passageDialog.printSavePdf": "Сохранить как PDF…",
+  "preferencesDialog.sectionUpdates": "Обновления",
+  "preferencesDialog.updatesIntro": "Обновления проверяются только по вашему запросу. Ничего не загружается и не устанавливается без вашего согласия.",
+  "preferencesDialog.updatesVersion": "Версия {version}",
+  "preferencesDialog.updatesBuild": "Сборка {buildId}",
+  "preferencesDialog.updatesChannelStable": "Канал выпуска: стабильный",
+  "preferencesDialog.updatesChannelPre": "Канал выпуска: {channel} (предварительный)",
+  "preferencesDialog.updatesCheckButton": "Проверить обновления…",
+  "preferencesDialog.updatesOfflineNote": "Параметр «Разрешить веб-запросы» выключен, поэтому проверка невозможна. Включите его в разделе «Конфиденциальность».",
+  "preferencesDialog.updatesStartupLabel": "Проверять обновления при запуске",
+  "preferencesDialog.updatesStartupDescription": "Если включено, приложение один раз при каждом запуске ищет новую версию и сообщает, только если она есть. Само оно ничего не загружает и не устанавливает. Требуется «Разрешить веб-запросы».",
+  "preferencesDialog.updatesNoteLinuxPackage": "Эта копия установлена из пакета .deb или .rpm, поэтому обновления приходят через менеджер пакетов системы. «Проверить обновления» направит вас на страницу загрузки.",
+  "preferencesDialog.updatesNoteMacUnsigned": "Эта сборка для macOS не подписана, поэтому она может находить обновления, но не может устанавливать их сама. Скачайте новую версию на странице загрузки и замените это приложение.",
+  "preferencesDialog.updatesStartupAvailable": "Доступна версия {version}. Откройте «Настройки» → «Обновления», чтобы получить её."
 }

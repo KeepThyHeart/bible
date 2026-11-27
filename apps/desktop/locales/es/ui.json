@@ -2687,5 +2687,18 @@
   "passageDialog.printShowTitle": "Imprimir el título",
   "passageDialog.printMoreOptions": "Más opciones…",
   "passageDialog.printThisFormat": "Imprimir con este formato…",
-  "passageDialog.printSavePdf": "Guardar como PDF…"
+  "passageDialog.printSavePdf": "Guardar como PDF…",
+  "preferencesDialog.sectionUpdates": "Actualizaciones",
+  "preferencesDialog.updatesIntro": "Las actualizaciones se buscan solo cuando usted lo pide. No se descarga ni se instala nada sin su permiso.",
+  "preferencesDialog.updatesVersion": "Versión {version}",
+  "preferencesDialog.updatesBuild": "Compilación {buildId}",
+  "preferencesDialog.updatesChannelStable": "Canal de versiones: Estable",
+  "preferencesDialog.updatesChannelPre": "Canal de versiones: {channel} (versión preliminar)",
+  "preferencesDialog.updatesCheckButton": "Buscar actualizaciones…",
+  "preferencesDialog.updatesOfflineNote": "«Permitir solicitudes web» está desactivado, así que no se puede buscar. Actívelo en Privacidad.",
+  "preferencesDialog.updatesStartupLabel": "Buscar actualizaciones al iniciar",
+  "preferencesDialog.updatesStartupDescription": "Si está activado, la aplicación busca una versión más reciente una vez cada vez que se inicia y solo le avisa si la hay. Nunca descarga ni instala nada por sí sola. Requiere «Permitir solicitudes web».",
+  "preferencesDialog.updatesNoteLinuxPackage": "Esta copia se instaló desde un paquete .deb o .rpm, por lo que las actualizaciones llegan a través del gestor de paquetes del sistema. «Buscar actualizaciones» le indicará la página de descarga.",
+  "preferencesDialog.updatesNoteMacUnsigned": "Esta compilación de macOS no está firmada, así que puede encontrar actualizaciones pero no instalarlas por sí misma. Descargue la nueva versión desde la página de descarga y reemplace esta aplicación.",
+  "preferencesDialog.updatesStartupAvailable": "La versión {version} está disponible. Abra Ajustes → Actualizaciones para obtenerla."
 }

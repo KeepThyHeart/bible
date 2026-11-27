@@ -2670,5 +2670,18 @@
   "passageDialog.printShowTitle": "Print the title",
   "passageDialog.printMoreOptions": "More options…",
   "passageDialog.printThisFormat": "Print this format…",
-  "passageDialog.printSavePdf": "Save as PDF…"
+  "passageDialog.printSavePdf": "Save as PDF…",
+  "preferencesDialog.sectionUpdates": "Updates",
+  "preferencesDialog.updatesIntro": "Updates are checked only when you ask. Nothing is downloaded or installed without your say-so.",
+  "preferencesDialog.updatesVersion": "Version {version}",
+  "preferencesDialog.updatesBuild": "Build {buildId}",
+  "preferencesDialog.updatesChannelStable": "Release channel: Stable",
+  "preferencesDialog.updatesChannelPre": "Release channel: {channel} (pre-release)",
+  "preferencesDialog.updatesCheckButton": "Check for updates…",
+  "preferencesDialog.updatesOfflineNote": "“Allow web requests” is off, so no check can run. Turn it on in Privacy.",
+  "preferencesDialog.updatesStartupLabel": "Check for updates at startup",
+  "preferencesDialog.updatesStartupDescription": "When on, the app looks for a newer version once each time it starts and only tells you if there is one. It never downloads or installs anything by itself. Needs “Allow web requests”.",
+  "preferencesDialog.updatesNoteLinuxPackage": "This copy was installed from a .deb or .rpm package, so updates come through your system’s package manager. “Check for updates” will point you to the download page.",
+  "preferencesDialog.updatesNoteMacUnsigned": "This macOS build is not signed, so it can find updates but cannot install them itself. Download the new version from the download page and replace this app.",
+  "preferencesDialog.updatesStartupAvailable": "Version {version} is available. Open Preferences → Updates to get it."
 }

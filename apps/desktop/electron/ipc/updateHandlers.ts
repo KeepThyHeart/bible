@@ -1,8 +1,10 @@
 /**
- * IPC handlers for the manual "Check for Updates" feature.
+ * IPC handlers for the "Check for Updates" feature.
  *
- * Two channels, both invoked ONLY as a direct result of the user clicking the
- * Help > Check for Updates... menu item:
+ * Two channels, invoked as a direct result of the user's action (Help > Check for
+ * Updates..., or Preferences > Updates), or - only when the user has ticked the
+ * opt-in "Check for updates at startup" (default off) - once at launch with
+ * `skipBlocklist`:
  *
  *   - `update:get-info` - pre-flight. Returns the host that WOULD be contacted
  *     and whether offline mode blocks the check. Makes NO network request, so
@@ -63,7 +65,7 @@ export function setBlocklistRefresher(refresh: () => Promise<unknown>): void {
 
 export function registerUpdateHandlers(_ipcMain: IpcMain): void {
   ipcHandler<[], UpdateCheckInfo>('update:get-info', () => getService().getInfo());
-  ipcHandler<[], UpdateCheckOutcome>('update:check', async () => {
+  ipcHandler<[{ skipBlocklist?: boolean }?], UpdateCheckOutcome>('update:check', async (opts) => {
     const outcome = await getService().check();
     // Piggy-backed rather than a separate user action: the user already
     // consented to contacting the network by running this check, and asking
@@ -72,7 +74,9 @@ export function registerUpdateHandlers(_ipcMain: IpcMain): void {
     // Failures are swallowed on purpose - a blocklist that cannot be reached
     // must not turn a successful app-update check into an error. The previous
     // rules stay in force; see `ExtensionBlocklistService.refresh`.
-    if (blocklistRefresher) {
+    // The opt-in startup check passes `skipBlocklist`: the blocklist is fetched only when the user
+    // asks for a check (see above), never at launch.
+    if (blocklistRefresher && !opts?.skipBlocklist) {
       try {
         await blocklistRefresher();
       } catch (err) {

@@ -95,20 +95,21 @@ describe('PreferencesDialog', () => {
   it('renders all section tabs', () => {
     renderWithProviders(<PreferencesDialog onClose={onClose} />);
     const tabs = screen.getAllByRole('tab');
-    expect(tabs).toHaveLength(12); // includes Search; 'Weights and measures' comes from the measures module
+    expect(tabs).toHaveLength(13); // includes Updates, Search; 'Weights and measures' comes from the measures module
     // Each tab should have the section label
     expect(tabs[0]).toHaveTextContent('General');
     expect(tabs[1]).toHaveTextContent('Typography');
     expect(tabs[2]).toHaveTextContent('Fonts');
     expect(tabs[3]).toHaveTextContent('Themes');
     expect(tabs[4]).toHaveTextContent('Privacy');
-    expect(tabs[5]).toHaveTextContent('Notifications');
-    expect(tabs[6]).toHaveTextContent('Search');
-    expect(tabs[7]).toHaveTextContent('Downloads & storage');
-    expect(tabs[8]).toHaveTextContent('Extensions');
-    expect(tabs[9]).toHaveTextContent('Apps');
-    expect(tabs[10]).toHaveTextContent('Advanced');
-    expect(tabs[11]).toHaveTextContent('Diagnostics');
+    expect(tabs[5]).toHaveTextContent('Updates');
+    expect(tabs[6]).toHaveTextContent('Notifications');
+    expect(tabs[7]).toHaveTextContent('Search');
+    expect(tabs[8]).toHaveTextContent('Downloads & storage');
+    expect(tabs[9]).toHaveTextContent('Extensions');
+    expect(tabs[10]).toHaveTextContent('Apps');
+    expect(tabs[11]).toHaveTextContent('Advanced');
+    expect(tabs[12]).toHaveTextContent('Diagnostics');
   });
 
   it('opens at the Notifications section', async () => {
@@ -197,7 +198,7 @@ describe('PreferencesDialog', () => {
     const tablist = screen.getByRole('tablist');
     expect(tablist).toBeInTheDocument();
     const tabs = screen.getAllByRole('tab');
-    expect(tabs).toHaveLength(12); // includes Search; 'Weights and measures' comes from the measures module
+    expect(tabs).toHaveLength(13); // includes Updates, Search; 'Weights and measures' comes from the measures module
   });
 
   it('gives the tablist an accessible name resolved from the catalog', () => {
