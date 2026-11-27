@@ -9,14 +9,13 @@ import type { FeatureModuleManifest, PaneModeContribution } from '@bible/core/br
 
 export const WORD_STUDY_MODULE_ID = 'word-study';
 
-/** The right-pane tab, the phone full-screen view and the header button that opens it. */
+/** The right-pane tab and the phone full-screen view (opened from a word: Strong's popup, interlinear, dictionary). No header button: the header has no room for it. */
 export const wordStudyPaneMode: PaneModeContribution = {
   id: 'wordStudy',
   title: { key: 'rightPane.wordStudy', fallback: 'Word study' },
   icon: { kind: 'builtin', name: 'fa-language' },
   order: 70,
   phoneView: true,
-  headerButton: { title: { key: 'wordStudy.open', fallback: 'Word study' }, testId: 'header-word-study-btn' },
 };
 
 export const wordStudyManifest: FeatureModuleManifest = {

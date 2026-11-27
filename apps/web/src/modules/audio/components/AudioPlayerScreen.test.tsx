@@ -10,7 +10,11 @@ vi.mock('./AudioQuickSettings', () => ({ AudioQuickSettings: () => <div data-tes
 vi.mock('./AudioSpeedControl', () => ({ AudioSpeedControl: () => <div data-testid="speed-control" /> }));
 vi.mock('./AudioStatusLine', () => ({ AudioStatusLine: () => null }));
 vi.mock('./AudioProgress', () => ({ AudioProgress: () => null }));
-vi.mock('./AudioPlaylist', () => ({ AudioPlaylist: () => <div data-testid="playlist" /> }));
+vi.mock('./AudioPlaylist', () => ({
+  AudioPlaylist: ({ open }: { open: boolean }) => (open ? <div data-testid="playlist" /> : null),
+  PassagesButton: ({ onToggle }: { onToggle: () => void }) => <button data-testid="passages-button" onClick={onToggle} />,
+}));
+vi.mock('./PlaybackToggles', () => ({ PlaybackToggles: () => <div data-testid="toggles" /> }));
 vi.mock('./AudioElsewhere', () => ({ AudioElsewhere: () => null }));
 vi.mock('./AudioPassageProgress', () => ({ AudioPassageProgress: () => null }));
 vi.mock('./AudioTransportButtons', () => ({ AudioTransportButtons: () => <div /> }));
@@ -36,12 +40,16 @@ describe('AudioPlayerScreen', () => {
   });
   afterEach(() => { cleanup(); audioStore.status = 'idle'; audioStore.playerOpen = false; audioStore.quickSettingsOpen = false; });
 
-  it('has the speed control and stop, and no source chips', () => {
+  it('has speed, Repeat/Continue and the passages button; no Stop; passages closed until asked for', () => {
     const { container } = render(<AudioPlayerScreen />);
     expect(screen.getByTestId('speed-control')).toBeTruthy();
-    expect(screen.getByTestId('audio-player-stop')).toBeTruthy();
+    expect(screen.getByTestId('toggles')).toBeTruthy();
+    expect(screen.queryByTestId('audio-player-stop')).toBeNull();
     expect(container.querySelector('.audio-chip')).toBeNull();
     expect(screen.getByTestId('verse-pane')).toBeTruthy();
+    expect(screen.queryByTestId('playlist')).toBeNull();
+    fireEvent.click(screen.getByTestId('passages-button'));
+    expect(screen.getByTestId('playlist')).toBeTruthy();
   });
 
   it('idle: opened to type a list, it shows only the playlist (no verse pane or transport)', () => {

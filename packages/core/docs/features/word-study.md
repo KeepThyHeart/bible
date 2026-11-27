@@ -8,7 +8,7 @@ Word study is a feature module (id `word-study`, task 0126; see `features/featur
 
 | Half | Folder |
 |---|---|
-| Web client (right-pane tab `wordStudy`, phone view, header button) | `apps/web/src/modules/word-study/` |
+| Web client (right-pane tab `wordStudy`, phone view; no header button, it opens from a word) | `apps/web/src/modules/word-study/` |
 | Web server (`/api/word-study`) | `apps/web/server/modules/word-study/` |
 | Desktop renderer (dockview panel type `wordStudy`) | `apps/desktop/src/ui/modules/word-study/` |
 | Desktop main process (`module:word-study:*` IPC) | `apps/desktop/electron/modules/word-study/` |

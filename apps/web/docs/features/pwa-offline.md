@@ -386,6 +386,6 @@ Auth is a lightweight password gate for personal/self-hosted use. It is fully se
 - **site-config.json** `auth` block: `password` (plain text, auto-hashed and written back), `passwordHash` (pre-hashed), or `enabled: false`. The legacy `server-config.json` keys still load through `SiteConfig`'s fallback
 - **Environment variables**: `SITE_PASSWORD` or `NO_AUTH=1`
 - **No default**: there is no built-in fallback password. If `enabled` is true and neither `password`, `passwordHash` nor `SITE_PASSWORD` is set, the server exits at startup rather than coming up on a shared default
-- **Cookie**: `bible_auth=1`, `HttpOnly`, `SameSite=Lax`, `Secure` behind TLS. **Session-only by default** — the 1-year `Max-Age` is added only when `privacy.mode` is `relaxed`
+- **Cookie**: `bible_auth=1`, `HttpOnly`, `SameSite=Lax`, `Secure` behind TLS. **Session-only by default** — the 1-year `Max-Age` is added when `privacy.mode` is `relaxed`, or when the user ticks **Remember this device** on the login form. Installed PWAs need the latter: phones kill a backgrounded PWA, which ends its session and its session cookie
 - **Rate limiting**: 5 failed attempts per IP within 15 minutes
 - **Manifest**: browsers fetch `manifest.webmanifest` without credentials by default, which the password gate answers with 401. Two guards: `useCredentials: true` in the `VitePWA` config emits `crossorigin="use-credentials"` on the manifest link, and `passwordGate.ts` exempts `.webmanifest` alongside the other non-sensitive static build artifacts.

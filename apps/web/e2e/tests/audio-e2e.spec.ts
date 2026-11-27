@@ -194,22 +194,30 @@ test.describe('Audio Bible: desktop', () => {
     await context.setOffline(false);
   });
 
-  test('Settings has an Audio tab with the toggles and no voice list (there are no engines)', async ({ page }) => {
+  test('the settings are in the player gear (no Audio tab in Settings); a switch is remembered', async ({ page }) => {
     await open(page, '#/KJV/43/3/1');
-    await page.locator('.header__action-btn[title="Settings"]').click();
-    await page.locator('.settings-panel__tab', { hasText: 'Audio' }).click();
-    await expect(page.locator('[data-section="audio"]')).toBeVisible();
-    const follow = page.locator('#audio-pref-followAlong');
+    const openGear = async () => {
+      await expect(page.getByTestId('audio-listen')).toBeEnabled({ timeout: 15000 });
+      await page.getByTestId('audio-listen').click();
+      await page.getByTestId('audio-gear').click();
+      await expect(page.getByTestId('audio-quick-settings')).toBeVisible();
+    };
+    await openGear();
+    const follow = page.locator('#audio-quick-desktop-followAlong');
     await expect(follow).toBeChecked();
     await follow.uncheck();
     await expect(follow).not.toBeChecked();
-    await expect(page.getByTestId('audio-voices')).toHaveCount(0);
+    // A recording plays here, so nothing about a generated voice shows.
+    await expect(page.getByTestId('audio-quick-voice-state')).toHaveCount(0);
     // The choice is remembered across a reload.
     await page.reload();
     await waitForVerses(page);
+    await openGear();
+    await expect(page.locator('#audio-quick-desktop-followAlong')).not.toBeChecked();
+    // And Settings has no Audio tab.
+    await page.keyboard.press('Escape');
     await page.locator('.header__action-btn[title="Settings"]').click();
-    await page.locator('.settings-panel__tab', { hasText: 'Audio' }).click();
-    await expect(page.locator('#audio-pref-followAlong')).not.toBeChecked();
+    await expect(page.locator('.settings-panel__tab', { hasText: 'Audio' })).toHaveCount(0);
   });
 });
 
@@ -236,10 +244,12 @@ test.describe('Audio Bible: phone', () => {
     // The text keeps following the reading behind the mini-player.
     await expect.poll(async () => verseIdOf(page, '.verse--playing'), { timeout: 10000 }).toBeGreaterThan(43003001);
 
-    // Tapping the mini-player text reopens the player; stop closes both.
+    // Tapping the mini-player text reopens the player. The player has no Stop: minimise, then the mini-player's close stops.
     await mini.getByRole('button', { name: /open/i }).click();
     await expect(player).toBeVisible();
-    await page.getByTestId('audio-player-stop').click();
+    await expect(page.getByTestId('audio-player-stop')).toHaveCount(0);
+    await page.getByTestId('audio-player-close').click();
+    await mini.getByRole('button', { name: /stop/i }).click();
     await expect(player).toHaveCount(0);
     await expect(mini).toHaveCount(0);
   });

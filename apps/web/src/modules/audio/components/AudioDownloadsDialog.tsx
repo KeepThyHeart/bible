@@ -7,12 +7,15 @@ import { useStore } from '../../../hooks/useStore';
 import { useEscapeKey } from '../../../hooks/useEscapeKey';
 import { getWebDownloadsModel, downloadsDialog } from '../lib/downloads';
 import { AudioDownloadsView } from './AudioDownloadsView';
+import { useNowPlaying } from '../hooks/useNowPlaying';
+import { bibleStore } from '../../../stores/bibleStore';
 
 export function AudioDownloadsDialog() {
   const { t } = useTranslation();
   const module = useStore(downloadsDialog, () => downloadsDialog.module);
   const layout = useStore(audioStore, () => audioStore.layout);
   const closeRef = useRef<HTMLButtonElement>(null);
+  const now = useNowPlaying();
   const model = module ? getWebDownloadsModel() : null;
   const close = () => downloadsDialog.close();
   useEscapeKey(!!module && layout !== 'phone', close);
@@ -26,7 +29,8 @@ export function AudioDownloadsDialog() {
 
   if (!module || !model) return null;
   const title = <><i class="fa-solid fa-cloud-arrow-down" aria-hidden="true" /> {t('audio.downloads.title')}</>;
-  const body = <AudioDownloadsView model={model} moduleAbbr={module} />;
+  const currentBook = now.book ?? bibleStore.getActiveTab()?.book ?? null;
+  const body = <AudioDownloadsView model={model} moduleAbbr={module} currentBook={currentBook} />;
 
   if (layout === 'phone') {
     return (

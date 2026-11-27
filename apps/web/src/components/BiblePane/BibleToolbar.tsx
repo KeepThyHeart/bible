@@ -9,6 +9,26 @@ import { TranslationDialog } from './TranslationDialog';
 import { SlotOutlet, readerToolbarItems } from '../../host/slots';
 import { Bdi } from '@bible/ui';
 import { PropsSlotOutlet, readerToolbarActions } from '../../host/slots';
+import { useIsMobile } from '../../host/useIsMobile';
+
+/** Phone layout held upright: the toolbar's "More" menu takes display mode and module items. */
+function usePhonePortrait(): boolean {
+  const isMobile = useIsMobile();
+  const query = '(orientation: portrait)';
+  const [portrait, setPortrait] = useState(() => typeof window !== 'undefined' && !!window.matchMedia?.(query).matches);
+  useEffect(() => {
+    const mql = window.matchMedia?.(query);
+    if (!mql) return;
+    const onChange = () => setPortrait(mql.matches);
+    mql.addEventListener('change', onChange);
+    return () => mql.removeEventListener('change', onChange);
+  }, []);
+  return isMobile && portrait;
+}
+
+type DisplayMode = 'standard' | 'reading' | 'study';
+const DISPLAY_MODES: readonly DisplayMode[] = ['standard', 'reading', 'study'];
+const modeLabelKey = (mode: DisplayMode) => 'bibleToolbar.mode' + mode.charAt(0).toUpperCase() + mode.slice(1);
 
 interface BibleToolbarProps {
   onOpenSettings?: (section?: string) => void;
@@ -26,6 +46,13 @@ export function BibleToolbar({ onOpenSettings }: BibleToolbarProps) {
   const [showHistory, setShowHistory] = useState(false);
   const historyRef = useRef<HTMLDivElement>(null);
   const [showTranslationDialog, setShowTranslationDialog] = useState(false);
+  // Phone portrait: display mode and module items (keyword marks) live in a "More" popover.
+  const phonePortrait = usePhonePortrait();
+  const [showMore, setShowMore] = useState(false);
+  const moreRef = useRef<HTMLDivElement>(null);
+  const moreToggleRef = useRef<HTMLButtonElement>(null);
+  const moreOpenRef = useRef(false);
+  moreOpenRef.current = showMore;
 
   if (!tab) return null;
 
@@ -54,6 +81,20 @@ export function BibleToolbar({ onOpenSettings }: BibleToolbarProps) {
     return () => document.removeEventListener('keydown', onKey);
   }, []);
   useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      // A panel opened from inside (keyword marks) handles its own Escape first.
+      if (e.key !== 'Escape' || !moreOpenRef.current || e.defaultPrevented) return;
+      setShowMore(false);
+      moreToggleRef.current?.focus({ preventScroll: true });
+    };
+    const onDown = (e: MouseEvent) => {
+      if (moreOpenRef.current && moreRef.current && !moreRef.current.contains(e.target as Node)) setShowMore(false);
+    };
+    document.addEventListener('keydown', onKey);
+    document.addEventListener('mousedown', onDown);
+    return () => { document.removeEventListener('keydown', onKey); document.removeEventListener('mousedown', onDown); };
+  }, []);
+  useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (!historyOpenRef.current) return;
       if (historyRef.current && !historyRef.current.contains(e.target as Node)) {
@@ -63,6 +104,13 @@ export function BibleToolbar({ onOpenSettings }: BibleToolbarProps) {
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, []);
+
+  const setMode = (mode: DisplayMode) => {
+    bibleStore.setDisplayMode(tab.id, mode);
+    // W-056: the new layout is taller (Study interlinear), so the selected verse lands far below the
+    // old scroll offset; ask the pane to bring it back into view like a navigation does.
+    if (tab.studyVerse) bibleStore.scrollToVerse(tab.studyVerse);
+  };
 
   // Navigate to previous/next chapter
   const book = tab.book ? moduleStore.getBookByNumber(tab.book) : null;
@@ -175,16 +223,10 @@ export function BibleToolbar({ onOpenSettings }: BibleToolbarProps) {
           title={t('bibleToolbar.modeHint')}
           aria-label={t('bibleToolbar.modeLabel')}
           value={displayMode}
-          onChange={(e) => {
-            if (!tab) return;
-            bibleStore.setDisplayMode(tab.id, (e.target as HTMLSelectElement).value as 'standard' | 'reading' | 'study');
-            // W-056: the new layout is taller (Study interlinear), so the selected verse lands far below the
-            // old scroll offset; ask the pane to bring it back into view like a navigation does.
-            if (tab.studyVerse) bibleStore.scrollToVerse(tab.studyVerse);
-          }}
+          onChange={(e) => setMode((e.target as HTMLSelectElement).value as DisplayMode)}
         >
-          {(['standard', 'reading', 'study'] as const).map(mode => (
-            <option key={mode} value={mode}>{t('bibleToolbar.mode' + mode.charAt(0).toUpperCase() + mode.slice(1))}</option>
+          {DISPLAY_MODES.map(mode => (
+            <option key={mode} value={mode}>{t(modeLabelKey(mode))}</option>
           ))}
         </select>
 
@@ -214,7 +256,8 @@ export function BibleToolbar({ onOpenSettings }: BibleToolbarProps) {
       </div>
 
       <div class="bible-toolbar__right">
-        <SlotOutlet slot={readerToolbarItems} />
+        {/* Phone portrait: these are in "More" instead (one instance, so test ids and focus stay unique). */}
+        {!phonePortrait && <SlotOutlet slot={readerToolbarItems} />}
 
         {/* Actions of active feature modules (for example Listen). */}
         <PropsSlotOutlet slot={readerToolbarActions} props={{ tab }} />
@@ -223,6 +266,45 @@ export function BibleToolbar({ onOpenSettings }: BibleToolbarProps) {
           className="bible-toolbar__btn"
           onMoreOptions={onOpenSettings ? () => onOpenSettings('bible-font') : undefined}
         />
+
+        {/* Phone portrait only: what does not fit on the one row. */}
+        {phonePortrait && <div class="bible-toolbar__more" ref={moreRef}>
+          <button
+            class="bible-toolbar__btn bible-toolbar__more-btn"
+            ref={moreToggleRef}
+            onClick={() => setShowMore(v => !v)}
+            onMouseDown={(e) => e.stopPropagation()}
+            title={t('bibleToolbar.more')}
+            aria-label={t('bibleToolbar.more')}
+            aria-expanded={showMore}
+            aria-haspopup="dialog"
+            data-testid="bible-toolbar-more"
+          >
+            <i class="fa-solid fa-ellipsis-vertical" aria-hidden="true" />
+          </button>
+          {showMore && (
+            <div class="bible-toolbar__more-panel" role="dialog" aria-label={t('bibleToolbar.more')}>
+              <fieldset class="bible-toolbar__more-modes">
+                <legend>{t('bibleToolbar.modeLabel')}</legend>
+                {DISPLAY_MODES.map(mode => (
+                  <label key={mode} class="bible-toolbar__more-mode">
+                    <input
+                      type="radio"
+                      name={`bible-mode-${tab.id}`}
+                      value={mode}
+                      checked={displayMode === mode}
+                      onChange={() => setMode(mode)}
+                    />
+                    <span>{t(modeLabelKey(mode))}</span>
+                  </label>
+                ))}
+              </fieldset>
+              <div class="bible-toolbar__more-items">
+                <SlotOutlet slot={readerToolbarItems} />
+              </div>
+            </div>
+          )}
+        </div>}
 
         {/* Chapter navigation - far right (hidden on mobile) */}
         <div class="bible-toolbar__nav bible-toolbar__chapter-nav" title={t('bibleToolbar.chapter')}>

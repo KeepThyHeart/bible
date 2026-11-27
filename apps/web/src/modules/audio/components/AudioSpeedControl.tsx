@@ -59,7 +59,7 @@ export function AudioSpeedControl({ large }: { large?: boolean }) {
       <button
         type="button"
         ref={btnRef}
-        class="audio-speed__btn"
+        class={`audio-speed__btn${large ? ' audio-tool' : ''}`}
         disabled={!range}
         aria-haspopup="listbox"
         aria-expanded={open}
@@ -68,7 +68,12 @@ export function AudioSpeedControl({ large }: { large?: boolean }) {
         data-testid="audio-speed-button"
         onClick={() => setOpen(o => !o)}
       >
-        {formatRate(shown)}
+        {large ? (
+          <>
+            <span class="audio-speed__value">{formatRate(shown)}</span>
+            <span class="audio-tool__caption">{t('audio.speed.label')}</span>
+          </>
+        ) : formatRate(shown)}
       </button>
       <Popover
         open={open && options.length > 0}

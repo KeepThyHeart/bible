@@ -47,13 +47,11 @@ beforeEach(() => {
 });
 
 describe('manifest', () => {
-  it('validates and keeps the persisted ids, order and label key', () => {
+  it('validates; no Settings tab (every audio setting is in the player gear)', () => {
     expect(validateBuiltinManifest(audioManifest)).toEqual([]);
     expect(audioManifest.flag).toBe('audio');
     expect(audioManifest.platforms).toEqual(['web']);
-    expect(audioManifest.contributes.preferencesSections).toEqual([
-      { id: 'audio', title: { key: 'settings.tabs.audio', fallback: 'Audio' }, icon: { kind: 'builtin', name: 'fa-headphones' }, order: 50 },
-    ]);
+    expect(audioManifest.contributes.preferencesSections).toBeUndefined();
     expect(audioManifest.contributes.i18nNamespace).toBe('audio');
     expect(audioManifest.contributes.serverRoutes?.map((r) => r.path)).toEqual(['/audio']);
   });
@@ -75,10 +73,10 @@ describe('flag off (the default)', () => {
 });
 
 describe('flag on', () => {
-  it('contributes the Settings tab, its view and the namespace, and loads nothing at boot', async () => {
+  it('contributes the namespace (no Settings tab or view), and loads nothing at boot', async () => {
     const h = await boot();
-    expect(h.modulePoints.preferencesSections.get('audio')).toMatchObject({ id: 'audio', order: 50 });
-    expect(h.modulePoints.views.resolve('preferences:audio')).toBeDefined();
+    expect(h.modulePoints.preferencesSections.has('audio')).toBe(false);
+    expect(h.modulePoints.views.resolve('preferences:audio')).toBeUndefined();
     expect(JSON.stringify(h.modulePoints.i18nNamespace.list())).toContain('audio');
     expect(h.featureModules.isActive('audio')).toBe(false);
     expect(h.runBootProbes().activate).not.toContain('audio');

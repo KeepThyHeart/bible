@@ -7,6 +7,7 @@
  */
 
 import { useTranslation } from 'react-i18next';
+import { AudioOfflineHint } from './AudioOfflineChoices';
 import { audioStore } from '../audioStore';
 import type { NoticeAction } from '../audioStore';
 import { useStore } from '../../../hooks/useStore';
@@ -46,6 +47,8 @@ export function AudioStatusLine() {
             <button type="button" class="audio-status__btn" onClick={() => audioStore.clearNotice()}>{t('audio.action.dismiss')}</button>
           )}
         </span>
+        {/* Offline: what can play here instead (another translation or book saved on this device). */}
+        <AudioOfflineHint />
       </div>
     );
   }

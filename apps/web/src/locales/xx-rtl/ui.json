@@ -78,6 +78,7 @@
     "modeStudy": "‏Study‏",
     "modeHint": "‏Study view shows Strong's numbers and interlinear words for translations that include them, such as KJV.‏",
     "modeLabel": "‏Display mode‏",
+    "more": "‏More‏",
     "recentPassages": "‏Recent passages‏",
     "noHistory": "‏No passages visited yet‏",
     "translationButton": "‏Translation: {abbr}‏",
@@ -913,7 +914,8 @@
     "passwordPlaceholder": "‏Password‏",
     "submit": "‏Enter‏",
     "incorrectPassword": "‏Incorrect password.‏",
-    "tooManyAttempts": "‏Too many attempts. Please try again later.‏"
+    "tooManyAttempts": "‏Too many attempts. Please try again later.‏",
+    "rememberDevice": "‏Remember this device‏"
   },
   "wordStudy": {
     "open": "‏Word study‏"

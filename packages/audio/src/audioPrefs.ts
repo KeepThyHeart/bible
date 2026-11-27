@@ -40,7 +40,8 @@ export const DEFAULT_AUDIO_PREFS: AudioUiPrefs = {
   continueAfterChapter: 'next-chapter',
   readChapterIntro: true,
   phoneBatteryNoticeSeen: {},
-  playerStyle: 'popup',
+  // Desktop opens the simple player (the bar); its ⤢ button opens the full player and is remembered.
+  playerStyle: 'bar',
   passageLoop: 'once',
 };
 

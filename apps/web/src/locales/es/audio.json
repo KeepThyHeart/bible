@@ -26,7 +26,7 @@
       "source": "Fuente de audio, voz y velocidad",
       "settings": "Ajustes de audio",
       "close": "Detener y cerrar el reproductor",
-      "popOut": "Abrir el reproductor en una ventana emergente"
+      "popOut": "Mostrar el reproductor completo"
     },
     "player": {
       "label": "Reproductor de audio",
@@ -76,10 +76,13 @@
       "noVoice": "{engine} no tiene voz para {language}.",
       "generated": "Generado",
       "engine": "Motor de voz",
-      "noGenerated": "No hay voz generada para {language} en este dispositivo."
+      "noGenerated": "No hay voz generada para {language} en este dispositivo.",
+      "recordingOption": "Grabación (recomendada)",
+      "generatedOption": "Generada · {engine}"
     },
     "voice": {
-      "label": "Voz"
+      "label": "Voz",
+      "which": "Locutor"
     },
     "speed": {
       "label": "Velocidad",
@@ -130,11 +133,14 @@
       "intro": "Anunciar «Libro, capítulo N» al comenzar",
       "storage": "Almacenamiento",
       "storageVoices": "Voces sintéticas y motor · {size}",
-      "storageChapters": "Capítulos reproducidos recientemente · {size} · {count, plural, one {# capítulo} other {# capítulos}}"
+      "storageChapters": "Capítulos reproducidos recientemente · {size} · {count, plural, one {# capítulo} other {# capítulos}}",
+      "onDevice": "en este dispositivo",
+      "downloadsOnPlay": "se descarga al reproducir por primera vez"
     },
     "quick": {
       "title": "Ajustes de audio",
-      "all": "Todos los ajustes de audio…"
+      "all": "Todos los ajustes de audio…",
+      "short": "Ajustes"
     },
     "style": {
       "label": "Reproductor",
@@ -143,7 +149,7 @@
     },
     "popup": {
       "label": "Reproductor de audio",
-      "dock": "Mostrar el reproductor como barra"
+      "dock": "Volver al reproductor sencillo"
     },
     "verses": {
       "label": "Texto del capítulo. Elige un versículo para leer desde allí.",
@@ -190,7 +196,8 @@
       "done": "La descarga ha terminado.",
       "cancelled": "La descarga se detuvo. El progreso se conserva, así que la próxima descarga continúa desde aquí.",
       "failed": "La descarga no terminó. {message}",
-      "close": "Cerrar"
+      "close": "Cerrar",
+      "otherBooks": "Otros libros"
     },
     "passages": {
       "open": "Reproducir pasajes…",
@@ -208,7 +215,12 @@
         "badNumbers": "No se pudieron leer los números de capítulo o versículo de «{text}».",
         "outOfRange": "«{text}» está más allá del final de {book}.",
         "tooMany": "Hasta {max} pasajes a la vez."
-      }
+      },
+      "toggle": "Lista: elegir pasajes para leer",
+      "useChapter": "Solo {ref}",
+      "short": "Lista",
+      "save": "Guardar",
+      "edit": "Editar la lista"
     },
     "playlist": {
       "label": "Lista",
@@ -217,13 +229,19 @@
     },
     "continue": {
       "label": "Continuar con el capítulo siguiente",
-      "listHint": "Se aplica al leer por capítulos; una lista escrita termina en su último versículo."
+      "listHint": "Se aplica al leer por capítulos; una lista escrita termina en su último versículo.",
+      "on": "Sigue con el capítulo siguiente",
+      "off": "Se detiene al final del capítulo",
+      "short": "Continuar"
     },
     "loop": {
       "label": "Repetir",
       "once": "Reproducir una vez",
       "list": "Repetir la lista",
-      "passage": "Repetir este pasaje"
+      "passage": "Repetir este pasaje",
+      "on": "Repetir: sí",
+      "off": "Repetir: no",
+      "short": "Repetir"
     },
     "elsewhere": {
       "label": "Leyendo en otra pestaña: {ref} ({module})",
@@ -232,6 +250,15 @@
     "live": {
       "passage": "Leyendo {ref}, {index} de {count}",
       "retarget": "Ahora se lee esta pestaña. La otra conserva su lugar."
+    },
+    "finished": {
+      "done": "Terminado: {ref}",
+      "next": "Reproducir {ref}"
+    },
+    "offline": {
+      "saved": "Audio guardado en este dispositivo:",
+      "more": "{names} y {count} más",
+      "books": "{count, plural, one {# libro sin conexión} other {# libros sin conexión}}"
     }
   }
 }

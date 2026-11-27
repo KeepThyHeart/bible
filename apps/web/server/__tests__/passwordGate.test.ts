@@ -527,6 +527,59 @@ describe('passwordGate middleware', () => {
       expect(setCookie).toContain('Max-Age=31536000'); // 1 year in seconds
     });
 
+    it('uses a persistent cookie in strict mode when "remember this device" is ticked', () => {
+      const password = 'secret';
+      const hash = hashPassword(password);
+      const gate = createPasswordGate({ passwordHash: hash, privacyMode: 'strict' });
+
+      const req = mockRequest({
+        path: '/login',
+        method: 'POST',
+        body: { password, remember: '1' },
+      });
+      const res = mockResponse();
+
+      gate(req, res, next);
+
+      const setCookie = (res.setHeader as any).mock.calls.find(
+        (call: any[]) => call[0] === 'Set-Cookie'
+      )?.[1];
+      expect(setCookie).toContain(`bible_auth=${authCookieValue(hash)}`);
+      expect(setCookie).toContain('Max-Age=31536000');
+    });
+
+    it('ignores "remember" when the password is wrong', () => {
+      const hash = hashPassword('secret');
+      const gate = createPasswordGate({ passwordHash: hash, privacyMode: 'strict' });
+
+      const req = mockRequest({
+        path: '/login',
+        method: 'POST',
+        body: { password: 'nope', remember: '1' },
+      });
+      const res = mockResponse();
+
+      gate(req, res, next);
+
+      const setCookie = (res.setHeader as any).mock.calls.find(
+        (call: any[]) => call[0] === 'Set-Cookie'
+      )?.[1];
+      expect(setCookie).toBeUndefined();
+      expect(res.status).toHaveBeenCalledWith(401);
+    });
+
+    it('offers the "remember this device" checkbox on the login page', () => {
+      const gate = createPasswordGate({ passwordHash: hashPassword('secret') });
+      const req = mockRequest({ path: '/', method: 'GET' });
+      const res = mockResponse();
+
+      gate(req, res, next);
+
+      const html = (res.send as any).mock.calls[0]?.[0] as string;
+      expect(html).toContain('name="remember"');
+      expect(html).toContain('autocomplete="current-password"');
+    });
+
     it('includes Secure flag for HTTPS', () => {
       const password = 'secret';
       const hash = hashPassword(password);

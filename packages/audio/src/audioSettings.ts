@@ -1,7 +1,7 @@
 /**
  * The simple "While playing" preferences of Settings > Audio, declared through the
  * shared settings registry so `SettingsForm` renders them. Voices, source and speed
- * stay in `AudioSettingsTab` (they depend on what the registered providers report).
+ * stay in `AudioQuickSettings` (the player gear) (they depend on what the registered providers report).
  *
  * The values live where they always did: `audioStore.prefs` (localStorage key
  * `bible-audio-prefs`). This port maps between the registry's flat keys and those

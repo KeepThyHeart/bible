@@ -1,15 +1,18 @@
 /**
  * The phone's mini-player: what is being read and a play/pause button, above the
  * bottom bar in every view while audio is active and the full player is closed.
- * Tapping the text reopens the full player; the cross stops playback.
+ * Tapping the text reopens the full player; the cross stops playback. When a chapter has been
+ * read to its end it turns into the "finished" strip, which offers the next chapter.
  */
 
 import { useTranslation } from 'react-i18next';
 import { audioStore } from '../audioStore';
 import { useStore } from '../../../hooks/useStore';
 import { useNowPlaying } from '../hooks/useNowPlaying';
+import { useSourceChip } from './useSourceChip';
 import { useSources } from './useSources';
 import { sourceChipText } from './sourceChip';
+import { AudioFinished } from './AudioFinished';
 
 export function AudioMiniPlayer() {
   const { t } = useTranslation();
@@ -20,11 +23,13 @@ export function AudioMiniPlayer() {
   const providerId = useStore(audioStore, () => audioStore.providerId);
   const voiceId = useStore(audioStore, () => audioStore.voiceId);
   const now = useNowPlaying();
+  const chipText = useSourceChip(now.moduleAbbr);
   const sources = useSources(now.moduleAbbr);
-  if (!enabled || layout !== 'phone' || open || status === 'idle') return null;
+  if (!enabled || layout !== 'phone' || open) return null;
+  if (status === 'idle') return <AudioFinished variant="phone" />;
 
   const active = sources.find(s => s.provider.id === providerId);
-  const chip = sourceChipText(t, providerId, active?.provider.label, active?.voices.find(v => v.id === voiceId)?.label, now.moduleAbbr ?? '');
+  const chip = chipText;
   const playing = status === 'playing' || status === 'preparing' || status === 'buffering' || status === 'resolving';
 
   return (

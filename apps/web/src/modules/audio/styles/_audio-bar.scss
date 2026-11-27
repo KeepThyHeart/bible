@@ -33,11 +33,12 @@
 
 .audio-popover {
   // Position, size, elevation and dismissal come from the shared `Popover`; only the
-  // surface is set here.
+  // surface is set here, and a layer above the phone's full-screen player (z-index 200):
+  // the shared Popover's own layer sits below it, so the speed list opened unseen there.
+  z-index: 210;
   background: var(--bg-primary);
   border: 1px solid var(--border-color);
   border-radius: 8px;
   padding: 12px;
-  z-index: 95;
 }
 

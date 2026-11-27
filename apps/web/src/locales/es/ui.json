@@ -78,6 +78,7 @@
     "modeStudy": "Estudio",
     "modeHint": "La vista de estudio muestra los números de Strong y las palabras interlineales de las traducciones que los incluyen, como KJV.",
     "modeLabel": "Modo de visualización",
+    "more": "Más",
     "recentPassages": "Pasajes recientes",
     "noHistory": "Todavía no se ha visitado ningún pasaje",
     "translationButton": "Traducción: {abbr}",
@@ -913,7 +914,8 @@
     "passwordPlaceholder": "Contraseña",
     "submit": "Entrar",
     "incorrectPassword": "Contraseña incorrecta.",
-    "tooManyAttempts": "Demasiados intentos. Inténtelo de nuevo más tarde."
+    "tooManyAttempts": "Demasiados intentos. Inténtelo de nuevo más tarde.",
+    "rememberDevice": "Recordar este dispositivo"
   },
   "wordStudy": {
     "open": "Estudio de palabras"

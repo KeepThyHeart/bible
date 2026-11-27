@@ -80,7 +80,7 @@ export function BottomSheet(props: BottomSheetProps) {
         <div className="kth-sheet__header">
           <span className="kth-sheet__grip" aria-hidden="true" />
           {title ? <div id={titleId} className="kth-sheet__title">{title}</div> : <span className="kth-sheet__title" />}
-          <button type="button" className="kth-btn kth-btn--ghost kth-btn--sm" aria-label={l.close} onClick={onClose}>
+          <button type="button" className="kth-btn kth-btn--ghost kth-btn--sm kth-sheet__close" aria-label={l.close} onClick={onClose}>
             {'×'}
           </button>
         </div>

@@ -26,7 +26,7 @@
       "source": "مصدر الصوت والصوت المقروء والسرعة",
       "settings": "إعدادات الصوت",
       "close": "إيقاف المشغّل وإغلاقه",
-      "popOut": "فتح المشغّل في نافذة منبثقة"
+      "popOut": "إظهار المشغّل الكامل"
     },
     "player": {
       "label": "مشغّل الصوت",
@@ -76,10 +76,13 @@
       "noVoice": "لا يوجد لدى {engine} صوت للغة {language}.",
       "generated": "مولَّد",
       "engine": "محرك الصوت",
-      "noGenerated": "لا يوجد صوت مولَّد للغة {language} على هذا الجهاز."
+      "noGenerated": "لا يوجد صوت مولَّد للغة {language} على هذا الجهاز.",
+      "recordingOption": "تسجيل (موصى به)",
+      "generatedOption": "مُولَّد · {engine}"
     },
     "voice": {
-      "label": "الصوت"
+      "label": "الصوت",
+      "which": "القارئ"
     },
     "speed": {
       "label": "السرعة",
@@ -130,11 +133,14 @@
       "intro": "الإعلان عن «السفر، الأصحاح N» في البداية",
       "storage": "التخزين",
       "storageVoices": "أصوات القراءة والمحرك · {size}",
-      "storageChapters": "الأصحاحات التي شُغِّلت مؤخرًا · {size} · {count, plural, zero {لا أصحاحات} one {أصحاح واحد} two {أصحاحان} few {# أصحاحات} many {# أصحاحًا} other {# أصحاح}}"
+      "storageChapters": "الأصحاحات التي شُغِّلت مؤخرًا · {size} · {count, plural, zero {لا أصحاحات} one {أصحاح واحد} two {أصحاحان} few {# أصحاحات} many {# أصحاحًا} other {# أصحاح}}",
+      "onDevice": "على هذا الجهاز",
+      "downloadsOnPlay": "يُنزَّل عند أول تشغيل"
     },
     "quick": {
       "title": "إعدادات الصوت",
-      "all": "كل إعدادات الصوت…"
+      "all": "كل إعدادات الصوت…",
+      "short": "الإعدادات"
     },
     "style": {
       "label": "المشغّل",
@@ -143,7 +149,7 @@
     },
     "popup": {
       "label": "مشغّل الصوت",
-      "dock": "عرض المشغّل كشريط"
+      "dock": "العودة إلى المشغّل البسيط"
     },
     "verses": {
       "label": "نص الأصحاح. اختر عددًا للقراءة منه.",
@@ -190,7 +196,8 @@
       "done": "اكتمل التنزيل.",
       "cancelled": "توقف التنزيل. التقدم محفوظ، فيتابع التنزيل التالي من هنا.",
       "failed": "لم يكتمل التنزيل. {message}",
-      "close": "إغلاق"
+      "close": "إغلاق",
+      "otherBooks": "أسفار أخرى"
     },
     "passages": {
       "open": "Play passages…",
@@ -208,7 +215,12 @@
         "badNumbers": "“{text}” has chapter or verse numbers that could not be read.",
         "outOfRange": "“{text}” is past the end of {book}.",
         "tooMany": "Up to {max} passages at a time."
-      }
+      },
+      "toggle": "القائمة: اختر مقاطع للقراءة",
+      "useChapter": "{ref} فقط",
+      "short": "القائمة",
+      "save": "حفظ",
+      "edit": "تعديل القائمة"
     },
     "playlist": {
       "label": "Playlist",
@@ -217,13 +229,19 @@
     },
     "continue": {
       "label": "Continue to the next chapter",
-      "listHint": "Applies when reading by chapter; a typed list ends at its last verse."
+      "listHint": "Applies when reading by chapter; a typed list ends at its last verse.",
+      "on": "يتابع إلى الأصحاح التالي",
+      "off": "يتوقف في نهاية الأصحاح",
+      "short": "متابعة"
     },
     "loop": {
       "label": "Repeat",
       "once": "Play once",
       "list": "Loop the list",
-      "passage": "Loop this passage"
+      "passage": "Loop this passage",
+      "on": "التكرار مفعّل",
+      "off": "التكرار متوقف",
+      "short": "تكرار"
     },
     "elsewhere": {
       "label": "Reading in another tab: {ref} ({module})",
@@ -232,6 +250,15 @@
     "live": {
       "passage": "Now reading {ref}, {index} of {count}",
       "retarget": "Now reading this tab. The other tab keeps its place."
+    },
+    "finished": {
+      "done": "انتهى {ref}",
+      "next": "تشغيل {ref}"
+    },
+    "offline": {
+      "saved": "صوت محفوظ على هذا الجهاز:",
+      "more": "{names} و{count} أخرى",
+      "books": "{count, plural, one {# سفر دون اتصال} other {# أسفار دون اتصال}}"
     }
   }
 }

@@ -78,6 +78,7 @@
     "modeStudy": "研经",
     "modeHint": "研经视图会为包含斯特朗编号和逐字对照的译本（如 KJV）显示这些内容。",
     "modeLabel": "显示模式",
+    "more": "更多",
     "recentPassages": "最近查看的经文",
     "noHistory": "尚未浏览过任何经文",
     "translationButton": "译本：{abbr}",
@@ -913,7 +914,8 @@
     "passwordPlaceholder": "密码",
     "submit": "进入",
     "incorrectPassword": "密码错误。",
-    "tooManyAttempts": "尝试次数过多，请稍后再试。"
+    "tooManyAttempts": "尝试次数过多，请稍后再试。",
+    "rememberDevice": "记住此设备"
   },
   "wordStudy": {
     "open": "词语研究"

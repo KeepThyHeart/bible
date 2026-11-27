@@ -7,18 +7,11 @@
 @use 'styles/audio-popup';
 @use 'styles/audio-quick';
 
-// The verse being read aloud (Audio Bible follow-along). Marked by a rule on
-// the inline-start edge as well as a tint, so it does not depend on colour
-// alone (the weight never changes, so the text does not reflow), and it is a
-// different mark from the selection (`.verse--study`): the two can be on
-// different verses at once, and the selection is what the Study and Commentary
-// panes follow. Added to a verse by the audio module's verse decorator.
+// The verse being read aloud (Audio Bible follow-along). Shown with the
+// selection's own fill (`.verse--study`), the same look a verse gets when a
+// cross-reference is followed to it. An inline-start rule was tried and ran
+// into the text. The weight never changes, so the text does not reflow.
+// Added to a verse by the audio module's verse decorator.
 .verse--playing {
-  box-shadow: inset 3px 0 0 var(--accent-color);
-  background: color-mix(in srgb, var(--accent-color) 10%, transparent);
-
-  &.verse--study {
-    // Both at once: keep the selection's fill, the rule still says "reading".
-    background: var(--highlight-bg);
-  }
+  background: var(--highlight-bg);
 }

@@ -8,6 +8,7 @@ import { AssetError } from '@bible/core/browser';
 import type { AudioSystem } from '../audioStore';
 import { moduleStore } from '../../../stores/moduleStore';
 import { offlineStore } from '../../../stores/offlineStore';
+import { trackDownloads } from './offlineAudio';
 import { findModuleManifest, installModuleAsset, refreshModuleCatalog } from '../../../offline/moduleAssets';
 
 export interface AudioDownloadsHandle {
@@ -65,6 +66,7 @@ export function getWebDownloadsModel(): AudioDownloadsModel | null {
   if (shared && shared.handle === handle) return shared.model;
   const model = createWebDownloadsModel();
   shared = model ? { handle, model } : null;
+  if (model) trackDownloads(model); // the model lives as long as the handle; so does this
   return model;
 }
 

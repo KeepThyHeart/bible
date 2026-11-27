@@ -21,6 +21,7 @@ import { focusAudioPlayer } from '@bible/audio';
 
 async function start() {
   buildUiRig({});
+  audioStore.setPlayerStyle('popup');
   await openChapter();
   await flush();
 }
@@ -31,6 +32,7 @@ async function playNow() {
   await flush();
 }
 
+// The desktop default is the simple bar; these tests are about the full player (pop-up style).
 beforeEach(() => { audioStore.reset(); });
 afterEach(() => { cleanup(); audioStore.reset(); });
 
@@ -45,7 +47,7 @@ describe('AudioPlayerPopup', () => {
     expect(dlg.getAttribute('role')).toBe('dialog');
     expect(dlg.getAttribute('aria-modal')).toBe('false');
     expect(dlg.getAttribute('aria-labelledby')).toBe('audio-popup-title');
-    expect(screen.getByTestId('audio-verse-pane').getAttribute('data-variant')).toBe('popup');
+    expect(screen.queryByTestId('audio-verse-pane')).toBeNull(); // the Bible text is on screen beside it
     expect(document.activeElement).toBe(before);
   });
 
@@ -67,7 +69,7 @@ describe('AudioPlayerPopup', () => {
     expect(screen.queryByTestId('audio-popup')).toBeNull();
   });
 
-  it('the focus shortcut moves focus into the verse pane; Escape closes the player and returns focus', async () => {
+  it('the focus shortcut moves focus to the play controls; Escape closes the player and returns focus', async () => {
     await start();
     const outside = document.createElement('button');
     outside.setAttribute('data-testid', 'outside');
@@ -77,7 +79,7 @@ describe('AudioPlayerPopup', () => {
     await screen.findByTestId('audio-popup');
     outside.focus();
     focusAudioPlayer();
-    expect(document.activeElement).toBe(screen.getByTestId('audio-verse-pane'));
+    expect(document.activeElement?.closest('.audio-popup__controls')).toBeTruthy();
     fireEvent.keyDown(document.activeElement!, { key: 'Escape' });
     expect(document.activeElement).toBe(outside);
     expect(audioStore.status).toBe('idle');

@@ -22,10 +22,9 @@
   -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 24px, #000 calc(100% - 24px), transparent 100%);
   mask-image: linear-gradient(to bottom, transparent 0, #000 24px, #000 calc(100% - 24px), transparent 100%);
 
-  // The verse being read: tint and inline-start rule only, no size/weight/padding change.
+  // The verse being read: the selection's fill, no size/weight/padding change.
   .verse--playing {
-    background: color-mix(in srgb, var(--accent-color) 16%, transparent);
-    box-shadow: inset 3px 0 0 var(--accent-color);
+    background: var(--highlight-bg);
   }
 
   &__opt {
@@ -74,4 +73,10 @@
 
     &:hover { background: var(--bg-tertiary, var(--bg-secondary)); }
   }
+}
+
+// While a verse is being read, it is the only highlighted verse in that text: the study verse (the
+// one the commentary follows) keeps its place but loses its fill, so two verses never look selected.
+.bible-pane:has(.verse--playing) .verse.verse--study:not(.verse--playing) {
+  background: transparent;
 }

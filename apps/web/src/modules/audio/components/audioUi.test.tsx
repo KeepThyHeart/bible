@@ -23,11 +23,12 @@ import { BibleToolbar } from '../../../components/BiblePane/BibleToolbar';
 import { readerToolbarActions } from '../../../host/slots';
 import { ListenButton } from './ListenButton';
 import { AudioTransportBar } from './AudioTransportBar';
+import { AudioPlayerPopup } from './AudioPlayerPopup';
 import { AudioPlayerScreen } from './AudioPlayerScreen';
 import { AudioMiniPlayer } from './AudioMiniPlayer';
 import { AudioGateDialog } from './AudioGateDialog';
 import { AudioLiveRegion } from './AudioLiveRegion';
-import { AudioSettingsTab } from './AudioSettingsTab';
+import { AudioQuickSettings } from './AudioQuickSettings';
 
 let rig: UiRig;
 
@@ -160,25 +161,38 @@ describe('desktop transport bar', () => {
     expect(screen.getByText('audio.action.retry')).toBeTruthy();
   });
 
-  it('opens the settings from the gear; choosing Generated while a recording exists is remembered and plays generated speech', async () => {
+  it('the simple bar: Settings and pop-out, no other tools; pop-out opens the full player', async () => {
     await start({ recordings: true });
     render(<AudioTransportBar />);
     await playNow();
-    expect(screen.queryByTitle('audio.transport.source')).toBeNull(); // no source chip on the bar any more
+    await screen.findByTestId('audio-transport');
+    expect(screen.queryByTestId('audio-speed')).toBeNull();
+    fireEvent.click(screen.getByTestId('audio-gear'));
+    await screen.findByTestId('audio-quick-settings');
+    fireEvent.keyDown(document, { key: 'Escape' });
+    await waitFor(() => expect(screen.queryByTestId('audio-quick-settings')).toBeNull());
+    fireEvent.click(screen.getByTestId('audio-popout'));
+    expect(audioStore.prefs.playerStyle).toBe('popup');
+  });
+
+  it('the full player opens the settings from its Settings tile (the Voice select, recordings first), and Escape closes it', async () => {
+    await start({ recordings: true });
+    audioStore.setPlayerStyle('popup');
+    render(<AudioPlayerPopup />);
+    await playNow();
+    expect(screen.queryByTestId('audio-verse-pane')).toBeNull(); // the Bible text is on screen beside it
     fireEvent.click(await screen.findByTestId('audio-gear'));
-    const panel = await screen.findByTestId('audio-quick-settings');
-    await waitFor(() => expect(within(panel).getAllByRole('radio', { name: /audio\.source\.(auto|recorded|generated)$/ }).length).toBe(3));
-    fireEvent.click(within(panel).getByRole('radio', { name: 'audio.source.generated' }));
-    expect(audioStore.prefs.perTranslation.KJV?.source).toBe('tts:fake');
-    await waitFor(() => expect(audioStore.providerId).toBe('tts:fake'));
-    // Escape closes it.
+    await screen.findByTestId('audio-quick-settings');
+    // Choosing from it is covered in audioQuick.test.tsx (with a stand-in Popover).
+    await waitFor(() => expect(Array.from((screen.getByTestId('audio-quick-source') as HTMLSelectElement).options).map(o => o.value)).toEqual(['recorded', 'tts:fake']));
     fireEvent.keyDown(document, { key: 'Escape' });
     await waitFor(() => expect(screen.queryByTestId('audio-quick-settings')).toBeNull());
   });
 
-  it('keeps the speed on the bar and picks it from a pop-up', async () => {
+  it('the full player keeps the speed as a tile and picks it from a pop-up', async () => {
     await start();
-    render(<AudioTransportBar />);
+    audioStore.setPlayerStyle('popup');
+    render(<AudioPlayerPopup />);
     await playNow();
     const speed = await screen.findByTestId('audio-speed');
     fireEvent.click(within(speed).getByTestId('audio-speed-button'));
@@ -231,7 +245,7 @@ describe('phone player', () => {
     expect(audioStore.status).toBe('playing');
   });
 
-  it('the mini-player pauses, reopens the player and stops', async () => {
+  it('the mini-player pauses, reopens the player, and stops (the player itself has no Stop)', async () => {
     await start({ layout: 'phone' });
     acknowledgeBatteryNotice();
     render(<><AudioPlayerScreen /><AudioMiniPlayer /></>);
@@ -241,7 +255,9 @@ describe('phone player', () => {
     expect(audioStore.status).toBe('paused');
     fireEvent.click(screen.getByLabelText('audio.player.open'));
     await screen.findByTestId('audio-player-screen');
-    fireEvent.click(screen.getByTestId('audio-player-stop'));
+    expect(screen.queryByTestId('audio-player-stop')).toBeNull();
+    fireEvent.click(screen.getByTestId('audio-player-close'));
+    fireEvent.click(within(await screen.findByTestId('audio-mini')).getByLabelText('audio.transport.close'));
     expect(audioStore.status).toBe('idle');
     await waitFor(() => expect(screen.queryByTestId('audio-player-screen')).toBeNull());
     expect(screen.queryByTestId('audio-mini')).toBeNull();
@@ -346,67 +362,38 @@ describe('live region', () => {
   });
 });
 
-describe('settings tab', () => {
-  it('binds the toggles to the preferences', async () => {
+describe('settings in the player gear', () => {
+  it('binds the while-playing switches to the preferences', async () => {
     await start();
-    render(<AudioSettingsTab />);
-    const follow = await waitFor(() => { if (!document.getElementById('audio-pref-followAlong')) throw new Error('no toggle'); }).then(() => document.getElementById('audio-pref-followAlong') as HTMLInputElement);
+    render(<AudioQuickSettings moduleAbbr="KJV" variant="phone" />);
+    const follow = await waitFor(() => { if (!document.getElementById('audio-quick-phone-followAlong')) throw new Error('no toggle'); }).then(() => document.getElementById('audio-quick-phone-followAlong') as HTMLInputElement);
     expect(follow.checked).toBe(true);
     fireEvent.click(follow);
     expect(audioStore.prefs.followAlong).toBe(false);
-    fireEvent.click(document.getElementById('audio-pref-autoScroll')!);
+    fireEvent.click(document.getElementById('audio-quick-phone-autoScroll')!);
     expect(audioStore.prefs.autoScroll).toBe(false);
-    fireEvent.click(document.getElementById('audio-pref-continueToNextChapter')!);
-    expect(audioStore.prefs.continueAfterChapter).toBe('stop');
-    fireEvent.click(document.getElementById('audio-pref-readChapterIntro')!);
+    fireEvent.click(document.getElementById('audio-quick-phone-readChapterIntro')!);
     expect(audioStore.prefs.readChapterIntro).toBe(false);
+    // Continue is a toggle on the player, not here.
+    expect(document.getElementById('audio-quick-phone-continueToNextChapter')).toBeNull();
     expect(JSON.parse(rig.storage.get('bible-audio-prefs')!).followAlong).toBe(false);
   });
 
-  it('reduces to the toggles when no engine and no recording exist', async () => {
-    await start({ engine: false });
-    render(<AudioSettingsTab />);
-    await waitFor(() => expect(document.getElementById('audio-pref-followAlong')).not.toBeNull());
-    expect(screen.queryByTestId('audio-voices')).toBeNull();
-    expect(screen.queryByTestId('audio-rate')).toBeNull();
-  });
-
-  it('lists the engine voices, downloads one with progress, uses it, and removes it', async () => {
+  it('under Generated: the voice size and state, and Remove once it is on the device', async () => {
     await start();
-    render(<AudioSettingsTab />);
-    const voices = await screen.findByTestId('audio-voices');
-    expect(voices.textContent).toContain('Amy');
-    expect(voices.textContent).toContain('63 MB');
-    fireEvent.click(screen.getByText('audio.settings.download'));
-    await waitFor(() => expect(voices.textContent).toContain('audio.settings.downloaded'));
-    expect(rig.engine.prepared.has('amy')).toBe(true);
-    fireEvent.click(screen.getByText('audio.settings.useVoice'));
-    expect(audioStore.prefs.voiceByEngineLang['fake:en']).toBe('amy');
-    fireEvent.click(within(voices).getByText('audio.settings.remove'));
+    audioStore.setPrefs({ source: 'tts:fake' });
+    render(<AudioQuickSettings moduleAbbr="KJV" variant="phone" />);
+    const state = await screen.findByTestId('audio-quick-voice-state');
+    await waitFor(() => expect(state.textContent).toContain('audio.settings.downloadsOnPlay'));
+    expect(state.textContent).toContain('Amy');
+    expect(state.textContent).toContain('63 MB');
+    await rig.engine.prepare('amy', () => {}, new AbortController().signal);
+    cleanup();
+    render(<AudioQuickSettings moduleAbbr="KJV" variant="phone" />);
+    const ready = await screen.findByTestId('audio-quick-voice-state');
+    await waitFor(() => expect(ready.textContent).toContain('audio.settings.onDevice'));
+    fireEvent.click(within(ready).getByText('audio.settings.remove'));
     await waitFor(() => expect(rig.engine.prepared.has('amy')).toBe(false));
-    await waitFor(() => expect(screen.getByText('audio.settings.download')).toBeTruthy());
-  });
-
-  it('sets the global source and a per-translation source', async () => {
-    await start({ recordings: true });
-    render(<AudioSettingsTab />);
-    await waitFor(() => expect((screen.getAllByRole('radio', { name: 'audio.source.generated' })[1] as HTMLButtonElement).disabled).toBe(false));
-    fireEvent.click(screen.getAllByRole('radio', { name: 'audio.source.recorded' })[0]);
-    expect(audioStore.prefs.source).toBe('recorded');
-    fireEvent.click(screen.getAllByRole('radio', { name: 'audio.source.generated' })[1]);
-    expect(audioStore.prefs.perTranslation.KJV?.source).toBe('tts:fake');
-    fireEvent.click(screen.getByRole('radio', { name: 'audio.source.useDefault' }));
-    expect(audioStore.prefs.perTranslation.KJV).toBeUndefined();
-  });
-
-  it('shows the speed slider from the sources’ range and stores the choice', async () => {
-    await start();
-    render(<AudioSettingsTab />);
-    const slider = await screen.findByTestId('audio-rate') as HTMLInputElement;
-    expect(slider.min).toBe('0.5');
-    expect(slider.max).toBe('2');
-    fireEvent.input(slider, { target: { value: '1.5' } });
-    expect(audioStore.prefs.rate).toBe(1.5);
   });
 });
 

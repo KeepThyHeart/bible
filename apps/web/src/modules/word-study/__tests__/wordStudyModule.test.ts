@@ -59,7 +59,6 @@ describe('the Word study manifest', () => {
         icon: { kind: 'builtin', name: 'fa-language' },
         order: 70,
         phoneView: true,
-        headerButton: { title: { key: 'wordStudy.open', fallback: 'Word study' }, testId: 'header-word-study-btn' },
       },
     ]);
     expect(wordStudyManifest.contributes.i18nNamespace).toBe('wordStudy');

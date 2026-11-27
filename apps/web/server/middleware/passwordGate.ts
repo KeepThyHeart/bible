@@ -117,10 +117,13 @@ input{display:block;width:100%;padding:.85rem 1rem;margin:0 0 1rem;font-size:1.1
 button{display:block;width:100%;padding:.85rem;font-size:1.1rem;cursor:pointer;background:#2563eb;color:#fff;border:none;border-radius:6px}
 button:active{background:#1d4ed8}
 .err{color:red;margin-bottom:1rem;font-size:1rem}
+label{display:flex;align-items:center;justify-content:center;gap:.5rem;margin:0 0 1rem;font-size:1rem;cursor:pointer}
+label input{display:inline;width:auto;margin:0}
 </style></head>
 <body><div class="box"><h2>${escapeHtml(LOGIN.heading!)}</h2>
 ${error ? `<div class="err">${escapeHtml(error)}</div>` : ''}
-<form method="POST" action="/login"><input type="password" name="password" placeholder="${escapeHtml(LOGIN.passwordPlaceholder!)}" autofocus>
+<form method="POST" action="/login"><input type="password" name="password" autocomplete="current-password" placeholder="${escapeHtml(LOGIN.passwordPlaceholder!)}" autofocus>
+<label><input type="checkbox" name="remember" value="1">${escapeHtml(LOGIN.rememberDevice!)}</label>
 <button type="submit">${escapeHtml(LOGIN.submit!)}</button></form></div></body></html>`;
 }
 
@@ -130,12 +133,19 @@ export function createPasswordGate(options: {
    * In "strict" (default), auth cookies are session-only (no Max-Age) so that
    * closing the browser forgets the login. In "relaxed", cookies persist for
    * a year for convenience.
+   *
+   * Either way, ticking "Remember this device" on the login form gets the
+   * one-year cookie. Session cookies do not survive an installed PWA being
+   * closed (phones kill it in the background), so without this the app asks
+   * for the password on almost every launch. The cookie is an HMAC of the
+   * password hash, so a long-lived one cannot be forged and a password change
+   * still signs everyone out.
    */
   privacyMode?: 'strict' | 'relaxed';
 }): (req: Request, res: Response, next: NextFunction) => void {
   const { passwordHash } = options;
   const privacyMode = options.privacyMode ?? 'strict';
-  const maxAgeClause = privacyMode === 'relaxed' ? '; Max-Age=31536000' : '';
+  const persistentClause = '; Max-Age=31536000';
   const authValue = authCookieValue(passwordHash);
 
   return (req: Request, res: Response, next: NextFunction) => {
@@ -180,6 +190,8 @@ export function createPasswordGate(options: {
       if (verifyPassword(req.body?.password || '', passwordHash)) {
         clearAttempts(ip);
         const secure = req.protocol === 'https' ? '; Secure' : '';
+        const remember = privacyMode === 'relaxed' || req.body?.remember === '1';
+        const maxAgeClause = remember ? persistentClause : '';
         res.setHeader('Set-Cookie', `bible_auth=${authValue}; Path=/; HttpOnly; SameSite=Lax${maxAgeClause}${secure}`);
         return res.redirect('/');
       }

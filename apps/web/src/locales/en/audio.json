@@ -26,7 +26,7 @@
       "source": "Audio source, voice and speed",
       "settings": "Audio settings",
       "close": "Stop and close the player",
-      "popOut": "Open the player in a pop-up"
+      "popOut": "Show the full player"
     },
     "player": {
       "label": "Audio player",
@@ -76,10 +76,13 @@
       "noVoice": "{engine} has no voice for {language}.",
       "generated": "Generated",
       "engine": "Speech engine",
-      "noGenerated": "No generated voice for {language} on this device."
+      "noGenerated": "No generated voice for {language} on this device.",
+      "recordingOption": "Recording (recommended)",
+      "generatedOption": "Generated · {engine}"
     },
     "voice": {
-      "label": "Voice"
+      "label": "Voice",
+      "which": "Speaker"
     },
     "speed": {
       "label": "Speed",
@@ -130,11 +133,14 @@
       "intro": "Announce “Book, chapter N” at the start",
       "storage": "Storage",
       "storageVoices": "Speech voices and engine · {size}",
-      "storageChapters": "Recently played chapters · {size} · {count, plural, one {# chapter} other {# chapters}}"
+      "storageChapters": "Recently played chapters · {size} · {count, plural, one {# chapter} other {# chapters}}",
+      "onDevice": "on this device",
+      "downloadsOnPlay": "downloads when first played"
     },
     "quick": {
       "title": "Audio settings",
-      "all": "All audio settings…"
+      "all": "All audio settings…",
+      "short": "Settings"
     },
     "style": {
       "label": "Player",
@@ -143,7 +149,7 @@
     },
     "popup": {
       "label": "Audio player",
-      "dock": "Show the player as a bar"
+      "dock": "Back to the simple player"
     },
     "verses": {
       "label": "Chapter text. Choose a verse to read from there.",
@@ -190,7 +196,8 @@
       "done": "The download finished.",
       "cancelled": "The download stopped. Progress is kept, so the next download continues from here.",
       "failed": "The download did not finish. {message}",
-      "close": "Close"
+      "close": "Close",
+      "otherBooks": "Other books"
     },
     "passages": {
       "open": "Play passages…",
@@ -208,7 +215,12 @@
         "badNumbers": "“{text}” has chapter or verse numbers that could not be read.",
         "outOfRange": "“{text}” is past the end of {book}.",
         "tooMany": "Up to {max} passages at a time."
-      }
+      },
+      "toggle": "Playlist: choose passages to read",
+      "useChapter": "Just {ref}",
+      "short": "Playlist",
+      "save": "Save",
+      "edit": "Edit the playlist"
     },
     "playlist": {
       "label": "Playlist",
@@ -217,13 +229,19 @@
     },
     "continue": {
       "label": "Continue to the next chapter",
-      "listHint": "Applies when reading by chapter; a typed list ends at its last verse."
+      "listHint": "Applies when reading by chapter; a typed list ends at its last verse.",
+      "on": "Continues to the next chapter",
+      "off": "Stops at the end of the chapter",
+      "short": "Continue"
     },
     "loop": {
       "label": "Repeat",
       "once": "Play once",
       "list": "Loop the list",
-      "passage": "Loop this passage"
+      "passage": "Loop this passage",
+      "on": "Repeat on",
+      "off": "Repeat off",
+      "short": "Repeat"
     },
     "elsewhere": {
       "label": "Reading in another tab: {ref} ({module})",
@@ -232,6 +250,15 @@
     "live": {
       "passage": "Now reading {ref}, {index} of {count}",
       "retarget": "Now reading this tab. The other tab keeps its place."
+    },
+    "finished": {
+      "done": "Finished {ref}",
+      "next": "Play {ref}"
+    },
+    "offline": {
+      "saved": "Audio saved on this device:",
+      "more": "{names} and {count} more",
+      "books": "{count, plural, one {# book offline} other {# books offline}}"
     }
   }
 }

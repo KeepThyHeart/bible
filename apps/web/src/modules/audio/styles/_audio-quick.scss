@@ -96,45 +96,154 @@
   margin-block-start: 6px;
 }
 
-// Playlist: typed passages, repeat and continue (player and quick settings)
+// Passages: a text box of references, behind the player's passages button
 .audio-playlist {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  align-items: flex-start;
+  gap: 6px;
   padding: 8px 12px;
   border-block-start: 1px solid var(--border-color);
 
-  &__head { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
-  &__current { display: inline-flex; flex-wrap: wrap; gap: 4px; flex: 1 1 auto; min-inline-size: 0; }
-  &__editor { display: flex; flex-direction: column; gap: 6px; }
-  &__chips, &__errors { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px; }
-  &__errors { flex-direction: column; color: var(--error-color, #b00020); font-size: calc(0.8125rem * var(--ui-font-scale, 1)); }
-  &__actions { display: flex; align-items: center; gap: 12px; }
+  .audio-input { align-self: stretch; }
+  &__row { display: flex; align-items: center; gap: 8px; align-self: stretch; }
+  &__current { flex: 1 1 auto; min-inline-size: 0; font-weight: 600; }
+  &__actions { display: flex; gap: 8px; }
+
+  // Plain rectangular buttons (the round player buttons looked odd with a word in them)
+  &__btn {
+    min-block-size: 40px;
+    padding: 6px 16px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    font: inherit;
+    cursor: pointer;
+
+    &--primary {
+      border-color: var(--accent-color);
+      background: var(--accent-color);
+      color: var(--bg-primary);
+      font-weight: 600;
+    }
+
+    &:disabled { opacity: 0.5; cursor: not-allowed; }
+  }
+  &__errors {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    color: var(--error-color, #b00020);
+    font-size: calc(0.8125rem * var(--ui-font-scale, 1));
+  }
 }
 
-.audio-passage-chip {
-  display: inline-flex;
+// Repeat and Continue: icon toggles, with a short note of what a press did
+.audio-toggles {
+  position: relative;
+  display: flex;
   align-items: center;
   gap: 4px;
-  padding: 2px 8px;
-  border: 1px solid var(--border-color);
-  border-radius: 999px;
-  background: var(--bg-secondary);
-  font-size: calc(0.8125rem * var(--ui-font-scale, 1));
 
-  &__remove { border: 0; background: none; color: inherit; cursor: pointer; padding: 0 2px; }
+  &__hint {
+    position: absolute;
+    inset-block-end: calc(100% + 4px);
+    inset-inline-start: 50%;
+    translate: -50% 0;
+    padding: 3px 8px;
+    border-radius: 6px;
+    background: var(--text-primary);
+    color: var(--bg-primary);
+    font-size: calc(0.75rem * var(--ui-font-scale, 1));
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.15s;
+
+    &--shown { opacity: 1; }
+  }
 }
 
-.audio-passage-progress { font-size: calc(0.8125rem * var(--ui-font-scale, 1)); font-variant-numeric: tabular-nums; opacity: 0.85; }
+[dir='rtl'] .audio-toggles__hint { translate: 50% 0; }
 
-.audio-passage-options {
+// A toggle (and the passages button while a list is set) is filled with the accent colour while on,
+// so "on" does not depend on a colour change of the icon alone.
+.audio-toggle {
+  color: var(--text-secondary);
+  border-radius: 10px;
+
+  &--on {
+    color: var(--accent-color);
+    background: color-mix(in srgb, var(--accent-color) 16%, transparent);
+    box-shadow: inset 0 0 0 1.5px var(--accent-color);
+  }
+
+  &:disabled { opacity: 0.45; }
+}
+
+// Phone bottom row: an icon over a short caption
+.audio-tool {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-inline-size: 60px;
+  min-block-size: 52px;
+  padding: 4px 6px;
+  font-size: calc(1.125rem * var(--ui-font-scale, 1));
+
+  &__caption {
+    font-size: calc(0.6875rem * var(--ui-font-scale, 1));
+    line-height: 1.1;
+    white-space: nowrap;
+  }
+}
+
+// After a chapter was read to its end: "Finished John 3 · [▶ Play John 4] [×]"
+.audio-finished {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  &__text { flex: 1 1 auto; min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  &__next {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    inline-size: auto;
+    padding-inline: 12px;
+    border-radius: 999px;
+    white-space: nowrap;
+  }
+
+  &--phone {
+    flex-shrink: 0;
+    padding: 6px 8px 6px 12px;
+    background: var(--bg-secondary);
+    border-block-start: 1px solid var(--border-color);
+  }
+}
+
+// Settings sheet: what belongs to a generated voice sits indented under the Voice choice
+.audio-quick__sub {
   display: flex;
   flex-direction: column;
   gap: 6px;
-
-  &__continue { display: flex; align-items: center; gap: 8px; cursor: pointer; }
-  &__hint { font-size: calc(0.75rem * var(--ui-font-scale, 1)); opacity: 0.75; }
+  padding-inline-start: 12px;
+  border-inline-start: 2px solid var(--border-color);
 }
+
+.audio-quick__voice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.audio-passage-progress { font-size: calc(0.8125rem * var(--ui-font-scale, 1)); font-variant-numeric: tabular-nums; opacity: 0.85; }
 
 .audio-elsewhere {
   display: flex;
@@ -158,4 +267,142 @@
   min-block-size: 36px;
 
   &:focus-visible { outline: 2px solid var(--accent-color); outline-offset: 1px; }
+}
+
+// "Continue": an on/off switch (track and thumb), so its state needs no icon to decode
+.audio-switch-btn { color: var(--text-secondary); }
+.audio-switch-btn:disabled { opacity: 0.45; }
+
+.audio-switch {
+  position: relative;
+  display: inline-block;
+  inline-size: 36px;
+  block-size: 20px;
+  border-radius: 999px;
+  background: var(--border-color);
+  transition: background 0.15s;
+
+  &__thumb {
+    position: absolute;
+    inset-block-start: 2px;
+    inset-inline-start: 2px;
+    inline-size: 16px;
+    block-size: 16px;
+    border-radius: 50%;
+    background: var(--bg-primary);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+    transition: inset-inline-start 0.15s;
+  }
+
+  &--on {
+    background: var(--accent-color);
+
+    .audio-switch__thumb { inset-inline-start: 18px; }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .audio-switch, .audio-switch__thumb { transition: none; }
+}
+
+// The player's tools as one bar of five equal tiles (speed, Repeat, Continue, Playlist, Settings),
+// each an icon or value over a caption, split by thin gray dividers: the phone player and the
+// desktop pop-up, each along its bottom edge.
+.audio-tiles {
+  position: relative; // the toggles' hint is placed against the bar
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0;
+  border-block-start: 1px solid var(--border-color);
+  background: var(--bg-primary);
+  overflow: visible;
+
+  .audio-toggles { display: contents; }
+  .audio-speed { display: flex; min-inline-size: 0; }
+
+  .audio-tool,
+  .audio-speed__btn {
+    inline-size: 100%;
+    min-inline-size: 0;
+    min-block-size: 72px;
+    gap: 4px;
+    border: none;
+    border-inline-start: 1px solid var(--border-color);
+    border-radius: 0;
+    background: none;
+    color: var(--text-primary);
+  }
+
+  // The first tile starts at the edge: no divider before it.
+  .audio-speed__btn { border-inline-start: none; }
+  .audio-tool:hover:not(:disabled), .audio-speed__btn:hover:not(:disabled) { background: var(--bg-tertiary); }
+
+  .audio-speed__value { font-size: calc(1.0625rem * var(--ui-font-scale, 1)); font-weight: 600; line-height: 1.2; }
+  .audio-tool__caption { max-inline-size: 100%; overflow: hidden; text-overflow: ellipsis; color: var(--text-secondary); }
+  // The playlist tile while its panel is open or a list is set
+  .audio-toggle--on { background: color-mix(in srgb, var(--accent-color) 12%, transparent); box-shadow: none; }
+}
+
+// Phone: flush with the screen's sides and bottom (undoing `.audio-screen`'s padding), like a tab bar.
+.audio-screen__bottom.audio-tiles {
+  margin-block-start: auto;
+  margin-inline: -16px;
+  margin-block-end: calc(-1 * max(16px, env(safe-area-inset-bottom)));
+  padding-block-end: env(safe-area-inset-bottom);
+}
+
+// Desktop pop-up: flush with its sides and bottom (undoing its 12px padding), following its corners.
+.audio-popup__tiles.audio-tiles {
+  margin: 0 -12px -12px;
+  border-end-start-radius: 11px;
+  border-end-end-radius: 11px;
+
+  .audio-tool, .audio-speed__btn { min-block-size: 60px; }
+  .audio-speed__btn { border-end-start-radius: 11px; }
+  > .audio-tool:last-child { border-end-end-radius: 11px; }
+}
+
+// Narrow phones: tighter tiles so every caption fits
+@media (max-width: 360px) {
+  .audio-screen__bottom.audio-tiles {
+    .audio-tool,
+    .audio-speed__btn { padding-inline: 2px; }
+    .audio-tool__caption { font-size: calc(0.625rem * var(--ui-font-scale, 1)); letter-spacing: -0.01em; }
+    .audio-switch { inline-size: 32px; }
+    .audio-switch--on .audio-switch__thumb { inset-inline-start: 14px; }
+  }
+}
+
+// Downloads: the book being read first, the rest behind "Other books"
+.audio-downloads__current { margin-block: 8px; }
+.audio-downloads__more > summary { cursor: pointer; padding-block: 6px; font-weight: 600; }
+
+// Recorded audio saved on this device: one button per translation
+.audio-offline {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: calc(0.8125rem * var(--ui-font-scale, 1));
+
+  &--status { flex-basis: 100%; padding-block-start: 4px; }
+  &__label { color: var(--text-secondary); }
+  &__list { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+
+  &__btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-block-size: 32px;
+    padding: 4px 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font: inherit;
+    text-align: start;
+    cursor: pointer;
+
+    i { color: var(--accent-color); }
+    &:hover { background: var(--bg-tertiary); }
+  }
 }

@@ -26,7 +26,7 @@
       "source": "منبع صدا، گوینده و سرعت",
       "settings": "تنظیمات صدا",
       "close": "توقف و بستن پخش‌کننده",
-      "popOut": "باز کردن پخش‌کننده در پنجرهٔ بازشو"
+      "popOut": "نمایش پخش‌کنندهٔ کامل"
     },
     "player": {
       "label": "پخش‌کنندهٔ صوتی",
@@ -76,10 +76,13 @@
       "noVoice": "{engine} برای {language} صدایی ندارد.",
       "generated": "تولیدشده",
       "engine": "موتور گفتار",
-      "noGenerated": "روی این دستگاه صدای تولیدشده‌ای برای {language} وجود ندارد."
+      "noGenerated": "روی این دستگاه صدای تولیدشده‌ای برای {language} وجود ندارد.",
+      "recordingOption": "ضبط‌شده (پیشنهادی)",
+      "generatedOption": "تولیدشده · {engine}"
     },
     "voice": {
-      "label": "گوینده"
+      "label": "گوینده",
+      "which": "گوینده"
     },
     "speed": {
       "label": "سرعت",
@@ -130,11 +133,14 @@
       "intro": "اعلام «کتاب، باب N» در آغاز",
       "storage": "فضای ذخیره‌سازی",
       "storageVoices": "صداهای گفتار و موتور · {size}",
-      "storageChapters": "باب‌های اخیراً پخش‌شده · {size} · {count, plural, one {# باب} other {# باب}}"
+      "storageChapters": "باب‌های اخیراً پخش‌شده · {size} · {count, plural, one {# باب} other {# باب}}",
+      "onDevice": "روی این دستگاه",
+      "downloadsOnPlay": "در نخستین پخش بارگیری می‌شود"
     },
     "quick": {
       "title": "تنظیمات صدا",
-      "all": "همهٔ تنظیمات صدا…"
+      "all": "همهٔ تنظیمات صدا…",
+      "short": "تنظیمات"
     },
     "style": {
       "label": "پخش‌کننده",
@@ -143,7 +149,7 @@
     },
     "popup": {
       "label": "پخش‌کنندهٔ صوتی",
-      "dock": "نمایش پخش‌کننده به‌صورت نوار"
+      "dock": "بازگشت به پخش‌کنندهٔ ساده"
     },
     "verses": {
       "label": "متن باب. یک آیه را برای خواندن از آنجا انتخاب کنید.",
@@ -190,7 +196,8 @@
       "done": "دانلود تمام شد.",
       "cancelled": "دانلود متوقف شد. پیشرفت حفظ می‌شود و دانلود بعدی از همین‌جا ادامه می‌یابد.",
       "failed": "دانلود کامل نشد. {message}",
-      "close": "بستن"
+      "close": "بستن",
+      "otherBooks": "کتاب‌های دیگر"
     },
     "passages": {
       "open": "Play passages…",
@@ -208,7 +215,12 @@
         "badNumbers": "“{text}” has chapter or verse numbers that could not be read.",
         "outOfRange": "“{text}” is past the end of {book}.",
         "tooMany": "Up to {max} passages at a time."
-      }
+      },
+      "toggle": "فهرست پخش: انتخاب بخش‌ها برای خواندن",
+      "useChapter": "فقط {ref}",
+      "short": "فهرست پخش",
+      "save": "ذخیره",
+      "edit": "ویرایش فهرست پخش"
     },
     "playlist": {
       "label": "Playlist",
@@ -217,13 +229,19 @@
     },
     "continue": {
       "label": "Continue to the next chapter",
-      "listHint": "Applies when reading by chapter; a typed list ends at its last verse."
+      "listHint": "Applies when reading by chapter; a typed list ends at its last verse.",
+      "on": "به باب بعدی ادامه می‌دهد",
+      "off": "در پایان باب می‌ایستد",
+      "short": "ادامه"
     },
     "loop": {
       "label": "Repeat",
       "once": "Play once",
       "list": "Loop the list",
-      "passage": "Loop this passage"
+      "passage": "Loop this passage",
+      "on": "تکرار روشن",
+      "off": "تکرار خاموش",
+      "short": "تکرار"
     },
     "elsewhere": {
       "label": "Reading in another tab: {ref} ({module})",
@@ -232,6 +250,15 @@
     "live": {
       "passage": "Now reading {ref}, {index} of {count}",
       "retarget": "Now reading this tab. The other tab keeps its place."
+    },
+    "finished": {
+      "done": "{ref} تمام شد",
+      "next": "پخش {ref}"
+    },
+    "offline": {
+      "saved": "صدای ذخیره‌شده روی این دستگاه:",
+      "more": "{names} و {count} مورد دیگر",
+      "books": "{count, plural, one {# کتاب آفلاین} other {# کتاب آفلاین}}"
     }
   }
 }

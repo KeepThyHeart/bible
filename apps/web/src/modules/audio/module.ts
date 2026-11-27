@@ -6,7 +6,7 @@
  * - wires the player to the offline Bible provider Study already built (`initAudio`);
  * - the Listen button (`readerToolbarActions`), the speaker mark on the tab being read (`readerTabBadges`),
  *   the desktop transport bar (`readerTransport`) and the follow-along scroll (`readerPaneEffects`);
- * - the verse being read, drawn through `verseDecorators`;
+ * - the verse being read, drawn through `verseDecorators`; in the playing tab a clicked verse is read next;
  * - the desktop pop-up player and the phone mini-player, full-screen player and gate dialog through
  *   `studyLayoutItems`, the phone Back button (`phoneBackHandlers`) and the Help dialog's keys (`helpShortcutRows`);
  * - Piper's downloadable assets in the shared asset catalog (`registerCatalogSource`).
@@ -33,6 +33,7 @@ import { getAudioConfig } from './lib/config';
 import { initAudio } from './lib/initAudio';
 import { loadPiperManifests } from '@bible/audio';
 import { playingVerseDecorator, watchFollow } from './verseDecorator';
+import { watchVerseClicks } from './verseClicks';
 import { AudioDownloadsDialog } from './components/AudioDownloadsDialog';
 import { AudioGateDialog } from './components/AudioGateDialog';
 import { AudioLiveRegion } from './components/AudioLiveRegion';
@@ -90,6 +91,7 @@ export async function activate(ctx: FeatureModuleContext): Promise<void> {
     studyLayoutItems.register({ layout: 'phone', placement: 'overlay', Component: AudioPlayerScreen }),
     verseDecorators.register(playingVerseDecorator),
     { dispose: watchFollow(() => verseDecorators.invalidate()) },
+    { dispose: watchVerseClicks() },
   );
   if (piper) {
     subscriptions.push(registerCatalogSource((getText, signal) => loadPiperManifests(piper, getText, signal)));

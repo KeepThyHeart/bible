@@ -78,6 +78,7 @@
     "modeStudy": "לימוד",
     "modeHint": "תצוגת הלימוד מציגה מספרי סטרונג ומילים בין-שורתיות בתרגומים שכוללים אותם, כמו KJV.",
     "modeLabel": "מצב תצוגה",
+    "more": "עוד",
     "recentPassages": "קטעים אחרונים",
     "noHistory": "טרם בוקרו קטעים",
     "translationButton": "תרגום: {abbr}",
@@ -913,7 +914,8 @@
     "passwordPlaceholder": "סיסמה",
     "submit": "כניסה",
     "incorrectPassword": "סיסמה שגויה.",
-    "tooManyAttempts": "יותר מדי ניסיונות. יש לנסות שוב מאוחר יותר."
+    "tooManyAttempts": "יותר מדי ניסיונות. יש לנסות שוב מאוחר יותר.",
+    "rememberDevice": "לזכור את המכשיר הזה"
   },
   "wordStudy": {
     "open": "לימוד מילים"

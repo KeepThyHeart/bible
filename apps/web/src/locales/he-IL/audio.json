@@ -26,7 +26,7 @@
       "source": "מקור השמע, קול ומהירות",
       "settings": "הגדרות שמע",
       "close": "עצירה וסגירת הנגן",
-      "popOut": "פתיחת הנגן בחלון קופץ"
+      "popOut": "הצגת הנגן המלא"
     },
     "player": {
       "label": "נגן שמע",
@@ -76,10 +76,13 @@
       "noVoice": "ל-{engine} אין קול עבור {language}.",
       "generated": "נוצר",
       "engine": "מנוע דיבור",
-      "noGenerated": "אין קול שנוצר עבור {language} במכשיר זה."
+      "noGenerated": "אין קול שנוצר עבור {language} במכשיר זה.",
+      "recordingOption": "הקלטה (מומלץ)",
+      "generatedOption": "מחולל · {engine}"
     },
     "voice": {
-      "label": "קול"
+      "label": "קול",
+      "which": "קריין"
     },
     "speed": {
       "label": "מהירות",
@@ -130,11 +133,14 @@
       "intro": "הכרזת \"ספר, פרק N\" בתחילה",
       "storage": "אחסון",
       "storageVoices": "קולות דיבור ומנוע · {size}",
-      "storageChapters": "פרקים שהושמעו לאחרונה · {size} · {count, plural, one {פרק #} two {# פרקים} other {# פרקים}}"
+      "storageChapters": "פרקים שהושמעו לאחרונה · {size} · {count, plural, one {פרק #} two {# פרקים} other {# פרקים}}",
+      "onDevice": "במכשיר זה",
+      "downloadsOnPlay": "יורד בהשמעה הראשונה"
     },
     "quick": {
       "title": "הגדרות שמע",
-      "all": "כל הגדרות השמע…"
+      "all": "כל הגדרות השמע…",
+      "short": "הגדרות"
     },
     "style": {
       "label": "נגן",
@@ -143,7 +149,7 @@
     },
     "popup": {
       "label": "נגן שמע",
-      "dock": "הצגת הנגן כסרגל"
+      "dock": "חזרה לנגן הפשוט"
     },
     "verses": {
       "label": "טקסט הפרק. יש לבחור פסוק כדי להקריא משם.",
@@ -190,7 +196,8 @@
       "done": "ההורדה הסתיימה.",
       "cancelled": "ההורדה נעצרה. ההתקדמות נשמרת, וההורדה הבאה תמשיך מכאן.",
       "failed": "ההורדה לא הסתיימה. {message}",
-      "close": "סגירה"
+      "close": "סגירה",
+      "otherBooks": "ספרים אחרים"
     },
     "passages": {
       "open": "Play passages…",
@@ -208,7 +215,12 @@
         "badNumbers": "“{text}” has chapter or verse numbers that could not be read.",
         "outOfRange": "“{text}” is past the end of {book}.",
         "tooMany": "Up to {max} passages at a time."
-      }
+      },
+      "toggle": "רשימת השמעה: בחירת קטעים לקריאה",
+      "useChapter": "רק {ref}",
+      "short": "רשימת השמעה",
+      "save": "שמירה",
+      "edit": "עריכת רשימת ההשמעה"
     },
     "playlist": {
       "label": "Playlist",
@@ -217,13 +229,19 @@
     },
     "continue": {
       "label": "Continue to the next chapter",
-      "listHint": "Applies when reading by chapter; a typed list ends at its last verse."
+      "listHint": "Applies when reading by chapter; a typed list ends at its last verse.",
+      "on": "ממשיך לפרק הבא",
+      "off": "עוצר בסוף הפרק",
+      "short": "המשך"
     },
     "loop": {
       "label": "Repeat",
       "once": "Play once",
       "list": "Loop the list",
-      "passage": "Loop this passage"
+      "passage": "Loop this passage",
+      "on": "חזרה פעילה",
+      "off": "חזרה כבויה",
+      "short": "חזרה"
     },
     "elsewhere": {
       "label": "Reading in another tab: {ref} ({module})",
@@ -232,6 +250,15 @@
     "live": {
       "passage": "Now reading {ref}, {index} of {count}",
       "retarget": "Now reading this tab. The other tab keeps its place."
+    },
+    "finished": {
+      "done": "הסתיים: {ref}",
+      "next": "השמע את {ref}"
+    },
+    "offline": {
+      "saved": "שמע שנשמר במכשיר זה:",
+      "more": "{names} ועוד {count}",
+      "books": "{count, plural, one {ספר אחד לא מקוון} other {# ספרים לא מקוונים}}"
     }
   }
 }

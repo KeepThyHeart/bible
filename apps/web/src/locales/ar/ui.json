@@ -78,6 +78,7 @@
     "modeStudy": "دراسة",
     "modeHint": "يعرض وضع الدراسة أرقام سترونغ والكلمات البينية للترجمات التي تتضمنها، مثل KJV.",
     "modeLabel": "وضع العرض",
+    "more": "المزيد",
     "recentPassages": "المقاطع الأخيرة",
     "noHistory": "لم تتم زيارة أي مقطع بعد",
     "translationButton": "الترجمة: {abbr}",
@@ -913,7 +914,8 @@
     "passwordPlaceholder": "كلمة المرور",
     "submit": "Enter",
     "incorrectPassword": "كلمة المرور غير صحيحة.",
-    "tooManyAttempts": "محاولات كثيرة جدًا. يُرجى المحاولة مرة أخرى لاحقًا."
+    "tooManyAttempts": "محاولات كثيرة جدًا. يُرجى المحاولة مرة أخرى لاحقًا.",
+    "rememberDevice": "تذكر هذا الجهاز"
   },
   "wordStudy": {
     "open": "دراسة الكلمة"

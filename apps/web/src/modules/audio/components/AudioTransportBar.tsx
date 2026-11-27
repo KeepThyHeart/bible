@@ -1,6 +1,8 @@
 /**
- * The desktop transport bar, docked under the Bible toolbar when the player style is 'bar': skipping,
- * play/pause, progress, the verse being read, speed, the quick-settings gear, pop-out and stop.
+ * The desktop transport bar, docked under the Bible toolbar when the player style is 'bar': the simple
+ * player, like the phone's mini-player: skipping, play/pause, progress, the verse being read, Settings
+ * (the same panel, under the gear), a button that opens the full player (the pop-up, with speed,
+ * Repeat, Continue, Playlist and Settings) and stop.
  * In pop-up style it renders nothing while audio is active; the idle notice strip (for example "no
  * audio for this translation") shows in either style. The phone has its own player.
  */
@@ -15,19 +17,21 @@ import { useNowPlaying } from '../hooks/useNowPlaying';
 import { AudioTransportButtons } from './AudioTransportButtons';
 import { AudioProgress } from './AudioProgress';
 import { AudioStatusLine } from './AudioStatusLine';
-import { AudioSpeedControl } from './AudioSpeedControl';
-import { AudioQuickSettings } from './AudioQuickSettings';
+import { AudioFinished } from './AudioFinished';
 import { AudioPassageProgress } from './AudioPassageProgress';
 import { AudioElsewhere } from './AudioElsewhere';
+import { AudioQuickSettings } from './AudioQuickSettings';
 
-export function AudioTransportBar({ onOpenSettings }: { onOpenSettings?: (section?: string) => void }) {
+export function AudioTransportBar() {
   const { t } = useTranslation();
   const enabled = useStore(audioStore, () => audioStore.enabled);
   const layout = useStore(audioStore, () => audioStore.layout);
   const status = useStore(audioStore, () => audioStore.status);
   const notice = useStore(audioStore, () => audioStore.notice);
+  const finished = useStore(audioStore, () => audioStore.finished);
   const style = useStore(audioStore, () => audioStore.prefs.playerStyle);
   const now = useNowPlaying();
+
   const [gearOpen, setGearOpen] = useState(false);
   const gearRef = useRef<HTMLButtonElement>(null);
 
@@ -38,11 +42,12 @@ export function AudioTransportBar({ onOpenSettings }: { onOpenSettings?: (sectio
 
   if (!enabled || layout !== 'desktop') return null;
   if (idle) {
-    // Nothing is playing, but the reader should hear why (e.g. no audio for this translation).
-    if (!notice) return null;
+    // Nothing is playing, but the reader should hear why (e.g. no audio for this translation),
+    // or a chapter was just read to its end (offer the next one).
+    if (!notice && !finished) return null;
     return (
       <div class="audio-transport audio-transport--notice" data-testid="audio-transport">
-        <AudioStatusLine />
+        {notice ? <AudioStatusLine /> : <AudioFinished variant="desktop" />}
       </div>
     );
   }
@@ -55,7 +60,6 @@ export function AudioTransportBar({ onOpenSettings }: { onOpenSettings?: (sectio
         <AudioProgress />
         <span class="audio-transport__now" data-testid="audio-now-playing">{now.refLabel}</span>
         <AudioPassageProgress />
-        <AudioSpeedControl />
         <button
           type="button"
           class="audio-btn"
@@ -90,13 +94,7 @@ export function AudioTransportBar({ onOpenSettings }: { onOpenSettings?: (sectio
         className="audio-popover"
         insideRefs={[gearRef]}
       >
-        {now.moduleAbbr && (
-          <AudioQuickSettings
-            moduleAbbr={now.moduleAbbr}
-            variant="desktop"
-            onOpenSettings={section => { setGearOpen(false); onOpenSettings?.(section); }}
-          />
-        )}
+        {now.moduleAbbr && <AudioQuickSettings moduleAbbr={now.moduleAbbr} variant="desktop" />}
       </Popover>
     </div>
   );

@@ -1,7 +1,8 @@
 /**
  * "Download audio for offline listening" (task 0223): pick a translation and narrator, then the
- * books to keep on this device. The state lives in the shared `AudioDownloadsModel`; this only
- * draws it. Books are grouped Old/New Testament, each with its size and download state; the Whole
+ * books to keep on this device. The book being read comes first and is selected; the rest of the
+ * books (and Whole Bible) are under "Other books", since few readers need the whole Bible offline.
+ * The state lives in the shared `AudioDownloadsModel`; this only draws it. Books are grouped Old/New Testament, each with its size and download state; the Whole
  * Bible preset and any large or too-big selection ask first, with the total.
  */
 import { useEffect, useMemo, useState } from 'preact/hooks';
@@ -10,6 +11,7 @@ import { formatBytes } from '@bible/audio';
 import type { AudioBookRow, AudioDownloadsModel, Testament } from '@bible/audio';
 import { useStore } from '../../../hooks/useStore';
 import { moduleStore } from '../../../stores/moduleStore';
+import { offlineAudio } from '../lib/offlineAudio';
 
 type Check = Awaited<ReturnType<AudioDownloadsModel['check']>>;
 
@@ -19,20 +21,31 @@ export interface AudioDownloadsViewProps {
   /** Translations to choose from (default: the Bible modules). */
   modules?: { abbreviation: string; name?: string }[];
   bookName?: (book: number) => string;
+  /** The book being read: selected when the dialog opens, since few readers need the whole Bible offline. */
+  currentBook?: number | null;
 }
 
-export function AudioDownloadsView({ model, moduleAbbr, modules, bookName = b => moduleStore.getBookName(b) }: AudioDownloadsViewProps) {
+export function AudioDownloadsView({ model, moduleAbbr, modules, bookName = b => moduleStore.getBookName(b), currentBook = null }: AudioDownloadsViewProps) {
   const { t } = useTranslation();
   useStore(model, () => model.version);
+  const saved = useStore(offlineAudio, () => offlineAudio.byModule);
   const available = useMemo(() => modules ?? moduleStore.getBibleModules(), [modules]);
   const [wholeBible, setWholeBible] = useState(false);
   const [confirm, setConfirm] = useState<Check | null>(null);
   const [check, setCheck] = useState<Check | null>(null);
 
+  // Select the current book (if it still needs downloading) when nothing else is chosen.
+  const preselect = () => {
+    if (!currentBook || model.selected.size > 0) return;
+    const row = model.rows.find(r => r.book === currentBook);
+    if (row && row.state !== 'downloaded') model.toggle(currentBook);
+  };
+  const openModule = (abbr: string, signal?: AbortSignal) => model.open(abbr, signal).then(() => { if (!signal?.aborted) preselect(); });
+
   useEffect(() => {
     if (model.run === 'running' && model.module) return; // a run in progress (model outlives the view): show it
     const ctl = new AbortController();
-    void model.open(moduleAbbr, ctl.signal);
+    void openModule(moduleAbbr, ctl.signal);
     return () => { ctl.abort(); }; // a running download is not cancelled by leaving
   }, [model, moduleAbbr]);
 
@@ -127,6 +140,7 @@ export function AudioDownloadsView({ model, moduleAbbr, modules, bookName = b =>
           : '';
 
   const selCount = model.selected.size;
+  const currentRow = currentBook ? model.rows.find(r => r.book === currentBook) ?? null : null;
   const noFit = check?.fits === false && selCount > 0;
 
   return (
@@ -141,9 +155,13 @@ export function AudioDownloadsView({ model, moduleAbbr, modules, bookName = b =>
             data-testid="audio-dl-translation"
             value={model.module ?? moduleAbbr}
             disabled={running}
-            onChange={e => { setWholeBible(false); void model.open((e.target as HTMLSelectElement).value); }}
+            onChange={e => { setWholeBible(false); void openModule((e.target as HTMLSelectElement).value); }}
           >
-            {available.map(m => <option key={m.abbreviation} value={m.abbreviation}>{m.name ? `${m.abbreviation} · ${m.name}` : m.abbreviation}</option>)}
+            {available.map(m => {
+              const label = m.name ? `${m.abbreviation} · ${m.name}` : m.abbreviation;
+              const n = saved[m.abbreviation]?.length ?? 0;
+              return <option key={m.abbreviation} value={m.abbreviation}>{n ? `${label} · ${t('audio.offline.books', { count: n })}` : label}</option>;
+            })}
           </select>
         </label>
         {narrators.length > 1 && (
@@ -169,20 +187,25 @@ export function AudioDownloadsView({ model, moduleAbbr, modules, bookName = b =>
 
       {model.rows.length > 0 && (
         <>
-          <div class="audio-downloads__presets">
-            <button
-              type="button"
-              class="audio-settings__btn"
-              data-testid="audio-dl-whole"
-              disabled={running || model.rows.every(r => r.state === 'downloaded')}
-              onClick={() => { setWholeBible(true); model.selectWholeBible(); }}
-            >
-              {t('audio.downloads.wholeBible')}{model.totalBytes !== null ? ` · ${formatBytes(model.totalBytes)}` : ''}
-            </button>
-          </div>
-          {group('ot')}
-          {group('nt')}
-
+          {currentRow && (
+            <ul class="audio-downloads__list audio-downloads__current" data-testid="audio-dl-current">{bookRow(currentRow)}</ul>
+          )}
+          <details class="audio-downloads__more" open={!currentRow || undefined} data-testid="audio-dl-more">
+            <summary>{t('audio.downloads.otherBooks')}</summary>
+            <div class="audio-downloads__presets">
+              <button
+                type="button"
+                class="audio-settings__btn"
+                data-testid="audio-dl-whole"
+                disabled={running || model.rows.every(r => r.state === 'downloaded')}
+                onClick={() => { setWholeBible(true); model.selectWholeBible(); }}
+              >
+                {t('audio.downloads.wholeBible')}{model.totalBytes !== null ? ` · ${formatBytes(model.totalBytes)}` : ''}
+              </button>
+            </div>
+            {group('ot')}
+            {group('nt')}
+          </details>
           <p class="audio-downloads__summary" data-testid="audio-dl-summary">
             {t('audio.downloads.selected', { count: selCount, size: bytesText(model.selectedBytes) })}
             {check?.free != null && ` · ${t('audio.downloads.free', { size: formatBytes(check.free) })}`}

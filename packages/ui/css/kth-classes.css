@@ -1139,6 +1139,15 @@
   font-weight: 600;
   color: var(--kth-text-heading);
 }
+/* A tap target (sheets are for phones): 44px, with a ✕ big enough to see. */
+.kth-sheet__close {
+  flex: none;
+  min-inline-size: 2.75rem;
+  min-block-size: 2.75rem;
+  padding: 0;
+  font-size: 1.75rem;
+  line-height: 1;
+}
 .kth-sheet__body {
   flex: 1 1 auto;
   min-block-size: 0;

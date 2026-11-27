@@ -261,3 +261,114 @@
   }
 }
 
+
+// "More" (⋮): rendered on a phone held upright only (`usePhonePortrait` in BibleToolbar).
+.bible-toolbar__more {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+}
+
+.bible-toolbar__more-panel {
+  position: absolute;
+  top: 100%;
+  inset-inline-end: 0;
+  z-index: 60;
+  min-inline-size: 220px;
+  max-inline-size: 92vw;
+  padding: 8px 0;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px var(--dropdown-shadow);
+}
+
+.bible-toolbar__more-modes {
+  margin: 0;
+  padding: 0 0 8px;
+  border: none;
+  border-block-end: 1px solid var(--border-color);
+
+  legend {
+    padding: 4px 16px;
+    font-size: calc(0.75rem * var(--ui-font-scale, 1));
+    font-weight: 600;
+    color: var(--text-secondary);
+  }
+}
+
+.bible-toolbar__more-mode {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-block-size: 44px;
+  padding-inline: 16px;
+  cursor: pointer;
+  color: var(--text-primary);
+  font-size: calc(0.9375rem * var(--ui-font-scale, 1));
+
+  input {
+    margin: 0;
+    accent-color: var(--accent-color);
+  }
+}
+
+// Module items (keyword marks) as full-width rows with their labels.
+.bible-toolbar__more-items {
+  .bible-toolbar__keywords {
+    position: static;
+    border: none;
+  }
+
+  .bible-toolbar__btn {
+    inline-size: 100%;
+    gap: 10px;
+    padding-inline: 16px;
+    border: none;
+    min-block-size: 44px;
+  }
+
+  .bible-toolbar__btn-label {
+    display: inline;
+    position: static;
+    inline-size: auto;
+    block-size: auto;
+    clip-path: none;
+    font-weight: 400;
+    color: var(--text-primary);
+  }
+
+  .bible-toolbar__keywords {
+    flex-direction: column;
+  }
+
+  // The keyword legend opens inside the menu, below its row.
+  .bible-toolbar__keywords-panel {
+    position: static;
+    inline-size: min(340px, calc(92vw - 2px));
+    max-block-size: 55vh;
+    border: none;
+    border-block-start: 1px solid var(--border-color);
+    border-radius: 0;
+    box-shadow: none;
+  }
+}
+
+// Phone, portrait: one row. Back/history and translation at the start; Play, text size and
+// More at the inline end. Display mode and keyword marks move into More. No book/chapter
+// picker: the chapter heading in the text opens the same one.
+.app--mobile:not(.app--mobile-landscape) .bible-toolbar {
+  .bible-toolbar__mode-select,
+  .bible-toolbar__reference-btn {
+    display: none;
+  }
+
+  .bible-toolbar__right > .bible-toolbar__more > .bible-toolbar__btn {
+    border-inline-end: none;
+    border-inline-start: 2px solid var(--border-color);
+  }
+
+  .bible-toolbar__left {
+    flex-wrap: nowrap;
+  }
+}

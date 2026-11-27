@@ -26,7 +26,7 @@
       "source": "音频来源、声音和速度",
       "settings": "音频设置",
       "close": "停止并关闭播放器",
-      "popOut": "在弹出窗口中打开播放器"
+      "popOut": "显示完整播放器"
     },
     "player": {
       "label": "音频播放器",
@@ -76,10 +76,13 @@
       "noVoice": "{engine} 没有适用于 {language} 的声音。",
       "generated": "合成语音",
       "engine": "语音引擎",
-      "noGenerated": "此设备上没有适用于{language}的合成语音。"
+      "noGenerated": "此设备上没有适用于{language}的合成语音。",
+      "recordingOption": "录音（推荐）",
+      "generatedOption": "合成 · {engine}"
     },
     "voice": {
-      "label": "声音"
+      "label": "声音",
+      "which": "朗读者"
     },
     "speed": {
       "label": "速度",
@@ -130,11 +133,14 @@
       "intro": "开始时朗读“书卷名，第 N 章”",
       "storage": "存储",
       "storageVoices": "合成语音和引擎 · {size}",
-      "storageChapters": "最近播放的章节 · {size} · {count, plural, other {# 章}}"
+      "storageChapters": "最近播放的章节 · {size} · {count, plural, other {# 章}}",
+      "onDevice": "在此设备上",
+      "downloadsOnPlay": "首次播放时下载"
     },
     "quick": {
       "title": "音频设置",
-      "all": "全部音频设置…"
+      "all": "全部音频设置…",
+      "short": "设置"
     },
     "style": {
       "label": "播放器",
@@ -143,7 +149,7 @@
     },
     "popup": {
       "label": "音频播放器",
-      "dock": "以工具条显示播放器"
+      "dock": "返回简易播放器"
     },
     "verses": {
       "label": "本章经文。选择一节从那里开始朗读。",
@@ -190,7 +196,8 @@
       "done": "下载完成。",
       "cancelled": "下载已停止。进度已保留，下次下载会从这里继续。",
       "failed": "下载未完成。{message}",
-      "close": "关闭"
+      "close": "关闭",
+      "otherBooks": "其他书卷"
     },
     "passages": {
       "open": "播放经文段落…",
@@ -208,7 +215,12 @@
         "badNumbers": "无法识别“{text}”中的章或节数字。",
         "outOfRange": "“{text}”超出了{book}的末尾。",
         "tooMany": "一次最多 {max} 段。"
-      }
+      },
+      "toggle": "播放列表：选择要朗读的经文",
+      "useChapter": "仅 {ref}",
+      "short": "播放列表",
+      "save": "保存",
+      "edit": "编辑播放列表"
     },
     "playlist": {
       "label": "播放列表",
@@ -217,13 +229,19 @@
     },
     "continue": {
       "label": "继续播放下一章",
-      "listHint": "按章阅读时适用；输入的列表在最后一节结束。"
+      "listHint": "按章阅读时适用；输入的列表在最后一节结束。",
+      "on": "继续播放下一章",
+      "off": "在本章结尾停止",
+      "short": "连续播放"
     },
     "loop": {
       "label": "重复",
       "once": "播放一次",
       "list": "循环列表",
-      "passage": "循环本段"
+      "passage": "循环本段",
+      "on": "重复：开",
+      "off": "重复：关",
+      "short": "重复"
     },
     "elsewhere": {
       "label": "正在另一个标签页阅读：{ref}（{module}）",
@@ -232,6 +250,15 @@
     "live": {
       "passage": "正在朗读 {ref}，第 {index} 段，共 {count} 段",
       "retarget": "现在朗读本标签页。另一个标签页保留其位置。"
+    },
+    "finished": {
+      "done": "已读完 {ref}",
+      "next": "播放 {ref}"
+    },
+    "offline": {
+      "saved": "已保存在本设备上的音频：",
+      "more": "{names} 等另外 {count} 卷",
+      "books": "{count, plural, other {# 卷离线可用}}"
     }
   }
 }

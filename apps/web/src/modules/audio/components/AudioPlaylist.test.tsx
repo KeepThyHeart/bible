@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, cleanup } from '@testing-library/preact';
+import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/preact';
 
 vi.mock('react-i18next', async importOriginal => ({
   ...(await importOriginal<typeof import('react-i18next')>()),
@@ -8,8 +8,8 @@ vi.mock('react-i18next', async importOriginal => ({
 
 import { audioStore } from '../audioStore';
 import { bibleStore } from '../../../stores/bibleStore';
-import { AudioPlaylist } from './AudioPlaylist';
-import { PassageOptions } from './PassageOptions';
+import { AudioPlaylist, PassagesButton } from './AudioPlaylist';
+import { PlaybackToggles } from './PlaybackToggles';
 import { AudioPassageProgress } from './AudioPassageProgress';
 import { AudioTransportButtons } from './AudioTransportButtons';
 import { openChapter } from '../lib/uiRig';
@@ -22,67 +22,109 @@ describe('AudioPlaylist', () => {
   });
   afterEach(() => { cleanup(); vi.restoreAllMocks(); audioStore.reset(); });
 
-  it('shows the current chapter, and the editor opens on Change', () => {
-    render(<AudioPlaylist />);
-    expect(screen.getByTestId('audio-playlist-current').textContent).toContain('3');
+  const noop = () => {};
+
+  it('is closed until asked for (the current chapter is read); the button toggles it', () => {
+    let open = false;
+    const { rerender } = render(<><PassagesButton open={open} onToggle={() => { open = !open; }} /><AudioPlaylist open={open} onClose={noop} /></>);
     expect(screen.queryByTestId('audio-passages-input')).toBeNull();
-    fireEvent.click(screen.getByTestId('audio-playlist-edit'));
-    expect((screen.getByTestId('audio-passages-input') as HTMLInputElement).value).toContain('3');
+    fireEvent.click(screen.getByTestId('audio-playlist-toggle'));
+    rerender(<><PassagesButton open={open} onToggle={() => { open = !open; }} /><AudioPlaylist open={open} onClose={noop} /></>);
+    expect((screen.getByTestId('audio-passages-input') as HTMLInputElement).value).toBe('');
+    expect(screen.getByTestId('audio-playlist-toggle').getAttribute('aria-expanded')).toBe('true');
   });
 
-  it('parses a typed list into chips and plays it on Enter', async () => {
+  it('plays a typed list on Enter and closes', () => {
     const spy = vi.spyOn(audioStore, 'playPassages').mockResolvedValue();
-    render(<AudioPlaylist startExpanded />);
+    const onClose = vi.fn();
+    render(<AudioPlaylist open onClose={onClose} />);
     const input = screen.getByTestId('audio-passages-input');
     fireEvent.input(input, { target: { value: 'Ps 23; Rom 8:28-39' } });
     fireEvent.keyDown(input, { key: 'Enter' });
     expect(spy).toHaveBeenCalledTimes(1);
-    const passages = spy.mock.calls[0][1];
-    expect(passages).toEqual([
+    expect(spy.mock.calls[0][1]).toEqual([
       { book: 19, chapter: 23 },
       { book: 45, chapter: 8, verse: 28, endVerse: 39 },
     ]);
     expect(spy.mock.calls[0][0]).toBe(bibleStore.activeTabId);
+    expect(onClose).toHaveBeenCalled();
   });
 
   it('Play targets the pane picked on the Listen button over the playing tab', () => {
     const spy = vi.spyOn(audioStore, 'playPassages').mockResolvedValue();
     audioStore.playingTabId = 'playing-tab';
     audioStore.targetTabId = 'picked-tab';
-    render(<AudioPlaylist startExpanded />);
+    render(<AudioPlaylist open onClose={noop} />);
     const input = screen.getByTestId('audio-passages-input');
     fireEvent.input(input, { target: { value: 'Ps 23' } });
-    fireEvent.keyDown(input, { key: 'Enter' });
+    fireEvent.click(screen.getByTestId('audio-passages-play'));
     expect(spy.mock.calls[0][0]).toBe('picked-tab');
   });
 
-  it('removing a chip splices that item out of the typed text and leaves the rest as typed', () => {
-    render(<AudioPlaylist startExpanded />);
-    const input = screen.getByTestId('audio-passages-input') as HTMLInputElement;
-    fireEvent.input(input, { target: { value: 'ps 23;  Rom 8:28-39 , gen 1' } });
-    fireEvent.click(screen.getAllByTestId('audio-passage-chip')[1].querySelector('button')!);
-    expect(input.value).toBe('ps 23;  gen 1');
-  });
-
-  it('shows an error and does not play for a bad reference', () => {
+  it('says plainly what was not understood, plays nothing, and clears the message on typing', () => {
     const spy = vi.spyOn(audioStore, 'playPassages').mockResolvedValue();
-    render(<AudioPlaylist startExpanded />);
+    render(<AudioPlaylist open onClose={noop} />);
     const input = screen.getByTestId('audio-passages-input');
+    expect((screen.getByTestId('audio-passages-play') as HTMLButtonElement).disabled).toBe(true);
     fireEvent.input(input, { target: { value: 'Flurb 3' } });
+    expect(screen.queryByTestId('audio-passages-error')).toBeNull(); // nothing while typing
     fireEvent.keyDown(input, { key: 'Enter' });
     expect(spy).not.toHaveBeenCalled();
     expect(screen.getByTestId('audio-passages-error').textContent).toContain('audio.passages.error.noBook');
-    expect((screen.getByTestId('audio-passages-play') as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.input(input, { target: { value: 'Ps 23' } });
+    expect(screen.queryByTestId('audio-passages-error')).toBeNull();
   });
 
-  it('the continue checkbox and the loop control write the shared prefs', () => {
-    render(<PassageOptions prefix="audio-quick" />);
+  it('"Just this chapter" shows only for a typed list and goes back to the chapter', async () => {
+    const { rerender } = render(<AudioPlaylist open onClose={noop} />);
+    expect(screen.queryByTestId('audio-playlist-chapter')).toBeNull();
+    audioStore.status = 'playing';
+    audioStore.queue = { kind: 'list', passages: [{ book: 19, chapter: 23 }], index: 0 };
+    audioStore.setPassageLoop('list'); // notifies
+    rerender(<AudioPlaylist open onClose={noop} />);
+    const spy = vi.spyOn(audioStore, 'useChapterList').mockImplementation(() => {});
+    const just = await screen.findByTestId('audio-playlist-chapter');
+    expect(just.textContent).toContain('audio.passages.useChapter');
+    fireEvent.click(just);
+    expect(spy).toHaveBeenCalled();
+  });
+
+  it('Repeat and Continue are on/off switches that write the shared prefs', () => {
+    render(<PlaybackToggles />);
+    const repeat = screen.getByTestId('audio-repeat');
+    expect(repeat.getAttribute('aria-checked')).toBe('false');
+    fireEvent.click(repeat);
+    expect(audioStore.prefs.passageLoop).toBe('list');
+    expect(repeat.getAttribute('aria-checked')).toBe('true');
+    expect(screen.getByRole('status').textContent).toBe('audio.loop.on');
+    fireEvent.click(repeat);
+    expect(audioStore.prefs.passageLoop).toBe('once');
+    const cont = screen.getByTestId('audio-continue');
     const before = audioStore.prefs.continueAfterChapter;
-    fireEvent.click(screen.getByTestId('audio-quick-continue'));
+    fireEvent.click(cont);
     expect(audioStore.prefs.continueAfterChapter).toBe(before === 'stop' ? 'next-chapter' : 'stop');
-    fireEvent.click(screen.getByTestId('audio-quick-loop-passage'));
-    expect(audioStore.prefs.passageLoop).toBe('passage');
-    expect(screen.getByTestId('audio-quick-loop-passage').getAttribute('aria-pressed')).toBe('true');
+    expect(cont.getAttribute('aria-checked')).toBe(String(before === 'stop'));
+  });
+
+  it('with a typed list: shown read-only with an edit button; editing shows Save and Cancel', () => {
+    audioStore.status = 'playing';
+    audioStore.queue = { kind: 'list', passages: [{ book: 19, chapter: 23 }], index: 0 };
+    render(<AudioPlaylist open onClose={noop} />);
+    expect(screen.queryByTestId('audio-passages-input')).toBeNull();
+    expect(screen.getByTestId('audio-playlist-current').textContent).toContain('23');
+    fireEvent.click(screen.getByTestId('audio-playlist-edit'));
+    expect((screen.getByTestId('audio-passages-input') as HTMLInputElement).value).toContain('23');
+    expect(screen.getByTestId('audio-passages-play').textContent).toBe('audio.passages.save');
+    fireEvent.click(screen.getByTestId('audio-passages-cancel'));
+    expect(screen.queryByTestId('audio-passages-input')).toBeNull();
+  });
+
+  it('Continue is disabled while a typed list plays', async () => {
+    render(<PlaybackToggles />);
+    audioStore.status = 'playing';
+    audioStore.queue = { kind: 'list', passages: [{ book: 19, chapter: 23 }], index: 0 };
+    audioStore.setPassageLoop('list'); // notifies
+    await waitFor(() => expect((screen.getByTestId('audio-continue') as HTMLButtonElement).disabled).toBe(true));
   });
 
   it('progress and prev/next passage show only for a typed list', async () => {

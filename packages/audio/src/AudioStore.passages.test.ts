@@ -203,6 +203,17 @@ describe('default chapter list', () => {
     expect(store.status).toBe('idle');
     expect(store.bookmarkFor('A')).toBeNull();
     expect(reader.markStopped).not.toHaveBeenCalled();
+    // The player can offer the next chapter; playing again clears the offer.
+    expect(store.finished).toEqual({ tabId: 'A', moduleAbbr: 'KJV', book: 43, chapter: 1 });
+    await store.play('A');
+    expect(store.finished).toBeNull();
+  });
+
+  it('a stop is not a finish: no next-chapter offer', async () => {
+    await store.play('A');
+    await flush();
+    store.stop();
+    expect(store.finished).toBeNull();
   });
 
   it('loop "passage" replays the chapter even with continue on', async () => {
@@ -215,15 +226,27 @@ describe('default chapter list', () => {
     expect(reader.followCalls).toHaveLength(0);
   });
 
-  it('loop "list" does not repeat a plain chapter: it still follows "continue to the next chapter"', async () => {
+  it('loop "list" with continue off repeats the chapter', async () => {
+    store.setPassageLoop('list');
+    store.setContinueAfterChapter(false);
+    await store.play('A');
+    await flush();
+    await endChapter();
+    expect(cur()).toEqual(at(1));
+    expect(store.status).toBe('playing');
+  });
+
+  it('loop "list" with continue on reads on, then starts the book again after its last chapter', async () => {
     store.setPassageLoop('list');
     await store.play('A');
     await flush();
     await endChapter();
     expect(cur()).toEqual(at(1, 2));
-    store.setContinueAfterChapter(false);
     await endChapter();
-    expect(store.status).toBe('idle');
+    expect(cur()).toEqual(at(1, 3));
+    await endChapter();
+    expect(cur()).toEqual(at(1, 1));
+    expect(store.status).toBe('playing');
   });
 });
 

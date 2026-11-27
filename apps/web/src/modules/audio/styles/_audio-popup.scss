@@ -9,8 +9,8 @@
   flex-direction: column;
   gap: 8px;
   inline-size: min(400px, calc(100vw - 32px));
-  block-size: min(620px, calc(100vh - 96px));
-  min-block-size: 360px;
+  max-block-size: calc(100vh - 96px);
+  overflow-y: auto;
   padding: 12px;
   box-sizing: border-box;
   background: var(--bg-primary);
@@ -61,7 +61,8 @@
   &__controls {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: center;
     gap: 8px;
+    padding-block: 4px;
   }
 }

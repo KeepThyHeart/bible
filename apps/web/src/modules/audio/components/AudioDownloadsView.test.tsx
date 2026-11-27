@@ -55,12 +55,12 @@ class MemStore implements IAudioDownloadStore {
   async freeBytes() { return this.free; }
 }
 
-function setup(store = new MemStore()) {
+function setup(store = new MemStore(), currentBook: number | null = null) {
   const model = new AudioDownloadsModel({
     manifests: manifests(), locator: new CdnAudioLocator('/audio'), store,
     canPlay: () => true, chapterCount: b => counts[b] ?? 0, ensureText: vi.fn(async () => {}),
   });
-  render(<AudioDownloadsView model={model} moduleAbbr="KJV" modules={[{ abbreviation: 'KJV' }]} bookName={b => `Book ${b}`} />);
+  render(<AudioDownloadsView model={model} moduleAbbr="KJV" modules={[{ abbreviation: 'KJV' }]} bookName={b => `Book ${b}`} currentBook={currentBook} />);
   return { model, store };
 }
 
@@ -162,5 +162,26 @@ describe('AudioDownloadsView', () => {
     release();
     await waitFor(() => expect(model.run).toBe('cancelled'));
     expect(screen.getByTestId('audio-dl-status').textContent).toContain('audio.downloads.cancelled');
+  });
+
+  it('selects the book being read when it opens, shows it first, and keeps the rest under "Other books"', async () => {
+    const { model } = setup(new MemStore(), 43);
+    await waitFor(() => expect(model.selected.has(43)).toBe(true));
+    expect(model.selected.size).toBe(1);
+    expect(screen.getByTestId('audio-dl-current').textContent).toContain('Book 43');
+    const more = screen.getByTestId('audio-dl-more') as HTMLDetailsElement;
+    expect(more.open).toBe(false);
+    expect(more.textContent).toContain('audio.downloads.otherBooks');
+  });
+
+  it('records what is downloaded in the offline record (via trackDownloads)', async () => {
+    const { offlineAudio, trackDownloads } = await import('../lib/offlineAudio');
+    const { model } = setup(new MemStore(), 1);
+    const off = trackDownloads(model);
+    await waitFor(() => expect(model.selected.has(1)).toBe(true));
+    fireEvent.click(screen.getByTestId('audio-dl-start'));
+    await waitFor(() => expect(offlineAudio.byModule.KJV).toEqual([1]));
+    off();
+    offlineAudio.set('KJV', []);
   });
 });
