@@ -79,7 +79,7 @@ import { resolveWrongPositions, revealedWord } from './stepResult';
 import type { HiddenWords } from './stepResult';
 import { tr } from './i18n';
 import { scopedView } from './dataCache';
-import { flowRemaining, planNextTarget } from './flows';
+import { flowRemaining, flowScope, planNextTarget } from './flows';
 import type { PracticeTarget } from './flows';
 import { queueBar } from './queueBar';
 import { MAX_NEW_PER_DAY, countStartedToday } from '../core/today';
@@ -1971,14 +1971,15 @@ export class PracticeView {
         return null;
       }
       const now = this.host.now();
-      const plan = scopedView(all, all.focus ?? 'all', now);
+      const plan = scopedView(all, flowScope(flow, all.focus ?? 'all'), now);
       const opts = flow.kind === 'today' ? { startedToday: countStartedToday(all.passages, now) } : {};
       return {
         left: flowRemaining(plan, flow, now, opts),
         target: wantTarget ? planNextTarget(plan, flow, now, Math.random, opts) : null,
       };
     }
-    const reply = await this.host.request({ type: 'getPlan' });
+    const scope = flowScope(flow, 'all');
+    const reply = await this.host.request(scope === 'all' ? { type: 'getPlan' } : { type: 'getPlan', scope: { kind: 'list', id: scope } });
     if (!reply.ok) return null;
     let startedToday: number | undefined;
     if (flow.kind === 'today') {

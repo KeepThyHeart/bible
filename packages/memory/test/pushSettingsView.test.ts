@@ -107,7 +107,7 @@ describe('push settings', () => {
     expect(root.querySelector('[role="status"]')!.textContent).toBe('Notifications are on.');
     expect(root.querySelector('input[aria-label="Reminder time 1"]')).not.toBeNull();
     expect(root.querySelector('input[aria-label="Quiet hours start"]')).not.toBeNull();
-    expect(root.querySelector('label[aria-label="Monday"]')).not.toBeNull();
+    expect(root.querySelector('input[type="checkbox"][aria-label="Monday"]')).not.toBeNull();
   });
 
   it('hides details when disabled and sends on enabling', async () => {
@@ -160,7 +160,7 @@ describe('push settings', () => {
     change(root.querySelector('input[aria-label="Reminder time 1"]')!, '09:15');
     expect((lastSent().plan.slots[0] as { time: string }).time).toBe('09:15');
 
-    const sunday = root.querySelector<HTMLInputElement>('#' + root.querySelector('label[aria-label="Sunday"]')!.getAttribute('for'))!;
+    const sunday = root.querySelector<HTMLInputElement>('input[type="checkbox"][aria-label="Sunday"]')!;
     sunday.checked = false;
     change(sunday);
     expect(lastSent().plan.slots[0]!.days).toEqual([1, 2, 3, 4, 5, 6]);

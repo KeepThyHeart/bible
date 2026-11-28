@@ -11,14 +11,15 @@
  * so reopening a preview is instant.
  */
 
-import type { PlanView, VerseText } from '../core/types';
+import type { ListSummary, PlanView, VerseText } from '../core/types';
 import { SUGGESTED_LISTS, starterRange } from '../core/suggestedLists';
 import type { SuggestedList } from '../core/suggestedLists';
 import { button, el, replace } from './dom';
 import { errorBanner } from './components';
 import type { PanelHost } from './host';
 import { tr } from './i18n';
-import { createStarterSet } from './starterSets';
+import { addStarterSetToList, createStarterSet } from './starterSets';
+import { showModal } from './verseActions';
 import './styles/starters.css';
 
 /** Set key -> reference -> its verses. Only successful fetches are kept. */
@@ -177,13 +178,75 @@ function renderPreview(host: PanelHost, plan: PlanView, set: SuggestedList, exis
     () => void add(),
     { class: 'sm-btn sm-btn-primary sm-starter-add' },
   );
+  // Hidden without lists: there is nothing to pick from.
+  const addToBtn =
+    plan.lists.length > 0
+      ? button(tr('memory.ui.starters.addToExisting', 'Add to existing list'), () => openListPicker(), {
+          class: 'sm-btn sm-starter-add-to',
+          attrs: { 'aria-haspopup': 'dialog' },
+        })
+      : null;
+
+  function openListPicker(): void {
+    const handle = showModal(host, {
+      title: tr('memory.ui.starters.chooseListTitle', 'Add {name} to a list', { name: set.name }),
+      body: [
+        el('p', { class: 'sm-hint', text: tr('memory.ui.starters.chooseListHint', 'Verses already in the list are skipped.') }),
+        el(
+          'ul',
+          { class: 'sm-starter-pick-list' },
+          plan.lists.map((list) =>
+            el('li', {}, [
+              button(
+                list.name,
+                () => {
+                  handle.close();
+                  void addTo(list);
+                },
+                { class: 'sm-starter-pick', attrs: { 'data-list-id': String(list.id) } },
+              ),
+            ]),
+          ),
+        ),
+      ],
+      actions: [button(tr('memory.ui.verses.cancel', 'Cancel'), () => handle.close(), { class: 'sm-btn sm-btn-quiet' })],
+    });
+  }
+
+  async function addTo(list: ListSummary): Promise<void> {
+    addBtn.disabled = true;
+    if (addToBtn) addToBtn.disabled = true;
+    replace(status, []);
+    lastFailures.delete(set.key);
+    const { added, existing, failed } = await addStarterSetToList(host, set, list.id);
+    addBtn.disabled = false;
+    if (addToBtn) addToBtn.disabled = false;
+    if (failed.length > 0) {
+      lastFailures.set(set.key, failed);
+      replace(status, failed.map((f) => errorBanner(`${f.reference}: ${f.error}`)));
+    }
+    const summary =
+      added === 0 && failed.length === 0
+        ? tr('memory.ui.starters.listHasAll', '{list} already has all of these verses.', { list: list.name })
+        : existing > 0
+          ? tr('memory.ui.starters.addedToListSomeThere', 'Added {added, plural, one {# verse} other {# verses}} to {list}; {existing, plural, one {# was} other {# were}} already there.', { added, list: list.name, existing })
+          : tr('memory.ui.starters.addedToList', 'Added {added, plural, one {# verse} other {# verses}} to {list}.', { added, list: list.name });
+    const failedNote =
+      failed.length > 0
+        ? tr('memory.ui.starters.addedToListFailedNote', ' {failed, plural, one {# reference} other {# references}} failed.', { failed: failed.length })
+        : '';
+    host.announce(summary + failedNote);
+    if (added > 0) host.reload();
+  }
 
   async function add(): Promise<void> {
     addBtn.disabled = true;
+    if (addToBtn) addToBtn.disabled = true;
     replace(status, []);
     lastFailures.delete(set.key);
     const result = await createStarterSet(host, plan, set);
     addBtn.disabled = false;
+    if (addToBtn) addToBtn.disabled = false;
     if (!result.ok) {
       replace(status, [errorBanner(result.error)]);
       return;
@@ -214,7 +277,7 @@ function renderPreview(host: PanelHost, plan: PlanView, set: SuggestedList, exis
   return el(
     'div',
     { class: 'sm-starter-preview', id: previewId(set.key), attrs: { role: 'region', 'aria-labelledby': rowId(set.key) } },
-    [verses, loading, textError, el('div', { class: 'sm-starter-actions' }, [addBtn]), status],
+    [verses, loading, textError, el('div', { class: 'sm-starter-actions' }, [addBtn, addToBtn]), status],
   );
 }
 

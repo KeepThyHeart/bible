@@ -190,8 +190,8 @@ describe('remove', () => {
 
 const refs = (root: Element) => rows(root).map((r) => text(r.querySelector('.sm-verse-ref')!));
 const blocksOf = (row: Element) => Array.from(row.querySelectorAll<HTMLButtonElement>('.sm-block-btn'));
-const squaresOf = (row: Element) => Array.from(row.querySelectorAll<HTMLElement>('.sm-block'));
-const square = (row: Element, rung: string) => row.querySelector<HTMLElement>(`.sm-block[data-rung="${rung}"]`)!;
+const squaresOf = (row: Element) => Array.from(row.querySelectorAll<HTMLElement>('.sm-act-sq'));
+const square = (row: Element, rung: string) => row.querySelector<HTMLElement>(`.sm-act-sq[data-rung="${rung}"]`)!;
 const headers = (root: Element) => Array.from(root.querySelectorAll('thead th')).map((th) => th.getAttribute('data-rung') ?? text(th));
 
 describe('List picker', () => {
@@ -275,6 +275,21 @@ describe('table and squares', () => {
     expect(text(row.querySelector('.sm-verses-col-next')!)).toBe('Due today');
     expect(text(row.querySelector('.sm-verses-col-list')!)).toBe('Default');
     expect(row.querySelector('.sm-status')).toBeNull();
+  });
+
+  it('keeps each row to one line: nowrap cells, full reference and list name in titles, one actions button', () => {
+    const row = rowFor(mount(), 'Psalm 23');
+    const ref = row.querySelector<HTMLElement>('button.sm-verse-ref')!;
+    expect(ref.title).toBe('Psalm 23');
+    expect(ref.getAttribute('aria-label')).toBe('Open Psalm 23');
+    expect(row.querySelector('.sm-verses-col-ref')!.hasAttribute('data-nowrap')).toBe(true);
+    const list = row.querySelector('.sm-verses-col-list')!;
+    expect(list.hasAttribute('data-nowrap')).toBe(true);
+    expect(list.querySelector<HTMLElement>('.sm-verses-list-name')!.title).toBe('Default');
+    expect(row.querySelector('.sm-verses-col-next')!.hasAttribute('data-nowrap')).toBe(true);
+    const acts = row.querySelector('.sm-verses-col-acts')!;
+    expect(acts.querySelectorAll('button')).toHaveLength(1);
+    expect(acts.querySelector('button')!.getAttribute('aria-haspopup')).toBe('menu');
   });
 
   it('one tab stop per row; a square is named by its summary', () => {

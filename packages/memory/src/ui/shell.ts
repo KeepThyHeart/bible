@@ -92,7 +92,7 @@ export function createShell(host: PanelHost, options: ShellOptions = {}): Shell 
   const panel = el('div', { id: TAB_PANEL_ID, class: 'kth-app-page__body sm-shell-panel', attrs: { role: 'tabpanel' } });
   const chipSlot = el('div', { class: 'sm-shell-chip-slot' });
 
-  const root = el('div', { class: 'kth-app-page sm-shell' }, [
+  const root = el('div', { class: 'kth-app-page kth-app-page--sticky-tabs sm-shell' }, [
     el('div', { class: 'kth-app-page__column' }, [
       el('div', { class: 'kth-app-page__header' }, [
         // tabindex -1: the host moves focus here when the app opens.

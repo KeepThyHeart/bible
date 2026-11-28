@@ -3,6 +3,7 @@ import type { PassageView, Rung, RungView } from '../src/core/types';
 import {
   MAX_NEW_PER_DAY,
   anywayOrder,
+  nextUnfinishedRung,
   pickSuggestedRung,
   suggestedRung,
   startOfLocalDay,
@@ -185,7 +186,7 @@ describe('todayQueue', () => {
 });
 
 describe('anywayOrder', () => {
-  it('lists due (even if done today) first, then others by next review, then new verses last, skipping visited', () => {
+  it('lists due (even if done today) first, then verses still being learned, then new verses last, skipping visited', () => {
     const doneDue = pv(1, [
       rung('ordering', { attempts: 2, dueAt: NOW - HOUR, lastPractisedAt: NOW - 2 * HOUR }),
     ]);
@@ -194,8 +195,39 @@ describe('anywayOrder', () => {
     const unscheduled = pv(4, [rung('ordering', { attempts: 1, dueAt: null })]);
     const visited = learned(5, NOW - 2 * HOUR);
     const q = anywayOrder([unscheduled, later, fresh(6), sooner, doneDue, visited], NOW, new Set([5]));
-    expect(q.map((i) => i.passageId)).toEqual([1, 3, 2, 4, 6]);
+    // 2, 3 and 4 are all 0% finished: oldest added first.
+    expect(q.map((i) => i.passageId)).toEqual([1, 2, 3, 4, 6]);
     expect(q.map((i) => i.kind)).toEqual(['review', 'review', 'review', 'review', 'new']);
+  });
+
+  it('leaves out learned verses whose review is not due, keeps them once due', () => {
+    const known = (id: number, dueAt: number) =>
+      pv(id, [rung('ordering', { attempts: 3, level: 5, dueAt, lastPractisedAt: NOW - 3 * DAY, firstPractisedAt: NOW - 30 * DAY })], { wellLearned: true });
+    expect(anywayOrder([known(1, NOW + 4 * DAY)], NOW, new Set())).toEqual([]);
+    expect(anywayOrder([known(1, NOW + 4 * DAY), known(2, NOW - HOUR)], NOW, new Set()).map((i) => i.passageId)).toEqual([2]);
+  });
+
+  it('orders verses being learned closest to finished first, at their next unfinished activity', () => {
+    const at = (level: number) => ({ attempts: 2, level, dueAt: NOW + 3 * DAY, lastPractisedAt: NOW - DAY, firstPractisedAt: NOW - 9 * DAY });
+    // Ordering finished, blanks not: 1 of 3.
+    const third = pv(1, [rung('ordering', at(5)), rung('blanks', at(2)), rung('firstletters', at(1))]);
+    // Blanks finished (carries ordering down): 2 of 3; next is first letters, not the lower-level ordering.
+    const twoThirds = pv(2, [rung('ordering', at(1)), rung('blanks', at(4)), rung('firstletters', at(1))]);
+    const q = anywayOrder([third, twoThirds], NOW, new Set());
+    expect(q.map((i) => [i.passageId, i.rung])).toEqual([[2, 'firstletters'], [1, 'blanks']]);
+  });
+
+  it('is not capped at MAX_NEW_PER_DAY', () => {
+    const news = Array.from({ length: MAX_NEW_PER_DAY + 2 }, (_, i) => fresh(i + 1));
+    expect(anywayOrder(news, NOW, new Set())).toHaveLength(MAX_NEW_PER_DAY + 2);
+  });
+});
+
+describe('nextUnfinishedRung', () => {
+  it('skips satisfied activities and inapplicable or optional ones', () => {
+    expect(nextUnfinishedRung([rung('ordering', { level: 4 }), rung('blanks', { level: 1 })])).toBe('blanks');
+    expect(nextUnfinishedRung([rung('ordering', { level: 0 }), rung('firstletters', { level: 5 }), rung('refmatch', { level: 2 })])).toBe('refmatch');
+    expect(nextUnfinishedRung([rung('ordering', { applicable: false }), rung('recite', { level: 0 })])).toBeNull();
   });
 });
 

@@ -1609,47 +1609,7 @@
   color: var(--sm-text-dim);
 }
 
-.sm-app .sm-push-group {
-  margin: var(--sm-s3) 0;
-  padding: 0;
-  border: 0;
-}
-
-.sm-app .sm-push-legend {
-  padding: 0;
-  margin-bottom: var(--sm-s2);
-  font-weight: 600;
-  color: var(--sm-heading);
-}
-
-.sm-app .sm-push-slot {
-  flex-wrap: wrap;
-  gap: var(--sm-s2);
-}
-
-.sm-app .sm-push-slot-times,
-.sm-app .sm-push-inline,
-.sm-app .sm-push-add {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--sm-s2);
-}
-
-.sm-app .sm-push-days {
-  display: flex;
-  gap: var(--sm-s1);
-}
-
-.sm-app .sm-push-day {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-}
-
-.sm-app .sm-push-number {
-  width: 4.5em;
-}
+/* Reminder settings: styles/settings.css. */
 
 /* ==========================================================================
    Passage progress table (task 0195): rows = practice types. The table itself

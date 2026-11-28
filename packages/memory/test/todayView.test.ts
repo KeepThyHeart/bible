@@ -185,12 +185,12 @@ describe('Today: Practice something else', () => {
 describe('Today: A2 done', () => {
   const donePlan = (extra: PassageView[] = []) => plan([doneToday(1, 'Psalm 23'), doneToday(2, 'John 3:16'), ...extra]);
 
-  it('says Done for today with upcoming reviews and Practice anyway', () => {
+  it('says Done for today with upcoming reviews and Practice more', () => {
     const root = mount(donePlan());
     expect(text(root.querySelector('h2')!)).toBe('Done for today');
     expect(text(root)).toMatch(/Next review .*: 2 verses/);
     expect(byLabel(root, 'Learn a new verse')).toBeUndefined();
-    byLabel(root, 'Practice anyway')!.click();
+    byLabel(root, 'Practice more')!.click();
     expect(host.flows).toEqual([{ kind: 'anyway', visited: [] }]);
   });
 
@@ -359,7 +359,7 @@ describe('Today: picker menu behavior (review item 10)', () => {
   });
 });
 
-describe('Today: streak and Practice anyway (review items 8, 12)', () => {
+describe('Today: streak and Practice more (review items 8, 12)', () => {
   it('shows the streak on the done screen, hidden at 0', () => {
     const donePlan = plan([doneToday(1, 'Psalm 23')]);
     expect(text(mount(donePlan, { streak: 12 }))).toContain('12 day streak');
@@ -369,12 +369,12 @@ describe('Today: streak and Practice anyway (review items 8, 12)', () => {
     expect(text(mount({ ...donePlan, streakDays: 5 } as never))).toContain('5 day streak');
   });
 
-  it('hides Practice anyway when nothing can be practiced; offers it with only beyond-cap new verses', () => {
+  it('hides Practice more when nothing can be practiced; offers it with only beyond-cap new verses', () => {
     const started = [1, 2, 3].map((i) =>
       pv(i, [rung('blanks', { attempts: 1, level: 1, dueAt: NOW + 2 * DAY, lastPractisedAt: NOW - HOUR, firstPractisedAt: NOW - HOUR })], `Started ${i}`),
     );
     const root = mount(plan([...started, fresh(9, 'Beyond cap')]));
-    expect(byLabel(root, 'Practice anyway')).toBeDefined();
+    expect(byLabel(root, 'Practice more')).toBeDefined();
   });
 
   it('startedToday from extras lowers the new-verse cap', () => {

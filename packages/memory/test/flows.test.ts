@@ -6,7 +6,7 @@
 // @ts-nocheck
 
 import { describe, it, expect } from 'vitest';
-import { flowRemaining, listTargets, nextFlowTarget, planNextTarget, pickActivityTarget, pickShuffledTarget, pickerFlows } from '../src/ui/flows';
+import { flowRemaining, flowScope, listTargets, nextFlowTarget, planNextTarget, pickActivityTarget, pickShuffledTarget, pickerFlows } from '../src/ui/flows';
 import { mulberry32 } from '../src/core/exercises/rng';
 import type { Passage, PassageView, PlanView, RungView } from '../src/core/types';
 
@@ -125,6 +125,15 @@ describe('nextFlowTarget', () => {
     const p = plan([pv]);
     expect(nextFlowTarget(p, { kind: 'verse', passageId: 1 }, NOW)).toEqual({ passageId: 1, rung: 'blanks' });
     expect(nextFlowTarget(p, { kind: 'verse', passageId: 99 }, NOW)).toBeNull();
+  });
+});
+
+describe('flowScope', () => {
+  it('a list on today/anyway wins over the focus; other flows follow the focus', () => {
+    expect(flowScope({ kind: 'today', skipped: [], list: 4 }, 'all')).toBe(4);
+    expect(flowScope({ kind: 'anyway', visited: [], list: 4 }, 2)).toBe(4);
+    expect(flowScope({ kind: 'today', skipped: [] }, 2)).toBe(2);
+    expect(flowScope({ kind: 'mixed', visited: [] }, 'all')).toBe('all');
   });
 });
 

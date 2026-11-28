@@ -3,7 +3,7 @@
  * summary, the just-added offer and the reminders row; this is the queue in full.
  *
  *   A1  verses to practice: counts, one Start/Continue button, "Up next"
- *   A2  done for today: upcoming reviews, "Learn a new verse", "Practice anyway"
+ *   A2  done for today: upcoming reviews, "Learn a new verse", "Practice more"
  *   A3  no verses yet: add a verse and start it, or browse the starter sets
  *   --  empty focus: the focused list has no verses yet
  *
@@ -289,7 +289,7 @@ function renderDone(host: PanelHost, plan: PlanView, queue: TodayQueue, now: num
   }
   // Hidden when there is nothing at all to practice (never a dead end).
   if (anywayOrder(plan.passages, now, new Set()).length > 0) {
-    const anyway = button(tr('memory.ui.today.practiceAnyway', 'Practice anyway'), () => runFlow(host, { kind: 'anyway', visited: [] }, anyway), {
+    const anyway = button(tr('memory.ui.today.practiceMore', 'Practice more'), () => runFlow(host, { kind: 'anyway', visited: [] }, anyway), {
       class: queue.nextNewAvailable ? 'sm-btn sm-today-action' : 'sm-btn sm-btn-primary sm-today-action',
     });
     actions.appendChild(anyway);

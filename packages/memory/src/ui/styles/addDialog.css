@@ -81,6 +81,53 @@
   padding-inline: 0;
 }
 
+/* The verse selector's preview at a fixed size (about 4.5 lines), so the dialog does not change height while a
+   reference is typed. The selector's status line (the "Not a valid reference" error) is laid over the same box,
+   and an empty preview keeps its box with a placeholder (`--sm-preview-empty`, set on the dialog). */
+.sm-add-dialog .kth-verse-selector {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.sm-add-dialog .kth-verse-selector__status,
+.sm-add-dialog .kth-verse-selector__preview {
+  grid-row: 3;
+  grid-column: 1;
+}
+
+.sm-add-dialog .kth-verse-selector__preview,
+.sm-add-dialog .kth-verse-selector__preview:empty {
+  display: block;
+  box-sizing: content-box;
+  block-size: 6.75em; /* 4.5 lines at line-height 1.5 */
+  max-block-size: 6.75em;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.sm-add-dialog .kth-verse-selector__preview:empty::before {
+  content: var(--sm-preview-empty, '');
+  color: var(--sm-text-dim);
+  font-style: italic;
+}
+
+.sm-add-dialog .kth-verse-selector__status:not(:empty) {
+  z-index: 1;
+  align-self: start;
+  padding-block: var(--kth-space-2, 0.5rem);
+  padding-inline: calc(var(--kth-space-3, 0.75rem) + 3px);
+  line-height: 1.5;
+}
+
+/* With an error showing, the box stays but its text gives way to the error. */
+.sm-add-dialog .kth-verse-selector__status:not(:empty) + .kth-verse-selector__preview > * {
+  visibility: hidden;
+}
+
+.sm-add-dialog .kth-verse-selector__status:not(:empty) + .kth-verse-selector__preview:empty::before {
+  content: none;
+}
+
 /* Stand-alone overlay (Add to Memory); the Add verse dialog sits inside the app's own modal. */
 .sm-add-dialog-backdrop {
   position: fixed;

@@ -326,16 +326,23 @@ function renderRow(ctx: RowCtx, pv: PassageView, highlighted: boolean): HTMLElem
     class: 'sm-verse-ref',
     text: ref,
     type: 'button',
+    // The reference may be cut short with an ellipsis to keep the row on one line; the title shows it whole.
+    title: ref,
     attrs: { 'aria-label': tr('memory.ui.verses.openRef', 'Open {reference}', { reference: ref }) },
   });
 
   const cells: HTMLElement[] = [
-    el('th', { class: 'kth-table__cell sm-verses-col-ref', attrs: { scope: 'row' } }, [
+    el('th', { class: 'kth-table__cell sm-verses-col-ref', attrs: { scope: 'row', 'data-nowrap': '' } }, [
       el('span', { class: 'sm-verse-main' }, [open, translationTag(pv.passage.moduleId)]),
     ]),
   ];
   if (showList) {
-    cells.push(el('td', { class: 'kth-table__cell sm-verses-col-list', text: listName.get(pv.passage.collectionId) ?? '', attrs: { 'data-muted': '' } }));
+    const name = listName.get(pv.passage.collectionId) ?? '';
+    cells.push(
+      el('td', { class: 'kth-table__cell sm-verses-col-list', attrs: { 'data-muted': '', 'data-nowrap': '' } }, [
+        el('span', { class: 'sm-verses-list-name', text: name, title: name }),
+      ]),
+    );
   }
   let tabStopGiven = false;
   for (const rung of ctx.derived.columns) {

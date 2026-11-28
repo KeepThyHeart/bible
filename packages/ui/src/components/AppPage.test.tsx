@@ -55,6 +55,17 @@ describe('AppPage', () => {
     expect(screen.getByRole('tabpanel')).toHaveAttribute('id', 'app-page-panel-today');
   });
 
+  it('keeps the tab bar sticky by default, unless stickyTabs is false or there are no tabs', () => {
+    const tabs = [{ id: 'a', label: 'A' }, { id: 'b', label: 'B' }];
+    const { container, rerender } = render(<AppPage title="Memory" tabs={tabs}>x</AppPage>);
+    const root = container.firstElementChild!;
+    expect(root).toHaveClass('kth-app-page--sticky-tabs');
+    rerender(<AppPage title="Memory" tabs={tabs} stickyTabs={false}>x</AppPage>);
+    expect(root).not.toHaveClass('kth-app-page--sticky-tabs');
+    rerender(<AppPage title="Memory">x</AppPage>);
+    expect(root).not.toHaveClass('kth-app-page--sticky-tabs');
+  });
+
   it('takes fullWidth, className and dir on the root', () => {
     const { container, rerender } = render(<AppPage title="Presenter">x</AppPage>);
     const root = container.firstElementChild!;

@@ -11,7 +11,7 @@
  */
 import React, { useMemo, useState } from 'react';
 import { ReadingPlans } from '@bible/core/browser';
-import { Checkbox, Notice, ProgressRing, ReadingPlanMonthCalendar, SegmentedControl } from '@bible/ui';
+import { Checkbox, Notice, ProgressTile, ProgressTiles, ReadingPlanMonthCalendar, SegmentedControl } from '@bible/ui';
 import { useI18n } from '../../../contexts/useI18n';
 import { rpTextWith } from '../rpText';
 import type { ReadingPlanLabelSet } from './useReadingPlanLabels';
@@ -100,26 +100,19 @@ const AgendaTab: React.FC<AgendaTabProps> = ({
     const active = plans.filter((p) => p.detail.enrollment.status === 'active' && !p.detail.today.completed);
     if (active.length === 0) return null;
     return (
-      <ul className="m-0 p-0 list-none flex flex-wrap gap-sm" aria-label={tx('readingPlans.agenda.progress', 'Progress')} data-testid="agenda-progress">
+      <ProgressTiles aria-label={tx('readingPlans.agenda.progress', 'Progress')} testId="agenda-progress">
         {active.map((p) => {
           const id = p.detail.enrollment.id;
-          const behind = p.detail.today.behindBy > 0;
           const pct = p.detail.stats.percent;
           return (
-            <li key={id} className="kth-card flex items-center gap-sm" data-testid="agenda-plan-tile"
-              style={{ padding: '0.5rem 0.75rem', minInlineSize: '12rem' }}>
-              <ProgressRing value={pct} label={`${p.displayName}: ${t('readingPlans.today.progress')}`}
-                valueText={labels.todayCard.percent(shownPercent(pct))} />
-              <span className="flex flex-col min-w-0">
-                <button type="button" className="kth-link font-medium text-start" onClick={() => onViewPlan(id)}>{p.displayName}</button>
-                <span className="text-sm" style={behind ? { color: 'var(--kth-warning)' } : { color: 'var(--kth-text-muted)' }}>
-                  {behind ? <span aria-hidden="true">{'⚠ '}</span> : null}{status(p)}
-                </span>
-              </span>
-            </li>
+            <ProgressTile key={id} testId="agenda-plan-tile" value={pct}
+              ringLabel={`${p.displayName}: ${t('readingPlans.today.progress')}`}
+              valueText={labels.todayCard.percent(shownPercent(pct))}
+              title={p.displayName} onTitleClick={() => onViewPlan(id)}
+              status={status(p)} statusTone={p.detail.today.behindBy > 0 ? 'warning' : 'muted'} />
           );
         })}
-      </ul>
+      </ProgressTiles>
     );
   };
 

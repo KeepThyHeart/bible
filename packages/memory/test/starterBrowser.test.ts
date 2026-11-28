@@ -236,3 +236,79 @@ describe('starter browser: preview', () => {
     expect(text(redrawn.querySelector('.sm-starter-status')!)).toBe('Romans 3:10: Nope');
   });
 });
+
+describe('starter browser: add to existing list', () => {
+  const set = SUGGESTED_LISTS.find((s) => s.key === 'romans-road')!;
+  const lists: ListSummary[] = [
+    { id: 1, name: 'Default', passageCount: 0, verseCount: 0 },
+    { id: 7, name: 'Gospels', passageCount: 2, verseCount: 2 },
+  ];
+  afterEach(() => {
+    document.querySelectorAll('.sm-modal-backdrop').forEach((n) => n.remove());
+  });
+  const picks = () => [...document.querySelectorAll<HTMLButtonElement>('.sm-starter-pick')];
+
+  it('is not offered without lists', () => {
+    host.handlers.previewVerses = previewStub;
+    const root = mount(plan([]), set.key);
+    expect(root.querySelector('.sm-starter-add-to')).toBeNull();
+    expect(root.querySelector('.sm-starter-add')).not.toBeNull();
+  });
+
+  it('opens a dialog of the lists; picking one adds the set there, skips what it has, and summarises', async () => {
+    host.handlers.previewVerses = previewStub;
+    const there = new Set(set.references.slice(0, 2));
+    host.handlers.addPassage = (r) => ({ ok: true, data: { passage: { id: 1 }, ...(there.has(r.reference) ? { existed: true } : {}) } });
+    const root = mount(plan(lists), set.key);
+    const addTo = root.querySelector<HTMLButtonElement>('.sm-starter-add-to')!;
+    expect(text(addTo)).toBe('Add to existing list');
+    addTo.click();
+    expect(picks().map(text)).toEqual(['Default', 'Gospels']);
+    picks()[1]!.click();
+    expect(document.querySelector('.sm-modal-backdrop')).toBeNull();
+    await settle();
+    await settle();
+    const adds = host.requests.filter((r) => r.type === 'addPassage');
+    expect(adds.map((r: any) => r.reference)).toEqual(set.references);
+    expect(adds.every((r: any) => r.collectionId === 7)).toBe(true);
+    expect(host.requests.some((r) => r.type === 'createList')).toBe(false);
+    const added = set.references.length - 2;
+    expect(host.announcements).toEqual([`Added ${added} verses to Gospels; 2 were already there.`]);
+    expect(host.reloads).toBe(1);
+    // Adding to another list does not mark the set itself as added.
+    expect(rowOf(root, set.key).querySelector('.sm-starter-tag')).toBeNull();
+  });
+
+  it('says so when the list already has every verse, without reloading', async () => {
+    host.handlers.previewVerses = previewStub;
+    host.handlers.addPassage = () => ({ ok: true, data: { passage: { id: 1 }, existed: true } });
+    const root = mount(plan(lists), set.key);
+    root.querySelector<HTMLButtonElement>('.sm-starter-add-to')!.click();
+    picks()[1]!.click();
+    await settle();
+    await settle();
+    expect(host.announcements).toEqual(['Gospels already has all of these verses.']);
+    expect(host.reloads).toBe(0);
+  });
+
+  it('shows failed references and counts them in the summary', async () => {
+    host.handlers.previewVerses = previewStub;
+    host.handlers.addPassage = (r) => (r.reference === 'Romans 3:10' ? { ok: false, error: 'Nope' } : { ok: true, data: { passage: { id: 1 } } });
+    const root = mount(plan(lists), set.key);
+    root.querySelector<HTMLButtonElement>('.sm-starter-add-to')!.click();
+    picks()[0]!.click();
+    await settle();
+    await settle();
+    expect(text(root.querySelector('.sm-starter-status')!)).toBe('Romans 3:10: Nope');
+    expect(host.announcements).toEqual([`Added ${set.references.length - 1} verses to Default. 1 reference failed.`]);
+  });
+
+  it('Cancel closes the dialog without adding', () => {
+    host.handlers.previewVerses = previewStub;
+    const root = mount(plan(lists), set.key);
+    root.querySelector<HTMLButtonElement>('.sm-starter-add-to')!.click();
+    [...document.querySelectorAll<HTMLButtonElement>('.sm-modal-backdrop button')].find((b) => text(b) === 'Cancel')!.click();
+    expect(document.querySelector('.sm-modal-backdrop')).toBeNull();
+    expect(host.requests.some((r) => r.type === 'addPassage')).toBe(false);
+  });
+});

@@ -1,6 +1,7 @@
 /**
- * Settings tab (A8): the Lists section (drawn by `listsView.ts`, handed in by mount), then Answering,
- * Recite aloud, Reminders, and a look at which verses have overridden the answer mode. No screen
+ * Settings tab (A8): the Lists section (drawn by `listsView.ts`, handed in by mount), then Answering
+ * (with the verses that override the answer mode), Recite aloud, Reminders, and the old-extension import.
+ * Fields use the shared `.kth-*` form classes via `settingsFields.ts`. No screen
  * title of its own (the tab names it): the first section heading is the focus target.
  *
  * Task 0004's review chose a Settings screen inside the panel over the host's
@@ -18,6 +19,7 @@ import { modal } from './components';
 import type { PanelHost } from './host';
 import type { MemoryImportResult, MemoryImportStatus } from '../core/api';
 import { tr } from './i18n';
+import { actionsRow, checkField, hint, radioField, selectField, settingsSection } from './settingsFields';
 
 export function renderSettings(
   host: PanelHost,
@@ -31,22 +33,19 @@ export function renderSettings(
   if (lists) root.appendChild(lists);
 
   root.appendChild(
-    el('section', { class: 'sm-block' }, [
-      el('h2', { class: 'sm-block-title', text: tr('memory.ui.settings.answering', 'Answering') }),
+    settingsSection(tr('memory.ui.settings.answering', 'Answering'), { class: 'sm-block-answering' }, [
       renderAnswerModeGroup(host, settings.defaultAnswerMode),
-      el('p', { class: 'sm-hint', text: tr('memory.ui.settings.capitalsNeverCount', 'Capitals and punctuation never count.') }),
       renderMoveOnToggle(host, settings.autoAdvance !== false),
+      renderOverrides(host, plan),
     ]),
   );
-
-  if (push) root.appendChild(renderPushSettings(host, push));
 
   // `recite`/`speech` are absent on a host that predates Recite aloud.
   // The speech value is the cached one (mount passes it; `updateSpeechBanner` applies later pushes).
   const speech = settings.speech ?? plan.speech;
   if (reciteEnabled() && settings.recite && speech) root.appendChild(renderReciteSettings(host, settings.recite, speech));
 
-  root.appendChild(renderOverrides(host, plan));
+  if (push) root.appendChild(renderPushSettings(host, push));
 
   const legacySection = legacyImportSection(host, legacy);
   if (legacySection) root.appendChild(legacySection);
@@ -56,28 +55,22 @@ export function renderSettings(
 
 /** "Move on automatically" (R2 auto-advance, default on): a persisted setting, saved on change. */
 function renderMoveOnToggle(host: PanelHost, on: boolean): HTMLElement {
-  const id = 'sm-move-on';
-  const input = el('input', { id, type: 'checkbox' }) as HTMLInputElement;
-  input.checked = on;
-  input.addEventListener('change', () => {
-    const wanted = input.checked;
-    void host.request({ type: 'setAutoAdvance', on: wanted }).then((reply) => {
-      if (!reply.ok) {
-        input.checked = !wanted;
-        host.announce(reply.error);
-      }
-    });
-  });
-  return el('div', { class: 'sm-radio-row sm-move-on' }, [
-    input,
-    el('label', { attrs: { for: id } }, [
-      el('span', { class: 'sm-radio-label', text: tr('memory.ui.settings.moveOn', 'Move on automatically') }),
-      el('span', {
-        class: 'sm-hint',
-        text: ` ${tr('memory.ui.settings.moveOnHintAll', 'Go to the next question or verse by itself after a few seconds (a little longer after mistakes). You can stop it any time.')}`,
-      }),
-    ]),
-  ]);
+  return checkField({
+    id: 'sm-move-on',
+    class: 'sm-move-on',
+    label: tr('memory.ui.settings.moveOn', 'Move on automatically'),
+    hint: tr('memory.ui.settings.moveOnHintAll', 'Go to the next question or verse by itself after a few seconds (a little longer after mistakes). You can stop it any time.'),
+    checked: on,
+    onChange: (input) => {
+      const wanted = input.checked;
+      void host.request({ type: 'setAutoAdvance', on: wanted }).then((reply) => {
+        if (!reply.ok) {
+          input.checked = !wanted;
+          host.announce(reply.error);
+        }
+      });
+    },
+  }).field;
 }
 
 /**
@@ -90,66 +83,47 @@ export function updateSpeechBanner(root: ParentNode, host: PanelHost, speech: Sp
 }
 
 function renderAnswerModeGroup(host: PanelHost, current: AnswerMode): HTMLElement {
-  const name = 'sm-answer-mode-default';
-
-  function radio(value: AnswerMode, label: string, hint: string | null): HTMLElement {
-    const id = `sm-answer-${value}`;
-    const input = el('input', { id, type: 'radio', attrs: { name, value } }) as HTMLInputElement;
-    input.checked = current === value;
-    input.addEventListener('change', () => {
-      if (!input.checked) return;
-      void host.request({ type: 'setDefaultAnswerMode', mode: value }).then((reply) => {
+  return radioField({
+    legend: tr('memory.ui.settings.answerWith', 'Answer with'),
+    name: 'sm-answer-mode-default',
+    current,
+    options: [
+      { value: 'firstLetter', id: 'sm-answer-firstLetter', label: tr('memory.ui.settings.firstLetterOfEachWord', 'First letter of each word'), aside: tr('memory.ui.settings.quick', '(quick)') },
+      { value: 'fullWord', id: 'sm-answer-fullWord', label: tr('memory.ui.settings.fullWordExactSpelling', 'Full word, exact spelling') },
+    ],
+    hint: tr('memory.ui.settings.capitalsNeverCount', 'Capitals and punctuation never count.'),
+    onChange: (value) => {
+      void host.request({ type: 'setDefaultAnswerMode', mode: value as AnswerMode }).then((reply) => {
         if (!reply.ok) host.announce(reply.error);
       });
-    });
-
-    return el('div', { class: 'sm-radio-row' }, [
-      input,
-      el('label', { attrs: { for: id } }, [
-        el('span', { class: 'sm-radio-label', text: label }),
-        hint ? el('span', { class: 'sm-hint', text: ` ${hint}` }) : null,
-      ]),
-    ]);
-  }
-
-  return el('div', { class: 'sm-radio-group', attrs: { role: 'radiogroup', 'aria-label': tr('memory.ui.settings.answering', 'Answering') } }, [
-    radio('firstLetter', tr('memory.ui.settings.firstLetterOfEachWord', 'First letter of each word'), tr('memory.ui.settings.quick', '(quick)')),
-    radio('fullWord', tr('memory.ui.settings.fullWordExactSpelling', 'Full word, exact spelling'), null),
-  ]);
+    },
+  });
 }
 
+/** "Verses with their own setting": a sub-part of Answering (the per-verse override of the answer mode). */
 function renderOverrides(host: PanelHost, plan: PlanView): HTMLElement {
   const overridden = plan.passages.filter((pv) => pv.passage.answerMode !== null);
 
-  return el('section', { class: 'sm-block' }, [
-    el('h2', { class: 'sm-block-title', text: tr('memory.ui.settings.versesWithOwnSetting', 'Verses with their own setting') }),
+  return el('div', { class: 'sm-settings-subsection sm-settings-overrides' }, [
+    el('h3', { class: 'sm-settings-subheading', text: tr('memory.ui.settings.versesWithOwnSetting', 'Verses with their own setting') }),
     overridden.length === 0
-      ? el('p', {
-          class: 'sm-block-caption',
-          text: tr('memory.ui.settings.noneYetChangeOneOnVersePage', 'None yet. Change one from its verse page.'),
-        })
+      ? hint(tr('memory.ui.settings.noneYetChangeOneOnVersePage', 'None yet. Change one from its verse page.'))
       : el(
           'ul',
-          { class: 'sm-list' },
+          { class: 'sm-settings-list' },
           overridden.map((pv) =>
-            el('li', { class: 'sm-row' }, [
-              el('span', { class: 'sm-row-ref', text: pv.passage.reference }),
+            el('li', { class: 'sm-settings-list-row' }, [
+              el('span', { class: 'sm-settings-list-name', text: pv.passage.reference }),
               el('span', {
-                class: 'sm-row-meta',
+                class: 'sm-settings-list-meta',
                 text: pv.passage.answerMode === 'fullWord' ? tr('memory.ui.settings.fullWord', 'Full word') : tr('memory.ui.settings.firstLetter', 'First letter'),
               }),
               button(tr('memory.ui.settings.change', 'Change'), () => host.go({ type: 'goVerse', passageId: pv.passage.id }), {
-                class: 'sm-btn sm-btn-small sm-btn-quiet',
+                class: 'kth-btn kth-btn--ghost kth-btn--sm',
               }),
             ]),
           ),
         ),
-    overridden.length === 0
-      ? null
-      : el('p', {
-          class: 'sm-block-caption',
-          text: tr('memory.ui.settings.changeOnEachVerse', "Change one from its verse page."),
-        }),
   ]);
 }
 
@@ -232,79 +206,65 @@ export function renderReciteSettings(host: PanelHost, recite: ReciteSettings, sp
     });
   }
 
-  function field(id: string, label: string, control: HTMLElement): HTMLElement {
-    return el('div', { class: 'sm-setting-row' }, [
-      el('label', { class: 'sm-label-inline', attrs: { for: id }, text: label }),
-      control,
-    ]);
-  }
-
   function select<K extends keyof ReciteSettings>(
     key: K,
     id: string,
+    label: string,
     options: { value: string; label: string }[],
     current: string,
     parse: (v: string) => ReciteSettings[K],
-  ): HTMLSelectElement {
-    const sel = el('select', { class: 'sm-select', id }) as HTMLSelectElement;
-    for (const o of options) {
-      const opt = el('option', { value: o.value, text: o.label }) as HTMLOptionElement;
-      if (o.value === current) opt.selected = true;
-      sel.appendChild(opt);
-    }
-    sel.addEventListener('change', () => save({ [key]: parse(sel.value) } as Partial<ReciteSettings>));
-    return sel;
+  ): HTMLElement {
+    return selectField({ id, label, options, current, onChange: (v) => save({ [key]: parse(v) } as Partial<ReciteSettings>) });
   }
 
-  function checkbox(key: 'readBack' | 'autoAdvance' | 'voiceCommands', id: string, label: string, hint: string): HTMLElement {
-    const input = el('input', { id, type: 'checkbox' }) as HTMLInputElement;
-    input.checked = recite[key];
-    input.addEventListener('change', () => save({ [key]: input.checked } as Partial<ReciteSettings>));
-    return el('div', { class: 'sm-radio-row' }, [
-      input,
-      el('label', { attrs: { for: id } }, [
-        el('span', { class: 'sm-radio-label', text: label }),
-        el('span', { class: 'sm-hint', text: ` ${hint}` }),
-      ]),
-    ]);
+  function checkbox(key: 'readBack' | 'autoAdvance' | 'voiceCommands', id: string, label: string, hintText: string): HTMLElement {
+    return checkField({
+      id,
+      label,
+      hint: hintText,
+      checked: recite[key],
+      onChange: (input) => save({ [key]: input.checked } as Partial<ReciteSettings>),
+    }).field;
   }
 
   const delayOptions = HINT_DELAYS_MS.includes(recite.hintDelayMs) ? HINT_DELAYS_MS : [...HINT_DELAYS_MS, recite.hintDelayMs].sort((a, b) => a - b);
 
-  return el('section', { class: 'sm-block sm-block-recite' }, [
-    el('h2', { class: 'sm-block-title', text: tr('memory.ui.settings.reciteAloud', 'Recite aloud') }),
+  return settingsSection(tr('memory.ui.settings.reciteAloud', 'Recite aloud'), { class: 'sm-block-recite' }, [
     availabilityBanner(speech, host),
-    field('sm-recite-strictness', tr('memory.ui.settings.strictness', 'Strictness'), select('strictness', 'sm-recite-strictness', [
-      { value: 'lenient', label: tr('memory.ui.settings.lenient', 'Lenient (small slips are fine)') },
-      { value: 'normal', label: tr('memory.ui.settings.normal', 'Normal') },
-      { value: 'strict', label: tr('memory.ui.settings.strict', 'Strict (word for word)') },
-    ], recite.strictness, (v) => v as ReciteSettings['strictness'])),
-    field('sm-recite-prompt', tr('memory.ui.settings.prompt', 'Prompt'), select('promptStyle', 'sm-recite-prompt', [
-      { value: 'reference', label: tr('memory.ui.settings.referenceOnly', 'Reference only') },
-      { value: 'reference+opening', label: tr('memory.ui.settings.referenceAndOpeningWords', 'Reference and opening words') },
-    ], recite.promptStyle, (v) => v as ReciteSettings['promptStyle'])),
-    field('sm-recite-reference', tr('memory.ui.settings.reciteReference', 'Say the reference'), select('reciteReference', 'sm-recite-reference', [
-      { value: 'off', label: tr('memory.ui.settings.refOff', 'No') },
-      { value: 'before', label: tr('memory.ui.settings.refBeforeOption', 'Before the verse') },
-      { value: 'after', label: tr('memory.ui.settings.refAfterOption', 'After the verse') },
-      { value: 'both', label: tr('memory.ui.settings.refBothOption', 'Before and after') },
-    ], recite.reciteReference, (v) => v as ReciteSettings['reciteReference'])),
-    field('sm-recite-feedback', tr('memory.ui.settings.feedback', 'Feedback'), select('feedback', 'sm-recite-feedback', [
-      { value: 'brief', label: tr('memory.ui.settings.brief', 'Brief') },
-      { value: 'full', label: tr('memory.ui.settings.fullQuoteMissed', 'Full (quote what was missed)') },
-    ], recite.feedback, (v) => v as ReciteSettings['feedback'])),
+    el('div', { class: 'sm-settings-grid' }, [
+      select('strictness', 'sm-recite-strictness', tr('memory.ui.settings.strictness', 'Strictness'), [
+        { value: 'lenient', label: tr('memory.ui.settings.lenient', 'Lenient (small slips are fine)') },
+        { value: 'normal', label: tr('memory.ui.settings.normal', 'Normal') },
+        { value: 'strict', label: tr('memory.ui.settings.strict', 'Strict (word for word)') },
+      ], recite.strictness, (v) => v as ReciteSettings['strictness']),
+      select('promptStyle', 'sm-recite-prompt', tr('memory.ui.settings.prompt', 'Prompt'), [
+        { value: 'reference', label: tr('memory.ui.settings.referenceOnly', 'Reference only') },
+        { value: 'reference+opening', label: tr('memory.ui.settings.referenceAndOpeningWords', 'Reference and opening words') },
+      ], recite.promptStyle, (v) => v as ReciteSettings['promptStyle']),
+      select('reciteReference', 'sm-recite-reference', tr('memory.ui.settings.reciteReference', 'Say the reference'), [
+        { value: 'off', label: tr('memory.ui.settings.refOff', 'No') },
+        { value: 'before', label: tr('memory.ui.settings.refBeforeOption', 'Before the verse') },
+        { value: 'after', label: tr('memory.ui.settings.refAfterOption', 'After the verse') },
+        { value: 'both', label: tr('memory.ui.settings.refBothOption', 'Before and after') },
+      ], recite.reciteReference, (v) => v as ReciteSettings['reciteReference']),
+      select('feedback', 'sm-recite-feedback', tr('memory.ui.settings.feedback', 'Feedback'), [
+        { value: 'brief', label: tr('memory.ui.settings.brief', 'Brief') },
+        { value: 'full', label: tr('memory.ui.settings.fullQuoteMissed', 'Full (quote what was missed)') },
+      ], recite.feedback, (v) => v as ReciteSettings['feedback']),
+      select('hintDelayMs', 'sm-recite-hintdelay', tr('memory.ui.settings.hintAfterSilence', 'Hint after silence'),
+        delayOptions.map((ms) => ({ value: String(ms), label: tr('memory.ui.settings.seconds', '{seconds} seconds', { seconds: ms / 1000 }) })),
+        String(recite.hintDelayMs), (v) => Number(v)),
+    ]),
     checkbox('readBack', 'sm-recite-readback', tr('memory.ui.settings.readBack', 'Read back'), tr('memory.ui.settings.readBackHintVerse', 'Speak the verse after scoring.')),
     checkbox('autoAdvance', 'sm-recite-auto', tr('memory.ui.settings.autoAdvance', 'Auto-advance'), tr('memory.ui.settings.autoAdvanceHintVerse', 'Move to the next verse by itself in hands-free mode.')),
     checkbox('voiceCommands', 'sm-recite-voice', tr('memory.ui.settings.voiceCommands', 'Voice commands'), tr('memory.ui.settings.voiceCommandsHint', 'Say "hint", "repeat", "skip" or "stop".')),
-    field('sm-recite-hintdelay', tr('memory.ui.settings.hintAfterSilence', 'Hint after silence'), select('hintDelayMs', 'sm-recite-hintdelay',
-      delayOptions.map((ms) => ({ value: String(ms), label: tr('memory.ui.settings.seconds', '{seconds} seconds', { seconds: ms / 1000 }) })),
-      String(recite.hintDelayMs), (v) => Number(v))),
     renderDeleteHistory(host),
   ]);
 }
 
+/** The one destructive action on the screen, set apart at the end of Recite aloud behind a confirmation. */
 function renderDeleteHistory(host: PanelHost): HTMLElement {
-  const status = el('div', { class: 'sm-error-slot', attrs: { 'aria-live': 'polite' } });
+  const status = el('p', { class: 'sm-settings-status', attrs: { 'aria-live': 'polite' } });
 
   const confirmButton = button(tr('memory.ui.settings.delete', 'Delete'), () => {
     void host.request({ type: 'deleteReciteHistory' }).then((reply) => {
@@ -324,9 +284,14 @@ function renderDeleteHistory(host: PanelHost): HTMLElement {
     actions: [button(tr('memory.ui.settings.cancel', 'Cancel'), () => dialog.close(), { class: 'sm-btn sm-btn-quiet' }), confirmButton],
   });
 
-  return el('div', { class: 'sm-setting-row' }, [
-    button(tr('memory.ui.settings.deleteRecitationHistory', 'Delete recitation history'), () => dialog.open(), { class: 'sm-btn sm-btn-danger-quiet sm-btn-small' }),
-    el('span', { class: 'sm-hint', text: tr('memory.ui.settings.scoresKept', 'Scores and your schedule are kept.') }),
+  return el('div', { class: 'sm-settings-danger' }, [
+    actionsRow([
+      button(tr('memory.ui.settings.deleteRecitationHistory', 'Delete recitation history'), () => dialog.open(), {
+        class: 'kth-btn kth-btn--sm sm-settings-danger-btn',
+        attrs: { 'aria-describedby': 'sm-recite-delete-hint' },
+      }),
+    ]),
+    hint(tr('memory.ui.settings.scoresKept', 'Scores and your schedule are kept.'), { id: 'sm-recite-delete-hint' }),
     status,
     dialog.element,
   ]);
@@ -387,11 +352,10 @@ export function legacyImportSection(host: PanelHost, legacy: LegacyImportControl
       })
       .catch((err: unknown) => host.announce(err instanceof Error ? err.message : String(err)))
       .finally(() => action.removeAttribute('disabled'));
-  }, { class: 'sm-btn sm-btn-small' });
-  return el('section', { class: 'sm-block sm-legacy-import' }, [
-    el('h2', { class: 'sm-block-title', text: tr('memory.ui.settings.legacyTitle', 'Scripture Memory extension') }),
-    el('p', { class: 'sm-block-caption', text: legacyStatusText(legacy.status) }),
-    el('p', { class: 'sm-block-caption', text: tr('memory.ui.settings.importingAdds', 'Importing adds what is missing and never changes what you already have.') }),
-    action,
+  }, { class: 'kth-btn' });
+  return settingsSection(tr('memory.ui.settings.legacyTitle', 'Scripture Memory extension'), { class: 'sm-legacy-import' }, [
+    hint(legacyStatusText(legacy.status)),
+    hint(tr('memory.ui.settings.importingAdds', 'Importing adds what is missing and never changes what you already have.')),
+    actionsRow([action]),
   ]);
 }

@@ -169,6 +169,8 @@ App UIs must use these instead of hand-rolled dialogs, checkboxes, tabs, progres
 | `Checkbox`, `Radio` (`kth-check*`) | Styled native input + label + `hint`; `tone="success"` for green; `ariaLabel` when there is no visible label. |
 | `Tabs`, `tabPanelProps(idPrefix, id)` (`kth-tabs*`) | Tab list with roving tabindex, arrows (mirrored in RTL), Home/End; selection follows focus. Spread `tabPanelProps` on the panel. |
 | `ProgressBar` (`kth-progress*`) | Thin bar, value clamped 0-100, optional `valueText`, `tone` `success`. |
+| `ProgressRing` (`kth-progress-ring*`) | One percentage as a small ring with the value in the middle: `label`, optional `valueText`, `size` `sm`/`md`, `tone` `success`. |
+| `ProgressTile`, `ProgressTiles` (`kth-progress-tile*`, `kth-progress-tiles`) | A wrapping row (`ul`, `aria-label`) of small cards: a ring beside a `title` (a link button with `onTitleClick`) and a `status` line, `statusTone` muted/warning (leading ⚠)/success, optional `actions`. Markup is documented in `kth-classes.css` for DOM-built apps. |
 | `Notice` (`kth-notice*`) | Inline message strip: `tone` info/warning/error/success, `title`, `actions`; role `alert` for errors. |
 | `.kth-list`, `__item`, `__item--current`, `.kth-list--plain` | List reset with row dividers (none for `--plain`), current-row highlight. CSS only. |
 | `.kth-link` | A button or anchor that looks like a link. CSS only. |

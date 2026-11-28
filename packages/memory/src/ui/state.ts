@@ -40,10 +40,14 @@ export type View =
 /**
  * What the user pressed to get into practice. Flows are immutable values: every
  * skip or visit creates a new one.
+ *
+ * `list` on `today` / `anyway` keeps the whole run inside one list (Home's per-list Practice)
+ * without touching the saved Practice focus; absent, the flow follows the focus. See
+ * `flows.ts#flowScope`.
  */
 export type Flow =
-  | { kind: 'today'; skipped: readonly number[]; startTotal?: number }
-  | { kind: 'anyway'; visited: readonly number[]; startTotal?: number }
+  | { kind: 'today'; skipped: readonly number[]; startTotal?: number; list?: number }
+  | { kind: 'anyway'; visited: readonly number[]; startTotal?: number; list?: number }
   | { kind: 'mixed'; visited: readonly number[]; startTotal?: number }
   | { kind: 'activity'; rung: Rung; visited: readonly number[]; startTotal?: number }
   | { kind: 'verse'; passageId: number };

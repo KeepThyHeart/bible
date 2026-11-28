@@ -641,6 +641,7 @@
 /* --- App page (AppPage) -------------------------------------------------------------------------------------
    div.kth-app-page[--full] > div.kth-app-page__column > div.kth-app-page__header (h1.kth-app-page__title[tabindex=-1]
    + div.kth-app-page__actions) + [div.kth-tabs.kth-app-page__tabs] + div.kth-app-page__body[role=tabpanel].
+   --sticky-tabs keeps the tab bar at the top while the page scrolls.
    Fills its container's height and scrolls. The column sits at the inline-start edge (never centred) with a
    reading-width cap; --full drops the cap. */
 .kth-app-page {
@@ -683,6 +684,15 @@
 .kth-app-page__title:where(:focus-visible) { outline: 2px solid var(--kth-focus); outline-offset: 2px; }
 .kth-app-page__actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--kth-space-2); margin-inline-start: auto; }
 .kth-app-page__tabs { margin-block-end: calc(-1 * var(--kth-space-2)); }
+/* Sticky tab bar (opt-in class on the root; AppPage sets it by default): the title scrolls away, the tabs stay at the
+   top of the scroller. The negative inset cancels the scroller's block-start padding so the bar meets the top edge,
+   and the opaque background keeps scrolled content from showing through. */
+.kth-app-page--sticky-tabs .kth-app-page__tabs {
+  position: sticky;
+  inset-block-start: calc(-1 * var(--kth-space-4));
+  z-index: 2;
+  background: var(--kth-bg);
+}
 .kth-app-page__body { display: flex; flex-direction: column; gap: var(--kth-space-3); min-inline-size: 0; }
 
 /* --- Table (a plain bordered data table) -----------------------------------------------------------------
@@ -1614,6 +1624,43 @@
 .kth-progress-ring__track { fill: none; stroke: var(--kth-border); stroke-width: 3.5; }
 .kth-progress-ring__fill { fill: none; stroke: var(--_ring-color); stroke-width: 3.5; stroke-linecap: round; transition: stroke-dasharray 200ms ease; }
 .kth-progress-ring__value { grid-area: 1 / 1; color: var(--kth-text); font-size: 0.75rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+/* --- Progress tiles (ul.kth-progress-tiles > li.kth-card.kth-progress-tile > div.kth-progress-ring
+       + div.kth-progress-tile__body > (button.kth-link.kth-progress-tile__title | span.kth-progress-tile__title)
+       + span.kth-progress-tile__status[data-tone] + div.kth-progress-tile__actions?)
+   A wrapping row of small cards, each a ring beside a name and a one-line status. */
+.kth-progress-tiles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--kth-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.kth-progress-tile {
+  display: flex;
+  align-items: center;
+  gap: var(--kth-space-2);
+  padding-block: 0.5rem;
+  padding-inline: 0.75rem;
+  min-inline-size: 12rem;
+  max-inline-size: 100%;
+  box-sizing: border-box;
+}
+.kth-progress-tile__body { display: flex; flex-direction: column; align-items: flex-start; min-inline-size: 0; }
+.kth-progress-tile__body > .kth-progress-tile__title {
+  display: block;
+  max-inline-size: 100%;
+  overflow: hidden;
+  font-weight: 500;
+  text-align: start;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.kth-progress-tile__status { color: var(--kth-text-muted); font-size: 0.875em; }
+.kth-progress-tile__status[data-tone="warning"] { color: var(--kth-warning); }
+.kth-progress-tile__status[data-tone="success"] { color: var(--kth-success); }
+.kth-progress-tile__actions { display: flex; flex-wrap: wrap; gap: var(--kth-space-1); margin-block-start: var(--kth-space-1); }
 
 /* --- Notice (inline message strip) --------------------------------------------------------------------- */
 .kth-notice {

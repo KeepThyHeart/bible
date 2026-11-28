@@ -223,6 +223,11 @@ export function openAddVerseDialog(host: PanelHost, opts: AddVerseDialogOptions)
   );
 
   if (port) {
+    // The placeholder of the fixed-size preview box (addDialog.css), as a CSS string for `content`.
+    selectorHost.style.setProperty(
+      '--sm-preview-empty',
+      JSON.stringify(tr('memory.addVerse.previewEmpty', 'The verse text appears here.')),
+    );
     handle = port.mount(selectorHost, {
       id: 'sm-add-dialog-selector',
       initialReference: host.activeReference ?? undefined,

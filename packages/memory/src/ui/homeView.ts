@@ -1,7 +1,7 @@
 /**
- * Home: the landing tab. A compact practice card, overall progress, and one
- * card per list with its percent complete. First open shows the add form and
- * the starter sets instead.
+ * Home: the landing tab. One progress tile per list (ring, learned / review status, and a
+ * Practice button for just that list), then a compact practice card for the Practice focus.
+ * First open shows the add form and the starter sets instead.
  *
  * Returns the screen content only: the app shell draws the page h1 and the tab
  * bar, so the focus target here is an h2 (visually hidden: the tab names it).
@@ -9,14 +9,17 @@
 
 import type { AddVersesOutcome } from '../core/api';
 import type { ListSummary, PassageView, PlanView } from '../core/types';
-import { overallProgress } from '../core/progress';
-import { todayQueue } from '../core/today';
+import { listStatus } from '../core/listStatus';
+import { anywayOrder, todayQueue } from '../core/today';
 import type { TodayQueue } from '../core/today';
 import { renderAddAndStart } from './addAndStart';
 import { button, el } from './dom';
 import { calendarDaysBetween, formatShortDate } from './format';
 import type { PanelHost } from './host';
 import { tr } from './i18n';
+import { progressTile, progressTiles } from './progressTile';
+import type { ProgressTileTone } from './progressTile';
+import type { Flow } from './state';
 import './styles/home.css';
 
 export interface HomeExtras {
@@ -29,7 +32,7 @@ export interface HomeExtras {
 }
 
 /**
- * @param all     the plan scoped to all lists (progress and list cards)
+ * @param all     the plan scoped to all lists (the list tiles)
  * @param focused the plan scoped to the Practice focus (the practice card)
  */
 export function renderHome(host: PanelHost, all: PlanView, focused: PlanView, extras: HomeExtras = {}): HTMLElement {
@@ -49,10 +52,9 @@ export function renderHome(host: PanelHost, all: PlanView, focused: PlanView, ex
   root.appendChild(
     el('h2', { class: 'sm-screen-title sm-sr-only', text: tr('memory.ui.home.title', 'Home'), attrs: { tabindex: '-1' } }),
   );
+  const tiles = renderListTiles(host, all, extras);
+  if (tiles) root.appendChild(tiles);
   root.appendChild(renderPracticeCard(host, all, focused, extras));
-  root.appendChild(renderOverall(all.passages));
-  const lists = renderLists(host, all);
-  if (lists) root.appendChild(lists);
   return root;
 }
 
@@ -132,6 +134,13 @@ function upcomingText(queue: TodayQueue, now: number): string | null {
   });
 }
 
+function runFlow(host: PanelHost, flow: Flow, btn: HTMLButtonElement): void {
+  btn.disabled = true;
+  void host.startFlow(flow).finally(() => {
+    btn.disabled = false;
+  });
+}
+
 function renderPracticeCard(host: PanelHost, all: PlanView, focused: PlanView, extras: HomeExtras): HTMLElement {
   const now = host.now();
   const queue = todayQueue(focused.passages, now, extras.startedToday !== undefined ? { startedToday: extras.startedToday } : {});
@@ -150,20 +159,10 @@ function renderPracticeCard(host: PanelHost, all: PlanView, focused: PlanView, e
     const startLabel = queue.doneToday > 0
       ? tr('memory.ui.today.continue', 'Continue')
       : tr('memory.ui.home.startPracticing', 'Start practicing');
-    const startBtn = button(startLabel, () => {
-      startBtn.disabled = true;
-      void host.startFlow({ kind: 'today', skipped: [] }).finally(() => {
-        startBtn.disabled = false;
-      });
-    }, { class: 'sm-btn sm-btn-primary sm-home-start' });
-    card.appendChild(
-      el('div', { class: 'sm-home-practice-actions' }, [
-        startBtn,
-        button(tr('memory.ui.home.seeNext', "See what's next"), () => host.go({ type: 'goTab', tab: 'practice' }), {
-          class: 'sm-btn sm-btn-quiet sm-home-next-link',
-        }),
-      ]),
-    );
+    const startBtn = button(startLabel, () => runFlow(host, { kind: 'today', skipped: [] }, startBtn), {
+      class: 'sm-btn sm-btn-primary sm-home-start',
+    });
+    card.appendChild(el('div', { class: 'sm-home-practice-actions' }, [startBtn]));
   } else {
     card.classList.add('sm-home-practice-done');
     card.appendChild(
@@ -181,11 +180,14 @@ function renderPracticeCard(host: PanelHost, all: PlanView, focused: PlanView, e
         text: tr('memory.ui.today.streak', '{count, plural, one {# day streak} other {# day streak}}', { count: streak }),
       }));
     }
-    card.appendChild(
-      button(tr('memory.ui.home.seeNext', "See what's next"), () => host.go({ type: 'goTab', tab: 'practice' }), {
-        class: 'sm-btn sm-btn-quiet sm-home-next-link',
-      }),
-    );
+    // "Practice more": due reviews, then verses still being learned, then new ones. Hidden once
+    // only learned verses that are not yet due remain (all caught up).
+    if (anywayOrder(focused.passages, now, new Set()).length > 0) {
+      const more = button(tr('memory.ui.today.practiceMore', 'Practice more'), () => runFlow(host, { kind: 'anyway', visited: [] }, more), {
+        class: 'sm-btn sm-home-more',
+      });
+      card.appendChild(el('div', { class: 'sm-home-practice-actions' }, [more]));
+    }
   }
 
   if (focused.scope !== 'all') {
@@ -196,91 +198,87 @@ function renderPracticeCard(host: PanelHost, all: PlanView, focused: PlanView, e
 }
 
 // ---------------------------------------------------------------------------
-// Overall progress and list cards
+// List tiles
 // ---------------------------------------------------------------------------
 
-function progressBar(percent: number, name: string, valueText: string, extraClass = ''): HTMLElement {
-  return el(
-    'div',
-    {
-      class: `sm-bar sm-home-bar${extraClass ? ` ${extraClass}` : ''}`,
-      attrs: {
-        role: 'progressbar',
-        'aria-label': name,
-        'aria-valuemin': '0',
-        'aria-valuemax': '100',
-        'aria-valuenow': String(percent),
-        'aria-valuetext': valueText,
-      },
-    },
-    [el('div', { class: 'sm-bar-fill sm-home-bar-fill', style: { inlineSize: `${percent}%` } })],
-  );
-}
-
-function renderOverall(passages: readonly PassageView[]): HTMLElement {
-  const p = overallProgress(passages);
-  const name = tr('memory.ui.verses.progressName', 'Overall progress');
-  const label = tr('memory.ui.verses.progressActivities', '{percent}% of activities complete · {learned} of {verses} verses learned', {
-    percent: p.percent,
-    learned: p.versesLearned,
-    verses: p.verses,
-  });
-  return el('section', { class: 'sm-home-overall' }, [
-    el('h3', { class: 'sm-home-section-title', text: name }),
-    progressBar(p.percent, name, label, 'sm-home-bar-overall'),
-    el('p', { class: 'sm-home-overall-text', text: label }),
-  ]);
-}
-
-function renderLists(host: PanelHost, all: PlanView): HTMLElement | null {
+function renderListTiles(host: PanelHost, all: PlanView, extras: HomeExtras): HTMLElement | null {
   if (all.lists.length === 0) return null;
-  const grid = el('ul', { class: 'sm-home-lists' });
-  for (const list of all.lists) {
-    const passages = all.passages.filter((pv) => pv.passage.collectionId === list.id);
-    grid.appendChild(el('li', { class: 'sm-home-list-item' }, [renderListCard(host, list, passages, all.focus === list.id)]));
-  }
-  return el('section', { class: 'sm-home-lists-section' }, [
-    el('h3', { class: 'sm-home-section-title', text: tr('memory.ui.home.listsTitle', 'Lists') }),
-    grid,
-  ]);
+  const tiles = all.lists.map((list) =>
+    renderListTile(host, list, all.passages.filter((pv) => pv.passage.collectionId === list.id), all.focus === list.id, extras),
+  );
+  return progressTiles(tr('memory.ui.home.listsTitle', 'Lists'), tiles, 'sm-home-tiles');
 }
 
-function renderListCard(host: PanelHost, list: ListSummary, passages: readonly PassageView[], isFocus: boolean): HTMLElement {
-  const p = overallProgress(passages);
-  const empty = passages.length === 0;
-  const countText = empty
-    ? tr('memory.ui.home.listNoVerses', 'No verses yet')
-    : tr('memory.ui.home.listVerses', '{count, plural, one {# verse} other {# verses}}', { count: passages.length });
-  const percentText = tr('memory.ui.home.listPercent', '{percent}% complete', { percent: p.percent });
-  const tagText = tr('memory.ui.lists.focusTag', 'Practice focus');
+/** "Learned · next review …" for a learned list with nothing due. */
+function learnedStatus(nextReviewAt: number | null, now: number): string {
+  if (nextReviewAt === null) return tr('memory.ui.home.listLearned', 'Learned');
+  const days = calendarDaysBetween(now, nextReviewAt);
+  if (days <= 0) return tr('memory.ui.home.listLearnedToday', 'Learned · next review later today');
+  return tr('memory.ui.home.listLearnedNext', '{days, plural, one {Learned · next review tomorrow} other {Learned · next review in # days}}', { days });
+}
 
-  const label = empty
-    ? tr('memory.ui.home.listCardEmpty', '{name}, {count}', { name: list.name, count: countText })
-    : tr('memory.ui.home.listCardLabel', '{name}, {count}, {percent}', { name: list.name, count: countText, percent: percentText });
-  const card = el(
-    'button',
-    {
-      class: `sm-home-card sm-home-list${isFocus ? ' sm-home-list-focus' : ''}${empty ? ' sm-home-list-empty' : ''}`,
-      attrs: { type: 'button', 'aria-label': isFocus ? tr('memory.ui.home.listCardFocus', '{label}, {tag}', { label, tag: tagText }) : label },
-    },
-    [
-      el('span', { class: 'sm-home-list-head' }, [
-        el('span', { class: 'sm-home-list-name', text: list.name }),
-        isFocus ? el('span', { class: 'sm-home-tag', text: tagText }) : null,
-      ]),
-      el('span', { class: 'sm-home-list-count', text: countText }),
-      empty
-        ? null
-        : el('span', { class: 'sm-home-list-progress', attrs: { 'aria-hidden': 'true' } }, [
-            el('span', { class: 'sm-bar sm-home-bar' }, [
-              el('span', { class: 'sm-bar-fill sm-home-bar-fill', style: { inlineSize: `${p.percent}%` } }),
-            ]),
-            el('span', { class: 'sm-home-list-percent', text: percentText }),
-          ]),
-    ],
-  ) as HTMLButtonElement;
-  card.addEventListener('click', () => host.go({ type: 'goVerses', list: list.id }));
-  return card;
+function renderListTile(host: PanelHost, list: ListSummary, passages: readonly PassageView[], isFocus: boolean, extras: HomeExtras): HTMLLIElement {
+  const now = host.now();
+  const st = listStatus(passages, now);
+  const learned = st.state === 'learned';
+
+  let status: string;
+  let tone: ProgressTileTone = 'muted';
+  if (st.state === 'empty') {
+    status = tr('memory.ui.home.listNoVerses', 'No verses yet');
+  } else if (learned && st.dueCount > 0) {
+    status = tr('memory.ui.home.listLearnedDue', '{count, plural, one {Learned · # due for review} other {Learned · # due for review}}', { count: st.dueCount });
+    tone = 'warning';
+  } else if (learned) {
+    status = learnedStatus(st.nextReviewAt, now);
+    tone = 'success';
+  } else {
+    const progress = tr('memory.ui.home.listLearning', '{learned} of {verses, plural, one {# verse} other {# verses}} learned', {
+      learned: st.versesLearned,
+      verses: st.verses,
+    });
+    status = st.dueCount > 0
+      ? tr('memory.ui.home.listLearningDue', '{progress} · {count} due', { progress, count: st.dueCount })
+      : progress;
+  }
+
+  // Practice just this list (the Practice focus is left alone): today's items first, else the
+  // "Practice more" order, which never offers a learned verse before its review is due.
+  const queueOpts = extras.startedToday !== undefined ? { startedToday: extras.startedToday } : {};
+  const flow: Flow | null = todayQueue(passages, now, queueOpts).items.length > 0
+    ? { kind: 'today', skipped: [], list: list.id }
+    : anywayOrder(passages, now, new Set()).length > 0
+      ? { kind: 'anyway', visited: [], list: list.id }
+      : null;
+  let action: HTMLButtonElement | null = null;
+  if (flow) {
+    const review = learned && st.dueCount > 0;
+    action = button(
+      review ? tr('memory.ui.home.listReview', 'Review') : tr('memory.ui.home.listPractice', 'Practice'),
+      () => runFlow(host, flow, action!),
+      {
+        class: `kth-btn kth-btn--sm${review ? ' kth-btn--primary' : ''} sm-home-tile-practice`,
+        attrs: {
+          'aria-label': review
+            ? tr('memory.ui.home.listReviewAria', 'Review {name}', { name: list.name })
+            : tr('memory.ui.home.listPracticeAria', 'Practice {name}', { name: list.name }),
+        },
+      },
+    );
+  }
+
+  return progressTile({
+    value: st.percent,
+    ringLabel: tr('memory.ui.home.listRingLabel', '{name}: progress', { name: list.name }),
+    ringTone: learned ? 'success' : 'accent',
+    title: list.name,
+    onTitleClick: () => host.go({ type: 'goVerses', list: list.id }),
+    badge: isFocus ? el('span', { class: 'sm-home-tag', text: tr('memory.ui.lists.focusTag', 'Practice focus') }) : null,
+    status,
+    statusTone: tone,
+    actions: [action],
+    className: `sm-home-tile${isFocus ? ' sm-home-tile-focus' : ''}`,
+  });
 }
 
 // ---------------------------------------------------------------------------

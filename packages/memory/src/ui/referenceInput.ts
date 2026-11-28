@@ -33,18 +33,25 @@ const BOOK_SHAPE = String.raw`(?:[1-3]|I{1,3})\s?[A-Z][a-zA-Z]+|Song of (?:Solom
 /**
  * "Book 12:34" or "Book 12:34-36" or a bare "Book 12" (a whole chapter).
  *
- * The trailing `(?!\.\d)` guards against truncating a reference this module
- * does not otherwise understand - "Jn 3.16" would otherwise match just "Jn
- * 3" (a bare chapter is a valid shape on its own) and silently drop the
- * ".16", turning an unparseable reference into a *wrong* one (the whole of
- * chapter 3) instead of leaving it whole for the worker to reject. A period
- * immediately followed by a digit reads as "there was more reference here
- * this module doesn't know the shape of", so the match is refused outright
- * and the line falls through to the whole-line candidate instead.
+ * The match never stops short of the reference the user wrote. Whatever
+ * follows the recognised part up to the next space or punctuation that ends
+ * a reference - letters, digits, ":", "." or "-" ending in a letter or digit,
+ * as in "Philippians 4:1a", "John 3:16abc" or "Jn 3.16" - is kept in the
+ * candidate (`REFERENCE_TAIL`). Stopping at the last clean number instead
+ * would turn an unparseable reference into a *wrong* one: the regex
+ * backtracks from "4:1a" to the bare chapter "Philippians 4", which the
+ * worker then accepts as the whole chapter. Kept whole, the worker's parser
+ * (which must consume the entire string) rejects it and the user is told.
+ * A plain trailing "." or "-" (end of a sentence, a dangling dash) is not a
+ * letter or digit, so it is still left out.
+ *
+ * Part-verse suffixes ("16a", "16b") are not supported anywhere in the app's
+ * reference parsing, so they are rejected like any other trailing text.
  */
+const REFERENCE_TAIL = String.raw`(?:[\p{L}\p{N}_:.\-]*[\p{L}\p{N}])?`;
 const REFERENCE_SHAPE = new RegExp(
-  String.raw`\b(?:${BOOK_SHAPE})\s+\d{1,3}(?::\d{1,3}(?:-\d{1,3}(?::\d{1,3})?)?)?(?!\.\d)\b`,
-  'g',
+  String.raw`\b(?:${BOOK_SHAPE})\s+\d{1,3}(?::\d{1,3}(?:-\d{1,3}(?::\d{1,3})?)?)?${REFERENCE_TAIL}`,
+  'gu',
 );
 
 /**

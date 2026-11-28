@@ -56,6 +56,6 @@ describe('renderBlockLegend', () => {
     const legend = renderBlockLegend();
     const items = Array.from(legend.querySelectorAll('li'));
     expect(items.map((li) => li.textContent?.replace(/[–✓]|1\/3/g, '').trim())).toEqual(['Not started', 'Not needed', 'In progress', 'Finished']);
-    expect(Array.from(legend.querySelectorAll('.sm-block')).map((n) => n.getAttribute('data-state'))).toEqual(['notStarted', 'notApplicable', 'practicing', 'complete']);
+    expect(Array.from(legend.querySelectorAll('.sm-act-sq')).map((n) => n.getAttribute('data-state'))).toEqual(['notStarted', 'notApplicable', 'practicing', 'complete']);
   });
 });

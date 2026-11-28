@@ -7,7 +7,7 @@
 
 import type { PassageView, Rung, RungView } from './types';
 import { RUNG_ORDER } from './types';
-import { isOptionalRung, WELL_LEARNED_LEVEL } from './ladder';
+import { isActivitySatisfied, isOptionalRung, WELL_LEARNED_LEVEL } from './ladder';
 import { localDayStart } from './status';
 
 /** Most brand-new verses started per local day. */
@@ -279,10 +279,41 @@ export function todayQueue(
 }
 
 /**
- * "Practice anyway" order once today is done: not-yet-visited verses that are
- * due (even if done today) by earliest due, then every other non-new verse by
- * next review (unscheduled last), then new verses last (oldest first), so the
- * order is never empty while any verse can be practiced.
+ * The first applicable core activity, in ladder order, that is not yet satisfied (its own level 4,
+ * or carried down from a harder one). Null when every one is satisfied or none applies. This is
+ * what "keep learning this verse" should open: never an activity the verse has already finished.
+ */
+export function nextUnfinishedRung(rungs: readonly RungView[]): Rung | null {
+  for (const rung of RUNG_ORDER) {
+    if (isOptionalRung(rung)) continue;
+    const rv = rungs.find((r) => r.rung === rung);
+    if (!rv || !rv.applicable) continue;
+    if (!isActivitySatisfied(rungs, rung)) return rung;
+  }
+  return null;
+}
+
+/** Share of applicable core activities satisfied, 0..1 (0 with none). */
+function finishedFraction(rungs: readonly RungView[]): number {
+  const core = rungs.filter((r) => r.applicable && !isOptionalRung(r.rung));
+  if (core.length === 0) return 0;
+  return core.filter((r) => isActivitySatisfied(rungs, r.rung)).length / core.length;
+}
+
+/**
+ * The "Practice more" order (once today is done, or any time the user wants to keep going), minus
+ * `visited`. It clears as much as possible without breaking the spacing:
+ *
+ *   1. every started verse that is due now (even if done today), earliest due first, at its due
+ *      activity;
+ *   2. verses still being learned (started, not learned) that are not due, closest to finished
+ *      first (ties: list position, then oldest added), at their next unfinished activity;
+ *   3. verses not started yet, in Today's new-verse order. No daily new-verse cap here: the cap
+ *      paces the default queue, and this is the user choosing to do more.
+ *
+ * Learned verses whose next review is not due are left out: practising them early would only
+ * spin wheels (and push their schedule on). When only those remain the order is empty and the
+ * caller shows the all-caught-up state.
  */
 export function anywayOrder(
   passages: readonly PassageView[],
@@ -294,9 +325,12 @@ export function anywayOrder(
     .filter((pv) => !visited.has(pv.passage.id))
     .map((pv) => ({ pv, info: verseStatus(pv, now, dayStart), rung: suggestedRung(pv.rungs, now) }))
     .filter((e) => e.rung !== null);
-  const old = entries.filter((e) => e.info.status !== 'new');
-  const due = old.filter((e) => e.info.dueNow).sort(byDueThenAdded);
-  const rest = old.filter((e) => !e.info.dueNow).sort(byDueThenAdded);
+  const due = entries.filter((e) => e.info.status !== 'new' && e.info.dueNow).sort(byDueThenAdded);
+  const learning = entries
+    .filter((e) => e.info.status === 'learning' && !e.info.dueNow)
+    .map((e) => ({ e: { ...e, rung: nextUnfinishedRung(e.pv.rungs) ?? e.rung }, done: finishedFraction(e.pv.rungs) }))
+    .sort((a, b) => b.done - a.done || byPosition(a.e, b.e))
+    .map((x) => x.e);
   const fresh = mergeNewByList(entries.filter((e) => e.info.status === 'new'));
-  return [...due, ...rest].map((e) => toItem(e, 'review')).concat(fresh.map((e) => toItem(e, 'new')));
+  return [...due, ...learning].map((e) => toItem(e, 'review')).concat(fresh.map((e) => toItem(e, 'new')));
 }

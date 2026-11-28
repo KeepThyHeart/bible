@@ -204,7 +204,7 @@ test.describe('Memory (R2)', () => {
     // The Practice tab has the full done state.
     await mem.getByRole('tab', { name: 'Practice', exact: true }).click();
     await expect(mem.getByRole('heading', { name: 'Done for today', level: 2 })).toBeVisible();
-    await expect(mem.getByRole('button', { name: 'Practice anyway' })).toBeVisible();
+    await expect(mem.getByRole('button', { name: 'Practice more' })).toBeVisible();
   });
 
   test('Settings > Lists: the Practice focus narrows Practice and the badge; clearing restores both', async ({ window, electronApp }) => {
@@ -290,7 +290,7 @@ test.describe('Memory (R2)', () => {
     await expect(mem.getByRole('heading', { name: /John 3:19/ })).toBeVisible();
   });
 
-  test('Done for today > Practice anyway starts a verse', async ({ window }) => {
+  test('Done for today > Practice more starts a verse', async ({ window }) => {
     const id = await addVerse(window, 'John 3:16');
     await practiceByApi(window, id);
 
@@ -301,7 +301,7 @@ test.describe('Memory (R2)', () => {
     await expect(mem.getByRole('heading', { name: 'Done for today', level: 2 })).toBeVisible();
     await expect(mem.getByRole('button', { name: 'Learn a new verse' })).toHaveCount(0);
 
-    await mem.getByRole('button', { name: 'Practice anyway' }).click();
+    await mem.getByRole('button', { name: 'Practice more' }).click();
     await expect(mem.getByRole('heading', { name: /John 3:16/ })).toBeVisible();
     await expect(mem.locator('input[aria-label^="Missing word"]').first()).toBeVisible();
   });
@@ -426,11 +426,11 @@ test.describe('Memory (R2)', () => {
     // From Settings > Verses with their own setting > Change.
     await mem.getByRole('tab', { name: 'Settings', exact: true }).click();
     await expect(mem.getByRole('tab', { name: 'Settings', exact: true })).toHaveAttribute('aria-selected', 'true');
-    await expect(mem.getByRole('heading', { name: 'Verses with their own setting', level: 2 })).toBeVisible();
+    await expect(mem.getByRole('heading', { name: 'Verses with their own setting', level: 3 })).toBeVisible();
     await mem.getByRole('listitem').filter({ hasText: 'John 3:17' }).getByRole('button', { name: 'Change', exact: true }).click();
     await expect(mem.getByRole('heading', { name: 'John 3:17', exact: true, level: 2 })).toBeVisible();
     await mem.locator('button.kth-back').click();
-    await expect(mem.getByRole('heading', { name: 'Verses with their own setting', level: 2 })).toBeVisible();
+    await expect(mem.getByRole('heading', { name: 'Verses with their own setting', level: 3 })).toBeVisible();
   });
 
   test('right-click a verse > Memorize > pick a list > Practice now', async ({ window }) => {
@@ -493,7 +493,7 @@ test.describe('Memory (R2)', () => {
     await expect(result).toHaveCount(1);
   });
 
-  test('Home: practice card, overall progress and list cards; a list card opens My verses on that list', async ({ window }) => {
+  test('Home: list tiles and practice card; a tile title opens My verses on that list', async ({ window }) => {
     const psalms = await createListApi(window, 'Psalms');
     await addVerse(window, 'John 3:16');
     await addVerse(window, 'Psalm 23:1', psalms);
@@ -501,20 +501,28 @@ test.describe('Memory (R2)', () => {
     await expect(mem.getByRole('tab', { name: 'Home', exact: true })).toHaveAttribute('aria-selected', 'true');
     await expect(mem.getByRole('heading', { name: 'Home', level: 2 })).toBeAttached();
     await expect(mem.getByRole('button', { name: 'Start practicing' })).toBeVisible();
-    await expect(mem.getByRole('progressbar', { name: 'Overall progress' })).toBeVisible();
+    await expect(mem.getByRole('progressbar', { name: 'Overall progress' })).toHaveCount(0);
 
-    // "See what's next" goes to the Practice tab.
-    await mem.getByRole('button', { name: "See what's next" }).click();
-    await expect(mem.getByRole('tab', { name: 'Practice', exact: true })).toHaveAttribute('aria-selected', 'true');
-    await expect(mem.getByRole('heading', { name: 'Practice', level: 2 })).toBeVisible();
+    // One tile per list, each with a progress ring and a Practice button for just that list.
+    const tiles = mem.getByRole('list', { name: 'Lists' });
+    const tile = tiles.locator('li.kth-progress-tile', { hasText: 'Psalms' });
+    await expect(tile.getByRole('progressbar', { name: 'Psalms: progress' })).toBeVisible();
+    await expect(tile.getByRole('button', { name: 'Practice Psalms' })).toBeVisible();
 
-    await mem.getByRole('tab', { name: 'Home', exact: true }).click();
-    const card = mem.locator('button.sm-home-list', { hasText: 'Psalms' });
-    await expect(card).toBeVisible();
-    await card.click();
+    await tile.locator('button.kth-progress-tile__title').click();
     await expect(mem.getByRole('tab', { name: 'My verses', exact: true })).toHaveAttribute('aria-selected', 'true');
     await expect(mem.locator('select#sm-verses-list')).toHaveValue(String(psalms));
     await expect(mem.locator('tbody tr.sm-verse-row')).toHaveCount(1);
+  });
+
+  test('Home: a list tile Practice button stays inside that list', async ({ window }) => {
+    const psalms = await createListApi(window, 'Psalms');
+    await addVerse(window, 'John 3:16');
+    await addVerse(window, 'Psalm 23:1', psalms);
+    const mem = await openMemory(window);
+    const tile = mem.getByRole('list', { name: 'Lists' }).locator('li.kth-progress-tile', { hasText: 'Psalms' });
+    await tile.getByRole('button', { name: 'Practice Psalms' }).click();
+    await expect(mem.getByRole('heading', { name: /Psalm 23:1/ })).toBeVisible();
   });
 
   test('Escape in the Memory panel ends a practice', async ({ window }) => {

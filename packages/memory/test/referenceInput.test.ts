@@ -35,6 +35,21 @@ describe('extractReferenceCandidates', () => {
     expect(extractReferenceCandidates('Jn 3.16')).toEqual(['Jn 3.16']);
   });
 
+  it('keeps trailing text after a verse number in the candidate rather than falling back to the chapter', () => {
+    expect(extractReferenceCandidates('John 3:16\nPhilippians 4:1a')).toEqual(['John 3:16', 'Philippians 4:1a']);
+    expect(extractReferenceCandidates('Read Philippians 4:1a and John 3:16abc today.')).toEqual(['Philippians 4:1a', 'John 3:16abc']);
+    expect(extractReferenceCandidates('Phil 4:1x')).toEqual(['Phil 4:1x']);
+  });
+
+  it('still leaves sentence punctuation and a bare chapter alone', () => {
+    expect(extractReferenceCandidates('Philippians 4')).toEqual(['Philippians 4']);
+    expect(extractReferenceCandidates('See Philippians 4. Also John 3:16-18, and Romans 8:28-')).toEqual([
+      'Philippians 4',
+      'John 3:16-18',
+      'Romans 8:28',
+    ]);
+  });
+
   it('drops an exact repeat, case-insensitively, keeping the first spelling', () => {
     expect(extractReferenceCandidates('John 3:16\njohn 3:16\nJOHN 3:16')).toEqual(['John 3:16']);
   });

@@ -3102,11 +3102,11 @@ describe('round 3 hardening', () => {
     expect(other.hasAttribute('inert')).toBe(false);
   });
 
-  it('settings: the answer-mode radios sit in a named radiogroup', () => {
+  it('settings: the answer-mode radios sit in a fieldset named by its legend', () => {
     const root = renderSettings(host, { defaultAnswerMode: 'firstLetter', recite: RECITE_DEFAULTS, speech: SPEECH_OFF }, emptyPlan());
     container.appendChild(root);
-    const group = root.querySelector('[role="radiogroup"]')!;
-    expect(group.getAttribute('aria-label')).toBe('Answering');
+    const group = root.querySelector('input[name="sm-answer-mode-default"]')!.closest('fieldset')!;
+    expect(group.querySelector('legend')?.textContent).toBe('Answer with');
     expect(group.querySelectorAll('input[type="radio"]').length).toBe(2);
   });
 

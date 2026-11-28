@@ -7,10 +7,11 @@ import { disposeAll, startTestService } from './helpers/service';
 const counts: Record<number, number[]> = {
   1: [31, 25, 24],
   43: [51, 25, 36],
+  50: [30, 30, 21, 23],
   57: [25],
   65: [25],
 };
-const names: Record<string, number> = { gen: 1, genesis: 1, john: 43, philemon: 57, jude: 65 };
+const names: Record<string, number> = { gen: 1, genesis: 1, john: 43, philippians: 50, philemon: 57, jude: 65 };
 
 function api() {
   return {
@@ -54,6 +55,31 @@ function api() {
 describe('extractReferenceCandidates', () => {
   it('keeps a cross-chapter end whole', () => {
     expect(extractReferenceCandidates('Gen 1:1-2:3')).toEqual(['Gen 1:1-2:3']);
+  });
+});
+
+describe('trailing text after a verse number (bulk and single add)', () => {
+  // The bug: "Philippians 4:1a" was cut back to "Philippians 4" by the
+  // candidate extractor and then added as the whole chapter.
+  it('keeps "Philippians 4:1a" whole, so the parser rejects it instead of adding the chapter', async () => {
+    const candidates = extractReferenceCandidates('John 3:16\nPhilippians 4:1a');
+    expect(candidates).toEqual(['John 3:16', 'Philippians 4:1a']);
+    expect((await resolveReference(api(), candidates[0]!)).verseCount).toBe(1);
+    await expect(resolveReference(api(), candidates[1]!)).rejects.toBeInstanceOf(ReferenceError);
+  });
+
+  it('rejects other trailing junk the same way', async () => {
+    for (const input of ['Philippians 4:1x', 'John 3:16abc', 'John 3:16-18b']) {
+      expect(extractReferenceCandidates(input)).toEqual([input]);
+      await expect(resolveReference(api(), input)).rejects.toBeInstanceOf(ReferenceError);
+    }
+  });
+
+  it('still reads a chapter-only "Philippians 4" as the whole chapter', async () => {
+    expect(extractReferenceCandidates('Philippians 4')).toEqual(['Philippians 4']);
+    const r = await resolveReference(api(), 'Philippians 4');
+    expect(r.verseCount).toBe(23);
+    expect(r.reference).toBe('Philippians 4 (23 verses)');
   });
 });
 

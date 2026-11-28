@@ -115,8 +115,25 @@
   cursor: help;
 }
 
+/* One line per row. The reference column takes the room left over and cuts a long reference short with an
+   ellipsis (the `max-inline-size: 0` + `inline-size: 100%` pairing keeps its text from setting the column's
+   minimum width); the list name stops at a fixed width. Every cell is nowrap; the full texts are in titles. */
+.sm-app .sm-verses-table .kth-table__head,
+.sm-app .sm-verses-table .kth-table__cell {
+  white-space: nowrap;
+}
+
 .sm-app .sm-verses-table .sm-verses-col-ref {
   inline-size: 100%;
+  max-inline-size: 0;
+  min-inline-size: 6rem;
+}
+
+.sm-app .sm-verses-list-name {
+  display: block;
+  max-inline-size: 10rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .sm-app .sm-verses-table .sm-verses-col-acts {
@@ -129,10 +146,15 @@
 }
 
 .sm-app .sm-verse-main {
-  display: inline-flex;
-  flex-wrap: wrap;
+  display: flex;
+  flex-wrap: nowrap;
   align-items: baseline;
   gap: 0 var(--sm-s2);
+  min-inline-size: 0;
+}
+
+.sm-app .sm-verse-main .sm-row-translation {
+  flex: none;
 }
 
 .sm-app .sm-verse-ref {
@@ -147,6 +169,12 @@
   text-align: start;
   cursor: pointer;
   text-decoration: underline transparent;
+  /* Shrinks before the translation tag does, ending in an ellipsis. */
+  flex: 0 1 auto;
+  min-inline-size: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .sm-app .sm-verse-ref:hover {
@@ -161,7 +189,7 @@
 
 /* Activity squares. State is never told by colour alone: gray empty = not started, white with a dash =
    not needed, yellow with "passed/total" = in progress, green with a check = finished. */
-.sm-app .sm-block {
+.sm-app .sm-act-sq {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -194,18 +222,18 @@
   outline-offset: 2px;
 }
 
-.sm-app .sm-block[data-state='notStarted'] {
+.sm-app .sm-act-sq[data-state='notStarted'] {
   background: var(--sm-sq-gray);
   color: var(--sm-sq-gray-fg);
 }
 
-.sm-app .sm-block[data-state='notApplicable'] {
+.sm-app .sm-act-sq[data-state='notApplicable'] {
   background: var(--sm-sq-white);
   color: var(--sm-sq-white-fg);
   cursor: default;
 }
 
-.sm-app .sm-block[data-state='practicing'] {
+.sm-app .sm-act-sq[data-state='practicing'] {
   background: var(--sm-sq-yellow);
   border-color: var(--sm-sq-yellow-border);
   color: var(--sm-sq-yellow-fg);
@@ -213,7 +241,7 @@
   letter-spacing: -0.02em;
 }
 
-.sm-app .sm-block[data-state='complete'] {
+.sm-app .sm-act-sq[data-state='complete'] {
   background: var(--sm-sq-green);
   border-color: var(--sm-sq-green-border);
   color: var(--sm-sq-green-fg);
@@ -252,10 +280,23 @@
   display: flex;
 }
 
-/* Narrow panels (about 390 px phones): drop the List and Next review columns; the wrap still scrolls. */
+/* Columns give way instead of wrapping: the List column goes first, then Next review, then the
+   translation tag (still shown on the verse page). The wrap still
+   scrolls if the activity squares alone do not fit. */
+@container sm-verses (max-width: 40rem) {
+  .sm-app .sm-verses-col-list {
+    display: none;
+  }
+}
+
 @container sm-verses (max-width: 30rem) {
-  .sm-app .sm-verses-col-list,
   .sm-app .sm-verses-col-next {
+    display: none;
+  }
+}
+
+@container sm-verses (max-width: 22rem) {
+  .sm-app .sm-verse-main .sm-row-translation {
     display: none;
   }
 }

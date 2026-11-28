@@ -128,7 +128,7 @@ export function renderBlockSquare(block: ActivityBlock, opts: { tabStop?: boolea
   const glyph = el('span', { class: 'sm-block-glyph', text: cue(block), attrs: { 'aria-hidden': 'true' } });
   if (block.state === 'notApplicable' || !block.startable) {
     return el('span', {
-      class: 'sm-block',
+      class: 'sm-act-sq',
       title: summary,
       attrs: { role: 'img', 'aria-label': summary, 'data-state': block.state, 'data-rung': block.rung },
     }, [glyph]);
@@ -136,7 +136,7 @@ export function renderBlockSquare(block: ActivityBlock, opts: { tabStop?: boolea
   return el(
     'button',
     {
-      class: 'sm-block sm-block-btn',
+      class: 'sm-act-sq sm-block-btn',
       type: 'button',
       title: summary,
       attrs: { 'data-state': block.state, 'data-rung': block.rung, tabindex: opts.tabStop ? '0' : '-1' },
@@ -147,7 +147,7 @@ export function renderBlockSquare(block: ActivityBlock, opts: { tabStop?: boolea
 
 /** A decorative sample square for the legend. */
 function sampleSquare(state: ActivityBlockState, text: string): HTMLElement {
-  return el('span', { class: 'sm-block sm-block-sample', attrs: { 'data-state': state, 'aria-hidden': 'true' } }, [
+  return el('span', { class: 'sm-act-sq sm-block-sample', attrs: { 'data-state': state, 'aria-hidden': 'true' } }, [
     el('span', { class: 'sm-block-glyph', text }),
   ]);
 }

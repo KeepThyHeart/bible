@@ -47,12 +47,33 @@ export async function createStarterSet(
     targetId = made.id;
   }
 
+  const result = await addStarterSetToList(host, set, targetId);
+  return { ok: true, outcome: { added: result.added + result.existing, failed: result.failed } };
+}
+
+export interface AddToListOutcome {
+  /** References that became new rows in the list (a removed one coming back counts here). */
+  added: number;
+  /** References the list already held: `addPassage` answered `existed`, nothing was duplicated. */
+  existing: number;
+  failed: { reference: string; error: string }[];
+}
+
+/**
+ * Adds the set's references to an existing list, one after another. A verse
+ * the list already holds is not added twice: `addPassage` with a
+ * `collectionId` answers with the existing row (`existed`), which is counted
+ * separately so the summary can say how many were already there.
+ */
+export async function addStarterSetToList(host: PanelHost, set: SuggestedList, listId: number): Promise<AddToListOutcome> {
   let added = 0;
+  let existing = 0;
   const failed: { reference: string; error: string }[] = [];
   for (const reference of set.references) {
-    const reply = await host.request({ type: 'addPassage', reference, collectionId: targetId });
-    if (reply.ok) added += 1;
-    else failed.push({ reference, error: reply.error });
+    const reply = await host.request({ type: 'addPassage', reference, collectionId: listId });
+    if (!reply.ok) failed.push({ reference, error: reply.error });
+    else if (reply.data.existed) existing += 1;
+    else added += 1;
   }
-  return { ok: true, outcome: { added, failed } };
+  return { added, existing, failed };
 }

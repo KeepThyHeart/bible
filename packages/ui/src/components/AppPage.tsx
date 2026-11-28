@@ -20,6 +20,8 @@ export interface AppPageProps {
   children?: ReactNode;
   /** Let the content use the whole width instead of a reading-width column. */
   fullWidth?: boolean;
+  /** Keep the tab bar at the top while the page scrolls (the title scrolls away). Default true; no effect without tabs. */
+  stickyTabs?: boolean;
   className?: string;
   dir?: 'ltr' | 'rtl';
 }
@@ -31,11 +33,12 @@ export interface AppPageProps {
  */
 export function AppPage(props: AppPageProps) {
   const {
-    title, actions, tabs, tab, onTabChange, tabsLabel, idPrefix = 'app-page', children, fullWidth, className, dir,
+    title, actions, tabs, tab, onTabChange, tabsLabel, idPrefix = 'app-page', children, fullWidth, stickyTabs = true, className, dir,
   } = props;
   const hasTabs = !!tabs && tabs.length > 0;
   const selected = hasTabs ? (tabs.some((t) => t.id === tab) ? tab! : tabs[0].id) : null;
-  const root = fullWidth ? 'kth-app-page kth-app-page--full' : 'kth-app-page';
+  const root = ['kth-app-page', fullWidth ? 'kth-app-page--full' : '', hasTabs && stickyTabs ? 'kth-app-page--sticky-tabs' : '']
+    .filter(Boolean).join(' ');
 
   return (
     <div className={className ? `${root} ${className}` : root} dir={dir}>

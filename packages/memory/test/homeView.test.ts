@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * Home tab: practice card, overall progress, list cards, first open, offer and reminders rows.
+ * Home tab: list progress tiles, practice card, first open, offer and reminders rows.
  */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { ListSummary, PanelReply, PanelRequest, PassageView, PlanView, RequestMap, Rung, RungView } from '../src/core/types';
@@ -39,6 +39,12 @@ const due = (id: number, reference: string, r: Rung = 'blanks') =>
 /** Practised today; next review in two days. */
 const doneToday = (id: number, reference: string) =>
   pv(id, [rung('blanks', { attempts: 2, level: 2, dueAt: NOW + 2 * DAY, lastPractisedAt: NOW - HOUR, firstPractisedAt: NOW - 9 * DAY })], reference);
+
+/** Learned (every activity satisfied); next review in five days. */
+const learnedLater = (id: number, reference: string, collectionId = 1, dueAt = NOW + 5 * DAY) => ({
+  ...pv(id, [rung('blanks', { attempts: 4, level: 5, dueAt, lastPractisedAt: NOW - 3 * DAY, firstPractisedAt: NOW - 30 * DAY })], reference, collectionId),
+  wellLearned: true,
+});
 
 function plan(passages: PassageView[], over: Partial<PlanView> = {}): PlanView {
   const lists: ListSummary[] = [{ id: 1, name: 'Default', passageCount: passages.length, verseCount: passages.length }];
@@ -113,7 +119,7 @@ describe('Home: practice card', () => {
     const card = root.querySelector('.sm-home-practice')!;
     expect(text(card)).toMatch(/1 to review, 1 new · About \d+ minutes?/);
     expect(byLabel(card, 'Start practicing')).toBeDefined();
-    expect(byLabel(card, "See what's next")).toBeDefined();
+    expect(buttons(card).length).toBe(1);
     expect(root.querySelector('.sm-home-focus-note')).toBeNull();
   });
 
@@ -136,12 +142,6 @@ describe('Home: practice card', () => {
     expect(byLabel(root, 'Start practicing')).toBeUndefined();
   });
 
-  it("See what's next goes to the Practice tab", () => {
-    const root = mount(plan([due(1, 'Psalm 23')]));
-    byLabel(root, "See what's next")!.click();
-    expect(host.navigations).toEqual([{ type: 'goTab', tab: 'practice' }]);
-  });
-
   it('shows Done for today, the next review and the streak', () => {
     const root = mount(plan([doneToday(1, 'Psalm 23')], { streakDays: 4 }));
     const card = root.querySelector('.sm-home-practice')!;
@@ -149,6 +149,21 @@ describe('Home: practice card', () => {
     expect(text(card)).toContain('Next review');
     expect(text(card)).toContain('4 day streak');
     expect(buttons(card).filter((b) => b.classList.contains('sm-btn-primary'))).toEqual([]);
+  });
+
+  it('Practice more starts the anyway flow once done for today', () => {
+    const root = mount(plan([doneToday(1, 'Psalm 23')]));
+    const card = root.querySelector('.sm-home-practice')!;
+    byLabel(card, 'Practice more')!.click();
+    expect(host.flows).toEqual([{ kind: 'anyway', visited: [] }]);
+  });
+
+  it('hides Practice more when only learned verses not yet due remain', () => {
+    const root = mount(plan([learnedLater(1, 'Psalm 23')]));
+    const card = root.querySelector('.sm-home-practice')!;
+    expect(text(card)).toContain('Done for today');
+    expect(text(card)).toContain('Next review');
+    expect(byLabel(card, 'Practice more')).toBeUndefined();
   });
 
   it('notes the focus list when practice is scoped to one list', () => {
@@ -159,32 +174,45 @@ describe('Home: practice card', () => {
   });
 });
 
-describe('Home: progress and lists', () => {
-  it('has an h2 focus target and the overall progress bar', () => {
-    const all = twoLists();
-    const root = mount(all);
+describe('Home: list tiles', () => {
+  const tiles = (root: Element) => Array.from(root.querySelectorAll<HTMLLIElement>('ul.kth-progress-tiles > li.kth-card.kth-progress-tile'));
+  const title = (tile: Element) => text(tile.querySelector('.kth-progress-tile__title')!);
+  const status = (tile: Element) => tile.querySelector('.kth-progress-tile__status')!;
+
+  it('has an h2 focus target, no overall progress, and the tiles above the practice card', () => {
+    const root = mount(twoLists());
     const h2 = root.querySelector('h2.sm-screen-title')!;
     expect(h2.getAttribute('tabindex')).toBe('-1');
-    const p = overallProgress(all.passages);
-    const bar = root.querySelector('.sm-home-overall [role="progressbar"]')!;
-    expect(bar.getAttribute('aria-valuenow')).toBe(String(p.percent));
-    expect(text(root.querySelector('.sm-home-overall')!)).toContain(
-      `${p.percent}% of activities complete · ${p.versesLearned} of 3 verses learned`,
-    );
+    expect(root.querySelector('.sm-home-overall')).toBeNull();
+    const ul = root.querySelector('ul.kth-progress-tiles')!;
+    expect(ul.getAttribute('aria-label')).toBe('Lists');
+    expect(ul.compareDocumentPosition(root.querySelector('.sm-home-practice')!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
-  it('draws one card per list with its count and percent', () => {
+  it('draws one tile per list with a ring and a status', () => {
     const all = twoLists();
     const root = mount(all);
-    const cards = Array.from(root.querySelectorAll<HTMLButtonElement>('.sm-home-list'));
-    expect(cards.map((c) => text(c.querySelector('.sm-home-list-name')!))).toEqual(['Default', 'Romans', 'Empty one']);
+    const t = tiles(root);
+    expect(t.map(title)).toEqual(['Default', 'Romans', 'Empty one']);
     const p1 = overallProgress(all.passages.filter((x) => x.passage.collectionId === 1));
-    expect(text(cards[0]!)).toContain('2 verses');
-    expect(text(cards[0]!)).toContain(`${p1.percent}% complete`);
-    expect(cards[0]!.getAttribute('aria-label')).toBe(`Default, 2 verses, ${p1.percent}% complete`);
-    expect(text(cards[1]!)).toContain('1 verse');
-    expect(text(cards[2]!)).toContain('No verses yet');
-    expect(cards[2]!.querySelector('.sm-home-list-percent')).toBeNull();
+    const ring = t[0]!.querySelector('.kth-progress-ring[role="progressbar"]')!;
+    expect(ring.getAttribute('aria-valuenow')).toBe(String(p1.percent));
+    expect(ring.getAttribute('aria-label')).toBe('Default: progress');
+    expect(ring.getAttribute('data-tone')).toBe('accent');
+    expect(ring.getAttribute('data-size')).toBe('md');
+    expect(ring.querySelector('svg.kth-progress-ring__svg')!.getAttribute('viewBox')).toBe('0 0 36 36');
+    expect(text(status(t[0]!))).toBe('0 of 2 verses learned · 1 due');
+    expect(text(status(t[1]!))).toBe('0 of 1 verse learned');
+    expect(text(status(t[2]!))).toBe('No verses yet');
+    // 0%: the track only.
+    expect(t[2]!.querySelector('.kth-progress-ring__fill')).toBeNull();
+    expect(t[2]!.querySelector('.kth-progress-tile__actions')).toBeNull();
+  });
+
+  it('the title opens My verses filtered to that list', () => {
+    const root = mount(twoLists());
+    tiles(root)[1]!.querySelector<HTMLButtonElement>('button.kth-link.kth-progress-tile__title')!.click();
+    expect(host.navigations).toEqual([{ type: 'goVerses', list: 2 }]);
   });
 
   it('tags the practice focus list', () => {
@@ -192,14 +220,44 @@ describe('Home: progress and lists', () => {
     const root = mount(all, scoped(all, 2));
     const tags = Array.from(root.querySelectorAll('.sm-home-tag'));
     expect(tags.length).toBe(1);
-    expect(tags[0]!.closest('.sm-home-list')!.querySelector('.sm-home-list-name')!.textContent).toBe('Romans');
-    expect(tags[0]!.closest('.sm-home-list')!.getAttribute('aria-label')).toContain('Practice focus');
+    expect(title(tags[0]!.closest('.kth-progress-tile')!)).toBe('Romans');
+    expect(text(tags[0]!)).toBe('Practice focus');
   });
 
-  it('a list card opens My verses filtered to that list', () => {
+  it('Practice on a tile practises just that list, today first, else Practice more', () => {
     const root = mount(twoLists());
-    root.querySelectorAll<HTMLButtonElement>('.sm-home-list')[1]!.click();
-    expect(host.navigations).toEqual([{ type: 'goVerses', list: 2 }]);
+    const t = tiles(root);
+    t[0]!.querySelector<HTMLButtonElement>('button[aria-label="Practice Default"]')!.click();
+    // Romans: done today, still being learned, so the list-only "Practice more".
+    t[1]!.querySelector<HTMLButtonElement>('button[aria-label="Practice Romans"]')!.click();
+    expect(host.flows).toEqual([
+      { kind: 'today', skipped: [], list: 1 },
+      { kind: 'anyway', visited: [], list: 2 },
+    ]);
+  });
+
+  it('a learned list shows a full success ring and when its next review is', () => {
+    const root = mount(plan([learnedLater(1, 'Psalm 23')]));
+    const tile = tiles(root)[0]!;
+    const ring = tile.querySelector('.kth-progress-ring')!;
+    expect(ring.getAttribute('aria-valuenow')).toBe('100');
+    expect(ring.getAttribute('data-tone')).toBe('success');
+    expect(text(status(tile))).toBe('Learned · next review in 5 days');
+    expect(status(tile).getAttribute('data-tone')).toBe('success');
+    // Nothing to practise without breaking the spacing.
+    expect(tile.querySelector('.kth-progress-tile__actions')).toBeNull();
+  });
+
+  it('a learned list with reviews due offers Review', () => {
+    const root = mount(plan([learnedLater(1, 'Psalm 23', 1, NOW - HOUR), learnedLater(2, 'John 3:16')]));
+    const tile = tiles(root)[0]!;
+    expect(text(status(tile))).toBe('⚠ Learned · 1 due for review');
+    expect(status(tile).querySelector('span[aria-hidden="true"]')!.textContent).toBe('⚠ ');
+    expect(status(tile).getAttribute('data-tone')).toBe('warning');
+    const review = tile.querySelector<HTMLButtonElement>('button[aria-label="Review Default"]')!;
+    expect(text(review)).toBe('Review');
+    review.click();
+    expect(host.flows).toEqual([{ kind: 'today', skipped: [], list: 1 }]);
   });
 });
 
@@ -210,7 +268,7 @@ describe('Home: first open', () => {
     expect(root.querySelector('#sm-add-reference')).not.toBeNull();
     expect(root.querySelector('.sm-home-practice')).toBeNull();
     expect(root.querySelector('.sm-home-overall')).toBeNull();
-    expect(root.querySelector('.sm-home-lists')).toBeNull();
+    expect(root.querySelector('.kth-progress-tiles')).toBeNull();
     expect(text(root)).toContain('right-click any verse');
     byLabel(root, 'Browse starter sets')!.click();
     expect(host.navigations).toEqual([{ type: 'goStarters' }]);

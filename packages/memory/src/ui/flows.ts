@@ -5,7 +5,7 @@
  * clock and a fixed seed make every draw reproducible in a test.
  *
  *   - `today`    the Today queue (core/today), minus verses skipped this run.
- *   - `anyway`   "practice anyway" order once today is done, minus visited.
+ *   - `anyway`   the "Practice more" order (core/today#anywayOrder), minus visited.
  *   - `mixed`    the old Variety rule: 30% of draws from what is due, 70% from
  *                everything applicable, minus visited verses.
  *   - `activity` a random applicable target for one activity, minus visited.
@@ -136,6 +136,16 @@ function reciteTargets(plan: PlanView, now: number, exclude?: ExcludeSet): Pract
 
 function findPassage(plan: PlanView, id: number): PassageView | undefined {
   return plan.passages.find((pv) => pv.passage.id === id);
+}
+
+/**
+ * The plan scope a flow draws from: its own `list` (a list-only run started from Home), else the
+ * Practice focus. Every caller that scopes the plan for a flow (start, Continue, the queue bar)
+ * goes through this, so Next never leaves the list the run started in.
+ */
+export function flowScope(flow: Flow, focus: 'all' | number): 'all' | number {
+  if ((flow.kind === 'today' || flow.kind === 'anyway') && flow.list !== undefined) return flow.list;
+  return focus;
 }
 
 /** Extra context for the `today` flow. */

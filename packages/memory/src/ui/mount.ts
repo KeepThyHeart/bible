@@ -39,7 +39,7 @@ import { createReciteView } from './reciteView';
 import { createHandsFreeView } from './handsFreeView';
 import { startReciteRun } from './activities';
 import { renderCardStack } from './cardView';
-import { flowRemaining, planNextTarget } from './flows';
+import { flowRemaining, flowScope, planNextTarget } from './flows';
 import type { PracticeTarget } from './flows';
 import { createShell } from './shell';
 import type { ShellAction } from './shell';
@@ -311,8 +311,8 @@ export function mountMemoryUi(container: HTMLElement, options: MemoryUiOptions):
         showError(err instanceof Error ? err.message : String(err));
         return false;
       }
-      // The new-verse cap counts every list; the queue follows the focus.
-      const plan = scopedView(all, all.focus ?? 'all', host.now());
+      // The new-verse cap counts every list; the queue follows the flow's list, else the focus.
+      const plan = scopedView(all, flowScope(flow, all.focus ?? 'all'), host.now());
       const startedToday = countStartedToday(all.passages, host.now());
       const opts = flow.kind === 'today' ? { startedToday } : {};
       const target = planNextTarget(plan, flow, host.now(), Math.random, opts);

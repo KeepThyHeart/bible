@@ -32,7 +32,7 @@
   min-inline-size: 0;
 }
 
-/* Cards (practice card and list cards) */
+/* Practice card */
 .sm-app .sm-home-card {
   display: flex;
   flex-direction: column;
@@ -84,95 +84,18 @@
   font-size: 0.9em;
 }
 
-/* Section titles */
-.sm-app .sm-home-section-title {
-  margin: 0 0 var(--sm-s2);
-  font-size: 1em;
-  font-weight: 600;
-  color: var(--sm-heading);
-}
-
-/* Overall progress */
-.sm-app .sm-home-overall {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sm-s2);
-}
-
-.sm-app .sm-home-bar-overall {
-  block-size: 12px;
-}
-
-.sm-app .sm-home-bar-fill {
-  background: var(--sm-success);
-}
-
-.sm-app .sm-home-overall-text {
-  margin: 0;
-  color: var(--sm-text-dim);
-  font-size: 0.9em;
-}
-
-/* List cards */
-.sm-app .sm-home-lists {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: var(--sm-s3);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-@container sm-home (min-width: 32rem) {
-  .sm-app .sm-home-lists {
-    grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
-  }
-}
-
-.sm-app .sm-home-list-item {
-  display: flex;
-  min-inline-size: 0;
-}
-
-.sm-app .sm-home-list {
-  flex: 1 1 auto;
-  inline-size: 100%;
-  min-inline-size: 0;
-  font: inherit;
-  cursor: pointer;
-}
-
-.sm-app .sm-home-list:hover {
-  background: var(--sm-hover);
-}
-
-.sm-app .sm-home-list:focus-visible {
-  outline: 2px solid var(--sm-focus);
-  outline-offset: 2px;
-}
-
-.sm-app .sm-home-list-focus {
+/* List tiles (shared markup: packages/ui/css/kth-classes.css .kth-progress-tile) */
+.sm-app .sm-home-tile-focus {
   border-color: var(--sm-accent);
 }
 
-.sm-app .sm-home-list-head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--sm-s1) var(--sm-s2);
-  inline-size: 100%;
-}
-
-.sm-app .sm-home-list-name {
+.sm-app .sm-home-tile .kth-progress-tile__body {
   flex: 1 1 auto;
-  min-inline-size: 0;
-  font-weight: 600;
-  color: var(--sm-heading);
-  overflow-wrap: anywhere;
 }
 
 .sm-app .sm-home-tag {
   flex: none;
+  margin-block: 2px;
   padding: 0 var(--sm-s2);
   border: 1px solid var(--sm-accent);
   border-radius: 999px;
@@ -181,35 +104,6 @@
   font-weight: 600;
   line-height: 1.6;
   white-space: nowrap;
-}
-
-.sm-app .sm-home-list-count {
-  color: var(--sm-text-dim);
-  font-size: 0.9em;
-}
-
-.sm-app .sm-home-list-progress {
-  display: flex;
-  align-items: center;
-  gap: var(--sm-s2);
-  inline-size: 100%;
-}
-
-.sm-app .sm-home-list-progress .sm-bar {
-  display: block;
-  flex: 1 1 auto;
-  min-inline-size: 0;
-}
-
-.sm-app .sm-home-list-progress .sm-bar-fill {
-  display: block;
-}
-
-.sm-app .sm-home-list-percent {
-  flex: none;
-  color: var(--sm-text-dim);
-  font-size: 0.9em;
-  font-variant-numeric: tabular-nums;
 }
 
 /* First open */

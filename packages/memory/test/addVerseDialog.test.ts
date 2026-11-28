@@ -229,3 +229,52 @@ describe('openAddVerseDialog without a port', () => {
     expect(host.requests.at(-1)).toEqual({ type: 'addPassage', reference: 'Romans 8:28', collectionId: 1 });
   });
 });
+
+describe('trailing text after a verse number (C)', () => {
+  const rejectJunk = (host: ReturnType<typeof makeHost>['host']) => {
+    host.request = async (r: PanelRequest) => {
+      host.requests.push(r);
+      if (r.type === 'addPassage' && r.reference === 'Philippians 4:1a') {
+        return { ok: false, error: '"Philippians 4:1a" is not a reference.' } as never;
+      }
+      return { ok: true, data: { passage: PASSAGE } } as never;
+    };
+  };
+
+  it('the single add sends "Philippians 4:1a" whole and shows the error', async () => {
+    const { host } = makeHost();
+    rejectJunk(host);
+    openAddVerseDialog(host, { lists: [LISTS[0]!], onAdded: () => {} });
+    (document.querySelector('#sm-add-dialog-reference') as HTMLInputElement).value = 'Philippians 4:1a';
+    btn('Add').click();
+    await flush();
+    expect(host.requests.at(-1)).toEqual({ type: 'addPassage', reference: 'Philippians 4:1a', collectionId: 1 });
+    expect(document.querySelector('.sm-error-slot')!.textContent).toContain('Philippians 4:1a');
+  });
+
+  it('the bulk add lists "Philippians 4:1a" as its own reference and reports it as failed', async () => {
+    const { host } = makeHost();
+    rejectJunk(host);
+    openAddVerseDialog(host, { lists: [LISTS[0]!], onAdded: () => {} });
+    btn('Add several at once').click();
+    (document.querySelector('#sm-batch-textarea') as HTMLTextAreaElement).value = 'John 3:16\nPhilippians 4:1a';
+    btn('Find references').click();
+    expect([...document.querySelectorAll('.sm-batch-list-item')].map((li) => li.textContent)).toEqual(['John 3:16', 'Philippians 4:1a']);
+    btn('Add 2 verses').click();
+    await flush();
+    await flush();
+    const refs = host.requests.filter((r) => r.type === 'addPassage').map((r: any) => r.reference);
+    expect(refs).toEqual(['John 3:16', 'Philippians 4:1a']);
+    expect(document.querySelector('.sm-error-slot')!.textContent).toContain('Philippians 4:1a: "Philippians 4:1a" is not a reference.');
+  });
+});
+
+describe('fixed-size preview (B)', () => {
+  it('gives the selector a placeholder for the empty preview box', () => {
+    const { port } = fakePort();
+    const { host } = makeHost({ port });
+    openAddVerseDialog(host, { lists: LISTS, onAdded: () => {} });
+    const field = document.querySelector('.sm-add-dialog__field') as HTMLElement;
+    expect(field.style.getPropertyValue('--sm-preview-empty')).toBe('"The verse text appears here."');
+  });
+});

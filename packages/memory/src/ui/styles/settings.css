@@ -1,29 +1,367 @@
-/* Memory - settings and reminders (A8). Scoped under .sm-app, logical properties only. */
+/* Memory - the Settings tab (A8): sections, fields and reminders. The controls themselves are the shared
+   `.kth-field` / `.kth-check` / `.kth-select` / `.kth-input` / `.kth-btn` classes (as in the desktop
+   Preferences); this only lays them out. Scoped under .sm-app, logical properties only. */
+
+/* --- Screen and sections ------------------------------------------------------------------------- */
+
+.sm-app .sm-screen.sm-screen-settings {
+  gap: 0;
+  container-type: inline-size;
+  container-name: sm-settings;
+}
+
+/* Every section after the first is set off by a rule above its heading. */
+.sm-app .sm-screen-settings > .sm-block {
+  gap: var(--sm-s3);
+  padding-block: var(--sm-s5);
+}
+
+.sm-app .sm-screen-settings > .sm-block:first-child {
+  padding-block-start: 0;
+}
+
+.sm-app .sm-screen-settings > .sm-block + .sm-block {
+  border-block-start: 1px solid var(--sm-border);
+}
+
+.sm-app .sm-settings-heading,
+.sm-app .sm-screen-settings > .sm-block > .sm-block-title {
+  margin: 0;
+  font-size: 1.15em;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--sm-heading);
+}
+
+.sm-app .sm-settings-section > p,
+.sm-app .sm-settings-section .kth-field__hint {
+  max-inline-size: 40rem;
+}
+
+/* The shared kit sizes hints and buttons from the UI size; on an app page (a step larger) keep them in proportion. */
+.sm-app .sm-settings-section .kth-field__hint {
+  font-size: 0.9em;
+}
+
+.sm-app .sm-settings-section .kth-btn {
+  font-size: 0.9em;
+}
+
+.sm-app .sm-settings-section .kth-field {
+  margin-block-end: 0;
+  font-size: inherit;
+}
+
+.sm-app .sm-settings-section .kth-check {
+  font-size: inherit;
+  align-items: flex-start;
+}
+
+.sm-app .sm-settings-section .kth-check__input {
+  margin-block-start: 0.15em;
+}
+
+/* Help text under a checkbox lines up with the label text, not the box. */
+.sm-app .sm-settings-indent {
+  padding-inline-start: calc(1.1rem + var(--sm-s2));
+}
+
+.sm-app .sm-settings-subsection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sm-s2);
+  margin-block-start: var(--sm-s2);
+}
+
+.sm-app .sm-settings-subheading,
+.sm-app .sm-settings-legend {
+  margin: 0;
+  padding: 0;
+  font-size: 1em;
+  font-weight: 600;
+  color: var(--sm-heading);
+}
+
+/* --- Radio groups --------------------------------------------------------------------------------- */
+
+.sm-app .sm-settings-fieldset {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sm-s2);
+  min-inline-size: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+/* A legend does not take part in the fieldset's flex gap; give it the same space below. */
+.sm-app .sm-settings-fieldset > legend {
+  margin-block-end: var(--sm-s2);
+}
+
+.sm-app .sm-settings-options {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sm-s2);
+}
+
+/* --- Label | control rows (selects) --------------------------------------------------------------- */
+
+.sm-app .sm-settings-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--sm-s1) var(--sm-s3);
+  align-items: center;
+}
+
+.sm-app .sm-settings-row {
+  display: contents;
+}
+
+.sm-app .sm-settings-label {
+  color: var(--sm-text);
+  font-weight: 500;
+}
+
+.sm-app .sm-settings-select {
+  inline-size: 100%;
+  max-inline-size: 20rem;
+  font-size: inherit;
+}
+
+/* One column (label above control) on a narrow panel, two aligned columns when there is room. */
+@container sm-settings (min-width: 32rem) {
+  .sm-app .sm-settings-grid {
+    grid-template-columns: max-content minmax(0, 20rem);
+    row-gap: var(--sm-s2);
+  }
+}
+
+@container sm-settings (max-width: 32rem) {
+  .sm-app .sm-settings-label:not(:first-child) {
+    margin-block-start: var(--sm-s2);
+  }
+}
+
+/* --- Buttons -------------------------------------------------------------------------------------- */
+
+.sm-app .sm-settings-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sm-s2);
+}
+
+/* Shared buttons do not wrap; a long label must not push the page sideways on a phone. */
+.sm-app .sm-settings-actions .kth-btn {
+  white-space: normal;
+  text-align: start;
+  max-inline-size: 100%;
+}
+
+/* The destructive action: below a rule at the end of its section, outlined in the danger colour. */
+.sm-app .sm-settings-danger {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sm-s1);
+  margin-block-start: var(--sm-s2);
+  padding-block-start: var(--sm-s3);
+  border-block-start: 1px dashed var(--sm-border);
+}
+
+.sm-app .sm-settings-danger-btn {
+  border-color: var(--sm-danger);
+  color: var(--sm-danger-text);
+  background: transparent;
+}
+
+.sm-app .sm-settings-danger-btn:hover:not(:disabled) {
+  background: var(--sm-danger-soft);
+}
+
+.sm-app .sm-settings-status {
+  margin: 0;
+  color: var(--sm-text-dim);
+}
+
+.sm-app .sm-settings-status:empty {
+  display: none;
+}
+
+/* --- Simple list (verses with their own answer mode) ---------------------------------------------- */
+
+.sm-app .sm-settings-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-inline-size: 30rem;
+  border-block-start: 1px solid var(--sm-border);
+}
+
+.sm-app .sm-settings-list-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sm-s2);
+  padding-block: var(--sm-s1);
+  border-block-end: 1px solid var(--sm-border);
+}
+
+.sm-app .sm-settings-list-name {
+  flex: 1 1 auto;
+  min-inline-size: 0;
+  font-weight: 600;
+  color: var(--sm-heading);
+  overflow-wrap: anywhere;
+}
+
+.sm-app .sm-settings-list-meta {
+  color: var(--sm-text-dim);
+  white-space: nowrap;
+}
+
+/* --- Reminders ------------------------------------------------------------------------------------ */
+
+.sm-app .sm-push-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sm-s2);
+}
+
+.sm-app .sm-push-status:empty {
+  display: none;
+}
+
+.sm-app .sm-push-status-text {
+  margin: 0;
+}
+
+.sm-app .sm-push-schedule {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sm-s2);
+}
 
 .sm-app .sm-push-summary-row {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--sm-s2);
-  margin-block: var(--sm-s2);
+  gap: var(--sm-s2) var(--sm-s3);
 }
 
 .sm-app .sm-push-summary {
   margin: 0;
-  flex: 1 1 14rem;
   min-inline-size: 0;
 }
 
+/* The opened schedule sits indented under its summary. */
 .sm-app .sm-push-schedule-fields {
-  margin-block-end: var(--sm-s2);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sm-s4);
+  padding-block: var(--sm-s2);
+  padding-inline-start: var(--sm-s4);
+  border-inline-start: 2px solid var(--sm-border);
+}
+
+.sm-app .sm-push-schedule-fields[hidden] {
+  display: none;
+}
+
+.sm-app .sm-settings-section .sm-push-slots {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  gap: var(--sm-s2);
+}
+
+/* One reminder time or window: its times with Remove at the end, the days on the line below. */
+.sm-app .sm-push-slot {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--sm-s2) var(--sm-s3);
+  padding-block-end: var(--sm-s2);
+  border-block-end: 1px solid var(--sm-border);
+}
+
+.sm-app .sm-push-slot > .sm-push-slot-times {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.sm-app .sm-push-slot > .sm-push-remove {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.sm-app .sm-push-slot > .sm-push-days {
+  grid-column: 1 / -1;
+  grid-row: 2;
+}
+
+.sm-app .sm-push-slot-times,
+.sm-app .sm-push-inline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sm-s2);
+}
+
+.sm-app .sm-push-days {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sm-s1) var(--sm-s2);
+}
+
+.sm-app .sm-settings-section .sm-push-day {
+  align-items: center;
+  gap: var(--sm-s1);
+}
+
+.sm-app .sm-settings-section .sm-push-day .kth-check__input {
+  margin-block-start: 0;
+}
+
+.sm-app .sm-settings-section .sm-push-time {
+  display: inline-block;
+  inline-size: auto;
+}
+
+.sm-app .sm-settings-section .sm-push-number {
+  display: inline-block;
+  inline-size: 5em;
+}
+
+.sm-app .sm-push-unit {
+  color: var(--sm-text-dim);
+}
+
+.sm-app .sm-push-max {
+  align-items: flex-start;
 }
 
 .sm-app .sm-push-advanced {
-  margin-block: var(--sm-s2);
+  display: flex;
+  flex-direction: column;
+}
+
+.sm-app .sm-push-advanced > .sm-push-group {
+  margin-block-start: var(--sm-s3);
 }
 
 .sm-app .sm-push-advanced-summary {
   cursor: pointer;
+  inline-size: fit-content;
+  color: var(--sm-heading);
   font-weight: 600;
   padding-block: var(--sm-s1);
+}
+
+.sm-app .sm-settings-section .sm-push-pinned {
+  margin: 0;
+  padding: 0;
+  padding-inline-start: calc(1.1rem + var(--sm-s2));
+  list-style: none;
+  gap: var(--sm-s1);
 }

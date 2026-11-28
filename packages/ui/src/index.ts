@@ -209,5 +209,7 @@ export { ProgressBar } from './components/ProgressBar';
 export type { ProgressBarProps } from './components/ProgressBar';
 export { ProgressRing } from './components/ProgressRing';
 export type { ProgressRingProps } from './components/ProgressRing';
+export { ProgressTile, ProgressTiles } from './components/ProgressTile';
+export type { ProgressTileProps, ProgressTilesProps, ProgressTileTone } from './components/ProgressTile';
 export { Notice } from './components/Notice';
 export type { NoticeProps } from './components/Notice';

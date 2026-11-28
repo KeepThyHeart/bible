@@ -18,7 +18,7 @@ import type {
 } from '../core/pushTypes';
 import { button, el, replace } from './dom';
 import { tr } from './i18n';
-import './styles/settings.css';
+import { actionsRow, checkField, hint, radioField, settingsHeading } from './settingsFields';
 import type { PanelHost } from './host';
 
 /** Resolved at render time so a language change takes effect. */
@@ -52,7 +52,7 @@ const nextId = (p: string): string => `${p}-${++uid}`;
 export function renderPushSettings(host: PanelHost, initial: PushSettingsView): HTMLElement {
   let view = initial;
   let settings: PushCardSettings = structuredCloneSafe(initial.settings);
-  const root = el('section', { class: 'sm-block sm-push', attrs: { 'aria-labelledby': 'sm-push-title' } });
+  const root = el('section', { class: 'sm-block sm-settings-section sm-push', attrs: { 'aria-labelledby': 'sm-push-title' } });
   const statusBox = el('div', { class: 'sm-push-status' });
 
   let seq = 0;
@@ -88,7 +88,7 @@ export function renderPushSettings(host: PanelHost, initial: PushSettingsView): 
 
   function drawStatus(): void {
     const children: (Node | null)[] = [
-      el('p', { class: 'sm-hint', text: view.status.message, attrs: { role: 'status' } }),
+      el('p', { class: 'kth-field__hint sm-push-status-text', text: view.status.message, attrs: { role: 'status' } }),
     ];
     if (view.status.hostApi && view.status.permission === 'prompt') {
       children.push(
@@ -104,7 +104,7 @@ export function renderPushSettings(host: PanelHost, initial: PushSettingsView): 
               drawStatus();
             });
           },
-          { class: 'sm-btn sm-btn-small' },
+          { class: 'kth-btn kth-btn--sm' },
         ),
       );
     }
@@ -112,18 +112,17 @@ export function renderPushSettings(host: PanelHost, initial: PushSettingsView): 
   }
 
   function draw(): void {
-    const enabledId = nextId('sm-push-enabled');
-    const enabled = el('input', { id: enabledId, type: 'checkbox' }) as HTMLInputElement;
-    enabled.checked = settings.enabled;
-    enabled.addEventListener('change', () => update((s) => (s.enabled = enabled.checked), true));
+    const enabled = checkField({
+      id: nextId('sm-push-enabled'),
+      label: tr('memory.ui.settings.sendReminders', 'Send me verses to recall'),
+      hint: tr('memory.ui.settings.remindersIntro', 'A short prompt to say a verse to yourself, then grade how it went.'),
+      checked: settings.enabled,
+      onChange: (input) => update((s) => (s.enabled = input.checked), true),
+    });
 
     const children: (Node | null)[] = [
-      el('h2', { class: 'sm-block-title', id: 'sm-push-title', text: tr('memory.ui.settings.reminders', 'Reminders') }),
-      el('div', { class: 'sm-radio-row' }, [
-        enabled,
-        el('label', { attrs: { for: enabledId }, text: tr('memory.ui.settings.sendReminders', 'Send me verses to recall') }),
-      ]),
-      el('p', { class: 'sm-hint', text: tr('memory.ui.settings.remindersIntro', 'A short prompt to say a verse to yourself, then grade how it went.') }),
+      settingsHeading(tr('memory.ui.settings.reminders', 'Reminders'), 'sm-push-title'),
+      enabled.field,
       statusBox,
     ];
 
@@ -149,7 +148,7 @@ export function renderPushSettings(host: PanelHost, initial: PushSettingsView): 
           fields.replaceChildren();
         }
       },
-      { class: 'sm-btn sm-btn-small sm-btn-quiet', attrs: { 'aria-expanded': String(scheduleOpen), 'aria-controls': panelId } },
+      { class: 'kth-btn kth-btn--sm', attrs: { 'aria-expanded': String(scheduleOpen), 'aria-controls': panelId } },
     );
     const fields = el('div', { class: 'sm-push-schedule-fields', id: panelId });
     fields.hidden = !scheduleOpen;
@@ -170,8 +169,8 @@ export function renderPushSettings(host: PanelHost, initial: PushSettingsView): 
       radioGroup(tr('memory.ui.settings.reminderPrompt', 'Reminder prompt (in the app)'), 'prompt', settings.prompt, [
         ['reference', tr('memory.ui.settings.referenceOnly', 'Reference only')],
         ['firstWords', tr('memory.ui.settings.referenceAndFirstWords', 'Reference and first words')],
-      ], (v) => update((s) => (s.prompt = v as PushCardSettings['prompt']))),
-      el('p', { class: 'sm-hint', text: tr('memory.ui.settings.notificationsOnlyReference', 'Notifications only ever show the reference, never the verse or its first words.') }),
+      ], (v) => update((s) => (s.prompt = v as PushCardSettings['prompt'])),
+      tr('memory.ui.settings.notificationsOnlyReference', 'Notifications only ever show the reference, never the verse or its first words.')),
       radioGroup(tr('memory.ui.settings.onLockScreen', 'On the lock screen'), 'lockScreen', settings.lockScreen, [
         ['reference', tr('memory.ui.settings.showReference', 'Show the reference')],
         ['generic', tr('memory.ui.settings.genericReminder', 'Generic ("A reminder is ready.")')],
@@ -189,20 +188,20 @@ export function renderPushSettings(host: PanelHost, initial: PushSettingsView): 
       { class: 'sm-list sm-push-slots', attrs: { 'aria-label': tr('memory.ui.settings.reminderTimes', 'Reminder times') } },
       settings.plan.slots.map((slot, i) => slotRow(slot, i)),
     );
-    return el('fieldset', { class: 'sm-push-group' }, [
-      el('legend', { class: 'sm-push-legend', text: tr('memory.ui.settings.when', 'When') }),
+    return el('fieldset', { class: 'sm-settings-fieldset sm-push-group' }, [
+      el('legend', { class: 'sm-settings-legend', text: tr('memory.ui.settings.when', 'When') }),
       list,
-      el('div', { class: 'sm-push-add' }, [
+      actionsRow([
         button(tr('memory.ui.settings.addTime', 'Add a time'), () =>
           update((s) => s.plan.slots.push({ id: newSlotId(), kind: 'fixed', time: '12:00', days: [...ALL_DAYS] }), true),
-          { class: 'sm-btn sm-btn-small' }),
+          { class: 'kth-btn kth-btn--sm' }),
         button(tr('memory.ui.settings.addWindow', 'Add a window'), () =>
           update(
             (s) => s.plan.slots.push({ id: newSlotId(), kind: 'window', start: '09:00', end: '17:00', count: 2, days: [...ALL_DAYS] }),
             true,
           ),
-          { class: 'sm-btn sm-btn-small sm-btn-quiet' }),
-      ]),
+          { class: 'kth-btn kth-btn--sm' }),
+      ], 'sm-push-add'),
     ]);
   }
 
@@ -226,15 +225,15 @@ export function renderPushSettings(host: PanelHost, initial: PushSettingsView): 
       inputs.push(el('span', { text: tr('memory.ui.settings.to', 'to'), attrs: { 'aria-hidden': 'true' } }));
       inputs.push(timeInput(tr('memory.ui.settings.windowEnd', 'Window {n} end', { n }), slot.end, (v) => update(() => (slot.end = v))));
       const count = numberInput(tr('memory.ui.settings.remindersInWindow', 'Reminders in window {n}', { n }), slot.count, 1, 6, (n) => update(() => (slot.count = n)));
-      inputs.push(count, el('span', { class: 'sm-hint', text: tr('memory.ui.settings.remindersUnit', 'reminders') }));
+      inputs.push(count, el('span', { class: 'sm-push-unit', text: tr('memory.ui.settings.remindersUnit', 'reminders') }));
     }
-    return el('li', { class: 'sm-row sm-push-slot' }, [
+    return el('li', { class: 'sm-push-slot' }, [
       el('div', { class: 'sm-push-slot-times' }, inputs),
       dayPicker(daysLabel, slot),
       button(
         tr('memory.ui.settings.remove', 'Remove'),
         () => update((s) => (s.plan.slots = s.plan.slots.filter((x) => x.id !== slot.id)), true),
-        { class: 'sm-btn sm-btn-small sm-btn-quiet', attrs: { 'aria-label': removeLabel } },
+        { class: 'kth-btn kth-btn--ghost kth-btn--sm sm-push-remove', attrs: { 'aria-label': removeLabel } },
       ),
     ]);
   }
@@ -247,7 +246,7 @@ export function renderPushSettings(host: PanelHost, initial: PushSettingsView): 
       { class: 'sm-push-days', attrs: { role: 'group', 'aria-label': label } },
       ALL_DAYS.map((d) => {
         const id = nextId('sm-push-day');
-        const box = el('input', { id, type: 'checkbox' }) as HTMLInputElement;
+        const box = el('input', { id, type: 'checkbox', class: 'kth-check__input', attrs: { 'aria-label': names[d]! } }) as HTMLInputElement;
         box.checked = slot.days.includes(d);
         box.addEventListener('change', () =>
           update(() => {
@@ -257,9 +256,9 @@ export function renderPushSettings(host: PanelHost, initial: PushSettingsView): 
             slot.days = ALL_DAYS.filter((x) => days.has(x));
           }),
         );
-        return el('span', { class: 'sm-push-day' }, [
+        return el('label', { class: 'kth-check sm-push-day', attrs: { for: id }, title: names[d]! }, [
           box,
-          el('label', { attrs: { for: id, 'aria-label': names[d]! }, title: names[d]!, text: letters[d]! }),
+          el('span', { class: 'kth-check__label', text: letters[d]!, attrs: { 'aria-hidden': 'true' } }),
         ]);
       }),
     );
@@ -269,14 +268,14 @@ export function renderPushSettings(host: PanelHost, initial: PushSettingsView): 
   function renderQuiet(): HTMLElement {
     const q = settings.plan.quiet ?? { start: '21:30', end: '07:00' };
     const apply = (): void => update((s) => (s.plan.quiet = { ...q }));
-    return el('fieldset', { class: 'sm-push-group' }, [
-      el('legend', { class: 'sm-push-legend', text: tr('memory.ui.settings.quietHours', 'Quiet hours') }),
+    return el('fieldset', { class: 'sm-settings-fieldset sm-push-group' }, [
+      el('legend', { class: 'sm-settings-legend', text: tr('memory.ui.settings.quietHours', 'Quiet hours') }),
       el('div', { class: 'sm-push-inline' }, [
         timeInput(tr('memory.ui.settings.quietStart', 'Quiet hours start'), q.start, (v) => { q.start = v; apply(); }),
         el('span', { text: tr('memory.ui.settings.to', 'to'), attrs: { 'aria-hidden': 'true' } }),
         timeInput(tr('memory.ui.settings.quietEnd', 'Quiet hours end'), q.end, (v) => { q.end = v; apply(); }),
       ]),
-      el('p', { class: 'sm-hint', text: tr('memory.ui.settings.quietHintReminders', 'Reminders that would fire during quiet hours are skipped.') }),
+      hint(tr('memory.ui.settings.quietHintReminders', 'Reminders that would fire during quiet hours are skipped.')),
     ]);
   }
 
@@ -287,8 +286,8 @@ export function renderPushSettings(host: PanelHost, initial: PushSettingsView): 
     );
     input.id = id;
     input.removeAttribute('aria-label');
-    return el('div', { class: 'sm-push-inline' }, [
-      el('label', { attrs: { for: id }, text: tr('memory.ui.settings.mostRemindersPerDay', 'Most reminders per day') }),
+    return el('div', { class: 'sm-settings-fieldset sm-push-max' }, [
+      el('label', { class: 'sm-settings-legend', attrs: { for: id }, text: tr('memory.ui.settings.mostRemindersPerDay', 'Most reminders per day') }),
       input,
     ]);
   }
@@ -305,13 +304,13 @@ export function renderPushSettings(host: PanelHost, initial: PushSettingsView): 
     const pinned = new Set(settings.pinnedPassageIds);
     const picker =
       view.passages.length === 0
-        ? el('p', { class: 'sm-hint', text: tr('memory.ui.settings.addVerseToPin', 'Add a verse to pin it.') })
+        ? hint(tr('memory.ui.settings.addVerseToPin', 'Add a verse to pin it.'), { indent: true })
         : el(
             'ul',
             { class: 'sm-list sm-push-pinned', attrs: { 'aria-label': tr('memory.ui.settings.pinnedVerses', 'Pinned verses') } },
             view.passages.map((p) => {
               const id = nextId('sm-push-pin');
-              const box = el('input', { id, type: 'checkbox' }) as HTMLInputElement;
+              const box = el('input', { id, type: 'checkbox', class: 'kth-check__input' }) as HTMLInputElement;
               box.checked = pinned.has(p.id);
               box.addEventListener('change', () =>
                 update((s) => {
@@ -321,7 +320,9 @@ export function renderPushSettings(host: PanelHost, initial: PushSettingsView): 
                   s.pinnedPassageIds = [...set];
                 }),
               );
-              return el('li', { class: 'sm-radio-row' }, [box, el('label', { attrs: { for: id }, text: p.reference })]);
+              return el('li', {}, [
+                el('label', { class: 'kth-check', attrs: { for: id } }, [box, el('span', { class: 'kth-check__label', text: p.reference })]),
+              ]);
             }),
           );
     group.appendChild(picker);
@@ -365,24 +366,21 @@ function radioGroup(
   current: string,
   options: [string, string][],
   onChange: (value: string) => void,
+  hintText?: string,
 ): HTMLElement {
-  const group = nextId(`sm-push-${name}`);
-  return el('fieldset', { class: 'sm-push-group sm-radio-group' }, [
-    el('legend', { class: 'sm-push-legend', text: legend }),
-    ...options.map(([value, label]) => {
-      const id = `${group}-${value}`;
-      const input = el('input', { id, type: 'radio', attrs: { name: group, value } }) as HTMLInputElement;
-      input.checked = current === value;
-      input.addEventListener('change', () => {
-        if (input.checked) onChange(value);
-      });
-      return el('div', { class: 'sm-radio-row' }, [input, el('label', { attrs: { for: id }, text: label })]);
-    }),
-  ]);
+  return radioField({
+    legend,
+    name: nextId(`sm-push-${name}`),
+    current,
+    options: options.map(([value, label]) => ({ value, label })),
+    onChange,
+    class: 'sm-push-group',
+    ...(hintText ? { hint: hintText } : {}),
+  });
 }
 
 function timeInput(label: string, value: string, onChange: (v: string) => void): HTMLInputElement {
-  const input = el('input', { type: 'time', class: 'sm-input sm-push-time', attrs: { 'aria-label': label } }) as HTMLInputElement;
+  const input = el('input', { type: 'time', class: 'kth-input sm-push-time', attrs: { 'aria-label': label } }) as HTMLInputElement;
   input.value = value;
   input.addEventListener('change', () => {
     if (/^([01]\d|2[0-3]):[0-5]\d$/.test(input.value)) onChange(input.value);
@@ -399,7 +397,7 @@ function numberInput(
 ): HTMLInputElement {
   const input = el('input', {
     type: 'number',
-    class: 'sm-input sm-push-number',
+    class: 'kth-input sm-push-number',
     attrs: { 'aria-label': label, min: String(min), max: String(max) },
   }) as HTMLInputElement;
   input.value = String(value);
