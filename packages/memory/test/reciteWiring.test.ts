@@ -74,10 +74,10 @@ describe('nav state for recite', () => {
     expect(s.view).toEqual({ name: 'verse', passageId: 4 });
   });
 
-  it('a resume from Today returns to Today; a second run keeps the return target', () => {
+  it('a resume from Home returns to Home; a second run keeps the return target', () => {
     let s = navReduce(INITIAL_NAV, { type: 'reciteStarted', reciteId: 'a', mode: 'handsfree' });
     s = navReduce(s, { type: 'reciteStarted', reciteId: 'b', mode: 'handsfree' });
-    expect(navReduce(s, { type: 'reciteEnded' }).view).toEqual({ name: 'today' });
+    expect(navReduce(s, { type: 'reciteEnded' }).view).toEqual({ name: 'home' });
     expect(sameView({ name: 'recite', reciteId: 'a', mode: 'tap' }, { name: 'recite', reciteId: 'b', mode: 'tap' })).toBe(false);
   });
 });

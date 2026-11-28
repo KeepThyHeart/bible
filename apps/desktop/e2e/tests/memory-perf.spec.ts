@@ -2,14 +2,15 @@
  * Memory performance E2E (task 0219, design-r2 section 1c, subtask P0). Skipped unless `MEMORY_PERF=1`.
  *
  * Seeds 300 verses over the module bridge (ranges of John 3 and Psalm 23 from the committed fixture),
- * practices 40 of them through the API, then cycles Today > My verses > Lists > Progress > Settings >
- * My verses five times, opens three verse pages, starts practice from Today twice, changes the List filter
- * five times and leaves and reopens Memory twice. The UI's own marks (`packages/memory/src/ui/perf.ts`) do
- * the timing: `memory:screen:<name>` measures, and `window.__memoryPerf` (requests, long tasks).
+ * practices 40 of them through the API, then cycles the tabs Home > Practice > My verses > Settings (whose
+ * first section is Lists) > My verses five times, opens three verse pages, starts practice from the Practice
+ * tab twice, changes the List filter five times and leaves and reopens Memory (which opens on Home) twice.
+ * The UI's own marks (`packages/memory/src/ui/perf.ts`) do the timing: `memory:screen:<view name>` measures
+ * (home, queue, verses, settings, verse, practice), and `window.__memoryPerf` (requests, long tasks).
  *
  * It prints one table (median and p95 per screen, requests per switch, long tasks). Set `MEMORY_PERF_OUT`
- * to also write the numbers as JSON. Before the fixes the Lists step is skipped (there is no Lists tab yet);
- * with `MEMORY_PERF_AFTER=1` it asserts p95 under 100 ms and 0 requests per tab switch after the first load.
+ * to also write the numbers as JSON. With `MEMORY_PERF_AFTER=1` it asserts p95 under 100 ms and 0 requests
+ * per tab switch after the first load (Settings excepted).
  */
 
 import { writeFileSync } from 'node:fs';
@@ -153,21 +154,21 @@ test.describe('Memory performance', () => {
     // --- measure ------------------------------------------------------------------------------
     const samples: Sample[] = [];
     let mem = await openMemory(window);
-    await expect(mem.locator('h1.sm-today-title, h1.sm-screen-title').first()).toBeVisible();
+    // The screen's h2 (visually hidden on Home); the page h1 is drawn before the data lands.
+    await expect(mem.locator('h2.sm-screen-title').first()).toBeAttached();
     await window.evaluate(() => performance.clearMeasures());
 
     const tab = (name: string) => mem.getByRole('tab', { name, exact: true });
-    const hasLists = (await tab('Lists').count()) > 0;
+    // [tab label, `memory:screen:` view name, action]; the Practice tab's view is `queue`.
     const steps: Array<[string, string, () => Promise<void>]> = [
-      ['Today', 'today', () => tab('Today').click()],
+      ['Home', 'home', () => tab('Home').click()],
+      ['Practice', 'queue', () => tab('Practice').click()],
       ['My verses', 'verses', () => tab('My verses').click()],
-      ...(hasLists ? ([['Lists', 'lists', () => tab('Lists').click()]] as Array<[string, string, () => Promise<void>]>) : []),
-      ['Progress', 'progress', () => tab('Progress').click()],
-      ['Settings', 'settings', () => mem.getByRole('button', { name: 'Settings', exact: true }).click()],
+      ['Settings', 'settings', () => tab('Settings').click()],
       ['My verses', 'verses', () => tab('My verses').click()],
     ];
-    // Leave the tab we start on, so the first click of the cycle is a real switch.
-    await tab('Progress').click();
+    // Leave the tab we start on (Home), so the first click of the cycle is a real switch.
+    await tab('Settings').click();
     for (let cycle = 0; cycle < CYCLES; cycle++) {
       for (const [label, screen, action] of steps) {
         const s = await timed(window, `cycle ${label}`, screen, action);
@@ -178,15 +179,15 @@ test.describe('Memory performance', () => {
     // Verse pages: open three from My verses, close each.
     await tab('My verses').click();
     for (let i = 0; i < 3; i++) {
-      const open = mem.locator('.sm-verse-row').nth(i * 7).getByRole('button', { name: /^Open / });
+      const open = mem.locator('tbody tr.sm-verse-row').nth(i * 7).locator('button.sm-verse-ref');
       samples.push(await timed(window, 'verse page', 'verse', () => open.click()));
       const back = mem.locator('button.kth-back');
       await timed(window, 'back to My verses', 'verses', () => back.click());
     }
 
-    // Practice from Today, twice (Escape ends it).
+    // Practice from the Practice tab, twice (Escape ends it).
     for (let i = 0; i < 2; i++) {
-      await tab('Today').click();
+      await tab('Practice').click();
       const start = mem.getByRole('button', { name: /^(Start|Continue)$/ }).first();
       if ((await start.count()) === 0) break;
       const before = await read(window, 'practice');
@@ -197,7 +198,7 @@ test.describe('Memory performance', () => {
       await window.keyboard.press('Escape');
     }
 
-    // List filter, five changes (a select once R2-10 is in; chips before).
+    // List filter, five changes.
     await tab('My verses').click();
     const filter = mem.locator('select#sm-verses-list');
     if ((await filter.count()) > 0) {
@@ -208,15 +209,15 @@ test.describe('Memory performance', () => {
       }
     }
 
-    // Leave and reopen Memory twice.
+    // Leave and reopen Memory twice (it opens on Home).
     for (let i = 0; i < 2; i++) {
       await closeMemory(window);
-      const before = await read(window, 'today');
+      const before = await read(window, 'home');
       const t0 = Date.now();
       mem = await openMemory(window);
       const wall = Date.now() - t0;
-      const after = await read(window, 'today');
-      samples.push({ step: 'reopen Memory', screen: 'today', ms: after.ms >= 0 ? after.ms : wall, requests: after.requests - before.requests, longTasks: after.longTasks - before.longTasks, longTaskMaxMs: after.longTaskMaxMs });
+      const after = await read(window, 'home');
+      samples.push({ step: 'reopen Memory', screen: 'home', ms: after.ms >= 0 ? after.ms : wall, requests: after.requests - before.requests, longTasks: after.longTasks - before.longTasks, longTaskMaxMs: after.longTaskMaxMs });
     }
 
     // --- report -------------------------------------------------------------------------------
@@ -235,12 +236,12 @@ test.describe('Memory performance', () => {
     for (const r of rows) lines.push(`| ${r.name} | ${r.n} | ${r.medianMs.toFixed(0)} | ${r.p95Ms.toFixed(0)} | ${r.requestsPerSwitch.toFixed(1)} | ${r.longTasks} | ${r.longTaskMaxMs.toFixed(0)} |`);
     // eslint-disable-next-line no-console
     console.log(`\n${lines.join('\n')}\n`);
-    if (OUT) writeFileSync(OUT, JSON.stringify({ verses: TOTAL_VERSES, practiced: PRACTICED, listsTab: hasLists, rows, samples }, null, 2));
+    if (OUT) writeFileSync(OUT, JSON.stringify({ verses: TOTAL_VERSES, practiced: PRACTICED, rows, samples }, null, 2));
 
     if (AFTER) {
       for (const r of rows.filter((x) => x.name.startsWith('cycle '))) {
         expect(r.p95Ms, `${r.name} p95`).toBeLessThan(100);
-        // Settings is not a tab: it reads fresh settings on purpose. The speech probe is counted separately as background work.
+        // Settings reads fresh settings on purpose. The speech probe is counted separately as background work.
         if (!r.name.startsWith('cycle Settings')) expect(r.requestsPerSwitch, `${r.name} requests per switch`).toBe(0);
       }
     }

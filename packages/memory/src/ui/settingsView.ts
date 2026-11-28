@@ -1,6 +1,7 @@
 /**
- * Settings (A8): Answering, Recite aloud, Reminders, and a look at which
- * verses have overridden the answer mode.
+ * Settings tab (A8): the Lists section (drawn by `listsView.ts`, handed in by mount), then Answering,
+ * Recite aloud, Reminders, and a look at which verses have overridden the answer mode. No screen
+ * title of its own (the tab names it): the first section heading is the focus target.
  *
  * Task 0004's review chose a Settings screen inside the panel over the host's
  * Preferences (`contributes.configuration`) specifically because it sits next
@@ -14,7 +15,6 @@ import type { PushSettingsView } from '../core/pushTypes';
 import { renderPushSettings } from './pushSettingsView';
 import { button, el } from './dom';
 import { modal } from './components';
-import { focusedHeader } from './shell';
 import type { PanelHost } from './host';
 import type { MemoryImportResult, MemoryImportStatus } from '../core/api';
 import { tr } from './i18n';
@@ -25,15 +25,10 @@ export function renderSettings(
   plan: PlanView,
   push: PushSettingsView | null = null,
   legacy: LegacyImportControl | null = null,
+  lists: HTMLElement | null = null,
 ): HTMLElement {
   const root = el('section', { class: 'sm-screen sm-screen-settings' });
-
-  root.appendChild(
-    focusedHeader({
-      title: tr('memory.ui.settings.settings', 'Settings'),
-      onClose: () => host.go({ type: 'goTab', tab: 'today' }),
-    }),
-  );
+  if (lists) root.appendChild(lists);
 
   root.appendChild(
     el('section', { class: 'sm-block' }, [

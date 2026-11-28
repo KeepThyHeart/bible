@@ -25,6 +25,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   applicableRungs,
+  MIN_VERSES_FOR_ORDERING,
   firstRungFor,
   isActivitySatisfied,
   levelForActivity,
@@ -57,10 +58,19 @@ describe('applicableRungs - which ladder this material is on', () => {
   it('puts a multi-verse passage on the ordering ladder', () => {
     // "Which verse comes next" is the cheapest test of the thing that breaks
     // first in a half-learned passage: not the words, the ORDER. Any passage
-    // with more than one verse has an order, so it gets that rung regardless
-    // of how many siblings it has.
+    // of three or more verses gets that rung regardless of how many siblings it has.
     expect(applicableRungs(3, 1)).toEqual(['ordering', 'blanks', 'firstletters']);
     expect(applicableRungs(3, 5)).toEqual(['ordering', 'blanks', 'firstletters']);
+  });
+
+  it('keeps a two-verse passage off ordering (verse 1 is given, verse 2 is placed: no question)', () => {
+    expect(MIN_VERSES_FOR_ORDERING).toBe(3);
+    expect(applicableRungs(2, 1)).toEqual(['blanks', 'firstletters']);
+    expect(applicableRungs(2, 5)).not.toContain('ordering');
+    expect(firstRungFor(2, 1)).toBe('blanks');
+    // The card still exists (history hangs on it), it is just not offered.
+    expect(materialRungs(2)).toContain('ordering');
+    expect(applicableRungs(3, 1)[0]).toBe('ordering');
   });
 
   it('offers the reference activities only once the scope is big enough', () => {

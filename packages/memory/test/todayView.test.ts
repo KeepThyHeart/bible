@@ -7,7 +7,6 @@ import type { PanelHost } from '../src/ui/host';
 import type { Flow, NavAction } from '../src/ui/state';
 import { WordMeasurer } from '../src/ui/measure';
 import { renderToday } from '../src/ui/todayView';
-import { SUGGESTED_LISTS } from '../src/core/suggestedLists';
 
 const HOUR = 3_600_000;
 const DAY = 24 * HOUR;
@@ -91,13 +90,13 @@ function mount(p: PlanView, extras = {}) {
 describe('Today: A1', () => {
   const p = () => plan([due(1, 'Psalm 23'), due(2, 'John 3:16', 'firstletters'), fresh(3, 'Romans 6:23')]);
 
-  it('has one h1, the counts, one Start button and an Up next list', () => {
+  it('has one h2 "Practice" (no h1: the shell has it), the counts, one Start button and an Up next list', () => {
     const root = mount(p());
-    expect(root.querySelectorAll('h1').length).toBe(1);
-    expect(text(root.querySelector('h1')!)).toBe('Today');
+    expect(root.querySelectorAll('h1').length).toBe(0);
+    expect(text(root.querySelector('h2')!)).toBe('Practice');
     expect(text(root)).toContain('2 to review, 1 new');
     expect(buttons(root).filter((b) => b.classList.contains('sm-btn-primary')).map(text)).toEqual(['Start']);
-    expect(text(root.querySelector('h2')!)).toBe('Up next');
+    expect(text(root.querySelector('h3')!)).toBe('Up next');
     expect(root.querySelectorAll('.sm-today-item').length).toBe(3);
     expect(text(root)).toContain('Review · Fill in the blanks');
     expect(text(root)).toContain('New · Put in order');
@@ -188,7 +187,7 @@ describe('Today: A2 done', () => {
 
   it('says Done for today with upcoming reviews and Practice anyway', () => {
     const root = mount(donePlan());
-    expect(text(root.querySelector('h1')!)).toBe('Done for today');
+    expect(text(root.querySelector('h2')!)).toBe('Done for today');
     expect(text(root)).toMatch(/Next review .*: 2 verses/);
     expect(byLabel(root, 'Learn a new verse')).toBeUndefined();
     byLabel(root, 'Practice anyway')!.click();
@@ -208,14 +207,16 @@ describe('Today: A2 done', () => {
 });
 
 describe('Today: A3 first open', () => {
-  it('shows the welcome, the reference field, starter chips and the Bible hint', () => {
+  it('shows the welcome, the reference field, Browse starter sets and the Bible hint', () => {
     host.activeReference = 'John 3:16';
     const root = mount(plan([]));
-    expect(text(root.querySelector('h1')!)).toBe('Learn Scripture by heart');
+    expect(text(root.querySelector('h2')!)).toBe('Learn Scripture by heart');
     expect(root.querySelector<HTMLInputElement>('#sm-add-reference')).not.toBeNull();
     expect(byLabel(root, 'Add and start')).toBeDefined();
-    expect(text(root)).toContain('Or start with a set:');
-    expect(root.querySelectorAll('.sm-chip').length).toBe(SUGGESTED_LISTS.length);
+    expect(text(root)).not.toContain('Or start with a set:');
+    expect(root.querySelector('.sm-chip')).toBeNull();
+    byLabel(root, 'Browse starter sets')!.click();
+    expect(host.navigations).toContainEqual({ type: 'goStarters' });
     expect(text(root)).toContain('right-click any verse in the Bible and choose Memorize');
   });
 
@@ -257,22 +258,6 @@ describe('Today: A3 first open', () => {
     expect(text(root.querySelector('[role="alert"]')!)).toContain('Type a reference first');
     expect(host.requests).toEqual([]);
   });
-
-  it('a starter chip creates the list and adds its verses into it without switching scope', async () => {
-    host.handlers.createList = (r) => ({ ok: true, data: { lists: [{ id: 5, name: r.name, passageCount: 0, verseCount: 0 }] } });
-    host.handlers.addPassage = () => ({ ok: true, data: { passage: { id: 1 }, existed: false } });
-    const root = mount(plan([]));
-    const set = SUGGESTED_LISTS[0]!;
-    (root.querySelector('.sm-chip') as HTMLButtonElement).click();
-    await settle();
-    await settle();
-    expect(host.requests[0]).toMatchObject({ type: 'createList', name: set.name });
-    const adds = host.requests.filter((r) => r.type === 'addPassage');
-    expect(adds.length).toBe(set.references.length);
-    expect(adds.every((r: any) => r.collectionId === 5)).toBe(true);
-    expect(host.requests.some((r) => r.type === 'setScope')).toBe(false);
-    expect(host.reloads).toBe(1);
-  });
 });
 
 describe('Today: empty focus', () => {
@@ -280,53 +265,21 @@ describe('Today: empty focus', () => {
     const p = plan([], { scope: 2, lists: [{ id: 1, name: 'Default', passageCount: 3, verseCount: 3 }, { id: 2, name: 'Kids', passageCount: 0, verseCount: 0 }] });
     host.handlers.setScope = () => ({ ok: true, data: p });
     const root = mount(p);
-    expect(text(root.querySelector('h1')!)).toBe('No verses in Kids yet');
+    expect(text(root.querySelector('h2')!)).toBe('No verses in Kids yet');
     expect(root.querySelector('#sm-add-reference')).not.toBeNull();
     byLabel(root, 'Practice from all lists')!.click();
     await settle();
     expect(host.requests[0]).toMatchObject({ type: 'setScope', scope: { kind: 'all' } });
     expect(host.reloads).toBe(1);
-    expect(host.announcements).toContain('Today now follows all your lists.');
+    expect(host.announcements).toContain('Practice now follows all your lists.');
   });
 });
 
-describe('Today: extra rows', () => {
-  it('shows reminders and sends Review to the card view', () => {
-    const root = mount(plan([due(1, 'Psalm 23')]), { reminders: { waiting: 2 } });
-    expect(text(root)).toContain('2 reminders waiting');
-    byLabel(root, 'Review')!.click();
-    expect(host.navigations).toContainEqual({ type: 'goCard' });
-  });
-
-  it('hides the reminders row at zero', () => {
-    const root = mount(plan([due(1, 'Psalm 23')]), { reminders: { waiting: 0 } });
+describe('Today: rows that moved to Home', () => {
+  it('shows no reminders or just-added row (they are on Home now)', () => {
+    const root = mount(plan([due(1, 'Psalm 23')]), { reminders: { waiting: 2 }, justAdded: { passageId: 9, reference: 'John 3:16' } });
     expect(text(root)).not.toContain('reminder');
-  });
-
-  it('shows the Added row and Practice now starts that verse', () => {
-    const root = mount(plan([due(1, 'Psalm 23')]), { justAdded: { passageId: 9, reference: 'John 3:16' } });
-    expect(text(root)).toContain('Added John 3:16 to Memory.');
-    byLabel(root, 'Practice now')!.click();
-    expect(host.sessions[0]!.passageId).toBe(9);
-  });
-
-  it('words the row by the add outcome and still offers Practice now', () => {
-    const cases = [
-      ['added', 'Added John 3:16 to Memory.'],
-      ['revived', 'Restored John 3:16 to Memory.'],
-      ['exists', 'John 3:16 is already in Memory.'],
-    ] as const;
-    for (const [outcome, expected] of cases) {
-      const root = mount(plan([due(1, 'Psalm 23')]), { justAdded: { passageId: 9, reference: 'John 3:16', outcome } });
-      expect(text(root.querySelector('.sm-today-offer-text')!)).toBe(expected);
-      byLabel(root, 'Practice now')!.click();
-    }
-    expect(host.sessions.map((s) => s.passageId)).toEqual([9, 9, 9]);
-  });
-
-  it('shows the Added row on the empty first-open screen too', () => {
-    const root = mount(plan([]), { justAdded: { passageId: 9, reference: 'John 3:16' } });
-    expect(byLabel(root, 'Practice now')).toBeDefined();
+    expect(text(root)).not.toContain('Added John 3:16');
   });
 });
 
@@ -426,7 +379,7 @@ describe('Today: streak and Practice anyway (review items 8, 12)', () => {
 
   it('startedToday from extras lowers the new-verse cap', () => {
     const root = mount(plan([fresh(1), fresh(2)]), { startedToday: 3 });
-    expect(text(root.querySelector('h1')!)).toBe('Done for today');
+    expect(text(root.querySelector('h2')!)).toBe('Done for today');
     expect(byLabel(root, 'Learn a new verse')).toBeDefined();
   });
 });

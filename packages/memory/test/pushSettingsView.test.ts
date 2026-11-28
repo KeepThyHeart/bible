@@ -256,10 +256,9 @@ describe('push settings', () => {
     expect(withIt.textContent).not.toContain('Memory cards');
   });
 
-  it('settings header closes back to Today', () => {
+  it('settings is a tab screen: no page heading and no close button', () => {
     const root = renderSettings(host as unknown as PanelHost, { defaultAnswerMode: 'firstLetter' }, { passages: [] } as never);
-    expect(root.querySelector('h1')!.textContent).toBe('Settings');
-    root.querySelector<HTMLButtonElement>('.sm-focused-close')!.click();
-    expect(host.navigations).toContainEqual({ type: 'goTab', tab: 'today' });
+    expect(root.querySelector('h1')).toBeNull();
+    expect(root.querySelector('.sm-focused-close')).toBeNull();
   });
 });

@@ -197,7 +197,7 @@ export function deleteList(host: PanelHost, list: ListSummary, lists: ListSummar
   });
 }
 
-/** Makes Today follow this list (the persisted scope), or clears it back to all lists. */
+/** Makes Practice follow this list (the persisted scope), or clears it back to all lists. */
 export function setFocus(host: PanelHost, list: ListSummary | null): Promise<void> {
   return host.request({ type: 'setScope', scope: list ? { kind: 'list', id: list.id } : { kind: 'all' } }).then((reply) => {
     if (!reply.ok) {
@@ -206,33 +206,33 @@ export function setFocus(host: PanelHost, list: ListSummary | null): Promise<voi
     }
     host.announce(
       list
-        ? tr('memory.ui.verses.focusSet', 'Today now follows {name}.', { name: list.name })
-        : tr('memory.ui.verses.focusCleared', 'Today now follows all your lists.'),
+        ? tr('memory.ui.lists.focusSet', 'Practice now follows {name}.', { name: list.name })
+        : tr('memory.ui.lists.focusCleared', 'Practice now follows all your lists.'),
     );
     host.reload();
   });
 }
 
-/** The small menu of a list chip. `focused` = Today currently follows this list. */
+/** The small menu of a list chip. `focused` = Practice currently follows this list. */
 export function listMenuItems(host: PanelHost, list: ListSummary, lists: ListSummary[], focused: boolean): MenuItem[] {
   return [
     focused
       ? { label: tr('memory.ui.verses.clearFocus', 'Clear focus'), onClick: () => void setFocus(host, null) }
-      : { label: tr('memory.ui.verses.focusOnList', 'Focus Today on this list'), onClick: () => void setFocus(host, list) },
+      : { label: tr('memory.ui.lists.focusOnList', 'Focus Practice on this list'), onClick: () => void setFocus(host, list) },
     { label: tr('memory.ui.verses.rename', 'Rename'), onClick: () => renameList(host, list) },
     { label: tr('memory.ui.verses.deleteList', 'Delete'), onClick: () => deleteList(host, list, lists) },
   ];
 }
 
 /**
- * The menu of a row on the Lists tab (design-r2 4b/4e): the Today focus item first, then Rename and
- * Delete. `focused` = Today currently follows this list.
+ * The menu of a row in the Lists section (design-r2 4b/4e): the Practice focus item first, then Rename and
+ * Delete. `focused` = Practice currently follows this list.
  */
 export function listRowMenuItems(host: PanelHost, list: ListSummary, lists: ListSummary[], focused: boolean): MenuItem[] {
   return [
     focused
-      ? { label: tr('memory.ui.lists.practiceAll', 'Practice all lists on Today'), onClick: () => void setFocus(host, null) }
-      : { label: tr('memory.ui.lists.practiceOnly', 'Practice only this list on Today'), onClick: () => void setFocus(host, list) },
+      ? { label: tr('memory.ui.today.showAllLists', 'Practice from all lists'), onClick: () => void setFocus(host, null) }
+      : { label: tr('memory.ui.lists.practiceOnlyList', 'Practice only this list'), onClick: () => void setFocus(host, list) },
     { label: tr('memory.ui.verses.rename', 'Rename'), onClick: () => renameList(host, list) },
     { label: tr('memory.ui.verses.deleteList', 'Delete'), onClick: () => deleteList(host, list, lists) },
   ];

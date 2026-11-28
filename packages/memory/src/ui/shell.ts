@@ -1,14 +1,17 @@
 /**
- * The app shell: the tab bar (Today, My verses, Lists, Progress) with the settings
- * gear, and the focus chip. Also the header of the focused screens (practice,
- * verse page, reminder cards, recite), which have a close button and no tabs.
+ * The app shell: the same frame as `@bible/ui` `AppPage` (title row, tab bar, tab panel), built from the
+ * shared `.kth-app-page*` / `.kth-tabs*` classes so Memory lines up with the other apps (start edge,
+ * reading-width cap). Tabs: Home, Practice, My verses, Settings. The shell is built once per mount and
+ * stays put; every screen, practice and recite included, is drawn inside its panel, so the tab bar never
+ * goes away and the panel's scroll position survives a redraw of the same screen.
  *
- * The tab bar is a real `tablist`: arrows move focus (`attachTabKeys`), Enter or
- * a click selects, and only the selected tab is in the page's Tab order.
+ * The tab bar is a real `tablist`: arrows move focus (`attachTabKeys`), Enter or a click selects, and only
+ * the selected tab is in the page's Tab order. Also the header of opened screens (practice, verse page,
+ * reminder cards, recite): a close button and the screen's h2.
  */
 
 import type { PlanView } from '../core/types';
-import { append, button, el } from './dom';
+import { append, button, clear, el } from './dom';
 import { attachTabKeys } from './components';
 import type { PanelHost } from './host';
 import { setFocus } from './listActions';
@@ -16,37 +19,47 @@ import { tr } from './i18n';
 import type { Tab } from './state';
 import './styles/shell.css';
 
-const TABS: readonly Tab[] = ['today', 'verses', 'lists', 'progress'];
-
-/** R2-13 layout variants, switched by `data-layout` on the shell root. */
-export type ShellLayout = 'column' | 'start' | 'rail';
-export const SHELL_LAYOUTS: readonly ShellLayout[] = ['column', 'start', 'rail'];
-export const DEFAULT_SHELL_LAYOUT: ShellLayout = 'column';
-
-/** Narrows any string (an option, a `data-sm-layout` value) to a layout; unknown values give the default. */
-export function resolveLayout(value: string | null | undefined): ShellLayout {
-  return (SHELL_LAYOUTS as readonly string[]).includes(value ?? '') ? (value as ShellLayout) : DEFAULT_SHELL_LAYOUT;
-}
-
-export interface ShellOptions {
-  /** Layout variant; mount passes `MemoryUiOptions.shellLayout ?? container.dataset.smLayout`. Default 'column'. */
-  layout?: ShellLayout | string | null;
-}
+export const TABS: readonly Tab[] = ['home', 'practice', 'verses', 'settings'];
 
 export const TAB_PANEL_ID = 'sm-tabpanel';
 export const tabId = (tab: Tab): string => `sm-tab-${tab}`;
 
-function tabLabel(tab: Tab): string {
+export function tabLabel(tab: Tab): string {
   switch (tab) {
-    case 'today':
-      return tr('memory.ui.shell.tabToday', 'Today');
+    case 'home':
+      return tr('memory.ui.shell.tabHome', 'Home');
+    case 'practice':
+      return tr('memory.ui.shell.tabPractice', 'Practice');
     case 'verses':
       return tr('memory.ui.shell.tabVerses', 'My verses');
-    case 'lists':
-      return tr('memory.ui.shell.tabLists', 'Lists');
     default:
-      return tr('memory.ui.shell.tabProgress', 'Progress');
+      return tr('memory.ui.shell.tabSettings', 'Settings');
   }
+}
+
+/** A button the host puts at the end of the title row (desktop: "Back to Study"). */
+export interface ShellAction {
+  label: string;
+  onClick(): void;
+}
+
+export interface ShellOptions {
+  /** The page heading; default "Memory". */
+  title?: string;
+  actions?: readonly ShellAction[];
+}
+
+export interface Shell {
+  /** `div.kth-app-page`: the scroller. */
+  readonly root: HTMLElement;
+  /** The tab panel every screen is drawn into. */
+  readonly panel: HTMLElement;
+  /** Selects `tab` (aria-selected, roving tabindex, the panel's label). */
+  setTab(tab: Tab): void;
+  /** The focus chip above the panel (the Practice focus); null removes it. */
+  setChip(plan: PlanView | null): void;
+  /** Replaces the panel's content; null leaves it empty and `aria-busy` (data still loading). */
+  setContent(content: HTMLElement | null): void;
 }
 
 /** The name of the list the focus is on, for the chip. */
@@ -55,101 +68,80 @@ function focusName(plan: PlanView): string {
   return plan.lists.find((l) => l.id === plan.scope)?.name ?? plan.collectionName;
 }
 
-/**
- * Wraps a tab view (or settings) in the tab bar. `tab` is `'settings'` when the
- * gear's screen is showing: no tab is selected then and the gear is `aria-current`.
- * `plan` feeds the focus chip (Today only); pass null to omit it. `content` null
- * draws the shell at once with an empty, `aria-busy` panel (data still loading).
- */
-export function appShell(
-  host: PanelHost,
-  tab: Tab | 'settings',
-  plan: PlanView | null,
-  content: HTMLElement | null,
-  options: ShellOptions = {},
-): HTMLElement {
-  const layout = resolveLayout(options.layout);
-  const onSettings = tab === 'settings';
-
-  const tabButtons = TABS.map((t, i) => {
-    const selected = t === tab;
-    return button(
-      tabLabel(t),
-      () => host.go({ type: 'goTab', tab: t }),
-      {
-        id: tabId(t),
-        class: 'sm-shell-tab',
-        attrs: {
-          role: 'tab',
-          'aria-selected': String(selected),
-          'aria-controls': TAB_PANEL_ID,
-          // Roving tabindex; with no tab selected (settings) the first one is the stop.
-          tabindex: selected || (onSettings && i === 0) ? '0' : '-1',
-        },
-      },
-    );
-  });
+export function createShell(host: PanelHost, options: ShellOptions = {}): Shell {
+  let current: Tab = 'home';
+  const tabButtons = TABS.map((t) =>
+    button(tabLabel(t), () => host.go({ type: 'goTab', tab: t }), {
+      id: tabId(t),
+      class: 'kth-tabs__tab sm-shell-tab',
+      attrs: { role: 'tab', 'aria-selected': 'false', 'aria-controls': TAB_PANEL_ID, tabindex: '-1' },
+    }),
+  );
   const list = el('div', {
-    class: 'sm-shell-tabs',
+    class: 'kth-tabs kth-app-page__tabs sm-shell-tabs',
     attrs: { role: 'tablist', 'aria-label': tr('memory.ui.shell.tabsLabel', 'Memory') },
   });
   append(list, tabButtons);
-  if (layout === 'rail') list.setAttribute('aria-orientation', 'vertical');
   attachTabKeys(list, tabButtons);
-  // The rail is vertical, so Up/Down move between tabs too (like Left/Right).
-  list.addEventListener('keydown', (ev) => {
-    if (ev.key !== 'ArrowUp' && ev.key !== 'ArrowDown') return;
-    const current = tabButtons.indexOf(document.activeElement as HTMLButtonElement);
-    if (current < 0) return;
-    ev.preventDefault();
-    const target = (current + (ev.key === 'ArrowDown' ? 1 : tabButtons.length - 1)) % tabButtons.length;
-    tabButtons.forEach((t, i) => {
-      t.tabIndex = i === target ? 0 : -1;
+
+  const title = options.title ?? tr('memory.ui.shell.title', 'Memory');
+  const actions = options.actions && options.actions.length > 0
+    ? el('div', { class: 'kth-app-page__actions' }, options.actions.map((a) => button(a.label, () => a.onClick(), { class: 'kth-btn' })))
+    : null;
+
+  const panel = el('div', { id: TAB_PANEL_ID, class: 'kth-app-page__body sm-shell-panel', attrs: { role: 'tabpanel' } });
+  const chipSlot = el('div', { class: 'sm-shell-chip-slot' });
+
+  const root = el('div', { class: 'kth-app-page sm-shell' }, [
+    el('div', { class: 'kth-app-page__column' }, [
+      el('div', { class: 'kth-app-page__header' }, [
+        // tabindex -1: the host moves focus here when the app opens.
+        el('h1', { class: 'kth-app-page__title', text: title, attrs: { tabindex: '-1' } }),
+        actions,
+      ]),
+      list,
+      chipSlot,
+      panel,
+    ]),
+  ]);
+
+  function setTab(tab: Tab): void {
+    current = tab;
+    tabButtons.forEach((b, i) => {
+      const on = TABS[i] === tab;
+      b.setAttribute('aria-selected', String(on));
+      b.tabIndex = on ? 0 : -1;
     });
-    tabButtons[target]?.focus();
-  });
-
-  const gearLabel = tr('memory.ui.shell.settings', 'Settings');
-  const gear = button('⚙', () => host.go({ type: 'goSettings' }), {
-    class: 'sm-shell-gear',
-    title: gearLabel,
-    attrs: { 'aria-label': gearLabel, ...(onSettings ? { 'aria-current': 'page' } : {}) },
-  });
-
-  const panel = el(
-    'div',
-    {
-      id: TAB_PANEL_ID,
-      class: 'sm-shell-panel',
-      attrs: {
-        role: 'tabpanel',
-        ...(content === null ? { 'aria-busy': 'true' } : {}),
-        ...(onSettings ? { 'aria-label': gearLabel } : { 'aria-labelledby': tabId(tab as Tab) }),
-      },
-    },
-    content ? [content] : [],
-  );
-
-  const showChip = plan !== null && plan.scope !== 'all' && tab === 'today';
-  let chip: HTMLElement | null = null;
-  if (showChip && plan !== null) {
-    const clearLabel = tr('memory.ui.shell.clearFocus', 'Clear focus');
-    chip = el('div', { class: 'sm-shell-chip' }, [
-      el('span', { text: tr('memory.ui.shell.focusChip', 'Focus: {name}', { name: focusName(plan) }) }),
-      button('×', () => void setFocus(host, null), { class: 'sm-shell-chip-clear', title: clearLabel, attrs: { 'aria-label': clearLabel } }),
-    ]);
+    panel.setAttribute('aria-labelledby', tabId(tab));
   }
 
-  // The chip sits above the panel, in the content column.
-  // The root is the size container the rail falls back from (the panel's width, not the window's); the grid is inside it.
-  return el('div', { class: 'sm-shell', attrs: { 'data-layout': layout } }, [el('div', { class: 'sm-shell-grid' }, [
-    el('div', { class: 'sm-shell-bar' }, [list, gear]),
-    el('div', { class: 'sm-shell-main' }, [chip, panel]),
-  ])]);
+  function setChip(plan: PlanView | null): void {
+    clear(chipSlot);
+    if (plan === null || plan.scope === 'all') return;
+    const clearLabel = tr('memory.ui.shell.clearFocus', 'Clear focus');
+    chipSlot.appendChild(
+      el('div', { class: 'sm-shell-chip' }, [
+        el('span', { text: tr('memory.ui.shell.focusChip', 'Focus: {name}', { name: focusName(plan) }) }),
+        button('×', () => void setFocus(host, null), { class: 'sm-shell-chip-clear', title: clearLabel, attrs: { 'aria-label': clearLabel } }),
+      ]),
+    );
+  }
+
+  function setContent(content: HTMLElement | null): void {
+    clear(panel);
+    if (content === null) panel.setAttribute('aria-busy', 'true');
+    else {
+      panel.removeAttribute('aria-busy');
+      panel.appendChild(content);
+    }
+  }
+
+  setTab(current);
+  return { root, panel, setTab, setChip, setContent };
 }
 
 /**
- * Header of a focused screen: a close button, the title (the screen's h1, which
+ * Header of an opened screen: a close button, the title (the screen's h2, which
  * receives focus on arrival), and optional meta text and "..." menu.
  */
 export function focusedHeader(opts: {
@@ -169,7 +161,7 @@ export function focusedHeader(opts: {
           attrs: { 'aria-label': closeLabel },
         })
       : null,
-    el('h1', { class: 'sm-screen-title sm-focused-title', text: opts.title }),
+    el('h2', { class: 'sm-screen-title sm-focused-title', text: opts.title, attrs: { tabindex: '-1' } }),
     opts.meta ? el('div', { class: 'sm-focused-meta' }, [opts.meta]) : null,
     opts.menu ?? null,
   ]);

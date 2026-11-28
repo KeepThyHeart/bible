@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { PlanView } from '../src/core/types';
 import type { PanelHost } from '../src/ui/host';
-import { appShell, focusedHeader } from '../src/ui/shell';
+import { createShell, focusedHeader, tabId } from '../src/ui/shell';
 
 function host(over: Record<string, unknown> = {}) {
   return { go: vi.fn(), reload: vi.fn(), announce: vi.fn(), request: vi.fn(async () => ({ ok: true, data: {} })), fail: vi.fn(), ...over } as unknown as PanelHost & {
@@ -21,118 +21,113 @@ afterEach(() => {
   document.body.innerHTML = '';
 });
 
-describe('appShell', () => {
-  it('builds a tablist with roving tabindex and a labelled tabpanel', () => {
-    const root = appShell(host(), 'verses', null, document.createElement('p'));
-    document.body.appendChild(root);
+describe('createShell', () => {
+  it('is the shared app-page frame: h1 title, kth tabs, labelled tabpanel', () => {
+    const shell = createShell(host());
+    const root = shell.root;
+    expect(root.classList.contains('kth-app-page')).toBe(true);
+    expect(root.querySelector('.kth-app-page__column > .kth-app-page__header > h1.kth-app-page__title')!.textContent).toBe('Memory');
+    expect(root.querySelector('h1')!.getAttribute('tabindex')).toBe('-1');
+    const list = root.querySelector('[role="tablist"]')!;
+    expect(list.classList.contains('kth-tabs')).toBe(true);
     const tabs = [...root.querySelectorAll<HTMLButtonElement>('[role="tab"]')];
-    expect(tabs.map((t) => t.getAttribute('aria-selected'))).toEqual(['false', 'true', 'false', 'false']);
-    expect(tabs.map((t) => t.tabIndex)).toEqual([-1, 0, -1, -1]);
-    expect(tabs.map((t) => t.textContent)).toEqual(['Today', 'My verses', 'Lists', 'Progress']);
-    expect(root.querySelector('[role="tablist"]')).not.toBeNull();
-    expect(root.querySelector('[role="tabpanel"]')!.getAttribute('aria-labelledby')).toBe(tabs[1]!.id);
-    expect(root.querySelector('[role="tabpanel"] p')).not.toBeNull();
+    expect(tabs.map((t) => t.textContent)).toEqual(['Home', 'Practice', 'My verses', 'Settings']);
+    expect(tabs.every((t) => t.classList.contains('kth-tabs__tab'))).toBe(true);
+    expect(shell.panel.getAttribute('role')).toBe('tabpanel');
+    expect(shell.panel.classList.contains('kth-app-page__body')).toBe(true);
+    // Home is selected at first.
+    expect(tabs.map((t) => t.getAttribute('aria-selected'))).toEqual(['true', 'false', 'false', 'false']);
+    expect(shell.panel.getAttribute('aria-labelledby')).toBe(tabId('home'));
+    // No gear any more.
+    expect(root.querySelector('.sm-shell-gear')).toBeNull();
+  });
+
+  it('setTab moves aria-selected, the roving tabindex and the panel label', () => {
+    const shell = createShell(host());
+    shell.setTab('verses');
+    const tabs = [...shell.root.querySelectorAll<HTMLButtonElement>('[role="tab"]')];
+    expect(tabs.map((t) => t.getAttribute('aria-selected'))).toEqual(['false', 'false', 'true', 'false']);
+    expect(tabs.map((t) => t.tabIndex)).toEqual([-1, -1, 0, -1]);
+    expect(shell.panel.getAttribute('aria-labelledby')).toBe(tabs[2]!.id);
+  });
+
+  it('takes a title and actions for the title row', () => {
+    const onClick = vi.fn();
+    const shell = createShell(host(), { title: 'Scripture Memory', actions: [{ label: 'Back to Study', onClick }] });
+    expect(shell.root.querySelector('h1')!.textContent).toBe('Scripture Memory');
+    const btn = shell.root.querySelector<HTMLButtonElement>('.kth-app-page__actions button')!;
+    expect(btn.textContent).toBe('Back to Study');
+    btn.click();
+    expect(onClick).toHaveBeenCalled();
+    expect(createShell(host()).root.querySelector('.kth-app-page__actions')).toBeNull();
   });
 
   it('arrow keys move focus without selecting; click selects', () => {
     const h = host();
-    const root = appShell(h, 'today', null, document.createElement('div'));
-    document.body.appendChild(root);
-    const tabs = [...root.querySelectorAll<HTMLButtonElement>('[role="tab"]')];
+    const shell = createShell(h);
+    document.body.appendChild(shell.root);
+    const tabs = [...shell.root.querySelectorAll<HTMLButtonElement>('[role="tab"]')];
     tabs[0]!.focus();
     key(tabs[0]!, 'ArrowRight');
     expect(document.activeElement).toBe(tabs[1]);
     expect(h.go).not.toHaveBeenCalled();
-    tabs[1]!.click();
+    tabs[2]!.click();
     expect(h.go).toHaveBeenCalledWith({ type: 'goTab', tab: 'verses' });
+    tabs[3]!.click();
+    expect(h.go).toHaveBeenCalledWith({ type: 'goTab', tab: 'settings' });
   });
 
-  it('gear opens settings; on settings no tab is selected and the gear is current', () => {
-    const h = host();
-    const normal = appShell(h, 'today', null, document.createElement('div'));
-    normal.querySelector<HTMLElement>('.sm-shell-gear')!.click();
-    expect(h.go).toHaveBeenCalledWith({ type: 'goSettings' });
-    expect(normal.querySelector('.sm-shell-gear')!.hasAttribute('aria-current')).toBe(false);
-
-    const settings = appShell(h, 'settings', null, document.createElement('div'));
-    expect(settings.querySelector('.sm-shell-gear')!.getAttribute('aria-current')).toBe('page');
-    const tabs = [...settings.querySelectorAll<HTMLButtonElement>('[role="tab"]')];
-    expect(tabs.every((t) => t.getAttribute('aria-selected') === 'false')).toBe(true);
-    expect(tabs.filter((t) => t.tabIndex === 0)).toHaveLength(1);
+  it('setContent fills the panel; null leaves it empty and aria-busy', () => {
+    const shell = createShell(host());
+    shell.setContent(null);
+    expect(shell.panel.getAttribute('aria-busy')).toBe('true');
+    expect(shell.panel.children).toHaveLength(0);
+    const p = document.createElement('p');
+    shell.setContent(p);
+    expect(shell.panel.hasAttribute('aria-busy')).toBe(false);
+    expect(shell.panel.firstElementChild).toBe(p);
+    const q = document.createElement('p');
+    shell.setContent(q);
+    expect([...shell.panel.children]).toEqual([q]);
   });
 
-  it('shows the focus chip only for a scoped plan on Today', () => {
-    const c = document.createElement('div');
-    expect(appShell(host(), 'today', plan('all'), c).querySelector('.sm-shell-chip')).toBeNull();
-    expect(appShell(host(), 'progress', plan(3), c).querySelector('.sm-shell-chip')).toBeNull();
-    expect(appShell(host(), 'today', null, c).querySelector('.sm-shell-chip')).toBeNull();
-    expect(appShell(host(), 'verses', plan(3), c).querySelector('.sm-shell-chip')).toBeNull();
-    expect(appShell(host(), 'lists', plan(3), c).querySelector('.sm-shell-chip')).toBeNull();
-    const chip = appShell(host(), 'today', plan(3), c).querySelector('.sm-shell-chip')!;
-    expect(chip.textContent).toContain('Focus: Psalms');
+  it('the focus chip shows only for a scoped plan', () => {
+    const shell = createShell(host());
+    shell.setChip(plan('all'));
+    expect(shell.root.querySelector('.sm-shell-chip')).toBeNull();
+    shell.setChip(plan(3));
+    expect(shell.root.querySelector('.sm-shell-chip')!.textContent).toContain('Focus: Psalms');
+    shell.setChip(null);
+    expect(shell.root.querySelector('.sm-shell-chip')).toBeNull();
   });
 
   it('the chip clear button clears the focus like listActions.setFocus: scope all, announce, reload', async () => {
     const h = host();
-    const root = appShell(h, 'today', plan(3), document.createElement('div'));
-    root.querySelector<HTMLElement>('.sm-shell-chip-clear')!.click();
+    const shell = createShell(h);
+    shell.setChip(plan(3));
+    shell.root.querySelector<HTMLElement>('.sm-shell-chip-clear')!.click();
     await Promise.resolve();
     await Promise.resolve();
     expect(h.request).toHaveBeenCalledWith({ type: 'setScope', scope: { kind: 'all' } });
     expect(h.request).toHaveBeenCalledTimes(1);
-    expect(h.announce).toHaveBeenCalledWith('Today now follows all your lists.');
+    expect(h.announce).toHaveBeenCalledWith('Practice now follows all your lists.');
     expect(h.reload).toHaveBeenCalled();
   });
 
-  it('rail layout marks the tablist vertical; other layouts do not', () => {
-    const rail = appShell(host(), 'today', null, document.createElement('div'), { layout: 'rail' });
-    expect(rail.querySelector('[role="tablist"]')!.getAttribute('aria-orientation')).toBe('vertical');
-    const col = appShell(host(), 'today', null, document.createElement('div'));
-    expect(col.querySelector('[role="tablist"]')!.hasAttribute('aria-orientation')).toBe(false);
-  });
-
-  it('layout option sets data-layout; default column; unknown falls back', () => {
-    const c = document.createElement('div');
-    expect(appShell(host(), 'today', null, c).getAttribute('data-layout')).toBe('column');
-    expect(appShell(host(), 'today', null, c, { layout: 'start' }).getAttribute('data-layout')).toBe('start');
-    expect(appShell(host(), 'today', null, c, { layout: 'rail' }).getAttribute('data-layout')).toBe('rail');
-    expect(appShell(host(), 'today', null, c, { layout: 'bogus' }).getAttribute('data-layout')).toBe('column');
-  });
-
-  it('draws at once with aria-busy while the content is null', () => {
-    const root = appShell(host(), 'today', null, null);
-    const panel = root.querySelector('[role="tabpanel"]')!;
-    expect(panel.getAttribute('aria-busy')).toBe('true');
-    expect(panel.children).toHaveLength(0);
-    expect(root.querySelectorAll('[role="tab"]')).toHaveLength(4);
-    const done = appShell(host(), 'today', null, document.createElement('div'));
-    expect(done.querySelector('[role="tabpanel"]')!.hasAttribute('aria-busy')).toBe(false);
-  });
-
-  it('Up/Down also move focus between tabs (rail)', () => {
-    const root = appShell(host(), 'today', null, null, { layout: 'rail' });
-    document.body.appendChild(root);
-    const tabs = [...root.querySelectorAll<HTMLButtonElement>('[role="tab"]')];
-    tabs[0]!.focus();
-    key(tabs[0]!, 'ArrowDown');
-    expect(document.activeElement).toBe(tabs[1]);
-    key(tabs[1]!, 'ArrowUp');
-    expect(document.activeElement).toBe(tabs[0]);
-  });
-
   it('does not use a menu button or breadcrumbs', () => {
-    const root = appShell(host(), 'today', null, document.createElement('div'));
-    expect(root.querySelector('.sm-menu, nav[aria-label="Breadcrumb"]')).toBeNull();
+    const shell = createShell(host());
+    expect(shell.root.querySelector('.sm-menu, nav[aria-label="Breadcrumb"]')).toBeNull();
   });
 });
 
 describe('focusedHeader', () => {
-  it('has an h1 title and a labelled close button', () => {
+  it('has an h2 title and a labelled close button', () => {
     const onClose = vi.fn();
     const menuEl = document.createElement('span');
     const metaEl = document.createElement('span');
     const head = focusedHeader({ title: 'John 3:16', onClose, closeLabel: 'Close practice', menu: menuEl, meta: metaEl });
-    expect(head.querySelector('h1')!.textContent).toBe('John 3:16');
+    expect(head.querySelector('h1')).toBeNull();
+    expect(head.querySelector('h2')!.textContent).toBe('John 3:16');
     const close = head.querySelector<HTMLButtonElement>('button')!;
     expect(close.getAttribute('aria-label')).toBe('Close practice');
     close.click();

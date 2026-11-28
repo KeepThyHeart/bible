@@ -83,7 +83,6 @@ import { WordMeasurer, blankWidthFor, estimateTextWidth, MIN_BLANK_WIDTH_PX } fr
 import { renderPassage } from '../src/ui/scripture';
 import { PracticeView } from '../src/ui/practiceView';
 import { renderSettings } from '../src/ui/settingsView';
-import { renderAnalytics } from '../src/ui/analyticsView';
 import { menu, modal } from '../src/ui/components';
 import { RUNG_LABEL } from '../src/ui/format';
 import { tierLabel } from '../src/core/ladder';
@@ -543,16 +542,6 @@ function passageViewFixture(over: Partial<PassageView> = {}): PassageView {
   };
 }
 
-function emptyAnalytics(): AnalyticsView {
-  return {
-    streakDays: 0,
-    versesLearned: 0,
-    passagesWellLearned: 0,
-    calendar: [],
-    recentlyReached: [],
-    nextMilestone: { versesLearned: 5, toGo: 5 },
-  };
-}
 
 // ---------------------------------------------------------------------------
 // A stub host
@@ -1617,14 +1606,16 @@ describe('the settings screen', () => {
     expect(host.navigations).toContainEqual({ type: 'goVerse', passageId: 7 });
   });
 
-  it('has a focused header that closes to Today, and the Answering section', () => {
-    const root = renderSettings(host, settings(), emptyPlan());
+  it('is a tab screen (no close button) with the Lists section first, then Answering', () => {
+    const lists = document.createElement('section');
+    lists.className = 'sm-lists';
+    const root = renderSettings(host, settings(), emptyPlan(), null, null, lists);
     container.appendChild(root);
-    expect(root.querySelector('h1')!.textContent).toBe('Settings');
+    expect(root.querySelector('h1')).toBeNull();
+    expect(root.querySelector('.sm-focused-close')).toBeNull();
+    expect(root.firstElementChild).toBe(lists);
     expect(spokenText(root)).toContain('Answering');
     expect(spokenText(root)).toContain('Verses with their own setting');
-    root.querySelector<HTMLButtonElement>('.sm-focused-close')!.click();
-    expect(host.navigations).toContainEqual({ type: 'goTab', tab: 'today' });
   });
 });
 
@@ -1633,17 +1624,8 @@ describe('the settings screen', () => {
 // ---------------------------------------------------------------------------
 
 describe('empty and error states', () => {
-  it('gives an empty Progress screen a way to Today rather than a wall of zeroes', () => {
-    const root = renderAnalytics(host, emptyAnalytics());
-    container.appendChild(root);
-
-    expect(spokenText(root)).toContain('Nothing to show yet.');
-    expect(root.querySelector('h1')?.textContent).toBe('Progress');
-    expect(root.querySelectorAll('button').length).toBeGreaterThan(0);
-  });
-
-  // The empty-plan welcome and add-and-start now live on the Today screen
-  // (first open, empty focus); see test/todayView.test.ts.
+  // The empty-plan welcome and add-and-start live on Home (first open) and the
+  // Practice tab (empty focus); see test/homeView.test.ts and test/todayView.test.ts.
 
   it('keeps the exercise usable when the surrounding context cannot be fetched', async () => {
     const reason = 'Could not reach the Scripture Memory worker (getContext): Timeout';
@@ -2781,67 +2763,6 @@ describe('refprovide - supply the reference from memory', () => {
     const practice = await mountPractice(step, { rung: 'refprovide' }, { ok: true, data: johnContext() });
 
     expect(spokenText(practice.root.querySelector('.sm-context')!)).not.toContain('shown in part');
-  });
-});
-
-// ---------------------------------------------------------------------------
-// 10. The analytics screen (T16): the wellLearned wording and refprovide's
-//     vocabulary reaching "Recently reached"
-// ---------------------------------------------------------------------------
-
-describe('the analytics screen: wellLearned wording and refprovide vocabulary', () => {
-  /**
-   * `store.ts#analytics` already does the actual work T16 asked this screen
-   * to rely on - it counts a passage only once `ladder.ts#passageWellLearned`
-   * is true (every applicable activity satisfied, not `bestLevel >= 4`), and
-   * it already runs against `store.ts#getScope()`, the same list-or-all scope
-   * `setScope` drives elsewhere. There is nothing left for the panel to
-   * filter a second time, so what these tests hold the screen to is just
-   * that it renders whatever `AnalyticsView` it was handed honestly - in
-   * particular, using the same "well learned" words the passage screen's own
-   * badge uses (`passageView.ts`'s `sm-badge-learned`), so a user who has
-   * seen that badge recognises the number here as the same claim.
-   */
-  function analyticsFixture(over: Partial<AnalyticsView> = {}): AnalyticsView {
-    return {
-      streakDays: 3,
-      versesLearned: 12,
-      passagesWellLearned: 2,
-      calendar: [],
-      recentlyReached: [],
-      nextMilestone: { versesLearned: 15, toGo: 3 },
-      ...over,
-    };
-  }
-
-  it('captions the well-learned count with the same "well learned" wording as the verse badge', () => {
-    const root = renderAnalytics(host, analyticsFixture());
-    container.appendChild(root);
-
-    expect(spokenText(root)).toContain('2 verses well learned');
-  });
-
-  it('singularises the well-learned caption for exactly one verse', () => {
-    const root = renderAnalytics(host, analyticsFixture({ passagesWellLearned: 1 }));
-    container.appendChild(root);
-
-    expect(spokenText(root)).toContain('1 verse well learned');
-  });
-
-  it('labels a refprovide milestone with RUNG_LABEL, not the raw rung id', () => {
-    const root = renderAnalytics(
-      host,
-      analyticsFixture({
-        recentlyReached: [
-          { passageId: 1, reference: 'John 3:16', rung: 'refprovide', level: 5, at: NOW - 1_000 },
-        ],
-      }),
-    );
-    container.appendChild(root);
-
-    const text = spokenText(root);
-    expect(text).toContain(RUNG_LABEL.refprovide);
-    expect(text).not.toContain('refprovide');
   });
 });
 

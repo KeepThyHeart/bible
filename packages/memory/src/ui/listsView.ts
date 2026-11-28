@@ -1,5 +1,5 @@
 /**
- * Lists tab (R2-12, design-r2 4e): every list with its count, create / rename / delete, the Today focus,
+ * The Lists section of the Settings tab (R2-12, design-r2 4e): every list with its count, create / rename / delete, the Practice focus,
  * and the selected list's verses in stored order with drag and Move up / Move down reordering.
  *
  * CALLER CONTRACT (mount.ts): `renderLists(host, all, { listId: view.listId })`
@@ -19,7 +19,6 @@ import { openAddVerseDialog } from './addVerseDialog';
 import { createList, listRowMenuItems } from './listActions';
 import type { PanelHost } from './host';
 import { tr } from './i18n';
-import { renderStarterChips } from './starterSets';
 import { moveVerseMenuItems, removeVerse } from './verseActions';
 import './styles/lists.css';
 
@@ -114,8 +113,8 @@ export function renderLists(host: PanelHost, all: PlanView, view: { listId: numb
   const focus = all.focus ?? 'all';
   const selected = lists.find((l) => l.id === view.listId) ?? lists[0] ?? null;
 
-  const root = el('section', { class: 'sm-screen sm-lists' });
-  root.appendChild(el('h1', { class: 'sm-screen-title sm-lists-title', text: tr('memory.ui.lists.title', 'Lists') }));
+  const root = el('section', { class: 'sm-block sm-lists' });
+  root.appendChild(el('h2', { class: 'sm-block-title sm-lists-title', text: tr('memory.ui.lists.title', 'Lists'), attrs: { tabindex: '-1' } }));
   const live = el('div', { class: 'sm-sr-only', attrs: { 'aria-live': 'polite', role: 'status' } });
 
   const cols = el('div', { class: 'sm-lists-cols' }, [
@@ -141,7 +140,7 @@ export function renderLists(host: PanelHost, all: PlanView, view: { listId: numb
 
 function renderIndex(
   host: PanelHost,
-  all: PlanView,
+  _all: PlanView,
   lists: ListSummary[],
   selected: ListSummary | null,
   focus: 'all' | number,
@@ -161,19 +160,13 @@ function renderIndex(
         text: tr('memory.ui.lists.count', '{count, plural, one {# verse} other {# verses}}', { count: list.passageCount }),
       }),
     );
-    if (focused) pick.append(el('span', { class: 'sm-list-today', text: tr('memory.ui.lists.todayTag', 'Today') }));
+    if (focused) pick.append(el('span', { class: 'sm-list-today', text: tr('memory.ui.lists.focusTag', 'Practice focus') }));
     return el('li', { class: `sm-list-row${on ? ' sm-list-row-on' : ''}`, attrs: { 'data-list-id': String(list.id) } }, [
       pick,
       lazyMenuStub(tr('memory.ui.verses.listOptions', 'Options for {name}', { name: list.name })),
     ]);
   });
 
-  const starters = el('details', { class: 'sm-lists-starters' }, [
-    el('summary', { text: tr('memory.ui.verses.starterSets', 'Starter sets') }),
-    el('p', { class: 'sm-hint', text: tr('memory.ui.verses.starterHint', 'A ready-made list of well-known verses. Each makes its own list.') }),
-    renderStarterChips(host, all),
-  ]);
-  if (all.passages.length === 0) starters.open = true;
 
   const rowsUl = el('ul', { class: 'sm-list-rows', attrs: { 'aria-label': tr('memory.ui.verses.listsLabel', 'Lists') } }, rows);
   rowsUl.addEventListener('click', (ev) => {
@@ -194,8 +187,10 @@ function renderIndex(
       button(tr('memory.ui.verses.newListChip', '+ New list'), () => createList(host, (id) => host.go({ type: 'goLists', listId: id })), {
         class: 'sm-btn sm-btn-quiet',
       }),
+      button(tr('memory.ui.lists.browseStarters', 'Browse starter sets'), () => host.go({ type: 'goStarters' }), {
+        class: 'sm-btn sm-btn-quiet sm-lists-browse',
+      }),
     ]),
-    starters,
   ]);
 }
 
@@ -203,7 +198,7 @@ function renderSelected(host: PanelHost, all: PlanView, lists: ListSummary[], li
   const items = all.passages.filter((pv) => pv.passage.collectionId === list.id).sort(storedOrder);
 
   const head = el('div', { class: 'sm-list-verses-head' }, [
-    el('h2', { class: 'sm-list-verses-title', text: list.name }),
+    el('h3', { class: 'sm-list-verses-title', text: list.name }),
     button(
       tr('memory.ui.lists.addVerse', 'Add verse'),
       () =>

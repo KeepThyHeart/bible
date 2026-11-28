@@ -11,7 +11,9 @@
 // @ts-nocheck
 
 import { describe, it, expect } from 'vitest';
-import { SUGGESTED_LISTS, type SuggestedList } from '../src/core/suggestedLists';
+import { SUGGESTED_LISTS, starterRange, type SuggestedList } from '../src/core/suggestedLists';
+import { MAX_PASSAGE_VERSES as CORE_MAX_PASSAGE_VERSES } from '../src/core/reference';
+import { ReferenceParser } from '@bible/core/Services/ReferenceParser';
 import { extractReferenceCandidates } from '../src/ui/referenceInput';
 
 /**
@@ -111,17 +113,69 @@ describe('suggestedLists', () => {
       }
     });
 
-    it('all lists are well under the verse limit', () => {
-      // Hand-verification of the built-in lists:
-      // - Psalm 23:1-6: 6 verses
-      // - Matthew 5:3-12: 10 verses
-      // - Matthew 6:9-13: 5 verses
-      // - Galatians 5:22-23: 2 verses
-      // - Psalm 1:1-6: 6 verses
-      // - Exodus 20:1-17: 17 verses (largest)
-      // - All others: 1-2 verses
-      // None approach the 25-verse cap.
-      expect(SUGGESTED_LISTS.length).toBeGreaterThan(0);
+    it('matches the core passage limit', () => {
+      expect(MAX_PASSAGE_VERSES).toBe(CORE_MAX_PASSAGE_VERSES);
+    });
+  });
+
+  describe('starterRange', () => {
+    it('reads single verses and same-chapter ranges into verse ids', () => {
+      expect(starterRange('John 3:16')).toEqual({ startVerseId: 43003016, endVerseId: 43003016, verseCount: 1 });
+      expect(starterRange('1 Corinthians 13:1-13')).toEqual({ startVerseId: 46013001, endVerseId: 46013013, verseCount: 13 });
+      expect(starterRange('Psalm 23:1-6')).toEqual({ startVerseId: 19023001, endVerseId: 19023006, verseCount: 6 });
+      expect(starterRange('Psalms 1:1')?.startVerseId).toBe(19001001);
+      expect(starterRange('Revelation 21:4')?.startVerseId).toBe(66021004);
+    });
+
+    it('refuses shapes it does not read', () => {
+      expect(starterRange('John 3')).toBeNull();
+      expect(starterRange('Jn 3:16')).toBeNull();
+      expect(starterRange('John 3:18-16')).toBeNull();
+      expect(starterRange('John 3:16-4:2')).toBeNull();
+    });
+  });
+
+  describe('every set', () => {
+    const parser = new ReferenceParser();
+    const all = SUGGESTED_LISTS.flatMap((set) => set.references.map((reference) => ({ set, reference })));
+
+    it('has about twenty sets with unique keys and names', () => {
+      expect(SUGGESTED_LISTS.length).toBeGreaterThanOrEqual(20);
+      expect(new Set(SUGGESTED_LISTS.map((s) => s.key)).size).toBe(SUGGESTED_LISTS.length);
+      expect(new Set(SUGGESTED_LISTS.map((s) => s.name)).size).toBe(SUGGESTED_LISTS.length);
+    });
+
+    it('every reference reads locally, within the passage limit, and agrees with the app parser', () => {
+      for (const { set, reference } of all) {
+        const range = starterRange(reference);
+        expect(range, `${set.key}: ${reference}`).not.toBeNull();
+        expect(range!.verseCount, reference).toBeLessThanOrEqual(CORE_MAX_PASSAGE_VERSES);
+        const parsed = parser.parse(reference);
+        expect(parsed.isValid, reference).toBe(true);
+        expect(parsed.fuzzyMatch, reference).toBeFalsy();
+        const start = parsed.book! * 1_000_000 + parsed.chapter! * 1000 + parsed.verse!;
+        const end = parsed.book! * 1_000_000 + (parsed.endChapter ?? parsed.chapter!) * 1000 + (parsed.endVerse ?? parsed.verse!);
+        expect([start, end], reference).toEqual([range!.startVerseId, range!.endVerseId]);
+      }
+    });
+
+    it('no set names the same verse twice', () => {
+      for (const set of SUGGESTED_LISTS) {
+        const ids: number[] = [];
+        for (const reference of set.references) {
+          const r = starterRange(reference)!;
+          for (let id = r.startVerseId; id <= r.endVerseId; id++) ids.push(id);
+        }
+        expect(new Set(ids).size, set.key).toBe(ids.length);
+      }
+    });
+
+    it('names and blurbs are non-empty single lines', () => {
+      for (const set of SUGGESTED_LISTS) {
+        expect(set.name.trim()).not.toBe('');
+        expect(set.blurb.trim()).not.toBe('');
+        expect(set.blurb).not.toMatch(/\n/);
+      }
     });
   });
 });

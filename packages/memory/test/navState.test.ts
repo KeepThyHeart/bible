@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { INITIAL_NAV, navReduce, sameView } from '../src/ui/state';
+import { INITIAL_NAV, isTabRoot, navReduce, rootTab, sameView } from '../src/ui/state';
 import type { Flow, NavAction, NavState } from '../src/ui/state';
 
 const run = (actions: NavAction[], from: NavState = INITIAL_NAV): NavState => actions.reduce(navReduce, from);
@@ -8,47 +8,67 @@ const started = (id: string, flow: Flow = { kind: 'verse', passageId: 1 }): NavA
   type: 'sessionStarted', sessionId: id, passageId: 1, rung: 'blanks', flow,
 });
 
-describe('navReduce: tabs and focused screens', () => {
-  it('starts on Today', () => {
-    expect(INITIAL_NAV.view).toEqual({ name: 'today' });
+describe('navReduce: tabs and opened screens', () => {
+  it('starts on Home', () => {
+    expect(INITIAL_NAV.view).toEqual({ name: 'home' });
+    expect(INITIAL_NAV.tab).toBe('home');
+  });
+
+  it('each tab has its root view', () => {
+    expect(run([{ type: 'goTab', tab: 'practice' }]).view).toEqual({ name: 'queue' });
+    expect(run([{ type: 'goTab', tab: 'settings' }]).view).toEqual({ name: 'settings', listId: null });
+    expect(run([{ type: 'goTab', tab: 'verses' }]).view).toEqual({ name: 'verses', list: 'all' });
+    expect(run([{ type: 'goTab', tab: 'practice' }, { type: 'goTab', tab: 'home' }]).view).toEqual({ name: 'home' });
   });
 
   it('a tab sets returnTo to itself; My verses reuses the last filter', () => {
     let s = run([{ type: 'goVerses', list: 7 }]);
     expect(s.view).toEqual({ name: 'verses', list: 7, highlight: undefined });
-    s = run([{ type: 'goTab', tab: 'progress' }, { type: 'goTab', tab: 'verses' }], s);
+    s = run([{ type: 'goTab', tab: 'practice' }, { type: 'goTab', tab: 'verses' }], s);
     expect(s.view).toEqual({ name: 'verses', list: 7 });
     expect(s.returnTo).toEqual({ name: 'verses', list: 7 });
   });
 
-  it('settings and cards return to Today', () => {
-    for (const type of ['goSettings', 'goCard'] as const) {
-      const s = run([{ type: 'goTab', tab: 'progress' }, { type }]);
-      expect(s.returnTo).toEqual({ name: 'today' });
-    }
+  it('Settings is a tab (returns to itself); its list selection is kept', () => {
+    let s = run([{ type: 'goLists', listId: 4 }]);
+    expect(s.view).toEqual({ name: 'settings', listId: 4 });
+    expect(s.returnTo).toEqual({ name: 'settings', listId: 4 });
+    expect(s.tab).toBe('settings');
+    s = run([{ type: 'goTab', tab: 'home' }, { type: 'goTab', tab: 'settings' }], s);
+    expect(s.view).toEqual({ name: 'settings', listId: 4 });
+    expect(run([{ type: 'goSettings' }], s).view).toEqual({ name: 'settings', listId: 4 });
+  });
+
+  it('cards show under Home and return to Home', () => {
+    const s = run([{ type: 'goTab', tab: 'verses' }, { type: 'goCard' }]);
+    expect(s.returnTo).toEqual({ name: 'home' });
+    expect(s.tab).toBe('home');
   });
 
   it('a verse page returns to My verses with the current filter', () => {
     const s = run([{ type: 'goVerses', list: 'all' }, { type: 'goVerse', passageId: 3 }]);
     expect(s.view).toEqual({ name: 'verse', passageId: 3 });
     expect(s.returnTo).toEqual({ name: 'verses', list: 'all' });
+    expect(s.tab).toBe('verses');
     const back = navReduce(s, { type: 'leaveVerse' });
     expect(back.view).toEqual({ name: 'verses', list: 'all' });
     expect(back.returnTo).toEqual({ name: 'verses', list: 'all' });
   });
 
-  it('a verse page opened from Settings closes back to Settings, which then returns to Today', () => {
+  it('a verse page opened from Settings shows under Settings and closes back there', () => {
     const s = run([{ type: 'goSettings' }, { type: 'goVerse', passageId: 3 }]);
-    expect(s.returnTo).toEqual({ name: 'settings' });
+    expect(s.returnTo).toEqual({ name: 'settings', listId: null });
+    expect(s.tab).toBe('settings');
     const back = navReduce(s, { type: 'leaveVerse' });
-    expect(back.view).toEqual({ name: 'settings' });
-    expect(back.returnTo).toEqual({ name: 'today' });
+    expect(back.view).toEqual({ name: 'settings', listId: null });
+    expect(back.returnTo).toEqual({ name: 'settings', listId: null });
   });
 
-  it('a verse page opened from Today or Progress closes back there', () => {
-    expect(navReduce(run([{ type: 'goVerse', passageId: 3 }]), { type: 'leaveVerse' }).view).toEqual({ name: 'today' });
-    const s = run([{ type: 'goTab', tab: 'progress' }, { type: 'goVerse', passageId: 3 }]);
-    expect(navReduce(s, { type: 'leaveVerse' }).view).toEqual({ name: 'progress' });
+  it('a verse page opened from Home or Practice closes back there', () => {
+    expect(navReduce(run([{ type: 'goVerse', passageId: 3 }]), { type: 'leaveVerse' }).view).toEqual({ name: 'home' });
+    const s = run([{ type: 'goTab', tab: 'practice' }, { type: 'goVerse', passageId: 3 }]);
+    expect(s.tab).toBe('practice');
+    expect(navReduce(s, { type: 'leaveVerse' }).view).toEqual({ name: 'queue' });
   });
 
   it('My verses with a highlight is returned to without it', () => {
@@ -59,7 +79,7 @@ describe('navReduce: tabs and focused screens', () => {
   it('a verse opened from another verse page keeps the first origin', () => {
     const s = run([{ type: 'goSettings' }, { type: 'goVerse', passageId: 3 }, { type: 'goVerse', passageId: 4 }]);
     expect(s.view).toEqual({ name: 'verse', passageId: 4 });
-    expect(s.returnTo).toEqual({ name: 'settings' });
+    expect(s.returnTo).toEqual({ name: 'settings', listId: null });
   });
 
   it('a verse opened from a transient screen falls back to My verses', () => {
@@ -72,17 +92,53 @@ describe('navReduce: tabs and focused screens', () => {
   });
 });
 
+describe('navReduce: starter sets', () => {
+  it('opens under the current tab and goes back to where it was opened from', () => {
+    let s = run([{ type: 'goTab', tab: 'settings' }, { type: 'goStarters' }]);
+    expect(s.view).toEqual({ name: 'starters', key: null });
+    expect(s.tab).toBe('settings');
+    s = navReduce(s, { type: 'goStarters', key: 'psalm-23' });
+    expect(s.view).toEqual({ name: 'starters', key: 'psalm-23' });
+    expect(s.returnTo).toEqual({ name: 'settings', listId: null });
+    s = navReduce(s, { type: 'leaveStarters' });
+    expect(s.view).toEqual({ name: 'settings', listId: null });
+  });
+
+  it('from Home, Home stays selected', () => {
+    const s = run([{ type: 'goStarters' }]);
+    expect(s.tab).toBe('home');
+    expect(navReduce(s, { type: 'leaveStarters' }).view).toEqual({ name: 'home' });
+  });
+
+  it('a verse opened from the starter sets returns to their origin', () => {
+    const s = run([{ type: 'goTab', tab: 'verses' }, { type: 'goStarters' }, { type: 'goVerse', passageId: 2 }]);
+    expect(s.returnTo).toEqual({ name: 'verses', list: 'all' });
+  });
+
+  it('leaveStarters elsewhere changes nothing', () => {
+    expect(navReduce(INITIAL_NAV, { type: 'leaveStarters' })).toBe(INITIAL_NAV);
+  });
+});
+
 describe('navReduce: sessions', () => {
   it.each([
-    ['today', [] as NavAction[], { name: 'today' }],
-    ['verses', [{ type: 'goVerses', list: 2 }] as NavAction[], { name: 'verses', list: 2 }],
-    ['verse', [{ type: 'goVerse', passageId: 4 }] as NavAction[], { name: 'verse', passageId: 4 }],
-    ['progress', [{ type: 'goTab', tab: 'progress' }] as NavAction[], { name: 'progress' }],
-  ])('a session from %s returns there', (_n, pre, view) => {
+    ['home', [] as NavAction[], { name: 'home' }, 'home'],
+    ['practice', [{ type: 'goTab', tab: 'practice' }] as NavAction[], { name: 'queue' }, 'practice'],
+    ['verses', [{ type: 'goVerses', list: 2 }] as NavAction[], { name: 'verses', list: 2 }, 'verses'],
+    ['verse', [{ type: 'goVerses', list: 2 }, { type: 'goVerse', passageId: 4 }] as NavAction[], { name: 'verse', passageId: 4 }, 'verses'],
+    ['settings', [{ type: 'goTab', tab: 'settings' }] as NavAction[], { name: 'settings', listId: null }, 'settings'],
+  ])('a session from %s keeps that tab and returns there', (_n, pre, view, tab) => {
     let s = run([...pre, started('s1')]);
     expect(s.view).toEqual({ name: 'practice', sessionId: 's1' });
+    expect(s.tab).toBe(tab);
     s = navReduce(s, { type: 'sessionEnded' });
     expect(s.view).toMatchObject(view);
+    expect(s.tab).toBe(tab);
+  });
+
+  it('a session from the cards returns to Home', () => {
+    const s = run([{ type: 'goCard' }, started('s1'), { type: 'sessionEnded' }]);
+    expect(s.view).toEqual({ name: 'home' });
   });
 
   it('Again / Continue keep the original return target and replace the flow', () => {
@@ -93,10 +149,16 @@ describe('navReduce: sessions', () => {
     expect(s.view).toEqual({ name: 'verse', passageId: 4 });
   });
 
-  it('Stop for today lands on Today', () => {
+  it('Stop for today goes back to where practice started', () => {
     const s = run([{ type: 'goVerses' }, started('s1'), { type: 'stopForToday' }]);
-    expect(s.view).toEqual({ name: 'today' });
-    expect(s.returnTo).toEqual({ name: 'today' });
+    expect(s.view).toEqual({ name: 'verses', list: 'all' });
+    expect(s.returnTo).toEqual({ name: 'verses', list: 'all' });
+  });
+
+  it('a tab during a session leaves it for that tab', () => {
+    const s = run([{ type: 'goTab', tab: 'practice' }, started('s1'), { type: 'goTab', tab: 'verses' }]);
+    expect(s.view).toEqual({ name: 'verses', list: 'all' });
+    expect(s.tab).toBe('verses');
   });
 
   it('sessionEnded and stopForToday outside practice change nothing', () => {
@@ -106,11 +168,13 @@ describe('navReduce: sessions', () => {
 });
 
 describe('navReduce: recite and removal', () => {
-  it('recite returns to the launching verse page, Today otherwise', () => {
+  it('recite returns to the launching screen; from the cards, to Home', () => {
     let s = run([{ type: 'goVerse', passageId: 4 }, { type: 'reciteStarted', reciteId: 'a', mode: 'tap' }, { type: 'reciteEnded' }]);
     expect(s.view).toEqual({ name: 'verse', passageId: 4 });
-    s = run([{ type: 'goTab', tab: 'progress' }, { type: 'reciteStarted', reciteId: 'a', mode: 'tap' }, { type: 'reciteEnded' }]);
-    expect(s.view).toEqual({ name: 'today' });
+    s = run([{ type: 'goTab', tab: 'practice' }, { type: 'reciteStarted', reciteId: 'a', mode: 'tap' }, { type: 'reciteEnded' }]);
+    expect(s.view).toEqual({ name: 'queue' });
+    s = run([{ type: 'goCard' }, { type: 'reciteStarted', reciteId: 'a', mode: 'tap' }, { type: 'reciteEnded' }]);
+    expect(s.view).toEqual({ name: 'home' });
   });
 
   it('a second recite keeps the return target', () => {
@@ -119,7 +183,7 @@ describe('navReduce: recite and removal', () => {
       { type: 'reciteStarted', reciteId: 'b', mode: 'handsfree' },
       { type: 'reciteEnded' },
     ]);
-    expect(s.view).toEqual({ name: 'today' });
+    expect(s.view).toEqual({ name: 'home' });
   });
 
   it('removing the verse on screen goes back where it was opened from; other ids change nothing', () => {
@@ -128,8 +192,8 @@ describe('navReduce: recite and removal', () => {
     const s = navReduce(on, { type: 'passageRemoved', passageId: 7 });
     expect(s.view).toEqual({ name: 'verses', list: 2 });
     const fromSettings = run([{ type: 'goSettings' }, { type: 'goVerse', passageId: 7 }, { type: 'passageRemoved', passageId: 7 }]);
-    expect(fromSettings.view).toEqual({ name: 'settings' });
-    expect(fromSettings.returnTo).toEqual({ name: 'today' });
+    expect(fromSettings.view).toEqual({ name: 'settings', listId: null });
+    expect(fromSettings.returnTo).toEqual({ name: 'settings', listId: null });
   });
 
   it('removing the verse behind a session repairs only the destination', () => {
@@ -145,17 +209,33 @@ describe('navReduce: recite and removal', () => {
   });
 
   it('closing a verse page after practice started from it goes to My verses, not nowhere', () => {
-    const s = run([{ type: 'goTab', tab: 'today' }, { type: 'goVerse', passageId: 3 }, started('s1'), { type: 'sessionEnded' }]);
+    const s = run([{ type: 'goTab', tab: 'practice' }, { type: 'goVerse', passageId: 3 }, started('s1'), { type: 'sessionEnded' }]);
     expect(s.view).toEqual({ name: 'verse', passageId: 3 });
     expect(navReduce(s, { type: 'leaveVerse' }).view).toEqual({ name: 'verses', list: 'all' });
   });
 });
 
+describe('rootTab / isTabRoot', () => {
+  it('maps the tab roots and leaves opened screens to the selected tab', () => {
+    expect(rootTab({ name: 'home' })).toBe('home');
+    expect(rootTab({ name: 'card' })).toBe('home');
+    expect(rootTab({ name: 'queue' })).toBe('practice');
+    expect(rootTab({ name: 'verses', list: 'all' })).toBe('verses');
+    expect(rootTab({ name: 'settings', listId: null })).toBe('settings');
+    expect(rootTab({ name: 'verse', passageId: 1 })).toBeNull();
+    expect(rootTab({ name: 'starters', key: null })).toBeNull();
+    expect(isTabRoot({ name: 'queue' })).toBe(true);
+    expect(isTabRoot({ name: 'card' })).toBe(false);
+  });
+});
+
 describe('sameView', () => {
   it('compares the fields that make a different screen', () => {
-    expect(sameView({ name: 'today' }, { name: 'progress' })).toBe(false);
+    expect(sameView({ name: 'home' }, { name: 'queue' })).toBe(false);
     expect(sameView({ name: 'verses', list: 1 }, { name: 'verses', list: 1, highlight: 4 })).toBe(true);
     expect(sameView({ name: 'verses', list: 1 }, { name: 'verses', list: 'all' })).toBe(false);
+    expect(sameView({ name: 'settings', listId: 1 }, { name: 'settings', listId: 2 })).toBe(false);
+    expect(sameView({ name: 'starters', key: 'a' }, { name: 'starters', key: null })).toBe(false);
     expect(sameView({ name: 'verse', passageId: 1 }, { name: 'verse', passageId: 2 })).toBe(false);
     expect(sameView({ name: 'practice', sessionId: 'a' }, { name: 'practice', sessionId: 'b' })).toBe(false);
     expect(sameView({ name: 'recite', reciteId: 'a', mode: 'tap' }, { name: 'recite', reciteId: 'b', mode: 'tap' })).toBe(false);

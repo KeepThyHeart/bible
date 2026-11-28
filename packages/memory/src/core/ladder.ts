@@ -73,6 +73,12 @@ const MIN_PASSAGES_FOR_REFMATCH = 2;
 export const MIN_VERSES_FOR_REFERENCE_ACTIVITIES = 25;
 
 /**
+ * The fewest verses a passage needs for `ordering` to be offered. The first verse is given, and the
+ * last one left is placed without a question, so a two-verse passage would never ask anything.
+ */
+export const MIN_VERSES_FOR_ORDERING = 3;
+
+/**
  * Every rung the *material* allows, in ladder order - which is exactly the
  * set of cards a passage gets.
  *
@@ -119,7 +125,7 @@ export function applicableRungs(
 ): Rung[] {
   const referenceActivities = scopeVerseCount >= MIN_VERSES_FOR_REFERENCE_ACTIVITIES;
   const rungs: Rung[] = [];
-  if (verseCount > 1) rungs.push('ordering');
+  if (verseCount >= MIN_VERSES_FOR_ORDERING) rungs.push('ordering');
   if (referenceActivities && siblingCount >= MIN_PASSAGES_FOR_REFMATCH) rungs.push('refmatch');
   rungs.push('blanks', 'firstletters');
   if (referenceActivities) rungs.push('refprovide');

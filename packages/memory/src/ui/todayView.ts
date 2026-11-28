@@ -1,24 +1,23 @@
 /**
- * Today (task 0219): the landing screen. One queue, one button.
+ * The Practice tab (task 0219, was "Today"): one queue, one button. Home (`homeView.ts`) has the
+ * summary, the just-added offer and the reminders row; this is the queue in full.
  *
  *   A1  verses to practice: counts, one Start/Continue button, "Up next"
  *   A2  done for today: upcoming reviews, "Learn a new verse", "Practice anyway"
- *   A3  first open: add a verse and start it, or begin with a starter set
+ *   A3  no verses yet: add a verse and start it, or browse the starter sets
  *   --  empty focus: the focused list has no verses yet
- *   A9  the "Added X. Practice now" row (a verse just added from the Bible)
  *
- * Returns the screen content only (no tab bar); the h1 is the focus target.
+ * Returns the screen content only (no tab bar); the h2 is the focus target.
  * Nothing locked is displayed: the Match/Name the reference activities appear
  * in "Practice something else" only once some verse can use them
  * (`flows.ts#pickerFlows`), and an item for one of them hides its reference.
  */
 
-import type { AddVersesOutcome } from '../core/api';
 import type { PlanView, Rung } from '../core/types';
 import { anywayOrder, todayQueue } from '../core/today';
 import type { TodayItem, TodayQueue } from '../core/today';
-import { button, el, focusQuietly, replace } from './dom';
-import { attachMenuKeys, errorBanner } from './components';
+import { button, el, focusQuietly } from './dom';
+import { attachMenuKeys } from './components';
 import { reciteTileVisible, startReciteRun } from './activities';
 import { calendarDaysBetween, formatShortDate, RUNG_LABEL } from './format';
 import { nextFlowTarget, pickerFlows } from './flows';
@@ -26,8 +25,7 @@ import type { PickerFlow } from './flows';
 import type { PanelHost } from './host';
 import { tr } from './i18n';
 import { setFocus } from './listActions';
-import { extractReferenceCandidates } from './referenceInput';
-import { renderStarterChips } from './starterSets';
+import { renderAddAndStart } from './addAndStart';
 import type { Flow } from './state';
 import './styles/today.css';
 
@@ -35,13 +33,6 @@ import './styles/today.css';
 export const UP_NEXT_LIMIT = 4;
 
 export interface TodayExtras {
-  /**
-   * A verse just added from the Bible: shows "Added X to Memory." (or "Restored" / "already in",
-   * per the add's `outcome`; missing = 'added') with "Practice now".
-   */
-  justAdded?: { passageId: number; reference: string; outcome?: AddVersesOutcome } | null;
-  /** Reminder cards waiting to be answered. */
-  reminders?: { waiting: number } | null;
   /** Fallback when the plan has no `streakDays`; the plan's own value wins (no analytics call needed). */
   streak?: number | null;
   /** Verses started today across ALL lists (the new-verse cap is global). */
@@ -53,11 +44,6 @@ export function renderToday(host: PanelHost, plan: PlanView, extras: TodayExtras
   const queue = todayQueue(plan.passages, now, extras.startedToday !== undefined ? { startedToday: extras.startedToday } : {});
 
   const root = el('section', { class: 'sm-screen sm-today' });
-
-  const offer = renderOfferRow(host, extras.justAdded ?? null);
-  if (offer) root.appendChild(offer);
-  const reminders = renderRemindersRow(host, extras.reminders?.waiting ?? 0);
-  if (reminders) root.appendChild(reminders);
 
   if (queue.totalVerses === 0) {
     root.appendChild(plan.scope === 'all' ? renderFirstOpen(host, plan) : renderEmptyFocus(host, plan));
@@ -75,56 +61,7 @@ export function renderToday(host: PanelHost, plan: PlanView, extras: TodayExtras
 
 function heading(text: string, cls = 'sm-today-title'): HTMLElement {
   // tabindex -1: the shell moves focus here on arrival.
-  return el('h1', { class: cls, text, attrs: { tabindex: '-1' } });
-}
-
-function renderOfferRow(host: PanelHost, added: TodayExtras['justAdded']): HTMLElement | null {
-  if (!added) return null;
-  const startBtn = button(
-    tr('memory.ui.today.practiceNow', 'Practice now'),
-    () => {
-      startBtn.disabled = true;
-      void host.startSession(added.passageId).finally(() => {
-        startBtn.disabled = false;
-      });
-    },
-    { class: 'sm-btn sm-btn-primary sm-btn-small' },
-  );
-  return el('div', { class: 'sm-today-offer', attrs: { role: 'status' } }, [
-    el('span', {
-      class: 'sm-today-offer-text',
-      text: offerText(added),
-    }),
-    startBtn,
-  ]);
-}
-
-function offerText(added: NonNullable<TodayExtras['justAdded']>): string {
-  const params = { reference: added.reference };
-  switch (added.outcome) {
-    case 'revived':
-      return tr('memory.ui.today.justRevived', 'Restored {reference} to Memory.', params);
-    case 'exists':
-      return tr('memory.ui.today.alreadyAdded', '{reference} is already in Memory.', params);
-    default:
-      return tr('memory.ui.today.justAdded', 'Added {reference} to Memory.', params);
-  }
-}
-
-function renderRemindersRow(host: PanelHost, waiting: number): HTMLElement | null {
-  if (!Number.isFinite(waiting) || waiting <= 0) return null;
-  const label = tr('memory.ui.today.remindersWaiting', '{count, plural, one {# reminder waiting} other {# reminders waiting}}', { count: waiting });
-  return el('div', { class: 'sm-today-reminders' }, [
-    el('span', { class: 'sm-today-reminders-text', text: label }),
-    button(
-      tr('memory.ui.today.reviewReminders', 'Review'),
-      () => host.go({ type: 'goCard' }),
-      {
-        class: 'sm-btn sm-btn-small',
-        attrs: { 'aria-label': tr('memory.ui.today.reviewRemindersAria', '{label}. Review them.', { label }) },
-      },
-    ),
-  ]);
+  return el('h2', { class: `sm-screen-title ${cls}`, text, attrs: { tabindex: '-1' } });
 }
 
 /** Runs `host.startFlow`, keeping the button disabled while it starts. */
@@ -260,7 +197,7 @@ function renderQueue(host: PanelHost, plan: PlanView, queue: TodayQueue, _now: n
 
   wrap.appendChild(
     el('div', { class: 'sm-today-hero' }, [
-      heading(tr('memory.ui.today.title', 'Today')),
+      heading(tr('memory.ui.shell.tabPractice', 'Practice')),
       el('p', { class: 'sm-today-counts', text: countsText(queue) }),
       queue.minutes > 0
         ? el('p', {
@@ -276,7 +213,7 @@ function renderQueue(host: PanelHost, plan: PlanView, queue: TodayQueue, _now: n
   const more = queue.items.length - shown.length;
   wrap.appendChild(
     el('section', { class: 'sm-today-upnext' }, [
-      el('h2', { class: 'sm-today-upnext-title', text: tr('memory.ui.today.upNext', 'Up next') }),
+      el('h3', { class: 'sm-today-upnext-title', text: tr('memory.ui.today.upNext', 'Up next') }),
       el('ul', { class: 'sm-today-list' }, shown.map(renderItem)),
       more > 0
         ? el('p', { class: 'sm-today-more', text: tr('memory.ui.today.more', '{count} more', { count: more }) })
@@ -368,81 +305,13 @@ function renderDone(host: PanelHost, plan: PlanView, queue: TodayQueue, now: num
 // A3 and empty focus: nothing to practice yet
 // ---------------------------------------------------------------------------
 
-/**
- * The reference field with "Add and start": adds the verse, then starts it.
- * Keeps the id `sm-add-reference` so the shell can refresh the placeholder when
- * the Bible pane moves to another verse.
- */
-function renderAddAndStart(host: PanelHost): HTMLElement {
-  const input = el('input', {
-    class: 'sm-input',
-    id: 'sm-add-reference',
-    type: 'text',
-    placeholder: host.activeReference ?? tr('memory.ui.today.addPlaceholder', 'John 3:16 or Psalm 23'),
-    attrs: {
-      autocomplete: 'off',
-      autocapitalize: 'words',
-      spellcheck: 'false',
-      enterkeyhint: 'go',
-      'aria-label': tr('memory.ui.today.addLabel', 'Verse to memorize'),
-    },
-  }) as HTMLInputElement;
-  const errorSlot = el('div', { class: 'sm-error-slot', attrs: { 'aria-live': 'polite' } });
-  const submit = el('button', {
-    class: 'sm-btn sm-btn-primary',
-    text: tr('memory.ui.today.addAndStart', 'Add and start'),
-  }) as HTMLButtonElement;
-  submit.type = 'submit';
-
-  const form = el('form', { class: 'sm-today-add' }, [
-    el('div', { class: 'sm-today-add-row' }, [input, submit]),
-    errorSlot,
-  ]) as HTMLFormElement;
-
-  form.addEventListener('submit', (event) => {
-    event.preventDefault();
-    const typed = extractReferenceCandidates(input.value);
-    const refs = typed.length > 0 ? typed : host.activeReference ? [host.activeReference.trim()] : [];
-    if (refs.length === 0) {
-      replace(errorSlot, [errorBanner(tr('memory.ui.today.typeReferenceFirst', 'Type a reference first, for example "John 3:16-18".'))]);
-      focusQuietly(input);
-      return;
-    }
-    void (async () => {
-      submit.disabled = true;
-      input.disabled = true;
-      replace(errorSlot, []);
-      let firstId: number | null = null;
-      const failures: string[] = [];
-      for (const reference of refs) {
-        const reply = await host.request({ type: 'addPassage', reference });
-        if (reply.ok) {
-          if (firstId === null) firstId = reply.data.passage.id;
-        } else {
-          failures.push(refs.length > 1 ? `${reference}: ${reply.error}` : reply.error);
-        }
-      }
-      submit.disabled = false;
-      input.disabled = false;
-      if (failures.length > 0) {
-        replace(errorSlot, failures.map((f) => errorBanner(f)));
-        focusQuietly(input);
-      }
-      if (firstId !== null) {
-        input.value = '';
-        await host.startSession(firstId);
-      }
-    })();
-  });
-  return form;
-}
-
-function renderFirstOpen(host: PanelHost, plan: PlanView): HTMLElement {
+function renderFirstOpen(host: PanelHost, _plan: PlanView): HTMLElement {
   return el('div', { class: 'sm-today-first' }, [
     heading(tr('memory.ui.today.welcomeTitle', 'Learn Scripture by heart')),
     renderAddAndStart(host),
-    el('h2', { class: 'sm-today-sub', text: tr('memory.ui.today.orSet', 'Or start with a set:') }),
-    renderStarterChips(host, plan),
+    el('div', { class: 'sm-today-actions' }, [
+      button(tr('memory.ui.lists.browseStarters', 'Browse starter sets'), () => host.go({ type: 'goStarters' }), { class: 'sm-btn' }),
+    ]),
     el('p', {
       class: 'sm-hint sm-today-tip',
       text: tr('memory.ui.today.memorizeTip', 'Or right-click any verse in the Bible and choose Memorize.'),

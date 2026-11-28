@@ -1,5 +1,6 @@
 /**
- * Memory E2E (task 0219, Round 2: Today / My verses / Lists / Progress).
+ * Memory E2E (task 0219: the tabs Home / Practice / My verses / Settings; Lists is the first section of
+ * Settings). The shared app page frame holds the one h1 ("Memory"); screen headings are h2, some visually hidden.
  *
  * Runs on the committed fixture (John 3 and Psalm 23 are in it). Verses are seeded through the module
  * bridge (`electron.modules.invoke('memory', ...)`, the same calls the app's own client makes) before
@@ -8,11 +9,13 @@
  *
  * Reviews need a verse practiced on an earlier day. `practiceByApi` practices it now (correct answers)
  * and `advanceClock` moves `Date.now` forward in the main process (the core and the badge's status
- * read) and in the renderer (Today's queue) together, past the latest next-review date.
+ * read) and in the renderer (the Practice queue) together, past the latest next-review date.
  */
 
-import type { ElectronApplication, Page } from '@playwright/test';
+import type { ElectronApplication, Locator, Page } from '@playwright/test';
 import { test, expect } from '../fixtures/electron.fixture';
+
+const TABS = ['Home', 'Practice', 'My verses', 'Settings'] as const;
 
 function memory(window: Page) {
   return window.locator('section[data-app="memory"]');
@@ -139,13 +142,19 @@ async function practiceInUi(window: Page): Promise<void> {
   await expect(mem.getByRole('button', { name: 'Finish' })).toHaveCount(0);
 }
 
+/** Opens the Settings tab, whose first section is Lists. */
+async function openListsSection(mem: Locator) {
+  await mem.getByRole('tab', { name: 'Settings', exact: true }).click();
+  await expect(mem.locator('section.sm-lists').getByRole('heading', { name: 'Lists', level: 2 })).toBeVisible();
+}
+
 /** Creates a list and returns its id. */
 async function createListApi(window: Page, name: string): Promise<number> {
   const plan = await memoryCall<{ lists: Array<{ id: number; name: string }> }>(window, 'createList', { name });
   return plan.lists.find((l) => l.name === name)!.id;
 }
 
-/** The verse references of the selected list on the Lists tab, in stored order. */
+/** The verse references of the selected list in Settings' Lists section, in stored order. */
 async function listOrder(window: Page): Promise<string[]> {
   const rows = memory(window).locator('.sm-order-row .sm-order-ref');
   return (await rows.allTextContents()).map((t) => t.trim());
@@ -159,23 +168,32 @@ test.use({ failOnConsoleProblems: false });
 test.describe('Memory (R2)', () => {
   test('four tabs; first open adds a verse, practices it with the queue bar and one result message', async ({ window }) => {
     const mem = await openMemory(window);
-    for (const name of ['Today', 'My verses', 'Lists', 'Progress']) {
+    await expect(mem.getByRole('tab')).toHaveCount(TABS.length);
+    for (const name of TABS) {
       await expect(mem.getByRole('tab', { name, exact: true })).toBeVisible();
     }
+    // The one page h1; screen headings are h2.
+    await expect(mem.locator('h1')).toHaveCount(1);
+    await expect(mem.locator('h1.kth-app-page__title')).toHaveText('Memory');
+    await expect(mem.getByRole('tab', { name: 'Home', exact: true })).toHaveAttribute('aria-selected', 'true');
 
-    // First open: the welcome screen with the add field and starter sets.
-    await expect(mem.getByRole('heading', { name: 'Learn Scripture by heart' })).toBeVisible();
-    await expect(mem.locator('.sm-starter-chips button').first()).toBeVisible();
+    // First open: Home shows the welcome with the add field and "Browse starter sets".
+    await expect(mem.getByRole('heading', { name: 'Learn Scripture by heart', level: 2 })).toBeVisible();
+    await expect(mem.getByRole('button', { name: 'Browse starter sets' })).toBeVisible();
 
     // Add and start goes straight into a practice.
     await mem.getByRole('textbox', { name: 'Verse to memorize' }).fill('John 3:16');
     await mem.getByRole('button', { name: 'Add and start' }).click();
     await expect(mem.getByRole('heading', { name: /John 3:16/ })).toBeVisible();
 
+    // The tabs stay during practice, which shows under the tab it was started from.
+    await expect(mem.getByRole('tab', { name: 'Home', exact: true })).toHaveAttribute('aria-selected', 'true');
+
     await practiceInUi(window);
 
-    // After the verse: Today is done (the queue bar belongs to flows, so it is not shown for a single verse).
-    const doneToday = mem.getByRole('heading', { name: 'Done for today' });
+    // After the verse: back on Home, whose practice card says done (the queue bar belongs to flows, so it
+    // is not shown for a single verse).
+    const doneToday = mem.locator('.sm-home-practice').getByText('Done for today', { exact: true });
     const next = mem.getByRole('button', { name: /^(Continue|Done|Stop for today)/ }).first();
     for (let i = 0; i < 6; i++) {
       await expect(doneToday.or(next).first()).toBeVisible();
@@ -183,10 +201,13 @@ test.describe('Memory (R2)', () => {
       await next.click();
     }
     await expect(doneToday).toBeVisible();
+    // The Practice tab has the full done state.
+    await mem.getByRole('tab', { name: 'Practice', exact: true }).click();
+    await expect(mem.getByRole('heading', { name: 'Done for today', level: 2 })).toBeVisible();
     await expect(mem.getByRole('button', { name: 'Practice anyway' })).toBeVisible();
   });
 
-  test('Lists tab: Today tag and focus move to Lists; clearing restores Today and the badge', async ({ window, electronApp }) => {
+  test('Settings > Lists: the Practice focus narrows Practice and the badge; clearing restores both', async ({ window, electronApp }) => {
     const psalms = await createListApi(window, 'Psalms');
     const ids = [
       await addVerse(window, 'John 3:16'),
@@ -203,23 +224,23 @@ test.describe('Memory (R2)', () => {
     // The badge is re-read when the window gains focus; nothing else re-reads it after a clock change.
     await window.evaluate(() => globalThis.dispatchEvent(new Event('focus')));
 
-    await expect(mem.getByRole('heading', { name: 'Today', level: 1 })).toBeVisible();
+    await mem.getByRole('tab', { name: 'Practice', exact: true }).click();
+    await expect(mem.getByRole('heading', { name: 'Practice', level: 2 })).toBeVisible();
     await expect(mem.getByText('3 to review', { exact: true })).toBeVisible();
     await expect(badge).toContainText('3 verses due');
 
-    // Focus Today on Psalms from its row menu on the Lists tab.
-    await mem.getByRole('tab', { name: 'Lists', exact: true }).click();
-    await expect(mem.getByRole('heading', { name: 'Lists', level: 1 })).toBeVisible();
+    // Focus Practice on Psalms from its row menu in Settings' Lists section.
+    await openListsSection(mem);
     await mem.getByRole('button', { name: 'Options for Psalms' }).click();
-    await mem.getByRole('menuitem', { name: 'Practice only this list on Today' }).click();
+    await mem.getByRole('menuitem', { name: 'Practice only this list' }).click();
     await expect(mem.locator('.sm-list-row', { hasText: 'Psalms' }).locator('.sm-list-today')).toBeVisible();
-    await mem.getByRole('tab', { name: 'Today', exact: true }).click();
+    await mem.getByRole('tab', { name: 'Practice', exact: true }).click();
 
     await expect(mem.getByText('Focus: Psalms')).toBeVisible();
     await expect(mem.getByText('1 to review', { exact: true })).toBeVisible();
     await expect(badge).toContainText('1 verse due');
 
-    // The chip's clear button puts Today and the badge back on every list.
+    // The chip's clear button puts Practice and the badge back on every list.
     await mem.getByRole('button', { name: 'Clear focus' }).click();
     await expect(mem.getByText('Focus: Psalms')).toHaveCount(0);
     await expect(mem.getByText('3 to review', { exact: true })).toBeVisible();
@@ -230,6 +251,7 @@ test.describe('Memory (R2)', () => {
     for (const ref of ['John 3:16', 'John 3:17', 'John 3:18', 'John 3:19']) await addVerse(window, ref);
 
     const mem = await openMemory(window);
+    await mem.getByRole('tab', { name: 'Practice', exact: true }).click();
     await expect(mem.getByText('3 new', { exact: true })).toBeVisible();
     const upNext = mem.locator('.sm-today-upnext').getByRole('listitem');
     await expect(upNext).toHaveCount(3);
@@ -261,7 +283,9 @@ test.describe('Memory (R2)', () => {
     // The third new verse was the last one allowed today.
     await mem.getByRole('button', { name: 'Done', exact: true }).click();
 
-    await expect(mem.getByRole('heading', { name: 'Done for today' })).toBeVisible();
+    // Back on the Practice tab, where the queue was started.
+    await expect(mem.getByRole('tab', { name: 'Practice', exact: true })).toHaveAttribute('aria-selected', 'true');
+    await expect(mem.getByRole('heading', { name: 'Done for today', level: 2 })).toBeVisible();
     await mem.getByRole('button', { name: 'Learn a new verse' }).click();
     await expect(mem.getByRole('heading', { name: /John 3:19/ })).toBeVisible();
   });
@@ -271,7 +295,10 @@ test.describe('Memory (R2)', () => {
     await practiceByApi(window, id);
 
     const mem = await openMemory(window);
-    await expect(mem.getByRole('heading', { name: 'Done for today' })).toBeVisible();
+    // Home says so on its practice card; the Practice tab has the actions.
+    await expect(mem.locator('.sm-home-practice').getByText('Done for today', { exact: true })).toBeVisible();
+    await mem.getByRole('tab', { name: 'Practice', exact: true }).click();
+    await expect(mem.getByRole('heading', { name: 'Done for today', level: 2 })).toBeVisible();
     await expect(mem.getByRole('button', { name: 'Learn a new verse' })).toHaveCount(0);
 
     await mem.getByRole('button', { name: 'Practice anyway' }).click();
@@ -279,7 +306,7 @@ test.describe('Memory (R2)', () => {
     await expect(mem.locator('input[aria-label^="Missing word"]').first()).toBeVisible();
   });
 
-  test('My verses: List picker, activity blocks, progress bar, Add verse dialog with preview', async ({ window }) => {
+  test('My verses: List picker, activity squares, progress bar, Add verse dialog with preview', async ({ window }) => {
     const psalms = await createListApi(window, 'Psalms');
     await addVerse(window, 'John 3:16');
     await addVerse(window, 'John 3:17');
@@ -287,14 +314,19 @@ test.describe('Memory (R2)', () => {
 
     const mem = await openMemory(window);
     await mem.getByRole('tab', { name: 'My verses', exact: true }).click();
-    await expect(mem.getByRole('heading', { name: 'My verses', level: 1 })).toBeVisible();
+    // Visually hidden h2 (the tab names the screen).
+    await expect(mem.getByRole('heading', { name: 'My verses', level: 2 })).toBeAttached();
 
-    // Progress bar, activity blocks (one toolbar per row), one row per verse.
+    // Progress bar, the verses table (one row per verse, one square per activity).
     await expect(mem.getByRole('progressbar', { name: 'Overall progress' })).toBeVisible();
     await expect(mem.getByText(/% of activities complete · \d+ of 3 verses learned/)).toBeVisible();
-    await expect(mem.locator('.sm-verse-row')).toHaveCount(3);
-    await expect(mem.getByRole('toolbar', { name: 'Activities for John 3:16' })).toBeVisible();
-    await expect(mem.getByRole('toolbar', { name: 'Activities for John 3:16' }).locator('button.sm-block-btn').first()).toBeVisible();
+    await expect(mem.locator('table.kth-table.sm-verses-table')).toBeVisible();
+    await expect(mem.locator('tbody tr.sm-verse-row')).toHaveCount(3);
+    const row316 = mem.locator('tbody tr.sm-verse-row', { has: mem.locator('button.sm-verse-ref', { hasText: 'John 3:16' }) });
+    await expect(row316.locator('button.sm-block-btn[data-rung][data-state]').first()).toBeVisible();
+    await expect(row316.locator('.sm-menu-lazy')).toBeVisible();
+    // Starter sets: a button to the starter browser (no chips).
+    await expect(mem.getByRole('button', { name: 'Browse starter sets' })).toBeVisible();
 
     // The one List picker.
     const picker = mem.locator('select#sm-verses-list');
@@ -318,14 +350,14 @@ test.describe('Memory (R2)', () => {
     await expect(mem.locator('.sm-verse-row', { hasText: 'John 3:18' })).toBeVisible();
   });
 
-  test('Lists tab: create, rename and reorder; the order persists after leaving and reopening Memory', async ({ window }) => {
+  test('Settings > Lists: create, rename and reorder; the order persists after leaving and reopening Memory', async ({ window }) => {
     const listId = await createListApi(window, 'Core');
     await addVerse(window, 'John 3:16', listId);
     await addVerse(window, 'John 3:17', listId);
     await addVerse(window, 'John 3:18', listId);
 
     let mem = await openMemory(window);
-    await mem.getByRole('tab', { name: 'Lists', exact: true }).click();
+    await openListsSection(mem);
 
     // Create.
     await mem.getByRole('button', { name: '+ New list' }).click();
@@ -351,19 +383,19 @@ test.describe('Memory (R2)', () => {
     // Leave Memory and come back: the stored order is read from the core again.
     await closeMemory(window);
     mem = await openMemory(window);
-    await mem.getByRole('tab', { name: 'Lists', exact: true }).click();
+    await openListsSection(mem);
     await mem.locator('.sm-list-row', { hasText: 'Core' }).locator('.sm-list-pick').click();
     await expect.poll(() => listOrder(window)).toEqual(['John 3:18', 'John 3:16', 'John 3:17']);
 
     // A full renderer reload keeps it too.
     await window.reload();
     mem = await openMemory(window);
-    await mem.getByRole('tab', { name: 'Lists', exact: true }).click();
+    await openListsSection(mem);
     await mem.locator('.sm-list-row', { hasText: 'Core' }).locator('.sm-list-pick').click();
     await expect.poll(() => listOrder(window)).toEqual(['John 3:18', 'John 3:16', 'John 3:17']);
   });
 
-  test('a verse page has Back to where it was opened (My verses, Lists, Settings)', async ({ window }) => {
+  test('a verse page has Back to where it was opened (My verses, Settings > Lists, Settings)', async ({ window }) => {
     await addVerse(window, 'John 3:16');
     const own = await addVerse(window, 'John 3:17');
     await memoryCall(window, 'setPassageAnswerMode', { passageId: own, mode: 'fullWord' });
@@ -372,30 +404,33 @@ test.describe('Memory (R2)', () => {
 
     // From My verses.
     await mem.getByRole('tab', { name: 'My verses', exact: true }).click();
-    await expect(mem.getByRole('heading', { name: 'My verses', level: 1 })).toBeVisible();
-    await mem.getByRole('button', { name: 'Open John 3:16' }).first().click();
-    await expect(mem.getByRole('heading', { name: 'John 3:16', exact: true, level: 1 })).toBeVisible();
-    // The tabs stay around the page and the activities are open.
+    await expect(mem.getByRole('heading', { name: 'My verses', level: 2 })).toBeAttached();
+    await mem.locator('button.sm-verse-ref', { hasText: 'John 3:16' }).click();
+    await expect(mem.getByRole('heading', { name: 'John 3:16', exact: true, level: 2 })).toBeVisible();
+    // The tabs stay around the page (My verses still selected) and the activities are open.
     await expect(mem.getByRole('tablist', { name: 'Memory' })).toBeVisible();
+    await expect(mem.getByRole('tab', { name: 'My verses', exact: true })).toHaveAttribute('aria-selected', 'true');
+    await expect(mem.locator('button.kth-back')).toHaveAccessibleName('My verses');
     await mem.locator('button.kth-back').click();
-    await expect(mem.getByRole('heading', { name: 'My verses', level: 1 })).toBeVisible();
+    await expect(mem.locator('table.sm-verses-table')).toBeVisible();
 
-    // From Lists.
-    await mem.getByRole('tab', { name: 'Lists', exact: true }).click();
+    // From Settings' Lists section.
+    await openListsSection(mem);
     await mem.locator('.sm-order-row').getByRole('button', { name: 'Open John 3:16' }).click();
-    await expect(mem.getByRole('heading', { name: 'John 3:16', exact: true, level: 1 })).toBeVisible();
-    await expect(mem.locator('button.kth-back')).toHaveAccessibleName('Lists');
+    await expect(mem.getByRole('heading', { name: 'John 3:16', exact: true, level: 2 })).toBeVisible();
+    await expect(mem.getByRole('tab', { name: 'Settings', exact: true })).toHaveAttribute('aria-selected', 'true');
+    await expect(mem.locator('button.kth-back')).toHaveAccessibleName('Settings');
     await mem.locator('button.kth-back').click();
-    await expect(mem.getByRole('heading', { name: 'Lists', level: 1 })).toBeVisible();
+    await expect(mem.locator('section.sm-lists').getByRole('heading', { name: 'Lists', level: 2 })).toBeVisible();
 
     // From Settings > Verses with their own setting > Change.
-    await mem.getByRole('button', { name: 'Settings', exact: true }).click();
-    await expect(mem.getByRole('heading', { name: 'Settings', level: 1 })).toBeVisible();
-    await expect(mem.getByRole('heading', { name: 'Verses with their own setting' })).toBeVisible();
+    await mem.getByRole('tab', { name: 'Settings', exact: true }).click();
+    await expect(mem.getByRole('tab', { name: 'Settings', exact: true })).toHaveAttribute('aria-selected', 'true');
+    await expect(mem.getByRole('heading', { name: 'Verses with their own setting', level: 2 })).toBeVisible();
     await mem.getByRole('listitem').filter({ hasText: 'John 3:17' }).getByRole('button', { name: 'Change', exact: true }).click();
-    await expect(mem.getByRole('heading', { name: 'John 3:17', exact: true, level: 1 })).toBeVisible();
+    await expect(mem.getByRole('heading', { name: 'John 3:17', exact: true, level: 2 })).toBeVisible();
     await mem.locator('button.kth-back').click();
-    await expect(mem.getByRole('heading', { name: /^(Settings|My verses)$/, level: 1 })).toBeVisible();
+    await expect(mem.getByRole('heading', { name: 'Verses with their own setting', level: 2 })).toBeVisible();
   });
 
   test('right-click a verse > Memorize > pick a list > Practice now', async ({ window }) => {
@@ -433,8 +468,9 @@ test.describe('Memory (R2)', () => {
 
     const mem = await openMemory(window);
     await mem.getByRole('tab', { name: 'My verses', exact: true }).click();
-    const row = mem.locator(`.sm-verse-row[data-passage-id="${id}"]`);
-    await row.getByRole('button', { name: /^Put in order/ }).click();
+    const row = mem.locator(`tbody tr.sm-verse-row[data-passage-id="${id}"]`);
+    // A 3-verse passage has the ordering activity (2-verse passages do not).
+    await row.locator('button.sm-block-btn[data-rung="ordering"]').click();
 
     const placed = mem.getByText('Last verse placed.');
     const result = mem.locator('.sm-result');
@@ -457,18 +493,35 @@ test.describe('Memory (R2)', () => {
     await expect(result).toHaveCount(1);
   });
 
-  test('Progress tab opens', async ({ window }) => {
+  test('Home: practice card, overall progress and list cards; a list card opens My verses on that list', async ({ window }) => {
+    const psalms = await createListApi(window, 'Psalms');
     await addVerse(window, 'John 3:16');
+    await addVerse(window, 'Psalm 23:1', psalms);
     const mem = await openMemory(window);
-    await mem.getByRole('tab', { name: 'Progress', exact: true }).click();
-    await expect(mem.getByRole('tab', { name: 'Progress', exact: true })).toHaveAttribute('aria-selected', 'true');
-    await expect(mem.locator('h1.sm-screen-title')).toHaveText('Progress');
+    await expect(mem.getByRole('tab', { name: 'Home', exact: true })).toHaveAttribute('aria-selected', 'true');
+    await expect(mem.getByRole('heading', { name: 'Home', level: 2 })).toBeAttached();
+    await expect(mem.getByRole('button', { name: 'Start practicing' })).toBeVisible();
+    await expect(mem.getByRole('progressbar', { name: 'Overall progress' })).toBeVisible();
+
+    // "See what's next" goes to the Practice tab.
+    await mem.getByRole('button', { name: "See what's next" }).click();
+    await expect(mem.getByRole('tab', { name: 'Practice', exact: true })).toHaveAttribute('aria-selected', 'true');
+    await expect(mem.getByRole('heading', { name: 'Practice', level: 2 })).toBeVisible();
+
+    await mem.getByRole('tab', { name: 'Home', exact: true }).click();
+    const card = mem.locator('button.sm-home-list', { hasText: 'Psalms' });
+    await expect(card).toBeVisible();
+    await card.click();
+    await expect(mem.getByRole('tab', { name: 'My verses', exact: true })).toHaveAttribute('aria-selected', 'true');
+    await expect(mem.locator('select#sm-verses-list')).toHaveValue(String(psalms));
+    await expect(mem.locator('tbody tr.sm-verse-row')).toHaveCount(1);
   });
 
   test('Escape in the Memory panel ends a practice', async ({ window }) => {
     await addVerse(window, 'John 3:16');
 
     const mem = await openMemory(window);
+    await mem.getByRole('tab', { name: 'Practice', exact: true }).click();
     await mem.getByRole('button', { name: 'Start', exact: true }).click();
     const title = mem.getByRole('heading', { name: /John 3:16/ });
     await expect(title).toBeVisible();
@@ -482,8 +535,24 @@ test.describe('Memory (R2)', () => {
     await mem.locator('input[aria-label^="Missing word"]').first().focus();
     await window.keyboard.press('Escape');
 
+    // Back on the Practice tab, where it was started.
     await expect(title).toHaveCount(0);
-    await expect(mem.getByRole('heading', { name: 'Today', level: 1 })).toBeVisible();
+    await expect(mem.getByRole('heading', { name: 'Practice', level: 2 })).toBeVisible();
     await expect(mem.getByRole('button', { name: 'Start', exact: true })).toBeVisible();
+  });
+
+  test('clicking a tab during practice ends the session', async ({ window }) => {
+    await addVerse(window, 'John 3:16');
+
+    const mem = await openMemory(window);
+    await mem.getByRole('button', { name: 'Start practicing' }).click();
+    const title = mem.getByRole('heading', { name: /John 3:16/ });
+    await expect(title).toBeVisible();
+    await expect(mem.getByRole('tab', { name: 'Home', exact: true })).toHaveAttribute('aria-selected', 'true');
+
+    await mem.getByRole('tab', { name: 'My verses', exact: true }).click();
+    await expect(title).toHaveCount(0);
+    await expect(mem.locator('table.sm-verses-table')).toBeVisible();
+    await expect(mem.locator('input[aria-label^="Missing word"]')).toHaveCount(0);
   });
 });

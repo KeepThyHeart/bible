@@ -183,7 +183,8 @@ afterEach(() => {
 describe('header', () => {
   it('has one title "{reference} · {activity}" and a Close button', async () => {
     const p = await mountView();
-    expect(p.root.querySelectorAll('h1').length).toBe(1);
+    expect(p.root.querySelectorAll('h1').length).toBe(0);
+    expect(p.root.querySelectorAll('.sm-focused-title').length).toBe(1);
     expect(title(p)).toBe(`Psalm 23 · ${RUNG_LABEL.blanks}`);
     const close = p.root.querySelector<HTMLButtonElement>('.sm-focused-close')!;
     expect(close.getAttribute('aria-label')).toBe('Close practice');

@@ -13,10 +13,16 @@ describe('activityBlocks', () => {
     expect(BLOCK_RUNGS).toEqual(['ordering', 'refmatch', 'blanks', 'firstletters', 'refprovide', 'recite']);
   });
 
-  it('single verse: ordering is not applicable (singleVerse)', () => {
+  it('single verse: ordering is not applicable (tooShort)', () => {
     const pv = makePassageView({ rungs: all().filter((r) => r.rung !== 'ordering') });
     const b = activityBlocks(pv, { reciteShown: false });
-    expect(b[0]).toMatchObject({ rung: 'ordering', state: 'notApplicable', naReason: 'singleVerse', startable: false });
+    expect(b[0]).toMatchObject({ rung: 'ordering', state: 'notApplicable', naReason: 'tooShort', startable: false });
+  });
+
+  it('two verses: the ordering card exists but is not applicable, so the block is "not needed"', () => {
+    const pv = makePassageView({ rungs: all({ ordering: { applicable: false } }) });
+    const b = activityBlocks(pv, { reciteShown: false });
+    expect(b[0]).toMatchObject({ rung: 'ordering', state: 'notApplicable', naReason: 'tooShort', startable: false });
   });
 
   it('omits gated reference rungs and hidden recite', () => {

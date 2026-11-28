@@ -68,7 +68,7 @@ const btn = (root: ParentNode, label: string) => root.querySelector<HTMLButtonEl
 const flush = () => new Promise((r) => setTimeout(r, 0));
 
 describe('renderLists', () => {
-  it('shows every list with its count, the Today tag, and the selected list in stored order', () => {
+  it('shows every list with its count, the Practice focus tag, and the selected list in stored order', () => {
     const p = plan({ focus: 2, passages: [mk(1, 1, 'B', 2), mk(2, 1, 'A', 1), mk(3, 1, 'C', null)] });
     const root = mount(p);
     const rows = Array.from(root.querySelectorAll('.sm-list-row'));
@@ -77,12 +77,12 @@ describe('renderLists', () => {
     expect(rows[1]!.querySelector('.sm-list-today')).not.toBeNull();
     expect(rows[0]!.querySelector('.sm-list-today')).toBeNull();
     expect(refs(root)).toEqual(['A', 'B', 'C']);
-    expect(root.querySelector('h2')!.textContent).toBe('Default');
+    expect(root.querySelector('h3')!.textContent).toBe('Default');
   });
 
   it('selecting a list navigates; a missing selection falls back to the first list', () => {
     const root = mount(plan(), 99);
-    expect(root.querySelector('h2')!.textContent).toBe('Default');
+    expect(root.querySelector('h3')!.textContent).toBe('Default');
     (root.querySelectorAll('.sm-list-pick')[1] as HTMLButtonElement).click();
     expect(host.navigations).toEqual([{ type: 'goLists', listId: 2 }]);
   });
@@ -95,18 +95,18 @@ describe('renderLists', () => {
     expect(opts.lists).toHaveLength(2);
   });
 
-  it('the list menu sets and clears the Today focus', async () => {
+  it('the list menu sets and clears the Practice focus', async () => {
     let root = mount(plan(), 1);
     const open = (r: ParentNode, idx: number, label: string) => {
       (r.querySelectorAll('.sm-list-row')[idx]!.querySelector('.sm-menu-btn') as HTMLButtonElement).click();
       return Array.from(r.querySelectorAll('.sm-list-row')[idx]!.querySelectorAll('.sm-menu-item')).find((b) => text(b) === label) as HTMLButtonElement;
     };
-    open(root, 1, 'Practice only this list on Today').click();
+    open(root, 1, 'Practice only this list').click();
     await flush();
     expect(host.requests.at(-1)).toEqual({ type: 'setScope', scope: { kind: 'list', id: 2 } });
     container.innerHTML = '';
     root = mount(plan({ focus: 2 }), 1);
-    open(root, 1, 'Practice all lists on Today').click();
+    open(root, 1, 'Practice from all lists').click();
     await flush();
     expect(host.requests.at(-1)).toEqual({ type: 'setScope', scope: { kind: 'all' } });
   });

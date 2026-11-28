@@ -154,7 +154,7 @@ describe('the card stack', () => {
     btn(root, "Practice what's due").click();
     expect(host.flows).toEqual([{ kind: 'today', skipped: [] }]);
     btn(root, 'Back').click();
-    expect(host.navigations).toContainEqual({ type: 'goTab', tab: 'today' });
+    expect(host.navigations).toContainEqual({ type: 'goTab', tab: 'home' });
   });
 
   it('shows the empty state', () => {
@@ -210,12 +210,12 @@ describe('the card stack', () => {
 });
 
 describe('the reminders screen header', () => {
-  it('is titled Reminders and closes back to Today', () => {
+  it('is titled Reminders and closes back to Home', () => {
     const root = renderCardStack(host, stackOf(card(1)));
     container.appendChild(root);
-    expect(root.querySelector('h1')!.textContent).toBe('Reminders');
+    expect(root.querySelector('h2')!.textContent).toBe('Reminders');
     root.querySelector<HTMLButtonElement>('.sm-focused-close')!.click();
-    expect(host.navigations).toContainEqual({ type: 'goTab', tab: 'today' });
+    expect(host.navigations).toContainEqual({ type: 'goTab', tab: 'home' });
   });
 });
 

@@ -248,13 +248,11 @@
   overflow: hidden;
 }
 
+/* The shell (`.kth-app-page`) inside is the scroller and carries the padding. */
 .sm-app .sm-main {
   flex: 1 1 auto;
   min-block-size: 0;
-  overflow-y: auto;
-  overflow-x: hidden;
-  --sm-main-pad: var(--sm-s4);
-  padding: var(--sm-main-pad);
+  overflow: hidden;
 }
 
 /* The status line is pinned so a message is not lost below the fold of a long
@@ -277,9 +275,9 @@
   background: var(--sm-danger-soft);
 }
 
+/* Screens fill the app page's column (which is pinned to the start edge and capped). */
 .sm-app .sm-screen {
-  max-width: var(--sm-measure);
-  margin: 0 auto;
+  margin: 0;
   display: flex;
   flex-direction: column;
   gap: var(--sm-s4);
@@ -292,7 +290,8 @@
 }
 
 .sm-app .sm-screen-title {
-  font-size: 1.35em;
+  margin: 0;
+  font-size: 1.15em;
   font-weight: 600;
   color: var(--sm-heading);
 }

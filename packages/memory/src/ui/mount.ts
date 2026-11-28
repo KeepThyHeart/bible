@@ -16,7 +16,7 @@
  */
 
 import type { MemoryApi, MemoryPush } from '../core/api';
-import type { AnalyticsView, PanelReply, PanelRequest, PassageView, PlanView, ReciteAction, ReciteStateView, RequestMap, Rung } from '../core/types';
+import type { PanelReply, PanelRequest, PassageView, PlanView, ReciteAction, ReciteStateView, RequestMap, Rung } from '../core/types';
 import { clear, el } from './dom';
 import { errorBanner } from './components';
 import { perfRequestStart, perfScreenEnd, perfScreenStart, perfStartLongTasks } from './perf';
@@ -25,14 +25,15 @@ import type { PanelHost } from './host';
 import { WordMeasurer } from './measure';
 import { PracticeView } from './practiceView';
 import { renderToday } from './todayView';
-import type { TodayExtras } from './todayView';
+import { renderHome } from './homeView';
+import type { HomeExtras } from './homeView';
 import { renderMyVerses } from './myVersesView';
 import { renderLists } from './listsView';
+import { renderStarterBrowser } from './starterBrowser';
 import { getDataCache, scopedView } from './dataCache';
 import type { MemoryDataCache } from './dataCache';
 import { reciteEnabled } from '../core/features';
 import { renderVersePage } from './versePage';
-import { renderAnalytics } from './analyticsView';
 import { renderSettings, updateSpeechBanner } from './settingsView';
 import { createReciteView } from './reciteView';
 import { createHandsFreeView } from './handsFreeView';
@@ -40,17 +41,17 @@ import { startReciteRun } from './activities';
 import { renderCardStack } from './cardView';
 import { flowRemaining, planNextTarget } from './flows';
 import type { PracticeTarget } from './flows';
-import { TAB_PANEL_ID, appShell } from './shell';
-import type { ShellLayout } from './shell';
+import { createShell } from './shell';
+import type { ShellAction } from './shell';
 import { countStartedToday, startOfLocalDay } from '../core/today';
-import { INITIAL_NAV, navReduce, sameView } from './state';
-import type { Flow, NavAction, NavState, Tab } from './state';
+import { INITIAL_NAV, navReduce, sameScreen, sameView } from './state';
+import type { Flow, NavAction, NavState } from './state';
 import { setUiTranslator, tr } from './i18n';
 import type { Translate } from './i18n';
 import './memory.css';
 
-/** The just-added verse offered on Today (with how the add went, when known). */
-export type JustAdded = NonNullable<TodayExtras['justAdded']>;
+/** The just-added verse offered on Home (with how the add went, when known). */
+export type JustAdded = NonNullable<HomeExtras['justAdded']>;
 
 export interface MemoryUiOptions {
   /** The core (desktop: IPC client; tests: a fake). */
@@ -61,7 +62,7 @@ export interface MemoryUiOptions {
   initialView?: 'today' | 'plan' | 'card';
   /** Start practicing this verse right after mount (a host's "Practice now"). */
   initialPractice?: number;
-  /** Show the "Added {reference} to Memory. Practice now" row on Today. */
+  /** Show the "Added {reference} to Memory. Practice now" row on Home. */
   justAdded?: JustAdded;
   /** The reader's current reference, for the add field placeholder. */
   activeReference?: string | null;
@@ -73,8 +74,10 @@ export interface MemoryUiOptions {
   locale?: string;
   /** The reusable verse selector (`@bible/ui` `mountVerseSelector`); absent: a plain text field. */
   verseSelector?: VerseSelectorPort;
-  /** R2-13 shell layout; default: the container's `data-sm-layout`, else 'column'. */
-  shellLayout?: ShellLayout;
+  /** The page heading; default "Memory". */
+  title?: string;
+  /** Buttons at the end of the title row (desktop: "Back to Study"). */
+  actions?: readonly ShellAction[];
 }
 
 export interface MemoryUiHandle {
@@ -86,7 +89,7 @@ export interface MemoryUiHandle {
   setActiveReference(reference: string | null): void;
   /** Start practicing one verse (flow `verse`); only announces when a session or recite is open. */
   practice(passageId: number): void;
-  /** Show the "Added {reference}. Practice now" row on Today. */
+  /** Show the "Added {reference}. Practice now" row on Home. */
   offerPractice(added: JustAdded): void;
 }
 
@@ -146,7 +149,7 @@ export function mountMemoryUi(container: HTMLElement, options: MemoryUiOptions):
   let practice: PracticeView | null = null;
   let activeReference: string | null = options.activeReference ?? null;
   let disposed = false;
-  /** The verse the Today screen offers to practice (A9); cleared once Today is left. */
+  /** The verse the Home screen offers to practice (A9); cleared once Home is left. */
   let justAdded: JustAdded | null = options.justAdded ?? null;
   /** Local day the screen was last drawn for, for the midnight re-render. */
   let dayKey = startOfLocalDay(now());
@@ -170,6 +173,7 @@ export function mountMemoryUi(container: HTMLElement, options: MemoryUiOptions):
   let lastPainted: NavState['view'] | null = null;
 
   function scrollToTop(): void {
+    if (shell.root.scrollTop !== 0) shell.root.scrollTop = 0;
     for (let node: HTMLElement | null = main; node !== null && node !== doc.body; node = node.parentElement) {
       if (node.scrollTop !== 0) node.scrollTop = 0;
     }
@@ -180,10 +184,6 @@ export function mountMemoryUi(container: HTMLElement, options: MemoryUiOptions):
   /** The module-level data cache for this api: it outlives the mount (design-r2 1b). */
   const data: MemoryDataCache = getDataCache(api);
   const cachedAtMount = data.get() !== null;
-
-  function layoutOption(): string | undefined {
-    return options.shellLayout ?? container.dataset.smLayout;
-  }
 
   /** `refreshSpeech` goes out once per 5 minutes per mount, after a recite surface is drawn. */
   let lastSpeechRefresh = Number.NEGATIVE_INFINITY;
@@ -268,6 +268,7 @@ export function mountMemoryUi(container: HTMLElement, options: MemoryUiOptions):
       // Practice and recite change resume points without any push: reload the cache on the way out.
       if (action.type === 'sessionEnded' || action.type === 'stopForToday' || action.type === 'reciteEnded') refreshData();
       const next = navReduce(nav, action);
+      leaveExercise(nav, next, action);
       const changed = !sameView(next.view, nav.view) || !sameView(next.returnTo, nav.returnTo);
       nav = next;
       if (changed) void render();
@@ -347,6 +348,30 @@ export function mountMemoryUi(container: HTMLElement, options: MemoryUiOptions):
     fail: showError,
   };
 
+  // The shell is drawn at once and stays: screens (practice and recite too) fill its panel.
+  const shell = createShell(host, {
+    ...(options.title !== undefined ? { title: options.title } : {}),
+    ...(options.actions !== undefined ? { actions: options.actions } : {}),
+  });
+  main.appendChild(shell.root);
+
+  /**
+   * Leaving practice or recite some other way than its own Close (a tab, a host request): end the core
+   * session, or stop a recite run that is still going (a hands-free loop must not keep listening), and
+   * reload the cache, as Close does.
+   */
+  function leaveExercise(from: NavState, to: NavState, action: NavAction): void {
+    const v = from.view;
+    if (v.name === 'practice' && to.view.name !== 'practice' && action.type !== 'sessionEnded' && action.type !== 'stopForToday') {
+      void requestVia(api, { type: 'endSession', sessionId: v.sessionId });
+      refreshData();
+    } else if (v.name === 'recite' && to.view.name !== 'recite' && action.type !== 'reciteEnded') {
+      const current = reciteState;
+      if (current !== null && isRunning(current)) void requestVia(api, { type: 'reciteControl', reciteId: current.reciteId, action: 'stop' });
+      refreshData();
+    }
+  }
+
   async function startSessionImpl(
     passageId: number,
     rung?: Rung,
@@ -391,10 +416,13 @@ export function mountMemoryUi(container: HTMLElement, options: MemoryUiOptions):
     // owns its own DOM and its own lifetime - so the mount happens here.
     if (practice !== null) refreshData();
     practice?.destroy();
-    clear(main);
     perfScreenStart('practice');
     practice = new PracticeView(host, session, sessionFlow);
-    practice.mount(main);
+    const holder = el('div', { class: 'sm-practice-holder' });
+    shell.setTab(nav.tab);
+    shell.setChip(null);
+    shell.setContent(holder);
+    practice.mount(holder);
     perfScreenEnd('practice');
     lastPainted = nav.view;
     scrollToTop();
@@ -411,14 +439,14 @@ export function mountMemoryUi(container: HTMLElement, options: MemoryUiOptions):
     if (disposed) return;
     const token = ++renderToken;
     const focusedNow = doc.activeElement;
-    const tabFocusId =
-      focusedNow !== null && main.contains(focusedNow) && focusedNow.getAttribute('role') === 'tab' ? focusedNow.id || null : null;
-    // Any other focused element is remembered by id or data-passage-id, so a
-    // same-screen reload (Move to list, Rename, Remove...) does not drop focus.
-    const hadFocus = focusedNow instanceof HTMLElement && focusedNow !== main && main.contains(focusedNow) && tabFocusId === null;
+    // Focus on a tab stays there (the tab bar is not rebuilt). Any other focused element is
+    // remembered by id or data-passage-id, so a same-screen reload (Move to list, Rename,
+    // Remove...) does not drop focus.
+    const onTab = focusedNow instanceof HTMLElement && focusedNow.getAttribute('role') === 'tab' && main.contains(focusedNow);
+    const hadFocus = focusedNow instanceof HTMLElement && focusedNow !== main && main.contains(focusedNow) && !onTab;
     const focusKey = hadFocus ? focusKeyOf(focusedNow as HTMLElement) : null;
 
-    if (justAdded !== null && nav.view.name !== 'today' && nav.view.name !== 'practice' && nav.view.name !== 'recite') {
+    if (justAdded !== null && nav.view.name !== 'home' && nav.view.name !== 'practice' && nav.view.name !== 'recite') {
       justAdded = null;
     }
 
@@ -432,6 +460,10 @@ export function mountMemoryUi(container: HTMLElement, options: MemoryUiOptions):
       reciteState = null;
     }
 
+    // The tab bar follows the view at once, also for practice and recite (which return early below).
+    shell.setTab(nav.tab);
+    if (nav.view.name !== 'queue') shell.setChip(null);
+
     // Recite builds its screen from the core's state and then lives on pushes;
     // a planChanged push must not rebuild it mid-recitation.
     if (nav.view.name === 'recite') {
@@ -439,7 +471,7 @@ export function mountMemoryUi(container: HTMLElement, options: MemoryUiOptions):
       const reply = await host.request({ type: 'getReciteState' });
       if (disposed || token !== renderToken) return;
       if (!reply.ok || reply.data === null) {
-        // Nothing to resume (finished or never started): go home.
+        // Nothing to resume (finished or never started): go back.
         nav = navReduce(nav, { type: 'reciteEnded' });
         if (!reply.ok) showError(reply.error);
         void render();
@@ -456,9 +488,9 @@ export function mountMemoryUi(container: HTMLElement, options: MemoryUiOptions):
     const perfView = nav.view.name;
     perfScreenStart(perfView);
 
-    // First load: draw the shell at once with an empty, aria-busy panel, then the screen.
+    // First load: an empty, aria-busy panel, then the screen.
     if (needsPlan(nav.view) && data.get() === null) {
-      drawBusyShell(nav.view);
+      drawBusy();
       const failed = await data.ensure().then(
         () => null,
         (err: unknown) => (err instanceof Error ? err.message : String(err)),
@@ -466,8 +498,7 @@ export function mountMemoryUi(container: HTMLElement, options: MemoryUiOptions):
       if (disposed || token !== renderToken) return;
       if (failed !== null) {
         win.clearTimeout(loadingTimer);
-        clear(main);
-        main.appendChild(failure(failed));
+        shell.setContent(failure(failed));
         return;
       }
     }
@@ -479,31 +510,27 @@ export function mountMemoryUi(container: HTMLElement, options: MemoryUiOptions):
     const content = built instanceof Promise ? await built : built;
     if (disposed || token !== renderToken) return;
 
-    clear(main);
-    main.appendChild(content);
+    shell.setContent(content);
     perfScreenEnd(perfView);
 
     // A different screen starts at its top: the scroll offset of the screen
     // just left (the host's scroller included) would otherwise carry over.
     // A refresh of the same screen keeps its place.
-    const newScreen = lastPainted === null || !sameView(lastPainted, nav.view);
+    const newScreen = lastPainted === null || !sameScreen(lastPainted, nav.view);
     if (newScreen) scrollToTop();
     lastPainted = nav.view;
     dayKey = startOfLocalDay(now());
     afterPaint();
 
-    // A tab that had focus keeps it (the shell is rebuilt, so find the new
-    // button); otherwise a new screen moves focus to its heading, so a
-    // keyboard or screen-reader user is not left at the top of the document.
-    // `tabindex="-1"` makes it focusable without putting it in the tab order.
-    const tab = tabFocusId === null ? null : main.querySelector<HTMLElement>(`[id="${tabFocusId}"]`);
-    if (tab) {
-      tab.focus({ preventScroll: true });
-    } else if (newScreen) {
+    // A tab that had focus keeps it; otherwise a new screen moves focus to its
+    // heading, so a keyboard or screen-reader user is not left at the top of the
+    // document. `tabindex="-1"` makes it focusable without putting it in the tab order.
+    if (onTab) return;
+    if (newScreen) {
       focusHeading();
     } else if (hadFocus) {
-      // Same screen rebuilt: put focus back on the same element, else the h1
-      // when it would otherwise fall to <body>.
+      // Same screen rebuilt: put focus back on the same element, else the
+      // screen heading when it would otherwise fall to <body>.
       const same = focusKey === null ? null : findByFocusKey(focusKey);
       if (same) same.focus({ preventScroll: true });
       else focusHeading();
@@ -526,8 +553,9 @@ export function mountMemoryUi(container: HTMLElement, options: MemoryUiOptions):
     return hit;
   }
 
+  /** The current screen's heading (its h2), else the page h1. */
   function focusHeading(): void {
-    const heading = main.querySelector<HTMLElement>('h1');
+    const heading = shell.panel.querySelector<HTMLElement>('h2') ?? shell.root.querySelector<HTMLElement>('h1');
     if (heading) {
       heading.tabIndex = -1;
       heading.focus({ preventScroll: true });
@@ -568,8 +596,8 @@ export function mountMemoryUi(container: HTMLElement, options: MemoryUiOptions):
         ? createHandsFreeView(state, { onControl: sendRecite, onExit: leaveRecite })
         : createReciteView(state, { onControl: sendRecite, onExit: leaveRecite, now: () => host.now(), onRetry: retryRecite });
     reciteScreen = screen;
-    clear(main);
-    main.appendChild(screen.element);
+    shell.setChip(null);
+    shell.setContent(screen.element);
     requestSpeechRefresh();
   }
 
@@ -585,23 +613,17 @@ export function mountMemoryUi(container: HTMLElement, options: MemoryUiOptions):
 
   /** Views drawn from the cached plan. */
   function needsPlan(view: NavState['view']): boolean {
-    return view.name === 'today' || view.name === 'verses' || view.name === 'lists' || view.name === 'verse';
+    return view.name !== 'card' && view.name !== 'practice' && view.name !== 'recite';
   }
 
-  function tabOfView(view: NavState['view']): Tab {
-    if (view.name === 'verse') return nav.returnTo.name === 'lists' ? 'lists' : 'verses';
-    return view.name === 'lists' || view.name === 'verses' || view.name === 'progress' ? view.name : 'today';
-  }
-
-  function drawBusyShell(view: NavState['view']): void {
-    clear(main);
-    main.appendChild(appShell(host, tabOfView(view), null, null, { layout: layoutOption() }));
+  function drawBusy(): void {
+    shell.setContent(null);
     win.clearTimeout(loadingTimer);
     // No spinner: a plain line, only when the load is slow.
     loadingTimer = win.setTimeout(() => {
       loadingTimer = undefined;
-      const panel = main.querySelector(`[id="${TAB_PANEL_ID}"]`);
-      if (panel && panel.getAttribute('aria-busy') === 'true' && !disposed) {
+      const panel = shell.panel;
+      if (panel.getAttribute('aria-busy') === 'true' && !disposed) {
         panel.appendChild(el('p', { class: 'sm-loading', text: tr('memory.ui.shell.loading', 'Loading...') }));
       }
     }, 400);
@@ -617,49 +639,45 @@ export function mountMemoryUi(container: HTMLElement, options: MemoryUiOptions):
 
   function buildScreen(): HTMLElement | Promise<HTMLElement> {
     const view = nav.view;
-    const layout = layoutOption();
     const all = data.get();
     if (needsPlan(view) && all === null) return failure(tr('memory.ui.settings.unknownScreen', 'Unknown screen.'));
     switch (view.name) {
-      case 'today': {
-        const plan = scopedView(all!, all!.focus ?? 'all', host.now());
-        const content = renderToday(host, plan, {
+      case 'home': {
+        const focused = scopedView(all!, all!.focus ?? 'all', host.now());
+        return renderHome(host, scopedView(all!, 'all', host.now()), focused, {
           startedToday: countStartedToday(all!.passages, host.now()),
           justAdded,
-          reminders: plan.cardsWaiting > 0 ? { waiting: plan.cardsWaiting } : null,
+          reminders: focused.cardsWaiting > 0 ? { waiting: focused.cardsWaiting } : null,
         });
-        return appShell(host, 'today', plan, content, { layout });
       }
 
-      case 'verses': {
-        const plan = scopedView(all!, 'all', host.now());
-        const content = renderMyVerses(host, plan, { list: view.list, highlight: view.highlight });
-        return appShell(host, 'verses', plan, content, { layout });
+      case 'queue': {
+        const plan = scopedView(all!, all!.focus ?? 'all', host.now());
+        shell.setChip(plan);
+        return renderToday(host, plan, { startedToday: countStartedToday(all!.passages, host.now()) });
       }
 
-      case 'lists': {
-        const content = renderLists(host, scopedView(all!, 'all', host.now()), { listId: view.listId });
-        return appShell(host, 'lists', null, content, { layout });
-      }
+      case 'verses':
+        return renderMyVerses(host, scopedView(all!, 'all', host.now()), { list: view.list, highlight: view.highlight });
+
+      case 'starters':
+        return renderStarterBrowser(host, scopedView(all!, 'all', host.now()), { key: view.key });
 
       case 'verse': {
         const passageId = view.passageId;
-        const origin: Tab = tabOfView(view);
         const draw = (pv: PassageView): HTMLElement => {
           const text = data.verseText(passageId);
           if (text === undefined && !data.verseTextFailed(passageId)) {
             // The cache's notification redraws the page when the text arrives.
             void data.loadVerseText(passageId);
           }
-          const content = renderVersePage(host, pv, all!.lists, {
+          return renderVersePage(host, pv, all!.lists, {
             speech: all!.speech,
             defaultAnswerMode: all!.defaultAnswerMode,
             verses: text ?? null,
             textError: data.verseTextFailed(passageId),
-            backLabel:
-              origin === 'lists' ? tr('memory.ui.shell.tabLists', 'Lists') : tr('memory.ui.shell.tabVerses', 'My verses'),
+            backLabel: backLabel(nav.returnTo),
           });
-          return appShell(host, origin, null, content, { layout });
         };
         const cached = all!.passages.find((p) => p.passage.id === passageId);
         if (cached) return draw(cached);
@@ -667,19 +685,8 @@ export function mountMemoryUi(container: HTMLElement, options: MemoryUiOptions):
         return host.request({ type: 'getPassageView', passageId }).then((reply) => (reply.ok ? draw(reply.data) : failure(reply.error)));
       }
 
-      case 'progress': {
-        const cachedAnalytics = data.analytics();
-        const shell = (a: AnalyticsView): HTMLElement => appShell(host, 'progress', null, renderAnalytics(host, a), { layout });
-        if (cachedAnalytics) {
-          // The stale numbers stay on screen; the refresh redraws through the cache notification.
-          if (lastPainted?.name !== 'progress') void data.loadAnalytics();
-          return shell(cachedAnalytics);
-        }
-        return data.loadAnalytics().then((a) => (a ? shell(a) : failure(tr('memory.ui.progress.unavailable', 'Progress is not available right now.'))));
-      }
-
       case 'settings':
-        return buildSettings(layout);
+        return buildSettings(view.listId);
 
       case 'card':
         return host.request({ type: 'getCardStack' }).then((reply) => (reply.ok ? renderCardStack(host, reply.data) : failure(reply.error)));
@@ -689,10 +696,26 @@ export function mountMemoryUi(container: HTMLElement, options: MemoryUiOptions):
     }
   }
 
-  async function buildSettings(layout: string | undefined): Promise<HTMLElement> {
+  /** The verse page's Back label: the screen it goes back to. */
+  function backLabel(to: NavState['view']): string {
+    switch (to.name) {
+      case 'home':
+        return tr('memory.ui.shell.tabHome', 'Home');
+      case 'queue':
+        return tr('memory.ui.shell.tabPractice', 'Practice');
+      case 'settings':
+        return tr('memory.ui.shell.tabSettings', 'Settings');
+      case 'starters':
+        return tr('memory.ui.starters.title', 'Starter sets');
+      default:
+        return tr('memory.ui.shell.tabVerses', 'My verses');
+    }
+  }
+
+  async function buildSettings(listId: number | null): Promise<HTMLElement> {
     const [settingsReply, plan, pushReply, importStatus] = await Promise.all([
       host.request({ type: 'getSettings' }),
-      // All lists, from the cache: the focus only narrows Today, and "Verses with
+      // All lists, from the cache: the focus only narrows Practice, and "Verses with
       // their own setting" is about every verse.
       data.ensure().then(
         (p) => ({ ok: true as const, data: p }),
@@ -706,18 +729,14 @@ export function mountMemoryUi(container: HTMLElement, options: MemoryUiOptions):
     if (!plan.ok) return failure(plan.error);
     const cached = data.get() ?? plan.data;
     shownSpeech = settingsReply.data.speech ?? cached.speech;
-    return appShell(
+    const all = scopedView(cached, 'all', host.now());
+    return renderSettings(
       host,
-      'settings',
-      null,
-      renderSettings(
-        host,
-        settingsReply.data,
-        scopedView(cached, 'all', host.now()),
-        pushReply.ok ? pushReply.data : null,
-        importStatus ? { status: importStatus, run: () => options.api.importLegacyData() } : null,
-      ),
-      { layout },
+      settingsReply.data,
+      all,
+      pushReply.ok ? pushReply.data : null,
+      importStatus ? { status: importStatus, run: () => options.api.importLegacyData() } : null,
+      renderLists(host, all, { listId }),
     );
   }
 
@@ -725,10 +744,7 @@ export function mountMemoryUi(container: HTMLElement, options: MemoryUiOptions):
   let shownSpeech: PlanView['speech'] | null = null;
 
   function failure(message: string): HTMLElement {
-    return el('section', { class: 'sm-screen' }, [
-      el('h1', { class: 'sm-screen-title', text: tr('memory.ui.settings.title', 'Memory') }),
-      errorBanner(message),
-    ]);
+    return el('section', { class: 'sm-screen' }, [errorBanner(message)]);
   }
 
   // -------------------------------------------------------------------------
@@ -751,11 +767,10 @@ export function mountMemoryUi(container: HTMLElement, options: MemoryUiOptions):
         // The cache decides (same epoch and version: nothing to do) and notifies when it changed;
         // `onDataChanged` redraws, except while an exercise is open.
         data.onPlanChanged(push.epoch, push.version);
-        if (nav.view.name === 'progress') void data.loadAnalytics();
         return;
 
       case 'dueCountChanged':
-        if (typeof push.count === 'number' && nav.view.name === 'today') scheduleRender();
+        if (typeof push.count === 'number' && (nav.view.name === 'home' || nav.view.name === 'queue')) scheduleRender();
         return;
 
       case 'reciteState': {
@@ -776,7 +791,7 @@ export function mountMemoryUi(container: HTMLElement, options: MemoryUiOptions):
         return;
 
       case 'cardsWaitingChanged':
-        // Comes without a planChanged: patch the cached count (the notification redraws Today).
+        // Comes without a planChanged: patch the cached count (the notification redraws Home).
         data.patchCardsWaiting(push.count);
         if (nav.view.name === 'card') scheduleRender();
         return;
@@ -840,7 +855,7 @@ export function mountMemoryUi(container: HTMLElement, options: MemoryUiOptions):
   function consumeLaunchIntent(): Promise<void> {
     return host.request({ type: 'consumeLaunchIntent' }).then((reply) => {
       if (disposed) return;
-      if (reply.ok && reply.data.showCard && nav.view.name === 'today') {
+      if (reply.ok && reply.data.showCard && nav.view.name === 'home') {
         nav = navReduce(nav, { type: 'goCard' });
         void render();
       }
@@ -898,13 +913,13 @@ export function mountMemoryUi(container: HTMLElement, options: MemoryUiOptions):
   function offerPractice(added: JustAdded): void {
     if (disposed) return;
     justAdded = added;
-    if (nav.view.name === 'practice' || nav.view.name === 'recite') return; // shown when Today comes back
-    if (nav.view.name !== 'today') nav = navReduce(nav, { type: 'goTab', tab: 'today' });
+    if (nav.view.name === 'practice' || nav.view.name === 'recite') return; // shown when Home comes back
+    if (nav.view.name !== 'home') nav = navReduce(nav, { type: 'goTab', tab: 'home' });
     void render();
   }
 
   // On open, resume a run that is already going (hands-free started by the
-  // command), else show Today - or the card stack when asked to.
+  // command), else show Home - or the card stack when asked to.
   if (options.initialView === 'card') nav = navReduce(nav, { type: 'goCard' });
   // Reopened: the cached plan draws at once and refreshes in the background. First open: the load
   // starts now, in parallel with getReciteState, and the shell is drawn before it lands.
@@ -912,7 +927,7 @@ export function mountMemoryUi(container: HTMLElement, options: MemoryUiOptions):
   else if (options.initialView !== 'card') data.ensure().catch(() => undefined);
   // The shell is drawn at once; a getReciteState that never answers (a request lost at boot) must not
   // leave the stage blank, so the first paint waits at most ~1.5 s for it and re-renders when it lands.
-  if (needsPlan(nav.view) && data.get() === null && options.initialView !== 'card') drawBusyShell(nav.view);
+  if (needsPlan(nav.view) && data.get() === null && options.initialView !== 'card') drawBusy();
   let reciteTimedOut = false;
   const reciteReply = host.request({ type: 'getReciteState' }).then((reply) => {
     if (reply.ok && reply.data !== null && isRunning(reply.data) && options.initialView !== 'card') {
@@ -933,7 +948,7 @@ export function mountMemoryUi(container: HTMLElement, options: MemoryUiOptions):
     .catch(() => undefined)
     .then(async () => {
       const first = options.initialPractice;
-      if (first !== undefined && nav.view.name === 'today') {
+      if (first !== undefined && nav.view.name === 'home') {
         await host.startSession(first);
         if ((nav as NavState).view.name === 'practice') return;
       }

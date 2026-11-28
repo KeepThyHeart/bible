@@ -1,10 +1,10 @@
 /**
  * The Memory page (`#/@memory`, lazy chunk): mounts the DOM UI from `@bible/memory/ui` over the user-DB worker.
- * The shell draws the app chrome (rail on desktop layouts, the "Back to Study" bar on the phone), so the page only
- * adds a visually hidden heading (the focus target when the app opens) and the host element.
+ * The shell draws the app chrome (rail on desktop layouts, the "Back to Study" bar on the phone); the UI draws its
+ * own app-page frame (the h1, the focus target when the app opens, and the tabs), so the page is only the host element.
  */
 import './memory.scss';
-import { useEffect, useId, useRef, useState } from 'preact/hooks';
+import { useEffect, useRef, useState } from 'preact/hooks';
 import { useTranslation } from 'react-i18next';
 import { mountMemoryUi } from '@bible/memory/ui';
 import { mountVerseSelector } from '@bible/ui';
@@ -26,7 +26,6 @@ export function activeReference(): string | null {
 export function MemoryApp() {
   const { t, i18n } = useTranslation();
   const locale = i18n.resolvedLanguage || i18n.language || 'en';
-  const headingId = useId();
   const hostRef = useRef<HTMLDivElement>(null);
   const [failed, setFailed] = useState(false);
 
@@ -52,6 +51,7 @@ export function MemoryApp() {
           t: memoryT,
           locale,
           verseSelector: { mount: mountVerseSelector },
+          title: t('apps.memory.title', 'Memory'),
         });
       } catch (e) {
         console.warn('[memory] could not start:', e);
@@ -70,8 +70,7 @@ export function MemoryApp() {
   }, [locale]);
 
   return (
-    <section class="memory-app" data-app="memory" aria-labelledby={headingId}>
-      <h1 id={headingId} tabIndex={-1} class="memory-app__title">{t('apps.memory.title', 'Memory')}</h1>
+    <section class="memory-app" data-app="memory" aria-label={t('apps.memory.title', 'Memory')}>
       <div ref={hostRef} class="memory-app__host" />
       {failed && <p role="alert">{t('apps.stage.error', 'This app could not be loaded.')}</p>}
     </section>

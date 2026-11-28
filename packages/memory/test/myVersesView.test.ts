@@ -9,7 +9,6 @@ import { WordMeasurer } from '../src/ui/measure';
 import { renderMyVerses } from '../src/ui/myVersesView';
 import { openAddVerseDialog } from '../src/ui/addVerseDialog';
 import { setReciteEnabledForTests } from '../src/core/features';
-import { SUGGESTED_LISTS } from '../src/core/suggestedLists';
 
 vi.mock('../src/ui/addVerseDialog', () => ({ openAddVerseDialog: vi.fn() }));
 
@@ -191,6 +190,9 @@ describe('remove', () => {
 
 const refs = (root: Element) => rows(root).map((r) => text(r.querySelector('.sm-verse-ref')!));
 const blocksOf = (row: Element) => Array.from(row.querySelectorAll<HTMLButtonElement>('.sm-block-btn'));
+const squaresOf = (row: Element) => Array.from(row.querySelectorAll<HTMLElement>('.sm-block'));
+const square = (row: Element, rung: string) => row.querySelector<HTMLElement>(`.sm-block[data-rung="${rung}"]`)!;
+const headers = (root: Element) => Array.from(root.querySelectorAll('thead th')).map((th) => th.getAttribute('data-rung') ?? text(th));
 
 describe('List picker', () => {
   it('is a native select with (All) and each list with counts, and no chips', () => {
@@ -246,40 +248,77 @@ describe('order and progress', () => {
   });
 });
 
-describe('row details and blocks', () => {
-  it('puts the status and next review in the details line below the reference', () => {
+describe('table and squares', () => {
+  it('is one kth-table with a header row: reference, list, one column per activity, next review, actions', () => {
+    const root = mount();
+    const table = root.querySelector('.kth-table-wrap > table.kth-table')!;
+    expect(table).not.toBeNull();
+    expect(headers(root)).toEqual(['Reference', 'List', 'ordering', 'blanks', 'firstletters', 'recite', 'Next review', 'Actions']);
+    const blanks = root.querySelector('thead th[data-rung="blanks"]')!;
+    expect(blanks.getAttribute('title')).toBe('Fill in the blanks');
+    expect(text(blanks.querySelector('[aria-hidden="true"]')!)).toBe('Bl');
+    expect(text(blanks.querySelector('.sm-sr-only')!)).toBe('Fill in the blanks');
+    for (const r of rows(root)) expect(r.tagName).toBe('TR');
+  });
+
+  it('drops the List column for one list, and keeps every row on the same columns', () => {
+    const root = mount({}, { list: 2 });
+    expect(headers(root)).not.toContain('List');
+    expect(root.querySelector('.sm-verses-col-list')).toBeNull();
+    container.innerHTML = '';
+    const all = mount();
+    for (const r of rows(all)) expect(squaresOf(r).map((q) => q.dataset.rung)).toEqual(['ordering', 'blanks', 'firstletters', 'recite']);
+  });
+
+  it('shows the list and next review in their own cells', () => {
     const row = rowFor(mount(), 'Psalm 23');
-    expect(text(row.querySelector('.sm-verse-details')!)).toBe('Due today \u00B7 Default');
+    expect(text(row.querySelector('.sm-verses-col-next')!)).toBe('Due today');
+    expect(text(row.querySelector('.sm-verses-col-list')!)).toBe('Default');
     expect(row.querySelector('.sm-status')).toBeNull();
   });
 
-  it('draws one toolbar per row with one tab stop and a named block per activity', () => {
+  it('one tab stop per row; a square is named by its summary', () => {
     const row = rowFor(mount(), 'Psalm 23');
-    const bar = row.querySelector('[role="toolbar"]')!;
-    expect(bar.getAttribute('aria-label')).toBe('Activities for Psalm 23');
+    expect(row.classList.contains('sm-blocks')).toBe(true);
     const blocks = blocksOf(row);
     expect(blocks.filter((b) => b.tabIndex === 0)).toHaveLength(1);
-    const blanks = blocks.find((b) => b.dataset.rung === 'blanks')!;
+    const blanks = square(row, 'blanks');
     expect(blanks.dataset.state).toBe('practicing');
-    expect(text(blanks)).toContain('Fill in the blanks: 0 of 2 stages passed');
-    // one announcement only: no title next to the sr-only name; a visible tag tells blocks apart
-    expect(blanks.hasAttribute('title')).toBe(false);
-    expect(blanks.querySelector('.sm-block-tag')!.textContent).not.toBe('');
+    expect(text(blanks.querySelector('.sm-sr-only')!)).toBe('Fill in the blanks: 0 of 2 stages passed');
+    expect(text(blanks.querySelector('.sm-block-glyph')!)).toBe('0/2');
   });
 
-  it('marks a single-verse ordering block not applicable (aria-disabled, still in the arrow order)', () => {
-    const blocks = blocksOf(rowFor(mount(), 'Psalm 23'));
-    const ordering = blocks.find((b) => b.dataset.rung === 'ordering')!;
+  it('draws a not-needed square (not a button) for a missing or inapplicable activity', () => {
+    const row = rowFor(mount(), 'Psalm 23');
+    const ordering = square(row, 'ordering');
     expect(ordering.dataset.state).toBe('notApplicable');
-    expect(ordering.getAttribute('aria-disabled')).toBe('true');
-    expect(text(ordering)).toContain('not applicable');
+    expect(ordering.tagName).toBe('SPAN');
+    expect(ordering.getAttribute('aria-label')).toContain('not needed');
+    expect(blocksOf(row).some((b) => b.dataset.rung === 'ordering')).toBe(false);
     ordering.click();
     expect(host.sessions).toEqual([]);
   });
 
+  it('a complete square shows a check and practises again', () => {
+    const done = pv(5, 1, 'Done 1:1', [rung('blanks', { level: 4, attempts: 3, tiersPassed: 2 })]);
+    const row = rowFor(mount({}, { list: 'all' }, [done], [LISTS[0]!]), 'Done 1:1');
+    const blanks = square(row, 'blanks');
+    expect(blanks.dataset.state).toBe('complete');
+    expect(text(blanks.querySelector('.sm-block-glyph')!)).toBe('\u2713');
+    blanks.click();
+    expect(host.sessions).toEqual([5]);
+  });
+
+  it('has a legend with the four states', () => {
+    const legend = mount().querySelector('.sm-block-legend')!;
+    expect(Array.from(legend.querySelectorAll('li')).map((li) => text(li).replace(/[\u2013\u2713]|1\/3/g, '').trim())).toEqual([
+      'Not started', 'Not needed', 'In progress', 'Finished',
+    ]);
+  });
+
   it('arrow keys, Home and End move between the blocks with a roving tab stop', () => {
     const blocks = blocksOf(rowFor(mount(), 'John 3:16'));
-    const bar = blocks[0]!.parentElement!;
+    const bar = blocks[0]!.closest('.sm-blocks')!;
     blocks[0]!.focus();
     blocks[0]!.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
     expect(document.activeElement).toBe(blocks[1]);
@@ -289,7 +328,7 @@ describe('row details and blocks', () => {
     expect(document.activeElement).toBe(blocks[blocks.length - 1]);
     blocks[blocks.length - 1]!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Home', bubbles: true }));
     expect(document.activeElement).toBe(blocks[0]);
-    expect(bar.querySelectorAll('[tabindex="0"]')).toHaveLength(1);
+    expect(bar.querySelectorAll('.sm-block-btn[tabindex="0"]')).toHaveLength(1);
   });
 
   it('clicking a block starts that activity', () => {
@@ -305,6 +344,7 @@ describe('row details and blocks', () => {
     const speech = { state: 'unavailable', missingPermissions: [], engineLabel: '', onDevice: false, handsFree: false, unknown: true };
     const row = rowFor(mount({ speech } as never, { list: 'all' }, [recite], [LISTS[0]!]), 'Recite 1:1');
     expect(blocksOf(row).some((b) => b.dataset.rung === 'recite')).toBe(false);
+    expect(headers(container)).not.toContain('recite');
     const row2 = rowFor(mount({}, { list: 'all' }, [recite], [LISTS[0]!]), 'Recite 1:1');
     expect(blocksOf(row2).some((b) => b.dataset.rung === 'recite')).toBe(true);
   });
@@ -321,13 +361,6 @@ describe('row details and blocks', () => {
     expect(host.sessions).toEqual([]);
   });
 
-  it('offers a closed text summary of the activities for touch users', () => {
-    const d = rowFor(mount(), 'Psalm 23').querySelector('details.sm-block-summary') as HTMLDetailsElement;
-    expect(d.open).toBe(false);
-    d.open = true; // the lines are filled in on first open
-    d.dispatchEvent(new Event('toggle'));
-    expect(Array.from(d.querySelectorAll('li')).map(text)).toContain('Fill in the blanks: 0 of 2 stages passed');
-  });
 });
 
 describe('adding and starter sets', () => {
@@ -340,44 +373,42 @@ describe('adding and starter sets', () => {
     expect(host.navigations).toContainEqual({ type: 'goVerses', list: 1, highlight: 4 });
   });
 
-  it('keeps the starter sets reachable: closed with verses, open when empty', () => {
-    const details = mount().querySelector('details.sm-verses-starters') as HTMLDetailsElement;
-    expect(details.open).toBe(false);
-    expect(details.querySelectorAll('.sm-chip').length).toBe(SUGGESTED_LISTS.length);
+  it('offers one Browse starter sets button, also when empty', () => {
+    byLabel(mount(), 'Browse starter sets')!.click();
+    expect(host.navigations).toContainEqual({ type: 'goStarters' });
+    expect(container.querySelector('details.sm-verses-starters')).toBeNull();
     container.innerHTML = '';
     const empty = mount({}, { list: 'all' }, [], [LISTS[0]!]);
-    expect((empty.querySelector('details.sm-verses-starters') as HTMLDetailsElement).open).toBe(true);
+    expect(byLabel(empty, 'Browse starter sets')).toBeDefined();
     expect(text(empty)).toContain('No verses yet.');
+    expect(empty.querySelector('table')).toBeNull();
   });
 
-  it('a starter chip creates its list without touching the focus', async () => {
-    const set = SUGGESTED_LISTS[0]!;
-    host.handlers['createList'] = () => ({ ok: true, data: plan({ lists: [...LISTS, { id: 7, name: set.name, passageCount: 0, verseCount: 0 }] }) });
-    host.handlers['addPassage'] = () => ({ ok: true, data: { passage: PASSAGES[0]!.passage } });
-    (mount().querySelector('.sm-starter-chips .sm-chip') as HTMLElement).click();
-    await settle();
-    expect(host.requests.some((r) => r.type === 'setScope')).toBe(false);
-    expect((host.requests.filter((r) => r.type === 'addPassage')[0] as any).collectionId).toBe(7);
+  it('has a focusable h2 screen title', () => {
+    const h2 = mount().querySelector('h2.sm-screen-title')!;
+    expect(text(h2)).toBe('My verses');
+    expect(h2.getAttribute('tabindex')).toBe('-1');
   });
 
   it('highlights a just-added verse with Practice now', () => {
     const row = rowFor(mount({}, { list: 'all', highlight: 2 }), 'John 3:16');
-    expect(byLabel(row, 'Practice now')).toBeDefined();
+    expect(row.classList.contains('sm-verse-row-new')).toBe(true);
+    expect(byLabel(row.querySelector('td:last-child')!, 'Practice now')).toBeDefined();
   });
 });
 
 describe('long lists', () => {
   const many = (n: number) => Array.from({ length: n }, (_, i) => fresh(100 + i, 1, `Verse ${i + 1}:1`));
 
-  it('paints the first rows at once and the rest in later frames, with set size and position', async () => {
+  it('paints the first rows at once and the rest in later frames, with row count and index', async () => {
     const root = mount({}, { list: 'all' }, many(300));
     const first = rows(root).length;
     expect(first).toBeLessThan(300);
-    expect(rows(root)[0]!.getAttribute('aria-setsize')).toBe('300');
-    expect(rows(root)[0]!.getAttribute('aria-posinset')).toBe('1');
+    expect(root.querySelector('table')!.getAttribute('aria-rowcount')).toBe('301');
+    expect(rows(root)[0]!.getAttribute('aria-rowindex')).toBe('2');
     for (let i = 0; i < 40 && rows(root).length < 300; i++) await new Promise((r) => setTimeout(r, 20));
     expect(rows(root).length).toBe(300);
-    expect(rows(root)[299]!.getAttribute('aria-posinset')).toBe('300');
+    expect(rows(root)[299]!.getAttribute('aria-rowindex')).toBe('301');
   });
 
   it('shows a highlighted row far down in the first paint', () => {

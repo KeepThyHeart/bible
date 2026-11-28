@@ -1,35 +1,61 @@
-/* Scripture Memory - My verses: progress bar, List picker, verse rows with activity blocks. Scoped under .sm-app, logical properties only. */
+/* Scripture Memory - My verses: progress bar, List picker, a compact verse table with activity squares.
+   Scoped under .sm-app, logical properties only. The table itself is the shared `.kth-table`. */
 
 .sm-app .sm-verses {
+  container: sm-verses / inline-size;
   display: flex;
   flex-direction: column;
   gap: var(--sm-s3);
+  /* Square colours. Light theme by default; dark overrides below. A 1px border keeps white visible. */
+  --sm-sq-border: var(--sm-border-strong, #6b7280);
+  --sm-sq-gray: var(--sm-block-gray, #d1d5db);
+  --sm-sq-gray-fg: var(--sm-text-dim, #4b5563);
+  --sm-sq-white: #ffffff;
+  --sm-sq-white-fg: #6b7280;
+  --sm-sq-yellow: var(--sm-block-yellow, #fde047);
+  --sm-sq-yellow-border: var(--sm-block-yellow-border, #a16207);
+  --sm-sq-yellow-fg: var(--sm-block-yellow-fg, #422006);
+  --sm-sq-green: var(--sm-block-green, #22c55e);
+  --sm-sq-green-border: var(--sm-block-green-border, #15803d);
+  --sm-sq-green-fg: var(--sm-block-green-fg, #052e16);
 }
 
-.sm-app .sm-verses-title {
-  margin: 0;
-  font-size: 1.15em;
-  font-weight: 600;
-  color: var(--sm-heading);
+@media (prefers-color-scheme: dark) {
+  .sm-app:not([data-theme='light']) .sm-verses {
+    --sm-sq-border: #9ca3af;
+    --sm-sq-gray: #4b5563;
+    --sm-sq-gray-fg: #e5e7eb;
+    --sm-sq-white: #f9fafb;
+    --sm-sq-white-fg: #4b5563;
+    --sm-sq-yellow: #facc15;
+    --sm-sq-yellow-border: #fde68a;
+    --sm-sq-yellow-fg: #422006;
+    --sm-sq-green: #22c55e;
+    --sm-sq-green-border: #86efac;
+    --sm-sq-green-fg: #052e16;
+  }
 }
 
-.sm-app .sm-verses-starters > summary {
-  cursor: pointer;
-  color: var(--sm-text-dim);
-}
-
-/* Verse rows */
-.sm-app .sm-verse-rows {
-  margin: 0;
-  padding: 0;
-  list-style: none;
+.sm-app[data-theme='dark'] .sm-verses {
+  --sm-sq-border: #9ca3af;
+  --sm-sq-gray: #4b5563;
+  --sm-sq-gray-fg: #e5e7eb;
+  --sm-sq-white: #f9fafb;
+  --sm-sq-white-fg: #4b5563;
+  --sm-sq-yellow: #facc15;
+  --sm-sq-yellow-border: #fde68a;
+  --sm-sq-yellow-fg: #422006;
+  --sm-sq-green: #22c55e;
+  --sm-sq-green-border: #86efac;
+  --sm-sq-green-fg: #052e16;
 }
 
 .sm-app .sm-verses-head {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: var(--sm-s3);
+  gap: var(--sm-s2) var(--sm-s3);
 }
 
 .sm-app .sm-verses-add-btn {
@@ -43,7 +69,7 @@
 }
 
 .sm-app .sm-progress-bar {
-  height: 12px;
+  block-size: 12px;
 }
 
 .sm-app .sm-bar-fill.sm-progress-fill {
@@ -67,47 +93,46 @@
   max-inline-size: 100%;
 }
 
-/* Rows. The container query lets the blocks wrap under the reference in a narrow column. */
-.sm-app .sm-verse-row {
-  container-type: inline-size;
-  /* Off-screen rows skip layout and paint (300 rows would otherwise all lay out on every visit). */
-  content-visibility: auto;
-  contain-intrinsic-size: auto 5.5rem;
-  display: flex;
-  flex-direction: column;
-  gap: var(--sm-s1);
-  padding-block: var(--sm-s2);
-  padding-inline: var(--sm-s2);
-  border-block-end: 1px solid var(--sm-border);
+/* The table: compact, one line per verse. */
+.sm-app .sm-verses-table {
+  inline-size: auto;
+  min-inline-size: 100%;
 }
 
-/* The tooltip must not be clipped by content-visibility containment. */
-.sm-app .sm-verse-row:hover,
-.sm-app .sm-verse-row:focus-within {
-  content-visibility: visible;
-  position: relative;
-  z-index: 1;
+.sm-app .sm-verses-table .kth-table__head,
+.sm-app .sm-verses-table .kth-table__cell {
+  padding-block: 2px;
+  padding-inline: var(--sm-s2);
+}
+
+.sm-app .sm-verses-table .sm-verses-col-block {
+  inline-size: 1px; /* shrink to the square */
+  padding-inline: 3px;
+  text-align: center;
+}
+
+.sm-app .sm-verses-table .kth-table__head.sm-verses-col-block {
+  cursor: help;
+}
+
+.sm-app .sm-verses-table .sm-verses-col-ref {
+  inline-size: 100%;
+}
+
+.sm-app .sm-verses-table .sm-verses-col-acts {
+  inline-size: 1px;
+  text-align: end;
 }
 
 .sm-app .sm-verse-row-new {
   background: var(--sm-accent-light);
-  border-radius: var(--sm-radius);
-}
-
-.sm-app .sm-verse-line {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--sm-s1) var(--sm-s3);
 }
 
 .sm-app .sm-verse-main {
-  display: flex;
-  flex: 1 1 8rem;
+  display: inline-flex;
   flex-wrap: wrap;
   align-items: baseline;
-  gap: var(--sm-s1) var(--sm-s2);
-  min-inline-size: 0;
+  gap: 0 var(--sm-s2);
 }
 
 .sm-app .sm-verse-ref {
@@ -129,178 +154,108 @@
 }
 
 .sm-app .sm-verse-acts {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: var(--sm-s2);
-  order: 2;
 }
 
-.sm-app .sm-verse-details {
-  color: var(--sm-text-dim);
-  font-size: 0.9em;
-}
-
-/* Activity blocks. State is drawn in CSS and never depends on colour alone:
-   not started = empty outline, practicing = diagonal half fill, complete = solid fill + large check,
-   not applicable = neutral dashed hatch. A short tag names the activity. */
-.sm-app .sm-blocks {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--sm-s1);
-  order: 1;
+/* Activity squares. State is never told by colour alone: gray empty = not started, white with a dash =
+   not needed, yellow with "passed/total" = in progress, green with a check = finished. */
+.sm-app .sm-block {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  inline-size: 26px;
+  block-size: 26px;
+  padding: 0;
+  margin: 0;
+  vertical-align: middle;
+  border: 1px solid var(--sm-sq-border);
+  border-radius: 3px;
+  font: inherit;
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
 }
 
 .sm-app .sm-block-btn {
-  --sm-block-fill: transparent;
-  position: relative;
-  display: inline-flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  inline-size: 34px;
-  block-size: 38px;
-  min-inline-size: 24px;
-  min-block-size: 24px;
-  padding: 0;
-  font: inherit;
-  line-height: 1;
-  border: 2px solid var(--sm-block-border, var(--sm-border-strong));
-  border-radius: var(--sm-radius);
-  background: var(--sm-control-bg, transparent);
-  color: var(--sm-block-fg, var(--sm-text));
   cursor: pointer;
 }
 
 .sm-app .sm-block-btn:hover {
-  border-color: var(--sm-focus);
+  outline: 2px solid var(--sm-focus);
+  outline-offset: 1px;
 }
 
-.sm-app .sm-block-glyph {
-  font-size: 1.1rem;
-  font-weight: 800;
-  line-height: 1;
-  min-block-size: 1.1rem;
+.sm-app .sm-block-btn:focus-visible {
+  outline: 2px solid var(--sm-focus);
+  outline-offset: 2px;
 }
 
-.sm-app .sm-block-tag {
-  font-size: 0.7rem;
-  font-weight: 700;
-  line-height: 1;
-  letter-spacing: 0.02em;
+.sm-app .sm-block[data-state='notStarted'] {
+  background: var(--sm-sq-gray);
+  color: var(--sm-sq-gray-fg);
 }
 
-.sm-app .sm-block-btn[data-state='notStarted'] {
-  --sm-block-border: var(--sm-block-grey-border, #6b7280);
-  --sm-block-fg: var(--sm-text-dim);
-}
-
-.sm-app .sm-block-btn[data-state='practicing'] {
-  --sm-block-fill: var(--sm-block-yellow, #fde68a);
-  --sm-block-border: var(--sm-block-yellow-border, #a16207);
-  --sm-block-fg: var(--sm-block-yellow-fg, #713f12);
-  background: linear-gradient(135deg, var(--sm-block-fill) 50%, var(--sm-control-bg, transparent) 50%);
-}
-
-.sm-app .sm-block-btn[data-state='complete'] {
-  --sm-block-fill: var(--sm-block-green, #86efac);
-  --sm-block-border: var(--sm-block-green-border, #15803d);
-  --sm-block-fg: var(--sm-block-green-fg, #14532d);
-  background: var(--sm-block-fill);
-}
-
-/* Not applicable: light green, dashed, with a dash; complete is saturated green with a check. */
-.sm-app .sm-block-btn[data-state='notApplicable'] {
-  --sm-block-fill: var(--sm-block-na-fill, #dcfce7);
-  --sm-block-border: var(--sm-block-na-border, #16a34a);
-  --sm-block-fg: var(--sm-block-na-fg, #166534);
-  background: var(--sm-block-fill);
-  border-style: dashed;
+.sm-app .sm-block[data-state='notApplicable'] {
+  background: var(--sm-sq-white);
+  color: var(--sm-sq-white-fg);
   cursor: default;
 }
 
-/* The CSS tooltip (the accessible name is the hidden text, so no title attribute). */
-.sm-app .sm-block-btn:hover::after,
-.sm-app .sm-block-btn:focus-visible::after {
-  content: attr(data-tip);
-  position: absolute;
-  inset-block-end: calc(100% + 4px);
-  inset-inline-start: 0;
-  z-index: 5;
-  inline-size: max-content;
-  max-inline-size: 16rem;
-  padding: 2px var(--sm-s2);
-  border: 1px solid var(--sm-border-strong);
-  border-radius: var(--sm-radius);
-  background: var(--sm-surface-raised);
-  color: var(--sm-text);
-  font-size: 0.8rem;
-  font-weight: 400;
-  white-space: normal;
-  pointer-events: none;
+.sm-app .sm-block[data-state='practicing'] {
+  background: var(--sm-sq-yellow);
+  border-color: var(--sm-sq-yellow-border);
+  color: var(--sm-sq-yellow-fg);
+  font-size: 0.62rem;
+  letter-spacing: -0.02em;
 }
 
-@media (prefers-color-scheme: dark) {
-  .sm-app:not([data-theme='light']) .sm-block-btn[data-state='notStarted'] {
-    --sm-block-border: #9ca3af;
-  }
-  .sm-app:not([data-theme='light']) .sm-block-btn[data-state='practicing'] {
-    --sm-block-fill: #854d0e;
-    --sm-block-border: #facc15;
-    --sm-block-fg: #fef9c3;
-  }
-  .sm-app:not([data-theme='light']) .sm-block-btn[data-state='complete'] {
-    --sm-block-fill: #166534;
-    --sm-block-border: #4ade80;
-    --sm-block-fg: #dcfce7;
-  }
-  .sm-app:not([data-theme='light']) .sm-block-btn[data-state='notApplicable'] {
-    --sm-block-fill: rgba(74, 222, 128, 0.14);
-    --sm-block-border: #4ade80;
-    --sm-block-fg: #bbf7d0;
-  }
+.sm-app .sm-block[data-state='complete'] {
+  background: var(--sm-sq-green);
+  border-color: var(--sm-sq-green-border);
+  color: var(--sm-sq-green-fg);
+  font-size: 0.95rem;
 }
 
-.sm-app[data-theme='dark'] .sm-block-btn[data-state='notStarted'] {
-  --sm-block-border: #9ca3af;
-}
-.sm-app[data-theme='dark'] .sm-block-btn[data-state='practicing'] {
-  --sm-block-fill: #854d0e;
-  --sm-block-border: #facc15;
-  --sm-block-fg: #fef9c3;
-}
-.sm-app[data-theme='dark'] .sm-block-btn[data-state='complete'] {
-  --sm-block-fill: #166534;
-  --sm-block-border: #4ade80;
-  --sm-block-fg: #dcfce7;
-}
-.sm-app[data-theme='dark'] .sm-block-btn[data-state='notApplicable'] {
-  --sm-block-fill: rgba(74, 222, 128, 0.14);
-  --sm-block-border: #4ade80;
-  --sm-block-fg: #bbf7d0;
-}
-
-.sm-app .sm-block-summary > summary {
-  cursor: pointer;
+/* The key under the table. */
+.sm-app .sm-block-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sm-s1) var(--sm-s3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
   color: var(--sm-text-dim);
   font-size: 0.85em;
 }
 
-.sm-app .sm-block-summary-list {
-  margin: var(--sm-s1) 0 0;
-  padding-inline-start: var(--sm-s4, 1.25rem);
-  font-size: 0.85em;
+.sm-app .sm-block-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sm-s1);
 }
 
-/* Narrow rows (about 390 px phones): the blocks wrap under the reference. */
-@container (max-width: 30rem) {
-  .sm-app .sm-verse-main {
-    flex-basis: calc(100% - 3rem);
-  }
-  .sm-app .sm-verse-acts {
-    order: 1;
-  }
-  .sm-app .sm-blocks {
-    order: 2;
-    flex: 1 1 100%;
+.sm-app .sm-block-sample {
+  inline-size: 18px;
+  block-size: 18px;
+  font-size: 0.55rem;
+}
+
+.sm-app .sm-block-sample[data-state='complete'] {
+  font-size: 0.75rem;
+}
+
+.sm-app .sm-verses-starters {
+  display: flex;
+}
+
+/* Narrow panels (about 390 px phones): drop the List and Next review columns; the wrap still scrolls. */
+@container sm-verses (max-width: 30rem) {
+  .sm-app .sm-verses-col-list,
+  .sm-app .sm-verses-col-next {
+    display: none;
   }
 }

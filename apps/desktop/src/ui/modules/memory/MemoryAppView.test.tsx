@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render } from '@testing-library/react';
 
 const dispose = vi.hoisted(() => vi.fn());
 const showCards = vi.hoisted(() => vi.fn());
@@ -55,10 +55,13 @@ describe('MemoryAppView', () => {
     expect(setActiveReference).toHaveBeenCalledWith(expect.stringContaining('3:16'));
   });
 
-  it('has a heading and a Back button that opens Study', () => {
+  it('hands the UI its title and a Back to Study action that opens Study', () => {
     render(<MemoryAppView />);
-    expect(screen.getByRole('heading', { level: 1 })).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: /backToStudy|Back to Study/ }));
+    const options = (mountMemoryUi.mock.calls[0] as unknown as [unknown, { title: string; actions: { label: string; onClick(): void }[] }])[1];
+    expect(options.title).toBeTruthy();
+    expect(options.actions).toHaveLength(1);
+    expect(options.actions[0]!.label).toMatch(/backToStudy|Back to Study/);
+    options.actions[0]!.onClick();
     expect(openApp).toHaveBeenCalledWith('study');
   });
 });

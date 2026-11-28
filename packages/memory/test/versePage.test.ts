@@ -102,7 +102,7 @@ const learning = () =>
 describe('header and status', () => {
   it('shows the reference as the title, the translation, and a "Back to list" button back to where it was opened', () => {
     const root = mount(learning());
-    expect(text(root.querySelector('h1')!)).toBe('John 3:16');
+    expect(text(root.querySelector('.sm-focused-title, h2')!)).toBe('John 3:16');
     expect(text(root.querySelector('.sm-focused-head')!)).toContain('kjv');
     expect(root.querySelector('.sm-focused-close')).toBeNull();
     const back = root.querySelector<HTMLElement>('button.kth-back')!;

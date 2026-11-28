@@ -24,7 +24,7 @@ export interface ActivityBlock {
   coveredBy: Rung | null;
   /** True when a click may start the activity. */
   startable: boolean;
-  naReason: 'singleVerse' | 'speech' | null;
+  naReason: 'tooShort' | 'speech' | null;
 }
 
 /** The fixed ladder, in `RUNG_ORDER` order. */
@@ -45,8 +45,8 @@ function coveringRung(rungs: readonly RungView[], rung: Rung): Rung | null {
 }
 
 /**
- * One block per ladder rung that is worth showing. Walks `BLOCK_RUNGS`, not `pv.rungs`: a single-verse
- * passage has no `ordering` card, which shows as not applicable. Reference rungs are omitted while gated
+ * One block per ladder rung that is worth showing. Walks `BLOCK_RUNGS`, not `pv.rungs`: a passage of fewer than
+ * three verses has no applicable `ordering` card, which shows as not applicable. Reference rungs are omitted while gated
  * and recite only appears when `reciteShown`.
  */
 export function activityBlocks(pv: PassageView, opts: { reciteShown: boolean }): ActivityBlock[] {
@@ -66,7 +66,7 @@ export function activityBlocks(pv: PassageView, opts: { reciteShown: boolean }):
         bestScore: null,
         coveredBy: null,
         startable: false,
-        naReason: rung === 'recite' ? 'speech' : 'singleVerse',
+        naReason: rung === 'recite' ? 'speech' : 'tooShort',
       });
       continue;
     }

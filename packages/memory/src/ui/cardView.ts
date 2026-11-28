@@ -56,7 +56,7 @@ export function renderCardStack(host: PanelHost, initial: CardStackView): HTMLEl
   root.appendChild(
     focusedHeader({
       title: tr('memory.ui.settings.reminders', 'Reminders'),
-      onClose: () => host.go({ type: 'goTab', tab: 'today' }),
+      onClose: () => host.go({ type: 'goTab', tab: 'home' }),
     }),
   );
   root.appendChild(body);
@@ -192,7 +192,7 @@ export function renderCardStack(host: PanelHost, initial: CardStackView): HTMLEl
     if (handled === 0) {
       return el('div', { class: 'sm-card-end' }, [
         el('p', { class: 'sm-card-empty', text: tr('memory.ui.settings.noRemindersWaiting', 'No reminders waiting.') }),
-        button(tr('memory.ui.settings.back', 'Back'), () => host.go({ type: 'goTab', tab: 'today' }), { class: 'sm-btn' }),
+        button(tr('memory.ui.settings.back', 'Back'), () => host.go({ type: 'goTab', tab: 'home' }), { class: 'sm-btn' }),
       ]);
     }
     return el('div', { class: 'sm-card-end' }, [
@@ -201,7 +201,7 @@ export function renderCardStack(host: PanelHost, initial: CardStackView): HTMLEl
         button(tr('memory.ui.settings.practiceWhatsDue', "Practice what's due"), () => void host.startFlow({ kind: 'today', skipped: [] }), {
           class: 'sm-btn sm-btn-primary',
         }),
-        button(tr('memory.ui.settings.back', 'Back'), () => host.go({ type: 'goTab', tab: 'today' }), { class: 'sm-btn' }),
+        button(tr('memory.ui.settings.back', 'Back'), () => host.go({ type: 'goTab', tab: 'home' }), { class: 'sm-btn' }),
       ]),
     ]);
   }

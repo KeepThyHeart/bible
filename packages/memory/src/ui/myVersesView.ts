@@ -1,6 +1,6 @@
 /**
- * My verses (R2-7..R2-10): an overall progress bar, one "List:" picker, and one list of verses
- * sorted by need, each with its activity blocks.
+ * My verses (R2-7..R2-10): an overall progress bar, one "List:" picker, and one compact table of verses
+ * sorted by need: one line per verse, one square column per activity.
  *
  * CALLER CONTRACT: `renderMyVerses(host, plan, view)`.
  *   - `plan` is the cached all-scope plan (`host.data.get()`); this view never fetches and a filter
@@ -9,21 +9,21 @@
  *   - `view.highlight`: a just-added verse id (shown highlighted with "Practice now").
  *
  * The "..." menu keeps Practice now / Move to list / Show in Bible / Remove. List management and the
- * focus control live on the Lists tab.
+ * focus control live on the Lists tab; starter sets have their own screen (`goStarters`).
  */
 
-import { activityBlocks, overallProgress, sortByNeed } from '../core/progress';
+import { activityBlocks, BLOCK_RUNGS, overallProgress, sortByNeed } from '../core/progress';
 import { reciteEnabled } from '../core/features';
 import { verseStatus } from '../core/today';
-import type { ListSummary, PassageView, PlanView } from '../core/types';
+import type { ListSummary, PassageView, PlanView, Rung } from '../core/types';
 import type { ActivityBlock } from '../core/progress';
-import { blocksFocusin, blocksKeydown, fillActivitySummary, renderActivityBlocks, renderActivitySummary, startBlock } from './activityBlocks';
+import { blocksFocusin, blocksKeydown, blockTag, notNeededBlock, renderBlockLegend, renderBlockSquare, startBlock } from './activityBlocks';
 import { openAddVerseDialog } from './addVerseDialog';
 import { button, el } from './dom';
 import { emptyState, menu, translationTag } from './components';
+import { RUNG_LABEL } from './format';
 import type { PanelHost } from './host';
 import { tr } from './i18n';
-import { renderStarterChips } from './starterSets';
 import type { VersesFilter } from './state';
 import { nextReviewText } from './verseStatusUi';
 import { practiceVerse, verseMenuItems } from './verseActions';
@@ -60,11 +60,13 @@ export function renderMyVerses(
       },
     });
 
+  // The shell draws the page h1 and the tab bar (which already says "My verses"); this h2 is the focus target.
   root.appendChild(
-    el('div', { class: 'sm-verses-head' }, [
-      el('h1', { class: 'sm-screen-title sm-verses-title', text: tr('memory.ui.verses.title', 'My verses') }),
-      button(tr('memory.ui.verses.addVerse', 'Add verse'), addVerse, { class: 'sm-btn sm-btn-primary sm-verses-add-btn' }),
-    ]),
+    el('h2', {
+      class: 'sm-screen-title sm-verses-title sm-sr-only',
+      text: tr('memory.ui.verses.title', 'My verses'),
+      attrs: { tabindex: '-1' },
+    }),
   );
 
   const shown = plan.passages.filter((pv) => filter === 'all' || pv.passage.collectionId === filter);
@@ -72,8 +74,13 @@ export function renderMyVerses(
   // --- overall progress (follows the List filter) ---
   if (shown.length > 0) root.appendChild(renderProgress(shown));
 
-  // --- the one List picker ---
-  root.appendChild(renderPicker(host, plan, filter));
+  // --- the one List picker, and Add verse ---
+  root.appendChild(
+    el('div', { class: 'sm-verses-head' }, [
+      renderPicker(host, plan, filter),
+      button(tr('memory.ui.verses.addVerse', 'Add verse'), addVerse, { class: 'sm-btn sm-btn-primary sm-verses-add-btn' }),
+    ]),
+  );
 
   // --- rows ---
   if (plan.passages.length === 0) {
@@ -94,14 +101,30 @@ export function renderMyVerses(
   } else {
     const showList = filter === 'all' && lists.length > 1;
     const derived = deriveRows(plan, shown, filter, now, reciteShown);
-    const ctx: RowCtx = { host, lists, listName, now, showList, reciteShown, derived, byId: new Map() };
-    const list = el('ul', { class: 'sm-list sm-verse-rows', attrs: { 'aria-label': tr('memory.ui.verses.rowsLabel', 'Your verses') } });
-    installRowDelegation(list, ctx);
-    renderRowsChunked(list, ctx, view.highlight);
-    root.appendChild(list);
+    const ctx: RowCtx = { host, lists, listName, now, showList, derived, byId: new Map() };
+    const table = el('table', {
+      class: 'kth-table sm-verses-table',
+      attrs: {
+        'aria-label': tr('memory.ui.verses.rowsLabel', 'Your verses'),
+        'aria-rowcount': String(derived.sorted.length + 1),
+      },
+    });
+    table.appendChild(renderHead(ctx));
+    const body = el('tbody');
+    table.appendChild(body);
+    installRowDelegation(body, ctx);
+    renderRowsChunked(body, ctx, view.highlight);
+    root.appendChild(el('div', { class: 'kth-table-wrap sm-verses-table-wrap' }, [table]));
+    root.appendChild(renderBlockLegend());
   }
 
-  root.appendChild(renderStarters(host, plan, plan.passages.length === 0));
+  root.appendChild(
+    el('div', { class: 'sm-verses-starters' }, [
+      button(tr('memory.ui.lists.browseStarters', 'Browse starter sets'), () => host.go({ type: 'goStarters' }), {
+        class: 'sm-btn sm-btn-quiet sm-verses-starters-btn',
+      }),
+    ]),
+  );
   return root;
 }
 
@@ -151,23 +174,15 @@ function renderPicker(host: PanelHost, plan: PlanView, filter: 'all' | number): 
   ]);
 }
 
-function renderStarters(host: PanelHost, plan: PlanView, open: boolean): HTMLElement {
-  const details = el('details', { class: 'sm-verses-starters' }, [
-    el('summary', { text: tr('memory.ui.verses.starterSets', 'Starter sets') }),
-    el('p', { class: 'sm-hint', text: tr('memory.ui.verses.starterHint', 'A ready-made list of well-known verses. Each makes its own list.') }),
-    renderStarterChips(host, plan),
-  ]);
-  if (open) details.open = true;
-  return details;
-}
-
 /** Rows painted before the first frame; the rest follow in chunks. */
 const FIRST_ROWS = 40;
 const CHUNK_ROWS = 60;
 
 interface Derived {
   sorted: PassageView[];
-  blocks: Map<number, ActivityBlock[]>;
+  blocks: Map<number, Map<Rung, ActivityBlock>>;
+  /** The activity columns: the union of the shown rows' blocks, in `BLOCK_RUNGS` order. */
+  columns: Rung[];
 }
 
 interface RowCtx {
@@ -176,13 +191,12 @@ interface RowCtx {
   listName: Map<number, string>;
   now: number;
   showList: boolean;
-  reciteShown: boolean;
   derived: Derived;
   /** Verses of the rows built so far, by passage id (for the delegated handlers). */
   byId: Map<number, PassageView>;
 }
 
-/** The sorted rows and their blocks, computed once per cache version (plan object), filter and minute. */
+/** The sorted rows, their blocks and the columns, computed once per cache version (plan object), filter and minute. */
 const derivedCache = new WeakMap<PlanView, Map<string, Derived>>();
 
 function deriveRows(
@@ -198,33 +212,55 @@ function deriveRows(
   let hit = perPlan.get(key);
   if (!hit) {
     if (perPlan.size > 24) perPlan.clear();
-    perPlan.set(key, (hit = { sorted: sortByNeed(shown, now), blocks: new Map() }));
+    const blocks = new Map<number, Map<Rung, ActivityBlock>>();
+    const used = new Set<Rung>();
+    for (const pv of shown) {
+      const byRung = new Map<Rung, ActivityBlock>();
+      for (const b of activityBlocks(pv, { reciteShown })) {
+        byRung.set(b.rung, b);
+        used.add(b.rung);
+      }
+      blocks.set(pv.passage.id, byRung);
+    }
+    hit = { sorted: sortByNeed(shown, now), blocks, columns: BLOCK_RUNGS.filter((r) => used.has(r)) };
+    perPlan.set(key, hit);
   }
   return hit;
 }
 
-function blocksOf(ctx: RowCtx, pv: PassageView): ActivityBlock[] {
-  let b = ctx.derived.blocks.get(pv.passage.id);
-  if (!b) ctx.derived.blocks.set(pv.passage.id, (b = activityBlocks(pv, { reciteShown: ctx.reciteShown })));
-  return b;
+function blockOf(ctx: RowCtx, pv: PassageView, rung: Rung): ActivityBlock {
+  return ctx.derived.blocks.get(pv.passage.id)?.get(rung) ?? notNeededBlock(rung);
 }
 
-/** One set of listeners for the whole list instead of several per row. */
-function installRowDelegation(list: HTMLElement, ctx: RowCtx): void {
-  const rowOf = (t: EventTarget | null): { pv: PassageView; target: Element } | null => {
-    const target = t instanceof Element ? t : null;
-    const li = target?.closest('li.sm-verse-row');
-    const pv = li ? ctx.byId.get(Number(li.getAttribute('data-passage-id'))) : undefined;
-    return target && pv ? { pv, target } : null;
-  };
-  list.addEventListener('click', (ev) => {
-    const hit = rowOf(ev.target);
-    if (!hit) return;
-    const { pv, target } = hit;
+function renderHead(ctx: RowCtx): HTMLElement {
+  const th = (cls: string, children: Array<Node | string>, attrs: Record<string, string> = {}): HTMLElement =>
+    el('th', { class: `kth-table__head ${cls}`, attrs: { scope: 'col', ...attrs } }, children);
+  const cells: HTMLElement[] = [th('sm-verses-col-ref', [tr('memory.ui.verses.colReference', 'Reference')])];
+  if (ctx.showList) cells.push(th('sm-verses-col-list', [tr('memory.ui.verses.colList', 'List')]));
+  for (const rung of ctx.derived.columns) {
+    const name = RUNG_LABEL[rung];
+    cells.push(
+      th('sm-verses-col-block', [el('span', { text: blockTag(rung), attrs: { 'aria-hidden': 'true' } }), el('span', { class: 'sm-sr-only', text: name })], {
+        title: name,
+        'data-rung': rung,
+      }),
+    );
+  }
+  cells.push(th('sm-verses-col-next', [tr('memory.ui.verses.colNext', 'Next review')]));
+  cells.push(th('sm-verses-col-acts', [el('span', { class: 'sm-sr-only', text: tr('memory.ui.verses.colActions', 'Actions') })]));
+  return el('thead', {}, [el('tr', { attrs: { 'aria-rowindex': '1' } }, cells)]);
+}
+
+/** One set of listeners for the whole table body instead of several per row. */
+function installRowDelegation(body: HTMLElement, ctx: RowCtx): void {
+  body.addEventListener('click', (ev) => {
+    const target = ev.target instanceof Element ? ev.target : null;
+    const row = target?.closest('tr.sm-verse-row');
+    const pv = row ? ctx.byId.get(Number(row.getAttribute('data-passage-id'))) : undefined;
+    if (!target || !pv) return;
     const blockBtn = target.closest('.sm-block-btn');
     if (blockBtn) {
-      const block = blocksOf(ctx, pv).find((b) => b.rung === blockBtn.getAttribute('data-rung'));
-      if (block) startBlock(ctx.host, pv, block);
+      startBlock(ctx.host, pv, blockOf(ctx, pv, blockBtn.getAttribute('data-rung') as Rung));
       return;
     }
     if (target.closest('.sm-verse-ref')) {
@@ -242,22 +278,12 @@ function installRowDelegation(list: HTMLElement, ctx: RowCtx): void {
       real.querySelector<HTMLElement>('.sm-menu-btn')?.click();
     }
   });
-  list.addEventListener('keydown', blocksKeydown);
-  list.addEventListener('focusin', blocksFocusin);
-  // `toggle` does not bubble; capture it to fill a row's text summary the first time it opens.
-  list.addEventListener(
-    'toggle',
-    (ev) => {
-      const details = ev.target instanceof Element && ev.target.matches('details.sm-block-summary') ? ev.target : null;
-      const hit = details ? rowOf(details) : null;
-      if (details && hit) fillActivitySummary(details, blocksOf(ctx, hit.pv));
-    },
-    true,
-  );
+  body.addEventListener('keydown', blocksKeydown);
+  body.addEventListener('focusin', blocksFocusin);
 }
 
-/** Builds the first rows now and the rest in later frames; stops if the list is replaced meanwhile. */
-function renderRowsChunked(list: HTMLElement, ctx: RowCtx, highlightId: number | undefined): void {
+/** Builds the first rows now and the rest in later frames; stops if the table is replaced meanwhile. */
+function renderRowsChunked(body: HTMLElement, ctx: RowCtx, highlightId: number | undefined): void {
   const all = ctx.derived.sorted;
   const total = all.length;
   const hi = highlightId === undefined ? -1 : all.findIndex((pv) => pv.passage.id === highlightId);
@@ -267,12 +293,11 @@ function renderRowsChunked(list: HTMLElement, ctx: RowCtx, highlightId: number |
     for (; next < Math.min(until, total); next++) {
       const pv = all[next]!;
       ctx.byId.set(pv.passage.id, pv);
-      const li = renderRow(ctx, pv, highlightId === pv.passage.id);
-      li.setAttribute('aria-setsize', String(total));
-      li.setAttribute('aria-posinset', String(next + 1));
-      frag.appendChild(li);
+      const tr = renderRow(ctx, pv, highlightId === pv.passage.id);
+      tr.setAttribute('aria-rowindex', String(next + 2));
+      frag.appendChild(tr);
     }
-    list.appendChild(frag);
+    body.appendChild(frag);
   };
   build(Math.max(FIRST_ROWS, hi + 1));
   if (next >= total || typeof requestAnimationFrame !== 'function') {
@@ -281,23 +306,21 @@ function renderRowsChunked(list: HTMLElement, ctx: RowCtx, highlightId: number |
   }
   let wasConnected = false;
   const step = (): void => {
-    if (list.isConnected) wasConnected = true;
+    if (body.isConnected) wasConnected = true;
     else if (wasConnected) return; // the screen was replaced (filter change, tab switch): stop
     build(next + CHUNK_ROWS);
     if (next < total) requestAnimationFrame(step);
   };
   // Skip the frame that is being measured / painted, then fill in.
   requestAnimationFrame(() => {
-    wasConnected = list.isConnected;
+    wasConnected = body.isConnected;
     requestAnimationFrame(step);
   });
 }
 
 function renderRow(ctx: RowCtx, pv: PassageView, highlighted: boolean): HTMLElement {
   const { host, listName, now, showList } = ctx;
-  const info = verseStatus(pv, now);
   const ref = pv.passage.reference;
-  const blocks = blocksOf(ctx, pv);
 
   const open = el('button', {
     class: 'sm-verse-ref',
@@ -306,8 +329,28 @@ function renderRow(ctx: RowCtx, pv: PassageView, highlighted: boolean): HTMLElem
     attrs: { 'aria-label': tr('memory.ui.verses.openRef', 'Open {reference}', { reference: ref }) },
   });
 
-  const details = [nextReviewText(info, now)];
-  if (showList) details.push(listName.get(pv.passage.collectionId) ?? '');
+  const cells: HTMLElement[] = [
+    el('th', { class: 'kth-table__cell sm-verses-col-ref', attrs: { scope: 'row' } }, [
+      el('span', { class: 'sm-verse-main' }, [open, translationTag(pv.passage.moduleId)]),
+    ]),
+  ];
+  if (showList) {
+    cells.push(el('td', { class: 'kth-table__cell sm-verses-col-list', text: listName.get(pv.passage.collectionId) ?? '', attrs: { 'data-muted': '' } }));
+  }
+  let tabStopGiven = false;
+  for (const rung of ctx.derived.columns) {
+    const block = blockOf(ctx, pv, rung);
+    const tabStop = !tabStopGiven && block.startable;
+    if (tabStop) tabStopGiven = true;
+    cells.push(el('td', { class: 'kth-table__cell sm-verses-col-block' }, [renderBlockSquare(block, { tabStop })]));
+  }
+  cells.push(
+    el('td', {
+      class: 'kth-table__cell sm-verses-col-next',
+      text: nextReviewText(verseStatus(pv, now), now),
+      attrs: { 'data-muted': '', 'data-nowrap': '' },
+    }),
+  );
 
   const menuLabel = tr('memory.ui.verses.rowMenu', 'Actions for {reference}', { reference: ref });
   // A stand-in trigger; the real menu (five buttons) is built when it is first pressed.
@@ -320,15 +363,12 @@ function renderRow(ctx: RowCtx, pv: PassageView, highlighted: boolean): HTMLElem
         title: menuLabel,
         attrs: { 'aria-haspopup': 'menu', 'aria-expanded': 'false', 'aria-label': menuLabel },
       },
-      [el('span', { class: 'sm-menu-btn-glyph', text: '\u2026', attrs: { 'aria-hidden': 'true' } })],
+      [el('span', { class: 'sm-menu-btn-glyph', text: '…', attrs: { 'aria-hidden': 'true' } })],
     ),
   ]);
-
-  return el('li', { class: `sm-verse-row${highlighted ? ' sm-verse-row-new' : ''}`, attrs: { 'data-passage-id': String(pv.passage.id) } }, [
-    el('div', { class: 'sm-verse-line' }, [
-      el('div', { class: 'sm-verse-main' }, [open, translationTag(pv.passage.moduleId)]),
-      renderActivityBlocks(host, pv, blocks, { delegated: true }),
-      el('div', { class: 'sm-verse-acts' }, [
+  cells.push(
+    el('td', { class: 'kth-table__cell sm-verses-col-acts', attrs: { 'data-nowrap': '' } }, [
+      el('span', { class: 'sm-verse-acts' }, [
         highlighted
           ? button(tr('memory.ui.verses.practiceNow', 'Practice now'), () => practiceVerse(host, pv), {
               class: 'sm-btn sm-btn-primary sm-btn-small sm-verse-practice',
@@ -338,7 +378,11 @@ function renderRow(ctx: RowCtx, pv: PassageView, highlighted: boolean): HTMLElem
         lazyMenu,
       ]),
     ]),
-    el('div', { class: 'sm-verse-details' }, [el('span', { class: 'sm-verse-detail-text', text: details.join(' · ') })]),
-    renderActivitySummary(blocks, { lazy: true }),
-  ]);
+  );
+
+  return el(
+    'tr',
+    { class: `sm-verse-row sm-blocks${highlighted ? ' sm-verse-row-new' : ''}`, attrs: { 'data-passage-id': String(pv.passage.id) } },
+    cells,
+  );
 }

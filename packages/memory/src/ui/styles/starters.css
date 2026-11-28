@@ -1,0 +1,173 @@
+/* Memory - starter-set browser (starterBrowser.ts). Scoped under .sm-app, logical properties only. */
+
+.sm-app .sm-starters {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sm-s3);
+  max-inline-size: 48rem;
+}
+
+.sm-app .sm-starters-header {
+  display: flex;
+  align-items: center;
+  gap: var(--sm-s2);
+  flex-wrap: wrap;
+}
+
+.sm-app .sm-starters-title {
+  margin: 0;
+}
+
+.sm-app .sm-starters-hint {
+  margin: 0;
+}
+
+.sm-app .sm-starters-search-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sm-s1);
+}
+
+.sm-app .sm-starters-search-label {
+  font-weight: 600;
+  font-size: 0.92em;
+}
+
+.sm-app .sm-starters-search {
+  inline-size: 100%;
+  max-inline-size: 28rem;
+  box-sizing: border-box;
+}
+
+.sm-app .sm-starters-count {
+  margin: 0;
+  font-size: 0.88em;
+  color: var(--sm-text-dim);
+}
+
+.sm-app .sm-starters-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--sm-border);
+  border-radius: var(--sm-radius);
+  overflow: hidden;
+}
+
+.sm-app .sm-starter-item + .sm-starter-item {
+  border-block-start: 1px solid var(--sm-border);
+}
+
+.sm-app .sm-starter-row {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 2px;
+  inline-size: 100%;
+  padding: var(--sm-s2) var(--sm-s3);
+  border: 0;
+  background: transparent;
+  color: var(--sm-text);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.sm-app .sm-starter-row:hover {
+  background: var(--sm-hover);
+}
+
+.sm-app .sm-starter-row:focus-visible {
+  outline: 2px solid var(--sm-focus);
+  outline-offset: -2px;
+}
+
+.sm-app .sm-starter-row[aria-expanded='true'] {
+  background: var(--sm-surface);
+}
+
+.sm-app .sm-starter-line {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sm-s2);
+  flex-wrap: wrap;
+}
+
+.sm-app .sm-starter-name {
+  font-weight: 600;
+  color: var(--sm-heading);
+}
+
+.sm-app .sm-starter-count {
+  margin-inline-start: auto;
+  font-size: 0.88em;
+  color: var(--sm-text-dim);
+  white-space: nowrap;
+}
+
+.sm-app .sm-starter-tag {
+  font-size: 0.8em;
+  padding: 0 var(--sm-s2);
+  border-radius: 999px;
+  background: var(--sm-success-soft);
+  color: var(--sm-success-text);
+  border: 1px solid var(--sm-success-border);
+}
+
+.sm-app .sm-starter-blurb {
+  font-size: 0.92em;
+  color: var(--sm-text-dim);
+}
+
+.sm-app .sm-starter-preview {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sm-s3);
+  padding: var(--sm-s2) var(--sm-s3) var(--sm-s3);
+  background: var(--sm-surface);
+}
+
+.sm-app .sm-starter-verses {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sm-s2);
+}
+
+.sm-app .sm-starter-ref {
+  display: block;
+  font-weight: 600;
+  font-size: 0.92em;
+}
+
+.sm-app .sm-starter-passage {
+  margin: 0;
+  font-family: var(--sm-bible-font);
+  line-height: 1.6;
+}
+
+.sm-app .sm-starter-vnum {
+  font-family: var(--sm-ui-font);
+  font-size: 0.7em;
+  color: var(--sm-text-dim);
+  margin-inline-end: 2px;
+}
+
+.sm-app .sm-starter-loading {
+  margin: 0;
+  color: var(--sm-text-dim);
+  font-size: 0.92em;
+}
+
+.sm-app .sm-starter-actions {
+  display: flex;
+  gap: var(--sm-s2);
+  flex-wrap: wrap;
+}
+
+.sm-app .sm-starter-status:empty,
+.sm-app .sm-starter-text-error:empty {
+  display: none;
+}

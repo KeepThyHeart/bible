@@ -1,6 +1,7 @@
 /**
- * Memory on the web (task 0219, Round 2): Today / My verses / Lists / Progress at phone width (390x844), plus one
- * desktop-width check.
+ * Memory on the web (task 0219): the tabs Home / Practice / My verses / Settings (Lists is the first section of
+ * Settings) at phone width (390x844), plus one desktop-width check. The shared app page frame holds the one h1
+ * ("Memory"); screen headings are h2, some visually hidden.
  *
  * Runs against the accounts server (port base + 2), because Memory needs `features.localUserDb`. Chromium only:
  * the worker DB needs OPFS access handles that Playwright's WebKit build lacks. Each test gets a fresh browser
@@ -18,7 +19,7 @@ import { ACCOUNTS_URL } from '../ports';
 
 const PHONE = { width: 390, height: 844 };
 const DESKTOP = { width: 1280, height: 800 };
-const TABS = ['Today', 'My verses', 'Lists', 'Progress'] as const;
+const TABS = ['Home', 'Practice', 'My verses', 'Settings'] as const;
 
 test.beforeEach(({}, testInfo) => {
   test.setTimeout(120_000);
@@ -154,6 +155,12 @@ async function practiceInUi(page: Page): Promise<void> {
   await expect(mem.getByRole('button', { name: 'Finish' })).toHaveCount(0);
 }
 
+/** Opens the Settings tab, whose first section is Lists. */
+async function openListsSection(mem: Locator): Promise<void> {
+  await mem.getByRole('tab', { name: 'Settings', exact: true }).click();
+  await expect(mem.locator('section.sm-lists').getByRole('heading', { name: 'Lists', level: 2 })).toBeVisible();
+}
+
 async function listOrder(page: Page): Promise<string[]> {
   return (await memory(page).locator('.sm-order-row .sm-order-ref').allTextContents()).map((t) => t.trim());
 }
@@ -172,7 +179,10 @@ test.describe('Memory on the web (phone width)', () => {
     for (const name of TABS) {
       await mem.getByRole('tab', { name, exact: true }).click();
       await expect(mem.getByRole('tab', { name, exact: true })).toHaveAttribute('aria-selected', 'true');
-      await expect(mem.locator('h1').first()).toBeVisible();
+      // One page h1; the screen's own heading is an h2 (visually hidden on Home and My verses).
+      await expect(mem.locator('h1')).toHaveCount(1);
+      await expect(mem.locator('h1.kth-app-page__title')).toHaveText('Memory');
+      await expect(mem.locator('[role="tabpanel"] h2').first()).toBeAttached();
       await expectTabsInView(page, mem);
       await expectNoHorizontalScroll(page);
     }
@@ -181,7 +191,10 @@ test.describe('Memory on the web (phone width)', () => {
   test('first open: the welcome screen fits and "Add and start" begins a practice with one result message', async ({ page }) => {
     const mem = await openMemory(page);
     await expectTabsInView(page, mem);
-    await expect(mem.getByRole('heading', { name: 'Learn Scripture by heart' })).toBeVisible();
+    // First open: Home shows the welcome, the add form and "Browse starter sets".
+    await expect(mem.getByRole('tab', { name: 'Home', exact: true })).toHaveAttribute('aria-selected', 'true');
+    await expect(mem.getByRole('heading', { name: 'Learn Scripture by heart', level: 2 })).toBeVisible();
+    await expect(mem.getByRole('button', { name: 'Browse starter sets' })).toBeVisible();
     await expectNoHorizontalScroll(page);
     await mem.getByRole('textbox', { name: 'Verse to memorize' }).fill('John 3:16');
     await mem.getByRole('button', { name: 'Add and start' }).click();
@@ -199,7 +212,9 @@ test.describe('Memory on the web (phone width)', () => {
       await addVerse(page, 'Psalm 23:1', psalms);
     });
     await mem.getByRole('tab', { name: 'My verses', exact: true }).click();
-    await expect(mem.getByRole('heading', { name: 'My verses', level: 1 })).toBeVisible();
+    // Visually hidden h2 (the tab names the screen).
+    await expect(mem.getByRole('heading', { name: 'My verses', level: 2 })).toBeAttached();
+    await expect(mem.locator('table.kth-table.sm-verses-table')).toBeVisible();
     await expect(mem.locator('.sm-verse-row')).toHaveCount(3);
     await expectNoHorizontalScroll(page);
 
@@ -229,14 +244,14 @@ test.describe('Memory on the web (phone width)', () => {
     await expect(mem.locator('.sm-verse-row', { hasText: 'John 3:18' })).toBeVisible();
   });
 
-  test('Lists: reorder with Move up, and the stored order survives a reload', async ({ page }) => {
+  test('Settings > Lists: reorder with Move up, and the stored order survives a reload', async ({ page }) => {
     const mem = await openSeeded(page, async () => {
       const core = await createListApi(page, 'Core');
       await addVerse(page, 'John 3:16', core);
       await addVerse(page, 'John 3:17', core);
       await addVerse(page, 'John 3:18', core);
     });
-    await mem.getByRole('tab', { name: 'Lists', exact: true }).click();
+    await openListsSection(mem);
     await mem.locator('.sm-list-row', { hasText: 'Core' }).locator('.sm-list-pick').click();
     await expect.poll(() => listOrder(page)).toEqual(['John 3:16', 'John 3:17', 'John 3:18']);
     await expectNoHorizontalScroll(page);
@@ -245,7 +260,7 @@ test.describe('Memory on the web (phone width)', () => {
     await expect.poll(() => listOrder(page)).toEqual(['John 3:18', 'John 3:16', 'John 3:17']);
 
     const again = await reloadMemory(page);
-    await again.getByRole('tab', { name: 'Lists', exact: true }).click();
+    await openListsSection(again);
     await again.locator('.sm-list-row', { hasText: 'Core' }).locator('.sm-list-pick').click();
     await expect.poll(() => listOrder(page)).toEqual(['John 3:18', 'John 3:16', 'John 3:17']);
   });
@@ -255,6 +270,7 @@ test.describe('Memory on the web (phone width)', () => {
       await addVerse(page, 'John 3:16');
       await addVerse(page, 'John 3:17');
     });
+    await mem.getByRole('tab', { name: 'Practice', exact: true }).click();
     await mem.getByRole('button', { name: 'Start', exact: true }).click();
     await expect(mem.getByRole('heading', { name: /John 3:16/ })).toBeVisible();
     await expect(mem.getByRole('progressbar', { name: 'Practice queue' })).toBeVisible();
@@ -284,10 +300,11 @@ test.describe('Memory on the web (phone width)', () => {
     await dialog.getByRole('button', { name: 'Add', exact: true }).click();
     await expect(dialog).toBeHidden();
 
-    // Memory opens on Today with the "Added ... Practice now" row.
+    // Memory opens on Home with the "Added ... Practice now" row.
     const mem = memory(page);
     await expect(mem.getByRole('tablist', { name: 'Memory' })).toBeVisible({ timeout: 15_000 });
-    const offer = mem.locator('.sm-today-offer');
+    await expect(mem.getByRole('tab', { name: 'Home', exact: true })).toHaveAttribute('aria-selected', 'true');
+    const offer = mem.locator('.sm-home-offer');
     await expect(offer).toBeVisible();
     await expect(offer).toContainText(/Added .* to Memory/);
     await expectNoHorizontalScroll(page);
@@ -299,7 +316,7 @@ test.describe('Memory on the web (phone width)', () => {
 test.describe('Memory on the web (desktop width)', () => {
   test.use({ viewport: DESKTOP });
 
-  test('four tabs visible, no horizontal scroll, Today starts a verse', async ({ page }) => {
+  test('four tabs visible, no horizontal scroll, Practice starts a verse', async ({ page }) => {
     const mem = await openSeeded(page, async () => {
       await addVerse(page, 'John 3:16');
     });
@@ -309,7 +326,7 @@ test.describe('Memory on the web (desktop width)', () => {
       await mem.getByRole('tab', { name, exact: true }).click();
       await expect(mem.getByRole('tab', { name, exact: true })).toHaveAttribute('aria-selected', 'true');
     }
-    await mem.getByRole('tab', { name: 'Today', exact: true }).click();
+    await mem.getByRole('tab', { name: 'Practice', exact: true }).click();
     await mem.getByRole('button', { name: 'Start', exact: true }).click();
     await expect(mem.getByRole('heading', { name: /John 3:16/ })).toBeVisible();
   });
@@ -358,13 +375,14 @@ test.describe('Memory performance (web)', () => {
     const refs = references(PERF_VERSES);
     for (const reference of refs) await addVerse(page, reference);
     const mem = await reloadMemory(page);
-    await expect(mem.locator('h1').first()).toBeVisible();
+    await expect(mem.locator('[role="tabpanel"] h2').first()).toBeAttached();
     await page.evaluate(() => performance.clearMeasures());
 
-    const screens: Record<string, string> = { Today: 'today', 'My verses': 'verses', Lists: 'lists', Progress: 'progress' };
+    // Tab label -> `memory:screen:<view name>` (the Practice tab's view is `queue`).
+    const screens: Record<string, string> = { Home: 'home', Practice: 'queue', 'My verses': 'verses', Settings: 'settings' };
     const samples: Array<{ tab: string; ms: number; requests: number; longTasks: number; first: boolean }> = [];
-    // Leave the tab we start on so every click is a real switch.
-    await mem.getByRole('tab', { name: 'Progress', exact: true }).click();
+    // Leave the tab we start on (Home) so every click is a real switch.
+    await mem.getByRole('tab', { name: 'Settings', exact: true }).click();
     for (let cycle = 0; cycle < CYCLES; cycle++) {
       for (const name of TABS) {
         const screen = screens[name]!;

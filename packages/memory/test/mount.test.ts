@@ -20,25 +20,25 @@ vi.mock('../src/ui/practiceView', () => ({
   },
 }));
 
-vi.mock('../src/ui/analyticsView', () => ({
-  renderAnalytics: () => {
+// Home is tested on its own; here it only has to render a heading and show what it was given
+// (`plan` is the Practice-focus plan it is handed).
+const todayButtons = { id: false, passage: false };
+const todayCalls: Array<{ plan: PlanView; extras: any }> = [];
+vi.mock('../src/ui/todayView', () => ({
+  renderToday: () => {
     const s = document.createElement('section');
-    const h = document.createElement('h1');
-    h.textContent = 'Progress';
+    const h = document.createElement('h2');
+    h.textContent = 'Practice';
     s.appendChild(h);
     return s;
   },
 }));
-
-// Today is written separately; here it only has to render a heading and show what it was given.
-const todayButtons = { id: false, passage: false };
-const todayCalls: Array<{ plan: PlanView; extras: any }> = [];
-vi.mock('../src/ui/todayView', () => ({
-  renderToday: (_host: unknown, plan: PlanView, extras: unknown) => {
+vi.mock('../src/ui/homeView', () => ({
+  renderHome: (_host: unknown, _all: PlanView, plan: PlanView, extras: unknown) => {
     todayCalls.push({ plan, extras });
     const s = document.createElement('section');
-    const h = document.createElement('h1');
-    h.textContent = 'Today';
+    const h = document.createElement('h2');
+    h.textContent = 'Home';
     s.appendChild(h);
     if (todayButtons.id) {
       const b = document.createElement('button');
@@ -153,7 +153,7 @@ describe('mountMemoryUi', () => {
     expect(c.querySelector('.sm-main [role="tablist"], .sm-main [role="tab"]')).not.toBeNull();
     await vi.advanceTimersByTimeAsync(1600);
     for (let i = 0; i < 30; i++) await Promise.resolve();
-    expect(c.querySelector('.sm-main h1')).not.toBeNull();
+    expect(c.querySelector('.sm-main h2')).not.toBeNull();
   });
 
   it('sends refreshSpeech after My verses renders (and force from Settings)', async () => {
@@ -180,6 +180,7 @@ describe('mountMemoryUi', () => {
     expect(status.getAttribute('aria-live')).toBe('polite');
     await flush();
     expect(c.querySelector('.sm-main h1')).not.toBeNull();
+    expect(c.querySelector('.sm-main h2')!.textContent).toBe('Home');
   });
 
   it('dispose unsubscribes and empties the container', async () => {
@@ -338,7 +339,7 @@ describe('mountMemoryUi same-screen refresh', () => {
     expect(document.activeElement?.closest('[data-passage-id]')?.getAttribute('data-passage-id')).toBe('7');
   });
 
-  it('falls back to the h1 when the focused element is gone', async () => {
+  it('falls back to the screen heading when the focused element is gone', async () => {
     todayButtons.id = true;
     const c = makeContainer();
     const bus = fakeBus();
@@ -348,11 +349,11 @@ describe('mountMemoryUi same-screen refresh', () => {
     todayButtons.id = false;
     bus.emit({ type: 'planChanged' } as MemoryPush);
     await flush();
-    expect(document.activeElement).toBe(c.querySelector('h1'));
+    expect(document.activeElement).toBe(c.querySelector('[role="tabpanel"] h2'));
   });
 });
 
-describe('mountMemoryUi today extras', () => {
+describe('mountMemoryUi home extras', () => {
   it('passes the all-lists started-today count and asks for no analytics', async () => {
     const c = makeContainer();
     const getAnalytics = vi.fn(async () => ({ streakDays: 12 }));
@@ -361,7 +362,6 @@ describe('mountMemoryUi today extras', () => {
     await flush();
     const last = todayCalls[todayCalls.length - 1]!;
     expect(last.extras.startedToday).toBe(0);
-    expect(last.extras.streak).toBeUndefined();
     expect(getAnalytics).not.toHaveBeenCalled();
   });
 
@@ -384,7 +384,7 @@ describe('mountMemoryUi today extras', () => {
     release(plan());
     await flush();
     expect(c.querySelector('[role="tabpanel"]')!.hasAttribute('aria-busy')).toBe(false);
-    expect(c.querySelector('h1')!.textContent).toBe('Today');
+    expect(c.querySelector('[role="tabpanel"] h2')!.textContent).toBe('Home');
   });
 
   it('a tab switch after the first load sends no request', async () => {
@@ -402,15 +402,19 @@ describe('mountMemoryUi today extras', () => {
     expect(api.getPlan.mock.calls.length).toBe(calls);
   });
 
-  it('the Lists tab draws from the cache inside the shell', async () => {
+  it('the Settings tab draws the Lists section from the cache', async () => {
     const c = makeContainer();
-    const api = fakeApi();
+    const api = fakeApi({
+      getSettings: vi.fn(async () => ({ defaultAnswerMode: 'firstLetter' })),
+      getPushSettings: vi.fn(async () => { throw new Error('x'); }),
+      getImportStatus: vi.fn(async () => null),
+    });
     mountMemoryUi(c, { api, subscribe: fakeBus().subscribe });
     await flush();
     const calls = api.getPlan.mock.calls.length;
-    c.querySelector<HTMLElement>('[role="tab"]:nth-child(3)')!.click();
+    c.querySelector<HTMLElement>('[role="tab"]:nth-child(4)')!.click();
     await flush();
-    expect(c.querySelector('[role="tab"][aria-selected="true"]')!.textContent).toBe('Lists');
+    expect(c.querySelector('[role="tab"][aria-selected="true"]')!.textContent).toBe('Settings');
     expect(c.querySelector('.sm-lists')).not.toBeNull();
     expect(api.getPlan.mock.calls.length).toBe(calls);
   });
@@ -440,7 +444,7 @@ describe('mountMemoryUi today extras', () => {
     });
     mountMemoryUi(c, { api, subscribe: bus.subscribe });
     await flush();
-    c.querySelector<HTMLElement>('.sm-shell-gear')!.click();
+    c.querySelector<HTMLElement>('[role="tab"]:nth-child(4)')!.click();
     await flush();
     const box = c.querySelector<HTMLInputElement>('input[type="checkbox"]')!;
     box.setAttribute('data-keep', '1');
@@ -467,20 +471,56 @@ describe('mountMemoryUi today extras', () => {
 });
 
 describe('mountMemoryUi shell', () => {
-  it('wraps Today in a real tablist and tabpanel', async () => {
+  it('wraps Home in the shared app page: one h1, a real tablist and tabpanel', async () => {
     const c = makeContainer();
     mountMemoryUi(c, { api: fakeApi(), subscribe: fakeBus().subscribe });
     await flush();
+    expect(c.querySelector('.kth-app-page .kth-app-page__column')).not.toBeNull();
+    expect(c.querySelectorAll('h1')).toHaveLength(1);
+    expect(c.querySelector('h1')!.textContent).toBe('Memory');
     const tabs = [...c.querySelectorAll<HTMLElement>('[role="tablist"] [role="tab"]')];
-    expect(tabs.map((t) => t.textContent)).toEqual(['Today', 'My verses', 'Lists', 'Progress']);
+    expect(tabs.map((t) => t.textContent)).toEqual(['Home', 'Practice', 'My verses', 'Settings']);
     expect(tabs.map((t) => t.getAttribute('aria-selected'))).toEqual(['true', 'false', 'false', 'false']);
     expect(tabs.map((t) => t.tabIndex)).toEqual([0, -1, -1, -1]);
     const panel = c.querySelector('[role="tabpanel"]')!;
-    expect(panel.querySelector('h1')).not.toBeNull();
+    expect(panel.querySelector('h2')).not.toBeNull();
     expect(panel.getAttribute('aria-labelledby')).toBe(tabs[0]!.id);
   });
 
-  it('hands Today the plan, the reminder count and the just-added verse', async () => {
+  it('puts the host title and actions in the title row', async () => {
+    const c = makeContainer();
+    const onClick = vi.fn();
+    mountMemoryUi(c, { api: fakeApi(), subscribe: fakeBus().subscribe, title: 'Scripture Memory', actions: [{ label: 'Back to Study', onClick }] });
+    await flush();
+    expect(c.querySelector('h1')!.textContent).toBe('Scripture Memory');
+    c.querySelector<HTMLElement>('.kth-app-page__actions button')!.click();
+    expect(onClick).toHaveBeenCalled();
+  });
+
+  it('keeps the tabs while practicing; a tab click ends the session and refreshes', async () => {
+    const c = makeContainer();
+    const endSession = vi.fn(async () => ({}));
+    const startSession = vi.fn(async () => ({ sessionId: 's1', passageId: 4, rung: 'blanks' }));
+    const api = fakeApi({ startSession, endSession });
+    const handle = mountMemoryUi(c, { api, subscribe: fakeBus().subscribe });
+    await flush();
+    c.querySelector<HTMLElement>('[role="tab"]:nth-child(3)')!.click();
+    await flush();
+    handle.practice(4);
+    await flush();
+    // Started from My verses: practice shows under that tab, with the tab bar still there.
+    expect(c.querySelector('[role="tab"][aria-selected="true"]')!.textContent).toBe('My verses');
+    expect(c.querySelector('[role="tabpanel"] .sm-practice-holder')).not.toBeNull();
+    const plans = api.getPlan.mock.calls.length;
+    c.querySelector<HTMLElement>('[role="tab"]:nth-child(2)')!.click();
+    await flush();
+    expect(endSession).toHaveBeenCalledWith({ sessionId: 's1' });
+    expect(c.querySelector('.sm-practice-holder')).toBeNull();
+    expect(c.querySelector('[role="tab"][aria-selected="true"]')!.textContent).toBe('Practice');
+    expect(api.getPlan.mock.calls.length).toBeGreaterThan(plans);
+  });
+
+  it('hands Home the plan, the reminder count and the just-added verse', async () => {
     const c = makeContainer();
     const api = fakeApi({ getPlan: vi.fn(async () => ({ ...plan(), cardsWaiting: 3 })) });
     mountMemoryUi(c, { api, subscribe: fakeBus().subscribe, justAdded: { passageId: 5, reference: 'John 3:16' } });
@@ -492,35 +532,18 @@ describe('mountMemoryUi shell', () => {
 
   it('moves focus to the heading on a new screen, but keeps it on a tab that was activated', async () => {
     const c = makeContainer();
-    const api = fakeApi({ getAnalytics: vi.fn(async () => ({})) });
+    const api = fakeApi();
     mountMemoryUi(c, { api, subscribe: fakeBus().subscribe });
     await flush();
-    expect(document.activeElement).toBe(c.querySelector('h1'));
+    expect(document.activeElement).toBe(c.querySelector('[role="tabpanel"] h2'));
 
-    const progress = c.querySelector<HTMLElement>('[role="tab"]:nth-child(4)')!;
+    const progress = c.querySelector<HTMLElement>('[role="tab"]:nth-child(2)')!;
     progress.focus();
     progress.click();
     await flush();
     expect(c.querySelector('[role="tab"][aria-selected="true"]')!.id).toBe(progress.id);
     expect(document.activeElement?.getAttribute('role')).toBe('tab');
     expect(document.activeElement?.id).toBe(progress.id);
-  });
-
-  it('the gear opens settings and is marked current there', async () => {
-    const c = makeContainer();
-    const api = fakeApi({
-      getSettings: vi.fn(async () => ({ defaultAnswerMode: 'firstLetter' })),
-      getPushSettings: vi.fn(async () => { throw new Error('x'); }),
-      getImportStatus: vi.fn(async () => null),
-    });
-    mountMemoryUi(c, { api, subscribe: fakeBus().subscribe });
-    await flush();
-    const gear = c.querySelector<HTMLElement>('.sm-shell-gear')!;
-    expect(gear.hasAttribute('aria-current')).toBe(false);
-    gear.click();
-    await flush();
-    expect(api.getSettings).toHaveBeenCalled();
-    expect(c.querySelector('.sm-shell-gear')!.getAttribute('aria-current')).toBe('page');
   });
 
   it('settings reads the cached all-lists plan (no plan request)', async () => {
@@ -533,7 +556,7 @@ describe('mountMemoryUi shell', () => {
     mountMemoryUi(c, { api, subscribe: fakeBus().subscribe });
     await flush();
     api.getPlan.mockClear();
-    c.querySelector<HTMLElement>('.sm-shell-gear')!.click();
+    c.querySelector<HTMLElement>('[role="tab"]:nth-child(4)')!.click();
     await flush();
     expect(api.getPlan.mock.calls).toEqual([]);
   });
@@ -546,28 +569,32 @@ describe('mountMemoryUi shell', () => {
     const api = fakeApi({ getPlan: vi.fn(async () => scoped), setScope });
     mountMemoryUi(c, { api, subscribe: fakeBus().subscribe });
     await flush();
+    // The chip belongs to the Practice tab.
+    expect(c.querySelector('.sm-shell-chip')).toBeNull();
+    c.querySelector<HTMLElement>('[role="tab"]:nth-child(2)')!.click();
+    await flush();
     expect(c.querySelector('.sm-shell-chip')!.textContent).toContain('Focus: Psalms');
     c.querySelector<HTMLElement>('.sm-shell-chip-clear')!.click();
     await flush();
     expect(setScope).toHaveBeenCalledWith({ scope: { kind: 'all' } });
   });
 
-  it('has no chip when focus is all lists, and none on Progress', async () => {
+  it('has no chip when focus is all lists', async () => {
     const c = makeContainer();
     mountMemoryUi(c, { api: fakeApi(), subscribe: fakeBus().subscribe });
     await flush();
     expect(c.querySelector('.sm-shell-chip')).toBeNull();
   });
 
-  it("accepts initialView 'plan' as Today", async () => {
+  it("accepts initialView 'plan' as Home", async () => {
     const c = makeContainer();
     const api = fakeApi();
     mountMemoryUi(c, { api, subscribe: fakeBus().subscribe, initialView: 'plan' });
     await flush();
-    expect(c.querySelector('[role="tab"][aria-selected="true"]')!.textContent).toBe('Today');
+    expect(c.querySelector('[role="tab"][aria-selected="true"]')!.textContent).toBe('Home');
   });
 
-  it('offerPractice redraws Today with the offer row data', async () => {
+  it('offerPractice redraws Home with the offer row data', async () => {
     const c = makeContainer();
     const handle = mountMemoryUi(c, { api: fakeApi(), subscribe: fakeBus().subscribe });
     await flush();
@@ -594,11 +621,11 @@ describe('mountMemoryUi shell', () => {
     mountMemoryUi(c, { api: fakeApi({ startSession }), subscribe: fakeBus().subscribe, initialPractice: 4 });
     await flush();
     expect(startSession).toHaveBeenCalledWith({ passageId: 4 });
-    // The start failed, so Today still appears.
+    // The start failed, so Home still appears.
     expect(c.querySelector('[role="tablist"]')).not.toBeNull();
   });
 
-  it('re-renders Today when the local day changes (focus event), not before', async () => {
+  it('re-renders Home when the local day changes (focus event), not before', async () => {
     let t = new Date(2026, 10, 10, 12, 0, 0).getTime();
     const c = makeContainer();
     const api = fakeApi();

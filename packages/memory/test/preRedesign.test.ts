@@ -143,7 +143,7 @@ describe('a pre-redesign database', () => {
     } as unknown as PanelHost;
     const root = renderToday(host, plan, {});
     const text = (root.textContent ?? '').replace(/\s+/g, ' ');
-    expect(root.querySelector('h1')?.textContent).toBe('Today');
+    expect(root.querySelector('h2')?.textContent).toBe('Practice');
     expect(text).toContain('1 to review, 2 new');
     expect(text).toContain('John 3:16');
     expect(text).not.toContain('Genesis 1:1');
